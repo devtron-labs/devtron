@@ -12,6 +12,7 @@ import (
 	"github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	yamlUtil "github.com/devtron-labs/devtron/util/yaml"
@@ -37,7 +38,7 @@ type K8sApplicationService interface {
 	GetResource(ctx context.Context, request *ResourceRequestBean) (resp *application.ManifestResponse, err error)
 	CreateResource(ctx context.Context, request *ResourceRequestBean) (resp *application.ManifestResponse, err error)
 	UpdateResource(ctx context.Context, request *ResourceRequestBean) (resp *application.ManifestResponse, err error)
-	DeleteResource(ctx context.Context, request *ResourceRequestBean) (resp *application.ManifestResponse, err error)
+	DeleteResource(ctx context.Context, request *ResourceRequestBean, userId int32) (resp *application.ManifestResponse, err error)
 	ListEvents(ctx context.Context, request *ResourceRequestBean) (*application.EventsResponse, error)
 	GetPodLogs(ctx context.Context, request *ResourceRequestBean) (io.ReadCloser, error)
 	ValidateResourceRequest(ctx context.Context, appIdentifier *client.AppIdentifier, request *application.K8sRequestBean) (bool, error)
@@ -61,6 +62,7 @@ type K8sApplicationServiceImpl struct {
 	K8sUtil                     *util.K8sUtil
 	aCDAuthConfig               *util3.ACDAuthConfig
 	K8sApplicationServiceConfig *K8sApplicationServiceConfig
+	K8sResourceHistoryService   kubernetesResourceAuditLogs.K8sResourceHistoryService
 }
 
 type K8sApplicationServiceConfig struct {
@@ -71,7 +73,8 @@ type K8sApplicationServiceConfig struct {
 func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger,
 	clusterService cluster.ClusterService,
 	pump connector.Pump, k8sClientService application.K8sClientService,
-	helmAppService client.HelmAppService, K8sUtil *util.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig) *K8sApplicationServiceImpl {
+	helmAppService client.HelmAppService, K8sUtil *util.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig,
+	K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService) *K8sApplicationServiceImpl {
 	cfg := &K8sApplicationServiceConfig{}
 	err := env.Parse(cfg)
 	if err != nil {
@@ -86,6 +89,7 @@ func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger,
 		K8sUtil:                     K8sUtil,
 		aCDAuthConfig:               aCDAuthConfig,
 		K8sApplicationServiceConfig: cfg,
+		K8sResourceHistoryService:   K8sResourceHistoryService,
 	}
 }
 
@@ -359,7 +363,7 @@ func (impl *K8sApplicationServiceImpl) UpdateResource(ctx context.Context, reque
 	return resp, nil
 }
 
-func (impl *K8sApplicationServiceImpl) DeleteResource(ctx context.Context, request *ResourceRequestBean) (*application.ManifestResponse, error) {
+func (impl *K8sApplicationServiceImpl) DeleteResource(ctx context.Context, request *ResourceRequestBean, userId int32) (*application.ManifestResponse, error) {
 	//getting rest config by clusterId
 	clusterId := request.ClusterId
 	restConfig, err := impl.GetRestConfigByClusterId(ctx, clusterId)
@@ -371,6 +375,11 @@ func (impl *K8sApplicationServiceImpl) DeleteResource(ctx context.Context, reque
 	if err != nil {
 		impl.logger.Errorw("error in deleting resource", "err", err, "request", request)
 		return nil, err
+	}
+	saveAuditLogsErr := impl.K8sResourceHistoryService.SaveHelmAppsResourceHistory(request.AppIdentifier, request.K8sRequest, userId, "delete")
+
+	if saveAuditLogsErr != nil {
+		impl.logger.Errorw("error in saving audit logs for delete resource request", "err", err)
 	}
 	return resp, nil
 }

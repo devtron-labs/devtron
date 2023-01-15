@@ -140,6 +140,7 @@ type AppServiceImpl struct {
 	pipelineStatusSyncDetailService        PipelineStatusSyncDetailService
 	pipelineStatusTimelineService          PipelineStatusTimelineService
 	appStatusConfig                        *AppStatusConfig
+	gitOpsConfigRepository                 repository.GitOpsConfigRepository
 }
 
 type AppService interface {
@@ -194,7 +195,8 @@ func NewAppService(
 	pipelineStatusTimelineResourcesService PipelineStatusTimelineResourcesService,
 	pipelineStatusSyncDetailService PipelineStatusSyncDetailService,
 	pipelineStatusTimelineService PipelineStatusTimelineService,
-	appStatusConfig *AppStatusConfig) *AppServiceImpl {
+	appStatusConfig *AppStatusConfig,
+	gitOpsConfigRepository repository.GitOpsConfigRepository) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:            environmentConfigRepository,
 		mergeUtil:                              mergeUtil,
@@ -245,6 +247,7 @@ func NewAppService(
 		pipelineStatusSyncDetailService:        pipelineStatusSyncDetailService,
 		pipelineStatusTimelineService:          pipelineStatusTimelineService,
 		appStatusConfig:                        appStatusConfig,
+		gitOpsConfigRepository:                 gitOpsConfigRepository,
 	}
 	return appServiceImpl
 }
@@ -1667,8 +1670,17 @@ func (impl *AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverr
 			UserName:       userName,
 			UserEmailId:    userEmailId,
 		}
+		gitOpsConfigBitbucket, err := impl.gitOpsConfigRepository.GetGitOpsConfigByProvider(BITBUCKET_PROVIDER)
+		if err != nil {
+			if err == pg.ErrNoRows {
+				gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
+			} else {
+				return 0, 0, "", err
+			}
+		}
+		gitOpsConfig := &bean.GitOpsConfigDto{BitBucketWorkspaceId: gitOpsConfigBitbucket.BitBucketWorkspaceId}
 		_, span = otel.Tracer("orchestrator").Start(ctx, "gitFactory.Client.CommitValues")
-		commitHash, commitTime, err = impl.gitFactory.Client.CommitValues(chartGitAttr)
+		commitHash, commitTime, err = impl.gitFactory.Client.CommitValues(chartGitAttr, gitOpsConfig)
 		span.End()
 		if err != nil {
 			impl.logger.Errorw("error in git commit", "err", err)
