@@ -22,31 +22,40 @@ It packages third party components like
 
 ## How to use it
 
-### Install with Helm
+### Install with Helm (Stable)
+
+Follow the given steps to install devtron stable release on your kubernetes cluster
+
+```bash
+$ helm repo add devtron https://helm.devtron.ai
+$ #modify values in values.yaml
+$ helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd -f values.yaml
+```
+For more details about configuration see the [helm chart configuration](#configuration)
+
+### Install with Helm (Beta)
+
+We also release beta versions of devtron every few days before the stable release for people who would like to explore and test beta features before everyone else. If you want to install a fresh devtron from beta release channel, use the chart in our official devtron repository.
 
 This chart is currently not available on the official helm repository therefore you need to download it to install it.
 
 ```bash
-$ git clone [https://github.com/devtron-labs/devtron-installation-script.git](https://github.com/devtron-labs/devtron-installation-script.git)
-$ cd devtron-installation-script/charts
+$ git clone [https://github.com/devtron-labs/devtron.git](https://github.com/devtron-labs/devtron.git)
+$ cd devtron/charts/devtron
 $ #modify values in values.yaml
-$ helm install devtron . -f values.yaml
+$ helm install devtron . --create-namespace --namespace devtroncd -f values.yaml
+```
+
+To upgrade your existing devtron installation to beta, use helm upgrade.
+
+```bash
+$ git clone [https://github.com/devtron-labs/devtron.git](https://github.com/devtron-labs/devtron.git)
+$ cd devtron/charts/devtron
+$ #modify values in values.yaml
+$ helm upgrade devtron . --namespace devtroncd -f values.yaml
 ```
 For more details about configuration see the [helm chart configuration](#configuration)
 
-### Install with kubectl
-
-If you don't want to install helm on your cluster and just want to use `kubectl` to install `devtron platform`, then please follow following steps:
-
-```bash
-$ git clone [https://github.com/devtron-labs/devtron-installation-script.git](https://github.com/devtron-labs/devtron-installation-script.git)
-$ cd devtron-installation-script/charts/template
-$ kubectl apply -n devtroncd -f charts/template/install.yaml
-$ # wait for it to finish
-$ #edit charts/template/configmap-secret.yaml
-$ kubectl apply -n devtroncd -f charts/template/configmap-secret.yaml
-$ kubectl apply -n devtroncd -f charts/template/devtron-installer.yaml
-```
 ### Access devtron dashboard
 
 devtron dashboard in now available at the `BASE_URL/dashboard`, where `BASE_URL` is same as provided in `values.yaml` in case of installation via helm chart OR provided in `charts/template/configmap-secret.yaml` in case of installation via kubectl.
