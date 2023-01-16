@@ -8,6 +8,7 @@ import (
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/client/k8s/application"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
@@ -70,6 +71,7 @@ type HelmAppServiceImpl struct {
 	environmentService                   cluster.EnvironmentService
 	pipelineRepository                   pipelineConfig.PipelineRepository
 	installedAppRepository               repository.InstalledAppRepository
+	appRepository                        app.AppRepository
 }
 
 func NewHelmAppServiceImpl(Logger *zap.SugaredLogger,
@@ -77,7 +79,7 @@ func NewHelmAppServiceImpl(Logger *zap.SugaredLogger,
 	helmAppClient HelmAppClient,
 	pump connector.Pump, enforcerUtil rbac.EnforcerUtilHelm, serverDataStore *serverDataStore.ServerDataStore,
 	serverEnvConfig *serverEnvConfig.ServerEnvConfig, appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
-	environmentService cluster.EnvironmentService, pipelineRepository pipelineConfig.PipelineRepository, installedAppRepository repository.InstalledAppRepository) *HelmAppServiceImpl {
+	environmentService cluster.EnvironmentService, pipelineRepository pipelineConfig.PipelineRepository, installedAppRepository repository.InstalledAppRepository, appRepository app.AppRepository) *HelmAppServiceImpl {
 	return &HelmAppServiceImpl{
 		logger:                               Logger,
 		clusterService:                       clusterService,
@@ -90,6 +92,7 @@ func NewHelmAppServiceImpl(Logger *zap.SugaredLogger,
 		environmentService:                   environmentService,
 		pipelineRepository:                   pipelineRepository,
 		installedAppRepository:               installedAppRepository,
+		appRepository:                        appRepository,
 	}
 }
 
@@ -711,7 +714,7 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *Deploy
 		appList.ErrorMsg = &deployedApps.ErrorMsg
 	} else {
 		var HelmApps []openapi.HelmApp
-		projectId := int32(0) //TODO pick from db
+		//projectId := int32(0) //TODO pick from db
 		for _, deployedapp := range deployedApps.DeployedAppDetail {
 
 			// do not add app in the list which are created using cd_pipelines (check combination of clusterId, namespace, releaseName)
@@ -739,8 +742,14 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *Deploy
 				continue
 			}
 			// end
-
 			lastDeployed := deployedapp.LastDeployed.AsTime()
+			appDetails, appFetchErr := impl.appRepository.FindActiveByName(deployedapp.AppName)
+			projectId := int32(0)
+			if appFetchErr == nil {
+				projectId = int32(appDetails.TeamId)
+			} else {
+				impl.logger.Debugw("error in fetching Project Id from app repo", "err", appFetchErr)
+			}
 			helmApp := openapi.HelmApp{
 				AppName:        &deployedapp.AppName,
 				AppId:          &deployedapp.AppId,
@@ -754,8 +763,8 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *Deploy
 					ClusterId:   &deployedapp.EnvironmentDetail.ClusterId,
 				},
 			}
-			rbacObject := impl.enforcerUtil.GetHelmObjectByClusterId(int(deployedapp.EnvironmentDetail.ClusterId), deployedapp.EnvironmentDetail.Namespace, deployedapp.AppName)
-			isValidAuth := helmAuth(token, rbacObject)
+			rbacObject, rbacObject2 := impl.enforcerUtil.GetHelmObjectByClusterIdNamespaceAndAppName(int(deployedapp.EnvironmentDetail.ClusterId), deployedapp.EnvironmentDetail.Namespace, deployedapp.AppName)
+			isValidAuth := helmAuth(token, rbacObject) || helmAuth(token, rbacObject2)
 			if isValidAuth {
 				HelmApps = append(HelmApps, helmApp)
 			}

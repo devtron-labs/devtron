@@ -87,6 +87,8 @@ func (impl AppStoreDeploymentCommonServiceImpl) convert(chart *repository.Instal
 		EnvironmentId:         chart.EnvironmentId,
 		Id:                    chart.Id,
 		AppId:                 chart.AppId,
+		TeamId:                chart.App.TeamId,
+		TeamName:              chart.App.Team.Name,
 		AppOfferingMode:       chart.App.AppOfferingMode,
 		ClusterId:             chart.Environment.ClusterId,
 		Namespace:             chart.Environment.Namespace,

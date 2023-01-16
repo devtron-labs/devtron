@@ -2,6 +2,7 @@ package util
 
 import (
 	"fmt"
+	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/go-pg/pg"
 	"github.com/ktrysmt/go-bitbucket"
@@ -39,47 +40,25 @@ func NewGitBitbucketClient(username, token, host string, logger *zap.SugaredLogg
 	}
 }
 
-func (impl GitBitbucketClient) DeleteRepository(name string) error {
-	gitOpsConfigBitbucket, err := impl.gitOpsConfigRepository.GetGitOpsConfigByProvider(BITBUCKET_PROVIDER)
-	if err != nil {
-		if err == pg.ErrNoRows {
-			gitOpsConfigBitbucket = &repository.GitOpsConfig{}
-			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
-			gitOpsConfigBitbucket.BitBucketProjectKey = ""
-		} else {
-			impl.logger.Errorw("error in fetching gitOps bitbucket config", "err", err)
-			return err
-		}
-	}
+func (impl GitBitbucketClient) DeleteRepository(config *bean2.GitOpsConfigDto) error {
 	repoOptions := &bitbucket.RepositoryOptions{
-		Owner:     gitOpsConfigBitbucket.BitBucketWorkspaceId,
-		RepoSlug:  name,
+		Owner:     config.BitBucketWorkspaceId,
+		RepoSlug:  config.GitRepoName,
 		IsPrivate: "true",
-		Project:   gitOpsConfigBitbucket.BitBucketProjectKey,
+		Project:   config.BitBucketProjectKey,
 	}
-	_, err = impl.client.Repositories.Repository.Delete(repoOptions)
+	_, err := impl.client.Repositories.Repository.Delete(repoOptions)
 	if err != nil {
 		impl.logger.Errorw("error in deleting repo gitlab", "repoName", repoOptions.RepoSlug, "err", err)
 	}
 	return err
 }
 
-func (impl GitBitbucketClient) GetRepoUrl(repoName string) (repoUrl string, err error) {
-	gitOpsConfigBitbucket, err := impl.gitOpsConfigRepository.GetGitOpsConfigByProvider(BITBUCKET_PROVIDER)
-	if err != nil {
-		if err == pg.ErrNoRows {
-			gitOpsConfigBitbucket = &repository.GitOpsConfig{}
-			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
-			gitOpsConfigBitbucket.BitBucketProjectKey = ""
-		} else {
-			impl.logger.Errorw("error in fetching gitOps bitbucket config", "err", err)
-			return "", err
-		}
-	}
+func (impl GitBitbucketClient) GetRepoUrl(config *bean2.GitOpsConfigDto) (repoUrl string, err error) {
 	repoOptions := &bitbucket.RepositoryOptions{
-		Owner:    gitOpsConfigBitbucket.BitBucketWorkspaceId,
-		Project:  gitOpsConfigBitbucket.BitBucketProjectKey,
-		RepoSlug: repoName,
+		Owner:    config.BitBucketWorkspaceId,
+		Project:  config.BitBucketProjectKey,
+		RepoSlug: config.GitRepoName,
 	}
 	_, exists, err := impl.repoExists(repoOptions)
 	if err != nil {
@@ -91,33 +70,22 @@ func (impl GitBitbucketClient) GetRepoUrl(repoName string) (repoUrl string, err 
 		return repoUrl, nil
 	}
 }
-func (impl GitBitbucketClient) CreateRepository(name, description, userName, userEmailId string) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
+func (impl GitBitbucketClient) CreateRepository(config *bean2.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 
-	gitOpsConfigBitbucket, err := impl.gitOpsConfigRepository.GetGitOpsConfigByProvider(BITBUCKET_PROVIDER)
-	if err != nil {
-		if err == pg.ErrNoRows {
-			gitOpsConfigBitbucket = &repository.GitOpsConfig{}
-			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
-			gitOpsConfigBitbucket.BitBucketProjectKey = ""
-		} else {
-			impl.logger.Errorw("error in fetching gitOps bitbucket config", "err", err)
-			return "", false, detailedErrorGitOpsConfigActions
-		}
-	}
-	workSpaceId := gitOpsConfigBitbucket.BitBucketWorkspaceId
-	projectKey := gitOpsConfigBitbucket.BitBucketProjectKey
+	workSpaceId := config.BitBucketWorkspaceId
+	projectKey := config.BitBucketProjectKey
 	repoOptions := &bitbucket.RepositoryOptions{
 		Owner:       workSpaceId,
-		RepoSlug:    name,
+		RepoSlug:    config.GitRepoName,
 		Scm:         "git",
 		IsPrivate:   "true",
-		Description: description,
+		Description: config.Description,
 		Project:     projectKey,
 	}
 	repoUrl, repoExists, err := impl.repoExists(repoOptions)
 	if err != nil {
-		impl.logger.Errorw("error in communication with bitbucket", "err", err)
+		impl.logger.Errorw("error in communication with bitbucket", "repoOptions", repoOptions, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[GetRepoUrlStage] = err
 		return "", false, detailedErrorGitOpsConfigActions
 	}
@@ -127,7 +95,7 @@ func (impl GitBitbucketClient) CreateRepository(name, description, userName, use
 	}
 	_, err = impl.client.Repositories.Repository.Create(repoOptions)
 	if err != nil {
-		impl.logger.Errorw("error in creating repo bitbucket", "project", name, "err", err)
+		impl.logger.Errorw("error in creating repo bitbucket", "repoOptions", repoOptions, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CreateRepoStage] = err
 		return "", true, detailedErrorGitOpsConfigActions
 	}
@@ -142,12 +110,12 @@ func (impl GitBitbucketClient) CreateRepository(name, description, userName, use
 		return "", true, detailedErrorGitOpsConfigActions
 	}
 	if !validated {
-		detailedErrorGitOpsConfigActions.StageErrorMap[CloneHttpStage] = fmt.Errorf("unable to validate project:%s in given time", name)
+		detailedErrorGitOpsConfigActions.StageErrorMap[CloneHttpStage] = fmt.Errorf("unable to validate project:%s in given time", config.GitRepoName)
 		return "", true, detailedErrorGitOpsConfigActions
 	}
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneHttpStage)
 
-	_, err = impl.CreateReadme(repoOptions.RepoSlug, userName, userEmailId)
+	_, err = impl.CreateReadme(config)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme bitbucket", "repoName", repoOptions.RepoSlug, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CreateReadmeStage] = err
@@ -157,12 +125,12 @@ func (impl GitBitbucketClient) CreateRepository(name, description, userName, use
 
 	validated, err = impl.ensureProjectAvailabilityOnSsh(repoOptions)
 	if err != nil {
-		impl.logger.Errorw("error in ensuring project availability bitbucket", "project", name, "err", err)
+		impl.logger.Errorw("error in ensuring project availability bitbucket", "project", config.GitRepoName, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CloneSshStage] = err
 		return "", true, detailedErrorGitOpsConfigActions
 	}
 	if !validated {
-		detailedErrorGitOpsConfigActions.StageErrorMap[CloneSshStage] = fmt.Errorf("unable to validate project:%s in given time", name)
+		detailedErrorGitOpsConfigActions.StageErrorMap[CloneSshStage] = fmt.Errorf("unable to validate project:%s in given time", config.GitRepoName)
 		return "", true, detailedErrorGitOpsConfigActions
 	}
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneSshStage)
@@ -196,23 +164,25 @@ func (impl GitBitbucketClient) ensureProjectAvailabilityOnHttp(repoOptions *bitb
 	}
 	return false, nil
 }
-func (impl GitBitbucketClient) CreateReadme(repoName, userName, userEmailId string) (string, error) {
+
+func (impl GitBitbucketClient) CreateReadme(config *bean2.GitOpsConfigDto) (string, error) {
 	cfg := &ChartConfig{
-		ChartName:      repoName,
+		ChartName:      config.GitRepoName,
 		ChartLocation:  "",
 		FileName:       "README.md",
 		FileContent:    "@devtron",
 		ReleaseMessage: "pushing readme",
-		ChartRepoName:  repoName,
-		UserName:       userName,
-		UserEmailId:    userEmailId,
+		ChartRepoName:  config.GitRepoName,
+		UserName:       config.Username,
+		UserEmailId:    config.UserEmailId,
 	}
-	hash, _, err := impl.CommitValues(cfg)
+	hash, _, err := impl.CommitValues(cfg, config)
 	if err != nil {
-		impl.logger.Errorw("error in creating readme bitbucket", "repo", repoName, "err", err)
+		impl.logger.Errorw("error in creating readme bitbucket", "repo", config.GitRepoName, "err", err)
 	}
 	return hash, err
 }
+
 func (impl GitBitbucketClient) ensureProjectAvailabilityOnSsh(repoOptions *bitbucket.RepositoryOptions) (bool, error) {
 	repoUrl := fmt.Sprintf(BITBUCKET_CLONE_BASE_URL+"%s/%s.git", repoOptions.Owner, repoOptions.RepoSlug)
 	for count := 0; count < 5; count++ {
@@ -227,19 +197,8 @@ func (impl GitBitbucketClient) ensureProjectAvailabilityOnSsh(repoOptions *bitbu
 	return false, nil
 }
 
-func (impl GitBitbucketClient) CommitValues(config *ChartConfig) (commitHash string, commitTime time.Time, err error) {
-	gitOpsConfigBitbucket, err := impl.gitOpsConfigRepository.GetGitOpsConfigByProvider(BITBUCKET_PROVIDER)
-	if err != nil {
-		if err == pg.ErrNoRows {
-			gitOpsConfigBitbucket = &repository.GitOpsConfig{}
-			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
-			gitOpsConfigBitbucket.BitBucketProjectKey = ""
-		} else {
-			impl.logger.Errorw("error in fetching gitOps bitbucket config", "err", err)
-			return "", time.Time{}, err
-		}
-	}
-	bitbucketWorkspaceId := gitOpsConfigBitbucket.BitBucketWorkspaceId
+func (impl GitBitbucketClient) CommitValues(config *ChartConfig, gitOpsConfig *bean2.GitOpsConfigDto) (commitHash string, commitTime time.Time, err error) {
+
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return "", time.Time{}, err
@@ -264,7 +223,7 @@ func (impl GitBitbucketClient) CommitValues(config *ChartConfig) (commitHash str
 	//bitbucket needs author as - "Name <email-Id>"
 	authorBitbucket := fmt.Sprintf("%s <%s>", config.UserName, config.UserEmailId)
 	repoWriteOptions := &bitbucket.RepositoryBlobWriteOptions{
-		Owner:    bitbucketWorkspaceId,
+		Owner:    gitOpsConfig.BitBucketWorkspaceId,
 		RepoSlug: config.ChartRepoName,
 		FilePath: bitbucketCommitFilePath,
 		FileName: fileName,
@@ -279,7 +238,7 @@ func (impl GitBitbucketClient) CommitValues(config *ChartConfig) (commitHash str
 	}
 	commitOptions := &bitbucket.CommitsOptions{
 		RepoSlug:    config.ChartRepoName,
-		Owner:       bitbucketWorkspaceId,
+		Owner:       gitOpsConfig.BitBucketWorkspaceId,
 		Branchortag: "master",
 	}
 	commits, err := impl.client.Repositories.Commits.GetCommits(commitOptions)
