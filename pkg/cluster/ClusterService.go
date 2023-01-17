@@ -524,7 +524,7 @@ func (impl ClusterServiceImpl) CheckIfConfigIsValid(cluster *ClusterBean) error 
 	} else {
 		restConfig = &rest.Config{Host: cluster.ServerUrl, BearerToken: bearerToken, TLSClientConfig: rest.TLSClientConfig{Insecure: true}}
 	}
-	k8sHttpClient, err := util.OverrideK8sHttpClient(restConfig)
+	k8sHttpClient, err := util.OverrideK8sHttpClientWithTracer(restConfig)
 	if err != nil {
 		return err
 	}

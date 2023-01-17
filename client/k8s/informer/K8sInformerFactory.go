@@ -106,7 +106,7 @@ func (impl *K8sInformerFactoryImpl) BuildInformer(clusterInfo []*bean.ClusterInf
 func (impl *K8sInformerFactoryImpl) buildInformerAndNamespaceList(clusterName string, config *rest.Config, mutex *sync.Mutex) map[string]map[string]bool {
 	allNamespaces := make(map[string]bool)
 	impl.globalMapClusterNamespace[clusterName] = allNamespaces
-	httpClient, err := util.OverrideK8sHttpClient(config)
+	httpClient, err := util.OverrideK8sHttpClientWithTracer(config)
 	if err != nil {
 		return impl.globalMapClusterNamespace
 	}

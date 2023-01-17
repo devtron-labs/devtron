@@ -163,7 +163,7 @@ func (impl *ArgoUserServiceImpl) createNewArgoCdTokenForDevtron(username, passwo
 	return token, nil
 }
 
-//note: this function also called for no gitops case, where apps are installed via helm
+// note: this function also called for no gitops case, where apps are installed via helm
 func (impl *ArgoUserServiceImpl) GetLatestDevtronArgoCdUserToken() (string, error) {
 	isGitOpsConfigured := false
 	gitOpsConfig, err := impl.gitOpsRepository.GetGitOpsConfigActive()
@@ -348,7 +348,7 @@ func getClient(clusterConfig *util.ClusterConfig) (*v1.CoreV1Client, error) {
 	cfg.Host = clusterConfig.Host
 	cfg.BearerToken = clusterConfig.BearerToken
 	cfg.Insecure = true
-	httpClient, err := util.OverrideK8sHttpClient(cfg)
+	httpClient, err := util.OverrideK8sHttpClientWithTracer(cfg)
 	if err != nil {
 		return nil, err
 	}

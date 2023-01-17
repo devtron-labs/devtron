@@ -190,7 +190,7 @@ func (impl K8sClientServiceImpl) ListEvents(ctx context.Context, restConfig *res
 	if !namespaced {
 		resourceIdentifier.Namespace = "default"
 	}
-	httpClient, err := util.OverrideK8sHttpClient(restConfig)
+	httpClient, err := util.OverrideK8sHttpClientWithTracer(restConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -220,7 +220,7 @@ func (impl K8sClientServiceImpl) ListEvents(ctx context.Context, restConfig *res
 func (impl K8sClientServiceImpl) GetPodLogs(ctx context.Context, restConfig *rest.Config, request *K8sRequestBean) (io.ReadCloser, error) {
 	resourceIdentifier := request.ResourceIdentifier
 	podLogsRequest := request.PodLogsRequest
-	httpClient, err := util.OverrideK8sHttpClient(restConfig)
+	httpClient, err := util.OverrideK8sHttpClientWithTracer(restConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -251,7 +251,7 @@ func (impl K8sClientServiceImpl) GetPodLogs(ctx context.Context, restConfig *res
 
 func (impl K8sClientServiceImpl) GetResourceIf(restConfig *rest.Config, request *K8sRequestBean) (resourceIf dynamic.NamespaceableResourceInterface, namespaced bool, err error) {
 	resourceIdentifier := request.ResourceIdentifier
-	httpClient, err := util.OverrideK8sHttpClient(restConfig)
+	httpClient, err := util.OverrideK8sHttpClientWithTracer(restConfig)
 	if err != nil {
 		return nil, false, err
 	}
@@ -276,7 +276,7 @@ func (impl K8sClientServiceImpl) GetResourceIf(restConfig *rest.Config, request 
 
 func (impl K8sClientServiceImpl) GetResourceIfWithAcceptHeader(restConfig *rest.Config, request *K8sRequestBean) (resourceIf dynamic.NamespaceableResourceInterface, namespaced bool, err error) {
 	resourceIdentifier := request.ResourceIdentifier
-	httpClient, err := util.OverrideK8sHttpClient(restConfig)
+	httpClient, err := util.OverrideK8sHttpClientWithTracer(restConfig)
 	if err != nil {
 		return nil, false, err
 	}

@@ -78,7 +78,7 @@ func (impl *ClusterCronServiceImpl) GetAndUpdateClusterConnectionStatus() {
 			mutex.Unlock()
 			continue
 		}
-		k8sHttpClient, err := util.OverrideK8sHttpClient(restConfig)
+		k8sHttpClient, err := util.OverrideK8sHttpClientWithTracer(restConfig)
 		if err != nil {
 			continue
 		}

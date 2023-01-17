@@ -76,7 +76,7 @@ func (impl K8sUtil) GetClient(clusterConfig *ClusterConfig) (*v12.CoreV1Client, 
 	cfg.Host = clusterConfig.Host
 	cfg.BearerToken = clusterConfig.BearerToken
 	cfg.Insecure = true
-	httpClient, err := OverrideK8sHttpClient(cfg)
+	httpClient, err := OverrideK8sHttpClientWithTracer(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +89,7 @@ func (impl K8sUtil) GetClientSet(clusterConfig *ClusterConfig) (*kubernetes.Clie
 	cfg.Host = clusterConfig.Host
 	cfg.BearerToken = clusterConfig.BearerToken
 	cfg.Insecure = true
-	httpClient, err := OverrideK8sHttpClient(cfg)
+	httpClient, err := OverrideK8sHttpClientWithTracer(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +117,7 @@ func (impl K8sUtil) GetClientForInCluster() (*v12.CoreV1Client, error) {
 	// creates the in-cluster config
 	config, err := impl.getKubeConfig(impl.runTimeConfig.LocalDevMode)
 	// creates the clientset
-	httpClient, err := OverrideK8sHttpClient(config)
+	httpClient, err := OverrideK8sHttpClientWithTracer(config)
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +141,7 @@ func (impl K8sUtil) GetK8sClient() (*v12.CoreV1Client, error) {
 		impl.logger.Errorw("error fetching cluster config", "error", err)
 		return nil, err
 	}
-	httpClient, err := OverrideK8sHttpClient(config)
+	httpClient, err := OverrideK8sHttpClientWithTracer(config)
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +158,7 @@ func (impl K8sUtil) GetK8sDiscoveryClient(clusterConfig *ClusterConfig) (*discov
 	cfg.Host = clusterConfig.Host
 	cfg.BearerToken = clusterConfig.BearerToken
 	cfg.Insecure = true
-	httpClient, err := OverrideK8sHttpClient(cfg)
+	httpClient, err := OverrideK8sHttpClientWithTracer(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -183,7 +183,7 @@ func (impl K8sUtil) GetK8sDiscoveryClientInCluster() (*discovery.DiscoveryClient
 		impl.logger.Errorw("error", "error", err)
 		return nil, err
 	}
-	httpClient, err := OverrideK8sHttpClient(config)
+	httpClient, err := OverrideK8sHttpClientWithTracer(config)
 	if err != nil {
 		return nil, err
 	}
@@ -661,7 +661,7 @@ func (impl K8sUtil) getEventKindHeader() ([]string, map[int]string) {
 	return headers, columnIndexes
 }
 
-func OverrideK8sHttpClient(restConfig *rest.Config) (*http.Client, error) {
+func OverrideK8sHttpClientWithTracer(restConfig *rest.Config) (*http.Client, error) {
 	httpClientFor, err := rest.HTTPClientFor(restConfig)
 	if err != nil {
 		fmt.Println("error occurred while overriding k8s client", "reason", err)

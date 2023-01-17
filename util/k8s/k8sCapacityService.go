@@ -23,6 +23,7 @@ import (
 	"k8s.io/client-go/rest"
 	resourcehelper "k8s.io/kubectl/pkg/util/resource"
 	metrics "k8s.io/metrics/pkg/client/clientset/versioned"
+	"net/http"
 	"strings"
 	"time"
 )
@@ -123,20 +124,9 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetailList(ctx context.Con
 }
 
 func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetail(ctx context.Context, cluster *cluster.ClusterBean, callForList bool) (*ClusterCapacityDetail, error) {
-	//getting rest config by clusterId
-	restConfig, err := impl.k8sApplicationService.GetRestConfigByCluster(ctx, cluster)
-	if err != nil {
-		impl.logger.Errorw("error in getting rest config by cluster", "err", err, "clusterId", cluster.Id)
-		return nil, err
-	}
 	//getting kubernetes clientSet by rest config
-	k8sHttpClient, err := util.OverrideK8sHttpClient(restConfig)
+	restConfig, k8sHttpClient, k8sClientSet, err := impl.getK8sConfigAndClients(ctx, cluster)
 	if err != nil {
-		return nil, err
-	}
-	k8sClientSet, err := kubernetes.NewForConfigAndClient(restConfig, k8sHttpClient)
-	if err != nil {
-		impl.logger.Errorw("error in getting client set by rest config", "err", err, "restConfig", restConfig)
 		return nil, err
 	}
 	clusterDetail := &ClusterCapacityDetail{}
@@ -251,13 +241,8 @@ func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailsListByCluster(ctx cont
 		return nil, err
 	}
 	//getting kubernetes clientSet by rest config
-	k8sHttpClient, err := util.OverrideK8sHttpClient(restConfig)
+	_, k8sHttpClient, k8sClientSet, err := impl.getK8sConfigAndClients(ctx, cluster)
 	if err != nil {
-		return nil, err
-	}
-	k8sClientSet, err := kubernetes.NewForConfigAndClient(restConfig, k8sHttpClient)
-	if err != nil {
-		impl.logger.Errorw("error in getting client set by rest config", "err", err, "restConfig", restConfig)
 		return nil, err
 	}
 	//getting metrics clientSet by rest config
@@ -300,20 +285,10 @@ func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailsListByCluster(ctx cont
 }
 
 func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailByNameAndCluster(ctx context.Context, cluster *cluster.ClusterBean, name string) (*NodeCapacityDetail, error) {
-	//getting rest config by clusterId
-	restConfig, err := impl.k8sApplicationService.GetRestConfigByCluster(ctx, cluster)
-	if err != nil {
-		impl.logger.Errorw("error in getting rest config by cluster", "err", err, "clusterId", cluster.Id)
-		return nil, err
-	}
+
 	//getting kubernetes clientSet by rest config
-	k8sHttpClient, err := util.OverrideK8sHttpClient(restConfig)
+	restConfig, k8sHttpClient, k8sClientSet, err := impl.getK8sConfigAndClients(ctx, cluster)
 	if err != nil {
-		return nil, err
-	}
-	k8sClientSet, err := kubernetes.NewForConfigAndClient(restConfig, k8sHttpClient)
-	if err != nil {
-		impl.logger.Errorw("error in getting client set by rest config", "err", err, "restConfig", restConfig)
 		return nil, err
 	}
 	//getting metrics clientSet by rest config
@@ -349,6 +324,24 @@ func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailByNameAndCluster(ctx co
 	//updating cluster name
 	nodeDetail.ClusterName = cluster.ClusterName
 	return nodeDetail, nil
+}
+
+func (impl *K8sCapacityServiceImpl) getK8sConfigAndClients(ctx context.Context, cluster *cluster.ClusterBean) (*rest.Config, *http.Client, *kubernetes.Clientset, error) {
+	restConfig, err := impl.k8sApplicationService.GetRestConfigByCluster(ctx, cluster)
+	if err != nil {
+		impl.logger.Errorw("error in getting rest config by cluster", "err", err, "clusterId", cluster.Id)
+		return nil, nil, nil, err
+	}
+	k8sHttpClient, err := util.OverrideK8sHttpClientWithTracer(restConfig)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	k8sClientSet, err := kubernetes.NewForConfigAndClient(restConfig, k8sHttpClient)
+	if err != nil {
+		impl.logger.Errorw("error in getting client set by rest config", "err", err, "restConfig", restConfig)
+		return nil, nil, nil, err
+	}
+	return restConfig, k8sHttpClient, k8sClientSet, nil
 }
 func (impl *K8sCapacityServiceImpl) getNodeDetail(ctx context.Context, node *corev1.Node, nodeResourceUsage map[string]corev1.ResourceList, podList *corev1.PodList, callForList bool, restConfig *rest.Config, cluster *cluster.ClusterBean) (*NodeCapacityDetail, error) {
 	cpuAllocatable := node.Status.Allocatable[corev1.ResourceCPU]
@@ -572,19 +565,19 @@ func (impl *K8sCapacityServiceImpl) DeleteNode(ctx context.Context, request *Nod
 func (impl *K8sCapacityServiceImpl) CordonOrUnCordonNode(ctx context.Context, request *NodeUpdateRequestDto) (string, error) {
 	respMessage := ""
 	//getting rest config by clusterId
-	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(ctx, request.ClusterId)
+	//restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(ctx, request.ClusterId)
+	//if err != nil {
+	//	impl.logger.Errorw("error in getting rest config by cluster id", "err", err, "clusterId", request.ClusterId)
+	//	return respMessage, err
+	//}
+	cluster, err := impl.clusterService.FindById(request.ClusterId)
 	if err != nil {
-		impl.logger.Errorw("error in getting rest config by cluster id", "err", err, "clusterId", request.ClusterId)
+		impl.logger.Errorw("error in getting cluster by ID", "err", err, "clusterId")
 		return respMessage, err
 	}
 	//getting kubernetes clientSet by rest config
-	httpClient, err := util.OverrideK8sHttpClient(restConfig)
+	_, _, k8sClientSet, err := impl.getK8sConfigAndClients(ctx, cluster)
 	if err != nil {
-		return respMessage, err
-	}
-	k8sClientSet, err := kubernetes.NewForConfigAndClient(restConfig, httpClient)
-	if err != nil {
-		impl.logger.Errorw("error in getting client set by rest config", "err", err, "restConfig", restConfig)
 		return respMessage, err
 	}
 	//get node
@@ -615,19 +608,14 @@ func (impl *K8sCapacityServiceImpl) DrainNode(ctx context.Context, request *Node
 	impl.logger.Infow("received node drain request", "request", request)
 	respMessage := ""
 	//getting rest config by clusterId
-	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(ctx, request.ClusterId)
+	cluster, err := impl.clusterService.FindById(request.ClusterId)
 	if err != nil {
-		impl.logger.Errorw("error in getting rest config by cluster id", "err", err, "clusterId", request.ClusterId)
+		impl.logger.Errorw("error in getting cluster by ID", "err", err, "clusterId", request.ClusterId)
 		return respMessage, err
 	}
 	//getting kubernetes clientSet by rest config
-	httpClient, err := util.OverrideK8sHttpClient(restConfig)
+	_, _, k8sClientSet, err := impl.getK8sConfigAndClients(ctx, cluster)
 	if err != nil {
-		return respMessage, err
-	}
-	k8sClientSet, err := kubernetes.NewForConfigAndClient(restConfig, httpClient)
-	if err != nil {
-		impl.logger.Errorw("error in getting client set by rest config", "err", err, "restConfig", restConfig)
 		return respMessage, err
 	}
 	//get node
@@ -656,20 +644,14 @@ func (impl *K8sCapacityServiceImpl) DrainNode(ctx context.Context, request *Node
 
 func (impl *K8sCapacityServiceImpl) EditNodeTaints(ctx context.Context, request *NodeUpdateRequestDto) (string, error) {
 	respMessage := ""
-	//getting rest config by clusterId
-	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(ctx, request.ClusterId)
+	cluster, err := impl.clusterService.FindById(request.ClusterId)
 	if err != nil {
-		impl.logger.Errorw("error in getting rest config by cluster id", "err", err, "clusterId", request.ClusterId)
+		impl.logger.Errorw("error in getting cluster by ID", "err", err, "clusterId", request.ClusterId)
 		return respMessage, err
 	}
 	//getting kubernetes clientSet by rest config
-	httpClient, err := util.OverrideK8sHttpClient(restConfig)
+	_, _, k8sClientSet, err := impl.getK8sConfigAndClients(ctx, cluster)
 	if err != nil {
-		return respMessage, err
-	}
-	k8sClientSet, err := kubernetes.NewForConfigAndClient(restConfig, httpClient)
-	if err != nil {
-		impl.logger.Errorw("error in getting client set by rest config", "err", err, "restConfig", restConfig)
 		return respMessage, err
 	}
 	err = validateTaintEditRequest(request.Taints)

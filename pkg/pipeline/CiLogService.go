@@ -55,7 +55,7 @@ type BuildLogRequest struct {
 
 func NewCiLogServiceImpl(logger *zap.SugaredLogger, ciService CiService, ciConfig *CiConfig) *CiLogServiceImpl {
 	config := ciConfig.ClusterConfig
-	k8sHttpClient, err := util.OverrideK8sHttpClient(config)
+	k8sHttpClient, err := util.OverrideK8sHttpClientWithTracer(config)
 	if err != nil {
 		return nil
 	}
@@ -87,7 +87,7 @@ func (impl *CiLogServiceImpl) FetchRunningWorkflowLogs(ciLogRequest BuildLogRequ
 				Insecure: true,
 			},
 		}
-		k8sHttpClient, err := util.OverrideK8sHttpClient(config)
+		k8sHttpClient, err := util.OverrideK8sHttpClientWithTracer(config)
 		if err != nil {
 			return nil, nil, err
 		}
