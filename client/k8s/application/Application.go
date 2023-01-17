@@ -300,6 +300,10 @@ func (impl K8sClientServiceImpl) GetResourceIfWithAcceptHeader(restConfig *rest.
 			rt: rt,
 		}
 	}
+	httpClient, err = util.OverrideK8sHttpClientWithTracer(restConfig)
+	if err != nil {
+		return nil, false, err
+	}
 	dynamicIf, err := dynamic.NewForConfigAndClient(restConfig, httpClient)
 	if err != nil {
 		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err)
