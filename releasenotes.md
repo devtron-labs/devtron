@@ -17,7 +17,3 @@
 - docs: updated aws external secret doc (#2781)
 - docs: updated broken links and minor updates (resource browser) (#2844)
 - docs: added cluster, k8s resource browser, k8s resource permission (#2787)
-## Others
-
-
-
