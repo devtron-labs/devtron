@@ -10,7 +10,7 @@ import (
 
 const (
 	HealthStatusSuspended   string = "Suspended"
-	HealthStatusHibernating string = "Hibernating"
+	HealthStatusHibernating string = "HIBERNATING"
 )
 
 type AppStatusRequestResponseDto struct {
