@@ -273,7 +273,7 @@ func (impl InstalledAppServiceImpl) DeployBulk(chartGroupInstallRequest *appStor
 	// Rollback tx on error.
 	defer tx.Rollback()
 	for _, installAppVersionDTO := range installAppVersionDTOList {
-		installAppVersionDTO, err = impl.appStoreDeploymentService.AppStoreDeployOperationDB(installAppVersionDTO, tx)
+		installAppVersionDTO, err = impl.appStoreDeploymentService.AppStoreDeployOperationDB(installAppVersionDTO, tx, false)
 		if err != nil {
 			impl.logger.Errorw("DeployBulk, error while app store deploy db operation", "err", err)
 			return nil, err
@@ -381,8 +381,12 @@ func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion 
 				return nil, err
 			}
 		}
-
-		repoUrl, err := impl.gitFactory.Client.GetRepoUrl(installedAppVersion.AppStoreName)
+		config := &bean2.GitOpsConfigDto{
+			GitRepoName:          installedAppVersion.GitOpsRepoName,
+			BitBucketWorkspaceId: gitOpsConfigBitbucket.BitBucketProjectKey,
+			BitBucketProjectKey:  gitOpsConfigBitbucket.BitBucketProjectKey,
+		}
+		repoUrl, err := impl.gitFactory.Client.GetRepoUrl(config)
 		if err != nil {
 			//will allow to continue to persist status on next operation
 			impl.logger.Errorw("fetching error", "err", err)
@@ -691,7 +695,7 @@ func (impl InstalledAppServiceImpl) DeployDefaultComponent(chartGroupInstallRequ
 	// Rollback tx on error.
 	defer tx.Rollback()
 	for _, installAppVersionDTO := range installAppVersionDTOList {
-		installAppVersionDTO, err = impl.appStoreDeploymentService.AppStoreDeployOperationDB(installAppVersionDTO, tx)
+		installAppVersionDTO, err = impl.appStoreDeploymentService.AppStoreDeployOperationDB(installAppVersionDTO, tx, false)
 		if err != nil {
 			impl.logger.Errorw("DeployBulk, error while app store deploy db operation", "err", err)
 			return nil, err
