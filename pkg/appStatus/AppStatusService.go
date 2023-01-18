@@ -164,13 +164,7 @@ func (impl *AppStatusServiceImpl) UpdateStatusWithAppIdEnvId(appId, envId int, s
 		impl.logger.Errorw("error in getting app-status for", "appId", appId, "envId", envId, "err", err)
 		return err
 	}
-	tx, err := impl.appStatusRepository.GetConnection().Begin()
-	if err != nil {
-		impl.logger.Errorw("error in creating transaction", "err", err)
-		return err
-	}
-	// Rollback tx on error.
-	defer tx.Rollback()
+
 	if status == HealthStatusSuspended {
 		status = HealthStatusHibernating
 	}
@@ -178,24 +172,20 @@ func (impl *AppStatusServiceImpl) UpdateStatusWithAppIdEnvId(appId, envId int, s
 		container.AppId = appId
 		container.EnvId = envId
 		container.Status = status
-		err = impl.appStatusRepository.Create(tx, container)
+		err = impl.appStatusRepository.Create(container)
 		if err != nil {
 			impl.logger.Errorw("error in Creating appStatus", "appId", appId, "envId", envId, "err", err)
 			return err
 		}
 	} else if container.Status != status {
 		container.Status = status
-		err = impl.appStatusRepository.Update(tx, container)
+		err = impl.appStatusRepository.Update(container)
 		if err != nil {
 			impl.logger.Errorw("error in Updating appStatus", "appId", appId, "envId", envId, "err", err)
 			return err
 		}
 	}
-	err = tx.Commit()
-	if err != nil {
-		impl.logger.Errorw("error occurred while committing db transaction", "err", err)
-		return err
-	}
+
 	return nil
 }
 

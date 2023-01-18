@@ -26,8 +26,8 @@ type AppStatusDto struct {
 }
 
 type AppStatusRepository interface {
-	Create(tx *pg.Tx, container AppStatusContainer) error
-	Update(tx *pg.Tx, container AppStatusContainer) error
+	Create(container AppStatusContainer) error
+	Update(container AppStatusContainer) error
 	Delete(tx *pg.Tx, appId, envId int) error
 	DeleteWithAppId(tx *pg.Tx, appId int) error
 	DeleteWithEnvId(tx *pg.Tx, envId int) error
@@ -53,25 +53,25 @@ func NewAppStatusRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) 
 func (repo *AppStatusRepositoryImpl) GetConnection() *pg.DB {
 	return repo.dbConnection
 }
-func (repo *AppStatusRepositoryImpl) Create(tx *pg.Tx, container AppStatusContainer) error {
+func (repo *AppStatusRepositoryImpl) Create(container AppStatusContainer) error {
 	model := AppStatusDto{
 		AppId:     container.AppId,
 		EnvId:     container.EnvId,
 		Status:    container.Status,
 		UpdatedOn: time.Now(),
 	}
-	err := tx.Insert(&model)
+	err := repo.dbConnection.Insert(&model)
 	return err
 }
 
-func (repo *AppStatusRepositoryImpl) Update(tx *pg.Tx, container AppStatusContainer) error {
+func (repo *AppStatusRepositoryImpl) Update(container AppStatusContainer) error {
 	model := AppStatusDto{
 		AppId:     container.AppId,
 		EnvId:     container.EnvId,
 		Status:    container.Status,
 		UpdatedOn: time.Now(),
 	}
-	err := tx.Update(&model)
+	err := repo.dbConnection.Update(&model)
 	return err
 }
 

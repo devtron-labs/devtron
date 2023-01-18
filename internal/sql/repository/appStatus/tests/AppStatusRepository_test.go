@@ -37,7 +37,7 @@ func TestAppStatusRepositoryImpl_Create(t *testing.T) {
 	//create dummy data in the db
 	tx, _ := db.Begin()
 	for _, data := range testData {
-		err := repo.Create(tx, data)
+		err := repo.Create(data)
 		assert.Nil(t, err)
 	}
 	err := tx.Commit()
@@ -73,7 +73,7 @@ func TestAppStatusRepositoryImpl_Update(t *testing.T) {
 
 	//Fire update API
 	tx, _ := db.Begin()
-	err = repo.Update(tx, updateData)
+	err = repo.Update(updateData)
 	assert.Nil(t, err)
 	err = tx.Commit()
 	if err != nil {
@@ -97,7 +97,7 @@ func TestAppStatusRepositoryImpl_Delete(t *testing.T) {
 	//create dummy data in the db
 	tx, _ := db.Begin()
 	for _, data := range testData {
-		err := repo.Create(tx, data)
+		err := repo.Create(data)
 		assert.Nil(t, err)
 	}
 	err := tx.Commit()
@@ -165,7 +165,7 @@ func TestAppStatusRepositoryImpl_DeleteWithAppId(t *testing.T) {
 	//create dummy data in the db
 	tx, _ := db.Begin()
 	for _, data := range testData {
-		err := repo.Create(tx, data)
+		err := repo.Create(data)
 		assert.Nil(t, err)
 	}
 	err := tx.Commit()
@@ -213,7 +213,7 @@ func TestAppStatusRepositoryImpl_DeleteWithEnvId(t *testing.T) {
 	//create dummy data in the db
 	tx, _ := db.Begin()
 	for _, data := range testData {
-		err := repo.Create(tx, data)
+		err := repo.Create(data)
 		assert.Nil(t, err)
 	}
 	err := tx.Commit()
