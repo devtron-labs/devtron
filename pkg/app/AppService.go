@@ -38,6 +38,7 @@ import (
 	"time"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/pkg/appStatus"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	history2 "github.com/devtron-labs/devtron/pkg/pipeline/history"
@@ -140,6 +141,7 @@ type AppServiceImpl struct {
 	pipelineStatusTimelineService          PipelineStatusTimelineService
 	appStatusConfig                        *AppStatusConfig
 	gitOpsConfigRepository                 repository.GitOpsConfigRepository
+	appStatusService                       appStatus.AppStatusService
 }
 
 type AppService interface {
@@ -195,7 +197,8 @@ func NewAppService(
 	pipelineStatusSyncDetailService PipelineStatusSyncDetailService,
 	pipelineStatusTimelineService PipelineStatusTimelineService,
 	appStatusConfig *AppStatusConfig,
-	gitOpsConfigRepository repository.GitOpsConfigRepository) *AppServiceImpl {
+	gitOpsConfigRepository repository.GitOpsConfigRepository,
+	appStatusService appStatus.AppStatusService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:            environmentConfigRepository,
 		mergeUtil:                              mergeUtil,
@@ -247,6 +250,7 @@ func NewAppService(
 		pipelineStatusTimelineService:          pipelineStatusTimelineService,
 		appStatusConfig:                        appStatusConfig,
 		gitOpsConfigRepository:                 gitOpsConfigRepository,
+		appStatusService:                       appStatusService,
 	}
 	return appServiceImpl
 }
@@ -327,13 +331,17 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusAndCheckIsSucceeded(app *v1alp
 		impl.logger.Errorw("no git repo found for url", "repoUrl", repoUrl)
 		return isSucceeded, fmt.Errorf("no git repo found for url %s", repoUrl)
 	}
-	dbApp, err := impl.appRepository.FindById(chart.AppId)
+	envId, err := impl.appRepository.FindEnvironmentIdForInstalledApp(chart.AppId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching app", "err", err, "app", chart.AppId)
 		return isSucceeded, err
 	}
-	if dbApp.Id > 0 && dbApp.AppStore == true {
-		impl.logger.Debugw("skipping application status update as this app is chart", "dbApp", dbApp)
+	if envId > 0 {
+		err = impl.appStatusService.UpdateStatusWithAppIdEnvId(chart.AppId, envId, string(app.Status.Health.Status))
+		if err != nil {
+			impl.logger.Errorw("error occurred while updating app status in app_status table", "error", err, "appId", chart.AppId, "envId", envId)
+		}
+		impl.logger.Debugw("skipping application status update as this app is chart", "appId", chart.AppId, "envId", envId)
 		return isSucceeded, nil
 	}
 
@@ -416,6 +424,10 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsCdPipelines(app *v1al
 		}
 	} else {
 		// new revision is not reconciled yet, thus status will not be changes and will remain in progress
+	}
+	err = impl.appStatusService.UpdateStatusWithAppIdEnvId(cdPipeline.AppId, cdPipeline.EnvironmentId, string(app.Status.Health.Status))
+	if err != nil {
+		impl.logger.Errorw("error occurred while updating app status in app_status table", "error", err, "appId", cdPipeline.AppId, "envId", cdPipeline.EnvironmentId)
 	}
 	return isSucceeded, isTimelineUpdated, nil
 }
