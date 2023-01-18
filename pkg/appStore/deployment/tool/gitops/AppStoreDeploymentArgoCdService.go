@@ -138,8 +138,8 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetAppStatus(installedAppAndEnvD
 		//use this resp.Status to update app_status table
 		err = impl.appStatusService.UpdateStatusWithAppIdEnvId(installedAppAndEnvDetails.AppId, installedAppAndEnvDetails.EnvironmentId, resp.Status)
 		if err != nil {
-			impl.Logger.Errorw("error in updating app status", "err", err)
-			impl.Logger.Infow("ignoring the error", "err", err)
+			impl.Logger.Errorw("error in updating app status", "err", err, installedAppAndEnvDetails.AppId, "envId", installedAppAndEnvDetails.EnvironmentId)
+			impl.Logger.Infow("ignoring the error", "err", err, installedAppAndEnvDetails.AppId, "envId", installedAppAndEnvDetails.EnvironmentId)
 		}
 		return resp.Status, nil
 	}

@@ -791,7 +791,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		err = handler.appStatusService.UpdateStatusWithAppIdEnvId(appDetail.AppId, appDetail.EnvironmentId, resp.Status)
 		if err != nil {
 			handler.logger.Errorw("error in updating app status", "err", err, "appId", appDetail.AppId, "envId", appDetail.EnvironmentId)
-			handler.logger.Infow("ignoring the error", "err", err)
+			handler.logger.Infow("ignoring the error", "err", err, "appId", appDetail.AppId, "envId", appDetail.EnvironmentId)
 		}
 
 	} else if len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 && util.IsHelmApp(appDetail.DeploymentAppType) {

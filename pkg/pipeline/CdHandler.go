@@ -261,8 +261,8 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch
 		appStatus := app.Status.Health.Status
 		err = impl.appStatusService.UpdateStatusWithAppIdEnvId(pipeline.AppId, pipeline.EnvironmentId, string(appStatus))
 		if err != nil {
-			impl.Logger.Errorw("error occurred while updating app-status", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId)
-			impl.Logger.Infow("ignoring the error", "err", err)
+			impl.Logger.Errorw("error occurred while updating app-status", "err", err, "appId", pipeline.AppId, "envId", pipeline.EnvironmentId)
+			impl.Logger.Infow("ignoring the error", "err", err, "appId", pipeline.AppId, "envId", pipeline.EnvironmentId)
 		}
 	}
 	if isSucceeded {
