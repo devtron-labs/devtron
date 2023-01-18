@@ -105,7 +105,6 @@ type PipelineBuilder interface {
 	GetArtifactsByCDPipeline(cdPipelineId int, stage bean2.WorkflowType) (bean.CiArtifactResponse, error)
 	FetchArtifactForRollback(cdPipelineId, offset, limit int) (bean.CiArtifactResponse, error)
 	FindAppsByTeamId(teamId int) ([]*AppBean, error)
-	GetAppListByTeamIds(teamIds []int, appType string) ([]*TeamAppBean, error)
 	FindAppsByTeamName(teamName string) ([]AppBean, error)
 	FindPipelineById(cdPipelineId int) (*pipelineConfig.Pipeline, error)
 	GetAppList() ([]AppBean, error)
@@ -395,6 +394,12 @@ func (impl PipelineBuilderImpl) GetMaterialsForAppId(appId int) []*bean.GitMater
 	if err != nil {
 		impl.logger.Errorw("error in fetching materials", "appId", appId, "err", err)
 	}
+
+	ciTemplateBean, err := impl.ciTemplateService.FindByAppId(appId)
+	if err != nil && err != errors.NotFoundf(err.Error()) {
+		impl.logger.Errorw("err in getting ci-template", "appId", appId, "err", err)
+	}
+
 	var gitMaterials []*bean.GitMaterial
 	for _, material := range materials {
 		gitMaterial := &bean.GitMaterial{
@@ -404,6 +409,13 @@ func (impl PipelineBuilderImpl) GetMaterialsForAppId(appId int) []*bean.GitMater
 			GitProviderId:   material.GitProviderId,
 			CheckoutPath:    material.CheckoutPath,
 			FetchSubmodules: material.FetchSubmodules,
+		}
+		//check if git material is deletable or not
+		if ciTemplateBean != nil {
+			ciTemplate := ciTemplateBean.CiTemplate
+			if ciTemplate != nil && ciTemplate.GitMaterialId == material.Id {
+				gitMaterial.IsUsedInCiConfig = true
+			}
 		}
 		gitMaterials = append(gitMaterials, gitMaterial)
 	}
@@ -2491,41 +2503,6 @@ type AppBean struct {
 	Id     int    `json:"id"`
 	Name   string `json:"name,notnull"`
 	TeamId int    `json:"teamId,omitempty"`
-}
-
-func (impl PipelineBuilderImpl) GetAppListByTeamIds(teamIds []int, appType string) ([]*TeamAppBean, error) {
-	var appsRes []*TeamAppBean
-	teamMap := make(map[int]*TeamAppBean)
-	if len(teamIds) == 0 {
-		return appsRes, nil
-	}
-	apps, err := impl.appRepo.FindAppsByTeamIds(teamIds, appType)
-	if err != nil {
-		impl.logger.Errorw("error while fetching app", "err", err)
-		return nil, err
-	}
-	for _, app := range apps {
-		if _, ok := teamMap[app.TeamId]; ok {
-			teamMap[app.TeamId].AppList = append(teamMap[app.TeamId].AppList, &AppBean{Id: app.Id, Name: app.AppName})
-		} else {
-
-			teamMap[app.TeamId] = &TeamAppBean{ProjectId: app.Team.Id, ProjectName: app.Team.Name}
-			teamMap[app.TeamId].AppList = append(teamMap[app.TeamId].AppList, &AppBean{Id: app.Id, Name: app.AppName})
-		}
-	}
-
-	for _, v := range teamMap {
-		if len(v.AppList) == 0 {
-			v.AppList = make([]*AppBean, 0)
-		}
-		appsRes = append(appsRes, v)
-	}
-
-	if len(appsRes) == 0 {
-		appsRes = make([]*TeamAppBean, 0)
-	}
-
-	return appsRes, err
 }
 
 func (impl PipelineBuilderImpl) GetAppList() ([]AppBean, error) {

@@ -177,7 +177,7 @@ func (impl InstalledAppRepositoryImpl) UpdateInstalledAppVersion(model *Installe
 func (impl InstalledAppRepositoryImpl) GetInstalledApp(id int) (*InstalledApps, error) {
 	model := &InstalledApps{}
 	err := impl.dbConnection.Model(model).
-		Column("installed_apps.*", "App", "Environment").
+		Column("installed_apps.*", "App", "Environment", "App.Team", "Environment.Cluster").
 		Where("installed_apps.id = ?", id).Where("installed_apps.active = true").Select()
 	return model, err
 }
@@ -226,7 +226,7 @@ func (impl InstalledAppRepositoryImpl) GetLatestInstalledAppVersionByGitHash(git
 func (impl InstalledAppRepositoryImpl) GetInstalledAppVersion(id int) (*InstalledAppVersions, error) {
 	model := &InstalledAppVersions{}
 	err := impl.dbConnection.Model(model).
-		Column("installed_app_versions.*", "InstalledApp", "InstalledApp.App", "InstalledApp.Environment", "AppStoreApplicationVersion", "AppStoreApplicationVersion.AppStore").
+		Column("installed_app_versions.*", "InstalledApp", "InstalledApp.App", "InstalledApp.Environment", "AppStoreApplicationVersion", "AppStoreApplicationVersion.AppStore", "InstalledApp.App.Team").
 		Column("AppStoreApplicationVersion.AppStore.ChartRepo").
 		Where("installed_app_versions.id = ?", id).Where("installed_app_versions.active = true").Select()
 	return model, err
@@ -456,7 +456,7 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByClusterIdsV2(clus
 func (impl InstalledAppRepositoryImpl) GetInstalledApplicationByClusterIdAndNamespaceAndAppName(clusterId int, namespace string, appName string) (*InstalledApps, error) {
 	model := &InstalledApps{}
 	err := impl.dbConnection.Model(model).
-		Column("installed_apps.*", "App", "Environment").
+		Column("installed_apps.*", "App", "Environment", "App.Team").
 		Where("environment.cluster_id = ?", clusterId).
 		Where("environment.namespace = ?", namespace).
 		Where("app.app_name = ?", appName).
