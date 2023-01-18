@@ -50,7 +50,7 @@ type ClusterBean struct {
 	ServerUrl               string                     `json:"server_url,omitempty" validate:"url,required"`
 	PrometheusUrl           string                     `json:"prometheus_url,omitempty" validate:"validate-non-empty-url"`
 	Active                  bool                       `json:"active"`
-	Config                  map[string]string          `json:"config,omitempty" validate:"required"`
+	Config                  map[string]string          `json:"config,omitempty"`
 	PrometheusAuth          *PrometheusAuth            `json:"prometheusAuth,omitempty"`
 	DefaultClusterComponent []*DefaultClusterComponent `json:"defaultClusterComponent"`
 	AgentInstallationStage  int                        `json:"agentInstallationStage,notnull"` // -1=external, 0=not triggered, 1=progressing, 2=success, 3=fails
@@ -84,6 +84,7 @@ type ClusterService interface {
 	DeleteFromDb(bean *ClusterBean, userId int32) error
 
 	FindById(id int) (*ClusterBean, error)
+	FindByIdWithoutConfig(id int) (*ClusterBean, error)
 	FindByIds(id []int) ([]ClusterBean, error)
 	Update(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error)
 	Delete(bean *ClusterBean, userId int32) error
@@ -326,6 +327,15 @@ func (impl *ClusterServiceImpl) FindById(id int) (*ClusterBean, error) {
 	return bean, nil
 }
 
+func (impl *ClusterServiceImpl) FindByIdWithoutConfig(id int) (*ClusterBean, error) {
+	model, err := impl.FindById(id)
+	if err != nil {
+		return nil, err
+	}
+	model.Config = map[string]string{}
+	return model, nil
+}
+
 func (impl *ClusterServiceImpl) FindByIds(ids []int) ([]ClusterBean, error) {
 	models, err := impl.clusterRepository.FindByIds(ids)
 	if err != nil {
@@ -372,6 +382,9 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 	// check whether config modified or not, if yes create informer with updated config
 	dbConfig := model.Config["bearer_token"]
 	requestConfig := bean.Config["bearer_token"]
+	if len(requestConfig) == 0 {
+		bean.Config = model.Config
+	}
 	if bean.ServerUrl != model.ServerUrl || dbConfig != requestConfig {
 		bean.HasConfigOrUrlChanged = true
 	}

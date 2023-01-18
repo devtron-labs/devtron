@@ -43,7 +43,6 @@ const CLUSTER_DELETE_SUCCESS_RESP = "Cluster deleted successfully."
 
 type ClusterRestHandler interface {
 	Save(w http.ResponseWriter, r *http.Request)
-	FindOne(w http.ResponseWriter, r *http.Request)
 	FindAll(w http.ResponseWriter, r *http.Request)
 
 	FindById(w http.ResponseWriter, r *http.Request)
@@ -153,26 +152,6 @@ func (impl ClusterRestHandlerImpl) Save(w http.ResponseWriter, r *http.Request) 
 	common.WriteJsonResp(w, err, bean, http.StatusOK)
 }
 
-func (impl ClusterRestHandlerImpl) FindOne(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	cName := vars["cluster_name"]
-	// RBAC enforcer applying
-	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionGet, strings.ToLower(cName)); !ok {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
-	//RBAC enforcer Ends
-
-	envBean, err := impl.clusterService.FindOne(cName)
-	if err != nil {
-		impl.logger.Errorw("service err, FindOne", "error", err, "cluster name", cName)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	common.WriteJsonResp(w, err, envBean, http.StatusOK)
-}
-
 func (impl ClusterRestHandlerImpl) FindAll(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	clusterList, err := impl.clusterService.FindAll()
@@ -203,7 +182,7 @@ func (impl ClusterRestHandlerImpl) FindById(w http.ResponseWriter, r *http.Reque
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	bean, err := impl.clusterService.FindById(i)
+	bean, err := impl.clusterService.FindByIdWithoutConfig(i)
 	if err != nil {
 		impl.logger.Errorw("service err, FindById", "err", err, "clusterId", id)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
