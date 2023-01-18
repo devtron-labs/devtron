@@ -111,13 +111,13 @@ func TestUpdateStatusWithAppIdEnvId(t *testing.T) {
 		appStatusRepositoryMocked := mocks.NewAppStatusRepository(t)
 		appStatusService := NewAppStatusServiceImpl(appStatusRepositoryMocked, logger, nil, nil)
 		testOutputContainerFromDb := appStatus.AppStatusContainer{
-			AppId:  1,
-			EnvId:  1,
+			AppId:  2,
+			EnvId:  2,
 			Status: "Healthy",
 		}
 		testInputContainer := appStatus.AppStatusContainer{
-			AppId:  1,
-			EnvId:  1,
+			AppId:  2,
+			EnvId:  2,
 			Status: "Progressing",
 		}
 

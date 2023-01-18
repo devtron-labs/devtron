@@ -14,13 +14,13 @@ type AppStatusRepository struct {
 	mock.Mock
 }
 
-// Create provides a mock function with given fields: tx, container
-func (_m *AppStatusRepository) Create(tx *pg.Tx, container appStatus.AppStatusContainer) error {
-	ret := _m.Called(tx, container)
+// Create provides a mock function with given fields: container
+func (_m *AppStatusRepository) Create(container appStatus.AppStatusContainer) error {
+	ret := _m.Called(container)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(*pg.Tx, appStatus.AppStatusContainer) error); ok {
-		r0 = rf(tx, container)
+	if rf, ok := ret.Get(0).(func(appStatus.AppStatusContainer) error); ok {
+		r0 = rf(container)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -91,52 +91,6 @@ func (_m *AppStatusRepository) Get(appId int, envId int) (appStatus.AppStatusCon
 	return r0, r1
 }
 
-// GetAllDevtronAppStatuses provides a mock function with given fields: appIds
-func (_m *AppStatusRepository) GetAllDevtronAppStatuses(appIds []int) ([]appStatus.AppStatusContainer, error) {
-	ret := _m.Called(appIds)
-
-	var r0 []appStatus.AppStatusContainer
-	if rf, ok := ret.Get(0).(func([]int) []appStatus.AppStatusContainer); ok {
-		r0 = rf(appIds)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]appStatus.AppStatusContainer)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func([]int) error); ok {
-		r1 = rf(appIds)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// GetAllInstalledAppStatuses provides a mock function with given fields: installedAppIds
-func (_m *AppStatusRepository) GetAllInstalledAppStatuses(installedAppIds []int) ([]appStatus.AppStatusContainer, error) {
-	ret := _m.Called(installedAppIds)
-
-	var r0 []appStatus.AppStatusContainer
-	if rf, ok := ret.Get(0).(func([]int) []appStatus.AppStatusContainer); ok {
-		r0 = rf(installedAppIds)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]appStatus.AppStatusContainer)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func([]int) error); ok {
-		r1 = rf(installedAppIds)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // GetConnection provides a mock function with given fields:
 func (_m *AppStatusRepository) GetConnection() *pg.DB {
 	ret := _m.Called()
@@ -153,13 +107,13 @@ func (_m *AppStatusRepository) GetConnection() *pg.DB {
 	return r0
 }
 
-// Update provides a mock function with given fields: tx, container
-func (_m *AppStatusRepository) Update(tx *pg.Tx, container appStatus.AppStatusContainer) error {
-	ret := _m.Called(tx, container)
+// Update provides a mock function with given fields: container
+func (_m *AppStatusRepository) Update(container appStatus.AppStatusContainer) error {
+	ret := _m.Called(container)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(*pg.Tx, appStatus.AppStatusContainer) error); ok {
-		r0 = rf(tx, container)
+	if rf, ok := ret.Get(0).(func(appStatus.AppStatusContainer) error); ok {
+		r0 = rf(container)
 	} else {
 		r0 = ret.Error(0)
 	}

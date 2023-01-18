@@ -183,27 +183,7 @@ func TestAppStatusRepositoryImpl_DeleteWithAppId(t *testing.T) {
 		log.Fatal("error in committing data in db", "err", err)
 	}
 
-	//verify if data is deleted for the above deleted app_id and also check if data is present for other app_id's
-	for _, data := range testData {
-		resp, err := repo.Get(data.AppId, data.EnvId)
-		if data.AppId == deleteAppId {
-			assert.NotNil(t, err)
-			assert.Equal(t, pg.ErrNoRows, err)
-			assert.NotNil(t, resp)
-			assert.Equal(t, resp.AppId, 0)
-			assert.Equal(t, resp.EnvId, 0)
-			assert.Equal(t, len(resp.Status), 0)
-		} else {
-			assert.Nil(t, err)
-			assert.NotNil(t, resp)
-			assert.Equal(t, resp.AppId, data.AppId)
-			assert.Equal(t, resp.EnvId, data.EnvId)
-			assert.Equal(t, len(resp.Status), len(data.Status))
-		}
-	}
-
-	//delete the test data from db
-	deleteTestdata()
+	testAndDeleteHelper(t, repo, testData, deleteAppId, -1)
 
 }
 func TestAppStatusRepositoryImpl_DeleteWithEnvId(t *testing.T) {
@@ -234,11 +214,18 @@ func TestAppStatusRepositoryImpl_DeleteWithEnvId(t *testing.T) {
 	if err != nil {
 		log.Fatal("error in committing data in db", "err", err)
 	}
+	testAndDeleteHelper(t, repo, testData, -1, deleteEnvId)
 
-	//verify if data is deleted for the above deleted env_id and also check if data is present for other env_id's
+}
+func testAndDeleteHelper(t *testing.T, repo *appStatus.AppStatusRepositoryImpl, testData []appStatus.AppStatusContainer, deleteAppId int, deleteEnvId int) {
+
 	for _, data := range testData {
 		resp, err := repo.Get(data.AppId, data.EnvId)
-		if data.EnvId == deleteEnvId {
+		compareVal := deleteAppId == data.AppId
+		if deleteEnvId != -1 {
+			compareVal = deleteEnvId == data.EnvId
+		}
+		if compareVal {
 			assert.NotNil(t, err)
 			assert.Equal(t, pg.ErrNoRows, err)
 			assert.NotNil(t, resp)
@@ -256,9 +243,7 @@ func TestAppStatusRepositoryImpl_DeleteWithEnvId(t *testing.T) {
 
 	//delete the test data from db
 	deleteTestdata()
-
 }
-
 func getTestdata() []appStatus.AppStatusContainer {
 	testDataArray := make([]appStatus.AppStatusContainer, 0)
 	testDataArray = append(testDataArray, appStatus.AppStatusContainer{
