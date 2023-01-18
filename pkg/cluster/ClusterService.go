@@ -56,7 +56,7 @@ type ClusterBean struct {
 	AgentInstallationStage  int                        `json:"agentInstallationStage,notnull"` // -1=external, 0=not triggered, 1=progressing, 2=success, 3=fails
 	K8sVersion              string                     `json:"k8sVersion"`
 	HasConfigOrUrlChanged   bool                       `json:"-"`
-	ErrorInConnecting       string                     `json:"-"`
+	ErrorInConnecting       string                     `json:"errorInNodeListing,omitempty"`
 }
 
 type PrometheusAuth struct {
@@ -462,8 +462,9 @@ func (impl *ClusterServiceImpl) FindAllForAutoComplete() ([]ClusterBean, error) 
 	var beans []ClusterBean
 	for _, m := range model {
 		beans = append(beans, ClusterBean{
-			Id:          m.Id,
-			ClusterName: m.ClusterName,
+			Id:                m.Id,
+			ClusterName:       m.ClusterName,
+			ErrorInConnecting: m.ErrorInConnecting,
 		})
 	}
 	return beans, nil
