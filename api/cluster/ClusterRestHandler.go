@@ -154,7 +154,7 @@ func (impl ClusterRestHandlerImpl) Save(w http.ResponseWriter, r *http.Request) 
 
 func (impl ClusterRestHandlerImpl) FindAll(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
-	clusterList, err := impl.clusterService.FindAll()
+	clusterList, err := impl.clusterService.FindAllWithoutConfig()
 	if err != nil {
 		impl.logger.Errorw("service err, FindAll", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

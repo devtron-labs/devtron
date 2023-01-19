@@ -80,6 +80,7 @@ type ClusterService interface {
 	FindOne(clusterName string) (*ClusterBean, error)
 	FindOneActive(clusterName string) (*ClusterBean, error)
 	FindAll() ([]*ClusterBean, error)
+	FindAllWithoutConfig() ([]*ClusterBean, error)
 	FindAllActive() ([]ClusterBean, error)
 	DeleteFromDb(bean *ClusterBean, userId int32) error
 
@@ -258,6 +259,17 @@ func (impl *ClusterServiceImpl) FindOneActive(clusterName string) (*ClusterBean,
 	return bean, nil
 }
 
+func (impl *ClusterServiceImpl) FindAllWithoutConfig() ([]*ClusterBean, error) {
+	models, err := impl.FindAll()
+	if err != nil {
+		return nil, err
+	}
+	for _, model := range models {
+		model.Config = map[string]string{"bearer_token": ""}
+	}
+	return models, nil
+}
+
 func (impl *ClusterServiceImpl) FindAll() ([]*ClusterBean, error) {
 	model, err := impl.clusterRepository.FindAllActive()
 	if err != nil {
@@ -332,7 +344,8 @@ func (impl *ClusterServiceImpl) FindByIdWithoutConfig(id int) (*ClusterBean, err
 	if err != nil {
 		return nil, err
 	}
-	model.Config = map[string]string{}
+	//empty bearer token as it will be hidden for user
+	model.Config = map[string]string{"bearer_token": ""}
 	return model, nil
 }
 
