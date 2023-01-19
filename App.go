@@ -88,8 +88,7 @@ func (app *App) Start() {
 	app.Logger.Infow("starting server on ", "port", port)
 
 	// setup tracer
-	serviceName := "orchestrator"
-	tracerProvider := app.OtelTracingService.Init(serviceName)
+	tracerProvider := app.OtelTracingService.Init(otel.OTEL_ORCHESTRASTOR_SERVICE_NAME)
 
 	app.MuxRouter.Init()
 	//authEnforcer := casbin2.Create()
@@ -98,7 +97,7 @@ func (app *App) Start() {
 
 	app.MuxRouter.Router.Use(middleware.PrometheusMiddleware)
 	if tracerProvider != nil {
-		app.MuxRouter.Router.Use(otelmux.Middleware(serviceName))
+		app.MuxRouter.Router.Use(otelmux.Middleware(otel.OTEL_ORCHESTRASTOR_SERVICE_NAME))
 	}
 	app.server = server
 	var err error

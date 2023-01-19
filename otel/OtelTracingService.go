@@ -13,11 +13,8 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/credentials"
-	"os"
 )
 
-const OTEL_CONFIG_KEY = "OTEL_CONFIGURED"
-const OTEL_ENABLED_VAL = "true"
 const OTEL_ORCHESTRASTOR_SERVICE_NAME = "orchestrator"
 
 type OtelTracingService interface {
@@ -53,7 +50,6 @@ func (impl OtelTracingServiceImpl) Init(serviceName string) *sdktrace.TracerProv
 		otel.SetTracerProvider(noopTracerProvider)
 		return nil
 	}
-	impl.configureOtel(true)
 
 	secureOption := otlptracegrpc.WithTLSCredentials(credentials.NewClientTLSFromCert(nil, "")) // config can be passed to configure TLS
 	secureOption = otlptracegrpc.WithInsecure()
@@ -95,45 +91,4 @@ func (impl OtelTracingServiceImpl) Shutdown() {
 		impl.logger.Errorw("Error shutting down tracer provider: ", "err", err)
 	}
 	impl.logger.Info("trace shutdown success")
-}
-
-func (impl OtelTracingServiceImpl) configureOtel(otelConfigured bool) {
-	var boolVal string
-	if otelConfigured {
-		boolVal = OTEL_ENABLED_VAL
-	}
-	err := os.Setenv(OTEL_CONFIG_KEY, boolVal)
-	if err != nil {
-		impl.logger.Errorw("error occurred while setting otel config", "err", err)
-	}
-}
-
-func otelConfigured() bool {
-	return OTEL_ENABLED_VAL == os.Getenv(OTEL_CONFIG_KEY)
-}
-
-type OtelSpan struct {
-	reqContext context.Context
-	//OverridenContext context.Context
-	span trace.Span
-}
-
-func (impl OtelSpan) End() {
-	if impl.span != nil {
-		impl.span.End()
-	}
-}
-
-func StartSpan(ctx context.Context, spanName string) OtelSpan {
-	serviceName := OTEL_ORCHESTRASTOR_SERVICE_NAME
-	otelSpan := OtelSpan{
-		reqContext: ctx,
-	}
-	if otelConfigured() == false {
-		return otelSpan
-	}
-	_, span := otel.Tracer(serviceName).Start(ctx, spanName)
-	//otelSpan.OverridenContext = newCtx
-	otelSpan.span = span
-	return otelSpan
 }
