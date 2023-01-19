@@ -411,9 +411,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 			PipelineId:   pipeline.Id,
 			AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: 1, UpdatedOn: triggeredAt, UpdatedBy: 1},
 		}
-		_, span := otel.Tracer("orchestrator").Start(ctx, "cdWorkflowRepository.SaveWorkFlow")
-		err := impl.cdWorkflowRepository.SaveWorkFlow(cdWf)
-		span.End()
+		err := impl.cdWorkflowRepository.SaveWorkFlow(ctx, cdWf)
 		if err != nil {
 			return err
 		}
@@ -477,9 +475,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 }
 
 func (impl *WorkflowDagExecutorImpl) sendPreStageNotification(ctx context.Context, cdWf *pipelineConfig.CdWorkflow, pipeline *pipelineConfig.Pipeline) error {
-	_, span := otel.Tracer("orchestrator").Start(ctx, "cdWorkflowRepository.FindByWorkflowIdAndRunnerType")
-	wfr, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(cdWf.Id, bean.CD_WORKFLOW_TYPE_PRE)
-	span.End()
+	wfr, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(ctx, cdWf.Id, bean.CD_WORKFLOW_TYPE_PRE)
 	if err != nil {
 		return err
 	}
@@ -487,7 +483,7 @@ func (impl *WorkflowDagExecutorImpl) sendPreStageNotification(ctx context.Contex
 	event := impl.eventFactory.Build(util2.Trigger, &pipeline.Id, pipeline.AppId, &pipeline.EnvironmentId, util2.CD)
 	impl.logger.Debugw("event PreStageTrigger", "event", event)
 	event = impl.eventFactory.BuildExtraCDData(event, &wfr, 0, bean.CD_WORKFLOW_TYPE_PRE)
-	_, span = otel.Tracer("orchestrator").Start(ctx, "eventClient.WriteNotificationEvent")
+	_, span := otel.Tracer("orchestrator").Start(ctx, "eventClient.WriteNotificationEvent")
 	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
 	span.End()
 	if evtErr != nil {
@@ -548,7 +544,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		return err
 	}
 
-	wfr, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(cdWf.Id, bean.CD_WORKFLOW_TYPE_POST)
+	wfr, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(context.Background(), cdWf.Id, bean.CD_WORKFLOW_TYPE_POST)
 	if err != nil {
 		impl.logger.Errorw("error in getting wfr by workflowId and runnerType", "err", err, "wfId", cdWf.Id)
 		return err
@@ -994,7 +990,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 			PipelineId:   pipeline.Id,
 			AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: 1, UpdatedOn: triggeredAt, UpdatedBy: 1},
 		}
-		err := impl.cdWorkflowRepository.SaveWorkFlow(cdWf)
+		err := impl.cdWorkflowRepository.SaveWorkFlow(context.Background(), cdWf)
 		if err != nil {
 			return err
 		}
@@ -1305,9 +1301,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 		if overrideRequest.DeploymentType == models.DEPLOYMENTTYPE_UNKNOWN {
 			overrideRequest.DeploymentType = models.DEPLOYMENTTYPE_DEPLOY
 		}
-		_, span = otel.Tracer("orchestrator").Start(ctx, "cdWorkflowRepository.FindByWorkflowIdAndRunnerType")
-		cdWf, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(overrideRequest.CdWorkflowId, bean.CD_WORKFLOW_TYPE_PRE)
-		span.End()
+		cdWf, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(ctx, overrideRequest.CdWorkflowId, bean.CD_WORKFLOW_TYPE_PRE)
 		if err != nil && !util.IsErrNoRows(err) {
 			impl.logger.Errorw("err", "err", err)
 			return 0, nil
@@ -1320,9 +1314,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 				PipelineId:   overrideRequest.PipelineId,
 				AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
 			}
-			_, span = otel.Tracer("orchestrator").Start(ctx, "cdWorkflowRepository.SaveWorkFlow")
-			err := impl.cdWorkflowRepository.SaveWorkFlow(cdWf)
-			span.End()
+			err := impl.cdWorkflowRepository.SaveWorkFlow(ctx, cdWf)
 			if err != nil {
 				impl.logger.Errorw("err", "err", err)
 				return 0, err
@@ -1454,9 +1446,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			return 0, err
 		}
 	} else if overrideRequest.CdWorkflowType == bean.CD_WORKFLOW_TYPE_POST {
-		_, span = otel.Tracer("orchestrator").Start(ctx, "cdWorkflowRepository.FindByWorkflowIdAndRunnerType")
-		cdWfRunner, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(overrideRequest.CdWorkflowId, bean.CD_WORKFLOW_TYPE_DEPLOY)
-		span.End()
+		cdWfRunner, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(ctx, overrideRequest.CdWorkflowId, bean.CD_WORKFLOW_TYPE_DEPLOY)
 		if err != nil && !util.IsErrNoRows(err) {
 			impl.logger.Errorw("err", "err", err)
 			return 0, nil
@@ -1468,9 +1458,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 				PipelineId:   overrideRequest.PipelineId,
 				AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
 			}
-			_, span = otel.Tracer("orchestrator").Start(ctx, "cdWorkflowRepository.SaveWorkFlow")
-			err := impl.cdWorkflowRepository.SaveWorkFlow(cdWf)
-			span.End()
+			err := impl.cdWorkflowRepository.SaveWorkFlow(ctx, cdWf)
 			if err != nil {
 				impl.logger.Errorw("err", "err", err)
 				return 0, err

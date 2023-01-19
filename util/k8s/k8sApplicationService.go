@@ -115,28 +115,16 @@ func (impl *K8sApplicationServiceImpl) FilterServiceAndIngress(ctx context.Conte
 	for i := 0; i < noOfNodes; i++ {
 		resourceItem := resourceNodeItemss[i].(map[string]interface{})
 		var kind, name, namespace string
-		if _, ok := resourceItem["kind"]; ok && resourceItem["kind"] != nil {
-			kind = resourceItem["kind"].(string)
-		}
-		if _, ok := resourceItem["name"]; ok && resourceItem["name"] != nil {
-			name = resourceItem["name"].(string)
-		}
-		if _, ok := resourceItem["namespace"]; ok && resourceItem["namespace"] != nil {
-			namespace = resourceItem["namespace"].(string)
-		}
+		kind = impl.extractResourceValue(resourceItem, "kind")
+		name = impl.extractResourceValue(resourceItem, "name")
+		namespace = impl.extractResourceValue(resourceItem, "namespace")
 
 		if appId == "" {
 			appId = strconv.Itoa(appDetail.ClusterId) + "|" + namespace + "|" + (appDetail.AppName + "-" + appDetail.EnvironmentName)
 		}
 		if strings.Compare(kind, "Service") == 0 || strings.Compare(kind, "Ingress") == 0 {
-			group := ""
-			version := ""
-			if _, ok := resourceItem["version"]; ok {
-				version = resourceItem["version"].(string)
-			}
-			if _, ok := resourceItem["group"]; ok {
-				group = resourceItem["group"].(string)
-			}
+			group := impl.extractResourceValue(resourceItem, "group")
+			version := impl.extractResourceValue(resourceItem, "version")
 			req := ResourceRequestBean{
 				AppId: appId,
 				AppIdentifier: &client.AppIdentifier{
@@ -154,11 +142,17 @@ func (impl *K8sApplicationServiceImpl) FilterServiceAndIngress(ctx context.Conte
 					},
 				},
 			}
-
 			validRequests = append(validRequests, req)
 		}
 	}
 	return validRequests
+}
+
+func (impl *K8sApplicationServiceImpl) extractResourceValue(resourceItem map[string]interface{}, resourceName string) string {
+	if _, ok := resourceItem[resourceName]; ok && resourceItem[resourceName] != nil {
+		return resourceItem[resourceName].(string)
+	}
+	return ""
 }
 
 type Response struct {

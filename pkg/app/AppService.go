@@ -451,7 +451,7 @@ func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValid(argoAppName, gitHa
 			return isValid, pipeline, cdWfr, pipelineOverride, nil
 		}
 	}
-	cdWfr, err = impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(pipelineOverride.CdWorkflowId, bean.CD_WORKFLOW_TYPE_DEPLOY)
+	cdWfr, err = impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(context.Background(), pipelineOverride.CdWorkflowId, bean.CD_WORKFLOW_TYPE_DEPLOY)
 	if err != nil {
 		impl.logger.Errorw("error in getting latest wfr by pipelineId", "err", err, "pipelineId", pipeline.Id)
 		return isValid, pipeline, cdWfr, pipelineOverride, err
@@ -2039,7 +2039,7 @@ func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Val
 		}
 
 		//update workflow runner status, used in app workflow view
-		cdWf, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(overrideRequest.CdWorkflowId, bean.CD_WORKFLOW_TYPE_DEPLOY)
+		cdWf, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(ctx, overrideRequest.CdWorkflowId, bean.CD_WORKFLOW_TYPE_DEPLOY)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("err on fetching cd workflow", "err", err)
 			return false, err
@@ -2051,7 +2051,7 @@ func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Val
 				PipelineId:   overrideRequest.PipelineId,
 				AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
 			}
-			err := impl.cdWorkflowRepository.SaveWorkFlow(cdWf)
+			err := impl.cdWorkflowRepository.SaveWorkFlow(ctx, cdWf)
 			if err != nil {
 				impl.logger.Errorw("err on updating cd workflow for status update", "err", err)
 				return false, err
