@@ -164,6 +164,9 @@ components:
         clusterName:
           type: string
           description: cluster name
+        errorInConnecting:
+          type: string
+          description: error message if cluster failed to connect
 
     ErrorResponse:
       required:
