@@ -135,6 +135,32 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetail(ctx context.Context
 		impl.logger.Errorw("error in getting node list", "err", err, "clusterId", cluster.Id)
 		return nil, err
 	}
+	clusterCpuAllocatable, clusterMemoryAllocatable, nodeCount := impl.setBasicClusterDetails(nodeList, clusterDetail)
+	if callForList {
+		//assigning additional data for cluster listing api call
+		clusterDetail.NodeCount = nodeCount
+		//getting serverVersion
+		serverVersion, err := k8sClientSet.DiscoveryClient.ServerVersion()
+		if err != nil {
+			impl.logger.Errorw("error in getting server version", "err", err, "clusterId", cluster.Id)
+			return nil, err
+		}
+		clusterDetail.ServerVersion = serverVersion.GitVersion
+	} else {
+		metricsClientSet, err := metrics.NewForConfigAndClient(restConfig, k8sHttpClient)
+		if err != nil {
+			impl.logger.Errorw("error in getting metrics client set", "err", err)
+			return nil, err
+		}
+		err = impl.updateMetricsData(ctx, metricsClientSet, k8sClientSet, clusterDetail, clusterCpuAllocatable, clusterMemoryAllocatable)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return clusterDetail, nil
+}
+
+func (impl *K8sCapacityServiceImpl) setBasicClusterDetails(nodeList *corev1.NodeList, clusterDetail *ClusterCapacityDetail) (resource.Quantity, resource.Quantity, int) {
 	var clusterCpuCapacity resource.Quantity
 	var clusterMemoryCapacity resource.Quantity
 	var clusterCpuAllocatable resource.Quantity
@@ -175,62 +201,50 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetail(ctx context.Context
 	clusterDetail.Memory = &ResourceDetailObject{
 		Capacity: getResourceString(clusterMemoryCapacity, corev1.ResourceMemory),
 	}
-	if callForList {
-		//assigning additional data for cluster listing api call
-		clusterDetail.NodeCount = nodeCount
-		//getting serverVersion
-		serverVersion, err := k8sClientSet.DiscoveryClient.ServerVersion()
-		if err != nil {
-			impl.logger.Errorw("error in getting server version", "err", err, "clusterId", cluster.Id)
-			return nil, err
-		}
-		clusterDetail.ServerVersion = serverVersion.GitVersion
-	} else {
-		//update data for cluster detail api call
-		//getting metrics clientSet by rest config
-		metricsClientSet, err := metrics.NewForConfigAndClient(restConfig, k8sHttpClient)
-		if err != nil {
-			impl.logger.Errorw("error in getting metrics client set", "err", err)
-			return nil, err
-		}
-		//empty namespace: get pods for all namespaces
-		podList, err := k8sClientSet.CoreV1().Pods(corev1.NamespaceAll).List(ctx, v1.ListOptions{})
-		if err != nil {
-			impl.logger.Errorw("error in getting pod list", "err", err)
-			return nil, err
-		}
-		var clusterCpuUsage resource.Quantity
-		var clusterMemoryUsage resource.Quantity
-		var clusterCpuLimits resource.Quantity
-		var clusterCpuRequests resource.Quantity
-		var clusterMemoryLimits resource.Quantity
-		var clusterMemoryRequests resource.Quantity
-		nmList, err := metricsClientSet.MetricsV1beta1().NodeMetricses().List(ctx, v1.ListOptions{})
-		if err != nil {
-			impl.logger.Errorw("error in getting nodeMetrics list", "err", err)
-		} else if nmList != nil {
-			for _, nm := range nmList.Items {
-				clusterCpuUsage.Add(nm.Usage[corev1.ResourceCPU])
-				clusterMemoryUsage.Add(nm.Usage[corev1.ResourceMemory])
-			}
-			clusterDetail.Cpu.UsagePercentage = convertToPercentage(&clusterCpuUsage, &clusterCpuAllocatable)
-			clusterDetail.Memory.UsagePercentage = convertToPercentage(&clusterMemoryUsage, &clusterMemoryAllocatable)
-		}
-		for _, pod := range podList.Items {
-			if pod.Status.Phase != corev1.PodSucceeded && pod.Status.Phase != corev1.PodFailed {
-				requests, limits := resourcehelper.PodRequestsAndLimits(&pod)
-				clusterCpuLimits.Add(limits[corev1.ResourceCPU])
-				clusterCpuRequests.Add(requests[corev1.ResourceCPU])
-				clusterMemoryLimits.Add(limits[corev1.ResourceMemory])
-				clusterMemoryRequests.Add(requests[corev1.ResourceMemory])
-			}
-		}
-		clusterDetail.Cpu.RequestPercentage = convertToPercentage(&clusterCpuRequests, &clusterCpuAllocatable)
-		clusterDetail.Cpu.LimitPercentage = convertToPercentage(&clusterCpuLimits, &clusterCpuAllocatable)
-		clusterDetail.Memory.RequestPercentage = convertToPercentage(&clusterMemoryRequests, &clusterMemoryAllocatable)
-		clusterDetail.Memory.LimitPercentage = convertToPercentage(&clusterMemoryLimits, &clusterMemoryAllocatable)
+	return clusterCpuAllocatable, clusterMemoryAllocatable, nodeCount
+}
+
+func (impl *K8sCapacityServiceImpl) updateMetricsData(ctx context.Context, metricsClientSet *metrics.Clientset, k8sClientSet *kubernetes.Clientset, clusterDetail *ClusterCapacityDetail, clusterCpuAllocatable resource.Quantity, clusterMemoryAllocatable resource.Quantity) error {
+	//update data for cluster detail api call
+	//getting metrics clientSet by rest config
+
+	//empty namespace: get pods for all namespaces
+	podList, err := k8sClientSet.CoreV1().Pods(corev1.NamespaceAll).List(ctx, v1.ListOptions{})
+	if err != nil {
+		impl.logger.Errorw("error in getting pod list", "err", err)
+		return err
 	}
-	return clusterDetail, nil
+	var clusterCpuUsage resource.Quantity
+	var clusterMemoryUsage resource.Quantity
+	var clusterCpuLimits resource.Quantity
+	var clusterCpuRequests resource.Quantity
+	var clusterMemoryLimits resource.Quantity
+	var clusterMemoryRequests resource.Quantity
+	nmList, err := metricsClientSet.MetricsV1beta1().NodeMetricses().List(ctx, v1.ListOptions{})
+	if err != nil {
+		impl.logger.Errorw("error in getting nodeMetrics list", "err", err)
+	} else if nmList != nil {
+		for _, nm := range nmList.Items {
+			clusterCpuUsage.Add(nm.Usage[corev1.ResourceCPU])
+			clusterMemoryUsage.Add(nm.Usage[corev1.ResourceMemory])
+		}
+		clusterDetail.Cpu.UsagePercentage = convertToPercentage(&clusterCpuUsage, &clusterCpuAllocatable)
+		clusterDetail.Memory.UsagePercentage = convertToPercentage(&clusterMemoryUsage, &clusterMemoryAllocatable)
+	}
+	for _, pod := range podList.Items {
+		if pod.Status.Phase != corev1.PodSucceeded && pod.Status.Phase != corev1.PodFailed {
+			requests, limits := resourcehelper.PodRequestsAndLimits(&pod)
+			clusterCpuLimits.Add(limits[corev1.ResourceCPU])
+			clusterCpuRequests.Add(requests[corev1.ResourceCPU])
+			clusterMemoryLimits.Add(limits[corev1.ResourceMemory])
+			clusterMemoryRequests.Add(requests[corev1.ResourceMemory])
+		}
+	}
+	clusterDetail.Cpu.RequestPercentage = convertToPercentage(&clusterCpuRequests, &clusterCpuAllocatable)
+	clusterDetail.Cpu.LimitPercentage = convertToPercentage(&clusterCpuLimits, &clusterCpuAllocatable)
+	clusterDetail.Memory.RequestPercentage = convertToPercentage(&clusterMemoryRequests, &clusterMemoryAllocatable)
+	clusterDetail.Memory.LimitPercentage = convertToPercentage(&clusterMemoryLimits, &clusterMemoryAllocatable)
+	return nil
 }
 
 func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailsListByCluster(ctx context.Context, cluster *cluster.ClusterBean) ([]*NodeCapacityDetail, error) {
@@ -363,14 +377,8 @@ func (impl *K8sCapacityServiceImpl) getNodeDetail(ctx context.Context, node *cor
 			}
 		}
 	}
-	var labels []*LabelAnnotationTaintObject
-	for k, v := range node.Labels {
-		labelObj := &LabelAnnotationTaintObject{
-			Key:   k,
-			Value: v,
-		}
-		labels = append(labels, labelObj)
-	}
+
+	labels, taints := impl.getNodeLabelsAndTaints(node)
 	nodeDetail := &NodeCapacityDetail{
 		Name:          node.Name,
 		K8sVersion:    node.Status.NodeInfo.KubeletVersion,
@@ -386,7 +394,29 @@ func (impl *K8sCapacityServiceImpl) getNodeDetail(ctx context.Context, node *cor
 	}
 	nodeDetail.Version = "v1"
 	nodeDetail.Kind = "Node"
+	nodeDetail.Taints = taints
+	nodeUsageResourceList := nodeResourceUsage[node.Name]
+	if callForList {
+		// assigning additional data for node listing api call
+		impl.updateBasicDetailsForNode(nodeDetail, node, podCount, nodeUsageResourceList, cpuAllocatable, memoryAllocatable)
+	} else {
+		//update data for node detail api call
+		err := impl.updateAdditionalDetailForNode(nodeDetail, node, nodeLimitsResourceList, nodeRequestsResourceList, nodeUsageResourceList, podDetailList)
+		if err != nil {
+			impl.logger.Errorw("error in getting updating data for node detail", "err", err)
+			return nil, err
+		}
+		err = impl.updateManifestData(ctx, nodeDetail, node, restConfig)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return nodeDetail, nil
+}
+
+func (impl *K8sCapacityServiceImpl) getNodeLabelsAndTaints(node *corev1.Node) ([]*LabelAnnotationTaintObject, []*LabelAnnotationTaintObject) {
 	var taints []*LabelAnnotationTaintObject
+	var labels []*LabelAnnotationTaintObject
 	for _, taint := range node.Spec.Taints {
 		taintObj := &LabelAnnotationTaintObject{
 			Key:    taint.Key,
@@ -395,46 +425,44 @@ func (impl *K8sCapacityServiceImpl) getNodeDetail(ctx context.Context, node *cor
 		}
 		taints = append(taints, taintObj)
 	}
-	nodeDetail.Taints = taints
-	nodeUsageResourceList := nodeResourceUsage[node.Name]
-	if callForList {
-		// assigning additional data for node listing api call
-		nodeDetail.Age = translateTimestampSince(node.CreationTimestamp)
-		nodeDetail.PodCount = podCount
-		cpuUsage, cpuUsageOk := nodeUsageResourceList[corev1.ResourceCPU]
-		memoryUsage, memoryUsageOk := nodeUsageResourceList[corev1.ResourceMemory]
-		nodeDetail.Cpu = &ResourceDetailObject{
-			Allocatable:        getResourceString(cpuAllocatable, corev1.ResourceCPU),
-			AllocatableInBytes: cpuAllocatable.Value(),
+	for k, v := range node.Labels {
+		labelObj := &LabelAnnotationTaintObject{
+			Key:   k,
+			Value: v,
 		}
-		nodeDetail.Memory = &ResourceDetailObject{
-			Allocatable:        getResourceString(memoryAllocatable, corev1.ResourceMemory),
-			AllocatableInBytes: memoryAllocatable.Value(),
-		}
-		if cpuUsageOk {
-			nodeDetail.Cpu.Usage = getResourceString(cpuUsage, corev1.ResourceCPU)
-			nodeDetail.Cpu.UsageInBytes = cpuUsage.Value()
-			nodeDetail.Cpu.UsagePercentage = convertToPercentage(&cpuUsage, &cpuAllocatable)
-		}
-		if memoryUsageOk {
-			nodeDetail.Memory.Usage = getResourceString(memoryUsage, corev1.ResourceMemory)
-			nodeDetail.Memory.UsageInBytes = memoryUsage.Value()
-			nodeDetail.Memory.UsagePercentage = convertToPercentage(&memoryUsage, &memoryAllocatable)
-		}
-	} else {
-		//update data for node detail api call
-		err := impl.updateAdditionalDetailForNode(ctx, nodeDetail, node, nodeLimitsResourceList, nodeRequestsResourceList, nodeUsageResourceList, podDetailList, restConfig)
-		if err != nil {
-			impl.logger.Errorw("error in getting updating data for node detail", "err", err)
-			return nil, err
-		}
+		labels = append(labels, labelObj)
 	}
-	return nodeDetail, nil
+	return labels, taints
 }
 
-func (impl *K8sCapacityServiceImpl) updateAdditionalDetailForNode(ctx context.Context, nodeDetail *NodeCapacityDetail, node *corev1.Node,
+func (impl *K8sCapacityServiceImpl) updateBasicDetailsForNode(nodeDetail *NodeCapacityDetail, node *corev1.Node, podCount int, nodeUsageResourceList corev1.ResourceList, cpuAllocatable resource.Quantity, memoryAllocatable resource.Quantity) {
+	nodeDetail.Age = translateTimestampSince(node.CreationTimestamp)
+	nodeDetail.PodCount = podCount
+	cpuUsage, cpuUsageOk := nodeUsageResourceList[corev1.ResourceCPU]
+	memoryUsage, memoryUsageOk := nodeUsageResourceList[corev1.ResourceMemory]
+	nodeDetail.Cpu = &ResourceDetailObject{
+		Allocatable:        getResourceString(cpuAllocatable, corev1.ResourceCPU),
+		AllocatableInBytes: cpuAllocatable.Value(),
+	}
+	nodeDetail.Memory = &ResourceDetailObject{
+		Allocatable:        getResourceString(memoryAllocatable, corev1.ResourceMemory),
+		AllocatableInBytes: memoryAllocatable.Value(),
+	}
+	if cpuUsageOk {
+		nodeDetail.Cpu.Usage = getResourceString(cpuUsage, corev1.ResourceCPU)
+		nodeDetail.Cpu.UsageInBytes = cpuUsage.Value()
+		nodeDetail.Cpu.UsagePercentage = convertToPercentage(&cpuUsage, &cpuAllocatable)
+	}
+	if memoryUsageOk {
+		nodeDetail.Memory.Usage = getResourceString(memoryUsage, corev1.ResourceMemory)
+		nodeDetail.Memory.UsageInBytes = memoryUsage.Value()
+		nodeDetail.Memory.UsagePercentage = convertToPercentage(&memoryUsage, &memoryAllocatable)
+	}
+}
+
+func (impl *K8sCapacityServiceImpl) updateAdditionalDetailForNode(nodeDetail *NodeCapacityDetail, node *corev1.Node,
 	nodeLimitsResourceList corev1.ResourceList, nodeRequestsResourceList corev1.ResourceList,
-	nodeUsageResourceList corev1.ResourceList, podDetailList []*PodCapacityDetail, restConfig *rest.Config) error {
+	nodeUsageResourceList corev1.ResourceList, podDetailList []*PodCapacityDetail) error {
 	nodeDetail.Pods = podDetailList
 	var annotations []*LabelAnnotationTaintObject
 	for k, v := range node.Annotations {
@@ -445,6 +473,32 @@ func (impl *K8sCapacityServiceImpl) updateAdditionalDetailForNode(ctx context.Co
 		annotations = append(annotations, annotationObj)
 	}
 	nodeDetail.Annotations = annotations
+	impl.updateNodeConditions(node, nodeDetail)
+	impl.updateNodeResources(node, nodeLimitsResourceList, nodeRequestsResourceList, nodeUsageResourceList, nodeDetail)
+	return nil
+}
+
+func (impl *K8sCapacityServiceImpl) updateManifestData(ctx context.Context, nodeDetail *NodeCapacityDetail, node *corev1.Node, restConfig *rest.Config) error {
+	//getting manifest
+	manifestRequest := &application.K8sRequestBean{
+		ResourceIdentifier: application.ResourceIdentifier{
+			Name: node.Name,
+			GroupVersionKind: schema.GroupVersionKind{
+				Version: nodeDetail.Version,
+				Kind:    nodeDetail.Kind,
+			},
+		},
+	}
+	manifestResponse, err := impl.k8sClientService.GetResource(ctx, restConfig, manifestRequest)
+	if err != nil {
+		impl.logger.Errorw("error in getting node manifest", "err", err)
+		return err
+	}
+	nodeDetail.Manifest = manifestResponse.Manifest
+	return nil
+}
+
+func (impl *K8sCapacityServiceImpl) updateNodeConditions(node *corev1.Node, nodeDetail *NodeCapacityDetail) {
 	//map of {conditionType : isErrorCondition }, Valid/Non-error conditions to be updated with update at kubernetes end
 	NodeAllConditionsMap := map[corev1.NodeConditionType]bool{corev1.NodeReady: false, corev1.NodeMemoryPressure: true,
 		corev1.NodeDiskPressure: true, corev1.NodeNetworkUnavailable: true, corev1.NodePIDPressure: true}
@@ -465,7 +519,9 @@ func (impl *K8sCapacityServiceImpl) updateAdditionalDetailForNode(ctx context.Co
 		}
 	}
 	nodeDetail.Conditions = conditions
+}
 
+func (impl *K8sCapacityServiceImpl) updateNodeResources(node *corev1.Node, nodeLimitsResourceList corev1.ResourceList, nodeRequestsResourceList corev1.ResourceList, nodeUsageResourceList corev1.ResourceList, nodeDetail *NodeCapacityDetail) {
 	nodeCapacityResourceList := node.Status.Capacity
 	nodeAllocatableResourceList := node.Status.Allocatable
 	for resourceName, allocatable := range nodeAllocatableResourceList {
@@ -492,23 +548,6 @@ func (impl *K8sCapacityServiceImpl) updateAdditionalDetailForNode(ctx context.Co
 		}
 		nodeDetail.Resources = append(nodeDetail.Resources, r)
 	}
-	//getting manifest
-	manifestRequest := &application.K8sRequestBean{
-		ResourceIdentifier: application.ResourceIdentifier{
-			Name: node.Name,
-			GroupVersionKind: schema.GroupVersionKind{
-				Version: nodeDetail.Version,
-				Kind:    nodeDetail.Kind,
-			},
-		},
-	}
-	manifestResponse, err := impl.k8sClientService.GetResource(ctx, restConfig, manifestRequest)
-	if err != nil {
-		impl.logger.Errorw("error in getting node manifest", "err", err)
-		return err
-	}
-	nodeDetail.Manifest = manifestResponse.Manifest
-	return nil
 }
 
 func (impl *K8sCapacityServiceImpl) UpdateNodeManifest(ctx context.Context, request *NodeUpdateRequestDto) (*application.ManifestResponse, error) {

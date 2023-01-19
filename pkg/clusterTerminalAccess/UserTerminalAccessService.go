@@ -484,6 +484,22 @@ func (impl *UserTerminalAccessServiceImpl) FetchTerminalStatus(ctx context.Conte
 			}
 		}
 	}
+	terminalAccessData, err := impl.validateTerminalAccessFromDb(ctx, terminalAccessId, terminalAccessData, terminalSessionId, terminalAccessSessionData, terminalAccessDataMap)
+	if err != nil {
+		return nil, err
+	}
+	terminalAccessDataId := terminalAccessData.Id
+	terminalAccessResponse := &models.UserTerminalSessionResponse{
+		TerminalAccessId:      terminalAccessDataId,
+		UserId:                terminalAccessData.UserId,
+		Status:                models.TerminalPodStatus(terminalAccessData.Status),
+		PodName:               terminalAccessData.PodName,
+		UserTerminalSessionId: terminalSessionId,
+	}
+	return terminalAccessResponse, nil
+}
+
+func (impl *UserTerminalAccessServiceImpl) validateTerminalAccessFromDb(ctx context.Context, terminalAccessId int, terminalAccessData *models.UserTerminalAccessData, terminalSessionId string, terminalAccessSessionData *UserTerminalAccessSessionData, terminalAccessDataMap map[int]*UserTerminalAccessSessionData) (*models.UserTerminalAccessData, error) {
 	if terminalAccessData == nil {
 		existingTerminalAccessData, err := impl.TerminalAccessRepository.GetUserTerminalAccessData(terminalAccessId)
 		if err != nil {
@@ -512,16 +528,7 @@ func (impl *UserTerminalAccessServiceImpl) FetchTerminalStatus(ctx context.Conte
 		impl.TerminalAccessDataArrayMutex.Unlock()
 
 	}
-	terminalAccessDataId := terminalAccessData.Id
-
-	terminalAccessResponse := &models.UserTerminalSessionResponse{
-		TerminalAccessId:      terminalAccessDataId,
-		UserId:                terminalAccessData.UserId,
-		Status:                models.TerminalPodStatus(terminalAccessData.Status),
-		PodName:               terminalAccessData.PodName,
-		UserTerminalSessionId: terminalSessionId,
-	}
-	return terminalAccessResponse, nil
+	return terminalAccessData, nil
 }
 
 func (impl *UserTerminalAccessServiceImpl) DeleteTerminalPod(ctx context.Context, clusterId int, terminalPodName string, namespace string) error {
