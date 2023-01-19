@@ -564,15 +564,8 @@ func (impl *K8sCapacityServiceImpl) DeleteNode(ctx context.Context, request *Nod
 
 func (impl *K8sCapacityServiceImpl) CordonOrUnCordonNode(ctx context.Context, request *NodeUpdateRequestDto) (string, error) {
 	respMessage := ""
-	//getting rest config by clusterId
-	//restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(ctx, request.ClusterId)
-	//if err != nil {
-	//	impl.logger.Errorw("error in getting rest config by cluster id", "err", err, "clusterId", request.ClusterId)
-	//	return respMessage, err
-	//}
-	cluster, err := impl.clusterService.FindById(request.ClusterId)
+	cluster, err := impl.getClusterBean(request.ClusterId)
 	if err != nil {
-		impl.logger.Errorw("error in getting cluster by ID", "err", err, "clusterId")
 		return respMessage, err
 	}
 	//getting kubernetes clientSet by rest config
@@ -607,10 +600,8 @@ func (impl *K8sCapacityServiceImpl) CordonOrUnCordonNode(ctx context.Context, re
 func (impl *K8sCapacityServiceImpl) DrainNode(ctx context.Context, request *NodeUpdateRequestDto) (string, error) {
 	impl.logger.Infow("received node drain request", "request", request)
 	respMessage := ""
-	//getting rest config by clusterId
-	cluster, err := impl.clusterService.FindById(request.ClusterId)
+	cluster, err := impl.getClusterBean(request.ClusterId)
 	if err != nil {
-		impl.logger.Errorw("error in getting cluster by ID", "err", err, "clusterId", request.ClusterId)
 		return respMessage, err
 	}
 	//getting kubernetes clientSet by rest config
@@ -642,11 +633,19 @@ func (impl *K8sCapacityServiceImpl) DrainNode(ctx context.Context, request *Node
 	return respMessage, nil
 }
 
+func (impl *K8sCapacityServiceImpl) getClusterBean(clusterId int) (*cluster.ClusterBean, error) {
+	cluster, err := impl.clusterService.FindById(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting cluster by ID", "err", err, "clusterId", clusterId)
+		return nil, err
+	}
+	return cluster, err
+}
+
 func (impl *K8sCapacityServiceImpl) EditNodeTaints(ctx context.Context, request *NodeUpdateRequestDto) (string, error) {
 	respMessage := ""
-	cluster, err := impl.clusterService.FindById(request.ClusterId)
+	cluster, err := impl.getClusterBean(request.ClusterId)
 	if err != nil {
-		impl.logger.Errorw("error in getting cluster by ID", "err", err, "clusterId", request.ClusterId)
 		return respMessage, err
 	}
 	//getting kubernetes clientSet by rest config

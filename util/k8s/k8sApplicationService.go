@@ -473,18 +473,24 @@ func (impl *K8sApplicationServiceImpl) ValidateResourceRequest(ctx context.Conte
 		}
 	}
 	if !valid {
-		for _, pod := range app.ResourceTreeResponse.PodMetadata {
-			if pod.Name == request.ResourceIdentifier.Name {
-				for _, container := range pod.Containers {
-					if container == request.PodLogsRequest.ContainerName {
-						valid = true
-						break
-					}
+		requestContainerName := request.PodLogsRequest.ContainerName
+		podName := request.ResourceIdentifier.Name
+		valid = impl.checkForContainer(app, podName, requestContainerName)
+	}
+	return valid, nil
+}
+
+func (impl *K8sApplicationServiceImpl) checkForContainer(app *client.AppDetail, podName, requestContainerName string) bool {
+	for _, pod := range app.ResourceTreeResponse.PodMetadata {
+		if pod.Name == podName {
+			for _, container := range pod.Containers {
+				if container == requestContainerName {
+					return true
 				}
 			}
 		}
 	}
-	return valid, nil
+	return false
 }
 
 func (impl *K8sApplicationServiceImpl) GetResourceInfo(ctx context.Context) (*ResourceInfo, error) {
