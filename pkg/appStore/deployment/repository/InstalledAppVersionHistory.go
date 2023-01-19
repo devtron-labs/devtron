@@ -93,6 +93,7 @@ func (impl InstalledAppVersionHistoryRepositoryImpl) GetAppIdAndEnvIdWithInstall
 		AppId int `json:"app_id"`
 		EnvId int `json:"env_id"`
 	}
+	//TODO: use explain analyse
 	model := appEnvId{}
 	query := "select ia.app_id,ia.environment_id as env_id" +
 		" from installed_apps ia  " +

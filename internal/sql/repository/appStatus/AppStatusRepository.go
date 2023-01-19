@@ -29,7 +29,6 @@ type AppStatusRepository interface {
 	Create(container AppStatusContainer) error
 	Update(container AppStatusContainer) error
 	Delete(tx *pg.Tx, appId, envId int) error
-	DeleteWithAppId(tx *pg.Tx, appId int) error
 	DeleteWithEnvId(tx *pg.Tx, envId int) error
 	Get(appId, envId int) (AppStatusContainer, error)
 	GetConnection() *pg.DB
@@ -80,17 +79,7 @@ func (repo *AppStatusRepositoryImpl) Delete(tx *pg.Tx, appId, envId int) error {
 		AppId: appId,
 		EnvId: envId,
 	}
-	query := "DELETE FROM app_status WHERE app_id = ? and env_id = ?;"
-	_, err := tx.Query(&model, query, appId, envId)
-	return err
-}
-
-func (repo *AppStatusRepositoryImpl) DeleteWithAppId(tx *pg.Tx, appId int) error {
-	model := AppStatusDto{
-		AppId: appId,
-	}
-	query := "DELETE FROM app_status WHERE app_id = ?;"
-	_, err := tx.Query(&model, query, appId)
+	err := tx.Delete(&model)
 	return err
 }
 
@@ -98,6 +87,7 @@ func (repo *AppStatusRepositoryImpl) DeleteWithEnvId(tx *pg.Tx, envId int) error
 	model := AppStatusDto{
 		EnvId: envId,
 	}
+	//TODO : Change to ORM query
 	query := "DELETE FROM app_status WHERE env_id = ?;"
 	_, err := tx.Query(&model, query, envId)
 	return err

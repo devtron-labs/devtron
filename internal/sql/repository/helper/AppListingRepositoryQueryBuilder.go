@@ -19,6 +19,7 @@ package helper
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
 	"strconv"
 	"strings"
@@ -69,8 +70,8 @@ func (impl AppListingRepositoryQueryBuilder) BuildAppListingQuery(appListingFilt
 		" INNER JOIN environment env ON env.id=p.environment_id" +
 		" INNER JOIN cluster cluster ON cluster.id=env.cluster_id" +
 		" RIGHT JOIN app a ON a.id=p.app_id  and p.deleted=false" +
-		" RIGHT JOIN team t ON t.id=a.team_id "
-	query = query + " LEFT JOIN app_status aps on aps.app_id = a.id and env.id = aps.env_id "
+		" RIGHT JOIN team t ON t.id=a.team_id " +
+		" LEFT JOIN app_status aps on aps.app_id = a.id and env.id = aps.env_id "
 	if appListingFilter.DeploymentGroupId != 0 {
 		query = query + " INNER JOIN deployment_group_app dga ON a.id = dga.app_id "
 	}
@@ -114,21 +115,8 @@ func (impl AppListingRepositoryQueryBuilder) buildAppListingWhereCondition(appLi
 	}
 	//add app-status filter here
 	if len(appListingFilter.AppStatuses) > 0 {
-		appStatuses := processAppStatuses(appListingFilter.AppStatuses)
+		appStatuses := util.ProcessAppStatuses(appListingFilter.AppStatuses)
 		whereCondition = whereCondition + "and aps.status IN (" + appStatuses + ") "
 	}
 	return whereCondition
-}
-
-func processAppStatuses(appStatuses []string) string {
-	query := ""
-	n := len(appStatuses)
-	for i, status := range appStatuses {
-		query += "'" + status + "'"
-		if i < n-1 {
-			query += ","
-		}
-	}
-
-	return query
 }

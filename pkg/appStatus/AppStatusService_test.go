@@ -144,12 +144,12 @@ func TestDeleteWithAppIdEnvId(t *testing.T) {
 			EnvId: 1,
 		}
 		db, _ := getDbConn()
-
+		tx, _ := db.Begin()
 		appStatusRepositoryMocked.On("GetConnection").Return(db)
 		expectedTestError := fmt.Errorf("error in deleting app-status")
 		appStatusRepositoryMocked.On("Delete", mock.AnythingOfTypeArgument("*pg.Tx"), testInputContainer.AppId, testInputContainer.EnvId).Return(expectedTestError)
 
-		err = appStatusService.DeleteWithAppIdEnvId(testInputContainer.AppId, testInputContainer.EnvId)
+		err = appStatusService.DeleteWithAppIdEnvId(tx, testInputContainer.AppId, testInputContainer.EnvId)
 		assert.NotNil(tt, err)
 		assert.Equal(tt, expectedTestError.Error(), err.Error())
 	})
@@ -163,10 +163,11 @@ func TestDeleteWithAppIdEnvId(t *testing.T) {
 		}
 
 		db, _ := getDbConn()
+		tx, _ := db.Begin()
 		appStatusRepositoryMocked.On("GetConnection").Return(db)
 		appStatusRepositoryMocked.On("Delete", mock.AnythingOfTypeArgument("*pg.Tx"), testInputContainer.AppId, testInputContainer.EnvId).Return(nil)
 
-		err = appStatusService.DeleteWithAppIdEnvId(testInputContainer.AppId, testInputContainer.EnvId)
+		err = appStatusService.DeleteWithAppIdEnvId(tx, testInputContainer.AppId, testInputContainer.EnvId)
 		assert.Nil(tt, err)
 	})
 }

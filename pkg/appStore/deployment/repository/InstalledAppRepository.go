@@ -23,6 +23,7 @@ import (
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"strconv"
@@ -278,7 +279,7 @@ func (impl InstalledAppRepositoryImpl) GetAllInstalledApps(filter *appStoreBean.
 		query = query + " AND cluster.id IN (" + sqlIntSeq(filter.ClusterIds) + ")"
 	}
 	if len(filter.AppStatuses) > 0 {
-		appStatuses := processAppStatuses(filter.AppStatuses)
+		appStatuses := util.ProcessAppStatuses(filter.AppStatuses)
 		query = query + " and app_status.status IN (" + appStatuses + ") "
 	}
 	query = query + " ORDER BY aps.name ASC"
@@ -489,17 +490,4 @@ func (impl InstalledAppRepositoryImpl) GetDeploymentSuccessfulStatusCountForTele
 		impl.Logger.Errorw("unable to get deployment count of successfully deployed Helm apps")
 	}
 	return count, err
-}
-
-func processAppStatuses(appStatuses []string) string {
-	query := ""
-	n := len(appStatuses)
-	for i, status := range appStatuses {
-		query += "'" + status + "'"
-		if i < n-1 {
-			query += ","
-		}
-	}
-
-	return query
 }
