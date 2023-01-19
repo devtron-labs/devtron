@@ -988,32 +988,18 @@ func (impl *AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideR
 		}
 		var gitCommitStatus pipelineConfig.TimelineStatus
 		var gitCommitStatusDetail string
-		_, span = otel.Tracer("orchestrator").Start(ctx, "chartTemplateService.BuildChartAndPushToGitRepo")
-		err = impl.chartTemplateService.BuildChartAndPushToGitRepo(ctx, chartMetaData, referenceTemplatePath, gitOpsRepoName, envOverride.Chart.ReferenceTemplate, envOverride.Chart.ChartVersion, envOverride.Chart.GitRepoUrl, overrideRequest.UserId)
+		_, span = otel.Tracer("orchestrator").Start(ctx, "chartTemplateService.BuildChart")
+		tempReferenceTemplateDir, err := impl.chartTemplateService.BuildChart(ctx, chartMetaData, referenceTemplatePath)
 		span.End()
 		if err != nil {
-			impl.logger.Errorw("Ref chart commit error on cd trigger", "err", err, "req", overrideRequest)
-			gitCommitStatus = pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED
-			gitCommitStatusDetail = fmt.Sprintf("Git commit failed - %v", err)
-			// creating cd pipeline status timeline for git commit
-			timeline := &pipelineConfig.PipelineStatusTimeline{
-				CdWorkflowRunnerId: wfrId,
-				Status:             gitCommitStatus,
-				StatusDetail:       gitCommitStatusDetail,
-				StatusTime:         time.Now(),
-				AuditLog: sql.AuditLog{
-					CreatedBy: overrideRequest.UserId,
-					CreatedOn: time.Now(),
-					UpdatedBy: overrideRequest.UserId,
-					UpdatedOn: time.Now(),
-				},
-			}
-			_, span = otel.Tracer("orchestrator").Start(ctx, "cdPipelineStatusTimelineRepo.SaveTimeline")
-			timelineErr := impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
-			span.End()
-			if timelineErr != nil {
-				impl.logger.Errorw("error in creating timeline status for git commit", "err", timelineErr, "timeline", timeline)
-			}
+			impl.saveTimelineForError(overrideRequest, ctx, err, wfrId)
+			return 0, err
+		}
+		_, span = otel.Tracer("orchestrator").Start(ctx, "chartTemplateService.PushChartToGitRepo")
+		err = impl.chartTemplateService.PushChartToGitRepo(gitOpsRepoName, envOverride.Chart.ReferenceTemplate, envOverride.Chart.ChartVersion, tempReferenceTemplateDir, envOverride.Chart.GitRepoUrl, overrideRequest.UserId)
+		span.End()
+		if err != nil {
+			impl.saveTimelineForError(overrideRequest, ctx, err, wfrId)
 			return 0, err
 		} else {
 			gitCommitStatus = pipelineConfig.TIMELINE_STATUS_GIT_COMMIT
@@ -1129,6 +1115,31 @@ func (impl *AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideR
 	}
 	middleware.CdTriggerCounter.WithLabelValues(strconv.Itoa(pipeline.AppId), strconv.Itoa(pipeline.EnvironmentId), strconv.Itoa(pipeline.Id)).Inc()
 	return releaseId, saveErr
+}
+
+func (impl *AppServiceImpl) saveTimelineForError(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, err error, wfrId int) {
+	impl.logger.Errorw("Ref chart commit error on cd trigger", "err", err, "req", overrideRequest)
+	gitCommitStatus := pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED
+	gitCommitStatusDetail := fmt.Sprintf("Git commit failed - %v", err)
+	// creating cd pipeline status timeline for git commit
+	timeline := &pipelineConfig.PipelineStatusTimeline{
+		CdWorkflowRunnerId: wfrId,
+		Status:             gitCommitStatus,
+		StatusDetail:       gitCommitStatusDetail,
+		StatusTime:         time.Now(),
+		AuditLog: sql.AuditLog{
+			CreatedBy: overrideRequest.UserId,
+			CreatedOn: time.Now(),
+			UpdatedBy: overrideRequest.UserId,
+			UpdatedOn: time.Now(),
+		},
+	}
+	_, span := otel.Tracer("orchestrator").Start(ctx, "cdPipelineStatusTimelineRepo.SaveTimeline")
+	timelineErr := impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
+	span.End()
+	if timelineErr != nil {
+		impl.logger.Errorw("error in creating timeline status for git commit", "err", timelineErr, "timeline", timeline)
+	}
 }
 
 func (impl *AppServiceImpl) autoHealChartLocationInChart(ctx context.Context, envOverride *chartConfig.EnvConfigOverride) error {
