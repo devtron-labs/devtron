@@ -2117,6 +2117,15 @@ func (handler CoreAppRestHandlerImpl) GetAppWorkflow(w http.ResponseWriter, r *h
 	}
 
 	token := r.Header.Get("token")
+
+	// get app metadata for appId
+	appMetaInfo, err := handler.appCrudOperationService.GetAppMetaInfo(appId)
+	if err != nil {
+		handler.logger.Errorw("service err, GetAppMetaInfo in GetAppWorkflow", "appId", appId, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
 	//get/build app workflows starts
 	appWorkflows, err, statusCode := handler.buildAppWorkflows(appId)
 	if err != nil {
@@ -2136,6 +2145,7 @@ func (handler CoreAppRestHandlerImpl) GetAppWorkflow(w http.ResponseWriter, r *h
 	//build full object for response
 	appDetail := &appBean.AppWorkflowCloneDto{
 		AppId:                appId,
+		AppName:              appMetaInfo.AppName,
 		AppWorkflows:         appWorkflows,
 		EnvironmentOverrides: environmentOverrides,
 	}
