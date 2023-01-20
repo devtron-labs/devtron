@@ -59,6 +59,7 @@ type ChartTemplateService interface {
 	CreateChartProxy(chartMetaData *chart.Metadata, refChartLocation string, templateName string, version string, envName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (string, *ChartGitAttribute, error)
 	GitPull(clonedDir string, repoUrl string, appStoreName string) error
 	GetDir() string
+	CleanDir(dir string)
 	GetUserEmailIdAndNameForGitOpsCommit(userId int32) (emailId, name string)
 	GetGitOpsRepoName(appName string) string
 	GetGitOpsRepoNameFromUrl(gitRepoUrl string) string
@@ -195,7 +196,6 @@ func (impl ChartTemplateServiceImpl) BuildChart(ctx context.Context, chartMetaDa
 		impl.logger.Errorw("err in creating dir", "dir", tempReferenceTemplateDir, "err", err)
 		return "", err
 	}
-	defer impl.CleanDir(tempReferenceTemplateDir)
 	err = dirCopy.Copy(referenceTemplatePath, tempReferenceTemplateDir)
 
 	if err != nil {

@@ -988,16 +988,10 @@ func (impl *AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideR
 		}
 		var gitCommitStatus pipelineConfig.TimelineStatus
 		var gitCommitStatusDetail string
-		_, span = otel.Tracer("orchestrator").Start(ctx, "chartTemplateService.BuildChart")
-		tempReferenceTemplateDir, err := impl.chartTemplateService.BuildChart(ctx, chartMetaData, referenceTemplatePath)
-		span.End()
+		err = impl.buildChartAndPushToGitRepo(overrideRequest, ctx, chartMetaData, referenceTemplatePath, wfrId, gitOpsRepoName, envOverride)
 		if err != nil {
-			impl.saveTimelineForError(overrideRequest, ctx, err, wfrId)
 			return 0, err
 		}
-		_, span = otel.Tracer("orchestrator").Start(ctx, "chartTemplateService.PushChartToGitRepo")
-		err = impl.chartTemplateService.PushChartToGitRepo(gitOpsRepoName, envOverride.Chart.ReferenceTemplate, envOverride.Chart.ChartVersion, tempReferenceTemplateDir, envOverride.Chart.GitRepoUrl, overrideRequest.UserId)
-		span.End()
 		if err != nil {
 			impl.saveTimelineForError(overrideRequest, ctx, err, wfrId)
 			return 0, err
@@ -1115,6 +1109,21 @@ func (impl *AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideR
 	}
 	middleware.CdTriggerCounter.WithLabelValues(strconv.Itoa(pipeline.AppId), strconv.Itoa(pipeline.EnvironmentId), strconv.Itoa(pipeline.Id)).Inc()
 	return releaseId, saveErr
+}
+
+func (impl *AppServiceImpl) buildChartAndPushToGitRepo(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, chartMetaData *chart2.Metadata, referenceTemplatePath string, wfrId int, gitOpsRepoName string, envOverride *chartConfig.EnvConfigOverride) error {
+	_, span := otel.Tracer("orchestrator").Start(ctx, "chartTemplateService.BuildChart")
+	tempReferenceTemplateDir, err := impl.chartTemplateService.BuildChart(ctx, chartMetaData, referenceTemplatePath)
+	span.End()
+	defer impl.chartTemplateService.CleanDir(tempReferenceTemplateDir)
+	if err != nil {
+		impl.saveTimelineForError(overrideRequest, ctx, err, wfrId)
+		return err
+	}
+	_, span = otel.Tracer("orchestrator").Start(ctx, "chartTemplateService.PushChartToGitRepo")
+	err = impl.chartTemplateService.PushChartToGitRepo(gitOpsRepoName, envOverride.Chart.ReferenceTemplate, envOverride.Chart.ChartVersion, tempReferenceTemplateDir, envOverride.Chart.GitRepoUrl, overrideRequest.UserId)
+	span.End()
+	return nil
 }
 
 func (impl *AppServiceImpl) saveTimelineForError(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, err error, wfrId int) {
