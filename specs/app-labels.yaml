@@ -71,6 +71,33 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /orchestrator/helm/meta/info/{appId}:
+    get:
+      description: application info for all types of helm apps
+      parameters:
+        - name: appId
+          in: path
+          description: application id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Helm application basic info
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: object
+                    description: meta info project name and labels
+                    $ref: '#/components/schemas/AppMetaInfo'
 
 # components mentioned below
 components:

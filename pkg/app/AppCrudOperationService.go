@@ -22,11 +22,13 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/user/repository"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -36,27 +38,43 @@ type AppCrudOperationService interface {
 	FindById(id int) (*bean.AppLabelDto, error)
 	FindAll() ([]*bean.AppLabelDto, error)
 	GetAppMetaInfo(appId int) (*bean.AppMetaInfoDto, error)
+	GetHelmAppMetaInfo(appId string) (*bean.AppMetaInfoDto, error)
 	GetLabelsByAppIdForDeployment(appId int) ([]byte, error)
 	GetLabelsByAppId(appId int) (map[string]string, error)
 	UpdateApp(request *bean.CreateAppDTO) (*bean.CreateAppDTO, error)
 	UpdateProjectForApps(request *bean.UpdateProjectBulkAppsRequest) (*bean.UpdateProjectBulkAppsRequest, error)
 	GetAppMetaInfoByAppName(appName string) (*bean.AppMetaInfoDto, error)
+	GetAppListByTeamIds(teamIds []int, appType string) ([]*TeamAppBean, error)
 }
 type AppCrudOperationServiceImpl struct {
-	logger             *zap.SugaredLogger
-	appLabelRepository pipelineConfig.AppLabelRepository
-	appRepository      app.AppRepository
-	userRepository     repository.UserRepository
+	logger                 *zap.SugaredLogger
+	appLabelRepository     pipelineConfig.AppLabelRepository
+	appRepository          app.AppRepository
+	userRepository         repository.UserRepository
+	installedAppRepository repository2.InstalledAppRepository
 }
 
 func NewAppCrudOperationServiceImpl(appLabelRepository pipelineConfig.AppLabelRepository,
-	logger *zap.SugaredLogger, appRepository app.AppRepository, userRepository repository.UserRepository) *AppCrudOperationServiceImpl {
+	logger *zap.SugaredLogger, appRepository app.AppRepository, userRepository repository.UserRepository, installedAppRepository repository2.InstalledAppRepository) *AppCrudOperationServiceImpl {
 	return &AppCrudOperationServiceImpl{
-		appLabelRepository: appLabelRepository,
-		logger:             logger,
-		appRepository:      appRepository,
-		userRepository:     userRepository,
+		appLabelRepository:     appLabelRepository,
+		logger:                 logger,
+		appRepository:          appRepository,
+		userRepository:         userRepository,
+		installedAppRepository: installedAppRepository,
 	}
+}
+
+type AppBean struct {
+	Id     int    `json:"id"`
+	Name   string `json:"name,notnull"`
+	TeamId int    `json:"teamId,omitempty"`
+}
+
+type TeamAppBean struct {
+	ProjectId   int        `json:"projectId"`
+	ProjectName string     `json:"projectName"`
+	AppList     []*AppBean `json:"appList"`
 }
 
 func (impl AppCrudOperationServiceImpl) UpdateApp(request *bean.CreateAppDTO) (*bean.CreateAppDTO, error) {
@@ -307,6 +325,74 @@ func (impl AppCrudOperationServiceImpl) GetAppMetaInfo(appId int) (*bean.AppMeta
 	}
 	return info, nil
 }
+
+func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.AppMetaInfoDto, error) {
+
+	// adding separate function for helm apps because for CLI helm apps, apps can be of form "1|clusterName|releaseName"
+	// In this case app details can be fetched using app name / release Name.
+	appIdSplitted := strings.Split(appId, "|")
+	app := &app.App{}
+	var err error
+	impl.logger.Info("request payload, appId", appId)
+	if len(appIdSplitted) > 1 {
+		appName := appIdSplitted[2]
+		app, err = impl.appRepository.FindAppAndProjectByAppName(appName)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in fetching app meta data", "err", err)
+			return nil, err
+		}
+		if app.Id == 0 {
+			app.AppName = appName
+		}
+	} else {
+		installedAppIdInt, err := strconv.Atoi(appId)
+		if err != nil {
+			impl.logger.Errorw("error in converting appId to integer", "err", err)
+			return nil, err
+		}
+		InstalledApp, err := impl.installedAppRepository.GetInstalledApp(installedAppIdInt)
+		if err != nil {
+			impl.logger.Errorw("service err, installedApp", "err", err)
+			return nil, err
+		}
+		app.Id = InstalledApp.AppId
+		app.AppName = InstalledApp.App.AppName
+		app.TeamId = InstalledApp.App.TeamId
+		app.Team.Name = InstalledApp.App.Team.Name
+		app.CreatedBy = InstalledApp.App.CreatedBy
+		app.Active = InstalledApp.App.Active
+
+		if err != nil {
+			impl.logger.Errorw("error in fetching App Meta Info", "error", err)
+			return nil, err
+		}
+	}
+
+	user, err := impl.userRepository.GetByIdIncludeDeleted(app.CreatedBy)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching user for app meta info", "error", err)
+		return nil, err
+	}
+	userEmailId := ""
+	if user != nil && user.Id > 0 {
+		if user.Active {
+			userEmailId = fmt.Sprintf(user.EmailId)
+		} else {
+			userEmailId = fmt.Sprintf("%s (inactive)", user.EmailId)
+		}
+	}
+	info := &bean.AppMetaInfoDto{
+		AppId:       app.Id,
+		AppName:     app.AppName,
+		ProjectId:   app.TeamId,
+		ProjectName: app.Team.Name,
+		CreatedBy:   userEmailId,
+		CreatedOn:   app.CreatedOn,
+		Active:      app.Active,
+	}
+	return info, nil
+}
+
 func (impl AppCrudOperationServiceImpl) GetLabelsByAppIdForDeployment(appId int) ([]byte, error) {
 	appLabelJson := &bean.AppLabelsJsonForDeployment{}
 	labels, err := impl.appLabelRepository.FindAllByAppId(appId)
@@ -380,4 +466,39 @@ func (impl AppCrudOperationServiceImpl) GetAppMetaInfoByAppName(appName string) 
 		Active:      app.Active,
 	}
 	return info, nil
+}
+
+func (impl AppCrudOperationServiceImpl) GetAppListByTeamIds(teamIds []int, appType string) ([]*TeamAppBean, error) {
+	var appsRes []*TeamAppBean
+	teamMap := make(map[int]*TeamAppBean)
+	if len(teamIds) == 0 {
+		return appsRes, nil
+	}
+	apps, err := impl.appRepository.FindAppsByTeamIds(teamIds, appType)
+	if err != nil {
+		impl.logger.Errorw("error while fetching app", "err", err)
+		return nil, err
+	}
+	for _, app := range apps {
+		if _, ok := teamMap[app.TeamId]; ok {
+			teamMap[app.TeamId].AppList = append(teamMap[app.TeamId].AppList, &AppBean{Id: app.Id, Name: app.AppName})
+		} else {
+
+			teamMap[app.TeamId] = &TeamAppBean{ProjectId: app.Team.Id, ProjectName: app.Team.Name}
+			teamMap[app.TeamId].AppList = append(teamMap[app.TeamId].AppList, &AppBean{Id: app.Id, Name: app.AppName})
+		}
+	}
+
+	for _, v := range teamMap {
+		if len(v.AppList) == 0 {
+			v.AppList = make([]*AppBean, 0)
+		}
+		appsRes = append(appsRes, v)
+	}
+
+	if len(appsRes) == 0 {
+		appsRes = make([]*TeamAppBean, 0)
+	}
+
+	return appsRes, err
 }
