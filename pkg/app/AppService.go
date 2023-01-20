@@ -990,9 +990,6 @@ func (impl *AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideR
 		var gitCommitStatusDetail string
 		err = impl.buildChartAndPushToGitRepo(overrideRequest, ctx, chartMetaData, referenceTemplatePath, wfrId, gitOpsRepoName, envOverride)
 		if err != nil {
-			return 0, err
-		}
-		if err != nil {
 			impl.saveTimelineForError(overrideRequest, ctx, err, wfrId)
 			return 0, err
 		} else {
@@ -1117,13 +1114,12 @@ func (impl *AppServiceImpl) buildChartAndPushToGitRepo(overrideRequest *bean.Val
 	span.End()
 	defer impl.chartTemplateService.CleanDir(tempReferenceTemplateDir)
 	if err != nil {
-		impl.saveTimelineForError(overrideRequest, ctx, err, wfrId)
 		return err
 	}
 	_, span = otel.Tracer("orchestrator").Start(ctx, "chartTemplateService.PushChartToGitRepo")
 	err = impl.chartTemplateService.PushChartToGitRepo(gitOpsRepoName, envOverride.Chart.ReferenceTemplate, envOverride.Chart.ChartVersion, tempReferenceTemplateDir, envOverride.Chart.GitRepoUrl, overrideRequest.UserId)
 	span.End()
-	return nil
+	return err
 }
 
 func (impl *AppServiceImpl) saveTimelineForError(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, err error, wfrId int) {
