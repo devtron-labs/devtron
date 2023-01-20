@@ -97,9 +97,8 @@ func (impl InstalledAppVersionHistoryRepositoryImpl) GetAppIdAndEnvIdWithInstall
 	model := appEnvId{}
 	query := "select ia.app_id,ia.environment_id as env_id" +
 		" from installed_apps ia  " +
-		" where ia.id = (select iav.installed_app_id " +
-		" from installed_app_versions iav " +
-		" where iav.id = ?);"
+		" INNER JOIN installed_app_versions iav ON ia.id = iav.installed_app_id " +
+		" where iav.id = ?;"
 	_, err := impl.dbConnection.Query(&model, query, id)
 	return model.AppId, model.EnvId, err
 }
