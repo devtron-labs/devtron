@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/caarlos0/env/v6"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/robfig/cron/v3"
@@ -69,7 +70,7 @@ func (impl *ClusterCronServiceImpl) GetAndUpdateClusterConnectionStatus() {
 	respMap := make(map[int]error)
 	for _, cluster := range clusters {
 		// getting restConfig and clientSet outside the goroutine because we don't want to call goroutine func with receiver function
-		restConfig, err := impl.k8sApplicationService.GetRestConfigByCluster(cluster)
+		restConfig, err := impl.k8sApplicationService.GetRestConfigByCluster(context.Background(), cluster)
 		if err != nil {
 			impl.logger.Errorw("error in getting restConfig by cluster", "err", err, "clusterId", cluster.Id)
 			mutex.Lock()
@@ -77,7 +78,11 @@ func (impl *ClusterCronServiceImpl) GetAndUpdateClusterConnectionStatus() {
 			mutex.Unlock()
 			continue
 		}
-		k8sClientSet, err := kubernetes.NewForConfig(restConfig)
+		k8sHttpClient, err := util.OverrideK8sHttpClientWithTracer(restConfig)
+		if err != nil {
+			continue
+		}
+		k8sClientSet, err := kubernetes.NewForConfigAndClient(restConfig, k8sHttpClient)
 		if err != nil {
 			impl.logger.Errorw("error in getting client set by rest config", "err", err, "restConfig", restConfig)
 			mutex.Lock()
