@@ -81,6 +81,11 @@ func NewEnforcerUtilImpl(logger *zap.SugaredLogger, teamRepository team.TeamRepo
 	}
 }
 
+func NewNoopEnforcerUtil(logger *zap.SugaredLogger) *EnforcerUtilImpl {
+	logger.Infow("noop enforcer util init")
+	return nil
+}
+
 func (impl EnforcerUtilImpl) GetAppRBACName(appName string) string {
 	application, err := impl.appRepo.FindAppAndProjectByAppName(appName)
 	if err != nil {

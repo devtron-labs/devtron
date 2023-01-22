@@ -39,6 +39,11 @@ func NewDeleteServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
+func NewNoopServiceImpl(logger *zap.SugaredLogger) *DeleteServiceImpl {
+	logger.Infow("noop delete service init")
+	return nil
+}
+
 func (impl DeleteServiceImpl) DeleteCluster(deleteRequest *cluster.ClusterBean, userId int32) error {
 	err := impl.clusterService.DeleteFromDb(deleteRequest, userId)
 	if err != nil {

@@ -40,6 +40,11 @@ func Newk8sResourceHistoryServiceImpl(K8sResourceHistoryRepository repository.K8
 	}
 }
 
+func NewNoopServiceImpl(logger *zap.SugaredLogger) *K8sResourceHistoryServiceImpl {
+	logger.Info("noop k8s resource history init")
+	return nil
+}
+
 func (impl K8sResourceHistoryServiceImpl) SaveArgoCdAppsResourceDeleteHistory(query *application.ApplicationResourceDeleteRequest, appId int, envId int, userId int32) error {
 
 	k8sResourceHistory := repository.K8sResourceHistory{

@@ -56,6 +56,7 @@ type UserService interface {
 	UpdateTriggerPolicyForTerminalAccess() (err error)
 	GetRoleFiltersByGroupNames(groupNames []string) ([]bean.RoleFilter, error)
 	SaveLoginAudit(emailId, clientIp string, id int32)
+	FetchRolesFromGroup(userId int32) ([]*repository2.RoleModel, error)
 }
 
 type UserServiceImpl struct {
@@ -84,6 +85,39 @@ func NewUserServiceImpl(userAuthRepository repository2.UserAuthRepository,
 	}
 	cStore = sessions.NewCookieStore(randKey())
 	return serviceImpl
+}
+
+func NewNoopUserServiceImpl(logger *zap.SugaredLogger) *UserServiceImpl {
+	logger.Info("noop user service init")
+	return nil
+}
+
+func (impl UserServiceImpl) FetchRolesFromGroup(userId int32) ([]*repository2.RoleModel, error) {
+	user, err := impl.userRepository.GetByIdIncludeDeleted(userId)
+	if err != nil {
+		impl.logger.Errorw("error while fetching user from db", "error", err)
+		return nil, err
+	}
+	groups, err := casbin2.GetRolesForUser(user.EmailId)
+	if err != nil {
+		impl.logger.Errorw("No Roles Found for user", "id", user.Id)
+		return nil, err
+	}
+	roleEntity := "cluster"
+	roles, err := impl.userAuthRepository.GetRolesByUserIdAndEntityType(userId, roleEntity)
+	if err != nil {
+		impl.logger.Errorw("error on fetching user roles for cluster list", "err", err)
+		return nil, err
+	}
+	rolesFromGroup, err := impl.roleGroupRepository.GetRolesByGroupNamesAndEntity(groups, roleEntity)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting roles by group names", "err", err)
+		return nil, err
+	}
+	if len(rolesFromGroup) > 0 {
+		roles = append(roles, rolesFromGroup...)
+	}
+	return roles, nil
 }
 
 func (impl UserServiceImpl) validateUserRequest(userInfo *bean.UserInfo) (bool, error) {

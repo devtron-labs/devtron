@@ -185,6 +185,29 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	k8sUtil := util.NewK8sUtil(sugaredLogger, runtimeConfig)
+	defaultAuthPolicyRepositoryImpl := repository4.NewDefaultAuthPolicyRepositoryImpl(db, sugaredLogger)
+	defaultAuthRoleRepositoryImpl := repository4.NewDefaultAuthRoleRepositoryImpl(db, sugaredLogger)
+	userAuthRepositoryImpl := repository4.NewUserAuthRepositoryImpl(db, sugaredLogger, defaultAuthPolicyRepositoryImpl, defaultAuthRoleRepositoryImpl)
+	userRepositoryImpl := repository4.NewUserRepositoryImpl(db, sugaredLogger)
+	roleGroupRepositoryImpl := repository4.NewRoleGroupRepositoryImpl(db, sugaredLogger)
+	k8sClient, err := client2.NewK8sClient(runtimeConfig)
+	if err != nil {
+		return nil, err
+	}
+	dexConfig, err := client2.BuildDexConfig(k8sClient)
+	if err != nil {
+		return nil, err
+	}
+	settings, err := client2.GetSettings(dexConfig)
+	if err != nil {
+		return nil, err
+	}
+	apiTokenSecretStore := apiTokenAuth.InitApiTokenSecretStore()
+	sessionManager := middleware.NewSessionManager(settings, dexConfig, apiTokenSecretStore)
+	userCommonServiceImpl := user.NewUserCommonServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, sessionManager)
+	userAuditRepositoryImpl := repository4.NewUserAuditRepositoryImpl(db)
+	userAuditServiceImpl := user.NewUserAuditServiceImpl(sugaredLogger, userAuditRepositoryImpl)
+	userServiceImpl := user.NewUserServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, sessionManager, userCommonServiceImpl, userAuditServiceImpl)
 	argocdServerConfig, err := argocdServer.GetConfig()
 	if err != nil {
 		return nil, err
@@ -201,12 +224,7 @@ func InitializeApp() (*App, error) {
 	v := informer.NewGlobalMapClusterNamespace()
 	k8sInformerFactoryImpl := informer.NewK8sInformerFactoryImpl(sugaredLogger, v, runtimeConfig)
 	gitOpsConfigRepositoryImpl := repository.NewGitOpsConfigRepositoryImpl(sugaredLogger, db)
-	defaultAuthPolicyRepositoryImpl := repository4.NewDefaultAuthPolicyRepositoryImpl(db, sugaredLogger)
-	defaultAuthRoleRepositoryImpl := repository4.NewDefaultAuthRoleRepositoryImpl(db, sugaredLogger)
-	userAuthRepositoryImpl := repository4.NewUserAuthRepositoryImpl(db, sugaredLogger, defaultAuthPolicyRepositoryImpl, defaultAuthRoleRepositoryImpl)
-	userRepositoryImpl := repository4.NewUserRepositoryImpl(db, sugaredLogger)
-	roleGroupRepositoryImpl := repository4.NewRoleGroupRepositoryImpl(db, sugaredLogger)
-	clusterServiceImplExtended := cluster2.NewClusterServiceImplExtended(clusterRepositoryImpl, environmentRepositoryImpl, grafanaClientImpl, sugaredLogger, installedAppRepositoryImpl, k8sUtil, serviceClientImpl, k8sInformerFactoryImpl, gitOpsConfigRepositoryImpl, userAuthRepositoryImpl, userRepositoryImpl, roleGroupRepositoryImpl)
+	clusterServiceImplExtended := cluster2.NewClusterServiceImplExtended(clusterRepositoryImpl, environmentRepositoryImpl, grafanaClientImpl, sugaredLogger, installedAppRepositoryImpl, k8sUtil, userServiceImpl, serviceClientImpl, k8sInformerFactoryImpl, gitOpsConfigRepositoryImpl)
 	helmClientConfig, err := client3.GetConfig()
 	if err != nil {
 		return nil, err
@@ -218,25 +236,7 @@ func InitializeApp() (*App, error) {
 	enforcerUtilHelmImpl := rbac.NewEnforcerUtilHelmImpl(sugaredLogger, clusterRepositoryImpl, teamRepositoryImpl, appRepositoryImpl, environmentRepositoryImpl, installedAppRepositoryImpl)
 	serverDataStoreServerDataStore := serverDataStore.InitServerDataStore()
 	appStoreApplicationVersionRepositoryImpl := appStoreDiscoverRepository.NewAppStoreApplicationVersionRepositoryImpl(sugaredLogger, db)
-	k8sClient, err := client2.NewK8sClient(runtimeConfig)
-	if err != nil {
-		return nil, err
-	}
-	dexConfig, err := client2.BuildDexConfig(k8sClient)
-	if err != nil {
-		return nil, err
-	}
-	settings, err := client2.GetSettings(dexConfig)
-	if err != nil {
-		return nil, err
-	}
-	apiTokenSecretStore := apiTokenAuth.InitApiTokenSecretStore()
-	sessionManager := middleware.NewSessionManager(settings, dexConfig, apiTokenSecretStore)
 	loginService := middleware.NewUserLogin(sessionManager, k8sClient)
-	userCommonServiceImpl := user.NewUserCommonServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, sessionManager)
-	userAuditRepositoryImpl := repository4.NewUserAuditRepositoryImpl(db)
-	userAuditServiceImpl := user.NewUserAuditServiceImpl(sugaredLogger, userAuditRepositoryImpl)
-	userServiceImpl := user.NewUserServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, sessionManager, userCommonServiceImpl, userAuditServiceImpl)
 	userAuthServiceImpl := user.NewUserAuthServiceImpl(userAuthRepositoryImpl, sessionManager, loginService, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, userServiceImpl)
 	environmentServiceImpl := cluster2.NewEnvironmentServiceImpl(environmentRepositoryImpl, clusterServiceImplExtended, sugaredLogger, k8sUtil, k8sInformerFactoryImpl, userAuthServiceImpl)
 	helmAppServiceImpl := client3.NewHelmAppServiceImpl(sugaredLogger, clusterServiceImplExtended, helmAppClientImpl, pumpImpl, enforcerUtilHelmImpl, serverDataStoreServerDataStore, serverEnvConfigServerEnvConfig, appStoreApplicationVersionRepositoryImpl, environmentServiceImpl, pipelineRepositoryImpl, installedAppRepositoryImpl, appRepositoryImpl)
@@ -432,7 +432,7 @@ func InitializeApp() (*App, error) {
 	k8sClientServiceImpl := application2.NewK8sClientServiceImpl(sugaredLogger, clusterRepositoryImpl)
 	k8sResourceHistoryRepositoryImpl := repository10.NewK8sResourceHistoryRepositoryImpl(db, sugaredLogger)
 	k8sResourceHistoryServiceImpl := kubernetesResourceAuditLogs.Newk8sResourceHistoryServiceImpl(k8sResourceHistoryRepositoryImpl, sugaredLogger, appRepositoryImpl, environmentRepositoryImpl)
-	k8sApplicationServiceImpl := k8s.NewK8sApplicationServiceImpl(sugaredLogger, clusterServiceImplExtended, pumpImpl, k8sClientServiceImpl, helmAppServiceImpl, k8sUtil, acdAuthConfig, k8sResourceHistoryServiceImpl)
+	k8sApplicationServiceImpl := k8s.NewK8sApplicationServiceImpl(sugaredLogger, clusterServiceImplExtended, pumpImpl, k8sClientServiceImpl, helmAppServiceImpl, k8sUtil, acdAuthConfig, k8sResourceHistoryServiceImpl, userServiceImpl)
 	refChartProxyDir := _wireRefChartProxyDirValue
 	appStoreVersionValuesRepositoryImpl := appStoreValuesRepository.NewAppStoreVersionValuesRepositoryImpl(sugaredLogger, db)
 	appStoreValuesServiceImpl := service.NewAppStoreValuesServiceImpl(sugaredLogger, appStoreApplicationVersionRepositoryImpl, installedAppRepositoryImpl, appStoreVersionValuesRepositoryImpl, userServiceImpl)

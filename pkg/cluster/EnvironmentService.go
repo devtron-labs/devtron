@@ -103,6 +103,11 @@ func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepos
 	}
 }
 
+func NewNoopServiceImpl(logger *zap.SugaredLogger) *EnvironmentServiceImpl {
+	logger.Info("noop env service impl")
+	return nil
+}
+
 func (impl EnvironmentServiceImpl) Create(mappings *EnvironmentBean, userId int32) (*EnvironmentBean, error) {
 	existingEnvs, err := impl.environmentRepository.FindByClusterId(mappings.ClusterId)
 	if err != nil && !util.IsErrNoRows(err) {
