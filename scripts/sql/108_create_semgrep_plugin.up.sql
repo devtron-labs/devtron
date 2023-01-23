@@ -1,4 +1,4 @@
-INSERT INTO "plugin_metadata" ("id", "name", "description","type","icon","deleted", "created_on", "created_by", "updated_on", "updated_by") VALUES (nextval('id_seq_plugin_metadata'), 'Semgrep','Semgrep is a fast, open source, static analysis engine for finding bugs, detecting dependency vulnerabilities, and enforcing code standards.','PRESET','link_to_icon','f', 'now()', 1, 'now()', 1);
+INSERT INTO "plugin_metadata" ("id", "name", "description","type","icon","deleted", "created_on", "created_by", "updated_on", "updated_by") VALUES (nextval('id_seq_plugin_metadata'), 'Semgrep','Semgrep is a fast, open source, static analysis engine for finding bugs, detecting dependency vulnerabilities, and enforcing code standards.','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/semgrep.png','f', 'now()', 1, 'now()', 1);
 
 INSERT INTO "plugin_tag_relation" ("id", "tag_id", "plugin_id", "created_on", "created_by", "updated_on", "updated_by") VALUES (nextval('id_seq_plugin_tag_relation'), 2, (SELECT id FROM plugin_metadata WHERE name='Semgrep'),'now()', 1, 'now()', 1);
 INSERT INTO "plugin_tag_relation" ("id", "tag_id", "plugin_id", "created_on", "created_by", "updated_on", "updated_by") VALUES (nextval('id_seq_plugin_tag_relation'), 3, (SELECT id FROM plugin_metadata WHERE name='Semgrep'),'now()', 1, 'now()', 1);
@@ -58,7 +58,7 @@ do
     else
         export SEMGREP_BRANCH=$branchName
     fi
-    semgrep ci $ExtraCommandArguments
+    semgrep ci --json $ExtraCommandArguments
 done'
         ,
     'SHELL',
