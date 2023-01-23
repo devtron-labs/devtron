@@ -726,6 +726,6 @@ func (handler *K8sApplicationRestHandlerImpl) ApplyResources(w http.ResponseWrit
 func (handler *K8sApplicationRestHandlerImpl) verifyRbacForCluster(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool {
 	k8sRequest := request.K8sRequest
 	resourceIdentifier := k8sRequest.ResourceIdentifier
-	resourceName, objectName := handler.enforcerUtil.GetRBACNameForClusterEntity(clusterName, resourceIdentifier)
+	resourceName, objectName := rbac.GetRBACNameForClusterEntity(clusterName, resourceIdentifier)
 	return handler.enforcer.Enforce(token, resourceName, casbinAction, strings.ToLower(objectName))
 }

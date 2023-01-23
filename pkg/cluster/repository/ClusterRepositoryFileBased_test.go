@@ -13,13 +13,13 @@ func TestClusterRepositoryFileBased_FindAll(t *testing.T) {
 		//assert.Nil(t, err)
 		repositoryFileBased := NewClusterRepositoryFileBased(nil)
 		cluster := &Cluster{
-			//Id:          1,
+			Id:          1,
 			ClusterName: "k8s16-cluster",
 			ServerUrl:   "https://20.81.3.28:16443",
 			Config:      map[string]string{"bearer_token": "defgh"},
-			Active:      true,
+			Active:      false,
 		}
-		err := repositoryFileBased.Save(cluster)
+		err := repositoryFileBased.Update(cluster)
 		assert.Nil(t, err)
 		clusters, err := repositoryFileBased.FindAll()
 		assert.Nil(t, err)

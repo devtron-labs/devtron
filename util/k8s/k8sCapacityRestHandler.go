@@ -359,12 +359,15 @@ func (handler *K8sCapacityRestHandlerImpl) EditNodeTaints(w http.ResponseWriter,
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
-func (handler *K8sCapacityRestHandlerImpl) CheckRbacForCluster(cluster *cluster.ClusterBean, token string) (authenticated bool, err error) {
-	//getting all environments for this cluster
-	envs, err := handler.environmentService.GetByClusterId(cluster.Id)
-	if err != nil {
-		handler.logger.Errorw("error in getting environments by clusterId", "err", err, "clusterId", cluster.Id)
-		return false, err
+func (handler *K8sCapacityRestHandlerImpl) CheckRbacForCluster(clusterBean *cluster.ClusterBean, token string) (authenticated bool, err error) {
+	//getting all environments for this clusterBean
+	var envs []*cluster.EnvironmentBean
+	if handler.environmentService != cluster.NewNoopServiceImpl(handler.logger) {
+		envs, err = handler.environmentService.GetByClusterId(clusterBean.Id)
+		if err != nil {
+			handler.logger.Errorw("error in getting environments by clusterId", "err", err, "clusterId", clusterBean.Id)
+			return false, err
+		}
 	}
 	if len(envs) == 0 {
 		if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
@@ -374,7 +377,7 @@ func (handler *K8sCapacityRestHandlerImpl) CheckRbacForCluster(cluster *cluster.
 	}
 	for _, env := range envs {
 		if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(env.EnvironmentIdentifier)); ok {
-			//if user has view permission to even one environment of this cluster, authorise the request
+			//if user has view permission to even one environment of this clusterBean, authorise the request
 			return true, nil
 		}
 	}

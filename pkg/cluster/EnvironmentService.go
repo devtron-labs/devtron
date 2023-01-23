@@ -104,7 +104,7 @@ func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepos
 }
 
 func NewNoopServiceImpl(logger *zap.SugaredLogger) *EnvironmentServiceImpl {
-	logger.Info("noop env service impl")
+	//logger.Info("noop env service impl")
 	return nil
 }
 
