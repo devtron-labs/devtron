@@ -18,16 +18,18 @@
 package pipelineConfig
 
 import (
+	"context"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"time"
 )
 
 type CdWorkflowRepository interface {
-	SaveWorkFlow(wf *CdWorkflow) error
+	SaveWorkFlow(ctx context.Context, wf *CdWorkflow) error
 	UpdateWorkFlow(wf *CdWorkflow) error
 	FindById(wfId int) (*CdWorkflow, error)
 	FindCdWorkflowMetaByEnvironmentId(appId int, environmentId int, offset int, size int) ([]CdWorkflowRunner, error)
@@ -50,7 +52,7 @@ type CdWorkflowRepository interface {
 	FindLastPreOrPostTriggeredByPipelineId(pipelineId int) (CdWorkflowRunner, error)
 	FindLastPreOrPostTriggeredByEnvironmentId(appId int, environmentId int) (CdWorkflowRunner, error)
 
-	FindByWorkflowIdAndRunnerType(wfId int, runnerType bean.WorkflowType) (CdWorkflowRunner, error)
+	FindByWorkflowIdAndRunnerType(ctx context.Context, wfId int, runnerType bean.WorkflowType) (CdWorkflowRunner, error)
 	FindLastStatusByPipelineIdAndRunnerType(pipelineId int, runnerType bean.WorkflowType) (CdWorkflowRunner, error)
 	SaveWorkFlows(wfs ...*CdWorkflow) error
 	IsLatestWf(pipelineId int, wfId int) (bool, error)
@@ -221,7 +223,9 @@ func (impl *CdWorkflowRepositoryImpl) FindPreviousCdWfRunnerByStatus(pipelineId 
 	return runner, err
 }
 
-func (impl *CdWorkflowRepositoryImpl) SaveWorkFlow(wf *CdWorkflow) error {
+func (impl *CdWorkflowRepositoryImpl) SaveWorkFlow(ctx context.Context, wf *CdWorkflow) error {
+	_, span := otel.Tracer("orchestrator").Start(ctx, "cdWorkflowRepository.SaveWorkFlow")
+	defer span.End()
 	err := impl.dbConnection.Insert(wf)
 	return err
 }
@@ -444,8 +448,10 @@ func (impl *CdWorkflowRepositoryImpl) FindWorkflowRunnerById(wfrId int) (*CdWork
 	return wfr, err
 }
 
-func (impl *CdWorkflowRepositoryImpl) FindByWorkflowIdAndRunnerType(wfId int, runnerType bean.WorkflowType) (CdWorkflowRunner, error) {
+func (impl *CdWorkflowRepositoryImpl) FindByWorkflowIdAndRunnerType(ctx context.Context, wfId int, runnerType bean.WorkflowType) (CdWorkflowRunner, error) {
 	var wfr CdWorkflowRunner
+	_, span := otel.Tracer("orchestrator").Start(ctx, "cdWorkflowRepository.FindByWorkflowIdAndRunnerType")
+	defer span.End()
 	err := impl.dbConnection.
 		Model(&wfr).
 		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact").
