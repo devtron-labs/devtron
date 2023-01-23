@@ -15,7 +15,7 @@ It packages third party components like
  - [Argocd](https://github.com/argoproj/argo-cd/) for gitops 
  - [Argo workflows](https://github.com/argoproj/argo) for CI
  - [Clair](https://github.com/quay/clair) & [Guard](https://github.com/guard/guard) for image scanning
- - [External Secret Operator](https://github.com/external-secrets/external-secrets) and [Kubernetes External Secrets (Depricated) ](https://github.com/godaddy/kubernetes-external-secrets) for ingegrating with external secret management systems like [AWS Secrets Manager](https://aws.amazon.com/secrets-manager/) or [HashiCorp Vault](https://www.vaultproject.io/)
+ - [External Secret Operator](https://github.com/external-secrets/external-secrets) and [Kubernetes External Secrets (Depricated) ](https://github.com/godaddy/kubernetes-external-secrets) for integrating with external secret management systems like [AWS Secrets Manager](https://aws.amazon.com/secrets-manager/) or [HashiCorp Vault](https://www.vaultproject.io/)
  - [Nats](https://github.com/nats-io) for event streaming
  - [Postgres](https://github.com/postgres/postgres) as datastore
  - Fork of [Argo Rollout](https://github.com/argoproj/argo-rollouts) 
