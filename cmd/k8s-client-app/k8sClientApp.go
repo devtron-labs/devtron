@@ -48,7 +48,7 @@ func (app *App) Start() {
 	//if err != nil {
 	//	app.Logger.Warnw("telemetry installation success event failed", "err", err)
 	//}
-	server := &http.Server{Addr: fmt.Sprintf(":%d", port)} //Handler: authMiddleware.Authorizer(app.sessionManager, user.WhitelistChecker)(app.MuxRouter.Router)}
+	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: app.MuxRouter.Router}
 
 	app.MuxRouter.Router.Use(middleware.PrometheusMiddleware)
 	app.server = server
