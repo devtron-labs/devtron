@@ -17,7 +17,8 @@ import (
 )
 
 type ClusterRepositoryFileBased struct {
-	*ClusterRepositoryImpl
+	//*ClusterRepositoryImpl
+	logger       *zap.SugaredLogger
 	dbConnection *gorm.DB
 }
 
@@ -33,7 +34,7 @@ type ClusterEntity struct {
 }
 
 func NewClusterRepositoryFileBased(logger *zap.SugaredLogger) *ClusterRepositoryFileBased {
-	clusterRepositoryImpl := NewClusterRepositoryImpl(nil, logger)
+	//clusterRepositoryImpl := NewClusterRepositoryImpl(nil, logger)
 	err, clusterDbPath := createOrCheckClusterDbPath(logger)
 	db, err := gorm.Open(sqlite.Open(clusterDbPath), &gorm.Config{})
 	//db, err := sql.Open("sqlite3", "./cluster.db")
@@ -50,7 +51,7 @@ func NewClusterRepositoryFileBased(logger *zap.SugaredLogger) *ClusterRepository
 		}
 	}
 	logger.Info("cluster repository file based initialized")
-	return &ClusterRepositoryFileBased{clusterRepositoryImpl, db}
+	return &ClusterRepositoryFileBased{logger, db}
 }
 
 func createOrCheckClusterDbPath(logger *zap.SugaredLogger) (error, string) {

@@ -16,6 +16,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/devtron-labs/devtron/pkg/user/noop"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/k8s"
@@ -53,8 +54,8 @@ func InitializeApp() (*App, error) {
 		terminal.TerminalWireSet,
 		client.GetRuntimeConfig,
 
-		user.NewNoopUserServiceImpl,
-		wire.Bind(new(user.UserService), new(*user.UserServiceImpl)),
+		noop.NewNoopUserService,
+		wire.Bind(new(user.UserService), new(*noop.NoopUserService)),
 
 		NewApp,
 		NewMuxRouter,

@@ -24,8 +24,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/terminal"
-	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/devtron-labs/devtron/pkg/user/noop"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/k8s"
@@ -51,19 +51,19 @@ func InitializeApp() (*App, error) {
 	k8sUtil := util.NewK8sUtil(sugaredLogger, runtimeConfig)
 	v := informer.NewGlobalMapClusterNamespace()
 	k8sInformerFactoryImpl := informer.NewK8sInformerFactoryImpl(sugaredLogger, v, runtimeConfig)
-	userServiceImpl := user.NewNoopUserServiceImpl(sugaredLogger)
-	clusterServiceImpl := cluster.NewClusterServiceImpl(clusterRepositoryFileBased, sugaredLogger, k8sUtil, k8sInformerFactoryImpl, userServiceImpl)
+	noopUserService := noop.NewNoopUserService(sugaredLogger)
+	clusterServiceImpl := cluster.NewClusterServiceImpl(clusterRepositoryFileBased, sugaredLogger, k8sUtil, k8sInformerFactoryImpl, noopUserService)
 	validate, err := util.IntValidator()
 	if err != nil {
 		return nil, err
 	}
 	noopEnforcer := casbin.NewNoopEnforcer()
-	deleteServiceImpl := delete2.NewNoopServiceImpl(sugaredLogger)
+	deleteServiceImpl := delete2.NewNoopServiceImpl(sugaredLogger, clusterServiceImpl)
 	helmUserServiceImpl, err := argo.NewHelmUserServiceImpl(sugaredLogger)
 	if err != nil {
 		return nil, err
 	}
-	clusterRestHandlerImpl := cluster2.NewClusterRestHandlerImpl(clusterServiceImpl, sugaredLogger, userServiceImpl, validate, noopEnforcer, deleteServiceImpl, helmUserServiceImpl)
+	clusterRestHandlerImpl := cluster2.NewClusterRestHandlerImpl(clusterServiceImpl, sugaredLogger, noopUserService, validate, noopEnforcer, deleteServiceImpl, helmUserServiceImpl)
 	clusterRouterImpl := cluster2.NewClusterRouterImpl(clusterRestHandlerImpl)
 	config, err := dashboard.GetConfig()
 	if err != nil {
@@ -78,19 +78,19 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	k8sResourceHistoryServiceImpl := kubernetesResourceAuditLogs.NewNoopServiceImpl(sugaredLogger)
-	k8sApplicationServiceImpl := k8s.NewK8sApplicationServiceImpl(sugaredLogger, clusterServiceImpl, pumpImpl, k8sClientServiceImpl, helmAppServiceImpl, k8sUtil, acdAuthConfig, k8sResourceHistoryServiceImpl, userServiceImpl)
+	k8sApplicationServiceImpl := k8s.NewK8sApplicationServiceImpl(sugaredLogger, clusterServiceImpl, pumpImpl, k8sClientServiceImpl, helmAppServiceImpl, k8sUtil, acdAuthConfig, k8sResourceHistoryServiceImpl, noopUserService)
 	environmentServiceImpl := cluster.NewNoopServiceImpl(sugaredLogger)
 	terminalSessionHandlerImpl := terminal.NewTerminalSessionHandlerImpl(environmentServiceImpl, clusterServiceImpl, sugaredLogger)
 	enforcerUtilHelmImpl := rbac.NewNoopEnforcerUtilHelm(sugaredLogger)
 	enforcerUtilImpl := rbac.NewNoopEnforcerUtil(sugaredLogger)
-	k8sApplicationRestHandlerImpl := k8s.NewK8sApplicationRestHandlerImpl(sugaredLogger, k8sApplicationServiceImpl, pumpImpl, terminalSessionHandlerImpl, noopEnforcer, enforcerUtilHelmImpl, enforcerUtilImpl, clusterServiceImpl, helmAppServiceImpl, userServiceImpl)
+	k8sApplicationRestHandlerImpl := k8s.NewK8sApplicationRestHandlerImpl(sugaredLogger, k8sApplicationServiceImpl, pumpImpl, terminalSessionHandlerImpl, noopEnforcer, enforcerUtilHelmImpl, enforcerUtilImpl, clusterServiceImpl, helmAppServiceImpl, noopUserService)
 	k8sApplicationRouterImpl := k8s.NewK8sApplicationRouterImpl(k8sApplicationRestHandlerImpl)
 	clusterCronServiceImpl, err := k8s.NewClusterCronServiceImpl(sugaredLogger, clusterServiceImpl, k8sApplicationServiceImpl, clusterRepositoryFileBased)
 	if err != nil {
 		return nil, err
 	}
 	k8sCapacityServiceImpl := k8s.NewK8sCapacityServiceImpl(sugaredLogger, clusterServiceImpl, k8sApplicationServiceImpl, k8sClientServiceImpl, clusterCronServiceImpl)
-	k8sCapacityRestHandlerImpl := k8s.NewK8sCapacityRestHandlerImpl(sugaredLogger, k8sCapacityServiceImpl, userServiceImpl, noopEnforcer, clusterServiceImpl, environmentServiceImpl)
+	k8sCapacityRestHandlerImpl := k8s.NewK8sCapacityRestHandlerImpl(sugaredLogger, k8sCapacityServiceImpl, noopUserService, noopEnforcer, clusterServiceImpl, environmentServiceImpl)
 	k8sCapacityRouterImpl := k8s.NewK8sCapacityRouterImpl(k8sCapacityRestHandlerImpl)
 	terminalAccessRepositoryImpl := repository2.NewTerminalAccessRepositoryImpl(db, sugaredLogger)
 	userTerminalSessionConfig, err := clusterTerminalAccess.GetTerminalAccessConfig()
@@ -101,7 +101,7 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	userTerminalAccessRestHandlerImpl := terminal2.NewUserTerminalAccessRestHandlerImpl(sugaredLogger, userTerminalAccessServiceImpl, noopEnforcer, userServiceImpl, validate)
+	userTerminalAccessRestHandlerImpl := terminal2.NewUserTerminalAccessRestHandlerImpl(sugaredLogger, userTerminalAccessServiceImpl, noopEnforcer, noopUserService, validate)
 	userTerminalAccessRouterImpl := terminal2.NewUserTerminalAccessRouterImpl(userTerminalAccessRestHandlerImpl)
 	muxRouter := NewMuxRouter(sugaredLogger, clusterRouterImpl, dashboardRouterImpl, k8sApplicationRouterImpl, k8sCapacityRouterImpl, userTerminalAccessRouterImpl)
 	app := NewApp(db, muxRouter, sugaredLogger)
