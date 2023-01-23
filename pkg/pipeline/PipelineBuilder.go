@@ -2122,6 +2122,7 @@ func (impl PipelineBuilderImpl) GetCdPipelinesForApp(appId int) (cdPipelines *be
 			DeploymentAppType:             dbPipeline.DeploymentAppType,
 			ParentPipelineType:            appWorkflowMapping.ParentType,
 			ParentPipelineId:              appWorkflowMapping.ParentId,
+			AcdAppDeleted:                 dbPipeline.AcdAppDeleted,
 		}
 		pipelines = append(pipelines, pipeline)
 	}

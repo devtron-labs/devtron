@@ -130,6 +130,7 @@ type Environment struct {
 	Prod            bool   `json:"prod"`
 	ChartRefId      int    `json:"chartRefId"`
 	LastDeployed    string `json:"lastDeployed"`
+	AcdAppDeleted   bool   `json:"acdAppDeleted"`
 }
 
 type InstanceDetail struct {

@@ -57,6 +57,7 @@ type Pipeline struct {
 	DeploymentAppCreated          bool        `sql:"deployment_app_created,notnull"`
 	DeploymentAppType             string      `sql:"deployment_app_type,notnull"` //helm, acd
 	DeploymentAppName             string      `sql:"deployment_app_name"`
+	AcdAppDeleted                 bool        `sql:"acd_app_deleted,notnull"`
 	Environment                   repository.Environment
 	sql.AuditLog
 }
