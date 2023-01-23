@@ -1,6 +1,6 @@
 UPDATE chart_ref SET is_default=false;
-INSERT INTO "public"."chart_ref" ("location", "version", "is_default", "active", "created_on", "created_by", "updated_on", "updated_by") VALUES
-    ('reference-chart_4-17-0', '4.17.0', 't', 't', 'now()', 1, 'now()', 1);
+INSERT INTO "public"."chart_ref" ("location", "version","deployment_strategy_path", "is_default", "active", "created_on", "created_by", "updated_on", "updated_by") VALUES
+    ('reference-chart_4-17-0', '4.17.0','pipeline-values.yaml', 't', 't', 'now()', 1, 'now()', 1);
 
 
 INSERT INTO global_strategy_metadata_chart_ref_mapping ("global_strategy_metadata_id", "chart_ref_id", "active", "created_on", "created_by", "updated_on", "updated_by")
