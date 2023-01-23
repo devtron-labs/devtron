@@ -40,7 +40,7 @@ func NewDeleteServiceImpl(logger *zap.SugaredLogger,
 }
 
 func NewNoopServiceImpl(logger *zap.SugaredLogger, clusterService cluster.ClusterService) *DeleteServiceImpl {
-	logger.Infow("noop delete service init with cluster service")
+	logger.Debugw("noop delete service init with cluster service")
 	return &DeleteServiceImpl{
 		logger:         logger,
 		clusterService: clusterService,

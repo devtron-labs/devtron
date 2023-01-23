@@ -41,7 +41,7 @@ func Newk8sResourceHistoryServiceImpl(K8sResourceHistoryRepository repository.K8
 }
 
 func NewNoopServiceImpl(logger *zap.SugaredLogger) *K8sResourceHistoryServiceImpl {
-	logger.Info("noop k8s resource history init")
+	logger.Debugw("noop k8s resource history init")
 	return nil
 }
 

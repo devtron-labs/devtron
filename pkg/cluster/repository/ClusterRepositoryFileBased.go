@@ -50,7 +50,7 @@ func NewClusterRepositoryFileBased(logger *zap.SugaredLogger) *ClusterRepository
 			logger.Fatal("error occurred while creating cluster table", "error", err)
 		}
 	}
-	logger.Info("cluster repository file based initialized")
+	logger.Debugw("cluster repository file based initialized")
 	return &ClusterRepositoryFileBased{logger, db}
 }
 
@@ -80,20 +80,10 @@ func (impl *ClusterRepositoryFileBased) Save(model *Cluster) error {
 	result := impl.dbConnection.Model(clusterEntity).Create(clusterEntity)
 	err = result.Error
 
-	//query := "INSERT INTO cluster (cluster_name, server_url, active, config) VALUES(?, ?, ?, ?)"
-	//stmt, err := impl.dbConnection.Prepare(query)
-	//if err != nil {
-	//	impl.logger.Errorw("error occurred while preparing statement ", "query", query, "error", err)
-	//	return err
-	//}
-	//configJson, err := json.Marshal(model.Config)
-	//result, err := stmt.Exec(model.ClusterName, model.ServerUrl, 't', configJson)
-	//defer stmt.Close()
 	if err != nil {
 		impl.logger.Errorw("error occurred while executing insert statement", "err", err)
 		return err
 	}
-	//lastInsertedId, _ := result.LastInsertId()
 	model.Id = clusterEntity.ID
 	return nil
 }

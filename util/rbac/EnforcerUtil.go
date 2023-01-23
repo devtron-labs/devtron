@@ -81,7 +81,7 @@ func NewEnforcerUtilImpl(logger *zap.SugaredLogger, teamRepository team.TeamRepo
 }
 
 func NewNoopEnforcerUtil(logger *zap.SugaredLogger) *EnforcerUtilImpl {
-	logger.Infow("noop enforcer util init")
+	logger.Debugw("noop enforcer util init")
 	return nil
 }
 

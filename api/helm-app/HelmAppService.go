@@ -98,7 +98,7 @@ func NewHelmAppServiceImpl(Logger *zap.SugaredLogger,
 }
 
 func NewNoopServiceImpl(logger *zap.SugaredLogger) *HelmAppServiceImpl {
-	logger.Infow("noop helm app service init")
+	logger.Debugw("noop helm app service init")
 	return nil
 }
 

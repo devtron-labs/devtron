@@ -152,8 +152,8 @@ func (r *MuxRouter) Init() {
 	r.Router.Path("/").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		http.Redirect(writer, request, "/dashboard", 301)
 	})
-	dashboardRouter := r.Router.PathPrefix("/dashboard").Subrouter()
-	r.dashboardRouter.InitDashboardRouter(dashboardRouter)
+	//dashboardRouter := r.Router.PathPrefix("/dashboard").Subrouter()
+	//r.dashboardRouter.InitDashboardRouter(dashboardRouter)
 
 	//HelmApplicationSubRouter := r.Router.PathPrefix("/orchestrator/application").Subrouter()
 	//r.helmAppRouter.InitAppListRouter(HelmApplicationSubRouter)

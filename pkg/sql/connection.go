@@ -43,7 +43,7 @@ func GetConfig() (*Config, error) {
 }
 
 func NewNoopConnection(logger *zap.SugaredLogger) (*pg.DB, error) {
-	logger.Infow("noop connection")
+	logger.Debugw("noop connection")
 	return nil, nil
 }
 

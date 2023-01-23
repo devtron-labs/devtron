@@ -1,13 +1,20 @@
 package main
 
 import (
+	"embed"
 	"fmt"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"net/http"
 	"os"
+	"path"
+	"strings"
 )
+
+//go:embed ui
+var staticFiles embed.FS
 
 type App struct {
 	db *pg.DB
@@ -35,22 +42,36 @@ func NewApp(db *pg.DB,
 	}
 }
 func (app *App) Start() {
-	fmt.Println("starting k8s client App")
-
 	port := 8080 //TODO: extract from environment variable
 	app.Logger.Debugw("starting server")
 	app.Logger.Infow("starting server on ", "port", port)
 	app.MuxRouter.Init()
-	//authEnforcer := casbin2.Create()
-
-	//_, err := app.telemetry.SendTelemetryInstallEventEA()
-
-	//if err != nil {
-	//	app.Logger.Warnw("telemetry installation success event failed", "err", err)
-	//}
 	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: app.MuxRouter.Router}
-
 	app.MuxRouter.Router.Use(middleware.PrometheusMiddleware)
+	fileSystem := http.FS(staticFiles)
+	const DashboardPathPrefix = "/dashboard"
+	app.MuxRouter.Router.PathPrefix(DashboardPathPrefix).HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestURI := r.URL.Path
+		partialURL := strings.Replace(requestURI, DashboardPathPrefix, "", 1)
+
+		baseFolder := "./ui"
+		finalPath := path.Join(baseFolder, partialURL)
+		file, err := fileSystem.Open(finalPath)
+		if err != nil || partialURL == "" || partialURL == "/" {
+			finalPath = path.Join(baseFolder, "./index.html")
+		}
+		file, err = fileSystem.Open(finalPath)
+		if err != nil {
+			common.WriteJsonResp(w, err, finalPath, http.StatusInternalServerError)
+			return
+		}
+		stat, err := file.Stat()
+		if err != nil {
+			common.WriteJsonResp(w, err, finalPath, http.StatusInternalServerError)
+			return
+		}
+		http.ServeContent(w, r, stat.Name(), stat.ModTime(), file)
+	})
 	app.server = server
 
 	err := server.ListenAndServe()

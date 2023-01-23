@@ -44,7 +44,7 @@ func NewEnforcerUtilHelmImpl(logger *zap.SugaredLogger,
 }
 
 func NewNoopEnforcerUtilHelm(logger *zap.SugaredLogger) *EnforcerUtilHelmImpl {
-	logger.Info("noop enforcer helm util init")
+	logger.Debugw("noop enforcer helm util init")
 	return nil
 }
 

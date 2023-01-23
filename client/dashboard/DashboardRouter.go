@@ -7,8 +7,6 @@ import (
 	"go.uber.org/zap"
 	"net"
 	"net/http"
-	"os"
-	"strings"
 	"time"
 )
 
@@ -45,24 +43,25 @@ func (router DashboardRouterImpl) InitDashboardRouter(dashboardRouter *mux.Route
 	//s := http.FileServer(http.Dir("./ui/"))
 	//route.Handler(s)
 	route := dashboardRouter.PathPrefix("/")
-	baseFolder := "./ui"
-	info, err := os.Stat(baseFolder)
-	if err != nil {
-		route.HandlerFunc(router.dashboardProxy)
-	} else if info.IsDir() {
-		route.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			requestURI := r.URL.Path
-			fmt.Println(r.URL.Path)
-			fmt.Println(requestURI)
-			partialURL := strings.ReplaceAll(requestURI, "/dashboard", "")
-			finalPath := baseFolder + partialURL
-			_, err := os.Stat(finalPath)
-			if err != nil || partialURL == "" || partialURL == "/" {
-				finalPath = baseFolder + "/index.html"
-			}
-			http.ServeFile(w, r, finalPath)
-		})
-	}
+	//baseFolder := "./ui"
+	//info, err := os.Stat(baseFolder)
+	//if err != nil {
+	route.HandlerFunc(router.dashboardProxy)
+	//} else if info.IsDir() {
+	//	route.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	//		requestURI := r.URL.Path
+	//		fmt.Println(r.URL.Path)
+	//		fmt.Println(requestURI)
+	//		partialURL := strings.ReplaceAll(requestURI, "/dashboard", "")
+	//		finalPath := baseFolder + partialURL
+	//		_, err := os.Stat(finalPath)
+	//		if err != nil || partialURL == "" || partialURL == "/" {
+	//			finalPath = baseFolder + "/index.html"
+	//		}
+	//
+	//		http.ServeFile(w, r, finalPath)
+	//	})
+	//}
 }
 
 var DashboardWireSet = wire.NewSet(
