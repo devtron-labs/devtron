@@ -69,7 +69,7 @@ done'
     1
 );
 
-INSERT INTO "plugin_step" ("id", "plugin_id","name","description","index","step_type","script_id","deleted", "created_on", "created_by", "updated_on", "updated_by") VALUES (nextval('id_seq_plugin_step'), (SELECT id FROM plugin_metadata WHERE name='Semgrep'),'Step 1','Step 1 - Dependency Track for Semgrep','1','INLINE',(SELECT ps.script_id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Semgrep' and ps."index"=1 and ps.deleted=false),'f','now()', 1, 'now()', 1);
+INSERT INTO "plugin_step" ("id", "plugin_id","name","description","index","step_type","script_id","deleted", "created_on", "created_by", "updated_on", "updated_by") VALUES (nextval('id_seq_plugin_step'), (SELECT id FROM plugin_metadata WHERE name='Semgrep'),'Step 1','Step 1 - Dependency Track for Semgrep','1','INLINE',(SELECT last_value FROM id_seq_plugin_pipeline_script),'f','now()', 1, 'now()', 1);
 
 INSERT INTO "plugin_step_variable" ("id", "plugin_step_id", "name", "format", "description", "is_exposed", "allow_empty_value", "variable_type", "value_type", "variable_step_index", "deleted", "created_on", "created_by", "updated_on", "updated_by") VALUES
 (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Semgrep' and ps."index"=1 and ps.deleted=false), 'SemgrepAppToken','STRING','App token of Semgrep account',true,false,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1),
