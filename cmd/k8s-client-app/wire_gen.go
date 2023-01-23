@@ -43,7 +43,7 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	clusterRepositoryFileBased := repository.NewClusterRepositoryFileBased(sugaredLogger)
+	clusterFileBasedRepository := repository.NewClusterRepositoryFileBased(sugaredLogger)
 	runtimeConfig, err := client.GetRuntimeConfig()
 	if err != nil {
 		return nil, err
@@ -52,7 +52,7 @@ func InitializeApp() (*App, error) {
 	v := informer.NewGlobalMapClusterNamespace()
 	k8sInformerFactoryImpl := informer.NewK8sInformerFactoryImpl(sugaredLogger, v, runtimeConfig)
 	noopUserService := noop.NewNoopUserService(sugaredLogger)
-	clusterServiceImpl := cluster.NewClusterServiceImpl(clusterRepositoryFileBased, sugaredLogger, k8sUtil, k8sInformerFactoryImpl, noopUserService)
+	clusterServiceImpl := cluster.NewClusterServiceImpl(clusterFileBasedRepository, sugaredLogger, k8sUtil, k8sInformerFactoryImpl, noopUserService)
 	validate, err := util.IntValidator()
 	if err != nil {
 		return nil, err
@@ -71,7 +71,7 @@ func InitializeApp() (*App, error) {
 	}
 	dashboardRouterImpl := dashboard.NewDashboardRouterImpl(sugaredLogger, config)
 	pumpImpl := connector.NewPumpImpl(sugaredLogger)
-	k8sClientServiceImpl := application.NewK8sClientServiceImpl(sugaredLogger, clusterRepositoryFileBased)
+	k8sClientServiceImpl := application.NewK8sClientServiceImpl(sugaredLogger, clusterFileBasedRepository)
 	helmAppServiceImpl := client2.NewNoopServiceImpl(sugaredLogger)
 	acdAuthConfig, err := util2.GetACDAuthConfig()
 	if err != nil {
@@ -85,19 +85,19 @@ func InitializeApp() (*App, error) {
 	enforcerUtilImpl := rbac.NewNoopEnforcerUtil(sugaredLogger)
 	k8sApplicationRestHandlerImpl := k8s.NewK8sApplicationRestHandlerImpl(sugaredLogger, k8sApplicationServiceImpl, pumpImpl, terminalSessionHandlerImpl, noopEnforcer, enforcerUtilHelmImpl, enforcerUtilImpl, clusterServiceImpl, helmAppServiceImpl, noopUserService)
 	k8sApplicationRouterImpl := k8s.NewK8sApplicationRouterImpl(k8sApplicationRestHandlerImpl)
-	clusterCronServiceImpl, err := k8s.NewClusterCronServiceImpl(sugaredLogger, clusterServiceImpl, k8sApplicationServiceImpl, clusterRepositoryFileBased)
+	clusterCronServiceImpl, err := k8s.NewClusterCronServiceImpl(sugaredLogger, clusterServiceImpl, k8sApplicationServiceImpl, clusterFileBasedRepository)
 	if err != nil {
 		return nil, err
 	}
 	k8sCapacityServiceImpl := k8s.NewK8sCapacityServiceImpl(sugaredLogger, clusterServiceImpl, k8sApplicationServiceImpl, k8sClientServiceImpl, clusterCronServiceImpl)
 	k8sCapacityRestHandlerImpl := k8s.NewK8sCapacityRestHandlerImpl(sugaredLogger, k8sCapacityServiceImpl, noopUserService, noopEnforcer, clusterServiceImpl, environmentServiceImpl)
 	k8sCapacityRouterImpl := k8s.NewK8sCapacityRouterImpl(k8sCapacityRestHandlerImpl)
-	terminalAccessRepositoryImpl := repository2.NewTerminalAccessRepositoryImpl(db, sugaredLogger)
+	terminalAccessFileBasedRepository := repository2.NewTerminalAccessFileBasedRepository(sugaredLogger)
 	userTerminalSessionConfig, err := clusterTerminalAccess.GetTerminalAccessConfig()
 	if err != nil {
 		return nil, err
 	}
-	userTerminalAccessServiceImpl, err := clusterTerminalAccess.NewUserTerminalAccessServiceImpl(sugaredLogger, terminalAccessRepositoryImpl, userTerminalSessionConfig, k8sApplicationServiceImpl, k8sClientServiceImpl, terminalSessionHandlerImpl)
+	userTerminalAccessServiceImpl, err := clusterTerminalAccess.NewUserTerminalAccessServiceImpl(sugaredLogger, terminalAccessFileBasedRepository, userTerminalSessionConfig, k8sApplicationServiceImpl, k8sClientServiceImpl, terminalSessionHandlerImpl)
 	if err != nil {
 		return nil, err
 	}

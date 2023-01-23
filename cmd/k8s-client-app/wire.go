@@ -51,7 +51,7 @@ func InitializeApp() (*App, error) {
 		//module.ModuleWireSet,
 		//apiToken.ApiTokenWireSet,
 		//webhookHelm.WebhookHelmWireSet,
-		terminal.TerminalWireSet,
+		terminal.TerminalWireSetK8sClient,
 		client.GetRuntimeConfig,
 
 		noop.NewNoopUserService,

@@ -16,8 +16,7 @@ import (
 	"gorm.io/gorm"
 )
 
-type ClusterRepositoryFileBased struct {
-	//*ClusterRepositoryImpl
+type ClusterFileBasedRepository struct {
 	logger       *zap.SugaredLogger
 	dbConnection *gorm.DB
 }
@@ -33,8 +32,7 @@ type ClusterEntity struct {
 	sql.AuditLog
 }
 
-func NewClusterRepositoryFileBased(logger *zap.SugaredLogger) *ClusterRepositoryFileBased {
-	//clusterRepositoryImpl := NewClusterRepositoryImpl(nil, logger)
+func NewClusterRepositoryFileBased(logger *zap.SugaredLogger) *ClusterFileBasedRepository {
 	err, clusterDbPath := createOrCheckClusterDbPath(logger)
 	db, err := gorm.Open(sqlite.Open(clusterDbPath), &gorm.Config{})
 	//db, err := sql.Open("sqlite3", "./cluster.db")
@@ -51,7 +49,7 @@ func NewClusterRepositoryFileBased(logger *zap.SugaredLogger) *ClusterRepository
 		}
 	}
 	logger.Debugw("cluster repository file based initialized")
-	return &ClusterRepositoryFileBased{logger, db}
+	return &ClusterFileBasedRepository{logger, db}
 }
 
 func createOrCheckClusterDbPath(logger *zap.SugaredLogger) (error, string) {
@@ -60,18 +58,18 @@ func createOrCheckClusterDbPath(logger *zap.SugaredLogger) (error, string) {
 		logger.Errorw("error occurred while finding home dir", "err", err)
 		return err, ""
 	}
-	clusterDbDir := path.Join(userHomeDir, "./.kube/.devtron")
+	clusterDbDir := path.Join(userHomeDir, "./.devtron")
 	err = os.MkdirAll(clusterDbDir, os.ModePerm)
 	if err != nil {
 		logger.Errorw("error occurred while creating db", "path", clusterDbDir, "err", err)
 		return err, ""
 	}
 
-	clusterDbPath := path.Join(clusterDbDir, "./cluster.db")
+	clusterDbPath := path.Join(clusterDbDir, "./client.db")
 	return nil, clusterDbPath
 }
 
-func (impl *ClusterRepositoryFileBased) Save(model *Cluster) error {
+func (impl *ClusterFileBasedRepository) Save(model *Cluster) error {
 
 	err, clusterEntity := impl.convertToEntity(model)
 	if err != nil {
@@ -88,7 +86,7 @@ func (impl *ClusterRepositoryFileBased) Save(model *Cluster) error {
 	return nil
 }
 
-func (impl *ClusterRepositoryFileBased) convertToEntity(model *Cluster) (error, *ClusterEntity) {
+func (impl *ClusterFileBasedRepository) convertToEntity(model *Cluster) (error, *ClusterEntity) {
 	configJson, err := json.Marshal(model.Config)
 	if err != nil {
 		impl.logger.Errorw("error occurred while converting to entity", "model", model, "err", err)
@@ -107,7 +105,7 @@ func (impl *ClusterRepositoryFileBased) convertToEntity(model *Cluster) (error, 
 	return err, clusterEntity
 }
 
-func (impl *ClusterRepositoryFileBased) convertToModel(entity *ClusterEntity) (*Cluster, error) {
+func (impl *ClusterFileBasedRepository) convertToModel(entity *ClusterEntity) (*Cluster, error) {
 	clusterConfig := make(map[string]string)
 	if len(entity.Config) > 0 {
 		err := json.Unmarshal([]byte(entity.Config), &clusterConfig)
@@ -133,15 +131,15 @@ func (impl *ClusterRepositoryFileBased) convertToModel(entity *ClusterEntity) (*
 	return clusterBean, nil
 }
 
-func (impl *ClusterRepositoryFileBased) FindOne(clusterName string) (*Cluster, error) {
+func (impl *ClusterFileBasedRepository) FindOne(clusterName string) (*Cluster, error) {
 	return impl.FindOneActive(clusterName)
 }
 
-func (impl *ClusterRepositoryFileBased) FindOneActive(clusterName string) (*Cluster, error) {
+func (impl *ClusterFileBasedRepository) FindOneActive(clusterName string) (*Cluster, error) {
 	clusterEntity := &ClusterEntity{}
 	result := impl.dbConnection.
-		Where("ClusterName = ?", clusterName).
-		Where("Active = ?", true).
+		Where("cluster_name = ?", clusterName).
+		Where("active = ?", true).
 		Find(clusterEntity).
 		Limit(1)
 	err := result.Error
@@ -159,14 +157,14 @@ func (impl *ClusterRepositoryFileBased) FindOneActive(clusterName string) (*Clus
 	return clusterBean, nil
 }
 
-func (impl *ClusterRepositoryFileBased) FindAll() ([]Cluster, error) {
+func (impl *ClusterFileBasedRepository) FindAll() ([]Cluster, error) {
 	return impl.FindAllActive()
 }
 
-func (impl *ClusterRepositoryFileBased) FindAllActive() ([]Cluster, error) {
+func (impl *ClusterFileBasedRepository) FindAllActive() ([]Cluster, error) {
 	var clusterEntities []ClusterEntity
 	result := impl.dbConnection.
-		Where("Active = ?", true).
+		Where("active = ?", true).
 		Find(&clusterEntities)
 	err := result.Error
 	if err != nil {
@@ -185,11 +183,11 @@ func (impl *ClusterRepositoryFileBased) FindAllActive() ([]Cluster, error) {
 	return clusters, nil
 }
 
-func (impl *ClusterRepositoryFileBased) FindById(id int) (*Cluster, error) {
+func (impl *ClusterFileBasedRepository) FindById(id int) (*Cluster, error) {
 	clusterEntity := &ClusterEntity{}
 	result := impl.dbConnection.
-		Where("ID =?", id).
-		Where("Active = ?", true).
+		Where("id =?", id).
+		Where("active = ?", true).
 		Find(clusterEntity).
 		Limit(1)
 	err := result.Error
@@ -207,12 +205,12 @@ func (impl *ClusterRepositoryFileBased) FindById(id int) (*Cluster, error) {
 	return clusterBean, nil
 }
 
-func (impl *ClusterRepositoryFileBased) FindByIds(id []int) ([]Cluster, error) {
+func (impl *ClusterFileBasedRepository) FindByIds(id []int) ([]Cluster, error) {
 
 	var clusterEntities []ClusterEntity
 	result := impl.dbConnection.
-		Where("ID in(?)", pg.In(id)).
-		Where("Active = ?", true).
+		Where("id in(?)", pg.In(id)).
+		Where("active = ?", true).
 		Find(&clusterEntities)
 	err := result.Error
 	if err != nil {
@@ -237,7 +235,7 @@ func (impl *ClusterRepositoryFileBased) FindByIds(id []int) ([]Cluster, error) {
 	//return cluster, result.Error
 }
 
-func (impl *ClusterRepositoryFileBased) Update(model *Cluster) error {
+func (impl *ClusterFileBasedRepository) Update(model *Cluster) error {
 	err, entity := impl.convertToEntity(model)
 	if err != nil {
 		impl.logger.Errorw("error occurred while converting model to entity", "model", model, "error", err)
@@ -253,7 +251,7 @@ func (impl *ClusterRepositoryFileBased) Update(model *Cluster) error {
 	//return impl.dbConnection.Update(model)
 }
 
-func (impl *ClusterRepositoryFileBased) Delete(model *Cluster) error {
+func (impl *ClusterFileBasedRepository) Delete(model *Cluster) error {
 	err, entity := impl.convertToEntity(model)
 	if err != nil {
 		impl.logger.Errorw("error occurred while converting model to entity", "model", model, "error", err)
@@ -268,14 +266,14 @@ func (impl *ClusterRepositoryFileBased) Delete(model *Cluster) error {
 	return nil
 }
 
-func (impl *ClusterRepositoryFileBased) MarkClusterDeleted(model *Cluster) error {
+func (impl *ClusterFileBasedRepository) MarkClusterDeleted(model *Cluster) error {
 	model.Active = false
 	return impl.Update(model)
 }
 
-func (impl *ClusterRepositoryFileBased) UpdateClusterConnectionStatus(clusterId int, errorInConnecting string) error {
+func (impl *ClusterFileBasedRepository) UpdateClusterConnectionStatus(clusterId int, errorInConnecting string) error {
 
-	result := impl.dbConnection.Model(&ClusterEntity{}).Where("ID = ?", clusterId).Update("ErrorInConnecting = ?", errorInConnecting)
+	result := impl.dbConnection.Model(&ClusterEntity{}).Where("id = ?", clusterId).Update("error_in_connecting = ?", errorInConnecting)
 	err := result.Error
 	if err != nil {
 		impl.logger.Errorw("error occurred while updating cluster connection status", "clusterId", clusterId, "error", errorInConnecting, "err", err)

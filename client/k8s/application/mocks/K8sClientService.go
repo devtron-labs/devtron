@@ -3,9 +3,11 @@
 package mocks
 
 import (
-	io "io"
+	context "context"
 
 	application "github.com/devtron-labs/devtron/client/k8s/application"
+
+	io "io"
 
 	mock "github.com/stretchr/testify/mock"
 
@@ -17,13 +19,13 @@ type K8sClientService struct {
 	mock.Mock
 }
 
-// CreateResource provides a mock function with given fields: restConfig, request, manifest
-func (_m *K8sClientService) CreateResource(restConfig *rest.Config, request *application.K8sRequestBean, manifest string) (*application.ManifestResponse, error) {
-	ret := _m.Called(restConfig, request, manifest)
+// ApplyResource provides a mock function with given fields: ctx, restConfig, request, manifest
+func (_m *K8sClientService) ApplyResource(ctx context.Context, restConfig *rest.Config, request *application.K8sRequestBean, manifest string) (*application.ManifestResponse, error) {
+	ret := _m.Called(ctx, restConfig, request, manifest)
 
 	var r0 *application.ManifestResponse
-	if rf, ok := ret.Get(0).(func(*rest.Config, *application.K8sRequestBean, string) *application.ManifestResponse); ok {
-		r0 = rf(restConfig, request, manifest)
+	if rf, ok := ret.Get(0).(func(context.Context, *rest.Config, *application.K8sRequestBean, string) *application.ManifestResponse); ok {
+		r0 = rf(ctx, restConfig, request, manifest)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*application.ManifestResponse)
@@ -31,8 +33,8 @@ func (_m *K8sClientService) CreateResource(restConfig *rest.Config, request *app
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(*rest.Config, *application.K8sRequestBean, string) error); ok {
-		r1 = rf(restConfig, request, manifest)
+	if rf, ok := ret.Get(1).(func(context.Context, *rest.Config, *application.K8sRequestBean, string) error); ok {
+		r1 = rf(ctx, restConfig, request, manifest)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -40,13 +42,13 @@ func (_m *K8sClientService) CreateResource(restConfig *rest.Config, request *app
 	return r0, r1
 }
 
-// DeleteResource provides a mock function with given fields: restConfig, request
-func (_m *K8sClientService) DeleteResource(restConfig *rest.Config, request *application.K8sRequestBean) (*application.ManifestResponse, error) {
-	ret := _m.Called(restConfig, request)
+// CreateResource provides a mock function with given fields: ctx, restConfig, request, manifest
+func (_m *K8sClientService) CreateResource(ctx context.Context, restConfig *rest.Config, request *application.K8sRequestBean, manifest string) (*application.ManifestResponse, error) {
+	ret := _m.Called(ctx, restConfig, request, manifest)
 
 	var r0 *application.ManifestResponse
-	if rf, ok := ret.Get(0).(func(*rest.Config, *application.K8sRequestBean) *application.ManifestResponse); ok {
-		r0 = rf(restConfig, request)
+	if rf, ok := ret.Get(0).(func(context.Context, *rest.Config, *application.K8sRequestBean, string) *application.ManifestResponse); ok {
+		r0 = rf(ctx, restConfig, request, manifest)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*application.ManifestResponse)
@@ -54,8 +56,8 @@ func (_m *K8sClientService) DeleteResource(restConfig *rest.Config, request *app
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(*rest.Config, *application.K8sRequestBean) error); ok {
-		r1 = rf(restConfig, request)
+	if rf, ok := ret.Get(1).(func(context.Context, *rest.Config, *application.K8sRequestBean, string) error); ok {
+		r1 = rf(ctx, restConfig, request, manifest)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -63,13 +65,59 @@ func (_m *K8sClientService) DeleteResource(restConfig *rest.Config, request *app
 	return r0, r1
 }
 
-// GetPodLogs provides a mock function with given fields: restConfig, request
-func (_m *K8sClientService) GetPodLogs(restConfig *rest.Config, request *application.K8sRequestBean) (io.ReadCloser, error) {
-	ret := _m.Called(restConfig, request)
+// DeleteResource provides a mock function with given fields: ctx, restConfig, request
+func (_m *K8sClientService) DeleteResource(ctx context.Context, restConfig *rest.Config, request *application.K8sRequestBean) (*application.ManifestResponse, error) {
+	ret := _m.Called(ctx, restConfig, request)
+
+	var r0 *application.ManifestResponse
+	if rf, ok := ret.Get(0).(func(context.Context, *rest.Config, *application.K8sRequestBean) *application.ManifestResponse); ok {
+		r0 = rf(ctx, restConfig, request)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*application.ManifestResponse)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, *rest.Config, *application.K8sRequestBean) error); ok {
+		r1 = rf(ctx, restConfig, request)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetApiResources provides a mock function with given fields: restConfig, includeOnlyVerb
+func (_m *K8sClientService) GetApiResources(restConfig *rest.Config, includeOnlyVerb string) ([]*application.K8sApiResource, error) {
+	ret := _m.Called(restConfig, includeOnlyVerb)
+
+	var r0 []*application.K8sApiResource
+	if rf, ok := ret.Get(0).(func(*rest.Config, string) []*application.K8sApiResource); ok {
+		r0 = rf(restConfig, includeOnlyVerb)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*application.K8sApiResource)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(*rest.Config, string) error); ok {
+		r1 = rf(restConfig, includeOnlyVerb)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetPodLogs provides a mock function with given fields: ctx, restConfig, request
+func (_m *K8sClientService) GetPodLogs(ctx context.Context, restConfig *rest.Config, request *application.K8sRequestBean) (io.ReadCloser, error) {
+	ret := _m.Called(ctx, restConfig, request)
 
 	var r0 io.ReadCloser
-	if rf, ok := ret.Get(0).(func(*rest.Config, *application.K8sRequestBean) io.ReadCloser); ok {
-		r0 = rf(restConfig, request)
+	if rf, ok := ret.Get(0).(func(context.Context, *rest.Config, *application.K8sRequestBean) io.ReadCloser); ok {
+		r0 = rf(ctx, restConfig, request)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(io.ReadCloser)
@@ -77,8 +125,8 @@ func (_m *K8sClientService) GetPodLogs(restConfig *rest.Config, request *applica
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(*rest.Config, *application.K8sRequestBean) error); ok {
-		r1 = rf(restConfig, request)
+	if rf, ok := ret.Get(1).(func(context.Context, *rest.Config, *application.K8sRequestBean) error); ok {
+		r1 = rf(ctx, restConfig, request)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -86,13 +134,13 @@ func (_m *K8sClientService) GetPodLogs(restConfig *rest.Config, request *applica
 	return r0, r1
 }
 
-// GetResource provides a mock function with given fields: restConfig, request
-func (_m *K8sClientService) GetResource(restConfig *rest.Config, request *application.K8sRequestBean) (*application.ManifestResponse, error) {
-	ret := _m.Called(restConfig, request)
+// GetResource provides a mock function with given fields: ctx, restConfig, request
+func (_m *K8sClientService) GetResource(ctx context.Context, restConfig *rest.Config, request *application.K8sRequestBean) (*application.ManifestResponse, error) {
+	ret := _m.Called(ctx, restConfig, request)
 
 	var r0 *application.ManifestResponse
-	if rf, ok := ret.Get(0).(func(*rest.Config, *application.K8sRequestBean) *application.ManifestResponse); ok {
-		r0 = rf(restConfig, request)
+	if rf, ok := ret.Get(0).(func(context.Context, *rest.Config, *application.K8sRequestBean) *application.ManifestResponse); ok {
+		r0 = rf(ctx, restConfig, request)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*application.ManifestResponse)
@@ -100,8 +148,8 @@ func (_m *K8sClientService) GetResource(restConfig *rest.Config, request *applic
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(*rest.Config, *application.K8sRequestBean) error); ok {
-		r1 = rf(restConfig, request)
+	if rf, ok := ret.Get(1).(func(context.Context, *rest.Config, *application.K8sRequestBean) error); ok {
+		r1 = rf(ctx, restConfig, request)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -109,13 +157,43 @@ func (_m *K8sClientService) GetResource(restConfig *rest.Config, request *applic
 	return r0, r1
 }
 
-// ListEvents provides a mock function with given fields: restConfig, request
-func (_m *K8sClientService) ListEvents(restConfig *rest.Config, request *application.K8sRequestBean) (*application.EventsResponse, error) {
-	ret := _m.Called(restConfig, request)
+// GetResourceList provides a mock function with given fields: ctx, restConfig, request
+func (_m *K8sClientService) GetResourceList(ctx context.Context, restConfig *rest.Config, request *application.K8sRequestBean) (*application.ResourceListResponse, bool, error) {
+	ret := _m.Called(ctx, restConfig, request)
+
+	var r0 *application.ResourceListResponse
+	if rf, ok := ret.Get(0).(func(context.Context, *rest.Config, *application.K8sRequestBean) *application.ResourceListResponse); ok {
+		r0 = rf(ctx, restConfig, request)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*application.ResourceListResponse)
+		}
+	}
+
+	var r1 bool
+	if rf, ok := ret.Get(1).(func(context.Context, *rest.Config, *application.K8sRequestBean) bool); ok {
+		r1 = rf(ctx, restConfig, request)
+	} else {
+		r1 = ret.Get(1).(bool)
+	}
+
+	var r2 error
+	if rf, ok := ret.Get(2).(func(context.Context, *rest.Config, *application.K8sRequestBean) error); ok {
+		r2 = rf(ctx, restConfig, request)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// ListEvents provides a mock function with given fields: ctx, restConfig, request
+func (_m *K8sClientService) ListEvents(ctx context.Context, restConfig *rest.Config, request *application.K8sRequestBean) (*application.EventsResponse, error) {
+	ret := _m.Called(ctx, restConfig, request)
 
 	var r0 *application.EventsResponse
-	if rf, ok := ret.Get(0).(func(*rest.Config, *application.K8sRequestBean) *application.EventsResponse); ok {
-		r0 = rf(restConfig, request)
+	if rf, ok := ret.Get(0).(func(context.Context, *rest.Config, *application.K8sRequestBean) *application.EventsResponse); ok {
+		r0 = rf(ctx, restConfig, request)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*application.EventsResponse)
@@ -123,8 +201,8 @@ func (_m *K8sClientService) ListEvents(restConfig *rest.Config, request *applica
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(*rest.Config, *application.K8sRequestBean) error); ok {
-		r1 = rf(restConfig, request)
+	if rf, ok := ret.Get(1).(func(context.Context, *rest.Config, *application.K8sRequestBean) error); ok {
+		r1 = rf(ctx, restConfig, request)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -132,13 +210,13 @@ func (_m *K8sClientService) ListEvents(restConfig *rest.Config, request *applica
 	return r0, r1
 }
 
-// UpdateResource provides a mock function with given fields: restConfig, request
-func (_m *K8sClientService) UpdateResource(restConfig *rest.Config, request *application.K8sRequestBean) (*application.ManifestResponse, error) {
-	ret := _m.Called(restConfig, request)
+// UpdateResource provides a mock function with given fields: ctx, restConfig, request
+func (_m *K8sClientService) UpdateResource(ctx context.Context, restConfig *rest.Config, request *application.K8sRequestBean) (*application.ManifestResponse, error) {
+	ret := _m.Called(ctx, restConfig, request)
 
 	var r0 *application.ManifestResponse
-	if rf, ok := ret.Get(0).(func(*rest.Config, *application.K8sRequestBean) *application.ManifestResponse); ok {
-		r0 = rf(restConfig, request)
+	if rf, ok := ret.Get(0).(func(context.Context, *rest.Config, *application.K8sRequestBean) *application.ManifestResponse); ok {
+		r0 = rf(ctx, restConfig, request)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*application.ManifestResponse)
@@ -146,8 +224,8 @@ func (_m *K8sClientService) UpdateResource(restConfig *rest.Config, request *app
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(*rest.Config, *application.K8sRequestBean) error); ok {
-		r1 = rf(restConfig, request)
+	if rf, ok := ret.Get(1).(func(context.Context, *rest.Config, *application.K8sRequestBean) error); ok {
+		r1 = rf(ctx, restConfig, request)
 	} else {
 		r1 = ret.Error(1)
 	}
