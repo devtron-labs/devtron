@@ -3,7 +3,7 @@
 
 # Devtron Installation
 
-Devtron is an open source software delivery workflow for Kubernetes written in Go. It is designed as a self-serve platform for operationalizing and maintaining applications (AppOps) on Kubernetes in a developer friendly way.
+Devtron is an open source software delivery workflow for Kubernetes written in Go language. It is designed as a self-serve platform for operationalizing and maintaining applications (AppOps) on Kubernetes in a developer friendly way.
 
 ## Introduction
 
@@ -15,7 +15,7 @@ It packages third party components like
  - [Argocd](https://github.com/argoproj/argo-cd/) for gitops 
  - [Argo workflows](https://github.com/argoproj/argo) for CI
  - [Clair](https://github.com/quay/clair) & [Guard](https://github.com/guard/guard) for image scanning
- - [External Secret Operator](https://github.com/external-secrets/external-secrets) and [Kubernetes External Secrets (Depricated) ](https://github.com/godaddy/kubernetes-external-secrets) for ingegrating with external secret management stores like [AWS Secrets Manager](https://aws.amazon.com/secrets-manager/) or [HashiCorp Vault](https://www.vaultproject.io/)
+ - [External Secret Operator](https://github.com/external-secrets/external-secrets) and [Kubernetes External Secrets (Depricated) ](https://github.com/godaddy/kubernetes-external-secrets) for ingegrating with external secret management systems like [AWS Secrets Manager](https://aws.amazon.com/secrets-manager/) or [HashiCorp Vault](https://www.vaultproject.io/)
  - [Nats](https://github.com/nats-io) for event streaming
  - [Postgres](https://github.com/postgres/postgres) as datastore
  - Fork of [Argo Rollout](https://github.com/argoproj/argo-rollouts) 
@@ -24,7 +24,7 @@ It packages third party components like
 
 ### Install with Helm
 
-Run the following command to install the latest version of Devtron along with the CI/CD module:
+Run the following command to install the latest version of Devtron along with the CI/CD integration:
 
 ```bash
 helm repo add devtron https://helm.devtron.ai 
@@ -36,7 +36,7 @@ helm install devtron devtron/devtron-operator \
 
 [Link to](https://docs.devtron.ai/install) more installation options for Devtron.
 
-For more details about configuration see the [Helm chart configuration](#configuration)
+For more details on configuration, see the [Helm chart configuration](#configuration)
 
 ### Access Devtron dashboard
 
