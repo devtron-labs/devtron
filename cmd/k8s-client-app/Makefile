@@ -15,7 +15,7 @@ SERVER_MODE_EA_ONLY=EA_ONLY
 export
 
 build: clean wire
-	$(ENVVAR) GOOS=$(GOOS) go build -o devtron-ea \
+	$(ENVVAR) GOOS=$(GOOS) go build -o devtron-k8sclient-app \
 			-ldflags="-X 'github.com/devtron-labs/devtron/util.GitCommit=${GIT_COMMIT}' \
 			-X 'github.com/devtron-labs/devtron/util.BuildTime=${BUILD_TIME}' \
 			-X 'github.com/devtron-labs/devtron/util.ServerMode=${SERVER_MODE_EA_ONLY}'"
@@ -24,10 +24,10 @@ wire:
 	wire
 
 clean:
-	rm -f devtron-ea
+	rm -f devtron-k8sclient-app
 
 run: build
-	./devtron-ea
+	./devtron-k8sclient-app
 
 .PHONY: build
 docker-build-image:  build

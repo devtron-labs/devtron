@@ -51,8 +51,8 @@ var ClusterWireSetEa = wire.NewSet(
 var ClusterWireSetK8sClient = wire.NewSet(
 	cluster.NewNoopServiceImpl,
 	wire.Bind(new(cluster.EnvironmentService), new(*cluster.EnvironmentServiceImpl)),
-	repository.NewClusterRepositoryImpl,
-	wire.Bind(new(repository.ClusterRepository), new(*repository.ClusterRepositoryImpl)),
+	repository.NewClusterRepositoryFileBased,
+	wire.Bind(new(repository.ClusterRepository), new(*repository.ClusterRepositoryFileBased)),
 	cluster.NewClusterServiceImpl,
 	wire.Bind(new(cluster.ClusterService), new(*cluster.ClusterServiceImpl)),
 	NewClusterRestHandlerImpl,

@@ -43,7 +43,7 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	clusterRepositoryImpl := repository.NewClusterRepositoryImpl(db, sugaredLogger)
+	clusterRepositoryFileBased := repository.NewClusterRepositoryFileBased(sugaredLogger)
 	runtimeConfig, err := client.GetRuntimeConfig()
 	if err != nil {
 		return nil, err
@@ -52,7 +52,7 @@ func InitializeApp() (*App, error) {
 	v := informer.NewGlobalMapClusterNamespace()
 	k8sInformerFactoryImpl := informer.NewK8sInformerFactoryImpl(sugaredLogger, v, runtimeConfig)
 	userServiceImpl := user.NewNoopUserServiceImpl(sugaredLogger)
-	clusterServiceImpl := cluster.NewClusterServiceImpl(clusterRepositoryImpl, sugaredLogger, k8sUtil, k8sInformerFactoryImpl, userServiceImpl)
+	clusterServiceImpl := cluster.NewClusterServiceImpl(clusterRepositoryFileBased, sugaredLogger, k8sUtil, k8sInformerFactoryImpl, userServiceImpl)
 	validate, err := util.IntValidator()
 	if err != nil {
 		return nil, err
@@ -71,7 +71,7 @@ func InitializeApp() (*App, error) {
 	}
 	dashboardRouterImpl := dashboard.NewDashboardRouterImpl(sugaredLogger, config)
 	pumpImpl := connector.NewPumpImpl(sugaredLogger)
-	k8sClientServiceImpl := application.NewK8sClientServiceImpl(sugaredLogger, clusterRepositoryImpl)
+	k8sClientServiceImpl := application.NewK8sClientServiceImpl(sugaredLogger, clusterRepositoryFileBased)
 	helmAppServiceImpl := client2.NewNoopServiceImpl(sugaredLogger)
 	acdAuthConfig, err := util2.GetACDAuthConfig()
 	if err != nil {
@@ -85,7 +85,7 @@ func InitializeApp() (*App, error) {
 	enforcerUtilImpl := rbac.NewNoopEnforcerUtil(sugaredLogger)
 	k8sApplicationRestHandlerImpl := k8s.NewK8sApplicationRestHandlerImpl(sugaredLogger, k8sApplicationServiceImpl, pumpImpl, terminalSessionHandlerImpl, noopEnforcer, enforcerUtilHelmImpl, enforcerUtilImpl, clusterServiceImpl, helmAppServiceImpl, userServiceImpl)
 	k8sApplicationRouterImpl := k8s.NewK8sApplicationRouterImpl(k8sApplicationRestHandlerImpl)
-	clusterCronServiceImpl, err := k8s.NewClusterCronServiceImpl(sugaredLogger, clusterServiceImpl, k8sApplicationServiceImpl, clusterRepositoryImpl)
+	clusterCronServiceImpl, err := k8s.NewClusterCronServiceImpl(sugaredLogger, clusterServiceImpl, k8sApplicationServiceImpl, clusterRepositoryFileBased)
 	if err != nil {
 		return nil, err
 	}

@@ -377,6 +377,12 @@ github.com/fvbommel/sortorder
 # github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 ## explicit
 github.com/ghodss/yaml
+# github.com/glebarez/go-sqlite v1.20.0
+## explicit; go 1.16
+github.com/glebarez/go-sqlite
+# github.com/glebarez/sqlite v1.6.0
+## explicit; go 1.16
+github.com/glebarez/sqlite
 # github.com/go-errors/errors v1.0.1
 ## explicit
 github.com/go-errors/errors
@@ -651,6 +657,9 @@ github.com/jcmturner/gofork/x/crypto/pbkdf2
 # github.com/jinzhu/inflection v1.0.0
 ## explicit
 github.com/jinzhu/inflection
+# github.com/jinzhu/now v1.1.5
+## explicit; go 1.12
+github.com/jinzhu/now
 # github.com/jmespath/go-jmespath v0.4.0
 ## explicit; go 1.14
 github.com/jmespath/go-jmespath
@@ -703,6 +712,9 @@ github.com/mailru/easyjson/jwriter
 # github.com/mattn/go-ieproxy v0.0.1
 ## explicit; go 1.14
 github.com/mattn/go-ieproxy
+# github.com/mattn/go-isatty v0.0.16
+## explicit; go 1.15
+github.com/mattn/go-isatty
 # github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369
 ## explicit; go 1.9
 github.com/matttproud/golang_protobuf_extensions/pbutil
@@ -814,6 +826,9 @@ github.com/prometheus/common/model
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
+# github.com/remyoudompheng/bigfft v0.0.0-20200410134404-eec4a21b6bb0
+## explicit; go 1.12
+github.com/remyoudompheng/bigfft
 # github.com/robfig/cron v1.2.0
 ## explicit
 github.com/robfig/cron
@@ -1369,6 +1384,15 @@ gopkg.in/yaml.v2
 # gopkg.in/yaml.v3 v3.0.1
 ## explicit
 gopkg.in/yaml.v3
+# gorm.io/gorm v1.24.3
+## explicit; go 1.16
+gorm.io/gorm
+gorm.io/gorm/callbacks
+gorm.io/gorm/clause
+gorm.io/gorm/logger
+gorm.io/gorm/migrator
+gorm.io/gorm/schema
+gorm.io/gorm/utils
 # k8s.io/api v0.23.3 => k8s.io/api v0.23.1
 ## explicit; go 1.16
 k8s.io/api/admission/v1
@@ -1917,6 +1941,43 @@ k8s.io/utils/trace
 # mellium.im/sasl v0.2.1
 ## explicit
 mellium.im/sasl
+# modernc.org/libc v1.21.5
+## explicit; go 1.17
+modernc.org/libc
+modernc.org/libc/errno
+modernc.org/libc/fcntl
+modernc.org/libc/fts
+modernc.org/libc/grp
+modernc.org/libc/honnef.co/go/netdb
+modernc.org/libc/langinfo
+modernc.org/libc/limits
+modernc.org/libc/netdb
+modernc.org/libc/netinet/in
+modernc.org/libc/poll
+modernc.org/libc/pthread
+modernc.org/libc/pwd
+modernc.org/libc/signal
+modernc.org/libc/stdio
+modernc.org/libc/stdlib
+modernc.org/libc/sys/socket
+modernc.org/libc/sys/stat
+modernc.org/libc/sys/types
+modernc.org/libc/termios
+modernc.org/libc/time
+modernc.org/libc/unistd
+modernc.org/libc/utime
+modernc.org/libc/uuid
+modernc.org/libc/uuid/uuid
+modernc.org/libc/wctype
+# modernc.org/mathutil v1.5.0
+## explicit; go 1.13
+modernc.org/mathutil
+# modernc.org/memory v1.4.0
+## explicit; go 1.18
+modernc.org/memory
+# modernc.org/sqlite v1.20.0
+## explicit; go 1.17
+modernc.org/sqlite/lib
 # sigs.k8s.io/json v0.0.0-20211208200746-9f7c6b3444d2
 ## explicit; go 1.17
 sigs.k8s.io/json
