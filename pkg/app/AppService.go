@@ -1970,7 +1970,7 @@ func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Val
 				Name:         pipeline.Name,
 				WorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
 				ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
-				Status:       string(health.HealthStatusProgressing),
+				Status:       pipelineConfig.WorkflowInProgress,
 				TriggeredBy:  overrideRequest.UserId,
 				StartedOn:    triggeredAt,
 				CdWorkflowId: cdWorkflowId,
@@ -1982,7 +1982,7 @@ func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Val
 				return false, err
 			}
 		} else {
-			cdWf.Status = string(health.HealthStatusProgressing)
+			cdWf.Status = pipelineConfig.WorkflowInProgress
 			cdWf.FinishedOn = time.Now()
 			cdWf.UpdatedBy = overrideRequest.UserId
 			cdWf.UpdatedOn = time.Now()
