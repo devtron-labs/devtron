@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
+	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -998,7 +999,7 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 			response[appKey] = pipelineResponse
 			continue
 		}
-
+		var hibernateReqError error
 		if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
 			stopRequest := &pipeline1.StopAppRequest{
 				AppId:         pipeline.AppId,
@@ -1006,19 +1007,66 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 				UserId:        request.UserId,
 				RequestType:   pipeline1.STOP,
 			}
-			_, err := impl.workflowDagExecutor.StopStartApp(stopRequest, ctx)
-			if err != nil {
-				impl.logger.Errorw("service err, StartStopApp", "err", err, "stopRequest", stopRequest)
-				pipelineResponse := response[appKey]
-				pipelineResponse[pipelineKey] = false
-				response[appKey] = pipelineResponse
-				continue
-				//here on any error comes for any pipeline will be skipped
-				//return nil, err
-			}
+			_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(stopRequest, ctx)
 		} else if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
-			//TODO
-			//initiate helm hibernate service
+			appIdentifier := &client.AppIdentifier{
+				ClusterId:   pipeline.Environment.ClusterId,
+				Namespace:   pipeline.Environment.Namespace,
+				ReleaseName: pipeline.DeploymentAppName,
+			}
+
+			hibernateRequest := &openapi.HibernateRequest{}
+			chartInfo, err := impl.chartRefRepository.FetchInfoOfChartConfiguredInApp(pipeline.AppId)
+			if err != nil {
+				impl.logger.Errorw("error in getting chart info for chart configured in app", "err", err, "appId", pipeline.AppId)
+				continue
+			}
+			var group, kind, version, name string
+			name = fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
+			if chartInfo.Name == "" && chartInfo.UserUploaded == false {
+				// rollout type chart
+				group = "argoproj.io"
+				kind = "Rollout"
+				version = "v1alpha1"
+				hibernateRequest = &openapi.HibernateRequest{
+					Resources: &[]openapi.HibernateTargetObject{
+						{
+							Group:     &group,
+							Kind:      &kind,
+							Version:   &version,
+							Namespace: &pipeline.Environment.Namespace,
+							Name:      &name,
+						},
+					},
+				}
+			} else if chartInfo.Name == "Deployment" {
+				//deployment type chart
+				group = "apps"
+				kind = "Deployment"
+				version = "v1"
+				hibernateRequest = &openapi.HibernateRequest{
+					Resources: &[]openapi.HibernateTargetObject{
+						{
+							Group:     &group,
+							Kind:      &kind,
+							Version:   &version,
+							Namespace: &pipeline.Environment.Namespace,
+							Name:      &name,
+						},
+					},
+				}
+			} else {
+				//chart not supported for hibernation, skipping
+				continue
+			}
+			_, hibernateReqError = impl.helmAppService.HibernateApplication(context.Background(), appIdentifier, hibernateRequest)
+		}
+		if hibernateReqError != nil {
+			impl.logger.Errorw("error in hibernating application", "err", hibernateReqError, "pipeline", pipeline)
+			pipelineResponse := response[appKey]
+			pipelineResponse[pipelineKey] = false
+			response[appKey] = pipelineResponse
+			continue
 		}
 		pipelineResponse := response[appKey]
 		pipelineResponse[pipelineKey] = success
