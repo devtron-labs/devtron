@@ -18,6 +18,7 @@
 package client
 
 import (
+	"context"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
@@ -113,7 +114,7 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 			if err != nil {
 				impl.logger.Errorw("found error on payload build for cd stages, skipping this error ", "cdWorkflow", cdWorkflow, "event", event, "stage", stage, "workflow runner", wfr, "pipelineOverrideId", pipelineOverrideId)
 			}
-			wfr, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(cdWorkflow.Id, stage)
+			wfr, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(context.Background(), cdWorkflow.Id, stage)
 			if err != nil {
 				impl.logger.Errorw("found error on payload build for cd stages, skipping this error ", "wfr", wfr, "event", event, "stage", stage, "workflow runner", wfr, "pipelineOverrideId", pipelineOverrideId)
 			}

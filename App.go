@@ -22,6 +22,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"github.com/devtron-labs/devtron/client/telemetry"
+	"github.com/devtron-labs/devtron/otel"
 	"log"
 	"net/http"
 	"os"
@@ -36,6 +37,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
 	_ "github.com/lib/pq"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
 	"go.uber.org/zap"
 )
 
@@ -49,8 +51,9 @@ type App struct {
 	pubsubClient  *pubsub.PubSubClient
 	posthogClient *telemetry.PosthogClient
 	// used for local dev only
-	serveTls        bool
-	sessionManager2 *authMiddleware.SessionManager
+	serveTls           bool
+	sessionManager2    *authMiddleware.SessionManager
+	OtelTracingService *otel.OtelTracingServiceImpl
 }
 
 func NewApp(router *router.MuxRouter,
@@ -65,15 +68,16 @@ func NewApp(router *router.MuxRouter,
 	//check argo connection
 	//todo - check argo-cd version on acd integration installation
 	app := &App{
-		MuxRouter:       router,
-		Logger:          Logger,
-		SSE:             sse,
-		Enforcer:        enforcer,
-		db:              db,
-		pubsubClient:    pubsubClient,
-		serveTls:        false,
-		sessionManager2: sessionManager2,
-		posthogClient:   posthogClient,
+		MuxRouter:          router,
+		Logger:             Logger,
+		SSE:                sse,
+		Enforcer:           enforcer,
+		db:                 db,
+		pubsubClient:       pubsubClient,
+		serveTls:           false,
+		sessionManager2:    sessionManager2,
+		posthogClient:      posthogClient,
+		OtelTracingService: otel.NewOtelTracingServiceImpl(Logger),
 	}
 	return app
 }
@@ -82,11 +86,19 @@ func (app *App) Start() {
 	port := 8080 //TODO: extract from environment variable
 	app.Logger.Debugw("starting server")
 	app.Logger.Infow("starting server on ", "port", port)
+
+	// setup tracer
+	tracerProvider := app.OtelTracingService.Init(otel.OTEL_ORCHESTRASTOR_SERVICE_NAME)
+
 	app.MuxRouter.Init()
 	//authEnforcer := casbin2.Create()
 
 	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: authMiddleware.Authorizer(app.sessionManager2, user.WhitelistChecker)(app.MuxRouter.Router)}
+
 	app.MuxRouter.Router.Use(middleware.PrometheusMiddleware)
+	if tracerProvider != nil {
+		app.MuxRouter.Router.Use(otelmux.Middleware(otel.OTEL_ORCHESTRASTOR_SERVICE_NAME))
+	}
 	app.server = server
 	var err error
 	if app.serveTls {
@@ -124,6 +136,9 @@ func (app *App) Stop() {
 	if err != nil {
 		app.Logger.Errorw("error in mux router shutdown", "err", err)
 	}
+
+	app.OtelTracingService.Shutdown()
+
 	app.Logger.Infow("closing db connection")
 	err = app.db.Close()
 	if err != nil {
