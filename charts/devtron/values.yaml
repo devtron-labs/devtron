@@ -48,7 +48,7 @@ components:
 
   devtron:
     image: "quay.io/devtron/hyperion:e0939513-280-12379"
-    cicdImage: "quay.io/devtron/devtron:e0939513-326-12377"
+    cicdImage: "quay.io/devtron/devtron:c3c14074-326-12380"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
     serviceMonitor:
@@ -98,13 +98,13 @@ components:
         SCRIPT_LOCATION: "scripts/sql/"
         GIT_REPO_URL: "https://github.com/devtron-labs/devtron.git"
         DB_NAME: "orchestrator"
-        GIT_HASH: "e0939513e3d75e2df092ddc85c6c2fec78f4c637"
+        GIT_HASH: "c3c14074d8aa1a2abd0147298ad346ab6e2864d4"
       casbin:
         GIT_BRANCH: "main"
         SCRIPT_LOCATION: "scripts/casbin/"
         GIT_REPO_URL: "https://github.com/devtron-labs/devtron.git"
         DB_NAME: "casbin"
-        GIT_HASH: "e0939513e3d75e2df092ddc85c6c2fec78f4c637"
+        GIT_HASH: "c3c14074d8aa1a2abd0147298ad346ab6e2864d4"
 
 # values for argocd integration
 argo-cd:
