@@ -6,3 +6,4 @@
 devtron
 /cmd/k8s-client-app/ui/
 /cmd/k8s-client-app/devtron-k8sclient-app
+cmd/k8s-client-app/devtron-k8sclient-app-amd64

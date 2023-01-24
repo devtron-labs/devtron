@@ -4,6 +4,7 @@ TAG?=$(shell bash -c 'git log --pretty=format:'%h' -n 1')
 FLAGS=
 ENVVAR=
 GOOS?=darwin
+GOARCH?=arm64
 REGISTRY?=686244538589.dkr.ecr.us-east-2.amazonaws.com
 BASEIMAGE?=alpine:3.9
 #BUILD_NUMBER=$$(date +'%Y%m%d-%H%M%S')
@@ -15,7 +16,7 @@ SERVER_MODE_EA_ONLY=EA_ONLY
 export
 
 build: clean wire
-	$(ENVVAR) GOOS=$(GOOS) go build -o devtron-k8sclient-app \
+	$(ENVVAR) GOOS=$(GOOS) GOARCH=$(GOARCH) go build -o devtron-k8sclient-app \
 			-ldflags="-X 'github.com/devtron-labs/devtron/util.GitCommit=${GIT_COMMIT}' \
 			-X 'github.com/devtron-labs/devtron/util.BuildTime=${BUILD_TIME}' \
 			-X 'github.com/devtron-labs/devtron/util.ServerMode=${SERVER_MODE_EA_ONLY}'"

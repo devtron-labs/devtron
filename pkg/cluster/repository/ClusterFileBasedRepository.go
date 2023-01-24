@@ -145,7 +145,7 @@ func (impl *ClusterFileBasedRepository) FindOneActive(clusterName string) (*Clus
 	err := result.Error
 	if err != nil {
 		impl.logger.Errorw("error occurred while finding cluster data ", "clusterName", clusterName, "err", err)
-		return nil, err
+		return nil, errors.New("failed to fetch cluster")
 	}
 	//queryRow := impl.dbConnection.QueryRow("SELECT * FROM clusterEntity WHERE cluster_name = ? and active = ?")
 	//err := queryRow.Scan()

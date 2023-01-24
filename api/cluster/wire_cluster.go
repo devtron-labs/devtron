@@ -59,4 +59,6 @@ var ClusterWireSetK8sClient = wire.NewSet(
 	wire.Bind(new(ClusterRestHandler), new(*ClusterRestHandlerImpl)),
 	NewClusterRouterImpl,
 	wire.Bind(new(ClusterRouter), new(*ClusterRouterImpl)),
+	cluster.NewKubeConfigFileSyncerImpl,
+	wire.Bind(new(cluster.KubeConfigFileSyncer), new(*cluster.KubeConfigFileSyncerImpl)),
 )

@@ -103,7 +103,11 @@ func InitializeApp() (*App, error) {
 	}
 	userTerminalAccessRestHandlerImpl := terminal2.NewUserTerminalAccessRestHandlerImpl(sugaredLogger, userTerminalAccessServiceImpl, noopEnforcer, noopUserService, validate)
 	userTerminalAccessRouterImpl := terminal2.NewUserTerminalAccessRouterImpl(userTerminalAccessRestHandlerImpl)
-	muxRouter := NewMuxRouter(sugaredLogger, clusterRouterImpl, dashboardRouterImpl, k8sApplicationRouterImpl, k8sCapacityRouterImpl, userTerminalAccessRouterImpl)
+	kubeConfigFileSyncerImpl, err := cluster.NewKubeConfigFileSyncerImpl(sugaredLogger, clusterServiceImpl)
+	if err != nil {
+		return nil, err
+	}
+	muxRouter := NewMuxRouter(sugaredLogger, clusterRouterImpl, dashboardRouterImpl, k8sApplicationRouterImpl, k8sCapacityRouterImpl, userTerminalAccessRouterImpl, kubeConfigFileSyncerImpl)
 	app := NewApp(db, muxRouter, sugaredLogger)
 	return app, nil
 }
