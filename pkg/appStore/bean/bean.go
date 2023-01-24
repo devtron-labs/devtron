@@ -95,6 +95,7 @@ type InstallAppVersionDTO struct {
 	EnvironmentName           string                     `json:"-"`
 	InstallAppVersionChartDTO *InstallAppVersionChartDTO `json:"-"`
 	DeploymentAppType         string                     `json:"deploymentAppType"`
+	AppStoreApplicationVersionId int
 }
 
 type InstallAppVersionChartDTO struct {
