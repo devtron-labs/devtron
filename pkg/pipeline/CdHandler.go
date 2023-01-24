@@ -296,7 +296,7 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(deployedB
 			impl.Logger.Warnw("found error, skipping helm apps status update for this trigger", "appIdentifier", appIdentifier, "err", err)
 			continue
 		}
-		if *helmAppStatus == application.Healthy {
+		if helmAppStatus != nil && *helmAppStatus == application.Healthy {
 			wfr.Status = pipelineConfig.WorkflowSucceeded
 		} else {
 			wfr.Status = pipelineConfig.WorkflowInProgress
@@ -309,7 +309,7 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(deployedB
 			return err
 		}
 		impl.Logger.Infow("updated workflow runner status for helm app", "wfr", wfr)
-		if *helmAppStatus == application.Healthy {
+		if helmAppStatus != nil && *helmAppStatus == application.Healthy {
 			pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByCdWorkflowId(wfr.CdWorkflowId)
 			if err != nil {
 				impl.Logger.Errorw("error in getting latest pipeline override by cdWorkflowId", "err", err, "cdWorkflowId", wfr.CdWorkflowId)
