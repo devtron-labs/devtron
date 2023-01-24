@@ -1320,6 +1320,9 @@ gopkg.in/jcmturner/gokrb5.v5/types
 # gopkg.in/jcmturner/rpc.v0 v0.0.2
 ## explicit
 gopkg.in/jcmturner/rpc.v0/ndr
+# gopkg.in/natefinch/lumberjack.v2 v2.0.0
+## explicit
+gopkg.in/natefinch/lumberjack.v2
 # gopkg.in/square/go-jose.v2 v2.6.0
 ## explicit
 gopkg.in/square/go-jose.v2

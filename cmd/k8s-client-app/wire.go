@@ -42,7 +42,7 @@ func InitializeApp() (*App, error) {
 
 		NewApp,
 		NewMuxRouter,
-		util.NewSugardLogger,
+		util.NewFileBaseSugaredLogger,
 		util.NewK8sUtil,
 		util.IntValidator,
 		util2.GetACDAuthConfig,

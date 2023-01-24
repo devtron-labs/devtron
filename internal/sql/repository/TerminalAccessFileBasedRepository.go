@@ -4,10 +4,10 @@ import (
 	"errors"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/glebarez/sqlite"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"os"
 	"path"
 	"time"
 )
@@ -45,19 +45,13 @@ func NewTerminalAccessFileBasedRepository(logger *zap.SugaredLogger) *TerminalAc
 }
 
 func createOrCheckClusterDbPath(logger *zap.SugaredLogger) (error, string) {
-	userHomeDir, err := os.UserHomeDir()
+	err, devtronDirPath := util.CheckOrCreateDevtronDir()
 	if err != nil {
-		logger.Errorw("error occurred while finding home dir", "err", err)
-		return err, ""
-	}
-	devtronDbDir := path.Join(userHomeDir, "./.devtron")
-	err = os.MkdirAll(devtronDbDir, os.ModePerm)
-	if err != nil {
-		logger.Errorw("error occurred while creating db", "path", devtronDbDir, "err", err)
+		logger.Errorw("error occurred while creating devtron dir ", "err", err)
 		return err, ""
 	}
 
-	clusterTerminalDbPath := path.Join(devtronDbDir, "./client.db")
+	clusterTerminalDbPath := path.Join(devtronDirPath, "./client.db")
 	return nil, clusterTerminalDbPath
 }
 

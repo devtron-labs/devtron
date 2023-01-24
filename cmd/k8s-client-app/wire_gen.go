@@ -35,7 +35,7 @@ import (
 // Injectors from wire.go:
 
 func InitializeApp() (*App, error) {
-	sugaredLogger, err := util.NewSugardLogger()
+	sugaredLogger, err := util.NewFileBaseSugaredLogger()
 	if err != nil {
 		return nil, err
 	}

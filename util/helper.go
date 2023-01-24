@@ -28,6 +28,7 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -90,7 +91,7 @@ func Close(c Closer, logger *zap.SugaredLogger) {
 
 var chars = []rune("abcdefghijklmnopqrstuvwxyz0123456789")
 
-//Generates random string
+// Generates random string
 func Generate(size int) string {
 	rand.Seed(time.Now().UnixNano())
 	var b strings.Builder
@@ -207,4 +208,19 @@ func InterfaceToMapAdapter(resp interface{}) map[string]interface{} {
 		return dat
 	}
 	return dat
+}
+
+func CheckOrCreateDevtronDir() (err error, devtronDirPath string) {
+	userHomeDir, err := os.UserHomeDir()
+	if err != nil {
+		fmt.Println("error occurred while finding home dir", "err", err)
+		return err, ""
+	}
+	devtronDirPath = path.Join(userHomeDir, "./.devtron")
+	err = os.MkdirAll(devtronDirPath, os.ModePerm)
+	if err != nil {
+		fmt.Println("error occurred while creating db", "path", devtronDirPath, "err", err)
+		return err, ""
+	}
+	return err, devtronDirPath
 }

@@ -5,5 +5,4 @@
 /cmd/external-app/devtron-ea
 devtron
 /cmd/k8s-client-app/ui/
-/cmd/k8s-client-app/devtron-k8sclient-app
-cmd/k8s-client-app/devtron-k8sclient-app-amd64
+/cmd/k8s-client-app/devtron-k8s-client-*

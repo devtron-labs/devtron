@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"os"
+	"github.com/devtron-labs/devtron/util"
 	"path"
 
 	//"database/sql"
@@ -53,19 +53,12 @@ func NewClusterRepositoryFileBased(logger *zap.SugaredLogger) *ClusterFileBasedR
 }
 
 func createOrCheckClusterDbPath(logger *zap.SugaredLogger) (error, string) {
-	userHomeDir, err := os.UserHomeDir()
+	err, devtronDirPath := util.CheckOrCreateDevtronDir()
 	if err != nil {
-		logger.Errorw("error occurred while finding home dir", "err", err)
+		logger.Errorw("error occurred while creating devtron dir ", "err", err)
 		return err, ""
 	}
-	clusterDbDir := path.Join(userHomeDir, "./.devtron")
-	err = os.MkdirAll(clusterDbDir, os.ModePerm)
-	if err != nil {
-		logger.Errorw("error occurred while creating db", "path", clusterDbDir, "err", err)
-		return err, ""
-	}
-
-	clusterDbPath := path.Join(clusterDbDir, "./client.db")
+	clusterDbPath := path.Join(devtronDirPath, "./client.db")
 	return nil, clusterDbPath
 }
 

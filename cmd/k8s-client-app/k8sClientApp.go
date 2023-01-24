@@ -41,8 +41,7 @@ func (app *App) Start() {
 		app.Logger.Warn("not able to extract free port so using default port ", DefaultPort)
 		freePort = DefaultPort
 	}
-	port := freePort //TODO: extract from environment variable
-	app.Logger.Debugw("starting server")
+	port := freePort
 	app.Logger.Infow("starting server on ", "port", port)
 	app.MuxRouter.Init()
 	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: app.MuxRouter.Router}

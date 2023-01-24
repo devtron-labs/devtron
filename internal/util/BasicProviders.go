@@ -20,9 +20,12 @@ package util
 import (
 	"fmt"
 	"github.com/caarlos0/env"
+	"github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"gopkg.in/natefinch/lumberjack.v2"
 	"net/http"
+	"path"
 )
 
 var (
@@ -38,7 +41,10 @@ func GetLogger() *zap.SugaredLogger {
 }
 
 type LogConfig struct {
-	Level int `env:"LOG_LEVEL" envDefault:"0"` // default info
+	Level      int `env:"LOG_LEVEL" envDefault:"0"` // default info
+	MaxSize    int `env:"LOG_MAX_SIZE" envDefault:"100"`
+	MaxBackups int `env:"LOG_MAX_BACKEUPS" envDefault:"2"`
+	MaxAge     int `env:"LOG_MAX_AGE" envDefault:"7"`
 }
 
 func InitLogger() (*zap.SugaredLogger, error) {
@@ -60,8 +66,49 @@ func InitLogger() (*zap.SugaredLogger, error) {
 	return logger, nil
 }
 
+func InitFileBasedLogger() (*zap.SugaredLogger, error) {
+	cfg := &LogConfig{}
+	err := env.Parse(cfg)
+	if err != nil {
+		fmt.Println("failed to parse logger env config: " + err.Error())
+		return nil, err
+	}
+
+	jsonEncoder := zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig())
+	logWriter := getLogWriter(cfg)
+
+	core := zapcore.NewCore(jsonEncoder, logWriter, zap.NewAtomicLevelAt(zapcore.Level(cfg.Level)))
+
+	l := zap.New(core, zap.AddCaller())
+	logger = l.Sugar()
+	return logger, nil
+
+}
+
+func getLogWriter(cfg *LogConfig) zapcore.WriteSyncer {
+	// lumberjack.Logger is already safe for concurrent use, so we don't need to
+	// lock it.
+	err, devtronDirPath := util.CheckOrCreateDevtronDir()
+	if err != nil {
+		devtronDirPath = "/tmp/"
+	}
+	w := zapcore.AddSync(&lumberjack.Logger{
+		Filename:   path.Join(devtronDirPath, "./out.log"),
+		MaxSize:    cfg.MaxSize, // megabytes
+		MaxBackups: cfg.MaxBackups,
+		MaxAge:     cfg.MaxAge, // days
+		Compress:   true,
+	})
+
+	return zapcore.AddSync(w)
+}
+
 func NewSugardLogger() (*zap.SugaredLogger, error) {
 	return InitLogger()
+}
+
+func NewFileBaseSugaredLogger() (*zap.SugaredLogger, error) {
+	return InitFileBasedLogger()
 }
 
 func NewHttpClient() *http.Client {
