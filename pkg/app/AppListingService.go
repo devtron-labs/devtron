@@ -28,6 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	"github.com/devtron-labs/devtron/util/argo"
 	errors2 "github.com/juju/errors"
+	"go.opentelemetry.io/otel"
 	"net/http"
 	"strconv"
 	"strings"
@@ -54,7 +55,7 @@ type AppListingService interface {
 	FetchAppsByEnvironment(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, error)
 	BuildAppListingResponse(fetchAppListingRequest FetchAppListingRequest, envContainers []*bean.AppEnvironmentContainer) ([]*bean.AppContainer, error)
 	FetchAllDevtronManagedApps() ([]AppNameTypeIdContainer, error)
-	FetchAppDetails(appId int, envId int) (bean.AppDetailContainer, error)
+	FetchAppDetails(ctx context.Context, appId int, envId int) (bean.AppDetailContainer, error)
 
 	PodCountByAppLabel(appLabel string, namespace string, env string, proEndpoint string) int
 	PodListByAppLabel(appLabel string, namespace string, env string, proEndpoint string) map[string]string
@@ -79,7 +80,7 @@ type AppListingService interface {
 	FetchAppTriggerView(appId int) ([]bean.TriggerView, error)
 	FetchAppStageStatus(appId int) ([]bean.AppStageStatus, error)
 
-	FetchOtherEnvironment(appId int) ([]*bean.Environment, error)
+	FetchOtherEnvironment(ctx context.Context, appId int) ([]*bean.Environment, error)
 	RedirectToLinkouts(Id int, appId int, envId int, podName string, containerName string) (string, error)
 	ISLastReleaseStopType(appId, envId int) (bool, error)
 	ISLastReleaseStopTypeV2(pipelineIds []int) (map[int]bool, error)
@@ -222,13 +223,17 @@ func (impl AppListingServiceImpl) FetchAllDevtronManagedApps() ([]AppNameTypeIdC
 func (impl AppListingServiceImpl) FetchAppsByEnvironment(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, error) {
 	impl.Logger.Debug("reached at FetchAppsByEnvironment:")
 	// TODO: check statuses
+	newCtx, span := otel.Tracer("fetchAppListingRequest").Start(r.Context(), "GetNamespaceClusterMapping")
 	mappings, clusterIds, err := fetchAppListingRequest.GetNamespaceClusterMapping()
+	span.End()
 	if err != nil {
 		impl.Logger.Errorw("error in fetching app list", "error", err)
 		return []*bean.AppEnvironmentContainer{}, err
 	}
 	if len(mappings) > 0 {
+		newCtx, span = otel.Tracer("environmentRepository").Start(newCtx, "FindByClusterIdAndNamespace")
 		envs, err := impl.environmentRepository.FindByClusterIdAndNamespace(mappings)
+		span.End()
 		if err != nil {
 			impl.Logger.Errorw("error in cluster ns mapping")
 			return []*bean.AppEnvironmentContainer{}, err
@@ -238,7 +243,9 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironment(fetchAppListingRequest 
 		}
 	}
 	if len(clusterIds) > 0 {
+		newCtx, span = otel.Tracer("environmentRepository").Start(newCtx, "FindByClusterIds")
 		envs, err := impl.environmentRepository.FindByClusterIds(clusterIds)
+		span.End()
 		if err != nil {
 			impl.Logger.Errorw("error in cluster ns mapping")
 			return []*bean.AppEnvironmentContainer{}, err
@@ -265,7 +272,9 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironment(fetchAppListingRequest 
 		DeploymentGroupId: fetchAppListingRequest.DeploymentGroupId,
 		AppStatuses:       fetchAppListingRequest.AppStatuses,
 	}
+	newCtx, span = otel.Tracer("appListingRepository").Start(newCtx, "FetchAppsByEnvironment")
 	envContainers, err := impl.appListingRepository.FetchAppsByEnvironment(appListingFilter)
+	span.End()
 	if err != nil {
 		impl.Logger.Errorw("error in fetching app list", "error", err)
 		return []*bean.AppEnvironmentContainer{}, err
@@ -561,16 +570,61 @@ func (impl AppListingServiceImpl) adaptStatusForView(status string) string {
 	return status
 }
 
-func (impl AppListingServiceImpl) FetchAppDetails(appId int, envId int) (bean.AppDetailContainer, error) {
-	appDetailContainer, err := impl.appListingRepository.FetchAppDetail(appId, envId)
+func (impl AppListingServiceImpl) FetchAppDetails(ctx context.Context, appId int, envId int) (bean.AppDetailContainer, error) {
+	appDetailContainer, err := impl.appListingRepository.FetchAppDetail(ctx, appId, envId)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching app detail", "error", err)
 		return bean.AppDetailContainer{}, err
 	}
 
+	appDetailContainer, err = impl.updateEnvMetricsData(ctx, appId, appDetailContainer)
+	if err != nil {
+		return appDetailContainer, err
+	}
+
+	_, span := otel.Tracer("orchestrator").Start(ctx, "linkoutsRepository.FetchLinkoutsByAppIdAndEnvId")
+	linkoutsModel, err := impl.linkoutsRepository.FetchLinkoutsByAppIdAndEnvId(appId, envId)
+	span.End()
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("error in fetching linkouts", "error", err)
+		return bean.AppDetailContainer{}, err
+	}
+	var linkouts []bean.LinkOuts
+	for _, linkout := range linkoutsModel {
+		linkouts = append(linkouts, bean.LinkOuts{Id: linkout.Id, Name: linkout.Name})
+	}
+
+	appDetailContainer.LinkOuts = linkouts
+	appDetailContainer.AppId = appId
+
+	_, span = otel.Tracer("orchestrator").Start(ctx, "environmentRepository.FindById")
+	envModel, err := impl.environmentRepository.FindById(envId)
+	span.End()
+	if err != nil {
+		impl.Logger.Errorw("error in fetching environment", "error", err)
+		return bean.AppDetailContainer{}, err
+	}
+	clusterId := envModel.ClusterId
+	appDetailContainer.K8sVersion = envModel.Cluster.K8sVersion
+	appDetailContainer.ClusterId = clusterId
+	appDetailContainer.ClusterName = envModel.Cluster.ClusterName
+
+	// set ifIpsAccess provided and relevant data
+	appDetailContainer.IsExternalCi = true
+	appDetailContainer, err = impl.setIpAccessProvidedData(ctx, appDetailContainer, clusterId)
+	if err != nil {
+		return appDetailContainer, err
+	}
+
+	return appDetailContainer, nil
+}
+
+func (impl AppListingServiceImpl) updateEnvMetricsData(ctx context.Context, appId int, appDetailContainer bean.AppDetailContainer) (bean.AppDetailContainer, error) {
 	var appMetrics bool
 	var infraMetrics bool
+	_, span := otel.Tracer("orchestrator").Start(ctx, "appLevelMetricsRepository.FindByAppId")
 	appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(appId)
+	span.End()
 	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("error in app metrics app level flag", "error", err)
 		return bean.AppDetailContainer{}, err
@@ -578,12 +632,13 @@ func (impl AppListingServiceImpl) FetchAppDetails(appId int, envId int) (bean.Ap
 		appMetrics = appLevelMetrics.AppMetrics
 		infraMetrics = appLevelMetrics.InfraMetrics
 	}
-
 	i := 0
 	for _, env := range appDetailContainer.Environments {
 		var envLevelMetrics *bool
 		var envLevelInfraMetrics *bool
+		_, span := otel.Tracer("orchestrator").Start(ctx, "appLevelMetricsRepository.FindByAppIdAndEnvId")
 		envLevelAppMetrics, err := impl.envLevelMetricsRepository.FindByAppIdAndEnvId(appId, env.EnvironmentId)
+		span.End()
 		if err != nil && err != pg.ErrNoRows {
 			impl.Logger.Errorw("error in app metrics env level flag", "error", err)
 			return bean.AppDetailContainer{}, err
@@ -603,35 +658,15 @@ func (impl AppListingServiceImpl) FetchAppDetails(appId int, envId int) (bean.Ap
 		appDetailContainer.Environments[i].InfraMetrics = envLevelInfraMetrics
 		i++
 	}
+	return appDetailContainer, nil
+}
 
-	linkoutsModel, err := impl.linkoutsRepository.FetchLinkoutsByAppIdAndEnvId(appId, envId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.Logger.Errorw("error in fetching linkouts", "error", err)
-		return bean.AppDetailContainer{}, err
-	}
-	var linkouts []bean.LinkOuts
-	for _, linkout := range linkoutsModel {
-		linkouts = append(linkouts, bean.LinkOuts{Id: linkout.Id, Name: linkout.Name})
-	}
-
-	appDetailContainer.LinkOuts = linkouts
-	appDetailContainer.AppId = appId
-
-	envModel, err := impl.environmentRepository.FindById(envId)
-	if err != nil {
-		impl.Logger.Errorw("error in fetching environment", "error", err)
-		return bean.AppDetailContainer{}, err
-	}
-	clusterId := envModel.ClusterId
-	appDetailContainer.K8sVersion = envModel.Cluster.K8sVersion
-	appDetailContainer.ClusterId = clusterId
-	appDetailContainer.ClusterName = envModel.Cluster.ClusterName
-
-	// set ifIpsAccess provided and relevant data
-	appDetailContainer.IsExternalCi = true
+func (impl AppListingServiceImpl) setIpAccessProvidedData(ctx context.Context, appDetailContainer bean.AppDetailContainer, clusterId int) (bean.AppDetailContainer, error) {
 	ciPipelineId := appDetailContainer.CiPipelineId
 	if ciPipelineId > 0 {
+		_, span := otel.Tracer("orchestrator").Start(ctx, "ciPipelineRepository.FindById")
 		ciPipeline, err := impl.ciPipelineRepository.FindById(ciPipelineId)
+		span.End()
 		if err != nil && err != pg.ErrNoRows {
 			impl.Logger.Errorw("error in fetching ciPipeline", "ciPipelineId", ciPipelineId, "error", err)
 			return bean.AppDetailContainer{}, err
@@ -644,8 +679,10 @@ func (impl AppListingServiceImpl) FetchAppDetails(appId int, envId int) (bean.Ap
 				appDetailContainer.IsExternalCi = false
 			}
 
+			_, span = otel.Tracer("orchestrator").Start(ctx, "dockerRegistryIpsConfigService.IsImagePullSecretAccessProvided")
 			// check ips access provided to this docker registry for that cluster
 			ipsAccessProvided, err := impl.dockerRegistryIpsConfigService.IsImagePullSecretAccessProvided(dockerRegistryId, clusterId)
+			span.End()
 			if err != nil {
 				impl.Logger.Errorw("error in checking if docker registry ips access provided", "dockerRegistryId", dockerRegistryId, "clusterId", clusterId, "error", err)
 				return bean.AppDetailContainer{}, err
@@ -653,7 +690,6 @@ func (impl AppListingServiceImpl) FetchAppDetails(appId int, envId int) (bean.Ap
 			appDetailContainer.IpsAccessProvided = ipsAccessProvided
 		}
 	}
-
 	return appDetailContainer, nil
 }
 
@@ -1404,15 +1440,19 @@ func (impl AppListingServiceImpl) FetchAppStageStatus(appId int) ([]bean.AppStag
 	return impl.appListingRepository.FetchAppStageStatus(appId)
 }
 
-func (impl AppListingServiceImpl) FetchOtherEnvironment(appId int) ([]*bean.Environment, error) {
+func (impl AppListingServiceImpl) FetchOtherEnvironment(ctx context.Context, appId int) ([]*bean.Environment, error) {
+	newCtx, span := otel.Tracer("appListingRepository").Start(ctx, "FetchOtherEnvironment")
 	envs, err := impl.appListingRepository.FetchOtherEnvironment(appId)
+	span.End()
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.Logger.Errorw("err", err)
 		return envs, err
 	}
 	appLevelAppMetrics := false  //default value
 	appLevelInfraMetrics := true //default val
+	newCtx, span = otel.Tracer("appLevelMetricsRepository").Start(newCtx, "FindByAppId")
 	appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(appId)
+	span.End()
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.Logger.Errorw("error in fetching app metrics", "err", err)
 		return envs, err
@@ -1424,13 +1464,17 @@ func (impl AppListingServiceImpl) FetchOtherEnvironment(appId int) ([]*bean.Envi
 		appLevelAppMetrics = appLevelMetrics.AppMetrics
 		appLevelInfraMetrics = appLevelMetrics.InfraMetrics
 	}
+	newCtx, span = otel.Tracer("chartRepository").Start(newCtx, "FindLatestChartForAppByAppId")
 	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
+	span.End()
 	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("error in fetching latest chart", "err", err)
 		return envs, err
 	}
 	for _, env := range envs {
+		newCtx, span = otel.Tracer("envOverrideRepository").Start(newCtx, "FindLatestChartForAppByAppIdAndEnvId")
 		envOverride, err := impl.envOverrideRepository.FindLatestChartForAppByAppIdAndEnvId(appId, env.EnvironmentId)
+		span.End()
 		if err != nil && !errors2.IsNotFound(err) {
 			impl.Logger.Errorw("error in fetching latest chart by appId and envId", "err", err, "appId", appId, "envId", env.EnvironmentId)
 			return envs, err
