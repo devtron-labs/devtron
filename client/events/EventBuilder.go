@@ -20,11 +20,13 @@ package client
 import (
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
+	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/devtron-labs/devtron/util/event"
+	"github.com/go-pg/pg"
 	"github.com/satori/go.uuid"
 	"go.uber.org/zap"
 	"strings"
@@ -47,13 +49,14 @@ type EventSimpleFactoryImpl struct {
 	ciPipelineRepository         pipelineConfig.CiPipelineRepository
 	pipelineRepository           pipelineConfig.PipelineRepository
 	userRepository               repository.UserRepository
+	ciArtifactRepository         repository2.CiArtifactRepository
 }
 
 func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
-	userRepository repository.UserRepository) *EventSimpleFactoryImpl {
+	userRepository repository.UserRepository, ciArtifactRepository repository2.CiArtifactRepository) *EventSimpleFactoryImpl {
 	return &EventSimpleFactoryImpl{
 		logger:                       logger,
 		cdWorkflowRepository:         cdWorkflowRepository,
@@ -63,6 +66,7 @@ func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository p
 		ciPipelineRepository:         ciPipelineRepository,
 		pipelineRepository:           pipelineRepository,
 		userRepository:               userRepository,
+		ciArtifactRepository:         ciArtifactRepository,
 	}
 }
 
@@ -221,11 +225,24 @@ func (impl *EventSimpleFactoryImpl) getCiMaterialInfo(ciPipelineId int, ciArtifa
 		materialTriggerInfo.CiMaterials = ciMaterialsArr
 	}
 	if ciArtifactId > 0 {
-		ciWf, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflowByArtifactId(ciArtifactId)
+		ciArtifact, err := impl.ciArtifactRepository.Get(ciArtifactId)
 		if err != nil {
+			impl.logger.Errorw("error fetching artifact data", "err", err)
 			return nil, err
 		}
-		materialTriggerInfo.GitTriggers = ciWf.GitTriggers
+
+		// handling linked ci pipeline
+		if ciArtifact.ParentCiArtifact > 0 && ciArtifact.WorkflowId == nil {
+			ciArtifactId = ciArtifact.ParentCiArtifact
+		}
+		ciWf, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflowByArtifactId(ciArtifactId)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error fetching ci workflow data by artifact", "err", err)
+			return nil, err
+		}
+		if ciWf != nil {
+			materialTriggerInfo.GitTriggers = ciWf.GitTriggers
+		}
 	}
 	return materialTriggerInfo, nil
 }
