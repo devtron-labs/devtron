@@ -77,7 +77,6 @@ func NewCdApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, appServi
 		logger.Errorw("error on subscribe", "err", err)
 		return nil
 	}
-	impl.HelmApplicationStatusUpdate()
 	_, err = cron.AddFunc(AppStatusConfig.CdPipelineStatusCronTime, impl.HelmApplicationStatusUpdate)
 	if err != nil {
 		logger.Errorw("error in starting helm application status update cron job", "err", err)
@@ -125,12 +124,7 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) Subscribe() error {
 }
 
 func (impl *CdApplicationStatusUpdateHandlerImpl) HelmApplicationStatusUpdate() {
-	degradedTime, err := strconv.Atoi(impl.AppStatusConfig.PipelineDegradedTime)
-	if err != nil {
-		impl.logger.Errorw("error in converting string to int", "err", err)
-		return
-	}
-	err = impl.CdHandler.CheckHelmAppStatusPeriodicallyAndUpdateInDb(degradedTime)
+	err := impl.CdHandler.CheckHelmAppStatusPeriodicallyAndUpdateInDb()
 	if err != nil {
 		impl.logger.Errorw("error helm app status update - cron job", "err", err)
 		return

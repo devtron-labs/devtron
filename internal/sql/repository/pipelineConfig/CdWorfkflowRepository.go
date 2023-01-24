@@ -65,7 +65,7 @@ type CdWorkflowRepository interface {
 
 	FetchArtifactsByCdPipelineId(pipelineId int, runnerType bean.WorkflowType, offset, limit int) ([]CdWorkflowRunner, error)
 
-	GetLatestTriggersOfHelmPipelinesStuckInNonTerminalStatuses(deployedBeforeMinutes int) ([]*CdWorkflowRunner, error)
+	GetLatestTriggersOfHelmPipelinesStuckInNonTerminalStatuses() ([]*CdWorkflowRunner, error)
 }
 
 type CdWorkflowRepositoryImpl struct {
@@ -536,7 +536,7 @@ func (impl *CdWorkflowRepositoryImpl) FetchArtifactsByCdPipelineId(pipelineId in
 	return wfrList, err
 }
 
-func (impl *CdWorkflowRepositoryImpl) GetLatestTriggersOfHelmPipelinesStuckInNonTerminalStatuses(deployedBeforeMinutes int) ([]*CdWorkflowRunner, error) {
+func (impl *CdWorkflowRepositoryImpl) GetLatestTriggersOfHelmPipelinesStuckInNonTerminalStatuses() ([]*CdWorkflowRunner, error) {
 	var wfrList []*CdWorkflowRunner
 	err := impl.dbConnection.
 		Model(&wfrList).
@@ -545,7 +545,6 @@ func (impl *CdWorkflowRepositoryImpl) GetLatestTriggersOfHelmPipelinesStuckInNon
 		Join("inner join pipeline p on p.id = wf.pipeline_id").
 		Join("inner join environment e on e.id = p.environment_id").
 		Where("cd_workflow_runner.workflow_type=?", bean.CD_WORKFLOW_TYPE_DEPLOY).
-		Where("cd_workflow_runner.started_on < NOW() - INTERVAL '? minutes'", deployedBeforeMinutes).
 		Where("cd_workflow_runner.status not in (?)", pg.In([]string{WorkflowAborted, WorkflowFailed, WorkflowSucceeded, application.HIBERNATING, string(health.HealthStatusHealthy), string(health.HealthStatusDegraded)})).
 		Where("cd_workflow_runner.cd_workflow_id in (select DISTINCT ON (pipeline_id) max(id) as id from cd_workflow group by pipeline_id, id order by pipeline_id, id desc)").
 		Where("p.deployment_app_type = ?", util.PIPELINE_DEPLOYMENT_TYPE_HELM).
