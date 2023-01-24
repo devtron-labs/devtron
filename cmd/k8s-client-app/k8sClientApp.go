@@ -5,12 +5,15 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/middleware"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"io/fs"
 	"net"
 	"net/http"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 )
 
@@ -42,6 +45,8 @@ func (app *App) Start() {
 		freePort = DefaultPort
 	}
 	port := freePort
+	fmt.Println("starting on port ", port)
+	app.writePortToFile(port)
 	app.Logger.Infow("starting server on ", "port", port)
 	app.MuxRouter.Init()
 	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: app.MuxRouter.Router}
@@ -94,4 +99,16 @@ func (app *App) GetFreePort() (int, error) {
 
 func (app *App) Stop() {
 	app.Logger.Info("stopping k8s client App")
+}
+
+func (app *App) writePortToFile(port int) {
+	err, devtronDirPath := util.CheckOrCreateDevtronDir()
+	if err != nil {
+		app.Logger.Fatal("error occurred while creating dir", "err", err)
+	}
+	portPath := path.Join(devtronDirPath, "./process.port")
+	err = os.WriteFile(portPath, []byte(strconv.Itoa(port)), fs.ModePerm)
+	if err != nil {
+		app.Logger.Fatal("error occurred while saving port number to path", "port", port, "path", portPath)
+	}
 }
