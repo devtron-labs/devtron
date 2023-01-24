@@ -288,7 +288,16 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocomplete(w http.
 
 		result := impl.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceGlobalEnvironment, casbin.ActionGet, envIdentifierList)
 		for _, item := range environments {
-			if hasAccess := result[strings.ToLower(item.EnvironmentIdentifier)]; hasAccess {
+
+			var hasAccess bool
+			EnvironmentIdentifier := item.ClusterName + "__" + item.Namespace
+			if item.EnvironmentIdentifier != EnvironmentIdentifier {
+				// fix for futuristic case
+				hasAccess = result[strings.ToLower(EnvironmentIdentifier)] || result[strings.ToLower(item.EnvironmentIdentifier)]
+			} else {
+				hasAccess = result[strings.ToLower(item.EnvironmentIdentifier)]
+			}
+			if hasAccess {
 				grantedEnvironment = append(grantedEnvironment, item)
 			}
 		}

@@ -7,12 +7,16 @@ import (
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
+	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/constants"
+	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
+	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
@@ -50,12 +54,15 @@ type AppStoreDeploymentArgoCdServiceImpl struct {
 	chartTemplateService              util.ChartTemplateService
 	gitFactory                        *util.GitFactory
 	argoUserService                   argo.ArgoUserService
+	appStoreDeploymentCommonService   appStoreDeploymentCommon.AppStoreDeploymentCommonService
+	helmAppService                    client.HelmAppService
+	gitOpsConfigRepository            repository3.GitOpsConfigRepository
 }
 
 func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
 	acdClient application2.ServiceClient, chartGroupDeploymentRepository repository.ChartGroupDeploymentRepository,
 	installedAppRepository repository.InstalledAppRepository, installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository, chartTemplateService util.ChartTemplateService,
-	gitFactory *util.GitFactory, argoUserService argo.ArgoUserService) *AppStoreDeploymentArgoCdServiceImpl {
+	gitFactory *util.GitFactory, argoUserService argo.ArgoUserService, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService, helmAppService client.HelmAppService, gitOpsConfigRepository repository3.GitOpsConfigRepository) *AppStoreDeploymentArgoCdServiceImpl {
 	return &AppStoreDeploymentArgoCdServiceImpl{
 		Logger:                            logger,
 		appStoreDeploymentFullModeService: appStoreDeploymentFullModeService,
@@ -66,6 +73,9 @@ func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreD
 		chartTemplateService:              chartTemplateService,
 		gitFactory:                        gitFactory,
 		argoUserService:                   argoUserService,
+		appStoreDeploymentCommonService:   appStoreDeploymentCommonService,
+		helmAppService:                    helmAppService,
+		gitOpsConfigRepository:            gitOpsConfigRepository,
 	}
 }
 
@@ -317,6 +327,30 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetDeploymentHistoryInfo(ctx con
 		return nil, err
 	}
 	values.ValuesYaml = &versionHistory.ValuesYamlRaw
+
+	envId := int32(installedApp.EnvironmentId)
+	clusterId := int32(installedApp.ClusterId)
+	appStoreVersionId := int32(installedApp.AppStoreApplicationVersionId)
+
+	manifestRequest := openapi2.TemplateChartRequest{
+		EnvironmentId:                &envId,
+		ClusterId:                    &clusterId,
+		Namespace:                    &installedApp.Namespace,
+		ReleaseName:                  &installedApp.AppName,
+		AppStoreApplicationVersionId: &appStoreVersionId,
+		ValuesYaml:                   values.ValuesYaml,
+	}
+
+	templateChart, manifestErr := impl.helmAppService.TemplateChart(ctx, &manifestRequest)
+
+	manifest := templateChart.GetManifest()
+
+	if manifestErr != nil {
+		impl.Logger.Errorw("error in genetating manifest for argocd app", "err", manifestErr)
+	} else {
+		values.Manifest = &manifest
+	}
+
 	return values, err
 }
 
@@ -362,6 +396,14 @@ func (impl *AppStoreDeploymentArgoCdServiceImpl) UpdateRequirementDependencies(e
 	}
 	//getting user name & emailId for commit author data
 	userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(installAppVersionRequest.UserId)
+	gitOpsConfigBitbucket, err := impl.gitOpsConfigRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
+	if err != nil {
+		if err == pg.ErrNoRows {
+			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
+		} else {
+			return err
+		}
+	}
 	requirmentYamlConfig := &util.ChartConfig{
 		FileName:       appStoreBean.REQUIREMENTS_YAML_FILE,
 		FileContent:    string(requirementDependenciesByte),
@@ -372,7 +414,8 @@ func (impl *AppStoreDeploymentArgoCdServiceImpl) UpdateRequirementDependencies(e
 		UserEmailId:    userEmailId,
 		UserName:       userName,
 	}
-	_, _, err = impl.gitFactory.Client.CommitValues(requirmentYamlConfig)
+	gitOpsConfig := &bean.GitOpsConfigDto{BitBucketWorkspaceId: gitOpsConfigBitbucket.BitBucketWorkspaceId}
+	_, _, err = impl.gitFactory.Client.CommitValues(requirmentYamlConfig, gitOpsConfig)
 	if err != nil {
 		impl.Logger.Errorw("error in git commit", "err", err)
 		return err
@@ -385,7 +428,17 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) UpdateInstalledApp(ctx context.C
 	installAppVersionRequest, err := impl.updateValuesYaml(environment, installedAppVersion, installAppVersionRequest)
 	if err != nil {
 		impl.Logger.Errorw("error while commit values to git", "error", err)
-		return nil, err
+		noTargetFound, _ := impl.appStoreDeploymentCommonService.ParseGitRepoErrorResponse(err)
+		if noTargetFound {
+			//if by mistake no content found while updating git repo, do auto fix
+			installAppVersionRequest, err = impl.OnUpdateRepoInInstalledApp(ctx, installAppVersionRequest)
+			if err != nil {
+				impl.Logger.Errorw("error while update repo on helm update", "error", err)
+				return nil, err
+			}
+		} else {
+			return nil, err
+		}
 	}
 	installAppVersionRequest.Environment = environment
 
@@ -445,6 +498,14 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) updateValuesYaml(environment *cl
 	}
 	//getting user name & emailId for commit author data
 	userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(installAppVersionRequest.UserId)
+	gitOpsConfigBitbucket, err := impl.gitOpsConfigRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
+	if err != nil {
+		if err == pg.ErrNoRows {
+			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
+		} else {
+			return installAppVersionRequest, err
+		}
+	}
 	valuesConfig := &util.ChartConfig{
 		FileName:       appStoreBean.VALUES_YAML_FILE,
 		FileContent:    string(valuesByte),
@@ -455,7 +516,8 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) updateValuesYaml(environment *cl
 		UserEmailId:    userEmailId,
 		UserName:       userName,
 	}
-	commitHash, _, err := impl.gitFactory.Client.CommitValues(valuesConfig)
+	gitOpsConfig := &bean.GitOpsConfigDto{BitBucketWorkspaceId: gitOpsConfigBitbucket.BitBucketWorkspaceId}
+	commitHash, _, err := impl.gitFactory.Client.CommitValues(valuesConfig, gitOpsConfig)
 	if err != nil {
 		impl.Logger.Errorw("error in git commit", "err", err)
 		return installAppVersionRequest, err
