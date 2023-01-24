@@ -21,8 +21,10 @@
 package repository
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"go.opentelemetry.io/otel"
 	"strconv"
 	"strings"
 	"time"
@@ -35,8 +37,8 @@ import (
 
 type AppListingRepository interface {
 	FetchAppsByEnvironment(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, error)
-	DeploymentDetailsByAppIdAndEnvId(appId int, envId int) (bean.DeploymentDetailContainer, error)
-	FetchAppDetail(appId int, envId int) (bean.AppDetailContainer, error)
+	DeploymentDetailsByAppIdAndEnvId(ctx context.Context, appId int, envId int) (bean.DeploymentDetailContainer, error)
+	FetchAppDetail(ctx context.Context, appId int, envId int) (bean.AppDetailContainer, error)
 
 	FetchAppTriggerView(appId int) ([]bean.TriggerView, error)
 	FetchAppStageStatus(appId int) ([]bean.AppStageStatus, error)
@@ -156,7 +158,9 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter hel
 }
 
 // It will return the deployment detail of any cd pipeline which is latest triggered for Environment of any App
-func (impl AppListingRepositoryImpl) DeploymentDetailsByAppIdAndEnvId(appId int, envId int) (bean.DeploymentDetailContainer, error) {
+func (impl AppListingRepositoryImpl) DeploymentDetailsByAppIdAndEnvId(ctx context.Context, appId int, envId int) (bean.DeploymentDetailContainer, error) {
+	_, span := otel.Tracer("orchestrator").Start(ctx, "DeploymentDetailsByAppIdAndEnvId")
+	defer span.End()
 	impl.Logger.Debugf("reached at AppListingRepository:")
 	var deploymentDetail bean.DeploymentDetailContainer
 	query := "SELECT env.environment_name, a.app_name, ceco.namespace, u.email_id as last_deployed_by" +
@@ -243,11 +247,13 @@ func parseMaterialInfo(materialInfo string, source string) (json.RawMessage, err
 	return mInfo, err
 }
 
-func (impl AppListingRepositoryImpl) FetchAppDetail(appId int, envId int) (bean.AppDetailContainer, error) {
+func (impl AppListingRepositoryImpl) FetchAppDetail(ctx context.Context, appId int, envId int) (bean.AppDetailContainer, error) {
 	impl.Logger.Debugf("reached at AppListingRepository:")
 	var appDetailContainer bean.AppDetailContainer
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "DeploymentDetailsByAppIdAndEnvId")
+	defer span.End()
 	//Fetch deployment detail of cd pipeline latest triggered within env of any App.
-	deploymentDetail, err := impl.DeploymentDetailsByAppIdAndEnvId(appId, envId)
+	deploymentDetail, err := impl.DeploymentDetailsByAppIdAndEnvId(newCtx, appId, envId)
 	if err != nil {
 		impl.Logger.Warn("unable to fetch deployment detail for app")
 	}
