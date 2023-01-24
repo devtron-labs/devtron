@@ -832,7 +832,7 @@ func (impl AppStoreDeploymentServiceImpl) installAppPostDbOperation(installAppVe
 	}
 
 	//step 5 create build history first entry for install app version
-	if len(installAppVersionRequest.GitHash) > 0 {
+	if len(installAppVersionRequest.GitHash) > 0 || installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
 		err = impl.UpdateInstallAppVersionHistory(installAppVersionRequest)
 		if err != nil {
 			impl.logger.Errorw("error on creating history for chart deployment", "error", err)
@@ -882,7 +882,7 @@ func (impl AppStoreDeploymentServiceImpl) GetDeploymentHistoryInfo(ctx context.C
 	//var result interface{}
 	result := &openapi.HelmAppDeploymentManifestDetail{}
 	var err error
-	if util2.IsHelmApp(installedApp.AppOfferingMode) {
+	if util2.IsHelmApp(installedApp.AppOfferingMode) || installedApp.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
 		result, err = impl.appStoreDeploymentHelmService.GetDeploymentHistoryInfo(ctx, installedApp, int32(version))
 		if err != nil {
 			impl.logger.Errorw("error while getting deployment history info", "error", err)
