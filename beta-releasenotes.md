@@ -7,4 +7,5 @@
 - feat: Semgrep plugin integration (#2877)
 - perf: Tracing observability tool integration (#2782)
 ## Documentation
+- docs: updated target platform (#2857)
 ## Others
