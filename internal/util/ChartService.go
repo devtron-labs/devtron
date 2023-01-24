@@ -30,6 +30,7 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
+	"go.opentelemetry.io/otel"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
@@ -58,12 +59,14 @@ type ChartTemplateService interface {
 	CreateChartProxy(chartMetaData *chart.Metadata, refChartLocation string, templateName string, version string, envName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (string, *ChartGitAttribute, error)
 	GitPull(clonedDir string, repoUrl string, appStoreName string) error
 	GetDir() string
+	CleanDir(dir string)
 	GetUserEmailIdAndNameForGitOpsCommit(userId int32) (emailId, name string)
 	GetGitOpsRepoName(appName string) string
 	GetGitOpsRepoNameFromUrl(gitRepoUrl string) string
 	CreateGitRepositoryForApp(gitOpsRepoName, baseTemplateName, version string, userId int32) (chartGitAttribute *ChartGitAttribute, err error)
 	RegisterInArgo(chartGitAttribute *ChartGitAttribute, ctx context.Context) error
-	BuildChartAndPushToGitRepo(chartMetaData *chart.Metadata, referenceTemplatePath string, gitOpsRepoName, referenceTemplate, version, repoUrl string, userId int32) error
+	BuildChart(ctx context.Context, chartMetaData *chart.Metadata, referenceTemplatePath string) (string, error)
+	PushChartToGitRepo(gitOpsRepoName, referenceTemplate, version, tempReferenceTemplateDir string, repoUrl string, userId int32) (err error)
 	GetByteArrayRefChart(chartMetaData *chart.Metadata, referenceTemplatePath string) ([]byte, error)
 	CreateReadmeInGitRepo(gitOpsRepoName string, userId int32) error
 }
@@ -183,8 +186,7 @@ func (impl ChartTemplateServiceImpl) FetchValuesFromReferenceChart(chartMetaData
 	return values, chartGitAttr, nil
 }
 
-func (impl ChartTemplateServiceImpl) BuildChartAndPushToGitRepo(chartMetaData *chart.Metadata, referenceTemplatePath string, gitOpsRepoName, referenceTemplate, version, repoUrl string, userId int32) error {
-	impl.logger.Debugw("package chart and push to git", "gitOpsRepoName", gitOpsRepoName, "version", version, "referenceTemplate", referenceTemplate, "repoUrl", repoUrl)
+func (impl ChartTemplateServiceImpl) BuildChart(ctx context.Context, chartMetaData *chart.Metadata, referenceTemplatePath string) (string, error) {
 	chartMetaData.ApiVersion = "v1" // ensure always v1
 	dir := impl.GetDir()
 	tempReferenceTemplateDir := filepath.Join(string(impl.chartWorkingDir), dir)
@@ -192,27 +194,22 @@ func (impl ChartTemplateServiceImpl) BuildChartAndPushToGitRepo(chartMetaData *c
 	err := os.MkdirAll(tempReferenceTemplateDir, os.ModePerm) //hack for concurrency handling
 	if err != nil {
 		impl.logger.Errorw("err in creating dir", "dir", tempReferenceTemplateDir, "err", err)
-		return err
+		return "", err
 	}
-	defer impl.CleanDir(tempReferenceTemplateDir)
 	err = dirCopy.Copy(referenceTemplatePath, tempReferenceTemplateDir)
 
 	if err != nil {
 		impl.logger.Errorw("error in copying chart for app", "app", chartMetaData.Name, "error", err)
-		return err
+		return "", err
 	}
+	_, span := otel.Tracer("orchestrator").Start(ctx, "impl.packageChart")
 	_, _, err = impl.packageChart(tempReferenceTemplateDir, chartMetaData)
+	span.End()
 	if err != nil {
 		impl.logger.Errorw("error in creating archive", "err", err)
-		return err
+		return "", err
 	}
-
-	err = impl.pushChartToGitRepo(gitOpsRepoName, referenceTemplate, version, tempReferenceTemplateDir, repoUrl, userId)
-	if err != nil {
-		impl.logger.Errorw("error in pushing chart to git ", "err", err)
-		return err
-	}
-	return nil
+	return tempReferenceTemplateDir, nil
 }
 
 type ChartGitAttribute struct {
@@ -252,7 +249,7 @@ func (impl ChartTemplateServiceImpl) CreateGitRepositoryForApp(gitOpsRepoName, b
 	return &ChartGitAttribute{RepoUrl: repoUrl, ChartLocation: filepath.Join(baseTemplateName, version)}, nil
 }
 
-func (impl ChartTemplateServiceImpl) pushChartToGitRepo(gitOpsRepoName, referenceTemplate, version, tempReferenceTemplateDir string, repoUrl string, userId int32) (err error) {
+func (impl ChartTemplateServiceImpl) PushChartToGitRepo(gitOpsRepoName, referenceTemplate, version, tempReferenceTemplateDir string, repoUrl string, userId int32) (err error) {
 	chartDir := fmt.Sprintf("%s-%s", gitOpsRepoName, impl.GetDir())
 	clonedDir := impl.gitFactory.gitService.GetCloneDirectory(chartDir)
 	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
