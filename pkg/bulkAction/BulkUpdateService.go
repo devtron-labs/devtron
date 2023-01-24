@@ -1009,57 +1009,14 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 			}
 			_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(stopRequest, ctx)
 		} else if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
-			appIdentifier := &client.AppIdentifier{
-				ClusterId:   pipeline.Environment.ClusterId,
-				Namespace:   pipeline.Environment.Namespace,
-				ReleaseName: pipeline.DeploymentAppName,
-			}
-
-			hibernateRequest := &openapi.HibernateRequest{}
-			chartInfo, err := impl.chartRefRepository.FetchInfoOfChartConfiguredInApp(pipeline.AppId)
+			appIdentifier, hibernateRequest, err := impl.buildHibernateUnHibernateRequestForHelmPipelines(pipeline)
 			if err != nil {
-				impl.logger.Errorw("error in getting chart info for chart configured in app", "err", err, "appId", pipeline.AppId)
+				impl.logger.Errorw("error in building hibernate/unhibernate req", "err", err, "pipeline", pipeline)
 				continue
 			}
-			var group, kind, version, name string
-			name = fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
-			if chartInfo.Name == "" && chartInfo.UserUploaded == false {
-				// rollout type chart
-				group = "argoproj.io"
-				kind = "Rollout"
-				version = "v1alpha1"
-				hibernateRequest = &openapi.HibernateRequest{
-					Resources: &[]openapi.HibernateTargetObject{
-						{
-							Group:     &group,
-							Kind:      &kind,
-							Version:   &version,
-							Namespace: &pipeline.Environment.Namespace,
-							Name:      &name,
-						},
-					},
-				}
-			} else if chartInfo.Name == "Deployment" {
-				//deployment type chart
-				group = "apps"
-				kind = "Deployment"
-				version = "v1"
-				hibernateRequest = &openapi.HibernateRequest{
-					Resources: &[]openapi.HibernateTargetObject{
-						{
-							Group:     &group,
-							Kind:      &kind,
-							Version:   &version,
-							Namespace: &pipeline.Environment.Namespace,
-							Name:      &name,
-						},
-					},
-				}
-			} else {
-				//chart not supported for hibernation, skipping
-				continue
+			if appIdentifier != nil && hibernateRequest != nil {
+				_, hibernateReqError = impl.helmAppService.HibernateApplication(context.Background(), appIdentifier, hibernateRequest)
 			}
-			_, hibernateReqError = impl.helmAppService.HibernateApplication(context.Background(), appIdentifier, hibernateRequest)
 		}
 		if hibernateReqError != nil {
 			impl.logger.Errorw("error in hibernating application", "err", hibernateReqError, "pipeline", pipeline)
@@ -1076,6 +1033,60 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 	bulkOperationResponse.BulkApplicationForEnvironmentPayload = *request
 	bulkOperationResponse.Response = response
 	return bulkOperationResponse, nil
+}
+
+func (impl BulkUpdateServiceImpl) buildHibernateUnHibernateRequestForHelmPipelines(pipeline *pipelineConfig.Pipeline) (*client.AppIdentifier, *openapi.HibernateRequest, error) {
+	appIdentifier := &client.AppIdentifier{
+		ClusterId:   pipeline.Environment.ClusterId,
+		Namespace:   pipeline.Environment.Namespace,
+		ReleaseName: pipeline.DeploymentAppName,
+	}
+
+	hibernateRequest := &openapi.HibernateRequest{}
+	chartInfo, err := impl.chartRefRepository.FetchInfoOfChartConfiguredInApp(pipeline.AppId)
+	if err != nil {
+		impl.logger.Errorw("error in getting chart info for chart configured in app", "err", err, "appId", pipeline.AppId)
+		return nil, nil, err
+	}
+	var group, kind, version, name string
+	name = fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
+	if chartInfo.Name == "" && chartInfo.UserUploaded == false {
+		// rollout type chart
+		group = "argoproj.io"
+		kind = "Rollout"
+		version = "v1alpha1"
+		hibernateRequest = &openapi.HibernateRequest{
+			Resources: &[]openapi.HibernateTargetObject{
+				{
+					Group:     &group,
+					Kind:      &kind,
+					Version:   &version,
+					Namespace: &pipeline.Environment.Namespace,
+					Name:      &name,
+				},
+			},
+		}
+	} else if chartInfo.Name == "Deployment" {
+		//deployment type chart
+		group = "apps"
+		kind = "Deployment"
+		version = "v1"
+		hibernateRequest = &openapi.HibernateRequest{
+			Resources: &[]openapi.HibernateTargetObject{
+				{
+					Group:     &group,
+					Kind:      &kind,
+					Version:   &version,
+					Namespace: &pipeline.Environment.Namespace,
+					Name:      &name,
+				},
+			},
+		}
+	} else {
+		//chart not supported for hibernation, skipping
+		return nil, nil, nil
+	}
+	return appIdentifier, hibernateRequest, nil
 }
 func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationForEnvironmentResponse, error) {
 	var pipelines []*pipelineConfig.Pipeline
@@ -1111,7 +1122,7 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 			response[appKey] = pipelineResponse
 			continue
 		}
-
+		var hibernateReqError error
 		if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
 			stopRequest := &pipeline1.StopAppRequest{
 				AppId:         pipeline.AppId,
@@ -1119,17 +1130,24 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 				UserId:        request.UserId,
 				RequestType:   pipeline1.START,
 			}
-			_, err := impl.workflowDagExecutor.StopStartApp(stopRequest, ctx)
-			if err != nil {
-				impl.logger.Errorw("service err, StartStopApp", "err", err, "stopRequest", stopRequest)
-				pipelineResponse := response[appKey]
-				pipelineResponse[pipelineKey] = false
-				response[appKey] = pipelineResponse
-				//return nil, err
-			}
+			_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(stopRequest, ctx)
+
 		} else if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
-			//TODO
-			//initiate helm hibernate service
+			appIdentifier, hibernateRequest, err := impl.buildHibernateUnHibernateRequestForHelmPipelines(pipeline)
+			if err != nil {
+				impl.logger.Errorw("error in building hibernate/un-hibernate req", "err", err, "pipeline", pipeline)
+				continue
+			}
+			if appIdentifier != nil && hibernateRequest != nil {
+				_, hibernateReqError = impl.helmAppService.UnHibernateApplication(context.Background(), appIdentifier, hibernateRequest)
+			}
+		}
+		if hibernateReqError != nil {
+			impl.logger.Errorw("error in un-hibernating application", "err", hibernateReqError, "pipeline", pipeline)
+			pipelineResponse := response[appKey]
+			pipelineResponse[pipelineKey] = false
+			response[appKey] = pipelineResponse
+			//return nil, err
 		}
 		pipelineResponse := response[appKey]
 		pipelineResponse[pipelineKey] = success
