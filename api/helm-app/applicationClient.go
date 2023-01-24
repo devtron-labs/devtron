@@ -12,6 +12,7 @@ import (
 type HelmAppClient interface {
 	ListApplication(req *AppListRequest) (ApplicationService_ListApplicationsClient, error)
 	GetAppDetail(ctx context.Context, in *AppDetailRequest) (*AppDetail, error)
+	GetAppStatus(ctx context.Context, in *AppDetailRequest) (*string, error)
 	Hibernate(ctx context.Context, in *HibernateRequest) (*HibernateResponse, error)
 	UnHibernate(ctx context.Context, in *HibernateRequest) (*HibernateResponse, error)
 	GetDeploymentHistory(ctx context.Context, in *AppDetailRequest) (*HelmAppDeploymentHistory, error)
@@ -105,6 +106,18 @@ func (impl *HelmAppClientImpl) GetAppDetail(ctx context.Context, in *AppDetailRe
 		return nil, err
 	}
 	return detail, nil
+}
+
+func (impl *HelmAppClientImpl) GetAppStatus(ctx context.Context, in *AppDetailRequest) (*string, error) {
+	applicationClient, err := impl.getApplicationClient()
+	if err != nil {
+		return nil, err
+	}
+	appStatus, err := applicationClient.GetAppStatus(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return appStatus, nil
 }
 
 func (impl *HelmAppClientImpl) Hibernate(ctx context.Context, in *HibernateRequest) (*HibernateResponse, error) {
