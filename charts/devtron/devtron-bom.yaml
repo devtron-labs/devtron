@@ -37,8 +37,8 @@ argo-cd:
       imagePullPolicy: IfNotPresent
 
 workflowController:
-  image: "quay.io/argoproj/workflow-controller:v3.4.3"
-  executorImage: "quay.io/argoproj/argoexec:v3.4.3"
+  image: "quay.io/argoproj/workflow-controller:v3.3.10"
+  executorImage: "quay.io/argoproj/argoexec:v3.3.10"
 
 notifier:
   image: "quay.io/devtron/notifier:6c7a356a-372-11107"
