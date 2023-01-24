@@ -77,6 +77,7 @@ func NewCdApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, appServi
 		logger.Errorw("error on subscribe", "err", err)
 		return nil
 	}
+	impl.HelmApplicationStatusUpdate()
 	_, err = cron.AddFunc(AppStatusConfig.CdPipelineStatusCronTime, impl.HelmApplicationStatusUpdate)
 	if err != nil {
 		logger.Errorw("error in starting helm application status update cron job", "err", err)
