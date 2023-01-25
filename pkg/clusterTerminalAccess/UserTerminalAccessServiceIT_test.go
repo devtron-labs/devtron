@@ -1,6 +1,7 @@
 package clusterTerminalAccess
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/authenticator/client"
@@ -8,11 +9,15 @@ import (
 	"github.com/devtron-labs/devtron/client/k8s/informer"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
+	repository10 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/terminal"
+	repository3 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/kubernetes/pkg/api/legacyscheme"
@@ -36,21 +41,21 @@ func TestNewUserTerminalAccessServiceIT(t *testing.T) {
 			NodeName:  "demo-new",
 		}
 		time.Sleep(5 * time.Second)
-		terminalSessionResponse, err := terminalAccessServiceImpl.StartTerminalSession(request)
+		terminalSessionResponse, err := terminalAccessServiceImpl.StartTerminalSession(context.Background(), request)
 		assert.Nil(t, err)
 		fmt.Println(terminalSessionResponse)
-		podManifest, err := terminalAccessServiceImpl.FetchPodManifest(terminalSessionResponse.TerminalAccessId)
+		podManifest, err := terminalAccessServiceImpl.FetchPodManifest(context.Background(), terminalSessionResponse.TerminalAccessId)
 		assert.Nil(t, err)
 		fmt.Println("manifest", podManifest.Manifest)
-		podEvents, err := terminalAccessServiceImpl.FetchPodEvents(terminalSessionResponse.TerminalAccessId)
+		podEvents, err := terminalAccessServiceImpl.FetchPodEvents(context.Background(), terminalSessionResponse.TerminalAccessId)
 		assert.Nil(t, err)
 		fmt.Println(podEvents)
 		sessionId, err := fetchSessionId(terminalAccessServiceImpl, terminalSessionResponse.TerminalAccessId)
 		assert.Equal(t, err, errors.New("pod-terminated"))
 		assert.Empty(t, sessionId)
-		podManifest, err = terminalAccessServiceImpl.FetchPodManifest(terminalSessionResponse.TerminalAccessId)
+		podManifest, err = terminalAccessServiceImpl.FetchPodManifest(context.Background(), terminalSessionResponse.TerminalAccessId)
 		assert.Equal(t, err, errors.New("pod-terminated"))
-		podEvents, err = terminalAccessServiceImpl.FetchPodEvents(terminalSessionResponse.TerminalAccessId)
+		podEvents, err = terminalAccessServiceImpl.FetchPodEvents(context.Background(), terminalSessionResponse.TerminalAccessId)
 		assert.Equal(t, err, errors.New("pod-terminated"))
 	})
 
@@ -58,10 +63,10 @@ func TestNewUserTerminalAccessServiceIT(t *testing.T) {
 		baseImage := "trstringer/internal-kubectl:latest"
 		updateTerminalSession := createAndUpdateSessionForUser(t, terminalAccessServiceImpl, 1, 2, baseImage)
 
-		terminalAccessServiceImpl.StopTerminalSession(updateTerminalSession.TerminalAccessId)
+		terminalAccessServiceImpl.StopTerminalSession(context.Background(), updateTerminalSession.TerminalAccessId)
 		sessionId, _ := fetchSessionId(terminalAccessServiceImpl, updateTerminalSession.TerminalAccessId)
 		fmt.Println("SessionId: ", sessionId)
-		err := terminalAccessServiceImpl.DisconnectTerminalSession(updateTerminalSession.TerminalAccessId)
+		err := terminalAccessServiceImpl.DisconnectTerminalSession(context.Background(), updateTerminalSession.TerminalAccessId)
 		assert.Nil(t, err)
 		_, err = fetchSessionId(terminalAccessServiceImpl, updateTerminalSession.TerminalAccessId)
 		assert.Equal(t, err, errors.New("pod-terminated"))
@@ -75,7 +80,7 @@ func TestNewUserTerminalAccessServiceIT(t *testing.T) {
 		terminalSession2 := createAndUpdateSessionForUser(t, terminalAccessServiceImpl, clusterId, userId, baseImage)
 		terminalSession3 := createAndUpdateSessionForUser(t, terminalAccessServiceImpl, clusterId, userId, baseImage)
 
-		terminalAccessServiceImpl.DisconnectAllSessionsForUser(userId)
+		terminalAccessServiceImpl.DisconnectAllSessionsForUser(context.Background(), userId)
 		_, err := fetchSessionId(terminalAccessServiceImpl, terminalSession1.TerminalAccessId)
 		assert.Nil(t, err)
 		_, err = fetchSessionId(terminalAccessServiceImpl, terminalSession2.TerminalAccessId)
@@ -83,11 +88,11 @@ func TestNewUserTerminalAccessServiceIT(t *testing.T) {
 		_, err = fetchSessionId(terminalAccessServiceImpl, terminalSession3.TerminalAccessId)
 		assert.Nil(t, err)
 
-		err = terminalAccessServiceImpl.DisconnectTerminalSession(terminalSession1.TerminalAccessId)
+		err = terminalAccessServiceImpl.DisconnectTerminalSession(context.Background(), terminalSession1.TerminalAccessId)
 		assert.Nil(t, err)
-		err = terminalAccessServiceImpl.DisconnectTerminalSession(terminalSession2.TerminalAccessId)
+		err = terminalAccessServiceImpl.DisconnectTerminalSession(context.Background(), terminalSession2.TerminalAccessId)
 		assert.Nil(t, err)
-		err = terminalAccessServiceImpl.DisconnectTerminalSession(terminalSession3.TerminalAccessId)
+		err = terminalAccessServiceImpl.DisconnectTerminalSession(context.Background(), terminalSession3.TerminalAccessId)
 		assert.Nil(t, err)
 
 		_, err = fetchSessionId(terminalAccessServiceImpl, terminalSession1.TerminalAccessId)
@@ -126,9 +131,18 @@ func initTerminalAccessService(t *testing.T) *UserTerminalAccessServiceImpl {
 	terminalAccessRepositoryImpl := repository.NewTerminalAccessRepositoryImpl(db, sugaredLogger)
 	clusterRepositoryImpl := repository2.NewClusterRepositoryImpl(db, sugaredLogger)
 	k8sClientServiceImpl := application2.NewK8sClientServiceImpl(sugaredLogger, clusterRepositoryImpl)
-	clusterServiceImpl := cluster.NewClusterServiceImpl(clusterRepositoryImpl, sugaredLogger, nil, k8sInformerFactoryImpl)
+	defaultAuthPolicyRepositoryImpl := repository3.NewDefaultAuthPolicyRepositoryImpl(db, sugaredLogger)
+	defaultAuthRoleRepositoryImpl := repository3.NewDefaultAuthRoleRepositoryImpl(db, sugaredLogger)
+	userAuthRepositoryImpl := repository3.NewUserAuthRepositoryImpl(db, sugaredLogger, defaultAuthPolicyRepositoryImpl, defaultAuthRoleRepositoryImpl)
+	userRepositoryImpl := repository3.NewUserRepositoryImpl(db, sugaredLogger)
+	roleGroupRepositoryImpl := repository3.NewRoleGroupRepositoryImpl(db, sugaredLogger)
+	clusterServiceImpl := cluster.NewClusterServiceImpl(clusterRepositoryImpl, sugaredLogger, nil, k8sInformerFactoryImpl, userAuthRepositoryImpl, userRepositoryImpl, roleGroupRepositoryImpl)
 	//clusterServiceImpl := cluster2.NewClusterServiceImplExtended(clusterRepositoryImpl, nil, nil, sugaredLogger, nil, nil, nil, nil, nil)
-	k8sApplicationService := k8s.NewK8sApplicationServiceImpl(sugaredLogger, clusterServiceImpl, nil, k8sClientServiceImpl, nil, nil, nil)
+	k8sResourceHistoryRepositoryImpl := repository10.NewK8sResourceHistoryRepositoryImpl(db, sugaredLogger)
+	appRepositoryImpl := app.NewAppRepositoryImpl(db, sugaredLogger)
+	environmentRepositoryImpl := repository2.NewEnvironmentRepositoryImpl(db)
+	k8sResourceHistoryServiceImpl := kubernetesResourceAuditLogs.Newk8sResourceHistoryServiceImpl(k8sResourceHistoryRepositoryImpl, sugaredLogger, appRepositoryImpl, environmentRepositoryImpl)
+	k8sApplicationService := k8s.NewK8sApplicationServiceImpl(sugaredLogger, clusterServiceImpl, nil, k8sClientServiceImpl, nil, nil, nil, k8sResourceHistoryServiceImpl)
 	terminalSessionHandlerImpl := terminal.NewTerminalSessionHandlerImpl(nil, clusterServiceImpl, sugaredLogger)
 	userTerminalSessionConfig, err := GetTerminalAccessConfig()
 	assert.Nil(t, err)
@@ -150,19 +164,19 @@ func createAndUpdateSessionForUser(t *testing.T, terminalAccessServiceImpl *User
 		Namespace: "default",
 	}
 	time.Sleep(5 * time.Second)
-	startTerminalSession, err := terminalAccessServiceImpl.StartTerminalSession(request)
+	startTerminalSession, err := terminalAccessServiceImpl.StartTerminalSession(context.Background(), request)
 	assert.Nil(t, err)
 	fmt.Println(startTerminalSession)
 	sessionId, err := fetchSessionId(terminalAccessServiceImpl, startTerminalSession.TerminalAccessId)
 	assert.Nil(t, err)
 	fmt.Println("SessionId: ", sessionId)
 
-	shellChangeResponse, err := terminalAccessServiceImpl.UpdateTerminalShellSession(&models.UserTerminalShellSessionRequest{TerminalAccessId: startTerminalSession.TerminalAccessId, ShellName: "bash"})
+	shellChangeResponse, err := terminalAccessServiceImpl.UpdateTerminalShellSession(context.Background(), &models.UserTerminalShellSessionRequest{TerminalAccessId: startTerminalSession.TerminalAccessId, ShellName: "bash"})
 	assert.Nil(t, err)
 	assert.Equal(t, shellChangeResponse.TerminalAccessId, startTerminalSession.TerminalAccessId)
 	request.BaseImage = "nginx:latest"
 	request.Id = startTerminalSession.TerminalAccessId
-	updateTerminalSession, err := terminalAccessServiceImpl.UpdateTerminalSession(request)
+	updateTerminalSession, err := terminalAccessServiceImpl.UpdateTerminalSession(context.Background(), request)
 	assert.Nil(t, err)
 	assert.Equal(t, updateTerminalSession.UserId, request.UserId)
 	fmt.Println("updated: ", updateTerminalSession)
@@ -170,7 +184,7 @@ func createAndUpdateSessionForUser(t *testing.T, terminalAccessServiceImpl *User
 	assert.Nil(t, err)
 	fmt.Println("SessionId: ", sessionId)
 
-	terminalShellSession, err := terminalAccessServiceImpl.UpdateTerminalShellSession(&models.UserTerminalShellSessionRequest{TerminalAccessId: updateTerminalSession.TerminalAccessId, ShellName: "bash"})
+	terminalShellSession, err := terminalAccessServiceImpl.UpdateTerminalShellSession(context.Background(), &models.UserTerminalShellSessionRequest{TerminalAccessId: updateTerminalSession.TerminalAccessId, ShellName: "bash"})
 	assert.Nil(t, err)
 	assert.Equal(t, terminalShellSession.TerminalAccessId, updateTerminalSession.TerminalAccessId)
 	sessionId, err = fetchSessionId(terminalAccessServiceImpl, updateTerminalSession.TerminalAccessId)
@@ -182,7 +196,7 @@ func createAndUpdateSessionForUser(t *testing.T, terminalAccessServiceImpl *User
 func fetchSessionId(terminalAccessServiceImpl *UserTerminalAccessServiceImpl, terminalAccessId int) (string, error) {
 	sessionId := ""
 	for sessionId == "" {
-		fetchTerminalStatus, err := terminalAccessServiceImpl.FetchTerminalStatus(terminalAccessId)
+		fetchTerminalStatus, err := terminalAccessServiceImpl.FetchTerminalStatus(context.Background(), terminalAccessId)
 		if err != nil {
 			return sessionId, err
 		}

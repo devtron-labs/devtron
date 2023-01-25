@@ -107,6 +107,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) convert(chart *repository.Instal
 				Password: chartRepo.Password,
 			},
 		},
+		AppStoreApplicationVersionId: installedAppVersion.AppStoreApplicationVersionId,
 	}
 }
 
