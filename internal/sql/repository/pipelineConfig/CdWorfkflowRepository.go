@@ -19,8 +19,11 @@ package pipelineConfig
 
 import (
 	"context"
+	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
@@ -63,6 +66,8 @@ type CdWorkflowRepository interface {
 	ExistsByStatus(status string) (bool, error)
 
 	FetchArtifactsByCdPipelineId(pipelineId int, runnerType bean.WorkflowType, offset, limit int) ([]CdWorkflowRunner, error)
+
+	GetLatestTriggersOfHelmPipelinesStuckInNonTerminalStatuses() ([]*CdWorkflowRunner, error)
 }
 
 type CdWorkflowRepositoryImpl struct {
@@ -532,6 +537,28 @@ func (impl *CdWorkflowRepositoryImpl) FetchArtifactsByCdPipelineId(pipelineId in
 		Select()
 	if err != nil {
 		impl.logger.Errorw("error in getting Wfrs and ci artifacts by pipelineId", "err", err, "pipelineId", pipelineId)
+		return nil, err
+	}
+	return wfrList, err
+}
+
+func (impl *CdWorkflowRepositoryImpl) GetLatestTriggersOfHelmPipelinesStuckInNonTerminalStatuses() ([]*CdWorkflowRunner, error) {
+	var wfrList []*CdWorkflowRunner
+	err := impl.dbConnection.
+		Model(&wfrList).
+		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline", "CdWorkflow.Pipeline.Environment").
+		Join("inner join cd_workflow wf on wf.id = cd_workflow_runner.cd_workflow_id").
+		Join("inner join pipeline p on p.id = wf.pipeline_id").
+		Join("inner join environment e on e.id = p.environment_id").
+		Where("cd_workflow_runner.workflow_type=?", bean.CD_WORKFLOW_TYPE_DEPLOY).
+		Where("cd_workflow_runner.status not in (?)", pg.In([]string{WorkflowAborted, WorkflowFailed, WorkflowSucceeded, application.HIBERNATING, string(health.HealthStatusHealthy), string(health.HealthStatusDegraded)})).
+		Where("cd_workflow_runner.cd_workflow_id in (select DISTINCT ON (pipeline_id) max(id) as id from cd_workflow group by pipeline_id, id order by pipeline_id, id desc)").
+		Where("p.deployment_app_type = ?", util.PIPELINE_DEPLOYMENT_TYPE_HELM).
+		Where("p.deleted=?", false).
+		Order("cd_workflow_runner.id DESC").
+		Select()
+	if err != nil {
+		impl.logger.Errorw("error,GetLatestTriggersOfHelmPipelinesStuckInNonTerminalStatuses ", "err", err)
 		return nil, err
 	}
 	return wfrList, err
