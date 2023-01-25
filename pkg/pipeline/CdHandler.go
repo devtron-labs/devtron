@@ -249,6 +249,10 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch
 			return err, isTimelineUpdated
 		}
 	} else {
+		if app == nil {
+			impl.Logger.Errorw("found empty argo application object", "appName", pipeline.DeploymentAppName)
+			return fmt.Errorf("found empty argo application object"), isTimelineUpdated
+		}
 		isSucceeded, isTimelineUpdated, err = impl.appService.UpdateDeploymentStatusForGitOpsCdPipelines(app, time.Now())
 		if err != nil {
 			impl.Logger.Errorw("error in updating deployment status for gitOps cd pipelines", "app", app)
