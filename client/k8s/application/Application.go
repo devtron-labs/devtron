@@ -335,8 +335,14 @@ func (impl K8sClientServiceImpl) GetApiResources(restConfig *rest.Config, includ
 
 	apiResourcesListFromK8s, err := discoveryClient.ServerPreferredResources()
 	if err != nil {
-		impl.logger.Errorw("error in getting api-resources from k8s", "err", err)
-		return nil, err
+		Isk8sApiError := strings.Contains(err.Error(), "unable to retrieve the complete list of server APIs")
+		switch Isk8sApiError {
+		case true:
+			break
+		default:
+			impl.logger.Errorw("error in getting api-resources from k8s", "err", err)
+			return nil, err
+		}
 	}
 
 	apiResources := make([]*K8sApiResource, 0)
