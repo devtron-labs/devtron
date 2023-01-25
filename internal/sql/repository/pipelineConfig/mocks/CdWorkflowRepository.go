@@ -391,7 +391,7 @@ func (_m *CdWorkflowRepository) FindLatestWfrByAppIdAndEnvironmentId(appId int, 
 		r1 = ret.Error(1)
 	}
 
-	return r0, r1
+	return &r0, r1
 }
 
 // FindPreviousCdWfRunnerByStatus provides a mock function with given fields: pipelineId, currentWFRunnerId, status
