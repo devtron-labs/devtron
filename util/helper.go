@@ -90,7 +90,7 @@ func Close(c Closer, logger *zap.SugaredLogger) {
 
 var chars = []rune("abcdefghijklmnopqrstuvwxyz0123456789")
 
-//Generates random string
+// Generates random string
 func Generate(size int) string {
 	rand.Seed(time.Now().UnixNano())
 	var b strings.Builder
