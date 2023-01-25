@@ -124,12 +124,12 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) Subscribe() error {
 }
 
 func (impl *CdApplicationStatusUpdateHandlerImpl) HelmApplicationStatusUpdate() {
-	degradedTime, err := strconv.Atoi(impl.AppStatusConfig.PipelineDegradedTime)
+	HelmPipelineStatusCheckEligibleTime, err := strconv.Atoi(impl.AppStatusConfig.HelmPipelineStatusCheckEligibleTime)
 	if err != nil {
 		impl.logger.Errorw("error in converting string to int", "err", err)
 		return
 	}
-	err = impl.CdHandler.CheckHelmAppStatusPeriodicallyAndUpdateInDb(degradedTime)
+	err = impl.CdHandler.CheckHelmAppStatusPeriodicallyAndUpdateInDb(HelmPipelineStatusCheckEligibleTime)
 	if err != nil {
 		impl.logger.Errorw("error helm app status update - cron job", "err", err)
 		return

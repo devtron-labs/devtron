@@ -601,6 +601,10 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 			}
 		}
 		for _, material := range pipeline.CiPipelineMaterials {
+			// ignore those materials which have inactive git material
+			if material == nil || material.GitMaterial == nil || !material.GitMaterial.Active {
+				continue
+			}
 			ciMaterial := &bean.CiMaterial{
 				Id:              material.Id,
 				CheckoutPath:    material.CheckoutPath,
@@ -615,7 +619,6 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 			}
 			ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, ciMaterial)
 		}
-
 		linkedCis, err := impl.ciPipelineRepository.FindByParentCiPipelineId(ciPipeline.Id)
 		if err != nil && !util.IsErrNoRows(err) {
 			return nil, err
@@ -2758,6 +2761,9 @@ func (impl PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *b
 		}
 	}
 	for _, material := range pipeline.CiPipelineMaterials {
+		if material == nil || material.GitMaterial == nil || !material.GitMaterial.Active {
+			continue
+		}
 		ciMaterial := &bean.CiMaterial{
 			Id:              material.Id,
 			CheckoutPath:    material.CheckoutPath,
