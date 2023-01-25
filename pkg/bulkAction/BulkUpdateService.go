@@ -1084,6 +1084,7 @@ func (impl BulkUpdateServiceImpl) buildHibernateUnHibernateRequestForHelmPipelin
 		}
 	} else {
 		//chart not supported for hibernation, skipping
+		impl.logger.Warnw("unsupported chart found for hibernate request, skipping", "pipelineId", pipeline.Id, "chartInfo", chartInfo)
 		return nil, nil, nil
 	}
 	return appIdentifier, hibernateRequest, nil

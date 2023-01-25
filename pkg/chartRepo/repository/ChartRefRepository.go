@@ -135,7 +135,7 @@ func (impl ChartRefRepositoryImpl) FetchInfoOfChartConfiguredInApp(appId int) (*
 		Join("inner join charts on charts.chart_ref_id=chart_ref.id").
 		Where("charts.app_id= ?", appId).
 		Where("charts.latest= ?", true).
-		Where("active = ?", true).Select()
+		Where("chart_ref.active = ?", true).Select()
 	if err != nil {
 		return &repo, err
 	}
