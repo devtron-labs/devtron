@@ -70,7 +70,9 @@ func (impl *ArgoCDConnectionManagerImpl) GetConnection(token string) *grpc.Clien
 	}
 	settings := impl.getArgoCdSettings()
 	var option []grpc.DialOption
-	option = append(option, grpc.WithTransportCredentials(GetTLS(settings.Certificate)))
+	if settings != nil {
+		option = append(option, grpc.WithTransportCredentials(GetTLS(settings.Certificate)))
+	}
 	if len(token) > 0 {
 		option = append(option, grpc.WithPerRPCCredentials(TokenAuth{token: token}))
 	}
