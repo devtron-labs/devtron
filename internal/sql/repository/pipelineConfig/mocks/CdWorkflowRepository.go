@@ -374,7 +374,7 @@ func (_m *CdWorkflowRepository) FindLatestCdWorkflowByPipelineIdV2(pipelineIds [
 }
 
 // FindLatestWfrByAppIdAndEnvironmentId provides a mock function with given fields: appId, environmentId
-func (_m *CdWorkflowRepository) FindLatestWfrByAppIdAndEnvironmentId(appId int, environmentId int) (pipelineConfig.CdWorkflowRunner, error) {
+func (_m *CdWorkflowRepository) FindLatestWfrByAppIdAndEnvironmentId(appId int, environmentId int) (*pipelineConfig.CdWorkflowRunner, error) {
 	ret := _m.Called(appId, environmentId)
 
 	var r0 pipelineConfig.CdWorkflowRunner
