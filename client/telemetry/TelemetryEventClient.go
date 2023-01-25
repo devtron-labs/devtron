@@ -226,18 +226,18 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cl
 			ClusterName:  clusterDetail.ClusterName,
 		}
 		req.Clusters = append(req.Clusters, config)
-
-		applicatonStream, err := impl.helmAppClient.ListApplication(context.Background(), req)
-
+		applicationStream, err := impl.helmAppClient.ListApplication(context.Background(), req)
 		if err == nil {
-
-			clusterList, _ := applicatonStream.Recv()
-
-			if !clusterList.Errored {
+			clusterList, err1 := applicationStream.Recv()
+			if err1 != nil {
+				impl.logger.Errorw("error in list helm applications streams recv", "err", err)
+			}
+			if err1 != nil && clusterList != nil && !clusterList.Errored {
 				ExternalHelmAppClusterCount[clusterList.ClusterId] = len(clusterList.DeployedAppDetail)
 			}
+		} else {
+			impl.logger.Errorw("error while fetching list application from kubelink", "err", err)
 		}
-
 	}
 
 	//getting userData from emailId
