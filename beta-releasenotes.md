@@ -11,3 +11,4 @@
 ## Documentation
 - docs: updated target platform (#2857)
 ## Others
+- task: updated logic for adding health status timeline (#2870)
