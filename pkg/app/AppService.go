@@ -75,9 +75,10 @@ import (
 )
 
 type AppStatusConfig struct {
-	CdPipelineStatusCronTime        string `env:"CD_PIPELINE_STATUS_CRON_TIME" envDefault:"*/2 * * * *"`
-	CdPipelineStatusTimeoutDuration string `env:"CD_PIPELINE_STATUS_TIMEOUT_DURATION" envDefault:"20"` //in minutes
-	PipelineDegradedTime            string `env:"PIPELINE_DEGRADED_TIME" envDefault:"10"`              //in minutes
+	CdPipelineStatusCronTime            string `env:"CD_PIPELINE_STATUS_CRON_TIME" envDefault:"*/2 * * * *"`
+	CdPipelineStatusTimeoutDuration     string `env:"CD_PIPELINE_STATUS_TIMEOUT_DURATION" envDefault:"20"`       //in minutes
+	PipelineDegradedTime                string `env:"PIPELINE_DEGRADED_TIME" envDefault:"10"`                    //in minutes
+	HelmPipelineStatusCheckEligibleTime string `env:"HELM_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME" envDefault:"120"` //in seconds
 }
 
 func GetAppStatusConfig() (*AppStatusConfig, error) {
@@ -2066,7 +2067,7 @@ func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Val
 				Name:         pipeline.Name,
 				WorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
 				ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
-				Status:       string(health.HealthStatusProgressing),
+				Status:       pipelineConfig.WorkflowInProgress,
 				TriggeredBy:  overrideRequest.UserId,
 				StartedOn:    triggeredAt,
 				CdWorkflowId: cdWorkflowId,
@@ -2078,7 +2079,7 @@ func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Val
 				return false, err
 			}
 		} else {
-			cdWf.Status = string(health.HealthStatusProgressing)
+			cdWf.Status = pipelineConfig.WorkflowInProgress
 			cdWf.FinishedOn = time.Now()
 			cdWf.UpdatedBy = overrideRequest.UserId
 			cdWf.UpdatedOn = time.Now()
