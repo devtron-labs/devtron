@@ -20,6 +20,7 @@ package pipeline
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned"
 	v1alpha12 "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
@@ -37,6 +38,7 @@ import (
 	"k8s.io/client-go/rest"
 	"net/url"
 	"strconv"
+	"strings"
 )
 
 type WorkflowService interface {
@@ -122,6 +124,8 @@ const (
 	CI_WORKFLOW_NAME               = "ci"
 	CI_WORKFLOW_WITH_STAGES        = "ci-stages-with-env"
 	CI_NODE_SELECTOR_APP_LABEL_KEY = "devtron.ai/node-selector"
+	CI_NODE_PVC_ALL_ENV            = "devtron.ai/ci-pvc-all"
+	CI_NODE_PVC_PIPELINE_PREFIX    = "devtron.ai/ci-pvc"
 )
 
 type ContainerResources struct {
@@ -541,6 +545,28 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 				MountPath: volumeMountsForCi.ContainerMountPath,
 			})
 		}
+	}
+
+	//
+
+	pvc := appLabels[strings.ToLower(fmt.Sprintf("%s-%s", CI_NODE_PVC_PIPELINE_PREFIX, workflowRequest.PipelineName))]
+	if len(pvc) == 0 {
+		pvc = appLabels[CI_NODE_PVC_ALL_ENV]
+	}
+	if len(pvc) != 0 {
+		ciTemplate.Volumes = append(ciTemplate.Volumes, v12.Volume{
+			Name: "root-vol",
+			VolumeSource: v12.VolumeSource{
+				PersistentVolumeClaim: &v12.PersistentVolumeClaimVolumeSource{
+					ClaimName: pvc,
+					ReadOnly:  false,
+				},
+			},
+		})
+		ciTemplate.Container.VolumeMounts = append(ciTemplate.Container.VolumeMounts, v12.VolumeMount{
+			Name:      "root-vol",
+			MountPath: "/devtroncd",
+		})
 	}
 
 	// node selector
