@@ -1,9 +1,7 @@
 # Pre-Build and Post-Build Stages
 
 The CI pipeline includes Pre and Post-build steps to validate and introduce checkpoints in the build process.
-
-The pre/post plugins allow you to execute some standard tasks, such as Code analysis, Load testing, Security scanning, and so on.
-You can build custom pre/post tasks or use one from the standard preset plugins provided by Devtron.
+The pre/post plugins allow you to execute some standard tasks, such as Code analysis, Load testing, Security scanning etc. You can build custom pre-build/post-build tasks or select one of the standard preset plugins provided by Devtron.
 
 ## Before you begin
 
@@ -12,61 +10,91 @@ Make sure you have [CI build pipeline](./ci-pipeline.md) before you start config
 ## Configuring Pre/Post-build Tasks
 
 Each Pre/Post-build stage is executed as a series of events called tasks and includes custom scripts.
-You can create one or more tasks that are dependent on one another for execution. In other words, the output variable of one task can be used as an input for the next task to build a CI runner.
+You can create one or more tasks that are dependent on one another for execution. In other words, the output variable of one task can be used as an input for the next task to build a CI runner. The tasks will run following the execution order. 
 
-The tasks will run following the execution order.
 The tasks can be re-arranged by drag-and-drop; however, the order of passing the variables must be followed.
+
+You can create a task either by selecting one of the available preset plugins or by creating a custom script.
 
 | Stage | Task |
 | :--- | :--- |
 | Pre-Build/Post-Build | <ol><li>Create a task using one of the [Preset Plugins](#preset-plugins):<ul><li>K6 Load testing</li><li>Sonarqube</li><li>Dependency track for Python</li><li>Dependency track for Nodejs</li><li>Dpendency track for Marven and Gradle</li><li>Semgrep</li><li>Codacy</li></ul></li><li>Create a task from [Execute Custom script](#execute-custom-script) which you can customize your script with:<ul><li>[Custom script - Shell](#custom-script-shell)</li><li>Or, [Custom script - Container image](#custom-script-container-image)</li></ul></li></ol> | 
 
-## Creating a task
 
-1. Go to **Applications** and select your application from the **Devtron Apps** tabs.
-2. From the **App Configuration** tab select **Workflow Editor**.
-3. Select the build pipeline for editing the stages.
+## Creating Pre/Post-build Tasks
+
+1. Go to the **Applications** and select your application from the **Devtron Apps** tabs.
+2. Go to the **App Configuration** tab, click **Workflow Editor**.
+3. Select the build pipeline for configuring the pre/post-build tasks.
 
 > Devtron CI pipeline includes the following build stages:
 >
-> * Pre-build stage: The tasks in this stage run before the image is built.
-> * Build stage: In this stage, the build is triggered from the source code that you provide.
-> * Post-build stage: The tasks in this stage are triggered once the build is complete.
+> * Pre-Build Stage: The tasks in this stage run before the image is built.
+> * Build Stage: In this stage, the build is triggered from the source code (container image) that you provide.
+> * Post-Build Stage: The tasks in this stage are triggered once the build is complete.
 
-You can create a task either by selecting one of the available preset plugins or by creating a custom script.
 
-[Preset plugins](#preset-plugins) | [Execute custom script](#execute-custom-script)
 
 ### Preset plugins
 
-**Prerequisite**: Set up Sonarqube, or get the API keys from an admin.
+#### K6 Load Testing
 
-The example shows a Post-build stage with a task created using a preset plugin - Sonarqube.
+K6 is an open-source tool and cloud service that makes load testing easy for developers and QA engineers.
 
-1. On the **Edit build pipeline** screen, select the **Post-build stage** (or Pre-build).
-2. Select **+ Add task**.
+**Prerequisite**: Make sure you have set up an account in `k6.io` or get the API keys from an admin.
+
+1. On the **Edit build pipeline** page, select the **Pre-Build Stage** (or Post-Build Stage).
+2. Click **+ Add task**.
+3. Select **K6 Load Testing** from **PRESET PLUGINS**.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/plugins/preset-plugin-sonarqube-2.png)
+
+* Enter a relevant name in the `Task name` field. It is a mandatory field.
+* Enter a descriptive message for the task in the `Description` field. It is an optional field.
+* Provide a value for the input variable.<br> Note: The value may be any of the values from the previous build stages, a global variable, or a custom value.</br>
+
+ | Variable | Format | Description |
+| ---- | ---- | ---- |
+| RelativePathToScript | String | Checkout path + script path along with script name. |
+| PrometheusUsername | String | Username of Prometheus account. |
+| PrometheusApiKey | String | API key of Prometheus account. |
+| PrometheusRemoteWriteEndpoint | String | Remote write endpoint of Prometheus account. |
+| OutputType | String | `LOG` or `PROMETHEUS` |
+
+* `Trigger/Skip Condition` refers to a conditional statement to execute or skip the task. You can select either:<ul><li>`Set trigger conditions`</li><li> Or, `Set skip conditions`</li></ul> 
+
+* Click **Update Pipeline**.
+
+#### Sonarqube
+
+Configuring `Sonarqube` in pre-build/post build task enhance your workflow with Continuous Code Quality & Code Security.
+
+**Prerequisite**: Make sure you have set up an account in `Sonarqube` or get the API keys from an admin.
+
+1. On the **Edit build pipeline** page, select the **Pre-Build Stage** (or Post-Build Stage).
+2. Click **+ Add task**.
 3. Select **Sonarqube** from **PRESET PLUGINS**.
 
-![Preset plugin - Sonarqube](https://devtron-public-asset.s3.us-east-2.amazonaws.com/plugins/preset-plugin-sonarqube-2.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/plugins/preset-plugin-sonarqube-2.png)
 
-| Field name | Required/Optional | Field description |
-| --- | --- | --- |
-| Task name | Required  | A relevant name for the task |
-| Description | Optional | A descriptive message for the task |
-| Input variables | Optional | VALUE: A value for the input variable. The value may be any of the values from the previous build stages, a global variable, or a custom value |
-| Trigger/Skip Condition | Optional | A conditional statement to execute or skip the task |
+* Enter a relevant name in the `Task name` field. It is a mandatory field.
+* Enter a descriptive message for the task in the `Description` field. It is an optional field.
+* Provide a value for the input variable.<br> Note: The value may be any of the values from the previous build stages, a global variable, or a custom value.</br>
 
-
-#### Input Variables
-
-| Variable | Format | Description |
+ | Variable | Format | Description |
 | ---- | ---- | ---- |
 | SonarqubeProjectKey | String | Project key of sonarqube account. |
-| SonarqubeApiKey | String | Api key of sonarqube account. |
-| SonarqubeEndpoint | String | Api endpoint of sonarqube account. |
-| CheckoutPath | String | Checkout path of git material. |
+| SonarqubeApiKey | String | API key of Sonarqube account. |
+| SonarqubeEndpoint | String | API endpoint of Sonarqube account. |
+| CheckoutPath | String | Checkout path of Git material. |
+| UsePropertiesFileFromProject | Boolean | Enter either `true` or `false` accordingly whether you want the poll to generate report or not. |
+| CheckForSonarAnalysisReport | Boolean | Enter either `true` or `false` accordingly whether you want the poll to generate report or not. |
+| AbortPipelineOnPolicyCheckFailed | Boolean | Enter either `true` or `false` accordingly whether you want to check if the policy fails or not. |
 
-Select **Update Pipeline**.
+* `Trigger/Skip Condition` refers to a conditional statement to execute or skip the task. You can select either:<ul><li>`Set trigger conditions`</li><li> Or, `Set skip conditions`</li></ul> 
+
+* Click **Update Pipeline**.
+
 
 ### Execute custom script
 
