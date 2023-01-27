@@ -40,6 +40,11 @@
               "description": "port of the corresponding kubernetes service",
               "title": "Service Port"
             },
+            "nodePort": {
+              "type": "integer",
+              "description": "nodeport of the corresponding kubernetes service",
+              "title": "Node Port"
+            },
             "supportStreaming": {
               "type": "boolean",
               "description": "field to enable/disable timeout for high performance protocols like grpc",

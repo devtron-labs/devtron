@@ -14,6 +14,7 @@ ContainerPort:
     name: app
     port: 8080
     servicePort: 80
+    nodePort: 32056
     supportStreaming: true
     useHTTP2: true
 ```
@@ -25,6 +26,7 @@ ContainerPort:
 | `name` | name of the port. |
 | `port` | port for the container. |
 | `servicePort` | port of the corresponding kubernetes service. |
+| `nodePort` | nodeport of the corresponding kubernetes service. |
 | `supportStreaming` | Used for high performance protocols like grpc where timeout needs to be disabled. |
 | `useHTTP2` | Envoy container can accept HTTP2 requests. |
 
