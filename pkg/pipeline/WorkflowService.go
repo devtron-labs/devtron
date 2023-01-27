@@ -114,6 +114,7 @@ type WorkflowRequest struct {
 	CiBuildDockerMtuValue      int                               `json:"ciBuildDockerMtuValue"`
 	IgnoreDockerCachePush      bool                              `json:"ignoreDockerCachePush"`
 	IgnoreDockerCachePull      bool                              `json:"ignoreDockerCachePull"`
+	CacheInvalidate            bool                              `json:"cacheInvalidate"`
 	IsPvcMounted               bool                              `json:"IsPvcMounted"`
 }
 
