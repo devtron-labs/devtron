@@ -51,8 +51,8 @@ autoscaling:
   enabled: false
   MinReplicas: 1
   MaxReplicas: 2
-  TargetCPUUtilizationPercentage: 90
-  TargetMemoryUtilizationPercentage: 80
+  # TargetCPUUtilizationPercentage: 90
+  # TargetMemoryUtilizationPercentage: 80
   annotations: {}
   labels: {}
   behavior: {}
