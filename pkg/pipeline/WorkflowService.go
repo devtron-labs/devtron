@@ -114,6 +114,7 @@ type WorkflowRequest struct {
 	CiBuildDockerMtuValue      int                               `json:"ciBuildDockerMtuValue"`
 	IgnoreDockerCachePush      bool                              `json:"ignoreDockerCachePush"`
 	IgnoreDockerCachePull      bool                              `json:"ignoreDockerCachePull"`
+	IsPvcMounted               bool                              `json:"IsPvcMounted"`
 }
 
 const (
@@ -198,7 +199,10 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		miniCred := []v12.EnvVar{{Name: "AWS_ACCESS_KEY_ID", Value: impl.ciConfig.BlobStorageS3AccessKey}, {Name: "AWS_SECRET_ACCESS_KEY", Value: impl.ciConfig.BlobStorageS3SecretKey}}
 		containerEnvVariables = append(containerEnvVariables, miniCred...)
 	}
-
+	pvc := appLabels[strings.ToLower(fmt.Sprintf("%s-%s", CI_NODE_PVC_PIPELINE_PREFIX, workflowRequest.PipelineName))]
+	if len(pvc) != 0 {
+		workflowRequest.IsPvcMounted = true
+	}
 	ciCdTriggerEvent := CiCdTriggerEvent{
 		Type:      ciEvent,
 		CiRequest: workflowRequest,
@@ -548,8 +552,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	}
 
 	//
-
-	pvc := appLabels[strings.ToLower(fmt.Sprintf("%s-%s", CI_NODE_PVC_PIPELINE_PREFIX, workflowRequest.PipelineName))]
+	// pvc mounting starts
 	if len(pvc) == 0 {
 		pvc = appLabels[CI_NODE_PVC_ALL_ENV]
 	}
@@ -565,7 +568,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		})
 		ciTemplate.Container.VolumeMounts = append(ciTemplate.Container.VolumeMounts, v12.VolumeMount{
 			Name:      "root-vol",
-			MountPath: "/devtroncd",
+			MountPath: "/devtroncd-cache",
 		})
 	}
 
