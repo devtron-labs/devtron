@@ -56,7 +56,7 @@ ambassadorMapping:
   # ambassadorId: 1234
   # hostname: devtron.example.com
   # rewrite: /foo/
-  # retry_policy:
+  # retryPolicy:
   #   retry_on: "5xx"
   #   num_retries: 10
   # cors:

@@ -121,6 +121,42 @@ ReadinessProbe:
 | `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
 | `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
 
+### Ambassador Mappings
+
+You can create ambassador mappings to access your applications from outside the cluster. At its core a Mapping resource maps a resource to a service.
+
+```yaml
+ambassadorMapping:
+  ambassadorId: "prod-emissary"
+  cors: {}
+  enabled: true
+  hostname: devtron.example.com
+  labels: {}
+  prefix: /
+  retryPolicy: {}
+  rewrite: ""
+  tls:
+    context: "devtron-tls-context"
+    create: false
+    hosts: []
+    secretName: ""
+```
+
+| Key | Description |
+| :--- | :--- |
+| `enabled` | Set true to enable ambassador mapping else set false.|
+| `ambassadorId` | used to specify id for specific ambassador mappings controller. |
+| `cors` | used to specify cors policy to access host for this mapping. |
+| `weight` | used to specify weight for canary ambassador mappings. |
+| `hostname` | used to specify hostname for ambassador mapping. |
+| `prefix` | used to specify path for ambassador mapping. |
+| `labels` | used to provide custom labels for ambassador mapping. |
+| `retryPolicy` | used to specify retry policy for ambassador mapping. |
+| `corsPolicy` | Provide cors headers on flagger resource. |
+| `rewrite` | used to specify whether to redirect the path of this mapping and where. |
+| `tls` | used to create or define ambassador TLSContext resource. |
+| `extraSpec` | used to provide extra spec values which not present in deployment template for ambassador resource. |
+
 ### Autoscaling
 
 This is connected to HPA and controls scaling up and down in response to request load.
@@ -143,6 +179,78 @@ autoscaling:
 | `TargetCPUUtilizationPercentage` | The target CPU utilization that is expected for a container. |
 | `TargetMemoryUtilizationPercentage` | The target memory utilization that is expected for a container. |
 | `extraMetrics` | Used to give external metrics for autoscaling. |
+
+### Flagger
+
+You can use flagger for canary releases with deployment objects. It supports flexible traffic routing with istio service mesh as well.
+
+```yaml
+flaggerCanary:
+  addOtherGateways: []
+  addOtherHosts: []
+  analysis:
+    interval: 15s
+    maxWeight: 50
+    stepWeight: 5
+    threshold: 5
+  annotations: {}
+  appProtocol: http
+  corsPolicy:
+    allowCredentials: false
+    allowHeaders:
+      - x-some-header
+    allowMethods:
+      - GET
+    allowOrigin:
+      - example.com
+    maxAge: 24h
+  createIstioGateway:
+    annotations: {}
+    enabled: false
+    host: example.com
+    labels: {}
+    tls:
+      enabled: false
+      secretName: example-tls-secret
+  enabled: false
+  gatewayRefs: null
+  headers:
+    request:
+      add:
+        x-some-header: value
+  labels: {}
+  loadtest:
+    enabled: true
+    url: http://flagger-loadtester.istio-system/
+  match:
+    - uri:
+        prefix: /
+  port: 8080
+  portDiscovery: true
+  retries: null
+  rewriteUri: /
+  targetPort: 8080
+  thresholds:
+    latency: 500
+    successRate: 90
+  timeout: null
+```
+
+| Key | Description |
+| :--- | :--- |
+| `enabled` | Set true to enable canary releases using flagger else set false.|
+| `addOtherGateways` | To provide multiple istio gateways for flagger. |
+| `addOtherHosts` | Add multiple hosts for istio service mesh with flagger. |
+| `analysis` | Define how the canary release should progresss and at what interval. |
+| `annotations` | Annotation to add on flagger resource. |
+| `labels` | Labels to add on flagger resource. |
+| `appProtocol` | Protocol to use for canary. |
+| `corsPolicy` | Provide cors headers on flagger resource. |
+| `createIstioGateway` | Set to true if you want to create istio gateway as well with flagger. |
+| `headers` | Add headers if any. |
+| `loadtest` | Enable load testing for your canary release. |
+
+
 
 ### Fullname Override
 
@@ -266,6 +374,60 @@ initContainers:
     args: ["-g", "daemon off;"]
 ```
 Specialized containers that run before app containers in a Pod. Init containers can contain utilities or setup scripts not present in an app image. One can use base image inside initContainer by setting the reuseContainerImage flag to `true`.
+
+### Istio
+
+Istio is a service mesh which simplifies observability, traffic management, security and much more with it's virtual services and gateways.
+
+```yaml
+istio:
+  enable: true
+  gateway:
+    annotations: {}
+    enabled: false
+    host: example.com
+    labels: {}
+    tls:
+      enabled: false
+      secretName: example-tls-secret
+  virtualService:
+    annotations: {}
+    enabled: false
+    gateways: []
+    hosts: []
+    http:
+      - corsPolicy:
+          allowCredentials: false
+          allowHeaders:
+            - x-some-header
+          allowMethods:
+            - GET
+          allowOrigin:
+            - example.com
+          maxAge: 24h
+        headers:
+          request:
+            add:
+              x-some-header: value
+        match:
+          - uri:
+              prefix: /v1
+          - uri:
+              prefix: /v2
+        retries:
+          attempts: 2
+          perTryTimeout: 3s
+        rewriteUri: /
+        route:
+          - destination:
+              host: service1
+              port: 80
+        timeout: 12s
+      - route:
+          - destination:
+              host: service2
+    labels: {}
+```
 
 ### Pause For Seconds Before Switch Active
 ```yaml

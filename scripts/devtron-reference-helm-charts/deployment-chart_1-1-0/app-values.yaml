@@ -343,7 +343,7 @@ ambassadorMapping:
   ambassadorId: ""
   hostname: devtron.example.com
   rewrite: ""
-  retry_policy: {}
+  retryPolicy: {}
   cors: {}
   tls:
     context: ""

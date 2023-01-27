@@ -302,7 +302,7 @@
             "description": "used to specify path for ambassador mapping",
             "title": "Prefix"
           },
-          "retry_policy": {
+          "retryPolicy": {
             "type": "object",
             "description": "used to specify retry policy for ambassador mapping",
             "title": "Retry Policy"
