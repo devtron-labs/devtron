@@ -32,7 +32,7 @@ import (
 	"time"
 )
 
-//-----------
+// -----------
 type GitSensorResponse struct {
 	Code   int                  `json:"code,omitempty"`
 	Status string               `json:"status,omitempty"`
@@ -47,7 +47,7 @@ type GitSensorApiError struct {
 	UserDetailMessage string `json:"userDetailMessage,omitempty"`
 }
 
-//---------------
+// ---------------
 type FetchScmChangesRequest struct {
 	PipelineMaterialId int    `json:"pipelineMaterialId"`
 	From               string `json:"from"`
@@ -227,7 +227,7 @@ type GitSensorClient interface {
 	GetWebhookPayloadFilterDataForPipelineMaterialId(req *WebhookPayloadFilterDataRequest) (response *WebhookPayloadFilterDataResponse, err error)
 }
 
-//----------------------impl
+// ----------------------impl
 type GitSensorConfig struct {
 	Url     string `env:"GIT_SENSOR_URL" envDefault:"http://localhost:9999"`
 	Timeout int    `env:"GIT_SENSOR_TIMEOUT" envDefault:"0"` // in seconds
