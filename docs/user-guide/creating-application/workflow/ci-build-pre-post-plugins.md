@@ -1,4 +1,4 @@
-# Pre-Build and Post-Build stages
+# Pre-Build and Post-Build Stages
 
 The CI pipeline includes Pre and Post-build steps to validate and introduce checkpoints in the build process.
 
@@ -7,20 +7,19 @@ You can build custom pre/post tasks or use one from the standard preset plugins 
 
 ## Before you begin
 
-Create a [CI build pipeline](./ci-pipeline.md) if you haven't done that already!
+Make sure you have [CI build pipeline](./ci-pipeline.md) before you start configuring Pre-Build or Post-Build tasks.
 
-## Configuring Pre/Post-build stages
+## Configuring Pre/Post-build Tasks
 
 Each Pre/Post-build stage is executed as a series of events called tasks and includes custom scripts.
-You could create one or more tasks that are dependent on one another for execution. In other words, the output variable of one task can be used as an input for the next task to build a CI runner.
+You can create one or more tasks that are dependent on one another for execution. In other words, the output variable of one task can be used as an input for the next task to build a CI runner.
 
 The tasks will run following the execution order.
-
-> The tasks may be re-arranged by using drag-and-drop; however, the order of passing the variables must be followed.
+The tasks can be re-arranged by drag-and-drop; however, the order of passing the variables must be followed.
 
 | Stage | Task |
 | :--- | :--- |
-| Pre-Build/Post-Build | <ol><li>Create a task from - [Preset Plugin](#preset-plugins)<ul><li>Sonarqube</li><li>K6 Load testing</li></ul></li><li>Create a task from - [Execute Custom script](#execute-custom-script)<ul><li>[Custom script - Shell](#custom-script-shell)</li><li>[Custom script - Container image](#custom-script-container-image)</li></ul></li></ol> | 
+| Pre-Build/Post-Build | <ol><li>Create a task using one of the [Preset Plugins](#preset-plugins):<ul><li>K6 Load testing</li><li>Sonarqube</li><li>Dependency track for Python</li><li>Dependency track for Nodejs</li><li>Dpendency track for Marven and Gradle</li><li>Semgrep</li><li>Codacy</li></ul></li><li>Create a task from [Execute Custom script](#execute-custom-script) which you can customize your script with:<ul><li>[Custom script - Shell](#custom-script-shell)</li><li>Or, [Custom script - Container image](#custom-script-container-image)</li></ul></li></ol> | 
 
 ## Creating a task
 
