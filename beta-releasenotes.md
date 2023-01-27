@@ -12,4 +12,5 @@
 ## Documentation
 - docs: updated target platform (#2857)
 ## Others
+- task: updated deployment status timeline api for helm based pipelines (#2897)
 - task: updated logic for adding health status timeline (#2870)
