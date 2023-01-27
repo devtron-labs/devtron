@@ -1124,7 +1124,6 @@ data:
     parallelism: 50
     artifactRepository:
       archiveLogs: false
-    containerRuntimeExecutor: pns
     executor:
       imagePullPolicy: Always
 kind: ConfigMap
