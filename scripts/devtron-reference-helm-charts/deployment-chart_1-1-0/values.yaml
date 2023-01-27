@@ -47,6 +47,42 @@ Spec:
 image:
   pullPolicy: IfNotPresent
 
+ambassadorMapping:
+  enabled: false
+  # labels:
+  #   key1: value1
+  # prefix: /
+  # service: httpd-devtron-demo:80
+  # ambassadorId: 1234
+  # hostname: devtron.example.com
+  # rewrite: /foo/
+  # retry_policy:
+  #   retry_on: "5xx"
+  #   num_retries: 10
+  # cors:
+  #   origins: http://foo.example,http://bar.example
+  #   methods: POST, GET, OPTIONS
+  #   headers: Content-Type
+  #   credentials: true
+  #   exposed_headers: X-Custom-Header
+  #   max_age: "86400"
+  # weight: 10
+  # method: GET
+  # extraSpec:
+  #   method_regex: true
+  #   headers:
+  #     x-quote-mode: backend
+  #     x-random-header: devtron
+  # tls:
+  #   context: httpd-context
+  #   create: true
+  #   secretName: httpd-secret
+  #   hosts:
+  #     - anything.example.info
+  #     - devtron.example.com
+  #   extraSpec:
+  #     min_tls_version: v1.2
+
 autoscaling:
   enabled: false
   MinReplicas: 1

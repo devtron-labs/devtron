@@ -209,6 +209,21 @@ Spec:
     #  Key: kops.k8s.io/instancegroup
     Values:
 
+ambassadorMapping:
+  enabled: false
+  labels: {}
+  prefix: /
+  ambassadorId: ""
+  hostname: devtron.example.com
+  rewrite: ""
+  retry_policy: {}
+  cors: {}
+  tls:
+    context: ""
+    create: false
+    secretName: ""
+    hosts: []
+
 autoscaling:
   enabled: false
   MinReplicas: 1
