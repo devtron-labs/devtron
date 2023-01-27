@@ -40,6 +40,7 @@ type DevtronAppDeploymentRestHandler interface {
 type DevtronAppDeploymentConfigRestHandler interface {
 	ConfigureDeploymentTemplateForApp(w http.ResponseWriter, r *http.Request)
 	GetDeploymentTemplate(w http.ResponseWriter, r *http.Request)
+	GetDefaultDeploymentTemplate(w http.ResponseWriter, r *http.Request)
 	GetAppOverrideForDefaultTemplate(w http.ResponseWriter, r *http.Request)
 
 	EnvConfigOverrideCreate(w http.ResponseWriter, r *http.Request)
@@ -586,6 +587,41 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 	}
 
 	common.WriteJsonResp(w, nil, appConfigResponse, http.StatusOK)
+}
+
+func (handler *PipelineConfigRestHandlerImpl) GetDefaultDeploymentTemplate(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	appId, err := strconv.Atoi(vars["appId"])
+	if err != nil {
+		handler.Logger.Error(err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	chartRefId, err := strconv.Atoi(vars["chartRefId"])
+	if err != nil {
+		handler.Logger.Error(err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	handler.Logger.Infow("request payload, GetDefaultDeploymentTemplate", "appId", appId, "chartRefId", chartRefId)
+	token := r.Header.Get("token")
+	app, err := handler.pipelineBuilder.GetApp(appId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	appOverride, err := handler.chartService.GetAppOverrideForDefaultTemplate(chartRefId)
+	if err != nil {
+		handler.Logger.Errorw("service err, GetDefaultDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, appOverride, http.StatusOK)
 }
 
 func (handler PipelineConfigRestHandlerImpl) GetCdPipelines(w http.ResponseWriter, r *http.Request) {
