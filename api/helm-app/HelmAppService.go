@@ -14,6 +14,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
 	serverDataStore "github.com/devtron-labs/devtron/pkg/server/store"
@@ -39,6 +40,7 @@ const DEFAULT_CLUSTER_ID = 1
 type HelmAppService interface {
 	ListHelmApplications(ctx context.Context, clusterIds []int, w http.ResponseWriter, token string, helmAuth func(token string, object string) bool)
 	GetApplicationDetail(ctx context.Context, app *AppIdentifier) (*AppDetail, error)
+	GetApplicationStatus(ctx context.Context, app *AppIdentifier) (string, error)
 	GetApplicationDetailWithFilter(ctx context.Context, app *AppIdentifier, resourceTreeFilter *ResourceTreeFilter) (*AppDetail, error)
 	HibernateApplication(ctx context.Context, app *AppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
 	UnHibernateApplication(ctx context.Context, app *AppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
@@ -73,6 +75,7 @@ type HelmAppServiceImpl struct {
 	pipelineRepository                   pipelineConfig.PipelineRepository
 	installedAppRepository               repository.InstalledAppRepository
 	appRepository                        app.AppRepository
+	clusterRepository                    clusterRepository.ClusterRepository
 }
 
 func NewHelmAppServiceImpl(Logger *zap.SugaredLogger,
@@ -80,7 +83,7 @@ func NewHelmAppServiceImpl(Logger *zap.SugaredLogger,
 	helmAppClient HelmAppClient,
 	pump connector.Pump, enforcerUtil rbac.EnforcerUtilHelm, serverDataStore *serverDataStore.ServerDataStore,
 	serverEnvConfig *serverEnvConfig.ServerEnvConfig, appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
-	environmentService cluster.EnvironmentService, pipelineRepository pipelineConfig.PipelineRepository, installedAppRepository repository.InstalledAppRepository, appRepository app.AppRepository) *HelmAppServiceImpl {
+	environmentService cluster.EnvironmentService, pipelineRepository pipelineConfig.PipelineRepository, installedAppRepository repository.InstalledAppRepository, appRepository app.AppRepository, clusterRepository clusterRepository.ClusterRepository) *HelmAppServiceImpl {
 	return &HelmAppServiceImpl{
 		logger:                               Logger,
 		clusterService:                       clusterService,
@@ -94,6 +97,7 @@ func NewHelmAppServiceImpl(Logger *zap.SugaredLogger,
 		pipelineRepository:                   pipelineRepository,
 		installedAppRepository:               installedAppRepository,
 		appRepository:                        appRepository,
+		clusterRepository:                    clusterRepository,
 	}
 }
 
@@ -252,6 +256,10 @@ func (impl *HelmAppServiceImpl) GetApplicationDetail(ctx context.Context, app *A
 	return impl.getApplicationDetail(ctx, app, nil)
 }
 
+func (impl *HelmAppServiceImpl) GetApplicationStatus(ctx context.Context, app *AppIdentifier) (string, error) {
+	return impl.getApplicationStatus(ctx, app)
+}
+
 func (impl *HelmAppServiceImpl) GetApplicationDetailWithFilter(ctx context.Context, app *AppIdentifier, resourceTreeFilter *ResourceTreeFilter) (*AppDetail, error) {
 	return impl.getApplicationDetail(ctx, app, resourceTreeFilter)
 }
@@ -290,6 +298,27 @@ func (impl *HelmAppServiceImpl) getApplicationDetail(ctx context.Context, app *A
 		}
 	}
 	return appdetail, err
+}
+
+func (impl *HelmAppServiceImpl) getApplicationStatus(ctx context.Context, app *AppIdentifier) (string, error) {
+	applicationStatus := ""
+	config, err := impl.GetClusterConf(app.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching cluster detail", "err", err)
+		return applicationStatus, err
+	}
+	req := &AppDetailRequest{
+		ClusterConfig: config,
+		Namespace:     app.Namespace,
+		ReleaseName:   app.ReleaseName,
+	}
+	appStatus, err := impl.helmAppClient.GetAppStatus(ctx, req)
+	if err != nil {
+		impl.logger.Errorw("error in fetching app status", "err", err)
+		return applicationStatus, err
+	}
+	applicationStatus = appStatus.ApplicationStatus
+	return applicationStatus, err
 }
 
 func (impl *HelmAppServiceImpl) GetDeploymentHistory(ctx context.Context, app *AppIdentifier) (*HelmAppDeploymentHistory, error) {
@@ -654,6 +683,18 @@ func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChart
 	}
 
 	clusterId := int(*templateChartRequest.ClusterId)
+
+	clusterDetail, _ := impl.clusterRepository.FindById(clusterId)
+
+	if len(clusterDetail.ErrorInConnecting) > 0 || clusterDetail.Active == false {
+		clusterNotFoundErr := &util.ApiError{
+			HttpStatusCode:    http.StatusInternalServerError,
+			Code:              "",
+			UserMessage:       fmt.Sprintf("Could not generate manifest output as the Kubernetes cluster %s is unreachable.", clusterDetail.ClusterName),
+			UserDetailMessage: "",
+		}
+		return nil, clusterNotFoundErr
+	}
 
 	installReleaseRequest := &InstallReleaseRequest{
 		ChartName:    appStoreAppVersion.Name,

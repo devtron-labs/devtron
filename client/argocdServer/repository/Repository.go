@@ -44,13 +44,13 @@ type ServiceClient interface {
 }
 
 type ServiceClientImpl struct {
-	logger        *zap.SugaredLogger
+	logger                  *zap.SugaredLogger
 	argoCDConnectionManager argocdServer.ArgoCDConnectionManager
 }
 
 func NewServiceClientImpl(logger *zap.SugaredLogger, argoCDConnectionManager argocdServer.ArgoCDConnectionManager) *ServiceClientImpl {
 	return &ServiceClientImpl{
-		logger:        logger,
+		logger:                  logger,
 		argoCDConnectionManager: argoCDConnectionManager,
 	}
 }
