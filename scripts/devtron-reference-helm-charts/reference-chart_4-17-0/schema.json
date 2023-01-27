@@ -263,6 +263,67 @@
           }
         }
       },
+      "ambassadorMapping": {
+        "type": "object",
+        "description": "used to create ambassador mapping resource",
+        "title": "Mapping",
+        "properties": {
+          "ambassadorId": {
+            "type": "string",
+            "description": "used to specify id for specific ambassador mappings controller",
+            "title": "Ambassador ID"
+          },
+          "cors": {
+            "type": "object",
+            "description": "used to specify cors policy to access host for this mapping",
+            "title": "CORS"
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "used to specify whether to create an ambassador mapping or not",
+            "title": "Enabled"
+          },
+          "weight": {
+            "type": "integer",
+            "description": "used to specify weight for canary ambassador mappings"
+          },
+          "hostname": {
+            "type": "string",
+            "description": "used to specify hostname for ambassador mapping",
+            "title": "Hostname"
+          },
+          "labels": {
+            "type": "object",
+            "description": "used to provide custom labels for ambassador mapping",
+            "title": "Labels"
+          },
+          "prefix": {
+            "type": "string",
+            "description": "used to specify path for ambassador mapping",
+            "title": "Prefix"
+          },
+          "retry_policy": {
+            "type": "object",
+            "description": "used to specify retry policy for ambassador mapping",
+            "title": "Retry Policy"
+          },
+          "rewrite": {
+            "type": "string",
+            "description": "used to specify whether to redirect the path of this mapping and where",
+            "title": "Rewrite"
+          },
+          "tls": {
+            "type": "object",
+            "description": "used to create or define ambassador TLSContext resource",
+            "title": "TLS Context"
+          },
+          "extraSpec": {
+            "type": "object",
+            "description": "used to provide extra spec values which not present in deployment template for ambassador resource",
+            "title": "Extra Spec"
+          }
+        }
+      },
       "args": {
         "type": "object",
         "description": " used to give arguments to command",
