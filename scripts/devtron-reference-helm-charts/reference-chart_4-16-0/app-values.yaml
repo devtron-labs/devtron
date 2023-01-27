@@ -209,6 +209,21 @@ Spec:
     #  Key: kops.k8s.io/instancegroup
     Values:
 
+ambassadorMapping:
+  enabled: false
+  labels: {}
+  prefix: /
+  ambassadorId: ""
+  hostname: devtron.example.com
+  rewrite: ""
+  retryPolicy: {}
+  cors: {}
+  tls:
+    context: ""
+    create: false
+    secretName: ""
+    hosts: []
+
 autoscaling:
   enabled: false
   MinReplicas: 1
@@ -280,6 +295,54 @@ envoyproxy:
     requests:
       cpu: 50m
       memory: 50Mi
+
+istio:
+  enable: false
+  gateway:
+    enabled: false
+    labels: {}
+    annotations: {}
+    host: example.com
+    tls:
+      enabled: false
+      secretName: example-tls-secret
+  virtualService:
+    enabled: false
+    labels: {}
+    annotations: {}
+    gateways: []
+    hosts: []
+    http: 
+      - match:
+        - uri:
+            prefix: /v1
+        - uri:
+            prefix: /v2
+        rewriteUri: /
+        timeout: 12s
+        headers:
+          request:
+            add:
+              x-some-header: "value"
+        corsPolicy:
+          allowOrigin:
+            - example.com
+          allowMethods:
+            - GET
+          allowCredentials: false
+          allowHeaders:
+            - x-some-header
+          maxAge: 24h
+        retries:
+          attempts: 2 
+          perTryTimeout: 3s 
+        route:
+        - destination:
+            host: service1
+            port: 80
+      - route:
+        - destination:
+            host: service2
 
 ## Pods Service Account
 ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/

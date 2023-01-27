@@ -119,6 +119,133 @@ ingress:
   #    hosts:
   #      - chart-example.local
 
+istio:
+  enable: false
+  gateway:
+    enabled: false
+    labels: {}
+    annotations: {}
+    host: example.com
+    tls:
+      enabled: false
+      secretName: example-tls-secret
+  virtualService:
+    enabled: false
+    labels: {}
+    annotations: {}
+    gateways: []
+    hosts: []
+    http: 
+      - match:
+        - uri:
+            prefix: /v1
+        - uri:
+            prefix: /v2
+        rewriteUri: /
+        timeout: 12s
+        headers:
+          request:
+            add:
+              x-some-header: "value"
+        corsPolicy:
+          allowOrigin:
+            - example.com
+          allowMethods:
+            - GET
+          allowCredentials: false
+          allowHeaders:
+            - x-some-header
+          maxAge: 24h
+        retries:
+          attempts: 2 
+          perTryTimeout: 3s 
+        route:
+        - destination:
+            host: service1
+            port: 80
+      - route:
+        - destination:
+            host: service2
+
+flaggerCanary:
+  enabled: false
+  labels: {}
+  annotations: {}
+  createIstioGateway:
+    enabled: false
+    labels: {}
+    annotations: {}
+    host: example.com
+    tls:
+      enabled: false
+      secretName: example-tls-secret
+  # Istio gateways (optional)
+  addOtherGateways: []
+  # Istio virtual service host names (optional)
+  addOtherHosts: []
+  # Istio gateway refs (optional)
+  gatewayRefs: 
+    # - name: istio-gateway
+    #   namespace: istio-system
+  #service port
+  port: 8080
+  #containerPort
+  targetPort: 8080
+  # discover all port open in container
+  portDiscovery: true
+  # application protocol (optional)
+  appProtocol: http
+  # Istio retry policy (optional)
+  retries: 
+    # attempts: 3
+    # perTryTimeout: 1s
+    # retryOn: "gateway-error,connect-failure,refused-stream"
+  # HTTP match conditions (optional)
+  match:
+    - uri:
+        prefix: /
+  # HTTP rewrite (optional)
+  rewriteUri: /
+  # timeout (optional)
+  timeout:
+  # Add headers (optional)
+  headers:
+    request:
+      add:
+        x-some-header: "value"
+  # cross-origin resource sharing policy (optional)
+  corsPolicy:
+    allowOrigin:
+      - example.com
+    allowMethods:
+      - GET
+    allowCredentials: false
+    allowHeaders:
+      - x-some-header
+    maxAge: 24h
+  analysis:
+    # schedule interval (default 60s)
+    interval: 15s
+    # max number of failed metric checks before rollback
+    threshold: 5
+    # max traffic percentage routed to canary
+    # percentage (0-100)
+    maxWeight: 50
+    # canary increment step
+    # percentage (0-100)
+    stepWeight: 5
+  thresholds:
+    # minimum req success rate (non 5xx responses)
+    # percentage (0-100)
+    successRate: 90
+    # maximum req duration P99
+    # milliseconds
+    latency: 500
+  loadtest:
+    enabled: true
+    # load tester address 
+    url: http://flagger-loadtester.istio-system/
+
 ingressInternal:
   enabled: false
   className: ""
@@ -208,6 +335,21 @@ Spec:
     Key:
     #  Key: kops.k8s.io/instancegroup
     Values:
+
+ambassadorMapping:
+  enabled: false
+  labels: {}
+  prefix: /
+  ambassadorId: ""
+  hostname: devtron.example.com
+  rewrite: ""
+  retryPolicy: {}
+  cors: {}
+  tls:
+    context: ""
+    create: false
+    secretName: ""
+    hosts: []
 
 autoscaling:
   enabled: false

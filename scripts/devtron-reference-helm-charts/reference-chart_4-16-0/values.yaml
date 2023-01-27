@@ -51,8 +51,8 @@ autoscaling:
   enabled: false
   MinReplicas: 1
   MaxReplicas: 2
-  TargetCPUUtilizationPercentage: 90
-  TargetMemoryUtilizationPercentage: 80
+  # TargetCPUUtilizationPercentage: 90
+  # TargetMemoryUtilizationPercentage: 80
   annotations: {}
   labels: {}
   behavior: {}
@@ -239,6 +239,45 @@ ingressInternal:
  #    hosts:
  #      - chart-example.local
 
+istio:
+  enable: false
+  gateway:
+    enabled: false
+    labels: {}
+    annotations: {}
+    host: 
+    tls:
+      enabled: false
+      secretName: example-tls-secret
+  virtualService:
+    enabled: false
+    labels: {}
+    annotations: {}
+    gateways: []
+    hosts: []
+    http:
+      # - match:
+      #   - uri:
+      #       prefix: /v1
+      #   - uri:
+      #       prefix: /v2
+      #   rewriteUri: /
+      #   timeout: 12
+      #   headers:
+      #     request:
+      #       add:
+      #         x-some-header: "value"
+      #   retries:
+      #     attempts: 2 
+      #     perTryTimeout: 3s 
+      #   route:
+      #   - destination:
+      #       host: service1
+      #       port: 80
+      # - route:
+      #   - destination:
+      #       host: service2
+
 dbMigrationConfig:
   enabled: false
 
@@ -411,6 +450,42 @@ envoyproxy:
    requests:
      cpu: 50m
      memory: 50Mi
+
+ambassadorMapping:
+  enabled: false
+  # labels:
+  #   key1: value1
+  # prefix: /
+  # service: httpd-devtron-demo:80
+  # ambassadorId: 1234
+  # hostname: devtron.example.com
+  # rewrite: /foo/
+  # retryPolicy:
+  #   retry_on: "5xx"
+  #   num_retries: 10
+  # cors:
+  #   origins: http://foo.example,http://bar.example
+  #   methods: POST, GET, OPTIONS
+  #   headers: Content-Type
+  #   credentials: true
+  #   exposed_headers: X-Custom-Header
+  #   max_age: "86400"
+  # weight: 10
+  # method: GET
+  # extraSpec:
+  #   method_regex: true
+  #   headers:
+  #     x-quote-mode: backend
+  #     x-random-header: devtron
+  # tls:
+  #   context: httpd-context
+  #   create: true
+  #   secretName: httpd-secret
+  #   hosts:
+  #     - anything.example.info
+  #     - devtron.example.com
+  #   extraSpec:
+  #     min_tls_version: v1.2
     
 containerSpec:
   lifecycle: 

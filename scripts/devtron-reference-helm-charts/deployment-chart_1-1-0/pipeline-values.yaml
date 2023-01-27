@@ -1,5 +1,0 @@
-deployment:
-  strategy:
-    rolling:
-      maxSurge: "25%"
-      maxUnavailable: 1
