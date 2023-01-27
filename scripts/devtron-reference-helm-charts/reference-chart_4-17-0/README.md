@@ -1,5 +1,5 @@
 
-# Rollout Deployment Chart - v4.16
+# Rollout Deployment Chart - v4.17
 
 ## 1. Yaml File -
 
@@ -14,6 +14,7 @@ ContainerPort:
     name: app
     port: 8080
     servicePort: 80
+    nodePort: 32056
     supportStreaming: true
     useHTTP2: true
 ```
@@ -25,6 +26,7 @@ ContainerPort:
 | `name` | name of the port. |
 | `port` | port for the container. |
 | `servicePort` | port of the corresponding kubernetes service. |
+| `nodePort` | nodeport of the corresponding kubernetes service. |
 | `supportStreaming` | Used for high performance protocols like grpc where timeout needs to be disabled. |
 | `useHTTP2` | Envoy container can accept HTTP2 requests. |
 
@@ -120,6 +122,42 @@ ReadinessProbe:
 | `httpHeaders` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
 | `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
 | `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
+
+### Ambassador Mappings
+
+You can create ambassador mappings to access your applications from outside the cluster. At its core a Mapping resource maps a resource to a service.
+
+```yaml
+ambassadorMapping:
+  ambassadorId: "prod-emissary"
+  cors: {}
+  enabled: true
+  hostname: devtron.example.com
+  labels: {}
+  prefix: /
+  retryPolicy: {}
+  rewrite: ""
+  tls:
+    context: "devtron-tls-context"
+    create: false
+    hosts: []
+    secretName: ""
+```
+
+| Key | Description |
+| :--- | :--- |
+| `enabled` | Set true to enable ambassador mapping else set false.|
+| `ambassadorId` | used to specify id for specific ambassador mappings controller. |
+| `cors` | used to specify cors policy to access host for this mapping. |
+| `weight` | used to specify weight for canary ambassador mappings. |
+| `hostname` | used to specify hostname for ambassador mapping. |
+| `prefix` | used to specify path for ambassador mapping. |
+| `labels` | used to provide custom labels for ambassador mapping. |
+| `retryPolicy` | used to specify retry policy for ambassador mapping. |
+| `corsPolicy` | Provide cors headers on flagger resource. |
+| `rewrite` | used to specify whether to redirect the path of this mapping and where. |
+| `tls` | used to create or define ambassador TLSContext resource. |
+| `extraSpec` | used to provide extra spec values which not present in deployment template for ambassador resource. |
 
 ### Autoscaling
 
@@ -266,6 +304,60 @@ initContainers:
     args: ["-g", "daemon off;"]
 ```
 Specialized containers that run before app containers in a Pod. Init containers can contain utilities or setup scripts not present in an app image. One can use base image inside initContainer by setting the reuseContainerImage flag to `true`.
+
+### Istio
+
+Istio is a service mesh which simplifies observability, traffic management, security and much more with it's virtual services and gateways.
+
+```yaml
+istio:
+  enable: true
+  gateway:
+    annotations: {}
+    enabled: false
+    host: example.com
+    labels: {}
+    tls:
+      enabled: false
+      secretName: example-tls-secret
+  virtualService:
+    annotations: {}
+    enabled: false
+    gateways: []
+    hosts: []
+    http:
+      - corsPolicy:
+          allowCredentials: false
+          allowHeaders:
+            - x-some-header
+          allowMethods:
+            - GET
+          allowOrigin:
+            - example.com
+          maxAge: 24h
+        headers:
+          request:
+            add:
+              x-some-header: value
+        match:
+          - uri:
+              prefix: /v1
+          - uri:
+              prefix: /v2
+        retries:
+          attempts: 2
+          perTryTimeout: 3s
+        rewriteUri: /
+        route:
+          - destination:
+              host: service1
+              port: 80
+        timeout: 12s
+      - route:
+          - destination:
+              host: service2
+    labels: {}
+```
 
 ### Pause For Seconds Before Switch Active
 ```yaml

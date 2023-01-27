@@ -51,8 +51,8 @@ autoscaling:
   enabled: false
   MinReplicas: 1
   MaxReplicas: 2
-  TargetCPUUtilizationPercentage: 90
-  TargetMemoryUtilizationPercentage: 80
+  # TargetCPUUtilizationPercentage: 90
+  # TargetMemoryUtilizationPercentage: 80
   annotations: {}
   labels: {}
   behavior: {}
@@ -460,7 +460,7 @@ ambassadorMapping:
   # ambassadorId: 1234
   # hostname: devtron.example.com
   # rewrite: /foo/
-  # retry_policy:
+  # retryPolicy:
   #   retry_on: "5xx"
   #   num_retries: 10
   # cors:
