@@ -1,37 +1,19 @@
-## v0.6.10-rc.1
+## v0.6.11-rc.0
 
 ## Bugs
-- fix: cluster name passed in node metadata list (#2804)
-- fix: Chart with nested directory  (#2797)
+- fix: bitbucket gitops config fixes (#2768)
+- fix: updated sonarqube plugin script (#2855)
+- fix: updated the description in sonarqube migration (#2853)
+- fix: External Ci Trigger - Won't show images for manual Cd pipelines (#2802)
+- fix: app create api bug fix if chart ref is different (#2851)
+- fix: Dockerfile git repo delete tooltip view to build config (#2792)
 ## Enhancements
-- feat: added support for node-[delete, cordon, drain, taint edit] (#2805)
-- feat: Cluster terminal multiple image support (#2815)
+- feat: Option for changing project in Helm apps and project assignment to CLI helm apps. (#2780)
+- feat: Audit logs for resource deletion from devtron UI  (#2791)
+- feat: verify token function scope made public (#2856)
+- feat: Sonarqube polling script update (#2846)
+- feat: deployment status restructuring (#2825)
 ## Documentation
-- docs: minor correction in ingress yaml (#2819)
-- docs: updated cluster server url (#2816)
-- docs: minor updates (#2800)
-- docs: updated-global-configs (#2712)
-- docs: added deployment status shows failed or degraded in troubleshooting section (#2795)
-- docs: uninstall minor updates (#2788)
-- docs: Updated devtron admin password reset doc (#2785)
-
-
-## v0.6.10-rc.0
-
-## Bugs
-- fix: Authenticator updated - handling api token (#2745)
-- fix: Ci workflow status update when workflow stuck. (#2726)
-- fix: Update Chart.yaml for security integration chart fix (#2771)
-- fix: Helm app proxy chart auto fix (#2754)
-- fix: No need to bounce orchestrator if SSO config are added/updated (#2753)
-- fix: ArgoCD Connection Manager connection handling (#2702)
-## Enhancements
-- feat: added new chart for job and cronjob with keda scaledjob support (#2749)
-## Documentation
-- docs: deployment updates (#2769)
-- docs: deployment template doc (#2770)
-- docs: install command corrected (#2775)
-- docs: broken links fixed in doc v0.6 (#2776)
-
-
-
+- docs: updated aws external secret doc (#2781)
+- docs: updated broken links and minor updates (resource browser) (#2844)
+- docs: added cluster, k8s resource browser, k8s resource permission (#2787)
