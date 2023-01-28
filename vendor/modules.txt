@@ -331,9 +331,10 @@ github.com/devtron-labs/authenticator/jwt
 github.com/devtron-labs/authenticator/middleware
 github.com/devtron-labs/authenticator/oidc
 github.com/devtron-labs/authenticator/password
-# github.com/devtron-labs/common-lib v0.0.0-20220923064712-362252bd41d9
+# github.com/devtron-labs/common-lib v0.0.0-20230109070754-ff4dca200a2c
 ## explicit; go 1.18
 github.com/devtron-labs/common-lib/blob-storage
+github.com/devtron-labs/common-lib/pubsub-lib
 github.com/devtron-labs/common-lib/utils
 # github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f
 ## explicit
@@ -753,7 +754,7 @@ github.com/modern-go/reflect2
 github.com/monochromegane/go-gitignore
 # github.com/nats-io/jwt/v2 v2.2.1-0.20220330180145-442af02fd36a
 ## explicit; go 1.16
-# github.com/nats-io/nats.go v1.15.0
+# github.com/nats-io/nats.go v1.19.0
 ## explicit; go 1.16
 github.com/nats-io/nats.go
 github.com/nats-io/nats.go/encoders/builtin
