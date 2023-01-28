@@ -57,7 +57,7 @@ type CdHandler interface {
 	FetchCdPrePostStageStatus(pipelineId int) ([]pipelineConfig.CdWorkflowWithArtifact, error)
 	CancelStage(workflowRunnerId int, userId int32) (int, error)
 	FetchAppWorkflowStatusForTriggerView(pipelineId int) ([]*pipelineConfig.CdWorkflowStatus, error)
-	CheckHelmAppStatusPeriodicallyAndUpdateInDb(timeForDegradation int) error
+	CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipelineStatusCheckEligibleTime int) error
 	CheckArgoAppStatusPeriodicallyAndUpdateInDb(timeForDegradation int) error
 	CheckArgoPipelineTimelineStatusPeriodicallyAndUpdateInDb(pendingSinceSeconds int, timeForDegradation int) error
 	UpdatePipelineTimelineAndStatusByLiveApplicationFetch(pipeline *pipelineConfig.Pipeline, userId int32) (err error, isTimelineUpdated bool)
@@ -275,20 +275,24 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch
 	return nil, isTimelineUpdated
 }
 
-func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(timeForDegradation int) error {
-	pipelineOverrides, err := impl.pipelineOverrideRepository.FetchHelmTypePipelineOverridesForStatusUpdate()
+func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipelineStatusCheckEligibleTime int) error {
+	wfrList, err := impl.cdWorkflowRepository.GetLatestTriggersOfHelmPipelinesStuckInNonTerminalStatuses()
 	if err != nil {
-		impl.Logger.Errorw("error on fetching all the recent deployment trigger for helm app type", "err", err)
-		return nil
+		impl.Logger.Errorw("error in getting latest triggers of helm pipelines which are stuck in non terminal statuses", "err", err)
+		return err
 	}
-	impl.Logger.Infow("checking helm app status for deployment triggers", "pipelineOverrides", pipelineOverrides)
-	for _, pipelineOverride := range pipelineOverrides {
-		appIdentifier := &client.AppIdentifier{
-			ClusterId:   pipelineOverride.Pipeline.Environment.ClusterId,
-			Namespace:   pipelineOverride.Pipeline.Environment.Namespace,
-			ReleaseName: fmt.Sprintf("%s-%s", pipelineOverride.Pipeline.App.AppName, pipelineOverride.Pipeline.Environment.Name),
+	impl.Logger.Infow("checking helm app status for non terminal deployment triggers", "wfrList", wfrList)
+	for _, wfr := range wfrList {
+		if time.Now().Sub(wfr.UpdatedOn) <= time.Duration(helmPipelineStatusCheckEligibleTime)*time.Second {
+			//if wfr is updated within configured time then do not include for this cron cycle
+			continue
 		}
-		helmApp, err := impl.helmAppService.GetApplicationDetail(context.Background(), appIdentifier)
+		appIdentifier := &client.AppIdentifier{
+			ClusterId:   wfr.CdWorkflow.Pipeline.Environment.ClusterId,
+			Namespace:   wfr.CdWorkflow.Pipeline.Environment.Namespace,
+			ReleaseName: wfr.CdWorkflow.Pipeline.DeploymentAppName,
+		}
+		helmAppStatus, err := impl.helmAppService.GetApplicationStatus(context.Background(), appIdentifier)
 		if err != nil {
 			impl.Logger.Errorw("error in getting helm app release status ", "appIdentifier", appIdentifier, "err", err)
 			//return err
@@ -296,31 +300,28 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(timeForDe
 			impl.Logger.Warnw("found error, skipping helm apps status update for this trigger", "appIdentifier", appIdentifier, "err", err)
 			continue
 		}
-		cdWf, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(context.Background(), pipelineOverride.CdWorkflowId, bean.CD_WORKFLOW_TYPE_DEPLOY)
-		if err != nil && err != pg.ErrNoRows {
-			impl.Logger.Errorw("err on fetching cd workflow", "CdWorkflowId", pipelineOverride.CdWorkflowId, "err", err)
-			//skip this error and continue for next workflow status
-			impl.Logger.Warnw("found error, skipping helm apps status update for this trigger", "CdWorkflowId", pipelineOverride.CdWorkflowId, "err", err)
-			continue
-		}
-		if pipelineOverride.CreatedOn.Before(time.Now().Add(-time.Minute * time.Duration(timeForDegradation))) {
-			// apps which are still not healthy after DegradeTime, make them "Degraded"
-			cdWf.Status = application.Degraded
+		if helmAppStatus == application.Healthy {
+			wfr.Status = pipelineConfig.WorkflowSucceeded
 		} else {
-			cdWf.Status = helmApp.ApplicationStatus
+			wfr.Status = pipelineConfig.WorkflowInProgress
 		}
-		cdWf.UpdatedBy = 1
-		cdWf.UpdatedOn = time.Now()
-		err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(&cdWf)
+		wfr.UpdatedBy = 1
+		wfr.UpdatedOn = time.Now()
+		err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(wfr)
 		if err != nil {
-			impl.Logger.Errorw("error on update cd workflow runner", "cdWf", cdWf, "err", err)
+			impl.Logger.Errorw("error on update cd workflow runner", "wfr", wfr, "err", err)
 			return err
 		}
-		impl.Logger.Infow("updating workflow runner status for helm app", "cdWf", cdWf)
-		if cdWf.Status == application.Healthy {
+		impl.Logger.Infow("updated workflow runner status for helm app", "wfr", wfr)
+		if helmAppStatus == application.Healthy {
+			pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByCdWorkflowId(wfr.CdWorkflowId)
+			if err != nil {
+				impl.Logger.Errorw("error in getting latest pipeline override by cdWorkflowId", "err", err, "cdWorkflowId", wfr.CdWorkflowId)
+				return err
+			}
 			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent("", pipelineOverride.Id)
 			if err != nil {
-				impl.Logger.Errorw("error on handling deployment success event", "cdWf", cdWf, "err", err)
+				impl.Logger.Errorw("error on handling deployment success event", "wfr", wfr, "err", err)
 				return err
 			}
 		}
