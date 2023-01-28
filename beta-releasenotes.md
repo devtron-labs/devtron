@@ -1,4 +1,5 @@
 ## Bugs
+- fix: Nats server version upgrade (#2837)
 - fix: K8s side resources error handled some unable to fetch some kinds in cluster (#2896)
 - fix: helm and gitOps pipeline feature gap changes (#2891)
 - fix: Adding /Deleting git material reflection in workflow editor and build & deploy (#2744)
