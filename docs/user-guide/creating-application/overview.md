@@ -43,7 +43,7 @@ Click **Save**. The application will be moved to the selected project.
 * Click `Edit tags`.
 * On the `Manage tags` page, click `+ Add tag` to a new tag.
 * Click the cross-sign to delete a tag.
-* Click the symbol on the left side of your tag to propagate a tag.<br>`Note`: Dark grey colour in symbol specifies that the tags are propagated.</br>
+* Click the symbol on the left side of your tag to propagate a tag.<br>`Note`: Dark grey colour in symbol specifies that the tags are propagated.
 * To remove the tags from propagation, click the symbol again.
 * Click `Save`.
 
