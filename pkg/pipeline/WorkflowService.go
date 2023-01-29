@@ -116,6 +116,7 @@ type WorkflowRequest struct {
 	IgnoreDockerCachePull      bool                              `json:"ignoreDockerCachePull"`
 	CacheInvalidate            bool                              `json:"cacheInvalidate"`
 	IsPvcMounted               bool                              `json:"IsPvcMounted"`
+	PvcCachePath               string                            `json:"pvcCachePath"`
 }
 
 const (
@@ -558,6 +559,8 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		pvc = appLabels[CI_NODE_PVC_ALL_ENV]
 	}
 	if len(pvc) != 0 {
+		pvcCachePath := impl.ciConfig.PvcCachePath
+		workflowRequest.PvcCachePath = pvcCachePath
 		ciTemplate.Volumes = append(ciTemplate.Volumes, v12.Volume{
 			Name: "root-vol",
 			VolumeSource: v12.VolumeSource{
@@ -569,7 +572,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		})
 		ciTemplate.Container.VolumeMounts = append(ciTemplate.Container.VolumeMounts, v12.VolumeMount{
 			Name:      "root-vol",
-			MountPath: "/devtroncd-cache",
+			MountPath: pvcCachePath,
 		})
 	}
 
