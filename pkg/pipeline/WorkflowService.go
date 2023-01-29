@@ -203,7 +203,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	}
 	pvc := appLabels[strings.ToLower(fmt.Sprintf("%s-%s", CI_NODE_PVC_PIPELINE_PREFIX, workflowRequest.PipelineName))]
 	if len(pvc) != 0 {
-		workflowRequest.IsPvcMounted = true
+		workflowRequest.IsPvcMounted = false
 	}
 	ciCdTriggerEvent := CiCdTriggerEvent{
 		Type:      ciEvent,
