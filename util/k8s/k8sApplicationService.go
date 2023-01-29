@@ -397,10 +397,11 @@ func (impl *K8sApplicationServiceImpl) DeleteResource(ctx context.Context, token
 		impl.logger.Errorw("error in deleting resource", "err", err, "request", request)
 		return nil, err
 	}
-	saveAuditLogsErr := impl.K8sResourceHistoryService.SaveHelmAppsResourceHistory(request.AppIdentifier, k8sRequest, userId, "delete")
-
-	if saveAuditLogsErr != nil {
-		impl.logger.Errorw("error in saving audit logs for delete resource request", "err", err)
+	if request.AppIdentifier != nil {
+		saveAuditLogsErr := impl.K8sResourceHistoryService.SaveHelmAppsResourceHistory(request.AppIdentifier, k8sRequest, userId, "delete")
+		if saveAuditLogsErr != nil {
+			impl.logger.Errorw("error in saving audit logs for delete resource request", "err", err)
+		}
 	}
 	return resp, nil
 }
