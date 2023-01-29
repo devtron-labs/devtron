@@ -2,7 +2,7 @@
 
 * On the Devtron dashboard, select **Applications**.
 * On the upper-right corner of the screen, click **Create**.
-* Select **Custom ap** from the drop-down list.
+* Select **Custom app** from the drop-down list.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/create-app-1.jpg)
 
@@ -20,7 +20,7 @@ To create a new application from the custom app, select **Custom app**.
 
 * In the **Create application** window, enter an **App Name** and select a **Project**.
 * Select either:<ul><li>**Create from scratch** to create an application from scratch, or<li>**Clone existing application** to clone an existing application.</ul></li>
-* If you select **Create from scratch**, select the project from the drop-down list.<br>`Note`: You have to add [project under Global Configurations](https://docs.devtron.ai/global-configurations/projects). Only then, it will appear in the drop-down list here.</br>
+* If you select **Create from scratch**, select the project from the drop-down list.<br>`Note`: You have to add [project under Global Configurations](https://docs.devtron.ai/global-configurations/projects). Only then, it will appear in the drop-down list here.
 * If you select **Clone existing application**, select an app you want to clone from and the project from the drop-down list.<br>`Note`: You have to add [project under Global Configurations](https://docs.devtron.ai/global-configurations/projects). Only then, it will appear in the drop-down list here.</br>
 
 
