@@ -638,7 +638,7 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 				}
 			}
 			if resourceName != "" {
-				allowed = impl.validateResourceWithRbac(namespace, resourceName, ownerReferences, validateResourceAccess)
+				allowed = impl.ValidateResourceWithRbac(namespace, resourceName, ownerReferences, validateResourceAccess)
 			}
 			if allowed {
 				rowsMapping = append(rowsMapping, rowIndex)
@@ -652,7 +652,7 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 	return clusterResourceListMap, nil
 }
 
-func (impl K8sUtil) validateResourceWithRbac(namespace, resourceName string, ownerReferences []interface{}, validateCallback func(namespace, group, kind, resourceName string) bool) bool {
+func (impl K8sUtil) ValidateResourceWithRbac(namespace, resourceName string, ownerReferences []interface{}, validateCallback func(namespace, group, kind, resourceName string) bool) bool {
 	if len(ownerReferences) > 0 {
 		for _, ownerRef := range ownerReferences {
 			ownerReference := ownerRef.(map[string]interface{})

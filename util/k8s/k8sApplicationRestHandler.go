@@ -121,7 +121,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 		return
 	}
 
-	resource, err := handler.k8sApplicationService.GetResource(r.Context(), &request)
+	resource, err := handler.k8sApplicationService.GetResource(r.Context(), "", &request, handler.verifyRbacForCluster)
 	if err != nil {
 		handler.logger.Errorw("error in getting resource", "err", err)
 		common.WriteJsonResp(w, err, resource, http.StatusInternalServerError)
@@ -250,7 +250,7 @@ func (handler *K8sApplicationRestHandlerImpl) CreateResource(w http.ResponseWrit
 		return
 	}
 	//RBAC enforcer Ends
-	resource, err := handler.k8sApplicationService.CreateResource(r.Context(), &request)
+	resource, err := handler.k8sApplicationService.CreateResource(r.Context(), "", &request, handler.verifyRbacForCluster)
 	if err != nil {
 		handler.logger.Errorw("error in creating resource", "err", err)
 		common.WriteJsonResp(w, err, resource, http.StatusInternalServerError)
@@ -306,7 +306,7 @@ func (handler *K8sApplicationRestHandlerImpl) UpdateResource(w http.ResponseWrit
 		return
 	}
 
-	resource, err := handler.k8sApplicationService.UpdateResource(r.Context(), &request)
+	resource, err := handler.k8sApplicationService.UpdateResource(r.Context(), "", &request, handler.verifyRbacForCluster)
 	if err != nil {
 		handler.logger.Errorw("error in updating resource", "err", err)
 		common.WriteJsonResp(w, err, resource, http.StatusInternalServerError)
@@ -371,7 +371,7 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 		return
 	}
 
-	resource, err := handler.k8sApplicationService.DeleteResource(r.Context(), &request, userId)
+	resource, err := handler.k8sApplicationService.DeleteResource(r.Context(), "", &request, userId, handler.verifyRbacForCluster)
 	if err != nil {
 		handler.logger.Errorw("error in deleting resource", "err", err)
 		common.WriteJsonResp(w, err, resource, http.StatusInternalServerError)
@@ -426,7 +426,7 @@ func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, 
 		common.WriteJsonResp(w, errors.New("can not get resource as target cluster is not provided"), nil, http.StatusBadRequest)
 		return
 	}
-	events, err := handler.k8sApplicationService.ListEvents(r.Context(), &request)
+	events, err := handler.k8sApplicationService.ListEvents(r.Context(), "", &request, handler.verifyRbacForCluster)
 	if err != nil {
 		handler.logger.Errorw("error in getting events list", "err", err)
 		common.WriteJsonResp(w, err, events, http.StatusInternalServerError)
@@ -547,7 +547,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 		request.K8sRequest.PodLogsRequest.SinceTime = &t
 		isReconnect = true
 	}
-	stream, err := handler.k8sApplicationService.GetPodLogs(r.Context(), request)
+	stream, err := handler.k8sApplicationService.GetPodLogs(r.Context(), "", request, handler.verifyRbacForCluster)
 	defer util.Close(stream, handler.logger)
 	handler.pump.StartK8sStreamWithHeartBeat(w, isReconnect, stream, err)
 }

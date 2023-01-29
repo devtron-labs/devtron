@@ -634,11 +634,15 @@ func (impl *UserTerminalAccessServiceImpl) getPodStatus(ctx context.Context, clu
 }
 
 func (impl *UserTerminalAccessServiceImpl) getPodManifest(ctx context.Context, clusterId int, podName string, namespace string) (*application.ManifestResponse, error) {
+	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(ctx, clusterId)
+	if err != nil {
+		return nil, err
+	}
 	request, err := impl.getPodRequestBean(clusterId, podName, namespace)
 	if err != nil {
 		return nil, err
 	}
-	response, err := impl.k8sApplicationService.GetResource(ctx, request)
+	response, err := impl.k8sClientService.GetResource(ctx, restConfig, request.K8sRequest)
 	if err != nil {
 		if isResourceNotFoundErr(err) {
 			return nil, errors.New(string(models.TerminalPodTerminated))
@@ -752,7 +756,11 @@ func (impl *UserTerminalAccessServiceImpl) FetchPodEvents(ctx context.Context, u
 	}
 	namespace := metadataMap["Namespace"]
 	podRequestBean, err := impl.getPodRequestBean(terminalAccessData.ClusterId, terminalAccessData.PodName, namespace)
-	return impl.k8sApplicationService.ListEvents(ctx, podRequestBean)
+	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(ctx, terminalAccessData.ClusterId)
+	if err != nil {
+		return nil, err
+	}
+	return impl.k8sClientService.ListEvents(ctx, restConfig, podRequestBean.K8sRequest)
 }
 
 func (impl *UserTerminalAccessServiceImpl) getTerminalAccessDataForId(userTerminalAccessId int) (*models.UserTerminalAccessData, error) {
