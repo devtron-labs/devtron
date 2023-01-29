@@ -18,7 +18,7 @@ You can create a task either by selecting one of the available preset plugins or
 
 | Stage | Task |
 | :--- | :--- |
-| Pre-Build/Post-Build | <ol><li>Create a task using one of the [Preset Plugins](#preset-plugins):<ul><li>K6 Load testing</li><li>Sonarqube</li><li>Dependency track for Python</li><li>Dependency track for Nodejs</li><li>Dpendency track for Marven and Gradle</li><li>Semgrep</li><li>Codacy</li></ul></li><li>Create a task from [Execute Custom script](#execute-custom-script) which you can customize your script with:<ul><li>[Custom script - Shell](#custom-script-shell)</li><li>Or, [Custom script - Container image](#custom-script-container-image)</li></ul></li></ol> | 
+| Pre-Build/Post-Build | <ol><li>Create a task using one of the [Preset Plugins](#preset-plugins):<ul><li>[K6 Load testing](#k6-load-testing)</li><li>[Sonarqube](#sonarqube)</li><li>[Dependency track for Python](#dependency-track-for-python)</li><li>[Dependency track for NodeJs](#dependency-track-for-nodejs)</li><li>[Dependency track for Marven and Gradle](#dependency-track-for-maven--gradle)</li><li>[Semgrep](#semgrep)</li><li>[Codacy](#codacy)</li></ul></li><li>Create a task from [Execute Custom script](#execute-custom-script) which you can customize your script with:<ul><li>[Custom script - Shell](#custom-script-shell)</li><li>Or, [Custom script - Container image](#custom-script-container-image)</li></ul></li></ol> | 
 
 
 ## Creating Pre/Post-build Tasks
@@ -47,7 +47,6 @@ K6 is an open-source tool and cloud service that makes load testing easy for dev
 2. Click **+ Add task**.
 3. Select **K6 Load Testing** from **PRESET PLUGINS**.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/plugins/preset-plugin-sonarqube-2.png)
 
 * Enter a relevant name in the `Task name` field. It is a mandatory field.
 * Enter a descriptive message for the task in the `Description` field. It is an optional field.
@@ -59,15 +58,15 @@ K6 is an open-source tool and cloud service that makes load testing easy for dev
 | PrometheusUsername | String | Username of Prometheus account. |
 | PrometheusApiKey | String | API key of Prometheus account. |
 | PrometheusRemoteWriteEndpoint | String | Remote write endpoint of Prometheus account. |
-| OutputType | String | `LOG` or `PROMETHEUS` |
+| OutputType | String | `Log` or `Prometheus` |
 
-* `Trigger/Skip Condition` refers to a conditional statement to execute or skip the task. You can select either:<ul><li>`Set trigger conditions`</li><li> Or, `Set skip conditions`</li></ul> 
+* `Trigger/Skip Condition` refers to a conditional statement to execute or skip the task. You can select either:<ul><li>`Set trigger conditions` or</li><li>`Set skip conditions`</li></ul> 
 
 * Click **Update Pipeline**.
 
 #### Sonarqube
 
-Configuring `Sonarqube` in pre-build/post build task enhance your workflow with Continuous Code Quality & Code Security.
+Configuring `Sonarqube` in pre-build or post build task enhances your workflow with Continuous Code Quality & Code Security.
 
 **Prerequisite**: Make sure you have set up an account in `Sonarqube` or get the API keys from an admin.
 
@@ -91,7 +90,160 @@ Configuring `Sonarqube` in pre-build/post build task enhance your workflow with 
 | CheckForSonarAnalysisReport | Boolean | Enter either `true` or `false` accordingly whether you want the poll to generate report or not. |
 | AbortPipelineOnPolicyCheckFailed | Boolean | Enter either `true` or `false` accordingly whether you want to check if the policy fails or not. |
 
-* `Trigger/Skip Condition` refers to a conditional statement to execute or skip the task. You can select either:<ul><li>`Set trigger conditions`</li><li> Or, `Set skip conditions`</li></ul> 
+* `Trigger/Skip Condition` refers to a conditional statement to execute or skip the task. You can select either:<ul><li>`Set trigger conditions` or</li><li>`Set skip conditions`</li></ul> 
+
+* Click **Update Pipeline**.
+
+
+#### Dependency Track for Python
+
+Configuring `Dependency Track for Python` in pre-build or post build task creates a bill of materials from Python projects and environments and uploads it to D-track for [Component Analysis](https://owasp.org/www-community/Component_Analysis) to identify and reduce risk in the software supply chain.
+
+**Prerequisite**: Make sure you have set up an account in `dependency track` or get the API keys from an admin.
+
+1. On the **Edit build pipeline** page, select the **Pre-Build Stage** (or Post-Build Stage).
+2. Click **+ Add task**.
+3. Select **Dependency track for Python** from **PRESET PLUGINS**.
+
+
+
+* Enter a relevant name in the `Task name` field. It is a mandatory field.
+* Enter a descriptive message for the task in the `Description` field. It is an optional field.
+* Provide a value for the input variable.<br> Note: The value may be any of the values from the previous build stages, a global variable, or a custom value.</br>
+
+ | Variable | Format | Description |
+| ---- | ---- | ---- |
+| ProjectManifestType | String | Type of your Python project manifest which is used to build cycloneDx [Software Bill of Materials (SBOM)](https://owasp.org/www-community/Component_Analysis#software-bill-of-materials-sbom). E.g., PIP, Poetry etc. |
+| RelativePathToPoetryLock | String | Path to your poetry.lock file inside your project. |
+| RelativePathToPipfile | String | Path to your Pipfile.lock file inside your project. |
+| RelativePathToRequirementTxt | String | Path to your requirements.txt file inside your project. |
+| DTrackEndpoint | String | API endpoint of your dependency track account. |
+| DTrackProjectName | String | Name of your dependency track project. |
+| DTrackProjectVersion | String | Version of dependency track project. |
+| DTrackApiKey | String | API key of your dependency track account. |
+| CheckoutPath | String | Checkout path of Git material. |
+
+* `Trigger/Skip Condition` refers to a conditional statement to execute or skip the task. You can select either:<ul><li>`Set trigger conditions` or</li><li>`Set skip conditions`</li></ul> 
+
+* Click **Update Pipeline**.
+
+
+#### Dependency Track for NodeJs
+
+Configuring `Dependency Track for NodeJs` in pre-build or post build task creates a bill of materials from NodeJs projects and environments and uploads it to D-track for [Component Analysis](https://owasp.org/www-community/Component_Analysis) to identify and reduce risk in the software supply chain.
+
+
+**Prerequisite**: Make sure you have set up an account in `dependency track` or get the API keys from an admin.
+
+1. On the **Edit build pipeline** page, select the **Pre-Build Stage** (or Post-Build Stage).
+2. Click **+ Add task**.
+3. Select **Dependency track for NodeJs** from **PRESET PLUGINS**.
+
+
+
+* Enter a relevant name in the `Task name` field. It is a mandatory field.
+* Enter a descriptive message for the task in the `Description` field. It is an optional field.
+* Provide a value for the input variable.<br> Note: The value may be any of the values from the previous build stages, a global variable, or a custom value.</br>
+
+ | Variable | Format | Description |
+| ---- | ---- | ---- |
+| DTrackEndpoint | String | API endpoint of your dependency track account. |
+| DTrackProjectName | String | Name of your dependency track project. |
+| DTrackProjectVersion | String | Version of dependency track project. |
+| DTrackApiKey | String | API key of your dependency track account. |
+| CheckoutPath | String | Checkout path of Git material. |
+
+* `Trigger/Skip Condition` refers to a conditional statement to execute or skip the task. You can select either:<ul><li>`Set trigger conditions` or</li><li>`Set skip conditions`</li></ul> 
+
+* Click **Update Pipeline**.
+
+
+
+#### Dependency Track for Maven & Gradle
+
+Configuring `Dependency Track for NodeJs` in pre-build or post build task creates a bill of materials from Maven & Gradle projects and environments and uploads it to D-track for [Component Analysis](https://owasp.org/www-community/Component_Analysis) to identify and reduce risk in the software supply chain.
+
+
+**Prerequisite**: Make sure you have set up an account in `dependency track` or get the API keys from an admin.
+
+1. On the **Edit build pipeline** page, select the **Pre-Build Stage** (or Post-Build Stage).
+2. Click **+ Add task**.
+3. Select **Dependency track for Maven & Gradle** from **PRESET PLUGINS**.
+
+
+* Enter a relevant name in the `Task name` field. It is a mandatory field.
+* Enter a descriptive message for the task in the `Description` field. It is an optional field.
+* Provide a value for the input variable.<br> Note: The value may be any of the values from the previous build stages, a global variable, or a custom value.</br>
+
+ | Variable | Format | Description |
+| ---- | ---- | ---- |
+| BuildToolType | String | Type of build tool your project is using. E.g., Maven, or Gradle. |
+| DTrackEndpoint | String | API endpoint of your dependency track account. |
+| DTrackProjectName | String | Name of your dependency track project. |
+| DTrackProjectVersion | String | Version of dependency track project. |
+| DTrackApiKey | String | API key of your dependency track account. |
+| CheckoutPath | String | Checkout path of Git material. |
+
+* `Trigger/Skip Condition` refers to a conditional statement to execute or skip the task. You can select either:<ul><li>`Set trigger conditions` or</li><li>`Set skip conditions`</li></ul> 
+
+* Click **Update Pipeline**.
+
+
+#### Semgrep
+
+Semgrep is a fast, open source, static analysis engine for finding bugs, detecting dependency vulnerabilities, and enforcing code standards.
+
+**Prerequisite**: Make sure you have set up an account in `Semgrep` or get the API keys from an admin.
+
+1. On the **Edit build pipeline** page, select the **Pre-Build Stage** (or Post-Build Stage).
+2. Click **+ Add task**.
+3. Select **Semgrep** from **PRESET PLUGINS**.
+
+
+* Enter a relevant name in the `Task name` field. It is a mandatory field.
+* Enter a descriptive message for the task in the `Description` field. It is an optional field.
+* Provide a value for the input variable.<br> Note: The value may be any of the values from the previous build stages, a global variable, or a custom value.</br>
+
+ | Variable | Format | Description |
+| ---- | ---- | ---- |
+| SemgrepAppToken | String | App token of Semgrep. If it is provided, this token will be used, otherwise it will be picked from Global Secret. |
+| PrefixAppNameInSemgrepBranchName | Bool | Enter either `true` or `false` accordingly whether you want app name to be reflected with a branch name. If it is `true`, it will add app name with branch name. E.g., {SemgrepAppName}-{branchName} |
+| UseCommitAsSemgrepBranchName | Bool | Enter either `true` or `false` accordingly whether you want app name to be reflected with commit hash. If it is `true`, it will add app name with commit hash. E.g., {SemgrepAppName}-{CommitHash}. |
+| SemgrepAppName | String | App name for Semgrep. If it is provided, and `PrefixAppNameInSemgrepBranchName` is true, then this will be prefixed with branch name/commit hash.|
+| ExtraCommandArguments | String | Extra command arguments for Semgrep CI command. E.g., Input: --json --dry-run. |
+
+* `Trigger/Skip Condition` refers to a conditional statement to execute or skip the task. You can select either:<ul><li>`Set trigger conditions` or</li><li>`Set skip conditions`</li></ul> 
+
+* Click **Update Pipeline**.
+
+
+#### Codacy
+
+Codacy is an automated code analysis/quality tool that helps developers to ship better software in a faster manner.
+
+**Prerequisite**: Make sure you have set up an account in `Codacy` or get the API keys from an admin.
+
+1. On the **Edit build pipeline** page, select the **Pre-Build Stage** (or Post-Build Stage).
+2. Click **+ Add task**.
+3. Select **Codacy** from **PRESET PLUGINS**.
+
+
+* Enter a relevant name in the `Task name` field. It is a mandatory field.
+* Enter a descriptive message for the task in the `Description` field. It is an optional field.
+* Provide a value for the input variable.<br> Note: The value may be any of the values from the previous build stages, a global variable, or a custom value.</br>
+
+ | Variable | Format | Description |
+| ---- | ---- | ---- |
+| CodacyEndpoint | String | API endpoint for Codacy. |
+| GitProvider | String | Git provider for the scanning. |
+| CodacyApiToken | String | API token for Codacy. If it is provided, it will be used, otherwise it will be picked from Global secret (CODACY_API_TOKEN). |
+| Organisation | String | Your Organisation for Codacy.|
+| RepoName | String | Your Repository name. |
+| Branch | String | Your branch name. |
+
+* `Trigger/Skip Condition` refers to a conditional statement to execute or skip the task. You can select either:<ul><li>`Set trigger conditions` or</li><li>`Set skip conditions`</li></ul> 
+
+* `Pass/Failure Condition` refers to conditions to execute pass or fail of your build. You can select either:<ul><li>`Set pass conditions` or</li><li>`Set failure conditions`</li></ul> 
 
 * Click **Update Pipeline**.
 
