@@ -29,7 +29,7 @@ spec:
   {{- if .rewrite }}
   rewrite: {{ .rewrite }}
   {{- end }}
-  service: {{ $svcName }}:{{ $svcPort }}
+  service: {{ $svcName }}.{{ $.Release.Namespace }}:{{ $svcPort }}
   {{- if .retryPolicy }}
   retry_policy:
 {{ toYaml .retryPolicy | indent 4 }}
