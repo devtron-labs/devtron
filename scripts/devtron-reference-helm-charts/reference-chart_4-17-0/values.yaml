@@ -245,10 +245,10 @@ istio:
     enabled: false
     labels: {}
     annotations: {}
-    host: 
+    host: ""
     tls:
       enabled: false
-      secretName: example-tls-secret
+      secretName: ""
   virtualService:
     enabled: false
     labels: {}

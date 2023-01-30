@@ -83,7 +83,7 @@ spec:
 {{- end }}    
   service:
     portDiscovery: {{ .portDiscovery }}
-    port: {{ .port }}
+    port: {{ .serviceport }}
     targetPort: {{ .targetPort }}
     {{- if .appProtocol }}
     appProtocol: {{ .appProtocol }}
