@@ -52,16 +52,15 @@ import (
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
-	"github.com/devtron-labs/devtron/client/pubsub"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/go-pg/pg"
-	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
 )
 
@@ -93,7 +92,7 @@ type InstalledAppServiceImpl struct {
 	appRepository                        app.AppRepository
 	acdClient                            application2.ServiceClient
 	appStoreValuesService                service.AppStoreValuesService
-	pubsubClient                         *pubsub.PubSubClient
+	pubsubClient                         *pubsub.PubSubClientServiceImpl
 	tokenCache                           *util2.TokenCache
 	chartGroupDeploymentRepository       repository2.ChartGroupDeploymentRepository
 	envService                           cluster2.EnvironmentService
@@ -120,7 +119,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	appRepository app.AppRepository,
 	acdClient application2.ServiceClient,
 	appStoreValuesService service.AppStoreValuesService,
-	pubsubClient *pubsub.PubSubClient,
+	pubsubClient *pubsub.PubSubClientServiceImpl,
 	tokenCache *util2.TokenCache,
 	chartGroupDeploymentRepository repository2.ChartGroupDeploymentRepository,
 	envService cluster2.EnvironmentService, argoK8sClient argocdServer.ArgoK8sClient,
@@ -159,11 +158,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		helmAppService:                       helmAppService,
 		attributesRepository:                 attributesRepository,
 	}
-	err := util3.AddStream(impl.pubsubClient.JetStrCtxt, util3.ORCHESTRATOR_STREAM)
-	if err != nil {
-		return nil, err
-	}
-	err = impl.Subscribe()
+	err := impl.Subscribe()
 	if err != nil {
 		return nil, err
 	}
@@ -513,14 +508,7 @@ func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions [
 		if err != nil {
 			status = appStoreBean.QUE_ERROR
 		} else {
-			err := util3.AddStream(impl.pubsubClient.JetStrCtxt, util3.ORCHESTRATOR_STREAM)
-
-			if err != nil {
-				impl.logger.Errorw("Error while adding stream.", "error", err)
-			}
-			//Generate random string for passing as Header Id in message
-			randString := "MsgHeaderId-" + util3.Generate(10)
-			_, err = impl.pubsubClient.JetStrCtxt.Publish(util3.BULK_APPSTORE_DEPLOY_TOPIC, data, nats.MsgId(randString))
+			err = impl.pubsubClient.Publish(pubsub.BULK_APPSTORE_DEPLOY_TOPIC, string(data))
 			if err != nil {
 				impl.logger.Errorw("err while publishing msg for app-store bulk deploy", "msg", data, "err", err)
 				status = appStoreBean.QUE_ERROR
@@ -540,9 +528,9 @@ func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions [
 }
 
 func (impl *InstalledAppServiceImpl) Subscribe() error {
-	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(util3.BULK_APPSTORE_DEPLOY_TOPIC, util3.BULK_APPSTORE_DEPLOY_GROUP, func(msg *nats.Msg) {
+	callback := func(msg *pubsub.PubSubMsg) {
 		impl.logger.Debug("cd stage event received")
-		defer msg.Ack()
+		//defer msg.Ack()
 		deployPayload := &appStoreBean.DeployPayload{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &deployPayload)
 		if err != nil {
@@ -555,7 +543,8 @@ func (impl *InstalledAppServiceImpl) Subscribe() error {
 		if err != nil {
 			impl.logger.Errorw("error in performing deploy stage", "deployPayload", deployPayload, "err", err)
 		}
-	}, nats.Durable(util3.BULK_APPSTORE_DEPLOY_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util3.ORCHESTRATOR_STREAM))
+	}
+	err := impl.pubsubClient.Subscribe(pubsub.BULK_APPSTORE_DEPLOY_TOPIC, callback)
 	if err != nil {
 		impl.logger.Error("err", err)
 		return err

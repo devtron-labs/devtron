@@ -47,7 +47,7 @@ type CdWorkflowRepository interface {
 	FindPreviousCdWfRunnerByStatus(pipelineId int, currentWFRunnerId int, status []string) ([]*CdWorkflowRunner, error)
 	FindConfigByPipelineId(pipelineId int) (*CdWorkflowConfig, error)
 	FindWorkflowRunnerById(wfrId int) (*CdWorkflowRunner, error)
-	FindLatestWfrByAppIdAndEnvironmentId(appId int, environmentId int) (CdWorkflowRunner, error)
+	FindLatestWfrByAppIdAndEnvironmentId(appId int, environmentId int) (*CdWorkflowRunner, error)
 	FindLatestCdWorkflowRunnerByEnvironmentIdAndRunnerType(appId int, environmentId int, runnerType bean.WorkflowType) (CdWorkflowRunner, error)
 
 	GetConnection() *pg.DB
@@ -378,10 +378,10 @@ func (impl *CdWorkflowRepositoryImpl) FindLastPreOrPostTriggeredByPipelineId(pip
 	return wfr, err
 }
 
-func (impl *CdWorkflowRepositoryImpl) FindLatestWfrByAppIdAndEnvironmentId(appId int, environmentId int) (CdWorkflowRunner, error) {
-	wfr := CdWorkflowRunner{}
+func (impl *CdWorkflowRepositoryImpl) FindLatestWfrByAppIdAndEnvironmentId(appId int, environmentId int) (*CdWorkflowRunner, error) {
+	wfr := &CdWorkflowRunner{}
 	err := impl.dbConnection.
-		Model(&wfr).
+		Model(wfr).
 		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact").
 		Where("p.environment_id = ?", environmentId).
 		Where("p.app_id = ?", appId).
@@ -395,7 +395,7 @@ func (impl *CdWorkflowRepositoryImpl) FindLatestWfrByAppIdAndEnvironmentId(appId
 	if err != nil {
 		return wfr, err
 	}
-	return wfr, err
+	return wfr, nil
 }
 
 func (impl *CdWorkflowRepositoryImpl) FindLastPreOrPostTriggeredByEnvironmentId(appId int, environmentId int) (CdWorkflowRunner, error) {

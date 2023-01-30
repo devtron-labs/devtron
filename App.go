@@ -30,9 +30,9 @@ import (
 
 	"github.com/casbin/casbin"
 	authMiddleware "github.com/devtron-labs/authenticator/middleware"
+	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/router"
 	"github.com/devtron-labs/devtron/api/sse"
-	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
@@ -48,7 +48,7 @@ type App struct {
 	Enforcer      *casbin.SyncedEnforcer
 	server        *http.Server
 	db            *pg.DB
-	pubsubClient  *pubsub.PubSubClient
+	pubsubClient  *pubsub.PubSubClientServiceImpl
 	posthogClient *telemetry.PosthogClient
 	// used for local dev only
 	serveTls           bool
@@ -61,7 +61,7 @@ func NewApp(router *router.MuxRouter,
 	sse *sse.SSE,
 	enforcer *casbin.SyncedEnforcer,
 	db *pg.DB,
-	pubsubClient *pubsub.PubSubClient,
+	pubsubClient *pubsub.PubSubClientServiceImpl,
 	sessionManager2 *authMiddleware.SessionManager,
 	posthogClient *telemetry.PosthogClient,
 ) *App {
@@ -145,7 +145,6 @@ func (app *App) Stop() {
 		app.Logger.Errorw("error in closing db connection", "err", err)
 	}
 	//Close not needed if you Drain.
-	err = app.pubsubClient.Conn.Drain()
 
 	if err != nil {
 		app.Logger.Errorw("Error in draining nats connection", "error", err)
