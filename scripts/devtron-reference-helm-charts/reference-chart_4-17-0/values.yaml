@@ -456,7 +456,6 @@ ambassadorMapping:
   # labels:
   #   key1: value1
   # prefix: /
-  # service: httpd-devtron-demo:80
   # ambassadorId: 1234
   # hostname: devtron.example.com
   # rewrite: /foo/
