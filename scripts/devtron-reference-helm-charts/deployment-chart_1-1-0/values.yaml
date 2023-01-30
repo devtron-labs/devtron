@@ -162,10 +162,10 @@ istio:
     enabled: false
     labels: {}
     annotations: {}
-    host: 
+    host: ""
     tls:
       enabled: false
-      secretName: example-tls-secret
+      secretName: ""
   virtualService:
     enabled: false
     labels: {}
@@ -203,10 +203,10 @@ flaggerCanary:
     enabled: false
     labels: {}
     annotations: {}
-    host: example.com
+    host: ""
     tls:
       enabled: false
-      secretName: example-tls-secret
+      secretName: ""
   # Istio gateways (optional)
   addOtherGateways: []
   # Istio virtual service host names (optional)
@@ -216,7 +216,7 @@ flaggerCanary:
     # - name: istio-gateway
     #   namespace: istio-system
   #service port
-  port: 8080
+  serviceport: 8080
   #containerPort
   targetPort: 8080
   # discover all port open in container

@@ -128,7 +128,7 @@ istio:
     host: example.com
     tls:
       enabled: false
-      secretName: example-tls-secret
+      secretName: example-secret
   virtualService:
     enabled: false
     labels: {}
@@ -144,18 +144,18 @@ istio:
         rewriteUri: /
         timeout: 12s
         headers:
-          request:
-            add:
-              x-some-header: "value"
+          # request:
+          #   add:
+          #     x-some-header: "value"
         corsPolicy:
-          allowOrigin:
-            - example.com
-          allowMethods:
-            - GET
-          allowCredentials: false
-          allowHeaders:
-            - x-some-header
-          maxAge: 24h
+          # allowOrigin:
+          #   - example.com
+          # allowMethods:
+          #   - GET
+          # allowCredentials: false
+          # allowHeaders:
+          #   - x-some-header
+          # maxAge: 24h
         retries:
           attempts: 2 
           perTryTimeout: 3s 
@@ -175,10 +175,10 @@ flaggerCanary:
     enabled: false
     labels: {}
     annotations: {}
-    host: example.com
+    host:
     tls:
       enabled: false
-      secretName: example-tls-secret
+      secretName: 
   # Istio gateways (optional)
   addOtherGateways: []
   # Istio virtual service host names (optional)
@@ -188,7 +188,7 @@ flaggerCanary:
     # - name: istio-gateway
     #   namespace: istio-system
   #service port
-  port: 8080
+  serviceport: 8080
   #containerPort
   targetPort: 8080
   # discover all port open in container
@@ -210,19 +210,19 @@ flaggerCanary:
   timeout:
   # Add headers (optional)
   headers:
-    request:
-      add:
-        x-some-header: "value"
+    # request:
+    #   add:
+    #     x-some-header: "value"
   # cross-origin resource sharing policy (optional)
   corsPolicy:
-    allowOrigin:
-      - example.com
-    allowMethods:
-      - GET
-    allowCredentials: false
-    allowHeaders:
-      - x-some-header
-    maxAge: 24h
+    # allowOrigin:
+    #   - example.com
+    # allowMethods:
+    #   - GET
+    # allowCredentials: false
+    # allowHeaders:
+    #   - x-some-header
+    # maxAge: 24h
   analysis:
     # schedule interval (default 60s)
     interval: 15s
