@@ -33,9 +33,9 @@ When tags are propagated, they are considered as labels to Kubernetes resources.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/propagate-tags.jpg)
 
-* Click `+ Add tag` to a new tag.
-* Click the symbol <img src="https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/propagate-symbol.jpg" width="15" height="15"> on the left side of your tag to propagate a tag.<br>`Note`: Dark grey colour in symbol specifies that the tags are propagated.
-* To remove the tags from propagation, click the symbol <img src="https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/propagate-symbol-dark.jpg" width="15" height="15"> again.
+* Click `+ Add tag` to add a new tag.
+* Click the symbol <img src="https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/donot-propagate.jpg"  height="10"> on the left side of your tag to propagate a tag.<br>`Note`: Dark grey colour in symbol specifies that the tags are propagated.
+* To remove the tags from propagation, click the symbol <img src="https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/propagate-dark.jpg" height="10"> again.
 * Click `Save`.
 
 
