@@ -79,7 +79,9 @@ type CiConfig struct {
 	CiRunnerDockerMTUValue         int                          `env:"CI_RUNNER_DOCKER_MTU_VALUE" envDefault:"-1"`
 	IgnoreDockerCacheForCI         bool                         `env:"CI_IGNORE_DOCKER_CACHE"`
 	VolumeMountsForCiJson          string                       `env:"CI_VOLUME_MOUNTS_JSON"`
-	PvcCachePath                   string                       `env:"PVC_CACHE_PATH" envDefault:"/devtroncd-cache"`
+	BuildPvcCachePath              string                       `env:"BUILD_PVC_CACHE_PATH" envDefault:"/devtroncd-cache"`
+	DefaultPvcCachePath            string                       `env:"DEFAULT_PVC_CACHE_PATH" envDefault:"/var/lib/docker"`
+	BuildxPvcCachePath             string                       `env:"BUILDX_PVC_CACHE_PATH" envDefault:"/var/lib/devtron/buildx"`
 	ClusterConfig                  *rest.Config
 	NodeLabel                      map[string]string
 }

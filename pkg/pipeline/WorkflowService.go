@@ -202,7 +202,19 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		containerEnvVariables = append(containerEnvVariables, miniCred...)
 	}
 	pvc := appLabels[strings.ToLower(fmt.Sprintf("%s-%s", CI_NODE_PVC_PIPELINE_PREFIX, workflowRequest.PipelineName))]
+	if len(pvc) == 0 {
+		pvc = appLabels[CI_NODE_PVC_ALL_ENV]
+	}
 	if len(pvc) != 0 {
+		workflowRequest.IsPvcMounted = true
+		workflowRequest.IgnoreDockerCachePush = false
+		if workflowRequest.CacheInvalidate {
+			workflowRequest.IgnoreDockerCachePull = true
+		} else {
+			workflowRequest.IgnoreDockerCachePull = false
+		}
+	}
+	if impl.ciConfig.IgnoreDockerCacheForCI && workflowRequest.CacheInvalidate {
 		workflowRequest.IsPvcMounted = false
 	}
 	ciCdTriggerEvent := CiCdTriggerEvent{
@@ -553,14 +565,13 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		}
 	}
 
-	//
 	// pvc mounting starts
-	if len(pvc) == 0 {
-		pvc = appLabels[CI_NODE_PVC_ALL_ENV]
-	}
 	if len(pvc) != 0 {
-		pvcCachePath := impl.ciConfig.PvcCachePath
-		workflowRequest.PvcCachePath = pvcCachePath
+		buildPvcCachePath := impl.ciConfig.BuildPvcCachePath
+		buildxPvcCachePath := impl.ciConfig.BuildxPvcCachePath
+		defaultPvcCachePath := impl.ciConfig.DefaultPvcCachePath
+
+		workflowRequest.PvcCachePath = buildPvcCachePath
 		ciTemplate.Volumes = append(ciTemplate.Volumes, v12.Volume{
 			Name: "root-vol",
 			VolumeSource: v12.VolumeSource{
@@ -570,10 +581,19 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 				},
 			},
 		})
-		ciTemplate.Container.VolumeMounts = append(ciTemplate.Container.VolumeMounts, v12.VolumeMount{
-			Name:      "root-vol",
-			MountPath: pvcCachePath,
-		})
+		ciTemplate.Container.VolumeMounts = append(ciTemplate.Container.VolumeMounts,
+			v12.VolumeMount{
+				Name:      "root-vol",
+				MountPath: buildPvcCachePath,
+			},
+			v12.VolumeMount{
+				Name:      "root-vol",
+				MountPath: buildxPvcCachePath,
+			},
+			v12.VolumeMount{
+				Name:      "root-vol",
+				MountPath: defaultPvcCachePath,
+			})
 	}
 
 	// node selector
