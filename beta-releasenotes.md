@@ -12,6 +12,7 @@
 - feat: Semgrep plugin integration (#2877)
 - perf: Tracing observability tool integration (#2782)
 ## Documentation
+- docs: added manage tags (#2907)
 - docs: updated target platform (#2857)
 ## Others
 - task: added new fields for eso secrets (#2899)
