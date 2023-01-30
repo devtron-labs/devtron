@@ -43,8 +43,8 @@ Click **Save**. The application will be moved to the selected project.
 * Click `Edit tags`.
 * On the `Manage tags` page, click `+ Add tag` to a new tag.
 * Click `X` to delete a tag.
-* Click the symbol <img src="https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/propagate-symbol.jpg" width="15" height="15"> on the left side of your tag to propagate a tag.<br>`Note`: Dark grey colour in symbol specifies that the tags are propagated.
-* To remove the tags from propagation, click the symbol <img src="https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/propagate-symbol-dark.jpg" width="15" height="15"> again.
+* Click the symbol <img src="https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/propagate-symbol.jpg" width="10px" height="15px"> on the left side of your tag to propagate a tag.<br>`Note`: Dark grey colour in symbol specifies that the tags are propagated.
+* To remove the tags from propagation, click the symbol <img src="https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/propagate-symbol-dark.jpg" width="12px" height="15px"> again.
 * Click `Save`.
 
 The changes in the tags will be reflected in the `Tags` on the `Overview` section.
