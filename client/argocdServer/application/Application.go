@@ -113,7 +113,7 @@ type Manifests struct {
 }
 
 type ServiceClientImpl struct {
-	logger        *zap.SugaredLogger
+	logger                  *zap.SugaredLogger
 	argoCDConnectionManager argocdServer.ArgoCDConnectionManager
 }
 
@@ -121,7 +121,7 @@ func NewApplicationClientImpl(
 	logger *zap.SugaredLogger, argoCDConnectionManager argocdServer.ArgoCDConnectionManager,
 ) *ServiceClientImpl {
 	return &ServiceClientImpl{
-		logger:        logger,
+		logger:                  logger,
 		argoCDConnectionManager: argoCDConnectionManager,
 	}
 }
