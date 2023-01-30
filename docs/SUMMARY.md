@@ -41,9 +41,9 @@
 ## Usage
 
 * [Applications](user-guide/applications.md)
-  * [Create a new application](user-guide/create-application.md)
-  * [Clone an existing application](user-guide/cloning-application.md)
-  * [Deploy a sample application](user-guide/Deploy-sample-app/nodejs\_app.md)
+  * [Create a New Application](user-guide/create-application.md)
+  * [Clone an Existing Application](user-guide/cloning-application.md)
+  * [Deploy a Sample Application](user-guide/Deploy-sample-app/nodejs\_app.md)
   * [App Configuration](user-guide/creating-application/README.md)
     * [Git Repository](user-guide/creating-application/git-material.md)
     * [Build Configuration](user-guide/creating-application/docker-build-configuration.md)
@@ -54,7 +54,7 @@
     * [Workflow Overview](user-guide/creating-application/workflow/README.md)
     * [CI Pipeline](user-guide/creating-application/workflow/ci-pipeline.md)
       * [Pre-Build/Post-Build Tasks](user-guide/creating-application/workflow/ci-build-pre-post-plugins.md)
-      * [Override Container Registry and Dockerfile](user-guide/creating-application/container-registry-override.md)
+      * [Override Build Configuration](user-guide/creating-application/container-registry-override.md)
     * [CI Pipeline (Legacy)](user-guide/creating-application/workflow/ci-pipeline-legacy.md)
     * [CD Pipeline](user-guide/creating-application/workflow/cd-pipeline.md)
     * [Config Maps](user-guide/creating-application/config-maps.md)

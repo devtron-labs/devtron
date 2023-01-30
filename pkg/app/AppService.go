@@ -22,7 +22,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/caarlos0/env"
+	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	client2 "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
@@ -75,9 +77,10 @@ import (
 )
 
 type AppStatusConfig struct {
-	CdPipelineStatusCronTime        string `env:"CD_PIPELINE_STATUS_CRON_TIME" envDefault:"*/2 * * * *"`
-	CdPipelineStatusTimeoutDuration string `env:"CD_PIPELINE_STATUS_TIMEOUT_DURATION" envDefault:"20"` //in minutes
-	PipelineDegradedTime            string `env:"PIPELINE_DEGRADED_TIME" envDefault:"10"`              //in minutes
+	CdPipelineStatusCronTime            string `env:"CD_PIPELINE_STATUS_CRON_TIME" envDefault:"*/2 * * * *"`
+	CdPipelineStatusTimeoutDuration     string `env:"CD_PIPELINE_STATUS_TIMEOUT_DURATION" envDefault:"20"`       //in minutes
+	PipelineDegradedTime                string `env:"PIPELINE_DEGRADED_TIME" envDefault:"10"`                    //in minutes
+	HelmPipelineStatusCheckEligibleTime string `env:"HELM_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME" envDefault:"120"` //in seconds
 }
 
 func GetAppStatusConfig() (*AppStatusConfig, error) {
@@ -533,39 +536,37 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 	if err != nil {
 		impl.logger.Errorw("error in saving/updating timeline resources", "err", err, "cdWfrId", cdWfrId)
 	}
-	if app.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced {
+	var kubectlApplySyncedTimeline *pipelineConfig.PipelineStatusTimeline
+	if app != nil && app.Status.OperationState != nil && app.Status.OperationState.Phase == common.OperationSucceeded {
 		timeline.Id = 0
 		timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED
-		if app != nil && app.Status.OperationState != nil {
-			timeline.StatusDetail = app.Status.OperationState.Message
-		}
-		var currentTimeline *pipelineConfig.PipelineStatusTimeline
+		timeline.StatusDetail = app.Status.OperationState.Message
 		//checking and saving if this timeline is present or not because kubewatch may stream same objects multiple times
-		currentTimeline, err, isTimelineUpdated = impl.SavePipelineStatusTimelineIfNotAlreadyPresent(cdWfrId, timeline.Status, timeline)
+		kubectlApplySyncedTimeline, err, isTimelineUpdated = impl.SavePipelineStatusTimelineIfNotAlreadyPresent(cdWfrId, timeline.Status, timeline)
 		if err != nil {
 			impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
 			return isTimelineUpdated, isTimelineTimedOut, err
 		}
 		impl.logger.Debugw("APP_STATUS_UPDATE_REQ", "stage", "APPLY_SYNCED", "app", app, "status", timeline.Status)
-		if currentTimeline.StatusTime.Before(app.Status.ReconciledAt.Time) {
-			haveNewTimeline := false
-			timeline.Id = 0
-			if app.Status.Health.Status == health.HealthStatusHealthy {
-				impl.logger.Infow("updating pipeline status timeline for healthy app", "app", app, "APP_TO_UPDATE", app.Name)
-				haveNewTimeline = true
-				timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_HEALTHY
-				timeline.StatusDetail = "App status is Healthy."
+	}
+	if kubectlApplySyncedTimeline != nil && kubectlApplySyncedTimeline.Id > 0 && kubectlApplySyncedTimeline.StatusTime.Before(app.Status.ReconciledAt.Time) {
+		haveNewTimeline := false
+		timeline.Id = 0
+		if app.Status.Health.Status == health.HealthStatusHealthy {
+			impl.logger.Infow("updating pipeline status timeline for healthy app", "app", app, "APP_TO_UPDATE", app.Name)
+			haveNewTimeline = true
+			timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_HEALTHY
+			timeline.StatusDetail = "App status is Healthy."
+		}
+		if haveNewTimeline {
+			//not checking if this status is already present or not because already checked for terminal status existence earlier
+			err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
+			if err != nil {
+				impl.logger.Errorw("error in creating timeline status", "err", err, "timeline", timeline)
+				return isTimelineUpdated, isTimelineTimedOut, err
 			}
-			if haveNewTimeline {
-				//not checking if this status is already present or not because already checked for terminal status existence earlier
-				err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
-				if err != nil {
-					impl.logger.Errorw("error in creating timeline status", "err", err, "timeline", timeline)
-					return isTimelineUpdated, isTimelineTimedOut, err
-				}
-				isTimelineUpdated = true
-				impl.logger.Debugw("APP_STATUS_UPDATE_REQ", "stage", "terminal_status", "app", app, "status", timeline.Status)
-			}
+			isTimelineUpdated = true
+			impl.logger.Debugw("APP_STATUS_UPDATE_REQ", "stage", "terminal_status", "app", app, "status", timeline.Status)
 		}
 	}
 
@@ -1501,7 +1502,7 @@ func (impl *AppServiceImpl) WriteCDTriggerEvent(overrideRequest *bean.ValuesOver
 		deploymentEvent.PipelineMaterials = append(deploymentEvent.PipelineMaterials, pipelineMaterialInfo)
 	}
 	impl.logger.Infow("triggering deployment event", "event", deploymentEvent)
-	err = impl.eventClient.WriteNatsEvent(util2.CD_SUCCESS, deploymentEvent)
+	err = impl.eventClient.WriteNatsEvent(pubsub.CD_SUCCESS, deploymentEvent)
 	if err != nil {
 		impl.logger.Errorw("error in writing cd trigger event", "err", err)
 	}
@@ -2079,7 +2080,7 @@ func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Val
 				Name:         pipeline.Name,
 				WorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
 				ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
-				Status:       string(health.HealthStatusProgressing),
+				Status:       pipelineConfig.WorkflowInProgress,
 				TriggeredBy:  overrideRequest.UserId,
 				StartedOn:    triggeredAt,
 				CdWorkflowId: cdWorkflowId,
@@ -2091,7 +2092,7 @@ func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Val
 				return false, err
 			}
 		} else {
-			cdWf.Status = string(health.HealthStatusProgressing)
+			cdWf.Status = pipelineConfig.WorkflowInProgress
 			cdWf.FinishedOn = time.Now()
 			cdWf.UpdatedBy = overrideRequest.UserId
 			cdWf.UpdatedOn = time.Now()

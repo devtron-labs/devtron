@@ -10,6 +10,7 @@ import (
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
+	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/constants"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
@@ -55,6 +56,7 @@ type AppStoreDeploymentArgoCdServiceImpl struct {
 	gitFactory                        *util.GitFactory
 	argoUserService                   argo.ArgoUserService
 	appStoreDeploymentCommonService   appStoreDeploymentCommon.AppStoreDeploymentCommonService
+	helmAppService                    client.HelmAppService
 	gitOpsConfigRepository            repository3.GitOpsConfigRepository
 	appStatusService                  appStatus.AppStatusService
 }
@@ -63,7 +65,7 @@ func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreD
 	acdClient application2.ServiceClient, chartGroupDeploymentRepository repository.ChartGroupDeploymentRepository,
 	installedAppRepository repository.InstalledAppRepository, installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository, chartTemplateService util.ChartTemplateService,
 	gitFactory *util.GitFactory, argoUserService argo.ArgoUserService, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
-	gitOpsConfigRepository repository3.GitOpsConfigRepository, appStatusService appStatus.AppStatusService) *AppStoreDeploymentArgoCdServiceImpl {
+	helmAppService client.HelmAppService, gitOpsConfigRepository repository3.GitOpsConfigRepository, appStatusService appStatus.AppStatusService) *AppStoreDeploymentArgoCdServiceImpl {
 	return &AppStoreDeploymentArgoCdServiceImpl{
 		Logger:                            logger,
 		appStoreDeploymentFullModeService: appStoreDeploymentFullModeService,
@@ -75,6 +77,7 @@ func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreD
 		gitFactory:                        gitFactory,
 		argoUserService:                   argoUserService,
 		appStoreDeploymentCommonService:   appStoreDeploymentCommonService,
+		helmAppService:                    helmAppService,
 		gitOpsConfigRepository:            gitOpsConfigRepository,
 		appStatusService:                  appStatusService,
 	}
@@ -340,6 +343,30 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetDeploymentHistoryInfo(ctx con
 		return nil, err
 	}
 	values.ValuesYaml = &versionHistory.ValuesYamlRaw
+
+	envId := int32(installedApp.EnvironmentId)
+	clusterId := int32(installedApp.ClusterId)
+	appStoreVersionId := int32(installedApp.AppStoreApplicationVersionId)
+
+	manifestRequest := openapi2.TemplateChartRequest{
+		EnvironmentId:                &envId,
+		ClusterId:                    &clusterId,
+		Namespace:                    &installedApp.Namespace,
+		ReleaseName:                  &installedApp.AppName,
+		AppStoreApplicationVersionId: &appStoreVersionId,
+		ValuesYaml:                   values.ValuesYaml,
+	}
+
+	templateChart, manifestErr := impl.helmAppService.TemplateChart(ctx, &manifestRequest)
+
+	manifest := templateChart.GetManifest()
+
+	if manifestErr != nil {
+		impl.Logger.Errorw("error in genetating manifest for argocd app", "err", manifestErr)
+	} else {
+		values.Manifest = &manifest
+	}
+
 	return values, err
 }
 

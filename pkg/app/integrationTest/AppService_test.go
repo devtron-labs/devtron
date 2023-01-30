@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	client1 "github.com/devtron-labs/devtron/client/events"
-	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
@@ -116,7 +116,7 @@ func InitAppService() *app2.AppServiceImpl {
 	pipelineRepository := pipelineConfig.NewPipelineRepositoryImpl(dbConnection, logger)
 	httpClient := util.NewHttpClient()
 	eventClientConfig, err := client1.GetEventClientConfig()
-	pubSubClient, err := pubsub.NewPubSubClient(logger)
+	pubSubClient := pubsub.NewPubSubClientServiceImpl(logger)
 	ciPipelineRepositoryImpl := pipelineConfig.NewCiPipelineRepositoryImpl(dbConnection, logger)
 	attributesRepositoryImpl := repository.NewAttributesRepositoryImpl(dbConnection)
 	serverEnvConfig, err := serverEnvConfig.ParseServerEnvConfig()

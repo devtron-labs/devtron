@@ -68,6 +68,7 @@ type PipelineOverrideRepository interface {
 	GetLatestReleaseDeploymentType(pipelineIds []int) ([]*PipelineOverride, error)
 	FetchHelmTypePipelineOverridesForStatusUpdate() (pipelines []*PipelineOverride, err error)
 	FindLatestByAppIdAndEnvId(appId, environmentId int) (pipelineOverrides *PipelineOverride, err error)
+	FindLatestByCdWorkflowId(cdWorkflowId int) (pipelineOverride *PipelineOverride, err error)
 }
 
 type PipelineOverrideRepositoryImpl struct {
@@ -246,6 +247,16 @@ func (impl PipelineOverrideRepositoryImpl) FindLatestByAppIdAndEnvId(appId, envi
 		Where("pipeline.environment_id =?", environmentId).
 		Where("p.deployment_app_type = ?", util.PIPELINE_DEPLOYMENT_TYPE_ACD).
 		Where("p.deleted = ?", false).
+		Order("id DESC").Limit(1).
+		Select()
+	return &override, err
+}
+
+func (impl PipelineOverrideRepositoryImpl) FindLatestByCdWorkflowId(cdWorkflowId int) (*PipelineOverride, error) {
+	var override PipelineOverride
+	err := impl.dbConnection.Model(&override).
+		Column("pipeline_override.*", "Pipeline").
+		Where("cd_workflow_id=?", cdWorkflowId).
 		Order("id DESC").Limit(1).
 		Select()
 	return &override, err
