@@ -207,12 +207,8 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	}
 	if len(pvc) != 0 {
 		workflowRequest.IsPvcMounted = true
-		workflowRequest.IgnoreDockerCachePush = false
-		if workflowRequest.CacheInvalidate {
-			workflowRequest.IgnoreDockerCachePull = true
-		} else {
-			workflowRequest.IgnoreDockerCachePull = false
-		}
+		workflowRequest.IgnoreDockerCachePush = true
+		workflowRequest.IgnoreDockerCachePull = true
 	}
 	if impl.ciConfig.IgnoreDockerCacheForCI && workflowRequest.CacheInvalidate {
 		workflowRequest.IsPvcMounted = false
