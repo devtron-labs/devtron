@@ -57,19 +57,34 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListForAutocomplete(w http.Re
 	}
 
 	token := r.Header.Get("token")
+	userEmailId, err := handler.userAuthService.GetEmailFromToken(token)
+	if err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
 	var accessedApps []*pipeline.AppBean
+	var enforcerResult map[string]bool
 	// RBAC
 	objects := handler.enforcerUtil.GetRbacObjectsForAllApps()
+	if !isActionUserSuperAdmin {
+		objectArray := make([]string, len(apps))
+		for _, app := range apps {
+			object := objects[app.Id]
+			objectArray = append(objectArray, object)
+		}
+		enforcerResult = handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceApplications, casbin.ActionGet, objectArray)
+	}
 	for _, app := range apps {
 		if isActionUserSuperAdmin {
 			accessedApps = append(accessedApps, app)
 			continue
 		}
 		object := objects[app.Id]
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); ok {
+		if ok := enforcerResult[object]; ok {
 			accessedApps = append(accessedApps, app)
 		}
 	}
+
 	// RBAC
 	if len(accessedApps) == 0 {
 		accessedApps = make([]*pipeline.AppBean, 0)
