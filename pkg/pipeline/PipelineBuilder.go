@@ -104,7 +104,6 @@ type PipelineBuilder interface {
 	GetArtifactsByCDPipeline(cdPipelineId int, stage bean2.WorkflowType) (bean.CiArtifactResponse, error)
 	FetchArtifactForRollback(cdPipelineId, offset, limit int) (bean.CiArtifactResponse, error)
 	FindAppsByTeamId(teamId int) ([]*AppBean, error)
-	GetAppListByTeamIds(teamIds []int, appType string) ([]*TeamAppBean, error)
 	FindAppsByTeamName(teamName string) ([]AppBean, error)
 	FindPipelineById(cdPipelineId int) (*pipelineConfig.Pipeline, error)
 	GetAppList() ([]AppBean, error)
@@ -602,6 +601,10 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 			}
 		}
 		for _, material := range pipeline.CiPipelineMaterials {
+			// ignore those materials which have inactive git material
+			if material == nil || material.GitMaterial == nil || !material.GitMaterial.Active {
+				continue
+			}
 			ciMaterial := &bean.CiMaterial{
 				Id:              material.Id,
 				CheckoutPath:    material.CheckoutPath,
@@ -616,7 +619,6 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 			}
 			ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, ciMaterial)
 		}
-
 		linkedCis, err := impl.ciPipelineRepository.FindByParentCiPipelineId(ciPipeline.Id)
 		if err != nil && !util.IsErrNoRows(err) {
 			return nil, err
@@ -2497,41 +2499,6 @@ type AppBean struct {
 	TeamId int    `json:"teamId,omitempty"`
 }
 
-func (impl PipelineBuilderImpl) GetAppListByTeamIds(teamIds []int, appType string) ([]*TeamAppBean, error) {
-	var appsRes []*TeamAppBean
-	teamMap := make(map[int]*TeamAppBean)
-	if len(teamIds) == 0 {
-		return appsRes, nil
-	}
-	apps, err := impl.appRepo.FindAppsByTeamIds(teamIds, appType)
-	if err != nil {
-		impl.logger.Errorw("error while fetching app", "err", err)
-		return nil, err
-	}
-	for _, app := range apps {
-		if _, ok := teamMap[app.TeamId]; ok {
-			teamMap[app.TeamId].AppList = append(teamMap[app.TeamId].AppList, &AppBean{Id: app.Id, Name: app.AppName})
-		} else {
-
-			teamMap[app.TeamId] = &TeamAppBean{ProjectId: app.Team.Id, ProjectName: app.Team.Name}
-			teamMap[app.TeamId].AppList = append(teamMap[app.TeamId].AppList, &AppBean{Id: app.Id, Name: app.AppName})
-		}
-	}
-
-	for _, v := range teamMap {
-		if len(v.AppList) == 0 {
-			v.AppList = make([]*AppBean, 0)
-		}
-		appsRes = append(appsRes, v)
-	}
-
-	if len(appsRes) == 0 {
-		appsRes = make([]*TeamAppBean, 0)
-	}
-
-	return appsRes, err
-}
-
 func (impl PipelineBuilderImpl) GetAppList() ([]AppBean, error) {
 	var appsRes []AppBean
 	apps, err := impl.appRepo.FindAll()
@@ -2794,6 +2761,9 @@ func (impl PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *b
 		}
 	}
 	for _, material := range pipeline.CiPipelineMaterials {
+		if material == nil || material.GitMaterial == nil || !material.GitMaterial.Active {
+			continue
+		}
 		ciMaterial := &bean.CiMaterial{
 			Id:              material.Id,
 			CheckoutPath:    material.CheckoutPath,

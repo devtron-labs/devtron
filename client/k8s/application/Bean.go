@@ -25,20 +25,3 @@ type ApplyResourcesResponse struct {
 	Error    string `json:"error"`
 	IsUpdate bool   `json:"isUpdate"`
 }
-
-type ClusterResourceListMap struct {
-	Headers []string                 `json:"headers"`
-	Data    []map[string]interface{} `json:"data"`
-}
-
-const K8sClusterResourceNameKey = "name"
-const K8sClusterResourcePriorityKey = "priority"
-const K8sClusterResourceNamespaceKey = "namespace"
-const K8sClusterResourceMetadataKey = "metadata"
-const K8sClusterResourceMetadataNameKey = "name"
-const K8sClusterResourceCreationTimestampKey = "creationTimestamp"
-
-const K8sClusterResourceObjectKey = "object"
-const K8sClusterResourceRowsKey = "rows"
-const K8sClusterResourceCellKey = "cells"
-const K8sClusterResourceColumnDefinitionKey = "columnDefinitions"

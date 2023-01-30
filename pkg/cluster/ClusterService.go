@@ -56,7 +56,7 @@ type ClusterBean struct {
 	AgentInstallationStage  int                        `json:"agentInstallationStage,notnull"` // -1=external, 0=not triggered, 1=progressing, 2=success, 3=fails
 	K8sVersion              string                     `json:"k8sVersion"`
 	HasConfigOrUrlChanged   bool                       `json:"-"`
-	ErrorInConnecting       string                     `json:"-"`
+	ErrorInConnecting       string                     `json:"errorInConnecting,omitempty"`
 }
 
 type PrometheusAuth struct {
@@ -462,8 +462,9 @@ func (impl *ClusterServiceImpl) FindAllForAutoComplete() ([]ClusterBean, error) 
 	var beans []ClusterBean
 	for _, m := range model {
 		beans = append(beans, ClusterBean{
-			Id:          m.Id,
-			ClusterName: m.ClusterName,
+			Id:                m.Id,
+			ClusterName:       m.ClusterName,
+			ErrorInConnecting: m.ErrorInConnecting,
 		})
 	}
 	return beans, nil
@@ -524,7 +525,11 @@ func (impl ClusterServiceImpl) CheckIfConfigIsValid(cluster *ClusterBean) error 
 	} else {
 		restConfig = &rest.Config{Host: cluster.ServerUrl, BearerToken: bearerToken, TLSClientConfig: rest.TLSClientConfig{Insecure: true}}
 	}
-	k8sClientSet, err := kubernetes.NewForConfig(restConfig)
+	k8sHttpClient, err := util.OverrideK8sHttpClientWithTracer(restConfig)
+	if err != nil {
+		return err
+	}
+	k8sClientSet, err := kubernetes.NewForConfigAndClient(restConfig, k8sHttpClient)
 	if err != nil {
 		impl.logger.Errorw("error in getting client set by rest config", "err", err, "restConfig", restConfig)
 		return err
@@ -640,8 +645,9 @@ func (impl *ClusterServiceImpl) FindAllForClusterByUserId(userId int32, isAction
 	for _, model := range models {
 		if _, ok := allowedClustersMap[model.ClusterName]; ok {
 			beans = append(beans, ClusterBean{
-				Id:          model.Id,
-				ClusterName: model.ClusterName,
+				Id:                model.Id,
+				ClusterName:       model.ClusterName,
+				ErrorInConnecting: model.ErrorInConnecting,
 			})
 		}
 	}
