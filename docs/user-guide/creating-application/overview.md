@@ -38,13 +38,13 @@ Click **Save**. The application will be moved to the selected project.
 
 `Manage tags` is the central place where you can create, edit, and delete tags. You can also propagate tags as labels to Kubernetes resources for the application.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/manage-tags.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/manage-tags-latest.jpg)
 
 * Click `Edit tags`.
 * On the `Manage tags` page, click `+ Add tag` to a new tag.
-* Click the cross-sign to delete a tag.
-* Click the symbol on the left side of your tag to propagate a tag.<br>`Note`: Dark grey colour in symbol specifies that the tags are propagated.
-* To remove the tags from propagation, click the symbol again.
+* Click `X` to delete a tag.
+* Click the symbol <img src="https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/propagate-symbol.jpg" width="25" height="25"> on the left side of your tag to propagate a tag.<br>`Note`: Dark grey colour in symbol specifies that the tags are propagated.
+* To remove the tags from propagation, click the symbol <img src="https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/propagate-symbol-dark.jpg" width="20" height="25"> again.
 * Click `Save`.
 
 The changes in the tags will be reflected in the `Tags` on the `Overview` section.

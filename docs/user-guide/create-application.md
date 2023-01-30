@@ -31,9 +31,11 @@ To create a new application from the custom app, select **Custom app**.
 **Propagate Tags** 
 When tags are propagated, they are considered as labels to Kubernetes resources. Kubernetes offers integrated support for using these labels to query objects and perform bulk operations e.g., consolidated billing using labels. You can use these tags to filter/identify resources via CLI or in other Kubernetes tools.
 
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/propagate-tags.jpg)
+
 * Click `+ Add tag` to a new tag.
-* Click the symbol on the left side of your tag to propagate a tag.<br>`Note`: Dark grey colour in symbol specifies that the tags are propagated.
-* To remove the tags from propagation, click the symbol again.
+* Click the symbol <img src="https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/propagate-symbol.jpg" width="25" height="25"> on the left side of your tag to propagate a tag.<br>`Note`: Dark grey colour in symbol specifies that the tags are propagated.
+* To remove the tags from propagation, click the symbol <img src="https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/propagate-symbol-dark.jpg" width="20" height="25"> again.
 * Click `Save`.
 
 
