@@ -26,6 +26,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"net/http"
 	"os/user"
 	"path/filepath"
@@ -547,11 +548,12 @@ func (impl K8sUtil) GetPodByName(namespace string, name string, client *v12.Core
 	}
 }
 
-func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.UnstructuredList, namespaced bool, kind string, validateResourceAccess func(namespace, group, kind, resourceName string) bool) (*ClusterResourceListMap, error) {
+func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.UnstructuredList, namespaced bool, gvk schema.GroupVersionKind, validateResourceAccess func(namespace string, group string, kind string, resourceName string) bool) (*ClusterResourceListMap, error) {
 	clusterResourceListMap := &ClusterResourceListMap{}
 	// build headers
 	var headers []string
 	columnIndexes := make(map[int]string)
+	kind := gvk.Kind
 	if kind == "Event" {
 		headers, columnIndexes = impl.getEventKindHeader()
 	} else {
@@ -639,7 +641,7 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 				}
 			}
 			//if resourceName != "" {
-			allowed = impl.ValidateResource(cellObj, validateResourceAccess)
+			allowed = impl.ValidateResource(cellObj, gvk, validateResourceAccess)
 			//allowed = impl.ValidateResourceWithRbac(namespace, resourceName, ownerReferences, validateResourceAccess)
 			//}
 			if allowed {
@@ -654,13 +656,9 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 	return clusterResourceListMap, nil
 }
 
-func (impl K8sUtil) ValidateResource(resourceObj map[string]interface{}, validateCallback func(namespace, group string, kind string, resourceName string) bool) bool {
-	resKind := resourceObj[K8sClusterResourceKindKey].(string)
-	apiVersion := resourceObj[K8sClusterResourceApiVersionKey].(string)
-	groupName := ""
-	if strings.Contains(apiVersion, "/") {
-		groupName = apiVersion[:strings.LastIndex(apiVersion, "/")] // extracting group from this apiVersion
-	}
+func (impl K8sUtil) ValidateResource(resourceObj map[string]interface{}, gvk schema.GroupVersionKind, validateCallback func(namespace string, group string, kind string, resourceName string) bool) bool {
+	resKind := gvk.Kind
+	groupName := gvk.Group
 	metadata := resourceObj[K8sClusterResourceMetadataKey]
 	if metadata == nil {
 		return false
@@ -686,7 +684,7 @@ func (impl K8sUtil) ValidateResource(resourceObj map[string]interface{}, validat
 		}
 	}
 	// check current RBAC in case not matched with above one
-	return validateCallback(namespace, resKind, groupName, resourceName)
+	return validateCallback(namespace, groupName, resKind, resourceName)
 }
 
 //func (impl K8sUtil) ValidateResourceWithRbac(namespace, resourceName string, ownerReferences []interface{}, validateCallback func(namespace, group, kind, resourceName string) bool) bool {

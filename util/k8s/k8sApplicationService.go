@@ -44,7 +44,7 @@ type K8sApplicationService interface {
 	ValidateResourceRequest(ctx context.Context, appIdentifier *client.AppIdentifier, request *application.K8sRequestBean) (bool, error)
 	ValidateClusterResourceRequest(ctx context.Context, clusterResourceRequest *ResourceRequestBean,
 		rbacCallback func(clusterName string, resourceIdentifier application.ResourceIdentifier) bool) (bool, error)
-	ValidateClusterResourceBean(ctx context.Context, clusterId int, manifest unstructured.Unstructured, rbacCallback func(clusterName string, resourceIdentifier application.ResourceIdentifier) bool) bool
+	ValidateClusterResourceBean(ctx context.Context, clusterId int, manifest unstructured.Unstructured, gvk schema.GroupVersionKind, rbacCallback func(clusterName string, resourceIdentifier application.ResourceIdentifier) bool) bool
 	GetResourceInfo(ctx context.Context) (*ResourceInfo, error)
 	GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error)
 	GetRestConfigByCluster(ctx context.Context, cluster *cluster.ClusterBean) (*rest.Config, error)
@@ -473,10 +473,10 @@ func (impl *K8sApplicationServiceImpl) ValidateClusterResourceRequest(ctx contex
 		impl.logger.Errorw("error in getting resource", "err", err, "request", clusterResourceRequest)
 		return false, err
 	}
-	return impl.validateResourceManifest(clusterName, respManifest.Manifest, rbacCallback), nil
+	return impl.validateResourceManifest(clusterName, respManifest.Manifest, k8sRequest.ResourceIdentifier.GroupVersionKind, rbacCallback), nil
 }
 
-func (impl *K8sApplicationServiceImpl) validateResourceManifest(clusterName string, resourceManifest unstructured.Unstructured, rbacCallback func(clusterName string, resourceIdentifier application.ResourceIdentifier) bool) bool {
+func (impl *K8sApplicationServiceImpl) validateResourceManifest(clusterName string, resourceManifest unstructured.Unstructured, gvk schema.GroupVersionKind, rbacCallback func(clusterName string, resourceIdentifier application.ResourceIdentifier) bool) bool {
 	validateCallback := func(namespace, group, kind, resourceName string) bool {
 		resourceIdentifier := application.ResourceIdentifier{
 			Name:      resourceName,
@@ -488,17 +488,16 @@ func (impl *K8sApplicationServiceImpl) validateResourceManifest(clusterName stri
 		}
 		return rbacCallback(clusterName, resourceIdentifier)
 	}
-	return impl.K8sUtil.ValidateResource(resourceManifest.Object, validateCallback)
+	return impl.K8sUtil.ValidateResource(resourceManifest.Object, gvk, validateCallback)
 }
 
-func (impl *K8sApplicationServiceImpl) ValidateClusterResourceBean(ctx context.Context, clusterId int, manifest unstructured.Unstructured,
-	rbacCallback func(clusterName string, resourceIdentifier application.ResourceIdentifier) bool) bool {
+func (impl *K8sApplicationServiceImpl) ValidateClusterResourceBean(ctx context.Context, clusterId int, manifest unstructured.Unstructured, gvk schema.GroupVersionKind, rbacCallback func(clusterName string, resourceIdentifier application.ResourceIdentifier) bool) bool {
 	clusterBean, err := impl.clusterService.FindById(clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting clusterBean by cluster Id", "clusterId", clusterId, "err", err)
 		return false
 	}
-	return impl.validateResourceManifest(clusterBean.ClusterName, manifest, rbacCallback)
+	return impl.validateResourceManifest(clusterBean.ClusterName, manifest, gvk, rbacCallback)
 }
 
 func (impl *K8sApplicationServiceImpl) ValidateResourceRequest(ctx context.Context, appIdentifier *client.AppIdentifier, request *application.K8sRequestBean) (bool, error) {
@@ -604,7 +603,8 @@ func (impl *K8sApplicationServiceImpl) GetAllApiResources(ctx context.Context, c
 			if clusterBean.ClusterName != role.Cluster {
 				continue
 			}
-			if role.Group == "" && role.Kind == "" {
+			kind := role.Kind
+			if role.Group == "" && kind == "" {
 				allowedAll = true
 				break
 			}
@@ -614,7 +614,17 @@ func (impl *K8sApplicationServiceImpl) GetAllApiResources(ctx context.Context, c
 			} else if groupName == casbin.ClusterEmptyGroupPlaceholder {
 				groupName = ""
 			}
-			allowedGroupKinds[groupName+"||"+role.Kind] = true
+			allowedGroupKinds[groupName+"||"+kind] = true
+			// add children for this kind
+			children, found := util.KindVsChildrenGvk[kind]
+			if found {
+				// if rollout kind other than argo, then neglect only
+				if kind != util.K8sClusterResourceRolloutKind || groupName == util.K8sClusterResourceRolloutGroup {
+					for _, child := range children {
+						allowedGroupKinds[child.Group+"||"+child.Kind] = true
+					}
+				}
+			}
 		}
 
 		if !allowedAll {
@@ -674,7 +684,7 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 		k8sRequest.ResourceIdentifier = resourceIdentifier
 		return validateResourceAccess(token, clusterBean.ClusterName, *request, casbin.ActionGet)
 	}
-	resourceList, err = impl.K8sUtil.BuildK8sObjectListTableData(&resp.Resources, namespaced, request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind, checkForResourceCallback)
+	resourceList, err = impl.K8sUtil.BuildK8sObjectListTableData(&resp.Resources, namespaced, request.K8sRequest.ResourceIdentifier.GroupVersionKind, checkForResourceCallback)
 	if err != nil {
 		impl.logger.Errorw("error on parsing for k8s resource", "err", err)
 		return resourceList, err
