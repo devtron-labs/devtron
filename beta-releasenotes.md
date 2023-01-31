@@ -13,6 +13,7 @@
 - feat: Semgrep plugin integration (#2877)
 - perf: Tracing observability tool integration (#2782)
 ## Documentation
+- docs: Updated README.md file for Devtron chart (#2887)
 - docs: added manage tags (#2907)
 - docs: updated target platform (#2857)
 ## Others
