@@ -298,7 +298,8 @@ func (handler *K8sApplicationRestHandlerImpl) UpdateResource(w http.ResponseWrit
 		//RBAC enforcer Ends
 	} else if request.ClusterId > 0 {
 		// assume direct update in cluster
-		if ok := handler.validateRbac(w, token, request, casbin.ActionUpdate); !ok {
+		if ok := handler.k8sApplicationService.ValidateClusterResourceRequest(r.Context(), &request, handler.getRbacCallbackForResource(token, casbin.ActionUpdate)); !ok {
+			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
 	} else {
@@ -363,7 +364,8 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 		}
 		//RBAC enforcer Ends
 	} else if request.ClusterId > 0 {
-		if ok := handler.validateRbac(w, token, request, casbin.ActionDelete); !ok {
+		if ok := handler.k8sApplicationService.ValidateClusterResourceRequest(r.Context(), &request, handler.getRbacCallbackForResource(token, casbin.ActionDelete)); !ok {
+			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
 	} else {
@@ -419,7 +421,8 @@ func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, 
 		}
 		//RBAC enforcer Ends
 	} else if request.ClusterId > 0 {
-		if ok := handler.validateRbac(w, token, request, casbin.ActionGet); !ok {
+		if ok := handler.k8sApplicationService.ValidateClusterResourceRequest(r.Context(), &request, handler.getRbacCallbackForResource(token, casbin.ActionGet)); !ok {
+			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
 	} else {
@@ -526,7 +529,8 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 				},
 			},
 		}
-		if ok := handler.validateRbac(w, token, *request, casbin.ActionGet); !ok {
+		if ok := handler.k8sApplicationService.ValidateClusterResourceRequest(r.Context(), request, handler.getRbacCallbackForResource(token, casbin.ActionGet)); !ok {
+			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
 	} else {
@@ -612,7 +616,8 @@ func (handler *K8sApplicationRestHandlerImpl) GetTerminalSession(w http.Response
 				},
 			},
 		}
-		if ok := handler.validateRbac(w, token, resourceRequestBean, casbin.ActionUpdate); !ok {
+		if ok := handler.k8sApplicationService.ValidateClusterResourceRequest(r.Context(), &resourceRequestBean, handler.getRbacCallbackForResource(token, casbin.ActionUpdate)); !ok {
+			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
 	} else {
@@ -723,9 +728,18 @@ func (handler *K8sApplicationRestHandlerImpl) ApplyResources(w http.ResponseWrit
 	common.WriteJsonResp(w, nil, response, http.StatusOK)
 }
 
-func (handler *K8sApplicationRestHandlerImpl) verifyRbacForCluster(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool {
-	k8sRequest := request.K8sRequest
-	resourceIdentifier := k8sRequest.ResourceIdentifier
+func (handler *K8sApplicationRestHandlerImpl) getRbacCallbackForResource(token string, casbinAction string) func(clusterName string, resourceIdentifier application.ResourceIdentifier) bool {
+	return func(clusterName string, resourceIdentifier application.ResourceIdentifier) bool {
+		return handler.verifyRbacForResource(token, clusterName, resourceIdentifier, casbinAction)
+	}
+}
+
+func (handler *K8sApplicationRestHandlerImpl) verifyRbacForResource(token string, clusterName string, resourceIdentifier application.ResourceIdentifier, casbinAction string) bool {
 	resourceName, objectName := handler.enforcerUtil.GetRBACNameForClusterEntity(clusterName, resourceIdentifier)
 	return handler.enforcer.Enforce(token, resourceName, casbinAction, strings.ToLower(objectName))
+}
+
+func (handler *K8sApplicationRestHandlerImpl) verifyRbacForCluster(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool {
+	k8sRequest := request.K8sRequest
+	return handler.verifyRbacForResource(token, clusterName, k8sRequest.ResourceIdentifier, casbinAction)
 }

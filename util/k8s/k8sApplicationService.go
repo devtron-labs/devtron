@@ -42,6 +42,8 @@ type K8sApplicationService interface {
 	ListEvents(ctx context.Context, request *ResourceRequestBean) (*application.EventsResponse, error)
 	GetPodLogs(ctx context.Context, request *ResourceRequestBean) (io.ReadCloser, error)
 	ValidateResourceRequest(ctx context.Context, appIdentifier *client.AppIdentifier, request *application.K8sRequestBean) (bool, error)
+	ValidateClusterResourceRequest(ctx context.Context, clusterResourceRequest *ResourceRequestBean,
+		rbacCallback func(clusterName string, resourceIdentifier application.ResourceIdentifier) bool) bool
 	GetResourceInfo(ctx context.Context) (*ResourceInfo, error)
 	GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error)
 	GetRestConfigByCluster(ctx context.Context, cluster *cluster.ClusterBean) (*rest.Config, error)
@@ -451,6 +453,37 @@ func (impl *K8sApplicationServiceImpl) GetRestConfigByCluster(ctx context.Contex
 	return restConfig, nil
 }
 
+func (impl *K8sApplicationServiceImpl) ValidateClusterResourceRequest(ctx context.Context, clusterResourceRequest *ResourceRequestBean,
+	rbacCallback func(clusterName string, resourceIdentifier application.ResourceIdentifier) bool) bool {
+	clusterId := clusterResourceRequest.ClusterId
+	clusterBean, err := impl.clusterService.FindById(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting clusterBean by cluster Id", "clusterId", clusterId, "err", err)
+		return false
+	}
+	restConfig, err := impl.GetRestConfigByCluster(ctx, clusterBean)
+	if err != nil {
+		impl.logger.Errorw("error in getting rest config by cluster", "clusterId", clusterId, "err", err)
+		return false
+	}
+	k8sRequest := clusterResourceRequest.K8sRequest
+	respManifest, err := impl.k8sClientService.GetResource(ctx, restConfig, k8sRequest)
+	if err != nil {
+		impl.logger.Errorw("error in getting resource", "err", err, "request", clusterResourceRequest)
+		return false
+	}
+	validateCallback := func(group string, kind string, resourceName string) bool {
+		resourceIdentifier := k8sRequest.ResourceIdentifier
+		resourceIdentifier.Name = resourceName
+		resourceIdentifier.GroupVersionKind = schema.GroupVersionKind{
+			Group: group,
+			Kind:  kind,
+		}
+		return rbacCallback(clusterBean.ClusterName, resourceIdentifier)
+	}
+	return impl.K8sUtil.ValidateResource(respManifest.Manifest, validateCallback)
+}
+
 func (impl *K8sApplicationServiceImpl) ValidateResourceRequest(ctx context.Context, appIdentifier *client.AppIdentifier, request *application.K8sRequestBean) (bool, error) {
 	app, err := impl.helmAppService.GetApplicationDetail(ctx, appIdentifier)
 	if err != nil {
@@ -614,10 +647,13 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 		impl.logger.Errorw("error in getting resource list", "err", err, "request", request)
 		return resourceList, err
 	}
-	checkForResourceCallback := func(namespace, resourceName string) bool {
+	checkForResourceCallback := func(namespace, group, kind, resourceName string) bool {
 		resourceIdentifier := k8sRequest.ResourceIdentifier
 		resourceIdentifier.Name = resourceName
 		resourceIdentifier.Namespace = namespace
+		if group != "" && kind != "" {
+			resourceIdentifier.GroupVersionKind = schema.GroupVersionKind{Group: group, Kind: kind}
+		}
 		k8sRequest.ResourceIdentifier = resourceIdentifier
 		return validateResourceAccess(token, clusterBean.ClusterName, *request, casbin.ActionGet)
 	}
