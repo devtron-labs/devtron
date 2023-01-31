@@ -209,9 +209,6 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		workflowRequest.IgnoreDockerCachePush = true
 		workflowRequest.IgnoreDockerCachePull = true
 	}
-	if impl.ciConfig.IgnoreDockerCacheForCI && workflowRequest.CacheInvalidate {
-		workflowRequest.IsPvcMounted = false
-	}
 	ciCdTriggerEvent := CiCdTriggerEvent{
 		Type:      ciEvent,
 		CiRequest: workflowRequest,
