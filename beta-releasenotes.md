@@ -8,6 +8,7 @@
 - fix: sending appName in the response of getAppWorkflow API (#2879)
 - fix: cluster not reachable handling (#2872)
 ## Enhancements
+- feat: Support of reuse container image in containers section in reference chart 4-17 (#2675)
 - feat: Added Rollout chart 4.17 and Deployment chart 1.1 with canary using flagger and Istio support (#2910)
 - feat: Codacy plugin integration (#2892)
 - feat: Semgrep plugin integration (#2877)
