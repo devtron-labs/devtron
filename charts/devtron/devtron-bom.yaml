@@ -5,16 +5,16 @@ installer:
   
 components:
   dashboard:
-    image: "quay.io/devtron/dashboard:37338139-325-12306"
+    image: "quay.io/devtron/dashboard:690a3596-6-12510"
   devtron:
     image: "quay.io/devtron/hyperion:851c54bf-280-12304"
-    cicdImage: "quay.io/devtron/devtron:851c54bf-326-12302"
+    cicdImage: "quay.io/devtron/test:cd4deb53-5578-7125"
   argocdDexServer:
     image: "ghcr.io/dexidp/dex:v2.30.2"
     initContainer:
       authenticator: "quay.io/devtron/authenticator:6e466830-393-11943"
   kubelink:
-    image: "quay.io/devtron/kubelink:7f9303ae-318-12204"
+    image: "quay.io/devtron/kubelink:a5e179d4-310-12420"
   postgres:
     image: "quay.io/devtron/postgres:11.9.0-debian-10-r26"
     armImage: "quay.io/devtron/postgres:11.9"
