@@ -19,10 +19,12 @@ package rbac
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/team"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"go.uber.org/zap"
 	"strings"
 )
@@ -47,6 +49,7 @@ type EnforcerUtil interface {
 	GetHelmObjectByProjectIdAndEnvId(teamId int, envId int) (string, string)
 	GetEnvRBACNameByCdPipelineIdAndEnvId(cdPipelineId int, envId int) string
 	GetAppRBACNameByTeamIdAndAppId(teamId int, appId int) string
+	GetRBACNameForClusterEntity(clusterName string, resourceIdentifier application.ResourceIdentifier) (resourceName, objectName string)
 }
 type EnforcerUtilImpl struct {
 	logger                *zap.SugaredLogger
@@ -415,4 +418,21 @@ func (impl EnforcerUtilImpl) GetAppRBACNameByTeamIdAndAppId(teamId int, appId in
 		return fmt.Sprintf("%s/%s", "", "")
 	}
 	return fmt.Sprintf("%s/%s", strings.ToLower(team.Name), strings.ToLower(application.AppName))
+}
+
+func (impl EnforcerUtilImpl) GetRBACNameForClusterEntity(clusterName string, resourceIdentifier application.ResourceIdentifier) (resourceName, objectName string) {
+	namespace := resourceIdentifier.Namespace
+	objectName = resourceIdentifier.Name
+	groupVersionKind := resourceIdentifier.GroupVersionKind
+	groupName := groupVersionKind.Group
+	kindName := groupVersionKind.Kind
+	if groupName == "" {
+		groupName = casbin.ClusterEmptyGroupPlaceholder
+	}
+	if namespace == "" { //empty value means all namespace access would occur for non-namespace resources
+		namespace = "*"
+	}
+	resourceName = fmt.Sprintf(casbin.ClusterResourceRegex, clusterName, namespace)
+	objectName = fmt.Sprintf(casbin.ClusterObjectRegex, groupName, kindName, objectName)
+	return resourceName, objectName
 }

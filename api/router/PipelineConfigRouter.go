@@ -57,7 +57,6 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/material/delete").HandlerFunc(router.restHandler.DeleteMaterial).Methods("DELETE")
 	configRouter.Path("/get/{appId}").HandlerFunc(router.restHandler.GetApp).Methods("GET")
 	configRouter.Path("/autocomplete").HandlerFunc(router.restHandler.GetAppListForAutocomplete).Methods("GET")
-	configRouter.Path("/min").HandlerFunc(router.restHandler.GetAppListByTeamIds).Methods("GET")
 
 	//Deprecated
 	configRouter.Path("/template/{appId}/default/{chartRefId}").HandlerFunc(router.restHandler.GetAppOverrideForDefaultTemplate).Methods("GET")
@@ -77,6 +76,8 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 
 	configRouter.Path("/ci-pipeline").HandlerFunc(router.restHandler.CreateCiConfig).Methods("POST")
 	configRouter.Path("/ci-pipeline/{appId}").HandlerFunc(router.restHandler.GetCiPipeline).Methods("GET")
+	configRouter.Path("/external-ci/{appId}").HandlerFunc(router.restHandler.GetExternalCi).Methods("GET")
+	configRouter.Path("/external-ci/{appId}/{externalCiId}").HandlerFunc(router.restHandler.GetExternalCiById).Methods("GET")
 	configRouter.Path("/ci-pipeline/template/patch").HandlerFunc(router.restHandler.UpdateCiTemplate).Methods("POST")
 	configRouter.Path("/ci-pipeline/patch").HandlerFunc(router.restHandler.PatchCiPipelines).Methods("POST")
 	configRouter.Path("/ci-pipeline/patch/regex").HandlerFunc(router.restHandler.UpdateBranchCiPipelinesWithRegex).Methods("POST")

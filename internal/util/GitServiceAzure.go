@@ -3,8 +3,8 @@ package util
 import (
 	"context"
 	"fmt"
+	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
-	"github.com/go-pg/pg"
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/git"
 	"go.uber.org/zap"
@@ -20,12 +20,12 @@ type GitAzureClient struct {
 	gitOpsConfigRepository repository.GitOpsConfigRepository
 }
 
-func (impl GitAzureClient) GetRepoUrl(repoName string) (repoUrl string, err error) {
-	url, exists, err := impl.repoExists(repoName, impl.project)
+func (impl GitAzureClient) GetRepoUrl(config *bean2.GitOpsConfigDto) (repoUrl string, err error) {
+	url, exists, err := impl.repoExists(config.GitRepoName, impl.project)
 	if err != nil {
 		return "", err
 	} else if !exists {
-		return "", fmt.Errorf("%s :repo not found", repoName)
+		return "", fmt.Errorf("%s :repo not found", config.GitRepoName)
 	} else {
 		return url, nil
 	}
@@ -49,35 +49,26 @@ func NewGitAzureClient(token string, host string, project string, logger *zap.Su
 		gitOpsConfigRepository: gitOpsConfigRepository,
 	}, err
 }
-func (impl GitAzureClient) DeleteRepository(name string) error {
-	gitOpsConfigBitbucket, err := impl.gitOpsConfigRepository.GetGitOpsConfigByProvider(BITBUCKET_PROVIDER)
-	if err != nil {
-		if err == pg.ErrNoRows {
-			gitOpsConfigBitbucket.AzureProject = ""
-		} else {
-			impl.logger.Errorw("error in fetching gitOps bitbucket config", "err", err)
-			return err
-		}
-	}
+func (impl GitAzureClient) DeleteRepository(config *bean2.GitOpsConfigDto) error {
 	clientAzure := *impl.client
 	gitRepository, err := clientAzure.GetRepository(context.Background(), git.GetRepositoryArgs{
-		RepositoryId: &name,
-		Project:      &gitOpsConfigBitbucket.AzureProject,
+		RepositoryId: &config.GitRepoName,
+		Project:      &config.AzureProjectName,
 	})
 	if err != nil || gitRepository == nil {
-		impl.logger.Errorw("error in fetching repo azure", "project", name, "err", err)
+		impl.logger.Errorw("error in fetching repo azure", "project", config.GitRepoName, "err", err)
 		return err
 	}
 	err = clientAzure.DeleteRepository(context.Background(), git.DeleteRepositoryArgs{RepositoryId: gitRepository.Id, Project: &impl.project})
 	if err != nil {
-		impl.logger.Errorw("error in deleting repo azure", "project", name, "err", err)
+		impl.logger.Errorw("error in deleting repo azure", "project", config.GitRepoName, "err", err)
 	}
 	return err
 }
-func (impl GitAzureClient) CreateRepository(name, description, userName, userEmailId string) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
+func (impl GitAzureClient) CreateRepository(config *bean2.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 	ctx := context.Background()
-	url, repoExists, err := impl.repoExists(name, impl.project)
+	url, repoExists, err := impl.repoExists(config.GitRepoName, impl.project)
 	if err != nil {
 		impl.logger.Errorw("error in communication with azure", "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[GetRepoUrlStage] = err
@@ -88,7 +79,7 @@ func (impl GitAzureClient) CreateRepository(name, description, userName, userEma
 		return url, false, detailedErrorGitOpsConfigActions
 	}
 	gitRepositoryCreateOptions := git.GitRepositoryCreateOptions{
-		Name: &name,
+		Name: &config.GitRepoName,
 	}
 	clientAzure := *impl.client
 	operationReference, err := clientAzure.CreateRepository(ctx, git.CreateRepositoryArgs{
@@ -96,65 +87,65 @@ func (impl GitAzureClient) CreateRepository(name, description, userName, userEma
 		Project:               &impl.project,
 	})
 	if err != nil {
-		impl.logger.Errorw("error in creating repo azure", "project", name, "err", err)
+		impl.logger.Errorw("error in creating repo azure", "project", config.GitRepoName, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CreateRepoStage] = err
 		return "", true, detailedErrorGitOpsConfigActions
 	}
 	logger.Infow("repo created ", "r", operationReference.WebUrl)
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateRepoStage)
-	validated, err := impl.ensureProjectAvailabilityOnHttp(name)
+	validated, err := impl.ensureProjectAvailabilityOnHttp(config.GitRepoName)
 	if err != nil {
-		impl.logger.Errorw("error in ensuring project availability azure", "project", name, "err", err)
+		impl.logger.Errorw("error in ensuring project availability azure", "project", config.GitRepoName, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CloneHttpStage] = err
 		return *operationReference.WebUrl, true, detailedErrorGitOpsConfigActions
 	}
 	if !validated {
-		detailedErrorGitOpsConfigActions.StageErrorMap[CloneHttpStage] = fmt.Errorf("unable to validate project:%s in given time", name)
+		detailedErrorGitOpsConfigActions.StageErrorMap[CloneHttpStage] = fmt.Errorf("unable to validate project:%s in given time", config.GitRepoName)
 		return "", true, detailedErrorGitOpsConfigActions
 	}
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneHttpStage)
 
-	_, err = impl.CreateReadme(name, userName, userEmailId)
+	_, err = impl.CreateReadme(config)
 	if err != nil {
-		impl.logger.Errorw("error in creating readme azure", "project", name, "err", err)
+		impl.logger.Errorw("error in creating readme azure", "project", config.GitRepoName, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CreateReadmeStage] = err
 		return *operationReference.WebUrl, true, detailedErrorGitOpsConfigActions
 	}
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateReadmeStage)
 
-	validated, err = impl.ensureProjectAvailabilityOnSsh(impl.project, name, *operationReference.WebUrl)
+	validated, err = impl.ensureProjectAvailabilityOnSsh(impl.project, config.GitRepoName, *operationReference.WebUrl)
 	if err != nil {
-		impl.logger.Errorw("error in ensuring project availability azure", "project", name, "err", err)
+		impl.logger.Errorw("error in ensuring project availability azure", "project", config.GitRepoName, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CloneSshStage] = err
 		return *operationReference.WebUrl, true, detailedErrorGitOpsConfigActions
 	}
 	if !validated {
-		detailedErrorGitOpsConfigActions.StageErrorMap[CloneSshStage] = fmt.Errorf("unable to validate project:%s in given time", name)
+		detailedErrorGitOpsConfigActions.StageErrorMap[CloneSshStage] = fmt.Errorf("unable to validate project:%s in given time", config.GitRepoName)
 		return "", true, detailedErrorGitOpsConfigActions
 	}
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneSshStage)
 	return *operationReference.WebUrl, true, detailedErrorGitOpsConfigActions
 }
 
-func (impl GitAzureClient) CreateReadme(repoName, userName, userEmailId string) (string, error) {
+func (impl GitAzureClient) CreateReadme(config *bean2.GitOpsConfigDto) (string, error) {
 	cfg := &ChartConfig{
-		ChartName:      repoName,
+		ChartName:      config.GitRepoName,
 		ChartLocation:  "",
 		FileName:       "README.md",
 		FileContent:    "@devtron",
 		ReleaseMessage: "readme",
-		ChartRepoName:  repoName,
-		UserName:       userName,
-		UserEmailId:    userEmailId,
+		ChartRepoName:  config.GitRepoName,
+		UserName:       config.Username,
+		UserEmailId:    config.UserEmailId,
 	}
-	hash, _, err := impl.CommitValues(cfg)
+	hash, _, err := impl.CommitValues(cfg, config)
 	if err != nil {
-		impl.logger.Errorw("error in creating readme azure", "repo", repoName, "err", err)
+		impl.logger.Errorw("error in creating readme azure", "repo", config.GitRepoName, "err", err)
 	}
 	return hash, err
 }
 
-func (impl GitAzureClient) CommitValues(config *ChartConfig) (commitHash string, commitTime time.Time, err error) {
+func (impl GitAzureClient) CommitValues(config *ChartConfig, gitOpsConfig *bean2.GitOpsConfigDto) (commitHash string, commitTime time.Time, err error) {
 	branch := "master"
 	branchfull := "refs/heads/master"
 	path := filepath.Join(config.ChartLocation, config.FileName)

@@ -19,6 +19,7 @@ package router
 
 import (
 	"encoding/json"
+	pubsub2 "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/apiToken"
 	"github.com/devtron-labs/devtron/api/appStore"
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
@@ -34,11 +35,11 @@ import (
 	"github.com/devtron-labs/devtron/api/server"
 	"github.com/devtron-labs/devtron/api/sso"
 	"github.com/devtron-labs/devtron/api/team"
+	terminal2 "github.com/devtron-labs/devtron/api/terminal"
 	"github.com/devtron-labs/devtron/api/user"
 	webhookHelm "github.com/devtron-labs/devtron/api/webhook/helm"
 	"github.com/devtron-labs/devtron/client/cron"
 	"github.com/devtron-labs/devtron/client/dashboard"
-	pubsub2 "github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/devtron-labs/devtron/util"
@@ -68,7 +69,7 @@ type MuxRouter struct {
 	DockerRegRouter                    DockerRegRouter
 	NotificationRouter                 NotificationRouter
 	TeamRouter                         team.TeamRouter
-	pubsubClient                       *pubsub2.PubSubClient
+	pubsubClient                       *pubsub2.PubSubClientServiceImpl
 	UserRouter                         user.UserRouter
 	gitWebhookHandler                  pubsub.GitWebhookHandler
 	workflowUpdateHandler              pubsub.WorkflowStatusUpdateHandler
@@ -113,6 +114,8 @@ type MuxRouter struct {
 	k8sCapacityRouter                  k8s.K8sCapacityRouter
 	webhookHelmRouter                  webhookHelm.WebhookHelmRouter
 	globalCMCSRouter                   GlobalCMCSRouter
+	userTerminalAccessRouter           terminal2.UserTerminalAccessRouter
+	ciStatusUpdateCron                 cron.CiStatusUpdateCron
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -127,7 +130,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 	gitWebhookHandler pubsub.GitWebhookHandler,
 	workflowUpdateHandler pubsub.WorkflowStatusUpdateHandler,
 	appUpdateHandler pubsub.ApplicationStatusUpdateHandler,
-	ciEventHandler pubsub.CiEventHandler, pubsubClient *pubsub2.PubSubClient, UserRouter user.UserRouter,
+	ciEventHandler pubsub.CiEventHandler, pubsubClient *pubsub2.PubSubClientServiceImpl, UserRouter user.UserRouter,
 	ChartRefRouter ChartRefRouter, ConfigMapRouter ConfigMapRouter, AppStoreRouter appStore.AppStoreRouter, chartRepositoryRouter chartRepo.ChartRepositoryRouter,
 	ReleaseMetricsRouter ReleaseMetricsRouter, deploymentGroupRouter DeploymentGroupRouter, batchOperationRouter BatchOperationRouter,
 	chartGroupRouter ChartGroupRouter, testSuitRouter TestSuitRouter, imageScanRouter ImageScanRouter,
@@ -139,7 +142,8 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 	globalPluginRouter GlobalPluginRouter, moduleRouter module.ModuleRouter,
 	serverRouter server.ServerRouter, apiTokenRouter apiToken.ApiTokenRouter,
 	helmApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler, k8sCapacityRouter k8s.K8sCapacityRouter,
-	webhookHelmRouter webhookHelm.WebhookHelmRouter, globalCMCSRouter GlobalCMCSRouter) *MuxRouter {
+	webhookHelmRouter webhookHelm.WebhookHelmRouter, globalCMCSRouter GlobalCMCSRouter,
+	userTerminalAccessRouter terminal2.UserTerminalAccessRouter, ciStatusUpdateCron cron.CiStatusUpdateCron) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
 		HelmRouter:                         HelmRouter,
@@ -204,6 +208,8 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 		k8sCapacityRouter:                  k8sCapacityRouter,
 		webhookHelmRouter:                  webhookHelmRouter,
 		globalCMCSRouter:                   globalCMCSRouter,
+		userTerminalAccessRouter:           userTerminalAccessRouter,
+		ciStatusUpdateCron:                 ciStatusUpdateCron,
 	}
 	return r
 }
@@ -250,7 +256,7 @@ func (r MuxRouter) Init() {
 	r.PipelineConfigRouter.initPipelineConfigRouter(pipelineConfigRouter)
 	r.AppListingRouter.initAppListingRouter(pipelineConfigRouter)
 	r.HelmRouter.initPipelineTriggerRouter(pipelineConfigRouter)
-	r.appRouter.initAppRouter(pipelineConfigRouter)
+	r.appRouter.InitAppRouter(pipelineConfigRouter)
 
 	migrateRouter := r.Router.PathPrefix("/orchestrator/migrate").Subrouter()
 	r.MigrateDbRouter.InitMigrateDbRouter(migrateRouter)
@@ -325,7 +331,7 @@ func (r MuxRouter) Init() {
 	r.gitOpsConfigRouter.InitGitOpsConfigRouter(gitOpsRouter)
 
 	attributeRouter := r.Router.PathPrefix("/orchestrator/attributes").Subrouter()
-	r.attributesRouter.initAttributesRouter(attributeRouter)
+	r.attributesRouter.InitAttributesRouter(attributeRouter)
 
 	userAttributeRouter := r.Router.PathPrefix("/orchestrator/attributes/user").Subrouter()
 	r.userAttributesRouter.InitUserAttributesRouter(userAttributeRouter)
@@ -404,4 +410,7 @@ func (r MuxRouter) Init() {
 
 	globalCMCSRouter := r.Router.PathPrefix("/orchestrator/global/cm-cs").Subrouter()
 	r.globalCMCSRouter.initGlobalCMCSRouter(globalCMCSRouter)
+
+	userTerminalAccessRouter := r.Router.PathPrefix("/orchestrator/user/terminal").Subrouter()
+	r.userTerminalAccessRouter.InitTerminalAccessRouter(userTerminalAccessRouter)
 }

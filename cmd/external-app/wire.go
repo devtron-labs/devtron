@@ -21,6 +21,7 @@ import (
 	"github.com/devtron-labs/devtron/api/server"
 	"github.com/devtron-labs/devtron/api/sso"
 	"github.com/devtron-labs/devtron/api/team"
+	"github.com/devtron-labs/devtron/api/terminal"
 	"github.com/devtron-labs/devtron/api/user"
 	webhookHelm "github.com/devtron-labs/devtron/api/webhook/helm"
 	"github.com/devtron-labs/devtron/client/argocdServer/session"
@@ -30,11 +31,14 @@ import (
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/app"
 	appStoreDeploymentTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool"
 	appStoreDeploymentGitopsTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/gitops"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
+	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
+	repository2 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
@@ -66,6 +70,7 @@ func InitializeApp() (*App, error) {
 		module.ModuleWireSet,
 		apiToken.ApiTokenWireSet,
 		webhookHelm.WebhookHelmWireSet,
+		terminal.TerminalWireSet,
 
 		NewApp,
 		NewMuxRouter,
@@ -81,6 +86,15 @@ func InitializeApp() (*App, error) {
 		rbac.NewEnforcerUtilImpl,
 		wire.Bind(new(rbac.EnforcerUtil), new(*rbac.EnforcerUtilImpl)),
 
+		router.NewAppRouterImpl,
+		wire.Bind(new(router.AppRouter), new(*router.AppRouterImpl)),
+		restHandler.NewAppRestHandlerImpl,
+		wire.Bind(new(restHandler.AppRestHandler), new(*restHandler.AppRestHandlerImpl)),
+
+		app.NewAppCrudOperationServiceImpl,
+		wire.Bind(new(app.AppCrudOperationService), new(*app.AppCrudOperationServiceImpl)),
+		pipelineConfig.NewAppLabelRepositoryImpl,
+		wire.Bind(new(pipelineConfig.AppLabelRepository), new(*pipelineConfig.AppLabelRepositoryImpl)),
 		//acd session client bind with authenticator login
 		wire.Bind(new(session.ServiceClient), new(*middleware.LoginService)),
 		connector.NewPumpImpl,
@@ -96,6 +110,10 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipelineConfig.PipelineRepository), new(*pipelineConfig.PipelineRepositoryImpl)),
 		app2.NewAppRepositoryImpl,
 		wire.Bind(new(app2.AppRepository), new(*app2.AppRepositoryImpl)),
+		router.NewAttributesRouterImpl,
+		wire.Bind(new(router.AttributesRouter), new(*router.AttributesRouterImpl)),
+		restHandler.NewAttributesRestHandlerImpl,
+		wire.Bind(new(restHandler.AttributesRestHandler), new(*restHandler.AttributesRestHandlerImpl)),
 		attributes.NewAttributesServiceImpl,
 		wire.Bind(new(attributes.AttributesService), new(*attributes.AttributesServiceImpl)),
 		repository.NewAttributesRepositoryImpl,
@@ -136,8 +154,13 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(attributes.UserAttributesService), new(*attributes.UserAttributesServiceImpl)),
 		repository.NewUserAttributesRepositoryImpl,
 		wire.Bind(new(repository.UserAttributesRepository), new(*repository.UserAttributesRepositoryImpl)),
-
 		util3.GetDevtronSecretName,
+
+		repository2.NewK8sResourceHistoryRepositoryImpl,
+		wire.Bind(new(repository2.K8sResourceHistoryRepository), new(*repository2.K8sResourceHistoryRepositoryImpl)),
+
+		kubernetesResourceAuditLogs.Newk8sResourceHistoryServiceImpl,
+		wire.Bind(new(kubernetesResourceAuditLogs.K8sResourceHistoryService), new(*kubernetesResourceAuditLogs.K8sResourceHistoryServiceImpl)),
 	)
 	return &App{}, nil
 }

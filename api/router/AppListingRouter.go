@@ -38,6 +38,8 @@ func NewAppListingRouterImpl(appListingRestHandler restHandler.AppListingRestHan
 }
 
 func (router AppListingRouterImpl) initAppListingRouter(appListingRouter *mux.Router) {
+	appListingRouter.Path("/allApps").HandlerFunc(router.appListingRestHandler.FetchAllDevtronManagedApps).
+		Methods("GET")
 
 	appListingRouter.Path("/resource/urls").Queries("envId", "{envId}").
 		HandlerFunc(router.appListingRestHandler.GetHostUrlsByBatch).Methods("GET")
@@ -66,5 +68,9 @@ func (router AppListingRouterImpl) initAppListingRouter(appListingRouter *mux.Ro
 	appListingRouter.Path("/linkouts/{Id}/{appId}/{envId}").Queries("podName", "{podName}").
 		Queries("containerName", "{containerName}").
 		HandlerFunc(router.appListingRestHandler.RedirectToLinkouts).
+		Methods("GET")
+
+	appListingRouter.Path("/deployment-status/manual-sync/{appId}/{envId}").
+		HandlerFunc(router.appListingRestHandler.ManualSyncAcdPipelineDeploymentStatus).
 		Methods("GET")
 }

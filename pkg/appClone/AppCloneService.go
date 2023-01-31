@@ -123,7 +123,7 @@ func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context 
 	newAppId := app.Id
 	if !refAppStatus["MATERIAL"] {
 		impl.logger.Errorw("status not", "MATERIAL", cloneReq.RefAppId)
-		return nil, nil
+		return app, nil
 	}
 	_, gitMaerialMap, err := impl.CloneGitRepo(cloneReq.RefAppId, newAppId, userId)
 	if err != nil {
@@ -138,7 +138,11 @@ func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context 
 	}
 	if !refAppStatus["TEMPLATE"] {
 		impl.logger.Errorw("status not", "TEMPLATE", cloneReq.RefAppId)
-		return nil, nil
+		return app, nil
+	}
+	if !refAppStatus["CHART"] {
+		impl.logger.Errorw("status not", "CHART", cloneReq.RefAppId)
+		return app, nil
 	}
 	_, err = impl.CreateDeploymentTemplate(cloneReq.RefAppId, newAppId, userId, context)
 	if err != nil {
@@ -157,12 +161,12 @@ func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context 
 		return nil, err
 	}
 	if isSmaeProject {
-		_, err = impl.CreateEnvCm(cloneReq.RefAppId, newAppId, userId)
+		_, err = impl.CreateEnvCm(context, cloneReq.RefAppId, newAppId, userId)
 		if err != nil {
 			impl.logger.Errorw("error in creating env cm", "err", err)
 			return nil, err
 		}
-		_, err = impl.CreateEnvSecret(cloneReq.RefAppId, newAppId, userId)
+		_, err = impl.CreateEnvSecret(context, cloneReq.RefAppId, newAppId, userId)
 		if err != nil {
 			impl.logger.Errorw("error in creating env secret", "err", err)
 			return nil, err
@@ -346,8 +350,8 @@ func (impl *AppCloneServiceImpl) CreateGlobalCM(oldAppId, newAppId int, userId i
 
 }
 
-func (impl *AppCloneServiceImpl) CreateEnvCm(oldAppId, newAppId int, userId int32) (interface{}, error) {
-	refEnvs, err := impl.appListingService.FetchOtherEnvironment(oldAppId)
+func (impl *AppCloneServiceImpl) CreateEnvCm(ctx context.Context, oldAppId, newAppId int, userId int32) (interface{}, error) {
+	refEnvs, err := impl.appListingService.FetchOtherEnvironment(ctx, oldAppId)
 	if err != nil {
 		return nil, err
 	}
@@ -390,8 +394,8 @@ func (impl *AppCloneServiceImpl) CreateEnvCm(oldAppId, newAppId int, userId int3
 	return nil, nil
 }
 
-func (impl *AppCloneServiceImpl) CreateEnvSecret(oldAppId, newAppId int, userId int32) (interface{}, error) {
-	refEnvs, err := impl.appListingService.FetchOtherEnvironment(oldAppId)
+func (impl *AppCloneServiceImpl) CreateEnvSecret(ctx context.Context, oldAppId, newAppId int, userId int32) (interface{}, error) {
+	refEnvs, err := impl.appListingService.FetchOtherEnvironment(ctx, oldAppId)
 	if err != nil {
 		return nil, err
 	}
@@ -437,7 +441,7 @@ func (impl *AppCloneServiceImpl) CreateEnvSecret(oldAppId, newAppId int, userId 
 }
 
 func (impl *AppCloneServiceImpl) createEnvOverride(oldAppId, newAppId int, userId int32, ctx context.Context) (interface{}, error) {
-	refEnvs, err := impl.appListingService.FetchOtherEnvironment(oldAppId)
+	refEnvs, err := impl.appListingService.FetchOtherEnvironment(ctx, oldAppId)
 	if err != nil {
 		return nil, err
 	}
@@ -583,14 +587,21 @@ func (impl *AppCloneServiceImpl) createWfMappings(refWfMappings []appWorkflow.Ap
 	impl.logger.Debugw("wf mapping cloning", "refWfMappings", refWfMappings)
 	var ciMapping []appWorkflow.AppWorkflowMappingDto
 	var cdMappings []appWorkflow.AppWorkflowMappingDto
+	var webhookMappings []appWorkflow.AppWorkflowMappingDto
 	for _, appWf := range refWfMappings {
 		if appWf.Type == appWorkflow2.CIPIPELINE {
 			ciMapping = append(ciMapping, appWf)
 		} else if appWf.Type == appWorkflow2.CDPIPELINE {
 			cdMappings = append(cdMappings, appWf)
+		} else if appWf.Type == appWorkflow2.WEBHOOK {
+			webhookMappings = append(webhookMappings, appWf)
 		} else {
 			return fmt.Errorf("unsupported wf type: %s", appWf.Type)
 		}
+	}
+	if len(webhookMappings) > 0 {
+		impl.logger.Warn("external ci webhook found in workflow, not supported for clone")
+		return nil
 	}
 	if len(ciMapping) == 0 {
 		impl.logger.Warn("no ci pipeline found")
@@ -821,6 +832,7 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 		PostStageConfigMapSecretNames: refCdPipeline.PostStageConfigMapSecretNames,
 		RunPostStageInEnv:             refCdPipeline.RunPostStageInEnv,
 		RunPreStageInEnv:              refCdPipeline.RunPreStageInEnv,
+		DeploymentAppType:             refCdPipeline.DeploymentAppType,
 	}
 	cdPipelineReq := &bean.CdPipelines{
 		Pipelines: []*bean.CDPipelineConfigObject{cdPipeline},

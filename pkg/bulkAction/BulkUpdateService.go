@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
+	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -998,7 +999,7 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 			response[appKey] = pipelineResponse
 			continue
 		}
-
+		var hibernateReqError error
 		if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
 			stopRequest := &pipeline1.StopAppRequest{
 				AppId:         pipeline.AppId,
@@ -1006,19 +1007,23 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 				UserId:        request.UserId,
 				RequestType:   pipeline1.STOP,
 			}
-			_, err := impl.workflowDagExecutor.StopStartApp(stopRequest, ctx)
-			if err != nil {
-				impl.logger.Errorw("service err, StartStopApp", "err", err, "stopRequest", stopRequest)
-				pipelineResponse := response[appKey]
-				pipelineResponse[pipelineKey] = false
-				response[appKey] = pipelineResponse
-				continue
-				//here on any error comes for any pipeline will be skipped
-				//return nil, err
-			}
+			_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(stopRequest, ctx)
 		} else if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
-			//TODO
-			//initiate helm hibernate service
+			appIdentifier, hibernateRequest, err := impl.buildHibernateUnHibernateRequestForHelmPipelines(pipeline)
+			if err != nil {
+				impl.logger.Errorw("error in building hibernate/unhibernate req", "err", err, "pipeline", pipeline)
+				continue
+			}
+			if appIdentifier != nil && hibernateRequest != nil {
+				_, hibernateReqError = impl.helmAppService.HibernateApplication(context.Background(), appIdentifier, hibernateRequest)
+			}
+		}
+		if hibernateReqError != nil {
+			impl.logger.Errorw("error in hibernating application", "err", hibernateReqError, "pipeline", pipeline)
+			pipelineResponse := response[appKey]
+			pipelineResponse[pipelineKey] = false
+			response[appKey] = pipelineResponse
+			continue
 		}
 		pipelineResponse := response[appKey]
 		pipelineResponse[pipelineKey] = success
@@ -1028,6 +1033,61 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 	bulkOperationResponse.BulkApplicationForEnvironmentPayload = *request
 	bulkOperationResponse.Response = response
 	return bulkOperationResponse, nil
+}
+
+func (impl BulkUpdateServiceImpl) buildHibernateUnHibernateRequestForHelmPipelines(pipeline *pipelineConfig.Pipeline) (*client.AppIdentifier, *openapi.HibernateRequest, error) {
+	appIdentifier := &client.AppIdentifier{
+		ClusterId:   pipeline.Environment.ClusterId,
+		Namespace:   pipeline.Environment.Namespace,
+		ReleaseName: pipeline.DeploymentAppName,
+	}
+
+	hibernateRequest := &openapi.HibernateRequest{}
+	chartInfo, err := impl.chartRefRepository.FetchInfoOfChartConfiguredInApp(pipeline.AppId)
+	if err != nil {
+		impl.logger.Errorw("error in getting chart info for chart configured in app", "err", err, "appId", pipeline.AppId)
+		return nil, nil, err
+	}
+	var group, kind, version, name string
+	name = fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
+	if chartInfo.Name == "" && chartInfo.UserUploaded == false {
+		// rollout type chart
+		group = "argoproj.io"
+		kind = "Rollout"
+		version = "v1alpha1"
+		hibernateRequest = &openapi.HibernateRequest{
+			Resources: &[]openapi.HibernateTargetObject{
+				{
+					Group:     &group,
+					Kind:      &kind,
+					Version:   &version,
+					Namespace: &pipeline.Environment.Namespace,
+					Name:      &name,
+				},
+			},
+		}
+	} else if chartInfo.Name == "Deployment" {
+		//deployment type chart
+		group = "apps"
+		kind = "Deployment"
+		version = "v1"
+		hibernateRequest = &openapi.HibernateRequest{
+			Resources: &[]openapi.HibernateTargetObject{
+				{
+					Group:     &group,
+					Kind:      &kind,
+					Version:   &version,
+					Namespace: &pipeline.Environment.Namespace,
+					Name:      &name,
+				},
+			},
+		}
+	} else {
+		//chart not supported for hibernation, skipping
+		impl.logger.Warnw("unsupported chart found for hibernate request, skipping", "pipelineId", pipeline.Id, "chartInfo", chartInfo)
+		return nil, nil, nil
+	}
+	return appIdentifier, hibernateRequest, nil
 }
 func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationForEnvironmentResponse, error) {
 	var pipelines []*pipelineConfig.Pipeline
@@ -1063,7 +1123,7 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 			response[appKey] = pipelineResponse
 			continue
 		}
-
+		var hibernateReqError error
 		if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
 			stopRequest := &pipeline1.StopAppRequest{
 				AppId:         pipeline.AppId,
@@ -1071,17 +1131,24 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 				UserId:        request.UserId,
 				RequestType:   pipeline1.START,
 			}
-			_, err := impl.workflowDagExecutor.StopStartApp(stopRequest, ctx)
-			if err != nil {
-				impl.logger.Errorw("service err, StartStopApp", "err", err, "stopRequest", stopRequest)
-				pipelineResponse := response[appKey]
-				pipelineResponse[pipelineKey] = false
-				response[appKey] = pipelineResponse
-				//return nil, err
-			}
+			_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(stopRequest, ctx)
+
 		} else if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
-			//TODO
-			//initiate helm hibernate service
+			appIdentifier, hibernateRequest, err := impl.buildHibernateUnHibernateRequestForHelmPipelines(pipeline)
+			if err != nil {
+				impl.logger.Errorw("error in building hibernate/un-hibernate req", "err", err, "pipeline", pipeline)
+				continue
+			}
+			if appIdentifier != nil && hibernateRequest != nil {
+				_, hibernateReqError = impl.helmAppService.UnHibernateApplication(context.Background(), appIdentifier, hibernateRequest)
+			}
+		}
+		if hibernateReqError != nil {
+			impl.logger.Errorw("error in un-hibernating application", "err", hibernateReqError, "pipeline", pipeline)
+			pipelineResponse := response[appKey]
+			pipelineResponse[pipelineKey] = false
+			response[appKey] = pipelineResponse
+			//return nil, err
 		}
 		pipelineResponse := response[appKey]
 		pipelineResponse[pipelineKey] = success
@@ -1284,15 +1351,14 @@ func (impl BulkUpdateServiceImpl) BulkBuildTrigger(request *BulkApplicationForEn
 
 func (impl BulkUpdateServiceImpl) GetBulkActionImpactedPipelinesAndWfs(dto *CdBulkActionRequestDto) ([]*pipelineConfig.Pipeline, []int, []int, error) {
 	var err error
-	if len(dto.EnvIds) == 0 || (len(dto.AppIds) == 0 && len(dto.ProjectIds) == 0) {
-		//invalid payload, envIds are must and either of appIds or projectIds are must
+	if (len(dto.EnvIds) == 0 && len(dto.EnvNames) == 0) || ((len(dto.AppIds) == 0 && len(dto.AppNames) == 0) && (len(dto.ProjectIds) == 0 && len(dto.ProjectNames) == 0)) {
+		//invalid payload, envIds or envNames are must and at least one of appIds, appNames, projectIds, projectNames is must
 		return nil, nil, nil, &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "invalid payload, can not get pipelines for this filter"}
 	}
-
-	if len(dto.ProjectIds) > 0 {
-		appIdsInProjects, err := impl.appRepository.FindIdsByTeamIds(dto.ProjectIds)
+	if len(dto.ProjectIds) > 0 || len(dto.ProjectNames) > 0 {
+		appIdsInProjects, err := impl.appRepository.FindIdsByTeamIdsAndTeamNames(dto.ProjectIds, dto.ProjectNames)
 		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error in getting appIds by projectIds", "err", err, "projectIds", dto.ProjectIds)
+			impl.logger.Errorw("error in getting appIds by projectIds and projectNames", "err", err, "projectIds", dto.ProjectIds, "projectNames", dto.ProjectNames)
 			return nil, nil, nil, err
 		}
 		dto.AppIds = append(dto.AppIds, appIdsInProjects...)
@@ -1300,7 +1366,23 @@ func (impl BulkUpdateServiceImpl) GetBulkActionImpactedPipelinesAndWfs(dto *CdBu
 	var impactedWfIds []int
 	var impactedPipelineIds []int
 	var impactedCiPipelineIds []int
-	if len(dto.AppIds) > 0 && len(dto.EnvIds) > 0 {
+	if (len(dto.AppIds) > 0 || len(dto.AppNames) > 0) && (len(dto.EnvIds) > 0 || len(dto.EnvNames) > 0) {
+		if len(dto.AppNames) > 0 {
+			appIdsByNames, err := impl.appRepository.FindIdsByNames(dto.AppNames)
+			if err != nil {
+				impl.logger.Errorw("error in getting appIds by names", "err", err, "names", dto.AppNames)
+				return nil, nil, nil, err
+			}
+			dto.AppIds = append(dto.AppIds, appIdsByNames...)
+		}
+		if len(dto.EnvNames) > 0 {
+			envIdsByNames, err := impl.environmentRepository.FindIdsByNames(dto.EnvNames)
+			if err != nil {
+				impl.logger.Errorw("error in getting envIds by names", "err", err, "names", dto.EnvNames)
+				return nil, nil, nil, err
+			}
+			dto.EnvIds = append(dto.EnvIds, envIdsByNames...)
+		}
 		if !dto.DeleteWfAndCiPipeline {
 			//getting pipeline IDs for app level deletion request
 			impactedPipelineIds, err = impl.pipelineRepository.FindIdsByAppIdsAndEnvironmentIds(dto.AppIds, dto.EnvIds)
@@ -1308,24 +1390,28 @@ func (impl BulkUpdateServiceImpl) GetBulkActionImpactedPipelinesAndWfs(dto *CdBu
 				impl.logger.Errorw("error in getting cd pipelines by appIds and envIds", "err", err)
 				return nil, nil, nil, err
 			}
-
 		} else {
 			//getting all workflows in given apps which do not have pipelines of other than given environments
-			appWfs, err := impl.appWorkflowRepository.FindAllWfsHavingCdPipelinesFromSpecificEnvsOnly(dto.EnvIds, dto.AppIds)
+			appWfsHavingSpecificCdPipelines, err := impl.appWorkflowRepository.FindAllWfsHavingCdPipelinesFromSpecificEnvsOnly(dto.EnvIds, dto.AppIds)
 			if err != nil && err != pg.ErrNoRows {
 				impl.logger.Errorw("error in getting wfs having cd pipelines from specific env only", "err", err)
 				return nil, nil, nil, err
 			}
 			impactedWfIdsMap := make(map[int]bool)
-			for _, appWf := range appWfs {
+			for _, appWf := range appWfsHavingSpecificCdPipelines {
 				if appWf.Type == appWorkflow.CDPIPELINE {
 					impactedPipelineIds = append(impactedPipelineIds, appWf.ComponentId)
-				} else if appWf.Type == appWorkflow.CIPIPELINE {
-					impactedCiPipelineIds = append(impactedCiPipelineIds, appWf.ComponentId)
 				}
 				if _, ok := impactedWfIdsMap[appWf.AppWorkflowId]; !ok {
 					impactedWfIds = append(impactedWfIds, appWf.AppWorkflowId)
 					impactedWfIdsMap[appWf.AppWorkflowId] = true
+				}
+			}
+			if len(impactedWfIds) > 0 {
+				impactedCiPipelineIds, err = impl.appWorkflowRepository.FindCiPipelineIdsFromAppWfIds(impactedWfIds)
+				if err != nil {
+					impl.logger.Errorw("error in getting ciPipelineIds from appWfIds", "err", err, "wfIds", impactedWfIds)
+					return nil, nil, nil, err
 				}
 			}
 		}
@@ -1377,7 +1463,7 @@ func (impl BulkUpdateServiceImpl) PerformBulkDeleteActionOnCdPipelines(impactedP
 			EnvironmentName: pipeline.Environment.Name,
 		}
 		if !dryRun {
-			err := impl.pipelineBuilder.DeleteCdPipeline(pipeline, ctx, forceDelete)
+			err := impl.pipelineBuilder.DeleteCdPipeline(pipeline, ctx, forceDelete, userId)
 			if err != nil {
 				impl.logger.Errorw("error in deleting cd pipeline", "err", err, "pipelineId", pipeline.Id)
 				respDto.DeletionResult = fmt.Sprintf("Not able to delete pipeline, %v", err)

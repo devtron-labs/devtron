@@ -218,7 +218,7 @@ func (handler CoreAppRestHandlerImpl) GetAppAllDetail(w http.ResponseWriter, r *
 	//get/build global secrets ends
 
 	//get/build environment override starts
-	environmentOverrides, err, statusCode := handler.buildEnvironmentOverrides(appId, token)
+	environmentOverrides, err, statusCode := handler.buildEnvironmentOverrides(r.Context(), appId, token)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, statusCode)
 		return
@@ -555,6 +555,8 @@ func (handler CoreAppRestHandlerImpl) buildAppEnvironmentDeploymentTemplate(appI
 	var deploymentTemplateRaw json.RawMessage
 	var chartRefId int
 	var isOverride bool
+	var isBasicViewLocked bool
+	var currentViewEditor models.ChartsViewEditorType
 	if envId > 0 {
 		//on env level
 		env, err := handler.propertiesConfigService.GetEnvironmentProperties(appId, envId, chartRefData.LatestEnvChartRef)
@@ -567,15 +569,21 @@ func (handler CoreAppRestHandlerImpl) buildAppEnvironmentDeploymentTemplate(appI
 			deploymentTemplateRaw = env.EnvironmentConfig.EnvOverrideValues
 			showAppMetrics = *env.AppMetrics
 			isOverride = true
+			isBasicViewLocked = env.EnvironmentConfig.IsBasicViewLocked
+			currentViewEditor = env.EnvironmentConfig.CurrentViewEditor
 		} else {
 			showAppMetrics = appDeploymentTemplate.IsAppMetricsEnabled
 			deploymentTemplateRaw = appDeploymentTemplate.DefaultAppOverride
+			isBasicViewLocked = appDeploymentTemplate.IsBasicViewLocked
+			currentViewEditor = appDeploymentTemplate.CurrentViewEditor
 		}
 	} else {
 		//on app level
 		showAppMetrics = appDeploymentTemplate.IsAppMetricsEnabled
 		deploymentTemplateRaw = appDeploymentTemplate.DefaultAppOverride
 		chartRefId = chartRefData.LatestAppChartRef
+		isBasicViewLocked = appDeploymentTemplate.IsBasicViewLocked
+		currentViewEditor = appDeploymentTemplate.CurrentViewEditor
 	}
 
 	var deploymentTemplateObj map[string]interface{}
@@ -588,10 +596,12 @@ func (handler CoreAppRestHandlerImpl) buildAppEnvironmentDeploymentTemplate(appI
 	}
 
 	deploymentTemplateResp := &appBean.DeploymentTemplate{
-		ChartRefId:     chartRefId,
-		Template:       deploymentTemplateObj,
-		ShowAppMetrics: showAppMetrics,
-		IsOverride:     isOverride,
+		ChartRefId:        chartRefId,
+		Template:          deploymentTemplateObj,
+		ShowAppMetrics:    showAppMetrics,
+		IsOverride:        isOverride,
+		IsBasicViewLocked: isBasicViewLocked,
+		CurrentViewEditor: currentViewEditor,
 	}
 
 	return deploymentTemplateResp, nil, http.StatusOK
@@ -735,21 +745,21 @@ func (handler CoreAppRestHandlerImpl) buildCdPipelineResp(appId int, cdPipeline 
 	}
 
 	cdPipelineResp := &appBean.CdPipelineDetails{
-		Name:              cdPipeline.Name,
-		EnvironmentName:   cdPipeline.EnvironmentName,
-		TriggerType:       cdPipeline.TriggerType,
-		DeploymentType:    cdPipeline.DeploymentTemplate,
-		RunPreStageInEnv:  cdPipeline.RunPreStageInEnv,
-		RunPostStageInEnv: cdPipeline.RunPostStageInEnv,
-		IsClusterCdActive: cdPipeline.CdArgoSetup,
+		Name:                   cdPipeline.Name,
+		EnvironmentName:        cdPipeline.EnvironmentName,
+		TriggerType:            cdPipeline.TriggerType,
+		DeploymentStrategyType: cdPipeline.DeploymentTemplate,
+		RunPreStageInEnv:       cdPipeline.RunPreStageInEnv,
+		RunPostStageInEnv:      cdPipeline.RunPostStageInEnv,
+		IsClusterCdActive:      cdPipeline.CdArgoSetup,
 	}
 
 	//build DeploymentStrategies resp
 	var deploymentTemplateStrategiesResp []*appBean.DeploymentStrategy
 	for _, strategy := range cdPipeline.Strategies {
 		deploymentTemplateStrategyResp := &appBean.DeploymentStrategy{
-			DeploymentType: strategy.DeploymentTemplate,
-			IsDefault:      strategy.Default,
+			DeploymentStrategyType: strategy.DeploymentTemplate,
+			IsDefault:              strategy.Default,
 		}
 		var configObj map[string]interface{}
 		if strategy.Config != nil {
@@ -1011,10 +1021,10 @@ func (handler CoreAppRestHandlerImpl) buildAppSecrets(appId int, envId int, secr
 }
 
 // get/build environment overrides
-func (handler CoreAppRestHandlerImpl) buildEnvironmentOverrides(appId int, token string) (map[string]*appBean.EnvironmentOverride, error, int) {
+func (handler CoreAppRestHandlerImpl) buildEnvironmentOverrides(ctx context.Context, appId int, token string) (map[string]*appBean.EnvironmentOverride, error, int) {
 	handler.logger.Debugw("Getting app detail - env override", "appId", appId)
 
-	appEnvironments, err := handler.appListingService.FetchOtherEnvironment(appId)
+	appEnvironments, err := handler.appListingService.FetchOtherEnvironment(ctx, appId)
 	if err != nil {
 		handler.logger.Errorw("service err, Fetch app environments in GetAppAllDetail", "err", err, "appId", appId)
 		return nil, err, http.StatusInternalServerError
@@ -1287,13 +1297,15 @@ func (handler CoreAppRestHandlerImpl) createDockerConfig(appId int, dockerConfig
 
 // create global template
 func (handler CoreAppRestHandlerImpl) createDeploymentTemplate(ctx context.Context, appId int, deploymentTemplate *appBean.DeploymentTemplate, userId int32) (error, int) {
-	handler.logger.Infow("Create App - creating deployment template", "appId", appId, "DeploymentTemplate", deploymentTemplate)
+	handler.logger.Infow("Create App - creating deployment template", "appId", appId, "DeploymentStrategy", deploymentTemplate)
 
 	createDeploymentTemplateRequest := chart.TemplateRequest{
 		AppId:               appId,
 		ChartRefId:          deploymentTemplate.ChartRefId,
 		IsAppMetricsEnabled: deploymentTemplate.ShowAppMetrics,
 		UserId:              userId,
+		IsBasicViewLocked:   deploymentTemplate.IsBasicViewLocked,
+		CurrentViewEditor:   deploymentTemplate.CurrentViewEditor,
 	}
 
 	//marshalling template
@@ -1618,7 +1630,7 @@ func (handler CoreAppRestHandlerImpl) createCdPipelines(ctx context.Context, app
 			Namespace:                     envModel.Namespace,
 			AppWorkflowId:                 workflowId,
 			CiPipelineId:                  ciPipelineId,
-			DeploymentTemplate:            cdPipeline.DeploymentType,
+			DeploymentTemplate:            cdPipeline.DeploymentStrategyType,
 			TriggerType:                   cdPipeline.TriggerType,
 			CdArgoSetup:                   cdPipeline.IsClusterCdActive,
 			RunPreStageInEnv:              cdPipeline.RunPreStageInEnv,
@@ -1711,6 +1723,55 @@ func (handler CoreAppRestHandlerImpl) createEnvOverrides(ctx context.Context, ap
 func (handler CoreAppRestHandlerImpl) createEnvDeploymentTemplate(appId int, userId int32, envId int, deploymentTemplateOverride *appBean.DeploymentTemplate) error {
 	handler.logger.Infow("Create App - creating template override", "appId", appId)
 
+	// build object
+	template, err := json.Marshal(deploymentTemplateOverride.Template)
+	if err != nil {
+		handler.logger.Errorw("json marshaling error env override template in createEnvDeploymentTemplate", "appId", appId, "envId", envId)
+		return err
+	}
+	chartRefId := deploymentTemplateOverride.ChartRefId
+	envConfigProperties := &pipeline.EnvironmentProperties{
+		IsOverride:        true,
+		Active:            true,
+		ManualReviewed:    true,
+		Status:            models.CHARTSTATUS_NEW,
+		EnvOverrideValues: template,
+		IsBasicViewLocked: deploymentTemplateOverride.IsBasicViewLocked,
+		CurrentViewEditor: deploymentTemplateOverride.CurrentViewEditor,
+		ChartRefId:        chartRefId,
+		EnvironmentId:     envId,
+		UserId:            userId,
+	}
+
+	// if chart not found for chart_ref then create
+	_, err = handler.chartRepo.FindChartByAppIdAndRefId(appId, chartRefId)
+	if err != nil {
+		if pg.ErrNoRows == err {
+			templateRequest := chart.TemplateRequest{
+				AppId:               appId,
+				ChartRefId:          chartRefId,
+				ValuesOverride:      []byte("{}"),
+				UserId:              userId,
+				IsAppMetricsEnabled: deploymentTemplateOverride.ShowAppMetrics,
+			}
+			_, err = handler.chartService.CreateChartFromEnvOverride(templateRequest, context.Background())
+			if err != nil {
+				handler.logger.Errorw("service err, CreateChartFromEnvOverride", "err", err, "appId", appId, "envId", envId, "chartRefId", chartRefId)
+				return err
+			}
+		} else {
+			handler.logger.Errorw("service err, FindChartByAppIdAndRefId", "err", err, "appId", appId, "envId", envId, "chartRefId", chartRefId)
+			return err
+		}
+	}
+
+	// create if required
+	_, err = handler.propertiesConfigService.CreateEnvironmentProperties(appId, envConfigProperties)
+	if err != nil {
+		handler.logger.Errorw("service err, CreateEnvironmentProperties", "err", err, "appId", appId, "envId", envId, "chartRefId", chartRefId)
+		return err
+	}
+
 	//getting environment properties for db table id(this properties get created when cd pipeline is created)
 	env, err := handler.propertiesConfigService.GetEnvironmentProperties(appId, envId, deploymentTemplateOverride.ChartRefId)
 	if err != nil {
@@ -1719,21 +1780,8 @@ func (handler CoreAppRestHandlerImpl) createEnvDeploymentTemplate(appId int, use
 	}
 
 	//updating env template override
-	template, err := json.Marshal(deploymentTemplateOverride.Template)
-	if err != nil {
-		handler.logger.Errorw("json marshaling error env override template in createEnvDeploymentTemplate", "appId", appId, "envId", envId)
-		return err
-	}
-
-	envConfigProperties := &pipeline.EnvironmentProperties{
-		Id:                env.EnvironmentConfig.Id,
-		IsOverride:        true,
-		Active:            true,
-		ManualReviewed:    true,
-		Namespace:         env.Namespace,
-		Status:            models.CHARTSTATUS_NEW,
-		EnvOverrideValues: template,
-	}
+	envConfigProperties.Id = env.EnvironmentConfig.Id
+	envConfigProperties.Namespace = env.Namespace
 	_, err = handler.propertiesConfigService.UpdateEnvironmentProperties(appId, envConfigProperties, userId)
 	if err != nil {
 		handler.logger.Errorw("service err, EnvConfigOverrideUpdate", "err", err, "appId", appId, "envId", envId)
@@ -1948,7 +1996,7 @@ func convertCdDeploymentStrategies(deploymentStrategies []*appBean.DeploymentStr
 	var convertedStrategies []bean.Strategy
 	for _, deploymentStrategy := range deploymentStrategies {
 		convertedStrategy := bean.Strategy{
-			DeploymentTemplate: deploymentStrategy.DeploymentType,
+			DeploymentTemplate: deploymentStrategy.DeploymentStrategyType,
 			Default:            deploymentStrategy.IsDefault,
 		}
 		strategyConfig, err := json.Marshal(deploymentStrategy.Config)
@@ -2069,6 +2117,15 @@ func (handler CoreAppRestHandlerImpl) GetAppWorkflow(w http.ResponseWriter, r *h
 	}
 
 	token := r.Header.Get("token")
+
+	// get app metadata for appId
+	appMetaInfo, err := handler.appCrudOperationService.GetAppMetaInfo(appId)
+	if err != nil {
+		handler.logger.Errorw("service err, GetAppMetaInfo in GetAppWorkflow", "appId", appId, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
 	//get/build app workflows starts
 	appWorkflows, err, statusCode := handler.buildAppWorkflows(appId)
 	if err != nil {
@@ -2078,7 +2135,7 @@ func (handler CoreAppRestHandlerImpl) GetAppWorkflow(w http.ResponseWriter, r *h
 	//get/build app workflows ends
 
 	//get/build environment override starts
-	environmentOverrides, err, statusCode := handler.buildEnvironmentOverrides(appId, token)
+	environmentOverrides, err, statusCode := handler.buildEnvironmentOverrides(r.Context(), appId, token)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, statusCode)
 		return
@@ -2088,6 +2145,7 @@ func (handler CoreAppRestHandlerImpl) GetAppWorkflow(w http.ResponseWriter, r *h
 	//build full object for response
 	appDetail := &appBean.AppWorkflowCloneDto{
 		AppId:                appId,
+		AppName:              appMetaInfo.AppName,
 		AppWorkflows:         appWorkflows,
 		EnvironmentOverrides: environmentOverrides,
 	}
@@ -2127,7 +2185,7 @@ func (handler CoreAppRestHandlerImpl) GetAppWorkflowAndOverridesSample(w http.Re
 	//get/build app workflows ends
 
 	//get/build environment override starts
-	environmentOverrides, err, statusCode := handler.buildEnvironmentOverrides(appId, token)
+	environmentOverrides, err, statusCode := handler.buildEnvironmentOverrides(r.Context(), appId, token)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, statusCode)
 		return

@@ -6,6 +6,7 @@ import (
 	cluster3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
+	repository4 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"net/http"
 	"strings"
 	"time"
@@ -35,7 +36,9 @@ type ClusterServiceImplExtended struct {
 func NewClusterServiceImplExtended(repository repository.ClusterRepository, environmentRepository repository.EnvironmentRepository,
 	grafanaClient grafana.GrafanaClient, logger *zap.SugaredLogger, installedAppRepository repository2.InstalledAppRepository,
 	K8sUtil *util.K8sUtil,
-	clusterServiceCD cluster2.ServiceClient, K8sInformerFactory informer.K8sInformerFactory, gitOpsRepository repository3.GitOpsConfigRepository) *ClusterServiceImplExtended {
+	clusterServiceCD cluster2.ServiceClient, K8sInformerFactory informer.K8sInformerFactory,
+	gitOpsRepository repository3.GitOpsConfigRepository, userAuthRepository repository4.UserAuthRepository,
+	userRepository repository4.UserRepository, roleGroupRepository repository4.RoleGroupRepository) *ClusterServiceImplExtended {
 	clusterServiceExt := &ClusterServiceImplExtended{
 		environmentRepository:  environmentRepository,
 		grafanaClient:          grafanaClient,
@@ -43,10 +46,13 @@ func NewClusterServiceImplExtended(repository repository.ClusterRepository, envi
 		clusterServiceCD:       clusterServiceCD,
 		gitOpsRepository:       gitOpsRepository,
 		ClusterServiceImpl: &ClusterServiceImpl{
-			clusterRepository:  repository,
-			logger:             logger,
-			K8sUtil:            K8sUtil,
-			K8sInformerFactory: K8sInformerFactory,
+			clusterRepository:   repository,
+			logger:              logger,
+			K8sUtil:             K8sUtil,
+			K8sInformerFactory:  K8sInformerFactory,
+			userAuthRepository:  userAuthRepository,
+			userRepository:      userRepository,
+			roleGroupRepository: roleGroupRepository,
 		},
 	}
 	go clusterServiceExt.buildInformer()
@@ -126,17 +132,12 @@ func (impl *ClusterServiceImplExtended) FindAll() ([]*ClusterBean, error) {
 }
 
 func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
-	//validating config
-	err := impl.CheckIfConfigIsValid(bean)
-	if err != nil {
-		return nil, err
-	}
 	isGitOpsConfigured, err1 := impl.gitOpsRepository.IsGitOpsConfigured()
 	if err1 != nil {
 		return nil, err1
 	}
 
-	bean, err = impl.ClusterServiceImpl.Update(ctx, bean, userId)
+	bean, err := impl.ClusterServiceImpl.Update(ctx, bean, userId)
 	if err != nil {
 		return nil, err
 	}
@@ -304,11 +305,6 @@ func (impl *ClusterServiceImplExtended) CreateGrafanaDataSource(clusterBean *Clu
 }
 
 func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
-	//validating config
-	err := impl.CheckIfConfigIsValid(bean)
-	if err != nil {
-		return nil, err
-	}
 	isGitOpsConfigured, err := impl.gitOpsRepository.IsGitOpsConfigured()
 	if err != nil {
 		return nil, err

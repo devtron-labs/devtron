@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,6 +18,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"go.uber.org/zap"
 	"io"
@@ -146,7 +147,8 @@ type SessionMap struct {
 func (sm *SessionMap) Get(sessionId string) TerminalSession {
 	sm.Lock.RLock()
 	defer sm.Lock.RUnlock()
-	return sm.Sessions[sessionId]
+	session := sm.Sessions[sessionId]
+	return session
 }
 
 // Set store a TerminalSession to SessionMap
@@ -162,12 +164,15 @@ func (sm *SessionMap) Set(sessionId string, session TerminalSession) {
 func (sm *SessionMap) Close(sessionId string, status uint32, reason string) {
 	sm.Lock.Lock()
 	defer sm.Lock.Unlock()
-	err := sm.Sessions[sessionId].sockJSSession.Close(status, reason)
-	if err != nil {
-		log.Println(err)
+	terminalSession := sm.Sessions[sessionId]
+	if terminalSession.sockJSSession != nil {
+		err := terminalSession.sockJSSession.Close(status, reason)
+		if err != nil {
+			log.Println(err)
+		}
+		delete(sm.Sessions, sessionId)
 	}
 
-	delete(sm.Sessions, sessionId)
 }
 
 var terminalSessions = SessionMap{Sessions: make(map[string]TerminalSession)}
@@ -330,7 +335,10 @@ func WaitForTerminal(k8sClient kubernetes.Interface, cfg *rest.Config, request *
 
 type TerminalSessionHandler interface {
 	GetTerminalSession(req *TerminalSessionRequest) (statusCode int, message *TerminalMessage, err error)
+	Close(sessionId string, statusCode uint32, msg string)
+	ValidateSession(sessionId string) bool
 }
+
 type TerminalSessionHandlerImpl struct {
 	environmentService cluster.EnvironmentService
 	clusterService     cluster.ClusterService
@@ -345,6 +353,24 @@ func NewTerminalSessionHandlerImpl(environmentService cluster.EnvironmentService
 		logger:             logger,
 	}
 }
+
+func (impl *TerminalSessionHandlerImpl) Close(sessionId string, statusCode uint32, msg string) {
+	terminalSessions.Close(sessionId, statusCode, msg)
+}
+
+func (impl *TerminalSessionHandlerImpl) ValidateSession(sessionId string) bool {
+	if sessionId == "" {
+		return false
+	}
+	terminalSession := terminalSessions.Get(sessionId)
+	sockJSSession := terminalSession.sockJSSession
+	if sockJSSession != nil {
+		sessionState := sockJSSession.GetSessionState()
+		return sessionState == sockjs.SessionActive
+	}
+	return false
+}
+
 func (impl *TerminalSessionHandlerImpl) GetTerminalSession(req *TerminalSessionRequest) (statusCode int, message *TerminalMessage, err error) {
 	sessionID, err := genTerminalSessionId()
 	if err != nil {
@@ -397,7 +423,11 @@ func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequ
 	cfg.Host = config.Host
 	cfg.BearerToken = config.BearerToken
 	cfg.Insecure = true
-	clientSet, err := kubernetes.NewForConfig(cfg)
+	k8sHttpClient, err := util.OverrideK8sHttpClientWithTracer(cfg)
+	if err != nil {
+		return nil, nil, err
+	}
+	clientSet, err := kubernetes.NewForConfigAndClient(cfg, k8sHttpClient)
 	if err != nil {
 		impl.logger.Errorw("error in clientSet", "err", err)
 		return nil, nil, err

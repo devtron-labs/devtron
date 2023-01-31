@@ -1,10 +1,10 @@
 package service
 
 import (
+	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	repository2 "github.com/devtron-labs/devtron/client/argocdServer/repository"
-	"github.com/devtron-labs/devtron/client/pubsub"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -34,18 +34,18 @@ func TestInstalledAppServiceImpl_DeployDefaultChartOnCluster(t *testing.T) {
 		teamRepository                       team.TeamRepository
 		appRepository                        app.AppRepository
 		acdClient                            application.ServiceClient
-		appStoreValuesService             service.AppStoreValuesService
-		pubsubClient                      *pubsub.PubSubClient
-		tokenCache                        *util2.TokenCache
-		chartGroupDeploymentRepository    repository4.ChartGroupDeploymentRepository
-		envService                        cluster.EnvironmentService
-		ArgoK8sClient                     argocdServer.ArgoK8sClient
-		gitFactory                        *util.GitFactory
-		aCDAuthConfig                     *util2.ACDAuthConfig
-		gitOpsRepository                  repository3.GitOpsConfigRepository
-		userService                       user.UserService
-		appStoreDeploymentService         AppStoreDeploymentService
-		appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService
+		appStoreValuesService                service.AppStoreValuesService
+		pubsubClient                         *pubsub.PubSubClientServiceImpl
+		tokenCache                           *util2.TokenCache
+		chartGroupDeploymentRepository       repository4.ChartGroupDeploymentRepository
+		envService                           cluster.EnvironmentService
+		ArgoK8sClient                        argocdServer.ArgoK8sClient
+		gitFactory                           *util.GitFactory
+		aCDAuthConfig                        *util2.ACDAuthConfig
+		gitOpsRepository                     repository3.GitOpsConfigRepository
+		userService                          user.UserService
+		appStoreDeploymentService            AppStoreDeploymentService
+		appStoreDeploymentFullModeService    appStoreDeploymentFullMode.AppStoreDeploymentFullModeService
 	}
 	type args struct {
 		bean   *cluster.ClusterBean

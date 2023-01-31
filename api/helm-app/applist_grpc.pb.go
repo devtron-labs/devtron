@@ -24,6 +24,7 @@ const _ = grpc.SupportPackageIsVersion7
 type ApplicationServiceClient interface {
 	ListApplications(ctx context.Context, in *AppListRequest, opts ...grpc.CallOption) (ApplicationService_ListApplicationsClient, error)
 	GetAppDetail(ctx context.Context, in *AppDetailRequest, opts ...grpc.CallOption) (*AppDetail, error)
+	GetAppStatus(ctx context.Context, in *AppDetailRequest, opts ...grpc.CallOption) (*AppStatus, error)
 	Hibernate(ctx context.Context, in *HibernateRequest, opts ...grpc.CallOption) (*HibernateResponse, error)
 	UnHibernate(ctx context.Context, in *HibernateRequest, opts ...grpc.CallOption) (*HibernateResponse, error)
 	GetDeploymentHistory(ctx context.Context, in *AppDetailRequest, opts ...grpc.CallOption) (*HelmAppDeploymentHistory, error)
@@ -83,6 +84,15 @@ func (x *applicationServiceListApplicationsClient) Recv() (*DeployedAppList, err
 func (c *applicationServiceClient) GetAppDetail(ctx context.Context, in *AppDetailRequest, opts ...grpc.CallOption) (*AppDetail, error) {
 	out := new(AppDetail)
 	err := c.cc.Invoke(ctx, "/ApplicationService/GetAppDetail", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *applicationServiceClient) GetAppStatus(ctx context.Context, in *AppDetailRequest, opts ...grpc.CallOption) (*AppStatus, error) {
+	out := new(AppStatus)
+	err := c.cc.Invoke(ctx, "/ApplicationService/GetAppStatus", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -221,6 +231,7 @@ func (c *applicationServiceClient) InstallReleaseWithCustomChart(ctx context.Con
 type ApplicationServiceServer interface {
 	ListApplications(*AppListRequest, ApplicationService_ListApplicationsServer) error
 	GetAppDetail(context.Context, *AppDetailRequest) (*AppDetail, error)
+	GetAppStatus(context.Context, *AppDetailRequest) (*AppStatus, error)
 	Hibernate(context.Context, *HibernateRequest) (*HibernateResponse, error)
 	UnHibernate(context.Context, *HibernateRequest) (*HibernateResponse, error)
 	GetDeploymentHistory(context.Context, *AppDetailRequest) (*HelmAppDeploymentHistory, error)
@@ -247,6 +258,9 @@ func (UnimplementedApplicationServiceServer) ListApplications(*AppListRequest, A
 }
 func (UnimplementedApplicationServiceServer) GetAppDetail(context.Context, *AppDetailRequest) (*AppDetail, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetAppDetail not implemented")
+}
+func (UnimplementedApplicationServiceServer) GetAppStatus(context.Context, *AppDetailRequest) (*AppStatus, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAppStatus not implemented")
 }
 func (UnimplementedApplicationServiceServer) Hibernate(context.Context, *HibernateRequest) (*HibernateResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Hibernate not implemented")
@@ -338,6 +352,24 @@ func _ApplicationService_GetAppDetail_Handler(srv interface{}, ctx context.Conte
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ApplicationServiceServer).GetAppDetail(ctx, req.(*AppDetailRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ApplicationService_GetAppStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AppDetailRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ApplicationServiceServer).GetAppStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/ApplicationService/GetAppStatus",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ApplicationServiceServer).GetAppStatus(ctx, req.(*AppDetailRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -604,6 +636,10 @@ var ApplicationService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetAppDetail",
 			Handler:    _ApplicationService_GetAppDetail_Handler,
+		},
+		{
+			MethodName: "GetAppStatus",
+			Handler:    _ApplicationService_GetAppStatus_Handler,
 		},
 		{
 			MethodName: "Hibernate",
