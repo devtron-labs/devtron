@@ -194,7 +194,32 @@ spec:
               mountPath: /etc/envoy-config/
 {{- end}}
 {{- if $.Values.containers }}
-{{ toYaml $.Values.containers | indent 8 -}}
+{{- range $i, $c := .Values.containers }}
+{{- if .reuseContainerImage}}
+        - name: {{ $.Chart.Name }}-sidecontainer-{{ add1 $i }}
+          image: "{{ $.Values.server.deployment.image }}:{{ $.Values.server.deployment.image_tag }}"
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+{{- if .securityContext }}
+          securityContext:
+{{ toYaml .securityContext | indent 12 }}
+{{- end }}
+{{- if .command}}
+          command:
+{{ toYaml .command | indent 12 -}}
+{{- end}}
+{{- if .resources}}
+          resources:
+{{ toYaml .resources | indent 12 -}}
+{{- end}}
+{{- if .volumeMounts}}
+          volumeMounts:
+{{ toYaml .volumeMounts | indent 12 -}}
+{{- end}}
+{{- else}}
+        -
+{{ toYaml . | indent 10 }}
+{{- end}}
+{{- end}}
 {{- end}}
         - name: {{ $.Chart.Name }}
           image: "{{ .Values.server.deployment.image }}:{{ .Values.server.deployment.image_tag }}"
