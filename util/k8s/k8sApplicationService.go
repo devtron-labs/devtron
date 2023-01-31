@@ -44,6 +44,7 @@ type K8sApplicationService interface {
 	ValidateResourceRequest(ctx context.Context, appIdentifier *client.AppIdentifier, request *application.K8sRequestBean) (bool, error)
 	ValidateClusterResourceRequest(ctx context.Context, clusterResourceRequest *ResourceRequestBean,
 		rbacCallback func(clusterName string, resourceIdentifier application.ResourceIdentifier) bool) bool
+	ValidateClusterResourceBean(ctx context.Context, clusterId int, manifest unstructured.Unstructured, rbacCallback func(clusterName string, resourceIdentifier application.ResourceIdentifier) bool) bool
 	GetResourceInfo(ctx context.Context) (*ResourceInfo, error)
 	GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error)
 	GetRestConfigByCluster(ctx context.Context, cluster *cluster.ClusterBean) (*rest.Config, error)
@@ -461,6 +462,7 @@ func (impl *K8sApplicationServiceImpl) ValidateClusterResourceRequest(ctx contex
 		impl.logger.Errorw("error in getting clusterBean by cluster Id", "clusterId", clusterId, "err", err)
 		return false
 	}
+	clusterName := clusterBean.ClusterName
 	restConfig, err := impl.GetRestConfigByCluster(ctx, clusterBean)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster", "clusterId", clusterId, "err", err)
@@ -472,16 +474,32 @@ func (impl *K8sApplicationServiceImpl) ValidateClusterResourceRequest(ctx contex
 		impl.logger.Errorw("error in getting resource", "err", err, "request", clusterResourceRequest)
 		return false
 	}
-	validateCallback := func(group string, kind string, resourceName string) bool {
-		resourceIdentifier := k8sRequest.ResourceIdentifier
-		resourceIdentifier.Name = resourceName
-		resourceIdentifier.GroupVersionKind = schema.GroupVersionKind{
-			Group: group,
-			Kind:  kind,
+	return impl.validateResourceManifest(clusterName, respManifest.Manifest, rbacCallback)
+}
+
+func (impl *K8sApplicationServiceImpl) validateResourceManifest(clusterName string, resourceManifest unstructured.Unstructured, rbacCallback func(clusterName string, resourceIdentifier application.ResourceIdentifier) bool) bool {
+	validateCallback := func(namespace, group, kind, resourceName string) bool {
+		resourceIdentifier := application.ResourceIdentifier{
+			Name:      resourceName,
+			Namespace: namespace,
+			GroupVersionKind: schema.GroupVersionKind{
+				Group: group,
+				Kind:  kind,
+			},
 		}
-		return rbacCallback(clusterBean.ClusterName, resourceIdentifier)
+		return rbacCallback(clusterName, resourceIdentifier)
 	}
-	return impl.K8sUtil.ValidateResource(respManifest.Manifest, validateCallback)
+	return impl.K8sUtil.ValidateResource(resourceManifest.Object, validateCallback)
+}
+
+func (impl *K8sApplicationServiceImpl) ValidateClusterResourceBean(ctx context.Context, clusterId int, manifest unstructured.Unstructured,
+	rbacCallback func(clusterName string, resourceIdentifier application.ResourceIdentifier) bool) bool {
+	clusterBean, err := impl.clusterService.FindById(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting clusterBean by cluster Id", "clusterId", clusterId, "err", err)
+		return false
+	}
+	return impl.validateResourceManifest(clusterBean.ClusterName, manifest, rbacCallback)
 }
 
 func (impl *K8sApplicationServiceImpl) ValidateResourceRequest(ctx context.Context, appIdentifier *client.AppIdentifier, request *application.K8sRequestBean) (bool, error) {

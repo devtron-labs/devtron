@@ -112,11 +112,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
-	} else if request.ClusterId > 0 {
-		if ok := handler.validateRbac(w, token, request, casbin.ActionGet); !ok {
-			return
-		}
-	} else {
+	} else if request.ClusterId <= 0 {
 		common.WriteJsonResp(w, errors.New("can not resource manifest as target cluster is not provided"), nil, http.StatusBadRequest)
 		return
 	}
@@ -133,7 +129,14 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 		// Obfuscate secret if user does not have edit access
 		canUpdate = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject2)
 	} else if request.ClusterId > 0 {
-		canUpdate = handler.validateRbac(nil, token, request, casbin.ActionUpdate)
+		canUpdate = handler.k8sApplicationService.ValidateClusterResourceBean(r.Context(), request.ClusterId, resource.Manifest, handler.getRbacCallbackForResource(token, casbin.ActionUpdate))
+		if !canUpdate {
+			readAllowed := handler.k8sApplicationService.ValidateClusterResourceBean(r.Context(), request.ClusterId, resource.Manifest, handler.getRbacCallbackForResource(token, casbin.ActionGet))
+			if !readAllowed {
+				common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
+				return
+			}
+		}
 	}
 	if !canUpdate && resource != nil {
 		modifiedManifest, err := k8sObjectsUtil.HideValuesIfSecret(&resource.Manifest)
