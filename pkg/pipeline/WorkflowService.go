@@ -116,7 +116,6 @@ type WorkflowRequest struct {
 	IgnoreDockerCachePull      bool                              `json:"ignoreDockerCachePull"`
 	CacheInvalidate            bool                              `json:"cacheInvalidate"`
 	IsPvcMounted               bool                              `json:"IsPvcMounted"`
-	PvcCachePath               string                            `json:"pvcCachePath"`
 }
 
 const (
@@ -567,7 +566,6 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		buildxPvcCachePath := impl.ciConfig.BuildxPvcCachePath
 		defaultPvcCachePath := impl.ciConfig.DefaultPvcCachePath
 
-		workflowRequest.PvcCachePath = buildPvcCachePath
 		ciTemplate.Volumes = append(ciTemplate.Volumes, v12.Volume{
 			Name: "root-vol",
 			VolumeSource: v12.VolumeSource{

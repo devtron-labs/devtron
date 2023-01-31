@@ -81,7 +81,7 @@ type CiConfig struct {
 	VolumeMountsForCiJson          string                       `env:"CI_VOLUME_MOUNTS_JSON"`
 	BuildPvcCachePath              string                       `env:"BUILD_PVC_CACHE_PATH" envDefault:"/devtroncd-cache"`
 	DefaultPvcCachePath            string                       `env:"DEFAULT_PVC_CACHE_PATH" envDefault:"/var/lib/docker"`
-	BuildxPvcCachePath             string                       `env:"BUILDX_PVC_CACHE_PATH" envDefault:"/var/lib/devtron/buildx"`
+	BuildxPvcCachePath             string                       `env:"BUILDX_PVC_CACHE_PATH" envDefault:"/var/lib/devtron/buildx/cache"`
 	ClusterConfig                  *rest.Config
 	NodeLabel                      map[string]string
 }
