@@ -18,6 +18,7 @@ message AppListRequest {
 service ApplicationService {
   rpc ListApplications(AppListRequest) returns (stream DeployedAppList){}
   rpc GetAppDetail(AppDetailRequest) returns (AppDetail){}
+  rpc GetAppStatus(AppDetailRequest) returns (AppStatus){}
   rpc Hibernate(HibernateRequest) returns (HibernateResponse){}
   rpc UnHibernate(HibernateRequest) returns (HibernateResponse){}
   rpc GetDeploymentHistory(AppDetailRequest) returns (HelmAppDeploymentHistory){}
@@ -73,6 +74,10 @@ message AppDetail{
   ChartMetadata chartMetadata = 7;
   ResourceTreeResponse resourceTreeResponse = 8;
   EnvironmentDetails environmentDetails = 9;
+}
+
+message AppStatus{
+  string applicationStatus = 1;
 }
 
 message ReleaseStatus {
