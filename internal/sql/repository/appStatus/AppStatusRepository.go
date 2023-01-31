@@ -107,25 +107,3 @@ func (repo *AppStatusRepositoryImpl) Get(appId, envId int) (AppStatusContainer, 
 	}
 	return container, err
 }
-
-//func (repo *AppStatusRepositoryImpl) GetAllDevtronAppStatuses(appIds []int) ([]AppStatusContainer, error) {
-//	appStatusContainers := make([]AppStatusContainer, 0)
-//	query := "SELECT ps.*,app.app_name,env.environment_identifier as env_identifier ( SELECT * " +
-//		"FROM app_status WHERE app_id IN ? ) ps " +
-//		"INNER JOIN app ON app.id = ps.app_id AND app.active=true " +
-//		"INNER JOIN environment env ON environment.id = ps.env_id AND env.active=true;"
-//	_, err := repo.dbConnection.Query(&appStatusContainers, query, pg.In(appIds))
-//	return appStatusContainers, err
-//}
-//
-//func (repo *AppStatusRepositoryImpl) GetAllInstalledAppStatuses(installedAppIds []int) ([]AppStatusContainer, error) {
-//	appStatusContainers := make([]AppStatusContainer, 0)
-//	query := "SELECT ps.*,ia.id AS installed_app_id,app.app_name,env.environment_name " +
-//		"FROM app_status ps " +
-//		"INNER JOIN ( SELECT id,app_id FROM installed_apps WHERE id IN ? AND active = true ) ia " +
-//		"ON ps.app_id = ia.app_id " +
-//		"INNER JOIN app ON app.id = ps.app_id AND app.active=true " +
-//		"INNER JOIN environment env ON environment.id = aas.env_id AND env.active=true;"
-//	_, err := repo.dbConnection.Query(&appStatusContainers, query, pg.In(installedAppIds))
-//	return appStatusContainers, err
-//}
