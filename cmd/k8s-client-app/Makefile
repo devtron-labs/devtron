@@ -20,7 +20,8 @@ build: clean wire
 	$(ENVVAR) GOOS=$(GOOS) GOARCH=$(GOARCH) go build -o $(OUTPUT_NAME) \
 			-ldflags="-X 'github.com/devtron-labs/devtron/util.GitCommit=${GIT_COMMIT}' \
 			-X 'github.com/devtron-labs/devtron/util.BuildTime=${BUILD_TIME}' \
-			-X 'github.com/devtron-labs/devtron/util.ServerMode=${SERVER_MODE_EA_ONLY}'"
+			-X 'github.com/devtron-labs/devtron/util.ServerMode=${SERVER_MODE_EA_ONLY}' \
+			-X 'github.com/devtron-labs/devtron/util.IsDesktopApp=true'"
 
 wire:
 	wire

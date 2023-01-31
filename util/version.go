@@ -20,18 +20,20 @@ var (
 	GitCommit            = ""
 	BuildTime            = ""
 	ServerMode           = ""
+	IsDesktopApp         = "false"
 	SERVER_MODE_FULL     = "FULL"
 	SERVER_MODE_HYPERION = "EA_ONLY"
 )
 
 type ServerVersion struct {
-	GitCommit  string `json:"gitCommit"`
-	BuildTime  string `json:"buildTime"`
-	ServerMode string `json:"serverMode"`
+	GitCommit    string `json:"gitCommit"`
+	BuildTime    string `json:"buildTime"`
+	ServerMode   string `json:"serverMode"`
+	IsDesktopApp bool   `json:"isDesktopApp"`
 }
 
 func GetDevtronVersion() *ServerVersion {
-	return &ServerVersion{BuildTime: BuildTime, GitCommit: GitCommit, ServerMode: ServerMode}
+	return &ServerVersion{BuildTime: BuildTime, GitCommit: GitCommit, ServerMode: ServerMode, IsDesktopApp: IsDesktopApp == "true"}
 }
 
 func IsBaseStack() bool {

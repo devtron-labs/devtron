@@ -6,6 +6,7 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/api/terminal"
 	"github.com/devtron-labs/devtron/client/dashboard"
+	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/util"
@@ -33,6 +34,7 @@ func NewMuxRouter(
 	k8sCapacityRouter k8s.K8sCapacityRouter,
 	userTerminalAccessRouter terminal.UserTerminalAccessRouter,
 	kubeConfigFileSyncerImpl *cluster2.KubeConfigFileSyncerImpl,
+	telemetry telemetry.TelemetryEventClient,
 ) *MuxRouter {
 	r := &MuxRouter{
 		Router:                   mux.NewRouter(),

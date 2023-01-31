@@ -15,6 +15,7 @@ import (
 	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/devtron-labs/devtron/client/k8s/informer"
+	"github.com/devtron-labs/devtron/client/telemetry"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
@@ -107,7 +108,16 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	muxRouter := NewMuxRouter(sugaredLogger, clusterRouterImpl, dashboardRouterImpl, k8sApplicationRouterImpl, k8sCapacityRouterImpl, userTerminalAccessRouterImpl, kubeConfigFileSyncerImpl)
+	httpClient := util.NewHttpClient()
+	posthogClient, err := telemetry.NewPosthogClient(sugaredLogger)
+	if err != nil {
+		return nil, err
+	}
+	telemetryEventClientImpl, err := telemetry.NewK8sAppTelemetryEventClientImpl(sugaredLogger, httpClient, clusterServiceImpl, posthogClient)
+	if err != nil {
+		return nil, err
+	}
+	muxRouter := NewMuxRouter(sugaredLogger, clusterRouterImpl, dashboardRouterImpl, k8sApplicationRouterImpl, k8sCapacityRouterImpl, userTerminalAccessRouterImpl, kubeConfigFileSyncerImpl, telemetryEventClientImpl)
 	app := NewApp(db, muxRouter, sugaredLogger)
 	return app, nil
 }
