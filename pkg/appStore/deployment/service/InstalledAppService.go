@@ -927,8 +927,7 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 		appDetail.ResourceTree = util3.InterfaceToMapAdapter(resp)
 		err = impl.appStatusService.UpdateStatusWithAppIdEnvId(appDetail.AppId, appDetail.EnvironmentId, resp.Status)
 		if err != nil {
-			impl.logger.Errorw("error in updating app status", "err", err, appDetail.AppId, "envId", appDetail.EnvironmentId)
-			impl.logger.Infow("ignoring the error", "err", err, appDetail.AppId, "envId", appDetail.EnvironmentId)
+			impl.logger.Warnw("error in updating app status", "err", err, appDetail.AppId, "envId", appDetail.EnvironmentId)
 		}
 		impl.logger.Debugf("application %s in environment %s had status %+v\n", appDetail.InstalledAppId, appDetail.EnvironmentId, resp)
 	} else if util.IsHelmApp(appDetail.DeploymentAppType) {
