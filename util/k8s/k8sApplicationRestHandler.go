@@ -1,6 +1,7 @@
 package k8s
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -51,9 +52,9 @@ type K8sApplicationRestHandlerImpl struct {
 	enforcer               casbin.Enforcer
 	enforcerUtil           rbac.EnforcerUtil
 	enforcerUtilHelm       rbac.EnforcerUtilHelm
-	clusterService         cluster.ClusterService
-	helmAppService         client.HelmAppService
-	userService            user.UserService
+	//clusterService         cluster.ClusterService
+	helmAppService client.HelmAppService
+	userService    user.UserService
 }
 
 func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger,
@@ -70,8 +71,8 @@ func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger,
 		enforcerUtilHelm:       enforcerUtilHelm,
 		enforcerUtil:           enforcerUtil,
 		helmAppService:         helmAppService,
-		clusterService:         clusterService,
-		userService:            userService,
+		//clusterService:         clusterService,
+		userService: userService,
 	}
 }
 
@@ -151,21 +152,25 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 	common.WriteJsonResp(w, nil, resource, http.StatusOK)
 }
 
-func (handler *K8sApplicationRestHandlerImpl) validateRbac(w http.ResponseWriter, token string, request ResourceRequestBean, casbinAction string) bool {
-	clusterBean, err := handler.clusterService.FindById(request.ClusterId)
-	if err != nil {
-		if w != nil {
-			common.WriteJsonResp(w, errors.New("clusterId is not valid"), nil, http.StatusBadRequest)
-		}
-		return false
-	}
-	if ok := handler.verifyRbacForCluster(token, clusterBean.ClusterName, request, casbinAction); !ok {
-		if w != nil {
-			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		}
-		return false
-	}
-	return true
+//func (handler *K8sApplicationRestHandlerImpl) validateRbac(w http.ResponseWriter, token string, request ResourceRequestBean, casbinAction string) bool {
+//	clusterBean, err := handler.clusterService.FindById(request.ClusterId)
+//	if err != nil {
+//		if w != nil {
+//			common.WriteJsonResp(w, errors.New("clusterId is not valid"), nil, http.StatusBadRequest)
+//		}
+//		return false
+//	}
+//	if ok := handler.verifyRbacForCluster(token, clusterBean.ClusterName, request, casbinAction); !ok {
+//		if w != nil {
+//			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+//		}
+//		return false
+//	}
+//	return true
+//}
+
+func (handler *K8sApplicationRestHandlerImpl) validateRbac(w http.ResponseWriter, ctx context.Context, token string, request ResourceRequestBean, casbinAction string) bool {
+	return false
 }
 
 func (handler *K8sApplicationRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWriter, r *http.Request) {
@@ -301,8 +306,7 @@ func (handler *K8sApplicationRestHandlerImpl) UpdateResource(w http.ResponseWrit
 		//RBAC enforcer Ends
 	} else if request.ClusterId > 0 {
 		// assume direct update in cluster
-		if ok := handler.k8sApplicationService.ValidateClusterResourceRequest(r.Context(), &request, handler.getRbacCallbackForResource(token, casbin.ActionUpdate)); !ok {
-			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
+		if ok := handler.handleRbac(r, w, request, token, casbin.ActionUpdate); !ok {
 			return
 		}
 	} else {
@@ -317,6 +321,18 @@ func (handler *K8sApplicationRestHandlerImpl) UpdateResource(w http.ResponseWrit
 		return
 	}
 	common.WriteJsonResp(w, nil, resource, http.StatusOK)
+}
+
+func (handler *K8sApplicationRestHandlerImpl) handleRbac(r *http.Request, w http.ResponseWriter, request ResourceRequestBean, token string, casbinAction string) bool {
+	allowed, err := handler.k8sApplicationService.ValidateClusterResourceRequest(r.Context(), &request, handler.getRbacCallbackForResource(token, casbinAction))
+	if err != nil {
+		common.WriteJsonResp(w, errors.New("invalid request"), nil, http.StatusBadRequest)
+		return false
+	}
+	if !allowed {
+		common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
+	}
+	return allowed
 }
 
 func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWriter, r *http.Request) {
@@ -367,8 +383,7 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 		}
 		//RBAC enforcer Ends
 	} else if request.ClusterId > 0 {
-		if ok := handler.k8sApplicationService.ValidateClusterResourceRequest(r.Context(), &request, handler.getRbacCallbackForResource(token, casbin.ActionDelete)); !ok {
-			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
+		if ok := handler.handleRbac(r, w, request, token, casbin.ActionDelete); !ok {
 			return
 		}
 	} else {
@@ -424,8 +439,7 @@ func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, 
 		}
 		//RBAC enforcer Ends
 	} else if request.ClusterId > 0 {
-		if ok := handler.k8sApplicationService.ValidateClusterResourceRequest(r.Context(), &request, handler.getRbacCallbackForResource(token, casbin.ActionGet)); !ok {
-			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
+		if ok := handler.handleRbac(r, w, request, token, casbin.ActionGet); !ok {
 			return
 		}
 	} else {
@@ -532,8 +546,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 				},
 			},
 		}
-		if ok := handler.k8sApplicationService.ValidateClusterResourceRequest(r.Context(), request, handler.getRbacCallbackForResource(token, casbin.ActionGet)); !ok {
-			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
+		if ok := handler.handleRbac(r, w, *request, token, casbin.ActionGet); !ok {
 			return
 		}
 	} else {
@@ -619,8 +632,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetTerminalSession(w http.Response
 				},
 			},
 		}
-		if ok := handler.k8sApplicationService.ValidateClusterResourceRequest(r.Context(), &resourceRequestBean, handler.getRbacCallbackForResource(token, casbin.ActionUpdate)); !ok {
-			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
+		if ok := handler.handleRbac(r, w, resourceRequestBean, token, casbin.ActionUpdate); !ok {
 			return
 		}
 	} else {

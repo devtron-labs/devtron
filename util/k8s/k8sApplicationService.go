@@ -43,7 +43,7 @@ type K8sApplicationService interface {
 	GetPodLogs(ctx context.Context, request *ResourceRequestBean) (io.ReadCloser, error)
 	ValidateResourceRequest(ctx context.Context, appIdentifier *client.AppIdentifier, request *application.K8sRequestBean) (bool, error)
 	ValidateClusterResourceRequest(ctx context.Context, clusterResourceRequest *ResourceRequestBean,
-		rbacCallback func(clusterName string, resourceIdentifier application.ResourceIdentifier) bool) bool
+		rbacCallback func(clusterName string, resourceIdentifier application.ResourceIdentifier) bool) (bool, error)
 	ValidateClusterResourceBean(ctx context.Context, clusterId int, manifest unstructured.Unstructured, rbacCallback func(clusterName string, resourceIdentifier application.ResourceIdentifier) bool) bool
 	GetResourceInfo(ctx context.Context) (*ResourceInfo, error)
 	GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error)
@@ -55,7 +55,6 @@ type K8sApplicationService interface {
 	GetResourceList(ctx context.Context, token string, request *ResourceRequestBean, validateResourceAccess func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) (*util.ClusterResourceListMap, error)
 	ApplyResources(ctx context.Context, token string, request *application.ApplyResourcesRequest, resourceRbacHandler func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) ([]*application.ApplyResourcesResponse, error)
 }
-
 type K8sApplicationServiceImpl struct {
 	logger                      *zap.SugaredLogger
 	clusterService              cluster.ClusterService
@@ -455,26 +454,26 @@ func (impl *K8sApplicationServiceImpl) GetRestConfigByCluster(ctx context.Contex
 }
 
 func (impl *K8sApplicationServiceImpl) ValidateClusterResourceRequest(ctx context.Context, clusterResourceRequest *ResourceRequestBean,
-	rbacCallback func(clusterName string, resourceIdentifier application.ResourceIdentifier) bool) bool {
+	rbacCallback func(clusterName string, resourceIdentifier application.ResourceIdentifier) bool) (bool, error) {
 	clusterId := clusterResourceRequest.ClusterId
 	clusterBean, err := impl.clusterService.FindById(clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting clusterBean by cluster Id", "clusterId", clusterId, "err", err)
-		return false
+		return false, err
 	}
 	clusterName := clusterBean.ClusterName
 	restConfig, err := impl.GetRestConfigByCluster(ctx, clusterBean)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster", "clusterId", clusterId, "err", err)
-		return false
+		return false, err
 	}
 	k8sRequest := clusterResourceRequest.K8sRequest
 	respManifest, err := impl.k8sClientService.GetResource(ctx, restConfig, k8sRequest)
 	if err != nil {
 		impl.logger.Errorw("error in getting resource", "err", err, "request", clusterResourceRequest)
-		return false
+		return false, err
 	}
-	return impl.validateResourceManifest(clusterName, respManifest.Manifest, rbacCallback)
+	return impl.validateResourceManifest(clusterName, respManifest.Manifest, rbacCallback), nil
 }
 
 func (impl *K8sApplicationServiceImpl) validateResourceManifest(clusterName string, resourceManifest unstructured.Unstructured, rbacCallback func(clusterName string, resourceIdentifier application.ResourceIdentifier) bool) bool {
