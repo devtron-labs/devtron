@@ -127,6 +127,7 @@ func (impl *K8sApplicationServiceImpl) FilterServiceAndIngress(ctx context.Conte
 			version := impl.extractResourceValue(resourceItem, "version")
 			req := ResourceRequestBean{
 				AppId: appId,
+				ClusterId: appDetail.ClusterId,
 				AppIdentifier: &client.AppIdentifier{
 					ClusterId: appDetail.ClusterId,
 				},
@@ -293,7 +294,7 @@ func (impl *K8sApplicationServiceImpl) getManifestsByBatch(ctx context.Context, 
 }
 
 func (impl *K8sApplicationServiceImpl) GetResource(ctx context.Context, request *ResourceRequestBean) (*application.ManifestResponse, error) {
-	clusterId := request.AppIdentifier.ClusterId
+	clusterId := request.ClusterId
 	//getting rest config by clusterId
 	restConfig, err := impl.GetRestConfigByClusterId(ctx, clusterId)
 	if err != nil {
