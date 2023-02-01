@@ -1,10 +1,11 @@
 // Copyright 2016 The Mellium Contributors.
-// Use of this source code is governed by the BSD 2-clause license that can be
-// found in the LICENSE file.
+// Use of this source code is governed by the BSD 2-clause
+// license that can be found in the LICENSE file.
 
 package sasl
 
 import (
+	/* #nosec */
 	"crypto/sha1"
 	"crypto/sha256"
 	"errors"
@@ -12,10 +13,10 @@ import (
 
 // Define common errors used by SASL mechanisms and negotiators.
 var (
-	ErrInvalidState     = errors.New("Invalid state")
-	ErrInvalidChallenge = errors.New("Invalid or missing challenge")
-	ErrAuthn            = errors.New("Authentication error")
-	ErrTooManySteps     = errors.New("Step called too many times")
+	ErrInvalidState     = errors.New("invalid state")
+	ErrInvalidChallenge = errors.New("invalid or missing challenge")
+	ErrAuthn            = errors.New("authentication error")
+	ErrTooManySteps     = errors.New("step called too many times")
 )
 
 var (
@@ -24,8 +25,9 @@ var (
 	Plain Mechanism = plain
 
 	// ScramSha256Plus is a Mechanism that implements the SCRAM-SHA-256-PLUS
-	// authentication mechanism defined in RFC 7677. The only supported channel
-	// binding type is tls-unique as defined in RFC 5929.
+	// authentication mechanism defined in RFC 7677.
+	// The only supported channel binding types are tls-unique as defined in RFC
+	// 5929 and tls-exporter defined in RFC 9266.
 	ScramSha256Plus Mechanism = scram("SCRAM-SHA-256-PLUS", sha256.New)
 
 	// ScramSha256 is a Mechanism that implements the SCRAM-SHA-256
@@ -33,8 +35,9 @@ var (
 	ScramSha256 Mechanism = scram("SCRAM-SHA-256", sha256.New)
 
 	// ScramSha1Plus is a Mechanism that implements the SCRAM-SHA-1-PLUS
-	// authentication mechanism defined in RFC 5802. The only supported channel
-	// binding type is tls-unique as defined in RFC 5929.
+	// authentication mechanism defined in RFC 5802.
+	// The only supported channel binding types are tls-unique as defined in RFC
+	// 5929 and tls-exporter defined in RFC 9266.
 	ScramSha1Plus Mechanism = scram("SCRAM-SHA-1-PLUS", sha1.New)
 
 	// ScramSha1 is a Mechanism that implements the SCRAM-SHA-1 authentication
