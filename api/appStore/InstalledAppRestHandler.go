@@ -198,56 +198,66 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 		return
 	}
 
-	authorizedApp := make([]openapi.HelmApp, 0)
+	authorizedApps := make([]openapi.HelmApp, 0)
 	authorizedAppIdSet := make(map[string]bool)
 
-	objectToAppMap1 := make(map[string]*openapi.HelmApp)
-	objectToAppMap2 := make(map[string]*openapi.HelmApp)
+	appIdToAppMap := make(map[string]openapi.HelmApp)
+	objectToAppMap1 := make(map[string][]string)
+	objectToAppMap2 := make(map[string][]string)
 
 	objectArray1 := make([]string, 0)
 	objectArray2 := make([]string, 0)
 
 	for _, app := range *res.HelmApps {
 
-		//appIdToAppMap[*app.AppId] = &app
+		appIdToAppMap[*app.AppId] = app
 		appName := *app.AppName
 		envId := (*app.EnvironmentDetail).EnvironmentId
 		object1, object2 := handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(appName, int(*envId))
 		objectArray1 = append(objectArray1, object1)
-		objectToAppMap1[object1] = &app
+		_, ok := objectToAppMap1[object1]
+		if !ok {
+			objectToAppMap1[object1] = make([]string, 0)
+		}
+		objectToAppMap1[object1] = append(objectToAppMap1[object1], *app.AppName)
 		if object2 != "" {
-			objectToAppMap2[object2] = &app
+			_, ok := objectToAppMap2[object2]
+			if !ok {
+				objectToAppMap2[object2] = make([]string, 0)
+			}
+			objectToAppMap2[object2] = append(objectToAppMap2[object2], *app.AppName)
 			objectArray2 = append(objectArray2, object2)
 		}
 
 	}
 
-	resultObjectMap1 := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceTeam, casbin.ActionGet, objectArray1)
-	resultObjectMap2 := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceTeam, casbin.ActionGet, objectArray2)
+	resultObjectMap1 := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceHelmApp, casbin.ActionGet, objectArray1)
+	resultObjectMap2 := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceHelmApp, casbin.ActionGet, objectArray2)
 
 	for obj, ok := range resultObjectMap1 {
 		if ok {
-			appPtr := objectToAppMap1[obj]
-			authorizedAppIdSet[*(appPtr.AppId)] = true
+			appIds := objectToAppMap1[obj]
+			for _, appId := range appIds {
+				authorizedAppIdSet[appId] = true
+			}
+
 		}
 	}
 	for obj, ok := range resultObjectMap2 {
 		if ok {
-			appPtr := objectToAppMap2[obj]
-			authorizedAppIdSet[*(appPtr.AppId)] = true
+			appIds := objectToAppMap2[obj]
+			for _, appId := range appIds {
+				authorizedAppIdSet[appId] = true
+			}
 		}
-	}
-	for appId, _ := range authorizedAppIdSet {
-		var authorisedApp *openapi.HelmApp
-		if app, ok := objectToAppMap1[appId]; ok {
-			authorisedApp = app
-		} else if app, ok := objectToAppMap2[appId]; ok {
-			authorisedApp = app
-		}
-		authorizedApp = append(authorizedApp, *authorisedApp)
 	}
 
-	res.HelmApps = &authorizedApp
+	for appId, _ := range authorizedAppIdSet {
+		authorizedApp := appIdToAppMap[appId]
+		authorizedApps = append(authorizedApps, authorizedApp)
+	}
+
+	res.HelmApps = &authorizedApps
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
