@@ -95,6 +95,12 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 	}
 	v := r.URL.Query()
 	token := r.Header.Get("token")
+	userEmailId, err := handler.userAuthService.GetEmailFromToken(token)
+	if err != nil {
+		handler.Logger.Errorw("error in getting user emailId from token", "userId", userId, "token", token)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
 	var envIds []int
 	envsQueryParam := v.Get("envIds")
 	if envsQueryParam != "" {
@@ -181,32 +187,67 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+	isActionUserSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
+	if err != nil {
+		handler.Logger.Errorw("request err, GetAllInstalledApp", "err", err, "userId", userId)
+		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
+		return
+	}
+	if isActionUserSuperAdmin {
+		common.WriteJsonResp(w, err, res, http.StatusOK)
+		return
+	}
 
 	authorizedApp := make([]openapi.HelmApp, 0)
+	authorizedAppIdSet := make(map[string]bool)
+
+	objectToAppMap1 := make(map[string]*openapi.HelmApp)
+	objectToAppMap2 := make(map[string]*openapi.HelmApp)
+
+	objectArray1 := make([]string, 0)
+	objectArray2 := make([]string, 0)
+
 	for _, app := range *res.HelmApps {
+
+		//appIdToAppMap[*app.AppId] = &app
 		appName := *app.AppName
 		envId := (*app.EnvironmentDetail).EnvironmentId
-		//rbac block starts from here
-		object, object2 := handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(appName, int(*envId))
-
-		var ok bool
-
-		if object2 == "" {
-			ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object)
-		} else {
-			// futuristic case
-			ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object2)
+		object1, object2 := handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(appName, int(*envId))
+		objectArray1 = append(objectArray1, object1)
+		objectToAppMap1[object1] = &app
+		if object2 != "" {
+			objectToAppMap2[object2] = &app
+			objectArray2 = append(objectArray2, object2)
 		}
 
-		if !ok {
-			continue
-		}
-
-		authorizedApp = append(authorizedApp, app)
-		//rback block ends here
 	}
-	res.HelmApps = &authorizedApp
 
+	resultObjectMap1 := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceTeam, casbin.ActionGet, objectArray1)
+	resultObjectMap2 := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceTeam, casbin.ActionGet, objectArray2)
+
+	for obj, ok := range resultObjectMap1 {
+		if ok {
+			appPtr := objectToAppMap1[obj]
+			authorizedAppIdSet[*(appPtr.AppId)] = true
+		}
+	}
+	for obj, ok := range resultObjectMap2 {
+		if ok {
+			appPtr := objectToAppMap2[obj]
+			authorizedAppIdSet[*(appPtr.AppId)] = true
+		}
+	}
+	for appId, _ := range authorizedAppIdSet {
+		var authorisedApp *openapi.HelmApp
+		if app, ok := objectToAppMap1[appId]; ok {
+			authorisedApp = app
+		} else if app, ok := objectToAppMap2[appId]; ok {
+			authorisedApp = app
+		}
+		authorizedApp = append(authorizedApp, *authorisedApp)
+	}
+
+	res.HelmApps = &authorizedApp
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
