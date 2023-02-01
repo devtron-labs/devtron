@@ -515,6 +515,9 @@ components:
         environmentDetail:
           type: object
           $ref: "#/components/schemas/AppEnvironmentDetail"
+        appStatus:
+          type: string
+          example: "Healthy"
     AppList:
       type: object
       properties:
