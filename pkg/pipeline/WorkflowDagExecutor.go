@@ -600,6 +600,10 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		}
 
 		for _, m := range ciPipeline.CiPipelineMaterials {
+			// git material should be active in this case
+			if m == nil || m.GitMaterial == nil || !m.GitMaterial.Active {
+				continue
+			}
 			var ciMaterialCurrent repository.CiMaterialInfo
 			for _, ciMaterial := range ciMaterialInfo {
 				if ciMaterial.Material.GitConfiguration.URL == m.GitMaterial.Url {
