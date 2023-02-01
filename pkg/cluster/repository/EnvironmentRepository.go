@@ -18,9 +18,11 @@
 package repository
 
 import (
+	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
+	"go.uber.org/zap"
 )
 
 type Environment struct {
@@ -59,12 +61,18 @@ type EnvironmentRepository interface {
 	FindIdsByNames(envNames []string) ([]int, error)
 }
 
-func NewEnvironmentRepositoryImpl(dbConnection *pg.DB) *EnvironmentRepositoryImpl {
-	return &EnvironmentRepositoryImpl{dbConnection: dbConnection}
+func NewEnvironmentRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger, appStatusRepository appStatus.AppStatusRepository) *EnvironmentRepositoryImpl {
+	return &EnvironmentRepositoryImpl{
+		dbConnection:        dbConnection,
+		logger:              logger,
+		appStatusRepository: appStatusRepository,
+	}
 }
 
 type EnvironmentRepositoryImpl struct {
-	dbConnection *pg.DB
+	dbConnection        *pg.DB
+	appStatusRepository appStatus.AppStatusRepository
+	logger              *zap.SugaredLogger
 }
 
 func (repositoryImpl EnvironmentRepositoryImpl) FindOne(environment string) (*Environment, error) {
@@ -237,6 +245,12 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindByIds(ids []*int) ([]*Enviro
 }
 
 func (repo EnvironmentRepositoryImpl) MarkEnvironmentDeleted(deleteReq *Environment, tx *pg.Tx) error {
+	//TODO : delete entries in app_status repo
+	err := repo.appStatusRepository.DeleteWithEnvId(tx, deleteReq.Id)
+	if err != nil {
+		repo.logger.Errorw("error in deleting from app_status table with appId", "appId", deleteReq.Id, "err", err)
+		return err
+	}
 	deleteReq.Active = false
 	return tx.Update(deleteReq)
 }
