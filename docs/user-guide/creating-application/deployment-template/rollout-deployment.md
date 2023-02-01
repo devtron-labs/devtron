@@ -509,7 +509,7 @@ It contains the commands to run inside the container.
 | `workingDir` | It is used to specify the working directory where commands will be executed. |
 
 ### Containers
-Containers section can be used to run side-car containers along with your main container within same pod. Containers running within same pod can share volumes and IP Address and can address each other @localhost.
+Containers section can be used to run side-car containers along with your main container within same pod. Containers running within same pod can share volumes and IP Address and can address each other @localhost. We can use base image inside container by setting the reuseContainerImage flag to `true`.
 
 ```yaml
     containers:
@@ -519,6 +519,19 @@ Containers section can be used to run side-car containers along with your main c
         - containerPort: 80
         command: ["/usr/local/bin/nginx"]
         args: ["-g", "daemon off;"]
+      - reuseContainerImage: true
+        securityContext:
+          runAsUser: 1000
+          runAsGroup: 3000
+          fsGroup: 2000
+        volumeMounts:
+        - mountPath: /etc/ls-oms
+          name: ls-oms-cm-vol
+        command:
+          - flyway
+          - -configFiles=/etc/ls-oms/flyway.conf
+          - migrate
+
 ```
 
 ### Prometheus

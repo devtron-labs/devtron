@@ -1,7 +1,7 @@
 installer:
   repo: "devtron-labs/devtron"
 #  For Kubernetes version < 1.16, set release: legacy. You won't be able to upgrade Devtron unless you upgrade the K8s version to 1.16 or above.
-  release: "v0.6.11-rc.0" #You can use a branch name or a release tag name as a release, for gitee as source only "main" is supported as of now
+  release: "v0.6.11" #You can use a branch name or a release tag name as a release, for gitee as source only "main" is supported as of now
   image: quay.io/devtron/inception
   tag: 1d2b87e5-185-11095
   source: "github" # Available options are github and gitee
@@ -43,12 +43,12 @@ components:
       sentry: "false"
       sentryEnv: "PRODUCTION"
       applicationMetrics: "true"
-    image: "quay.io/devtron/dashboard:37338139-325-12306"
+    image: "quay.io/devtron/dashboard:c49004b1-325-12557"
     imagePullPolicy: IfNotPresent
 
   devtron:
-    image: "quay.io/devtron/hyperion:851c54bf-280-12304"
-    cicdImage: "quay.io/devtron/devtron:851c54bf-326-12302"
+    image: "quay.io/devtron/hyperion:c35045c2-280-12565"
+    cicdImage: "quay.io/devtron/devtron:c35045c2-326-12555"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
     serviceMonitor:
@@ -80,7 +80,7 @@ components:
       authenticator: "quay.io/devtron/authenticator:6e466830-393-11943"
 
   kubelink:
-    image: "quay.io/devtron/kubelink:7f9303ae-318-12204"
+    image: "quay.io/devtron/kubelink:a5e179d4-318-12564"
     imagePullPolicy: IfNotPresent
 
   postgres:
@@ -98,13 +98,13 @@ components:
         SCRIPT_LOCATION: "scripts/sql/"
         GIT_REPO_URL: "https://github.com/devtron-labs/devtron.git"
         DB_NAME: "orchestrator"
-        GIT_HASH: "851c54bf2770719f5eae33a7c6a1a4854180065a"
+        GIT_HASH: "c35045c218d95741522fee8b27ee42e3956ba4c6"
       casbin:
         GIT_BRANCH: "main"
         SCRIPT_LOCATION: "scripts/casbin/"
         GIT_REPO_URL: "https://github.com/devtron-labs/devtron.git"
         DB_NAME: "casbin"
-        GIT_HASH: "851c54bf2770719f5eae33a7c6a1a4854180065a"
+        GIT_HASH: "c35045c218d95741522fee8b27ee42e3956ba4c6"
 
 # values for argocd integration
 argo-cd:

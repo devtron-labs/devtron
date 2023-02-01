@@ -66,7 +66,7 @@ spec:
       restartPolicy: Always
       containers:
         - name: lens
-          image: "quay.io/devtron/lens:c20fad05-333-11133"
+          image: "quay.io/devtron/lens:fbb005ef-333-12563"
           imagePullPolicy: IfNotPresent
           ports:
             - name: app
