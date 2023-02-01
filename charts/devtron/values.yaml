@@ -115,7 +115,7 @@ argo-cd:
       # -- If defined, a repository applied to all Argo CD deployments
       repository: quay.io/argoproj/argocd
       # -- Overrides the global Argo CD image tag whose default is the chart appVersion
-      tag: "v2.5.2"
+      tag: "v2.4.0"
       # -- If defined, a imagePullPolicy applied to all Argo CD deployments
       imagePullPolicy: IfNotPresent
   configs:
@@ -293,8 +293,8 @@ minio:
     storage: "50Gi"
 # Change below values for workflow controller
 workflowController:
-  image: "quay.io/argoproj/workflow-controller:v3.4.3"
-  executorImage: "quay.io/argoproj/argoexec:v3.4.3"
+  image: "quay.io/argoproj/workflow-controller:v3.3.10"
+  executorImage: "quay.io/argoproj/argoexec:v3.3.10"
 # Values for grafana integration
 monitoring:
   grafana:
