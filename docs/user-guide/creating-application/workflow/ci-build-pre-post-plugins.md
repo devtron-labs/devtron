@@ -18,20 +18,24 @@ You can create a task either by selecting one of the available preset plugins or
 
 | Stage | Task |
 | :--- | :--- |
-| Pre-Build/Post-Build | <ol><li>Create a task using one of the [Preset Plugins](#preset-plugins):<ul><li>[K6 Load testing](#k6-load-testing)</li><li>[Sonarqube](#sonarqube)</li><li>[Dependency track for Python](#dependency-track-for-python)</li><li>[Dependency track for NodeJs](#dependency-track-for-nodejs)</li><li>[Dependency track for Marven and Gradle](#dependency-track-for-maven--gradle)</li><li>[Semgrep](#semgrep)</li><li>[Codacy](#codacy)</li></ul></li><li>Create a task from [Execute Custom script](#execute-custom-script) which you can customize your script with:<ul><li>[Custom script - Shell](#custom-script-shell)</li><li>Or, [Custom script - Container image](#custom-script-container-image)</li></ul></li></ol> | 
+| Pre-Build/Post-Build | <ol><li>Create a task using one of the [Preset Plugins](#preset-plugins) integrated in Devtron:<ul><li>[K6 Load testing](#k6-load-testing)</li><li>[Sonarqube](#sonarqube)</li><li>[Dependency track for Python](#dependency-track-for-python)</li><li>[Dependency track for NodeJs](#dependency-track-for-nodejs)</li><li>[Dependency track for Marven and Gradle](#dependency-track-for-maven--gradle)</li><li>[Semgrep](#semgrep)</li><li>[Codacy](#codacy)</li></ul></li><li>Create a task from [Execute Custom script](#execute-custom-script) which you can customize your script with:<ul><li>[Custom script - Shell](#custom-script-shell)</li><li>Or, [Custom script - Container image](#custom-script-container-image)</li></ul></li></ol> | 
 
 
 ## Creating Pre/Post-build Tasks
-
-1. Go to the **Applications** and select your application from the **Devtron Apps** tabs.
-2. Go to the **App Configuration** tab, click **Workflow Editor**.
-3. Select the build pipeline for configuring the pre/post-build tasks.
 
 > Devtron CI pipeline includes the following build stages:
 >
 > * Pre-Build Stage: The tasks in this stage run before the image is built.
 > * Build Stage: In this stage, the build is triggered from the source code (container image) that you provide.
 > * Post-Build Stage: The tasks in this stage are triggered once the build is complete.
+
+Lets take `Semgrep` as an example and configure it in the Pre-Build stage for finding bugs, detecting dependency vulnerabilities, and enforcing code standards.
+
+1. Go to the **Applications** and select your application from the **Devtron Apps** tabs.
+2. Go to the **App Configuration** tab, click **Workflow Editor**.
+3. Select the build pipeline for configuring the pre/post-build tasks.
+
+
 
 
 
@@ -246,6 +250,8 @@ Codacy is an automated code analysis/quality tool that helps developers to ship 
 * `Pass/Failure Condition` refers to conditions to execute pass or fail of your build. You can select either:<ul><li>`Set pass conditions` or</li><li>`Set failure conditions`</li></ul> 
 
 * Click **Update Pipeline**.
+
+
 
 
 ### Execute custom script
