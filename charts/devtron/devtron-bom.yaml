@@ -33,12 +33,8 @@ argo-cd:
   global:
     image:
       repository: quay.io/argoproj/argocd
-      tag: "v2.5.2"
+      tag: "v2.4.0"
       imagePullPolicy: IfNotPresent
-
-workflowController:
-  image: "quay.io/argoproj/workflow-controller:v3.3.10"
-  executorImage: "quay.io/argoproj/argoexec:v3.3.10"
 
 notifier:
   image: "quay.io/devtron/notifier:6c7a356a-372-11107"
