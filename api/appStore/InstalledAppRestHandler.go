@@ -98,7 +98,7 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 	userEmailId, err := handler.userAuthService.GetEmailFromToken(token)
 	if err != nil {
 		handler.Logger.Errorw("error in getting user emailId from token", "userId", userId, "token", token)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	var envIds []int
