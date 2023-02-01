@@ -33,6 +33,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
+	"github.com/devtron-labs/devtron/pkg/appStatus"
 	service1 "github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
@@ -85,6 +86,7 @@ type AppListingRestHandlerImpl struct {
 	installedAppService              service1.InstalledAppService
 	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler
 	pipelineRepository               pipelineConfig.PipelineRepository
+	appStatusService                 appStatus.AppStatusService
 }
 
 type AppStatus struct {
@@ -105,7 +107,8 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 	helmAppClient client.HelmAppClient, clusterService cluster.ClusterService, helmAppService client.HelmAppService,
 	argoUserService argo.ArgoUserService, k8sApplicationService k8s.K8sApplicationService, installedAppService service1.InstalledAppService,
 	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler,
-	pipelineRepository pipelineConfig.PipelineRepository) *AppListingRestHandlerImpl {
+	pipelineRepository pipelineConfig.PipelineRepository,
+	appStatusService appStatus.AppStatusService) *AppListingRestHandlerImpl {
 	appListingHandler := &AppListingRestHandlerImpl{
 		application:                      application,
 		appListingService:                appListingService,
@@ -124,6 +127,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 		installedAppService:              installedAppService,
 		cdApplicationStatusUpdateHandler: cdApplicationStatusUpdateHandler,
 		pipelineRepository:               pipelineRepository,
+		appStatusService:                 appStatusService,
 	}
 	return appListingHandler
 }
@@ -806,6 +810,12 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 				handler.logger.Errorw("error in syncing pipeline status", "err", err)
 			}
 		}
+		//updating app_status table here
+		err = handler.appStatusService.UpdateStatusWithAppIdEnvId(appDetail.AppId, appDetail.EnvironmentId, resp.Status)
+		if err != nil {
+			handler.logger.Warnw("error in updating app status", "err", err, "appId", appDetail.AppId, "envId", appDetail.EnvironmentId)
+		}
+
 	} else if len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 && util.IsHelmApp(appDetail.DeploymentAppType) {
 		config, err := handler.helmAppService.GetClusterConf(appDetail.ClusterId)
 		if err != nil {

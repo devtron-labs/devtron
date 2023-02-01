@@ -63,6 +63,7 @@ type AppRepository interface {
 	FindIdsByNames(appNames []string) ([]int, error)
 	FetchAllActiveInstalledAppsWithAppIdAndName() ([]*App, error)
 	FetchAllActiveDevtronAppsWithAppIdAndName() ([]*App, error)
+	FindEnvironmentIdForInstalledApp(appId int) (int, error)
 }
 
 const DevtronApp = "DevtronApp"
@@ -320,4 +321,15 @@ func (repo AppRepositoryImpl) FetchAllActiveDevtronAppsWithAppIdAndName() ([]*Ap
 		return apps, err
 	}
 	return apps, nil
+}
+
+func (repo AppRepositoryImpl) FindEnvironmentIdForInstalledApp(appId int) (int, error) {
+	type envIdRes struct {
+		envId int `json:"envId"`
+	}
+	res := envIdRes{}
+	query := "select ia.environment_id " +
+		"from installed_apps ia where ia.app_id = ?"
+	_, err := repo.dbConnection.Query(&res, query, appId)
+	return res.envId, err
 }
