@@ -293,7 +293,7 @@ func (impl *K8sApplicationServiceImpl) getManifestsByBatch(ctx context.Context, 
 }
 
 func (impl *K8sApplicationServiceImpl) GetResource(ctx context.Context, request *ResourceRequestBean) (*application.ManifestResponse, error) {
-	clusterId := request.ClusterId
+	clusterId := request.AppIdentifier.ClusterId
 	//getting rest config by clusterId
 	restConfig, err := impl.GetRestConfigByClusterId(ctx, clusterId)
 	if err != nil {
