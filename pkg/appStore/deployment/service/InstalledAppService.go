@@ -25,6 +25,7 @@ import (
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/pkg/appStatus"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
@@ -107,6 +108,7 @@ type InstalledAppServiceImpl struct {
 	helmAppClient                        client.HelmAppClient
 	helmAppService                       client.HelmAppService
 	attributesRepository                 repository3.AttributesRepository
+	appStatusService                     appStatus.AppStatusService
 }
 
 func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
@@ -127,7 +129,8 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	appStoreDeploymentService AppStoreDeploymentService,
 	installedAppRepositoryHistory repository2.InstalledAppVersionHistoryRepository,
 	argoUserService argo.ArgoUserService, helmAppClient client.HelmAppClient, helmAppService client.HelmAppService,
-	attributesRepository repository3.AttributesRepository) (*InstalledAppServiceImpl, error) {
+	attributesRepository repository3.AttributesRepository,
+	appStatusService appStatus.AppStatusService) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -156,6 +159,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		helmAppClient:                        helmAppClient,
 		helmAppService:                       helmAppService,
 		attributesRepository:                 attributesRepository,
+		appStatusService:                     appStatusService,
 	}
 	err := impl.Subscribe()
 	if err != nil {
@@ -205,6 +209,7 @@ func (impl InstalledAppServiceImpl) GetAll(filter *appStoreBean.AppStoreFilter) 
 			EnvironmentDetail: &environmentDetails,
 			ChartAvatar:       &appLocal.Icon,
 			LastDeployedAt:    &appLocal.UpdatedOn,
+			AppStatus:         &appLocal.AppStatus,
 		}
 		helmAppsResponse = append(helmAppsResponse, helmAppResp)
 	}
@@ -860,6 +865,13 @@ func (impl InstalledAppServiceImpl) UpdateInstalledAppVersionStatus(application 
 		return isHealthy, err
 	}
 
+	appId, envId, err := impl.installedAppRepositoryHistory.GetAppIdAndEnvIdWithInstalledAppVersionId(versionHistory.InstalledAppVersionId)
+	if err == nil {
+		err = impl.appStatusService.UpdateStatusWithAppIdEnvId(appId, envId, string(application.Status.Health.Status))
+		if err != nil {
+			impl.logger.Errorw("error while updating app status in app_status table", "error", err, "appId", appId, "envId", envId)
+		}
+	}
 	return true, nil
 }
 
@@ -905,7 +917,12 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 			appDetail.ResourceTree = map[string]interface{}{}
 			return *appDetail, err
 		}
+		// TODO: using this resp.Status to update in app_status table
 		appDetail.ResourceTree = util3.InterfaceToMapAdapter(resp)
+		err = impl.appStatusService.UpdateStatusWithAppIdEnvId(appDetail.AppId, appDetail.EnvironmentId, resp.Status)
+		if err != nil {
+			impl.logger.Warnw("error in updating app status", "err", err, appDetail.AppId, "envId", appDetail.EnvironmentId)
+		}
 		impl.logger.Debugf("application %s in environment %s had status %+v\n", appDetail.InstalledAppId, appDetail.EnvironmentId, resp)
 	} else if util.IsHelmApp(appDetail.DeploymentAppType) {
 		config, err := impl.helmAppService.GetClusterConf(appDetail.ClusterId)
