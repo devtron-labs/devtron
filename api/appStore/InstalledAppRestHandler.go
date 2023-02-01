@@ -219,13 +219,13 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 		if !ok {
 			objectToAppMap1[object1] = make([]string, 0)
 		}
-		objectToAppMap1[object1] = append(objectToAppMap1[object1], *app.AppName)
+		objectToAppMap1[object1] = append(objectToAppMap1[object1], *app.AppId)
 		if object2 != "" {
 			_, ok := objectToAppMap2[object2]
 			if !ok {
 				objectToAppMap2[object2] = make([]string, 0)
 			}
-			objectToAppMap2[object2] = append(objectToAppMap2[object2], *app.AppName)
+			objectToAppMap2[object2] = append(objectToAppMap2[object2], *app.AppId)
 			objectArray2 = append(objectArray2, object2)
 		}
 
