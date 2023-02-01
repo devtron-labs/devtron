@@ -24,6 +24,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/devtron-labs/devtron/client/k8s/application"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -656,35 +657,114 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 	return clusterResourceListMap, nil
 }
 
+//ValidateResource assumes resourceObj confirms to the unstructured.Object
 func (impl K8sUtil) ValidateResource(resourceObj map[string]interface{}, gvk schema.GroupVersionKind, validateCallback func(namespace string, group string, kind string, resourceName string) bool) bool {
-	resKind := gvk.Kind
-	groupName := gvk.Group
-	metadata := resourceObj[K8sClusterResourceMetadataKey]
-	if metadata == nil {
+	if resourceObj[K8sClusterResourceMetadataKey] == nil {
 		return false
 	}
-	metadataMap := metadata.(map[string]interface{})
+	metadata := resourceObj[K8sClusterResourceMetadataKey].(map[string]interface{})
 	var namespace, resourceName string
+	if metadata[K8sClusterResourceNamespaceKey] != nil {
+		namespace = metadata[K8sClusterResourceNamespaceKey].(string)
+	}
+	if metadata[K8sClusterResourceMetadataNameKey] != nil {
+		resourceName = metadata[K8sClusterResourceMetadataNameKey].(string)
+	}
+	resources := []application.ResourceIdentifier{
+		{
+			Name:             resourceName,
+			Namespace:        namespace,
+			GroupVersionKind: gvk,
+		},
+	}
+	resources = append(resources, impl.getOwners(namespace, resourceObj)...)
+
+	allowed := false
+	for _, resource := range resources {
+		//it after first validation succeeds it will short circuit further validations only loop will happen
+		allowed = allowed || validateCallback(namespace, resource.GroupVersionKind.Group, resource.GroupVersionKind.Kind, resource.Name)
+	}
+
+	return allowed
+}
+
+//getOwners function assumes the metadata passed confirms to the structure of metadata of unstructured.Object
+func (impl K8sUtil) getOwners(namespace string, metadata map[string]interface{}) []application.ResourceIdentifier {
+
+	if metadata[K8sClusterResourceNamespaceKey] != nil {
+		namespace = metadata[K8sClusterResourceNamespaceKey].(string)
+	}
+
 	var ownerReferences []interface{}
-	if metadataMap[K8sClusterResourceNamespaceKey] != nil {
-		namespace = metadataMap[K8sClusterResourceNamespaceKey].(string)
+	if metadata[K8sClusterResourceOwnerReferenceKey] != nil {
+		ownerReferences = metadata[K8sClusterResourceOwnerReferenceKey].([]interface{})
 	}
-	if metadataMap[K8sClusterResourceMetadataNameKey] != nil {
-		resourceName = metadataMap[K8sClusterResourceMetadataNameKey].(string)
+
+	var owners []application.ResourceIdentifier
+
+	for _, ownerRef := range ownerReferences {
+		lineage, err := impl.getGVKAndNameForOwnerHierarchy(namespace, ownerRef)
+		if err != nil {
+			continue
+		}
+		owners = append(owners, lineage...)
 	}
-	if metadataMap[K8sClusterResourceOwnerReferenceKey] != nil {
-		ownerReferences = metadataMap[K8sClusterResourceOwnerReferenceKey].([]interface{})
+	return owners
+}
+
+//getGVKAndNameForOwnerHierarchy assumes onwer confirms to ownerRef in ustructured.Object
+func (impl K8sUtil) getGVKAndNameForOwnerHierarchy(namespace string, owner interface{}) ([]application.ResourceIdentifier, error) {
+	var resources []application.ResourceIdentifier
+	resourceReference := owner.(map[string]interface{})
+	resKind := resourceReference[K8sClusterResourceKindKey].(string)
+	apiVersion := resourceReference[K8sClusterResourceApiVersionKey].(string)
+	gv, err := schema.ParseGroupVersion(apiVersion)
+	if err != nil {
+		return resources, err
 	}
-	if len(ownerReferences) > 0 {
-		for _, ownerRef := range ownerReferences {
-			allowed := impl.validateForResource(namespace, ownerRef, validateCallback)
-			if allowed {
-				return allowed
+	resName := ""
+	if resourceReference["name"] != nil && resourceReference["name"] != "" {
+		resName = resourceReference["name"].(string)
+		switch resKind {
+		case kube.ReplicaSetKind, kube.JobKind:
+			// check deployment first, then RO and then RS
+			nameParts := strings.Split(resName, "-")
+			//if ReplicaSet or Job have "-" in the name, assume they have owner Deployment
+			// and CronJob as owners because Kubernetes appends '-<random string>' to the name of owner to
+			//generate the name of the child object. If our assumption was wrong then RBAC validation of
+			//Deployment or CronJob should fail. There is one bug in this logic because one edge case remains i.e;
+			// if user doesnt have access to ReplicaSet with name firstname-lastname but has access to deployment with
+			//name fistname in the same namespace then this logic will give access to ReplicaSet also
+			if len(nameParts) > 1 {
+				parentName := strings.Join(nameParts[0:len(nameParts)-1], "-")
+				if resKind == "ReplicaSet" {
+					resourceIdentifier := application.ResourceIdentifier{
+						Name:             parentName,
+						Namespace:        namespace,
+						GroupVersionKind: gv.WithKind("Deployment"),
+					}
+					resources = append(resources, resourceIdentifier)
+				}
+				if resName == "Job" {
+					resourceIdentifier := application.ResourceIdentifier{
+						Name:             parentName,
+						Namespace:        namespace,
+						GroupVersionKind: gv.WithKind("CronJob"),
+					}
+					resources = append(resources, resourceIdentifier)
+				}
 			}
 		}
+		//
+		resourceIdentifier := application.ResourceIdentifier{
+			Name:             resName,
+			Namespace:        namespace,
+			GroupVersionKind: gv.WithKind(resKind),
+		}
+		resources = append(resources, resourceIdentifier)
 	}
-	// check current RBAC in case not matched with above one
-	return validateCallback(namespace, groupName, resKind, resourceName)
+
+	return resources, fmt.Errorf("missing owner name")
 }
 
 //func (impl K8sUtil) ValidateResourceWithRbac(namespace, resourceName string, ownerReferences []interface{}, validateCallback func(namespace, group, kind, resourceName string) bool) bool {
@@ -700,57 +780,57 @@ func (impl K8sUtil) ValidateResource(resourceObj map[string]interface{}, gvk sch
 //	return validateCallback(namespace, "", "", resourceName)
 //}
 
-func (impl K8sUtil) validateForResource(namespace string, resourceRef interface{}, validateCallback func(namespace string, group string, kind string, resourceName string) bool) bool {
-	resourceReference := resourceRef.(map[string]interface{})
-	resKind := resourceReference[K8sClusterResourceKindKey].(string)
-	apiVersion := resourceReference[K8sClusterResourceApiVersionKey].(string)
-	groupName := ""
-	if strings.Contains(apiVersion, "/") {
-		groupName = apiVersion[:strings.LastIndex(apiVersion, "/")] // extracting group from this apiVersion
-	}
-	resName := ""
-	if resourceReference["name"] != "" {
-		resName = resourceReference["name"].(string)
-		switch resKind {
-		case kube.ReplicaSetKind:
-			// check deployment first, then RO and then RS
-			if strings.Contains(resName, "-") {
-				deploymentName := resName[:strings.LastIndex(resName, "-")]
-				allowed := validateCallback(namespace, groupName, kube.DeploymentKind, deploymentName)
-				if allowed {
-					return true
-				}
-				allowed = validateCallback(namespace, K8sClusterResourceRolloutGroup, K8sClusterResourceRolloutKind, deploymentName)
-				if allowed {
-					return true
-				}
-			}
-			allowed := validateCallback(namespace, groupName, resKind, resName)
-			if allowed {
-				return true
-			}
-		case kube.JobKind:
-			// check CronJob first, then Job
-			if strings.Contains(resName, "-") {
-				cronJobName := resName[:strings.LastIndex(resName, "-")]
-				allowed := validateCallback(namespace, groupName, K8sClusterResourceCronJobKind, cronJobName)
-				if allowed {
-					return true
-				}
-			}
-			allowed := validateCallback(namespace, groupName, resKind, resName)
-			if allowed {
-				return true
-			}
-		case kube.DeploymentKind, K8sClusterResourceCronJobKind, kube.StatefulSetKind, kube.DaemonSetKind, K8sClusterResourceRolloutKind, K8sClusterResourceReplicationControllerKind:
-			allowed := validateCallback(namespace, groupName, resKind, resName)
-			if allowed {
-				return true
-			}
-		}
-	}
-	return false
-}
+//func (impl K8sUtil) validateForResource(namespace string, resourceRef interface{}, validateCallback func(namespace string, group string, kind string, resourceName string) bool) bool {
+//	resourceReference := resourceRef.(map[string]interface{})
+//	resKind := resourceReference[K8sClusterResourceKindKey].(string)
+//	apiVersion := resourceReference[K8sClusterResourceApiVersionKey].(string)
+//	groupName := ""
+//	if strings.Contains(apiVersion, "/") {
+//		groupName = apiVersion[:strings.LastIndex(apiVersion, "/")] // extracting group from this apiVersion
+//	}
+//	resName := ""
+//	if resourceReference["name"] != "" {
+//		resName = resourceReference["name"].(string)
+//		switch resKind {
+//		case kube.ReplicaSetKind:
+//			// check deployment first, then RO and then RS
+//			if strings.Contains(resName, "-") {
+//				deploymentName := resName[:strings.LastIndex(resName, "-")]
+//				allowed := validateCallback(namespace, groupName, kube.DeploymentKind, deploymentName)
+//				if allowed {
+//					return true
+//				}
+//				allowed = validateCallback(namespace, K8sClusterResourceRolloutGroup, K8sClusterResourceRolloutKind, deploymentName)
+//				if allowed {
+//					return true
+//				}
+//			}
+//			allowed := validateCallback(namespace, groupName, resKind, resName)
+//			if allowed {
+//				return true
+//			}
+//		case kube.JobKind:
+//			// check CronJob first, then Job
+//			if strings.Contains(resName, "-") {
+//				cronJobName := resName[:strings.LastIndex(resName, "-")]
+//				allowed := validateCallback(namespace, groupName, K8sClusterResourceCronJobKind, cronJobName)
+//				if allowed {
+//					return true
+//				}
+//			}
+//			allowed := validateCallback(namespace, groupName, resKind, resName)
+//			if allowed {
+//				return true
+//			}
+//		case kube.DeploymentKind, K8sClusterResourceCronJobKind, kube.StatefulSetKind, kube.DaemonSetKind, K8sClusterResourceRolloutKind, K8sClusterResourceReplicationControllerKind:
+//			allowed := validateCallback(namespace, groupName, resKind, resName)
+//			if allowed {
+//				return true
+//			}
+//		}
+//	}
+//	return false
+//}
 
 func (impl K8sUtil) getEventKindHeader() ([]string, map[int]string) {
 	headers := []string{"type", "message", "namespace", "involved object", "source", "count", "age", "last seen"}
