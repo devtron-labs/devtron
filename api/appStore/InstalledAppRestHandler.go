@@ -198,12 +198,12 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 		return
 	}
 
-	authorizedApps := make([]openapi.HelmApp, 0)
-	authorizedAppIdSet := make(map[string]bool)
-
 	appIdToAppMap := make(map[string]openapi.HelmApp)
-	objectToAppMap1 := make(map[string][]string)
-	objectToAppMap2 := make(map[string][]string)
+
+	//the value of this map is array of strings because the GetHelmObjectByAppNameAndEnvId method may return "//" for error cases
+	//so different apps may contain same object, to handle that we are using (map[string] []string)
+	rbacObjectToAppIdMap1 := make(map[string][]string)
+	rbacObjectToAppIdMap2 := make(map[string][]string)
 
 	objectArray1 := make([]string, 0)
 	objectArray2 := make([]string, 0)
@@ -215,17 +215,17 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 		envId := (*app.EnvironmentDetail).EnvironmentId
 		object1, object2 := handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(appName, int(*envId))
 		objectArray1 = append(objectArray1, object1)
-		_, ok := objectToAppMap1[object1]
+		_, ok := rbacObjectToAppIdMap1[object1]
 		if !ok {
-			objectToAppMap1[object1] = make([]string, 0)
+			rbacObjectToAppIdMap1[object1] = make([]string, 0)
 		}
-		objectToAppMap1[object1] = append(objectToAppMap1[object1], *app.AppId)
+		rbacObjectToAppIdMap1[object1] = append(rbacObjectToAppIdMap1[object1], *app.AppId)
 		if object2 != "" {
-			_, ok := objectToAppMap2[object2]
+			_, ok := rbacObjectToAppIdMap2[object2]
 			if !ok {
-				objectToAppMap2[object2] = make([]string, 0)
+				rbacObjectToAppIdMap2[object2] = make([]string, 0)
 			}
-			objectToAppMap2[object2] = append(objectToAppMap2[object2], *app.AppId)
+			rbacObjectToAppIdMap2[object2] = append(rbacObjectToAppIdMap2[object2], *app.AppId)
 			objectArray2 = append(objectArray2, object2)
 		}
 
@@ -234,9 +234,11 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 	resultObjectMap1 := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceHelmApp, casbin.ActionGet, objectArray1)
 	resultObjectMap2 := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceHelmApp, casbin.ActionGet, objectArray2)
 
+	authorizedAppIdSet := make(map[string]bool)
+	//O(n) time loop , at max we will only iterate through all the apps
 	for obj, ok := range resultObjectMap1 {
 		if ok {
-			appIds := objectToAppMap1[obj]
+			appIds := rbacObjectToAppIdMap1[obj]
 			for _, appId := range appIds {
 				authorizedAppIdSet[appId] = true
 			}
@@ -245,13 +247,14 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 	}
 	for obj, ok := range resultObjectMap2 {
 		if ok {
-			appIds := objectToAppMap2[obj]
+			appIds := rbacObjectToAppIdMap2[obj]
 			for _, appId := range appIds {
 				authorizedAppIdSet[appId] = true
 			}
 		}
 	}
 
+	authorizedApps := make([]openapi.HelmApp, 0)
 	for appId, _ := range authorizedAppIdSet {
 		authorizedApp := appIdToAppMap[appId]
 		authorizedApps = append(authorizedApps, authorizedApp)
