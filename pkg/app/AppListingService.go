@@ -103,7 +103,7 @@ type FetchAppListingRequest struct {
 	Size              int              `json:"size"`
 	DeploymentGroupId int              `json:"deploymentGroupId"`
 	Namespaces        []string         `json:"namespaces"` //{clusterId}_{namespace}
-
+	AppStatuses       []string         `json:"appStatuses"`
 }
 type AppNameTypeIdContainer struct {
 	AppName string `json:"appName"`
@@ -270,6 +270,7 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironment(fetchAppListingRequest 
 		Offset:            fetchAppListingRequest.Offset,
 		Size:              fetchAppListingRequest.Size,
 		DeploymentGroupId: fetchAppListingRequest.DeploymentGroupId,
+		AppStatuses:       fetchAppListingRequest.AppStatuses,
 	}
 	newCtx, span = otel.Tracer("appListingRepository").Start(newCtx, "FetchAppsByEnvironment")
 	envContainers, err := impl.appListingRepository.FetchAppsByEnvironment(appListingFilter)
@@ -521,6 +522,7 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 }
 
 func (impl AppListingServiceImpl) getAppACDStatus(env bean.AppEnvironmentContainer, w http.ResponseWriter, r *http.Request, token string) (string, error) {
+	//not being used  now
 	if len(env.AppName) > 0 && len(env.EnvironmentName) > 0 {
 		acdAppName := env.AppName + "-" + env.EnvironmentName
 		query := &application.ResourcesQuery{

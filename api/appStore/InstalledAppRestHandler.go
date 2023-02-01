@@ -143,6 +143,12 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 			}
 		}
 	}
+
+	var appStatuses []string
+	appStatusesStr := v.Get("appStatuses")
+	if len(appStatusesStr) > 0 {
+		appStatuses = strings.Split(appStatusesStr, ",")
+	}
 	appStoreName := v.Get("appStoreName")
 	appName := v.Get("appName")
 	offset := 0
@@ -155,7 +161,15 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 	if len(sizeStr) > 0 {
 		size, _ = strconv.Atoi(sizeStr)
 	}
-	filter := &appStoreBean.AppStoreFilter{OnlyDeprecated: onlyDeprecated, ChartRepoId: chartRepoIds, AppStoreName: appStoreName, EnvIds: envIds, AppName: appName, ClusterIds: clusterIds}
+	filter := &appStoreBean.AppStoreFilter{
+		OnlyDeprecated: onlyDeprecated,
+		ChartRepoId:    chartRepoIds,
+		AppStoreName:   appStoreName,
+		EnvIds:         envIds,
+		AppName:        appName,
+		ClusterIds:     clusterIds,
+		AppStatuses:    appStatuses,
+	}
 	if size > 0 {
 		filter.Size = size
 		filter.Offset = offset

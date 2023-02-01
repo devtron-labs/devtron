@@ -446,14 +446,14 @@ func (impl AppListingRepositoryImpl) FetchOtherEnvironment(appId int) ([]*bean.E
 	impl.Logger.Debug("reached at FetchOtherEnvironment:")
 
 	// other environment tab
+	//TODO : create new optimised query and need to use explain analyse for both queries
 	var otherEnvironments []*bean.Environment
-	query := "SELECT p.environment_id,env.environment_name, p.last_deployed,  env_app_m.app_metrics, env.default as prod, env_app_m.infra_metrics from" +
-		" (SELECT pl.id,pl.app_id,pl.environment_id,pl.deleted,MAX(pco.created_on) as last_deployed from pipeline pl LEFT JOIN pipeline_config_override pco on pco.pipeline_id = pl.id WHERE pl.app_id=? and pl.deleted = FALSE GROUP BY pl.id) p" +
-		" INNER JOIN environment env on env.id=p.environment_id" +
-		" LEFT JOIN env_level_app_metrics env_app_m on env.id=env_app_m.env_id and p.app_id = env_app_m.app_id" +
-		" where p.app_id=? and p.deleted = FALSE AND env.active = TRUE GROUP BY 1,2,3,4,5,6"
+	query := "select OE.*,B.status as app_status " +
+		"FROM " +
+		"(SELECT p.environment_id,env.environment_name, p.last_deployed,  env_app_m.app_metrics, env.default as prod, env_app_m.infra_metrics from ( SELECT pl.id,pl.app_id,pl.environment_id,pl.deleted,MAX(pco.created_on) as last_deployed from pipeline pl LEFT JOIN pipeline_config_override pco on pco.pipeline_id = pl.id WHERE pl.app_id = ? and pl.deleted = FALSE GROUP BY pl.id) p INNER JOIN environment env on env.id=p.environment_id LEFT JOIN env_level_app_metrics env_app_m on env.id=env_app_m.env_id and p.app_id = env_app_m.app_id where p.app_id=? and p.deleted = FALSE AND env.active = TRUE GROUP BY 1,2,3,4,5,6) OE " +
+		" LEFT JOIN app_status B ON OE.environment_id = B.env_id AND B.app_id = ? ;"
 	impl.Logger.Debugw("other env query:", query)
-	_, err := impl.dbConnection.Query(&otherEnvironments, query, appId, appId)
+	_, err := impl.dbConnection.Query(&otherEnvironments, query, appId, appId, appId)
 	if err != nil {
 		impl.Logger.Error("error in fetching other environment", "error", err)
 	}

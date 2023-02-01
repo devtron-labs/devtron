@@ -15,6 +15,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/constants"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/appStatus"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
@@ -57,12 +58,14 @@ type AppStoreDeploymentArgoCdServiceImpl struct {
 	appStoreDeploymentCommonService   appStoreDeploymentCommon.AppStoreDeploymentCommonService
 	helmAppService                    client.HelmAppService
 	gitOpsConfigRepository            repository3.GitOpsConfigRepository
+	appStatusService                  appStatus.AppStatusService
 }
 
 func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
 	acdClient application2.ServiceClient, chartGroupDeploymentRepository repository.ChartGroupDeploymentRepository,
 	installedAppRepository repository.InstalledAppRepository, installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository, chartTemplateService util.ChartTemplateService,
-	gitFactory *util.GitFactory, argoUserService argo.ArgoUserService, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService, helmAppService client.HelmAppService, gitOpsConfigRepository repository3.GitOpsConfigRepository) *AppStoreDeploymentArgoCdServiceImpl {
+	gitFactory *util.GitFactory, argoUserService argo.ArgoUserService, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
+	helmAppService client.HelmAppService, gitOpsConfigRepository repository3.GitOpsConfigRepository, appStatusService appStatus.AppStatusService) *AppStoreDeploymentArgoCdServiceImpl {
 	return &AppStoreDeploymentArgoCdServiceImpl{
 		Logger:                            logger,
 		appStoreDeploymentFullModeService: appStoreDeploymentFullModeService,
@@ -76,6 +79,7 @@ func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreD
 		appStoreDeploymentCommonService:   appStoreDeploymentCommonService,
 		helmAppService:                    helmAppService,
 		gitOpsConfigRepository:            gitOpsConfigRepository,
+		appStatusService:                  appStatusService,
 	}
 }
 
@@ -134,6 +138,11 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetAppStatus(installedAppAndEnvD
 			return "", err
 
 		}
+		//use this resp.Status to update app_status table
+		err = impl.appStatusService.UpdateStatusWithAppIdEnvId(installedAppAndEnvDetails.AppId, installedAppAndEnvDetails.EnvironmentId, resp.Status)
+		if err != nil {
+			impl.Logger.Warnw("error in updating app status", "err", err, installedAppAndEnvDetails.AppId, "envId", installedAppAndEnvDetails.EnvironmentId)
+		}
 		return resp.Status, nil
 	}
 	return "", errors.New("invalid app name or env name")
@@ -162,6 +171,13 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) DeleteInstalledApp(ctx context.C
 			return err
 		}
 	}
+
+	err = impl.appStatusService.DeleteWithAppIdEnvId(dbTransaction, installedApps.AppId, installedApps.EnvironmentId)
+	if err != nil {
+		impl.Logger.Errorw("error in deleting app_status", "appId", installedApps.AppId, "envId", installedApps.EnvironmentId, "err", err)
+		return err
+	}
+
 	deployment, err := impl.chartGroupDeploymentRepository.FindByInstalledAppId(installedApps.Id)
 	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("error in fetching chartGroupMapping", "id", installedApps.Id, "err", err)
@@ -178,7 +194,6 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) DeleteInstalledApp(ctx context.C
 			return err
 		}
 	}
-
 	return nil
 }
 
