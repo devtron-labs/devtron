@@ -20,6 +20,7 @@ package bean
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"time"
 )
@@ -60,12 +61,13 @@ type UpdateMaterialDTO struct {
 }
 
 type GitMaterial struct {
-	Name            string `json:"name,omitempty" ` //not null, //default format pipelineGroup.AppName + "-" + inputMaterial.Name,
-	Url             string `json:"url,omitempty"`   //url of git repo
-	Id              int    `json:"id,omitempty" validate:"number"`
-	GitProviderId   int    `json:"gitProviderId,omitempty" validate:"gt=0"`
-	CheckoutPath    string `json:"checkoutPath" validate:"checkout-path-component"`
-	FetchSubmodules bool   `json:"fetchSubmodules"`
+	Name             string `json:"name,omitempty" ` //not null, //default format pipelineGroup.AppName + "-" + inputMaterial.Name,
+	Url              string `json:"url,omitempty"`   //url of git repo
+	Id               int    `json:"id,omitempty" validate:"number"`
+	GitProviderId    int    `json:"gitProviderId,omitempty" validate:"gt=0"`
+	CheckoutPath     string `json:"checkoutPath" validate:"checkout-path-component"`
+	FetchSubmodules  bool   `json:"fetchSubmodules"`
+	IsUsedInCiConfig bool   `json:"isUsedInCiConfig"`
 }
 
 type CiMaterial struct {
@@ -450,26 +452,26 @@ type CDSourceObject struct {
 }
 
 type CDPipelineConfigObject struct {
-	Id                            int                               `json:"id,omitempty"  validate:"number" `
-	EnvironmentId                 int                               `json:"environmentId,omitempty"  validate:"number,required" `
-	EnvironmentName               string                            `json:"environmentName,omitempty" `
-	CiPipelineId                  int                               `json:"ciPipelineId,omitempty" validate:"number"`
-	TriggerType                   pipelineConfig.TriggerType        `json:"triggerType,omitempty" validate:"oneof=AUTOMATIC MANUAL"`
-	Name                          string                            `json:"name,omitempty" validate:"name-component,max=50"` //pipelineName
-	Strategies                    []Strategy                        `json:"strategies,omitempty"`
-	Namespace                     string                            `json:"namespace,omitempty" validate:"name-space-component,max=50"` //namespace
-	AppWorkflowId                 int                               `json:"appWorkflowId,omitempty" `
-	DeploymentTemplate            pipelineConfig.DeploymentTemplate `json:"deploymentTemplate,omitempty" validate:"oneof=BLUE-GREEN ROLLING CANARY RECREATE"` //
-	PreStage                      CdStage                           `json:"preStage"`
-	PostStage                     CdStage                           `json:"postStage"`
-	PreStageConfigMapSecretNames  PreStageConfigMapSecretNames      `json:"preStageConfigMapSecretNames"`
-	PostStageConfigMapSecretNames PostStageConfigMapSecretNames     `json:"postStageConfigMapSecretNames"`
-	RunPreStageInEnv              bool                              `json:"runPreStageInEnv"`
-	RunPostStageInEnv             bool                              `json:"runPostStageInEnv"`
-	CdArgoSetup                   bool                              `json:"isClusterCdActive"`
-	ParentPipelineId              int                               `json:"parentPipelineId"`
-	ParentPipelineType            string                            `json:"parentPipelineType"`
-	DeploymentAppType             string                            `json:"deploymentAppType"`
+	Id                            int                                    `json:"id,omitempty"  validate:"number" `
+	EnvironmentId                 int                                    `json:"environmentId,omitempty"  validate:"number,required" `
+	EnvironmentName               string                                 `json:"environmentName,omitempty" `
+	CiPipelineId                  int                                    `json:"ciPipelineId,omitempty" validate:"number"`
+	TriggerType                   pipelineConfig.TriggerType             `json:"triggerType,omitempty" validate:"oneof=AUTOMATIC MANUAL"`
+	Name                          string                                 `json:"name,omitempty" validate:"name-component,max=50"` //pipelineName
+	Strategies                    []Strategy                             `json:"strategies,omitempty"`
+	Namespace                     string                                 `json:"namespace,omitempty" validate:"name-space-component,max=50"` //namespace
+	AppWorkflowId                 int                                    `json:"appWorkflowId,omitempty" `
+	DeploymentTemplate            chartRepoRepository.DeploymentStrategy `json:"deploymentTemplate,omitempty"` //
+	PreStage                      CdStage                                `json:"preStage"`
+	PostStage                     CdStage                                `json:"postStage"`
+	PreStageConfigMapSecretNames  PreStageConfigMapSecretNames           `json:"preStageConfigMapSecretNames"`
+	PostStageConfigMapSecretNames PostStageConfigMapSecretNames          `json:"postStageConfigMapSecretNames"`
+	RunPreStageInEnv              bool                                   `json:"runPreStageInEnv"`
+	RunPostStageInEnv             bool                                   `json:"runPostStageInEnv"`
+	CdArgoSetup                   bool                                   `json:"isClusterCdActive"`
+	ParentPipelineId              int                                    `json:"parentPipelineId"`
+	ParentPipelineType            string                                 `json:"parentPipelineType"`
+	DeploymentAppType             string                                 `json:"deploymentAppType"`
 	//Downstream         []int                             `json:"downstream"` //PipelineCounter of downstream	(for future reference only)
 }
 
@@ -493,9 +495,9 @@ type CdStage struct {
 }
 
 type Strategy struct {
-	DeploymentTemplate pipelineConfig.DeploymentTemplate `json:"deploymentTemplate,omitempty" validate:"oneof=BLUE-GREEN ROLLING CANARY RECREATE"` //
-	Config             json.RawMessage                   `json:"config,omitempty" validate:"string"`
-	Default            bool                              `json:"default"`
+	DeploymentTemplate chartRepoRepository.DeploymentStrategy `json:"deploymentTemplate,omitempty"` //
+	Config             json.RawMessage                        `json:"config,omitempty" validate:"string"`
+	Default            bool                                   `json:"default"`
 }
 
 type CdPipelines struct {
@@ -567,8 +569,10 @@ type CiArtifactBean struct {
 
 type CiArtifactResponse struct {
 	//AppId           int      `json:"app_id"`
-	CdPipelineId int              `json:"cd_pipeline_id,notnull"`
-	CiArtifacts  []CiArtifactBean `json:"ci_artifacts,notnull"`
+	CdPipelineId           int              `json:"cd_pipeline_id,notnull"`
+	LatestWfArtifactId     int              `json:"latest_wf_artifact_id"`
+	LatestWfArtifactStatus string           `json:"latest_wf_artifact_status"`
+	CiArtifacts            []CiArtifactBean `json:"ci_artifacts,notnull"`
 }
 
 type AppLabelsDto struct {

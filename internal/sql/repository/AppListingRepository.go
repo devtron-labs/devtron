@@ -21,8 +21,10 @@
 package repository
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"go.opentelemetry.io/otel"
 	"strconv"
 	"strings"
 	"time"
@@ -35,8 +37,8 @@ import (
 
 type AppListingRepository interface {
 	FetchAppsByEnvironment(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, error)
-	DeploymentDetailsByAppIdAndEnvId(appId int, envId int) (bean.DeploymentDetailContainer, error)
-	FetchAppDetail(appId int, envId int) (bean.AppDetailContainer, error)
+	DeploymentDetailsByAppIdAndEnvId(ctx context.Context, appId int, envId int) (bean.DeploymentDetailContainer, error)
+	FetchAppDetail(ctx context.Context, appId int, envId int) (bean.AppDetailContainer, error)
 
 	FetchAppTriggerView(appId int) ([]bean.TriggerView, error)
 	FetchAppStageStatus(appId int) ([]bean.AppStageStatus, error)
@@ -45,16 +47,11 @@ type AppListingRepository interface {
 	PrometheusApiByEnvId(id int) (*string, error)
 
 	FetchOtherEnvironment(appId int) ([]*bean.Environment, error)
-	SaveNewDeployment(deploymentStatus *DeploymentStatus, tx *pg.Tx) error
-	SaveNewDeploymentsWithTxn(deploymentStatuses []DeploymentStatus, tx *pg.Tx) error
-	FindLastDeployedStatus(appName string) (DeploymentStatus, error)
-	FindLastDeployedStatuses(appNames []string) ([]DeploymentStatus, error)
-	FindLastDeployedStatusesForAllApps() ([]DeploymentStatus, error)
-	FindLatestDeployedStatusesForAppsByStatusAndLastUpdatedBefore(deployedBeforeMinutes int) ([]DeploymentStatus, error)
 	DeploymentDetailByArtifactId(ciArtifactId int) (bean.DeploymentDetailContainer, error)
 	FindAppCount(isProd bool) (int, error)
 }
 
+// below table is deprecated, not being used anywhere
 type DeploymentStatus struct {
 	tableName struct{}  `sql:"deployment_status" pg:",discard_unknown_columns"`
 	Id        int       `sql:"id,pk"`
@@ -161,7 +158,9 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter hel
 }
 
 // It will return the deployment detail of any cd pipeline which is latest triggered for Environment of any App
-func (impl AppListingRepositoryImpl) DeploymentDetailsByAppIdAndEnvId(appId int, envId int) (bean.DeploymentDetailContainer, error) {
+func (impl AppListingRepositoryImpl) DeploymentDetailsByAppIdAndEnvId(ctx context.Context, appId int, envId int) (bean.DeploymentDetailContainer, error) {
+	_, span := otel.Tracer("orchestrator").Start(ctx, "DeploymentDetailsByAppIdAndEnvId")
+	defer span.End()
 	impl.Logger.Debugf("reached at AppListingRepository:")
 	var deploymentDetail bean.DeploymentDetailContainer
 	query := "SELECT env.environment_name, a.app_name, ceco.namespace, u.email_id as last_deployed_by" +
@@ -248,11 +247,13 @@ func parseMaterialInfo(materialInfo string, source string) (json.RawMessage, err
 	return mInfo, err
 }
 
-func (impl AppListingRepositoryImpl) FetchAppDetail(appId int, envId int) (bean.AppDetailContainer, error) {
+func (impl AppListingRepositoryImpl) FetchAppDetail(ctx context.Context, appId int, envId int) (bean.AppDetailContainer, error) {
 	impl.Logger.Debugf("reached at AppListingRepository:")
 	var appDetailContainer bean.AppDetailContainer
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "DeploymentDetailsByAppIdAndEnvId")
+	defer span.End()
 	//Fetch deployment detail of cd pipeline latest triggered within env of any App.
-	deploymentDetail, err := impl.DeploymentDetailsByAppIdAndEnvId(appId, envId)
+	deploymentDetail, err := impl.DeploymentDetailsByAppIdAndEnvId(newCtx, appId, envId)
 	if err != nil {
 		impl.Logger.Warn("unable to fetch deployment detail for app")
 	}
@@ -457,72 +458,6 @@ func (impl AppListingRepositoryImpl) FetchOtherEnvironment(appId int) ([]*bean.E
 		impl.Logger.Error("error in fetching other environment", "error", err)
 	}
 	return otherEnvironments, nil
-}
-
-func (impl AppListingRepositoryImpl) SaveNewDeployment(deploymentStatus *DeploymentStatus, tx *pg.Tx) error {
-	err := tx.Insert(deploymentStatus)
-	return err
-}
-
-func (impl AppListingRepositoryImpl) SaveNewDeploymentsWithTxn(deploymentStatuses []DeploymentStatus, tx *pg.Tx) error {
-	err := tx.Insert(&deploymentStatuses)
-	return err
-}
-
-func (impl AppListingRepositoryImpl) FindLastDeployedStatus(appName string) (DeploymentStatus, error) {
-	var deployment DeploymentStatus
-	err := impl.dbConnection.Model(&deployment).
-		Where("app_name = ?", appName).
-		Order("id Desc").
-		Limit(1).
-		Select()
-	return deployment, err
-}
-
-func (impl AppListingRepositoryImpl) FindLastDeployedStatuses(appNames []string) ([]DeploymentStatus, error) {
-	if len(appNames) == 0 {
-		return []DeploymentStatus{}, nil
-	}
-	var deploymentStatuses []DeploymentStatus
-
-	var preparedAppNames []string
-	for _, a := range appNames {
-		preparedAppNames = append(preparedAppNames, "'"+a+"'")
-	}
-
-	query := "select distinct app_name, status, max(id) as id from deployment_status where app_name in (" + strings.Join(preparedAppNames[:], ",") + ") group by app_name, status order by id desc"
-	_, err := impl.dbConnection.Query(&deploymentStatuses, query)
-	if err != nil {
-		impl.Logger.Error("err", err)
-		return []DeploymentStatus{}, err
-	}
-	return deploymentStatuses, nil
-}
-
-func (impl AppListingRepositoryImpl) FindLastDeployedStatusesForAllApps() ([]DeploymentStatus, error) {
-	var deploymentStatuses []DeploymentStatus
-	query := "select distinct app_name, status, max(id) as id, app_id, env_id, created_on, updated_on from deployment_status group by app_name, status, app_id, env_id, created_on, updated_on order by id desc"
-	_, err := impl.dbConnection.Query(&deploymentStatuses, query)
-	if err != nil {
-		impl.Logger.Error("err", err)
-		return []DeploymentStatus{}, err
-	}
-	return deploymentStatuses, nil
-}
-
-// below query will fetch latest status of all apps along with the filter
-// Status == application.Progressing && time.Since(UpdatedOn) > time.Duration(timeForDegradation)*time.Minute
-
-func (impl AppListingRepositoryImpl) FindLatestDeployedStatusesForAppsByStatusAndLastUpdatedBefore(deployedBeforeMinutes int) ([]DeploymentStatus, error) {
-	var deploymentStatuses []DeploymentStatus
-	terminalStatuses := fmt.Sprint("'Healthy', 'Degraded', 'Failed'")
-	query := fmt.Sprintf("select * from deployment_status where status not in (%s) and updated_on < NOW() - INTERVAL '%d minutes' and id in (select DISTINCT ON (ds.app_name) max(ds.id) as id  from deployment_status ds inner join pipeline p on p.app_id=ds.app_id where p.deleted=false and p.deployment_app_type='argo_cd' group by ds.app_name, status,ds.app_id, env_id, ds.created_on, ds.updated_on order by ds.app_name,id desc) order by id desc;", terminalStatuses, deployedBeforeMinutes)
-	_, err := impl.dbConnection.Query(&deploymentStatuses, query)
-	if err != nil {
-		impl.Logger.Error("err", err)
-		return nil, err
-	}
-	return deploymentStatuses, nil
 }
 
 func (impl AppListingRepositoryImpl) DeploymentDetailByArtifactId(ciArtifactId int) (bean.DeploymentDetailContainer, error) {

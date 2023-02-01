@@ -32,7 +32,7 @@ import (
 	"time"
 )
 
-//-----------
+// -----------
 type GitSensorResponse struct {
 	Code   int                  `json:"code,omitempty"`
 	Status string               `json:"status,omitempty"`
@@ -47,7 +47,7 @@ type GitSensorApiError struct {
 	UserDetailMessage string `json:"userDetailMessage,omitempty"`
 }
 
-//---------------
+// ---------------
 type FetchScmChangesRequest struct {
 	PipelineMaterialId int    `json:"pipelineMaterialId"`
 	From               string `json:"from"`
@@ -227,7 +227,7 @@ type GitSensorClient interface {
 	GetWebhookPayloadFilterDataForPipelineMaterialId(req *WebhookPayloadFilterDataRequest) (response *WebhookPayloadFilterDataResponse, err error)
 }
 
-//----------------------impl
+// ----------------------impl
 type GitSensorConfig struct {
 	Url     string `env:"GIT_SENSOR_URL" envDefault:"http://localhost:9999"`
 	Timeout int    `env:"GIT_SENSOR_TIMEOUT" envDefault:"0"` // in seconds
@@ -276,7 +276,6 @@ func (session *GitSensorClientImpl) doRequest(clientRequest *ClientRequest) (res
 			session.logger.Debugw("argo req with body", "body", string(req))
 			body = bytes.NewBuffer(req)
 		}
-
 	}
 	httpReq, err := http.NewRequest(clientRequest.Method, rel.String(), body)
 	if err != nil {
@@ -289,7 +288,7 @@ func (session *GitSensorClientImpl) doRequest(clientRequest *ClientRequest) (res
 	defer httpRes.Body.Close()
 	resBody, err = ioutil.ReadAll(httpRes.Body)
 	if err != nil {
-		session.logger.Errorw("error in argocd communication ", "err", err)
+		session.logger.Errorw("error on git sensor request", "err", err)
 		return nil, nil, err
 	}
 	status := StatusCode(httpRes.StatusCode)
@@ -300,12 +299,12 @@ func (session *GitSensorClientImpl) doRequest(clientRequest *ClientRequest) (res
 			err = json.Unmarshal(apiRes.Result, clientRequest.ResponseBody)
 			return resBody, &apiStatus, err
 		} else {
-			session.logger.Errorw("api err in argocd communication", "res", apiRes.Errors)
-			return resBody, &apiStatus, fmt.Errorf("err in argocd communication api res")
+			session.logger.Errorw("api err in git sensor response", "res", apiRes.Errors)
+			return resBody, &apiStatus, fmt.Errorf("err in git-sensor communication api res")
 		}
 	} else {
-		session.logger.Errorw("api err in argocd communication", "res", string(resBody))
-		return resBody, &status, fmt.Errorf("res not success in argocd communication, Statuscode: %d ", status)
+		session.logger.Errorw("api err in git sensor response", "res", string(resBody))
+		return resBody, &status, fmt.Errorf("res not success, Statuscode: %d ", status)
 	}
 	return resBody, &status, err
 }

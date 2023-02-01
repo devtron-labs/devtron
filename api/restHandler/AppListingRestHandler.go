@@ -30,6 +30,7 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/cron"
 	"github.com/devtron-labs/devtron/internal/constants"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	service1 "github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
@@ -45,6 +46,7 @@ import (
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	grpc_logging "github.com/grpc-ecosystem/go-grpc-middleware/logging"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"net/http"
 	"strconv"
@@ -62,6 +64,8 @@ type AppListingRestHandler interface {
 	FetchOtherEnvironment(w http.ResponseWriter, r *http.Request)
 	RedirectToLinkouts(w http.ResponseWriter, r *http.Request)
 	GetHostUrlsByBatch(w http.ResponseWriter, r *http.Request)
+
+	ManualSyncAcdPipelineDeploymentStatus(w http.ResponseWriter, r *http.Request)
 }
 
 type AppListingRestHandlerImpl struct {
@@ -81,6 +85,7 @@ type AppListingRestHandlerImpl struct {
 	k8sApplicationService            k8s.K8sApplicationService
 	installedAppService              service1.InstalledAppService
 	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler
+	pipelineRepository               pipelineConfig.PipelineRepository
 }
 
 type AppStatus struct {
@@ -100,7 +105,8 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 	deploymentGroupService deploymentGroup.DeploymentGroupService, userService user.UserService,
 	helmAppClient client.HelmAppClient, clusterService cluster.ClusterService, helmAppService client.HelmAppService,
 	argoUserService argo.ArgoUserService, k8sApplicationService k8s.K8sApplicationService, installedAppService service1.InstalledAppService,
-	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler) *AppListingRestHandlerImpl {
+	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler,
+	pipelineRepository pipelineConfig.PipelineRepository) *AppListingRestHandlerImpl {
 	appListingHandler := &AppListingRestHandlerImpl{
 		application:                      application,
 		appListingService:                appListingService,
@@ -118,6 +124,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 		k8sApplicationService:            k8sApplicationService,
 		installedAppService:              installedAppService,
 		cdApplicationStatusUpdateHandler: cdApplicationStatusUpdateHandler,
+		pipelineRepository:               pipelineRepository,
 	}
 	return appListingHandler
 }
@@ -153,12 +160,16 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 	t0 := time.Now()
 	t1 := time.Now()
 	handler.logger.Infow("api response time testing", "time", time.Now().String(), "stage", "1")
+	newCtx, span := otel.Tracer("userService").Start(r.Context(), "GetLoggedInUser")
 	userId, err := handler.userService.GetLoggedInUser(r)
+	span.End()
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
+	newCtx, span = otel.Tracer("userService").Start(newCtx, "GetById")
 	user, err := handler.userService.GetById(userId)
+	span.End()
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -172,7 +183,9 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	newCtx, span = otel.Tracer("fetchAppListingRequest").Start(newCtx, "GetNamespaceClusterMapping")
 	_, _, err = fetchAppListingRequest.GetNamespaceClusterMapping()
+	span.End()
 	if err != nil {
 		handler.logger.Errorw("request err, GetNamespaceClusterMapping", "err", err, "payload", fetchAppListingRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -181,14 +194,18 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 
 	var dg *deploymentGroup.DeploymentGroupDTO
 	if fetchAppListingRequest.DeploymentGroupId > 0 {
+		newCtx, span = otel.Tracer("deploymentGroupService").Start(newCtx, "FindById")
 		dg, err = handler.deploymentGroupService.FindById(fetchAppListingRequest.DeploymentGroupId)
+		span.End()
 		if err != nil {
 			handler.logger.Errorw("service err, FetchAppsByEnvironment", "err", err, "payload", fetchAppListingRequest)
 			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 		}
 	}
 
+	newCtx, span = otel.Tracer("appListingService").Start(newCtx, "FetchAppsByEnvironment")
 	envContainers, err := handler.appListingService.FetchAppsByEnvironment(fetchAppListingRequest, w, r, token)
+	span.End()
 	if err != nil {
 		handler.logger.Errorw("service err, FetchAppsByEnvironment", "err", err, "payload", fetchAppListingRequest)
 		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
@@ -197,7 +214,9 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 	handler.logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "2")
 	t1 = t2
 
+	newCtx, span = otel.Tracer("userService").Start(newCtx, "IsSuperAdmin")
 	isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
+	span.End()
 	if err != nil {
 		handler.logger.Errorw("request err, FetchAppsByEnvironment", "err", err, "userId", userId)
 		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
@@ -221,7 +240,9 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 			objectArray = append(objectArray, object)
 		}
 
+		newCtx, span = otel.Tracer("enforcer").Start(newCtx, "EnforceByEmailInBatchForTeams")
 		resultMap := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceTeam, casbin.ActionGet, objectArray)
+		span.End()
 		for teamId, teamName := range uniqueTeams {
 			object := strings.ToLower(teamName)
 			if ok := resultMap[object]; ok {
@@ -248,7 +269,9 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 			objectArray = append(objectArray, object)
 		}
 
+		newCtx, span = otel.Tracer("enforcer").Start(newCtx, "EnforceByEmailInBatchForApps")
 		resultMap = handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceApplications, casbin.ActionGet, objectArray)
+		span.End()
 		for _, filteredAppEnvContainer := range filteredAppEnvContainers {
 			if fetchAppListingRequest.DeploymentGroupId > 0 {
 				if filteredAppEnvContainer.EnvironmentId != 0 && filteredAppEnvContainer.EnvironmentId != dg.EnvironmentId {
@@ -266,7 +289,9 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 	t2 = time.Now()
 	handler.logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3")
 	t1 = t2
+	newCtx, span = otel.Tracer("appListingService").Start(newCtx, "BuildAppListingResponse")
 	apps, err := handler.appListingService.BuildAppListingResponse(fetchAppListingRequest, appEnvContainers)
+	span.End()
 	if err != nil {
 		handler.logger.Errorw("service err, FetchAppsByEnvironment", "err", err, "payload", fetchAppListingRequest)
 		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
@@ -327,7 +352,7 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	appDetail, err := handler.appListingService.FetchAppDetails(appId, envId)
+	appDetail, err := handler.appListingService.FetchAppDetails(r.Context(), appId, envId)
 	if err != nil {
 		handler.logger.Errorw("service err, FetchAppDetails", "err", err, "appId", appId, "envId", envId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -521,7 +546,9 @@ func (handler AppListingRestHandlerImpl) FetchOtherEnvironment(w http.ResponseWr
 		return
 	}
 	token := r.Header.Get("token")
+	newCtx, span := otel.Tracer("pipeline").Start(r.Context(), "GetApp")
 	app, err := handler.pipeline.GetApp(appId)
+	span.End()
 	if err != nil {
 		handler.logger.Errorw("service err, FetchOtherEnvironment", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -536,7 +563,9 @@ func (handler AppListingRestHandlerImpl) FetchOtherEnvironment(w http.ResponseWr
 	}
 	//RBAC enforcer Ends
 
-	otherEnvironment, err := handler.appListingService.FetchOtherEnvironment(appId)
+	newCtx, span = otel.Tracer("appListingService").Start(newCtx, "FetchOtherEnvironment")
+	otherEnvironment, err := handler.appListingService.FetchOtherEnvironment(newCtx, appId)
+	span.End()
 	if err != nil {
 		handler.logger.Errorw("service err, FetchOtherEnvironment", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -632,7 +661,7 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 		common.WriteJsonResp(w, fmt.Errorf("error in parsing envId : %s must be integer", envIdParam), nil, http.StatusBadRequest)
 		return
 	}
-	appDetail, err, appId = handler.getAppDetails(appIdParam, installedAppIdParam, envId)
+	appDetail, err, appId = handler.getAppDetails(r.Context(), appIdParam, installedAppIdParam, envId)
 	if err != nil {
 		handler.logger.Errorw("error occurred while getting app details", "appId", appIdParam, "installedAppId", installedAppIdParam, "envId", envId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -678,7 +707,7 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 	}
 	//valid batch requests, only valid requests will be sent for batch processing
 	validRequests := make([]k8s.ResourceRequestBean, 0)
-	validRequests = handler.k8sApplicationService.FilterServiceAndIngress(resourceTree, validRequests, appDetail, "")
+	validRequests = handler.k8sApplicationService.FilterServiceAndIngress(r.Context(), resourceTree, validRequests, appDetail, "")
 	if len(validRequests) == 0 {
 		handler.logger.Error("neither service nor ingress found for", "appId", appIdParam, "envId", envIdParam, "installedAppId", installedAppIdParam)
 		common.WriteJsonResp(w, err, nil, http.StatusNoContent)
@@ -690,11 +719,11 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	result := handler.k8sApplicationService.GetUrlsByBatch(resp)
+	result := handler.k8sApplicationService.GetUrlsByBatch(r.Context(), resp)
 	common.WriteJsonResp(w, nil, result, http.StatusOK)
 }
 
-func (handler AppListingRestHandlerImpl) getAppDetails(appIdParam, installedAppIdParam string, envId int) (bean.AppDetailContainer, error, int) {
+func (handler AppListingRestHandlerImpl) getAppDetails(ctx context.Context, appIdParam, installedAppIdParam string, envId int) (bean.AppDetailContainer, error, int) {
 	var appDetail bean.AppDetailContainer
 	if appIdParam != "" {
 		appId, err := strconv.Atoi(appIdParam)
@@ -702,7 +731,7 @@ func (handler AppListingRestHandlerImpl) getAppDetails(appIdParam, installedAppI
 			handler.logger.Errorw("error in parsing appId from request body", "appId", appIdParam, "err", err)
 			return appDetail, err, appId
 		}
-		appDetail, err = handler.appListingService.FetchAppDetails(appId, envId)
+		appDetail, err = handler.appListingService.FetchAppDetails(ctx, appId, envId)
 		return appDetail, err, appId
 	}
 
@@ -715,12 +744,23 @@ func (handler AppListingRestHandlerImpl) getAppDetails(appIdParam, installedAppI
 	return appDetail, err, appId
 }
 
+// TODO: move this to service
 func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, appId int, envId int, appDetail bean.AppDetailContainer) (bean.AppDetailContainer, error) {
 	if len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 && util.IsAcdApp(appDetail.DeploymentAppType) {
 		//RBAC enforcer Ends
-		acdAppName := appDetail.AppName + "-" + appDetail.EnvironmentName
+		cdPipelines, err := handler.pipelineRepository.FindActiveByAppIdAndEnvironmentId(appId, envId)
+		if err != nil {
+			handler.logger.Errorw("error in getting cdPipeline by appId and envId", "err", err, "appid", appId, "envId", envId)
+			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+			return appDetail, err
+		}
+		if len(cdPipelines) != 1 {
+			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+			return appDetail, err
+		}
+		cdPipeline := cdPipelines[0]
 		query := &application2.ResourcesQuery{
-			ApplicationName: &acdAppName,
+			ApplicationName: &cdPipeline.DeploymentAppName,
 		}
 		ctx, cancel := context.WithCancel(r.Context())
 		if cn, ok := w.(http.CloseNotifier); ok {
@@ -779,7 +819,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		}
 		appDetail.ResourceTree = util2.InterfaceToMapAdapter(resp)
 		if resp.Status == string(health.HealthStatusHealthy) {
-			err = handler.cdApplicationStatusUpdateHandler.SyncPipelineStatusForResourceTreeCall(acdAppName, appId, envId)
+			err = handler.cdApplicationStatusUpdateHandler.SyncPipelineStatusForResourceTreeCall(cdPipeline)
 			if err != nil {
 				handler.logger.Errorw("error in syncing pipeline status", "err", err)
 			}
@@ -823,4 +863,46 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		handler.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
 	}
 	return appDetail, nil
+}
+
+func (handler AppListingRestHandlerImpl) ManualSyncAcdPipelineDeploymentStatus(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	vars := mux.Vars(r)
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	appId, err := strconv.Atoi(vars["appId"])
+	if err != nil {
+		handler.logger.Errorw("request err, ManualSyncAcdPipelineDeploymentStatus", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	envId, err := strconv.Atoi(vars["envId"])
+	if err != nil {
+		handler.logger.Errorw("request err, ManualSyncAcdPipelineDeploymentStatus", "err", err, "envId", envId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	app, err := handler.pipeline.GetApp(appId)
+	if err != nil {
+		handler.logger.Errorw("bad request", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	// RBAC enforcer applying
+	object := handler.enforcerUtil.GetAppRBACName(app.AppName)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, err, "unauthorized user", http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+	err = handler.cdApplicationStatusUpdateHandler.ManualSyncPipelineStatus(appId, envId, userId)
+	if err != nil {
+		handler.logger.Errorw("service err, ManualSyncAcdPipelineDeploymentStatus", "err", err, "appId", appId, "envId", envId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, "App synced successfully.", http.StatusOK)
 }

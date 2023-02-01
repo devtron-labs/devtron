@@ -190,7 +190,7 @@ func (impl *K8sClient) GenerateDexConfigYAML(settings *DexConfig) ([]byte, error
 	if dexCfg == nil {
 		dexCfg = make(map[string]interface{})
 	}
-	issuer, err := settings.getDexProxyUrl()
+	issuer, err := settings.GetDexProxyUrl()
 	if err != nil {
 		return nil, fmt.Errorf("failed to find issuer url: %v", err)
 	}

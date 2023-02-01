@@ -51,11 +51,11 @@ const (
 )
 
 type GitClient interface {
-	CreateRepository(name, description, userName, userEmailId string) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions)
-	CommitValues(config *ChartConfig) (commitHash string, commitTime time.Time, err error)
-	GetRepoUrl(projectName string) (repoUrl string, err error)
-	DeleteRepository(name string) error
-	CreateReadme(name, userName, userEmailId string) (string, error)
+	CreateRepository(config *bean2.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions)
+	CommitValues(config *ChartConfig, gitOpsConfig *bean2.GitOpsConfigDto) (commitHash string, commitTime time.Time, err error)
+	GetRepoUrl(config *bean2.GitOpsConfigDto) (repoUrl string, err error)
+	DeleteRepository(config *bean2.GitOpsConfigDto) error
+	CreateReadme(config *bean2.GitOpsConfigDto) (string, error)
 	GetCommits(repoName, projectName string) ([]*GitCommitDto, error)
 }
 
@@ -132,15 +132,17 @@ func (factory *GitFactory) GetGitLabGroupPath(gitOpsConfig *bean2.GitOpsConfigDt
 
 func (factory *GitFactory) NewClientForValidation(gitOpsConfig *bean2.GitOpsConfigDto) (GitClient, *GitServiceImpl, error) {
 	cfg := &GitConfig{
-		GitlabGroupId:      gitOpsConfig.GitLabGroupId,
-		GitToken:           gitOpsConfig.Token,
-		GitUserName:        gitOpsConfig.Username,
-		GitWorkingDir:      GIT_WORKING_DIR,
-		GithubOrganization: gitOpsConfig.GitHubOrgId,
-		GitProvider:        gitOpsConfig.Provider,
-		GitHost:            gitOpsConfig.Host,
-		AzureToken:         gitOpsConfig.Token,
-		AzureProject:       gitOpsConfig.AzureProjectName,
+		GitlabGroupId:        gitOpsConfig.GitLabGroupId,
+		GitToken:             gitOpsConfig.Token,
+		GitUserName:          gitOpsConfig.Username,
+		GitWorkingDir:        GIT_WORKING_DIR,
+		GithubOrganization:   gitOpsConfig.GitHubOrgId,
+		GitProvider:          gitOpsConfig.Provider,
+		GitHost:              gitOpsConfig.Host,
+		AzureToken:           gitOpsConfig.Token,
+		AzureProject:         gitOpsConfig.AzureProjectName,
+		BitbucketWorkspaceId: gitOpsConfig.BitBucketWorkspaceId,
+		BitbucketProjectKey:  gitOpsConfig.BitBucketProjectKey,
 	}
 	gitService := NewGitServiceImpl(cfg, logger, factory.gitCliUtil)
 	//factory.gitService = gitService
@@ -150,7 +152,7 @@ func (factory *GitFactory) NewClientForValidation(gitOpsConfig *bean2.GitOpsConf
 	}
 
 	//factory.Client = client
-	logger.Infow("client changed successfully")
+	logger.Infow("client changed successfully", "cfg", cfg)
 	return client, gitService, nil
 }
 

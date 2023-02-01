@@ -17,6 +17,7 @@ import (
 	"github.com/devtron-labs/devtron/api/server"
 	"github.com/devtron-labs/devtron/api/sso"
 	"github.com/devtron-labs/devtron/api/team"
+	"github.com/devtron-labs/devtron/api/terminal"
 	"github.com/devtron-labs/devtron/api/user"
 	webhookHelm "github.com/devtron-labs/devtron/api/webhook/helm"
 	"github.com/devtron-labs/devtron/client/dashboard"
@@ -53,6 +54,9 @@ type MuxRouter struct {
 	webhookHelmRouter        webhookHelm.WebhookHelmRouter
 	userAttributesRouter     router.UserAttributesRouter
 	telemetryRouter          router.TelemetryRouter
+	userTerminalAccessRouter terminal.UserTerminalAccessRouter
+	attributesRouter         router.AttributesRouter
+	appRouter                router.AppRouter
 }
 
 func NewMuxRouter(
@@ -79,6 +83,9 @@ func NewMuxRouter(
 	webhookHelmRouter webhookHelm.WebhookHelmRouter,
 	userAttributesRouter router.UserAttributesRouter,
 	telemetryRouter router.TelemetryRouter,
+	userTerminalAccessRouter terminal.UserTerminalAccessRouter,
+	attributesRouter router.AttributesRouter,
+	appRouter router.AppRouter,
 ) *MuxRouter {
 	r := &MuxRouter{
 		Router:                   mux.NewRouter(),
@@ -106,6 +113,9 @@ func NewMuxRouter(
 		webhookHelmRouter:        webhookHelmRouter,
 		userAttributesRouter:     userAttributesRouter,
 		telemetryRouter:          telemetryRouter,
+		userTerminalAccessRouter: userTerminalAccessRouter,
+		attributesRouter:         attributesRouter,
+		appRouter:                appRouter,
 	}
 	return r
 }
@@ -160,9 +170,12 @@ func (r *MuxRouter) Init() {
 	dashboardRouter := r.Router.PathPrefix("/dashboard").Subrouter()
 	r.dashboardRouter.InitDashboardRouter(dashboardRouter)
 
-	applicationSubRouter := r.Router.PathPrefix("/orchestrator/application").Subrouter()
-	r.helmAppRouter.InitAppListRouter(applicationSubRouter)
-	r.commonDeploymentRouter.Init(applicationSubRouter)
+	HelmApplicationSubRouter := r.Router.PathPrefix("/orchestrator/application").Subrouter()
+	r.helmAppRouter.InitAppListRouter(HelmApplicationSubRouter)
+	r.commonDeploymentRouter.Init(HelmApplicationSubRouter)
+
+	ApplicationSubRouter := r.Router.PathPrefix("/orchestrator/app").Subrouter()
+	r.appRouter.InitAppRouter(ApplicationSubRouter)
 
 	k8sApp := r.Router.PathPrefix("/orchestrator/k8s").Subrouter()
 	r.k8sApplicationRouter.InitK8sApplicationRouter(k8sApp)
@@ -219,4 +232,10 @@ func (r *MuxRouter) Init() {
 
 	telemetryRouter := r.Router.PathPrefix("/orchestrator/telemetry").Subrouter()
 	r.telemetryRouter.InitTelemetryRouter(telemetryRouter)
+
+	userTerminalAccessRouter := r.Router.PathPrefix("/orchestrator/user/terminal").Subrouter()
+	r.userTerminalAccessRouter.InitTerminalAccessRouter(userTerminalAccessRouter)
+
+	attributeRouter := r.Router.PathPrefix("/orchestrator/attributes").Subrouter()
+	r.attributesRouter.InitAttributesRouter(attributeRouter)
 }

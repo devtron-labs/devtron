@@ -8,11 +8,13 @@ import (
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/client/k8s/application"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
 	serverDataStore "github.com/devtron-labs/devtron/pkg/server/store"
@@ -23,6 +25,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"net/http"
 	"reflect"
@@ -32,10 +35,13 @@ import (
 )
 
 const DEFAULT_CLUSTER = "default_cluster"
+const DEFAULT_CLUSTER_ID = 1
 
 type HelmAppService interface {
-	ListHelmApplications(clusterIds []int, w http.ResponseWriter, token string, helmAuth func(token string, object string) bool)
+	ListHelmApplications(ctx context.Context, clusterIds []int, w http.ResponseWriter, token string, helmAuth func(token string, object string) bool)
 	GetApplicationDetail(ctx context.Context, app *AppIdentifier) (*AppDetail, error)
+	GetApplicationStatus(ctx context.Context, app *AppIdentifier) (string, error)
+	GetApplicationDetailWithFilter(ctx context.Context, app *AppIdentifier, resourceTreeFilter *ResourceTreeFilter) (*AppDetail, error)
 	HibernateApplication(ctx context.Context, app *AppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
 	UnHibernateApplication(ctx context.Context, app *AppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
 	DecodeAppId(appId string) (*AppIdentifier, error)
@@ -68,6 +74,8 @@ type HelmAppServiceImpl struct {
 	environmentService                   cluster.EnvironmentService
 	pipelineRepository                   pipelineConfig.PipelineRepository
 	installedAppRepository               repository.InstalledAppRepository
+	appRepository                        app.AppRepository
+	clusterRepository                    clusterRepository.ClusterRepository
 }
 
 func NewHelmAppServiceImpl(Logger *zap.SugaredLogger,
@@ -75,7 +83,7 @@ func NewHelmAppServiceImpl(Logger *zap.SugaredLogger,
 	helmAppClient HelmAppClient,
 	pump connector.Pump, enforcerUtil rbac.EnforcerUtilHelm, serverDataStore *serverDataStore.ServerDataStore,
 	serverEnvConfig *serverEnvConfig.ServerEnvConfig, appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
-	environmentService cluster.EnvironmentService, pipelineRepository pipelineConfig.PipelineRepository, installedAppRepository repository.InstalledAppRepository) *HelmAppServiceImpl {
+	environmentService cluster.EnvironmentService, pipelineRepository pipelineConfig.PipelineRepository, installedAppRepository repository.InstalledAppRepository, appRepository app.AppRepository, clusterRepository clusterRepository.ClusterRepository) *HelmAppServiceImpl {
 	return &HelmAppServiceImpl{
 		logger:                               Logger,
 		clusterService:                       clusterService,
@@ -88,6 +96,8 @@ func NewHelmAppServiceImpl(Logger *zap.SugaredLogger,
 		environmentService:                   environmentService,
 		pipelineRepository:                   pipelineRepository,
 		installedAppRepository:               installedAppRepository,
+		appRepository:                        appRepository,
+		clusterRepository:                    clusterRepository,
 	}
 }
 
@@ -96,11 +106,13 @@ type ResourceRequestBean struct {
 	K8sRequest application.K8sRequestBean `json:"k8sRequest"`
 }
 
-func (impl *HelmAppServiceImpl) listApplications(clusterIds []int) (ApplicationService_ListApplicationsClient, error) {
+func (impl *HelmAppServiceImpl) listApplications(ctx context.Context, clusterIds []int) (ApplicationService_ListApplicationsClient, error) {
 	if len(clusterIds) == 0 {
 		return nil, nil
 	}
+	_, span := otel.Tracer("clusterService").Start(ctx, "FindByIds")
 	clusters, err := impl.clusterService.FindByIds(clusterIds)
+	span.End()
 	if err != nil {
 		impl.logger.Errorw("error in fetching cluster detail", "err", err)
 		return nil, err
@@ -115,7 +127,7 @@ func (impl *HelmAppServiceImpl) listApplications(clusterIds []int) (ApplicationS
 		}
 		req.Clusters = append(req.Clusters, config)
 	}
-	applicatonStream, err := impl.helmAppClient.ListApplication(req)
+	applicatonStream, err := impl.helmAppClient.ListApplication(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -123,23 +135,27 @@ func (impl *HelmAppServiceImpl) listApplications(clusterIds []int) (ApplicationS
 	return applicatonStream, err
 }
 
-func (impl *HelmAppServiceImpl) ListHelmApplications(clusterIds []int, w http.ResponseWriter, token string, helmAuth func(token string, object string) bool) {
+func (impl *HelmAppServiceImpl) ListHelmApplications(ctx context.Context, clusterIds []int, w http.ResponseWriter, token string, helmAuth func(token string, object string) bool) {
 	var helmCdPipelines []*pipelineConfig.Pipeline
 	var installedHelmApps []*repository.InstalledApps
-	appStream, err := impl.listApplications(clusterIds)
+	appStream, err := impl.listApplications(ctx, clusterIds)
 	if err != nil {
 		impl.logger.Errorw("error in fetching app list", "clusters", clusterIds, "err", err)
 	}
 	if err == nil && len(clusterIds) > 0 {
 		// get helm apps which are created using cd_pipelines
+		newCtx, span := otel.Tracer("pipelineRepository").Start(ctx, "GetAppAndEnvDetailsForDeploymentAppTypePipeline")
 		helmCdPipelines, err = impl.pipelineRepository.GetAppAndEnvDetailsForDeploymentAppTypePipeline(util.PIPELINE_DEPLOYMENT_TYPE_HELM, clusterIds)
+		span.End()
 		if err != nil {
 			impl.logger.Errorw("error in fetching helm app list from DB created using cd_pipelines", "clusters", clusterIds, "err", err)
 		}
 
 		// if not hyperion mode, then fetch from installed_apps whose deployment_app_type is helm (as in hyperion mode, these apps should be treated as external-apps)
 		if !util2.IsBaseStack() {
+			newCtx, span = otel.Tracer("pipelineRepository").Start(newCtx, "GetAppAndEnvDetailsForDeploymentAppTypePipeline")
 			installedHelmApps, err = impl.installedAppRepository.GetAppAndEnvDetailsForDeploymentAppTypeInstalledApps(util.PIPELINE_DEPLOYMENT_TYPE_HELM, clusterIds)
+			span.End()
 			if err != nil {
 				impl.logger.Errorw("error in fetching helm app list from DB created from app store", "clusters", clusterIds, "err", err)
 			}
@@ -232,15 +248,28 @@ func (impl *HelmAppServiceImpl) GetClusterConf(clusterId int) (*ClusterConfig, e
 }
 
 func (impl *HelmAppServiceImpl) GetApplicationDetail(ctx context.Context, app *AppIdentifier) (*AppDetail, error) {
+	return impl.getApplicationDetail(ctx, app, nil)
+}
+
+func (impl *HelmAppServiceImpl) GetApplicationStatus(ctx context.Context, app *AppIdentifier) (string, error) {
+	return impl.getApplicationStatus(ctx, app)
+}
+
+func (impl *HelmAppServiceImpl) GetApplicationDetailWithFilter(ctx context.Context, app *AppIdentifier, resourceTreeFilter *ResourceTreeFilter) (*AppDetail, error) {
+	return impl.getApplicationDetail(ctx, app, resourceTreeFilter)
+}
+
+func (impl *HelmAppServiceImpl) getApplicationDetail(ctx context.Context, app *AppIdentifier, resourceTreeFilter *ResourceTreeFilter) (*AppDetail, error) {
 	config, err := impl.GetClusterConf(app.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cluster detail", "err", err)
 		return nil, err
 	}
 	req := &AppDetailRequest{
-		ClusterConfig: config,
-		Namespace:     app.Namespace,
-		ReleaseName:   app.ReleaseName,
+		ClusterConfig:      config,
+		Namespace:          app.Namespace,
+		ReleaseName:        app.ReleaseName,
+		ResourceTreeFilter: resourceTreeFilter,
 	}
 	appdetail, err := impl.helmAppClient.GetAppDetail(ctx, req)
 	if err != nil {
@@ -264,7 +293,27 @@ func (impl *HelmAppServiceImpl) GetApplicationDetail(ctx context.Context, app *A
 		}
 	}
 	return appdetail, err
+}
 
+func (impl *HelmAppServiceImpl) getApplicationStatus(ctx context.Context, app *AppIdentifier) (string, error) {
+	applicationStatus := ""
+	config, err := impl.GetClusterConf(app.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching cluster detail", "err", err)
+		return applicationStatus, err
+	}
+	req := &AppDetailRequest{
+		ClusterConfig: config,
+		Namespace:     app.Namespace,
+		ReleaseName:   app.ReleaseName,
+	}
+	appStatus, err := impl.helmAppClient.GetAppStatus(ctx, req)
+	if err != nil {
+		impl.logger.Errorw("error in fetching app status", "err", err)
+		return applicationStatus, err
+	}
+	applicationStatus = appStatus.ApplicationStatus
+	return applicationStatus, err
 }
 
 func (impl *HelmAppServiceImpl) GetDeploymentHistory(ctx context.Context, app *AppIdentifier) (*HelmAppDeploymentHistory, error) {
@@ -630,6 +679,18 @@ func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChart
 
 	clusterId := int(*templateChartRequest.ClusterId)
 
+	clusterDetail, _ := impl.clusterRepository.FindById(clusterId)
+
+	if len(clusterDetail.ErrorInConnecting) > 0 || clusterDetail.Active == false {
+		clusterNotFoundErr := &util.ApiError{
+			HttpStatusCode:    http.StatusInternalServerError,
+			Code:              "",
+			UserMessage:       fmt.Sprintf("Could not generate manifest output as the Kubernetes cluster %s is unreachable.", clusterDetail.ClusterName),
+			UserDetailMessage: "",
+		}
+		return nil, clusterNotFoundErr
+	}
+
 	installReleaseRequest := &InstallReleaseRequest{
 		ChartName:    appStoreAppVersion.Name,
 		ChartVersion: appStoreAppVersion.Version,
@@ -701,7 +762,7 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *Deploy
 		appList.ErrorMsg = &deployedApps.ErrorMsg
 	} else {
 		var HelmApps []openapi.HelmApp
-		projectId := int32(0) //TODO pick from db
+		//projectId := int32(0) //TODO pick from db
 		for _, deployedapp := range deployedApps.DeployedAppDetail {
 
 			// do not add app in the list which are created using cd_pipelines (check combination of clusterId, namespace, releaseName)
@@ -729,8 +790,14 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *Deploy
 				continue
 			}
 			// end
-
 			lastDeployed := deployedapp.LastDeployed.AsTime()
+			appDetails, appFetchErr := impl.appRepository.FindActiveByName(deployedapp.AppName)
+			projectId := int32(0)
+			if appFetchErr == nil {
+				projectId = int32(appDetails.TeamId)
+			} else {
+				impl.logger.Debugw("error in fetching Project Id from app repo", "err", appFetchErr)
+			}
 			helmApp := openapi.HelmApp{
 				AppName:        &deployedapp.AppName,
 				AppId:          &deployedapp.AppId,
@@ -744,8 +811,8 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *Deploy
 					ClusterId:   &deployedapp.EnvironmentDetail.ClusterId,
 				},
 			}
-			rbacObject := impl.enforcerUtil.GetHelmObjectByClusterId(int(deployedapp.EnvironmentDetail.ClusterId), deployedapp.EnvironmentDetail.Namespace, deployedapp.AppName)
-			isValidAuth := helmAuth(token, rbacObject)
+			rbacObject, rbacObject2 := impl.enforcerUtil.GetHelmObjectByClusterIdNamespaceAndAppName(int(deployedapp.EnvironmentDetail.ClusterId), deployedapp.EnvironmentDetail.Namespace, deployedapp.AppName)
+			isValidAuth := helmAuth(token, rbacObject) || helmAuth(token, rbacObject2)
 			if isValidAuth {
 				HelmApps = append(HelmApps, helmApp)
 			}

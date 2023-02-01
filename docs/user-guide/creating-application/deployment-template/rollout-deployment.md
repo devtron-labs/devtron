@@ -1,7 +1,9 @@
 
 # Rollout Deployment
 
-Deployment configuration is the manifest of the application which defines the runtime behavior of the application. You can define application behavior by providing information in the following sections:
+The `Rollout Deployment` chart deploys an advanced version of deployment that supports Blue/Green and Canary deployments. For functioning, it requires a rollout controller to run inside the cluster.
+
+You can define application behavior by providing information in the following sections:
 
 * [Chart version](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/rollout-deployment#1.-chart-version)
 * [Basic Configuration](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/rollout-deployment#2.-basic-configuration)
@@ -507,7 +509,7 @@ It contains the commands to run inside the container.
 | `workingDir` | It is used to specify the working directory where commands will be executed. |
 
 ### Containers
-Containers section can be used to run side-car containers along with your main container within same pod. Containers running within same pod can share volumes and IP Address and can address each other @localhost.
+Containers section can be used to run side-car containers along with your main container within same pod. Containers running within same pod can share volumes and IP Address and can address each other @localhost. We can use base image inside container by setting the reuseContainerImage flag to `true`.
 
 ```yaml
     containers:
@@ -517,6 +519,19 @@ Containers section can be used to run side-car containers along with your main c
         - containerPort: 80
         command: ["/usr/local/bin/nginx"]
         args: ["-g", "daemon off;"]
+      - reuseContainerImage: true
+        securityContext:
+          runAsUser: 1000
+          runAsGroup: 3000
+          fsGroup: 2000
+        volumeMounts:
+        - mountPath: /etc/ls-oms
+          name: ls-oms-cm-vol
+        command:
+          - flyway
+          - -configFiles=/etc/ls-oms/flyway.conf
+          - migrate
+
 ```
 
 ### Prometheus
@@ -608,7 +623,7 @@ It is used to configure database migration.
 
 ### Application Metrics
 
-Application metrics can be enabled to see your application's metrics-CPUService Monito usage,Memory Usage,Status,Throughput and Latency.
+Application metrics can be enabled to see your application's metrics-CPU Service Monitor usage, Memory Usage, Status, Throughput and Latency.
 
 ### Deployment Metrics
 
