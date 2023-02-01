@@ -1,4 +1,5 @@
 ## Bugs
+- fix: event notification calls missing for Build Success and Cd Deployment Success for helm type (#2898)
 - fix: ingress url missing (#2915)
 ## Enhancements
 - feat: argo stack upgrade (#2597)
