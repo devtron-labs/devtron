@@ -117,6 +117,7 @@ type DeploymentDetailContainer struct {
 
 type AppDetailContainer struct {
 	DeploymentDetailContainer `json:",inline"`
+	AppDeleteError            string                 `json:"appDeleteError"`
 	InstanceDetail            []InstanceDetail       `json:"instanceDetail"` //pod list with cpu, memory usage percent
 	Environments              []Environment          `json:"otherEnvironment,omitempty"`
 	LinkOuts                  []LinkOuts             `json:"linkOuts,omitempty"`

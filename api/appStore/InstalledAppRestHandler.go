@@ -26,6 +26,7 @@ import (
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
+	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	"github.com/devtron-labs/devtron/pkg/cluster"
@@ -35,6 +36,7 @@ import (
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/devtron-labs/devtron/util/response"
 	"github.com/gorilla/mux"
+	grpc_logging "github.com/grpc-ecosystem/go-grpc-middleware/logging"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
@@ -376,11 +378,20 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 		appDetail.ResourceTree = map[string]interface{}{}
 		handler.Logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
 	}
-	common.WriteJsonResp(w, err, appDetail, http.StatusOK)
+
+	common.WriteJsonResp(w, nil, appDetail, http.StatusOK)
 }
 
 func (handler *InstalledAppRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, appDetail *bean2.AppDetailContainer) {
 	ctx := r.Context()
 	cn, _ := w.(http.CloseNotifier)
-	handler.installedAppService.FetchResourceTree(ctx, cn, appDetail)
+	_, err := handler.installedAppService.FetchResourceTree(ctx, cn, appDetail)
+	if err != nil {
+		errCode := grpc_logging.DefaultErrorToCode(err)
+		if errCode == util.ErrorGrpcNotFound || errCode == util.ErrorGrpcUnKnown {
+			userMessage := "release deleted from " + appDetail.DeploymentAppType
+			appDetail.AppDeleteError = userMessage
+		}
+		handler.Logger.Errorw("error occurred while fetching resource tree", "appName", appDetail.AppName, "envName", appDetail.EnvironmentName, "err", err)
+	}
 }
