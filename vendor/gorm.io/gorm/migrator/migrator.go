@@ -8,11 +8,9 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
-	"time"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	"gorm.io/gorm/logger"
 	"gorm.io/gorm/schema"
 )
 
@@ -30,16 +28,6 @@ type Config struct {
 	CreateIndexAfterCreateTable bool
 	DB                          *gorm.DB
 	gorm.Dialector
-}
-
-type printSQLLogger struct {
-	logger.Interface
-}
-
-func (l *printSQLLogger) Trace(ctx context.Context, begin time.Time, fc func() (sql string, rowsAffected int64), err error) {
-	sql, _ := fc()
-	fmt.Println(sql + ";")
-	l.Interface.Trace(ctx, begin, fc, err)
 }
 
 // GormDataTypeInterface gorm data type interface
@@ -104,19 +92,14 @@ func (m Migrator) FullDataTypeOf(field *schema.Field) (expr clause.Expr) {
 // AutoMigrate auto migrate values
 func (m Migrator) AutoMigrate(values ...interface{}) error {
 	for _, value := range m.ReorderModels(values, true) {
-		queryTx := m.DB.Session(&gorm.Session{})
-		execTx := queryTx
-		if m.DB.DryRun {
-			queryTx.DryRun = false
-			execTx = m.DB.Session(&gorm.Session{Logger: &printSQLLogger{Interface: m.DB.Logger}})
-		}
-		if !queryTx.Migrator().HasTable(value) {
-			if err := execTx.Migrator().CreateTable(value); err != nil {
+		tx := m.DB.Session(&gorm.Session{})
+		if !tx.Migrator().HasTable(value) {
+			if err := tx.Migrator().CreateTable(value); err != nil {
 				return err
 			}
 		} else {
 			if err := m.RunWithValue(value, func(stmt *gorm.Statement) (errr error) {
-				columnTypes, err := queryTx.Migrator().ColumnTypes(value)
+				columnTypes, err := m.DB.Migrator().ColumnTypes(value)
 				if err != nil {
 					return err
 				}
@@ -134,23 +117,20 @@ func (m Migrator) AutoMigrate(values ...interface{}) error {
 
 					if foundColumn == nil {
 						// not found, add column
-						if err := execTx.Migrator().AddColumn(value, dbName); err != nil {
+						if err := tx.Migrator().AddColumn(value, dbName); err != nil {
 							return err
 						}
-					} else if err := execTx.Migrator().MigrateColumn(value, field, foundColumn); err != nil {
+					} else if err := m.DB.Migrator().MigrateColumn(value, field, foundColumn); err != nil {
 						// found, smart migrate
 						return err
 					}
 				}
 
-				if !m.DB.DisableForeignKeyConstraintWhenMigrating && !m.DB.IgnoreRelationshipsWhenMigrating {
-					for _, rel := range stmt.Schema.Relationships.Relations {
-						if rel.Field.IgnoreMigration {
-							continue
-						}
+				for _, rel := range stmt.Schema.Relationships.Relations {
+					if !m.DB.Config.DisableForeignKeyConstraintWhenMigrating {
 						if constraint := rel.ParseConstraint(); constraint != nil &&
-							constraint.Schema == stmt.Schema && !queryTx.Migrator().HasConstraint(value, constraint.Name) {
-							if err := execTx.Migrator().CreateConstraint(value, constraint.Name); err != nil {
+							constraint.Schema == stmt.Schema && !tx.Migrator().HasConstraint(value, constraint.Name) {
+							if err := tx.Migrator().CreateConstraint(value, constraint.Name); err != nil {
 								return err
 							}
 						}
@@ -158,16 +138,16 @@ func (m Migrator) AutoMigrate(values ...interface{}) error {
 				}
 
 				for _, chk := range stmt.Schema.ParseCheckConstraints() {
-					if !queryTx.Migrator().HasConstraint(value, chk.Name) {
-						if err := execTx.Migrator().CreateConstraint(value, chk.Name); err != nil {
+					if !tx.Migrator().HasConstraint(value, chk.Name) {
+						if err := tx.Migrator().CreateConstraint(value, chk.Name); err != nil {
 							return err
 						}
 					}
 				}
 
 				for _, idx := range stmt.Schema.ParseIndexes() {
-					if !queryTx.Migrator().HasIndex(value, idx.Name) {
-						if err := execTx.Migrator().CreateIndex(value, idx.Name); err != nil {
+					if !tx.Migrator().HasIndex(value, idx.Name) {
+						if err := tx.Migrator().CreateIndex(value, idx.Name); err != nil {
 							return err
 						}
 					}
@@ -247,11 +227,8 @@ func (m Migrator) CreateTable(values ...interface{}) error {
 				}
 			}
 
-			if !m.DB.DisableForeignKeyConstraintWhenMigrating && !m.DB.IgnoreRelationshipsWhenMigrating {
-				for _, rel := range stmt.Schema.Relationships.Relations {
-					if rel.Field.IgnoreMigration {
-						continue
-					}
+			for _, rel := range stmt.Schema.Relationships.Relations {
+				if !m.DB.DisableForeignKeyConstraintWhenMigrating {
 					if constraint := rel.ParseConstraint(); constraint != nil {
 						if constraint.Schema == stmt.Schema {
 							sql, vars := buildConstraint(constraint)
@@ -493,19 +470,17 @@ func (m Migrator) MigrateColumn(value interface{}, field *schema.Field, columnTy
 
 	// check default value
 	if !field.PrimaryKey {
-		currentDefaultNotNull := field.HasDefaultValue && (field.DefaultValueInterface != nil || !strings.EqualFold(field.DefaultValue, "NULL"))
 		dv, dvNotNull := columnType.DefaultValue()
-		if dvNotNull && !currentDefaultNotNull {
+		if dvNotNull && field.DefaultValueInterface == nil {
 			// defalut value -> null
 			alterColumn = true
-		} else if !dvNotNull && currentDefaultNotNull {
+		} else if !dvNotNull && field.DefaultValueInterface != nil {
 			// null -> default value
 			alterColumn = true
-		} else if (field.GORMDataType != schema.Time && dv != field.DefaultValue) ||
-			(field.GORMDataType == schema.Time && !strings.EqualFold(strings.TrimSuffix(dv, "()"), strings.TrimSuffix(field.DefaultValue, "()"))) {
+		} else if dv != field.DefaultValue {
 			// default value not equal
 			// not both null
-			if currentDefaultNotNull || dvNotNull {
+			if !(field.DefaultValueInterface == nil && !dvNotNull) {
 				alterColumn = true
 			}
 		}
@@ -824,31 +799,26 @@ func (m Migrator) ReorderModels(values []interface{}, autoAdd bool) (results []i
 		}
 		parsedSchemas[dep.Statement.Schema] = true
 
-		if !m.DB.IgnoreRelationshipsWhenMigrating {
-			for _, rel := range dep.Schema.Relationships.Relations {
-				if rel.Field.IgnoreMigration {
-					continue
-				}
-				if c := rel.ParseConstraint(); c != nil && c.Schema == dep.Statement.Schema && c.Schema != c.ReferenceSchema {
-					dep.Depends = append(dep.Depends, c.ReferenceSchema)
-				}
+		for _, rel := range dep.Schema.Relationships.Relations {
+			if c := rel.ParseConstraint(); c != nil && c.Schema == dep.Statement.Schema && c.Schema != c.ReferenceSchema {
+				dep.Depends = append(dep.Depends, c.ReferenceSchema)
+			}
 
-				if rel.Type == schema.HasOne || rel.Type == schema.HasMany {
-					beDependedOn[rel.FieldSchema] = true
-				}
+			if rel.Type == schema.HasOne || rel.Type == schema.HasMany {
+				beDependedOn[rel.FieldSchema] = true
+			}
 
-				if rel.JoinTable != nil {
-					// append join value
-					defer func(rel *schema.Relationship, joinValue interface{}) {
-						if !beDependedOn[rel.FieldSchema] {
-							dep.Depends = append(dep.Depends, rel.FieldSchema)
-						} else {
-							fieldValue := reflect.New(rel.FieldSchema.ModelType).Interface()
-							parseDependence(fieldValue, autoAdd)
-						}
-						parseDependence(joinValue, autoAdd)
-					}(rel, reflect.New(rel.JoinTable.ModelType).Interface())
-				}
+			if rel.JoinTable != nil {
+				// append join value
+				defer func(rel *schema.Relationship, joinValue interface{}) {
+					if !beDependedOn[rel.FieldSchema] {
+						dep.Depends = append(dep.Depends, rel.FieldSchema)
+					} else {
+						fieldValue := reflect.New(rel.FieldSchema.ModelType).Interface()
+						parseDependence(fieldValue, autoAdd)
+					}
+					parseDependence(joinValue, autoAdd)
+				}(rel, reflect.New(rel.JoinTable.ModelType).Interface())
 			}
 		}
 

@@ -43,7 +43,7 @@ helm upgrade --install aws-ebs-csi-driver \
 To install Devtron on clusters with the multi-architecture nodes (ARM and AMD), append the Devtron installation command with `--set installer.arch=multi-arch`.
 
 **Note**: 
-* To install a particular version of Devtron where `vx.x.x` is the [release tag](https://github.com/devtron-labs/devtron/releases), append the installation command with `--set installer.release="vX.X.X"`.
+
 * If you want to install Devtron for `production deployments`, please refer to our recommended overrides for [Devtron Installation](override-default-devtron-installation-configs.md).
 
 

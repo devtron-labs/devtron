@@ -20,12 +20,10 @@ package pubsub
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/client/pubsub"
+	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"github.com/devtron-labs/devtron/util"
-	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
 )
 
@@ -37,7 +35,7 @@ type CiEventHandler interface {
 
 type CiEventHandlerImpl struct {
 	logger         *zap.SugaredLogger
-	pubsubClient   *pubsub.PubSubClient
+	pubsubClient   *pubsub.PubSubClientServiceImpl
 	webhookService pipeline.WebhookService
 }
 
@@ -53,18 +51,13 @@ type CiCompleteEvent struct {
 	MaterialType     string                      `json:"materialType"`
 }
 
-func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClient, webhookService pipeline.WebhookService) *CiEventHandlerImpl {
+func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClientServiceImpl, webhookService pipeline.WebhookService) *CiEventHandlerImpl {
 	ciEventHandlerImpl := &CiEventHandlerImpl{
 		logger:         logger,
 		pubsubClient:   pubsubClient,
 		webhookService: webhookService,
 	}
-	err := util.AddStream(ciEventHandlerImpl.pubsubClient.JetStrCtxt, util.CI_RUNNER_STREAM)
-	if err != nil {
-		logger.Error(err)
-		return nil
-	}
-	err = ciEventHandlerImpl.Subscribe()
+	err := ciEventHandlerImpl.Subscribe()
 	if err != nil {
 		logger.Error(err)
 		return nil
@@ -73,9 +66,9 @@ func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSu
 }
 
 func (impl *CiEventHandlerImpl) Subscribe() error {
-	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(util.CI_COMPLETE_TOPIC, util.CI_COMPLETE_GROUP, func(msg *nats.Msg) {
+	callback := func(msg *pubsub.PubSubMsg) {
 		impl.logger.Debug("ci complete event received")
-		defer msg.Ack()
+		//defer msg.Ack()
 		ciCompleteEvent := CiCompleteEvent{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &ciCompleteEvent)
 		if err != nil {
@@ -93,7 +86,8 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 			return
 		}
 		impl.logger.Debug(resp)
-	}, nats.Durable(util.CI_COMPLETE_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util.CI_RUNNER_STREAM))
+	}
+	err := impl.pubsubClient.Subscribe(pubsub.CI_COMPLETE_TOPIC, callback)
 	if err != nil {
 		impl.logger.Error(err)
 		return err

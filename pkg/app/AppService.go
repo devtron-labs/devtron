@@ -24,6 +24,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/caarlos0/env"
+	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	client2 "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
@@ -40,6 +41,7 @@ import (
 	"time"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/pkg/appStatus"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	history2 "github.com/devtron-labs/devtron/pkg/pipeline/history"
@@ -143,6 +145,7 @@ type AppServiceImpl struct {
 	pipelineStatusTimelineService          PipelineStatusTimelineService
 	appStatusConfig                        *AppStatusConfig
 	gitOpsConfigRepository                 repository.GitOpsConfigRepository
+	appStatusService                       appStatus.AppStatusService
 }
 
 type AppService interface {
@@ -156,6 +159,7 @@ type AppService interface {
 	MarkImageScanDeployed(appId int, envId int, imageDigest string, clusterId int) error
 	GetChartRepoName(gitRepoUrl string) string
 	UpdateDeploymentStatusForGitOpsCdPipelines(app *v1alpha1.Application, statusTime time.Time) (bool, bool, error)
+	WriteCDSuccessEvent(appId int, envId int, override *chartConfig.PipelineOverride)
 }
 
 func NewAppService(
@@ -198,7 +202,8 @@ func NewAppService(
 	pipelineStatusSyncDetailService PipelineStatusSyncDetailService,
 	pipelineStatusTimelineService PipelineStatusTimelineService,
 	appStatusConfig *AppStatusConfig,
-	gitOpsConfigRepository repository.GitOpsConfigRepository) *AppServiceImpl {
+	gitOpsConfigRepository repository.GitOpsConfigRepository,
+	appStatusService appStatus.AppStatusService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:            environmentConfigRepository,
 		mergeUtil:                              mergeUtil,
@@ -250,6 +255,7 @@ func NewAppService(
 		pipelineStatusTimelineService:          pipelineStatusTimelineService,
 		appStatusConfig:                        appStatusConfig,
 		gitOpsConfigRepository:                 gitOpsConfigRepository,
+		appStatusService:                       appStatusService,
 	}
 	return appServiceImpl
 }
@@ -330,13 +336,17 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusAndCheckIsSucceeded(app *v1alp
 		impl.logger.Errorw("no git repo found for url", "repoUrl", repoUrl)
 		return isSucceeded, fmt.Errorf("no git repo found for url %s", repoUrl)
 	}
-	dbApp, err := impl.appRepository.FindById(chart.AppId)
+	envId, err := impl.appRepository.FindEnvironmentIdForInstalledApp(chart.AppId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching app", "err", err, "app", chart.AppId)
 		return isSucceeded, err
 	}
-	if dbApp.Id > 0 && dbApp.AppStore == true {
-		impl.logger.Debugw("skipping application status update as this app is chart", "dbApp", dbApp)
+	if envId > 0 {
+		err = impl.appStatusService.UpdateStatusWithAppIdEnvId(chart.AppId, envId, string(app.Status.Health.Status))
+		if err != nil {
+			impl.logger.Errorw("error occurred while updating app status in app_status table", "error", err, "appId", chart.AppId, "envId", envId)
+		}
+		impl.logger.Debugw("skipping application status update as this app is chart", "appId", chart.AppId, "envId", envId)
 		return isSucceeded, nil
 	}
 
@@ -374,6 +384,10 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsCdPipelines(app *v1al
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting latest timeline before update", "err", err, "cdWfrId", cdWfr.Id)
 		return isSucceeded, isTimelineUpdated, err
+	}
+	err = impl.appStatusService.UpdateStatusWithAppIdEnvId(cdPipeline.AppId, cdPipeline.EnvironmentId, string(app.Status.Health.Status))
+	if err != nil {
+		impl.logger.Errorw("error occurred while updating app status in app_status table", "error", err, "appId", cdPipeline.AppId, "envId", cdPipeline.EnvironmentId)
 	}
 	//updating cd pipeline status timeline
 	isTimelineUpdated, isTimelineTimedOut, err = impl.UpdatePipelineStatusTimelineForApplicationChanges(app, cdWfr.Id, statusTime, cdWfr.StartedOn, timeoutDuration, latestTimelineBeforeThisEvent)
@@ -1489,7 +1503,7 @@ func (impl *AppServiceImpl) WriteCDTriggerEvent(overrideRequest *bean.ValuesOver
 		deploymentEvent.PipelineMaterials = append(deploymentEvent.PipelineMaterials, pipelineMaterialInfo)
 	}
 	impl.logger.Infow("triggering deployment event", "event", deploymentEvent)
-	err = impl.eventClient.WriteNatsEvent(util2.CD_SUCCESS, deploymentEvent)
+	err = impl.eventClient.WriteNatsEvent(pubsub.CD_SUCCESS, deploymentEvent)
 	if err != nil {
 		impl.logger.Errorw("error in writing cd trigger event", "err", err)
 	}

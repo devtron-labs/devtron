@@ -55,7 +55,6 @@ type Config struct {
 	SlowThreshold             time.Duration
 	Colorful                  bool
 	IgnoreRecordNotFoundError bool
-	ParameterizedQueries      bool
 	LogLevel                  LogLevel
 }
 
@@ -180,14 +179,6 @@ func (l logger) Trace(ctx context.Context, begin time.Time, fc func() (string, i
 			l.Printf(l.traceStr, utils.FileWithLineNum(), float64(elapsed.Nanoseconds())/1e6, rows, sql)
 		}
 	}
-}
-
-// Trace print sql message
-func (l logger) ParamsFilter(ctx context.Context, sql string, params ...interface{}) (string, []interface{}) {
-	if l.Config.ParameterizedQueries {
-		return sql, nil
-	}
-	return sql, params
 }
 
 type traceRecorder struct {

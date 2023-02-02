@@ -132,11 +132,7 @@ func (p *processor) Execute(db *DB) *DB {
 
 	if stmt.SQL.Len() > 0 {
 		db.Logger.Trace(stmt.Context, curTime, func() (string, int64) {
-			sql, vars := stmt.SQL.String(), stmt.Vars
-			if filter, ok := db.Logger.(ParamsFilter); ok {
-				sql, vars = filter.ParamsFilter(stmt.Context, stmt.SQL.String(), stmt.Vars...)
-			}
-			return db.Dialector.Explain(sql, vars...), db.RowsAffected
+			return db.Dialector.Explain(stmt.SQL.String(), stmt.Vars...), db.RowsAffected
 		}, db.Error)
 	}
 
