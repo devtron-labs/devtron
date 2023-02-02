@@ -24,6 +24,8 @@ import (
 	"time"
 )
 
+const AUTO_SELECT_NODE string = "autoSelectNode"
+
 type UserTerminalAccessService interface {
 	StartTerminalSession(ctx context.Context, request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error)
 	UpdateTerminalSession(ctx context.Context, request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error)
@@ -105,7 +107,11 @@ func (impl *UserTerminalAccessServiceImpl) StartTerminalSession(ctx context.Cont
 	if err != nil {
 		return nil, err
 	}
-	err = impl.startTerminalPod(ctx, podNameVar, request)
+	isAutoSelect := false
+	if request.NodeName == AUTO_SELECT_NODE {
+		isAutoSelect = true
+	}
+	err = impl.startTerminalPod(ctx, podNameVar, request, isAutoSelect)
 	return terminalEntity, err
 }
 
@@ -321,7 +327,7 @@ func (impl *UserTerminalAccessServiceImpl) getMetadataMap(metadata string) (map[
 	return metadataMap, nil
 }
 
-func (impl *UserTerminalAccessServiceImpl) startTerminalPod(ctx context.Context, podNameVar string, request *models.UserTerminalSessionRequest) error {
+func (impl *UserTerminalAccessServiceImpl) startTerminalPod(ctx context.Context, podNameVar string, request *models.UserTerminalSessionRequest, isAutoSelect bool) error {
 
 	accessTemplates, err := impl.TerminalAccessRepository.FetchAllTemplates()
 	if err != nil {
@@ -329,7 +335,7 @@ func (impl *UserTerminalAccessServiceImpl) startTerminalPod(ctx context.Context,
 		return err
 	}
 	for _, accessTemplate := range accessTemplates {
-		err = impl.applyTemplateData(ctx, request, podNameVar, accessTemplate, false)
+		err = impl.applyTemplateData(ctx, request, podNameVar, accessTemplate, false, isAutoSelect)
 		if err != nil {
 			return err
 		}
@@ -345,18 +351,36 @@ func (impl *UserTerminalAccessServiceImpl) createPodName(request *models.UserTer
 	return podNameVar
 }
 
+//template data use kubernetes object
 func (impl *UserTerminalAccessServiceImpl) applyTemplateData(ctx context.Context, request *models.UserTerminalSessionRequest, podNameVar string,
-	terminalTemplate *models.TerminalAccessTemplates, isUpdate bool) error {
+	terminalTemplate *models.TerminalAccessTemplates, isUpdate bool, isAutoSelect bool) error {
 	templateName := terminalTemplate.TemplateName
 	templateData := terminalTemplate.TemplateData
 	clusterId := request.ClusterId
 	namespace := request.Namespace
 	templateData = strings.ReplaceAll(templateData, models.TerminalAccessClusterIdTemplateVar, strconv.Itoa(clusterId))
 	templateData = strings.ReplaceAll(templateData, models.TerminalAccessUserIdTemplateVar, strconv.FormatInt(int64(request.UserId), 10))
-	templateData = strings.ReplaceAll(templateData, models.TerminalAccessNodeNameVar, request.NodeName)
 	templateData = strings.ReplaceAll(templateData, models.TerminalAccessBaseImageVar, request.BaseImage)
 	templateData = strings.ReplaceAll(templateData, models.TerminalAccessNamespaceVar, namespace)
 	templateData = strings.ReplaceAll(templateData, models.TerminalAccessPodNameVar, podNameVar)
+	//templateDataMap := map[string]interface{}{}
+	//if err := yaml.Unmarshal([]byte(templateData), &templateDataMap); err != nil {
+	//	log.Fatal(err)
+	//}
+	if isAutoSelect {
+		//if _, ok := templateDataMap["kind"]; ok {
+		//	kind := templateDataMap["kind"]
+		//	if kind == "Pod"{
+		//		if _, ok := templateDataMap["spec"]; ok {
+		//			spec := templateDataMap["spec"].(map[string]interface{})
+		//
+		//		}
+		//	}
+		//}
+		templateData = strings.ReplaceAll(templateData, models.TerminalAccessNodeNameVar, "")
+	} else {
+		templateData = strings.ReplaceAll(templateData, models.TerminalAccessNodeNameVar, request.NodeName)
+	}
 	err := impl.applyTemplate(ctx, clusterId, terminalTemplate.TemplateData, templateData, isUpdate, namespace)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while applying template ", "name", templateName, "err", err)
