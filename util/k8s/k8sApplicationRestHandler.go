@@ -710,7 +710,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetResourceList(w http.ResponseWri
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	response, err := handler.k8sApplicationService.GetResourceList(r.Context(), token, &request, handler.verifyRbacForCluster)
+	response, err := handler.k8sApplicationService.GetResourceList(r.Context(), token, &request, handler.getRbacCallbackForResource(token, casbin.ActionGet))
 	if err != nil {
 		handler.logger.Errorw("error in getting resource list", "err", err)
 		if statusErr, ok := err.(*errors3.StatusError); ok && statusErr.Status().Code == 404 {
@@ -733,7 +733,7 @@ func (handler *K8sApplicationRestHandlerImpl) ApplyResources(w http.ResponseWrit
 		return
 	}
 
-	response, err := handler.k8sApplicationService.ApplyResources(r.Context(), token, &request, handler.verifyRbacForCluster)
+	response, err := handler.k8sApplicationService.ApplyResources(r.Context(), token, &request, handler.getRbacCallbackForResource(token, casbin.ActionUpdate))
 	if err != nil {
 		handler.logger.Errorw("error in applying resource", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -753,7 +753,7 @@ func (handler *K8sApplicationRestHandlerImpl) verifyRbacForResource(token string
 	return handler.enforcer.Enforce(token, strings.ToLower(resourceName), casbinAction, strings.ToLower(objectName))
 }
 
-func (handler *K8sApplicationRestHandlerImpl) verifyRbacForCluster(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool {
-	k8sRequest := request.K8sRequest
-	return handler.verifyRbacForResource(token, clusterName, k8sRequest.ResourceIdentifier, casbinAction)
-}
+//func (handler *K8sApplicationRestHandlerImpl) verifyRbacForCluster(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool {
+//	k8sRequest := request.K8sRequest
+//	return handler.verifyRbacForResource(token, clusterName, k8sRequest.ResourceIdentifier, casbinAction)
+//}

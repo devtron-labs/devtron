@@ -549,7 +549,7 @@ func (impl K8sUtil) GetPodByName(namespace string, name string, client *v12.Core
 	}
 }
 
-func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.UnstructuredList, namespaced bool, gvk schema.GroupVersionKind, validateResourceAccess func(namespace string, group string, kind string, resourceName string) bool) (*ClusterResourceListMap, error) {
+func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.UnstructuredList, namespaced bool, gvk schema.GroupVersionKind, validateResourceAccess func(namespace string, gvk schema.GroupVersionKind, resourceName string) bool) (*ClusterResourceListMap, error) {
 	clusterResourceListMap := &ClusterResourceListMap{}
 	// build headers
 	var headers []string
@@ -658,7 +658,7 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 }
 
 //ValidateResource assumes resourceObj confirms to the unstructured.Object
-func (impl K8sUtil) ValidateResource(resourceObj map[string]interface{}, gvk schema.GroupVersionKind, validateCallback func(namespace string, group string, kind string, resourceName string) bool) bool {
+func (impl K8sUtil) ValidateResource(resourceObj map[string]interface{}, gvk schema.GroupVersionKind, validateCallback func(namespace string, gvk schema.GroupVersionKind, resourceName string) bool) bool {
 	if resourceObj[K8sClusterResourceMetadataKey] == nil {
 		return false
 	}
@@ -682,7 +682,7 @@ func (impl K8sUtil) ValidateResource(resourceObj map[string]interface{}, gvk sch
 	allowed := false
 	for _, resource := range resources {
 		//it after first validation succeeds it will short circuit further validations only loop will happen
-		allowed = allowed || validateCallback(namespace, resource.GroupVersionKind.Group, resource.GroupVersionKind.Kind, resource.Name)
+		allowed = allowed || validateCallback(namespace, resource.GroupVersionKind, resource.Name)
 	}
 
 	return allowed
