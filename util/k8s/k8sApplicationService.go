@@ -674,15 +674,15 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 		impl.logger.Errorw("error in getting resource list", "err", err, "request", request)
 		return resourceList, err
 	}
-	checkForResourceCallback := func(namespace string, gvk schema.GroupVersionKind, resourceName string) bool {
-		resourceIdentifier := k8sRequest.ResourceIdentifier
-		resourceIdentifier.Name = resourceName
-		resourceIdentifier.Namespace = namespace
-		resourceIdentifier.GroupVersionKind = gvk
-		k8sRequest.ResourceIdentifier = resourceIdentifier
-		return validateResourceAccess(clusterBean.ClusterName, resourceIdentifier)
-	}
-	resourceList, err = impl.K8sUtil.BuildK8sObjectListTableData(&resp.Resources, namespaced, request.K8sRequest.ResourceIdentifier.GroupVersionKind, checkForResourceCallback)
+	//checkForResourceCallback := func(namespace string, gvk schema.GroupVersionKind, resourceName string) bool {
+	//	resourceIdentifier := k8sRequest.ResourceIdentifier
+	//	resourceIdentifier.Name = resourceName
+	//	resourceIdentifier.Namespace = namespace
+	//	resourceIdentifier.GroupVersionKind = gvk
+	//	k8sRequest.ResourceIdentifier = resourceIdentifier
+	//	return validateResourceAccess(clusterBean.ClusterName, resourceIdentifier)
+	//}
+	resourceList, err = impl.K8sUtil.BuildK8sObjectListTableData(&resp.Resources, namespaced, request.K8sRequest.ResourceIdentifier.GroupVersionKind, validateResourceAccess)
 	if err != nil {
 		impl.logger.Errorw("error on parsing for k8s resource", "err", err)
 		return resourceList, err
