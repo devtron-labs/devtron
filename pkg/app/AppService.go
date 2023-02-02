@@ -159,6 +159,7 @@ type AppService interface {
 	MarkImageScanDeployed(appId int, envId int, imageDigest string, clusterId int) error
 	GetChartRepoName(gitRepoUrl string) string
 	UpdateDeploymentStatusForGitOpsCdPipelines(app *v1alpha1.Application, statusTime time.Time) (bool, bool, error)
+	WriteCDSuccessEvent(appId int, envId int, override *chartConfig.PipelineOverride)
 }
 
 func NewAppService(
