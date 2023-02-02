@@ -24,7 +24,7 @@ COPY --from=build-env  /go/src/github.com/devtron-labs/devtron/scripts/argo-asse
 RUN useradd -ms /bin/bash devtron
 RUN chown -R devtron:devtron ./devtron-ea
 RUN chown -R devtron:devtron ./auth_model.conf
-RUN chown -R devtron:devtron ./scripts/*
+RUN chown -R devtron:devtron ./scripts
 
 USER devtron
 
