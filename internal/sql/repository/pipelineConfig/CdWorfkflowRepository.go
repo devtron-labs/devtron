@@ -190,14 +190,15 @@ type TriggerWorkflowStatus struct {
 }
 
 type CdWorkflowStatus struct {
-	CiPipelineId int    `json:"ci_pipeline_id"`
-	PipelineId   int    `json:"pipeline_id"`
-	PipelineName string `json:"pipeline_name,omitempty"`
-	DeployStatus string `json:"deploy_status"`
-	PreStatus    string `json:"pre_status"`
-	PostStatus   string `json:"post_status"`
-	WorkflowType string `json:"workflow_type,omitempty"`
-	WfrId        int    `json:"wfr_id,omitempty"`
+	CiPipelineId  int    `json:"ci_pipeline_id"`
+	PipelineId    int    `json:"pipeline_id"`
+	PipelineName  string `json:"pipeline_name,omitempty"`
+	DeployStatus  string `json:"deploy_status"`
+	PreStatus     string `json:"pre_status"`
+	PostStatus    string `json:"post_status"`
+	WorkflowType  string `json:"workflow_type,omitempty"`
+	WfrId         int    `json:"wfr_id,omitempty"`
+	AcdAppDeleted bool   `json:"acdAppDeleted"`
 }
 
 type CiWorkflowStatus struct {

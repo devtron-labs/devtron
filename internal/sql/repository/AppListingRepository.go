@@ -165,7 +165,8 @@ func (impl AppListingRepositoryImpl) DeploymentDetailsByAppIdAndEnvId(ctx contex
 	var deploymentDetail bean.DeploymentDetailContainer
 	query := "SELECT env.environment_name, a.app_name, ceco.namespace, u.email_id as last_deployed_by" +
 		" , cia.material_info as material_info_json_string, pco.created_on AS last_deployed_time, pco.pipeline_release_counter as release_version" +
-		" , env.default, cia.data_source, p.pipeline_name as last_deployed_pipeline, cia.id as ci_artifact_id, p.deployment_app_type, p.ci_pipeline_id" +
+		" , env.default, cia.data_source, p.pipeline_name as last_deployed_pipeline, cia.id as ci_artifact_id" +
+		", p.deployment_app_type, p.ci_pipeline_id, p.acd_app_deleted" +
 		" FROM chart_env_config_override ceco" +
 		" INNER JOIN environment env ON env.id=ceco.target_environment" +
 		" INNER JOIN pipeline_config_override pco ON pco.env_config_override_id = ceco.id" +
@@ -260,9 +261,9 @@ func (impl AppListingRepositoryImpl) FetchAppDetail(ctx context.Context, appId i
 
 	// other environment tab
 	var otherEnvironments []bean.Environment
-	query := "SELECT p.environment_id,env.environment_name from pipeline p" +
+	query := "SELECT p.environment_id,env.environment_name,p.acd_app_deleted from pipeline p" +
 		" INNER JOIN environment env on env.id=p.environment_id" +
-		" where p.app_id=? and p.deleted = FALSE AND env.active = TRUE GROUP by 1,2"
+		" where p.app_id=? and p.deleted = FALSE AND env.active = TRUE GROUP by 1,2,3"
 	impl.Logger.Debugw("other env query:", query)
 	_, err = impl.dbConnection.Query(&otherEnvironments, query, appId)
 

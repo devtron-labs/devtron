@@ -49,6 +49,7 @@ type PipelineTimelineDetailDto struct {
 	StatusLastFetchedAt  time.Time                    `json:"statusLastFetchedAt"`
 	StatusFetchCount     int                          `json:"statusFetchCount"`
 	WfrStatus            string                       `json:"wfrStatus"`
+	AcdAppDeleted        bool                         `json:"acdAppDeleted"`
 }
 
 type PipelineStatusTimelineDto struct {
@@ -193,6 +194,7 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelines(appId, envId, wfrI
 		StatusLastFetchedAt:  statusLastFetchedAt,
 		StatusFetchCount:     statusFetchCount,
 		WfrStatus:            wfrStatus,
+		AcdAppDeleted:        wfr.CdWorkflow.Pipeline.AcdAppDeleted,
 	}
 	return timelineDetail, nil
 }

@@ -113,6 +113,7 @@ type DeploymentDetailContainer struct {
 	ClusterName                   string          `json:"clusterName,omitempty"`
 	DockerRegistryId              string          `json:"dockerRegistryId,omitempty"`
 	IpsAccessProvided             bool            `json:"ipsAccessProvided"`
+	AcdAppDeleted                 bool            `json:"acdAppDeleted"`
 }
 
 type AppDetailContainer struct {
