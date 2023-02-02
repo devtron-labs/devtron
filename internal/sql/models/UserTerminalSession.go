@@ -27,6 +27,7 @@ type UserTerminalSessionResponse struct {
 	TerminalAccessId      int               `json:"terminalAccessId"`
 	Status                TerminalPodStatus `json:"status"`
 	PodName               string            `json:"podName"`
+	NodeName              string            `json:"nodeName"`
 }
 
 const TerminalAccessPodNameTemplate = "terminal-access-" + TerminalAccessClusterIdTemplateVar + "-" + TerminalAccessUserIdTemplateVar + "-" + TerminalAccessRandomIdVar
