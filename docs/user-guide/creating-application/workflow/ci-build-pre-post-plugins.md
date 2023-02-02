@@ -3,6 +3,12 @@
 The CI pipeline includes Pre and Post-build steps to validate and introduce checkpoints in the build process.
 The pre/post plugins allow you to execute some standard tasks, such as Code analysis, Load testing, Security scanning etc. You can build custom pre-build/post-build tasks or select one of the standard preset plugins provided by Devtron.
 
+> Devtron CI pipeline includes the following build stages:
+>
+> * Pre-Build Stage: The tasks in this stage run before the image is built.
+> * Build Stage: In this stage, the build is triggered from the source code (container image) that you provide.
+> * Post-Build Stage: The tasks in this stage are triggered once the build is complete.
+
 ## Before you begin
 
 Make sure you have [CI build pipeline](./ci-pipeline.md) before you start configuring Pre-Build or Post-Build tasks.
@@ -23,19 +29,49 @@ You can create a task either by selecting one of the available preset plugins or
 
 ## Creating Pre/Post-build Tasks
 
-> Devtron CI pipeline includes the following build stages:
->
-> * Pre-Build Stage: The tasks in this stage run before the image is built.
-> * Build Stage: In this stage, the build is triggered from the source code (container image) that you provide.
-> * Post-Build Stage: The tasks in this stage are triggered once the build is complete.
+Lets take `Codacy` as an example and configure it in the Pre-Build stage in the CI pipeline for finding bugs, detecting dependency vulnerabilities, and enforcing code standards.
 
-Lets take `Semgrep` as an example and configure it in the Pre-Build stage for finding bugs, detecting dependency vulnerabilities, and enforcing code standards.
+* Go to the **Applications** and select your application from the **Devtron Apps** tabs.
 
-1. Go to the **Applications** and select your application from the **Devtron Apps** tabs.
-2. Go to the **App Configuration** tab, click **Workflow Editor**.
-3. Select the build pipeline for configuring the pre/post-build tasks.
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/plugins/plugins-latest/applications-app.jpg)
 
 
+* Go to the **App Configuration** tab, click **Workflow Editor**.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/plugins/plugins-latest/app-configuration.jpg)
+
+
+* Select the build pipeline for configuring the pre/post-build tasks.
+* On the **Edit build pipeline**, in the `Pre-Build Stage`, click **+ Add task**.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/plugins/plugins-latest/add-task-pre-build-stage.jpg)
+
+
+* Select **Codacy** from **PRESET PLUGINS**.
+* Enter a relevant name or codacy in the `Task name` field. It is a mandatory field.
+* Enter a descriptive message for the task in the `Description` field. It is an optional field. <br>`Note`: The description is available by default.
+* In the **Input Variables**, provide the information in the following fields:
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/plugins/plugins-latest/codacy-details-pre-build-stage.jpg)
+
+ | Variable | Format | Description |
+| ---- | ---- | ---- |
+| CodacyEndpoint | String | API endpoint for Codacy. |
+| GitProvider | String | Git provider for the scanning. |
+| CodacyApiToken | String | API token for Codacy. If it is provided, it will be used, otherwise it will be picked from Global secret (CODACY_API_TOKEN). |
+| Organisation | String | Your Organisation for Codacy.|
+| RepoName | String | Your Repository name. |
+| Branch | String | Your branch name. |
+
+* In `Trigger/Skip Condition`, set the trigger conditions to execute a task or `Set skip conditions`. As an exmple: CodacyEndpoint equal to https://app.codacy.com.<br>`Note`: You can set more than one condition.
+
+* In `Pass/Failure Condition` set the conditions to execute pass or fail of your build. As an example: Pass if number of issues equal to zero. <br>`Note`: You can set more than one condition.
+
+* Click **Update Pipeline**.
+
+* Go to the **Build & Deploy**, click the build pipiline and start your build.
+
+* Click `Details` on the build pipeline and you can view the details on the `Logs`.
 
 
 
@@ -250,8 +286,6 @@ Codacy is an automated code analysis/quality tool that helps developers to ship 
 * `Pass/Failure Condition` refers to conditions to execute pass or fail of your build. You can select either:<ul><li>`Set pass conditions` or</li><li>`Set failure conditions`</li></ul> 
 
 * Click **Update Pipeline**.
-
-
 
 
 ### Execute custom script
