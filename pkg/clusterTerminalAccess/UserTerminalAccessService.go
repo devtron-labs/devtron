@@ -17,6 +17,7 @@ import (
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/kubernetes/pkg/api/legacyscheme"
 	"strconv"
 	"strings"
@@ -350,6 +351,26 @@ func (impl *UserTerminalAccessServiceImpl) createPodName(request *models.UserTer
 	podNameVar = strings.ReplaceAll(podNameVar, models.TerminalAccessRandomIdVar, strconv.Itoa(runningCount+1))
 	return podNameVar
 }
+func removeNodeSelectorFromTemplate(templateData string) (string, error) {
+	templateDataMap := map[string]interface{}{}
+	err := yaml.Unmarshal([]byte(templateData), &templateDataMap)
+	if err != nil {
+		return templateData, err
+	}
+	for key, _ := range templateDataMap {
+		if key == "spec" {
+			specData := templateDataMap["spec"].(map[string]interface{})
+			if _, ok := specData["nodeSelector"]; ok {
+				delete(specData, "nodeSelector")
+			}
+		}
+	}
+	bytes, err := json.Marshal(&templateDataMap)
+	if err != nil {
+		return templateData, err
+	}
+	return string(bytes), nil
+}
 
 //template data use kubernetes object
 func (impl *UserTerminalAccessServiceImpl) applyTemplateData(ctx context.Context, request *models.UserTerminalSessionRequest, podNameVar string,
@@ -366,6 +387,12 @@ func (impl *UserTerminalAccessServiceImpl) applyTemplateData(ctx context.Context
 
 	if isAutoSelect {
 		templateData = strings.ReplaceAll(templateData, models.TerminalAccessNodeNameVar, "")
+		TransformedTemplateData, err := removeNodeSelectorFromTemplate(templateData)
+		if err != nil {
+			impl.Logger.Errorw("error occurred while removing nodeSelector from template ", "name", templateName, "err", err)
+			return err
+		}
+		templateData = TransformedTemplateData
 	} else {
 		templateData = strings.ReplaceAll(templateData, models.TerminalAccessNodeNameVar, request.NodeName)
 	}
@@ -647,7 +674,9 @@ func (impl *UserTerminalAccessServiceImpl) getPodStatus(ctx context.Context, clu
 			}
 			if key == "spec" {
 				specData := value.(map[string]interface{})
-				nodeName = specData["nodeName"].(string)
+				if _, ok := specData["nodeName"]; ok {
+					nodeName = specData["nodeName"].(string)
+				}
 			}
 		}
 	}
