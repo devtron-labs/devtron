@@ -35,6 +35,6 @@ argo-cd:
       repository: quay.io/argoproj/argocd
       tag: "v2.4.0"
       imagePullPolicy: IfNotPresent
-      
+
 notifier:
   image: "quay.io/devtron/notifier:6c7a356a-372-11107"
