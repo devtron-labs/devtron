@@ -40,7 +40,6 @@ import (
 	"strings"
 	"time"
 
-	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/caarlos0/env"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
@@ -1660,7 +1659,8 @@ func (impl PipelineBuilderImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipeli
 		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
 		if util.IsAcdApp(pipeline.DeploymentAppType) {
 			//todo: provide option for cascading to user
-			cascadeDelete := true
+			impl.logger.Debugw("acd app is already deleted for this pipeline", "pipeline", pipeline)
+			/*cascadeDelete := true
 			req := &application2.ApplicationDeleteRequest{
 				Name:    &deploymentAppName,
 				Cascade: &cascadeDelete,
@@ -1685,7 +1685,7 @@ func (impl PipelineBuilderImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipeli
 					}
 					return err
 				}
-			}
+			}*/
 			impl.logger.Infow("app deleted from argocd", "id", pipeline.Id, "pipelineName", pipeline.Name, "app", deploymentAppName)
 		} else if util.IsHelmApp(pipeline.DeploymentAppType) {
 			appIdentifier := &client.AppIdentifier{

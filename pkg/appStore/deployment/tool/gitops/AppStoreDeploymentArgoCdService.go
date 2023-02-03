@@ -28,7 +28,6 @@ import (
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"go.uber.org/zap"
 	"net/http"
-	"strings"
 	"time"
 )
 
@@ -149,7 +148,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetAppStatus(installedAppAndEnvD
 }
 
 func (impl AppStoreDeploymentArgoCdServiceImpl) DeleteInstalledApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *repository.InstalledApps, dbTransaction *pg.Tx) error {
-	acdAppName := appName + "-" + environmentName
+	/*acdAppName := appName + "-" + environmentName
 	err := impl.deleteACD(acdAppName, ctx)
 	if err != nil {
 		impl.Logger.Errorw("error in deleting ACD ", "name", acdAppName, "err", err)
@@ -170,9 +169,9 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) DeleteInstalledApp(ctx context.C
 			}
 			return err
 		}
-	}
+	}*/
 
-	err = impl.appStatusService.DeleteWithAppIdEnvId(dbTransaction, installedApps.AppId, installedApps.EnvironmentId)
+	err := impl.appStatusService.DeleteWithAppIdEnvId(dbTransaction, installedApps.AppId, installedApps.EnvironmentId)
 	if err != nil {
 		impl.Logger.Errorw("error in deleting app_status", "appId", installedApps.AppId, "envId", installedApps.EnvironmentId, "err", err)
 		return err
