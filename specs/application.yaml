@@ -317,6 +317,9 @@ components:
         status:
           type: string
           description: app name
+        appStatus:
+          type: string
+          description: app status for this environment
         postStageStatus:
           type: string
           description: app name

@@ -30,8 +30,9 @@ type HelmApp struct {
 	// unique identifier for the project, APP with no project will have id `0`
 	ProjectId *int32 `json:"projectId,omitempty"`
 	// chart version
-	ChartVersion *string `json:"chartVersion,omitempty"`
+	ChartVersion      *string               `json:"chartVersion,omitempty"`
 	EnvironmentDetail *AppEnvironmentDetail `json:"environmentDetail,omitempty"`
+	AppStatus         *string               `json:"appStatus,omitempty"`
 }
 
 // NewHelmApp instantiates a new HelmApp object
@@ -307,7 +308,47 @@ func (o *HelmApp) SetEnvironmentDetail(v AppEnvironmentDetail) {
 	o.EnvironmentDetail = &v
 }
 
+// GetAppStatus returns the AppStatus field value if set, zero value otherwise.
+func (o *HelmApp) GetAppStatus() string {
+	if o == nil || o.AppStatus == nil {
+		var ret string
+		return ret
+	}
+	return *o.AppStatus
+}
+
+// GetAppStatusOk returns a tuple with the AppStatus field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *HelmApp) GetAppStatusOk() (*string, bool) {
+	if o == nil || o.AppStatus != nil {
+		return nil, false
+	}
+	return o.AppStatus, true
+}
+
+// HasAppStatus returns a boolean if a field has been set.
+func (o *HelmApp) HasAppStatus() bool {
+	if o != nil && o.AppStatus != nil {
+		return true
+	}
+
+	return false
+}
+
+// SetAppStatus gets a reference to the given string and assigns it to the AppStatus field.
+func (o *HelmApp) SetAppStatus(v string) {
+	o.AppStatus = &v
+}
+
 func (o HelmApp) MarshalJSON() ([]byte, error) {
+	toSerialize, err := o.ToMap()
+	if err != nil {
+		return []byte{}, err
+	}
+	return json.Marshal(toSerialize)
+}
+
+func (o HelmApp) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	if o.LastDeployedAt != nil {
 		toSerialize["lastDeployedAt"] = o.LastDeployedAt
@@ -333,7 +374,10 @@ func (o HelmApp) MarshalJSON() ([]byte, error) {
 	if o.EnvironmentDetail != nil {
 		toSerialize["environmentDetail"] = o.EnvironmentDetail
 	}
-	return json.Marshal(toSerialize)
+	if o.AppStatus != nil {
+		toSerialize["appStatus"] = o.AppStatus
+	}
+	return toSerialize, nil
 }
 
 type NullableHelmApp struct {
@@ -371,5 +415,3 @@ func (v *NullableHelmApp) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-
