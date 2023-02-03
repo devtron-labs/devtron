@@ -248,6 +248,12 @@ func (impl *UserTerminalAccessServiceImpl) DisconnectTerminalSession(ctx context
 	return err
 }
 
+func getErrorDetailedMessage(err error) string {
+	if errStatus, ok := err.(*k8sErrors.StatusError); ok {
+		return errStatus.Status().Message
+	}
+	return ""
+}
 func isResourceNotFoundErr(err error) bool {
 	if errStatus, ok := err.(*k8sErrors.StatusError); ok && errStatus.Status().Reason == metav1.StatusReasonNotFound {
 		return true
@@ -501,7 +507,8 @@ func (impl *UserTerminalAccessServiceImpl) SyncPodStatus() {
 			err = impl.DeleteTerminalPod(context.Background(), terminalAccessData.ClusterId, terminalAccessData.PodName, namespace)
 			if err != nil {
 				if isResourceNotFoundErr(err) {
-					terminalPodStatusString = string(models.TerminalPodTerminated)
+					errorDetailedMessage := getErrorDetailedMessage(err)
+					terminalPodStatusString = fmt.Sprintf("%s/%s", string(models.TerminalPodTerminated), errorDetailedMessage)
 				} else {
 					continue
 				}
@@ -616,8 +623,9 @@ func (impl *UserTerminalAccessServiceImpl) validateTerminalAccessFromDb(ctx cont
 			return nil, err
 		}
 		terminalAccessData = existingTerminalAccessData
-		if existingTerminalAccessData.Status == string(models.TerminalPodTerminated) {
-			return nil, errors.New("pod-terminated")
+		statusAndReason := strings.Split(existingTerminalAccessData.Status, "/")
+		if statusAndReason[0] == string(models.TerminalPodTerminated) {
+			return nil, errors.New(fmt.Sprintf("pod-terminated(%s)", statusAndReason[1]))
 		}
 		err = impl.checkMaxSessionLimit(existingTerminalAccessData.UserId)
 		if err != nil {
@@ -726,8 +734,9 @@ func (impl *UserTerminalAccessServiceImpl) applyTemplate(ctx context.Context, cl
 func (impl *UserTerminalAccessServiceImpl) getPodStatus(ctx context.Context, clusterId int, podName string, namespace string) (string, string, error) {
 	response, err := impl.getPodManifest(ctx, clusterId, podName, namespace)
 	if err != nil {
-		if err.Error() == string(models.TerminalPodTerminated) {
-			return string(models.TerminalPodTerminated), "", nil
+		statusReason := strings.Split(err.Error(), "/")
+		if statusReason[0] == string(models.TerminalPodTerminated) {
+			return err.Error(), "", nil
 		} else {
 			return "", "", err
 		}
@@ -761,7 +770,9 @@ func (impl *UserTerminalAccessServiceImpl) getPodManifest(ctx context.Context, c
 	response, err := impl.k8sApplicationService.GetResource(ctx, request)
 	if err != nil {
 		if isResourceNotFoundErr(err) {
-			return nil, errors.New(string(models.TerminalPodTerminated))
+			errorDetailedMessage := getErrorDetailedMessage(err)
+			terminalPodStatusString := fmt.Sprintf("%s/%s", string(models.TerminalPodTerminated), errorDetailedMessage)
+			return nil, errors.New(terminalPodStatusString)
 		} else {
 			impl.Logger.Errorw("error occurred while fetching resource info for pod", "podName", podName)
 			return nil, err
@@ -843,8 +854,9 @@ func (impl *UserTerminalAccessServiceImpl) FetchPodManifest(ctx context.Context,
 	if err != nil {
 		return nil, errors.New("unable to fetch manifest")
 	}
-	if terminalAccessData.Status == string(models.TerminalPodTerminated) {
-		return nil, errors.New("pod-terminated")
+	statusReason := strings.Split(terminalAccessData.Status, "/")
+	if statusReason[0] == string(models.TerminalPodTerminated) {
+		return nil, errors.New(fmt.Sprintf("pod-terminated(%s)", statusReason[1]))
 	}
 	metadataMap, err := impl.getMetadataMap(terminalAccessData.Metadata)
 	if err != nil {
@@ -852,8 +864,9 @@ func (impl *UserTerminalAccessServiceImpl) FetchPodManifest(ctx context.Context,
 	}
 	namespace := metadataMap["Namespace"]
 	manifest, err := impl.getPodManifest(ctx, terminalAccessData.ClusterId, terminalAccessData.PodName, namespace)
-	if err == errors.New(string(models.TerminalPodTerminated)) {
-		return nil, errors.New("pod-terminated")
+	statusReason = strings.Split(err.Error(), "/")
+	if statusReason[0] == string(models.TerminalPodTerminated) {
+		return nil, errors.New(fmt.Sprintf("pod-terminated(%s)", statusReason[1]))
 	}
 	return manifest, err
 }
@@ -863,8 +876,9 @@ func (impl *UserTerminalAccessServiceImpl) FetchPodEvents(ctx context.Context, u
 	if err != nil {
 		return nil, errors.New("unable to fetch pod event")
 	}
-	if terminalAccessData.Status == string(models.TerminalPodTerminated) {
-		return nil, errors.New("pod-terminated")
+	statusReason := strings.Split(terminalAccessData.Status, "/")
+	if statusReason[0] == string(models.TerminalPodTerminated) {
+		return nil, errors.New(fmt.Sprintf("pod-terminated(%s)", statusReason[1]))
 	}
 	metadataMap, err := impl.getMetadataMap(terminalAccessData.Metadata)
 	if err != nil {
