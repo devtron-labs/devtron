@@ -351,25 +351,104 @@ func (impl *UserTerminalAccessServiceImpl) createPodName(request *models.UserTer
 	podNameVar = strings.ReplaceAll(podNameVar, models.TerminalAccessRandomIdVar, strconv.Itoa(runningCount+1))
 	return podNameVar
 }
-func removeNodeSelectorFromTemplate(templateData string) (string, error) {
+
+func updatePodTemplate(templateDataMap map[string]interface{}, podNameVar string, nodeName string, baseImage string, isAutoSelect bool) (string, error) {
+	if val, ok := templateDataMap["metadata"]; ok {
+		metadataMap := val.(map[string]interface{})
+		if _, ok1 := metadataMap["name"]; ok1 {
+			metadataMap["name"] = interface{}(podNameVar)
+		}
+	}
+	if val, ok := templateDataMap["spec"]; ok {
+		specMap := val.(map[string]interface{})
+		if _, ok1 := specMap["serviceAccountName"]; ok1 {
+			name := fmt.Sprintf("%s-sa", podNameVar)
+			specMap["serviceAccountName"] = interface{}(name)
+		}
+
+		if _, ok1 := specMap["nodeSelector"]; ok1 {
+			if isAutoSelect {
+				delete(specMap, "nodeSelector")
+			} else {
+				nodeSelector := fmt.Sprintf("{ \"kubernetes.io/hostname\": \"%s\" }", nodeName)
+				specMap["nodeSelector"] = interface{}(nodeSelector)
+			}
+		}
+
+		if containers, ok1 := specMap["containers"]; ok1 {
+			containersData := containers.([]interface{})
+			for _, containerData := range containersData {
+				containerDataMap := containerData.(map[string]interface{})
+				if _, ok2 := containerDataMap["image"]; ok2 {
+					containerDataMap["image"] = interface{}(baseImage)
+				}
+			}
+		}
+
+	}
+	bytes, err := json.Marshal(&templateDataMap)
+	return string(bytes), err
+}
+func updateClusterRoleBindingTemplate(templateDataMap map[string]interface{}, podNameVar string, namespace string) (string, error) {
+	if val, ok := templateDataMap["metadata"]; ok {
+		metadataMap := val.(map[string]interface{})
+		if _, ok1 := metadataMap["name"]; ok1 {
+			name := fmt.Sprintf("%s-crb", podNameVar)
+			metadataMap["name"] = name
+		}
+	}
+
+	if subjects, ok := templateDataMap["subjects"]; ok {
+		for _, subject := range subjects.([]interface{}) {
+			subjectMap := subject.(map[string]interface{})
+			if _, ok1 := subjectMap["name"]; ok1 {
+				name := fmt.Sprintf("%s-sa", podNameVar)
+				subjectMap["name"] = interface{}(name)
+			}
+
+			if _, ok2 := subjectMap["namespace"]; ok2 {
+				subjectMap["namespace"] = interface{}(namespace)
+			}
+		}
+	}
+
+	bytes, err := json.Marshal(&templateDataMap)
+	return string(bytes), err
+}
+func updateServiceAccountTemplate(templateDataMap map[string]interface{}, podNameVar string, namespace string) (string, error) {
+	if val, ok := templateDataMap["metadata"]; ok {
+		metadataMap := val.(map[string]interface{})
+		if _, ok1 := metadataMap["name"]; ok1 {
+			name := fmt.Sprintf("%s-sa", podNameVar)
+			metadataMap["name"] = interface{}(name)
+		}
+
+		if _, ok2 := metadataMap["namespace"]; ok2 {
+			metadataMap["namespace"] = interface{}(namespace)
+		}
+
+	}
+	bytes, err := json.Marshal(&templateDataMap)
+	return string(bytes), err
+}
+
+func replaceTemplateData(templateData string, podNameVar string, namespace string, nodeName string, baseImage string, isAutoSelect bool) (string, error) {
 	templateDataMap := map[string]interface{}{}
 	err := yaml.Unmarshal([]byte(templateData), &templateDataMap)
 	if err != nil {
 		return templateData, err
 	}
-	for key, _ := range templateDataMap {
-		if key == "spec" {
-			specData := templateDataMap["spec"].(map[string]interface{})
-			if _, ok := specData["nodeSelector"]; ok {
-				delete(specData, "nodeSelector")
-			}
+	if _, ok := templateDataMap["kind"]; ok {
+		kind := templateDataMap["kind"]
+		if kind == "ServiceAccount" {
+			return updateServiceAccountTemplate(templateDataMap, podNameVar, namespace)
+		} else if kind == "ClusterRoleBinding" {
+			return updateClusterRoleBindingTemplate(templateDataMap, podNameVar, namespace)
+		} else if kind == "Pod" {
+			return updatePodTemplate(templateDataMap, podNameVar, nodeName, baseImage, isAutoSelect)
 		}
 	}
-	bytes, err := json.Marshal(&templateDataMap)
-	if err != nil {
-		return templateData, err
-	}
-	return string(bytes), nil
+	return templateData, nil
 }
 
 //template data use kubernetes object
@@ -379,24 +458,14 @@ func (impl *UserTerminalAccessServiceImpl) applyTemplateData(ctx context.Context
 	templateData := terminalTemplate.TemplateData
 	clusterId := request.ClusterId
 	namespace := request.Namespace
-	templateData = strings.ReplaceAll(templateData, models.TerminalAccessClusterIdTemplateVar, strconv.Itoa(clusterId))
 	templateData = strings.ReplaceAll(templateData, models.TerminalAccessUserIdTemplateVar, strconv.FormatInt(int64(request.UserId), 10))
-	templateData = strings.ReplaceAll(templateData, models.TerminalAccessBaseImageVar, request.BaseImage)
-	templateData = strings.ReplaceAll(templateData, models.TerminalAccessNamespaceVar, namespace)
-	templateData = strings.ReplaceAll(templateData, models.TerminalAccessPodNameVar, podNameVar)
-
-	if isAutoSelect {
-		templateData = strings.ReplaceAll(templateData, models.TerminalAccessNodeNameVar, "")
-		TransformedTemplateData, err := removeNodeSelectorFromTemplate(templateData)
-		if err != nil {
-			impl.Logger.Errorw("error occurred while removing nodeSelector from template ", "name", templateName, "err", err)
-			return err
-		}
-		templateData = TransformedTemplateData
-	} else {
-		templateData = strings.ReplaceAll(templateData, models.TerminalAccessNodeNameVar, request.NodeName)
+	templateData, err := replaceTemplateData(templateData, podNameVar, namespace, models.TerminalAccessNodeNameVar, request.BaseImage, isAutoSelect)
+	if err != nil {
+		impl.Logger.Errorw("error occurred while updating template data", "name", templateName, "err", err)
+		return err
 	}
-	err := impl.applyTemplate(ctx, clusterId, terminalTemplate.TemplateData, templateData, isUpdate, namespace)
+
+	err = impl.applyTemplate(ctx, clusterId, terminalTemplate.TemplateData, templateData, isUpdate, namespace)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while applying template ", "name", templateName, "err", err)
 		return err
