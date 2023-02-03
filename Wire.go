@@ -407,8 +407,8 @@ func InitializeApp() (*App, error) {
 		pubsub.NewWorkflowStatusUpdateHandlerImpl,
 		wire.Bind(new(pubsub.WorkflowStatusUpdateHandler), new(*pubsub.WorkflowStatusUpdateHandlerImpl)),
 
-		pubsub.NewApplicationStatusUpdateHandlerImpl,
-		wire.Bind(new(pubsub.ApplicationStatusUpdateHandler), new(*pubsub.ApplicationStatusUpdateHandlerImpl)),
+		pubsub.NewApplicationStatusHandlerImpl,
+		wire.Bind(new(pubsub.ApplicationStatusHandler), new(*pubsub.ApplicationStatusHandlerImpl)),
 
 		pubsub.NewCiEventHandlerImpl,
 		wire.Bind(new(pubsub.CiEventHandler), new(*pubsub.CiEventHandlerImpl)),

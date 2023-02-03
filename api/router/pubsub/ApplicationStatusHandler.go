@@ -30,30 +30,37 @@ import (
 	"go.uber.org/zap"
 )
 
-type ApplicationStatusUpdateHandler interface {
+type ApplicationStatusHandler interface {
 	Subscribe() error
+	SubscribeDeleteStatus() error
 }
 
-type ApplicationStatusUpdateHandlerImpl struct {
+type ApplicationStatusHandlerImpl struct {
 	logger              *zap.SugaredLogger
 	pubsubClient        *pubsub.PubSubClientServiceImpl
 	appService          app.AppService
 	workflowDagExecutor pipeline.WorkflowDagExecutor
 	installedAppService service.InstalledAppService
+	PipelineBuilder     pipeline.PipelineBuilder
 }
 
-func NewApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClientServiceImpl, appService app.AppService,
-	workflowDagExecutor pipeline.WorkflowDagExecutor, installedAppService service.InstalledAppService) *ApplicationStatusUpdateHandlerImpl {
-	appStatusUpdateHandlerImpl := &ApplicationStatusUpdateHandlerImpl{
+func NewApplicationStatusHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClientServiceImpl, appService app.AppService,
+	workflowDagExecutor pipeline.WorkflowDagExecutor, installedAppService service.InstalledAppService, PipelineBuilder pipeline.PipelineBuilder) *ApplicationStatusHandlerImpl {
+	appStatusUpdateHandlerImpl := &ApplicationStatusHandlerImpl{
 		logger:              logger,
 		pubsubClient:        pubsubClient,
 		appService:          appService,
 		workflowDagExecutor: workflowDagExecutor,
 		installedAppService: installedAppService,
+		PipelineBuilder:     PipelineBuilder,
 	}
 	err := appStatusUpdateHandlerImpl.Subscribe()
 	if err != nil {
 		//logger.Error("err", err)
+		return nil
+	}
+	err = appStatusUpdateHandlerImpl.SubscribeDeleteStatus()
+	if err != nil {
 		return nil
 	}
 	return appStatusUpdateHandlerImpl
@@ -64,7 +71,7 @@ type ApplicationDetail struct {
 	StatusTime  time.Time              `json:"statusTime"`
 }
 
-func (impl *ApplicationStatusUpdateHandlerImpl) Subscribe() error {
+func (impl *ApplicationStatusHandlerImpl) Subscribe() error {
 	callback := func(msg *pubsub.PubSubMsg) {
 		impl.logger.Debug("received app update request")
 		//defer msg.Ack()
@@ -117,6 +124,34 @@ func (impl *ApplicationStatusUpdateHandlerImpl) Subscribe() error {
 	err := impl.pubsubClient.Subscribe(pubsub.APPLICATION_STATUS_UPDATE_TOPIC, callback)
 	if err != nil {
 		impl.logger.Error(err)
+		return err
+	}
+	return nil
+}
+
+func (impl *ApplicationStatusHandlerImpl) SubscribeDeleteStatus() error {
+	callback := func(msg *pubsub.PubSubMsg) {
+		impl.logger.Debug("received app delete event")
+
+		impl.logger.Debugw("APP_STATUS_DELETE_REQ", "stage", "raw", "data", msg.Data)
+		applicationDetail := ApplicationDetail{}
+		err := json.Unmarshal([]byte(msg.Data), &applicationDetail)
+		if err != nil {
+			impl.logger.Errorw("unmarshal error on app update status", "err", err)
+			return
+		}
+		app := applicationDetail.Application
+		if app == nil {
+			return
+		}
+		err = impl.PipelineBuilder.UpdatePipelineDeleteStatus(app)
+		if err != nil {
+			impl.logger.Errorw("error in updating pipeline delete status", "err", err)
+		}
+	}
+	err := impl.pubsubClient.Subscribe(pubsub.APPLICATION_STATUS_DELETE_TOPIC, callback)
+	if err != nil {
+		impl.logger.Errorw("error in subscribing to argo application status update topic", "err", err)
 		return err
 	}
 	return nil

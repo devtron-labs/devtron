@@ -491,3 +491,16 @@ func (impl InstalledAppRepositoryImpl) GetDeploymentSuccessfulStatusCountForTele
 	}
 	return count, err
 }
+
+func (impl InstalledAppRepositoryImpl) GetPartiallyDeletedArgoCdChartStoreApps() ([]*InstalledApps, error) {
+
+	var installedApps []*InstalledApps
+	err := impl.dbConnection.Model(&installedApps).
+		Where("acd_app_deleted = ?", false).
+		Where("active = ?", false).
+		Select()
+	if err != nil {
+		impl.Logger.Errorw("unable to get partially deleted argocd apps")
+	}
+	return installedApps, err
+}

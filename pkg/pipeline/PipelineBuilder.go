@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
@@ -127,6 +128,7 @@ type PipelineBuilder interface {
 	DeleteCiPipeline(request *bean.CiPatchRequest) (*bean.CiPipeline, error)
 	IsGitOpsRequiredForCD(pipelineCreateRequest *bean.CdPipelines) bool
 	SetPipelineDeploymentAppType(pipelineCreateRequest *bean.CdPipelines, isGitOpsConfigured bool)
+	UpdatePipelineDeleteStatus(app *v1alpha1.Application) error
 }
 
 type PipelineBuilderImpl struct {
@@ -3034,4 +3036,15 @@ func (impl PipelineBuilderImpl) buildResponses() []bean.ResponseSchemaObject {
 	responseSchemaObjects = append(responseSchemaObjects, response400)
 	responseSchemaObjects = append(responseSchemaObjects, response401)
 	return responseSchemaObjects
+}
+
+func (impl PipelineBuilderImpl) UpdatePipelineDeleteStatus(app *v1alpha1.Application) error {
+
+	argoAppName := app.Name
+	err := impl.pipelineRepository.UpdateDeleteStatusByArgoAppName(argoAppName)
+	if err != nil {
+		impl.logger.Errorw("error in updating argo pipeline delete status", "err", err)
+		return err
+	}
+	return nil
 }
