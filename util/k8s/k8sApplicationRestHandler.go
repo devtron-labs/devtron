@@ -547,9 +547,15 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 		request.K8sRequest.PodLogsRequest.SinceTime = &t
 		isReconnect = true
 	}
+	handler.logger.Infow("going to start stream for pods", "podName", podName)
 	stream, err := handler.k8sApplicationService.GetPodLogs(r.Context(), request)
-	defer util.Close(stream, handler.logger)
+	defer handler.closePodStream(stream, podName)
 	handler.pump.StartK8sStreamWithHeartBeat(w, isReconnect, stream, err)
+}
+
+func (handler *K8sApplicationRestHandlerImpl) closePodStream(stream util.Closer, podname string) {
+	handler.logger.Infow("closing stream connection for pod", "podname", podname)
+	util.Close(stream, handler.logger)
 }
 
 func (handler *K8sApplicationRestHandlerImpl) GetTerminalSession(w http.ResponseWriter, r *http.Request) {
