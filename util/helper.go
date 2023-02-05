@@ -25,6 +25,7 @@ import (
 	"github.com/juju/errors"
 	"io"
 	"io/ioutil"
+	"log"
 	"math/rand"
 	"net/http"
 	"os"
@@ -213,13 +214,13 @@ func InterfaceToMapAdapter(resp interface{}) map[string]interface{} {
 func CheckOrCreateDevtronDir() (err error, devtronDirPath string) {
 	userHomeDir, err := os.UserHomeDir()
 	if err != nil {
-		fmt.Println("error occurred while finding home dir", "err", err)
+		log.Fatalln("error occurred while finding home dir", "err", err)
 		return err, ""
 	}
 	devtronDirPath = path.Join(userHomeDir, "./.devtron")
 	err = os.MkdirAll(devtronDirPath, os.ModePerm)
 	if err != nil {
-		fmt.Println("error occurred while creating db", "path", devtronDirPath, "err", err)
+		log.Fatalln("error occurred while creating folder", "path", devtronDirPath, "err", err)
 		return err, ""
 	}
 	return err, devtronDirPath
