@@ -3,6 +3,7 @@ package repository
 import (
 	"errors"
 	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/glebarez/sqlite"
@@ -149,10 +150,11 @@ func (impl TerminalAccessFileBasedRepository) UpdateUserTerminalStatus(id int, s
 }
 
 func (impl TerminalAccessFileBasedRepository) createDefaultAccessTemplates() {
+
 	var defaultTemplates []*models.TerminalAccessTemplates
 	defaultTemplates = append(defaultTemplates, &models.TerminalAccessTemplates{
 		TemplateName: "terminal-access-service-account",
-		TemplateData: "{\"apiVersion\":\"v1\",\"kind\":\"ServiceAccount\",\"metadata\":{\"name\":\"${pod_name}-sa\",\"namespace\":\"${default_namespace}\"}}",
+		TemplateData: helper.GetDefaultTerminalAccessServiceAccount(),
 		AuditLog: sql.AuditLog{
 			CreatedBy: 1,
 			UpdatedBy: 1,
@@ -162,7 +164,7 @@ func (impl TerminalAccessFileBasedRepository) createDefaultAccessTemplates() {
 	})
 	defaultTemplates = append(defaultTemplates, &models.TerminalAccessTemplates{
 		TemplateName: "terminal-access-role-binding",
-		TemplateData: "{\"apiVersion\":\"rbac.authorization.k8s.io/v1\",\"kind\":\"ClusterRoleBinding\",\"metadata\":{\"name\":\"${pod_name}-crb\"},\"subjects\":[{\"kind\":\"ServiceAccount\",\"name\":\"${pod_name}-sa\",\"namespace\":\"${default_namespace}\"}],\"roleRef\":{\"kind\":\"ClusterRole\",\"name\":\"cluster-admin\",\"apiGroup\":\"rbac.authorization.k8s.io\"}}",
+		TemplateData: helper.GetDefaultTerminalAccessRoleBindingTemplate(),
 		AuditLog: sql.AuditLog{
 			CreatedBy: 1,
 			UpdatedBy: 1,
@@ -172,7 +174,7 @@ func (impl TerminalAccessFileBasedRepository) createDefaultAccessTemplates() {
 	})
 	defaultTemplates = append(defaultTemplates, &models.TerminalAccessTemplates{
 		TemplateName: "terminal-access-pod",
-		TemplateData: "{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"metadata\":{\"name\":\"${pod_name}\"},\"spec\":{\"serviceAccountName\":\"${pod_name}-sa\",\"nodeSelector\":{\"kubernetes.io/hostname\":\"${node_name}\"},\"containers\":[{\"name\":\"devtron-debug-terminal\",\"image\":\"${base_image}\",\"command\":[\"/bin/sh\",\"-c\",\"--\"],\"args\":[\"while true; do sleep 600; done;\"]}],\"tolerations\":[{\"key\":\"kubernetes.azure.com/scalesetpriority\",\"operator\":\"Equal\",\"value\":\"spot\",\"effect\":\"NoSchedule\"}]}}",
+		TemplateData: helper.GetDefaultTerminalAccessPodTemplate(),
 		AuditLog: sql.AuditLog{
 			CreatedBy: 1,
 			UpdatedBy: 1,
