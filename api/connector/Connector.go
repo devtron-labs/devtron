@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/gogo/protobuf/proto"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/juju/errors"
@@ -93,6 +94,7 @@ func (impl PumpImpl) StartK8sStreamWithHeartBeat(w http.ResponseWriter, isReconn
 				mux.Unlock()
 				if err != nil {
 					impl.logger.Errorw("error in writing PING over sse", "err", err)
+					util.Close(stream, impl.logger)
 					return err
 				}
 				f.Flush()
