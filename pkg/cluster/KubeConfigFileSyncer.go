@@ -106,9 +106,8 @@ func (impl *KubeConfigFileSyncerImpl) processKubeconfigFile(kubefolder, fileName
 		impl.logger.Errorw("error occurred while reading file", "filePath", filePath, "error", err)
 		return
 	}
-	currentContextName := config.CurrentContext
 	contexts := config.Contexts
-	if contexts != nil && len(contexts) > 0 {
+	for currentContextName := range contexts {
 		currentCtx := contexts[currentContextName]
 		for name, cluster := range config.Clusters {
 			if name == currentCtx.Cluster {
