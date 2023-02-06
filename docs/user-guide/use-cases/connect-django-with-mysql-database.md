@@ -12,7 +12,7 @@ To deploy mysql Helm Chart, you can refer to our documentation on [Deploy mysql 
 
 For this example, we are using the following [GitHub Repo](https://github.com/devtron-labs/django-repo.git), you can clone this repository and make following changes in the files.
 
-#### _\*Configure Database Settings_
+#### _\*Configure Database Settings_̌
 
 Go to mysite/settings.py.
 
