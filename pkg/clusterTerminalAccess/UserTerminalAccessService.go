@@ -465,7 +465,7 @@ func (impl *UserTerminalAccessServiceImpl) applyTemplateData(ctx context.Context
 	clusterId := request.ClusterId
 	namespace := request.Namespace
 	templateData = strings.ReplaceAll(templateData, models.TerminalAccessUserIdTemplateVar, strconv.FormatInt(int64(request.UserId), 10))
-	templateData, err := replaceTemplateData(templateData, podNameVar, namespace, models.TerminalAccessNodeNameVar, request.BaseImage, isAutoSelect)
+	templateData, err := replaceTemplateData(templateData, podNameVar, namespace, request.NodeName, request.BaseImage, isAutoSelect)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while updating template data", "name", templateName, "err", err)
 		return err
