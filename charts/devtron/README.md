@@ -42,6 +42,7 @@ This chart is currently not available on the official helm repository therefore 
 ```bash
 $ git clone [https://github.com/devtron-labs/devtron.git](https://github.com/devtron-labs/devtron.git)
 $ cd devtron/charts/devtron
+$ helm dependency up
 $ #modify values in values.yaml
 $ helm install devtron . --create-namespace --namespace devtroncd -f values.yaml
 ```
@@ -51,6 +52,7 @@ To upgrade your existing devtron installation to beta, use helm upgrade.
 ```bash
 $ git clone [https://github.com/devtron-labs/devtron.git](https://github.com/devtron-labs/devtron.git)
 $ cd devtron/charts/devtron
+$ helm dependency up
 $ #modify values in values.yaml
 $ helm upgrade devtron . --namespace devtroncd -f values.yaml
 ```
