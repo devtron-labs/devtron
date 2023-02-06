@@ -291,6 +291,10 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	var ciProjectDetails []CiProjectDetails
 	commitHashes := trigger.CommitHashes
 	for _, ciMaterial := range ciMaterials {
+		// ignore those materials which have inactive git material
+		if ciMaterial == nil || ciMaterial.GitMaterial == nil || !ciMaterial.GitMaterial.Active {
+			continue
+		}
 		commitHashForPipelineId := commitHashes[ciMaterial.Id]
 		ciProjectDetail := CiProjectDetails{
 			GitRepository:   ciMaterial.GitMaterial.Url,
@@ -476,7 +480,8 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		CiBuildConfig:              ciBuildConfigBean,
 		CiBuildDockerMtuValue:      impl.ciConfig.CiRunnerDockerMTUValue,
 		IgnoreDockerCachePush:      impl.ciConfig.IgnoreDockerCacheForCI,
-		IgnoreDockerCachePull:      impl.ciConfig.IgnoreDockerCacheForCI || trigger.InvalidateCache,
+		IgnoreDockerCachePull:      impl.ciConfig.IgnoreDockerCacheForCI,
+		CacheInvalidate:            trigger.InvalidateCache,
 	}
 
 	if ciWorkflowConfig.LogsBucket == "" {

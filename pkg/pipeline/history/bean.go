@@ -167,8 +167,10 @@ type ExternalSecret struct {
 }
 
 type ESOSecretData struct {
-	SecretStore json.RawMessage `json:"secretStore"`
-	EsoData     []ESOData       `json:"esoData"`
+	SecretStore     json.RawMessage `json:"secretStore,omitempty"`
+	SecretStoreRef  json.RawMessage `json:"secretStoreRef,omitempty"`
+	EsoData         []ESOData       `json:"esoData"`
+	RefreshInterval string          `json:"refreshInterval,omitempty"`
 }
 
 type ESOData struct {
