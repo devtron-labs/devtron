@@ -1558,7 +1558,7 @@ func (impl PipelineBuilderImpl) PatchCdPipelines(cdPipelines *bean.CDPatchReques
 	}
 }
 
-func (impl PipelineBuilderImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipeline, ctx context.Context, forceDelete bool, deleteAcd bool, userId int32) (err error) {
+func (impl PipelineBuilderImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipeline, ctx context.Context, forceDelete, deleteFromAcd bool, userId int32) (err error) {
 	//getting children CD pipeline details
 	childNodes, err := impl.appWorkflowRepository.FindWFCDMappingByParentCDPipelineId(pipeline.Id)
 	if err != nil && err != pg.ErrNoRows {
@@ -1669,7 +1669,7 @@ func (impl PipelineBuilderImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipeli
 		if util.IsAcdApp(pipeline.DeploymentAppType) {
 			//todo: provide option for cascading to user
 			impl.logger.Debugw("acd app is already deleted for this pipeline", "pipeline", pipeline)
-			if deleteAcd {
+			if deleteFromAcd {
 				cascadeDelete := true
 				req := &application2.ApplicationDeleteRequest{
 					Name:    &deploymentAppName,

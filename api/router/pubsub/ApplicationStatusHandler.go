@@ -41,18 +41,16 @@ type ApplicationStatusHandlerImpl struct {
 	appService          app.AppService
 	workflowDagExecutor pipeline.WorkflowDagExecutor
 	installedAppService service.InstalledAppService
-	PipelineBuilder     pipeline.PipelineBuilder
 }
 
 func NewApplicationStatusHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClientServiceImpl, appService app.AppService,
-	workflowDagExecutor pipeline.WorkflowDagExecutor, installedAppService service.InstalledAppService, PipelineBuilder pipeline.PipelineBuilder) *ApplicationStatusHandlerImpl {
+	workflowDagExecutor pipeline.WorkflowDagExecutor, installedAppService service.InstalledAppService) *ApplicationStatusHandlerImpl {
 	appStatusUpdateHandlerImpl := &ApplicationStatusHandlerImpl{
 		logger:              logger,
 		pubsubClient:        pubsubClient,
 		appService:          appService,
 		workflowDagExecutor: workflowDagExecutor,
 		installedAppService: installedAppService,
-		PipelineBuilder:     PipelineBuilder,
 	}
 	err := appStatusUpdateHandlerImpl.Subscribe()
 	if err != nil {
@@ -142,7 +140,7 @@ func (impl *ApplicationStatusHandlerImpl) SubscribeDeleteStatus() error {
 		if app == nil {
 			return
 		}
-		//make call to delete app from db
+		err = impl.appService.UpdateArgoAppDeleteStatus(app)
 		if err != nil {
 			impl.logger.Errorw("error in updating pipeline delete status", "err", err)
 		}

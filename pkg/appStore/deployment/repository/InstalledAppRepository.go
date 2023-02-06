@@ -60,11 +60,22 @@ type InstalledAppRepository interface {
 	GetAppAndEnvDetailsForDeploymentAppTypeInstalledApps(deploymentAppType string, clusterIds []int) ([]*InstalledApps, error)
 	GetDeploymentSuccessfulStatusCountForTelemetry() (int, error)
 	GetGitOpsInstalledAppsWhereArgoAppDeletedIsTrue(installedAppId int, envId int) ([]InstalledApps, error)
+	GetInstalledAppByGitHash(gitHash string) (InstallAppDeleteRequest, error)
 }
 
 type InstalledAppRepositoryImpl struct {
 	dbConnection *pg.DB
 	Logger       *zap.SugaredLogger
+}
+
+type InstallAppDeleteRequest struct {
+	InstalledAppId  int    `json:"installed_app_id,omitempty,notnull"`
+	AppName         string `json:"app_name,omitempty"`
+	AppId           int    `json:"app_id,omitempty"`
+	EnvironmentId   int    `json:"environment_id,omitempty"`
+	AppOfferingMode string `json:"app_offering_mode"`
+	ClusterId       int    `json:"cluster_id"`
+	Namespace       string `json:"namespace"`
 }
 
 func NewInstalledAppRepositoryImpl(Logger *zap.SugaredLogger, dbConnection *pg.DB) *InstalledAppRepositoryImpl {
@@ -494,13 +505,15 @@ func (impl InstalledAppRepositoryImpl) GetDeploymentSuccessfulStatusCountForTele
 	}
 	return count, err
 }
+
 func (impl InstalledAppRepositoryImpl) GetGitOpsInstalledAppsWhereArgoAppDeletedIsTrue(installedAppId int, envId int) ([]InstalledApps, error) {
 	var installedApps []InstalledApps
 	err := impl.dbConnection.Model(&installedApps).
+		Column("installed_apps.id", "installed_apps.environment_id", "App.app_name", "Environment.namespace").
 		Where("deployment_app_delete_request = ?", true).
 		Where("active = ?", false).
 		Where("id = ?", installedAppId).
-		Where("envId = ?", envId).
+		Where("environment_id = ?", envId).
 		Where("updated_on < ", time.Now().Add(-time.Minute*10)).
 		Select()
 	if err != nil {
@@ -508,4 +521,18 @@ func (impl InstalledAppRepositoryImpl) GetGitOpsInstalledAppsWhereArgoAppDeleted
 		return nil, err
 	}
 	return installedApps, nil
+}
+func (impl InstalledAppRepositoryImpl) GetInstalledAppByGitHash(gitHash string) (InstallAppDeleteRequest, error) {
+	model := InstallAppDeleteRequest{}
+	query := "select iv.installed_app_id, a.app_name, i.app_id, i.environment_id, a.app_offering_mode, e.cluster_id, e.namespace " +
+		" from app a inner join installed_apps i on a.id=i.app_id  " +
+		"inner join installed_app_versions iv on i.id=iv.installed_app_id " +
+		"inner join installed_app_version_history ivh on ivh.installed_app_version_id=iv.id " +
+		"inner join environment e on e.id=i.environment_id where ivh.git_hash=?;"
+	_, err := impl.dbConnection.Query(&model, query, gitHash)
+	if err != nil {
+		impl.Logger.Errorw("error in getting delete request data", "err", err)
+		return model, err
+	}
+	return model, nil
 }

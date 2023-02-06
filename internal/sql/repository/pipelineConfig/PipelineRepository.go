@@ -522,8 +522,9 @@ func (impl PipelineRepositoryImpl) GetArgoPipelineByArgoAppName(argoAppName stri
 func (impl PipelineRepositoryImpl) GetPartiallyDeletedPipelineByStatus(appId int, envId int) ([]Pipeline, error) {
 	var pipeline []Pipeline
 	err := impl.dbConnection.Model(&pipeline).
+		Column("pipeline.app_id", "pipeline.environment_id", "App.app_name", "Environment.namespace").
 		Where("app_id = ?", appId).
-		Where("env_id = ?", envId).
+		Where("environment_id = ?", envId).
 		Where("deployment_app_delete_request = ?", true).
 		Where("deleted = ?", false).
 		Where("updated_on<?", time.Now().Add(-time.Minute*10)).Select()
