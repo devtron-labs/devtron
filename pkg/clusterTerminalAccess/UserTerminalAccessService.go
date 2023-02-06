@@ -25,8 +25,6 @@ import (
 	"time"
 )
 
-const AUTO_SELECT_NODE string = "autoSelectNode"
-
 type UserTerminalAccessService interface {
 	StartTerminalSession(ctx context.Context, request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error)
 	UpdateTerminalSession(ctx context.Context, request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error)
@@ -109,7 +107,7 @@ func (impl *UserTerminalAccessServiceImpl) StartTerminalSession(ctx context.Cont
 		return nil, err
 	}
 	isAutoSelect := false
-	if request.NodeName == AUTO_SELECT_NODE {
+	if request.NodeName == models.AUTO_SELECT_NODE {
 		isAutoSelect = true
 	}
 	err = impl.startTerminalPod(ctx, podNameVar, request, isAutoSelect)

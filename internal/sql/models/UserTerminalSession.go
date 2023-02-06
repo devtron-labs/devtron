@@ -45,6 +45,7 @@ const TerminalAccessClusterRoleBindingTemplate = TerminalAccessPodNameTemplate +
 const TerminalAccessServiceAccountTemplateName = "terminal-access-service-account"
 const TerminalAccessServiceAccountTemplate = TerminalAccessPodNameTemplate + "-sa"
 const MaxSessionLimitReachedMsg = "session-limit-reached"
+const AUTO_SELECT_NODE string = "autoSelectNode"
 
 type TerminalPodStatus string
 
