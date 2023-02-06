@@ -137,21 +137,21 @@ func (impl *ApplicationStatusHandlerImpl) SubscribeDeleteStatus() error {
 		applicationDetail := ApplicationDetail{}
 		err := json.Unmarshal([]byte(msg.Data), &applicationDetail)
 		if err != nil {
-			impl.logger.Errorw("unmarshal error on app update status", "err", err)
+			impl.logger.Errorw("unmarshal error on app delete status", "err", err)
 			return
 		}
 		app := applicationDetail.Application
 		if app == nil {
 			return
 		}
-		err = impl.PipelineBuilder.UpdatePipelineDeleteStatus(app)
+		//make call to delete app from db
 		if err != nil {
 			impl.logger.Errorw("error in updating pipeline delete status", "err", err)
 		}
 	}
 	err := impl.pubsubClient.Subscribe(pubsub.APPLICATION_STATUS_DELETE_TOPIC, callback)
 	if err != nil {
-		impl.logger.Errorw("error in subscribing to argo application status update topic", "err", err)
+		impl.logger.Errorw("error in subscribing to argo application status delete topic", "err", err)
 		return err
 	}
 	return nil

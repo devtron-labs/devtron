@@ -98,8 +98,7 @@ type PipelineRepository interface {
 	FindIdsByProjectIdsAndEnvironmentIds(projectIds, environmentIds []int) ([]int, error)
 
 	GetArgoPipelineByArgoAppName(argoAppName string) (Pipeline, error)
-	UpdateDeleteStatusByArgoAppName(argoAppName string) error
-	GetPartiallyDeletedPipelines(string) ([]*Pipeline, error)
+	GetPartiallyDeletedPipelineByStatus(appId int, envId int) ([]Pipeline, error)
 }
 
 type CiArtifactDTO struct {
@@ -519,24 +518,16 @@ func (impl PipelineRepositoryImpl) GetArgoPipelineByArgoAppName(argoAppName stri
 	return pipeline, nil
 }
 
-func (impl PipelineRepositoryImpl) UpdateDeleteStatusByArgoAppName(argoAppName string) error {
-	var pipeline Pipeline
-	_, err := impl.dbConnection.Model(&pipeline).Set("acd_app_deleted = ?", true).
-		Where("deployment_app_name = ?", argoAppName).Update()
+func (impl PipelineRepositoryImpl) GetPartiallyDeletedPipelineByStatus(appId int, envId int) ([]Pipeline, error) {
+	var pipeline []Pipeline
+	err := impl.dbConnection.Model(&pipeline).
+		Where("app_id = ?", appId).
+		Where("env_id = ?", envId).
+		Where("deployment_app_delete_request = ?", true).
+		Where("deleted = ?", false).
+		Where("updated_on<?", time.Now().Add(-time.Minute*10)).Select()
 	if err != nil {
 		impl.logger.Errorw("error in updating argo pipeline delete status")
 	}
-	return err
-}
-
-func (impl PipelineRepositoryImpl) GetPartiallyDeletedPipelines(string) ([]*Pipeline, error) {
-	var pipelines []*Pipeline
-	err := impl.dbConnection.Model(&pipelines).
-		Where("acd_app_deleted = ?", false).
-		Where("Deleted = ? ", true).
-		Select()
-	if err != nil {
-		impl.logger.Errorw("error in fetching pipelines not deleted from argocd", "err")
-	}
-	return pipelines, err
+	return pipeline, err
 }

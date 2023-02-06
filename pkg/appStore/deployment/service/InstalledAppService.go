@@ -79,6 +79,7 @@ type InstalledAppService interface {
 	FindAppDetailsForAppstoreApplication(installedAppId, envId int) (bean2.AppDetailContainer, error)
 	UpdateInstalledAppVersionStatus(application *v1alpha1.Application) (bool, error)
 	FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetail *bean2.AppDetailContainer) bean2.AppDetailContainer
+	UpadateGitopsInstalledAppsDeleteStatus(installedAppId int, envId int) error
 }
 
 type InstalledAppServiceImpl struct {
@@ -954,4 +955,23 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 		}
 	}
 	return *appDetail
+}
+
+func (impl InstalledAppServiceImpl) UpadateGitopsInstalledAppsDeleteStatus(installedAppId int, envId int) error {
+	installedApps, err := impl.installedAppRepository.GetGitOpsInstalledAppsWhereArgoAppDeletedIsTrue(installedAppId, envId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching partially deleted argoCd apps from installed app repo", "err", err)
+		return err
+	}
+	if len(installedApps) == 0 {
+		return nil
+	}
+	for _, installedApp := range installedApps {
+		_, err := impl.ArgoK8sClient.GetArgoApplication(installedApp.Environment.Namespace, installedApp.App.AppName, nil)
+		if err != nil {
+			impl.logger.Errorw("error in fetching argo app using k8s client")
+			//make call to remove it from db
+		}
+	}
+	return nil
 }

@@ -21,7 +21,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
@@ -128,7 +127,7 @@ type PipelineBuilder interface {
 	DeleteCiPipeline(request *bean.CiPatchRequest) (*bean.CiPipeline, error)
 	IsGitOpsRequiredForCD(pipelineCreateRequest *bean.CdPipelines) bool
 	SetPipelineDeploymentAppType(pipelineCreateRequest *bean.CdPipelines, isGitOpsConfigured bool)
-	UpdatePipelineDeleteStatus(app *v1alpha1.Application) error
+	UpdateArgoDeleteStatusForDevtronApps(appId int, envId int) error
 }
 
 type PipelineBuilderImpl struct {
@@ -3038,13 +3037,24 @@ func (impl PipelineBuilderImpl) buildResponses() []bean.ResponseSchemaObject {
 	return responseSchemaObjects
 }
 
-func (impl PipelineBuilderImpl) UpdatePipelineDeleteStatus(app *v1alpha1.Application) error {
+func (impl PipelineBuilderImpl) UpdateArgoDeleteStatusForDevtronApps(appId int, envId int) error {
 
-	argoAppName := app.Name
-	err := impl.pipelineRepository.UpdateDeleteStatusByArgoAppName(argoAppName)
+	pipelines, err := impl.pipelineRepository.GetPartiallyDeletedPipelineByStatus(appId, envId)
 	if err != nil {
-		impl.logger.Errorw("error in updating argo pipeline delete status", "err", err)
+		impl.logger.Errorw("error in fetching partially deleted pipelines", "err", err)
 		return err
+	}
+	if len(pipelines) == 0 {
+		return nil
+	}
+	for _, pipeline := range pipelines {
+		_, err := impl.ArgoK8sClient.GetArgoApplication(pipeline.Environment.Namespace, pipeline.App.AppName, nil)
+		if err != nil {
+			impl.logger.Errorw("error in fetching app from argo", "err", err)
+			//fmt.Sprintf(argoApp[])
+			//make call to delete it from pipeline DB
+			return err
+		}
 	}
 	return nil
 }

@@ -59,6 +59,7 @@ type InstalledAppRepository interface {
 	GetInstalledApplicationByClusterIdAndNamespaceAndAppName(clusterId int, namespace string, appName string) (*InstalledApps, error)
 	GetAppAndEnvDetailsForDeploymentAppTypeInstalledApps(deploymentAppType string, clusterIds []int) ([]*InstalledApps, error)
 	GetDeploymentSuccessfulStatusCountForTelemetry() (int, error)
+	GetGitOpsInstalledAppsWhereArgoAppDeletedIsTrue(installedAppId int, envId int) ([]InstalledApps, error)
 }
 
 type InstalledAppRepositoryImpl struct {
@@ -491,16 +492,18 @@ func (impl InstalledAppRepositoryImpl) GetDeploymentSuccessfulStatusCountForTele
 	}
 	return count, err
 }
-
-func (impl InstalledAppRepositoryImpl) GetPartiallyDeletedArgoCdChartStoreApps() ([]*InstalledApps, error) {
-
-	var installedApps []*InstalledApps
+func (impl InstalledAppRepositoryImpl) GetGitOpsInstalledAppsWhereArgoAppDeletedIsTrue(installedAppId int, envId int) ([]InstalledApps, error) {
+	var installedApps []InstalledApps
 	err := impl.dbConnection.Model(&installedApps).
-		Where("acd_app_deleted = ?", false).
+		Where("deployment_app_delete_request = ?", true).
 		Where("active = ?", false).
+		Where("id = ?", installedAppId).
+		Where("envId = ?", envId).
+		Where("updated_on < ", time.Now().Add(-time.Minute*10)).
 		Select()
 	if err != nil {
-		impl.Logger.Errorw("unable to get partially deleted argocd apps")
+		impl.Logger.Errorw("error in fetching pipeline while udating delete status", "err", err)
+		return nil, err
 	}
-	return installedApps, err
+	return installedApps, nil
 }

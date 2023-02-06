@@ -659,22 +659,22 @@ func (_m *PipelineRepository) GetConnection() *pg.DB {
 	return r0
 }
 
-// GetPartiallyDeletedPipelines provides a mock function with given fields: _a0
-func (_m *PipelineRepository) GetPartiallyDeletedPipelines(_a0 string) ([]*pipelineConfig.Pipeline, error) {
-	ret := _m.Called(_a0)
+// GetPartiallyDeletedPipelineByStatus provides a mock function with given fields: appId, envId
+func (_m *PipelineRepository) GetPartiallyDeletedPipelineByStatus(appId int, envId int) ([]pipelineConfig.Pipeline, error) {
+	ret := _m.Called(appId, envId)
 
-	var r0 []*pipelineConfig.Pipeline
-	if rf, ok := ret.Get(0).(func(string) []*pipelineConfig.Pipeline); ok {
-		r0 = rf(_a0)
+	var r0 []pipelineConfig.Pipeline
+	if rf, ok := ret.Get(0).(func(int, int) []pipelineConfig.Pipeline); ok {
+		r0 = rf(appId, envId)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*pipelineConfig.Pipeline)
+			r0 = ret.Get(0).([]pipelineConfig.Pipeline)
 		}
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string) error); ok {
-		r1 = rf(_a0)
+	if rf, ok := ret.Get(1).(func(int, int) error); ok {
+		r1 = rf(appId, envId)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -775,20 +775,6 @@ func (_m *PipelineRepository) UpdateCdPipeline(pipeline *pipelineConfig.Pipeline
 	var r0 error
 	if rf, ok := ret.Get(0).(func(*pipelineConfig.Pipeline) error); ok {
 		r0 = rf(pipeline)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// UpdateDeleteStatusByArgoAppName provides a mock function with given fields: argoAppName
-func (_m *PipelineRepository) UpdateDeleteStatusByArgoAppName(argoAppName string) error {
-	ret := _m.Called(argoAppName)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string) error); ok {
-		r0 = rf(argoAppName)
 	} else {
 		r0 = ret.Error(0)
 	}
