@@ -99,6 +99,7 @@ type PipelineRepository interface {
 	FindIdsByProjectIdsAndEnvironmentIds(projectIds, environmentIds []int) ([]int, error)
 
 	GetArgoPipelineByArgoAppName(argoAppName string) (Pipeline, error)
+	GetPartiallyDeletedPipelineByStatus(appId int, envId int) ([]Pipeline, error)
 }
 
 type CiArtifactDTO struct {
@@ -516,4 +517,18 @@ func (impl PipelineRepositoryImpl) GetArgoPipelineByArgoAppName(argoAppName stri
 		return pipeline, err
 	}
 	return pipeline, nil
+}
+
+func (impl PipelineRepositoryImpl) GetPartiallyDeletedPipelineByStatus(appId int, envId int) ([]Pipeline, error) {
+	var pipeline []Pipeline
+	err := impl.dbConnection.Model(&pipeline).
+		Where("app_id = ?", appId).
+		Where("env_id = ?", envId).
+		Where("deployment_app_delete_request = ?", true).
+		Where("deleted = ?", false).
+		Where("updated_on<?", time.Now().Add(-time.Minute*10)).Select()
+	if err != nil {
+		impl.logger.Errorw("error in updating argo pipeline delete status")
+	}
+	return pipeline, err
 }

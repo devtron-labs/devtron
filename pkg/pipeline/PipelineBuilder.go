@@ -127,6 +127,7 @@ type PipelineBuilder interface {
 	DeleteCiPipeline(request *bean.CiPatchRequest) (*bean.CiPipeline, error)
 	IsGitOpsRequiredForCD(pipelineCreateRequest *bean.CdPipelines) bool
 	SetPipelineDeploymentAppType(pipelineCreateRequest *bean.CdPipelines, isGitOpsConfigured bool)
+	UpdateArgoDeleteStatusForDevtronApps(appId int, envId int) error
 }
 
 type PipelineBuilderImpl struct {
@@ -3125,4 +3126,26 @@ func (impl PipelineBuilderImpl) buildResponses() []bean.ResponseSchemaObject {
 	responseSchemaObjects = append(responseSchemaObjects, response400)
 	responseSchemaObjects = append(responseSchemaObjects, response401)
 	return responseSchemaObjects
+}
+
+func (impl PipelineBuilderImpl) UpdateArgoDeleteStatusForDevtronApps(appId int, envId int) error {
+
+	pipelines, err := impl.pipelineRepository.GetPartiallyDeletedPipelineByStatus(appId, envId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching partially deleted pipelines", "err", err)
+		return err
+	}
+	if len(pipelines) == 0 {
+		return nil
+	}
+	for _, pipeline := range pipelines {
+		_, err := impl.ArgoK8sClient.GetArgoApplication(pipeline.Environment.Namespace, pipeline.App.AppName, nil)
+		if err != nil {
+			impl.logger.Errorw("error in fetching app from argo", "err", err)
+			//fmt.Sprintf(argoApp[])
+			//make call to delete it from pipeline DB
+			return err
+		}
+	}
+	return nil
 }

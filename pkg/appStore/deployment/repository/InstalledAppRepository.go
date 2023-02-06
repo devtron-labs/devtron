@@ -59,6 +59,7 @@ type InstalledAppRepository interface {
 	GetInstalledApplicationByClusterIdAndNamespaceAndAppName(clusterId int, namespace string, appName string) (*InstalledApps, error)
 	GetAppAndEnvDetailsForDeploymentAppTypeInstalledApps(deploymentAppType string, clusterIds []int) ([]*InstalledApps, error)
 	GetDeploymentSuccessfulStatusCountForTelemetry() (int, error)
+	GetGitOpsInstalledAppsWhereArgoAppDeletedIsTrue(installedAppId int, envId int) ([]InstalledApps, error)
 }
 
 type InstalledAppRepositoryImpl struct {
@@ -492,4 +493,19 @@ func (impl InstalledAppRepositoryImpl) GetDeploymentSuccessfulStatusCountForTele
 		impl.Logger.Errorw("unable to get deployment count of successfully deployed Helm apps")
 	}
 	return count, err
+}
+func (impl InstalledAppRepositoryImpl) GetGitOpsInstalledAppsWhereArgoAppDeletedIsTrue(installedAppId int, envId int) ([]InstalledApps, error) {
+	var installedApps []InstalledApps
+	err := impl.dbConnection.Model(&installedApps).
+		Where("deployment_app_delete_request = ?", true).
+		Where("active = ?", false).
+		Where("id = ?", installedAppId).
+		Where("envId = ?", envId).
+		Where("updated_on < ", time.Now().Add(-time.Minute*10)).
+		Select()
+	if err != nil {
+		impl.Logger.Errorw("error in fetching pipeline while udating delete status", "err", err)
+		return nil, err
+	}
+	return installedApps, nil
 }

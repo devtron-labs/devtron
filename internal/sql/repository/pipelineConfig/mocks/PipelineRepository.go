@@ -659,6 +659,29 @@ func (_m *PipelineRepository) GetConnection() *pg.DB {
 	return r0
 }
 
+// GetPartiallyDeletedPipelineByStatus provides a mock function with given fields: appId, envId
+func (_m *PipelineRepository) GetPartiallyDeletedPipelineByStatus(appId int, envId int) ([]pipelineConfig.Pipeline, error) {
+	ret := _m.Called(appId, envId)
+
+	var r0 []pipelineConfig.Pipeline
+	if rf, ok := ret.Get(0).(func(int, int) []pipelineConfig.Pipeline); ok {
+		r0 = rf(appId, envId)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]pipelineConfig.Pipeline)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(int, int) error); ok {
+		r1 = rf(appId, envId)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // PipelineExists provides a mock function with given fields: pipelineName
 func (_m *PipelineRepository) PipelineExists(pipelineName string) (bool, error) {
 	ret := _m.Called(pipelineName)
