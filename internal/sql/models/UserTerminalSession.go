@@ -26,6 +26,7 @@ type UserTerminalSessionResponse struct {
 	UserId                int32             `json:"userId"`
 	TerminalAccessId      int               `json:"terminalAccessId"`
 	Status                TerminalPodStatus `json:"status"`
+	ErrorReason           string            `json:"errorReason"`
 	PodName               string            `json:"podName"`
 	NodeName              string            `json:"nodeName"`
 }
@@ -46,6 +47,7 @@ const TerminalAccessServiceAccountTemplateName = "terminal-access-service-accoun
 const TerminalAccessServiceAccountTemplate = TerminalAccessPodNameTemplate + "-sa"
 const MaxSessionLimitReachedMsg = "session-limit-reached"
 const AUTO_SELECT_NODE string = "autoSelectNode"
+const ShellNotSupported string = "shell is not supported for the selected image"
 
 type TerminalPodStatus string
 
