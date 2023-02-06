@@ -113,7 +113,7 @@ type DeploymentDetailContainer struct {
 	ClusterName                   string          `json:"clusterName,omitempty"`
 	DockerRegistryId              string          `json:"dockerRegistryId,omitempty"`
 	IpsAccessProvided             bool            `json:"ipsAccessProvided"`
-	AcdAppDeleted                 bool            `json:"acdAppDeleted"`
+	DeploymentAppDeleteRequest    bool            `json:"deploymentAppDeleteRequest"`
 }
 
 type AppDetailContainer struct {
@@ -125,15 +125,15 @@ type AppDetailContainer struct {
 }
 
 type Environment struct {
-	AppStatus       string `json:"appStatus"` //this is not the status of environment , this make sense with a specific app only
-	EnvironmentId   int    `json:"environmentId"`
-	EnvironmentName string `json:"environmentName"`
-	AppMetrics      *bool  `json:"appMetrics"`
-	InfraMetrics    *bool  `json:"infraMetrics"`
-	Prod            bool   `json:"prod"`
-	ChartRefId      int    `json:"chartRefId"`
-	LastDeployed    string `json:"lastDeployed"`
-	AcdAppDeleted   bool   `json:"acdAppDeleted"`
+	AppStatus                  string `json:"appStatus"` //this is not the status of environment , this make sense with a specific app only
+	EnvironmentId              int    `json:"environmentId"`
+	EnvironmentName            string `json:"environmentName"`
+	AppMetrics                 *bool  `json:"appMetrics"`
+	InfraMetrics               *bool  `json:"infraMetrics"`
+	Prod                       bool   `json:"prod"`
+	ChartRefId                 int    `json:"chartRefId"`
+	LastDeployed               string `json:"lastDeployed"`
+	DeploymentAppDeleteRequest bool   `json:"deploymentAppDeleteRequest"`
 }
 
 type InstanceDetail struct {

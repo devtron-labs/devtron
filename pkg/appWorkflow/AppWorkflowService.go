@@ -66,14 +66,14 @@ type AppWorkflowDto struct {
 }
 
 type AppWorkflowMappingDto struct {
-	Id            int    `json:"id,omitempty"`
-	AppWorkflowId int    `json:"appWorkflowId"`
-	Type          string `json:"type"`
-	ComponentId   int    `json:"componentId"`
-	ParentId      int    `json:"parentId"`
-	ParentType    string `json:"parentType"`
-	AcdAppDeleted bool   `json:"acdAppDeleted"`
-	UserId        int32  `json:"-"`
+	Id                         int    `json:"id,omitempty"`
+	AppWorkflowId              int    `json:"appWorkflowId"`
+	Type                       string `json:"type"`
+	ComponentId                int    `json:"componentId"`
+	ParentId                   int    `json:"parentId"`
+	ParentType                 string `json:"parentType"`
+	DeploymentAppDeleteRequest bool   `json:"deploymentAppDeleteRequest"`
+	UserId                     int32  `json:"-"`
 }
 
 type AllAppWorkflowComponentDetails struct {
@@ -287,7 +287,7 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowMapping(workflowId int) ([]App
 				return nil, err
 			}
 			if pipeline != nil {
-				workflow.AcdAppDeleted = pipeline.AcdAppDeleted
+				workflow.DeploymentAppDeleteRequest = pipeline.DeploymentAppDeleteRequest
 			}
 		}
 		workflows = append(workflows, workflow)

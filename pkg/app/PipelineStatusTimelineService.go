@@ -42,14 +42,14 @@ func NewPipelineStatusTimelineServiceImpl(logger *zap.SugaredLogger,
 }
 
 type PipelineTimelineDetailDto struct {
-	DeploymentStartedOn  time.Time                    `json:"deploymentStartedOn"`
-	DeploymentFinishedOn time.Time                    `json:"deploymentFinishedOn"`
-	TriggeredBy          string                       `json:"triggeredBy"`
-	Timelines            []*PipelineStatusTimelineDto `json:"timelines"`
-	StatusLastFetchedAt  time.Time                    `json:"statusLastFetchedAt"`
-	StatusFetchCount     int                          `json:"statusFetchCount"`
-	WfrStatus            string                       `json:"wfrStatus"`
-	AcdAppDeleted        bool                         `json:"acdAppDeleted"`
+	DeploymentStartedOn        time.Time                    `json:"deploymentStartedOn"`
+	DeploymentFinishedOn       time.Time                    `json:"deploymentFinishedOn"`
+	TriggeredBy                string                       `json:"triggeredBy"`
+	Timelines                  []*PipelineStatusTimelineDto `json:"timelines"`
+	StatusLastFetchedAt        time.Time                    `json:"statusLastFetchedAt"`
+	StatusFetchCount           int                          `json:"statusFetchCount"`
+	WfrStatus                  string                       `json:"wfrStatus"`
+	DeploymentAppDeleteRequest bool                         `json:"deploymentAppDeleteRequest"`
 }
 
 type PipelineStatusTimelineDto struct {
@@ -187,14 +187,14 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelines(appId, envId, wfrI
 		}
 	}
 	timelineDetail := &PipelineTimelineDetailDto{
-		TriggeredBy:          triggeredByUser.EmailId,
-		DeploymentStartedOn:  deploymentStartedOn,
-		DeploymentFinishedOn: deploymentFinishedOn,
-		Timelines:            timelineDtos,
-		StatusLastFetchedAt:  statusLastFetchedAt,
-		StatusFetchCount:     statusFetchCount,
-		WfrStatus:            wfrStatus,
-		AcdAppDeleted:        wfr.CdWorkflow.Pipeline.AcdAppDeleted,
+		TriggeredBy:                triggeredByUser.EmailId,
+		DeploymentStartedOn:        deploymentStartedOn,
+		DeploymentFinishedOn:       deploymentFinishedOn,
+		Timelines:                  timelineDtos,
+		StatusLastFetchedAt:        statusLastFetchedAt,
+		StatusFetchCount:           statusFetchCount,
+		WfrStatus:                  wfrStatus,
+		DeploymentAppDeleteRequest: wfr.CdWorkflow.Pipeline.DeploymentAppDeleteRequest,
 	}
 	return timelineDetail, nil
 }
