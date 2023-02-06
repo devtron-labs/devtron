@@ -33,6 +33,7 @@ import (
 	"net/http"
 	"regexp"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -104,32 +105,39 @@ func (impl PumpImpl) StartK8sStreamWithHeartBeat(w http.ResponseWriter, isReconn
 		done <- true
 	}()
 
-	// heartbeat end
-	for {
-		sc := bufio.NewScanner(stream)
-		//adjust the capacity to your need (max characters in line)
-		const defaultBufSize = 4096
-		buf := make([]byte, defaultBufSize)
-		sc.Buffer(buf, defaultBufSize)
-		for sc.Scan() {
-			log := sc.Text()
-			a := regexp.MustCompile(" ")
-			splitLog := a.Split(log, 2)
-			timeParsed, err := time.Parse(time.RFC3339, splitLog[0])
-			if err != nil {
-				impl.logger.Errorw("error in writing data over sse", "err", err)
+	bufReader := bufio.NewReader(stream)
+	eof := false
+	for !eof {
+		log, err := bufReader.ReadString('\n')
+		if err == io.EOF {
+			eof = true
+			// stop if we reached end of stream and the next line is empty
+			if log == "" {
 				return
 			}
-			mux.Lock()
-			err = impl.sendEvent([]byte(strconv.FormatInt(timeParsed.UnixNano(), 10)), nil, []byte(splitLog[1]), w)
-			mux.Unlock()
-			if err != nil {
-				impl.logger.Errorw("error in writing data over sse", "err", err)
-				return
-			}
-			f.Flush()
+		} else if err != nil && err != io.EOF {
+			impl.logger.Errorw("error in reading buffer string, StartK8sStreamWithHeartBeat", "err", err)
+			return
 		}
+		log = strings.TrimSpace(log) // Remove trailing line ending
+		a := regexp.MustCompile(" ")
+		splitLog := a.Split(log, 2)
+		parsedTime, err := time.Parse(time.RFC3339, splitLog[0])
+		if err != nil {
+			impl.logger.Errorw("error in writing data over sse", "err", err)
+			return
+		}
+		eventId := strconv.FormatInt(parsedTime.UnixNano(), 10)
+		mux.Lock()
+		err = impl.sendEvent([]byte(eventId), nil, []byte(splitLog[1]), w)
+		mux.Unlock()
+		if err != nil {
+			impl.logger.Errorw("error in writing data over sse", "err", err)
+			return
+		}
+		f.Flush()
 	}
+	// heartbeat end
 }
 
 func (impl PumpImpl) StartStreamWithHeartBeat(w http.ResponseWriter, isReconnect bool, recv func() (*application.LogEntry, error), err error) {
