@@ -480,7 +480,8 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		CiBuildConfig:              ciBuildConfigBean,
 		CiBuildDockerMtuValue:      impl.ciConfig.CiRunnerDockerMTUValue,
 		IgnoreDockerCachePush:      impl.ciConfig.IgnoreDockerCacheForCI,
-		IgnoreDockerCachePull:      impl.ciConfig.IgnoreDockerCacheForCI || trigger.InvalidateCache,
+		IgnoreDockerCachePull:      impl.ciConfig.IgnoreDockerCacheForCI,
+		CacheInvalidate:            trigger.InvalidateCache,
 	}
 
 	if ciWorkflowConfig.LogsBucket == "" {

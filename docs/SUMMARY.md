@@ -41,9 +41,9 @@
 ## Usage
 
 * [Applications](user-guide/applications.md)
-  * [Create a new application](user-guide/create-application.md)
-  * [Clone an existing application](user-guide/cloning-application.md)
-  * [Deploy a sample application](user-guide/Deploy-sample-app/nodejs\_app.md)
+  * [Create a New Application](user-guide/create-application.md)
+  * [Clone an Existing Application](user-guide/cloning-application.md)
+  * [Deploy a Sample Application](user-guide/Deploy-sample-app/nodejs\_app.md)
   * [App Configuration](user-guide/creating-application/README.md)
     * [Git Repository](user-guide/creating-application/git-material.md)
     * [Build Configuration](user-guide/creating-application/docker-build-configuration.md)

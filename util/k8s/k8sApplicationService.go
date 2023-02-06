@@ -127,6 +127,7 @@ func (impl *K8sApplicationServiceImpl) FilterServiceAndIngress(ctx context.Conte
 			version := impl.extractResourceValue(resourceItem, "version")
 			req := ResourceRequestBean{
 				AppId: appId,
+				ClusterId: appDetail.ClusterId,
 				AppIdentifier: &client.AppIdentifier{
 					ClusterId: appDetail.ClusterId,
 				},
@@ -370,10 +371,11 @@ func (impl *K8sApplicationServiceImpl) DeleteResource(ctx context.Context, reque
 		impl.logger.Errorw("error in deleting resource", "err", err, "request", request)
 		return nil, err
 	}
-	saveAuditLogsErr := impl.K8sResourceHistoryService.SaveHelmAppsResourceHistory(request.AppIdentifier, request.K8sRequest, userId, "delete")
-
-	if saveAuditLogsErr != nil {
-		impl.logger.Errorw("error in saving audit logs for delete resource request", "err", err)
+	if request.AppIdentifier != nil {
+		saveAuditLogsErr := impl.K8sResourceHistoryService.SaveHelmAppsResourceHistory(request.AppIdentifier, request.K8sRequest, userId, "delete")
+		if saveAuditLogsErr != nil {
+			impl.logger.Errorw("error in saving audit logs for delete resource request", "err", err)
+		}
 	}
 	return resp, nil
 }
