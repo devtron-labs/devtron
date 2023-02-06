@@ -472,6 +472,7 @@ type CDPipelineConfigObject struct {
 	ParentPipelineId              int                                    `json:"parentPipelineId"`
 	ParentPipelineType            string                                 `json:"parentPipelineType"`
 	DeploymentAppType             string                                 `json:"deploymentAppType"`
+	DeploymentAppDeleteRequest    bool                                   `json:"deploymentAppDeleteRequest"`
 	//Downstream         []int                             `json:"downstream"` //PipelineCounter of downstream	(for future reference only)
 }
 
@@ -520,6 +521,7 @@ const (
 	CD_CREATE CdPatchAction = iota
 	CD_DELETE               //delete this pipeline
 	CD_UPDATE
+	CD_DELETE_PARTIAL
 )
 
 func (a CdPatchAction) String() string {

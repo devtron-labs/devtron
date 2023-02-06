@@ -66,13 +66,14 @@ type AppWorkflowDto struct {
 }
 
 type AppWorkflowMappingDto struct {
-	Id            int    `json:"id,omitempty"`
-	AppWorkflowId int    `json:"appWorkflowId"`
-	Type          string `json:"type"`
-	ComponentId   int    `json:"componentId"`
-	ParentId      int    `json:"parentId"`
-	ParentType    string `json:"parentType"`
-	UserId        int32  `json:"-"`
+	Id                         int    `json:"id,omitempty"`
+	AppWorkflowId              int    `json:"appWorkflowId"`
+	Type                       string `json:"type"`
+	ComponentId                int    `json:"componentId"`
+	ParentId                   int    `json:"parentId"`
+	ParentType                 string `json:"parentType"`
+	DeploymentAppDeleteRequest bool   `json:"deploymentAppDeleteRequest"`
+	UserId                     int32  `json:"-"`
 }
 
 type AllAppWorkflowComponentDetails struct {
@@ -278,6 +279,16 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowMapping(workflowId int) ([]App
 			Type:          w.Type,
 			AppWorkflowId: w.AppWorkflowId,
 			ParentType:    w.ParentType,
+		}
+		if w.Type == "CD_PIPELINE" {
+			pipeline, err := impl.pipelineRepository.FindById(w.ComponentId)
+			if err != nil && err != pg.ErrNoRows {
+				impl.Logger.Errorw("err", "err", err)
+				return nil, err
+			}
+			if pipeline != nil {
+				workflow.DeploymentAppDeleteRequest = pipeline.DeploymentAppDeleteRequest
+			}
 		}
 		workflows = append(workflows, workflow)
 	}
