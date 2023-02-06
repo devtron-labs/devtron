@@ -14,17 +14,20 @@
 package terminal
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	errors1 "github.com/juju/errors"
 	"go.uber.org/zap"
 	"io"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 
 	"gopkg.in/igm/sockjs-go.v3/sockjs"
@@ -226,6 +229,49 @@ func startProcess(k8sClient kubernetes.Interface, cfg *rest.Config,
 	podName := sessionRequest.PodName
 	containerName := sessionRequest.ContainerName
 
+	//req := k8sClient.CoreV1().RESTClient().Post().
+	//	Resource("pods").
+	//	Name(podName).
+	//	Namespace(namespace).
+	//	SubResource("exec")
+	//
+	//req.VersionedParams(&v1.PodExecOptions{
+	//	Container: containerName,
+	//	Command:   cmd,
+	//	Stdin:     true,
+	//	Stdout:    true,
+	//	Stderr:    true,
+	//	TTY:       true,
+	//}, scheme.ParameterCodec)
+
+	exec, err := getExecutor(k8sClient, cfg, podName, namespace, containerName, cmd, true)
+	//remotecommand.NewSPDYExecutor(cfg, "POST", req.URL())
+	if err != nil {
+		return err
+	}
+
+	//err = exec.Stream(
+	streamOptions := remotecommand.StreamOptions{
+		Stdin:             ptyHandler,
+		Stdout:            ptyHandler,
+		Stderr:            ptyHandler,
+		TerminalSizeQueue: ptyHandler,
+		Tty:               true,
+	}
+	//)
+	err = execWithStreamOptions(exec, streamOptions)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func execWithStreamOptions(exec remotecommand.Executor, streamOptions remotecommand.StreamOptions) error {
+	return exec.Stream(streamOptions)
+}
+
+func getExecutor(k8sClient kubernetes.Interface, cfg *rest.Config, podName, namespace, containerName string, cmd []string, stdin bool) (remotecommand.Executor, error) {
 	req := k8sClient.CoreV1().RESTClient().Post().
 		Resource("pods").
 		Name(podName).
@@ -235,29 +281,14 @@ func startProcess(k8sClient kubernetes.Interface, cfg *rest.Config,
 	req.VersionedParams(&v1.PodExecOptions{
 		Container: containerName,
 		Command:   cmd,
-		Stdin:     true,
+		Stdin:     stdin,
 		Stdout:    true,
 		Stderr:    true,
 		TTY:       true,
 	}, scheme.ParameterCodec)
 
 	exec, err := remotecommand.NewSPDYExecutor(cfg, "POST", req.URL())
-	if err != nil {
-		return err
-	}
-
-	err = exec.Stream(remotecommand.StreamOptions{
-		Stdin:             ptyHandler,
-		Stdout:            ptyHandler,
-		Stderr:            ptyHandler,
-		TerminalSizeQueue: ptyHandler,
-		Tty:               true,
-	})
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return exec, err
 }
 
 // genTerminalSessionId generates a random session ID string. The format is not really interesting.
@@ -433,4 +464,34 @@ func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequ
 		return nil, nil, err
 	}
 	return cfg, clientSet, nil
+}
+
+func (impl *TerminalSessionHandlerImpl) ValidateShell(req *TerminalSessionRequest) (bool, error) {
+	config, client, err := impl.getClientConfig(req)
+	if err != nil {
+		impl.logger.Errorw("error in fetching config", "err", err)
+		return false, err
+	}
+	cmd := "/bin/${shellName}"
+	cmd = strings.ReplaceAll(cmd, "${shellName}", req.Shell)
+	cmdArray := []string{cmd}
+	exec, err := getExecutor(client, config, req.PodName, req.Namespace, req.ContainerName, cmdArray, false)
+	if err != nil {
+		return false, err
+	}
+	buf := &bytes.Buffer{}
+	errBuf := &bytes.Buffer{}
+	err = execWithStreamOptions(exec, remotecommand.StreamOptions{
+		Stdout: buf,
+		Stderr: errBuf,
+	})
+	if err != nil {
+		impl.logger.Error("failed to execute commands", "err", err, "commands", cmdArray)
+		return false, err
+	}
+	errBufString := errBuf.String()
+	if errBufString != "" {
+		return false, errors1.New(errBufString)
+	}
+	return true, nil
 }
