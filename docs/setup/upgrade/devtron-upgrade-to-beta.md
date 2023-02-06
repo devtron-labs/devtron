@@ -1,4 +1,4 @@
-# Upgrading exsisting devtron to beta
+# Upgrading existing devtron to beta
 
 If you want to check the current version of Devtron you are using, please use the following command.
 
