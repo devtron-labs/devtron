@@ -372,11 +372,6 @@ func (impl *ClusterServiceImpl) FindByIds(ids []int) ([]ClusterBean, error) {
 }
 
 func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
-	//validating config
-	err := impl.CheckIfConfigIsValid(bean)
-	if err != nil {
-		return nil, err
-	}
 	model, err := impl.clusterRepository.FindById(bean.Id)
 	if err != nil {
 		impl.logger.Error(err)
@@ -400,6 +395,11 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 	}
 	if bean.ServerUrl != model.ServerUrl || dbConfig != requestConfig {
 		bean.HasConfigOrUrlChanged = true
+		//validating config
+		err := impl.CheckIfConfigIsValid(bean)
+		if err != nil {
+			return nil, err
+		}
 	}
 	model.ClusterName = bean.ClusterName
 	model.ServerUrl = bean.ServerUrl
