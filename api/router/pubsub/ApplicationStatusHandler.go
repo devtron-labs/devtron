@@ -18,7 +18,11 @@
 package pubsub
 
 import (
+	"context"
 	"encoding/json"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
+	repository4 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"time"
 
 	v1alpha12 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -36,21 +40,31 @@ type ApplicationStatusHandler interface {
 }
 
 type ApplicationStatusHandlerImpl struct {
-	logger              *zap.SugaredLogger
-	pubsubClient        *pubsub.PubSubClientServiceImpl
-	appService          app.AppService
-	workflowDagExecutor pipeline.WorkflowDagExecutor
-	installedAppService service.InstalledAppService
+	logger                    *zap.SugaredLogger
+	pubsubClient              *pubsub.PubSubClientServiceImpl
+	appService                app.AppService
+	workflowDagExecutor       pipeline.WorkflowDagExecutor
+	installedAppService       service.InstalledAppService
+	appStoreDeploymentService service.AppStoreDeploymentService
+	pipelineBuilder           pipeline.PipelineBuilder
+	pipelineRepository        pipelineConfig.PipelineRepository
+	installedAppRepository    repository4.InstalledAppRepository
 }
 
 func NewApplicationStatusHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClientServiceImpl, appService app.AppService,
-	workflowDagExecutor pipeline.WorkflowDagExecutor, installedAppService service.InstalledAppService) *ApplicationStatusHandlerImpl {
+	workflowDagExecutor pipeline.WorkflowDagExecutor, installedAppService service.InstalledAppService,
+	appStoreDeploymentService service.AppStoreDeploymentService, pipelineBuilder pipeline.PipelineBuilder,
+	pipelineRepository pipelineConfig.PipelineRepository, installedAppRepository repository4.InstalledAppRepository) *ApplicationStatusHandlerImpl {
 	appStatusUpdateHandlerImpl := &ApplicationStatusHandlerImpl{
-		logger:              logger,
-		pubsubClient:        pubsubClient,
-		appService:          appService,
-		workflowDagExecutor: workflowDagExecutor,
-		installedAppService: installedAppService,
+		logger:                    logger,
+		pubsubClient:              pubsubClient,
+		appService:                appService,
+		workflowDagExecutor:       workflowDagExecutor,
+		installedAppService:       installedAppService,
+		appStoreDeploymentService: appStoreDeploymentService,
+		pipelineBuilder:           pipelineBuilder,
+		pipelineRepository:        pipelineRepository,
+		installedAppRepository:    installedAppRepository,
 	}
 	err := appStatusUpdateHandlerImpl.Subscribe()
 	if err != nil {
@@ -140,7 +154,7 @@ func (impl *ApplicationStatusHandlerImpl) SubscribeDeleteStatus() error {
 		if app == nil {
 			return
 		}
-		err = impl.appService.UpdateArgoAppDeleteStatus(app)
+		err = impl.updateArgoAppDeleteStatus(app)
 		if err != nil {
 			impl.logger.Errorw("error in updating pipeline delete status", "err", err)
 		}
@@ -149,6 +163,51 @@ func (impl *ApplicationStatusHandlerImpl) SubscribeDeleteStatus() error {
 	if err != nil {
 		impl.logger.Errorw("error in subscribing to argo application status delete topic", "err", err)
 		return err
+	}
+	return nil
+}
+
+func (impl *ApplicationStatusHandlerImpl) updateArgoAppDeleteStatus(app *v1alpha12.Application) error {
+	pipeline, err := impl.pipelineRepository.GetArgoPipelineByArgoAppName(app.Name)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching pipeline from Pipeline Repository", "err", err)
+		return err
+	}
+	if err == pg.ErrNoRows {
+		//Helm app deployed using argocd
+		var gitHash string
+		if app.Operation != nil && app.Operation.Sync != nil {
+			gitHash = app.Operation.Sync.Revision
+		} else if app.Status.OperationState != nil && app.Status.OperationState.Operation.Sync != nil {
+			gitHash = app.Status.OperationState.Operation.Sync.Revision
+		}
+		model, err := impl.installedAppRepository.GetInstalledAppByGitHash(gitHash)
+		if err != nil {
+			impl.logger.Errorw("error in fetching installed app by git hash from installed app repository", "err", err)
+			return err
+		}
+		deleteRequest := &appStoreBean.InstallAppVersionDTO{}
+		deleteRequest.ForceDelete = false
+		deleteRequest.AcdPartialDelete = false
+		deleteRequest.InstalledAppId = model.InstalledAppId
+		deleteRequest.AppId = model.AppId
+		deleteRequest.AppName = model.AppName
+		deleteRequest.Namespace = model.Namespace
+		deleteRequest.ClusterId = model.ClusterId
+		deleteRequest.EnvironmentId = model.EnvironmentId
+		deleteRequest.AppOfferingMode = model.AppOfferingMode
+		_, err = impl.appStoreDeploymentService.DeleteInstalledApp(context.Background(), deleteRequest)
+		if err != nil {
+			impl.logger.Errorw("error in deleting installed app", "err", err)
+			return err
+		}
+	} else {
+		// devtron app
+		err = impl.pipelineBuilder.DeleteCdPipeline(&pipeline, context.Background(), true, false, 0)
+		if err != nil {
+			impl.logger.Errorw("error in deleting cd pipeline", "err", err)
+			return err
+		}
 	}
 	return nil
 }

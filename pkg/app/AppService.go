@@ -26,12 +26,10 @@ import (
 	"github.com/caarlos0/env"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	client2 "github.com/devtron-labs/devtron/api/helm-app"
-	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/util/argo"
 	"go.opentelemetry.io/otel"
@@ -150,7 +148,6 @@ type AppServiceImpl struct {
 	appStatusConfig                        *AppStatusConfig
 	gitOpsConfigRepository                 repository.GitOpsConfigRepository
 	appStatusService                       appStatus.AppStatusService
-	pipelineBuilder                        pipeline.PipelineBuilder
 	installedAppRepository                 repository4.InstalledAppRepository
 	AppStoreDeploymentService              service.AppStoreDeploymentService
 }
@@ -167,7 +164,6 @@ type AppService interface {
 	GetChartRepoName(gitRepoUrl string) string
 	UpdateDeploymentStatusForGitOpsCdPipelines(app *v1alpha1.Application, statusTime time.Time) (bool, bool, error)
 	WriteCDSuccessEvent(appId int, envId int, override *chartConfig.PipelineOverride)
-	UpdateArgoAppDeleteStatus(app *v1alpha1.Application) error
 }
 
 func NewAppService(
@@ -212,7 +208,6 @@ func NewAppService(
 	appStatusConfig *AppStatusConfig,
 	gitOpsConfigRepository repository.GitOpsConfigRepository,
 	appStatusService appStatus.AppStatusService,
-	pipelineBuilder pipeline.PipelineBuilder,
 	installedAppRepository repository4.InstalledAppRepository,
 	AppStoreDeploymentService service.AppStoreDeploymentService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
@@ -267,7 +262,6 @@ func NewAppService(
 		appStatusConfig:                        appStatusConfig,
 		gitOpsConfigRepository:                 gitOpsConfigRepository,
 		appStatusService:                       appStatusService,
-		pipelineBuilder:                        pipelineBuilder,
 		installedAppRepository:                 installedAppRepository,
 		AppStoreDeploymentService:              AppStoreDeploymentService,
 	}
@@ -2119,50 +2113,4 @@ func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Val
 		}
 	}
 	return true, nil
-}
-
-func (impl *AppServiceImpl) UpdateArgoAppDeleteStatus(app *v1alpha1.Application) error {
-
-	pipeline, err := impl.pipelineRepository.GetArgoPipelineByArgoAppName(app.Name)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in fetching pipeline from Pipeline Repository", "err", err)
-		return err
-	}
-	if err == pg.ErrNoRows {
-		//Helm app deployed using argocd
-		var gitHash string
-		if app.Operation != nil && app.Operation.Sync != nil {
-			gitHash = app.Operation.Sync.Revision
-		} else if app.Status.OperationState != nil && app.Status.OperationState.Operation.Sync != nil {
-			gitHash = app.Status.OperationState.Operation.Sync.Revision
-		}
-		model, err := impl.installedAppRepository.GetInstalledAppByGitHash(gitHash)
-		if err != nil {
-			impl.logger.Errorw("error in fetching installed app by git hash from installed app repository", "err", err)
-			return err
-		}
-		deleteRequest := &appStoreBean.InstallAppVersionDTO{}
-		deleteRequest.ForceDelete = false
-		deleteRequest.AcdPartialDelete = false
-		deleteRequest.InstalledAppId = model.InstalledAppId
-		deleteRequest.AppId = model.AppId
-		deleteRequest.AppName = model.AppName
-		deleteRequest.Namespace = model.Namespace
-		deleteRequest.ClusterId = model.ClusterId
-		deleteRequest.EnvironmentId = model.EnvironmentId
-		deleteRequest.AppOfferingMode = model.AppOfferingMode
-		_, err = impl.AppStoreDeploymentService.DeleteInstalledApp(context.Background(), deleteRequest)
-		if err != nil {
-			impl.logger.Errorw("error in deleting installed app", "err", err)
-			return err
-		}
-	} else {
-		// devtron app
-		err = impl.pipelineBuilder.DeleteCdPipeline(&pipeline, context.Background(), true, false, 0)
-		if err != nil {
-			impl.logger.Errorw("error in deleting cd pipeline", "err", err)
-			return err
-		}
-	}
-	return nil
 }
