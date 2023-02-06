@@ -79,7 +79,10 @@ kubectl -n devtroncd get secret devtron-secret \
 -o jsonpath='{.data.ADMIN_PASSWORD}' | base64 -d
 ```
 
-### For Devtron version less than v0.6.0
+
+<details>
+<summary>For Devtron version less than v0.6.0</summary>
+<br>
 
 **Username**: `admin` <br>
 **Password**: Run the following command to get the admin password:
@@ -88,6 +91,8 @@ kubectl -n devtroncd get secret devtron-secret \
 kubectl -n devtroncd get secret devtron-secret \
 -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
 ```
+</details>
+
 
 ## Install Devtron on Cloud VM (AWS ec2, Azure VM, GCP VM)
 

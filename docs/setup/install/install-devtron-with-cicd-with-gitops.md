@@ -238,7 +238,10 @@ kubectl -n devtroncd get secret devtron-secret \
 -o jsonpath='{.data.ADMIN_PASSWORD}' | base64 -d
 ```
 
-### For Devtron version less than v0.6.0
+
+<details>
+<summary>For Devtron version less than v0.6.0</summary>
+<br>
 
 **Username**: `admin` <br>
 **Password**: Run the following command to get the admin password:
@@ -247,10 +250,13 @@ kubectl -n devtroncd get secret devtron-secret \
 kubectl -n devtroncd get secret devtron-secret \
 -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
 ```
+</details>
+
+<br>
 
 * If you want to uninstall Devtron or clean Devtron helm installer, refer our [uninstall Devtron](https://docs.devtron.ai/install/uninstall-devtron).
 
-* Related to installaltion, please also refer [FAQ](https://docs.devtron.ai/install/faq-on-installation) section also.
+* Related to installation, please also refer [FAQ](https://docs.devtron.ai/install/faq-on-installation) section also.
 
 
 **Note**: If you have questions, please let us know on our discord channel. [![Join Discord](https://img.shields.io/badge/Join%20us%20on-Discord-e01563.svg)](https://discord.gg/jsRG5qx2gp)
