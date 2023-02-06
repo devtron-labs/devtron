@@ -107,6 +107,10 @@ func (impl PumpImpl) StartK8sStreamWithHeartBeat(w http.ResponseWriter, isReconn
 	// heartbeat end
 	for {
 		sc := bufio.NewScanner(stream)
+		//adjust the capacity to your need (max characters in line)
+		const defaultBufSize = 4096
+		buf := make([]byte, defaultBufSize)
+		sc.Buffer(buf, defaultBufSize)
 		for sc.Scan() {
 			log := sc.Text()
 			a := regexp.MustCompile(" ")
