@@ -48,3 +48,17 @@ Click **Save**. The application will be moved to the selected project.
 * Click `Save`.
 
 The changes in the tags will be reflected in the `Tags` on the `Overview` section.
+
+## Configure PersistentVolumeClaim (PVC) for Build Time Optimization
+
+ A PVC volume is a request for storage, which is used to mount a PV into a Pod. In order to optimize build time, you can configure PVC in your application.
+
+If you want to optimize build time for the multiple target platforms (e.g., arm64, amd64), mounting PVC will provide volume directly to a pod which helps in building cache. Mounting PVC will provide storage for build cache which will not impact the normal build where the image is built on the basis of architecture and operating system of the K8s node on which CI is running.
+
+In order to configure PVC:
+* Go to the `Overview` section of your application.
+* On the right-corner, click `Edit Tags`.
+* For app level PVC mounting, enter the key as `devtron.ai/ci-pvc-all`.<br>`Note`: This PVC mounting will impact all the build pipilines of the application.
+* For pipeline level, enter the key as `devtron.ai/ci-pvc-{pipelinename}`.<br>`Note`: This PVC mounting will impact only the particular pipeline.
+* Click `Save`.
+ 
