@@ -54,7 +54,7 @@ The changes in the tags will be reflected in the `Tags` on the `Overview` sectio
 
  A PersistentVolumeClaim (PVC) volume is a request for storage, which is used to mount a PersistentVolume (PV) into a Pod. In order to optimize build time, you can configure PVC in your application.
 
-If you want to optimize build time for the multiple target platforms (e.g., arm64, amd64), mounting PVC will provide volume directly to a pod which helps in shorter build time by storing build cache. Mounting PVC will provide storage for build cache which will not impact the normal build where the image is built on the basis of architecture and operating system of the K8s node on which CI is running.
+If you want to optimize build time for the multiple target platforms (e.g., arm64, amd64), mounting a PVC will provide volume directly to a pod which helps in shorter build time by storing build cache. Mounting a PVC into a pod will provide storage for build cache which will not impact the normal build where the image is built on the basis of architecture and operating system of the K8s node on which CI is running.
 
 ### Create PVC file
 
