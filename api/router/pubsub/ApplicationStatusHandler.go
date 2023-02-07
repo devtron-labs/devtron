@@ -168,7 +168,7 @@ func (impl *ApplicationStatusHandlerImpl) SubscribeDeleteStatus() error {
 }
 
 func (impl *ApplicationStatusHandlerImpl) updateArgoAppDeleteStatus(app *v1alpha12.Application) error {
-	pipeline, err := impl.pipelineRepository.GetArgoPipelineByArgoAppName(app.Name)
+	pipeline, err := impl.pipelineRepository.GetArgoPipelineByArgoAppName(app.ObjectMeta.Name)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching pipeline from Pipeline Repository", "err", err)
 		return err
@@ -196,6 +196,7 @@ func (impl *ApplicationStatusHandlerImpl) updateArgoAppDeleteStatus(app *v1alpha
 		deleteRequest.ClusterId = model.ClusterId
 		deleteRequest.EnvironmentId = model.EnvironmentId
 		deleteRequest.AppOfferingMode = model.AppOfferingMode
+		deleteRequest.UserId = 1
 		_, err = impl.appStoreDeploymentService.DeleteInstalledApp(context.Background(), deleteRequest)
 		if err != nil {
 			impl.logger.Errorw("error in deleting installed app", "err", err)

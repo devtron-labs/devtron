@@ -242,6 +242,8 @@ func (handler PipelineConfigRestHandlerImpl) PatchCdPipeline(w http.ResponseWrit
 			err = handler.validator.Struct(cdPipeline.Pipeline)
 		} else if cdPipeline.Action == bean.CD_DELETE {
 			err = handler.validator.Var(cdPipeline.Pipeline.Id, "gt=0")
+		} else if cdPipeline.Action == bean.CD_DELETE_PARTIAL {
+			err = handler.validator.Var(cdPipeline.Pipeline.Id, "gt=0")
 		}
 	}
 	if err != nil {
