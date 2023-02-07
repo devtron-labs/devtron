@@ -4,7 +4,7 @@
   <source media="(prefers-color-scheme: light)"  srcset="./assets/devtron-lightmode-logo.png">
   <img width="333.333" height="260" src="./assets/devtron-logo-dark-light.png">
 </picture>
-<h1 align= "center">Cloud Native tool integration platform for Kubernetes</h1>
+<h1 align= "center">A Kubernetes-native Application Management Platform</h1>
 </p>
  
 <p align="center">
@@ -38,14 +38,10 @@
 </a>
 <br>
 </p>
-<h1></h1>
-
-Devtron deeply integrates with products across the lifecycle of microservices,i.e., CI, CD, security, cost, debugging, and observability via an intuitive web interface.
+Devtron is a Kubernetes-native application management platform comprising modular components- Devtron CI/CD pipelines, Devtron App Management Interface for any Kubernetes distribution, and a GitOps module. <br/>
+The Developer friendly web-based dashboard enables developers to build, containerize, and deploy with a 360-degree view of deployments. DevOps and SREs have ultimate control over every Kubernetes resource and infrastructure, providing them with multi-cluster observability and better functional debugging capabilities to troubleshoot issues fast.
 <br>
 <p align="center"><img src="./assets/readme-comic.png"></p>
-
-[Devtron](#install-devtron) helps you deploy, observe, manage & debug existing Helm apps in all your clusters.
-
 
 ## Devtron Demo Environment
 
