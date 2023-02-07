@@ -402,6 +402,9 @@ components:
           type: string
         Value:
           type: string
+        propagate:
+          type: boolean
+          description: Whether to propagate to kubernetes resources
     GitMaterial:
       type: object
       properties:
