@@ -43,6 +43,7 @@ type NodeCapacityDetail struct {
 	Pods          []*PodCapacityDetail                `json:"pods,omitempty"`
 	Manifest      unstructured.Unstructured           `json:"manifest,omitempty"`
 	ClusterName   string                              `json:"clusterName,omitempty"`
+	NodeGroup     string                              `json:"nodeGroup"`
 }
 
 type PodCapacityDetail struct {
