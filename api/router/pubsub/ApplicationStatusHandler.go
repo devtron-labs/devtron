@@ -20,6 +20,7 @@ package pubsub
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
@@ -172,6 +173,10 @@ func (impl *ApplicationStatusHandlerImpl) updateArgoAppDeleteStatus(app *v1alpha
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching pipeline from Pipeline Repository", "err", err)
 		return err
+	}
+	if pipeline.Deleted == true {
+		impl.logger.Errorw("invalid nats message, pipeline already deleted")
+		return errors.New("invalid nats message, pipeline already deleted")
 	}
 	if err == pg.ErrNoRows {
 		//Helm app deployed using argocd
