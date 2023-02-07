@@ -93,8 +93,6 @@ func NewCdApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, appServi
 
 func (impl *CdApplicationStatusUpdateHandlerImpl) Subscribe() error {
 	callback := func(msg *pubsub.PubSubMsg) {
-		impl.logger.Debug("received argo pipeline status update request")
-		//defer msg.Ack()
 		statusUpdateEvent := pipeline.ArgoPipelineStatusSyncEvent{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &statusUpdateEvent)
 		if err != nil {
