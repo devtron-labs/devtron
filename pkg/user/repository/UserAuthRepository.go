@@ -53,8 +53,8 @@ type UserAuthRepository interface {
 	DeleteUserRoleMapping(userRoleModel *UserRoleModel, tx *pg.Tx) (bool, error)
 	DeleteUserRoleByRoleId(roleId int, tx *pg.Tx) error
 
-	CreateDefaultPolicies(team string, entityName string, env string, tx *pg.Tx) (bool, error)
-	CreateDefaultHelmPolicies(team string, entityName string, env string, tx *pg.Tx) (bool, error)
+	CreateDefaultPolicies(team string, entityName string, env string, tx *pg.Tx, actionType string) (bool, error)
+	CreateDefaultHelmPolicies(team string, entityName string, env string, tx *pg.Tx, actionType string) (bool, error)
 	CreateDefaultPoliciesForGlobalEntity(entity string, entityName string, action string, tx *pg.Tx) (bool, error)
 	CreateDefaultPoliciesForClusterEntity(entity, cluster, namespace, group, kind, resource string, tx *pg.Tx) (bool, error)
 	CreateRoleForSuperAdminIfNotExists(tx *pg.Tx) (bool, error)
@@ -386,34 +386,11 @@ func (impl UserAuthRepositoryImpl) DeleteUserRoleByRoleId(roleId int, tx *pg.Tx)
 	return nil
 }
 
-func (impl UserAuthRepositoryImpl) CreateDefaultPolicies(team string, entityName string, env string, tx *pg.Tx) (bool, error) {
+func (impl UserAuthRepositoryImpl) CreateDefaultPolicies(team string, entityName string, env string, tx *pg.Tx, actionType string) (bool, error) {
 	transaction, err := impl.dbConnection.Begin()
 	if err != nil {
 		return false, err
 	}
-
-	//getting policies from db
-	managerPoliciesDb, err := impl.defaultAuthPolicyRepository.GetPolicyByRoleType(MANAGER_TYPE)
-	if err != nil {
-		impl.Logger.Errorw("error in getting default policy by roleType", "err", err, "roleType", MANAGER_TYPE)
-		return false, err
-	}
-	adminPoliciesDb, err := impl.defaultAuthPolicyRepository.GetPolicyByRoleType(ADMIN_TYPE)
-	if err != nil {
-		impl.Logger.Errorw("error in getting default policy by roleType", "err", err, "roleType", ADMIN_TYPE)
-		return false, err
-	}
-	triggerPoliciesDb, err := impl.defaultAuthPolicyRepository.GetPolicyByRoleType(TRIGGER_TYPE)
-	if err != nil {
-		impl.Logger.Errorw("error in getting default policy by roleType", "err", err, "roleType", TRIGGER_TYPE)
-		return false, err
-	}
-	viewPoliciesDb, err := impl.defaultAuthPolicyRepository.GetPolicyByRoleType(VIEW_TYPE)
-	if err != nil {
-		impl.Logger.Errorw("error in getting default policy by roleType", "err", err, "roleType", VIEW_TYPE)
-		return false, err
-	}
-
 	//for START in Casbin Object
 	teamObj := team
 	envObj := env
@@ -437,164 +414,47 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPolicies(team string, entityName
 		AppObj:  appObj,
 	}
 
-	//getting updated manager policies
-	managerPolicies, err := util.Tprintf(managerPoliciesDb, rolePolicyDetails)
+	//getting policies from db
+	PoliciesDb, err := impl.defaultAuthPolicyRepository.GetPolicyByRoleType(RoleType(actionType))
 	if err != nil {
-		impl.Logger.Errorw("error in getting updated policies", "err", err, "roleType", MANAGER_TYPE)
+		impl.Logger.Errorw("error in getting default policy by roleType", "err", err, "roleType", RoleType(actionType))
 		return false, err
 	}
-
-	//getting updated admin policies
-	adminPolicies, err := util.Tprintf(adminPoliciesDb, rolePolicyDetails)
+	//getting updated policies
+	Policies, err := util.Tprintf(PoliciesDb, rolePolicyDetails)
 	if err != nil {
-		impl.Logger.Errorw("error in getting updated policies", "err", err, "roleType", ADMIN_TYPE)
+		impl.Logger.Errorw("error in getting updated policies", "err", err, "roleType", RoleType(actionType))
 		return false, err
 	}
-
-	//getting updated trigger policies
-	triggerPolicies, err := util.Tprintf(triggerPoliciesDb, rolePolicyDetails)
-	if err != nil {
-		impl.Logger.Errorw("error in getting updated policies", "err", err, "roleType", TRIGGER_TYPE)
-		return false, err
-	}
-
-	//getting updated view policies
-	viewPolicies, err := util.Tprintf(viewPoliciesDb, rolePolicyDetails)
-	if err != nil {
-		impl.Logger.Errorw("error in getting updated policies", "err", err, "roleType", VIEW_TYPE)
-		return false, err
-	}
-
 	//for START in Casbin Object Ends Here
-
-	var policiesManager bean.PolicyRequest
-	err = json.Unmarshal([]byte(managerPolicies), &policiesManager)
+	var policies bean.PolicyRequest
+	err = json.Unmarshal([]byte(Policies), &policies)
 	if err != nil {
 		impl.Logger.Errorw("decode err", "err", err)
 		return false, err
 	}
-	impl.Logger.Debugw("add policy request", "policies", policiesManager)
-	casbin.AddPolicy(policiesManager.Data)
-
-	var policiesAdmin bean.PolicyRequest
-	err = json.Unmarshal([]byte(adminPolicies), &policiesAdmin)
-	if err != nil {
-		impl.Logger.Errorw("decode err", "err", err)
-		return false, err
-	}
-
-	impl.Logger.Debugw("add policy request", "policies", policiesAdmin)
-	casbin.AddPolicy(policiesAdmin.Data)
-
-	var policiesTrigger bean.PolicyRequest
-	err = json.Unmarshal([]byte(triggerPolicies), &policiesTrigger)
-	if err != nil {
-		impl.Logger.Errorw("decode err", "err", err)
-		return false, err
-	}
-	impl.Logger.Debugw("add policy request", "policies", policiesTrigger)
-	casbin.AddPolicy(policiesTrigger.Data)
-
-	var policiesView bean.PolicyRequest
-	err = json.Unmarshal([]byte(viewPolicies), &policiesView)
-	if err != nil {
-		impl.Logger.Errorw("decode err", "err", err)
-		return false, err
-	}
-	impl.Logger.Debugw("add policy request", "policies", policiesView)
-	casbin.AddPolicy(policiesView.Data)
-
+	impl.Logger.Debugw("add policy request", "policies", policies)
+	casbin.AddPolicy(policies.Data)
 	//Creating ROLES
 	//getting roles from db
-	roleManagerDb, err := impl.defaultAuthRoleRepository.GetRoleByRoleType(MANAGER_TYPE)
+	roleDb, err := impl.defaultAuthRoleRepository.GetRoleByRoleType(RoleType(actionType))
 	if err != nil {
-		impl.Logger.Errorw("error in getting default role by roleType", "err", err, "roleType", MANAGER_TYPE)
+		impl.Logger.Errorw("error in getting default role by roleType", "err", err, "roleType", RoleType(actionType))
 		return false, err
 	}
-	roleAdminDb, err := impl.defaultAuthRoleRepository.GetRoleByRoleType(ADMIN_TYPE)
+	role, err := util.Tprintf(roleDb, rolePolicyDetails)
 	if err != nil {
-		impl.Logger.Errorw("error in getting default role by roleType", "err", err, "roleType", ADMIN_TYPE)
+		impl.Logger.Errorw("error in getting updated role", "err", err, "roleType", RoleType(actionType))
 		return false, err
 	}
-	roleTriggerDb, err := impl.defaultAuthRoleRepository.GetRoleByRoleType(TRIGGER_TYPE)
-	if err != nil {
-		impl.Logger.Errorw("error in getting default role by roleType", "err", err, "roleType", TRIGGER_TYPE)
-		return false, err
-	}
-	roleViewDb, err := impl.defaultAuthRoleRepository.GetRoleByRoleType(VIEW_TYPE)
-	if err != nil {
-		impl.Logger.Errorw("error in getting default role by roleType", "err", err, "roleType", VIEW_TYPE)
-		return false, err
-	}
-
-	//getting updated manager role
-	roleManager, err := util.Tprintf(roleManagerDb, rolePolicyDetails)
-	if err != nil {
-		impl.Logger.Errorw("error in getting updated role", "err", err, "roleType", MANAGER_TYPE)
-		return false, err
-	}
-
-	//getting updated admin role
-	roleAdmin, err := util.Tprintf(roleAdminDb, rolePolicyDetails)
-	if err != nil {
-		impl.Logger.Errorw("error in getting updated role", "err", err, "roleType", ADMIN_TYPE)
-		return false, err
-	}
-
-	//getting updated trigger role
-	roleTrigger, err := util.Tprintf(roleTriggerDb, rolePolicyDetails)
-	if err != nil {
-		impl.Logger.Errorw("error in getting updated role", "err", err, "roleType", TRIGGER_TYPE)
-		return false, err
-	}
-
-	//getting updated view role
-	roleView, err := util.Tprintf(roleViewDb, rolePolicyDetails)
-	if err != nil {
-		impl.Logger.Errorw("error in getting updated role", "err", err, "roleType", VIEW_TYPE)
-		return false, err
-	}
-
-	var roleManagerData bean.RoleData
-	err = json.Unmarshal([]byte(roleManager), &roleManagerData)
+	//getting updated role
+	var roleData bean.RoleData
+	err = json.Unmarshal([]byte(role), &roleData)
 	if err != nil {
 		impl.Logger.Errorw("decode err", "err", err)
 		return false, err
 	}
-	_, err = impl.createRole(&roleManagerData, transaction)
-	if err != nil && strings.Contains("duplicate key value violates unique constraint", err.Error()) {
-		return false, err
-	}
-
-	var roleAdminData bean.RoleData
-	err = json.Unmarshal([]byte(roleAdmin), &roleAdminData)
-	if err != nil {
-		impl.Logger.Errorw("decode err", "err", err)
-		return false, err
-	}
-	_, err = impl.createRole(&roleAdminData, transaction)
-	if err != nil && strings.Contains("duplicate key value violates unique constraint", err.Error()) {
-		return false, err
-	}
-
-	var roleTriggerData bean.RoleData
-	err = json.Unmarshal([]byte(roleTrigger), &roleTriggerData)
-	if err != nil {
-		impl.Logger.Errorw("decode err", "err", err)
-		return false, err
-	}
-	_, err = impl.createRole(&roleTriggerData, transaction)
-	if err != nil && strings.Contains("duplicate key value violates unique constraint", err.Error()) {
-		return false, err
-	}
-
-	var roleViewData bean.RoleData
-	err = json.Unmarshal([]byte(roleView), &roleViewData)
-	if err != nil {
-		impl.Logger.Errorw("decode err", "err", err)
-		return false, err
-	}
-	_, err = impl.createRole(&roleViewData, transaction)
+	_, err = impl.createRole(&roleData, transaction)
 	if err != nil && strings.Contains("duplicate key value violates unique constraint", err.Error()) {
 		return false, err
 	}
@@ -606,7 +466,7 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPolicies(team string, entityName
 	return true, nil
 }
 
-func (impl UserAuthRepositoryImpl) CreateDefaultHelmPolicies(team string, entityName string, env string, tx *pg.Tx) (bool, error) {
+func (impl UserAuthRepositoryImpl) CreateDefaultHelmPolicies(team string, entityName string, env string, tx *pg.Tx, actionType string) (bool, error) {
 	transaction, err := impl.dbConnection.Begin()
 	if err != nil {
 		return false, err

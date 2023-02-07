@@ -336,6 +336,7 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 				if roleFilter.Environment == "" {
 					roleFilter.Environment = "NONE"
 				}
+				actionType := roleFilter.Action
 				entityNames := strings.Split(roleFilter.EntityName, ",")
 				environments := strings.Split(roleFilter.Environment, ",")
 				for _, environment := range environments {
@@ -357,12 +358,12 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 
 							if len(roleFilter.Team) > 0 {
 								if roleFilter.AccessType == bean.APP_ACCESS_TYPE_HELM {
-									flag, err := impl.userAuthRepository.CreateDefaultHelmPolicies(roleFilter.Team, entityName, environment, tx)
+									flag, err := impl.userAuthRepository.CreateDefaultHelmPolicies(roleFilter.Team, entityName, environment, tx, actionType)
 									if err != nil || flag == false {
 										return nil, err
 									}
 								} else {
-									flag, err := impl.userAuthRepository.CreateDefaultPolicies(roleFilter.Team, entityName, environment, tx)
+									flag, err := impl.userAuthRepository.CreateDefaultPolicies(roleFilter.Team, entityName, environment, tx, actionType)
 									if err != nil || flag == false {
 										return nil, err
 									}
@@ -710,6 +711,7 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 				if roleFilter.Environment == "" {
 					roleFilter.Environment = "NONE"
 				}
+				actionType := roleFilter.Action
 				entityNames := strings.Split(roleFilter.EntityName, ",")
 				environments := strings.Split(roleFilter.Environment, ",")
 				for _, environment := range environments {
@@ -731,12 +733,12 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 
 							if len(roleFilter.Team) > 0 {
 								if roleFilter.AccessType == bean.APP_ACCESS_TYPE_HELM {
-									flag, err := impl.userAuthRepository.CreateDefaultHelmPolicies(roleFilter.Team, entityName, environment, tx)
+									flag, err := impl.userAuthRepository.CreateDefaultHelmPolicies(roleFilter.Team, entityName, environment, tx, actionType)
 									if err != nil || flag == false {
 										return nil, false, false, nil, err
 									}
 								} else {
-									flag, err := impl.userAuthRepository.CreateDefaultPolicies(roleFilter.Team, entityName, environment, tx)
+									flag, err := impl.userAuthRepository.CreateDefaultPolicies(roleFilter.Team, entityName, environment, tx, actionType)
 									if err != nil || flag == false {
 										return nil, false, false, nil, err
 									}
