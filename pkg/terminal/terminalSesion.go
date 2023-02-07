@@ -467,6 +467,7 @@ func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequ
 }
 
 func (impl *TerminalSessionHandlerImpl) ValidateShell(req *TerminalSessionRequest) (bool, error) {
+	impl.logger.Infow("Inside ValidateShell method in TerminalSessionHandlerImpl")
 	config, client, err := impl.getClientConfig(req)
 	if err != nil {
 		impl.logger.Errorw("error in fetching config", "err", err)

@@ -93,6 +93,7 @@ func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessR
 	return accessServiceImpl, err
 }
 func (impl *UserTerminalAccessServiceImpl) ValidateShell(podName, namespace, shellName string, clusterId int) (bool, error) {
+	impl.Logger.Infow("Inside validateShell method", "UserTerminalAccessServiceImpl")
 	return impl.terminalSessionHandler.ValidateShell(&terminal.TerminalSessionRequest{
 		PodName:   podName,
 		Namespace: namespace,
