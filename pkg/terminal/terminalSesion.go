@@ -475,12 +475,14 @@ func (impl *TerminalSessionHandlerImpl) ValidateShell(req *TerminalSessionReques
 	}
 	cmd := fmt.Sprintf("%s", req.Shell)
 	cmdArray := []string{cmd}
+	impl.logger.Infow("reached getExecutor method call")
 	exec, err := getExecutor(client, config, req.PodName, req.Namespace, req.ContainerName, cmdArray, false)
 	if err != nil {
 		return false, err
 	}
 	buf := &bytes.Buffer{}
 	errBuf := &bytes.Buffer{}
+	impl.logger.Infow("reached execWithStreamOptions method call")
 	err = execWithStreamOptions(exec, remotecommand.StreamOptions{
 		Stdout: buf,
 		Stderr: errBuf,
