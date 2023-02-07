@@ -367,6 +367,7 @@ type TerminalSessionHandler interface {
 	GetTerminalSession(req *TerminalSessionRequest) (statusCode int, message *TerminalMessage, err error)
 	Close(sessionId string, statusCode uint32, msg string)
 	ValidateSession(sessionId string) bool
+	ValidateShell(req *TerminalSessionRequest) (bool, error)
 }
 
 type TerminalSessionHandlerImpl struct {

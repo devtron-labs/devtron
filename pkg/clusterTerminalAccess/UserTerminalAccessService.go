@@ -35,6 +35,7 @@ type UserTerminalAccessService interface {
 	DisconnectAllSessionsForUser(ctx context.Context, userId int32)
 	FetchPodManifest(ctx context.Context, userTerminalAccessId int) (resp *application.ManifestResponse, err error)
 	FetchPodEvents(ctx context.Context, userTerminalAccessId int) (*application.EventsResponse, error)
+	ValidateShell(podName, namespace, shellName string, clusterId int) (bool, error)
 }
 
 type UserTerminalAccessServiceImpl struct {
@@ -91,7 +92,14 @@ func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessR
 	go accessServiceImpl.SyncRunningInstances()
 	return accessServiceImpl, err
 }
-
+func (impl *UserTerminalAccessServiceImpl) ValidateShell(podName, namespace, shellName string, clusterId int) (bool, error) {
+	return impl.terminalSessionHandler.ValidateShell(&terminal.TerminalSessionRequest{
+		PodName:   podName,
+		Namespace: namespace,
+		Shell:     shellName,
+		ClusterId: clusterId,
+	})
+}
 func (impl *UserTerminalAccessServiceImpl) StartTerminalSession(ctx context.Context, request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error) {
 	impl.Logger.Infow("terminal start request received for user", "request", request)
 	userId := request.UserId
