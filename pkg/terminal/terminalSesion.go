@@ -27,7 +27,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"log"
 	"net/http"
-	"strings"
 	"sync"
 
 	"gopkg.in/igm/sockjs-go.v3/sockjs"
@@ -472,8 +471,7 @@ func (impl *TerminalSessionHandlerImpl) ValidateShell(req *TerminalSessionReques
 		impl.logger.Errorw("error in fetching config", "err", err)
 		return false, err
 	}
-	cmd := "/bin/${shellName}"
-	cmd = strings.ReplaceAll(cmd, "${shellName}", req.Shell)
+	cmd := fmt.Sprintf("/bin/%s", req.Shell)
 	cmdArray := []string{cmd}
 	exec, err := getExecutor(client, config, req.PodName, req.Namespace, req.ContainerName, cmdArray, false)
 	if err != nil {
