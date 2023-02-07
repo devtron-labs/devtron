@@ -49,6 +49,7 @@ Click **Save**. The application will be moved to the selected project.
 
 The changes in the tags will be reflected in the `Tags` on the `Overview` section.
 
+
 ## Configure PersistentVolumeClaim (PVC) for Build Time Optimization
 
  A PersistentVolumeClaim (PVC) volume is a request for storage, which is used to mount a PersistentVolume (PV) into a Pod. In order to optimize build time, you can configure PVC in your application.
@@ -63,11 +64,11 @@ If you want to optimize build time for the multiple target platforms (e.g., arm6
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: cache-pvc{here comes the name of PVC}
+  name: cache-pvc # here comes the name of PVC
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: {here comes storage class name}
+  storageClassName: # here comes storage class name
   resources:
     requests:
       storage: 30Gi
@@ -94,6 +95,11 @@ In order to configure PVC:
 
 * For app level PVC mounting, enter the following:<ul><li>key:`devtron.ai/ci-pvc-all`</li><li>value: metadata name (e.g., `cache-pvc)` which you define on the [PVC template](#create-pvc-file).</li></ul>`Note`: This PVC mounting will impact all the build pipilines of the application.
 * For pipeline level, enter the following:<ul><li>key:`devtron.ai/ci-pvc-{pipelinename}`</li><li>value: metadata name which you define on the [PVC template](#create-pvc-file).</li></ul>`Note`: This PVC mounting will impact only the particular build pipeline.
+
+To know the `pipelinename` detail, go to the `App Configutation`, click `Workflow Editor` the pipeline name will be on the `Build` pipeline as shown below.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/overview/pipeline-name-pvc.jpg)
+
 * Click `Save`.
 
 
