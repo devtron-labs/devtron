@@ -473,7 +473,7 @@ func (impl *TerminalSessionHandlerImpl) ValidateShell(req *TerminalSessionReques
 		impl.logger.Errorw("error in fetching config", "err", err)
 		return false, err
 	}
-	cmd := fmt.Sprintf("/bin/%s", req.Shell)
+	cmd := fmt.Sprintf("%s", req.Shell)
 	cmdArray := []string{cmd}
 	exec, err := getExecutor(client, config, req.PodName, req.Namespace, req.ContainerName, cmdArray, false)
 	if err != nil {
