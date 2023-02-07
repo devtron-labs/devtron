@@ -55,10 +55,49 @@ The changes in the tags will be reflected in the `Tags` on the `Overview` sectio
 
 If you want to optimize build time for the multiple target platforms (e.g., arm64, amd64), mounting PVC will provide volume directly to a pod which helps in building cache. Mounting PVC will provide storage for build cache which will not impact the normal build where the image is built on the basis of architecture and operating system of the K8s node on which CI is running.
 
+### Create PVC file
+
+* The following configuration file describes persistent volume claim e.g.,`cache-pvc.yaml`, where you have to define the metadata `name` and `storageClassname`.
+
+```bash
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cache-pvc{here comes the name of PVC}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: {here comes storage class name}
+  resources:
+    requests:
+      storage: 30Gi
+```
+
+* Create the PersistentVolumeClaim by running the following command:
+
+```bash
+kubectl apply -f https://k8s.io/examples/pods/storage/pv-claim.yaml
+```
+
+For more detail, refer [Kubernetes PVC](https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim).
+
+
+## Configure PVC
+
 In order to configure PVC:
 * Go to the `Overview` section of your application.
 * On the right-corner, click `Edit Tags`.
-* For app level PVC mounting, enter the key as `devtron.ai/ci-pvc-all`.<br>`Note`: This PVC mounting will impact all the build pipilines of the application.
-* For pipeline level, enter the key as `devtron.ai/ci-pvc-{pipelinename}`.<br>`Note`: This PVC mounting will impact only the particular pipeline.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/overview/pvc-edit-tags.jpg)
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/overview/manage-tags-pvc.jpg)
+
+* For app level PVC mounting, enter the following:<ul><li>key:`devtron.ai/ci-pvc-all`</li><li>value: metadata name (e.g., `cache-pvc)` which you define on the [PVC template](#create-pvc-file).</li></ul>`Note`: This PVC mounting will impact all the build pipilines of the application.
+* For pipeline level, enter the following:<ul><li>key:`devtron.ai/ci-pvc-{pipelinename}`</li><li>value: metadata name which you define on the [PVC template](#create-pvc-file).</li></ul>`Note`: This PVC mounting will impact only the particular build pipeline.
 * Click `Save`.
+
+
+
+
+
  
