@@ -159,6 +159,7 @@ type AppService interface {
 	MarkImageScanDeployed(appId int, envId int, imageDigest string, clusterId int) error
 	GetChartRepoName(gitRepoUrl string) string
 	UpdateDeploymentStatusForGitOpsCdPipelines(app *v1alpha1.Application, statusTime time.Time) (bool, bool, error)
+	WriteCDSuccessEvent(appId int, envId int, override *chartConfig.PipelineOverride)
 }
 
 func NewAppService(
@@ -494,7 +495,7 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForPipeline(app *v1alpha1.Appl
 }
 
 func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(app *v1alpha1.Application, cdWfrId int, statusTime time.Time, triggeredAt time.Time, statusTimeoutDuration int, latestTimelineBeforeUpdate *pipelineConfig.PipelineStatusTimeline) (bool, bool, error) {
-	impl.logger.Infow("updating pipeline status timeline", "app", app, "pipelineOverride", cdWfrId, "APP_TO_UPDATE", app.Name)
+	impl.logger.Debugw("updating pipeline status timeline", "app", app, "pipelineOverride", cdWfrId, "APP_TO_UPDATE", app.Name)
 	isTimelineUpdated := false
 	isTimelineTimedOut := false
 	terminalStatusExists, err := impl.pipelineStatusTimelineRepository.CheckIfTerminalStatusTimelinePresentByWfrId(cdWfrId)

@@ -208,7 +208,7 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch
 		impl.Logger.Errorw("error in getting latest cdWfr by cdPipelineId", "err", err, "pipelineId", pipeline.Id)
 		return nil, isTimelineUpdated
 	}
-	impl.Logger.Infow("ARGO_PIPELINE_STATUS_UPDATE_REQ", "stage", "checkingDeploymentStatus", "argoAppName", pipeline, "cdWfr", cdWfr)
+	impl.Logger.Debugw("ARGO_PIPELINE_STATUS_UPDATE_REQ", "stage", "checkingDeploymentStatus", "argoAppName", pipeline, "cdWfr", cdWfr)
 	if util3.IsTerminalStatus(cdWfr.Status) {
 		//drop event
 		return nil, isTimelineUpdated
@@ -267,7 +267,7 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch
 		err = impl.appStatusService.UpdateStatusWithAppIdEnvId(pipeline.AppId, pipeline.EnvironmentId, string(appStatus))
 		if err != nil {
 			impl.Logger.Errorw("error occurred while updating app-status", "err", err, "appId", pipeline.AppId, "envId", pipeline.EnvironmentId)
-			impl.Logger.Infow("ignoring the error", "err", err, "appId", pipeline.AppId, "envId", pipeline.EnvironmentId)
+			impl.Logger.Debugw("ignoring the error, UpdateStatusWithAppIdEnvId", "err", err, "appId", pipeline.AppId, "envId", pipeline.EnvironmentId)
 		}
 	}
 	if isSucceeded {
@@ -312,6 +312,7 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipel
 		}
 		if helmAppStatus == application.Healthy {
 			wfr.Status = pipelineConfig.WorkflowSucceeded
+			wfr.FinishedOn = time.Now()
 		} else {
 			wfr.Status = pipelineConfig.WorkflowInProgress
 		}
@@ -329,6 +330,7 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipel
 				impl.Logger.Errorw("error in getting latest pipeline override by cdWorkflowId", "err", err, "cdWorkflowId", wfr.CdWorkflowId)
 				return err
 			}
+			go impl.appService.WriteCDSuccessEvent(pipelineOverride.Pipeline.AppId, pipelineOverride.Pipeline.EnvironmentId, pipelineOverride)
 			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent("", pipelineOverride.Id)
 			if err != nil {
 				impl.Logger.Errorw("error on handling deployment success event", "wfr", wfr, "err", err)
