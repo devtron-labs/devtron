@@ -161,12 +161,12 @@ func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context 
 		return nil, err
 	}
 	if isSmaeProject {
-		_, err = impl.CreateEnvCm(cloneReq.RefAppId, newAppId, userId)
+		_, err = impl.CreateEnvCm(context, cloneReq.RefAppId, newAppId, userId)
 		if err != nil {
 			impl.logger.Errorw("error in creating env cm", "err", err)
 			return nil, err
 		}
-		_, err = impl.CreateEnvSecret(cloneReq.RefAppId, newAppId, userId)
+		_, err = impl.CreateEnvSecret(context, cloneReq.RefAppId, newAppId, userId)
 		if err != nil {
 			impl.logger.Errorw("error in creating env secret", "err", err)
 			return nil, err
@@ -350,8 +350,8 @@ func (impl *AppCloneServiceImpl) CreateGlobalCM(oldAppId, newAppId int, userId i
 
 }
 
-func (impl *AppCloneServiceImpl) CreateEnvCm(oldAppId, newAppId int, userId int32) (interface{}, error) {
-	refEnvs, err := impl.appListingService.FetchOtherEnvironment(oldAppId)
+func (impl *AppCloneServiceImpl) CreateEnvCm(ctx context.Context, oldAppId, newAppId int, userId int32) (interface{}, error) {
+	refEnvs, err := impl.appListingService.FetchOtherEnvironment(ctx, oldAppId)
 	if err != nil {
 		return nil, err
 	}
@@ -394,8 +394,8 @@ func (impl *AppCloneServiceImpl) CreateEnvCm(oldAppId, newAppId int, userId int3
 	return nil, nil
 }
 
-func (impl *AppCloneServiceImpl) CreateEnvSecret(oldAppId, newAppId int, userId int32) (interface{}, error) {
-	refEnvs, err := impl.appListingService.FetchOtherEnvironment(oldAppId)
+func (impl *AppCloneServiceImpl) CreateEnvSecret(ctx context.Context, oldAppId, newAppId int, userId int32) (interface{}, error) {
+	refEnvs, err := impl.appListingService.FetchOtherEnvironment(ctx, oldAppId)
 	if err != nil {
 		return nil, err
 	}
@@ -441,7 +441,7 @@ func (impl *AppCloneServiceImpl) CreateEnvSecret(oldAppId, newAppId int, userId 
 }
 
 func (impl *AppCloneServiceImpl) createEnvOverride(oldAppId, newAppId int, userId int32, ctx context.Context) (interface{}, error) {
-	refEnvs, err := impl.appListingService.FetchOtherEnvironment(oldAppId)
+	refEnvs, err := impl.appListingService.FetchOtherEnvironment(ctx, oldAppId)
 	if err != nil {
 		return nil, err
 	}

@@ -61,12 +61,13 @@ type UpdateMaterialDTO struct {
 }
 
 type GitMaterial struct {
-	Name            string `json:"name,omitempty" ` //not null, //default format pipelineGroup.AppName + "-" + inputMaterial.Name,
-	Url             string `json:"url,omitempty"`   //url of git repo
-	Id              int    `json:"id,omitempty" validate:"number"`
-	GitProviderId   int    `json:"gitProviderId,omitempty" validate:"gt=0"`
-	CheckoutPath    string `json:"checkoutPath" validate:"checkout-path-component"`
-	FetchSubmodules bool   `json:"fetchSubmodules"`
+	Name             string `json:"name,omitempty" ` //not null, //default format pipelineGroup.AppName + "-" + inputMaterial.Name,
+	Url              string `json:"url,omitempty"`   //url of git repo
+	Id               int    `json:"id,omitempty" validate:"number"`
+	GitProviderId    int    `json:"gitProviderId,omitempty" validate:"gt=0"`
+	CheckoutPath     string `json:"checkoutPath" validate:"checkout-path-component"`
+	FetchSubmodules  bool   `json:"fetchSubmodules"`
+	IsUsedInCiConfig bool   `json:"isUsedInCiConfig"`
 }
 
 type CiMaterial struct {
@@ -581,15 +582,17 @@ type AppLabelsDto struct {
 }
 
 type AppLabelDto struct {
-	Key    string `json:"key,notnull"`
-	Value  string `json:"value,notnull"`
-	AppId  int    `json:"appId,omitempty"`
-	UserId int32  `json:"-"`
+	Key       string `json:"key,notnull"`
+	Value     string `json:"value,notnull"`
+	Propagate bool   `json:"propagate,notnull"`
+	AppId     int    `json:"appId,omitempty"`
+	UserId    int32  `json:"-"`
 }
 
 type Label struct {
-	Key   string `json:"key" validate:"required"`
-	Value string `json:"value" validate:"required"`
+	Key       string `json:"key" validate:"required"`
+	Value     string `json:"value" validate:"required"`
+	Propagate bool   `json:"propagate"`
 }
 
 type AppMetaInfoDto struct {
