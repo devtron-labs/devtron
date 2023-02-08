@@ -1,7 +1,6 @@
 package k8s
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -147,10 +146,6 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 	}
 
 	common.WriteJsonResp(w, nil, resource, http.StatusOK)
-}
-
-func (handler *K8sApplicationRestHandlerImpl) validateRbac(w http.ResponseWriter, ctx context.Context, token string, request ResourceRequestBean, casbinAction string) bool {
-	return false
 }
 
 func (handler *K8sApplicationRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWriter, r *http.Request) {
