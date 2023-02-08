@@ -380,9 +380,16 @@ func (impl *K8sCapacityServiceImpl) getNodeDetail(ctx context.Context, node *cor
 
 	labels, taints := impl.getNodeLabelsAndTaints(node)
 	var nodeGroup = ""
-	if ng, ok := node.Labels["agentpool"]; ok {
+	if ng, ok := node.Labels["kubernetes.azure.com/agentpool"]; ok {
 		nodeGroup = ng
 	}
+	if ng, ok := node.Labels["alpha.eksctl.io/nodegroup-name"]; ok {
+		nodeGroup = ng
+	}
+	if ng, ok := node.Labels["kops.k8s.io/instancegroup"]; ok {
+		nodeGroup = ng
+	}
+
 	nodeDetail := &NodeCapacityDetail{
 		Name:          node.Name,
 		K8sVersion:    node.Status.NodeInfo.KubeletVersion,
