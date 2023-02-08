@@ -51,9 +51,8 @@ type K8sApplicationRestHandlerImpl struct {
 	enforcer               casbin.Enforcer
 	enforcerUtil           rbac.EnforcerUtil
 	enforcerUtilHelm       rbac.EnforcerUtilHelm
-	//clusterService         cluster.ClusterService
-	helmAppService client.HelmAppService
-	userService    user.UserService
+	helmAppService         client.HelmAppService
+	userService            user.UserService
 }
 
 func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger,
@@ -70,8 +69,7 @@ func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger,
 		enforcerUtilHelm:       enforcerUtilHelm,
 		enforcerUtil:           enforcerUtil,
 		helmAppService:         helmAppService,
-		//clusterService:         clusterService,
-		userService: userService,
+		userService:            userService,
 	}
 }
 

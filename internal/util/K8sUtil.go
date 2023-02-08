@@ -590,14 +590,11 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 	// build rows
 	rowsMapping := make([]map[string]interface{}, 0)
 	rowsDataUncast := manifest.Object[K8sClusterResourceRowsKey]
-	//var resourceName string
 	var namespace string
 	var allowed bool
-	//var ownerReferences []interface{}
 	if rowsDataUncast != nil {
 		rows := rowsDataUncast.([]interface{})
 		for _, row := range rows {
-			//resourceName = ""
 			namespace = ""
 			allowed = true
 			rowIndex := make(map[string]interface{})
@@ -618,8 +615,6 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 				rowIndex[columnName] = cell
 			}
 
-			// set namespace
-
 			cellObjUncast := rowMap[K8sClusterResourceObjectKey]
 			var cellObj map[string]interface{}
 			if cellObjUncast != nil {
@@ -632,18 +627,9 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 							rowIndex[K8sClusterResourceNamespaceKey] = namespace
 						}
 					}
-					//if metadata[K8sClusterResourceMetadataNameKey] != nil {
-					//	resourceName = metadata[K8sClusterResourceMetadataNameKey].(string)
-					//}
-					//if metadata[K8sClusterResourceOwnerReferenceKey] != nil {
-					//	ownerReferences = metadata[K8sClusterResourceOwnerReferenceKey].([]interface{})
-					//}
 				}
 			}
-			//if resourceName != "" {
 			allowed = impl.ValidateResource(cellObj, gvk, validateResourceAccess)
-			//allowed = impl.ValidateResourceWithRbac(namespace, resourceName, ownerReferences, validateResourceAccess)
-			//}
 			if allowed {
 				rowsMapping = append(rowsMapping, rowIndex)
 			}
@@ -686,19 +672,6 @@ func (impl K8sUtil) ValidateResource(resourceObj map[string]interface{}, gvk sch
 	// check current RBAC in case not matched with above one
 	return validateCallback(namespace, groupName, resKind, resourceName)
 }
-
-//func (impl K8sUtil) ValidateResourceWithRbac(namespace, resourceName string, ownerReferences []interface{}, validateCallback func(namespace, group, kind, resourceName string) bool) bool {
-//	if len(ownerReferences) > 0 {
-//		for _, ownerRef := range ownerReferences {
-//			allowed := impl.validateForResource(namespace, ownerRef, validateCallback)
-//			if allowed {
-//				return allowed
-//			}
-//		}
-//	}
-//	// check current RBAC in case not matched with above one
-//	return validateCallback(namespace, "", "", resourceName)
-//}
 
 func (impl K8sUtil) validateForResource(namespace string, resourceRef interface{}, validateCallback func(namespace string, group string, kind string, resourceName string) bool) bool {
 	resourceReference := resourceRef.(map[string]interface{})
