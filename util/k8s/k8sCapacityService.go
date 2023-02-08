@@ -389,6 +389,9 @@ func (impl *K8sCapacityServiceImpl) getNodeDetail(ctx context.Context, node *cor
 	if ng, ok := node.Labels["kops.k8s.io/instancegroup"]; ok {
 		nodeGroup = ng
 	}
+	if ng, ok := node.Labels["cloud.google.com/gke-nodepool"]; ok {
+		nodeGroup = ng
+	}
 
 	nodeDetail := &NodeCapacityDetail{
 		Name:          node.Name,
