@@ -476,7 +476,7 @@ func (impl *TerminalSessionHandlerImpl) ValidateShell(req *TerminalSessionReques
 	cmd := fmt.Sprintf("/bin/%s", req.Shell)
 	cmdArray := []string{cmd}
 	impl.logger.Infow("reached getExecutor method call")
-	exec, err := getExecutor(client, config, req.PodName, req.Namespace, req.ContainerName, cmdArray, false, true)
+	exec, err := getExecutor(client, config, req.PodName, req.Namespace, req.ContainerName, cmdArray, false, false)
 	if err != nil {
 		impl.logger.Errorw("error occurred in getting remoteCommand executor", "err", err)
 		return false, err

@@ -75,9 +75,9 @@ func (handler UserTerminalAccessRestHandlerImpl) ValidateShell(w http.ResponseWr
 		return
 	}
 	type validShellResponse struct {
-		isValidShell bool
+		IsValidShell bool `json:"isValidShell"`
 	}
-	common.WriteJsonResp(w, nil, validShellResponse{isValidShell: res}, http.StatusOK)
+	common.WriteJsonResp(w, nil, validShellResponse{IsValidShell: res}, http.StatusOK)
 }
 func (handler UserTerminalAccessRestHandlerImpl) StartTerminalSession(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.UserService.GetLoggedInUser(r)
