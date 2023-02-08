@@ -497,5 +497,6 @@ func (impl *TerminalSessionHandlerImpl) ValidateShell(req *TerminalSessionReques
 		impl.logger.Error("error response on executing commands", "err", err, "commands", cmdArray, "podName", req.PodName, "namespace", req.Namespace)
 		return false, errors1.New(errBufString)
 	}
+	impl.logger.Infow("validated Shell,returning from validateShell method", "StdOut", buf.String())
 	return true, nil
 }
