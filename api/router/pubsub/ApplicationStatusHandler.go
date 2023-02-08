@@ -72,10 +72,10 @@ func NewApplicationStatusHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pu
 		//logger.Error("err", err)
 		return nil
 	}
-	err = appStatusUpdateHandlerImpl.SubscribeDeleteStatus()
-	if err != nil {
-		return nil
-	}
+	//err = appStatusUpdateHandlerImpl.SubscribeDeleteStatus()
+	//if err != nil {
+	//	return nil
+	//}
 	return appStatusUpdateHandlerImpl
 }
 

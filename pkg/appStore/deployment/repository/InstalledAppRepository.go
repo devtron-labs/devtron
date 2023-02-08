@@ -59,7 +59,7 @@ type InstalledAppRepository interface {
 	GetInstalledApplicationByClusterIdAndNamespaceAndAppName(clusterId int, namespace string, appName string) (*InstalledApps, error)
 	GetAppAndEnvDetailsForDeploymentAppTypeInstalledApps(deploymentAppType string, clusterIds []int) ([]*InstalledApps, error)
 	GetDeploymentSuccessfulStatusCountForTelemetry() (int, error)
-	GetGitOpsInstalledAppsWhereArgoAppDeletedIsTrue(installedAppId int, envId int) ([]InstalledApps, error)
+	GetGitOpsInstalledAppsWhereArgoAppDeletedIsTrue(installedAppId int, envId int) (InstalledApps, error)
 	GetInstalledAppByGitHash(gitHash string) (InstallAppDeleteRequest, error)
 }
 
@@ -506,19 +506,19 @@ func (impl InstalledAppRepositoryImpl) GetDeploymentSuccessfulStatusCountForTele
 	return count, err
 }
 
-func (impl InstalledAppRepositoryImpl) GetGitOpsInstalledAppsWhereArgoAppDeletedIsTrue(installedAppId int, envId int) ([]InstalledApps, error) {
-	var installedApps []InstalledApps
+func (impl InstalledAppRepositoryImpl) GetGitOpsInstalledAppsWhereArgoAppDeletedIsTrue(installedAppId int, envId int) (InstalledApps, error) {
+	var installedApps InstalledApps
 	err := impl.dbConnection.Model(&installedApps).
-		Column("installed_apps.id", "installed_apps.environment_id", "App.app_name", "Environment.namespace").
+		Column("installed_apps.*", "App.app_name", "Environment.namespace", "Environment.cluster_id").
 		Where("deployment_app_delete_request = ?", true).
-		Where("active = ?", false).
-		Where("id = ?", installedAppId).
-		Where("environment_id = ?", envId).
-		Where("updated_on < ", time.Now().Add(-time.Minute*10)).
+		Where("installed_apps.active = ?", true).
+		Where("installed_apps.id = ?", installedAppId).
+		Where("installed_apps.environment_id = ?", envId).
+		Where("installed_apps.updated_on < ?", time.Now().Add(-time.Minute*10)).
 		Select()
 	if err != nil {
 		impl.Logger.Errorw("error in fetching pipeline while udating delete status", "err", err)
-		return nil, err
+		return installedApps, err
 	}
 	return installedApps, nil
 }
