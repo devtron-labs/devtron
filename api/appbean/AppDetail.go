@@ -32,8 +32,9 @@ type AppMetadata struct {
 }
 
 type AppLabel struct {
-	Key   string `json:"key,notnull" validate:"required"`
-	Value string `json:"value,notnull" validate:"required"`
+	Key       string `json:"key,notnull" validate:"required"`
+	Value     string `json:"value,notnull" validate:"required"`
+	Propagate bool   `json:"propagate"`
 }
 
 type GitMaterial struct {
