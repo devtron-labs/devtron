@@ -380,15 +380,20 @@ func (impl *K8sCapacityServiceImpl) getNodeDetail(ctx context.Context, node *cor
 
 	labels, taints := impl.getNodeLabelsAndTaints(node)
 	var nodeGroup = ""
+	//different cloud providers have their own node group label
+	//azure
 	if ng, ok := node.Labels["kubernetes.azure.com/agentpool"]; ok {
 		nodeGroup = ng
 	}
+	//aws
 	if ng, ok := node.Labels["alpha.eksctl.io/nodegroup-name"]; ok {
 		nodeGroup = ng
 	}
+	//kops
 	if ng, ok := node.Labels["kops.k8s.io/instancegroup"]; ok {
 		nodeGroup = ng
 	}
+	//gcp
 	if ng, ok := node.Labels["cloud.google.com/gke-nodepool"]; ok {
 		nodeGroup = ng
 	}
