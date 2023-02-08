@@ -489,13 +489,13 @@ func (impl *TerminalSessionHandlerImpl) ValidateShell(req *TerminalSessionReques
 		Stderr: errBuf,
 	})
 	if err != nil {
-		impl.logger.Error("failed to execute commands", "err", err, "commands", cmdArray, "podName", req.PodName, "namespace", req.Namespace)
-		return false, err
+		impl.logger.Error("failed to execute commands ", "err", err, "commands", cmdArray, "podName", req.PodName, "namespace", req.Namespace)
+		return false, errors1.New("Failed to Execute Command")
 	}
 	errBufString := errBuf.String()
 	if errBufString != "" {
-		impl.logger.Error("error response on executing commands", "err", err, "commands", cmdArray, "podName", req.PodName, "namespace", req.Namespace)
-		return false, errors1.New(errBufString)
+		impl.logger.Error("error response on executing commands ", "err", errBufString, "commands", cmdArray, "podName", req.PodName, "namespace", req.Namespace)
+		return false, errors1.New("Failed to Execute Command")
 	}
 	impl.logger.Infow("validated Shell,returning from validateShell method", "StdOut", buf.String())
 	return true, nil
