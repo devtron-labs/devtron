@@ -95,10 +95,11 @@ func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessR
 func (impl *UserTerminalAccessServiceImpl) ValidateShell(podName, namespace, shellName string, clusterId int) (bool, error) {
 	impl.Logger.Infow("Inside validateShell method", "UserTerminalAccessServiceImpl")
 	return impl.terminalSessionHandler.ValidateShell(&terminal.TerminalSessionRequest{
-		PodName:   podName,
-		Namespace: namespace,
-		Shell:     shellName,
-		ClusterId: clusterId,
+		PodName:       podName,
+		Namespace:     namespace,
+		Shell:         shellName,
+		ClusterId:     clusterId,
+		ContainerName: "devtron-debug-terminal",
 	})
 }
 func (impl *UserTerminalAccessServiceImpl) StartTerminalSession(ctx context.Context, request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error) {
