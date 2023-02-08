@@ -149,23 +149,6 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 	common.WriteJsonResp(w, nil, resource, http.StatusOK)
 }
 
-//func (handler *K8sApplicationRestHandlerImpl) validateRbac(w http.ResponseWriter, token string, request ResourceRequestBean, casbinAction string) bool {
-//	clusterBean, err := handler.clusterService.FindById(request.ClusterId)
-//	if err != nil {
-//		if w != nil {
-//			common.WriteJsonResp(w, errors.New("clusterId is not valid"), nil, http.StatusBadRequest)
-//		}
-//		return false
-//	}
-//	if ok := handler.verifyRbacForCluster(token, clusterBean.ClusterName, request, casbinAction); !ok {
-//		if w != nil {
-//			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-//		}
-//		return false
-//	}
-//	return true
-//}
-
 func (handler *K8sApplicationRestHandlerImpl) validateRbac(w http.ResponseWriter, ctx context.Context, token string, request ResourceRequestBean, casbinAction string) bool {
 	return false
 }
