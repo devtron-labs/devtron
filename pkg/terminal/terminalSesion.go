@@ -243,7 +243,7 @@ func startProcess(k8sClient kubernetes.Interface, cfg *rest.Config,
 	//	TTY:       true,
 	//}, scheme.ParameterCodec)
 
-	exec, err := getExecutor(k8sClient, cfg, podName, namespace, containerName, cmd, true)
+	exec, err := getExecutor(k8sClient, cfg, podName, namespace, containerName, cmd, true, true)
 	//remotecommand.NewSPDYExecutor(cfg, "POST", req.URL())
 	if err != nil {
 		return err
@@ -270,7 +270,7 @@ func execWithStreamOptions(exec remotecommand.Executor, streamOptions remotecomm
 	return exec.Stream(streamOptions)
 }
 
-func getExecutor(k8sClient kubernetes.Interface, cfg *rest.Config, podName, namespace, containerName string, cmd []string, stdin bool) (remotecommand.Executor, error) {
+func getExecutor(k8sClient kubernetes.Interface, cfg *rest.Config, podName, namespace, containerName string, cmd []string, stdin bool, tty bool) (remotecommand.Executor, error) {
 	req := k8sClient.CoreV1().RESTClient().Post().
 		Resource("pods").
 		Name(podName).
@@ -283,7 +283,7 @@ func getExecutor(k8sClient kubernetes.Interface, cfg *rest.Config, podName, name
 		Stdin:     stdin,
 		Stdout:    true,
 		Stderr:    true,
-		TTY:       true,
+		TTY:       tty,
 	}, scheme.ParameterCodec)
 
 	exec, err := remotecommand.NewSPDYExecutor(cfg, "POST", req.URL())
@@ -476,8 +476,9 @@ func (impl *TerminalSessionHandlerImpl) ValidateShell(req *TerminalSessionReques
 	cmd := fmt.Sprintf("/bin/%s", req.Shell)
 	cmdArray := []string{cmd}
 	impl.logger.Infow("reached getExecutor method call")
-	exec, err := getExecutor(client, config, req.PodName, req.Namespace, req.ContainerName, cmdArray, false)
+	exec, err := getExecutor(client, config, req.PodName, req.Namespace, req.ContainerName, cmdArray, false, false)
 	if err != nil {
+		impl.logger.Errorw("error occurred in getting remoteCommand executor", "err", err)
 		return false, err
 	}
 	buf := &bytes.Buffer{}
