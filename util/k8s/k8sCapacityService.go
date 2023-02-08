@@ -47,6 +47,10 @@ const (
 	localStorageWarning = "deleting Pods with local storage"
 	unmanagedFatal      = "Pods declare no controller (use --force to override)"
 	unmanagedWarning    = "deleting Pods that declare no controller"
+	AWSNodeGroupLabel   = "alpha.eksctl.io/nodegroup-name"
+	AzureNodeGroupLabel = "kubernetes.azure.com/agentpool"
+	GcpNodeGroupLabel   = "cloud.google.com/gke-nodepool"
+	KopsNodeGroupLabel  = "kops.k8s.io/instancegroup"
 )
 
 // below const set is used for pod delete status
@@ -382,19 +386,19 @@ func (impl *K8sCapacityServiceImpl) getNodeDetail(ctx context.Context, node *cor
 	var nodeGroup = ""
 	//different cloud providers have their own node group label
 	//azure
-	if ng, ok := node.Labels["kubernetes.azure.com/agentpool"]; ok {
+	if ng, ok := node.Labels[AzureNodeGroupLabel]; ok {
 		nodeGroup = ng
 	}
 	//aws
-	if ng, ok := node.Labels["alpha.eksctl.io/nodegroup-name"]; ok {
+	if ng, ok := node.Labels[AWSNodeGroupLabel]; ok {
 		nodeGroup = ng
 	}
 	//kops
-	if ng, ok := node.Labels["kops.k8s.io/instancegroup"]; ok {
+	if ng, ok := node.Labels[KopsNodeGroupLabel]; ok {
 		nodeGroup = ng
 	}
 	//gcp
-	if ng, ok := node.Labels["cloud.google.com/gke-nodepool"]; ok {
+	if ng, ok := node.Labels[GcpNodeGroupLabel]; ok {
 		nodeGroup = ng
 	}
 
