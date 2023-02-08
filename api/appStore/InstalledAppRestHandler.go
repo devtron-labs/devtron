@@ -295,7 +295,16 @@ func (handler *InstalledAppRestHandlerImpl) DeployBulk(w http.ResponseWriter, r 
 	}
 	//RBAC block ends here
 
+	visited := make(map[string]bool)
+
 	for _, item := range request.ChartGroupInstallChartRequest {
+		if visited[item.AppName] {
+			handler.Logger.Errorw("service err, CreateInstalledApp", "err", err, "payload", request)
+			common.WriteJsonResp(w, errors.New("Duplicate appName found"), nil, http.StatusInternalServerError)
+			return
+		} else {
+			visited[item.AppName] = true
+		}
 		isChartRepoActive, err := handler.appStoreDeploymentService.IsChartRepoActive(item.AppStoreVersion)
 		if err != nil {
 			handler.Logger.Errorw("service err, CreateInstalledApp", "err", err, "payload", request)

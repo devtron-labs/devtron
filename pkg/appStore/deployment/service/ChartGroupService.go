@@ -18,6 +18,7 @@
 package service
 
 import (
+	"errors"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreValuesRepository "github.com/devtron-labs/devtron/pkg/appStore/values/repository"
@@ -69,7 +70,7 @@ type ChartGroupList struct {
 	Groups []*ChartGroupBean `json:"groups,omitempty"`
 }
 type ChartGroupBean struct {
-	Name               string                 `json:"name,omitempty" validate:"name-component,max=200"`
+	Name               string                 `json:"name,omitempty" validate:"name-component,max=200,min=5"`
 	Description        string                 `json:"description,omitempty"`
 	Id                 int                    `json:"id,omitempty"`
 	ChartGroupEntries  []*ChartGroupEntryBean `json:"chartGroupEntries,omitempty"`
@@ -110,6 +111,17 @@ type InstalledChart struct {
 
 func (impl *ChartGroupServiceImpl) CreateChartGroup(req *ChartGroupBean) (*ChartGroupBean, error) {
 	impl.Logger.Debugw("chart group create request", "req", req)
+
+	exist, err := impl.chartGroupRepository.FindByName(req.Name)
+	if err != nil {
+		impl.Logger.Errorw("error in creating chart group", "req", req, "err", err)
+		return nil, err
+	}
+	if exist {
+		impl.Logger.Errorw("Chart with this name already exist", "req", req, "err", err)
+		return nil, errors.New("A chart with this name already exist")
+	}
+
 	chartGrouModel := &repository.ChartGroup{
 		Name:        req.Name,
 		Description: req.Description,
