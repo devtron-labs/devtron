@@ -73,7 +73,12 @@ func (handler UserTerminalAccessRestHandlerImpl) ValidateShell(w http.ResponseWr
 		IsValidShell bool   `json:"isValidShell"`
 		ErrorReason  string `json:"errorReason"`
 	}
-	common.WriteJsonResp(w, nil, validShellResponse{IsValidShell: res, ErrorReason: err.Error()}, http.StatusOK)
+	reason := ""
+	if err != nil {
+		reason = err.Error()
+	}
+	resp := validShellResponse{IsValidShell: res, ErrorReason: reason}
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 func (handler UserTerminalAccessRestHandlerImpl) StartTerminalSession(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.UserService.GetLoggedInUser(r)
