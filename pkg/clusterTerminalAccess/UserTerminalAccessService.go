@@ -101,7 +101,7 @@ func (impl *UserTerminalAccessServiceImpl) ValidateShell(podName, namespace, she
 		ClusterId:     clusterId,
 		ContainerName: "devtron-debug-terminal",
 	})
-	if err.Error() == "Failed to Execute Command" {
+	if err != nil && err.Error() == "Failed to Execute Command" {
 		return res, errors.New(models.ShellNotSupported)
 	}
 	return res, err
