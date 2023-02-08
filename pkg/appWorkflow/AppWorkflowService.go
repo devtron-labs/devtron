@@ -47,6 +47,7 @@ type AppWorkflowService interface {
 	FindAppWorkflowByName(name string, appId int) (AppWorkflowDto, error)
 
 	FindAllWorkflowsComponentDetails(appId int) (*AllAppWorkflowComponentDetails, error)
+	FindAppWorkflowsByEnvironmentId(envId int) ([]AppWorkflowDto, error)
 }
 
 type AppWorkflowServiceImpl struct {
@@ -379,4 +380,41 @@ func (impl AppWorkflowServiceImpl) FindAllWorkflowsComponentDetails(appId int) (
 		Workflows: wfComponentDetails,
 	}
 	return resp, nil
+}
+
+func (impl AppWorkflowServiceImpl) FindAppWorkflowsByEnvironmentId(envId int) ([]AppWorkflowDto, error) {
+	pipelines, err := impl.pipelineRepository.FindActiveByEnvId(envId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("error fetching pipelines for env id", "err", err)
+		return nil, err
+	}
+
+	appNamesMap := make(map[int]string)
+	var appIds []int
+	for _, pipeline := range pipelines {
+		appIds = append(appIds, pipeline.AppId)
+		appNamesMap[pipeline.AppId] = pipeline.App.AppName
+	}
+
+	appWorkflow, err := impl.appWorkflowRepository.FindByAppIds(appIds)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("error fetching app workflows by app ids", "err", err)
+		return nil, err
+	}
+	var workflows []AppWorkflowDto
+	for _, w := range appWorkflow {
+		appName := appNamesMap[w.AppId]
+		workflow := AppWorkflowDto{
+			Id:    w.Id,
+			Name:  appName, // here workflow name is app name, only for environment app grouping view
+			AppId: w.AppId,
+		}
+		mapping, err := impl.FindAppWorkflowMapping(w.Id)
+		if err != nil {
+			return nil, err
+		}
+		workflow.AppWorkflowMappingDto = mapping
+		workflows = append(workflows, workflow)
+	}
+	return workflows, err
 }
