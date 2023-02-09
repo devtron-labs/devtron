@@ -70,7 +70,8 @@ func NewDbConnection(cfg *Config, logger *zap.SugaredLogger) (*pg.DB, error) {
 		dbConnection.OnQueryProcessed(func(event *pg.QueryProcessedEvent) {
 			query, err := event.FormattedQuery()
 			if err != nil {
-				logger.Errorw("Error formatting query")
+				logger.Errorw("Error formatting query",
+					"err", err)
 				return
 			}
 
