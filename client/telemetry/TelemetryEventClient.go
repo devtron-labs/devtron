@@ -301,6 +301,10 @@ func (impl *TelemetryEventClientImpl) SendSummaryEventForDesktopApp(eventType st
 	payload.ClusterCount = len(clusters)
 	payload.IsDesktopApp = true
 
+	return impl.handleEventPayload(eventType, payload, ucid)
+}
+
+func (impl *TelemetryEventClientImpl) handleEventPayload(eventType string, payload *TelemetryEventEA, ucid string) error {
 	reqBody, err := json.Marshal(payload)
 	if err != nil {
 		impl.logger.Errorw("SendSummaryEventForDesktopApp, payload marshal error", "error", err)
@@ -370,24 +374,7 @@ func (impl *TelemetryEventClientImpl) SendSummaryEvent(eventType string) error {
 		payload.LastLoginTime = loginTime
 	}
 
-	reqBody, err := json.Marshal(payload)
-	if err != nil {
-		impl.logger.Errorw("SummaryEventForTelemetry, payload marshal error", "error", err)
-		return err
-	}
-	prop := make(map[string]interface{})
-	err = json.Unmarshal(reqBody, &prop)
-	if err != nil {
-		impl.logger.Errorw("SummaryEventForTelemetry, payload unmarshal error", "error", err)
-		return err
-	}
-
-	err = impl.EnqueuePostHog(ucid, TelemetryEventType(eventType), prop)
-	if err != nil {
-		impl.logger.Errorw("SummaryEventForTelemetry, failed to push event", "ucid", ucid, "error", err)
-		return err
-	}
-	return nil
+	return impl.handleEventPayload(eventType, payload, ucid)
 }
 
 func (impl *TelemetryEventClientImpl) EnqueuePostHog(ucid string, eventType TelemetryEventType, prop map[string]interface{}) error {
