@@ -526,9 +526,10 @@ func (impl PipelineRepositoryImpl) GetPartiallyDeletedPipelineByStatus(appId int
 		Where("app_id = ?", appId).
 		Where("environment_id = ?", envId).
 		Where("deployment_app_delete_request = ?", true).
+		Where("deployment_app_type = ?", util.PIPELINE_DEPLOYMENT_TYPE_ACD).
 		Where("deleted = ?", false).
 		Where("pipeline.updated_on < ?", time.Now().Add(-time.Minute*10)).Select()
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in updating argo pipeline delete status")
 	}
 	return pipeline, err
