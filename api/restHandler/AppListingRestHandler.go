@@ -355,11 +355,11 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	isAppDeleted, err := handler.pipeline.UpdateArgoDeleteStatusForDevtronApps(appId, envId)
-	if isAppDeleted {
-		handler.logger.Warnw("Error while updating delete status for apps", "err", err)
-		common.WriteJsonResp(w, err, "App deleted", http.StatusNotFound)
-	}
+	//isAppDeleted, err := handler.pipeline.UpdateArgoDeleteStatusForDevtronApps(appId, envId)
+	//if isAppDeleted {
+	//	handler.logger.Warnw("Error while updating delete status for apps", "err", err)
+	//	common.WriteJsonResp(w, err, "App deleted", http.StatusNotFound)
+	//}
 	appDetail, err := handler.appListingService.FetchAppDetails(r.Context(), appId, envId)
 
 	if err != nil {
