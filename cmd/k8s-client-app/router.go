@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/api/terminal"
@@ -95,10 +94,7 @@ func (r *MuxRouter) Init() {
 	userTerminalAccessRouter := r.Router.PathPrefix("/orchestrator/user/terminal").Subrouter()
 	r.userTerminalAccessRouter.InitTerminalAccessRouter(userTerminalAccessRouter)
 
-	dir, err := os.Getwd()
-	fmt.Println(dir)
-
-	fileContent, err := os.ReadFile("./cmd/k8s-client-app/DefaultClusterTerminalImages")
+	fileContent, err := os.ReadFile("DefaultClusterTerminalImages")
 	if err != nil {
 		r.logger.Errorw("error occurred while reading ClusterTerminalImages json file", "err", err)
 	}

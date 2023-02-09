@@ -3,10 +3,7 @@ package helper
 import (
 	"fmt"
 	"os"
-	"path"
 )
-
-const basePath = "./cmd/k8s-client-app"
 
 func GetDefaultTerminalAccessServiceAccount() string {
 	return readContent("TerminalAccessServiceAccount")
@@ -21,8 +18,8 @@ func GetDefaultTerminalAccessRoleBindingTemplate() string {
 }
 
 func readContent(fileName string) string {
-	filePath := path.Join(basePath, fileName)
-	fileContent, err := os.ReadFile(filePath)
+	//filePath := path.Join(basePath, fileName)
+	fileContent, err := os.ReadFile(fileName)
 	if err != nil {
 		fmt.Println("error occurred while reading json file", "fileName", fileName, "err", err)
 	}
