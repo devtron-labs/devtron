@@ -3188,7 +3188,24 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int) ([]*bean.C
 }
 
 func (impl PipelineBuilderImpl) GetCdPipelinesByEnvironment(envId int) (cdPipelines *bean.CdPipelines, err error) {
-	cdPipelines, err = impl.ciCdPipelineOrchestrator.GetCdPipelinesForEnv(envId)
+	dbPipelines, err := impl.pipelineRepository.FindActiveByEnvId(envId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error fetching pipelines for env id", "err", err)
+		return nil, err
+	}
+	pipelineMap := make(map[int]bool)
+	appNamesMap := make(map[int]string)
+	var appIds []int
+	for _, pipeline := range dbPipelines {
+		appIds = append(appIds, pipeline.AppId)
+		appNamesMap[pipeline.AppId] = pipeline.App.AppName
+		pipelineMap[pipeline.Id] = true
+	}
+	dbPipelines, err = impl.pipelineRepository.FindActiveByAppIds(appIds)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error fetching pipelines for env id", "err", err)
+		return nil, err
+	}
 	var pipelines []*bean.CDPipelineConfigObject
 	for _, dbPipeline := range cdPipelines.Pipelines {
 		environment, err := impl.environmentRepository.FindById(dbPipeline.EnvironmentId)
