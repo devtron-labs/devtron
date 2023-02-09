@@ -103,6 +103,9 @@ func (impl *UserTerminalAccessServiceImpl) ValidateShell(podName, namespace, she
 	}
 	if shellName == models.AutoSelectShell {
 		shell, err := impl.terminalSessionHandler.AutoSelectShell(req)
+		if err != nil {
+			return false, shell, err
+		}
 		return true, shell, err
 	}
 	res, err := impl.terminalSessionHandler.ValidateShell(req)
