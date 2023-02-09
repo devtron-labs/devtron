@@ -219,7 +219,8 @@ func (impl *UserTerminalAccessServiceImpl) UpdateTerminalShellSession(ctx contex
 			TerminalAccessId: terminalAccessData.Id,
 			IsValidShell:     isValidShell,
 			ShellName:        shellName,
-		}, err
+			ErrorReason:      err.Error(),
+		}, nil
 	}
 	terminalAccessData.Metadata = impl.mergeToMetadataString(terminalAccessData.Metadata, request)
 	err = impl.TerminalAccessRepository.UpdateUserTerminalAccessData(terminalAccessData)
