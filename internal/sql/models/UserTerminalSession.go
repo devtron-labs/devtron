@@ -12,6 +12,7 @@ type UserTerminalSessionRequest struct {
 type UserTerminalShellSessionRequest struct {
 	TerminalAccessId int    `json:"terminalAccessId" validate:"number,gt=0"`
 	ShellName        string `json:"shellName" validate:"required,min=1"`
+	NameSpace        string `json:"nameSpace" validate:"required,min=1"`
 }
 
 type UserTerminalSessionConfig struct {
@@ -29,6 +30,8 @@ type UserTerminalSessionResponse struct {
 	ErrorReason           string            `json:"errorReason"`
 	PodName               string            `json:"podName"`
 	NodeName              string            `json:"nodeName"`
+	IsValidShell          bool              `json:"isValidShell"`
+	ShellName             string            `json:"shellName"`
 }
 
 const TerminalAccessPodNameTemplate = "terminal-access-" + TerminalAccessClusterIdTemplateVar + "-" + TerminalAccessUserIdTemplateVar + "-" + TerminalAccessRandomIdVar
