@@ -2,32 +2,19 @@ package repository
 
 import (
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/user/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
 
-type RoleType string
-
 const (
-	MANAGER_TYPE               RoleType = "manager"
-	ADMIN_TYPE                 RoleType = "admin"
-	TRIGGER_TYPE               RoleType = "trigger"
-	VIEW_TYPE                  RoleType = "view"
-	ENTITY_ALL_TYPE            RoleType = "entityAll"
-	ENTITY_VIEW_TYPE           RoleType = "entityView"
-	ENTITY_SPECIFIC_TYPE       RoleType = "entitySpecific"
-	ENTITY_SPECIFIC_ADMIN_TYPE RoleType = "entitySpecificAdmin"
-	ENTITY_SPECIFIC_VIEW_TYPE  RoleType = "entitySpecificView"
-	ROLE_SPECIFIC_TYPE         RoleType = "roleSpecific"
-	ENTITY_CLUSTER_ADMIN_TYPE  RoleType = "clusterAdmin"
-	ENTITY_CLUSTER_EDIT_TYPE   RoleType = "clusterEdit"
-	ENTITY_CLUSTER_VIEW_TYPE   RoleType = "clusterView"
+	ENTITY_CLUSTER_EDIT_TYPE bean.RoleType = "clusterEdit"
 )
 
 type DefaultAuthPolicyRepository interface {
 	CreatePolicy(policy *DefaultAuthPolicy) (*DefaultAuthPolicy, error)
-	UpdatePolicyByRoleType(policy string, roleType RoleType) (*DefaultAuthPolicy, error)
-	GetPolicyByRoleType(roleType RoleType) (policy string, err error)
+	UpdatePolicyByRoleType(policy string, roleType bean.RoleType) (*DefaultAuthPolicy, error)
+	GetPolicyByRoleType(roleType bean.RoleType, accessType string) (policy string, err error)
 }
 
 type DefaultAuthPolicy struct {
@@ -56,7 +43,7 @@ func (impl DefaultAuthPolicyRepositoryImpl) CreatePolicy(policy *DefaultAuthPoli
 	return policy, nil
 }
 
-func (impl DefaultAuthPolicyRepositoryImpl) UpdatePolicyByRoleType(policy string, roleType RoleType) (*DefaultAuthPolicy, error) {
+func (impl DefaultAuthPolicyRepositoryImpl) UpdatePolicyByRoleType(policy string, roleType bean.RoleType) (*DefaultAuthPolicy, error) {
 	var model DefaultAuthPolicy
 	_, err := impl.dbConnection.Model(&model).Set("policy = ?", policy).
 		Where("role_type = ?", roleType).Update()
@@ -67,11 +54,11 @@ func (impl DefaultAuthPolicyRepositoryImpl) UpdatePolicyByRoleType(policy string
 	return &model, nil
 }
 
-func (impl DefaultAuthPolicyRepositoryImpl) GetPolicyByRoleType(roleType RoleType) (policy string, err error) {
+func (impl DefaultAuthPolicyRepositoryImpl) GetPolicyByRoleType(roleType bean.RoleType, accessType string) (policy string, err error) {
 	var model DefaultAuthPolicy
-	err = impl.dbConnection.Model(&model).Where("role_type = ?", roleType).Select()
+	err = impl.dbConnection.Model(&model).Where("role_type = ? AND access_type = ?", roleType, accessType).Select()
 	if err != nil {
-		impl.logger.Error("error in getting policy by roleType", "err", err, "roleType", roleType)
+		impl.logger.Error("error in getting policy by roleType", "err", err, "roleType", roleType, "accessType", accessType)
 		return "", err
 	}
 	return model.Policy, nil

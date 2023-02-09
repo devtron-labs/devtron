@@ -2,6 +2,7 @@ package repository
 
 import (
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/user/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -9,7 +10,7 @@ import (
 type DefaultAuthRoleRepository interface {
 	CreateRole(role *DefaultAuthRole) (*DefaultAuthRole, error)
 	UpdateRole(role *DefaultAuthRole) (*DefaultAuthRole, error)
-	GetRoleByRoleType(roleType RoleType) (role string, err error)
+	GetRoleByRoleTypeAndAccessType(roleType bean.RoleType, accessType string) (role string, err error)
 }
 
 type DefaultAuthRole struct {
@@ -47,9 +48,9 @@ func (impl DefaultAuthRoleRepositoryImpl) UpdateRole(role *DefaultAuthRole) (*De
 	return role, nil
 }
 
-func (impl DefaultAuthRoleRepositoryImpl) GetRoleByRoleType(roleType RoleType) (role string, err error) {
+func (impl DefaultAuthRoleRepositoryImpl) GetRoleByRoleTypeAndAccessType(roleType bean.RoleType, accessType string) (role string, err error) {
 	var model DefaultAuthRole
-	err = impl.dbConnection.Model(&model).Where("role_type = ?", roleType).Select()
+	err = impl.dbConnection.Model(&model).Where("role_type = ? AND access_type = ?", roleType, accessType).Select()
 	if err != nil {
 		impl.logger.Error("error in getting role by roleType", "err", err, "roleType", roleType)
 		return "", err

@@ -89,7 +89,6 @@ func NewUserRestHandlerImpl(userService user.UserService, validator *validator.V
 func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userService.GetLoggedInUser(r)
-
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
