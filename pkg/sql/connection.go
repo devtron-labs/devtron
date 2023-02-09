@@ -70,22 +70,22 @@ func NewDbConnection(cfg *Config, logger *zap.SugaredLogger) (*pg.DB, error) {
 		dbConnection.OnQueryProcessed(func(event *pg.QueryProcessedEvent) {
 			query, err := event.FormattedQuery()
 			if err != nil {
-				panic(err)
+				logger.Errorw("Error formatting query")
+				return
 			}
 
 			queryDuration := time.Since(event.StartTime)
 
-			// If only LogQuery is enabled and query duration exceeds
-			// threshold only then logging should be done.
-			// If LogAllQuery is enabled all queries should be enabled
-			// irrespective of the query duration
+			if cfg.LogAllQuery {
+				logger.Debugw("query time",
+					"duration", queryDuration.Seconds(),
+					"query", query)
 
-			if cfg.LogQuery && queryDuration.Milliseconds() <= cfg.QueryDurationThreshold && !cfg.LogAllQuery {
-				return
+			} else if queryDuration.Milliseconds() > cfg.QueryDurationThreshold {
+				logger.Debugw("query time",
+					"duration", queryDuration.Seconds(),
+					"query", query)
 			}
-			logger.Debugw("query time",
-				"duration", queryDuration.Seconds(),
-				"query", query)
 		})
 	}
 	return dbConnection, err
