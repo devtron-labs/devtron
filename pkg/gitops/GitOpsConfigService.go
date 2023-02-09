@@ -693,6 +693,18 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigActive() (*bean2.GitOpsConfi
 }
 
 func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsConfigDto) DetailedErrorGitOpsConfigResponse {
+	if config.Token == "" {
+		model, err := impl.gitOpsRepository.GetGitOpsConfigById(config.Id)
+		if err != nil {
+			impl.logger.Errorw("No matching entry found for update.", "id", config.Id)
+			err = &util.ApiError{
+				InternalMessage: "gitops config update failed, does not exist",
+				UserMessage:     "gitops config update failed, does not exist",
+			}
+			return DetailedErrorGitOpsConfigResponse{}
+		}
+		config.Token = model.Token
+	}
 	detailedErrorGitOpsConfigActions := util.DetailedErrorGitOpsConfigActions{}
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 	/*if strings.ToUpper(config.Provider) == GITHUB_PROVIDER {
