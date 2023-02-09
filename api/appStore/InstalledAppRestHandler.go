@@ -401,7 +401,7 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 	}
 	handler.Logger.Infow("request payload, FetchAppDetailsForInstalledApp, app store", "installedAppId", installedAppId, "envId", envId)
 
-	isAppDeleted, err := handler.appStoreDeploymentService.UpadateGitopsInstalledAppsDeleteStatus(installedAppId, envId)
+	isAppDeleted, err := handler.installedAppService.UpdateGitopsInstalledAppsDeleteStatus(installedAppId, envId)
 	if err != nil {
 		handler.Logger.Warnw("error in updating delete status of installed apps", "err", err)
 	}

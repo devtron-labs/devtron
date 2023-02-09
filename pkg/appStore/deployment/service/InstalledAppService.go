@@ -39,6 +39,8 @@ import (
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
+	errors2 "k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
 
 	/* #nosec */
@@ -79,6 +81,7 @@ type InstalledAppService interface {
 	FindAppDetailsForAppstoreApplication(installedAppId, envId int) (bean2.AppDetailContainer, error)
 	UpdateInstalledAppVersionStatus(application *v1alpha1.Application) (bool, error)
 	FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetail *bean2.AppDetailContainer) bean2.AppDetailContainer
+	UpdateGitopsInstalledAppsDeleteStatus(installedAppId int, envId int) (bool, error)
 }
 
 type InstalledAppServiceImpl struct {
@@ -955,4 +958,42 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 		}
 	}
 	return *appDetail
+}
+
+func (impl InstalledAppServiceImpl) UpdateGitopsInstalledAppsDeleteStatus(installedAppId int, envId int) (bool, error) {
+	installedApp, err := impl.installedAppRepository.GetGitOpsInstalledAppsWhereArgoAppDeletedIsTrue(installedAppId, envId)
+	var isAppDeleted bool
+	if err != nil {
+		impl.logger.Errorw("error in fetching partially deleted argoCd apps from installed app repo", "err", err)
+		return isAppDeleted, err
+	}
+	_, err = impl.ArgoK8sClient.GetArgoApplication(installedApp.Environment.Namespace, installedApp.App.AppName, nil)
+	if err != nil {
+		statusError, ok := err.(*errors2.StatusError)
+		if ok && statusError != nil && statusError.Status().Reason == v1.StatusReasonNotFound {
+			impl.logger.Warnw("app not found in argo, deleting from db ", "err", err)
+			//make call to delete it from pipeline DB
+			deleteRequest := &appStoreBean.InstallAppVersionDTO{}
+			deleteRequest.ForceDelete = false
+			deleteRequest.AcdPartialDelete = false
+			deleteRequest.InstalledAppId = installedApp.Id
+			deleteRequest.AppId = installedApp.AppId
+			deleteRequest.AppName = installedApp.App.AppName
+			deleteRequest.Namespace = installedApp.Environment.Namespace
+			deleteRequest.ClusterId = installedApp.Environment.ClusterId
+			deleteRequest.EnvironmentId = installedApp.EnvironmentId
+			deleteRequest.AppOfferingMode = installedApp.App.AppOfferingMode
+			deleteRequest.UserId = 1
+			_, err = impl.appStoreDeploymentService.DeleteInstalledApp(context.Background(), deleteRequest)
+			if err != nil {
+				impl.logger.Errorw("error in deleting installed app", "err", err)
+				return isAppDeleted, err
+			}
+			isAppDeleted = true
+			return isAppDeleted, err
+		}
+		impl.logger.Errorw("error in getting app from k8s", "err", err)
+		return isAppDeleted, err
+	}
+	return isAppDeleted, nil
 }

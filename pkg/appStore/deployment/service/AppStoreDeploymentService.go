@@ -25,7 +25,6 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
-	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/constants"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -45,8 +44,6 @@ import (
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	errors2 "k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
 	"strings"
 	"time"
@@ -69,7 +66,6 @@ type AppStoreDeploymentService interface {
 	GetInstalledAppVersion(id int, userId int32) (*appStoreBean.InstallAppVersionDTO, error)
 	InstallAppByHelm(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error)
 	UpdateProjectHelmApp(updateAppRequest *appStoreBean.UpdateProjectHelmAppDTO) error
-	UpadateGitopsInstalledAppsDeleteStatus(installedAppId int, envId int) (bool, error)
 }
 
 type DeploymentServiceTypeConfig struct {
@@ -99,7 +95,6 @@ type AppStoreDeploymentServiceImpl struct {
 	installedAppRepositoryHistory        repository.InstalledAppVersionHistoryRepository
 	gitOpsRepository                     repository2.GitOpsConfigRepository
 	deploymentTypeConfig                 *DeploymentServiceTypeConfig
-	ArgoK8sClient                        argocdServer.ArgoK8sClient
 }
 
 func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRepository repository.InstalledAppRepository,
@@ -110,7 +105,7 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 	clusterService cluster.ClusterService, helmAppService client.HelmAppService, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
 	globalEnvVariables *util2.GlobalEnvVariables,
 	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository, gitOpsRepository repository2.GitOpsConfigRepository, attributesService attributes.AttributesService,
-	deploymentTypeConfig *DeploymentServiceTypeConfig, ArgoK8sClient argocdServer.ArgoK8sClient) *AppStoreDeploymentServiceImpl {
+	deploymentTypeConfig *DeploymentServiceTypeConfig) *AppStoreDeploymentServiceImpl {
 	return &AppStoreDeploymentServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -128,7 +123,6 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 		installedAppRepositoryHistory:        installedAppRepositoryHistory,
 		gitOpsRepository:                     gitOpsRepository,
 		deploymentTypeConfig:                 deploymentTypeConfig,
-		ArgoK8sClient:                        ArgoK8sClient,
 	}
 }
 
@@ -1292,42 +1286,4 @@ func (impl AppStoreDeploymentServiceImpl) UpdateProjectHelmApp(updateAppRequest 
 	tx.Commit()
 	return nil
 
-}
-
-func (impl AppStoreDeploymentServiceImpl) UpadateGitopsInstalledAppsDeleteStatus(installedAppId int, envId int) (bool, error) {
-	installedApp, err := impl.installedAppRepository.GetGitOpsInstalledAppsWhereArgoAppDeletedIsTrue(installedAppId, envId)
-	var isAppDeleted bool
-	if err != nil {
-		impl.logger.Errorw("error in fetching partially deleted argoCd apps from installed app repo", "err", err)
-		return isAppDeleted, err
-	}
-	_, err = impl.ArgoK8sClient.GetArgoApplication(installedApp.Environment.Namespace, installedApp.App.AppName, nil)
-	if err != nil {
-		statusError, ok := err.(*errors2.StatusError)
-		if ok && statusError != nil && statusError.Status().Reason == v1.StatusReasonNotFound {
-			impl.logger.Warnw("app not found in argo, deleting from db ", "err", err)
-			//make call to delete it from pipeline DB
-			deleteRequest := &appStoreBean.InstallAppVersionDTO{}
-			deleteRequest.ForceDelete = false
-			deleteRequest.AcdPartialDelete = false
-			deleteRequest.InstalledAppId = installedApp.Id
-			deleteRequest.AppId = installedApp.AppId
-			deleteRequest.AppName = installedApp.App.AppName
-			deleteRequest.Namespace = installedApp.Environment.Namespace
-			deleteRequest.ClusterId = installedApp.Environment.ClusterId
-			deleteRequest.EnvironmentId = installedApp.EnvironmentId
-			deleteRequest.AppOfferingMode = installedApp.App.AppOfferingMode
-			deleteRequest.UserId = 1
-			_, err = impl.DeleteInstalledApp(context.Background(), deleteRequest)
-			if err != nil {
-				impl.logger.Errorw("error in deleting installed app", "err", err)
-				return isAppDeleted, err
-			}
-			isAppDeleted = true
-			return isAppDeleted, err
-		}
-		impl.logger.Errorw("error in getting app from k8s", "err", err)
-		return isAppDeleted, err
-	}
-	return isAppDeleted, nil
 }
