@@ -48,7 +48,6 @@ type UserAuthRepository interface {
 	DeleteUserRoleByRoleId(roleId int, tx *pg.Tx) error
 	CreateDefaultPoliciesForAllTypes(team string, entityName string, env string, entity string, cluster string, namespace string, group string, kind string, resource string, tx *pg.Tx, actionType string, accessType string) (bool, error)
 	CreateDefaultPoliciesForGlobalEntity(entity string, entityName string, action string, tx *pg.Tx) (bool, error)
-	CreateDefaultPoliciesForClusterEntity(entity, cluster, namespace, group, kind, resource string, tx *pg.Tx, actionType string) (bool, error)
 	CreateRoleForSuperAdminIfNotExists(tx *pg.Tx) (bool, error)
 	SyncOrchestratorToCasbin(team string, entityName string, env string, tx *pg.Tx) (bool, error)
 	UpdateTriggerPolicyForTerminalAccess() error
@@ -757,110 +756,6 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForGlobalEntity(entity s
 		}
 	}
 
-	err = transaction.Commit()
-	if err != nil {
-		return false, err
-	}
-	return true, nil
-}
-
-func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForClusterEntity(entity, cluster, namespace, group, kind, resource string, tx *pg.Tx, actionType string) (bool, error) {
-	transaction, err := impl.dbConnection.Begin()
-	if err != nil {
-		return false, err
-	}
-	// Rollback tx on error.
-	defer transaction.Rollback()
-
-	//getting policies from db
-	entityClusterPolicyDb, err := impl.defaultAuthPolicyRepository.GetPolicyByRoleType(bean2.RoleType(actionType), "cluster")
-	if err != nil {
-		impl.Logger.Errorw("error in getting default policy by roleType", "err", err, "roleType", bean2.RoleType(actionType))
-		return false, err
-	}
-	clusterObj := cluster
-	namespaceObj := namespace
-	groupObj := group
-	kindObj := kind
-	resourceObj := resource
-
-	if cluster == "" {
-		clusterObj = "*"
-	}
-	if namespace == "" {
-		namespaceObj = "*"
-	}
-	if group == "" {
-		groupObj = "*"
-	}
-	if kind == "" {
-		kindObj = "*"
-	}
-	if resource == "" {
-		resourceObj = "*"
-	}
-	policyDetails := ClusterRolePolicyDetails{
-		Entity:       entity,
-		Cluster:      cluster,
-		Namespace:    namespace,
-		Group:        group,
-		Kind:         kind,
-		Resource:     resource,
-		ClusterObj:   clusterObj,
-		NamespaceObj: namespaceObj,
-		GroupObj:     groupObj,
-		KindObj:      kindObj,
-		ResourceObj:  resourceObj,
-	}
-
-	//getting updated clusterpolicies
-	entityClusterPolicy, err := util.Tprintf(entityClusterPolicyDb, policyDetails)
-	if err != nil {
-		impl.Logger.Errorw("error in getting updated policies", "err", err, "roleType", bean2.RoleType(actionType))
-		return false, err
-	}
-
-	//for START in Casbin Object Ends Here
-	var policies bean.PolicyRequest
-	err = json.Unmarshal([]byte(entityClusterPolicy), &policies)
-	if err != nil {
-		impl.Logger.Errorw("decode err", "err", err)
-		return false, err
-	}
-	impl.Logger.Debugw("add policy request", "policies", policies)
-	casbin.AddPolicy(policies.Data)
-	//CASBIN ENDS
-
-	//Creating ROLES
-	//getting role from db
-	clusterRoleDb, err := impl.defaultAuthRoleRepository.GetRoleByRoleTypeAndAccessType(bean2.RoleType(actionType), "cluster")
-	if err != nil {
-		impl.Logger.Errorw("error in getting default policy by roleType", "err", err, "roleType", bean2.RoleType(actionType))
-		return false, err
-	}
-
-	//getting updated role
-	roleCluster, err := util.Tprintf(clusterRoleDb, policyDetails)
-	if err != nil {
-		impl.Logger.Errorw("error in getting updated policies", "err", err, "roleType", bean2.RoleType(actionType))
-		return false, err
-	}
-	//
-	////getting role from db
-
-	var roleClusterData bean.RoleData
-	err = json.Unmarshal([]byte(roleCluster), &roleClusterData)
-	if err != nil {
-		impl.Logger.Errorw("decode err", "err", err)
-		return false, err
-	}
-	_, err = impl.GetRole(roleClusterData.Role)
-	if err != nil || err == pg.ErrNoRows {
-		_, err = impl.createRole(&roleClusterData, transaction)
-		if err != nil && strings.Contains("duplicate key value violates unique constraint", err.Error()) {
-			return false, err
-		}
-	}
 	err = transaction.Commit()
 	if err != nil {
 		return false, err
