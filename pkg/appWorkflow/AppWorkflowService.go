@@ -389,11 +389,13 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowsByEnvironmentId(envId int) ([
 		return nil, err
 	}
 
+	pipelineMap := make(map[int]bool)
 	appNamesMap := make(map[int]string)
 	var appIds []int
 	for _, pipeline := range pipelines {
 		appIds = append(appIds, pipeline.AppId)
 		appNamesMap[pipeline.AppId] = pipeline.App.AppName
+		pipelineMap[pipeline.Id] = true
 	}
 
 	appWorkflow, err := impl.appWorkflowRepository.FindByAppIds(appIds)
@@ -409,12 +411,24 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowsByEnvironmentId(envId int) ([
 			Name:  appName, // here workflow name is app name, only for environment app grouping view
 			AppId: w.AppId,
 		}
-		mapping, err := impl.FindAppWorkflowMapping(w.Id)
+		mappings, err := impl.FindAppWorkflowMapping(w.Id)
 		if err != nil {
+			impl.Logger.Errorw("error fetching app workflow mapping by wf id", "err", err)
 			return nil, err
 		}
-		workflow.AppWorkflowMappingDto = mapping
-		workflows = append(workflows, workflow)
+		valid := false
+		for _, mapping := range mappings {
+			if mapping.Type == CD_PIPELINE_TYPE {
+				if _, ok := pipelineMap[mapping.ComponentId]; ok {
+					valid = true
+				}
+			}
+		}
+		//if there is no matching pipeline for requested environment, skip from workflow listing
+		if valid {
+			workflow.AppWorkflowMappingDto = mappings
+			workflows = append(workflows, workflow)
+		}
 	}
 	return workflows, err
 }
