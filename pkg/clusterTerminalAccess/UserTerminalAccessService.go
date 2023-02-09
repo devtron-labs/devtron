@@ -210,6 +210,17 @@ func (impl *UserTerminalAccessServiceImpl) UpdateTerminalShellSession(ctx contex
 		impl.Logger.Errorw("error occurred while fetching user terminal access data", "userTerminalAccessId", userTerminalAccessId, "err", err)
 		return nil, err
 	}
+	isValidShell, shellName, err := impl.ValidateShell(terminalAccessData.PodName, request.NameSpace, request.ShellName, terminalAccessData.ClusterId)
+	if !isValidShell {
+		impl.Logger.Infow("shell is not supported", "podName", terminalAccessData.PodName, "namespace", request.NameSpace, "shell", request.ShellName, "reason", err)
+		return &models.UserTerminalSessionResponse{
+			UserId:           terminalAccessData.UserId,
+			PodName:          terminalAccessData.PodName,
+			TerminalAccessId: terminalAccessData.Id,
+			IsValidShell:     isValidShell,
+			ShellName:        shellName,
+		}, err
+	}
 	terminalAccessData.Metadata = impl.mergeToMetadataString(terminalAccessData.Metadata, request)
 	err = impl.TerminalAccessRepository.UpdateUserTerminalAccessData(terminalAccessData)
 	if err != nil {
@@ -228,6 +239,8 @@ func (impl *UserTerminalAccessServiceImpl) UpdateTerminalShellSession(ctx contex
 		UserId:           terminalAccessData.UserId,
 		PodName:          terminalAccessData.PodName,
 		TerminalAccessId: terminalAccessData.Id,
+		IsValidShell:     isValidShell,
+		ShellName:        request.ShellName,
 	}, nil
 }
 
