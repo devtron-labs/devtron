@@ -110,7 +110,7 @@ func (impl *UserTerminalAccessServiceImpl) ValidateShell(podName, namespace, she
 	}
 	res, err := impl.terminalSessionHandler.ValidateShell(req)
 	if err != nil && err.Error() == "Failed to Execute Command" {
-		return res, "", errors.New(models.ShellNotSupported)
+		return res, shellName, errors.New(models.ShellNotSupported)
 	}
 	return res, shellName, err
 }
