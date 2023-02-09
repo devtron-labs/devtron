@@ -41,12 +41,12 @@ type UserAuthRepository interface {
 	GetRolesByGroupId(userId int32) ([]*RoleModel, error)
 	GetAllRole() ([]RoleModel, error)
 	GetRolesByActionAndAccessType(action string, accessType string) ([]RoleModel, error)
-	GetRoleByFilterForAllTypes(entity string, team string, app string, env string, act string, accessType string, cluster string, namespace string, group string, kind string, resource string, action string) (RoleModel, error)
+	GetRoleByFilterForAllTypes(entity, team, app, env, act, accessType, cluster, namespace, group, kind, resource, action string) (RoleModel, error)
 	CreateUserRoleMapping(userRoleModel *UserRoleModel, tx *pg.Tx) (*UserRoleModel, error)
 	GetUserRoleMappingByUserId(userId int32) ([]*UserRoleModel, error)
 	DeleteUserRoleMapping(userRoleModel *UserRoleModel, tx *pg.Tx) (bool, error)
 	DeleteUserRoleByRoleId(roleId int, tx *pg.Tx) error
-	CreateDefaultPoliciesForAllTypes(team string, entityName string, env string, entity string, cluster string, namespace string, group string, kind string, resource string, tx *pg.Tx, actionType string, accessType string) (bool, error)
+	CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource string, tx *pg.Tx, actionType, accessType string) (bool, error)
 	CreateDefaultPoliciesForGlobalEntity(entity string, entityName string, action string, tx *pg.Tx) (bool, error)
 	CreateRoleForSuperAdminIfNotExists(tx *pg.Tx) (bool, error)
 	SyncOrchestratorToCasbin(team string, entityName string, env string, tx *pg.Tx) (bool, error)
@@ -673,7 +673,7 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForGlobalEntity(entity s
 	//Creating ROLES
 
 	//getting role from db
-	entitySpecificAdminDb, err := impl.defaultAuthRoleRepository.GetRoleByRoleTypeAndAccessType(bean2.ENTITY_SPECIFIC_ADMIN_TYPE, "globalEntity")
+	entitySpecificAdminDb, err := impl.defaultAuthRoleRepository.GetRoleByRoleTypeAndAccessType(bean2.ENTITY_SPECIFIC_ADMIN_TYPE, bean2.GLOBAL_ENTITY)
 	if err != nil {
 		impl.Logger.Errorw("error in getting default policy by roleType", "err", err, "roleType", bean2.ENTITY_SPECIFIC_ADMIN_TYPE)
 		return false, err
@@ -770,7 +770,7 @@ func (impl UserAuthRepositoryImpl) CreateRoleForSuperAdminIfNotExists(tx *pg.Tx)
 	}
 
 	//Creating ROLES
-	roleModel, err := impl.GetRoleByFilterForAllTypes("", "", "", "", "super-admin", "", "", "", "", "", "", "")
+	roleModel, err := impl.GetRoleByFilterForAllTypes("", "", "", "", bean2.SUPER_ADMIN, "", "", "", "", "", "", "")
 	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("Error in fetching role by filter", "err", err)
 		return false, err

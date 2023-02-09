@@ -352,7 +352,7 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 						if environment == "NONE" {
 							environment = ""
 						}
-						roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, roleFilter.Action, accessType, "", "", "", "", "", "")
+						roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "")
 						if err != nil {
 							impl.logger.Errorw("Error in fetching role by filter", "user", userInfo)
 							return nil, err
@@ -366,7 +366,7 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 								if err != nil || flag == false {
 									return nil, err
 								}
-								roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, roleFilter.Action, roleFilter.AccessType, "", "", "", "", "", "")
+								roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, accessType, accessType, "", "", "", "", "", "")
 								if err != nil {
 									impl.logger.Errorw("Error in fetching role by filter", "user", userInfo)
 									return nil, err
@@ -381,14 +381,14 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 								if err != nil || flag == false {
 									return nil, err
 								}
-								roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, roleFilter.Action, roleFilter.AccessType, "", "", "", "", "", "")
+								roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "")
 								if err != nil {
 									impl.logger.Errorw("Error in fetching role by filter", "user", userInfo)
 									return nil, err
 								}
 								if roleModel.Id == 0 {
 									impl.logger.Debugw("no role found for given filter", "filter", roleFilter)
-									userInfo.Status = "role not found for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + roleFilter.Action
+									userInfo.Status = "role not found for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + actionType
 									continue
 								}
 							} else {
@@ -506,7 +506,7 @@ func (impl UserServiceImpl) CreateOrUpdateUserRolesForClusterEntity(roleFilter b
 							continue
 						}
 					}
-					roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes("", "", "", "", "", accessType, roleFilter.Cluster, namespace, group, kind, resource, roleFilter.Action)
+					roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes("", "", "", "", "", accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType)
 					if err != nil {
 						impl.logger.Errorw("Error in fetching role by filter", "err", err)
 						return policiesToBeAdded, rolesChanged, err
@@ -516,7 +516,7 @@ func (impl UserServiceImpl) CreateOrUpdateUserRolesForClusterEntity(roleFilter b
 						if err != nil || flag == false {
 							return policiesToBeAdded, rolesChanged, err
 						}
-						roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes("", "", "", "", "", accessType, roleFilter.Cluster, namespace, group, kind, resource, roleFilter.Action)
+						roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes("", "", "", "", "", accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType)
 						if err != nil {
 							impl.logger.Errorw("Error in fetching role by filter", "err", err)
 							return policiesToBeAdded, rolesChanged, err
@@ -725,14 +725,14 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 						if environment == "NONE" {
 							environment = ""
 						}
-						roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, roleFilter.Action, accessType, "", "", "", "", "", "")
+						roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "")
 						if err != nil {
 							impl.logger.Errorw("Error in fetching role by filter", "user", userInfo)
 							return nil, false, false, nil, err
 						}
 						if roleModel.Id == 0 {
 							impl.logger.Debugw("no role found for given filter", "filter", roleFilter)
-							userInfo.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + roleFilter.Action
+							userInfo.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + actionType
 
 							if len(roleFilter.Team) > 0 {
 
@@ -740,29 +740,29 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 								if err != nil || flag == false {
 									return nil, false, false, nil, err
 								}
-								roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, roleFilter.Action, roleFilter.AccessType, "", "", "", "", "", "")
+								roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "")
 								if err != nil {
 									impl.logger.Errorw("Error in fetching role by filter", "user", userInfo)
 									return nil, false, false, nil, err
 								}
 								if roleModel.Id == 0 {
 									impl.logger.Debugw("no role found for given filter", "filter", roleFilter)
-									userInfo.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + roleFilter.Action
+									userInfo.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + actionType
 									continue
 								}
 							} else if len(roleFilter.Entity) > 0 {
-								flag, err := impl.userAuthRepository.CreateDefaultPoliciesForGlobalEntity(roleFilter.Entity, entityName, roleFilter.Action, tx)
+								flag, err := impl.userAuthRepository.CreateDefaultPoliciesForGlobalEntity(roleFilter.Entity, entityName, actionType, tx)
 								if err != nil || flag == false {
 									return nil, false, false, nil, err
 								}
-								roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, roleFilter.Action, roleFilter.AccessType, "", "", "", "", "", "")
+								roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "")
 								if err != nil {
 									impl.logger.Errorw("Error in fetching role by filter", "user", userInfo)
 									return nil, false, false, nil, err
 								}
 								if roleModel.Id == 0 {
 									impl.logger.Debugw("no role found for given filter", "filter", roleFilter)
-									userInfo.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + roleFilter.Action
+									userInfo.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + actionType
 									continue
 								}
 							} else {

@@ -254,7 +254,7 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForClusterEntity(roleFil
 							continue
 						}
 					}
-					roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes("", "", "", "", "", "cluster", roleFilter.Cluster, namespace, group, kind, resource, actionType)
+					roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes("", "", "", "", "", accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType)
 					if err != nil {
 						impl.logger.Errorw("Error in fetching role by filter", "err", err)
 						return policiesToBeAdded, err
