@@ -903,8 +903,8 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerView(appId int) ([]*p
 				cdWorkflowStatus.PostStatus = statusMap[item.WfrId]
 			}
 			cdMap[item.PipelineId] = cdWorkflowStatus
-			cdMap[item.PipelineId].DeploymentAppDeleteRequest = partialDeletedPipelines[item.PipelineId]
 		}
+		cdMap[item.PipelineId].DeploymentAppDeleteRequest = partialDeletedPipelines[item.PipelineId]
 	}
 
 	for _, item := range cdMap {

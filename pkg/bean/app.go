@@ -521,7 +521,7 @@ const (
 	CD_CREATE CdPatchAction = iota
 	CD_DELETE               //delete this pipeline
 	CD_UPDATE
-	CD_DELETE_PARTIAL
+	CD_DELETE_PARTIAL // Partially delete means it will only delete ACD app
 )
 
 func (a CdPatchAction) String() string {

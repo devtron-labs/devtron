@@ -150,29 +150,8 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetAppStatus(installedAppAndEnvD
 }
 
 func (impl AppStoreDeploymentArgoCdServiceImpl) DeleteInstalledApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *repository.InstalledApps, dbTransaction *pg.Tx) error {
-	acdAppName := appName + "-" + environmentName
-	err := impl.deleteACD(acdAppName, ctx)
-	if err != nil {
-		impl.Logger.Errorw("error in deleting ACD ", "name", acdAppName, "err", err)
-		if installAppVersionRequest.ForceDelete {
-			impl.Logger.Warnw("error while deletion of app in acd, continue to delete in db as this operation is force delete", "error", err)
-		} else {
-			//statusError, _ := err.(*errors2.StatusError)
-			if strings.Contains(err.Error(), "code = NotFound") {
-				err = &util.ApiError{
-					UserMessage:     "Could not delete as application not found in argocd",
-					InternalMessage: err.Error(),
-				}
-			} else {
-				err = &util.ApiError{
-					UserMessage:     "Could not delete application",
-					InternalMessage: err.Error(),
-				}
-			}
-			return err
-		}
-	}
-	err = impl.appStatusService.DeleteWithAppIdEnvId(dbTransaction, installedApps.AppId, installedApps.EnvironmentId)
+
+	err := impl.appStatusService.DeleteWithAppIdEnvId(dbTransaction, installedApps.AppId, installedApps.EnvironmentId)
 	if err != nil {
 		impl.Logger.Errorw("error in deleting app_status", "appId", installedApps.AppId, "envId", installedApps.EnvironmentId, "err", err)
 		return err

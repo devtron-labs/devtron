@@ -19,6 +19,7 @@ package repository
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	util2 "github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -59,7 +60,7 @@ type InstalledAppRepository interface {
 	GetInstalledApplicationByClusterIdAndNamespaceAndAppName(clusterId int, namespace string, appName string) (*InstalledApps, error)
 	GetAppAndEnvDetailsForDeploymentAppTypeInstalledApps(deploymentAppType string, clusterIds []int) ([]*InstalledApps, error)
 	GetDeploymentSuccessfulStatusCountForTelemetry() (int, error)
-	GetGitOpsInstalledAppsWhereArgoAppDeletedIsTrue(installedAppId int, envId int) ([]InstalledApps, error)
+	GetGitOpsInstalledAppsWhereArgoAppDeletedIsTrue(installedAppId int, envId int) (InstalledApps, error)
 	GetInstalledAppByGitHash(gitHash string) (InstallAppDeleteRequest, error)
 }
 
@@ -506,19 +507,20 @@ func (impl InstalledAppRepositoryImpl) GetDeploymentSuccessfulStatusCountForTele
 	return count, err
 }
 
-func (impl InstalledAppRepositoryImpl) GetGitOpsInstalledAppsWhereArgoAppDeletedIsTrue(installedAppId int, envId int) ([]InstalledApps, error) {
-	var installedApps []InstalledApps
+func (impl InstalledAppRepositoryImpl) GetGitOpsInstalledAppsWhereArgoAppDeletedIsTrue(installedAppId int, envId int) (InstalledApps, error) {
+	var installedApps InstalledApps
 	err := impl.dbConnection.Model(&installedApps).
-		Column("installed_apps.id", "installed_apps.environment_id", "App.app_name", "Environment.namespace").
+		Column("installed_apps.*", "App.app_name", "Environment.namespace", "Environment.cluster_id", "Environment.environment_name").
 		Where("deployment_app_delete_request = ?", true).
-		Where("active = ?", false).
-		Where("id = ?", installedAppId).
-		Where("environment_id = ?", envId).
-		Where("updated_on < ", time.Now().Add(-time.Minute*10)).
+		Where("installed_apps.active = ?", true).
+		Where("installed_apps.id = ?", installedAppId).
+		Where("installed_apps.environment_id = ?", envId).
+		Where("installed_apps.updated_on < ?", time.Now().Add(-time.Minute*10)).
+		Where("deployment_app_type = ?", util2.PIPELINE_DEPLOYMENT_TYPE_ACD).
 		Select()
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("error in fetching pipeline while udating delete status", "err", err)
-		return nil, err
+		return installedApps, err
 	}
 	return installedApps, nil
 }
