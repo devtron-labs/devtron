@@ -401,13 +401,13 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 	}
 	handler.Logger.Infow("request payload, FetchAppDetailsForInstalledApp, app store", "installedAppId", installedAppId, "envId", envId)
 
-	//isAppDeleted, err := handler.installedAppService.UpdateGitopsInstalledAppsDeleteStatus(installedAppId, envId)
-	//if err != nil {
-	//	handler.Logger.Warnw("error in updating delete status of installed apps", "err", err)
-	//}
-	//if isAppDeleted {
-	//	common.WriteJsonResp(w, err, "App deleted", http.StatusNotFound)
-	//}
+	isAppDeleted, err := handler.installedAppService.UpdateGitopsInstalledAppsDeleteStatus(installedAppId, envId)
+	if err != nil {
+		handler.Logger.Warnw("error in updating delete status of installed apps", "err", err)
+	}
+	if isAppDeleted {
+		common.WriteJsonResp(w, err, "App deleted", http.StatusNotFound)
+	}
 	appDetail, err := handler.installedAppService.FindAppDetailsForAppstoreApplication(installedAppId, envId)
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchAppDetailsForInstalledApp, app store", "err", err, "installedAppId", installedAppId, "envId", envId)

@@ -35,8 +35,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
-	errors2 "k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/devtron-labs/devtron/util/argo"
 	"net/http"
 	"net/url"
 	"sort"
@@ -184,6 +183,7 @@ type PipelineBuilderImpl struct {
 	globalStrategyMetadataChartRefMappingRepository chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepository
 	deploymentConfig                                *DeploymentServiceTypeConfig
 	appStatusRepository                             appStatus.AppStatusRepository
+	ArgoUserService                                 argo.ArgoUserService
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -229,7 +229,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	CiPipelineHistoryService history.CiPipelineHistoryService,
 	globalStrategyMetadataRepository chartRepoRepository.GlobalStrategyMetadataRepository,
 	globalStrategyMetadataChartRefMappingRepository chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepository,
-	deploymentConfig *DeploymentServiceTypeConfig, appStatusRepository appStatus.AppStatusRepository) *PipelineBuilderImpl {
+	deploymentConfig *DeploymentServiceTypeConfig, appStatusRepository appStatus.AppStatusRepository, ArgoUserService argo.ArgoUserService) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                        logger,
 		ciCdPipelineOrchestrator:      ciCdPipelineOrchestrator,
@@ -282,6 +282,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		globalStrategyMetadataChartRefMappingRepository: globalStrategyMetadataChartRefMappingRepository,
 		deploymentConfig:                                deploymentConfig,
 		appStatusRepository:                             appStatusRepository,
+		ArgoUserService:                                 ArgoUserService,
 	}
 }
 
@@ -3138,20 +3139,27 @@ func (impl PipelineBuilderImpl) UpdateArgoDeleteStatusForDevtronApps(appId int, 
 		impl.logger.Errorw("error in fetching partially deleted pipelines", "err", err)
 		return isAppDeleted, err
 	}
-	_, err = impl.ArgoK8sClient.GetArgoApplication(pipeline.Environment.Namespace, pipeline.App.AppName, nil)
+	acdToken, err := impl.ArgoUserService.GetLatestDevtronArgoCdUserToken()
 	if err != nil {
-		statusError, ok := err.(*errors2.StatusError)
-		if ok && statusError != nil && statusError.Status().Reason == v1.StatusReasonNotFound {
-			impl.logger.Warnw("app not found in argo, deleting from db ", "err", err)
-			//make call to delete it from pipeline DB
-			err = impl.DeleteCdPipeline(&pipeline, context.Background(), true, false, 0)
-			if err != nil {
-				impl.logger.Errorw("error in deleting cd pipeline", "err", err)
-				return isAppDeleted, err
-			}
-			isAppDeleted = true
+		impl.logger.Errorw("error in getting acd token", "err", err)
+		return isAppDeleted, err
+	}
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, "token", acdToken)
+	acdAppName := pipeline.DeploymentAppName
+	_, err = impl.application.Get(ctx, &application2.ApplicationQuery{Name: &acdAppName})
+	if err != nil {
+
+		impl.logger.Warnw("app not found in argo, deleting from db ", "err", err)
+		//make call to delete it from pipeline DB
+		err = impl.DeleteCdPipeline(&pipeline, context.Background(), true, false, 0)
+		if err != nil {
+			impl.logger.Errorw("error in deleting cd pipeline", "err", err)
 			return isAppDeleted, err
 		}
+		isAppDeleted = true
+		return isAppDeleted, err
+
 		impl.logger.Errorw("error in getting app from k8s", "err", err)
 		return isAppDeleted, err
 	}

@@ -510,7 +510,7 @@ func (impl InstalledAppRepositoryImpl) GetDeploymentSuccessfulStatusCountForTele
 func (impl InstalledAppRepositoryImpl) GetGitOpsInstalledAppsWhereArgoAppDeletedIsTrue(installedAppId int, envId int) (InstalledApps, error) {
 	var installedApps InstalledApps
 	err := impl.dbConnection.Model(&installedApps).
-		Column("installed_apps.*", "App.app_name", "Environment.namespace", "Environment.cluster_id").
+		Column("installed_apps.*", "App.app_name", "Environment.namespace", "Environment.cluster_id", "Environment.environment_name").
 		Where("deployment_app_delete_request = ?", true).
 		Where("installed_apps.active = ?", true).
 		Where("installed_apps.id = ?", installedAppId).

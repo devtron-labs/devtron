@@ -39,8 +39,6 @@ import (
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
-	errors2 "k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
 
 	/* #nosec */
@@ -967,32 +965,36 @@ func (impl InstalledAppServiceImpl) UpdateGitopsInstalledAppsDeleteStatus(instal
 		impl.logger.Errorw("error in fetching partially deleted argoCd apps from installed app repo", "err", err)
 		return isAppDeleted, err
 	}
-	_, err = impl.ArgoK8sClient.GetArgoApplication(installedApp.Environment.Namespace, installedApp.App.AppName, nil)
+	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 	if err != nil {
-		statusError, ok := err.(*errors2.StatusError)
-		if ok && statusError != nil && statusError.Status().Reason == v1.StatusReasonNotFound {
-			impl.logger.Warnw("app not found in argo, deleting from db ", "err", err)
-			//make call to delete it from pipeline DB
-			deleteRequest := &appStoreBean.InstallAppVersionDTO{}
-			deleteRequest.ForceDelete = false
-			deleteRequest.AcdPartialDelete = false
-			deleteRequest.InstalledAppId = installedApp.Id
-			deleteRequest.AppId = installedApp.AppId
-			deleteRequest.AppName = installedApp.App.AppName
-			deleteRequest.Namespace = installedApp.Environment.Namespace
-			deleteRequest.ClusterId = installedApp.Environment.ClusterId
-			deleteRequest.EnvironmentId = installedApp.EnvironmentId
-			deleteRequest.AppOfferingMode = installedApp.App.AppOfferingMode
-			deleteRequest.UserId = 1
-			_, err = impl.appStoreDeploymentService.DeleteInstalledApp(context.Background(), deleteRequest)
-			if err != nil {
-				impl.logger.Errorw("error in deleting installed app", "err", err)
-				return isAppDeleted, err
-			}
-			isAppDeleted = true
+		impl.logger.Errorw("error in getting acd token", "err", err)
+		return isAppDeleted, err
+	}
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, "token", acdToken)
+	//acdAppName := fmt.Sprintf("%s-%s", installedApp.App.AppName, installedApp.Environment.Name)
+	acdAppName := "testing-bp"
+	_, err = impl.acdClient.Get(ctx, &application.ApplicationQuery{Name: &acdAppName})
+	if err != nil {
+		impl.logger.Warnw("app not found in argo, deleting from db ", "err", err)
+		//make call to delete it from pipeline DB
+		deleteRequest := &appStoreBean.InstallAppVersionDTO{}
+		deleteRequest.ForceDelete = false
+		deleteRequest.AcdPartialDelete = false
+		deleteRequest.InstalledAppId = installedApp.Id
+		deleteRequest.AppId = installedApp.AppId
+		deleteRequest.AppName = installedApp.App.AppName
+		deleteRequest.Namespace = installedApp.Environment.Namespace
+		deleteRequest.ClusterId = installedApp.Environment.ClusterId
+		deleteRequest.EnvironmentId = installedApp.EnvironmentId
+		deleteRequest.AppOfferingMode = installedApp.App.AppOfferingMode
+		deleteRequest.UserId = 1
+		_, err = impl.appStoreDeploymentService.DeleteInstalledApp(context.Background(), deleteRequest)
+		if err != nil {
+			impl.logger.Errorw("error in deleting installed app", "err", err)
 			return isAppDeleted, err
 		}
-		impl.logger.Errorw("error in getting app from k8s", "err", err)
+		isAppDeleted = true
 		return isAppDeleted, err
 	}
 	return isAppDeleted, nil
