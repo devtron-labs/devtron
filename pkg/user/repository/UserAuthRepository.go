@@ -214,7 +214,7 @@ func (impl UserAuthRepositoryImpl) GetRolesByActionAndAccessType(action string, 
 }
 
 func (impl UserAuthRepositoryImpl) GetRoleByFilterForAllTypes(entity string, team string, app string, env string, act string, accessType string, cluster string, namespace string, group string, kind string, resource string, action string) (RoleModel, error) {
-	if accessType == "cluster" {
+	if accessType == bean2.CLUSTER {
 		var model RoleModel
 		query := "SELECT * FROM roles  WHERE entity = ? "
 		var err error
@@ -252,7 +252,7 @@ func (impl UserAuthRepositoryImpl) GetRoleByFilterForAllTypes(entity string, tea
 		_, err = impl.dbConnection.Query(&model, query, bean.CLUSTER_ENTITIY)
 		if err != nil {
 			impl.Logger.Errorw("error in getting roles for clusterEntity", "err", err,
-				"cluster", cluster, "namespace", namespace, "kind", kind, "group", group, "resource", resource)
+				bean2.CLUSTER, cluster, "namespace", namespace, "kind", kind, "group", group, "resource", resource)
 			return model, err
 		}
 		return model, nil
@@ -376,7 +376,7 @@ func (impl UserAuthRepositoryImpl) GetRoleByFilterForClusterEntity(cluster, name
 	_, err = impl.dbConnection.Query(&model, query, bean.CLUSTER_ENTITIY)
 	if err != nil {
 		impl.Logger.Errorw("error in getting roles for clusterEntity", "err", err,
-			"cluster", cluster, "namespace", namespace, "kind", kind, "group", group, "resource", resource)
+			bean2.CLUSTER, cluster, "namespace", namespace, "kind", kind, "group", group, "resource", resource)
 		return model, err
 	}
 	return model, nil
@@ -424,7 +424,7 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team string,
 	if accessType == bean2.CLUSTER {
 
 		//getting policies from db
-		entityClusterPolicyDb, err := impl.defaultAuthPolicyRepository.GetPolicyByRoleType(bean2.RoleType(actionType), "cluster")
+		entityClusterPolicyDb, err := impl.defaultAuthPolicyRepository.GetPolicyByRoleType(bean2.RoleType(actionType), accessType)
 		if err != nil {
 			impl.Logger.Errorw("error in getting default policy by roleType", "err", err, "roleType", bean2.RoleType(actionType))
 			return false, err
@@ -486,7 +486,7 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team string,
 
 		//Creating ROLES
 		//getting role from db
-		clusterRoleDb, err := impl.defaultAuthRoleRepository.GetRoleByRoleTypeAndAccessType(bean2.RoleType(actionType), "cluster")
+		clusterRoleDb, err := impl.defaultAuthRoleRepository.GetRoleByRoleTypeAndAccessType(bean2.RoleType(actionType), accessType)
 		if err != nil {
 			impl.Logger.Errorw("error in getting default policy by roleType", "err", err, "roleType", bean2.RoleType(actionType))
 			return false, err
