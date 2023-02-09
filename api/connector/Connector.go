@@ -235,11 +235,9 @@ func (impl *PumpImpl) sendEvent(eventId []byte, eventName []byte, payload []byte
 		res = append(res, payload...)
 	}
 	res = append(res, '\n', '\n')
-	if i, err := w.Write(res); err != nil {
+	if _, err := w.Write(res); err != nil {
 		impl.logger.Errorf("Failed to send response chunk: %v", err)
 		return err
-	} else {
-		impl.logger.Debugw("msg written", "count", i)
 	}
 
 	return nil
