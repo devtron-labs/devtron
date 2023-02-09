@@ -22,4 +22,5 @@ const (
 	ADMIN_HELM_TYPE            RoleType = "admin"
 	EDIT_HELM_TYPE             RoleType = "edit"
 	VIEW_HELM_TYPE             RoleType = "view"
+	ENTITY_CLUSTER_EDIT_TYPE   RoleType = "clusterEdit"
 )

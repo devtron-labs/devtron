@@ -7,10 +7,6 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	ENTITY_CLUSTER_EDIT_TYPE bean.RoleType = "clusterEdit"
-)
-
 type DefaultAuthPolicyRepository interface {
 	CreatePolicy(policy *DefaultAuthPolicy) (*DefaultAuthPolicy, error)
 	UpdatePolicyByRoleType(policy string, roleType bean.RoleType) (*DefaultAuthPolicy, error)
