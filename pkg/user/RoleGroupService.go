@@ -231,6 +231,7 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForClusterEntity(roleFil
 	kinds := strings.Split(roleFilter.Kind, ",")
 	resources := strings.Split(roleFilter.Resource, ",")
 	actionType := roleFilter.Action
+	accessType := roleFilter.AccessType
 	for _, namespace := range namespaces {
 		for _, group := range groups {
 			for _, kind := range kinds {
@@ -259,7 +260,7 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForClusterEntity(roleFil
 						return policiesToBeAdded, err
 					}
 					if roleModel.Id == 0 {
-						flag, err := impl.userAuthRepository.CreateDefaultPoliciesForClusterEntity(roleFilter.Entity, roleFilter.Cluster, namespace, group, kind, resource, tx, actionType)
+						flag, err := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes("", "", "", roleFilter.Entity, roleFilter.Cluster, namespace, group, kind, resource, tx, actionType, accessType)
 						if err != nil || flag == false {
 							return policiesToBeAdded, err
 						}
