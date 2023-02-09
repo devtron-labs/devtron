@@ -76,12 +76,7 @@ func NewDbConnection(cfg *Config, logger *zap.SugaredLogger) (*pg.DB, error) {
 
 			queryDuration := time.Since(event.StartTime)
 
-			if cfg.LogAllQuery {
-				logger.Debugw("query time",
-					"duration", queryDuration.Seconds(),
-					"query", query)
-
-			} else if queryDuration.Milliseconds() > cfg.QueryDurationThreshold {
+			if cfg.LogAllQuery || queryDuration.Milliseconds() > cfg.QueryDurationThreshold {
 				logger.Debugw("query time",
 					"duration", queryDuration.Seconds(),
 					"query", query)
