@@ -1365,6 +1365,15 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int) (cdPipe
 	if err != nil {
 		impl.logger.Errorw("error in fetching cdPipeline", "envId", envId, "err", err)
 	}
+	var appIds []int
+	for _, pipeline := range dbPipelines {
+		appIds = append(appIds, pipeline.AppId)
+	}
+	dbPipelines, err = impl.pipelineRepository.FindActiveByAppIds(appIds)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error fetching pipelines for env id", "err", err)
+		return nil, err
+	}
 
 	var pipelines []*bean.CDPipelineConfigObject
 	for _, dbPipeline := range dbPipelines {
