@@ -52,7 +52,7 @@ func (impl DefaultAuthPolicyRepositoryImpl) UpdatePolicyByRoleType(policy string
 
 func (impl DefaultAuthPolicyRepositoryImpl) GetPolicyByRoleType(roleType bean.RoleType, accessType string) (policy string, err error) {
 	var model DefaultAuthPolicy
-	err = impl.dbConnection.Model(&model).Where("role_type = ? AND access_type = ?", roleType, accessType).Select()
+	err = impl.dbConnection.Model(&model).Where("role_type = ? ", roleType).Where("access_type = ?", accessType).Select()
 	if err != nil {
 		impl.logger.Error("error in getting policy by roleType", "err", err, "roleType", roleType, "accessType", accessType)
 		return "", err

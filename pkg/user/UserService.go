@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	bean2 "github.com/devtron-labs/devtron/pkg/user/bean"
 	casbin2 "github.com/devtron-labs/devtron/pkg/user/casbin"
 	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	util2 "github.com/devtron-labs/devtron/util"
@@ -339,7 +340,7 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 				actionType := roleFilter.Action
 				accessType := roleFilter.AccessType
 				if accessType == "" {
-					accessType = "devtron-app"
+					accessType = bean2.DEVTRON_APP
 				}
 				entityNames := strings.Split(roleFilter.EntityName, ",")
 				environments := strings.Split(roleFilter.Environment, ",")
@@ -432,7 +433,7 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 		if err != nil || flag == false {
 			return nil, err
 		}
-		roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes("", "", "", "", "super-admin", "", "", "", "", "", "", "")
+		roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes("", "", "", "", bean2.SUPER_ADMIN, "", "", "", "", "", "", "")
 		if err != nil {
 			impl.logger.Errorw("Error in fetching role by filter", "user", userInfo)
 			return nil, err
@@ -712,7 +713,7 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 				actionType := roleFilter.Action
 				accessType := roleFilter.AccessType
 				if accessType == "" {
-					accessType = "devtron-app"
+					accessType = bean2.DEVTRON_APP
 				}
 				entityNames := strings.Split(roleFilter.EntityName, ",")
 				environments := strings.Split(roleFilter.Environment, ",")
@@ -846,7 +847,7 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 		if err != nil || flag == false {
 			return nil, false, false, nil, err
 		}
-		roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes("", "", "", "", "super-admin", "", "", "", "", "", "", "")
+		roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes("", "", "", "", bean2.SUPER_ADMIN, "", "", "", "", "", "", "")
 		if err != nil {
 			impl.logger.Errorw("Error in fetching role by filter", "user", userInfo)
 			return nil, false, false, nil, err

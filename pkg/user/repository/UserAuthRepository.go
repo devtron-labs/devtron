@@ -46,7 +46,6 @@ type UserAuthRepository interface {
 	GetUserRoleMappingByUserId(userId int32) ([]*UserRoleModel, error)
 	DeleteUserRoleMapping(userRoleModel *UserRoleModel, tx *pg.Tx) (bool, error)
 	DeleteUserRoleByRoleId(roleId int, tx *pg.Tx) error
-
 	CreateDefaultPoliciesForAllTypes(team string, entityName string, env string, entity string, cluster string, namespace string, group string, kind string, resource string, tx *pg.Tx, actionType string, accessType string) (bool, error)
 	CreateDefaultPoliciesForGlobalEntity(entity string, entityName string, action string, tx *pg.Tx) (bool, error)
 	CreateDefaultPoliciesForClusterEntity(entity, cluster, namespace, group, kind, resource string, tx *pg.Tx, actionType string) (bool, error)
@@ -423,13 +422,7 @@ func (impl UserAuthRepositoryImpl) DeleteUserRoleByRoleId(roleId int, tx *pg.Tx)
 }
 
 func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team string, entityName string, env string, entity string, cluster string, namespace string, group string, kind string, resource string, tx *pg.Tx, actionType string, accessType string) (bool, error) {
-	if accessType == "cluster" {
-		transaction, err := impl.dbConnection.Begin()
-		if err != nil {
-			return false, err
-		}
-		// Rollback tx on error.
-		defer transaction.Rollback()
+	if accessType == bean2.CLUSTER {
 
 		//getting policies from db
 		entityClusterPolicyDb, err := impl.defaultAuthPolicyRepository.GetPolicyByRoleType(bean2.RoleType(actionType), "cluster")
@@ -515,24 +508,16 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team string,
 		}
 		_, err = impl.GetRole(roleClusterData.Role)
 		if err != nil || err == pg.ErrNoRows {
-			_, err = impl.createRole(&roleClusterData, transaction)
+			_, err = impl.createRole(&roleClusterData, tx)
 			if err != nil && strings.Contains("duplicate key value violates unique constraint", err.Error()) {
 				return false, err
 			}
-		}
-
-		err = transaction.Commit()
-		if err != nil {
-			return false, err
 		}
 		return true, nil
 
 	}
 	// if is it devtron-app or helm-app
-	transaction, err := impl.dbConnection.Begin()
-	if err != nil {
-		return false, err
-	}
+
 	//for START in Casbin Object
 	teamObj := team
 	envObj := env
@@ -601,10 +586,6 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team string,
 		return false, err
 	}
 
-	err = transaction.Commit()
-	if err != nil {
-		return false, err
-	}
 	return true, nil
 }
 
@@ -617,12 +598,12 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForGlobalEntity(entity s
 	defer transaction.Rollback()
 
 	//getting policies from db
-	entityAllPolicyDb, err := impl.defaultAuthPolicyRepository.GetPolicyByRoleType(bean2.ENTITY_ALL_TYPE, "globalEntity")
+	entityAllPolicyDb, err := impl.defaultAuthPolicyRepository.GetPolicyByRoleType(bean2.ENTITY_ALL_TYPE, bean2.GLOBAL_ENTITY)
 	if err != nil {
 		impl.Logger.Errorw("error in getting default policy by roleType", "err", err, "roleType", bean2.ENTITY_ALL_TYPE)
 		return false, err
 	}
-	entityViewPolicyDb, err := impl.defaultAuthPolicyRepository.GetPolicyByRoleType(bean2.ENTITY_VIEW_TYPE, "globalEntity")
+	entityViewPolicyDb, err := impl.defaultAuthPolicyRepository.GetPolicyByRoleType(bean2.ENTITY_VIEW_TYPE, bean2.GLOBAL_ENTITY)
 	if err != nil {
 		impl.Logger.Errorw("error in getting default policy by roleType", "err", err, "roleType", bean2.ENTITY_VIEW_TYPE)
 		return false, err
@@ -667,7 +648,7 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForGlobalEntity(entity s
 	casbin.AddPolicy(policiesView.Data)
 
 	//getting policy from db
-	entitySpecificPolicyDb, err := impl.defaultAuthPolicyRepository.GetPolicyByRoleType(bean2.ENTITY_SPECIFIC_TYPE, "globalEntity")
+	entitySpecificPolicyDb, err := impl.defaultAuthPolicyRepository.GetPolicyByRoleType(bean2.ENTITY_SPECIFIC_TYPE, bean2.GLOBAL_ENTITY)
 	if err != nil {
 		impl.Logger.Errorw("error in getting default policy by roleType", "err", err, "roleType", bean2.ENTITY_SPECIFIC_TYPE)
 		return false, err
@@ -707,7 +688,7 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForGlobalEntity(entity s
 	}
 
 	//getting role from db
-	entitySpecificViewDb, err := impl.defaultAuthRoleRepository.GetRoleByRoleTypeAndAccessType(bean2.ENTITY_SPECIFIC_VIEW_TYPE, "globalEntity")
+	entitySpecificViewDb, err := impl.defaultAuthRoleRepository.GetRoleByRoleTypeAndAccessType(bean2.ENTITY_SPECIFIC_VIEW_TYPE, bean2.GLOBAL_ENTITY)
 	if err != nil {
 		impl.Logger.Errorw("error in getting default policy by roleType", "err", err, "roleType", bean2.ENTITY_SPECIFIC_VIEW_TYPE)
 		return false, err
@@ -749,7 +730,7 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForGlobalEntity(entity s
 	}
 
 	//getting role from db
-	roleSpecificDb, err := impl.defaultAuthRoleRepository.GetRoleByRoleTypeAndAccessType(bean2.ROLE_SPECIFIC_TYPE, "globalEntity")
+	roleSpecificDb, err := impl.defaultAuthRoleRepository.GetRoleByRoleTypeAndAccessType(bean2.ROLE_SPECIFIC_TYPE, bean2.GLOBAL_ENTITY)
 	if err != nil {
 		impl.Logger.Errorw("error in getting default policy by roleType", "err", err, "roleType", bean2.ROLE_SPECIFIC_TYPE)
 		return false, err
@@ -945,12 +926,12 @@ func (impl UserAuthRepositoryImpl) createRole(roleData *bean.RoleData, tx *pg.Tx
 func (impl UserAuthRepositoryImpl) SyncOrchestratorToCasbin(team string, entityName string, env string, tx *pg.Tx) (bool, error) {
 
 	//getting policies from db
-	triggerPoliciesDb, err := impl.defaultAuthPolicyRepository.GetPolicyByRoleType(bean2.TRIGGER_TYPE, "devtron")
+	triggerPoliciesDb, err := impl.defaultAuthPolicyRepository.GetPolicyByRoleType(bean2.TRIGGER_TYPE, bean2.DEVTRON_APP)
 	if err != nil {
 		impl.Logger.Errorw("error in getting default policy by roleType", "err", err, "roleType", bean2.TRIGGER_TYPE)
 		return false, err
 	}
-	viewPoliciesDb, err := impl.defaultAuthPolicyRepository.GetPolicyByRoleType(bean2.VIEW_TYPE, "devtron")
+	viewPoliciesDb, err := impl.defaultAuthPolicyRepository.GetPolicyByRoleType(bean2.VIEW_TYPE, bean2.DEVTRON_APP)
 	if err != nil {
 		impl.Logger.Errorw("error in getting default policy by roleType", "err", err, "roleType", bean2.VIEW_TYPE)
 		return false, err
@@ -1079,7 +1060,7 @@ func (impl UserAuthRepositoryImpl) UpdateTriggerPolicyForTerminalAccess() (err e
 }
 
 func (impl UserAuthRepositoryImpl) GetDefaultPolicyByRoleType(roleType bean2.RoleType) (policy string, err error) {
-	policy, err = impl.defaultAuthPolicyRepository.GetPolicyByRoleType(roleType, "devtron")
+	policy, err = impl.defaultAuthPolicyRepository.GetPolicyByRoleType(roleType, bean2.DEVTRON_APP)
 	if err != nil {
 		impl.Logger.Errorw("error in getting default policy by role type", "err", err, "roleType", roleType)
 		return "", err
@@ -1094,7 +1075,7 @@ func (impl UserAuthRepositoryImpl) UpdateDefaultPolicyByRoleType(newPolicy strin
 		impl.Logger.Errorw("error in getting roles for trigger action", "err", err)
 		return err
 	}
-	oldPolicy, err := impl.defaultAuthPolicyRepository.GetPolicyByRoleType(roleType, "devtron")
+	oldPolicy, err := impl.defaultAuthPolicyRepository.GetPolicyByRoleType(roleType, bean2.DEVTRON_APP)
 	if err != nil {
 		impl.Logger.Errorw("error in getting default policy by roleType", "err", err, "roleType", roleType)
 		return err

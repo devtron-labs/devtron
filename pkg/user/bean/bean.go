@@ -23,4 +23,8 @@ const (
 	EDIT_HELM_TYPE             RoleType = "edit"
 	VIEW_HELM_TYPE             RoleType = "view"
 	ENTITY_CLUSTER_EDIT_TYPE   RoleType = "clusterEdit"
+	DEVTRON_APP                         = "devtron-app"
+	SUPER_ADMIN                         = "super-admin"
+	CLUSTER                             = "cluster"
+	GLOBAL_ENTITY                       = "globalEntity"
 )
