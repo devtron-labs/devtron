@@ -468,6 +468,7 @@ func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequ
 }
 func (impl *TerminalSessionHandlerImpl) AutoSelectShell(req *TerminalSessionRequest) (string, error) {
 	for _, testShell := range validShells {
+		req.Shell = testShell
 		if isValid, _ := impl.ValidateShell(req); isValid {
 			return testShell, nil
 		}
