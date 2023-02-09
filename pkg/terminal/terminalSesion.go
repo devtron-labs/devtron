@@ -328,6 +328,8 @@ type TerminalSessionRequest struct {
 	ClusterId int
 }
 
+var validShells = []string{"bash", "sh", "powershell", "cmd"}
+
 // WaitForTerminal is called from apihandler.handleAttach as a goroutine
 // Waits for the SockJS connection to be opened by the client the session to be bound in handleTerminalSession
 func WaitForTerminal(k8sClient kubernetes.Interface, cfg *rest.Config, request *TerminalSessionRequest) {
@@ -337,8 +339,6 @@ func WaitForTerminal(k8sClient kubernetes.Interface, cfg *rest.Config, request *
 		close(terminalSessions.Get(request.SessionId).bound)
 
 		var err error
-		validShells := []string{"bash", "sh", "powershell", "cmd"}
-
 		if isValidShell(validShells, request.Shell) {
 			cmd := []string{request.Shell}
 
@@ -368,6 +368,7 @@ type TerminalSessionHandler interface {
 	Close(sessionId string, statusCode uint32, msg string)
 	ValidateSession(sessionId string) bool
 	ValidateShell(req *TerminalSessionRequest) (bool, error)
+	AutoSelectShell(req *TerminalSessionRequest) (string, error)
 }
 
 type TerminalSessionHandlerImpl struct {
@@ -465,7 +466,14 @@ func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequ
 	}
 	return cfg, clientSet, nil
 }
-
+func (impl *TerminalSessionHandlerImpl) AutoSelectShell(req *TerminalSessionRequest) (string, error) {
+	for _, testShell := range validShells {
+		if isValid, _ := impl.ValidateShell(req); isValid {
+			return testShell, nil
+		}
+	}
+	return "", errors1.New("no shell is supported")
+}
 func (impl *TerminalSessionHandlerImpl) ValidateShell(req *TerminalSessionRequest) (bool, error) {
 	impl.logger.Infow("Inside ValidateShell method in TerminalSessionHandlerImpl")
 	config, client, err := impl.getClientConfig(req)

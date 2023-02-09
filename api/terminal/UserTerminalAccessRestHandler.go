@@ -68,12 +68,18 @@ func (handler UserTerminalAccessRestHandlerImpl) ValidateShell(w http.ResponseWr
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	res, err := handler.UserTerminalAccessService.ValidateShell(podName, namespace, shellName, clusterId)
+	res, shell, err := handler.UserTerminalAccessService.ValidateShell(podName, namespace, shellName, clusterId)
 	type validShellResponse struct {
 		IsValidShell bool   `json:"isValidShell"`
 		ErrorReason  string `json:"errorReason"`
+		ShellName    string `json:"shellName"`
 	}
-	common.WriteJsonResp(w, nil, validShellResponse{IsValidShell: res, ErrorReason: err.Error()}, http.StatusOK)
+	reason := ""
+	if err != nil {
+		reason = err.Error()
+	}
+	resp := validShellResponse{IsValidShell: res, ErrorReason: reason, ShellName: shell}
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 func (handler UserTerminalAccessRestHandlerImpl) StartTerminalSession(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.UserService.GetLoggedInUser(r)
