@@ -95,6 +95,12 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 	}
 	v := r.URL.Query()
 	token := r.Header.Get("token")
+	userEmailId, err := handler.userAuthService.GetEmailFromToken(token)
+	if err != nil {
+		handler.Logger.Errorw("error in getting user emailId from token", "userId", userId, "token", token)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
 	var envIds []int
 	envsQueryParam := v.Get("envIds")
 	if envsQueryParam != "" {
@@ -181,32 +187,80 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+	isActionUserSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
+	if err != nil {
+		handler.Logger.Errorw("request err, GetAllInstalledApp", "err", err, "userId", userId)
+		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
+		return
+	}
+	if isActionUserSuperAdmin {
+		common.WriteJsonResp(w, err, res, http.StatusOK)
+		return
+	}
 
-	authorizedApp := make([]openapi.HelmApp, 0)
+	appIdToAppMap := make(map[string]openapi.HelmApp)
+
+	//the value of this map is array of strings because the GetHelmObjectByAppNameAndEnvId method may return "//" for error cases
+	//so different apps may contain same object, to handle that we are using (map[string] []string)
+	rbacObjectToAppIdMap1 := make(map[string][]string)
+	rbacObjectToAppIdMap2 := make(map[string][]string)
+
+	objectArray1 := make([]string, 0)
+	objectArray2 := make([]string, 0)
+
 	for _, app := range *res.HelmApps {
+
+		appIdToAppMap[*app.AppId] = app
 		appName := *app.AppName
 		envId := (*app.EnvironmentDetail).EnvironmentId
-		//rbac block starts from here
-		object, object2 := handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(appName, int(*envId))
-
-		var ok bool
-
-		if object2 == "" {
-			ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object)
-		} else {
-			// futuristic case
-			ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object2)
-		}
-
+		object1, object2 := handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(appName, int(*envId))
+		objectArray1 = append(objectArray1, object1)
+		_, ok := rbacObjectToAppIdMap1[object1]
 		if !ok {
-			continue
+			rbacObjectToAppIdMap1[object1] = make([]string, 0)
+		}
+		rbacObjectToAppIdMap1[object1] = append(rbacObjectToAppIdMap1[object1], *app.AppId)
+		if object2 != "" {
+			_, ok := rbacObjectToAppIdMap2[object2]
+			if !ok {
+				rbacObjectToAppIdMap2[object2] = make([]string, 0)
+			}
+			rbacObjectToAppIdMap2[object2] = append(rbacObjectToAppIdMap2[object2], *app.AppId)
+			objectArray2 = append(objectArray2, object2)
 		}
 
-		authorizedApp = append(authorizedApp, app)
-		//rback block ends here
 	}
-	res.HelmApps = &authorizedApp
 
+	resultObjectMap1 := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceHelmApp, casbin.ActionGet, objectArray1)
+	resultObjectMap2 := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceHelmApp, casbin.ActionGet, objectArray2)
+
+	authorizedAppIdSet := make(map[string]bool)
+	//O(n) time loop , at max we will only iterate through all the apps
+	for obj, ok := range resultObjectMap1 {
+		if ok {
+			appIds := rbacObjectToAppIdMap1[obj]
+			for _, appId := range appIds {
+				authorizedAppIdSet[appId] = true
+			}
+
+		}
+	}
+	for obj, ok := range resultObjectMap2 {
+		if ok {
+			appIds := rbacObjectToAppIdMap2[obj]
+			for _, appId := range appIds {
+				authorizedAppIdSet[appId] = true
+			}
+		}
+	}
+
+	authorizedApps := make([]openapi.HelmApp, 0)
+	for appId, _ := range authorizedAppIdSet {
+		authorizedApp := appIdToAppMap[appId]
+		authorizedApps = append(authorizedApps, authorizedApp)
+	}
+
+	res.HelmApps = &authorizedApps
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 

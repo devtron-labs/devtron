@@ -56,6 +56,17 @@ func NewClusterServiceImplExtended(repository repository.ClusterRepository, envi
 	return clusterServiceExt
 }
 
+func (impl *ClusterServiceImplExtended) FindAllWithoutConfig() ([]*ClusterBean, error) {
+	beans, err := impl.FindAll()
+	if err != nil {
+		return nil, err
+	}
+	for _, bean := range beans {
+		bean.Config = map[string]string{"bearer_token": ""}
+	}
+	return beans, nil
+}
+
 func (impl *ClusterServiceImplExtended) FindAll() ([]*ClusterBean, error) {
 	beans, err := impl.ClusterServiceImpl.FindAll()
 	if err != nil {
