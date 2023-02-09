@@ -27,7 +27,4 @@ const (
 	SUPER_ADMIN                         = "super-admin"
 	CLUSTER                             = "cluster"
 	GLOBAL_ENTITY                       = "globalEntity"
-	NOT_FOUND                           = "role not fount for any given filter: "
-	ERROR_IN_GETTING_POLICY             = "error in getting updated policies"
-	ADD_POLICY_REQUEST                  = "add policy request"
 )

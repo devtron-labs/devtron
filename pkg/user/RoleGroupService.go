@@ -19,7 +19,6 @@ package user
 
 import (
 	"fmt"
-	bean2 "github.com/devtron-labs/devtron/pkg/user/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"strings"
 	"time"
@@ -173,7 +172,7 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 								}
 								if roleModel.Id == 0 {
 									impl.logger.Debugw("no role found for given filter", "filter", roleFilter)
-									request.Status = bean2.NOT_FOUND + roleFilter.Team + "," + environment + "," + entityName + "," + actionType
+									request.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + actionType
 									continue
 								}
 							} else {
@@ -394,7 +393,7 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 					}
 					if roleModel.Id == 0 {
 						impl.logger.Debugw("no role found for given filter", "filter", roleFilter)
-						request.Status = bean2.NOT_FOUND + roleFilter.Team + "," + environment + "," + entityName + "," + actionType
+						request.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + actionType
 
 						if len(roleFilter.Team) > 0 {
 
@@ -409,7 +408,7 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 							}
 							if roleModel.Id == 0 {
 								impl.logger.Debugw("no role found for given filter", "filter", roleFilter)
-								request.Status = bean2.NOT_FOUND + roleFilter.Team + "," + environment + "," + entityName + "," + actionType
+								request.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + actionType
 								continue
 							}
 						} else if len(roleFilter.Entity) > 0 {
@@ -424,7 +423,7 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 							}
 							if roleModel.Id == 0 {
 								impl.logger.Debugw("no role found for given filter", "filter", roleFilter)
-								request.Status = bean2.NOT_FOUND + roleFilter.Team + "," + environment + "," + entityName + "," + actionType
+								request.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + actionType
 								continue
 							}
 						} else {

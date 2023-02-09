@@ -731,7 +731,7 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 							return nil, false, false, nil, err
 						}
 						if roleModel.Id == 0 {
-							impl.logger.Debugw(bean2.NOT_FOUND, "filter", roleFilter)
+							impl.logger.Debugw("role not fount for any given filter: ", "filter", roleFilter)
 							userInfo.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + actionType
 
 							if len(roleFilter.Team) > 0 {
@@ -746,7 +746,7 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 									return nil, false, false, nil, err
 								}
 								if roleModel.Id == 0 {
-									impl.logger.Debugw(bean2.NOT_FOUND, "filter", roleFilter)
+									impl.logger.Debugw("role not fount for any given filter: ", "filter", roleFilter)
 									userInfo.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + actionType
 									continue
 								}
@@ -761,7 +761,7 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 									return nil, false, false, nil, err
 								}
 								if roleModel.Id == 0 {
-									impl.logger.Debugw(bean2.NOT_FOUND, "filter", roleFilter)
+									impl.logger.Debugw("role not fount for any given filter: ", "filter", roleFilter)
 									userInfo.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + actionType
 									continue
 								}
