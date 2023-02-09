@@ -35,7 +35,7 @@ type UserTerminalAccessService interface {
 	DisconnectAllSessionsForUser(ctx context.Context, userId int32)
 	FetchPodManifest(ctx context.Context, userTerminalAccessId int) (resp *application.ManifestResponse, err error)
 	FetchPodEvents(ctx context.Context, userTerminalAccessId int) (*application.EventsResponse, error)
-	ValidateShell(podName, namespace, shellName string, clusterId int) (bool, error)
+	ValidateShell(podName, namespace, shellName string, clusterId int) (bool, string, error)
 }
 
 type UserTerminalAccessServiceImpl struct {
@@ -92,19 +92,24 @@ func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessR
 	go accessServiceImpl.SyncRunningInstances()
 	return accessServiceImpl, err
 }
-func (impl *UserTerminalAccessServiceImpl) ValidateShell(podName, namespace, shellName string, clusterId int) (bool, error) {
+func (impl *UserTerminalAccessServiceImpl) ValidateShell(podName, namespace, shellName string, clusterId int) (bool, string, error) {
 	impl.Logger.Infow("Inside validateShell method", "UserTerminalAccessServiceImpl")
-	res, err := impl.terminalSessionHandler.ValidateShell(&terminal.TerminalSessionRequest{
+	req := &terminal.TerminalSessionRequest{
 		PodName:       podName,
 		Namespace:     namespace,
 		Shell:         shellName,
 		ClusterId:     clusterId,
 		ContainerName: "devtron-debug-terminal",
-	})
-	if err != nil && err.Error() == "Failed to Execute Command" {
-		return res, errors.New(models.ShellNotSupported)
 	}
-	return res, err
+	if shellName == models.AutoSelectShell {
+		shell, err := impl.terminalSessionHandler.AutoSelectShell(req)
+		return true, shell, err
+	}
+	res, err := impl.terminalSessionHandler.ValidateShell(req)
+	if err != nil && err.Error() == "Failed to Execute Command" {
+		return res, "", errors.New(models.ShellNotSupported)
+	}
+	return res, shellName, err
 }
 func (impl *UserTerminalAccessServiceImpl) StartTerminalSession(ctx context.Context, request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error) {
 	impl.Logger.Infow("terminal start request received for user", "request", request)

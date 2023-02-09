@@ -48,6 +48,7 @@ const TerminalAccessServiceAccountTemplate = TerminalAccessPodNameTemplate + "-s
 const MaxSessionLimitReachedMsg = "session-limit-reached"
 const AUTO_SELECT_NODE string = "autoSelectNode"
 const ShellNotSupported string = "shell is not supported for the selected image"
+const AutoSelectShell string = "*"
 
 type TerminalPodStatus string
 
