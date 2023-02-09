@@ -12,7 +12,7 @@ type UserTerminalSessionRequest struct {
 type UserTerminalShellSessionRequest struct {
 	TerminalAccessId int    `json:"terminalAccessId" validate:"number,gt=0"`
 	ShellName        string `json:"shellName" validate:"required,min=1"`
-	NameSpace        string `json:"nameSpace" validate:"required,min=1"`
+	NameSpace        string `json:"namespace" validate:"required,min=1"`
 }
 
 type UserTerminalSessionConfig struct {
