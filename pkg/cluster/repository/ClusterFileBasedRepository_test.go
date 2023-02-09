@@ -15,7 +15,7 @@ func TestClusterRepositoryFileBased_FindAll(t *testing.T) {
 		cluster := &Cluster{
 			Id:          1,
 			ClusterName: "k8s16-cluster",
-			ServerUrl:   "https://20.81.3.28:16443",
+			ServerUrl:   "http://127.0.0.1:16443",
 			Config:      map[string]string{"bearer_token": "defgh"},
 			Active:      false,
 		}
