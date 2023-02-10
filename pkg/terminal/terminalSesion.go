@@ -467,11 +467,19 @@ func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequ
 	return cfg, clientSet, nil
 }
 func (impl *TerminalSessionHandlerImpl) AutoSelectShell(req *TerminalSessionRequest) (string, error) {
+	var err1 error
 	for _, testShell := range validShells {
 		req.Shell = testShell
-		if isValid, _ := impl.ValidateShell(req); isValid {
+		isValid, err := impl.ValidateShell(req)
+		if isValid {
 			return testShell, nil
 		}
+		if err != nil {
+			err1 = err
+		}
+	}
+	if err1 != nil && err1.Error() != "Failed to Execute Command" {
+		return "", err1
 	}
 	return "", errors1.New("no shell is supported")
 }
