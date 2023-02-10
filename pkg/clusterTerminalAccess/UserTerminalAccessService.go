@@ -29,7 +29,7 @@ type UserTerminalAccessService interface {
 	StartTerminalSession(ctx context.Context, request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error)
 	UpdateTerminalSession(ctx context.Context, request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error)
 	UpdateTerminalShellSession(ctx context.Context, request *models.UserTerminalShellSessionRequest) (*models.UserTerminalSessionResponse, error)
-	FetchTerminalStatus(ctx context.Context, terminalAccessId int) (*models.UserTerminalSessionResponse, error)
+	FetchTerminalStatus(ctx context.Context, terminalAccessId int, namespace string, shellName string) (*models.UserTerminalSessionResponse, error)
 	StopTerminalSession(ctx context.Context, userTerminalAccessId int)
 	DisconnectTerminalSession(ctx context.Context, userTerminalAccessId int) error
 	DisconnectAllSessionsForUser(ctx context.Context, userId int32)
@@ -613,7 +613,7 @@ func (impl *UserTerminalAccessServiceImpl) checkAndStartSession(ctx context.Cont
 	return sessionID, nodeName, err
 }
 
-func (impl *UserTerminalAccessServiceImpl) FetchTerminalStatus(ctx context.Context, terminalAccessId int) (*models.UserTerminalSessionResponse, error) {
+func (impl *UserTerminalAccessServiceImpl) FetchTerminalStatus(ctx context.Context, terminalAccessId int, namespace string, shellName string) (*models.UserTerminalSessionResponse, error) {
 	terminalAccessDataMap := *impl.TerminalAccessSessionDataMap
 	terminalAccessSessionData, present := terminalAccessDataMap[terminalAccessId]
 	var terminalSessionId = ""
@@ -621,13 +621,19 @@ func (impl *UserTerminalAccessServiceImpl) FetchTerminalStatus(ctx context.Conte
 	if present {
 		if terminalAccessSessionData.terminateTriggered {
 			accessDataEntity := terminalAccessSessionData.terminalAccessDataEntity
-			return &models.UserTerminalSessionResponse{
+			response := &models.UserTerminalSessionResponse{
 				TerminalAccessId:      terminalAccessId,
 				UserId:                accessDataEntity.UserId,
 				Status:                models.TerminalPodStatus(accessDataEntity.Status),
 				PodName:               accessDataEntity.PodName,
 				UserTerminalSessionId: terminalSessionId,
-			}, nil
+			}
+			if models.TerminalPodStatus(accessDataEntity.Status) == models.TerminalPodRunning {
+				isValid, _, err := impl.ValidateShell(accessDataEntity.PodName, namespace, shellName, accessDataEntity.ClusterId)
+				response.IsValidShell = isValid
+				response.ErrorReason = err.Error()
+			}
+			return response, nil
 		} else {
 			terminalSessionId = terminalAccessSessionData.sessionId
 			validSession := impl.terminalSessionHandler.ValidateSession(terminalSessionId)
@@ -648,6 +654,11 @@ func (impl *UserTerminalAccessServiceImpl) FetchTerminalStatus(ctx context.Conte
 		PodName:               terminalAccessData.PodName,
 		UserTerminalSessionId: terminalSessionId,
 		NodeName:              terminalAccessData.NodeName,
+	}
+	if models.TerminalPodStatus(terminalAccessData.Status) == models.TerminalPodRunning {
+		isValid, _, err := impl.ValidateShell(terminalAccessData.PodName, namespace, shellName, terminalAccessData.ClusterId)
+		terminalAccessResponse.IsValidShell = isValid
+		terminalAccessResponse.ErrorReason = err.Error()
 	}
 	return terminalAccessResponse, nil
 }
