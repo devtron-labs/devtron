@@ -300,7 +300,7 @@ func (handler *InstalledAppRestHandlerImpl) DeployBulk(w http.ResponseWriter, r 
 	for _, item := range request.ChartGroupInstallChartRequest {
 		if visited[item.AppName] {
 			handler.Logger.Errorw("service err, CreateInstalledApp", "err", err, "payload", request)
-			common.WriteJsonResp(w, errors.New("Duplicate appName found"), nil, http.StatusBadRequest)
+			common.WriteJsonResp(w, errors.New("duplicate appName found"), nil, http.StatusBadRequest)
 			return
 		} else {
 			visited[item.AppName] = true
