@@ -196,6 +196,8 @@ func (handler UserTerminalAccessRestHandlerImpl) FetchTerminalStatus(w http.Resp
 	}
 	vars := mux.Vars(r)
 	terminalAccessId, err := strconv.Atoi(vars["terminalAccessId"])
+	namespace := vars["namespace"]
+	shellName := vars["shellName"]
 	if err != nil {
 		handler.Logger.Errorw("request err, FetchTerminalStatus", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -207,7 +209,7 @@ func (handler UserTerminalAccessRestHandlerImpl) FetchTerminalStatus(w http.Resp
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	sessionResponse, err := handler.UserTerminalAccessService.FetchTerminalStatus(r.Context(), terminalAccessId)
+	sessionResponse, err := handler.UserTerminalAccessService.FetchTerminalStatus(r.Context(), terminalAccessId, namespace, shellName)
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchTerminalStatus", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
