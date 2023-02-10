@@ -210,18 +210,32 @@ func (impl *UserTerminalAccessServiceImpl) UpdateTerminalShellSession(ctx contex
 		impl.Logger.Errorw("error occurred while fetching user terminal access data", "userTerminalAccessId", userTerminalAccessId, "err", err)
 		return nil, err
 	}
-	isValidShell, shellName, err := impl.ValidateShell(terminalAccessData.PodName, request.NameSpace, request.ShellName, terminalAccessData.ClusterId)
-	if !isValidShell {
-		impl.Logger.Infow("shell is not supported", "podName", terminalAccessData.PodName, "namespace", request.NameSpace, "shell", request.ShellName, "reason", err)
-		return &models.UserTerminalSessionResponse{
-			UserId:           terminalAccessData.UserId,
-			PodName:          terminalAccessData.PodName,
-			TerminalAccessId: terminalAccessData.Id,
-			IsValidShell:     isValidShell,
-			ShellName:        shellName,
-			ErrorReason:      err.Error(),
-		}, nil
+	updateTerminalShellResponse := &models.UserTerminalSessionResponse{
+		UserId:           terminalAccessData.UserId,
+		PodName:          terminalAccessData.PodName,
+		TerminalAccessId: terminalAccessData.Id,
+		ShellName:        request.ShellName,
 	}
+	statusAndReason := strings.Split(terminalAccessData.Status, "/")
+	if statusAndReason[0] == string(models.TerminalPodTerminated) {
+		updateTerminalShellResponse.Status = models.TerminalPodTerminated
+		updateTerminalShellResponse.ErrorReason = statusAndReason[1]
+		return updateTerminalShellResponse, nil
+	}
+
+	if models.TerminalPodStatus(terminalAccessData.Status) == models.TerminalPodRunning {
+		isValidShell, shellName, err := impl.ValidateShell(terminalAccessData.PodName, request.NameSpace, request.ShellName, terminalAccessData.ClusterId)
+		if !isValidShell {
+			impl.Logger.Infow("shell is not supported", "podName", terminalAccessData.PodName, "namespace", request.NameSpace, "shell", request.ShellName, "reason", err)
+			updateTerminalShellResponse.Status = models.TerminalPodStatus(terminalAccessData.Status)
+			updateTerminalShellResponse.ErrorReason = err.Error()
+			updateTerminalShellResponse.IsValidShell = isValidShell
+			//have to get shellName from validate shell , because we can auto-select the shell
+			updateTerminalShellResponse.ShellName = shellName
+			return updateTerminalShellResponse, nil
+		}
+	}
+
 	terminalAccessData.Metadata = impl.mergeToMetadataString(terminalAccessData.Metadata, request)
 	err = impl.TerminalAccessRepository.UpdateUserTerminalAccessData(terminalAccessData)
 	if err != nil {
@@ -236,13 +250,9 @@ func (impl *UserTerminalAccessServiceImpl) UpdateTerminalShellSession(ctx contex
 	terminalAccessSessionData.latestActivityTime = time.Now()
 	impl.TerminalAccessSessionDataMap = &terminalAccessDataMap
 
-	return &models.UserTerminalSessionResponse{
-		UserId:           terminalAccessData.UserId,
-		PodName:          terminalAccessData.PodName,
-		TerminalAccessId: terminalAccessData.Id,
-		IsValidShell:     isValidShell,
-		ShellName:        request.ShellName,
-	}, nil
+	updateTerminalShellResponse.IsValidShell = true
+	updateTerminalShellResponse.Status = models.TerminalPodStatus(statusAndReason[0])
+	return updateTerminalShellResponse, nil
 }
 
 func (impl *UserTerminalAccessServiceImpl) UpdateTerminalSession(ctx context.Context, request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error) {
