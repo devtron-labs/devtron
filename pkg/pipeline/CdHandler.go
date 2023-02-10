@@ -312,6 +312,7 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipel
 		}
 		if helmAppStatus == application.Healthy {
 			wfr.Status = pipelineConfig.WorkflowSucceeded
+			wfr.FinishedOn = time.Now()
 		} else {
 			wfr.Status = pipelineConfig.WorkflowInProgress
 		}

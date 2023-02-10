@@ -34,6 +34,7 @@ import (
 	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
+	util2 "github.com/devtron-labs/devtron/util"
 	bean3 "github.com/devtron-labs/devtron/pkg/user/bean"
 	"path"
 	"regexp"
@@ -791,6 +792,19 @@ func (impl CiCdPipelineOrchestratorImpl) CheckStringMatchRegex(regex string, val
 }
 
 func (impl CiCdPipelineOrchestratorImpl) CreateApp(createRequest *bean.CreateAppDTO) (*bean.CreateAppDTO, error) {
+	// validate the labels key-value if propagate is true
+	for _, label := range createRequest.AppLabels {
+		if !label.Propagate {
+			continue
+		}
+		labelKey := label.Key
+		labelValue := label.Value
+		err := util2.CheckIfValidLabel(labelKey, labelValue)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	dbConnection := impl.appRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -806,10 +820,11 @@ func (impl CiCdPipelineOrchestratorImpl) CreateApp(createRequest *bean.CreateApp
 	if app.Active && len(createRequest.AppLabels) > 0 {
 		for _, label := range createRequest.AppLabels {
 			request := &bean.AppLabelDto{
-				AppId:  app.Id,
-				Key:    label.Key,
-				Value:  label.Value,
-				UserId: createRequest.UserId,
+				AppId:     app.Id,
+				Key:       label.Key,
+				Value:     label.Value,
+				Propagate: label.Propagate,
+				UserId:    createRequest.UserId,
 			}
 			_, err := impl.appLabelsService.Create(request, tx)
 			if err != nil {
