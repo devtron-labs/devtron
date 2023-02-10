@@ -109,7 +109,7 @@ func (impl *UserTerminalAccessServiceImpl) ValidateShell(podName, namespace, she
 		return true, shell, err
 	}
 	res, err := impl.terminalSessionHandler.ValidateShell(req)
-	if err != nil && err.Error() == "Failed to Execute Command" {
+	if err != nil && err.Error() == terminal.CommandExecutionFailed {
 		return res, shellName, errors.New(models.ShellNotSupported)
 	}
 	return res, shellName, err
@@ -225,9 +225,13 @@ func (impl *UserTerminalAccessServiceImpl) UpdateTerminalShellSession(ctx contex
 
 	if models.TerminalPodStatus(terminalAccessData.Status) == models.TerminalPodRunning {
 		isValidShell, shellName, err := impl.ValidateShell(terminalAccessData.PodName, request.NameSpace, request.ShellName, terminalAccessData.ClusterId)
+		podStatus := models.TerminalPodStatus(terminalAccessData.Status)
+		if err != nil && err.Error() == terminal.PodNotFound {
+			podStatus = models.TerminalPodTerminated
+		}
 		if !isValidShell {
 			impl.Logger.Infow("shell is not supported", "podName", terminalAccessData.PodName, "namespace", request.NameSpace, "shell", request.ShellName, "reason", err)
-			updateTerminalShellResponse.Status = models.TerminalPodStatus(terminalAccessData.Status)
+			updateTerminalShellResponse.Status = podStatus
 			updateTerminalShellResponse.ErrorReason = err.Error()
 			updateTerminalShellResponse.IsValidShell = isValidShell
 			//have to get shellName from validate shell , because we can auto-select the shell
@@ -643,6 +647,9 @@ func (impl *UserTerminalAccessServiceImpl) FetchTerminalStatus(ctx context.Conte
 				isValid, _, err := impl.ValidateShell(accessDataEntity.PodName, namespace, shellName, accessDataEntity.ClusterId)
 				response.IsValidShell = isValid
 				if err != nil {
+					if err.Error() == terminal.PodNotFound {
+						response.Status = models.TerminalPodTerminated
+					}
 					response.ErrorReason = err.Error()
 				}
 			}
@@ -673,6 +680,9 @@ func (impl *UserTerminalAccessServiceImpl) FetchTerminalStatus(ctx context.Conte
 		isValid, _, err := impl.ValidateShell(terminalAccessData.PodName, namespace, shellName, terminalAccessData.ClusterId)
 		terminalAccessResponse.IsValidShell = isValid
 		if err != nil {
+			if err.Error() == terminal.PodNotFound {
+				terminalAccessResponse.Status = models.TerminalPodTerminated
+			}
 			terminalAccessResponse.ErrorReason = err.Error()
 		}
 	}

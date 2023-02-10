@@ -27,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 
 	"gopkg.in/igm/sockjs-go.v3/sockjs"
@@ -328,6 +329,9 @@ type TerminalSessionRequest struct {
 	ClusterId int
 }
 
+const CommandExecutionFailed = "Failed to Execute Command"
+const PodNotFound = "Pod NotFound"
+
 var validShells = []string{"bash", "sh", "powershell", "cmd"}
 
 // WaitForTerminal is called from apihandler.handleAttach as a goroutine
@@ -478,7 +482,7 @@ func (impl *TerminalSessionHandlerImpl) AutoSelectShell(req *TerminalSessionRequ
 			err1 = err
 		}
 	}
-	if err1 != nil && err1.Error() != "Failed to Execute Command" {
+	if err1 != nil && err1.Error() != CommandExecutionFailed {
 		return "", err1
 	}
 	return "", errors1.New("no shell is supported")
@@ -506,14 +510,21 @@ func (impl *TerminalSessionHandlerImpl) ValidateShell(req *TerminalSessionReques
 		Stderr: errBuf,
 	})
 	if err != nil {
-		impl.logger.Error("failed to execute commands ", "err", err, "commands", cmdArray, "podName", req.PodName, "namespace", req.Namespace)
-		return false, errors1.New("Failed to Execute Command")
+		impl.logger.Errorw("failed to execute commands ", "err", err, "commands", cmdArray, "podName", req.PodName, "namespace", req.Namespace)
+		return false, getErrorMsg(err.Error())
 	}
 	errBufString := errBuf.String()
 	if errBufString != "" {
-		impl.logger.Error("error response on executing commands ", "err", errBufString, "commands", cmdArray, "podName", req.PodName, "namespace", req.Namespace)
-		return false, errors1.New("Failed to Execute Command")
+		impl.logger.Errorw("error response on executing commands ", "err", errBufString, "commands", cmdArray, "podName", req.PodName, "namespace", req.Namespace)
+		return false, getErrorMsg(errBufString)
 	}
 	impl.logger.Infow("validated Shell,returning from validateShell method", "StdOut", buf.String())
 	return true, nil
+}
+
+func getErrorMsg(err string) error {
+	if strings.Contains(err, "pods") && strings.Contains(err, "not found") {
+		return errors1.New(PodNotFound)
+	}
+	return errors1.New(CommandExecutionFailed)
 }
