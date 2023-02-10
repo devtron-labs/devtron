@@ -77,6 +77,7 @@ type CiPipelineRepository interface {
 	FindExternalCiByCiPipelineId(ciPipelineId int) (*ExternalCiPipeline, error)
 	FindExternalCiById(id int) (*ExternalCiPipeline, error)
 	FindExternalCiByAppId(appId int) ([]*ExternalCiPipeline, error)
+	FindExternalCiByAppIds(appIds []int) ([]*ExternalCiPipeline, error)
 	FindCiScriptsByCiPipelineId(ciPipelineId int) ([]*CiPipelineScript, error)
 	SaveCiPipelineScript(ciPipelineScript *CiPipelineScript, tx *pg.Tx) error
 	UpdateCiPipelineScript(script *CiPipelineScript, tx *pg.Tx) error
@@ -197,6 +198,16 @@ func (impl CiPipelineRepositoryImpl) FindExternalCiByAppId(appId int) ([]*Extern
 	err := impl.dbConnection.Model(&externalCiPipeline).
 		Column("external_ci_pipeline.*").
 		Where("app_id = ?", appId).
+		Where("active =? ", true).
+		Select()
+	return externalCiPipeline, err
+}
+
+func (impl CiPipelineRepositoryImpl) FindExternalCiByAppIds(appIds []int) ([]*ExternalCiPipeline, error) {
+	var externalCiPipeline []*ExternalCiPipeline
+	err := impl.dbConnection.Model(&externalCiPipeline).
+		Column("external_ci_pipeline.*").
+		Where("app_id in(?)", pg.In(appIds)).
 		Where("active =? ", true).
 		Select()
 	return externalCiPipeline, err
