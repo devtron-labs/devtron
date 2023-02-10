@@ -170,17 +170,18 @@ func (impl *K8sCapacityServiceImpl) setBasicClusterDetails(nodeList *corev1.Node
 	var clusterCpuAllocatable resource.Quantity
 	var clusterMemoryAllocatable resource.Quantity
 	nodeCount := 0
-	clusterNodeNames := make(map[string][]string)
+	clusterNodeDetails := make([]NodeNameGroupName, 0)
 	nodesK8sVersionMap := make(map[string]bool)
 	//map of node condition and name of all nodes that condition is true on
 	nodeErrors := make(map[corev1.NodeConditionType][]string)
 	var nodesK8sVersion []string
 	for _, node := range nodeList.Items {
 		nodeGroup := impl.getNodeGroup(&node)
-		if _, ok := clusterNodeNames[nodeGroup]; !ok {
-			clusterNodeNames[nodeGroup] = make([]string, 0)
+		nodeNameGroupName := NodeNameGroupName{
+			NodeName:  node.Name,
+			NodeGroup: nodeGroup,
 		}
-		clusterNodeNames[nodeGroup] = append(clusterNodeNames[nodeGroup], node.Name)
+		clusterNodeDetails = append(clusterNodeDetails, nodeNameGroupName)
 		errorsInNode := findNodeErrors(&node)
 		for conditionName := range errorsInNode {
 			if nodeNames, ok := nodeErrors[conditionName]; ok {
@@ -202,7 +203,7 @@ func (impl *K8sCapacityServiceImpl) setBasicClusterDetails(nodeList *corev1.Node
 	}
 	clusterDetail.NodeErrors = nodeErrors
 	clusterDetail.NodeK8sVersions = nodesK8sVersion
-	clusterDetail.NodeGroups = clusterNodeNames
+	clusterDetail.NodeDetails = clusterNodeDetails
 	clusterDetail.Cpu = &ResourceDetailObject{
 		Capacity: getResourceString(clusterCpuCapacity, corev1.ResourceCPU),
 	}
