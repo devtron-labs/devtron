@@ -11,7 +11,7 @@ type ClusterCapacityDetail struct {
 	Name              string                                `json:"name,omitempty"`
 	ErrorInConnection string                                `json:"errorInNodeListing,omitempty"`
 	NodeCount         int                                   `json:"nodeCount,omitempty"`
-	NodeDetails       []NodeNameGroupName                   `json:"nodeGroups"`
+	NodeDetails       []NodeNameGroupName                   `json:"nodeDetails"`
 	NodeErrors        map[corev1.NodeConditionType][]string `json:"nodeErrors"`
 	NodeK8sVersions   []string                              `json:"nodeK8sVersions"`
 	ServerVersion     string                                `json:"serverVersion,omitempty"`
