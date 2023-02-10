@@ -3,6 +3,8 @@
 The CI pipeline includes Pre and Post-build steps to validate and introduce checkpoints in the build process.
 The pre/post plugins allow you to execute some standard tasks, such as Code analysis, Load testing, Security scanning etc. You can build custom pre-build/post-build tasks or select one of the standard preset plugins provided by Devtron.
 
+Preset plugin is an API resource which you can add within the CI build environment. By integrating the preset plugin in your application, it helps your development cycle to keep track of finding bugs, code duplication, code complexity, load testing, security scanning etc. You can analyze your code easily.
+
 > Devtron CI pipeline includes the following build stages:
 >
 > * Pre-Build Stage: The tasks in this stage run before the image is built.
