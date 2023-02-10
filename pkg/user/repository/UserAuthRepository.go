@@ -512,7 +512,6 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team string,
 	//getting roles from db
 	roleDb, err := impl.defaultAuthRoleRepository.GetRoleByRoleTypeAndAccessType(bean2.RoleType(actionType), accessType)
 	if err != nil {
-		impl.Logger.Errorw("error in getting default role by roleType", "err", err, "roleType", bean2.RoleType(actionType))
 		return false, err
 	}
 	role, err := util.Tprintf(roleDb, rolePolicyDetails)
@@ -619,7 +618,6 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForGlobalEntity(entity s
 	//getting role from db
 	entitySpecificAdminDb, err := impl.defaultAuthRoleRepository.GetRoleByRoleTypeAndAccessType(bean2.ENTITY_SPECIFIC_ADMIN_TYPE, bean2.GLOBAL_ENTITY)
 	if err != nil {
-		impl.Logger.Errorw("error in getting default policy by roleType", "err", err, "roleType", bean2.ENTITY_SPECIFIC_ADMIN_TYPE)
 		return false, err
 	}
 
@@ -633,7 +631,6 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForGlobalEntity(entity s
 	//getting role from db
 	entitySpecificViewDb, err := impl.defaultAuthRoleRepository.GetRoleByRoleTypeAndAccessType(bean2.ENTITY_SPECIFIC_VIEW_TYPE, bean2.GLOBAL_ENTITY)
 	if err != nil {
-		impl.Logger.Errorw("error in getting default policy by roleType", "err", err, "roleType", bean2.ENTITY_SPECIFIC_VIEW_TYPE)
 		return false, err
 	}
 
@@ -675,7 +672,6 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForGlobalEntity(entity s
 	//getting role from db
 	roleSpecificDb, err := impl.defaultAuthRoleRepository.GetRoleByRoleTypeAndAccessType(bean2.ROLE_SPECIFIC_TYPE, bean2.GLOBAL_ENTITY)
 	if err != nil {
-		impl.Logger.Errorw("error in getting default policy by roleType", "err", err, "roleType", bean2.ROLE_SPECIFIC_TYPE)
 		return false, err
 	}
 
