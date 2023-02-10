@@ -631,7 +631,9 @@ func (impl *UserTerminalAccessServiceImpl) FetchTerminalStatus(ctx context.Conte
 			if models.TerminalPodStatus(accessDataEntity.Status) == models.TerminalPodRunning {
 				isValid, _, err := impl.ValidateShell(accessDataEntity.PodName, namespace, shellName, accessDataEntity.ClusterId)
 				response.IsValidShell = isValid
-				response.ErrorReason = err.Error()
+				if err != nil {
+					response.ErrorReason = err.Error()
+				}
 			}
 			return response, nil
 		} else {
@@ -658,7 +660,9 @@ func (impl *UserTerminalAccessServiceImpl) FetchTerminalStatus(ctx context.Conte
 	if models.TerminalPodStatus(terminalAccessData.Status) == models.TerminalPodRunning {
 		isValid, _, err := impl.ValidateShell(terminalAccessData.PodName, namespace, shellName, terminalAccessData.ClusterId)
 		terminalAccessResponse.IsValidShell = isValid
-		terminalAccessResponse.ErrorReason = err.Error()
+		if err != nil {
+			terminalAccessResponse.ErrorReason = err.Error()
+		}
 	}
 	return terminalAccessResponse, nil
 }
