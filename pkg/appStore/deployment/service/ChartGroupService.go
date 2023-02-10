@@ -109,6 +109,8 @@ type InstalledChart struct {
 	InstalledAppId int `json:"installedAppId,omitempty"`
 }
 
+const AppNameAlreadyExistsError = "A chart with this name already exist"
+
 func (impl *ChartGroupServiceImpl) CreateChartGroup(req *ChartGroupBean) (*ChartGroupBean, error) {
 	impl.Logger.Debugw("chart group create request", "req", req)
 
@@ -119,7 +121,7 @@ func (impl *ChartGroupServiceImpl) CreateChartGroup(req *ChartGroupBean) (*Chart
 	}
 	if exist {
 		impl.Logger.Errorw("Chart with this name already exist", "req", req, "err", err)
-		return nil, errors.New("A chart with this name already exist")
+		return nil, errors.New(AppNameAlreadyExistsError)
 	}
 
 	chartGrouModel := &repository.ChartGroup{
