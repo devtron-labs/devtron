@@ -25,6 +25,7 @@ import (
 	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
+	pubub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
@@ -34,6 +35,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
+	app_status "github.com/devtron-labs/devtron/pkg/appStatus"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -90,6 +92,7 @@ type CdHandlerImpl struct {
 	pipelineStatusSyncDetailService        app.PipelineStatusSyncDetailService
 	pipelineStatusTimelineService          app.PipelineStatusTimelineService
 	appService                             app.AppService
+	appStatusService                       app_status.AppStatusService
 }
 
 func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService user.UserService,
@@ -111,7 +114,8 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 	pipelineStatusTimelineResourcesService app.PipelineStatusTimelineResourcesService,
 	pipelineStatusSyncDetailService app.PipelineStatusSyncDetailService,
 	pipelineStatusTimelineService app.PipelineStatusTimelineService,
-	appService app.AppService) *CdHandlerImpl {
+	appService app.AppService,
+	appStatusService app_status.AppStatusService) *CdHandlerImpl {
 	return &CdHandlerImpl{
 		Logger:                                 Logger,
 		cdConfig:                               cdConfig,
@@ -139,6 +143,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 		pipelineStatusSyncDetailService:        pipelineStatusSyncDetailService,
 		pipelineStatusTimelineService:          pipelineStatusTimelineService,
 		appService:                             appService,
+		appStatusService:                       appStatusService,
 	}
 }
 
@@ -188,9 +193,9 @@ func (impl *CdHandlerImpl) CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipel
 			UserId:     userId,
 		}
 		//write event
-		err = impl.eventClient.WriteNatsEvent(util3.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, statusUpdateEvent)
+		err = impl.eventClient.WriteNatsEvent(pubub.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, statusUpdateEvent)
 		if err != nil {
-			impl.Logger.Errorw("error in writing nats event", "topic", util3.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, "payload", statusUpdateEvent)
+			impl.Logger.Errorw("error in writing nats event", "topic", pubub.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, "payload", statusUpdateEvent)
 		}
 	}
 }
@@ -203,7 +208,7 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch
 		impl.Logger.Errorw("error in getting latest cdWfr by cdPipelineId", "err", err, "pipelineId", pipeline.Id)
 		return nil, isTimelineUpdated
 	}
-	impl.Logger.Infow("ARGO_PIPELINE_STATUS_UPDATE_REQ", "stage", "checkingDeploymentStatus", "argoAppName", pipeline, "cdWfr", cdWfr)
+	impl.Logger.Debugw("ARGO_PIPELINE_STATUS_UPDATE_REQ", "stage", "checkingDeploymentStatus", "argoAppName", pipeline, "cdWfr", cdWfr)
 	if util3.IsTerminalStatus(cdWfr.Status) {
 		//drop event
 		return nil, isTimelineUpdated
@@ -258,6 +263,12 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch
 			impl.Logger.Errorw("error in updating deployment status for gitOps cd pipelines", "app", app)
 			return err, isTimelineUpdated
 		}
+		appStatus := app.Status.Health.Status
+		err = impl.appStatusService.UpdateStatusWithAppIdEnvId(pipeline.AppId, pipeline.EnvironmentId, string(appStatus))
+		if err != nil {
+			impl.Logger.Errorw("error occurred while updating app-status", "err", err, "appId", pipeline.AppId, "envId", pipeline.EnvironmentId)
+			impl.Logger.Debugw("ignoring the error, UpdateStatusWithAppIdEnvId", "err", err, "appId", pipeline.AppId, "envId", pipeline.EnvironmentId)
+		}
 	}
 	if isSucceeded {
 		//handling deployment success event
@@ -301,6 +312,7 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipel
 		}
 		if helmAppStatus == application.Healthy {
 			wfr.Status = pipelineConfig.WorkflowSucceeded
+			wfr.FinishedOn = time.Now()
 		} else {
 			wfr.Status = pipelineConfig.WorkflowInProgress
 		}
@@ -318,6 +330,7 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipel
 				impl.Logger.Errorw("error in getting latest pipeline override by cdWorkflowId", "err", err, "cdWorkflowId", wfr.CdWorkflowId)
 				return err
 			}
+			go impl.appService.WriteCDSuccessEvent(pipelineOverride.Pipeline.AppId, pipelineOverride.Pipeline.EnvironmentId, pipelineOverride)
 			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent("", pipelineOverride.Id)
 			if err != nil {
 				impl.Logger.Errorw("error on handling deployment success event", "wfr", wfr, "err", err)
