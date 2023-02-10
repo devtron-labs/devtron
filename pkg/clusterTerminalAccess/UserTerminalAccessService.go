@@ -627,6 +627,7 @@ func (impl *UserTerminalAccessServiceImpl) FetchTerminalStatus(ctx context.Conte
 				Status:                models.TerminalPodStatus(accessDataEntity.Status),
 				PodName:               accessDataEntity.PodName,
 				UserTerminalSessionId: terminalSessionId,
+				ShellName:             shellName,
 			}
 			if models.TerminalPodStatus(accessDataEntity.Status) == models.TerminalPodRunning {
 				isValid, _, err := impl.ValidateShell(accessDataEntity.PodName, namespace, shellName, accessDataEntity.ClusterId)
@@ -656,6 +657,7 @@ func (impl *UserTerminalAccessServiceImpl) FetchTerminalStatus(ctx context.Conte
 		PodName:               terminalAccessData.PodName,
 		UserTerminalSessionId: terminalSessionId,
 		NodeName:              terminalAccessData.NodeName,
+		ShellName:             shellName,
 	}
 	if models.TerminalPodStatus(terminalAccessData.Status) == models.TerminalPodRunning {
 		isValid, _, err := impl.ValidateShell(terminalAccessData.PodName, namespace, shellName, terminalAccessData.ClusterId)
