@@ -59,9 +59,9 @@ import (
 
 type DevtronAppRestHandler interface {
 	CreateApp(w http.ResponseWriter, r *http.Request)
+	CreateJob(w http.ResponseWriter, r *http.Request)
 	DeleteApp(w http.ResponseWriter, r *http.Request)
 	GetApp(w http.ResponseWriter, r *http.Request)
-
 	FindAppsByTeamId(w http.ResponseWriter, r *http.Request)
 	FindAppsByTeamName(w http.ResponseWriter, r *http.Request)
 }
@@ -254,6 +254,74 @@ func (handler PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r 
 	err = nil
 	if createRequest.TemplateId == 0 {
 		createResp, err = handler.pipelineBuilder.CreateApp(&createRequest)
+	} else {
+		ctx, cancel := context.WithCancel(r.Context())
+		if cn, ok := w.(http.CloseNotifier); ok {
+			go func(done <-chan struct{}, closed <-chan bool) {
+				select {
+				case <-done:
+				case <-closed:
+					cancel()
+				}
+			}(ctx.Done(), cn.CloseNotify())
+		}
+		var acdToken string
+		acdToken, err = handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+		if err != nil {
+			handler.Logger.Errorw("error in getting acd token", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		ctx = context.WithValue(r.Context(), "token", acdToken)
+		createResp, err = handler.appCloneService.CloneApp(&createRequest, ctx)
+	}
+	if err != nil {
+		handler.Logger.Errorw("service err, CreateApp", "err", err, "CreateApp", createRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, createResp, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) CreatJob(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	decoder := json.NewDecoder(r.Body)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	var createRequest bean.CreateAppDTO
+	err = decoder.Decode(&createRequest)
+	createRequest.UserId = userId
+	if err != nil {
+		handler.Logger.Errorw("request err, CreateApp", "err", err, "CreateApp", createRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	handler.Logger.Infow("request payload, CreateApp", "CreateApp", createRequest)
+	err = handler.validator.Struct(createRequest)
+	if err != nil {
+		handler.Logger.Errorw("validation err, CreateApp", "err", err, "CreateApp", createRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	project, err := handler.teamService.FetchOne(createRequest.TeamId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	// with admin roles, you have to access for all the apps of the project to create new app. (admin or manager with specific app permission can't create app.)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, fmt.Sprintf("%s/%s", strings.ToLower(project.Name), "*")); !ok {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	var createResp *bean.CreateAppDTO
+	err = nil
+	if createRequest.TemplateId == 0 {
+		createResp, err = handler.pipelineBuilder.CreateJob(&createRequest)
 	} else {
 		ctx, cancel := context.WithCancel(r.Context())
 		if cn, ok := w.(http.CloseNotifier); ok {

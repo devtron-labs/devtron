@@ -410,7 +410,7 @@ func (impl AppStoreDeploymentServiceImpl) createAppForAppStore(createRequest *be
 		Active:          true,
 		AppName:         createRequest.AppName,
 		TeamId:          createRequest.TeamId,
-		AppStore:        true,
+		AppStore:        1,
 		AppOfferingMode: appInstallationMode,
 		AuditLog:        sql.AuditLog{UpdatedBy: createRequest.UserId, CreatedBy: createRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 	}

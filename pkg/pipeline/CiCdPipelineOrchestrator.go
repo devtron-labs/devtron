@@ -57,6 +57,7 @@ import (
 
 type CiCdPipelineOrchestrator interface {
 	CreateApp(createRequest *bean.CreateAppDTO) (*bean.CreateAppDTO, error)
+	CreateJob(createRequest *bean.CreateAppDTO) (*bean.CreateAppDTO, error)
 	DeleteApp(appId int, userId int32) error
 	CreateMaterials(createMaterialRequest *bean.CreateMaterialDTO) (*bean.CreateMaterialDTO, error)
 	UpdateMaterial(updateMaterialRequest *bean.UpdateMaterialDTO) (*bean.UpdateMaterialDTO, error)
@@ -827,6 +828,43 @@ func (impl CiCdPipelineOrchestratorImpl) CreateApp(createRequest *bean.CreateApp
 	return createRequest, nil
 }
 
+func (impl CiCdPipelineOrchestratorImpl) CreateJob(createRequest *bean.CreateAppDTO) (*bean.CreateAppDTO, error) {
+	dbConnection := impl.appRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return nil, err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+	app, err := impl.createJobGroup(createRequest.AppName, createRequest.UserId, createRequest.TeamId, tx)
+	if err != nil {
+		return nil, err
+	}
+	// create labels and tags with app
+	if app.Active && len(createRequest.AppLabels) > 0 {
+		for _, label := range createRequest.AppLabels {
+			request := &bean.AppLabelDto{
+				AppId:  app.Id,
+				Key:    label.Key,
+				Value:  label.Value,
+				UserId: createRequest.UserId,
+			}
+			_, err := impl.appLabelsService.Create(request, tx)
+			if err != nil {
+				impl.logger.Errorw("error on creating labels for app id ", "err", err, "appId", app.Id)
+				return nil, err
+			}
+		}
+	}
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error in commit repo", "error", err)
+		return nil, err
+	}
+	createRequest.Id = app.Id
+	return createRequest, nil
+}
+
 func (impl CiCdPipelineOrchestratorImpl) DeleteApp(appId int, userId int32) error {
 	// Delete git materials,call git sensor and delete app
 	impl.logger.Debug("deleting materials in orchestrator")
@@ -1022,6 +1060,58 @@ func (impl CiCdPipelineOrchestratorImpl) createAppGroup(name string, userId int3
 			err = &util.ApiError{
 				Code:            constants.AppAlreadyExists.Code,
 				InternalMessage: "app already exists",
+				UserMessage:     constants.AppAlreadyExists.UserMessage(name),
+			}
+			return nil, err
+		}
+	}
+	return pg, nil
+}
+
+func (impl CiCdPipelineOrchestratorImpl) createJobGroup(name string, userId int32, teamId int, tx *pg.Tx) (*app2.App, error) {
+	app, err := impl.appRepository.FindActiveByName(name)
+	if err != nil && err != pg.ErrNoRows {
+		return nil, err
+	}
+	if app != nil && app.Id > 0 {
+		impl.logger.Warnw("job already exists", "name", name)
+		err = &util.ApiError{
+			Code:            constants.AppAlreadyExists.Code,
+			InternalMessage: "job already exists",
+			UserMessage:     constants.AppAlreadyExists.UserMessage(name),
+		}
+		return nil, err
+	}
+	pg := &app2.App{
+		Active:   true,
+		AppName:  name,
+		TeamId:   teamId,
+		AppStore: 2,
+		AuditLog: sql.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
+	}
+	err = impl.appRepository.SaveWithTxn(pg, tx)
+	if err != nil {
+		impl.logger.Errorw("error in saving entity ", "entity", pg)
+		return nil, err
+	}
+
+	apps, err := impl.appRepository.FindActiveListByName(name)
+	if err != nil {
+		return nil, err
+	}
+	appLen := len(apps)
+	if appLen > 1 {
+		firstElement := apps[0]
+		if firstElement.Id != pg.Id {
+			pg.Active = false
+			err = impl.appRepository.UpdateWithTxn(pg, tx)
+			if err != nil {
+				impl.logger.Errorw("error in saving entity ", "entity", pg)
+				return nil, err
+			}
+			err = &util.ApiError{
+				Code:            constants.AppAlreadyExists.Code,
+				InternalMessage: "job already exists",
 				UserMessage:     constants.AppAlreadyExists.UserMessage(name),
 			}
 			return nil, err

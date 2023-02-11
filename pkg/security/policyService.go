@@ -190,7 +190,7 @@ func (impl *PolicyServiceImpl) VerifyImage(verifyImageRequest *VerifyImageReques
 		return nil, err
 	} else if app != nil {
 		appId = app.Id
-		isAppStore = app.AppStore
+		isAppStore = app.AppStore == 1
 	} else {
 		//np app do nothing
 	}
@@ -327,7 +327,7 @@ func (impl *PolicyServiceImpl) VerifyImage(verifyImageRequest *VerifyImageReques
 	return imageBlockedCves, nil
 }
 
-//image(cve), appId, envId
+// image(cve), appId, envId
 func (impl *PolicyServiceImpl) enforceCvePolicy(cves []*security.CveStore, cvePolicy map[string]*security.CvePolicy, severityPolicy map[security.Severity]*security.CvePolicy) (blockedCVE []*security.CveStore) {
 
 	for _, cve := range cves {
@@ -497,8 +497,8 @@ func (impl *PolicyServiceImpl) SavePolicy(request bean.CreateVulnerabilityPolicy
 }
 
 /*
-  1. policy id
-  2. action
+1. policy id
+2. action
 */
 func (impl *PolicyServiceImpl) UpdatePolicy(updatePolicyParams bean.UpdatePolicyParams, userId int32) (*bean.IdVulnerabilityPolicyResult, error) {
 	policyAction, err := impl.parsePolicyAction(updatePolicyParams.Action)
@@ -550,13 +550,12 @@ func (impl *PolicyServiceImpl) DeletePolicy(id int, userId int32) (*bean.IdVulne
 }
 
 /*
- global: na
- cluster: clusterId
- environment: environmentId
- application : appId, envId
+	global: na
+	cluster: clusterId
+	environment: environmentId
+	application : appId, envId
 
 res:
-
 */
 func (impl *PolicyServiceImpl) GetPolicies(policyLevel security.PolicyLevel, clusterId, environmentId, appId int) (*bean.GetVulnerabilityPolicyResult, error) {
 

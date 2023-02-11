@@ -409,7 +409,7 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *ImageScanRe
 		imageScanResponse.EnvId = request.EnvId
 		imageScanResponse.EnvName = env.Environment
 
-		blockCveList, err := impl.policyService.GetBlockedCVEList(cveStores, env.ClusterId, env.Id, request.AppId, app.AppStore)
+		blockCveList, err := impl.policyService.GetBlockedCVEList(cveStores, env.ClusterId, env.Id, request.AppId, app.AppStore == 1)
 		if err != nil {
 			impl.Logger.Errorw("error while fetching env", "err", err)
 			//return nil, err
