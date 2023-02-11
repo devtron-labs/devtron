@@ -115,6 +115,11 @@ type PipelineConfigRestHandlerImpl struct {
 	argoUserService              argo.ArgoUserService
 }
 
+func (handler PipelineConfigRestHandlerImpl) CreateJob(w http.ResponseWriter, r *http.Request) {
+	//TODO implement me
+	panic("implement me")
+}
+
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
 	chartService chart.ChartService,
 	propertiesConfigService pipeline.PropertiesConfigService,
