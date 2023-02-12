@@ -341,7 +341,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateJob(w http.ResponseWriter, r 
 			return
 		}
 		ctx = context.WithValue(r.Context(), "token", acdToken)
-		createResp, err = handler.appCloneService.CloneApp(&createRequest, ctx)
+		createResp, err = handler.appCloneService.CloneJob(&createRequest, ctx)
 	}
 	if err != nil {
 		handler.Logger.Errorw("service err, CreateApp", "err", err, "CreateApp", createRequest)
