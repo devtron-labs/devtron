@@ -67,8 +67,8 @@ startApp () {
 		exit 1
 	fi
 	appPath=$(getAppPath)
-	nohup $appPath >>/dev/null 2>&1 &
-	sleep 2
+	nohup "$appPath" >>/dev/null 2>&1 &
+	sleep 5
 	port=`cat $DEVTRON_APP_PORT_PATH`
 	echo "started app on port $port opening on browser"
 	openBrowser
@@ -106,17 +106,34 @@ getAppName () {
 	echo $appname
 }
 
+deleteApp () {
+  appPath=$(getAppPath)
+  echo "deleting app... rm -f $appPath"
+  rm -f $appPath
+}
+
 downloadApp () {
 	appname=$(getAppName)
 	appPath=$(getAppPath)
-	echo "deleting app... rm -f $appPath"
-	rm -f $appPath
+	deleteApp
 	downloadurl="https://k8s-client-app.s3.ap-south-1.amazonaws.com/$appname"
 	echo "downloading app $appname from $downloadurl"
 	curl $downloadurl -o $appPath
 	echo "changing executable perm"
 	chmod 700 $appPath
 	ls -ltrh $appPath
+}
+
+checkAndStopApp () {
+  if [[ -f "$DEVTRON_APP_PORT_PATH" ]]; then
+    echo "stopping app"
+    port=`cat $DEVTRON_APP_PORT_PATH`
+    if [[ "$port" != "" ]]; then
+      pid=`lsof -i:$port | cut -d' ' -f2`
+      kill -9 $pid
+      rm -f $DEVTRON_APP_PORT_PATH
+    fi
+  fi
 }
 
 ############## CHECK STOP CMD ##############
@@ -143,6 +160,12 @@ elif [[ "$1" == "open" ]]; then
 	echo "received "$1
 	openBrowser
 	exit 1
+elif [[ "$1" == "upgrade" ]]; then
+  echo "upgrade received"
+  checkAndStopApp
+  deleteApp
+  startApp
+  exit 1
 fi
 
 existingPid=$(getAppProcessId)
