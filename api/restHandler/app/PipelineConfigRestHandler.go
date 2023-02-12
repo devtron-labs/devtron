@@ -115,11 +115,6 @@ type PipelineConfigRestHandlerImpl struct {
 	argoUserService              argo.ArgoUserService
 }
 
-func (handler PipelineConfigRestHandlerImpl) CreateJob(w http.ResponseWriter, r *http.Request) {
-	//TODO implement me
-	panic("implement me")
-}
-
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
 	chartService chart.ChartService,
 	propertiesConfigService pipeline.PropertiesConfigService,
@@ -288,7 +283,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r 
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) CreatJob(w http.ResponseWriter, r *http.Request) {
+func (handler PipelineConfigRestHandlerImpl) CreateJob(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
