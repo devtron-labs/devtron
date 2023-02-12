@@ -1000,24 +1000,24 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 			continue
 		}
 		var hibernateReqError error
-		if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
-			stopRequest := &pipeline1.StopAppRequest{
-				AppId:         pipeline.AppId,
-				EnvironmentId: pipeline.EnvironmentId,
-				UserId:        request.UserId,
-				RequestType:   pipeline1.STOP,
-			}
-			_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(stopRequest, ctx)
-		} else if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
-			appIdentifier, hibernateRequest, err := impl.buildHibernateUnHibernateRequestForHelmPipelines(pipeline)
-			if err != nil {
-				impl.logger.Errorw("error in building hibernate/unhibernate req", "err", err, "pipeline", pipeline)
-				continue
-			}
-			if appIdentifier != nil && hibernateRequest != nil {
-				_, hibernateReqError = impl.helmAppService.HibernateApplication(context.Background(), appIdentifier, hibernateRequest)
-			}
+		//if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+		stopRequest := &pipeline1.StopAppRequest{
+			AppId:         pipeline.AppId,
+			EnvironmentId: pipeline.EnvironmentId,
+			UserId:        request.UserId,
+			RequestType:   pipeline1.STOP,
 		}
+		_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(stopRequest, ctx)
+		//} else if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
+		//	appIdentifier, hibernateRequest, err := impl.buildHibernateUnHibernateRequestForHelmPipelines(pipeline)
+		//	if err != nil {
+		//		impl.logger.Errorw("error in building hibernate/unhibernate req", "err", err, "pipeline", pipeline)
+		//		continue
+		//	}
+		//	if appIdentifier != nil && hibernateRequest != nil {
+		//		_, hibernateReqError = impl.helmAppService.HibernateApplication(context.Background(), appIdentifier, hibernateRequest)
+		//	}
+		//}
 		if hibernateReqError != nil {
 			impl.logger.Errorw("error in hibernating application", "err", hibernateReqError, "pipeline", pipeline)
 			pipelineResponse := response[appKey]
@@ -1124,25 +1124,25 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 			continue
 		}
 		var hibernateReqError error
-		if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
-			stopRequest := &pipeline1.StopAppRequest{
-				AppId:         pipeline.AppId,
-				EnvironmentId: pipeline.EnvironmentId,
-				UserId:        request.UserId,
-				RequestType:   pipeline1.START,
-			}
-			_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(stopRequest, ctx)
-
-		} else if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
-			appIdentifier, hibernateRequest, err := impl.buildHibernateUnHibernateRequestForHelmPipelines(pipeline)
-			if err != nil {
-				impl.logger.Errorw("error in building hibernate/un-hibernate req", "err", err, "pipeline", pipeline)
-				continue
-			}
-			if appIdentifier != nil && hibernateRequest != nil {
-				_, hibernateReqError = impl.helmAppService.UnHibernateApplication(context.Background(), appIdentifier, hibernateRequest)
-			}
+		//if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+		stopRequest := &pipeline1.StopAppRequest{
+			AppId:         pipeline.AppId,
+			EnvironmentId: pipeline.EnvironmentId,
+			UserId:        request.UserId,
+			RequestType:   pipeline1.START,
 		}
+		_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(stopRequest, ctx)
+
+		//} else if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
+		//	appIdentifier, hibernateRequest, err := impl.buildHibernateUnHibernateRequestForHelmPipelines(pipeline)
+		//	if err != nil {
+		//		impl.logger.Errorw("error in building hibernate/un-hibernate req", "err", err, "pipeline", pipeline)
+		//		continue
+		//	}
+		//	if appIdentifier != nil && hibernateRequest != nil {
+		//		_, hibernateReqError = impl.helmAppService.UnHibernateApplication(context.Background(), appIdentifier, hibernateRequest)
+		//	}
+		//}
 		if hibernateReqError != nil {
 			impl.logger.Errorw("error in un-hibernating application", "err", hibernateReqError, "pipeline", pipeline)
 			pipelineResponse := response[appKey]
