@@ -291,6 +291,13 @@ func (handler PipelineConfigRestHandlerImpl) CreateJob(w http.ResponseWriter, r 
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
+
+	//isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
+	//if !isSuperAdmin || err != nil {
+	//	common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+	//	return
+	//}
+
 	var createRequest bean.CreateAppDTO
 	err = decoder.Decode(&createRequest)
 	createRequest.UserId = userId
