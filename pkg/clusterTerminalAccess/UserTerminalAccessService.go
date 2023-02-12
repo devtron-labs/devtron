@@ -110,7 +110,7 @@ func (impl *UserTerminalAccessServiceImpl) ValidateShell(podName, namespace, she
 	}
 	res, err := impl.terminalSessionHandler.ValidateShell(req)
 	if err != nil && err.Error() == terminal.CommandExecutionFailed {
-		return res, shellName, errors.New(models.ShellNotSupported)
+		return res, shellName, errors.New(fmt.Sprintf(models.ShellNotSupported, shellName))
 	}
 	return res, shellName, err
 }
