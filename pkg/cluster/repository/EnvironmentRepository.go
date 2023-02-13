@@ -59,6 +59,9 @@ type EnvironmentRepository interface {
 	FindByClusterIdAndNamespace(namespaceClusterPair []*ClusterNamespacePair) ([]*Environment, error)
 	FindByClusterIds(clusterIds []int) ([]*Environment, error)
 	FindIdsByNames(envNames []string) ([]int, error)
+
+	FindByEnvName(envName string) ([]*Environment, error)
+	FindByEnvNameAndClusterIds(envName string, clusterIds []int) ([]*Environment, error)
 }
 
 func NewEnvironmentRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger, appStatusRepository appStatus.AppStatusRepository) *EnvironmentRepositoryImpl {
@@ -263,4 +266,27 @@ func (repo EnvironmentRepositoryImpl) FindIdsByNames(envNames []string) ([]int, 
 	query := "select id from environment where environment_name in (?) and active=?;"
 	_, err := repo.dbConnection.Query(&ids, query, pg.In(envNames), true)
 	return ids, err
+}
+
+func (repositoryImpl EnvironmentRepositoryImpl) FindByEnvName(envName string) ([]*Environment, error) {
+	var environmentCluster []*Environment
+	err := repositoryImpl.dbConnection.
+		Model(&environmentCluster).
+		Column("environment.*", "Cluster").
+		Where("environment_name = ?", envName).
+		Where("environment.active = ?", true).
+		Select()
+	return environmentCluster, err
+}
+
+func (repositoryImpl EnvironmentRepositoryImpl) FindByEnvNameAndClusterIds(envName string, clusterIds []int) ([]*Environment, error) {
+	var mappings []*Environment
+	err := repositoryImpl.dbConnection.
+		Model(&mappings).
+		Column("environment.*", "Cluster").
+		Where("environment_name = ?", envName).
+		Where("environment.active = true").
+		Where("environment.cluster_id in (?)", pg.In(clusterIds)).
+		Select()
+	return mappings, err
 }

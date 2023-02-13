@@ -186,5 +186,6 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/environment/{env-id}/cd-pipeline").HandlerFunc(router.restHandler.GetCdPipelinesByEnvironment).Methods("GET")
 	configRouter.Path("/environment/{env-id}/external-ci").HandlerFunc(router.restHandler.GetExternalCiByEnvironment).Methods("GET")
 	configRouter.Path("/environment/{env-id}/workflow/status").HandlerFunc(router.restHandler.FetchAppWorkflowStatusForTriggerViewForEnvironment).Methods("GET")
+	configRouter.Path("/environment").HandlerFunc(router.restHandler.GetAppEnvironment).Methods("GET")
 
 }

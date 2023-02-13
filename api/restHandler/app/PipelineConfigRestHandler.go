@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/util/argo"
+	"github.com/go-pg/pg"
 	"io"
 	"net/http"
 	"strconv"
@@ -64,6 +65,7 @@ type DevtronAppRestHandler interface {
 
 	FindAppsByTeamId(w http.ResponseWriter, r *http.Request)
 	FindAppsByTeamName(w http.ResponseWriter, r *http.Request)
+	GetAppEnvironment(w http.ResponseWriter, r *http.Request)
 }
 
 type DevtronAppWorkflowRestHandler interface {
@@ -590,4 +592,45 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerVie
 	triggerWorkflowStatus.CiWorkflowStatus = ciWorkflowStatus
 	triggerWorkflowStatus.CdWorkflowStatus = cdWorkflowStatus
 	common.WriteJsonResp(w, err, triggerWorkflowStatus, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) GetAppEnvironment(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	handler.Logger.Info(token)
+
+	v := r.URL.Query()
+	envName := v.Get("envName")
+	clusterIdString := v.Get("clusterIds")
+	var clusterIds []int
+	if clusterIdString != "" {
+		clusterIdSlices := strings.Split(clusterIdString, ",")
+		for _, clusterId := range clusterIdSlices {
+			id, err := strconv.Atoi(clusterId)
+			if err != nil {
+				common.WriteJsonResp(w, err, "please send valid cluster Ids", http.StatusBadRequest)
+				return
+			}
+			clusterIds = append(clusterIds, id)
+		}
+	}
+	//vars := mux.Vars(r)
+	var results []request.EnvironmentBean
+	environments, err := handler.envService.GetEnvironmentListForAutocompleteFilter(envName, clusterIds)
+	if err != nil {
+		handler.Logger.Errorw("service err, get app", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	for _, environment := range environments {
+		pipelines, err := handler.pipelineRepository.FindActiveByEnvId(environment.Id)
+		if err != nil && err != pg.ErrNoRows {
+			handler.Logger.Errorw("service err, get app", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		environment.AppCount = len(pipelines)
+		results = append(results, environment)
+	}
+
+	common.WriteJsonResp(w, err, results, http.StatusOK)
 }
