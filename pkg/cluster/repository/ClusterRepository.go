@@ -39,6 +39,7 @@ type Cluster struct {
 	AgentInstallationStage int               `sql:"agent_installation_stage"`
 	K8sVersion             string            `sql:"k8s_version"`
 	ErrorInConnecting      string            `sql:"error_in_connecting"`
+	Description            string            `sql:"description"`
 	sql.AuditLog
 }
 

@@ -57,6 +57,7 @@ type ClusterBean struct {
 	K8sVersion              string                     `json:"k8sVersion"`
 	HasConfigOrUrlChanged   bool                       `json:"-"`
 	ErrorInConnecting       string                     `json:"errorInConnecting,omitempty"`
+	Description             string                     `json:"description,omitempty"`
 }
 
 type PrometheusAuth struct {
@@ -287,6 +288,7 @@ func (impl *ClusterServiceImpl) FindAll() ([]*ClusterBean, error) {
 			K8sVersion:             m.K8sVersion,
 			ErrorInConnecting:      m.ErrorInConnecting,
 			Config:                 m.Config,
+			Description:            m.Description,
 		})
 	}
 	return beans, nil
