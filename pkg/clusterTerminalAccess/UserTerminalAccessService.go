@@ -419,18 +419,21 @@ func updatePodTemplate(templateDataMap map[string]interface{}, podNameVar string
 			name := fmt.Sprintf("%s-sa", podNameVar)
 			specMap["serviceAccountName"] = interface{}(name)
 		}
-
-		if _, ok1 := specMap["nodeSelector"]; ok1 {
-			if isAutoSelect {
-				delete(specMap, "nodeSelector")
-			} else {
-				nodeSelectorData := specMap["nodeSelector"]
-				nodeSelectorDataMap := nodeSelectorData.(map[string]interface{})
-				if _, ok2 := nodeSelectorDataMap["kubernetes.io/hostname"]; ok2 {
-					nodeSelectorDataMap["kubernetes.io/hostname"] = interface{}(nodeName)
-				}
-			}
+		delete(specMap, "nodeSelector")
+		if !isAutoSelect {
+			specMap["nodeName"] = interface{}(nodeName)
 		}
+		//if _, ok1 := specMap["nodeSelector"]; ok1 {
+		//	if isAutoSelect {
+		//		delete(specMap, "nodeSelector")
+		//	} else {
+		//		nodeSelectorData := specMap["nodeSelector"]
+		//		nodeSelectorDataMap := nodeSelectorData.(map[string]interface{})
+		//		if _, ok2 := nodeSelectorDataMap["kubernetes.io/hostname"]; ok2 {
+		//			nodeSelectorDataMap["kubernetes.io/hostname"] = interface{}(nodeName)
+		//		}
+		//	}
+		//}
 
 		if containers, ok1 := specMap["containers"]; ok1 {
 			containersData := containers.([]interface{})
