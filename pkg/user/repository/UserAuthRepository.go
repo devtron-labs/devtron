@@ -55,7 +55,7 @@ type UserAuthRepository interface {
 	GetRolesForApp(appName string) ([]*RoleModel, error)
 	GetRolesForChartGroup(chartGroupName string) ([]*RoleModel, error)
 	DeleteRole(role *RoleModel, tx *pg.Tx) error
-	GetRoleByFilterForClusterEntity(cluster, namespace, group, kind, resource, action string) (RoleModel, error)
+	//GetRoleByFilterForClusterEntity(cluster, namespace, group, kind, resource, action string) (RoleModel, error)
 	GetRolesByUserIdAndEntityType(userId int32, entityType string) ([]*RoleModel, error)
 }
 
@@ -223,8 +223,9 @@ func (impl UserAuthRepositoryImpl) GetRolesByActionAndAccessType(action string, 
 }
 
 func (impl UserAuthRepositoryImpl) GetRoleByFilterForAllTypes(entity string, team string, app string, env string, act string, accessType string, cluster string, namespace string, group string, kind string, resource string, action string) (RoleModel, error) {
+	var model RoleModel
 	if entity == bean2.CLUSTER {
-		var model RoleModel
+
 		query := "SELECT * FROM roles  WHERE entity = ? "
 		var err error
 
@@ -266,7 +267,7 @@ func (impl UserAuthRepositoryImpl) GetRoleByFilterForAllTypes(entity string, tea
 		}
 		return model, nil
 	}
-	var model RoleModel
+
 	EMPTY := ""
 	/*if act == "admin" {
 		act = "*"
