@@ -130,6 +130,7 @@ type PipelineBuilder interface {
 	GetCiPipelineByEnvironment(envId int) ([]*bean.CiConfigRequest, error)
 	GetCdPipelinesByEnvironment(envId int) (cdPipelines *bean.CdPipelines, err error)
 	GetExternalCiByEnvironment(envId int) (ciConfig []*bean.ExternalCiConfig, err error)
+	GetAppListForEnvironment(envId int) ([]*AppBean, error)
 }
 
 type PipelineBuilderImpl struct {
@@ -3336,4 +3337,17 @@ func (impl PipelineBuilderImpl) GetExternalCiByEnvironment(envId int) (ciConfig 
 	}
 	//--------pipeline population end
 	return externalCiConfigs, err
+}
+
+func (impl PipelineBuilderImpl) GetAppListForEnvironment(envId int) ([]*AppBean, error) {
+	var appsRes []*AppBean
+	pipelines, err := impl.pipelineRepository.FindActiveByEnvId(envId)
+	if err != nil {
+		impl.logger.Errorw("error while fetching app", "err", err)
+		return nil, err
+	}
+	for _, pipeline := range pipelines {
+		appsRes = append(appsRes, &AppBean{Id: pipeline.AppId, Name: pipeline.App.AppName})
+	}
+	return appsRes, err
 }

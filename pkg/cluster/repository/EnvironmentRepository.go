@@ -43,7 +43,7 @@ type EnvironmentRepository interface {
 	FindOne(environment string) (*Environment, error)
 	Create(mappings *Environment) error
 	FindAll() ([]Environment, error)
-	FindAllActive() ([]Environment, error)
+	FindAllActive() ([]*Environment, error)
 	MarkEnvironmentDeleted(mappings *Environment, tx *pg.Tx) error
 	GetConnection() (dbConnection *pg.DB)
 
@@ -202,8 +202,8 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindByClusterIds(clusterIds []in
 	return mappings, err
 }
 
-func (repositoryImpl EnvironmentRepositoryImpl) FindAllActive() ([]Environment, error) {
-	var mappings []Environment
+func (repositoryImpl EnvironmentRepositoryImpl) FindAllActive() ([]*Environment, error) {
+	var mappings []*Environment
 	err := repositoryImpl.
 		dbConnection.Model(&mappings).
 		Where("environment.active = ?", true).
@@ -273,7 +273,7 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindByEnvName(envName string) ([
 	err := repositoryImpl.dbConnection.
 		Model(&environmentCluster).
 		Column("environment.*", "Cluster").
-		Where("environment_name = ?", envName).
+		Where("environment_name like ?", "%"+envName+"%").
 		Where("environment.active = ?", true).
 		Select()
 	return environmentCluster, err
@@ -284,7 +284,7 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindByEnvNameAndClusterIds(envNa
 	err := repositoryImpl.dbConnection.
 		Model(&mappings).
 		Column("environment.*", "Cluster").
-		Where("environment_name = ?", envName).
+		Where("environment_name like ?", "%"+envName+"%").
 		Where("environment.active = true").
 		Where("environment.cluster_id in (?)", pg.In(clusterIds)).
 		Select()
