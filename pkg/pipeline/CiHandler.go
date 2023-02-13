@@ -69,6 +69,7 @@ type CiHandler interface {
 	FetchMaterialInfoByArtifactId(ciArtifactId int) (*GitTriggerInfoResponse, error)
 	WriteToCreateTestSuites(pipelineId int, buildId int, triggeredBy int)
 	UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuild int) error
+	FetchCiStatusForTriggerViewForEnvironment(envId int) ([]*pipelineConfig.CiWorkflowStatus, error)
 }
 
 type CiHandlerImpl struct {
@@ -87,13 +88,14 @@ type CiHandlerImpl struct {
 	ciPipelineRepository         pipelineConfig.CiPipelineRepository
 	appListingRepository         repository.AppListingRepository
 	K8sUtil                      *util.K8sUtil
+	cdPipelineRepository         pipelineConfig.PipelineRepository
 }
 
 func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	gitSensorClient gitSensor.GitSensorClient, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, workflowService WorkflowService,
 	ciLogService CiLogService, ciConfig *CiConfig, ciArtifactRepository repository.CiArtifactRepository, userService user.UserService, eventClient client.EventClient,
 	eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository, appListingRepository repository.AppListingRepository,
-	K8sUtil *util.K8sUtil) *CiHandlerImpl {
+	K8sUtil *util.K8sUtil, cdPipelineRepository pipelineConfig.PipelineRepository) *CiHandlerImpl {
 	return &CiHandlerImpl{
 		Logger:                       Logger,
 		ciService:                    ciService,
@@ -110,6 +112,7 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 		ciPipelineRepository:         ciPipelineRepository,
 		appListingRepository:         appListingRepository,
 		K8sUtil:                      K8sUtil,
+		cdPipelineRepository:         cdPipelineRepository,
 	}
 }
 
@@ -1271,4 +1274,47 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 		}
 	}
 	return nil
+}
+
+func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(envId int) ([]*pipelineConfig.CiWorkflowStatus, error) {
+	var ciWorkflowStatuses []*pipelineConfig.CiWorkflowStatus
+	cdPipelines, err := impl.cdPipelineRepository.FindActiveByEnvId(envId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("error fetching pipelines for env id", "err", err)
+		return nil, err
+	}
+
+	var appIds []int
+	for _, pipeline := range cdPipelines {
+		appIds = append(appIds, pipeline.AppId)
+	}
+	pipelines, err := impl.ciPipelineRepository.FindByAppIds(appIds)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("error in fetching ci pipeline", "err", err)
+		return ciWorkflowStatuses, err
+	}
+	for _, pipeline := range pipelines {
+		pipelineId := 0
+		if pipeline.ParentCiPipeline == 0 {
+			pipelineId = pipeline.Id
+		} else {
+			pipelineId = pipeline.ParentCiPipeline
+		}
+		workflow, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflow(pipelineId)
+		if err != nil && !util.IsErrNoRows(err) {
+			impl.Logger.Errorw("err", "pipelineId", pipelineId, "err", err)
+			return ciWorkflowStatuses, err
+		}
+		ciWorkflowStatus := &pipelineConfig.CiWorkflowStatus{}
+		ciWorkflowStatus.CiPipelineId = pipeline.Id
+		if workflow.Id > 0 {
+			ciWorkflowStatus.CiPipelineName = workflow.CiPipeline.Name
+			ciWorkflowStatus.CiStatus = workflow.Status
+			ciWorkflowStatus.StorageConfigured = workflow.BlobStorageEnabled
+		} else {
+			ciWorkflowStatus.CiStatus = "Not Triggered"
+		}
+		ciWorkflowStatuses = append(ciWorkflowStatuses, ciWorkflowStatus)
+	}
+	return ciWorkflowStatuses, nil
 }

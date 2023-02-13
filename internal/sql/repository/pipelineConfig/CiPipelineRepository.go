@@ -83,6 +83,7 @@ type CiPipelineRepository interface {
 	UpdateCiPipelineScript(script *CiPipelineScript, tx *pg.Tx) error
 	MarkCiPipelineScriptsInactiveByCiPipelineId(ciPipelineId int, tx *pg.Tx) error
 	FindByAppId(appId int) (pipelines []*CiPipeline, err error)
+	FindByAppIds(appIds []int) (pipelines []*CiPipeline, err error)
 	//find non deleted pipeline
 	FindById(id int) (pipeline *CiPipeline, err error)
 	FindByCiAndAppDetailsById(pipelineId int) (pipeline *CiPipeline, err error)
@@ -168,6 +169,15 @@ func (impl CiPipelineRepositoryImpl) FindByAppId(appId int) (pipelines []*CiPipe
 	err = impl.dbConnection.Model(&pipelines).
 		Column("ci_pipeline.*", "CiPipelineMaterials", "CiPipelineMaterials.GitMaterial").
 		Where("ci_pipeline.app_id =?", appId).
+		Where("deleted =? ", false).
+		Select()
+	return pipelines, err
+}
+
+func (impl CiPipelineRepositoryImpl) FindByAppIds(appIds []int) (pipelines []*CiPipeline, err error) {
+	err = impl.dbConnection.Model(&pipelines).
+		Column("ci_pipeline.*", "CiPipelineMaterials", "CiPipelineMaterials.GitMaterial").
+		Where("ci_pipeline.app_id in (?)", pg.In(appIds)).
 		Where("deleted =? ", false).
 		Select()
 	return pipelines, err
