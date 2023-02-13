@@ -47,7 +47,6 @@ type UserAuthRepository interface {
 	DeleteUserRoleMapping(userRoleModel *UserRoleModel, tx *pg.Tx) (bool, error)
 	DeleteUserRoleByRoleId(roleId int, tx *pg.Tx) error
 	CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource string, tx *pg.Tx, actionType, accessType string) (bool, error)
-	//CreateDefaultPoliciesForGlobalEntity(entity string, entityName string, action string, tx *pg.Tx) (bool, error)
 	CreateRoleForSuperAdminIfNotExists(tx *pg.Tx) (bool, error)
 	SyncOrchestratorToCasbin(team string, entityName string, env string, tx *pg.Tx) (bool, error)
 	UpdateTriggerPolicyForTerminalAccess() error
@@ -56,7 +55,6 @@ type UserAuthRepository interface {
 	GetRolesForApp(appName string) ([]*RoleModel, error)
 	GetRolesForChartGroup(chartGroupName string) ([]*RoleModel, error)
 	DeleteRole(role *RoleModel, tx *pg.Tx) error
-
 	GetRoleByFilterForClusterEntity(cluster, namespace, group, kind, resource, action string) (RoleModel, error)
 	GetRolesByUserIdAndEntityType(userId int32, entityType string) ([]*RoleModel, error)
 }
@@ -225,7 +223,7 @@ func (impl UserAuthRepositoryImpl) GetRolesByActionAndAccessType(action string, 
 }
 
 func (impl UserAuthRepositoryImpl) GetRoleByFilterForAllTypes(entity string, team string, app string, env string, act string, accessType string, cluster string, namespace string, group string, kind string, resource string, action string) (RoleModel, error) {
-	if accessType == bean2.CLUSTER {
+	if entity == bean2.CLUSTER {
 		var model RoleModel
 		query := "SELECT * FROM roles  WHERE entity = ? "
 		var err error
@@ -344,50 +342,6 @@ func (impl UserAuthRepositoryImpl) GetRoleByFilterForAllTypes(entity string, tea
 
 	if err != nil {
 		impl.Logger.Errorw("exception while fetching roles", "err", err)
-		return model, err
-	}
-	return model, nil
-}
-
-func (impl UserAuthRepositoryImpl) GetRoleByFilterForClusterEntity(cluster, namespace, group, kind, resource, action string) (RoleModel, error) {
-	var model RoleModel
-	query := "SELECT * FROM roles  WHERE entity = ? "
-	var err error
-
-	if len(cluster) > 0 {
-		query += " and cluster='" + cluster + "' "
-	} else {
-		query += " and cluster IS NULL "
-	}
-	if len(namespace) > 0 {
-		query += " and namespace='" + namespace + "' "
-	} else {
-		query += " and namespace IS NULL "
-	}
-	if len(group) > 0 {
-		query += " and \"group\"='" + group + "' "
-	} else {
-		query += " and \"group\" IS NULL "
-	}
-	if len(kind) > 0 {
-		query += " and kind='" + kind + "' "
-	} else {
-		query += " and kind IS NULL "
-	}
-	if len(resource) > 0 {
-		query += " and resource='" + resource + "' "
-	} else {
-		query += " and resource IS NULL "
-	}
-	if len(action) > 0 {
-		query += " and action='" + action + "' ;"
-	} else {
-		query += " and action IS NULL ;"
-	}
-	_, err = impl.dbConnection.Query(&model, query, bean.CLUSTER_ENTITIY)
-	if err != nil {
-		impl.Logger.Errorw("error in getting roles for clusterEntity", "err", err,
-			bean2.CLUSTER, cluster, "namespace", namespace, "kind", kind, "group", group, "resource", resource)
 		return model, err
 	}
 	return model, nil
@@ -534,176 +488,6 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team string,
 
 	return true, nil
 }
-
-//
-//func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForGlobalEntity(entity string, entityName string, action string, tx *pg.Tx) (bool, error) {
-//	//transaction, err := impl.dbConnection.Begin()
-//	//if err != nil {
-//	//	return false, err
-//	//}
-//	//// Rollback tx on error.
-//	//defer transaction.Rollback()
-//	//
-//	////getting policies from db
-//	//entityAllPolicyDb, err := impl.defaultAuthPolicyRepository.GetPolicyByRoleType(bean2.ENTITY_ALL_TYPE, bean2.GLOBAL_ENTITY)
-//	//if err != nil {
-//	//	return false, err
-//	//}
-//	//entityViewPolicyDb, err := impl.defaultAuthPolicyRepository.GetPolicyByRoleType(bean2.ENTITY_VIEW_TYPE, bean2.GLOBAL_ENTITY)
-//	//if err != nil {
-//	//	return false, err
-//	//}
-//	//
-//	//policyDetails := RolePolicyDetails{
-//	//	Entity:     entity,
-//	//	EntityName: entityName,
-//	//}
-//	//
-//	////getting updated entityAll policies
-//	//entityAllPolicy, err := util.Tprintf(entityAllPolicyDb, policyDetails)
-//	//if err != nil {
-//	//	impl.Logger.Errorw("error in getting updated policies", "err", err, "roleType", bean2.ENTITY_ALL_TYPE)
-//	//	return false, err
-//	//}
-//	//
-//	////getting updated entityView policies
-//	//entityViewPolicy, err := util.Tprintf(entityViewPolicyDb, policyDetails)
-//	//if err != nil {
-//	//	impl.Logger.Errorw("error in getting updated policies", "err", err, "roleType", bean2.ENTITY_VIEW_TYPE)
-//	//	return false, err
-//	//}
-//	//
-//	////for START in Casbin Object Ends Here
-//	//var policiesAdmin bean.PolicyRequest
-//	//err = json.Unmarshal([]byte(entityAllPolicy), &policiesAdmin)
-//	//if err != nil {
-//	//	impl.Logger.Errorw("decode err", "err", err)
-//	//	return false, err
-//	//}
-//	//impl.Logger.Debugw("add policy request", "policies", policiesAdmin)
-//	//casbin.AddPolicy(policiesAdmin.Data)
-//	//
-//	//var policiesView bean.PolicyRequest
-//	//err = json.Unmarshal([]byte(entityViewPolicy), &policiesView)
-//	//if err != nil {
-//	//	impl.Logger.Errorw("decode err", "err", err)
-//	//	return false, err
-//	//}
-//	//impl.Logger.Debugw("add policy request", "policies", policiesView)
-//	//casbin.AddPolicy(policiesView.Data)
-//	//
-//	////getting policy from db
-//	//entitySpecificPolicyDb, err := impl.defaultAuthPolicyRepository.GetPolicyByRoleType(bean2.ENTITY_SPECIFIC_TYPE, bean2.GLOBAL_ENTITY)
-//	//if err != nil {
-//	//	return false, err
-//	//}
-//	//
-//	////getting updated entitySpecific policies
-//	//entitySpecificPolicy, err := util.Tprintf(entitySpecificPolicyDb, policyDetails)
-//	//if err != nil {
-//	//	impl.Logger.Errorw("error in getting updated policies", "err", err, "roleType", bean2.ENTITY_SPECIFIC_TYPE)
-//	//	return false, err
-//	//}
-//	//
-//	//var policiesSpecific bean.PolicyRequest
-//	//err = json.Unmarshal([]byte(entitySpecificPolicy), &policiesSpecific)
-//	//if err != nil {
-//	//	impl.Logger.Errorw("decode err", "err", err)
-//	//	return false, err
-//	//}
-//	//impl.Logger.Debugw("add policy request", "policies", policiesSpecific)
-//	//casbin.AddPolicy(policiesSpecific.Data)
-//	////CASBIN ENDS
-//	//
-//	////Creating ROLES
-//	//
-//	////getting role from db
-//	//entitySpecificAdminDb, err := impl.defaultAuthRoleRepository.GetRoleByRoleTypeAndAccessType(bean2.ENTITY_SPECIFIC_ADMIN_TYPE, bean2.GLOBAL_ENTITY)
-//	//if err != nil {
-//	//	return false, err
-//	//}
-//	//
-//	////getting updated role
-//	//roleAdmin, err := util.Tprintf(entitySpecificAdminDb, policyDetails)
-//	//if err != nil {
-//	//	impl.Logger.Errorw("error in getting updated policies", "err", err, "roleType", bean2.ENTITY_SPECIFIC_ADMIN_TYPE)
-//	//	return false, err
-//	//}
-//	//
-//	////getting role from db
-//	//entitySpecificViewDb, err := impl.defaultAuthRoleRepository.GetRoleByRoleTypeAndAccessType(bean2.ENTITY_SPECIFIC_VIEW_TYPE, bean2.GLOBAL_ENTITY)
-//	//if err != nil {
-//	//	return false, err
-//	//}
-//	//
-//	////getting updated role
-//	//roleView, err := util.Tprintf(entitySpecificViewDb, policyDetails)
-//	//if err != nil {
-//	//	impl.Logger.Errorw("error in getting updated policies", "err", err, "roleType", bean2.ENTITY_SPECIFIC_VIEW_TYPE)
-//	//	return false, err
-//	//}
-//	//
-//	//var roleAdminData bean.RoleData
-//	//err = json.Unmarshal([]byte(roleAdmin), &roleAdminData)
-//	//if err != nil {
-//	//	impl.Logger.Errorw("decode err", "err", err)
-//	//	return false, err
-//	//}
-//	//_, err = impl.GetRole(roleAdminData.Role)
-//	//if err != nil || err == pg.ErrNoRows {
-//	//	_, err = impl.createRole(&roleAdminData, transaction)
-//	//	if err != nil && strings.Contains("duplicate key value violates unique constraint", err.Error()) {
-//	//		return false, err
-//	//	}
-//	//}
-//	//
-//	//var roleViewData bean.RoleData
-//	//err = json.Unmarshal([]byte(roleView), &roleViewData)
-//	//if err != nil {
-//	//	impl.Logger.Errorw("decode err", "err", err)
-//	//	return false, err
-//	//}
-//	//_, err = impl.GetRole(roleViewData.Role)
-//	//if err != nil || err == pg.ErrNoRows {
-//	//	_, err = impl.createRole(&roleViewData, transaction)
-//	//	if err != nil && strings.Contains("duplicate key value violates unique constraint", err.Error()) {
-//	//		return false, err
-//	//	}
-//	//}
-//	//
-//	////getting role from db
-//	//roleSpecificDb, err := impl.defaultAuthRoleRepository.GetRoleByRoleTypeAndAccessType(bean2.ROLE_SPECIFIC_TYPE, bean2.GLOBAL_ENTITY)
-//	//if err != nil {
-//	//	return false, err
-//	//}
-//	//
-//	////getting updated role
-//	//roleSpecific, err := util.Tprintf(roleSpecificDb, policyDetails)
-//	//if err != nil {
-//	//	impl.Logger.Errorw("error in getting updated policies", "err", err, "roleType", bean2.ROLE_SPECIFIC_TYPE)
-//	//	return false, err
-//	//}
-//	//
-//	//var roleSpecificData bean.RoleData
-//	//err = json.Unmarshal([]byte(roleSpecific), &roleSpecificData)
-//	//if err != nil {
-//	//	impl.Logger.Errorw("decode err", "err", err)
-//	//	return false, err
-//	//}
-//	//_, err = impl.GetRole(roleSpecificData.Role)
-//	//if err != nil && err == pg.ErrNoRows {
-//	//	_, err = impl.createRole(&roleSpecificData, transaction)
-//	//	if err != nil && strings.Contains("duplicate key value violates unique constraint", err.Error()) {
-//	//		return false, err
-//	//	}
-//	//}
-//	//
-//	//err = transaction.Commit()
-//	//if err != nil {
-//	//	return false, err
-//	//}
-//	//return true, nil
-//}
 
 func (impl UserAuthRepositoryImpl) CreateRoleForSuperAdminIfNotExists(tx *pg.Tx) (bool, error) {
 	transaction, err := impl.dbConnection.Begin()

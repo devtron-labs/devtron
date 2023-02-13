@@ -110,6 +110,7 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 		//Starts Role and Mapping
 		var policies []casbin2.Policy
 		for _, roleFilter := range request.RoleFilters {
+			entity := roleFilter.Entity
 			if roleFilter.Entity == bean.CLUSTER_ENTITIY {
 				policiesToBeAdded, err := impl.CreateOrUpdateRoleGroupForClusterEntity(roleFilter, request.UserId, model, nil, "", nil, tx)
 				policies = append(policies, policiesToBeAdded...)
@@ -157,7 +158,7 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 									continue
 								}
 							} else if len(roleFilter.Entity) > 0 {
-								flag, err := impl.userAuthRepository.CreateDefaultPoliciesForGlobalEntity(roleFilter.Entity, entityName, actionType, tx)
+								flag, err := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes("", entityName, "", entity, "", "", "", "", "", tx, actionType, accessType)
 								if err != nil || flag == false {
 									return nil, err
 								}
@@ -367,6 +368,7 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 			}
 			actionType := roleFilter.Action
 			accessType := roleFilter.AccessType
+			entity := roleFilter.Entity
 			entityNames := strings.Split(roleFilter.EntityName, ",")
 			environments := strings.Split(roleFilter.Environment, ",")
 			for _, environment := range environments {
@@ -377,7 +379,7 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 					if environment == "NONE" {
 						environment = ""
 					}
-					roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "")
+					roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "")
 					if err != nil {
 						return nil, err
 					}
@@ -386,11 +388,11 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 
 						if len(roleFilter.Team) > 0 {
 
-							flag, err := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, "", "", "", "", "", "", tx, actionType, accessType)
+							flag, err := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", tx, actionType, accessType)
 							if err != nil || flag == false {
 								return nil, err
 							}
-							roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "")
+							roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", actionType)
 							if err != nil {
 								return nil, err
 							}
@@ -399,11 +401,11 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 								continue
 							}
 						} else if len(roleFilter.Entity) > 0 {
-							flag, err := impl.userAuthRepository.CreateDefaultPoliciesForGlobalEntity(roleFilter.Entity, entityName, actionType, tx)
+							flag, err := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes("", entityName, "", roleFilter.Entity, "", "", "", "", "", tx, actionType, accessType)
 							if err != nil || flag == false {
 								return nil, err
 							}
-							roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "")
+							roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "")
 							if err != nil {
 								return nil, err
 							}
