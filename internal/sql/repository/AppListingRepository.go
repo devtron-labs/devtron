@@ -313,7 +313,7 @@ func (impl AppListingRepositoryImpl) FetchAppTriggerView(appId int) ([]bean.Trig
 		" INNER JOIN ci_pipeline cp on cp.id = p.ci_pipeline_id" +
 		" INNER JOIN app a ON a.id = p.app_id" +
 		" INNER JOIN environment env on env.id = p.environment_id" +
-		" WHERE p.app_id=? and p.deleted=false and a.app_store is 0 AND env.active = TRUE;"
+		" WHERE p.app_id=? and p.deleted=false and a.app_store = 0 AND env.active = TRUE;"
 
 	impl.Logger.Debugw("query", query)
 	_, err := impl.dbConnection.Query(&triggerView, query, appId)
