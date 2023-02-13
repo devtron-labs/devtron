@@ -1362,12 +1362,17 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 
 func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int) (cdPipelines *bean.CdPipelines, err error) {
 	dbPipelines, err := impl.pipelineRepository.FindActiveByEnvId(envId)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching cdPipeline", "envId", envId, "err", err)
+		return nil, err
 	}
 	var appIds []int
 	for _, pipeline := range dbPipelines {
 		appIds = append(appIds, pipeline.AppId)
+	}
+	if len(appIds) == 0 {
+		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no cd pipeline found"}
+		return cdPipelines, err
 	}
 	dbPipelines, err = impl.pipelineRepository.FindActiveByAppIds(appIds)
 	if err != nil && err != pg.ErrNoRows {
@@ -1396,14 +1401,14 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int) (cdPipe
 		if dbPipeline.PreStageConfigMapSecretNames != "" {
 			err = json.Unmarshal([]byte(dbPipeline.PreStageConfigMapSecretNames), &preStageConfigmapSecrets)
 			if err != nil {
-				impl.logger.Error(err)
+				impl.logger.Errorw("unmarshal error", "err", err)
 				return nil, err
 			}
 		}
 		if dbPipeline.PostStageConfigMapSecretNames != "" {
 			err = json.Unmarshal([]byte(dbPipeline.PostStageConfigMapSecretNames), &postStageConfigmapSecrets)
 			if err != nil {
-				impl.logger.Error(err)
+				impl.logger.Errorw("unmarshal error", "err", err)
 				return nil, err
 			}
 		}

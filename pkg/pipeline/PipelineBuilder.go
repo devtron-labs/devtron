@@ -3189,6 +3189,10 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int) ([]*bean.C
 
 func (impl PipelineBuilderImpl) GetCdPipelinesByEnvironment(envId int) (cdPipelines *bean.CdPipelines, err error) {
 	cdPipelines, err = impl.ciCdPipelineOrchestrator.GetCdPipelinesForEnv(envId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching pipeline", "err", err)
+		return cdPipelines, err
+	}
 	var pipelines []*bean.CDPipelineConfigObject
 	for _, dbPipeline := range cdPipelines.Pipelines {
 		environment, err := impl.environmentRepository.FindById(dbPipeline.EnvironmentId)
@@ -3209,13 +3213,13 @@ func (impl PipelineBuilderImpl) GetCdPipelinesByEnvironment(envId int) (cdPipeli
 				DeploymentTemplate: item.Strategy,
 				Default:            item.Default,
 			})
-
 			if item.Default {
 				deploymentTemplate = item.Strategy
 			}
 		}
 		appWorkflowMapping, err := impl.appWorkflowRepository.FindWFCDMappingByCDPipelineId(dbPipeline.Id)
-		if err != nil {
+		if err != nil && errors.IsNotFound(err) {
+			impl.logger.Errorw("error in fetching workflows", "err", err)
 			return nil, err
 		}
 		pipeline := &bean.CDPipelineConfigObject{
