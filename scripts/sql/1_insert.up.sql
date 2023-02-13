@@ -32,7 +32,7 @@ CREATE TABLE public.app (
     updated_on timestamp with time zone NOT NULL,
     updated_by integer NOT NULL,
     team_id integer,
-    app_store integer DEFAULT 0
+    app_store integer DEFAULT false
 );
 
 
