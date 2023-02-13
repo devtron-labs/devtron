@@ -27,4 +27,5 @@ const (
 	SUPER_ADMIN                         = "super-admin"
 	CLUSTER                             = "cluster"
 	GLOBAL_ENTITY                       = "globalEntity"
+	ENTITY_APPS                         = "apps"
 )

@@ -10,14 +10,16 @@ import (
 type DefaultAuthRoleRepository interface {
 	CreateRole(role *DefaultAuthRole) (*DefaultAuthRole, error)
 	UpdateRole(role *DefaultAuthRole) (*DefaultAuthRole, error)
-	GetRoleByRoleTypeAndAccessType(roleType bean.RoleType, accessType string) (role string, err error)
+	GetRoleByRoleTypeAndEntityType(roleType bean.RoleType, accessType string, entity string) (role string, err error)
 }
 
 type DefaultAuthRole struct {
-	TableName struct{} `sql:"default_auth_role" pg:",discard_unknown_columns"`
-	Id        int      `sql:"id,pk"`
-	RoleType  string   `sql:"role_type,notnull"`
-	Role      string   `sql:"role,notnull"`
+	TableName  struct{} `sql:"default_auth_role" pg:",discard_unknown_columns"`
+	Id         int      `sql:"id,pk"`
+	RoleType   string   `sql:"role_type,notnull"`
+	Role       string   `sql:"role,notnull"`
+	accessType string   `sql:"access_type"`
+	entity     string   `sql:"entity,notnull"`
 	sql.AuditLog
 }
 
@@ -48,9 +50,10 @@ func (impl DefaultAuthRoleRepositoryImpl) UpdateRole(role *DefaultAuthRole) (*De
 	return role, nil
 }
 
-func (impl DefaultAuthRoleRepositoryImpl) GetRoleByRoleTypeAndAccessType(roleType bean.RoleType, accessType string) (role string, err error) {
+func (impl DefaultAuthRoleRepositoryImpl) GetRoleByRoleTypeAndEntityType(roleType bean.RoleType, accessType string, entity string) (role string, err error) {
 	var model DefaultAuthRole
-	err = impl.dbConnection.Model(&model).Where("role_type = ? ", roleType).Where("access_type = ?", accessType).Select()
+	err = impl.dbConnection.Model(&model).Where("role_type = ? ", roleType).Where("entity = ?", entity).Select()
+
 	if err != nil {
 		impl.logger.Error("error in getting role by roleType", "err", err, "roleType", roleType)
 		return "", err

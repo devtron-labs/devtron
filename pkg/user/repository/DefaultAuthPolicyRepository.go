@@ -10,14 +10,16 @@ import (
 type DefaultAuthPolicyRepository interface {
 	CreatePolicy(policy *DefaultAuthPolicy) (*DefaultAuthPolicy, error)
 	UpdatePolicyByRoleType(policy string, roleType bean.RoleType) (*DefaultAuthPolicy, error)
-	GetPolicyByRoleType(roleType bean.RoleType, accessType string) (policy string, err error)
+	GetPolicyByRoleTypeAndEntity(roleType bean.RoleType, accessType string, entity string) (policy string, err error)
 }
 
 type DefaultAuthPolicy struct {
-	TableName struct{} `sql:"default_auth_policy" pg:",discard_unknown_columns"`
-	Id        int      `sql:"id,pk"`
-	RoleType  string   `sql:"role_type,notnull"`
-	Policy    string   `sql:"policy,notnull"`
+	TableName  struct{} `sql:"default_auth_policy" pg:",discard_unknown_columns"`
+	Id         int      `sql:"id,pk"`
+	RoleType   string   `sql:"role_type,notnull"`
+	Policy     string   `sql:"policy,notnull"`
+	accessType string   `sql:"access_type"`
+	entity     string   `sql:"entity,notnull"`
 	sql.AuditLog
 }
 
@@ -50,11 +52,11 @@ func (impl DefaultAuthPolicyRepositoryImpl) UpdatePolicyByRoleType(policy string
 	return &model, nil
 }
 
-func (impl DefaultAuthPolicyRepositoryImpl) GetPolicyByRoleType(roleType bean.RoleType, accessType string) (policy string, err error) {
+func (impl DefaultAuthPolicyRepositoryImpl) GetPolicyByRoleTypeAndEntity(roleType bean.RoleType, accessType string, entity string) (policy string, err error) {
 	var model DefaultAuthPolicy
-	err = impl.dbConnection.Model(&model).Where("role_type = ? ", roleType).Where("access_type = ?", accessType).Select()
+	err = impl.dbConnection.Model(&model).Where("role_type = ? ", roleType).Where("entity = ?", entity).Select()
 	if err != nil {
-		impl.logger.Error("error in getting policy by roleType", "err", err, "roleType", roleType, "accessType", accessType)
+		impl.logger.Error("error in getting policy by roleType", "err", err, "roleType", roleType, "entity", entity)
 		return "", err
 	}
 	return model.Policy, nil
