@@ -286,23 +286,6 @@ func (impl *AppCloneServiceImpl) CloneJob(createReq *bean.CreateAppDTO, context 
 		impl.logger.Errorw("status not", "CHART", cloneReq.RefAppId)
 		return app, nil
 	}
-	if isSameProject {
-		_, err = impl.CreateEnvCm(context, cloneReq.RefAppId, newAppId, userId)
-		if err != nil {
-			impl.logger.Errorw("error in creating env cm", "err", err)
-			return nil, err
-		}
-		_, err = impl.CreateEnvSecret(context, cloneReq.RefAppId, newAppId, userId)
-		if err != nil {
-			impl.logger.Errorw("error in creating env secret", "err", err)
-			return nil, err
-		}
-		_, err = impl.createEnvOverride(cloneReq.RefAppId, newAppId, userId, context)
-		if err != nil {
-			impl.logger.Errorw("error in cloning  env override", "err", err)
-			return nil, err
-		}
-	}
 
 	_, err = impl.CreateWf(cloneReq.RefAppId, newAppId, userId, gitMaerialMap, context, isSameProject)
 	if err != nil {
