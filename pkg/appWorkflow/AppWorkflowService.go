@@ -388,7 +388,6 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowsByEnvironmentId(envId int) ([
 		impl.Logger.Errorw("error fetching pipelines for env id", "err", err)
 		return nil, err
 	}
-
 	pipelineMap := make(map[int]bool)
 	appNamesMap := make(map[int]string)
 	var appIds []int
