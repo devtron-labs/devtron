@@ -600,6 +600,10 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		}
 
 		for _, m := range ciPipeline.CiPipelineMaterials {
+			// git material should be active in this case
+			if m == nil || m.GitMaterial == nil || !m.GitMaterial.Active {
+				continue
+			}
 			var ciMaterialCurrent repository.CiMaterialInfo
 			for _, ciMaterial := range ciMaterialInfo {
 				if ciMaterial.Material.GitConfiguration.URL == m.GitMaterial.Url {
@@ -1161,7 +1165,7 @@ func (impl *WorkflowDagExecutorImpl) updatePreviousDeploymentStatus(currentRunne
 			}
 			impl.logger.Infow("updating cd wf runner status as previous runner status is", "status", previousRunner.Status)
 			previousRunner.FinishedOn = triggeredAt
-			previousRunner.Message = "triggered new deployment"
+			previousRunner.Message = "A new deployment was initiated before this deployment completed"
 			previousRunner.Status = pipelineConfig.WorkflowFailed
 			previousRunner.UpdatedOn = time.Now()
 			previousRunner.UpdatedBy = triggeredBy
