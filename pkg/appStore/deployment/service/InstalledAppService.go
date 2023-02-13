@@ -948,6 +948,7 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 			resourceTree := util3.InterfaceToMapAdapter(detail.ResourceTreeResponse)
 			resourceTree["status"] = detail.ApplicationStatus
 			appDetail.ResourceTree = resourceTree
+			appDetail.Notes = detail.ChartMetadata.Notes
 			impl.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
 		} else {
 			appDetail.ResourceTree = map[string]interface{}{}
