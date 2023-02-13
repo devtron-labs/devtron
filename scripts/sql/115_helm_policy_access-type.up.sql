@@ -8,13 +8,8 @@ ALTER TABLE "public"."default_auth_policy"
     ADD COLUMN entity varchar(50);
 
 UPDATE "public"."default_auth_policy"
-SET entity = 'apps' AND access_type ='devtron-app'
+SET entity = 'apps', access_type ='devtron-app'
 WHERE role_type = 'manager'OR  role_type = 'trigger' OR  role_type = 'view'OR  role_type ='admin';
-
--- UPDATE "public"."default_auth_policy"
--- SET access_type = 'devtron-app'
--- WHERE role_type = 'manager'OR  role_type = 'trigger' OR  role_type = 'view'OR  role_type ='admin';
-
 
 UPDATE "public"."default_auth_policy"
 SET entity = 'cluster'
@@ -24,10 +19,6 @@ WHERE role_type = 'clusterEdit'OR role_type = 'clusterView'OR  role_type = 'clus
 UPDATE "public"."default_auth_policy"
 SET  entity= 'chart-group'
 WHERE role_type = 'entityView' OR role_type = 'entitySpecific'OR role_type = 'entityAll';
-
--- UPDATE "public"."default_auth_policy"
--- SET access_type = 'globalEntity'
--- WHERE role_type = 'entityView' OR role_type = 'entitySpecific'OR role_type = 'entityAll';
 
 SELECT setval('id_seq_default_auth_policy', (SELECT MAX(id) FROM default_auth_policy));
 
@@ -119,8 +110,11 @@ INSERT INTO "public"."default_auth_policy" ( "role_type", "policy", "created_on"
 ALTER TABLE "public"."default_auth_role"
     ADD COLUMN access_type varchar(50);
 
+ALTER TABLE "public"."default_auth_role"
+    ADD COLUMN entity varchar(50);
+
 UPDATE "public"."default_auth_role"
-SET access_type = 'devtron-app' AND entity  ='apps'
+SET access_type = 'devtron-app' , entity  ='apps'
 WHERE role_type = 'manager'OR  role_type = 'trigger' OR  role_type = 'view'OR  role_type ='admin';
 
 
