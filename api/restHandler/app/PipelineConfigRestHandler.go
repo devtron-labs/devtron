@@ -66,6 +66,7 @@ type DevtronAppRestHandler interface {
 	FindAppsByTeamId(w http.ResponseWriter, r *http.Request)
 	FindAppsByTeamName(w http.ResponseWriter, r *http.Request)
 	GetAppEnvironment(w http.ResponseWriter, r *http.Request)
+	GetAppListByEnvId(w http.ResponseWriter, r *http.Request)
 }
 
 type DevtronAppWorkflowRestHandler interface {
@@ -633,4 +634,23 @@ func (handler PipelineConfigRestHandlerImpl) GetAppEnvironment(w http.ResponseWr
 	}
 
 	common.WriteJsonResp(w, err, results, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) GetAppListByEnvId(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	envId, err := strconv.Atoi(vars["env-id"])
+	if err != nil {
+		handler.Logger.Errorw("request err, get app", "err", err, "envId", envId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	handler.Logger.Infow("request payload, get app", "envId", envId)
+	ciConf, err := handler.pipelineBuilder.GetAppListForEnvironment(envId)
+	if err != nil {
+		handler.Logger.Errorw("service err, get app", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, err, ciConf, http.StatusOK)
 }

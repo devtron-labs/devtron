@@ -371,12 +371,14 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete() ([]Enviro
 func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int) ([]EnvironmentBean, error) {
 	var models []*repository.Environment
 	var err error
-	if len(envName) > 0 {
-		models, err = impl.environmentRepository.FindByEnvName(envName)
+	if len(envName) > 0 && len(clusterIds) > 0 {
+		models, err = impl.environmentRepository.FindByEnvNameAndClusterIds(envName, clusterIds)
 	} else if len(clusterIds) > 0 {
 		models, err = impl.environmentRepository.FindByClusterIds(clusterIds)
-	} else if len(envName) > 0 && len(clusterIds) > 0 {
-		models, err = impl.environmentRepository.FindByEnvNameAndClusterIds(envName, clusterIds)
+	} else if len(envName) > 0 {
+		models, err = impl.environmentRepository.FindByEnvName(envName)
+	} else {
+		models, err = impl.environmentRepository.FindAllActive()
 	}
 	if err != nil {
 		impl.logger.Errorw("error in fetching environment", "err", err)
