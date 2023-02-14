@@ -661,6 +661,9 @@ func (impl *UserTerminalAccessServiceImpl) FetchTerminalStatus(ctx context.Conte
 				if err != nil {
 					if err.Error() == terminal.PodNotFound {
 						response.Status = models.TerminalPodTerminated
+						impl.TerminalAccessDataArrayMutex.Lock()
+						terminalAccessSessionData.terminalAccessDataEntity.Status = fmt.Sprintf("%s/%s", models.TerminalPodTerminated, terminal.PodNotFound)
+						impl.TerminalAccessDataArrayMutex.Unlock()
 					}
 					response.ErrorReason = err.Error()
 				}
@@ -676,8 +679,7 @@ func (impl *UserTerminalAccessServiceImpl) FetchTerminalStatus(ctx context.Conte
 	}
 	terminalAccessData, err := impl.validateTerminalAccessFromDb(ctx, terminalAccessId, terminalAccessData, terminalSessionId, terminalAccessSessionData, terminalAccessDataMap)
 	if err != nil {
-		if true {
-			strings.Contains(err.Error(), "pod-terminated")
+		if strings.Contains(err.Error(), "pod-terminated") {
 			return &models.UserTerminalSessionResponse{
 				TerminalAccessId: terminalAccessId,
 				Status:           models.TerminalPodTerminated,
@@ -703,6 +705,9 @@ func (impl *UserTerminalAccessServiceImpl) FetchTerminalStatus(ctx context.Conte
 		if err != nil {
 			if err.Error() == terminal.PodNotFound {
 				terminalAccessResponse.Status = models.TerminalPodTerminated
+				impl.TerminalAccessDataArrayMutex.Lock()
+				terminalAccessSessionData.terminalAccessDataEntity.Status = fmt.Sprintf("%s/%s", models.TerminalPodTerminated, terminal.PodNotFound)
+				impl.TerminalAccessDataArrayMutex.Unlock()
 			}
 			terminalAccessResponse.ErrorReason = err.Error()
 		}
@@ -720,6 +725,9 @@ func (impl *UserTerminalAccessServiceImpl) validateTerminalAccessFromDb(ctx cont
 		terminalAccessData = existingTerminalAccessData
 		statusAndReason := strings.Split(existingTerminalAccessData.Status, "/")
 		if statusAndReason[0] == string(models.TerminalPodTerminated) {
+			impl.TerminalAccessDataArrayMutex.Lock()
+			terminalAccessSessionData.terminalAccessDataEntity.Status = string(models.TerminalPodTerminated)
+			impl.TerminalAccessDataArrayMutex.Unlock()
 			return nil, errors.New(fmt.Sprintf("pod-terminated(%s)", statusAndReason[1]))
 		}
 		err = impl.checkMaxSessionLimit(existingTerminalAccessData.UserId)
