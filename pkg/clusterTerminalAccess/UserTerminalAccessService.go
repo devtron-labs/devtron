@@ -276,8 +276,14 @@ func (impl *UserTerminalAccessServiceImpl) DisconnectTerminalSession(ctx context
 	impl.TerminalAccessDataArrayMutex.Lock()
 	defer impl.TerminalAccessDataArrayMutex.Unlock()
 	accessSessionDataMap := *impl.TerminalAccessSessionDataMap
+	if accessSessionDataMap == nil {
+		return nil
+	}
 	accessSessionData := accessSessionDataMap[userTerminalAccessId]
 	terminalAccessData := accessSessionData.terminalAccessDataEntity
+	if terminalAccessData == nil {
+		return nil
+	}
 	metadata := terminalAccessData.Metadata
 	metadataMap, err := impl.getMetadataMap(metadata)
 	if err != nil {
@@ -314,6 +320,9 @@ func (impl *UserTerminalAccessServiceImpl) StopTerminalSession(ctx context.Conte
 	impl.TerminalAccessDataArrayMutex.Lock()
 	defer impl.TerminalAccessDataArrayMutex.Unlock()
 	accessSessionDataMap := *impl.TerminalAccessSessionDataMap
+	if accessSessionDataMap == nil {
+		return
+	}
 	accessSessionData, present := accessSessionDataMap[userTerminalAccessId]
 	if present {
 		impl.closeAndCleanTerminalSession(accessSessionData)
