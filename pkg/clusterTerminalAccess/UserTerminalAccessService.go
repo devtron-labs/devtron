@@ -966,10 +966,13 @@ func (impl *UserTerminalAccessServiceImpl) FetchPodManifest(ctx context.Context,
 	}
 	namespace := metadataMap["Namespace"]
 	manifest, err := impl.getPodManifest(ctx, terminalAccessData.ClusterId, terminalAccessData.PodName, namespace)
-	statusReason = strings.Split(err.Error(), "/")
-	if statusReason[0] == string(models.TerminalPodTerminated) {
-		return nil, errors.New(fmt.Sprintf("pod-terminated(%s)", statusReason[1]))
+	if err != nil {
+		statusReason = strings.Split(err.Error(), "/")
+		if statusReason[0] == string(models.TerminalPodTerminated) {
+			return nil, errors.New(fmt.Sprintf("pod-terminated(%s)", statusReason[1]))
+		}
 	}
+
 	return manifest, err
 }
 
