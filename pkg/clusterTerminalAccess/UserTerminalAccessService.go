@@ -982,7 +982,7 @@ func (impl *UserTerminalAccessServiceImpl) FetchPodEvents(ctx context.Context, u
 	namespace := metadataMap["Namespace"]
 	podRequestBean, err := impl.getPodRequestBean(terminalAccessData.ClusterId, terminalAccessData.PodName, namespace)
 	podEvents, err := impl.k8sApplicationService.ListEvents(ctx, podRequestBean)
-	status := string(models.TerminalPodTerminated)
+	status := string(terminalAccessData.Status)
 	statusReason := strings.Split(terminalAccessData.Status, "/")
 	errorReason := ""
 	if statusReason[0] == string(models.TerminalPodTerminated) {
