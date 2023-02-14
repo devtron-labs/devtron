@@ -515,7 +515,6 @@ func (impl InstalledAppRepositoryImpl) GetGitOpsInstalledAppsWhereArgoAppDeleted
 		Where("installed_apps.active = ?", true).
 		Where("installed_apps.id = ?", installedAppId).
 		Where("installed_apps.environment_id = ?", envId).
-		Where("installed_apps.updated_on < ?", time.Now().Add(-time.Minute*10)).
 		Where("deployment_app_type = ?", util2.PIPELINE_DEPLOYMENT_TYPE_ACD).
 		Select()
 	if err != nil && err != pg.ErrNoRows {

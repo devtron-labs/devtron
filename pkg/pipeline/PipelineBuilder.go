@@ -128,8 +128,7 @@ type PipelineBuilder interface {
 	DeleteCiPipeline(request *bean.CiPatchRequest) (*bean.CiPipeline, error)
 	IsGitOpsRequiredForCD(pipelineCreateRequest *bean.CdPipelines) bool
 	SetPipelineDeploymentAppType(pipelineCreateRequest *bean.CdPipelines, isGitOpsConfigured bool)
-	UpdateArgoDeleteStatusForDevtronApps(appId int, envId int) (bool, error)
-	CheckCDPipelineExist(appId int, envId int) error
+	MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(appId int, envId int, acdToken string, pipeline *pipelineConfig.Pipeline) (bool, error)
 }
 
 type PipelineBuilderImpl struct {
@@ -3134,44 +3133,24 @@ func (impl PipelineBuilderImpl) buildResponses() []bean.ResponseSchemaObject {
 	return responseSchemaObjects
 }
 
-func (impl PipelineBuilderImpl) UpdateArgoDeleteStatusForDevtronApps(appId int, envId int) (bool, error) {
-	pipeline, err := impl.pipelineRepository.GetPartiallyDeletedPipelineByStatus(appId, envId)
-	var isAppDeleted bool
-	if err != nil {
-		impl.logger.Errorw("error in fetching partially deleted pipelines", "err", err)
-		return isAppDeleted, err
-	}
-	acdToken, err := impl.ArgoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		impl.logger.Errorw("error in getting acd token", "err", err)
-		return isAppDeleted, err
-	}
+func (impl PipelineBuilderImpl) MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(appId int, envId int, acdToken string, pipeline *pipelineConfig.Pipeline) (bool, error) {
+
+	acdAppFound := false
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, "token", acdToken)
 	acdAppName := pipeline.DeploymentAppName
-	_, err = impl.application.Get(ctx, &application2.ApplicationQuery{Name: &acdAppName})
+	_, err := impl.application.Get(ctx, &application2.ApplicationQuery{Name: &acdAppName})
+	if err == nil {
+		// acd app is not yet deleted so return
+		acdAppFound = true
+		return acdAppFound, err
+	}
+	impl.logger.Warnw("app not found in argo, deleting from db ", "err", err)
+	//make call to delete it from pipeline DB because it's ACD counterpart is deleted
+	err = impl.DeleteCdPipeline(pipeline, context.Background(), true, false, 0)
 	if err != nil {
-
-		impl.logger.Warnw("app not found in argo, deleting from db ", "err", err)
-		//make call to delete it from pipeline DB
-		err = impl.DeleteCdPipeline(&pipeline, context.Background(), true, false, 0)
-		if err != nil {
-			impl.logger.Errorw("error in deleting cd pipeline", "err", err)
-			return isAppDeleted, err
-		}
-		isAppDeleted = true
-		return isAppDeleted, err
-
-		impl.logger.Errorw("error in getting app from k8s", "err", err)
-		return isAppDeleted, err
+		impl.logger.Errorw("error in deleting cd pipeline", "err", err)
+		return acdAppFound, err
 	}
-	return isAppDeleted, nil
-}
-
-func (impl PipelineBuilderImpl) CheckCDPipelineExist(appId int, envId int) error {
-	_, err := impl.pipelineRepository.FindActiveByAppIdAndEnvironmentId(appId, envId)
-	if err == pg.ErrNoRows {
-		return err
-	}
-	return err
+	return acdAppFound, nil
 }
