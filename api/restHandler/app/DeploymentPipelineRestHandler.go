@@ -3,9 +3,11 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -285,13 +287,16 @@ func (handler PipelineConfigRestHandlerImpl) PatchCdPipeline(w http.ResponseWrit
 
 // ChangeCdAppType changes the deployment app type for all pipelines in all apps for a given environment.
 func (handler PipelineConfigRestHandlerImpl) ChangeCdAppType(w http.ResponseWriter, r *http.Request) {
-	decoder := json.NewDecoder(r.Body)
+
+	// Auth check
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 
+	// Retrieving and parsing request body
+	decoder := json.NewDecoder(r.Body)
 	var deploymentAppTypeChangeRequest bean.DeploymentAppTypeChangeRequest
 	err = decoder.Decode(&deploymentAppTypeChangeRequest)
 	if err != nil {
@@ -302,6 +307,21 @@ func (handler PipelineConfigRestHandlerImpl) ChangeCdAppType(w http.ResponseWrit
 		return
 	}
 
+	// check if desired deployment app type is other than helm
+	// currently only changing from argocd to helm (i.e deploymentAppType should be helm) is supported
+	if deploymentAppTypeChangeRequest.DesiredDeploymentAppType != bean.HELM {
+
+		err := errors.New("changing deployment app type to " +
+			string(deploymentAppTypeChangeRequest.DesiredDeploymentAppType) +
+			" is not supported")
+
+		handler.Logger.Errorw("Unsupported operation",
+			"err", err)
+
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	}
+
+	// Retrieve argocd token
 	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
 	if err != nil {
 		handler.Logger.Errorw("error in getting acd token", "err", err)
@@ -310,19 +330,39 @@ func (handler PipelineConfigRestHandlerImpl) ChangeCdAppType(w http.ResponseWrit
 	}
 	ctx := context.WithValue(r.Context(), "token", acdToken)
 
-	// Currently only supporting ARGO_CD to HELM
-	if deploymentAppTypeChangeRequest.DeploymentAppType == bean.HELM {
-		failedPipelines, err := handler.pipelineBuilder.DeleteInDeploymentAppsByEnvironmentId(ctx,
-			deploymentAppTypeChangeRequest.EnvId, bean.ARGO_CD)
+	// Force delete apps on argocd
+	deploymentAppTypeChangeResponse, err := handler.pipelineBuilder.DeleteInDeploymentAppsByEnvironmentId(ctx,
+		deploymentAppTypeChangeRequest.EnvId, bean.ARGO_CD) // Currently only supporting ARGO_CD to HELM
 
-		if err != nil {
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
-		common.WriteJsonResp(w, nil, failedPipelines, http.StatusOK)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, nil, nil, http.StatusBadRequest)
+
+	// Updating the env id and desired deployment app type received from request in the response
+	deploymentAppTypeChangeResponse.EnvId = deploymentAppTypeChangeRequest.EnvId
+	deploymentAppTypeChangeResponse.DesiredDeploymentAppType = deploymentAppTypeChangeRequest.DesiredDeploymentAppType
+
+	// Update the deployment app type to HELM and toggle deployment_app_created to false in db
+	for _, item := range deploymentAppTypeChangeResponse.SuccessfulPipelines {
+
+		updatedPipeline := &pipelineConfig.Pipeline{
+			Id:                   item.Id,
+			DeploymentAppType:    string(bean.HELM),
+			DeploymentAppCreated: false,
+		}
+
+		// Update in db
+		err := handler.pipelineRepository.UpdateCdPipelineDeploymentAppTypeAndDeploymentAppCreated(updatedPipeline)
+
+		if err != nil {
+			handler.Logger.Errorw("failed to update deployment app type in db",
+				"err", err)
+		}
+	}
+
+	common.WriteJsonResp(w, nil, deploymentAppTypeChangeResponse, http.StatusOK)
+	return
 }
 
 func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.ResponseWriter, r *http.Request) {

@@ -99,8 +99,8 @@ type PipelineBuilder interface {
 	GetApp(appId int) (application *bean.CreateAppDTO, err error)
 	PatchCdPipelines(cdPipelines *bean.CDPatchRequest, ctx context.Context) (*bean.CdPipelines, error)
 	DeleteCdPipeline(pipeline *pipelineConfig.Pipeline, ctx context.Context, forceDelete bool, userId int32) (err error)
-	DeleteInDeploymentAppsByEnvironmentId(ctx context.Context, environmentId int, deploymentAppType bean.DeploymentAppType) ([]*bean.DeploymentAppTypeChangeRequestFailedPipelines, error)
-	DeleteAppsInArgoCd(ctx context.Context, pipelines []*pipelineConfig.Pipeline) []*bean.DeploymentAppTypeChangeRequestFailedPipelines
+	DeleteInDeploymentAppsByEnvironmentId(ctx context.Context, environmentId int, deploymentAppType bean.DeploymentAppType) (*bean.DeploymentAppTypeChangeResponse, error)
+	DeleteAppsInArgoCd(ctx context.Context, pipelines []*pipelineConfig.Pipeline) *bean.DeploymentAppTypeChangeResponse
 	GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error)
 	GetCdPipelinesForAppAndEnv(appId int, envId int) (cdPipelines *bean.CdPipelines, err error)
 	/*	CreateCdPipelines(cdPipelines bean.CdPipelines) (*bean.CdPipelines, error)*/
@@ -1713,26 +1713,39 @@ func (impl PipelineBuilderImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipeli
 	return nil
 }
 
-// DeleteInDeploymentAppsByEnvironmentId
+// DeleteInDeploymentAppsByEnvironmentId takes in environment id and current deployment app type
+// and deletes all the cd pipelines for that deployment type in all apps that belongs to
+// that environment.
+// NOTE: This method is used by app.ChangeCdAppType method to change the deployment app type of
+// the cd pipelines. Currently changing from argocd to helm deployment type is supported.
 func (impl PipelineBuilderImpl) DeleteInDeploymentAppsByEnvironmentId(ctx context.Context, environmentId int,
-	deploymentAppType bean.DeploymentAppType) ([]*bean.DeploymentAppTypeChangeRequestFailedPipelines, error) {
+	currentDeploymentAppType bean.DeploymentAppType) (*bean.DeploymentAppTypeChangeResponse, error) {
 
-	if deploymentAppType == bean.HELM {
-		return []*bean.DeploymentAppTypeChangeRequestFailedPipelines{},
-			errors.New("deleting application for helm type deployment is not supported")
+	// not supported
+	if currentDeploymentAppType == bean.HELM {
+		return &bean.DeploymentAppTypeChangeResponse{
+				EnvId:               environmentId,
+				SuccessfulPipelines: []*bean.DeploymentAppTypeChangeRequestPipelineStatus{},
+				FailedPipelines:     []*bean.DeploymentAppTypeChangeRequestPipelineStatus{},
+			},
+			errors.New("deleting applications in helm type deployment is not supported")
 	}
 
-	// fetch active pipelines from database for the given environment id and deployment app type
+	// fetch active pipelines from database for the given environment id and current deployment app type
 	pipelines, err := impl.pipelineRepository.FindActiveByEnvironmentIdAndDeploymentAppType(environmentId,
-		string(deploymentAppType))
+		string(currentDeploymentAppType))
 
 	if err != nil {
 		impl.logger.Errorw("Error fetching cd pipelines",
 			"environmentId", environmentId,
-			"deploymentAppType", deploymentAppType,
+			"currentDeploymentAppType", currentDeploymentAppType,
 			"err", err)
 
-		return []*bean.DeploymentAppTypeChangeRequestFailedPipelines{}, err
+		return &bean.DeploymentAppTypeChangeResponse{
+			EnvId:               environmentId,
+			SuccessfulPipelines: []*bean.DeploymentAppTypeChangeRequestPipelineStatus{},
+			FailedPipelines:     []*bean.DeploymentAppTypeChangeRequestPipelineStatus{},
+		}, err
 	}
 
 	// Currently deleting apps only in argocd is supported
@@ -1741,10 +1754,13 @@ func (impl PipelineBuilderImpl) DeleteInDeploymentAppsByEnvironmentId(ctx contex
 
 // DeleteAppsInArgoCd takes in a list of pipelines and delete the applications
 // from argocd.
-func (impl PipelineBuilderImpl) DeleteAppsInArgoCd(ctx context.Context, pipelines []*pipelineConfig.Pipeline) []*bean.DeploymentAppTypeChangeRequestFailedPipelines {
+func (impl PipelineBuilderImpl) DeleteAppsInArgoCd(ctx context.Context,
+	pipelines []*pipelineConfig.Pipeline) *bean.DeploymentAppTypeChangeResponse {
 
-	var failedPipelines []*bean.DeploymentAppTypeChangeRequestFailedPipelines
+	var successfulPipelines []*bean.DeploymentAppTypeChangeRequestPipelineStatus
+	var failedPipelines []*bean.DeploymentAppTypeChangeRequestPipelineStatus
 
+	// Iterate over all the pipelines in the environment for given deployment app type
 	for _, pipeline := range pipelines {
 
 		// delete if it is argocd app and deployment app is created
@@ -1754,9 +1770,10 @@ func (impl PipelineBuilderImpl) DeleteAppsInArgoCd(ctx context.Context, pipeline
 				impl.logger.Errorw("app name or environment name is not present",
 					"pipeline id", pipeline.Id)
 
-				failedPipelines = append(failedPipelines, &bean.DeploymentAppTypeChangeRequestFailedPipelines{
-					Id:    pipeline.Id,
-					Error: "could not fetch app name or environment name",
+				failedPipelines = append(failedPipelines, &bean.DeploymentAppTypeChangeRequestPipelineStatus{
+					Id:     pipeline.Id,
+					Error:  "could not fetch app name or environment name",
+					Status: bean.FAILED,
 				})
 				continue
 			}
@@ -1771,17 +1788,31 @@ func (impl PipelineBuilderImpl) DeleteAppsInArgoCd(ctx context.Context, pipeline
 					"deployment app name", deploymentAppName,
 					"err", err)
 
-				failedPipelines = append(failedPipelines, &bean.DeploymentAppTypeChangeRequestFailedPipelines{
+				// deletion failed, append to the list of failed pipelines
+				failedPipelines = append(failedPipelines, &bean.DeploymentAppTypeChangeRequestPipelineStatus{
 					Id:              pipeline.Id,
 					AppName:         pipeline.App.AppName,
 					EnvironmentName: pipeline.Environment.Name,
 					Error:           "error deleting app on argocd with error: " + err.Error(),
+					Status:          bean.FAILED,
 				})
+				continue
 			}
+
+			// deletion successful, append to the list of successful pipelines
+			successfulPipelines = append(successfulPipelines, &bean.DeploymentAppTypeChangeRequestPipelineStatus{
+				Id:              pipeline.Id,
+				AppName:         pipeline.App.AppName,
+				EnvironmentName: pipeline.Environment.Name,
+				Status:          bean.SUCCESS,
+			})
 		}
 	}
 
-	return failedPipelines
+	return &bean.DeploymentAppTypeChangeResponse{
+		SuccessfulPipelines: successfulPipelines,
+		FailedPipelines:     failedPipelines,
+	}
 }
 
 // deleteAppInArgoCd takes context and deployment app name used in argo cd and deletes

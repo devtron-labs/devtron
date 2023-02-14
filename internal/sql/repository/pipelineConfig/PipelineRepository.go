@@ -91,6 +91,7 @@ type PipelineRepository interface {
 	FindAllPipelinesByChartsOverrideAndAppIdAndChartId(chartOverridden bool, appId int, chartId int) (pipelines []*Pipeline, err error)
 	FindActiveByAppIdAndPipelineId(appId int, pipelineId int) ([]*Pipeline, error)
 	UpdateCdPipeline(pipeline *Pipeline) error
+	UpdateCdPipelineDeploymentAppTypeAndDeploymentAppCreated(pipeline *Pipeline) error
 	FindNumberOfAppsWithCdPipeline(appIds []int) (count int, err error)
 	GetAppAndEnvDetailsForDeploymentAppTypePipeline(deploymentAppType string, clusterIds []int) ([]*Pipeline, error)
 	GetArgoPipelinesHavingTriggersStuckInLastPossibleNonTerminalTimelines(pendingSinceSeconds int, timeForDegradation int) ([]*Pipeline, error)
@@ -426,6 +427,18 @@ func (impl PipelineRepositoryImpl) FindActiveByAppIdAndPipelineId(appId int, pip
 
 func (impl PipelineRepositoryImpl) UpdateCdPipeline(pipeline *Pipeline) error {
 	err := impl.dbConnection.Update(pipeline)
+	return err
+}
+
+// UpdateCdPipelineDeploymentAppTypeAndDeploymentAppCreated takes in pipeline struct and updates
+// deployment_app_type and deployment_app_created columns in the table.
+func (impl PipelineRepositoryImpl) UpdateCdPipelineDeploymentAppTypeAndDeploymentAppCreated(pipeline *Pipeline) error {
+	_, err := impl.dbConnection.
+		Model(pipeline).
+		Column("deployment_app_type", "deployment_app_created").
+		Where("id = ?", pipeline.Id).
+		Update()
+
 	return err
 }
 
