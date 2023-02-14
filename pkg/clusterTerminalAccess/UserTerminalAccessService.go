@@ -957,10 +957,6 @@ func (impl *UserTerminalAccessServiceImpl) FetchPodManifest(ctx context.Context,
 	if err != nil {
 		return nil, errors.New("unable to fetch manifest")
 	}
-	statusReason := strings.Split(terminalAccessData.Status, "/")
-	if statusReason[0] == string(models.TerminalPodTerminated) {
-		return nil, errors.New(fmt.Sprintf("pod-terminated(%s)", statusReason[1]))
-	}
 	metadataMap, err := impl.getMetadataMap(terminalAccessData.Metadata)
 	if err != nil {
 		return nil, err
@@ -968,7 +964,7 @@ func (impl *UserTerminalAccessServiceImpl) FetchPodManifest(ctx context.Context,
 	namespace := metadataMap["Namespace"]
 	manifest, err := impl.getPodManifest(ctx, terminalAccessData.ClusterId, terminalAccessData.PodName, namespace)
 	if err != nil {
-		statusReason = strings.Split(err.Error(), "/")
+		statusReason := strings.Split(err.Error(), "/")
 		if statusReason[0] == string(models.TerminalPodTerminated) {
 			return nil, errors.New(fmt.Sprintf("pod-terminated(%s)", statusReason[1]))
 		}
