@@ -1,25 +1,28 @@
-package helper
+package terminal
 
 import (
+	"embed"
 	"fmt"
-	"os"
 )
 
+//go:embed static/*
+var staticTemplates embed.FS
+
 func GetDefaultTerminalAccessServiceAccount() string {
-	return readContent("TerminalAccessServiceAccount")
+	return readContent("static/TerminalAccessServiceAccount")
 }
 
 func GetDefaultTerminalAccessPodTemplate() string {
-	return readContent("TerminalAccessPodTemplate")
+	return readContent("static/TerminalAccessPodTemplate")
 }
 
 func GetDefaultTerminalAccessRoleBindingTemplate() string {
-	return readContent("TerminalAccessRoleBinding")
+	return readContent("static/TerminalAccessRoleBinding")
 }
 
 func readContent(fileName string) string {
 	//filePath := path.Join(basePath, fileName)
-	fileContent, err := os.ReadFile(fileName)
+	fileContent, err := staticTemplates.ReadFile(fileName)
 	if err != nil {
 		fmt.Println("error occurred while reading json file", "fileName", fileName, "err", err)
 	}

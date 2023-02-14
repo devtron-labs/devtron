@@ -1,7 +1,7 @@
 package terminal
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/repository/terminal"
 	"github.com/devtron-labs/devtron/pkg/clusterTerminalAccess"
 	"github.com/google/wire"
 )
@@ -18,12 +18,12 @@ var terminalWireBaseSet = wire.NewSet(
 
 var TerminalWireSet = wire.NewSet(
 	terminalWireBaseSet,
-	repository.NewTerminalAccessRepositoryImpl,
-	wire.Bind(new(repository.TerminalAccessRepository), new(*repository.TerminalAccessRepositoryImpl)),
+	terminal.NewTerminalAccessRepositoryImpl,
+	wire.Bind(new(terminal.TerminalAccessRepository), new(*terminal.TerminalAccessRepositoryImpl)),
 )
 
 var TerminalWireSetK8sClient = wire.NewSet(
 	terminalWireBaseSet,
-	repository.NewTerminalAccessFileBasedRepository,
-	wire.Bind(new(repository.TerminalAccessRepository), new(*repository.TerminalAccessFileBasedRepository)),
+	terminal.NewTerminalAccessFileBasedRepository,
+	wire.Bind(new(terminal.TerminalAccessRepository), new(*terminal.TerminalAccessFileBasedRepository)),
 )

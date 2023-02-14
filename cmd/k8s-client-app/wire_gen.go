@@ -11,12 +11,12 @@ import (
 	cluster2 "github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/connector"
 	client2 "github.com/devtron-labs/devtron/api/helm-app"
-	terminal2 "github.com/devtron-labs/devtron/api/terminal"
+	terminal3 "github.com/devtron-labs/devtron/api/terminal"
 	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/devtron-labs/devtron/client/k8s/informer"
 	"github.com/devtron-labs/devtron/client/telemetry"
-	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
+	terminal2 "github.com/devtron-labs/devtron/internal/sql/repository/terminal"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -31,6 +31,10 @@ import (
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/devtron-labs/devtron/util/rbac"
+)
+
+import (
+	_ "embed"
 )
 
 // Injectors from wire.go:
@@ -93,7 +97,7 @@ func InitializeApp() (*App, error) {
 	k8sCapacityServiceImpl := k8s.NewK8sCapacityServiceImpl(sugaredLogger, clusterServiceImpl, k8sApplicationServiceImpl, k8sClientServiceImpl, clusterCronServiceImpl)
 	k8sCapacityRestHandlerImpl := k8s.NewK8sCapacityRestHandlerImpl(sugaredLogger, k8sCapacityServiceImpl, noopUserService, noopEnforcer, clusterServiceImpl, environmentServiceImpl)
 	k8sCapacityRouterImpl := k8s.NewK8sCapacityRouterImpl(k8sCapacityRestHandlerImpl)
-	terminalAccessFileBasedRepository := repository2.NewTerminalAccessFileBasedRepository(sugaredLogger)
+	terminalAccessFileBasedRepository := terminal2.NewTerminalAccessFileBasedRepository(sugaredLogger)
 	userTerminalSessionConfig, err := clusterTerminalAccess.GetTerminalAccessConfig()
 	if err != nil {
 		return nil, err
@@ -102,8 +106,8 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	userTerminalAccessRestHandlerImpl := terminal2.NewUserTerminalAccessRestHandlerImpl(sugaredLogger, userTerminalAccessServiceImpl, noopEnforcer, noopUserService, validate)
-	userTerminalAccessRouterImpl := terminal2.NewUserTerminalAccessRouterImpl(userTerminalAccessRestHandlerImpl)
+	userTerminalAccessRestHandlerImpl := terminal3.NewUserTerminalAccessRestHandlerImpl(sugaredLogger, userTerminalAccessServiceImpl, noopEnforcer, noopUserService, validate)
+	userTerminalAccessRouterImpl := terminal3.NewUserTerminalAccessRouterImpl(userTerminalAccessRestHandlerImpl)
 	kubeConfigFileSyncerImpl, err := cluster.NewKubeConfigFileSyncerImpl(sugaredLogger, clusterServiceImpl)
 	if err != nil {
 		return nil, err

@@ -1,9 +1,8 @@
-package repository
+package terminal
 
 import (
 	"errors"
 	"github.com/devtron-labs/devtron/internal/sql/models"
-	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/glebarez/sqlite"
@@ -154,7 +153,7 @@ func (impl TerminalAccessFileBasedRepository) createDefaultAccessTemplates() {
 	var defaultTemplates []*models.TerminalAccessTemplates
 	defaultTemplates = append(defaultTemplates, &models.TerminalAccessTemplates{
 		TemplateName: "terminal-access-service-account",
-		TemplateData: helper.GetDefaultTerminalAccessServiceAccount(),
+		TemplateData: GetDefaultTerminalAccessServiceAccount(),
 		AuditLog: sql.AuditLog{
 			CreatedBy: 1,
 			UpdatedBy: 1,
@@ -164,7 +163,7 @@ func (impl TerminalAccessFileBasedRepository) createDefaultAccessTemplates() {
 	})
 	defaultTemplates = append(defaultTemplates, &models.TerminalAccessTemplates{
 		TemplateName: "terminal-access-role-binding",
-		TemplateData: helper.GetDefaultTerminalAccessRoleBindingTemplate(),
+		TemplateData: GetDefaultTerminalAccessRoleBindingTemplate(),
 		AuditLog: sql.AuditLog{
 			CreatedBy: 1,
 			UpdatedBy: 1,
@@ -174,7 +173,7 @@ func (impl TerminalAccessFileBasedRepository) createDefaultAccessTemplates() {
 	})
 	defaultTemplates = append(defaultTemplates, &models.TerminalAccessTemplates{
 		TemplateName: "terminal-access-pod",
-		TemplateData: helper.GetDefaultTerminalAccessPodTemplate(),
+		TemplateData: GetDefaultTerminalAccessPodTemplate(),
 		AuditLog: sql.AuditLog{
 			CreatedBy: 1,
 			UpdatedBy: 1,

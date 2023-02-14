@@ -1,6 +1,8 @@
 package main
 
 import (
+	"embed"
+	_ "embed"
 	"encoding/json"
 	"github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
@@ -14,8 +16,10 @@ import (
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"net/http"
-	"os"
 )
+
+//go:embed static/*
+var staticTemplates embed.FS
 
 type MuxRouter struct {
 	Router                   *mux.Router
@@ -94,7 +98,7 @@ func (r *MuxRouter) Init() {
 	userTerminalAccessRouter := r.Router.PathPrefix("/orchestrator/user/terminal").Subrouter()
 	r.userTerminalAccessRouter.InitTerminalAccessRouter(userTerminalAccessRouter)
 
-	fileContent, err := os.ReadFile("DefaultClusterTerminalImages")
+	fileContent, err := staticTemplates.ReadFile("static/DefaultClusterTerminalImages")
 	if err != nil {
 		r.logger.Errorw("error occurred while reading ClusterTerminalImages json file", "err", err)
 	}
