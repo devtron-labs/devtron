@@ -934,7 +934,8 @@ func (impl *CiHandlerImpl) BuildManualTriggerCommitHashesForSourceTypeWebhook(ci
 
 	// fetch webhook data on the basis of Id
 	webhookDataRequest := &gitSensor.WebhookDataRequest{
-		Id: webhookDataInput.Id,
+		Id:                   webhookDataInput.Id,
+		CiPipelineMaterialId: ciPipelineMaterial.Id,
 	}
 
 	webhookAndCiData, err := impl.gitSensorClient.GetWebhookData(webhookDataRequest)
