@@ -303,11 +303,12 @@ func (impl AppStoreDeploymentFullModeServiceImpl) createInArgo(chartGitAttribute
 		ApplicationName: argocdAppName,
 		Namespace:       impl.aCDAuthConfig.ACDConfigMapNamespace,
 		TargetNamespace: appNamespace,
+		TargetServer:    envModel.Cluster.ServerUrl,
 		Project:         "default",
 		ValuesFile:      fmt.Sprintf("values.yaml"),
 		RepoPath:        chartGitAttribute.ChartLocation,
 		RepoUrl:         chartGitAttribute.RepoUrl,
-		TargetName:      envModel.Name,
+		TargetName:      envModel.Cluster.ClusterName,
 	}
 	_, err := impl.ArgoK8sClient.CreateAcdApp(appreq, envModel.Cluster)
 	//create

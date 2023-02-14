@@ -298,11 +298,12 @@ func (impl *AppServiceImpl) createArgoApplicationIfRequired(appId int, appName s
 			ApplicationName: argoAppName,
 			Namespace:       namespace,
 			TargetNamespace: appNamespace,
+			TargetServer:    envModel.Cluster.ServerUrl,
 			Project:         "default",
 			ValuesFile:      impl.getValuesFileForEnv(envModel.Id),
 			RepoPath:        chart.ChartLocation,
 			RepoUrl:         chart.GitRepoUrl,
-			TargetName:      envModel.Name,
+			TargetName:      envModel.Cluster.ClusterName,
 		}
 
 		argoAppName, err := impl.ArgoK8sClient.CreateAcdApp(appRequest, envModel.Cluster)
