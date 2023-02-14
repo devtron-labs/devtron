@@ -1,23 +1,25 @@
 package models
 
-import "github.com/devtron-labs/devtron/util/k8s"
-
 type UserTerminalSessionRequest struct {
-	Id         int                              `json:"id"`
-	UserId     int32                            `json:"userId"`
-	ClusterId  int                              `json:"clusterId" validate:"number,gt=0"`
-	NodeName   string                           `json:"nodeName" validate:"required,min=1"`
-	BaseImage  string                           `json:"baseImage" validate:"required,min=1"`
-	ShellName  string                           `json:"shellName" validate:"required,min=1"`
-	Namespace  string                           `json:"namespace" validate:"required,min=1"`
-	NodeTaints []k8s.LabelAnnotationTaintObject `json:"taints"`
+	Id         int          `json:"id"`
+	UserId     int32        `json:"userId"`
+	ClusterId  int          `json:"clusterId" validate:"number,gt=0"`
+	NodeName   string       `json:"nodeName" validate:"required,min=1"`
+	BaseImage  string       `json:"baseImage" validate:"required,min=1"`
+	ShellName  string       `json:"shellName" validate:"required,min=1"`
+	Namespace  string       `json:"namespace" validate:"required,min=1"`
+	NodeTaints []NodeTaints `json:"taints"`
 }
 type UserTerminalShellSessionRequest struct {
 	TerminalAccessId int    `json:"terminalAccessId" validate:"number,gt=0"`
 	ShellName        string `json:"shellName" validate:"required,min=1"`
 	NameSpace        string `json:"namespace" validate:"required,min=1"`
 }
-
+type NodeTaints struct {
+	Key    string `json:"key"`
+	Value  string `json:"value"`
+	Effect string `json:"effect,omitempty"`
+}
 type UserTerminalSessionConfig struct {
 	MaxSessionPerUser                 int    `env:"MAX_SESSION_PER_USER" envDefault:"5"`
 	TerminalPodStatusSyncTimeInSecs   int    `env:"TERMINAL_POD_STATUS_SYNC_In_SECS" envDefault:"600"`

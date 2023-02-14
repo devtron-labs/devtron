@@ -406,7 +406,7 @@ func (impl *UserTerminalAccessServiceImpl) createPodName(request *models.UserTer
 	return podNameVar
 }
 
-func updatePodTemplate(templateDataMap map[string]interface{}, podNameVar string, nodeName string, baseImage string, isAutoSelect bool, taints []k8s.LabelAnnotationTaintObject) (string, error) {
+func updatePodTemplate(templateDataMap map[string]interface{}, podNameVar string, nodeName string, baseImage string, isAutoSelect bool, taints []models.NodeTaints) (string, error) {
 	//adding pod name in metadata
 	if val, ok := templateDataMap["metadata"]; ok {
 		metadataMap := val.(map[string]interface{})
@@ -508,7 +508,7 @@ func updateServiceAccountTemplate(templateDataMap map[string]interface{}, podNam
 	return string(bytes), err
 }
 
-func replaceTemplateData(templateData string, podNameVar string, namespace string, nodeName string, baseImage string, isAutoSelect bool, taints []k8s.LabelAnnotationTaintObject) (string, error) {
+func replaceTemplateData(templateData string, podNameVar string, namespace string, nodeName string, baseImage string, isAutoSelect bool, taints []models.NodeTaints) (string, error) {
 	templateDataMap := map[string]interface{}{}
 	err := yaml.Unmarshal([]byte(templateData), &templateDataMap)
 	if err != nil {
