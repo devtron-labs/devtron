@@ -266,7 +266,7 @@ func (impl *UserTerminalAccessServiceImpl) UpdateTerminalSession(ctx context.Con
 	if err != nil {
 		return nil, err
 	}
-	impl.Logger.Infow("disconnected previous terminal session and starting new terminal session", "PrevSessionId", request.Id)
+
 	return impl.StartTerminalSession(ctx, request)
 }
 
@@ -276,8 +276,14 @@ func (impl *UserTerminalAccessServiceImpl) DisconnectTerminalSession(ctx context
 	impl.TerminalAccessDataArrayMutex.Lock()
 	defer impl.TerminalAccessDataArrayMutex.Unlock()
 	accessSessionDataMap := *impl.TerminalAccessSessionDataMap
+	if accessSessionDataMap == nil {
+		return nil
+	}
 	accessSessionData := accessSessionDataMap[userTerminalAccessId]
 	terminalAccessData := accessSessionData.terminalAccessDataEntity
+	if terminalAccessData == nil {
+		return nil
+	}
 	metadata := terminalAccessData.Metadata
 	metadataMap, err := impl.getMetadataMap(metadata)
 	if err != nil {
@@ -314,6 +320,9 @@ func (impl *UserTerminalAccessServiceImpl) StopTerminalSession(ctx context.Conte
 	impl.TerminalAccessDataArrayMutex.Lock()
 	defer impl.TerminalAccessDataArrayMutex.Unlock()
 	accessSessionDataMap := *impl.TerminalAccessSessionDataMap
+	if accessSessionDataMap == nil {
+		return
+	}
 	accessSessionData, present := accessSessionDataMap[userTerminalAccessId]
 	if present {
 		impl.closeAndCleanTerminalSession(accessSessionData)
@@ -947,10 +956,13 @@ func (impl *UserTerminalAccessServiceImpl) FetchPodManifest(ctx context.Context,
 	}
 	namespace := metadataMap["Namespace"]
 	manifest, err := impl.getPodManifest(ctx, terminalAccessData.ClusterId, terminalAccessData.PodName, namespace)
-	statusReason = strings.Split(err.Error(), "/")
-	if statusReason[0] == string(models.TerminalPodTerminated) {
-		return nil, errors.New(fmt.Sprintf("pod-terminated(%s)", statusReason[1]))
+	if err != nil {
+		statusReason = strings.Split(err.Error(), "/")
+		if statusReason[0] == string(models.TerminalPodTerminated) {
+			return nil, errors.New(fmt.Sprintf("pod-terminated(%s)", statusReason[1]))
+		}
 	}
+
 	return manifest, err
 }
 
