@@ -2759,6 +2759,7 @@ func (impl PipelineBuilderImpl) GetCdPipelineById(pipelineId int) (cdPipeline *b
 		ParentPipelineId:              appWorkflowMapping.ParentId,
 		ParentPipelineType:            appWorkflowMapping.ParentType,
 		DeploymentAppType:             dbPipeline.DeploymentAppType,
+		DeploymentAppCreated:          dbPipeline.DeploymentAppCreated,
 	}
 
 	return cdPipeline, err
