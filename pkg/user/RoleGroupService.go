@@ -125,6 +125,7 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 					roleFilter.Environment = "NONE"
 				}
 				actionType := roleFilter.Action
+
 				accessType := roleFilter.AccessType
 				entityNames := strings.Split(roleFilter.EntityName, ",")
 				environments := strings.Split(roleFilter.Environment, ",")
@@ -136,7 +137,7 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 						if environment == "NONE" {
 							environment = ""
 						}
-						roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, actionType, "", "", "", "", "", "")
+						roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, actionType, "", "", "", "", "", "")
 						if err != nil {
 							return nil, err
 						}
@@ -149,7 +150,7 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 								if err != nil || flag == false {
 									return nil, err
 								}
-								roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "")
+								roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "")
 								if err != nil {
 									return nil, err
 								}
@@ -162,7 +163,7 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 								if err != nil || flag == false {
 									return nil, err
 								}
-								roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "")
+								roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "")
 								if err != nil {
 									return nil, err
 								}
@@ -227,6 +228,7 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForClusterEntity(roleFil
 	resources := strings.Split(roleFilter.Resource, ",")
 	actionType := roleFilter.Action
 	accessType := roleFilter.AccessType
+	entity := roleFilter.Entity
 	for _, namespace := range namespaces {
 		for _, group := range groups {
 			for _, kind := range kinds {
@@ -254,7 +256,7 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForClusterEntity(roleFil
 						return policiesToBeAdded, err
 					}
 					if roleModel.Id == 0 {
-						flag, err := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes("", "", "", roleFilter.Entity, roleFilter.Cluster, namespace, group, kind, resource, tx, actionType, accessType)
+						flag, err := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes("", "", "", entity, roleFilter.Cluster, namespace, group, kind, resource, tx, actionType, accessType)
 						if err != nil || flag == false {
 							return policiesToBeAdded, err
 						}

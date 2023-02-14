@@ -693,9 +693,6 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 				}
 				actionType := roleFilter.Action
 				accessType := roleFilter.AccessType
-				if accessType == "" {
-					accessType = bean2.DEVTRON_APP
-				}
 				entityNames := strings.Split(roleFilter.EntityName, ",")
 				environments := strings.Split(roleFilter.Environment, ",")
 				for _, environment := range environments {
