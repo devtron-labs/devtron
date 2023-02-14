@@ -990,7 +990,7 @@ func (impl *UserTerminalAccessServiceImpl) FetchPodEvents(ctx context.Context, u
 		errorReason = fmt.Sprintf("pod-terminated(%s)", statusReason[1])
 	}
 	return &models.UserTerminalPodEvents{
-		EventsResponse: podEvents,
+		EventsResponse: interface{}(podEvents),
 		ErrorReason:    errorReason,
 		Status:         status,
 	}, err
