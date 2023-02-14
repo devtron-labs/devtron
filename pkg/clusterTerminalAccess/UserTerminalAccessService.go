@@ -34,7 +34,7 @@ type UserTerminalAccessService interface {
 	DisconnectTerminalSession(ctx context.Context, userTerminalAccessId int) error
 	DisconnectAllSessionsForUser(ctx context.Context, userId int32)
 	FetchPodManifest(ctx context.Context, userTerminalAccessId int) (resp *application.ManifestResponse, err error)
-	FetchPodEvents(ctx context.Context, userTerminalAccessId int) (*application.EventsResponse, error)
+	FetchPodEvents(ctx context.Context, userTerminalAccessId int) (*models.UserTerminalPodEvents, error)
 	ValidateShell(podName, namespace, shellName string, clusterId int) (bool, string, error)
 }
 
@@ -969,22 +969,31 @@ func (impl *UserTerminalAccessServiceImpl) FetchPodManifest(ctx context.Context,
 	return manifest, err
 }
 
-func (impl *UserTerminalAccessServiceImpl) FetchPodEvents(ctx context.Context, userTerminalAccessId int) (*application.EventsResponse, error) {
+func (impl *UserTerminalAccessServiceImpl) FetchPodEvents(ctx context.Context, userTerminalAccessId int) (*models.UserTerminalPodEvents, error) {
 	terminalAccessData, err := impl.getTerminalAccessDataForId(userTerminalAccessId)
 	if err != nil {
 		return nil, errors.New("unable to fetch pod event")
 	}
-	statusReason := strings.Split(terminalAccessData.Status, "/")
-	if statusReason[0] == string(models.TerminalPodTerminated) {
-		return nil, errors.New(fmt.Sprintf("pod-terminated(%s)", statusReason[1]))
-	}
+
 	metadataMap, err := impl.getMetadataMap(terminalAccessData.Metadata)
 	if err != nil {
 		return nil, err
 	}
 	namespace := metadataMap["Namespace"]
 	podRequestBean, err := impl.getPodRequestBean(terminalAccessData.ClusterId, terminalAccessData.PodName, namespace)
-	return impl.k8sApplicationService.ListEvents(ctx, podRequestBean)
+	podEvents, err := impl.k8sApplicationService.ListEvents(ctx, podRequestBean)
+	status := string(models.TerminalPodTerminated)
+	statusReason := strings.Split(terminalAccessData.Status, "/")
+	errorReason := ""
+	if statusReason[0] == string(models.TerminalPodTerminated) {
+		status = string(models.TerminalPodTerminated)
+		errorReason = fmt.Sprintf("pod-terminated(%s)", statusReason[1])
+	}
+	return &models.UserTerminalPodEvents{
+		EventsResponse: podEvents,
+		ErrorReason:    errorReason,
+		Status:         status,
+	}, err
 }
 
 func (impl *UserTerminalAccessServiceImpl) getTerminalAccessDataForId(userTerminalAccessId int) (*models.UserTerminalAccessData, error) {
