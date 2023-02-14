@@ -659,13 +659,7 @@
     "podAnnotations": {
       "type":"object",
       "description": "used to attach metadata and configs in Kubernetes",
-      "title": "Pod Annotations",
-      "properties": {
-        "devtron.ai/nodeselector": {
-          "type": "string",
-          "description": "testing"
-        }
-      }
+      "title": "Pod Annotations"
     },
     "podLabels": {
       "type":"object",
