@@ -209,19 +209,19 @@ func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context 
 
 func (impl *AppCloneServiceImpl) CloneJob(createReq *bean.CreateAppDTO, context context.Context) (*bean.CreateAppDTO, error) {
 	//validate template job
-	templateApp, err := impl.appRepository.FindById(createReq.TemplateId)
-	if err != nil && err != pg.ErrNoRows {
-		return nil, err
-	}
-	if (templateApp == nil && templateApp.Id == 0) || (templateApp.AppStore != 2) {
-		impl.logger.Warnw("template job does not exist", "id", createReq.TemplateId)
-		err = &util.ApiError{
-			Code:            constants.AppDoesNotExist.Code,
-			InternalMessage: "job does not exist",
-			UserMessage:     constants.AppAlreadyExists.UserMessage(createReq.TemplateId),
-		}
-		return nil, err
-	}
+	//templateApp, err := impl.appRepository.FindById(createReq.TemplateId)
+	//if err != nil && err != pg.ErrNoRows {
+	//	return nil, err
+	//}
+	//if (templateApp == nil && templateApp.Id == 0) || (templateApp.AppStore != 2) {
+	//	impl.logger.Warnw("template job does not exist", "id", createReq.TemplateId)
+	//	err = &util.ApiError{
+	//		Code:            constants.AppDoesNotExist.Code,
+	//		InternalMessage: "job does not exist",
+	//		UserMessage:     constants.AppAlreadyExists.UserMessage(createReq.TemplateId),
+	//	}
+	//	return nil, err
+	//}
 	//create new job
 
 	cloneReq := &CloneRequest{
