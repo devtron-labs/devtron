@@ -69,6 +69,7 @@ type PipelineRepository interface {
 	FindByName(pipelineName string) (pipeline *Pipeline, err error)
 	PipelineExists(pipelineName string) (bool, error)
 	FindById(id int) (pipeline *Pipeline, err error)
+	FindActiveByEnvironmentIdAndDeploymentAppType(environmentId int, deploymentAppType string) ([]*Pipeline, error)
 	FindByIdsIn(ids []int) ([]*Pipeline, error)
 	FindByCiPipelineIdsIn(ciPipelineIds []int) ([]*Pipeline, error)
 	FindAutomaticByCiPipelineId(ciPipelineId int) (pipelines []*Pipeline, err error)
@@ -275,6 +276,21 @@ func (impl PipelineRepositoryImpl) FindById(id int) (pipeline *Pipeline, err err
 		Where("deleted = ?", false).
 		Select()
 	return pipeline, err
+}
+
+func (impl PipelineRepositoryImpl) FindActiveByEnvironmentIdAndDeploymentAppType(environmentId int,
+	deploymentAppType string) ([]*Pipeline, error) {
+
+	var pipelines []*Pipeline
+	err := impl.dbConnection.
+		Model(&pipelines).
+		Column("pipeline.*", "App", "Environment").
+		Join("inner join app a on pipeline.app_id = a.id").
+		Where("pipeline.environment_id = ?", environmentId).
+		Where("pipeline.deployment_app_type = ?", deploymentAppType).
+		Where("pipeline.deleted = ?", false).
+		Select()
+	return pipelines, err
 }
 
 // Deprecated:

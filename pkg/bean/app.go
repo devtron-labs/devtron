@@ -522,6 +522,26 @@ const (
 	CD_UPDATE
 )
 
+type DeploymentAppTypeChangeRequest struct {
+	EnvId             int               `json:"envId,omitempty"`
+	DeploymentAppType DeploymentAppType `json:"deploymentStrategy,omitempty"`
+}
+
+type DeploymentAppTypeChangeRequestFailedPipelines struct {
+	Id                int               `json:"id,omitempty"`
+	AppName           string            `json:"appName,omitempty"`
+	EnvironmentName   string            `json:"envName,omitempty"`
+	DeploymentAppType DeploymentAppType `json:"deploymentStrategy,omitempty"`
+	Error             string            `json:"error,omitempty"`
+}
+
+type DeploymentAppType string
+
+const (
+	HELM    DeploymentAppType = "helm"
+	ARGO_CD DeploymentAppType = "argo_cd"
+)
+
 func (a CdPatchAction) String() string {
 	return [...]string{"CREATE", "DELETE", "CD_UPDATE"}[a]
 }

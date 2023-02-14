@@ -25,6 +25,7 @@ type DevtronAppDeploymentRestHandler interface {
 	CreateCdPipeline(w http.ResponseWriter, r *http.Request)
 	GetCdPipelineById(w http.ResponseWriter, r *http.Request)
 	PatchCdPipeline(w http.ResponseWriter, r *http.Request)
+	ChangeCdAppType(w http.ResponseWriter, r *http.Request)
 	GetCdPipelines(w http.ResponseWriter, r *http.Request)
 	GetCdPipelinesForAppAndEnv(w http.ResponseWriter, r *http.Request)
 
@@ -280,6 +281,48 @@ func (handler PipelineConfigRestHandlerImpl) PatchCdPipeline(w http.ResponseWrit
 		return
 	}
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
+}
+
+// ChangeCdAppType changes the deployment app type for all pipelines in all apps for a given environment.
+func (handler PipelineConfigRestHandlerImpl) ChangeCdAppType(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	var deploymentAppTypeChangeRequest bean.DeploymentAppTypeChangeRequest
+	err = decoder.Decode(&deploymentAppTypeChangeRequest)
+	if err != nil {
+		handler.Logger.Errorw("request err, ChangeCdAppType", "err", err, "payload",
+			deploymentAppTypeChangeRequest)
+
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		handler.Logger.Errorw("error in getting acd token", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	ctx := context.WithValue(r.Context(), "token", acdToken)
+
+	// Currently only supporting ARGO_CD to HELM
+	if deploymentAppTypeChangeRequest.DeploymentAppType == bean.HELM {
+		failedPipelines, err := handler.pipelineBuilder.DeleteInDeploymentAppsByEnvironmentId(ctx,
+			deploymentAppTypeChangeRequest.EnvId, bean.ARGO_CD)
+
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		common.WriteJsonResp(w, nil, failedPipelines, http.StatusOK)
+		return
+	}
+	common.WriteJsonResp(w, nil, nil, http.StatusBadRequest)
 }
 
 func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.ResponseWriter, r *http.Request) {

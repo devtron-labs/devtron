@@ -99,6 +99,8 @@ type PipelineBuilder interface {
 	GetApp(appId int) (application *bean.CreateAppDTO, err error)
 	PatchCdPipelines(cdPipelines *bean.CDPatchRequest, ctx context.Context) (*bean.CdPipelines, error)
 	DeleteCdPipeline(pipeline *pipelineConfig.Pipeline, ctx context.Context, forceDelete bool, userId int32) (err error)
+	DeleteInDeploymentAppsByEnvironmentId(ctx context.Context, environmentId int, deploymentAppType bean.DeploymentAppType) ([]*bean.DeploymentAppTypeChangeRequestFailedPipelines, error)
+	DeleteAppsInArgoCd(ctx context.Context, pipelines []*pipelineConfig.Pipeline) []*bean.DeploymentAppTypeChangeRequestFailedPipelines
 	GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error)
 	GetCdPipelinesForAppAndEnv(appId int, envId int) (cdPipelines *bean.CdPipelines, err error)
 	/*	CreateCdPipelines(cdPipelines bean.CdPipelines) (*bean.CdPipelines, error)*/
@@ -1709,6 +1711,90 @@ func (impl PipelineBuilderImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipeli
 		return err
 	}
 	return nil
+}
+
+// DeleteInDeploymentAppsByEnvironmentId
+func (impl PipelineBuilderImpl) DeleteInDeploymentAppsByEnvironmentId(ctx context.Context, environmentId int,
+	deploymentAppType bean.DeploymentAppType) ([]*bean.DeploymentAppTypeChangeRequestFailedPipelines, error) {
+
+	if deploymentAppType == bean.HELM {
+		return []*bean.DeploymentAppTypeChangeRequestFailedPipelines{},
+			errors.New("deleting application for helm type deployment is not supported")
+	}
+
+	// fetch active pipelines from database for the given environment id and deployment app type
+	pipelines, err := impl.pipelineRepository.FindActiveByEnvironmentIdAndDeploymentAppType(environmentId,
+		string(deploymentAppType))
+
+	if err != nil {
+		impl.logger.Errorw("Error fetching cd pipelines",
+			"environmentId", environmentId,
+			"deploymentAppType", deploymentAppType,
+			"err", err)
+
+		return []*bean.DeploymentAppTypeChangeRequestFailedPipelines{}, err
+	}
+
+	// Currently deleting apps only in argocd is supported
+	return impl.DeleteAppsInArgoCd(ctx, pipelines), nil
+}
+
+// DeleteAppsInArgoCd takes in a list of pipelines and delete the applications
+// from argocd.
+func (impl PipelineBuilderImpl) DeleteAppsInArgoCd(ctx context.Context, pipelines []*pipelineConfig.Pipeline) []*bean.DeploymentAppTypeChangeRequestFailedPipelines {
+
+	var failedPipelines []*bean.DeploymentAppTypeChangeRequestFailedPipelines
+
+	for _, pipeline := range pipelines {
+
+		// delete if it is argocd app and deployment app is created
+		if util.IsAcdApp(pipeline.DeploymentAppType) && pipeline.DeploymentAppCreated {
+
+			if len(pipeline.App.AppName) == 0 || len(pipeline.Environment.Name) == 0 {
+				impl.logger.Errorw("app name or environment name is not present",
+					"pipeline id", pipeline.Id)
+
+				failedPipelines = append(failedPipelines, &bean.DeploymentAppTypeChangeRequestFailedPipelines{
+					Id:    pipeline.Id,
+					Error: "could not fetch app name or environment name",
+				})
+				continue
+			}
+
+			deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
+
+			// delete request
+			_, err := impl.deleteAppInArgoCd(ctx, deploymentAppName, true)
+
+			if err != nil {
+				impl.logger.Errorw("error deleting app on argocd: ",
+					"deployment app name", deploymentAppName,
+					"err", err)
+
+				failedPipelines = append(failedPipelines, &bean.DeploymentAppTypeChangeRequestFailedPipelines{
+					Id:              pipeline.Id,
+					AppName:         pipeline.App.AppName,
+					EnvironmentName: pipeline.Environment.Name,
+					Error:           "error deleting app on argocd with error: " + err.Error(),
+				})
+			}
+		}
+	}
+
+	return failedPipelines
+}
+
+// deleteAppInArgoCd takes context and deployment app name used in argo cd and deletes
+// the application in argo cd.
+func (impl PipelineBuilderImpl) deleteAppInArgoCd(ctx context.Context, deploymentAppName string,
+	cascadeDelete bool) (*application2.ApplicationResponse, error) {
+
+	// building the argocd application delete request
+	req := &application2.ApplicationDeleteRequest{
+		Name:    &deploymentAppName,
+		Cascade: &cascadeDelete,
+	}
+	return impl.application.Delete(ctx, req)
 }
 
 type DeploymentType struct {
