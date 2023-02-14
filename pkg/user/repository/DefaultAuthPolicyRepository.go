@@ -59,7 +59,7 @@ func (impl DefaultAuthPolicyRepositoryImpl) GetPolicyByRoleTypeAndEntity(roleTyp
 	if accessType == "" {
 		query += "and access_type IS NULL ;"
 	} else {
-		query += "and access_type '" + accessType + "' ;"
+		query += "and access_type ='" + accessType + "' ;"
 	}
 
 	_, err = impl.dbConnection.Query(&model, query, roleType)
