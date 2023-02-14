@@ -1,13 +1,16 @@
 package models
 
+import "github.com/devtron-labs/devtron/util/k8s"
+
 type UserTerminalSessionRequest struct {
-	Id        int    `json:"id"`
-	UserId    int32  `json:"userId"`
-	ClusterId int    `json:"clusterId" validate:"number,gt=0"`
-	NodeName  string `json:"nodeName" validate:"required,min=1"`
-	BaseImage string `json:"baseImage" validate:"required,min=1"`
-	ShellName string `json:"shellName" validate:"required,min=1"`
-	Namespace string `json:"namespace" validate:"required,min=1"`
+	Id         int                              `json:"id"`
+	UserId     int32                            `json:"userId"`
+	ClusterId  int                              `json:"clusterId" validate:"number,gt=0"`
+	NodeName   string                           `json:"nodeName" validate:"required,min=1"`
+	BaseImage  string                           `json:"baseImage" validate:"required,min=1"`
+	ShellName  string                           `json:"shellName" validate:"required,min=1"`
+	Namespace  string                           `json:"namespace" validate:"required,min=1"`
+	NodeTaints []k8s.LabelAnnotationTaintObject `json:"taints"`
 }
 type UserTerminalShellSessionRequest struct {
 	TerminalAccessId int    `json:"terminalAccessId" validate:"number,gt=0"`

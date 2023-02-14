@@ -406,19 +406,22 @@ func (impl *UserTerminalAccessServiceImpl) createPodName(request *models.UserTer
 	return podNameVar
 }
 
-func updatePodTemplate(templateDataMap map[string]interface{}, podNameVar string, nodeName string, baseImage string, isAutoSelect bool) (string, error) {
+func updatePodTemplate(templateDataMap map[string]interface{}, podNameVar string, nodeName string, baseImage string, isAutoSelect bool, taints []k8s.LabelAnnotationTaintObject) (string, error) {
+	//adding pod name in metadata
 	if val, ok := templateDataMap["metadata"]; ok {
 		metadataMap := val.(map[string]interface{})
 		if _, ok1 := metadataMap["name"]; ok1 {
 			metadataMap["name"] = interface{}(podNameVar)
 		}
 	}
+	//adding service account and nodeName in pod spec
 	if val, ok := templateDataMap["spec"]; ok {
 		specMap := val.(map[string]interface{})
 		if _, ok1 := specMap["serviceAccountName"]; ok1 {
 			name := fmt.Sprintf("%s-sa", podNameVar)
 			specMap["serviceAccountName"] = interface{}(name)
 		}
+		//TODO: remove the below line after changing pod manifest data in DB
 		delete(specMap, "nodeSelector")
 		if !isAutoSelect {
 			specMap["nodeName"] = interface{}(nodeName)
@@ -435,6 +438,7 @@ func updatePodTemplate(templateDataMap map[string]interface{}, podNameVar string
 		//	}
 		//}
 
+		//adding container data in pod spec
 		if containers, ok1 := specMap["containers"]; ok1 {
 			containersData := containers.([]interface{})
 			for _, containerData := range containersData {
@@ -445,6 +449,18 @@ func updatePodTemplate(templateDataMap map[string]interface{}, podNameVar string
 			}
 		}
 
+		//adding pod toleration's for the given node if autoSelect = false
+		tolerationData := make([]interface{}, 0)
+		if !isAutoSelect {
+			for _, taint := range taints {
+				toleration := make(map[string]interface{})
+				toleration["key"] = interface{}(taint.Key)
+				toleration["operator"] = interface{}("exists")
+				toleration["effect"] = interface{}(taint.Effect)
+				tolerationData = append(tolerationData, interface{}(toleration))
+			}
+		}
+		specMap["tolerations"] = interface{}(tolerationData)
 	}
 	bytes, err := json.Marshal(&templateDataMap)
 	return string(bytes), err
@@ -492,7 +508,7 @@ func updateServiceAccountTemplate(templateDataMap map[string]interface{}, podNam
 	return string(bytes), err
 }
 
-func replaceTemplateData(templateData string, podNameVar string, namespace string, nodeName string, baseImage string, isAutoSelect bool) (string, error) {
+func replaceTemplateData(templateData string, podNameVar string, namespace string, nodeName string, baseImage string, isAutoSelect bool, taints []k8s.LabelAnnotationTaintObject) (string, error) {
 	templateDataMap := map[string]interface{}{}
 	err := yaml.Unmarshal([]byte(templateData), &templateDataMap)
 	if err != nil {
@@ -505,7 +521,7 @@ func replaceTemplateData(templateData string, podNameVar string, namespace strin
 		} else if kind == "ClusterRoleBinding" {
 			return updateClusterRoleBindingTemplate(templateDataMap, podNameVar, namespace)
 		} else if kind == "Pod" {
-			return updatePodTemplate(templateDataMap, podNameVar, nodeName, baseImage, isAutoSelect)
+			return updatePodTemplate(templateDataMap, podNameVar, nodeName, baseImage, isAutoSelect, taints)
 		}
 	}
 	return templateData, nil
@@ -519,7 +535,7 @@ func (impl *UserTerminalAccessServiceImpl) applyTemplateData(ctx context.Context
 	clusterId := request.ClusterId
 	namespace := request.Namespace
 	templateData = strings.ReplaceAll(templateData, models.TerminalAccessUserIdTemplateVar, strconv.FormatInt(int64(request.UserId), 10))
-	templateData, err := replaceTemplateData(templateData, podNameVar, namespace, request.NodeName, request.BaseImage, isAutoSelect)
+	templateData, err := replaceTemplateData(templateData, podNameVar, namespace, request.NodeName, request.BaseImage, isAutoSelect, request.NodeTaints)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while updating template data", "name", templateName, "err", err)
 		return err
