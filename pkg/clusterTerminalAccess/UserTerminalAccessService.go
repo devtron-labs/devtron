@@ -266,7 +266,7 @@ func (impl *UserTerminalAccessServiceImpl) UpdateTerminalSession(ctx context.Con
 	if err != nil {
 		return nil, err
 	}
-
+	impl.Logger.Infow("disconnected previous terminal session and starting new terminal session", "PrevSessionId", request.Id)
 	return impl.StartTerminalSession(ctx, request)
 }
 
@@ -664,7 +664,16 @@ func (impl *UserTerminalAccessServiceImpl) FetchTerminalStatus(ctx context.Conte
 	}
 	terminalAccessData, err := impl.validateTerminalAccessFromDb(ctx, terminalAccessId, terminalAccessData, terminalSessionId, terminalAccessSessionData, terminalAccessDataMap)
 	if err != nil {
-		return nil, err
+		if true {
+			strings.Contains(err.Error(), "pod-terminated")
+			return &models.UserTerminalSessionResponse{
+				TerminalAccessId: terminalAccessId,
+				Status:           models.TerminalPodTerminated,
+				ErrorReason:      err.Error(),
+			}, nil
+		} else {
+			return nil, err
+		}
 	}
 	terminalAccessDataId := terminalAccessData.Id
 	terminalAccessResponse := &models.UserTerminalSessionResponse{
