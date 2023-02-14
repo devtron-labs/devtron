@@ -60,12 +60,13 @@ type HeadRequest struct {
 type SourceType string
 
 type CiPipelineMaterial struct {
-	Id            int
-	GitMaterialId int
-	Type          SourceType
-	Value         string
-	Active        bool
-	GitCommit     GitCommit
+	Id                        int
+	GitMaterialId             int
+	Type                      SourceType
+	Value                     string
+	Active                    bool
+	GitCommit                 GitCommit
+	ExtraEnvironmentVariables map[string]string // extra env variables which will be used for CI
 }
 
 type GitMaterial struct {
@@ -98,6 +99,11 @@ type GitCommit struct {
 	Message     string
 	Changes     []string
 	WebhookData *WebhookData
+}
+
+type WebhookAndCiData struct {
+	ExtraEnvironmentVariables map[string]string `json:"extraEnvironmentVariables"` // extra env variables which will be used for CI
+	WebhookData               *WebhookData      `json:"webhookData"`
 }
 
 type WebhookData struct {
@@ -219,7 +225,7 @@ type GitSensorClient interface {
 	SavePipelineMaterial(material []*CiPipelineMaterial) (materialRes []*CiPipelineMaterial, err error)
 	RefreshGitMaterial(req *RefreshGitMaterialRequest) (refreshRes *RefreshGitMaterialResponse, err error)
 
-	GetWebhookData(req *WebhookDataRequest) (*WebhookData, error)
+	GetWebhookData(req *WebhookDataRequest) (*WebhookAndCiData, error)
 
 	GetAllWebhookEventConfigForHost(req *WebhookEventConfigRequest) (webhookEvents []*WebhookEventConfig, err error)
 	GetWebhookEventConfig(req *WebhookEventConfigRequest) (webhookEvent *WebhookEventConfig, err error)
@@ -376,8 +382,8 @@ func (session GitSensorClientImpl) RefreshGitMaterial(req *RefreshGitMaterialReq
 	return refreshRes, err
 }
 
-func (session GitSensorClientImpl) GetWebhookData(req *WebhookDataRequest) (*WebhookData, error) {
-	webhookData := new(WebhookData)
+func (session GitSensorClientImpl) GetWebhookData(req *WebhookDataRequest) (*WebhookAndCiData, error) {
+	webhookData := new(WebhookAndCiData)
 	request := &ClientRequest{ResponseBody: webhookData, Method: "GET", RequestBody: req, Path: "webhook/data"}
 	_, _, err := session.doRequest(request)
 	return webhookData, err

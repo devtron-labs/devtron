@@ -116,6 +116,7 @@ type WorkflowRequest struct {
 	IgnoreDockerCachePull      bool                              `json:"ignoreDockerCachePull"`
 	CacheInvalidate            bool                              `json:"cacheInvalidate"`
 	IsPvcMounted               bool                              `json:"IsPvcMounted"`
+	ExtraEnvironmentVariables  map[string]string                 `json:"extraEnvironmentVariables"`
 }
 
 const (
