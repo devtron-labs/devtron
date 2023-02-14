@@ -23,10 +23,18 @@ UPDATE "public"."default_auth_policy"
 SET entity = 'cluster', role_type='admin'
 WHERE role_type = 'clusterAdmin';
 
+UPDATE "public"."default_auth_policy"
+SET entity = 'chart-group', role_type='update'
+WHERE role_type = 'entitySpecific';
 
 UPDATE "public"."default_auth_policy"
-SET  entity= 'chart-group'
-WHERE role_type = 'entityView' OR role_type = 'entitySpecific'OR role_type = 'entityAll';
+SET entity = 'chart-group', role_type='view'
+WHERE role_type = 'entityView';
+
+UPDATE "public"."default_auth_policy"
+SET entity = 'chart-group', role_type='admin'
+WHERE role_type = 'entityAll';
+
 
 SELECT setval('id_seq_default_auth_policy', (SELECT MAX(id) FROM default_auth_policy));
 
@@ -140,9 +148,20 @@ SET entity = 'cluster', role_type='admin'
 WHERE role_type = 'clusterAdmin';
 
 
+
 UPDATE "public"."default_auth_role"
-SET entity = 'chart-group'
-WHERE role_type = 'entitySpecificAdmin' OR role_type = 'entitySpecificView'OR role_type = 'roleSpecific';
+SET entity = 'chart-group', role_type='view'
+WHERE role_type = 'entitySpecificView';
+
+UPDATE "public"."default_auth_role"
+SET entity = 'chart-group', role_type='update'
+WHERE role_type = 'roleSpecific';
+
+UPDATE "public"."default_auth_role"
+SET entity = 'chart-group', role_type='admin'
+WHERE role_type = 'entitySpecificAdmin';
+
+
 
 SELECT setval('id_seq_default_auth_role', (SELECT MAX(id) FROM default_auth_role));
 
