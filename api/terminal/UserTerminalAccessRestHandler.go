@@ -238,13 +238,13 @@ func (handler UserTerminalAccessRestHandlerImpl) FetchTerminalPodEvents(w http.R
 		return
 	}
 
-	podEvents, err := handler.UserTerminalAccessService.FetchPodEvents(r.Context(), terminalAccessId)
+	resp, err := handler.UserTerminalAccessService.FetchPodEvents(r.Context(), terminalAccessId)
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchTerminalPodEvents", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, nil, podEvents, http.StatusOK)
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
 func (handler UserTerminalAccessRestHandlerImpl) FetchTerminalPodManifest(w http.ResponseWriter, r *http.Request) {
