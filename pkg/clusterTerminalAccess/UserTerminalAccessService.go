@@ -280,6 +280,9 @@ func (impl *UserTerminalAccessServiceImpl) DisconnectTerminalSession(ctx context
 		return nil
 	}
 	accessSessionData := accessSessionDataMap[userTerminalAccessId]
+	if accessSessionData == nil {
+		return nil
+	}
 	terminalAccessData := accessSessionData.terminalAccessDataEntity
 	if terminalAccessData == nil {
 		return nil
