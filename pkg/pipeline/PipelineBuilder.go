@@ -129,6 +129,7 @@ type PipelineBuilder interface {
 	IsGitOpsRequiredForCD(pipelineCreateRequest *bean.CdPipelines) bool
 	SetPipelineDeploymentAppType(pipelineCreateRequest *bean.CdPipelines, isGitOpsConfigured bool)
 	UpdateArgoDeleteStatusForDevtronApps(appId int, envId int) (bool, error)
+	CheckCDPipelineExist(appId int, envId int) error
 }
 
 type PipelineBuilderImpl struct {
@@ -3164,4 +3165,12 @@ func (impl PipelineBuilderImpl) UpdateArgoDeleteStatusForDevtronApps(appId int, 
 		return isAppDeleted, err
 	}
 	return isAppDeleted, nil
+}
+
+func (impl PipelineBuilderImpl) CheckCDPipelineExist(appId int, envId int) error {
+	_, err := impl.pipelineRepository.FindActiveByAppIdAndEnvironmentId(appId, envId)
+	if err == pg.ErrNoRows {
+		return err
+	}
+	return err
 }

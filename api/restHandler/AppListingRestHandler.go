@@ -45,6 +45,7 @@ import (
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/devtron-labs/devtron/util/rbac"
+	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
@@ -355,13 +356,17 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	err = handler.pipeline.CheckCDPipelineExist(appId, envId)
+	if err == pg.ErrNoRows {
+		common.WriteJsonResp(w, err, "App Not found in database", http.StatusNotFound)
+	}
+
 	isAppDeleted, err := handler.pipeline.UpdateArgoDeleteStatusForDevtronApps(appId, envId)
 	if isAppDeleted {
 		handler.logger.Warnw("Error while updating delete status for apps", "err", err)
 		common.WriteJsonResp(w, err, "App deleted", http.StatusNotFound)
 	}
 	appDetail, err := handler.appListingService.FetchAppDetails(r.Context(), appId, envId)
-
 	if err != nil {
 		handler.logger.Errorw("service err, FetchAppDetails", "err", err, "appId", appId, "envId", envId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

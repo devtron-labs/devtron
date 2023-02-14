@@ -80,6 +80,7 @@ type InstalledAppService interface {
 	UpdateInstalledAppVersionStatus(application *v1alpha1.Application) (bool, error)
 	FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetail *bean2.AppDetailContainer) bean2.AppDetailContainer
 	UpdateGitopsInstalledAppsDeleteStatus(installedAppId int, envId int) (bool, error)
+	CheckAppExistsByInstalledAppId(installedAppId int) error
 }
 
 type InstalledAppServiceImpl struct {
@@ -997,4 +998,14 @@ func (impl InstalledAppServiceImpl) UpdateGitopsInstalledAppsDeleteStatus(instal
 		return isAppDeleted, err
 	}
 	return isAppDeleted, nil
+}
+
+func (impl InstalledAppServiceImpl) CheckAppExistsByInstalledAppId(installedAppId int) error {
+
+	_, err := impl.installedAppRepository.GetInstalledApp(installedAppId)
+	if err == pg.ErrNoRows {
+		return err
+	}
+	return err
+
 }

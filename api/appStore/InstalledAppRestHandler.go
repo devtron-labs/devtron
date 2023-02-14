@@ -34,6 +34,7 @@ import (
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/devtron-labs/devtron/util/response"
+	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -401,9 +402,14 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 	}
 	handler.Logger.Infow("request payload, FetchAppDetailsForInstalledApp, app store", "installedAppId", installedAppId, "envId", envId)
 
+	err = handler.installedAppService.CheckAppExistsByInstalledAppId(installedAppId)
+	if err == pg.ErrNoRows {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	}
+
 	isAppDeleted, err := handler.installedAppService.UpdateGitopsInstalledAppsDeleteStatus(installedAppId, envId)
 	if err != nil {
-		handler.Logger.Warnw("error in updating delete status of installed apps", "err", err)
+		common.WriteJsonResp(w, err, "App not found in database", http.StatusNotFound)
 	}
 	if isAppDeleted {
 		common.WriteJsonResp(w, err, "App deleted", http.StatusNotFound)
