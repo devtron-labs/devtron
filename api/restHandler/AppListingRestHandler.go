@@ -361,6 +361,10 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 		common.WriteJsonResp(w, err, "pipeline Not found in database", http.StatusNotFound)
 		return
 	}
+	if len(pipelines) == 0 {
+		common.WriteJsonResp(w, fmt.Errorf("app deleted"), nil, http.StatusNotFound)
+		return
+	}
 	if len(pipelines) != 1 {
 		common.WriteJsonResp(w, err, "multiple pipelines found for an envId", http.StatusBadRequest)
 		return
