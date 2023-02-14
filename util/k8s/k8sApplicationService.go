@@ -13,6 +13,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
+	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	yamlUtil "github.com/devtron-labs/devtron/util/yaml"
@@ -65,6 +66,7 @@ type K8sApplicationServiceImpl struct {
 	aCDAuthConfig               *util3.ACDAuthConfig
 	K8sApplicationServiceConfig *K8sApplicationServiceConfig
 	K8sResourceHistoryService   kubernetesResourceAuditLogs.K8sResourceHistoryService
+	userService                 user.UserService
 }
 
 type K8sApplicationServiceConfig struct {
@@ -76,7 +78,7 @@ func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger,
 	clusterService cluster.ClusterService,
 	pump connector.Pump, k8sClientService application.K8sClientService,
 	helmAppService client.HelmAppService, K8sUtil *util.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig,
-	K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService) *K8sApplicationServiceImpl {
+	K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService, userService user.UserService) *K8sApplicationServiceImpl {
 	cfg := &K8sApplicationServiceConfig{}
 	err := env.Parse(cfg)
 	if err != nil {
@@ -92,6 +94,7 @@ func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger,
 		aCDAuthConfig:               aCDAuthConfig,
 		K8sApplicationServiceConfig: cfg,
 		K8sResourceHistoryService:   K8sResourceHistoryService,
+		userService:                 userService,
 	}
 }
 
@@ -129,7 +132,6 @@ func (impl *K8sApplicationServiceImpl) FilterServiceAndIngress(ctx context.Conte
 			version := impl.extractResourceValue(resourceItem, "version")
 			req := ResourceRequestBean{
 				AppId: appId,
-				ClusterId: appDetail.ClusterId,
 				AppIdentifier: &client.AppIdentifier{
 					ClusterId: appDetail.ClusterId,
 				},
@@ -373,7 +375,7 @@ func (impl *K8sApplicationServiceImpl) DeleteResource(ctx context.Context, reque
 		impl.logger.Errorw("error in deleting resource", "err", err, "request", request)
 		return nil, err
 	}
-	if request.AppIdentifier != nil {
+	if request.AppIdentifier != nil && impl.K8sResourceHistoryService != nil {
 		saveAuditLogsErr := impl.K8sResourceHistoryService.SaveHelmAppsResourceHistory(request.AppIdentifier, request.K8sRequest, userId, "delete")
 		if saveAuditLogsErr != nil {
 			impl.logger.Errorw("error in saving audit logs for delete resource request", "err", err)
@@ -593,7 +595,7 @@ func (impl *K8sApplicationServiceImpl) GetAllApiResources(ctx context.Context, c
 			impl.logger.Errorw("failed to find cluster for id", "err", err, "clusterId", clusterId)
 			return nil, err
 		}
-		roles, err := impl.clusterService.FetchRolesFromGroup(userId)
+		roles, err := impl.userService.FetchRolesFromGroup(userId)
 		if err != nil {
 			impl.logger.Errorw("error on fetching user roles for cluster list", "err", err)
 			return nil, err

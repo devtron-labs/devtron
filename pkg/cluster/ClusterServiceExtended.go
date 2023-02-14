@@ -6,7 +6,7 @@ import (
 	cluster3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
-	repository4 "github.com/devtron-labs/devtron/pkg/user/repository"
+	"github.com/devtron-labs/devtron/pkg/user"
 	"net/http"
 	"strings"
 	"time"
@@ -35,10 +35,9 @@ type ClusterServiceImplExtended struct {
 
 func NewClusterServiceImplExtended(repository repository.ClusterRepository, environmentRepository repository.EnvironmentRepository,
 	grafanaClient grafana.GrafanaClient, logger *zap.SugaredLogger, installedAppRepository repository2.InstalledAppRepository,
-	K8sUtil *util.K8sUtil,
+	K8sUtil *util.K8sUtil, userService user.UserService,
 	clusterServiceCD cluster2.ServiceClient, K8sInformerFactory informer.K8sInformerFactory,
-	gitOpsRepository repository3.GitOpsConfigRepository, userAuthRepository repository4.UserAuthRepository,
-	userRepository repository4.UserRepository, roleGroupRepository repository4.RoleGroupRepository) *ClusterServiceImplExtended {
+	gitOpsRepository repository3.GitOpsConfigRepository) *ClusterServiceImplExtended {
 	clusterServiceExt := &ClusterServiceImplExtended{
 		environmentRepository:  environmentRepository,
 		grafanaClient:          grafanaClient,
@@ -46,13 +45,11 @@ func NewClusterServiceImplExtended(repository repository.ClusterRepository, envi
 		clusterServiceCD:       clusterServiceCD,
 		gitOpsRepository:       gitOpsRepository,
 		ClusterServiceImpl: &ClusterServiceImpl{
-			clusterRepository:   repository,
-			logger:              logger,
-			K8sUtil:             K8sUtil,
-			K8sInformerFactory:  K8sInformerFactory,
-			userAuthRepository:  userAuthRepository,
-			userRepository:      userRepository,
-			roleGroupRepository: roleGroupRepository,
+			clusterRepository:  repository,
+			logger:             logger,
+			K8sUtil:            K8sUtil,
+			K8sInformerFactory: K8sInformerFactory,
+			userService:        userService,
 		},
 	}
 	go clusterServiceExt.buildInformer()

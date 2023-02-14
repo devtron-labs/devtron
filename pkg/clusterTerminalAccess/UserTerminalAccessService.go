@@ -9,7 +9,7 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/devtron-labs/devtron/internal/sql/models"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
+	terminal2 "github.com/devtron-labs/devtron/internal/sql/repository/terminal"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/robfig/cron/v3"
@@ -37,7 +37,7 @@ type UserTerminalAccessService interface {
 }
 
 type UserTerminalAccessServiceImpl struct {
-	TerminalAccessRepository     repository.TerminalAccessRepository
+	TerminalAccessRepository     terminal2.TerminalAccessRepository
 	Logger                       *zap.SugaredLogger
 	Config                       *models.UserTerminalSessionConfig
 	TerminalAccessSessionDataMap *map[int]*UserTerminalAccessSessionData
@@ -64,7 +64,7 @@ func GetTerminalAccessConfig() (*models.UserTerminalSessionConfig, error) {
 	return config, err
 }
 
-func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessRepository repository.TerminalAccessRepository, config *models.UserTerminalSessionConfig,
+func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessRepository terminal2.TerminalAccessRepository, config *models.UserTerminalSessionConfig,
 	k8sApplicationService k8s.K8sApplicationService, k8sClientService application.K8sClientService, terminalSessionHandler terminal.TerminalSessionHandler) (*UserTerminalAccessServiceImpl, error) {
 	//fetches all running and starting entities from db and start SyncStatus
 	podStatusSyncCron := cron.New(cron.WithChain())

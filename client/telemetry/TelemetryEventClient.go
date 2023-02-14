@@ -27,10 +27,13 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/api/core/v1"
+	"io/fs"
+	v1 "k8s.io/api/core/v1"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/version"
 	"net/http"
+	"os"
+	"path"
 	"time"
 )
 
@@ -66,6 +69,10 @@ type TelemetryEventClient interface {
 	SendSummaryEvent(eventType string) error
 }
 
+func NewK8sAppTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService, PosthogClient *PosthogClient) (*TelemetryEventClientImpl, error) {
+	return NewTelemetryEventClientImpl(logger, client, clusterService, nil, nil, nil, nil, nil, PosthogClient, nil, nil, nil, nil, nil)
+}
+
 func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
 	K8sUtil *util2.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig, userService user.UserService,
 	attributeRepo repository.AttributesRepository, ssoLoginService sso.SSOLoginService,
@@ -89,7 +96,7 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 	}
 
 	watcher.HeartbeatEventForTelemetry()
-	_, err := cron.AddFunc(SummaryCronExpr, watcher.SummaryEventForTelemetryEA)
+	_, err := cron.AddFunc(SummaryCronExpr, watcher.SummaryEventForTelemetry)
 	if err != nil {
 		logger.Errorw("error in starting summery event", "err", err)
 		return nil, err
@@ -131,6 +138,7 @@ type TelemetryEventEA struct {
 	SkippedOnboarding                  bool               `json:"SkippedOnboarding"`
 	HelmChartSuccessfulDeploymentCount int                `json:"helmChartSuccessfulDeploymentCount,omitempty"`
 	ExternalHelmAppClusterCount        map[int32]int      `json:"ExternalHelmAppClusterCount,omitempty"`
+	IsDesktopApp                       bool               `json:"IsDesktopApp"`
 }
 
 const DevtronUniqueClientIdConfigMap = "devtron-ucid"
@@ -261,11 +269,60 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cl
 	return clusters, users, k8sServerVersion, hostURL, ssoSetup, HelmAppAccessCount, ChartStoreVisitCount, SkippedOnboarding, HelmAppUpdateCounter, helmChartSuccessfulDeploymentCount, ExternalHelmAppClusterCount
 }
 
-func (impl *TelemetryEventClientImpl) SummaryEventForTelemetryEA() {
-	err := impl.SendSummaryEvent(string(Summary))
+func (impl *TelemetryEventClientImpl) SummaryEventForTelemetry() {
+	var err error
+	if util.GetDevtronVersion().IsDesktopApp {
+		err = impl.SendSummaryEventForDesktopApp(string(Summary))
+	} else {
+		err = impl.SendSummaryEvent(string(Summary))
+	}
 	if err != nil {
 		impl.logger.Errorw("error occurred in SummaryEventForTelemetryEA", "err", err)
 	}
+}
+
+func (impl *TelemetryEventClientImpl) SendSummaryEventForDesktopApp(eventType string) error {
+	impl.logger.Infow("sending summary event", "eventType", eventType)
+	ucid, err := impl.getUCID()
+	if err != nil {
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		return err
+	}
+	if IsOptOut {
+		impl.logger.Warnw("client is opt-out for telemetry, there will be no events capture", "ucid", ucid)
+		return err
+	}
+
+	clusters, err := impl.clusterService.FindAll()
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching cluster data", "err", err)
+	}
+	payload := &TelemetryEventEA{UCID: ucid, Timestamp: time.Now(), EventType: TelemetryEventType(eventType), DevtronVersion: "v1"}
+	payload.ClusterCount = len(clusters)
+	payload.IsDesktopApp = true
+
+	return impl.handleEventPayload(eventType, payload, ucid)
+}
+
+func (impl *TelemetryEventClientImpl) handleEventPayload(eventType string, payload *TelemetryEventEA, ucid string) error {
+	reqBody, err := json.Marshal(payload)
+	if err != nil {
+		impl.logger.Errorw("SendSummaryEventForDesktopApp, payload marshal error", "error", err)
+		return err
+	}
+	prop := make(map[string]interface{})
+	err = json.Unmarshal(reqBody, &prop)
+	if err != nil {
+		impl.logger.Errorw("SendSummaryEventForDesktopApp, payload unmarshal error", "error", err)
+		return err
+	}
+
+	err = impl.EnqueuePostHog(ucid, TelemetryEventType(eventType), prop)
+	if err != nil {
+		impl.logger.Errorw("SendSummaryEventForDesktopApp, failed to push event", "ucid", ucid, "error", err)
+		return err
+	}
+	return nil
 }
 
 func (impl *TelemetryEventClientImpl) SendSummaryEvent(eventType string) error {
@@ -317,24 +374,7 @@ func (impl *TelemetryEventClientImpl) SendSummaryEvent(eventType string) error {
 		payload.LastLoginTime = loginTime
 	}
 
-	reqBody, err := json.Marshal(payload)
-	if err != nil {
-		impl.logger.Errorw("SummaryEventForTelemetry, payload marshal error", "error", err)
-		return err
-	}
-	prop := make(map[string]interface{})
-	err = json.Unmarshal(reqBody, &prop)
-	if err != nil {
-		impl.logger.Errorw("SummaryEventForTelemetry, payload unmarshal error", "error", err)
-		return err
-	}
-
-	err = impl.EnqueuePostHog(ucid, TelemetryEventType(eventType), prop)
-	if err != nil {
-		impl.logger.Errorw("SummaryEventForTelemetry, failed to push event", "ucid", ucid, "error", err)
-		return err
-	}
-	return nil
+	return impl.handleEventPayload(eventType, payload, ucid)
 }
 
 func (impl *TelemetryEventClientImpl) EnqueuePostHog(ucid string, eventType TelemetryEventType, prop map[string]interface{}) error {
@@ -388,21 +428,23 @@ func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
 		impl.logger.Warnw("client is opt-out for telemetry, there will be no events capture", "ucid", ucid)
 		return
 	}
-
-	discoveryClient, err := impl.K8sUtil.GetK8sDiscoveryClientInCluster()
-	if err != nil {
-		impl.logger.Errorw("exception caught inside telemetry heartbeat event", "err", err)
-		return
-	}
-
-	k8sServerVersion, err := discoveryClient.ServerVersion()
-	if err != nil {
-		impl.logger.Errorw("exception caught inside telemetry heartbeat event", "err", err)
-		return
-	}
 	payload := &TelemetryEventEA{UCID: ucid, Timestamp: time.Now(), EventType: Heartbeat, DevtronVersion: "v1"}
-	payload.ServerVersion = k8sServerVersion.String()
+	if !util.GetDevtronVersion().IsDesktopApp {
+		discoveryClient, err := impl.K8sUtil.GetK8sDiscoveryClientInCluster()
+		if err != nil {
+			impl.logger.Errorw("exception caught inside telemetry heartbeat event", "err", err)
+			return
+		}
+
+		k8sServerVersion, err := discoveryClient.ServerVersion()
+		if err != nil {
+			impl.logger.Errorw("exception caught inside telemetry heartbeat event", "err", err)
+			return
+		}
+		payload.ServerVersion = k8sServerVersion.String()
+	}
 	payload.DevtronMode = util.GetDevtronVersion().ServerMode
+	payload.IsDesktopApp = util.GetDevtronVersion().IsDesktopApp
 
 	reqBody, err := json.Marshal(payload)
 	if err != nil {
@@ -594,34 +636,40 @@ func (impl *TelemetryEventClientImpl) getUCID() (string, error) {
 	if found {
 		return ucid.(string), nil
 	} else {
-		client, err := impl.K8sUtil.GetClientForInCluster()
-		if err != nil {
-			impl.logger.Errorw("exception while getting unique client id", "error", err)
-			return "", err
-		}
 
-		cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, DevtronUniqueClientIdConfigMap, client)
-		if errStatus, ok := status.FromError(err); !ok || errStatus.Code() == codes.NotFound || errStatus.Code() == codes.Unknown {
-			// if not found, create new cm
-			cm = &v1.ConfigMap{ObjectMeta: v12.ObjectMeta{Name: DevtronUniqueClientIdConfigMap}}
-			data := map[string]string{}
-			data[DevtronUniqueClientIdConfigMapKey] = util.Generate(16) // generate unique random number
-			data[InstallEventKey] = "1"                                 // used in operator to detect event is install or upgrade
-			data[UIEventKey] = "1"
-			cm.Data = data
-			_, err = impl.K8sUtil.CreateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+		if util.GetDevtronVersion().IsDesktopApp {
+			// find ucid else generate and set it
+			ucid = impl.GetOrSetDesktopAppUcid()
+		} else {
+			client, err := impl.K8sUtil.GetClientForInCluster()
 			if err != nil {
 				impl.logger.Errorw("exception while getting unique client id", "error", err)
 				return "", err
 			}
+
+			cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, DevtronUniqueClientIdConfigMap, client)
+			if errStatus, ok := status.FromError(err); !ok || errStatus.Code() == codes.NotFound || errStatus.Code() == codes.Unknown {
+				// if not found, create new cm
+				cm = &v1.ConfigMap{ObjectMeta: v12.ObjectMeta{Name: DevtronUniqueClientIdConfigMap}}
+				data := map[string]string{}
+				data[DevtronUniqueClientIdConfigMapKey] = util.Generate(16) // generate unique random number
+				data[InstallEventKey] = "1"                                 // used in operator to detect event is install or upgrade
+				data[UIEventKey] = "1"
+				cm.Data = data
+				_, err = impl.K8sUtil.CreateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+				if err != nil {
+					impl.logger.Errorw("exception while getting unique client id", "error", err)
+					return "", err
+				}
+			}
+			dataMap := cm.Data
+			ucid = dataMap[DevtronUniqueClientIdConfigMapKey]
 		}
-		dataMap := cm.Data
-		ucid = dataMap[DevtronUniqueClientIdConfigMapKey]
 		impl.PosthogClient.cache.Set(DevtronUniqueClientIdConfigMapKey, ucid, cache.DefaultExpiration)
-		if cm == nil {
-			impl.logger.Errorw("configmap not found while getting unique client id", "cm", cm)
-			return ucid.(string), err
-		}
+		//if cm == nil {
+		//	impl.logger.Errorw("configmap not found while getting unique client id", "cm", cm)
+		//	return ucid.(string), err
+		//}
 		flag, err := impl.checkForOptOut(ucid.(string))
 		if err != nil {
 			impl.logger.Errorw("error sending event to posthog, failed check for opt-out", "err", err)
@@ -690,4 +738,25 @@ func (impl *TelemetryEventClientImpl) buildIntegrationsList() ([]string, []strin
 
 	return installedIntegrations, installFailedIntegrations, installTimedOutIntegrations, installingIntegrations, nil
 
+}
+
+func (impl *TelemetryEventClientImpl) GetOrSetDesktopAppUcid() string {
+	ucid := ""
+	err, devtronDirPath := util.CheckOrCreateDevtronDir()
+	if err != nil {
+		impl.logger.Warnw("error occurred while creating dir", "err", err)
+	}
+	ucidFilePath := path.Join(devtronDirPath, "./devtron.ucid")
+	fileContent, err := os.ReadFile(ucidFilePath)
+	if err != nil {
+		impl.logger.Warnw("error occurred while reading ucid file, creating new file", "err", err)
+		ucid = util.Generate(16)
+		err = os.WriteFile(ucidFilePath, []byte(ucid), fs.ModePerm)
+		if err != nil {
+			impl.logger.Warnw("error occurred while saving ucid to path", "ucid", ucid, "path", ucidFilePath)
+		}
+	} else {
+		ucid = string(fileContent)
+	}
+	return ucid
 }

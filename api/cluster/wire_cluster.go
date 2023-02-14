@@ -28,7 +28,7 @@ var ClusterWireSet = wire.NewSet(
 	wire.Bind(new(EnvironmentRouter), new(*EnvironmentRouterImpl)),
 )
 
-//minimal wire to be used with EA
+// minimal wire to be used with EA
 var ClusterWireSetEa = wire.NewSet(
 	repository.NewClusterRepositoryImpl,
 	wire.Bind(new(repository.ClusterRepository), new(*repository.ClusterRepositoryImpl)),
@@ -46,4 +46,19 @@ var ClusterWireSetEa = wire.NewSet(
 	wire.Bind(new(EnvironmentRestHandler), new(*EnvironmentRestHandlerImpl)),
 	NewEnvironmentRouterImpl,
 	wire.Bind(new(EnvironmentRouter), new(*EnvironmentRouterImpl)),
+)
+
+var ClusterWireSetK8sClient = wire.NewSet(
+	cluster.NewNoopServiceImpl,
+	wire.Bind(new(cluster.EnvironmentService), new(*cluster.EnvironmentServiceImpl)),
+	repository.NewClusterRepositoryFileBased,
+	wire.Bind(new(repository.ClusterRepository), new(*repository.ClusterFileBasedRepository)),
+	cluster.NewClusterServiceImpl,
+	wire.Bind(new(cluster.ClusterService), new(*cluster.ClusterServiceImpl)),
+	NewClusterRestHandlerImpl,
+	wire.Bind(new(ClusterRestHandler), new(*ClusterRestHandlerImpl)),
+	NewClusterRouterImpl,
+	wire.Bind(new(ClusterRouter), new(*ClusterRouterImpl)),
+	cluster.NewKubeConfigFileSyncerImpl,
+	wire.Bind(new(cluster.KubeConfigFileSyncer), new(*cluster.KubeConfigFileSyncerImpl)),
 )

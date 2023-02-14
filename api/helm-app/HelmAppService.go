@@ -101,6 +101,11 @@ func NewHelmAppServiceImpl(Logger *zap.SugaredLogger,
 	}
 }
 
+func NewNoopServiceImpl(logger *zap.SugaredLogger) *HelmAppServiceImpl {
+	logger.Debugw("noop helm app service init")
+	return nil
+}
+
 type ResourceRequestBean struct {
 	AppId      string                     `json:"appId"`
 	K8sRequest application.K8sRequestBean `json:"k8sRequest"`
