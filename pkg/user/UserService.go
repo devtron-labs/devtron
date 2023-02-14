@@ -326,7 +326,7 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 			entity := roleFilter.Entity
 			policiesToBeAdded, _, err := impl.CreateOrUpdateUserRolesForAllTypes(roleFilter, userInfo.UserId, model, nil, token, managerAuth, tx, entity)
 			if err != nil {
-				impl.logger.Errorw("error in creating user roles for clusterEntity", "err", err)
+				impl.logger.Errorw("error in creating user roles for Alltypes", "err", err)
 				return nil, err
 			}
 			policies = append(policies, policiesToBeAdded...)

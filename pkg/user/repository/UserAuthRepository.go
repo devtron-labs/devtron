@@ -274,7 +274,7 @@ func (impl UserAuthRepositoryImpl) GetRoleByFilterForAllTypes(entity string, tea
 	}*/
 
 	var err error
-	if len(entity) > 0 && len(app) > 0 && act == "update" {
+	if entity == bean2.CHART_GROUP_TYPE && len(app) > 0 && act == "update" {
 		query := "SELECT role.* FROM roles role WHERE role.entity = ? AND role.entity_name=? AND role.action=?"
 		if len(accessType) == 0 {
 			query = query + " and role.access_type is NULL"
@@ -282,7 +282,7 @@ func (impl UserAuthRepositoryImpl) GetRoleByFilterForAllTypes(entity string, tea
 			query += " and role.access_type='" + accessType + "'"
 		}
 		_, err = impl.dbConnection.Query(&model, query, entity, app, act)
-	} else if len(entity) > 0 && app == "" {
+	} else if entity == bean2.CHART_GROUP_TYPE && app == "" {
 		query := "SELECT role.* FROM roles role WHERE role.entity = ? AND role.action=?"
 		if len(accessType) == 0 {
 			query = query + " and role.access_type is NULL"
@@ -291,39 +291,32 @@ func (impl UserAuthRepositoryImpl) GetRoleByFilterForAllTypes(entity string, tea
 		}
 		_, err = impl.dbConnection.Query(&model, query, entity, act)
 	} else {
+		// entity is apps(devtron and helm)
 		if len(team) > 0 && len(app) > 0 && len(env) > 0 && len(act) > 0 {
 			query := "SELECT role.* FROM roles role WHERE role.team = ? AND role.entity_name=? AND role.environment=? AND role.action=?"
-			if len(accessType) == 0 {
-				query = query + " and role.access_type is NULL"
-			} else {
-				query += " and role.access_type='" + accessType + "'"
-			}
+
+			query += " and role.access_type='" + accessType + "'"
+
 			_, err = impl.dbConnection.Query(&model, query, team, app, env, act)
 		} else if len(team) > 0 && app == "" && len(env) > 0 && len(act) > 0 {
 			query := "SELECT role.* FROM roles role WHERE role.team=? AND coalesce(role.entity_name,'')=? AND role.environment=? AND role.action=?"
-			if len(accessType) == 0 {
-				query = query + " and role.access_type is NULL"
-			} else {
-				query += " and role.access_type='" + accessType + "'"
-			}
+
+			query += " and role.access_type='" + accessType + "'"
+
 			_, err = impl.dbConnection.Query(&model, query, team, EMPTY, env, act)
 		} else if len(team) > 0 && len(app) > 0 && env == "" && len(act) > 0 {
 			//this is applicable for all environment of a team
 			query := "SELECT role.* FROM roles role WHERE role.team = ? AND role.entity_name=? AND coalesce(role.environment,'')=? AND role.action=?"
-			if len(accessType) == 0 {
-				query = query + " and role.access_type is NULL"
-			} else {
-				query += " and role.access_type='" + accessType + "'"
-			}
+
+			query += " and role.access_type='" + accessType + "'"
+
 			_, err = impl.dbConnection.Query(&model, query, team, app, EMPTY, act)
 		} else if len(team) > 0 && app == "" && env == "" && len(act) > 0 {
 			//this is applicable for all environment of a team
 			query := "SELECT role.* FROM roles role WHERE role.team = ? AND coalesce(role.entity_name,'')=? AND coalesce(role.environment,'')=? AND role.action=?"
-			if len(accessType) == 0 {
-				query = query + " and role.access_type is NULL"
-			} else {
-				query += " and role.access_type='" + accessType + "'"
-			}
+
+			query += " and role.access_type='" + accessType + "'"
+
 			_, err = impl.dbConnection.Query(&model, query, team, EMPTY, EMPTY, act)
 		} else if team == "" && app == "" && env == "" && len(act) > 0 {
 			//this is applicable for super admin, all env, all team, all app

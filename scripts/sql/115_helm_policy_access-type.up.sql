@@ -12,8 +12,16 @@ SET entity = 'apps', access_type ='devtron-app'
 WHERE role_type = 'manager'OR  role_type = 'trigger' OR  role_type = 'view'OR  role_type ='admin';
 
 UPDATE "public"."default_auth_policy"
-SET entity = 'cluster'
-WHERE role_type = 'clusterEdit'OR role_type = 'clusterView'OR  role_type = 'clusterAdmin';
+SET entity = 'cluster', role_type='edit'
+WHERE role_type = 'clusterEdit';
+
+UPDATE "public"."default_auth_policy"
+SET entity = 'cluster', role_type='view'
+WHERE role_type = 'clusterView';
+
+UPDATE "public"."default_auth_policy"
+SET entity = 'cluster', role_type='admin'
+WHERE role_type = 'clusterAdmin';
 
 
 UPDATE "public"."default_auth_policy"
@@ -118,9 +126,18 @@ SET access_type = 'devtron-app' , entity  ='apps'
 WHERE role_type = 'manager'OR  role_type = 'trigger' OR  role_type = 'view'OR  role_type ='admin';
 
 
+
 UPDATE "public"."default_auth_role"
-SET entity ='cluster'
-WHERE role_type = 'clusterEdit'OR role_type = 'clusterView'OR  role_type = 'clusterAdmin';
+SET entity = 'cluster', role_type='edit'
+WHERE role_type = 'clusterEdit';
+
+UPDATE "public"."default_auth_role"
+SET entity = 'cluster', role_type='view'
+WHERE role_type = 'clusterView';
+
+UPDATE "public"."default_auth_role"
+SET entity = 'cluster', role_type='admin'
+WHERE role_type = 'clusterAdmin';
 
 
 UPDATE "public"."default_auth_role"
