@@ -1,7 +1,5 @@
 package models
 
-import "github.com/devtron-labs/devtron/client/k8s/application"
-
 type UserTerminalSessionRequest struct {
 	Id        int    `json:"id"`
 	UserId    int32  `json:"userId"`
@@ -18,9 +16,9 @@ type UserTerminalShellSessionRequest struct {
 }
 
 type UserTerminalPodEvents struct {
-	Status         string                      `json:"status"`
-	ErrorReason    string                      `json:"errorReason"`
-	EventsResponse *application.EventsResponse `json:"eventsResponse"`
+	Status         string      `json:"status"`
+	ErrorReason    string      `json:"errorReason"`
+	EventsResponse interface{} `json:"eventsResponse"`
 }
 type UserTerminalSessionConfig struct {
 	MaxSessionPerUser                 int    `env:"MAX_SESSION_PER_USER" envDefault:"5"`
