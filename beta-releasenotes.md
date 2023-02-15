@@ -1,4 +1,5 @@
 ## Bugs
+- fix: cd pipeline delete, 404 issue (#2939)
 - fix: finished on time update fix (#2932)
 - fix: updated log type for pipeline status methods (#2926)
 - fix: pvc mounted on pods for cache handling  (#2912)
