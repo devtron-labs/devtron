@@ -157,7 +157,7 @@ service:
     # test3: test4
 
 istio:
-  enable: true
+  enable: false
   gateway:
     enabled: false
     labels: {}
@@ -172,13 +172,12 @@ istio:
     annotations: {}
     gateways: []
     hosts: []
-    http:
+    http: []
       # - match:
       #   - uri:
       #       prefix: /v1
       #   - uri:
       #       prefix: /v2
-      #   rewriteUri: /
       #   timeout: 12
       #   headers:
       #     request:
@@ -187,13 +186,6 @@ istio:
       #   retries:
       #     attempts: 2 
       #     perTryTimeout: 3s 
-      #   route:
-      #   - destination:
-      #       host: service1
-      #       port: 80
-      # - route:
-      #   - destination:
-      #       host: service2
   destinationRule:
     enabled: false
     labels: {}
