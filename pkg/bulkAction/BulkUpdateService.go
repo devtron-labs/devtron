@@ -1212,26 +1212,26 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 			continue
 		}
 		artifact := artifacts[0]
-		if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
-			overrideRequest := &bean.ValuesOverrideRequest{
-				PipelineId:     pipeline.Id,
-				AppId:          pipeline.AppId,
-				CiArtifactId:   artifact.Id,
-				UserId:         request.UserId,
-				CdWorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
-			}
-			_, err := impl.workflowDagExecutor.ManualCdTrigger(overrideRequest, ctx)
-			if err != nil {
-				impl.logger.Errorw("request err, OverrideConfig", "err", err, "payload", overrideRequest)
-				pipelineResponse := response[appKey]
-				pipelineResponse[pipelineKey] = false
-				response[appKey] = pipelineResponse
-				//return nil, err
-			}
-		} else if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
-			//TODO
-			//initiate helm hibernate service
+		//if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+		overrideRequest := &bean.ValuesOverrideRequest{
+			PipelineId:     pipeline.Id,
+			AppId:          pipeline.AppId,
+			CiArtifactId:   artifact.Id,
+			UserId:         request.UserId,
+			CdWorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
 		}
+		_, err = impl.workflowDagExecutor.ManualCdTrigger(overrideRequest, ctx)
+		if err != nil {
+			impl.logger.Errorw("request err, OverrideConfig", "err", err, "payload", overrideRequest)
+			pipelineResponse := response[appKey]
+			pipelineResponse[pipelineKey] = false
+			response[appKey] = pipelineResponse
+			//return nil, err
+		}
+		//} else if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
+		//	//TODO
+		//	//initiate helm hibernate service
+		//}
 		pipelineResponse := response[appKey]
 		pipelineResponse[pipelineKey] = success
 		response[appKey] = pipelineResponse

@@ -674,3 +674,8 @@ type ExampleValueDto struct {
 	Result string     `json:"result,omitempty"`
 	Status string     `json:"status,omitempty"`
 }
+
+const CustomAutoScalingEnabled = "CUSTOM_AUTOSCALING_ENABLED"
+const CustomAutoscalingReplicaCount = "CUSTOM_AUTOSCALING_REPLICA_COUNT"
+const CustomAutoscalingMin = "CUSTOM_AUTOSCALING_MIN"
+const CustomAutoscalingMax = "CUSTOM_AUTOSCALING_MAX"
