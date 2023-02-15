@@ -8,5 +8,6 @@
 - feat: argo stack upgrade (#2597)
 - feat: Showing app status on app listing page (#2799)
 ## Documentation
+- docs: minor updates ingress (#2931)
 ## Others
 - task: added api for getting default template values (#2905)
