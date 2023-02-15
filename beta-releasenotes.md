@@ -1,4 +1,5 @@
 ## Bugs
+- fix: Multigit bug fix in case of preCD and postCD (#2920)
 - fix: Injected support for cloning linked ci pipelines via workflow cloning API (#2944)
 - fix: k8s log stream cpu issue (#2929)
 - fix: cd pipeline delete, 404 issue (#2939)
