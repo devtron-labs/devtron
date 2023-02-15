@@ -32,8 +32,9 @@ type AppMetadata struct {
 }
 
 type AppLabel struct {
-	Key   string `json:"key,notnull" validate:"required"`
-	Value string `json:"value,notnull" validate:"required"`
+	Key       string `json:"key,notnull" validate:"required"`
+	Value     string `json:"value,notnull" validate:"required"`
+	Propagate bool   `json:"propagate"`
 }
 
 type GitMaterial struct {
@@ -85,12 +86,16 @@ type CiPipelineDetails struct {
 	PreBuildStage             *bean.PipelineStageDto      `json:"preBuildStage,omitempty"`
 	PostBuildStage            *bean.PipelineStageDto      `json:"postBuildStage,omitempty"`
 	IsExternal                bool                        `json:"isExternal"` // true for linked and external
+	ParentCiPipeline          int                         `json:"parentCiPipeline,omitempty"`
+	ParentAppId               int                         `json:"parentAppId,omitempty"`
+	LinkedCount               int                         `json:"linkedCount,omitempty"`
 }
 
 type CiPipelineMaterialConfig struct {
-	Type         pipelineConfig.SourceType `json:"type,omitempty" validate:"oneof=SOURCE_TYPE_BRANCH_FIXED WEBHOOK"`
-	Value        string                    `json:"value,omitempty" `
-	CheckoutPath string                    `json:"checkoutPath"`
+	Type          pipelineConfig.SourceType `json:"type,omitempty" validate:"oneof=SOURCE_TYPE_BRANCH_FIXED WEBHOOK"`
+	Value         string                    `json:"value,omitempty" `
+	CheckoutPath  string                    `json:"checkoutPath"`
+	GitMaterialId int                       `json:"gitMaterialId"`
 }
 
 type BuildScript struct {
