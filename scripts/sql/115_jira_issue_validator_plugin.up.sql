@@ -1,5 +1,5 @@
 INSERT INTO plugin_metadata (id,name,description,type,icon,deleted,created_on,created_by,updated_on,updated_by)
-VALUES (nextval('id_seq_plugin_metadata'),'Jira issue validator','Jira description','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/codacy-plugin-icon.png',false,'now()',1,'now()',1);
+VALUES (nextval('id_seq_plugin_metadata'),'Jira Issue Validator','Checks for a valid Jira Issue','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/codacy-plugin-icon.png',false,'now()',1,'now()',1);
 
 INSERT INTO "plugin_pipeline_script" ("id", "script","type","deleted","created_on", "created_by", "updated_on", "updated_by")
 VALUES (
@@ -52,12 +52,12 @@ fi
 );
 
 INSERT INTO "plugin_step" ("id", "plugin_id","name","description","index","step_type","script_id","deleted", "created_on", "created_by", "updated_on", "updated_by")
-VALUES (nextval('id_seq_plugin_step'), (SELECT id FROM plugin_metadata WHERE name='Jira issue validator'),'Step 1','Step 1 - Jira issue validator','1','INLINE',(SELECT last_value FROM id_seq_plugin_pipeline_script),'f','now()', 1, 'now()', 1);
+VALUES (nextval('id_seq_plugin_step'), (SELECT id FROM plugin_metadata WHERE name='Jira Issue Validator'),'Step 1','Step 1 - Jira Issue Validator','1','INLINE',(SELECT last_value FROM id_seq_plugin_pipeline_script),'f','now()', 1, 'now()', 1);
 
 INSERT INTO "plugin_step_variable" ("id", "plugin_step_id", "name", "format", "description", "is_exposed", "allow_empty_value", "variable_type", "value_type", "variable_step_index", "deleted", "created_on", "created_by", "updated_on", "updated_by") VALUES
-(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Jira issue validator' and ps."index"=1 and ps.deleted=false), 'JiraUsername','STRING','Username of Jira',true,false,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1),
-(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Jira issue validator' and ps."index"=1 and ps.deleted=false), 'JiraPassword','STRING','password of Jira',true,false,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1),
-(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Jira issue validator' and ps."index"=1 and ps.deleted=false), 'JiraBaseUrl','STRING','Base url of Jira',true,false,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1);
+(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Jira Issue Validator' and ps."index"=1 and ps.deleted=false), 'JiraUsername','STRING','Username of Jira account',true,false,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1),
+(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Jira Issue Validator' and ps."index"=1 and ps.deleted=false), 'JiraPassword','STRING','Password of Jira account',true,false,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1),
+(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Jira Issue Validator' and ps."index"=1 and ps.deleted=false), 'JiraBaseUrl','STRING','Base Url of Jira account',true,false,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1);
 
 INSERT INTO "plugin_step_variable" ("id", "plugin_step_id", "name", "format", "description", "is_exposed", "allow_empty_value","value","variable_type", "value_type", "variable_step_index",reference_variable_name, "deleted", "created_on", "created_by", "updated_on", "updated_by") VALUES
-(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Jira issue validator' and ps."index"=1 and ps.deleted=false), 'JiraId','STRING','Jira Id',false,true,3,'INPUT','GLOBAL',1 ,'description_jiraId','f','now()', 1, 'now()', 1);
+(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Jira Issue Validator' and ps."index"=1 and ps.deleted=false), 'JiraId','STRING','Jira Id',false,true,3,'INPUT','GLOBAL',1 ,'description_jiraId','f','now()', 1, 'now()', 1);
