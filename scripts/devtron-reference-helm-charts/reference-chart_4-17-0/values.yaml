@@ -240,7 +240,7 @@ ingressInternal:
  #      - chart-example.local
 
 istio:
-  enable: false
+  enable: true
   gateway:
     enabled: false
     labels: {}
@@ -277,6 +277,35 @@ istio:
       # - route:
       #   - destination:
       #       host: service2
+  destinationRule:
+    enabled: false
+    labels: {}
+    annotations: {}
+    subsets: []
+    trafficPolicy: {}
+  peerAuthentication:
+    enabled: false
+    labels: {}
+    annotations: {}
+    selector:
+      enabled: false
+    mtls:
+      mode:
+    portLevelMtls: {}
+  requestAuthentication:
+    enabled: false
+    labels: {}
+    annotations: {}
+    selector:
+      enabled: false
+    jwtRules: []
+  authorizationPolicy:
+    enabled: false
+    labels: {}
+    annotations: {}
+    action:
+    provider: {}
+    rules: []
 
 dbMigrationConfig:
   enabled: false

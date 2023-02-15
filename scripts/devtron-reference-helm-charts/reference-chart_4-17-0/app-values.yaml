@@ -297,7 +297,7 @@ envoyproxy:
       memory: 50Mi
 
 istio:
-  enable: false
+  enable: true
   gateway:
     enabled: false
     labels: {}
@@ -307,7 +307,7 @@ istio:
       enabled: false
       secretName: secret-name
   virtualService:
-    enabled: false
+    enabled: true
     labels: {}
     annotations: {}
     gateways: []
@@ -332,6 +332,35 @@ istio:
       - route:
         - destination:
             host: service2
+  destinationRule:
+    enabled: false
+    labels: {}
+    annotations: {}
+    subsets: []
+    trafficPolicy: {}
+  peerAuthentication:
+    enabled: false
+    labels: {}
+    annotations: {}
+    selector:
+      enabled: false
+    mtls:
+      mode:
+    portLevelMtls: {}
+  requestAuthentication:
+    enabled: false
+    labels: {}
+    annotations: {}
+    selector:
+      enabled: false
+    jwtRules: []
+  authorizationPolicy:
+    enabled: false
+    labels: {}
+    annotations: {}
+    action:
+    provider: {}
+    rules: []
 
 ## Pods Service Account
 ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
