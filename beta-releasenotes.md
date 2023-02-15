@@ -1,4 +1,5 @@
 ## Bugs
+- fix: Injected support for cloning linked ci pipelines via workflow cloning API (#2944)
 - fix: k8s log stream cpu issue (#2929)
 - fix: cd pipeline delete, 404 issue (#2939)
 - fix: finished on time update fix (#2932)
