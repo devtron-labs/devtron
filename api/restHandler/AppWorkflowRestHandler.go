@@ -220,7 +220,7 @@ func (impl AppWorkflowRestHandlerImpl) FindAllWorkflows(w http.ResponseWriter, r
 
 func (impl AppWorkflowRestHandlerImpl) FindAppWorkflowByEnvironment(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	envId, err := strconv.Atoi(vars["env-id"])
+	envId, err := strconv.Atoi(vars["envId"])
 	if err != nil {
 		impl.Logger.Errorw("bad request", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)

@@ -559,7 +559,7 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerVie
 	}
 	token := r.Header.Get("token")
 	vars := mux.Vars(r)
-	envId, err := strconv.Atoi(vars["env-id"])
+	envId, err := strconv.Atoi(vars["envId"])
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
@@ -638,7 +638,7 @@ func (handler PipelineConfigRestHandlerImpl) GetAppEnvironment(w http.ResponseWr
 
 func (handler PipelineConfigRestHandlerImpl) GetAppListByEnvId(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	envId, err := strconv.Atoi(vars["env-id"])
+	envId, err := strconv.Atoi(vars["envId"])
 	if err != nil {
 		handler.Logger.Errorw("request err, get app", "err", err, "envId", envId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
