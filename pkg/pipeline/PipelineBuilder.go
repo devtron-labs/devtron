@@ -1770,11 +1770,33 @@ func (impl PipelineBuilderImpl) DeleteAppsInArgoCd(ctx context.Context,
 				impl.logger.Errorw("app name or environment name is not present",
 					"pipeline id", pipeline.Id)
 
-				failedPipelines = append(failedPipelines, &bean.DeploymentAppTypeChangeRequestPipelineStatus{
-					Id:     pipeline.Id,
-					Error:  "could not fetch app name or environment name",
-					Status: bean.FAILED,
-				})
+				failedPipelines = impl.appendToDeploymentAppTypeChangeRequestPipelineStatuses(
+					failedPipelines,
+					pipeline.Id,
+					pipeline.App.AppName,
+					pipeline.Environment.Name,
+					"could not fetch app name or environment name",
+					bean.FAILED)
+				continue
+			}
+
+			// check if app status is Healthy
+			status, appStatusErr := impl.appStatusRepository.Get(pipeline.AppId, pipeline.EnvironmentId)
+
+			// cannot delete the app from argocd if app status is not healthy
+			if appStatusErr != nil || status.Status != "Healthy" {
+				impl.logger.Errorw("unable to fetch app status or app status is not healthy",
+					"appId", pipeline.AppId,
+					"environmentId", pipeline.EnvironmentId,
+					"err", appStatusErr)
+
+				failedPipelines = impl.appendToDeploymentAppTypeChangeRequestPipelineStatuses(
+					failedPipelines,
+					pipeline.Id,
+					pipeline.App.AppName,
+					pipeline.Environment.Name,
+					"unable to fetch app status or app status is not healthy",
+					bean.FAILED)
 				continue
 			}
 
@@ -1789,23 +1811,24 @@ func (impl PipelineBuilderImpl) DeleteAppsInArgoCd(ctx context.Context,
 					"err", err)
 
 				// deletion failed, append to the list of failed pipelines
-				failedPipelines = append(failedPipelines, &bean.DeploymentAppTypeChangeRequestPipelineStatus{
-					Id:              pipeline.Id,
-					AppName:         pipeline.App.AppName,
-					EnvironmentName: pipeline.Environment.Name,
-					Error:           "error deleting app on argocd with error: " + err.Error(),
-					Status:          bean.FAILED,
-				})
+				failedPipelines = impl.appendToDeploymentAppTypeChangeRequestPipelineStatuses(
+					failedPipelines,
+					pipeline.Id,
+					pipeline.App.AppName,
+					pipeline.Environment.Name,
+					"error deleting app on argocd with error: "+err.Error(),
+					bean.FAILED)
 				continue
 			}
 
 			// deletion successful, append to the list of successful pipelines
-			successfulPipelines = append(successfulPipelines, &bean.DeploymentAppTypeChangeRequestPipelineStatus{
-				Id:              pipeline.Id,
-				AppName:         pipeline.App.AppName,
-				EnvironmentName: pipeline.Environment.Name,
-				Status:          bean.SUCCESS,
-			})
+			successfulPipelines = impl.appendToDeploymentAppTypeChangeRequestPipelineStatuses(
+				successfulPipelines,
+				pipeline.Id,
+				pipeline.App.AppName,
+				pipeline.Environment.Name,
+				"",
+				bean.SUCCESS)
 		}
 	}
 
@@ -1826,6 +1849,18 @@ func (impl PipelineBuilderImpl) deleteAppInArgoCd(ctx context.Context, deploymen
 		Cascade: &cascadeDelete,
 	}
 	return impl.application.Delete(ctx, req)
+}
+
+func (impl PipelineBuilderImpl) appendToDeploymentAppTypeChangeRequestPipelineStatuses(pipelines []*bean.DeploymentAppTypeChangeRequestPipelineStatus,
+	pipelineId int, appName string, environmentName string, error string, status bean.Status) []*bean.DeploymentAppTypeChangeRequestPipelineStatus {
+
+	return append(pipelines, &bean.DeploymentAppTypeChangeRequestPipelineStatus{
+		Id:              pipelineId,
+		AppName:         appName,
+		EnvironmentName: environmentName,
+		Error:           error,
+		Status:          status,
+	})
 }
 
 type DeploymentType struct {
