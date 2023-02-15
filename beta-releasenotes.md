@@ -7,6 +7,7 @@
 - fix: event notification calls missing for Build Success and Cd Deployment Success for helm type (#2898)
 - fix: ingress url missing (#2915)
 ## Enhancements
+- feat: cluster bearer token hide from dashboard (#2894)
 - feat: added option to propagate custom tag to k8s resources for that application (#2841)
 - feat: argo stack upgrade (#2597)
 - feat: Showing app status on app listing page (#2799)
