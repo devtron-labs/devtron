@@ -117,6 +117,10 @@ type PipelineRepositoryImpl struct {
 	logger       *zap.SugaredLogger
 }
 
+const (
+	IsPipelineDeletedWhereCondition string = "pipeline.deleted = ?"
+)
+
 func NewPipelineRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *PipelineRepositoryImpl {
 	return &PipelineRepositoryImpl{dbConnection: dbConnection, logger: logger}
 }
@@ -279,6 +283,8 @@ func (impl PipelineRepositoryImpl) FindById(id int) (pipeline *Pipeline, err err
 	return pipeline, err
 }
 
+// FindActiveByEnvironmentIdAndDeploymentAppType takes in environment id and current deployment app type
+// and fetches and returns a list of pipelines matching the same.
 func (impl PipelineRepositoryImpl) FindActiveByEnvironmentIdAndDeploymentAppType(environmentId int,
 	deploymentAppType string) ([]*Pipeline, error) {
 
@@ -289,7 +295,7 @@ func (impl PipelineRepositoryImpl) FindActiveByEnvironmentIdAndDeploymentAppType
 		Join("inner join app a on pipeline.app_id = a.id").
 		Where("pipeline.environment_id = ?", environmentId).
 		Where("pipeline.deployment_app_type = ?", deploymentAppType).
-		Where("pipeline.deleted = ?", false).
+		Where(IsPipelineDeletedWhereCondition, false).
 		Select()
 	return pipelines, err
 }
@@ -408,7 +414,7 @@ func (impl PipelineRepositoryImpl) FindAllPipelinesByChartsOverrideAndAppIdAndCh
 		Where("pipeline.app_id = ?", appId).
 		Where("charts.id = ?", chartId).
 		Where("ceco.is_override = ?", hasConfigOverridden).
-		Where("pipeline.deleted = ?", false).
+		Where(IsPipelineDeletedWhereCondition, false).
 		Where("ceco.active = ?", true).
 		Where("charts.active = ?", true).
 		Select()
@@ -464,7 +470,7 @@ func (impl PipelineRepositoryImpl) GetAppAndEnvDetailsForDeploymentAppTypePipeli
 		Join("inner join environment e on pipeline.environment_id = e.id").
 		Where("e.cluster_id in (?)", pg.In(clusterIds)).
 		Where("a.active = ?", true).
-		Where("pipeline.deleted = ?", false).
+		Where(IsPipelineDeletedWhereCondition, false).
 		Where("pipeline.deployment_app_type = ?", deploymentAppType).
 		Select()
 	return pipelines, err
