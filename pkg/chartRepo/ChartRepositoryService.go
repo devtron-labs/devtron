@@ -161,8 +161,10 @@ func (impl *ChartRepositoryServiceImpl) UpdateChartRepo(request *ChartRepoDto) (
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
 	}
+	previousName := chartRepo.Name
 
 	chartRepo.Url = request.Url
+	chartRepo.Name = request.Name
 	chartRepo.AuthMode = request.AuthMode
 	chartRepo.UserName = request.UserName
 	chartRepo.Password = request.Password
@@ -186,7 +188,6 @@ func (impl *ChartRepositoryServiceImpl) UpdateChartRepo(request *ChartRepoDto) (
 	if err != nil {
 		return nil, err
 	}
-
 	client, err := impl.K8sUtil.GetClient(cfg)
 	if err != nil {
 		return nil, err
@@ -200,7 +201,13 @@ func (impl *ChartRepositoryServiceImpl) UpdateChartRepo(request *ChartRepoDto) (
 		if err != nil {
 			return nil, err
 		}
-		data := impl.updateData(cm.Data, request)
+		var data map[string]string
+		if previousName == request.Name {
+			data = impl.updateData(cm.Data, request)
+		} else {
+			data = impl.updateAndDeleteData(cm.Data, request, previousName)
+		}
+
 		cm.Data = data
 		_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
 		if err != nil {
@@ -539,7 +546,7 @@ func (impl *ChartRepositoryServiceImpl) createRepoElement(request *ChartRepoDto)
 	return repoData
 }
 
-// UpdateData update the request field in the argo-cm
+// updateData update the request field in the argo-cm
 func (impl *ChartRepositoryServiceImpl) updateData(data map[string]string, request *ChartRepoDto) map[string]string {
 	helmRepoStr := data["helm.repositories"]
 	helmRepoByte, err := yaml.YAMLToJSON([]byte(helmRepoStr))
@@ -620,7 +627,94 @@ func (impl *ChartRepositoryServiceImpl) updateData(data map[string]string, reque
 	return data
 }
 
-// DeleteData delete the request field from the argo-cm
+// updateAndDeleteData update the request field in the argo-cm and delete the previous repo
+func (impl *ChartRepositoryServiceImpl) updateAndDeleteData(data map[string]string, request *ChartRepoDto, previousName string) map[string]string {
+	helmRepoStr := data["helm.repositories"]
+	helmRepoByte, err := yaml.YAMLToJSON([]byte(helmRepoStr))
+	if err != nil {
+		panic(err)
+	}
+	var helmRepositories []*AcdConfigMapRepositoriesDto
+	err = json.Unmarshal(helmRepoByte, &helmRepositories)
+	if err != nil {
+		panic(err)
+	}
+
+	rb, err := json.Marshal(helmRepositories)
+	if err != nil {
+		panic(err)
+	}
+	helmRepositoriesYamlByte, err := yaml.JSONToYAML(rb)
+	if err != nil {
+		panic(err)
+	}
+
+	//SETUP for repositories
+	var repositories []*AcdConfigMapRepositoriesDto
+	repoStr := data["repositories"]
+	repoByte, err := yaml.YAMLToJSON([]byte(repoStr))
+	if err != nil {
+		panic(err)
+	}
+	err = json.Unmarshal(repoByte, &repositories)
+	if err != nil {
+		panic(err)
+	}
+
+	found := false
+	deleteIndex := -1
+	for index, item := range repositories {
+		//if request chart repo found, then update its values
+		if item.Name == request.Name {
+			if request.AuthMode == repository.AUTH_MODE_USERNAME_PASSWORD {
+				usernameSecret := &KeyDto{Name: request.UserName, Key: "username"}
+				passwordSecret := &KeyDto{Name: request.Password, Key: "password"}
+				item.PasswordSecret = passwordSecret
+				item.UsernameSecret = usernameSecret
+			} else if request.AuthMode == repository.AUTH_MODE_ACCESS_TOKEN {
+				// TODO - is it access token or ca cert nd secret
+			} else if request.AuthMode == repository.AUTH_MODE_SSH {
+				keySecret := &KeyDto{Name: request.SshKey, Key: "key"}
+				item.KeySecret = keySecret
+			}
+			item.Url = request.Url
+			found = true
+		}
+		if item.Name == previousName {
+			deleteIndex = index
+		}
+	}
+	if deleteIndex != -1 {
+		repositories = append(repositories[:deleteIndex], repositories[deleteIndex+1:]...)
+	}
+	// if request chart repo not found, add new one
+	if !found {
+		repoData := impl.createRepoElement(request)
+		repositories = append(repositories, repoData)
+	}
+
+	rb, err = json.Marshal(repositories)
+	if err != nil {
+		panic(err)
+	}
+	repositoriesYamlByte, err := yaml.JSONToYAML(rb)
+	if err != nil {
+		panic(err)
+	}
+
+	if len(helmRepositoriesYamlByte) > 0 {
+		data["helm.repositories"] = string(helmRepositoriesYamlByte)
+	}
+	if len(repositoriesYamlByte) > 0 {
+		data["repositories"] = string(repositoriesYamlByte)
+	}
+	//dex config copy as it is
+	dexConfigStr := data["dex.config"]
+	data["dex.config"] = string([]byte(dexConfigStr))
+	return data
+}
+
+// deleteData delete the request field from the argo-cm
 func (impl *ChartRepositoryServiceImpl) deleteData(data map[string]string, request *ChartRepoDto) map[string]string {
 	helmRepoStr := data["helm.repositories"]
 	helmRepoByte, err := yaml.YAMLToJSON([]byte(helmRepoStr))
