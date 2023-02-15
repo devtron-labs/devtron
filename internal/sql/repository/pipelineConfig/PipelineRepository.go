@@ -69,6 +69,7 @@ type PipelineRepository interface {
 	FindByName(pipelineName string) (pipeline *Pipeline, err error)
 	PipelineExists(pipelineName string) (bool, error)
 	FindById(id int) (pipeline *Pipeline, err error)
+	FindActiveByEnvironmentIdAndDeploymentAppType(environmentId int, deploymentAppType string) ([]*Pipeline, error)
 	FindByIdsIn(ids []int) ([]*Pipeline, error)
 	FindByCiPipelineIdsIn(ciPipelineIds []int) ([]*Pipeline, error)
 	FindAutomaticByCiPipelineId(ciPipelineId int) (pipelines []*Pipeline, err error)
@@ -90,6 +91,7 @@ type PipelineRepository interface {
 	FindAllPipelinesByChartsOverrideAndAppIdAndChartId(chartOverridden bool, appId int, chartId int) (pipelines []*Pipeline, err error)
 	FindActiveByAppIdAndPipelineId(appId int, pipelineId int) ([]*Pipeline, error)
 	UpdateCdPipeline(pipeline *Pipeline) error
+	UpdateCdPipelineDeploymentAppTypeAndDeploymentAppCreated(pipeline *Pipeline) error
 	FindNumberOfAppsWithCdPipeline(appIds []int) (count int, err error)
 	GetAppAndEnvDetailsForDeploymentAppTypePipeline(deploymentAppType string, clusterIds []int) ([]*Pipeline, error)
 	GetArgoPipelinesHavingTriggersStuckInLastPossibleNonTerminalTimelines(pendingSinceSeconds int, timeForDegradation int) ([]*Pipeline, error)
@@ -115,6 +117,10 @@ type PipelineRepositoryImpl struct {
 	dbConnection *pg.DB
 	logger       *zap.SugaredLogger
 }
+
+const (
+	IsPipelineDeletedWhereCondition string = "pipeline.deleted = ?"
+)
 
 func NewPipelineRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *PipelineRepositoryImpl {
 	return &PipelineRepositoryImpl{dbConnection: dbConnection, logger: logger}
@@ -278,6 +284,23 @@ func (impl PipelineRepositoryImpl) FindById(id int) (pipeline *Pipeline, err err
 	return pipeline, err
 }
 
+// FindActiveByEnvironmentIdAndDeploymentAppType takes in environment id and current deployment app type
+// and fetches and returns a list of pipelines matching the same.
+func (impl PipelineRepositoryImpl) FindActiveByEnvironmentIdAndDeploymentAppType(environmentId int,
+	deploymentAppType string) ([]*Pipeline, error) {
+
+	var pipelines []*Pipeline
+	err := impl.dbConnection.
+		Model(&pipelines).
+		Column("pipeline.*", "App", "Environment").
+		Join("inner join app a on pipeline.app_id = a.id").
+		Where("pipeline.environment_id = ?", environmentId).
+		Where("pipeline.deployment_app_type = ?", deploymentAppType).
+		Where(IsPipelineDeletedWhereCondition, false).
+		Select()
+	return pipelines, err
+}
+
 // Deprecated:
 func (impl PipelineRepositoryImpl) FindByEnvOverrideId(envOverrideId int) (pipeline []Pipeline, err error) {
 	var pipelines []Pipeline
@@ -392,7 +415,7 @@ func (impl PipelineRepositoryImpl) FindAllPipelinesByChartsOverrideAndAppIdAndCh
 		Where("pipeline.app_id = ?", appId).
 		Where("charts.id = ?", chartId).
 		Where("ceco.is_override = ?", hasConfigOverridden).
-		Where("pipeline.deleted = ?", false).
+		Where(IsPipelineDeletedWhereCondition, false).
 		Where("ceco.active = ?", true).
 		Where("charts.active = ?", true).
 		Select()
@@ -411,6 +434,18 @@ func (impl PipelineRepositoryImpl) FindActiveByAppIdAndPipelineId(appId int, pip
 
 func (impl PipelineRepositoryImpl) UpdateCdPipeline(pipeline *Pipeline) error {
 	err := impl.dbConnection.Update(pipeline)
+	return err
+}
+
+// UpdateCdPipelineDeploymentAppTypeAndDeploymentAppCreated takes in pipeline struct and updates
+// deployment_app_type and deployment_app_created columns in the table.
+func (impl PipelineRepositoryImpl) UpdateCdPipelineDeploymentAppTypeAndDeploymentAppCreated(pipeline *Pipeline) error {
+	_, err := impl.dbConnection.
+		Model(pipeline).
+		Column("deployment_app_type", "deployment_app_created").
+		Where("id = ?", pipeline.Id).
+		Update()
+
 	return err
 }
 
@@ -436,7 +471,7 @@ func (impl PipelineRepositoryImpl) GetAppAndEnvDetailsForDeploymentAppTypePipeli
 		Join("inner join environment e on pipeline.environment_id = e.id").
 		Where("e.cluster_id in (?)", pg.In(clusterIds)).
 		Where("a.active = ?", true).
-		Where("pipeline.deleted = ?", false).
+		Where(IsPipelineDeletedWhereCondition, false).
 		Where("pipeline.deployment_app_type = ?", deploymentAppType).
 		Select()
 	return pipelines, err
