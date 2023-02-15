@@ -34,8 +34,10 @@ type DockerRegistryConfig interface {
 	FetchAllDockerAccounts() ([]DockerArtifactStoreBean, error)
 	FetchOneDockerAccount(storeId string) (*DockerArtifactStoreBean, error)
 	Update(bean *DockerArtifactStoreBean) (*DockerArtifactStoreBean, error)
+	UpdateInactive(bean *DockerArtifactStoreBean) (*DockerArtifactStoreBean, error)
 	Delete(storeId string) (string, error)
 	DeleteReg(bean *DockerArtifactStoreBean) error
+	CheckInActiveDockerAccount(storeId string) (bool, error)
 }
 
 type DockerArtifactStoreBean struct {
@@ -350,6 +352,89 @@ func (impl DockerRegistryConfigImpl) Update(bean *DockerArtifactStoreBean) (*Doc
 	return bean, nil
 }
 
+func (impl DockerRegistryConfigImpl) UpdateInactive(bean *DockerArtifactStoreBean) (*DockerArtifactStoreBean, error) {
+	impl.logger.Debugw("docker registry update request", "request", bean)
+
+	// 1- find by id, if err - return error
+	existingStore, err0 := impl.dockerArtifactStoreRepository.FindOneInactive(bean.Id)
+	if err0 != nil {
+		impl.logger.Errorw("no matching entry found of update ..", "err", err0)
+		return nil, err0
+	}
+
+	// 2- initiate DB transaction
+	dbConnection := impl.dockerArtifactStoreRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		impl.logger.Errorw("error in initiating db tx", "err", err)
+		return nil, err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+
+	// 3- update docker_registry_config
+
+	store := &repository.DockerArtifactStore{
+		Id:                 bean.Id,
+		PluginId:           existingStore.PluginId,
+		RegistryURL:        bean.RegistryURL,
+		RegistryType:       bean.RegistryType,
+		AWSAccessKeyId:     bean.AWSAccessKeyId,
+		AWSSecretAccessKey: bean.AWSSecretAccessKey,
+		AWSRegion:          bean.AWSRegion,
+		Username:           bean.Username,
+		Password:           bean.Password,
+		IsDefault:          bean.IsDefault,
+		Connection:         bean.Connection,
+		Cert:               bean.Cert,
+		Active:             true, // later it will change
+		AuditLog:           sql.AuditLog{CreatedBy: bean.User, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: bean.User},
+	}
+	err = impl.dockerArtifactStoreRepository.Update(store, tx)
+	if err != nil {
+		impl.logger.Errorw("error in updating registry config in db", "config", store, "err", err)
+		err = &util.ApiError{
+			Code:            constants.DockerRegUpdateFailedInDb,
+			InternalMessage: "docker registry failed to update in db",
+			UserMessage:     "docker registry failed to update in db",
+		}
+		return nil, err
+	}
+	impl.logger.Infow("updated repository ", "repository", store)
+	bean.Id = store.Id
+
+	// 4- update imagePullSecretConfig for this docker registry
+	dockerRegistryIpsConfig := bean.DockerRegistryIpsConfig
+	ipsConfig := &repository.DockerRegistryIpsConfig{
+		Id:                    existingStore.IpsConfig.Id,
+		DockerArtifactStoreId: store.Id,
+		CredentialType:        dockerRegistryIpsConfig.CredentialType,
+		CredentialValue:       dockerRegistryIpsConfig.CredentialValue,
+		AppliedClusterIdsCsv:  dockerRegistryIpsConfig.AppliedClusterIdsCsv,
+		IgnoredClusterIdsCsv:  dockerRegistryIpsConfig.IgnoredClusterIdsCsv,
+	}
+	err = impl.dockerRegistryIpsConfigRepository.Update(ipsConfig, tx)
+	if err != nil {
+		impl.logger.Errorw("error in updating registry config ips", "ipsConfig", ipsConfig, "err", err)
+		err = &util.ApiError{
+			Code:            constants.DockerRegUpdateFailedInDb,
+			InternalMessage: "docker registry ips config failed to update in db",
+			UserMessage:     "docker registry ips config failed to update in db",
+		}
+		return nil, err
+	}
+	impl.logger.Infow("updated ips config for this docker repository ", "ipsConfig", ipsConfig)
+
+	// 5- now commit transaction
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error in committing transaction", "err", err)
+		return nil, err
+	}
+
+	return bean, nil
+}
+
 func (impl DockerRegistryConfigImpl) Delete(storeId string) (string, error) {
 	impl.logger.Debugw("docker registry update request", "request", storeId)
 
@@ -383,4 +468,13 @@ func (impl DockerRegistryConfigImpl) DeleteReg(bean *DockerArtifactStoreBean) er
 		return err
 	}
 	return nil
+}
+
+func (impl DockerRegistryConfigImpl) CheckInActiveDockerAccount(storeId string) (bool, error) {
+	exist, err := impl.dockerArtifactStoreRepository.FindInactive(storeId)
+	if err != nil {
+		impl.logger.Errorw("err in deleting docker registry", "id", storeId, "err", err)
+		return false, err
+	}
+	return exist, nil
 }
