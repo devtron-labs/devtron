@@ -1890,6 +1890,7 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Appl
 
 func (impl *AppServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, appName string, namespace string, merged []byte, pipeline *pipelineConfig.Pipeline, overrideRequest *bean.ValuesOverrideRequest) []byte {
 	var appId = pipeline.AppId
+	pipelineId := pipeline.Id
 	var appDeploymentType = pipeline.DeploymentAppType
 	var clusterId = pipeline.Environment.ClusterId
 	deploymentType := overrideRequest.DeploymentType
@@ -1965,13 +1966,13 @@ func (impl *AppServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, a
 					return merged
 				}
 			}
+		} else {
+			impl.logger.Errorw("autoscaling is not enabled", "pipelineId", pipelineId)
 		}
 	}
 	//check for custom chart support
 	if _, ok := templateMap[bean2.CustomAutoScalingEnabled]; ok {
 		if deploymentType == models.DEPLOYMENTTYPE_STOP {
-			// set customChartReplicaCountJP value to 0
-			// set customChartEnabledJP to false
 			merged, err = impl.setScalingValues(templateMap, bean2.CustomAutoScalingEnabled, merged, false)
 			if err != nil {
 				return merged
@@ -1986,7 +1987,7 @@ func (impl *AppServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, a
 				return merged
 			}
 			// extract replica count, min, max and check for required value
-			replicaCount, err := impl.getReplicaCountFromCustomChart(templateMap)
+			replicaCount, err := impl.getReplicaCountFromCustomChart(templateMap, merged)
 			if err != nil {
 				return merged
 			}
@@ -2000,18 +2001,18 @@ func (impl *AppServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, a
 	return merged
 }
 
-func (impl *AppServiceImpl) getReplicaCountFromCustomChart(templateMap map[string]interface{}) (float64, error) {
-	autoscalingMinVal, err := util2.ParseFloatNumber(templateMap, bean2.CustomAutoscalingMin)
+func (impl *AppServiceImpl) getReplicaCountFromCustomChart(templateMap map[string]interface{}, merged []byte) (float64, error) {
+	autoscalingMinVal, err := util2.ParseFloatNumber(templateMap, bean2.CustomAutoscalingMin, merged)
 	if err != nil {
 		impl.logger.Errorw("error occurred while parsing float number", "key", bean2.CustomAutoscalingMin, "err", err)
 		return 0, err
 	}
-	autoscalingMaxVal, err := util2.ParseFloatNumber(templateMap, bean2.CustomAutoscalingMax)
+	autoscalingMaxVal, err := util2.ParseFloatNumber(templateMap, bean2.CustomAutoscalingMax, merged)
 	if err != nil {
 		impl.logger.Errorw("error occurred while parsing float number", "key", bean2.CustomAutoscalingMax, "err", err)
 		return 0, err
 	}
-	autoscalingReplicaCountVal, err := util2.ParseFloatNumber(templateMap, bean2.CustomAutoscalingReplicaCount)
+	autoscalingReplicaCountVal, err := util2.ParseFloatNumber(templateMap, bean2.CustomAutoscalingReplicaCount, merged)
 	if err != nil {
 		impl.logger.Errorw("error occurred while parsing float number", "key", bean2.CustomAutoscalingReplicaCount, "err", err)
 		return 0, err
