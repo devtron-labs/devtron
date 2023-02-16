@@ -1,5 +1,5 @@
 INSERT INTO plugin_metadata (id,name,description,type,icon,deleted,created_on,created_by,updated_on,updated_by)
-VALUES (nextval('id_seq_plugin_metadata'),'Jira Issue Validator','Checks for a valid Jira Issue','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/plugin-jira-validation.png',false,'now()',1,'now()',1);
+VALUES (nextval('id_seq_plugin_metadata'),'Jira Issue Validator','Checks for a valid Jira Issue','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/plugin-jira.png',false,'now()',1,'now()',1);
 
 INSERT INTO "plugin_pipeline_script" ("id", "script","type","deleted","created_on", "created_by", "updated_on", "updated_by")
 VALUES (
