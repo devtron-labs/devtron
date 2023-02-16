@@ -600,17 +600,15 @@ func (handler PipelineConfigRestHandlerImpl) GetEnvironmentListWithAppData(w htt
 	v := r.URL.Query()
 	envName := v.Get("envName")
 	clusterIdString := v.Get("clusterIds")
-	offsetQueryParam := r.URL.Query().Get("offset")
-	offset, err := strconv.Atoi(offsetQueryParam)
-	if offsetQueryParam == "" || err != nil {
-		common.WriteJsonResp(w, err, "invalid offset", http.StatusBadRequest)
-		return
+	offset := 0
+	offsetStr := v.Get("offset")
+	if len(offsetStr) > 0 {
+		offset, _ = strconv.Atoi(offsetStr)
 	}
-	sizeQueryParam := r.URL.Query().Get("size")
-	size, err := strconv.Atoi(sizeQueryParam)
-	if sizeQueryParam == "" || err != nil {
-		common.WriteJsonResp(w, err, "invalid size", http.StatusBadRequest)
-		return
+	size := 20
+	sizeStr := v.Get("size")
+	if len(sizeStr) > 0 {
+		size, _ = strconv.Atoi(sizeStr)
 	}
 	var clusterIds []int
 	if clusterIdString != "" {
