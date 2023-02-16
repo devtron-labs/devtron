@@ -132,7 +132,7 @@ type PipelineBuilder interface {
 	GetCiPipelineByEnvironment(envId int, token string, auth func(token string, appObject string, envObject string) bool) ([]*bean.CiConfigRequest, error)
 	GetCdPipelinesByEnvironment(envId int, token string, auth func(token string, appObject string, envObject string) bool) (cdPipelines *bean.CdPipelines, err error)
 	GetExternalCiByEnvironment(envId int, token string, auth func(token string, appObject string, envObject string) bool) (ciConfig []*bean.ExternalCiConfig, err error)
-	GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, token string, auth func(token string, appObject string, envObject string) bool) ([]cluster.EnvironmentBean, error)
+	GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, token string, auth func(token string, appObject string, envObject string) bool) (*cluster.AppGroupingResponse, error)
 	GetAppListForEnvironment(envId int, token string, auth func(token string, appObject string, envObject string) bool) ([]*AppBean, error)
 }
 
@@ -3363,7 +3363,8 @@ func (impl PipelineBuilderImpl) GetExternalCiByEnvironment(envId int, token stri
 	return externalCiConfigs, err
 }
 
-func (impl PipelineBuilderImpl) GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, token string, auth func(token string, appObject string, envObject string) bool) ([]cluster.EnvironmentBean, error) {
+func (impl PipelineBuilderImpl) GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, token string, auth func(token string, appObject string, envObject string) bool) (*cluster.AppGroupingResponse, error) {
+	result := &cluster.AppGroupingResponse{}
 	var models []*repository2.Environment
 	var beans []cluster.EnvironmentBean
 	var err error
@@ -3378,7 +3379,7 @@ func (impl PipelineBuilderImpl) GetEnvironmentListForAutocompleteFilter(envName 
 	}
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching environment", "err", err)
-		return beans, err
+		return result, err
 	}
 	for _, model := range models {
 		environment := cluster.EnvironmentBean{
@@ -3391,7 +3392,7 @@ func (impl PipelineBuilderImpl) GetEnvironmentListForAutocompleteFilter(envName 
 		}
 		pipelines, err := impl.pipelineRepository.FindActiveByEnvId(model.Id)
 		if err != nil && err != pg.ErrNoRows {
-			return nil, err
+			return result, err
 		}
 		appCount := 0
 		for _, pipeline := range pipelines {
@@ -3408,7 +3409,16 @@ func (impl PipelineBuilderImpl) GetEnvironmentListForAutocompleteFilter(envName 
 		beans = append(beans, environment)
 	}
 
-	return beans, nil
+	envCount := len(beans)
+	if offset+size <= envCount {
+		beans = beans[offset : offset+size]
+	} else {
+		beans = beans[offset:]
+	}
+
+	result.EnvList = beans
+	result.EnvCount = envCount
+	return result, nil
 }
 
 func (impl PipelineBuilderImpl) GetAppListForEnvironment(envId int, token string, auth func(token string, appObject string, envObject string) bool) ([]*AppBean, error) {

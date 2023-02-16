@@ -60,6 +60,11 @@ type ClusterEnvDto struct {
 	Environments []*EnvDto `json:"environments,omitempty"`
 }
 
+type AppGroupingResponse struct {
+	EnvList  []EnvironmentBean `json:"envList"`
+	EnvCount int               `json:"envCount"`
+}
+
 type EnvironmentService interface {
 	FindOne(environment string) (*EnvironmentBean, error)
 	Create(mappings *EnvironmentBean, userId int32) (*EnvironmentBean, error)
