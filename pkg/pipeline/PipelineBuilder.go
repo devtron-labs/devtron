@@ -1767,13 +1767,8 @@ func (impl PipelineBuilderImpl) DeleteDeploymentApps(ctx context.Context,
 			impl.logger.Errorw("app name or environment name is not present",
 				"pipeline id", pipeline.Id)
 
-			failedPipelines = impl.append(
-				failedPipelines,
-				pipeline.Id,
-				pipeline.App.AppName,
-				pipeline.Environment.Name,
-				"could not fetch app name or environment name",
-				bean.FAILED)
+			failedPipelines = impl.handleFailedDeploymentAppChange(pipeline, failedPipelines,
+				"could not fetch app name or environment name")
 			continue
 		}
 
@@ -1782,13 +1777,7 @@ func (impl PipelineBuilderImpl) DeleteDeploymentApps(ctx context.Context,
 
 		if isArgoCdApp && argoAppHealthCheckErr != nil {
 
-			failedPipelines = impl.append(
-				failedPipelines,
-				pipeline.Id,
-				pipeline.App.AppName,
-				pipeline.Environment.Name,
-				argoAppHealthCheckErr.Error(),
-				bean.FAILED)
+			failedPipelines = impl.handleFailedDeploymentAppChange(pipeline, failedPipelines, argoAppHealthCheckErr.Error())
 			continue
 		}
 
@@ -1806,13 +1795,9 @@ func (impl PipelineBuilderImpl) DeleteDeploymentApps(ctx context.Context,
 			if err != nil || len(fetchedChart.GitRepoUrl) == 0 {
 				impl.logger.Errorw("error fetching git repo url or it is not present")
 
-				failedPipelines = impl.append(
-					failedPipelines,
-					pipeline.Id,
-					pipeline.App.AppName,
-					pipeline.Environment.Name,
-					"error fetching git repo url or it is not present",
-					bean.FAILED)
+				failedPipelines = impl.handleFailedDeploymentAppChange(pipeline, failedPipelines,
+					"error fetching git repo url or it is not present")
+
 				continue
 			}
 			err = impl.deleteHelmApp(ctx, pipeline)
@@ -1824,13 +1809,9 @@ func (impl PipelineBuilderImpl) DeleteDeploymentApps(ctx context.Context,
 				"err", err)
 
 			// deletion failed, append to the list of failed pipelines
-			failedPipelines = impl.append(
-				failedPipelines,
-				pipeline.Id,
-				pipeline.App.AppName,
-				pipeline.Environment.Name,
-				"error deleting app with error: "+err.Error(),
-				bean.FAILED)
+			failedPipelines = impl.handleFailedDeploymentAppChange(pipeline, failedPipelines,
+				"error deleting app with error: "+err.Error())
+
 			continue
 		}
 
@@ -1848,6 +1829,18 @@ func (impl PipelineBuilderImpl) DeleteDeploymentApps(ctx context.Context,
 		SuccessfulPipelines: successfulPipelines,
 		FailedPipelines:     failedPipelines,
 	}
+}
+
+func (impl PipelineBuilderImpl) handleFailedDeploymentAppChange(pipeline *pipelineConfig.Pipeline,
+	failedPipelines []*bean.DeploymentChangeStatus, err string) []*bean.DeploymentChangeStatus {
+
+	return impl.append(
+		failedPipelines,
+		pipeline.Id,
+		pipeline.App.AppName,
+		pipeline.Environment.Name,
+		err,
+		bean.FAILED)
 }
 
 func (impl PipelineBuilderImpl) checkArgoAppHealthStatus(appId int, envId int, deploymentAppType string) (isArgoCdApp bool, err error) {
