@@ -733,7 +733,9 @@ func (impl *UserTerminalAccessServiceImpl) validateTerminalAccessFromDb(ctx cont
 		statusAndReason := strings.Split(existingTerminalAccessData.Status, "/")
 		if statusAndReason[0] == string(models.TerminalPodTerminated) {
 			impl.TerminalAccessDataArrayMutex.Lock()
-			terminalAccessSessionData.terminalAccessDataEntity.Status = string(models.TerminalPodTerminated)
+			if terminalAccessSessionData != nil && terminalAccessSessionData.terminalAccessDataEntity != nil {
+				terminalAccessSessionData.terminalAccessDataEntity.Status = string(models.TerminalPodTerminated)
+			}
 			impl.TerminalAccessDataArrayMutex.Unlock()
 			return nil, errors.New(fmt.Sprintf("pod-terminated(%s)", statusAndReason[1]))
 		}
