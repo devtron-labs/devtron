@@ -600,6 +600,18 @@ func (handler PipelineConfigRestHandlerImpl) GetEnvironmentListWithAppData(w htt
 	v := r.URL.Query()
 	envName := v.Get("envName")
 	clusterIdString := v.Get("clusterIds")
+	offsetQueryParam := r.URL.Query().Get("offset")
+	offset, err := strconv.Atoi(offsetQueryParam)
+	if offsetQueryParam == "" || err != nil {
+		common.WriteJsonResp(w, err, "invalid offset", http.StatusBadRequest)
+		return
+	}
+	sizeQueryParam := r.URL.Query().Get("size")
+	size, err := strconv.Atoi(sizeQueryParam)
+	if sizeQueryParam == "" || err != nil {
+		common.WriteJsonResp(w, err, "invalid size", http.StatusBadRequest)
+		return
+	}
 	var clusterIds []int
 	if clusterIdString != "" {
 		clusterIdSlices := strings.Split(clusterIdString, ",")
@@ -612,13 +624,13 @@ func (handler PipelineConfigRestHandlerImpl) GetEnvironmentListWithAppData(w htt
 			clusterIds = append(clusterIds, id)
 		}
 	}
-	environments, err := handler.pipelineBuilder.GetEnvironmentListForAutocompleteFilter(envName, clusterIds, token, handler.checkAuth)
+	result, err := handler.pipelineBuilder.GetEnvironmentListForAutocompleteFilter(envName, clusterIds, offset, size, token, handler.checkAuth)
 	if err != nil {
 		handler.Logger.Errorw("service err, get app", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, err, environments, http.StatusOK)
+	common.WriteJsonResp(w, err, result, http.StatusOK)
 }
 
 func (handler PipelineConfigRestHandlerImpl) GetApplicationsByEnvironment(w http.ResponseWriter, r *http.Request) {
