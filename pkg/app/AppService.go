@@ -33,6 +33,7 @@ import (
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/k8s"
+	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"go.opentelemetry.io/otel"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -1951,8 +1952,8 @@ func (impl *AppServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, a
 			}
 			if len(resourceManifest) > 0 {
 				statusMap := resourceManifest["status"].(map[string]interface{})
-				currentReplicaVal := fmt.Sprintf("%v", statusMap["currentReplicas"])
-				currentReplicaCount, err := strconv.ParseFloat(currentReplicaVal, 64)
+				currentReplicaVal := statusMap["currentReplicas"]
+				currentReplicaCount, err := util2.ParseFloatNumber(currentReplicaVal)
 				if err != nil {
 					impl.logger.Errorw("error occurred while parsing replica count", "currentReplicas", currentReplicaVal, "err", err)
 					return merged
@@ -1971,18 +1972,18 @@ func (impl *AppServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, a
 		}
 	}
 	//check for custom chart support
-	if _, ok := templateMap[bean2.CustomAutoScalingEnabled]; ok {
+	if _, ok := templateMap[bean2.CustomAutoScalingEnabledPathKey]; ok {
 		if deploymentType == models.DEPLOYMENTTYPE_STOP {
-			merged, err = impl.setScalingValues(templateMap, bean2.CustomAutoScalingEnabled, merged, false)
+			merged, err = impl.setScalingValues(templateMap, bean2.CustomAutoScalingEnabledPathKey, merged, false)
 			if err != nil {
 				return merged
 			}
-			merged, err = impl.setScalingValues(templateMap, bean2.CustomAutoscalingReplicaCount, merged, 0)
+			merged, err = impl.setScalingValues(templateMap, bean2.CustomAutoscalingReplicaCountPathKey, merged, 0)
 			if err != nil {
 				return merged
 			}
 		} else if deploymentType == models.DEPLOYMENTTYPE_START {
-			merged, err = impl.setScalingValues(templateMap, bean2.CustomAutoScalingEnabled, merged, true)
+			merged, err = impl.setScalingValues(templateMap, bean2.CustomAutoScalingEnabledPathKey, merged, true)
 			if err != nil {
 				return merged
 			}
@@ -1991,7 +1992,7 @@ func (impl *AppServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, a
 			if err != nil {
 				return merged
 			}
-			merged, err = impl.setScalingValues(templateMap, bean2.CustomAutoscalingReplicaCount, merged, replicaCount)
+			merged, err = impl.setScalingValues(templateMap, bean2.CustomAutoscalingReplicaCountPathKey, merged, replicaCount)
 			if err != nil {
 				return merged
 			}
@@ -2002,22 +2003,30 @@ func (impl *AppServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, a
 }
 
 func (impl *AppServiceImpl) getReplicaCountFromCustomChart(templateMap map[string]interface{}, merged []byte) (float64, error) {
-	autoscalingMinVal, err := util2.ParseFloatNumber(templateMap, bean2.CustomAutoscalingMin, merged)
+	autoscalingMinVal, err := impl.extractParamValue(templateMap, bean2.CustomAutoscalingMinPathKey, merged)
 	if err != nil {
-		impl.logger.Errorw("error occurred while parsing float number", "key", bean2.CustomAutoscalingMin, "err", err)
 		return 0, err
 	}
-	autoscalingMaxVal, err := util2.ParseFloatNumber(templateMap, bean2.CustomAutoscalingMax, merged)
+	autoscalingMaxVal, err := impl.extractParamValue(templateMap, bean2.CustomAutoscalingMaxPathKey, merged)
 	if err != nil {
-		impl.logger.Errorw("error occurred while parsing float number", "key", bean2.CustomAutoscalingMax, "err", err)
 		return 0, err
 	}
-	autoscalingReplicaCountVal, err := util2.ParseFloatNumber(templateMap, bean2.CustomAutoscalingReplicaCount, merged)
+	autoscalingReplicaCountVal, err := impl.extractParamValue(templateMap, bean2.CustomAutoscalingReplicaCountPathKey, merged)
 	if err != nil {
-		impl.logger.Errorw("error occurred while parsing float number", "key", bean2.CustomAutoscalingReplicaCount, "err", err)
 		return 0, err
 	}
 	return impl.fetchRequiredReplicaCount(autoscalingReplicaCountVal, autoscalingMaxVal, autoscalingMinVal), nil
+}
+
+func (impl *AppServiceImpl) extractParamValue(inputMap map[string]interface{}, key string, merged []byte) (float64, error) {
+	if _, ok := inputMap[key]; !ok {
+		return 0, errors.New("empty-val-err")
+	}
+	floatNumber, err := util2.ParseFloatNumber(gjson.Get(string(merged), inputMap[key].(string)))
+	if err != nil {
+		impl.logger.Errorw("error occurred while parsing float number", "key", key, "err", err)
+	}
+	return floatNumber, err
 }
 
 func (impl *AppServiceImpl) setScalingValues(templateMap map[string]interface{}, customScalingKey string, merged []byte, value interface{}) ([]byte, error) {

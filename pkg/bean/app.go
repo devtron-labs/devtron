@@ -675,7 +675,7 @@ type ExampleValueDto struct {
 	Status string     `json:"status,omitempty"`
 }
 
-const CustomAutoScalingEnabled = "CUSTOM_AUTOSCALING_ENABLED"
-const CustomAutoscalingReplicaCount = "CUSTOM_AUTOSCALING_REPLICA_COUNT"
-const CustomAutoscalingMin = "CUSTOM_AUTOSCALING_MIN"
-const CustomAutoscalingMax = "CUSTOM_AUTOSCALING_MAX"
+const CustomAutoScalingEnabledPathKey = "CUSTOM_AUTOSCALING_ENABLED_PATH"
+const CustomAutoscalingReplicaCountPathKey = "CUSTOM_AUTOSCALING_REPLICA_COUNT_PATH"
+const CustomAutoscalingMinPathKey = "CUSTOM_AUTOSCALING_MIN_PATH"
+const CustomAutoscalingMaxPathKey = "CUSTOM_AUTOSCALING_MAX_PATH"
