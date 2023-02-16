@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
