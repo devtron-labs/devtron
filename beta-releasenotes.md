@@ -21,4 +21,5 @@
 - docs: mount pvc (#2941)
 - docs: minor updates ingress (#2931)
 ## Others
+- plugin jira icon added (#2977)
 - task: added api for getting default template values (#2905)
