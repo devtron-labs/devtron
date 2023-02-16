@@ -53,6 +53,7 @@ import (
 
 type AppListingService interface {
 	FetchAppsByEnvironment(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, error)
+	FetchJobs(fetchJobListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request) ([]*bean.JobsContainer, error)
 	BuildAppListingResponse(fetchAppListingRequest FetchAppListingRequest, envContainers []*bean.AppEnvironmentContainer) ([]*bean.AppContainer, error)
 	FetchAllDevtronManagedApps() ([]AppNameTypeIdContainer, error)
 	FetchAppDetails(ctx context.Context, appId int, envId int) (bean.AppDetailContainer, error)
@@ -219,6 +220,26 @@ func (impl AppListingServiceImpl) FetchAllDevtronManagedApps() ([]AppNameTypeIdC
 		apps = append(apps, appContainer)
 	}
 	return apps, nil
+}
+func (impl AppListingServiceImpl) FetchJobs(fetchJobListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.JobsContainer, error) {
+
+	jobListingFilter := helper.AppListingFilter{
+		Statuses:          fetchJobListingRequest.Statuses,
+		Teams:             fetchJobListingRequest.Teams,
+		AppNameSearch:     fetchJobListingRequest.AppNameSearch,
+		SortOrder:         fetchJobListingRequest.SortOrder,
+		SortBy:            fetchJobListingRequest.SortBy,
+		Offset:            fetchJobListingRequest.Offset,
+		Size:              fetchJobListingRequest.Size,
+		DeploymentGroupId: fetchJobListingRequest.DeploymentGroupId,
+		AppStatuses:       fetchJobListingRequest.AppStatuses,
+	}
+	jobContainers, err := impl.appListingRepository.FetchJobs(jobListingFilter)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching app list", "error", err)
+		return []*bean.JobsContainer{}, err
+	}
+	return jobContainers, err
 }
 func (impl AppListingServiceImpl) FetchAppsByEnvironment(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, error) {
 	impl.Logger.Debug("reached at FetchAppsByEnvironment:")

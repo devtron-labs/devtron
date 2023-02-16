@@ -52,6 +52,21 @@ type CiMaterialDTO struct {
 	SourceValue string `json:"value"`
 }
 
+type JobsContainer struct {
+	JobId       int             `json:"id"`
+	JobName     string          `json:"name""`
+	LastRun     []LastRunStatus `json:"last-run"'`
+	Description string          `json:"description"`
+	ProjectId   int             `json:"projectId"`
+}
+
+type LastRunStatus struct {
+	PipelineId    int    `json:"pipeline-id"`
+	LastRunStatus int    `json:"lastRunStatus"`
+	LastRunAt     string `json:"lastRunAt"`
+	LastSuccessAt string `json:"lastRunAt"`
+}
+
 type AppEnvironmentContainer struct {
 	AppId                       int                       `json:"appId"`
 	AppName                     string                    `json:"appName"`

@@ -851,7 +851,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateJob(createRequest *bean.CreateApp
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-	app, err := impl.createJobGroup(createRequest.AppName, createRequest.UserId, createRequest.TeamId, tx)
+	app, err := impl.createJobGroup(createRequest.AppName, createRequest.UserId, createRequest.TeamId, createRequest.Description, tx)
 	if err != nil {
 		return nil, err
 	}
@@ -1083,7 +1083,7 @@ func (impl CiCdPipelineOrchestratorImpl) createAppGroup(name string, userId int3
 	return pg, nil
 }
 
-func (impl CiCdPipelineOrchestratorImpl) createJobGroup(name string, userId int32, teamId int, tx *pg.Tx) (*app2.App, error) {
+func (impl CiCdPipelineOrchestratorImpl) createJobGroup(name string, userId int32, teamId int, description string, tx *pg.Tx) (*app2.App, error) {
 	app, err := impl.appRepository.FindActiveByName(name)
 	if err != nil && err != pg.ErrNoRows {
 		return nil, err
@@ -1098,11 +1098,12 @@ func (impl CiCdPipelineOrchestratorImpl) createJobGroup(name string, userId int3
 		return nil, err
 	}
 	pg := &app2.App{
-		Active:   true,
-		AppName:  name,
-		TeamId:   teamId,
-		AppStore: 2,
-		AuditLog: sql.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
+		Active:      true,
+		AppName:     name,
+		TeamId:      teamId,
+		AppStore:    2,
+		Description: description,
+		AuditLog:    sql.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 	}
 	err = impl.appRepository.SaveWithTxn(pg, tx)
 	if err != nil {

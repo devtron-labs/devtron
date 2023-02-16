@@ -38,13 +38,14 @@ type SourceTypeConfig struct {
 }
 
 type CreateAppDTO struct {
-	Id         int            `json:"id,omitempty" validate:"number"`
-	AppName    string         `json:"appName" validate:"name-component,max=100"`
-	UserId     int32          `json:"-"` //not exposed to UI
-	Material   []*GitMaterial `json:"material" validate:"dive,min=1"`
-	TeamId     int            `json:"teamId,omitempty" validate:"number,required"`
-	TemplateId int            `json:"templateId"`
-	AppLabels  []*Label       `json:"labels,omitempty" validate:"dive"`
+	Id          int            `json:"id,omitempty" validate:"number"`
+	AppName     string         `json:"appName" validate:"name-component,max=100"`
+	UserId      int32          `json:"-"` //not exposed to UI
+	Material    []*GitMaterial `json:"material" validate:"dive,min=1"`
+	TeamId      int            `json:"teamId,omitempty" validate:"number,required"`
+	TemplateId  int            `json:"templateId"`
+	AppLabels   []*Label       `json:"labels,omitempty" validate:"dive"`
+	Description string         `json:"description"`
 }
 
 type CreateMaterialDTO struct {

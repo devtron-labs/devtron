@@ -33,6 +33,7 @@ type App struct {
 	TeamId          int      `sql:"team_id"`
 	AppStore        int      `sql:"app_store, notnull"`
 	AppOfferingMode string   `sql:"app_offering_mode,notnull"`
+	Description     string   `sql:"-"`
 	Team            team.Team
 	sql.AuditLog
 }

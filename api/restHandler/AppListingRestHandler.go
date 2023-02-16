@@ -56,6 +56,7 @@ import (
 
 type AppListingRestHandler interface {
 	FetchAppsByEnvironment(w http.ResponseWriter, r *http.Request)
+	FetchJobs(w http.ResponseWriter, r *http.Request)
 	FetchAppDetails(w http.ResponseWriter, r *http.Request)
 	FetchAllDevtronManagedApps(w http.ResponseWriter, r *http.Request)
 	FetchAppTriggerView(w http.ResponseWriter, r *http.Request)
@@ -155,6 +156,28 @@ func (handler AppListingRestHandlerImpl) FetchAllDevtronManagedApps(w http.Respo
 	//RBAC ends
 	res, err := handler.appListingService.FetchAllDevtronManagedApps()
 	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+func (handler AppListingRestHandlerImpl) FetchJobs(w http.ResponseWriter, r *http.Request) {
+	newCtx, span := otel.Tracer("userService").Start(r.Context(), "GetLoggedInUser")
+	userId, err := handler.userService.GetLoggedInUser(r)
+	span.End()
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	newCtx, span = otel.Tracer("userService").Start(newCtx, "GetById")
+
+	var fetchJobListingRequest app.FetchAppListingRequest
+	decoder := json.NewDecoder(r.Body)
+	err = decoder.Decode(&fetchJobListingRequest)
+	if err != nil {
+		handler.logger.Errorw("request err, FetchAppsByEnvironment", "err", err, "payload", fetchJobListingRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	var dg *deploymentGroup.
+
 }
 func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseWriter, r *http.Request) {
 	//Allow CORS here By * or specific origin

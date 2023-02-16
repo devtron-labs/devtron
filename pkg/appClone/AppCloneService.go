@@ -20,11 +20,8 @@ package appClone
 import (
 	"context"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/internal/constants"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
-	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/chart"
-	"github.com/go-pg/pg"
 	"strings"
 
 	"fmt"
@@ -88,19 +85,19 @@ type CloneRequest struct {
 
 func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context context.Context) (*bean.CreateAppDTO, error) {
 	//validate template app
-	templateApp, err := impl.appRepository.FindById(createReq.TemplateId)
-	if err != nil && err != pg.ErrNoRows {
-		return nil, err
-	}
-	if (templateApp == nil && templateApp.Id == 0) || (templateApp.AppStore != 0) {
-		impl.logger.Warnw("template app does not exist", "id", createReq.TemplateId)
-		err = &util.ApiError{
-			Code:            constants.AppDoesNotExist.Code,
-			InternalMessage: "app does not exist",
-			UserMessage:     constants.AppAlreadyExists.UserMessage(createReq.TemplateId),
-		}
-		return nil, err
-	}
+	//templateApp, err := impl.appRepository.FindById(createReq.TemplateId)
+	//if err != nil && err != pg.ErrNoRows {
+	//	return nil, err
+	//}
+	//if (templateApp == nil && templateApp.Id == 0) || (templateApp.AppStore != 0) {
+	//	impl.logger.Warnw("template app does not exist", "id", createReq.TemplateId)
+	//	err = &util.ApiError{
+	//		Code:            constants.AppDoesNotExist.Code,
+	//		InternalMessage: "app does not exist",
+	//		UserMessage:     constants.AppAlreadyExists.UserMessage(createReq.TemplateId),
+	//	}
+	//	return nil, err
+	//}
 	//create new app
 	cloneReq := &CloneRequest{
 		RefAppId:  createReq.TemplateId,
@@ -209,19 +206,19 @@ func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context 
 
 func (impl *AppCloneServiceImpl) CloneJob(createReq *bean.CreateAppDTO, context context.Context) (*bean.CreateAppDTO, error) {
 	//validate template job
-	templateApp, err := impl.appRepository.FindById(createReq.TemplateId)
-	if err != nil && err != pg.ErrNoRows {
-		return nil, err
-	}
-	if (templateApp == nil && templateApp.Id == 0) || (templateApp.AppStore != 2) {
-		impl.logger.Warnw("template job does not exist", "id", createReq.TemplateId)
-		err = &util.ApiError{
-			Code:            constants.AppDoesNotExist.Code,
-			InternalMessage: "job does not exist",
-			UserMessage:     constants.AppAlreadyExists.UserMessage(createReq.TemplateId),
-		}
-		return nil, err
-	}
+	//templateApp, err := impl.appRepository.FindById(createReq.TemplateId)
+	//if err != nil && err != pg.ErrNoRows {
+	//	return nil, err
+	//}
+	//if (templateApp == nil && templateApp.Id == 0) || (templateApp.AppStore != 2) {
+	//	impl.logger.Warnw("template job does not exist", "id", createReq.TemplateId)
+	//	err = &util.ApiError{
+	//		Code:            constants.AppDoesNotExist.Code,
+	//		InternalMessage: "job does not exist",
+	//		UserMessage:     constants.AppAlreadyExists.UserMessage(createReq.TemplateId),
+	//	}
+	//	return nil, err
+	//}
 	//create new job
 
 	cloneReq := &CloneRequest{

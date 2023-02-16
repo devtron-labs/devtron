@@ -37,6 +37,7 @@ import (
 
 type AppListingRepository interface {
 	FetchAppsByEnvironment(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, error)
+	FetchJobs(appListingFilter helper.AppListingFilter) ([]*bean.JobsContainer, error)
 	DeploymentDetailsByAppIdAndEnvId(ctx context.Context, appId int, envId int) (bean.DeploymentDetailContainer, error)
 	FetchAppDetail(ctx context.Context, appId int, envId int) (bean.AppDetailContainer, error)
 
@@ -84,7 +85,17 @@ func NewAppListingRepositoryImpl(Logger *zap.SugaredLogger, dbConnection *pg.DB,
 *
 It will return the list of filtered apps with details related to each env
 */
-
+func (impl AppListingRepositoryImpl) FetchJobs(jobListingFilter helper.AppListingFilter) ([]*bean.JobsContainer, error) {
+	var jobContainer []*bean.JobsContainer
+	jobsQuery := impl.appListingRepositoryQueryBuilder.BuildJobListingQuery(jobListingFilter)
+	impl.Logger.Debugw("basic app detail query: ", jobsQuery)
+	_, appsErr := impl.dbConnection.Query(&jobContainer, jobsQuery)
+	if appsErr != nil {
+		impl.Logger.Error(appsErr)
+		return jobContainer, appsErr
+	}
+	return jobContainer, nil
+}
 func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, error) {
 	impl.Logger.Debug("reached at FetchAppsByEnvironment:")
 	var appEnvArr []*bean.AppEnvironmentContainer
@@ -313,7 +324,7 @@ func (impl AppListingRepositoryImpl) FetchAppTriggerView(appId int) ([]bean.Trig
 		" INNER JOIN ci_pipeline cp on cp.id = p.ci_pipeline_id" +
 		" INNER JOIN app a ON a.id = p.app_id" +
 		" INNER JOIN environment env on env.id = p.environment_id" +
-		" WHERE p.app_id=? and p.deleted=false and a.app_store is 0 AND env.active = TRUE;"
+		" WHERE p.app_id=? and p.deleted=false and a.app_store = 0 AND env.active = TRUE;"
 
 	impl.Logger.Debugw("query", query)
 	_, err := impl.dbConnection.Query(&triggerView, query, appId)
@@ -392,7 +403,7 @@ func (impl AppListingRepositoryImpl) FetchAppStageStatus(appId int) ([]bean.AppS
 		" LEFT JOIN charts ch on ch.app_id=app.id" +
 		" LEFT JOIN pipeline p on p.app_id=app.id" +
 		" LEFT JOIN chart_env_config_override ceco on ceco.chart_id=ch.id" +
-		" WHERE app.id=? and app.app_store is false;"
+		" WHERE app.id=? and app.app_store = 0;"
 
 	impl.Logger.Debugw("last app stages status query:", "query", query)
 

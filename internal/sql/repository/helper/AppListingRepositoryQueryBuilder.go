@@ -60,6 +60,17 @@ const (
 	AppNameSortBy SortBy = "appNameSort"
 )
 
+func (impl AppListingRepositoryQueryBuilder) BuildJobListingQuery(appListingFilter AppListingFilter) string {
+	whereCondition := impl.buildJobListingWhereCondition(appListingFilter)
+	orderByClause := impl.buildJobListingSortBy(appListingFilter)
+
+	query := "SELECT app_id, a.app_name, a.team_id, a.description" + "status, started_on, finished_on" +
+		""
+
+	query = query + whereCondition + orderByClause
+	return query
+}
+
 func (impl AppListingRepositoryQueryBuilder) BuildAppListingQuery(appListingFilter AppListingFilter) string {
 	whereCondition := impl.buildAppListingWhereCondition(appListingFilter)
 	orderByClause := impl.buildAppListingSortBy(appListingFilter)
@@ -91,6 +102,31 @@ func (impl AppListingRepositoryQueryBuilder) BuildAppListingQueryLastDeploymentT
 func (impl AppListingRepositoryQueryBuilder) buildAppListingSortBy(appListingFilter AppListingFilter) string {
 	orderByCondition := " ORDER BY p.updated_on desc "
 	return orderByCondition
+}
+
+func (impl AppListingRepositoryQueryBuilder) buildJobListingSortBy(appListingFilter AppListingFilter) string {
+	orderByCondition := " ORDER BY a.name"
+	return orderByCondition
+}
+
+func (impl AppListingRepositoryQueryBuilder) buildJobListingWhereCondition(jobListingFilter AppListingFilter) string {
+	whereCondition := "WHERE a.active = true and a.app_store = 2 "
+
+	if len(jobListingFilter.Teams) > 0 {
+		teamIds := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(jobListingFilter.Teams)), ","), "[]")
+		whereCondition = whereCondition + "and a.team_id IN (" + teamIds + ") "
+	}
+
+	if jobListingFilter.AppNameSearch != "" {
+		likeClause := "'%" + jobListingFilter.AppNameSearch + "%'"
+		whereCondition = whereCondition + "and a.app_name like " + likeClause + " "
+	}
+	// add job stats filter here
+	if len(jobListingFilter.AppStatuses) > 0 {
+		appStatuses := util.ProcessAppStatuses(jobListingFilter.AppStatuses)
+		whereCondition = whereCondition + "and aps.status IN (" + appStatuses + ") "
+	}
+	return whereCondition
 }
 
 func (impl AppListingRepositoryQueryBuilder) buildAppListingWhereCondition(appListingFilter AppListingFilter) string {
