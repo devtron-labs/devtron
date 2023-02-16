@@ -175,9 +175,19 @@ func (handler AppListingRestHandlerImpl) FetchJobs(w http.ResponseWriter, r *htt
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	_, err = handler.appListingService.FetchJobs(fetchJobListingRequest, w, r)
+	// Apply pagination
+	appsCount := len(apps)
+	offset := fetchJobListingRequest.Offset
+	limit := fetchJobListingRequest.Size
 
-	var dg *deploymentGroup.
-
+	if offset+limit <= len(apps) {
+		apps = apps[offset : offset+limit]
+	} else {
+		apps = apps[offset:]
+	}
+	jobContainerResponse := bean.JobsContainer{}
+	common.WriteJsonResp(w, err, jobContainerResponse, http.StatusOK)
 }
 func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseWriter, r *http.Request) {
 	//Allow CORS here By * or specific origin
