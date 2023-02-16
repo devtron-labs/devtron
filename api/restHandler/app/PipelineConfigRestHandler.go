@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/util/argo"
-	"github.com/go-pg/pg"
 	"io"
 	"net/http"
 	"strconv"
@@ -65,13 +64,13 @@ type DevtronAppRestHandler interface {
 
 	FindAppsByTeamId(w http.ResponseWriter, r *http.Request)
 	FindAppsByTeamName(w http.ResponseWriter, r *http.Request)
-	GetAppEnvironment(w http.ResponseWriter, r *http.Request)
-	GetAppListByEnvId(w http.ResponseWriter, r *http.Request)
+	GetEnvironmentListWithAppData(w http.ResponseWriter, r *http.Request)
+	GetApplicationsByEnvironment(w http.ResponseWriter, r *http.Request)
 }
 
 type DevtronAppWorkflowRestHandler interface {
 	FetchAppWorkflowStatusForTriggerView(w http.ResponseWriter, r *http.Request)
-	FetchAppWorkflowStatusForTriggerViewForEnvironment(w http.ResponseWriter, r *http.Request)
+	FetchAppWorkflowStatusForTriggerViewByEnvironment(w http.ResponseWriter, r *http.Request)
 }
 
 type PipelineConfigRestHandler interface {
@@ -551,7 +550,7 @@ func (handler PipelineConfigRestHandlerImpl) PipelineNameSuggestion(w http.Respo
 	common.WriteJsonResp(w, err, suggestedName, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(w http.ResponseWriter, r *http.Request) {
+func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerViewByEnvironment(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -567,7 +566,7 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerVie
 	handler.Logger.Infow("request payload, FetchAppWorkflowStatusForTriggerView", "envId", envId)
 	handler.Logger.Info(token)
 	triggerWorkflowStatus := pipelineConfig.TriggerWorkflowStatus{}
-	ciWorkflowStatus, err := handler.ciHandler.FetchCiStatusForTriggerViewForEnvironment(envId)
+	ciWorkflowStatus, err := handler.ciHandler.FetchCiStatusForTriggerViewForEnvironment(envId, token, handler.checkAuth)
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchAppWorkflowStatusForTriggerView", "err", err)
 		if util.IsErrNoRows(err) {
@@ -579,7 +578,7 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerVie
 		return
 	}
 
-	cdWorkflowStatus, err := handler.cdHandler.FetchAppWorkflowStatusForTriggerViewForEnvironment(envId)
+	cdWorkflowStatus, err := handler.cdHandler.FetchAppWorkflowStatusForTriggerViewForEnvironment(envId, token, handler.checkAuth)
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchAppWorkflowStatusForTriggerView", "err", err)
 		if util.IsErrNoRows(err) {
@@ -595,10 +594,9 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerVie
 	common.WriteJsonResp(w, err, triggerWorkflowStatus, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) GetAppEnvironment(w http.ResponseWriter, r *http.Request) {
+func (handler PipelineConfigRestHandlerImpl) GetEnvironmentListWithAppData(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	handler.Logger.Info(token)
-
 	v := r.URL.Query()
 	envName := v.Get("envName")
 	clusterIdString := v.Get("clusterIds")
@@ -614,29 +612,16 @@ func (handler PipelineConfigRestHandlerImpl) GetAppEnvironment(w http.ResponseWr
 			clusterIds = append(clusterIds, id)
 		}
 	}
-	//vars := mux.Vars(r)
-	var results []request.EnvironmentBean
-	environments, err := handler.envService.GetEnvironmentListForAutocompleteFilter(envName, clusterIds)
+	environments, err := handler.pipelineBuilder.GetEnvironmentListForAutocompleteFilter(envName, clusterIds, token, handler.checkAuth)
 	if err != nil {
 		handler.Logger.Errorw("service err, get app", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	for _, environment := range environments {
-		pipelines, err := handler.pipelineRepository.FindActiveByEnvId(environment.Id)
-		if err != nil && err != pg.ErrNoRows {
-			handler.Logger.Errorw("service err, get app", "err", err)
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
-		environment.AppCount = len(pipelines)
-		results = append(results, environment)
-	}
-
-	common.WriteJsonResp(w, err, results, http.StatusOK)
+	common.WriteJsonResp(w, err, environments, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) GetAppListByEnvId(w http.ResponseWriter, r *http.Request) {
+func (handler PipelineConfigRestHandlerImpl) GetApplicationsByEnvironment(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	envId, err := strconv.Atoi(vars["envId"])
 	if err != nil {
@@ -645,12 +630,12 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListByEnvId(w http.ResponseWr
 		return
 	}
 	handler.Logger.Infow("request payload, get app", "envId", envId)
-	ciConf, err := handler.pipelineBuilder.GetAppListForEnvironment(envId)
+	token := r.Header.Get("token")
+	ciConf, err := handler.pipelineBuilder.GetAppListForEnvironment(envId, token, handler.checkAuth)
 	if err != nil {
 		handler.Logger.Errorw("service err, get app", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-
 	common.WriteJsonResp(w, err, ciConf, http.StatusOK)
 }

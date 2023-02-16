@@ -63,7 +63,7 @@ type CdHandler interface {
 	CheckArgoPipelineTimelineStatusPeriodicallyAndUpdateInDb(pendingSinceSeconds int, timeForDegradation int) error
 	UpdatePipelineTimelineAndStatusByLiveApplicationFetch(pipeline *pipelineConfig.Pipeline, userId int32) (err error, isTimelineUpdated bool)
 	CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipelineId int, userId int32)
-	FetchAppWorkflowStatusForTriggerViewForEnvironment(envId int) ([]*pipelineConfig.CdWorkflowStatus, error)
+	FetchAppWorkflowStatusForTriggerViewForEnvironment(envId int, token string, auth func(token string, object string) bool) ([]*pipelineConfig.CdWorkflowStatus, error)
 }
 
 type CdHandlerImpl struct {
@@ -944,7 +944,7 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerView(appId int) ([]*p
 	return cdWorkflowStatus, err
 }
 
-func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(envId int) ([]*pipelineConfig.CdWorkflowStatus, error) {
+func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(envId int, token string, auth func(token string, object string) bool) ([]*pipelineConfig.CdWorkflowStatus, error) {
 	var cdWorkflowStatus []*pipelineConfig.CdWorkflowStatus
 	pipelines, err := impl.pipelineRepository.FindActiveByEnvId(envId)
 	if err != nil && err != pg.ErrNoRows {

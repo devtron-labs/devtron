@@ -69,7 +69,7 @@ type CiHandler interface {
 	FetchMaterialInfoByArtifactId(ciArtifactId int) (*GitTriggerInfoResponse, error)
 	WriteToCreateTestSuites(pipelineId int, buildId int, triggeredBy int)
 	UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuild int) error
-	FetchCiStatusForTriggerViewForEnvironment(envId int) ([]*pipelineConfig.CiWorkflowStatus, error)
+	FetchCiStatusForTriggerViewForEnvironment(envId int, token string, auth func(token string, object string) bool) ([]*pipelineConfig.CiWorkflowStatus, error)
 }
 
 type CiHandlerImpl struct {
@@ -1276,7 +1276,7 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 	return nil
 }
 
-func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(envId int) ([]*pipelineConfig.CiWorkflowStatus, error) {
+func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(envId int, token string, auth func(token string, object string) bool) ([]*pipelineConfig.CiWorkflowStatus, error) {
 	var ciWorkflowStatuses []*pipelineConfig.CiWorkflowStatus
 	cdPipelines, err := impl.cdPipelineRepository.FindActiveByEnvId(envId)
 	if err != nil && err != pg.ErrNoRows {

@@ -47,7 +47,7 @@ type AppWorkflowService interface {
 	FindAppWorkflowByName(name string, appId int) (AppWorkflowDto, error)
 
 	FindAllWorkflowsComponentDetails(appId int) (*AllAppWorkflowComponentDetails, error)
-	FindAppWorkflowsByEnvironmentId(envId int) ([]AppWorkflowDto, error)
+	FindAppWorkflowsByEnvironmentId(envId int, token string, auth func(token string, object string) bool) ([]AppWorkflowDto, error)
 }
 
 type AppWorkflowServiceImpl struct {
@@ -382,7 +382,7 @@ func (impl AppWorkflowServiceImpl) FindAllWorkflowsComponentDetails(appId int) (
 	return resp, nil
 }
 
-func (impl AppWorkflowServiceImpl) FindAppWorkflowsByEnvironmentId(envId int) ([]AppWorkflowDto, error) {
+func (impl AppWorkflowServiceImpl) FindAppWorkflowsByEnvironmentId(envId int, token string, auth func(token string, object string) bool) ([]AppWorkflowDto, error) {
 	pipelines, err := impl.pipelineRepository.FindActiveByEnvId(envId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("error fetching pipelines for env id", "err", err)

@@ -1884,13 +1884,19 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelinesByEnvironment(w http.
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
-	results, err := handler.pipelineBuilder.GetCdPipelinesByEnvironment(envId)
+	token := r.Header.Get("token")
+	results, err := handler.pipelineBuilder.GetCdPipelinesByEnvironment(envId, token, handler.checkAuth)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetCdPipelines", "err", err, "envId", envId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-
 	common.WriteJsonResp(w, err, results, http.StatusOK)
+}
+
+func (handler *PipelineConfigRestHandlerImpl) checkAuth(token string, object string) bool {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, strings.ToLower(object)); !ok {
+		return false
+	}
+	return true
 }

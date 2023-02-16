@@ -76,8 +76,6 @@ type EnvironmentService interface {
 	GetByClusterId(id int) ([]*EnvironmentBean, error)
 	GetCombinedEnvironmentListForDropDown(token string, isActionUserSuperAdmin bool, auth func(token string, object string) bool) ([]*ClusterEnvDto, error)
 	GetCombinedEnvironmentListForDropDownByClusterIds(token string, clusterIds []int, auth func(token string, object string) bool) ([]*ClusterEnvDto, error)
-
-	GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int) ([]EnvironmentBean, error)
 }
 
 type EnvironmentServiceImpl struct {
@@ -351,35 +349,6 @@ func (impl EnvironmentServiceImpl) FindClusterByEnvId(id int) (*ClusterBean, err
 
 func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete() ([]EnvironmentBean, error) {
 	models, err := impl.environmentRepository.FindAllActive()
-	if err != nil {
-		impl.logger.Errorw("error in fetching environment", "err", err)
-	}
-	var beans []EnvironmentBean
-	for _, model := range models {
-		beans = append(beans, EnvironmentBean{
-			Id:                    model.Id,
-			Environment:           model.Name,
-			Namespace:             model.Namespace,
-			CdArgoSetup:           model.Cluster.CdArgoSetup,
-			EnvironmentIdentifier: model.EnvironmentIdentifier,
-			ClusterName:           model.Cluster.ClusterName,
-		})
-	}
-	return beans, nil
-}
-
-func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int) ([]EnvironmentBean, error) {
-	var models []*repository.Environment
-	var err error
-	if len(envName) > 0 && len(clusterIds) > 0 {
-		models, err = impl.environmentRepository.FindByEnvNameAndClusterIds(envName, clusterIds)
-	} else if len(clusterIds) > 0 {
-		models, err = impl.environmentRepository.FindByClusterIds(clusterIds)
-	} else if len(envName) > 0 {
-		models, err = impl.environmentRepository.FindByEnvName(envName)
-	} else {
-		models, err = impl.environmentRepository.FindAllActive()
-	}
 	if err != nil {
 		impl.logger.Errorw("error in fetching environment", "err", err)
 	}
