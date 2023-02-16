@@ -1988,12 +1988,8 @@ func (impl *AppServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, a
 			if val, ok := autoscalingEnabledValue.(bool); ok {
 				autoscalingEnabled = val
 			}
-			//merged, err = impl.setScalingValues(templateMap, bean2.CustomAutoScalingEnabledPathKey, merged, true)
-			//if err != nil {
-			//	return merged
-			//}
-			// extract replica count, min, max and check for required value
 			if autoscalingEnabled {
+				// extract replica count, min, max and check for required value
 				replicaCount, err := impl.getReplicaCountFromCustomChart(templateMap, merged)
 				if err != nil {
 					return merged
