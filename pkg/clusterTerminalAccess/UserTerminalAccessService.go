@@ -36,6 +36,7 @@ type UserTerminalAccessService interface {
 	FetchPodManifest(ctx context.Context, userTerminalAccessId int) (resp *application.ManifestResponse, err error)
 	FetchPodEvents(ctx context.Context, userTerminalAccessId int) (*models.UserTerminalPodEvents, error)
 	ValidateShell(podName, namespace, shellName string, clusterId int) (bool, string, error)
+	//EditPodManifest(ctx context.Context, userTerminalAccessId int, req map[string]string) (resp *application.ManifestResponse, err error)
 }
 
 type UserTerminalAccessServiceImpl struct {
@@ -576,6 +577,7 @@ func (impl *UserTerminalAccessServiceImpl) SyncPodStatus() {
 					continue
 				}
 			}
+			impl.TerminalAccessDataArrayMutex.Lock()
 			terminalAccessSessionData.terminateTriggered = true
 			if existingStatus != terminalPodStatusString {
 				terminalAccessId := terminalAccessData.Id
@@ -586,6 +588,7 @@ func (impl *UserTerminalAccessServiceImpl) SyncPodStatus() {
 				}
 				terminalAccessData.Status = terminalPodStatusString
 			}
+			impl.TerminalAccessDataArrayMutex.Unlock()
 		}
 	}
 	impl.TerminalAccessDataArrayMutex.Lock()
@@ -621,7 +624,9 @@ func (impl *UserTerminalAccessServiceImpl) checkAndStartSession(ctx context.Cont
 			impl.Logger.Errorw("error occurred while updating terminal status", "terminalAccessId", terminalAccessId, "err", err)
 			return "", "", err
 		}
+		impl.TerminalAccessDataArrayMutex.Lock()
 		terminalAccessData.Status = terminalPodStatusString
+		impl.TerminalAccessDataArrayMutex.Unlock()
 		//create terminal session if status is Running and store sessionId
 		request := &terminal.TerminalSessionRequest{
 			Shell:     metadataMap["ShellName"],
@@ -673,7 +678,9 @@ func (impl *UserTerminalAccessServiceImpl) FetchTerminalStatus(ctx context.Conte
 			terminalSessionId = terminalAccessSessionData.sessionId
 			validSession := impl.terminalSessionHandler.ValidateSession(terminalSessionId)
 			if validSession {
+				impl.TerminalAccessDataArrayMutex.Lock()
 				terminalAccessData = terminalAccessSessionData.terminalAccessDataEntity
+				impl.TerminalAccessDataArrayMutex.Unlock()
 			}
 		}
 	}
@@ -741,11 +748,12 @@ func (impl *UserTerminalAccessServiceImpl) validateTerminalAccessFromDb(ctx cont
 		}
 		if nodeName != "" {
 			terminalAccessData.NodeName = nodeName
+			existingTerminalAccessData.NodeName = nodeName
 		}
+		impl.TerminalAccessDataArrayMutex.Lock()
 		if terminalAccessSessionData == nil {
 			terminalAccessSessionData = &UserTerminalAccessSessionData{}
 		}
-		impl.TerminalAccessDataArrayMutex.Lock()
 		terminalAccessSessionData.sessionId = terminalSessionId
 		terminalAccessSessionData.terminalAccessDataEntity = existingTerminalAccessData
 		terminalAccessDataMap[terminalAccessId] = terminalAccessSessionData
@@ -1016,3 +1024,19 @@ func (impl *UserTerminalAccessServiceImpl) getTerminalAccessDataForId(userTermin
 	}
 	return terminalAccessData, err
 }
+
+//func (impl *UserTerminalAccessServiceImpl) EditPodManifest(ctx context.Context, userTerminalAccessId int, req map[string]string) (*application.ManifestResponse, error) {
+//	terminalAccessDataMap := *impl.TerminalAccessSessionDataMap
+//	terminalAccessSessionData, present := terminalAccessDataMap[userTerminalAccessId]
+//	if present {
+//		clusterId := terminalAccessSessionData.terminalAccessDataEntity.ClusterId
+//		namespace := "default"
+//		err := impl.applyTemplate(ctx, clusterId, req["manifest"], req["manifest"], false, namespace)
+//		return nil, err
+//	}
+//
+//	//search in db,if found update in cache then apply
+//	//if not found in db request is invalid
+//
+//	return nil, nil
+//}
