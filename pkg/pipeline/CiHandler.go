@@ -25,6 +25,7 @@ import (
 	"fmt"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/util/rbac"
 	"io/ioutil"
 	errors2 "k8s.io/apimachinery/pkg/api/errors"
 	"net/http"
@@ -69,7 +70,7 @@ type CiHandler interface {
 	FetchMaterialInfoByArtifactId(ciArtifactId int) (*GitTriggerInfoResponse, error)
 	WriteToCreateTestSuites(pipelineId int, buildId int, triggeredBy int)
 	UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuild int) error
-	FetchCiStatusForTriggerViewForEnvironment(envId int) ([]*pipelineConfig.CiWorkflowStatus, error)
+	FetchCiStatusForTriggerViewForEnvironment(envId int, token string, auth func(token string, appObject string, envObject string) bool) ([]*pipelineConfig.CiWorkflowStatus, error)
 }
 
 type CiHandlerImpl struct {
@@ -89,13 +90,14 @@ type CiHandlerImpl struct {
 	appListingRepository         repository.AppListingRepository
 	K8sUtil                      *util.K8sUtil
 	cdPipelineRepository         pipelineConfig.PipelineRepository
+	enforcerUtil                 rbac.EnforcerUtil
 }
 
 func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	gitSensorClient gitSensor.GitSensorClient, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, workflowService WorkflowService,
 	ciLogService CiLogService, ciConfig *CiConfig, ciArtifactRepository repository.CiArtifactRepository, userService user.UserService, eventClient client.EventClient,
 	eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository, appListingRepository repository.AppListingRepository,
-	K8sUtil *util.K8sUtil, cdPipelineRepository pipelineConfig.PipelineRepository) *CiHandlerImpl {
+	K8sUtil *util.K8sUtil, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil) *CiHandlerImpl {
 	return &CiHandlerImpl{
 		Logger:                       Logger,
 		ciService:                    ciService,
@@ -113,6 +115,7 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 		appListingRepository:         appListingRepository,
 		K8sUtil:                      K8sUtil,
 		cdPipelineRepository:         cdPipelineRepository,
+		enforcerUtil:                 enforcerUtil,
 	}
 }
 
@@ -1276,7 +1279,7 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 	return nil
 }
 
-func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(envId int) ([]*pipelineConfig.CiWorkflowStatus, error) {
+func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(envId int, token string, auth func(token string, appObject string, envObject string) bool) ([]*pipelineConfig.CiWorkflowStatus, error) {
 	var ciWorkflowStatuses []*pipelineConfig.CiWorkflowStatus
 	cdPipelines, err := impl.cdPipelineRepository.FindActiveByEnvId(envId)
 	if err != nil && err != pg.ErrNoRows {
@@ -1294,6 +1297,12 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(envId int) 
 		return ciWorkflowStatuses, err
 	}
 	for _, pipeline := range pipelines {
+		appObject := impl.enforcerUtil.GetAppRBACName(pipeline.App.AppName)
+		valid := auth(token, appObject, "")  //here only app permission have to check
+		if !valid {
+			//if user unauthorized, skip items
+			continue
+		}
 		pipelineId := 0
 		if pipeline.ParentCiPipeline == 0 {
 			pipelineId = pipeline.Id

@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -47,7 +48,7 @@ type AppWorkflowService interface {
 	FindAppWorkflowByName(name string, appId int) (AppWorkflowDto, error)
 
 	FindAllWorkflowsComponentDetails(appId int) (*AllAppWorkflowComponentDetails, error)
-	FindAppWorkflowsByEnvironmentId(envId int) ([]AppWorkflowDto, error)
+	FindAppWorkflowsByEnvironmentId(envId int, token string, auth func(token string, appObject string, envObject string) bool) ([]AppWorkflowDto, error)
 }
 
 type AppWorkflowServiceImpl struct {
@@ -56,6 +57,7 @@ type AppWorkflowServiceImpl struct {
 	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator
 	ciPipelineRepository     pipelineConfig.CiPipelineRepository
 	pipelineRepository       pipelineConfig.PipelineRepository
+	enforcerUtil             rbac.EnforcerUtil
 }
 
 type AppWorkflowDto struct {
@@ -88,13 +90,16 @@ type WorkflowComponentNamesDto struct {
 	CdPipelines    []string `json:"cdPipelines"`
 }
 
-func NewAppWorkflowServiceImpl(logger *zap.SugaredLogger, appWorkflowRepository appWorkflow.AppWorkflowRepository, ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator, ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository) *AppWorkflowServiceImpl {
+func NewAppWorkflowServiceImpl(logger *zap.SugaredLogger, appWorkflowRepository appWorkflow.AppWorkflowRepository,
+	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator, ciPipelineRepository pipelineConfig.CiPipelineRepository,
+	pipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil) *AppWorkflowServiceImpl {
 	return &AppWorkflowServiceImpl{
 		Logger:                   logger,
 		appWorkflowRepository:    appWorkflowRepository,
 		ciCdPipelineOrchestrator: ciCdPipelineOrchestrator,
 		ciPipelineRepository:     ciPipelineRepository,
 		pipelineRepository:       pipelineRepository,
+		enforcerUtil:             enforcerUtil,
 	}
 }
 
@@ -382,7 +387,7 @@ func (impl AppWorkflowServiceImpl) FindAllWorkflowsComponentDetails(appId int) (
 	return resp, nil
 }
 
-func (impl AppWorkflowServiceImpl) FindAppWorkflowsByEnvironmentId(envId int) ([]AppWorkflowDto, error) {
+func (impl AppWorkflowServiceImpl) FindAppWorkflowsByEnvironmentId(envId int, token string, auth func(token string, appObject string, envObject string) bool) ([]AppWorkflowDto, error) {
 	pipelines, err := impl.pipelineRepository.FindActiveByEnvId(envId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("error fetching pipelines for env id", "err", err)
@@ -392,6 +397,13 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowsByEnvironmentId(envId int) ([
 	appNamesMap := make(map[int]string)
 	var appIds []int
 	for _, pipeline := range pipelines {
+		appObject := impl.enforcerUtil.GetAppRBACName(pipeline.App.AppName)
+		envObject := fmt.Sprintf("%s/%s", pipeline.Environment.EnvironmentIdentifier, pipeline.App.AppName)
+		valid := auth(token, appObject, envObject)
+		if !valid {
+			//if user unauthorized, skip items
+			continue
+		}
 		appIds = append(appIds, pipeline.AppId)
 		appNamesMap[pipeline.AppId] = pipeline.App.AppName
 		pipelineMap[pipeline.Id] = true

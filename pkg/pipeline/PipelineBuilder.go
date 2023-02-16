@@ -27,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
@@ -34,6 +35,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
+	"github.com/devtron-labs/devtron/util/rbac"
 	"net/http"
 	"net/url"
 	"sort"
@@ -129,10 +131,11 @@ type PipelineBuilder interface {
 	DeleteCiPipeline(request *bean.CiPatchRequest) (*bean.CiPipeline, error)
 	IsGitOpsRequiredForCD(pipelineCreateRequest *bean.CdPipelines) bool
 	SetPipelineDeploymentAppType(pipelineCreateRequest *bean.CdPipelines, isGitOpsConfigured bool)
-	GetCiPipelineByEnvironment(envId int) ([]*bean.CiConfigRequest, error)
-	GetCdPipelinesByEnvironment(envId int) (cdPipelines *bean.CdPipelines, err error)
-	GetExternalCiByEnvironment(envId int) (ciConfig []*bean.ExternalCiConfig, err error)
-	GetAppListForEnvironment(envId int) ([]*AppBean, error)
+	GetCiPipelineByEnvironment(envId int, token string, auth func(token string, appObject string, envObject string) bool) ([]*bean.CiConfigRequest, error)
+	GetCdPipelinesByEnvironment(envId int, token string, auth func(token string, appObject string, envObject string) bool) (cdPipelines *bean.CdPipelines, err error)
+	GetExternalCiByEnvironment(envId int, token string, auth func(token string, appObject string, envObject string) bool) (ciConfig []*bean.ExternalCiConfig, err error)
+	GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, token string, auth func(token string, appObject string, envObject string) bool) ([]cluster.EnvironmentBean, error)
+	GetAppListForEnvironment(envId int, token string, auth func(token string, appObject string, envObject string) bool) ([]*AppBean, error)
 }
 
 type PipelineBuilderImpl struct {
@@ -187,6 +190,7 @@ type PipelineBuilderImpl struct {
 	globalStrategyMetadataChartRefMappingRepository chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepository
 	deploymentConfig                                *DeploymentServiceTypeConfig
 	appStatusRepository                             appStatus.AppStatusRepository
+	enforcerUtil                                    rbac.EnforcerUtil
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -232,7 +236,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	CiPipelineHistoryService history.CiPipelineHistoryService,
 	globalStrategyMetadataRepository chartRepoRepository.GlobalStrategyMetadataRepository,
 	globalStrategyMetadataChartRefMappingRepository chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepository,
-	deploymentConfig *DeploymentServiceTypeConfig, appStatusRepository appStatus.AppStatusRepository) *PipelineBuilderImpl {
+	deploymentConfig *DeploymentServiceTypeConfig, appStatusRepository appStatus.AppStatusRepository,
+	enforcerUtil rbac.EnforcerUtil) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                        logger,
 		ciCdPipelineOrchestrator:      ciCdPipelineOrchestrator,
@@ -285,6 +290,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		globalStrategyMetadataChartRefMappingRepository: globalStrategyMetadataChartRefMappingRepository,
 		deploymentConfig:                                deploymentConfig,
 		appStatusRepository:                             appStatusRepository,
+		enforcerUtil:                                    enforcerUtil,
 	}
 }
 
@@ -3235,17 +3241,22 @@ func (impl PipelineBuilderImpl) buildResponses() []bean.ResponseSchemaObject {
 	return responseSchemaObjects
 }
 
-func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int) ([]*bean.CiConfigRequest, error) {
+func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int, token string, auth func(token string, appObject string, envObject string) bool) ([]*bean.CiConfigRequest, error) {
 	cdPipelines, err := impl.pipelineRepository.FindActiveByEnvId(envId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error fetching pipelines for env id", "err", err)
 		return nil, err
 	}
-
 	pipelineMap := make(map[int]bool)
 	appNamesMap := make(map[int]string)
 	var appIds []int
 	for _, pipeline := range cdPipelines {
+		appObject := impl.enforcerUtil.GetAppRBACName(pipeline.App.AppName)
+		valid := auth(token, appObject, "") //here only app permission need to check
+		if !valid {
+			//if user unauthorized, skip items
+			continue
+		}
 		appIds = append(appIds, pipeline.AppId)
 		appNamesMap[pipeline.AppId] = pipeline.App.AppName
 		pipelineMap[pipeline.Id] = true
@@ -3383,7 +3394,7 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int) ([]*bean.C
 	return ciConfigs, err
 }
 
-func (impl PipelineBuilderImpl) GetCdPipelinesByEnvironment(envId int) (cdPipelines *bean.CdPipelines, err error) {
+func (impl PipelineBuilderImpl) GetCdPipelinesByEnvironment(envId int, token string, auth func(token string, appObject string, envObject string) bool) (cdPipelines *bean.CdPipelines, err error) {
 	cdPipelines, err = impl.ciCdPipelineOrchestrator.GetCdPipelinesForEnv(envId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching pipeline", "err", err)
@@ -3391,6 +3402,13 @@ func (impl PipelineBuilderImpl) GetCdPipelinesByEnvironment(envId int) (cdPipeli
 	}
 	var pipelines []*bean.CDPipelineConfigObject
 	for _, dbPipeline := range cdPipelines.Pipelines {
+		appObject := impl.enforcerUtil.GetAppRBACName(dbPipeline.AppName)
+		envObject := impl.enforcerUtil.GetEnvRBACNameByCdPipelineIdAndEnvId(dbPipeline.Id)
+		valid := auth(token, appObject, envObject)
+		if !valid {
+			//if user unauthorized, skip items
+			continue
+		}
 		environment, err := impl.environmentRepository.FindById(dbPipeline.EnvironmentId)
 		if err != nil && errors.IsNotFound(err) {
 			impl.logger.Errorw("error in fetching pipeline", "err", err)
@@ -3443,7 +3461,7 @@ func (impl PipelineBuilderImpl) GetCdPipelinesByEnvironment(envId int) (cdPipeli
 	return cdPipelines, err
 }
 
-func (impl PipelineBuilderImpl) GetExternalCiByEnvironment(envId int) (ciConfig []*bean.ExternalCiConfig, err error) {
+func (impl PipelineBuilderImpl) GetExternalCiByEnvironment(envId int, token string, auth func(token string, appObject string, envObject string) bool) (ciConfig []*bean.ExternalCiConfig, err error) {
 	pipelines, err := impl.pipelineRepository.FindActiveByEnvId(envId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error fetching pipelines for env id", "err", err)
@@ -3454,6 +3472,12 @@ func (impl PipelineBuilderImpl) GetExternalCiByEnvironment(envId int) (ciConfig 
 	appNamesMap := make(map[int]string)
 	var appIds []int
 	for _, pipeline := range pipelines {
+		appObject := impl.enforcerUtil.GetAppRBACName(pipeline.App.AppName)
+		valid := auth(token, appObject, "") //here only app permission need to check
+		if !valid {
+			//if user unauthorized, skip items
+			continue
+		}
 		appIds = append(appIds, pipeline.AppId)
 		appNamesMap[pipeline.AppId] = pipeline.App.AppName
 		pipelineMap[pipeline.Id] = true
@@ -3534,7 +3558,55 @@ func (impl PipelineBuilderImpl) GetExternalCiByEnvironment(envId int) (ciConfig 
 	return externalCiConfigs, err
 }
 
-func (impl PipelineBuilderImpl) GetAppListForEnvironment(envId int) ([]*AppBean, error) {
+func (impl PipelineBuilderImpl) GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, token string, auth func(token string, appObject string, envObject string) bool) ([]cluster.EnvironmentBean, error) {
+	var models []*repository2.Environment
+	var beans []cluster.EnvironmentBean
+	var err error
+	if len(envName) > 0 && len(clusterIds) > 0 {
+		models, err = impl.environmentRepository.FindByEnvNameAndClusterIds(envName, clusterIds)
+	} else if len(clusterIds) > 0 {
+		models, err = impl.environmentRepository.FindByClusterIds(clusterIds)
+	} else if len(envName) > 0 {
+		models, err = impl.environmentRepository.FindByEnvName(envName)
+	} else {
+		models, err = impl.environmentRepository.FindAllActive()
+	}
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching environment", "err", err)
+		return beans, err
+	}
+	for _, model := range models {
+		environment := cluster.EnvironmentBean{
+			Id:                    model.Id,
+			Environment:           model.Name,
+			Namespace:             model.Namespace,
+			CdArgoSetup:           model.Cluster.CdArgoSetup,
+			EnvironmentIdentifier: model.EnvironmentIdentifier,
+			ClusterName:           model.Cluster.ClusterName,
+		}
+		pipelines, err := impl.pipelineRepository.FindActiveByEnvId(model.Id)
+		if err != nil && err != pg.ErrNoRows {
+			return nil, err
+		}
+		appCount := 0
+		for _, pipeline := range pipelines {
+			appObject := impl.enforcerUtil.GetAppRBACName(pipeline.App.AppName)
+			envObject := impl.enforcerUtil.GetEnvRBACNameByCdPipelineIdAndEnvId(pipeline.Id)
+			valid := auth(token, appObject, envObject)
+			if !valid {
+				//if user unauthorized, skip items
+				continue
+			}
+			appCount = appCount + 1
+		}
+		environment.AppCount = appCount
+		beans = append(beans, environment)
+	}
+
+	return beans, nil
+}
+
+func (impl PipelineBuilderImpl) GetAppListForEnvironment(envId int, token string, auth func(token string, appObject string, envObject string) bool) ([]*AppBean, error) {
 	var appsRes []*AppBean
 	pipelines, err := impl.pipelineRepository.FindActiveByEnvId(envId)
 	if err != nil {
@@ -3542,6 +3614,13 @@ func (impl PipelineBuilderImpl) GetAppListForEnvironment(envId int) ([]*AppBean,
 		return nil, err
 	}
 	for _, pipeline := range pipelines {
+		appObject := impl.enforcerUtil.GetAppRBACName(pipeline.App.AppName)
+		envObject := impl.enforcerUtil.GetEnvRBACNameByCdPipelineIdAndEnvId(pipeline.Id)
+		valid := auth(token, appObject, envObject)
+		if !valid {
+			//if user unauthorized, skip items
+			continue
+		}
 		appsRes = append(appsRes, &AppBean{Id: pipeline.AppId, Name: pipeline.App.AppName})
 	}
 	return appsRes, err

@@ -1655,13 +1655,7 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelineById(w http.ResponseWr
 		return
 	}
 
-	envId, err := handler.pipelineBuilder.GetEnvironmentByCdPipelineId(pipelineId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	envObject := handler.enforcerUtil.GetEnvRBACNameByCdPipelineIdAndEnvId(pipelineId, envId)
+	envObject := handler.enforcerUtil.GetEnvRBACNameByCdPipelineIdAndEnvId(pipelineId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, envObject); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
@@ -1960,13 +1954,26 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelinesByEnvironment(w http.
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
-	results, err := handler.pipelineBuilder.GetCdPipelinesByEnvironment(envId)
+	token := r.Header.Get("token")
+	results, err := handler.pipelineBuilder.GetCdPipelinesByEnvironment(envId, token, handler.checkAuth)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetCdPipelines", "err", err, "envId", envId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-
 	common.WriteJsonResp(w, err, results, http.StatusOK)
+}
+
+func (handler *PipelineConfigRestHandlerImpl) checkAuth(token string, appObject string, envObject string) bool {
+	if len(appObject) > 0 {
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, strings.ToLower(appObject)); !ok {
+			return false
+		}
+	}
+	if len(envObject) > 0 {
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, strings.ToLower(envObject)); !ok {
+			return false
+		}
+	}
+	return true
 }

@@ -1253,13 +1253,13 @@ func (handler PipelineConfigRestHandlerImpl) GetCiPipelineByEnvironment(w http.R
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	ciConf, err := handler.pipelineBuilder.GetCiPipelineByEnvironment(envId)
+	token := r.Header.Get("token")
+	ciConf, err := handler.pipelineBuilder.GetCiPipelineByEnvironment(envId, token, handler.checkAuth)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetCiPipeline", "err", err, "envId", envId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-
 	common.WriteJsonResp(w, err, ciConf, http.StatusOK)
 }
 
@@ -1270,12 +1270,12 @@ func (handler PipelineConfigRestHandlerImpl) GetExternalCiByEnvironment(w http.R
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	ciConf, err := handler.pipelineBuilder.GetExternalCiByEnvironment(envId)
+	token := r.Header.Get("token")
+	ciConf, err := handler.pipelineBuilder.GetExternalCiByEnvironment(envId, token, handler.checkAuth)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetExternalCi", "err", err, "envId", envId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-
 	common.WriteJsonResp(w, err, ciConf, http.StatusOK)
 }
