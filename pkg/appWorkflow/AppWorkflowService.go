@@ -47,6 +47,7 @@ type AppWorkflowService interface {
 	FindAppWorkflowByName(name string, appId int) (AppWorkflowDto, error)
 
 	FindAllWorkflowsComponentDetails(appId int) (*AllAppWorkflowComponentDetails, error)
+	FindAppWorkflowsByEnvironmentId(envId int) ([]AppWorkflowDto, error)
 }
 
 type AppWorkflowServiceImpl struct {
@@ -379,4 +380,54 @@ func (impl AppWorkflowServiceImpl) FindAllWorkflowsComponentDetails(appId int) (
 		Workflows: wfComponentDetails,
 	}
 	return resp, nil
+}
+
+func (impl AppWorkflowServiceImpl) FindAppWorkflowsByEnvironmentId(envId int) ([]AppWorkflowDto, error) {
+	pipelines, err := impl.pipelineRepository.FindActiveByEnvId(envId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("error fetching pipelines for env id", "err", err)
+		return nil, err
+	}
+	pipelineMap := make(map[int]bool)
+	appNamesMap := make(map[int]string)
+	var appIds []int
+	for _, pipeline := range pipelines {
+		appIds = append(appIds, pipeline.AppId)
+		appNamesMap[pipeline.AppId] = pipeline.App.AppName
+		pipelineMap[pipeline.Id] = true
+	}
+
+	appWorkflow, err := impl.appWorkflowRepository.FindByAppIds(appIds)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("error fetching app workflows by app ids", "err", err)
+		return nil, err
+	}
+	var workflows []AppWorkflowDto
+	for _, w := range appWorkflow {
+		appName := appNamesMap[w.AppId]
+		workflow := AppWorkflowDto{
+			Id:    w.Id,
+			Name:  appName, // here workflow name is app name, only for environment app grouping view
+			AppId: w.AppId,
+		}
+		mappings, err := impl.FindAppWorkflowMapping(w.Id)
+		if err != nil {
+			impl.Logger.Errorw("error fetching app workflow mapping by wf id", "err", err)
+			return nil, err
+		}
+		valid := false
+		for _, mapping := range mappings {
+			if mapping.Type == CD_PIPELINE_TYPE {
+				if _, ok := pipelineMap[mapping.ComponentId]; ok {
+					valid = true
+				}
+			}
+		}
+		//if there is no matching pipeline for requested environment, skip from workflow listing
+		if valid {
+			workflow.AppWorkflowMappingDto = mappings
+			workflows = append(workflows, workflow)
+		}
+	}
+	return workflows, err
 }

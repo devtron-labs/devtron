@@ -154,7 +154,7 @@ func (impl DockerRegistryConfigImpl) Create(bean *DockerArtifactStoreBean) (*Doc
 	return bean, nil
 }
 
-//list all active artifact store
+// list all active artifact store
 func (impl DockerRegistryConfigImpl) ListAllActive() ([]DockerArtifactStoreBean, error) {
 	impl.logger.Debug("list docker repo request")
 	stores, err := impl.dockerArtifactStoreRepository.FindAllActiveForAutocomplete()
@@ -175,7 +175,8 @@ func (impl DockerRegistryConfigImpl) ListAllActive() ([]DockerArtifactStoreBean,
 	return storeBeans, err
 }
 
-/**
+/*
+*
 this method used for getting all the docker account details
 */
 func (impl DockerRegistryConfigImpl) FetchAllDockerAccounts() ([]DockerArtifactStoreBean, error) {
@@ -194,10 +195,10 @@ func (impl DockerRegistryConfigImpl) FetchAllDockerAccounts() ([]DockerArtifactS
 			RegistryURL:        store.RegistryURL,
 			RegistryType:       store.RegistryType,
 			AWSAccessKeyId:     store.AWSAccessKeyId,
-			AWSSecretAccessKey: store.AWSSecretAccessKey,
+			AWSSecretAccessKey: "",
 			AWSRegion:          store.AWSRegion,
 			Username:           store.Username,
-			Password:           store.Password,
+			Password:           "",
 			IsDefault:          store.IsDefault,
 			Connection:         store.Connection,
 			Cert:               store.Cert,
@@ -216,7 +217,8 @@ func (impl DockerRegistryConfigImpl) FetchAllDockerAccounts() ([]DockerArtifactS
 	return storeBeans, err
 }
 
-/**
+/*
+*
 this method used for getting all the docker account details
 */
 func (impl DockerRegistryConfigImpl) FetchOneDockerAccount(storeId string) (*DockerArtifactStoreBean, error) {
@@ -275,6 +277,18 @@ func (impl DockerRegistryConfigImpl) Update(bean *DockerArtifactStoreBean) (*Doc
 	defer tx.Rollback()
 
 	// 3- update docker_registry_config
+	if bean.Password == "" {
+		bean.Password = existingStore.Password
+	}
+
+	if bean.AWSSecretAccessKey == "" {
+		bean.AWSSecretAccessKey = existingStore.AWSSecretAccessKey
+	}
+
+	if bean.Cert == "" {
+		bean.Cert = existingStore.Cert
+	}
+
 	store := &repository.DockerArtifactStore{
 		Id:                 bean.Id,
 		PluginId:           existingStore.PluginId,

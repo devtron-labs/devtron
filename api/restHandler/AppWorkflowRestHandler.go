@@ -39,6 +39,7 @@ type AppWorkflowRestHandler interface {
 	FindAppWorkflow(w http.ResponseWriter, r *http.Request)
 	DeleteAppWorkflow(w http.ResponseWriter, r *http.Request)
 	FindAllWorkflows(w http.ResponseWriter, r *http.Request)
+	FindAppWorkflowByEnvironment(w http.ResponseWriter, r *http.Request)
 }
 
 type AppWorkflowRestHandlerImpl struct {
@@ -215,4 +216,32 @@ func (impl AppWorkflowRestHandlerImpl) FindAllWorkflows(w http.ResponseWriter, r
 		return
 	}
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+}
+
+func (impl AppWorkflowRestHandlerImpl) FindAppWorkflowByEnvironment(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	envId, err := strconv.Atoi(vars["envId"])
+	if err != nil {
+		impl.Logger.Errorw("bad request", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	token := r.Header.Get("token")
+	// RBAC enforcer applying
+	impl.Logger.Info(token)
+	//RBAC enforcer Ends
+	workflows := make(map[string]interface{})
+	workflowsList, err := impl.appWorkflowService.FindAppWorkflowsByEnvironmentId(envId)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching workflows for app", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	workflows["envId"] = envId
+	if len(workflowsList) > 0 {
+		workflows["workflows"] = workflowsList
+	} else {
+		workflows["workflows"] = []appWorkflow.AppWorkflowDto{}
+	}
+	common.WriteJsonResp(w, err, workflows, http.StatusOK)
 }

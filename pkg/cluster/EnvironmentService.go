@@ -44,6 +44,7 @@ type EnvironmentBean struct {
 	Namespace             string `json:"namespace,omitempty" validate:"name-space-component,max=50"`
 	CdArgoSetup           bool   `json:"isClusterCdActive"`
 	EnvironmentIdentifier string `json:"environmentIdentifier"`
+	AppCount              int    `json:"appCount,omitempty"`
 }
 
 type EnvDto struct {
@@ -75,6 +76,8 @@ type EnvironmentService interface {
 	GetByClusterId(id int) ([]*EnvironmentBean, error)
 	GetCombinedEnvironmentListForDropDown(token string, isActionUserSuperAdmin bool, auth func(token string, object string) bool) ([]*ClusterEnvDto, error)
 	GetCombinedEnvironmentListForDropDownByClusterIds(token string, clusterIds []int, auth func(token string, object string) bool) ([]*ClusterEnvDto, error)
+
+	GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int) ([]EnvironmentBean, error)
 }
 
 type EnvironmentServiceImpl struct {
@@ -90,7 +93,7 @@ type EnvironmentServiceImpl struct {
 func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepository,
 	clusterService ClusterService, logger *zap.SugaredLogger,
 	K8sUtil *util.K8sUtil, k8sInformerFactory informer.K8sInformerFactory,
-	//  propertiesConfigService pipeline.PropertiesConfigService,
+//  propertiesConfigService pipeline.PropertiesConfigService,
 	userAuthService user.UserAuthService) *EnvironmentServiceImpl {
 	return &EnvironmentServiceImpl{
 		environmentRepository: environmentRepository,
@@ -348,6 +351,35 @@ func (impl EnvironmentServiceImpl) FindClusterByEnvId(id int) (*ClusterBean, err
 
 func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete() ([]EnvironmentBean, error) {
 	models, err := impl.environmentRepository.FindAllActive()
+	if err != nil {
+		impl.logger.Errorw("error in fetching environment", "err", err)
+	}
+	var beans []EnvironmentBean
+	for _, model := range models {
+		beans = append(beans, EnvironmentBean{
+			Id:                    model.Id,
+			Environment:           model.Name,
+			Namespace:             model.Namespace,
+			CdArgoSetup:           model.Cluster.CdArgoSetup,
+			EnvironmentIdentifier: model.EnvironmentIdentifier,
+			ClusterName:           model.Cluster.ClusterName,
+		})
+	}
+	return beans, nil
+}
+
+func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int) ([]EnvironmentBean, error) {
+	var models []*repository.Environment
+	var err error
+	if len(envName) > 0 && len(clusterIds) > 0 {
+		models, err = impl.environmentRepository.FindByEnvNameAndClusterIds(envName, clusterIds)
+	} else if len(clusterIds) > 0 {
+		models, err = impl.environmentRepository.FindByClusterIds(clusterIds)
+	} else if len(envName) > 0 {
+		models, err = impl.environmentRepository.FindByEnvName(envName)
+	} else {
+		models, err = impl.environmentRepository.FindAllActive()
+	}
 	if err != nil {
 		impl.logger.Errorw("error in fetching environment", "err", err)
 	}

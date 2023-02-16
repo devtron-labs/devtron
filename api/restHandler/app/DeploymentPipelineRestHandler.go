@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
@@ -37,6 +38,7 @@ type DevtronAppDeploymentRestHandler interface {
 
 	IsReadyToTrigger(w http.ResponseWriter, r *http.Request)
 	FetchCdWorkflowDetails(w http.ResponseWriter, r *http.Request)
+	GetCdPipelinesByEnvironment(w http.ResponseWriter, r *http.Request)
 }
 
 type DevtronAppDeploymentConfigRestHandler interface {
@@ -1949,4 +1951,23 @@ func (handler PipelineConfigRestHandlerImpl) UpgradeForAllApps(w http.ResponseWr
 	}
 	response["failed"] = failedIds
 	common.WriteJsonResp(w, err, response, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) GetCdPipelinesByEnvironment(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	envId, err := strconv.Atoi(vars["envId"])
+	if err != nil {
+		handler.Logger.Errorw("request err, GetCdPipelines", "err", err, "envId", envId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	results, err := handler.pipelineBuilder.GetCdPipelinesByEnvironment(envId)
+	if err != nil {
+		handler.Logger.Errorw("service err, GetCdPipelines", "err", err, "envId", envId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, err, results, http.StatusOK)
 }
