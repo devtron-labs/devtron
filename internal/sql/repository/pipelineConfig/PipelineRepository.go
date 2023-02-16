@@ -520,7 +520,7 @@ func (impl PipelineRepositoryImpl) GetArgoPipelineByArgoAppName(argoAppName stri
 
 func (impl PipelineRepositoryImpl) FindActiveByAppIds(appIds []int) (pipelines []*Pipeline, err error) {
 	err = impl.dbConnection.Model(&pipelines).
-		Column("pipeline.*", "Environment").
+		Column("pipeline.*", "App", "Environment").
 		Where("app_id in(?)", pg.In(appIds)).
 		Where("deleted = ?", false).
 		Select()

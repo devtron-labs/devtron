@@ -41,6 +41,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
+	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"os"
@@ -63,7 +64,7 @@ type CdHandler interface {
 	CheckArgoPipelineTimelineStatusPeriodicallyAndUpdateInDb(pendingSinceSeconds int, timeForDegradation int) error
 	UpdatePipelineTimelineAndStatusByLiveApplicationFetch(pipeline *pipelineConfig.Pipeline, userId int32) (err error, isTimelineUpdated bool)
 	CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipelineId int, userId int32)
-	FetchAppWorkflowStatusForTriggerViewForEnvironment(envId int, token string, auth func(token string, object string) bool) ([]*pipelineConfig.CdWorkflowStatus, error)
+	FetchAppWorkflowStatusForTriggerViewForEnvironment(envId int, token string, auth func(token string, appObject string, envObject string) bool) ([]*pipelineConfig.CdWorkflowStatus, error)
 }
 
 type CdHandlerImpl struct {
@@ -94,6 +95,7 @@ type CdHandlerImpl struct {
 	pipelineStatusTimelineService          app.PipelineStatusTimelineService
 	appService                             app.AppService
 	appStatusService                       app_status.AppStatusService
+	enforcerUtil                           rbac.EnforcerUtil
 }
 
 func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService user.UserService,
@@ -116,7 +118,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 	pipelineStatusSyncDetailService app.PipelineStatusSyncDetailService,
 	pipelineStatusTimelineService app.PipelineStatusTimelineService,
 	appService app.AppService,
-	appStatusService app_status.AppStatusService) *CdHandlerImpl {
+	appStatusService app_status.AppStatusService, enforcerUtil rbac.EnforcerUtil) *CdHandlerImpl {
 	return &CdHandlerImpl{
 		Logger:                                 Logger,
 		cdConfig:                               cdConfig,
@@ -145,6 +147,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 		pipelineStatusTimelineService:          pipelineStatusTimelineService,
 		appService:                             appService,
 		appStatusService:                       appStatusService,
+		enforcerUtil:                           enforcerUtil,
 	}
 }
 
@@ -944,7 +947,7 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerView(appId int) ([]*p
 	return cdWorkflowStatus, err
 }
 
-func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(envId int, token string, auth func(token string, object string) bool) ([]*pipelineConfig.CdWorkflowStatus, error) {
+func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(envId int, token string, auth func(token string, appObject string, envObject string) bool) ([]*pipelineConfig.CdWorkflowStatus, error) {
 	var cdWorkflowStatus []*pipelineConfig.CdWorkflowStatus
 	pipelines, err := impl.pipelineRepository.FindActiveByEnvId(envId)
 	if err != nil && err != pg.ErrNoRows {
@@ -963,6 +966,13 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(en
 	pipelineIds := make([]int, 0)
 	//pipelineIdsMap := make(map[int]int)
 	for _, pipeline := range pipelines {
+		appObject := impl.enforcerUtil.GetAppRBACName(pipeline.App.AppName)
+		envObject := impl.enforcerUtil.GetEnvRBACNameByCdPipelineIdAndEnvId(pipeline.Id)
+		valid := auth(token, appObject, envObject)
+		if !valid {
+			//if user unauthorized, skip items
+			continue
+		}
 		pipelineIds = append(pipelineIds, pipeline.Id)
 	}
 

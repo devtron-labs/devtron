@@ -247,9 +247,16 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflowByEnvironment(w http.Respo
 	common.WriteJsonResp(w, err, workflows, http.StatusOK)
 }
 
-func (handler AppWorkflowRestHandlerImpl) checkAuth(token string, object string) bool {
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, strings.ToLower(object)); !ok {
-		return false
+func (handler *AppWorkflowRestHandlerImpl) checkAuth(token string, appObject string, envObject string) bool {
+	if len(appObject) > 0 {
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, strings.ToLower(appObject)); !ok {
+			return false
+		}
+	}
+	if len(envObject) > 0 {
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, strings.ToLower(envObject)); !ok {
+			return false
+		}
 	}
 	return true
 }
