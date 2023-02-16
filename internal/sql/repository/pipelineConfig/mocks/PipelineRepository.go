@@ -873,7 +873,7 @@ func (_m *PipelineRepository) UpdateCdPipeline(pipeline *pipelineConfig.Pipeline
 }
 
 // UpdateCdPipelineDeploymentAppTypeAndDeploymentAppCreated provides a mock function with given fields: pipeline
-func (_m *PipelineRepository) UpdateCdPipelineDeploymentAppTypeAndDeploymentAppCreated(pipeline *pipelineConfig.Pipeline) error {
+func (_m *PipelineRepository) UpdateCdPipelineDeploymentApp(pipeline *pipelineConfig.Pipeline) error {
 	ret := _m.Called(pipeline)
 
 	var r0 error

@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
@@ -27,7 +26,7 @@ type DevtronAppDeploymentRestHandler interface {
 	CreateCdPipeline(w http.ResponseWriter, r *http.Request)
 	GetCdPipelineById(w http.ResponseWriter, r *http.Request)
 	PatchCdPipeline(w http.ResponseWriter, r *http.Request)
-	ChangeCdAppType(w http.ResponseWriter, r *http.Request)
+	ChangeDeploymentType(w http.ResponseWriter, r *http.Request)
 	GetCdPipelines(w http.ResponseWriter, r *http.Request)
 	GetCdPipelinesForAppAndEnv(w http.ResponseWriter, r *http.Request)
 
@@ -285,8 +284,8 @@ func (handler PipelineConfigRestHandlerImpl) PatchCdPipeline(w http.ResponseWrit
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
 }
 
-// ChangeCdAppType changes the deployment app type for all pipelines in all apps for a given environment.
-func (handler PipelineConfigRestHandlerImpl) ChangeCdAppType(w http.ResponseWriter, r *http.Request) {
+// ChangeDeploymentType changes the deployment app type for all pipelines in all apps for a given environment.
+func (handler PipelineConfigRestHandlerImpl) ChangeDeploymentType(w http.ResponseWriter, r *http.Request) {
 
 	// Auth check
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
@@ -300,25 +299,11 @@ func (handler PipelineConfigRestHandlerImpl) ChangeCdAppType(w http.ResponseWrit
 	var deploymentAppTypeChangeRequest bean.DeploymentAppTypeChangeRequest
 	err = decoder.Decode(&deploymentAppTypeChangeRequest)
 	if err != nil {
-		handler.Logger.Errorw("request err, ChangeCdAppType", "err", err, "payload",
+		handler.Logger.Errorw("request err, ChangeDeploymentType", "err", err, "payload",
 			deploymentAppTypeChangeRequest)
 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
-	}
-
-	// check if desired deployment app type is other than helm
-	// currently only changing from argocd to helm (i.e deploymentAppType should be helm) is supported
-	if deploymentAppTypeChangeRequest.DesiredDeploymentAppType != bean.HELM {
-
-		err := errors.New("changing deployment app type to " +
-			string(deploymentAppTypeChangeRequest.DesiredDeploymentAppType) +
-			" is not supported")
-
-		handler.Logger.Errorw("Unsupported operation",
-			"err", err)
-
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 	}
 
 	// Retrieve argocd token
@@ -330,9 +315,17 @@ func (handler PipelineConfigRestHandlerImpl) ChangeCdAppType(w http.ResponseWrit
 	}
 	ctx := context.WithValue(r.Context(), "token", acdToken)
 
-	// Force delete apps on argocd
-	deploymentAppTypeChangeResponse, err := handler.pipelineBuilder.DeleteInDeploymentAppsByEnvironmentId(ctx,
-		deploymentAppTypeChangeRequest.EnvId, bean.ARGO_CD) // Currently only supporting ARGO_CD to HELM
+	var deploymentAppTypeChangeResponse *bean.DeploymentAppTypeChangeResponse
+
+	// Force delete apps
+	if deploymentAppTypeChangeRequest.DesiredDeploymentType == bean.ARGO_CD {
+		deploymentAppTypeChangeResponse, err = handler.pipelineBuilder.DeleteDeploymentAppsForEnvironment(ctx,
+			deploymentAppTypeChangeRequest.EnvId, bean.HELM)
+
+	} else {
+		deploymentAppTypeChangeResponse, err = handler.pipelineBuilder.DeleteDeploymentAppsForEnvironment(ctx,
+			deploymentAppTypeChangeRequest.EnvId, bean.ARGO_CD)
+	}
 
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -341,19 +334,19 @@ func (handler PipelineConfigRestHandlerImpl) ChangeCdAppType(w http.ResponseWrit
 
 	// Updating the env id and desired deployment app type received from request in the response
 	deploymentAppTypeChangeResponse.EnvId = deploymentAppTypeChangeRequest.EnvId
-	deploymentAppTypeChangeResponse.DesiredDeploymentAppType = deploymentAppTypeChangeRequest.DesiredDeploymentAppType
+	deploymentAppTypeChangeResponse.DesiredDeploymentType = deploymentAppTypeChangeRequest.DesiredDeploymentType
 
 	// Update the deployment app type to HELM and toggle deployment_app_created to false in db
 	for _, item := range deploymentAppTypeChangeResponse.SuccessfulPipelines {
 
 		updatedPipeline := &pipelineConfig.Pipeline{
 			Id:                   item.Id,
-			DeploymentAppType:    string(bean.HELM),
+			DeploymentAppType:    string(deploymentAppTypeChangeRequest.DesiredDeploymentType),
 			DeploymentAppCreated: false,
 		}
 
 		// Update in db
-		err := handler.pipelineRepository.UpdateCdPipelineDeploymentAppTypeAndDeploymentAppCreated(updatedPipeline)
+		err := handler.pipelineRepository.UpdateCdPipelineDeploymentApp(updatedPipeline)
 
 		if err != nil {
 			handler.Logger.Errorw("failed to update deployment app type in db",
