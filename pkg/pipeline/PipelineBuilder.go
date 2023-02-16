@@ -3369,13 +3369,13 @@ func (impl PipelineBuilderImpl) GetEnvironmentListForAutocompleteFilter(envName 
 	var beans []cluster.EnvironmentBean
 	var err error
 	if len(envName) > 0 && len(clusterIds) > 0 {
-		models, err = impl.environmentRepository.FindByEnvNameAndClusterIds(envName, clusterIds)
+		models, err = impl.environmentRepository.FindByEnvNameAndClusterIds(envName, clusterIds, offset, size)
 	} else if len(clusterIds) > 0 {
-		models, err = impl.environmentRepository.FindByClusterIds(clusterIds)
+		models, err = impl.environmentRepository.FindByClusterIdsWithFilter(clusterIds, offset, size)
 	} else if len(envName) > 0 {
-		models, err = impl.environmentRepository.FindByEnvName(envName)
+		models, err = impl.environmentRepository.FindByEnvName(envName, offset, size)
 	} else {
-		models, err = impl.environmentRepository.FindAllActive()
+		models, err = impl.environmentRepository.FindAllActiveWithFilter(offset, size)
 	}
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching environment", "err", err)
@@ -3410,12 +3410,6 @@ func (impl PipelineBuilderImpl) GetEnvironmentListForAutocompleteFilter(envName 
 	}
 
 	envCount := len(beans)
-	if offset+size <= envCount {
-		beans = beans[offset : offset+size]
-	} else {
-		beans = beans[offset:]
-	}
-
 	result.EnvList = beans
 	result.EnvCount = envCount
 	return result, nil
