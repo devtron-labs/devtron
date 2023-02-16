@@ -1763,15 +1763,12 @@ func (impl PipelineBuilderImpl) DeleteDeploymentApps(ctx context.Context,
 			continue
 		}
 
-		if len(pipeline.App.AppName) == 0 || len(pipeline.Environment.Name) == 0 {
-			impl.logger.Errorw("app name or environment name is not present",
-				"pipeline id", pipeline.Id)
-
-			failedPipelines = impl.handleFailedDeploymentAppChange(pipeline, failedPipelines,
-				"could not fetch app name or environment name")
+		// check if pipeline info like app name and environment is empty or not
+		if isValid := impl.isPipelineInfoValid(pipeline, failedPipelines); !isValid {
 			continue
 		}
 
+		// check health of the app if it is argocd deployment type
 		isArgoCdApp, argoAppHealthCheckErr := impl.
 			checkArgoAppHealthStatus(pipeline.AppId, pipeline.EnvironmentId, pipeline.DeploymentAppType)
 
@@ -1829,6 +1826,21 @@ func (impl PipelineBuilderImpl) DeleteDeploymentApps(ctx context.Context,
 		SuccessfulPipelines: successfulPipelines,
 		FailedPipelines:     failedPipelines,
 	}
+}
+
+func (impl PipelineBuilderImpl) isPipelineInfoValid(pipeline *pipelineConfig.Pipeline,
+	failedPipelines []*bean.DeploymentChangeStatus) bool {
+
+	if len(pipeline.App.AppName) == 0 || len(pipeline.Environment.Name) == 0 {
+		impl.logger.Errorw("app name or environment name is not present",
+			"pipeline id", pipeline.Id)
+
+		failedPipelines = impl.handleFailedDeploymentAppChange(pipeline, failedPipelines,
+			"could not fetch app name or environment name")
+
+		return false
+	}
+	return true
 }
 
 func (impl PipelineBuilderImpl) handleFailedDeploymentAppChange(pipeline *pipelineConfig.Pipeline,
