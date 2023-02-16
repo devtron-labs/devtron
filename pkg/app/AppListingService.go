@@ -221,18 +221,16 @@ func (impl AppListingServiceImpl) FetchAllDevtronManagedApps() ([]AppNameTypeIdC
 	}
 	return apps, nil
 }
-func (impl AppListingServiceImpl) FetchJobs(fetchJobListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.JobsContainer, error) {
+func (impl AppListingServiceImpl) FetchJobs(fetchJobListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request) ([]*bean.JobsContainer, error) {
 
 	jobListingFilter := helper.AppListingFilter{
-		Statuses:          fetchJobListingRequest.Statuses,
-		Teams:             fetchJobListingRequest.Teams,
-		AppNameSearch:     fetchJobListingRequest.AppNameSearch,
-		SortOrder:         fetchJobListingRequest.SortOrder,
-		SortBy:            fetchJobListingRequest.SortBy,
-		Offset:            fetchJobListingRequest.Offset,
-		Size:              fetchJobListingRequest.Size,
-		DeploymentGroupId: fetchJobListingRequest.DeploymentGroupId,
-		AppStatuses:       fetchJobListingRequest.AppStatuses,
+		Teams:         fetchJobListingRequest.Teams,
+		AppNameSearch: fetchJobListingRequest.AppNameSearch,
+		SortOrder:     fetchJobListingRequest.SortOrder,
+		SortBy:        fetchJobListingRequest.SortBy,
+		Offset:        fetchJobListingRequest.Offset,
+		Size:          fetchJobListingRequest.Size,
+		AppStatuses:   fetchJobListingRequest.AppStatuses,
 	}
 	jobContainers, err := impl.appListingRepository.FetchJobs(jobListingFilter)
 	if err != nil {
