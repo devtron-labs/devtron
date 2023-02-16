@@ -291,7 +291,7 @@ func (impl UserAuthRepositoryImpl) GetRoleByFilterForAllTypes(entity string, tea
 		}
 		_, err = impl.dbConnection.Query(&model, query, entity, act)
 	} else {
-		// entity is apps(devtron and helm)
+
 		if len(team) > 0 && len(app) > 0 && len(env) > 0 && len(act) > 0 {
 			query := "SELECT role.* FROM roles role WHERE role.team = ? AND role.entity_name=? AND role.environment=? AND role.action=?"
 

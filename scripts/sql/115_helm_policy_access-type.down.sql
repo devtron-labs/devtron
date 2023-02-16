@@ -1,5 +1,5 @@
 DELETE FROM "public"."default_auth_role"
-WHERE access_type='helm-app' AND entity ="apps";
+WHERE access_type='helm-app' AND entity ='apps';
 
 
 UPDATE "public"."default_auth_role"
