@@ -20,6 +20,7 @@ package bean
 import (
 	"encoding/json"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"time"
 )
 
 type AppContainer struct {
@@ -60,10 +61,10 @@ type JobsContainer struct {
 }
 
 type LastRunStatus struct {
-	PipelineId    int    `json:"pipeline-id"`
-	LastRunStatus int    `json:"lastRunStatus"`
-	LastRunAt     string `json:"lastRunAt"`
-	LastSuccessAt string `json:"lastRunAt"`
+	PipelineId    int       `json:"pipeline-id"`
+	LastRunStatus string    `json:"lastRunStatus"`
+	LastRunAt     time.Time `json:"lastRunAt"`
+	LastSuccessAt time.Time `json:"lastRunAt"`
 }
 
 type AppEnvironmentContainer struct {
