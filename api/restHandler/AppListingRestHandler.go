@@ -175,16 +175,16 @@ func (handler AppListingRestHandlerImpl) FetchJobs(w http.ResponseWriter, r *htt
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	_, err = handler.appListingService.FetchJobs(fetchJobListingRequest, w, r)
+	fetchJob, err := handler.appListingService.FetchJobs(fetchJobListingRequest, w, r)
 	// Apply pagination
-	appsCount := len(apps)
+
 	offset := fetchJobListingRequest.Offset
 	limit := fetchJobListingRequest.Size
 
-	if offset+limit <= len(apps) {
-		apps = apps[offset : offset+limit]
+	if offset+limit <= len(fetchJob) {
+		fetchJob = fetchJob[offset : offset+limit]
 	} else {
-		apps = apps[offset:]
+		fetchJob = fetchJob[offset:]
 	}
 	jobContainerResponse := bean.JobsContainer{}
 	common.WriteJsonResp(w, err, jobContainerResponse, http.StatusOK)
