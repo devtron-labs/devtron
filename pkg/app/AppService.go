@@ -27,11 +27,14 @@ import (
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	client2 "github.com/devtron-labs/devtron/api/helm-app"
 	application3 "github.com/devtron-labs/devtron/client/k8s/application"
+	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/k8s"
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 	"go.opentelemetry.io/otel"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -1677,7 +1680,7 @@ func (impl *AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverr
 	}
 
 	appName := fmt.Sprintf("%s-%s", pipeline.App.AppName, envOverride.Environment.Name)
-	merged = impl.hpaCheckBeforeTrigger(ctx, appName, envOverride.Namespace, merged, pipeline.AppId, pipeline.DeploymentAppType, pipeline.Environment.ClusterId)
+	merged = impl.autoscalingCheckBeforeTrigger(ctx, appName, envOverride.Namespace, merged, pipeline, overrideRequest)
 
 	_, span := otel.Tracer("orchestrator").Start(ctx, "dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment")
 	// handle image pull secret if access given
@@ -1886,7 +1889,12 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Appl
 	return nil
 }
 
-func (impl *AppServiceImpl) hpaCheckBeforeTrigger(ctx context.Context, appName string, namespace string, merged []byte, appId int, appDeploymentType string, clusterId int) []byte {
+func (impl *AppServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, appName string, namespace string, merged []byte, pipeline *pipelineConfig.Pipeline, overrideRequest *bean.ValuesOverrideRequest) []byte {
+	var appId = pipeline.AppId
+	pipelineId := pipeline.Id
+	var appDeploymentType = pipeline.DeploymentAppType
+	var clusterId = pipeline.Environment.ClusterId
+	deploymentType := overrideRequest.DeploymentType
 	templateMap := make(map[string]interface{})
 	err := json.Unmarshal(merged, &templateMap)
 	if err != nil {
@@ -1944,20 +1952,14 @@ func (impl *AppServiceImpl) hpaCheckBeforeTrigger(ctx context.Context, appName s
 			}
 			if len(resourceManifest) > 0 {
 				statusMap := resourceManifest["status"].(map[string]interface{})
-				currentReplicaVal := fmt.Sprintf("%v", statusMap["currentReplicas"])
-				currentReplicaCount, err := strconv.ParseFloat(currentReplicaVal, 64)
+				currentReplicaVal := statusMap["currentReplicas"]
+				currentReplicaCount, err := util2.ParseFloatNumber(currentReplicaVal)
 				if err != nil {
 					impl.logger.Errorw("error occurred while parsing replica count", "currentReplicas", currentReplicaVal, "err", err)
 					return merged
 				}
 
-				if currentReplicaCount <= reqMaxReplicas && currentReplicaCount >= reqMinReplicas {
-					reqReplicaCount = currentReplicaCount
-				} else if currentReplicaCount > reqMaxReplicas {
-					reqReplicaCount = reqMaxReplicas
-				} else if currentReplicaCount < reqMinReplicas {
-					reqReplicaCount = reqMinReplicas
-				}
+				reqReplicaCount = impl.fetchRequiredReplicaCount(currentReplicaCount, reqMaxReplicas, reqMinReplicas)
 				templateMap["replicaCount"] = reqReplicaCount
 				merged, err = json.Marshal(&templateMap)
 				if err != nil {
@@ -1965,10 +1967,89 @@ func (impl *AppServiceImpl) hpaCheckBeforeTrigger(ctx context.Context, appName s
 					return merged
 				}
 			}
+		} else {
+			impl.logger.Errorw("autoscaling is not enabled", "pipelineId", pipelineId)
+		}
+	}
+	//check for custom chart support
+	if _, ok := templateMap[bean2.CustomAutoScalingEnabledPathKey]; ok {
+		if deploymentType == models.DEPLOYMENTTYPE_STOP {
+			merged, err = impl.setScalingValues(templateMap, bean2.CustomAutoScalingEnabledPathKey, merged, false)
+			if err != nil {
+				return merged
+			}
+			merged, err = impl.setScalingValues(templateMap, bean2.CustomAutoscalingReplicaCountPathKey, merged, 0)
+			if err != nil {
+				return merged
+			}
+		} else if deploymentType == models.DEPLOYMENTTYPE_START {
+			merged, err = impl.setScalingValues(templateMap, bean2.CustomAutoScalingEnabledPathKey, merged, true)
+			if err != nil {
+				return merged
+			}
+			// extract replica count, min, max and check for required value
+			replicaCount, err := impl.getReplicaCountFromCustomChart(templateMap, merged)
+			if err != nil {
+				return merged
+			}
+			merged, err = impl.setScalingValues(templateMap, bean2.CustomAutoscalingReplicaCountPathKey, merged, replicaCount)
+			if err != nil {
+				return merged
+			}
 		}
 	}
 
 	return merged
+}
+
+func (impl *AppServiceImpl) getReplicaCountFromCustomChart(templateMap map[string]interface{}, merged []byte) (float64, error) {
+	autoscalingMinVal, err := impl.extractParamValue(templateMap, bean2.CustomAutoscalingMinPathKey, merged)
+	if err != nil {
+		return 0, err
+	}
+	autoscalingMaxVal, err := impl.extractParamValue(templateMap, bean2.CustomAutoscalingMaxPathKey, merged)
+	if err != nil {
+		return 0, err
+	}
+	autoscalingReplicaCountVal, err := impl.extractParamValue(templateMap, bean2.CustomAutoscalingReplicaCountPathKey, merged)
+	if err != nil {
+		return 0, err
+	}
+	return impl.fetchRequiredReplicaCount(autoscalingReplicaCountVal, autoscalingMaxVal, autoscalingMinVal), nil
+}
+
+func (impl *AppServiceImpl) extractParamValue(inputMap map[string]interface{}, key string, merged []byte) (float64, error) {
+	if _, ok := inputMap[key]; !ok {
+		return 0, errors.New("empty-val-err")
+	}
+	floatNumber, err := util2.ParseFloatNumber(gjson.Get(string(merged), inputMap[key].(string)))
+	if err != nil {
+		impl.logger.Errorw("error occurred while parsing float number", "key", key, "err", err)
+	}
+	return floatNumber, err
+}
+
+func (impl *AppServiceImpl) setScalingValues(templateMap map[string]interface{}, customScalingKey string, merged []byte, value interface{}) ([]byte, error) {
+	autoscalingJsonPath := templateMap[customScalingKey]
+	autoscalingJsonPathKey := autoscalingJsonPath.(string)
+	mergedRes, err := sjson.Set(string(merged), autoscalingJsonPathKey, value)
+	if err != nil {
+		impl.logger.Errorw("error occurred while setting autoscaling key", "JsonPathKey", autoscalingJsonPathKey, "err", err)
+		return []byte{}, err
+	}
+	return []byte(mergedRes), nil
+}
+
+func (impl *AppServiceImpl) fetchRequiredReplicaCount(currentReplicaCount float64, reqMaxReplicas float64, reqMinReplicas float64) float64 {
+	var reqReplicaCount float64
+	if currentReplicaCount <= reqMaxReplicas && currentReplicaCount >= reqMinReplicas {
+		reqReplicaCount = currentReplicaCount
+	} else if currentReplicaCount > reqMaxReplicas {
+		reqReplicaCount = reqMaxReplicas
+	} else if currentReplicaCount < reqMinReplicas {
+		reqReplicaCount = reqMinReplicas
+	}
+	return reqReplicaCount
 }
 
 func (impl *AppServiceImpl) CreateHistoriesForDeploymentTrigger(pipeline *pipelineConfig.Pipeline, strategy *chartConfig.PipelineStrategy, envOverride *chartConfig.EnvConfigOverride, renderedImageTemplate string, deployedOn time.Time, deployedBy int32) error {
