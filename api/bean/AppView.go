@@ -57,7 +57,6 @@ type JobsContainer struct {
 	JobName     string          `json:"name""`
 	LastRun     []LastRunStatus `json:"last-run"'`
 	Description string          `json:"description"`
-	ProjectId   int             `json:"projectId"`
 }
 
 type LastRunStatus struct {
