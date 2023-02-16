@@ -1751,88 +1751,8 @@ func (impl PipelineBuilderImpl) DeleteDeploymentApps(ctx context.Context,
 	// Iterate over all the pipelines in the environment for given deployment app type
 	for _, pipeline := range pipelines {
 
-		// delete if it is argocd app and deployment app is created
-		if pipeline.DeploymentAppCreated {
-
-			if len(pipeline.App.AppName) == 0 || len(pipeline.Environment.Name) == 0 {
-				impl.logger.Errorw("app name or environment name is not present",
-					"pipeline id", pipeline.Id)
-
-				failedPipelines = impl.append(
-					failedPipelines,
-					pipeline.Id,
-					pipeline.App.AppName,
-					pipeline.Environment.Name,
-					"could not fetch app name or environment name",
-					bean.FAILED)
-				continue
-			}
-
-			if pipeline.DeploymentAppType == string(bean.ARGO_CD) {
-				// check if app status is Healthy
-				status, appStatusErr := impl.appStatusRepository.Get(pipeline.AppId, pipeline.EnvironmentId)
-
-				// cannot delete the app from argocd if app status is not healthy
-				if appStatusErr != nil || status.Status != "Healthy" {
-					impl.logger.Errorw("unable to fetch app status or app status is not healthy",
-						"appId", pipeline.AppId,
-						"environmentId", pipeline.EnvironmentId,
-						"err", appStatusErr)
-
-					failedPipelines = impl.append(
-						failedPipelines,
-						pipeline.Id,
-						pipeline.App.AppName,
-						pipeline.Environment.Name,
-						"unable to fetch app status or app status is not healthy",
-						bean.FAILED)
-					continue
-				}
-			}
-
-			deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
-			var err error
-
-			// delete request
-			if pipeline.DeploymentAppType == string(bean.ARGO_CD) {
-				err = impl.deleteArgoCdApp(ctx, deploymentAppName, true)
-
-			} else {
-				// check if git repo url is present in db
-				chart, err := impl.chartRepository.FindLatestByAppId(pipeline.AppId)
-
-				if err != nil || len(chart.GitRepoUrl) == 0 {
-					impl.logger.Errorw("error fetching git repo url or it is not present")
-
-					failedPipelines = impl.append(
-						failedPipelines,
-						pipeline.Id,
-						pipeline.App.AppName,
-						pipeline.Environment.Name,
-						"error fetching git repo url or it is not present",
-						bean.FAILED)
-					continue
-				}
-				err = impl.deleteHelmApp(ctx, pipeline)
-			}
-
-			if err != nil {
-				impl.logger.Errorw("error deleting app on "+pipeline.DeploymentAppType,
-					"deployment app name", deploymentAppName,
-					"err", err)
-
-				// deletion failed, append to the list of failed pipelines
-				failedPipelines = impl.append(
-					failedPipelines,
-					pipeline.Id,
-					pipeline.App.AppName,
-					pipeline.Environment.Name,
-					"error deleting app with error: "+err.Error(),
-					bean.FAILED)
-				continue
-			}
-
-			// deletion successful, append to the list of successful pipelines
+		// Cannot delete app if deployment app is not created
+		if !pipeline.DeploymentAppCreated {
 			successfulPipelines = impl.append(
 				successfulPipelines,
 				pipeline.Id,
@@ -1840,7 +1760,95 @@ func (impl PipelineBuilderImpl) DeleteDeploymentApps(ctx context.Context,
 				pipeline.Environment.Name,
 				"",
 				bean.SUCCESS)
+			continue
 		}
+
+		if len(pipeline.App.AppName) == 0 || len(pipeline.Environment.Name) == 0 {
+			impl.logger.Errorw("app name or environment name is not present",
+				"pipeline id", pipeline.Id)
+
+			failedPipelines = impl.append(
+				failedPipelines,
+				pipeline.Id,
+				pipeline.App.AppName,
+				pipeline.Environment.Name,
+				"could not fetch app name or environment name",
+				bean.FAILED)
+			continue
+		}
+
+		if pipeline.DeploymentAppType == string(bean.ARGO_CD) {
+			// check if app status is Healthy
+			status, appStatusErr := impl.appStatusRepository.Get(pipeline.AppId, pipeline.EnvironmentId)
+
+			// cannot delete the app from argocd if app status is not healthy
+			if appStatusErr != nil || status.Status != "Healthy" {
+				impl.logger.Errorw("unable to fetch app status or app status is not healthy",
+					"appId", pipeline.AppId,
+					"environmentId", pipeline.EnvironmentId,
+					"err", appStatusErr)
+
+				failedPipelines = impl.append(
+					failedPipelines,
+					pipeline.Id,
+					pipeline.App.AppName,
+					pipeline.Environment.Name,
+					"unable to fetch app status or app status is not healthy",
+					bean.FAILED)
+				continue
+			}
+		}
+
+		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
+		var err error
+
+		// delete request
+		if pipeline.DeploymentAppType == string(bean.ARGO_CD) {
+			err = impl.deleteArgoCdApp(ctx, deploymentAppName, true)
+
+		} else {
+			// check if git repo url is present in db
+			fetchedChart, err := impl.chartRepository.FindLatestByAppId(pipeline.AppId)
+
+			if err != nil || len(fetchedChart.GitRepoUrl) == 0 {
+				impl.logger.Errorw("error fetching git repo url or it is not present")
+
+				failedPipelines = impl.append(
+					failedPipelines,
+					pipeline.Id,
+					pipeline.App.AppName,
+					pipeline.Environment.Name,
+					"error fetching git repo url or it is not present",
+					bean.FAILED)
+				continue
+			}
+			err = impl.deleteHelmApp(ctx, pipeline)
+		}
+
+		if err != nil {
+			impl.logger.Errorw("error deleting app on "+pipeline.DeploymentAppType,
+				"deployment app name", deploymentAppName,
+				"err", err)
+
+			// deletion failed, append to the list of failed pipelines
+			failedPipelines = impl.append(
+				failedPipelines,
+				pipeline.Id,
+				pipeline.App.AppName,
+				pipeline.Environment.Name,
+				"error deleting app with error: "+err.Error(),
+				bean.FAILED)
+			continue
+		}
+
+		// deletion successful, append to the list of successful pipelines
+		successfulPipelines = impl.append(
+			successfulPipelines,
+			pipeline.Id,
+			pipeline.App.AppName,
+			pipeline.Environment.Name,
+			"",
+			bean.SUCCESS)
 	}
 
 	return &bean.DeploymentAppTypeChangeResponse{
