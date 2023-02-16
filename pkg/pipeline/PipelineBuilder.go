@@ -1784,14 +1784,10 @@ func (impl PipelineBuilderImpl) DeleteDeploymentApps(ctx context.Context,
 
 		} else {
 			// check if git repo url is present in db
-			fetchedChart, err := impl.chartRepository.FindLatestByAppId(pipeline.AppId)
-
-			if err != nil || len(fetchedChart.GitRepoUrl) == 0 {
-				impl.logger.Errorw("error fetching git repo url or it is not present")
+			if isGitRepoUrlPresent := impl.isGitRepoUrlPresent(pipeline.AppId); !isGitRepoUrlPresent {
 
 				failedPipelines = impl.handleFailedDeploymentAppChange(pipeline, failedPipelines,
 					"error fetching git repo url or it is not present")
-
 				continue
 			}
 			err = impl.deleteHelmApp(ctx, pipeline)
@@ -1823,6 +1819,16 @@ func (impl PipelineBuilderImpl) DeleteDeploymentApps(ctx context.Context,
 		SuccessfulPipelines: successfulPipelines,
 		FailedPipelines:     failedPipelines,
 	}
+}
+
+func (impl PipelineBuilderImpl) isGitRepoUrlPresent(appId int) bool {
+	fetchedChart, err := impl.chartRepository.FindLatestByAppId(appId)
+
+	if err != nil || len(fetchedChart.GitRepoUrl) == 0 {
+		impl.logger.Errorw("error fetching git repo url or it is not present")
+		return false
+	}
+	return true
 }
 
 func (impl PipelineBuilderImpl) isPipelineInfoValid(pipeline *pipelineConfig.Pipeline,
