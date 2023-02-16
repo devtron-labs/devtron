@@ -158,14 +158,11 @@ func (handler AppListingRestHandlerImpl) FetchAllDevtronManagedApps(w http.Respo
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 func (handler AppListingRestHandlerImpl) FetchJobs(w http.ResponseWriter, r *http.Request) {
-	newCtx, span := otel.Tracer("userService").Start(r.Context(), "GetLoggedInUser")
 	userId, err := handler.userService.GetLoggedInUser(r)
-	span.End()
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	newCtx, span = otel.Tracer("userService").Start(newCtx, "GetById")
 
 	var fetchJobListingRequest app.FetchAppListingRequest
 	decoder := json.NewDecoder(r.Body)
