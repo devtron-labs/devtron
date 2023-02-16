@@ -1769,12 +1769,9 @@ func (impl PipelineBuilderImpl) DeleteDeploymentApps(ctx context.Context,
 		}
 
 		// check health of the app if it is argocd deployment type
-		isArgoCdApp, argoAppHealthCheckErr := impl.
-			checkArgoAppHealthStatus(pipeline.AppId, pipeline.EnvironmentId, pipeline.DeploymentAppType)
+		if healthChkErr := impl.handleUnhealthyAppsIfArgoDeploymentType(pipeline, failedPipelines); healthChkErr != nil {
 
-		if isArgoCdApp && argoAppHealthCheckErr != nil {
-
-			failedPipelines = impl.handleFailedDeploymentAppChange(pipeline, failedPipelines, argoAppHealthCheckErr.Error())
+			// cannot delete unhealthy app
 			continue
 		}
 
@@ -1855,24 +1852,30 @@ func (impl PipelineBuilderImpl) handleFailedDeploymentAppChange(pipeline *pipeli
 		bean.FAILED)
 }
 
-func (impl PipelineBuilderImpl) checkArgoAppHealthStatus(appId int, envId int, deploymentAppType string) (isArgoCdApp bool, err error) {
+func (impl PipelineBuilderImpl) handleUnhealthyAppsIfArgoDeploymentType(pipeline *pipelineConfig.Pipeline,
+	failedPipelines []*bean.DeploymentChangeStatus) error {
 
-	if deploymentAppType == string(bean.ARGO_CD) {
+	if pipeline.DeploymentAppType == string(bean.ARGO_CD) {
 		// check if app status is Healthy
-		status, err := impl.appStatusRepository.Get(appId, envId)
+		status, err := impl.appStatusRepository.Get(pipeline.AppId, pipeline.EnvironmentId)
 
 		// cannot delete the app from argocd if app status is not healthy
 		if err != nil || status.Status != "Healthy" {
-			impl.logger.Errorw("unable to fetch app status or app status is not healthy",
-				"appId", appId,
-				"environmentId", envId,
+
+			healthCheckErr := errors.New("unable to fetch app status or app status is not healthy")
+
+			impl.logger.Errorw(healthCheckErr.Error(),
+				"appId", pipeline.AppId,
+				"environmentId", pipeline.EnvironmentId,
 				"err", err)
 
-			return true, errors.New("unable to fetch app status or app status is not healthy")
+			impl.handleFailedDeploymentAppChange(pipeline, failedPipelines, healthCheckErr.Error())
+
+			return healthCheckErr
 		}
-		return true, nil
+		return nil
 	}
-	return false, errors.New("deployment app is not argo cd")
+	return nil
 }
 
 // deleteArgoCdApp takes context and deployment app name used in argo cd and deletes
