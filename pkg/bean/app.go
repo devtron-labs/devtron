@@ -523,11 +523,11 @@ const (
 )
 
 type DeploymentAppTypeChangeRequest struct {
-	EnvId                    int               `json:"envId,omitempty"`
-	DesiredDeploymentAppType DeploymentAppType `json:"desiredDeploymentAppType,omitempty"`
+	EnvId                 int            `json:"envId,omitempty"`
+	DesiredDeploymentType DeploymentType `json:"desiredDeploymentType,omitempty"`
 }
 
-type DeploymentAppTypeChangeRequestPipelineStatus struct {
+type DeploymentChangeStatus struct {
 	Id              int    `json:"id,omitempty"`
 	AppName         string `json:"appName,omitempty"`
 	EnvironmentName string `json:"envName,omitempty"`
@@ -536,17 +536,17 @@ type DeploymentAppTypeChangeRequestPipelineStatus struct {
 }
 
 type DeploymentAppTypeChangeResponse struct {
-	EnvId                    int                                             `json:"envId,omitempty"`
-	DesiredDeploymentAppType DeploymentAppType                               `json:"desiredDeploymentAppType,omitempty"`
-	SuccessfulPipelines      []*DeploymentAppTypeChangeRequestPipelineStatus `json:"successfulPipelines"`
-	FailedPipelines          []*DeploymentAppTypeChangeRequestPipelineStatus `json:"failedPipelines"`
+	EnvId                 int                       `json:"envId,omitempty"`
+	DesiredDeploymentType DeploymentType            `json:"desiredDeploymentType,omitempty"`
+	SuccessfulPipelines   []*DeploymentChangeStatus `json:"successfulPipelines"`
+	FailedPipelines       []*DeploymentChangeStatus `json:"failedPipelines"`
 }
 
-type DeploymentAppType string
+type DeploymentType string
 
 const (
-	HELM    DeploymentAppType = "helm"
-	ARGO_CD DeploymentAppType = "argo_cd"
+	HELM    DeploymentType = "helm"
+	ARGO_CD DeploymentType = "argo_cd"
 )
 
 type Status string
