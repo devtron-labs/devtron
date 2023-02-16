@@ -1972,7 +1972,7 @@ func (impl *AppServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, a
 		}
 	}
 	//check for custom chart support
-	if _, ok := templateMap[bean2.CustomAutoScalingEnabledPathKey]; ok {
+	if autoscalingEnabledPath, ok := templateMap[bean2.CustomAutoScalingEnabledPathKey]; ok {
 		if deploymentType == models.DEPLOYMENTTYPE_STOP {
 			merged, err = impl.setScalingValues(templateMap, bean2.CustomAutoScalingEnabledPathKey, merged, false)
 			if err != nil {
@@ -1982,19 +1982,26 @@ func (impl *AppServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, a
 			if err != nil {
 				return merged
 			}
-		} else if deploymentType == models.DEPLOYMENTTYPE_START {
-			merged, err = impl.setScalingValues(templateMap, bean2.CustomAutoScalingEnabledPathKey, merged, true)
-			if err != nil {
-				return merged
+		} else {
+			autoscalingEnabled := false
+			autoscalingEnabledValue := gjson.Get(string(merged), autoscalingEnabledPath.(string)).Value()
+			if val, ok := autoscalingEnabledValue.(bool); ok {
+				autoscalingEnabled = val
 			}
+			//merged, err = impl.setScalingValues(templateMap, bean2.CustomAutoScalingEnabledPathKey, merged, true)
+			//if err != nil {
+			//	return merged
+			//}
 			// extract replica count, min, max and check for required value
-			replicaCount, err := impl.getReplicaCountFromCustomChart(templateMap, merged)
-			if err != nil {
-				return merged
-			}
-			merged, err = impl.setScalingValues(templateMap, bean2.CustomAutoscalingReplicaCountPathKey, merged, replicaCount)
-			if err != nil {
-				return merged
+			if autoscalingEnabled {
+				replicaCount, err := impl.getReplicaCountFromCustomChart(templateMap, merged)
+				if err != nil {
+					return merged
+				}
+				merged, err = impl.setScalingValues(templateMap, bean2.CustomAutoscalingReplicaCountPathKey, merged, replicaCount)
+				if err != nil {
+					return merged
+				}
 			}
 		}
 	}
@@ -2022,7 +2029,7 @@ func (impl *AppServiceImpl) extractParamValue(inputMap map[string]interface{}, k
 	if _, ok := inputMap[key]; !ok {
 		return 0, errors.New("empty-val-err")
 	}
-	floatNumber, err := util2.ParseFloatNumber(gjson.Get(string(merged), inputMap[key].(string)))
+	floatNumber, err := util2.ParseFloatNumber(gjson.Get(string(merged), inputMap[key].(string)).Value())
 	if err != nil {
 		impl.logger.Errorw("error occurred while parsing float number", "key", key, "err", err)
 	}
