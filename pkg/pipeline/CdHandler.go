@@ -41,6 +41,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
+	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"os"
@@ -57,12 +58,13 @@ type CdHandler interface {
 	DownloadCdWorkflowArtifacts(pipelineId int, buildId int) (*os.File, error)
 	FetchCdPrePostStageStatus(pipelineId int) ([]pipelineConfig.CdWorkflowWithArtifact, error)
 	CancelStage(workflowRunnerId int, userId int32) (int, error)
-	FetchAppWorkflowStatusForTriggerView(pipelineId int) ([]*pipelineConfig.CdWorkflowStatus, error)
+	FetchAppWorkflowStatusForTriggerView(appId int) ([]*pipelineConfig.CdWorkflowStatus, error)
 	CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipelineStatusCheckEligibleTime int) error
 	CheckArgoAppStatusPeriodicallyAndUpdateInDb(timeForDegradation int) error
 	CheckArgoPipelineTimelineStatusPeriodicallyAndUpdateInDb(pendingSinceSeconds int, timeForDegradation int) error
 	UpdatePipelineTimelineAndStatusByLiveApplicationFetch(pipeline *pipelineConfig.Pipeline, userId int32) (err error, isTimelineUpdated bool)
 	CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipelineId int, userId int32)
+	FetchAppWorkflowStatusForTriggerViewForEnvironment(envId int, token string, auth func(token string, appObject string, envObject string) bool) ([]*pipelineConfig.CdWorkflowStatus, error)
 }
 
 type CdHandlerImpl struct {
@@ -93,6 +95,7 @@ type CdHandlerImpl struct {
 	pipelineStatusTimelineService          app.PipelineStatusTimelineService
 	appService                             app.AppService
 	appStatusService                       app_status.AppStatusService
+	enforcerUtil                           rbac.EnforcerUtil
 }
 
 func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService user.UserService,
@@ -115,7 +118,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 	pipelineStatusSyncDetailService app.PipelineStatusSyncDetailService,
 	pipelineStatusTimelineService app.PipelineStatusTimelineService,
 	appService app.AppService,
-	appStatusService app_status.AppStatusService) *CdHandlerImpl {
+	appStatusService app_status.AppStatusService, enforcerUtil rbac.EnforcerUtil) *CdHandlerImpl {
 	return &CdHandlerImpl{
 		Logger:                                 Logger,
 		cdConfig:                               cdConfig,
@@ -144,6 +147,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 		pipelineStatusTimelineService:          pipelineStatusTimelineService,
 		appService:                             appService,
 		appStatusService:                       appStatusService,
+		enforcerUtil:                           enforcerUtil,
 	}
 }
 
@@ -849,6 +853,126 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerView(appId int) ([]*p
 	pipelineIds := make([]int, 0)
 	//pipelineIdsMap := make(map[int]int)
 	for _, pipeline := range pipelines {
+		pipelineIds = append(pipelineIds, pipeline.Id)
+	}
+
+	if len(pipelineIds) == 0 {
+		return cdWorkflowStatus, nil
+	}
+
+	cdMap := make(map[int]*pipelineConfig.CdWorkflowStatus)
+	result, err := impl.cdWorkflowRepository.FetchAllCdStagesLatestEntity(pipelineIds)
+	if err != nil {
+		return cdWorkflowStatus, err
+	}
+	var wfrIds []int
+	for _, item := range result {
+		wfrIds = append(wfrIds, item.WfrId)
+	}
+
+	statusMap := make(map[int]string)
+	if len(wfrIds) > 0 {
+		wfrList, err := impl.cdWorkflowRepository.FetchAllCdStagesLatestEntityStatus(wfrIds)
+		if err != nil && !util.IsErrNoRows(err) {
+			return cdWorkflowStatus, err
+		}
+		for _, item := range wfrList {
+			statusMap[item.Id] = item.Status
+		}
+	}
+
+	for _, item := range result {
+		if _, ok := cdMap[item.PipelineId]; !ok {
+			cdWorkflowStatus := &pipelineConfig.CdWorkflowStatus{}
+			cdWorkflowStatus.PipelineId = item.PipelineId
+			cdWorkflowStatus.CiPipelineId = item.CiPipelineId
+			if item.WorkflowType == "PRE" {
+				cdWorkflowStatus.PreStatus = statusMap[item.WfrId]
+			} else if item.WorkflowType == "DEPLOY" {
+				cdWorkflowStatus.DeployStatus = statusMap[item.WfrId]
+			} else if item.WorkflowType == "POST" {
+				cdWorkflowStatus.PostStatus = statusMap[item.WfrId]
+			}
+			cdMap[item.PipelineId] = cdWorkflowStatus
+		} else {
+			cdWorkflowStatus := cdMap[item.PipelineId]
+			cdWorkflowStatus.PipelineId = item.PipelineId
+			cdWorkflowStatus.CiPipelineId = item.CiPipelineId
+			if item.WorkflowType == "PRE" {
+				cdWorkflowStatus.PreStatus = statusMap[item.WfrId]
+			} else if item.WorkflowType == "DEPLOY" {
+				cdWorkflowStatus.DeployStatus = statusMap[item.WfrId]
+			} else if item.WorkflowType == "POST" {
+				cdWorkflowStatus.PostStatus = statusMap[item.WfrId]
+			}
+			cdMap[item.PipelineId] = cdWorkflowStatus
+		}
+	}
+
+	for _, item := range cdMap {
+		if item.PreStatus == "" {
+			item.PreStatus = "Not Triggered"
+		}
+		if item.DeployStatus == "" {
+			item.DeployStatus = "Not Deployed"
+		}
+		if item.PostStatus == "" {
+			item.PostStatus = "Not Triggered"
+		}
+		cdWorkflowStatus = append(cdWorkflowStatus, item)
+	}
+
+	if len(cdWorkflowStatus) == 0 {
+		for _, item := range pipelineIds {
+			cdWs := &pipelineConfig.CdWorkflowStatus{}
+			cdWs.PipelineId = item
+			cdWs.PreStatus = "Not Triggered"
+			cdWs.DeployStatus = "Not Deployed"
+			cdWs.PostStatus = "Not Triggered"
+			cdWorkflowStatus = append(cdWorkflowStatus, cdWs)
+		}
+	} else {
+		for _, item := range pipelineIds {
+			if _, ok := cdMap[item]; !ok {
+				cdWs := &pipelineConfig.CdWorkflowStatus{}
+				cdWs.PipelineId = item
+				cdWs.PreStatus = "Not Triggered"
+				cdWs.DeployStatus = "Not Deployed"
+				cdWs.PostStatus = "Not Triggered"
+				cdWorkflowStatus = append(cdWorkflowStatus, cdWs)
+			}
+		}
+	}
+
+	return cdWorkflowStatus, err
+}
+
+func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(envId int, token string, auth func(token string, appObject string, envObject string) bool) ([]*pipelineConfig.CdWorkflowStatus, error) {
+	var cdWorkflowStatus []*pipelineConfig.CdWorkflowStatus
+	pipelines, err := impl.pipelineRepository.FindActiveByEnvId(envId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("error fetching pipelines for env id", "err", err)
+		return nil, err
+	}
+
+	var appIds []int
+	for _, pipeline := range pipelines {
+		appIds = append(appIds, pipeline.AppId)
+	}
+	pipelines, err = impl.pipelineRepository.FindActiveByAppIds(appIds)
+	if err != nil && err != pg.ErrNoRows {
+		return cdWorkflowStatus, err
+	}
+	pipelineIds := make([]int, 0)
+	//pipelineIdsMap := make(map[int]int)
+	for _, pipeline := range pipelines {
+		appObject := impl.enforcerUtil.GetAppRBACName(pipeline.App.AppName)
+		envObject := impl.enforcerUtil.GetEnvRBACNameByCdPipelineIdAndEnvId(pipeline.Id)
+		valid := auth(token, appObject, envObject)
+		if !valid {
+			//if user unauthorized, skip items
+			continue
+		}
 		pipelineIds = append(pipelineIds, pipeline.Id)
 	}
 
