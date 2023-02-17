@@ -38,6 +38,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
 
 # components mentioned below
 components:
@@ -51,6 +53,9 @@ components:
         desiredDeploymentType:
           type: string
           description: Desired deployment type. For eg argo_cd / helm
+        excludeApps:
+          type: array
+          description: List of app ids to be excluded
     DeploymentChangeStatus:
       type: object
       properties:
