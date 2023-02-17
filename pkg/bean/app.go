@@ -522,6 +522,43 @@ const (
 	CD_UPDATE
 )
 
+type DeploymentAppTypeChangeRequest struct {
+	EnvId                 int            `json:"envId,omitempty" validate:"required"`
+	DesiredDeploymentType DeploymentType `json:"desiredDeploymentType,omitempty" validate:"required"`
+	ExcludeApps           []int          `json:"excludeApps"`
+}
+
+type DeploymentChangeStatus struct {
+	Id      int    `json:"id,omitempty"`
+	AppId   int    `json:"appId,omitempty"`
+	AppName string `json:"appName,omitempty"`
+	EnvId   int    `json:"envId,omitempty"`
+	EnvName string `json:"envName,omitempty"`
+	Error   string `json:"error,omitempty"`
+	Status  Status `json:"status,omitempty"`
+}
+
+type DeploymentAppTypeChangeResponse struct {
+	EnvId                 int                       `json:"envId,omitempty"`
+	DesiredDeploymentType DeploymentType            `json:"desiredDeploymentType,omitempty"`
+	SuccessfulPipelines   []*DeploymentChangeStatus `json:"successfulPipelines"`
+	FailedPipelines       []*DeploymentChangeStatus `json:"failedPipelines"`
+}
+
+type DeploymentType string
+
+const (
+	Helm   DeploymentType = "helm"
+	ArgoCd DeploymentType = "argo_cd"
+)
+
+type Status string
+
+const (
+	Success Status = "Success"
+	Failed  Status = "Failed"
+)
+
 func (a CdPatchAction) String() string {
 	return [...]string{"CREATE", "DELETE", "CD_UPDATE"}[a]
 }
@@ -582,15 +619,17 @@ type AppLabelsDto struct {
 }
 
 type AppLabelDto struct {
-	Key    string `json:"key,notnull"`
-	Value  string `json:"value,notnull"`
-	AppId  int    `json:"appId,omitempty"`
-	UserId int32  `json:"-"`
+	Key       string `json:"key,notnull"`
+	Value     string `json:"value,notnull"`
+	Propagate bool   `json:"propagate,notnull"`
+	AppId     int    `json:"appId,omitempty"`
+	UserId    int32  `json:"-"`
 }
 
 type Label struct {
-	Key   string `json:"key" validate:"required"`
-	Value string `json:"value" validate:"required"`
+	Key       string `json:"key" validate:"required"`
+	Value     string `json:"value" validate:"required"`
+	Propagate bool   `json:"propagate"`
 }
 
 type AppMetaInfoDto struct {
