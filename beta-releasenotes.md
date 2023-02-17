@@ -1,4 +1,5 @@
 ## Bugs
+- fix: duplicate name in charts and chart Group (#2942)
 - fix: sorting app environment containers in app listing api  (#2935)
 - fix: Multigit bug fix in case of preCD and postCD (#2920)
 - fix: Injected support for cloning linked ci pipelines via workflow cloning API (#2944)
