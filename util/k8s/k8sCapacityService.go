@@ -47,6 +47,10 @@ const (
 	localStorageWarning = "deleting Pods with local storage"
 	unmanagedFatal      = "Pods declare no controller (use --force to override)"
 	unmanagedWarning    = "deleting Pods that declare no controller"
+	AWSNodeGroupLabel   = "alpha.eksctl.io/nodegroup-name"
+	AzureNodeGroupLabel = "kubernetes.azure.com/agentpool"
+	GcpNodeGroupLabel   = "cloud.google.com/gke-nodepool"
+	KopsNodeGroupLabel  = "kops.k8s.io/instancegroup"
 )
 
 // below const set is used for pod delete status
@@ -166,13 +170,18 @@ func (impl *K8sCapacityServiceImpl) setBasicClusterDetails(nodeList *corev1.Node
 	var clusterCpuAllocatable resource.Quantity
 	var clusterMemoryAllocatable resource.Quantity
 	nodeCount := 0
-	var clusterNodeNames []string
+	clusterNodeDetails := make([]NodeNameGroupName, 0)
 	nodesK8sVersionMap := make(map[string]bool)
 	//map of node condition and name of all nodes that condition is true on
 	nodeErrors := make(map[corev1.NodeConditionType][]string)
 	var nodesK8sVersion []string
 	for _, node := range nodeList.Items {
-		clusterNodeNames = append(clusterNodeNames, node.Name)
+		nodeGroup := impl.getNodeGroup(&node)
+		nodeNameGroupName := NodeNameGroupName{
+			NodeName:  node.Name,
+			NodeGroup: nodeGroup,
+		}
+		clusterNodeDetails = append(clusterNodeDetails, nodeNameGroupName)
 		errorsInNode := findNodeErrors(&node)
 		for conditionName := range errorsInNode {
 			if nodeNames, ok := nodeErrors[conditionName]; ok {
@@ -194,7 +203,7 @@ func (impl *K8sCapacityServiceImpl) setBasicClusterDetails(nodeList *corev1.Node
 	}
 	clusterDetail.NodeErrors = nodeErrors
 	clusterDetail.NodeK8sVersions = nodesK8sVersion
-	clusterDetail.NodeNames = clusterNodeNames
+	clusterDetail.NodeDetails = clusterNodeDetails
 	clusterDetail.Cpu = &ResourceDetailObject{
 		Capacity: getResourceString(clusterCpuCapacity, corev1.ResourceCPU),
 	}
@@ -357,6 +366,29 @@ func (impl *K8sCapacityServiceImpl) getK8sConfigAndClients(ctx context.Context, 
 	}
 	return restConfig, k8sHttpClient, k8sClientSet, nil
 }
+
+func (impl *K8sCapacityServiceImpl) getNodeGroup(node *corev1.Node) string {
+	var nodeGroup = ""
+	//different cloud providers have their own node group label
+	//azure
+	if ng, ok := node.Labels[AzureNodeGroupLabel]; ok {
+		nodeGroup = ng
+	}
+	//aws
+	if ng, ok := node.Labels[AWSNodeGroupLabel]; ok {
+		nodeGroup = ng
+	}
+	//kops
+	if ng, ok := node.Labels[KopsNodeGroupLabel]; ok {
+		nodeGroup = ng
+	}
+	//gcp
+	if ng, ok := node.Labels[GcpNodeGroupLabel]; ok {
+		nodeGroup = ng
+	}
+	return nodeGroup
+}
+
 func (impl *K8sCapacityServiceImpl) getNodeDetail(ctx context.Context, node *corev1.Node, nodeResourceUsage map[string]corev1.ResourceList, podList *corev1.PodList, callForList bool, restConfig *rest.Config, cluster *cluster.ClusterBean) (*NodeCapacityDetail, error) {
 	cpuAllocatable := node.Status.Allocatable[corev1.ResourceCPU]
 	memoryAllocatable := node.Status.Allocatable[corev1.ResourceMemory]
@@ -379,6 +411,7 @@ func (impl *K8sCapacityServiceImpl) getNodeDetail(ctx context.Context, node *cor
 	}
 
 	labels, taints := impl.getNodeLabelsAndTaints(node)
+	nodeGroup := impl.getNodeGroup(node)
 	nodeDetail := &NodeCapacityDetail{
 		Name:          node.Name,
 		K8sVersion:    node.Status.NodeInfo.KubeletVersion,
@@ -391,6 +424,7 @@ func (impl *K8sCapacityServiceImpl) getNodeDetail(ctx context.Context, node *cor
 		Status:        findNodeStatus(node),
 		CreatedAt:     node.CreationTimestamp.String(),
 		ClusterName:   cluster.ClusterName,
+		NodeGroup:     nodeGroup,
 	}
 	nodeDetail.Version = "v1"
 	nodeDetail.Kind = "Node"

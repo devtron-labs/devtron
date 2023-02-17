@@ -819,6 +819,9 @@ func InitializeApp() (*App, error) {
 
 		kubernetesResourceAuditLogs.Newk8sResourceHistoryServiceImpl,
 		wire.Bind(new(kubernetesResourceAuditLogs.K8sResourceHistoryService), new(*kubernetesResourceAuditLogs.K8sResourceHistoryServiceImpl)),
+
+		router.NewAppGroupingRouterImpl,
+		wire.Bind(new(router.AppGroupingRouter), new(*router.AppGroupingRouterImpl)),
 	)
 	return &App{}, nil
 }
