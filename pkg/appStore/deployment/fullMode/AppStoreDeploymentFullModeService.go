@@ -269,7 +269,9 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationACD(ins
 
 func (impl AppStoreDeploymentFullModeServiceImpl) RegisterInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context) error {
 	repo := &v1alpha1.Repository{
-		Repo: chartGitAttribute.RepoUrl,
+		Repo:     chartGitAttribute.RepoUrl,
+		Username: "prakash100198",
+		Password: "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",
 	}
 	repo, err := impl.repositoryService.Create(ctx, &repository2.RepoCreateRequest{Repo: repo, Upsert: true})
 	if err != nil {
