@@ -17,6 +17,7 @@
 - feat: argo stack upgrade (#2597)
 - feat: Showing app status on app listing page (#2799)
 ## Documentation
+- docs: Some correction in Documentation at install devtron/ configuration / ingress setup (#2981)
 - docs: Added preset plugins (#2904)
 - docs: mount pvc (#2941)
 - docs: minor updates ingress (#2931)
