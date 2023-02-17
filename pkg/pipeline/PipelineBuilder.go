@@ -3639,9 +3639,15 @@ func (impl PipelineBuilderImpl) GetEnvironmentListForAutocompleteFilter(envName 
 		beans = append(beans, environment)
 	}
 
+	models, err = impl.environmentRepository.FindAllActive()
+	if err != nil && err != pg.ErrNoRows {
+		return result, err
+	}
 	envCount := len(beans)
+	totalCount := len(models)
 	result.EnvList = beans
 	result.EnvCount = envCount
+	result.TotalCount = totalCount
 	return result, nil
 }
 
