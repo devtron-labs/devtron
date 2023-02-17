@@ -39,6 +39,13 @@ type UserTerminalSessionResponse struct {
 	ShellName             string            `json:"shellName"`
 }
 
+type ManifestEditRequestResponse struct {
+	ErrorComments        string                       `json:"errors"`
+	Manifest             interface{}                  `json:"manifest"`
+	UserTerminalResponse *UserTerminalSessionResponse `json:"userTerminalResponse"`
+	UserTerminalRequest  *UserTerminalSessionRequest  `json:"userTerminalRequest"`
+}
+
 const TerminalAccessPodNameTemplate = "terminal-access-" + TerminalAccessClusterIdTemplateVar + "-" + TerminalAccessUserIdTemplateVar + "-" + TerminalAccessRandomIdVar
 const TerminalAccessClusterIdTemplateVar = "${cluster_id}"
 const TerminalAccessUserIdTemplateVar = "${user_id}"

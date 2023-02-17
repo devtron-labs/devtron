@@ -26,6 +26,7 @@ type UserTerminalAccessRestHandler interface {
 	FetchTerminalPodEvents(w http.ResponseWriter, r *http.Request)
 	FetchTerminalPodManifest(w http.ResponseWriter, r *http.Request)
 	ValidateShell(w http.ResponseWriter, r *http.Request)
+	EditPodManifest(w http.ResponseWriter, r *http.Request)
 }
 
 type UserTerminalAccessRestHandlerImpl struct {
@@ -108,7 +109,7 @@ func (handler UserTerminalAccessRestHandlerImpl) StartTerminalSession(w http.Res
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	sessionResponse, err := handler.UserTerminalAccessService.StartTerminalSession(r.Context(), &request)
+	sessionResponse, err := handler.UserTerminalAccessService.StartTerminalSession(r.Context(), &request, nil)
 	if err != nil {
 		handler.Logger.Errorw("service err, StartTerminalSession", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -355,11 +356,49 @@ func (handler UserTerminalAccessRestHandlerImpl) DisconnectAllTerminalSessionAnd
 		return
 	}
 	handler.UserTerminalAccessService.DisconnectAllSessionsForUser(r.Context(), userId)
-	sessionResponse, err := handler.UserTerminalAccessService.StartTerminalSession(r.Context(), &request)
+	sessionResponse, err := handler.UserTerminalAccessService.StartTerminalSession(r.Context(), &request, nil)
 	if err != nil {
 		handler.Logger.Errorw("service err, DisconnectAllTerminalSessionAndRetry", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, nil, sessionResponse, http.StatusOK)
+}
+
+func (handler UserTerminalAccessRestHandlerImpl) EditPodManifest(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.UserService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	//vars := mux.Vars(r)
+	//terminalAccessId, err := strconv.Atoi(vars["terminalAccessId"])
+	//if err != nil {
+	//	handler.Logger.Errorw("request err, FetchTerminalPodManifest", "err", err)
+	//	common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	//	return
+	//}
+
+	decoder := json.NewDecoder(r.Body)
+	var request models.ManifestEditRequestResponse
+	err = decoder.Decode(&request)
+	if err != nil {
+		handler.Logger.Errorw("request err, StartTerminalSession", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	token := r.Header.Get("token")
+	if ok := handler.Enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
+	manifest, err := handler.UserTerminalAccessService.EditPodManifest(r.Context(), &request)
+	if err != nil {
+		handler.Logger.Errorw("service err, FetchTerminalPodManifest", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, manifest, http.StatusOK)
 }
