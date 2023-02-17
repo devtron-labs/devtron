@@ -348,7 +348,11 @@ func getClient(clusterConfig *util.ClusterConfig) (*v1.CoreV1Client, error) {
 	cfg.Host = clusterConfig.Host
 	cfg.BearerToken = clusterConfig.BearerToken
 	cfg.Insecure = true
-	client, err := v1.NewForConfig(cfg)
+	httpClient, err := util.OverrideK8sHttpClientWithTracer(cfg)
+	if err != nil {
+		return nil, err
+	}
+	client, err := v1.NewForConfigAndClient(cfg, httpClient)
 	return client, err
 }
 

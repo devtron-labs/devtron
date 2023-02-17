@@ -1,19 +1,20 @@
 # Ingress Setup
 
 After Devtron is installed, Devtron is accessible through service `devtron-service`.
-If you want to access devtron through ingress, edit devtron-service and change the loadbalancer to ClusterIP. You can do this using `kubectl patch` command like :
+If you want to access Devtron through ingress, edit `devtron-service` and change the loadbalancer to ClusterIP. You can do this using `kubectl patch` command:
 
 ```bash
 kubectl patch -n devtroncd svc devtron-service -p '{"spec": {"ports": [{"port": 80,"targetPort": "devtron","protocol": "TCP","name": "devtron"}],"type": "ClusterIP","selector": {"app": "devtron"}}}'
 ```
  
-After that create ingress by applying the ingress yaml file.
-You can use [this yaml file](https://github.com/devtron-labs/devtron/blob/main/manifests/yamls/devtron-ingress.yaml) to create ingress to access devtron:
+After this, create ingress by applying the ingress yaml file.
+You can use [this yaml file](https://github.com/devtron-labs/devtron/blob/main/manifests/yamls/devtron-ingress.yaml) to create ingress to access Devtron:
 
 ```yaml
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
+  annotations: nginx.ingress.kubernetes.io/app-root: /dashboard
   labels:
     app: devtron
     release: devtron
@@ -47,12 +48,13 @@ spec:
         pathType: ImplementationSpecific  
 ```        
 
-You can access devtron from any host after applying this yaml. For k8s versions <1.19, [apply this yaml](https://github.com/devtron-labs/devtron/blob/main/manifests/yamls/devtron-ingress-legacy.yaml):
+You can access Devtron from any host after applying this yaml. For k8s versions <1.19, [apply this yaml](https://github.com/devtron-labs/devtron/blob/main/manifests/yamls/devtron-ingress-legacy.yaml):
 
 ```yaml
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
+  annotations: nginx.ingress.kubernetes.io/app-root: /dashboard
   labels:
     app: devtron
     release: devtron
@@ -73,12 +75,13 @@ spec:
         pathType: ImplementationSpecific  
 ```        
 
-Optionally you also can access devtron through a specific host like :
+Optionally, you also can access Devtron through a specific host by running the following YAML file:
 
 ```yaml
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
+  annotations: nginx.ingress.kubernetes.io/app-root: /dashboard
   labels:
     app: devtron
     release: devtron
@@ -102,7 +105,7 @@ spec:
             name: devtron-service
             port:
               number: 80
-       host: devtron.example.com
+        host: devtron.example.com
         path: /dashboard
         pathType: ImplementationSpecific
       - backend:
@@ -120,7 +123,7 @@ Once ingress setup for devtron is done and you want to run Devtron over `https`,
 
 ### 1. Nginx Ingress Controller
 
-In case of `nginx ingress controller`, add following annotations under `service.annotations` under nginx ingress controller to run devtron over `https`.
+In case of `nginx ingress controller`, add the following annotations under `service.annotations` under nginx ingress controller to run devtron over `https`.
 
 (i) Amazon Web Services (AWS)
 

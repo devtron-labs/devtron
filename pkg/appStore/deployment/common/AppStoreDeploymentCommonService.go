@@ -79,7 +79,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) GetInstalledAppByInstalledAppId(
 	return impl.convert(installedApp, installedAppVersion), nil
 }
 
-//converts db object to bean
+// converts db object to bean
 func (impl AppStoreDeploymentCommonServiceImpl) convert(chart *repository.InstalledApps, installedAppVersion *repository.InstalledAppVersions) *appStoreBean.InstallAppVersionDTO {
 	chartVersionApp := installedAppVersion.AppStoreApplicationVersion
 	chartRepo := installedAppVersion.AppStoreApplicationVersion.AppStore.ChartRepo
@@ -87,6 +87,8 @@ func (impl AppStoreDeploymentCommonServiceImpl) convert(chart *repository.Instal
 		EnvironmentId:         chart.EnvironmentId,
 		Id:                    chart.Id,
 		AppId:                 chart.AppId,
+		TeamId:                chart.App.TeamId,
+		TeamName:              chart.App.Team.Name,
 		AppOfferingMode:       chart.App.AppOfferingMode,
 		ClusterId:             chart.Environment.ClusterId,
 		Namespace:             chart.Environment.Namespace,
@@ -105,6 +107,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) convert(chart *repository.Instal
 				Password: chartRepo.Password,
 			},
 		},
+		AppStoreApplicationVersionId: installedAppVersion.AppStoreApplicationVersionId,
 	}
 }
 

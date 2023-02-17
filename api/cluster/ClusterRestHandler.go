@@ -43,7 +43,6 @@ const CLUSTER_DELETE_SUCCESS_RESP = "Cluster deleted successfully."
 
 type ClusterRestHandler interface {
 	Save(w http.ResponseWriter, r *http.Request)
-	FindOne(w http.ResponseWriter, r *http.Request)
 	FindAll(w http.ResponseWriter, r *http.Request)
 
 	FindById(w http.ResponseWriter, r *http.Request)
@@ -51,7 +50,9 @@ type ClusterRestHandler interface {
 
 	FindAllForAutoComplete(w http.ResponseWriter, r *http.Request)
 	DeleteCluster(w http.ResponseWriter, r *http.Request)
+	GetClusterNamespaces(w http.ResponseWriter, r *http.Request)
 	GetAllClusterNamespaces(w http.ResponseWriter, r *http.Request)
+	FindAllForClusterPermission(w http.ResponseWriter, r *http.Request)
 }
 
 type ClusterRestHandlerImpl struct {
@@ -151,29 +152,9 @@ func (impl ClusterRestHandlerImpl) Save(w http.ResponseWriter, r *http.Request) 
 	common.WriteJsonResp(w, err, bean, http.StatusOK)
 }
 
-func (impl ClusterRestHandlerImpl) FindOne(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	cName := vars["cluster_name"]
-	// RBAC enforcer applying
-	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionGet, strings.ToLower(cName)); !ok {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
-	//RBAC enforcer Ends
-
-	envBean, err := impl.clusterService.FindOne(cName)
-	if err != nil {
-		impl.logger.Errorw("service err, FindOne", "error", err, "cluster name", cName)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	common.WriteJsonResp(w, err, envBean, http.StatusOK)
-}
-
 func (impl ClusterRestHandlerImpl) FindAll(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
-	clusterList, err := impl.clusterService.FindAll()
+	clusterList, err := impl.clusterService.FindAllWithoutConfig()
 	if err != nil {
 		impl.logger.Errorw("service err, FindAll", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -201,7 +182,7 @@ func (impl ClusterRestHandlerImpl) FindById(w http.ResponseWriter, r *http.Reque
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	bean, err := impl.clusterService.FindById(i)
+	bean, err := impl.clusterService.FindByIdWithoutConfig(i)
 	if err != nil {
 		impl.logger.Errorw("service err, FindById", "err", err, "clusterId", id)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -375,4 +356,69 @@ func (impl ClusterRestHandlerImpl) GetAllClusterNamespaces(w http.ResponseWriter
 	//RBAC enforcer Ends
 
 	common.WriteJsonResp(w, nil, clusterNamespaces, http.StatusOK)
+}
+
+func (impl ClusterRestHandlerImpl) GetClusterNamespaces(w http.ResponseWriter, r *http.Request) {
+	//token := r.Header.Get("token")
+	vars := mux.Vars(r)
+	clusterIdString := vars["clusterId"]
+
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		impl.logger.Errorw("user not authorized", "error", err, "userId", userId)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	token := r.Header.Get("token")
+	isActionUserSuperAdmin := false
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); ok {
+		isActionUserSuperAdmin = true
+	}
+	clusterId, err := strconv.Atoi(clusterIdString)
+	if err != nil {
+		impl.logger.Errorw("failed to extract clusterId from param", "error", err, "clusterId", clusterIdString)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	allClusterNamespaces, err := impl.clusterService.FindAllNamespacesByUserIdAndClusterId(userId, clusterId, isActionUserSuperAdmin)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, allClusterNamespaces, http.StatusOK)
+}
+
+func (impl ClusterRestHandlerImpl) FindAllForClusterPermission(w http.ResponseWriter, r *http.Request) {
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		impl.logger.Errorw("user not authorized", "error", err, "userId", userId)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	token := r.Header.Get("token")
+	isActionUserSuperAdmin := false
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); ok {
+		isActionUserSuperAdmin = true
+	}
+	clusterList, err := impl.clusterService.FindAllForClusterByUserId(userId, isActionUserSuperAdmin)
+	if err != nil {
+		impl.logger.Errorw("error in deleting cluster", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	// RBAC enforcer applying
+	// Already applied at service layer
+	//RBAC enforcer Ends
+
+	if len(clusterList) == 0 {
+		// assumption is that if list is empty, then it can happen only in case of Unauthorized (but not sending Unauthorized for super-admin user)
+		if isActionUserSuperAdmin {
+			clusterList = make([]cluster.ClusterBean, 0)
+		} else {
+			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+			return
+		}
+	}
+	common.WriteJsonResp(w, err, clusterList, http.StatusOK)
 }

@@ -112,3 +112,7 @@ type NodeDrainHelper struct {
 	DisableEviction bool `json:"disableEviction"`
 	k8sClientSet    *kubernetes.Clientset
 }
+
+const DEFAULT_NAMESPACE = "default"
+const EVENT_K8S_KIND = "Event"
+const LIST_VERB = "list"

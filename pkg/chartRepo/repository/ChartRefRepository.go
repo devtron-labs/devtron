@@ -40,6 +40,7 @@ type ChartRefRepository interface {
 	FindByVersionAndName(name, version string) (*ChartRef, error)
 	CheckIfDataExists(name string, version string) (bool, error)
 	FetchChart(name string) ([]*ChartRef, error)
+	FetchInfoOfChartConfiguredInApp(appId int) (*ChartRef, error)
 	FetchChartInfoByUploadFlag(userUploaded bool) ([]*ChartRef, error)
 }
 type ChartRefRepositoryImpl struct {
@@ -126,6 +127,19 @@ func (impl ChartRefRepositoryImpl) FetchChartInfoByUploadFlag(userUploaded bool)
 		return repo, err
 	}
 	return repo, err
+}
+
+func (impl ChartRefRepositoryImpl) FetchInfoOfChartConfiguredInApp(appId int) (*ChartRef, error) {
+	var repo ChartRef
+	err := impl.dbConnection.Model(&repo).
+		Join("inner join charts on charts.chart_ref_id=chart_ref.id").
+		Where("charts.app_id= ?", appId).
+		Where("charts.latest= ?", true).
+		Where("chart_ref.active = ?", true).Select()
+	if err != nil {
+		return &repo, err
+	}
+	return &repo, nil
 }
 
 // pipeline strategy metadata repository starts here
