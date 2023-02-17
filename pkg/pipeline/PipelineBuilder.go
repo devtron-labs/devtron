@@ -1821,13 +1821,15 @@ func (impl PipelineBuilderImpl) DeleteDeploymentApps(ctx context.Context,
 			continue
 		}
 
+		var isValid bool
 		// check if pipeline info like app name and environment is empty or not
-		if isValid := impl.isPipelineInfoValid(pipeline, failedPipelines); !isValid {
+		if failedPipelines, isValid = impl.isPipelineInfoValid(pipeline, failedPipelines); !isValid {
 			continue
 		}
 
+		var healthChkErr error
 		// check health of the app if it is argocd deployment type
-		if healthChkErr := impl.handleUnhealthyAppsIfArgoDeploymentType(pipeline, failedPipelines); healthChkErr != nil {
+		if failedPipelines, healthChkErr = impl.handleNotHealthyAppsIfArgoDeploymentType(pipeline, failedPipelines); healthChkErr != nil {
 
 			// cannot delete unhealthy app
 			continue
@@ -1889,7 +1891,7 @@ func (impl PipelineBuilderImpl) isGitRepoUrlPresent(appId int) bool {
 }
 
 func (impl PipelineBuilderImpl) isPipelineInfoValid(pipeline *pipelineConfig.Pipeline,
-	failedPipelines []*bean.DeploymentChangeStatus) bool {
+	failedPipelines []*bean.DeploymentChangeStatus) ([]*bean.DeploymentChangeStatus, bool) {
 
 	if len(pipeline.App.AppName) == 0 || len(pipeline.Environment.Name) == 0 {
 		impl.logger.Errorw("app name or environment name is not present",
@@ -1898,9 +1900,9 @@ func (impl PipelineBuilderImpl) isPipelineInfoValid(pipeline *pipelineConfig.Pip
 		failedPipelines = impl.handleFailedDeploymentAppChange(pipeline, failedPipelines,
 			"could not fetch app name or environment name")
 
-		return false
+		return failedPipelines, false
 	}
-	return true
+	return failedPipelines, true
 }
 
 func (impl PipelineBuilderImpl) handleFailedDeploymentAppChange(pipeline *pipelineConfig.Pipeline,
@@ -1913,12 +1915,17 @@ func (impl PipelineBuilderImpl) handleFailedDeploymentAppChange(pipeline *pipeli
 		bean.Failed)
 }
 
-func (impl PipelineBuilderImpl) handleUnhealthyAppsIfArgoDeploymentType(pipeline *pipelineConfig.Pipeline,
-	failedPipelines []*bean.DeploymentChangeStatus) error {
+func (impl PipelineBuilderImpl) handleNotHealthyAppsIfArgoDeploymentType(pipeline *pipelineConfig.Pipeline,
+	failedPipelines []*bean.DeploymentChangeStatus) ([]*bean.DeploymentChangeStatus, error) {
 
 	if pipeline.DeploymentAppType == string(bean.ArgoCd) {
 		// check if app status is Healthy
 		status, err := impl.appStatusRepository.Get(pipeline.AppId, pipeline.EnvironmentId)
+
+		// case: missing status row in db
+		if len(status.Status) == 0 {
+			return failedPipelines, nil
+		}
 
 		// cannot delete the app from argocd if app status is not healthy
 		if err != nil || status.Status != "Healthy" {
@@ -1930,13 +1937,13 @@ func (impl PipelineBuilderImpl) handleUnhealthyAppsIfArgoDeploymentType(pipeline
 				"environmentId", pipeline.EnvironmentId,
 				"err", err)
 
-			impl.handleFailedDeploymentAppChange(pipeline, failedPipelines, healthCheckErr.Error())
+			failedPipelines = impl.handleFailedDeploymentAppChange(pipeline, failedPipelines, healthCheckErr.Error())
 
-			return healthCheckErr
+			return failedPipelines, healthCheckErr
 		}
-		return nil
+		return failedPipelines, nil
 	}
-	return nil
+	return failedPipelines, nil
 }
 
 // deleteArgoCdApp takes context and deployment app name used in argo cd and deletes
