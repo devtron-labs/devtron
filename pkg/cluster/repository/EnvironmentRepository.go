@@ -278,7 +278,7 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindByEnvName(envName string, of
 		Column("environment.*", "Cluster").
 		Where("environment_name like ?", "%"+envName+"%").
 		Where("environment.active = ?", true).
-		Offset(offset).Limit(size).Select()
+		Select()
 	return environmentCluster, err
 }
 
@@ -290,7 +290,7 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindByEnvNameAndClusterIds(envNa
 		Where("environment_name like ?", "%"+envName+"%").
 		Where("environment.active = true").
 		Where("environment.cluster_id in (?)", pg.In(clusterIds)).
-		Offset(offset).Limit(size).Select()
+		Select()
 	return mappings, err
 }
 
@@ -300,7 +300,7 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindByClusterIdsWithFilter(clust
 		Column("environment.*", "Cluster").
 		Where("environment.active = true").
 		Where("environment.cluster_id in (?)", pg.In(clusterIds)).
-		Offset(offset).Limit(size).Select()
+		Select()
 	return mappings, err
 }
 
@@ -309,6 +309,6 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindAllActiveWithFilter(offset i
 	err := repositoryImpl.dbConnection.Model(&mappings).
 		Column("environment.*", "Cluster").
 		Where("environment.active = ?", true).
-		Offset(offset).Limit(size).Select()
+		Select()
 	return mappings, err
 }
