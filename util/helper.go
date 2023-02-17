@@ -208,3 +208,31 @@ func InterfaceToMapAdapter(resp interface{}) map[string]interface{} {
 	}
 	return dat
 }
+
+func InterfaceToString(resp interface{}) string {
+	var dat string
+	b, err := json.Marshal(resp)
+	if err != nil {
+		fmt.Printf("Error: %s", err)
+		return dat
+	}
+	if err := json.Unmarshal(b, &dat); err != nil {
+		fmt.Printf("Error: %s", err)
+		return dat
+	}
+	return dat
+}
+
+func InterfaceToFloat(resp interface{}) float64 {
+	var dat float64
+	b, err := json.Marshal(resp)
+	if err != nil {
+		fmt.Printf("Error: %s", err)
+		return dat
+	}
+	if err := json.Unmarshal(b, &dat); err != nil {
+		fmt.Printf("Error: %s", err)
+		return dat
+	}
+	return dat
+}

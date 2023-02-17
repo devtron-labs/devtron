@@ -39,6 +39,7 @@ import (
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
+	"github.com/tidwall/gjson"
 	"net/http"
 
 	/* #nosec */
@@ -925,6 +926,7 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 		}
 		// TODO: using this resp.Status to update in app_status table
 		appDetail.ResourceTree = util3.InterfaceToMapAdapter(resp)
+		appDetail.ResourceTree = checkHibernate(impl, appDetail, ctx)
 		err = impl.appStatusService.UpdateStatusWithAppIdEnvId(appDetail.AppId, appDetail.EnvironmentId, resp.Status)
 		if err != nil {
 			impl.logger.Warnw("error in updating app status", "err", err, appDetail.AppId, "envId", appDetail.EnvironmentId)
@@ -954,4 +956,58 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 		}
 	}
 	return *appDetail
+}
+
+func checkHibernate(impl InstalledAppServiceImpl, resp *bean2.AppDetailContainer, ctx context.Context) map[string]interface{} {
+
+	responseTree := resp.ResourceTree
+
+	for _, node := range responseTree["nodes"].(interface{}).([]interface{}) {
+		currNode := node.(interface{}).(map[string]interface{})
+		name := resp.AppName + "-" + resp.Namespace
+		resName := util3.InterfaceToString(currNode["name"])
+		resKind := util3.InterfaceToString(currNode["kind"])
+		resGroup := util3.InterfaceToString(currNode["group"])
+		resVersion := util3.InterfaceToString(currNode["version"])
+		resNamespace := util3.InterfaceToString(currNode["namespace"])
+		rQuery := &application.ApplicationResourceRequest{
+			Name:         &name,
+			ResourceName: &resName,
+			Kind:         &resKind,
+			Group:        &resGroup,
+			Version:      &resVersion,
+			Namespace:    &resNamespace,
+		}
+		ctx, _ := context.WithTimeout(ctx, 60*time.Second)
+		if currNode["parentRefs"] == nil {
+
+			res, err := impl.acdClient.GetResource(ctx, rQuery)
+			if res.Manifest != nil {
+				manifest, _ := gjson.Parse(*res.Manifest).Value().(map[string]interface{})
+				if err != nil {
+					impl.logger.Errorw("GRPC_GET_RESOURCE", "data", res, "timeTaken", time.Since(time.Now()), "err", err)
+				}
+				replicas := util3.InterfaceToMapAdapter(manifest["spec"])["replicas"]
+				if replicas != nil {
+					currNode["canBeHibernated"] = true
+				}
+				annotations := util3.InterfaceToMapAdapter(manifest["metadata"])["annotations"]
+				if annotations != nil {
+					val := util3.InterfaceToMapAdapter(annotations)["hibernator.devtron.ai/replicas"]
+					if val != nil {
+						if util3.InterfaceToString(val) != "0" && util3.InterfaceToFloat(replicas) == 0 {
+							currNode["isHibernated"] = true
+						}
+					}
+				}
+
+			}
+
+			if err != nil {
+				impl.logger.Errorw("GRPC_GET_RESOURCE", "data", res, "timeTaken", time.Since(time.Now()), "err", err)
+			}
+		}
+		node = currNode
+	}
+	return responseTree
 }
