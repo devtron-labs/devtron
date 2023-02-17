@@ -292,16 +292,20 @@ func (impl PipelineRepositoryImpl) FindActiveByEnvIdAndDeploymentTypeExcludingAp
 	}
 
 	var pipelines []*Pipeline
-	err := impl.dbConnection.
+
+	query := impl.dbConnection.
 		Model(&pipelines).
 		Column("pipeline.*", "App", "Environment").
 		Join("inner join app a on pipeline.app_id = a.id").
-		Where("pipeline.app_id not in (?)", pg.In(exclusionListString)).
 		Where("pipeline.environment_id = ?", environmentId).
 		Where("pipeline.deployment_app_type = ?", deploymentAppType).
-		Where("pipeline.deleted = ?", false).
-		Select()
+		Where("pipeline.deleted = ?", false)
 
+	if len(exclusionListString) > 0 {
+		query.Where("pipeline.app_id not in (?)", pg.In(exclusionListString))
+	}
+
+	err := query.Select()
 	return pipelines, err
 }
 
