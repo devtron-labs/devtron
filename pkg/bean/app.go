@@ -523,16 +523,19 @@ const (
 )
 
 type DeploymentAppTypeChangeRequest struct {
-	EnvId                 int            `json:"envId,omitempty"`
-	DesiredDeploymentType DeploymentType `json:"desiredDeploymentType,omitempty"`
+	EnvId                 int            `json:"envId,omitempty" validate:"required"`
+	DesiredDeploymentType DeploymentType `json:"desiredDeploymentType,omitempty" validate:"required"`
+	ExcludeApps           []int          `json:"excludeApps"`
 }
 
 type DeploymentChangeStatus struct {
-	Id              int    `json:"id,omitempty"`
-	AppName         string `json:"appName,omitempty"`
-	EnvironmentName string `json:"envName,omitempty"`
-	Error           string `json:"error,omitempty"`
-	Status          Status `json:"status,omitempty"`
+	Id      int    `json:"id,omitempty"`
+	AppId   int    `json:"appId,omitempty"`
+	AppName string `json:"appName,omitempty"`
+	EnvId   int    `json:"envId,omitempty"`
+	EnvName string `json:"envName,omitempty"`
+	Error   string `json:"error,omitempty"`
+	Status  Status `json:"status,omitempty"`
 }
 
 type DeploymentAppTypeChangeResponse struct {
@@ -545,15 +548,15 @@ type DeploymentAppTypeChangeResponse struct {
 type DeploymentType string
 
 const (
-	HELM    DeploymentType = "helm"
-	ARGO_CD DeploymentType = "argo_cd"
+	Helm   DeploymentType = "helm"
+	ArgoCd DeploymentType = "argo_cd"
 )
 
 type Status string
 
 const (
-	SUCCESS Status = "SUCCESS"
-	FAILED  Status = "FAILED"
+	Success Status = "Success"
+	Failed  Status = "Failed"
 )
 
 func (a CdPatchAction) String() string {
