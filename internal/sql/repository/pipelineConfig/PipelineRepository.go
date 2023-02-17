@@ -27,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"strconv"
 	"time"
 )
 
@@ -69,7 +70,7 @@ type PipelineRepository interface {
 	FindByName(pipelineName string) (pipeline *Pipeline, err error)
 	PipelineExists(pipelineName string) (bool, error)
 	FindById(id int) (pipeline *Pipeline, err error)
-	FindActiveByEnvironmentIdAndDeploymentAppType(environmentId int, deploymentAppType string) ([]*Pipeline, error)
+	FindActiveByEnvIdAndDeploymentTypeExcludingAppIds(environmentId int, deploymentAppType string, exclusionList []int) ([]*Pipeline, error)
 	FindByIdsIn(ids []int) ([]*Pipeline, error)
 	FindByCiPipelineIdsIn(ciPipelineIds []int) ([]*Pipeline, error)
 	FindAutomaticByCiPipelineId(ciPipelineId int) (pipelines []*Pipeline, err error)
@@ -91,7 +92,7 @@ type PipelineRepository interface {
 	FindAllPipelinesByChartsOverrideAndAppIdAndChartId(chartOverridden bool, appId int, chartId int) (pipelines []*Pipeline, err error)
 	FindActiveByAppIdAndPipelineId(appId int, pipelineId int) ([]*Pipeline, error)
 	UpdateCdPipeline(pipeline *Pipeline) error
-	UpdateCdPipelineDeploymentApp(pipeline *Pipeline) error
+	UpdateCdPipelineDeploymentAppInFilter(deploymentAppType string, cdPipelineIdIncludes []int) error
 	FindNumberOfAppsWithCdPipeline(appIds []int) (count int, err error)
 	GetAppAndEnvDetailsForDeploymentAppTypePipeline(deploymentAppType string, clusterIds []int) ([]*Pipeline, error)
 	GetArgoPipelinesHavingTriggersStuckInLastPossibleNonTerminalTimelines(pendingSinceSeconds int, timeForDegradation int) ([]*Pipeline, error)
@@ -284,20 +285,32 @@ func (impl PipelineRepositoryImpl) FindById(id int) (pipeline *Pipeline, err err
 	return pipeline, err
 }
 
-// FindActiveByEnvironmentIdAndDeploymentAppType takes in environment id and current deployment app type
-// and fetches and returns a list of pipelines matching the same.
-func (impl PipelineRepositoryImpl) FindActiveByEnvironmentIdAndDeploymentAppType(environmentId int,
-	deploymentAppType string) ([]*Pipeline, error) {
+// FindActiveByEnvIdAndDeploymentTypeExcludingAppIds takes in environment id and current deployment app type
+// and fetches and returns a list of pipelines matching the same excluding given app ids.
+func (impl PipelineRepositoryImpl) FindActiveByEnvIdAndDeploymentTypeExcludingAppIds(environmentId int,
+	deploymentAppType string, exclusionList []int) ([]*Pipeline, error) {
+
+	// NOTE: PG query throws error with slice of integer
+	exclusionListString := []string{}
+	for _, i := range exclusionList {
+		exclusionListString = append(exclusionListString, strconv.Itoa(i))
+	}
 
 	var pipelines []*Pipeline
-	err := impl.dbConnection.
+
+	query := impl.dbConnection.
 		Model(&pipelines).
 		Column("pipeline.*", "App", "Environment").
 		Join("inner join app a on pipeline.app_id = a.id").
 		Where("pipeline.environment_id = ?", environmentId).
 		Where("pipeline.deployment_app_type = ?", deploymentAppType).
-		Where(IsPipelineDeletedWhereCondition, false).
-		Select()
+		Where("pipeline.deleted = ?", false)
+
+	if len(exclusionListString) > 0 {
+		query.Where("pipeline.app_id not in (?)", pg.In(exclusionListString))
+	}
+
+	err := query.Select()
 	return pipelines, err
 }
 
@@ -437,14 +450,18 @@ func (impl PipelineRepositoryImpl) UpdateCdPipeline(pipeline *Pipeline) error {
 	return err
 }
 
-// UpdateCdPipelineDeploymentApp takes in pipeline struct and updates
-// deployment_app_type and deployment_app_created columns in the table.
-func (impl PipelineRepositoryImpl) UpdateCdPipelineDeploymentApp(pipeline *Pipeline) error {
-	_, err := impl.dbConnection.
-		Model(pipeline).
-		Column("deployment_app_type", "deployment_app_created").
-		Where("id = ?", pipeline.Id).
-		Update()
+// UpdateCdPipelineDeploymentAppInFilter takes in deployment app type and list of cd pipeline ids and
+// updates the deployment_app_type and sets deployment_app_created to false in the table for given ids.
+func (impl PipelineRepositoryImpl) UpdateCdPipelineDeploymentAppInFilter(deploymentAppType string,
+	cdPipelineIdIncludes []int) error {
+
+	query := "update pipeline set " +
+		"deployment_app_created = false, " +
+		"deployment_app_type = '" + deploymentAppType + "' " +
+		"where id in (?)"
+
+	var pipeline *Pipeline
+	_, err := impl.dbConnection.Query(pipeline, query, pg.In(cdPipelineIdIncludes))
 
 	return err
 }

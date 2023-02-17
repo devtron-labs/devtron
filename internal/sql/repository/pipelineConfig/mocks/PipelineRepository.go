@@ -163,25 +163,25 @@ func (_m *PipelineRepository) FindActiveByEnvId(envId int) ([]*pipelineConfig.Pi
 	return r0, r1
 }
 
-// FindActiveByEnvironmentIdAndDeploymentAppType provides a mock function with given fields: environmentId, deploymentAppType
-func (_m *PipelineRepository) FindActiveByEnvironmentIdAndDeploymentAppType(environmentId int, deploymentAppType string) ([]*pipelineConfig.Pipeline, error) {
-	ret := _m.Called(environmentId, deploymentAppType)
+// FindActiveByEnvIdAndDeploymentTypeExcludingAppIds provides a mock function with given fields: environmentId, deploymentAppType, exclusionList
+func (_m *PipelineRepository) FindActiveByEnvIdAndDeploymentTypeExcludingAppIds(environmentId int, deploymentAppType string, exclusionList []int) ([]*pipelineConfig.Pipeline, error) {
+	ret := _m.Called(environmentId, deploymentAppType, exclusionList)
 
 	var r0 []*pipelineConfig.Pipeline
 	var r1 error
-	if rf, ok := ret.Get(0).(func(int, string) ([]*pipelineConfig.Pipeline, error)); ok {
-		return rf(environmentId, deploymentAppType)
+	if rf, ok := ret.Get(0).(func(int, string, []int) ([]*pipelineConfig.Pipeline, error)); ok {
+		return rf(environmentId, deploymentAppType, exclusionList)
 	}
-	if rf, ok := ret.Get(0).(func(int, string) []*pipelineConfig.Pipeline); ok {
-		r0 = rf(environmentId, deploymentAppType)
+	if rf, ok := ret.Get(0).(func(int, string, []int) []*pipelineConfig.Pipeline); ok {
+		r0 = rf(environmentId, deploymentAppType, exclusionList)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*pipelineConfig.Pipeline)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(int, string) error); ok {
-		r1 = rf(environmentId, deploymentAppType)
+	if rf, ok := ret.Get(1).(func(int, string, []int) error); ok {
+		r1 = rf(environmentId, deploymentAppType, exclusionList)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -877,13 +877,13 @@ func (_m *PipelineRepository) UpdateCdPipeline(pipeline *pipelineConfig.Pipeline
 	return r0
 }
 
-// UpdateCdPipelineDeploymentAppTypeAndDeploymentAppCreated provides a mock function with given fields: pipeline
-func (_m *PipelineRepository) UpdateCdPipelineDeploymentApp(pipeline *pipelineConfig.Pipeline) error {
-	ret := _m.Called(pipeline)
+// UpdateCdPipelineDeploymentAppInFilter provides a mock function with given fields: deploymentAppType, cdPipelineIdIncludes
+func (_m *PipelineRepository) UpdateCdPipelineDeploymentAppInFilter(deploymentAppType string, cdPipelineIdIncludes []int) error {
+	ret := _m.Called(deploymentAppType, cdPipelineIdIncludes)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(*pipelineConfig.Pipeline) error); ok {
-		r0 = rf(pipeline)
+	if rf, ok := ret.Get(0).(func(string, []int) error); ok {
+		r0 = rf(deploymentAppType, cdPipelineIdIncludes)
 	} else {
 		r0 = ret.Error(0)
 	}
