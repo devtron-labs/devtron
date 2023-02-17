@@ -76,6 +76,11 @@ func (impl *AppListingViewBuilderImpl) BuildView(fetchAppListingRequest FetchApp
 				break
 			}
 		}
+
+		sort.Slice(v, func(i, j int) bool {
+			return v[i].LastDeployedTime >= v[j].LastDeployedTime
+		})
+
 		appContainerResponse := &bean.AppContainer{
 			AppId:                   appId,
 			AppName:                 appName,
