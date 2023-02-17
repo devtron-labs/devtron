@@ -26,12 +26,15 @@ import (
 	"github.com/caarlos0/env"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	client2 "github.com/devtron-labs/devtron/api/helm-app"
+	application3 "github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/util/argo"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"go.opentelemetry.io/otel"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
 	"net/url"
 	"path"
@@ -146,6 +149,7 @@ type AppServiceImpl struct {
 	appStatusConfig                        *AppStatusConfig
 	gitOpsConfigRepository                 repository.GitOpsConfigRepository
 	appStatusService                       appStatus.AppStatusService
+	k8sApplicationService                  k8s.K8sApplicationService
 }
 
 type AppService interface {
@@ -203,7 +207,7 @@ func NewAppService(
 	pipelineStatusTimelineService PipelineStatusTimelineService,
 	appStatusConfig *AppStatusConfig,
 	gitOpsConfigRepository repository.GitOpsConfigRepository,
-	appStatusService appStatus.AppStatusService) *AppServiceImpl {
+	appStatusService appStatus.AppStatusService, k8sApplicationService k8s.K8sApplicationService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:            environmentConfigRepository,
 		mergeUtil:                              mergeUtil,
@@ -256,6 +260,7 @@ func NewAppService(
 		appStatusConfig:                        appStatusConfig,
 		gitOpsConfigRepository:                 gitOpsConfigRepository,
 		appStatusService:                       appStatusService,
+		k8sApplicationService:                  k8sApplicationService,
 	}
 	return appServiceImpl
 }
@@ -298,6 +303,7 @@ func (impl *AppServiceImpl) createArgoApplicationIfRequired(appId int, appName s
 			ValuesFile:      impl.getValuesFileForEnv(envModel.Id),
 			RepoPath:        chart.ChartLocation,
 			RepoUrl:         chart.GitRepoUrl,
+			TargetName:      envModel.Cluster.ClusterName,
 		}
 
 		argoAppName, err := impl.ArgoK8sClient.CreateAcdApp(appRequest, envModel.Cluster)
@@ -1672,7 +1678,7 @@ func (impl *AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverr
 	}
 
 	appName := fmt.Sprintf("%s-%s", pipeline.App.AppName, envOverride.Environment.Name)
-	merged = impl.hpaCheckBeforeTrigger(ctx, appName, envOverride.Namespace, merged, pipeline.AppId)
+	merged = impl.hpaCheckBeforeTrigger(ctx, appName, envOverride.Namespace, merged, pipeline.AppId, pipeline.DeploymentAppType, pipeline.Environment.ClusterId)
 
 	_, span := otel.Tracer("orchestrator").Start(ctx, "dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment")
 	// handle image pull secret if access given
@@ -1881,7 +1887,7 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Appl
 	return nil
 }
 
-func (impl *AppServiceImpl) hpaCheckBeforeTrigger(ctx context.Context, appName string, namespace string, merged []byte, appId int) []byte {
+func (impl *AppServiceImpl) hpaCheckBeforeTrigger(ctx context.Context, appName string, namespace string, merged []byte, appId int, appDeploymentType string, clusterId int) []byte {
 	templateMap := make(map[string]interface{})
 	err := json.Unmarshal(merged, &templateMap)
 	if err != nil {
@@ -1902,31 +1908,49 @@ func (impl *AppServiceImpl) hpaCheckBeforeTrigger(ctx context.Context, appName s
 			group := autoscaling.ServiceName
 			kind := "HorizontalPodAutoscaler"
 			resourceName := fmt.Sprintf("%s-%s", appName, "hpa")
-			query := &application2.ApplicationResourceRequest{
-				Name:         &appName,
-				Version:      &version,
-				Group:        &group,
-				Kind:         &kind,
-				ResourceName: &resourceName,
-				Namespace:    &namespace,
-			}
-			recv, err := impl.acdClient.GetResource(ctx, query)
-			impl.logger.Debugw("resource manifest get replica count", "response", recv)
-			if err != nil {
-				impl.logger.Errorw("ACD Get Resource API Failed", "err", err)
-				middleware.AcdGetResourceCounter.WithLabelValues(strconv.Itoa(appId), namespace, appName).Inc()
-				return merged
-			}
-			if recv != nil && len(*recv.Manifest) > 0 {
-				resourceManifest := make(map[string]interface{})
-				err := json.Unmarshal([]byte(*recv.Manifest), &resourceManifest)
+			resourceManifest := make(map[string]interface{})
+			if IsAcdApp(appDeploymentType) {
+				query := &application2.ApplicationResourceRequest{
+					Name:         &appName,
+					Version:      &version,
+					Group:        &group,
+					Kind:         &kind,
+					ResourceName: &resourceName,
+					Namespace:    &namespace,
+				}
+				recv, err := impl.acdClient.GetResource(ctx, query)
+				impl.logger.Debugw("resource manifest get replica count", "response", recv)
 				if err != nil {
-					impl.logger.Errorw("unmarshal failed for hpa check", "err", err)
+					impl.logger.Errorw("ACD Get Resource API Failed", "err", err)
+					middleware.AcdGetResourceCounter.WithLabelValues(strconv.Itoa(appId), namespace, appName).Inc()
 					return merged
 				}
-				status := resourceManifest["status"]
-				statusMap := status.(map[string]interface{})
-				currentReplicaCount := statusMap["currentReplicas"].(float64)
+				if recv != nil && len(*recv.Manifest) > 0 {
+					err := json.Unmarshal([]byte(*recv.Manifest), &resourceManifest)
+					if err != nil {
+						impl.logger.Errorw("unmarshal failed for hpa check", "err", err)
+						return merged
+					}
+				}
+			} else {
+				version = "v2beta2"
+				k8sResource, err := impl.k8sApplicationService.GetResource(ctx, &k8s.ResourceRequestBean{ClusterId: clusterId,
+					K8sRequest: &application3.K8sRequestBean{ResourceIdentifier: application3.ResourceIdentifier{Name: resourceName,
+						Namespace: namespace, GroupVersionKind: schema.GroupVersionKind{Group: group, Kind: kind, Version: version}}}})
+				if err != nil {
+					impl.logger.Errorw("error occurred while fetching resource for app", "resourceName", resourceName, "err", err)
+					return merged
+				}
+				resourceManifest = k8sResource.Manifest.Object
+			}
+			if len(resourceManifest) > 0 {
+				statusMap := resourceManifest["status"].(map[string]interface{})
+				currentReplicaVal := fmt.Sprintf("%v", statusMap["currentReplicas"])
+				currentReplicaCount, err := strconv.ParseFloat(currentReplicaVal, 64)
+				if err != nil {
+					impl.logger.Errorw("error occurred while parsing replica count", "currentReplicas", currentReplicaVal, "err", err)
+					return merged
+				}
 
 				if currentReplicaCount <= reqMaxReplicas && currentReplicaCount >= reqMinReplicas {
 					reqReplicaCount = currentReplicaCount
