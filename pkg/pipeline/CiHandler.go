@@ -1280,7 +1280,7 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 }
 
 func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(envId int, token string, auth func(token string, appObject string, envObject string) bool) ([]*pipelineConfig.CiWorkflowStatus, error) {
-	var ciWorkflowStatuses []*pipelineConfig.CiWorkflowStatus
+	ciWorkflowStatuses := make([]*pipelineConfig.CiWorkflowStatus, 0)
 	cdPipelines, err := impl.cdPipelineRepository.FindActiveByEnvId(envId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("error fetching pipelines for env id", "err", err)
@@ -1291,6 +1291,10 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(envId int, 
 	for _, pipeline := range cdPipelines {
 		appIds = append(appIds, pipeline.AppId)
 	}
+	if len(appIds) == 0 {
+		impl.Logger.Warnw("there is no app id found for fetching ci pipelines", "envId", envId)
+		return ciWorkflowStatuses, nil
+	}
 	pipelines, err := impl.ciPipelineRepository.FindByAppIds(appIds)
 	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("error in fetching ci pipeline", "err", err)
@@ -1298,7 +1302,7 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(envId int, 
 	}
 	for _, pipeline := range pipelines {
 		appObject := impl.enforcerUtil.GetAppRBACName(pipeline.App.AppName)
-		valid := auth(token, appObject, "")  //here only app permission have to check
+		valid := auth(token, appObject, "") //here only app permission have to check
 		if !valid {
 			//if user unauthorized, skip items
 			continue

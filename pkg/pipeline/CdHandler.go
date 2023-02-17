@@ -948,7 +948,7 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerView(appId int) ([]*p
 }
 
 func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(envId int, token string, auth func(token string, appObject string, envObject string) bool) ([]*pipelineConfig.CdWorkflowStatus, error) {
-	var cdWorkflowStatus []*pipelineConfig.CdWorkflowStatus
+	cdWorkflowStatus := make([]*pipelineConfig.CdWorkflowStatus, 0)
 	pipelines, err := impl.pipelineRepository.FindActiveByEnvId(envId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("error fetching pipelines for env id", "err", err)
@@ -958,6 +958,10 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(en
 	var appIds []int
 	for _, pipeline := range pipelines {
 		appIds = append(appIds, pipeline.AppId)
+	}
+	if len(appIds) == 0 {
+		impl.Logger.Warnw("there is no app id found for fetching cd pipelines", "envId", envId)
+		return cdWorkflowStatus, nil
 	}
 	pipelines, err = impl.pipelineRepository.FindActiveByAppIds(appIds)
 	if err != nil && err != pg.ErrNoRows {

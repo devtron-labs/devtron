@@ -388,6 +388,7 @@ func (impl AppWorkflowServiceImpl) FindAllWorkflowsComponentDetails(appId int) (
 }
 
 func (impl AppWorkflowServiceImpl) FindAppWorkflowsByEnvironmentId(envId int, token string, auth func(token string, appObject string, envObject string) bool) ([]AppWorkflowDto, error) {
+	workflows := make([]AppWorkflowDto, 0)
 	pipelines, err := impl.pipelineRepository.FindActiveByEnvId(envId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("error fetching pipelines for env id", "err", err)
@@ -408,13 +409,15 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowsByEnvironmentId(envId int, to
 		appNamesMap[pipeline.AppId] = pipeline.App.AppName
 		pipelineMap[pipeline.Id] = true
 	}
-
+	if len(appIds) == 0 {
+		impl.Logger.Warnw("there is no app id found for fetching app workflows", "envId", envId)
+		return workflows, nil
+	}
 	appWorkflow, err := impl.appWorkflowRepository.FindByAppIds(appIds)
 	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("error fetching app workflows by app ids", "err", err)
 		return nil, err
 	}
-	var workflows []AppWorkflowDto
 	for _, w := range appWorkflow {
 		appName := appNamesMap[w.AppId]
 		workflow := AppWorkflowDto{

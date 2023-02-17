@@ -3066,7 +3066,7 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int, token stri
 		appNamesMap[pipeline.AppId] = pipeline.App.AppName
 		pipelineMap[pipeline.Id] = true
 	}
-	var ciConfigs []*bean.CiConfigRequest
+	ciConfigs := make([]*bean.CiConfigRequest, 0)
 	var ciPipelineResp []*bean.CiPipeline
 	for _, appId := range appIds {
 		ciConfig, err := impl.getCiTemplateVariables(appId)
@@ -3267,14 +3267,13 @@ func (impl PipelineBuilderImpl) GetCdPipelinesByEnvironment(envId int, token str
 }
 
 func (impl PipelineBuilderImpl) GetExternalCiByEnvironment(envId int, token string, auth func(token string, appObject string, envObject string) bool) (ciConfig []*bean.ExternalCiConfig, err error) {
+	externalCiConfigs := make([]*bean.ExternalCiConfig, 0)
 	pipelines, err := impl.pipelineRepository.FindActiveByEnvId(envId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error fetching pipelines for env id", "err", err)
 		return nil, err
 	}
 
-	pipelineMap := make(map[int]bool)
-	appNamesMap := make(map[int]string)
 	var appIds []int
 	for _, pipeline := range pipelines {
 		appObject := impl.enforcerUtil.GetAppRBACName(pipeline.App.AppName)
@@ -3284,10 +3283,11 @@ func (impl PipelineBuilderImpl) GetExternalCiByEnvironment(envId int, token stri
 			continue
 		}
 		appIds = append(appIds, pipeline.AppId)
-		appNamesMap[pipeline.AppId] = pipeline.App.AppName
-		pipelineMap[pipeline.Id] = true
 	}
-
+	if len(appIds) == 0 {
+		impl.logger.Warnw("there is no app id found for fetching external ci pipelines", "envId", envId)
+		return externalCiConfigs, nil
+	}
 	externalCiPipelines, err := impl.ciPipelineRepository.FindExternalCiByAppIds(appIds)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("error in fetching external ci", "envId", envId, "err", err)
@@ -3303,7 +3303,6 @@ func (impl PipelineBuilderImpl) GetExternalCiByEnvironment(envId int, token stri
 		impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/%s", hostUrl.Value, ExternalCiWebhookPath)
 	}
 
-	externalCiConfigs := make([]*bean.ExternalCiConfig, 0)
 	for _, externalCiPipeline := range externalCiPipelines {
 		externalCiConfig := &bean.ExternalCiConfig{
 			Id:         externalCiPipeline.Id,
