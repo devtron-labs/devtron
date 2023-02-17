@@ -61,8 +61,9 @@ type ClusterEnvDto struct {
 }
 
 type AppGroupingResponse struct {
-	EnvList  []EnvironmentBean `json:"envList"`
-	EnvCount int               `json:"envCount"`
+	EnvList    []EnvironmentBean `json:"envList"`
+	EnvCount   int               `json:"envCount"`
+	TotalCount int               `json:"totalCount"`
 }
 
 type EnvironmentService interface {
