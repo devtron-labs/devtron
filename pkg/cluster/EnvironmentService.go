@@ -44,7 +44,7 @@ type EnvironmentBean struct {
 	Namespace             string `json:"namespace,omitempty" validate:"name-space-component,max=50"`
 	CdArgoSetup           bool   `json:"isClusterCdActive"`
 	EnvironmentIdentifier string `json:"environmentIdentifier"`
-	AppCount              int    `json:"appCount,omitempty"`
+	AppCount              int    `json:"appCount"`
 }
 
 type EnvDto struct {
