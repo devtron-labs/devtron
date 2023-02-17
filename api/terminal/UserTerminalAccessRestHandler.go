@@ -109,7 +109,7 @@ func (handler UserTerminalAccessRestHandlerImpl) StartTerminalSession(w http.Res
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	sessionResponse, err := handler.UserTerminalAccessService.StartTerminalSession(r.Context(), &request, nil)
+	sessionResponse, err := handler.UserTerminalAccessService.StartTerminalSession(r.Context(), &request, "")
 	if err != nil {
 		handler.Logger.Errorw("service err, StartTerminalSession", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -356,7 +356,7 @@ func (handler UserTerminalAccessRestHandlerImpl) DisconnectAllTerminalSessionAnd
 		return
 	}
 	handler.UserTerminalAccessService.DisconnectAllSessionsForUser(r.Context(), userId)
-	sessionResponse, err := handler.UserTerminalAccessService.StartTerminalSession(r.Context(), &request, nil)
+	sessionResponse, err := handler.UserTerminalAccessService.StartTerminalSession(r.Context(), &request, "")
 	if err != nil {
 		handler.Logger.Errorw("service err, DisconnectAllTerminalSessionAndRetry", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

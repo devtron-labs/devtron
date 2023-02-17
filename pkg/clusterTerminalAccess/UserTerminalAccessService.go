@@ -28,7 +28,7 @@ import (
 )
 
 type UserTerminalAccessService interface {
-	StartTerminalSession(ctx context.Context, request *models.UserTerminalSessionRequest, customTerminalPodTemplate *string) (*models.UserTerminalSessionResponse, error)
+	StartTerminalSession(ctx context.Context, request *models.UserTerminalSessionRequest, customTerminalPodTemplate string) (*models.UserTerminalSessionResponse, error)
 	UpdateTerminalSession(ctx context.Context, request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error)
 	UpdateTerminalShellSession(ctx context.Context, request *models.UserTerminalShellSessionRequest) (*models.UserTerminalSessionResponse, error)
 	FetchTerminalStatus(ctx context.Context, terminalAccessId int, namespace string, shellName string) (*models.UserTerminalSessionResponse, error)
@@ -117,7 +117,7 @@ func (impl *UserTerminalAccessServiceImpl) ValidateShell(podName, namespace, she
 	}
 	return res, shellName, err
 }
-func (impl *UserTerminalAccessServiceImpl) StartTerminalSession(ctx context.Context, request *models.UserTerminalSessionRequest, customTerminalPodTemplate *string) (*models.UserTerminalSessionResponse, error) {
+func (impl *UserTerminalAccessServiceImpl) StartTerminalSession(ctx context.Context, request *models.UserTerminalSessionRequest, customTerminalPodTemplate string) (*models.UserTerminalSessionResponse, error) {
 	impl.Logger.Infow("terminal start request received for user", "request", request)
 	userId := request.UserId
 	// check for max session check
@@ -270,7 +270,7 @@ func (impl *UserTerminalAccessServiceImpl) UpdateTerminalSession(ctx context.Con
 		return nil, err
 	}
 
-	return impl.StartTerminalSession(ctx, request, nil)
+	return impl.StartTerminalSession(ctx, request, "")
 }
 
 func (impl *UserTerminalAccessServiceImpl) DisconnectTerminalSession(ctx context.Context, userTerminalAccessId int) error {
@@ -397,7 +397,7 @@ func (impl *UserTerminalAccessServiceImpl) getMetadataMap(metadata string) (map[
 	return metadataMap, nil
 }
 
-func (impl *UserTerminalAccessServiceImpl) startTerminalPod(ctx context.Context, podNameVar string, request *models.UserTerminalSessionRequest, isAutoSelect bool, customTerminalPodTemplate *string) error {
+func (impl *UserTerminalAccessServiceImpl) startTerminalPod(ctx context.Context, podNameVar string, request *models.UserTerminalSessionRequest, isAutoSelect bool, customTerminalPodTemplate string) error {
 
 	accessTemplates, err := impl.TerminalAccessRepository.FetchAllTemplates()
 	if err != nil {
@@ -523,12 +523,10 @@ func updateServiceAccountTemplate(templateDataMap map[string]interface{}, podNam
 	return string(bytes), err
 }
 
-func replaceTemplateData(templateData string, podNameVar string, namespace string, nodeName string, baseImage string, isAutoSelect bool, taints []models.NodeTaints, customTerminalPodTemplate *string) (string, error) {
+func replaceTemplateData(templateData string, podNameVar string, namespace string, nodeName string, baseImage string, isAutoSelect bool, taints []models.NodeTaints, customTerminalPodTemplate string) (string, error) {
 	templateDataMap := map[string]interface{}{}
 	template := templateData
-	if customTerminalPodTemplate != nil {
-		template = *customTerminalPodTemplate
-	}
+
 	err := yaml.Unmarshal([]byte(template), &templateDataMap)
 	if err != nil {
 		return templateData, err
@@ -540,6 +538,9 @@ func replaceTemplateData(templateData string, podNameVar string, namespace strin
 		} else if kind == "ClusterRoleBinding" {
 			return updateClusterRoleBindingTemplate(templateDataMap, podNameVar, namespace)
 		} else if kind == "Pod" {
+			if len(customTerminalPodTemplate) != 0 {
+				template = customTerminalPodTemplate
+			}
 			return updatePodTemplate(templateDataMap, podNameVar, nodeName, baseImage, isAutoSelect, taints)
 		}
 	}
@@ -548,7 +549,7 @@ func replaceTemplateData(templateData string, podNameVar string, namespace strin
 
 //template data use kubernetes object
 func (impl *UserTerminalAccessServiceImpl) applyTemplateData(ctx context.Context, request *models.UserTerminalSessionRequest, podNameVar string,
-	terminalTemplate *models.TerminalAccessTemplates, isUpdate bool, isAutoSelect bool, customTerminalPodTemplate *string) error {
+	terminalTemplate *models.TerminalAccessTemplates, isUpdate bool, isAutoSelect bool, customTerminalPodTemplate string) error {
 	templateName := terminalTemplate.TemplateName
 	templateData := terminalTemplate.TemplateData
 	clusterId := request.ClusterId
@@ -1055,9 +1056,10 @@ func (impl *UserTerminalAccessServiceImpl) EditPodManifest(ctx context.Context, 
 	}
 	userTerminalAccessId := editManifestRequest.UserTerminalRequest.Id
 	impl.Logger.Infow("Reached EditPodManifest method", "userTerminalAccessId", userTerminalAccessId, "manifest", manifestMap)
-	if manifestMap != nil {
-		manifest, ok := manifestMap.(map[string]interface{})
-		if ok && manifest["kind"] != "Pod" {
+	manifest := map[string]interface{}{}
+	err := json.Unmarshal([]byte(manifestMap), &manifest)
+	if manifest != nil {
+		if manifest["kind"] != "Pod" {
 			err := errors.New("manifest should be of kind \"Pod\"")
 			impl.Logger.Errorw("given manifest in not pod manifest", "manifest", manifestMap, "err", err)
 			return result, err
@@ -1069,8 +1071,9 @@ func (impl *UserTerminalAccessServiceImpl) EditPodManifest(ctx context.Context, 
 		impl.Logger.Errorw("failed initializing validator: %s", err)
 		return result, err
 	}
+
 	YamlResource := resource.Resource{
-		Bytes: []byte(manifestMap.(string)),
+		Bytes: []byte(manifestMap),
 	}
 	validatorResponse := v.ValidateResource(YamlResource)
 	if validatorResponse.Err != nil {
@@ -1087,8 +1090,8 @@ func (impl *UserTerminalAccessServiceImpl) EditPodManifest(ctx context.Context, 
 	}
 	//start new session with provided Pod manifest
 	//override namespace,nodeName
-	podTemplate := manifestMap.(string)
-	terminalStartResponse, err := impl.StartTerminalSession(ctx, editManifestRequest.UserTerminalRequest, &podTemplate)
+	podTemplate := manifestMap
+	terminalStartResponse, err := impl.StartTerminalSession(ctx, editManifestRequest.UserTerminalRequest, podTemplate)
 	if err != nil {
 		impl.Logger.Errorw("failed to start terminal session", "userTerminalAccessId", userTerminalAccessId, "err", err)
 		return result, err

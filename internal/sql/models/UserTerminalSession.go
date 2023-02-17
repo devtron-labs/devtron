@@ -41,7 +41,7 @@ type UserTerminalSessionResponse struct {
 
 type ManifestEditRequestResponse struct {
 	ErrorComments        string                       `json:"errors"`
-	Manifest             interface{}                  `json:"manifest"`
+	Manifest             string                       `json:"manifest"`
 	UserTerminalResponse *UserTerminalSessionResponse `json:"userTerminalResponse"`
 	UserTerminalRequest  *UserTerminalSessionRequest  `json:"userTerminalRequest"`
 }
