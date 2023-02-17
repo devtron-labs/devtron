@@ -183,8 +183,8 @@ func (handler AppListingRestHandlerImpl) FetchJobs(w http.ResponseWriter, r *htt
 	} else {
 		fetchJob = fetchJob[offset:]
 	}
-	jobContainerResponse := bean.JobsContainer{}
-	common.WriteJsonResp(w, err, jobContainerResponse, http.StatusOK)
+	//jobContainerResponse := bean.JobsContainer{}
+	common.WriteJsonResp(w, err, fetchJob, http.StatusOK)
 }
 func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseWriter, r *http.Request) {
 	//Allow CORS here By * or specific origin

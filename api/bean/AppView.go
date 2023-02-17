@@ -67,6 +67,10 @@ type LastRunStatus struct {
 	LastSuccessAt time.Time `json:"lastRunAt"`
 }
 
+type JobListingContainer struct {
+	JobId   int    `json:"jobId"`
+	JobName string `json:"jobName"`
+}
 type AppEnvironmentContainer struct {
 	AppId                       int                       `json:"appId"`
 	AppName                     string                    `json:"appName"`
