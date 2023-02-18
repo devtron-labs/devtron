@@ -1008,16 +1008,6 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 			RequestType:   pipeline1.STOP,
 		}
 		_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(stopRequest, ctx)
-		//} else if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
-		//	appIdentifier, hibernateRequest, err := impl.buildHibernateUnHibernateRequestForHelmPipelines(pipeline)
-		//	if err != nil {
-		//		impl.logger.Errorw("error in building hibernate/unhibernate req", "err", err, "pipeline", pipeline)
-		//		continue
-		//	}
-		//	if appIdentifier != nil && hibernateRequest != nil {
-		//		_, hibernateReqError = impl.helmAppService.HibernateApplication(context.Background(), appIdentifier, hibernateRequest)
-		//	}
-		//}
 		if hibernateReqError != nil {
 			impl.logger.Errorw("error in hibernating application", "err", hibernateReqError, "pipeline", pipeline)
 			pipelineResponse := response[appKey]
@@ -1132,17 +1122,6 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 			RequestType:   pipeline1.START,
 		}
 		_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(stopRequest, ctx)
-
-		//} else if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
-		//	appIdentifier, hibernateRequest, err := impl.buildHibernateUnHibernateRequestForHelmPipelines(pipeline)
-		//	if err != nil {
-		//		impl.logger.Errorw("error in building hibernate/un-hibernate req", "err", err, "pipeline", pipeline)
-		//		continue
-		//	}
-		//	if appIdentifier != nil && hibernateRequest != nil {
-		//		_, hibernateReqError = impl.helmAppService.UnHibernateApplication(context.Background(), appIdentifier, hibernateRequest)
-		//	}
-		//}
 		if hibernateReqError != nil {
 			impl.logger.Errorw("error in un-hibernating application", "err", hibernateReqError, "pipeline", pipeline)
 			pipelineResponse := response[appKey]
@@ -1212,7 +1191,6 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 			continue
 		}
 		artifact := artifacts[0]
-		//if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
 		overrideRequest := &bean.ValuesOverrideRequest{
 			PipelineId:     pipeline.Id,
 			AppId:          pipeline.AppId,
@@ -1228,10 +1206,6 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 			response[appKey] = pipelineResponse
 			//return nil, err
 		}
-		//} else if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
-		//	//TODO
-		//	//initiate helm hibernate service
-		//}
 		pipelineResponse := response[appKey]
 		pipelineResponse[pipelineKey] = success
 		response[appKey] = pipelineResponse
