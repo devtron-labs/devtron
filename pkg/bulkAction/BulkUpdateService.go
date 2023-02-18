@@ -1000,24 +1000,14 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 			continue
 		}
 		var hibernateReqError error
-		if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
-			stopRequest := &pipeline1.StopAppRequest{
-				AppId:         pipeline.AppId,
-				EnvironmentId: pipeline.EnvironmentId,
-				UserId:        request.UserId,
-				RequestType:   pipeline1.STOP,
-			}
-			_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(stopRequest, ctx)
-		} else if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
-			appIdentifier, hibernateRequest, err := impl.buildHibernateUnHibernateRequestForHelmPipelines(pipeline)
-			if err != nil {
-				impl.logger.Errorw("error in building hibernate/unhibernate req", "err", err, "pipeline", pipeline)
-				continue
-			}
-			if appIdentifier != nil && hibernateRequest != nil {
-				_, hibernateReqError = impl.helmAppService.HibernateApplication(context.Background(), appIdentifier, hibernateRequest)
-			}
+		//if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+		stopRequest := &pipeline1.StopAppRequest{
+			AppId:         pipeline.AppId,
+			EnvironmentId: pipeline.EnvironmentId,
+			UserId:        request.UserId,
+			RequestType:   pipeline1.STOP,
 		}
+		_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(stopRequest, ctx)
 		if hibernateReqError != nil {
 			impl.logger.Errorw("error in hibernating application", "err", hibernateReqError, "pipeline", pipeline)
 			pipelineResponse := response[appKey]
@@ -1124,25 +1114,14 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 			continue
 		}
 		var hibernateReqError error
-		if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
-			stopRequest := &pipeline1.StopAppRequest{
-				AppId:         pipeline.AppId,
-				EnvironmentId: pipeline.EnvironmentId,
-				UserId:        request.UserId,
-				RequestType:   pipeline1.START,
-			}
-			_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(stopRequest, ctx)
-
-		} else if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
-			appIdentifier, hibernateRequest, err := impl.buildHibernateUnHibernateRequestForHelmPipelines(pipeline)
-			if err != nil {
-				impl.logger.Errorw("error in building hibernate/un-hibernate req", "err", err, "pipeline", pipeline)
-				continue
-			}
-			if appIdentifier != nil && hibernateRequest != nil {
-				_, hibernateReqError = impl.helmAppService.UnHibernateApplication(context.Background(), appIdentifier, hibernateRequest)
-			}
+		//if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+		stopRequest := &pipeline1.StopAppRequest{
+			AppId:         pipeline.AppId,
+			EnvironmentId: pipeline.EnvironmentId,
+			UserId:        request.UserId,
+			RequestType:   pipeline1.START,
 		}
+		_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(stopRequest, ctx)
 		if hibernateReqError != nil {
 			impl.logger.Errorw("error in un-hibernating application", "err", hibernateReqError, "pipeline", pipeline)
 			pipelineResponse := response[appKey]
@@ -1212,25 +1191,20 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 			continue
 		}
 		artifact := artifacts[0]
-		if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
-			overrideRequest := &bean.ValuesOverrideRequest{
-				PipelineId:     pipeline.Id,
-				AppId:          pipeline.AppId,
-				CiArtifactId:   artifact.Id,
-				UserId:         request.UserId,
-				CdWorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
-			}
-			_, err := impl.workflowDagExecutor.ManualCdTrigger(overrideRequest, ctx)
-			if err != nil {
-				impl.logger.Errorw("request err, OverrideConfig", "err", err, "payload", overrideRequest)
-				pipelineResponse := response[appKey]
-				pipelineResponse[pipelineKey] = false
-				response[appKey] = pipelineResponse
-				//return nil, err
-			}
-		} else if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
-			//TODO
-			//initiate helm hibernate service
+		overrideRequest := &bean.ValuesOverrideRequest{
+			PipelineId:     pipeline.Id,
+			AppId:          pipeline.AppId,
+			CiArtifactId:   artifact.Id,
+			UserId:         request.UserId,
+			CdWorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
+		}
+		_, err = impl.workflowDagExecutor.ManualCdTrigger(overrideRequest, ctx)
+		if err != nil {
+			impl.logger.Errorw("request err, OverrideConfig", "err", err, "payload", overrideRequest)
+			pipelineResponse := response[appKey]
+			pipelineResponse[pipelineKey] = false
+			response[appKey] = pipelineResponse
+			//return nil, err
 		}
 		pipelineResponse := response[appKey]
 		pipelineResponse[pipelineKey] = success
