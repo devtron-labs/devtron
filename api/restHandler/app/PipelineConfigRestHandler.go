@@ -606,7 +606,7 @@ func (handler PipelineConfigRestHandlerImpl) GetEnvironmentListWithAppData(w htt
 	if len(offsetStr) > 0 {
 		offset, _ = strconv.Atoi(offsetStr)
 	}
-	size := 20
+	size := 0
 	sizeStr := v.Get("size")
 	if len(sizeStr) > 0 {
 		size, _ = strconv.Atoi(sizeStr)
