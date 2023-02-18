@@ -65,6 +65,7 @@ type CdHandler interface {
 	UpdatePipelineTimelineAndStatusByLiveApplicationFetch(pipeline *pipelineConfig.Pipeline, userId int32) (err error, isTimelineUpdated bool)
 	CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipelineId int, userId int32)
 	FetchAppWorkflowStatusForTriggerViewForEnvironment(envId int, token string, auth func(token string, appObject string, envObject string) bool) ([]*pipelineConfig.CdWorkflowStatus, error)
+	FetchAppDeploymentStatusForEnvironments(envId int, token string, auth func(token string, appObject string, envObject string) bool) ([]*pipelineConfig.AppDeploymentStatus, error)
 }
 
 type CdHandlerImpl struct {
@@ -1069,4 +1070,95 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(en
 	}
 
 	return cdWorkflowStatus, err
+}
+
+func (impl *CdHandlerImpl) FetchAppDeploymentStatusForEnvironments(envId int, token string, auth func(token string, appObject string, envObject string) bool) ([]*pipelineConfig.AppDeploymentStatus, error) {
+	deploymentStatuses := make([]*pipelineConfig.AppDeploymentStatus, 0)
+	pipelines, err := impl.pipelineRepository.FindActiveByEnvId(envId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("error fetching pipelines for env id", "err", err)
+		return nil, err
+	}
+	var appIds []int
+	pipelineAppMap := make(map[int]int)
+	for _, pipeline := range pipelines {
+		appIds = append(appIds, pipeline.AppId)
+		pipelineAppMap[pipeline.Id] = pipeline.AppId
+	}
+	if len(appIds) == 0 {
+		impl.Logger.Warnw("there is no app id found for fetching cd pipelines", "envId", envId)
+		return deploymentStatuses, nil
+	}
+	pipelines, err = impl.pipelineRepository.FindActiveByAppIds(appIds)
+	if err != nil && err != pg.ErrNoRows {
+		return deploymentStatuses, err
+	}
+	pipelineIds := make([]int, 0)
+	for _, pipeline := range pipelines {
+		appObject := impl.enforcerUtil.GetAppRBACName(pipeline.App.AppName)
+		envObject := impl.enforcerUtil.GetEnvRBACNameByCdPipelineIdAndEnvId(pipeline.Id)
+		valid := auth(token, appObject, envObject)
+		if !valid {
+			//if user unauthorized, skip items
+			continue
+		}
+		pipelineIds = append(pipelineIds, pipeline.Id)
+	}
+	if len(pipelineIds) == 0 {
+		return deploymentStatuses, nil
+	}
+	deploymentStatusesMap := make(map[int]*pipelineConfig.AppDeploymentStatus)
+	result, err := impl.cdWorkflowRepository.FetchAllCdStagesLatestEntity(pipelineIds)
+	if err != nil {
+		return deploymentStatuses, err
+	}
+	var wfrIds []int
+	for _, item := range result {
+		wfrIds = append(wfrIds, item.WfrId)
+	}
+	statusMap := make(map[int]string)
+	if len(wfrIds) > 0 {
+		wfrList, err := impl.cdWorkflowRepository.FetchAllCdStagesLatestEntityStatus(wfrIds)
+		if err != nil && !util.IsErrNoRows(err) {
+			return deploymentStatuses, err
+		}
+		for _, item := range wfrList {
+			if item.Status == "" {
+				statusMap[item.Id] = "Not Deployed"
+			} else {
+				statusMap[item.Id] = item.Status
+			}
+		}
+	}
+	for _, item := range result {
+		if _, ok := deploymentStatusesMap[item.PipelineId]; !ok {
+			deploymentStatus := &pipelineConfig.AppDeploymentStatus{}
+			deploymentStatus.PipelineId = item.PipelineId
+			if item.WorkflowType == "DEPLOY" {
+				deploymentStatus.DeployStatus = statusMap[item.WfrId]
+				deploymentStatus.AppId = pipelineAppMap[deploymentStatus.PipelineId]
+				deploymentStatusesMap[item.PipelineId] = deploymentStatus
+			}
+		} else {
+			deploymentStatus := deploymentStatuses[item.PipelineId]
+			deploymentStatus.PipelineId = item.PipelineId
+			if item.WorkflowType == "DEPLOY" {
+				deploymentStatus.DeployStatus = statusMap[item.WfrId]
+				deploymentStatus.AppId = pipelineAppMap[deploymentStatus.PipelineId]
+				deploymentStatuses[item.PipelineId] = deploymentStatus
+			}
+		}
+	}
+	//in case there is no workflow found for pipeline, set all the pipeline status - Not Deployed
+	for _, pipelineId := range pipelineIds {
+		if _, ok := deploymentStatusesMap[pipelineId]; !ok {
+			deploymentStatus := &pipelineConfig.AppDeploymentStatus{}
+			deploymentStatus.PipelineId = pipelineId
+			deploymentStatus.DeployStatus = "Not Deployed"
+			deploymentStatus.AppId = pipelineAppMap[deploymentStatus.PipelineId]
+			deploymentStatuses = append(deploymentStatuses, deploymentStatus)
+		}
+	}
+
+	return deploymentStatuses, err
 }
