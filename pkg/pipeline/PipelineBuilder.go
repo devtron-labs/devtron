@@ -3704,9 +3704,6 @@ func (impl PipelineBuilderImpl) GetEnvironmentListForAutocompleteFilter(envName 
 	}
 	envCount := len(beans)
 	totalCount := len(models)
-	result.EnvList = beans
-	result.EnvCount = envCount
-
 	// Apply pagination
 	if offset+size <= len(beans) {
 		beans = beans[offset : offset+size]
@@ -3714,6 +3711,8 @@ func (impl PipelineBuilderImpl) GetEnvironmentListForAutocompleteFilter(envName 
 		beans = beans[offset:]
 	}
 
+	result.EnvList = beans
+	result.EnvCount = envCount
 	result.TotalCount = totalCount
 	return result, nil
 }
