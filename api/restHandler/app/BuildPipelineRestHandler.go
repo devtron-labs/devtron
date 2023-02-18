@@ -214,20 +214,7 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	var ciConfig *bean.CiConfigRequest
-	ciConfig, err = impl.getCiTemplateVariables(patchRequest.AppId)
-	if err != nil {
-		impl.logger.Errorw("err in fetching template for pipeline patch, ", "err", err, "appId", patchRequest.AppId)
-		return nil, err
-	}
-	ciConfig.AppWorkflowId = patchRequest.AppWorkflowId
-	if patchRequest.IsJob && patchRequest.AppWorkflowId == 0 {
-		var createRequest = bean.CiConfigRequest{}
-		createRequest.AppId = patchRequest.AppId
-		createRequest.CiBuildConfig.CiBuildType = "skip-build"
-		createRequest.CiBuildConfig.GitMaterialId = patchRequest.CiPipeline.CiMaterial[0].GitMaterialId
-		handler.pipelineBuilder.CreateCiPipeline(&createRequest)
-	}
+
 	handler.Logger.Infow("request payload, PatchCiPipelines", "PatchCiPipelines", patchRequest)
 	err = handler.validator.Struct(patchRequest)
 	if err != nil {
@@ -242,31 +229,57 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName); !ok {
+	var ok bool
+	if patchRequest.IsJob {
+		ok = handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, resourceName)
+	} else {
+		ok = handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName)
+	}
+	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 
-	pipelineData, err := handler.pipelineRepository.FindActiveByAppIdAndPipelineId(patchRequest.AppId, patchRequest.CiPipeline.Id)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	var environmentIds []int
-	for _, pipeline := range pipelineData {
-		environmentIds = append(environmentIds, pipeline.EnvironmentId)
-	}
-	if handler.appWorkflowService.CheckCdPipelineByCiPipelineId(patchRequest.CiPipeline.Id) {
-		for _, envId := range environmentIds {
-			envObject := handler.enforcerUtil.GetEnvRBACNameByCiPipelineIdAndEnvId(patchRequest.CiPipeline.Id, envId)
-			if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, envObject); !ok {
-				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-				return
-			}
+	if patchRequest.IsJob {
+		ciConfigRequest := bean.CiConfigRequest{}
+		ciConfigRequest.AppId = patchRequest.AppId
+		ciConfigRequest.CiBuildConfig.CiBuildType = "skip-build"
+		if patchRequest.CiPipeline == nil || patchRequest.CiPipeline.CiMaterial == nil || len(patchRequest.CiPipeline.CiMaterial) != 1 {
+			handler.Logger.Errorw("Invalid patch ci-pipeline request", "request", patchRequest, "err", "invalid CiPipeline data")
+			common.WriteJsonResp(w, fmt.Errorf("invalid CiPipeline data"), nil, http.StatusBadRequest)
+			return
+		}
+		ciConfigRequest.CiBuildConfig.GitMaterialId = patchRequest.CiPipeline.CiMaterial[0].GitMaterialId
+		_, err = handler.pipelineBuilder.CreateCiPipeline(&ciConfigRequest)
+		if err != nil {
+			handler.Logger.Errorw("error occurred in creating ci-pipeline for the Job", "payload", ciConfigRequest, "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
 		}
 	}
 
+	if !patchRequest.IsJob {
+		pipelineData, err := handler.pipelineRepository.FindActiveByAppIdAndPipelineId(patchRequest.AppId, patchRequest.CiPipeline.Id)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		var environmentIds []int
+		for _, pipeline := range pipelineData {
+			environmentIds = append(environmentIds, pipeline.EnvironmentId)
+		}
+		if handler.appWorkflowService.CheckCdPipelineByCiPipelineId(patchRequest.CiPipeline.Id) {
+			for _, envId := range environmentIds {
+				envObject := handler.enforcerUtil.GetEnvRBACNameByCiPipelineIdAndEnvId(patchRequest.CiPipeline.Id, envId)
+				if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, envObject); !ok {
+					common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+					return
+				}
+			}
+		}
+	}
 	createResp, err := handler.pipelineBuilder.PatchCiPipeline(&patchRequest)
 	if err != nil {
 		handler.Logger.Errorw("service err, PatchCiPipelines", "err", err, "PatchCiPipelines", patchRequest)
