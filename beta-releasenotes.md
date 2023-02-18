@@ -1,4 +1,5 @@
 ## Bugs
+- fix: helm deploy hibernate fix (#2983)
 - fix: duplicate name in charts and chart Group (#2942)
 - fix: sorting app environment containers in app listing api  (#2935)
 - fix: Multigit bug fix in case of preCD and postCD (#2920)
