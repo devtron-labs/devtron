@@ -2020,13 +2020,15 @@ func (impl PipelineBuilderImpl) deleteArgoCdApp(ctx context.Context, pipeline *p
 
 	_, err := impl.application.Delete(ctx, req)
 
-	// Possible that argocd app got deleted but db updation failed
 	if err != nil {
+		impl.logger.Errorw("error in deleting argocd application", "err", err)
+		// Possible that argocd app got deleted but db updation failed
 		if strings.Contains(err.Error(), "code = NotFound") {
 			return nil
 		}
+		return err
 	}
-	return err
+	return nil
 }
 
 // deleteHelmApp takes in context and pipeline object and deletes the release in helm
