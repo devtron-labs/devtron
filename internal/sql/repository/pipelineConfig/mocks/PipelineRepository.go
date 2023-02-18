@@ -159,7 +159,7 @@ func (_m *PipelineRepository) FindActiveByEnvId(envId int) ([]*pipelineConfig.Pi
 }
 
 // FindActiveByEnvIdAndDeploymentTypeExcludingAppIds provides a mock function with given fields: environmentId, deploymentAppType, exclusionList
-func (_m *PipelineRepository) FindActiveByEnvIdAndDeploymentTypeExcludingAppIds(environmentId int, deploymentAppType string, exclusionList []int) ([]*pipelineConfig.Pipeline, error) {
+func (_m *PipelineRepository) FindActiveByEnvIdAndDeploymentType(environmentId int, deploymentAppType string, exclusionList []int, includeApps []int) ([]*pipelineConfig.Pipeline, error) {
 	ret := _m.Called(environmentId, deploymentAppType, exclusionList)
 
 	var r0 []*pipelineConfig.Pipeline
