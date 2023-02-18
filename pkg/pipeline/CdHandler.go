@@ -1079,19 +1079,9 @@ func (impl *CdHandlerImpl) FetchAppDeploymentStatusForEnvironments(envId int, to
 		impl.Logger.Errorw("error fetching pipelines for env id", "err", err)
 		return nil, err
 	}
-	var appIds []int
 	pipelineAppMap := make(map[int]int)
 	for _, pipeline := range pipelines {
-		appIds = append(appIds, pipeline.AppId)
 		pipelineAppMap[pipeline.Id] = pipeline.AppId
-	}
-	if len(appIds) == 0 {
-		impl.Logger.Warnw("there is no app id found for fetching cd pipelines", "envId", envId)
-		return deploymentStatuses, nil
-	}
-	pipelines, err = impl.pipelineRepository.FindActiveByAppIds(appIds)
-	if err != nil && err != pg.ErrNoRows {
-		return deploymentStatuses, err
 	}
 	pipelineIds := make([]int, 0)
 	for _, pipeline := range pipelines {
