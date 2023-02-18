@@ -30,6 +30,6 @@ func (router AppGroupingRouterImpl) InitAppGroupingRouter(appGroupingRouter *mux
 	appGroupingRouter.Path("/{envId}/workflow/status").HandlerFunc(router.restHandler.FetchAppWorkflowStatusForTriggerViewByEnvironment).Methods("GET")
 	appGroupingRouter.Path("/app-grouping").HandlerFunc(router.restHandler.GetEnvironmentListWithAppData).Methods("GET")
 	appGroupingRouter.Path("/{envId}/applications").HandlerFunc(router.restHandler.GetApplicationsByEnvironment).Methods("GET")
-	appGroupingRouter.Path("/{envId}/deployment/status").HandlerFunc(router.restHandler.FetchAppWorkflowStatusForTriggerViewByEnvironment).Methods("GET")
+	appGroupingRouter.Path("/{envId}/deployment/status").HandlerFunc(router.restHandler.FetchAppDeploymentStatusForEnvironments).Methods("GET")
 
 }
