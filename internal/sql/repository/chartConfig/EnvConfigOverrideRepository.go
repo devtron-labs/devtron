@@ -111,7 +111,7 @@ func (r EnvConfigOverrideRepositoryImpl) ActiveEnvConfigOverride(appId, environm
 	query := "SELECT " +
 		" ec.id as id, ec.chart_id as chart_id," +
 		" ec.target_environment as target_environment, ec.env_override_yaml as env_override_yaml, ec.status as status, ec.reviewed as reviewed," +
-		" ec.active as active, ec.namespace as namespace, ec.latest as latest, ch.latest as chart_latest" +
+		" ec.active as active, ec.namespace as namespace, ec.latest as latest, ch.latest as chart_latest," +
 		" ec.is_basic_view_locked as is_basic_view_locked," +
 		" ec.current_view_editor as current_view_editor," +
 		" ch.chart_name as chart_name," +
