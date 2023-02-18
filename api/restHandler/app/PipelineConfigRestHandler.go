@@ -71,6 +71,7 @@ type DevtronAppRestHandler interface {
 type DevtronAppWorkflowRestHandler interface {
 	FetchAppWorkflowStatusForTriggerView(w http.ResponseWriter, r *http.Request)
 	FetchAppWorkflowStatusForTriggerViewByEnvironment(w http.ResponseWriter, r *http.Request)
+	FetchAppDeploymentStatusForEnvironments(w http.ResponseWriter, r *http.Request)
 }
 
 type PipelineConfigRestHandler interface {
