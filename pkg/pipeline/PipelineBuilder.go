@@ -119,7 +119,7 @@ type PipelineBuilder interface {
 	GetCiPipelineById(pipelineId int) (ciPipeline *bean.CiPipeline, err error)
 
 	GetMaterialsForAppId(appId int) []*bean.GitMaterial
-	FindAllMatchesByAppName(appName string) ([]*AppBean, error)
+	FindAllMatchesByAppName(appName string, isJob bool) ([]*AppBean, error)
 	GetEnvironmentByCdPipelineId(pipelineId int) (int, error)
 	PatchRegexCiPipeline(request *bean.CiRegexPatchRequest) (err error)
 
@@ -2821,14 +2821,14 @@ func (impl PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *b
 	return ciPipeline, err
 }
 
-func (impl PipelineBuilderImpl) FindAllMatchesByAppName(appName string) ([]*AppBean, error) {
+func (impl PipelineBuilderImpl) FindAllMatchesByAppName(appName string, isJob bool) ([]*AppBean, error) {
 	var appsRes []*AppBean
 	var apps []*app2.App
 	var err error
 	if len(appName) == 0 {
 		apps, err = impl.appRepo.FindAll()
 	} else {
-		apps, err = impl.appRepo.FindAllMatchesByAppName(appName)
+		apps, err = impl.appRepo.FindAllMatchesByAppName(appName, isJob)
 	}
 	if err != nil {
 		impl.logger.Errorw("error while fetching app", "err", err)

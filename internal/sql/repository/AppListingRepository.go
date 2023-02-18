@@ -37,7 +37,7 @@ import (
 
 type AppListingRepository interface {
 	FetchAppsByEnvironment(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, error)
-	FetchJobs(appListingFilter helper.AppListingFilter) ([]*bean.JobsContainer, error)
+	FetchJobs(appIds []int) ([]*bean.JobListingContainer, error)
 	DeploymentDetailsByAppIdAndEnvId(ctx context.Context, appId int, envId int) (bean.DeploymentDetailContainer, error)
 	FetchAppDetail(ctx context.Context, appId int, envId int) (bean.AppDetailContainer, error)
 
@@ -85,16 +85,16 @@ func NewAppListingRepositoryImpl(Logger *zap.SugaredLogger, dbConnection *pg.DB,
 *
 It will return the list of filtered apps with details related to each env
 */
-func (impl AppListingRepositoryImpl) FetchJobs(jobListingFilter helper.AppListingFilter) ([]*bean.JobsContainer, error) {
-	var jobContainer []*bean.JobsContainer
-	jobsQuery := impl.appListingRepositoryQueryBuilder.BuildJobListingQuery(jobListingFilter)
+func (impl AppListingRepositoryImpl) FetchJobs(appIds []int) ([]*bean.JobListingContainer, error) {
+	var jobContainers []*bean.JobListingContainer
+	jobsQuery := impl.appListingRepositoryQueryBuilder.BuildJobListingQuery()
 	impl.Logger.Debugw("basic app detail query: ", jobsQuery)
-	_, appsErr := impl.dbConnection.Query(&jobContainer, jobsQuery)
+	_, appsErr := impl.dbConnection.Query(&jobContainers, jobsQuery, pg.In(appIds))
 	if appsErr != nil {
 		impl.Logger.Error(appsErr)
-		return jobContainer, appsErr
+		return jobContainers, appsErr
 	}
-	return jobContainer, nil
+	return jobContainers, nil
 }
 func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, error) {
 	impl.Logger.Debug("reached at FetchAppsByEnvironment:")

@@ -37,6 +37,11 @@ type AppContainerResponse struct {
 	DeploymentGroupDTO DeploymentGroupDTO `json:"deploymentGroup,omitempty"`
 }
 
+type JobContainerResponse struct {
+	JobContainers []*JobContainer `json:"jobContainers"`
+	JobCount      int             `json:"jobCount"`
+}
+
 type DeploymentGroupDTO struct {
 	Id             int             `json:"id"`
 	Name           string          `json:"name"`
@@ -53,24 +58,31 @@ type CiMaterialDTO struct {
 	SourceValue string `json:"value"`
 }
 
-type JobsContainer struct {
-	JobId       int             `json:"id"`
-	JobName     string          `json:"name""`
-	LastRun     []LastRunStatus `json:"last-run"'`
-	Description string          `json:"description"`
+type JobContainer struct {
+	AppId          int             `json:"app_id"`
+	AppName        string          `json:"app_name""`
+	Description    string          `json:"description"`
+	JobCiPipelines []JobCIPipeline `json:"ci_pipelines"'`
 }
 
-type LastRunStatus struct {
-	PipelineId    int       `json:"pipeline-id"`
-	LastRunStatus string    `json:"lastRunStatus"`
+type JobCIPipeline struct {
+	CiPipelineId  int       `json:"ciPipelineId"`
+	Status        string    `json:"status"`
 	LastRunAt     time.Time `json:"lastRunAt"`
-	LastSuccessAt time.Time `json:"lastRunAt"`
+	LastSuccessAt time.Time `json:"lastSuccessAt"`
 }
 
 type JobListingContainer struct {
-	JobId   int    `json:"jobId"`
-	JobName string `json:"jobName"`
+	AppId          int       `json:"app_id"`
+	AppName        string    `json:"app_name"`
+	Description    string    `json:"-"`
+	CiPipelineID   int       `json:"ci_pipeline_id"`
+	CiPipelineName string    `json:"ci_pipeline_name"`
+	Status         string    `json:"status"`
+	StartedOn      time.Time `json:"started_on"`
+	LastSuccessAt  time.Time `json:"-"`
 }
+
 type AppEnvironmentContainer struct {
 	AppId                       int                       `json:"appId"`
 	AppName                     string                    `json:"appName"`

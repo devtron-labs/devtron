@@ -214,6 +214,20 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	var ciConfig *bean.CiConfigRequest
+	ciConfig, err = impl.getCiTemplateVariables(patchRequest.AppId)
+	if err != nil {
+		impl.logger.Errorw("err in fetching template for pipeline patch, ", "err", err, "appId", patchRequest.AppId)
+		return nil, err
+	}
+	ciConfig.AppWorkflowId = patchRequest.AppWorkflowId
+	if patchRequest.IsJob && patchRequest.AppWorkflowId == 0 {
+		var createRequest = bean.CiConfigRequest{}
+		createRequest.AppId = patchRequest.AppId
+		createRequest.CiBuildConfig.CiBuildType = "skip-build"
+		createRequest.CiBuildConfig.GitMaterialId = patchRequest.CiPipeline.CiMaterial[0].GitMaterialId
+		handler.pipelineBuilder.CreateCiPipeline(&createRequest)
+	}
 	handler.Logger.Infow("request payload, PatchCiPipelines", "PatchCiPipelines", patchRequest)
 	err = handler.validator.Struct(patchRequest)
 	if err != nil {

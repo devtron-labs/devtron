@@ -172,19 +172,28 @@ func (handler AppListingRestHandlerImpl) FetchJobs(w http.ResponseWriter, r *htt
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	fetchJob, err := handler.appListingService.FetchJobs(fetchJobListingRequest, w, r)
-	// Apply pagination
-
-	offset := fetchJobListingRequest.Offset
-	limit := fetchJobListingRequest.Size
-
-	if offset+limit <= len(fetchJob) {
-		fetchJob = fetchJob[offset : offset+limit]
-	} else {
-		fetchJob = fetchJob[offset:]
+	jobs, err := handler.appListingService.FetchJobs(fetchJobListingRequest)
+	if err != nil {
+		handler.logger.Errorw("service err, FetchJobs", "err", err, "payload", fetchJobListingRequest)
+		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 	}
-	//jobContainerResponse := bean.JobsContainer{}
-	common.WriteJsonResp(w, err, fetchJob, http.StatusOK)
+
+	//jobsCount := len(jobs)
+	//offset := fetchJobListingRequest.Offset
+	//limit := fetchJobListingRequest.Size
+	//
+	//if offset+limit <= len(jobs) {
+	//	fetchJob = fetchJob[offset : offset+limit]
+	//} else {
+	//	fetchJob = fetchJob[offset:]
+	//}
+
+	jobContainerResponse := bean.JobContainerResponse{
+		JobContainers: jobs,
+		JobCount:      len(jobs),
+	}
+
+	common.WriteJsonResp(w, err, jobContainerResponse, http.StatusOK)
 }
 func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseWriter, r *http.Request) {
 	//Allow CORS here By * or specific origin

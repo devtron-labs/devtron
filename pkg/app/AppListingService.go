@@ -53,8 +53,9 @@ import (
 
 type AppListingService interface {
 	FetchAppsByEnvironment(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, error)
-	FetchJobs(fetchJobListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request) ([]*bean.JobsContainer, error)
+	FetchJobs(fetchJobListingRequest FetchAppListingRequest) ([]*bean.JobContainer, error)
 	BuildAppListingResponse(fetchAppListingRequest FetchAppListingRequest, envContainers []*bean.AppEnvironmentContainer) ([]*bean.AppContainer, error)
+	BuildJobListingResponse(jobContainers []*bean.JobListingContainer) []*bean.JobContainer
 	FetchAllDevtronManagedApps() ([]AppNameTypeIdContainer, error)
 	FetchAppDetails(ctx context.Context, appId int, envId int) (bean.AppDetailContainer, error)
 
@@ -221,7 +222,7 @@ func (impl AppListingServiceImpl) FetchAllDevtronManagedApps() ([]AppNameTypeIdC
 	}
 	return apps, nil
 }
-func (impl AppListingServiceImpl) FetchJobs(fetchJobListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request) ([]*bean.JobsContainer, error) {
+func (impl AppListingServiceImpl) FetchJobs(fetchJobListingRequest FetchAppListingRequest) ([]*bean.JobContainer, error) {
 
 	jobListingFilter := helper.AppListingFilter{
 		Teams:         fetchJobListingRequest.Teams,
@@ -232,12 +233,14 @@ func (impl AppListingServiceImpl) FetchJobs(fetchJobListingRequest FetchAppListi
 		Size:          fetchJobListingRequest.Size,
 		AppStatuses:   fetchJobListingRequest.AppStatuses,
 	}
-	jobContainers, err := impl.appListingRepository.FetchJobs(jobListingFilter)
+	appIds, err := impl.appRepository.FetchAppIdsWithFilter(jobListingFilter)
+	jobListingContainers, err := impl.appListingRepository.FetchJobs(appIds)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching app list", "error", err)
-		return []*bean.JobsContainer{}, err
+		return []*bean.JobContainer{}, err
 	}
-	return jobContainers, err
+	jobContainers := impl.BuildJobListingResponse(jobListingContainers)
+	return jobContainers, nil
 }
 func (impl AppListingServiceImpl) FetchAppsByEnvironment(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, error) {
 	impl.Logger.Debug("reached at FetchAppsByEnvironment:")
@@ -354,6 +357,42 @@ func (impl AppListingServiceImpl) BuildAppListingResponse(fetchAppListingRequest
 	}
 	appContainerResponses, err := impl.appListingViewBuilder.BuildView(fetchAppListingRequest, appEnvMapping)
 	return appContainerResponses, err
+}
+func (impl AppListingServiceImpl) BuildJobListingResponse(jobContainers []*bean.JobListingContainer) []*bean.JobContainer {
+	jobContainersMapping := make(map[int]bean.JobContainer)
+	var appIds []int
+	//Storing the sequence in appIds array
+	for _, jobContainer := range jobContainers {
+		val, ok := jobContainersMapping[jobContainer.AppId]
+		if !ok {
+			appIds = append(appIds, jobContainer.AppId)
+			val = bean.JobContainer{}
+			val.AppId = jobContainer.AppId
+			val.AppName = jobContainer.AppName
+			val.Description = jobContainer.Description
+		}
+
+		if len(val.JobCiPipelines) == 0 {
+			val.JobCiPipelines = make([]bean.JobCIPipeline, 0)
+		}
+		ciPipelineObj := bean.JobCIPipeline{
+			CiPipelineId:  jobContainer.CiPipelineID,
+			Status:        jobContainer.Status,
+			LastRunAt:     jobContainer.StartedOn,
+			LastSuccessAt: jobContainer.LastSuccessAt,
+		}
+		val.JobCiPipelines = append(val.JobCiPipelines, ciPipelineObj)
+		jobContainersMapping[jobContainer.AppId] = val
+
+	}
+
+	result := make([]*bean.JobContainer, 0)
+	for _, appId := range appIds {
+		val := jobContainersMapping[appId]
+		result = append(result, &val)
+	}
+
+	return result
 }
 
 func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest FetchAppListingRequest, existingAppEnvContainers []*bean.AppEnvironmentContainer) (map[string][]*bean.AppEnvironmentContainer, error) {

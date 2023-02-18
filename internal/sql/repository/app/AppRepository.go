@@ -19,6 +19,7 @@ package app
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
@@ -59,12 +60,13 @@ type AppRepository interface {
 	FindAppAndProjectByAppId(appId int) (*App, error)
 	FindAppAndProjectByAppName(appName string) (*App, error)
 	GetConnection() *pg.DB
-	FindAllMatchesByAppName(appName string) ([]*App, error)
+	FindAllMatchesByAppName(appName string, isJob bool) ([]*App, error)
 	FindIdsByTeamIdsAndTeamNames(teamIds []int, teamNames []string) ([]int, error)
 	FindIdsByNames(appNames []string) ([]int, error)
 	FetchAllActiveInstalledAppsWithAppIdAndName() ([]*App, error)
 	FetchAllActiveDevtronAppsWithAppIdAndName() ([]*App, error)
 	FindEnvironmentIdForInstalledApp(appId int) (int, error)
+	FetchAppIdsWithFilter(jobListingFilter helper.AppListingFilter) ([]int, error)
 }
 
 const DevtronApp = "DevtronApp"
@@ -250,9 +252,13 @@ func (repo AppRepositoryImpl) FindAppAndProjectByAppName(appName string) (*App, 
 	return app, err
 }
 
-func (repo AppRepositoryImpl) FindAllMatchesByAppName(appName string) ([]*App, error) {
+func (repo AppRepositoryImpl) FindAllMatchesByAppName(appName string, isJob bool) ([]*App, error) {
 	var apps []*App
-	err := repo.dbConnection.Model(&apps).Where("app_name ILIKE ?", "%"+appName+"%").Where("active = ?", true).Where("app_store = ?", 0).Select()
+	appStore := 0
+	if isJob {
+		appStore = 2
+	}
+	err := repo.dbConnection.Model(&apps).Where("app_name ILIKE ?", "%"+appName+"%").Where("active = ?", true).Where("app_store = ?", appStore).Select()
 	return apps, err
 }
 
@@ -333,4 +339,19 @@ func (repo AppRepositoryImpl) FindEnvironmentIdForInstalledApp(appId int) (int, 
 		"from installed_apps ia where ia.app_id = ?"
 	_, err := repo.dbConnection.Query(&res, query, appId)
 	return res.envId, err
+}
+func (repo AppRepositoryImpl) FetchAppIdsWithFilter(jobListingFilter helper.AppListingFilter) ([]int, error) {
+	type AppId struct {
+		Id int `json:"id"`
+	}
+	var appIds []AppId
+	query := fmt.Sprintf("select id "+
+		"from app where app_name like "+"%"+jobListingFilter.AppNameSearch+"%"+" and team_id in ? order by %s %s limit %s offset %s",
+		jobListingFilter.SortBy, jobListingFilter.SortOrder, jobListingFilter.Size, jobListingFilter.Offset)
+	_, err := repo.dbConnection.Query(&appIds, query, pg.In(jobListingFilter.Teams))
+	appIdsResult := make([]int, 0)
+	for _, id := range appIds {
+		appIdsResult = append(appIdsResult, id.Id)
+	}
+	return appIdsResult, err
 }

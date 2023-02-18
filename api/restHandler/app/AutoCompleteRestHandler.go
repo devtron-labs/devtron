@@ -32,10 +32,12 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListForAutocomplete(w http.Re
 	v := r.URL.Query()
 	teamId := v.Get("teamId")
 	appName := v.Get("appName")
+	isJobParam := v.Get("isJob")
+	isJob := isJobParam == "true"
 	handler.Logger.Infow("request payload, GetAppListForAutocomplete", "teamId", teamId)
 	var apps []*pipeline.AppBean
 	if len(teamId) == 0 {
-		apps, err = handler.pipelineBuilder.FindAllMatchesByAppName(appName)
+		apps, err = handler.pipelineBuilder.FindAllMatchesByAppName(appName, isJob)
 		if err != nil {
 			handler.Logger.Errorw("service err, GetAppListForAutocomplete", "err", err, "teamId", teamId)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

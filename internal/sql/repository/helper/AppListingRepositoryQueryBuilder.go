@@ -60,14 +60,14 @@ const (
 	AppNameSortBy SortBy = "appNameSort"
 )
 
-func (impl AppListingRepositoryQueryBuilder) BuildJobListingQuery(appListingFilter AppListingFilter) string {
-	whereCondition := impl.buildJobListingWhereCondition(appListingFilter)
-	orderByClause := impl.buildJobListingSortBy(appListingFilter)
-
-	query := "SELECT app_id, a.app_name, a.team_id, a.description" + "status, started_on, finished_on" +
-		""
-
-	query = query + whereCondition + orderByClause
+func (impl AppListingRepositoryQueryBuilder) BuildJobListingQuery() string {
+	query := "select ci_pipeline.name as ci_pipeline_name,ci_pipeline.id as ci_pipeline_id,app.id as app_id,app.app_name,cwr.started_on,cwr.status " +
+		"from ci_pipeline left join " +
+		"(select cw.ci_pipeline_id,cw.status,cw.started_on from ci_workflow cw " +
+		"inner join (SELECT  ci_pipeline_id, MAX(started_on) max_started_on FROM ci_workflow GROUP BY ci_pipeline_id) cws " +
+		"on cw.ci_pipeline_id = cws.ci_pipeline_id and cw.started_on = cws.max_started_on order by cw.ci_pipeline_id) cwr" +
+		" on cwr.ci_pipeline_id = ci_pipeline.id and ci_pipeline.active = true  " +
+		"right join app on app.id = ci_pipeline.app_id where app.active = true and app.app_store = false and app.id in ?;"
 	return query
 }
 
