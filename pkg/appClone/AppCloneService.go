@@ -86,6 +86,7 @@ type CloneRequest struct {
 	Name      string        `json:"name"`
 	ProjectId int           `json:"projectId"`
 	AppLabels []*bean.Label `json:"labels,omitempty" validate:"dive"`
+	isJob     bool          `json:"isJob"`
 }
 
 func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context context.Context) (*bean.CreateAppDTO, error) {
@@ -109,6 +110,7 @@ func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context 
 		Name:      createReq.AppName,
 		ProjectId: createReq.TeamId,
 		AppLabels: createReq.AppLabels,
+		isJob:     createReq.IsJob,
 	}
 	userId := createReq.UserId
 	appStatus, err := impl.appListingService.FetchAppStageStatus(cloneReq.RefAppId)
@@ -133,9 +135,11 @@ func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context 
 	}
 
 	//TODO check stage of current app
-	if !refAppStatus["APP"] {
-		impl.logger.Warnw("status not", "APP", cloneReq.RefAppId)
-		return nil, nil
+	if !createReq.IsJob {
+		if !refAppStatus["APP"] {
+			impl.logger.Warnw("status not", "APP", cloneReq.RefAppId)
+			return nil, nil
+		}
 	}
 	app, err := impl.CreateApp(cloneReq, userId)
 	if err != nil {
@@ -304,6 +308,7 @@ func (impl *AppCloneServiceImpl) CreateApp(cloneReq *CloneRequest, userId int32)
 		UserId:    userId,
 		TeamId:    cloneReq.ProjectId,
 		AppLabels: cloneReq.AppLabels,
+		IsJob:     cloneReq.isJob,
 	}
 	createRes, err := impl.pipelineBuilder.CreateApp(createAppReq)
 	return createRes, err
