@@ -284,7 +284,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r 
 }
 
 func (handler PipelineConfigRestHandlerImpl) CreateJob(w http.ResponseWriter, r *http.Request) {
-	token := r.Header.Get("token")
+	//token := r.Header.Get("token")
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -292,11 +292,11 @@ func (handler PipelineConfigRestHandlerImpl) CreateJob(w http.ResponseWriter, r 
 		return
 	}
 
-	//isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
-	//if !isSuperAdmin || err != nil {
-	//	common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-	//	return
-	//}
+	isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
+	if !isSuperAdmin || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
 
 	var createRequest bean.CreateAppDTO
 	err = decoder.Decode(&createRequest)
@@ -315,16 +315,16 @@ func (handler PipelineConfigRestHandlerImpl) CreateJob(w http.ResponseWriter, r 
 		return
 	}
 
-	project, err := handler.teamService.FetchOne(createRequest.TeamId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	// with admin roles, you have to access for all the apps of the project to create new app. (admin or manager with specific app permission can't create app.)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, fmt.Sprintf("%s/%s", strings.ToLower(project.Name), "*")); !ok {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-		return
-	}
+	//project, err := handler.teamService.FetchOne(createRequest.TeamId)
+	//if err != nil {
+	//	common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	//	return
+	//}
+	//// with admin roles, you have to access for all the apps of the project to create new app. (admin or manager with specific app permission can't create app.)
+	//if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, fmt.Sprintf("%s/%s", strings.ToLower(project.Name), "*")); !ok {
+	//	common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+	//	return
+	//}
 	var createResp *bean.CreateAppDTO
 	err = nil
 	if createRequest.TemplateId == 0 {

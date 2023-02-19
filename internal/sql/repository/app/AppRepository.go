@@ -345,10 +345,18 @@ func (repo AppRepositoryImpl) FetchAppIdsWithFilter(jobListingFilter helper.AppL
 		Id int `json:"id"`
 	}
 	var appIds []AppId
-	query := fmt.Sprintf("select id "+
-		"from app where app_name like "+"%"+jobListingFilter.AppNameSearch+"%"+" and team_id in ? order by %s %s limit %s offset %s",
-		jobListingFilter.SortBy, jobListingFilter.SortOrder, jobListingFilter.Size, jobListingFilter.Offset)
-	_, err := repo.dbConnection.Query(&appIds, query, pg.In(jobListingFilter.Teams))
+	orderByCondition := " order by app_name "
+	if jobListingFilter.SortOrder == "DESC" {
+		orderByCondition += string(jobListingFilter.SortOrder)
+	}
+	orderByCondition += " limit ? offset ? "
+	whereCondition := " where app_name like ? and active = true and app_store = 2 "
+	if len(jobListingFilter.Teams) > 0 {
+		whereCondition += " and team_id in (" + helper.GetCommaSepratedString(jobListingFilter.Teams) + ")"
+	}
+	query := "select id " + "from app " + whereCondition + orderByCondition
+	appName := "%" + jobListingFilter.AppNameSearch + "%"
+	_, err := repo.dbConnection.Query(&appIds, query, appName, jobListingFilter.Size, jobListingFilter.Offset)
 	appIdsResult := make([]int, 0)
 	for _, id := range appIds {
 		appIdsResult = append(appIdsResult, id.Id)

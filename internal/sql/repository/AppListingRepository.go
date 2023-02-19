@@ -24,6 +24,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"go.opentelemetry.io/otel"
 	"strconv"
 	"strings"
@@ -88,8 +89,9 @@ It will return the list of filtered apps with details related to each env
 func (impl AppListingRepositoryImpl) FetchJobs(appIds []int) ([]*bean.JobListingContainer, error) {
 	var jobContainers []*bean.JobListingContainer
 	jobsQuery := impl.appListingRepositoryQueryBuilder.BuildJobListingQuery()
+	appIdsString := helper.GetCommaSepratedString(appIds)
 	impl.Logger.Debugw("basic app detail query: ", jobsQuery)
-	_, appsErr := impl.dbConnection.Query(&jobContainers, jobsQuery, pg.In(appIds))
+	_, appsErr := impl.dbConnection.Query(&jobContainers, jobsQuery, appIdsString)
 	if appsErr != nil {
 		impl.Logger.Error(appsErr)
 		return jobContainers, appsErr

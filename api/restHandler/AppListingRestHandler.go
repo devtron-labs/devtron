@@ -176,6 +176,7 @@ func (handler AppListingRestHandlerImpl) FetchJobs(w http.ResponseWriter, r *htt
 	if err != nil {
 		handler.logger.Errorw("service err, FetchJobs", "err", err, "payload", fetchJobListingRequest)
 		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+		return
 	}
 
 	//jobsCount := len(jobs)

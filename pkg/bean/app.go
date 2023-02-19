@@ -206,7 +206,7 @@ type CiPatchRequest struct {
 	Action        PatchAction `json:"action"`
 	AppWorkflowId int         `json:"appWorkflowId,omitempty"`
 	UserId        int32       `json:"-"`
-	IsJob         bool        `json:"isJob""`
+	IsJob         bool        `json:"isJob"`
 }
 
 type CiRegexPatchRequest struct {

@@ -12,6 +12,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	bean1 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
 	"io"
@@ -245,7 +246,9 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 	if patchRequest.IsJob {
 		ciConfigRequest := bean.CiConfigRequest{}
 		ciConfigRequest.AppId = patchRequest.AppId
+		ciConfigRequest.CiBuildConfig = &bean1.CiBuildConfigBean{}
 		ciConfigRequest.CiBuildConfig.CiBuildType = "skip-build"
+		ciConfigRequest.UserId = patchRequest.UserId
 		if patchRequest.CiPipeline == nil || patchRequest.CiPipeline.CiMaterial == nil || len(patchRequest.CiPipeline.CiMaterial) != 1 {
 			handler.Logger.Errorw("Invalid patch ci-pipeline request", "request", patchRequest, "err", "invalid CiPipeline data")
 			common.WriteJsonResp(w, fmt.Errorf("invalid CiPipeline data"), nil, http.StatusBadRequest)
