@@ -328,7 +328,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateJob(w http.ResponseWriter, r 
 	var createResp *bean.CreateAppDTO
 	err = nil
 	if createRequest.TemplateId == 0 {
-		createResp, err = handler.pipelineBuilder.CreateJob(&createRequest)
+		createResp, err = handler.pipelineBuilder.CreateApp(&createRequest)
 	} else {
 		ctx, cancel := context.WithCancel(r.Context())
 		if cn, ok := w.(http.CloseNotifier); ok {
@@ -348,7 +348,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateJob(w http.ResponseWriter, r 
 			return
 		}
 		ctx = context.WithValue(r.Context(), "token", acdToken)
-		createResp, err = handler.appCloneService.CloneJob(&createRequest, ctx)
+		createResp, err = handler.appCloneService.CloneApp(&createRequest, ctx)
 	}
 	if err != nil {
 		handler.Logger.Errorw("service err, CreateApp", "err", err, "CreateApp", createRequest)

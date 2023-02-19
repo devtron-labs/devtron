@@ -86,7 +86,6 @@ func GetDeploymentServiceTypeConfig() (*DeploymentServiceTypeConfig, error) {
 type PipelineBuilder interface {
 	CreateCiPipeline(createRequest *bean.CiConfigRequest) (*bean.PipelineCreateResponse, error)
 	CreateApp(request *bean.CreateAppDTO) (*bean.CreateAppDTO, error)
-	CreateJob(request *bean.CreateAppDTO) (*bean.CreateAppDTO, error)
 	CreateMaterialsForApp(request *bean.CreateMaterialDTO) (*bean.CreateMaterialDTO, error)
 	UpdateMaterialsForApp(request *bean.UpdateMaterialDTO) (*bean.UpdateMaterialDTO, error)
 	DeleteMaterial(request *bean.UpdateMaterialDTO) error
@@ -306,15 +305,6 @@ func (impl PipelineBuilderImpl) CreateApp(request *bean.CreateAppDTO) (*bean.Cre
 	res, err := impl.ciCdPipelineOrchestrator.CreateApp(request)
 	if err != nil {
 		impl.logger.Errorw("error in saving create app req", "req", request, "err", err)
-	}
-	return res, err
-}
-
-func (impl PipelineBuilderImpl) CreateJob(request *bean.CreateAppDTO) (*bean.CreateAppDTO, error) {
-	impl.logger.Debugw("job create request received", "req", request)
-	res, err := impl.ciCdPipelineOrchestrator.CreateJob(request)
-	if err != nil {
-		impl.logger.Errorw("error in saving create job req", "req", request, "err", err)
 	}
 	return res, err
 }
