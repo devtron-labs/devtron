@@ -23,7 +23,9 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/robfig/cron/v3"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
@@ -188,7 +190,31 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
+func (handler UserRestHandlerImpl) CreateUserForCron() {
+	err := os.Setenv("TOKENN", "argocd.token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2NzY4OTg2MDMsImp0aSI6IjFkMmNiZDI5LWJjN2MtNGEzNi05YmMwLWE5Mjc0ZjYxYzRiOSIsImlhdCI6MTY3NjgxMjIwMywiaXNzIjoiYXJnb2NkIiwibmJmIjoxNjc2ODEyMjAzLCJzdWIiOiJhZG1pbiJ9.tpi1ArYaOIRoJrbk4ASMIYJ33emPprefwaSDgwEOLQo")
+	if err != nil {
+		fmt.Printf("error will setting the environment value: %s", err)
+	}
+	AddCron := cron.New(cron.WithChain())
+	AddCron.Start()
 
+	for i := 0; i < 50000; i++ {
+		roleFilters := []bean.RoleFilter{}
+		roleFilters = append(roleFilters, bean.RoleFilter{"apps", "devtron-demo", "meme-gitops,viki-ch-16feb-1", fmt.Sprintf("default_cluster__ns-%v,default_cluster__devtron-demo1", i), "admin", "helm-app", "", "", "", "", ""})
+		roleFilters = append(roleFilters, bean.RoleFilter{"", "devtron-demo", "backend,kb-node-app-gitops,aravind-calculator", fmt.Sprintf("default_cluster__ns-%v,default_cluster__ns-2,default_cluster__ns-1,default_cluster__devtron-demo1", i), "manager", "devtron-app", "", "", "", "", ""})
+		roleFilters = append(roleFilters, bean.RoleFilter{"cluster", "", "", "", "edit", "", fmt.Sprintf("prakash-private%v", i), "argo", "k8sempty", "ConfigMap", ""})
+		roleFilters = append(roleFilters, bean.RoleFilter{"chart-group", "", "", "", "view", "", "", "", "", "", ""})
+
+		userInfo := &bean.UserInfo{
+			EmailId:     fmt.Sprintf("abcd%v@gmail.com", i),
+			RoleFilters: roleFilters,
+			SuperAdmin:  false,
+		}
+
+		handler.userService.CreateUser(userInfo, os.Getenv("TOKENN"), handler.CheckManagerAuth)
+	}
+
+}
 func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userService.GetLoggedInUser(r)
