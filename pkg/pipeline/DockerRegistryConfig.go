@@ -81,6 +81,25 @@ func NewDockerRegistryConfigImpl(logger *zap.SugaredLogger, dockerArtifactStoreR
 	}
 }
 
+func NewDockerArtifactStore(bean *DockerArtifactStoreBean, isActive bool, createdOn time.Time, updatedOn time.Time, createdBy int32, updateBy int32) *repository.DockerArtifactStore {
+	return &repository.DockerArtifactStore{
+		Id:                 bean.Id,
+		PluginId:           bean.PluginId,
+		RegistryURL:        bean.RegistryURL,
+		RegistryType:       bean.RegistryType,
+		AWSAccessKeyId:     bean.AWSAccessKeyId,
+		AWSSecretAccessKey: bean.AWSSecretAccessKey,
+		AWSRegion:          bean.AWSRegion,
+		Username:           bean.Username,
+		Password:           bean.Password,
+		IsDefault:          bean.IsDefault,
+		Connection:         bean.Connection,
+		Cert:               bean.Cert,
+		Active:             isActive,
+		AuditLog:           sql.AuditLog{CreatedBy: createdBy, CreatedOn: createdOn, UpdatedOn: updatedOn, UpdatedBy: updateBy},
+	}
+}
+
 func (impl DockerRegistryConfigImpl) Create(bean *DockerArtifactStoreBean) (*DockerArtifactStoreBean, error) {
 	impl.logger.Debugw("docker registry create request", "request", bean)
 
@@ -95,22 +114,7 @@ func (impl DockerRegistryConfigImpl) Create(bean *DockerArtifactStoreBean) (*Doc
 	defer tx.Rollback()
 
 	// 2- insert docker_registry_config
-	store := &repository.DockerArtifactStore{
-		Id:                 bean.Id,
-		PluginId:           bean.PluginId,
-		RegistryURL:        bean.RegistryURL,
-		RegistryType:       bean.RegistryType,
-		AWSAccessKeyId:     bean.AWSAccessKeyId,
-		AWSSecretAccessKey: bean.AWSSecretAccessKey,
-		AWSRegion:          bean.AWSRegion,
-		Username:           bean.Username,
-		Password:           bean.Password,
-		IsDefault:          bean.IsDefault,
-		Connection:         bean.Connection,
-		Cert:               bean.Cert,
-		Active:             true,
-		AuditLog:           sql.AuditLog{CreatedBy: bean.User, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: bean.User},
-	}
+	store := NewDockerArtifactStore(bean, true, time.Now(), time.Now(), bean.User, bean.User)
 	err = impl.dockerArtifactStoreRepository.Save(store, tx)
 	if err != nil {
 		impl.logger.Errorw("error in saving registry config", "config", store, "err", err)
@@ -291,22 +295,10 @@ func (impl DockerRegistryConfigImpl) Update(bean *DockerArtifactStoreBean) (*Doc
 		bean.Cert = existingStore.Cert
 	}
 
-	store := &repository.DockerArtifactStore{
-		Id:                 bean.Id,
-		PluginId:           existingStore.PluginId,
-		RegistryURL:        bean.RegistryURL,
-		RegistryType:       bean.RegistryType,
-		AWSAccessKeyId:     bean.AWSAccessKeyId,
-		AWSSecretAccessKey: bean.AWSSecretAccessKey,
-		AWSRegion:          bean.AWSRegion,
-		Username:           bean.Username,
-		Password:           bean.Password,
-		IsDefault:          bean.IsDefault,
-		Connection:         bean.Connection,
-		Cert:               bean.Cert,
-		Active:             true, // later it will change
-		AuditLog:           sql.AuditLog{CreatedBy: existingStore.CreatedBy, CreatedOn: existingStore.CreatedOn, UpdatedOn: time.Now(), UpdatedBy: bean.User},
-	}
+	bean.PluginId = existingStore.PluginId
+
+	store := NewDockerArtifactStore(bean, true, existingStore.CreatedOn, time.Now(), existingStore.CreatedBy, bean.User)
+
 	err = impl.dockerArtifactStoreRepository.Update(store, tx)
 	if err != nil {
 		impl.logger.Errorw("error in updating registry config in db", "config", store, "err", err)
@@ -374,22 +366,10 @@ func (impl DockerRegistryConfigImpl) UpdateInactive(bean *DockerArtifactStoreBea
 
 	// 3- update docker_registry_config
 
-	store := &repository.DockerArtifactStore{
-		Id:                 bean.Id,
-		PluginId:           existingStore.PluginId,
-		RegistryURL:        bean.RegistryURL,
-		RegistryType:       bean.RegistryType,
-		AWSAccessKeyId:     bean.AWSAccessKeyId,
-		AWSSecretAccessKey: bean.AWSSecretAccessKey,
-		AWSRegion:          bean.AWSRegion,
-		Username:           bean.Username,
-		Password:           bean.Password,
-		IsDefault:          bean.IsDefault,
-		Connection:         bean.Connection,
-		Cert:               bean.Cert,
-		Active:             true, // later it will change
-		AuditLog:           sql.AuditLog{CreatedBy: bean.User, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: bean.User},
-	}
+	bean.PluginId = existingStore.PluginId
+
+	store := NewDockerArtifactStore(bean, true, existingStore.CreatedOn, time.Now(), bean.User, bean.User)
+
 	err = impl.dockerArtifactStoreRepository.Update(store, tx)
 	if err != nil {
 		impl.logger.Errorw("error in updating registry config in db", "config", store, "err", err)
