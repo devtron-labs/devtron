@@ -812,7 +812,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateApp(createRequest *bean.CreateApp
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-	app, err := impl.createAppGroup(createRequest.AppName, createRequest.UserId, createRequest.TeamId, createRequest.IsJob, tx)
+	app, err := impl.createAppGroup(createRequest.AppName, createRequest.UserId, createRequest.TeamId, createRequest.IsJob, createRequest.Description, tx)
 	if err != nil {
 		return nil, err
 	}
@@ -839,6 +839,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateApp(createRequest *bean.CreateApp
 		return nil, err
 	}
 	createRequest.Id = app.Id
+	createRequest.AppName = app.DisplayName
 	return createRequest, nil
 }
 
@@ -994,7 +995,7 @@ func (impl CiCdPipelineOrchestratorImpl) addRepositoryToGitSensor(materials []*b
 }
 
 // FIXME: not thread safe
-func (impl CiCdPipelineOrchestratorImpl) createAppGroup(name string, userId int32, teamId int, isJob bool, tx *pg.Tx) (*app2.App, error) {
+func (impl CiCdPipelineOrchestratorImpl) createAppGroup(name string, userId int32, teamId int, isJob bool, description string, tx *pg.Tx) (*app2.App, error) {
 	app, err := impl.appRepository.FindActiveByName(name)
 	if err != nil && err != pg.ErrNoRows {
 		return nil, err
@@ -1008,18 +1009,21 @@ func (impl CiCdPipelineOrchestratorImpl) createAppGroup(name string, userId int3
 		}
 		return nil, err
 	}
-	var appStore int
+	appStore := 0
+	displayName := name
+	appName := name
 	if isJob {
 		appStore = 2
-	} else {
-		appStore = 0
+		appName = name + "/" + util2.Generate(8) + "J"
 	}
 	pg := &app2.App{
-		Active:   true,
-		AppName:  name,
-		TeamId:   teamId,
-		AppStore: appStore,
-		AuditLog: sql.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
+		Active:      true,
+		AppName:     appName,
+		DisplayName: displayName,
+		TeamId:      teamId,
+		AppStore:    appStore,
+		Description: description,
+		AuditLog:    sql.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 	}
 	err = impl.appRepository.SaveWithTxn(pg, tx)
 	if err != nil {

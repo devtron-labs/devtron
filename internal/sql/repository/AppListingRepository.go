@@ -24,7 +24,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
 	"go.opentelemetry.io/otel"
 	"strconv"
 	"strings"
@@ -38,7 +37,8 @@ import (
 
 type AppListingRepository interface {
 	FetchAppsByEnvironment(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, error)
-	FetchJobs(appIds []int) ([]*bean.JobListingContainer, error)
+	FetchJobs(appIds []int, statuses []string) ([]*bean.JobListingContainer, error)
+	FetchJobsLastSucceededOn(ciPipelineIDs []int) ([]*bean.CiPipelineLastSucceededTime, error)
 	DeploymentDetailsByAppIdAndEnvId(ctx context.Context, appId int, envId int) (bean.DeploymentDetailContainer, error)
 	FetchAppDetail(ctx context.Context, appId int, envId int) (bean.AppDetailContainer, error)
 
@@ -82,21 +82,35 @@ func NewAppListingRepositoryImpl(Logger *zap.SugaredLogger, dbConnection *pg.DB,
 	return &AppListingRepositoryImpl{dbConnection: dbConnection, Logger: Logger, appListingRepositoryQueryBuilder: appListingRepositoryQueryBuilder}
 }
 
-/*
-*
-It will return the list of filtered apps with details related to each env
-*/
-func (impl AppListingRepositoryImpl) FetchJobs(appIds []int) ([]*bean.JobListingContainer, error) {
+func (impl AppListingRepositoryImpl) FetchJobs(appIds []int, statuses []string) ([]*bean.JobListingContainer, error) {
 	var jobContainers []*bean.JobListingContainer
-	jobsQuery := impl.appListingRepositoryQueryBuilder.BuildJobListingQuery()
-	appIdsString := helper.GetCommaSepratedString(appIds)
+	//if len(appIds) == 0 {
+	//	return jobContainers, nil
+	//}
+	jobsQuery := impl.appListingRepositoryQueryBuilder.BuildJobListingQuery(appIds, statuses)
+
 	impl.Logger.Debugw("basic app detail query: ", jobsQuery)
-	_, appsErr := impl.dbConnection.Query(&jobContainers, jobsQuery, appIdsString)
+	_, appsErr := impl.dbConnection.Query(&jobContainers, jobsQuery, pg.In(appIds))
 	if appsErr != nil {
 		impl.Logger.Error(appsErr)
 		return jobContainers, appsErr
 	}
 	return jobContainers, nil
+}
+func (impl AppListingRepositoryImpl) FetchJobsLastSucceededOn(CiPipelineIDs []int) ([]*bean.CiPipelineLastSucceededTime, error) {
+	var lastSucceededTimeArray []*bean.CiPipelineLastSucceededTime
+	if len(CiPipelineIDs) == 0 {
+		return lastSucceededTimeArray, nil
+	}
+	jobsLastFinishedOnQuery := impl.appListingRepositoryQueryBuilder.JobsLastSucceededOnTimeQuery(CiPipelineIDs)
+	impl.Logger.Debugw("basic app detail query: ", jobsLastFinishedOnQuery)
+	_, appsErr := impl.dbConnection.Query(&lastSucceededTimeArray, jobsLastFinishedOnQuery)
+	impl.Logger.Debugw("basic app detail query: ", jobsLastFinishedOnQuery)
+	if appsErr != nil {
+		impl.Logger.Error(appsErr)
+		return lastSucceededTimeArray, appsErr
+	}
+	return lastSucceededTimeArray, nil
 }
 func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, error) {
 	impl.Logger.Debug("reached at FetchAppsByEnvironment:")

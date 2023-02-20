@@ -302,6 +302,7 @@ func formatDate(t time.Time, layout string) string {
 
 func (impl PipelineBuilderImpl) CreateApp(request *bean.CreateAppDTO) (*bean.CreateAppDTO, error) {
 	impl.logger.Debugw("app create request received", "req", request)
+
 	res, err := impl.ciCdPipelineOrchestrator.CreateApp(request)
 	if err != nil {
 		impl.logger.Errorw("error in saving create app req", "req", request, "err", err)
@@ -430,6 +431,7 @@ func (impl PipelineBuilderImpl) GetMaterialsForAppId(appId int) []*bean.GitMater
 */
 
 func (impl PipelineBuilderImpl) getDefaultArtifactStore(id string) (store *dockerRegistryRepository.DockerArtifactStore, err error) {
+
 	if id == "" {
 		impl.logger.Debugw("docker repo is empty adding default repo")
 		store, err = impl.dockerArtifactStoreRepository.FindActiveDefaultStore()

@@ -60,14 +60,33 @@ const (
 	AppNameSortBy SortBy = "appNameSort"
 )
 
-func (impl AppListingRepositoryQueryBuilder) BuildJobListingQuery() string {
-	query := "select ci_pipeline.name as ci_pipeline_name,ci_pipeline.id as ci_pipeline_id,app.id as app_id,app.app_name,cwr.started_on,cwr.status " +
+func (impl AppListingRepositoryQueryBuilder) BuildJobListingQuery(appIDs []int, statuses []string) string {
+	query := "select ci_pipeline.name as ci_pipeline_name,ci_pipeline.id as ci_pipeline_id,app.id as app_id,app.display_name as app_name,cwr.started_on,cwr.status " +
 		"from ci_pipeline left join " +
 		"(select cw.ci_pipeline_id,cw.status,cw.started_on from ci_workflow cw " +
 		"inner join (SELECT  ci_pipeline_id, MAX(started_on) max_started_on FROM ci_workflow GROUP BY ci_pipeline_id) cws " +
 		"on cw.ci_pipeline_id = cws.ci_pipeline_id and cw.started_on = cws.max_started_on order by cw.ci_pipeline_id) cwr" +
 		" on cwr.ci_pipeline_id = ci_pipeline.id and ci_pipeline.active = true  " +
-		"right join app on app.id = ci_pipeline.app_id where app.active = true and app.app_store = 2 and app.id in (?)"
+		"right join app on app.id = ci_pipeline.app_id where app.active = true and app.app_store = 2 "
+	if len(appIDs) > 0 {
+		query += "and app_id IN (" + GetCommaSepratedString(appIDs) + ") "
+	}
+	if len(statuses) > 0 {
+		query += "and cwr.status IN (" + util.ProcessAppStatuses(statuses) + ") "
+	}
+	return query
+}
+
+// use this query with atleast 1 cipipeline id
+func (impl AppListingRepositoryQueryBuilder) JobsLastSucceededOnTimeQuery(ciPipelineIDs []int) string {
+	// use this query with atleast 1 cipipeline id
+	query := "select cw.ci_pipeline_id,cw.finished_on " +
+		"as last_succeeded_on from ci_workflow cw inner join " +
+		"(SELECT  ci_pipeline_id, MAX(finished_on) finished_on " +
+		"FROM ci_workflow WHERE ci_workflow.status = 'Succeeded'" +
+		"GROUP BY ci_pipeline_id) cws on cw.ci_pipeline_id = cws.ci_pipeline_id and cw.finished_on = cws.finished_on " +
+		"where cw.ci_pipeline_id IN (" + GetCommaSepratedString(ciPipelineIDs) + "); "
+
 	return query
 }
 

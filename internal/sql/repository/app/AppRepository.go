@@ -30,11 +30,12 @@ type App struct {
 	tableName       struct{} `sql:"app" pg:",discard_unknown_columns"`
 	Id              int      `sql:"id,pk"`
 	AppName         string   `sql:"app_name,notnull"` //same as app name
+	DisplayName     string   `sql:"display_name"`
 	Active          bool     `sql:"active, notnull"`
 	TeamId          int      `sql:"team_id"`
 	AppStore        int      `sql:"app_store, notnull"`
 	AppOfferingMode string   `sql:"app_offering_mode,notnull"`
-	Description     string   `sql:"-"`
+	Description     string   `sql:"description"`
 	Team            team.Team
 	sql.AuditLog
 }
@@ -354,6 +355,7 @@ func (repo AppRepositoryImpl) FetchAppIdsWithFilter(jobListingFilter helper.AppL
 	if len(jobListingFilter.Teams) > 0 {
 		whereCondition += " and team_id in (" + helper.GetCommaSepratedString(jobListingFilter.Teams) + ")"
 	}
+
 	query := "select id " + "from app " + whereCondition + orderByCondition
 	appName := "%" + jobListingFilter.AppNameSearch + "%"
 	_, err := repo.dbConnection.Query(&appIds, query, appName, jobListingFilter.Size, jobListingFilter.Offset)

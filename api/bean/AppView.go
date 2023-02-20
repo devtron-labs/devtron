@@ -80,7 +80,12 @@ type JobListingContainer struct {
 	CiPipelineName string    `json:"ci_pipeline_name"`
 	Status         string    `json:"status"`
 	StartedOn      time.Time `json:"started_on"`
-	LastSuccessAt  time.Time `json:"-"`
+	//LastSuccessAt  time.Time `json:"-"`
+}
+
+type CiPipelineLastSucceededTime struct {
+	CiPipelineID  int       `json:"ci_pipeline_id"`
+	LastSuccessOn time.Time `json:"last_succeeded_on"`
 }
 
 type AppEnvironmentContainer struct {

@@ -55,7 +55,6 @@ type AppListingService interface {
 	FetchAppsByEnvironment(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, error)
 	FetchJobs(fetchJobListingRequest FetchAppListingRequest) ([]*bean.JobContainer, error)
 	BuildAppListingResponse(fetchAppListingRequest FetchAppListingRequest, envContainers []*bean.AppEnvironmentContainer) ([]*bean.AppContainer, error)
-	BuildJobListingResponse(jobContainers []*bean.JobListingContainer) []*bean.JobContainer
 	FetchAllDevtronManagedApps() ([]AppNameTypeIdContainer, error)
 	FetchAppDetails(ctx context.Context, appId int, envId int) (bean.AppDetailContainer, error)
 
@@ -238,12 +237,14 @@ func (impl AppListingServiceImpl) FetchJobs(fetchJobListingRequest FetchAppListi
 		impl.Logger.Errorw("error in fetching app ids list", "error", err)
 		return []*bean.JobContainer{}, err
 	}
-	jobListingContainers, err := impl.appListingRepository.FetchJobs(appIds)
+	jobListingContainers, err := impl.appListingRepository.FetchJobs(appIds, jobListingFilter.AppStatuses)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching app list", "error", err)
 		return []*bean.JobContainer{}, err
 	}
-	jobContainers := impl.BuildJobListingResponse(jobListingContainers)
+	CiPipelineIDs := GetCIPipelineIDs(jobListingContainers)
+	JobsLastSucceededOnTime, err := impl.appListingRepository.FetchJobsLastSucceededOn(CiPipelineIDs)
+	jobContainers := BuildJobListingResponse(jobListingContainers, JobsLastSucceededOnTime)
 	return jobContainers, nil
 }
 func (impl AppListingServiceImpl) FetchAppsByEnvironment(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, error) {
@@ -362,9 +363,23 @@ func (impl AppListingServiceImpl) BuildAppListingResponse(fetchAppListingRequest
 	appContainerResponses, err := impl.appListingViewBuilder.BuildView(fetchAppListingRequest, appEnvMapping)
 	return appContainerResponses, err
 }
-func (impl AppListingServiceImpl) BuildJobListingResponse(jobContainers []*bean.JobListingContainer) []*bean.JobContainer {
+func GetCIPipelineIDs(jobContainers []*bean.JobListingContainer) []int {
+
+	var ciPipelineIDs []int
+	for _, jobContainer := range jobContainers {
+		ciPipelineIDs = append(ciPipelineIDs, jobContainer.CiPipelineID)
+	}
+	return ciPipelineIDs
+}
+func BuildJobListingResponse(jobContainers []*bean.JobListingContainer, JobsLastSucceededOnTime []*bean.CiPipelineLastSucceededTime) []*bean.JobContainer {
 	jobContainersMapping := make(map[int]bean.JobContainer)
 	var appIds []int
+
+	lastSucceededTimeMapping := make(map[int]time.Time)
+	for _, lastSuccessTime := range JobsLastSucceededOnTime {
+		lastSucceededTimeMapping[lastSuccessTime.CiPipelineID] = lastSuccessTime.LastSuccessOn
+	}
+
 	//Storing the sequence in appIds array
 	for _, jobContainer := range jobContainers {
 		val, ok := jobContainersMapping[jobContainer.AppId]
@@ -379,12 +394,17 @@ func (impl AppListingServiceImpl) BuildJobListingResponse(jobContainers []*bean.
 		if len(val.JobCiPipelines) == 0 {
 			val.JobCiPipelines = make([]bean.JobCIPipeline, 0)
 		}
+
 		ciPipelineObj := bean.JobCIPipeline{
-			CiPipelineId:  jobContainer.CiPipelineID,
-			Status:        jobContainer.Status,
-			LastRunAt:     jobContainer.StartedOn,
-			LastSuccessAt: jobContainer.LastSuccessAt,
+			CiPipelineId: jobContainer.CiPipelineID,
+			Status:       jobContainer.Status,
+			LastRunAt:    jobContainer.StartedOn,
+			//LastSuccessAt: jobContainer.LastSuccessAt,
 		}
+		if lastSuccessAt, ok := lastSucceededTimeMapping[jobContainer.CiPipelineID]; ok {
+			ciPipelineObj.LastSuccessAt = lastSuccessAt
+		}
+
 		val.JobCiPipelines = append(val.JobCiPipelines, ciPipelineObj)
 		jobContainersMapping[jobContainer.AppId] = val
 
