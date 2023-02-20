@@ -99,7 +99,11 @@ func (impl *ChartGroupRestHandlerImpl) CreateChartGroup(w http.ResponseWriter, r
 	res, err := impl.ChartGroupService.CreateChartGroup(&request)
 	if err != nil {
 		impl.Logger.Errorw("service err, CreateChartGroup", "err", err, "payload", request)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		statusCode := http.StatusInternalServerError
+		if service.AppNameAlreadyExistsError == err.Error() {
+			statusCode = http.StatusBadRequest
+		}
+		common.WriteJsonResp(w, err, nil, statusCode)
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
@@ -312,7 +316,7 @@ func (impl *ChartGroupRestHandlerImpl) GetChartGroupListMin(w http.ResponseWrite
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func(impl *ChartGroupRestHandlerImpl) DeleteChartGroup(w http.ResponseWriter, r *http.Request){
+func (impl *ChartGroupRestHandlerImpl) DeleteChartGroup(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
