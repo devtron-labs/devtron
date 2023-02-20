@@ -1787,6 +1787,10 @@ func (impl PipelineBuilderImpl) ChangeDeploymentType(ctx context.Context,
 			return response, nil
 		}
 
+		if artifactDetails.LatestWfArtifactId == 0 || artifactDetails.LatestWfArtifactStatus == "Failed" {
+			continue
+		}
+
 		bulkTriggerRequest = append(bulkTriggerRequest, &BulkTriggerRequest{
 			CiArtifactId: artifactDetails.LatestWfArtifactId,
 			PipelineId:   item.Id,
