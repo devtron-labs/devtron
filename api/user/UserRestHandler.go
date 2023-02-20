@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
-	"github.com/robfig/cron/v3"
 	"net/http"
 	"os"
 	"strconv"
@@ -192,10 +191,8 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 func (handler UserRestHandlerImpl) CreateUserForCron() {
-	AddCron := cron.New(cron.WithChain())
-	AddCron.Start()
-
 	for i := 0; i < 50000; i++ {
+		fmt.Printf("%v", i)
 		roleFilters := []bean.RoleFilter{}
 		roleFilters = append(roleFilters, bean.RoleFilter{"apps", "devtron-demo", "meme-gitops,viki-ch-16feb-1", fmt.Sprintf("default_cluster__ns-%v,default_cluster__devtron-demo1", i), "admin", "helm-app", "", "", "", "", ""})
 		roleFilters = append(roleFilters, bean.RoleFilter{"", "devtron-demo", "backend,kb-node-app-gitops,aravind-calculator", fmt.Sprintf("default_cluster__ns-%v,default_cluster__ns-2,default_cluster__ns-1,default_cluster__devtron-demo1", i), "manager", "devtron-app", "", "", "", "", ""})
@@ -206,6 +203,7 @@ func (handler UserRestHandlerImpl) CreateUserForCron() {
 			EmailId:     fmt.Sprintf("abcd%v@gmail.com", i),
 			RoleFilters: roleFilters,
 			SuperAdmin:  false,
+			Id:          int32(i + 112233),
 		}
 
 		handler.userService.CreateUser(userInfo, os.Getenv("TOKENN"), handler.CheckManagerAuth)
