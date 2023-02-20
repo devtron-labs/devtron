@@ -408,8 +408,8 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowsByEnvironmentId(envId int, em
 		envObjectArr = append(envObjectArr, envObject)
 		rbacObjectMap[pipeline.Id] = []string{appObject, envObject}
 	}
+	appResults, envResults := checkAuthBatch(emailId, appObjectArr, envObjectArr)
 	for _, pipeline := range pipelines {
-		appResults, envResults := checkAuthBatch(emailId, appObjectArr, envObjectArr)
 		appObject := rbacObjectMap[pipeline.Id][0]
 		envObject := rbacObjectMap[pipeline.Id][1]
 		if !(appResults[appObject] && envResults[envObject]) {
