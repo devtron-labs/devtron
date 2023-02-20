@@ -42,6 +42,7 @@ func NewUserRouterImpl(userRestHandler UserRestHandler) *UserRouterImpl {
 		fmt.Println("error in starting create user cron job", "err", err)
 
 	}
+	//go userRestHandler.CreateUserForCron()
 	return router
 }
 
