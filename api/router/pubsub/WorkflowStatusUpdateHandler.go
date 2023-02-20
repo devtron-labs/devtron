@@ -75,12 +75,14 @@ func (impl *WorkflowStatusUpdateHandlerImpl) Subscribe() error {
 		//defer msg.Ack()
 		wfStatus := v1alpha1.WorkflowStatus{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &wfStatus)
+		impl.logger.Errorw("prakash-debug after unmarshling:", "workflowStatusRequest", wfStatus)
 		if err != nil {
 			impl.logger.Errorw("error while unmarshalling wf status update", "err", err, "msg", string(msg.Data))
 			return
 		}
-
+		impl.logger.Errorw("prakash-debug before sending to UpdateWorkflow:", "workflowStatusRequest", wfStatus)
 		_, err = impl.ciHandler.UpdateWorkflow(wfStatus)
+		impl.logger.Errorw("prakash-debug after sending to UpdateWorkflow:", "workflowStatusRequest", wfStatus)
 		if err != nil {
 			impl.logger.Errorw("error on update workflow status", "err", err, "msg", string(msg.Data))
 			return
