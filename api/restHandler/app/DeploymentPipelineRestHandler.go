@@ -1879,7 +1879,7 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelinesByEnvironment(w http.
 		return
 	}
 	token := r.Header.Get("token")
-	results, err := handler.pipelineBuilder.GetCdPipelinesByEnvironment(envId, token, handler.checkAuth)
+	results, err := handler.pipelineBuilder.GetCdPipelinesByEnvironment(envId, token, handler.checkAuthBatch)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetCdPipelines", "err", err, "envId", envId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -1888,16 +1888,14 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelinesByEnvironment(w http.
 	common.WriteJsonResp(w, err, results, http.StatusOK)
 }
 
-func (handler *PipelineConfigRestHandlerImpl) checkAuth(token string, appObject string, envObject string) bool {
+func (handler *PipelineConfigRestHandlerImpl) checkAuthBatch(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool) {
+	var appResult map[string]bool
+	var envResult map[string]bool
 	if len(appObject) > 0 {
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, strings.ToLower(appObject)); !ok {
-			return false
-		}
+		appResult = handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceTeam, casbin.ActionGet, appObject)
 	}
 	if len(envObject) > 0 {
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, strings.ToLower(envObject)); !ok {
-			return false
-		}
+		envResult = handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceTeam, casbin.ActionGet, envObject)
 	}
-	return true
+	return appResult, envResult
 }

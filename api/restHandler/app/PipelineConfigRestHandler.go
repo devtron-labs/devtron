@@ -565,7 +565,7 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerVie
 		return
 	}
 	triggerWorkflowStatus := pipelineConfig.TriggerWorkflowStatus{}
-	ciWorkflowStatus, err := handler.ciHandler.FetchCiStatusForTriggerViewForEnvironment(envId, token, handler.checkAuth)
+	ciWorkflowStatus, err := handler.ciHandler.FetchCiStatusForTriggerViewForEnvironment(envId, token, handler.checkAuthBatch)
 	if err != nil {
 		handler.Logger.Errorw("service err", "err", err)
 		if util.IsErrNoRows(err) {
@@ -577,7 +577,7 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerVie
 		return
 	}
 
-	cdWorkflowStatus, err := handler.cdHandler.FetchAppWorkflowStatusForTriggerViewForEnvironment(envId, token, handler.checkAuth)
+	cdWorkflowStatus, err := handler.cdHandler.FetchAppWorkflowStatusForTriggerViewForEnvironment(envId, token, handler.checkAuthBatch)
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchAppWorkflowStatusForTriggerView", "err", err)
 		if util.IsErrNoRows(err) {
@@ -620,7 +620,7 @@ func (handler PipelineConfigRestHandlerImpl) GetEnvironmentListWithAppData(w htt
 			clusterIds = append(clusterIds, id)
 		}
 	}
-	result, err := handler.pipelineBuilder.GetEnvironmentListForAutocompleteFilter(envName, clusterIds, offset, size, token, handler.checkAuth)
+	result, err := handler.pipelineBuilder.GetEnvironmentListForAutocompleteFilter(envName, clusterIds, offset, size, token, handler.checkAuthBatch)
 	if err != nil {
 		handler.Logger.Errorw("service err, get app", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -639,7 +639,7 @@ func (handler PipelineConfigRestHandlerImpl) GetApplicationsByEnvironment(w http
 	}
 	handler.Logger.Infow("request payload, get app", "envId", envId)
 	token := r.Header.Get("token")
-	ciConf, err := handler.pipelineBuilder.GetAppListForEnvironment(envId, token, handler.checkAuth)
+	ciConf, err := handler.pipelineBuilder.GetAppListForEnvironment(envId, token, handler.checkAuthBatch)
 	if err != nil {
 		handler.Logger.Errorw("service err, get app", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -661,7 +661,7 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppDeploymentStatusForEnvironm
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	results, err := handler.cdHandler.FetchAppDeploymentStatusForEnvironments(envId, token, handler.checkAuth)
+	results, err := handler.cdHandler.FetchAppDeploymentStatusForEnvironments(envId, token, handler.checkAuthBatch)
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchAppWorkflowStatusForTriggerView", "err", err)
 		if util.IsErrNoRows(err) {
