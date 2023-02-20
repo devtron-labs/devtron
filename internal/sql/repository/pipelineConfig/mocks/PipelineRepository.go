@@ -877,13 +877,13 @@ func (_m *PipelineRepository) UpdateCdPipeline(pipeline *pipelineConfig.Pipeline
 	return r0
 }
 
-// UpdateCdPipelineDeploymentAppInFilter provides a mock function with given fields: deploymentAppType, cdPipelineIdIncludes
-func (_m *PipelineRepository) UpdateCdPipelineDeploymentAppInFilter(deploymentAppType string, cdPipelineIdIncludes []int) error {
-	ret := _m.Called(deploymentAppType, cdPipelineIdIncludes)
+// UpdateCdPipelineDeploymentAppInFilter provides a mock function with given fields: deploymentAppType, cdPipelineIdIncludes, userId
+func (_m *PipelineRepository) UpdateCdPipelineDeploymentAppInFilter(deploymentAppType string, cdPipelineIdIncludes []int, userId int32) error {
+	ret := _m.Called(deploymentAppType, cdPipelineIdIncludes, userId)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, []int) error); ok {
-		r0 = rf(deploymentAppType, cdPipelineIdIncludes)
+	if rf, ok := ret.Get(0).(func(string, []int, int32) error); ok {
+		r0 = rf(deploymentAppType, cdPipelineIdIncludes, userId)
 	} else {
 		r0 = ret.Error(0)
 	}
