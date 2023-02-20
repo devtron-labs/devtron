@@ -418,7 +418,7 @@ func (e *EnforcerImpl) VerifyTokenAndGetEmail(tokenString string) (string, bool)
 
 // enforce is a helper to additionally check a default role and invoke a custom claims enforcement function
 func (e *EnforcerImpl) enforceByEmail(emailId string, resource string, action string, resourceItem string) bool {
-	defer handlePanic()
+	defer HandlePanic()
 	response, found := e.enforceFromCache(emailId, resource, action, resourceItem)
 	if found {
 		cacheData := e.getEnforcerCacheLock(emailId)
