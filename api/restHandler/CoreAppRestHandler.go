@@ -1646,6 +1646,7 @@ func (handler CoreAppRestHandlerImpl) createCdPipelines(ctx context.Context, app
 			Namespace:                     envModel.Namespace,
 			AppWorkflowId:                 workflowId,
 			CiPipelineId:                  ciPipelineId,
+			DeploymentAppType:             cdPipeline.DeploymentAppType,
 			DeploymentTemplate:            cdPipeline.DeploymentStrategyType,
 			TriggerType:                   cdPipeline.TriggerType,
 			CdArgoSetup:                   cdPipeline.IsClusterCdActive,
