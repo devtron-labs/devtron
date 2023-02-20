@@ -1074,12 +1074,15 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(en
 
 func (impl *CdHandlerImpl) FetchAppDeploymentStatusForEnvironments(envId int, token string, auth func(token string, appObject string, envObject string) bool) ([]*pipelineConfig.AppDeploymentStatus, error) {
 	deploymentStatuses := make([]*pipelineConfig.AppDeploymentStatus, 0)
+	deploymentStatusesMap := make(map[int]*pipelineConfig.AppDeploymentStatus)
+	pipelineAppMap := make(map[int]int)
+	statusMap := make(map[int]string)
+
 	pipelines, err := impl.pipelineRepository.FindActiveByEnvId(envId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("error fetching pipelines for env id", "err", err)
 		return nil, err
 	}
-	pipelineAppMap := make(map[int]int)
 	for _, pipeline := range pipelines {
 		pipelineAppMap[pipeline.Id] = pipeline.AppId
 	}
@@ -1097,7 +1100,6 @@ func (impl *CdHandlerImpl) FetchAppDeploymentStatusForEnvironments(envId int, to
 	if len(pipelineIds) == 0 {
 		return deploymentStatuses, nil
 	}
-	deploymentStatusesMap := make(map[int]*pipelineConfig.AppDeploymentStatus)
 	result, err := impl.cdWorkflowRepository.FetchAllCdStagesLatestEntity(pipelineIds)
 	if err != nil {
 		return deploymentStatuses, err
@@ -1106,7 +1108,6 @@ func (impl *CdHandlerImpl) FetchAppDeploymentStatusForEnvironments(envId int, to
 	for _, item := range result {
 		wfrIds = append(wfrIds, item.WfrId)
 	}
-	statusMap := make(map[int]string)
 	if len(wfrIds) > 0 {
 		wfrList, err := impl.cdWorkflowRepository.FetchAllCdStagesLatestEntityStatus(wfrIds)
 		if err != nil && !util.IsErrNoRows(err) {
@@ -1120,6 +1121,7 @@ func (impl *CdHandlerImpl) FetchAppDeploymentStatusForEnvironments(envId int, to
 			}
 		}
 	}
+
 	for _, item := range result {
 		if _, ok := deploymentStatusesMap[item.PipelineId]; !ok {
 			deploymentStatus := &pipelineConfig.AppDeploymentStatus{}
@@ -1128,14 +1130,6 @@ func (impl *CdHandlerImpl) FetchAppDeploymentStatusForEnvironments(envId int, to
 				deploymentStatus.DeployStatus = statusMap[item.WfrId]
 				deploymentStatus.AppId = pipelineAppMap[deploymentStatus.PipelineId]
 				deploymentStatusesMap[item.PipelineId] = deploymentStatus
-			}
-		} else {
-			deploymentStatus := deploymentStatuses[item.PipelineId]
-			deploymentStatus.PipelineId = item.PipelineId
-			if item.WorkflowType == "DEPLOY" {
-				deploymentStatus.DeployStatus = statusMap[item.WfrId]
-				deploymentStatus.AppId = pipelineAppMap[deploymentStatus.PipelineId]
-				deploymentStatuses[item.PipelineId] = deploymentStatus
 			}
 		}
 	}
@@ -1146,8 +1140,11 @@ func (impl *CdHandlerImpl) FetchAppDeploymentStatusForEnvironments(envId int, to
 			deploymentStatus.PipelineId = pipelineId
 			deploymentStatus.DeployStatus = "Not Deployed"
 			deploymentStatus.AppId = pipelineAppMap[deploymentStatus.PipelineId]
-			deploymentStatuses = append(deploymentStatuses, deploymentStatus)
+			deploymentStatusesMap[pipelineId] = deploymentStatus
 		}
+	}
+	for _, deploymentStatus := range deploymentStatusesMap {
+		deploymentStatuses = append(deploymentStatuses, deploymentStatus)
 	}
 
 	return deploymentStatuses, err
