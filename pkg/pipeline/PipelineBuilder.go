@@ -3351,8 +3351,8 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int, emailId st
 		appObjectArr = append(appObjectArr, appObject)
 		rbacObjectMap[pipeline.Id] = []string{appObject, ""}
 	}
+	appResults, _ := checkAuthBatch(emailId, appObjectArr, []string{}) //here only app permission need to check
 	for _, pipeline := range ciPipelines {
-		appResults, _ := checkAuthBatch(emailId, appObjectArr, []string{}) //here only app permission need to check
 		appObject := rbacObjectMap[pipeline.Id][0]
 		if !appResults[appObject] {
 			//if user unauthorized, skip items
@@ -3514,10 +3514,9 @@ func (impl PipelineBuilderImpl) GetCdPipelinesByEnvironment(envId int, emailId s
 		rbacObjectMap[dbPipeline.Id] = []string{appObject, envObject}
 	}
 	//authorization block ends here
-
+	appResults, envResults := checkAuthBatch(emailId, appObjectArr, envObjectArr)
 	var pipelines []*bean.CDPipelineConfigObject
 	for _, dbPipeline := range cdPipelines.Pipelines {
-		appResults, envResults := checkAuthBatch(emailId, appObjectArr, envObjectArr)
 		appObject := rbacObjectMap[dbPipeline.Id][0]
 		envObject := rbacObjectMap[dbPipeline.Id][1]
 		if !(appResults[appObject] && envResults[envObject]) {
@@ -3592,8 +3591,8 @@ func (impl PipelineBuilderImpl) GetExternalCiByEnvironment(envId int, emailId st
 		appObjectArr = append(appObjectArr, appObject)
 		rbacObjectMap[pipeline.Id] = []string{appObject, ""}
 	}
+	appResults, _ := checkAuthBatch(emailId, appObjectArr, []string{})
 	for _, pipeline := range pipelines {
-		appResults, _ := checkAuthBatch(emailId, appObjectArr, []string{})
 		appObject := rbacObjectMap[pipeline.Id][0]
 		if !appResults[appObject] {
 			//if user unauthorized, skip items
@@ -3722,8 +3721,8 @@ func (impl PipelineBuilderImpl) GetEnvironmentListForAutocompleteFilter(envName 
 			envObjectArr = append(envObjectArr, envObject)
 			rbacObjectMap[pipeline.Id] = []string{appObject, envObject}
 		}
+		appResults, envResults := checkAuthBatch(emailId, appObjectArr, envObjectArr)
 		for _, pipeline := range pipelines {
-			appResults, envResults := checkAuthBatch(emailId, appObjectArr, envObjectArr)
 			appObject := rbacObjectMap[pipeline.Id][0]
 			envObject := rbacObjectMap[pipeline.Id][1]
 			if !(appResults[appObject] && envResults[envObject]) {
@@ -3770,8 +3769,8 @@ func (impl PipelineBuilderImpl) GetAppListForEnvironment(envId int, emailId stri
 		envObjectArr = append(envObjectArr, envObject)
 		rbacObjectMap[pipeline.Id] = []string{appObject, envObject}
 	}
+	appResults, envResults := checkAuthBatch(emailId, appObjectArr, envObjectArr)
 	for _, pipeline := range pipelines {
-		appResults, envResults := checkAuthBatch(emailId, appObjectArr, envObjectArr)
 		appObject := rbacObjectMap[pipeline.Id][0]
 		envObject := rbacObjectMap[pipeline.Id][1]
 		if !(appResults[appObject] && envResults[envObject]) {

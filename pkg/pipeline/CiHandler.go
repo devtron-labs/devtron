@@ -1310,8 +1310,8 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(envId int, 
 		appObjectArr = append(appObjectArr, appObject)
 		rbacObjectMap[pipeline.Id] = []string{appObject, ""}
 	}
+	appResults, _ := checkAuthBatch(emailId, appObjectArr, []string{})
 	for _, pipeline := range pipelines {
-		appResults, _ := checkAuthBatch(emailId, appObjectArr, []string{})
 		appObject := rbacObjectMap[pipeline.Id][0] //here only app permission have to check
 		if !appResults[appObject] {
 			//if user unauthorized, skip items
