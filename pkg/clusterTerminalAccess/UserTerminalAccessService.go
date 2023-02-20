@@ -1050,16 +1050,16 @@ func (impl *UserTerminalAccessServiceImpl) getTerminalAccessDataForId(userTermin
 
 func (impl *UserTerminalAccessServiceImpl) EditPodManifest(ctx context.Context, editManifestRequest *models.ManifestEditRequestResponse) (models.ManifestEditRequestResponse, error) {
 
-	manifestMap := editManifestRequest.Manifest
+	manifest := editManifestRequest.Manifest
 	result := models.ManifestEditRequestResponse{
-		Manifest: manifestMap,
+		Manifest: manifest,
 	}
 	userTerminalAccessId := editManifestRequest.UserTerminalRequest.Id
-	impl.Logger.Infow("Reached EditPodManifest method", "userTerminalAccessId", userTerminalAccessId, "manifest", manifestMap)
-	manifest := map[string]interface{}{}
-	err := json.Unmarshal([]byte(manifestMap), &manifest)
-	if manifest != nil {
-		if manifest["kind"] != "Pod" {
+	impl.Logger.Infow("Reached EditPodManifest method", "userTerminalAccessId", userTerminalAccessId, "manifest", manifest)
+	manifestMap := map[string]interface{}{}
+	err := json.Unmarshal([]byte(manifest), &manifestMap)
+	if manifestMap != nil {
+		if manifestMap["kind"] != "Pod" {
 			err := errors.New("manifest should be of kind \"Pod\"")
 			impl.Logger.Errorw("given manifest in not pod manifest", "manifest", manifestMap, "err", err)
 			return result, err
@@ -1073,7 +1073,7 @@ func (impl *UserTerminalAccessServiceImpl) EditPodManifest(ctx context.Context, 
 	}
 
 	YamlResource := resource.Resource{
-		Bytes: []byte(manifestMap),
+		Bytes: []byte(manifest),
 	}
 	validatorResponse := v.ValidateResource(YamlResource)
 	if validatorResponse.Err != nil {
@@ -1090,7 +1090,7 @@ func (impl *UserTerminalAccessServiceImpl) EditPodManifest(ctx context.Context, 
 	}
 	//start new session with provided Pod manifest
 	//override namespace,nodeName
-	podTemplate := manifestMap
+	podTemplate := manifest
 	terminalStartResponse, err := impl.StartTerminalSession(ctx, editManifestRequest.UserTerminalRequest, podTemplate)
 	if err != nil {
 		impl.Logger.Errorw("failed to start terminal session", "userTerminalAccessId", userTerminalAccessId, "err", err)
