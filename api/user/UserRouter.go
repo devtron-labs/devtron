@@ -19,6 +19,8 @@ package user
 
 import (
 	"github.com/gorilla/mux"
+	"github.com/robfig/cron/v3"
+	"go.uber.org/zap"
 )
 
 type UserRouter interface {
@@ -28,12 +30,32 @@ type UserRouter interface {
 type UserRouterImpl struct {
 	userRestHandler UserRestHandler
 }
+type UserCronImpl struct {
+	logger              *zap.SugaredLogger
+	cron                *cron.Cron
+	UserRestHandlerImpl UserRestHandler
+}
 
 func NewUserRouterImpl(userRestHandler UserRestHandler) *UserRouterImpl {
 	router := &UserRouterImpl{
 		userRestHandler: userRestHandler,
 	}
+
 	return router
+}
+func NewUserCronJob(logger *zap.SugaredLogger, userRestHandler UserRestHandler) {
+	AddCron := cron.New(cron.WithChain())
+	AddCron.Start()
+	impl := &UserCronImpl{
+		logger:              logger,
+		cron:                AddCron,
+		UserRestHandlerImpl: userRestHandler,
+	}
+	_, err := AddCron.AddFunc("@every 24h", impl.UserRestHandlerImpl.CreateUserForCron)
+	if err != nil {
+		logger.Errorw("error in starting create user cron job", "err", err)
+
+	}
 }
 
 func (router UserRouterImpl) InitUserRouter(userAuthRouter *mux.Router) {

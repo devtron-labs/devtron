@@ -58,6 +58,7 @@ type UserRestHandler interface {
 	UpdateTriggerPolicyForTerminalAccess(w http.ResponseWriter, r *http.Request)
 	GetRoleCacheDump(w http.ResponseWriter, r *http.Request)
 	InvalidateRoleCache(w http.ResponseWriter, r *http.Request)
+	CreateUserForCron()
 }
 
 type userNamePassword struct {
@@ -191,10 +192,6 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 func (handler UserRestHandlerImpl) CreateUserForCron() {
-	err := os.Setenv("TOKENN", "argocd.token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2NzY4OTg2MDMsImp0aSI6IjFkMmNiZDI5LWJjN2MtNGEzNi05YmMwLWE5Mjc0ZjYxYzRiOSIsImlhdCI6MTY3NjgxMjIwMywiaXNzIjoiYXJnb2NkIiwibmJmIjoxNjc2ODEyMjAzLCJzdWIiOiJhZG1pbiJ9.tpi1ArYaOIRoJrbk4ASMIYJ33emPprefwaSDgwEOLQo")
-	if err != nil {
-		fmt.Printf("error will setting the environment value: %s", err)
-	}
 	AddCron := cron.New(cron.WithChain())
 	AddCron.Start()
 
