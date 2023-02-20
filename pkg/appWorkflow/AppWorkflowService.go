@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -47,6 +48,7 @@ type AppWorkflowService interface {
 	FindAppWorkflowByName(name string, appId int) (AppWorkflowDto, error)
 
 	FindAllWorkflowsComponentDetails(appId int) (*AllAppWorkflowComponentDetails, error)
+	FindAppWorkflowsByEnvironmentId(envId int, token string, auth func(token string, appObject string, envObject string) bool) ([]AppWorkflowDto, error)
 }
 
 type AppWorkflowServiceImpl struct {
@@ -55,6 +57,7 @@ type AppWorkflowServiceImpl struct {
 	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator
 	ciPipelineRepository     pipelineConfig.CiPipelineRepository
 	pipelineRepository       pipelineConfig.PipelineRepository
+	enforcerUtil             rbac.EnforcerUtil
 }
 
 type AppWorkflowDto struct {
@@ -87,13 +90,16 @@ type WorkflowComponentNamesDto struct {
 	CdPipelines    []string `json:"cdPipelines"`
 }
 
-func NewAppWorkflowServiceImpl(logger *zap.SugaredLogger, appWorkflowRepository appWorkflow.AppWorkflowRepository, ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator, ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository) *AppWorkflowServiceImpl {
+func NewAppWorkflowServiceImpl(logger *zap.SugaredLogger, appWorkflowRepository appWorkflow.AppWorkflowRepository,
+	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator, ciPipelineRepository pipelineConfig.CiPipelineRepository,
+	pipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil) *AppWorkflowServiceImpl {
 	return &AppWorkflowServiceImpl{
 		Logger:                   logger,
 		appWorkflowRepository:    appWorkflowRepository,
 		ciCdPipelineOrchestrator: ciCdPipelineOrchestrator,
 		ciPipelineRepository:     ciPipelineRepository,
 		pipelineRepository:       pipelineRepository,
+		enforcerUtil:             enforcerUtil,
 	}
 }
 
@@ -379,4 +385,64 @@ func (impl AppWorkflowServiceImpl) FindAllWorkflowsComponentDetails(appId int) (
 		Workflows: wfComponentDetails,
 	}
 	return resp, nil
+}
+
+func (impl AppWorkflowServiceImpl) FindAppWorkflowsByEnvironmentId(envId int, token string, auth func(token string, appObject string, envObject string) bool) ([]AppWorkflowDto, error) {
+	workflows := make([]AppWorkflowDto, 0)
+	pipelines, err := impl.pipelineRepository.FindActiveByEnvId(envId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("error fetching pipelines for env id", "err", err)
+		return nil, err
+	}
+	pipelineMap := make(map[int]bool)
+	appNamesMap := make(map[int]string)
+	var appIds []int
+	for _, pipeline := range pipelines {
+		appObject := impl.enforcerUtil.GetAppRBACName(pipeline.App.AppName)
+		envObject := fmt.Sprintf("%s/%s", pipeline.Environment.EnvironmentIdentifier, pipeline.App.AppName)
+		valid := auth(token, appObject, envObject)
+		if !valid {
+			//if user unauthorized, skip items
+			continue
+		}
+		appIds = append(appIds, pipeline.AppId)
+		appNamesMap[pipeline.AppId] = pipeline.App.AppName
+		pipelineMap[pipeline.Id] = true
+	}
+	if len(appIds) == 0 {
+		impl.Logger.Warnw("there is no app id found for fetching app workflows", "envId", envId)
+		return workflows, nil
+	}
+	appWorkflow, err := impl.appWorkflowRepository.FindByAppIds(appIds)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("error fetching app workflows by app ids", "err", err)
+		return nil, err
+	}
+	for _, w := range appWorkflow {
+		appName := appNamesMap[w.AppId]
+		workflow := AppWorkflowDto{
+			Id:    w.Id,
+			Name:  appName, // here workflow name is app name, only for environment app grouping view
+			AppId: w.AppId,
+		}
+		mappings, err := impl.FindAppWorkflowMapping(w.Id)
+		if err != nil {
+			impl.Logger.Errorw("error fetching app workflow mapping by wf id", "err", err)
+			return nil, err
+		}
+		valid := false
+		for _, mapping := range mappings {
+			if mapping.Type == CD_PIPELINE_TYPE {
+				if _, ok := pipelineMap[mapping.ComponentId]; ok {
+					valid = true
+				}
+			}
+		}
+		//if there is no matching pipeline for requested environment, skip from workflow listing
+		if valid {
+			workflow.AppWorkflowMappingDto = mappings
+			workflows = append(workflows, workflow)
+		}
+	}
+	return workflows, err
 }

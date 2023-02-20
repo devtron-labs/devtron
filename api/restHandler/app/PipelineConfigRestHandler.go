@@ -64,10 +64,14 @@ type DevtronAppRestHandler interface {
 
 	FindAppsByTeamId(w http.ResponseWriter, r *http.Request)
 	FindAppsByTeamName(w http.ResponseWriter, r *http.Request)
+	GetEnvironmentListWithAppData(w http.ResponseWriter, r *http.Request)
+	GetApplicationsByEnvironment(w http.ResponseWriter, r *http.Request)
 }
 
 type DevtronAppWorkflowRestHandler interface {
 	FetchAppWorkflowStatusForTriggerView(w http.ResponseWriter, r *http.Request)
+	FetchAppWorkflowStatusForTriggerViewByEnvironment(w http.ResponseWriter, r *http.Request)
+	FetchAppDeploymentStatusForEnvironments(w http.ResponseWriter, r *http.Request)
 }
 
 type PipelineConfigRestHandler interface {
@@ -545,4 +549,131 @@ func (handler PipelineConfigRestHandlerImpl) PipelineNameSuggestion(w http.Respo
 		return
 	}
 	common.WriteJsonResp(w, err, suggestedName, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerViewByEnvironment(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	token := r.Header.Get("token")
+	vars := mux.Vars(r)
+	envId, err := strconv.Atoi(vars["envId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	handler.Logger.Infow("request payload, FetchAppWorkflowStatusForTriggerView", "envId", envId)
+	handler.Logger.Info(token)
+	triggerWorkflowStatus := pipelineConfig.TriggerWorkflowStatus{}
+	ciWorkflowStatus, err := handler.ciHandler.FetchCiStatusForTriggerViewForEnvironment(envId, token, handler.checkAuth)
+	if err != nil {
+		handler.Logger.Errorw("service err, FetchAppWorkflowStatusForTriggerView", "err", err)
+		if util.IsErrNoRows(err) {
+			err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no workflow found"}
+			common.WriteJsonResp(w, err, nil, http.StatusOK)
+		} else {
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		}
+		return
+	}
+
+	cdWorkflowStatus, err := handler.cdHandler.FetchAppWorkflowStatusForTriggerViewForEnvironment(envId, token, handler.checkAuth)
+	if err != nil {
+		handler.Logger.Errorw("service err, FetchAppWorkflowStatusForTriggerView", "err", err)
+		if util.IsErrNoRows(err) {
+			err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no status found"}
+			common.WriteJsonResp(w, err, nil, http.StatusOK)
+		} else {
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		}
+		return
+	}
+	triggerWorkflowStatus.CiWorkflowStatus = ciWorkflowStatus
+	triggerWorkflowStatus.CdWorkflowStatus = cdWorkflowStatus
+	common.WriteJsonResp(w, err, triggerWorkflowStatus, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) GetEnvironmentListWithAppData(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	handler.Logger.Info(token)
+	v := r.URL.Query()
+	envName := v.Get("envName")
+	clusterIdString := v.Get("clusterIds")
+	offset := 0
+	offsetStr := v.Get("offset")
+	if len(offsetStr) > 0 {
+		offset, _ = strconv.Atoi(offsetStr)
+	}
+	size := 0
+	sizeStr := v.Get("size")
+	if len(sizeStr) > 0 {
+		size, _ = strconv.Atoi(sizeStr)
+	}
+	var clusterIds []int
+	if clusterIdString != "" {
+		clusterIdSlices := strings.Split(clusterIdString, ",")
+		for _, clusterId := range clusterIdSlices {
+			id, err := strconv.Atoi(clusterId)
+			if err != nil {
+				common.WriteJsonResp(w, err, "please send valid cluster Ids", http.StatusBadRequest)
+				return
+			}
+			clusterIds = append(clusterIds, id)
+		}
+	}
+	result, err := handler.pipelineBuilder.GetEnvironmentListForAutocompleteFilter(envName, clusterIds, offset, size, token, handler.checkAuth)
+	if err != nil {
+		handler.Logger.Errorw("service err, get app", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, result, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) GetApplicationsByEnvironment(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	envId, err := strconv.Atoi(vars["envId"])
+	if err != nil {
+		handler.Logger.Errorw("request err, get app", "err", err, "envId", envId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	handler.Logger.Infow("request payload, get app", "envId", envId)
+	token := r.Header.Get("token")
+	ciConf, err := handler.pipelineBuilder.GetAppListForEnvironment(envId, token, handler.checkAuth)
+	if err != nil {
+		handler.Logger.Errorw("service err, get app", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, ciConf, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) FetchAppDeploymentStatusForEnvironments(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	token := r.Header.Get("token")
+	vars := mux.Vars(r)
+	envId, err := strconv.Atoi(vars["envId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	results, err := handler.cdHandler.FetchAppDeploymentStatusForEnvironments(envId, token, handler.checkAuth)
+	if err != nil {
+		handler.Logger.Errorw("service err, FetchAppWorkflowStatusForTriggerView", "err", err)
+		if util.IsErrNoRows(err) {
+			err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no status found"}
+			common.WriteJsonResp(w, err, nil, http.StatusOK)
+		} else {
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		}
+		return
+	}
+	common.WriteJsonResp(w, err, results, http.StatusOK)
 }

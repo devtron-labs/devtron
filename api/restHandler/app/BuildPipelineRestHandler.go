@@ -40,6 +40,8 @@ type DevtronAppBuildRestHandler interface {
 	CancelWorkflow(w http.ResponseWriter, r *http.Request)
 
 	UpdateBranchCiPipelinesWithRegex(w http.ResponseWriter, r *http.Request)
+	GetCiPipelineByEnvironment(w http.ResponseWriter, r *http.Request)
+	GetExternalCiByEnvironment(w http.ResponseWriter, r *http.Request)
 }
 
 type DevtronAppBuildMaterialRestHandler interface {
@@ -1242,4 +1244,38 @@ func (handler PipelineConfigRestHandlerImpl) FetchWorkflowDetails(w http.Respons
 		return
 	}
 	common.WriteJsonResp(w, err, resp, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) GetCiPipelineByEnvironment(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	envId, err := strconv.Atoi(vars["envId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	token := r.Header.Get("token")
+	ciConf, err := handler.pipelineBuilder.GetCiPipelineByEnvironment(envId, token, handler.checkAuth)
+	if err != nil {
+		handler.Logger.Errorw("service err, GetCiPipeline", "err", err, "envId", envId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, ciConf, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) GetExternalCiByEnvironment(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	envId, err := strconv.Atoi(vars["envId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	token := r.Header.Get("token")
+	ciConf, err := handler.pipelineBuilder.GetExternalCiByEnvironment(envId, token, handler.checkAuth)
+	if err != nil {
+		handler.Logger.Errorw("service err, GetExternalCi", "err", err, "envId", envId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, ciConf, http.StatusOK)
 }
