@@ -45,9 +45,7 @@ type NatsClientConfig struct {
 	NatsStreamConfig string `env:"NATS_STREAM_CONFIG" envDefault:"{\"max_age\":86400000000000}"`
 }
 type StreamConfig struct {
-	MaxAge   time.Duration `json:"max_age"`
-	Name     string        `json:"name"`
-	Subjects []string      `json:"subjects,omitempty"`
+	MaxAge time.Duration `json:"max_age"`
 }
 type NatsStreamConfig struct {
 	StreamConfig StreamConfig `json:"streamConfig"`
