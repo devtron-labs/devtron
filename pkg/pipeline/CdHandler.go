@@ -64,8 +64,8 @@ type CdHandler interface {
 	CheckArgoPipelineTimelineStatusPeriodicallyAndUpdateInDb(pendingSinceSeconds int, timeForDegradation int) error
 	UpdatePipelineTimelineAndStatusByLiveApplicationFetch(pipeline *pipelineConfig.Pipeline, userId int32) (err error, isTimelineUpdated bool)
 	CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipelineId int, userId int32)
-	FetchAppWorkflowStatusForTriggerViewForEnvironment(envId int, token string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*pipelineConfig.CdWorkflowStatus, error)
-	FetchAppDeploymentStatusForEnvironments(envId int, token string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*pipelineConfig.AppDeploymentStatus, error)
+	FetchAppWorkflowStatusForTriggerViewForEnvironment(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*pipelineConfig.CdWorkflowStatus, error)
+	FetchAppDeploymentStatusForEnvironments(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*pipelineConfig.AppDeploymentStatus, error)
 }
 
 type CdHandlerImpl struct {
@@ -948,7 +948,7 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerView(appId int) ([]*p
 	return cdWorkflowStatus, err
 }
 
-func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(envId int, token string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*pipelineConfig.CdWorkflowStatus, error) {
+func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*pipelineConfig.CdWorkflowStatus, error) {
 	cdWorkflowStatus := make([]*pipelineConfig.CdWorkflowStatus, 0)
 	pipelines, err := impl.pipelineRepository.FindActiveByEnvId(envId)
 	if err != nil && err != pg.ErrNoRows {
@@ -981,7 +981,7 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(en
 		rbacObjectMap[pipeline.Id] = []string{appObject, envObject}
 	}
 	for _, pipeline := range pipelines {
-		appResults, envResults := checkAuthBatch(token, appObjectArr, envObjectArr)
+		appResults, envResults := checkAuthBatch(emailId, appObjectArr, envObjectArr)
 		appObject := rbacObjectMap[pipeline.Id][0]
 		envObject := rbacObjectMap[pipeline.Id][1]
 		if !(appResults[appObject] && envResults[envObject]) {
@@ -1081,7 +1081,7 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(en
 	return cdWorkflowStatus, err
 }
 
-func (impl *CdHandlerImpl) FetchAppDeploymentStatusForEnvironments(envId int, token string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*pipelineConfig.AppDeploymentStatus, error) {
+func (impl *CdHandlerImpl) FetchAppDeploymentStatusForEnvironments(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*pipelineConfig.AppDeploymentStatus, error) {
 	deploymentStatuses := make([]*pipelineConfig.AppDeploymentStatus, 0)
 	deploymentStatusesMap := make(map[int]*pipelineConfig.AppDeploymentStatus)
 	pipelineAppMap := make(map[int]int)
@@ -1109,7 +1109,7 @@ func (impl *CdHandlerImpl) FetchAppDeploymentStatusForEnvironments(envId int, to
 		rbacObjectMap[pipeline.Id] = []string{appObject, envObject}
 	}
 	for _, pipeline := range pipelines {
-		appResults, envResults := checkAuthBatch(token, appObjectArr, envObjectArr)
+		appResults, envResults := checkAuthBatch(emailId, appObjectArr, envObjectArr)
 		appObject := rbacObjectMap[pipeline.Id][0]
 		envObject := rbacObjectMap[pipeline.Id][1]
 		if !(appResults[appObject] && envResults[envObject]) {

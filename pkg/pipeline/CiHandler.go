@@ -70,7 +70,7 @@ type CiHandler interface {
 	FetchMaterialInfoByArtifactId(ciArtifactId int) (*GitTriggerInfoResponse, error)
 	WriteToCreateTestSuites(pipelineId int, buildId int, triggeredBy int)
 	UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuild int) error
-	FetchCiStatusForTriggerViewForEnvironment(envId int, token string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*pipelineConfig.CiWorkflowStatus, error)
+	FetchCiStatusForTriggerViewForEnvironment(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*pipelineConfig.CiWorkflowStatus, error)
 }
 
 type CiHandlerImpl struct {
@@ -1279,7 +1279,7 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 	return nil
 }
 
-func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(envId int, token string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*pipelineConfig.CiWorkflowStatus, error) {
+func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*pipelineConfig.CiWorkflowStatus, error) {
 	ciWorkflowStatuses := make([]*pipelineConfig.CiWorkflowStatus, 0)
 	cdPipelines, err := impl.cdPipelineRepository.FindActiveByEnvId(envId)
 	if err != nil && err != pg.ErrNoRows {
@@ -1309,7 +1309,7 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(envId int, 
 		rbacObjectMap[pipeline.Id] = []string{appObject, ""}
 	}
 	for _, pipeline := range pipelines {
-		appResults, _ := checkAuthBatch(token, appObjectArr, []string{})
+		appResults, _ := checkAuthBatch(emailId, appObjectArr, []string{})
 		appObject := rbacObjectMap[pipeline.Id][0] //here only app permission have to check
 		if !appResults[appObject] {
 			//if user unauthorized, skip items

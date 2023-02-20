@@ -1872,14 +1872,24 @@ func (handler PipelineConfigRestHandlerImpl) UpgradeForAllApps(w http.ResponseWr
 
 func (handler PipelineConfigRestHandlerImpl) GetCdPipelinesByEnvironment(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	user, err := handler.userAuthService.GetById(userId)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	userEmailId := strings.ToLower(user.EmailId)
 	envId, err := strconv.Atoi(vars["envId"])
 	if err != nil {
 		handler.Logger.Errorw("request err, GetCdPipelines", "err", err, "envId", envId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	token := r.Header.Get("token")
-	results, err := handler.pipelineBuilder.GetCdPipelinesByEnvironment(envId, token, handler.checkAuthBatch)
+	results, err := handler.pipelineBuilder.GetCdPipelinesByEnvironment(envId, userEmailId, handler.checkAuthBatch)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetCdPipelines", "err", err, "envId", envId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -1892,7 +1902,7 @@ func (handler *PipelineConfigRestHandlerImpl) checkAuthBatch(emailId string, app
 	var appResult map[string]bool
 	var envResult map[string]bool
 	if len(appObject) > 0 {
-		appResult = handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceTeam, casbin.ActionGet, appObject)
+		appResult = handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceApplications, casbin.ActionGet, appObject)
 	}
 	if len(envObject) > 0 {
 		envResult = handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceTeam, casbin.ActionGet, envObject)

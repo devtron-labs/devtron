@@ -32,6 +32,7 @@ import (
 	"go.uber.org/zap"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type AppWorkflowRestHandler interface {
@@ -220,15 +221,25 @@ func (impl AppWorkflowRestHandlerImpl) FindAllWorkflows(w http.ResponseWriter, r
 
 func (impl AppWorkflowRestHandlerImpl) FindAppWorkflowByEnvironment(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
+	userId, err := impl.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	user, err := impl.userAuthService.GetById(userId)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	userEmailId := strings.ToLower(user.EmailId)
 	envId, err := strconv.Atoi(vars["envId"])
 	if err != nil {
 		impl.Logger.Errorw("bad request", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	token := r.Header.Get("token")
 	workflows := make(map[string]interface{})
-	workflowsList, err := impl.appWorkflowService.FindAppWorkflowsByEnvironmentId(envId, token, impl.checkAuthBatch)
+	workflowsList, err := impl.appWorkflowService.FindAppWorkflowsByEnvironmentId(envId, userEmailId, impl.checkAuthBatch)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching workflows for app", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -247,10 +258,10 @@ func (handler *AppWorkflowRestHandlerImpl) checkAuthBatch(emailId string, appObj
 	var appResult map[string]bool
 	var envResult map[string]bool
 	if len(appObject) > 0 {
-		appResult = handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceTeam, casbin.ActionGet, appObject)
+		appResult = handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceApplications, casbin.ActionGet, appObject)
 	}
 	if len(envObject) > 0 {
-		envResult = handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceTeam, casbin.ActionGet, envObject)
+		envResult = handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceEnvironment, casbin.ActionGet, envObject)
 	}
 	return appResult, envResult
 }
