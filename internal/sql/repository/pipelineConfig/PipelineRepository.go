@@ -92,7 +92,7 @@ type PipelineRepository interface {
 	FindAllPipelinesByChartsOverrideAndAppIdAndChartId(chartOverridden bool, appId int, chartId int) (pipelines []*Pipeline, err error)
 	FindActiveByAppIdAndPipelineId(appId int, pipelineId int) ([]*Pipeline, error)
 	UpdateCdPipeline(pipeline *Pipeline) error
-	UpdateCdPipelineDeploymentAppInFilter(deploymentAppType string, cdPipelineIdIncludes []int, userId int32) error
+	UpdateCdPipelineDeploymentAppInFilter(deploymentAppType string, cdPipelineIdIncludes []int) error
 	FindNumberOfAppsWithCdPipeline(appIds []int) (count int, err error)
 	GetAppAndEnvDetailsForDeploymentAppTypePipeline(deploymentAppType string, clusterIds []int) ([]*Pipeline, error)
 	GetArgoPipelinesHavingTriggersStuckInLastPossibleNonTerminalTimelines(pendingSinceSeconds int, timeForDegradation int) ([]*Pipeline, error)
@@ -453,17 +453,15 @@ func (impl PipelineRepositoryImpl) UpdateCdPipeline(pipeline *Pipeline) error {
 // UpdateCdPipelineDeploymentAppInFilter takes in deployment app type and list of cd pipeline ids and
 // updates the deployment_app_type and sets deployment_app_created to false in the table for given ids.
 func (impl PipelineRepositoryImpl) UpdateCdPipelineDeploymentAppInFilter(deploymentAppType string,
-	cdPipelineIdIncludes []int, userId int32) error {
+	cdPipelineIdIncludes []int) error {
 
 	query := "update pipeline set " +
 		"deployment_app_created = false, " +
-		"deployment_app_type = '" + deploymentAppType + "', " +
-		"updated_by = ?, " +
-		"updated_on = ? " +
+		"deployment_app_type = '" + deploymentAppType + "' " +
 		"where id in (?)"
 
 	var pipeline *Pipeline
-	_, err := impl.dbConnection.Query(pipeline, query, userId, time.Now(), pg.In(cdPipelineIdIncludes))
+	_, err := impl.dbConnection.Query(pipeline, query, pg.In(cdPipelineIdIncludes))
 
 	return err
 }

@@ -27,14 +27,11 @@ import (
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	client2 "github.com/devtron-labs/devtron/api/helm-app"
 	application3 "github.com/devtron-labs/devtron/client/k8s/application"
-	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/k8s"
-	"github.com/tidwall/gjson"
-	"github.com/tidwall/sjson"
 	"go.opentelemetry.io/otel"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -1682,7 +1679,7 @@ func (impl *AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverr
 	}
 
 	appName := fmt.Sprintf("%s-%s", pipeline.App.AppName, envOverride.Environment.Name)
-	merged = impl.autoscalingCheckBeforeTrigger(ctx, appName, envOverride.Namespace, merged, pipeline, overrideRequest)
+	merged = impl.hpaCheckBeforeTrigger(ctx, appName, envOverride.Namespace, merged, pipeline.AppId, pipeline.DeploymentAppType, pipeline.Environment.ClusterId)
 
 	_, span := otel.Tracer("orchestrator").Start(ctx, "dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment")
 	// handle image pull secret if access given
@@ -1891,12 +1888,7 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Appl
 	return nil
 }
 
-func (impl *AppServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, appName string, namespace string, merged []byte, pipeline *pipelineConfig.Pipeline, overrideRequest *bean.ValuesOverrideRequest) []byte {
-	var appId = pipeline.AppId
-	pipelineId := pipeline.Id
-	var appDeploymentType = pipeline.DeploymentAppType
-	var clusterId = pipeline.Environment.ClusterId
-	deploymentType := overrideRequest.DeploymentType
+func (impl *AppServiceImpl) hpaCheckBeforeTrigger(ctx context.Context, appName string, namespace string, merged []byte, appId int, appDeploymentType string, clusterId int) []byte {
 	templateMap := make(map[string]interface{})
 	err := json.Unmarshal(merged, &templateMap)
 	if err != nil {
@@ -1954,11 +1946,19 @@ func (impl *AppServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, a
 			}
 			if len(resourceManifest) > 0 {
 				statusMap := resourceManifest["status"].(map[string]interface{})
-				currentReplicaVal := statusMap["currentReplicas"]
-				currentReplicaCount, err := util2.ParseFloatNumber(currentReplicaVal)
+				currentReplicaVal := fmt.Sprintf("%v", statusMap["currentReplicas"])
+				currentReplicaCount, err := strconv.ParseFloat(currentReplicaVal, 64)
 				if err != nil {
 					impl.logger.Errorw("error occurred while parsing replica count", "currentReplicas", currentReplicaVal, "err", err)
 					return merged
+				}
+
+				if currentReplicaCount <= reqMaxReplicas && currentReplicaCount >= reqMinReplicas {
+					reqReplicaCount = currentReplicaCount
+				} else if currentReplicaCount > reqMaxReplicas {
+					reqReplicaCount = reqMaxReplicas
+				} else if currentReplicaCount < reqMinReplicas {
+					reqReplicaCount = reqMinReplicas
 				}
 
 				reqReplicaCount = impl.fetchRequiredReplicaCount(currentReplicaCount, reqMaxReplicas, reqMinReplicas)
