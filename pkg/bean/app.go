@@ -714,3 +714,8 @@ type ExampleValueDto struct {
 	Result string     `json:"result,omitempty"`
 	Status string     `json:"status,omitempty"`
 }
+
+const CustomAutoScalingEnabledPathKey = "CUSTOM_AUTOSCALING_ENABLED_PATH"
+const CustomAutoscalingReplicaCountPathKey = "CUSTOM_AUTOSCALING_REPLICA_COUNT_PATH"
+const CustomAutoscalingMinPathKey = "CUSTOM_AUTOSCALING_MIN_PATH"
+const CustomAutoscalingMaxPathKey = "CUSTOM_AUTOSCALING_MAX_PATH"

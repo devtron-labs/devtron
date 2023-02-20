@@ -81,6 +81,7 @@ import (
 
 type AppStatusConfig struct {
 	CdPipelineStatusCronTime            string `env:"CD_PIPELINE_STATUS_CRON_TIME" envDefault:"*/2 * * * *"`
+	CdHelmPipelineStatusCronTime        string `env:"CD_HELM_PIPELINE_STATUS_CRON_TIME" envDefault:"*/2 * * * *"`
 	CdPipelineStatusTimeoutDuration     string `env:"CD_PIPELINE_STATUS_TIMEOUT_DURATION" envDefault:"20"`       //in minutes
 	PipelineDegradedTime                string `env:"PIPELINE_DEGRADED_TIME" envDefault:"10"`                    //in minutes
 	HelmPipelineStatusCheckEligibleTime string `env:"HELM_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME" envDefault:"120"` //in seconds
@@ -1959,6 +1960,8 @@ func (impl *AppServiceImpl) hpaCheckBeforeTrigger(ctx context.Context, appName s
 				} else if currentReplicaCount < reqMinReplicas {
 					reqReplicaCount = reqMinReplicas
 				}
+
+				reqReplicaCount = impl.fetchRequiredReplicaCount(currentReplicaCount, reqMaxReplicas, reqMinReplicas)
 				templateMap["replicaCount"] = reqReplicaCount
 				merged, err = json.Marshal(&templateMap)
 				if err != nil {
@@ -1966,10 +1969,92 @@ func (impl *AppServiceImpl) hpaCheckBeforeTrigger(ctx context.Context, appName s
 					return merged
 				}
 			}
+		} else {
+			impl.logger.Errorw("autoscaling is not enabled", "pipelineId", pipelineId)
+		}
+	}
+	//check for custom chart support
+	if autoscalingEnabledPath, ok := templateMap[bean2.CustomAutoScalingEnabledPathKey]; ok {
+		if deploymentType == models.DEPLOYMENTTYPE_STOP {
+			merged, err = impl.setScalingValues(templateMap, bean2.CustomAutoScalingEnabledPathKey, merged, false)
+			if err != nil {
+				return merged
+			}
+			merged, err = impl.setScalingValues(templateMap, bean2.CustomAutoscalingReplicaCountPathKey, merged, 0)
+			if err != nil {
+				return merged
+			}
+		} else {
+			autoscalingEnabled := false
+			autoscalingEnabledValue := gjson.Get(string(merged), autoscalingEnabledPath.(string)).Value()
+			if val, ok := autoscalingEnabledValue.(bool); ok {
+				autoscalingEnabled = val
+			}
+			if autoscalingEnabled {
+				// extract replica count, min, max and check for required value
+				replicaCount, err := impl.getReplicaCountFromCustomChart(templateMap, merged)
+				if err != nil {
+					return merged
+				}
+				merged, err = impl.setScalingValues(templateMap, bean2.CustomAutoscalingReplicaCountPathKey, merged, replicaCount)
+				if err != nil {
+					return merged
+				}
+			}
 		}
 	}
 
 	return merged
+}
+
+func (impl *AppServiceImpl) getReplicaCountFromCustomChart(templateMap map[string]interface{}, merged []byte) (float64, error) {
+	autoscalingMinVal, err := impl.extractParamValue(templateMap, bean2.CustomAutoscalingMinPathKey, merged)
+	if err != nil {
+		return 0, err
+	}
+	autoscalingMaxVal, err := impl.extractParamValue(templateMap, bean2.CustomAutoscalingMaxPathKey, merged)
+	if err != nil {
+		return 0, err
+	}
+	autoscalingReplicaCountVal, err := impl.extractParamValue(templateMap, bean2.CustomAutoscalingReplicaCountPathKey, merged)
+	if err != nil {
+		return 0, err
+	}
+	return impl.fetchRequiredReplicaCount(autoscalingReplicaCountVal, autoscalingMaxVal, autoscalingMinVal), nil
+}
+
+func (impl *AppServiceImpl) extractParamValue(inputMap map[string]interface{}, key string, merged []byte) (float64, error) {
+	if _, ok := inputMap[key]; !ok {
+		return 0, errors.New("empty-val-err")
+	}
+	floatNumber, err := util2.ParseFloatNumber(gjson.Get(string(merged), inputMap[key].(string)).Value())
+	if err != nil {
+		impl.logger.Errorw("error occurred while parsing float number", "key", key, "err", err)
+	}
+	return floatNumber, err
+}
+
+func (impl *AppServiceImpl) setScalingValues(templateMap map[string]interface{}, customScalingKey string, merged []byte, value interface{}) ([]byte, error) {
+	autoscalingJsonPath := templateMap[customScalingKey]
+	autoscalingJsonPathKey := autoscalingJsonPath.(string)
+	mergedRes, err := sjson.Set(string(merged), autoscalingJsonPathKey, value)
+	if err != nil {
+		impl.logger.Errorw("error occurred while setting autoscaling key", "JsonPathKey", autoscalingJsonPathKey, "err", err)
+		return []byte{}, err
+	}
+	return []byte(mergedRes), nil
+}
+
+func (impl *AppServiceImpl) fetchRequiredReplicaCount(currentReplicaCount float64, reqMaxReplicas float64, reqMinReplicas float64) float64 {
+	var reqReplicaCount float64
+	if currentReplicaCount <= reqMaxReplicas && currentReplicaCount >= reqMinReplicas {
+		reqReplicaCount = currentReplicaCount
+	} else if currentReplicaCount > reqMaxReplicas {
+		reqReplicaCount = reqMaxReplicas
+	} else if currentReplicaCount < reqMinReplicas {
+		reqReplicaCount = reqMinReplicas
+	}
+	return reqReplicaCount
 }
 
 func (impl *AppServiceImpl) CreateHistoriesForDeploymentTrigger(pipeline *pipelineConfig.Pipeline, strategy *chartConfig.PipelineStrategy, envOverride *chartConfig.EnvConfigOverride, renderedImageTemplate string, deployedOn time.Time, deployedBy int32) error {

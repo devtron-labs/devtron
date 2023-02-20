@@ -1927,10 +1927,10 @@ func (impl PipelineBuilderImpl) handleNotHealthyAppsIfArgoDeploymentType(pipelin
 			return failedPipelines, nil
 		}
 
-		// cannot delete the app from argocd if app status is not healthy
-		if err != nil || status.Status != "Healthy" {
+		// cannot delete the app from argocd if app status is Progressing
+		if err != nil || status.Status == "Progressing" {
 
-			healthCheckErr := errors.New("unable to fetch app status or app status is not healthy")
+			healthCheckErr := errors.New("unable to fetch app status or app status is progressing")
 
 			impl.logger.Errorw(healthCheckErr.Error(),
 				"appId", pipeline.AppId,
