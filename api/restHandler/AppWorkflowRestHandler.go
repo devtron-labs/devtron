@@ -228,9 +228,6 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflowByEnvironment(w http.Respo
 		return
 	}
 	token := r.Header.Get("token")
-	// RBAC enforcer applying
-	impl.Logger.Info(token)
-	//RBAC enforcer Ends
 	workflows := make(map[string]interface{})
 	workflowsList, err := impl.appWorkflowService.FindAppWorkflowsByEnvironmentId(envId, token, impl.checkAuth)
 	if err != nil {

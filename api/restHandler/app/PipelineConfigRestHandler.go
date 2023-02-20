@@ -564,12 +564,10 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerVie
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	handler.Logger.Infow("request payload, FetchAppWorkflowStatusForTriggerView", "envId", envId)
-	handler.Logger.Info(token)
 	triggerWorkflowStatus := pipelineConfig.TriggerWorkflowStatus{}
 	ciWorkflowStatus, err := handler.ciHandler.FetchCiStatusForTriggerViewForEnvironment(envId, token, handler.checkAuth)
 	if err != nil {
-		handler.Logger.Errorw("service err, FetchAppWorkflowStatusForTriggerView", "err", err)
+		handler.Logger.Errorw("service err", "err", err)
 		if util.IsErrNoRows(err) {
 			err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no workflow found"}
 			common.WriteJsonResp(w, err, nil, http.StatusOK)
@@ -597,7 +595,6 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerVie
 
 func (handler PipelineConfigRestHandlerImpl) GetEnvironmentListWithAppData(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
-	handler.Logger.Info(token)
 	v := r.URL.Query()
 	envName := v.Get("envName")
 	clusterIdString := v.Get("clusterIds")
