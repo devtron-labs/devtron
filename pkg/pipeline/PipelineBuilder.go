@@ -185,6 +185,7 @@ type PipelineBuilderImpl struct {
 	globalStrategyMetadataChartRefMappingRepository chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepository
 	deploymentConfig                                *DeploymentServiceTypeConfig
 	appStatusRepository                             appStatus.AppStatusRepository
+	workflowDagExecutor                             WorkflowDagExecutor
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -230,7 +231,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	CiPipelineHistoryService history.CiPipelineHistoryService,
 	globalStrategyMetadataRepository chartRepoRepository.GlobalStrategyMetadataRepository,
 	globalStrategyMetadataChartRefMappingRepository chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepository,
-	deploymentConfig *DeploymentServiceTypeConfig, appStatusRepository appStatus.AppStatusRepository) *PipelineBuilderImpl {
+	deploymentConfig *DeploymentServiceTypeConfig, appStatusRepository appStatus.AppStatusRepository,
+	workflowDagExecutor WorkflowDagExecutor) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                        logger,
 		ciCdPipelineOrchestrator:      ciCdPipelineOrchestrator,
@@ -283,6 +285,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		globalStrategyMetadataChartRefMappingRepository: globalStrategyMetadataChartRefMappingRepository,
 		deploymentConfig:                                deploymentConfig,
 		appStatusRepository:                             appStatusRepository,
+		workflowDagExecutor:                             workflowDagExecutor,
 	}
 }
 
@@ -1749,6 +1752,11 @@ func (impl PipelineBuilderImpl) ChangeDeploymentType(ctx context.Context,
 		cdPipelineIds = append(cdPipelineIds, item.Id)
 	}
 
+	// If nothing to update in db
+	if len(cdPipelineIds) == 0 {
+		return response, nil
+	}
+
 	// Update in db
 	err = impl.pipelineRepository.UpdateCdPipelineDeploymentAppInFilter(string(request.DesiredDeploymentType),
 		cdPipelineIds, request.UserId)
@@ -1758,8 +1766,40 @@ func (impl PipelineBuilderImpl) ChangeDeploymentType(ctx context.Context,
 			"pipeline ids", cdPipelineIds,
 			"desired deployment type", request.DesiredDeploymentType,
 			"err", err)
+
+		return response, nil
 	}
 
+	// Bulk trigger all the successfully changed pipelines (async)
+	bulkTriggerRequest := make([]*BulkTriggerRequest, 0)
+
+	for _, item := range response.SuccessfulPipelines {
+
+		artifactDetails, err := impl.GetArtifactsByCDPipeline(item.Id, bean2.WorkflowType("DEPLOY"))
+
+		if err != nil {
+			impl.logger.Errorw("failed to fetch artifact details for cd pipeline",
+				"pipelineId", item.Id,
+				"appId", item.AppId,
+				"envId", item.EnvId,
+				"err", err)
+
+			return response, nil
+		}
+
+		bulkTriggerRequest = append(bulkTriggerRequest, &BulkTriggerRequest{
+			CiArtifactId: artifactDetails.LatestWfArtifactId,
+			PipelineId:   item.Id,
+		})
+	}
+
+	// Trigger
+	_, err = impl.workflowDagExecutor.TriggerBulkDeploymentAsync(bulkTriggerRequest, request.UserId)
+
+	if err != nil {
+		impl.logger.Errorw("failed to bulk trigger cd pipelines with error: "+err.Error(),
+			"err", err)
+	}
 	return response, nil
 }
 
@@ -1963,8 +2003,10 @@ func (impl PipelineBuilderImpl) deleteArgoCdApp(ctx context.Context, pipeline *p
 	_, err := impl.application.Delete(ctx, req)
 
 	// Possible that argocd app got deleted but db updation failed
-	if strings.Contains(err.Error(), "code = NotFound") {
-		return nil
+	if err != nil {
+		if strings.Contains(err.Error(), "code = NotFound") {
+			return nil
+		}
 	}
 	return err
 }
