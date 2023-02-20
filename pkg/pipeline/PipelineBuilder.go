@@ -3395,13 +3395,13 @@ func (impl PipelineBuilderImpl) GetEnvironmentListForAutocompleteFilter(envName 
 	var beans []cluster.EnvironmentBean
 	var err error
 	if len(envName) > 0 && len(clusterIds) > 0 {
-		models, err = impl.environmentRepository.FindByEnvNameAndClusterIds(envName, clusterIds, offset, size)
+		models, err = impl.environmentRepository.FindByEnvNameAndClusterIds(envName, clusterIds)
 	} else if len(clusterIds) > 0 {
-		models, err = impl.environmentRepository.FindByClusterIdsWithFilter(clusterIds, offset, size)
+		models, err = impl.environmentRepository.FindByClusterIdsWithFilter(clusterIds)
 	} else if len(envName) > 0 {
-		models, err = impl.environmentRepository.FindByEnvName(envName, offset, size)
+		models, err = impl.environmentRepository.FindByEnvName(envName)
 	} else {
-		models, err = impl.environmentRepository.FindAllActiveWithFilter(offset, size)
+		models, err = impl.environmentRepository.FindAllActiveWithFilter()
 	}
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching environment", "err", err)
