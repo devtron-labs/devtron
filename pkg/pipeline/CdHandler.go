@@ -64,8 +64,8 @@ type CdHandler interface {
 	CheckArgoPipelineTimelineStatusPeriodicallyAndUpdateInDb(pendingSinceSeconds int, timeForDegradation int) error
 	UpdatePipelineTimelineAndStatusByLiveApplicationFetch(pipeline *pipelineConfig.Pipeline, userId int32) (err error, isTimelineUpdated bool)
 	CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipelineId int, userId int32)
-	FetchAppWorkflowStatusForTriggerViewForEnvironment(envId int, token string, auth func(token string, appObject string, envObject string) bool) ([]*pipelineConfig.CdWorkflowStatus, error)
-	FetchAppDeploymentStatusForEnvironments(envId int, token string, auth func(token string, appObject string, envObject string) bool) ([]*pipelineConfig.AppDeploymentStatus, error)
+	FetchAppWorkflowStatusForTriggerViewForEnvironment(envId int, token string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*pipelineConfig.CdWorkflowStatus, error)
+	FetchAppDeploymentStatusForEnvironments(envId int, token string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*pipelineConfig.AppDeploymentStatus, error)
 }
 
 type CdHandlerImpl struct {
@@ -948,7 +948,7 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerView(appId int) ([]*p
 	return cdWorkflowStatus, err
 }
 
-func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(envId int, token string, auth func(token string, appObject string, envObject string) bool) ([]*pipelineConfig.CdWorkflowStatus, error) {
+func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(envId int, token string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*pipelineConfig.CdWorkflowStatus, error) {
 	cdWorkflowStatus := make([]*pipelineConfig.CdWorkflowStatus, 0)
 	pipelines, err := impl.pipelineRepository.FindActiveByEnvId(envId)
 	if err != nil && err != pg.ErrNoRows {
@@ -969,22 +969,31 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(en
 		return cdWorkflowStatus, err
 	}
 	pipelineIds := make([]int, 0)
-	//pipelineIdsMap := make(map[int]int)
+	//authorization block starts here
+	var envObjectArr []string
+	var appObjectArr []string
+	rbacObjectMap := make(map[int][]string)
 	for _, pipeline := range pipelines {
 		appObject := impl.enforcerUtil.GetAppRBACName(pipeline.App.AppName)
 		envObject := impl.enforcerUtil.GetEnvRBACNameByCdPipelineIdAndEnvId(pipeline.Id)
-		valid := auth(token, appObject, envObject)
-		if !valid {
+		appObjectArr = append(appObjectArr, appObject)
+		envObjectArr = append(envObjectArr, envObject)
+		rbacObjectMap[pipeline.Id] = []string{appObject, envObject}
+	}
+	for _, pipeline := range pipelines {
+		appResults, envResults := checkAuthBatch(token, appObjectArr, envObjectArr)
+		appObject := rbacObjectMap[pipeline.Id][0]
+		envObject := rbacObjectMap[pipeline.Id][1]
+		if !(appResults[appObject] && envResults[envObject]) {
 			//if user unauthorized, skip items
 			continue
 		}
 		pipelineIds = append(pipelineIds, pipeline.Id)
 	}
-
+	//authorization block ends here
 	if len(pipelineIds) == 0 {
 		return cdWorkflowStatus, nil
 	}
-
 	cdMap := make(map[int]*pipelineConfig.CdWorkflowStatus)
 	result, err := impl.cdWorkflowRepository.FetchAllCdStagesLatestEntity(pipelineIds)
 	if err != nil {
@@ -1072,7 +1081,7 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(en
 	return cdWorkflowStatus, err
 }
 
-func (impl *CdHandlerImpl) FetchAppDeploymentStatusForEnvironments(envId int, token string, auth func(token string, appObject string, envObject string) bool) ([]*pipelineConfig.AppDeploymentStatus, error) {
+func (impl *CdHandlerImpl) FetchAppDeploymentStatusForEnvironments(envId int, token string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*pipelineConfig.AppDeploymentStatus, error) {
 	deploymentStatuses := make([]*pipelineConfig.AppDeploymentStatus, 0)
 	deploymentStatusesMap := make(map[int]*pipelineConfig.AppDeploymentStatus)
 	pipelineAppMap := make(map[int]int)
@@ -1087,16 +1096,30 @@ func (impl *CdHandlerImpl) FetchAppDeploymentStatusForEnvironments(envId int, to
 		pipelineAppMap[pipeline.Id] = pipeline.AppId
 	}
 	pipelineIds := make([]int, 0)
+
+	//authorization block starts here
+	var envObjectArr []string
+	var appObjectArr []string
+	rbacObjectMap := make(map[int][]string)
 	for _, pipeline := range pipelines {
 		appObject := impl.enforcerUtil.GetAppRBACName(pipeline.App.AppName)
 		envObject := impl.enforcerUtil.GetEnvRBACNameByCdPipelineIdAndEnvId(pipeline.Id)
-		valid := auth(token, appObject, envObject)
-		if !valid {
+		appObjectArr = append(appObjectArr, appObject)
+		envObjectArr = append(envObjectArr, envObject)
+		rbacObjectMap[pipeline.Id] = []string{appObject, envObject}
+	}
+	for _, pipeline := range pipelines {
+		appResults, envResults := checkAuthBatch(token, appObjectArr, envObjectArr)
+		appObject := rbacObjectMap[pipeline.Id][0]
+		envObject := rbacObjectMap[pipeline.Id][1]
+		if !(appResults[appObject] && envResults[envObject]) {
 			//if user unauthorized, skip items
 			continue
 		}
 		pipelineIds = append(pipelineIds, pipeline.Id)
 	}
+	//authorization block ends here
+
 	if len(pipelineIds) == 0 {
 		return deploymentStatuses, nil
 	}

@@ -32,7 +32,6 @@ import (
 	"go.uber.org/zap"
 	"net/http"
 	"strconv"
-	"strings"
 )
 
 type AppWorkflowRestHandler interface {
@@ -228,11 +227,8 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflowByEnvironment(w http.Respo
 		return
 	}
 	token := r.Header.Get("token")
-	// RBAC enforcer applying
-	impl.Logger.Info(token)
-	//RBAC enforcer Ends
 	workflows := make(map[string]interface{})
-	workflowsList, err := impl.appWorkflowService.FindAppWorkflowsByEnvironmentId(envId, token, impl.checkAuth)
+	workflowsList, err := impl.appWorkflowService.FindAppWorkflowsByEnvironmentId(envId, token, impl.checkAuthBatch)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching workflows for app", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -247,16 +243,14 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflowByEnvironment(w http.Respo
 	common.WriteJsonResp(w, err, workflows, http.StatusOK)
 }
 
-func (handler *AppWorkflowRestHandlerImpl) checkAuth(token string, appObject string, envObject string) bool {
+func (handler *AppWorkflowRestHandlerImpl) checkAuthBatch(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool) {
+	var appResult map[string]bool
+	var envResult map[string]bool
 	if len(appObject) > 0 {
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, strings.ToLower(appObject)); !ok {
-			return false
-		}
+		appResult = handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceTeam, casbin.ActionGet, appObject)
 	}
 	if len(envObject) > 0 {
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, strings.ToLower(envObject)); !ok {
-			return false
-		}
+		envResult = handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceTeam, casbin.ActionGet, envObject)
 	}
-	return true
+	return appResult, envResult
 }

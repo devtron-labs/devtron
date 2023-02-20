@@ -70,7 +70,7 @@ type CiHandler interface {
 	FetchMaterialInfoByArtifactId(ciArtifactId int) (*GitTriggerInfoResponse, error)
 	WriteToCreateTestSuites(pipelineId int, buildId int, triggeredBy int)
 	UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuild int) error
-	FetchCiStatusForTriggerViewForEnvironment(envId int, token string, auth func(token string, appObject string, envObject string) bool) ([]*pipelineConfig.CiWorkflowStatus, error)
+	FetchCiStatusForTriggerViewForEnvironment(envId int, token string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*pipelineConfig.CiWorkflowStatus, error)
 }
 
 type CiHandlerImpl struct {
@@ -1279,14 +1279,13 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 	return nil
 }
 
-func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(envId int, token string, auth func(token string, appObject string, envObject string) bool) ([]*pipelineConfig.CiWorkflowStatus, error) {
+func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(envId int, token string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*pipelineConfig.CiWorkflowStatus, error) {
 	ciWorkflowStatuses := make([]*pipelineConfig.CiWorkflowStatus, 0)
 	cdPipelines, err := impl.cdPipelineRepository.FindActiveByEnvId(envId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("error fetching pipelines for env id", "err", err)
 		return nil, err
 	}
-
 	var appIds []int
 	for _, pipeline := range cdPipelines {
 		appIds = append(appIds, pipeline.AppId)
@@ -1300,10 +1299,19 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(envId int, 
 		impl.Logger.Errorw("error in fetching ci pipeline", "err", err)
 		return ciWorkflowStatuses, err
 	}
+
+	//authorization block starts here
+	var appObjectArr []string
+	rbacObjectMap := make(map[int][]string)
 	for _, pipeline := range pipelines {
 		appObject := impl.enforcerUtil.GetAppRBACName(pipeline.App.AppName)
-		valid := auth(token, appObject, "") //here only app permission have to check
-		if !valid {
+		appObjectArr = append(appObjectArr, appObject)
+		rbacObjectMap[pipeline.Id] = []string{appObject, ""}
+	}
+	for _, pipeline := range pipelines {
+		appResults, _ := checkAuthBatch(token, appObjectArr, []string{})
+		appObject := rbacObjectMap[pipeline.Id][0] //here only app permission have to check
+		if !appResults[appObject] {
 			//if user unauthorized, skip items
 			continue
 		}
