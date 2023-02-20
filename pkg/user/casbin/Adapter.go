@@ -19,8 +19,10 @@ package casbin
 
 import (
 	"fmt"
+	"github.com/casbin/casbin/model"
 	xormadapter "github.com/casbin/xorm-adapter"
 	"log"
+	"math/rand"
 	"strings"
 
 	"github.com/casbin/casbin"
@@ -108,14 +110,49 @@ func AddPolicy(policies []Policy) []Policy {
 	}
 	return failed
 }
+func copyAssertion(ast model.Assertion) *model.Assertion {
+	tokens := append([]string(nil), ast.Tokens...)
+	policy := make([][]string, len(ast.Policy))
+
+	for i, p := range ast.Policy {
+		policy[i] = append(policy[i], p...)
+	}
+
+	newAst := &model.Assertion{
+		Key:    ast.Key,
+		Value:  ast.Value,
+		Tokens: tokens,
+		Policy: policy,
+	}
+	return newAst
+}
+func swapPolicy() {
+	enforcedModel := enforcerImplRef.SyncedEnforcer.GetModel()
+	newModel := make(model.Model)
+	for sec, m := range enforcedModel {
+		newAstMap := make(model.AssertionMap)
+		for ptype, ast := range m {
+			newAstMap[ptype] = copyAssertion(*ast)
+		}
+		newModel[sec] = newAstMap
+	}
+
+	enforcedModel.ClearPolicy()
+	e.GetAdapter().LoadPolicy(enforcedModel)
+	enforcerImplRef.SyncedEnforcer.SetModel(enforcedModel)
+}
 
 func LoadPolicy() {
 	defer HandlePanic()
+	reloadId := rand.Int()
+	fmt.Println("load policy start id:", reloadId)
+	defer HandlePanic()
+	swapPolicy()
 	err := enforcerImplRef.ReloadPolicy()
 	if err != nil {
-		fmt.Println("error in reloading policies", err)
+		fmt.Println("error in reloading policies id:", reloadId, " err: ", err)
 	} else {
-		fmt.Println("policy reloaded successfully")
+		fmt.Println("policy reloaded successfully id: ", reloadId)
 	}
 }
 
