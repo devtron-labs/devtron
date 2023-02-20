@@ -1,4 +1,5 @@
 ## Bugs
+- fix: fixed condition for updating health timeline and status (#3003)
 - fix: added deployment app type support for app create api, separated cron time for helm app status update (#2995)
 - fix: helm deploy hibernate fix (#2983)
 - fix: duplicate name in charts and chart Group (#2942)
