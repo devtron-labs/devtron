@@ -544,6 +544,11 @@ components:
           type: string
         triggerType:
           type: string
+        deploymentAppType:
+          type: string
+          oneOf:
+            - 'argo_cd'
+            - 'helm'
         deploymentType:
           type: string
         deploymentStrategies:
