@@ -526,6 +526,7 @@ type DeploymentAppTypeChangeRequest struct {
 	EnvId                 int            `json:"envId,omitempty" validate:"required"`
 	DesiredDeploymentType DeploymentType `json:"desiredDeploymentType,omitempty" validate:"required"`
 	ExcludeApps           []int          `json:"excludeApps"`
+	IncludeApps           []int          `json:"includeApps"`
 	WantToDeploy          bool           `json:"wantToDeploy"`
 	UserId                int32          `json:"-"`
 }
