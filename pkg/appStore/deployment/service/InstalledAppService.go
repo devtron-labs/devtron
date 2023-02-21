@@ -775,6 +775,34 @@ func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(instal
 	appDetail := bean2.AppDetailContainer{
 		DeploymentDetailContainer: deploymentContainer,
 	}
+	if util.IsAcdApp(installedAppVerison.InstalledApp.DeploymentAppType) {
+		appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installedAppVerison.AppStoreApplicationVersion.Id)
+		if err != nil {
+			impl.logger.Errorw("error fetching app store app version in installed app service", "err", err)
+			return appDetail, err
+		}
+		installReleaseRequest := &client.InstallReleaseRequest{
+			ChartName:    appStoreAppVersion.Name,
+			ChartVersion: appStoreAppVersion.Version,
+			ValuesYaml:   installedAppVerison.ValuesYaml,
+			ChartRepository: &client.ChartRepository{
+				Name:     appStoreAppVersion.AppStore.ChartRepo.Name,
+				Url:      appStoreAppVersion.AppStore.ChartRepo.Url,
+				Username: appStoreAppVersion.AppStore.ChartRepo.UserName,
+				Password: appStoreAppVersion.AppStore.ChartRepo.Password,
+			},
+			ReleaseIdentifier: &client.ReleaseIdentifier{
+				ReleaseNamespace: installedAppVerison.InstalledApp.Environment.Namespace,
+				ReleaseName:      installedAppVerison.InstalledApp.App.AppName,
+			},
+		}
+
+		notes, err := impl.helmAppService.GetNotes(installReleaseRequest)
+		appDetail = bean2.AppDetailContainer{
+			Notes: notes,
+		}
+
+	}
 	return appDetail, nil
 }
 
