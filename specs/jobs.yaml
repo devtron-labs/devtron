@@ -30,6 +30,13 @@ paths:
             schema:
               items:
                 $ref: "#/components/schemas/JobList"
+      response:
+        description: Used to give response of list of jobs
+        content:
+          application/json:
+            schema:
+              items:
+                $ref: "#/components/schemas/JobListResponse"
 
 #components
 components:
@@ -141,6 +148,34 @@ components:
           type: integer
           description: used to give the number of jobs we want
           example: 20
+
+    JobListResponse:
+      type: object
+      properties:
+        jobContainers:
+          type: [] jobContainer
+            jobContainer:
+              properties:
+                appId:
+                  type: integer
+                appName:
+                  type: string
+                description:
+                  type: string
+                ciPipelines:
+                  type: []jobCiPipeline
+                    jobCiPipeline:
+                      properties:
+                        ciPipelineId:
+                         type: integer
+                        status:
+                          type: string
+                        lastRunAt:
+                          type: time.Time
+                        lastSuccessAt:
+                          type: time.Time
+        jobCount:
+          type: integer
 
 
 
