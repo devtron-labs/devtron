@@ -1745,6 +1745,7 @@ func (impl PipelineBuilderImpl) ChangeDeploymentType(ctx context.Context,
 	// Updating the env id and desired deployment app type received from request in the response
 	response.EnvId = request.EnvId
 	response.DesiredDeploymentType = request.DesiredDeploymentType
+	response.TriggeredPipelines = make([]*bean.CdPipelineTrigger, 0)
 
 	// Update the deployment app type to Helm and toggle deployment_app_created to false in db
 	var cdPipelineIds []int
@@ -1770,6 +1771,10 @@ func (impl PipelineBuilderImpl) ChangeDeploymentType(ctx context.Context,
 		return response, nil
 	}
 
+	if !request.WantToDeploy {
+		return response, nil
+	}
+
 	// Bulk trigger all the successfully changed pipelines (async)
 	bulkTriggerRequest := make([]*BulkTriggerRequest, 0)
 
@@ -1792,6 +1797,10 @@ func (impl PipelineBuilderImpl) ChangeDeploymentType(ctx context.Context,
 		}
 
 		bulkTriggerRequest = append(bulkTriggerRequest, &BulkTriggerRequest{
+			CiArtifactId: artifactDetails.LatestWfArtifactId,
+			PipelineId:   item.Id,
+		})
+		response.TriggeredPipelines = append(response.TriggeredPipelines, &bean.CdPipelineTrigger{
 			CiArtifactId: artifactDetails.LatestWfArtifactId,
 			PipelineId:   item.Id,
 		})

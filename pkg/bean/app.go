@@ -526,6 +526,7 @@ type DeploymentAppTypeChangeRequest struct {
 	EnvId                 int            `json:"envId,omitempty" validate:"required"`
 	DesiredDeploymentType DeploymentType `json:"desiredDeploymentType,omitempty" validate:"required"`
 	ExcludeApps           []int          `json:"excludeApps"`
+	WantToDeploy          bool           `json:"wantToDeploy"`
 	UserId                int32          `json:"-"`
 }
 
@@ -544,6 +545,12 @@ type DeploymentAppTypeChangeResponse struct {
 	DesiredDeploymentType DeploymentType            `json:"desiredDeploymentType,omitempty"`
 	SuccessfulPipelines   []*DeploymentChangeStatus `json:"successfulPipelines"`
 	FailedPipelines       []*DeploymentChangeStatus `json:"failedPipelines"`
+	TriggeredPipelines    []*CdPipelineTrigger      `json:"triggeredPipelines"`
+}
+
+type CdPipelineTrigger struct {
+	CiArtifactId int `json:"ciArtifactId"`
+	PipelineId   int `json:"pipelineId"`
 }
 
 type DeploymentType string
