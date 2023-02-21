@@ -70,7 +70,7 @@ type PipelineRepository interface {
 	FindByName(pipelineName string) (pipeline *Pipeline, err error)
 	PipelineExists(pipelineName string) (bool, error)
 	FindById(id int) (pipeline *Pipeline, err error)
-	FindActiveByEnvIdAndDeploymentTypeExcludingAppIds(environmentId int, deploymentAppType string, exclusionList []int) ([]*Pipeline, error)
+	FindActiveByEnvIdAndDeploymentType(environmentId int, deploymentAppType string, exclusionList []int, includeApps []int) ([]*Pipeline, error)
 	FindByIdsIn(ids []int) ([]*Pipeline, error)
 	FindByCiPipelineIdsIn(ciPipelineIds []int) ([]*Pipeline, error)
 	FindAutomaticByCiPipelineId(ciPipelineId int) (pipelines []*Pipeline, err error)
@@ -285,15 +285,20 @@ func (impl PipelineRepositoryImpl) FindById(id int) (pipeline *Pipeline, err err
 	return pipeline, err
 }
 
-// FindActiveByEnvIdAndDeploymentTypeExcludingAppIds takes in environment id and current deployment app type
+// FindActiveByEnvIdAndDeploymentType takes in environment id and current deployment app type
 // and fetches and returns a list of pipelines matching the same excluding given app ids.
-func (impl PipelineRepositoryImpl) FindActiveByEnvIdAndDeploymentTypeExcludingAppIds(environmentId int,
-	deploymentAppType string, exclusionList []int) ([]*Pipeline, error) {
+func (impl PipelineRepositoryImpl) FindActiveByEnvIdAndDeploymentType(environmentId int,
+	deploymentAppType string, exclusionList []int, includeApps []int) ([]*Pipeline, error) {
 
 	// NOTE: PG query throws error with slice of integer
 	exclusionListString := []string{}
-	for _, i := range exclusionList {
-		exclusionListString = append(exclusionListString, strconv.Itoa(i))
+	for _, appId := range exclusionList {
+		exclusionListString = append(exclusionListString, strconv.Itoa(appId))
+	}
+
+	inclusionListString := []string{}
+	for _, appId := range includeApps {
+		inclusionListString = append(inclusionListString, strconv.Itoa(appId))
 	}
 
 	var pipelines []*Pipeline
@@ -310,6 +315,9 @@ func (impl PipelineRepositoryImpl) FindActiveByEnvIdAndDeploymentTypeExcludingAp
 		query.Where("pipeline.app_id not in (?)", pg.In(exclusionListString))
 	}
 
+	if len(inclusionListString) > 0 {
+		query.Where("pipeline.app_id in (?)", pg.In(inclusionListString))
+	}
 	err := query.Select()
 	return pipelines, err
 }

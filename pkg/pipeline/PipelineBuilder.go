@@ -103,7 +103,7 @@ type PipelineBuilder interface {
 	PatchCdPipelines(cdPipelines *bean.CDPatchRequest, ctx context.Context) (*bean.CdPipelines, error)
 	DeleteCdPipeline(pipeline *pipelineConfig.Pipeline, ctx context.Context, forceDelete bool, userId int32) (err error)
 	ChangeDeploymentType(ctx context.Context, request *bean.DeploymentAppTypeChangeRequest) (*bean.DeploymentAppTypeChangeResponse, error)
-	DeleteDeploymentAppsForEnvironment(ctx context.Context, environmentId int, currentDeploymentAppType bean.DeploymentType, exclusionList []int, userId int32) (*bean.DeploymentAppTypeChangeResponse, error)
+	DeleteDeploymentAppsForEnvironment(ctx context.Context, environmentId int, currentDeploymentAppType bean.DeploymentType, exclusionList []int, includeApps []int, userId int32) (*bean.DeploymentAppTypeChangeResponse, error)
 	DeleteDeploymentApps(ctx context.Context, pipelines []*pipelineConfig.Pipeline, userId int32) *bean.DeploymentAppTypeChangeResponse
 	GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error)
 	GetCdPipelinesForAppAndEnv(appId int, envId int) (cdPipelines *bean.CdPipelines, err error)
@@ -925,7 +925,7 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 			CreatedOn: originalCiConf.CreatedOn,
 			CreatedBy: originalCiConf.CreatedBy,
 			UpdatedOn: time.Now(),
-			UpdatedBy: originalCiConf.UpdatedBy,
+			UpdatedBy: updateRequest.UpdatedBy,
 		},
 	}
 
@@ -1746,7 +1746,7 @@ func (impl PipelineBuilderImpl) ChangeDeploymentType(ctx context.Context,
 
 	// Force delete apps
 	response, err = impl.DeleteDeploymentAppsForEnvironment(ctx,
-		request.EnvId, deleteDeploymentType, request.ExcludeApps, request.UserId)
+		request.EnvId, deleteDeploymentType, request.ExcludeApps, request.IncludeApps, request.UserId)
 
 	if err != nil {
 		return nil, err
@@ -1755,6 +1755,7 @@ func (impl PipelineBuilderImpl) ChangeDeploymentType(ctx context.Context,
 	// Updating the env id and desired deployment app type received from request in the response
 	response.EnvId = request.EnvId
 	response.DesiredDeploymentType = request.DesiredDeploymentType
+	response.TriggeredPipelines = make([]*bean.CdPipelineTrigger, 0)
 
 	// Update the deployment app type to Helm and toggle deployment_app_created to false in db
 	var cdPipelineIds []int
@@ -1780,6 +1781,10 @@ func (impl PipelineBuilderImpl) ChangeDeploymentType(ctx context.Context,
 		return response, nil
 	}
 
+	if !request.WantToDeploy {
+		return response, nil
+	}
+
 	// Bulk trigger all the successfully changed pipelines (async)
 	bulkTriggerRequest := make([]*BulkTriggerRequest, 0)
 
@@ -1797,7 +1802,7 @@ func (impl PipelineBuilderImpl) ChangeDeploymentType(ctx context.Context,
 			return response, nil
 		}
 
-		if artifactDetails.LatestWfArtifactId == 0 || artifactDetails.LatestWfArtifactStatus == "Failed" {
+		if artifactDetails.LatestWfArtifactId == 0 || artifactDetails.LatestWfArtifactStatus != "Succeeded" {
 			continue
 		}
 
@@ -1805,6 +1810,15 @@ func (impl PipelineBuilderImpl) ChangeDeploymentType(ctx context.Context,
 			CiArtifactId: artifactDetails.LatestWfArtifactId,
 			PipelineId:   item.Id,
 		})
+		response.TriggeredPipelines = append(response.TriggeredPipelines, &bean.CdPipelineTrigger{
+			CiArtifactId: artifactDetails.LatestWfArtifactId,
+			PipelineId:   item.Id,
+		})
+	}
+
+	// pg panics if empty slice is passed as an argument
+	if len(bulkTriggerRequest) == 0 {
+		return response, nil
 	}
 
 	// Trigger
@@ -1821,11 +1835,11 @@ func (impl PipelineBuilderImpl) ChangeDeploymentType(ctx context.Context,
 // and deletes all the cd pipelines for that deployment type in all apps that belongs to
 // that environment.
 func (impl PipelineBuilderImpl) DeleteDeploymentAppsForEnvironment(ctx context.Context, environmentId int,
-	currentDeploymentAppType bean.DeploymentType, exclusionList []int, userId int32) (*bean.DeploymentAppTypeChangeResponse, error) {
+	currentDeploymentAppType bean.DeploymentType, exclusionList []int, includeApps []int, userId int32) (*bean.DeploymentAppTypeChangeResponse, error) {
 
 	// fetch active pipelines from database for the given environment id and current deployment app type
-	pipelines, err := impl.pipelineRepository.FindActiveByEnvIdAndDeploymentTypeExcludingAppIds(environmentId,
-		string(currentDeploymentAppType), exclusionList)
+	pipelines, err := impl.pipelineRepository.FindActiveByEnvIdAndDeploymentType(environmentId,
+		string(currentDeploymentAppType), exclusionList, includeApps)
 
 	if err != nil {
 		impl.logger.Errorw("Error fetching cd pipelines",
@@ -2016,13 +2030,15 @@ func (impl PipelineBuilderImpl) deleteArgoCdApp(ctx context.Context, pipeline *p
 
 	_, err := impl.application.Delete(ctx, req)
 
-	// Possible that argocd app got deleted but db updation failed
 	if err != nil {
+		impl.logger.Errorw("error in deleting argocd application", "err", err)
+		// Possible that argocd app got deleted but db updation failed
 		if strings.Contains(err.Error(), "code = NotFound") {
 			return nil
 		}
+		return err
 	}
-	return err
+	return nil
 }
 
 // deleteHelmApp takes in context and pipeline object and deletes the release in helm
@@ -2633,7 +2649,7 @@ func (impl PipelineBuilderImpl) BuildArtifactsForCdStage(pipelineId int, stageTy
 	parentCdRunningArtifactId := 0
 	if parentCdId > 0 && parent {
 		parentCdWfrList, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(parentCdId, bean2.CD_WORKFLOW_TYPE_DEPLOY, 1)
-		if err != nil {
+		if err != nil || len(parentCdWfrList) == 0 {
 			impl.logger.Errorw("error in getting artifact for parent cd", "parentCdPipelineId", parentCdId)
 			return ciArtifacts, artifactMap, 0, "", err
 		}
