@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/authenticator/middleware"
 	"github.com/devtron-labs/devtron/api/bean"
+	bean2 "github.com/devtron-labs/devtron/pkg/user/bean"
 	casbin2 "github.com/devtron-labs/devtron/pkg/user/casbin"
 	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/go-pg/pg"
@@ -16,6 +17,8 @@ type UserCommonService interface {
 	RemoveRolesAndReturnEliminatedPolicies(userInfo *bean.UserInfo, existingRoleIds map[int]repository2.UserRoleModel, eliminatedRoleIds map[int]*repository2.UserRoleModel, tx *pg.Tx, token string, managerAuth func(resource, token, object string) bool) ([]casbin2.Policy, error)
 	RemoveRolesAndReturnEliminatedPoliciesForGroups(request *bean.RoleGroup, existingRoles map[int]*repository2.RoleGroupRoleMapping, eliminatedRoles map[int]*repository2.RoleGroupRoleMapping, tx *pg.Tx, token string, managerAuth func(resource string, token string, object string) bool) ([]casbin2.Policy, error)
 	CheckRbacForClusterEntity(cluster, namespace, group, kind, resource, token string, managerAuth func(resource, token, object string) bool) bool
+	ReplacePlaceHolderForEmptyEntriesInRoleFilter(roleFilter bean.RoleFilter) bean.RoleFilter
+	RemovePlaceHolderInRoleFilterField(roleFilterField string) string
 }
 
 type UserCommonServiceImpl struct {
@@ -369,4 +372,33 @@ func (impl UserCommonServiceImpl) CheckRbacForClusterEntity(cluster, namespace, 
 		}
 	}
 	return true
+}
+
+func (impl UserCommonServiceImpl) ReplacePlaceHolderForEmptyEntriesInRoleFilter(roleFilter bean.RoleFilter) bean.RoleFilter {
+	if roleFilter.EntityName == "" {
+		roleFilter.EntityName = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
+	}
+	if roleFilter.Environment == "" {
+		roleFilter.Environment = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
+	}
+	if roleFilter.Namespace == "" {
+		roleFilter.Namespace = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
+	}
+	if roleFilter.Group == "" {
+		roleFilter.Group = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
+	}
+	if roleFilter.Kind == "" {
+		roleFilter.Kind = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
+	}
+	if roleFilter.Resource == "" {
+		roleFilter.Resource = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
+	}
+	return roleFilter
+}
+
+func (impl UserCommonServiceImpl) RemovePlaceHolderInRoleFilterField(roleFilterField string) string {
+	if roleFilterField == bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER {
+		return ""
+	}
+	return roleFilterField
 }

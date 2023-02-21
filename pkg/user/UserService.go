@@ -385,117 +385,24 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 }
 
 func (impl UserServiceImpl) CreateOrUpdateUserRolesForAllTypes(roleFilter bean.RoleFilter, userId int32, model *repository2.UserModel, existingRoles map[int]repository2.UserRoleModel, token string, managerAuth func(resource string, token string, object string) bool, tx *pg.Tx, entity string) ([]casbin2.Policy, bool, error) {
-
 	var policiesToBeAdded []casbin2.Policy
+	var err error
 	rolesChanged := false
+	roleFilter = impl.userCommonService.ReplacePlaceHolderForEmptyEntriesInRoleFilter(roleFilter)
 	if entity == bean2.CLUSTER {
-
-		if roleFilter.Namespace == "" {
-			roleFilter.Namespace = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
+		policiesToBeAdded, rolesChanged, err = impl.createOrUpdateUserRolesForClusterEntity(roleFilter, userId, model, existingRoles, token, managerAuth, tx, entity)
+		if err != nil {
+			return nil, false, err
 		}
-		if roleFilter.Group == "" {
-			roleFilter.Group = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
-		}
-		if roleFilter.Kind == "" {
-			roleFilter.Kind = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
-		}
-		if roleFilter.Resource == "" {
-			roleFilter.Resource = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
-		}
-		namespaces := strings.Split(roleFilter.Namespace, ",")
-		groups := strings.Split(roleFilter.Group, ",")
-		kinds := strings.Split(roleFilter.Kind, ",")
-		resources := strings.Split(roleFilter.Resource, ",")
-		actionType := roleFilter.Action
-		accessType := roleFilter.AccessType
-
-		for _, namespace := range namespaces {
-			for _, group := range groups {
-				for _, kind := range kinds {
-					for _, resource := range resources {
-						if namespace == bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER {
-							namespace = ""
-						}
-						if group == bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER {
-							group = ""
-						}
-						if kind == bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER {
-							kind = ""
-						}
-						if resource == bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER {
-							resource = ""
-						}
-						if managerAuth != nil {
-							isValidAuth := impl.userCommonService.CheckRbacForClusterEntity(roleFilter.Cluster, namespace, group, kind, resource, token, managerAuth)
-							if !isValidAuth {
-								continue
-							}
-						}
-						roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, "", "", "", "", accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType)
-						if err != nil {
-							return policiesToBeAdded, rolesChanged, err
-						}
-						if roleModel.Id == 0 {
-							flag, err := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes("", "", "", entity, roleFilter.Cluster, namespace, group, kind, resource, actionType, accessType)
-							if err != nil || flag == false {
-								return policiesToBeAdded, rolesChanged, err
-							}
-							roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, "", "", "", "", accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType)
-							if err != nil {
-								return policiesToBeAdded, rolesChanged, err
-							}
-							if roleModel.Id == 0 {
-								continue
-							}
-						}
-						if _, ok := existingRoles[roleModel.Id]; ok {
-							//Adding policies which are removed
-							policiesToBeAdded = append(policiesToBeAdded, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.EmailId), Obj: casbin2.Object(roleModel.Role)})
-						} else {
-							if roleModel.Id > 0 {
-								rolesChanged = true
-								userRoleModel := &repository2.UserRoleModel{
-									UserId: model.Id,
-									RoleId: roleModel.Id,
-									AuditLog: sql.AuditLog{
-										CreatedBy: userId,
-										CreatedOn: time.Now(),
-										UpdatedBy: userId,
-										UpdatedOn: time.Now(),
-									}}
-								userRoleModel, err = impl.userAuthRepository.CreateUserRoleMapping(userRoleModel, tx)
-								if err != nil {
-									return nil, rolesChanged, err
-								}
-								policiesToBeAdded = append(policiesToBeAdded, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.EmailId), Obj: casbin2.Object(roleModel.Role)})
-							}
-						}
-					}
-				}
-			}
-		}
-		return policiesToBeAdded, rolesChanged, nil
-	}
-
-	if roleFilter.EntityName == "" {
-		roleFilter.EntityName = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
-	}
-	if roleFilter.Environment == "" {
-		roleFilter.Environment = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
 	}
 	actionType := roleFilter.Action
 	accessType := roleFilter.AccessType
-
 	entityNames := strings.Split(roleFilter.EntityName, ",")
 	environments := strings.Split(roleFilter.Environment, ",")
 	for _, environment := range environments {
 		for _, entityName := range entityNames {
-			if entityName == bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER {
-				entityName = ""
-			}
-			if environment == bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER {
-				environment = ""
-			}
+			entityName = impl.userCommonService.RemovePlaceHolderInRoleFilterField(entityName)
+			environment = impl.userCommonService.RemovePlaceHolderInRoleFilterField(environment)
 			roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", actionType)
 			if err != nil {
 				return policiesToBeAdded, rolesChanged, err
@@ -529,6 +436,74 @@ func (impl UserServiceImpl) CreateOrUpdateUserRolesForAllTypes(roleFilter bean.R
 	return policiesToBeAdded, rolesChanged, nil
 }
 
+func (impl UserServiceImpl) createOrUpdateUserRolesForClusterEntity(roleFilter bean.RoleFilter, userId int32, model *repository2.UserModel, existingRoles map[int]repository2.UserRoleModel, token string, managerAuth func(resource string, token string, object string) bool, tx *pg.Tx, entity string) ([]casbin2.Policy, bool, error) {
+	var policiesToBeAdded []casbin2.Policy
+	rolesChanged := false
+	namespaces := strings.Split(roleFilter.Namespace, ",")
+	groups := strings.Split(roleFilter.Group, ",")
+	kinds := strings.Split(roleFilter.Kind, ",")
+	resources := strings.Split(roleFilter.Resource, ",")
+	actionType := roleFilter.Action
+	accessType := roleFilter.AccessType
+	for _, namespace := range namespaces {
+		for _, group := range groups {
+			for _, kind := range kinds {
+				for _, resource := range resources {
+					namespace = impl.userCommonService.RemovePlaceHolderInRoleFilterField(namespace)
+					group = impl.userCommonService.RemovePlaceHolderInRoleFilterField(group)
+					kind = impl.userCommonService.RemovePlaceHolderInRoleFilterField(kind)
+					resource = impl.userCommonService.RemovePlaceHolderInRoleFilterField(resource)
+					if managerAuth != nil {
+						isValidAuth := impl.userCommonService.CheckRbacForClusterEntity(roleFilter.Cluster, namespace, group, kind, resource, token, managerAuth)
+						if !isValidAuth {
+							continue
+						}
+					}
+					roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, "", "", "", "", accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType)
+					if err != nil {
+						return policiesToBeAdded, rolesChanged, err
+					}
+					if roleModel.Id == 0 {
+						flag, err := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes("", "", "", entity, roleFilter.Cluster, namespace, group, kind, resource, actionType, accessType)
+						if err != nil || flag == false {
+							return policiesToBeAdded, rolesChanged, err
+						}
+						roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, "", "", "", "", accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType)
+						if err != nil {
+							return policiesToBeAdded, rolesChanged, err
+						}
+						if roleModel.Id == 0 {
+							continue
+						}
+					}
+					if _, ok := existingRoles[roleModel.Id]; ok {
+						//Adding policies which are removed
+						policiesToBeAdded = append(policiesToBeAdded, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.EmailId), Obj: casbin2.Object(roleModel.Role)})
+					} else {
+						if roleModel.Id > 0 {
+							rolesChanged = true
+							userRoleModel := &repository2.UserRoleModel{
+								UserId: model.Id,
+								RoleId: roleModel.Id,
+								AuditLog: sql.AuditLog{
+									CreatedBy: userId,
+									CreatedOn: time.Now(),
+									UpdatedBy: userId,
+									UpdatedOn: time.Now(),
+								}}
+							userRoleModel, err = impl.userAuthRepository.CreateUserRoleMapping(userRoleModel, tx)
+							if err != nil {
+								return nil, rolesChanged, err
+							}
+							policiesToBeAdded = append(policiesToBeAdded, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.EmailId), Obj: casbin2.Object(roleModel.Role)})
+						}
+					}
+				}
+			}
+		}
+	}
+	return policiesToBeAdded, rolesChanged, nil
+}
 func (impl UserServiceImpl) mergeRoleFilter(oldR []bean.RoleFilter, newR []bean.RoleFilter) []bean.RoleFilter {
 	var roleFilters []bean.RoleFilter
 	keysMap := make(map[string]bool)
@@ -679,24 +654,15 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 					}
 				}
 
-				if roleFilter.EntityName == "" {
-					roleFilter.EntityName = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
-				}
-				if roleFilter.Environment == "" {
-					roleFilter.Environment = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
-				}
+				roleFilter = impl.userCommonService.ReplacePlaceHolderForEmptyEntriesInRoleFilter(roleFilter)
 				actionType := roleFilter.Action
 				accessType := roleFilter.AccessType
 				entityNames := strings.Split(roleFilter.EntityName, ",")
 				environments := strings.Split(roleFilter.Environment, ",")
 				for _, environment := range environments {
 					for _, entityName := range entityNames {
-						if entityName == bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER {
-							entityName = ""
-						}
-						if environment == bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER {
-							environment = ""
-						}
+						entityName = impl.userCommonService.RemovePlaceHolderInRoleFilterField(entityName)
+						environment = impl.userCommonService.RemovePlaceHolderInRoleFilterField(environment)
 						roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "")
 						if err != nil {
 							return nil, false, false, nil, err

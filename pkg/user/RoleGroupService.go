@@ -111,6 +111,7 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 		//Starts Role and Mapping
 		var policies []casbin2.Policy
 		for _, roleFilter := range request.RoleFilters {
+			roleFilter = impl.userCommonService.ReplacePlaceHolderForEmptyEntriesInRoleFilter(roleFilter)
 			entity := roleFilter.Entity
 			if roleFilter.Entity == bean.CLUSTER_ENTITIY {
 				policiesToBeAdded, err := impl.CreateOrUpdateRoleGroupForClusterEntity(roleFilter, request.UserId, model, nil, "", nil, tx)
@@ -119,12 +120,6 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 					impl.logger.Errorw("error in creating updating role group for cluster entity", "err", err, "roleFilter", roleFilter)
 				}
 			} else {
-				if roleFilter.EntityName == "" {
-					roleFilter.EntityName = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
-				}
-				if roleFilter.Environment == "" {
-					roleFilter.Environment = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
-				}
 				actionType := roleFilter.Action
 
 				accessType := roleFilter.AccessType
@@ -132,12 +127,8 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 				environments := strings.Split(roleFilter.Environment, ",")
 				for _, environment := range environments {
 					for _, entityName := range entityNames {
-						if entityName == bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER {
-							entityName = ""
-						}
-						if environment == bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER {
-							environment = ""
-						}
+						entityName = impl.userCommonService.RemovePlaceHolderInRoleFilterField(entityName)
+						environment = impl.userCommonService.RemovePlaceHolderInRoleFilterField(environment)
 						roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, actionType, "", "", "", "", "", "")
 						if err != nil {
 							return nil, err
@@ -197,18 +188,6 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForClusterEntity(roleFil
 	model *repository2.RoleGroup, existingRoles map[int]*repository2.RoleGroupRoleMapping, token string,
 	managerAuth func(resource, token string, object string) bool, tx *pg.Tx) ([]casbin2.Policy, error) {
 	var policiesToBeAdded []casbin2.Policy
-	if roleFilter.Namespace == "" {
-		roleFilter.Namespace = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
-	}
-	if roleFilter.Group == "" {
-		roleFilter.Group = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
-	}
-	if roleFilter.Kind == "" {
-		roleFilter.Kind = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
-	}
-	if roleFilter.Resource == "" {
-		roleFilter.Resource = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
-	}
 	namespaces := strings.Split(roleFilter.Namespace, ",")
 	groups := strings.Split(roleFilter.Group, ",")
 	kinds := strings.Split(roleFilter.Kind, ",")
@@ -220,18 +199,10 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForClusterEntity(roleFil
 		for _, group := range groups {
 			for _, kind := range kinds {
 				for _, resource := range resources {
-					if namespace == bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER {
-						namespace = ""
-					}
-					if group == bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER {
-						group = ""
-					}
-					if kind == bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER {
-						kind = ""
-					}
-					if resource == bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER {
-						resource = ""
-					}
+					namespace = impl.userCommonService.RemovePlaceHolderInRoleFilterField(namespace)
+					group = impl.userCommonService.RemovePlaceHolderInRoleFilterField(group)
+					kind = impl.userCommonService.RemovePlaceHolderInRoleFilterField(kind)
+					resource = impl.userCommonService.RemovePlaceHolderInRoleFilterField(resource)
 					if managerAuth != nil {
 						isValidAuth := impl.userCommonService.CheckRbacForClusterEntity(roleFilter.Cluster, namespace, group, kind, resource, token, managerAuth)
 						if !isValidAuth {
@@ -333,6 +304,7 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 	//Adding New Policies
 	var policies []casbin2.Policy
 	for _, roleFilter := range request.RoleFilters {
+		roleFilter = impl.userCommonService.ReplacePlaceHolderForEmptyEntriesInRoleFilter(roleFilter)
 		if roleFilter.Entity == bean.CLUSTER_ENTITIY {
 			policiesToBeAdded, err := impl.CreateOrUpdateRoleGroupForClusterEntity(roleFilter, request.UserId, roleGroup, existingRoles, token, managerAuth, tx)
 			policies = append(policies, policiesToBeAdded...)
@@ -349,12 +321,6 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 				}
 			}
 
-			if roleFilter.EntityName == "" {
-				roleFilter.EntityName = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
-			}
-			if roleFilter.Environment == "" {
-				roleFilter.Environment = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
-			}
 			actionType := roleFilter.Action
 			accessType := roleFilter.AccessType
 			entity := roleFilter.Entity
@@ -362,12 +328,8 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 			environments := strings.Split(roleFilter.Environment, ",")
 			for _, environment := range environments {
 				for _, entityName := range entityNames {
-					if entityName == bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER {
-						entityName = ""
-					}
-					if environment == bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER {
-						environment = ""
-					}
+					entityName = impl.userCommonService.RemovePlaceHolderInRoleFilterField(entityName)
+					environment = impl.userCommonService.RemovePlaceHolderInRoleFilterField(environment)
 					roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "")
 					if err != nil {
 						return nil, err
