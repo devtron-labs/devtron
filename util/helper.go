@@ -211,7 +211,7 @@ func InterfaceToMapAdapter(resp interface{}) map[string]interface{} {
 }
 
 type BaseLogLocationConfig struct {
-	BaseLogLocationPath string `env:"BASE_LOG_LOCATION_PATH" envDefault:"home/devtron"`
+	BaseLogLocationPath string `env:"BASE_LOG_LOCATION_PATH" envDefault:"home/devtron/"`
 }
 
 func GetBaseLogLocationPath(logger *zap.SugaredLogger) string {
