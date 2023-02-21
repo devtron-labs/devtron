@@ -398,8 +398,12 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsCdPipelines(app *v1al
 	if err != nil {
 		impl.logger.Errorw("error occurred while updating app status in app_status table", "error", err, "appId", cdPipeline.AppId, "envId", cdPipeline.EnvironmentId)
 	}
+	reconciledAt := &metav1.Time{}
+	if app != nil {
+		reconciledAt = app.Status.ReconciledAt
+	}
 	//updating cd pipeline status timeline
-	isTimelineUpdated, isTimelineTimedOut, err = impl.UpdatePipelineStatusTimelineForApplicationChanges(app, cdWfr.Id, statusTime, cdWfr.StartedOn, timeoutDuration, latestTimelineBeforeThisEvent)
+	isTimelineUpdated, isTimelineTimedOut, err = impl.UpdatePipelineStatusTimelineForApplicationChanges(app, cdWfr.Id, statusTime, cdWfr.StartedOn, timeoutDuration, latestTimelineBeforeThisEvent, reconciledAt)
 	if err != nil {
 		impl.logger.Errorw("error in updating pipeline status timeline", "err", err)
 	}
@@ -417,11 +421,7 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsCdPipelines(app *v1al
 		impl.logger.Errorw("error in getting latest timeline", "err", err, "cdWfrId", cdWfr.Id)
 		return isSucceeded, isTimelineUpdated, err
 	}
-	reconciledAt := &metav1.Time{}
-	if app != nil {
-		reconciledAt = app.Status.ReconciledAt
-	}
-	if reconciledAt.IsZero() || (kubectlSyncedTimeline != nil && reconciledAt.After(kubectlSyncedTimeline.StatusTime)) {
+	if reconciledAt.IsZero() || (kubectlSyncedTimeline != nil && kubectlSyncedTimeline.Id > 0 && reconciledAt.After(kubectlSyncedTimeline.StatusTime)) {
 		releaseCounter, err := impl.pipelineOverrideRepository.GetCurrentPipelineReleaseCounter(pipelineOverride.PipelineId)
 		if err != nil {
 			impl.logger.Errorw("error on update application status", "releaseCounter", releaseCounter, "gitHash", gitHash, "pipelineOverride", pipelineOverride, "err", err)
@@ -503,7 +503,7 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForPipeline(app *v1alpha1.Appl
 	return isSucceeded, nil
 }
 
-func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(app *v1alpha1.Application, cdWfrId int, statusTime time.Time, triggeredAt time.Time, statusTimeoutDuration int, latestTimelineBeforeUpdate *pipelineConfig.PipelineStatusTimeline) (bool, bool, error) {
+func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(app *v1alpha1.Application, cdWfrId int, statusTime time.Time, triggeredAt time.Time, statusTimeoutDuration int, latestTimelineBeforeUpdate *pipelineConfig.PipelineStatusTimeline, reconciledAt *metav1.Time) (bool, bool, error) {
 	impl.logger.Debugw("updating pipeline status timeline", "app", app, "pipelineOverride", cdWfrId, "APP_TO_UPDATE", app.Name)
 	isTimelineUpdated := false
 	isTimelineTimedOut := false
@@ -559,7 +559,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 		}
 		impl.logger.Debugw("APP_STATUS_UPDATE_REQ", "stage", "APPLY_SYNCED", "app", app, "status", timeline.Status)
 	}
-	if kubectlApplySyncedTimeline != nil && kubectlApplySyncedTimeline.Id > 0 && kubectlApplySyncedTimeline.StatusTime.Before(app.Status.ReconciledAt.Time) {
+	if reconciledAt.IsZero() || (kubectlApplySyncedTimeline != nil && kubectlApplySyncedTimeline.Id > 0 && reconciledAt.After(kubectlApplySyncedTimeline.StatusTime)) {
 		haveNewTimeline := false
 		timeline.Id = 0
 		if app.Status.Health.Status == health.HealthStatusHealthy {
