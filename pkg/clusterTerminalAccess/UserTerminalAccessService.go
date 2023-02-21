@@ -1061,7 +1061,7 @@ func (impl *UserTerminalAccessServiceImpl) EditPodManifest(ctx context.Context, 
 	if manifestMap != nil {
 		if manifestMap["kind"] != "Pod" {
 			err := errors.New("manifest should be of kind \"Pod\"")
-			impl.Logger.Errorw("given manifest in not pod manifest", "manifest", manifestMap, "err", err)
+			impl.Logger.Errorw("given manifest is not a pod manifest", "manifest", manifestMap, "err", err)
 			return result, err
 		}
 	}
@@ -1082,12 +1082,14 @@ func (impl *UserTerminalAccessServiceImpl) EditPodManifest(ctx context.Context, 
 	}
 	// valid pod yaml found
 	impl.Logger.Infow("pod manifest yaml validated using \"kubeconform\" validator")
-	//Disconnect session
-	err = impl.DisconnectTerminalSession(ctx, userTerminalAccessId)
-	if err != nil {
-		impl.Logger.Errorw("failed to disconnect terminal session", "userTerminalAccessId", userTerminalAccessId, "err", err)
-		return result, err
-	}
+	//Disconnect stop terminal session
+	impl.StopTerminalSession(ctx, userTerminalAccessId)
+	//err = impl.DisconnectTerminalSession(ctx, userTerminalAccessId)
+	//if err != nil {
+	//	impl.Logger.Errorw("failed to disconnect terminal session", "userTerminalAccessId", userTerminalAccessId, "err", err)
+	//	return result, err
+	//}
+
 	//start new session with provided Pod manifest
 	//override namespace,nodeName
 	podTemplate := manifest
