@@ -117,7 +117,30 @@ components:
     JobList:
       type: object
       properties:
-
+        teams:
+          type: [] integer
+          description: used to give the project id
+          example: [1,2]
+        appStatuses:
+          type: [] string
+          description: used to give the filter of app ci-build status
+          example: ["Succeeded", "Starting"]
+        sortBy:
+          type: string
+          description: used to give the sort by constraint
+          example: "appNameSort"
+        sortOrder:
+          type: string
+          description: used to give the sort order
+          example: "ASC"
+        offset:
+          type: integer
+          description: used to give the number from which we want our job (if the offset is 20 means we want list of jobs from 20)
+          example: 0
+        size:
+          type: integer
+          description: used to give the number of jobs we want
+          example: 20
 
 
 
