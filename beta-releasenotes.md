@@ -26,5 +26,6 @@
 - docs: mount pvc (#2941)
 - docs: minor updates ingress (#2931)
 ## Others
+- fi: fixed incorrect userId in ci audit entries (#3011)
 - plugin jira icon added (#2977)
 - task: added api for getting default template values (#2905)
