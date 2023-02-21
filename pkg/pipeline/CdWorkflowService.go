@@ -399,7 +399,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		},
 	}
 
-	if impl.cdConfig.UseBlobStorageConfigInCdWorkflow {
+	if impl.cdConfig.UseBlobStorageConfigInCdWorkflow || !workflowRequest.IsExtRun {
 		var s3Artifact *v1alpha1.S3Artifact
 		var gcsArtifact *v1alpha1.GCSArtifact
 		blobStorageS3Config := workflowRequest.BlobStorageS3Config
