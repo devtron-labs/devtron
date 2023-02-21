@@ -36,7 +36,7 @@ var (
 var CdDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 	Name: "cd_duration_seconds",
 	Help: "Duration of CD process",
-}, []string{"appName", "status"})
+}, []string{"appName", "status", "envName"})
 
 var requestCounter = promauto.NewCounterVec(
 	prometheus.CounterOpts{
