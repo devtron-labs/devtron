@@ -66,10 +66,11 @@ type JobContainer struct {
 }
 
 type JobCIPipeline struct {
-	CiPipelineId  int       `json:"ciPipelineId"`
-	Status        string    `json:"status"`
-	LastRunAt     time.Time `json:"lastRunAt"`
-	LastSuccessAt time.Time `json:"lastSuccessAt"`
+	CiPipelineId   int       `json:"ciPipelineId"`
+	CiPipelineName string    `json:"ciPipelineName"`
+	Status         string    `json:"status"`
+	LastRunAt      time.Time `json:"lastRunAt"`
+	LastSuccessAt  time.Time `json:"lastSuccessAt"`
 }
 
 type JobListingContainer struct {

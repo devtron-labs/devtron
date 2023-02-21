@@ -54,6 +54,7 @@ import (
 type AppListingService interface {
 	FetchAppsByEnvironment(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, error)
 	FetchJobs(fetchJobListingRequest FetchAppListingRequest) ([]*bean.JobContainer, error)
+	FetchOverviewCiPipeline(appId int) ([]*bean.JobListingContainer, error)
 	BuildAppListingResponse(fetchAppListingRequest FetchAppListingRequest, envContainers []*bean.AppEnvironmentContainer) ([]*bean.AppContainer, error)
 	FetchAllDevtronManagedApps() ([]AppNameTypeIdContainer, error)
 	FetchAppDetails(ctx context.Context, appId int, envId int) (bean.AppDetailContainer, error)
@@ -247,6 +248,16 @@ func (impl AppListingServiceImpl) FetchJobs(fetchJobListingRequest FetchAppListi
 	jobContainers := BuildJobListingResponse(jobListingContainers, JobsLastSucceededOnTime)
 	return jobContainers, nil
 }
+
+func (impl AppListingServiceImpl) FetchOverviewCiPipeline(appId int) ([]*bean.JobListingContainer, error) {
+	jobCiContainers, err := impl.appListingRepository.FetchOverviewCiPipeline(appId)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching app list", "error", err)
+		return []*bean.JobListingContainer{}, err
+	}
+	return jobCiContainers, nil
+}
+
 func (impl AppListingServiceImpl) FetchAppsByEnvironment(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, error) {
 	impl.Logger.Debug("reached at FetchAppsByEnvironment:")
 	// TODO: check statuses
@@ -395,17 +406,20 @@ func BuildJobListingResponse(jobContainers []*bean.JobListingContainer, JobsLast
 			val.JobCiPipelines = make([]bean.JobCIPipeline, 0)
 		}
 
-		ciPipelineObj := bean.JobCIPipeline{
-			CiPipelineId: jobContainer.CiPipelineID,
-			Status:       jobContainer.Status,
-			LastRunAt:    jobContainer.StartedOn,
-			//LastSuccessAt: jobContainer.LastSuccessAt,
-		}
-		if lastSuccessAt, ok := lastSucceededTimeMapping[jobContainer.CiPipelineID]; ok {
-			ciPipelineObj.LastSuccessAt = lastSuccessAt
-		}
+		if jobContainer.CiPipelineID != 0 {
+			ciPipelineObj := bean.JobCIPipeline{
+				CiPipelineId:   jobContainer.CiPipelineID,
+				CiPipelineName: jobContainer.CiPipelineName,
+				Status:         jobContainer.Status,
+				LastRunAt:      jobContainer.StartedOn,
+				//LastSuccessAt: jobContainer.LastSuccessAt,
+			}
+			if lastSuccessAt, ok := lastSucceededTimeMapping[jobContainer.CiPipelineID]; ok {
+				ciPipelineObj.LastSuccessAt = lastSuccessAt
+			}
 
-		val.JobCiPipelines = append(val.JobCiPipelines, ciPipelineObj)
+			val.JobCiPipelines = append(val.JobCiPipelines, ciPipelineObj)
+		}
 		jobContainersMapping[jobContainer.AppId] = val
 
 	}
@@ -754,16 +768,16 @@ func (impl AppListingServiceImpl) setIpAccessProvidedData(ctx context.Context, a
 			return bean.AppDetailContainer{}, err
 		}
 
-		if ciPipeline != nil && ciPipeline.CiTemplate != nil && len(ciPipeline.CiTemplate.DockerRegistryId) > 0 {
+		if ciPipeline != nil && ciPipeline.CiTemplate != nil && len(*ciPipeline.CiTemplate.DockerRegistryId) > 0 {
 			dockerRegistryId := ciPipeline.CiTemplate.DockerRegistryId
-			appDetailContainer.DockerRegistryId = dockerRegistryId
+			appDetailContainer.DockerRegistryId = *dockerRegistryId
 			if !ciPipeline.IsExternal || ciPipeline.ParentCiPipeline != 0 {
 				appDetailContainer.IsExternalCi = false
 			}
 
 			_, span = otel.Tracer("orchestrator").Start(ctx, "dockerRegistryIpsConfigService.IsImagePullSecretAccessProvided")
 			// check ips access provided to this docker registry for that cluster
-			ipsAccessProvided, err := impl.dockerRegistryIpsConfigService.IsImagePullSecretAccessProvided(dockerRegistryId, clusterId)
+			ipsAccessProvided, err := impl.dockerRegistryIpsConfigService.IsImagePullSecretAccessProvided(*dockerRegistryId, clusterId)
 			span.End()
 			if err != nil {
 				impl.Logger.Errorw("error in checking if docker registry ips access provided", "dockerRegistryId", dockerRegistryId, "clusterId", clusterId, "error", err)

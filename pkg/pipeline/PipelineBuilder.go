@@ -912,7 +912,7 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 		Version:           originalCiConf.Version,
 		Id:                originalCiConf.Id,
 		DockerRepository:  originalCiConf.DockerRepository,
-		DockerRegistryId:  originalCiConf.DockerRegistry,
+		DockerRegistryId:  &originalCiConf.DockerRegistry,
 		Active:            true,
 		AuditLog: sql.AuditLog{
 			CreatedOn: originalCiConf.CreatedOn,
@@ -1018,7 +1018,7 @@ func (impl PipelineBuilderImpl) CreateCiPipeline(createRequest *bean.CiConfigReq
 		AuditLog:          sql.AuditLog{CreatedOn: time.Now(), UpdatedOn: time.Now(), CreatedBy: createRequest.UserId, UpdatedBy: createRequest.UserId},
 	}
 	if !createRequest.IsJob {
-		ciTemplate.DockerRegistryId = createRequest.DockerRegistry
+		ciTemplate.DockerRegistryId = &createRequest.DockerRegistry
 		ciTemplate.DockerRepository = createRequest.DockerRepository
 	}
 

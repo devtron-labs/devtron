@@ -358,15 +358,16 @@ func (repo AppRepositoryImpl) FetchAppIdsWithFilter(jobListingFilter helper.AppL
 		Id int `json:"id"`
 	}
 	var appIds []AppId
+	whereCondition := " where display_name like ? and active = true and app_store = 2 "
+	if len(jobListingFilter.Teams) > 0 {
+		whereCondition += " and team_id in (" + helper.GetCommaSepratedString(jobListingFilter.Teams) + ")"
+	}
+
 	orderByCondition := " order by display_name "
 	if jobListingFilter.SortOrder == "DESC" {
 		orderByCondition += string(jobListingFilter.SortOrder)
 	}
 	orderByCondition += " limit ? offset ? "
-	whereCondition := " where display_name like ? and active = true and app_store = 2 "
-	if len(jobListingFilter.Teams) > 0 {
-		whereCondition += " and team_id in (" + helper.GetCommaSepratedString(jobListingFilter.Teams) + ")"
-	}
 
 	query := "select id " + "from app " + whereCondition + orderByCondition
 	appName := "%" + jobListingFilter.AppNameSearch + "%"

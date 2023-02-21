@@ -105,12 +105,12 @@ func (impl DockerRegistryIpsConfigServiceImpl) HandleImagePullSecretOnApplicatio
 	}
 
 	dockerRegistryId := ciPipeline.CiTemplate.DockerRegistryId
-	if len(dockerRegistryId) == 0 {
+	if len(*dockerRegistryId) == 0 {
 		impl.logger.Warn("returning as dockerRegistryId is found empty")
 		return valuesFileContent, nil
 	}
 
-	dockerRegistryBean, err := impl.dockerArtifactStoreRepository.FindOne(dockerRegistryId)
+	dockerRegistryBean, err := impl.dockerArtifactStoreRepository.FindOne(*dockerRegistryId)
 	if err != nil {
 		impl.logger.Errorw("error in getting docker registry", "dockerRegistryId", dockerRegistryId, "error", err)
 		if err == pg.ErrNoRows {
@@ -134,7 +134,7 @@ func (impl DockerRegistryIpsConfigServiceImpl) HandleImagePullSecretOnApplicatio
 	}
 
 	ipsCredentialType := string(ipsConfig.CredentialType)
-	ipsName := BuildIpsName(dockerRegistryId, ipsCredentialType, ipsConfig.CredentialValue)
+	ipsName := BuildIpsName(*dockerRegistryId, ipsCredentialType, ipsConfig.CredentialValue)
 
 	// Create or update secret of credential type is not of NAME type
 	if ipsCredentialType != IPS_CREDENTIAL_TYPE_NAME {

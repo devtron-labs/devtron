@@ -76,6 +76,15 @@ func (impl AppListingRepositoryQueryBuilder) BuildJobListingQuery(appIDs []int, 
 	}
 	return query
 }
+func (impl AppListingRepositoryQueryBuilder) OverviewCiPipelineQuery() string {
+	query := "select ci_pipeline.id as ci_pipeline_id,ci_pipeline.name " +
+		"as ci_pipeline_name,cwr.status,cwr.started_on from ci_pipeline" +
+		" left join (select cw.ci_pipeline_id,cw.status,cw.started_on from ci_workflow cw" +
+		" inner join (SELECT  ci_pipeline_id, MAX(started_on) max_started_on FROM ci_workflow GROUP BY ci_pipeline_id)" +
+		" cws on cw.ci_pipeline_id = cws.ci_pipeline_id and cw.started_on = cws.max_started_on order by cw.ci_pipeline_id)" +
+		" cwr on cwr.ci_pipeline_id = ci_pipeline.id and ci_pipeline.active = true where ci_pipeline.app_id = ? ;"
+	return query
+}
 
 // use this query with atleast 1 cipipeline id
 func (impl AppListingRepositoryQueryBuilder) JobsLastSucceededOnTimeQuery(ciPipelineIDs []int) string {
