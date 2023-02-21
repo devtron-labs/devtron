@@ -298,7 +298,6 @@ func (handler PipelineConfigRestHandlerImpl) HandleChangeDeploymentRequest(w htt
 	decoder := json.NewDecoder(r.Body)
 	var deploymentAppTypeChangeRequest *bean.DeploymentAppTypeChangeRequest
 	err = decoder.Decode(&deploymentAppTypeChangeRequest)
-	deploymentAppTypeChangeRequest.UserId = userId
 	if err != nil {
 		handler.Logger.Errorw("request err, HandleChangeDeploymentRequest", "err", err, "payload",
 			deploymentAppTypeChangeRequest)
@@ -306,6 +305,7 @@ func (handler PipelineConfigRestHandlerImpl) HandleChangeDeploymentRequest(w htt
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	deploymentAppTypeChangeRequest.UserId = userId
 
 	// Validate incoming request
 	err = handler.validator.Struct(deploymentAppTypeChangeRequest)
