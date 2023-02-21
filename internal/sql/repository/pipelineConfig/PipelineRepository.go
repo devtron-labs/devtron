@@ -101,6 +101,7 @@ type PipelineRepository interface {
 	FindIdsByProjectIdsAndEnvironmentIds(projectIds, environmentIds []int) ([]int, error)
 
 	GetArgoPipelineByArgoAppName(argoAppName string) (Pipeline, error)
+	FindActiveByAppIds(appIds []int) (pipelines []*Pipeline, err error)
 }
 
 type CiArtifactDTO struct {
@@ -117,6 +118,10 @@ type PipelineRepositoryImpl struct {
 	dbConnection *pg.DB
 	logger       *zap.SugaredLogger
 }
+
+const (
+	IsPipelineDeletedWhereCondition string = "pipeline.deleted = ?"
+)
 
 func NewPipelineRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *PipelineRepositoryImpl {
 	return &PipelineRepositoryImpl{dbConnection: dbConnection, logger: logger}
@@ -432,7 +437,7 @@ func (impl PipelineRepositoryImpl) FindAllPipelinesByChartsOverrideAndAppIdAndCh
 		Where("pipeline.app_id = ?", appId).
 		Where("charts.id = ?", chartId).
 		Where("ceco.is_override = ?", hasConfigOverridden).
-		Where("pipeline.deleted = ?", false).
+		Where(IsPipelineDeletedWhereCondition, false).
 		Where("ceco.active = ?", true).
 		Where("charts.active = ?", true).
 		Select()
@@ -494,7 +499,7 @@ func (impl PipelineRepositoryImpl) GetAppAndEnvDetailsForDeploymentAppTypePipeli
 		Join("inner join environment e on pipeline.environment_id = e.id").
 		Where("e.cluster_id in (?)", pg.In(clusterIds)).
 		Where("a.active = ?", true).
-		Where("pipeline.deleted = ?", false).
+		Where(IsPipelineDeletedWhereCondition, false).
 		Where("pipeline.deployment_app_type = ?", deploymentAppType).
 		Select()
 	return pipelines, err
@@ -574,4 +579,13 @@ func (impl PipelineRepositoryImpl) GetArgoPipelineByArgoAppName(argoAppName stri
 		return pipeline, err
 	}
 	return pipeline, nil
+}
+
+func (impl PipelineRepositoryImpl) FindActiveByAppIds(appIds []int) (pipelines []*Pipeline, err error) {
+	err = impl.dbConnection.Model(&pipelines).
+		Column("pipeline.*", "App", "Environment").
+		Where("app_id in(?)", pg.In(appIds)).
+		Where("deleted = ?", false).
+		Select()
+	return pipelines, err
 }

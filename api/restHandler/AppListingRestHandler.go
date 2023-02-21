@@ -304,12 +304,13 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 	offset := fetchAppListingRequest.Offset
 	limit := fetchAppListingRequest.Size
 
-	if offset+limit <= len(apps) {
-		apps = apps[offset : offset+limit]
-	} else {
-		apps = apps[offset:]
+	if limit > 0 {
+		if offset+limit <= len(apps) {
+			apps = apps[offset : offset+limit]
+		} else {
+			apps = apps[offset:]
+		}
 	}
-
 	appContainerResponse := bean.AppContainerResponse{
 		AppContainers: apps,
 		AppCount:      appsCount,

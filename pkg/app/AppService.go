@@ -1127,7 +1127,7 @@ func (impl *AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideR
 			span.End()
 		}
 	}
-	middleware.CdTriggerCounter.WithLabelValues(strconv.Itoa(pipeline.AppId), strconv.Itoa(pipeline.EnvironmentId), strconv.Itoa(pipeline.Id)).Inc()
+	middleware.CdTriggerCounter.WithLabelValues(pipeline.App.AppName, pipeline.Environment.Name).Inc()
 	return releaseId, saveErr
 }
 
@@ -1886,6 +1886,9 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Appl
 	if err != nil {
 		impl.logger.Errorw("error on update cd workflow runner", "wfr", wfr, "app", app, "err", err)
 		return err
+	}
+	if wfr.Status == pipelineConfig.WorkflowSucceeded {
+		middleware.CdDuration.WithLabelValues(wfr.Name, wfr.Status).Observe(time.Since(wfr.UpdatedOn).Seconds())
 	}
 	return nil
 }
