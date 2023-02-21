@@ -86,12 +86,16 @@ type CiPipelineDetails struct {
 	PreBuildStage             *bean.PipelineStageDto      `json:"preBuildStage,omitempty"`
 	PostBuildStage            *bean.PipelineStageDto      `json:"postBuildStage,omitempty"`
 	IsExternal                bool                        `json:"isExternal"` // true for linked and external
+	ParentCiPipeline          int                         `json:"parentCiPipeline,omitempty"`
+	ParentAppId               int                         `json:"parentAppId,omitempty"`
+	LinkedCount               int                         `json:"linkedCount,omitempty"`
 }
 
 type CiPipelineMaterialConfig struct {
-	Type         pipelineConfig.SourceType `json:"type,omitempty" validate:"oneof=SOURCE_TYPE_BRANCH_FIXED WEBHOOK"`
-	Value        string                    `json:"value,omitempty" `
-	CheckoutPath string                    `json:"checkoutPath"`
+	Type          pipelineConfig.SourceType `json:"type,omitempty" validate:"oneof=SOURCE_TYPE_BRANCH_FIXED WEBHOOK"`
+	Value         string                    `json:"value,omitempty" `
+	CheckoutPath  string                    `json:"checkoutPath"`
+	GitMaterialId int                       `json:"gitMaterialId"`
 }
 
 type BuildScript struct {
@@ -105,6 +109,7 @@ type CdPipelineDetails struct {
 	Name                          string                                 `json:"name"` //pipelineName
 	EnvironmentName               string                                 `json:"environmentName" `
 	TriggerType                   pipelineConfig.TriggerType             `json:"triggerType" validate:"required"`
+	DeploymentAppType             string                                 `json:"deploymentAppType"`
 	DeploymentStrategyType        chartRepoRepository.DeploymentStrategy `json:"deploymentType,omitempty"` //
 	DeploymentStrategies          []*DeploymentStrategy                  `json:"deploymentStrategies"`
 	PreStage                      *CdStage                               `json:"preStage"`
