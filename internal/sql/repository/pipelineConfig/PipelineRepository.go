@@ -318,6 +318,7 @@ func (impl PipelineRepositoryImpl) FindActiveByEnvIdAndDeploymentType(environmen
 	if len(inclusionListString) > 0 {
 		query.Where("pipeline.app_id in (?)", pg.In(inclusionListString))
 	}
+
 	err := query.Select()
 	return pipelines, err
 }

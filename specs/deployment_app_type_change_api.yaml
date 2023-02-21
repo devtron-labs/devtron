@@ -56,6 +56,12 @@ components:
         excludeApps:
           type: array
           description: List of app ids to be excluded
+        includeApps:
+          type: array
+          description: List of app ids to be included (deployment will be changed only for these apps)
+        autoTriggerDeployment:
+          type: boolean
+          description: After changing deployment app, should system auto trigger deployment
     DeploymentChangeStatus:
       type: object
       properties:
@@ -93,6 +99,20 @@ components:
           description: Pipelines which failed to get deleted from current deployment
           items:
             $ref: '#components/schemas/DeploymentChangeStatus'
+        triggeredPipelines:
+          type: array
+          description: List of pipelines where were auto-triggered for deployment
+          items:
+            $ref: '#components/schemas/TriggeredPipelineDetails'
+    TriggeredPipelineDetails:
+      type: object
+      properties:
+        ciArtifactId:
+          type: integer
+          description: Artifact id deployed
+        pipelineId:
+          type: integer
+          description: Pipeline id for which deployment was triggered
     OkResponse:
       required:
         - code

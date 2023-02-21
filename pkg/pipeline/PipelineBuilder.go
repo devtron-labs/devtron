@@ -1781,7 +1781,7 @@ func (impl PipelineBuilderImpl) ChangeDeploymentType(ctx context.Context,
 		return response, nil
 	}
 
-	if !request.WantToDeploy {
+	if !request.AutoTriggerDeployment {
 		return response, nil
 	}
 
@@ -1802,7 +1802,7 @@ func (impl PipelineBuilderImpl) ChangeDeploymentType(ctx context.Context,
 			return response, nil
 		}
 
-		if artifactDetails.LatestWfArtifactId == 0 || artifactDetails.LatestWfArtifactStatus != "Succeeded" {
+		if artifactDetails.LatestWfArtifactId == 0 || artifactDetails.LatestWfArtifactStatus != "" {
 			continue
 		}
 
