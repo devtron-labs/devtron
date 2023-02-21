@@ -26,12 +26,18 @@ import (
 	"github.com/caarlos0/env"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	client2 "github.com/devtron-labs/devtron/api/helm-app"
+	application3 "github.com/devtron-labs/devtron/client/k8s/application"
+	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/util/argo"
+	"github.com/devtron-labs/devtron/util/k8s"
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 	"go.opentelemetry.io/otel"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
 	"net/url"
 	"path"
@@ -78,6 +84,7 @@ import (
 
 type AppStatusConfig struct {
 	CdPipelineStatusCronTime            string `env:"CD_PIPELINE_STATUS_CRON_TIME" envDefault:"*/2 * * * *"`
+	CdHelmPipelineStatusCronTime        string `env:"CD_HELM_PIPELINE_STATUS_CRON_TIME" envDefault:"*/2 * * * *"`
 	CdPipelineStatusTimeoutDuration     string `env:"CD_PIPELINE_STATUS_TIMEOUT_DURATION" envDefault:"20"`       //in minutes
 	PipelineDegradedTime                string `env:"PIPELINE_DEGRADED_TIME" envDefault:"10"`                    //in minutes
 	HelmPipelineStatusCheckEligibleTime string `env:"HELM_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME" envDefault:"120"` //in seconds
@@ -146,6 +153,7 @@ type AppServiceImpl struct {
 	appStatusConfig                        *AppStatusConfig
 	gitOpsConfigRepository                 repository.GitOpsConfigRepository
 	appStatusService                       appStatus.AppStatusService
+	k8sApplicationService                  k8s.K8sApplicationService
 }
 
 type AppService interface {
@@ -203,7 +211,7 @@ func NewAppService(
 	pipelineStatusTimelineService PipelineStatusTimelineService,
 	appStatusConfig *AppStatusConfig,
 	gitOpsConfigRepository repository.GitOpsConfigRepository,
-	appStatusService appStatus.AppStatusService) *AppServiceImpl {
+	appStatusService appStatus.AppStatusService, k8sApplicationService k8s.K8sApplicationService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:            environmentConfigRepository,
 		mergeUtil:                              mergeUtil,
@@ -256,6 +264,7 @@ func NewAppService(
 		appStatusConfig:                        appStatusConfig,
 		gitOpsConfigRepository:                 gitOpsConfigRepository,
 		appStatusService:                       appStatusService,
+		k8sApplicationService:                  k8sApplicationService,
 	}
 	return appServiceImpl
 }
@@ -389,8 +398,12 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsCdPipelines(app *v1al
 	if err != nil {
 		impl.logger.Errorw("error occurred while updating app status in app_status table", "error", err, "appId", cdPipeline.AppId, "envId", cdPipeline.EnvironmentId)
 	}
+	reconciledAt := &metav1.Time{}
+	if app != nil {
+		reconciledAt = app.Status.ReconciledAt
+	}
 	//updating cd pipeline status timeline
-	isTimelineUpdated, isTimelineTimedOut, err = impl.UpdatePipelineStatusTimelineForApplicationChanges(app, cdWfr.Id, statusTime, cdWfr.StartedOn, timeoutDuration, latestTimelineBeforeThisEvent)
+	isTimelineUpdated, isTimelineTimedOut, err = impl.UpdatePipelineStatusTimelineForApplicationChanges(app, cdWfr.Id, statusTime, cdWfr.StartedOn, timeoutDuration, latestTimelineBeforeThisEvent, reconciledAt)
 	if err != nil {
 		impl.logger.Errorw("error in updating pipeline status timeline", "err", err)
 	}
@@ -408,11 +421,7 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsCdPipelines(app *v1al
 		impl.logger.Errorw("error in getting latest timeline", "err", err, "cdWfrId", cdWfr.Id)
 		return isSucceeded, isTimelineUpdated, err
 	}
-	reconciledAt := &metav1.Time{}
-	if app != nil {
-		reconciledAt = app.Status.ReconciledAt
-	}
-	if reconciledAt.IsZero() || (kubectlSyncedTimeline != nil && reconciledAt.After(kubectlSyncedTimeline.StatusTime)) {
+	if reconciledAt.IsZero() || (kubectlSyncedTimeline != nil && kubectlSyncedTimeline.Id > 0 && reconciledAt.After(kubectlSyncedTimeline.StatusTime)) {
 		releaseCounter, err := impl.pipelineOverrideRepository.GetCurrentPipelineReleaseCounter(pipelineOverride.PipelineId)
 		if err != nil {
 			impl.logger.Errorw("error on update application status", "releaseCounter", releaseCounter, "gitHash", gitHash, "pipelineOverride", pipelineOverride, "err", err)
@@ -494,7 +503,7 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForPipeline(app *v1alpha1.Appl
 	return isSucceeded, nil
 }
 
-func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(app *v1alpha1.Application, cdWfrId int, statusTime time.Time, triggeredAt time.Time, statusTimeoutDuration int, latestTimelineBeforeUpdate *pipelineConfig.PipelineStatusTimeline) (bool, bool, error) {
+func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(app *v1alpha1.Application, cdWfrId int, statusTime time.Time, triggeredAt time.Time, statusTimeoutDuration int, latestTimelineBeforeUpdate *pipelineConfig.PipelineStatusTimeline, reconciledAt *metav1.Time) (bool, bool, error) {
 	impl.logger.Debugw("updating pipeline status timeline", "app", app, "pipelineOverride", cdWfrId, "APP_TO_UPDATE", app.Name)
 	isTimelineUpdated := false
 	isTimelineTimedOut := false
@@ -550,7 +559,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 		}
 		impl.logger.Debugw("APP_STATUS_UPDATE_REQ", "stage", "APPLY_SYNCED", "app", app, "status", timeline.Status)
 	}
-	if kubectlApplySyncedTimeline != nil && kubectlApplySyncedTimeline.Id > 0 && kubectlApplySyncedTimeline.StatusTime.Before(app.Status.ReconciledAt.Time) {
+	if reconciledAt.IsZero() || (kubectlApplySyncedTimeline != nil && kubectlApplySyncedTimeline.Id > 0 && reconciledAt.After(kubectlApplySyncedTimeline.StatusTime)) {
 		haveNewTimeline := false
 		timeline.Id = 0
 		if app.Status.Health.Status == health.HealthStatusHealthy {
@@ -1672,7 +1681,7 @@ func (impl *AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverr
 	}
 
 	appName := fmt.Sprintf("%s-%s", pipeline.App.AppName, envOverride.Environment.Name)
-	merged = impl.hpaCheckBeforeTrigger(ctx, appName, envOverride.Namespace, merged, pipeline.AppId)
+	merged = impl.autoscalingCheckBeforeTrigger(ctx, appName, envOverride.Namespace, merged, pipeline, overrideRequest)
 
 	_, span := otel.Tracer("orchestrator").Start(ctx, "dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment")
 	// handle image pull secret if access given
@@ -1881,7 +1890,12 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Appl
 	return nil
 }
 
-func (impl *AppServiceImpl) hpaCheckBeforeTrigger(ctx context.Context, appName string, namespace string, merged []byte, appId int) []byte {
+func (impl *AppServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, appName string, namespace string, merged []byte, pipeline *pipelineConfig.Pipeline, overrideRequest *bean.ValuesOverrideRequest) []byte {
+	var appId = pipeline.AppId
+	pipelineId := pipeline.Id
+	var appDeploymentType = pipeline.DeploymentAppType
+	var clusterId = pipeline.Environment.ClusterId
+	deploymentType := overrideRequest.DeploymentType
 	templateMap := make(map[string]interface{})
 	err := json.Unmarshal(merged, &templateMap)
 	if err != nil {
@@ -1902,39 +1916,51 @@ func (impl *AppServiceImpl) hpaCheckBeforeTrigger(ctx context.Context, appName s
 			group := autoscaling.ServiceName
 			kind := "HorizontalPodAutoscaler"
 			resourceName := fmt.Sprintf("%s-%s", appName, "hpa")
-			query := &application2.ApplicationResourceRequest{
-				Name:         &appName,
-				Version:      &version,
-				Group:        &group,
-				Kind:         &kind,
-				ResourceName: &resourceName,
-				Namespace:    &namespace,
-			}
-			recv, err := impl.acdClient.GetResource(ctx, query)
-			impl.logger.Debugw("resource manifest get replica count", "response", recv)
-			if err != nil {
-				impl.logger.Errorw("ACD Get Resource API Failed", "err", err)
-				middleware.AcdGetResourceCounter.WithLabelValues(strconv.Itoa(appId), namespace, appName).Inc()
-				return merged
-			}
-			if recv != nil && len(*recv.Manifest) > 0 {
-				resourceManifest := make(map[string]interface{})
-				err := json.Unmarshal([]byte(*recv.Manifest), &resourceManifest)
+			resourceManifest := make(map[string]interface{})
+			if IsAcdApp(appDeploymentType) {
+				query := &application2.ApplicationResourceRequest{
+					Name:         &appName,
+					Version:      &version,
+					Group:        &group,
+					Kind:         &kind,
+					ResourceName: &resourceName,
+					Namespace:    &namespace,
+				}
+				recv, err := impl.acdClient.GetResource(ctx, query)
+				impl.logger.Debugw("resource manifest get replica count", "response", recv)
 				if err != nil {
-					impl.logger.Errorw("unmarshal failed for hpa check", "err", err)
+					impl.logger.Errorw("ACD Get Resource API Failed", "err", err)
+					middleware.AcdGetResourceCounter.WithLabelValues(strconv.Itoa(appId), namespace, appName).Inc()
 					return merged
 				}
-				status := resourceManifest["status"]
-				statusMap := status.(map[string]interface{})
-				currentReplicaCount := statusMap["currentReplicas"].(float64)
-
-				if currentReplicaCount <= reqMaxReplicas && currentReplicaCount >= reqMinReplicas {
-					reqReplicaCount = currentReplicaCount
-				} else if currentReplicaCount > reqMaxReplicas {
-					reqReplicaCount = reqMaxReplicas
-				} else if currentReplicaCount < reqMinReplicas {
-					reqReplicaCount = reqMinReplicas
+				if recv != nil && len(*recv.Manifest) > 0 {
+					err := json.Unmarshal([]byte(*recv.Manifest), &resourceManifest)
+					if err != nil {
+						impl.logger.Errorw("unmarshal failed for hpa check", "err", err)
+						return merged
+					}
 				}
+			} else {
+				version = "v2beta2"
+				k8sResource, err := impl.k8sApplicationService.GetResource(ctx, &k8s.ResourceRequestBean{ClusterId: clusterId,
+					K8sRequest: &application3.K8sRequestBean{ResourceIdentifier: application3.ResourceIdentifier{Name: resourceName,
+						Namespace: namespace, GroupVersionKind: schema.GroupVersionKind{Group: group, Kind: kind, Version: version}}}})
+				if err != nil {
+					impl.logger.Errorw("error occurred while fetching resource for app", "resourceName", resourceName, "err", err)
+					return merged
+				}
+				resourceManifest = k8sResource.Manifest.Object
+			}
+			if len(resourceManifest) > 0 {
+				statusMap := resourceManifest["status"].(map[string]interface{})
+				currentReplicaVal := statusMap["currentReplicas"]
+				currentReplicaCount, err := util2.ParseFloatNumber(currentReplicaVal)
+				if err != nil {
+					impl.logger.Errorw("error occurred while parsing replica count", "currentReplicas", currentReplicaVal, "err", err)
+					return merged
+				}
+
+				reqReplicaCount = impl.fetchRequiredReplicaCount(currentReplicaCount, reqMaxReplicas, reqMinReplicas)
 				templateMap["replicaCount"] = reqReplicaCount
 				merged, err = json.Marshal(&templateMap)
 				if err != nil {
@@ -1942,10 +1968,92 @@ func (impl *AppServiceImpl) hpaCheckBeforeTrigger(ctx context.Context, appName s
 					return merged
 				}
 			}
+		} else {
+			impl.logger.Errorw("autoscaling is not enabled", "pipelineId", pipelineId)
+		}
+	}
+	//check for custom chart support
+	if autoscalingEnabledPath, ok := templateMap[bean2.CustomAutoScalingEnabledPathKey]; ok {
+		if deploymentType == models.DEPLOYMENTTYPE_STOP {
+			merged, err = impl.setScalingValues(templateMap, bean2.CustomAutoScalingEnabledPathKey, merged, false)
+			if err != nil {
+				return merged
+			}
+			merged, err = impl.setScalingValues(templateMap, bean2.CustomAutoscalingReplicaCountPathKey, merged, 0)
+			if err != nil {
+				return merged
+			}
+		} else {
+			autoscalingEnabled := false
+			autoscalingEnabledValue := gjson.Get(string(merged), autoscalingEnabledPath.(string)).Value()
+			if val, ok := autoscalingEnabledValue.(bool); ok {
+				autoscalingEnabled = val
+			}
+			if autoscalingEnabled {
+				// extract replica count, min, max and check for required value
+				replicaCount, err := impl.getReplicaCountFromCustomChart(templateMap, merged)
+				if err != nil {
+					return merged
+				}
+				merged, err = impl.setScalingValues(templateMap, bean2.CustomAutoscalingReplicaCountPathKey, merged, replicaCount)
+				if err != nil {
+					return merged
+				}
+			}
 		}
 	}
 
 	return merged
+}
+
+func (impl *AppServiceImpl) getReplicaCountFromCustomChart(templateMap map[string]interface{}, merged []byte) (float64, error) {
+	autoscalingMinVal, err := impl.extractParamValue(templateMap, bean2.CustomAutoscalingMinPathKey, merged)
+	if err != nil {
+		return 0, err
+	}
+	autoscalingMaxVal, err := impl.extractParamValue(templateMap, bean2.CustomAutoscalingMaxPathKey, merged)
+	if err != nil {
+		return 0, err
+	}
+	autoscalingReplicaCountVal, err := impl.extractParamValue(templateMap, bean2.CustomAutoscalingReplicaCountPathKey, merged)
+	if err != nil {
+		return 0, err
+	}
+	return impl.fetchRequiredReplicaCount(autoscalingReplicaCountVal, autoscalingMaxVal, autoscalingMinVal), nil
+}
+
+func (impl *AppServiceImpl) extractParamValue(inputMap map[string]interface{}, key string, merged []byte) (float64, error) {
+	if _, ok := inputMap[key]; !ok {
+		return 0, errors.New("empty-val-err")
+	}
+	floatNumber, err := util2.ParseFloatNumber(gjson.Get(string(merged), inputMap[key].(string)).Value())
+	if err != nil {
+		impl.logger.Errorw("error occurred while parsing float number", "key", key, "err", err)
+	}
+	return floatNumber, err
+}
+
+func (impl *AppServiceImpl) setScalingValues(templateMap map[string]interface{}, customScalingKey string, merged []byte, value interface{}) ([]byte, error) {
+	autoscalingJsonPath := templateMap[customScalingKey]
+	autoscalingJsonPathKey := autoscalingJsonPath.(string)
+	mergedRes, err := sjson.Set(string(merged), autoscalingJsonPathKey, value)
+	if err != nil {
+		impl.logger.Errorw("error occurred while setting autoscaling key", "JsonPathKey", autoscalingJsonPathKey, "err", err)
+		return []byte{}, err
+	}
+	return []byte(mergedRes), nil
+}
+
+func (impl *AppServiceImpl) fetchRequiredReplicaCount(currentReplicaCount float64, reqMaxReplicas float64, reqMinReplicas float64) float64 {
+	var reqReplicaCount float64
+	if currentReplicaCount <= reqMaxReplicas && currentReplicaCount >= reqMinReplicas {
+		reqReplicaCount = currentReplicaCount
+	} else if currentReplicaCount > reqMaxReplicas {
+		reqReplicaCount = reqMaxReplicas
+	} else if currentReplicaCount < reqMinReplicas {
+		reqReplicaCount = reqMinReplicas
+	}
+	return reqReplicaCount
 }
 
 func (impl *AppServiceImpl) CreateHistoriesForDeploymentTrigger(pipeline *pipelineConfig.Pipeline, strategy *chartConfig.PipelineStrategy, envOverride *chartConfig.EnvConfigOverride, renderedImageTemplate string, deployedOn time.Time, deployedBy int32) error {
