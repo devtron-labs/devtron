@@ -644,7 +644,6 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 	if triggeredByUser == nil {
 		triggeredByUser = &bean.UserInfo{EmailId: "anonymous"}
 	}
-
 	ciMaterials, err := impl.ciPipelineMaterialRepository.GetByPipelineId(workflowR.CdWorkflow.Pipeline.CiPipelineId)
 	if err != nil {
 		impl.Logger.Errorw("err", "err", err)
@@ -664,7 +663,21 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		}
 		ciMaterialsArr = append(ciMaterialsArr, res)
 	}
-	ciWf, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflowByArtifactId(workflow.CiArtifactId)
+	ciArtifactId := workflow.CiArtifactId
+	if ciArtifactId > 0 {
+		ciArtifact, err := impl.ciArtifactRepository.Get(ciArtifactId)
+		if err != nil {
+			impl.Logger.Errorw("error fetching artifact data", "err", err)
+			return WorkflowResponse{}, err
+		}
+
+		// handling linked ci pipeline
+		if ciArtifact.ParentCiArtifact > 0 && ciArtifact.WorkflowId == nil {
+			ciArtifactId = ciArtifact.ParentCiArtifact
+		}
+	}
+	ciWf, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflowByArtifactId(ciArtifactId)
+
 	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("error in fetching ci wf", "artifactId", workflow.CiArtifactId, "err", err)
 		return WorkflowResponse{}, err
@@ -673,6 +686,29 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 	if ciWf.GitTriggers != nil {
 		gitTriggers = ciWf.GitTriggers
 	}
+	//ciMaterials, err := impl.ciPipelineMaterialRepository.GetByPipelineId(workflowR.CdWorkflow.Pipeline.CiPipelineId)
+	//if ciWf.CiPipeline.ParentCiPipeline > 0 {
+	//	ciMaterials, err = impl.ciPipelineMaterialRepository.GetByPipelineId(ciWf.CiPipelineId)
+	//	if err != nil {
+	//		impl.Logger.Errorw("err", "err", err)
+	//		return WorkflowResponse{}, err
+	//	}
+	//
+	//}
+	//
+	//var ciMaterialsArr []CiPipelineMaterialResponse
+	//for _, m := range ciMaterials {
+	//	res := CiPipelineMaterialResponse{
+	//		Id:              m.Id,
+	//		GitMaterialId:   m.GitMaterialId,
+	//		GitMaterialName: m.GitMaterial.Name[strings.Index(m.GitMaterial.Name, "-")+1:],
+	//		Type:            string(m.Type),
+	//		Value:           m.Value,
+	//		Active:          m.Active,
+	//		Url:             m.GitMaterial.Url,
+	//	}
+	//	ciMaterialsArr = append(ciMaterialsArr, res)
+	//}
 
 	workflowResponse := WorkflowResponse{
 		Id:                 workflow.Id,
@@ -692,6 +728,7 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		BlobStorageEnabled: workflow.BlobStorageEnabled,
 	}
 	return workflowResponse, nil
+
 }
 
 func (impl *CdHandlerImpl) DownloadCdWorkflowArtifacts(pipelineId int, buildId int) (*os.File, error) {
