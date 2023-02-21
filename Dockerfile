@@ -32,7 +32,7 @@ RUN chown -R devtron:devtron ./scripts
 
 USER devtron
 
-CMD ["./devtron"]
+CMD ["pwd && ./devtron"]
 
 
 #FROM alpine:3.15.0 as  devtron-ea
