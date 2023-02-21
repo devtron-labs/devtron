@@ -291,6 +291,7 @@ type CiConfigRequest struct {
 	CreatedBy         int32                   `sql:"created_by,type:integer"`
 	UpdatedOn         time.Time               `sql:"updated_on,type:timestamptz"`
 	UpdatedBy         int32                   `sql:"updated_by,type:integer"`
+	IsJob             bool                    `json:"-"`
 }
 
 type TestExecutorImageProperties struct {
@@ -607,6 +608,7 @@ type AppMetaInfoDto struct {
 	CreatedOn   time.Time `json:"createdOn"`
 	Active      bool      `json:"active,notnull"`
 	Labels      []*Label  `json:"labels"`
+	Description string    `json:"description"`
 	UserId      int32     `json:"-"`
 }
 

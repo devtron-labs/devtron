@@ -59,10 +59,10 @@ type CiMaterialDTO struct {
 }
 
 type JobContainer struct {
-	AppId          int             `json:"app_id"`
-	AppName        string          `json:"app_name""`
+	AppId          int             `json:"appId"`
+	AppName        string          `json:"appName""`
 	Description    string          `json:"description"`
-	JobCiPipelines []JobCIPipeline `json:"ci_pipelines"'`
+	JobCiPipelines []JobCIPipeline `json:"ciPipelines"'`
 }
 
 type JobCIPipeline struct {
@@ -75,7 +75,7 @@ type JobCIPipeline struct {
 type JobListingContainer struct {
 	AppId          int       `json:"app_id"`
 	AppName        string    `json:"app_name"`
-	Description    string    `json:"-"`
+	Description    string    `json:"description"`
 	CiPipelineID   int       `json:"ci_pipeline_id"`
 	CiPipelineName string    `json:"ci_pipeline_name"`
 	Status         string    `json:"status"`

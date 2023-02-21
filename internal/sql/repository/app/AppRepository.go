@@ -46,6 +46,7 @@ type AppRepository interface {
 	Update(app *App) error
 	UpdateWithTxn(app *App, tx *pg.Tx) error
 	FindActiveByName(appName string) (pipelineGroup *App, err error)
+	FindJobByName(appName string) (pipelineGroup *App, err error)
 	FindActiveListByName(appName string) ([]*App, error)
 	FindById(id int) (pipelineGroup *App, err error)
 	FindAppsByTeamId(teamId int) ([]*App, error)
@@ -115,6 +116,17 @@ func (repo AppRepositoryImpl) FindActiveByName(appName string) (*App, error) {
 	err := repo.dbConnection.
 		Model(pipelineGroup).
 		Where("app_name = ?", appName).
+		Where("active = ?", true).
+		Order("id DESC").Limit(1).
+		Select()
+	// there is only single active app will be present in db with a same name.
+	return pipelineGroup, err
+}
+func (repo AppRepositoryImpl) FindJobByName(appName string) (*App, error) {
+	pipelineGroup := &App{}
+	err := repo.dbConnection.
+		Model(pipelineGroup).
+		Where("display_name = ?", appName).
 		Where("active = ?", true).
 		Order("id DESC").Limit(1).
 		Select()
@@ -259,7 +271,7 @@ func (repo AppRepositoryImpl) FindAllMatchesByAppName(appName string, isJob bool
 	if isJob {
 		appStore = 2
 	}
-	err := repo.dbConnection.Model(&apps).Where("app_name ILIKE ?", "%"+appName+"%").Where("active = ?", true).Where("app_store = ?", appStore).Select()
+	err := repo.dbConnection.Model(&apps).Where("display_name LIKE ?", "%"+appName+"%").Where("active = ?", true).Where("app_store = ?", appStore).Select()
 	return apps, err
 }
 
@@ -346,12 +358,12 @@ func (repo AppRepositoryImpl) FetchAppIdsWithFilter(jobListingFilter helper.AppL
 		Id int `json:"id"`
 	}
 	var appIds []AppId
-	orderByCondition := " order by app_name "
+	orderByCondition := " order by display_name "
 	if jobListingFilter.SortOrder == "DESC" {
 		orderByCondition += string(jobListingFilter.SortOrder)
 	}
 	orderByCondition += " limit ? offset ? "
-	whereCondition := " where app_name like ? and active = true and app_store = 2 "
+	whereCondition := " where display_name like ? and active = true and app_store = 2 "
 	if len(jobListingFilter.Teams) > 0 {
 		whereCondition += " and team_id in (" + helper.GetCommaSepratedString(jobListingFilter.Teams) + ")"
 	}

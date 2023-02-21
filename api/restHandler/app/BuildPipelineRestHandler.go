@@ -243,8 +243,10 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 		return
 	}
 
+	var emptyDockerRegistry string
 	if patchRequest.IsJob {
 		ciConfigRequest := bean.CiConfigRequest{}
+		ciConfigRequest.DockerRegistry = emptyDockerRegistry
 		ciConfigRequest.AppId = patchRequest.AppId
 		ciConfigRequest.CiBuildConfig = &bean1.CiBuildConfigBean{}
 		ciConfigRequest.CiBuildConfig.CiBuildType = "skip-build"
@@ -255,6 +257,7 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 			return
 		}
 		ciConfigRequest.CiBuildConfig.GitMaterialId = patchRequest.CiPipeline.CiMaterial[0].GitMaterialId
+		ciConfigRequest.IsJob = true
 		_, err = handler.pipelineBuilder.CreateCiPipeline(&ciConfigRequest)
 		if err != nil {
 			handler.Logger.Errorw("error occurred in creating ci-pipeline for the Job", "payload", ciConfigRequest, "err", err)

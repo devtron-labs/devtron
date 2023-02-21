@@ -82,11 +82,12 @@ func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 }
 
 type CloneRequest struct {
-	RefAppId  int           `json:"refAppId"`
-	Name      string        `json:"name"`
-	ProjectId int           `json:"projectId"`
-	AppLabels []*bean.Label `json:"labels,omitempty" validate:"dive"`
-	isJob     bool          `json:"isJob"`
+	RefAppId    int           `json:"refAppId"`
+	Name        string        `json:"name"`
+	ProjectId   int           `json:"projectId"`
+	AppLabels   []*bean.Label `json:"labels,omitempty" validate:"dive"`
+	Description string        `json:"description"`
+	isJob       bool          `json:"isJob"`
 }
 
 func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context context.Context) (*bean.CreateAppDTO, error) {
@@ -106,11 +107,12 @@ func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context 
 	}
 	//create new app
 	cloneReq := &CloneRequest{
-		RefAppId:  createReq.TemplateId,
-		Name:      createReq.AppName,
-		ProjectId: createReq.TeamId,
-		AppLabels: createReq.AppLabels,
-		isJob:     createReq.IsJob,
+		RefAppId:    createReq.TemplateId,
+		Name:        createReq.AppName,
+		ProjectId:   createReq.TeamId,
+		AppLabels:   createReq.AppLabels,
+		isJob:       createReq.IsJob,
+		Description: createReq.Description,
 	}
 	userId := createReq.UserId
 	appStatus, err := impl.appListingService.FetchAppStageStatus(cloneReq.RefAppId)
@@ -304,11 +306,12 @@ func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context 
 
 func (impl *AppCloneServiceImpl) CreateApp(cloneReq *CloneRequest, userId int32) (*bean.CreateAppDTO, error) {
 	createAppReq := &bean.CreateAppDTO{
-		AppName:   cloneReq.Name,
-		UserId:    userId,
-		TeamId:    cloneReq.ProjectId,
-		AppLabels: cloneReq.AppLabels,
-		IsJob:     cloneReq.isJob,
+		AppName:     cloneReq.Name,
+		UserId:      userId,
+		TeamId:      cloneReq.ProjectId,
+		AppLabels:   cloneReq.AppLabels,
+		IsJob:       cloneReq.isJob,
+		Description: cloneReq.Description,
 	}
 	createRes, err := impl.pipelineBuilder.CreateApp(createAppReq)
 	return createRes, err

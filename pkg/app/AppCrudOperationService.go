@@ -104,6 +104,7 @@ func (impl AppCrudOperationServiceImpl) UpdateApp(request *bean.CreateAppDTO) (*
 		impl.logger.Errorw("error in fetching app", "error", err)
 		return nil, err
 	}
+	app.Description = request.Description
 	app.TeamId = request.TeamId
 	app.UpdatedOn = time.Now()
 	app.UpdatedBy = request.UserId
@@ -313,15 +314,20 @@ func (impl AppCrudOperationServiceImpl) GetAppMetaInfo(appId int) (*bean.AppMeta
 			userEmailId = fmt.Sprintf("%s (inactive)", user.EmailId)
 		}
 	}
+	appName := app.AppName
+	if app.AppStore == 2 {
+		appName = app.DisplayName
+	}
 	info := &bean.AppMetaInfoDto{
 		AppId:       app.Id,
-		AppName:     app.AppName,
+		AppName:     appName,
 		ProjectId:   app.TeamId,
 		ProjectName: app.Team.Name,
 		CreatedBy:   userEmailId,
 		CreatedOn:   app.CreatedOn,
 		Labels:      labels,
 		Active:      app.Active,
+		Description: app.Description,
 	}
 	return info, nil
 }

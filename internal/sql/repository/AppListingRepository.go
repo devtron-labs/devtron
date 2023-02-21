@@ -90,7 +90,7 @@ func (impl AppListingRepositoryImpl) FetchJobs(appIds []int, statuses []string) 
 	jobsQuery := impl.appListingRepositoryQueryBuilder.BuildJobListingQuery(appIds, statuses)
 
 	impl.Logger.Debugw("basic app detail query: ", jobsQuery)
-	_, appsErr := impl.dbConnection.Query(&jobContainers, jobsQuery, pg.In(appIds))
+	_, appsErr := impl.dbConnection.Query(&jobContainers, jobsQuery)
 	if appsErr != nil {
 		impl.Logger.Error(appsErr)
 		return jobContainers, appsErr

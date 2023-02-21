@@ -839,7 +839,9 @@ func (impl CiCdPipelineOrchestratorImpl) CreateApp(createRequest *bean.CreateApp
 		return nil, err
 	}
 	createRequest.Id = app.Id
-	createRequest.AppName = app.DisplayName
+	if createRequest.IsJob {
+		createRequest.AppName = app.DisplayName
+	}
 	return createRequest, nil
 }
 
@@ -1009,6 +1011,22 @@ func (impl CiCdPipelineOrchestratorImpl) createAppGroup(name string, userId int3
 		}
 		return nil, err
 	}
+	if isJob {
+		job, err := impl.appRepository.FindJobByName(name)
+		if err != nil && err != pg.ErrNoRows {
+			return nil, err
+		}
+		if job != nil && job.Id > 0 {
+			impl.logger.Warnw("job already exists", "name", name)
+			err = &util.ApiError{
+				Code:            constants.AppAlreadyExists.Code,
+				InternalMessage: "job already exists",
+				UserMessage:     constants.AppAlreadyExists.UserMessage(name),
+			}
+			return nil, err
+		}
+	}
+
 	appStore := 0
 	displayName := name
 	appName := name
