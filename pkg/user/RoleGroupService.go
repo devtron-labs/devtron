@@ -19,6 +19,7 @@ package user
 
 import (
 	"fmt"
+	bean2 "github.com/devtron-labs/devtron/pkg/user/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"strings"
 	"time"
@@ -119,10 +120,10 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 				}
 			} else {
 				if roleFilter.EntityName == "" {
-					roleFilter.EntityName = "NONE"
+					roleFilter.EntityName = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
 				}
 				if roleFilter.Environment == "" {
-					roleFilter.Environment = "NONE"
+					roleFilter.Environment = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
 				}
 				actionType := roleFilter.Action
 
@@ -131,10 +132,10 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 				environments := strings.Split(roleFilter.Environment, ",")
 				for _, environment := range environments {
 					for _, entityName := range entityNames {
-						if entityName == "NONE" {
+						if entityName == bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER {
 							entityName = ""
 						}
-						if environment == "NONE" {
+						if environment == bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER {
 							environment = ""
 						}
 						roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, actionType, "", "", "", "", "", "")
@@ -144,22 +145,8 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 						if roleModel.Id == 0 {
 							//userInfo.Status = "role not fount for any given filter: " + roleFilter.Team + "," + roleFilter.Environment + "," + roleFilter.Application + "," + roleFilter.Action
 
-							if len(roleFilter.Team) > 0 && len(roleFilter.Environment) > 0 {
-
-								flag, err := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, "", "", "", "", "", "", tx, actionType, accessType)
-								if err != nil || flag == false {
-									return nil, err
-								}
-								roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "")
-								if err != nil {
-									return nil, err
-								}
-								if roleModel.Id == 0 {
-									request.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + actionType
-									continue
-								}
-							} else if len(roleFilter.Entity) > 0 {
-								flag, err := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes("", entityName, "", entity, "", "", "", "", "", tx, actionType, accessType)
+							if roleFilter.Entity == bean2.ENTITY_APPS || roleFilter.Entity == bean.CHART_GROUP_ENTITY {
+								flag, err := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType)
 								if err != nil || flag == false {
 									return nil, err
 								}
@@ -211,16 +198,16 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForClusterEntity(roleFil
 	managerAuth func(resource, token string, object string) bool, tx *pg.Tx) ([]casbin2.Policy, error) {
 	var policiesToBeAdded []casbin2.Policy
 	if roleFilter.Namespace == "" {
-		roleFilter.Namespace = "NONE"
+		roleFilter.Namespace = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
 	}
 	if roleFilter.Group == "" {
-		roleFilter.Group = "NONE"
+		roleFilter.Group = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
 	}
 	if roleFilter.Kind == "" {
-		roleFilter.Kind = "NONE"
+		roleFilter.Kind = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
 	}
 	if roleFilter.Resource == "" {
-		roleFilter.Resource = "NONE"
+		roleFilter.Resource = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
 	}
 	namespaces := strings.Split(roleFilter.Namespace, ",")
 	groups := strings.Split(roleFilter.Group, ",")
@@ -233,16 +220,16 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForClusterEntity(roleFil
 		for _, group := range groups {
 			for _, kind := range kinds {
 				for _, resource := range resources {
-					if namespace == "NONE" {
+					if namespace == bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER {
 						namespace = ""
 					}
-					if group == "NONE" {
+					if group == bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER {
 						group = ""
 					}
-					if kind == "NONE" {
+					if kind == bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER {
 						kind = ""
 					}
-					if resource == "NONE" {
+					if resource == bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER {
 						resource = ""
 					}
 					if managerAuth != nil {
@@ -256,7 +243,7 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForClusterEntity(roleFil
 						return policiesToBeAdded, err
 					}
 					if roleModel.Id == 0 {
-						flag, err := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes("", "", "", entity, roleFilter.Cluster, namespace, group, kind, resource, tx, actionType, accessType)
+						flag, err := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes("", "", "", entity, roleFilter.Cluster, namespace, group, kind, resource, actionType, accessType)
 						if err != nil || flag == false {
 							return policiesToBeAdded, err
 						}
@@ -363,10 +350,10 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 			}
 
 			if roleFilter.EntityName == "" {
-				roleFilter.EntityName = "NONE"
+				roleFilter.EntityName = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
 			}
 			if roleFilter.Environment == "" {
-				roleFilter.Environment = "NONE"
+				roleFilter.Environment = bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER
 			}
 			actionType := roleFilter.Action
 			accessType := roleFilter.AccessType
@@ -375,10 +362,10 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 			environments := strings.Split(roleFilter.Environment, ",")
 			for _, environment := range environments {
 				for _, entityName := range entityNames {
-					if entityName == "NONE" {
+					if entityName == bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER {
 						entityName = ""
 					}
-					if environment == "NONE" {
+					if environment == bean2.EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER {
 						environment = ""
 					}
 					roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "")
@@ -388,26 +375,12 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 					if roleModel.Id == 0 {
 						request.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + actionType
 
-						if len(roleFilter.Team) > 0 {
-
-							flag, err := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", tx, actionType, accessType)
+						if roleFilter.Entity == bean2.ENTITY_APPS || roleFilter.Entity == bean.CHART_GROUP_ENTITY {
+							flag, err := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType)
 							if err != nil || flag == false {
 								return nil, err
 							}
 							roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", actionType)
-							if err != nil {
-								return nil, err
-							}
-							if roleModel.Id == 0 {
-								request.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + actionType
-								continue
-							}
-						} else if len(roleFilter.Entity) > 0 {
-							flag, err := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes("", entityName, "", roleFilter.Entity, "", "", "", "", "", tx, actionType, accessType)
-							if err != nil || flag == false {
-								return nil, err
-							}
-							roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "")
 							if err != nil {
 								return nil, err
 							}

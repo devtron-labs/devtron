@@ -1,5 +1,64 @@
 
 
+UPDATE "public"."default_auth_role"
+SET role= '{
+    "role": "role:manager_{{.Team}}_{{.Env}}_{{.App}}",
+    "casbinSubjects": [
+        "role:manager_{{.Team}}_{{.Env}}_{{.App}}"
+    ],
+    "team": "{{.Team}}",
+    "entityName": "{{.App}}",
+    "environment": "{{.Env}}",
+    "action": "manager",
+    "entity": "{{.Entity}}",
+    "access_type": "devtron-app",
+}'
+WHERE role_type='manager' AND id=1;
+
+UPDATE "public"."default_auth_role"
+SET role= '{
+    "role": "role:admin_{{.Team}}_{{.Env}}_{{.App}}",
+    "casbinSubjects": [
+        "role:admin_{{.Team}}_{{.Env}}_{{.App}}"
+    ],
+    "team": "{{.Team}}",
+    "entityName": "{{.App}}",
+    "environment": "{{.Env}}",
+    "action": "admin",
+    "entity": "{{.Entity}}",
+    "access_type": "devtron-app"
+}'
+WHERE role_type='admin' AND id =2;
+
+UPDATE "public"."default_auth_role"
+SET role= '{
+    "role": "role:trigger_{{.Team}}_{{.Env}}_{{.App}}",
+    "casbinSubjects": [
+        "role:trigger_{{.Team}}_{{.Env}}_{{.App}}"
+    ],
+    "team": "{{.Team}}",
+    "entityName": "{{.App}}",
+    "environment": "{{.Env}}",
+    "action": "trigger",
+    "entity": "{{.Entity}}",
+    "access_type": "devtron-app"
+}'
+WHERE role_type='trigger' AND id =3;
+
+UPDATE "public"."default_auth_role"
+SET role= '{
+    "role": "role:view_{{.Team}}_{{.Env}}_{{.App}}",
+    "casbinSubjects": [
+        "role:view_{{.Team}}_{{.Env}}_{{.App}}"
+    ],
+    "team": "{{.Team}}",
+    "entityName": "{{.App}}",
+    "environment": "{{.Env}}",
+    "action": "view",
+    "entity": "{{.Entity}}",
+    "access_type": "devtron-app"
+}'
+WHERE role_type='view' AND id =4;
 
 ALTER TABLE "public"."default_auth_policy"
     ADD COLUMN access_type varchar(50);
@@ -178,6 +237,7 @@ INSERT INTO "public"."default_auth_role" ( "role_type", "role", "created_on", "c
     "entityName": "{{.App}}",
     "environment": "{{.Env}}",
     "action": "admin",
+    "entity": "{{.Entity}}",
     "accessType": "helm-app"
 }', 'now()', '1', 'now()', '1','helm-app','apps'),
                                                                                                                                  ( 'edit', '{
@@ -190,6 +250,7 @@ INSERT INTO "public"."default_auth_role" ( "role_type", "role", "created_on", "c
     "entityName": "{{.App}}",
     "environment": "{{.Env}}",
     "action": "edit",
+    "entity": "{{.Entity}}",
     "accessType": "helm-app"
 }', 'now()', '1', 'now()', '1','helm-app','apps'),
                                                                                                                                  ( 'view', '{
@@ -202,5 +263,18 @@ INSERT INTO "public"."default_auth_role" ( "role_type", "role", "created_on", "c
     "entityName": "{{.App}}",
     "environment": "{{.Env}}",
     "action": "view",
+    "entity": "{{.Entity}}",
     "accessType": "helm-app"
 }', 'now()', '1', 'now()', '1','helm-app','apps');
+
+
+
+
+UPDATE "public"."roles"
+SET entity='apps'
+WHERE access_type ='helm-app';
+
+UPDATE "public"."roles"
+SET entity = 'apps', access_type='devtron-app'
+WHERE access_type IS NULL AND entity IS NULL AND action != 'super-admin';
+

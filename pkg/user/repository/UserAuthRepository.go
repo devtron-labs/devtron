@@ -46,7 +46,7 @@ type UserAuthRepository interface {
 	GetUserRoleMappingByUserId(userId int32) ([]*UserRoleModel, error)
 	DeleteUserRoleMapping(userRoleModel *UserRoleModel, tx *pg.Tx) (bool, error)
 	DeleteUserRoleByRoleId(roleId int, tx *pg.Tx) error
-	CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource string, tx *pg.Tx, actionType, accessType string) (bool, error)
+	CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string) (bool, error)
 	CreateRoleForSuperAdminIfNotExists(tx *pg.Tx) (bool, error)
 	SyncOrchestratorToCasbin(team string, entityName string, env string, tx *pg.Tx) (bool, error)
 	UpdateTriggerPolicyForTerminalAccess() error
@@ -222,7 +222,7 @@ func (impl UserAuthRepositoryImpl) GetRolesByActionAndAccessType(action string, 
 	return models, nil
 }
 
-func (impl UserAuthRepositoryImpl) GetRoleByFilterForAllTypes(entity string, team string, app string, env string, act string, accessType string, cluster string, namespace string, group string, kind string, resource string, action string) (RoleModel, error) {
+func (impl UserAuthRepositoryImpl) GetRoleByFilterForAllTypes(entity, team, app, env, act, accessType, cluster, namespace, group, kind, resource, action string) (RoleModel, error) {
 	var model RoleModel
 	if entity == bean2.CLUSTER {
 
@@ -379,7 +379,15 @@ func (impl UserAuthRepositoryImpl) DeleteUserRoleByRoleId(roleId int, tx *pg.Tx)
 	return nil
 }
 
-func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team string, entityName string, env string, entity string, cluster string, namespace string, group string, kind string, resource string, tx *pg.Tx, actionType string, accessType string) (bool, error) {
+func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string) (bool, error) {
+	//not using txn from parent caller because of conflicts in fetching of transactional save
+	dbConnection := impl.dbConnection
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return false, err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
 
 	//for START in Casbin Object
 	teamObj := team
@@ -479,7 +487,10 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team string,
 	if err != nil && strings.Contains("duplicate key value violates unique constraint", err.Error()) {
 		return false, err
 	}
-
+	err = tx.Commit()
+	if err != nil {
+		return false, err
+	}
 	return true, nil
 }
 

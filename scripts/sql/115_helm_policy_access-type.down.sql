@@ -1,3 +1,64 @@
+
+UPDATE "public"."default_auth_role"
+SET role= '{
+    "role": "role:manager_{{.Team}}_{{.Env}}_{{.App}}",
+    "casbinSubjects": [
+        "role:manager_{{.Team}}_{{.Env}}_{{.App}}"
+    ],
+    "team": "{{.Team}}",
+    "entityName": "{{.App}}",
+    "environment": "{{.Env}}",
+    "action": "manager",
+    "access_type": "",
+}'
+WHERE role_type='manager' AND id=1;
+
+UPDATE "public"."default_auth_role"
+SET role= '{
+    "role": "role:admin_{{.Team}}_{{.Env}}_{{.App}}",
+    "casbinSubjects": [
+        "role:admin_{{.Team}}_{{.Env}}_{{.App}}"
+    ],
+    "team": "{{.Team}}",
+    "entityName": "{{.App}}",
+    "environment": "{{.Env}}",
+    "action": "admin",
+    "access_type": ""
+}'
+WHERE role_type='admin' AND id =2;
+
+UPDATE "public"."default_auth_role"
+SET role= '{
+    "role": "role:trigger_{{.Team}}_{{.Env}}_{{.App}}",
+    "casbinSubjects": [
+        "role:trigger_{{.Team}}_{{.Env}}_{{.App}}"
+    ],
+    "team": "{{.Team}}",
+    "entityName": "{{.App}}",
+    "environment": "{{.Env}}",
+    "action": "trigger",
+    "access_type": ""
+}'
+WHERE role_type='trigger' AND id =3;
+
+UPDATE "public"."default_auth_role"
+SET role= '{
+    "role": "role:view_{{.Team}}_{{.Env}}_{{.App}}",
+    "casbinSubjects": [
+        "role:view_{{.Team}}_{{.Env}}_{{.App}}"
+    ],
+    "team": "{{.Team}}",
+    "entityName": "{{.App}}",
+    "environment": "{{.Env}}",
+    "action": "view",
+    "access_type": ""
+}'
+WHERE role_type='view' AND id =4;
+
+
+
+
+
 DELETE FROM "public"."default_auth_role"
 WHERE access_type='helm-app' AND entity ='apps';
 
@@ -64,5 +125,15 @@ DROP COLUMN access_type;
 
 ALTER TABLE "public"."default_auth_policy"
 DROP COLUMN entity;
+
+
+UPDATE "public"."roles"
+SET entity=''
+WHERE access_type ='helm-app' ;
+
+UPDATE "public"."roles"
+SET entity = '', access_type = ''
+WHERE access_type = 'devtron-app' AND entity = 'apps' AND (action = 'view'|| action = 'trigger'|| action = 'manager'|| action = 'admin');
+
 
 
