@@ -915,7 +915,7 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 			CreatedOn: originalCiConf.CreatedOn,
 			CreatedBy: originalCiConf.CreatedBy,
 			UpdatedOn: time.Now(),
-			UpdatedBy: originalCiConf.UpdatedBy,
+			UpdatedBy: updateRequest.UpdatedBy,
 		},
 	}
 
