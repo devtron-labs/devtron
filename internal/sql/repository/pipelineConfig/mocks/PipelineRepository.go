@@ -14,6 +14,11 @@ type PipelineRepository struct {
 	mock.Mock
 }
 
+func (_m *PipelineRepository) FindActiveByAppIds(appIds []int) (pipelines []*pipelineConfig.Pipeline, err error) {
+	//
+	return nil, err
+}
+
 // Delete provides a mock function with given fields: id, tx
 func (_m *PipelineRepository) Delete(id int, tx *pg.Tx) error {
 	ret := _m.Called(id, tx)

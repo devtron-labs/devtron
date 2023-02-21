@@ -37,6 +37,7 @@ type DevtronAppDeploymentRestHandler interface {
 
 	IsReadyToTrigger(w http.ResponseWriter, r *http.Request)
 	FetchCdWorkflowDetails(w http.ResponseWriter, r *http.Request)
+	GetCdPipelinesByEnvironment(w http.ResponseWriter, r *http.Request)
 }
 
 type DevtronAppDeploymentConfigRestHandler interface {
@@ -1644,13 +1645,7 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelineById(w http.ResponseWr
 		return
 	}
 
-	envId, err := handler.pipelineBuilder.GetEnvironmentByCdPipelineId(pipelineId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	envObject := handler.enforcerUtil.GetEnvRBACNameByCdPipelineIdAndEnvId(pipelineId, envId)
+	envObject := handler.enforcerUtil.GetEnvRBACNameByCdPipelineIdAndEnvId(pipelineId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, envObject); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
@@ -1939,4 +1934,44 @@ func (handler PipelineConfigRestHandlerImpl) UpgradeForAllApps(w http.ResponseWr
 	}
 	response["failed"] = failedIds
 	common.WriteJsonResp(w, err, response, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) GetCdPipelinesByEnvironment(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	user, err := handler.userAuthService.GetById(userId)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	userEmailId := strings.ToLower(user.EmailId)
+	envId, err := strconv.Atoi(vars["envId"])
+	if err != nil {
+		handler.Logger.Errorw("request err, GetCdPipelines", "err", err, "envId", envId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	results, err := handler.pipelineBuilder.GetCdPipelinesByEnvironment(envId, userEmailId, handler.checkAuthBatch)
+	if err != nil {
+		handler.Logger.Errorw("service err, GetCdPipelines", "err", err, "envId", envId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, results, http.StatusOK)
+}
+
+func (handler *PipelineConfigRestHandlerImpl) checkAuthBatch(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool) {
+	var appResult map[string]bool
+	var envResult map[string]bool
+	if len(appObject) > 0 {
+		appResult = handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceApplications, casbin.ActionGet, appObject)
+	}
+	if len(envObject) > 0 {
+		envResult = handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceEnvironment, casbin.ActionGet, envObject)
+	}
+	return appResult, envResult
 }

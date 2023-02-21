@@ -27,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
@@ -34,6 +35,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
+	"github.com/devtron-labs/devtron/util/rbac"
 	"net/http"
 	"net/url"
 	"sort"
@@ -131,6 +133,11 @@ type PipelineBuilder interface {
 	DeleteCiPipeline(request *bean.CiPatchRequest) (*bean.CiPipeline, error)
 	IsGitOpsRequiredForCD(pipelineCreateRequest *bean.CdPipelines) bool
 	SetPipelineDeploymentAppType(pipelineCreateRequest *bean.CdPipelines, isGitOpsConfigured bool)
+	GetCiPipelineByEnvironment(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*bean.CiConfigRequest, error)
+	GetCdPipelinesByEnvironment(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) (cdPipelines *bean.CdPipelines, err error)
+	GetExternalCiByEnvironment(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) (ciConfig []*bean.ExternalCiConfig, err error)
+	GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) (*cluster.AppGroupingResponse, error)
+	GetAppListForEnvironment(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*AppBean, error)
 }
 
 type PipelineBuilderImpl struct {
@@ -186,6 +193,7 @@ type PipelineBuilderImpl struct {
 	deploymentConfig                                *DeploymentServiceTypeConfig
 	appStatusRepository                             appStatus.AppStatusRepository
 	workflowDagExecutor                             WorkflowDagExecutor
+	enforcerUtil                                    rbac.EnforcerUtil
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -232,7 +240,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	globalStrategyMetadataRepository chartRepoRepository.GlobalStrategyMetadataRepository,
 	globalStrategyMetadataChartRefMappingRepository chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepository,
 	deploymentConfig *DeploymentServiceTypeConfig, appStatusRepository appStatus.AppStatusRepository,
-	workflowDagExecutor WorkflowDagExecutor) *PipelineBuilderImpl {
+	workflowDagExecutor WorkflowDagExecutor,
+	enforcerUtil rbac.EnforcerUtil) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                        logger,
 		ciCdPipelineOrchestrator:      ciCdPipelineOrchestrator,
@@ -286,6 +295,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		deploymentConfig:                                deploymentConfig,
 		appStatusRepository:                             appStatusRepository,
 		workflowDagExecutor:                             workflowDagExecutor,
+		enforcerUtil:                                    enforcerUtil,
 	}
 }
 
@@ -3401,4 +3411,451 @@ func (impl PipelineBuilderImpl) buildResponses() []bean.ResponseSchemaObject {
 	responseSchemaObjects = append(responseSchemaObjects, response400)
 	responseSchemaObjects = append(responseSchemaObjects, response401)
 	return responseSchemaObjects
+}
+
+func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*bean.CiConfigRequest, error) {
+	ciPipelines, err := impl.pipelineRepository.FindActiveByEnvId(envId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error fetching pipelines for env id", "err", err)
+		return nil, err
+	}
+	var appIds []int
+	//authorization block starts here
+	var appObjectArr []string
+	rbacObjectMap := make(map[int][]string)
+	for _, pipeline := range ciPipelines {
+		appObject := impl.enforcerUtil.GetAppRBACName(pipeline.App.AppName)
+		appObjectArr = append(appObjectArr, appObject)
+		rbacObjectMap[pipeline.Id] = []string{appObject, ""}
+	}
+	appResults, _ := checkAuthBatch(emailId, appObjectArr, []string{}) //here only app permission need to check
+	for _, pipeline := range ciPipelines {
+		appObject := rbacObjectMap[pipeline.Id][0]
+		if !appResults[appObject] {
+			//if user unauthorized, skip items
+			continue
+		}
+		appIds = append(appIds, pipeline.AppId)
+	}
+	//authorization block ends here
+
+	ciConfigs := make([]*bean.CiConfigRequest, 0)
+	var ciPipelineResp []*bean.CiPipeline
+	for _, appId := range appIds {
+		ciConfig, err := impl.getCiTemplateVariables(appId)
+		if err != nil {
+			impl.logger.Debugw("error in fetching ci pipeline", "appId", appId, "err", err)
+			return nil, err
+		}
+		//TODO fill these variables
+		//--------pipeline population start
+		ciPipelines, err := impl.ciPipelineRepository.FindByAppId(appId)
+		if err != nil && !util.IsErrNoRows(err) {
+			impl.logger.Errorw("error in fetching ci pipeline", "appId", appId, "err", err)
+			return nil, err
+		}
+
+		if impl.ciConfig.ExternalCiWebhookUrl == "" {
+			hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+			if err != nil {
+				return nil, err
+			}
+			if hostUrl != nil {
+				impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/%s", hostUrl.Value, ExternalCiWebhookPath)
+			}
+		}
+		//map of ciPipelineId and their templateOverrideConfig
+		ciOverrideTemplateMap := make(map[int]*bean3.CiTemplateBean)
+		ciTemplateBeanOverrides, err := impl.ciTemplateService.FindTemplateOverrideByAppId(appId)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, templateBeanOverride := range ciTemplateBeanOverrides {
+			ciTemplateOverride := templateBeanOverride.CiTemplateOverride
+			ciOverrideTemplateMap[ciTemplateOverride.CiPipelineId] = templateBeanOverride
+		}
+		for _, pipeline := range ciPipelines {
+
+			dockerArgs := make(map[string]string)
+			if len(pipeline.DockerArgs) > 0 {
+				err := json.Unmarshal([]byte(pipeline.DockerArgs), &dockerArgs)
+				if err != nil {
+					impl.logger.Warnw("error in unmarshal", "err", err)
+				}
+			}
+
+			var externalCiConfig bean.ExternalCiConfig
+
+			ciPipelineScripts, err := impl.ciPipelineRepository.FindCiScriptsByCiPipelineId(pipeline.Id)
+			if err != nil && !util.IsErrNoRows(err) {
+				impl.logger.Errorw("error in fetching ci scripts")
+				return nil, err
+			}
+
+			var beforeDockerBuildScripts []*bean.CiScript
+			var afterDockerBuildScripts []*bean.CiScript
+			for _, ciScript := range ciPipelineScripts {
+				ciScriptResp := &bean.CiScript{
+					Id:             ciScript.Id,
+					Index:          ciScript.Index,
+					Name:           ciScript.Name,
+					Script:         ciScript.Script,
+					OutputLocation: ciScript.OutputLocation,
+				}
+				if ciScript.Stage == BEFORE_DOCKER_BUILD {
+					beforeDockerBuildScripts = append(beforeDockerBuildScripts, ciScriptResp)
+				} else if ciScript.Stage == AFTER_DOCKER_BUILD {
+					afterDockerBuildScripts = append(afterDockerBuildScripts, ciScriptResp)
+				}
+			}
+			parentCiPipeline, err := impl.ciPipelineRepository.FindById(pipeline.ParentCiPipeline)
+			if err != nil && !util.IsErrNoRows(err) {
+				impl.logger.Errorw("err", err)
+				return nil, err
+			}
+			ciPipeline := &bean.CiPipeline{
+				Id:                       pipeline.Id,
+				Version:                  pipeline.Version,
+				Name:                     pipeline.Name,
+				Active:                   pipeline.Active,
+				Deleted:                  pipeline.Deleted,
+				DockerArgs:               dockerArgs,
+				IsManual:                 pipeline.IsManual,
+				IsExternal:               pipeline.IsExternal,
+				ParentCiPipeline:         pipeline.ParentCiPipeline,
+				ParentAppId:              parentCiPipeline.AppId,
+				ExternalCiConfig:         externalCiConfig,
+				BeforeDockerBuildScripts: beforeDockerBuildScripts,
+				AfterDockerBuildScripts:  afterDockerBuildScripts,
+				ScanEnabled:              pipeline.ScanEnabled,
+				IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
+			}
+			if ciTemplateBean, ok := ciOverrideTemplateMap[pipeline.Id]; ok {
+				templateOverride := ciTemplateBean.CiTemplateOverride
+				ciPipeline.DockerConfigOverride = bean.DockerConfigOverride{
+					DockerRegistry:   templateOverride.DockerRegistryId,
+					DockerRepository: templateOverride.DockerRepository,
+					CiBuildConfig:    ciTemplateBean.CiBuildConfig,
+				}
+			}
+			for _, material := range pipeline.CiPipelineMaterials {
+				// ignore those materials which have inactive git material
+				if material == nil || material.GitMaterial == nil || !material.GitMaterial.Active {
+					continue
+				}
+				ciMaterial := &bean.CiMaterial{
+					Id:              material.Id,
+					CheckoutPath:    material.CheckoutPath,
+					Path:            material.Path,
+					ScmId:           material.ScmId,
+					GitMaterialId:   material.GitMaterialId,
+					GitMaterialName: material.GitMaterial.Name[strings.Index(material.GitMaterial.Name, "-")+1:],
+					ScmName:         material.ScmName,
+					ScmVersion:      material.ScmVersion,
+					IsRegex:         material.Regex != "",
+					Source:          &bean.SourceTypeConfig{Type: material.Type, Value: material.Value, Regex: material.Regex},
+				}
+				ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, ciMaterial)
+			}
+			linkedCis, err := impl.ciPipelineRepository.FindByParentCiPipelineId(ciPipeline.Id)
+			if err != nil && !util.IsErrNoRows(err) {
+				return nil, err
+			}
+			ciPipeline.LinkedCount = len(linkedCis)
+			ciPipelineResp = append(ciPipelineResp, ciPipeline)
+		}
+		ciConfig.CiPipelines = ciPipelineResp
+		ciConfigs = append(ciConfigs, ciConfig)
+	}
+	//--------pipeline population end
+	return ciConfigs, err
+}
+
+func (impl PipelineBuilderImpl) GetCdPipelinesByEnvironment(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) (cdPipelines *bean.CdPipelines, err error) {
+	cdPipelines, err = impl.ciCdPipelineOrchestrator.GetCdPipelinesForEnv(envId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching pipeline", "err", err)
+		return cdPipelines, err
+	}
+
+	//authorization block starts here
+	var envObjectArr []string
+	var appObjectArr []string
+	rbacObjectMap := make(map[int][]string)
+	for _, dbPipeline := range cdPipelines.Pipelines {
+		appObject := impl.enforcerUtil.GetAppRBACName(dbPipeline.AppName)
+		envObject := impl.enforcerUtil.GetEnvRBACNameByCdPipelineIdAndEnvId(dbPipeline.Id)
+		appObjectArr = append(appObjectArr, appObject)
+		envObjectArr = append(envObjectArr, envObject)
+		rbacObjectMap[dbPipeline.Id] = []string{appObject, envObject}
+	}
+	//authorization block ends here
+	appResults, envResults := checkAuthBatch(emailId, appObjectArr, envObjectArr)
+	var pipelines []*bean.CDPipelineConfigObject
+	for _, dbPipeline := range cdPipelines.Pipelines {
+		appObject := rbacObjectMap[dbPipeline.Id][0]
+		envObject := rbacObjectMap[dbPipeline.Id][1]
+		if !(appResults[appObject] && envResults[envObject]) {
+			//if user unauthorized, skip items
+			continue
+		}
+		environment, err := impl.environmentRepository.FindById(dbPipeline.EnvironmentId)
+		if err != nil && errors.IsNotFound(err) {
+			impl.logger.Errorw("error in fetching pipeline", "err", err)
+			return cdPipelines, err
+		}
+		strategies, err := impl.pipelineConfigRepository.GetAllStrategyByPipelineId(dbPipeline.Id)
+		if err != nil && errors.IsNotFound(err) {
+			impl.logger.Errorw("error in fetching strategies", "err", err)
+			return cdPipelines, err
+		}
+		var strategiesBean []bean.Strategy
+		var deploymentTemplate chartRepoRepository.DeploymentStrategy
+		for _, item := range strategies {
+			strategiesBean = append(strategiesBean, bean.Strategy{
+				Config:             []byte(item.Config),
+				DeploymentTemplate: item.Strategy,
+				Default:            item.Default,
+			})
+			if item.Default {
+				deploymentTemplate = item.Strategy
+			}
+		}
+		appWorkflowMapping, err := impl.appWorkflowRepository.FindWFCDMappingByCDPipelineId(dbPipeline.Id)
+		if err != nil && errors.IsNotFound(err) {
+			impl.logger.Errorw("error in fetching workflows", "err", err)
+			return nil, err
+		}
+		pipeline := &bean.CDPipelineConfigObject{
+			Id:                            dbPipeline.Id,
+			Name:                          dbPipeline.Name,
+			EnvironmentId:                 dbPipeline.EnvironmentId,
+			EnvironmentName:               environment.Name,
+			CiPipelineId:                  dbPipeline.CiPipelineId,
+			DeploymentTemplate:            deploymentTemplate,
+			TriggerType:                   dbPipeline.TriggerType,
+			Strategies:                    strategiesBean,
+			PreStage:                      dbPipeline.PreStage,
+			PostStage:                     dbPipeline.PostStage,
+			PreStageConfigMapSecretNames:  dbPipeline.PreStageConfigMapSecretNames,
+			PostStageConfigMapSecretNames: dbPipeline.PostStageConfigMapSecretNames,
+			RunPreStageInEnv:              dbPipeline.RunPreStageInEnv,
+			RunPostStageInEnv:             dbPipeline.RunPostStageInEnv,
+			DeploymentAppType:             dbPipeline.DeploymentAppType,
+			ParentPipelineType:            appWorkflowMapping.ParentType,
+			ParentPipelineId:              appWorkflowMapping.ParentId,
+		}
+		pipelines = append(pipelines, pipeline)
+	}
+	cdPipelines.Pipelines = pipelines
+	return cdPipelines, err
+}
+
+func (impl PipelineBuilderImpl) GetExternalCiByEnvironment(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) (ciConfig []*bean.ExternalCiConfig, err error) {
+	externalCiConfigs := make([]*bean.ExternalCiConfig, 0)
+	pipelines, err := impl.pipelineRepository.FindActiveByEnvId(envId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error fetching pipelines for env id", "err", err)
+		return nil, err
+	}
+	var appIds []int
+	//authorization block starts here
+	var appObjectArr []string
+	rbacObjectMap := make(map[int][]string)
+	for _, pipeline := range pipelines {
+		appObject := impl.enforcerUtil.GetAppRBACName(pipeline.App.AppName)
+		appObjectArr = append(appObjectArr, appObject)
+		rbacObjectMap[pipeline.Id] = []string{appObject, ""}
+	}
+	appResults, _ := checkAuthBatch(emailId, appObjectArr, []string{})
+	for _, pipeline := range pipelines {
+		appObject := rbacObjectMap[pipeline.Id][0]
+		if !appResults[appObject] {
+			//if user unauthorized, skip items
+			continue
+		}
+		appIds = append(appIds, pipeline.AppId)
+	}
+	//authorization block ends here
+	if len(appIds) == 0 {
+		impl.logger.Warnw("there is no app id found for fetching external ci pipelines", "envId", envId)
+		return externalCiConfigs, nil
+	}
+	externalCiPipelines, err := impl.ciPipelineRepository.FindExternalCiByAppIds(appIds)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.logger.Errorw("error in fetching external ci", "envId", envId, "err", err)
+		return nil, err
+	}
+	hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+	if err != nil {
+		impl.logger.Errorw("error in fetching external ci", "envId", envId, "err", err)
+		return nil, err
+	}
+	if hostUrl != nil {
+		impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/%s", hostUrl.Value, ExternalCiWebhookPath)
+	}
+
+	for _, externalCiPipeline := range externalCiPipelines {
+		externalCiConfig := &bean.ExternalCiConfig{
+			Id:         externalCiPipeline.Id,
+			WebhookUrl: fmt.Sprintf("%s/%d", impl.ciConfig.ExternalCiWebhookUrl, externalCiPipeline.Id),
+			Payload:    impl.ciConfig.ExternalCiPayload,
+			AccessKey:  "",
+		}
+
+		appWorkflowMappings, err := impl.appWorkflowRepository.FindWFCDMappingByExternalCiId(externalCiPipeline.Id)
+		if err != nil && !util.IsErrNoRows(err) {
+			impl.logger.Errorw("error in fetching external ci", "envId", envId, "err", err)
+			return nil, err
+		}
+
+		roleData := make(map[string]interface{})
+		for _, appWorkflowMapping := range appWorkflowMappings {
+			cdPipeline, err := impl.pipelineRepository.FindById(appWorkflowMapping.ComponentId)
+			if err != nil && !util.IsErrNoRows(err) {
+				impl.logger.Errorw("error in fetching external ci", "envId", envId, "err", err)
+				return nil, err
+			}
+			if _, ok := roleData[teamIdKey]; !ok {
+				app, err := impl.appRepo.FindAppAndProjectByAppId(cdPipeline.AppId)
+				if err != nil && !util.IsErrNoRows(err) {
+					impl.logger.Errorw("error in fetching external ci", "envId", envId, "err", err)
+					return nil, err
+				}
+				roleData[teamIdKey] = app.TeamId
+				roleData[teamNameKey] = app.Team.Name
+				roleData[appIdKey] = cdPipeline.AppId
+				roleData[appNameKey] = cdPipeline.App.AppName
+			}
+			if _, ok := roleData[environmentNameKey]; !ok {
+				roleData[environmentNameKey] = cdPipeline.Environment.Name
+			} else {
+				roleData[environmentNameKey] = fmt.Sprintf("%s,%s", roleData[environmentNameKey], cdPipeline.Environment.Name)
+			}
+			if _, ok := roleData[environmentIdentifierKey]; !ok {
+				roleData[environmentIdentifierKey] = cdPipeline.Environment.EnvironmentIdentifier
+			} else {
+				roleData[environmentIdentifierKey] = fmt.Sprintf("%s,%s", roleData[environmentIdentifierKey], cdPipeline.Environment.EnvironmentIdentifier)
+			}
+		}
+
+		externalCiConfig.ExternalCiConfigRole = bean.ExternalCiConfigRole{
+			ProjectId:             roleData[teamIdKey].(int),
+			ProjectName:           roleData[teamNameKey].(string),
+			AppId:                 roleData[appIdKey].(int),
+			AppName:               roleData[appNameKey].(string),
+			EnvironmentName:       roleData[environmentNameKey].(string),
+			EnvironmentIdentifier: roleData[environmentIdentifierKey].(string),
+			Role:                  "Build and deploy",
+		}
+		externalCiConfigs = append(externalCiConfigs, externalCiConfig)
+	}
+	//--------pipeline population end
+	return externalCiConfigs, err
+}
+
+func (impl PipelineBuilderImpl) GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) (*cluster.AppGroupingResponse, error) {
+	result := &cluster.AppGroupingResponse{}
+	var models []*repository2.Environment
+	var beans []cluster.EnvironmentBean
+	var err error
+	if len(envName) > 0 && len(clusterIds) > 0 {
+		models, err = impl.environmentRepository.FindByEnvNameAndClusterIds(envName, clusterIds)
+	} else if len(clusterIds) > 0 {
+		models, err = impl.environmentRepository.FindByClusterIdsWithFilter(clusterIds)
+	} else if len(envName) > 0 {
+		models, err = impl.environmentRepository.FindByEnvName(envName)
+	} else {
+		models, err = impl.environmentRepository.FindAllActiveWithFilter()
+	}
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching environment", "err", err)
+		return result, err
+	}
+	for _, model := range models {
+		environment := cluster.EnvironmentBean{
+			Id:                    model.Id,
+			Environment:           model.Name,
+			Namespace:             model.Namespace,
+			CdArgoSetup:           model.Cluster.CdArgoSetup,
+			EnvironmentIdentifier: model.EnvironmentIdentifier,
+			ClusterName:           model.Cluster.ClusterName,
+		}
+		pipelines, err := impl.pipelineRepository.FindActiveByEnvId(model.Id)
+		if err != nil && err != pg.ErrNoRows {
+			return result, err
+		}
+		appCount := 0
+		//authorization block starts here
+		var envObjectArr []string
+		var appObjectArr []string
+		rbacObjectMap := make(map[int][]string)
+		for _, pipeline := range pipelines {
+			appObject := impl.enforcerUtil.GetAppRBACName(pipeline.App.AppName)
+			envObject := impl.enforcerUtil.GetEnvRBACNameByCdPipelineIdAndEnvId(pipeline.Id)
+			appObjectArr = append(appObjectArr, appObject)
+			envObjectArr = append(envObjectArr, envObject)
+			rbacObjectMap[pipeline.Id] = []string{appObject, envObject}
+		}
+		appResults, envResults := checkAuthBatch(emailId, appObjectArr, envObjectArr)
+		for _, pipeline := range pipelines {
+			appObject := rbacObjectMap[pipeline.Id][0]
+			envObject := rbacObjectMap[pipeline.Id][1]
+			if !(appResults[appObject] && envResults[envObject]) {
+				//if user unauthorized, skip items
+				continue
+			}
+			appCount = appCount + 1
+		}
+		//authorization block ends here
+		environment.AppCount = appCount
+		beans = append(beans, environment)
+	}
+
+	envCount := len(beans)
+	// Apply pagination
+	if size > 0 {
+		if offset+size <= len(beans) {
+			beans = beans[offset : offset+size]
+		} else {
+			beans = beans[offset:]
+		}
+	}
+	result.EnvList = beans
+	result.EnvCount = envCount
+	return result, nil
+}
+
+func (impl PipelineBuilderImpl) GetAppListForEnvironment(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*AppBean, error) {
+	var appsRes []*AppBean
+	pipelines, err := impl.pipelineRepository.FindActiveByEnvId(envId)
+	if err != nil {
+		impl.logger.Errorw("error while fetching app", "err", err)
+		return nil, err
+	}
+
+	//authorization block starts here
+	var envObjectArr []string
+	var appObjectArr []string
+	rbacObjectMap := make(map[int][]string)
+	for _, pipeline := range pipelines {
+		appObject := impl.enforcerUtil.GetAppRBACName(pipeline.App.AppName)
+		envObject := impl.enforcerUtil.GetEnvRBACNameByCdPipelineIdAndEnvId(pipeline.Id)
+		appObjectArr = append(appObjectArr, appObject)
+		envObjectArr = append(envObjectArr, envObject)
+		rbacObjectMap[pipeline.Id] = []string{appObject, envObject}
+	}
+	appResults, envResults := checkAuthBatch(emailId, appObjectArr, envObjectArr)
+	for _, pipeline := range pipelines {
+		appObject := rbacObjectMap[pipeline.Id][0]
+		envObject := rbacObjectMap[pipeline.Id][1]
+		if !(appResults[appObject] && envResults[envObject]) {
+			//if user unauthorized, skip items
+			continue
+		}
+		appsRes = append(appsRes, &AppBean{Id: pipeline.AppId, Name: pipeline.App.AppName})
+	}
+	//authorization block ends here
+	return appsRes, err
 }
