@@ -42,6 +42,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/user"
+	util3 "github.com/devtron-labs/devtron/util"
 	util2 "github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -632,11 +633,12 @@ func (impl *CiHandlerImpl) DownloadCiWorkflowArtifacts(pipelineId int, buildId i
 
 	key := fmt.Sprintf("%s/"+impl.ciConfig.CiArtifactLocationFormat, impl.ciConfig.DefaultArtifactKeyPrefix, ciWorkflow.Id, ciWorkflow.Id)
 
+	baseLogLocationPathConfig := util3.GetBaseLogLocationPath(impl.Logger)
 	blobStorageService := blob_storage.NewBlobStorageServiceImpl(nil)
 	request := &blob_storage.BlobStorageRequest{
 		StorageType:         impl.ciConfig.CloudProvider,
 		SourceKey:           key,
-		DestinationKey:      item,
+		DestinationKey:      baseLogLocationPathConfig + item,
 		AzureBlobBaseConfig: azureBlobConfig,
 		AwsS3BaseConfig:     awsS3BaseConfig,
 		GcpBlobBaseConfig:   gcpBlobBaseConfig,

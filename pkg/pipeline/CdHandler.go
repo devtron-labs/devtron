@@ -754,11 +754,12 @@ func (impl *CdHandlerImpl) DownloadCdWorkflowArtifacts(pipelineId int, buildId i
 		CredentialFileJsonData: impl.ciConfig.BlobStorageGcpCredentialJson,
 	}
 	key := fmt.Sprintf("%s/"+impl.cdConfig.CdArtifactLocationFormat, impl.cdConfig.DefaultArtifactKeyPrefix, wfr.CdWorkflow.Id, wfr.Id)
+	baseLogLocationPathConfig := util3.GetBaseLogLocationPath(impl.Logger)
 	blobStorageService := blob_storage.NewBlobStorageServiceImpl(nil)
 	request := &blob_storage.BlobStorageRequest{
 		StorageType:         impl.ciConfig.CloudProvider,
 		SourceKey:           key,
-		DestinationKey:      item,
+		DestinationKey:      baseLogLocationPathConfig + item,
 		AzureBlobBaseConfig: azureBlobBaseConfig,
 		AwsS3BaseConfig:     awsS3BaseConfig,
 		GcpBlobBaseConfig:   gcpBlobBaseConfig,

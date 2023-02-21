@@ -21,6 +21,7 @@ import (
 	"context"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	"github.com/devtron-labs/devtron/internal/util"
+	util1 "github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
 	"io"
 	v12 "k8s.io/api/core/v1"
@@ -115,8 +116,8 @@ func (impl *CiLogServiceImpl) FetchRunningWorkflowLogs(ciLogRequest BuildLogRequ
 }
 
 func (impl *CiLogServiceImpl) FetchLogs(logRequest BuildLogRequest) (*os.File, func() error, error) {
-
-	tempFile := logRequest.PodName + ".log"
+	baseLogLocationPathConfig := util1.GetBaseLogLocationPath(impl.logger)
+	tempFile := baseLogLocationPathConfig + logRequest.PodName + ".log"
 	blobStorageService := blob_storage.NewBlobStorageServiceImpl(nil)
 	request := &blob_storage.BlobStorageRequest{
 		StorageType:         logRequest.CloudProvider,
