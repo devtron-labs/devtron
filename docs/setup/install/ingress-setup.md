@@ -14,7 +14,8 @@ You can use [this yaml file](https://github.com/devtron-labs/devtron/blob/main/m
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  annotations: nginx.ingress.kubernetes.io/app-root: /dashboard
+  annotations: 
+    nginx.ingress.kubernetes.io/app-root: /dashboard
   labels:
     app: devtron
     release: devtron
@@ -54,7 +55,8 @@ You can access Devtron from any host after applying this yaml. For k8s versions 
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-  annotations: nginx.ingress.kubernetes.io/app-root: /dashboard
+  annotations: 
+    nginx.ingress.kubernetes.io/app-root: /dashboard
   labels:
     app: devtron
     release: devtron
@@ -81,7 +83,8 @@ Optionally, you also can access Devtron through a specific host by running the f
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  annotations: nginx.ingress.kubernetes.io/app-root: /dashboard
+  annotations: 
+    nginx.ingress.kubernetes.io/app-root: /dashboard
   labels:
     app: devtron
     release: devtron

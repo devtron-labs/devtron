@@ -892,7 +892,16 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		}
 		if detail != nil {
 			resourceTree := util2.InterfaceToMapAdapter(detail.ResourceTreeResponse)
-			resourceTree["status"] = detail.ApplicationStatus
+			applicationStatus := detail.ApplicationStatus
+			resourceTree["status"] = applicationStatus
+			if applicationStatus == application.Healthy {
+				status, err := handler.appListingService.ISLastReleaseStopType(appId, envId)
+				if err != nil {
+					handler.logger.Errorw("service err, FetchAppDetails", "err", err, "app", appId, "env", envId)
+				} else if status {
+					resourceTree["status"] = application.HIBERNATING
+				}
+			}
 			appDetail.ResourceTree = resourceTree
 			handler.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
 		} else {
