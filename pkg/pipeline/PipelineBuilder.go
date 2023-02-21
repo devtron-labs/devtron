@@ -1792,7 +1792,7 @@ func (impl PipelineBuilderImpl) ChangeDeploymentType(ctx context.Context,
 			return response, nil
 		}
 
-		if artifactDetails.LatestWfArtifactId == 0 || artifactDetails.LatestWfArtifactStatus != "" {
+		if artifactDetails.LatestWfArtifactId == 0 || artifactDetails.LatestWfArtifactStatus == "" {
 			continue
 		}
 
