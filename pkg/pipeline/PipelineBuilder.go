@@ -1806,6 +1806,11 @@ func (impl PipelineBuilderImpl) ChangeDeploymentType(ctx context.Context,
 		})
 	}
 
+	// pg panics if empty slice is passed as an argument
+	if len(bulkTriggerRequest) == 0 {
+		return response, nil
+	}
+
 	// Trigger
 	_, err = impl.workflowDagExecutor.TriggerBulkDeploymentAsync(bulkTriggerRequest, request.UserId)
 
