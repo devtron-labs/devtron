@@ -1,0 +1,3 @@
+ALTER TABLE app ALTER COLUMN app_store DROP DEFAULT;
+ALTER TABLE app ALTER app_store TYPE integer USING CASE WHEN app_store=1 THEN true ELSE false end;
+ALTER TABLE app ALTER COLUMN app_store SET DEFAULT FALSE;
