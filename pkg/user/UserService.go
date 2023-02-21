@@ -401,6 +401,14 @@ func (impl UserServiceImpl) CreateOrUpdateUserRolesForAllTypes(roleFilter bean.R
 	environments := strings.Split(roleFilter.Environment, ",")
 	for _, environment := range environments {
 		for _, entityName := range entityNames {
+			if managerAuth != nil {
+				// check auth only for apps permission, skip for chart group
+				rbacObject := fmt.Sprintf("%s", strings.ToLower(roleFilter.Team))
+				isValidAuth := managerAuth(casbin2.ResourceUser, token, rbacObject)
+				if !isValidAuth {
+					continue
+				}
+			}
 			entityName = impl.userCommonService.RemovePlaceHolderInRoleFilterField(entityName)
 			environment = impl.userCommonService.RemovePlaceHolderInRoleFilterField(environment)
 			roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", actionType)
@@ -421,9 +429,20 @@ func (impl UserServiceImpl) CreateOrUpdateUserRolesForAllTypes(roleFilter bean.R
 					continue
 				}
 			}
-			if roleModel.Id > 0 {
+			if _, ok := existingRoles[roleModel.Id]; ok {
+				//Adding policies which is removed
+				policiesToBeAdded = append(policiesToBeAdded, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.EmailId), Obj: casbin2.Object(roleModel.Role)})
+			} else if roleModel.Id > 0 {
 				rolesChanged = true
-				userRoleModel := &repository2.UserRoleModel{UserId: model.Id, RoleId: roleModel.Id}
+				userRoleModel := &repository2.UserRoleModel{
+					UserId: model.Id,
+					RoleId: roleModel.Id,
+					AuditLog: sql.AuditLog{
+						CreatedBy: userId,
+						CreatedOn: time.Now(),
+						UpdatedBy: userId,
+						UpdatedOn: time.Now(),
+					}}
 				userRoleModel, err = impl.userAuthRepository.CreateUserRoleMapping(userRoleModel, tx)
 				if err != nil {
 					return nil, rolesChanged, err
@@ -432,7 +451,6 @@ func (impl UserServiceImpl) CreateOrUpdateUserRolesForAllTypes(roleFilter bean.R
 			}
 		}
 	}
-
 	return policiesToBeAdded, rolesChanged, nil
 }
 
@@ -636,77 +654,15 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 		//Adding New Policies
 		for _, roleFilter := range userInfo.RoleFilters {
 			entity := roleFilter.Entity
-			if roleFilter.Entity == bean.CLUSTER_ENTITIY {
-				policiesToBeAdded, rolesChangedFromRoleUpdate, err := impl.CreateOrUpdateUserRolesForAllTypes(roleFilter, userInfo.UserId, model, existingRoleIds, token, managerAuth, tx, entity)
-				if err != nil {
-					impl.logger.Errorw("error in creating user roles for clusterEntity", "err", err)
-					return nil, false, false, nil, err
-				}
-				addedPolicies = append(addedPolicies, policiesToBeAdded...)
-				rolesChanged = rolesChangedFromRoleUpdate
-			} else {
-				if len(roleFilter.Team) > 0 {
-					// check auth only for apps permission, skip for chart group
-					rbacObject := fmt.Sprintf("%s", strings.ToLower(roleFilter.Team))
-					isValidAuth := managerAuth(casbin2.ResourceUser, token, rbacObject)
-					if !isValidAuth {
-						continue
-					}
-				}
 
-				roleFilter = impl.userCommonService.ReplacePlaceHolderForEmptyEntriesInRoleFilter(roleFilter)
-				actionType := roleFilter.Action
-				accessType := roleFilter.AccessType
-				entityNames := strings.Split(roleFilter.EntityName, ",")
-				environments := strings.Split(roleFilter.Environment, ",")
-				for _, environment := range environments {
-					for _, entityName := range entityNames {
-						entityName = impl.userCommonService.RemovePlaceHolderInRoleFilterField(entityName)
-						environment = impl.userCommonService.RemovePlaceHolderInRoleFilterField(environment)
-						roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "")
-						if err != nil {
-							return nil, false, false, nil, err
-						}
-						if roleModel.Id == 0 {
-							userInfo.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + actionType
-							if roleFilter.Entity == bean2.ENTITY_APPS || roleFilter.Entity == bean.CHART_GROUP_ENTITY {
-								flag, err := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, roleFilter.Entity, "", "", "", "", "", actionType, accessType)
-								if err != nil || flag == false {
-									return nil, false, false, nil, err
-								}
-								roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "")
-								if err != nil {
-									return nil, false, false, nil, err
-								}
-								if roleModel.Id == 0 {
-									userInfo.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + actionType
-									continue
-								}
-							} else {
-								continue
-							}
-						}
-						if _, ok := existingRoleIds[roleModel.Id]; ok {
-							//Adding policies which is removed
-							addedPolicies = append(addedPolicies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.EmailId), Obj: casbin2.Object(roleModel.Role)})
-						} else {
-							if roleModel.Id > 0 {
-								rolesChanged = true
-								userRoleModel := &repository2.UserRoleModel{UserId: model.Id, RoleId: roleModel.Id}
-								userRoleModel.CreatedBy = userInfo.UserId
-								userRoleModel.UpdatedBy = userInfo.UserId
-								userRoleModel.CreatedOn = time.Now()
-								userRoleModel.UpdatedOn = time.Now()
-								userRoleModel, err = impl.userAuthRepository.CreateUserRoleMapping(userRoleModel, tx)
-								if err != nil {
-									return nil, false, false, nil, err
-								}
-								addedPolicies = append(addedPolicies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.EmailId), Obj: casbin2.Object(roleModel.Role)})
-							}
-						}
-					}
-				}
+			policiesToBeAdded, rolesChangedFromRoleUpdate, err := impl.CreateOrUpdateUserRolesForAllTypes(roleFilter, userInfo.UserId, model, existingRoleIds, token, managerAuth, tx, entity)
+			if err != nil {
+				impl.logger.Errorw("error in creating user roles for All Types", "err", err)
+				return nil, false, false, nil, err
 			}
+			addedPolicies = append(addedPolicies, policiesToBeAdded...)
+			rolesChanged = rolesChangedFromRoleUpdate
+
 		}
 
 		//ROLE GROUP SETUP
