@@ -11,7 +11,7 @@ type ClusterCapacityDetail struct {
 	Name              string                                `json:"name,omitempty"`
 	ErrorInConnection string                                `json:"errorInNodeListing,omitempty"`
 	NodeCount         int                                   `json:"nodeCount,omitempty"`
-	NodeDetails       []NodeNameGroupName                   `json:"nodeDetails"`
+	NodeNames         []string                              `json:"nodeNames"`
 	NodeErrors        map[corev1.NodeConditionType][]string `json:"nodeErrors"`
 	NodeK8sVersions   []string                              `json:"nodeK8sVersions"`
 	ServerVersion     string                                `json:"serverVersion,omitempty"`
@@ -43,7 +43,6 @@ type NodeCapacityDetail struct {
 	Pods          []*PodCapacityDetail                `json:"pods,omitempty"`
 	Manifest      unstructured.Unstructured           `json:"manifest,omitempty"`
 	ClusterName   string                              `json:"clusterName,omitempty"`
-	NodeGroup     string                              `json:"nodeGroup"`
 }
 
 type PodCapacityDetail struct {
@@ -112,11 +111,6 @@ type NodeDrainHelper struct {
 	// DisableEviction forces drain to use delete rather than evict
 	DisableEviction bool `json:"disableEviction"`
 	k8sClientSet    *kubernetes.Clientset
-}
-
-type NodeNameGroupName struct {
-	NodeName  string `json:"nodeName"`
-	NodeGroup string `json:"nodeGroup"`
 }
 
 const DEFAULT_NAMESPACE = "default"

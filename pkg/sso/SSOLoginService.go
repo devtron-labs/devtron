@@ -47,21 +47,6 @@ type SSOLoginServiceImpl struct {
 	userAuthOidcHelper  auth.UserAuthOidcHelper
 }
 
-type Configs struct {
-	Issuer        string   `json:"issuer"`
-	ClientID      string   `json:"clientID"`
-	ClientSecret  string   `json:"clientSecret"`
-	RedirectURI   string   `json:"redirectURI"`
-	HostedDomains []string `json:"hostedDomains"`
-}
-
-type Config struct {
-	Id     string  `json:"id"`
-	Type   string  `json:"type"`
-	Name   string  `json:"name"`
-	Config Configs `json:"config"`
-}
-
 func NewSSOLoginServiceImpl(
 	logger *zap.SugaredLogger,
 	ssoLoginRepository SSOLoginRepository,
@@ -175,22 +160,9 @@ func (impl SSOLoginServiceImpl) UpdateSSOLogin(request *bean.SSOLoginDto) (*bean
 			}
 		}
 	}
-	configString := string(configDataByte)
-	var configData Config
-	err = json.Unmarshal([]byte(configString), &configData)
-	var modelConfigData Config
-	err = json.Unmarshal([]byte(model.Config), &modelConfigData)
-	if configData.Config.ClientID == "" {
-		configData.Config.ClientID = modelConfigData.Config.ClientID
-	}
-	if configData.Config.ClientSecret == "" {
-		configData.Config.ClientSecret = modelConfigData.Config.ClientSecret
-	}
-	newConfigString, _ := json.Marshal(configData)
-	updatedConfig := string(newConfigString)
 	model.Label = request.Label
 	model.Url = request.Url
-	model.Config = updatedConfig
+	model.Config = string(configDataByte)
 	model.Active = true
 	model.UpdatedBy = request.UserId
 	model.UpdatedOn = time.Now()
@@ -350,13 +322,8 @@ func (impl SSOLoginServiceImpl) GetByName(name string) (*bean.SSOLoginDto, error
 	if err == pg.ErrNoRows {
 		return nil, nil
 	}
-	var configData Config
-	err = json.Unmarshal([]byte(model.Config), &configData)
-	configData.Config.ClientID = ""
-	configData.Config.ClientSecret = ""
-	configString, _ := json.Marshal(configData)
 	var config json.RawMessage
-	err = json.Unmarshal(configString, &config)
+	err = json.Unmarshal([]byte(model.Config), &config)
 	if err != nil {
 		impl.logger.Warnw("error while Unmarshal", "error", err)
 	}

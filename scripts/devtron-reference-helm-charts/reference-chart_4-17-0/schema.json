@@ -16,7 +16,7 @@
           "type": "object",
           "properties": {
             "envoyPort": {
-              "type": "string",
+              "type": "integer",
               "description": "envoy port for the container",
               "title": "Envoy Port"
             },
