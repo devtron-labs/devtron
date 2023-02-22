@@ -368,7 +368,7 @@ func (impl *ChartRepositoryServiceImpl) ValidateAndUpdateChartRepo(request *Char
 		impl.logger.Errorw("Error in triggering chart sync job manually", "err", err)
 	}
 
-	return chartRepo, err, validationResult
+	return chartRepo, nil, validationResult
 }
 
 func (impl *ChartRepositoryServiceImpl) TriggerChartSyncManual() error {
