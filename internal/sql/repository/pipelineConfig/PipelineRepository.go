@@ -462,13 +462,13 @@ func (impl PipelineRepositoryImpl) UpdateCdPipelineDeploymentAppInFilter(deploym
 
 	query := "update pipeline set " +
 		"deployment_app_created = false, " +
-		"deployment_app_type = '" + deploymentAppType + "', " +
+		"deployment_app_type = ?, " +
 		"updated_by = ?, " +
 		"updated_on = ? " +
 		"where id in (?)"
 
 	var pipeline *Pipeline
-	_, err := impl.dbConnection.Query(pipeline, query, userId, time.Now(), pg.In(cdPipelineIdIncludes))
+	_, err := impl.dbConnection.Query(pipeline, query, deploymentAppType, userId, time.Now(), pg.In(cdPipelineIdIncludes))
 
 	return err
 }
