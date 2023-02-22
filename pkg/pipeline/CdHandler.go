@@ -236,6 +236,7 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch
 			impl.Logger.Errorw("error on update cd workflow runner", "cdWfr", cdWfr, "err", err)
 			return err, isTimelineUpdated
 		}
+		middleware.CdDuration.WithLabelValues(cdWfr.CdWorkflow.Pipeline.DeploymentAppName, cdWfr.Status, cdWfr.CdWorkflow.Pipeline.Environment.Namespace).Observe(time.Since(cdWfr.FinishedOn).Seconds() - time.Since(cdWfr.StartedOn).Seconds())
 		// creating cd pipeline status timeline
 		timeline := &pipelineConfig.PipelineStatusTimeline{
 			CdWorkflowRunnerId: cdWfr.Id,
