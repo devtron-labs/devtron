@@ -70,7 +70,7 @@ type PipelineRepository interface {
 	FindByName(pipelineName string) (pipeline *Pipeline, err error)
 	PipelineExists(pipelineName string) (bool, error)
 	FindById(id int) (pipeline *Pipeline, err error)
-	FindActiveByEnvIdAndDeploymentTypeExcludingAppIds(environmentId int, deploymentAppType string, exclusionList []int) ([]*Pipeline, error)
+	FindActiveByEnvIdAndDeploymentType(environmentId int, deploymentAppType string, exclusionList []int, includeApps []int) ([]*Pipeline, error)
 	FindByIdsIn(ids []int) ([]*Pipeline, error)
 	FindByCiPipelineIdsIn(ciPipelineIds []int) ([]*Pipeline, error)
 	FindAutomaticByCiPipelineId(ciPipelineId int) (pipelines []*Pipeline, err error)
@@ -118,10 +118,6 @@ type PipelineRepositoryImpl struct {
 	dbConnection *pg.DB
 	logger       *zap.SugaredLogger
 }
-
-const (
-	IsPipelineDeletedWhereCondition string = "pipeline.deleted = ?"
-)
 
 func NewPipelineRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *PipelineRepositoryImpl {
 	return &PipelineRepositoryImpl{dbConnection: dbConnection, logger: logger}
@@ -285,15 +281,20 @@ func (impl PipelineRepositoryImpl) FindById(id int) (pipeline *Pipeline, err err
 	return pipeline, err
 }
 
-// FindActiveByEnvIdAndDeploymentTypeExcludingAppIds takes in environment id and current deployment app type
+// FindActiveByEnvIdAndDeploymentType takes in environment id and current deployment app type
 // and fetches and returns a list of pipelines matching the same excluding given app ids.
-func (impl PipelineRepositoryImpl) FindActiveByEnvIdAndDeploymentTypeExcludingAppIds(environmentId int,
-	deploymentAppType string, exclusionList []int) ([]*Pipeline, error) {
+func (impl PipelineRepositoryImpl) FindActiveByEnvIdAndDeploymentType(environmentId int,
+	deploymentAppType string, exclusionList []int, includeApps []int) ([]*Pipeline, error) {
 
 	// NOTE: PG query throws error with slice of integer
 	exclusionListString := []string{}
-	for _, i := range exclusionList {
-		exclusionListString = append(exclusionListString, strconv.Itoa(i))
+	for _, appId := range exclusionList {
+		exclusionListString = append(exclusionListString, strconv.Itoa(appId))
+	}
+
+	inclusionListString := []string{}
+	for _, appId := range includeApps {
+		inclusionListString = append(inclusionListString, strconv.Itoa(appId))
 	}
 
 	var pipelines []*Pipeline
@@ -308,6 +309,10 @@ func (impl PipelineRepositoryImpl) FindActiveByEnvIdAndDeploymentTypeExcludingAp
 
 	if len(exclusionListString) > 0 {
 		query.Where("pipeline.app_id not in (?)", pg.In(exclusionListString))
+	}
+
+	if len(inclusionListString) > 0 {
+		query.Where("pipeline.app_id in (?)", pg.In(inclusionListString))
 	}
 
 	err := query.Select()
@@ -428,7 +433,7 @@ func (impl PipelineRepositoryImpl) FindAllPipelinesByChartsOverrideAndAppIdAndCh
 		Where("pipeline.app_id = ?", appId).
 		Where("charts.id = ?", chartId).
 		Where("ceco.is_override = ?", hasConfigOverridden).
-		Where(IsPipelineDeletedWhereCondition, false).
+		Where("pipeline.deleted = ?", false).
 		Where("ceco.active = ?", true).
 		Where("charts.active = ?", true).
 		Select()
@@ -457,13 +462,13 @@ func (impl PipelineRepositoryImpl) UpdateCdPipelineDeploymentAppInFilter(deploym
 
 	query := "update pipeline set " +
 		"deployment_app_created = false, " +
-		"deployment_app_type = '" + deploymentAppType + "', " +
+		"deployment_app_type = ?, " +
 		"updated_by = ?, " +
 		"updated_on = ? " +
 		"where id in (?)"
 
 	var pipeline *Pipeline
-	_, err := impl.dbConnection.Query(pipeline, query, userId, time.Now(), pg.In(cdPipelineIdIncludes))
+	_, err := impl.dbConnection.Query(pipeline, query, deploymentAppType, userId, time.Now(), pg.In(cdPipelineIdIncludes))
 
 	return err
 }
@@ -490,7 +495,7 @@ func (impl PipelineRepositoryImpl) GetAppAndEnvDetailsForDeploymentAppTypePipeli
 		Join("inner join environment e on pipeline.environment_id = e.id").
 		Where("e.cluster_id in (?)", pg.In(clusterIds)).
 		Where("a.active = ?", true).
-		Where(IsPipelineDeletedWhereCondition, false).
+		Where("pipeline.deleted = ?", false).
 		Where("pipeline.deployment_app_type = ?", deploymentAppType).
 		Select()
 	return pipelines, err

@@ -56,6 +56,9 @@ components:
         excludeApps:
           type: array
           description: List of app ids to be excluded
+        includeApps:
+          type: array
+          description: List of app ids to be included (deployment will be changed only for these apps)
     DeploymentChangeStatus:
       type: object
       properties:
@@ -93,6 +96,15 @@ components:
           description: Pipelines which failed to get deleted from current deployment
           items:
             $ref: '#components/schemas/DeploymentChangeStatus'
+    TriggeredPipelineDetails:
+      type: object
+      properties:
+        ciArtifactId:
+          type: integer
+          description: Artifact id deployed
+        pipelineId:
+          type: integer
+          description: Pipeline id for which deployment was triggered
     OkResponse:
       required:
         - code
