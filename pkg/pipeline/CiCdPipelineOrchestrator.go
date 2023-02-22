@@ -1012,7 +1012,7 @@ func (impl CiCdPipelineOrchestratorImpl) createAppGroup(name string, userId int3
 		return nil, err
 	}
 	if isJob {
-		job, err := impl.appRepository.FindJobByName(name)
+		job, err := impl.appRepository.FindJobByDisplayName(name)
 		if err != nil && err != pg.ErrNoRows {
 			return nil, err
 		}
