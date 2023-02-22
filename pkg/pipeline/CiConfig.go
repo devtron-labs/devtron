@@ -82,6 +82,7 @@ type CiConfig struct {
 	BuildPvcCachePath              string                       `env:"PRE_CI_CACHE_PATH" envDefault:"/devtroncd-cache"`
 	DefaultPvcCachePath            string                       `env:"DOCKER_BUILD_CACHE_PATH" envDefault:"/var/lib/docker"`
 	BuildxPvcCachePath             string                       `env:"BUILDX_CACHE_PATH" envDefault:"/var/lib/devtron/buildx"`
+	BaseLogLocationPath            string                       `env:"BASE_LOG_LOCATION_PATH" envDefault:"/home/devtron/"`
 	ClusterConfig                  *rest.Config
 	NodeLabel                      map[string]string
 }

@@ -70,6 +70,7 @@ type CdConfig struct {
 	BuildLogTTLValue               int                          `env:"BUILD_LOG_TTL_VALUE_IN_SECS" envDefault:"3600"`
 	DefaultAddressPoolBaseCidr     string                       `env:"CD_DEFAULT_ADDRESS_POOL_BASE_CIDR"`
 	DefaultAddressPoolSize         int                          `env:"CD_DEFAULT_ADDRESS_POOL_SIZE"`
+	BaseLogLocationPath            string                       `env:"BASE_LOG_LOCATION_PATH" envDefault:"/home/devtron/"`
 }
 
 func GetCdConfig() (*CdConfig, error) {
