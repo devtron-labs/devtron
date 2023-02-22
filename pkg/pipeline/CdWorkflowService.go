@@ -371,6 +371,69 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		Steps: steps,
 	})
 
+	var s3Artifact *v1alpha1.S3Artifact
+	var gcsArtifact *v1alpha1.GCSArtifact
+	blobStorageS3Config := workflowRequest.BlobStorageS3Config
+	gcpBlobConfig := workflowRequest.GcpBlobConfig
+	cloudStorageKey := impl.cdConfig.DefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowNamePrefix
+	if storageConfigured && blobStorageS3Config != nil {
+		s3CompatibleEndpointUrl := blobStorageS3Config.EndpointUrl
+		if s3CompatibleEndpointUrl == "" {
+			s3CompatibleEndpointUrl = "s3.amazonaws.com"
+		} else {
+			parsedUrl, err := url.Parse(s3CompatibleEndpointUrl)
+			if err != nil {
+				impl.Logger.Errorw("error occurred while parsing s3CompatibleEndpointUrl, ", "s3CompatibleEndpointUrl", s3CompatibleEndpointUrl, "err", err)
+			} else {
+				s3CompatibleEndpointUrl = parsedUrl.Host
+			}
+		}
+		isInsecure := blobStorageS3Config.IsInSecure
+		var accessKeySelector *v12.SecretKeySelector
+		var secretKeySelector *v12.SecretKeySelector
+		if blobStorageS3Config.AccessKey != "" {
+			accessKeySelector = &v12.SecretKeySelector{
+				Key: "accessKey",
+				LocalObjectReference: v12.LocalObjectReference{
+					Name: "workflow-minio-cred",
+				},
+			}
+			secretKeySelector = &v12.SecretKeySelector{
+				Key: "secretKey",
+				LocalObjectReference: v12.LocalObjectReference{
+					Name: "workflow-minio-cred",
+				},
+			}
+		}
+		s3Artifact = &v1alpha1.S3Artifact{
+			Key: cloudStorageKey,
+			S3Bucket: v1alpha1.S3Bucket{
+				Endpoint:        s3CompatibleEndpointUrl,
+				AccessKeySecret: accessKeySelector,
+				SecretKeySecret: secretKeySelector,
+				Bucket:          blobStorageS3Config.CiLogBucketName,
+				Insecure:        &isInsecure,
+			},
+		}
+		if blobStorageS3Config.CiLogRegion != "" {
+			//TODO checking for Azure
+			s3Artifact.Region = blobStorageS3Config.CiLogRegion
+		}
+	} else if storageConfigured && gcpBlobConfig != nil {
+		gcsArtifact = &v1alpha1.GCSArtifact{
+			Key: cloudStorageKey,
+			GCSBucket: v1alpha1.GCSBucket{
+				Bucket: gcpBlobConfig.LogBucketName,
+				ServiceAccountKeySecret: &v12.SecretKeySelector{
+					Key: "secretKey",
+					LocalObjectReference: v12.LocalObjectReference{
+						Name: "workflow-minio-cred",
+					},
+				},
+			},
+		}
+	}
+
 	cdTemplate := v1alpha1.Template{
 		Name: "cd",
 		Container: &v12.Container{
@@ -396,78 +459,10 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		},
 		ArchiveLocation: &v1alpha1.ArtifactLocation{
 			ArchiveLogs: &archiveLogs,
+			S3:          s3Artifact,
+			GCS:         gcsArtifact,
 		},
 	}
-
-	if impl.cdConfig.UseBlobStorageConfigInCdWorkflow || !workflowRequest.IsExtRun {
-		var s3Artifact *v1alpha1.S3Artifact
-		var gcsArtifact *v1alpha1.GCSArtifact
-		blobStorageS3Config := workflowRequest.BlobStorageS3Config
-		gcpBlobConfig := workflowRequest.GcpBlobConfig
-		cloudStorageKey := impl.cdConfig.DefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowNamePrefix
-		if storageConfigured && blobStorageS3Config != nil {
-			s3CompatibleEndpointUrl := blobStorageS3Config.EndpointUrl
-			if s3CompatibleEndpointUrl == "" {
-				s3CompatibleEndpointUrl = "s3.amazonaws.com"
-			} else {
-				parsedUrl, err := url.Parse(s3CompatibleEndpointUrl)
-				if err != nil {
-					impl.Logger.Errorw("error occurred while parsing s3CompatibleEndpointUrl, ", "s3CompatibleEndpointUrl", s3CompatibleEndpointUrl, "err", err)
-				} else {
-					s3CompatibleEndpointUrl = parsedUrl.Host
-				}
-			}
-			isInsecure := blobStorageS3Config.IsInSecure
-			var accessKeySelector *v12.SecretKeySelector
-			var secretKeySelector *v12.SecretKeySelector
-			if blobStorageS3Config.AccessKey != "" {
-				accessKeySelector = &v12.SecretKeySelector{
-					Key: "accessKey",
-					LocalObjectReference: v12.LocalObjectReference{
-						Name: "workflow-minio-cred",
-					},
-				}
-				secretKeySelector = &v12.SecretKeySelector{
-					Key: "secretKey",
-					LocalObjectReference: v12.LocalObjectReference{
-						Name: "workflow-minio-cred",
-					},
-				}
-			}
-			s3Artifact = &v1alpha1.S3Artifact{
-				Key: cloudStorageKey,
-				S3Bucket: v1alpha1.S3Bucket{
-					Endpoint:        s3CompatibleEndpointUrl,
-					AccessKeySecret: accessKeySelector,
-					SecretKeySecret: secretKeySelector,
-					Bucket:          blobStorageS3Config.CiLogBucketName,
-					Insecure:        &isInsecure,
-				},
-			}
-			if blobStorageS3Config.CiLogRegion != "" {
-				//TODO checking for Azure
-				s3Artifact.Region = blobStorageS3Config.CiLogRegion
-			}
-		} else if storageConfigured && gcpBlobConfig != nil {
-			gcsArtifact = &v1alpha1.GCSArtifact{
-				Key: cloudStorageKey,
-				GCSBucket: v1alpha1.GCSBucket{
-					Bucket: gcpBlobConfig.LogBucketName,
-					ServiceAccountKeySecret: &v12.SecretKeySelector{
-						Key: "secretKey",
-						LocalObjectReference: v12.LocalObjectReference{
-							Name: "workflow-minio-cred",
-						},
-					},
-				},
-			}
-		}
-
-		// set in ArchiveLocation
-		cdTemplate.ArchiveLocation.S3 = s3Artifact
-		cdTemplate.ArchiveLocation.GCS = gcsArtifact
-	}
-
 	for _, cm := range configMaps.Maps {
 		if cm.Type == "environment" {
 			cdTemplate.Container.EnvFrom = append(cdTemplate.Container.EnvFrom, v12.EnvFromSource{
