@@ -121,7 +121,7 @@ func (impl DockerRegistryConfigImpl) Create(bean *DockerArtifactStoreBean) (*Doc
 		err = &util.ApiError{
 			Code:            constants.DockerRegCreateFailedInDb,
 			InternalMessage: "docker registry failed to create in db",
-			UserMessage:     fmt.Sprintf("requested by %d", bean.User),
+			UserMessage:     fmt.Sprintf("Container registry [%s] already exists.", bean.Id),
 		}
 		return nil, err
 	}
@@ -143,7 +143,7 @@ func (impl DockerRegistryConfigImpl) Create(bean *DockerArtifactStoreBean) (*Doc
 		err = &util.ApiError{
 			Code:            constants.DockerRegCreateFailedInDb,
 			InternalMessage: "docker registry ips config to create in db",
-			UserMessage:     fmt.Sprintf("requested by %d", bean.User),
+			UserMessage:     fmt.Sprintf("Container registry [%s] already exists.", bean.Id),
 		}
 		return nil, err
 	}
