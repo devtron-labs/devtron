@@ -472,6 +472,7 @@ type CDPipelineConfigObject struct {
 	ParentPipelineId              int                                    `json:"parentPipelineId"`
 	ParentPipelineType            string                                 `json:"parentPipelineType"`
 	DeploymentAppType             string                                 `json:"deploymentAppType"`
+	AppName                       string                                 `json:"appName"`
 	//Downstream         []int                             `json:"downstream"` //PipelineCounter of downstream	(for future reference only)
 }
 
@@ -520,6 +521,52 @@ const (
 	CD_CREATE CdPatchAction = iota
 	CD_DELETE               //delete this pipeline
 	CD_UPDATE
+)
+
+type DeploymentAppTypeChangeRequest struct {
+	EnvId                 int            `json:"envId,omitempty" validate:"required"`
+	DesiredDeploymentType DeploymentType `json:"desiredDeploymentType,omitempty" validate:"required"`
+	ExcludeApps           []int          `json:"excludeApps"`
+	IncludeApps           []int          `json:"includeApps"`
+	AutoTriggerDeployment bool           `json:"-"`
+	UserId                int32          `json:"-"`
+}
+
+type DeploymentChangeStatus struct {
+	Id      int    `json:"id,omitempty"`
+	AppId   int    `json:"appId,omitempty"`
+	AppName string `json:"appName,omitempty"`
+	EnvId   int    `json:"envId,omitempty"`
+	EnvName string `json:"envName,omitempty"`
+	Error   string `json:"error,omitempty"`
+	Status  Status `json:"status,omitempty"`
+}
+
+type DeploymentAppTypeChangeResponse struct {
+	EnvId                 int                       `json:"envId,omitempty"`
+	DesiredDeploymentType DeploymentType            `json:"desiredDeploymentType,omitempty"`
+	SuccessfulPipelines   []*DeploymentChangeStatus `json:"successfulPipelines"`
+	FailedPipelines       []*DeploymentChangeStatus `json:"failedPipelines"`
+	TriggeredPipelines    []*CdPipelineTrigger      `json:"-"` // Disabling auto-trigger until bulk trigger API is fixed
+}
+
+type CdPipelineTrigger struct {
+	CiArtifactId int `json:"ciArtifactId"`
+	PipelineId   int `json:"pipelineId"`
+}
+
+type DeploymentType string
+
+const (
+	Helm   DeploymentType = "helm"
+	ArgoCd DeploymentType = "argo_cd"
+)
+
+type Status string
+
+const (
+	Success Status = "Success"
+	Failed  Status = "Failed"
 )
 
 func (a CdPatchAction) String() string {
