@@ -55,6 +55,7 @@ type MuxRouter struct {
 	Router                             *mux.Router
 	HelmRouter                         PipelineTriggerRouter
 	PipelineConfigRouter               PipelineConfigRouter
+	JobRouter                          JobRouter
 	MigrateDbRouter                    MigrateDbRouter
 	EnvironmentClusterMappingsRouter   cluster.EnvironmentRouter
 	AppListingRouter                   AppListingRouter
@@ -143,7 +144,8 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 	serverRouter server.ServerRouter, apiTokenRouter apiToken.ApiTokenRouter,
 	helmApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler, k8sCapacityRouter k8s.K8sCapacityRouter,
 	webhookHelmRouter webhookHelm.WebhookHelmRouter, globalCMCSRouter GlobalCMCSRouter,
-	userTerminalAccessRouter terminal2.UserTerminalAccessRouter, ciStatusUpdateCron cron.CiStatusUpdateCron) *MuxRouter {
+	userTerminalAccessRouter terminal2.UserTerminalAccessRouter,
+	jobRouter JobRouterImpl, ciStatusUpdateCron cron.CiStatusUpdateCron) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
 		HelmRouter:                         HelmRouter,
@@ -210,6 +212,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 		globalCMCSRouter:                   globalCMCSRouter,
 		userTerminalAccessRouter:           userTerminalAccessRouter,
 		ciStatusUpdateCron:                 ciStatusUpdateCron,
+		JobRouter:                          jobRouter,
 	}
 	return r
 }
@@ -257,6 +260,9 @@ func (r MuxRouter) Init() {
 	r.AppListingRouter.initAppListingRouter(pipelineConfigRouter)
 	r.HelmRouter.initPipelineTriggerRouter(pipelineConfigRouter)
 	r.appRouter.InitAppRouter(pipelineConfigRouter)
+
+	jobConfigRouter := r.Router.PathPrefix("/orchestrator/job").Subrouter()
+	r.JobRouter.InitJobRouter(jobConfigRouter)
 
 	migrateRouter := r.Router.PathPrefix("/orchestrator/migrate").Subrouter()
 	r.MigrateDbRouter.InitMigrateDbRouter(migrateRouter)

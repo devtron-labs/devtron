@@ -38,7 +38,7 @@ import (
 type AppListingRepository interface {
 	FetchAppsByEnvironment(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, error)
 	FetchJobs(appIds []int, statuses []string) ([]*bean.JobListingContainer, error)
-	FetchOverviewCiPipeline(appId int) ([]*bean.JobListingContainer, error)
+	FetchOverviewCiPipelines(jobId int) ([]*bean.JobListingContainer, error)
 	FetchJobsLastSucceededOn(ciPipelineIDs []int) ([]*bean.CiPipelineLastSucceededTime, error)
 	DeploymentDetailsByAppIdAndEnvId(ctx context.Context, appId int, envId int) (bean.DeploymentDetailContainer, error)
 	FetchAppDetail(ctx context.Context, appId int, envId int) (bean.AppDetailContainer, error)
@@ -98,11 +98,11 @@ func (impl AppListingRepositoryImpl) FetchJobs(appIds []int, statuses []string) 
 	}
 	return jobContainers, nil
 }
-func (impl AppListingRepositoryImpl) FetchOverviewCiPipeline(appId int) ([]*bean.JobListingContainer, error) {
+func (impl AppListingRepositoryImpl) FetchOverviewCiPipelines(jobId int) ([]*bean.JobListingContainer, error) {
 	var jobContainers []*bean.JobListingContainer
 	jobsQuery := impl.appListingRepositoryQueryBuilder.OverviewCiPipelineQuery()
 	impl.Logger.Debugw("basic app detail query: ", jobsQuery)
-	_, appsErr := impl.dbConnection.Query(&jobContainers, jobsQuery, appId)
+	_, appsErr := impl.dbConnection.Query(&jobContainers, jobsQuery, jobId)
 	if appsErr != nil {
 		impl.Logger.Error(appsErr)
 		return jobContainers, appsErr

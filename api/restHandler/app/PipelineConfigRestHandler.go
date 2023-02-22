@@ -327,6 +327,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateJob(w http.ResponseWriter, r 
 	//}
 	var createResp *bean.CreateAppDTO
 	err = nil
+	createRequest.IsJob = true
 	if createRequest.TemplateId == 0 {
 		createResp, err = handler.pipelineBuilder.CreateApp(&createRequest)
 	} else {

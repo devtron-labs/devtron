@@ -52,10 +52,6 @@ func (router AppListingRouterImpl) initAppListingRouter(appListingRouter *mux.Ro
 		HandlerFunc(router.appListingRestHandler.FetchJobs).
 		Methods("POST")
 
-	appListingRouter.Path("/jobs/list/{appId}").
-		HandlerFunc(router.appListingRestHandler.FetchOverviewCiPipeline).
-		Methods("GET")
-
 	//This API used for fetch app details, not deployment details
 	appListingRouter.Path("/detail").Queries("app-id", "{app-id}").Queries("env-id", "{env-id}").
 		HandlerFunc(router.appListingRestHandler.FetchAppDetails).
