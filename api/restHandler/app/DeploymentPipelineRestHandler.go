@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
@@ -25,6 +26,7 @@ type DevtronAppDeploymentRestHandler interface {
 	CreateCdPipeline(w http.ResponseWriter, r *http.Request)
 	GetCdPipelineById(w http.ResponseWriter, r *http.Request)
 	PatchCdPipeline(w http.ResponseWriter, r *http.Request)
+	HandleChangeDeploymentRequest(w http.ResponseWriter, r *http.Request)
 	GetCdPipelines(w http.ResponseWriter, r *http.Request)
 	GetCdPipelinesForAppAndEnv(w http.ResponseWriter, r *http.Request)
 
@@ -281,6 +283,72 @@ func (handler PipelineConfigRestHandlerImpl) PatchCdPipeline(w http.ResponseWrit
 		return
 	}
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
+}
+
+// HandleChangeDeploymentRequest changes the deployment app type for all pipelines in all apps for a given environment.
+func (handler PipelineConfigRestHandlerImpl) HandleChangeDeploymentRequest(w http.ResponseWriter, r *http.Request) {
+
+	// Auth check
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	// Retrieving and parsing request body
+	decoder := json.NewDecoder(r.Body)
+	var deploymentAppTypeChangeRequest *bean.DeploymentAppTypeChangeRequest
+	err = decoder.Decode(&deploymentAppTypeChangeRequest)
+	if err != nil {
+		handler.Logger.Errorw("request err, HandleChangeDeploymentRequest", "err", err, "payload",
+			deploymentAppTypeChangeRequest)
+
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	deploymentAppTypeChangeRequest.UserId = userId
+
+	// Validate incoming request
+	err = handler.validator.Struct(deploymentAppTypeChangeRequest)
+	if err != nil {
+		handler.Logger.Errorw("validation err, HandleChangeDeploymentRequest", "err", err, "payload",
+			deploymentAppTypeChangeRequest)
+
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	// Only super-admin access
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionDelete, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
+	// Retrieve argocd token
+	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		handler.Logger.Errorw("error in getting acd token", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	ctx := context.WithValue(r.Context(), "token", acdToken)
+
+	// Disabling auto-trigger until bulk trigger API is fixed
+	deploymentAppTypeChangeRequest.AutoTriggerDeployment = false
+	resp, err := handler.pipelineBuilder.ChangeDeploymentType(ctx, deploymentAppTypeChangeRequest)
+
+	if err != nil {
+		nErr := errors.New("failed to change deployment type with error msg: " + err.Error())
+		handler.Logger.Errorw(err.Error(),
+			"payload", deploymentAppTypeChangeRequest,
+			"err", err)
+
+		common.WriteJsonResp(w, nErr, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+	return
 }
 
 func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.ResponseWriter, r *http.Request) {
