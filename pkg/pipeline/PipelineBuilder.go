@@ -381,6 +381,9 @@ func (impl PipelineBuilderImpl) GetApp(appId int) (application *bean.CreateAppDT
 	}
 
 	gitMaterials := impl.GetMaterialsForAppId(appId)
+	if app.AppStore == 2 {
+		app.AppName = app.DisplayName
+	}
 	application = &bean.CreateAppDTO{
 		Id:       app.Id,
 		AppName:  app.AppName,

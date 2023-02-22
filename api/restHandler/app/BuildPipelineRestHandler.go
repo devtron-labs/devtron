@@ -243,8 +243,10 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 		return
 	}
 
+	ciConf, err := handler.pipelineBuilder.GetCiPipeline(patchRequest.AppId)
+
 	var emptyDockerRegistry string
-	if patchRequest.IsJob {
+	if patchRequest.IsJob && ciConf == nil {
 		ciConfigRequest := bean.CiConfigRequest{}
 		ciConfigRequest.DockerRegistry = emptyDockerRegistry
 		ciConfigRequest.AppId = patchRequest.AppId
@@ -287,11 +289,13 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 		}
 	}
 	createResp, err := handler.pipelineBuilder.PatchCiPipeline(&patchRequest)
+	createResp.AppName = app.AppName
 	if err != nil {
 		handler.Logger.Errorw("service err, PatchCiPipelines", "err", err, "PatchCiPipelines", patchRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
 }
 

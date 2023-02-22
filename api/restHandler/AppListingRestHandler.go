@@ -57,7 +57,7 @@ import (
 type AppListingRestHandler interface {
 	FetchAppsByEnvironment(w http.ResponseWriter, r *http.Request)
 	FetchJobs(w http.ResponseWriter, r *http.Request)
-	FetchOverviewCiPipeline(w http.ResponseWriter, r *http.Request)
+	FetchOverviewCiPipelines(w http.ResponseWriter, r *http.Request)
 	FetchAppDetails(w http.ResponseWriter, r *http.Request)
 	FetchAllDevtronManagedApps(w http.ResponseWriter, r *http.Request)
 	FetchAppTriggerView(w http.ResponseWriter, r *http.Request)
@@ -197,7 +197,7 @@ func (handler AppListingRestHandlerImpl) FetchJobs(w http.ResponseWriter, r *htt
 
 	common.WriteJsonResp(w, err, jobContainerResponse, http.StatusOK)
 }
-func (handler AppListingRestHandlerImpl) FetchOverviewCiPipeline(w http.ResponseWriter, r *http.Request) {
+func (handler AppListingRestHandlerImpl) FetchOverviewCiPipelines(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -205,14 +205,14 @@ func (handler AppListingRestHandlerImpl) FetchOverviewCiPipeline(w http.Response
 	}
 
 	vars := mux.Vars(r)
-	appId, err := strconv.Atoi(vars["appId"])
+	jobId, err := strconv.Atoi(vars["jobId"])
 	if err != nil {
-		handler.logger.Errorw("request err, GetAppMetaInfo", "err", err, "appId", appId)
+		handler.logger.Errorw("request err, GetAppMetaInfo", "err", err, "jobId", jobId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
-	jobCi, err := handler.appListingService.FetchOverviewCiPipeline(appId)
+	jobCi, err := handler.appListingService.FetchOverviewCiPipelines(jobId)
 
 	common.WriteJsonResp(w, err, jobCi, http.StatusOK)
 }

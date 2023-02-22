@@ -54,7 +54,7 @@ import (
 type AppListingService interface {
 	FetchAppsByEnvironment(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, error)
 	FetchJobs(fetchJobListingRequest FetchAppListingRequest) ([]*bean.JobContainer, error)
-	FetchOverviewCiPipeline(appId int) ([]*bean.JobListingContainer, error)
+	FetchOverviewCiPipelines(jobId int) ([]*bean.JobListingContainer, error)
 	BuildAppListingResponse(fetchAppListingRequest FetchAppListingRequest, envContainers []*bean.AppEnvironmentContainer) ([]*bean.AppContainer, error)
 	FetchAllDevtronManagedApps() ([]AppNameTypeIdContainer, error)
 	FetchAppDetails(ctx context.Context, appId int, envId int) (bean.AppDetailContainer, error)
@@ -249,8 +249,8 @@ func (impl AppListingServiceImpl) FetchJobs(fetchJobListingRequest FetchAppListi
 	return jobContainers, nil
 }
 
-func (impl AppListingServiceImpl) FetchOverviewCiPipeline(appId int) ([]*bean.JobListingContainer, error) {
-	jobCiContainers, err := impl.appListingRepository.FetchOverviewCiPipeline(appId)
+func (impl AppListingServiceImpl) FetchOverviewCiPipelines(jobId int) ([]*bean.JobListingContainer, error) {
+	jobCiContainers, err := impl.appListingRepository.FetchOverviewCiPipelines(jobId)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching app list", "error", err)
 		return []*bean.JobListingContainer{}, err

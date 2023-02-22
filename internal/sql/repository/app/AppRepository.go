@@ -46,7 +46,7 @@ type AppRepository interface {
 	Update(app *App) error
 	UpdateWithTxn(app *App, tx *pg.Tx) error
 	FindActiveByName(appName string) (pipelineGroup *App, err error)
-	FindJobByName(appName string) (pipelineGroup *App, err error)
+	FindJobByDisplayName(appName string) (pipelineGroup *App, err error)
 	FindActiveListByName(appName string) ([]*App, error)
 	FindById(id int) (pipelineGroup *App, err error)
 	FindAppsByTeamId(teamId int) ([]*App, error)
@@ -122,7 +122,7 @@ func (repo AppRepositoryImpl) FindActiveByName(appName string) (*App, error) {
 	// there is only single active app will be present in db with a same name.
 	return pipelineGroup, err
 }
-func (repo AppRepositoryImpl) FindJobByName(appName string) (*App, error) {
+func (repo AppRepositoryImpl) FindJobByDisplayName(appName string) (*App, error) {
 	pipelineGroup := &App{}
 	err := repo.dbConnection.
 		Model(pipelineGroup).
