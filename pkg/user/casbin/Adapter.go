@@ -147,12 +147,14 @@ func LoadPolicy() {
 	fmt.Println("load policy start id:", reloadId)
 	defer HandlePanic()
 	swapPolicy()
-	err := enforcerImplRef.ReloadPolicy()
-	if err != nil {
-		fmt.Println("error in reloading policies id:", reloadId, " err: ", err)
-	} else {
-		fmt.Println("policy reloaded successfully id: ", reloadId)
-	}
+	fmt.Println("policy reloaded successfully id: ", reloadId)
+	/*
+		err := enforcerImplRef.ReloadPolicy()
+		if err != nil {
+			fmt.Println("error in reloading policies id:", reloadId, " err: ", err)
+		} else {
+			fmt.Println("policy reloaded successfully id: ", reloadId)
+		}*/
 }
 
 func RemovePolicy(policies []Policy) []Policy {
