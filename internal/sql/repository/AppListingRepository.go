@@ -85,9 +85,9 @@ func NewAppListingRepositoryImpl(Logger *zap.SugaredLogger, dbConnection *pg.DB,
 
 func (impl AppListingRepositoryImpl) FetchJobs(appIds []int, statuses []string) ([]*bean.JobListingContainer, error) {
 	var jobContainers []*bean.JobListingContainer
-	//if len(appIds) == 0 {
-	//	return jobContainers, nil
-	//}
+	if len(appIds) == 0 {
+		return jobContainers, nil
+	}
 	jobsQuery := impl.appListingRepositoryQueryBuilder.BuildJobListingQuery(appIds, statuses)
 
 	impl.Logger.Debugw("basic app detail query: ", jobsQuery)
