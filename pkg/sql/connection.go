@@ -27,13 +27,15 @@ import (
 )
 
 type Config struct {
-	Addr            string `env:"PG_ADDR" envDefault:"127.0.0.1"`
-	Port            string `env:"PG_PORT" envDefault:"5432"`
-	User            string `env:"PG_USER" envDefault:""`
-	Password        string `env:"PG_PASSWORD" envDefault:"" secretData:"-"`
-	Database        string `env:"PG_DATABASE" envDefault:"orchestrator"`
-	ApplicationName string `env:"APP" envDefault:"orchestrator"`
-	LogQuery        bool   `env:"PG_LOG_QUERY" envDefault:"true"`
+	Addr                   string `env:"PG_ADDR" envDefault:"127.0.0.1"`
+	Port                   string `env:"PG_PORT" envDefault:"5432"`
+	User                   string `env:"PG_USER" envDefault:""`
+	Password               string `env:"PG_PASSWORD" envDefault:"" secretData:"-"`
+	Database               string `env:"PG_DATABASE" envDefault:"orchestrator"`
+	ApplicationName        string `env:"APP" envDefault:"orchestrator"`
+	LogQuery               bool   `env:"PG_LOG_QUERY" envDefault:"true"`
+	LogAllQuery            bool   `env:"PG_LOG_ALL_QUERY" envDefault:"false"`
+	QueryDurationThreshold int64  `env:"PG_QUERY_DUR_THRESHOLD" envDefault:"5000"`
 }
 
 func GetConfig() (*Config, error) {
@@ -61,16 +63,25 @@ func NewDbConnection(cfg *Config, logger *zap.SugaredLogger) (*pg.DB, error) {
 	} else {
 		logger.Infow("connected with db", "db", obfuscateSecretTags(cfg))
 	}
+
 	//--------------
-	if cfg.LogQuery {
+	if cfg.LogQuery || cfg.LogAllQuery {
+
 		dbConnection.OnQueryProcessed(func(event *pg.QueryProcessedEvent) {
 			query, err := event.FormattedQuery()
 			if err != nil {
-				panic(err)
+				logger.Errorw("Error formatting query",
+					"err", err)
+				return
 			}
-			logger.Debugw("query time",
-				"duration", time.Since(event.StartTime),
-				"query", query)
+
+			queryDuration := time.Since(event.StartTime)
+
+			if cfg.LogAllQuery || queryDuration.Milliseconds() > cfg.QueryDurationThreshold {
+				logger.Debugw("query time",
+					"duration", queryDuration.Seconds(),
+					"query", query)
+			}
 		})
 	}
 	return dbConnection, err
