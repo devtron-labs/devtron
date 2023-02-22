@@ -11,7 +11,7 @@ SET role= '{
     "environment": "{{.Env}}",
     "action": "manager",
     "entity": "{{.Entity}}",
-    "access_type": "devtron-app"
+    "accessType": "devtron-app"
 }'
 WHERE role_type='manager' AND id=1;
 
@@ -26,7 +26,7 @@ SET role= '{
     "environment": "{{.Env}}",
     "action": "admin",
     "entity": "{{.Entity}}",
-    "access_type": "devtron-app"
+    "accessType": "devtron-app"
 }'
 WHERE role_type='admin' AND id =2;
 
@@ -41,7 +41,7 @@ SET role= '{
     "environment": "{{.Env}}",
     "action": "trigger",
     "entity": "{{.Entity}}",
-    "access_type": "devtron-app"
+    "accessType": "devtron-app"
 }'
 WHERE role_type='trigger' AND id =3;
 
@@ -56,7 +56,7 @@ SET role= '{
     "environment": "{{.Env}}",
     "action": "view",
     "entity": "{{.Entity}}",
-    "access_type": "devtron-app"
+    "accessType": "devtron-app"
 }'
 WHERE role_type='view' AND id =4;
 
@@ -97,7 +97,7 @@ WHERE role_type = 'entityAll';
 
 SELECT setval('id_seq_default_auth_policy', (SELECT MAX(id) FROM default_auth_policy));
 
-INSERT INTO "public"."default_auth_policy" ( "role_type", "policy", "created_on", "created_by", "updated_on", "updated_by","access_type","entity") VALUES
+INSERT INTO "public"."default_auth_policy" ( "role_type", "policy", "created_on", "created_by", "updated_on", "updated_by","accessType""entity") VALUES
                                                                                                                                      ( 'admin', '{
     "data": [
          {
@@ -226,7 +226,7 @@ SELECT setval('id_seq_default_auth_role', (SELECT MAX(id) FROM default_auth_role
 
 
 
-INSERT INTO "public"."default_auth_role" ( "role_type", "role", "created_on", "created_by", "updated_on", "updated_by","access_type","entity") VALUES
+INSERT INTO "public"."default_auth_role" ( "role_type", "role", "created_on", "created_by", "updated_on", "updated_by","accessType""entity") VALUES
                                                                                                                                  ( 'admin', '{
     "role": "helm-app:admin_{{.Team}}_{{.Env}}_{{.App}}",
     "casbinSubjects":
@@ -238,7 +238,7 @@ INSERT INTO "public"."default_auth_role" ( "role_type", "role", "created_on", "c
     "environment": "{{.Env}}",
     "action": "admin",
     "entity": "{{.Entity}}",
-    "access_type": "helm-app"
+    "accessType": "helm-app"
 }', 'now()', '1', 'now()', '1','helm-app','apps'),
                                                                                                                                  ( 'edit', '{
    "role": "helm-app:edit_{{.Team}}_{{.Env}}_{{.App}}",
@@ -251,7 +251,7 @@ INSERT INTO "public"."default_auth_role" ( "role_type", "role", "created_on", "c
     "environment": "{{.Env}}",
     "action": "edit",
     "entity": "{{.Entity}}",
-    "access_type": "helm-app"
+    "accessType": "helm-app"
 }', 'now()', '1', 'now()', '1','helm-app','apps'),
                                                                                                                                  ( 'view', '{
      "role": "helm-app:view_{{.Team}}_{{.Env}}_{{.App}}",
@@ -264,9 +264,8 @@ INSERT INTO "public"."default_auth_role" ( "role_type", "role", "created_on", "c
     "environment": "{{.Env}}",
     "action": "view",
     "entity": "{{.Entity}}",
-    "access_type": "helm-app"
+    "accessType": "helm-app"
 }', 'now()', '1', 'now()', '1','helm-app','apps');
-
 
 
 
