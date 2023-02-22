@@ -22,6 +22,7 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
+	"github.com/caarlos0/env"
 	"github.com/juju/errors"
 	"io"
 	"io/ioutil"
@@ -207,4 +208,17 @@ func InterfaceToMapAdapter(resp interface{}) map[string]interface{} {
 		return dat
 	}
 	return dat
+}
+
+type BaseLogLocationConfig struct {
+	BaseLogLocationPath string `env:"BASE_LOG_LOCATION_PATH" envDefault:"home/devtron/"`
+}
+
+func GetBaseLogLocationPath(logger *zap.SugaredLogger) string {
+	baseLogLocationPathConfig := &BaseLogLocationConfig{}
+	err := env.Parse(baseLogLocationPathConfig)
+	if err != nil {
+		logger.Warnw("error occurred while parsing BaseLogLocationConfig", "err", err)
+	}
+	return baseLogLocationPathConfig.BaseLogLocationPath
 }

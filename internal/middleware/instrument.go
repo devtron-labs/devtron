@@ -33,6 +33,11 @@ var (
 	}, []string{"path", "method", "status"})
 )
 
+var CdDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
+	Name: "cd_duration_seconds",
+	Help: "Duration of CD process",
+}, []string{"appName", "status", "envName"})
+
 var requestCounter = promauto.NewCounterVec(
 	prometheus.CounterOpts{
 		Name: "orchestrator_http_requests_total",
@@ -51,11 +56,11 @@ var AcdGetResourceCounter = promauto.NewCounterVec(prometheus.CounterOpts{
 
 var CdTriggerCounter = promauto.NewCounterVec(prometheus.CounterOpts{
 	Name: "cd_trigger_counter",
-}, []string{"appId", "envId", "pipelineId"})
+}, []string{"appName", "envName"})
 
 var CiTriggerCounter = promauto.NewCounterVec(prometheus.CounterOpts{
 	Name: "ci_trigger_counter",
-}, []string{"appId", "pipelineId"})
+}, []string{"appName"})
 
 // prometheusMiddleware implements mux.MiddlewareFunc.
 func PrometheusMiddleware(next http.Handler) http.Handler {

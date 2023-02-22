@@ -528,7 +528,7 @@ type DeploymentAppTypeChangeRequest struct {
 	DesiredDeploymentType DeploymentType `json:"desiredDeploymentType,omitempty" validate:"required"`
 	ExcludeApps           []int          `json:"excludeApps"`
 	IncludeApps           []int          `json:"includeApps"`
-	AutoTriggerDeployment bool           `json:"-"`
+	AutoTriggerDeployment bool           `json:"autoTriggerDeployment"`
 	UserId                int32          `json:"-"`
 }
 
@@ -547,7 +547,7 @@ type DeploymentAppTypeChangeResponse struct {
 	DesiredDeploymentType DeploymentType            `json:"desiredDeploymentType,omitempty"`
 	SuccessfulPipelines   []*DeploymentChangeStatus `json:"successfulPipelines"`
 	FailedPipelines       []*DeploymentChangeStatus `json:"failedPipelines"`
-	TriggeredPipelines    []*CdPipelineTrigger      `json:"-"` // Disabling auto-trigger until bulk trigger API is fixed
+	TriggeredPipelines    []*CdPipelineTrigger      `json:"triggeredPipelines"`
 }
 
 type CdPipelineTrigger struct {
