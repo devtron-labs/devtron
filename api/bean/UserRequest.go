@@ -81,7 +81,7 @@ type RoleData struct {
 	EntityName  string `json:"entityName"`
 	Environment string `json:"environment"`
 	Action      string `json:"action"`
-	AccessType  string `json:"accessType"`
+	AccessType  string `json:"access_type"`
 
 	Cluster   string `json:"cluster"`
 	Namespace string `json:"namespace"`

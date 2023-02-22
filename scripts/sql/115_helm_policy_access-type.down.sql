@@ -9,7 +9,7 @@ SET role= '{
     "entityName": "{{.App}}",
     "environment": "{{.Env}}",
     "action": "manager",
-    "access_type": "",
+    "access_type": ""
 }'
 WHERE role_type='manager' AND id=1;
 
