@@ -77,11 +77,13 @@ type CiPipelineRepository interface {
 	FindExternalCiByCiPipelineId(ciPipelineId int) (*ExternalCiPipeline, error)
 	FindExternalCiById(id int) (*ExternalCiPipeline, error)
 	FindExternalCiByAppId(appId int) ([]*ExternalCiPipeline, error)
+	FindExternalCiByAppIds(appIds []int) ([]*ExternalCiPipeline, error)
 	FindCiScriptsByCiPipelineId(ciPipelineId int) ([]*CiPipelineScript, error)
 	SaveCiPipelineScript(ciPipelineScript *CiPipelineScript, tx *pg.Tx) error
 	UpdateCiPipelineScript(script *CiPipelineScript, tx *pg.Tx) error
 	MarkCiPipelineScriptsInactiveByCiPipelineId(ciPipelineId int, tx *pg.Tx) error
 	FindByAppId(appId int) (pipelines []*CiPipeline, err error)
+	FindByAppIds(appIds []int) (pipelines []*CiPipeline, err error)
 	//find non deleted pipeline
 	FindById(id int) (pipeline *CiPipeline, err error)
 	FindByCiAndAppDetailsById(pipelineId int) (pipeline *CiPipeline, err error)
@@ -172,6 +174,15 @@ func (impl CiPipelineRepositoryImpl) FindByAppId(appId int) (pipelines []*CiPipe
 	return pipelines, err
 }
 
+func (impl CiPipelineRepositoryImpl) FindByAppIds(appIds []int) (pipelines []*CiPipeline, err error) {
+	err = impl.dbConnection.Model(&pipelines).
+		Column("ci_pipeline.*", "App", "CiPipelineMaterials", "CiPipelineMaterials.GitMaterial").
+		Where("ci_pipeline.app_id in (?)", pg.In(appIds)).
+		Where("deleted =? ", false).
+		Select()
+	return pipelines, err
+}
+
 func (impl CiPipelineRepositoryImpl) FindExternalCiByCiPipelineId(ciPipelineId int) (*ExternalCiPipeline, error) {
 	externalCiPipeline := &ExternalCiPipeline{}
 	err := impl.dbConnection.Model(externalCiPipeline).
@@ -197,6 +208,16 @@ func (impl CiPipelineRepositoryImpl) FindExternalCiByAppId(appId int) ([]*Extern
 	err := impl.dbConnection.Model(&externalCiPipeline).
 		Column("external_ci_pipeline.*").
 		Where("app_id = ?", appId).
+		Where("active =? ", true).
+		Select()
+	return externalCiPipeline, err
+}
+
+func (impl CiPipelineRepositoryImpl) FindExternalCiByAppIds(appIds []int) ([]*ExternalCiPipeline, error) {
+	var externalCiPipeline []*ExternalCiPipeline
+	err := impl.dbConnection.Model(&externalCiPipeline).
+		Column("external_ci_pipeline.*").
+		Where("app_id in(?)", pg.In(appIds)).
 		Where("active =? ", true).
 		Select()
 	return externalCiPipeline, err

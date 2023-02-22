@@ -101,6 +101,7 @@ type PipelineRepository interface {
 	FindIdsByProjectIdsAndEnvironmentIds(projectIds, environmentIds []int) ([]int, error)
 
 	GetArgoPipelineByArgoAppName(argoAppName string) (Pipeline, error)
+	FindActiveByAppIds(appIds []int) (pipelines []*Pipeline, err error)
 }
 
 type CiArtifactDTO struct {
@@ -574,4 +575,13 @@ func (impl PipelineRepositoryImpl) GetArgoPipelineByArgoAppName(argoAppName stri
 		return pipeline, err
 	}
 	return pipeline, nil
+}
+
+func (impl PipelineRepositoryImpl) FindActiveByAppIds(appIds []int) (pipelines []*Pipeline, err error) {
+	err = impl.dbConnection.Model(&pipelines).
+		Column("pipeline.*", "App", "Environment").
+		Where("app_id in(?)", pg.In(appIds)).
+		Where("deleted = ?", false).
+		Select()
+	return pipelines, err
 }
