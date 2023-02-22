@@ -176,7 +176,7 @@ func (impl CiPipelineRepositoryImpl) FindByAppId(appId int) (pipelines []*CiPipe
 
 func (impl CiPipelineRepositoryImpl) FindByAppIds(appIds []int) (pipelines []*CiPipeline, err error) {
 	err = impl.dbConnection.Model(&pipelines).
-		Column("ci_pipeline.*","App", "CiPipelineMaterials", "CiPipelineMaterials.GitMaterial").
+		Column("ci_pipeline.*", "App", "CiPipelineMaterials", "CiPipelineMaterials.GitMaterial").
 		Where("ci_pipeline.app_id in (?)", pg.In(appIds)).
 		Where("deleted =? ", false).
 		Select()
