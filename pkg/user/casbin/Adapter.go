@@ -150,10 +150,10 @@ func LoadPolicy() {
 	swapPolicy()
 	fmt.Println("policy reloaded successfully id: ", reloadId)
 	/*err := enforcerImplRef.ReloadPolicy()
-	if err != nil {
-		fmt.Println("error in reloading policies id:", reloadId, " err: ", err)
-	} else {
-		fmt.Println("policy reloaded successfully id: ", reloadId)
+		if err != nil {
+			fmt.Println("error in reloading policies id:", reloadId, " err: ", err)
+		} else {
+			fmt.Println("policy reloaded successfully id: ", reloadId)
 	}*/
 }
 
