@@ -15,11 +15,11 @@ type JobRouterImpl struct {
 }
 
 func NewJobRouterImpl(pipelineConfigRestHandler app.PipelineConfigRestHandler, appListingRestHandler restHandler.AppListingRestHandler) *JobRouterImpl {
-	router := &JobRouterImpl{
+	return &JobRouterImpl{
 		appListingRestHandler:     appListingRestHandler,
 		pipelineConfigRestHandler: pipelineConfigRestHandler,
 	}
-	return router
+	//return router
 }
 func (router JobRouterImpl) InitJobRouter(jobRouter *mux.Router) {
 	jobRouter.Path("").HandlerFunc(router.pipelineConfigRestHandler.CreateJob).Methods("POST")
