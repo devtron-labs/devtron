@@ -238,7 +238,7 @@ INSERT INTO "public"."default_auth_role" ( "role_type", "role", "created_on", "c
     "environment": "{{.Env}}",
     "action": "admin",
     "entity": "{{.Entity}}",
-    "accessType": "helm-app"
+    "access_type": "helm-app"
 }', 'now()', '1', 'now()', '1','helm-app','apps'),
                                                                                                                                  ( 'edit', '{
    "role": "helm-app:edit_{{.Team}}_{{.Env}}_{{.App}}",
@@ -251,7 +251,7 @@ INSERT INTO "public"."default_auth_role" ( "role_type", "role", "created_on", "c
     "environment": "{{.Env}}",
     "action": "edit",
     "entity": "{{.Entity}}",
-    "accessType": "helm-app"
+    "access_type": "helm-app"
 }', 'now()', '1', 'now()', '1','helm-app','apps'),
                                                                                                                                  ( 'view', '{
      "role": "helm-app:view_{{.Team}}_{{.Env}}_{{.App}}",
@@ -264,7 +264,7 @@ INSERT INTO "public"."default_auth_role" ( "role_type", "role", "created_on", "c
     "environment": "{{.Env}}",
     "action": "view",
     "entity": "{{.Entity}}",
-    "accessType": "helm-app"
+    "access_type": "helm-app"
 }', 'now()', '1', 'now()', '1','helm-app','apps');
 
 
