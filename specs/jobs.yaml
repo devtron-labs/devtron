@@ -21,7 +21,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ActionResponse"
   /orchestrator/app/jobs/list:
-    get:
+    post:
       description: Get the list of all the jobs by applying filter
       requestBody:
         required: true
