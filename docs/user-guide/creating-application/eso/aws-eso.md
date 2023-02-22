@@ -10,15 +10,15 @@ Create a Kubernetes secret in the namespace in which the application is to be de
 
 After creating the generic secret, navigate to `Secrets` section of the application and follow the steps mentioned below :
 
-1. Click `Add Secret` to add a new secret.
+**1. Click `Add Secret` to add a new secret.**
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/secrets/add-secrets.jpg)
 
-2. Select `AWS Secret Manager` under `External Secret Operator` (ESO) from the dropdown of `Data type`.
+**2. Select `AWS Secret Manager` under `External Secret Operator` (ESO) from the dropdown of `Data type`.**
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/secrets/aws-secret-manager-dropdown.jpg)
 
-3. Configure secret:
+**3. Configure secret:**
 
 | Key | Description |
 | :--- | :--- |
@@ -36,4 +36,4 @@ After creating the generic secret, navigate to `Secrets` section of the applicat
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/secrets/aws-external-secret.jpg)
 
 
-4. Save secret.
+**4. Save secret.**
