@@ -7,7 +7,7 @@ To add secrets from **Google Secrets Manager**, follow the steps mentioned below
         (ii) Assign roles to the service account.
         (iii) Add and create new key. Download the service accountkey in JSON format.
 
-![(i) Create a Service Account](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/secrets/google-sa.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/secrets/google-sa.jpg)
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/secrets/google-sa-create.jpg)
 
