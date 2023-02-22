@@ -3,7 +3,7 @@ info:
   title: Jobs
   version: "1.0"
 paths:
-  /orchestrator/app/jobs:
+  /orchestrator/job:
     post:
       description: Create and clones a job
       requestBody:
@@ -20,8 +20,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ActionResponse"
-  /orchestrator/app/jobs/list:
-    get:
+  /orchestrator/job/list:
+    post:
       description: Get the list of all the jobs by applying filter
       requestBody:
         required: true
@@ -37,7 +37,51 @@ paths:
             schema:
               items:
                 $ref: "#/components/schemas/JobListResponse"
-
+  /orchestrator/job/ci-pipeline/list/{jobId}:
+    get:
+      description: fetch details of job ci-pipelines for the overview page
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: integer
+  /orchestrator/job//ci-pipeline/patch:
+      post:
+        description: Create/Update ci pipeline.
+        operationId: PatchCiPipeline
+        requestBody:
+          description: A JSON object containing the pipeline configuration
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CiPatchRequest"
+        responses:
+          "200":
+            description: Successfully return a message stating the operation is successful.
+            content:
+              application/json:
+                schema:
+                  type: string
+          "400":
+            description: Bad Request. Validation error/wrong request body.
+            content:
+              application/json:
+                schema:
+                  $ref: "#/components/schemas/Error"
+          "500":
+            description: Internal Server Error
+            content:
+              application/json:
+                schema:
+                  $ref: "#/components/schemas/Error"
+          "403":
+            description: Unauthorized User
+            content:
+              application/json:
+                schema:
+                  $ref: "#/components/schemas/Error"
 #components
 components:
   schemas:
@@ -176,6 +220,113 @@ components:
                           type: time.Time
         jobCount:
           type: integer
+    Error:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message
+    CiPatchRequest:
+        type: object
+        properties:
+          action:
+            type: integer
+          appId:
+            type: integer
+          isJob:
+            type: boolean
+            example: true
+          appWorkflowId:
+            type: integer
+          ciPipeline:
+            $ref: "#/components/schemas/CiPipelineDetails"
+    CiPipelineDetails:
+        type: object
+        properties:
+          isDockerConfigOverridden:
+            type: boolean
+          dockerConfigOverride:
+            $ref: "#/components/schemas/DockerBuildConfig"
+          name:
+            type: string
+          isManual:
+            type: boolean
+          scanEnabled:
+            type: boolean
+          isExternal:
+            type: boolean
+          parentAppId:
+            type: integer
+          parentCiPipeline:
+            type: integer
+          linkedCount:
+            type: integer
+          ciMaterials:
+            type: array
+            items:
+              $ref: "#/components/schemas/CiPipelineMaterialConfig"
+          dockerArgs:
+            type: array
+            items:
+              type: object
+              properties:
+                Key:
+                  type: string
+                Value:
+                  type: string
+            description: map of docker arguments, i.e. key-value pairs
+          beforeDockerBuildScripts:
+            type: array
+            items:
+              $ref: "#/components/schemas/BuildScript"
+          afterDockerbuildScripts:
+            type: array
+            items:
+              $ref: "#/components/schemas/BuildScript"
+    DockerBuildConfig:
+        type: object
+        properties:
+          gitMaterialId:
+            type: integer
+          dockerfileRelativePath:
+            type: string
+          targetPlatform:
+            type: string
+          args:
+            type: array
+            items:
+              type: object
+              properties:
+                Key:
+                  type: string
+                Value:
+                  type: string
+            description: map of docker arguments, i.e. key-value pairs
+    CiPipelineMaterialConfig:
+        type: object
+        properties:
+          type:
+            type: string
+          value:
+            type: string
+          checkoutPath:
+            type: string
+    BuildScript:
+        type: object
+        properties:
+          index:
+            type: integer
+          name:
+            type: string
+          script:
+            type: string
+          reportDirectoryPath:
+            type: string
 
 
 
