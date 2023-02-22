@@ -1,4 +1,5 @@
 ## Bugs
+- fix: conditionally setting s3 config in workflow object (#3014)
 - fix: fixed condition for updating health timeline and status (#3003)
 - fix: added deployment app type support for app create api, separated cron time for helm app status update (#2995)
 - fix: helm deploy hibernate fix (#2983)
