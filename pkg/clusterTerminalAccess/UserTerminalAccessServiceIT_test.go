@@ -41,7 +41,7 @@ func TestNewUserTerminalAccessServiceIT(t *testing.T) {
 			NodeName:  "demo-new",
 		}
 		time.Sleep(5 * time.Second)
-		terminalSessionResponse, err := terminalAccessServiceImpl.StartTerminalSession(context.Background(), request, "")
+		terminalSessionResponse, err := terminalAccessServiceImpl.StartTerminalSession(context.Background(), request)
 		assert.Nil(t, err)
 		fmt.Println(terminalSessionResponse)
 		podManifest, err := terminalAccessServiceImpl.FetchPodManifest(context.Background(), terminalSessionResponse.TerminalAccessId)
@@ -164,7 +164,7 @@ func createAndUpdateSessionForUser(t *testing.T, terminalAccessServiceImpl *User
 		Namespace: "default",
 	}
 	time.Sleep(5 * time.Second)
-	startTerminalSession, err := terminalAccessServiceImpl.StartTerminalSession(context.Background(), request, "")
+	startTerminalSession, err := terminalAccessServiceImpl.StartTerminalSession(context.Background(), request)
 	assert.Nil(t, err)
 	fmt.Println(startTerminalSession)
 	sessionId, err := fetchSessionId(terminalAccessServiceImpl, startTerminalSession.TerminalAccessId)
