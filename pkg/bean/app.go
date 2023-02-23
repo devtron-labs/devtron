@@ -473,6 +473,7 @@ type CDPipelineConfigObject struct {
 	ParentPipelineType            string                                 `json:"parentPipelineType"`
 	DeploymentAppType             string                                 `json:"deploymentAppType"`
 	AppName                       string                                 `json:"appName"`
+	AppId                         int                                    `json:"appId"`
 	//Downstream         []int                             `json:"downstream"` //PipelineCounter of downstream	(for future reference only)
 }
 
