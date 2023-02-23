@@ -6,33 +6,19 @@ You can add more chart repositories to Devtron. Once added, they will be availab
 
 ## Add Chart Repository
 
-To add chart repository, go to the `Chart repositories` section of `Global Configurations`. Click **Add repository**.
+To add chart repository, go to the `Chart Repositories` section of `Global Configurations`. Click **Add repository**.
 
-You can either select:
- * `Public repository` or
- * `Private repository`
+**Note**: Only public chart repositories can be connected as of now via Devtron.
 
-If you select `Public repository`, provide below information in the following fields:
+Provide below information in the following fields:
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/chart-repo/add-chart-repository-public.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/chart-repo/add-chart-repo.jpg)
 
 | Fields | Description |
 | --- | --- |
 | **Name** | Provide a `Name` of your chart repository. This name is added as prefix to the name of the chart in the listing on the helm chart section of application. |
 | **URL** | This is the URL of your chart repository. E.g. https://charts.bitnami.com/bitnami |
 
-
-If you select `Private repository`, provide below information in the following fields:
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/chart-repo/add-chart-repository-private.jpg)
-
-| Fields | Description |
-| --- | --- |
-| **Name** | Provide a `Name` of your chart repository. This name is added as prefix to the name of the chart in the listing on the helm chart section of application. |
-| **URL** | This is the URL of your chart repository. E.g. https://charts.bitnami.com/bitnami |
-| **Username** | Provide the username of your chart repository. |
-| **Password** | Enter the password of your chart repository |
-| **Secure with TLS** | Enable this field to encrypt your data. |
 
 
 ## Update Chart Repository

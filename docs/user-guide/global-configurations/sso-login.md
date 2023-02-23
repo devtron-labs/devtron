@@ -1,4 +1,4 @@
-# SSO LOGIN 
+# SSO Login Services
 
 Once Devtron is installed, it has a built-in `admin` user with super admin privileges with unrestricted access to all Devtron resources. We recommended to use a user with super admin privileges for initial and global configurations only and then switch to local users or configure SSO integration.
 
