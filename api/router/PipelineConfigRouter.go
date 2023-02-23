@@ -51,7 +51,6 @@ func NewPipelineRouterImpl(restHandler app.PipelineConfigRestHandler,
 
 func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mux.Router) {
 	configRouter.Path("").HandlerFunc(router.restHandler.CreateApp).Methods("POST")
-	configRouter.Path("/jobs").HandlerFunc(router.restHandler.CreateJob).Methods("POST")
 	configRouter.Path("/{appId}").HandlerFunc(router.restHandler.DeleteApp).Methods("DELETE")
 	configRouter.Path("/material").HandlerFunc(router.restHandler.CreateMaterial).Methods("POST")
 	configRouter.Path("/material").HandlerFunc(router.restHandler.UpdateMaterial).Methods("PUT")
