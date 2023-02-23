@@ -1,0 +1,40 @@
+{{- if .Values.winterSoilder.enable  }}
+
+apiVersion: pincher.devtron.ai/v1alpha1
+kind: Hibernator
+
+metadata:
+  name: {{ template ".Chart.Name .fullname" $ }}-hibernator
+  labels:
+    app: {{ template ".Chart.Name .name" $ }}
+    appId: {{ $.Values.app | quote }}
+    envId: {{ $.Values.env | quote }}
+    chart: {{ template ".Chart.Name .chart" $ }}
+    release: {{ $.Release.Name }}
+{{- if $.Values.appLabels }}
+{{ toYaml $.Values.appLabels | indent 4 }}
+{{- end }}
+    {{- if $.Values.winterSoilder.labels }}
+{{ toYaml $.Values.winterSoilder.labels | indent 4 }}
+    {{- end }}
+{{- if $.Values.winterSoilder.annotations }}
+  annotations:
+{{ toYaml $.Values.winterSoilder.annotations | indent 4 }}
+{{- end }}
+
+spec:
+  timeRangesWithZone:
+    timeZone: "Asia/Kolkata"
+    timeRanges:
+    {{- range .Values.winterSoilder.timeRange }}
+      {{ $outer := . -}}
+      - timeFrom: {{ .timeFrom | quote }}
+        timeTo: {{ .timeTo | quote }}
+        weekdayFrom: {{ .weekdayFrom | quote }}
+        weekdayTo: {{ .weekdayTo | quote }}
+    {{- end }}
+  selectors:
+{{ toYaml $.Values.winterSoilder.selector | indent 4}}
+  action: {{$.Values.winterSoilder.action}}
+
+{{- end}}
