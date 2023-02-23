@@ -161,6 +161,7 @@ func (handler AppListingRestHandlerImpl) FetchAllDevtronManagedApps(w http.Respo
 func (handler AppListingRestHandlerImpl) FetchJobs(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
+		handler.logger.Errorw("request err, userId", "err", err, "payload", userId)
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
@@ -190,6 +191,7 @@ func (handler AppListingRestHandlerImpl) FetchJobs(w http.ResponseWriter, r *htt
 func (handler AppListingRestHandlerImpl) FetchOverviewCiPipelines(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
+		handler.logger.Errorw("request err, userId", "err", err, "payload", userId)
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
@@ -203,6 +205,11 @@ func (handler AppListingRestHandlerImpl) FetchOverviewCiPipelines(w http.Respons
 	}
 
 	jobCi, err := handler.appListingService.FetchOverviewCiPipelines(jobId)
+	if err != nil {
+		handler.logger.Errorw("request err, GetJobCi", "err", jobCi, "jobCi", jobCi)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 
 	common.WriteJsonResp(w, err, jobCi, http.StatusOK)
 }
