@@ -39,7 +39,7 @@ echo "checking if error message is not null"
 if [ null == "$(cat error_message.txt)" ] ;then
     echo "jira issue exists"
     echo "validating jira issue status"
-    if [ "Done" == "$(cat jira_issue_status_category_name.txt)" ] ;then
+    if [ "\"Done\"" == "$(cat jira_issue_status_category_name.txt)" ] ;then
         echo "jira issue is already closed"
         exit 1
     else
