@@ -6,6 +6,11 @@ The Kubernetes client by Devtron is a very lightweight dashboard that can be ins
 
 Devtron Kubernetes client is an intuitive Kubernetes Dashboard or a command line utility installed outside a Kubernetes cluster. The client can be installed on a desktop running on any Operating Systems and interact with all your Kubernetes clusters and workloads through an API server. It is a binary, packaged in a bash script that you can download and install by using the following set of commands.
 
+By installing `Devtron Kubernetes Client`, you can access:
+
+* [Kubernetes Resource Browser](#kubernetes-resource-browser)
+* [Clusters Management Feature](#cluster-management)
+
 
 ## Here are a few advantages of using Devtron Kubernetes Client:
 
@@ -75,7 +80,7 @@ It enables you to observe and monitor the cluster health and real-time node cond
 * Edit a node config
 * Delete a node
 
-With its rich features and intuitive interface, you can easily manage and debug clusters through cluster terminal access and use any CLI debugging tools like busybox, kubectl, netshoot or any custom CLI tools like k9s.
+With its rich features and intuitive interface, you can easily manage and [debug clusters through cluster terminal access](https://docs.devtron.ai/v/v0.6/usage/clusters#access-cluster-via-terminal-for-troubleshooting) and use any CLI debugging tools like busybox, kubectl, netshoot or any custom CLI tools like k9s.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/install-devtron/install+devtron+K8s+client/cluster-terminal.jpg)
 
