@@ -20,6 +20,7 @@ import (
 	repository1 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/module"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
 	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
@@ -112,6 +113,9 @@ func InitAppService() *app2.AppServiceImpl {
 	if err != nil {
 		log.Fatal("error in getting db connection, AppService_test", "err", err)
 	}
+
+	cdConfig, _ := pipeline.GetCdConfig()
+
 	pipelineOverrideRepository := chartConfig.NewPipelineOverrideRepository(dbConnection)
 	pipelineRepository := pipelineConfig.NewPipelineRepositoryImpl(dbConnection, logger)
 	httpClient := util.NewHttpClient()
@@ -132,7 +136,7 @@ func InitAppService() *app2.AppServiceImpl {
 		log.Fatal("error in getting server helm client config, AppService_test", "err", err)
 	}
 	helmAppClient := client.NewHelmAppClientImpl(logger, helmClientConfig)
-	helmAppService := client.NewHelmAppServiceImpl(logger, clusterService, helmAppClient, nil, nil, nil, serverEnvConfig, nil, nil, nil, nil)
+	helmAppService := client.NewHelmAppServiceImpl(logger, clusterService, helmAppClient, nil, nil, nil, serverEnvConfig, nil, nil, nil, nil, nil, nil)
 	moduleService := module.NewModuleServiceImpl(logger, serverEnvConfig, moduleRepositoryImpl, moduleActionAuditLogRepository, helmAppService, nil, nil, nil, nil, nil, nil)
 	eventClient := client1.NewEventRESTClientImpl(logger, httpClient, eventClientConfig, pubSubClient, ciPipelineRepositoryImpl,
 		pipelineRepository, attributesRepositoryImpl, moduleService)
@@ -141,7 +145,7 @@ func InitAppService() *app2.AppServiceImpl {
 	ciPipelineMaterialRepository := pipelineConfig.NewCiPipelineMaterialRepositoryImpl(dbConnection, logger)
 	userRepository := repository2.NewUserRepositoryImpl(dbConnection, logger)
 	eventFactory := client1.NewEventSimpleFactoryImpl(logger, cdWorkflowRepository, pipelineOverrideRepository, ciWorkflowRepository,
-		ciPipelineMaterialRepository, ciPipelineRepositoryImpl, pipelineRepository, userRepository)
+		ciPipelineMaterialRepository, ciPipelineRepositoryImpl, pipelineRepository, userRepository, nil)
 	appListingRepositoryQueryBuilder := helper.NewAppListingRepositoryQueryBuilder(logger)
 	appListingRepository := repository.NewAppListingRepositoryImpl(logger, dbConnection, appListingRepositoryQueryBuilder)
 	appRepository := app.NewAppRepositoryImpl(dbConnection, logger)
@@ -153,13 +157,55 @@ func InitAppService() *app2.AppServiceImpl {
 	pipelineStatusSyncDetailService := app2.NewPipelineStatusSyncDetailServiceImpl(logger, pipelineStatusSyncDetailRepository)
 	pipelineStatusTimelineService := app2.NewPipelineStatusTimelineServiceImpl(logger, pipelineStatusTimelineRepository, cdWorkflowRepository, nil, pipelineStatusTimelineResourcesService, pipelineStatusSyncDetailService)
 	refChartDir := chartRepoRepository.RefChartDir("scripts/devtron-reference-helm-charts")
-	appService := app2.NewAppService(nil, pipelineOverrideRepository, nil, logger, nil,
-		pipelineRepository, nil, eventClient, eventFactory, nil, nil, nil, nil, nil, nil,
-		appListingRepository, appRepository, nil, nil, nil, nil, nil,
-		chartRepository, nil, cdWorkflowRepository, nil, nil, nil, nil,
-		nil, nil, nil, nil, nil, refChartDir, nil,
-		nil, nil, nil, pipelineStatusTimelineRepository, nil, nil, nil,
-		nil, nil, pipelineStatusTimelineResourcesService, pipelineStatusSyncDetailService, pipelineStatusTimelineService,
-		nil)
+	appService := app2.NewAppService(
+		nil,
+		pipelineOverrideRepository,
+		nil,
+		logger,
+		nil,
+		pipelineRepository,
+		nil,
+		eventClient,
+		eventFactory,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		appListingRepository,
+		appRepository,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		chartRepository,
+		nil,
+		cdWorkflowRepository,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		refChartDir,
+		nil,
+		nil,
+		nil,
+		nil,
+		pipelineStatusTimelineRepository,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		pipelineStatusTimelineResourcesService,
+		pipelineStatusSyncDetailService,
+		pipelineStatusTimelineService,
+		nil, nil, nil, nil, cdConfig)
 	return appService
 }

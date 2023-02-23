@@ -235,7 +235,7 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch
 			impl.Logger.Errorw("error on update cd workflow runner", "cdWfr", cdWfr, "err", err)
 			return err, isTimelineUpdated
 		}
-		util3.CDDurationTelemetry(&cdWfr)
+		util3.CDDurationTelemetry(&cdWfr, impl.cdConfig)
 		// creating cd pipeline status timeline
 		timeline := &pipelineConfig.PipelineStatusTimeline{
 			CdWorkflowRunnerId: cdWfr.Id,
@@ -325,7 +325,7 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipel
 			return err
 		}
 		if wfr.Status == pipelineConfig.WorkflowSucceeded {
-			util3.CDDurationTelemetry(wfr)
+			util3.CDDurationTelemetry(wfr, impl.cdConfig)
 		}
 		impl.Logger.Infow("updated workflow runner status for helm app", "wfr", wfr)
 		if helmAppStatus == application.Healthy {
@@ -451,7 +451,7 @@ func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 			return 0, "", err
 		}
 		if savedWorkflow.Status == pipelineConfig.WorkflowSucceeded || savedWorkflow.Status == pipelineConfig.WorkflowFailed {
-			util3.CDDurationTelemetry(savedWorkflow)
+			util3.CDDurationTelemetry(savedWorkflow, impl.cdConfig)
 		}
 		if string(v1alpha1.NodeError) == savedWorkflow.Status || string(v1alpha1.NodeFailed) == savedWorkflow.Status {
 			impl.Logger.Warnw("cd stage failed for workflow: ", "wfId", savedWorkflow.Id)
