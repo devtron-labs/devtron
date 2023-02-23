@@ -29,7 +29,6 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/cron"
-	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
@@ -305,12 +304,13 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 	offset := fetchAppListingRequest.Offset
 	limit := fetchAppListingRequest.Size
 
-	if offset+limit <= len(apps) {
-		apps = apps[offset : offset+limit]
-	} else {
-		apps = apps[offset:]
+	if limit > 0 {
+		if offset+limit <= len(apps) {
+			apps = apps[offset : offset+limit]
+		} else {
+			apps = apps[offset:]
+		}
 	}
-
 	appContainerResponse := bean.AppContainerResponse{
 		AppContainers: apps,
 		AppCount:      appsCount,
@@ -776,13 +776,11 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		resp, err := handler.application.ResourceTree(ctx, query)
 		elapsed := time.Since(start)
 		if err != nil {
-			handler.logger.Errorw("service err, FetchAppDetails, resource tree", "err", err, "app", appId, "env", envId)
-			err = &util.ApiError{
-				Code:            constants.AppDetailResourceTreeNotFound,
-				InternalMessage: "app detail fetched, failed to get resource tree from acd",
-				UserMessage:     "Error fetching detail, if you have recently created this deployment pipeline please try after sometime.",
-			}
-			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+			handler.logger.Errorw("service err, FetchAppDetails, resource tree",
+				"err", err,
+				"app", appId,
+				"env", envId)
+
 			return appDetail
 		}
 		if resp.Status == string(health.HealthStatusHealthy) {
