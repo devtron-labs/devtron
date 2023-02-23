@@ -97,7 +97,7 @@ WHERE role_type = 'entityAll';
 
 SELECT setval('id_seq_default_auth_policy', (SELECT MAX(id) FROM default_auth_policy));
 
-INSERT INTO "public"."default_auth_policy" ( "role_type", "policy", "created_on", "created_by", "updated_on", "updated_by","accessType""entity") VALUES
+INSERT INTO "public"."default_auth_policy" ( "role_type", "policy", "created_on", "created_by", "updated_on", "updated_by","access_type","entity") VALUES
                                                                                                                                      ( 'admin', '{
     "data": [
          {
@@ -226,7 +226,7 @@ SELECT setval('id_seq_default_auth_role', (SELECT MAX(id) FROM default_auth_role
 
 
 
-INSERT INTO "public"."default_auth_role" ( "role_type", "role", "created_on", "created_by", "updated_on", "updated_by","accessType""entity") VALUES
+INSERT INTO "public"."default_auth_role" ( "role_type", "role", "created_on", "created_by", "updated_on", "updated_by","access_type","entity") VALUES
                                                                                                                                  ( 'admin', '{
     "role": "helm-app:admin_{{.Team}}_{{.Env}}_{{.App}}",
     "casbinSubjects":

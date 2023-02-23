@@ -128,11 +128,11 @@ DROP COLUMN entity;
 
 
 UPDATE "public"."roles"
-SET entity=''
+SET entity = NULL
 WHERE access_type ='helm-app' ;
 
 UPDATE "public"."roles"
-SET entity = '', access_type = ''
+SET entity = NULL, access_type = NULL
 WHERE access_type = 'devtron-app' AND entity = 'apps' AND (action = 'view' OR action = 'trigger' OR action = 'manager' OR action = 'admin');
 
 
