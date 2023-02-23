@@ -167,6 +167,7 @@ func (impl WebhookServiceImpl) HandleCiSuccessEvent(ciPipelineId int, request *C
 	if pipeline.ScanEnabled {
 		artifact.Scanned = true
 	}
+	impl.logger.Errorw("rishab-debugger inside orchestrator WebHookService.go:", request.Image)
 	if err = impl.ciArtifactRepository.Save(artifact); err != nil {
 		impl.logger.Errorw("error in saving material", "err", err)
 		return 0, err
