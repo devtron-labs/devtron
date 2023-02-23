@@ -482,6 +482,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		IgnoreDockerCachePush:      impl.ciConfig.IgnoreDockerCacheForCI,
 		IgnoreDockerCachePull:      impl.ciConfig.IgnoreDockerCacheForCI,
 		CacheInvalidate:            trigger.InvalidateCache,
+		ExtraEnvironmentVariables:  trigger.ExtraEnvironmentVariables,
 	}
 
 	if ciWorkflowConfig.LogsBucket == "" {
