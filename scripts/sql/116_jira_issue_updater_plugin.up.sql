@@ -9,7 +9,12 @@ if [[ $UpdateWithBuildStatus == true ]]
 then
 	# step-1 -> updating the jira issue with build status
 	echo -e "\033[1m======== Updating the Jira issue with build status ========"
-	curl -u $JiraUsername:$JiraPassword -X PUT $JiraBaseUrl/rest/api/2/issue/$JiraId -H "Content-Type: application/json" -d ''{"update": {"comment": [{"add":{"body":"''"Build succeeded : $BuildSuccess"''"}}]}}''
+    buildStatusMessage="Failed"
+    if [[ $BuildSuccess == true ]]
+    then
+        buildStatusMessage="Succeeded"
+    fi
+	curl -u $JiraUsername:$JiraPassword -X PUT $JiraBaseUrl/rest/api/2/issue/$JiraId -H "Content-Type: application/json" -d ''{"update": {"comment": [{"add":{"body":"''"Build status : $buildStatusMessage"''"}}]}}''
 
 	if [ $? != 0 ]; then
 	   echo -e "\033[1m======== Updating the jira Jira with build status failed ========"
