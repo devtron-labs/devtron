@@ -9,7 +9,7 @@ if [[ $UpdateWithBuildStatus == true ]]
 then
 	# step-1 -> updating the jira issue with build status
 	echo "updating build status to jira issue"
-	curl -u $JiraUsername:$JiraPassword -X PUT $JiraBaseUrl/rest/api/2/issue/$JiraId -H "Content-Type: application/json" -d ''{"update": {"comment": [{"add":{"body":"''"Build succeeded : $BuildStatus"''"}}]}}'';
+	curl -u $JiraUsername:$JiraPassword -X PUT $JiraBaseUrl/rest/api/2/issue/$JiraId -H "Content-Type: application/json" -d ''{"update": {"comment": [{"add":{"body":"''"Build succeeded : $BuildSuccess"''"}}]}}''
 
 	if [ $? != 0 ]; then
 	   echo "updating the jira issue with build status failed"
@@ -17,11 +17,11 @@ then
 	fi
 fi
 
-if [[ $UpdateWithDockerImageId == true && $BUILD_SUCCESS == true ]]
+if [[ $UpdateWithDockerImageId == true && $BuildSuccess == true ]]
 then
 	# step-2 -> updating the jira issue with docker image Id
 	echo "updating the jira issue with docker image Id"
-	curl -u $JiraUsername:$JiraPassword -X PUT $JiraBaseUrl/rest/api/2/issue/$JiraId -H "Content-Type: application/json" -d ''{"update": {"comment": [{"add":{"body":"''"Image built : $DockerImage"''"}}]}}'';
+	curl -u $JiraUsername:$JiraPassword -X PUT $JiraBaseUrl/rest/api/2/issue/$JiraId -H "Content-Type: application/json" -d ''{"update": {"comment": [{"add":{"body":"''"Image built : $DockerImage"''"}}]}}''
 
 	if [ $? != 0 ]; then
 	   echo "updating the jira issue with docker image Id failed"
