@@ -16,8 +16,10 @@ import (
 	"github.com/yannh/kubeconform/pkg/resource"
 	"github.com/yannh/kubeconform/pkg/validator"
 	"go.uber.org/zap"
+	v1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/kubernetes/pkg/api/legacyscheme"
@@ -28,7 +30,7 @@ import (
 )
 
 type UserTerminalAccessService interface {
-	StartTerminalSession(ctx context.Context, request *models.UserTerminalSessionRequest, customTerminalPodTemplate string) (*models.UserTerminalSessionResponse, error)
+	StartTerminalSession(ctx context.Context, request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error)
 	UpdateTerminalSession(ctx context.Context, request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error)
 	UpdateTerminalShellSession(ctx context.Context, request *models.UserTerminalShellSessionRequest) (*models.UserTerminalSessionResponse, error)
 	FetchTerminalStatus(ctx context.Context, terminalAccessId int, namespace string, shellName string) (*models.UserTerminalSessionResponse, error)
@@ -38,7 +40,7 @@ type UserTerminalAccessService interface {
 	FetchPodManifest(ctx context.Context, userTerminalAccessId int) (resp *application.ManifestResponse, err error)
 	FetchPodEvents(ctx context.Context, userTerminalAccessId int) (*application.EventsResponse, error)
 	ValidateShell(podName, namespace, shellName string, clusterId int) (bool, string, error)
-	EditPodManifest(ctx context.Context, request *models.ManifestEditRequestResponse) (models.ManifestEditRequestResponse, error)
+	EditPodManifest(ctx context.Context, request *ManifestEditRequestResponse) (ManifestEditRequestResponse, error)
 }
 
 type UserTerminalAccessServiceImpl struct {
@@ -58,6 +60,13 @@ type UserTerminalAccessSessionData struct {
 	latestActivityTime       time.Time
 	terminalAccessDataEntity *models.UserTerminalAccessData
 	terminateTriggered       bool
+}
+type ManifestEditRequestResponse struct {
+	ErrorComments        string                              `json:"errors,omitempty"`
+	ManifestRequest      string                              `json:"manifestRequest"`
+	ManifestResponse     *application.ManifestResponse       `json:"manifestResponse"`
+	UserTerminalResponse *models.UserTerminalSessionResponse `json:"userTerminalResponse,omitempty"`
+	UserTerminalRequest  *models.UserTerminalSessionRequest  `json:"userTerminalRequest,omitempty"`
 }
 
 func GetTerminalAccessConfig() (*models.UserTerminalSessionConfig, error) {
@@ -117,8 +126,25 @@ func (impl *UserTerminalAccessServiceImpl) ValidateShell(podName, namespace, she
 	}
 	return res, shellName, err
 }
-func (impl *UserTerminalAccessServiceImpl) StartTerminalSession(ctx context.Context, request *models.UserTerminalSessionRequest, customTerminalPodTemplate string) (*models.UserTerminalSessionResponse, error) {
+func (impl *UserTerminalAccessServiceImpl) StartTerminalSession(ctx context.Context, request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error) {
 	impl.Logger.Infow("terminal start request received for user", "request", request)
+	podNameVar, err := impl.getPodNameVar(request)
+	if err != nil {
+		return nil, err
+	}
+	terminalEntity, err := impl.createTerminalEntity(request, *podNameVar)
+	if err != nil {
+		return nil, err
+	}
+	isAutoSelect := false
+	if request.NodeName == models.AUTO_SELECT_NODE {
+		isAutoSelect = true
+	}
+	err = impl.startTerminalPod(ctx, terminalEntity.PodName, request, isAutoSelect)
+	return terminalEntity, err
+}
+
+func (impl *UserTerminalAccessServiceImpl) getPodNameVar(request *models.UserTerminalSessionRequest) (*string, error) {
 	userId := request.UserId
 	// check for max session check
 	err := impl.checkMaxSessionLimit(userId)
@@ -127,16 +153,7 @@ func (impl *UserTerminalAccessServiceImpl) StartTerminalSession(ctx context.Cont
 	}
 	maxIdForUser := impl.getMaxIdForUser(userId)
 	podNameVar := impl.createPodName(request, maxIdForUser)
-	terminalEntity, err := impl.createTerminalEntity(request, podNameVar)
-	if err != nil {
-		return nil, err
-	}
-	isAutoSelect := false
-	if request.NodeName == models.AUTO_SELECT_NODE {
-		isAutoSelect = true
-	}
-	err = impl.startTerminalPod(ctx, podNameVar, request, isAutoSelect, customTerminalPodTemplate)
-	return terminalEntity, err
+	return &podNameVar, err
 }
 
 func (impl *UserTerminalAccessServiceImpl) checkMaxSessionLimit(userId int32) error {
@@ -270,7 +287,7 @@ func (impl *UserTerminalAccessServiceImpl) UpdateTerminalSession(ctx context.Con
 		return nil, err
 	}
 
-	return impl.StartTerminalSession(ctx, request, "")
+	return impl.StartTerminalSession(ctx, request)
 }
 
 func (impl *UserTerminalAccessServiceImpl) DisconnectTerminalSession(ctx context.Context, userTerminalAccessId int) error {
@@ -397,7 +414,7 @@ func (impl *UserTerminalAccessServiceImpl) getMetadataMap(metadata string) (map[
 	return metadataMap, nil
 }
 
-func (impl *UserTerminalAccessServiceImpl) startTerminalPod(ctx context.Context, podNameVar string, request *models.UserTerminalSessionRequest, isAutoSelect bool, customTerminalPodTemplate string) error {
+func (impl *UserTerminalAccessServiceImpl) startTerminalPod(ctx context.Context, podNameVar string, request *models.UserTerminalSessionRequest, isAutoSelect bool) error {
 
 	accessTemplates, err := impl.TerminalAccessRepository.FetchAllTemplates()
 	if err != nil {
@@ -405,7 +422,7 @@ func (impl *UserTerminalAccessServiceImpl) startTerminalPod(ctx context.Context,
 		return err
 	}
 	for _, accessTemplate := range accessTemplates {
-		err = impl.applyTemplateData(ctx, request, podNameVar, accessTemplate, false, isAutoSelect, customTerminalPodTemplate)
+		err = impl.applyTemplateData(ctx, request, podNameVar, accessTemplate, false, isAutoSelect)
 		if err != nil {
 			return err
 		}
@@ -441,17 +458,6 @@ func updatePodTemplate(templateDataMap map[string]interface{}, podNameVar string
 		if !isAutoSelect {
 			specMap["nodeName"] = interface{}(nodeName)
 		}
-		//if _, ok1 := specMap["nodeSelector"]; ok1 {
-		//	if isAutoSelect {
-		//		delete(specMap, "nodeSelector")
-		//	} else {
-		//		nodeSelectorData := specMap["nodeSelector"]
-		//		nodeSelectorDataMap := nodeSelectorData.(map[string]interface{})
-		//		if _, ok2 := nodeSelectorDataMap["kubernetes.io/hostname"]; ok2 {
-		//			nodeSelectorDataMap["kubernetes.io/hostname"] = interface{}(nodeName)
-		//		}
-		//	}
-		//}
 
 		//adding container data in pod spec
 		if containers, ok1 := specMap["containers"]; ok1 {
@@ -523,7 +529,7 @@ func updateServiceAccountTemplate(templateDataMap map[string]interface{}, podNam
 	return string(bytes), err
 }
 
-func replaceTemplateData(templateData string, podNameVar string, namespace string, nodeName string, baseImage string, isAutoSelect bool, taints []models.NodeTaints, customTerminalPodTemplate string) (string, error) {
+func replaceTemplateData(templateData string, podNameVar string, namespace string, nodeName string, baseImage string, isAutoSelect bool, taints []models.NodeTaints) (string, error) {
 	templateDataMap := map[string]interface{}{}
 	template := templateData
 
@@ -538,9 +544,6 @@ func replaceTemplateData(templateData string, podNameVar string, namespace strin
 		} else if kind == "ClusterRoleBinding" {
 			return updateClusterRoleBindingTemplate(templateDataMap, podNameVar, namespace)
 		} else if kind == "Pod" {
-			if len(customTerminalPodTemplate) != 0 {
-				template = customTerminalPodTemplate
-			}
 			return updatePodTemplate(templateDataMap, podNameVar, nodeName, baseImage, isAutoSelect, taints)
 		}
 	}
@@ -549,13 +552,13 @@ func replaceTemplateData(templateData string, podNameVar string, namespace strin
 
 //template data use kubernetes object
 func (impl *UserTerminalAccessServiceImpl) applyTemplateData(ctx context.Context, request *models.UserTerminalSessionRequest, podNameVar string,
-	terminalTemplate *models.TerminalAccessTemplates, isUpdate bool, isAutoSelect bool, customTerminalPodTemplate string) error {
+	terminalTemplate *models.TerminalAccessTemplates, isUpdate bool, isAutoSelect bool) error {
 	templateName := terminalTemplate.TemplateName
 	templateData := terminalTemplate.TemplateData
 	clusterId := request.ClusterId
 	namespace := request.Namespace
 	templateData = strings.ReplaceAll(templateData, models.TerminalAccessUserIdTemplateVar, strconv.FormatInt(int64(request.UserId), 10))
-	templateData, err := replaceTemplateData(templateData, podNameVar, namespace, request.NodeName, request.BaseImage, isAutoSelect, request.NodeTaints, customTerminalPodTemplate)
+	templateData, err := replaceTemplateData(templateData, podNameVar, namespace, request.NodeName, request.BaseImage, isAutoSelect, request.NodeTaints)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while updating template data", "name", templateName, "err", err)
 		return err
@@ -1048,16 +1051,27 @@ func (impl *UserTerminalAccessServiceImpl) getTerminalAccessDataForId(userTermin
 	return terminalAccessData, err
 }
 
-func (impl *UserTerminalAccessServiceImpl) EditPodManifest(ctx context.Context, editManifestRequest *models.ManifestEditRequestResponse) (models.ManifestEditRequestResponse, error) {
+func (impl *UserTerminalAccessServiceImpl) EditPodManifest(ctx context.Context, editManifestRequest *ManifestEditRequestResponse) (ManifestEditRequestResponse, error) {
 
-	manifest := editManifestRequest.Manifest
-	result := models.ManifestEditRequestResponse{
-		Manifest: manifest,
-	}
+	manifestRequest := editManifestRequest.ManifestRequest
+
 	userTerminalAccessId := editManifestRequest.UserTerminalRequest.Id
-	impl.Logger.Infow("Reached EditPodManifest method", "userTerminalAccessId", userTerminalAccessId, "manifest", manifest)
+	impl.Logger.Infow("Reached EditPodManifest method", "userTerminalAccessId", userTerminalAccessId, "manifest", manifestRequest)
+	result := ManifestEditRequestResponse{
+		ManifestRequest: manifestRequest,
+	}
+
+	manifestResponse := &application.ManifestResponse{}
 	manifestMap := map[string]interface{}{}
-	err := json.Unmarshal([]byte(manifest), &manifestMap)
+	err := json.Unmarshal([]byte(manifestRequest), &manifestMap)
+	if err != nil {
+		impl.Logger.Errorw("error in unmarshalling manifest request", "err", err)
+		return result, err
+	}
+	manifestResponse.Manifest.SetUnstructuredContent(manifestMap)
+	result.ManifestResponse = manifestResponse
+
+	//return if not a pod yaml
 	if manifestMap != nil {
 		if manifestMap["kind"] != "Pod" {
 			err := errors.New("manifest should be of kind \"Pod\"")
@@ -1066,34 +1080,71 @@ func (impl *UserTerminalAccessServiceImpl) EditPodManifest(ctx context.Context, 
 		}
 	}
 
+	//construct validator
 	v, err := validator.New(nil, validator.Opts{Strict: true})
 	if err != nil {
-		impl.Logger.Errorw("failed initializing validator: %s", err)
+		impl.Logger.Error("failed initializing validator: %s", err)
 		return result, err
 	}
-
+	//construct validate request
 	YamlResource := resource.Resource{
-		Bytes: []byte(manifest),
+		Bytes: []byte(manifestRequest),
 	}
+	//validate the yaml
 	validatorResponse := v.ValidateResource(YamlResource)
 	if validatorResponse.Err != nil {
+		result.ManifestResponse = manifestResponse
 		result.ErrorComments = validatorResponse.Err.Error()
 		return result, nil
 	}
 	// valid pod yaml found
 	impl.Logger.Infow("pod manifest yaml validated using \"kubeconform\" validator")
-	//Disconnect stop terminal session
-	impl.StopTerminalSession(ctx, userTerminalAccessId)
-	//err = impl.DisconnectTerminalSession(ctx, userTerminalAccessId)
-	//if err != nil {
-	//	impl.Logger.Errorw("failed to disconnect terminal session", "userTerminalAccessId", userTerminalAccessId, "err", err)
-	//	return result, err
+
+	//convert manifestMap to v1.Pod object
+	podObject := v1.Pod{}
+	err = runtime.DefaultUnstructuredConverter.
+		FromUnstructured(manifestResponse.Manifest.Object, &podObject)
+	if err != nil {
+		impl.Logger.Errorw("error in converting manifest request to k8s Pod object", "userTerminalAccessId", userTerminalAccessId, "err", err, "manifest", manifestRequest)
+		return result, err
+	}
+	//get podName,nodeName,namespace from yaml
+	podNameFromManifest := podObject.Name
+	namespaceFromManifest := podObject.Namespace
+	//nodeNameFromManifest := podObject.Spec.NodeName
+	//// get taints from given nodeName
+	//if nodeNameFromManifest != "" {
+	//	//if node name matches ,no need to change taints in userTerminalRequest
+	//	if nodeNameFromManifest != editManifestRequest.UserTerminalRequest.NodeName {
+	//		//get node taints for the node with name nodeNameFromManifest
+	//		//set these taints to editManifestRequest.NodeTaints
+	//	}
+	//} else {
+	//	editManifestRequest.UserTerminalRequest.NodeName = models.AUTO_SELECT_NODE
 	//}
+	//set namespace if given in pod manifest
+	if namespaceFromManifest != "" {
+		editManifestRequest.UserTerminalRequest.Namespace = namespaceFromManifest
+	}
 
 	//start new session with provided Pod manifest
-	//override namespace,nodeName
-	podTemplate := manifest
-	terminalStartResponse, err := impl.StartTerminalSession(ctx, editManifestRequest.UserTerminalRequest, podTemplate)
+	podTemplate := manifestRequest
+	//if podName given in pod manifest is "",generate pod with custom name
+
+	if podNameFromManifest == "" {
+		podName, err := impl.getPodNameVar(editManifestRequest.UserTerminalRequest)
+		if err != nil {
+			return result, err
+		}
+		podNameFromManifest = *podName
+	}
+	terminalStartResponse, err := impl.createTerminalEntity(editManifestRequest.UserTerminalRequest, podNameFromManifest)
+	if err != nil {
+		impl.Logger.Errorw("failed to create terminal entity", "userTerminalAccessId", userTerminalAccessId, "err", err)
+		return result, err
+	}
+	//terminalStartResponse, err := impl.StartTerminalSession(ctx, editManifestRequest.UserTerminalRequest, podTemplate)
+	err = impl.applyTemplate(ctx, editManifestRequest.UserTerminalRequest.ClusterId, podTemplate, podTemplate, false, editManifestRequest.UserTerminalRequest.Namespace)
 	if err != nil {
 		impl.Logger.Errorw("failed to start terminal session", "userTerminalAccessId", userTerminalAccessId, "err", err)
 		return result, err
