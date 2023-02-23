@@ -1002,14 +1002,16 @@ func (impl CiCdPipelineOrchestratorImpl) createAppGroup(name string, userId int3
 	if err != nil && err != pg.ErrNoRows {
 		return nil, err
 	}
-	if app != nil && app.Id > 0 {
-		impl.logger.Warnw("app already exists", "name", name)
-		err = &util.ApiError{
-			Code:            constants.AppAlreadyExists.Code,
-			InternalMessage: "app already exists",
-			UserMessage:     constants.AppAlreadyExists.UserMessage(name),
+	if !isJob {
+		if app != nil && app.Id > 0 {
+			impl.logger.Warnw("app already exists", "name", name)
+			err = &util.ApiError{
+				Code:            constants.AppAlreadyExists.Code,
+				InternalMessage: "app already exists",
+				UserMessage:     constants.AppAlreadyExists.UserMessage(name),
+			}
+			return nil, err
 		}
-		return nil, err
 	}
 	if isJob {
 		job, err := impl.appRepository.FindJobByDisplayName(name)
