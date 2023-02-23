@@ -77,6 +77,9 @@ const (
 	ARGO_PIPELINE_STATUS_UPDATE_TOPIC   string = "ARGO_PIPELINE_STATUS_UPDATE"
 	ARGO_PIPELINE_STATUS_UPDATE_GROUP   string = "ARGO_PIPELINE_STATUS_UPDATE_GROUP-1"
 	ARGO_PIPELINE_STATUS_UPDATE_DURABLE string = "ARGO_PIPELINE_STATUS_UPDATE_DURABLE-1"
+	AUTO_CD_TRIGGER_TOPIC               string = "AUTO_CD_TRIGGER_TOPIC-NEW"
+	AUTO_CD_TRIGGER_TOPIC_GROUP         string = "AUTO_CD_TRIGGER_TOPIC_GROUP-NEW"
+	AUTO_CD_TRIGGER_TOPIC_DURABLE       string = "AUTO_CD_TRIGGER_TOPIC_DURABLE-NEW"
 )
 
 type NatsTopic struct {
@@ -97,6 +100,7 @@ var natsTopicMapping = map[string]NatsTopic{
 	BULK_HIBERNATE_TOPIC:       {topicName: BULK_HIBERNATE_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: BULK_HIBERNATE_GROUP, consumerName: BULK_HIBERNATE_DURABLE},
 	CD_SUCCESS:                 {topicName: CD_SUCCESS, streamName: ORCHESTRATOR_STREAM, queueName: CD_TRIGGER_GROUP, consumerName: CD_TRIGGER_DURABLE},
 	WEBHOOK_EVENT_TOPIC:        {topicName: WEBHOOK_EVENT_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: WEBHOOK_EVENT_GROUP, consumerName: WEBHOOK_EVENT_DURABLE},
+	AUTO_CD_TRIGGER_TOPIC:      {topicName: AUTO_CD_TRIGGER_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: AUTO_CD_TRIGGER_TOPIC_GROUP, consumerName: AUTO_CD_TRIGGER_TOPIC_DURABLE},
 
 	CI_COMPLETE_TOPIC:       {topicName: CI_COMPLETE_TOPIC, streamName: CI_RUNNER_STREAM, queueName: CI_COMPLETE_GROUP, consumerName: CI_COMPLETE_DURABLE},
 	CD_STAGE_COMPLETE_TOPIC: {topicName: CD_STAGE_COMPLETE_TOPIC, streamName: CI_RUNNER_STREAM, queueName: CD_COMPLETE_GROUP, consumerName: CD_COMPLETE_DURABLE},
@@ -122,6 +126,7 @@ var NatsStreamWiseConfigMapping = map[string]NatsStreamConfig{
 }
 
 var NatsConsumerWiseConfigMapping = map[string]NatsConsumerConfig{
+	AUTO_CD_TRIGGER_TOPIC_DURABLE:       {},
 	ARGO_PIPELINE_STATUS_UPDATE_DURABLE: {},
 	TOPIC_CI_SCAN_DURABLE:               {},
 	NEW_CI_MATERIAL_TOPIC_DURABLE:       {},
@@ -195,15 +200,24 @@ func ParseAndFillStreamWiseAndConsumerWiseConfigMaps() {
 		NatsMsgBufferSize:          defaultConfig.NatsMsgBufferSize,
 		NatsMsgProcessingBatchSize: defaultConfig.NatsMsgProcessingBatchSize,
 	}
-
+	defaultConsumerValuesForAutoCdTriggerTopic := NatsConsumerConfig{}
+	err = json.Unmarshal([]byte(defaultConfig.NatsConsumerConfig), &defaultConsumerValuesForAutoCdTriggerTopic)
+	if err != nil {
+		log.Print("error in unmarshalling nats consumer config", "consumer-config", defaultConfig.NatsConsumerConfig, "err", err)
+	}
 	for key, _ := range NatsConsumerWiseConfigMapping {
 		defaultValue := defaultConsumerConfigVal
-		if _, ok := consumerConfigMap[key]; ok {
+		if key == AUTO_CD_TRIGGER_TOPIC_DURABLE {
+			defaultValue.MaxAckPending = defaultConsumerValuesForAutoCdTriggerTopic.MaxAckPending
+			defaultValue.AckWaitInSecs = defaultConsumerValuesForAutoCdTriggerTopic.AckWaitInSecs
+		}
+		if _, ok := consumerConfigMap[key]; ok && (key != AUTO_CD_TRIGGER_TOPIC_DURABLE) {
 			defaultValue = consumerConfigMap[key]
 		}
 		NatsConsumerWiseConfigMapping[key] = defaultValue
 	}
-
+	ncc := NatsConsumerWiseConfigMapping
+	log.Print(ncc)
 	for key, _ := range NatsStreamWiseConfigMapping {
 		defaultValue := defaultStreamConfigVal
 		if _, ok := streamConfigMap[key]; ok {
@@ -246,6 +260,7 @@ func AddStream(js nats.JetStreamContext, streamConfig *nats.StreamConfig, stream
 			log.Fatal("Error while getting stream info", "stream name", streamName, "error", err)
 		} else {
 			config := streamInfo.Config
+			streamConfig.Name = streamName
 			if checkConfigChangeReqd(&config, streamConfig) {
 				_, err1 := js.UpdateStream(&config)
 				if err1 != nil {
@@ -260,8 +275,9 @@ func AddStream(js nats.JetStreamContext, streamConfig *nats.StreamConfig, stream
 func checkConfigChangeReqd(existingConfig *nats.StreamConfig, toUpdateConfig *nats.StreamConfig) bool {
 	configChanged := false
 	newStreamSubjects := GetStreamSubjects(toUpdateConfig.Name)
-	if toUpdateConfig.MaxAge != time.Duration(0) && toUpdateConfig.MaxAge != existingConfig.MaxAge || len(newStreamSubjects) != len(existingConfig.Subjects) {
+	if ((toUpdateConfig.MaxAge != time.Duration(0)) && (toUpdateConfig.MaxAge != existingConfig.MaxAge)) || (len(newStreamSubjects) != len(existingConfig.Subjects)) {
 		existingConfig.MaxAge = toUpdateConfig.MaxAge
+		existingConfig.Subjects = newStreamSubjects
 		configChanged = true
 	}
 

@@ -43,7 +43,8 @@ type NatsClientConfig struct {
 	NatsMsgProcessingBatchSize int `env:"NATS_MSG_PROCESSING_BATCH_SIZE" envDefault:"1"`
 	NatsMsgBufferSize          int `env:"NATS_MSG_BUFFER_SIZE" envDefault:"64"`
 	//stream wise
-	NatsStreamConfig string `env:"NATS_STREAM_CONFIG" envDefault:"{\"max_age\":86400000000000}"`
+	NatsStreamConfig   string `env:"NATS_STREAM_CONFIG" envDefault:"{\"max_age\":86400000000000}"`
+	NatsConsumerConfig string `env:"NATS_CONSUMER_CONFIG" envDefault:"{\"ackWaitInSecs\":3600,\"maxAckPending\":1}"`
 }
 type StreamConfig struct {
 	MaxAge time.Duration `json:"max_age"`
@@ -54,6 +55,8 @@ type NatsStreamConfig struct {
 type NatsConsumerConfig struct {
 	NatsMsgProcessingBatchSize int `json:"natsMsgProcessingBatchSize"`
 	NatsMsgBufferSize          int `json:"natsMsgBufferSize"`
+	AckWaitInSecs              int `json:"ackWaitInSecs"`
+	MaxAckPending              int `json:"maxAckPending"`
 }
 
 /* #nosec */

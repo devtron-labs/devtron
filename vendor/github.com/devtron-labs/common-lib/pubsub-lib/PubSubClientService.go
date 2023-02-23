@@ -84,11 +84,20 @@ func (impl PubSubClientServiceImpl) Subscribe(topic string, callback func(msg *P
 	}
 	processingBatchSize := NatsConsumerWiseConfigMapping[consumerName].NatsMsgProcessingBatchSize
 	msgBufferSize := NatsConsumerWiseConfigMapping[consumerName].NatsMsgBufferSize
+	ackWaitInSecs := NatsConsumerWiseConfigMapping[consumerName].AckWaitInSecs
+	maxAckPending := NatsConsumerWiseConfigMapping[consumerName].MaxAckPending
 	//processingBatchSize := natsClient.NatsMsgProcessingBatchSize
 	//msgBufferSize := natsClient.NatsMsgBufferSize
 	channel := make(chan *nats.Msg, msgBufferSize)
-	_, err := natsClient.JetStrCtxt.ChanQueueSubscribe(topic, queueName, channel, nats.Durable(consumerName), deliveryOption, nats.ManualAck(),
-		nats.BindStream(streamName))
+	var err error
+	natsOpts := []nats.SubOpt{nats.Durable(consumerName), deliveryOption, nats.ManualAck(), nats.BindStream(streamName)}
+	if maxAckPending > 0 {
+		natsOpts = append(natsOpts, nats.MaxAckPending(maxAckPending))
+	}
+	if ackWaitInSecs > 0 {
+		natsOpts = append(natsOpts, nats.AckWait(time.Duration(ackWaitInSecs)*time.Second))
+	}
+	_, err = natsClient.JetStrCtxt.ChanQueueSubscribe(topic, queueName, channel, natsOpts...)
 	if err != nil {
 		impl.Logger.Fatalw("error while subscribing to nats ", "stream", streamName, "topic", topic, "error", err)
 		return err
@@ -116,7 +125,7 @@ func (impl PubSubClientServiceImpl) processMessages(wg *sync.WaitGroup, channel 
 	}
 }
 
-//TODO need to extend msg ack depending upon response from callback like error scenario
+// TODO need to extend msg ack depending upon response from callback like error scenario
 func (impl PubSubClientServiceImpl) processMsg(msg *nats.Msg, callback func(msg *PubSubMsg)) {
 	timeLimitInMillSecs := impl.logsConfig.DefaultLogTimeLimit * 1000
 	t1 := time.Now()
