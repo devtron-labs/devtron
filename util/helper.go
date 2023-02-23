@@ -22,6 +22,8 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/middleware"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/juju/errors"
 	"io"
 	"io/ioutil"
@@ -207,4 +209,8 @@ func InterfaceToMapAdapter(resp interface{}) map[string]interface{} {
 		return dat
 	}
 	return dat
+}
+
+func CDDurationTelemetry(wfr *pipelineConfig.CdWorkflowRunner) {
+	middleware.CdDuration.WithLabelValues(wfr.CdWorkflow.Pipeline.DeploymentAppName, wfr.Status, wfr.CdWorkflow.Pipeline.Environment.Namespace).Observe(time.Since(wfr.StartedOn).Seconds() - time.Since(wfr.FinishedOn).Seconds())
 }

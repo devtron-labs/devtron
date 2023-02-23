@@ -1888,7 +1888,7 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Appl
 		return err
 	}
 	if wfr.Status == pipelineConfig.WorkflowSucceeded {
-		middleware.CdDuration.WithLabelValues(wfr.CdWorkflow.Pipeline.DeploymentAppName, wfr.Status, wfr.CdWorkflow.Pipeline.Environment.Namespace).Observe(time.Since(wfr.StartedOn).Seconds() - time.Since(wfr.FinishedOn).Seconds())
+		util2.CDDurationTelemetry(wfr)
 	}
 	return nil
 }

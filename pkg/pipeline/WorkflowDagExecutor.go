@@ -23,7 +23,7 @@ import (
 	"fmt"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
-	"github.com/devtron-labs/devtron/internal/middleware"
+	util4 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"go.opentelemetry.io/otel"
 	"strconv"
@@ -1066,7 +1066,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 			impl.logger.Errorw("error in updating status", "err", err)
 			return err
 		}
-		middleware.CdDuration.WithLabelValues(runner.CdWorkflow.Pipeline.DeploymentAppName, runner.Status, runner.CdWorkflow.Pipeline.Environment.Namespace).Observe(time.Since(runner.FinishedOn).Seconds() - time.Since(runner.StartedOn).Seconds())
+		util4.CDDurationTelemetry(runner)
 		// creating cd pipeline status timeline for deployment failed
 		timeline := &pipelineConfig.PipelineStatusTimeline{
 			CdWorkflowRunnerId: runner.Id,
@@ -1134,7 +1134,7 @@ func (impl *WorkflowDagExecutorImpl) updatePreviousDeploymentStatus(currentRunne
 			impl.logger.Errorw("error updating cd wf runner status", "err", err, "currentRunner", currentRunner)
 			return err
 		}
-		middleware.CdDuration.WithLabelValues(currentRunner.CdWorkflow.Pipeline.DeploymentAppName, currentRunner.Status, currentRunner.CdWorkflow.Pipeline.Environment.Namespace).Observe(time.Since(currentRunner.FinishedOn).Seconds() - time.Since(currentRunner.StartedOn).Seconds())
+		util4.CDDurationTelemetry(currentRunner)
 		return nil
 		//update current WF with error status
 	} else {
@@ -1412,7 +1412,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 				impl.logger.Errorw("err", "err", err)
 				return 0, err
 			}
-			middleware.CdDuration.WithLabelValues(runner.CdWorkflow.Pipeline.DeploymentAppName, runner.Status, runner.CdWorkflow.Pipeline.Environment.Namespace).Observe(time.Since(triggeredAt).Seconds())
+			util4.CDDurationTelemetry(runner)
 			// creating cd pipeline status timeline for deployment failed
 			timeline := &pipelineConfig.PipelineStatusTimeline{
 				CdWorkflowRunnerId: runner.Id,

@@ -30,7 +30,6 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	client2 "github.com/devtron-labs/devtron/client/events"
-	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -236,7 +235,7 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch
 			impl.Logger.Errorw("error on update cd workflow runner", "cdWfr", cdWfr, "err", err)
 			return err, isTimelineUpdated
 		}
-		middleware.CdDuration.WithLabelValues(cdWfr.CdWorkflow.Pipeline.DeploymentAppName, cdWfr.Status, cdWfr.CdWorkflow.Pipeline.Environment.Namespace).Observe(time.Since(cdWfr.FinishedOn).Seconds() - time.Since(cdWfr.StartedOn).Seconds())
+		util3.CDDurationTelemetry(&cdWfr)
 		// creating cd pipeline status timeline
 		timeline := &pipelineConfig.PipelineStatusTimeline{
 			CdWorkflowRunnerId: cdWfr.Id,
@@ -326,7 +325,7 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipel
 			return err
 		}
 		if wfr.Status == pipelineConfig.WorkflowSucceeded {
-			middleware.CdDuration.WithLabelValues(wfr.CdWorkflow.Pipeline.DeploymentAppName, wfr.Status, wfr.CdWorkflow.Pipeline.Environment.Namespace).Observe(time.Since(wfr.StartedOn).Seconds() - time.Since(wfr.FinishedOn).Seconds())
+			util3.CDDurationTelemetry(wfr)
 		}
 		impl.Logger.Infow("updated workflow runner status for helm app", "wfr", wfr)
 		if helmAppStatus == application.Healthy {
@@ -450,6 +449,9 @@ func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 		if err != nil {
 			impl.Logger.Error("update wf failed for id " + strconv.Itoa(savedWorkflow.Id))
 			return 0, "", err
+		}
+		if savedWorkflow.Status == pipelineConfig.WorkflowSucceeded || savedWorkflow.Status == pipelineConfig.WorkflowFailed {
+			util3.CDDurationTelemetry(savedWorkflow)
 		}
 		if string(v1alpha1.NodeError) == savedWorkflow.Status || string(v1alpha1.NodeFailed) == savedWorkflow.Status {
 			impl.Logger.Warnw("cd stage failed for workflow: ", "wfId", savedWorkflow.Id)
