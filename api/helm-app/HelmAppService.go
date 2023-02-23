@@ -60,7 +60,7 @@ type HelmAppService interface {
 	GetDevtronHelmAppIdentifier() *AppIdentifier
 	UpdateApplicationWithChartInfoWithExtraValues(ctx context.Context, appIdentifier *AppIdentifier, chartRepository *ChartRepository, extraValues map[string]interface{}, extraValuesYamlUrl string, useLatestChartVersion bool) (*openapi.UpdateReleaseResponse, error)
 	TemplateChart(ctx context.Context, templateChartRequest *openapi2.TemplateChartRequest) (*openapi2.TemplateChartResponse, error)
-	GetNotes(request *InstallReleaseRequest) (string, error)
+	GetNotes(ctx context.Context, request *InstallReleaseRequest) (string, error)
 }
 
 type HelmAppServiceImpl struct {
@@ -728,16 +728,7 @@ func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChart
 
 	return response, nil
 }
-func (impl *HelmAppServiceImpl) GetNotes(request *InstallReleaseRequest) (string, error) {
-	//if err != nil {
-	//	impl.logger.Errorw("Error in fetching app-store application version", "appStoreApplicationVersionId", appStoreApplicationVersionId, "err", err)
-	//	return "", err
-	//}
-	//installedAppVerison, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdAndEnvId(installedAppId, envId)
-	//if err != nil {
-	//	impl.logger.Error(err)
-	//	return bean2.AppDetailContainer{}, err
-	//}
+func (impl *HelmAppServiceImpl) GetNotes(ctx context.Context, request *InstallReleaseRequest) (string, error) {
 	installReleaseRequest := &InstallReleaseRequest{
 		ChartName:    request.ChartName,
 		ChartVersion: request.ChartVersion,
@@ -753,9 +744,14 @@ func (impl *HelmAppServiceImpl) GetNotes(request *InstallReleaseRequest) (string
 			ReleaseName:      request.ReleaseIdentifier.ReleaseName,
 		},
 	}
-	notes, err := impl.helmAppClient.InstallRelease(installReleaseRequest)
-	//TODO handle thiws error
-	return notes, err
+	var notesTxt string
+	response, err := impl.helmAppClient.GetNotes(ctx, installReleaseRequest)
+	if err != nil {
+		impl.logger.Errorw("error in fetching chart", "err", err)
+		return notesTxt, err
+	}
+	notesTxt = response.Notes
+	return notesTxt, err
 }
 
 type AppIdentifier struct {

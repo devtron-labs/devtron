@@ -797,7 +797,7 @@ func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(instal
 			},
 		}
 
-		notes, err := impl.helmAppService.GetNotes(installReleaseRequest)
+		notes, err := impl.helmAppService.GetNotes(context.Background(), installReleaseRequest)
 		appDetail = bean2.AppDetailContainer{
 			Notes: notes,
 		}
