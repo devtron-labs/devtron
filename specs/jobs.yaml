@@ -116,10 +116,6 @@ components:
            type: string
            description: Used to give the description of the job once it is made.
            example: "This is my first Job"
-         isJob:
-           type: boolean
-           description: Used to state whether it is an app or a job
-           example: true
     ActionResponse:
       name: result
       type: object
