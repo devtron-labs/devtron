@@ -180,16 +180,6 @@ func (handler AppListingRestHandlerImpl) FetchJobs(w http.ResponseWriter, r *htt
 		return
 	}
 
-	//jobsCount := len(jobs)
-	//offset := fetchJobListingRequest.Offset
-	//limit := fetchJobListingRequest.Size
-	//
-	//if offset+limit <= len(jobs) {
-	//	fetchJob = fetchJob[offset : offset+limit]
-	//} else {
-	//	fetchJob = fetchJob[offset:]
-	//}
-
 	jobContainerResponse := bean.JobContainerResponse{
 		JobContainers: jobs,
 		JobCount:      len(jobs),

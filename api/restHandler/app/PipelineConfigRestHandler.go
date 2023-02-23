@@ -315,16 +315,6 @@ func (handler PipelineConfigRestHandlerImpl) CreateJob(w http.ResponseWriter, r 
 		return
 	}
 
-	//project, err := handler.teamService.FetchOne(createRequest.TeamId)
-	//if err != nil {
-	//	common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-	//	return
-	//}
-	//// with admin roles, you have to access for all the apps of the project to create new app. (admin or manager with specific app permission can't create app.)
-	//if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, fmt.Sprintf("%s/%s", strings.ToLower(project.Name), "*")); !ok {
-	//	common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-	//	return
-	//}
 	var createResp *bean.CreateAppDTO
 	err = nil
 	createRequest.IsJob = true

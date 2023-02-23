@@ -81,7 +81,6 @@ type JobListingContainer struct {
 	CiPipelineName string    `json:"ci_pipeline_name"`
 	Status         string    `json:"status"`
 	StartedOn      time.Time `json:"started_on"`
-	//LastSuccessAt  time.Time `json:"-"`
 }
 
 type CiPipelineLastSucceededTime struct {
