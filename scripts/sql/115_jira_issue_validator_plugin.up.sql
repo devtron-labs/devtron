@@ -26,6 +26,7 @@ fi
 # step-3 -> Find the error message from JSON result
 echo "Finding the error message from JSON result"
 jq ".errorMessages" jira_issue_search_result_json.txt > error_message.txt
+jq ".fields.status.statusCategory.name" jira_issue_search_result_json.txt > jira_issue_status_category_name.txt
 
 if [ $? != 0 ]; then
    echo "Finding the error message from JSON result failed"
@@ -37,6 +38,13 @@ echo "checking if error message is not null"
 
 if [ null == "$(cat error_message.txt)" ] ;then
     echo "jira issue exists"
+    echo "validating jira issue status"
+    if [ "Done" == "$(cat jira_issue_status_category_name.txt)" ] ;then
+        echo "jira issue is already closed"
+        exit 1
+    else
+        echo "jira issue is not closed"
+    fi
 else
     echo "jira issue does not exist"
     exit 1
