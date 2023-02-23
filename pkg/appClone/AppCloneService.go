@@ -39,7 +39,6 @@ import (
 
 type AppCloneService interface {
 	CloneApp(createReq *bean.CreateAppDTO, context context.Context) (*bean.CreateAppDTO, error)
-	//CloneJob(createReq *bean.CreateAppDTO, context context.Context) (*bean.CreateAppDTO, error)
 }
 type AppCloneServiceImpl struct {
 	logger                  *zap.SugaredLogger
@@ -214,95 +213,6 @@ func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context 
 
 	return app, nil
 }
-
-//func (impl *AppCloneServiceImpl) CloneJob(createReq *bean.CreateAppDTO, context context.Context) (*bean.CreateAppDTO, error) {
-//	//validate template job
-//	templateApp, err := impl.appRepository.FindById(createReq.TemplateId)
-//	if err != nil && err != pg.ErrNoRows {
-//		return nil, err
-//	}
-//	if (templateApp == nil && templateApp.Id == 0) || (templateApp.AppStore != 2) {
-//		impl.logger.Warnw("template job does not exist", "id", createReq.TemplateId)
-//		err = &util.ApiError{
-//			Code:            constants.AppDoesNotExist.Code,
-//			InternalMessage: "job does not exist",
-//			UserMessage:     constants.AppAlreadyExists.UserMessage(createReq.TemplateId),
-//		}
-//		return nil, err
-//	}
-//	//create new job
-//
-//	cloneReq := &CloneRequest{
-//		RefAppId:  createReq.TemplateId,
-//		Name:      createReq.AppName,
-//		ProjectId: createReq.TeamId,
-//		AppLabels: createReq.AppLabels,
-//	}
-//	userId := createReq.UserId
-//	appStatus, err := impl.appListingService.FetchAppStageStatus(cloneReq.RefAppId)
-//	if err != nil {
-//		return nil, err
-//	}
-//	refApp, err := impl.pipelineBuilder.GetApp(cloneReq.RefAppId)
-//	if err != nil {
-//		return nil, err
-//	}
-//	isSameProject := refApp.TeamId == cloneReq.ProjectId
-//	/*	appStageStatus = append(appStageStatus, impl.makeAppStageStatus(0, "APP", stages.AppId))
-//		appStageStatus = append(appStageStatus, impl.makeAppStageStatus(1, "MATERIAL", materialExists))
-//		appStageStatus = append(appStageStatus, impl.makeAppStageStatus(2, "TEMPLATE", stages.CiTemplateId))
-//		appStageStatus = append(appStageStatus, impl.makeAppStageStatus(3, "CI_PIPELINE", stages.CiPipelineId))
-//		appStageStatus = append(appStageStatus, impl.makeAppStageStatus(4, "CHART", stages.ChartId))
-//		appStageStatus = append(appStageStatus, impl.makeAppStageStatus(5, "CD_PIPELINE", stages.PipelineId))
-//	*/
-//	refAppStatus := make(map[string]bool)
-//	for _, as := range appStatus {
-//		refAppStatus[as.StageName] = as.Status
-//	}
-//
-//	//TODO check stage of current app
-//	if !refAppStatus["APP"] {
-//		impl.logger.Warnw("status not", "APP", cloneReq.RefAppId)
-//		return nil, nil
-//	}
-//	app, err := impl.CreateApp(cloneReq, userId)
-//	if err != nil {
-//		impl.logger.Errorw("error in creating app", "req", cloneReq, "err", err)
-//		return nil, err
-//	}
-//	newAppId := app.Id
-//	if !refAppStatus["MATERIAL"] {
-//		impl.logger.Errorw("status not", "MATERIAL", cloneReq.RefAppId)
-//		return app, nil
-//	}
-//	_, gitMaerialMap, err := impl.CloneGitRepo(cloneReq.RefAppId, newAppId, userId)
-//	if err != nil {
-//		impl.logger.Errorw("error in cloning git", "ref", cloneReq.RefAppId, "new", newAppId, "err", err)
-//		return nil, err
-//	}
-//
-//	_, err = impl.CreateCiTemplate(cloneReq.RefAppId, newAppId, userId)
-//	if err != nil {
-//		impl.logger.Errorw("error in cloning docker template", "ref", cloneReq.RefAppId, "new", newAppId, "err", err)
-//		return nil, err
-//	}
-//	if !refAppStatus["TEMPLATE"] {
-//		impl.logger.Errorw("status not", "TEMPLATE", cloneReq.RefAppId)
-//		return app, nil
-//	}
-//	if !refAppStatus["CHART"] {
-//		impl.logger.Errorw("status not", "CHART", cloneReq.RefAppId)
-//		return app, nil
-//	}
-//
-//	_, err = impl.CreateWf(cloneReq.RefAppId, newAppId, userId, gitMaerialMap, context, isSameProject)
-//	if err != nil {
-//		impl.logger.Errorw("error in creating wf", "ref", cloneReq.RefAppId, "new", newAppId, "err", err)
-//		return nil, err
-//	}
-//
-//	return app, nil
-//}
 
 func (impl *AppCloneServiceImpl) CreateApp(cloneReq *CloneRequest, userId int32) (*bean.CreateAppDTO, error) {
 	createAppReq := &bean.CreateAppDTO{
