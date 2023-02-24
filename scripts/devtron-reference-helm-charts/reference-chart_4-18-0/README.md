@@ -390,7 +390,7 @@ Here,
 | :--- | :--- | :--- |
 | `enable` | `fasle`,`true` | decide the enabling factor  |
 | `timeRangesWithZone`:`timeZone` | eg:- `"Asia/Kolkata"`,`"US/Pacific"` |  It use to specify the timeZone used. (It uses standard format. please refer [this](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones))  |
-| `timeRangesWithZone`:`timeRanges` | ```timeRanges: <br />- timeFrom: 00:00<br />timeTo: 23:59:59<br />weekdayFrom: Sat<br />weekdayTo: Sun ``` |  It use to define time period/range on which the user need to perform the specified action. you can have multiple timeRanges.  |
+| `timeRangesWithZone`:`timeRanges` | timeRanges: <br />- timeFrom: 00:00<br />timeTo: 23:59:59<br />weekdayFrom: Sat<br />weekdayTo: Sun  |  It use to define time period/range on which the user need to perform the specified action. you can have multiple timeRanges.  |
 
 
 
