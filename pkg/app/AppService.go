@@ -1881,12 +1881,12 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Appl
 		impl.logger.Errorw("error on update cd workflow runner, fetch failed for runner type", "wfr", wfr, "app", app, "err", err)
 		return err
 	}
-	wfr.FinishedOn = time.Now()
 	if updateTimedOutStatus {
 		wfr.Status = pipelineConfig.WorkflowTimedOut
 	} else {
 		if app.Status.Health.Status == health.HealthStatusHealthy {
 			wfr.Status = pipelineConfig.WorkflowSucceeded
+			wfr.FinishedOn = time.Now()
 		} else {
 			wfr.Status = pipelineConfig.WorkflowInProgress
 		}
@@ -1898,9 +1898,7 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Appl
 		impl.logger.Errorw("error on update cd workflow runner", "wfr", wfr, "app", app, "err", err)
 		return err
 	}
-	if wfr.Status == pipelineConfig.WorkflowSucceeded {
-		util2.CDDurationTelemetry(wfr, impl.cdConfig)
-	}
+	util2.TriggerCDMetrics(wfr, impl.cdConfig)
 	return nil
 }
 

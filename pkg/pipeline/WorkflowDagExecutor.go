@@ -1066,7 +1066,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 			impl.logger.Errorw("error in updating status", "err", err)
 			return err
 		}
-		util4.CDDurationTelemetry(runner, impl.cdConfig)
+		util4.TriggerCDMetrics(runner, impl.cdConfig)
 		// creating cd pipeline status timeline for deployment failed
 		timeline := &pipelineConfig.PipelineStatusTimeline{
 			CdWorkflowRunnerId: runner.Id,
@@ -1134,7 +1134,7 @@ func (impl *WorkflowDagExecutorImpl) updatePreviousDeploymentStatus(currentRunne
 			impl.logger.Errorw("error updating cd wf runner status", "err", err, "currentRunner", currentRunner)
 			return err
 		}
-		util4.CDDurationTelemetry(currentRunner, impl.cdConfig)
+		util4.TriggerCDMetrics(currentRunner, impl.cdConfig)
 		return nil
 		//update current WF with error status
 	} else {
@@ -1412,7 +1412,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 				impl.logger.Errorw("err", "err", err)
 				return 0, err
 			}
-			util4.CDDurationTelemetry(runner, impl.cdConfig)
+			util4.TriggerCDMetrics(runner, impl.cdConfig)
 			// creating cd pipeline status timeline for deployment failed
 			timeline := &pipelineConfig.PipelineStatusTimeline{
 				CdWorkflowRunnerId: runner.Id,
