@@ -75,6 +75,7 @@ type CiCdPipelineOrchestrator interface {
 	AddPipelineMaterialInGitSensor(pipelineMaterials []*pipelineConfig.CiPipelineMaterial) error
 	CheckStringMatchRegex(regex string, value string) bool
 	CreateEcrRepo(dockerRepository, AWSRegion, AWSAccessKeyId, AWSSecretAccessKey string) error
+	GetCdPipelinesForEnv(envId int) (cdPipelines *bean.CdPipelines, err error)
 }
 
 type CiCdPipelineOrchestratorImpl struct {
@@ -1350,6 +1351,87 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 	}
 	cdPipelines = &bean.CdPipelines{
 		AppId:     appId,
+		Pipelines: pipelines,
+	}
+	if len(pipelines) == 0 {
+		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no cd pipeline found"}
+	} else {
+		err = nil
+	}
+	return cdPipelines, err
+}
+
+func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int) (cdPipelines *bean.CdPipelines, err error) {
+	dbPipelines, err := impl.pipelineRepository.FindActiveByEnvId(envId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching cdPipeline", "envId", envId, "err", err)
+		return nil, err
+	}
+	var appIds []int
+	for _, pipeline := range dbPipelines {
+		appIds = append(appIds, pipeline.AppId)
+	}
+	if len(appIds) == 0 {
+		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no cd pipeline found"}
+		return cdPipelines, err
+	}
+	dbPipelines, err = impl.pipelineRepository.FindActiveByAppIds(appIds)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error fetching pipelines for env id", "err", err)
+		return nil, err
+	}
+
+	var pipelines []*bean.CDPipelineConfigObject
+	for _, dbPipeline := range dbPipelines {
+		preStage := bean.CdStage{}
+		if len(dbPipeline.PreStageConfig) > 0 {
+			preStage.Name = "Pre-Deployment"
+			preStage.Config = dbPipeline.PreStageConfig
+			preStage.TriggerType = dbPipeline.PreTriggerType
+		}
+		postStage := bean.CdStage{}
+		if len(dbPipeline.PostStageConfig) > 0 {
+			postStage.Name = "Post-Deployment"
+			postStage.Config = dbPipeline.PostStageConfig
+			postStage.TriggerType = dbPipeline.PostTriggerType
+		}
+
+		preStageConfigmapSecrets := bean.PreStageConfigMapSecretNames{}
+		postStageConfigmapSecrets := bean.PostStageConfigMapSecretNames{}
+
+		if dbPipeline.PreStageConfigMapSecretNames != "" {
+			err = json.Unmarshal([]byte(dbPipeline.PreStageConfigMapSecretNames), &preStageConfigmapSecrets)
+			if err != nil {
+				impl.logger.Errorw("unmarshal error", "err", err)
+				return nil, err
+			}
+		}
+		if dbPipeline.PostStageConfigMapSecretNames != "" {
+			err = json.Unmarshal([]byte(dbPipeline.PostStageConfigMapSecretNames), &postStageConfigmapSecrets)
+			if err != nil {
+				impl.logger.Errorw("unmarshal error", "err", err)
+				return nil, err
+			}
+		}
+
+		pipeline := &bean.CDPipelineConfigObject{
+			Id:                            dbPipeline.Id,
+			Name:                          dbPipeline.Name,
+			EnvironmentId:                 dbPipeline.EnvironmentId,
+			CiPipelineId:                  dbPipeline.CiPipelineId,
+			TriggerType:                   dbPipeline.TriggerType,
+			PreStage:                      preStage,
+			PostStage:                     postStage,
+			RunPreStageInEnv:              dbPipeline.RunPreStageInEnv,
+			RunPostStageInEnv:             dbPipeline.RunPostStageInEnv,
+			PreStageConfigMapSecretNames:  preStageConfigmapSecrets,
+			PostStageConfigMapSecretNames: postStageConfigmapSecrets,
+			DeploymentAppType:             dbPipeline.DeploymentAppType,
+			AppName:                       dbPipeline.App.AppName,
+		}
+		pipelines = append(pipelines, pipeline)
+	}
+	cdPipelines = &bean.CdPipelines{
 		Pipelines: pipelines,
 	}
 	if len(pipelines) == 0 {

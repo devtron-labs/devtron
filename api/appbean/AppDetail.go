@@ -109,6 +109,7 @@ type CdPipelineDetails struct {
 	Name                          string                                 `json:"name"` //pipelineName
 	EnvironmentName               string                                 `json:"environmentName" `
 	TriggerType                   pipelineConfig.TriggerType             `json:"triggerType" validate:"required"`
+	DeploymentAppType             string                                 `json:"deploymentAppType"`
 	DeploymentStrategyType        chartRepoRepository.DeploymentStrategy `json:"deploymentType,omitempty"` //
 	DeploymentStrategies          []*DeploymentStrategy                  `json:"deploymentStrategies"`
 	PreStage                      *CdStage                               `json:"preStage"`

@@ -208,6 +208,13 @@ type CiWorkflowStatus struct {
 	StorageConfigured bool   `json:"storageConfigured"`
 }
 
+type AppDeploymentStatus struct {
+	AppId        int    `json:"appId"`
+	PipelineId   int    `json:"pipelineId"`
+	DeployStatus string `json:"deployStatus"`
+	WfrId        int    `json:"wfrId,omitempty"`
+}
+
 func NewCdWorkflowRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *CdWorkflowRepositoryImpl {
 	return &CdWorkflowRepositoryImpl{
 		dbConnection: dbConnection,

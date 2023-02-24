@@ -28,6 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
@@ -35,10 +36,12 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
+	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/devtron-labs/devtron/util/argo"
 	"net/http"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -100,6 +103,9 @@ type PipelineBuilder interface {
 	GetApp(appId int) (application *bean.CreateAppDTO, err error)
 	PatchCdPipelines(cdPipelines *bean.CDPatchRequest, ctx context.Context) (*bean.CdPipelines, error)
 	DeleteCdPipeline(pipeline *pipelineConfig.Pipeline, ctx context.Context, forceDelete bool, acdDelete bool, userId int32) (err error)
+	ChangeDeploymentType(ctx context.Context, request *bean.DeploymentAppTypeChangeRequest) (*bean.DeploymentAppTypeChangeResponse, error)
+	DeleteDeploymentAppsForEnvironment(ctx context.Context, environmentId int, currentDeploymentAppType bean.DeploymentType, exclusionList []int, includeApps []int, userId int32) (*bean.DeploymentAppTypeChangeResponse, error)
+	DeleteDeploymentApps(ctx context.Context, pipelines []*pipelineConfig.Pipeline, userId int32) *bean.DeploymentAppTypeChangeResponse
 	GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error)
 	GetCdPipelinesForAppAndEnv(appId int, envId int) (cdPipelines *bean.CdPipelines, err error)
 	/*	CreateCdPipelines(cdPipelines bean.CdPipelines) (*bean.CdPipelines, error)*/
@@ -129,6 +135,11 @@ type PipelineBuilder interface {
 	IsGitOpsRequiredForCD(pipelineCreateRequest *bean.CdPipelines) bool
 	SetPipelineDeploymentAppType(pipelineCreateRequest *bean.CdPipelines, isGitOpsConfigured bool)
 	MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(appId int, envId int, acdToken string, pipeline *pipelineConfig.Pipeline) (bool, error)
+	GetCiPipelineByEnvironment(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*bean.CiConfigRequest, error)
+	GetCdPipelinesByEnvironment(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) (cdPipelines *bean.CdPipelines, err error)
+	GetExternalCiByEnvironment(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) (ciConfig []*bean.ExternalCiConfig, err error)
+	GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) (*cluster.AppGroupingResponse, error)
+	GetAppListForEnvironment(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*AppBean, error)
 }
 
 type PipelineBuilderImpl struct {
@@ -184,6 +195,8 @@ type PipelineBuilderImpl struct {
 	deploymentConfig                                *DeploymentServiceTypeConfig
 	appStatusRepository                             appStatus.AppStatusRepository
 	ArgoUserService                                 argo.ArgoUserService
+	workflowDagExecutor                             WorkflowDagExecutor
+	enforcerUtil                                    rbac.EnforcerUtil
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -229,7 +242,9 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	CiPipelineHistoryService history.CiPipelineHistoryService,
 	globalStrategyMetadataRepository chartRepoRepository.GlobalStrategyMetadataRepository,
 	globalStrategyMetadataChartRefMappingRepository chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepository,
-	deploymentConfig *DeploymentServiceTypeConfig, appStatusRepository appStatus.AppStatusRepository, ArgoUserService argo.ArgoUserService) *PipelineBuilderImpl {
+	deploymentConfig *DeploymentServiceTypeConfig, appStatusRepository appStatus.AppStatusRepository,
+	workflowDagExecutor WorkflowDagExecutor,
+	enforcerUtil rbac.EnforcerUtil, ArgoUserService argo.ArgoUserService) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                        logger,
 		ciCdPipelineOrchestrator:      ciCdPipelineOrchestrator,
@@ -283,6 +298,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		deploymentConfig:                                deploymentConfig,
 		appStatusRepository:                             appStatusRepository,
 		ArgoUserService:                                 ArgoUserService,
+		workflowDagExecutor:                             workflowDagExecutor,
+		enforcerUtil:                                    enforcerUtil,
 	}
 }
 
@@ -912,7 +929,7 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 			CreatedOn: originalCiConf.CreatedOn,
 			CreatedBy: originalCiConf.CreatedBy,
 			UpdatedOn: time.Now(),
-			UpdatedBy: originalCiConf.UpdatedBy,
+			UpdatedBy: updateRequest.UpdatedBy,
 		},
 	}
 
@@ -1806,6 +1823,366 @@ func (impl PipelineBuilderImpl) DeleteCdPipelinePartial(pipeline *pipelineConfig
 	return nil
 }
 
+// ChangeDeploymentType takes in DeploymentAppTypeChangeRequest struct and
+// deletes all the cd pipelines for that deployment type in all apps that belongs to
+// that environment and updates the db with desired deployment app type
+func (impl PipelineBuilderImpl) ChangeDeploymentType(ctx context.Context,
+	request *bean.DeploymentAppTypeChangeRequest) (*bean.DeploymentAppTypeChangeResponse, error) {
+
+	var response *bean.DeploymentAppTypeChangeResponse
+	var deleteDeploymentType bean.DeploymentType
+	var err error
+
+	if request.DesiredDeploymentType == bean.ArgoCd {
+		deleteDeploymentType = bean.Helm
+	} else {
+		deleteDeploymentType = bean.ArgoCd
+	}
+
+	// Force delete apps
+	response, err = impl.DeleteDeploymentAppsForEnvironment(ctx,
+		request.EnvId, deleteDeploymentType, request.ExcludeApps, request.IncludeApps, request.UserId)
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Updating the env id and desired deployment app type received from request in the response
+	response.EnvId = request.EnvId
+	response.DesiredDeploymentType = request.DesiredDeploymentType
+	response.TriggeredPipelines = make([]*bean.CdPipelineTrigger, 0)
+
+	// Update the deployment app type to Helm and toggle deployment_app_created to false in db
+	var cdPipelineIds []int
+	for _, item := range response.SuccessfulPipelines {
+		cdPipelineIds = append(cdPipelineIds, item.Id)
+	}
+
+	// If nothing to update in db
+	if len(cdPipelineIds) == 0 {
+		return response, nil
+	}
+
+	// Update in db
+	err = impl.pipelineRepository.UpdateCdPipelineDeploymentAppInFilter(string(request.DesiredDeploymentType),
+		cdPipelineIds, request.UserId)
+
+	if err != nil {
+		impl.logger.Errorw("failed to update deployment app type in db",
+			"pipeline ids", cdPipelineIds,
+			"desired deployment type", request.DesiredDeploymentType,
+			"err", err)
+
+		return response, nil
+	}
+
+	if !request.AutoTriggerDeployment {
+		return response, nil
+	}
+
+	// Bulk trigger all the successfully changed pipelines (async)
+	bulkTriggerRequest := make([]*BulkTriggerRequest, 0)
+
+	for _, item := range response.SuccessfulPipelines {
+
+		artifactDetails, err := impl.GetArtifactsByCDPipeline(item.Id, bean2.WorkflowType("DEPLOY"))
+
+		if err != nil {
+			impl.logger.Errorw("failed to fetch artifact details for cd pipeline",
+				"pipelineId", item.Id,
+				"appId", item.AppId,
+				"envId", item.EnvId,
+				"err", err)
+
+			return response, nil
+		}
+
+		if artifactDetails.LatestWfArtifactId == 0 || artifactDetails.LatestWfArtifactStatus == "" {
+			continue
+		}
+
+		bulkTriggerRequest = append(bulkTriggerRequest, &BulkTriggerRequest{
+			CiArtifactId: artifactDetails.LatestWfArtifactId,
+			PipelineId:   item.Id,
+		})
+		response.TriggeredPipelines = append(response.TriggeredPipelines, &bean.CdPipelineTrigger{
+			CiArtifactId: artifactDetails.LatestWfArtifactId,
+			PipelineId:   item.Id,
+		})
+	}
+
+	// pg panics if empty slice is passed as an argument
+	if len(bulkTriggerRequest) == 0 {
+		return response, nil
+	}
+
+	// Trigger
+	_, err = impl.workflowDagExecutor.TriggerBulkDeploymentAsync(bulkTriggerRequest, request.UserId)
+
+	if err != nil {
+		impl.logger.Errorw("failed to bulk trigger cd pipelines with error: "+err.Error(),
+			"err", err)
+	}
+	return response, nil
+}
+
+// DeleteDeploymentAppsForEnvironment takes in environment id and current deployment app type
+// and deletes all the cd pipelines for that deployment type in all apps that belongs to
+// that environment.
+func (impl PipelineBuilderImpl) DeleteDeploymentAppsForEnvironment(ctx context.Context, environmentId int,
+	currentDeploymentAppType bean.DeploymentType, exclusionList []int, includeApps []int, userId int32) (*bean.DeploymentAppTypeChangeResponse, error) {
+
+	// fetch active pipelines from database for the given environment id and current deployment app type
+	pipelines, err := impl.pipelineRepository.FindActiveByEnvIdAndDeploymentType(environmentId,
+		string(currentDeploymentAppType), exclusionList, includeApps)
+
+	if err != nil {
+		impl.logger.Errorw("Error fetching cd pipelines",
+			"environmentId", environmentId,
+			"currentDeploymentAppType", currentDeploymentAppType,
+			"err", err)
+
+		return &bean.DeploymentAppTypeChangeResponse{
+			EnvId:               environmentId,
+			SuccessfulPipelines: []*bean.DeploymentChangeStatus{},
+			FailedPipelines:     []*bean.DeploymentChangeStatus{},
+		}, err
+	}
+
+	// Currently deleting apps only in argocd is supported
+	return impl.DeleteDeploymentApps(ctx, pipelines, userId), nil
+}
+
+// DeleteDeploymentApps takes in a list of pipelines and delete the applications
+// from argocd / helm.
+func (impl PipelineBuilderImpl) DeleteDeploymentApps(ctx context.Context,
+	pipelines []*pipelineConfig.Pipeline, userId int32) *bean.DeploymentAppTypeChangeResponse {
+
+	successfulPipelines := make([]*bean.DeploymentChangeStatus, 0)
+	failedPipelines := make([]*bean.DeploymentChangeStatus, 0)
+
+	isGitOpsConfigured, gitOpsConfigErr := impl.IsGitopsConfigured()
+
+	// Iterate over all the pipelines in the environment for given deployment app type
+	for _, pipeline := range pipelines {
+
+		var isValid bool
+		// check if pipeline info like app name and environment is empty or not
+		if failedPipelines, isValid = impl.isPipelineInfoValid(pipeline, failedPipelines); !isValid {
+			continue
+		}
+
+		var healthChkErr error
+		// check health of the app if it is argocd deployment type
+		if failedPipelines, healthChkErr = impl.handleNotHealthyAppsIfArgoDeploymentType(pipeline, failedPipelines); healthChkErr != nil {
+
+			// cannot delete unhealthy app
+			continue
+		}
+
+		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
+		var err error
+
+		// delete request
+		if pipeline.DeploymentAppType == string(bean.ArgoCd) {
+			err = impl.deleteArgoCdApp(ctx, pipeline, deploymentAppName, true)
+
+		} else {
+
+			// For converting from Helm to ArgoCD, GitOps should be configured
+			if gitOpsConfigErr != nil || !isGitOpsConfigured {
+				err = errors.New("GitOps not configured or unable to fetch GitOps configuration")
+
+			} else {
+				// Register app in ACD
+				err = impl.RegisterInACD(
+					&app2.App{Id: pipeline.AppId, AppName: pipeline.App.AppName},
+					&bean.CdPipelines{UserId: userId},
+					ctx)
+			}
+			if err != nil {
+				impl.logger.Errorw("error registering app on ACD with error: "+err.Error(),
+					"deploymentAppName", deploymentAppName,
+					"envId", pipeline.EnvironmentId,
+					"appId", pipeline.AppId,
+					"err", err)
+
+				// deletion failed, append to the list of failed pipelines
+				failedPipelines = impl.handleFailedDeploymentAppChange(pipeline, failedPipelines,
+					"failed to register app on ACD with error: "+err.Error())
+
+				continue
+			}
+			err = impl.deleteHelmApp(ctx, pipeline)
+		}
+
+		if err != nil {
+			impl.logger.Errorw("error deleting app on "+pipeline.DeploymentAppType,
+				"deployment app name", deploymentAppName,
+				"err", err)
+
+			// deletion failed, append to the list of failed pipelines
+			failedPipelines = impl.handleFailedDeploymentAppChange(pipeline, failedPipelines,
+				"error deleting app with error: "+err.Error())
+
+			continue
+		}
+
+		// deletion successful, append to the list of successful pipelines
+		successfulPipelines = impl.appendToDeploymentChangeStatusList(
+			successfulPipelines,
+			pipeline,
+			"",
+			bean.Success)
+	}
+
+	return &bean.DeploymentAppTypeChangeResponse{
+		SuccessfulPipelines: successfulPipelines,
+		FailedPipelines:     failedPipelines,
+	}
+}
+
+func (impl PipelineBuilderImpl) isGitRepoUrlPresent(appId int) bool {
+	fetchedChart, err := impl.chartRepository.FindLatestByAppId(appId)
+
+	if err != nil || len(fetchedChart.GitRepoUrl) == 0 {
+		impl.logger.Errorw("error fetching git repo url or it is not present")
+		return false
+	}
+	return true
+}
+
+func (impl PipelineBuilderImpl) isPipelineInfoValid(pipeline *pipelineConfig.Pipeline,
+	failedPipelines []*bean.DeploymentChangeStatus) ([]*bean.DeploymentChangeStatus, bool) {
+
+	if len(pipeline.App.AppName) == 0 || len(pipeline.Environment.Name) == 0 {
+		impl.logger.Errorw("app name or environment name is not present",
+			"pipeline id", pipeline.Id)
+
+		failedPipelines = impl.handleFailedDeploymentAppChange(pipeline, failedPipelines,
+			"could not fetch app name or environment name")
+
+		return failedPipelines, false
+	}
+	return failedPipelines, true
+}
+
+func (impl PipelineBuilderImpl) handleFailedDeploymentAppChange(pipeline *pipelineConfig.Pipeline,
+	failedPipelines []*bean.DeploymentChangeStatus, err string) []*bean.DeploymentChangeStatus {
+
+	return impl.appendToDeploymentChangeStatusList(
+		failedPipelines,
+		pipeline,
+		err,
+		bean.Failed)
+}
+
+func (impl PipelineBuilderImpl) handleNotHealthyAppsIfArgoDeploymentType(pipeline *pipelineConfig.Pipeline,
+	failedPipelines []*bean.DeploymentChangeStatus) ([]*bean.DeploymentChangeStatus, error) {
+
+	if pipeline.DeploymentAppType == string(bean.ArgoCd) {
+		// check if app status is Healthy
+		status, err := impl.appStatusRepository.Get(pipeline.AppId, pipeline.EnvironmentId)
+
+		// case: missing status row in db
+		if len(status.Status) == 0 {
+			return failedPipelines, nil
+		}
+
+		// cannot delete the app from argocd if app status is Progressing
+		if err != nil || status.Status == "Progressing" {
+
+			healthCheckErr := errors.New("unable to fetch app status or app status is progressing")
+
+			impl.logger.Errorw(healthCheckErr.Error(),
+				"appId", pipeline.AppId,
+				"environmentId", pipeline.EnvironmentId,
+				"err", err)
+
+			failedPipelines = impl.handleFailedDeploymentAppChange(pipeline, failedPipelines, healthCheckErr.Error())
+
+			return failedPipelines, healthCheckErr
+		}
+		return failedPipelines, nil
+	}
+	return failedPipelines, nil
+}
+
+// deleteArgoCdApp takes context and deployment app name used in argo cd and deletes
+// the application in argo cd.
+func (impl PipelineBuilderImpl) deleteArgoCdApp(ctx context.Context, pipeline *pipelineConfig.Pipeline, deploymentAppName string,
+	cascadeDelete bool) error {
+
+	if !pipeline.DeploymentAppCreated {
+		return nil
+	}
+
+	// building the argocd application delete request
+	req := &application2.ApplicationDeleteRequest{
+		Name:    &deploymentAppName,
+		Cascade: &cascadeDelete,
+	}
+
+	_, err := impl.application.Delete(ctx, req)
+
+	if err != nil {
+		impl.logger.Errorw("error in deleting argocd application", "err", err)
+		// Possible that argocd app got deleted but db updation failed
+		if strings.Contains(err.Error(), "code = NotFound") {
+			return nil
+		}
+		return err
+	}
+	return nil
+}
+
+// deleteHelmApp takes in context and pipeline object and deletes the release in helm
+func (impl PipelineBuilderImpl) deleteHelmApp(ctx context.Context, pipeline *pipelineConfig.Pipeline) error {
+
+	if !pipeline.DeploymentAppCreated {
+		return nil
+	}
+
+	// validation
+	if !util.IsHelmApp(pipeline.DeploymentAppType) {
+		return errors.New("unable to delete pipeline with id: " + strconv.Itoa(pipeline.Id) + ", not a helm app")
+	}
+
+	// create app identifier
+	appIdentifier := &client.AppIdentifier{
+		ClusterId:   pipeline.Environment.ClusterId,
+		ReleaseName: pipeline.DeploymentAppName,
+		Namespace:   pipeline.Environment.Namespace,
+	}
+
+	// call for delete resource
+	deleteResponse, err := impl.helmAppService.DeleteApplication(ctx, appIdentifier)
+
+	if err != nil {
+		impl.logger.Errorw("error in deleting helm application", "error", err, "appIdentifier", appIdentifier)
+		return err
+	}
+
+	if deleteResponse == nil || !deleteResponse.GetSuccess() {
+		return errors.New("helm delete application response unsuccessful")
+	}
+	return nil
+}
+
+func (impl PipelineBuilderImpl) appendToDeploymentChangeStatusList(pipelines []*bean.DeploymentChangeStatus,
+	pipeline *pipelineConfig.Pipeline, error string, status bean.Status) []*bean.DeploymentChangeStatus {
+
+	return append(pipelines, &bean.DeploymentChangeStatus{
+		Id:      pipeline.Id,
+		AppId:   pipeline.AppId,
+		AppName: pipeline.App.AppName,
+		EnvId:   pipeline.EnvironmentId,
+		EnvName: pipeline.Environment.Name,
+		Error:   error,
+		Status:  status,
+	})
+}
+
 type DeploymentType struct {
 	Deployment Deployment `json:"deployment"`
 }
@@ -2368,7 +2745,7 @@ func (impl PipelineBuilderImpl) BuildArtifactsForCdStage(pipelineId int, stageTy
 	parentCdRunningArtifactId := 0
 	if parentCdId > 0 && parent {
 		parentCdWfrList, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(parentCdId, bean2.CD_WORKFLOW_TYPE_DEPLOY, 1)
-		if err != nil {
+		if err != nil || len(parentCdWfrList) == 0 {
 			impl.logger.Errorw("error in getting artifact for parent cd", "parentCdPipelineId", parentCdId)
 			return ciArtifacts, artifactMap, 0, "", err
 		}
@@ -3153,4 +3530,451 @@ func (impl PipelineBuilderImpl) MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDelete
 		return acdAppFound, err
 	}
 	return acdAppFound, nil
+}
+
+func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*bean.CiConfigRequest, error) {
+	ciPipelines, err := impl.pipelineRepository.FindActiveByEnvId(envId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error fetching pipelines for env id", "err", err)
+		return nil, err
+	}
+	var appIds []int
+	//authorization block starts here
+	var appObjectArr []string
+	rbacObjectMap := make(map[int][]string)
+	for _, pipeline := range ciPipelines {
+		appObject := impl.enforcerUtil.GetAppRBACName(pipeline.App.AppName)
+		appObjectArr = append(appObjectArr, appObject)
+		rbacObjectMap[pipeline.Id] = []string{appObject, ""}
+	}
+	appResults, _ := checkAuthBatch(emailId, appObjectArr, []string{}) //here only app permission need to check
+	for _, pipeline := range ciPipelines {
+		appObject := rbacObjectMap[pipeline.Id][0]
+		if !appResults[appObject] {
+			//if user unauthorized, skip items
+			continue
+		}
+		appIds = append(appIds, pipeline.AppId)
+	}
+	//authorization block ends here
+
+	ciConfigs := make([]*bean.CiConfigRequest, 0)
+	var ciPipelineResp []*bean.CiPipeline
+	for _, appId := range appIds {
+		ciConfig, err := impl.getCiTemplateVariables(appId)
+		if err != nil {
+			impl.logger.Debugw("error in fetching ci pipeline", "appId", appId, "err", err)
+			return nil, err
+		}
+		//TODO fill these variables
+		//--------pipeline population start
+		ciPipelines, err := impl.ciPipelineRepository.FindByAppId(appId)
+		if err != nil && !util.IsErrNoRows(err) {
+			impl.logger.Errorw("error in fetching ci pipeline", "appId", appId, "err", err)
+			return nil, err
+		}
+
+		if impl.ciConfig.ExternalCiWebhookUrl == "" {
+			hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+			if err != nil {
+				return nil, err
+			}
+			if hostUrl != nil {
+				impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/%s", hostUrl.Value, ExternalCiWebhookPath)
+			}
+		}
+		//map of ciPipelineId and their templateOverrideConfig
+		ciOverrideTemplateMap := make(map[int]*bean3.CiTemplateBean)
+		ciTemplateBeanOverrides, err := impl.ciTemplateService.FindTemplateOverrideByAppId(appId)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, templateBeanOverride := range ciTemplateBeanOverrides {
+			ciTemplateOverride := templateBeanOverride.CiTemplateOverride
+			ciOverrideTemplateMap[ciTemplateOverride.CiPipelineId] = templateBeanOverride
+		}
+		for _, pipeline := range ciPipelines {
+
+			dockerArgs := make(map[string]string)
+			if len(pipeline.DockerArgs) > 0 {
+				err := json.Unmarshal([]byte(pipeline.DockerArgs), &dockerArgs)
+				if err != nil {
+					impl.logger.Warnw("error in unmarshal", "err", err)
+				}
+			}
+
+			var externalCiConfig bean.ExternalCiConfig
+
+			ciPipelineScripts, err := impl.ciPipelineRepository.FindCiScriptsByCiPipelineId(pipeline.Id)
+			if err != nil && !util.IsErrNoRows(err) {
+				impl.logger.Errorw("error in fetching ci scripts")
+				return nil, err
+			}
+
+			var beforeDockerBuildScripts []*bean.CiScript
+			var afterDockerBuildScripts []*bean.CiScript
+			for _, ciScript := range ciPipelineScripts {
+				ciScriptResp := &bean.CiScript{
+					Id:             ciScript.Id,
+					Index:          ciScript.Index,
+					Name:           ciScript.Name,
+					Script:         ciScript.Script,
+					OutputLocation: ciScript.OutputLocation,
+				}
+				if ciScript.Stage == BEFORE_DOCKER_BUILD {
+					beforeDockerBuildScripts = append(beforeDockerBuildScripts, ciScriptResp)
+				} else if ciScript.Stage == AFTER_DOCKER_BUILD {
+					afterDockerBuildScripts = append(afterDockerBuildScripts, ciScriptResp)
+				}
+			}
+			parentCiPipeline, err := impl.ciPipelineRepository.FindById(pipeline.ParentCiPipeline)
+			if err != nil && !util.IsErrNoRows(err) {
+				impl.logger.Errorw("err", err)
+				return nil, err
+			}
+			ciPipeline := &bean.CiPipeline{
+				Id:                       pipeline.Id,
+				Version:                  pipeline.Version,
+				Name:                     pipeline.Name,
+				Active:                   pipeline.Active,
+				Deleted:                  pipeline.Deleted,
+				DockerArgs:               dockerArgs,
+				IsManual:                 pipeline.IsManual,
+				IsExternal:               pipeline.IsExternal,
+				ParentCiPipeline:         pipeline.ParentCiPipeline,
+				ParentAppId:              parentCiPipeline.AppId,
+				ExternalCiConfig:         externalCiConfig,
+				BeforeDockerBuildScripts: beforeDockerBuildScripts,
+				AfterDockerBuildScripts:  afterDockerBuildScripts,
+				ScanEnabled:              pipeline.ScanEnabled,
+				IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
+			}
+			if ciTemplateBean, ok := ciOverrideTemplateMap[pipeline.Id]; ok {
+				templateOverride := ciTemplateBean.CiTemplateOverride
+				ciPipeline.DockerConfigOverride = bean.DockerConfigOverride{
+					DockerRegistry:   templateOverride.DockerRegistryId,
+					DockerRepository: templateOverride.DockerRepository,
+					CiBuildConfig:    ciTemplateBean.CiBuildConfig,
+				}
+			}
+			for _, material := range pipeline.CiPipelineMaterials {
+				// ignore those materials which have inactive git material
+				if material == nil || material.GitMaterial == nil || !material.GitMaterial.Active {
+					continue
+				}
+				ciMaterial := &bean.CiMaterial{
+					Id:              material.Id,
+					CheckoutPath:    material.CheckoutPath,
+					Path:            material.Path,
+					ScmId:           material.ScmId,
+					GitMaterialId:   material.GitMaterialId,
+					GitMaterialName: material.GitMaterial.Name[strings.Index(material.GitMaterial.Name, "-")+1:],
+					ScmName:         material.ScmName,
+					ScmVersion:      material.ScmVersion,
+					IsRegex:         material.Regex != "",
+					Source:          &bean.SourceTypeConfig{Type: material.Type, Value: material.Value, Regex: material.Regex},
+				}
+				ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, ciMaterial)
+			}
+			linkedCis, err := impl.ciPipelineRepository.FindByParentCiPipelineId(ciPipeline.Id)
+			if err != nil && !util.IsErrNoRows(err) {
+				return nil, err
+			}
+			ciPipeline.LinkedCount = len(linkedCis)
+			ciPipelineResp = append(ciPipelineResp, ciPipeline)
+		}
+		ciConfig.CiPipelines = ciPipelineResp
+		ciConfigs = append(ciConfigs, ciConfig)
+	}
+	//--------pipeline population end
+	return ciConfigs, err
+}
+
+func (impl PipelineBuilderImpl) GetCdPipelinesByEnvironment(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) (cdPipelines *bean.CdPipelines, err error) {
+	cdPipelines, err = impl.ciCdPipelineOrchestrator.GetCdPipelinesForEnv(envId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching pipeline", "err", err)
+		return cdPipelines, err
+	}
+
+	//authorization block starts here
+	var envObjectArr []string
+	var appObjectArr []string
+	rbacObjectMap := make(map[int][]string)
+	for _, dbPipeline := range cdPipelines.Pipelines {
+		appObject := impl.enforcerUtil.GetAppRBACName(dbPipeline.AppName)
+		envObject := impl.enforcerUtil.GetEnvRBACNameByCdPipelineIdAndEnvId(dbPipeline.Id)
+		appObjectArr = append(appObjectArr, appObject)
+		envObjectArr = append(envObjectArr, envObject)
+		rbacObjectMap[dbPipeline.Id] = []string{appObject, envObject}
+	}
+	//authorization block ends here
+	appResults, envResults := checkAuthBatch(emailId, appObjectArr, envObjectArr)
+	var pipelines []*bean.CDPipelineConfigObject
+	for _, dbPipeline := range cdPipelines.Pipelines {
+		appObject := rbacObjectMap[dbPipeline.Id][0]
+		envObject := rbacObjectMap[dbPipeline.Id][1]
+		if !(appResults[appObject] && envResults[envObject]) {
+			//if user unauthorized, skip items
+			continue
+		}
+		environment, err := impl.environmentRepository.FindById(dbPipeline.EnvironmentId)
+		if err != nil && errors.IsNotFound(err) {
+			impl.logger.Errorw("error in fetching pipeline", "err", err)
+			return cdPipelines, err
+		}
+		strategies, err := impl.pipelineConfigRepository.GetAllStrategyByPipelineId(dbPipeline.Id)
+		if err != nil && errors.IsNotFound(err) {
+			impl.logger.Errorw("error in fetching strategies", "err", err)
+			return cdPipelines, err
+		}
+		var strategiesBean []bean.Strategy
+		var deploymentTemplate chartRepoRepository.DeploymentStrategy
+		for _, item := range strategies {
+			strategiesBean = append(strategiesBean, bean.Strategy{
+				Config:             []byte(item.Config),
+				DeploymentTemplate: item.Strategy,
+				Default:            item.Default,
+			})
+			if item.Default {
+				deploymentTemplate = item.Strategy
+			}
+		}
+		appWorkflowMapping, err := impl.appWorkflowRepository.FindWFCDMappingByCDPipelineId(dbPipeline.Id)
+		if err != nil && errors.IsNotFound(err) {
+			impl.logger.Errorw("error in fetching workflows", "err", err)
+			return nil, err
+		}
+		pipeline := &bean.CDPipelineConfigObject{
+			Id:                            dbPipeline.Id,
+			Name:                          dbPipeline.Name,
+			EnvironmentId:                 dbPipeline.EnvironmentId,
+			EnvironmentName:               environment.Name,
+			CiPipelineId:                  dbPipeline.CiPipelineId,
+			DeploymentTemplate:            deploymentTemplate,
+			TriggerType:                   dbPipeline.TriggerType,
+			Strategies:                    strategiesBean,
+			PreStage:                      dbPipeline.PreStage,
+			PostStage:                     dbPipeline.PostStage,
+			PreStageConfigMapSecretNames:  dbPipeline.PreStageConfigMapSecretNames,
+			PostStageConfigMapSecretNames: dbPipeline.PostStageConfigMapSecretNames,
+			RunPreStageInEnv:              dbPipeline.RunPreStageInEnv,
+			RunPostStageInEnv:             dbPipeline.RunPostStageInEnv,
+			DeploymentAppType:             dbPipeline.DeploymentAppType,
+			ParentPipelineType:            appWorkflowMapping.ParentType,
+			ParentPipelineId:              appWorkflowMapping.ParentId,
+		}
+		pipelines = append(pipelines, pipeline)
+	}
+	cdPipelines.Pipelines = pipelines
+	return cdPipelines, err
+}
+
+func (impl PipelineBuilderImpl) GetExternalCiByEnvironment(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) (ciConfig []*bean.ExternalCiConfig, err error) {
+	externalCiConfigs := make([]*bean.ExternalCiConfig, 0)
+	pipelines, err := impl.pipelineRepository.FindActiveByEnvId(envId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error fetching pipelines for env id", "err", err)
+		return nil, err
+	}
+	var appIds []int
+	//authorization block starts here
+	var appObjectArr []string
+	rbacObjectMap := make(map[int][]string)
+	for _, pipeline := range pipelines {
+		appObject := impl.enforcerUtil.GetAppRBACName(pipeline.App.AppName)
+		appObjectArr = append(appObjectArr, appObject)
+		rbacObjectMap[pipeline.Id] = []string{appObject, ""}
+	}
+	appResults, _ := checkAuthBatch(emailId, appObjectArr, []string{})
+	for _, pipeline := range pipelines {
+		appObject := rbacObjectMap[pipeline.Id][0]
+		if !appResults[appObject] {
+			//if user unauthorized, skip items
+			continue
+		}
+		appIds = append(appIds, pipeline.AppId)
+	}
+	//authorization block ends here
+	if len(appIds) == 0 {
+		impl.logger.Warnw("there is no app id found for fetching external ci pipelines", "envId", envId)
+		return externalCiConfigs, nil
+	}
+	externalCiPipelines, err := impl.ciPipelineRepository.FindExternalCiByAppIds(appIds)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.logger.Errorw("error in fetching external ci", "envId", envId, "err", err)
+		return nil, err
+	}
+	hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+	if err != nil {
+		impl.logger.Errorw("error in fetching external ci", "envId", envId, "err", err)
+		return nil, err
+	}
+	if hostUrl != nil {
+		impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/%s", hostUrl.Value, ExternalCiWebhookPath)
+	}
+
+	for _, externalCiPipeline := range externalCiPipelines {
+		externalCiConfig := &bean.ExternalCiConfig{
+			Id:         externalCiPipeline.Id,
+			WebhookUrl: fmt.Sprintf("%s/%d", impl.ciConfig.ExternalCiWebhookUrl, externalCiPipeline.Id),
+			Payload:    impl.ciConfig.ExternalCiPayload,
+			AccessKey:  "",
+		}
+
+		appWorkflowMappings, err := impl.appWorkflowRepository.FindWFCDMappingByExternalCiId(externalCiPipeline.Id)
+		if err != nil && !util.IsErrNoRows(err) {
+			impl.logger.Errorw("error in fetching external ci", "envId", envId, "err", err)
+			return nil, err
+		}
+
+		roleData := make(map[string]interface{})
+		for _, appWorkflowMapping := range appWorkflowMappings {
+			cdPipeline, err := impl.pipelineRepository.FindById(appWorkflowMapping.ComponentId)
+			if err != nil && !util.IsErrNoRows(err) {
+				impl.logger.Errorw("error in fetching external ci", "envId", envId, "err", err)
+				return nil, err
+			}
+			if _, ok := roleData[teamIdKey]; !ok {
+				app, err := impl.appRepo.FindAppAndProjectByAppId(cdPipeline.AppId)
+				if err != nil && !util.IsErrNoRows(err) {
+					impl.logger.Errorw("error in fetching external ci", "envId", envId, "err", err)
+					return nil, err
+				}
+				roleData[teamIdKey] = app.TeamId
+				roleData[teamNameKey] = app.Team.Name
+				roleData[appIdKey] = cdPipeline.AppId
+				roleData[appNameKey] = cdPipeline.App.AppName
+			}
+			if _, ok := roleData[environmentNameKey]; !ok {
+				roleData[environmentNameKey] = cdPipeline.Environment.Name
+			} else {
+				roleData[environmentNameKey] = fmt.Sprintf("%s,%s", roleData[environmentNameKey], cdPipeline.Environment.Name)
+			}
+			if _, ok := roleData[environmentIdentifierKey]; !ok {
+				roleData[environmentIdentifierKey] = cdPipeline.Environment.EnvironmentIdentifier
+			} else {
+				roleData[environmentIdentifierKey] = fmt.Sprintf("%s,%s", roleData[environmentIdentifierKey], cdPipeline.Environment.EnvironmentIdentifier)
+			}
+		}
+
+		externalCiConfig.ExternalCiConfigRole = bean.ExternalCiConfigRole{
+			ProjectId:             roleData[teamIdKey].(int),
+			ProjectName:           roleData[teamNameKey].(string),
+			AppId:                 roleData[appIdKey].(int),
+			AppName:               roleData[appNameKey].(string),
+			EnvironmentName:       roleData[environmentNameKey].(string),
+			EnvironmentIdentifier: roleData[environmentIdentifierKey].(string),
+			Role:                  "Build and deploy",
+		}
+		externalCiConfigs = append(externalCiConfigs, externalCiConfig)
+	}
+	//--------pipeline population end
+	return externalCiConfigs, err
+}
+
+func (impl PipelineBuilderImpl) GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) (*cluster.AppGroupingResponse, error) {
+	result := &cluster.AppGroupingResponse{}
+	var models []*repository2.Environment
+	var beans []cluster.EnvironmentBean
+	var err error
+	if len(envName) > 0 && len(clusterIds) > 0 {
+		models, err = impl.environmentRepository.FindByEnvNameAndClusterIds(envName, clusterIds)
+	} else if len(clusterIds) > 0 {
+		models, err = impl.environmentRepository.FindByClusterIdsWithFilter(clusterIds)
+	} else if len(envName) > 0 {
+		models, err = impl.environmentRepository.FindByEnvName(envName)
+	} else {
+		models, err = impl.environmentRepository.FindAllActiveWithFilter()
+	}
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching environment", "err", err)
+		return result, err
+	}
+	for _, model := range models {
+		environment := cluster.EnvironmentBean{
+			Id:                    model.Id,
+			Environment:           model.Name,
+			Namespace:             model.Namespace,
+			CdArgoSetup:           model.Cluster.CdArgoSetup,
+			EnvironmentIdentifier: model.EnvironmentIdentifier,
+			ClusterName:           model.Cluster.ClusterName,
+		}
+		pipelines, err := impl.pipelineRepository.FindActiveByEnvId(model.Id)
+		if err != nil && err != pg.ErrNoRows {
+			return result, err
+		}
+		appCount := 0
+		//authorization block starts here
+		var envObjectArr []string
+		var appObjectArr []string
+		rbacObjectMap := make(map[int][]string)
+		for _, pipeline := range pipelines {
+			appObject := impl.enforcerUtil.GetAppRBACName(pipeline.App.AppName)
+			envObject := impl.enforcerUtil.GetEnvRBACNameByCdPipelineIdAndEnvId(pipeline.Id)
+			appObjectArr = append(appObjectArr, appObject)
+			envObjectArr = append(envObjectArr, envObject)
+			rbacObjectMap[pipeline.Id] = []string{appObject, envObject}
+		}
+		appResults, envResults := checkAuthBatch(emailId, appObjectArr, envObjectArr)
+		for _, pipeline := range pipelines {
+			appObject := rbacObjectMap[pipeline.Id][0]
+			envObject := rbacObjectMap[pipeline.Id][1]
+			if !(appResults[appObject] && envResults[envObject]) {
+				//if user unauthorized, skip items
+				continue
+			}
+			appCount = appCount + 1
+		}
+		//authorization block ends here
+		environment.AppCount = appCount
+		beans = append(beans, environment)
+	}
+
+	envCount := len(beans)
+	// Apply pagination
+	if size > 0 {
+		if offset+size <= len(beans) {
+			beans = beans[offset : offset+size]
+		} else {
+			beans = beans[offset:]
+		}
+	}
+	result.EnvList = beans
+	result.EnvCount = envCount
+	return result, nil
+}
+
+func (impl PipelineBuilderImpl) GetAppListForEnvironment(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*AppBean, error) {
+	var appsRes []*AppBean
+	pipelines, err := impl.pipelineRepository.FindActiveByEnvId(envId)
+	if err != nil {
+		impl.logger.Errorw("error while fetching app", "err", err)
+		return nil, err
+	}
+
+	//authorization block starts here
+	var envObjectArr []string
+	var appObjectArr []string
+	rbacObjectMap := make(map[int][]string)
+	for _, pipeline := range pipelines {
+		appObject := impl.enforcerUtil.GetAppRBACName(pipeline.App.AppName)
+		envObject := impl.enforcerUtil.GetEnvRBACNameByCdPipelineIdAndEnvId(pipeline.Id)
+		appObjectArr = append(appObjectArr, appObject)
+		envObjectArr = append(envObjectArr, envObject)
+		rbacObjectMap[pipeline.Id] = []string{appObject, envObject}
+	}
+	appResults, envResults := checkAuthBatch(emailId, appObjectArr, envObjectArr)
+	for _, pipeline := range pipelines {
+		appObject := rbacObjectMap[pipeline.Id][0]
+		envObject := rbacObjectMap[pipeline.Id][1]
+		if !(appResults[appObject] && envResults[envObject]) {
+			//if user unauthorized, skip items
+			continue
+		}
+		appsRes = append(appsRes, &AppBean{Id: pipeline.AppId, Name: pipeline.App.AppName})
+	}
+	//authorization block ends here
+	return appsRes, err
 }
