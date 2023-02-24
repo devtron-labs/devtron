@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/internal/middleware"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/juju/errors"
 	"io"
 	"io/ioutil"
@@ -221,7 +220,7 @@ func InterfaceToMapAdapter(resp interface{}) map[string]interface{} {
 }
 
 func TriggerCDMetrics(wfr CDMetrics, exposeCDMetrics bool) {
-	if exposeCDMetrics && (wfr.Status == pipelineConfig.WorkflowFailed || wfr.Status == pipelineConfig.WorkflowSucceeded) {
+	if exposeCDMetrics && (wfr.Status == WorkflowFailed || wfr.Status == WorkflowSucceeded) {
 		middleware.CdDuration.WithLabelValues(wfr.AppName, wfr.Status, wfr.EnvironmentName, wfr.DeploymentType).Observe(wfr.Time)
 	}
 }
