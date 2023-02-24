@@ -33,13 +33,13 @@ type UserTerminalAccessService interface {
 	StartTerminalSession(ctx context.Context, request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error)
 	UpdateTerminalSession(ctx context.Context, request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error)
 	UpdateTerminalShellSession(ctx context.Context, request *models.UserTerminalShellSessionRequest) (*models.UserTerminalSessionResponse, error)
-	FetchTerminalStatus(ctx context.Context, terminalAccessId int, namespace string, shellName string) (*models.UserTerminalSessionResponse, error)
+	FetchTerminalStatus(ctx context.Context, terminalAccessId int, namespace string, containerName string, shellName string) (*models.UserTerminalSessionResponse, error)
 	StopTerminalSession(ctx context.Context, userTerminalAccessId int)
 	DisconnectTerminalSession(ctx context.Context, userTerminalAccessId int) error
 	DisconnectAllSessionsForUser(ctx context.Context, userId int32)
 	FetchPodManifest(ctx context.Context, userTerminalAccessId int) (resp *application.ManifestResponse, err error)
 	FetchPodEvents(ctx context.Context, userTerminalAccessId int) (*application.EventsResponse, error)
-	ValidateShell(podName, namespace, shellName string, clusterId int) (bool, string, error)
+	ValidateShell(podName, namespace, shellName, containerName string, clusterId int) (bool, string, error)
 	EditPodManifest(ctx context.Context, request *models.UserTerminalSessionRequest, override bool) (ManifestEditResponse, error)
 }
 
@@ -64,7 +64,7 @@ type UserTerminalAccessSessionData struct {
 type ManifestEditResponse struct {
 	ErrorComments    string                        `json:"errors,omitempty"`
 	ManifestResponse *application.ManifestResponse `json:"manifestResponse"`
-	*models.UserTerminalSessionResponse
+	models.UserTerminalSessionResponse
 }
 
 func GetTerminalAccessConfig() (*models.UserTerminalSessionConfig, error) {
@@ -102,14 +102,17 @@ func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessR
 	go accessServiceImpl.SyncRunningInstances()
 	return accessServiceImpl, err
 }
-func (impl *UserTerminalAccessServiceImpl) ValidateShell(podName, namespace, shellName string, clusterId int) (bool, string, error) {
+func (impl *UserTerminalAccessServiceImpl) ValidateShell(podName, namespace, shellName, containerName string, clusterId int) (bool, string, error) {
 	impl.Logger.Infow("Inside validateShell method", "UserTerminalAccessServiceImpl")
+	if containerName == "" {
+		containerName = "devtron-debug-terminal"
+	}
 	req := &terminal.TerminalSessionRequest{
 		PodName:       podName,
 		Namespace:     namespace,
 		Shell:         shellName,
 		ClusterId:     clusterId,
-		ContainerName: "devtron-debug-terminal",
+		ContainerName: containerName,
 	}
 	if shellName == models.AutoSelectShell {
 		shell, err := impl.terminalSessionHandler.AutoSelectShell(req)
@@ -126,9 +129,18 @@ func (impl *UserTerminalAccessServiceImpl) ValidateShell(podName, namespace, she
 }
 func (impl *UserTerminalAccessServiceImpl) StartTerminalSession(ctx context.Context, request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error) {
 	impl.Logger.Infow("terminal start request received for user", "request", request)
-	//if request.Manifest != "" {
-	//	return impl.EditPodManifest(ctx, request, true)
-	//}
+	if request.Manifest != "" {
+		res, err := impl.EditPodManifest(ctx, request, true)
+		return &models.UserTerminalSessionResponse{
+			TerminalAccessId:      res.TerminalAccessId,
+			UserTerminalSessionId: res.UserTerminalSessionId,
+			Status:                res.Status,
+			PodName:               res.PodName,
+			NodeName:              res.NodeName,
+			ShellName:             res.ShellName,
+			Containers:            res.Containers,
+		}, err
+	}
 	podNameVar, err := impl.getPodNameVar(request)
 	if err != nil {
 		return nil, err
@@ -245,7 +257,7 @@ func (impl *UserTerminalAccessServiceImpl) UpdateTerminalShellSession(ctx contex
 	}
 
 	if models.TerminalPodStatus(terminalAccessData.Status) == models.TerminalPodRunning {
-		isValidShell, shellName, err := impl.ValidateShell(terminalAccessData.PodName, request.NameSpace, request.ShellName, terminalAccessData.ClusterId)
+		isValidShell, shellName, err := impl.ValidateShell(terminalAccessData.PodName, request.NameSpace, request.ShellName, request.ContainerName, terminalAccessData.ClusterId)
 		podStatus := models.TerminalPodStatus(terminalAccessData.Status)
 		if err != nil && err.Error() == terminal.PodNotFound {
 			podStatus = models.TerminalPodTerminated
@@ -676,7 +688,7 @@ func (impl *UserTerminalAccessServiceImpl) checkAndStartSession(ctx context.Cont
 	return sessionID, nodeName, err
 }
 
-func (impl *UserTerminalAccessServiceImpl) FetchTerminalStatus(ctx context.Context, terminalAccessId int, namespace string, shellName string) (*models.UserTerminalSessionResponse, error) {
+func (impl *UserTerminalAccessServiceImpl) FetchTerminalStatus(ctx context.Context, terminalAccessId int, namespace string, containerName string, shellName string) (*models.UserTerminalSessionResponse, error) {
 	terminalAccessDataMap := *impl.TerminalAccessSessionDataMap
 	terminalAccessSessionData, present := terminalAccessDataMap[terminalAccessId]
 	var terminalSessionId = ""
@@ -693,7 +705,7 @@ func (impl *UserTerminalAccessServiceImpl) FetchTerminalStatus(ctx context.Conte
 				ShellName:             shellName,
 			}
 			if models.TerminalPodStatus(accessDataEntity.Status) == models.TerminalPodRunning {
-				isValid, _, err := impl.ValidateShell(accessDataEntity.PodName, namespace, shellName, accessDataEntity.ClusterId)
+				isValid, _, err := impl.ValidateShell(accessDataEntity.PodName, namespace, shellName, containerName, accessDataEntity.ClusterId)
 				response.IsValidShell = isValid
 				if err != nil {
 					if err.Error() == terminal.PodNotFound {
@@ -739,7 +751,7 @@ func (impl *UserTerminalAccessServiceImpl) FetchTerminalStatus(ctx context.Conte
 		ShellName:             shellName,
 	}
 	if models.TerminalPodStatus(terminalAccessData.Status) == models.TerminalPodRunning {
-		isValid, _, err := impl.ValidateShell(terminalAccessData.PodName, namespace, shellName, terminalAccessData.ClusterId)
+		isValid, _, err := impl.ValidateShell(terminalAccessData.PodName, namespace, shellName, containerName, terminalAccessData.ClusterId)
 		terminalAccessResponse.IsValidShell = isValid
 		if err != nil {
 			if err.Error() == terminal.PodNotFound {
@@ -1116,14 +1128,23 @@ func (impl *UserTerminalAccessServiceImpl) EditPodManifest(ctx context.Context, 
 	if override {
 		//override pod variables with requested variables
 		podObject.Namespace = editManifestRequest.Namespace
-		podObject.Spec.NodeName = editManifestRequest.NodeName
+		if editManifestRequest.NodeName != models.AUTO_SELECT_NODE {
+			podObject.Spec.NodeName = editManifestRequest.NodeName
+			for _, taint := range editManifestRequest.NodeTaints {
+				podObject.Spec.Tolerations = append(podObject.Spec.Tolerations, v1.Toleration{
+					Effect:   v1.TaintEffect(taint.Effect),
+					Key:      taint.Key,
+					Operator: v1.TolerationOpExists,
+				})
+			}
+		}
 		//set base image to the requested container
 		for i, container := range podObject.Spec.Containers {
 			if container.Name == editManifestRequest.ContainerName {
 				podObject.Spec.Containers[i].Image = editManifestRequest.BaseImage
 			}
 		}
-		//TODO: add matching toleration's
+
 	}
 
 	if podObject.Name != editManifestRequest.PodName {
@@ -1135,9 +1156,11 @@ func (impl *UserTerminalAccessServiceImpl) EditPodManifest(ctx context.Context, 
 	}
 
 	//if reached this point, force delete the existing pod and create new
-	impl.forceDeletePod(ctx, podObject.Name, podObject.Namespace, editManifestRequest.ClusterId)
+	impl.forceDeletePod(ctx, podObject.Name, podObject.Namespace, editManifestRequest.ClusterId, editManifestRequest.UserId)
 
-	//TODO:determine request to  createTerminalEntity method
+	//determine request to  createTerminalEntity method
+	editManifestRequest.NodeName = podObject.Spec.NodeName
+	editManifestRequest.Namespace = podObject.Namespace
 	terminalStartResponse, err := impl.createTerminalEntity(editManifestRequest, podObject.Name)
 	if err != nil {
 		impl.Logger.Errorw("failed to create terminal entity", "userTerminalAccessId", userTerminalAccessId, "err", err)
@@ -1145,7 +1168,8 @@ func (impl *UserTerminalAccessServiceImpl) EditPodManifest(ctx context.Context, 
 	}
 
 	//create podTemplate from PodObject
-	podTemplate := podObject.String()
+	podTemplateBytes, err := json.Marshal(&podObject)
+	podTemplate := string(podTemplateBytes)
 	//start new session with provided Pod manifest
 	err = impl.applyTemplate(ctx, editManifestRequest.ClusterId, podTemplate, podTemplate, false, editManifestRequest.Namespace)
 	if err != nil {
@@ -1176,10 +1200,15 @@ func (impl *UserTerminalAccessServiceImpl) checkOtherPodExists(ctx context.Conte
 	return false
 }
 
-func (impl *UserTerminalAccessServiceImpl) forceDeletePod(ctx context.Context, podName, namespace string, clusterId int) bool {
-	//add greceperiod 0 to force delete
-	podRequestBean, _ := impl.getPodRequestBean(clusterId, podName, namespace)
-	_, err := impl.k8sApplicationService.DeleteResource(ctx, podRequestBean, 2)
+func (impl *UserTerminalAccessServiceImpl) forceDeletePod(ctx context.Context, podName, namespace string, clusterId int, userId int32) bool {
+	//add grace period 0 to force delete
+	podRequestBean, err := impl.getPodRequestBean(clusterId, podName, namespace)
+	if err != nil {
+		impl.Logger.Errorw("error occurred in getting the pod request bean", "podName", podName, "nameSpace", namespace, "clusterId", clusterId)
+		return false
+	}
+	podRequestBean.K8sRequest.ForceDelete = true
+	_, err = impl.k8sApplicationService.DeleteResource(ctx, podRequestBean, userId)
 	if err != nil && !isResourceNotFoundErr(err) {
 		return false
 	}
