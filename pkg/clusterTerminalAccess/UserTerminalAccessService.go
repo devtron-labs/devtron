@@ -36,7 +36,6 @@ type UserTerminalAccessService interface {
 	FetchPodManifest(ctx context.Context, userTerminalAccessId int) (resp *application.ManifestResponse, err error)
 	FetchPodEvents(ctx context.Context, userTerminalAccessId int) (*models.UserTerminalPodEvents, error)
 	ValidateShell(podName, namespace, shellName string, clusterId int) (bool, string, error)
-	//EditPodManifest(ctx context.Context, userTerminalAccessId int, req map[string]string) (resp *application.ManifestResponse, err error)
 }
 
 type UserTerminalAccessServiceImpl struct {
@@ -1026,19 +1025,3 @@ func (impl *UserTerminalAccessServiceImpl) getTerminalAccessDataForId(userTermin
 	}
 	return terminalAccessData, err
 }
-
-//func (impl *UserTerminalAccessServiceImpl) EditPodManifest(ctx context.Context, userTerminalAccessId int, req map[string]string) (*application.ManifestResponse, error) {
-//	terminalAccessDataMap := *impl.TerminalAccessSessionDataMap
-//	terminalAccessSessionData, present := terminalAccessDataMap[userTerminalAccessId]
-//	if present {
-//		clusterId := terminalAccessSessionData.terminalAccessDataEntity.ClusterId
-//		namespace := "default"
-//		err := impl.applyTemplate(ctx, clusterId, req["manifest"], req["manifest"], false, namespace)
-//		return nil, err
-//	}
-//
-//	//search in db,if found update in cache then apply
-//	//if not found in db request is invalid
-//
-//	return nil, nil
-//}
