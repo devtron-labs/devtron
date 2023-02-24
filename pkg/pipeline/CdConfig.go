@@ -71,6 +71,7 @@ type CdConfig struct {
 	DefaultAddressPoolBaseCidr     string                       `env:"CD_DEFAULT_ADDRESS_POOL_BASE_CIDR"`
 	DefaultAddressPoolSize         int                          `env:"CD_DEFAULT_ADDRESS_POOL_SIZE"`
 	ExposeCDMetrics                bool                         `env:"EXPOSE_CD_METRICS" envDefault:"false"`
+	UseBlobStorageConfigInCdWorkflow bool                         `env:"USE_BLOB_STORAGE_CONFIG_IN_CD_WORKFLOW" envDefault:"true"`
 }
 
 func GetCdConfig() (*CdConfig, error) {

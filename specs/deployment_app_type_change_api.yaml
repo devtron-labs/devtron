@@ -1,0 +1,139 @@
+openapi: 3.0.3
+info:
+  version: 1.0.0
+  title: Devtron Labs
+paths:
+  /orchestrator/app/cd-pipeline/patch/deployment:
+    post:
+      description: Bulk change deployment app type of all cd pipelines in an environment
+      requestBody:
+        description: A JSON object containing environment id and desired deployment app type
+        required: true
+        content:
+          text/plain:
+            schema:
+              $ref: '#/components/schemas/DeploymentAppTypeChangeRequest'
+      responses:
+        '200':
+          description: successfully returns an object with info on pipelines successfully changed deployment types and pipelines failed to change deployment app type with error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '401':
+          description: unauthorized user
+          content:
+            text/plain:
+              schema:
+                type: string
+        '400':
+          description: Bad Request. Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+
+# components mentioned below
+components:
+  schemas:
+    DeploymentAppTypeChangeRequest:
+      type: object
+      properties:
+        envId:
+          type: integer
+          description: Environment id
+        desiredDeploymentType:
+          type: string
+          description: Desired deployment type. For eg argo_cd / helm
+        excludeApps:
+          type: array
+          description: List of app ids to be excluded
+        includeApps:
+          type: array
+          description: List of app ids to be included (deployment will be changed only for these apps)
+    DeploymentChangeStatus:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: cd pipeline id
+        appName:
+          type: string
+          description: app name
+        envName:
+          type: string
+          description: environment name
+        error:
+          type: string
+          description: Error message if failed to change deployment app type
+        status:
+          type: string
+          description: If deployment change was successful or failed for this pipeline
+    DeploymentAppTypeChangeResponse:
+      type: object
+      properties:
+        envId:
+          type: integer
+          description: environment id
+        desiredDeploymentType:
+          type: string
+          description: Desired deployment type. For eg argo_cd / helm
+        successfulPipelines:
+          type: array
+          description: Pipelines which were successfully deleted from current deployment
+          items:
+            $ref: '#components/schemas/DeploymentChangeStatus'
+        failedPipelines:
+          type: array
+          description: Pipelines which failed to get deleted from current deployment
+          items:
+            $ref: '#components/schemas/DeploymentChangeStatus'
+    TriggeredPipelineDetails:
+      type: object
+      properties:
+        ciArtifactId:
+          type: integer
+          description: Artifact id deployed
+        pipelineId:
+          type: integer
+          description: Pipeline id for which deployment was triggered
+    OkResponse:
+      required:
+        - code
+        - status
+        - result
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        status:
+          type: string
+          description: Error message
+        result:
+          type: object
+          description: DeploymentAppTypeChangeResponse object
+    Error:
+      required:
+        - code
+        - status
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error internal code
+        internalMessage:
+          type: string
+          description: Error internal message
+        userMessage:
+          type: string
+          description: Error user message
+  
