@@ -43,8 +43,8 @@ You can use devtron generic chart for this.
 | :--- | :--- |
 | `secretAccessKeySecretRef.name` | Name of secret created that would be used for authentication.|
 | `secretAccessKeySecretRef.key` | In generic secret created for GCP authentication, variable name in which base64 encoded service account key is stored.|
-| `ProjectID` | Variable name to store secret. |
-| `secretKey` | Variable name to store secret. |
+| `ProjectID` | GCP Project ID where secret is created. |
+| `secretKey` | Key name to store secret. |
 | `key` | GCP Secrets Manager secret name. |
 
 
