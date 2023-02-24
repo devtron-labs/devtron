@@ -368,12 +368,28 @@ To wait for given period of time before switch active the container.
 
 ### Winter-Solider
 Winter Soldier can be used to
-
 - cleans up (delete) Kubernetes resources
 - reduce workload pods to 0
 
-**_NOTE:_** After deploying this we can create the Hibernator object and provide the custom configuration by which workloads going to delete, sleep and many more.
+**_NOTE:_** After deploying this we can create the Hibernator object and provide the custom configuration by which workloads going to delete, sleep and many more.   for more information check [the main repo](https://github.com/devtron-labs/winter-soldier)
 
+Given below is sample values you can give in winter-solider:
+```yaml
+winterSoilder:
+  enable: false
+  timeRangesWithZone:
+    timeZone: "Asia/Kolkata"
+    timeRanges: []
+  action: sleep
+  targetReplicas: []
+  fieldSelector: 
+    - AfterTime(AddTime(ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '5m'), Now())
+```
+Here, 
+| Key | values | Description |
+| :--- | :--- | :--- |
+| `enable` | `fasle`,`true` | decide the enabling factor  |
+| `timeRangesWithZone`:`timeZone` | eg:- `"Asia/Kolkata"`,`"true"` | decide the enabling factor  |
 
 
 
