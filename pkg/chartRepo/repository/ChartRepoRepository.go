@@ -36,6 +36,7 @@ type ChartRepoFields struct {
 	AuthMode    repository.AuthMode `sql:"auth_mode,notnull"`
 	External    bool                `sql:"external,notnull"`
 	Deleted     bool                `sql:"deleted,notnull"`
+	AllowInsecureConnection bool
 }
 type ChartRepo struct {
 	tableName struct{} `sql:"chart_repo"`
