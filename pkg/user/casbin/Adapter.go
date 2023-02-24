@@ -77,7 +77,6 @@ func setEnforcerImpl(ref *EnforcerImpl) {
 
 func AddPolicy(policies []Policy) []Policy {
 	defer HandlePanic()
-	LoadPolicy()
 	var failed = []Policy{}
 	emailIdList := map[string]struct{}{}
 	for _, p := range policies {
@@ -101,7 +100,6 @@ func AddPolicy(policies []Policy) []Policy {
 		}
 	}
 	if len(policies) != len(failed) {
-		LoadPolicy()
 		for emailId := range emailIdList {
 			enforcerImplRef.InvalidateCache(emailId)
 		}
@@ -138,7 +136,6 @@ func RemovePolicy(policies []Policy) []Policy {
 		}
 	}
 	if len(policies) != len(failed) {
-		LoadPolicy()
 		for emailId := range emailIdList {
 			enforcerImplRef.InvalidateCache(emailId)
 		}
