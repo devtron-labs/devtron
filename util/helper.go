@@ -23,6 +23,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/caarlos0/env"
+	"github.com/devtron-labs/devtron/internal/middleware"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/juju/errors"
 	"io"
 	"io/ioutil"
@@ -221,4 +224,10 @@ func GetBaseLogLocationPath(logger *zap.SugaredLogger) string {
 		logger.Warnw("error occurred while parsing BaseLogLocationConfig", "err", err)
 	}
 	return baseLogLocationPathConfig.BaseLogLocationPath
+}
+
+func TriggerCDMetrics(wfr *pipelineConfig.CdWorkflowRunner, cdConfig *pipeline.CdConfig) {
+	if cdConfig.ExposeCDMetrics && (wfr.Status == pipelineConfig.WorkflowFailed || wfr.Status == pipelineConfig.WorkflowSucceeded) {
+		middleware.CdDuration.WithLabelValues(wfr.CdWorkflow.Pipeline.DeploymentAppName, wfr.Status, wfr.CdWorkflow.Pipeline.Environment.Name).Observe(time.Since(wfr.StartedOn).Seconds() - time.Since(wfr.FinishedOn).Seconds())
+	}
 }
