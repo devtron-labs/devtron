@@ -30,7 +30,6 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/k8s"
@@ -83,16 +82,17 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-type AppStatusConfig struct {
+type AppServiceConfig struct {
 	CdPipelineStatusCronTime            string `env:"CD_PIPELINE_STATUS_CRON_TIME" envDefault:"*/2 * * * *"`
 	CdHelmPipelineStatusCronTime        string `env:"CD_HELM_PIPELINE_STATUS_CRON_TIME" envDefault:"*/2 * * * *"`
 	CdPipelineStatusTimeoutDuration     string `env:"CD_PIPELINE_STATUS_TIMEOUT_DURATION" envDefault:"20"`       //in minutes
 	PipelineDegradedTime                string `env:"PIPELINE_DEGRADED_TIME" envDefault:"10"`                    //in minutes
 	HelmPipelineStatusCheckEligibleTime string `env:"HELM_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME" envDefault:"120"` //in seconds
+	ExposeCDMetrics                     bool   `env:"EXPOSE_CD_METRICS" envDefault:"false"`
 }
 
-func GetAppStatusConfig() (*AppStatusConfig, error) {
-	cfg := &AppStatusConfig{}
+func GetAppStatusConfig() (*AppServiceConfig, error) {
+	cfg := &AppServiceConfig{}
 	err := env.Parse(cfg)
 	if err != nil {
 		fmt.Println("failed to parse server app status config: " + err.Error())
@@ -151,11 +151,10 @@ type AppServiceImpl struct {
 	pipelineStatusTimelineResourcesService PipelineStatusTimelineResourcesService
 	pipelineStatusSyncDetailService        PipelineStatusSyncDetailService
 	pipelineStatusTimelineService          PipelineStatusTimelineService
-	appStatusConfig                        *AppStatusConfig
+	appStatusConfig                        *AppServiceConfig
 	gitOpsConfigRepository                 repository.GitOpsConfigRepository
 	appStatusService                       appStatus.AppStatusService
 	k8sApplicationService                  k8s.K8sApplicationService
-	cdConfig                               *pipeline.CdConfig
 }
 
 type AppService interface {
@@ -217,11 +216,10 @@ func NewAppService(
 	pipelineStatusTimelineResourcesService PipelineStatusTimelineResourcesService,
 	pipelineStatusSyncDetailService PipelineStatusSyncDetailService,
 	pipelineStatusTimelineService PipelineStatusTimelineService,
-	appStatusConfig *AppStatusConfig,
+	appStatusConfig *AppServiceConfig,
 	gitOpsConfigRepository repository.GitOpsConfigRepository,
 	appStatusService appStatus.AppStatusService,
-	k8sApplicationService k8s.K8sApplicationService,
-	cdConfig *pipeline.CdConfig) *AppServiceImpl {
+	k8sApplicationService k8s.K8sApplicationService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:            environmentConfigRepository,
 		mergeUtil:                              mergeUtil,
@@ -275,7 +273,6 @@ func NewAppService(
 		gitOpsConfigRepository:                 gitOpsConfigRepository,
 		appStatusService:                       appStatusService,
 		k8sApplicationService:                  k8sApplicationService,
-		cdConfig:                               cdConfig,
 	}
 	return appServiceImpl
 }
@@ -1898,7 +1895,13 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Appl
 		impl.logger.Errorw("error on update cd workflow runner", "wfr", wfr, "app", app, "err", err)
 		return err
 	}
-	util2.TriggerCDMetrics(wfr, impl.cdConfig)
+	cdMetrics := util2.CDMetrics{
+		AppName:         wfr.CdWorkflow.Pipeline.DeploymentAppName,
+		Status:          wfr.Status,
+		DeploymentType:  wfr.CdWorkflow.Pipeline.DeploymentAppType,
+		EnvironmentName: wfr.CdWorkflow.Pipeline.Environment.Name,
+	}
+	util2.TriggerCDMetrics(cdMetrics, impl.appStatusConfig.ExposeCDMetrics)
 	return nil
 }
 

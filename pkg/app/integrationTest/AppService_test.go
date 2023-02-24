@@ -20,7 +20,6 @@ import (
 	repository1 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/module"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
 	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
@@ -114,8 +113,6 @@ func InitAppService() *app2.AppServiceImpl {
 		log.Fatal("error in getting db connection, AppService_test", "err", err)
 	}
 
-	cdConfig, _ := pipeline.GetCdConfig()
-
 	pipelineOverrideRepository := chartConfig.NewPipelineOverrideRepository(dbConnection)
 	pipelineRepository := pipelineConfig.NewPipelineRepositoryImpl(dbConnection, logger)
 	httpClient := util.NewHttpClient()
@@ -157,55 +154,13 @@ func InitAppService() *app2.AppServiceImpl {
 	pipelineStatusSyncDetailService := app2.NewPipelineStatusSyncDetailServiceImpl(logger, pipelineStatusSyncDetailRepository)
 	pipelineStatusTimelineService := app2.NewPipelineStatusTimelineServiceImpl(logger, pipelineStatusTimelineRepository, cdWorkflowRepository, nil, pipelineStatusTimelineResourcesService, pipelineStatusSyncDetailService)
 	refChartDir := chartRepoRepository.RefChartDir("scripts/devtron-reference-helm-charts")
-	appService := app2.NewAppService(
-		nil,
-		pipelineOverrideRepository,
-		nil,
-		logger,
-		nil,
-		pipelineRepository,
-		nil,
-		eventClient,
-		eventFactory,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		appListingRepository,
-		appRepository,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		chartRepository,
-		nil,
-		cdWorkflowRepository,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		refChartDir,
-		nil,
-		nil,
-		nil,
-		nil,
-		pipelineStatusTimelineRepository,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		pipelineStatusTimelineResourcesService,
-		pipelineStatusSyncDetailService,
-		pipelineStatusTimelineService,
-		nil, nil, nil, nil, cdConfig)
+	appService := app2.NewAppService(nil, pipelineOverrideRepository, nil, logger, nil,
+		pipelineRepository, nil, eventClient, eventFactory, nil, nil, nil, nil, nil, nil,
+		appListingRepository, appRepository, nil, nil, nil, nil, nil,
+		chartRepository, nil, cdWorkflowRepository, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, refChartDir, nil,
+		nil, nil, nil, pipelineStatusTimelineRepository, nil, nil, nil,
+		nil, nil, pipelineStatusTimelineResourcesService, pipelineStatusSyncDetailService, pipelineStatusTimelineService,
+		nil, nil, nil, nil)
 	return appService
 }
