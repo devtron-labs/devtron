@@ -141,17 +141,17 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 
 	if len(chartRepo.UserName) > 0 && len(chartRepo.Password) > 0 {
 
-		secretData := make(map[string][]byte)
-		secretData["name"] = []byte(chartRepo.Name)
-		secretData["username"] = []byte(chartRepo.UserName)
-		secretData["password"] = []byte(chartRepo.Password)
-		secretData["type"] = []byte("helm")
-		secretData["url"] = []byte(chartRepo.Url)
+		secretData := make(map[string]string)
+		secretData["name"] = chartRepo.Name
+		secretData["username"] = chartRepo.UserName
+		secretData["password"] = chartRepo.Password
+		secretData["type"] = "helm"
+		secretData["url"] = chartRepo.Url
 
 		labels := make(map[string]string)
 		labels["argocd.argoproj.io/secret-type"] = "repository"
 
-		_, err := impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, secretData, chartRepo.Name, "", client, labels)
+		_, err := impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, nil, chartRepo.Name, "", client, labels, secretData)
 		if err != nil {
 			updateSuccess = false
 		}
