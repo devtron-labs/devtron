@@ -24,17 +24,20 @@ metadata:
 
 spec:
   timeRangesWithZone:
-    timeZone: "Asia/Kolkata"
+    timeZone: {{ $.Values.winterSoilder.timeZone | quote }}
+    {{- if $.Values.winterSoilder.timeRanges }}
     timeRanges:
-    {{- range .Values.winterSoilder.timeRange }}
-      {{ $outer := . -}}
-      - timeFrom: {{ .timeFrom | quote }}
-        timeTo: {{ .timeTo | quote }}
-        weekdayFrom: {{ .weekdayFrom | quote }}
-        weekdayTo: {{ .weekdayTo | quote }}
-    {{- end }}
+{{ toYaml $.Values.winterSoilder.timeRanges | indent 6 }}
+    {{- end -}}
   selectors:
-{{ toYaml $.Values.winterSoilder.selector | indent 4}}
+    - inclusions:
+        - objectSelector:
+            name: {{ include ".Chart.Name .fullname" $ }}
+            type: "rollout"
+            fieldSelector:
+              - AfterTime(AddTime(ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), {{$.Values.winterSolider.fieldSelector | squote }}), Now())
+          namespaceSelector:
+            name: {{ $.Release.Namespace }}
+      exclusions: []
   action: {{$.Values.winterSoilder.action}}
-
 {{- end}}
