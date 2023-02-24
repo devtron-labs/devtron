@@ -137,9 +137,9 @@ func swapPolicy() {
 		newModel[sec] = newAstMap
 	}
 
-	enforcedModel.ClearPolicy()
-	e.GetAdapter().LoadPolicy(enforcedModel)
-	enforcerImplRef.SyncedEnforcer.SetModel(enforcedModel)
+	newModel.ClearPolicy()
+	e.GetAdapter().LoadPolicy(newModel)
+	enforcerImplRef.SyncedEnforcer.SetModel(newModel)
 }
 
 func LoadPolicy() {
