@@ -1124,7 +1124,7 @@ func (impl *UserTerminalAccessServiceImpl) EditTerminalPodManifest(ctx context.C
 		return result, nil
 	}
 	// valid pod yaml found
-	impl.Logger.Infow("pod manifest yaml validated using \"kubeconform\" validator")
+	impl.Logger.Infow("pod manifest yaml validated using \"kubeconform\" validator", "podManifest", manifestMap)
 
 	//convert manifestMap to v1.Pod object
 	podObject := v1.Pod{}
@@ -1161,10 +1161,12 @@ func (impl *UserTerminalAccessServiceImpl) EditTerminalPodManifest(ctx context.C
 		if !editManifestRequest.ForceDelete && impl.checkOtherPodExists(ctx, podObject.Name, podObject.Namespace, editManifestRequest.ClusterId) {
 			result.PodExists = true
 			//log the pod exists info
+			//return, to warn user that pod with this name already exists in the given namespace
 			return result, nil
 		}
 	}
 
+	//delete if (user chooses to force delete) or (old pod and new pod have same name)
 	//if reached this point, force delete the existing pod and create new
 	impl.forceDeletePod(ctx, podObject.Name, podObject.Namespace, editManifestRequest.ClusterId, editManifestRequest.UserId)
 
