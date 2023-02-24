@@ -76,7 +76,7 @@ func setEnforcerImpl(ref *EnforcerImpl) {
 }
 
 func AddPolicy(policies []Policy) []Policy {
-	defer handlePanic()
+	defer HandlePanic()
 	var failed = []Policy{}
 	emailIdList := map[string]struct{}{}
 	for _, p := range policies {
@@ -108,7 +108,7 @@ func AddPolicy(policies []Policy) []Policy {
 }
 
 func LoadPolicy() {
-	defer handlePanic()
+	defer HandlePanic()
 	err := enforcerImplRef.ReloadPolicy()
 	if err != nil {
 		fmt.Println("error in reloading policies", err)
@@ -118,7 +118,7 @@ func LoadPolicy() {
 }
 
 func RemovePolicy(policies []Policy) []Policy {
-	defer handlePanic()
+	defer HandlePanic()
 	var failed = []Policy{}
 	emailIdList := map[string]struct{}{}
 	for _, p := range policies {
@@ -171,7 +171,7 @@ func RemovePoliciesByRoles(roles string) bool {
 	return policyResponse
 }
 
-func handlePanic() {
+func HandlePanic() {
 	if err := recover(); err != nil {
 		log.Println("panic occurred:", err)
 	}
