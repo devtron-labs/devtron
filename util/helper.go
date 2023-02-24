@@ -214,6 +214,6 @@ func InterfaceToMapAdapter(resp interface{}) map[string]interface{} {
 
 func TriggerCDMetrics(wfr *pipelineConfig.CdWorkflowRunner, cdConfig *pipeline.CdConfig) {
 	if cdConfig.ExposeCDMetrics && (wfr.Status == pipelineConfig.WorkflowFailed || wfr.Status == pipelineConfig.WorkflowSucceeded) {
-		middleware.CdDuration.WithLabelValues(wfr.CdWorkflow.Pipeline.DeploymentAppName, wfr.Status, wfr.CdWorkflow.Pipeline.Environment.Namespace).Observe(time.Since(wfr.StartedOn).Seconds() - time.Since(wfr.FinishedOn).Seconds())
+		middleware.CdDuration.WithLabelValues(wfr.CdWorkflow.Pipeline.DeploymentAppName, wfr.Status, wfr.CdWorkflow.Pipeline.Environment.Name).Observe(time.Since(wfr.StartedOn).Seconds() - time.Since(wfr.FinishedOn).Seconds())
 	}
 }
