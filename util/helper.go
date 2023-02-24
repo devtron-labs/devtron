@@ -25,7 +25,6 @@ import (
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/juju/errors"
 	"io"
 	"io/ioutil"
@@ -39,6 +38,14 @@ import (
 
 	"go.uber.org/zap"
 )
+
+type CDMetrics struct {
+	AppName         string
+	DeploymentType  string
+	Status          string
+	EnvironmentName string
+	Time            float64
+}
 
 func ContainsString(list []string, element string) bool {
 	if len(list) == 0 {
@@ -213,6 +220,12 @@ func InterfaceToMapAdapter(resp interface{}) map[string]interface{} {
 	return dat
 }
 
+func TriggerCDMetrics(wfr CDMetrics, exposeCDMetrics bool) {
+	if exposeCDMetrics && (wfr.Status == pipelineConfig.WorkflowFailed || wfr.Status == pipelineConfig.WorkflowSucceeded) {
+		middleware.CdDuration.WithLabelValues(wfr.AppName, wfr.Status, wfr.EnvironmentName, wfr.DeploymentType).Observe(wfr.Time)
+	}
+}
+
 type BaseLogLocationConfig struct {
 	BaseLogLocationPath string `env:"BASE_LOG_LOCATION_PATH" envDefault:"home/devtron/"`
 }
@@ -224,10 +237,4 @@ func GetBaseLogLocationPath(logger *zap.SugaredLogger) string {
 		logger.Warnw("error occurred while parsing BaseLogLocationConfig", "err", err)
 	}
 	return baseLogLocationPathConfig.BaseLogLocationPath
-}
-
-func TriggerCDMetrics(wfr *pipelineConfig.CdWorkflowRunner, cdConfig *pipeline.CdConfig) {
-	if cdConfig.ExposeCDMetrics && (wfr.Status == pipelineConfig.WorkflowFailed || wfr.Status == pipelineConfig.WorkflowSucceeded) {
-		middleware.CdDuration.WithLabelValues(wfr.CdWorkflow.Pipeline.DeploymentAppName, wfr.Status, wfr.CdWorkflow.Pipeline.Environment.Name).Observe(time.Since(wfr.StartedOn).Seconds() - time.Since(wfr.FinishedOn).Seconds())
-	}
 }

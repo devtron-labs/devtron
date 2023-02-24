@@ -33,7 +33,7 @@ type CdApplicationStatusUpdateHandlerImpl struct {
 	workflowDagExecutor              pipeline.WorkflowDagExecutor
 	installedAppService              service.InstalledAppService
 	CdHandler                        pipeline.CdHandler
-	AppStatusConfig                  *app.AppStatusConfig
+	AppStatusConfig                  *app.AppServiceConfig
 	pubsubClient                     *pubsub.PubSubClientServiceImpl
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository
 	eventClient                      client2.EventClient
@@ -44,7 +44,7 @@ type CdApplicationStatusUpdateHandlerImpl struct {
 
 func NewCdApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, appService app.AppService,
 	workflowDagExecutor pipeline.WorkflowDagExecutor, installedAppService service.InstalledAppService,
-	CdHandler pipeline.CdHandler, AppStatusConfig *app.AppStatusConfig, pubsubClient *pubsub.PubSubClientServiceImpl,
+	CdHandler pipeline.CdHandler, AppStatusConfig *app.AppServiceConfig, pubsubClient *pubsub.PubSubClientServiceImpl,
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository,
 	eventClient client2.EventClient, appListingRepository repository.AppListingRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,

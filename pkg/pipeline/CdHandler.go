@@ -334,7 +334,14 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipel
 			impl.Logger.Errorw("error on update cd workflow runner", "wfr", wfr, "err", err)
 			return err
 		}
-		util3.TriggerCDMetrics(wfr, impl.cdConfig)
+		cdMetrics := util3.CDMetrics{
+			AppName:         wfr.CdWorkflow.Pipeline.DeploymentAppName,
+			Status:          wfr.Status,
+			DeploymentType:  wfr.CdWorkflow.Pipeline.DeploymentAppType,
+			EnvironmentName: wfr.CdWorkflow.Pipeline.Environment.Name,
+			Time:            time.Since(wfr.StartedOn).Seconds() - time.Since(wfr.FinishedOn).Seconds(),
+		}
+		util3.TriggerCDMetrics(cdMetrics, impl.cdConfig.ExposeCDMetrics)
 		impl.Logger.Infow("updated workflow runner status for helm app", "wfr", wfr)
 		if helmAppStatus == application.Healthy {
 			pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByCdWorkflowId(wfr.CdWorkflowId)
@@ -458,7 +465,14 @@ func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 			impl.Logger.Error("update wf failed for id " + strconv.Itoa(savedWorkflow.Id))
 			return 0, "", err
 		}
-		util3.TriggerCDMetrics(savedWorkflow, impl.cdConfig)
+		cdMetrics := util3.CDMetrics{
+			AppName:         savedWorkflow.CdWorkflow.Pipeline.DeploymentAppName,
+			Status:          savedWorkflow.Status,
+			DeploymentType:  savedWorkflow.CdWorkflow.Pipeline.DeploymentAppType,
+			EnvironmentName: savedWorkflow.CdWorkflow.Pipeline.Environment.Name,
+			Time:            time.Since(savedWorkflow.StartedOn).Seconds() - time.Since(savedWorkflow.FinishedOn).Seconds(),
+		}
+		util3.TriggerCDMetrics(cdMetrics, impl.cdConfig.ExposeCDMetrics)
 		if string(v1alpha1.NodeError) == savedWorkflow.Status || string(v1alpha1.NodeFailed) == savedWorkflow.Status {
 			impl.Logger.Warnw("cd stage failed for workflow: ", "wfId", savedWorkflow.Id)
 		}
