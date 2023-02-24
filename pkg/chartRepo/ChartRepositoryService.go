@@ -137,6 +137,25 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 			updateSuccess = true
 		}
 	}
+
+	if len(chartRepo.UserName) > 0 && len(chartRepo.Password) > 0 {
+
+		secretData := make(map[string][]byte)
+		secretData["name"] = []byte(chartRepo.Name)
+		secretData["username"] = []byte(chartRepo.UserName)
+		secretData["password"] = []byte(chartRepo.Password)
+		secretData["type"] = []byte("helm")
+		secretData["url"] = []byte(chartRepo.Url)
+
+		labels := make(map[string]string)
+		labels["argocd.argoproj.io/secret-type"] = "repository"
+
+		_, err := impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, secretData, chartRepo.Name, "", client, labels)
+		if err != nil {
+			updateSuccess = false
+		}
+	}
+
 	if !updateSuccess {
 		return nil, fmt.Errorf("resouce version not matched with config map attempted 3 times")
 	}
