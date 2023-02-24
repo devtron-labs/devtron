@@ -396,7 +396,7 @@ func (handler UserTerminalAccessRestHandlerImpl) EditPodManifest(w http.Response
 		return
 	}
 
-	manifest, err := handler.UserTerminalAccessService.EditPodManifest(r.Context(), &request, false)
+	manifest, err := handler.UserTerminalAccessService.EditTerminalPodManifest(r.Context(), &request, false)
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchTerminalPodManifest", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

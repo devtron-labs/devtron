@@ -40,7 +40,7 @@ type UserTerminalAccessService interface {
 	FetchPodManifest(ctx context.Context, userTerminalAccessId int) (resp *application.ManifestResponse, err error)
 	FetchPodEvents(ctx context.Context, userTerminalAccessId int) (*application.EventsResponse, error)
 	ValidateShell(podName, namespace, shellName, containerName string, clusterId int) (bool, string, error)
-	EditPodManifest(ctx context.Context, request *models.UserTerminalSessionRequest, override bool) (ManifestEditResponse, error)
+	EditTerminalPodManifest(ctx context.Context, request *models.UserTerminalSessionRequest, override bool) (ManifestEditResponse, error)
 }
 
 type UserTerminalAccessServiceImpl struct {
@@ -130,7 +130,7 @@ func (impl *UserTerminalAccessServiceImpl) ValidateShell(podName, namespace, she
 func (impl *UserTerminalAccessServiceImpl) StartTerminalSession(ctx context.Context, request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error) {
 	impl.Logger.Infow("terminal start request received for user", "request", request)
 	if request.Manifest != "" {
-		res, err := impl.EditPodManifest(ctx, request, true)
+		res, err := impl.EditTerminalPodManifest(ctx, request, true)
 		return &models.UserTerminalSessionResponse{
 			TerminalAccessId:      res.TerminalAccessId,
 			UserTerminalSessionId: res.UserTerminalSessionId,
@@ -139,6 +139,7 @@ func (impl *UserTerminalAccessServiceImpl) StartTerminalSession(ctx context.Cont
 			NodeName:              res.NodeName,
 			ShellName:             res.ShellName,
 			Containers:            res.Containers,
+			PodExists:             res.PodExists,
 		}, err
 	}
 	podNameVar, err := impl.getPodNameVar(request)
@@ -299,9 +300,18 @@ func (impl *UserTerminalAccessServiceImpl) UpdateTerminalSession(ctx context.Con
 	if err != nil {
 		return nil, err
 	}
-	//if request.Manifest != "" {
-	//	return impl.EditPodManifest(ctx, request, true)
-	//}
+	if request.Manifest != "" {
+		res, err := impl.EditTerminalPodManifest(ctx, request, true)
+		return &models.UserTerminalSessionResponse{
+			TerminalAccessId:      res.TerminalAccessId,
+			UserTerminalSessionId: res.UserTerminalSessionId,
+			Status:                res.Status,
+			PodName:               res.PodName,
+			NodeName:              res.NodeName,
+			ShellName:             res.ShellName,
+			Containers:            res.Containers,
+		}, err
+	}
 	return impl.StartTerminalSession(ctx, request)
 }
 
@@ -1068,7 +1078,7 @@ func (impl *UserTerminalAccessServiceImpl) getTerminalAccessDataForId(userTermin
 
 //user edits manifest, BE throws error -> don't send manifest in subsequent requests
 //user edits manifest, BE throws no error -> send manifest in subsequent requests
-func (impl *UserTerminalAccessServiceImpl) EditPodManifest(ctx context.Context, editManifestRequest *models.UserTerminalSessionRequest, override bool) (ManifestEditResponse, error) {
+func (impl *UserTerminalAccessServiceImpl) EditTerminalPodManifest(ctx context.Context, editManifestRequest *models.UserTerminalSessionRequest, override bool) (ManifestEditResponse, error) {
 
 	manifestRequest := editManifestRequest.Manifest
 	userTerminalAccessId := editManifestRequest.Id
@@ -1174,6 +1184,7 @@ func (impl *UserTerminalAccessServiceImpl) EditPodManifest(ctx context.Context, 
 	err = impl.applyTemplate(ctx, editManifestRequest.ClusterId, podTemplate, podTemplate, false, editManifestRequest.Namespace)
 	if err != nil {
 		impl.Logger.Errorw("failed to start terminal session", "userTerminalAccessId", userTerminalAccessId, "err", err)
+		//send podObject data
 		return result, err
 	}
 	result.PodExists = false
