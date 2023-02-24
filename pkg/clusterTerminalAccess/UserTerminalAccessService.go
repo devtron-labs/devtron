@@ -1076,8 +1076,6 @@ func (impl *UserTerminalAccessServiceImpl) getTerminalAccessDataForId(userTermin
 	return terminalAccessData, err
 }
 
-//user edits manifest, BE throws error -> don't send manifest in subsequent requests
-//user edits manifest, BE throws no error -> send manifest in subsequent requests
 func (impl *UserTerminalAccessServiceImpl) EditTerminalPodManifest(ctx context.Context, editManifestRequest *models.UserTerminalSessionRequest, override bool) (ManifestEditResponse, error) {
 
 	manifestRequest := editManifestRequest.Manifest
