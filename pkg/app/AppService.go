@@ -1900,6 +1900,7 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Appl
 		Status:          wfr.Status,
 		DeploymentType:  wfr.CdWorkflow.Pipeline.DeploymentAppType,
 		EnvironmentName: wfr.CdWorkflow.Pipeline.Environment.Name,
+		Time:            time.Since(wfr.StartedOn).Seconds() - time.Since(wfr.FinishedOn).Seconds(),
 	}
 	util2.TriggerCDMetrics(cdMetrics, impl.appStatusConfig.ExposeCDMetrics)
 	return nil

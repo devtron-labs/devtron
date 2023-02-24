@@ -1097,6 +1097,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 			Status:          runner.Status,
 			DeploymentType:  runner.CdWorkflow.Pipeline.DeploymentAppType,
 			EnvironmentName: runner.CdWorkflow.Pipeline.Environment.Name,
+			Time:            time.Since(runner.StartedOn).Seconds() - time.Since(runner.FinishedOn).Seconds(),
 		}
 		util4.TriggerCDMetrics(cdMetrics, impl.cdConfig.ExposeCDMetrics)
 		// creating cd pipeline status timeline for deployment failed
@@ -1171,6 +1172,7 @@ func (impl *WorkflowDagExecutorImpl) updatePreviousDeploymentStatus(currentRunne
 			Status:          currentRunner.Status,
 			DeploymentType:  currentRunner.CdWorkflow.Pipeline.DeploymentAppType,
 			EnvironmentName: currentRunner.CdWorkflow.Pipeline.Environment.Name,
+			Time:            time.Since(currentRunner.StartedOn).Seconds() - time.Since(currentRunner.FinishedOn).Seconds(),
 		}
 		util4.TriggerCDMetrics(cdMetrics, impl.cdConfig.ExposeCDMetrics)
 		return nil
@@ -1455,6 +1457,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 				Status:          runner.Status,
 				DeploymentType:  runner.CdWorkflow.Pipeline.DeploymentAppType,
 				EnvironmentName: runner.CdWorkflow.Pipeline.Environment.Name,
+				Time:            time.Since(runner.StartedOn).Seconds() - time.Since(runner.FinishedOn).Seconds(),
 			}
 			util4.TriggerCDMetrics(cdMetrics, impl.cdConfig.ExposeCDMetrics)
 			// creating cd pipeline status timeline for deployment failed
