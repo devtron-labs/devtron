@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	bean2 "github.com/devtron-labs/devtron/pkg/user/bean"
 	casbin2 "github.com/devtron-labs/devtron/pkg/user/casbin"
 	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	util2 "github.com/devtron-labs/devtron/util"
@@ -322,92 +323,14 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 	var policies []casbin2.Policy
 	if userInfo.SuperAdmin == false {
 		for _, roleFilter := range userInfo.RoleFilters {
-			if roleFilter.Entity == bean.CLUSTER_ENTITIY {
-				policiesToBeAdded, _, err := impl.CreateOrUpdateUserRolesForClusterEntity(roleFilter, userInfo.UserId, model, nil, token, managerAuth, tx)
-				if err != nil {
-					impl.logger.Errorw("error in creating user roles for clusterEntity", "err", err)
-					return nil, err
-				}
-				policies = append(policies, policiesToBeAdded...)
-			} else {
-				if roleFilter.EntityName == "" {
-					roleFilter.EntityName = "NONE"
-				}
-				if roleFilter.Environment == "" {
-					roleFilter.Environment = "NONE"
-				}
-				entityNames := strings.Split(roleFilter.EntityName, ",")
-				environments := strings.Split(roleFilter.Environment, ",")
-				for _, environment := range environments {
-					for _, entityName := range entityNames {
-						if entityName == "NONE" {
-							entityName = ""
-						}
-						if environment == "NONE" {
-							environment = ""
-						}
-						roleModel, err := impl.userAuthRepository.GetRoleByFilter(roleFilter.Entity, roleFilter.Team, entityName, environment, roleFilter.Action, roleFilter.AccessType)
-						if err != nil {
-							impl.logger.Errorw("Error in fetching role by filter", "user", userInfo)
-							return nil, err
-						}
-						if roleModel.Id == 0 {
-							impl.logger.Debugw("no role found for given filter", "filter", roleFilter)
-							//userInfo.Status = "role not fount for any given filter: " + roleFilter.Team + "," + roleFilter.Environment + "," + roleFilter.Application + "," + roleFilter.Action
-
-							if len(roleFilter.Team) > 0 {
-								if roleFilter.AccessType == bean.APP_ACCESS_TYPE_HELM {
-									flag, err := impl.userAuthRepository.CreateDefaultHelmPolicies(roleFilter.Team, entityName, environment, tx)
-									if err != nil || flag == false {
-										return nil, err
-									}
-								} else {
-									flag, err := impl.userAuthRepository.CreateDefaultPolicies(roleFilter.Team, entityName, environment, tx)
-									if err != nil || flag == false {
-										return nil, err
-									}
-								}
-								roleModel, err = impl.userAuthRepository.GetRoleByFilter(roleFilter.Entity, roleFilter.Team, entityName, environment, roleFilter.Action, roleFilter.AccessType)
-								if err != nil {
-									impl.logger.Errorw("Error in fetching role by filter", "user", userInfo)
-									return nil, err
-								}
-								if roleModel.Id == 0 {
-									impl.logger.Debugw("no role found for given filter", "filter", roleFilter)
-									userInfo.Status = "role not found for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + roleFilter.Action
-									continue
-								}
-							} else if len(roleFilter.Entity) > 0 && roleFilter.Entity == "chart-group" {
-								flag, err := impl.userAuthRepository.CreateDefaultPoliciesForGlobalEntity(roleFilter.Entity, entityName, roleFilter.Action, tx)
-								if err != nil || flag == false {
-									return nil, err
-								}
-								roleModel, err = impl.userAuthRepository.GetRoleByFilter(roleFilter.Entity, roleFilter.Team, entityName, environment, roleFilter.Action, roleFilter.AccessType)
-								if err != nil {
-									impl.logger.Errorw("Error in fetching role by filter", "user", userInfo)
-									return nil, err
-								}
-								if roleModel.Id == 0 {
-									impl.logger.Debugw("no role found for given filter", "filter", roleFilter)
-									userInfo.Status = "role not found for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + roleFilter.Action
-									continue
-								}
-							} else {
-								continue
-							}
-						}
-						//roleModel := roleModels[0]
-						if roleModel.Id > 0 {
-							userRoleModel := &repository2.UserRoleModel{UserId: model.Id, RoleId: roleModel.Id}
-							userRoleModel, err = impl.userAuthRepository.CreateUserRoleMapping(userRoleModel, tx)
-							if err != nil {
-								return nil, err
-							}
-							policies = append(policies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.EmailId), Obj: casbin2.Object(roleModel.Role)})
-						}
-					}
-				}
+			entity := roleFilter.Entity
+			policiesToBeAdded, _, err := impl.CreateOrUpdateUserRolesForAllTypes(roleFilter, userInfo.UserId, model, nil, token, managerAuth, tx, entity)
+			if err != nil {
+				impl.logger.Errorw("error in creating user roles for Alltypes", "err", err)
+				return nil, err
 			}
+			policies = append(policies, policiesToBeAdded...)
+
 		}
 
 		// START GROUP POLICY
@@ -434,9 +357,8 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 		if err != nil || flag == false {
 			return nil, err
 		}
-		roleModel, err := impl.userAuthRepository.GetRoleByFilter("", "", "", "", "super-admin", "")
+		roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes("", "", "", "", bean2.SUPER_ADMIN, "", "", "", "", "", "", "")
 		if err != nil {
-			impl.logger.Errorw("Error in fetching role by filter", "user", userInfo)
 			return nil, err
 		}
 		if roleModel.Id > 0 {
@@ -462,67 +384,113 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 	return userInfo, nil
 }
 
-func (impl UserServiceImpl) CreateOrUpdateUserRolesForClusterEntity(roleFilter bean.RoleFilter, userId int32,
-	model *repository2.UserModel, existingRoles map[int]repository2.UserRoleModel, token string,
-	managerAuth func(resource, token string, object string) bool, tx *pg.Tx) ([]casbin2.Policy, bool, error) {
+func (impl UserServiceImpl) CreateOrUpdateUserRolesForAllTypes(roleFilter bean.RoleFilter, userId int32, model *repository2.UserModel, existingRoles map[int]repository2.UserRoleModel, token string, managerAuth func(resource string, token string, object string) bool, tx *pg.Tx, entity string) ([]casbin2.Policy, bool, error) {
 	var policiesToBeAdded []casbin2.Policy
-	if roleFilter.Namespace == "" {
-		roleFilter.Namespace = "NONE"
+	var err error
+	rolesChanged := false
+	roleFilter = impl.userCommonService.ReplacePlaceHolderForEmptyEntriesInRoleFilter(roleFilter)
+	if entity == bean2.CLUSTER {
+		policiesToBeAdded, rolesChanged, err = impl.createOrUpdateUserRolesForClusterEntity(roleFilter, userId, model, existingRoles, token, managerAuth, tx, entity)
+		if err != nil {
+			return nil, false, err
+		}
 	}
-	if roleFilter.Group == "" {
-		roleFilter.Group = "NONE"
+	actionType := roleFilter.Action
+	accessType := roleFilter.AccessType
+	entityNames := strings.Split(roleFilter.EntityName, ",")
+	environments := strings.Split(roleFilter.Environment, ",")
+	for _, environment := range environments {
+		for _, entityName := range entityNames {
+			if managerAuth != nil {
+				// check auth only for apps permission, skip for chart group
+				rbacObject := fmt.Sprintf("%s", strings.ToLower(roleFilter.Team))
+				isValidAuth := managerAuth(casbin2.ResourceUser, token, rbacObject)
+				if !isValidAuth {
+					continue
+				}
+			}
+			entityName = impl.userCommonService.RemovePlaceHolderInRoleFilterField(entityName)
+			environment = impl.userCommonService.RemovePlaceHolderInRoleFilterField(environment)
+			roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", actionType)
+			if err != nil {
+				return policiesToBeAdded, rolesChanged, err
+			}
+			if roleModel.Id == 0 {
+				impl.logger.Debugw("no role found for given filter", "filter", roleFilter)
+				flag, err := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType)
+				if err != nil || flag == false {
+					return policiesToBeAdded, rolesChanged, err
+				}
+				roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", actionType)
+				if err != nil {
+					return policiesToBeAdded, rolesChanged, err
+				}
+				if roleModel.Id == 0 {
+					continue
+				}
+			}
+			if _, ok := existingRoles[roleModel.Id]; ok {
+				//Adding policies which is removed
+				policiesToBeAdded = append(policiesToBeAdded, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.EmailId), Obj: casbin2.Object(roleModel.Role)})
+			} else if roleModel.Id > 0 {
+				rolesChanged = true
+				userRoleModel := &repository2.UserRoleModel{
+					UserId: model.Id,
+					RoleId: roleModel.Id,
+					AuditLog: sql.AuditLog{
+						CreatedBy: userId,
+						CreatedOn: time.Now(),
+						UpdatedBy: userId,
+						UpdatedOn: time.Now(),
+					}}
+				userRoleModel, err = impl.userAuthRepository.CreateUserRoleMapping(userRoleModel, tx)
+				if err != nil {
+					return nil, rolesChanged, err
+				}
+				policiesToBeAdded = append(policiesToBeAdded, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.EmailId), Obj: casbin2.Object(roleModel.Role)})
+			}
+		}
 	}
-	if roleFilter.Kind == "" {
-		roleFilter.Kind = "NONE"
-	}
-	if roleFilter.Resource == "" {
-		roleFilter.Resource = "NONE"
-	}
+	return policiesToBeAdded, rolesChanged, nil
+}
+
+func (impl UserServiceImpl) createOrUpdateUserRolesForClusterEntity(roleFilter bean.RoleFilter, userId int32, model *repository2.UserModel, existingRoles map[int]repository2.UserRoleModel, token string, managerAuth func(resource string, token string, object string) bool, tx *pg.Tx, entity string) ([]casbin2.Policy, bool, error) {
+	var policiesToBeAdded []casbin2.Policy
+	rolesChanged := false
 	namespaces := strings.Split(roleFilter.Namespace, ",")
 	groups := strings.Split(roleFilter.Group, ",")
 	kinds := strings.Split(roleFilter.Kind, ",")
 	resources := strings.Split(roleFilter.Resource, ",")
-
-	rolesChanged := false
+	actionType := roleFilter.Action
+	accessType := roleFilter.AccessType
 	for _, namespace := range namespaces {
 		for _, group := range groups {
 			for _, kind := range kinds {
 				for _, resource := range resources {
-					if namespace == "NONE" {
-						namespace = ""
-					}
-					if group == "NONE" {
-						group = ""
-					}
-					if kind == "NONE" {
-						kind = ""
-					}
-					if resource == "NONE" {
-						resource = ""
-					}
+					namespace = impl.userCommonService.RemovePlaceHolderInRoleFilterField(namespace)
+					group = impl.userCommonService.RemovePlaceHolderInRoleFilterField(group)
+					kind = impl.userCommonService.RemovePlaceHolderInRoleFilterField(kind)
+					resource = impl.userCommonService.RemovePlaceHolderInRoleFilterField(resource)
 					if managerAuth != nil {
 						isValidAuth := impl.userCommonService.CheckRbacForClusterEntity(roleFilter.Cluster, namespace, group, kind, resource, token, managerAuth)
 						if !isValidAuth {
 							continue
 						}
 					}
-					roleModel, err := impl.userAuthRepository.GetRoleByFilterForClusterEntity(roleFilter.Cluster, namespace, group, kind, resource, roleFilter.Action)
+					roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, "", "", "", "", accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType)
 					if err != nil {
-						impl.logger.Errorw("Error in fetching role by filter", "err", err)
 						return policiesToBeAdded, rolesChanged, err
 					}
 					if roleModel.Id == 0 {
-						flag, err := impl.userAuthRepository.CreateDefaultPoliciesForClusterEntity(roleFilter.Entity, roleFilter.Cluster, namespace, group, kind, resource, tx)
+						flag, err := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes("", "", "", entity, roleFilter.Cluster, namespace, group, kind, resource, actionType, accessType)
 						if err != nil || flag == false {
 							return policiesToBeAdded, rolesChanged, err
 						}
-						roleModel, err = impl.userAuthRepository.GetRoleByFilterForClusterEntity(roleFilter.Cluster, namespace, group, kind, resource, roleFilter.Action)
+						roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, "", "", "", "", accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType)
 						if err != nil {
-							impl.logger.Errorw("Error in fetching role by filter", "err", err)
 							return policiesToBeAdded, rolesChanged, err
 						}
 						if roleModel.Id == 0 {
-							impl.logger.Debugw("no role found for given filter", "filter", roleFilter)
 							continue
 						}
 					}
@@ -554,7 +522,6 @@ func (impl UserServiceImpl) CreateOrUpdateUserRolesForClusterEntity(roleFilter b
 	}
 	return policiesToBeAdded, rolesChanged, nil
 }
-
 func (impl UserServiceImpl) mergeRoleFilter(oldR []bean.RoleFilter, newR []bean.RoleFilter) []bean.RoleFilter {
 	var roleFilters []bean.RoleFilter
 	keysMap := make(map[string]bool)
@@ -686,111 +653,16 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 
 		//Adding New Policies
 		for _, roleFilter := range userInfo.RoleFilters {
-			if roleFilter.Entity == bean.CLUSTER_ENTITIY {
-				policiesToBeAdded, rolesChangedFromRoleUpdate, err := impl.CreateOrUpdateUserRolesForClusterEntity(roleFilter, userInfo.UserId, model, existingRoleIds, token, managerAuth, tx)
-				if err != nil {
-					impl.logger.Errorw("error in creating user roles for clusterEntity", "err", err)
-					return nil, false, false, nil, err
-				}
-				addedPolicies = append(addedPolicies, policiesToBeAdded...)
-				rolesChanged = rolesChangedFromRoleUpdate
-			} else {
-				if len(roleFilter.Team) > 0 {
-					// check auth only for apps permission, skip for chart group
-					rbacObject := fmt.Sprintf("%s", strings.ToLower(roleFilter.Team))
-					isValidAuth := managerAuth(casbin2.ResourceUser, token, rbacObject)
-					if !isValidAuth {
-						continue
-					}
-				}
+			entity := roleFilter.Entity
 
-				if roleFilter.EntityName == "" {
-					roleFilter.EntityName = "NONE"
-				}
-				if roleFilter.Environment == "" {
-					roleFilter.Environment = "NONE"
-				}
-				entityNames := strings.Split(roleFilter.EntityName, ",")
-				environments := strings.Split(roleFilter.Environment, ",")
-				for _, environment := range environments {
-					for _, entityName := range entityNames {
-						if entityName == "NONE" {
-							entityName = ""
-						}
-						if environment == "NONE" {
-							environment = ""
-						}
-						roleModel, err := impl.userAuthRepository.GetRoleByFilter(roleFilter.Entity, roleFilter.Team, entityName, environment, roleFilter.Action, roleFilter.AccessType)
-						if err != nil {
-							impl.logger.Errorw("Error in fetching role by filter", "user", userInfo)
-							return nil, false, false, nil, err
-						}
-						if roleModel.Id == 0 {
-							impl.logger.Debugw("no role found for given filter", "filter", roleFilter)
-							userInfo.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + roleFilter.Action
-
-							if len(roleFilter.Team) > 0 {
-								if roleFilter.AccessType == bean.APP_ACCESS_TYPE_HELM {
-									flag, err := impl.userAuthRepository.CreateDefaultHelmPolicies(roleFilter.Team, entityName, environment, tx)
-									if err != nil || flag == false {
-										return nil, false, false, nil, err
-									}
-								} else {
-									flag, err := impl.userAuthRepository.CreateDefaultPolicies(roleFilter.Team, entityName, environment, tx)
-									if err != nil || flag == false {
-										return nil, false, false, nil, err
-									}
-								}
-								roleModel, err = impl.userAuthRepository.GetRoleByFilter(roleFilter.Entity, roleFilter.Team, entityName, environment, roleFilter.Action, roleFilter.AccessType)
-								if err != nil {
-									impl.logger.Errorw("Error in fetching role by filter", "user", userInfo)
-									return nil, false, false, nil, err
-								}
-								if roleModel.Id == 0 {
-									impl.logger.Debugw("no role found for given filter", "filter", roleFilter)
-									userInfo.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + roleFilter.Action
-									continue
-								}
-							} else if len(roleFilter.Entity) > 0 {
-								flag, err := impl.userAuthRepository.CreateDefaultPoliciesForGlobalEntity(roleFilter.Entity, entityName, roleFilter.Action, tx)
-								if err != nil || flag == false {
-									return nil, false, false, nil, err
-								}
-								roleModel, err = impl.userAuthRepository.GetRoleByFilter(roleFilter.Entity, roleFilter.Team, entityName, environment, roleFilter.Action, roleFilter.AccessType)
-								if err != nil {
-									impl.logger.Errorw("Error in fetching role by filter", "user", userInfo)
-									return nil, false, false, nil, err
-								}
-								if roleModel.Id == 0 {
-									impl.logger.Debugw("no role found for given filter", "filter", roleFilter)
-									userInfo.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + roleFilter.Action
-									continue
-								}
-							} else {
-								continue
-							}
-						}
-						if _, ok := existingRoleIds[roleModel.Id]; ok {
-							//Adding policies which is removed
-							addedPolicies = append(addedPolicies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.EmailId), Obj: casbin2.Object(roleModel.Role)})
-						} else {
-							if roleModel.Id > 0 {
-								rolesChanged = true
-								userRoleModel := &repository2.UserRoleModel{UserId: model.Id, RoleId: roleModel.Id}
-								userRoleModel.CreatedBy = userInfo.UserId
-								userRoleModel.UpdatedBy = userInfo.UserId
-								userRoleModel.CreatedOn = time.Now()
-								userRoleModel.UpdatedOn = time.Now()
-								userRoleModel, err = impl.userAuthRepository.CreateUserRoleMapping(userRoleModel, tx)
-								if err != nil {
-									return nil, false, false, nil, err
-								}
-								addedPolicies = append(addedPolicies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.EmailId), Obj: casbin2.Object(roleModel.Role)})
-							}
-						}
-					}
-				}
+			policiesToBeAdded, rolesChangedFromRoleUpdate, err := impl.CreateOrUpdateUserRolesForAllTypes(roleFilter, userInfo.UserId, model, existingRoleIds, token, managerAuth, tx, entity)
+			if err != nil {
+				impl.logger.Errorw("error in creating user roles for All Types", "err", err)
+				return nil, false, false, nil, err
 			}
+			addedPolicies = append(addedPolicies, policiesToBeAdded...)
+			rolesChanged = rolesChangedFromRoleUpdate
+
 		}
 
 		//ROLE GROUP SETUP
@@ -848,9 +720,8 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 		if err != nil || flag == false {
 			return nil, false, false, nil, err
 		}
-		roleModel, err := impl.userAuthRepository.GetRoleByFilter("", "", "", "", "super-admin", "")
+		roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes("", "", "", "", bean2.SUPER_ADMIN, "", "", "", "", "", "", "")
 		if err != nil {
-			impl.logger.Errorw("Error in fetching role by filter", "user", userInfo)
 			return nil, false, false, nil, err
 		}
 		if roleModel.Id > 0 {
@@ -1192,7 +1063,6 @@ func (impl UserServiceImpl) GetEmailFromToken(token string) (string, error) {
 		return "", err
 	}
 
-	//claims, err := impl.sessionManager.VerifyToken(token)
 	claims, err := impl.sessionManager2.VerifyToken(token)
 
 	if err != nil {
