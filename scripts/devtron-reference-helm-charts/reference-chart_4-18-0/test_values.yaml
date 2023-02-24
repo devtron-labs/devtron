@@ -118,6 +118,7 @@ secret:
   enabled: false
 
 service:
+  enable: false
   type: ClusterIP
   #  name: "1234567890123456789012345678901234567890123456789012345678901234567890"
   annotations: {}
@@ -128,7 +129,7 @@ server:
   deployment:
     image_tag: 1-95af053
     image: ""
-deploymentType: "RECREATE"
+deploymentType: "BLUE-GREEN"
 
 topologySpreadConstraints:
   - maxSkew: 1
@@ -158,10 +159,14 @@ LivenessProbe:
 
 
 winterSoilder:
-  enable: false
-  timeZone: Asia/Kolkata
-  timeRanges: 
-    - timeFrom: 00:00
+  apiVersion: pincher.devtron.ai/v1alpha1 
+  enable: true
+  annotations: {}
+  labels: {}
+  timeRangesWithZone:
+    timeZone: "Asia/Kolkata"
+    timeRanges: 
+      - timeFrom: 00:00
         timeTo: 23:59:59
         weekdayFrom: Sat
         weekdayTo: Sun
@@ -173,9 +178,11 @@ winterSoilder:
         timeTo: 23:59:59
         weekdayFrom: Mon
         weekdayTo: Fri
-  action: sleep
-  fieldSelector: 5m
-
+  action: scale
+  targetReplicas: [10]
+  fieldSelector: 
+    - AfterTime(AddTime(ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '5m'), Now())
+    - AfterTime(AddTime(ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '5m'), Now())
 
 
 ReadinessProbe:
@@ -554,3 +561,27 @@ hostAliases: []
 #    hostnames:
 #    - "foo.local"
 
+deployment:
+  strategy:
+    blueGreen:
+      autoPromotionSeconds: 30
+      scaleDownDelaySeconds: 30
+      previewReplicaCount: 1
+      autoPromotionEnabled: false
+    rolling:
+      maxSurge: "25%"
+      maxUnavailable: 1
+    canary:
+      maxSurge: "25%"
+      maxUnavailable: 1
+      steps:
+        - setWeight: 25
+        - pause:
+            duration: 15 # 1 min
+        - setWeight: 50
+        - pause:
+            duration: 15 # 1 min
+        - setWeight: 75
+        - pause:
+            duration: 15 # 1 min
+    recreate: {}
