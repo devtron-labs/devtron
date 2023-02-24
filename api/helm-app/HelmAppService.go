@@ -729,23 +729,33 @@ func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChart
 	return response, nil
 }
 func (impl *HelmAppServiceImpl) GetNotes(ctx context.Context, request *InstallReleaseRequest) (string, error) {
-	installReleaseRequest := &InstallReleaseRequest{
-		ChartName:    request.ChartName,
-		ChartVersion: request.ChartVersion,
-		ValuesYaml:   request.ValuesYaml,
-		ChartRepository: &ChartRepository{
-			Name:     request.ChartRepository.Name,
-			Url:      request.ChartRepository.Url,
-			Username: request.ChartRepository.Username,
-			Password: request.ChartRepository.Password,
-		},
-		ReleaseIdentifier: &ReleaseIdentifier{
-			ReleaseNamespace: request.ReleaseIdentifier.ReleaseNamespace,
-			ReleaseName:      request.ReleaseIdentifier.ReleaseName,
-		},
-	}
+	//
+	//installReleaseRequest := &InstallReleaseRequest{
+	//	ChartName:    request.ChartName,
+	//	ChartVersion: request.ChartVersion,
+	//	ValuesYaml:   request.ValuesYaml,
+	//	ChartRepository: &ChartRepository{
+	//		Name:     request.ChartRepository.Name,
+	//		Url:      request.ChartRepository.Url,
+	//		Username: request.ChartRepository.Username,
+	//		Password: request.ChartRepository.Password,
+	//	},
+	//	ReleaseIdentifier: &ReleaseIdentifier{
+	//		ReleaseNamespace: request.ReleaseIdentifier.ReleaseNamespace,
+	//		ReleaseName:      request.ReleaseIdentifier.ReleaseName,
+	//	},
+	//}
+	clusterId := int(request.ReleaseIdentifier.ClusterConfig.ClusterId)
+	config, err := impl.GetClusterConf(clusterId)
 	var notesTxt string
-	response, err := impl.helmAppClient.GetNotes(ctx, installReleaseRequest)
+	if err != nil {
+		impl.logger.Errorw("error in fetching cluster detail", "clusterId", clusterId, "err", err)
+		return notesTxt, err
+	}
+
+	request.ReleaseIdentifier.ClusterConfig = config
+
+	response, err := impl.helmAppClient.GetNotes(ctx, request)
 	if err != nil {
 		impl.logger.Errorw("error in fetching chart", "err", err)
 		return notesTxt, err

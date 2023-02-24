@@ -794,9 +794,11 @@ func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(instal
 			ReleaseIdentifier: &client.ReleaseIdentifier{
 				ReleaseNamespace: installedAppVerison.InstalledApp.Environment.Namespace,
 				ReleaseName:      installedAppVerison.InstalledApp.App.AppName,
+				ClusterConfig: &client.ClusterConfig{
+					ClusterId: int32(installedAppVerison.InstalledApp.Environment.ClusterId),
+				},
 			},
 		}
-
 		notes, err := impl.helmAppService.GetNotes(context.Background(), installReleaseRequest)
 		appDetail = bean2.AppDetailContainer{
 			Notes: notes,
