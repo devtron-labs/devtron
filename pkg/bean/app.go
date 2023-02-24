@@ -215,8 +215,9 @@ type CiRegexPatchRequest struct {
 }
 
 type GitCiTriggerRequest struct {
-	CiPipelineMaterial CiPipelineMaterial `json:"ciPipelineMaterial" validate:"required"`
-	TriggeredBy        int32              `json:"triggeredBy"`
+	CiPipelineMaterial        CiPipelineMaterial `json:"ciPipelineMaterial" validate:"required"`
+	TriggeredBy               int32              `json:"triggeredBy"`
+	ExtraEnvironmentVariables map[string]string  `json:"extraEnvironmentVariables"` // extra env variables which will be used for CI
 }
 
 type GitCommit struct {

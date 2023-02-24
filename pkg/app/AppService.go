@@ -30,6 +30,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/k8s"
@@ -154,6 +155,7 @@ type AppServiceImpl struct {
 	gitOpsConfigRepository                 repository.GitOpsConfigRepository
 	appStatusService                       appStatus.AppStatusService
 	k8sApplicationService                  k8s.K8sApplicationService
+	cdConfig                               *pipeline.CdConfig
 }
 
 type AppService interface {
@@ -185,20 +187,26 @@ func NewAppService(
 	appListingRepository repository.AppListingRepository,
 	appRepository app.AppRepository,
 	envRepository repository2.EnvironmentRepository,
-	pipelineConfigRepository chartConfig.PipelineConfigRepository, configMapRepository chartConfig.ConfigMapRepository,
-	appLevelMetricsRepository repository.AppLevelMetricsRepository, envLevelMetricsRepository repository.EnvLevelAppMetricsRepository,
+	pipelineConfigRepository chartConfig.PipelineConfigRepository,
+	configMapRepository chartConfig.ConfigMapRepository,
+	appLevelMetricsRepository repository.AppLevelMetricsRepository,
+	envLevelMetricsRepository repository.EnvLevelAppMetricsRepository,
 	chartRepository chartRepoRepository.ChartRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
-	cdWorkflowRepository pipelineConfig.CdWorkflowRepository, commonService commonService.CommonService,
-	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository, imageScanHistoryRepository security.ImageScanHistoryRepository,
+	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
+	commonService commonService.CommonService,
+	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository,
+	imageScanHistoryRepository security.ImageScanHistoryRepository,
 	ArgoK8sClient argocdServer.ArgoK8sClient,
 	gitFactory *GitFactory,
 	pipelineStrategyHistoryService history2.PipelineStrategyHistoryService,
 	configMapHistoryService history2.ConfigMapHistoryService,
 	deploymentTemplateHistoryService history2.DeploymentTemplateHistoryService,
-	chartTemplateService ChartTemplateService, refChartDir chartRepoRepository.RefChartDir,
+	chartTemplateService ChartTemplateService,
+	refChartDir chartRepoRepository.RefChartDir,
 	chartRefRepository chartRepoRepository.ChartRefRepository,
-	chartService chart.ChartService, helmAppClient client2.HelmAppClient,
+	chartService chart.ChartService,
+	helmAppClient client2.HelmAppClient,
 	argoUserService argo.ArgoUserService,
 	cdPipelineStatusTimelineRepo pipelineConfig.PipelineStatusTimelineRepository,
 	appCrudOperationService AppCrudOperationService,
@@ -211,7 +219,9 @@ func NewAppService(
 	pipelineStatusTimelineService PipelineStatusTimelineService,
 	appStatusConfig *AppStatusConfig,
 	gitOpsConfigRepository repository.GitOpsConfigRepository,
-	appStatusService appStatus.AppStatusService, k8sApplicationService k8s.K8sApplicationService) *AppServiceImpl {
+	appStatusService appStatus.AppStatusService,
+	k8sApplicationService k8s.K8sApplicationService,
+	cdConfig *pipeline.CdConfig) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:            environmentConfigRepository,
 		mergeUtil:                              mergeUtil,
@@ -265,6 +275,7 @@ func NewAppService(
 		gitOpsConfigRepository:                 gitOpsConfigRepository,
 		appStatusService:                       appStatusService,
 		k8sApplicationService:                  k8sApplicationService,
+		cdConfig:                               cdConfig,
 	}
 	return appServiceImpl
 }
@@ -1871,12 +1882,12 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Appl
 		impl.logger.Errorw("error on update cd workflow runner, fetch failed for runner type", "wfr", wfr, "app", app, "err", err)
 		return err
 	}
-	wfr.FinishedOn = time.Now()
 	if updateTimedOutStatus {
 		wfr.Status = pipelineConfig.WorkflowTimedOut
 	} else {
 		if app.Status.Health.Status == health.HealthStatusHealthy {
 			wfr.Status = pipelineConfig.WorkflowSucceeded
+			wfr.FinishedOn = time.Now()
 		} else {
 			wfr.Status = pipelineConfig.WorkflowInProgress
 		}
@@ -1888,9 +1899,7 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Appl
 		impl.logger.Errorw("error on update cd workflow runner", "wfr", wfr, "app", app, "err", err)
 		return err
 	}
-	if wfr.Status == pipelineConfig.WorkflowSucceeded {
-		middleware.CdDuration.WithLabelValues(wfr.CdWorkflow.Pipeline.DeploymentAppName, wfr.Status, wfr.CdWorkflow.Pipeline.Environment.Namespace).Observe(time.Since(wfr.StartedOn).Seconds() - time.Since(wfr.FinishedOn).Seconds())
-	}
+	util2.TriggerCDMetrics(wfr, impl.cdConfig)
 	return nil
 }
 
