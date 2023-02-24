@@ -365,6 +365,18 @@ pauseForSecondsBeforeSwitchActive: 30
 ```
 To wait for given period of time before switch active the container.
 
+
+### Winter-Solider
+Winter Soldier can be used to
+
+- cleans up (delete) Kubernetes resources
+- reduce workload pods to 0
+
+**_NOTE:_** After deploying this we can create the Hibernator object and provide the custom configuration by which workloads going to delete, sleep and many more.
+
+
+
+
 ### Resources
 
 These define minimum and maximum RAM and CPU available to the application.
