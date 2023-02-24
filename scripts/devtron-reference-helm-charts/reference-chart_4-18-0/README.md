@@ -389,7 +389,7 @@ Here,
 | Key | values | Description |
 | :--- | :--- | :--- |
 | `enable` | `fasle`,`true` | decide the enabling factor  |
-| `apiVersion` | `pincher.devtron.ai/v1beta1`,`pincher.devtron.ai/v1alpha1` | specific api version  |
+| `apiVersion` | `pincher.devtron.ai/v1beta1`, `pincher.devtron.ai/v1alpha1` | specific api version  |
 | `action` | `sleep`,`delete`, `scale` | This specify  the action need to perform.  |
 | `timeRangesWithZone`:`timeZone` | eg:- `"Asia/Kolkata"`,`"US/Pacific"` |  It use to specify the timeZone used. (It uses standard format. please refer [this](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones))  |
 | `timeRangesWithZone`:`timeRanges` | array of [ `timeFrom`, `timeTo`, `weekdayFrom`, `weekdayTo`  |  It use to define time period/range on which the user need to perform the specified action. you can have multiple timeRanges. <br /> These settings will take `action` on Sat and Sun from 00:00 to 23:59:59, |
@@ -425,6 +425,7 @@ winterSoilder:
     - AfterTime(AddTime( ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '10d'), Now())
 ```
 Above settings will take action on `Sat` and `Sun` from 00:00 to 23:59:59, and on `Mon`-`Fri` from 00:00 to 08:00 and 20:00 to 23:59:59. If `action:sleep` then runs hibernate at timeFrom and unhibernate at `timeTo`. If `action: delete` then it will delete workloads at `timeFrom` and `timeTo`. Here the `action:scale` thus it scale the number of resource replicas to  `targetReplicas: [10]`.
+
 The above example will select the application objects which have been created 10 hours ago across all namespaces excluding application's namespace. Winter soldier exposes following functions to handle time, cpu and memory.
 
 - ParseTime - This function can be used to parse time. For eg to parse creationTimestamp use ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z')
