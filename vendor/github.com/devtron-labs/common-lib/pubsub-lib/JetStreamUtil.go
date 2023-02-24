@@ -207,11 +207,11 @@ func ParseAndFillStreamWiseAndConsumerWiseConfigMaps() {
 	}
 	for key, _ := range NatsConsumerWiseConfigMapping {
 		defaultValue := defaultConsumerConfigVal
-		if key == BULK_DEPLOY_DURABLE {
+		if key == AUTO_CD_TRIGGER_TOPIC_DURABLE {
 			defaultValue.MaxAckPending = defaultConsumerValuesForAutoCdTriggerTopic.MaxAckPending
 			defaultValue.AckWaitInSecs = defaultConsumerValuesForAutoCdTriggerTopic.AckWaitInSecs
 		}
-		if _, ok := consumerConfigMap[key]; ok && (key != BULK_DEPLOY_DURABLE) {
+		if _, ok := consumerConfigMap[key]; ok && (key != AUTO_CD_TRIGGER_TOPIC_DURABLE) {
 			defaultValue = consumerConfigMap[key]
 		}
 		NatsConsumerWiseConfigMapping[key] = defaultValue
