@@ -156,6 +156,28 @@ LivenessProbe:
     - name: Custom-Header2
       value: xyz
 
+
+winterSoilder:
+  enable: false
+  timeZone: Asia/Kolkata
+  timeRanges: 
+    - timeFrom: 00:00
+        timeTo: 23:59:59
+        weekdayFrom: Sat
+        weekdayTo: Sun
+      - timeFrom: 00:00
+        timeTo: 08:00
+        weekdayFrom: Mon
+        weekdayTo: Fri
+      - timeFrom: 20:00
+        timeTo: 23:59:59
+        weekdayFrom: Mon
+        weekdayTo: Fri
+  action: sleep
+  fieldSelector: 5m
+
+
+
 ReadinessProbe:
   Path: /
   port: 8080
