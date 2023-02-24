@@ -1,14 +1,18 @@
 package models
 
 type UserTerminalSessionRequest struct {
-	Id         int          `json:"id"`
-	UserId     int32        `json:"userId"`
-	ClusterId  int          `json:"clusterId" validate:"number,gt=0"`
-	NodeName   string       `json:"nodeName" validate:"required,min=1"`
-	BaseImage  string       `json:"baseImage" validate:"required,min=1"`
-	ShellName  string       `json:"shellName" validate:"required,min=1"`
-	Namespace  string       `json:"namespace" validate:"required,min=1"`
-	NodeTaints []NodeTaints `json:"taints"`
+	Id            int          `json:"id"`
+	UserId        int32        `json:"userId"`
+	ClusterId     int          `json:"clusterId" validate:"number,gt=0"`
+	NodeName      string       `json:"nodeName" validate:"required,min=1"`
+	BaseImage     string       `json:"baseImage" validate:"required,min=1"`
+	ShellName     string       `json:"shellName" validate:"required,min=1"`
+	Namespace     string       `json:"namespace" validate:"required,min=1"`
+	NodeTaints    []NodeTaints `json:"taints"`
+	Manifest      string       `json:"manifest"`
+	PodName       string       `json:"podName"`
+	ContainerName string       `json:"containerName"`
+	ForceDelete   bool         `json:"forceDelete"`
 }
 type UserTerminalShellSessionRequest struct {
 	TerminalAccessId int    `json:"terminalAccessId" validate:"number,gt=0"`
@@ -37,6 +41,8 @@ type UserTerminalSessionResponse struct {
 	NodeName              string            `json:"nodeName"`
 	IsValidShell          bool              `json:"isValidShell"`
 	ShellName             string            `json:"shellName"`
+	Containers            []string          `json:"containers"`
+	PodExists             bool              `json:"podExists"`
 }
 
 const TerminalAccessPodNameTemplate = "terminal-access-" + TerminalAccessClusterIdTemplateVar + "-" + TerminalAccessUserIdTemplateVar + "-" + TerminalAccessRandomIdVar

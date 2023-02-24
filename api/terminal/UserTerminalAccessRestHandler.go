@@ -380,7 +380,7 @@ func (handler UserTerminalAccessRestHandlerImpl) EditPodManifest(w http.Response
 	//}
 
 	decoder := json.NewDecoder(r.Body)
-	var request clusterTerminalAccess.ManifestEditRequestResponse
+	var request models.UserTerminalSessionRequest
 	err = decoder.Decode(&request)
 	if err != nil {
 		handler.Logger.Errorw("request err, StartTerminalSession", "err", err, "payload", request)
@@ -394,7 +394,7 @@ func (handler UserTerminalAccessRestHandlerImpl) EditPodManifest(w http.Response
 		return
 	}
 
-	manifest, err := handler.UserTerminalAccessService.EditPodManifest(r.Context(), &request)
+	manifest, err := handler.UserTerminalAccessService.EditPodManifest(r.Context(), &request, false)
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchTerminalPodManifest", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

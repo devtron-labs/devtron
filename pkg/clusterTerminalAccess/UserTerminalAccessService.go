@@ -40,7 +40,7 @@ type UserTerminalAccessService interface {
 	FetchPodManifest(ctx context.Context, userTerminalAccessId int) (resp *application.ManifestResponse, err error)
 	FetchPodEvents(ctx context.Context, userTerminalAccessId int) (*application.EventsResponse, error)
 	ValidateShell(podName, namespace, shellName string, clusterId int) (bool, string, error)
-	EditPodManifest(ctx context.Context, request *ManifestEditRequestResponse) (ManifestEditRequestResponse, error)
+	EditPodManifest(ctx context.Context, request *models.UserTerminalSessionRequest, override bool) (ManifestEditResponse, error)
 }
 
 type UserTerminalAccessServiceImpl struct {
@@ -61,12 +61,10 @@ type UserTerminalAccessSessionData struct {
 	terminalAccessDataEntity *models.UserTerminalAccessData
 	terminateTriggered       bool
 }
-type ManifestEditRequestResponse struct {
-	ErrorComments        string                              `json:"errors,omitempty"`
-	ManifestRequest      string                              `json:"manifestRequest"`
-	ManifestResponse     *application.ManifestResponse       `json:"manifestResponse"`
-	UserTerminalResponse *models.UserTerminalSessionResponse `json:"userTerminalResponse,omitempty"`
-	UserTerminalRequest  *models.UserTerminalSessionRequest  `json:"userTerminalRequest,omitempty"`
+type ManifestEditResponse struct {
+	ErrorComments    string                        `json:"errors,omitempty"`
+	ManifestResponse *application.ManifestResponse `json:"manifestResponse"`
+	*models.UserTerminalSessionResponse
 }
 
 func GetTerminalAccessConfig() (*models.UserTerminalSessionConfig, error) {
@@ -128,6 +126,9 @@ func (impl *UserTerminalAccessServiceImpl) ValidateShell(podName, namespace, she
 }
 func (impl *UserTerminalAccessServiceImpl) StartTerminalSession(ctx context.Context, request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error) {
 	impl.Logger.Infow("terminal start request received for user", "request", request)
+	//if request.Manifest != "" {
+	//	return impl.EditPodManifest(ctx, request, true)
+	//}
 	podNameVar, err := impl.getPodNameVar(request)
 	if err != nil {
 		return nil, err
@@ -286,7 +287,9 @@ func (impl *UserTerminalAccessServiceImpl) UpdateTerminalSession(ctx context.Con
 	if err != nil {
 		return nil, err
 	}
-
+	//if request.Manifest != "" {
+	//	return impl.EditPodManifest(ctx, request, true)
+	//}
 	return impl.StartTerminalSession(ctx, request)
 }
 
@@ -1051,15 +1054,15 @@ func (impl *UserTerminalAccessServiceImpl) getTerminalAccessDataForId(userTermin
 	return terminalAccessData, err
 }
 
-func (impl *UserTerminalAccessServiceImpl) EditPodManifest(ctx context.Context, editManifestRequest *ManifestEditRequestResponse) (ManifestEditRequestResponse, error) {
+//user edits manifest, BE throws error -> don't send manifest in subsequent requests
+//user edits manifest, BE throws no error -> send manifest in subsequent requests
+func (impl *UserTerminalAccessServiceImpl) EditPodManifest(ctx context.Context, editManifestRequest *models.UserTerminalSessionRequest, override bool) (ManifestEditResponse, error) {
 
-	manifestRequest := editManifestRequest.ManifestRequest
-
-	userTerminalAccessId := editManifestRequest.UserTerminalRequest.Id
+	manifestRequest := editManifestRequest.Manifest
+	userTerminalAccessId := editManifestRequest.Id
 	impl.Logger.Infow("Reached EditPodManifest method", "userTerminalAccessId", userTerminalAccessId, "manifest", manifestRequest)
-	result := ManifestEditRequestResponse{
-		ManifestRequest: manifestRequest,
-	}
+
+	result := ManifestEditResponse{}
 
 	manifestResponse := &application.ManifestResponse{}
 	manifestMap := map[string]interface{}{}
@@ -1068,6 +1071,7 @@ func (impl *UserTerminalAccessServiceImpl) EditPodManifest(ctx context.Context, 
 		impl.Logger.Errorw("error in unmarshalling manifest request", "err", err)
 		return result, err
 	}
+
 	manifestResponse.Manifest.SetUnstructuredContent(manifestMap)
 	result.ManifestResponse = manifestResponse
 
@@ -1083,7 +1087,7 @@ func (impl *UserTerminalAccessServiceImpl) EditPodManifest(ctx context.Context, 
 	//construct validator
 	v, err := validator.New(nil, validator.Opts{Strict: true})
 	if err != nil {
-		impl.Logger.Error("failed initializing validator: %s", err)
+		impl.Logger.Errorw("failed initializing validator", "err", err)
 		return result, err
 	}
 	//construct validate request
@@ -1108,47 +1112,76 @@ func (impl *UserTerminalAccessServiceImpl) EditPodManifest(ctx context.Context, 
 		impl.Logger.Errorw("error in converting manifest request to k8s Pod object", "userTerminalAccessId", userTerminalAccessId, "err", err, "manifest", manifestRequest)
 		return result, err
 	}
-	//get podName,nodeName,namespace from yaml
-	podNameFromManifest := podObject.Name
-	namespaceFromManifest := podObject.Namespace
-	//nodeNameFromManifest := podObject.Spec.NodeName
-	//// get taints from given nodeName
-	//if nodeNameFromManifest != "" {
-	//	//if node name matches ,no need to change taints in userTerminalRequest
-	//	if nodeNameFromManifest != editManifestRequest.UserTerminalRequest.NodeName {
-	//		//get node taints for the node with name nodeNameFromManifest
-	//		//set these taints to editManifestRequest.NodeTaints
-	//	}
-	//} else {
-	//	editManifestRequest.UserTerminalRequest.NodeName = models.AUTO_SELECT_NODE
-	//}
-	//set namespace if given in pod manifest
-	if namespaceFromManifest != "" {
-		editManifestRequest.UserTerminalRequest.Namespace = namespaceFromManifest
-	}
 
-	//start new session with provided Pod manifest
-	podTemplate := manifestRequest
-	//if podName given in pod manifest is "",generate pod with custom name
-
-	if podNameFromManifest == "" {
-		podName, err := impl.getPodNameVar(editManifestRequest.UserTerminalRequest)
-		if err != nil {
-			return result, err
+	if override {
+		//override pod variables with requested variables
+		podObject.Namespace = editManifestRequest.Namespace
+		podObject.Spec.NodeName = editManifestRequest.NodeName
+		//set base image to the requested container
+		for i, container := range podObject.Spec.Containers {
+			if container.Name == editManifestRequest.ContainerName {
+				podObject.Spec.Containers[i].Image = editManifestRequest.BaseImage
+			}
 		}
-		podNameFromManifest = *podName
+		//TODO: add matching toleration's
 	}
-	terminalStartResponse, err := impl.createTerminalEntity(editManifestRequest.UserTerminalRequest, podNameFromManifest)
+
+	if podObject.Name != editManifestRequest.PodName {
+		if !editManifestRequest.ForceDelete && impl.checkOtherPodExists(ctx, podObject.Name, podObject.Namespace, editManifestRequest.ClusterId) {
+			result.PodExists = true
+			//log the pod exists info
+			return result, nil
+		}
+	}
+
+	//if reached this point, force delete the existing pod and create new
+	impl.forceDeletePod(ctx, podObject.Name, podObject.Namespace, editManifestRequest.ClusterId)
+
+	//TODO:determine request to  createTerminalEntity method
+	terminalStartResponse, err := impl.createTerminalEntity(editManifestRequest, podObject.Name)
 	if err != nil {
 		impl.Logger.Errorw("failed to create terminal entity", "userTerminalAccessId", userTerminalAccessId, "err", err)
 		return result, err
 	}
-	//terminalStartResponse, err := impl.StartTerminalSession(ctx, editManifestRequest.UserTerminalRequest, podTemplate)
-	err = impl.applyTemplate(ctx, editManifestRequest.UserTerminalRequest.ClusterId, podTemplate, podTemplate, false, editManifestRequest.UserTerminalRequest.Namespace)
+
+	//create podTemplate from PodObject
+	podTemplate := podObject.String()
+	//start new session with provided Pod manifest
+	err = impl.applyTemplate(ctx, editManifestRequest.ClusterId, podTemplate, podTemplate, false, editManifestRequest.Namespace)
 	if err != nil {
 		impl.Logger.Errorw("failed to start terminal session", "userTerminalAccessId", userTerminalAccessId, "err", err)
 		return result, err
 	}
-	result.UserTerminalResponse = terminalStartResponse
+	result.PodExists = false
+	var containers []string
+	for _, con := range podObject.Spec.Containers {
+		containers = append(containers, con.Name)
+	}
+	result.TerminalAccessId = terminalStartResponse.TerminalAccessId
+	result.Containers = containers
+	result.PodName = terminalStartResponse.PodName
+	result.NodeName = terminalStartResponse.NodeName
+	result.ShellName = editManifestRequest.ShellName
+	result.Status = ""
+	result.NodeName = podObject.Spec.NodeName
 	return result, nil
+}
+
+func (impl *UserTerminalAccessServiceImpl) checkOtherPodExists(ctx context.Context, podName, namespace string, clusterId int) bool {
+	podRequestBean, _ := impl.getPodRequestBean(clusterId, podName, namespace)
+	res, _ := impl.k8sApplicationService.GetResource(ctx, podRequestBean)
+	if res != nil {
+		return true
+	}
+	return false
+}
+
+func (impl *UserTerminalAccessServiceImpl) forceDeletePod(ctx context.Context, podName, namespace string, clusterId int) bool {
+	//add greceperiod 0 to force delete
+	podRequestBean, _ := impl.getPodRequestBean(clusterId, podName, namespace)
+	_, err := impl.k8sApplicationService.DeleteResource(ctx, podRequestBean, 2)
+	if err != nil && !isResourceNotFoundErr(err) {
+		return false
+	}
+	return true
 }
