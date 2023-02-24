@@ -17,6 +17,7 @@ type ChartRepoDto struct {
 	Default     bool                `json:"default"`
 	UserId      int32               `json:"-"`
 	IsEditable  bool                `json:"isEditable"`
+	AllowInsecureConnection bool
 }
 
 type DetailedErrorHelmRepoValidation struct {

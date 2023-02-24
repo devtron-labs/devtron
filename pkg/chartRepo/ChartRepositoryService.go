@@ -99,6 +99,7 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 	chartRepo.Active = true
 	chartRepo.Default = false
 	chartRepo.External = true
+	chartRepo.AllowInsecureConnection = request.AllowInsecureConnection
 	err = impl.repoRepository.Save(chartRepo, tx)
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
@@ -137,6 +138,25 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 			updateSuccess = true
 		}
 	}
+
+	if len(chartRepo.UserName) > 0 && len(chartRepo.Password) > 0 {
+
+		secretData := make(map[string][]byte)
+		secretData["name"] = []byte(chartRepo.Name)
+		secretData["username"] = []byte(chartRepo.UserName)
+		secretData["password"] = []byte(chartRepo.Password)
+		secretData["type"] = []byte("helm")
+		secretData["url"] = []byte(chartRepo.Url)
+
+		labels := make(map[string]string)
+		labels["argocd.argoproj.io/secret-type"] = "repository"
+
+		_, err := impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, secretData, chartRepo.Name, "", client, labels)
+		if err != nil {
+			updateSuccess = false
+		}
+	}
+
 	if !updateSuccess {
 		return nil, fmt.Errorf("resouce version not matched with config map attempted 3 times")
 	}
@@ -171,7 +191,7 @@ func (impl *ChartRepositoryServiceImpl) UpdateChartRepo(request *ChartRepoDto) (
 	chartRepo.Active = request.Active
 	chartRepo.UpdatedBy = request.UserId
 	chartRepo.UpdatedOn = time.Now()
-	//}
+	chartRepo.AllowInsecureConnection = request.AllowInsecureConnection
 	err = impl.repoRepository.Update(chartRepo, tx)
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
@@ -253,6 +273,7 @@ func (impl *ChartRepositoryServiceImpl) convertFromDbResponse(model *chartRepoRe
 	chartRepo.AccessToken = model.AccessToken
 	chartRepo.Default = model.Default
 	chartRepo.Active = model.Active
+	chartRepo.AllowInsecureConnection = model.AllowInsecureConnection
 	return chartRepo
 }
 
@@ -278,6 +299,7 @@ func (impl *ChartRepositoryServiceImpl) GetChartRepoList() ([]*ChartRepoDto, err
 		if model.ActiveDeploymentCount > 0 {
 			chartRepo.IsEditable = false
 		}
+		chartRepo.AllowInsecureConnection = model.AllowInsecureConnection
 		chartRepos = append(chartRepos, chartRepo)
 	}
 	return chartRepos, nil
@@ -571,6 +593,7 @@ func (impl *ChartRepositoryServiceImpl) DeleteChartRepo(request *ChartRepoDto) e
 	chartRepo.Active = false
 	chartRepo.UpdatedBy = request.UserId
 	chartRepo.UpdatedOn = time.Now()
+	chartRepo.AllowInsecureConnection = request.AllowInsecureConnection
 	err = impl.repoRepository.MarkChartRepoDeleted(chartRepo, tx)
 	if err != nil {
 		impl.logger.Errorw("error in deleting chart repo", "err", err)
