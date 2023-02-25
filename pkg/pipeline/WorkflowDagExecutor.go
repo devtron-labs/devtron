@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
+	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/util/argo"
 	"go.opentelemetry.io/otel"
 	"strconv"
@@ -101,6 +102,7 @@ type WorkflowDagExecutorImpl struct {
 	CiTemplateRepository          pipelineConfig.CiTemplateRepository
 	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
 	appLabelRepository            pipelineConfig.AppLabelRepository
+	gitSensorClient               gitSensor.GitSensorClient
 }
 
 const (
@@ -165,7 +167,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	pipelineStatusTimelineService app.PipelineStatusTimelineService,
 	CiTemplateRepository pipelineConfig.CiTemplateRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
-	appLabelRepository pipelineConfig.AppLabelRepository) *WorkflowDagExecutorImpl {
+	appLabelRepository pipelineConfig.AppLabelRepository, gitSensorClient gitSensor.GitSensorClient) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
 		cdWorkflowRepository:          cdWorkflowRepository,
@@ -196,6 +198,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		CiTemplateRepository:          CiTemplateRepository,
 		ciWorkflowRepository:          ciWorkflowRepository,
 		appLabelRepository:            appLabelRepository,
+		gitSensorClient:               gitSensorClient,
 	}
 	err := wde.Subscribe()
 	if err != nil {
@@ -738,10 +741,33 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 
 	if ciWf != nil && ciWf.GitTriggers != nil {
 		i := 1
-		for _, gitTrigger := range ciWf.GitTriggers {
+		for ciPipelineMaterialId, gitTrigger := range ciWf.GitTriggers {
 			extraEnvVariables[fmt.Sprintf("%s_%d", GIT_COMMIT_HASH_PREFIX, i)] = gitTrigger.Commit
 			extraEnvVariables[fmt.Sprintf("%s_%d", GIT_SOURCE_TYPE_PREFIX, i)] = string(gitTrigger.CiConfigureSourceType)
 			extraEnvVariables[fmt.Sprintf("%s_%d", GIT_SOURCE_VALUE_PREFIX, i)] = gitTrigger.CiConfigureSourceValue
+
+			// CODE-BLOCK starts - store extra environment variables if webhook
+			if gitTrigger.CiConfigureSourceType == pipelineConfig.SOURCE_TYPE_WEBHOOK {
+				webhookDataId := gitTrigger.WebhookData.Id
+				if webhookDataId > 0 {
+					webhookDataRequest := &gitSensor.WebhookDataRequest{
+						Id:                   webhookDataId,
+						CiPipelineMaterialId: ciPipelineMaterialId,
+					}
+					webhookAndCiData, err := impl.gitSensorClient.GetWebhookData(webhookDataRequest)
+					if err != nil {
+						impl.logger.Errorw("err while getting webhook data from git-sensor", "err", err, "webhookDataRequest", webhookDataRequest)
+						return nil, err
+					}
+					if webhookAndCiData != nil {
+						for extEnvVariableKey, extEnvVariableVal := range webhookAndCiData.ExtraEnvironmentVariables {
+							extraEnvVariables[extEnvVariableKey] = extEnvVariableVal
+						}
+					}
+				}
+			}
+			// CODE_BLOCK ends
+
 			i++
 		}
 		extraEnvVariables[GIT_SOURCE_COUNT] = strconv.Itoa(len(ciWf.GitTriggers))
