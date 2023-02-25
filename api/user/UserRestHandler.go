@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user/repository"
 	util2 "github.com/devtron-labs/devtron/util"
 	"k8s.io/apimachinery/pkg/util/rand"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -959,6 +960,7 @@ func (handler UserRestHandlerImpl) TestBatchOperation(w http.ResponseWriter, r *
 		uniqueIdentifier = fmt.Sprintf("%s-%s", uniqueIdentifier, v.Get("uniIdtf"))
 	}
 	noOfIterationInt, _ := strconv.Atoi(noOfIteration)
+	totalOpTime := time.Now()
 	for i := 0; i < noOfIterationInt; i++ {
 		//for START in Casbin Object
 		teamObj := fmt.Sprintf("%s-%s-%d", PROJECT, uniqueIdentifier, i)
@@ -1036,4 +1038,6 @@ func (handler UserRestHandlerImpl) TestBatchOperation(w http.ResponseWriter, r *
 		logTime := time.Now()
 		casbin.AddPolicy(policiesObj.Data, logTime)
 	}
+
+	log.Println("total operation time", time.Since(totalOpTime))
 }
