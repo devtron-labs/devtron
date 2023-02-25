@@ -26,12 +26,13 @@ const (
 // addPolicy adds a rule to the current policy.
 func (e *Enforcer) addPolicy(logTime time.Time, sec string, ptype string, rule []string) bool {
 	ruleAdded := e.model.AddPolicy(sec, ptype, rule)
-	if !ruleAdded {
-		return ruleAdded
-	}
 	if !logTime.IsZero() {
 		fmt.Println("time taken for policy addition in model", logTime.Sub(time.Now()).Seconds())
 	}
+	if !ruleAdded {
+		return ruleAdded
+	}
+	
 
 	if e.adapter != nil && e.autoSave {
 		if err := e.adapter.AddPolicy(sec, ptype, rule); err != nil {
