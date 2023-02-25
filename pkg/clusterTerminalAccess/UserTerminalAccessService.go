@@ -41,6 +41,7 @@ type UserTerminalAccessService interface {
 	FetchPodEvents(ctx context.Context, userTerminalAccessId int) (*application.EventsResponse, error)
 	ValidateShell(podName, namespace, shellName, containerName string, clusterId int) (bool, string, error)
 	EditTerminalPodManifest(ctx context.Context, request *models.UserTerminalSessionRequest, override bool) (ManifestEditResponse, error)
+	//StartNodeDebug(ctx context.Context)
 }
 
 type UserTerminalAccessServiceImpl struct {
@@ -1224,4 +1225,40 @@ func (impl *UserTerminalAccessServiceImpl) forceDeletePod(ctx context.Context, p
 		return false
 	}
 	return true
+}
+
+func (impl *UserTerminalAccessServiceImpl) StartNodeDebug(nodeName, debugNodeImage string) {
+	nodeDebugCmds := []string{"kubectl", "debug", "-i", "node", nodeName, fmt.Sprintf("--image=%s", debugNodeImage)}
+	utilityPodName := "terminal-access-node-debug-helper"
+	req := &models.UserTerminalSessionRequest{
+		PodName:   utilityPodName,
+		ClusterId: 1,
+		Namespace: "default",
+		BaseImage: "quay.io/devtron/ubuntu-k8s-utils:1.22",
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10000*time.Millisecond)
+
+	defer cancel()
+	err := impl.startTerminalPod(ctx, utilityPodName, req, true)
+	if err != nil {
+		impl.Logger.Errorw("error in creating utility pod to start node debug pod", "err", err)
+		return
+	}
+
+	terminalRequest := &terminal.TerminalSessionRequest{
+		PodName:       req.PodName,
+		ContainerName: "devtron-debug-terminal",
+		Namespace:     req.Namespace,
+		ClusterId:     req.ClusterId,
+	}
+	stdOut, _, err := impl.terminalSessionHandler.RunCmdInRemotePod(terminalRequest, nodeDebugCmds)
+	if err != nil {
+		return
+	}
+	outputString := stdOut.String()
+	nodeDebugPodName := strings.Split(strings.Split(outputString, "pod ")[1], " ")[0]
+	impl.Logger.Infow(nodeDebugPodName)
+	impl.forceDeletePod(ctx, utilityPodName, req.Namespace, req.ClusterId, 2)
+	//TODO:store and pass the node-debugger pod data as terminal pod
 }
