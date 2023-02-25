@@ -121,23 +121,44 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 
 	updateSuccess := false
 	retryCount := 0
+	//for !updateSuccess && retryCount < 3 {
+	//	retryCount = retryCount + 1
+	//
+	//	cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//	data := impl.updateData(cm.Data, request)
+	//	cm.Data = data
+	//	_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+	//	if err != nil {
+	//		continue
+	//	}
+	//	if err == nil {
+	//		updateSuccess = true
+	//	}
+	//}
+
 	for !updateSuccess && retryCount < 3 {
+
 		retryCount = retryCount + 1
 
-		cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
+		secretData := make(map[string]string)
+		secretData["name"] = chartRepo.Name
+		secretData["username"] = chartRepo.UserName
+		secretData["password"] = chartRepo.Password
+		secretData["type"] = "helm"
+		secretData["url"] = chartRepo.Url
+
+		labels := make(map[string]string)
+		labels["argocd.argoproj.io/secret-type"] = "repository"
+
+		_, err := impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, nil, chartRepo.Name, "", client, labels, secretData)
 		if err != nil {
-			return nil, err
-		}
-		data := impl.updateData(cm.Data, request)
-		cm.Data = data
-		_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
-		if err != nil {
-			continue
-		}
-		if err == nil {
-			updateSuccess = true
+			updateSuccess = false
 		}
 	}
+
 	if !updateSuccess {
 		return nil, fmt.Errorf("resouce version not matched with config map attempted 3 times")
 	}
