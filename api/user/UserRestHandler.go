@@ -958,7 +958,8 @@ func (handler UserRestHandlerImpl) TestBatchOperation(w http.ResponseWriter, r *
 	if v.Has("uniIdtf") {
 		uniqueIdentifier = fmt.Sprintf("%s-%s", uniqueIdentifier, v.Get("uniIdtf"))
 	}
-	for i := range noOfIteration {
+	noOfIterationInt, _ := strconv.Atoi(noOfIteration)
+	for i := 0; i < noOfIterationInt; i++ {
 		//for START in Casbin Object
 		teamObj := fmt.Sprintf("%s-%s-%d", PROJECT, uniqueIdentifier, i)
 		envObj := fmt.Sprintf("%s-%s-%d", ENV, uniqueIdentifier, i)
