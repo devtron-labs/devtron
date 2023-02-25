@@ -155,7 +155,9 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 
 		_, err := impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, nil, chartRepo.Name, "", client, labels, secretData)
 		if err != nil {
-			updateSuccess = false
+			continue
+		} else {
+			updateSuccess = true
 		}
 	}
 
