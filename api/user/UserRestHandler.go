@@ -23,9 +23,13 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/devtron-labs/devtron/pkg/user/repository"
+	util2 "github.com/devtron-labs/devtron/util"
+	"k8s.io/apimachinery/pkg/util/rand"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -56,6 +60,7 @@ type UserRestHandler interface {
 	UpdateTriggerPolicyForTerminalAccess(w http.ResponseWriter, r *http.Request)
 	GetRoleCacheDump(w http.ResponseWriter, r *http.Request)
 	InvalidateRoleCache(w http.ResponseWriter, r *http.Request)
+	TestBatchOperation(w http.ResponseWriter, r *http.Request)
 }
 
 type userNamePassword struct {
@@ -937,4 +942,97 @@ func (handler UserRestHandlerImpl) CheckManagerAuth(resource, token string, obje
 	}
 	return true
 
+}
+
+const (
+	PROJECT = "devtron-test"
+	ENV     = "env-test"
+	APP     = "app-test"
+)
+
+func (handler UserRestHandlerImpl) TestBatchOperation(w http.ResponseWriter, r *http.Request) {
+
+	v := r.URL.Query()
+	noOfIteration := v.Get("itCount")
+	uniqueIdentifier := rand.String(8)
+	if v.Has("uniIdtf") {
+		uniqueIdentifier = fmt.Sprintf("%s-%s", uniqueIdentifier, v.Get("uniIdtf"))
+	}
+	for i := range noOfIteration {
+		//for START in Casbin Object
+		teamObj := fmt.Sprintf("%s-%s-%d", PROJECT, uniqueIdentifier, i)
+		envObj := fmt.Sprintf("%s-%s-%d", ENV, uniqueIdentifier, i)
+		appObj := fmt.Sprintf("%s-%s-%d", APP, uniqueIdentifier, i)
+
+		policies := `{
+	"data": [
+				{
+				"type": "p",
+				"sub": "role:manager_{{.Team}}_{{.Env}}_{{.App}}",
+				"res": "applications",
+				"act": "*",
+				"obj": "{{.TeamObj}}/{{.AppObj}}"
+				},
+				{
+				"type": "p",
+				"sub": "role:manager_{{.Team}}_{{.Env}}_{{.App}}",
+				"res": "environment",
+				"act": "*",
+				"obj": "{{.EnvObj}}/{{.AppObj}}"
+				},
+				{
+				"type": "p",
+				"sub": "role:manager_{{.Team}}_{{.Env}}_{{.App}}",
+				"res": "team",
+				"act": "*",
+				"obj": "{{.TeamObj}}"
+				},
+				{
+				"type": "p",
+				"sub": "role:manager_{{.Team}}_{{.Env}}_{{.App}}",
+				"res": "user",
+				"act": "*",
+				"obj": "{{.TeamObj}}"
+				},
+				{
+				"type": "p",
+				"sub": "role:manager_{{.Team}}_{{.Env}}_{{.App}}",
+				"res": "notification",
+				"act": "*",
+				"obj": "{{.TeamObj}}"
+				},
+				{
+				"type": "p",
+				"sub": "role:manager_{{.Team}}_{{.Env}}_{{.App}}",
+				"res": "global-environment",
+				"act": "*",
+				"obj": "{{.EnvObj}}"
+				}
+			]
+		}`
+
+		rolePolicyDetails := repository.RolePolicyDetails{
+			Team:    teamObj,
+			App:     appObj,
+			Env:     envObj,
+			TeamObj: teamObj,
+			EnvObj:  envObj,
+			AppObj:  appObj,
+		}
+		//getting updated manager policies
+		renderedPolicies, err := util2.Tprintf(policies, rolePolicyDetails)
+		if err != nil {
+			handler.logger.Errorw("error in rendering policies", "iteration", i)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		}
+
+		var policiesObj bean.PolicyRequest
+		err = json.Unmarshal([]byte(renderedPolicies), &policiesObj)
+		if err != nil {
+			handler.logger.Errorw("error in unmarshalling", "err", err, "iteration", i)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		}
+		logTime := time.Now()
+		casbin.AddPolicy(policiesObj.Data, logTime)
+	}
 }

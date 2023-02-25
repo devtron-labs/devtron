@@ -172,10 +172,10 @@ func (e *SyncedEnforcer) HasPolicy(params ...interface{}) bool {
 // AddPolicy adds an authorization rule to the current policy.
 // If the rule already exists, the function returns false and the rule will not be added.
 // Otherwise the function returns true by adding the new rule.
-func (e *SyncedEnforcer) AddPolicy(params ...interface{}) bool {
+func (e *SyncedEnforcer) AddPolicy(logTime time.Time, params ...interface{}) bool {
 	e.m.Lock()
 	defer e.m.Unlock()
-	return e.Enforcer.AddPolicy(params...)
+	return e.Enforcer.AddPolicy(logTime,params...)
 }
 
 // RemovePolicy removes an authorization rule from the current policy.
@@ -202,10 +202,10 @@ func (e *SyncedEnforcer) HasGroupingPolicy(params ...interface{}) bool {
 // AddGroupingPolicy adds a role inheritance rule to the current policy.
 // If the rule already exists, the function returns false and the rule will not be added.
 // Otherwise the function returns true by adding the new rule.
-func (e *SyncedEnforcer) AddGroupingPolicy(params ...interface{}) bool {
+func (e *SyncedEnforcer) AddGroupingPolicy(logTime time.Time, params ...interface{}) bool {
 	e.m.Lock()
 	defer e.m.Unlock()
-	return e.Enforcer.AddGroupingPolicy(params...)
+	return e.Enforcer.AddGroupingPolicy(logTime,params...)
 }
 
 // RemoveGroupingPolicy removes a role inheritance rule from the current policy.

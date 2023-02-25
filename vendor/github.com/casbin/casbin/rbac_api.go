@@ -14,7 +14,10 @@
 
 package casbin
 
-import "github.com/casbin/casbin/util"
+import (
+	"github.com/casbin/casbin/util"
+	"time"
+)
 
 // GetRolesForUser gets the roles that a user has.
 func (e *Enforcer) GetRolesForUser(name string) ([]string, error) {
@@ -48,7 +51,7 @@ func (e *Enforcer) HasRoleForUser(name string, role string) (bool, error) {
 // AddRoleForUser adds a role for a user.
 // Returns false if the user already has the role (aka not affected).
 func (e *Enforcer) AddRoleForUser(user string, role string) bool {
-	return e.AddGroupingPolicy(user, role)
+	return e.AddGroupingPolicy(time.Time{},user, role)
 }
 
 // DeleteRoleForUser deletes a role for a user.
@@ -84,7 +87,7 @@ func (e *Enforcer) DeletePermission(permission ...string) bool {
 // AddPermissionForUser adds a permission for a user or role.
 // Returns false if the user or role already has the permission (aka not affected).
 func (e *Enforcer) AddPermissionForUser(user string, permission ...string) bool {
-	return e.AddPolicy(util.JoinSlice(user, permission...))
+	return e.AddPolicy(time.Time{},util.JoinSlice(user, permission...))
 }
 
 // DeletePermissionForUser deletes a permission for a user or role.

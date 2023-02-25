@@ -30,6 +30,7 @@ import (
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 	"strings"
+	"time"
 )
 
 type UserAuthHandler interface {
@@ -151,7 +152,7 @@ func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWrite
 		return
 	}
 	handler.logger.Debugw("request payload, AddDefaultPolicyAndRoles", "policiesAdmin", policiesAdmin)
-	casbin.AddPolicy(policiesAdmin.Data)
+	casbin.AddPolicy(policiesAdmin.Data, time.Time{})
 
 	var policiesTrigger bean.PolicyRequest
 	err = json.Unmarshal([]byte(triggerPolicies), &policiesTrigger)
@@ -161,7 +162,7 @@ func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWrite
 		return
 	}
 	handler.logger.Debugw("request payload, AddDefaultPolicyAndRoles", "policiesTrigger", policiesTrigger)
-	casbin.AddPolicy(policiesTrigger.Data)
+	casbin.AddPolicy(policiesTrigger.Data, time.Time{})
 
 	var policiesView bean.PolicyRequest
 	err = json.Unmarshal([]byte(viewPolicies), &policiesView)
@@ -171,7 +172,7 @@ func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWrite
 		return
 	}
 	handler.logger.Debugw("request payload, AddDefaultPolicyAndRoles", "policiesView", policiesView)
-	casbin.AddPolicy(policiesView.Data)
+	casbin.AddPolicy(policiesView.Data, time.Time{})
 	//loading policy for syncing orchestrator to casbin with newly added policies
 	casbin.LoadPolicy()
 	//Creating ROLES

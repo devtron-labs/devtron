@@ -16,6 +16,7 @@ package casbin
 
 import (
 	"fmt"
+	"time"
 )
 
 // NewEnforcerSafe calls NewEnforcer in a safe way, returns error instead of causing panic.
@@ -60,7 +61,7 @@ func (e *Enforcer) EnforceSafe(rvals ...interface{}) (result bool, err error) {
 }
 
 // AddPolicySafe calls AddPolicy in a safe way, returns error instead of causing panic.
-func (e *Enforcer) AddPolicySafe(params ...interface{}) (result bool, err error) {
+func (e *Enforcer) AddPolicySafe(logTime time.Time, params ...interface{}) (result bool, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("%v", r)
@@ -68,7 +69,7 @@ func (e *Enforcer) AddPolicySafe(params ...interface{}) (result bool, err error)
 		}
 	}()
 
-	result = e.AddNamedPolicy("p", params...)
+	result = e.AddNamedPolicy(logTime,"p", params...)
 	err = nil
 	return
 }
@@ -110,7 +111,7 @@ func (e *Enforcer) AddGroupingPolicySafe(params ...interface{}) (result bool, er
 		}
 	}()
 
-	result = e.AddGroupingPolicy(params...)
+	result = e.AddGroupingPolicy(time.Time{},params...)
 	err = nil
 	return
 }
@@ -124,7 +125,7 @@ func (e *Enforcer) AddNamedGroupingPolicySafe(ptype string, params ...interface{
 		}
 	}()
 
-	result = e.AddNamedGroupingPolicy(ptype, params...)
+	result = e.AddNamedGroupingPolicy(time.Time{},ptype, params...)
 	err = nil
 	return
 }
@@ -138,7 +139,7 @@ func (e *Enforcer) AddNamedPolicySafe(ptype string, params ...interface{}) (resu
 		}
 	}()
 
-	result = e.AddNamedPolicy(ptype, params...)
+	result = e.AddNamedPolicy(time.Time{},ptype, params...)
 	err = nil
 	return
 }

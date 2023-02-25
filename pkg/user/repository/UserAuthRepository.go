@@ -30,6 +30,7 @@ import (
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"strings"
+	"time"
 )
 
 const (
@@ -474,7 +475,7 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPolicies(team string, entityName
 		return false, err
 	}
 	impl.Logger.Debugw("add policy request", "policies", policiesManager)
-	casbin.AddPolicy(policiesManager.Data)
+	casbin.AddPolicy(policiesManager.Data, time.Time{})
 
 	var policiesAdmin bean.PolicyRequest
 	err = json.Unmarshal([]byte(adminPolicies), &policiesAdmin)
@@ -484,7 +485,7 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPolicies(team string, entityName
 	}
 
 	impl.Logger.Debugw("add policy request", "policies", policiesAdmin)
-	casbin.AddPolicy(policiesAdmin.Data)
+	casbin.AddPolicy(policiesAdmin.Data, time.Time{})
 
 	var policiesTrigger bean.PolicyRequest
 	err = json.Unmarshal([]byte(triggerPolicies), &policiesTrigger)
@@ -493,7 +494,7 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPolicies(team string, entityName
 		return false, err
 	}
 	impl.Logger.Debugw("add policy request", "policies", policiesTrigger)
-	casbin.AddPolicy(policiesTrigger.Data)
+	casbin.AddPolicy(policiesTrigger.Data, time.Time{})
 
 	var policiesView bean.PolicyRequest
 	err = json.Unmarshal([]byte(viewPolicies), &policiesView)
@@ -502,7 +503,7 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPolicies(team string, entityName
 		return false, err
 	}
 	impl.Logger.Debugw("add policy request", "policies", policiesView)
-	casbin.AddPolicy(policiesView.Data)
+	casbin.AddPolicy(policiesView.Data, time.Time{})
 
 	//Creating ROLES
 	//getting roles from db
@@ -660,7 +661,7 @@ func (impl UserAuthRepositoryImpl) CreateDefaultHelmPolicies(team string, entity
 		return false, err
 	}
 	impl.Logger.Debugw("add policy request", "policies", policiesAdmin)
-	casbin.AddPolicy(policiesAdmin.Data)
+	casbin.AddPolicy(policiesAdmin.Data, time.Time{})
 
 	var policiesEdit bean.PolicyRequest
 	err = json.Unmarshal([]byte(editPolicies), &policiesEdit)
@@ -669,7 +670,7 @@ func (impl UserAuthRepositoryImpl) CreateDefaultHelmPolicies(team string, entity
 		return false, err
 	}
 	impl.Logger.Debugw("add policy request", "policies", policiesEdit)
-	casbin.AddPolicy(policiesEdit.Data)
+	casbin.AddPolicy(policiesEdit.Data, time.Time{})
 
 	var policiesView bean.PolicyRequest
 	err = json.Unmarshal([]byte(viewPolicies), &policiesView)
@@ -678,7 +679,7 @@ func (impl UserAuthRepositoryImpl) CreateDefaultHelmPolicies(team string, entity
 		return false, err
 	}
 	impl.Logger.Debugw("add policy request", "policies", policiesView)
-	casbin.AddPolicy(policiesView.Data)
+	casbin.AddPolicy(policiesView.Data, time.Time{})
 
 	//Creating ROLES
 	roleAdmin := "{\n    \"role\": \"helm-app:admin_<TEAM>_<ENV>_<APP>\",\n    \"casbinSubjects\": [\n        \"helm-app:admin_<TEAM>_<ENV>_<APP>\"\n    ],\n    \"team\": \"<TEAM>\",\n    \"entityName\": \"<APP>\",\n    \"environment\": \"<ENV>\",\n    \"action\": \"admin\",\n    \"accessType\": \"helm-app\"\n}"
@@ -784,7 +785,7 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForGlobalEntity(entity s
 		return false, err
 	}
 	impl.Logger.Debugw("add policy request", "policies", policiesAdmin)
-	casbin.AddPolicy(policiesAdmin.Data)
+	casbin.AddPolicy(policiesAdmin.Data, time.Time{})
 
 	var policiesView bean.PolicyRequest
 	err = json.Unmarshal([]byte(entityViewPolicy), &policiesView)
@@ -793,7 +794,7 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForGlobalEntity(entity s
 		return false, err
 	}
 	impl.Logger.Debugw("add policy request", "policies", policiesView)
-	casbin.AddPolicy(policiesView.Data)
+	casbin.AddPolicy(policiesView.Data, time.Time{})
 
 	//getting policy from db
 	entitySpecificPolicyDb, err := impl.defaultAuthPolicyRepository.GetPolicyByRoleType(ENTITY_SPECIFIC_TYPE)
@@ -816,7 +817,7 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForGlobalEntity(entity s
 		return false, err
 	}
 	impl.Logger.Debugw("add policy request", "policies", policiesSpecific)
-	casbin.AddPolicy(policiesSpecific.Data)
+	casbin.AddPolicy(policiesSpecific.Data, time.Time{})
 	//CASBIN ENDS
 
 	//Creating ROLES
@@ -1000,7 +1001,7 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForClusterEntity(entity,
 		return false, err
 	}
 	impl.Logger.Debugw("add policy request", "policies", policiesAdmin)
-	casbin.AddPolicy(policiesAdmin.Data)
+	casbin.AddPolicy(policiesAdmin.Data, time.Time{})
 
 	var policiesEdit bean.PolicyRequest
 	err = json.Unmarshal([]byte(entityClusterEditPolicy), &policiesEdit)
@@ -1009,7 +1010,7 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForClusterEntity(entity,
 		return false, err
 	}
 	impl.Logger.Debugw("add policy request", "policies", policiesEdit)
-	casbin.AddPolicy(policiesEdit.Data)
+	casbin.AddPolicy(policiesEdit.Data, time.Time{})
 
 	var policiesView bean.PolicyRequest
 	err = json.Unmarshal([]byte(entityClusterViewPolicy), &policiesView)
@@ -1018,7 +1019,7 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForClusterEntity(entity,
 		return false, err
 	}
 	impl.Logger.Debugw("add policy request", "policies", policiesView)
-	casbin.AddPolicy(policiesView.Data)
+	casbin.AddPolicy(policiesView.Data, time.Time{})
 	//CASBIN ENDS
 
 	//Creating ROLES
@@ -1228,7 +1229,7 @@ func (impl UserAuthRepositoryImpl) SyncOrchestratorToCasbin(team string, entityN
 		return false, err
 	}
 	impl.Logger.Debugw("add policy request", "policies", policiesTrigger)
-	casbin.AddPolicy(policiesTrigger.Data)
+	casbin.AddPolicy(policiesTrigger.Data, time.Time{})
 
 	var policiesView bean.PolicyRequest
 	err = json.Unmarshal([]byte(viewPolicies), &policiesView)
@@ -1237,7 +1238,7 @@ func (impl UserAuthRepositoryImpl) SyncOrchestratorToCasbin(team string, entityN
 		return false, err
 	}
 	impl.Logger.Debugw("add policy request", "policies", policiesView)
-	casbin.AddPolicy(policiesView.Data)
+	casbin.AddPolicy(policiesView.Data, time.Time{})
 
 	return true, nil
 }
@@ -1384,7 +1385,7 @@ func (impl UserAuthRepositoryImpl) UpdateDefaultPolicyByRoleType(newPolicy strin
 	casbin.LoadPolicy()
 	//updating all policies(for all roles) in casbin
 	if len(addedPolicyFinal.Data) > 0 {
-		casbin.AddPolicy(addedPolicyFinal.Data)
+		casbin.AddPolicy(addedPolicyFinal.Data, time.Time{})
 	}
 	if len(deletedPolicyFinal.Data) > 0 {
 		casbin.RemovePolicy(deletedPolicyFinal.Data)

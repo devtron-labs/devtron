@@ -13,6 +13,7 @@
 // limitations under the License.
 
 package casbin
+import "time"
 
 // GetUsersForRoleInDomain gets the users that has a role inside a domain. Add by Gordon
 func (e *Enforcer) GetUsersForRoleInDomain(name string, domain string) []string {
@@ -34,7 +35,7 @@ func (e *Enforcer) GetPermissionsForUserInDomain(user string, domain string) [][
 // AddRoleForUserInDomain adds a role for a user inside a domain.
 // Returns false if the user already has the role (aka not affected).
 func (e *Enforcer) AddRoleForUserInDomain(user string, role string, domain string) bool {
-	return e.AddGroupingPolicy(user, role, domain)
+	return e.AddGroupingPolicy(time.Time{},user, role, domain)
 }
 
 // DeleteRoleForUserInDomain deletes a role for a user inside a domain.

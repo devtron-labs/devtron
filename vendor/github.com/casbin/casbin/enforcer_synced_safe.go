@@ -14,6 +14,8 @@
 
 package casbin
 
+import "time"
+
 // NewSyncedEnforcerSafe creates a synchronized enforcer via file or DB.
 func NewSyncedEnforcerSafe(params ...interface{}) (enforcer *SyncedEnforcer, err error) {
 	e := &SyncedEnforcer{}
@@ -42,10 +44,10 @@ func (e *SyncedEnforcer) EnforceSafe(rvals ...interface{}) (result bool, err err
 }
 
 // AddPolicySafe calls AddPolicy in a safe way, returns error instead of causing panic.
-func (e *SyncedEnforcer) AddPolicySafe(params ...interface{}) (result bool, err error) {
+func (e *SyncedEnforcer) AddPolicySafe(logTime time.Time, params ...interface{}) (result bool, err error) {
 	e.m.Lock()
 	defer e.m.Unlock()
-	return e.Enforcer.AddPolicySafe(params...)
+	return e.Enforcer.AddPolicySafe(logTime,params...)
 }
 
 // RemovePolicySafe calls RemovePolicy in a safe way, returns error instead of causing panic.

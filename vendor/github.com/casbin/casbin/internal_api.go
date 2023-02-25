@@ -14,15 +14,23 @@
 
 package casbin
 
+import (
+	"time"
+	"fmt"
+)
+
 const (
 	notImplemented = "not implemented"
 )
 
 // addPolicy adds a rule to the current policy.
-func (e *Enforcer) addPolicy(sec string, ptype string, rule []string) bool {
+func (e *Enforcer) addPolicy(logTime time.Time, sec string, ptype string, rule []string) bool {
 	ruleAdded := e.model.AddPolicy(sec, ptype, rule)
 	if !ruleAdded {
 		return ruleAdded
+	}
+	if !logTime.IsZero() {
+		fmt.Println("time taken for policy addition in model", logTime.Sub(time.Now()).Seconds())
 	}
 
 	if e.adapter != nil && e.autoSave {
@@ -35,6 +43,9 @@ func (e *Enforcer) addPolicy(sec string, ptype string, rule []string) bool {
 			// error intentionally ignored
 			e.watcher.Update()
 		}
+	}
+	if !logTime.IsZero() {
+		fmt.Println("time taken for policy addition in adapter", logTime.Sub(time.Now()).Seconds())
 	}
 
 	return ruleAdded

@@ -172,7 +172,7 @@ func (impl UserServiceImpl) SelfRegisterUserIfNotExists(userInfo *bean.UserInfo)
 	if len(policies) > 0 {
 		//loading policy for safety
 		casbin2.LoadPolicy()
-		pRes := casbin2.AddPolicy(policies)
+		pRes := casbin2.AddPolicy(policies, time.Time{})
 		println(pRes)
 		//loading policy for syncing orchestrator to casbin with newly added policies
 		casbin2.LoadPolicy()
@@ -459,7 +459,7 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 
 	}
 	if len(policies) > 0 {
-		pRes := casbin2.AddPolicy(policies)
+		pRes := casbin2.AddPolicy(policies, time.Time{})
 		println(pRes)
 	}
 	//Ends
@@ -883,7 +883,7 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 		println(pRes)
 	}
 	if len(addedPolicies) > 0 {
-		pRes := casbin2.AddPolicy(addedPolicies)
+		pRes := casbin2.AddPolicy(addedPolicies, time.Time{})
 		println(pRes)
 	}
 	//Ends

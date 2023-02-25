@@ -22,6 +22,7 @@ import (
 	xormadapter "github.com/casbin/xorm-adapter"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/casbin/casbin"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -75,7 +76,7 @@ func setEnforcerImpl(ref *EnforcerImpl) {
 	enforcerImplRef = ref
 }
 
-func AddPolicy(policies []Policy) []Policy {
+func AddPolicy(policies []Policy, logTime time.Time) []Policy {
 	defer handlePanic()
 	var failed = []Policy{}
 	emailIdList := map[string]struct{}{}
@@ -86,11 +87,11 @@ func AddPolicy(policies []Policy) []Policy {
 			res := strings.ToLower(string(p.Res))
 			act := strings.ToLower(string(p.Act))
 			obj := strings.ToLower(string(p.Obj))
-			success = e.AddPolicy([]string{sub, res, act, obj, "allow"})
+			success = e.AddPolicy(logTime, []string{sub, res, act, obj, "allow"})
 		} else if strings.ToLower(string(p.Type)) == "g" && p.Sub != "" && p.Obj != "" {
 			sub := strings.ToLower(string(p.Sub))
 			obj := strings.ToLower(string(p.Obj))
-			success = e.AddGroupingPolicy([]string{sub, obj})
+			success = e.AddGroupingPolicy(logTime, []string{sub, obj})
 		}
 		if !success {
 			failed = append(failed, p)
@@ -98,6 +99,9 @@ func AddPolicy(policies []Policy) []Policy {
 		if p.Sub != "" {
 			emailIdList[strings.ToLower(string(p.Sub))] = struct{}{}
 		}
+	}
+	if !logTime.IsZero() {
+		log.Println("time taken for policy addition", logTime.Sub(time.Now()).Seconds())
 	}
 	if len(policies) != len(failed) {
 		for emailId := range emailIdList {

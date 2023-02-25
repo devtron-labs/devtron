@@ -14,6 +14,12 @@
 
 package casbin
 
+import (
+	"time"
+	"fmt"
+)
+
+
 // GetAllSubjects gets the list of subjects that show up in the current policy.
 func (e *Enforcer) GetAllSubjects() []string {
 	return e.GetAllNamedSubjects("p")
@@ -116,24 +122,24 @@ func (e *Enforcer) HasNamedPolicy(ptype string, params ...interface{}) bool {
 // AddPolicy adds an authorization rule to the current policy.
 // If the rule already exists, the function returns false and the rule will not be added.
 // Otherwise the function returns true by adding the new rule.
-func (e *Enforcer) AddPolicy(params ...interface{}) bool {
-	return e.AddNamedPolicy("p", params...)
+func (e *Enforcer) AddPolicy(logTime time.Time, params ...interface{}) bool {
+	return e.AddNamedPolicy(logTime,"p", params...)
 }
 
 // AddNamedPolicy adds an authorization rule to the current named policy.
 // If the rule already exists, the function returns false and the rule will not be added.
 // Otherwise the function returns true by adding the new rule.
-func (e *Enforcer) AddNamedPolicy(ptype string, params ...interface{}) bool {
+func (e *Enforcer) AddNamedPolicy(logTime time.Time, ptype string, params ...interface{}) bool {
 	var ruleAdded bool
 	if strSlice, ok := params[0].([]string); len(params) == 1 && ok {
-		ruleAdded = e.addPolicy("p", ptype, strSlice)
+		ruleAdded = e.addPolicy(logTime,"p", ptype, strSlice)
 	} else {
 		policy := make([]string, 0)
 		for _, param := range params {
 			policy = append(policy, param.(string))
 		}
 
-		ruleAdded = e.addPolicy("p", ptype, policy)
+		ruleAdded = e.addPolicy(logTime,"p", ptype, policy)
 	}
 
 	return ruleAdded
@@ -193,26 +199,28 @@ func (e *Enforcer) HasNamedGroupingPolicy(ptype string, params ...interface{}) b
 // AddGroupingPolicy adds a role inheritance rule to the current policy.
 // If the rule already exists, the function returns false and the rule will not be added.
 // Otherwise the function returns true by adding the new rule.
-func (e *Enforcer) AddGroupingPolicy(params ...interface{}) bool {
-	return e.AddNamedGroupingPolicy("g", params...)
+func (e *Enforcer) AddGroupingPolicy(logTime time.Time, params ...interface{}) bool {
+	return e.AddNamedGroupingPolicy(logTime,"g", params...)
 }
 
 // AddNamedGroupingPolicy adds a named role inheritance rule to the current policy.
 // If the rule already exists, the function returns false and the rule will not be added.
 // Otherwise the function returns true by adding the new rule.
-func (e *Enforcer) AddNamedGroupingPolicy(ptype string, params ...interface{}) bool {
+func (e *Enforcer) AddNamedGroupingPolicy(logTime time.Time, ptype string, params ...interface{}) bool {
 	var ruleAdded bool
 	if strSlice, ok := params[0].([]string); len(params) == 1 && ok {
-		ruleAdded = e.addPolicy("g", ptype, strSlice)
+		ruleAdded = e.addPolicy(logTime,"g", ptype, strSlice)
 	} else {
 		policy := make([]string, 0)
 		for _, param := range params {
 			policy = append(policy, param.(string))
 		}
-
-		ruleAdded = e.addPolicy("g", ptype, policy)
+		ruleAdded = e.addPolicy(logTime,"g", ptype, policy)
 	}
 
+	if !logTime.IsZero() {
+		fmt.Println("time taken for grouping policy addition", logTime.Sub(time.Now()).Seconds())
+	}
 	if e.autoBuildRoleLinks {
 		e.BuildRoleLinks()
 	}
