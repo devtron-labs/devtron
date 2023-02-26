@@ -1,15 +1,15 @@
-package client
+package casbin
 
 import (
 	"context"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/devtron-labs/devtron/pkg/user/casbin/client"
 	"go.uber.org/zap"
 )
 
 type CasbinService interface {
-	AddPolicy(policies []casbin.Policy) ([]casbin.Policy, error)
+	AddPolicy(policies []Policy) ([]Policy, error)
 	LoadPolicy()
-	RemovePolicy(policies []casbin.Policy) ([]casbin.Policy, error)
+	RemovePolicy(policies []Policy) ([]Policy, error)
 	GetAllSubjects() ([]string, error)
 	DeleteRoleForUser(user, role string) (bool, error)
 	GetRolesForUser(user string) ([]string, error)
@@ -20,21 +20,21 @@ type CasbinService interface {
 
 type CasbinServiceImpl struct {
 	logger       *zap.SugaredLogger
-	casbinClient CasbinClient
+	casbinClient client.CasbinClient
 }
 
 func NewCasbinServiceImpl(logger *zap.SugaredLogger,
-	casbinClient CasbinClient) *CasbinServiceImpl {
+	casbinClient client.CasbinClient) *CasbinServiceImpl {
 	return &CasbinServiceImpl{
 		logger:       logger,
 		casbinClient: casbinClient,
 	}
 }
 
-func (impl *CasbinServiceImpl) AddPolicy(policies []casbin.Policy) ([]casbin.Policy, error) {
-	convertedPolicies := make([]*Policy, len(policies))
+func (impl *CasbinServiceImpl) AddPolicy(policies []Policy) ([]Policy, error) {
+	convertedPolicies := make([]*client.Policy, len(policies))
 	for _, policy := range policies {
-		convertedPolicy := &Policy{
+		convertedPolicy := &client.Policy{
 			Type: string(policy.Type),
 			Sub:  string(policy.Sub),
 			Res:  string(policy.Res),
@@ -43,7 +43,7 @@ func (impl *CasbinServiceImpl) AddPolicy(policies []casbin.Policy) ([]casbin.Pol
 		}
 		convertedPolicies = append(convertedPolicies, convertedPolicy)
 	}
-	in := &MultiPolicyObj{
+	in := &client.MultiPolicyObj{
 		Policies: convertedPolicies,
 	}
 	_, err := impl.casbinClient.AddPolicy(context.Background(), in)
@@ -53,15 +53,15 @@ func (impl *CasbinServiceImpl) AddPolicy(policies []casbin.Policy) ([]casbin.Pol
 	return policies, nil
 }
 func (impl *CasbinServiceImpl) LoadPolicy() {
-	in := &EmptyObj{}
+	in := &client.EmptyObj{}
 	_, _ = impl.casbinClient.LoadPolicy(context.Background(), in)
 	return
 }
 
-func (impl *CasbinServiceImpl) RemovePolicy(policies []casbin.Policy) ([]casbin.Policy, error) {
-	convertedPolicies := make([]*Policy, len(policies))
+func (impl *CasbinServiceImpl) RemovePolicy(policies []Policy) ([]Policy, error) {
+	convertedPolicies := make([]*client.Policy, len(policies))
 	for _, policy := range policies {
-		convertedPolicy := &Policy{
+		convertedPolicy := &client.Policy{
 			Type: string(policy.Type),
 			Sub:  string(policy.Sub),
 			Res:  string(policy.Res),
@@ -70,7 +70,7 @@ func (impl *CasbinServiceImpl) RemovePolicy(policies []casbin.Policy) ([]casbin.
 		}
 		convertedPolicies = append(convertedPolicies, convertedPolicy)
 	}
-	in := &MultiPolicyObj{
+	in := &client.MultiPolicyObj{
 		Policies: convertedPolicies,
 	}
 	_, err := impl.casbinClient.RemovePolicy(context.Background(), in)
@@ -80,7 +80,7 @@ func (impl *CasbinServiceImpl) RemovePolicy(policies []casbin.Policy) ([]casbin.
 	return policies, nil
 }
 func (impl *CasbinServiceImpl) GetAllSubjects() ([]string, error) {
-	in := &EmptyObj{}
+	in := &client.EmptyObj{}
 	resp, err := impl.casbinClient.GetAllSubjects(context.Background(), in)
 	if err != nil {
 		return nil, err
@@ -88,7 +88,7 @@ func (impl *CasbinServiceImpl) GetAllSubjects() ([]string, error) {
 	return resp.Subjects, nil
 }
 func (impl *CasbinServiceImpl) DeleteRoleForUser(user, role string) (bool, error) {
-	in := &DeleteRoleForUserRequest{
+	in := &client.DeleteRoleForUserRequest{
 		User: user,
 		Role: role,
 	}
@@ -101,7 +101,7 @@ func (impl *CasbinServiceImpl) DeleteRoleForUser(user, role string) (bool, error
 	return responseBool, nil
 }
 func (impl *CasbinServiceImpl) GetRolesForUser(user string) ([]string, error) {
-	in := &GetRolesForUserRequest{
+	in := &client.GetRolesForUserRequest{
 		User: user,
 	}
 	resp, err := impl.casbinClient.GetRolesForUser(context.Background(), in)
@@ -111,7 +111,7 @@ func (impl *CasbinServiceImpl) GetRolesForUser(user string) ([]string, error) {
 	return resp.Roles, nil
 }
 func (impl *CasbinServiceImpl) GetUserByRole(role string) ([]string, error) {
-	in := &GetUserByRoleRequest{
+	in := &client.GetUserByRoleRequest{
 		Role: role,
 	}
 	resp, err := impl.casbinClient.GetUserByRole(context.Background(), in)
@@ -121,7 +121,7 @@ func (impl *CasbinServiceImpl) GetUserByRole(role string) ([]string, error) {
 	return resp.Users, nil
 }
 func (impl *CasbinServiceImpl) RemovePoliciesByRole(role string) (bool, error) {
-	in := &RemovePoliciesByRoleRequest{
+	in := &client.RemovePoliciesByRoleRequest{
 		Role: role,
 	}
 	responseBool := false
@@ -133,7 +133,7 @@ func (impl *CasbinServiceImpl) RemovePoliciesByRole(role string) (bool, error) {
 	return responseBool, nil
 }
 func (impl *CasbinServiceImpl) RemovePoliciesByRoles(roles []string) (bool, error) {
-	in := &RemovePoliciesByRolesRequest{
+	in := &client.RemovePoliciesByRolesRequest{
 		Roles: roles,
 	}
 	responseBool := false

@@ -50,13 +50,14 @@ type Enforcer interface {
 func NewEnforcerImpl(
 	enforcer *casbin.SyncedEnforcer,
 	sessionManager *middleware.SessionManager,
-	logger *zap.SugaredLogger) *EnforcerImpl {
+	logger *zap.SugaredLogger, casbinService CasbinService) *EnforcerImpl {
 	lock := make(map[string]*CacheData)
 	batchRequestLock := make(map[string]*sync.Mutex)
 	enforcerConfig := getConfig()
 	enf := &EnforcerImpl{lockCacheData: lock, enforcerRWLock: &sync.RWMutex{}, batchRequestLock: batchRequestLock, enforcerConfig: enforcerConfig,
 		Cache: getEnforcerCache(logger, enforcerConfig), SyncedEnforcer: enforcer, Logger: logger, SessionManager: sessionManager}
 	setEnforcerImpl(enf)
+	setCasbinService(casbinService)
 	return enf
 }
 

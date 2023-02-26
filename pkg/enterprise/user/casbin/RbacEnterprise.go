@@ -28,8 +28,8 @@ type EnterpriseEnforcerConfig struct {
 
 func NewEnterpriseEnforcerImpl(enforcer *casbin.SyncedEnforcer,
 	sessionManager *middleware.SessionManager,
-	logger *zap.SugaredLogger) (*EnterpriseEnforcerImpl, error) {
-	enforcerImpl := casbin2.NewEnforcerImpl(enforcer, sessionManager, logger)
+	logger *zap.SugaredLogger, casbinService casbin2.CasbinService) (*EnterpriseEnforcerImpl, error) {
+	enforcerImpl := casbin2.NewEnforcerImpl(enforcer, sessionManager, logger, casbinService)
 	enforcerConfig := &EnterpriseEnforcerConfig{}
 	err := env.Parse(enforcerConfig)
 	if err != nil {
