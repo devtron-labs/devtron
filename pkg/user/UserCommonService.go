@@ -366,30 +366,30 @@ func (impl UserCommonServiceImpl) CheckRbacForClusterEntity(cluster, namespace, 
 }
 
 func (impl UserCommonServiceImpl) RemoveDuplicateRoleFilters(inputFilters []bean.RoleFilter) []bean.RoleFilter {
-	var roleFilters []bean.RoleFilter
-	keysMap := make(map[string]bool)
-	//adding the same filters twice to remove duplicate ones
-	allRoleFilters := make([]bean.RoleFilter, len(inputFilters), 2*len(inputFilters))
-	allRoleFilters = inputFilters
-	allRoleFilters = append(allRoleFilters, inputFilters...)
-	for _, role := range allRoleFilters {
-		key := fmt.Sprintf("%s-%s-%s-%s-%s-%s-%s-%s-%s-%s-%s", role.Entity, role.Team, role.Environment,
-			role.EntityName, role.Action, role.AccessType, role.Cluster, role.Namespace, role.Group, role.Kind, role.Resource)
-		if _, ok := keysMap[key]; !ok {
-			roleFilters = append(roleFilters, bean.RoleFilter{
-				Entity:      role.Entity,
-				Team:        role.Team,
-				Environment: role.Environment,
-				EntityName:  role.EntityName,
-				Action:      role.Action,
-				AccessType:  role.AccessType,
-				Cluster:     role.Cluster,
-				Namespace:   role.Namespace,
-				Group:       role.Group,
-				Kind:        role.Kind,
-				Resource:    role.Resource,
-			})
-		}
-	}
-	return roleFilters
+	//var roleFilters []bean.RoleFilter
+	//keysMap := make(map[string]bool)
+	////adding the same filters twice to remove duplicate ones
+	//allRoleFilters := make([]bean.RoleFilter, len(inputFilters), 2*len(inputFilters))
+	//allRoleFilters = inputFilters
+	//allRoleFilters = append(allRoleFilters, inputFilters...)
+	//for _, role := range allRoleFilters {
+	//	key := fmt.Sprintf("%s-%s-%s-%s-%s-%s-%s-%s-%s-%s-%s", role.Entity, role.Team, role.Environment,
+	//		role.EntityName, role.Action, role.AccessType, role.Cluster, role.Namespace, role.Group, role.Kind, role.Resource)
+	//	if _, ok := keysMap[key]; !ok {
+	//		roleFilters = append(roleFilters, bean.RoleFilter{
+	//			Entity:      role.Entity,
+	//			Team:        role.Team,
+	//			Environment: role.Environment,
+	//			EntityName:  role.EntityName,
+	//			Action:      role.Action,
+	//			AccessType:  role.AccessType,
+	//			Cluster:     role.Cluster,
+	//			Namespace:   role.Namespace,
+	//			Group:       role.Group,
+	//			Kind:        role.Kind,
+	//			Resource:    role.Resource,
+	//		})
+	//	}
+	//}
+	return inputFilters
 }
