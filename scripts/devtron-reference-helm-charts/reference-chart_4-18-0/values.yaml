@@ -438,6 +438,9 @@ rawYaml: []
 
 winterSoilder:
   enable: false
+  apiVersion: pincher.devtron.ai/v1alpha1
+  labels: {}
+  annotations: {}
   timeRangesWithZone: {}
   # timeZone: "Asia/Kolkata"
   # timeRanges: []

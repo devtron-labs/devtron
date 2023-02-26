@@ -336,6 +336,9 @@ istio:
 
 winterSoilder:
   enable: false
+  apiVersion: pincher.devtron.ai/v1alpha1
+  annotation: {}
+  labels: {}
   timeRangesWithZone:
     timeZone: "Asia/Kolkata"
     timeRanges: []
