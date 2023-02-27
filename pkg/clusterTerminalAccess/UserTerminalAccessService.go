@@ -38,6 +38,8 @@ type UserTerminalAccessService interface {
 	ValidateShell(podName, namespace, shellName string, clusterId int) (bool, string, error)
 }
 
+const hostNameKey = "kubernetes.io/hostname"
+
 type UserTerminalAccessServiceImpl struct {
 	TerminalAccessRepository     repository.TerminalAccessRepository
 	Logger                       *zap.SugaredLogger
@@ -93,7 +95,7 @@ func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessR
 	return accessServiceImpl, err
 }
 func (impl *UserTerminalAccessServiceImpl) ValidateShell(podName, namespace, shellName string, clusterId int) (bool, string, error) {
-	impl.Logger.Infow("Inside validateShell method", "UserTerminalAccessServiceImpl")
+	impl.Logger.Infow("Inside validateShell method", "UserTerminalAccessServiceImpl", "podName", podName, "namespace", namespace, "shellName", shellName, "clusterId", clusterId)
 	req := &terminal.TerminalSessionRequest{
 		PodName:       podName,
 		Namespace:     namespace,
@@ -438,8 +440,8 @@ func updatePodTemplate(templateDataMap map[string]interface{}, podNameVar string
 			} else {
 				nodeSelectorData := specMap["nodeSelector"]
 				nodeSelectorDataMap := nodeSelectorData.(map[string]interface{})
-				if _, ok2 := nodeSelectorDataMap["kubernetes.io/hostname"]; ok2 {
-					nodeSelectorDataMap["kubernetes.io/hostname"] = interface{}(nodeName)
+				if _, ok2 := nodeSelectorDataMap[hostNameKey]; ok2 {
+					nodeSelectorDataMap[hostNameKey] = interface{}(nodeName)
 				}
 			}
 		}
@@ -544,6 +546,8 @@ func (impl *UserTerminalAccessServiceImpl) applyTemplateData(ctx context.Context
 
 func (impl *UserTerminalAccessServiceImpl) SyncPodStatus() {
 	terminalAccessDataMap := *impl.TerminalAccessSessionDataMap
+	impl.TerminalAccessDataArrayMutex.Lock()
+	defer impl.TerminalAccessDataArrayMutex.Unlock()
 	for _, terminalAccessSessionData := range terminalAccessDataMap {
 		sessionId := terminalAccessSessionData.sessionId
 		if sessionId != "" {
@@ -576,7 +580,6 @@ func (impl *UserTerminalAccessServiceImpl) SyncPodStatus() {
 					continue
 				}
 			}
-			impl.TerminalAccessDataArrayMutex.Lock()
 			terminalAccessSessionData.terminateTriggered = true
 			if existingStatus != terminalPodStatusString {
 				terminalAccessId := terminalAccessData.Id
@@ -587,11 +590,9 @@ func (impl *UserTerminalAccessServiceImpl) SyncPodStatus() {
 				}
 				terminalAccessData.Status = terminalPodStatusString
 			}
-			impl.TerminalAccessDataArrayMutex.Unlock()
 		}
 	}
-	impl.TerminalAccessDataArrayMutex.Lock()
-	defer impl.TerminalAccessDataArrayMutex.Unlock()
+
 	for _, terminalAccessSessionData := range terminalAccessDataMap {
 		terminalAccessData := terminalAccessSessionData.terminalAccessDataEntity
 		if terminalAccessData.Status != string(models.TerminalPodStarting) && terminalAccessData.Status != string(models.TerminalPodRunning) {

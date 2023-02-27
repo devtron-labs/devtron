@@ -28,6 +28,12 @@ type UserTerminalAccessRestHandler interface {
 	ValidateShell(w http.ResponseWriter, r *http.Request)
 }
 
+type validShellResponse struct {
+	IsValidShell bool   `json:"isValidShell"`
+	ErrorReason  string `json:"errorReason"`
+	ShellName    string `json:"shellName"`
+}
+
 type UserTerminalAccessRestHandlerImpl struct {
 	Logger                    *zap.SugaredLogger
 	UserTerminalAccessService clusterTerminalAccess.UserTerminalAccessService
@@ -69,11 +75,6 @@ func (handler UserTerminalAccessRestHandlerImpl) ValidateShell(w http.ResponseWr
 		return
 	}
 	res, shell, err := handler.UserTerminalAccessService.ValidateShell(podName, namespace, shellName, clusterId)
-	type validShellResponse struct {
-		IsValidShell bool   `json:"isValidShell"`
-		ErrorReason  string `json:"errorReason"`
-		ShellName    string `json:"shellName"`
-	}
 	reason := ""
 	if err != nil {
 		reason = err.Error()
