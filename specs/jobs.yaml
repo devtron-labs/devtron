@@ -196,9 +196,9 @@ components:
           type: [] jobContainer
             jobContainer:
               properties:
-                appId:
+                jobId:
                   type: integer
-                appName:
+                jobName:
                   type: string
                 description:
                   type: string
