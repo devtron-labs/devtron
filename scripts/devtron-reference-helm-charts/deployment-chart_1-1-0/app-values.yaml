@@ -22,6 +22,7 @@ image:
   pullPolicy: IfNotPresent
 service:
   type: ClusterIP
+  enabled: true
   #name: "service-1234567890"
   loadBalancerSourceRanges: []
   # loadBalancerSourceRanges: 
