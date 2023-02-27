@@ -10,7 +10,7 @@ components:
     image: "quay.io/devtron/hyperion:c35045c2-280-12565"
     cicdImage: "quay.io/devtron/devtron:8994eec9-434-12825"
   argocdDexServer:
-    image: "ghcr.io/dexidp/dex:v2.30.2"
+    image: "ghcr.io/dexidp/dex:v2.35.3"
     initContainer:
       authenticator: "quay.io/devtron/authenticator:6e466830-393-11943"
   kubelink:
