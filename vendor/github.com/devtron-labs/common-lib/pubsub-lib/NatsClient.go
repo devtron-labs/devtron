@@ -19,11 +19,10 @@ package pubsub_lib
 
 import (
 	"encoding/json"
-	"time"
-
 	"github.com/caarlos0/env"
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
+	"time"
 )
 
 type NatsClient struct {
