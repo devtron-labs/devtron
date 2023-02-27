@@ -1,3 +1,4 @@
+{{- $serviceName := (include "clair.service" $) }}
 {{- with .Values.components.postgres }}
 apiVersion: v1
 kind: ConfigMap
@@ -17,6 +18,16 @@ data:
     create database git_sensor;
     create database lens;
     create database clairv4
+{{- if .Values.global.externalDatabase }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgresql-postgresql
+spec:
+  type: ExternalName
+  externalName: {{ .Values.global.externalDatabase.DB_ENDPOINT }}
+{{- else }}
 {{- if not $.Values.installer.arch }}
 ---
 apiVersion: v1
@@ -66,7 +77,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: postgresql-postgresql
+  name: {{ $serviceName }}
   labels:
     app: postgresql
     chart: postgresql-8.6.4
@@ -346,7 +357,7 @@ data:
 apiVersion: v1
 kind: Service
 metadata:
-  name: postgresql-postgresql
+  name: {{ $serviceName }}
   labels:
     helm.sh/chart: postgres-0.4.0
     app.kubernetes.io/name: postgres
