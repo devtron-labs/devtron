@@ -1,8 +1,7 @@
 {{- if .Values.winterSoilder.enabled  }}
 
-{{- if  .Values.winterSoilder.apiVersion }}
 apiVersion: {{ $.Values.winterSoilder.apiVersion }}
-{{- end }}
+
 kind: Hibernator
 
 metadata:
