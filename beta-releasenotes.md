@@ -17,6 +17,7 @@
 - fix: event notification calls missing for Build Success and Cd Deployment Success for helm type (#2898)
 - fix: ingress url missing (#2915)
 ## Enhancements
+- feat: deployment pipeline partially delete. (#2950)
 - feat: jira issue validator plugin added (#2968)
 - feat: add configuration for only logging pg queries exceeding a threshold duration (#2946)
 - feat: add api to change deployment app type for all cd pipelines in an environment (#2975)
