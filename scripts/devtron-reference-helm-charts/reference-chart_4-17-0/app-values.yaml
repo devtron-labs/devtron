@@ -21,7 +21,7 @@ GracePeriod: 30
 image:
   pullPolicy: IfNotPresent
 service:
-  enable: true
+  enabled: true
   type: ClusterIP
   #name: "service-1234567890"
   loadBalancerSourceRanges: []
@@ -335,7 +335,7 @@ istio:
             host: service2
 
 winterSoilder:
-  enable: false
+  enabled: false
   apiVersion: pincher.devtron.ai/v1alpha1
   annotation: {}
   labels: {}
