@@ -21,6 +21,7 @@ GracePeriod: 30
 image:
   pullPolicy: IfNotPresent
 service:
+  enable: true
   type: ClusterIP
   #name: "service-1234567890"
   loadBalancerSourceRanges: []
@@ -332,6 +333,22 @@ istio:
       - route:
         - destination:
             host: service2
+
+winterSoilder:
+  enable: false
+  apiVersion: pincher.devtron.ai/v1alpha1
+  annotation: {}
+  labels: {}
+  timeRangesWithZone:
+    timeZone: "Asia/Kolkata"
+    timeRanges: []
+  action: sleep
+  targetReplicas: []
+  fieldSelector: 
+    - AfterTime(AddTime(ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '5m'), Now())
+
+  
+  
 
 ## Pods Service Account
 ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
