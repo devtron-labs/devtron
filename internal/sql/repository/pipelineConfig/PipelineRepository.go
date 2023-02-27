@@ -58,6 +58,7 @@ type Pipeline struct {
 	DeploymentAppCreated          bool        `sql:"deployment_app_created,notnull"`
 	DeploymentAppType             string      `sql:"deployment_app_type,notnull"` //helm, acd
 	DeploymentAppName             string      `sql:"deployment_app_name"`
+	DeploymentAppDeleteRequest    bool        `sql:"deployment_app_delete_request,notnull"`
 	Environment                   repository.Environment
 	sql.AuditLog
 }
@@ -101,6 +102,7 @@ type PipelineRepository interface {
 	FindIdsByProjectIdsAndEnvironmentIds(projectIds, environmentIds []int) ([]int, error)
 
 	GetArgoPipelineByArgoAppName(argoAppName string) (Pipeline, error)
+	GetPartiallyDeletedPipelineByStatus(appId int, envId int) (Pipeline, error)
 	FindActiveByAppIds(appIds []int) (pipelines []*Pipeline, err error)
 }
 
@@ -575,6 +577,21 @@ func (impl PipelineRepositoryImpl) GetArgoPipelineByArgoAppName(argoAppName stri
 		return pipeline, err
 	}
 	return pipeline, nil
+}
+
+func (impl PipelineRepositoryImpl) GetPartiallyDeletedPipelineByStatus(appId int, envId int) (Pipeline, error) {
+	var pipeline Pipeline
+	err := impl.dbConnection.Model(&pipeline).
+		Column("pipeline.*", "App.app_name", "Environment.namespace").
+		Where("app_id = ?", appId).
+		Where("environment_id = ?", envId).
+		Where("deployment_app_delete_request = ?", true).
+		Where("deployment_app_type = ?", util.PIPELINE_DEPLOYMENT_TYPE_ACD).
+		Where("deleted = ?", false).Select()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in updating argo pipeline delete status")
+	}
+	return pipeline, err
 }
 
 func (impl PipelineRepositoryImpl) FindActiveByAppIds(appIds []int) (pipelines []*Pipeline, err error) {
