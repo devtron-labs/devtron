@@ -394,6 +394,19 @@ ingressInternal:
  #    hosts:
  #      - chart-example.local
 
+winterSoilder:
+  enabled: false
+  apiVersion: pincher.devtron.ai/v1alpha1
+  labels: {}
+  annotations: {}
+  timeRangesWithZone: {}
+  # timeZone: "Asia/Kolkata"
+  # timeRanges: []
+  action: sleep
+  targetReplicas: [1]
+  fieldSelector: []
+  # - AfterTime(AddTime(ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '5m'), Now())
+
 dbMigrationConfig:
   enabled: false
 
