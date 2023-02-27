@@ -108,7 +108,6 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 			return request, err
 		}
 		model.Id = model.Id
-		request.RoleFilters = impl.userCommonService.RemoveDuplicateRoleFilters(request.RoleFilters)
 		//Starts Role and Mapping
 		var policies []casbin2.Policy
 		for _, roleFilter := range request.RoleFilters {
@@ -346,8 +345,6 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 	//loading policy for safety
 	casbin2.LoadPolicy()
 
-	//removing duplicate roleFilters
-	request.RoleFilters = impl.userCommonService.RemoveDuplicateRoleFilters(request.RoleFilters)
 	// DELETE PROCESS STARTS
 	var eliminatedPolicies []casbin2.Policy
 	items, err := impl.userCommonService.RemoveRolesAndReturnEliminatedPoliciesForGroups(request, existingRoles, eliminatedRoles, tx, token, managerAuth)
