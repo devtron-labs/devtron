@@ -61,7 +61,7 @@ const (
 )
 
 func (impl AppListingRepositoryQueryBuilder) BuildJobListingQuery(appIDs []int, statuses []string) string {
-	query := "select ci_pipeline.name as ci_pipeline_name,ci_pipeline.id as ci_pipeline_id,app.id as app_id,app.display_name as app_name, app.description ,cwr.started_on,cwr.status " +
+	query := "select ci_pipeline.name as ci_pipeline_name,ci_pipeline.id as ci_pipeline_id,app.id as job_id,app.display_name as job_name, app.description ,cwr.started_on,cwr.status " +
 		"from ci_pipeline left join " +
 		"(select cw.ci_pipeline_id,cw.status,cw.started_on from ci_workflow cw " +
 		"inner join (SELECT  ci_pipeline_id, MAX(started_on) max_started_on FROM ci_workflow GROUP BY ci_pipeline_id) cws " +

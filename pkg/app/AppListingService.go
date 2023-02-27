@@ -393,12 +393,12 @@ func BuildJobListingResponse(jobContainers []*bean.JobListingContainer, JobsLast
 
 	//Storing the sequence in appIds array
 	for _, jobContainer := range jobContainers {
-		val, ok := jobContainersMapping[jobContainer.AppId]
+		val, ok := jobContainersMapping[jobContainer.JobId]
 		if !ok {
-			appIds = append(appIds, jobContainer.AppId)
+			appIds = append(appIds, jobContainer.JobId)
 			val = bean.JobContainer{}
-			val.AppId = jobContainer.AppId
-			val.AppName = jobContainer.AppName
+			val.JobId = jobContainer.JobId
+			val.JobName = jobContainer.JobName
 			val.Description = jobContainer.Description
 		}
 
@@ -420,7 +420,7 @@ func BuildJobListingResponse(jobContainers []*bean.JobListingContainer, JobsLast
 
 			val.JobCiPipelines = append(val.JobCiPipelines, ciPipelineObj)
 		}
-		jobContainersMapping[jobContainer.AppId] = val
+		jobContainersMapping[jobContainer.JobId] = val
 
 	}
 
