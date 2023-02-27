@@ -1264,5 +1264,20 @@ func (impl *UserTerminalAccessServiceImpl) StartNodeDebug(nodeName, debugNodeIma
 	impl.Logger.Infow("node debug pod got created ", "podName", nodeDebugPodName, "nodeName", nodeName)
 	impl.Logger.Warnw("deleting utility pod used to create node debug pod", "utilityPodName", utilityPodName)
 	impl.forceDeletePod(ctx, utilityPodName, req.Namespace, req.ClusterId, userId)
-	//TODO:store and pass the node-debugger pod data as terminal pod
+
+	//store and pass the node-debugger pod data as terminal pod
+	userTerminalRequest := &models.UserTerminalSessionRequest{
+		UserId:    userId,
+		PodName:   nodeDebugPodName,
+		Namespace: req.Namespace,
+		ClusterId: req.ClusterId,
+		BaseImage: debugNodeImage,
+		NodeName:  nodeName,
+		ShellName: "bash", //TODO: get it from user
+	}
+	terminalStartResponse, err := impl.createTerminalEntity(userTerminalRequest, nodeDebugPodName)
+	if err != nil {
+		impl.Logger.Errorw("failed to create terminal entity", "userTerminalAccessId", terminalStartResponse.TerminalAccessId, "err", err)
+		return
+	}
 }
