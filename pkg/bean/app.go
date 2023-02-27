@@ -46,7 +46,7 @@ type CreateAppDTO struct {
 	TemplateId  int            `json:"templateId"`
 	AppLabels   []*Label       `json:"labels,omitempty" validate:"dive"`
 	Description string         `json:"description"`
-	IsJob       bool           `json:"-"`
+	IsJob       bool           `json:"isJob"`
 }
 
 type CreateMaterialDTO struct {
@@ -258,6 +258,7 @@ type CiTriggerRequest struct {
 	CiPipelineMaterial []CiPipelineMaterial `json:"ciPipelineMaterials" validate:"required"`
 	TriggeredBy        int32                `json:"triggeredBy"`
 	InvalidateCache    bool                 `json:"invalidateCache"`
+	IsJob              bool                 `json:"isJob"`
 }
 
 type CiTrigger struct {

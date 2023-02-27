@@ -59,7 +59,6 @@ import (
 
 type DevtronAppRestHandler interface {
 	CreateApp(w http.ResponseWriter, r *http.Request)
-	CreateJob(w http.ResponseWriter, r *http.Request)
 	DeleteApp(w http.ResponseWriter, r *http.Request)
 	GetApp(w http.ResponseWriter, r *http.Request)
 	FindAppsByTeamId(w http.ResponseWriter, r *http.Request)
@@ -199,13 +198,27 @@ func (handler PipelineConfigRestHandlerImpl) DeleteApp(w http.ResponseWriter, r 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
-	resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionDelete, resourceObject); !ok {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+	app, err := handler.pipelineBuilder.GetApp(appId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
+	if app.IsJob {
+		isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
+		if !isSuperAdmin || err != nil {
+			if err != nil {
+				handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
+			}
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+			return
+		}
+	} else {
+		resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionDelete, resourceObject); !ok {
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+			return
+		}
+	}
 	err = handler.pipelineBuilder.DeleteApp(appId, userId)
 	if err != nil {
 		handler.Logger.Errorw("service error, delete app", "err", err, "appId", appId)
@@ -231,7 +244,16 @@ func (handler PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
+	if createRequest.IsJob {
+		isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
+		if !isSuperAdmin || err != nil {
+			if err != nil {
+				handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
+			}
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+			return
+		}
+	}
 	handler.Logger.Infow("request payload, CreateApp", "CreateApp", createRequest)
 	err = handler.validator.Struct(createRequest)
 	if err != nil {
@@ -252,76 +274,6 @@ func (handler PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r 
 	}
 	var createResp *bean.CreateAppDTO
 	err = nil
-	if createRequest.TemplateId == 0 {
-		createResp, err = handler.pipelineBuilder.CreateApp(&createRequest)
-	} else {
-		ctx, cancel := context.WithCancel(r.Context())
-		if cn, ok := w.(http.CloseNotifier); ok {
-			go func(done <-chan struct{}, closed <-chan bool) {
-				select {
-				case <-done:
-				case <-closed:
-					cancel()
-				}
-			}(ctx.Done(), cn.CloseNotify())
-		}
-		var acdToken string
-		acdToken, err = handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-		if err != nil {
-			handler.Logger.Errorw("error in getting acd token", "err", err)
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
-		ctx = context.WithValue(r.Context(), "token", acdToken)
-		createResp, err = handler.appCloneService.CloneApp(&createRequest, ctx)
-	}
-	if err != nil {
-		handler.Logger.Errorw("service err, CreateApp", "err", err, "CreateApp", createRequest)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	common.WriteJsonResp(w, err, createResp, http.StatusOK)
-}
-
-func (handler PipelineConfigRestHandlerImpl) CreateJob(w http.ResponseWriter, r *http.Request) {
-	//token := r.Header.Get("token")
-	decoder := json.NewDecoder(r.Body)
-	userId, err := handler.userAuthService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		handler.Logger.Errorw("request err, GetUserId", "err", userId, "userId", userId)
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-
-	isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
-	if !isSuperAdmin || err != nil {
-		if err != nil {
-			handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
-		}
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-
-	var createRequest bean.CreateAppDTO
-	err = decoder.Decode(&createRequest)
-	createRequest.UserId = userId
-	if err != nil {
-		handler.Logger.Errorw("request err, CreateApp", "err", err, "CreateApp", createRequest)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	handler.Logger.Infow("request payload, CreateApp", "CreateApp", createRequest)
-	err = handler.validator.Struct(createRequest)
-	if err != nil {
-		handler.Logger.Errorw("validation err, CreateApp", "err", err, "CreateApp", createRequest)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	var createResp *bean.CreateAppDTO
-	err = nil
-	createRequest.IsJob = true
 	if createRequest.TemplateId == 0 {
 		createResp, err = handler.pipelineBuilder.CreateApp(&createRequest)
 	} else {

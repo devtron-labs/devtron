@@ -92,6 +92,10 @@ components:
            type: string
            description: Used to give the name of the job
            example: "my-job-1"
+         isJob:
+           type: boolean
+           description: States whether its a job or an app
+           example: true
          teamId:
            type: integer
            description: Used to give team id

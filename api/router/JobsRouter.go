@@ -22,7 +22,7 @@ func NewJobRouterImpl(pipelineConfigRestHandler app.PipelineConfigRestHandler, a
 	//return router
 }
 func (router JobRouterImpl) InitJobRouter(jobRouter *mux.Router) {
-	jobRouter.Path("").HandlerFunc(router.pipelineConfigRestHandler.CreateJob).Methods("POST")
+	jobRouter.Path("").HandlerFunc(router.pipelineConfigRestHandler.CreateApp).Methods("POST")
 	jobRouter.Path("/ci-pipeline/patch").HandlerFunc(router.pipelineConfigRestHandler.PatchCiPipelines).Methods("POST")
 	jobRouter.Path("/list").HandlerFunc(router.appListingRestHandler.FetchJobs).Methods("POST")
 	jobRouter.Path("/ci-pipeline/list/{jobId}").HandlerFunc(router.appListingRestHandler.FetchOverviewCiPipelines).Methods("GET")
