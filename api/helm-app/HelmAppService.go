@@ -729,22 +729,6 @@ func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChart
 	return response, nil
 }
 func (impl *HelmAppServiceImpl) GetNotes(ctx context.Context, request *InstallReleaseRequest) (string, error) {
-	//
-	//installReleaseRequest := &InstallReleaseRequest{
-	//	ChartName:    request.ChartName,
-	//	ChartVersion: request.ChartVersion,
-	//	ValuesYaml:   request.ValuesYaml,
-	//	ChartRepository: &ChartRepository{
-	//		Name:     request.ChartRepository.Name,
-	//		Url:      request.ChartRepository.Url,
-	//		Username: request.ChartRepository.Username,
-	//		Password: request.ChartRepository.Password,
-	//	},
-	//	ReleaseIdentifier: &ReleaseIdentifier{
-	//		ReleaseNamespace: request.ReleaseIdentifier.ReleaseNamespace,
-	//		ReleaseName:      request.ReleaseIdentifier.ReleaseName,
-	//	},
-	//}
 	clusterId := int(request.ReleaseIdentifier.ClusterConfig.ClusterId)
 	config, err := impl.GetClusterConf(clusterId)
 	var notesTxt string
