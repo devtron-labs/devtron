@@ -411,6 +411,25 @@ func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWr
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+	var appId int
+	if pipelines[0] != nil {
+		appId = pipelines[0].AppId
+	}
+	app, err := handler.pipelineBuilder.GetApp(appId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	if app.IsJob {
+		isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
+		if !isSuperAdmin || err != nil {
+			if err != nil {
+				handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
+			}
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+			return
+		}
+	}
 	var authorizedPipelines []pipelineConfig.Pipeline
 	var unauthorizedPipelines []pipelineConfig.Pipeline
 	token := r.Header.Get("token")
