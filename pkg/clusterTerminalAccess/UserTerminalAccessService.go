@@ -41,7 +41,7 @@ type UserTerminalAccessService interface {
 	FetchPodEvents(ctx context.Context, userTerminalAccessId int) (*application.EventsResponse, error)
 	ValidateShell(podName, namespace, shellName, containerName string, clusterId int) (bool, string, error)
 	EditTerminalPodManifest(ctx context.Context, request *models.UserTerminalSessionRequest, override bool) (ManifestEditResponse, error)
-	//StartNodeDebug(ctx context.Context)
+	StartNodeDebug(nodeName, debugNodeImage string, userId int32)
 }
 
 type UserTerminalAccessServiceImpl struct {
@@ -1227,7 +1227,7 @@ func (impl *UserTerminalAccessServiceImpl) forceDeletePod(ctx context.Context, p
 	return true
 }
 
-func (impl *UserTerminalAccessServiceImpl) StartNodeDebug(nodeName, debugNodeImage string) {
+func (impl *UserTerminalAccessServiceImpl) StartNodeDebug(nodeName, debugNodeImage string, userId int32) {
 	nodeDebugCmds := []string{"kubectl", "debug", "-i", "node", nodeName, fmt.Sprintf("--image=%s", debugNodeImage)}
 	utilityPodName := "terminal-access-node-debug-helper"
 	req := &models.UserTerminalSessionRequest{
@@ -1237,7 +1237,7 @@ func (impl *UserTerminalAccessServiceImpl) StartNodeDebug(nodeName, debugNodeIma
 		BaseImage: "quay.io/devtron/ubuntu-k8s-utils:1.22",
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10000*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 
 	defer cancel()
 	err := impl.startTerminalPod(ctx, utilityPodName, req, true)
@@ -1254,11 +1254,15 @@ func (impl *UserTerminalAccessServiceImpl) StartNodeDebug(nodeName, debugNodeIma
 	}
 	stdOut, _, err := impl.terminalSessionHandler.RunCmdInRemotePod(terminalRequest, nodeDebugCmds)
 	if err != nil {
+		impl.Logger.Errorw("error in creating node debug pod ", "node", nodeName, "err", err)
+		impl.Logger.Warnw("deleting utility pod used to create node debug pod", "utilityPodName", utilityPodName)
+		impl.forceDeletePod(ctx, utilityPodName, req.Namespace, req.ClusterId, userId)
 		return
 	}
 	outputString := stdOut.String()
 	nodeDebugPodName := strings.Split(strings.Split(outputString, "pod ")[1], " ")[0]
-	impl.Logger.Infow(nodeDebugPodName)
-	impl.forceDeletePod(ctx, utilityPodName, req.Namespace, req.ClusterId, 2)
+	impl.Logger.Infow("node debug pod got created ", "podName", nodeDebugPodName, "nodeName", nodeName)
+	impl.Logger.Warnw("deleting utility pod used to create node debug pod", "utilityPodName", utilityPodName)
+	impl.forceDeletePod(ctx, utilityPodName, req.Namespace, req.ClusterId, userId)
 	//TODO:store and pass the node-debugger pod data as terminal pod
 }

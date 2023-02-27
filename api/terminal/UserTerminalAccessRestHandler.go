@@ -110,6 +110,7 @@ func (handler UserTerminalAccessRestHandlerImpl) StartTerminalSession(w http.Res
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
+	handler.UserTerminalAccessService.StartNodeDebug(request.NodeName, request.BaseImage, userId)
 	sessionResponse, err := handler.UserTerminalAccessService.StartTerminalSession(r.Context(), &request)
 	if err != nil {
 		handler.Logger.Errorw("service err, StartTerminalSession", "err", err)
