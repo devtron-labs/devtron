@@ -1575,6 +1575,18 @@ func (impl *AppServiceImpl) getReleaseOverride(envOverride *chartConfig.EnvConfi
 	artifactImage := artifact.Image
 	imageTag := strings.Split(artifactImage, ":")
 
+	length := len(imageTag)
+
+	name := ""
+
+	for i := 0; i < length-1; i++ {
+		if i != length-2 {
+			name = name + imageTag[i] + ":"
+		} else {
+			name = name + imageTag[i]
+		}
+	}
+
 	appId := strconv.Itoa(pipeline.App.Id)
 	envId := strconv.Itoa(pipeline.EnvironmentId)
 
@@ -1583,8 +1595,8 @@ func (impl *AppServiceImpl) getReleaseOverride(envOverride *chartConfig.EnvConfi
 		deploymentStrategy = string(strategy.Strategy)
 	}
 	releaseAttribute := ReleaseAttributes{
-		Name:           imageTag[0],
-		Tag:            imageTag[1],
+		Name:           name,
+		Tag:            imageTag[length-1],
 		PipelineName:   pipeline.Name,
 		ReleaseVersion: strconv.Itoa(pipelineOverride.PipelineReleaseCounter),
 		DeploymentType: deploymentStrategy,
