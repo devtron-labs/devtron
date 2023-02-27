@@ -16,7 +16,7 @@ sources:
   - https://github.com/devtron-labs/charts
 dependencies:
 - name: argo-cd
-  version: "5.2.0"
+  version: "5.9.1"
   repository: https://argoproj.github.io/argo-helm
   condition: argo-cd.enabled
 - name: security
