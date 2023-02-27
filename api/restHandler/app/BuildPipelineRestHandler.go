@@ -207,6 +207,14 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
+	isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
+	if !isSuperAdmin || err != nil {
+		if err != nil {
+			handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
+		}
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
 	var patchRequest bean.CiPatchRequest
 	err = decoder.Decode(&patchRequest)
 	patchRequest.UserId = userId

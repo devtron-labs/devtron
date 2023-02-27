@@ -165,7 +165,14 @@ func (handler AppListingRestHandlerImpl) FetchJobs(w http.ResponseWriter, r *htt
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-
+	isSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
+	if !isSuperAdmin || err != nil {
+		if err != nil {
+			handler.logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
+		}
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
 	var fetchJobListingRequest app.FetchAppListingRequest
 	decoder := json.NewDecoder(r.Body)
 	err = decoder.Decode(&fetchJobListingRequest)
@@ -195,7 +202,14 @@ func (handler AppListingRestHandlerImpl) FetchOverviewCiPipelines(w http.Respons
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-
+	isSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
+	if !isSuperAdmin || err != nil {
+		if err != nil {
+			handler.logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
+		}
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
 	vars := mux.Vars(r)
 	jobId, err := strconv.Atoi(vars["jobId"])
 	if err != nil {
