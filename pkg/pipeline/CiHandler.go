@@ -170,11 +170,12 @@ type GitTriggerInfoResponse struct {
 }
 
 type Trigger struct {
-	PipelineId      int
-	CommitHashes    map[int]bean.GitCommit
-	CiMaterials     []*pipelineConfig.CiPipelineMaterial
-	TriggeredBy     int32
-	InvalidateCache bool
+	PipelineId                int
+	CommitHashes              map[int]bean.GitCommit
+	CiMaterials               []*pipelineConfig.CiPipelineMaterial
+	TriggeredBy               int32
+	InvalidateCache           bool
+	ExtraEnvironmentVariables map[string]string // extra env variables which will be used for CI
 }
 
 const WorkflowCancel = "CANCELLED"
@@ -184,16 +185,17 @@ const Starting = "Starting"
 
 func (impl *CiHandlerImpl) HandleCIManual(ciTriggerRequest bean.CiTriggerRequest) (int, error) {
 	impl.Logger.Debugw("HandleCIManual for pipeline ", "PipelineId", ciTriggerRequest.PipelineId)
-	commitHashes, err := impl.buildManualTriggerCommitHashes(ciTriggerRequest)
+	commitHashes, extraEnvironmentVariables, err := impl.buildManualTriggerCommitHashes(ciTriggerRequest)
 	if err != nil {
 		return 0, err
 	}
 	trigger := Trigger{
-		PipelineId:      ciTriggerRequest.PipelineId,
-		CommitHashes:    commitHashes,
-		CiMaterials:     nil,
-		TriggeredBy:     ciTriggerRequest.TriggeredBy,
-		InvalidateCache: ciTriggerRequest.InvalidateCache,
+		PipelineId:                ciTriggerRequest.PipelineId,
+		CommitHashes:              commitHashes,
+		CiMaterials:               nil,
+		TriggeredBy:               ciTriggerRequest.TriggeredBy,
+		InvalidateCache:           ciTriggerRequest.InvalidateCache,
+		ExtraEnvironmentVariables: extraEnvironmentVariables,
 	}
 	id, err := impl.ciService.TriggerCiPipeline(trigger)
 	if err != nil {
@@ -230,10 +232,11 @@ func (impl *CiHandlerImpl) HandleCIWebhook(gitCiTriggerRequest bean.GitCiTrigger
 	}
 
 	trigger := Trigger{
-		PipelineId:   ciPipeline.Id,
-		CommitHashes: commitHashes,
-		CiMaterials:  ciMaterials,
-		TriggeredBy:  gitCiTriggerRequest.TriggeredBy,
+		PipelineId:                ciPipeline.Id,
+		CommitHashes:              commitHashes,
+		CiMaterials:               ciMaterials,
+		TriggeredBy:               gitCiTriggerRequest.TriggeredBy,
+		ExtraEnvironmentVariables: gitCiTriggerRequest.ExtraEnvironmentVariables,
 	}
 	id, err := impl.ciService.TriggerCiPipeline(trigger)
 	if err != nil {
@@ -868,14 +871,15 @@ func SetGitCommitValuesForBuildingCommitHash(ciMaterial *pipelineConfig.CiPipeli
 	return newGitCommit
 }
 
-func (impl *CiHandlerImpl) buildManualTriggerCommitHashes(ciTriggerRequest bean.CiTriggerRequest) (map[int]bean.GitCommit, error) {
+func (impl *CiHandlerImpl) buildManualTriggerCommitHashes(ciTriggerRequest bean.CiTriggerRequest) (map[int]bean.GitCommit, map[string]string, error) {
 	commitHashes := map[int]bean.GitCommit{}
+	extraEnvironmentVariables := make(map[string]string)
 	for _, ciPipelineMaterial := range ciTriggerRequest.CiPipelineMaterial {
 
 		pipeLineMaterialFromDb, err := impl.ciPipelineMaterialRepository.GetById(ciPipelineMaterial.Id)
 		if err != nil {
 			impl.Logger.Errorw("err in fetching pipeline material by id", "err", err)
-			return map[int]bean.GitCommit{}, err
+			return map[int]bean.GitCommit{}, nil, err
 		}
 
 		pipelineType := pipeLineMaterialFromDb.Type
@@ -883,22 +887,22 @@ func (impl *CiHandlerImpl) buildManualTriggerCommitHashes(ciTriggerRequest bean.
 			gitCommit, err := impl.BuildManualTriggerCommitHashesForSourceTypeBranchFix(ciPipelineMaterial, pipeLineMaterialFromDb)
 			if err != nil {
 				impl.Logger.Errorw("err", "err", err)
-				return map[int]bean.GitCommit{}, err
+				return map[int]bean.GitCommit{}, nil, err
 			}
 			commitHashes[ciPipelineMaterial.Id] = gitCommit
 
 		} else if pipelineType == pipelineConfig.SOURCE_TYPE_WEBHOOK {
-			gitCommit, err := impl.BuildManualTriggerCommitHashesForSourceTypeWebhook(ciPipelineMaterial, pipeLineMaterialFromDb)
+			gitCommit, extraEnvVariables, err := impl.BuildManualTriggerCommitHashesForSourceTypeWebhook(ciPipelineMaterial, pipeLineMaterialFromDb)
 			if err != nil {
 				impl.Logger.Errorw("err", "err", err)
-				return map[int]bean.GitCommit{}, err
+				return map[int]bean.GitCommit{}, nil, err
 			}
 			commitHashes[ciPipelineMaterial.Id] = gitCommit
-
+			extraEnvironmentVariables = extraEnvVariables
 		}
 
 	}
-	return commitHashes, nil
+	return commitHashes, extraEnvironmentVariables, nil
 }
 
 func (impl *CiHandlerImpl) BuildManualTriggerCommitHashesForSourceTypeBranchFix(ciPipelineMaterial bean.CiPipelineMaterial, pipeLineMaterialFromDb *pipelineConfig.CiPipelineMaterial) (bean.GitCommit, error) {
@@ -931,19 +935,21 @@ func (impl *CiHandlerImpl) BuildManualTriggerCommitHashesForSourceTypeBranchFix(
 	return gitCommit, nil
 }
 
-func (impl *CiHandlerImpl) BuildManualTriggerCommitHashesForSourceTypeWebhook(ciPipelineMaterial bean.CiPipelineMaterial, pipeLineMaterialFromDb *pipelineConfig.CiPipelineMaterial) (bean.GitCommit, error) {
+func (impl *CiHandlerImpl) BuildManualTriggerCommitHashesForSourceTypeWebhook(ciPipelineMaterial bean.CiPipelineMaterial, pipeLineMaterialFromDb *pipelineConfig.CiPipelineMaterial) (bean.GitCommit, map[string]string, error) {
 	webhookDataInput := ciPipelineMaterial.GitCommit.WebhookData
 
 	// fetch webhook data on the basis of Id
 	webhookDataRequest := &gitSensor.WebhookDataRequest{
-		Id: webhookDataInput.Id,
+		Id:                   webhookDataInput.Id,
+		CiPipelineMaterialId: ciPipelineMaterial.Id,
 	}
 
-	webhookData, err := impl.gitSensorClient.GetWebhookData(webhookDataRequest)
+	webhookAndCiData, err := impl.gitSensorClient.GetWebhookData(webhookDataRequest)
 	if err != nil {
 		impl.Logger.Errorw("err", "err", err)
-		return bean.GitCommit{}, err
+		return bean.GitCommit{}, nil, err
 	}
+	webhookData := webhookAndCiData.WebhookData
 
 	// if webhook event is of merged type, then fetch latest commit for target branch
 	if webhookData.EventActionType == bean.WEBHOOK_EVENT_MERGED_ACTION_TYPE {
@@ -952,7 +958,7 @@ func (impl *CiHandlerImpl) BuildManualTriggerCommitHashesForSourceTypeWebhook(ci
 		targetBranchName := webhookData.Data[bean.WEBHOOK_SELECTOR_TARGET_BRANCH_NAME_NAME]
 		if targetBranchName == "" {
 			impl.Logger.Error("target branch not found from webhook data")
-			return bean.GitCommit{}, err
+			return bean.GitCommit{}, nil, err
 		}
 
 		// get latest commit hash for target branch
@@ -965,7 +971,7 @@ func (impl *CiHandlerImpl) BuildManualTriggerCommitHashesForSourceTypeWebhook(ci
 
 		if err != nil {
 			impl.Logger.Errorw("err", "err", err)
-			return bean.GitCommit{}, err
+			return bean.GitCommit{}, nil, err
 		}
 
 		// update webhookData (local) with target latest hash
@@ -986,7 +992,7 @@ func (impl *CiHandlerImpl) BuildManualTriggerCommitHashesForSourceTypeWebhook(ci
 		},
 	}
 
-	return gitCommit, nil
+	return gitCommit, webhookAndCiData.ExtraEnvironmentVariables, nil
 }
 
 func (impl *CiHandlerImpl) getLastSeenCommit(ciMaterialId int) (bean.GitCommit, error) {

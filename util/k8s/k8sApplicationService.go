@@ -128,7 +128,7 @@ func (impl *K8sApplicationServiceImpl) FilterServiceAndIngress(ctx context.Conte
 			group := impl.extractResourceValue(resourceItem, "group")
 			version := impl.extractResourceValue(resourceItem, "version")
 			req := ResourceRequestBean{
-				AppId: appId,
+				AppId:     appId,
 				ClusterId: appDetail.ClusterId,
 				AppIdentifier: &client.AppIdentifier{
 					ClusterId: appDetail.ClusterId,
