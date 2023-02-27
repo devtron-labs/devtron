@@ -135,6 +135,7 @@ func (repo AppRepositoryImpl) CheckAppExists(appNames []string) ([]*App, error) 
 	err := repo.dbConnection.
 		Model(&apps).
 		Where("app_name in (?)", pg.In(appNames)).
+		Where("active = ?", true).
 		Select()
 	return apps, err
 }
