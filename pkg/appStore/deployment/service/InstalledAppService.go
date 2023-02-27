@@ -982,11 +982,12 @@ func checkHibernate(impl InstalledAppServiceImpl, resp *bean2.AppDetailContainer
 		if currNode["parentRefs"] == nil {
 
 			res, err := impl.acdClient.GetResource(ctx, rQuery)
+			if err != nil {
+				impl.logger.Errorw("GRPC_GET_RESOURCE", "data", res, "timeTaken", time.Since(time.Now()), "err", err)
+				return responseTree
+			}
 			if res.Manifest != nil {
 				manifest, _ := gjson.Parse(*res.Manifest).Value().(map[string]interface{})
-				if err != nil {
-					impl.logger.Errorw("GRPC_GET_RESOURCE", "data", res, "timeTaken", time.Since(time.Now()), "err", err)
-				}
 				replicas := util3.InterfaceToMapAdapter(manifest["spec"])["replicas"]
 				if replicas != nil {
 					currNode["canBeHibernated"] = true
