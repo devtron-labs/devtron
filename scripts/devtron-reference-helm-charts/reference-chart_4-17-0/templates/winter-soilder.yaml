@@ -1,6 +1,6 @@
 {{- if .Values.winterSoilder.enable  }}
 
-{- if  .Values.winterSoilder.apiVersion}}
+{{- if  .Values.winterSoilder.apiVersion}}
 apiVersion: {{ $.Values.winterSoilder.apiVersion}}
 {{- else }}
 apiVersion: pincher.devtron.ai/v1alpha1 

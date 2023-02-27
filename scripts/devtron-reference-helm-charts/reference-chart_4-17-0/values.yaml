@@ -278,6 +278,10 @@ istio:
       #   - destination:
       #       host: service2
 
+hibernator:
+  enable: false
+  
+
 dbMigrationConfig:
   enabled: false
 
@@ -431,6 +435,18 @@ rawYaml: []
 #     app: sample-metrics-app
 #    sessionAffinity: None
 #    type: ClusterIP
+
+winterSoilder:
+  enable: false
+  apiVersion: pincher.devtron.ai/v1alpha1
+  labels: {}
+  annotations: {}
+  timeRangesWithZone: {}
+  # timeZone: "Asia/Kolkata"
+  # timeRanges: []
+  action: sleep
+  fieldSelector: []
+  # - AfterTime(AddTime(ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '5m'), Now())
 
 topologySpreadConstraints: []
   # - maxSkew: 1
