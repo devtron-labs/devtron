@@ -167,6 +167,19 @@ istio:
         - destination:
             host: service2
 
+winterSoilder:
+  enabled: false
+  apiVersion: pincher.devtron.ai/v1alpha1
+  annotation: {}
+  labels: {}
+  timeRangesWithZone:
+    timeZone: "Asia/Kolkata"
+    timeRanges: []
+  action: sleep
+  targetReplicas: [1]
+  fieldSelector: 
+    - AfterTime(AddTime(ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '5m'), Now())
+
 flaggerCanary:
   enabled: false
   labels: {}
