@@ -118,7 +118,7 @@ secret:
   enabled: false
 
 service:
-  enable: false
+  enabled: true
   type: ClusterIP
   #  name: "1234567890123456789012345678901234567890123456789012345678901234567890"
   annotations: {}
@@ -129,7 +129,7 @@ server:
   deployment:
     image_tag: 1-95af053
     image: ""
-deploymentType: "BLUE-GREEN"
+deploymentType: "RECREATE"
 
 topologySpreadConstraints:
   - maxSkew: 1
@@ -160,7 +160,7 @@ LivenessProbe:
 
 winterSoilder:
   apiVersion: pincher.devtron.ai/v1alpha1 
-  enable: true
+  enabled: true
   annotations: {}
   labels: {}
   timeRangesWithZone:

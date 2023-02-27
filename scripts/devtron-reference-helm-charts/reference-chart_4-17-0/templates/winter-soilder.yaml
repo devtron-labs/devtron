@@ -1,9 +1,7 @@
-{{- if .Values.winterSoilder.enable  }}
+{{- if .Values.winterSoilder.enabled  }}
 
-{{- if  .Values.winterSoilder.apiVersion}}
-apiVersion: {{ $.Values.winterSoilder.apiVersion}}
-{{- else }}
-apiVersion: pincher.devtron.ai/v1alpha1 
+{{- if  .Values.winterSoilder.apiVersion }}
+apiVersion: {{ $.Values.winterSoilder.apiVersion }}
 {{- end }}
 kind: Hibernator
 
@@ -38,12 +36,10 @@ spec:
           namespaceSelector:
             name: {{ $.Release.Namespace }}
       exclusions: []
-  action: {{$.Values.winterSoilder.action}}
-  {{- if eq .Values.winterSoilder.action "scale"}}
-  {{- if  .Values.winterSoilder.targetReplicas}}
-  targetReplicas: {{$.Values.winterSoilder.targetReplicas}}
-  {{- else }}
-  targetReplicas: [1]
+  action: {{ $.Values.winterSoilder.action }}
+  {{- if eq .Values.winterSoilder.action "scale" }}
+  {{- if  .Values.winterSoilder.targetReplicas }}
+  targetReplicas: {{ $.Values.winterSoilder.targetReplicas }}
   {{- end }}
   {{- end}}
 {{- end}}

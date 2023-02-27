@@ -114,6 +114,7 @@ secret:
   enabled: false
 
 service:
+  enabled: true
   type: ClusterIP
 #  name: "1234567890123456789012345678901234567890123456789012345678901234567890"
   annotations: {}
@@ -437,7 +438,7 @@ rawYaml: []
 #    type: ClusterIP
 
 winterSoilder:
-  enable: false
+  enabled: false
   apiVersion: pincher.devtron.ai/v1alpha1
   labels: {}
   annotations: {}
