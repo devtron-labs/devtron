@@ -320,6 +320,7 @@ func (impl *ChartRepositoryServiceImpl) convertFromDbResponse(model *chartRepoRe
 	chartRepo.Default = model.Default
 	chartRepo.Active = model.Active
 	chartRepo.AllowInsecureConnection = model.AllowInsecureConnection
+	chartRepo.IsOCIRepo = model.IsOCIRepo
 	return chartRepo
 }
 
@@ -347,6 +348,7 @@ func (impl *ChartRepositoryServiceImpl) GetChartRepoList() ([]*ChartRepoDto, err
 		}
 		chartRepo.AllowInsecureConnection = model.AllowInsecureConnection
 		chartRepos = append(chartRepos, chartRepo)
+		chartRepo.IsOCIRepo = model.IsOCIRepo
 	}
 	return chartRepos, nil
 }
