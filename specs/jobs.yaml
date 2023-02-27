@@ -46,7 +46,7 @@ paths:
           required: true
           schema:
             type: integer
-  /orchestrator/job//ci-pipeline/patch:
+  /orchestrator/job/ci-pipeline/patch:
       post:
         description: Create/Update ci pipeline.
         operationId: PatchCiPipeline
