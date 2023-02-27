@@ -100,6 +100,7 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 	chartRepo.Default = false
 	chartRepo.External = true
 	chartRepo.AllowInsecureConnection = request.AllowInsecureConnection
+	chartRepo.IsOCIRepo = request.IsOCIRepo
 	err = impl.repoRepository.Save(chartRepo, tx)
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
@@ -150,6 +151,14 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 		secretData["type"] = "helm"
 		secretData["url"] = chartRepo.Url
 
+		var enableOCI string
+		if chartRepo.IsOCIRepo {
+			enableOCI = "true"
+		} else {
+			enableOCI = "false"
+		}
+		secretData["enableOCI"] = enableOCI
+
 		labels := make(map[string]string)
 		labels["argocd.argoproj.io/secret-type"] = "repository"
 
@@ -196,6 +205,7 @@ func (impl *ChartRepositoryServiceImpl) UpdateChartRepo(request *ChartRepoDto) (
 	chartRepo.UpdatedBy = request.UserId
 	chartRepo.UpdatedOn = time.Now()
 	chartRepo.AllowInsecureConnection = request.AllowInsecureConnection
+	chartRepo.IsOCIRepo = request.IsOCIRepo
 	err = impl.repoRepository.Update(chartRepo, tx)
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
@@ -217,22 +227,54 @@ func (impl *ChartRepositoryServiceImpl) UpdateChartRepo(request *ChartRepoDto) (
 	}
 	updateSuccess := false
 	retryCount := 0
+	//for !updateSuccess && retryCount < 3 {
+	//	retryCount = retryCount + 1
+	//
+	//	cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//	data := impl.updateData(cm.Data, request)
+	//	cm.Data = data
+	//	_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+	//	if err != nil {
+	//		impl.logger.Warnw(" config map failed", "err", err)
+	//		continue
+	//	}
+	//	if err == nil {
+	//		impl.logger.Warnw(" config map apply succeeded", "on retryCount", retryCount)
+	//		updateSuccess = true
+	//	}
+	//}
 	for !updateSuccess && retryCount < 3 {
+
 		retryCount = retryCount + 1
 
-		cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
-		if err != nil {
-			return nil, err
+		secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, chartRepo.Name, client)
+
+		secretData := make(map[string]string)
+		secretData["name"] = chartRepo.Name
+		secretData["username"] = chartRepo.UserName
+		secretData["password"] = chartRepo.Password
+		secretData["type"] = "helm"
+		secretData["url"] = chartRepo.Url
+
+		var enableOCI string
+		if chartRepo.IsOCIRepo {
+			enableOCI = "true"
+		} else {
+			enableOCI = "false"
 		}
-		data := impl.updateData(cm.Data, request)
-		cm.Data = data
-		_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+		secretData["enableOCI"] = enableOCI
+		labels := make(map[string]string)
+		labels["argocd.argoproj.io/secret-type"] = "repository"
+
+		secret.StringData = secretData
+
+		_, err = impl.K8sUtil.UpdateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, secret, client)
 		if err != nil {
-			impl.logger.Warnw(" config map failed", "err", err)
 			continue
-		}
-		if err == nil {
-			impl.logger.Warnw(" config map apply succeeded", "on retryCount", retryCount)
+		} else {
 			updateSuccess = true
 		}
 	}
