@@ -31,7 +31,6 @@ type DevtronAppBuildRestHandler interface {
 	GetExternalCi(w http.ResponseWriter, r *http.Request)
 	GetExternalCiById(w http.ResponseWriter, r *http.Request)
 	PatchCiPipelines(w http.ResponseWriter, r *http.Request)
-	PatchJobCiPipelines(w http.ResponseWriter, r *http.Request)
 	TriggerCiPipeline(w http.ResponseWriter, r *http.Request)
 	TriggerJobCiPipeline(w http.ResponseWriter, r *http.Request)
 	GetCiPipelineMin(w http.ResponseWriter, r *http.Request)
@@ -47,15 +46,12 @@ type DevtronAppBuildRestHandler interface {
 
 type DevtronAppBuildMaterialRestHandler interface {
 	CreateMaterial(w http.ResponseWriter, r *http.Request)
-	CreateJobMaterial(w http.ResponseWriter, r *http.Request)
 	UpdateMaterial(w http.ResponseWriter, r *http.Request)
-	UpdateJobMaterial(w http.ResponseWriter, r *http.Request)
 	FetchMaterials(w http.ResponseWriter, r *http.Request)
 	RefreshMaterials(w http.ResponseWriter, r *http.Request)
 	FetchMaterialInfo(w http.ResponseWriter, r *http.Request)
 	FetchChanges(w http.ResponseWriter, r *http.Request)
 	DeleteMaterial(w http.ResponseWriter, r *http.Request)
-	DeleteJobMaterial(w http.ResponseWriter, r *http.Request)
 	GetCommitMetadataForPipelineMaterial(w http.ResponseWriter, r *http.Request)
 }
 
@@ -234,76 +230,15 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-		return
-	}
-
-	pipelineData, err := handler.pipelineRepository.FindActiveByAppIdAndPipelineId(patchRequest.AppId, patchRequest.CiPipeline.Id)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	var environmentIds []int
-	for _, pipeline := range pipelineData {
-		environmentIds = append(environmentIds, pipeline.EnvironmentId)
-	}
-	if handler.appWorkflowService.CheckCdPipelineByCiPipelineId(patchRequest.CiPipeline.Id) {
-		for _, envId := range environmentIds {
-			envObject := handler.enforcerUtil.GetEnvRBACNameByCiPipelineIdAndEnvId(patchRequest.CiPipeline.Id, envId)
-			if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, envObject); !ok {
-				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-				return
+	if app.IsJob {
+		isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
+		if !isSuperAdmin || err != nil {
+			if err != nil {
+				handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
 			}
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+			return
 		}
-	}
-
-	createResp, err := handler.pipelineBuilder.PatchCiPipeline(&patchRequest)
-	if err != nil {
-		handler.Logger.Errorw("service err, PatchCiPipelines", "err", err, "PatchCiPipelines", patchRequest)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	common.WriteJsonResp(w, err, createResp, http.StatusOK)
-}
-
-func (handler PipelineConfigRestHandlerImpl) PatchJobCiPipelines(w http.ResponseWriter, r *http.Request) {
-	decoder := json.NewDecoder(r.Body)
-	userId, err := handler.userAuthService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
-	if !isSuperAdmin || err != nil {
-		if err != nil {
-			handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
-		}
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	var patchRequest bean.CiPatchRequest
-	err = decoder.Decode(&patchRequest)
-	patchRequest.UserId = userId
-	if err != nil {
-		handler.Logger.Errorw("request err, PatchCiPipelines", "err", err, "PatchCiPipelines", patchRequest)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	handler.Logger.Infow("request payload, PatchCiPipelines", "PatchCiPipelines", patchRequest)
-	err = handler.validator.Struct(patchRequest)
-	if err != nil {
-		handler.Logger.Errorw("validation err", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	handler.Logger.Debugw("update request ", "req", patchRequest)
-	token := r.Header.Get("token")
-	app, err := handler.pipelineBuilder.GetApp(patchRequest.AppId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
 	}
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
 	var ok bool
@@ -1034,66 +969,21 @@ func (handler PipelineConfigRestHandlerImpl) CreateMaterial(w http.ResponseWrite
 	}
 	var createMaterialDto bean.CreateMaterialDTO
 	err = decoder.Decode(&createMaterialDto)
-	createMaterialDto.UserId = userId
+	app, err := handler.pipelineBuilder.GetApp(createMaterialDto.AppId)
 	if err != nil {
-		handler.Logger.Errorw("request err, CreateMaterial", "err", err, "CreateMaterial", createMaterialDto)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	handler.Logger.Infow("request payload, CreateMaterial", "CreateMaterial", createMaterialDto)
-	err = handler.validator.Struct(createMaterialDto)
-	if err != nil {
-		handler.Logger.Errorw("validation err, CreateMaterial", "err", err, "CreateMaterial", createMaterialDto)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	for _, gitMaterial := range createMaterialDto.Material {
-		validationResult, err := handler.ValidateGitMaterialUrl(gitMaterial.GitProviderId, gitMaterial.Url)
-		if err != nil {
-			handler.Logger.Errorw("service err, CreateMaterial", "err", err, "CreateMaterial", createMaterialDto)
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		} else {
-			if !validationResult {
-				handler.Logger.Errorw("validation err, CreateMaterial : invalid git material url", "err", err, "gitMaterialUrl", gitMaterial.Url, "CreateMaterial", createMaterialDto)
-				common.WriteJsonResp(w, fmt.Errorf("validation for url failed"), nil, http.StatusBadRequest)
-				return
+	if app.IsJob {
+		isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
+		if !isSuperAdmin || err != nil {
+			if err != nil {
+				handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
 			}
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+			return
 		}
 	}
-	resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(createMaterialDto.AppId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceObject); !ok {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-		return
-	}
-
-	createResp, err := handler.pipelineBuilder.CreateMaterialsForApp(&createMaterialDto)
-	if err != nil {
-		handler.Logger.Errorw("service err, CreateMaterial", "err", err, "CreateMaterial", createMaterialDto)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	common.WriteJsonResp(w, err, createResp, http.StatusOK)
-}
-
-func (handler PipelineConfigRestHandlerImpl) CreateJobMaterial(w http.ResponseWriter, r *http.Request) {
-	token := r.Header.Get("token")
-	decoder := json.NewDecoder(r.Body)
-	userId, err := handler.userAuthService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
-	if !isSuperAdmin || err != nil {
-		if err != nil {
-			handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
-		}
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	var createMaterialDto bean.CreateMaterialDTO
-	err = decoder.Decode(&createMaterialDto)
 	createMaterialDto.UserId = userId
 	if err != nil {
 		handler.Logger.Errorw("request err, CreateMaterial", "err", err, "CreateMaterial", createMaterialDto)
@@ -1146,64 +1036,21 @@ func (handler PipelineConfigRestHandlerImpl) UpdateMaterial(w http.ResponseWrite
 	}
 	var updateMaterialDto bean.UpdateMaterialDTO
 	err = decoder.Decode(&updateMaterialDto)
-	updateMaterialDto.UserId = userId
+	app, err := handler.pipelineBuilder.GetApp(updateMaterialDto.AppId)
 	if err != nil {
-		handler.Logger.Errorw("request err, UpdateMaterial", "err", err, "UpdateMaterial", updateMaterialDto)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	handler.Logger.Infow("request payload, UpdateMaterial", "UpdateMaterial", updateMaterialDto)
-	err = handler.validator.Struct(updateMaterialDto)
-	if err != nil {
-		handler.Logger.Errorw("validation err, UpdateMaterial", "err", err, "UpdateMaterial", updateMaterialDto)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	validationResult, err := handler.ValidateGitMaterialUrl(updateMaterialDto.Material.GitProviderId, updateMaterialDto.Material.Url)
-	if err != nil {
-		handler.Logger.Errorw("service err, UpdateMaterial", "err", err, "UpdateMaterial", updateMaterialDto)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	} else {
-		if !validationResult {
-			handler.Logger.Errorw("validation err, UpdateMaterial : invalid git material url", "err", err, "gitMaterialUrl", updateMaterialDto.Material.Url, "UpdateMaterial", updateMaterialDto)
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	if app.IsJob {
+		isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
+		if !isSuperAdmin || err != nil {
+			if err != nil {
+				handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
+			}
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 			return
 		}
 	}
-	resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(updateMaterialDto.AppId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceObject); !ok {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-		return
-	}
-
-	createResp, err := handler.pipelineBuilder.UpdateMaterialsForApp(&updateMaterialDto)
-	if err != nil {
-		handler.Logger.Errorw("service err, UpdateMaterial", "err", err, "UpdateMaterial", updateMaterialDto)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	common.WriteJsonResp(w, err, createResp, http.StatusOK)
-}
-
-func (handler PipelineConfigRestHandlerImpl) UpdateJobMaterial(w http.ResponseWriter, r *http.Request) {
-	token := r.Header.Get("token")
-	decoder := json.NewDecoder(r.Body)
-	userId, err := handler.userAuthService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
-	if !isSuperAdmin || err != nil {
-		if err != nil {
-			handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
-		}
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	var updateMaterialDto bean.UpdateMaterialDTO
-	err = decoder.Decode(&updateMaterialDto)
 	updateMaterialDto.UserId = userId
 	if err != nil {
 		handler.Logger.Errorw("request err, UpdateMaterial", "err", err, "UpdateMaterial", updateMaterialDto)
@@ -1253,53 +1100,23 @@ func (handler PipelineConfigRestHandlerImpl) DeleteMaterial(w http.ResponseWrite
 	}
 	var deleteMaterial bean.UpdateMaterialDTO
 	err = decoder.Decode(&deleteMaterial)
-	deleteMaterial.UserId = userId
+	var updateMaterialDto bean.UpdateMaterialDTO
+	err = decoder.Decode(&updateMaterialDto)
+	app, err := handler.pipelineBuilder.GetApp(deleteMaterial.AppId)
 	if err != nil {
-		handler.Logger.Errorw("request err, DeleteMaterial", "err", err, "DeleteMaterial", deleteMaterial)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	handler.Logger.Infow("request payload, DeleteMaterial", "DeleteMaterial", deleteMaterial)
-	err = handler.validator.Struct(deleteMaterial)
-	if err != nil {
-		handler.Logger.Errorw("validation err, DeleteMaterial", "err", err, "DeleteMaterial", deleteMaterial)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	//rbac starts
-	resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(deleteMaterial.AppId)
-	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceObject); !ok {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-		return
-	}
-	//rbac ends
-	err = handler.pipelineBuilder.DeleteMaterial(&deleteMaterial)
-	if err != nil {
-		handler.Logger.Errorw("service err, DeleteMaterial", "err", err, "DeleteMaterial", deleteMaterial)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	common.WriteJsonResp(w, err, GIT_MATERIAL_DELETE_SUCCESS_RESP, http.StatusOK)
-}
-
-func (handler PipelineConfigRestHandlerImpl) DeleteJobMaterial(w http.ResponseWriter, r *http.Request) {
-	decoder := json.NewDecoder(r.Body)
-	userId, err := handler.userAuthService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
-	if !isSuperAdmin || err != nil {
-		if err != nil {
-			handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
+	if app.IsJob {
+		isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
+		if !isSuperAdmin || err != nil {
+			if err != nil {
+				handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
+			}
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+			return
 		}
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
 	}
-	var deleteMaterial bean.UpdateMaterialDTO
-	err = decoder.Decode(&deleteMaterial)
 	deleteMaterial.UserId = userId
 	if err != nil {
 		handler.Logger.Errorw("request err, DeleteMaterial", "err", err, "DeleteMaterial", deleteMaterial)
