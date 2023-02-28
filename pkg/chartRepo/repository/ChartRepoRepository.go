@@ -23,8 +23,7 @@ import (
 	"github.com/go-pg/pg"
 )
 
-type ChartRepo struct {
-	tableName   struct{}            `sql:"chart_repo"`
+type ChartRepoFields struct {
 	Id          int                 `sql:"id,pk"`
 	Name        string              `sql:"name"`
 	Url         string              `sql:"url"`
@@ -37,7 +36,16 @@ type ChartRepo struct {
 	AuthMode    repository.AuthMode `sql:"auth_mode,notnull"`
 	External    bool                `sql:"external,notnull"`
 	Deleted     bool                `sql:"deleted,notnull"`
+}
+type ChartRepo struct {
+	tableName struct{} `sql:"chart_repo"`
+	ChartRepoFields
 	sql.AuditLog
+}
+type ChartRepoWithDeploymentCount struct {
+	ChartRepoFields
+	sql.AuditLog
+	ActiveDeploymentCount int `sql:"deployment_count,notnull"`
 }
 
 type ChartRepoRepository interface {
@@ -46,6 +54,7 @@ type ChartRepoRepository interface {
 	GetDefault() (*ChartRepo, error)
 	FindById(id int) (*ChartRepo, error)
 	FindAll() ([]*ChartRepo, error)
+	FindAllWithDeploymentCount() ([]*ChartRepoWithDeploymentCount, error)
 	GetConnection() *pg.DB
 	MarkChartRepoDeleted(chartRepo *ChartRepo, tx *pg.Tx) error
 	FindByName(name string) (*ChartRepo, error)
@@ -96,6 +105,20 @@ func (impl ChartRepoRepositoryImpl) FindAll() ([]*ChartRepo, error) {
 	err := impl.dbConnection.Model(&repo).
 		Where("deleted = ?", false).
 		Select()
+	return repo, err
+}
+func (impl ChartRepoRepositoryImpl) FindAllWithDeploymentCount() ([]*ChartRepoWithDeploymentCount, error) {
+	var repo []*ChartRepoWithDeploymentCount
+	query := "select chart_repo.*,count(jq.ia_id ) as deployment_count" +
+		" from chart_repo left join" +
+		" (select aps.chart_repo_id as cr_id ,ia.id as ia_id from installed_app_versions iav" +
+		" inner join installed_apps ia on iav.installed_app_id = ia.id" +
+		" inner join app_store_application_version asav on iav.app_store_application_version_id = asav.id" +
+		" inner join app_store aps on asav.app_store_id = aps.id" +
+		" where ia.active=true and iav.active=true) jq" +
+		" on jq.cr_id = chart_repo.id" +
+		" where chart_repo.deleted = false Group by chart_repo.id;"
+	_, err := impl.dbConnection.Query(&repo, query)
 	return repo, err
 }
 

@@ -190,14 +190,15 @@ type TriggerWorkflowStatus struct {
 }
 
 type CdWorkflowStatus struct {
-	CiPipelineId int    `json:"ci_pipeline_id"`
-	PipelineId   int    `json:"pipeline_id"`
-	PipelineName string `json:"pipeline_name,omitempty"`
-	DeployStatus string `json:"deploy_status"`
-	PreStatus    string `json:"pre_status"`
-	PostStatus   string `json:"post_status"`
-	WorkflowType string `json:"workflow_type,omitempty"`
-	WfrId        int    `json:"wfr_id,omitempty"`
+	CiPipelineId               int    `json:"ci_pipeline_id"`
+	PipelineId                 int    `json:"pipeline_id"`
+	PipelineName               string `json:"pipeline_name,omitempty"`
+	DeployStatus               string `json:"deploy_status"`
+	PreStatus                  string `json:"pre_status"`
+	PostStatus                 string `json:"post_status"`
+	WorkflowType               string `json:"workflow_type,omitempty"`
+	WfrId                      int    `json:"wfr_id,omitempty"`
+	DeploymentAppDeleteRequest bool   `json:"deploymentAppDeleteRequest"`
 }
 
 type CiWorkflowStatus struct {
@@ -205,6 +206,13 @@ type CiWorkflowStatus struct {
 	CiPipelineName    string `json:"ciPipelineName,omitempty"`
 	CiStatus          string `json:"ciStatus"`
 	StorageConfigured bool   `json:"storageConfigured"`
+}
+
+type AppDeploymentStatus struct {
+	AppId        int    `json:"appId"`
+	PipelineId   int    `json:"pipelineId"`
+	DeployStatus string `json:"deployStatus"`
+	WfrId        int    `json:"wfrId,omitempty"`
 }
 
 func NewCdWorkflowRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *CdWorkflowRepositoryImpl {
