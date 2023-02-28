@@ -580,6 +580,10 @@ func (handler AppListingRestHandlerImpl) FetchAppStageStatus(w http.ResponseWrit
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	v := r.URL.Query()
+	isJobParam := v.Get("isJob")
+	isJob := isJobParam == "true"
+
 	handler.logger.Infow("request payload, FetchAppStageStatus", "appId", appId)
 	token := r.Header.Get("token")
 	app, err := handler.pipeline.GetApp(appId)
@@ -597,7 +601,7 @@ func (handler AppListingRestHandlerImpl) FetchAppStageStatus(w http.ResponseWrit
 	}
 	//RBAC enforcer Ends
 
-	triggerView, err := handler.appListingService.FetchAppStageStatus(appId)
+	triggerView, err := handler.appListingService.FetchAppStageStatus(appId, isJob)
 	if err != nil {
 		handler.logger.Errorw("service err, FetchAppStageStatus", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
