@@ -78,6 +78,30 @@ func NewChartRepositoryServiceImpl(logger *zap.SugaredLogger, repoRepository cha
 	}
 }
 
+func (impl *ChartRepositoryServiceImpl) CreateSecretDataForPrivateHelmChart(request *ChartRepoDto) (secretLabel map[string]string, secretData map[string]string) {
+
+	secretLabel = make(map[string]string)
+	secretLabel["argocd.argoproj.io/secret-type"] = "repository"
+
+	secretData = make(map[string]string)
+	secretData["name"] = request.Name
+	secretData["username"] = request.UserName
+	secretData["password"] = request.Password
+	secretData["type"] = "helm"
+	secretData["url"] = request.Url
+
+	var enableOCI string
+	if request.IsOCIRepo {
+		enableOCI = "true"
+	} else {
+		enableOCI = "false"
+	}
+	secretData["enableOCI"] = enableOCI
+
+	return secretLabel, secretData
+
+}
+
 func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error) {
 	dbConnection := impl.repoRepository.GetConnection()
 	tx, err := dbConnection.Begin()
@@ -122,50 +146,33 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 
 	updateSuccess := false
 	retryCount := 0
-	//for !updateSuccess && retryCount < 3 {
-	//	retryCount = retryCount + 1
-	//
-	//	cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	data := impl.updateData(cm.Data, request)
-	//	cm.Data = data
-	//	_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
-	//	if err != nil {
-	//		continue
-	//	}
-	//	if err == nil {
-	//		updateSuccess = true
-	//	}
-	//}
+
+	isPrivateChart := false
+	if len(chartRepo.UserName) > 0 && len(chartRepo.Password) > 0 {
+		isPrivateChart = true
+	}
 
 	for !updateSuccess && retryCount < 3 {
-
 		retryCount = retryCount + 1
 
-		secretData := make(map[string]string)
-		secretData["name"] = chartRepo.Name
-		secretData["username"] = chartRepo.UserName
-		secretData["password"] = chartRepo.Password
-		secretData["type"] = "helm"
-		secretData["url"] = chartRepo.Url
+		if !isPrivateChart {
 
-		var enableOCI string
-		if chartRepo.IsOCIRepo {
-			enableOCI = "true"
+			cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
+			if err != nil {
+				return nil, err
+			}
+			data := impl.updateData(cm.Data, request)
+			cm.Data = data
+			_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+
 		} else {
-			enableOCI = "false"
+			secretLabel, secretData := impl.CreateSecretDataForPrivateHelmChart(request)
+			_, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, nil, chartRepo.Name, "", client, secretLabel, secretData)
 		}
-		secretData["enableOCI"] = enableOCI
-
-		labels := make(map[string]string)
-		labels["argocd.argoproj.io/secret-type"] = "repository"
-
-		_, err := impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, nil, chartRepo.Name, "", client, labels, secretData)
 		if err != nil {
 			continue
-		} else {
+		}
+		if err == nil {
 			updateSuccess = true
 		}
 	}
@@ -225,59 +232,46 @@ func (impl *ChartRepositoryServiceImpl) UpdateChartRepo(request *ChartRepoDto) (
 	if err != nil {
 		return nil, err
 	}
+
+	isPrivateChart := false
+	if len(chartRepo.UserName) > 0 && len(chartRepo.Password) > 0 {
+		isPrivateChart = true
+	}
+
 	updateSuccess := false
 	retryCount := 0
-	//for !updateSuccess && retryCount < 3 {
-	//	retryCount = retryCount + 1
-	//
-	//	cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	data := impl.updateData(cm.Data, request)
-	//	cm.Data = data
-	//	_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
-	//	if err != nil {
-	//		impl.logger.Warnw(" config map failed", "err", err)
-	//		continue
-	//	}
-	//	if err == nil {
-	//		impl.logger.Warnw(" config map apply succeeded", "on retryCount", retryCount)
-	//		updateSuccess = true
-	//	}
-	//}
 	for !updateSuccess && retryCount < 3 {
 
 		retryCount = retryCount + 1
 
-		secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, chartRepo.Name, client)
-
-		secretData := make(map[string]string)
-		secretData["name"] = chartRepo.Name
-		secretData["username"] = chartRepo.UserName
-		secretData["password"] = chartRepo.Password
-		secretData["type"] = "helm"
-		secretData["url"] = chartRepo.Url
-
-		var enableOCI string
-		if chartRepo.IsOCIRepo {
-			enableOCI = "true"
+		if !isPrivateChart {
+			cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
+			if err != nil {
+				return nil, err
+			}
+			data := impl.updateData(cm.Data, request)
+			cm.Data = data
+			_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+			if err != nil {
+				impl.logger.Warnw(" repo update in config map failed", "err", err)
+				continue
+			}
 		} else {
-			enableOCI = "false"
+			secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, chartRepo.Name, client)
+			_, secretData := impl.CreateSecretDataForPrivateHelmChart(request)
+			secret.StringData = secretData
+			_, err = impl.K8sUtil.UpdateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, secret, client)
+			if err != nil {
+				impl.logger.Warnw("secret update for chart repo failed", "err", err)
+				continue
+			}
 		}
-		secretData["enableOCI"] = enableOCI
-		labels := make(map[string]string)
-		labels["argocd.argoproj.io/secret-type"] = "repository"
-
-		secret.StringData = secretData
-
-		_, err = impl.K8sUtil.UpdateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, secret, client)
-		if err != nil {
-			continue
-		} else {
+		if err == nil {
+			impl.logger.Warnw(" config map apply succeeded", "on retryCount", retryCount)
 			updateSuccess = true
 		}
 	}
+
 	if !updateSuccess {
 		return nil, fmt.Errorf("resouce version not matched with config map attempted 3 times")
 	}
