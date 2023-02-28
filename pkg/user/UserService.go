@@ -325,8 +325,6 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 	userInfo.Id = model.Id
 	//loading policy for safety
 	casbin2.LoadPolicy()
-	//removing duplicate roleFilters
-	userInfo.RoleFilters = impl.userCommonService.RemoveDuplicateRoleFilters(userInfo.RoleFilters)
 	//Starts Role and Mapping
 	var policies []casbin2.Policy
 	if userInfo.SuperAdmin == false {
@@ -665,9 +663,6 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 	groupsModified := false
 	//loading policy for safety
 	casbin2.LoadPolicy()
-	//removing duplicate entries from input roleFilters
-	userInfo.RoleFilters = impl.userCommonService.RemoveDuplicateRoleFilters(userInfo.RoleFilters)
-
 	if userInfo.SuperAdmin == false {
 		//Starts Role and Mapping
 		userRoleModels, err := impl.userAuthRepository.GetUserRoleMappingByUserId(model.Id)
