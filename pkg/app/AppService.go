@@ -27,6 +27,8 @@ import (
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	client2 "github.com/devtron-labs/devtron/api/helm-app"
 	application3 "github.com/devtron-labs/devtron/client/k8s/application"
+	repository4 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
+	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
@@ -154,6 +156,8 @@ type AppServiceImpl struct {
 	appStatusConfig                        *AppServiceConfig
 	gitOpsConfigRepository                 repository.GitOpsConfigRepository
 	appStatusService                       appStatus.AppStatusService
+	installedAppRepository                 repository4.InstalledAppRepository
+	AppStoreDeploymentService              service.AppStoreDeploymentService
 	k8sApplicationService                  k8s.K8sApplicationService
 }
 
@@ -219,6 +223,8 @@ func NewAppService(
 	appStatusConfig *AppServiceConfig,
 	gitOpsConfigRepository repository.GitOpsConfigRepository,
 	appStatusService appStatus.AppStatusService,
+	installedAppRepository repository4.InstalledAppRepository,
+	AppStoreDeploymentService service.AppStoreDeploymentService,
 	k8sApplicationService k8s.K8sApplicationService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:            environmentConfigRepository,
@@ -272,6 +278,8 @@ func NewAppService(
 		appStatusConfig:                        appStatusConfig,
 		gitOpsConfigRepository:                 gitOpsConfigRepository,
 		appStatusService:                       appStatusService,
+		installedAppRepository:                 installedAppRepository,
+		AppStoreDeploymentService:              AppStoreDeploymentService,
 		k8sApplicationService:                  k8sApplicationService,
 	}
 	return appServiceImpl
@@ -1878,6 +1886,7 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Appl
 		impl.logger.Errorw("error on update cd workflow runner, fetch failed for runner type", "wfr", wfr, "app", app, "err", err)
 		return err
 	}
+	wfr.FinishedOn = time.Now()
 	if updateTimedOutStatus {
 		wfr.Status = pipelineConfig.WorkflowTimedOut
 	} else {

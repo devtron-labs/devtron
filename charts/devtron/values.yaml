@@ -1,7 +1,7 @@
 installer:
   repo: "devtron-labs/devtron"
 #  For Kubernetes version < 1.16, set release: legacy. You won't be able to upgrade Devtron unless you upgrade the K8s version to 1.16 or above.
-  release: "v0.6.11" #You can use a branch name or a release tag name as a release, for gitee as source only "main" is supported as of now
+  release: "v0.6.12" #You can use a branch name or a release tag name as a release, for gitee as source only "main" is supported as of now
   image: quay.io/devtron/inception
   tag: 1d2b87e5-185-11095
   source: "github" # Available options are github and gitee
@@ -43,12 +43,12 @@ components:
       sentry: "false"
       sentryEnv: "PRODUCTION"
       applicationMetrics: "true"
-    image: "quay.io/devtron/dashboard:c49004b1-325-12557"
+    image: "quay.io/devtron/dashboard:250c7c3f-325-12823"
     imagePullPolicy: IfNotPresent
 
   devtron:
-    image: "quay.io/devtron/hyperion:c35045c2-280-12565"
-    cicdImage: "quay.io/devtron/devtron:c35045c2-326-12555"
+    image: "quay.io/devtron/hyperion:f12eae0d-280-12836"
+    cicdImage: "quay.io/devtron/devtron:f12eae0d-434-12846"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
     serviceMonitor:
@@ -74,7 +74,7 @@ components:
       #      - devtron.example.com
 
   argocdDexServer:
-    image: "ghcr.io/dexidp/dex:v2.30.2"
+    image: "ghcr.io/dexidp/dex:v2.35.3"
     imagePullPolicy: IfNotPresent
     initContainer:
       authenticator: "quay.io/devtron/authenticator:6e466830-393-11943"
@@ -98,13 +98,13 @@ components:
         SCRIPT_LOCATION: "scripts/sql/"
         GIT_REPO_URL: "https://github.com/devtron-labs/devtron.git"
         DB_NAME: "orchestrator"
-        GIT_HASH: "c35045c218d95741522fee8b27ee42e3956ba4c6"
+        GIT_HASH: "f12eae0d785dc3f98773946516cb2726ed96fdac"
       casbin:
         GIT_BRANCH: "main"
         SCRIPT_LOCATION: "scripts/casbin/"
         GIT_REPO_URL: "https://github.com/devtron-labs/devtron.git"
         DB_NAME: "casbin"
-        GIT_HASH: "c35045c218d95741522fee8b27ee42e3956ba4c6"
+        GIT_HASH: "f12eae0d785dc3f98773946516cb2726ed96fdac"
 
 # values for argocd integration
 argo-cd:
@@ -115,7 +115,7 @@ argo-cd:
       # -- If defined, a repository applied to all Argo CD deployments
       repository: quay.io/argoproj/argocd
       # -- Overrides the global Argo CD image tag whose default is the chart appVersion
-      tag: "v2.4.0"
+      tag: "v2.5.2"
       # -- If defined, a imagePullPolicy applied to all Argo CD deployments
       imagePullPolicy: IfNotPresent
   configs:
