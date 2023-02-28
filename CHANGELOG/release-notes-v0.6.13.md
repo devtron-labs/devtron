@@ -1,3 +1,5 @@
+## v0.6.13
+
 ## Bugs
 - Fix:Source info missing for linked ci (#3032)
 - fix: optimised policy sync calls (#3038)
@@ -7,3 +9,5 @@
 ## Documentation
 ## Others
 - plugin github-PR icon added (#3050)
+
+
