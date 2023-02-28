@@ -81,6 +81,8 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 			return nil, err
 		}
 	} else {
+		//loading policy for safety
+		casbin2.LoadPolicy()
 		//create new user in our db on d basis of info got from google api or hex. assign a basic role
 		model := &repository2.RoleGroup{
 			Name:        request.Name,
@@ -106,7 +108,6 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 			return request, err
 		}
 		model.Id = model.Id
-
 		//Starts Role and Mapping
 		var policies []casbin2.Policy
 		for _, roleFilter := range request.RoleFilters {
@@ -204,6 +205,8 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 		if len(policies) > 0 {
 			pRes := casbin2.AddPolicy(policies)
 			println(pRes)
+			//loading policy for syncing orchestrator to casbin with newly added policies
+			casbin2.LoadPolicy()
 		}
 		//Ends
 	}
@@ -339,6 +342,9 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 		eliminatedRoles[item.RoleId] = item
 	}
 
+	//loading policy for safety
+	casbin2.LoadPolicy()
+
 	// DELETE PROCESS STARTS
 	var eliminatedPolicies []casbin2.Policy
 	items, err := impl.userCommonService.RemoveRolesAndReturnEliminatedPoliciesForGroups(request, existingRoles, eliminatedRoles, tx, token, managerAuth)
@@ -465,7 +471,9 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 	if len(policies) > 0 {
 		casbin2.AddPolicy(policies)
 	}
-
+	//loading policy for syncing orchestrator to casbin with newly added policies
+	//(not calling this method in above if condition because we are also removing policies in this update service)
+	casbin2.LoadPolicy()
 	err = tx.Commit()
 	if err != nil {
 		return nil, err
