@@ -2844,7 +2844,11 @@ func (impl PipelineBuilderImpl) FindAllMatchesByAppName(appName string, isJob bo
 		return nil, err
 	}
 	for _, app := range apps {
-		appsRes = append(appsRes, &AppBean{Id: app.Id, Name: app.AppName})
+		name := app.AppName
+		if isJob {
+			name = app.DisplayName
+		}
+		appsRes = append(appsRes, &AppBean{Id: app.Id, Name: name})
 	}
 	return appsRes, err
 }
