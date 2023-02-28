@@ -1,4 +1,5 @@
 ## Bugs
+- fix: optimised policy sync calls (#3038)
 - fix: fixing migration script for acd app partial delete (#3047)
 ## Enhancements
 ## Documentation
