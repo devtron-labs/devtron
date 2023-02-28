@@ -16,7 +16,6 @@ type UserCommonService interface {
 	RemoveRolesAndReturnEliminatedPolicies(userInfo *bean.UserInfo, existingRoleIds map[int]repository2.UserRoleModel, eliminatedRoleIds map[int]*repository2.UserRoleModel, tx *pg.Tx, token string, managerAuth func(resource, token, object string) bool) ([]casbin2.Policy, error)
 	RemoveRolesAndReturnEliminatedPoliciesForGroups(request *bean.RoleGroup, existingRoles map[int]*repository2.RoleGroupRoleMapping, eliminatedRoles map[int]*repository2.RoleGroupRoleMapping, tx *pg.Tx, token string, managerAuth func(resource string, token string, object string) bool) ([]casbin2.Policy, error)
 	CheckRbacForClusterEntity(cluster, namespace, group, kind, resource, token string, managerAuth func(resource, token, object string) bool) bool
-	RemoveDuplicateRoleFilters(inputFilters []bean.RoleFilter) []bean.RoleFilter
 }
 
 type UserCommonServiceImpl struct {
@@ -363,33 +362,4 @@ func (impl UserCommonServiceImpl) CheckRbacForClusterEntity(cluster, namespace, 
 		}
 	}
 	return true
-}
-
-func (impl UserCommonServiceImpl) RemoveDuplicateRoleFilters(inputFilters []bean.RoleFilter) []bean.RoleFilter {
-	//var roleFilters []bean.RoleFilter
-	//keysMap := make(map[string]bool)
-	////adding the same filters twice to remove duplicate ones
-	//allRoleFilters := make([]bean.RoleFilter, len(inputFilters), 2*len(inputFilters))
-	//allRoleFilters = inputFilters
-	//allRoleFilters = append(allRoleFilters, inputFilters...)
-	//for _, role := range allRoleFilters {
-	//	key := fmt.Sprintf("%s-%s-%s-%s-%s-%s-%s-%s-%s-%s-%s", role.Entity, role.Team, role.Environment,
-	//		role.EntityName, role.Action, role.AccessType, role.Cluster, role.Namespace, role.Group, role.Kind, role.Resource)
-	//	if _, ok := keysMap[key]; !ok {
-	//		roleFilters = append(roleFilters, bean.RoleFilter{
-	//			Entity:      role.Entity,
-	//			Team:        role.Team,
-	//			Environment: role.Environment,
-	//			EntityName:  role.EntityName,
-	//			Action:      role.Action,
-	//			AccessType:  role.AccessType,
-	//			Cluster:     role.Cluster,
-	//			Namespace:   role.Namespace,
-	//			Group:       role.Group,
-	//			Kind:        role.Kind,
-	//			Resource:    role.Resource,
-	//		})
-	//	}
-	//}
-	return inputFilters
 }
