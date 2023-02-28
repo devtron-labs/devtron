@@ -2,12 +2,10 @@ package delete
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/team"
-	util2 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -26,15 +24,19 @@ type DeleteServiceImpl struct {
 	environmentService     cluster.EnvironmentService
 	chartRepositoryService chartRepo.ChartRepositoryService
 	installedAppRepository repository.InstalledAppRepository
-	K8sUtil                util.K8sUtil
-	aCDAuthConfig          *util2.ACDAuthConfig
+	//K8sUtil                util.K8sUtil
+	//aCDAuthConfig          *util2.ACDAuthConfig
 }
 
 func NewDeleteServiceImpl(logger *zap.SugaredLogger,
 	teamService team.TeamService,
 	clusterService cluster.ClusterService,
-	environmentService cluster.EnvironmentService, chartRepositoryService chartRepo.ChartRepositoryService,
-	installedAppRepository repository.InstalledAppRepository, K8sUtil util.K8sUtil, aCDAuthConfig *util2.ACDAuthConfig) *DeleteServiceImpl {
+	environmentService cluster.EnvironmentService,
+	chartRepositoryService chartRepo.ChartRepositoryService,
+	installedAppRepository repository.InstalledAppRepository,
+//K8sUtil util.K8sUtil,
+//aCDAuthConfig *util2.ACDAuthConfig
+) *DeleteServiceImpl {
 	return &DeleteServiceImpl{
 		logger:                 logger,
 		teamService:            teamService,
@@ -42,8 +44,6 @@ func NewDeleteServiceImpl(logger *zap.SugaredLogger,
 		environmentService:     environmentService,
 		chartRepositoryService: chartRepositoryService,
 		installedAppRepository: installedAppRepository,
-		K8sUtil:                K8sUtil,
-		aCDAuthConfig:          aCDAuthConfig,
 	}
 }
 
@@ -73,22 +73,22 @@ func (impl DeleteServiceImpl) DeleteTeam(deleteRequest *team.TeamRequest) error 
 	return nil
 }
 
-func (impl DeleteServiceImpl) DeleteChartSecret(secretName string) error {
-	clusterBean, err := impl.clusterService.FindOne(cluster.DefaultClusterName)
-	if err != nil {
-		return err
-	}
-	cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
-	if err != nil {
-		return err
-	}
-	client, err := impl.K8sUtil.GetClient(cfg)
-	if err != nil {
-		return err
-	}
-	err = impl.K8sUtil.DeleteSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, secretName, client)
-	return err
-}
+//func (impl DeleteServiceImpl) DeleteChartSecret(secretName string) error{
+//	clusterBean, err := impl.clusterService.FindOne(cluster.DefaultClusterName)
+//	if err != nil {
+//		return err
+//	}
+//	cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
+//	if err != nil {
+//		return err
+//	}
+//	client, err := impl.K8sUtil.GetClient(cfg)
+//	if err != nil {
+//		return err
+//	}
+//	err = impl.K8sUtil.DeleteSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, secretName, client)
+//	return err
+//}
 
 func (impl DeleteServiceImpl) DeleteChartRepo(deleteRequest *chartRepo.ChartRepoDto) error {
 
@@ -108,10 +108,11 @@ func (impl DeleteServiceImpl) DeleteChartRepo(deleteRequest *chartRepo.ChartRepo
 		return err
 	}
 
-	err = impl.DeleteChartSecret(deleteRequest.Name)
-	if err != nil {
-		impl.logger.Errorw("Error in deleting secret for chart repo", "Chart Name", deleteRequest.Name, "err", err)
-	}
+	//err := impl.DeleteChartSecret(deleteRequest.Name)
+	//
+	//if err!=nil{
+	//	impl.logger.Errorw("Error in deleting secret for chart repo", "Chart Name", deleteRequest.Name, "err", err)
+	//}
 
 	return nil
 }
