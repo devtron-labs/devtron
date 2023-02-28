@@ -38,7 +38,17 @@ type UserTerminalAccessService interface {
 	ValidateShell(podName, namespace, shellName string, clusterId int) (bool, string, error)
 }
 
-const hostNameKey = "kubernetes.io/hostname"
+const (
+	hostNameKey           = "kubernetes.io/hostname"
+	serviceAccountNameKey = "serviceAccountName"
+	nodeSelectorKey       = "nodeSelector"
+	containersKey         = "containers"
+	imageKey              = "image"
+	namespaceKey          = "namespace"
+	metadataKey           = "metadata"
+	nameKey               = "name"
+	subjectsKey           = "subjects"
+)
 
 type UserTerminalAccessServiceImpl struct {
 	TerminalAccessRepository     repository.TerminalAccessRepository
@@ -421,24 +431,24 @@ func (impl *UserTerminalAccessServiceImpl) createPodName(request *models.UserTer
 }
 
 func updatePodTemplate(templateDataMap map[string]interface{}, podNameVar string, nodeName string, baseImage string, isAutoSelect bool) (string, error) {
-	if val, ok := templateDataMap["metadata"]; ok {
+	if val, ok := templateDataMap[metadataKey]; ok {
 		metadataMap := val.(map[string]interface{})
-		if _, ok1 := metadataMap["name"]; ok1 {
-			metadataMap["name"] = interface{}(podNameVar)
+		if _, ok1 := metadataMap[nameKey]; ok1 {
+			metadataMap[nameKey] = interface{}(podNameVar)
 		}
 	}
 	if val, ok := templateDataMap["spec"]; ok {
 		specMap := val.(map[string]interface{})
-		if _, ok1 := specMap["serviceAccountName"]; ok1 {
+		if _, ok1 := specMap[serviceAccountNameKey]; ok1 {
 			name := fmt.Sprintf("%s-sa", podNameVar)
-			specMap["serviceAccountName"] = interface{}(name)
+			specMap[serviceAccountNameKey] = interface{}(name)
 		}
 
-		if _, ok1 := specMap["nodeSelector"]; ok1 {
+		if _, ok1 := specMap[nodeSelectorKey]; ok1 {
 			if isAutoSelect {
-				delete(specMap, "nodeSelector")
+				delete(specMap, nodeSelectorKey)
 			} else {
-				nodeSelectorData := specMap["nodeSelector"]
+				nodeSelectorData := specMap[nodeSelectorKey]
 				nodeSelectorDataMap := nodeSelectorData.(map[string]interface{})
 				if _, ok2 := nodeSelectorDataMap[hostNameKey]; ok2 {
 					nodeSelectorDataMap[hostNameKey] = interface{}(nodeName)
@@ -446,12 +456,12 @@ func updatePodTemplate(templateDataMap map[string]interface{}, podNameVar string
 			}
 		}
 
-		if containers, ok1 := specMap["containers"]; ok1 {
+		if containers, ok1 := specMap[containersKey]; ok1 {
 			containersData := containers.([]interface{})
 			for _, containerData := range containersData {
 				containerDataMap := containerData.(map[string]interface{})
-				if _, ok2 := containerDataMap["image"]; ok2 {
-					containerDataMap["image"] = interface{}(baseImage)
+				if _, ok2 := containerDataMap[imageKey]; ok2 {
+					containerDataMap[imageKey] = interface{}(baseImage)
 				}
 			}
 		}
@@ -461,24 +471,24 @@ func updatePodTemplate(templateDataMap map[string]interface{}, podNameVar string
 	return string(bytes), err
 }
 func updateClusterRoleBindingTemplate(templateDataMap map[string]interface{}, podNameVar string, namespace string) (string, error) {
-	if val, ok := templateDataMap["metadata"]; ok {
+	if val, ok := templateDataMap[metadataKey]; ok {
 		metadataMap := val.(map[string]interface{})
-		if _, ok1 := metadataMap["name"]; ok1 {
+		if _, ok1 := metadataMap[nameKey]; ok1 {
 			name := fmt.Sprintf("%s-crb", podNameVar)
-			metadataMap["name"] = name
+			metadataMap[nameKey] = name
 		}
 	}
 
-	if subjects, ok := templateDataMap["subjects"]; ok {
+	if subjects, ok := templateDataMap[subjectsKey]; ok {
 		for _, subject := range subjects.([]interface{}) {
 			subjectMap := subject.(map[string]interface{})
-			if _, ok1 := subjectMap["name"]; ok1 {
+			if _, ok1 := subjectMap[nameKey]; ok1 {
 				name := fmt.Sprintf("%s-sa", podNameVar)
-				subjectMap["name"] = interface{}(name)
+				subjectMap[nameKey] = interface{}(name)
 			}
 
-			if _, ok2 := subjectMap["namespace"]; ok2 {
-				subjectMap["namespace"] = interface{}(namespace)
+			if _, ok2 := subjectMap[namespaceKey]; ok2 {
+				subjectMap[namespaceKey] = interface{}(namespace)
 			}
 		}
 	}
@@ -487,15 +497,15 @@ func updateClusterRoleBindingTemplate(templateDataMap map[string]interface{}, po
 	return string(bytes), err
 }
 func updateServiceAccountTemplate(templateDataMap map[string]interface{}, podNameVar string, namespace string) (string, error) {
-	if val, ok := templateDataMap["metadata"]; ok {
+	if val, ok := templateDataMap[metadataKey]; ok {
 		metadataMap := val.(map[string]interface{})
-		if _, ok1 := metadataMap["name"]; ok1 {
+		if _, ok1 := metadataMap[nameKey]; ok1 {
 			name := fmt.Sprintf("%s-sa", podNameVar)
-			metadataMap["name"] = interface{}(name)
+			metadataMap[nameKey] = interface{}(name)
 		}
 
-		if _, ok2 := metadataMap["namespace"]; ok2 {
-			metadataMap["namespace"] = interface{}(namespace)
+		if _, ok2 := metadataMap[namespaceKey]; ok2 {
+			metadataMap[namespaceKey] = interface{}(namespace)
 		}
 
 	}
