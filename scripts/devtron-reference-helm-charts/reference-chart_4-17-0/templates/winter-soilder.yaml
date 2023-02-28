@@ -37,7 +37,8 @@ spec:
   action: {{ $.Values.winterSoilder.action }}
   {{- if eq .Values.winterSoilder.action "scale" }}
   {{- if  .Values.winterSoilder.targetReplicas }}
-  targetReplicas: {{ $.Values.winterSoilder.targetReplicas }}
+  targetReplicas: 
+{{toYaml $.Values.winterSoilder.targetReplicas | indent 4}}
   {{- end }}
   {{- end}}
 {{- end}}
