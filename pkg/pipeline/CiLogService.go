@@ -21,18 +21,18 @@ import (
 	"context"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	"github.com/devtron-labs/devtron/internal/util"
-	util1 "github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
 	"io"
 	v12 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"os"
+	"path/filepath"
 )
 
 type CiLogService interface {
 	FetchRunningWorkflowLogs(ciLogRequest BuildLogRequest, token string, host string, isExt bool) (io.ReadCloser, func() error, error)
-	FetchLogs(ciLogRequest BuildLogRequest) (*os.File, func() error, error)
+	FetchLogs(baseLogLocationPathConfig string, ciLogRequest BuildLogRequest) (*os.File, func() error, error)
 }
 
 type CiLogServiceImpl struct {
@@ -115,9 +115,10 @@ func (impl *CiLogServiceImpl) FetchRunningWorkflowLogs(ciLogRequest BuildLogRequ
 	return podLogs, cleanUpFunc, nil
 }
 
-func (impl *CiLogServiceImpl) FetchLogs(logRequest BuildLogRequest) (*os.File, func() error, error) {
-	baseLogLocationPathConfig := util1.GetBaseLogLocationPath(impl.logger)
-	tempFile := baseLogLocationPathConfig + logRequest.PodName + ".log"
+func (impl *CiLogServiceImpl) FetchLogs(baseLogLocationPathConfig string, logRequest BuildLogRequest) (*os.File, func() error, error) {
+	tempFile := baseLogLocationPathConfig
+	tempFile = filepath.Clean(filepath.Join(tempFile, logRequest.PodName+".log"))
+
 	blobStorageService := blob_storage.NewBlobStorageServiceImpl(nil)
 	request := &blob_storage.BlobStorageRequest{
 		StorageType:         logRequest.CloudProvider,
