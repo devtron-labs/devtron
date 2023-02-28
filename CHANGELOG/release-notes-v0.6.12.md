@@ -1,3 +1,5 @@
+## v0.6.12
+
 ## Bugs
 - fix: chart repository fixes (#2730)
 - fix: conditionally setting s3 config in workflow object (#3014)
@@ -40,3 +42,5 @@
 - fi: fixed incorrect userId in ci audit entries (#3011)
 - plugin jira icon added (#2977)
 - task: added api for getting default template values (#2905)
+
+
