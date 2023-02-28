@@ -53,6 +53,7 @@ type ChartRepositoryService interface {
 	ValidateAndUpdateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error, *DetailedErrorHelmRepoValidation)
 	TriggerChartSyncManual() error
 	DeleteChartRepo(request *ChartRepoDto) error
+	DeleteChartSecret(secretName string) error
 }
 
 type ChartRepositoryServiceImpl struct {
@@ -647,4 +648,21 @@ func (impl *ChartRepositoryServiceImpl) DeleteChartRepo(request *ChartRepoDto) e
 		return err
 	}
 	return nil
+}
+
+func (impl *ChartRepositoryServiceImpl) DeleteChartSecret(secretName string) error {
+	clusterBean, err := impl.clusterService.FindOne(cluster.DefaultClusterName)
+	if err != nil {
+		return err
+	}
+	cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
+	if err != nil {
+		return err
+	}
+	client, err := impl.K8sUtil.GetClient(cfg)
+	if err != nil {
+		return err
+	}
+	err = impl.K8sUtil.DeleteSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, secretName, client)
+	return err
 }
