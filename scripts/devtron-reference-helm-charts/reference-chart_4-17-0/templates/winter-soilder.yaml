@@ -1,7 +1,3 @@
-{{- if .Values.winterSoilder.enabled  }}
-
-apiVersion: {{ $.Values.winterSoilder.apiVersion }}
-kind: Hibernator
 
 metadata:
   name: {{ template ".Chart.Name .fullname" $ }}-hibernator
