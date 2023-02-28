@@ -1,7 +1,7 @@
 {{/*
-Generating external database password
+Returns external database password
 */}}
-{{- define "db.password" }}
+{{- define "pg.password" }}
 {{- if .Values.global.externalDatabase }}
 {{- $secretData := .Values.global.externalDatabase.PG_PASSWORD }}
 {{- $Secret := $secretData | b64enc }}
@@ -11,6 +11,20 @@ Generating external database password
 {{- $secretData := (get $secretObj "data") | default dict }}
 {{- $Secret := (get $secretData "postgresql-password") | default (randAlphaNum 32) | b64enc }}
 {{- $Secret }}
+{{- end }}
+{{- end }}
+
+{{/*
+Returns external database username
+*/}}
+{{- define "pg.user" }}
+{{- if .Values.global.externalDatabase }}
+{{- $PG_USER_PLAIN := .Values.global.externalDatabase.PG_USER | default "ram" }}
+{{- $PG_USER := $PG_USER_PLAIN | b64enc }}
+{{- $PG_USER }}
+{{- else }}
+{{- $PG_USER := "postgres" | b64enc }}
+{{- $PG_USER }}
 {{- end }}
 {{- end }}
 

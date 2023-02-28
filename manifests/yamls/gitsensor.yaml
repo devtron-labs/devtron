@@ -14,7 +14,7 @@ metadata:
     app: git-sensor
 data:
   PG_ADDR: postgresql-postgresql.devtroncd
-  PG_USER: postgres
+  # PG_USER: postgres
   COMMIT_STATS_TIMEOUT_IN_SEC: "2"
 ---
 # Source: gitsensor/templates/generic.yaml
@@ -62,6 +62,12 @@ spec:
           volumeMounts:
             - name: git-volume
               mountPath: /git-base/
+          env:
+            - name: PG_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: devtron-cm
+                  key: PG_USER
           envFrom:
           - secretRef:
               name: git-sensor-secret
