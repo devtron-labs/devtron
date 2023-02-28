@@ -26,6 +26,8 @@ import (
 	"github.com/caarlos0/env"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	client2 "github.com/devtron-labs/devtron/api/helm-app"
+	repository4 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
+	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	application3 "github.com/devtron-labs/devtron/client/k8s/application"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/chart"
@@ -153,6 +155,8 @@ type AppServiceImpl struct {
 	appStatusConfig                        *AppStatusConfig
 	gitOpsConfigRepository                 repository.GitOpsConfigRepository
 	appStatusService                       appStatus.AppStatusService
+	installedAppRepository                 repository4.InstalledAppRepository
+	AppStoreDeploymentService              service.AppStoreDeploymentService
 	k8sApplicationService                  k8s.K8sApplicationService
 }
 
@@ -211,7 +215,10 @@ func NewAppService(
 	pipelineStatusTimelineService PipelineStatusTimelineService,
 	appStatusConfig *AppStatusConfig,
 	gitOpsConfigRepository repository.GitOpsConfigRepository,
-	appStatusService appStatus.AppStatusService, k8sApplicationService k8s.K8sApplicationService) *AppServiceImpl {
+	appStatusService appStatus.AppStatusService,
+	installedAppRepository repository4.InstalledAppRepository,
+	AppStoreDeploymentService service.AppStoreDeploymentService,
+	k8sApplicationService k8s.K8sApplicationService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:            environmentConfigRepository,
 		mergeUtil:                              mergeUtil,
@@ -264,6 +271,8 @@ func NewAppService(
 		appStatusConfig:                        appStatusConfig,
 		gitOpsConfigRepository:                 gitOpsConfigRepository,
 		appStatusService:                       appStatusService,
+		installedAppRepository:                 installedAppRepository,
+		AppStoreDeploymentService:              AppStoreDeploymentService,
 		k8sApplicationService:                  k8sApplicationService,
 	}
 	return appServiceImpl

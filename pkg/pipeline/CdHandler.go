@@ -858,9 +858,11 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerView(appId int) ([]*p
 		return cdWorkflowStatus, err
 	}
 	pipelineIds := make([]int, 0)
+	partialDeletedPipelines := make(map[int]bool)
 	//pipelineIdsMap := make(map[int]int)
 	for _, pipeline := range pipelines {
 		pipelineIds = append(pipelineIds, pipeline.Id)
+		partialDeletedPipelines[pipeline.Id] = pipeline.DeploymentAppDeleteRequest
 	}
 
 	if len(pipelineIds) == 0 {
@@ -914,6 +916,7 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerView(appId int) ([]*p
 			}
 			cdMap[item.PipelineId] = cdWorkflowStatus
 		}
+		cdMap[item.PipelineId].DeploymentAppDeleteRequest = partialDeletedPipelines[item.PipelineId]
 	}
 
 	for _, item := range cdMap {
