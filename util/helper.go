@@ -220,7 +220,7 @@ func InterfaceToMapAdapter(resp interface{}) map[string]interface{} {
 }
 
 func TriggerCDMetrics(wfr CDMetrics, exposeCDMetrics bool) {
-	if wfr.Status == WorkflowFailed || wfr.Status == WorkflowSucceeded {
+	if exposeCDMetrics && (wfr.Status == WorkflowFailed || wfr.Status == WorkflowSucceeded) {
 		middleware.CdDuration.WithLabelValues(wfr.AppName, wfr.Status, wfr.EnvironmentName, wfr.DeploymentType).Observe(wfr.Time)
 	}
 }
