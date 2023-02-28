@@ -1,16 +1,16 @@
 installer:
-  release: "v0.6.11"
+  release: "v0.6.12"
   image: "quay.io/devtron/inception"
   tag: "1d2b87e5-185-11095"
   
 components:
   dashboard:
-    image: "quay.io/devtron/dashboard:c49004b1-325-12557"
+    image: "quay.io/devtron/dashboard:250c7c3f-325-12823"
   devtron:
-    image: "quay.io/devtron/hyperion:c35045c2-280-12565"
-    cicdImage: "quay.io/devtron/devtron:c35045c2-326-12555"
+    image: "quay.io/devtron/hyperion:f12eae0d-280-12836"
+    cicdImage: "quay.io/devtron/devtron:f12eae0d-434-12846"
   argocdDexServer:
-    image: "ghcr.io/dexidp/dex:v2.30.2"
+    image: "ghcr.io/dexidp/dex:v2.35.3"
     initContainer:
       authenticator: "quay.io/devtron/authenticator:6e466830-393-11943"
   kubelink:
@@ -24,16 +24,16 @@ components:
     envVars:
       devtron:
         GIT_BRANCH: "main"
-        GIT_HASH: "c35045c218d95741522fee8b27ee42e3956ba4c6"
+        GIT_HASH: "f12eae0d785dc3f98773946516cb2726ed96fdac"
       casbin:
         GIT_BRANCH: "main"
-        GIT_HASH: "c35045c218d95741522fee8b27ee42e3956ba4c6"
+        GIT_HASH: "f12eae0d785dc3f98773946516cb2726ed96fdac"
         
 argo-cd:
   global:
     image:
       repository: quay.io/argoproj/argocd
-      tag: "v2.4.0"
+      tag: "v2.5.2"
       imagePullPolicy: IfNotPresent
 
 notifier:
