@@ -93,7 +93,7 @@ type AppServiceConfig struct {
 	ExposeCDMetrics                     bool   `env:"EXPOSE_CD_METRICS" envDefault:"false"`
 }
 
-func GetAppStatusConfig() (*AppServiceConfig, error) {
+func GetAppServiceConfig() (*AppServiceConfig, error) {
 	cfg := &AppServiceConfig{}
 	err := env.Parse(cfg)
 	if err != nil {
