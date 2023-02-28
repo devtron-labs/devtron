@@ -19,9 +19,13 @@ dependencies:
   version: "5.2.0"
   repository: https://argoproj.github.io/argo-helm
   condition: argo-cd.enabled
-- name: security
-  version: "0.x.x"
-  repository: https://helm.devtron.ai
+# - name: security
+#   version: "0.x.x"
+#   repository: https://helm.devtron.ai
+#   condition: security.enabled
+- name: clair
+  version: "0.1.10"
+  repository: file://`pwd`/charts/clair/
   condition: security.enabled
 maintainers:
 - email: prakarsh@devtron.ai
