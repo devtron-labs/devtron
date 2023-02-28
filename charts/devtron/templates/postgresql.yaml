@@ -18,7 +18,7 @@ data:
     create database git_sensor;
     create database lens;
     create database clairv4
-{{- if .Values.global.externalDatabase }}
+{{- if $.Values.global.externalDatabase }}
 ---
 apiVersion: v1
 kind: Service
@@ -26,7 +26,7 @@ metadata:
   name: postgresql-postgresql
 spec:
   type: ExternalName
-  externalName: {{ .Values.global.externalDatabase.DB_ENDPOINT }}
+  externalName: {{ $.Values.global.externalDatabase.PG_ENDPOINT }}
 {{- else }}
 {{- if not $.Values.installer.arch }}
 ---
@@ -623,5 +623,6 @@ spec:
         resources:
           requests:
             storage: {{ .persistence.volumeSize }}
+{{- end }}
 {{- end }}
 {{- end }}

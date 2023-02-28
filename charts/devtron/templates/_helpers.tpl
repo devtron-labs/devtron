@@ -19,11 +19,9 @@ Returns a service name for Clair
 */}}
 {{- define "clair.service" }}
 {{- if .Values.global.externalDatabase }}
-{{- $serviceName := clair-postgresql }}
-{{- $serviceName }}
+{{- print "clair-postgresql" }}
 {{- else }}
-{{- $serviceName := postgresql-postgresql }}
-{{- $serviceName }}
+{{- print "postgresql-postgresql" }}
 {{- end }}
 {{- end }}
 

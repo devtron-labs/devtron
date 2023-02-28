@@ -17,10 +17,10 @@ secrets: {}
 #  POSTGRESQL_PASSWORD: "change-me"
 
 global:
-  externalDatabase: {}
+  externalDatabase:
     # PG_USER: ""
-    # PG_PASSWORD: ""
-    # PG_ENDPOINT: ""
+    PG_PASSWORD: "Master_123"
+    PG_ENDPOINT: "x-y-z.xyz.ap-south-1.rds.amazonaws.com"
 
 #  REQUIRED IF BLOB_STORAGE_PROVIDER=AZURE Token with read write access to AZURE_BLOB_CONTAINER_CI_LOG and AZURE_BLOB_CONTAINER_CI_CACHE
 #  AZURE_ACCOUNT_KEY: "xxxxxxxxxx"
