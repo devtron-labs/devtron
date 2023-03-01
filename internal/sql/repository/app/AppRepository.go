@@ -69,6 +69,7 @@ type AppRepository interface {
 	FetchAllActiveDevtronAppsWithAppIdAndName() ([]*App, error)
 	FindEnvironmentIdForInstalledApp(appId int) (int, error)
 	FetchAppIdsWithFilter(jobListingFilter helper.AppListingFilter) ([]int, error)
+	FetchAllJobs() ([]int, error)
 }
 
 const DevtronApp = "DevtronApp"
@@ -381,4 +382,20 @@ func (repo AppRepositoryImpl) FetchAppIdsWithFilter(jobListingFilter helper.AppL
 		appIdsResult = append(appIdsResult, id.Id)
 	}
 	return appIdsResult, err
+}
+
+func (repo AppRepositoryImpl) FetchAllJobs() ([]int, error) {
+	type JobId struct {
+		Id int `json:"id"`
+	}
+	var appIds []JobId
+	whereCondition := " where active = true and app_store = 2 "
+	query := "select id " + "from app " + whereCondition
+
+	_, err := repo.dbConnection.Query(&appIds, query)
+	jobIdsResult := make([]int, 0)
+	for _, id := range appIds {
+		jobIdsResult = append(jobIdsResult, id.Id)
+	}
+	return jobIdsResult, err
 }

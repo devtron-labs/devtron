@@ -182,7 +182,7 @@ func (handler AppListingRestHandlerImpl) FetchJobs(w http.ResponseWriter, r *htt
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	jobs, err := handler.appListingService.FetchJobs(fetchJobListingRequest)
+	jobs, jobCount, err := handler.appListingService.FetchJobs(fetchJobListingRequest)
 	if err != nil {
 		handler.logger.Errorw("service err, FetchJobs", "err", err, "payload", fetchJobListingRequest)
 		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
@@ -191,7 +191,7 @@ func (handler AppListingRestHandlerImpl) FetchJobs(w http.ResponseWriter, r *htt
 
 	jobContainerResponse := bean.JobContainerResponse{
 		JobContainers: jobs,
-		JobCount:      len(jobs),
+		JobCount:      jobCount,
 	}
 
 	common.WriteJsonResp(w, err, jobContainerResponse, http.StatusOK)
