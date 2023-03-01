@@ -42,6 +42,22 @@ import (
 	"time"
 )
 
+// secret keys
+const (
+	LABEL    string = "argocd.argoproj.io/secret-type"
+	NAME     string = "name"
+	USERNAME string = "username"
+	PASSWORD string = "password"
+	TYPE     string = "type"
+	URL      string = "url"
+)
+
+// secret values
+const (
+	HELM       string = "helm"
+	REPOSITORY string = "repository"
+)
+
 type ChartRepositoryService interface {
 	CreateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error)
 	UpdateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error)
@@ -79,28 +95,20 @@ func NewChartRepositoryServiceImpl(logger *zap.SugaredLogger, repoRepository cha
 	}
 }
 
+// Private helm charts credentials are saved as secrets
 func (impl *ChartRepositoryServiceImpl) CreateSecretDataForPrivateHelmChart(request *ChartRepoDto) (secretLabel map[string]string, secretData map[string]string) {
 
 	secretLabel = make(map[string]string)
-	secretLabel["argocd.argoproj.io/secret-type"] = "repository"
+	secretLabel[LABEL] = REPOSITORY
 
 	secretData = make(map[string]string)
-	secretData["name"] = request.Name
-	secretData["username"] = request.UserName
-	secretData["password"] = request.Password
-	secretData["type"] = "helm"
-	secretData["url"] = request.Url
-
-	var enableOCI string
-	if request.IsOCIRepo {
-		enableOCI = "true"
-	} else {
-		enableOCI = "false"
-	}
-	secretData["enableOCI"] = enableOCI
+	secretData[NAME] = request.Name
+	secretData[USERNAME] = request.UserName
+	secretData[PASSWORD] = request.Password
+	secretData[TYPE] = HELM
+	secretData[URL] = request.Url
 
 	return secretLabel, secretData
-
 }
 
 func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error) {
@@ -125,7 +133,6 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 	chartRepo.Default = false
 	chartRepo.External = true
 	chartRepo.AllowInsecureConnection = request.AllowInsecureConnection
-	chartRepo.IsOCIRepo = request.IsOCIRepo
 	err = impl.repoRepository.Save(chartRepo, tx)
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
@@ -213,7 +220,6 @@ func (impl *ChartRepositoryServiceImpl) UpdateChartRepo(request *ChartRepoDto) (
 	chartRepo.UpdatedBy = request.UserId
 	chartRepo.UpdatedOn = time.Now()
 	chartRepo.AllowInsecureConnection = request.AllowInsecureConnection
-	chartRepo.IsOCIRepo = request.IsOCIRepo
 	err = impl.repoRepository.Update(chartRepo, tx)
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
@@ -315,7 +321,6 @@ func (impl *ChartRepositoryServiceImpl) convertFromDbResponse(model *chartRepoRe
 	chartRepo.Default = model.Default
 	chartRepo.Active = model.Active
 	chartRepo.AllowInsecureConnection = model.AllowInsecureConnection
-	chartRepo.IsOCIRepo = model.IsOCIRepo
 	return chartRepo
 }
 
@@ -343,7 +348,6 @@ func (impl *ChartRepositoryServiceImpl) GetChartRepoList() ([]*ChartRepoDto, err
 		}
 		chartRepo.AllowInsecureConnection = model.AllowInsecureConnection
 		chartRepos = append(chartRepos, chartRepo)
-		chartRepo.IsOCIRepo = model.IsOCIRepo
 	}
 	return chartRepos, nil
 }
