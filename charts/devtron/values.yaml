@@ -1,7 +1,7 @@
 installer:
   repo: "devtron-labs/devtron"
 #  For Kubernetes version < 1.16, set release: legacy. You won't be able to upgrade Devtron unless you upgrade the K8s version to 1.16 or above.
-  release: "v0.6.12" #You can use a branch name or a release tag name as a release, for gitee as source only "main" is supported as of now
+  release: "v0.6.13" #You can use a branch name or a release tag name as a release, for gitee as source only "main" is supported as of now
   image: quay.io/devtron/inception
   tag: 1d2b87e5-185-11095
   source: "github" # Available options are github and gitee
@@ -43,12 +43,12 @@ components:
       sentry: "false"
       sentryEnv: "PRODUCTION"
       applicationMetrics: "true"
-    image: "quay.io/devtron/dashboard:250c7c3f-325-12823"
+    image: "quay.io/devtron/dashboard:de186b14-325-12876"
     imagePullPolicy: IfNotPresent
 
   devtron:
-    image: "quay.io/devtron/hyperion:f12eae0d-280-12836"
-    cicdImage: "quay.io/devtron/devtron:f12eae0d-434-12846"
+    image: "quay.io/devtron/hyperion:e3c5a3a2-280-12878"
+    cicdImage: "quay.io/devtron/devtron:e3c5a3a2-434-12877"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
     serviceMonitor:
@@ -98,13 +98,13 @@ components:
         SCRIPT_LOCATION: "scripts/sql/"
         GIT_REPO_URL: "https://github.com/devtron-labs/devtron.git"
         DB_NAME: "orchestrator"
-        GIT_HASH: "f12eae0d785dc3f98773946516cb2726ed96fdac"
+        GIT_HASH: "e3c5a3a2893f7e00b9cb482abe2ac76f5038de13"
       casbin:
         GIT_BRANCH: "main"
         SCRIPT_LOCATION: "scripts/casbin/"
         GIT_REPO_URL: "https://github.com/devtron-labs/devtron.git"
         DB_NAME: "casbin"
-        GIT_HASH: "f12eae0d785dc3f98773946516cb2726ed96fdac"
+        GIT_HASH: "e3c5a3a2893f7e00b9cb482abe2ac76f5038de13"
 
 # values for argocd integration
 argo-cd:
