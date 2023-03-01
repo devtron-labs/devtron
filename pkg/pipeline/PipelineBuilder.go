@@ -2932,6 +2932,7 @@ func parseMaterialInfo(materialInfo json.RawMessage, source string) (json.RawMes
 			scmMap["message"] = _modification.Message
 			scmMap["tag"] = _modification.Tag
 			scmMap["webhookData"] = _webhookDataStr
+			scmMap["branch"] = _modification.Branch
 		}
 		scmMapList = append(scmMapList, scmMap)
 	}
