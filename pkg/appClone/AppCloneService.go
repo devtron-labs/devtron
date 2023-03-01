@@ -163,45 +163,47 @@ func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context 
 		impl.logger.Errorw("error in cloning docker template", "ref", cloneReq.RefAppId, "new", newAppId, "err", err)
 		return nil, err
 	}
-	if !refAppStatus["TEMPLATE"] {
-		impl.logger.Errorw("status not", "TEMPLATE", cloneReq.RefAppId)
-		return app, nil
-	}
-	if !refAppStatus["CHART"] {
-		impl.logger.Errorw("status not", "CHART", cloneReq.RefAppId)
-		return app, nil
-	}
-	_, err = impl.CreateDeploymentTemplate(cloneReq.RefAppId, newAppId, userId, context)
-	if err != nil {
-		impl.logger.Errorw("error in creating deployment template", "ref", cloneReq.RefAppId, "new", newAppId, "err", err)
-		return nil, err
-	}
-	_, err = impl.CreateGlobalCM(cloneReq.RefAppId, newAppId, userId)
+	if !createReq.IsJob {
+		if !refAppStatus["TEMPLATE"] {
+			impl.logger.Errorw("status not", "TEMPLATE", cloneReq.RefAppId)
+			return app, nil
+		}
+		if !refAppStatus["CHART"] {
+			impl.logger.Errorw("status not", "CHART", cloneReq.RefAppId)
+			return app, nil
+		}
+		_, err = impl.CreateDeploymentTemplate(cloneReq.RefAppId, newAppId, userId, context)
+		if err != nil {
+			impl.logger.Errorw("error in creating deployment template", "ref", cloneReq.RefAppId, "new", newAppId, "err", err)
+			return nil, err
+		}
+		_, err = impl.CreateGlobalCM(cloneReq.RefAppId, newAppId, userId)
 
-	if err != nil {
-		impl.logger.Errorw("error in creating global cm", "ref", cloneReq.RefAppId, "new", newAppId, "err", err)
-		return nil, err
-	}
-	_, err = impl.CreateGlobalSecret(cloneReq.RefAppId, newAppId, userId)
-	if err != nil {
-		impl.logger.Errorw("error in creating global secret", "ref", cloneReq.RefAppId, "new", newAppId, "err", err)
-		return nil, err
-	}
-	if isSameProject {
-		_, err = impl.CreateEnvCm(context, cloneReq.RefAppId, newAppId, userId)
 		if err != nil {
-			impl.logger.Errorw("error in creating env cm", "err", err)
+			impl.logger.Errorw("error in creating global cm", "ref", cloneReq.RefAppId, "new", newAppId, "err", err)
 			return nil, err
 		}
-		_, err = impl.CreateEnvSecret(context, cloneReq.RefAppId, newAppId, userId)
+		_, err = impl.CreateGlobalSecret(cloneReq.RefAppId, newAppId, userId)
 		if err != nil {
-			impl.logger.Errorw("error in creating env secret", "err", err)
+			impl.logger.Errorw("error in creating global secret", "ref", cloneReq.RefAppId, "new", newAppId, "err", err)
 			return nil, err
 		}
-		_, err = impl.createEnvOverride(cloneReq.RefAppId, newAppId, userId, context)
-		if err != nil {
-			impl.logger.Errorw("error in cloning  env override", "err", err)
-			return nil, err
+		if isSameProject {
+			_, err = impl.CreateEnvCm(context, cloneReq.RefAppId, newAppId, userId)
+			if err != nil {
+				impl.logger.Errorw("error in creating env cm", "err", err)
+				return nil, err
+			}
+			_, err = impl.CreateEnvSecret(context, cloneReq.RefAppId, newAppId, userId)
+			if err != nil {
+				impl.logger.Errorw("error in creating env secret", "err", err)
+				return nil, err
+			}
+			_, err = impl.createEnvOverride(cloneReq.RefAppId, newAppId, userId, context)
+			if err != nil {
+				impl.logger.Errorw("error in cloning  env override", "err", err)
+				return nil, err
+			}
 		}
 	}
 

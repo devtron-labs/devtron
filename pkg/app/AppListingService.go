@@ -388,7 +388,7 @@ func BuildJobListingResponse(jobContainers []*bean.JobListingContainer, JobsLast
 
 	lastSucceededTimeMapping := make(map[int]time.Time)
 	for _, lastSuccessTime := range JobsLastSucceededOnTime {
-		lastSucceededTimeMapping[lastSuccessTime.CiPipelineID] = lastSuccessTime.LastSuccessOn
+		lastSucceededTimeMapping[lastSuccessTime.CiPipelineID] = lastSuccessTime.LastSucceededOn
 	}
 
 	//Storing the sequence in appIds array
@@ -1536,8 +1536,10 @@ func (impl AppListingServiceImpl) FetchAppStageStatus(appId int, isJob bool) ([]
 	appStageStatuses, err := impl.appListingRepository.FetchAppStageStatus(appId, isJob)
 	if isJob {
 		for i := range appStageStatuses {
-			if appStageStatuses[i].StageName == "TEMPLATE" || appStageStatuses[i].StageName == "CHART" || appStageStatuses[i].StageName == "CD_PIPELINE" || appStageStatuses[i].StageName == "CHART_ENV_CONFIG" {
+			if appStageStatuses[i].StageName == "TEMPLATE" || appStageStatuses[i].StageName == "CHART" || appStageStatuses[i].StageName == "CHART_ENV_CONFIG" {
 				appStageStatuses[i].Status = true
+			} else if appStageStatuses[i].StageName == "APP" || appStageStatuses[i].StageName == "CD_PIPELINE" {
+				appStageStatuses[i].Status = false
 			}
 		}
 	}

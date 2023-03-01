@@ -84,8 +84,8 @@ type JobListingContainer struct {
 }
 
 type CiPipelineLastSucceededTime struct {
-	CiPipelineID  int       `json:"ci_pipeline_id"`
-	LastSuccessOn time.Time `json:"last_succeeded_on"`
+	CiPipelineID    int       `json:"ci_pipeline_id"`
+	LastSucceededOn time.Time `json:"last_succeeded_on"`
 }
 
 type AppEnvironmentContainer struct {
