@@ -123,6 +123,7 @@ func (impl WebhookServiceImpl) HandleCiSuccessEvent(ciPipelineId int, request *C
 			return 0, err
 		}
 		savedWorkflow.Status = string(v1alpha1.NodeSucceeded)
+		savedWorkflow.FinishedOn = time.Now()
 		impl.logger.Debugw("updating workflow ", "savedWorkflow", savedWorkflow)
 		err = impl.ciWorkflowRepository.UpdateWorkFlow(savedWorkflow)
 		if err != nil {
