@@ -700,16 +700,7 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 		common.WriteJsonResp(w, fmt.Errorf("error in parsing envId : %s must be integer", envIdParam), nil, http.StatusBadRequest)
 		return
 	}
-	pipelines, err := handler.pipelineRepository.FindActiveByAppIdAndEnvironmentId(appId, envId)
-	if err == pg.ErrNoRows {
-		common.WriteJsonResp(w, err, "pipeline Not found in database", http.StatusNotFound)
-		return
-	}
-	if len(pipelines) != 1 {
-		common.WriteJsonResp(w, err, "multiple pipelines found for an envId", http.StatusBadRequest)
-		return
-	}
-	cdPipeline := pipelines[0]
+
 	appDetail, err, appId = handler.getAppDetails(r.Context(), appIdParam, installedAppIdParam, envId)
 	if err != nil {
 		handler.logger.Errorw("error occurred while getting app details", "appId", appIdParam, "installedAppId", installedAppIdParam, "envId", envId)
@@ -742,6 +733,16 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 			common.WriteJsonResp(w, fmt.Errorf("error in getting acd token"), nil, http.StatusInternalServerError)
 			return
 		}
+		pipelines, err := handler.pipelineRepository.FindActiveByAppIdAndEnvironmentId(appId, envId)
+		if err == pg.ErrNoRows {
+			common.WriteJsonResp(w, err, "pipeline Not found in database", http.StatusNotFound)
+			return
+		}
+		if len(pipelines) != 1 {
+			common.WriteJsonResp(w, err, "multiple pipelines found for an envId", http.StatusBadRequest)
+			return
+		}
+		cdPipeline := pipelines[0]
 		appDetail, err = handler.fetchResourceTree(w, r, appId, envId, appDetail, acdToken, cdPipeline)
 	}
 
