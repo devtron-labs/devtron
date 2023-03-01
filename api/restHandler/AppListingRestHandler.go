@@ -362,6 +362,11 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 		common.WriteJsonResp(w, err, "pipeline Not found in database", http.StatusNotFound)
 		return
 	}
+	if err != nil {
+		handler.logger.Errorw("error in fetching pipelines from db", "appId", appId, "envId", envId)
+		common.WriteJsonResp(w, err, "error in fetching pipeline from database", http.StatusInternalServerError)
+		return
+	}
 	if len(pipelines) == 0 {
 		common.WriteJsonResp(w, fmt.Errorf("app deleted"), nil, http.StatusNotFound)
 		return
@@ -734,14 +739,20 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 			return
 		}
 		pipelines, err := handler.pipelineRepository.FindActiveByAppIdAndEnvironmentId(appId, envId)
-		if err == pg.ErrNoRows {
-			common.WriteJsonResp(w, err, "pipeline Not found in database", http.StatusNotFound)
+		if err != nil && err != pg.ErrNoRows {
+			handler.logger.Errorw("error in fetching pipelines from db", "appId", appId, "envId", envId)
+			common.WriteJsonResp(w, err, "error in fetching pipelines from db", http.StatusInternalServerError)
 			return
 		}
-		if len(pipelines) != 1 {
+		if len(pipelines) == 0 {
+			common.WriteJsonResp(w, err, "deployment not found, unable to fetch resource tree", http.StatusNotFound)
+			return
+		}
+		if len(pipelines) > 1 {
 			common.WriteJsonResp(w, err, "multiple pipelines found for an envId", http.StatusBadRequest)
 			return
 		}
+
 		cdPipeline := pipelines[0]
 		appDetail, err = handler.fetchResourceTree(w, r, appId, envId, appDetail, acdToken, cdPipeline)
 	}
