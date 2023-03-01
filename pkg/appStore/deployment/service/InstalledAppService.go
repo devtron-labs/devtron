@@ -799,7 +799,12 @@ func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(instal
 				},
 			},
 		}
+
 		notes, err := impl.helmAppService.GetNotes(context.Background(), installReleaseRequest)
+		if err != nil {
+			impl.logger.Errorw("error in fetching notes", "err", err)
+			return appDetail, err
+		}
 		appDetail.Notes = notes
 	}
 	return appDetail, nil
