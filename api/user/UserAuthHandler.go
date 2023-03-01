@@ -141,7 +141,8 @@ func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWrite
 	viewPolicies = strings.ReplaceAll(viewPolicies, "<ENV_OBJ>", envObj)
 	viewPolicies = strings.ReplaceAll(viewPolicies, "<APP_OBJ>", appObj)
 	//for START in Casbin Object Ends Here
-
+	//loading policy for safety
+	casbin.LoadPolicy()
 	var policiesAdmin bean.PolicyRequest
 	err := json.Unmarshal([]byte(adminPolicies), &policiesAdmin)
 	if err != nil {
@@ -171,7 +172,8 @@ func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWrite
 	}
 	handler.logger.Debugw("request payload, AddDefaultPolicyAndRoles", "policiesView", policiesView)
 	casbin.AddPolicy(policiesView.Data)
-
+	//loading policy for syncing orchestrator to casbin with newly added policies
+	casbin.LoadPolicy()
 	//Creating ROLES
 	roleAdmin := "{\n    \"role\": \"role:admin_<TEAM>_<ENV>_<APP>\",\n    \"casbinSubjects\": [\n        \"role:admin_<TEAM>_<ENV>_<APP>\"\n    ],\n    \"team\": \"<TEAM>\",\n    \"application\": \"<APP>\",\n    \"environment\": \"<ENV>\",\n    \"action\": \"*\"\n}"
 	roleTrigger := "{\n    \"role\": \"role:trigger_<TEAM>_<ENV>_<APP>\",\n    \"casbinSubjects\": [\n        \"role:trigger_<TEAM>_<ENV>_<APP>\"\n    ],\n    \"team\": \"<TEAM>\",\n    \"application\": \"<APP>\",\n    \"environment\": \"<ENV>\",\n    \"action\": \"trigger\"\n}"
