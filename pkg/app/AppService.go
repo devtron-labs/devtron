@@ -2189,17 +2189,27 @@ func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Val
 				ReleaseIdentifier: releaseIdentifier,
 			}
 			helmResponse, err := impl.helmAppClient.InstallReleaseWithCustomChart(ctx, helmInstallRequest)
+
+			//IMP: update cd pipeline to mark deployment app created, even if helm install fails
+			// If the helm install fails, it still creates the app in failed state, so trying to
+			// re-create the app results in error from helm that cannot re-use name which is still in use
+			_, pgErr := impl.updatePipeline(pipeline, overrideRequest.UserId)
+
 			if err != nil {
 				impl.logger.Errorw("error in helm install custom chart", "err", err)
+
+				if pgErr != nil {
+					impl.logger.Errorw("failed to update deployment app created flag in pipeline table", "err", err)
+				}
 				return false, err
 			}
+
+			if pgErr != nil {
+				impl.logger.Errorw("failed to update deployment app created flag in pipeline table", "err", err)
+				return false, err
+			}
+
 			impl.logger.Debugw("received helm release response", "helmResponse", helmResponse, "isSuccess", helmResponse.Success)
-			//update cd pipeline to mark deployment app created
-			_, err = impl.updatePipeline(pipeline, overrideRequest.UserId)
-			if err != nil {
-				impl.logger.Errorw("error in update cd pipeline for deployment app created or not", "err", err)
-				return false, err
-			}
 		}
 
 		//update workflow runner status, used in app workflow view
