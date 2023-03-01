@@ -36,8 +36,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
-	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/devtron-labs/devtron/util/argo"
+	"github.com/devtron-labs/devtron/util/rbac"
 	"net/http"
 	"net/url"
 	"sort"
@@ -3764,6 +3764,8 @@ func (impl PipelineBuilderImpl) GetCdPipelinesByEnvironment(envId int, emailId s
 			DeploymentAppType:             dbPipeline.DeploymentAppType,
 			ParentPipelineType:            appWorkflowMapping.ParentType,
 			ParentPipelineId:              appWorkflowMapping.ParentId,
+			AppName:                       dbPipeline.AppName,
+			AppId:                         dbPipeline.AppId,
 		}
 		pipelines = append(pipelines, pipeline)
 	}

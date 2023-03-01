@@ -26,9 +26,9 @@ import (
 	"github.com/caarlos0/env"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	client2 "github.com/devtron-labs/devtron/api/helm-app"
+	application3 "github.com/devtron-labs/devtron/client/k8s/application"
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
-	application3 "github.com/devtron-labs/devtron/client/k8s/application"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
@@ -84,16 +84,17 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-type AppStatusConfig struct {
+type AppServiceConfig struct {
 	CdPipelineStatusCronTime            string `env:"CD_PIPELINE_STATUS_CRON_TIME" envDefault:"*/2 * * * *"`
 	CdHelmPipelineStatusCronTime        string `env:"CD_HELM_PIPELINE_STATUS_CRON_TIME" envDefault:"*/2 * * * *"`
 	CdPipelineStatusTimeoutDuration     string `env:"CD_PIPELINE_STATUS_TIMEOUT_DURATION" envDefault:"20"`       //in minutes
 	PipelineDegradedTime                string `env:"PIPELINE_DEGRADED_TIME" envDefault:"10"`                    //in minutes
 	HelmPipelineStatusCheckEligibleTime string `env:"HELM_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME" envDefault:"120"` //in seconds
+	ExposeCDMetrics                     bool   `env:"EXPOSE_CD_METRICS" envDefault:"false"`
 }
 
-func GetAppStatusConfig() (*AppStatusConfig, error) {
-	cfg := &AppStatusConfig{}
+func GetAppServiceConfig() (*AppServiceConfig, error) {
+	cfg := &AppServiceConfig{}
 	err := env.Parse(cfg)
 	if err != nil {
 		fmt.Println("failed to parse server app status config: " + err.Error())
@@ -152,7 +153,7 @@ type AppServiceImpl struct {
 	pipelineStatusTimelineResourcesService PipelineStatusTimelineResourcesService
 	pipelineStatusSyncDetailService        PipelineStatusSyncDetailService
 	pipelineStatusTimelineService          PipelineStatusTimelineService
-	appStatusConfig                        *AppStatusConfig
+	appStatusConfig                        *AppServiceConfig
 	gitOpsConfigRepository                 repository.GitOpsConfigRepository
 	appStatusService                       appStatus.AppStatusService
 	installedAppRepository                 repository4.InstalledAppRepository
@@ -189,20 +190,26 @@ func NewAppService(
 	appListingRepository repository.AppListingRepository,
 	appRepository app.AppRepository,
 	envRepository repository2.EnvironmentRepository,
-	pipelineConfigRepository chartConfig.PipelineConfigRepository, configMapRepository chartConfig.ConfigMapRepository,
-	appLevelMetricsRepository repository.AppLevelMetricsRepository, envLevelMetricsRepository repository.EnvLevelAppMetricsRepository,
+	pipelineConfigRepository chartConfig.PipelineConfigRepository,
+	configMapRepository chartConfig.ConfigMapRepository,
+	appLevelMetricsRepository repository.AppLevelMetricsRepository,
+	envLevelMetricsRepository repository.EnvLevelAppMetricsRepository,
 	chartRepository chartRepoRepository.ChartRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
-	cdWorkflowRepository pipelineConfig.CdWorkflowRepository, commonService commonService.CommonService,
-	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository, imageScanHistoryRepository security.ImageScanHistoryRepository,
+	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
+	commonService commonService.CommonService,
+	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository,
+	imageScanHistoryRepository security.ImageScanHistoryRepository,
 	ArgoK8sClient argocdServer.ArgoK8sClient,
 	gitFactory *GitFactory,
 	pipelineStrategyHistoryService history2.PipelineStrategyHistoryService,
 	configMapHistoryService history2.ConfigMapHistoryService,
 	deploymentTemplateHistoryService history2.DeploymentTemplateHistoryService,
-	chartTemplateService ChartTemplateService, refChartDir chartRepoRepository.RefChartDir,
+	chartTemplateService ChartTemplateService,
+	refChartDir chartRepoRepository.RefChartDir,
 	chartRefRepository chartRepoRepository.ChartRefRepository,
-	chartService chart.ChartService, helmAppClient client2.HelmAppClient,
+	chartService chart.ChartService,
+	helmAppClient client2.HelmAppClient,
 	argoUserService argo.ArgoUserService,
 	cdPipelineStatusTimelineRepo pipelineConfig.PipelineStatusTimelineRepository,
 	appCrudOperationService AppCrudOperationService,
@@ -213,7 +220,7 @@ func NewAppService(
 	pipelineStatusTimelineResourcesService PipelineStatusTimelineResourcesService,
 	pipelineStatusSyncDetailService PipelineStatusSyncDetailService,
 	pipelineStatusTimelineService PipelineStatusTimelineService,
-	appStatusConfig *AppStatusConfig,
+	appStatusConfig *AppServiceConfig,
 	gitOpsConfigRepository repository.GitOpsConfigRepository,
 	appStatusService appStatus.AppStatusService,
 	installedAppRepository repository4.InstalledAppRepository,
@@ -1136,7 +1143,7 @@ func (impl *AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideR
 			span.End()
 		}
 	}
-	middleware.CdTriggerCounter.WithLabelValues(strconv.Itoa(pipeline.AppId), strconv.Itoa(pipeline.EnvironmentId), strconv.Itoa(pipeline.Id)).Inc()
+	middleware.CdTriggerCounter.WithLabelValues(pipeline.App.AppName, pipeline.Environment.Name).Inc()
 	return releaseId, saveErr
 }
 
@@ -1879,12 +1886,12 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Appl
 		impl.logger.Errorw("error on update cd workflow runner, fetch failed for runner type", "wfr", wfr, "app", app, "err", err)
 		return err
 	}
-	wfr.FinishedOn = time.Now()
 	if updateTimedOutStatus {
 		wfr.Status = pipelineConfig.WorkflowTimedOut
 	} else {
 		if app.Status.Health.Status == health.HealthStatusHealthy {
 			wfr.Status = pipelineConfig.WorkflowSucceeded
+			wfr.FinishedOn = time.Now()
 		} else {
 			wfr.Status = pipelineConfig.WorkflowInProgress
 		}
@@ -1896,6 +1903,14 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Appl
 		impl.logger.Errorw("error on update cd workflow runner", "wfr", wfr, "app", app, "err", err)
 		return err
 	}
+	cdMetrics := util2.CDMetrics{
+		AppName:         wfr.CdWorkflow.Pipeline.DeploymentAppName,
+		Status:          wfr.Status,
+		DeploymentType:  wfr.CdWorkflow.Pipeline.DeploymentAppType,
+		EnvironmentName: wfr.CdWorkflow.Pipeline.Environment.Name,
+		Time:            time.Since(wfr.StartedOn).Seconds() - time.Since(wfr.FinishedOn).Seconds(),
+	}
+	util2.TriggerCDMetrics(cdMetrics, impl.appStatusConfig.ExposeCDMetrics)
 	return nil
 }
 

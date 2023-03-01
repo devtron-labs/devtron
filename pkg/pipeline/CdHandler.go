@@ -334,6 +334,14 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipel
 			impl.Logger.Errorw("error on update cd workflow runner", "wfr", wfr, "err", err)
 			return err
 		}
+		cdMetrics := util3.CDMetrics{
+			AppName:         wfr.CdWorkflow.Pipeline.DeploymentAppName,
+			Status:          wfr.Status,
+			DeploymentType:  wfr.CdWorkflow.Pipeline.DeploymentAppType,
+			EnvironmentName: wfr.CdWorkflow.Pipeline.Environment.Name,
+			Time:            time.Since(wfr.StartedOn).Seconds() - time.Since(wfr.FinishedOn).Seconds(),
+		}
+		util3.TriggerCDMetrics(cdMetrics, impl.cdConfig.ExposeCDMetrics)
 		impl.Logger.Infow("updated workflow runner status for helm app", "wfr", wfr)
 		if helmAppStatus == application.Healthy {
 			pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByCdWorkflowId(wfr.CdWorkflowId)
@@ -457,6 +465,14 @@ func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 			impl.Logger.Error("update wf failed for id " + strconv.Itoa(savedWorkflow.Id))
 			return 0, "", err
 		}
+		cdMetrics := util3.CDMetrics{
+			AppName:         savedWorkflow.CdWorkflow.Pipeline.DeploymentAppName,
+			Status:          savedWorkflow.Status,
+			DeploymentType:  savedWorkflow.CdWorkflow.Pipeline.DeploymentAppType,
+			EnvironmentName: savedWorkflow.CdWorkflow.Pipeline.Environment.Name,
+			Time:            time.Since(savedWorkflow.StartedOn).Seconds() - time.Since(savedWorkflow.FinishedOn).Seconds(),
+		}
+		util3.TriggerCDMetrics(cdMetrics, impl.cdConfig.ExposeCDMetrics)
 		if string(v1alpha1.NodeError) == savedWorkflow.Status || string(v1alpha1.NodeFailed) == savedWorkflow.Status {
 			impl.Logger.Warnw("cd stage failed for workflow: ", "wfId", savedWorkflow.Id)
 		}
@@ -655,8 +671,25 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 	if triggeredByUser == nil {
 		triggeredByUser = &bean.UserInfo{EmailId: "anonymous"}
 	}
+	ciArtifactId := workflow.CiArtifactId
+	if ciArtifactId > 0 {
+		ciArtifact, err := impl.ciArtifactRepository.Get(ciArtifactId)
+		if err != nil {
+			impl.Logger.Errorw("error fetching artifact data", "err", err)
+			return WorkflowResponse{}, err
+		}
 
-	ciMaterials, err := impl.ciPipelineMaterialRepository.GetByPipelineId(workflowR.CdWorkflow.Pipeline.CiPipelineId)
+		// handling linked ci pipeline
+		if ciArtifact.ParentCiArtifact > 0 && ciArtifact.WorkflowId == nil {
+			ciArtifactId = ciArtifact.ParentCiArtifact
+		}
+	}
+	ciWf, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflowByArtifactId(ciArtifactId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("error in fetching ci wf", "artifactId", workflow.CiArtifactId, "err", err)
+		return WorkflowResponse{}, err
+	}
+	ciMaterials, err := impl.ciPipelineMaterialRepository.GetByPipelineIdForRegexAndFixed(ciWf.CiPipelineId)
 	if err != nil {
 		impl.Logger.Errorw("err", "err", err)
 		return WorkflowResponse{}, err
@@ -674,11 +707,6 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 			Url:             m.GitMaterial.Url,
 		}
 		ciMaterialsArr = append(ciMaterialsArr, res)
-	}
-	ciWf, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflowByArtifactId(workflow.CiArtifactId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.Logger.Errorw("error in fetching ci wf", "artifactId", workflow.CiArtifactId, "err", err)
-		return WorkflowResponse{}, err
 	}
 	gitTriggers := make(map[int]pipelineConfig.GitCommit)
 	if ciWf.GitTriggers != nil {
@@ -703,6 +731,7 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		BlobStorageEnabled: workflow.BlobStorageEnabled,
 	}
 	return workflowResponse, nil
+
 }
 
 func (impl *CdHandlerImpl) DownloadCdWorkflowArtifacts(pipelineId int, buildId int) (*os.File, error) {

@@ -173,7 +173,7 @@ func InitializeApp() (*App, error) {
 
 		restHandler.NewPipelineRestHandler,
 		wire.Bind(new(restHandler.PipelineTriggerRestHandler), new(*restHandler.PipelineTriggerRestHandlerImpl)),
-		app.GetAppStatusConfig,
+		app.GetAppServiceConfig,
 		app.NewAppService,
 		wire.Bind(new(app.AppService), new(*app.AppServiceImpl)),
 
