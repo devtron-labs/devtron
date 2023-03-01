@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
+	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -40,6 +41,15 @@ type CiEventHandlerImpl struct {
 	webhookService pipeline.WebhookService
 }
 
+type Metrics struct {
+	CacheDown float64 `json:"cache_down"`
+	PreCi     float64 `json:"pre_ci"`
+	Build     float64 `json:"build"`
+	PostCi    float64 `json:"post_ci"`
+	CacheUp   float64 `json:"cache_up"`
+	Total     float64 `json:"total"`
+}
+
 type CiCompleteEvent struct {
 	CiProjectDetails []pipeline.CiProjectDetails `json:"ciProjectDetails"`
 	DockerImage      string                      `json:"dockerImage" validate:"required,image-validator"`
@@ -50,6 +60,7 @@ type CiCompleteEvent struct {
 	PipelineName     string                      `json:"pipelineName"`
 	DataSource       string                      `json:"dataSource"`
 	MaterialType     string                      `json:"materialType"`
+	Metrics          Metrics                     `json:"metrics"`
 }
 
 func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClientServiceImpl, webhookService pipeline.WebhookService) *CiEventHandlerImpl {
@@ -72,6 +83,18 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 		//defer msg.Ack()
 		ciCompleteEvent := CiCompleteEvent{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &ciCompleteEvent)
+
+		middleware.CacheDownloadDuration.WithLabelValues(ciCompleteEvent.PipelineName).Observe(ciCompleteEvent.Metrics.CacheDown)
+		middleware.CiDuration.WithLabelValues(ciCompleteEvent.PipelineName).Observe(ciCompleteEvent.Metrics.Total)
+		middleware.CacheUploadDuration.WithLabelValues(ciCompleteEvent.PipelineName).Observe(ciCompleteEvent.Metrics.CacheUp)
+		if ciCompleteEvent.Metrics.PostCi != 0 {
+			middleware.PostCiDuration.WithLabelValues(ciCompleteEvent.PipelineName).Observe(ciCompleteEvent.Metrics.PostCi)
+		}
+		if ciCompleteEvent.Metrics.PreCi != 0 {
+			middleware.PreCiDuration.WithLabelValues(ciCompleteEvent.PipelineName).Observe(ciCompleteEvent.Metrics.PreCi)
+		}
+		middleware.BuildDuration.WithLabelValues(ciCompleteEvent.PipelineName).Observe(ciCompleteEvent.Metrics.CacheDown)
+
 		if err != nil {
 			impl.logger.Error("error while unmarshalling json data", "error", err)
 			return
