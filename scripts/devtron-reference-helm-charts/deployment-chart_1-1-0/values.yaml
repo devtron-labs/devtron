@@ -415,11 +415,12 @@ ingressInternal:
  #    hosts:
  #      - chart-example.local
 
-winterSoilder:
+winterSoldier:
   enabled: false
   apiVersion: pincher.devtron.ai/v1alpha1
   labels: {}
   annotations: {}
+  type: Deployment
   timeRangesWithZone: {}
   # timeZone: "Asia/Kolkata"
   # timeRanges: []

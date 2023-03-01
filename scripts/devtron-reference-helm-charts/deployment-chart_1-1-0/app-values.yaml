@@ -180,11 +180,12 @@ istio:
     provider: {}
     rules: []
 
-winterSoilder:
+winterSoldier:
   enabled: false
   apiVersion: pincher.devtron.ai/v1alpha1
   annotation: {}
   labels: {}
+  type: Deployment
   timeRangesWithZone:
     timeZone: "Asia/Kolkata"
     timeRanges: []

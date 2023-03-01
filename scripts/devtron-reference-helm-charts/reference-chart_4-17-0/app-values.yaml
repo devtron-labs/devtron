@@ -357,11 +357,12 @@ istio:
     provider: {}
     rules: []
 
-winterSoilder:
+winterSoldier:
   enabled: false
   apiVersion: pincher.devtron.ai/v1alpha1
   annotation: {}
   labels: {}
+  type: Rollout
   timeRangesWithZone:
     timeZone: "Asia/Kolkata"
     timeRanges: []

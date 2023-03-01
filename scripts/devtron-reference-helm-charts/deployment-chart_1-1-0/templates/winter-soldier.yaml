@@ -29,7 +29,7 @@ spec:
     - inclusions:
         - objectSelector:
             name: {{ include ".Chart.Name .fullname" $ }}
-            type: "Deployment"
+            type: {{ .Values.winterSoldier.type | quote }}
             fieldSelector:
 {{toYaml $.Values.winterSoilder.fieldSelector | indent 14}} 
           namespaceSelector:
