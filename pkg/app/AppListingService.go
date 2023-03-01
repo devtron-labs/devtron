@@ -388,7 +388,7 @@ func BuildJobListingResponse(jobContainers []*bean.JobListingContainer, JobsLast
 
 	lastSucceededTimeMapping := make(map[int]time.Time)
 	for _, lastSuccessTime := range JobsLastSucceededOnTime {
-		lastSucceededTimeMapping[lastSuccessTime.CiPipelineID] = lastSuccessTime.LastSucceededOn
+		lastSucceededTimeMapping[lastSuccessTime.CiPipelineID] = lastSuccessTime.LastSuccessOn
 	}
 
 	//Storing the sequence in appIds array
