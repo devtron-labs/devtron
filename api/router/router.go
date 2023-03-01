@@ -74,7 +74,7 @@ type MuxRouter struct {
 	UserRouter                         user.UserRouter
 	gitWebhookHandler                  pubsub.GitWebhookHandler
 	workflowUpdateHandler              pubsub.WorkflowStatusUpdateHandler
-	appUpdateHandler                   pubsub.ApplicationStatusUpdateHandler
+	appUpdateHandler                   pubsub.ApplicationStatusHandler
 	ciEventHandler                     pubsub.CiEventHandler
 	ChartRefRouter                     ChartRefRouter
 	ConfigMapRouter                    ConfigMapRouter
@@ -117,6 +117,7 @@ type MuxRouter struct {
 	globalCMCSRouter                   GlobalCMCSRouter
 	userTerminalAccessRouter           terminal2.UserTerminalAccessRouter
 	ciStatusUpdateCron                 cron.CiStatusUpdateCron
+	appGroupingRouter                  AppGroupingRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -130,7 +131,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 	TeamRouter team.TeamRouter,
 	gitWebhookHandler pubsub.GitWebhookHandler,
 	workflowUpdateHandler pubsub.WorkflowStatusUpdateHandler,
-	appUpdateHandler pubsub.ApplicationStatusUpdateHandler,
+	appUpdateHandler pubsub.ApplicationStatusHandler,
 	ciEventHandler pubsub.CiEventHandler, pubsubClient *pubsub2.PubSubClientServiceImpl, UserRouter user.UserRouter,
 	ChartRefRouter ChartRefRouter, ConfigMapRouter ConfigMapRouter, AppStoreRouter appStore.AppStoreRouter, chartRepositoryRouter chartRepo.ChartRepositoryRouter,
 	ReleaseMetricsRouter ReleaseMetricsRouter, deploymentGroupRouter DeploymentGroupRouter, batchOperationRouter BatchOperationRouter,
@@ -145,7 +146,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 	helmApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler, k8sCapacityRouter k8s.K8sCapacityRouter,
 	webhookHelmRouter webhookHelm.WebhookHelmRouter, globalCMCSRouter GlobalCMCSRouter,
 	userTerminalAccessRouter terminal2.UserTerminalAccessRouter,
-	jobRouter JobRouter, ciStatusUpdateCron cron.CiStatusUpdateCron) *MuxRouter {
+	jobRouter JobRouter, ciStatusUpdateCron cron.CiStatusUpdateCron, appGroupingRouter AppGroupingRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
 		HelmRouter:                         HelmRouter,
@@ -213,6 +214,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 		userTerminalAccessRouter:           userTerminalAccessRouter,
 		ciStatusUpdateCron:                 ciStatusUpdateCron,
 		JobRouter:                          jobRouter,
+		appGroupingRouter:                  appGroupingRouter,
 	}
 	return r
 }
@@ -269,6 +271,7 @@ func (r MuxRouter) Init() {
 
 	environmentClusterMappingsRouter := r.Router.PathPrefix("/orchestrator/env").Subrouter()
 	r.EnvironmentClusterMappingsRouter.InitEnvironmentClusterMappingsRouter(environmentClusterMappingsRouter)
+	r.appGroupingRouter.InitAppGroupingRouter(environmentClusterMappingsRouter)
 
 	clusterRouter := r.Router.PathPrefix("/orchestrator/cluster").Subrouter()
 	r.ClusterRouter.InitClusterRouter(clusterRouter)
