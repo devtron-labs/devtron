@@ -45,6 +45,7 @@ import (
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -644,7 +645,7 @@ func (impl *CdHandlerImpl) getLogsFromRepository(pipelineId int, cdWorkflow *pip
 		},
 	}
 	impl.Logger.Infow("s3 log req ", "req", cdLogRequest)
-	oldLogsStream, cleanUp, err := impl.ciLogService.FetchLogs(cdLogRequest)
+	oldLogsStream, cleanUp, err := impl.ciLogService.FetchLogs(impl.ciConfig.BaseLogLocationPath, cdLogRequest)
 	if err != nil {
 		impl.Logger.Errorw("err", err)
 		return nil, nil, err
@@ -766,9 +767,9 @@ func (impl *CdHandlerImpl) DownloadCdWorkflowArtifacts(pipelineId int, buildId i
 		CredentialFileJsonData: impl.ciConfig.BlobStorageGcpCredentialJson,
 	}
 	key := fmt.Sprintf("%s/"+impl.cdConfig.CdArtifactLocationFormat, impl.cdConfig.DefaultArtifactKeyPrefix, wfr.CdWorkflow.Id, wfr.Id)
-	baseLogLocationPathConfig := util3.GetBaseLogLocationPath(impl.Logger)
+	baseLogLocationPathConfig := impl.cdConfig.BaseLogLocationPath
 	blobStorageService := blob_storage.NewBlobStorageServiceImpl(nil)
-	destinationKey := baseLogLocationPathConfig + item
+	destinationKey := filepath.Clean(filepath.Join(baseLogLocationPathConfig, item))
 	request := &blob_storage.BlobStorageRequest{
 		StorageType:         impl.ciConfig.CloudProvider,
 		SourceKey:           key,
@@ -876,9 +877,11 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerView(appId int) ([]*p
 		return cdWorkflowStatus, err
 	}
 	pipelineIds := make([]int, 0)
+	partialDeletedPipelines := make(map[int]bool)
 	//pipelineIdsMap := make(map[int]int)
 	for _, pipeline := range pipelines {
 		pipelineIds = append(pipelineIds, pipeline.Id)
+		partialDeletedPipelines[pipeline.Id] = pipeline.DeploymentAppDeleteRequest
 	}
 
 	if len(pipelineIds) == 0 {
@@ -932,6 +935,7 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerView(appId int) ([]*p
 			}
 			cdMap[item.PipelineId] = cdWorkflowStatus
 		}
+		cdMap[item.PipelineId].DeploymentAppDeleteRequest = partialDeletedPipelines[item.PipelineId]
 	}
 
 	for _, item := range cdMap {

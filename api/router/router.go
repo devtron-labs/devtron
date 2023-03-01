@@ -73,7 +73,7 @@ type MuxRouter struct {
 	UserRouter                         user.UserRouter
 	gitWebhookHandler                  pubsub.GitWebhookHandler
 	workflowUpdateHandler              pubsub.WorkflowStatusUpdateHandler
-	appUpdateHandler                   pubsub.ApplicationStatusUpdateHandler
+	appUpdateHandler                   pubsub.ApplicationStatusHandler
 	ciEventHandler                     pubsub.CiEventHandler
 	ChartRefRouter                     ChartRefRouter
 	ConfigMapRouter                    ConfigMapRouter
@@ -130,7 +130,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 	TeamRouter team.TeamRouter,
 	gitWebhookHandler pubsub.GitWebhookHandler,
 	workflowUpdateHandler pubsub.WorkflowStatusUpdateHandler,
-	appUpdateHandler pubsub.ApplicationStatusUpdateHandler,
+	appUpdateHandler pubsub.ApplicationStatusHandler,
 	ciEventHandler pubsub.CiEventHandler, pubsubClient *pubsub2.PubSubClientServiceImpl, UserRouter user.UserRouter,
 	ChartRefRouter ChartRefRouter, ConfigMapRouter ConfigMapRouter, AppStoreRouter appStore.AppStoreRouter, chartRepositoryRouter chartRepo.ChartRepositoryRouter,
 	ReleaseMetricsRouter ReleaseMetricsRouter, deploymentGroupRouter DeploymentGroupRouter, batchOperationRouter BatchOperationRouter,
