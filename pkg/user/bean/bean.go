@@ -29,4 +29,5 @@ const (
 	GLOBAL_ENTITY                               = "globalEntity"
 	ENTITY_APPS                                 = "apps"
 	EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER          = "NONE"
+	RoleNotFoundStatusPrefix                    = "role not fount for any given filter: "
 )
