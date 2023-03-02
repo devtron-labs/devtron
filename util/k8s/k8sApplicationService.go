@@ -679,7 +679,7 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 		resourceIdentifier := k8sRequest.ResourceIdentifier
 		resourceIdentifier.Name = resourceName
 		resourceIdentifier.Namespace = namespace
-		if group != "" && kind != "" {
+		if group != "" || kind != "" {
 			resourceIdentifier.GroupVersionKind = schema.GroupVersionKind{Group: group, Kind: kind}
 		}
 		k8sRequest.ResourceIdentifier = resourceIdentifier
