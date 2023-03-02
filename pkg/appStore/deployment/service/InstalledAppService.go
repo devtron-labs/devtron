@@ -78,7 +78,9 @@ type InstalledAppService interface {
 	DeployDefaultChartOnCluster(bean *cluster2.ClusterBean, userId int32) (bool, error)
 	FindAppDetailsForAppstoreApplication(installedAppId, envId int) (bean2.AppDetailContainer, error)
 	UpdateInstalledAppVersionStatus(application *v1alpha1.Application) (bool, error)
-	FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetail *bean2.AppDetailContainer) bean2.AppDetailContainer
+	FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetail *bean2.AppDetailContainer) (bean2.AppDetailContainer, error)
+	MarkGitOpsInstalledAppsDeletedIfArgoAppIsDeleted(installedAppId int, envId int) error
+	CheckAppExistsByInstalledAppId(installedAppId int) error
 }
 
 type InstalledAppServiceImpl struct {
@@ -765,6 +767,7 @@ func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(instal
 		Deprecated:                    installedAppVerison.AppStoreApplicationVersion.Deprecated,
 		ClusterId:                     installedAppVerison.InstalledApp.Environment.ClusterId,
 		DeploymentAppType:             installedAppVerison.InstalledApp.DeploymentAppType,
+		DeploymentAppDeleteRequest:    installedAppVerison.InstalledApp.DeploymentAppDeleteRequest,
 	}
 	userInfo, err := impl.userService.GetByIdIncludeDeleted(installedAppVerison.AuditLog.UpdatedBy)
 	if err != nil {
@@ -886,7 +889,7 @@ func (impl InstalledAppServiceImpl) GetInstalledAppVersionHistoryValues(installe
 	values.ValuesYaml = versionHistory.ValuesYamlRaw
 	return values, err
 }
-func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetail *bean2.AppDetailContainer) bean2.AppDetailContainer {
+func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetail *bean2.AppDetailContainer) (bean2.AppDetailContainer, error) {
 	if util.IsAcdApp(appDetail.DeploymentAppType) {
 		acdAppName := appDetail.AppName + "-" + appDetail.EnvironmentName
 		query := &application.ResourcesQuery{
@@ -905,7 +908,7 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 		if err != nil {
 			impl.logger.Errorw("error in getting acd token", "err", err)
-			return *appDetail
+			return *appDetail, err
 		}
 		ctx = context.WithValue(ctx, "token", acdToken)
 		defer cancel()
@@ -921,7 +924,7 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 				UserMessage:     "app detail fetched, failed to get resource tree from acd",
 			}
 			appDetail.ResourceTree = map[string]interface{}{}
-			return *appDetail
+			return *appDetail, err
 		}
 		// TODO: using this resp.Status to update in app_status table
 		appDetail.ResourceTree = util3.InterfaceToMapAdapter(resp)
@@ -953,5 +956,63 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 			appDetail.ResourceTree = map[string]interface{}{}
 		}
 	}
-	return *appDetail
+	return *appDetail, nil
+}
+
+func (impl InstalledAppServiceImpl) MarkGitOpsInstalledAppsDeletedIfArgoAppIsDeleted(installedAppId int, envId int) error {
+	apiError := &util.ApiError{}
+	installedApp, err := impl.installedAppRepository.GetGitOpsInstalledAppsWhereArgoAppDeletedIsTrue(installedAppId, envId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching partially deleted argoCd apps from installed app repo", "err", err)
+		apiError.HttpStatusCode = http.StatusInternalServerError
+		apiError.InternalMessage = "error in fetching partially deleted argoCd apps from installed app repo"
+		return apiError
+	}
+	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		impl.logger.Errorw("error in getting acd token", "err", err)
+		apiError.HttpStatusCode = http.StatusInternalServerError
+		apiError.InternalMessage = "error in getting acd token"
+		return apiError
+	}
+
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, "token", acdToken)
+
+	acdAppName := fmt.Sprintf("%s-%s", installedApp.App.AppName, installedApp.Environment.Name)
+	_, err = impl.acdClient.Get(ctx, &application.ApplicationQuery{Name: &acdAppName})
+
+	if err == nil {
+		apiError.HttpStatusCode = http.StatusInternalServerError
+		apiError.InternalMessage = "App Exist in argo, error in fetching resource tree"
+		return apiError
+	}
+
+	impl.logger.Warnw("app not found in argo, deleting from db ", "err", err)
+	//make call to delete it from pipeline DB
+	deleteRequest := &appStoreBean.InstallAppVersionDTO{}
+	deleteRequest.ForceDelete = false
+	deleteRequest.AcdPartialDelete = false
+	deleteRequest.InstalledAppId = installedApp.Id
+	deleteRequest.AppId = installedApp.AppId
+	deleteRequest.AppName = installedApp.App.AppName
+	deleteRequest.Namespace = installedApp.Environment.Namespace
+	deleteRequest.ClusterId = installedApp.Environment.ClusterId
+	deleteRequest.EnvironmentId = installedApp.EnvironmentId
+	deleteRequest.AppOfferingMode = installedApp.App.AppOfferingMode
+	deleteRequest.UserId = 1
+	_, err = impl.appStoreDeploymentService.DeleteInstalledApp(context.Background(), deleteRequest)
+	if err != nil {
+		impl.logger.Errorw("error in deleting installed app", "err", err)
+		apiError.HttpStatusCode = http.StatusNotFound
+		apiError.InternalMessage = "error in deleting installed app"
+		return apiError
+	}
+	apiError.HttpStatusCode = http.StatusNotFound
+	return apiError
+}
+
+func (impl InstalledAppServiceImpl) CheckAppExistsByInstalledAppId(installedAppId int) error {
+	_, err := impl.installedAppRepository.GetInstalledApp(installedAppId)
+	return err
 }

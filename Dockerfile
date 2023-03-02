@@ -1,4 +1,4 @@
-FROM golang:1.19  AS build-env
+FROM golang:1.18  AS build-env
 
 RUN echo $GOPATH
 RUN apt update
@@ -23,6 +23,14 @@ COPY --from=build-env  /go/src/github.com/devtron-labs/devtron/scripts/argo-asse
 
 COPY ./git-ask-pass.sh /git-ask-pass.sh
 RUN chmod +x /git-ask-pass.sh
+
+RUN useradd -ms /bin/bash devtron
+RUN chown -R devtron:devtron ./devtron
+RUN chown -R devtron:devtron ./git-ask-pass.sh
+RUN chown -R devtron:devtron ./auth_model.conf 
+RUN chown -R devtron:devtron ./scripts
+
+USER devtron
 
 CMD ["./devtron"]
 
