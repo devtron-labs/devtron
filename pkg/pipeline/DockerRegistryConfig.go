@@ -295,23 +295,6 @@ func (impl DockerRegistryConfigImpl) Update(bean *DockerArtifactStoreBean) (*Doc
 		bean.Cert = existingStore.Cert
 	}
 
-	store := &repository.DockerArtifactStore{
-		Id:                 bean.Id,
-		PluginId:           existingStore.PluginId,
-		RegistryURL:        bean.RegistryURL,
-		RegistryType:       bean.RegistryType,
-		AWSAccessKeyId:     bean.AWSAccessKeyId,
-		AWSSecretAccessKey: bean.AWSSecretAccessKey,
-		AWSRegion:          bean.AWSRegion,
-		Username:           bean.Username,
-		Password:           bean.Password,
-		IsDefault:          bean.IsDefault,
-		Connection:         bean.Connection,
-		Cert:               bean.Cert,
-		Active:             true, // later it will change
-		AuditLog:           sql.AuditLog{CreatedBy: existingStore.CreatedBy, CreatedOn: existingStore.CreatedOn, UpdatedOn: time.Now(), UpdatedBy: bean.User},
-	}
-
 	if bean.Cert == "" {
 		bean.Cert = existingStore.Cert
 	}
