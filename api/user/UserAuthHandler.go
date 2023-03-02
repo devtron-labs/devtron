@@ -143,6 +143,7 @@ func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWrite
 	//for START in Casbin Object Ends Here
 	//loading policy for safety
 	casbin.LoadPolicy()
+	var policies []casbin.Policy
 	var policiesAdmin bean.PolicyRequest
 	err := json.Unmarshal([]byte(adminPolicies), &policiesAdmin)
 	if err != nil {
@@ -151,8 +152,7 @@ func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWrite
 		return
 	}
 	handler.logger.Debugw("request payload, AddDefaultPolicyAndRoles", "policiesAdmin", policiesAdmin)
-	casbin.AddPolicy(policiesAdmin.Data)
-
+	policies = append(policies, policiesAdmin.Data...)
 	var policiesTrigger bean.PolicyRequest
 	err = json.Unmarshal([]byte(triggerPolicies), &policiesTrigger)
 	if err != nil {
@@ -161,8 +161,7 @@ func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWrite
 		return
 	}
 	handler.logger.Debugw("request payload, AddDefaultPolicyAndRoles", "policiesTrigger", policiesTrigger)
-	casbin.AddPolicy(policiesTrigger.Data)
-
+	policies = append(policies, policiesTrigger.Data...)
 	var policiesView bean.PolicyRequest
 	err = json.Unmarshal([]byte(viewPolicies), &policiesView)
 	if err != nil {
@@ -171,7 +170,8 @@ func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWrite
 		return
 	}
 	handler.logger.Debugw("request payload, AddDefaultPolicyAndRoles", "policiesView", policiesView)
-	casbin.AddPolicy(policiesView.Data)
+	policies = append(policies, policiesView.Data...)
+	casbin.AddPolicy(policies)
 	//loading policy for syncing orchestrator to casbin with newly added policies
 	casbin.LoadPolicy()
 	//Creating ROLES
