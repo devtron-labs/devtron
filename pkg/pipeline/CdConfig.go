@@ -72,6 +72,7 @@ type CdConfig struct {
 	DefaultAddressPoolSize         int                          `env:"CD_DEFAULT_ADDRESS_POOL_SIZE"`
 	ExposeCDMetrics                bool                         `env:"EXPOSE_CD_METRICS" envDefault:"false"`
 	UseBlobStorageConfigInCdWorkflow bool                         `env:"USE_BLOB_STORAGE_CONFIG_IN_CD_WORKFLOW" envDefault:"true"`
+	BaseLogLocationPath              string                       `env:"BASE_LOG_LOCATION_PATH" envDefault:"/home/devtron/"`
 }
 
 func GetCdConfig() (*CdConfig, error) {
