@@ -2140,44 +2140,54 @@ func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Val
 
 		releaseName := pipeline.DeploymentAppName
 		bearerToken := envOverride.Environment.Cluster.Config["bearer_token"]
+
+		releaseIdentifier := &client2.ReleaseIdentifier{
+			ReleaseName:      releaseName,
+			ReleaseNamespace: envOverride.Namespace,
+			ClusterConfig: &client2.ClusterConfig{
+				ClusterName:  envOverride.Environment.Cluster.ClusterName,
+				Token:        bearerToken,
+				ApiServerUrl: envOverride.Environment.Cluster.ServerUrl,
+			},
+		}
+
 		if pipeline.DeploymentAppCreated {
 			req := &client2.UpgradeReleaseRequest{
-				ReleaseIdentifier: &client2.ReleaseIdentifier{
-					ReleaseName:      releaseName,
-					ReleaseNamespace: envOverride.Namespace,
-					ClusterConfig: &client2.ClusterConfig{
-						ClusterName:  envOverride.Environment.Cluster.ClusterName,
-						Token:        bearerToken,
-						ApiServerUrl: envOverride.Environment.Cluster.ServerUrl,
-					},
-				},
-				ValuesYaml: mergeAndSave,
+				ReleaseIdentifier: releaseIdentifier,
+				ValuesYaml:        mergeAndSave,
 			}
 
 			updateApplicationResponse, err := impl.helmAppClient.UpdateApplication(ctx, req)
+
+			// For cases where helm release was not found but db flag for deployment app created was true
+			if err != nil && strings.Contains(err.Error(), "release: not found") {
+
+				// retry install
+				_, err = impl.helmInstallReleaseWithCustomChart(ctx, releaseIdentifier, referenceChartByte, mergeAndSave)
+
+				// if retry failed, return
+				if err != nil {
+					impl.logger.Errorw("release not found, failed to re-install helm application", "err", err)
+					return false, err
+				}
+			}
+
 			if err != nil {
 				impl.logger.Errorw("error in updating helm application for cd pipeline", "err", err)
 				return false, err
 			}
 			impl.logger.Debugw("updated helm application", "response", updateApplicationResponse, "isSuccess", updateApplicationResponse.Success)
 		} else {
-			releaseIdentifier := &client2.ReleaseIdentifier{
-				ReleaseName:      releaseName,
-				ReleaseNamespace: envOverride.Namespace,
-				ClusterConfig: &client2.ClusterConfig{
-					ClusterName:  envOverride.Environment.Cluster.ClusterName,
-					Token:        bearerToken,
-					ApiServerUrl: envOverride.Environment.Cluster.ServerUrl,
-				},
-			}
-			helmInstallRequest := &client2.HelmInstallCustomRequest{
-				ValuesYaml:        mergeAndSave,
-				ChartContent:      &client2.ChartContent{Content: referenceChartByte},
-				ReleaseIdentifier: releaseIdentifier,
-			}
-			helmResponse, err := impl.helmAppClient.InstallReleaseWithCustomChart(ctx, helmInstallRequest)
 
-			//IMP: update cd pipeline to mark deployment app created, even if helm install fails
+			helmResponse, err := impl.helmInstallReleaseWithCustomChart(ctx, releaseIdentifier, referenceChartByte, mergeAndSave)
+
+			// For connection related errors, no need to update the db
+			if err != nil && strings.Contains(err.Error(), "connection error") {
+				impl.logger.Errorw("error in helm install custom chart", "err", err)
+				return false, err
+			}
+
+			// IMP: update cd pipeline to mark deployment app created, even if helm install fails
 			// If the helm install fails, it still creates the app in failed state, so trying to
 			// re-create the app results in error from helm that cannot re-use name which is still in use
 			_, pgErr := impl.updatePipeline(pipeline, overrideRequest.UserId)
@@ -2247,4 +2257,17 @@ func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Val
 		}
 	}
 	return true, nil
+}
+
+// helmInstallReleaseWithCustomChart performs helm install with custom chart
+func (impl *AppServiceImpl) helmInstallReleaseWithCustomChart(ctx context.Context, releaseIdentifier *client2.ReleaseIdentifier, referenceChartByte []byte, valuesYaml string) (*client2.HelmInstallCustomResponse, error) {
+
+	helmInstallRequest := client2.HelmInstallCustomRequest{
+		ValuesYaml:        valuesYaml,
+		ChartContent:      &client2.ChartContent{Content: referenceChartByte},
+		ReleaseIdentifier: releaseIdentifier,
+	}
+
+	// Request exec
+	return impl.helmAppClient.InstallReleaseWithCustomChart(ctx, &helmInstallRequest)
 }
