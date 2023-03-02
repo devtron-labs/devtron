@@ -425,10 +425,11 @@ func (impl UserServiceImpl) CreateOrUpdateUserRolesForAllTypes(roleFilter bean.R
 			}
 			if roleModel.Id == 0 {
 				impl.logger.Debugw("no role found for given filter", "filter", roleFilter)
-				flag, err := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType)
+				flag, err, policiesAdded := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType)
 				if err != nil || flag == false {
 					return policiesToBeAdded, rolesChanged, err
 				}
+				policiesToBeAdded = append(policiesToBeAdded, policiesAdded...)
 				roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", actionType)
 				if err != nil {
 					return policiesToBeAdded, rolesChanged, err
@@ -490,10 +491,11 @@ func (impl UserServiceImpl) createOrUpdateUserRolesForClusterEntity(roleFilter b
 						return policiesToBeAdded, rolesChanged, err
 					}
 					if roleModel.Id == 0 {
-						flag, err := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes("", "", "", entity, roleFilter.Cluster, namespace, group, kind, resource, actionType, accessType)
+						flag, err, policiesAdded := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes("", "", "", entity, roleFilter.Cluster, namespace, group, kind, resource, actionType, accessType)
 						if err != nil || flag == false {
 							return policiesToBeAdded, rolesChanged, err
 						}
+						policiesToBeAdded = append(policiesToBeAdded, policiesAdded...)
 						roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, "", "", "", "", accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType)
 						if err != nil {
 							return policiesToBeAdded, rolesChanged, err

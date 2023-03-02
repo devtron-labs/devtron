@@ -26,7 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	bean2 "github.com/devtron-labs/devtron/pkg/user/bean"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	casbin2 "github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -46,7 +46,7 @@ type UserAuthRepository interface {
 	GetUserRoleMappingByUserId(userId int32) ([]*UserRoleModel, error)
 	DeleteUserRoleMapping(userRoleModel *UserRoleModel, tx *pg.Tx) (bool, error)
 	DeleteUserRoleByRoleId(roleId int, tx *pg.Tx) error
-	CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string) (bool, error)
+	CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string) (bool, error, []casbin2.Policy)
 	CreateRoleForSuperAdminIfNotExists(tx *pg.Tx) (bool, error)
 	SyncOrchestratorToCasbin(team string, entityName string, env string, tx *pg.Tx) (bool, error)
 	UpdateTriggerPolicyForTerminalAccess() error
@@ -379,12 +379,13 @@ func (impl UserAuthRepositoryImpl) DeleteUserRoleByRoleId(roleId int, tx *pg.Tx)
 	return nil
 }
 
-func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string) (bool, error) {
+func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string) (bool, error, []casbin2.Policy) {
 	//not using txn from parent caller because of conflicts in fetching of transactional save
 	dbConnection := impl.dbConnection
 	tx, err := dbConnection.Begin()
+	var policiesToBeAdded []casbin2.Policy
 	if err != nil {
-		return false, err
+		return false, err, policiesToBeAdded
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
@@ -448,50 +449,50 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team, entity
 	//getting policies from db
 	PoliciesDb, err := impl.defaultAuthPolicyRepository.GetPolicyByRoleTypeAndEntity(bean2.RoleType(actionType), accessType, entity)
 	if err != nil {
-		return false, err
+		return false, err, policiesToBeAdded
 	}
 	//getting updated policies
 	Policies, err := util.Tprintf(PoliciesDb, rolePolicyDetails)
 	if err != nil {
 		impl.Logger.Errorw("error in getting updated policies", "err", err, "roleType", bean2.RoleType(actionType), accessType)
-		return false, err
+		return false, err, policiesToBeAdded
 	}
 	//for START in Casbin Object Ends Here
 	var policies bean.PolicyRequest
 	err = json.Unmarshal([]byte(Policies), &policies)
 	if err != nil {
 		impl.Logger.Errorw("decode err", "err", err)
-		return false, err
+		return false, err, policiesToBeAdded
 	}
 	impl.Logger.Debugw("add policy request", "policies", policies)
-	casbin.AddPolicy(policies.Data)
+	policiesToBeAdded = append(policiesToBeAdded, policies.Data...)
 	//Creating ROLES
 	//getting roles from db
 	roleDb, err := impl.defaultAuthRoleRepository.GetRoleByRoleTypeAndEntityType(bean2.RoleType(actionType), accessType, entity)
 	if err != nil {
-		return false, err
+		return false, err, nil
 	}
 	role, err := util.Tprintf(roleDb, rolePolicyDetails)
 	if err != nil {
 		impl.Logger.Errorw("error in getting updated role", "err", err, "roleType", bean2.RoleType(actionType))
-		return false, err
+		return false, err, nil
 	}
 	//getting updated role
 	var roleData bean.RoleData
 	err = json.Unmarshal([]byte(role), &roleData)
 	if err != nil {
 		impl.Logger.Errorw("decode err", "err", err)
-		return false, err
+		return false, err, nil
 	}
 	_, err = impl.createRole(&roleData, tx)
 	if err != nil && strings.Contains("duplicate key value violates unique constraint", err.Error()) {
-		return false, err
+		return false, err, nil
 	}
 	err = tx.Commit()
 	if err != nil {
-		return false, err
+		return false, err, nil
 	}
-	return true, nil
+	return true, nil, policiesToBeAdded
 }
 
 func (impl UserAuthRepositoryImpl) CreateRoleForSuperAdminIfNotExists(tx *pg.Tx) (bool, error) {
@@ -598,7 +599,7 @@ func (impl UserAuthRepositoryImpl) SyncOrchestratorToCasbin(team string, entityN
 	}
 
 	//for START in Casbin Object Ends Here
-
+	var policies []casbin2.Policy
 	var policiesTrigger bean.PolicyRequest
 	err = json.Unmarshal([]byte(triggerPolicies), &policiesTrigger)
 	if err != nil {
@@ -606,8 +607,7 @@ func (impl UserAuthRepositoryImpl) SyncOrchestratorToCasbin(team string, entityN
 		return false, err
 	}
 	impl.Logger.Debugw("add policy request", "policies", policiesTrigger)
-	casbin.AddPolicy(policiesTrigger.Data)
-
+	policies = append(policies, policiesTrigger.Data...)
 	var policiesView bean.PolicyRequest
 	err = json.Unmarshal([]byte(viewPolicies), &policiesView)
 	if err != nil {
@@ -615,8 +615,8 @@ func (impl UserAuthRepositoryImpl) SyncOrchestratorToCasbin(team string, entityN
 		return false, err
 	}
 	impl.Logger.Debugw("add policy request", "policies", policiesView)
-	casbin.AddPolicy(policiesView.Data)
-
+	policies = append(policies, policiesView.Data...)
+	casbin2.AddPolicy(policies)
 	return true, nil
 }
 
@@ -756,20 +756,20 @@ func (impl UserAuthRepositoryImpl) UpdateDefaultPolicyByRoleType(newPolicy strin
 		}
 	}
 	//loading policy for safety
-	casbin.LoadPolicy()
+	casbin2.LoadPolicy()
 	//updating all policies(for all roles) in casbin
 	if len(addedPolicyFinal.Data) > 0 {
-		casbin.AddPolicy(addedPolicyFinal.Data)
+		casbin2.AddPolicy(addedPolicyFinal.Data)
 	}
 	if len(deletedPolicyFinal.Data) > 0 {
-		casbin.RemovePolicy(deletedPolicyFinal.Data)
+		casbin2.RemovePolicy(deletedPolicyFinal.Data)
 	}
 	//loading policy for syncing orchestrator to casbin with newly added policies
-	casbin.LoadPolicy()
+	casbin2.LoadPolicy()
 	return nil
 }
 
-func (impl UserAuthRepositoryImpl) GetDiffBetweenPolicies(oldPolicy string, newPolicy string) (addedPolicies []casbin.Policy, deletedPolicies []casbin.Policy, err error) {
+func (impl UserAuthRepositoryImpl) GetDiffBetweenPolicies(oldPolicy string, newPolicy string) (addedPolicies []casbin2.Policy, deletedPolicies []casbin2.Policy, err error) {
 	var oldPolicyObj bean.PolicyRequest
 	err = json.Unmarshal([]byte(oldPolicy), &oldPolicyObj)
 	if err != nil {
@@ -818,7 +818,7 @@ func (impl UserAuthRepositoryImpl) GetDiffBetweenPolicies(oldPolicy string, newP
 	return addedPolicies, deletedPolicies, nil
 }
 
-func (impl UserAuthRepositoryImpl) GetUpdatedAddedOrDeletedPolicies(policies []casbin.Policy, rolePolicyDetails RolePolicyDetails) (bean.PolicyRequest, error) {
+func (impl UserAuthRepositoryImpl) GetUpdatedAddedOrDeletedPolicies(policies []casbin2.Policy, rolePolicyDetails RolePolicyDetails) (bean.PolicyRequest, error) {
 	var policyResp bean.PolicyRequest
 	var policyReq bean.PolicyRequest
 	policyReq.Data = policies
