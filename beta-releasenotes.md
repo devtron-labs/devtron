@@ -7,4 +7,5 @@
 ## Enhancements
 - feat: github PR updater plugin added (#3051)
 ## Documentation
+- docs: doc for GCP external secret (#3029)
 ## Others
