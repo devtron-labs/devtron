@@ -68,8 +68,7 @@ type AppRepository interface {
 	FetchAllActiveInstalledAppsWithAppIdAndName() ([]*App, error)
 	FetchAllActiveDevtronAppsWithAppIdAndName() ([]*App, error)
 	FindEnvironmentIdForInstalledApp(appId int) (int, error)
-	FetchAppIdsWithFilter(jobListingFilter helper.AppListingFilter) ([]int, error)
-	FetchAllJobs() ([]int, error)
+	FetchAppIdsWithFilter(jobListingFilter helper.AppListingFilter) ([]int, int, error)
 }
 
 const DevtronApp = "DevtronApp"
@@ -355,11 +354,12 @@ func (repo AppRepositoryImpl) FindEnvironmentIdForInstalledApp(appId int) (int, 
 	_, err := repo.dbConnection.Query(&res, query, appId)
 	return res.envId, err
 }
-func (repo AppRepositoryImpl) FetchAppIdsWithFilter(jobListingFilter helper.AppListingFilter) ([]int, error) {
+func (repo AppRepositoryImpl) FetchAppIdsWithFilter(jobListingFilter helper.AppListingFilter) ([]int, int, error) {
 	type AppId struct {
 		Id int `json:"id"`
 	}
 	var appIds []AppId
+	var jobIds []AppId
 	whereCondition := " where active = true and app_store = 2 "
 	if len(jobListingFilter.Teams) > 0 {
 		whereCondition += " and team_id in (" + helper.GetCommaSepratedString(jobListingFilter.Teams) + ")"
@@ -381,21 +381,12 @@ func (repo AppRepositoryImpl) FetchAppIdsWithFilter(jobListingFilter helper.AppL
 	for _, id := range appIds {
 		appIdsResult = append(appIdsResult, id.Id)
 	}
-	return appIdsResult, err
-}
+	query2 := "select id " + "from app " + whereCondition
 
-func (repo AppRepositoryImpl) FetchAllJobs() ([]int, error) {
-	type JobId struct {
-		Id int `json:"id"`
+	_, err = repo.dbConnection.Query(&jobIds, query2)
+	appCounts := make([]int, 0)
+	for _, id := range jobIds {
+		appCounts = append(appCounts, id.Id)
 	}
-	var appIds []JobId
-	whereCondition := " where active = true and app_store = 2 "
-	query := "select id " + "from app " + whereCondition
-
-	_, err := repo.dbConnection.Query(&appIds, query)
-	jobIdsResult := make([]int, 0)
-	for _, id := range appIds {
-		jobIdsResult = append(jobIdsResult, id.Id)
-	}
-	return jobIdsResult, err
+	return appIdsResult, len(appCounts), err
 }

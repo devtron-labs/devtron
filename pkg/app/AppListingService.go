@@ -233,7 +233,7 @@ func (impl AppListingServiceImpl) FetchJobs(fetchJobListingRequest FetchAppListi
 		Size:          fetchJobListingRequest.Size,
 		AppStatuses:   fetchJobListingRequest.AppStatuses,
 	}
-	appIds, err := impl.appRepository.FetchAppIdsWithFilter(jobListingFilter)
+	appIds, jobIdsLen, err := impl.appRepository.FetchAppIdsWithFilter(jobListingFilter)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching app ids list", "error", err)
 		return []*bean.JobContainer{}, 0, err
@@ -243,11 +243,10 @@ func (impl AppListingServiceImpl) FetchJobs(fetchJobListingRequest FetchAppListi
 		impl.Logger.Errorw("error in fetching app list", "error", err)
 		return []*bean.JobContainer{}, 0, err
 	}
-	jobIds, err := impl.appRepository.FetchAllJobs()
 	CiPipelineIDs := GetCIPipelineIDs(jobListingContainers)
 	JobsLastSucceededOnTime, err := impl.appListingRepository.FetchJobsLastSucceededOn(CiPipelineIDs)
 	jobContainers := BuildJobListingResponse(jobListingContainers, JobsLastSucceededOnTime)
-	return jobContainers, len(jobIds), nil
+	return jobContainers, jobIdsLen, nil
 }
 
 func (impl AppListingServiceImpl) FetchOverviewCiPipelines(jobId int) ([]*bean.JobListingContainer, error) {
