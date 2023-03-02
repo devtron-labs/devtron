@@ -669,14 +669,16 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.ClusterId)
 		return resourceList, err
 	}
-	k8sRequest := *request.K8sRequest
-	resp, namespaced, err := impl.k8sClientService.GetResourceList(ctx, restConfig, &k8sRequest)
+	k8sRequest := request.K8sRequest
+	//store the copy of requested resource identifier
+	resourceIdentifierCloned := k8sRequest.ResourceIdentifier
+	resp, namespaced, err := impl.k8sClientService.GetResourceList(ctx, restConfig, k8sRequest)
 	if err != nil {
 		impl.logger.Errorw("error in getting resource list", "err", err, "request", request)
 		return resourceList, err
 	}
 	checkForResourceCallback := func(namespace, group, kind, resourceName string) bool {
-		resourceIdentifier := k8sRequest.ResourceIdentifier
+		resourceIdentifier := resourceIdentifierCloned
 		resourceIdentifier.Name = resourceName
 		resourceIdentifier.Namespace = namespace
 		if group != "" && kind != "" {
