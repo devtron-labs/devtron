@@ -1,4 +1,5 @@
 ## Bugs
+- fix: pod resources not visible even if user have access on those pods. (#3071)
 - fix: unable to create container registry with deleted name (#2963)
 - fix: helm app deployment failure (#3060)
 - fix: logs file path issue fix and docker file update for non root user (#3024)
