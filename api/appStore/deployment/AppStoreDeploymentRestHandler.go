@@ -258,11 +258,20 @@ func (handler AppStoreDeploymentRestHandlerImpl) DeleteInstalledApp(w http.Respo
 	if len(force) > 0 {
 		forceDelete, err = strconv.ParseBool(force)
 		if err != nil {
-			handler.Logger.Errorw("request err, DeleteInstalledApp", "err", err, "installAppId", installAppId)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
 	}
+	partialDelete := false
+	partialDeleteStr := v.Get("partialDelete")
+	if len(partialDeleteStr) > 0 {
+		partialDelete, err = strconv.ParseBool(partialDeleteStr)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+	}
+
 	handler.Logger.Infow("request payload, DeleteInstalledApp", "installAppId", installAppId)
 	token := r.Header.Get("token")
 	installedApp, err := handler.appStoreDeploymentService.GetInstalledApp(installAppId)
@@ -294,7 +303,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) DeleteInstalledApp(w http.Respo
 	}
 	//rbac block ends here
 
-	request := appStoreBean.InstallAppVersionDTO{}
+	request := &appStoreBean.InstallAppVersionDTO{}
 	request.InstalledAppId = installAppId
 	request.AppName = installedApp.AppName
 	request.AppId = installedApp.AppId
@@ -304,6 +313,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) DeleteInstalledApp(w http.Respo
 	request.AppOfferingMode = installedApp.AppOfferingMode
 	request.ClusterId = installedApp.ClusterId
 	request.Namespace = installedApp.Namespace
+	request.AcdPartialDelete = partialDelete
 	ctx, cancel := context.WithCancel(r.Context())
 	if cn, ok := w.(http.CloseNotifier); ok {
 		go func(done <-chan struct{}, closed <-chan bool) {
@@ -325,13 +335,15 @@ func (handler AppStoreDeploymentRestHandlerImpl) DeleteInstalledApp(w http.Respo
 		}
 		ctx = context.WithValue(r.Context(), "token", acdToken)
 	}
-	res, err := handler.appStoreDeploymentService.DeleteInstalledApp(ctx, &request)
+
+	request, err = handler.appStoreDeploymentService.DeleteInstalledApp(ctx, request)
 	if err != nil {
 		handler.Logger.Errorw("service err, DeleteInstalledApp", "err", err, "installAppId", installAppId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, err, res, http.StatusOK)
+
+	common.WriteJsonResp(w, err, request, http.StatusOK)
 }
 
 func (handler *AppStoreDeploymentRestHandlerImpl) LinkHelmApplicationToChartStore(w http.ResponseWriter, r *http.Request) {
