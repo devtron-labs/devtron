@@ -182,16 +182,27 @@ func (handler AppListingRestHandlerImpl) FetchJobs(w http.ResponseWriter, r *htt
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	jobs, jobCount, err := handler.appListingService.FetchJobs(fetchJobListingRequest)
+	jobs, err := handler.appListingService.FetchJobs(fetchJobListingRequest)
 	if err != nil {
 		handler.logger.Errorw("service err, FetchJobs", "err", err, "payload", fetchJobListingRequest)
 		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 		return
 	}
+	// Apply pagination
+	jobsCount := len(jobs)
+	offset := fetchJobListingRequest.Offset
+	limit := fetchJobListingRequest.Size
 
+	if limit > 0 {
+		if offset+limit <= len(jobs) {
+			jobs = jobs[offset : offset+limit]
+		} else {
+			jobs = jobs[offset:]
+		}
+	}
 	jobContainerResponse := bean.JobContainerResponse{
 		JobContainers: jobs,
-		JobCount:      jobCount,
+		JobCount:      jobsCount,
 	}
 
 	common.WriteJsonResp(w, err, jobContainerResponse, http.StatusOK)

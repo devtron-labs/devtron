@@ -68,7 +68,7 @@ type AppRepository interface {
 	FetchAllActiveInstalledAppsWithAppIdAndName() ([]*App, error)
 	FetchAllActiveDevtronAppsWithAppIdAndName() ([]*App, error)
 	FindEnvironmentIdForInstalledApp(appId int) (int, error)
-	FetchAppIdsWithFilter(jobListingFilter helper.AppListingFilter) ([]int, int, error)
+	FetchAppIdsWithFilter(jobListingFilter helper.AppListingFilter) ([]int, error)
 }
 
 const DevtronApp = "DevtronApp"
@@ -354,11 +354,10 @@ func (repo AppRepositoryImpl) FindEnvironmentIdForInstalledApp(appId int) (int, 
 	_, err := repo.dbConnection.Query(&res, query, appId)
 	return res.envId, err
 }
-func (repo AppRepositoryImpl) FetchAppIdsWithFilter(jobListingFilter helper.AppListingFilter) ([]int, int, error) {
+func (repo AppRepositoryImpl) FetchAppIdsWithFilter(jobListingFilter helper.AppListingFilter) ([]int, error) {
 	type AppId struct {
 		Id int `json:"id"`
 	}
-	var appIds []AppId
 	var jobIds []AppId
 	whereCondition := " where active = true and app_store = 2 "
 	if len(jobListingFilter.Teams) > 0 {
@@ -372,21 +371,12 @@ func (repo AppRepositoryImpl) FetchAppIdsWithFilter(jobListingFilter helper.AppL
 	if jobListingFilter.SortOrder == "DESC" {
 		orderByCondition += string(jobListingFilter.SortOrder)
 	}
-	orderByCondition += " limit ? offset ? "
-
 	query := "select id " + "from app " + whereCondition + orderByCondition
 
-	_, err := repo.dbConnection.Query(&appIds, query, jobListingFilter.Size, jobListingFilter.Offset)
-	appIdsResult := make([]int, 0)
-	for _, id := range appIds {
-		appIdsResult = append(appIdsResult, id.Id)
-	}
-	query2 := "select id " + "from app " + whereCondition
-
-	_, err = repo.dbConnection.Query(&jobIds, query2)
+	_, err := repo.dbConnection.Query(&jobIds, query)
 	appCounts := make([]int, 0)
 	for _, id := range jobIds {
 		appCounts = append(appCounts, id.Id)
 	}
-	return appIdsResult, len(appCounts), err
+	return appCounts, err
 }

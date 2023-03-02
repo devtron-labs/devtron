@@ -53,7 +53,7 @@ import (
 
 type AppListingService interface {
 	FetchAppsByEnvironment(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, error)
-	FetchJobs(fetchJobListingRequest FetchAppListingRequest) ([]*bean.JobContainer, int, error)
+	FetchJobs(fetchJobListingRequest FetchAppListingRequest) ([]*bean.JobContainer, error)
 	FetchOverviewCiPipelines(jobId int) ([]*bean.JobListingContainer, error)
 	BuildAppListingResponse(fetchAppListingRequest FetchAppListingRequest, envContainers []*bean.AppEnvironmentContainer) ([]*bean.AppContainer, error)
 	FetchAllDevtronManagedApps() ([]AppNameTypeIdContainer, error)
@@ -222,7 +222,7 @@ func (impl AppListingServiceImpl) FetchAllDevtronManagedApps() ([]AppNameTypeIdC
 	}
 	return apps, nil
 }
-func (impl AppListingServiceImpl) FetchJobs(fetchJobListingRequest FetchAppListingRequest) ([]*bean.JobContainer, int, error) {
+func (impl AppListingServiceImpl) FetchJobs(fetchJobListingRequest FetchAppListingRequest) ([]*bean.JobContainer, error) {
 
 	jobListingFilter := helper.AppListingFilter{
 		Teams:         fetchJobListingRequest.Teams,
@@ -233,20 +233,20 @@ func (impl AppListingServiceImpl) FetchJobs(fetchJobListingRequest FetchAppListi
 		Size:          fetchJobListingRequest.Size,
 		AppStatuses:   fetchJobListingRequest.AppStatuses,
 	}
-	appIds, jobIdsLen, err := impl.appRepository.FetchAppIdsWithFilter(jobListingFilter)
+	appIds, err := impl.appRepository.FetchAppIdsWithFilter(jobListingFilter)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching app ids list", "error", err)
-		return []*bean.JobContainer{}, 0, err
+		return []*bean.JobContainer{}, err
 	}
 	jobListingContainers, err := impl.appListingRepository.FetchJobs(appIds, jobListingFilter.AppStatuses)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching app list", "error", err)
-		return []*bean.JobContainer{}, 0, err
+		return []*bean.JobContainer{}, err
 	}
 	CiPipelineIDs := GetCIPipelineIDs(jobListingContainers)
 	JobsLastSucceededOnTime, err := impl.appListingRepository.FetchJobsLastSucceededOn(CiPipelineIDs)
 	jobContainers := BuildJobListingResponse(jobListingContainers, JobsLastSucceededOnTime)
-	return jobContainers, jobIdsLen, nil
+	return jobContainers, nil
 }
 
 func (impl AppListingServiceImpl) FetchOverviewCiPipelines(jobId int) ([]*bean.JobListingContainer, error) {
