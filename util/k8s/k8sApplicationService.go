@@ -669,8 +669,8 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.ClusterId)
 		return resourceList, err
 	}
-	k8sRequest := request.K8sRequest
-	resp, namespaced, err := impl.k8sClientService.GetResourceList(ctx, restConfig, k8sRequest)
+	k8sRequest := *request.K8sRequest
+	resp, namespaced, err := impl.k8sClientService.GetResourceList(ctx, restConfig, &k8sRequest)
 	if err != nil {
 		impl.logger.Errorw("error in getting resource list", "err", err, "request", request)
 		return resourceList, err
@@ -679,7 +679,7 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 		resourceIdentifier := k8sRequest.ResourceIdentifier
 		resourceIdentifier.Name = resourceName
 		resourceIdentifier.Namespace = namespace
-		if group != "" || kind != "" {
+		if group != "" && kind != "" {
 			resourceIdentifier.GroupVersionKind = schema.GroupVersionKind{Group: group, Kind: kind}
 		}
 		k8sRequest.ResourceIdentifier = resourceIdentifier
