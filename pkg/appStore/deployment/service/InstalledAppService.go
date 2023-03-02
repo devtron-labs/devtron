@@ -79,6 +79,7 @@ type InstalledAppService interface {
 	FindAppDetailsForAppstoreApplication(installedAppId, envId int) (bean2.AppDetailContainer, error)
 	UpdateInstalledAppVersionStatus(application *v1alpha1.Application) (bool, error)
 	FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetail *bean2.AppDetailContainer) bean2.AppDetailContainer
+	FindNotesForArgoApplication(installedAppId, envId int) (string, string, error)
 }
 
 type InstalledAppServiceImpl struct {
@@ -775,12 +776,25 @@ func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(instal
 	appDetail := bean2.AppDetailContainer{
 		DeploymentDetailContainer: deploymentContainer,
 	}
+	return appDetail, nil
+}
+func (impl *InstalledAppServiceImpl) FindNotesForArgoApplication(installedAppId, envId int) (string, string, error) {
+	installedAppVerison, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdAndEnvId(installedAppId, envId)
+	var notes string
+	appName := installedAppVerison.InstalledApp.App.AppName
+	if err != nil {
+		//do better logging
+		impl.logger.Error(err)
+		return notes, appName, err
+	}
+
 	if util.IsAcdApp(installedAppVerison.InstalledApp.DeploymentAppType) {
 		appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installedAppVerison.AppStoreApplicationVersion.Id)
 		if err != nil {
 			impl.logger.Errorw("error fetching app store app version in installed app service", "err", err)
-			return appDetail, err
+			return notes, appName, err
 		}
+
 		installReleaseRequest := &client.InstallReleaseRequest{
 			ChartName:    appStoreAppVersion.Name,
 			ChartVersion: appStoreAppVersion.Version,
@@ -800,14 +814,13 @@ func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(instal
 			},
 		}
 
-		notes, err := impl.helmAppService.GetNotes(context.Background(), installReleaseRequest)
+		notes, err = impl.helmAppService.GetNotes(context.Background(), installReleaseRequest)
 		if err != nil {
 			impl.logger.Errorw("error in fetching notes", "err", err)
-			return appDetail, err
+			return notes, appName, err
 		}
-		appDetail.Notes = notes
 	}
-	return appDetail, nil
+	return notes, appName, nil
 }
 
 func (impl InstalledAppServiceImpl) GetInstalledAppVersionHistory(installedAppId int) (*appStoreBean.InstallAppVersionHistoryDto, error) {
