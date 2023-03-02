@@ -74,6 +74,7 @@ func (impl AppListingRepositoryQueryBuilder) BuildJobListingQuery(appIDs []int, 
 	if len(statuses) > 0 {
 		query += "and cwr.status IN (" + util.ProcessAppStatuses(statuses) + ") "
 	}
+	query += " order by app.display_name"
 	return query
 }
 func (impl AppListingRepositoryQueryBuilder) OverviewCiPipelineQuery() string {
