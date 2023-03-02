@@ -37,7 +37,7 @@ import (
 
 type AppListingRepository interface {
 	FetchAppsByEnvironment(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, error)
-	FetchJobs(appIds []int, statuses []string) ([]*bean.JobListingContainer, error)
+	FetchJobs(appIds []int, statuses []string, sortOrder string) ([]*bean.JobListingContainer, error)
 	FetchOverviewCiPipelines(jobId int) ([]*bean.JobListingContainer, error)
 	FetchJobsLastSucceededOn(ciPipelineIDs []int) ([]*bean.CiPipelineLastSucceededTime, error)
 	DeploymentDetailsByAppIdAndEnvId(ctx context.Context, appId int, envId int) (bean.DeploymentDetailContainer, error)
@@ -83,12 +83,12 @@ func NewAppListingRepositoryImpl(Logger *zap.SugaredLogger, dbConnection *pg.DB,
 	return &AppListingRepositoryImpl{dbConnection: dbConnection, Logger: Logger, appListingRepositoryQueryBuilder: appListingRepositoryQueryBuilder}
 }
 
-func (impl AppListingRepositoryImpl) FetchJobs(appIds []int, statuses []string) ([]*bean.JobListingContainer, error) {
+func (impl AppListingRepositoryImpl) FetchJobs(appIds []int, statuses []string, sortOrder string) ([]*bean.JobListingContainer, error) {
 	var jobContainers []*bean.JobListingContainer
 	if len(appIds) == 0 {
 		return jobContainers, nil
 	}
-	jobsQuery := impl.appListingRepositoryQueryBuilder.BuildJobListingQuery(appIds, statuses)
+	jobsQuery := impl.appListingRepositoryQueryBuilder.BuildJobListingQuery(appIds, statuses, sortOrder)
 
 	impl.Logger.Debugw("basic app detail query: ", jobsQuery)
 	_, appsErr := impl.dbConnection.Query(&jobContainers, jobsQuery)

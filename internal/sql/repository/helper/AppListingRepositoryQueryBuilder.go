@@ -60,7 +60,7 @@ const (
 	AppNameSortBy SortBy = "appNameSort"
 )
 
-func (impl AppListingRepositoryQueryBuilder) BuildJobListingQuery(appIDs []int, statuses []string) string {
+func (impl AppListingRepositoryQueryBuilder) BuildJobListingQuery(appIDs []int, statuses []string, sortOrder string) string {
 	query := "select ci_pipeline.name as ci_pipeline_name,ci_pipeline.id as ci_pipeline_id,app.id as job_id,app.display_name as job_name, app.description ,cwr.started_on,cwr.status " +
 		"from ci_pipeline left join " +
 		"(select cw.ci_pipeline_id,cw.status,cw.started_on from ci_workflow cw " +
@@ -75,6 +75,9 @@ func (impl AppListingRepositoryQueryBuilder) BuildJobListingQuery(appIDs []int, 
 		query += "and cwr.status IN (" + util.ProcessAppStatuses(statuses) + ") "
 	}
 	query += " order by app.display_name"
+	if sortOrder == "DESC" {
+		query += " DESC "
+	}
 	return query
 }
 func (impl AppListingRepositoryQueryBuilder) OverviewCiPipelineQuery() string {
