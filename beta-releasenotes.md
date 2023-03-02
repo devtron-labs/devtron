@@ -1,4 +1,5 @@
 ## Bugs
+- fix: helm app deployment failure (#3060)
 - fix: logs file path issue fix and docker file update for non root user (#3024)
 - fix: urls pipeline fetching bug fix (#3063)
 - fix: app grouping appid appname (#3058)
