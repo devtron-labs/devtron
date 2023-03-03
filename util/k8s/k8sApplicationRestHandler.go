@@ -552,6 +552,11 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 		isReconnect = true
 	}
 	stream, err := handler.k8sApplicationService.GetPodLogs(r.Context(), request)
+	if err != nil {
+		handler.logger.Errorw("error in get pod logs", "podName", podName, "containerName", containerName, "namespace", namespace, "clusterId", clusterIdString, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
 	ctx, cancel := context.WithCancel(r.Context())
 	if cn, ok := w.(http.CloseNotifier); ok {
 		go func(done <-chan struct{}, closed <-chan bool) {
