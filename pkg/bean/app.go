@@ -474,6 +474,9 @@ type CDPipelineConfigObject struct {
 	ParentPipelineType            string                                 `json:"parentPipelineType"`
 	DeploymentAppType             string                                 `json:"deploymentAppType"`
 	AppName                       string                                 `json:"appName"`
+	DeploymentAppDeleteRequest    bool                                   `json:"deploymentAppDeleteRequest"`
+	DeploymentAppCreated          bool                                   `json:"deploymentAppCreated"`
+	AppId                         int                                    `json:"appId"`
 	//Downstream         []int                             `json:"downstream"` //PipelineCounter of downstream	(for future reference only)
 }
 
@@ -522,6 +525,7 @@ const (
 	CD_CREATE CdPatchAction = iota
 	CD_DELETE               //delete this pipeline
 	CD_UPDATE
+	CD_DELETE_PARTIAL // Partially delete means it will only delete ACD app
 )
 
 type DeploymentAppTypeChangeRequest struct {

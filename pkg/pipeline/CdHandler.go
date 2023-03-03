@@ -45,6 +45,7 @@ import (
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -334,6 +335,14 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipel
 			impl.Logger.Errorw("error on update cd workflow runner", "wfr", wfr, "err", err)
 			return err
 		}
+		cdMetrics := util3.CDMetrics{
+			AppName:         wfr.CdWorkflow.Pipeline.DeploymentAppName,
+			Status:          wfr.Status,
+			DeploymentType:  wfr.CdWorkflow.Pipeline.DeploymentAppType,
+			EnvironmentName: wfr.CdWorkflow.Pipeline.Environment.Name,
+			Time:            time.Since(wfr.StartedOn).Seconds() - time.Since(wfr.FinishedOn).Seconds(),
+		}
+		util3.TriggerCDMetrics(cdMetrics, impl.cdConfig.ExposeCDMetrics)
 		impl.Logger.Infow("updated workflow runner status for helm app", "wfr", wfr)
 		if helmAppStatus == application.Healthy {
 			pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByCdWorkflowId(wfr.CdWorkflowId)
@@ -457,6 +466,14 @@ func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 			impl.Logger.Error("update wf failed for id " + strconv.Itoa(savedWorkflow.Id))
 			return 0, "", err
 		}
+		cdMetrics := util3.CDMetrics{
+			AppName:         savedWorkflow.CdWorkflow.Pipeline.DeploymentAppName,
+			Status:          savedWorkflow.Status,
+			DeploymentType:  savedWorkflow.CdWorkflow.Pipeline.DeploymentAppType,
+			EnvironmentName: savedWorkflow.CdWorkflow.Pipeline.Environment.Name,
+			Time:            time.Since(savedWorkflow.StartedOn).Seconds() - time.Since(savedWorkflow.FinishedOn).Seconds(),
+		}
+		util3.TriggerCDMetrics(cdMetrics, impl.cdConfig.ExposeCDMetrics)
 		if string(v1alpha1.NodeError) == savedWorkflow.Status || string(v1alpha1.NodeFailed) == savedWorkflow.Status {
 			impl.Logger.Warnw("cd stage failed for workflow: ", "wfId", savedWorkflow.Id)
 		}
@@ -628,7 +645,7 @@ func (impl *CdHandlerImpl) getLogsFromRepository(pipelineId int, cdWorkflow *pip
 		},
 	}
 	impl.Logger.Infow("s3 log req ", "req", cdLogRequest)
-	oldLogsStream, cleanUp, err := impl.ciLogService.FetchLogs(cdLogRequest)
+	oldLogsStream, cleanUp, err := impl.ciLogService.FetchLogs(impl.ciConfig.BaseLogLocationPath, cdLogRequest)
 	if err != nil {
 		impl.Logger.Errorw("err", err)
 		return nil, nil, err
@@ -655,8 +672,25 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 	if triggeredByUser == nil {
 		triggeredByUser = &bean.UserInfo{EmailId: "anonymous"}
 	}
+	ciArtifactId := workflow.CiArtifactId
+	if ciArtifactId > 0 {
+		ciArtifact, err := impl.ciArtifactRepository.Get(ciArtifactId)
+		if err != nil {
+			impl.Logger.Errorw("error fetching artifact data", "err", err)
+			return WorkflowResponse{}, err
+		}
 
-	ciMaterials, err := impl.ciPipelineMaterialRepository.GetByPipelineId(workflowR.CdWorkflow.Pipeline.CiPipelineId)
+		// handling linked ci pipeline
+		if ciArtifact.ParentCiArtifact > 0 && ciArtifact.WorkflowId == nil {
+			ciArtifactId = ciArtifact.ParentCiArtifact
+		}
+	}
+	ciWf, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflowByArtifactId(ciArtifactId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("error in fetching ci wf", "artifactId", workflow.CiArtifactId, "err", err)
+		return WorkflowResponse{}, err
+	}
+	ciMaterials, err := impl.ciPipelineMaterialRepository.GetByPipelineIdForRegexAndFixed(ciWf.CiPipelineId)
 	if err != nil {
 		impl.Logger.Errorw("err", "err", err)
 		return WorkflowResponse{}, err
@@ -674,11 +708,6 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 			Url:             m.GitMaterial.Url,
 		}
 		ciMaterialsArr = append(ciMaterialsArr, res)
-	}
-	ciWf, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflowByArtifactId(workflow.CiArtifactId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.Logger.Errorw("error in fetching ci wf", "artifactId", workflow.CiArtifactId, "err", err)
-		return WorkflowResponse{}, err
 	}
 	gitTriggers := make(map[int]pipelineConfig.GitCommit)
 	if ciWf.GitTriggers != nil {
@@ -703,6 +732,7 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		BlobStorageEnabled: workflow.BlobStorageEnabled,
 	}
 	return workflowResponse, nil
+
 }
 
 func (impl *CdHandlerImpl) DownloadCdWorkflowArtifacts(pipelineId int, buildId int) (*os.File, error) {
@@ -750,11 +780,13 @@ func (impl *CdHandlerImpl) DownloadCdWorkflowArtifacts(pipelineId int, buildId i
 		CredentialFileJsonData: impl.ciConfig.BlobStorageGcpCredentialJson,
 	}
 	key := fmt.Sprintf("%s/"+impl.cdConfig.CdArtifactLocationFormat, impl.cdConfig.DefaultArtifactKeyPrefix, wfr.CdWorkflow.Id, wfr.Id)
+	baseLogLocationPathConfig := impl.cdConfig.BaseLogLocationPath
 	blobStorageService := blob_storage.NewBlobStorageServiceImpl(nil)
+	destinationKey := filepath.Clean(filepath.Join(baseLogLocationPathConfig, item))
 	request := &blob_storage.BlobStorageRequest{
 		StorageType:         impl.ciConfig.CloudProvider,
 		SourceKey:           key,
-		DestinationKey:      item,
+		DestinationKey:      destinationKey,
 		AzureBlobBaseConfig: azureBlobBaseConfig,
 		AwsS3BaseConfig:     awsS3BaseConfig,
 		GcpBlobBaseConfig:   gcpBlobBaseConfig,
@@ -765,7 +797,7 @@ func (impl *CdHandlerImpl) DownloadCdWorkflowArtifacts(pipelineId int, buildId i
 		return nil, errors.New("failed to download resource")
 	}
 
-	file, err := os.Open(item)
+	file, err := os.Open(destinationKey)
 	if err != nil {
 		impl.Logger.Errorw("unable to open file", "file", item, "err", err)
 		return nil, errors.New("unable to open file")
@@ -858,9 +890,11 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerView(appId int) ([]*p
 		return cdWorkflowStatus, err
 	}
 	pipelineIds := make([]int, 0)
+	partialDeletedPipelines := make(map[int]bool)
 	//pipelineIdsMap := make(map[int]int)
 	for _, pipeline := range pipelines {
 		pipelineIds = append(pipelineIds, pipeline.Id)
+		partialDeletedPipelines[pipeline.Id] = pipeline.DeploymentAppDeleteRequest
 	}
 
 	if len(pipelineIds) == 0 {
@@ -914,6 +948,7 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerView(appId int) ([]*p
 			}
 			cdMap[item.PipelineId] = cdWorkflowStatus
 		}
+		cdMap[item.PipelineId].DeploymentAppDeleteRequest = partialDeletedPipelines[item.PipelineId]
 	}
 
 	for _, item := range cdMap {
