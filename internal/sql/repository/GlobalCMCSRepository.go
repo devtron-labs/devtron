@@ -48,7 +48,7 @@ type GlobalCMCS struct {
 	Data         json.RawMessage `sql:"data"`
 	MountPath    string          `sql:"mount_path"`
 	Deleted      bool            `sql:"deleted,notnull"`
-	PipelineType string          `sql:"pipeline_type,notnull"`
+	PipelineType string          `sql:"pipeline_type,notnull"` // [CI, CD, CD/CD]
 	sql.AuditLog
 }
 

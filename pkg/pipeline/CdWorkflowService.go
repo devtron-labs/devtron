@@ -160,7 +160,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		return nil, err
 	}
 	for i := range globalCmCsConfigs {
-		globalCmCsConfigs[i].Name = globalCmCsConfigs[i].Name + "-" + strconv.Itoa(workflowRequest.WorkflowId)
+		globalCmCsConfigs[i].Name = globalCmCsConfigs[i].Name + "-" + strconv.Itoa(workflowRequest.WorkflowId) + "-" + repository2.PIPELINE_TYPE_CD
 	}
 
 	var volumes []v12.Volume
