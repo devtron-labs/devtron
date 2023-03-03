@@ -481,7 +481,15 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 		valid, err := handler.k8sApplicationService.ValidateResourceRequest(r.Context(), request.AppIdentifier, request.K8sRequest)
 		if err != nil || !valid {
 			handler.logger.Errorw("error in validating resource request", "err", err)
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			apiError := util2.ApiError{
+				InternalMessage: "failed to validate the resource with error " + err.Error(),
+				UserMessage:     "",
+			}
+			if !valid {
+				apiError.InternalMessage = "failed to validate the resource"
+				apiError.UserMessage = "requested Pod or Container doesn't exist"
+			}
+			common.WriteJsonResp(w, &apiError, nil, http.StatusBadRequest)
 			return
 		}
 		// RBAC enforcer applying
