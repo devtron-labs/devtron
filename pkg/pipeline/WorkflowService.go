@@ -246,7 +246,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		return nil, err
 	}
 	for i := range globalCmCsConfigs {
-		globalCmCsConfigs[i].Name = globalCmCsConfigs[i].Name + "-" + strconv.Itoa(workflowRequest.WorkflowId) + "-" + repository.PIPELINE_TYPE_CI
+		globalCmCsConfigs[i].Name = globalCmCsConfigs[i].Name + "-" + strconv.Itoa(workflowRequest.WorkflowId) + "-" + "ci"
 	}
 
 	configsMapping := make(map[string]string)
