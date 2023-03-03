@@ -45,6 +45,15 @@ type CDMetrics struct {
 	Time            float64
 }
 
+type CIMetrics struct {
+	CacheDown float64 `json:"cache_down"`
+	PreCi     float64 `json:"pre_ci"`
+	Build     float64 `json:"build"`
+	PostCi    float64 `json:"post_ci"`
+	CacheUp   float64 `json:"cache_up"`
+	Total     float64 `json:"total"`
+}
+
 func ContainsString(list []string, element string) bool {
 	if len(list) == 0 {
 		return false
@@ -221,5 +230,20 @@ func InterfaceToMapAdapter(resp interface{}) map[string]interface{} {
 func TriggerCDMetrics(wfr CDMetrics, exposeCDMetrics bool) {
 	if exposeCDMetrics && (wfr.Status == WorkflowFailed || wfr.Status == WorkflowSucceeded) {
 		middleware.CdDuration.WithLabelValues(wfr.AppName, wfr.Status, wfr.EnvironmentName, wfr.DeploymentType).Observe(wfr.Time)
+	}
+}
+
+func TriggerCIMetrics(Metrics CIMetrics, exposeCIMetrics bool, PipelineName string, AppName string) {
+	if exposeCIMetrics {
+		middleware.CacheDownloadDuration.WithLabelValues(PipelineName, AppName).Observe(Metrics.CacheDown)
+		middleware.CiDuration.WithLabelValues(PipelineName, AppName).Observe(Metrics.Total)
+		middleware.CacheUploadDuration.WithLabelValues(PipelineName, AppName).Observe(Metrics.CacheUp)
+		if Metrics.PostCi != 0 {
+			middleware.PostCiDuration.WithLabelValues(PipelineName, AppName).Observe(Metrics.PostCi)
+		}
+		if Metrics.PreCi != 0 {
+			middleware.PreCiDuration.WithLabelValues(PipelineName, AppName).Observe(Metrics.PreCi)
+		}
+		middleware.BuildDuration.WithLabelValues(PipelineName, AppName).Observe(Metrics.CacheDown)
 	}
 }
