@@ -1180,11 +1180,12 @@ type PodMetadata struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Name           string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Uid            string   `protobuf:"bytes,2,opt,name=uid,proto3" json:"uid,omitempty"`
-	Containers     []string `protobuf:"bytes,3,rep,name=containers,proto3" json:"containers,omitempty"`
-	InitContainers []string `protobuf:"bytes,4,rep,name=initContainers,proto3" json:"initContainers,omitempty"`
-	IsNew          bool     `protobuf:"varint,5,opt,name=isNew,proto3" json:"isNew,omitempty"`
+	Name                string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Uid                 string   `protobuf:"bytes,2,opt,name=uid,proto3" json:"uid,omitempty"`
+	Containers          []string `protobuf:"bytes,3,rep,name=containers,proto3" json:"containers,omitempty"`
+	InitContainers      []string `protobuf:"bytes,4,rep,name=initContainers,proto3" json:"initContainers,omitempty"`
+	EphemeralContainers []string `protobuf:"bytes,5,rep,name=ephemeralContainers,proto3" json:"ephemeralContainers,omitempty"`
+	IsNew               bool     `protobuf:"varint,6,opt,name=isNew,proto3" json:"isNew,omitempty"`
 }
 
 func (x *PodMetadata) Reset() {

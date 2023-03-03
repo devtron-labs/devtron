@@ -145,7 +145,8 @@ message PodMetadata {
   string uid = 2 ;
   repeated string containers = 3;
   repeated string initContainers = 4;
-  bool isNew = 5;
+  repeated string ephemeralContainers = 5;
+  bool isNew = 6;
 }
 
 //--------hibernate
