@@ -532,11 +532,20 @@ func (impl *K8sApplicationServiceImpl) validateContainerNameIfReqd(valid bool, r
 		podName := request.ResourceIdentifier.Name
 		for _, pod := range app.ResourceTreeResponse.PodMetadata {
 			if pod.Name == podName {
+				//finding the container name in main Containers
 				for _, container := range pod.Containers {
 					if container == requestContainerName {
 						return true
 					}
 				}
+
+				//finding the container name in init containers
+				for _, initContainer := range pod.InitContainers {
+					if initContainer == requestContainerName {
+						return true
+					}
+				}
+
 			}
 		}
 	}
@@ -670,13 +679,15 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 		return resourceList, err
 	}
 	k8sRequest := request.K8sRequest
+	//store the copy of requested resource identifier
+	resourceIdentifierCloned := k8sRequest.ResourceIdentifier
 	resp, namespaced, err := impl.k8sClientService.GetResourceList(ctx, restConfig, k8sRequest)
 	if err != nil {
 		impl.logger.Errorw("error in getting resource list", "err", err, "request", request)
 		return resourceList, err
 	}
 	checkForResourceCallback := func(namespace, group, kind, resourceName string) bool {
-		resourceIdentifier := k8sRequest.ResourceIdentifier
+		resourceIdentifier := resourceIdentifierCloned
 		resourceIdentifier.Name = resourceName
 		resourceIdentifier.Namespace = namespace
 		if group != "" && kind != "" {
