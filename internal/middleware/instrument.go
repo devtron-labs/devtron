@@ -60,7 +60,7 @@ var BuildDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 	Name:    "build_duration_seconds",
 	Help:    "Duration of Build process",
 	Buckets: prometheus.LinearBuckets(20, 20, 5),
-}, []string{"pipelineName"})
+}, []string{"pipelineName", "AppName"})
 
 var PostCiDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 	Name:    "post_ci_duration_seconds",
