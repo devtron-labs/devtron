@@ -240,7 +240,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	ttl := int32(impl.ciConfig.BuildLogTTLValue)
 
 	//getting all cm/cs to be used by default
-	globalCmCsConfigs, err := impl.globalCMCSService.FindAllActive()
+	globalCmCsConfigs, err := impl.globalCMCSService.FindAllActiveByPipelineType(repository.PIPELINE_TYPE_CI)
 	if err != nil {
 		impl.Logger.Errorw("error in getting all global cm/cs config", "err", err)
 		return nil, err

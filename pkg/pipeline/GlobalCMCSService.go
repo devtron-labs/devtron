@@ -12,7 +12,7 @@ import (
 
 type GlobalCMCSService interface {
 	Create(model *GlobalCMCSDto) (*GlobalCMCSDto, error)
-	FindAllActive() ([]*GlobalCMCSDto, error)
+	FindAllActiveByPipelineType(pipelineType string) ([]*GlobalCMCSDto, error)
 }
 
 type GlobalCMCSServiceImpl struct {
@@ -34,10 +34,11 @@ type GlobalCMCSDto struct {
 	Name       string `json:"name"  validate:"required"`
 	Type       string `json:"type" validate:"oneof=environment volume"`
 	//map of key:value, example: '{ "a" : "b", "c" : "d"}'
-	Data      map[string]string `json:"data"  validate:"required"`
-	MountPath string            `json:"mountPath"`
-	Deleted   bool              `json:"deleted"`
-	UserId    int32             `json:"-"`
+	Data         map[string]string `json:"data"  validate:"required"`
+	MountPath    string            `json:"mountPath"`
+	Deleted      bool              `json:"deleted"`
+	UserId       int32             `json:"-"`
+	PipelineType string            `json:"PipelineType"` // value can be one of [ci, cd, ci/cd]
 }
 
 func (impl *GlobalCMCSServiceImpl) Create(config *GlobalCMCSDto) (*GlobalCMCSDto, error) {
@@ -94,16 +95,11 @@ func (impl *GlobalCMCSServiceImpl) Create(config *GlobalCMCSDto) (*GlobalCMCSDto
 	return config, nil
 }
 
-func (impl *GlobalCMCSServiceImpl) FindAllActive() ([]*GlobalCMCSDto, error) {
-	models, err := impl.globalCMCSRepository.FindAllActive()
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("err in getting all global cm/cs configs", "err", err)
-		return nil, err
-	}
+func (impl *GlobalCMCSServiceImpl) ConvertGlobalCmcsDbObjectToGlobalCmcsDto(GlobalCMCSDBObject []*repository.GlobalCMCS) []*GlobalCMCSDto {
 	var configDtos []*GlobalCMCSDto
-	for _, model := range models {
+	for _, model := range GlobalCMCSDBObject {
 		data := make(map[string]string)
-		err = json.Unmarshal([]byte(model.Data), &data)
+		err := json.Unmarshal([]byte(model.Data), &data)
 		if err != nil {
 			impl.logger.Errorw("error in un-marshaling cm/cs data", "err", err)
 		}
@@ -117,6 +113,15 @@ func (impl *GlobalCMCSServiceImpl) FindAllActive() ([]*GlobalCMCSDto, error) {
 		}
 		configDtos = append(configDtos, configDto)
 	}
+	return configDtos
+}
 
+func (impl *GlobalCMCSServiceImpl) FindAllActiveByPipelineType(pipelineType string) ([]*GlobalCMCSDto, error) {
+	models, err := impl.globalCMCSRepository.FindAllActiveByPipelineType(pipelineType)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("err in getting all global cm/cs configs", "err", err)
+		return nil, err
+	}
+	configDtos := impl.ConvertGlobalCmcsDbObjectToGlobalCmcsDto(models)
 	return configDtos, nil
 }

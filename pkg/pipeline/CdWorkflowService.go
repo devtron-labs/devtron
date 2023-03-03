@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
+	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"net/url"
@@ -54,11 +55,12 @@ type CdWorkflowService interface {
 const CD_WORKFLOW_NAME = "cd"
 
 type CdWorkflowServiceImpl struct {
-	Logger        *zap.SugaredLogger
-	config        *rest.Config
-	cdConfig      *CdConfig
-	appService    app.AppService
-	envRepository repository.EnvironmentRepository
+	Logger            *zap.SugaredLogger
+	config            *rest.Config
+	cdConfig          *CdConfig
+	appService        app.AppService
+	envRepository     repository.EnvironmentRepository
+	globalCMCSService GlobalCMCSService
 }
 
 type CdWorkflowRequest struct {
@@ -110,9 +112,17 @@ type CdWorkflowRequest struct {
 const PRE = "PRE"
 const POST = "POST"
 
-func NewCdWorkflowServiceImpl(Logger *zap.SugaredLogger, envRepository repository.EnvironmentRepository, cdConfig *CdConfig, appService app.AppService) *CdWorkflowServiceImpl {
-	return &CdWorkflowServiceImpl{Logger: Logger, config: cdConfig.ClusterConfig,
-		cdConfig: cdConfig, appService: appService, envRepository: envRepository}
+func NewCdWorkflowServiceImpl(Logger *zap.SugaredLogger,
+	envRepository repository.EnvironmentRepository,
+	cdConfig *CdConfig,
+	appService app.AppService,
+	globalCMCSService GlobalCMCSService) *CdWorkflowServiceImpl {
+	return &CdWorkflowServiceImpl{Logger: Logger,
+		config:            cdConfig.ClusterConfig,
+		cdConfig:          cdConfig,
+		appService:        appService,
+		envRepository:     envRepository,
+		globalCMCSService: globalCMCSService}
 }
 
 func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowRequest, pipeline *pipelineConfig.Pipeline, env *repository.Environment) (*v1alpha1.Workflow, error) {
@@ -144,8 +154,128 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	reqMem := impl.cdConfig.ReqMem
 	ttl := int32(impl.cdConfig.BuildLogTTLValue)
 
+	globalCmCsConfigs, err := impl.globalCMCSService.FindAllActiveByPipelineType(repository2.PIPELINE_TYPE_CD)
+	if err != nil {
+		impl.Logger.Errorw("error in getting all global cm/cs config", "err", err)
+		return nil, err
+	}
+	for i := range globalCmCsConfigs {
+		globalCmCsConfigs[i].Name = globalCmCsConfigs[i].Name + "-" + strconv.Itoa(workflowRequest.WorkflowId)
+	}
+
 	var volumes []v12.Volume
 	var steps []v1alpha1.ParallelSteps
+
+	globalConfigsMapping := make(map[string]string)
+	globalSecretsMapping := make(map[string]string)
+
+	cmIndex := 0
+	csIndex := 0
+
+	entryPoint := CD_WORKFLOW_NAME
+	if len(globalCmCsConfigs) > 0 {
+		entryPoint = "cd-stages-with-env"
+		for _, config := range globalCmCsConfigs {
+			if config.ConfigType == repository2.CM_TYPE_CONFIG {
+				ownerDelete := true
+				cmBody := v12.ConfigMap{
+					TypeMeta: v1.TypeMeta{
+						Kind:       "ConfigMap",
+						APIVersion: "v1",
+					},
+					ObjectMeta: v1.ObjectMeta{
+						Name: config.Name,
+						OwnerReferences: []v1.OwnerReference{{
+							APIVersion:         "argoproj.io/v1alpha1",
+							Kind:               "Workflow",
+							Name:               "{{workflow.name}}",
+							UID:                "{{workflow.uid}}",
+							BlockOwnerDeletion: &ownerDelete,
+						}},
+					},
+					Data: config.Data,
+				}
+				cmJson, err := json.Marshal(cmBody)
+				if err != nil {
+					impl.Logger.Errorw("error in building json", "err", err)
+					return nil, err
+				}
+				globalConfigsMapping[config.Name] = string(cmJson)
+
+				if config.Type == repository2.VOLUME_CONFIG {
+					volumes = append(volumes, v12.Volume{
+						Name: config.Name + "-vol",
+						VolumeSource: v12.VolumeSource{
+							ConfigMap: &v12.ConfigMapVolumeSource{
+								LocalObjectReference: v12.LocalObjectReference{
+									Name: config.Name,
+								},
+							},
+						},
+					})
+				}
+				steps = append(steps, v1alpha1.ParallelSteps{
+					Steps: []v1alpha1.WorkflowStep{
+						{
+							Name:     "create-env-cm-" + strconv.Itoa(cmIndex),
+							Template: "cm-" + strconv.Itoa(cmIndex),
+						},
+					},
+				})
+				cmIndex++
+			} else if config.ConfigType == repository2.CS_TYPE_CONFIG {
+				secretDataMap := make(map[string][]byte)
+				for key, value := range config.Data {
+					secretDataMap[key] = []byte(value)
+				}
+				ownerDelete := true
+				secretObject := v12.Secret{
+					TypeMeta: v1.TypeMeta{
+						Kind:       "Secret",
+						APIVersion: "v1",
+					},
+					ObjectMeta: v1.ObjectMeta{
+						Name: config.Name,
+						OwnerReferences: []v1.OwnerReference{{
+							APIVersion:         "argoproj.io/v1alpha1",
+							Kind:               "Workflow",
+							Name:               "{{workflow.name}}",
+							UID:                "{{workflow.uid}}",
+							BlockOwnerDeletion: &ownerDelete,
+						}},
+					},
+					Data: secretDataMap,
+					Type: "Opaque",
+				}
+				secretJson, err := json.Marshal(secretObject)
+				if err != nil {
+					impl.Logger.Errorw("error in building json", "err", err)
+					return nil, err
+				}
+				globalSecretsMapping[config.Name] = string(secretJson)
+				if config.Type == repository2.VOLUME_CONFIG {
+					volumes = append(volumes, v12.Volume{
+						Name: config.Name + "-vol",
+						VolumeSource: v12.VolumeSource{
+							Secret: &v12.SecretVolumeSource{
+								SecretName: config.Name,
+							},
+						},
+					})
+				}
+				steps = append(steps, v1alpha1.ParallelSteps{
+					Steps: []v1alpha1.WorkflowStep{
+						{
+							Name:     "create-env-sec-" + strconv.Itoa(csIndex),
+							Template: "sec-" + strconv.Itoa(csIndex),
+						},
+					},
+				})
+				csIndex++
+			}
+		}
+
+	}
 
 	preStageConfigMapSecretsJson := pipeline.PreStageConfigMapSecretNames
 	postStageConfigMapSecretsJson := pipeline.PostStageConfigMapSecretNames
@@ -222,7 +352,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	configsMapping := make(map[string]string)
 	secretsMapping := make(map[string]string)
 
-	entryPoint := CD_WORKFLOW_NAME
+	entryPoint = CD_WORKFLOW_NAME
 	if len(configMaps.Maps) > 0 {
 		entryPoint = "cd-stages-with-env"
 		for i, cm := range configMaps.Maps {
@@ -334,6 +464,36 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	}
 
 	var templates []v1alpha1.Template
+
+	cmIndex = 0
+	csIndex = 0
+	if len(globalConfigsMapping) > 0 {
+		for _, manifest := range globalConfigsMapping {
+			templates = append(templates, v1alpha1.Template{
+				Name: "cm-" + strconv.Itoa(cmIndex),
+				Resource: &v1alpha1.ResourceTemplate{
+					Action:            "create",
+					SetOwnerReference: true,
+					Manifest:          manifest,
+				},
+			})
+			cmIndex++
+		}
+	}
+	if len(globalSecretsMapping) > 0 {
+		for _, manifest := range globalSecretsMapping {
+			templates = append(templates, v1alpha1.Template{
+				Name: "sec-" + strconv.Itoa(csIndex),
+				Resource: &v1alpha1.ResourceTemplate{
+					Action:            "create",
+					SetOwnerReference: true,
+					Manifest:          manifest,
+				},
+			})
+			csIndex++
+		}
+	}
+
 	if len(configsMapping) > 0 {
 		for i, cm := range configMaps.Maps {
 			templates = append(templates, v1alpha1.Template{
@@ -466,6 +626,33 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		// set in ArchiveLocation
 		cdTemplate.ArchiveLocation.S3 = s3Artifact
 		cdTemplate.ArchiveLocation.GCS = gcsArtifact
+	}
+
+	for _, config := range globalCmCsConfigs {
+		if config.Type == repository2.VOLUME_CONFIG {
+			cdTemplate.Container.VolumeMounts = append(cdTemplate.Container.VolumeMounts, v12.VolumeMount{
+				Name:      config.Name + "-vol",
+				MountPath: config.MountPath,
+			})
+		} else if config.Type == repository2.ENVIRONMENT_CONFIG {
+			if config.ConfigType == repository2.CM_TYPE_CONFIG {
+				cdTemplate.Container.EnvFrom = append(cdTemplate.Container.EnvFrom, v12.EnvFromSource{
+					ConfigMapRef: &v12.ConfigMapEnvSource{
+						LocalObjectReference: v12.LocalObjectReference{
+							Name: config.Name,
+						},
+					},
+				})
+			} else if config.ConfigType == repository2.CS_TYPE_CONFIG {
+				cdTemplate.Container.EnvFrom = append(cdTemplate.Container.EnvFrom, v12.EnvFromSource{
+					SecretRef: &v12.SecretEnvSource{
+						LocalObjectReference: v12.LocalObjectReference{
+							Name: config.Name,
+						},
+					},
+				})
+			}
+		}
 	}
 
 	for _, cm := range configMaps.Maps {
