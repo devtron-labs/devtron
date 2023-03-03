@@ -100,7 +100,7 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 								continue
 							}
 							if _, ok := existingRoleIds[roleModel.Id]; ok {
-								delete(existingRoleIds, roleModel.Id)
+								delete(eliminatedRoleIds, roleModel.Id)
 							}
 						}
 					}

@@ -606,8 +606,14 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 	if userInfo.SuperAdmin || isUserSuperAdmin {
 		if !isActionPerformingUserSuperAdmin {
 			err = &util.ApiError{HttpStatusCode: http.StatusForbidden, UserMessage: "Invalid request, not allow to update super admin type user"}
+			impl.logger.Errorw("Invalid request, not allow to update super admin type user", "error", err)
 			return nil, false, false, nil, err
 		}
+	}
+	if userInfo.SuperAdmin && isUserSuperAdmin {
+		err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "User Already A Super Admin"}
+		impl.logger.Errorw("user already a superAdmin", "error", err)
+		return nil, false, false, nil, err
 	}
 
 	dbConnection := impl.userRepository.GetConnection()
