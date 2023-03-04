@@ -352,7 +352,6 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	configsMapping := make(map[string]string)
 	secretsMapping := make(map[string]string)
 
-	entryPoint = CD_WORKFLOW_NAME
 	if len(configMaps.Maps) > 0 {
 		entryPoint = "cd-stages-with-env"
 		for i, cm := range configMaps.Maps {
