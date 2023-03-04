@@ -156,6 +156,7 @@ type WorkflowResponse struct {
 	TriggeredByEmail   string                           `json:"triggeredByEmail"`
 	Stage              string                           `json:"stage"`
 	ArtifactId         int                              `json:"artifactId"`
+	IsArtifactUploaded bool                             `json:"isArtifactUploaded"`
 }
 
 type GitTriggerInfoResponse struct {
@@ -493,6 +494,8 @@ func (impl *CiHandlerImpl) FetchWorkflowDetails(appId int, pipelineId int, build
 		TriggeredBy:        workflow.TriggeredBy,
 		TriggeredByEmail:   triggeredByUser.EmailId,
 		Artifact:           ciArtifact.Image,
+		ArtifactId:         ciArtifact.Id,
+		IsArtifactUploaded: ciArtifact.IsArtifactUploaded,
 	}
 	return workflowResponse, nil
 }

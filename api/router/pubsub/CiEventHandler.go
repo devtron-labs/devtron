@@ -40,15 +40,16 @@ type CiEventHandlerImpl struct {
 }
 
 type CiCompleteEvent struct {
-	CiProjectDetails []pipeline.CiProjectDetails `json:"ciProjectDetails"`
-	DockerImage      string                      `json:"dockerImage" validate:"required,image-validator"`
-	Digest           string                      `json:"digest"`
-	PipelineId       int                         `json:"pipelineId"`
-	WorkflowId       *int                        `json:"workflowId"`
-	TriggeredBy      int32                       `json:"triggeredBy"`
-	PipelineName     string                      `json:"pipelineName"`
-	DataSource       string                      `json:"dataSource"`
-	MaterialType     string                      `json:"materialType"`
+	CiProjectDetails   []pipeline.CiProjectDetails `json:"ciProjectDetails"`
+	DockerImage        string                      `json:"dockerImage" validate:"required,image-validator"`
+	Digest             string                      `json:"digest"`
+	PipelineId         int                         `json:"pipelineId"`
+	WorkflowId         *int                        `json:"workflowId"`
+	TriggeredBy        int32                       `json:"triggeredBy"`
+	PipelineName       string                      `json:"pipelineName"`
+	DataSource         string                      `json:"dataSource"`
+	MaterialType       string                      `json:"materialType"`
+	isArtifactUploaded bool                        `json:"isArtifactUploaded"`
 }
 
 func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClientServiceImpl, webhookService pipeline.WebhookService) *CiEventHandlerImpl {
@@ -150,13 +151,14 @@ func (impl *CiEventHandlerImpl) BuildCiArtifactRequest(event CiCompleteEvent) (*
 	}
 
 	request := &pipeline.CiArtifactWebhookRequest{
-		Image:        event.DockerImage,
-		ImageDigest:  event.Digest,
-		DataSource:   event.DataSource,
-		PipelineName: event.PipelineName,
-		MaterialInfo: rawMaterialInfo,
-		UserId:       event.TriggeredBy,
-		WorkflowId:   event.WorkflowId,
+		Image:              event.DockerImage,
+		ImageDigest:        event.Digest,
+		DataSource:         event.DataSource,
+		PipelineName:       event.PipelineName,
+		MaterialInfo:       rawMaterialInfo,
+		UserId:             event.TriggeredBy,
+		WorkflowId:         event.WorkflowId,
+		IsArtifactUploaded: event.isArtifactUploaded,
 	}
 	return request, nil
 }
