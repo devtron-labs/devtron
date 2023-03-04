@@ -67,7 +67,7 @@ func (impl AppListingRepositoryQueryBuilder) BuildJobListingQuery(appIDs []int, 
 		"inner join (SELECT  ci_pipeline_id, MAX(started_on) max_started_on FROM ci_workflow GROUP BY ci_pipeline_id) cws " +
 		"on cw.ci_pipeline_id = cws.ci_pipeline_id and cw.started_on = cws.max_started_on order by cw.ci_pipeline_id) cwr" +
 		" on cwr.ci_pipeline_id = ci_pipeline.id and ci_pipeline.active = true  " +
-		"right join app on app.id = ci_pipeline.app_id where app.active = true and app.app_store = 2 "
+		"right join app on app.id = ci_pipeline.app_id where app.active = true and app.app_store = 2 and ci_pipeline.active = true "
 	if len(appIDs) > 0 {
 		query += "and app.id IN (" + GetCommaSepratedString(appIDs) + ") "
 	}
