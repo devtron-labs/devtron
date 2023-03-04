@@ -99,3 +99,5 @@ ALTER TABLE ci_pipeline ADD CONSTRAINT ci_pipeline_app_id_fkey FOREIGN KEY (app_
 ALTER TABLE app_workflow DROP CONSTRAINT app_workflow_app_id_fkey;
 
 ALTER TABLE app_workflow ADD CONSTRAINT app_workflow_app_id_fkey FOREIGN KEY (app_id) REFERENCES app(id);
+
+ALTER TABLE ci_artifact DROP COLUMN is_artifact_uploaded;
