@@ -83,6 +83,7 @@ type CiConfig struct {
 	DefaultPvcCachePath              string                       `env:"DOCKER_BUILD_CACHE_PATH" envDefault:"/var/lib/docker"`
 	BuildxPvcCachePath               string                       `env:"BUILDX_CACHE_PATH" envDefault:"/var/lib/devtron/buildx"`
 	UseBlobStorageConfigInCiWorkflow bool                         `env:"USE_BLOB_STORAGE_CONFIG_IN_CI_WORKFLOW" envDefault:"true"`
+	BaseLogLocationPath              string                       `env:"BASE_LOG_LOCATION_PATH" envDefault:"/home/devtron/"`
 	ClusterConfig                    *rest.Config
 	NodeLabel                        map[string]string
 }
