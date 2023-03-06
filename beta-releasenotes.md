@@ -11,3 +11,4 @@
 ## Documentation
 - docs: doc for GCP external secret (#3029)
 ## Others
+- feat - Use cluster-name instead of server url in Argo cd application objects  (#2958)
