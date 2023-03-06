@@ -2,12 +2,14 @@ package util
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/middleware"
 	"go.uber.org/zap"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/config"
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 )
 
 type GitCliUtil struct {
@@ -24,33 +26,42 @@ const GIT_ASK_PASS = "/git-ask-pass.sh"
 const Branch_Master = "master"
 
 func (impl *GitCliUtil) Fetch(rootDir string, username string, password string) (response, errMsg string, err error) {
+	start := time.Now()
 	impl.logger.Debugw("git fetch ", "location", rootDir)
 	cmd := exec.Command("git", "-C", rootDir, "fetch", "origin", "--tags", "--force")
 	output, errMsg, err := impl.runCommandWithCred(cmd, username, password)
 	impl.logger.Debugw("fetch output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
+	middleware.GitOpsDuration.WithLabelValues("Fetch", "GitCli").Observe(time.Since(start).Seconds())
 	return output, errMsg, err
 }
 
 func (impl *GitCliUtil) Pull(rootDir string, username string, password string, branch string) (response, errMsg string, err error) {
+	start := time.Now()
 	impl.logger.Debugw("git pull ", "location", rootDir)
 	cmd := exec.Command("git", "-C", rootDir, "pull", "origin", branch, "--force")
 	output, errMsg, err := impl.runCommandWithCred(cmd, username, password)
 	impl.logger.Debugw("pull output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
+	middleware.GitOpsDuration.WithLabelValues("Pull", "GitCli").Observe(time.Since(start).Seconds())
 	return output, errMsg, err
 }
+
 func (impl *GitCliUtil) Checkout(rootDir string, branch string) (response, errMsg string, err error) {
+	start := time.Now()
 	impl.logger.Debugw("git checkout ", "location", rootDir)
 	cmd := exec.Command("git", "-C", rootDir, "checkout", branch, "--force")
 	output, errMsg, err := impl.runCommand(cmd)
 	impl.logger.Debugw("checkout output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
+	middleware.GitOpsDuration.WithLabelValues("Checkout", "GitCli").Observe(time.Since(start).Seconds())
 	return output, errMsg, err
 }
 
 func (impl *GitCliUtil) ListBranch(rootDir string, username string, password string) (response, errMsg string, err error) {
+	start := time.Now()
 	impl.logger.Debugw("git branch ", "location", rootDir)
 	cmd := exec.Command("git", "-C", rootDir, "branch", "-r")
 	output, errMsg, err := impl.runCommandWithCred(cmd, username, password)
 	impl.logger.Debugw("branch output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
+	middleware.GitOpsDuration.WithLabelValues("ListBranch", "GitCli").Observe(time.Since(start).Seconds())
 	return output, errMsg, err
 }
 
@@ -81,6 +92,7 @@ func (impl *GitCliUtil) runCommand(cmd *exec.Cmd) (response, errMsg string, err 
 
 func (impl *GitCliUtil) Init(rootDir string, remoteUrl string, isBare bool) error {
 	//-----------------
+	start := time.Now()
 	err := os.RemoveAll(rootDir)
 	if err != nil {
 		impl.logger.Errorw("error in cleaning rootDir", "err", err)
@@ -98,10 +110,12 @@ func (impl *GitCliUtil) Init(rootDir string, remoteUrl string, isBare bool) erro
 		Name: git.DefaultRemoteName,
 		URLs: []string{remoteUrl},
 	})
+	middleware.GitOpsDuration.WithLabelValues("Init", "GitCli").Observe(time.Since(start).Seconds())
 	return err
 }
 
 func (impl *GitCliUtil) Clone(rootDir string, remoteUrl string, username string, password string) (response, errMsg string, err error) {
+	start := time.Now()
 	impl.logger.Infow("git clone request", "rootDir", rootDir, "remoteUrl", remoteUrl, "username", username)
 	err = impl.Init(rootDir, remoteUrl, false)
 	if err != nil {
@@ -137,5 +151,6 @@ func (impl *GitCliUtil) Clone(rootDir string, remoteUrl string, username string,
 			return response, errMsg, err
 		}
 	}
+	middleware.GitOpsDuration.WithLabelValues("Clone", "GitCli").Observe(time.Since(start).Seconds())
 	return response, errMsg, err
 }
