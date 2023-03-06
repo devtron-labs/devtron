@@ -45,6 +45,7 @@ import (
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -644,7 +645,7 @@ func (impl *CdHandlerImpl) getLogsFromRepository(pipelineId int, cdWorkflow *pip
 		},
 	}
 	impl.Logger.Infow("s3 log req ", "req", cdLogRequest)
-	oldLogsStream, cleanUp, err := impl.ciLogService.FetchLogs(cdLogRequest)
+	oldLogsStream, cleanUp, err := impl.ciLogService.FetchLogs(impl.ciConfig.BaseLogLocationPath, cdLogRequest)
 	if err != nil {
 		impl.Logger.Errorw("err", err)
 		return nil, nil, err
@@ -779,11 +780,13 @@ func (impl *CdHandlerImpl) DownloadCdWorkflowArtifacts(pipelineId int, buildId i
 		CredentialFileJsonData: impl.ciConfig.BlobStorageGcpCredentialJson,
 	}
 	key := fmt.Sprintf("%s/"+impl.cdConfig.CdArtifactLocationFormat, impl.cdConfig.DefaultArtifactKeyPrefix, wfr.CdWorkflow.Id, wfr.Id)
+	baseLogLocationPathConfig := impl.cdConfig.BaseLogLocationPath
 	blobStorageService := blob_storage.NewBlobStorageServiceImpl(nil)
+	destinationKey := filepath.Clean(filepath.Join(baseLogLocationPathConfig, item))
 	request := &blob_storage.BlobStorageRequest{
 		StorageType:         impl.ciConfig.CloudProvider,
 		SourceKey:           key,
-		DestinationKey:      item,
+		DestinationKey:      destinationKey,
 		AzureBlobBaseConfig: azureBlobBaseConfig,
 		AwsS3BaseConfig:     awsS3BaseConfig,
 		GcpBlobBaseConfig:   gcpBlobBaseConfig,
@@ -794,7 +797,7 @@ func (impl *CdHandlerImpl) DownloadCdWorkflowArtifacts(pipelineId int, buildId i
 		return nil, errors.New("failed to download resource")
 	}
 
-	file, err := os.Open(item)
+	file, err := os.Open(destinationKey)
 	if err != nil {
 		impl.Logger.Errorw("unable to open file", "file", item, "err", err)
 		return nil, errors.New("unable to open file")
