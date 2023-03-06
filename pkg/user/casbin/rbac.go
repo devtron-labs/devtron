@@ -50,13 +50,14 @@ type Enforcer interface {
 func NewEnforcerImpl(
 	enforcer *casbin.SyncedEnforcer,
 	sessionManager *middleware.SessionManager,
-	logger *zap.SugaredLogger) *EnforcerImpl {
+	logger *zap.SugaredLogger, casbinService CasbinService) *EnforcerImpl {
 	lock := make(map[string]*CacheData)
 	batchRequestLock := make(map[string]*sync.Mutex)
 	enforcerConfig := getConfig()
 	enf := &EnforcerImpl{lockCacheData: lock, enforcerRWLock: &sync.RWMutex{}, batchRequestLock: batchRequestLock, enforcerConfig: enforcerConfig,
 		Cache: getEnforcerCache(logger, enforcerConfig), SyncedEnforcer: enforcer, Logger: logger, SessionManager: sessionManager}
 	setEnforcerImpl(enf)
+	setCasbinService(casbinService)
 	return enf
 }
 
@@ -361,11 +362,11 @@ func (e *EnforcerImpl) GetCacheDump() string {
 // enforce is a helper to additionally check a default role and invoke a custom claims enforcement function
 func (e *EnforcerImpl) enforce(token string, resource string, action string, resourceItem string) bool {
 	// check the default role
-	email, invalid := e.verifyTokenAndGetEmail(token)
+	email, invalid := e.VerifyTokenAndGetEmail(token)
 	if invalid {
 		return false
 	}
-	return e.enforceByEmail(strings.ToLower(email), resource, action, resourceItem)
+	return e.EnforceByEmail(strings.ToLower(email), resource, action, resourceItem)
 }
 
 func (e *EnforcerImpl) enforceAndUpdateCache(email string, resource string, action string, resourceItem string) bool {
@@ -399,7 +400,7 @@ func (e *EnforcerImpl) enforcerEnforce(email string, resource string, action str
 	return response, err
 }
 
-func (e *EnforcerImpl) verifyTokenAndGetEmail(tokenString string) (string, bool) {
+func (e *EnforcerImpl) VerifyTokenAndGetEmail(tokenString string) (string, bool) {
 	claims, err := e.SessionManager.VerifyToken(tokenString)
 	if err != nil {
 		return "", true

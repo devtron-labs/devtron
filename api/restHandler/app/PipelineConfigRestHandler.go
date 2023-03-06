@@ -64,11 +64,14 @@ type DevtronAppRestHandler interface {
 
 	FindAppsByTeamId(w http.ResponseWriter, r *http.Request)
 	FindAppsByTeamName(w http.ResponseWriter, r *http.Request)
-	GetAppListByTeamIds(w http.ResponseWriter, r *http.Request)
+	GetEnvironmentListWithAppData(w http.ResponseWriter, r *http.Request)
+	GetApplicationsByEnvironment(w http.ResponseWriter, r *http.Request)
 }
 
 type DevtronAppWorkflowRestHandler interface {
 	FetchAppWorkflowStatusForTriggerView(w http.ResponseWriter, r *http.Request)
+	FetchAppWorkflowStatusForTriggerViewByEnvironment(w http.ResponseWriter, r *http.Request)
+	FetchAppDeploymentStatusForEnvironments(w http.ResponseWriter, r *http.Request)
 }
 
 type PipelineConfigRestHandler interface {
@@ -472,68 +475,6 @@ func (handler *PipelineConfigRestHandlerImpl) handleForwardResponseStreamError(w
 	}
 }
 
-func (handler PipelineConfigRestHandlerImpl) GetAppListByTeamIds(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userAuthService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	//vars := mux.Vars(r)
-	v := r.URL.Query()
-	params := v.Get("teamIds")
-	if len(params) == 0 {
-		common.WriteJsonResp(w, err, "StatusBadRequest", http.StatusBadRequest)
-		return
-	}
-
-	isActionUserSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
-	if err != nil {
-		common.WriteJsonResp(w, err, "Failed to check admin check", http.StatusInternalServerError)
-		return
-	}
-
-	appType := v.Get("appType")
-	handler.Logger.Infow("request payload, GetAppListByTeamIds", "payload", params)
-	var teamIds []int
-	teamIdList := strings.Split(params, ",")
-	for _, item := range teamIdList {
-		teamId, err := strconv.Atoi(item)
-		if err != nil {
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			return
-		}
-		teamIds = append(teamIds, teamId)
-	}
-	projectWiseApps, err := handler.pipelineBuilder.GetAppListByTeamIds(teamIds, appType)
-	if err != nil {
-		handler.Logger.Errorw("service err, GetAppListByTeamIds", "err", err, "payload", params)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-
-	token := r.Header.Get("token")
-	// RBAC
-	for _, project := range projectWiseApps {
-		var accessedApps []*pipeline.AppBean
-		for _, app := range project.AppList {
-			if isActionUserSuperAdmin {
-				accessedApps = append(accessedApps, app)
-				continue
-			}
-			object := fmt.Sprintf("%s/%s", project.ProjectName, app.Name)
-			if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); ok {
-				accessedApps = append(accessedApps, app)
-			}
-		}
-		if len(accessedApps) == 0 {
-			accessedApps = make([]*pipeline.AppBean, 0)
-		}
-		project.AppList = accessedApps
-	}
-	// RBAC
-	common.WriteJsonResp(w, err, projectWiseApps, http.StatusOK)
-}
-
 func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerView(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -608,4 +549,157 @@ func (handler PipelineConfigRestHandlerImpl) PipelineNameSuggestion(w http.Respo
 		return
 	}
 	common.WriteJsonResp(w, err, suggestedName, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerViewByEnvironment(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	user, err := handler.userAuthService.GetById(userId)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	userEmailId := strings.ToLower(user.EmailId)
+	vars := mux.Vars(r)
+	envId, err := strconv.Atoi(vars["envId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	triggerWorkflowStatus := pipelineConfig.TriggerWorkflowStatus{}
+	ciWorkflowStatus, err := handler.ciHandler.FetchCiStatusForTriggerViewForEnvironment(envId, userEmailId, handler.checkAuthBatch)
+	if err != nil {
+		handler.Logger.Errorw("service err", "err", err)
+		if util.IsErrNoRows(err) {
+			err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no workflow found"}
+			common.WriteJsonResp(w, err, nil, http.StatusOK)
+		} else {
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		}
+		return
+	}
+
+	cdWorkflowStatus, err := handler.cdHandler.FetchAppWorkflowStatusForTriggerViewForEnvironment(envId, userEmailId, handler.checkAuthBatch)
+	if err != nil {
+		handler.Logger.Errorw("service err, FetchAppWorkflowStatusForTriggerView", "err", err)
+		if util.IsErrNoRows(err) {
+			err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no status found"}
+			common.WriteJsonResp(w, err, nil, http.StatusOK)
+		} else {
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		}
+		return
+	}
+	triggerWorkflowStatus.CiWorkflowStatus = ciWorkflowStatus
+	triggerWorkflowStatus.CdWorkflowStatus = cdWorkflowStatus
+	common.WriteJsonResp(w, err, triggerWorkflowStatus, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) GetEnvironmentListWithAppData(w http.ResponseWriter, r *http.Request) {
+	v := r.URL.Query()
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	user, err := handler.userAuthService.GetById(userId)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	userEmailId := strings.ToLower(user.EmailId)
+	envName := v.Get("envName")
+	clusterIdString := v.Get("clusterIds")
+	offset := 0
+	offsetStr := v.Get("offset")
+	if len(offsetStr) > 0 {
+		offset, _ = strconv.Atoi(offsetStr)
+	}
+	size := 0
+	sizeStr := v.Get("size")
+	if len(sizeStr) > 0 {
+		size, _ = strconv.Atoi(sizeStr)
+	}
+	var clusterIds []int
+	if clusterIdString != "" {
+		clusterIdSlices := strings.Split(clusterIdString, ",")
+		for _, clusterId := range clusterIdSlices {
+			id, err := strconv.Atoi(clusterId)
+			if err != nil {
+				common.WriteJsonResp(w, err, "please send valid cluster Ids", http.StatusBadRequest)
+				return
+			}
+			clusterIds = append(clusterIds, id)
+		}
+	}
+	result, err := handler.pipelineBuilder.GetEnvironmentListForAutocompleteFilter(envName, clusterIds, offset, size, userEmailId, handler.checkAuthBatch)
+	if err != nil {
+		handler.Logger.Errorw("service err, get app", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, result, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) GetApplicationsByEnvironment(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	user, err := handler.userAuthService.GetById(userId)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	userEmailId := strings.ToLower(user.EmailId)
+	envId, err := strconv.Atoi(vars["envId"])
+	if err != nil {
+		handler.Logger.Errorw("request err, get app", "err", err, "envId", envId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	ciConf, err := handler.pipelineBuilder.GetAppListForEnvironment(envId, userEmailId, handler.checkAuthBatch)
+	if err != nil {
+		handler.Logger.Errorw("service err, get app", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, ciConf, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) FetchAppDeploymentStatusForEnvironments(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	user, err := handler.userAuthService.GetById(userId)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	userEmailId := strings.ToLower(user.EmailId)
+	vars := mux.Vars(r)
+	envId, err := strconv.Atoi(vars["envId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	results, err := handler.cdHandler.FetchAppDeploymentStatusForEnvironments(envId, userEmailId, handler.checkAuthBatch)
+	if err != nil {
+		handler.Logger.Errorw("service err, FetchAppWorkflowStatusForTriggerView", "err", err)
+		if util.IsErrNoRows(err) {
+			err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no status found"}
+			common.WriteJsonResp(w, err, nil, http.StatusOK)
+		} else {
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		}
+		return
+	}
+	common.WriteJsonResp(w, err, results, http.StatusOK)
 }

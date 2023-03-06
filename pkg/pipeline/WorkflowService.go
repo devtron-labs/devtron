@@ -20,6 +20,7 @@ package pipeline
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned"
 	v1alpha12 "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
@@ -37,6 +38,7 @@ import (
 	"k8s.io/client-go/rest"
 	"net/url"
 	"strconv"
+	"strings"
 )
 
 type WorkflowService interface {
@@ -112,6 +114,9 @@ type WorkflowRequest struct {
 	CiBuildDockerMtuValue      int                               `json:"ciBuildDockerMtuValue"`
 	IgnoreDockerCachePush      bool                              `json:"ignoreDockerCachePush"`
 	IgnoreDockerCachePull      bool                              `json:"ignoreDockerCachePull"`
+	CacheInvalidate            bool                              `json:"cacheInvalidate"`
+	IsPvcMounted               bool                              `json:"IsPvcMounted"`
+	ExtraEnvironmentVariables  map[string]string                 `json:"extraEnvironmentVariables"`
 }
 
 const (
@@ -122,6 +127,8 @@ const (
 	CI_WORKFLOW_NAME               = "ci"
 	CI_WORKFLOW_WITH_STAGES        = "ci-stages-with-env"
 	CI_NODE_SELECTOR_APP_LABEL_KEY = "devtron.ai/node-selector"
+	CI_NODE_PVC_ALL_ENV            = "devtron.ai/ci-pvc-all"
+	CI_NODE_PVC_PIPELINE_PREFIX    = "devtron.ai/ci-pvc"
 )
 
 type ContainerResources struct {
@@ -194,7 +201,15 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		miniCred := []v12.EnvVar{{Name: "AWS_ACCESS_KEY_ID", Value: impl.ciConfig.BlobStorageS3AccessKey}, {Name: "AWS_SECRET_ACCESS_KEY", Value: impl.ciConfig.BlobStorageS3SecretKey}}
 		containerEnvVariables = append(containerEnvVariables, miniCred...)
 	}
-
+	pvc := appLabels[strings.ToLower(fmt.Sprintf("%s-%s", CI_NODE_PVC_PIPELINE_PREFIX, workflowRequest.PipelineName))]
+	if len(pvc) == 0 {
+		pvc = appLabels[CI_NODE_PVC_ALL_ENV]
+	}
+	if len(pvc) != 0 {
+		workflowRequest.IsPvcMounted = true
+		workflowRequest.IgnoreDockerCachePush = true
+		workflowRequest.IgnoreDockerCachePull = true
+	}
 	ciCdTriggerEvent := CiCdTriggerEvent{
 		Type:      ciEvent,
 		CiRequest: workflowRequest,
@@ -224,66 +239,6 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	reqMem := impl.ciConfig.ReqMem
 	ttl := int32(impl.ciConfig.BuildLogTTLValue)
 
-	gcpBlobConfig := workflowRequest.GcpBlobConfig
-	blobStorageS3Config := workflowRequest.BlobStorageS3Config
-	cloudStorageKey := impl.ciConfig.DefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowNamePrefix
-	var s3Artifact *v1alpha1.S3Artifact
-	var gcsArtifact *v1alpha1.GCSArtifact
-	if blobStorageConfigured && blobStorageS3Config != nil {
-		s3CompatibleEndpointUrl := blobStorageS3Config.EndpointUrl
-		if s3CompatibleEndpointUrl == "" {
-			s3CompatibleEndpointUrl = "s3.amazonaws.com"
-		} else {
-			parsedUrl, err := url.Parse(s3CompatibleEndpointUrl)
-			if err != nil {
-				impl.Logger.Errorw("error occurred while parsing s3CompatibleEndpointUrl, ", "s3CompatibleEndpointUrl", s3CompatibleEndpointUrl, "err", err)
-			} else {
-				s3CompatibleEndpointUrl = parsedUrl.Host
-			}
-		}
-		isInsecure := blobStorageS3Config.IsInSecure
-
-		var accessKeySelector *v12.SecretKeySelector
-		var secretKeySelector *v12.SecretKeySelector
-		if blobStorageS3Config.AccessKey != "" {
-			accessKeySelector = &v12.SecretKeySelector{
-				Key: "accessKey",
-				LocalObjectReference: v12.LocalObjectReference{
-					Name: "workflow-minio-cred",
-				},
-			}
-			secretKeySelector = &v12.SecretKeySelector{
-				Key: "secretKey",
-				LocalObjectReference: v12.LocalObjectReference{
-					Name: "workflow-minio-cred",
-				},
-			}
-		}
-		s3Artifact = &v1alpha1.S3Artifact{
-			Key: cloudStorageKey,
-			S3Bucket: v1alpha1.S3Bucket{
-				Endpoint:        s3CompatibleEndpointUrl,
-				AccessKeySecret: accessKeySelector,
-				SecretKeySecret: secretKeySelector,
-				Bucket:          blobStorageS3Config.CiLogBucketName,
-				Region:          blobStorageS3Config.CiLogRegion,
-				Insecure:        &isInsecure,
-			},
-		}
-	} else if blobStorageConfigured && gcpBlobConfig != nil {
-		gcsArtifact = &v1alpha1.GCSArtifact{
-			Key: cloudStorageKey,
-			GCSBucket: v1alpha1.GCSBucket{
-				Bucket: gcpBlobConfig.LogBucketName,
-				ServiceAccountKeySecret: &v12.SecretKeySelector{
-					Key: "secretKey",
-					LocalObjectReference: v12.LocalObjectReference{
-						Name: "workflow-minio-cred",
-					},
-				},
-			},
-		}
-	}
 	//getting all cm/cs to be used by default
 	globalCmCsConfigs, err := impl.globalCMCSService.FindAllActive()
 	if err != nil {
@@ -482,9 +437,74 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		},
 		ArchiveLocation: &v1alpha1.ArtifactLocation{
 			ArchiveLogs: &archiveLogs,
-			S3:          s3Artifact,
-			GCS:         gcsArtifact,
 		},
+	}
+
+	if impl.ciConfig.UseBlobStorageConfigInCiWorkflow {
+		gcpBlobConfig := workflowRequest.GcpBlobConfig
+		blobStorageS3Config := workflowRequest.BlobStorageS3Config
+		cloudStorageKey := impl.ciConfig.DefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowNamePrefix
+		var s3Artifact *v1alpha1.S3Artifact
+		var gcsArtifact *v1alpha1.GCSArtifact
+		if blobStorageConfigured && blobStorageS3Config != nil {
+			s3CompatibleEndpointUrl := blobStorageS3Config.EndpointUrl
+			if s3CompatibleEndpointUrl == "" {
+				s3CompatibleEndpointUrl = "s3.amazonaws.com"
+			} else {
+				parsedUrl, err := url.Parse(s3CompatibleEndpointUrl)
+				if err != nil {
+					impl.Logger.Errorw("error occurred while parsing s3CompatibleEndpointUrl, ", "s3CompatibleEndpointUrl", s3CompatibleEndpointUrl, "err", err)
+				} else {
+					s3CompatibleEndpointUrl = parsedUrl.Host
+				}
+			}
+			isInsecure := blobStorageS3Config.IsInSecure
+
+			var accessKeySelector *v12.SecretKeySelector
+			var secretKeySelector *v12.SecretKeySelector
+			if blobStorageS3Config.AccessKey != "" {
+				accessKeySelector = &v12.SecretKeySelector{
+					Key: "accessKey",
+					LocalObjectReference: v12.LocalObjectReference{
+						Name: "workflow-minio-cred",
+					},
+				}
+				secretKeySelector = &v12.SecretKeySelector{
+					Key: "secretKey",
+					LocalObjectReference: v12.LocalObjectReference{
+						Name: "workflow-minio-cred",
+					},
+				}
+			}
+			s3Artifact = &v1alpha1.S3Artifact{
+				Key: cloudStorageKey,
+				S3Bucket: v1alpha1.S3Bucket{
+					Endpoint:        s3CompatibleEndpointUrl,
+					AccessKeySecret: accessKeySelector,
+					SecretKeySecret: secretKeySelector,
+					Bucket:          blobStorageS3Config.CiLogBucketName,
+					Region:          blobStorageS3Config.CiLogRegion,
+					Insecure:        &isInsecure,
+				},
+			}
+		} else if blobStorageConfigured && gcpBlobConfig != nil {
+			gcsArtifact = &v1alpha1.GCSArtifact{
+				Key: cloudStorageKey,
+				GCSBucket: v1alpha1.GCSBucket{
+					Bucket: gcpBlobConfig.LogBucketName,
+					ServiceAccountKeySecret: &v12.SecretKeySelector{
+						Key: "secretKey",
+						LocalObjectReference: v12.LocalObjectReference{
+							Name: "workflow-minio-cred",
+						},
+					},
+				},
+			}
+		}
+
+		// set in ArchiveLocation
+		ciTemplate.ArchiveLocation.S3 = s3Artifact
+		ciTemplate.ArchiveLocation.GCS = gcsArtifact
 	}
 
 	for _, config := range globalCmCsConfigs {
@@ -541,6 +561,36 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 				MountPath: volumeMountsForCi.ContainerMountPath,
 			})
 		}
+	}
+
+	// pvc mounting starts
+	if len(pvc) != 0 {
+		buildPvcCachePath := impl.ciConfig.BuildPvcCachePath
+		buildxPvcCachePath := impl.ciConfig.BuildxPvcCachePath
+		defaultPvcCachePath := impl.ciConfig.DefaultPvcCachePath
+
+		ciTemplate.Volumes = append(ciTemplate.Volumes, v12.Volume{
+			Name: "root-vol",
+			VolumeSource: v12.VolumeSource{
+				PersistentVolumeClaim: &v12.PersistentVolumeClaimVolumeSource{
+					ClaimName: pvc,
+					ReadOnly:  false,
+				},
+			},
+		})
+		ciTemplate.Container.VolumeMounts = append(ciTemplate.Container.VolumeMounts,
+			v12.VolumeMount{
+				Name:      "root-vol",
+				MountPath: buildPvcCachePath,
+			},
+			v12.VolumeMount{
+				Name:      "root-vol",
+				MountPath: buildxPvcCachePath,
+			},
+			v12.VolumeMount{
+				Name:      "root-vol",
+				MountPath: defaultPvcCachePath,
+			})
 	}
 
 	// node selector

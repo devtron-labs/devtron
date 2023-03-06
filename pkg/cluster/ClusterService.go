@@ -50,13 +50,13 @@ type ClusterBean struct {
 	ServerUrl               string                     `json:"server_url,omitempty" validate:"url,required"`
 	PrometheusUrl           string                     `json:"prometheus_url,omitempty" validate:"validate-non-empty-url"`
 	Active                  bool                       `json:"active"`
-	Config                  map[string]string          `json:"config,omitempty" validate:"required"`
+	Config                  map[string]string          `json:"config,omitempty"`
 	PrometheusAuth          *PrometheusAuth            `json:"prometheusAuth,omitempty"`
 	DefaultClusterComponent []*DefaultClusterComponent `json:"defaultClusterComponent"`
 	AgentInstallationStage  int                        `json:"agentInstallationStage,notnull"` // -1=external, 0=not triggered, 1=progressing, 2=success, 3=fails
 	K8sVersion              string                     `json:"k8sVersion"`
 	HasConfigOrUrlChanged   bool                       `json:"-"`
-	ErrorInConnecting       string                     `json:"-"`
+	ErrorInConnecting       string                     `json:"errorInConnecting,omitempty"`
 }
 
 type PrometheusAuth struct {
@@ -80,10 +80,12 @@ type ClusterService interface {
 	FindOne(clusterName string) (*ClusterBean, error)
 	FindOneActive(clusterName string) (*ClusterBean, error)
 	FindAll() ([]*ClusterBean, error)
+	FindAllWithoutConfig() ([]*ClusterBean, error)
 	FindAllActive() ([]ClusterBean, error)
 	DeleteFromDb(bean *ClusterBean, userId int32) error
 
 	FindById(id int) (*ClusterBean, error)
+	FindByIdWithoutConfig(id int) (*ClusterBean, error)
 	FindByIds(id []int) ([]ClusterBean, error)
 	Update(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error)
 	Delete(bean *ClusterBean, userId int32) error
@@ -257,6 +259,17 @@ func (impl *ClusterServiceImpl) FindOneActive(clusterName string) (*ClusterBean,
 	return bean, nil
 }
 
+func (impl *ClusterServiceImpl) FindAllWithoutConfig() ([]*ClusterBean, error) {
+	models, err := impl.FindAll()
+	if err != nil {
+		return nil, err
+	}
+	for _, model := range models {
+		model.Config = map[string]string{"bearer_token": ""}
+	}
+	return models, nil
+}
+
 func (impl *ClusterServiceImpl) FindAll() ([]*ClusterBean, error) {
 	model, err := impl.clusterRepository.FindAllActive()
 	if err != nil {
@@ -326,6 +339,16 @@ func (impl *ClusterServiceImpl) FindById(id int) (*ClusterBean, error) {
 	return bean, nil
 }
 
+func (impl *ClusterServiceImpl) FindByIdWithoutConfig(id int) (*ClusterBean, error) {
+	model, err := impl.FindById(id)
+	if err != nil {
+		return nil, err
+	}
+	//empty bearer token as it will be hidden for user
+	model.Config = map[string]string{"bearer_token": ""}
+	return model, nil
+}
+
 func (impl *ClusterServiceImpl) FindByIds(ids []int) ([]ClusterBean, error) {
 	models, err := impl.clusterRepository.FindByIds(ids)
 	if err != nil {
@@ -349,11 +372,6 @@ func (impl *ClusterServiceImpl) FindByIds(ids []int) ([]ClusterBean, error) {
 }
 
 func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
-	//validating config
-	err := impl.CheckIfConfigIsValid(bean)
-	if err != nil {
-		return nil, err
-	}
 	model, err := impl.clusterRepository.FindById(bean.Id)
 	if err != nil {
 		impl.logger.Error(err)
@@ -372,8 +390,16 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 	// check whether config modified or not, if yes create informer with updated config
 	dbConfig := model.Config["bearer_token"]
 	requestConfig := bean.Config["bearer_token"]
+	if len(requestConfig) == 0 {
+		bean.Config = model.Config
+	}
 	if bean.ServerUrl != model.ServerUrl || dbConfig != requestConfig {
 		bean.HasConfigOrUrlChanged = true
+		//validating config
+		err := impl.CheckIfConfigIsValid(bean)
+		if err != nil {
+			return nil, err
+		}
 	}
 	model.ClusterName = bean.ClusterName
 	model.ServerUrl = bean.ServerUrl
@@ -462,8 +488,9 @@ func (impl *ClusterServiceImpl) FindAllForAutoComplete() ([]ClusterBean, error) 
 	var beans []ClusterBean
 	for _, m := range model {
 		beans = append(beans, ClusterBean{
-			Id:          m.Id,
-			ClusterName: m.ClusterName,
+			Id:                m.Id,
+			ClusterName:       m.ClusterName,
+			ErrorInConnecting: m.ErrorInConnecting,
 		})
 	}
 	return beans, nil
@@ -524,7 +551,11 @@ func (impl ClusterServiceImpl) CheckIfConfigIsValid(cluster *ClusterBean) error 
 	} else {
 		restConfig = &rest.Config{Host: cluster.ServerUrl, BearerToken: bearerToken, TLSClientConfig: rest.TLSClientConfig{Insecure: true}}
 	}
-	k8sClientSet, err := kubernetes.NewForConfig(restConfig)
+	k8sHttpClient, err := util.OverrideK8sHttpClientWithTracer(restConfig)
+	if err != nil {
+		return err
+	}
+	k8sClientSet, err := kubernetes.NewForConfigAndClient(restConfig, k8sHttpClient)
 	if err != nil {
 		impl.logger.Errorw("error in getting client set by rest config", "err", err, "restConfig", restConfig)
 		return err
@@ -640,8 +671,9 @@ func (impl *ClusterServiceImpl) FindAllForClusterByUserId(userId int32, isAction
 	for _, model := range models {
 		if _, ok := allowedClustersMap[model.ClusterName]; ok {
 			beans = append(beans, ClusterBean{
-				Id:          model.Id,
-				ClusterName: model.ClusterName,
+				Id:                model.Id,
+				ClusterName:       model.ClusterName,
+				ErrorInConnecting: model.ErrorInConnecting,
 			})
 		}
 	}

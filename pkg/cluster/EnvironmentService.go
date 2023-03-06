@@ -44,6 +44,7 @@ type EnvironmentBean struct {
 	Namespace             string `json:"namespace,omitempty" validate:"name-space-component,max=50"`
 	CdArgoSetup           bool   `json:"isClusterCdActive"`
 	EnvironmentIdentifier string `json:"environmentIdentifier"`
+	AppCount              int    `json:"appCount"`
 }
 
 type EnvDto struct {
@@ -57,6 +58,11 @@ type ClusterEnvDto struct {
 	ClusterId    int       `json:"clusterId"`
 	ClusterName  string    `json:"clusterName,omitempty"`
 	Environments []*EnvDto `json:"environments,omitempty"`
+}
+
+type AppGroupingResponse struct {
+	EnvList  []EnvironmentBean `json:"envList"`
+	EnvCount int               `json:"envCount"`
 }
 
 type EnvironmentService interface {
@@ -359,6 +365,7 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete() ([]Enviro
 			Namespace:             model.Namespace,
 			CdArgoSetup:           model.Cluster.CdArgoSetup,
 			EnvironmentIdentifier: model.EnvironmentIdentifier,
+			ClusterName:           model.Cluster.ClusterName,
 		})
 	}
 	return beans, nil

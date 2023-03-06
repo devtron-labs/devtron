@@ -20,17 +20,19 @@ package pipeline
 import (
 	"context"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
+	"github.com/devtron-labs/devtron/internal/util"
 	"go.uber.org/zap"
 	"io"
 	v12 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"os"
+	"path/filepath"
 )
 
 type CiLogService interface {
 	FetchRunningWorkflowLogs(ciLogRequest BuildLogRequest, token string, host string, isExt bool) (io.ReadCloser, func() error, error)
-	FetchLogs(ciLogRequest BuildLogRequest) (*os.File, func() error, error)
+	FetchLogs(baseLogLocationPathConfig string, ciLogRequest BuildLogRequest) (*os.File, func() error, error)
 }
 
 type CiLogServiceImpl struct {
@@ -42,7 +44,7 @@ type CiLogServiceImpl struct {
 type BuildLogRequest struct {
 	PipelineId        int
 	WorkflowId        int
-	PodName         string
+	PodName           string
 	LogsFilePath      string
 	Namespace         string
 	CloudProvider     blob_storage.BlobStorageType
@@ -53,7 +55,12 @@ type BuildLogRequest struct {
 }
 
 func NewCiLogServiceImpl(logger *zap.SugaredLogger, ciService CiService, ciConfig *CiConfig) *CiLogServiceImpl {
-	clientset, err := kubernetes.NewForConfig(ciConfig.ClusterConfig)
+	config := ciConfig.ClusterConfig
+	k8sHttpClient, err := util.OverrideK8sHttpClientWithTracer(config)
+	if err != nil {
+		return nil
+	}
+	clientset, err := kubernetes.NewForConfigAndClient(config, k8sHttpClient)
 	if err != nil {
 		logger.Errorw("Can not create kubernetes client: ", "err", err)
 		return nil
@@ -81,7 +88,11 @@ func (impl *CiLogServiceImpl) FetchRunningWorkflowLogs(ciLogRequest BuildLogRequ
 				Insecure: true,
 			},
 		}
-		kubeClient, err = kubernetes.NewForConfig(config)
+		k8sHttpClient, err := util.OverrideK8sHttpClientWithTracer(config)
+		if err != nil {
+			return nil, nil, err
+		}
+		kubeClient, err = kubernetes.NewForConfigAndClient(config, k8sHttpClient)
 		if err != nil {
 			impl.logger.Errorw("Can not create kubernetes client: ", "err", err)
 			return nil, nil, err
@@ -104,9 +115,10 @@ func (impl *CiLogServiceImpl) FetchRunningWorkflowLogs(ciLogRequest BuildLogRequ
 	return podLogs, cleanUpFunc, nil
 }
 
-func (impl *CiLogServiceImpl) FetchLogs(logRequest BuildLogRequest) (*os.File, func() error, error) {
+func (impl *CiLogServiceImpl) FetchLogs(baseLogLocationPathConfig string, logRequest BuildLogRequest) (*os.File, func() error, error) {
+	tempFile := baseLogLocationPathConfig
+	tempFile = filepath.Clean(filepath.Join(tempFile, logRequest.PodName+".log"))
 
-	tempFile := logRequest.PodName + ".log"
 	blobStorageService := blob_storage.NewBlobStorageServiceImpl(nil)
 	request := &blob_storage.BlobStorageRequest{
 		StorageType:         logRequest.CloudProvider,

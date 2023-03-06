@@ -62,6 +62,7 @@ type AppEnvironmentContainer struct {
 	DeploymentCounter           int                       `json:"deploymentCounter,omitempty"`
 	InstanceCounter             int                       `json:"instanceCounter,omitempty"`
 	Status                      string                    `json:"status"`
+	AppStatus                   string                    `json:"appStatus"`
 	CdStageStatus               *string                   `json:"cdStageStatus"`
 	PreStageStatus              *string                   `json:"preStageStatus"`
 	PostStageStatus             *string                   `json:"postStageStatus"`
@@ -112,6 +113,7 @@ type DeploymentDetailContainer struct {
 	ClusterName                   string          `json:"clusterName,omitempty"`
 	DockerRegistryId              string          `json:"dockerRegistryId,omitempty"`
 	IpsAccessProvided             bool            `json:"ipsAccessProvided"`
+	DeploymentAppDeleteRequest    bool            `json:"deploymentAppDeleteRequest"`
 }
 
 type AppDetailContainer struct {
@@ -123,13 +125,15 @@ type AppDetailContainer struct {
 }
 
 type Environment struct {
-	EnvironmentId   int    `json:"environmentId"`
-	EnvironmentName string `json:"environmentName"`
-	AppMetrics      *bool  `json:"appMetrics"`
-	InfraMetrics    *bool  `json:"infraMetrics"`
-	Prod            bool   `json:"prod"`
-	ChartRefId      int    `json:"chartRefId"`
-	LastDeployed    string `json:"lastDeployed"`
+	AppStatus                  string `json:"appStatus"` //this is not the status of environment , this make sense with a specific app only
+	EnvironmentId              int    `json:"environmentId"`
+	EnvironmentName            string `json:"environmentName"`
+	AppMetrics                 *bool  `json:"appMetrics"`
+	InfraMetrics               *bool  `json:"infraMetrics"`
+	Prod                       bool   `json:"prod"`
+	ChartRefId                 int    `json:"chartRefId"`
+	LastDeployed               string `json:"lastDeployed"`
+	DeploymentAppDeleteRequest bool   `json:"deploymentAppDeleteRequest"`
 }
 
 type InstanceDetail struct {

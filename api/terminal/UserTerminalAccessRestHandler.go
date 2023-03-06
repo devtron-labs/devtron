@@ -73,7 +73,7 @@ func (handler UserTerminalAccessRestHandlerImpl) StartTerminalSession(w http.Res
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	sessionResponse, err := handler.UserTerminalAccessService.StartTerminalSession(&request)
+	sessionResponse, err := handler.UserTerminalAccessService.StartTerminalSession(r.Context(), &request)
 	if err != nil {
 		handler.Logger.Errorw("service err, StartTerminalSession", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -109,7 +109,7 @@ func (handler UserTerminalAccessRestHandlerImpl) UpdateTerminalSession(w http.Re
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	sessionResponse, err := handler.UserTerminalAccessService.UpdateTerminalSession(&request)
+	sessionResponse, err := handler.UserTerminalAccessService.UpdateTerminalSession(r.Context(), &request)
 	if err != nil {
 		handler.Logger.Errorw("service err, UpdateTerminalSession", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -144,7 +144,7 @@ func (handler UserTerminalAccessRestHandlerImpl) UpdateTerminalShellSession(w ht
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	sessionResponse, err := handler.UserTerminalAccessService.UpdateTerminalShellSession(&request)
+	sessionResponse, err := handler.UserTerminalAccessService.UpdateTerminalShellSession(r.Context(), &request)
 	if err != nil {
 		handler.Logger.Errorw("service err, UpdateTerminalShellSession", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -172,7 +172,7 @@ func (handler UserTerminalAccessRestHandlerImpl) FetchTerminalStatus(w http.Resp
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	sessionResponse, err := handler.UserTerminalAccessService.FetchTerminalStatus(terminalAccessId)
+	sessionResponse, err := handler.UserTerminalAccessService.FetchTerminalStatus(r.Context(), terminalAccessId)
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchTerminalStatus", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -201,7 +201,7 @@ func (handler UserTerminalAccessRestHandlerImpl) FetchTerminalPodEvents(w http.R
 		return
 	}
 
-	podEvents, err := handler.UserTerminalAccessService.FetchPodEvents(terminalAccessId)
+	podEvents, err := handler.UserTerminalAccessService.FetchPodEvents(r.Context(), terminalAccessId)
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchTerminalPodEvents", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -230,7 +230,7 @@ func (handler UserTerminalAccessRestHandlerImpl) FetchTerminalPodManifest(w http
 		return
 	}
 
-	podManifest, err := handler.UserTerminalAccessService.FetchPodManifest(terminalAccessId)
+	podManifest, err := handler.UserTerminalAccessService.FetchPodManifest(r.Context(), terminalAccessId)
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchTerminalPodManifest", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -258,7 +258,7 @@ func (handler UserTerminalAccessRestHandlerImpl) DisconnectTerminalSession(w htt
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	err = handler.UserTerminalAccessService.DisconnectTerminalSession(terminalAccessId)
+	err = handler.UserTerminalAccessService.DisconnectTerminalSession(r.Context(), terminalAccessId)
 	if err != nil {
 		handler.Logger.Errorw("service err, DisconnectTerminalSession", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -286,7 +286,7 @@ func (handler UserTerminalAccessRestHandlerImpl) StopTerminalSession(w http.Resp
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	handler.UserTerminalAccessService.StopTerminalSession(terminalAccessId)
+	handler.UserTerminalAccessService.StopTerminalSession(r.Context(), terminalAccessId)
 	common.WriteJsonResp(w, nil, nil, http.StatusOK)
 }
 
@@ -317,8 +317,8 @@ func (handler UserTerminalAccessRestHandlerImpl) DisconnectAllTerminalSessionAnd
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	handler.UserTerminalAccessService.DisconnectAllSessionsForUser(userId)
-	sessionResponse, err := handler.UserTerminalAccessService.StartTerminalSession(&request)
+	handler.UserTerminalAccessService.DisconnectAllSessionsForUser(r.Context(), userId)
+	sessionResponse, err := handler.UserTerminalAccessService.StartTerminalSession(r.Context(), &request)
 	if err != nil {
 		handler.Logger.Errorw("service err, DisconnectAllTerminalSessionAndRetry", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

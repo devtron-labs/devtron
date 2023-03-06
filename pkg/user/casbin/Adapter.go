@@ -30,20 +30,13 @@ import (
 
 var e *casbin.SyncedEnforcer
 var enforcerImplRef *EnforcerImpl
+var casbinService CasbinService
 
 type Subject string
 type Resource string
 type Action string
 type Object string
 type PolicyType string
-
-type Policy struct {
-	Type PolicyType `json:"type"`
-	Sub  Subject    `json:"sub"`
-	Res  Resource   `json:"res"`
-	Act  Action     `json:"act"`
-	Obj  Object     `json:"obj"`
-}
 
 func Create() *casbin.SyncedEnforcer {
 	metav1.Now()
@@ -74,10 +67,15 @@ func Create() *casbin.SyncedEnforcer {
 func setEnforcerImpl(ref *EnforcerImpl) {
 	enforcerImplRef = ref
 }
+func setCasbinService(service CasbinService) {
+	casbinService = service
+}
 
 func AddPolicy(policies []Policy) []Policy {
-	defer HandlePanic()
-	LoadPolicy()
+	policy, err := casbinService.AddPolicy(policies)
+	log.Println(err)
+	return policy
+	/*defer HandlePanic()
 	var failed = []Policy{}
 	emailIdList := map[string]struct{}{}
 	for _, p := range policies {
@@ -101,12 +99,11 @@ func AddPolicy(policies []Policy) []Policy {
 		}
 	}
 	if len(policies) != len(failed) {
-		LoadPolicy()
 		for emailId := range emailIdList {
 			enforcerImplRef.InvalidateCache(emailId)
 		}
 	}
-	return failed
+	return failed*/
 }
 
 func LoadPolicy() {
@@ -120,30 +117,35 @@ func LoadPolicy() {
 }
 
 func RemovePolicy(policies []Policy) []Policy {
-	defer HandlePanic()
-	var failed = []Policy{}
-	emailIdList := map[string]struct{}{}
-	for _, p := range policies {
-		success := false
-		if strings.ToLower(string(p.Type)) == "p" && p.Sub != "" && p.Res != "" && p.Act != "" && p.Obj != "" {
-			success = e.RemovePolicy([]string{strings.ToLower(string(p.Sub)), strings.ToLower(string(p.Res)), strings.ToLower(string(p.Act)), strings.ToLower(string(p.Obj))})
-		} else if strings.ToLower(string(p.Type)) == "g" && p.Sub != "" && p.Obj != "" {
-			success = e.RemoveGroupingPolicy([]string{strings.ToLower(string(p.Sub)), strings.ToLower(string(p.Obj))})
-		}
-		if !success {
-			failed = append(failed, p)
-		}
-		if p.Sub != "" {
-			emailIdList[strings.ToLower(string(p.Sub))] = struct{}{}
-		}
+	policy, err := casbinService.RemovePolicy(policies)
+	if err != nil {
+		log.Println(err)
 	}
-	if len(policies) != len(failed) {
-		LoadPolicy()
-		for emailId := range emailIdList {
-			enforcerImplRef.InvalidateCache(emailId)
+	return policy
+	/*
+		defer HandlePanic()
+		var failed = []Policy{}
+		emailIdList := map[string]struct{}{}
+		for _, p := range policies {
+			success := false
+			if strings.ToLower(string(p.Type)) == "p" && p.Sub != "" && p.Res != "" && p.Act != "" && p.Obj != "" {
+				success = e.RemovePolicy([]string{strings.ToLower(string(p.Sub)), strings.ToLower(string(p.Res)), strings.ToLower(string(p.Act)), strings.ToLower(string(p.Obj))})
+			} else if strings.ToLower(string(p.Type)) == "g" && p.Sub != "" && p.Obj != "" {
+				success = e.RemoveGroupingPolicy([]string{strings.ToLower(string(p.Sub)), strings.ToLower(string(p.Obj))})
+			}
+			if !success {
+				failed = append(failed, p)
+			}
+			if p.Sub != "" {
+				emailIdList[strings.ToLower(string(p.Sub))] = struct{}{}
+			}
 		}
-	}
-	return failed
+		if len(policies) != len(failed) {
+			for emailId := range emailIdList {
+				enforcerImplRef.InvalidateCache(emailId)
+			}
+		}
+		return failed*/
 }
 
 func GetAllSubjects() []string {
@@ -178,4 +180,12 @@ func HandlePanic() {
 	if err := recover(); err != nil {
 		log.Println("panic occurred:", err)
 	}
+}
+
+type Policy struct {
+	Type PolicyType `json:"type"`
+	Sub  Subject    `json:"sub"`
+	Res  Resource   `json:"res"`
+	Act  Action     `json:"act"`
+	Obj  Object     `json:"obj"`
 }

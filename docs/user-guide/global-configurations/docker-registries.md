@@ -170,7 +170,7 @@ There are two options to manage the access of registry credentials:
 
 You can choose one of the two options for defining credentials:
 
-* [User Registry Credentials](#use-registry-credentials)
+* [Use Registry Credentials](#use-registry-credentials)
 * [Specify Image Pull Secret](#specify-image-pull-secret) 
 
 ### Use Registry Credentials
@@ -187,18 +187,18 @@ You can create a Secret by providing credentials on the command line.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/container-registries/specify-image-pull-secret-latest.png)
 
-Create this Secret, naming it `regcred`:
+Create this Secret naming it `regcred` (as an example):
 
 ```bash
 kubectl create -n <namespace> secret docker-registry regcred --docker-server=<your-registry-server> --docker-username=<your-name> --docker-password=<your-pword> --docker-email=<your-email>
 ```
 
 where:
-* <namespace> is your virtual cluster. E.g., devtron-demo
-* <your-registry-server> is your Private Docker Registry FQDN. Use https://index.docker.io/v1/ for DockerHub.
-* <your-name> is your Docker username.
-* <your-pword> is your Docker password.
-* <your-email> is your Docker email.
+* `namespace` is your virtual cluster. E.g., devtron-demo
+* `your-registry-server` is your Private Docker Registry FQDN. Use https://index.docker.io/v1/ for DockerHub.
+* `your-name` is your Docker username.
+* `your-pword` is your Docker password.
+* `your-email` is your Docker email.
 
 You have successfully set your Docker credentials in the cluster as a Secret called `regcred`.
 

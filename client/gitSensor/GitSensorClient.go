@@ -32,7 +32,7 @@ import (
 	"time"
 )
 
-//-----------
+// -----------
 type GitSensorResponse struct {
 	Code   int                  `json:"code,omitempty"`
 	Status string               `json:"status,omitempty"`
@@ -47,7 +47,7 @@ type GitSensorApiError struct {
 	UserDetailMessage string `json:"userDetailMessage,omitempty"`
 }
 
-//---------------
+// ---------------
 type FetchScmChangesRequest struct {
 	PipelineMaterialId int    `json:"pipelineMaterialId"`
 	From               string `json:"from"`
@@ -60,12 +60,13 @@ type HeadRequest struct {
 type SourceType string
 
 type CiPipelineMaterial struct {
-	Id            int
-	GitMaterialId int
-	Type          SourceType
-	Value         string
-	Active        bool
-	GitCommit     GitCommit
+	Id                        int
+	GitMaterialId             int
+	Type                      SourceType
+	Value                     string
+	Active                    bool
+	GitCommit                 GitCommit
+	ExtraEnvironmentVariables map[string]string // extra env variables which will be used for CI
 }
 
 type GitMaterial struct {
@@ -98,6 +99,11 @@ type GitCommit struct {
 	Message     string
 	Changes     []string
 	WebhookData *WebhookData
+}
+
+type WebhookAndCiData struct {
+	ExtraEnvironmentVariables map[string]string `json:"extraEnvironmentVariables"` // extra env variables which will be used for CI
+	WebhookData               *WebhookData      `json:"webhookData"`
 }
 
 type WebhookData struct {
@@ -133,7 +139,8 @@ type RefreshGitMaterialResponse struct {
 }
 
 type WebhookDataRequest struct {
-	Id int `json:"id"`
+	Id                   int `json:"id"`
+	CiPipelineMaterialId int `json:"ciPipelineMaterialId"`
 }
 
 type WebhookEventConfigRequest struct {
@@ -219,7 +226,7 @@ type GitSensorClient interface {
 	SavePipelineMaterial(material []*CiPipelineMaterial) (materialRes []*CiPipelineMaterial, err error)
 	RefreshGitMaterial(req *RefreshGitMaterialRequest) (refreshRes *RefreshGitMaterialResponse, err error)
 
-	GetWebhookData(req *WebhookDataRequest) (*WebhookData, error)
+	GetWebhookData(req *WebhookDataRequest) (*WebhookAndCiData, error)
 
 	GetAllWebhookEventConfigForHost(req *WebhookEventConfigRequest) (webhookEvents []*WebhookEventConfig, err error)
 	GetWebhookEventConfig(req *WebhookEventConfigRequest) (webhookEvent *WebhookEventConfig, err error)
@@ -227,7 +234,7 @@ type GitSensorClient interface {
 	GetWebhookPayloadFilterDataForPipelineMaterialId(req *WebhookPayloadFilterDataRequest) (response *WebhookPayloadFilterDataResponse, err error)
 }
 
-//----------------------impl
+// ----------------------impl
 type GitSensorConfig struct {
 	Url     string `env:"GIT_SENSOR_URL" envDefault:"http://localhost:9999"`
 	Timeout int    `env:"GIT_SENSOR_TIMEOUT" envDefault:"0"` // in seconds
@@ -376,8 +383,8 @@ func (session GitSensorClientImpl) RefreshGitMaterial(req *RefreshGitMaterialReq
 	return refreshRes, err
 }
 
-func (session GitSensorClientImpl) GetWebhookData(req *WebhookDataRequest) (*WebhookData, error) {
-	webhookData := new(WebhookData)
+func (session GitSensorClientImpl) GetWebhookData(req *WebhookDataRequest) (*WebhookAndCiData, error) {
+	webhookData := new(WebhookAndCiData)
 	request := &ClientRequest{ResponseBody: webhookData, Method: "GET", RequestBody: req, Path: "webhook/data"}
 	_, _, err := session.doRequest(request)
 	return webhookData, err

@@ -22,6 +22,7 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/juju/errors"
 	"io"
 	"io/ioutil"
@@ -35,6 +36,14 @@ import (
 
 	"go.uber.org/zap"
 )
+
+type CDMetrics struct {
+	AppName         string
+	DeploymentType  string
+	Status          string
+	EnvironmentName string
+	Time            float64
+}
 
 func ContainsString(list []string, element string) bool {
 	if len(list) == 0 {
@@ -90,7 +99,7 @@ func Close(c Closer, logger *zap.SugaredLogger) {
 
 var chars = []rune("abcdefghijklmnopqrstuvwxyz0123456789")
 
-//Generates random string
+// Generates random string
 func Generate(size int) string {
 	rand.Seed(time.Now().UnixNano())
 	var b strings.Builder
@@ -207,4 +216,10 @@ func InterfaceToMapAdapter(resp interface{}) map[string]interface{} {
 		return dat
 	}
 	return dat
+}
+
+func TriggerCDMetrics(wfr CDMetrics, exposeCDMetrics bool) {
+	if exposeCDMetrics && (wfr.Status == WorkflowFailed || wfr.Status == WorkflowSucceeded) {
+		middleware.CdDuration.WithLabelValues(wfr.AppName, wfr.Status, wfr.EnvironmentName, wfr.DeploymentType).Observe(wfr.Time)
+	}
 }

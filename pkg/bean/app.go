@@ -61,12 +61,13 @@ type UpdateMaterialDTO struct {
 }
 
 type GitMaterial struct {
-	Name            string `json:"name,omitempty" ` //not null, //default format pipelineGroup.AppName + "-" + inputMaterial.Name,
-	Url             string `json:"url,omitempty"`   //url of git repo
-	Id              int    `json:"id,omitempty" validate:"number"`
-	GitProviderId   int    `json:"gitProviderId,omitempty" validate:"gt=0"`
-	CheckoutPath    string `json:"checkoutPath" validate:"checkout-path-component"`
-	FetchSubmodules bool   `json:"fetchSubmodules"`
+	Name             string `json:"name,omitempty" ` //not null, //default format pipelineGroup.AppName + "-" + inputMaterial.Name,
+	Url              string `json:"url,omitempty"`   //url of git repo
+	Id               int    `json:"id,omitempty" validate:"number"`
+	GitProviderId    int    `json:"gitProviderId,omitempty" validate:"gt=0"`
+	CheckoutPath     string `json:"checkoutPath" validate:"checkout-path-component"`
+	FetchSubmodules  bool   `json:"fetchSubmodules"`
+	IsUsedInCiConfig bool   `json:"isUsedInCiConfig"`
 }
 
 type CiMaterial struct {
@@ -214,8 +215,9 @@ type CiRegexPatchRequest struct {
 }
 
 type GitCiTriggerRequest struct {
-	CiPipelineMaterial CiPipelineMaterial `json:"ciPipelineMaterial" validate:"required"`
-	TriggeredBy        int32              `json:"triggeredBy"`
+	CiPipelineMaterial        CiPipelineMaterial `json:"ciPipelineMaterial" validate:"required"`
+	TriggeredBy               int32              `json:"triggeredBy"`
+	ExtraEnvironmentVariables map[string]string  `json:"extraEnvironmentVariables"` // extra env variables which will be used for CI
 }
 
 type GitCommit struct {
@@ -471,6 +473,10 @@ type CDPipelineConfigObject struct {
 	ParentPipelineId              int                                    `json:"parentPipelineId"`
 	ParentPipelineType            string                                 `json:"parentPipelineType"`
 	DeploymentAppType             string                                 `json:"deploymentAppType"`
+	AppName                       string                                 `json:"appName"`
+	DeploymentAppDeleteRequest    bool                                   `json:"deploymentAppDeleteRequest"`
+	DeploymentAppCreated          bool                                   `json:"deploymentAppCreated"`
+	AppId                         int                                    `json:"appId"`
 	//Downstream         []int                             `json:"downstream"` //PipelineCounter of downstream	(for future reference only)
 }
 
@@ -519,6 +525,53 @@ const (
 	CD_CREATE CdPatchAction = iota
 	CD_DELETE               //delete this pipeline
 	CD_UPDATE
+	CD_DELETE_PARTIAL // Partially delete means it will only delete ACD app
+)
+
+type DeploymentAppTypeChangeRequest struct {
+	EnvId                 int            `json:"envId,omitempty" validate:"required"`
+	DesiredDeploymentType DeploymentType `json:"desiredDeploymentType,omitempty" validate:"required"`
+	ExcludeApps           []int          `json:"excludeApps"`
+	IncludeApps           []int          `json:"includeApps"`
+	AutoTriggerDeployment bool           `json:"-"`
+	UserId                int32          `json:"-"`
+}
+
+type DeploymentChangeStatus struct {
+	Id      int    `json:"id,omitempty"`
+	AppId   int    `json:"appId,omitempty"`
+	AppName string `json:"appName,omitempty"`
+	EnvId   int    `json:"envId,omitempty"`
+	EnvName string `json:"envName,omitempty"`
+	Error   string `json:"error,omitempty"`
+	Status  Status `json:"status,omitempty"`
+}
+
+type DeploymentAppTypeChangeResponse struct {
+	EnvId                 int                       `json:"envId,omitempty"`
+	DesiredDeploymentType DeploymentType            `json:"desiredDeploymentType,omitempty"`
+	SuccessfulPipelines   []*DeploymentChangeStatus `json:"successfulPipelines"`
+	FailedPipelines       []*DeploymentChangeStatus `json:"failedPipelines"`
+	TriggeredPipelines    []*CdPipelineTrigger      `json:"-"` // Disabling auto-trigger until bulk trigger API is fixed
+}
+
+type CdPipelineTrigger struct {
+	CiArtifactId int `json:"ciArtifactId"`
+	PipelineId   int `json:"pipelineId"`
+}
+
+type DeploymentType string
+
+const (
+	Helm   DeploymentType = "helm"
+	ArgoCd DeploymentType = "argo_cd"
+)
+
+type Status string
+
+const (
+	Success Status = "Success"
+	Failed  Status = "Failed"
 )
 
 func (a CdPatchAction) String() string {
@@ -568,8 +621,10 @@ type CiArtifactBean struct {
 
 type CiArtifactResponse struct {
 	//AppId           int      `json:"app_id"`
-	CdPipelineId int              `json:"cd_pipeline_id,notnull"`
-	CiArtifacts  []CiArtifactBean `json:"ci_artifacts,notnull"`
+	CdPipelineId           int              `json:"cd_pipeline_id,notnull"`
+	LatestWfArtifactId     int              `json:"latest_wf_artifact_id"`
+	LatestWfArtifactStatus string           `json:"latest_wf_artifact_status"`
+	CiArtifacts            []CiArtifactBean `json:"ci_artifacts,notnull"`
 }
 
 type AppLabelsDto struct {
@@ -579,15 +634,17 @@ type AppLabelsDto struct {
 }
 
 type AppLabelDto struct {
-	Key    string `json:"key,notnull"`
-	Value  string `json:"value,notnull"`
-	AppId  int    `json:"appId,omitempty"`
-	UserId int32  `json:"-"`
+	Key       string `json:"key,notnull"`
+	Value     string `json:"value,notnull"`
+	Propagate bool   `json:"propagate,notnull"`
+	AppId     int    `json:"appId,omitempty"`
+	UserId    int32  `json:"-"`
 }
 
 type Label struct {
-	Key   string `json:"key" validate:"required"`
-	Value string `json:"value" validate:"required"`
+	Key       string `json:"key" validate:"required"`
+	Value     string `json:"value" validate:"required"`
+	Propagate bool   `json:"propagate"`
 }
 
 type AppMetaInfoDto struct {
@@ -671,3 +728,8 @@ type ExampleValueDto struct {
 	Result string     `json:"result,omitempty"`
 	Status string     `json:"status,omitempty"`
 }
+
+const CustomAutoScalingEnabledPathKey = "CUSTOM_AUTOSCALING_ENABLED_PATH"
+const CustomAutoscalingReplicaCountPathKey = "CUSTOM_AUTOSCALING_REPLICA_COUNT_PATH"
+const CustomAutoscalingMinPathKey = "CUSTOM_AUTOSCALING_MIN_PATH"
+const CustomAutoscalingMaxPathKey = "CUSTOM_AUTOSCALING_MAX_PATH"

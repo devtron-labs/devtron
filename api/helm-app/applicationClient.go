@@ -4,14 +4,16 @@ import (
 	"context"
 	"fmt"
 	"github.com/caarlos0/env"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"time"
 )
 
 type HelmAppClient interface {
-	ListApplication(req *AppListRequest) (ApplicationService_ListApplicationsClient, error)
+	ListApplication(ctx context.Context, req *AppListRequest) (ApplicationService_ListApplicationsClient, error)
 	GetAppDetail(ctx context.Context, in *AppDetailRequest) (*AppDetail, error)
+	GetAppStatus(ctx context.Context, in *AppDetailRequest) (*AppStatus, error)
 	Hibernate(ctx context.Context, in *HibernateRequest) (*HibernateResponse, error)
 	UnHibernate(ctx context.Context, in *HibernateRequest) (*HibernateResponse, error)
 	GetDeploymentHistory(ctx context.Context, in *AppDetailRequest) (*HelmAppDeploymentHistory, error)
@@ -66,6 +68,8 @@ func (impl *HelmAppClientImpl) getConnection() (*grpc.ClientConn, error) {
 	var opts []grpc.DialOption
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
 	opts = append(opts,
+		grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()),
+		grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()),
 		grpc.WithBlock(),
 		grpc.WithInsecure(),
 		grpc.WithDefaultCallOptions(
@@ -81,12 +85,12 @@ func (impl *HelmAppClientImpl) getConnection() (*grpc.ClientConn, error) {
 	return conn, err
 }
 
-func (impl *HelmAppClientImpl) ListApplication(req *AppListRequest) (ApplicationService_ListApplicationsClient, error) {
+func (impl *HelmAppClientImpl) ListApplication(ctx context.Context, req *AppListRequest) (ApplicationService_ListApplicationsClient, error) {
 	applicationClient, err := impl.getApplicationClient()
 	if err != nil {
 		return nil, err
 	}
-	stream, err := applicationClient.ListApplications(context.Background(), req)
+	stream, err := applicationClient.ListApplications(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -105,6 +109,18 @@ func (impl *HelmAppClientImpl) GetAppDetail(ctx context.Context, in *AppDetailRe
 		return nil, err
 	}
 	return detail, nil
+}
+
+func (impl *HelmAppClientImpl) GetAppStatus(ctx context.Context, in *AppDetailRequest) (*AppStatus, error) {
+	applicationClient, err := impl.getApplicationClient()
+	if err != nil {
+		return nil, err
+	}
+	appStatus, err := applicationClient.GetAppStatus(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return appStatus, nil
 }
 
 func (impl *HelmAppClientImpl) Hibernate(ctx context.Context, in *HibernateRequest) (*HibernateResponse, error) {
