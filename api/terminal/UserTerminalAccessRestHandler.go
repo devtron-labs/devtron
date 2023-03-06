@@ -53,7 +53,6 @@ func NewUserTerminalAccessRestHandlerImpl(logger *zap.SugaredLogger, userTermina
 	}
 }
 func (handler UserTerminalAccessRestHandlerImpl) ValidateShell(w http.ResponseWriter, r *http.Request) {
-	handler.Logger.Infow("Inside validateShell method")
 	userId, err := handler.UserService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
