@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
@@ -154,127 +155,27 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	reqMem := impl.cdConfig.ReqMem
 	ttl := int32(impl.cdConfig.BuildLogTTLValue)
 
+	entryPoint := CD_WORKFLOW_NAME
+
 	globalCmCsConfigs, err := impl.globalCMCSService.FindAllActiveByPipelineType(repository2.PIPELINE_TYPE_CD)
 	if err != nil {
 		impl.Logger.Errorw("error in getting all global cm/cs config", "err", err)
 		return nil, err
 	}
-	for i := range globalCmCsConfigs {
-		globalCmCsConfigs[i].Name = globalCmCsConfigs[i].Name + "-" + strconv.Itoa(workflowRequest.WorkflowId) + "-" + "cd"
-	}
-
-	var volumes []v12.Volume
-	var steps []v1alpha1.ParallelSteps
-
-	globalConfigsMapping := make(map[string]string)
-	globalSecretsMapping := make(map[string]string)
-
-	cmIndex := 0
-	csIndex := 0
-
-	entryPoint := CD_WORKFLOW_NAME
 	if len(globalCmCsConfigs) > 0 {
 		entryPoint = "cd-stages-with-env"
-		for _, config := range globalCmCsConfigs {
-			if config.ConfigType == repository2.CM_TYPE_CONFIG {
-				ownerDelete := true
-				cmBody := v12.ConfigMap{
-					TypeMeta: v1.TypeMeta{
-						Kind:       "ConfigMap",
-						APIVersion: "v1",
-					},
-					ObjectMeta: v1.ObjectMeta{
-						Name: config.Name,
-						OwnerReferences: []v1.OwnerReference{{
-							APIVersion:         "argoproj.io/v1alpha1",
-							Kind:               "Workflow",
-							Name:               "{{workflow.name}}",
-							UID:                "{{workflow.uid}}",
-							BlockOwnerDeletion: &ownerDelete,
-						}},
-					},
-					Data: config.Data,
-				}
-				cmJson, err := json.Marshal(cmBody)
-				if err != nil {
-					impl.Logger.Errorw("error in building json", "err", err)
-					return nil, err
-				}
-				globalConfigsMapping[config.Name] = string(cmJson)
+	}
+	for i := range globalCmCsConfigs {
+		globalCmCsConfigs[i].Name = globalCmCsConfigs[i].Name + "-" + strconv.Itoa(workflowRequest.WorkflowId) + "-" + strings.ToLower(repository2.PIPELINE_TYPE_CD)
+	}
 
-				if config.Type == repository2.VOLUME_CONFIG {
-					volumes = append(volumes, v12.Volume{
-						Name: config.Name + "-vol",
-						VolumeSource: v12.VolumeSource{
-							ConfigMap: &v12.ConfigMapVolumeSource{
-								LocalObjectReference: v12.LocalObjectReference{
-									Name: config.Name,
-								},
-							},
-						},
-					})
-				}
-				steps = append(steps, v1alpha1.ParallelSteps{
-					Steps: []v1alpha1.WorkflowStep{
-						{
-							Name:     "create-env-cm-" + strconv.Itoa(cmIndex),
-							Template: "cm-" + strconv.Itoa(cmIndex),
-						},
-					},
-				})
-				cmIndex++
-			} else if config.ConfigType == repository2.CS_TYPE_CONFIG {
-				secretDataMap := make(map[string][]byte)
-				for key, value := range config.Data {
-					secretDataMap[key] = []byte(value)
-				}
-				ownerDelete := true
-				secretObject := v12.Secret{
-					TypeMeta: v1.TypeMeta{
-						Kind:       "Secret",
-						APIVersion: "v1",
-					},
-					ObjectMeta: v1.ObjectMeta{
-						Name: config.Name,
-						OwnerReferences: []v1.OwnerReference{{
-							APIVersion:         "argoproj.io/v1alpha1",
-							Kind:               "Workflow",
-							Name:               "{{workflow.name}}",
-							UID:                "{{workflow.uid}}",
-							BlockOwnerDeletion: &ownerDelete,
-						}},
-					},
-					Data: secretDataMap,
-					Type: "Opaque",
-				}
-				secretJson, err := json.Marshal(secretObject)
-				if err != nil {
-					impl.Logger.Errorw("error in building json", "err", err)
-					return nil, err
-				}
-				globalSecretsMapping[config.Name] = string(secretJson)
-				if config.Type == repository2.VOLUME_CONFIG {
-					volumes = append(volumes, v12.Volume{
-						Name: config.Name + "-vol",
-						VolumeSource: v12.VolumeSource{
-							Secret: &v12.SecretVolumeSource{
-								SecretName: config.Name,
-							},
-						},
-					})
-				}
-				steps = append(steps, v1alpha1.ParallelSteps{
-					Steps: []v1alpha1.WorkflowStep{
-						{
-							Name:     "create-env-sec-" + strconv.Itoa(csIndex),
-							Template: "sec-" + strconv.Itoa(csIndex),
-						},
-					},
-				})
-				csIndex++
-			}
-		}
+	steps := make([]v1alpha1.ParallelSteps, 0)
+	volumes := make([]v12.Volume, 0)
+	templates := make([]v1alpha1.Template, 0)
 
+	err = impl.globalCMCSService.AddTemplatesForGlobalSecretsInWorkflowTemplate(globalCmCsConfigs, &steps, &volumes, &templates)
+	if err != nil {
+		impl.Logger.Errorw("error in creating templates for global secrets", "err", err)
 	}
 
 	preStageConfigMapSecretsJson := pipeline.PreStageConfigMapSecretNames
@@ -459,37 +360,6 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 					},
 				},
 			})
-		}
-	}
-
-	var templates []v1alpha1.Template
-
-	cmIndex = 0
-	csIndex = 0
-	if len(globalConfigsMapping) > 0 {
-		for _, manifest := range globalConfigsMapping {
-			templates = append(templates, v1alpha1.Template{
-				Name: "cm-" + strconv.Itoa(cmIndex),
-				Resource: &v1alpha1.ResourceTemplate{
-					Action:            "create",
-					SetOwnerReference: true,
-					Manifest:          manifest,
-				},
-			})
-			cmIndex++
-		}
-	}
-	if len(globalSecretsMapping) > 0 {
-		for _, manifest := range globalSecretsMapping {
-			templates = append(templates, v1alpha1.Template{
-				Name: "sec-" + strconv.Itoa(csIndex),
-				Resource: &v1alpha1.ResourceTemplate{
-					Action:            "create",
-					SetOwnerReference: true,
-					Manifest:          manifest,
-				},
-			})
-			csIndex++
 		}
 	}
 

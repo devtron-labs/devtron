@@ -3,16 +3,21 @@ package pipeline
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	v12 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"strconv"
 	"time"
 )
 
 type GlobalCMCSService interface {
 	Create(model *GlobalCMCSDto) (*GlobalCMCSDto, error)
 	FindAllActiveByPipelineType(pipelineType string) ([]*GlobalCMCSDto, error)
+	AddTemplatesForGlobalSecretsInWorkflowTemplate(globalCmCsConfigs []*GlobalCMCSDto, steps *[]v1alpha1.ParallelSteps, volumes *[]v12.Volume, templates *[]v1alpha1.Template) error
 }
 
 type GlobalCMCSServiceImpl struct {
@@ -124,4 +129,125 @@ func (impl *GlobalCMCSServiceImpl) FindAllActiveByPipelineType(pipelineType stri
 	}
 	configDtos := impl.ConvertGlobalCmcsDbObjectToGlobalCmcsDto(models)
 	return configDtos, nil
+}
+
+func (impl *GlobalCMCSServiceImpl) AddTemplatesForGlobalSecretsInWorkflowTemplate(globalCmCsConfigs []*GlobalCMCSDto, steps *[]v1alpha1.ParallelSteps, volumes *[]v12.Volume, templates *[]v1alpha1.Template) error {
+
+	cmIndex := 0
+	csIndex := 0
+
+	for _, config := range globalCmCsConfigs {
+		if config.ConfigType == repository.CM_TYPE_CONFIG {
+			ownerDelete := true
+			cmBody := v12.ConfigMap{
+				TypeMeta: v1.TypeMeta{
+					Kind:       "ConfigMap",
+					APIVersion: "v1",
+				},
+				ObjectMeta: v1.ObjectMeta{
+					Name: config.Name,
+					OwnerReferences: []v1.OwnerReference{{
+						APIVersion:         "argoproj.io/v1alpha1",
+						Kind:               "Workflow",
+						Name:               "{{workflow.name}}",
+						UID:                "{{workflow.uid}}",
+						BlockOwnerDeletion: &ownerDelete,
+					}},
+				},
+				Data: config.Data,
+			}
+			cmJson, err := json.Marshal(cmBody)
+			if err != nil {
+				impl.logger.Errorw("error in building json", "err", err)
+				return err
+			}
+			if config.Type == repository.VOLUME_CONFIG {
+				*volumes = append(*volumes, v12.Volume{
+					Name: config.Name + "-vol",
+					VolumeSource: v12.VolumeSource{
+						ConfigMap: &v12.ConfigMapVolumeSource{
+							LocalObjectReference: v12.LocalObjectReference{
+								Name: config.Name,
+							},
+						},
+					},
+				})
+			}
+			*steps = append(*steps, v1alpha1.ParallelSteps{
+				Steps: []v1alpha1.WorkflowStep{
+					{
+						Name:     "create-env-cm-" + strconv.Itoa(cmIndex),
+						Template: "cm-" + strconv.Itoa(cmIndex),
+					},
+				},
+			})
+			*templates = append(*templates, v1alpha1.Template{
+				Name: "cm-" + strconv.Itoa(cmIndex),
+				Resource: &v1alpha1.ResourceTemplate{
+					Action:            "create",
+					SetOwnerReference: true,
+					Manifest:          string(cmJson),
+				},
+			})
+			cmIndex++
+		} else if config.ConfigType == repository.CS_TYPE_CONFIG {
+			secretDataMap := make(map[string][]byte)
+			for key, value := range config.Data {
+				secretDataMap[key] = []byte(value)
+			}
+			ownerDelete := true
+			secretObject := v12.Secret{
+				TypeMeta: v1.TypeMeta{
+					Kind:       "Secret",
+					APIVersion: "v1",
+				},
+				ObjectMeta: v1.ObjectMeta{
+					Name: config.Name,
+					OwnerReferences: []v1.OwnerReference{{
+						APIVersion:         "argoproj.io/v1alpha1",
+						Kind:               "Workflow",
+						Name:               "{{workflow.name}}",
+						UID:                "{{workflow.uid}}",
+						BlockOwnerDeletion: &ownerDelete,
+					}},
+				},
+				Data: secretDataMap,
+				Type: "Opaque",
+			}
+			secretJson, err := json.Marshal(secretObject)
+			if err != nil {
+				impl.logger.Errorw("error in building json", "err", err)
+				return err
+			}
+			if config.Type == repository.VOLUME_CONFIG {
+				*volumes = append(*volumes, v12.Volume{
+					Name: config.Name + "-vol",
+					VolumeSource: v12.VolumeSource{
+						Secret: &v12.SecretVolumeSource{
+							SecretName: config.Name,
+						},
+					},
+				})
+			}
+			*steps = append(*steps, v1alpha1.ParallelSteps{
+				Steps: []v1alpha1.WorkflowStep{
+					{
+						Name:     "create-env-sec-" + strconv.Itoa(csIndex),
+						Template: "sec-" + strconv.Itoa(csIndex),
+					},
+				},
+			})
+			*templates = append(*templates, v1alpha1.Template{
+				Name: "sec-" + strconv.Itoa(csIndex),
+				Resource: &v1alpha1.ResourceTemplate{
+					Action:            "create",
+					SetOwnerReference: true,
+					Manifest:          string(secretJson),
+				},
+			})
+			csIndex++
+		}
+	}
+
+	return nil
 }
