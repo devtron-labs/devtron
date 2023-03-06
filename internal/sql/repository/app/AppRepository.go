@@ -128,6 +128,7 @@ func (repo AppRepositoryImpl) FindJobByDisplayName(appName string) (*App, error)
 		Model(pipelineGroup).
 		Where("display_name = ?", appName).
 		Where("active = ?", true).
+		Where("app_store = ?", 2).
 		Order("id DESC").Limit(1).
 		Select()
 	// there is only single active app will be present in db with a same name.
