@@ -488,7 +488,7 @@ func (impl *TerminalSessionHandlerImpl) ValidateShell(req *TerminalSessionReques
 	}
 	buf := &bytes.Buffer{}
 	errBuf := &bytes.Buffer{}
-	impl.logger.Infow("reached execWithStreamOptions method call")
+
 	err = execWithStreamOptions(exec, remotecommand.StreamOptions{
 		Stdout: buf,
 		Stderr: errBuf,
