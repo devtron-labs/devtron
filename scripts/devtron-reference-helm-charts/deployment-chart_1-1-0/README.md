@@ -741,14 +741,14 @@ kedaAutoscaling:
     name: keda-trigger-auth-kafka-credential
 ```
 
-### Winter-Solider
+### Winter-Soldier
 Winter Soldier can be used to
 - cleans up (delete) Kubernetes resources
 - reduce workload pods to 0
 
 **_NOTE:_** After deploying this we can create the Hibernator object and provide the custom configuration by which workloads going to delete, sleep and many more.   for more information check [the main repo](https://github.com/devtron-labs/winter-soldier)
 
-Given below is template values you can give in winter-solider:
+Given below is template values you can give in winter-soldier:
 ```yaml
 winterSoilder:
   enable: false
