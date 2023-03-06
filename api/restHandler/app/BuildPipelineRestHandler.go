@@ -263,7 +263,7 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 		ciConfigRequest.CiBuildConfig = &bean1.CiBuildConfigBean{}
 		ciConfigRequest.CiBuildConfig.CiBuildType = "skip-build"
 		ciConfigRequest.UserId = patchRequest.UserId
-		if patchRequest.CiPipeline == nil || patchRequest.CiPipeline.CiMaterial == nil || len(patchRequest.CiPipeline.CiMaterial) != 1 {
+		if patchRequest.CiPipeline == nil || patchRequest.CiPipeline.CiMaterial == nil {
 			handler.Logger.Errorw("Invalid patch ci-pipeline request", "request", patchRequest, "err", "invalid CiPipeline data")
 			common.WriteJsonResp(w, fmt.Errorf("invalid CiPipeline data"), nil, http.StatusBadRequest)
 			return
