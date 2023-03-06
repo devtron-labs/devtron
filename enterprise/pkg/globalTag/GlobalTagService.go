@@ -30,6 +30,7 @@ import (
 
 type GlobalTagService interface {
 	GetAllActiveTags() ([]*GlobalTagDto, error)
+	GetActiveTagById(tagId int) (*GlobalTagDto, error)
 	GetAllActiveTagsForProject(projectId int) ([]*GlobalTagDtoForProject, error)
 	CreateTags(request *CreateGlobalTagsRequest, createdBy int32) error
 	UpdateTags(request *UpdateGlobalTagsRequest, updatedBy int32) error
@@ -62,21 +63,32 @@ func (impl GlobalTagServiceImpl) GetAllActiveTags() ([]*GlobalTagDto, error) {
 	// convert to DTO
 	var globalTags []*GlobalTagDto
 	for _, globalTagFromDb := range globalTagsFromDb {
-		globalTag := &GlobalTagDto{
-			Id:                     globalTagFromDb.Id,
-			Key:                    globalTagFromDb.Key,
-			Description:            globalTagFromDb.Description,
-			MandatoryProjectIdsCsv: globalTagFromDb.MandatoryProjectIdsCsv,
-			Propagate:              globalTagFromDb.Propagate,
-			CreatedOnInMs:          globalTagFromDb.CreatedOn.UnixMilli(),
-		}
-		if !globalTagFromDb.UpdatedOn.IsZero() {
-			globalTag.UpdatedOnInMs = globalTagFromDb.UpdatedOn.UnixMilli()
-		}
+		globalTag := impl.convertGlobalTagDtoFromDBObject(globalTagFromDb)
 		globalTags = append(globalTags, globalTag)
 	}
 
 	return globalTags, nil
+}
+
+func (impl GlobalTagServiceImpl) GetActiveTagById(tagId int) (*GlobalTagDto, error) {
+	impl.logger.Infow("Getting active global tags", "tagId", tagId)
+
+	// get from DB
+	globalTagFromDb, err := impl.globalTagRepository.FindActiveById(tagId)
+	if err != nil {
+		impl.logger.Errorw("error while getting active global tag from DB", "tagId", tagId, "error", err)
+		return nil, err
+	}
+
+	if globalTagFromDb == nil || globalTagFromDb.Id == 0 {
+		errorMsg := fmt.Sprintf("Global tag not found for tagId - %d", tagId)
+		return nil, errors.New(errorMsg)
+	}
+
+	// convert to DTO
+	globalTag := impl.convertGlobalTagDtoFromDBObject(globalTagFromDb)
+
+	return globalTag, nil
 }
 
 func (impl GlobalTagServiceImpl) GetAllActiveTagsForProject(projectId int) ([]*GlobalTagDtoForProject, error) {
@@ -291,4 +303,19 @@ func (impl GlobalTagServiceImpl) ValidateMandatoryLabelsForProject(projectId int
 		return err
 	}
 	return nil
+}
+
+func (impl GlobalTagServiceImpl) convertGlobalTagDtoFromDBObject(globalTagFromDb *GlobalTag) *GlobalTagDto {
+	globalTag := &GlobalTagDto{
+		Id:                     globalTagFromDb.Id,
+		Key:                    globalTagFromDb.Key,
+		Description:            globalTagFromDb.Description,
+		MandatoryProjectIdsCsv: globalTagFromDb.MandatoryProjectIdsCsv,
+		Propagate:              globalTagFromDb.Propagate,
+		CreatedOnInMs:          globalTagFromDb.CreatedOn.UnixMilli(),
+	}
+	if !globalTagFromDb.UpdatedOn.IsZero() {
+		globalTag.UpdatedOnInMs = globalTagFromDb.UpdatedOn.UnixMilli()
+	}
+	return globalTag
 }

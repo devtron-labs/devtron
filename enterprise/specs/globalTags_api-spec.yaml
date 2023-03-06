@@ -5,16 +5,25 @@ info:
 paths:
   /orchestrator/global-tag:
     get:
-      description: Get All active Global tags
+      description: Get All active Global tags (all or for given tagId)
+      parameters:
+        - name: id
+          in: query
+          description: tagId
+          required: false
+          schema:
+            type: integer
       responses:
         "200":
-          description: Successfully fetched active global tags
+          description: Successfully fetched active global tags (all or for given tagId)
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/GlobalTagDto"
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: "#/components/schemas/GlobalTagDto"
+                  - $ref: "#/components/schemas/GlobalTagDto"
     post:
       description: Create global tags
       requestBody:
