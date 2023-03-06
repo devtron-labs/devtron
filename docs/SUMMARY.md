@@ -22,7 +22,7 @@
   * [Container Registries](user-guide/global-configurations/docker-registries.md)
   * [Chart Repositories](user-guide/global-configurations/chart-repo.md)
   * [Custom charts](user-guide/global-configurations/custom-charts.md)
-  * [SSO Login Service](user-guide/global-configurations/sso-login.md)
+  * [SSO Login Services](user-guide/global-configurations/sso-login.md)
   * [Authorization](user-guide/global-configurations/authorization/README.md)
     * [User Permissions](user-guide/global-configurations/authorization/user-access.md)
     * [Permission Groups](user-guide/global-configurations/authorization/permission-groups.md)
@@ -61,6 +61,7 @@
     * [Secrets](user-guide/creating-application/secrets.md)
       * [External Secret Operator (ESO)](user-guide/creating-application/eso/README.md)
         * [AWS Secrets Manager](user-guide/creating-application/eso/aws-eso.md)
+        * [Google Secrets Manager](user-guide/creating-application/eso/gcp-eso.md)
 
     * [Environment Overrides](user-guide/creating-application/environment-overrides.md)
     * [Deleting Application](user-guide/deleting-application.md)
