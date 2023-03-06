@@ -1,6 +1,6 @@
-{{- if .Values.winterSoilder.enabled  }}
+{{- if .Values.winterSoldier.enabled  }}
 
-apiVersion: {{ $.Values.winterSoilder.apiVersion }}
+apiVersion: {{ $.Values.winterSoldier.apiVersion }}
 
 kind: Hibernator
 
