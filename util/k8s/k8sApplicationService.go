@@ -548,8 +548,8 @@ func (impl *K8sApplicationServiceImpl) validateContainerNameIfReqd(valid bool, r
 				}
 
 				//finding the container name in ephemeral containers
-				for _, initContainer := range pod.EphemeralContainers {
-					if initContainer == requestContainerName {
+				for _, ephemeralContainer := range pod.EphemeralContainers {
+					if ephemeralContainer == requestContainerName {
 						return true
 					}
 				}

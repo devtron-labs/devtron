@@ -483,7 +483,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 			handler.logger.Errorw("error in validating resource request", "err", err)
 			apiError := util2.ApiError{
 				InternalMessage: "failed to validate the resource with error " + err.Error(),
-				UserMessage:     "",
+				UserMessage:     "Failed to validate resource",
 			}
 			if !valid {
 				apiError.InternalMessage = "failed to validate the resource"
