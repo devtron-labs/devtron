@@ -785,7 +785,6 @@ func (impl *InstalledAppServiceImpl) FindNotesForArgoApplication(installedAppId,
 	var notes string
 	appName := installedAppVerison.InstalledApp.App.AppName
 	if err != nil {
-		//do better logging
 		impl.logger.Error(err)
 		return notes, appName, err
 	}
