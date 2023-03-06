@@ -128,7 +128,7 @@ func (impl *K8sApplicationServiceImpl) FilterServiceAndIngress(ctx context.Conte
 			group := impl.extractResourceValue(resourceItem, "group")
 			version := impl.extractResourceValue(resourceItem, "version")
 			req := ResourceRequestBean{
-				AppId: appId,
+				AppId:     appId,
 				ClusterId: appDetail.ClusterId,
 				AppIdentifier: &client.AppIdentifier{
 					ClusterId: appDetail.ClusterId,
@@ -670,13 +670,15 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 		return resourceList, err
 	}
 	k8sRequest := request.K8sRequest
+	//store the copy of requested resource identifier
+	resourceIdentifierCloned := k8sRequest.ResourceIdentifier
 	resp, namespaced, err := impl.k8sClientService.GetResourceList(ctx, restConfig, k8sRequest)
 	if err != nil {
 		impl.logger.Errorw("error in getting resource list", "err", err, "request", request)
 		return resourceList, err
 	}
 	checkForResourceCallback := func(namespace, group, kind, resourceName string) bool {
-		resourceIdentifier := k8sRequest.ResourceIdentifier
+		resourceIdentifier := resourceIdentifierCloned
 		resourceIdentifier.Name = resourceName
 		resourceIdentifier.Namespace = namespace
 		if group != "" && kind != "" {
