@@ -1,5 +1,6 @@
 {{- if .Values.winterSoldier.enabled }}
-apiVersion: {{ .Values.winterSolider.apiVersion }}
+apiVersion: {{ $.Values.winterSoilder.apiVersion }}
+
 kind: Hibernator
 metadata:
   name: {{ template ".Chart.Name .fullname" $ }}-hibernator
