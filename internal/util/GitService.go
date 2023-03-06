@@ -20,6 +20,7 @@ package util
 import (
 	"context"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/middleware"
 	"io/ioutil"
 	"net/url"
 	"path/filepath"
@@ -82,6 +83,7 @@ type GitCommitDto struct {
 }
 
 func (factory *GitFactory) Reload() error {
+	start := time.Now()
 	logger.Infow("reloading gitops details")
 	cfg, err := GetGitConfig(factory.gitOpsRepository)
 	if err != nil {
@@ -94,11 +96,13 @@ func (factory *GitFactory) Reload() error {
 		return err
 	}
 	factory.Client = client
+	middleware.GitOpsDuration.WithLabelValues("Reload", "GitService").Observe(time.Since(start).Seconds())
 	logger.Infow(" gitops details reload success")
 	return nil
 }
 
 func (factory *GitFactory) GetGitLabGroupPath(gitOpsConfig *bean2.GitOpsConfigDto) (string, error) {
+	start := time.Now()
 	var gitLabClient *gitlab.Client
 	var err error
 	if len(gitOpsConfig.Host) > 0 {
@@ -127,10 +131,12 @@ func (factory *GitFactory) GetGitLabGroupPath(gitOpsConfig *bean2.GitOpsConfigDt
 		factory.logger.Errorw("no matching groups found for gitlab", "gitLab groupID", gitOpsConfig.GitLabGroupId, "err", err)
 		return "", fmt.Errorf("no matching groups found for gitlab group ID : %s", gitOpsConfig.GitLabGroupId)
 	}
+	middleware.GitOpsDuration.WithLabelValues("GetGitLabGroupPath", "GitService").Observe(time.Since(start).Seconds())
 	return group.FullPath, nil
 }
 
 func (factory *GitFactory) NewClientForValidation(gitOpsConfig *bean2.GitOpsConfigDto) (GitClient, *GitServiceImpl, error) {
+	start := time.Now()
 	cfg := &GitConfig{
 		GitlabGroupId:        gitOpsConfig.GitLabGroupId,
 		GitToken:             gitOpsConfig.Token,
@@ -153,6 +159,7 @@ func (factory *GitFactory) NewClientForValidation(gitOpsConfig *bean2.GitOpsConf
 
 	//factory.Client = client
 	logger.Infow("client changed successfully", "cfg", cfg)
+	middleware.GitOpsDuration.WithLabelValues("NewClientForValidation", "GitService").Observe(time.Since(start).Seconds())
 	return client, gitService, nil
 }
 
@@ -280,11 +287,15 @@ func NewGitServiceImpl(config *GitConfig, logger *zap.SugaredLogger, GitCliUtil 
 }
 
 func (impl GitServiceImpl) GetCloneDirectory(targetDir string) (clonedDir string) {
+
+	start := time.Now()
 	clonedDir = filepath.Join(impl.config.GitWorkingDir, targetDir)
+	middleware.GitOpsDuration.WithLabelValues("GetCloneDirectory", "GitService").Observe(time.Since(start).Seconds())
 	return clonedDir
 }
 
 func (impl GitServiceImpl) Clone(url, targetDir string) (clonedDir string, err error) {
+	start := time.Now()
 	impl.logger.Debugw("git checkout ", "url", url, "dir", targetDir)
 	clonedDir = filepath.Join(impl.config.GitWorkingDir, targetDir)
 	_, errorMsg, err := impl.gitCliUtil.Clone(clonedDir, url, impl.Auth.Username, impl.Auth.Password)
@@ -295,10 +306,12 @@ func (impl GitServiceImpl) Clone(url, targetDir string) (clonedDir string, err e
 	if errorMsg != "" {
 		return "", fmt.Errorf(errorMsg)
 	}
+	middleware.GitOpsDuration.WithLabelValues("Clone", "GitService").Observe(time.Since(start).Seconds())
 	return clonedDir, nil
 }
 
 func (impl GitServiceImpl) CommitAndPushAllChanges(repoRoot, commitMsg, name, emailId string) (commitHash string, err error) {
+	start := time.Now()
 	repo, workTree, err := impl.getRepoAndWorktree(repoRoot)
 	if err != nil {
 		return "", err
@@ -329,19 +342,23 @@ func (impl GitServiceImpl) CommitAndPushAllChanges(repoRoot, commitMsg, name, em
 		Auth: impl.Auth,
 	})
 
+	middleware.GitOpsDuration.WithLabelValues("CommitAndPushAllChanges", "GitService").Observe(time.Since(start).Seconds())
 	return commit.String(), err
 }
 
 func (impl GitServiceImpl) getRepoAndWorktree(repoRoot string) (*git.Repository, *git.Worktree, error) {
+	start := time.Now()
 	r, err := git.PlainOpen(repoRoot)
 	if err != nil {
 		return nil, nil, err
 	}
 	w, err := r.Worktree()
+	middleware.GitOpsDuration.WithLabelValues("getRepoAndWorktree", "GitService").Observe(time.Since(start).Seconds())
 	return r, w, err
 }
 
 func (impl GitServiceImpl) ForceResetHead(repoRoot string) (err error) {
+	start := time.Now()
 	_, workTree, err := impl.getRepoAndWorktree(repoRoot)
 	if err != nil {
 		return err
@@ -355,11 +372,13 @@ func (impl GitServiceImpl) ForceResetHead(repoRoot string) (err error) {
 		Force:        true,
 		SingleBranch: true,
 	})
+	middleware.GitOpsDuration.WithLabelValues("ForceResetHead", "GitService").Observe(time.Since(start).Seconds())
 	return err
 }
 
 func (impl GitServiceImpl) CommitValues(config *ChartConfig) (commitHash string, err error) {
 	//TODO acquire lock
+	start := time.Now()
 	gitDir := filepath.Join(impl.config.GitWorkingDir, config.ChartName)
 	if err != nil {
 		return "", err
@@ -369,10 +388,12 @@ func (impl GitServiceImpl) CommitValues(config *ChartConfig) (commitHash string,
 		return "", err
 	}
 	hash, err := impl.CommitAndPushAllChanges(gitDir, config.ReleaseMessage, "devtron bot", "devtron-bot@devtron.ai")
+	middleware.GitOpsDuration.WithLabelValues("CommitValues", "GitService").Observe(time.Since(start).Seconds())
 	return hash, err
 }
 
 func (impl GitServiceImpl) Pull(repoRoot string) (err error) {
+	start := time.Now()
 	_, workTree, err := impl.getRepoAndWorktree(repoRoot)
 	if err != nil {
 		return err
@@ -385,5 +406,6 @@ func (impl GitServiceImpl) Pull(repoRoot string) (err error) {
 		err = nil
 		return nil
 	}
+	middleware.GitOpsDuration.WithLabelValues("Pull", "GitService").Observe(time.Since(start).Seconds())
 	return err
 }

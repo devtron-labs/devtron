@@ -74,6 +74,11 @@ var CacheUploadDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 	Buckets: prometheus.LinearBuckets(20, 20, 5),
 }, []string{"pipelineName", "AppName"})
 
+var GitOpsDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+	Name: "git_ops_duration_seconds",
+	Help: "Duration of GitOps",
+}, []string{"OperationName", "MethodName"})
+
 var requestCounter = promauto.NewCounterVec(
 	prometheus.CounterOpts{
 		Name: "orchestrator_http_requests_total",
