@@ -132,5 +132,11 @@ func (impl DeleteServiceExtendedImpl) DeleteChartRepo(deleteRequest *chartRepo.C
 		impl.logger.Errorw("error in deleting chart repo", "err", err, "deleteRequest", deleteRequest)
 		return err
 	}
+
+	err = impl.chartRepositoryService.DeleteChartSecret(deleteRequest.Name)
+	if err != nil {
+		impl.logger.Errorw("Error in deleting secret for chart repo", "Chart Name", deleteRequest.Name, "err", err)
+	}
+
 	return nil
 }
