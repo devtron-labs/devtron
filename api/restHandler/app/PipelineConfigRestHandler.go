@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/util/argo"
 	"io"
@@ -34,7 +35,6 @@ import (
 
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
-	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
@@ -103,7 +103,7 @@ type PipelineConfigRestHandlerImpl struct {
 	validator                    *validator.Validate
 	teamService                  team.TeamService
 	enforcer                     casbin.Enforcer
-	gitSensorClient              gitSensor.GitSensorClient
+	gitSensorClient              gitSensor.Client
 	pipelineRepository           pipelineConfig.PipelineRepository
 	appWorkflowService           appWorkflow.AppWorkflowService
 	enforcerUtil                 rbac.EnforcerUtil
@@ -129,7 +129,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	enforcer casbin.Enforcer,
 	ciHandler pipeline.CiHandler,
 	validator *validator.Validate,
-	gitSensorClient gitSensor.GitSensorClient,
+	gitSensorClient gitSensor.Client,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
 	enforcerUtil rbac.EnforcerUtil, envService request.EnvironmentService,
 	gitRegistryConfig pipeline.GitRegistryConfig, dockerRegistryConfig pipeline.DockerRegistryConfig,

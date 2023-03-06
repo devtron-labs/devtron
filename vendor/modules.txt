@@ -332,7 +332,7 @@ github.com/devtron-labs/authenticator/password
 github.com/devtron-labs/common-lib/blob-storage
 github.com/devtron-labs/common-lib/pubsub-lib
 github.com/devtron-labs/common-lib/utils
-# github.com/devtron-labs/protos v0.0.0-20230303111945-adc9e998b712 => ../protos
+# github.com/devtron-labs/protos v0.0.0-20230306074100-0c6d80ec3e05
 ## explicit; go 1.17
 github.com/devtron-labs/protos/git-sensor
 # github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f

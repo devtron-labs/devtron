@@ -264,6 +264,7 @@ message WebhookPayloadFilterDataSelectorResponse {
 message WebhookPayloadFilterDataResponse {
   int64 payloadId = 1;
   repeated WebhookPayloadFilterDataSelectorResponse selectorsData = 2;
+  string payloadJson = 3;
 }
 
 service GitSensorService {
