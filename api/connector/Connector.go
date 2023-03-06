@@ -64,7 +64,11 @@ func (impl PumpImpl) StartK8sStreamWithHeartBeat(w http.ResponseWriter, isReconn
 		http.Error(w, "unexpected server doesnt support streaming", http.StatusInternalServerError)
 	}
 	if err != nil {
-		http.Error(w, errors.Details(err), http.StatusInternalServerError)
+		err := impl.sendEvent(nil, []byte("ERR_STREAM"), []byte(err.Error()), w)
+		if err != nil {
+			impl.logger.Errorw("error in writing data over sse", "err", err)
+		}
+		return
 	}
 	w.Header().Set("Transfer-Encoding", "chunked")
 	w.Header().Set("Content-Type", "text/event-stream")
