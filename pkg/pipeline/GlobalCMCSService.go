@@ -90,6 +90,7 @@ func (impl *GlobalCMCSServiceImpl) Create(config *GlobalCMCSDto) (*GlobalCMCSDto
 			UpdatedBy: config.UserId,
 			UpdatedOn: time.Now(),
 		},
+		PipelineType: config.PipelineType,
 	}
 	model, err = impl.globalCMCSRepository.Save(model)
 	if err != nil {
@@ -177,12 +178,12 @@ func (impl *GlobalCMCSServiceImpl) AddTemplatesForGlobalSecretsInWorkflowTemplat
 				Steps: []v1alpha1.WorkflowStep{
 					{
 						Name:     "create-env-cm-" + strconv.Itoa(cmIndex),
-						Template: "cm-" + strconv.Itoa(cmIndex),
+						Template: "cm-gb-" + strconv.Itoa(cmIndex),
 					},
 				},
 			})
 			*templates = append(*templates, v1alpha1.Template{
-				Name: "cm-" + strconv.Itoa(cmIndex),
+				Name: "cm-gb-" + strconv.Itoa(cmIndex),
 				Resource: &v1alpha1.ResourceTemplate{
 					Action:            "create",
 					SetOwnerReference: true,
@@ -233,12 +234,12 @@ func (impl *GlobalCMCSServiceImpl) AddTemplatesForGlobalSecretsInWorkflowTemplat
 				Steps: []v1alpha1.WorkflowStep{
 					{
 						Name:     "create-env-sec-" + strconv.Itoa(csIndex),
-						Template: "sec-" + strconv.Itoa(csIndex),
+						Template: "sec-gb-" + strconv.Itoa(csIndex),
 					},
 				},
 			})
 			*templates = append(*templates, v1alpha1.Template{
-				Name: "sec-" + strconv.Itoa(csIndex),
+				Name: "sec-gb-" + strconv.Itoa(csIndex),
 				Resource: &v1alpha1.ResourceTemplate{
 					Action:            "create",
 					SetOwnerReference: true,
