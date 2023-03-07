@@ -80,11 +80,12 @@ func (impl *PipelineStageServiceImpl) BuildCiStageDataDeepCopy(ciStage *reposito
 	var stepsDto []*bean.PipelineStageStepDto
 	for _, step := range steps {
 		stepDto := &bean.PipelineStageStepDto{
-			Name:                step.Name,
-			Index:               step.Index,
-			Description:         step.Description,
-			OutputDirectoryPath: step.OutputDirectoryPath,
-			StepType:            step.StepType,
+			Name:                     step.Name,
+			Index:                    step.Index,
+			Description:              step.Description,
+			OutputDirectoryPath:      step.OutputDirectoryPath,
+			StepType:                 step.StepType,
+			TriggerIfParentStageFail: step.TriggerIfParentStageFail,
 		}
 		if step.StepType == repository.PIPELINE_STEP_TYPE_INLINE {
 			inlineStepDetail, err := impl.BuildInlineStepDataDeepCopy(step)
@@ -239,12 +240,6 @@ func (impl *PipelineStageServiceImpl) BuildVariableAndConditionDataByStepIdDeepC
 	return inputVariablesDto, outputVariablesDto, conditionsDto, nil
 }
 
-
-
-
-
-
-
 //GetCiPipelineStageData and related methods starts
 func (impl *PipelineStageServiceImpl) GetCiPipelineStageData(ciPipelineId int) (*bean.PipelineStageDto, *bean.PipelineStageDto, error) {
 
@@ -292,12 +287,13 @@ func (impl *PipelineStageServiceImpl) BuildCiStageData(ciStage *repository.Pipel
 	var stepsDto []*bean.PipelineStageStepDto
 	for _, step := range steps {
 		stepDto := &bean.PipelineStageStepDto{
-			Id:                  step.Id,
-			Name:                step.Name,
-			Index:               step.Index,
-			Description:         step.Description,
-			OutputDirectoryPath: step.OutputDirectoryPath,
-			StepType:            step.StepType,
+			Id:                       step.Id,
+			Name:                     step.Name,
+			Index:                    step.Index,
+			Description:              step.Description,
+			OutputDirectoryPath:      step.OutputDirectoryPath,
+			StepType:                 step.StepType,
+			TriggerIfParentStageFail: step.TriggerIfParentStageFail,
 		}
 		if step.StepType == repository.PIPELINE_STEP_TYPE_INLINE {
 			inlineStepDetail, err := impl.BuildInlineStepData(step)
@@ -528,6 +524,7 @@ func (impl *PipelineStageServiceImpl) CreateStageSteps(steps []*bean.PipelineSta
 					UpdatedOn: time.Now(),
 					UpdatedBy: userId,
 				},
+				TriggerIfParentStageFail: step.TriggerIfParentStageFail,
 			}
 			inlineStep, err = impl.pipelineStageRepository.CreatePipelineStageStep(inlineStep)
 			if err != nil {
@@ -556,6 +553,7 @@ func (impl *PipelineStageServiceImpl) CreateStageSteps(steps []*bean.PipelineSta
 					UpdatedOn: time.Now(),
 					UpdatedBy: userId,
 				},
+				TriggerIfParentStageFail: step.TriggerIfParentStageFail,
 			}
 			refPluginStep, err := impl.pipelineStageRepository.CreatePipelineStageStep(refPluginStep)
 			if err != nil {
@@ -947,6 +945,7 @@ func (impl *PipelineStageServiceImpl) UpdateStageSteps(steps []*bean.PipelineSta
 				UpdatedOn: time.Now(),
 				UpdatedBy: userId,
 			},
+			TriggerIfParentStageFail: step.TriggerIfParentStageFail,
 		}
 		var inputVariables []*bean.StepVariableDto
 		var outputVariables []*bean.StepVariableDto
@@ -1552,10 +1551,11 @@ func (impl *PipelineStageServiceImpl) GetRefPluginStepsByIds(refPluginIds []int,
 
 func (impl *PipelineStageServiceImpl) BuildCiStepDataForWfRequest(step *repository.PipelineStageStep) (*bean.StepObject, error) {
 	stepData := &bean.StepObject{
-		Name:          step.Name,
-		Index:         step.Index,
-		StepType:      string(step.StepType),
-		ArtifactPaths: step.OutputDirectoryPath,
+		Name:                     step.Name,
+		Index:                    step.Index,
+		StepType:                 string(step.StepType),
+		ArtifactPaths:            step.OutputDirectoryPath,
+		TriggerIfParentStageFail: step.TriggerIfParentStageFail,
 	}
 	if step.StepType == repository.PIPELINE_STEP_TYPE_INLINE {
 		//get script and mapping data
