@@ -71,7 +71,8 @@ func (impl PumpImpl) StartK8sStreamWithHeartBeat(w http.ResponseWriter, isReconn
 	w.Header().Set("Cache-Control", "no-cache, no-transform")
 
 	if err != nil {
-		err := impl.sendEvent(nil, []byte("ERR_STREAM"), []byte(err.Error()), w)
+		timeStampAsId := time.Now().String()
+		err := impl.sendEvent([]byte(timeStampAsId), []byte("CUSTOM_ERR_STREAM"), []byte(err.Error()), w)
 		if err != nil {
 			impl.logger.Errorw("error in writing data over sse", "err", err)
 		}
