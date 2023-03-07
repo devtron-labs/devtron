@@ -7,6 +7,7 @@
 - fix: urls pipeline fetching bug fix (#3063)
 - fix: app grouping appid appname (#3058)
 ## Enhancements
+- feat: Git, GitOps, Container Registries and SSO login token hide from dashboard (#2952)
 - feat:show notes for gitops app (#3082)
 - feat: autoselect node,error messaging improvement , node group and custom shell support (#2925)
 - feat: Option to run post-ci scripts even if build fails (#3065)
