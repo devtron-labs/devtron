@@ -295,6 +295,10 @@ func (impl DockerRegistryConfigImpl) Update(bean *DockerArtifactStoreBean) (*Doc
 		bean.Cert = existingStore.Cert
 	}
 
+	if bean.Cert == "" {
+		bean.Cert = existingStore.Cert
+	}
+
 	bean.PluginId = existingStore.PluginId
 
 	store := NewDockerArtifactStore(bean, true, existingStore.CreatedOn, time.Now(), existingStore.CreatedBy, bean.User)
