@@ -33,6 +33,7 @@ service ApplicationService {
   rpc RollbackRelease(RollbackReleaseRequest) returns (BooleanResponse){}
   rpc TemplateChart(InstallReleaseRequest) returns (TemplateChartResponse){}
   rpc InstallReleaseWithCustomChart(HelmInstallCustomRequest) returns (HelmInstallCustomResponse) {}
+  rpc GetNotes(InstallReleaseRequest) returns (ChartNotesResponse) {}
 }
 
 message DeployedAppList {
@@ -299,4 +300,7 @@ message ResourceIdentifier {
 message ResourceTreeFilter {
   ResourceIdentifier globalFilter = 1;
   repeated ResourceFilter resourceFilters = 2;
+}
+message ChartNotesResponse{
+  string notes = 1;
 }
