@@ -14,17 +14,20 @@
 package terminal
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	errors1 "github.com/juju/errors"
 	"go.uber.org/zap"
 	"io"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 
 	"gopkg.in/igm/sockjs-go.v3/sockjs"
@@ -226,6 +229,33 @@ func startProcess(k8sClient kubernetes.Interface, cfg *rest.Config,
 	podName := sessionRequest.PodName
 	containerName := sessionRequest.ContainerName
 
+	exec, err := getExecutor(k8sClient, cfg, podName, namespace, containerName, cmd, true, true)
+
+	if err != nil {
+		return err
+	}
+
+	streamOptions := remotecommand.StreamOptions{
+		Stdin:             ptyHandler,
+		Stdout:            ptyHandler,
+		Stderr:            ptyHandler,
+		TerminalSizeQueue: ptyHandler,
+		Tty:               true,
+	}
+
+	err = execWithStreamOptions(exec, streamOptions)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func execWithStreamOptions(exec remotecommand.Executor, streamOptions remotecommand.StreamOptions) error {
+	return exec.Stream(streamOptions)
+}
+
+func getExecutor(k8sClient kubernetes.Interface, cfg *rest.Config, podName, namespace, containerName string, cmd []string, stdin bool, tty bool) (remotecommand.Executor, error) {
 	req := k8sClient.CoreV1().RESTClient().Post().
 		Resource("pods").
 		Name(podName).
@@ -235,29 +265,14 @@ func startProcess(k8sClient kubernetes.Interface, cfg *rest.Config,
 	req.VersionedParams(&v1.PodExecOptions{
 		Container: containerName,
 		Command:   cmd,
-		Stdin:     true,
+		Stdin:     stdin,
 		Stdout:    true,
 		Stderr:    true,
-		TTY:       true,
+		TTY:       tty,
 	}, scheme.ParameterCodec)
 
 	exec, err := remotecommand.NewSPDYExecutor(cfg, "POST", req.URL())
-	if err != nil {
-		return err
-	}
-
-	err = exec.Stream(remotecommand.StreamOptions{
-		Stdin:             ptyHandler,
-		Stdout:            ptyHandler,
-		Stderr:            ptyHandler,
-		TerminalSizeQueue: ptyHandler,
-		Tty:               true,
-	})
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return exec, err
 }
 
 // genTerminalSessionId generates a random session ID string. The format is not really interesting.
@@ -298,6 +313,11 @@ type TerminalSessionRequest struct {
 	ClusterId int
 }
 
+const CommandExecutionFailed = "Failed to Execute Command"
+const PodNotFound = "Pod NotFound"
+
+var validShells = []string{"bash", "sh", "powershell", "cmd"}
+
 // WaitForTerminal is called from apihandler.handleAttach as a goroutine
 // Waits for the SockJS connection to be opened by the client the session to be bound in handleTerminalSession
 func WaitForTerminal(k8sClient kubernetes.Interface, cfg *rest.Config, request *TerminalSessionRequest) {
@@ -307,8 +327,6 @@ func WaitForTerminal(k8sClient kubernetes.Interface, cfg *rest.Config, request *
 		close(terminalSessions.Get(request.SessionId).bound)
 
 		var err error
-		validShells := []string{"bash", "sh", "powershell", "cmd"}
-
 		if isValidShell(validShells, request.Shell) {
 			cmd := []string{request.Shell}
 
@@ -337,6 +355,8 @@ type TerminalSessionHandler interface {
 	GetTerminalSession(req *TerminalSessionRequest) (statusCode int, message *TerminalMessage, err error)
 	Close(sessionId string, statusCode uint32, msg string)
 	ValidateSession(sessionId string) bool
+	ValidateShell(req *TerminalSessionRequest) (bool, error)
+	AutoSelectShell(req *TerminalSessionRequest) (string, error)
 }
 
 type TerminalSessionHandlerImpl struct {
@@ -433,4 +453,62 @@ func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequ
 		return nil, nil, err
 	}
 	return cfg, clientSet, nil
+}
+func (impl *TerminalSessionHandlerImpl) AutoSelectShell(req *TerminalSessionRequest) (string, error) {
+	var err1 error
+	for _, testShell := range validShells {
+		req.Shell = testShell
+		isValid, err := impl.ValidateShell(req)
+		if isValid {
+			return testShell, nil
+		}
+		if err != nil {
+			err1 = err
+		}
+	}
+	if err1 != nil && err1.Error() != CommandExecutionFailed {
+		return "", err1
+	}
+	return "", errors1.New("no shell is supported")
+}
+func (impl *TerminalSessionHandlerImpl) ValidateShell(req *TerminalSessionRequest) (bool, error) {
+	impl.logger.Infow("Inside ValidateShell method in TerminalSessionHandlerImpl", "shellName", req.Shell, "podName", req.PodName, "nameSpace", req.Namespace)
+	config, client, err := impl.getClientConfig(req)
+	if err != nil {
+		impl.logger.Errorw("error in fetching config", "err", err, "clusterId", req.ClusterId)
+		return false, err
+	}
+	cmd := fmt.Sprintf("/bin/%s", req.Shell)
+	cmdArray := []string{cmd}
+	impl.logger.Infow("reached getExecutor method call")
+	exec, err := getExecutor(client, config, req.PodName, req.Namespace, req.ContainerName, cmdArray, false, false)
+	if err != nil {
+		impl.logger.Errorw("error occurred in getting remoteCommand executor", "err", err, "config", config, "request", req)
+		return false, err
+	}
+	buf := &bytes.Buffer{}
+	errBuf := &bytes.Buffer{}
+
+	err = execWithStreamOptions(exec, remotecommand.StreamOptions{
+		Stdout: buf,
+		Stderr: errBuf,
+	})
+	if err != nil {
+		impl.logger.Errorw("failed to execute commands ", "err", err, "commands", cmdArray, "podName", req.PodName, "namespace", req.Namespace)
+		return false, getErrorMsg(err.Error())
+	}
+	errBufString := errBuf.String()
+	if errBufString != "" {
+		impl.logger.Errorw("error response on executing commands ", "err", errBufString, "commands", cmdArray, "podName", req.PodName, "namespace", req.Namespace)
+		return false, getErrorMsg(errBufString)
+	}
+	impl.logger.Infow("validated Shell,returning from validateShell method", "StdOut", buf.String())
+	return true, nil
+}
+
+func getErrorMsg(err string) error {
+	if strings.Contains(err, "pods") && strings.Contains(err, "not found") {
+		return errors1.New(PodNotFound)
+	}
+	return errors1.New(CommandExecutionFailed)
 }

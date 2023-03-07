@@ -25,6 +25,13 @@ type UserTerminalAccessRestHandler interface {
 	DisconnectAllTerminalSessionAndRetry(w http.ResponseWriter, r *http.Request)
 	FetchTerminalPodEvents(w http.ResponseWriter, r *http.Request)
 	FetchTerminalPodManifest(w http.ResponseWriter, r *http.Request)
+	ValidateShell(w http.ResponseWriter, r *http.Request)
+}
+
+type validShellResponse struct {
+	IsValidShell bool   `json:"isValidShell"`
+	ErrorReason  string `json:"errorReason"`
+	ShellName    string `json:"shellName"`
 }
 
 type UserTerminalAccessRestHandlerImpl struct {
@@ -45,7 +52,35 @@ func NewUserTerminalAccessRestHandlerImpl(logger *zap.SugaredLogger, userTermina
 		validator:                 validator,
 	}
 }
-
+func (handler UserTerminalAccessRestHandlerImpl) ValidateShell(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.UserService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	podName := vars["podName"]
+	namespace := vars["namespace"]
+	shellName := vars["shellName"]
+	clusterId, err := strconv.Atoi(vars["clusterId"])
+	if err != nil {
+		handler.Logger.Errorw("error in parsing clusterId from request", "clusterId", clusterId, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	token := r.Header.Get("token")
+	if ok := handler.Enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	res, shell, err := handler.UserTerminalAccessService.ValidateShell(podName, namespace, shellName, clusterId)
+	reason := ""
+	if err != nil {
+		reason = err.Error()
+	}
+	resp := validShellResponse{IsValidShell: res, ErrorReason: reason, ShellName: shell}
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+}
 func (handler UserTerminalAccessRestHandlerImpl) StartTerminalSession(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.UserService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -161,6 +196,8 @@ func (handler UserTerminalAccessRestHandlerImpl) FetchTerminalStatus(w http.Resp
 	}
 	vars := mux.Vars(r)
 	terminalAccessId, err := strconv.Atoi(vars["terminalAccessId"])
+	namespace := vars["namespace"]
+	shellName := vars["shellName"]
 	if err != nil {
 		handler.Logger.Errorw("request err, FetchTerminalStatus", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -172,7 +209,7 @@ func (handler UserTerminalAccessRestHandlerImpl) FetchTerminalStatus(w http.Resp
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	sessionResponse, err := handler.UserTerminalAccessService.FetchTerminalStatus(r.Context(), terminalAccessId)
+	sessionResponse, err := handler.UserTerminalAccessService.FetchTerminalStatus(r.Context(), terminalAccessId, namespace, shellName)
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchTerminalStatus", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -201,13 +238,13 @@ func (handler UserTerminalAccessRestHandlerImpl) FetchTerminalPodEvents(w http.R
 		return
 	}
 
-	podEvents, err := handler.UserTerminalAccessService.FetchPodEvents(r.Context(), terminalAccessId)
+	resp, err := handler.UserTerminalAccessService.FetchPodEvents(r.Context(), terminalAccessId)
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchTerminalPodEvents", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, nil, podEvents, http.StatusOK)
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
 func (handler UserTerminalAccessRestHandlerImpl) FetchTerminalPodManifest(w http.ResponseWriter, r *http.Request) {
