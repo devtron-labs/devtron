@@ -29,6 +29,7 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
+	"strings"
 	"time"
 )
 
@@ -214,32 +215,6 @@ type WebhookPayloadFilterDataSelectorResponse struct {
 	Match             bool   `json:"match"`
 }
 
-//type RestClient interface {
-//	GetHeadForPipelineMaterials(ctx context.Context, req *HeadRequest) (material []*CiPipelineMaterial, err error)
-//	FetchChanges(ctx context.Context, changeRequest *FetchScmChangesRequest) (materialChangeResp *MaterialChangeResp, err error)
-//	GetCommitMetadata(ctx context.Context, commitMetadataRequest *CommitMetadataRequest) (*GitCommit, error)
-//	GetCommitMetadataForPipelineMaterial(ctx context.Context, commitMetadataRequest *CommitMetadataRequest) (*GitCommit, error)
-//
-//	SaveGitProvider(ctx context.Context, provider *GitProvider) error
-//	AddRepo(ctx context.Context, material []*GitMaterial) error
-//	UpdateRepo(ctx context.Context, material *GitMaterial) error
-//	SavePipelineMaterial(ctx context.Context, material []*CiPipelineMaterial) error
-//	RefreshGitMaterial(ctx context.Context, req *RefreshGitMaterialRequest) (refreshRes *RefreshGitMaterialResponse, err error)
-//
-//	GetWebhookData(ctx context.Context, req *WebhookDataRequest) (*WebhookAndCiData, error)
-//
-//	GetAllWebhookEventConfigForHost(ctx context.Context, req *WebhookEventConfigRequest) (webhookEvents []*WebhookEventConfig, err error)
-//	GetWebhookEventConfig(ctx context.Context, req *WebhookEventConfigRequest) (webhookEvent *WebhookEventConfig, err error)
-//	GetWebhookPayloadDataForPipelineMaterialId(ctx context.Context, req *WebhookPayloadDataRequest) (response *WebhookPayloadDataResponse, err error)
-//	GetWebhookPayloadFilterDataForPipelineMaterialId(ctx context.Context, req *WebhookPayloadFilterDataRequest) (response *WebhookPayloadFilterDataResponse, err error)
-//}
-
-// ----------------------impl
-//type RestClientConfig struct {
-//	Url     string `env:"GIT_SENSOR_URL" envDefault:"http://localhost:9999"`
-//	Timeout int    `env:"GIT_SENSOR_TIMEOUT" envDefault:"0"` // in seconds
-//}
-
 type RestClientImpl struct {
 	httpClient *http.Client
 	logger     *zap.SugaredLogger
@@ -257,12 +232,6 @@ type ClientRequest struct {
 	RequestBody  interface{}
 	ResponseBody interface{}
 }
-
-//func GetGitSensorConfig() (*RestClientConfig, error) {
-//	cfg := &RestClientConfig{}
-//	err := env.Parse(cfg)
-//	return cfg, err
-//}
 
 func (session *RestClientImpl) doRequest(clientRequest *ClientRequest) (resBody []byte, resCode *StatusCode, err error) {
 	if clientRequest.ResponseBody == nil {
@@ -319,7 +288,13 @@ func (session *RestClientImpl) doRequest(clientRequest *ClientRequest) (resBody 
 func NewGitSensorSession(config *ClientConfig, logger *zap.SugaredLogger) (session *RestClientImpl, err error) {
 	baseUrl, err := url.Parse(config.Url)
 	if err != nil {
-		return nil, err
+		if !strings.Contains(config.Url, "http") {
+			// try with appending `http://`
+			baseUrl, err = url.Parse(fmt.Sprintf("http://%s", config.Url))
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
 	client := &http.Client{Timeout: time.Duration(config.Timeout) * time.Second}
 	return &RestClientImpl{httpClient: client, logger: logger, baseUrl: baseUrl}, nil
