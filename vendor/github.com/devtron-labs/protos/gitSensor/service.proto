@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package git_service;
+package gitService;
 
-option go_package = "github.com/devtron-labs/protos/git-sensor";
+option go_package = "github.com/devtron-labs/protos/gitSensor";
 
 import "google/protobuf/timestamp.proto";
 

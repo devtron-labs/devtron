@@ -2,9 +2,9 @@
 // versions:
 // - protoc-gen-go-grpc v1.2.0
 // - protoc             v3.21.12
-// source: git-sensor/service.proto
+// source: gitSensor/service.proto
 
-package git_sensor
+package gitSensor
 
 import (
 	context "context"
@@ -70,7 +70,7 @@ func NewGitSensorServiceClient(cc grpc.ClientConnInterface) GitSensorServiceClie
 
 func (c *gitSensorServiceClient) SaveGitProvider(ctx context.Context, in *GitProvider, opts ...grpc.CallOption) (*Empty, error) {
 	out := new(Empty)
-	err := c.cc.Invoke(ctx, "/git_service.GitSensorService/SaveGitProvider", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/gitService.GitSensorService/SaveGitProvider", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,7 @@ func (c *gitSensorServiceClient) SaveGitProvider(ctx context.Context, in *GitPro
 
 func (c *gitSensorServiceClient) AddRepo(ctx context.Context, in *AddRepoRequest, opts ...grpc.CallOption) (*Empty, error) {
 	out := new(Empty)
-	err := c.cc.Invoke(ctx, "/git_service.GitSensorService/AddRepo", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/gitService.GitSensorService/AddRepo", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +88,7 @@ func (c *gitSensorServiceClient) AddRepo(ctx context.Context, in *AddRepoRequest
 
 func (c *gitSensorServiceClient) UpdateRepo(ctx context.Context, in *GitMaterial, opts ...grpc.CallOption) (*Empty, error) {
 	out := new(Empty)
-	err := c.cc.Invoke(ctx, "/git_service.GitSensorService/UpdateRepo", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/gitService.GitSensorService/UpdateRepo", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +97,7 @@ func (c *gitSensorServiceClient) UpdateRepo(ctx context.Context, in *GitMaterial
 
 func (c *gitSensorServiceClient) SavePipelineMaterial(ctx context.Context, in *SavePipelineMaterialRequest, opts ...grpc.CallOption) (*Empty, error) {
 	out := new(Empty)
-	err := c.cc.Invoke(ctx, "/git_service.GitSensorService/SavePipelineMaterial", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/gitService.GitSensorService/SavePipelineMaterial", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +106,7 @@ func (c *gitSensorServiceClient) SavePipelineMaterial(ctx context.Context, in *S
 
 func (c *gitSensorServiceClient) FetchChanges(ctx context.Context, in *FetchScmChangesRequest, opts ...grpc.CallOption) (*MaterialChangeResponse, error) {
 	out := new(MaterialChangeResponse)
-	err := c.cc.Invoke(ctx, "/git_service.GitSensorService/FetchChanges", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/gitService.GitSensorService/FetchChanges", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +115,7 @@ func (c *gitSensorServiceClient) FetchChanges(ctx context.Context, in *FetchScmC
 
 func (c *gitSensorServiceClient) GetHeadForPipelineMaterials(ctx context.Context, in *HeadRequest, opts ...grpc.CallOption) (*GetHeadForPipelineMaterialsResponse, error) {
 	out := new(GetHeadForPipelineMaterialsResponse)
-	err := c.cc.Invoke(ctx, "/git_service.GitSensorService/GetHeadForPipelineMaterials", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/gitService.GitSensorService/GetHeadForPipelineMaterials", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +124,7 @@ func (c *gitSensorServiceClient) GetHeadForPipelineMaterials(ctx context.Context
 
 func (c *gitSensorServiceClient) GetCommitMetadata(ctx context.Context, in *CommitMetadataRequest, opts ...grpc.CallOption) (*GitCommit, error) {
 	out := new(GitCommit)
-	err := c.cc.Invoke(ctx, "/git_service.GitSensorService/GetCommitMetadata", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/gitService.GitSensorService/GetCommitMetadata", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +133,7 @@ func (c *gitSensorServiceClient) GetCommitMetadata(ctx context.Context, in *Comm
 
 func (c *gitSensorServiceClient) GetCommitMetadataForPipelineMaterial(ctx context.Context, in *CommitMetadataRequest, opts ...grpc.CallOption) (*GitCommit, error) {
 	out := new(GitCommit)
-	err := c.cc.Invoke(ctx, "/git_service.GitSensorService/GetCommitMetadataForPipelineMaterial", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/gitService.GitSensorService/GetCommitMetadataForPipelineMaterial", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +142,7 @@ func (c *gitSensorServiceClient) GetCommitMetadataForPipelineMaterial(ctx contex
 
 func (c *gitSensorServiceClient) GetCommitInfoForTag(ctx context.Context, in *CommitMetadataRequest, opts ...grpc.CallOption) (*GitCommit, error) {
 	out := new(GitCommit)
-	err := c.cc.Invoke(ctx, "/git_service.GitSensorService/GetCommitInfoForTag", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/gitService.GitSensorService/GetCommitInfoForTag", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -151,7 +151,7 @@ func (c *gitSensorServiceClient) GetCommitInfoForTag(ctx context.Context, in *Co
 
 func (c *gitSensorServiceClient) RefreshGitMaterial(ctx context.Context, in *RefreshGitMaterialRequest, opts ...grpc.CallOption) (*RefreshGitMaterialResponse, error) {
 	out := new(RefreshGitMaterialResponse)
-	err := c.cc.Invoke(ctx, "/git_service.GitSensorService/RefreshGitMaterial", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/gitService.GitSensorService/RefreshGitMaterial", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +160,7 @@ func (c *gitSensorServiceClient) RefreshGitMaterial(ctx context.Context, in *Ref
 
 func (c *gitSensorServiceClient) ReloadAllMaterial(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error) {
 	out := new(Empty)
-	err := c.cc.Invoke(ctx, "/git_service.GitSensorService/ReloadAllMaterial", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/gitService.GitSensorService/ReloadAllMaterial", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +169,7 @@ func (c *gitSensorServiceClient) ReloadAllMaterial(ctx context.Context, in *Empt
 
 func (c *gitSensorServiceClient) ReloadMaterial(ctx context.Context, in *ReloadMaterialRequest, opts ...grpc.CallOption) (*GenericResponse, error) {
 	out := new(GenericResponse)
-	err := c.cc.Invoke(ctx, "/git_service.GitSensorService/ReloadMaterial", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/gitService.GitSensorService/ReloadMaterial", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -178,7 +178,7 @@ func (c *gitSensorServiceClient) ReloadMaterial(ctx context.Context, in *ReloadM
 
 func (c *gitSensorServiceClient) GetChangesInRelease(ctx context.Context, in *ReleaseChangeRequest, opts ...grpc.CallOption) (*GitChanges, error) {
 	out := new(GitChanges)
-	err := c.cc.Invoke(ctx, "/git_service.GitSensorService/GetChangesInRelease", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/gitService.GitSensorService/GetChangesInRelease", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +187,7 @@ func (c *gitSensorServiceClient) GetChangesInRelease(ctx context.Context, in *Re
 
 func (c *gitSensorServiceClient) GetWebhookData(ctx context.Context, in *WebhookDataRequest, opts ...grpc.CallOption) (*WebhookAndCiData, error) {
 	out := new(WebhookAndCiData)
-	err := c.cc.Invoke(ctx, "/git_service.GitSensorService/GetWebhookData", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/gitService.GitSensorService/GetWebhookData", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +196,7 @@ func (c *gitSensorServiceClient) GetWebhookData(ctx context.Context, in *Webhook
 
 func (c *gitSensorServiceClient) GetAllWebhookEventConfigForHost(ctx context.Context, in *WebhookEventConfigRequest, opts ...grpc.CallOption) (*WebhookEventConfigResponse, error) {
 	out := new(WebhookEventConfigResponse)
-	err := c.cc.Invoke(ctx, "/git_service.GitSensorService/GetAllWebhookEventConfigForHost", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/gitService.GitSensorService/GetAllWebhookEventConfigForHost", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -205,7 +205,7 @@ func (c *gitSensorServiceClient) GetAllWebhookEventConfigForHost(ctx context.Con
 
 func (c *gitSensorServiceClient) GetWebhookEventConfig(ctx context.Context, in *WebhookEventConfigRequest, opts ...grpc.CallOption) (*WebhookEventConfig, error) {
 	out := new(WebhookEventConfig)
-	err := c.cc.Invoke(ctx, "/git_service.GitSensorService/GetWebhookEventConfig", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/gitService.GitSensorService/GetWebhookEventConfig", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -214,7 +214,7 @@ func (c *gitSensorServiceClient) GetWebhookEventConfig(ctx context.Context, in *
 
 func (c *gitSensorServiceClient) GetWebhookPayloadDataForPipelineMaterialId(ctx context.Context, in *WebhookPayloadDataRequest, opts ...grpc.CallOption) (*WebhookPayloadDataResponse, error) {
 	out := new(WebhookPayloadDataResponse)
-	err := c.cc.Invoke(ctx, "/git_service.GitSensorService/GetWebhookPayloadDataForPipelineMaterialId", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/gitService.GitSensorService/GetWebhookPayloadDataForPipelineMaterialId", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -223,7 +223,7 @@ func (c *gitSensorServiceClient) GetWebhookPayloadDataForPipelineMaterialId(ctx 
 
 func (c *gitSensorServiceClient) GetWebhookPayloadFilterDataForPipelineMaterialId(ctx context.Context, in *WebhookPayloadFilterDataRequest, opts ...grpc.CallOption) (*WebhookPayloadFilterDataResponse, error) {
 	out := new(WebhookPayloadFilterDataResponse)
-	err := c.cc.Invoke(ctx, "/git_service.GitSensorService/GetWebhookPayloadFilterDataForPipelineMaterialId", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/gitService.GitSensorService/GetWebhookPayloadFilterDataForPipelineMaterialId", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -354,7 +354,7 @@ func _GitSensorService_SaveGitProvider_Handler(srv interface{}, ctx context.Cont
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/git_service.GitSensorService/SaveGitProvider",
+		FullMethod: "/gitService.GitSensorService/SaveGitProvider",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(GitSensorServiceServer).SaveGitProvider(ctx, req.(*GitProvider))
@@ -372,7 +372,7 @@ func _GitSensorService_AddRepo_Handler(srv interface{}, ctx context.Context, dec
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/git_service.GitSensorService/AddRepo",
+		FullMethod: "/gitService.GitSensorService/AddRepo",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(GitSensorServiceServer).AddRepo(ctx, req.(*AddRepoRequest))
@@ -390,7 +390,7 @@ func _GitSensorService_UpdateRepo_Handler(srv interface{}, ctx context.Context, 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/git_service.GitSensorService/UpdateRepo",
+		FullMethod: "/gitService.GitSensorService/UpdateRepo",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(GitSensorServiceServer).UpdateRepo(ctx, req.(*GitMaterial))
@@ -408,7 +408,7 @@ func _GitSensorService_SavePipelineMaterial_Handler(srv interface{}, ctx context
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/git_service.GitSensorService/SavePipelineMaterial",
+		FullMethod: "/gitService.GitSensorService/SavePipelineMaterial",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(GitSensorServiceServer).SavePipelineMaterial(ctx, req.(*SavePipelineMaterialRequest))
@@ -426,7 +426,7 @@ func _GitSensorService_FetchChanges_Handler(srv interface{}, ctx context.Context
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/git_service.GitSensorService/FetchChanges",
+		FullMethod: "/gitService.GitSensorService/FetchChanges",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(GitSensorServiceServer).FetchChanges(ctx, req.(*FetchScmChangesRequest))
@@ -444,7 +444,7 @@ func _GitSensorService_GetHeadForPipelineMaterials_Handler(srv interface{}, ctx 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/git_service.GitSensorService/GetHeadForPipelineMaterials",
+		FullMethod: "/gitService.GitSensorService/GetHeadForPipelineMaterials",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(GitSensorServiceServer).GetHeadForPipelineMaterials(ctx, req.(*HeadRequest))
@@ -462,7 +462,7 @@ func _GitSensorService_GetCommitMetadata_Handler(srv interface{}, ctx context.Co
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/git_service.GitSensorService/GetCommitMetadata",
+		FullMethod: "/gitService.GitSensorService/GetCommitMetadata",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(GitSensorServiceServer).GetCommitMetadata(ctx, req.(*CommitMetadataRequest))
@@ -480,7 +480,7 @@ func _GitSensorService_GetCommitMetadataForPipelineMaterial_Handler(srv interfac
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/git_service.GitSensorService/GetCommitMetadataForPipelineMaterial",
+		FullMethod: "/gitService.GitSensorService/GetCommitMetadataForPipelineMaterial",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(GitSensorServiceServer).GetCommitMetadataForPipelineMaterial(ctx, req.(*CommitMetadataRequest))
@@ -498,7 +498,7 @@ func _GitSensorService_GetCommitInfoForTag_Handler(srv interface{}, ctx context.
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/git_service.GitSensorService/GetCommitInfoForTag",
+		FullMethod: "/gitService.GitSensorService/GetCommitInfoForTag",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(GitSensorServiceServer).GetCommitInfoForTag(ctx, req.(*CommitMetadataRequest))
@@ -516,7 +516,7 @@ func _GitSensorService_RefreshGitMaterial_Handler(srv interface{}, ctx context.C
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/git_service.GitSensorService/RefreshGitMaterial",
+		FullMethod: "/gitService.GitSensorService/RefreshGitMaterial",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(GitSensorServiceServer).RefreshGitMaterial(ctx, req.(*RefreshGitMaterialRequest))
@@ -534,7 +534,7 @@ func _GitSensorService_ReloadAllMaterial_Handler(srv interface{}, ctx context.Co
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/git_service.GitSensorService/ReloadAllMaterial",
+		FullMethod: "/gitService.GitSensorService/ReloadAllMaterial",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(GitSensorServiceServer).ReloadAllMaterial(ctx, req.(*Empty))
@@ -552,7 +552,7 @@ func _GitSensorService_ReloadMaterial_Handler(srv interface{}, ctx context.Conte
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/git_service.GitSensorService/ReloadMaterial",
+		FullMethod: "/gitService.GitSensorService/ReloadMaterial",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(GitSensorServiceServer).ReloadMaterial(ctx, req.(*ReloadMaterialRequest))
@@ -570,7 +570,7 @@ func _GitSensorService_GetChangesInRelease_Handler(srv interface{}, ctx context.
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/git_service.GitSensorService/GetChangesInRelease",
+		FullMethod: "/gitService.GitSensorService/GetChangesInRelease",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(GitSensorServiceServer).GetChangesInRelease(ctx, req.(*ReleaseChangeRequest))
@@ -588,7 +588,7 @@ func _GitSensorService_GetWebhookData_Handler(srv interface{}, ctx context.Conte
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/git_service.GitSensorService/GetWebhookData",
+		FullMethod: "/gitService.GitSensorService/GetWebhookData",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(GitSensorServiceServer).GetWebhookData(ctx, req.(*WebhookDataRequest))
@@ -606,7 +606,7 @@ func _GitSensorService_GetAllWebhookEventConfigForHost_Handler(srv interface{}, 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/git_service.GitSensorService/GetAllWebhookEventConfigForHost",
+		FullMethod: "/gitService.GitSensorService/GetAllWebhookEventConfigForHost",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(GitSensorServiceServer).GetAllWebhookEventConfigForHost(ctx, req.(*WebhookEventConfigRequest))
@@ -624,7 +624,7 @@ func _GitSensorService_GetWebhookEventConfig_Handler(srv interface{}, ctx contex
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/git_service.GitSensorService/GetWebhookEventConfig",
+		FullMethod: "/gitService.GitSensorService/GetWebhookEventConfig",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(GitSensorServiceServer).GetWebhookEventConfig(ctx, req.(*WebhookEventConfigRequest))
@@ -642,7 +642,7 @@ func _GitSensorService_GetWebhookPayloadDataForPipelineMaterialId_Handler(srv in
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/git_service.GitSensorService/GetWebhookPayloadDataForPipelineMaterialId",
+		FullMethod: "/gitService.GitSensorService/GetWebhookPayloadDataForPipelineMaterialId",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(GitSensorServiceServer).GetWebhookPayloadDataForPipelineMaterialId(ctx, req.(*WebhookPayloadDataRequest))
@@ -660,7 +660,7 @@ func _GitSensorService_GetWebhookPayloadFilterDataForPipelineMaterialId_Handler(
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/git_service.GitSensorService/GetWebhookPayloadFilterDataForPipelineMaterialId",
+		FullMethod: "/gitService.GitSensorService/GetWebhookPayloadFilterDataForPipelineMaterialId",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(GitSensorServiceServer).GetWebhookPayloadFilterDataForPipelineMaterialId(ctx, req.(*WebhookPayloadFilterDataRequest))
@@ -672,7 +672,7 @@ func _GitSensorService_GetWebhookPayloadFilterDataForPipelineMaterialId_Handler(
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var GitSensorService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "git_service.GitSensorService",
+	ServiceName: "gitService.GitSensorService",
 	HandlerType: (*GitSensorServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -749,5 +749,5 @@ var GitSensorService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "git-sensor/service.proto",
+	Metadata: "gitSensor/service.proto",
 }

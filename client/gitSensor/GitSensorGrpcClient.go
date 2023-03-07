@@ -3,7 +3,7 @@ package gitSensor
 import (
 	"context"
 	"fmt"
-	pb "github.com/devtron-labs/protos/git-sensor"
+	pb "github.com/devtron-labs/protos/gitSensor"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
