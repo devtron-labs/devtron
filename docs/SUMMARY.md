@@ -73,7 +73,7 @@
     * [Debugging Deployment And Monitoring](user-guide/debugging-deployment-and-monitoring.md)
     * [Application Metrics](user-guide/creating-application/app-metrics.md) 
   * [Overview](user-guide/creating-application/overview.md)
-* [Application Groups](user-guide/application-groups/applications%20groups.md)
+* [Application Groups](user-guide/application-groups/README.md)
   * [Overview](user-guide/application-groups/overview-app-group.md)
   * [Build and Deploy](user-guide/application-groups/app-group-build-and-deploy.md)
   * [Configurations](user-guide/application-groups/app-group-configuration.md)
