@@ -14,6 +14,7 @@
 - feat: branch name field added in API response for a cd Artifact material (#3064)
 - feat: github PR updater plugin added (#3051)
 ## Documentation
+- docs: added K8s client doc (#3028)
 - docs: doc for GCP external secret (#3029)
 ## Others
 - feat - Use cluster-name instead of server url in Argo cd application objects  (#2958)
