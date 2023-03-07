@@ -144,6 +144,7 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 	chartRepo.Default = false
 	chartRepo.External = true
 	chartRepo.AllowInsecureConnection = request.AllowInsecureConnection
+	chartRepo.IsHealthy = true
 	err = impl.repoRepository.Save(chartRepo, tx)
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
@@ -374,7 +375,8 @@ func (impl *ChartRepositoryServiceImpl) GetChartRepoList() ([]*ChartRepoDto, err
 		chartRepo.Default = model.Default
 		chartRepo.Active = model.Active
 		chartRepo.IsEditable = true
-		if model.ActiveDeploymentCount > 0 {
+		chartRepo.IsHealthy = model.IsHealthy
+		if model.ActiveDeploymentCount > 0 && chartRepo.IsHealthy {
 			chartRepo.IsEditable = false
 		}
 		chartRepo.AllowInsecureConnection = model.AllowInsecureConnection

@@ -12,7 +12,7 @@ type ChartRepoDto struct {
 	Password                string              `json:"password,omitempty"`
 	SshKey                  string              `json:"sshKey,omitempty"`
 	AccessToken             string              `json:"accessToken,omitempty"`
-	AuthMode                repository.AuthMode `json:"authMode,omitempty" validate:"required"`
+	AuthMode                repository.AuthMode `json:"authMode,omitempty"`
 	Active                  bool                `json:"active"`
 	Default                 bool                `json:"default"`
 	UserId                  int32               `json:"-"`
