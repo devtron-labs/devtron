@@ -177,7 +177,7 @@ func (impl *GlobalCMCSServiceImpl) AddTemplatesForGlobalSecretsInWorkflowTemplat
 			*steps = append(*steps, v1alpha1.ParallelSteps{
 				Steps: []v1alpha1.WorkflowStep{
 					{
-						Name:     "create-env-cm-" + strconv.Itoa(cmIndex),
+						Name:     "create-env-cm-gb-" + strconv.Itoa(cmIndex),
 						Template: "cm-gb-" + strconv.Itoa(cmIndex),
 					},
 				},
@@ -233,7 +233,7 @@ func (impl *GlobalCMCSServiceImpl) AddTemplatesForGlobalSecretsInWorkflowTemplat
 			*steps = append(*steps, v1alpha1.ParallelSteps{
 				Steps: []v1alpha1.WorkflowStep{
 					{
-						Name:     "create-env-sec-" + strconv.Itoa(csIndex),
+						Name:     "create-env-sec-gb-" + strconv.Itoa(csIndex),
 						Template: "sec-gb-" + strconv.Itoa(csIndex),
 					},
 				},
