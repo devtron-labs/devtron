@@ -6,6 +6,7 @@
 - fix: urls pipeline fetching bug fix (#3063)
 - fix: app grouping appid appname (#3058)
 ## Enhancements
+- feat:show notes for gitops app (#3082)
 - feat: autoselect node,error messaging improvement , node group and custom shell support (#2925)
 - feat: Option to run post-ci scripts even if build fails (#3065)
 - feat: branch name field added in API response for a cd Artifact material (#3064)
