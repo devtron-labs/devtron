@@ -91,17 +91,6 @@ func (client *GrpcApiClientImpl) getConnection() (*grpc.ClientConn, error) {
 	return conn, nil
 }
 
-//type GrpcClientConfig struct {
-//	Url string `env:"GIT_SENSOR_URL" envDefault:"127.0.0.1:7070"`
-//}
-
-// GetConfig parses and returns GitSensor gRPC client configuration
-//func GetConfig() (*GrpcClientConfig, error) {
-//	cfg := &GrpcClientConfig{}
-//	err := env.Parse(cfg)
-//	return cfg, err
-//}
-
 // SaveGitProvider saves Git provider
 func (client *GrpcApiClientImpl) SaveGitProvider(ctx context.Context, provider *GitProvider) error {
 
