@@ -250,7 +250,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		entryPoint = CI_WORKFLOW_WITH_STAGES
 	}
 	for i := range globalCmCsConfigs {
-		globalCmCsConfigs[i].Name = globalCmCsConfigs[i].Name + "-" + strconv.Itoa(workflowRequest.WorkflowId) + "-" + "ci"
+		globalCmCsConfigs[i].Name = globalCmCsConfigs[i].Name + "-" + strconv.Itoa(workflowRequest.WorkflowId) + "-" + CI_WORKFLOW_NAME
 	}
 
 	steps := make([]v1alpha1.ParallelSteps, 0)
