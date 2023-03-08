@@ -45,6 +45,21 @@ type CDMetrics struct {
 	Time            float64
 }
 
+type CIMetrics struct {
+	CacheDownDuration  float64   `json:"CacheDownDuration"`
+	PreCiDuration      float64   `json:"PreCiDuration"`
+	BuildDuration      float64   `json:"BuildDuration"`
+	PostCiDuration     float64   `json:"PostCiDuration"`
+	CacheUpDuration    float64   `json:"CacheUpDuration"`
+	TotalDuration      float64   `json:"TotalDuration"`
+	CacheDownStartTime time.Time `json:"CacheDownStartTime"`
+	PreCiStartTime     time.Time `json:"pre_ci_start"`
+	BuildStartTime     time.Time `json:"BuildStartTime"`
+	PostCiStartTime    time.Time `json:"PostCiStartTime"`
+	CacheUpStartTime   time.Time `json:"CacheUpStartTime"`
+	TotalStartTime     time.Time `json:"TotalStartTime"`
+}
+
 func ContainsString(list []string, element string) bool {
 	if len(list) == 0 {
 		return false
@@ -221,5 +236,20 @@ func InterfaceToMapAdapter(resp interface{}) map[string]interface{} {
 func TriggerCDMetrics(wfr CDMetrics, exposeCDMetrics bool) {
 	if exposeCDMetrics && (wfr.Status == WorkflowFailed || wfr.Status == WorkflowSucceeded) {
 		middleware.CdDuration.WithLabelValues(wfr.AppName, wfr.Status, wfr.EnvironmentName, wfr.DeploymentType).Observe(wfr.Time)
+	}
+}
+
+func TriggerCIMetrics(Metrics CIMetrics, exposeCIMetrics bool, PipelineName string, AppName string) {
+	if exposeCIMetrics {
+		middleware.CacheDownloadDuration.WithLabelValues(PipelineName, AppName).Observe(Metrics.CacheDownDuration)
+		middleware.CiDuration.WithLabelValues(PipelineName, AppName).Observe(Metrics.TotalDuration)
+		middleware.CacheUploadDuration.WithLabelValues(PipelineName, AppName).Observe(Metrics.CacheUpDuration)
+		if Metrics.PostCiDuration != 0 {
+			middleware.PostCiDuration.WithLabelValues(PipelineName, AppName).Observe(Metrics.PostCiDuration)
+		}
+		if Metrics.PreCiDuration != 0 {
+			middleware.PreCiDuration.WithLabelValues(PipelineName, AppName).Observe(Metrics.PreCiDuration)
+		}
+		middleware.BuildDuration.WithLabelValues(PipelineName, AppName).Observe(Metrics.BuildDuration)
 	}
 }
