@@ -15,20 +15,6 @@ Returns external database password
 {{- end }}
 
 {{/*
-Returns external database username
-*/}}
-{{- define "pg.user" }}
-{{- if .Values.global.externalDatabase }}
-{{- $PG_USER_PLAIN := .Values.global.externalDatabase.PG_USER | default "ram" }}
-{{- $PG_USER := $PG_USER_PLAIN | b64enc }}
-{{- $PG_USER }}
-{{- else }}
-{{- $PG_USER := "postgres" | b64enc }}
-{{- $PG_USER }}
-{{- end }}
-{{- end }}
-
-{{/*
 Returns a service name for Clair
 */}}
 {{- define "clair.service" }}

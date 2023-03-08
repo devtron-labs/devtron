@@ -9,12 +9,7 @@ metadata:
   annotations:
     "helm.sh/resource-policy": keep
 data:
-{{- if $.Values.global.externalDatabase}}
-{{- $PG_USER := $.Values.global.externalDatabase.PG_USER | default "postgres" }}
-{{- else }}
-{{- $PG_USER := "postgres" }}
-  PG_USER: {{ $PG_USER }}
-{{- end }}
+  PG_USER: postgres
   PG_ADDR: postgresql-postgresql.devtroncd
   PG_PORT: "5432"
   HELM_CLIENT_URL: kubelink-service:50051
