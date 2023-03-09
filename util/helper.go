@@ -92,6 +92,9 @@ type Closer interface {
 }
 
 func Close(c Closer, logger *zap.SugaredLogger) {
+	if c == nil {
+		return
+	}
 	if err := c.Close(); err != nil {
 		logger.Warnf("failed to close %v: %v", c, err)
 	}
