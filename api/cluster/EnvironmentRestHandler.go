@@ -148,6 +148,17 @@ func (impl EnvironmentRestHandlerImpl) Get(w http.ResponseWriter, r *http.Reques
 }
 
 func (impl EnvironmentRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request) {
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	isSuperAdmin, err := impl.userService.IsSuperAdmin(int(userId))
+	if !isSuperAdmin || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
 	environments, err := impl.environmentClusterMappingsService.GetAll()
 	if err != nil {
 		impl.logger.Errorw("service err, GetAll", "err", err)
@@ -155,33 +166,7 @@ func (impl EnvironmentRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	token := r.Header.Get("token")
-
-	grantedEnvironment := make([]request.EnvironmentBean, 0)
-	emailId, _ := impl.userService.GetEmailFromToken(token)
-	// RBAC enforcer applying
-	var envIdentifierList []string
-	for _, item := range environments {
-		envIdentifierList = append(envIdentifierList, strings.ToLower(item.EnvironmentIdentifier))
-	}
-
-	result := impl.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceGlobalEnvironment, casbin.ActionGet, envIdentifierList)
-	for _, item := range environments {
-
-		var hasAccess bool
-		EnvironmentIdentifier := item.ClusterName + "__" + item.Namespace
-		if item.EnvironmentIdentifier != EnvironmentIdentifier {
-			// fix for futuristic case
-			hasAccess = result[strings.ToLower(EnvironmentIdentifier)] || result[strings.ToLower(item.EnvironmentIdentifier)]
-		} else {
-			hasAccess = result[strings.ToLower(item.EnvironmentIdentifier)]
-		}
-		if hasAccess {
-			grantedEnvironment = append(grantedEnvironment, item)
-		}
-	}
-
-	common.WriteJsonResp(w, err, result, http.StatusOK)
+	common.WriteJsonResp(w, err, environments, http.StatusOK)
 }
 
 func (impl EnvironmentRestHandlerImpl) GetAllActive(w http.ResponseWriter, r *http.Request) {
