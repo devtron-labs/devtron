@@ -175,6 +175,16 @@ components:
           description: Id of global tag
           example: 1
           nullable: false
+        key:
+          type: string
+          description: key of that global-tag
+          example: "somekey"
+          nullable: false
+        description:
+          type: string
+          description: Description of global-tag
+          example: "some description"
+          nullable: false
         mandatoryProjectIdsCsv:
           type: string
           description: Comma saparated values of project Ids for mandatory tag

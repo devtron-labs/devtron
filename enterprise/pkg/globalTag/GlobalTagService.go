@@ -210,6 +210,13 @@ func (impl GlobalTagServiceImpl) UpdateTags(request *UpdateGlobalTagsRequest, up
 
 	// iterate -  get from DB and update in DB
 	for _, tag := range request.Tags {
+		key := strings.TrimSpace(tag.Key)
+
+		// check if empty key
+		if len(key) == 0 {
+			return errors.New("Validation error - empty key found in the request")
+		}
+
 		tagId := tag.Id
 		globalTagFromDb, err := impl.globalTagRepository.FindActiveById(tagId)
 		if err != nil {
@@ -228,10 +235,27 @@ func (impl GlobalTagServiceImpl) UpdateTags(request *UpdateGlobalTagsRequest, up
 			}
 		}
 
+		// Check if key exists with active true - if exists - return error
+		if globalTagFromDb.Key != key {
+			exists, err := impl.globalTagRepository.CheckKeyExistsForAnyActiveTagExcludeTagId(key, tagId)
+			if err != nil {
+				impl.logger.Errorw("error while checking if tag key exists in DB with active true", "error", err, "key", key)
+				return err
+			}
+			if exists {
+				errorMsg := fmt.Sprintf("Validation error - tag - %s already exists", key)
+				impl.logger.Errorw("Validation error while updating global tag. tag already exists", "tag", key)
+				return errors.New(errorMsg)
+			}
+		}
+
+		globalTagFromDb.Key = key
+		globalTagFromDb.Description = tag.Description
 		globalTagFromDb.MandatoryProjectIdsCsv = tag.MandatoryProjectIdsCsv
 		globalTagFromDb.Propagate = tag.Propagate
 		globalTagFromDb.UpdatedBy = updatedBy
 		globalTagFromDb.UpdatedOn = time.Now()
+
 		err = impl.globalTagRepository.Update(globalTagFromDb, tx)
 		if err != nil {
 			impl.logger.Errorw("error while updating global tag in DB", "error", err, "tagId", tagId)

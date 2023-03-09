@@ -37,6 +37,7 @@ type GlobalTagRepository interface {
 	GetConnection() *pg.DB
 	FindAllActive() ([]*GlobalTag, error)
 	CheckKeyExistsForAnyActiveTag(key string) (bool, error)
+	CheckKeyExistsForAnyActiveTagExcludeTagId(key string, tagId int) (bool, error)
 	FindAllActiveByIds(ids []int) ([]*GlobalTag, error)
 	FindActiveById(id int) (*GlobalTag, error)
 	Save(globalTags []*GlobalTag, tx *pg.Tx) error
@@ -68,6 +69,16 @@ func (impl GlobalTagRepositoryImpl) CheckKeyExistsForAnyActiveTag(key string) (b
 	exists, err := impl.dbConnection.Model(globalTag).
 		Where("active IS TRUE").
 		Where("key = ?", key).
+		Exists()
+	return exists, err
+}
+
+func (impl GlobalTagRepositoryImpl) CheckKeyExistsForAnyActiveTagExcludeTagId(key string, tagId int) (bool, error) {
+	var globalTag *GlobalTag
+	exists, err := impl.dbConnection.Model(globalTag).
+		Where("active IS TRUE").
+		Where("key = ?", key).
+		Where("id != ?", tagId).
 		Exists()
 	return exists, err
 }

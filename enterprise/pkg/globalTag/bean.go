@@ -37,6 +37,8 @@ type UpdateGlobalTagsRequest struct {
 
 type UpdateGlobalTagDto struct {
 	Id                     int    `json:"id,notnull"`
+	Key                    string `json:"key,notnull"`
+	Description            string `json:"description,notnull"`
 	MandatoryProjectIdsCsv string `json:"mandatoryProjectIdsCsv"`
 	Propagate              bool   `json:"propagate"`
 }
