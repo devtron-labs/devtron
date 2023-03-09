@@ -281,7 +281,7 @@ notifier:
     DB: orchestrator
     DB_HOST: postgresql-postgresql.devtroncd
     DB_PORT: "5432"
-    # DB_USER: postgres
+    DB_USER: postgres
   secrets: {}
   dbconfig:
     secretName: postgresql-postgresql

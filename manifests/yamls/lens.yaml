@@ -18,7 +18,7 @@ data:
   NATS_SERVER_HOST: nats://devtron-nats.devtroncd:4222
   PG_ADDR: postgresql-postgresql.devtroncd
   PG_PORT: "5432"
-  # PG_USER: postgres
+  PG_USER: postgres
   PG_DATABASE: lens
 ---
 # Source: lens/templates/service.yaml
@@ -81,11 +81,6 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-            - name: PG_USER
-              valueFrom:
-                configMapKeyRef:
-                  name: devtron-cm
-                  key: PG_USER
           envFrom:
           - configMapRef:
               name: lens-cm
