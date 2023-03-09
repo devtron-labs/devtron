@@ -148,24 +148,40 @@ func (impl EnvironmentRestHandlerImpl) Get(w http.ResponseWriter, r *http.Reques
 }
 
 func (impl EnvironmentRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request) {
-	bean, err := impl.environmentClusterMappingsService.GetAll()
+	environments, err := impl.environmentClusterMappingsService.GetAll()
 	if err != nil {
 		impl.logger.Errorw("service err, GetAll", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
-	var result []request.EnvironmentBean
 	token := r.Header.Get("token")
-	for _, item := range bean {
-		// RBAC enforcer applying
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(item.EnvironmentIdentifier)); ok {
-			result = append(result, item)
-		}
-		//RBAC enforcer Ends
+	emailId, err := impl.userService.GetEmailFromToken(token)
+	if err != nil {
+		impl.logger.Errorw("error in getting emailId from token", "err", err, "token", token)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
 	}
 
-	common.WriteJsonResp(w, err, result, http.StatusOK)
+	grantedEnvironments := make([]*request.EnvironmentBean, 0)
+
+	var envIdentifierList []string
+	envIdentifierMap := make(map[string]*request.EnvironmentBean)
+	for _, item := range environments {
+		envIdentifier := strings.ToLower(item.EnvironmentIdentifier)
+		envIdentifierList = append(envIdentifierList, envIdentifier)
+		envIdentifierMap[envIdentifier] = &item
+	}
+
+	// RBAC enforcer applying
+	rbacResultMap := impl.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceGlobalEnvironment, casbin.ActionGet, envIdentifierList)
+	for envIdentifier, item := range envIdentifierMap {
+		if rbacResultMap[envIdentifier] {
+			grantedEnvironments = append(grantedEnvironments, item)
+		}
+	}
+
+	common.WriteJsonResp(w, err, grantedEnvironments, http.StatusOK)
 }
 
 func (impl EnvironmentRestHandlerImpl) GetAllActive(w http.ResponseWriter, r *http.Request) {
