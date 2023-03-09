@@ -1,7 +1,7 @@
 # Overview
 
 The `Overview` section contains the brief information of the job, any added tags, and deployment details of the particular job. 
-In this section, you can also [change project of your job](#change-project-of-your-application) and [manage tags](#manage-tags) if you added them while creating job.
+In this section, you can also [change project of your job](#change-project-of-your-job) and [manage tags](#manage-tags) if you added them while creating job.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/create-job/overview-job.jpg)
 
