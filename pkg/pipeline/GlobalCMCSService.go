@@ -43,7 +43,7 @@ type GlobalCMCSDto struct {
 	MountPath          string            `json:"mountPath"`
 	Deleted            bool              `json:"deleted"`
 	UserId             int32             `json:"-"`
-	SecretIngestionFor string            `json:"SecretIngestionFor"` // value can be one of [ci, cd, ci/cd]
+	SecretIngestionFor string            `json:"SecretIngestionFor" validate:"required"` // value can be one of [ci, cd, ci/cd]
 }
 
 func (impl *GlobalCMCSServiceImpl) Create(config *GlobalCMCSDto) (*GlobalCMCSDto, error) {
