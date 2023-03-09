@@ -96,7 +96,7 @@ var CdTriggerCounter = promauto.NewCounterVec(prometheus.CounterOpts{
 
 var CiTriggerCounter = promauto.NewCounterVec(prometheus.CounterOpts{
 	Name: "ci_trigger_counter",
-}, []string{"appName"})
+}, []string{"appName", "PipelineName"})
 
 // prometheusMiddleware implements mux.MiddlewareFunc.
 func PrometheusMiddleware(next http.Handler) http.Handler {
