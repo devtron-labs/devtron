@@ -177,7 +177,10 @@ func (handler PipelineConfigRestHandlerImpl) CreateCdPipeline(w http.ResponseWri
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
+	if app.IsJob {
+		common.WriteJsonResp(w, fmt.Errorf("cannot create cd-pipeline for job"), "cannot create cd-pipeline for job", http.StatusBadRequest)
+		return
+	}
 	//RBAC
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName); !ok {
@@ -708,6 +711,10 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelines(w http.ResponseWrite
 	if err != nil {
 		handler.Logger.Errorw("service err, GetCdPipelines", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	if app.IsJob {
+		common.WriteJsonResp(w, fmt.Errorf("cd-pipeline for job does not exist"), "cd-pipeline for job does not exist", http.StatusBadRequest)
 		return
 	}
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
