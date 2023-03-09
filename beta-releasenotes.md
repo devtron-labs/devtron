@@ -17,4 +17,5 @@
 - docs: added K8s client doc (#3028)
 - docs: doc for GCP external secret (#3029)
 ## Others
+- chore: upgrade common-lib dependency (#3052)
 - feat - Use cluster-name instead of server url in Argo cd application objects  (#2958)
