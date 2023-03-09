@@ -231,6 +231,13 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	appIsJob, err := handler.pipelineBuilder.GetApp(app.Id)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	app.IsJob = appIsJob.IsJob
+
 	if app.IsJob {
 		isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
 		if !isSuperAdmin || err != nil {

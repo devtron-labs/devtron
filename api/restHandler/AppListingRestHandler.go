@@ -229,6 +229,11 @@ func (handler AppListingRestHandlerImpl) FetchOverviewCiPipelines(w http.Respons
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	_, err = handler.pipeline.GetApp(jobId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 
 	jobCi, err := handler.appListingService.FetchOverviewCiPipelines(jobId)
 	if err != nil {
