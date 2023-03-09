@@ -14,7 +14,7 @@ metadata:
     app: git-sensor
 data:
   PG_ADDR: postgresql-postgresql.devtroncd
-  # PG_USER: postgres
+  PG_USER: postgres
   COMMIT_STATS_TIMEOUT_IN_SEC: "2"
 ---
 # Source: gitsensor/templates/generic.yaml
