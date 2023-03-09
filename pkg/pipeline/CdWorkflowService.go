@@ -165,7 +165,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		entryPoint = "cd-stages-with-env"
 	}
 	for i := range globalCmCsConfigs {
-		globalCmCsConfigs[i].Name = globalCmCsConfigs[i].Name + "-" + strconv.Itoa(workflowRequest.WorkflowId) + "-" + CD_WORKFLOW_NAME
+		globalCmCsConfigs[i].Name = globalCmCsConfigs[i].Name + "-" + strconv.Itoa(workflowRequest.WorkflowRunnerId) + "-" + CD_WORKFLOW_NAME
 	}
 
 	steps := make([]v1alpha1.ParallelSteps, 0)
