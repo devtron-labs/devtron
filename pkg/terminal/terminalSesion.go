@@ -473,27 +473,11 @@ func (impl *TerminalSessionHandlerImpl) AutoSelectShell(req *TerminalSessionRequ
 	return "", errors1.New("no shell is supported")
 }
 func (impl *TerminalSessionHandlerImpl) ValidateShell(req *TerminalSessionRequest) (bool, error) {
-	impl.logger.Infow("Inside ValidateShell method in TerminalSessionHandlerImpl")
-	//config, client, err := impl.getClientConfig(req)
-	//if err != nil {
-	//	impl.logger.Errorw("error in fetching config", "err", err)
-	//	return false, err
-	//}
+	impl.logger.Infow("Inside ValidateShell method in TerminalSessionHandlerImpl", "shellName", req.Shell, "podName", req.PodName, "nameSpace", req.Namespace)
+
 	cmd := fmt.Sprintf("/bin/%s", req.Shell)
 	cmdArray := []string{cmd}
-	//impl.logger.Infow("reached getExecutor method call")
-	//exec, err := getExecutor(client, config, req.PodName, req.Namespace, req.ContainerName, cmdArray, false, false)
-	//if err != nil {
-	//	impl.logger.Errorw("error occurred in getting remoteCommand executor", "err", err)
-	//	return false, err
-	//}
-	//buf := &bytes.Buffer{}
-	//errBuf := &bytes.Buffer{}
-	//impl.logger.Infow("reached execWithStreamOptions method call")
-	//err = execWithStreamOptions(exec, remotecommand.StreamOptions{
-	//	Stdout: buf,
-	//	Stderr: errBuf,
-	//})
+
 	buf, errBuf, err := impl.RunCmdInRemotePod(req, cmdArray)
 	if err != nil {
 		impl.logger.Errorw("failed to execute commands ", "err", err, "commands", cmdArray, "podName", req.PodName, "namespace", req.Namespace)
