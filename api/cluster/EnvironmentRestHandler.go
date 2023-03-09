@@ -155,22 +155,6 @@ func (impl EnvironmentRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	userId, err := impl.userService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	isSuperAdmin, err := impl.userService.IsSuperAdmin(int(userId))
-	if err != nil {
-		impl.logger.Errorw("request err, GetAll", "err", err, "userId", userId)
-		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
-		return
-	}
-	if isSuperAdmin {
-		common.WriteJsonResp(w, err, environments, http.StatusOK)
-		return
-	}
-
 	token := r.Header.Get("token")
 	emailId, err := impl.userService.GetEmailFromToken(token)
 	if err != nil {
