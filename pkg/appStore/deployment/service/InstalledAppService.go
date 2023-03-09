@@ -80,6 +80,7 @@ type InstalledAppService interface {
 	FindAppDetailsForAppstoreApplication(installedAppId, envId int) (bean2.AppDetailContainer, error)
 	UpdateInstalledAppVersionStatus(application *v1alpha1.Application) (bool, error)
 	FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetail *bean2.AppDetailContainer) bean2.AppDetailContainer
+	FetchResourceTreeWithHibernateForACD(rctx context.Context, cn http.CloseNotifier, appDetail *bean2.AppDetailContainer) bean2.AppDetailContainer
 }
 
 type InstalledAppServiceImpl struct {
@@ -887,51 +888,10 @@ func (impl InstalledAppServiceImpl) GetInstalledAppVersionHistoryValues(installe
 	values.ValuesYaml = versionHistory.ValuesYamlRaw
 	return values, err
 }
+
 func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetail *bean2.AppDetailContainer) bean2.AppDetailContainer {
 	if util.IsAcdApp(appDetail.DeploymentAppType) {
-		acdAppName := appDetail.AppName + "-" + appDetail.EnvironmentName
-		query := &application.ResourcesQuery{
-			ApplicationName: &acdAppName,
-		}
-		ctx, cancel := context.WithCancel(rctx)
-		if cn != nil {
-			go func(done <-chan struct{}, closed <-chan bool) {
-				select {
-				case <-done:
-				case <-closed:
-					cancel()
-				}
-			}(ctx.Done(), cn.CloseNotify())
-		}
-		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
-		if err != nil {
-			impl.logger.Errorw("error in getting acd token", "err", err)
-			return *appDetail
-		}
-		ctx = context.WithValue(ctx, "token", acdToken)
-		defer cancel()
-		start := time.Now()
-		resp, err := impl.acdClient.ResourceTree(ctx, query)
-		elapsed := time.Since(start)
-		impl.logger.Debugf("Time elapsed %s in fetching app-store installed application %s for environment %s", elapsed, appDetail.InstalledAppId, appDetail.EnvironmentId)
-		if err != nil {
-			impl.logger.Errorw("service err, FetchAppDetailsForInstalledApp, fetching resource tree", "err", err, "installedAppId", appDetail.InstalledAppId, "envId", appDetail.EnvironmentId)
-			err = &util.ApiError{
-				Code:            constants.AppDetailResourceTreeNotFound,
-				InternalMessage: "app detail fetched, failed to get resource tree from acd",
-				UserMessage:     "app detail fetched, failed to get resource tree from acd",
-			}
-			appDetail.ResourceTree = map[string]interface{}{}
-			return *appDetail
-		}
-		// TODO: using this resp.Status to update in app_status table
-		appDetail.ResourceTree = util3.InterfaceToMapAdapter(resp)
-		appDetail.ResourceTree = checkHibernate(impl, appDetail, ctx)
-		err = impl.appStatusService.UpdateStatusWithAppIdEnvId(appDetail.AppId, appDetail.EnvironmentId, resp.Status)
-		if err != nil {
-			impl.logger.Warnw("error in updating app status", "err", err, appDetail.AppId, "envId", appDetail.EnvironmentId)
-		}
-		impl.logger.Debugf("application %s in environment %s had status %+v\n", appDetail.InstalledAppId, appDetail.EnvironmentId, resp)
+		appDetail = fetchResourceTreeForACD(rctx, cn, appDetail, impl)
 	} else if util.IsHelmApp(appDetail.DeploymentAppType) {
 		config, err := impl.helmAppService.GetClusterConf(appDetail.ClusterId)
 		if err != nil {
@@ -958,6 +918,28 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 	return *appDetail
 }
 
+func (impl InstalledAppServiceImpl) FetchResourceTreeWithHibernateForACD(rctx context.Context, cn http.CloseNotifier, appDetail *bean2.AppDetailContainer) bean2.AppDetailContainer {
+	ctx, cancel := context.WithCancel(rctx)
+	if cn != nil {
+		go func(done <-chan struct{}, closed <-chan bool) {
+			select {
+			case <-done:
+			case <-closed:
+				cancel()
+			}
+		}(ctx.Done(), cn.CloseNotify())
+	}
+	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		impl.logger.Errorw("error in getting acd token", "err", err)
+		return *appDetail
+	}
+	ctx = context.WithValue(ctx, "token", acdToken)
+	defer cancel()
+	appDetail = fetchResourceTreeForACD(rctx, cn, appDetail, impl)
+	appDetail.ResourceTree = checkHibernate(impl, appDetail, ctx)
+	return *appDetail
+}
 func checkHibernate(impl InstalledAppServiceImpl, resp *bean2.AppDetailContainer, ctx context.Context) map[string]interface{} {
 
 	responseTree := resp.ResourceTree
@@ -1011,4 +993,50 @@ func checkHibernate(impl InstalledAppServiceImpl, resp *bean2.AppDetailContainer
 		node = currNode
 	}
 	return responseTree
+}
+
+func fetchResourceTreeForACD(rctx context.Context, cn http.CloseNotifier, appDetail *bean2.AppDetailContainer, impl InstalledAppServiceImpl) *bean2.AppDetailContainer {
+	acdAppName := appDetail.AppName + "-" + appDetail.EnvironmentName
+	query := &application.ResourcesQuery{
+		ApplicationName: &acdAppName,
+	}
+	ctx, cancel := context.WithCancel(rctx)
+	if cn != nil {
+		go func(done <-chan struct{}, closed <-chan bool) {
+			select {
+			case <-done:
+			case <-closed:
+				cancel()
+			}
+		}(ctx.Done(), cn.CloseNotify())
+	}
+	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		impl.logger.Errorw("error in getting acd token", "err", err)
+		return appDetail
+	}
+	ctx = context.WithValue(ctx, "token", acdToken)
+	defer cancel()
+	start := time.Now()
+	resp, err := impl.acdClient.ResourceTree(ctx, query)
+	elapsed := time.Since(start)
+	impl.logger.Debugf("Time elapsed %s in fetching app-store installed application %s for environment %s", elapsed, appDetail.InstalledAppId, appDetail.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("service err, FetchAppDetailsForInstalledApp, fetching resource tree", "err", err, "installedAppId", appDetail.InstalledAppId, "envId", appDetail.EnvironmentId)
+		err = &util.ApiError{
+			Code:            constants.AppDetailResourceTreeNotFound,
+			InternalMessage: "app detail fetched, failed to get resource tree from acd",
+			UserMessage:     "app detail fetched, failed to get resource tree from acd",
+		}
+		appDetail.ResourceTree = map[string]interface{}{}
+		return appDetail
+	}
+	// TODO: using this resp.Status to update in app_status table
+	appDetail.ResourceTree = util3.InterfaceToMapAdapter(resp)
+	err = impl.appStatusService.UpdateStatusWithAppIdEnvId(appDetail.AppId, appDetail.EnvironmentId, resp.Status)
+	if err != nil {
+		impl.logger.Warnw("error in updating app status", "err", err, appDetail.AppId, "envId", appDetail.EnvironmentId)
+	}
+	impl.logger.Debugf("application %s in environment %s had status %+v\n", appDetail.InstalledAppId, appDetail.EnvironmentId, resp)
+	return appDetail
 }

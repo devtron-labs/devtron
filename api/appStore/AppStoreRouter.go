@@ -73,4 +73,7 @@ func (router AppStoreRouterImpl) Init(configRouter *mux.Router) {
 		HandlerFunc(router.deployRestHandler.GetAllInstalledApp).Methods("GET")
 	configRouter.Path("/cluster-component/install/{clusterId}").
 		HandlerFunc(router.deployRestHandler.DefaultComponentInstallation).Methods("POST")
+	configRouter.Path("/installed-app/resource/hibernate").Queries("installed-app-id", "{installed-app-id}").Queries("env-id", "{env-id}").
+		HandlerFunc(router.deployRestHandler.FetchResourceTreeForACDApp).
+		Methods("GET")
 }
