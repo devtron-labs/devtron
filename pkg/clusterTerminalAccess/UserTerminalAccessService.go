@@ -38,7 +38,7 @@ type UserTerminalAccessService interface {
 	DisconnectTerminalSession(ctx context.Context, userTerminalAccessId int) error
 	DisconnectAllSessionsForUser(ctx context.Context, userId int32)
 	FetchPodManifest(ctx context.Context, userTerminalAccessId int) (resp *application.ManifestResponse, err error)
-	FetchPodEvents(ctx context.Context, userTerminalAccessId int) (*application.EventsResponse, error)
+	FetchPodEvents(ctx context.Context, userTerminalAccessId int) (*models.UserTerminalPodEvents, error)
 	ValidateShell(podName, namespace, shellName, containerName string, clusterId int) (bool, string, error)
 	EditTerminalPodManifest(ctx context.Context, request *models.UserTerminalSessionRequest, override bool) (ManifestEditResponse, error)
 }
