@@ -9,8 +9,8 @@ import (
 func TestNewGitSensorClientWithValidConfigAndGrpcEnabled(t *testing.T) {
 
 	config := &ClientConfig{
-		Url:     "127.0.0.1:7070",
-		UseGrpc: true,
+		Url:      "127.0.0.1:7070",
+		Protocol: "GRPC",
 	}
 
 	logger, err := util.NewSugardLogger()
@@ -22,8 +22,8 @@ func TestNewGitSensorClientWithValidConfigAndGrpcEnabled(t *testing.T) {
 func TestNewGitSensorClientWithValidConfigAndGrpcDisabled(t *testing.T) {
 
 	config := &ClientConfig{
-		Url:     "127.0.0.1:7070",
-		UseGrpc: false,
+		Url:      "127.0.0.1:7070",
+		Protocol: "REST",
 	}
 
 	logger, err := util.NewSugardLogger()
