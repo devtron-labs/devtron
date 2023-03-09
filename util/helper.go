@@ -46,18 +46,18 @@ type CDMetrics struct {
 }
 
 type CIMetrics struct {
-	CacheDownDuration  float64   `json:"CacheDownDuration"`
-	PreCiDuration      float64   `json:"PreCiDuration"`
-	BuildDuration      float64   `json:"BuildDuration"`
-	PostCiDuration     float64   `json:"PostCiDuration"`
-	CacheUpDuration    float64   `json:"CacheUpDuration"`
-	TotalDuration      float64   `json:"TotalDuration"`
-	CacheDownStartTime time.Time `json:"CacheDownStartTime"`
-	PreCiStartTime     time.Time `json:"pre_ci_start"`
-	BuildStartTime     time.Time `json:"BuildStartTime"`
-	PostCiStartTime    time.Time `json:"PostCiStartTime"`
-	CacheUpStartTime   time.Time `json:"CacheUpStartTime"`
-	TotalStartTime     time.Time `json:"TotalStartTime"`
+	CacheDownDuration  float64   `json:"cacheDownDuration"`
+	PreCiDuration      float64   `json:"preCiDuration"`
+	BuildDuration      float64   `json:"buildDuration"`
+	PostCiDuration     float64   `json:"postCiDuration"`
+	CacheUpDuration    float64   `json:"cacheUpDuration"`
+	TotalDuration      float64   `json:"totalDuration"`
+	CacheDownStartTime time.Time `json:"cacheDownStartTime"`
+	PreCiStartTime     time.Time `json:"preCiStart"`
+	BuildStartTime     time.Time `json:"buildStartTime"`
+	PostCiStartTime    time.Time `json:"postCiStartTime"`
+	CacheUpStartTime   time.Time `json:"cacheUpStartTime"`
+	TotalStartTime     time.Time `json:"totalStartTime"`
 }
 
 func ContainsString(list []string, element string) bool {
