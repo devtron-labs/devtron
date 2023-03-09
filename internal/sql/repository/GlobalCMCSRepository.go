@@ -45,10 +45,10 @@ type GlobalCMCS struct {
 	Name       string   `sql:"name"`
 	Type       string   `sql:"type"` // [environment, volume]
 	//json string of map of key:value, example: '{ "a" : "b", "c" : "d"}'
-	Data         json.RawMessage `sql:"data"`
-	MountPath    string          `sql:"mount_path"`
-	Deleted      bool            `sql:"deleted,notnull"`
-	PipelineType string          `sql:"pipeline_type,notnull"` // [CI, CD, CD/CD]
+	Data               json.RawMessage `sql:"data"`
+	MountPath          string          `sql:"mount_path"`
+	Deleted            bool            `sql:"deleted,notnull"`
+	SecretIngestionFor string          `sql:"secret_ingestion_for,notnull"` // [CI, CD, CD/CD]
 	sql.AuditLog
 }
 
@@ -110,7 +110,7 @@ func (impl *GlobalCMCSRepositoryImpl) FindAllActiveByPipelineType(pipelineType s
 	var models []*GlobalCMCS
 	err := impl.dbConnection.Model(&models).
 		Where("deleted = ?", false).
-		Where("pipeline_type = ? OR pipeline_type = ?", pipelineType, PIPELINE_TYPE_CI_CD).
+		Where("secret_ingestion_for = ? OR secret_ingestion_for = ?", pipelineType, PIPELINE_TYPE_CI_CD).
 		Select()
 	if err != nil {
 		impl.logger.Errorw("err on getting global cm/cs config to be used by default in ci pipeline", "err", err)

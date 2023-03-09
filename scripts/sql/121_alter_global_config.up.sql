@@ -1,1 +1,1 @@
-ALTER TABLE global_cm_cs DROP COLUMN pipeline_type;
+ALTER TABLE global_cm_cs DROP COLUMN secret_ingestion_for;

@@ -39,11 +39,11 @@ type GlobalCMCSDto struct {
 	Name       string `json:"name"  validate:"required"`
 	Type       string `json:"type" validate:"oneof=environment volume"`
 	//map of key:value, example: '{ "a" : "b", "c" : "d"}'
-	Data         map[string]string `json:"data"  validate:"required"`
-	MountPath    string            `json:"mountPath"`
-	Deleted      bool              `json:"deleted"`
-	UserId       int32             `json:"-"`
-	PipelineType string            `json:"PipelineType"` // value can be one of [ci, cd, ci/cd]
+	Data               map[string]string `json:"data"  validate:"required"`
+	MountPath          string            `json:"mountPath"`
+	Deleted            bool              `json:"deleted"`
+	UserId             int32             `json:"-"`
+	SecretIngestionFor string            `json:"SecretIngestionFor"` // value can be one of [ci, cd, ci/cd]
 }
 
 func (impl *GlobalCMCSServiceImpl) Create(config *GlobalCMCSDto) (*GlobalCMCSDto, error) {
@@ -90,7 +90,7 @@ func (impl *GlobalCMCSServiceImpl) Create(config *GlobalCMCSDto) (*GlobalCMCSDto
 			UpdatedBy: config.UserId,
 			UpdatedOn: time.Now(),
 		},
-		PipelineType: config.PipelineType,
+		SecretIngestionFor: config.SecretIngestionFor,
 	}
 	model, err = impl.globalCMCSRepository.Save(model)
 	if err != nil {
