@@ -229,28 +229,12 @@ func startProcess(k8sClient kubernetes.Interface, cfg *rest.Config,
 	podName := sessionRequest.PodName
 	containerName := sessionRequest.ContainerName
 
-	//req := k8sClient.CoreV1().RESTClient().Post().
-	//	Resource("pods").
-	//	Name(podName).
-	//	Namespace(namespace).
-	//	SubResource("exec")
-	//
-	//req.VersionedParams(&v1.PodExecOptions{
-	//	Container: containerName,
-	//	Command:   cmd,
-	//	Stdin:     true,
-	//	Stdout:    true,
-	//	Stderr:    true,
-	//	TTY:       true,
-	//}, scheme.ParameterCodec)
-
 	exec, err := getExecutor(k8sClient, cfg, podName, namespace, containerName, cmd, true, true)
-	//remotecommand.NewSPDYExecutor(cfg, "POST", req.URL())
+
 	if err != nil {
 		return err
 	}
 
-	//err = exec.Stream(
 	streamOptions := remotecommand.StreamOptions{
 		Stdin:             ptyHandler,
 		Stdout:            ptyHandler,
@@ -258,7 +242,7 @@ func startProcess(k8sClient kubernetes.Interface, cfg *rest.Config,
 		TerminalSizeQueue: ptyHandler,
 		Tty:               true,
 	}
-	//)
+
 	err = execWithStreamOptions(exec, streamOptions)
 	if err != nil {
 		return err

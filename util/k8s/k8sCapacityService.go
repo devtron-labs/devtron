@@ -53,6 +53,9 @@ const (
 	KopsNodeGroupLabel  = "kops.k8s.io/instancegroup"
 )
 
+//TODO: add any new nodeGrouplabel in this array
+var NodeGroupLabels = [4]string{AWSNodeGroupLabel, AzureNodeGroupLabel, GcpNodeGroupLabel, KopsNodeGroupLabel}
+
 // below const set is used for pod delete status
 const (
 	// PodDeleteStatusTypeOkay is "Okay"
@@ -367,34 +370,24 @@ func (impl *K8sCapacityServiceImpl) getK8sConfigAndClients(ctx context.Context, 
 	}
 	return restConfig, k8sHttpClient, k8sClientSet, nil
 }
-
 func (impl *K8sCapacityServiceImpl) getNodeGroupAndTaints(node *corev1.Node) (string, []*LabelAnnotationTaintObject) {
 
 	nodeGroup := impl.getNodeGroup(node)
 	taints := impl.getTaints(node)
 	return nodeGroup, taints
 }
+
 func (impl *K8sCapacityServiceImpl) getNodeGroup(node *corev1.Node) string {
 	var nodeGroup = ""
 	//different cloud providers have their own node group label
-	//azure
-	if ng, ok := node.Labels[AzureNodeGroupLabel]; ok {
-		nodeGroup = ng
-	}
-	//aws
-	if ng, ok := node.Labels[AWSNodeGroupLabel]; ok {
-		nodeGroup = ng
-	}
-	//kops
-	if ng, ok := node.Labels[KopsNodeGroupLabel]; ok {
-		nodeGroup = ng
-	}
-	//gcp
-	if ng, ok := node.Labels[GcpNodeGroupLabel]; ok {
-		nodeGroup = ng
+	for _, label := range NodeGroupLabels {
+		if ng, ok := node.Labels[label]; ok {
+			nodeGroup = ng
+		}
 	}
 	return nodeGroup
 }
+
 func (impl *K8sCapacityServiceImpl) getNodeDetail(ctx context.Context, node *corev1.Node, nodeResourceUsage map[string]corev1.ResourceList, podList *corev1.PodList, callForList bool, restConfig *rest.Config, cluster *cluster.ClusterBean) (*NodeCapacityDetail, error) {
 	cpuAllocatable := node.Status.Allocatable[corev1.ResourceCPU]
 	memoryAllocatable := node.Status.Allocatable[corev1.ResourceMemory]
