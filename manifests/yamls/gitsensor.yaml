@@ -62,12 +62,6 @@ spec:
           volumeMounts:
             - name: git-volume
               mountPath: /git-base/
-          env:
-            - name: PG_USER
-              valueFrom:
-                configMapKeyRef:
-                  name: devtron-cm
-                  key: PG_USER
           envFrom:
           - secretRef:
               name: git-sensor-secret

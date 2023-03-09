@@ -94,11 +94,6 @@ spec:
                   name: {{ .dbconfig.secretName }}
                   key: {{ .dbconfig.keyName }}
             {{- end }}
-            - name: DB_USER
-              valueFrom:
-                configMapKeyRef:
-                  name: devtron-cm
-                  key: PG_USER
           envFrom:
           - configMapRef:
               name: notifier-cm
