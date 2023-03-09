@@ -188,7 +188,6 @@ func (handler AppListingRestHandlerImpl) FetchJobs(w http.ResponseWriter, r *htt
 		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 		return
 	}
-	// Apply pagination
 	jobsCount := len(jobs)
 	offset := fetchJobListingRequest.Offset
 	limit := fetchJobListingRequest.Size
