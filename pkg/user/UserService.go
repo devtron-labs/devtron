@@ -406,7 +406,7 @@ func (impl UserServiceImpl) CreateOrUpdateUserRolesForAllTypes(roleFilter bean.R
 	entityNames := strings.Split(roleFilter.EntityName, ",")
 	environments := strings.Split(roleFilter.Environment, ",")
 	capacity := math.Max(float64(len(namespaces)*len(groups)*len(kinds)*len(resources)*3), float64(len(entityNames)*len(environments)*6))
-	var policiesToBeAdded = make([]casbin2.Policy, 0, capacity)
+	var policiesToBeAdded = make([]casbin2.Policy, 0, int(capacity))
 	var err error
 	rolesChanged := false
 	roleFilter = impl.userCommonService.ReplacePlaceHolderForEmptyEntriesInRoleFilter(roleFilter)
