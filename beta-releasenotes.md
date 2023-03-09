@@ -1,4 +1,5 @@
 ## Bugs
+- fix: cd metrics nil ptr fix (#3099)
 - fix: getting all environmets for super admin only (#3096)
 - fix: logs issue for init containers (#3076)
 - fix: pod resources not visible even if user have access on those pods. (#3071)
