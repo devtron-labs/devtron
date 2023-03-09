@@ -1032,8 +1032,6 @@ func (handler PipelineConfigRestHandlerImpl) DeleteMaterial(w http.ResponseWrite
 	}
 	var deleteMaterial bean.UpdateMaterialDTO
 	err = decoder.Decode(&deleteMaterial)
-	var updateMaterialDto bean.UpdateMaterialDTO
-	err = decoder.Decode(&updateMaterialDto)
 	deleteMaterial.UserId = userId
 	if err != nil {
 		handler.Logger.Errorw("request err, DeleteMaterial", "err", err, "DeleteMaterial", deleteMaterial)
