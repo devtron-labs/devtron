@@ -1,9 +1,6 @@
 {{- if .Values.winterSoldier.enabled  }}
-
 apiVersion: {{ $.Values.winterSoldier.apiVersion }}
-
 kind: Hibernator
-
 metadata:
   name: {{ template ".Chart.Name .fullname" $ }}-hibernator
   labels:
@@ -31,7 +28,7 @@ spec:
             name: {{ include ".Chart.Name .fullname" $ }}
             type: {{ .Values.winterSoldier.type | quote }}
             fieldSelector:
-{{toYaml $.Values.winterSoilder.fieldSelector | indent 14}} 
+{{toYaml $.Values.winterSoilder.fieldSelector | indent 14 }} 
           namespaceSelector:
             name: {{ $.Release.Namespace }}
       exclusions: []
@@ -40,5 +37,5 @@ spec:
   {{- if  .Values.winterSoilder.targetReplicas }}
   targetReplicas: {{ $.Values.winterSoilder.targetReplicas }}
   {{- end }}
-  {{- end}}
-{{- end}}
+  {{- end }}
+{{- end }}
