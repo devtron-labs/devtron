@@ -42,7 +42,8 @@ You can see the list of nodes available in your cluster. Typically you have seve
 
 The components on a typical node include the `kubelet`, a `container runtime`, and the `kube-proxy`.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/clusters/select-a-node-latest1-jpg.png)
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/clusters/cluster-nodes.jpg)
 
 If you have multiple nodes, you can search a node by name or label in the search bar.
 
@@ -69,7 +70,7 @@ Using the Devtron UI, you will be able to:
 * [Cordon a node](#cordon-a-node)
 * [Drain a node](#drain-a-node)
 * [Taint a node](#taint-a-node)
-* [Edit a node](#edit-a-node)
+* [Edit a node config](#edit-a-node-config)
 * [Delete a node](#delete-a-node)
 
 To see the summary of a node, click the specific node.
@@ -147,13 +148,13 @@ A taint can produce three possible effects:
 | **PreferNoSchedule** | The Kubernetes scheduler will try to avoid scheduling pods that do not have tolerations for the tainted nodes. |
 | **NoExecute** | Kubernetes will evict the running pods from the nodes if the pods do not have tolerations for the tainted nodes. |
 
-### Edit a Node
+### Edit a Node Config
 
-`Edit node` allows you to directly edit any node. It will open the editor which contains all the configuration settings in which the default format is YAML. You can edit multiple objects, although changes are applied one at a time.
+`Edit node config` allows you to directly edit any node. It will open the editor which contains all the configuration settings in which the default format is YAML. You can edit multiple objects, although changes are applied one at a time.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/clusters/edit-yaml-node.jpg)
 
-* You can edit or modify the parameters or values of a node by clicking `Edit node`.
+* You can edit or modify the parameters or values of a node by clicking `Edit node config`.
 * Click `Review Changes` to compare the changes in the YAML file.
 * Click `Update Node`.
 
