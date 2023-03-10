@@ -208,7 +208,6 @@ type CiPatchRequest struct {
 	Action        PatchAction `json:"action"`
 	AppWorkflowId int         `json:"appWorkflowId,omitempty"`
 	UserId        int32       `json:"-"`
-	IsJob         bool        `json:"isJob"`
 }
 
 type CiRegexPatchRequest struct {
@@ -260,7 +259,6 @@ type CiTriggerRequest struct {
 	CiPipelineMaterial []CiPipelineMaterial `json:"ciPipelineMaterials" validate:"required"`
 	TriggeredBy        int32                `json:"triggeredBy"`
 	InvalidateCache    bool                 `json:"invalidateCache"`
-	IsJob              bool                 `json:"isJob"`
 }
 
 type CiTrigger struct {

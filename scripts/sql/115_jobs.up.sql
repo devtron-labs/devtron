@@ -5,5 +5,6 @@ ALTER TABLE app ALTER COLUMN app_store SET DEFAULT 0;
 ALTER TABLE app ADD COLUMN display_name varchar(250);
 ALTER TABLE app ADD COLUMN description text;
 ALTER TABLE ci_artifact ADD COLUMN is_artifact_uploaded BOOLEAN NOT NULL DEFAULT FALSE;
+UPDATE ci_artifact SET is_artifact_uploaded = true;
 
 
