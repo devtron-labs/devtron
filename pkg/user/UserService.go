@@ -333,7 +333,7 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 	var policies = make([]casbin2.Policy, 0, capacity)
 	if userInfo.SuperAdmin == false {
 		for index, roleFilter := range userInfo.RoleFilters {
-			impl.logger.Infow("Creating Or updating User Roles for RoleFilter ", "index", index)
+			impl.logger.Infow("Creating Or updating User Roles for RoleFilter ", "index", index, "roleFilter", roleFilter)
 			entity := roleFilter.Entity
 			policiesToBeAdded, _, err := impl.CreateOrUpdateUserRolesForAllTypes(roleFilter, userInfo.UserId, model, nil, token, managerAuth, tx, entity, mapping[index])
 			if err != nil {
@@ -417,7 +417,8 @@ func (impl UserServiceImpl) CreateOrUpdateUserRolesForAllTypes(roleFilter bean.R
 		environments := strings.Split(roleFilter.Environment, ",")
 		for _, environment := range environments {
 			for _, entityName := range entityNames {
-				impl.logger.Infow("Creating Or updating User Roles for other types ", environment, entityName)
+
+				impl.logger.Infow("Creating Or updating User Roles for other types ", "environment", environment, "entityName", entityName)
 
 				if managerAuth != nil {
 					// check auth only for apps permission, skip for chart group
@@ -429,19 +430,19 @@ func (impl UserServiceImpl) CreateOrUpdateUserRolesForAllTypes(roleFilter bean.R
 				}
 				entityName = impl.userCommonService.RemovePlaceHolderInRoleFilterField(entityName)
 				environment = impl.userCommonService.RemovePlaceHolderInRoleFilterField(environment)
-				impl.logger.Infow("Getting Roles for other types ")
+				impl.logger.Infow("Getting Roles for other types ", "entityName", entityName, "environment", environment)
 
 				roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", actionType)
 				if err != nil {
 					return policiesToBeAdded, rolesChanged, err
 				}
 				if roleModel.Id == 0 {
-					impl.logger.Debugw("no role found for given filter", "filter", roleFilter)
+					impl.logger.Debugw("no role found for given filter", "filter", "roleFilter", roleFilter)
 					flag, err, policiesAdded := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType)
 					if err != nil || flag == false {
 						return policiesToBeAdded, rolesChanged, err
 					}
-					impl.logger.Infow("Getting Role by filter Again for other Types ", roleFilter)
+					impl.logger.Infow("Getting Role by filter Again for other Types  ", "roleFilter", roleFilter)
 
 					policiesToBeAdded = append(policiesToBeAdded, policiesAdded...)
 					roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", actionType)
