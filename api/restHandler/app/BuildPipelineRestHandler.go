@@ -9,6 +9,7 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -209,6 +210,11 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
+	isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
+	if err != nil {
+		common.WriteJsonResp(w, err, "failed to check if user is super admin", http.StatusInternalServerError)
+		return
+	}
 	var patchRequest bean.CiPatchRequest
 	err = decoder.Decode(&patchRequest)
 	patchRequest.UserId = userId
@@ -231,17 +237,11 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	appIsJob, err := handler.pipelineBuilder.GetApp(app.Id)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	app.IsJob = appIsJob.IsJob
 
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
 	var ok bool
-	if patchRequest.IsJob {
-		ok = handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, resourceName)
+	if app.AppType == helper.Job {
+		ok = isSuperAdmin
 	} else {
 		ok = handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName)
 	}
@@ -253,7 +253,7 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 	ciConf, err := handler.pipelineBuilder.GetCiPipeline(patchRequest.AppId)
 
 	var emptyDockerRegistry string
-	if patchRequest.IsJob && ciConf == nil {
+	if app.AppType == helper.Job && ciConf == nil {
 		ciConfigRequest := bean.CiConfigRequest{}
 		ciConfigRequest.DockerRegistry = emptyDockerRegistry
 		ciConfigRequest.AppId = patchRequest.AppId
@@ -907,7 +907,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateMaterial(w http.ResponseWrite
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	if app.IsJob {
+	if app.AppType == helper.Job {
 		isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
 		if !isSuperAdmin || err != nil {
 			if err != nil {
@@ -987,7 +987,7 @@ func (handler PipelineConfigRestHandlerImpl) UpdateMaterial(w http.ResponseWrite
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	if app.IsJob {
+	if app.AppType == helper.Job {
 		isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
 		if !isSuperAdmin || err != nil {
 			if err != nil {
@@ -1041,7 +1041,7 @@ func (handler PipelineConfigRestHandlerImpl) DeleteMaterial(w http.ResponseWrite
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	if app.IsJob {
+	if app.AppType == helper.Job {
 		isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
 		if !isSuperAdmin || err != nil {
 			if err != nil {

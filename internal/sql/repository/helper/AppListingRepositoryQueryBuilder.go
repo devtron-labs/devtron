@@ -25,6 +25,14 @@ import (
 	"strings"
 )
 
+type AppType int
+
+const (
+	CustomApp     AppType = 0
+	ChartStoreApp AppType = 1
+	Job           AppType = 2
+)
+
 type AppListingRepositoryQueryBuilder struct {
 	logger *zap.SugaredLogger
 }
@@ -67,7 +75,7 @@ func (impl AppListingRepositoryQueryBuilder) BuildJobListingQuery(appIDs []int, 
 		"  from ci_workflow cw inner join (select ci_pipeline_id, MAX(started_on) max_started_on from ci_workflow group by ci_pipeline_id ) " +
 		"cws on cw.ci_pipeline_id = cws.ci_pipeline_id " +
 		"and cw.started_on = cws.max_started_on order by cw.ci_pipeline_id) cwr on cwr.ci_pipeline_id = ci_pipeline.id" +
-		" where app.active = true and app.app_store = 2 "
+		" where app.active = true and app.app_type = 2 "
 	if len(appIDs) > 0 {
 		query += "and app.id IN (" + GetCommaSepratedString(appIDs) + ") "
 	}
@@ -142,7 +150,7 @@ func (impl AppListingRepositoryQueryBuilder) buildJobListingSortBy(appListingFil
 }
 
 func (impl AppListingRepositoryQueryBuilder) buildJobListingWhereCondition(jobListingFilter AppListingFilter) string {
-	whereCondition := "WHERE a.active = true and a.app_store = 2 "
+	whereCondition := "WHERE a.active = true and a.app_type = 2 "
 
 	if len(jobListingFilter.Teams) > 0 {
 		teamIds := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(jobListingFilter.Teams)), ","), "[]")
@@ -162,7 +170,7 @@ func (impl AppListingRepositoryQueryBuilder) buildJobListingWhereCondition(jobLi
 }
 
 func (impl AppListingRepositoryQueryBuilder) buildAppListingWhereCondition(appListingFilter AppListingFilter) string {
-	whereCondition := "WHERE a.active = true and a.app_store = 0 "
+	whereCondition := "WHERE a.active = true and a.app_type = 0 "
 	if len(appListingFilter.Environments) > 0 {
 		envIds := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(appListingFilter.Environments)), ","), "[]")
 		whereCondition = whereCondition + "and env.id IN (" + envIds + ") "

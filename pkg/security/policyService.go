@@ -21,7 +21,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	repository1 "github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"net/http"
 	"strings"
@@ -52,7 +53,7 @@ type PolicyService interface {
 type PolicyServiceImpl struct {
 	environmentService            cluster.EnvironmentService
 	logger                        *zap.SugaredLogger
-	apRepository                  app.AppRepository
+	apRepository                  repository1.AppRepository
 	pipelineOverride              chartConfig.PipelineOverrideRepository
 	cvePolicyRepository           security.CvePolicyRepository
 	clusterService                cluster.ClusterService
@@ -70,7 +71,7 @@ type PolicyServiceImpl struct {
 
 func NewPolicyServiceImpl(environmentService cluster.EnvironmentService,
 	logger *zap.SugaredLogger,
-	apRepository app.AppRepository,
+	apRepository repository1.AppRepository,
 	pipelineOverride chartConfig.PipelineOverrideRepository,
 	cvePolicyRepository security.CvePolicyRepository,
 	clusterService cluster.ClusterService,
@@ -190,7 +191,7 @@ func (impl *PolicyServiceImpl) VerifyImage(verifyImageRequest *VerifyImageReques
 		return nil, err
 	} else if app != nil {
 		appId = app.Id
-		isAppStore = app.AppStore == 1
+		isAppStore = app.AppType == helper.ChartStoreApp
 	} else {
 		//np app do nothing
 	}

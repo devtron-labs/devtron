@@ -2,6 +2,7 @@ package app
 
 import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
@@ -32,12 +33,17 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListForAutocomplete(w http.Re
 	v := r.URL.Query()
 	teamId := v.Get("teamId")
 	appName := v.Get("appName")
-	isJobParam := v.Get("isJob")
-	isJob := isJobParam == "true"
+	appTypeParam := v.Get("appType")
+	appType, err := strconv.Atoi(appTypeParam)
+	if err != nil {
+		handler.Logger.Errorw("service err, GetAppListForAutocomplete", "err", err, "teamId", teamId, "appTypeParam", appTypeParam)
+		common.WriteJsonResp(w, err, "Failed to parse appType param", http.StatusInternalServerError)
+		return
+	}
 	handler.Logger.Infow("request payload, GetAppListForAutocomplete", "teamId", teamId)
 	var apps []*pipeline.AppBean
 	if len(teamId) == 0 {
-		apps, err = handler.pipelineBuilder.FindAllMatchesByAppName(appName, isJob)
+		apps, err = handler.pipelineBuilder.FindAllMatchesByAppName(appName, helper.AppType(appType))
 		if err != nil {
 			handler.Logger.Errorw("service err, GetAppListForAutocomplete", "err", err, "teamId", teamId)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

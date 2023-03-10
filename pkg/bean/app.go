@@ -19,6 +19,7 @@ package bean
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
@@ -46,7 +47,7 @@ type CreateAppDTO struct {
 	TemplateId  int            `json:"templateId"`
 	AppLabels   []*Label       `json:"labels,omitempty" validate:"dive"`
 	Description string         `json:"description"`
-	IsJob       bool           `json:"isJob"`
+	AppType     helper.AppType `json:"isJob"`
 }
 
 type CreateMaterialDTO struct {

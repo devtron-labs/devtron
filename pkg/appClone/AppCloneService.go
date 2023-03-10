@@ -22,6 +22,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/constants"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/go-pg/pg"
@@ -81,12 +82,12 @@ func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 }
 
 type CloneRequest struct {
-	RefAppId    int           `json:"refAppId"`
-	Name        string        `json:"name"`
-	ProjectId   int           `json:"projectId"`
-	AppLabels   []*bean.Label `json:"labels,omitempty" validate:"dive"`
-	Description string        `json:"description"`
-	isJob       bool          `json:"isJob"`
+	RefAppId    int            `json:"refAppId"`
+	Name        string         `json:"name"`
+	ProjectId   int            `json:"projectId"`
+	AppLabels   []*bean.Label  `json:"labels,omitempty" validate:"dive"`
+	Description string         `json:"description"`
+	AppType     helper.AppType `json:"appType"`
 }
 
 func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context context.Context) (*bean.CreateAppDTO, error) {
@@ -95,7 +96,10 @@ func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context 
 	if err != nil && err != pg.ErrNoRows {
 		return nil, err
 	}
-	if (templateApp == nil && templateApp.Id == 0) || (createReq.IsJob == false && templateApp.AppStore != 0) || (createReq.IsJob == true && templateApp.AppStore != 2) {
+	//If the template does not exist then don't clone
+	//If the template app-type is chart-store app then don't clone
+	//If the template app-type and create request app-type is not same then don't clone
+	if (templateApp == nil && templateApp.Id == 0) || (templateApp.AppType == helper.ChartStoreApp) || (templateApp.AppType != createReq.AppType) {
 		impl.logger.Warnw("template app does not exist", "id", createReq.TemplateId)
 		err = &util.ApiError{
 			Code:            constants.AppDoesNotExist.Code,
@@ -110,11 +114,11 @@ func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context 
 		Name:        createReq.AppName,
 		ProjectId:   createReq.TeamId,
 		AppLabels:   createReq.AppLabels,
-		isJob:       createReq.IsJob,
+		AppType:     createReq.AppType,
 		Description: createReq.Description,
 	}
 	userId := createReq.UserId
-	appStatus, err := impl.appListingService.FetchAppStageStatus(cloneReq.RefAppId, cloneReq.isJob)
+	appStatus, err := impl.appListingService.FetchAppStageStatus(cloneReq.RefAppId, cloneReq.AppType == helper.Job)
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +140,7 @@ func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context 
 	}
 
 	//TODO check stage of current app
-	if !createReq.IsJob {
+	if createReq.AppType != helper.Job {
 		if !refAppStatus["APP"] {
 			impl.logger.Warnw("status not", "APP", cloneReq.RefAppId)
 			return nil, nil
@@ -163,7 +167,7 @@ func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context 
 		impl.logger.Errorw("error in cloning docker template", "ref", cloneReq.RefAppId, "new", newAppId, "err", err)
 		return nil, err
 	}
-	if !createReq.IsJob {
+	if createReq.AppType != helper.Job {
 		if !refAppStatus["TEMPLATE"] {
 			impl.logger.Errorw("status not", "TEMPLATE", cloneReq.RefAppId)
 			return app, nil
@@ -221,7 +225,7 @@ func (impl *AppCloneServiceImpl) CreateApp(cloneReq *CloneRequest, userId int32)
 		UserId:      userId,
 		TeamId:      cloneReq.ProjectId,
 		AppLabels:   cloneReq.AppLabels,
-		IsJob:       cloneReq.isJob,
+		AppType:     cloneReq.AppType,
 		Description: cloneReq.Description,
 	}
 	createRes, err := impl.pipelineBuilder.CreateApp(createAppReq)

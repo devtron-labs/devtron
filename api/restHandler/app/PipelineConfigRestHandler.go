@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/util/argo"
 	"io"
@@ -207,7 +208,7 @@ func (handler PipelineConfigRestHandlerImpl) DeleteApp(w http.ResponseWriter, r 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	if app.IsJob {
+	if app.AppType == helper.Job {
 		isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
 		if !isSuperAdmin || err != nil {
 			if err != nil {
@@ -248,7 +249,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	if createRequest.IsJob {
+	if createRequest.AppType == helper.Job {
 		isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
 		if !isSuperAdmin || err != nil {
 			if err != nil {

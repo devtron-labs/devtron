@@ -27,6 +27,7 @@ import (
 	"fmt"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	history3 "github.com/devtron-labs/devtron/pkg/pipeline/history"
@@ -813,7 +814,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateApp(createRequest *bean.CreateApp
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-	app, err := impl.createAppGroup(createRequest.AppName, createRequest.UserId, createRequest.TeamId, createRequest.IsJob, createRequest.Description, tx)
+	app, err := impl.createAppGroup(createRequest.AppName, createRequest.UserId, createRequest.TeamId, createRequest.AppType, createRequest.Description, tx)
 	if err != nil {
 		return nil, err
 	}
@@ -840,7 +841,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateApp(createRequest *bean.CreateApp
 		return nil, err
 	}
 	createRequest.Id = app.Id
-	if createRequest.IsJob {
+	if createRequest.AppType == helper.Job {
 		createRequest.AppName = app.DisplayName
 	}
 	return createRequest, nil
@@ -998,12 +999,12 @@ func (impl CiCdPipelineOrchestratorImpl) addRepositoryToGitSensor(materials []*b
 }
 
 // FIXME: not thread safe
-func (impl CiCdPipelineOrchestratorImpl) createAppGroup(name string, userId int32, teamId int, isJob bool, description string, tx *pg.Tx) (*app2.App, error) {
+func (impl CiCdPipelineOrchestratorImpl) createAppGroup(name string, userId int32, teamId int, appType helper.AppType, description string, tx *pg.Tx) (*app2.App, error) {
 	app, err := impl.appRepository.FindActiveByName(name)
 	if err != nil && err != pg.ErrNoRows {
 		return nil, err
 	}
-	if !isJob {
+	if appType != helper.Job {
 		if app != nil && app.Id > 0 {
 			impl.logger.Warnw("app already exists", "name", name)
 			err = &util.ApiError{
@@ -1013,8 +1014,7 @@ func (impl CiCdPipelineOrchestratorImpl) createAppGroup(name string, userId int3
 			}
 			return nil, err
 		}
-	}
-	if isJob {
+	} else {
 		job, err := impl.appRepository.FindJobByDisplayName(name)
 		if err != nil && err != pg.ErrNoRows {
 			return nil, err
@@ -1030,11 +1030,9 @@ func (impl CiCdPipelineOrchestratorImpl) createAppGroup(name string, userId int3
 		}
 	}
 
-	appStore := 0
 	displayName := name
 	appName := name
-	if isJob {
-		appStore = 2
+	if appType == helper.Job {
 		appName = name + "/" + util2.Generate(8) + "J"
 	}
 	pg := &app2.App{
@@ -1042,7 +1040,7 @@ func (impl CiCdPipelineOrchestratorImpl) createAppGroup(name string, userId int3
 		AppName:     appName,
 		DisplayName: displayName,
 		TeamId:      teamId,
-		AppStore:    appStore,
+		AppType:     appType,
 		Description: description,
 		AuditLog:    sql.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 	}

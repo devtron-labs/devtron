@@ -25,6 +25,7 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
@@ -125,7 +126,7 @@ type PipelineBuilder interface {
 	GetCiPipelineById(pipelineId int) (ciPipeline *bean.CiPipeline, err error)
 
 	GetMaterialsForAppId(appId int) []*bean.GitMaterial
-	FindAllMatchesByAppName(appName string, isJob bool) ([]*AppBean, error)
+	FindAllMatchesByAppName(appName string, appType helper.AppType) ([]*AppBean, error)
 	GetEnvironmentByCdPipelineId(pipelineId int) (int, error)
 	PatchRegexCiPipeline(request *bean.CiRegexPatchRequest) (err error)
 
@@ -402,7 +403,7 @@ func (impl PipelineBuilderImpl) GetApp(appId int) (application *bean.CreateAppDT
 	}
 
 	gitMaterials := impl.GetMaterialsForAppId(appId)
-	if app.AppStore == 2 {
+	if app.AppType == helper.Job {
 		app.AppName = app.DisplayName
 	}
 	application = &bean.CreateAppDTO{
@@ -410,7 +411,7 @@ func (impl PipelineBuilderImpl) GetApp(appId int) (application *bean.CreateAppDT
 		AppName:  app.AppName,
 		Material: gitMaterials,
 		TeamId:   app.TeamId,
-		IsJob:    app.AppStore == 2,
+		AppType:  app.AppType,
 	}
 	return application, nil
 }
@@ -3305,14 +3306,14 @@ func (impl PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *b
 	return ciPipeline, err
 }
 
-func (impl PipelineBuilderImpl) FindAllMatchesByAppName(appName string, isJob bool) ([]*AppBean, error) {
+func (impl PipelineBuilderImpl) FindAllMatchesByAppName(appName string, appType helper.AppType) ([]*AppBean, error) {
 	var appsRes []*AppBean
 	var apps []*app2.App
 	var err error
 	if len(appName) == 0 {
 		apps, err = impl.appRepo.FindAll()
 	} else {
-		apps, err = impl.appRepo.FindAllMatchesByAppName(appName, isJob)
+		apps, err = impl.appRepo.FindAllMatchesByAppName(appName, appType)
 	}
 	if err != nil {
 		impl.logger.Errorw("error while fetching app", "err", err)
@@ -3320,7 +3321,7 @@ func (impl PipelineBuilderImpl) FindAllMatchesByAppName(appName string, isJob bo
 	}
 	for _, app := range apps {
 		name := app.AppName
-		if isJob {
+		if appType == helper.Job {
 			name = app.DisplayName
 		}
 		appsRes = append(appsRes, &AppBean{Id: app.Id, Name: name})

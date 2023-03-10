@@ -28,6 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/constants"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
@@ -410,7 +411,7 @@ func (impl AppStoreDeploymentServiceImpl) createAppForAppStore(createRequest *be
 		Active:          true,
 		AppName:         createRequest.AppName,
 		TeamId:          createRequest.TeamId,
-		AppStore:        1,
+		AppType:         helper.ChartStoreApp,
 		AppOfferingMode: appInstallationMode,
 		AuditLog:        sql.AuditLog{UpdatedBy: createRequest.UserId, CreatedBy: createRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 	}

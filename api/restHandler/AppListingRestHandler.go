@@ -30,6 +30,7 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/cron"
 	"github.com/devtron-labs/devtron/internal/constants"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
@@ -58,7 +59,7 @@ import (
 type AppListingRestHandler interface {
 	FetchAppsByEnvironment(w http.ResponseWriter, r *http.Request)
 	FetchJobs(w http.ResponseWriter, r *http.Request)
-	FetchOverviewCiPipelines(w http.ResponseWriter, r *http.Request)
+	FetchJobOverviewCiPipelines(w http.ResponseWriter, r *http.Request)
 	FetchAppDetails(w http.ResponseWriter, r *http.Request)
 	FetchAllDevtronManagedApps(w http.ResponseWriter, r *http.Request)
 	FetchAppTriggerView(w http.ResponseWriter, r *http.Request)
@@ -206,7 +207,7 @@ func (handler AppListingRestHandlerImpl) FetchJobs(w http.ResponseWriter, r *htt
 
 	common.WriteJsonResp(w, err, jobContainerResponse, http.StatusOK)
 }
-func (handler AppListingRestHandlerImpl) FetchOverviewCiPipelines(w http.ResponseWriter, r *http.Request) {
+func (handler AppListingRestHandlerImpl) FetchJobOverviewCiPipelines(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		handler.logger.Errorw("request err, userId", "err", err, "payload", userId)
@@ -641,8 +642,8 @@ func (handler AppListingRestHandlerImpl) FetchAppStageStatus(w http.ResponseWrit
 		return
 	}
 	v := r.URL.Query()
-	isJobParam := v.Get("isJob")
-	isJob := isJobParam == "true"
+	appTypeParam := v.Get("appType")
+	appType, err := strconv.Atoi(appTypeParam)
 
 	handler.logger.Infow("request payload, FetchAppStageStatus", "appId", appId)
 	token := r.Header.Get("token")
@@ -661,7 +662,7 @@ func (handler AppListingRestHandlerImpl) FetchAppStageStatus(w http.ResponseWrit
 	}
 	//RBAC enforcer Ends
 
-	triggerView, err := handler.appListingService.FetchAppStageStatus(appId, isJob)
+	triggerView, err := handler.appListingService.FetchAppStageStatus(appId, appType == int(helper.Job))
 	if err != nil {
 		handler.logger.Errorw("service err, FetchAppStageStatus", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

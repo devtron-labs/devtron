@@ -1533,7 +1533,7 @@ func (impl AppListingServiceImpl) FetchAppTriggerView(appId int) ([]bean.Trigger
 }
 
 func (impl AppListingServiceImpl) FetchAppStageStatus(appId int, isJob bool) ([]bean.AppStageStatus, error) {
-	appStageStatuses, err := impl.appListingRepository.FetchAppStageStatus(appId, isJob)
+	appStageStatuses, err := impl.appListingRepository.FetchAppStageStatus(appId)
 	if isJob {
 		for i := range appStageStatuses {
 			if appStageStatuses[i].StageName == "TEMPLATE" || appStageStatuses[i].StageName == "CHART" || appStageStatuses[i].StageName == "CHART_ENV_CONFIG" {

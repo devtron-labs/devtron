@@ -44,7 +44,7 @@ type AppListingRepository interface {
 	FetchAppDetail(ctx context.Context, appId int, envId int) (bean.AppDetailContainer, error)
 
 	FetchAppTriggerView(appId int) ([]bean.TriggerView, error)
-	FetchAppStageStatus(appId int, isJob bool) ([]bean.AppStageStatus, error)
+	FetchAppStageStatus(appId int) ([]bean.AppStageStatus, error)
 
 	//Not in used
 	PrometheusApiByEnvId(id int) (*string, error)
@@ -213,7 +213,7 @@ func (impl AppListingRepositoryImpl) DeploymentDetailsByAppIdAndEnvId(ctx contex
 		" INNER JOIN ci_artifact cia on cia.id = pco.ci_artifact_id" +
 		" INNER JOIN app a ON a.id=p.app_id" +
 		" LEFT JOIN users u on u.id=pco.created_by" +
-		" WHERE a.app_store is false AND a.id=? AND env.id=? AND p.deleted = FALSE AND env.active = TRUE" +
+		" WHERE a.app_type = 0 AND a.id=? AND env.id=? AND p.deleted = FALSE AND env.active = TRUE" +
 		" ORDER BY pco.created_on desc limit 1;"
 	impl.Logger.Debugf("query:", query)
 	_, err := impl.dbConnection.Query(&deploymentDetail, query, appId, envId)
@@ -353,7 +353,7 @@ func (impl AppListingRepositoryImpl) FetchAppTriggerView(appId int) ([]bean.Trig
 		" INNER JOIN ci_pipeline cp on cp.id = p.ci_pipeline_id" +
 		" INNER JOIN app a ON a.id = p.app_id" +
 		" INNER JOIN environment env on env.id = p.environment_id" +
-		" WHERE p.app_id=? and p.deleted=false and a.app_store = 0 AND env.active = TRUE;"
+		" WHERE p.app_id=? and p.deleted=false and a.app_type = 0 AND env.active = TRUE;"
 
 	impl.Logger.Debugw("query", query)
 	_, err := impl.dbConnection.Query(&triggerView, query, appId)
@@ -409,7 +409,7 @@ func (impl AppListingRepositoryImpl) FetchAppTriggerView(appId int) ([]bean.Trig
 	return triggerViewResponse, nil
 }
 
-func (impl AppListingRepositoryImpl) FetchAppStageStatus(appId int, isJob bool) ([]bean.AppStageStatus, error) {
+func (impl AppListingRepositoryImpl) FetchAppStageStatus(appId int) ([]bean.AppStageStatus, error) {
 	impl.Logger.Debug("reached at AppListingRepository:")
 	var appStageStatus []bean.AppStageStatus
 
@@ -432,14 +432,14 @@ func (impl AppListingRepositoryImpl) FetchAppStageStatus(appId int, isJob bool) 
 		" LEFT JOIN charts ch on ch.app_id=app.id" +
 		" LEFT JOIN pipeline p on p.app_id=app.id" +
 		" LEFT JOIN chart_env_config_override ceco on ceco.chart_id=ch.id" +
-		" WHERE app.id=? and app.app_store = ?;"
+		" WHERE app.id=? and app.app_type = ?;"
 
 	impl.Logger.Debugw("last app stages status query:", "query", query)
-	appStore := 0
-	if isJob {
-		appStore = 2
-	}
-	_, err := impl.dbConnection.Query(&stages, query, appId, appStore)
+	appType := helper.CustomApp
+	//if isJob {
+	//	appType = helper.Job
+	//}
+	_, err := impl.dbConnection.Query(&stages, query, appId, appType)
 	if err != nil {
 		impl.Logger.Errorw("error:", err)
 		return appStageStatus, err
