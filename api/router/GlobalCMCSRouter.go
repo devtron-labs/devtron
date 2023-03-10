@@ -18,6 +18,14 @@ func NewGlobalCMCSRouterImpl(restHandler restHandler.GlobalCMCSRestHandler) *Glo
 }
 
 func (router GlobalCMCSRouterImpl) initGlobalCMCSRouter(configRouter *mux.Router) {
+	configRouter.Path("/{config_name}/{config_type}").
+		HandlerFunc(router.restHandler.GetGlobalCMCSDataByConfigTypeAndName).Methods("GET")
+	configRouter.Path("/all").
+		HandlerFunc(router.restHandler.GetAllGlobalCMCSData).Methods("GET")
 	configRouter.Path("").
 		HandlerFunc(router.restHandler.CreateGlobalCMCSConfig).Methods("POST")
+	configRouter.Path("/update").
+		HandlerFunc(router.restHandler.UpdateGlobalCMCSDataById).Methods("PUT")
+	configRouter.Path("/delete/{id}").
+		HandlerFunc(router.restHandler.DeleteByID).Methods("DELETE")
 }

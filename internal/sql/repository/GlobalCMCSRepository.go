@@ -11,9 +11,11 @@ type GlobalCMCSRepository interface {
 	Save(model *GlobalCMCS) (*GlobalCMCS, error)
 	Update(model *GlobalCMCS) (*GlobalCMCS, error)
 	FindAllActive() ([]*GlobalCMCS, error)
+	FindById(id int) (*GlobalCMCS, error)
 	FindByConfigTypeAndName(configType, name string) (*GlobalCMCS, error)
 	FindByMountPath(mountPath string) (*GlobalCMCS, error)
 	FindAllActiveByPipelineType(pipelineType string) ([]*GlobalCMCS, error)
+	Delete(model *GlobalCMCS) error
 }
 
 const (
@@ -113,8 +115,26 @@ func (impl *GlobalCMCSRepositoryImpl) FindAllActiveByPipelineType(pipelineType s
 		Where("secret_ingestion_for = ? OR secret_ingestion_for = ?", pipelineType, PIPELINE_TYPE_CI_CD).
 		Select()
 	if err != nil {
-		impl.logger.Errorw("err on getting global cm/cs config to be used by default in ci pipeline", "err", err)
+		impl.logger.Errorw("err on getting global cm/cs config to be used by default in ci/cd pipeline", "err", err)
 		return nil, err
 	}
 	return models, nil
+}
+
+func (impl *GlobalCMCSRepositoryImpl) FindById(id int) (*GlobalCMCS, error) {
+	model := &GlobalCMCS{}
+	err := impl.dbConnection.Model(model).Where("id = ? ", id).Select()
+	if err != nil {
+		impl.logger.Errorw("err on getting global cm/cs config to be used by default in ci/cd pipeline", "err", err)
+		return nil, err
+	}
+	return model, err
+}
+
+func (impl *GlobalCMCSRepositoryImpl) Delete(model *GlobalCMCS) error {
+	err := impl.dbConnection.Delete(model)
+	if err != nil {
+		impl.logger.Errorw("error in deleting global cm cs ", "err", err)
+	}
+	return nil
 }
