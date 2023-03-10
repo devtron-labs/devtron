@@ -139,8 +139,8 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) ArgoApplicationStatusUpdate() 
 		impl.logger.Errorw("error in converting string to int", "err", err)
 		return
 	}
-
-	err = impl.CdHandler.CheckArgoAppStatusPeriodicallyAndUpdateInDb(degradedTime)
+	pipelineStatusCheckDeployedSince := impl.AppStatusConfig.PipelineStatusCheckDeployedSince
+	err = impl.CdHandler.CheckArgoAppStatusPeriodicallyAndUpdateInDb(degradedTime, pipelineStatusCheckDeployedSince)
 	if err != nil {
 		impl.logger.Errorw("error argo app status update - cron job", "err", err)
 		return
