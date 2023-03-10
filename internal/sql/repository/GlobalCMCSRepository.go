@@ -10,7 +10,7 @@ import (
 type GlobalCMCSRepository interface {
 	Save(model *GlobalCMCS) (*GlobalCMCS, error)
 	Update(model *GlobalCMCS) (*GlobalCMCS, error)
-	FindAllActive() ([]*GlobalCMCS, error)
+	FindAllActive() ([]GlobalCMCS, error)
 	FindByConfigTypeAndName(configType, name string) (*GlobalCMCS, error)
 	FindByMountPath(mountPath string) (*GlobalCMCS, error)
 }
@@ -62,8 +62,8 @@ func (impl *GlobalCMCSRepositoryImpl) Update(model *GlobalCMCS) (*GlobalCMCS, er
 	return model, nil
 }
 
-func (impl *GlobalCMCSRepositoryImpl) FindAllActive() ([]*GlobalCMCS, error) {
-	var models []*GlobalCMCS
+func (impl *GlobalCMCSRepositoryImpl) FindAllActive() ([]GlobalCMCS, error) {
+	var models []GlobalCMCS
 	err := impl.dbConnection.Model(&models).
 		Where("deleted = ?", false).Select()
 	if err != nil {
