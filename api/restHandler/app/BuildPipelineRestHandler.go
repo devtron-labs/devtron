@@ -238,16 +238,6 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 	}
 	app.IsJob = appIsJob.IsJob
 
-	if app.IsJob {
-		isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
-		if !isSuperAdmin || err != nil {
-			if err != nil {
-				handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
-			}
-			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-			return
-		}
-	}
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
 	var ok bool
 	if patchRequest.IsJob {

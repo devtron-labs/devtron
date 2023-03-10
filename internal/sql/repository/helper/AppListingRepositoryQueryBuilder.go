@@ -151,7 +151,7 @@ func (impl AppListingRepositoryQueryBuilder) buildJobListingWhereCondition(jobLi
 
 	if jobListingFilter.AppNameSearch != "" {
 		likeClause := "'%" + jobListingFilter.AppNameSearch + "%'"
-		whereCondition = whereCondition + "and a.app_name like " + likeClause + " "
+		whereCondition = whereCondition + "and a.display_name like " + likeClause + " "
 	}
 	// add job stats filter here
 	if len(jobListingFilter.AppStatuses) > 0 {
