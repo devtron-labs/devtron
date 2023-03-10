@@ -110,12 +110,14 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 		}
 		model.Id = model.Id
 		//Starts Role and Mapping
-		var policies []casbin2.Policy
-		for _, roleFilter := range request.RoleFilters {
+
+		capacity, mapping := impl.userCommonService.GetCapacityForRoleFilter(request.RoleFilters)
+		var policies = make([]casbin2.Policy, 0, capacity)
+		for index, roleFilter := range request.RoleFilters {
 			roleFilter = impl.userCommonService.ReplacePlaceHolderForEmptyEntriesInRoleFilter(roleFilter)
 			entity := roleFilter.Entity
 			if roleFilter.Entity == bean.CLUSTER_ENTITIY {
-				policiesToBeAdded, err := impl.CreateOrUpdateRoleGroupForClusterEntity(roleFilter, request.UserId, model, nil, "", nil, tx)
+				policiesToBeAdded, err := impl.CreateOrUpdateRoleGroupForClusterEntity(roleFilter, request.UserId, model, nil, "", nil, tx, mapping[index])
 				policies = append(policies, policiesToBeAdded...)
 				if err != nil {
 					impl.logger.Errorw("error in creating updating role group for cluster entity", "err", err, "roleFilter", roleFilter)
@@ -186,10 +188,8 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 	return request, nil
 }
 
-func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForClusterEntity(roleFilter bean.RoleFilter, userId int32,
-	model *repository2.RoleGroup, existingRoles map[int]*repository2.RoleGroupRoleMapping, token string,
-	managerAuth func(resource, token string, object string) bool, tx *pg.Tx) ([]casbin2.Policy, error) {
-	var policiesToBeAdded []casbin2.Policy
+func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForClusterEntity(roleFilter bean.RoleFilter, userId int32, model *repository2.RoleGroup, existingRoles map[int]*repository2.RoleGroupRoleMapping, token string, managerAuth func(resource string, token string, object string) bool, tx *pg.Tx, capacity int) ([]casbin2.Policy, error) {
+	//var policiesToBeAdded []casbin2.Policy
 	namespaces := strings.Split(roleFilter.Namespace, ",")
 	groups := strings.Split(roleFilter.Group, ",")
 	kinds := strings.Split(roleFilter.Kind, ",")
@@ -197,6 +197,7 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForClusterEntity(roleFil
 	actionType := roleFilter.Action
 	accessType := roleFilter.AccessType
 	entity := roleFilter.Entity
+	var policiesToBeAdded = make([]casbin2.Policy, 0, capacity)
 	for _, namespace := range namespaces {
 		for _, group := range groups {
 			for _, kind := range kinds {
@@ -308,11 +309,13 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 	// DELETE PROCESS ENDS
 
 	//Adding New Policies
-	var policies []casbin2.Policy
-	for _, roleFilter := range request.RoleFilters {
+	//var policies []casbin2.Policy
+	capacity, mapping := impl.userCommonService.GetCapacityForRoleFilter(request.RoleFilters)
+	var policies = make([]casbin2.Policy, 0, capacity)
+	for index, roleFilter := range request.RoleFilters {
 		roleFilter = impl.userCommonService.ReplacePlaceHolderForEmptyEntriesInRoleFilter(roleFilter)
 		if roleFilter.Entity == bean.CLUSTER_ENTITIY {
-			policiesToBeAdded, err := impl.CreateOrUpdateRoleGroupForClusterEntity(roleFilter, request.UserId, roleGroup, existingRoles, token, managerAuth, tx)
+			policiesToBeAdded, err := impl.CreateOrUpdateRoleGroupForClusterEntity(roleFilter, request.UserId, roleGroup, existingRoles, token, managerAuth, tx, mapping[index])
 			policies = append(policies, policiesToBeAdded...)
 			if err != nil {
 				impl.logger.Errorw("error in creating updating role group for cluster entity", "err", err, "roleFilter", roleFilter)

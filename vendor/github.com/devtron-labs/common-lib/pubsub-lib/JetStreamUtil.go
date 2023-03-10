@@ -201,11 +201,31 @@ func ParseAndFillStreamWiseAndConsumerWiseConfigMaps() {
 		NatsMsgProcessingBatchSize: defaultConfig.NatsMsgProcessingBatchSize,
 	}
 
+	// default NATS Consumer config value for BULK CD TRIGGER topic
+	defaultConsumerConfigForBulkCdTriggerTopic := NatsConsumerConfig{}
+
+	err = json.Unmarshal([]byte(defaultConfig.NatsConsumerConfig), &defaultConsumerConfigForBulkCdTriggerTopic)
+
+	if err != nil {
+		log.Print("error in unmarshalling nats consumer config",
+			"consumer-config", defaultConfig.NatsConsumerConfig,
+			"err", err)
+	}
+
 	for key, _ := range NatsConsumerWiseConfigMapping {
 		defaultValue := defaultConsumerConfigVal
-		if _, ok := consumerConfigMap[key]; ok {
+
+		// Setting AckWait config. Only for BULK CD TRIGGER topic. Can be used for other topics
+		// if required to be made configurable
+		if key == BULK_DEPLOY_DURABLE {
+			defaultValue.AckWaitInSecs = defaultConsumerConfigForBulkCdTriggerTopic.AckWaitInSecs
+		}
+
+		// Overriding default config with explicitly provided topic-specific config
+		if _, ok := consumerConfigMap[key]; ok && (key != BULK_DEPLOY_DURABLE) {
 			defaultValue = consumerConfigMap[key]
 		}
+
 		NatsConsumerWiseConfigMapping[key] = defaultValue
 	}
 

@@ -32,7 +32,6 @@ import (
 	"github.com/go-pg/pg"
 	"github.com/gorilla/sessions"
 	"go.uber.org/zap"
-	"math"
 	"net/http"
 	"strings"
 	"time"
@@ -327,15 +326,16 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 	userInfo.Id = model.Id
 	//loading policy for safety
 	casbin2.LoadPolicy()
+
 	//Starts Role and Mapping
-	capacity := 15*200*200*6 + 15*50*25*25*25*3
+	capacity, mapping := impl.userCommonService.GetCapacityForRoleFilter(userInfo.RoleFilters)
 	//var policies []casbin2.Policy
 	var policies = make([]casbin2.Policy, 0, capacity)
 	if userInfo.SuperAdmin == false {
 		for index, roleFilter := range userInfo.RoleFilters {
 			impl.logger.Infow("Creating Or updating User Roles for RoleFilter ", "index", index)
 			entity := roleFilter.Entity
-			policiesToBeAdded, _, err := impl.CreateOrUpdateUserRolesForAllTypes(roleFilter, userInfo.UserId, model, nil, token, managerAuth, tx, entity)
+			policiesToBeAdded, _, err := impl.CreateOrUpdateUserRolesForAllTypes(roleFilter, userInfo.UserId, model, nil, token, managerAuth, tx, entity, mapping[index])
 			if err != nil {
 				impl.logger.Errorw("error in creating user roles for Alltypes", "err", err)
 				return nil, err
@@ -397,23 +397,16 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 	return userInfo, nil
 }
 
-func (impl UserServiceImpl) CreateOrUpdateUserRolesForAllTypes(roleFilter bean.RoleFilter, userId int32, model *repository2.UserModel, existingRoles map[int]repository2.UserRoleModel, token string, managerAuth func(resource string, token string, object string) bool, tx *pg.Tx, entity string) ([]casbin2.Policy, bool, error) {
+func (impl UserServiceImpl) CreateOrUpdateUserRolesForAllTypes(roleFilter bean.RoleFilter, userId int32, model *repository2.UserModel, existingRoles map[int]repository2.UserRoleModel, token string, managerAuth func(resource string, token string, object string) bool, tx *pg.Tx, entity string, capacity int) ([]casbin2.Policy, bool, error) {
 	//var policiesToBeAdded []casbin2.Policy
-	namespaces := strings.Split(roleFilter.Namespace, ",")
-	groups := strings.Split(roleFilter.Group, ",")
-	kinds := strings.Split(roleFilter.Kind, ",")
-	resources := strings.Split(roleFilter.Resource, ",")
-	entityNames := strings.Split(roleFilter.EntityName, ",")
-	environments := strings.Split(roleFilter.Environment, ",")
-	capacity := math.Max(float64(len(namespaces)*len(groups)*len(kinds)*len(resources)*3), float64(len(entityNames)*len(environments)*6))
-	var policiesToBeAdded = make([]casbin2.Policy, 0, int(capacity))
+	var policiesToBeAdded = make([]casbin2.Policy, 0, capacity)
 	var err error
 	rolesChanged := false
 	roleFilter = impl.userCommonService.ReplacePlaceHolderForEmptyEntriesInRoleFilter(roleFilter)
 	if entity == bean2.CLUSTER {
 		impl.logger.Infow("Creating Or updating User for Cluster Entity ", roleFilter.Cluster)
 
-		policiesToBeAdded, rolesChanged, err = impl.createOrUpdateUserRolesForClusterEntity(roleFilter, userId, model, existingRoles, token, managerAuth, tx, entity)
+		policiesToBeAdded, rolesChanged, err = impl.createOrUpdateUserRolesForClusterEntity(roleFilter, userId, model, existingRoles, token, managerAuth, tx, entity, capacity)
 		if err != nil {
 			return nil, false, err
 		}
@@ -489,7 +482,7 @@ func (impl UserServiceImpl) CreateOrUpdateUserRolesForAllTypes(roleFilter bean.R
 	return policiesToBeAdded, rolesChanged, nil
 }
 
-func (impl UserServiceImpl) createOrUpdateUserRolesForClusterEntity(roleFilter bean.RoleFilter, userId int32, model *repository2.UserModel, existingRoles map[int]repository2.UserRoleModel, token string, managerAuth func(resource string, token string, object string) bool, tx *pg.Tx, entity string) ([]casbin2.Policy, bool, error) {
+func (impl UserServiceImpl) createOrUpdateUserRolesForClusterEntity(roleFilter bean.RoleFilter, userId int32, model *repository2.UserModel, existingRoles map[int]repository2.UserRoleModel, token string, managerAuth func(resource string, token string, object string) bool, tx *pg.Tx, entity string, capacity int) ([]casbin2.Policy, bool, error) {
 
 	//var policiesToBeAdded []casbin2.Policy
 	rolesChanged := false
@@ -498,7 +491,7 @@ func (impl UserServiceImpl) createOrUpdateUserRolesForClusterEntity(roleFilter b
 	kinds := strings.Split(roleFilter.Kind, ",")
 	resources := strings.Split(roleFilter.Resource, ",")
 
-	capacity := len(namespaces) * len(groups) * len(kinds) * len(resources) * 3
+	//capacity := len(namespaces) * len(groups) * len(kinds) * len(resources) * 2
 	actionType := roleFilter.Action
 	accessType := roleFilter.AccessType
 	var policiesToBeAdded = make([]casbin2.Policy, 0, capacity)
@@ -664,9 +657,9 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 		return nil, false, false, nil, err
 	}
 
-	var addedPolicies []casbin2.Policy
 	var eliminatedPolicies []casbin2.Policy
-
+	capacity, mapping := impl.userCommonService.GetCapacityForRoleFilter(userInfo.RoleFilters)
+	var addedPolicies = make([]casbin2.Policy, 0, capacity)
 	restrictedGroups := []string{}
 	rolesChanged := false
 	groupsModified := false
@@ -703,10 +696,10 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 		}
 
 		//Adding New Policies
-		for _, roleFilter := range userInfo.RoleFilters {
+		for index, roleFilter := range userInfo.RoleFilters {
 			entity := roleFilter.Entity
 
-			policiesToBeAdded, rolesChangedFromRoleUpdate, err := impl.CreateOrUpdateUserRolesForAllTypes(roleFilter, userInfo.UserId, model, existingRoleIds, token, managerAuth, tx, entity)
+			policiesToBeAdded, rolesChangedFromRoleUpdate, err := impl.CreateOrUpdateUserRolesForAllTypes(roleFilter, userInfo.UserId, model, existingRoleIds, token, managerAuth, tx, entity, mapping[index])
 			if err != nil {
 				impl.logger.Errorw("error in creating user roles for All Types", "err", err)
 				return nil, false, false, nil, err
