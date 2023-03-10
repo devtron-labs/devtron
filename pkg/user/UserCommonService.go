@@ -10,6 +10,7 @@ import (
 	"github.com/go-pg/pg"
 	"github.com/gorilla/sessions"
 	"go.uber.org/zap"
+	"math"
 	"strings"
 )
 
@@ -19,6 +20,7 @@ type UserCommonService interface {
 	CheckRbacForClusterEntity(cluster, namespace, group, kind, resource, token string, managerAuth func(resource, token, object string) bool) bool
 	ReplacePlaceHolderForEmptyEntriesInRoleFilter(roleFilter bean.RoleFilter) bean.RoleFilter
 	RemovePlaceHolderInRoleFilterField(roleFilterField string) string
+	GetCapacityForRoleFilter(roleFilters []bean.RoleFilter) (int, map[int]int)
 }
 
 type UserCommonServiceImpl struct {
@@ -401,4 +403,22 @@ func (impl UserCommonServiceImpl) RemovePlaceHolderInRoleFilterField(roleFilterF
 		return ""
 	}
 	return roleFilterField
+}
+func (impl UserCommonServiceImpl) GetCapacityForRoleFilter(roleFilters []bean.RoleFilter) (int, map[int]int) {
+	capacity := 0
+
+	m := make(map[int]int)
+	for index, roleFilter := range roleFilters {
+		roleFilter = impl.ReplacePlaceHolderForEmptyEntriesInRoleFilter(roleFilter)
+		namespaces := strings.Split(roleFilter.Namespace, ",")
+		groups := strings.Split(roleFilter.Group, ",")
+		kinds := strings.Split(roleFilter.Kind, ",")
+		resources := strings.Split(roleFilter.Resource, ",")
+		entityNames := strings.Split(roleFilter.EntityName, ",")
+		environments := strings.Split(roleFilter.Environment, ",")
+		value := math.Max(float64(len(namespaces)*len(groups)*len(kinds)*len(resources)*2), float64(len(entityNames)*len(environments)*6))
+		m[index] = int(value)
+		capacity += int(value)
+	}
+	return capacity, m
 }
