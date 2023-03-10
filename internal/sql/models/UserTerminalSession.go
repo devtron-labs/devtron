@@ -12,8 +12,14 @@ type UserTerminalSessionRequest struct {
 type UserTerminalShellSessionRequest struct {
 	TerminalAccessId int    `json:"terminalAccessId" validate:"number,gt=0"`
 	ShellName        string `json:"shellName" validate:"required,min=1"`
+	NameSpace        string `json:"namespace" validate:"required,min=1"`
 }
 
+type UserTerminalPodEvents struct {
+	Status         string      `json:"status"`
+	ErrorReason    string      `json:"errorReason"`
+	EventsResponse interface{} `json:"eventsResponse"`
+}
 type UserTerminalSessionConfig struct {
 	MaxSessionPerUser                 int    `env:"MAX_SESSION_PER_USER" envDefault:"5"`
 	TerminalPodStatusSyncTimeInSecs   int    `env:"TERMINAL_POD_STATUS_SYNC_In_SECS" envDefault:"600"`
@@ -26,7 +32,11 @@ type UserTerminalSessionResponse struct {
 	UserId                int32             `json:"userId"`
 	TerminalAccessId      int               `json:"terminalAccessId"`
 	Status                TerminalPodStatus `json:"status"`
+	ErrorReason           string            `json:"errorReason"`
 	PodName               string            `json:"podName"`
+	NodeName              string            `json:"nodeName"`
+	IsValidShell          bool              `json:"isValidShell"`
+	ShellName             string            `json:"shellName"`
 }
 
 const TerminalAccessPodNameTemplate = "terminal-access-" + TerminalAccessClusterIdTemplateVar + "-" + TerminalAccessUserIdTemplateVar + "-" + TerminalAccessRandomIdVar
@@ -44,6 +54,9 @@ const TerminalAccessClusterRoleBindingTemplate = TerminalAccessPodNameTemplate +
 const TerminalAccessServiceAccountTemplateName = "terminal-access-service-account"
 const TerminalAccessServiceAccountTemplate = TerminalAccessPodNameTemplate + "-sa"
 const MaxSessionLimitReachedMsg = "session-limit-reached"
+const AUTO_SELECT_NODE string = "autoSelectNode"
+const ShellNotSupported string = "'%s' is not supported for the selected image"
+const AutoSelectShell string = "autoSelectShell"
 
 type TerminalPodStatus string
 
