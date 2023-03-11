@@ -128,7 +128,7 @@ func (repo AppRepositoryImpl) FindJobByDisplayName(appName string) (*App, error)
 		Model(pipelineGroup).
 		Where("display_name = ?", appName).
 		Where("active = ?", true).
-		Where("app_type = ?", 2).
+		Where("app_type = ?", helper.Job).
 		Order("id DESC").Limit(1).
 		Select()
 	// there is only single active app will be present in db with a same name.
@@ -269,7 +269,13 @@ func (repo AppRepositoryImpl) FindAppAndProjectByAppName(appName string) (*App, 
 
 func (repo AppRepositoryImpl) FindAllMatchesByAppName(appName string, appType helper.AppType) ([]*App, error) {
 	var apps []*App
-	err := repo.dbConnection.Model(&apps).Where("display_name LIKE ?", "%"+appName+"%").Where("active = ?", true).Where("app_type = ?", appType).Select()
+	var err error
+	if appType == helper.Job {
+		err = repo.dbConnection.Model(&apps).Where("display_name LIKE ?", "%"+appName+"%").Where("active = ?", true).Where("app_type = ?", appType).Select()
+	} else {
+		err = repo.dbConnection.Model(&apps).Where("app_name LIKE ?", "%"+appName+"%").Where("active = ?", true).Where("app_type = ?", appType).Select()
+	}
+
 	return apps, err
 }
 

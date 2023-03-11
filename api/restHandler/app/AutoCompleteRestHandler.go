@@ -34,11 +34,14 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListForAutocomplete(w http.Re
 	teamId := v.Get("teamId")
 	appName := v.Get("appName")
 	appTypeParam := v.Get("appType")
-	appType, err := strconv.Atoi(appTypeParam)
-	if err != nil {
-		handler.Logger.Errorw("service err, GetAppListForAutocomplete", "err", err, "teamId", teamId, "appTypeParam", appTypeParam)
-		common.WriteJsonResp(w, err, "Failed to parse appType param", http.StatusInternalServerError)
-		return
+	var appType int
+	if appTypeParam != "" {
+		appType, err = strconv.Atoi(appTypeParam)
+		if err != nil {
+			handler.Logger.Errorw("service err, GetAppListForAutocomplete", "err", err, "teamId", teamId, "appTypeParam", appTypeParam)
+			common.WriteJsonResp(w, err, "Failed to parse appType param", http.StatusInternalServerError)
+			return
+		}
 	}
 	handler.Logger.Infow("request payload, GetAppListForAutocomplete", "teamId", teamId)
 	var apps []*pipeline.AppBean

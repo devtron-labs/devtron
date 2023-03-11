@@ -28,9 +28,9 @@ import (
 type AppType int
 
 const (
-	CustomApp     AppType = 0
-	ChartStoreApp AppType = 1
-	Job           AppType = 2
+	CustomApp     AppType = 0 // cicd app
+	ChartStoreApp AppType = 1 // helm app
+	Job           AppType = 2 // jobs
 )
 
 type AppListingRepositoryQueryBuilder struct {
