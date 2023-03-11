@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"encoding/json"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -38,9 +37,9 @@ type GlobalCMCS struct {
 	Name       string   `sql:"name"`
 	Type       string   `sql:"type"` // [environment, volume]
 	//json string of map of key:value, example: '{ "a" : "b", "c" : "d"}'
-	Data      json.RawMessage `sql:"data"`
-	MountPath string          `sql:"mount_path"`
-	Deleted   bool            `sql:"deleted,notnull"`
+	Data      string `sql:"data"`
+	MountPath string `sql:"mount_path"`
+	Deleted   bool   `sql:"deleted,notnull"`
 	sql.AuditLog
 }
 
