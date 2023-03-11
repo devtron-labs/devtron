@@ -376,7 +376,7 @@ func (impl *ChartRepositoryServiceImpl) GetChartRepoList() ([]*ChartRepoDto, err
 		chartRepo.Active = model.Active
 		chartRepo.IsEditable = true
 		chartRepo.IsHealthy = model.IsHealthy
-		if model.ActiveDeploymentCount > 0 && chartRepo.IsHealthy {
+		if model.ActiveDeploymentCount > 0 {
 			chartRepo.IsEditable = false
 		}
 		chartRepo.AllowInsecureConnection = model.AllowInsecureConnection
@@ -717,6 +717,7 @@ func (impl *ChartRepositoryServiceImpl) CheckPrivateChartCredentialsHealth() {
 		ChartRepoDto := impl.convertFromDbResponse(chart)
 		validationResult := impl.ValidateChartRepo(ChartRepoDto)
 		if validationResult.CustomErrMsg != ValidationSuccessMsg && ChartRepoDto.IsHealthy && ChartRepoDto.AuthMode == "USERNAME_PASSWORD" {
+			impl.logger.Debugw("unhealth credentials found", "ChartRepoName", ChartRepoDto.Name)
 			dbConnection := impl.repoRepository.GetConnection()
 			tx, err := dbConnection.Begin()
 			if err != nil {
@@ -741,7 +742,6 @@ func (impl *ChartRepositoryServiceImpl) CheckPrivateChartCredentialsHealth() {
 				impl.logger.Errorw("error in deleting invalid chart repo secret", "err", err)
 				return
 			}
-
 			chart.IsHealthy = false
 			err = impl.repoRepository.Update(chart, tx)
 			if err != nil {
