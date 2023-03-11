@@ -30,7 +30,6 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/cron"
 	"github.com/devtron-labs/devtron/internal/constants"
-	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
@@ -641,10 +640,6 @@ func (handler AppListingRestHandlerImpl) FetchAppStageStatus(w http.ResponseWrit
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	v := r.URL.Query()
-	appTypeParam := v.Get("appType")
-	appType, err := strconv.Atoi(appTypeParam)
-
 	handler.logger.Infow("request payload, FetchAppStageStatus", "appId", appId)
 	token := r.Header.Get("token")
 	app, err := handler.pipeline.GetApp(appId)
@@ -662,7 +657,7 @@ func (handler AppListingRestHandlerImpl) FetchAppStageStatus(w http.ResponseWrit
 	}
 	//RBAC enforcer Ends
 
-	triggerView, err := handler.appListingService.FetchAppStageStatus(appId, appType == int(helper.Job))
+	triggerView, err := handler.appListingService.FetchAppStageStatus(appId)
 	if err != nil {
 		handler.logger.Errorw("service err, FetchAppStageStatus", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

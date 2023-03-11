@@ -80,7 +80,7 @@ type AppListingService interface {
 	GraphAPI(appId int, envId int) error
 
 	FetchAppTriggerView(appId int) ([]bean.TriggerView, error)
-	FetchAppStageStatus(appId int, isJob bool) ([]bean.AppStageStatus, error)
+	FetchAppStageStatus(appId int) ([]bean.AppStageStatus, error)
 
 	FetchOtherEnvironment(ctx context.Context, appId int) ([]*bean.Environment, error)
 	RedirectToLinkouts(Id int, appId int, envId int, podName string, containerName string) (string, error)
@@ -1532,17 +1532,8 @@ func (impl AppListingServiceImpl) FetchAppTriggerView(appId int) ([]bean.Trigger
 	return impl.appListingRepository.FetchAppTriggerView(appId)
 }
 
-func (impl AppListingServiceImpl) FetchAppStageStatus(appId int, isJob bool) ([]bean.AppStageStatus, error) {
+func (impl AppListingServiceImpl) FetchAppStageStatus(appId int) ([]bean.AppStageStatus, error) {
 	appStageStatuses, err := impl.appListingRepository.FetchAppStageStatus(appId)
-	if isJob {
-		for i := range appStageStatuses {
-			if appStageStatuses[i].StageName == "TEMPLATE" || appStageStatuses[i].StageName == "CHART" || appStageStatuses[i].StageName == "CHART_ENV_CONFIG" {
-				appStageStatuses[i].Status = true
-			} else if appStageStatuses[i].StageName == "APP" || appStageStatuses[i].StageName == "CD_PIPELINE" {
-				appStageStatuses[i].Status = false
-			}
-		}
-	}
 	return appStageStatuses, err
 }
 

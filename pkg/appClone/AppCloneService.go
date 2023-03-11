@@ -118,7 +118,7 @@ func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context 
 		Description: createReq.Description,
 	}
 	userId := createReq.UserId
-	appStatus, err := impl.appListingService.FetchAppStageStatus(cloneReq.RefAppId, cloneReq.AppType == helper.Job)
+	appStatus, err := impl.appListingService.FetchAppStageStatus(cloneReq.RefAppId)
 	if err != nil {
 		return nil, err
 	}
