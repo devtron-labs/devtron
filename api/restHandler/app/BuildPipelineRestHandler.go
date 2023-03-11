@@ -403,16 +403,6 @@ func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWr
 	handler.Logger.Infow("request payload, TriggerCiPipeline", "payload", ciTriggerRequest)
 
 	//RBAC CHECK CD PIPELINE - FOR USER
-	//if ciTriggerRequest.IsJob {
-	//	isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
-	//	if !isSuperAdmin || err != nil {
-	//		if err != nil {
-	//			handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
-	//		}
-	//		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-	//		return
-	//	}
-	//}
 	pipelines, err := handler.pipelineRepository.FindByCiPipelineId(ciTriggerRequest.PipelineId)
 	if err != nil {
 		handler.Logger.Errorw("error in finding ccd pipelines by ciPipelineId", "err", err)
