@@ -76,7 +76,6 @@ spec:
   selector:
     app: postgresql
     release: "devtron"
-{{- if not $.Values.global.externalDatabase }}
 ---
 apiVersion: v1
 kind: Service
