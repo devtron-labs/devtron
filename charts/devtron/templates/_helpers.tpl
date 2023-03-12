@@ -25,6 +25,17 @@ Returns a service name for Clair
 {{- end }}
 {{- end }}
 
+{{/*
+Returns a db name, clairv4 or orchestrator 
+*/}}
+{{- define "clair.db" }}
+{{- if .Values.global.externalDatabase }}
+{{- print "clairv4" }}
+{{- else }}
+{{- print "orchestrator" }}
+{{- end }}
+{{- end }}
+
 {{- define "argo-cd.selectorLabels" -}}
 {{- if .name -}}
 app.kubernetes.io/name: {{ include "argo-cd.name" .context }}-{{ .name }}
