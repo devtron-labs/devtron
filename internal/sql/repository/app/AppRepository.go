@@ -159,7 +159,8 @@ func (repo AppRepositoryImpl) CheckAppExists(appNames []string) ([]*App, error) 
 
 func (repo AppRepositoryImpl) FindById(id int) (*App, error) {
 	pipelineGroup := &App{}
-	err := repo.dbConnection.Model(pipelineGroup).Where("id = ?", id).Select()
+	err := repo.dbConnection.Model(pipelineGroup).Where("id = ?", id).
+		Where("active = ?", true).Select()
 	return pipelineGroup, err
 }
 
