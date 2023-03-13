@@ -409,11 +409,6 @@ func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWr
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	if pipelines != nil && (pipelines[0].App.AppType == helper.Job && ciTriggerRequest.InvalidateCache == true) {
-		handler.Logger.Errorw("Invalidate cache option is not valid for job ci-pipeline", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
 	var authorizedPipelines []pipelineConfig.Pipeline
 	var unauthorizedPipelines []pipelineConfig.Pipeline
 	token := r.Header.Get("token")

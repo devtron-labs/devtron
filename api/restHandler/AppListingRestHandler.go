@@ -30,6 +30,7 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/cron"
 	"github.com/devtron-labs/devtron/internal/constants"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
@@ -228,8 +229,9 @@ func (handler AppListingRestHandlerImpl) FetchJobOverviewCiPipelines(w http.Resp
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	_, err = handler.pipeline.GetApp(jobId)
-	if err != nil {
+	job, err := handler.pipeline.GetApp(jobId)
+	if job.AppType != helper.Job || err != nil {
+		handler.logger.Errorw("Job with the given Id does not exist")
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
