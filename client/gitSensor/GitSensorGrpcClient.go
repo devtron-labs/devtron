@@ -15,7 +15,6 @@ import (
 
 const (
 	ContextTimeoutInSeconds = 10
-	MaxMsgSizeBytes         = 20 * 1024 * 1024
 )
 
 type ApiClient interface {
@@ -467,7 +466,7 @@ func (client *GrpcApiClientImpl) GetAllWebhookEventConfigForHost(ctx context.Con
 	}
 
 	// mapping res
-	mappedRes := make([]*WebhookEventConfig, 0)
+	mappedRes := make([]*WebhookEventConfig, 0, len(res.WebhookEventConfig))
 	for _, item := range res.WebhookEventConfig {
 		mappedRes = append(mappedRes, client.mapWebhookEventConfigToLocalType(item))
 	}
@@ -516,7 +515,7 @@ func (client *GrpcApiClientImpl) GetWebhookPayloadDataForPipelineMaterialId(ctx 
 	}
 
 	// mapping res
-	payloads := make([]*WebhookPayloadDataPayloadsResponse, 0)
+	payloads := make([]*WebhookPayloadDataPayloadsResponse, 0, len(res.Payloads))
 	for _, item := range res.Payloads {
 
 		payload := &WebhookPayloadDataPayloadsResponse{
@@ -558,7 +557,7 @@ func (client *GrpcApiClientImpl) GetWebhookPayloadFilterDataForPipelineMaterialI
 	}
 
 	// mapping res
-	selectors := make([]*WebhookPayloadFilterDataSelectorResponse, 0)
+	selectors := make([]*WebhookPayloadFilterDataSelectorResponse, 0, len(res.SelectorsData))
 	for _, item := range res.SelectorsData {
 
 		selectors = append(selectors, &WebhookPayloadFilterDataSelectorResponse{
@@ -579,7 +578,7 @@ func (client *GrpcApiClientImpl) GetWebhookPayloadFilterDataForPipelineMaterialI
 
 func (client *GrpcApiClientImpl) mapWebhookEventConfigToLocalType(config *pb.WebhookEventConfig) *WebhookEventConfig {
 
-	selectors := make([]*WebhookEventSelectors, 0)
+	selectors := make([]*WebhookEventSelectors, 0, len(config.Selectors))
 	for _, item := range config.Selectors {
 
 		selector := &WebhookEventSelectors{
@@ -643,7 +642,7 @@ func (client *GrpcApiClientImpl) mapGitCommitToLocalType(commit *pb.GitCommit) G
 
 func (client *GrpcApiClientImpl) mapWebhookEventConfigToProtoType(config *WebhookEventConfig) *pb.WebhookEventConfig {
 
-	selectors := make([]*pb.WebhookEventSelectors, 0)
+	selectors := make([]*pb.WebhookEventSelectors, 0, len(config.Selectors))
 	for _, item := range config.Selectors {
 
 		selector := &pb.WebhookEventSelectors{
