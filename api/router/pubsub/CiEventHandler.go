@@ -20,12 +20,24 @@ package pubsub
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/caarlos0/env/v6"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
 )
+
+type CiEventConfig struct {
+	ExposeCiMetrics bool `env:"EXPOSE_CI_METRICS" envDefault:"false"`
+}
+
+func GetCiEventConfig() (*CiEventConfig, error) {
+	cfg := &CiEventConfig{}
+	err := env.Parse(cfg)
+	return cfg, err
+}
 
 type CiEventHandler interface {
 	Subscribe() error
@@ -37,6 +49,7 @@ type CiEventHandlerImpl struct {
 	logger         *zap.SugaredLogger
 	pubsubClient   *pubsub.PubSubClientServiceImpl
 	webhookService pipeline.WebhookService
+	ciEventConfig  *CiEventConfig
 }
 
 type CiCompleteEvent struct {
@@ -49,14 +62,17 @@ type CiCompleteEvent struct {
 	PipelineName       string                      `json:"pipelineName"`
 	DataSource         string                      `json:"dataSource"`
 	MaterialType       string                      `json:"materialType"`
+	Metrics            util.CIMetrics              `json:"metrics"`
+	AppName            string                      `json:"appName"`
 	isArtifactUploaded bool                        `json:"isArtifactUploaded"`
 }
 
-func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClientServiceImpl, webhookService pipeline.WebhookService) *CiEventHandlerImpl {
+func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClientServiceImpl, webhookService pipeline.WebhookService, ciEventConfig *CiEventConfig) *CiEventHandlerImpl {
 	ciEventHandlerImpl := &CiEventHandlerImpl{
 		logger:         logger,
 		pubsubClient:   pubsubClient,
 		webhookService: webhookService,
+		ciEventConfig:  ciEventConfig,
 	}
 	err := ciEventHandlerImpl.Subscribe()
 	if err != nil {

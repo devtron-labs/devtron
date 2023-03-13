@@ -159,6 +159,9 @@ type AppDetailContainer struct {
 	LinkOuts                  []LinkOuts             `json:"linkOuts,omitempty"`
 	ResourceTree              map[string]interface{} `json:"resourceTree,omitempty"`
 }
+type Notes struct {
+	Notes string `json:"gitOpsNotes,omitempty"`
+}
 
 type Environment struct {
 	AppStatus                  string `json:"appStatus"` //this is not the status of environment , this make sense with a specific app only
