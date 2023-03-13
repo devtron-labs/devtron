@@ -1,4 +1,5 @@
 ## Bugs
+- fix:showing right image imagetags in multiplecolons in registry url (#3103)
 - fix: cd metrics nil ptr fix (#3099)
 - fix: getting all environmets for super admin only (#3096)
 - fix: logs issue for init containers (#3076)
