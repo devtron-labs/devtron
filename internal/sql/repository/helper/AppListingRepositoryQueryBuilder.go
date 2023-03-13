@@ -57,7 +57,8 @@ const (
 )
 
 const (
-	AppNameSortBy SortBy = "appNameSort"
+	AppNameSortBy      SortBy = "appNameSort"
+	LastDeployedSortBy        = "lastDeployedSort"
 )
 
 func (impl AppListingRepositoryQueryBuilder) BuildAppListingQuery(appListingFilter AppListingFilter) string {
