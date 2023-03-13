@@ -196,7 +196,7 @@ func createAndUpdateSessionForUser(t *testing.T, terminalAccessServiceImpl *User
 func fetchSessionId(terminalAccessServiceImpl *UserTerminalAccessServiceImpl, terminalAccessId int) (string, error) {
 	sessionId := ""
 	for sessionId == "" {
-		fetchTerminalStatus, err := terminalAccessServiceImpl.FetchTerminalStatus(context.Background(), terminalAccessId, "default", "sh")
+		fetchTerminalStatus, err := terminalAccessServiceImpl.FetchTerminalStatus(context.Background(), terminalAccessId, "default", "internal-kubectl", "sh")
 		if err != nil {
 			return sessionId, err
 		}

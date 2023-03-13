@@ -1228,72 +1228,31 @@ func (impl *UserTerminalAccessServiceImpl) forceDeletePod(ctx context.Context, p
 	return true
 }
 
-func (impl *UserTerminalAccessServiceImpl) StartNodeDebug(nodeName, debugNodeImage string, userId int32) {
-	nodeDebugCmds := []string{"kubectl", "debug", "-i", "node", nodeName, fmt.Sprintf("--image=%s", debugNodeImage)}
-	utilityPodName := "terminal-access-node-debug-helper"
-	req := &models.UserTerminalSessionRequest{
-		PodName:   utilityPodName,
-		ClusterId: 1,
-		Namespace: "default",
-		BaseImage: "quay.io/devtron/ubuntu-k8s-utils:1.22",
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-
-	defer cancel()
-	err := impl.startTerminalPod(ctx, utilityPodName, req, true)
-	if err != nil {
-		impl.Logger.Errorw("error in creating utility pod to start node debug pod", "err", err)
-		return
-	}
-
-	terminalRequest := &terminal.TerminalSessionRequest{
-		PodName:       req.PodName,
-		ContainerName: "devtron-debug-terminal",
-		Namespace:     req.Namespace,
-		ClusterId:     req.ClusterId,
-	}
-	stdOut, _, err := impl.terminalSessionHandler.RunCmdInRemotePod(terminalRequest, nodeDebugCmds)
-	if err != nil {
-		impl.Logger.Errorw("error in creating node debug pod ", "node", nodeName, "err", err)
-		impl.Logger.Warnw("deleting utility pod used to create node debug pod", "utilityPodName", utilityPodName)
-		impl.forceDeletePod(ctx, utilityPodName, req.Namespace, req.ClusterId, userId)
-		return
-	}
-	outputString := stdOut.String()
-	nodeDebugPodName := strings.Split(strings.Split(outputString, "pod ")[1], " ")[0]
-	impl.Logger.Infow("node debug pod got created ", "podName", nodeDebugPodName, "nodeName", nodeName)
-	impl.Logger.Warnw("deleting utility pod used to create node debug pod", "utilityPodName", utilityPodName)
-	impl.forceDeletePod(ctx, utilityPodName, req.Namespace, req.ClusterId, userId)
-
+func (impl *UserTerminalAccessServiceImpl) StartNodeDebug(nodeName, debugPodImage, namespace string, clusterId int, userId int32) {
+	nodeObject, err := impl.findNodeObject(nodeName, clusterId)
 	//store and pass the node-debugger pod data as terminal pod
 	userTerminalRequest := &models.UserTerminalSessionRequest{
 		UserId:    userId,
-		PodName:   nodeDebugPodName,
-		Namespace: req.Namespace,
-		ClusterId: req.ClusterId,
-		BaseImage: debugNodeImage,
+		Namespace: namespace,
+		ClusterId: clusterId,
+		BaseImage: debugPodImage,
 		NodeName:  nodeName,
 		ShellName: "bash", //TODO: get it from user
 	}
-	terminalStartResponse, err := impl.createTerminalEntity(userTerminalRequest, nodeDebugPodName)
+
+	podObject, err := impl.generateNodeDebugPod(userTerminalRequest, nodeObject)
+	terminalStartResponse, err := impl.createTerminalEntity(userTerminalRequest, podObject.Name)
 	if err != nil {
 		impl.Logger.Errorw("failed to create terminal entity", "userTerminalAccessId", terminalStartResponse.TerminalAccessId, "err", err)
 		return
 	}
 }
 
+func (impl *UserTerminalAccessServiceImpl) findNodeObject(nodeName, clusterId) (*v1.Node, error) {
+	impl.k8sApplicationService.
+}
 func (impl *UserTerminalAccessServiceImpl) generateNodeDebugPod(o *models.UserTerminalSessionRequest, node *v1.Node) (*v1.Pod, error) {
 	cn := "debugger"
-	// Setting a user-specified container name doesn't make much difference when there's only one container,
-	// but the argument exists for pod debugging so it might be confusing if it didn't work here.
-	//if len(o.Container) > 0 {
-	//	cn = o.Container
-	//}
-
-	// The name of the debugging pod is based on the target node, and it's not configurable to
-	// limit the number of command line flags. There may be a collision on the name, but this
-	// should be rare enough that it's not worth the API round trip to check.
 	pn := fmt.Sprintf("node-debugger-%s-%s", node.Name, util.Generate(5))
 
 	impl.Logger.Infow("Creating debugging pod ", "podName", pn, "containerName", cn, "nodeName", node.Name)
@@ -1324,11 +1283,7 @@ func (impl *UserTerminalAccessServiceImpl) generateNodeDebugPod(o *models.UserTe
 		},
 	}
 
-	impl.applyHelper(p,cn,v1.Node){
-		mountRootPartition(pod, containerName)
-		clearSecurityContext(pod, containerName)
-		useHostNamespaces(pod)
-	}
+	impl.applyHelper(p, cn)
 	//if o.ArgsOnly {
 	//	p.Spec.Containers[0].Args = o.Args
 	//} else {
@@ -1345,4 +1300,46 @@ func (impl *UserTerminalAccessServiceImpl) generateNodeDebugPod(o *models.UserTe
 	podTemplate := string(podTemplateBytes)
 	err = impl.applyTemplate(context.Background(), o.ClusterId, podTemplate, podTemplate, false, o.Namespace)
 	return p, err
+}
+
+func (impl *UserTerminalAccessServiceImpl) applyHelper(pod *v1.Pod, containerName string) {
+	mountRootPartition(pod, containerName)
+	clearSecurityContext(pod, containerName)
+	useHostNamespaces(pod)
+}
+
+func mountRootPartition(p *v1.Pod, containerName string) {
+	const volumeName = "host-root"
+	p.Spec.Volumes = append(p.Spec.Volumes, v1.Volume{
+		Name: volumeName,
+		VolumeSource: v1.VolumeSource{
+			HostPath: &v1.HostPathVolumeSource{Path: "/"},
+		},
+	})
+	podutils.VisitContainers(&p.Spec, podutils.Containers, func(c *v1.Container, _ podutils.ContainerType) bool {
+		if c.Name != containerName {
+			return true
+		}
+		c.VolumeMounts = append(c.VolumeMounts, v1.VolumeMount{
+			MountPath: "/host",
+			Name:      volumeName,
+		})
+		return false
+	})
+}
+
+func useHostNamespaces(p *v1.Pod) {
+	p.Spec.HostNetwork = true
+	p.Spec.HostPID = true
+	p.Spec.HostIPC = true
+}
+
+func clearSecurityContext(p *v1.Pod, containerName string) {
+	podutils.VisitContainers(&p.Spec, podutils.AllContainers, func(c *v1.Container, _ podutils.ContainerType) bool {
+		if c.Name != containerName {
+			return true
+		}
+		c.SecurityContext = nil
+		return false
+	})
 }
