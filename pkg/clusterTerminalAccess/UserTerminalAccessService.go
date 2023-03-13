@@ -11,6 +11,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/terminal"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/robfig/cron/v3"
 	"github.com/yannh/kubeconform/pkg/resource"
@@ -1280,4 +1281,68 @@ func (impl *UserTerminalAccessServiceImpl) StartNodeDebug(nodeName, debugNodeIma
 		impl.Logger.Errorw("failed to create terminal entity", "userTerminalAccessId", terminalStartResponse.TerminalAccessId, "err", err)
 		return
 	}
+}
+
+func (impl *UserTerminalAccessServiceImpl) generateNodeDebugPod(o *models.UserTerminalSessionRequest, node *v1.Node) (*v1.Pod, error) {
+	cn := "debugger"
+	// Setting a user-specified container name doesn't make much difference when there's only one container,
+	// but the argument exists for pod debugging so it might be confusing if it didn't work here.
+	//if len(o.Container) > 0 {
+	//	cn = o.Container
+	//}
+
+	// The name of the debugging pod is based on the target node, and it's not configurable to
+	// limit the number of command line flags. There may be a collision on the name, but this
+	// should be rare enough that it's not worth the API round trip to check.
+	pn := fmt.Sprintf("node-debugger-%s-%s", node.Name, util.Generate(5))
+
+	impl.Logger.Infow("Creating debugging pod ", "podName", pn, "containerName", cn, "nodeName", node.Name)
+
+	p := &v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: pn,
+		},
+		Spec: v1.PodSpec{
+			Containers: []v1.Container{
+				{
+					Name: cn,
+					//Env:                      o.Env,
+					Image:                    o.BaseImage,
+					ImagePullPolicy:          v1.PullIfNotPresent,
+					Stdin:                    true,
+					TerminationMessagePolicy: v1.TerminationMessageReadFile,
+					TTY:                      true,
+				},
+			},
+			NodeName:      node.Name,
+			RestartPolicy: v1.RestartPolicyNever,
+			Tolerations: []v1.Toleration{
+				{
+					Operator: v1.TolerationOpExists,
+				},
+			},
+		},
+	}
+
+	impl.applyHelper(p,cn,v1.Node){
+		mountRootPartition(pod, containerName)
+		clearSecurityContext(pod, containerName)
+		useHostNamespaces(pod)
+	}
+	//if o.ArgsOnly {
+	//	p.Spec.Containers[0].Args = o.Args
+	//} else {
+	//	p.Spec.Containers[0].Command = o.Args
+	//}
+
+	//if err := o.Applier.Apply(p, cn, node); err != nil {
+	//	return nil, err
+	//}
+	podTemplateBytes, err := json.Marshal(&p)
+	if err != nil {
+
+	}
+	podTemplate := string(podTemplateBytes)
+	err = impl.applyTemplate(context.Background(), o.ClusterId, podTemplate, podTemplate, false, o.Namespace)
+	return p, err
 }
