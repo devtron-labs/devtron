@@ -34,6 +34,7 @@ import (
 	"github.com/devtron-labs/devtron/util/k8sObjectsUtil"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
@@ -200,22 +201,18 @@ func (handler *CommonDeploymentRestHandlerImpl) GetDeploymentHistoryValues(w htt
 	var rbacObject string
 	var rbacObject2 string
 	token := r.Header.Get("token")
-	t0 := time.Now()
 	if util2.IsHelmApp(appOfferingMode) {
 		rbacObject, rbacObject2 = handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(installedAppDto.ClusterId, installedAppDto.Namespace, installedAppDto.AppName)
 	} else {
 		rbacObject, rbacObject2 = handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(installedAppDto.AppName, installedAppDto.EnvironmentId)
 	}
 
-	handler.Logger.Infow("Time taken to get RBAC object", "time", time.Since(t0).Seconds(), "appName", installedAppDto.AppName, "namespace", installedAppDto.Namespace, "envId", installedAppDto.EnvironmentId, "clusterId", installedAppDto.ClusterId)
 	var ok bool
-	t0 = time.Now()
 	if rbacObject2 == "" {
 		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject)
 	} else {
 		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject2)
 	}
-	handler.Logger.Infow("Time taken to enforce RBAC", "time", time.Since(t0).Seconds(), "rbacObject", rbacObject, "rbacObject2", rbacObject2)
 	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
@@ -224,9 +221,9 @@ func (handler *CommonDeploymentRestHandlerImpl) GetDeploymentHistoryValues(w htt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	t0 = time.Now()
+	_, span := otel.Tracer("orchestrator").Start(ctx, "appStoreDeploymentService.GetDeploymentHistoryInfo")
 	res, err := handler.appStoreDeploymentService.GetDeploymentHistoryInfo(ctx, installedAppDto, installedAppVersionHistoryId)
-	handler.Logger.Infow("Time taken to get DeploymentHistoryInfo from appStoreDeploymentService", "time", time.Since(t0).Seconds(), "installedAppDto", installedAppDto, "installedAppVersionHistoryId", installedAppVersionHistoryId)
+	span.End()
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -234,9 +231,9 @@ func (handler *CommonDeploymentRestHandlerImpl) GetDeploymentHistoryValues(w htt
 	if util2.IsHelmApp(appOfferingMode) {
 		canUpdate := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject)
 		if !canUpdate && res != nil && res.Manifest != nil {
-			t0 = time.Now()
+			_, span = otel.Tracer("orchestrator").Start(ctx, "k8sObjectsUtil.HideValuesIfSecretForWholeYamlInput")
 			modifiedManifest, err := k8sObjectsUtil.HideValuesIfSecretForWholeYamlInput(*res.Manifest)
-			handler.Logger.Infow("Time taken to HideValuesIfSecretForWholeYamlInput", "time", time.Since(t0).Seconds(), "manifestSize", len(*res.Manifest))
+			span.End()
 			if err != nil {
 				handler.Logger.Errorw("error in hiding secret values", "err", err)
 				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
