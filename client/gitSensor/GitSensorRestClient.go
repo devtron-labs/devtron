@@ -33,6 +33,12 @@ import (
 	"time"
 )
 
+const (
+	POST = "POST"
+	GET  = "GET"
+	PUT  = "PUT"
+)
+
 // -----------
 type GitSensorResponse struct {
 	Code   int                  `json:"code,omitempty"`
@@ -301,93 +307,93 @@ func NewGitSensorSession(config *ClientConfig, logger *zap.SugaredLogger) (sessi
 }
 
 func (session RestClientImpl) GetHeadForPipelineMaterials(ctx context.Context, req *HeadRequest) (material []*CiPipelineMaterial, err error) {
-	request := &ClientRequest{ResponseBody: &material, Method: "POST", RequestBody: req, Path: "git-head"}
+	request := &ClientRequest{ResponseBody: &material, Method: POST, RequestBody: req, Path: "git-head"}
 	_, _, err = session.doRequest(request)
 	return material, err
 }
 
 func (session RestClientImpl) FetchChanges(ctx context.Context, changeRequest *FetchScmChangesRequest) (materialChangeResp *MaterialChangeResp, err error) {
 	materialChangeResp = new(MaterialChangeResp)
-	request := &ClientRequest{ResponseBody: materialChangeResp, Method: "POST", RequestBody: changeRequest, Path: "git-changes"}
+	request := &ClientRequest{ResponseBody: materialChangeResp, Method: POST, RequestBody: changeRequest, Path: "git-changes"}
 	_, _, err = session.doRequest(request)
 	return materialChangeResp, err
 }
 
 func (session RestClientImpl) SaveGitProvider(ctx context.Context, provider *GitProvider) error {
 	providerRes := new(GitProvider)
-	request := &ClientRequest{ResponseBody: providerRes, Method: "POST", RequestBody: provider, Path: "git-provider"}
+	request := &ClientRequest{ResponseBody: providerRes, Method: POST, RequestBody: provider, Path: "git-provider"}
 	_, _, err := session.doRequest(request)
 	return err
 }
 
 func (session RestClientImpl) AddRepo(ctx context.Context, material []*GitMaterial) error {
 	materialRes := new([]*GitMaterial)
-	request := &ClientRequest{ResponseBody: &materialRes, Method: "POST", RequestBody: material, Path: "git-repo"}
+	request := &ClientRequest{ResponseBody: &materialRes, Method: POST, RequestBody: material, Path: "git-repo"}
 	_, _, err := session.doRequest(request)
 	return err
 }
 
 func (session RestClientImpl) UpdateRepo(ctx context.Context, material *GitMaterial) error {
 	materialRes := new(GitMaterial)
-	request := &ClientRequest{ResponseBody: &materialRes, Method: "PUT", RequestBody: material, Path: "git-repo"}
+	request := &ClientRequest{ResponseBody: &materialRes, Method: PUT, RequestBody: material, Path: "git-repo"}
 	_, _, err := session.doRequest(request)
 	return err
 }
 
 func (session RestClientImpl) SavePipelineMaterial(ctx context.Context, material []*CiPipelineMaterial) error {
 	materialRes := new([]*CiPipelineMaterial)
-	request := &ClientRequest{ResponseBody: &materialRes, Method: "POST", RequestBody: &material, Path: "git-pipeline-material"}
+	request := &ClientRequest{ResponseBody: &materialRes, Method: POST, RequestBody: &material, Path: "git-pipeline-material"}
 	_, _, err := session.doRequest(request)
 	return err
 }
 
 func (session RestClientImpl) GetCommitMetadata(ctx context.Context, commitMetadataRequest *CommitMetadataRequest) (*GitCommit, error) {
 	commit := new(GitCommit)
-	request := &ClientRequest{ResponseBody: commit, Method: "POST", RequestBody: commitMetadataRequest, Path: "commit-metadata"}
+	request := &ClientRequest{ResponseBody: commit, Method: POST, RequestBody: commitMetadataRequest, Path: "commit-metadata"}
 	_, _, err := session.doRequest(request)
 	return commit, err
 }
 
 func (session RestClientImpl) GetCommitMetadataForPipelineMaterial(ctx context.Context, commitMetadataRequest *CommitMetadataRequest) (commit *GitCommit, err error) {
-	request := &ClientRequest{ResponseBody: &commit, Method: "GET", RequestBody: commitMetadataRequest, Path: "pipeline-material-commit-metadata"}
+	request := &ClientRequest{ResponseBody: &commit, Method: GET, RequestBody: commitMetadataRequest, Path: "pipeline-material-commit-metadata"}
 	_, _, err = session.doRequest(request)
 	return commit, err
 }
 
 func (session RestClientImpl) RefreshGitMaterial(ctx context.Context, req *RefreshGitMaterialRequest) (refreshRes *RefreshGitMaterialResponse, err error) {
 	refreshRes = new(RefreshGitMaterialResponse)
-	request := &ClientRequest{ResponseBody: refreshRes, Method: "POST", RequestBody: req, Path: "git-repo/refresh"}
+	request := &ClientRequest{ResponseBody: refreshRes, Method: POST, RequestBody: req, Path: "git-repo/refresh"}
 	_, _, err = session.doRequest(request)
 	return refreshRes, err
 }
 
 func (session RestClientImpl) GetWebhookData(ctx context.Context, req *WebhookDataRequest) (*WebhookAndCiData, error) {
 	webhookData := new(WebhookAndCiData)
-	request := &ClientRequest{ResponseBody: webhookData, Method: "GET", RequestBody: req, Path: "webhook/data"}
+	request := &ClientRequest{ResponseBody: webhookData, Method: GET, RequestBody: req, Path: "webhook/data"}
 	_, _, err := session.doRequest(request)
 	return webhookData, err
 }
 
 func (session RestClientImpl) GetAllWebhookEventConfigForHost(ctx context.Context, req *WebhookEventConfigRequest) (webhookEvents []*WebhookEventConfig, err error) {
-	request := &ClientRequest{ResponseBody: &webhookEvents, Method: "GET", RequestBody: req, Path: "/webhook/host/events"}
+	request := &ClientRequest{ResponseBody: &webhookEvents, Method: GET, RequestBody: req, Path: "/webhook/host/events"}
 	_, _, err = session.doRequest(request)
 	return webhookEvents, err
 }
 
 func (session RestClientImpl) GetWebhookEventConfig(ctx context.Context, req *WebhookEventConfigRequest) (webhookEvent *WebhookEventConfig, err error) {
-	request := &ClientRequest{ResponseBody: &webhookEvent, Method: "GET", RequestBody: req, Path: "/webhook/host/event"}
+	request := &ClientRequest{ResponseBody: &webhookEvent, Method: GET, RequestBody: req, Path: "/webhook/host/event"}
 	_, _, err = session.doRequest(request)
 	return webhookEvent, err
 }
 
 func (session RestClientImpl) GetWebhookPayloadDataForPipelineMaterialId(ctx context.Context, req *WebhookPayloadDataRequest) (response *WebhookPayloadDataResponse, err error) {
-	request := &ClientRequest{ResponseBody: &response, Method: "GET", RequestBody: req, Path: "/webhook/ci-pipeline-material/payload-data"}
+	request := &ClientRequest{ResponseBody: &response, Method: GET, RequestBody: req, Path: "/webhook/ci-pipeline-material/payload-data"}
 	_, _, err = session.doRequest(request)
 	return response, err
 }
 
 func (session RestClientImpl) GetWebhookPayloadFilterDataForPipelineMaterialId(ctx context.Context, req *WebhookPayloadFilterDataRequest) (response *WebhookPayloadFilterDataResponse, err error) {
-	request := &ClientRequest{ResponseBody: &response, Method: "GET", RequestBody: req, Path: "/webhook/ci-pipeline-material/payload-filter-data"}
+	request := &ClientRequest{ResponseBody: &response, Method: GET, RequestBody: req, Path: "/webhook/ci-pipeline-material/payload-filter-data"}
 	_, _, err = session.doRequest(request)
 	return response, err
 }

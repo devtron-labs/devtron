@@ -74,9 +74,6 @@ func (client *GrpcApiClientImpl) getConnection() (*grpc.ClientConn, error) {
 		grpc.WithChainUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor, otelgrpc.UnaryClientInterceptor()),
 		grpc.WithBlock(),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithDefaultCallOptions(
-			grpc.MaxCallRecvMsgSize(MaxMsgSizeBytes),
-		),
 		grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy":"round_robin"}`),
 	)
 	endpoint := fmt.Sprintf("dns:///%s", client.config.Url)
@@ -126,7 +123,7 @@ func (client *GrpcApiClientImpl) AddRepo(ctx context.Context, materials []*GitMa
 	}
 
 	// Mapping req to proto type
-	gitMaterials := make([]*pb.GitMaterial, 0)
+	gitMaterials := make([]*pb.GitMaterial, 0, len(materials))
 	for _, item := range materials {
 
 		gitMaterials = append(gitMaterials, &pb.GitMaterial{
@@ -182,7 +179,7 @@ func (client *GrpcApiClientImpl) SavePipelineMaterial(ctx context.Context, ciPip
 	}
 
 	// Mapping request
-	mappedCiPipelineMaterials := make([]*pb.CiPipelineMaterial, 0)
+	mappedCiPipelineMaterials := make([]*pb.CiPipelineMaterial, 0, len(ciPipelineMaterials))
 	for _, item := range ciPipelineMaterials {
 
 		mappedCiPipelineMaterials = append(mappedCiPipelineMaterials, &pb.CiPipelineMaterial{
@@ -221,7 +218,7 @@ func (client *GrpcApiClientImpl) FetchChanges(ctx context.Context, req *FetchScm
 	}
 
 	// Mapping res
-	commits := make([]*GitCommit, 0)
+	commits := make([]*GitCommit, 0, len(res.Commits))
 	for _, item := range res.Commits {
 		commit := client.mapGitCommitToLocalType(item)
 		commits = append(commits, &commit)
@@ -249,7 +246,7 @@ func (client *GrpcApiClientImpl) GetHeadForPipelineMaterials(ctx context.Context
 	}
 
 	// mapping req
-	var materialIds []int64
+	materialIds := make([]int64, 0, len(req.MaterialIds))
 	for _, item := range req.MaterialIds {
 		materialIds = append(materialIds, int64(item))
 	}
@@ -263,7 +260,7 @@ func (client *GrpcApiClientImpl) GetHeadForPipelineMaterials(ctx context.Context
 	}
 
 	// Mapping res
-	materials := make([]*CiPipelineMaterial, 0)
+	materials := make([]*CiPipelineMaterial, 0, len(res.Materials))
 	for _, item := range res.Materials {
 
 		materials = append(materials, &CiPipelineMaterial{
