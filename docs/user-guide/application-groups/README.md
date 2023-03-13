@@ -15,7 +15,7 @@ As an example, if you create two applications `app-A` and `app-B` and add them i
 You can search by using the `environment` name or you can also filter by the `cluster` name as shown in the above image.
 
 The benefits of using `Application Groups` in Devtron:
-- To deploy mulitple microservices.
-- To perform bulk CI/CD across multiple applciations under the same environment.
+- To deploy multiple microservices.
+- To perform bulk CI/CD across multiple applications under the same environment.
 
 `Note`: You must have a [super admin](https://docs.devtron.ai/v/v0.6/global-configurations/authorization/user-access#role-based-access-levels) permission to access all the applications in the `Application Groups`. Permission users with `admin` can access only the limited applications which they created.
