@@ -44,6 +44,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"net/http"
 	"strings"
@@ -908,13 +909,17 @@ func (impl AppStoreDeploymentServiceImpl) GetDeploymentHistoryInfo(ctx context.C
 	result := &openapi.HelmAppDeploymentManifestDetail{}
 	var err error
 	if util2.IsHelmApp(installedApp.AppOfferingMode) || installedApp.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
+		_, span := otel.Tracer("orchestrator").Start(ctx, "appStoreDeploymentHelmService.GetDeploymentHistoryInfo")
 		result, err = impl.appStoreDeploymentHelmService.GetDeploymentHistoryInfo(ctx, installedApp, int32(version))
+		span.End()
 		if err != nil {
 			impl.logger.Errorw("error while getting deployment history info", "error", err)
 			return nil, err
 		}
 	} else {
+		_, span := otel.Tracer("orchestrator").Start(ctx, "appStoreDeploymentArgoCdService.GetDeploymentHistoryInfo")
 		result, err = impl.appStoreDeploymentArgoCdService.GetDeploymentHistoryInfo(ctx, installedApp, int32(version))
+		span.End()
 		if err != nil {
 			impl.logger.Errorw("error while getting deployment history info", "error", err)
 			return nil, err
