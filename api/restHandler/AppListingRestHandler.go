@@ -231,8 +231,8 @@ func (handler AppListingRestHandlerImpl) FetchJobOverviewCiPipelines(w http.Resp
 	}
 	job, err := handler.pipeline.GetApp(jobId)
 	if job.AppType != helper.Job || err != nil {
-		handler.logger.Errorw("Job with the given Id does not exist")
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		handler.logger.Errorw("Job with the given Id does not exist", "err", err, "jobId", jobId)
+		common.WriteJsonResp(w, err, "Job with the given Id does not exist", http.StatusBadRequest)
 		return
 	}
 
