@@ -218,8 +218,9 @@ func (impl *AppStoreDeploymentHelmServiceImpl) GetDeploymentHistoryInfo(ctx cont
 		},
 		DeploymentVersion: version,
 	}
-
+	t0 := time.Now()
 	deploymentDetail, err := impl.helmAppClient.GetDeploymentDetail(ctx, req)
+	impl.Logger.Infow("time taken to get deployment detail from helm client", "time", time.Since(t0).Seconds(), "request", req)
 	if err != nil {
 		impl.Logger.Errorw("error in getting deployment detail", "err", err)
 		return nil, err

@@ -337,8 +337,9 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetDeploymentHistoryInfo(ctx con
 		ValuesYaml:                   values.ValuesYaml,
 	}
 
+	t0 := time.Now()
 	templateChart, manifestErr := impl.helmAppService.TemplateChart(ctx, &manifestRequest)
-
+	impl.Logger.Infow("time taken to fetch templateChart from helmAppService", "time", time.Since(t0).Seconds(), "manifestRequest", manifestRequest)
 	manifest := templateChart.GetManifest()
 
 	if manifestErr != nil {
