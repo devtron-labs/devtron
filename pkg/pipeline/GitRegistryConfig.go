@@ -163,10 +163,10 @@ func (impl GitRegistryConfigImpl) FetchAllGitProviders() ([]GitRegistry, error) 
 			Name:          provider.Name,
 			Url:           provider.Url,
 			UserName:      provider.UserName,
-			Password:      provider.Password,
+			Password:      "",
 			AuthMode:      provider.AuthMode,
-			AccessToken:   provider.AccessToken,
-			SshPrivateKey: provider.SshPrivateKey,
+			AccessToken:   "",
+			SshPrivateKey: "",
 			Active:        provider.Active,
 			UserId:        provider.CreatedBy,
 			GitHostId:     provider.GitHostId,
@@ -226,6 +226,15 @@ func (impl GitRegistryConfigImpl) Update(request *GitRegistry) (*GitRegistry, er
 			UserMessage:     "git provider update failed, provider does not exist",
 		}
 		return nil, err0
+	}
+	if request.Password == "" {
+		request.Password = existingProvider.Password
+	}
+	if request.SshPrivateKey == "" {
+		request.SshPrivateKey = existingProvider.SshPrivateKey
+	}
+	if request.AccessToken == "" {
+		request.AccessToken = existingProvider.AccessToken
 	}
 	provider := &repository.GitProvider{
 		Name:          request.Name,

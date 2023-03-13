@@ -20,12 +20,24 @@ package pubsub
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/caarlos0/env/v6"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
 )
+
+type CiEventConfig struct {
+	ExposeCiMetrics bool `env:"EXPOSE_CI_METRICS" envDefault:"false"`
+}
+
+func GetCiEventConfig() (*CiEventConfig, error) {
+	cfg := &CiEventConfig{}
+	err := env.Parse(cfg)
+	return cfg, err
+}
 
 type CiEventHandler interface {
 	Subscribe() error
@@ -37,6 +49,7 @@ type CiEventHandlerImpl struct {
 	logger         *zap.SugaredLogger
 	pubsubClient   *pubsub.PubSubClientServiceImpl
 	webhookService pipeline.WebhookService
+	ciEventConfig  *CiEventConfig
 }
 
 type CiCompleteEvent struct {
@@ -49,13 +62,16 @@ type CiCompleteEvent struct {
 	PipelineName     string                      `json:"pipelineName"`
 	DataSource       string                      `json:"dataSource"`
 	MaterialType     string                      `json:"materialType"`
+	Metrics          util.CIMetrics              `json:"metrics"`
+	AppName          string                      `json:"appName"`
 }
 
-func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClientServiceImpl, webhookService pipeline.WebhookService) *CiEventHandlerImpl {
+func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClientServiceImpl, webhookService pipeline.WebhookService, ciEventConfig *CiEventConfig) *CiEventHandlerImpl {
 	ciEventHandlerImpl := &CiEventHandlerImpl{
 		logger:         logger,
 		pubsubClient:   pubsubClient,
 		webhookService: webhookService,
+		ciEventConfig:  ciEventConfig,
 	}
 	err := ciEventHandlerImpl.Subscribe()
 	if err != nil {
@@ -71,6 +87,7 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 		//defer msg.Ack()
 		ciCompleteEvent := CiCompleteEvent{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &ciCompleteEvent)
+		util.TriggerCIMetrics(ciCompleteEvent.Metrics, impl.ciEventConfig.ExposeCiMetrics, ciCompleteEvent.PipelineName, ciCompleteEvent.AppName)
 		if err != nil {
 			impl.logger.Error("error while unmarshalling json data", "error", err)
 			return
@@ -80,6 +97,7 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 		if err != nil {
 			return
 		}
+
 		resp, err := impl.webhookService.HandleCiSuccessEvent(ciCompleteEvent.PipelineId, req)
 		if err != nil {
 			impl.logger.Error(err)
