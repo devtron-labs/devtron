@@ -207,7 +207,7 @@ func (handler *CommonDeploymentRestHandlerImpl) GetDeploymentHistoryValues(w htt
 		rbacObject, rbacObject2 = handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(installedAppDto.AppName, installedAppDto.EnvironmentId)
 	}
 
-	handler.Logger.Infow("Time taken to get RBAC object", "time", time.Since(t0).Seconds())
+	handler.Logger.Infow("Time taken to get RBAC object", "time", time.Since(t0).Seconds(), "appName", installedAppDto.AppName, "namespace", installedAppDto.Namespace, "envId", installedAppDto.EnvironmentId, "clusterId", installedAppDto.ClusterId)
 	var ok bool
 	t0 = time.Now()
 	if rbacObject2 == "" {
@@ -215,7 +215,7 @@ func (handler *CommonDeploymentRestHandlerImpl) GetDeploymentHistoryValues(w htt
 	} else {
 		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject2)
 	}
-	handler.Logger.Infow("Time taken to enforce RBAC", "time", time.Since(t0).Seconds())
+	handler.Logger.Infow("Time taken to enforce RBAC", "time", time.Since(t0).Seconds(), "rbacObject", rbacObject, "rbacObject2", rbacObject2)
 	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
