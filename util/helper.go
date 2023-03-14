@@ -22,7 +22,6 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
-	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/juju/errors"
 	"io"
@@ -47,18 +46,18 @@ type CDMetrics struct {
 }
 
 type CIMetrics struct {
-	CacheDownDuration  float64   `json:"CacheDownDuration"`
-	PreCiDuration      float64   `json:"PreCiDuration"`
-	BuildDuration      float64   `json:"BuildDuration"`
-	PostCiDuration     float64   `json:"PostCiDuration"`
-	CacheUpDuration    float64   `json:"CacheUpDuration"`
-	TotalDuration      float64   `json:"TotalDuration"`
-	CacheDownStartTime time.Time `json:"CacheDownStartTime"`
-	PreCiStartTime     time.Time `json:"pre_ci_start"`
-	BuildStartTime     time.Time `json:"BuildStartTime"`
-	PostCiStartTime    time.Time `json:"PostCiStartTime"`
-	CacheUpStartTime   time.Time `json:"CacheUpStartTime"`
-	TotalStartTime     time.Time `json:"TotalStartTime"`
+	CacheDownDuration  float64   `json:"cacheDownDuration"`
+	PreCiDuration      float64   `json:"preCiDuration"`
+	BuildDuration      float64   `json:"buildDuration"`
+	PostCiDuration     float64   `json:"postCiDuration"`
+	CacheUpDuration    float64   `json:"cacheUpDuration"`
+	TotalDuration      float64   `json:"totalDuration"`
+	CacheDownStartTime time.Time `json:"cacheDownStartTime"`
+	PreCiStartTime     time.Time `json:"preCiStart"`
+	BuildStartTime     time.Time `json:"buildStartTime"`
+	PostCiStartTime    time.Time `json:"postCiStartTime"`
+	CacheUpStartTime   time.Time `json:"cacheUpStartTime"`
+	TotalStartTime     time.Time `json:"totalStartTime"`
 }
 
 func ContainsString(list []string, element string) bool {
@@ -108,6 +107,9 @@ type Closer interface {
 }
 
 func Close(c Closer, logger *zap.SugaredLogger) {
+	if c == nil {
+		return
+	}
 	if err := c.Close(); err != nil {
 		logger.Warnf("failed to close %v: %v", c, err)
 	}
@@ -240,24 +242,13 @@ func TriggerCDMetrics(wfr CDMetrics, exposeCDMetrics bool) {
 	}
 }
 
-type BaseLogLocationConfig struct {
-	BaseLogLocationPath string `env:"BASE_LOG_LOCATION_PATH" envDefault:"home/devtron/"`
-}
-
-func GetBaseLogLocationPath(logger *zap.SugaredLogger) string {
-	baseLogLocationPathConfig := &BaseLogLocationConfig{}
-	err := env.Parse(baseLogLocationPathConfig)
-	if err != nil {
-		logger.Warnw("error occurred while parsing BaseLogLocationConfig", "err", err)
-	}
-	return baseLogLocationPathConfig.BaseLogLocationPath
-}
-
 func TriggerCIMetrics(Metrics CIMetrics, exposeCIMetrics bool, PipelineName string, AppName string) {
 	if exposeCIMetrics {
 		middleware.CacheDownloadDuration.WithLabelValues(PipelineName, AppName).Observe(Metrics.CacheDownDuration)
 		middleware.CiDuration.WithLabelValues(PipelineName, AppName).Observe(Metrics.TotalDuration)
-		middleware.CacheUploadDuration.WithLabelValues(PipelineName, AppName).Observe(Metrics.CacheUpDuration)
+		if Metrics.CacheUpDuration != 0 {
+			middleware.CacheUploadDuration.WithLabelValues(PipelineName, AppName).Observe(Metrics.CacheUpDuration)
+		}
 		if Metrics.PostCiDuration != 0 {
 			middleware.PostCiDuration.WithLabelValues(PipelineName, AppName).Observe(Metrics.PostCiDuration)
 		}

@@ -28,6 +28,7 @@ type HelmAppClient interface {
 	RollbackRelease(ctx context.Context, in *RollbackReleaseRequest) (*BooleanResponse, error)
 	TemplateChart(ctx context.Context, in *InstallReleaseRequest) (*TemplateChartResponse, error)
 	InstallReleaseWithCustomChart(ctx context.Context, in *HelmInstallCustomRequest) (*HelmInstallCustomResponse, error)
+	GetNotes(ctx context.Context, request *InstallReleaseRequest) (*ChartNotesResponse, error)
 }
 
 type HelmAppClientImpl struct {
@@ -289,4 +290,18 @@ func (impl *HelmAppClientImpl) InstallReleaseWithCustomChart(ctx context.Context
 		return nil, err
 	}
 	return response, nil
+}
+
+func (impl *HelmAppClientImpl) GetNotes(ctx context.Context, in *InstallReleaseRequest) (*ChartNotesResponse, error) {
+	applicationClient, err := impl.getApplicationClient()
+	if err != nil {
+		return nil, err
+	}
+	response, err := applicationClient.GetNotes(ctx, in)
+
+	if err != nil {
+		return nil, err
+	}
+	return response, nil
+
 }

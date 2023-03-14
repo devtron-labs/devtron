@@ -2,6 +2,7 @@ package gitSensor
 
 import (
 	"context"
+	"errors"
 	"github.com/caarlos0/env"
 	"go.uber.org/zap"
 )
@@ -39,13 +40,18 @@ func NewGitSensorClient(logger *zap.SugaredLogger, config *ClientConfig) (*Clien
 
 	var apiClient ApiClient
 	var err error
-	if !config.UseGrpc {
+	if config.Protocol == "REST" {
 		logger.Infow("using REST api client for git sensor")
 		apiClient, err = NewGitSensorSession(config, logger)
 
-	} else {
+	} else if config.Protocol == "GRPC" {
 		logger.Infow("using gRPC api client for git sensor")
 		apiClient, err = NewGitSensorGrpcClientImpl(logger, config)
+
+	} else {
+		err = errors.New("unknown protocol configured for git sensor client")
+		logger.Errorw(err.Error())
+		return nil, err
 	}
 
 	if err != nil {
@@ -57,9 +63,9 @@ func NewGitSensorClient(logger *zap.SugaredLogger, config *ClientConfig) (*Clien
 }
 
 type ClientConfig struct {
-	Url     string `env:"GIT_SENSOR_URL" envDefault:"127.0.0.1:7070"`
-	UseGrpc bool   `env:"GIT_SENSOR_USE_GRPC" envDefault:"false"`
-	Timeout int    `env:"GIT_SENSOR_TIMEOUT" envDefault:"0"` // in seconds
+	Url      string `env:"GIT_SENSOR_URL" envDefault:"127.0.0.1:7070"`
+	Protocol string `env:"GIT_SENSOR_PROTOCOL" envDefault:"REST"`
+	Timeout  int    `env:"GIT_SENSOR_TIMEOUT" envDefault:"0"` // in seconds
 }
 
 func GetConfig() (*ClientConfig, error) {

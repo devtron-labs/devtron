@@ -532,6 +532,7 @@ func (impl *K8sApplicationServiceImpl) validateContainerNameIfReqd(valid bool, r
 		podName := request.ResourceIdentifier.Name
 		for _, pod := range app.ResourceTreeResponse.PodMetadata {
 			if pod.Name == podName {
+
 				//finding the container name in main Containers
 				for _, container := range pod.Containers {
 					if container == requestContainerName {
@@ -547,11 +548,12 @@ func (impl *K8sApplicationServiceImpl) validateContainerNameIfReqd(valid bool, r
 				}
 
 				//finding the container name in ephemeral containers
-				for _, ephemeralContainer := range pod.InitContainers {
+				for _, ephemeralContainer := range pod.EphemeralContainers {
 					if ephemeralContainer == requestContainerName {
 						return true
 					}
 				}
+
 			}
 		}
 	}

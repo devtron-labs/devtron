@@ -1011,6 +1011,9 @@ func (impl *CiHandlerImpl) getLastSeenCommit(ciMaterialId int) (bean.GitCommit, 
 	if err != nil {
 		return bean.GitCommit{}, err
 	}
+	if len(res) == 0 {
+		return bean.GitCommit{}, errors.New("received empty response")
+	}
 	gitCommit := bean.GitCommit{
 		Commit:  res[0].GitCommit.Commit,
 		Author:  res[0].GitCommit.Author,

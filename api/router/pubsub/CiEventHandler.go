@@ -27,7 +27,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
-	"log"
 )
 
 type CiEventConfig struct {
@@ -98,7 +97,7 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 		if err != nil {
 			return
 		}
-		log.Printf("rishab-debugger inside orchestrator cieventhandler:", ciCompleteEvent.DockerImage)
+
 		resp, err := impl.webhookService.HandleCiSuccessEvent(ciCompleteEvent.PipelineId, req)
 		if err != nil {
 			impl.logger.Error(err)
