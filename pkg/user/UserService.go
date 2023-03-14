@@ -367,7 +367,7 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 			err = &util.ApiError{HttpStatusCode: http.StatusForbidden, UserMessage: "Invalid request, not allow to update super admin type user"}
 			return nil, err
 		}
-		flag, err := impl.userAuthRepository.CreateRoleForSuperAdminIfNotExists(tx)
+		flag, err := impl.userAuthRepository.CreateRoleForSuperAdminIfNotExists(tx, userInfo.UserId)
 		if err != nil || flag == false {
 			return nil, err
 		}
@@ -445,7 +445,7 @@ func (impl UserServiceImpl) CreateOrUpdateUserRolesForAllTypes(roleFilter bean.R
 				}
 				if roleModel.Id == 0 {
 					impl.logger.Debugw("no role found for given filter", "filter", "roleFilter", roleFilter)
-					flag, err, policiesAdded := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType)
+					flag, err, policiesAdded := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType, userId)
 					if err != nil || flag == false {
 						return policiesToBeAdded, rolesChanged, err
 					}
@@ -524,7 +524,7 @@ func (impl UserServiceImpl) createOrUpdateUserRolesForClusterEntity(roleFilter b
 					}
 					if roleModel.Id == 0 {
 						impl.logger.Infow("Creating Polices for cluster", resource, kind, namespace, group)
-						flag, err, policiesAdded := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes("", "", "", entity, roleFilter.Cluster, namespace, group, kind, resource, actionType, accessType)
+						flag, err, policiesAdded := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes("", "", "", entity, roleFilter.Cluster, namespace, group, kind, resource, actionType, accessType, userId)
 						if err != nil || flag == false {
 							return policiesToBeAdded, rolesChanged, err
 						}
@@ -768,7 +768,7 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 		// END GROUP POLICY
 
 	} else if userInfo.SuperAdmin == true {
-		flag, err := impl.userAuthRepository.CreateRoleForSuperAdminIfNotExists(tx)
+		flag, err := impl.userAuthRepository.CreateRoleForSuperAdminIfNotExists(tx, userInfo.UserId)
 		if err != nil || flag == false {
 			return nil, false, false, nil, err
 		}
