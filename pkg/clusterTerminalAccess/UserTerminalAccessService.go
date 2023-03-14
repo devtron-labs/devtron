@@ -1229,18 +1229,20 @@ func (impl *UserTerminalAccessServiceImpl) forceDeletePod(ctx context.Context, p
 	return true
 }
 
-func (impl *UserTerminalAccessServiceImpl) StartNodeDebug(nodeName, debugPodImage, namespace string, clusterId int, userId int32) (*models.UserTerminalSessionResponse, error) {
+func (impl *UserTerminalAccessServiceImpl) StartNodeDebug(userTerminalRequest *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error) {
 
 	//store and pass the node-debugger pod data as terminal pod
-	userTerminalRequest := &models.UserTerminalSessionRequest{
-		UserId:    userId,
-		Namespace: namespace,
-		ClusterId: clusterId,
-		BaseImage: debugPodImage,
-		NodeName:  nodeName,
-		ShellName: "bash", //TODO: get it from user
+	//userTerminalRequest = &models.UserTerminalSessionRequest{
+	//	UserId:    userId,
+	//	Namespace: namespace,
+	//	ClusterId: clusterId,
+	//	BaseImage: debugPodImage,
+	//	NodeName:  nodeName,
+	//	ShellName: "bash", //TODO: get it from user
+	//}
+	if userTerminalRequest.NodeName == models.AUTO_SELECT_NODE || userTerminalRequest.NodeName == "" {
+		return nil, errors.New("node name is not valid node-name : " + userTerminalRequest.NodeName)
 	}
-
 	podObject, err := impl.GenerateNodeDebugPod(userTerminalRequest)
 	if err != nil {
 		impl.Logger.Errorw("failed to create node-debug pod", "err", err, "userId", userTerminalRequest.UserId, "userTerminalRequest", userTerminalRequest)
@@ -1257,6 +1259,7 @@ func (impl *UserTerminalAccessServiceImpl) StartNodeDebug(nodeName, debugPodImag
 	for _, con := range podObject.Spec.Containers {
 		containers = append(containers, con.Name)
 	}
+	result.ShellName = userTerminalRequest.ShellName
 	result.Containers = containers
 	result.Status = ""
 	result.NodeName = podObject.Spec.NodeName
