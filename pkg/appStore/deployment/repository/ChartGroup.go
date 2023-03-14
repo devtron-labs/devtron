@@ -53,6 +53,7 @@ type ChartGroupReposotory interface {
 	FindById(chartGroupId int) (*ChartGroup, error)
 	GetAll(max int) ([]*ChartGroup, error)
 	MarkChartGroupDeleted(chartGroupId int, tx *pg.Tx) error
+	FindByName(chartGroupName string) (bool, error)
 }
 
 func (impl *ChartGroupReposotoryImpl) Save(model *ChartGroup) (*ChartGroup, error) {
@@ -104,4 +105,13 @@ func (impl *ChartGroupReposotoryImpl) MarkChartGroupDeleted(chartGroupId int, tx
 		Set("deleted = ?", true).
 		Update()
 	return err
+}
+
+func (impl *ChartGroupReposotoryImpl) FindByName(chartGroupName string) (bool, error) {
+	var ChartGroup ChartGroup
+	exists, err := impl.dbConnection.Model(&ChartGroup).Where("name = ?", chartGroupName).
+		Where("deleted = ?", false).
+		Exists()
+
+	return exists, err
 }

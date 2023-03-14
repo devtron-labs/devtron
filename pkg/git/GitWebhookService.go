@@ -70,8 +70,9 @@ func (impl *GitWebhookServiceImpl) HandleGitWebhook(gitWebhookRequest gitSensor.
 	}
 
 	resp, err := impl.ciHandler.HandleCIWebhook(bean.GitCiTriggerRequest{
-		CiPipelineMaterial: ciPipelineMaterial,
-		TriggeredBy:        1, // Automatic trigger, userId is 1
+		CiPipelineMaterial:        ciPipelineMaterial,
+		TriggeredBy:               1, // Automatic trigger, userId is 1
+		ExtraEnvironmentVariables: gitWebhookRequest.ExtraEnvironmentVariables,
 	})
 	if err != nil {
 		impl.logger.Errorw("failed HandleCIWebhook", "err", err)

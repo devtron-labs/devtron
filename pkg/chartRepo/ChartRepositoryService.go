@@ -156,7 +156,6 @@ func (impl *ChartRepositoryServiceImpl) UpdateChartRepo(request *ChartRepoDto) (
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-
 	chartRepo, err := impl.repoRepository.FindById(request.Id)
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
@@ -168,12 +167,13 @@ func (impl *ChartRepositoryServiceImpl) UpdateChartRepo(request *ChartRepoDto) (
 	chartRepo.AuthMode = request.AuthMode
 	chartRepo.UserName = request.UserName
 	chartRepo.Password = request.Password
-	chartRepo.Active = request.Active
+	chartRepo.Name = request.Name
 	chartRepo.AccessToken = request.AccessToken
 	chartRepo.SshKey = request.SshKey
 	chartRepo.Active = request.Active
 	chartRepo.UpdatedBy = request.UserId
 	chartRepo.UpdatedOn = time.Now()
+	//}
 	err = impl.repoRepository.Update(chartRepo, tx)
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
@@ -343,7 +343,7 @@ func (impl *ChartRepositoryServiceImpl) convertFromDbResponse(model *chartRepoRe
 
 func (impl *ChartRepositoryServiceImpl) GetChartRepoList() ([]*ChartRepoDto, error) {
 	var chartRepos []*ChartRepoDto
-	models, err := impl.repoRepository.FindAll()
+	models, err := impl.repoRepository.FindAllWithDeploymentCount()
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
 	}
@@ -359,6 +359,10 @@ func (impl *ChartRepositoryServiceImpl) GetChartRepoList() ([]*ChartRepoDto, err
 		chartRepo.AccessToken = model.AccessToken
 		chartRepo.Default = model.Default
 		chartRepo.Active = model.Active
+		chartRepo.IsEditable = true
+		if model.ActiveDeploymentCount > 0 {
+			chartRepo.IsEditable = false
+		}
 		chartRepos = append(chartRepos, chartRepo)
 	}
 	return chartRepos, nil
@@ -449,7 +453,7 @@ func (impl *ChartRepositoryServiceImpl) ValidateAndUpdateChartRepo(request *Char
 		impl.logger.Errorw("Error in triggering chart sync job manually", "err", err)
 	}
 
-	return chartRepo, err, validationResult
+	return chartRepo, nil, validationResult
 }
 
 func (impl *ChartRepositoryServiceImpl) TriggerChartSyncManual() error {
