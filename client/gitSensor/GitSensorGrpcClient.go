@@ -122,20 +122,23 @@ func (client *GrpcApiClientImpl) AddRepo(ctx context.Context, materials []*GitMa
 	}
 
 	// Mapping req to proto type
-	gitMaterials := make([]*pb.GitMaterial, 0, len(materials))
-	for _, item := range materials {
+	var gitMaterials []*pb.GitMaterial
+	if materials != nil {
+		gitMaterials = make([]*pb.GitMaterial, 0, len(materials))
+		for _, item := range materials {
 
-		gitMaterials = append(gitMaterials, &pb.GitMaterial{
-			Id:               int64(item.Id),
-			GitProviderId:    int64(item.GitProviderId),
-			Url:              item.Url,
-			FetchSubmodules:  item.FetchSubmodules,
-			Name:             item.Name,
-			CheckoutLocation: item.CheckoutLocation,
-			CheckoutStatus:   item.CheckoutStatus,
-			CheckoutMsgAny:   item.CheckoutMsgAny,
-			Deleted:          item.Deleted,
-		})
+			gitMaterials = append(gitMaterials, &pb.GitMaterial{
+				Id:               int64(item.Id),
+				GitProviderId:    int64(item.GitProviderId),
+				Url:              item.Url,
+				FetchSubmodules:  item.FetchSubmodules,
+				Name:             item.Name,
+				CheckoutLocation: item.CheckoutLocation,
+				CheckoutStatus:   item.CheckoutStatus,
+				CheckoutMsgAny:   item.CheckoutMsgAny,
+				Deleted:          item.Deleted,
+			})
+		}
 	}
 
 	_, err = serviceClient.AddRepo(ctx, &pb.AddRepoRequest{
@@ -178,16 +181,19 @@ func (client *GrpcApiClientImpl) SavePipelineMaterial(ctx context.Context, ciPip
 	}
 
 	// Mapping request
-	mappedCiPipelineMaterials := make([]*pb.CiPipelineMaterial, 0, len(ciPipelineMaterials))
-	for _, item := range ciPipelineMaterials {
+	var mappedCiPipelineMaterials []*pb.CiPipelineMaterial
+	if ciPipelineMaterials != nil {
+		mappedCiPipelineMaterials = make([]*pb.CiPipelineMaterial, 0, len(ciPipelineMaterials))
+		for _, item := range ciPipelineMaterials {
 
-		mappedCiPipelineMaterials = append(mappedCiPipelineMaterials, &pb.CiPipelineMaterial{
-			Id:            int64(item.Id),
-			GitMaterialId: int64(item.GitMaterialId),
-			Type:          string(item.Type),
-			Value:         item.Value,
-			Active:        item.Active,
-		})
+			mappedCiPipelineMaterials = append(mappedCiPipelineMaterials, &pb.CiPipelineMaterial{
+				Id:            int64(item.Id),
+				GitMaterialId: int64(item.GitMaterialId),
+				Type:          string(item.Type),
+				Value:         item.Value,
+				Active:        item.Active,
+			})
+		}
 	}
 
 	_, err = serviceClient.SavePipelineMaterial(ctx, &pb.SavePipelineMaterialRequest{
@@ -217,10 +223,13 @@ func (client *GrpcApiClientImpl) FetchChanges(ctx context.Context, req *FetchScm
 	}
 
 	// Mapping res
-	commits := make([]*GitCommit, 0, len(res.Commits))
-	for _, item := range res.Commits {
-		commit := client.mapGitCommitToLocalType(item)
-		commits = append(commits, &commit)
+	var commits []*GitCommit
+	if res.Commits != nil {
+		commits = make([]*GitCommit, 0, len(res.Commits))
+		for _, item := range res.Commits {
+			commit := client.mapGitCommitToLocalType(item)
+			commits = append(commits, &commit)
+		}
 	}
 
 	mappedRes := &MaterialChangeResp{
@@ -245,9 +254,12 @@ func (client *GrpcApiClientImpl) GetHeadForPipelineMaterials(ctx context.Context
 	}
 
 	// mapping req
-	materialIds := make([]int64, 0, len(req.MaterialIds))
-	for _, item := range req.MaterialIds {
-		materialIds = append(materialIds, int64(item))
+	var materialIds []int64
+	if req.MaterialIds != nil {
+		materialIds = make([]int64, 0, len(req.MaterialIds))
+		for _, item := range req.MaterialIds {
+			materialIds = append(materialIds, int64(item))
+		}
 	}
 
 	res, err := serviceClient.GetHeadForPipelineMaterials(ctx, &pb.HeadRequest{MaterialIds: materialIds})
@@ -259,18 +271,21 @@ func (client *GrpcApiClientImpl) GetHeadForPipelineMaterials(ctx context.Context
 	}
 
 	// Mapping res
-	materials := make([]*CiPipelineMaterial, 0, len(res.Materials))
-	for _, item := range res.Materials {
+	var materials []*CiPipelineMaterial
+	if res.Materials != nil {
+		materials = make([]*CiPipelineMaterial, 0, len(res.Materials))
+		for _, item := range res.Materials {
 
-		materials = append(materials, &CiPipelineMaterial{
-			Id:                        int(item.Id),
-			GitMaterialId:             int(item.GitMaterialId),
-			Type:                      SourceType(item.Type),
-			Value:                     item.Value,
-			Active:                    item.Active,
-			GitCommit:                 client.mapGitCommitToLocalType(item.GitCommit),
-			ExtraEnvironmentVariables: item.ExtraEnvironmentVariables,
-		})
+			materials = append(materials, &CiPipelineMaterial{
+				Id:                        int(item.Id),
+				GitMaterialId:             int(item.GitMaterialId),
+				Type:                      SourceType(item.Type),
+				Value:                     item.Value,
+				Active:                    item.Active,
+				GitCommit:                 client.mapGitCommitToLocalType(item.GitCommit),
+				ExtraEnvironmentVariables: item.ExtraEnvironmentVariables,
+			})
+		}
 	}
 	return materials, nil
 }
@@ -466,9 +481,12 @@ func (client *GrpcApiClientImpl) GetAllWebhookEventConfigForHost(ctx context.Con
 	}
 
 	// mapping res
-	mappedRes := make([]*WebhookEventConfig, 0, len(res.WebhookEventConfig))
-	for _, item := range res.WebhookEventConfig {
-		mappedRes = append(mappedRes, client.mapWebhookEventConfigToLocalType(item))
+	var mappedRes []*WebhookEventConfig
+	if res.WebhookEventConfig != nil {
+		mappedRes = make([]*WebhookEventConfig, 0, len(res.WebhookEventConfig))
+		for _, item := range res.WebhookEventConfig {
+			mappedRes = append(mappedRes, client.mapWebhookEventConfigToLocalType(item))
+		}
 	}
 	return mappedRes, nil
 }
@@ -515,19 +533,22 @@ func (client *GrpcApiClientImpl) GetWebhookPayloadDataForPipelineMaterialId(ctx 
 	}
 
 	// mapping res
-	payloads := make([]*WebhookPayloadDataPayloadsResponse, 0, len(res.Payloads))
-	for _, item := range res.Payloads {
+	var payloads []*WebhookPayloadDataPayloadsResponse
+	if res.Payloads != nil {
+		payloads = make([]*WebhookPayloadDataPayloadsResponse, 0, len(res.Payloads))
+		for _, item := range res.Payloads {
 
-		payload := &WebhookPayloadDataPayloadsResponse{
-			ParsedDataId:        int(item.ParsedDataId),
-			MatchedFiltersCount: int(item.MatchedFiltersCount),
-			FailedFiltersCount:  int(item.FailedFiltersCount),
-			MatchedFilters:      item.MatchedFilters,
+			payload := &WebhookPayloadDataPayloadsResponse{
+				ParsedDataId:        int(item.ParsedDataId),
+				MatchedFiltersCount: int(item.MatchedFiltersCount),
+				FailedFiltersCount:  int(item.FailedFiltersCount),
+				MatchedFilters:      item.MatchedFilters,
+			}
+			if item.EventTime != nil {
+				payload.EventTime = item.EventTime.AsTime()
+			}
+			payloads = append(payloads, payload)
 		}
-		if item.EventTime != nil {
-			payload.EventTime = item.EventTime.AsTime()
-		}
-		payloads = append(payloads, payload)
 	}
 
 	return &WebhookPayloadDataResponse{
@@ -557,15 +578,18 @@ func (client *GrpcApiClientImpl) GetWebhookPayloadFilterDataForPipelineMaterialI
 	}
 
 	// mapping res
-	selectors := make([]*WebhookPayloadFilterDataSelectorResponse, 0, len(res.SelectorsData))
-	for _, item := range res.SelectorsData {
+	var selectors []*WebhookPayloadFilterDataSelectorResponse
+	if res.SelectorsData != nil {
+		selectors = make([]*WebhookPayloadFilterDataSelectorResponse, 0, len(res.SelectorsData))
+		for _, item := range res.SelectorsData {
 
-		selectors = append(selectors, &WebhookPayloadFilterDataSelectorResponse{
-			SelectorName:      item.SelectorName,
-			SelectorCondition: item.SelectorCondition,
-			SelectorValue:     item.SelectorValue,
-			Match:             item.Match,
-		})
+			selectors = append(selectors, &WebhookPayloadFilterDataSelectorResponse{
+				SelectorName:      item.SelectorName,
+				SelectorCondition: item.SelectorCondition,
+				SelectorValue:     item.SelectorValue,
+				Match:             item.Match,
+			})
+		}
 	}
 
 	mappedRes := &WebhookPayloadFilterDataResponse{
@@ -578,26 +602,29 @@ func (client *GrpcApiClientImpl) GetWebhookPayloadFilterDataForPipelineMaterialI
 
 func (client *GrpcApiClientImpl) mapWebhookEventConfigToLocalType(config *pb.WebhookEventConfig) *WebhookEventConfig {
 
-	selectors := make([]*WebhookEventSelectors, 0, len(config.Selectors))
-	for _, item := range config.Selectors {
+	var selectors []*WebhookEventSelectors
+	if config.Selectors != nil {
+		selectors = make([]*WebhookEventSelectors, 0, len(config.Selectors))
+		for _, item := range config.Selectors {
 
-		selector := &WebhookEventSelectors{
-			Id:               int(item.Id),
-			EventId:          int(item.EventId),
-			Name:             item.Name,
-			ToShow:           item.ToShow,
-			ToShowInCiFilter: item.ToShowInCiFilter,
-			FixValue:         item.FixValue,
-			PossibleValues:   item.PossibleValues,
-			IsActive:         item.IsActive,
+			selector := &WebhookEventSelectors{
+				Id:               int(item.Id),
+				EventId:          int(item.EventId),
+				Name:             item.Name,
+				ToShow:           item.ToShow,
+				ToShowInCiFilter: item.ToShowInCiFilter,
+				FixValue:         item.FixValue,
+				PossibleValues:   item.PossibleValues,
+				IsActive:         item.IsActive,
+			}
+			if item.CreatedOn != nil {
+				selector.CreatedOn = item.CreatedOn.AsTime()
+			}
+			if item.UpdatedOn != nil {
+				selector.UpdatedOn = item.UpdatedOn.AsTime()
+			}
+			selectors = append(selectors, selector)
 		}
-		if item.CreatedOn != nil {
-			selector.CreatedOn = item.CreatedOn.AsTime()
-		}
-		if item.UpdatedOn != nil {
-			selector.UpdatedOn = item.UpdatedOn.AsTime()
-		}
-		selectors = append(selectors, selector)
 	}
 
 	mappedConfig := &WebhookEventConfig{
@@ -642,26 +669,29 @@ func (client *GrpcApiClientImpl) mapGitCommitToLocalType(commit *pb.GitCommit) G
 
 func (client *GrpcApiClientImpl) mapWebhookEventConfigToProtoType(config *WebhookEventConfig) *pb.WebhookEventConfig {
 
-	selectors := make([]*pb.WebhookEventSelectors, 0, len(config.Selectors))
-	for _, item := range config.Selectors {
+	var selectors []*pb.WebhookEventSelectors
+	if config.Selectors != nil {
+		selectors = make([]*pb.WebhookEventSelectors, 0, len(config.Selectors))
+		for _, item := range config.Selectors {
 
-		selector := &pb.WebhookEventSelectors{
-			Id:               int64(item.Id),
-			EventId:          int64(item.EventId),
-			Name:             item.Name,
-			ToShow:           item.ToShow,
-			ToShowInCiFilter: item.ToShowInCiFilter,
-			FixValue:         item.FixValue,
-			PossibleValues:   item.PossibleValues,
-			IsActive:         item.IsActive,
+			selector := &pb.WebhookEventSelectors{
+				Id:               int64(item.Id),
+				EventId:          int64(item.EventId),
+				Name:             item.Name,
+				ToShow:           item.ToShow,
+				ToShowInCiFilter: item.ToShowInCiFilter,
+				FixValue:         item.FixValue,
+				PossibleValues:   item.PossibleValues,
+				IsActive:         item.IsActive,
+			}
+			if !item.CreatedOn.IsZero() {
+				selector.CreatedOn = timestamppb.New(item.CreatedOn)
+			}
+			if !item.UpdatedOn.IsZero() {
+				selector.UpdatedOn = timestamppb.New(item.UpdatedOn)
+			}
+			selectors = append(selectors, selector)
 		}
-		if !item.CreatedOn.IsZero() {
-			selector.CreatedOn = timestamppb.New(item.CreatedOn)
-		}
-		if !item.UpdatedOn.IsZero() {
-			selector.UpdatedOn = timestamppb.New(item.UpdatedOn)
-		}
-		selectors = append(selectors, selector)
 	}
 
 	mappedConfig := &pb.WebhookEventConfig{
