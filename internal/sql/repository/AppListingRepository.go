@@ -44,7 +44,7 @@ type AppListingRepository interface {
 	FetchAppDetail(ctx context.Context, appId int, envId int) (bean.AppDetailContainer, error)
 
 	FetchAppTriggerView(appId int) ([]bean.TriggerView, error)
-	FetchAppStageStatus(appId int) ([]bean.AppStageStatus, error)
+	FetchAppStageStatus(appId int, appType int) ([]bean.AppStageStatus, error)
 
 	//Not in used
 	PrometheusApiByEnvId(id int) (*string, error)
@@ -409,7 +409,7 @@ func (impl AppListingRepositoryImpl) FetchAppTriggerView(appId int) ([]bean.Trig
 	return triggerViewResponse, nil
 }
 
-func (impl AppListingRepositoryImpl) FetchAppStageStatus(appId int) ([]bean.AppStageStatus, error) {
+func (impl AppListingRepositoryImpl) FetchAppStageStatus(appId int, appType int) ([]bean.AppStageStatus, error) {
 	impl.Logger.Debug("reached at AppListingRepository:")
 	var appStageStatus []bean.AppStageStatus
 
@@ -435,10 +435,7 @@ func (impl AppListingRepositoryImpl) FetchAppStageStatus(appId int) ([]bean.AppS
 		" WHERE app.id=? and app.app_type = ? limit 1;"
 
 	impl.Logger.Debugw("last app stages status query:", "query", query)
-	appType := helper.CustomApp
-	//if isJob {
-	//	appType = helper.Job
-	//}
+
 	_, err := impl.dbConnection.Query(&stages, query, appId, appType)
 	if err != nil {
 		impl.Logger.Errorw("error:", err)

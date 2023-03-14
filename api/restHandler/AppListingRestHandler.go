@@ -659,7 +659,7 @@ func (handler AppListingRestHandlerImpl) FetchAppStageStatus(w http.ResponseWrit
 	}
 	//RBAC enforcer Ends
 
-	triggerView, err := handler.appListingService.FetchAppStageStatus(appId)
+	triggerView, err := handler.appListingService.FetchAppStageStatus(appId, int(app.AppType))
 	if err != nil {
 		handler.logger.Errorw("service err, FetchAppStageStatus", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

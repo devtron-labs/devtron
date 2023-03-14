@@ -80,7 +80,7 @@ type AppListingService interface {
 	GraphAPI(appId int, envId int) error
 
 	FetchAppTriggerView(appId int) ([]bean.TriggerView, error)
-	FetchAppStageStatus(appId int) ([]bean.AppStageStatus, error)
+	FetchAppStageStatus(appId int, appType int) ([]bean.AppStageStatus, error)
 
 	FetchOtherEnvironment(ctx context.Context, appId int) ([]*bean.Environment, error)
 	RedirectToLinkouts(Id int, appId int, envId int, podName string, containerName string) (string, error)
@@ -1532,8 +1532,8 @@ func (impl AppListingServiceImpl) FetchAppTriggerView(appId int) ([]bean.Trigger
 	return impl.appListingRepository.FetchAppTriggerView(appId)
 }
 
-func (impl AppListingServiceImpl) FetchAppStageStatus(appId int) ([]bean.AppStageStatus, error) {
-	appStageStatuses, err := impl.appListingRepository.FetchAppStageStatus(appId)
+func (impl AppListingServiceImpl) FetchAppStageStatus(appId int, appType int) ([]bean.AppStageStatus, error) {
+	appStageStatuses, err := impl.appListingRepository.FetchAppStageStatus(appId, appType)
 	return appStageStatuses, err
 }
 
