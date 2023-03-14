@@ -1190,6 +1190,7 @@ func (impl *UserTerminalAccessServiceImpl) EditTerminalPodManifest(ctx context.C
 		return result, err
 	}
 	result.PodExists = false
+	result.DebugNode = isNodeDebugPod(&podObject)
 	var containers []string
 	for _, con := range podObject.Spec.Containers {
 		containers = append(containers, con.Name)
