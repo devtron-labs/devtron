@@ -13,6 +13,7 @@ import (
 )
 
 type CasbinClient interface {
+	AddPolicyWithoutCompression(ctx context.Context, in *MultiPolicyObj) (*MultiPolicyObj, error)
 	AddPolicy(ctx context.Context, in *MultiPolicyObj) (*MultiPolicyObj, error)
 	LoadPolicy(ctx context.Context, in *EmptyObj) (*EmptyObj, error)
 	RemovePolicy(ctx context.Context, in *MultiPolicyObj) (*MultiPolicyObj, error)
@@ -58,8 +59,37 @@ func (impl *CasbinClientImpl) getCasbinClient() (CasbinServiceClient, error) {
 	}
 	return impl.casbinServiceClient, nil
 }
+func (impl *CasbinClientImpl) getCasbinClientWithoutCompression() (CasbinServiceClient, error) {
+	connection, err := impl.getConnectionWithoutCompression()
+	if err != nil {
+		return nil, err
+	}
+	return NewCasbinServiceClient(connection), nil
 
+}
 func (impl *CasbinClientImpl) getConnection() (*grpc.ClientConn, error) {
+	var opts []grpc.DialOption
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	opts = append(opts,
+		grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()),
+		grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()),
+		grpc.WithBlock(),
+		grpc.WithInsecure(),
+		grpc.WithDefaultCallOptions(
+			grpc.MaxCallRecvMsgSize(20*1024*1024),
+		),
+		grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy":"round_robin"}`),
+	)
+	endpoint := fmt.Sprintf("dns:///%s", impl.casbinClientConfig.Url)
+	conn, err := grpc.DialContext(ctx, endpoint, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return conn, err
+}
+
+func (impl *CasbinClientImpl) getConnectionWithoutCompression() (*grpc.ClientConn, error) {
 	var opts []grpc.DialOption
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -93,6 +123,19 @@ func (impl *CasbinClientImpl) AddPolicy(ctx context.Context, in *MultiPolicyObj)
 	}
 	return resp, nil
 }
+
+func (impl *CasbinClientImpl) AddPolicyWithoutCompression(ctx context.Context, in *MultiPolicyObj) (*MultiPolicyObj, error) {
+	casbinClient, err := impl.getCasbinClientWithoutCompression()
+	if err != nil {
+		return nil, err
+	}
+	resp, err := casbinClient.AddPolicy(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
 func (impl *CasbinClientImpl) LoadPolicy(ctx context.Context, in *EmptyObj) (*EmptyObj, error) {
 	casbinClient, err := impl.getCasbinClient()
 	if err != nil {

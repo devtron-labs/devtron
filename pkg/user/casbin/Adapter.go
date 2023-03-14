@@ -110,6 +110,10 @@ func AddPolicyTest(iterations int) {
 	casbinService.AddPolicyTest(iterations)
 	return
 }
+func AddPolicyTestWithoutCompression(iterations int) {
+	casbinService.AddPolicyTestWithoutCompression(iterations)
+	return
+}
 func LoadPolicy() {
 	defer HandlePanic()
 	err := enforcerImplRef.ReloadPolicy()

@@ -36,6 +36,7 @@ import (
 
 type TestSuitRestHandler interface {
 	CasbinTest(w http.ResponseWriter, r *http.Request)
+	CasbinTestWithoutCompression(w http.ResponseWriter, r *http.Request)
 	SuitesProxy(w http.ResponseWriter, r *http.Request)
 	GetTestSuites(w http.ResponseWriter, r *http.Request)
 	DetailedTestSuites(w http.ResponseWriter, r *http.Request)
@@ -85,6 +86,18 @@ func (impl TestSuitRestHandlerImpl) CasbinTest(w http.ResponseWriter, r *http.Re
 		return
 	}
 	casbin.AddPolicyTest(iterations)
+}
+
+func (impl TestSuitRestHandlerImpl) CasbinTestWithoutCompression(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	impl.logger.Infow("received casbin test request without compression", "iterations", vars["iterations"])
+	iterations, err := strconv.Atoi(vars["iterations"])
+	if err != nil {
+		impl.logger.Error(err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	casbin.AddPolicyTestWithoutCompression(iterations)
 }
 
 func (impl TestSuitRestHandlerImpl) SuitesProxy(w http.ResponseWriter, r *http.Request) {

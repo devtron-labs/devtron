@@ -9,6 +9,7 @@ import (
 )
 
 type CasbinService interface {
+	AddPolicyTestWithoutCompression(iterations int)
 	AddPolicyTest(iterations int)
 	AddPolicy(policies []Policy) ([]Policy, error)
 	LoadPolicy()
@@ -73,6 +74,29 @@ func (impl *CasbinServiceImpl) AddPolicyTest(iterations int) {
 		Policies: convertedPolicies,
 	}
 	_, err := impl.casbinClient.AddPolicy(context.Background(), in)
+	if err != nil {
+		log.Println("error in addPolicyTest method", err)
+	}
+	return
+}
+
+func (impl *CasbinServiceImpl) AddPolicyTestWithoutCompression(iterations int) {
+	convertedPolicies := make([]*client.Policy, 0, iterations)
+	for i := 0; i < iterations; i++ {
+		policy := Policy{Type: PolicyType(fmt.Sprintf("test-%v", i)), Sub: Subject(fmt.Sprintf("efgh-%v", i)), Res: Resource(fmt.Sprintf("abcd-%v", i)), Act: "view", Obj: Object(fmt.Sprintf("xyz-%v", i))}
+		convertedPolicy := &client.Policy{
+			Type: string(policy.Type),
+			Sub:  string(policy.Sub),
+			Res:  string(policy.Res),
+			Act:  string(policy.Act),
+			Obj:  string(policy.Obj),
+		}
+		convertedPolicies = append(convertedPolicies, convertedPolicy)
+	}
+	in := &client.MultiPolicyObj{
+		Policies: convertedPolicies,
+	}
+	_, err := impl.casbinClient.AddPolicyWithoutCompression(context.Background(), in)
 	if err != nil {
 		log.Println("error in addPolicyTest method", err)
 	}

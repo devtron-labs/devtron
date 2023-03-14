@@ -35,6 +35,7 @@ func NewTestSuitRouterImpl(testSuitRouter restHandler.TestSuitRestHandler) *Test
 
 func (impl TestSuitRouterImpl) InitTestSuitRouter(configRouter *mux.Router) {
 	configRouter.Path("/casbin-test/{iterations}").HandlerFunc(impl.testSuitRouter.CasbinTest).Methods("GET")
+	configRouter.Path("/casbin-test/wc/{iterations}").HandlerFunc(impl.testSuitRouter.CasbinTestWithoutCompression).Methods("GET")
 	configRouter.Path("/suites/proxy").HandlerFunc(impl.testSuitRouter.SuitesProxy).Methods("POST")
 	configRouter.Path("/suites/list").HandlerFunc(impl.testSuitRouter.GetTestSuites).Methods("GET")
 	configRouter.Path("/suites/list/detail").HandlerFunc(impl.testSuitRouter.DetailedTestSuites).Methods("GET")
