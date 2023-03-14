@@ -127,7 +127,11 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 		if err != nil {
 			return nil, err
 		}
-		data := impl.updateData(cm.Data, request)
+		data, err := impl.updateData(cm.Data, request)
+		if err != nil {
+			impl.logger.Warnw(" config map update failed", "err", err)
+			continue
+		}
 		cm.Data = data
 		_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
 		if err != nil {
@@ -203,9 +207,13 @@ func (impl *ChartRepositoryServiceImpl) UpdateChartRepo(request *ChartRepoDto) (
 		}
 		var data map[string]string
 		if previousName == request.Name {
-			data = impl.updateData(cm.Data, request)
+			data, err = impl.updateData(cm.Data, request)
 		} else {
-			data = impl.updateAndDeleteData(cm.Data, request, previousName)
+			data,err = impl.updateAndDeleteData(cm.Data, request, previousName)
+		}
+		if err != nil {
+			impl.logger.Warnw(" config map update failed", "err", err)
+			continue
 		}
 
 		cm.Data = data
@@ -285,7 +293,11 @@ func (impl *ChartRepositoryServiceImpl) DeleteChartRepo(request *ChartRepoDto) e
 		if err != nil {
 			return err
 		}
-		data := impl.deleteData(cm.Data, request)
+		data, err := impl.deleteData(cm.Data, request)
+		if err != nil {
+			impl.logger.Warnw(" config map update failed", "err", err)
+			continue
+		}
 		cm.Data = data
 		_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
 		if err != nil {
@@ -551,25 +563,29 @@ func (impl *ChartRepositoryServiceImpl) createRepoElement(request *ChartRepoDto)
 }
 
 // updateData update the request field in the argo-cm
-func (impl *ChartRepositoryServiceImpl) updateData(data map[string]string, request *ChartRepoDto) map[string]string {
+func (impl *ChartRepositoryServiceImpl) updateData(data map[string]string, request *ChartRepoDto) (map[string]string, error) {
 	helmRepoStr := data["helm.repositories"]
 	helmRepoByte, err := yaml.YAMLToJSON([]byte(helmRepoStr))
 	if err != nil {
-		panic(err)
+		impl.logger.Errorw("error in json patch", "err", err)
+		return nil, err
 	}
 	var helmRepositories []*AcdConfigMapRepositoriesDto
 	err = json.Unmarshal(helmRepoByte, &helmRepositories)
 	if err != nil {
-		panic(err)
+		impl.logger.Errorw("error in unmarshal", "err", err)
+		return nil, err
 	}
 
 	rb, err := json.Marshal(helmRepositories)
 	if err != nil {
-		panic(err)
+		impl.logger.Errorw("error in marshal", "err", err)
+		return nil, err
 	}
 	helmRepositoriesYamlByte, err := yaml.JSONToYAML(rb)
 	if err != nil {
-		panic(err)
+		impl.logger.Errorw("error in yaml patch", "err", err)
+		return nil, err
 	}
 
 	//SETUP for repositories
@@ -577,11 +593,13 @@ func (impl *ChartRepositoryServiceImpl) updateData(data map[string]string, reque
 	repoStr := data["repositories"]
 	repoByte, err := yaml.YAMLToJSON([]byte(repoStr))
 	if err != nil {
-		panic(err)
+		impl.logger.Errorw("error in json patch", "err", err)
+		return nil, err
 	}
 	err = json.Unmarshal(repoByte, &repositories)
 	if err != nil {
-		panic(err)
+		impl.logger.Errorw("error in unmarshal", "err", err)
+		return nil, err
 	}
 
 	found := false
@@ -612,11 +630,13 @@ func (impl *ChartRepositoryServiceImpl) updateData(data map[string]string, reque
 
 	rb, err = json.Marshal(repositories)
 	if err != nil {
-		panic(err)
+		impl.logger.Errorw("error in marshal", "err", err)
+		return nil, err
 	}
 	repositoriesYamlByte, err := yaml.JSONToYAML(rb)
 	if err != nil {
-		panic(err)
+		impl.logger.Errorw("error in yaml patch", "err", err)
+		return nil, err
 	}
 
 	if len(helmRepositoriesYamlByte) > 0 {
@@ -628,29 +648,33 @@ func (impl *ChartRepositoryServiceImpl) updateData(data map[string]string, reque
 	//dex config copy as it is
 	dexConfigStr := data["dex.config"]
 	data["dex.config"] = string([]byte(dexConfigStr))
-	return data
+	return data, nil
 }
 
 // updateAndDeleteData update the request field in the argo-cm and delete the previous repo
-func (impl *ChartRepositoryServiceImpl) updateAndDeleteData(data map[string]string, request *ChartRepoDto, previousName string) map[string]string {
+func (impl *ChartRepositoryServiceImpl) updateAndDeleteData(data map[string]string, request *ChartRepoDto, previousName string) (map[string]string, error) {
 	helmRepoStr := data["helm.repositories"]
 	helmRepoByte, err := yaml.YAMLToJSON([]byte(helmRepoStr))
 	if err != nil {
-		panic(err)
+		impl.logger.Errorw("error in json patch", "err", err)
+		return nil, err
 	}
 	var helmRepositories []*AcdConfigMapRepositoriesDto
 	err = json.Unmarshal(helmRepoByte, &helmRepositories)
 	if err != nil {
-		panic(err)
+		impl.logger.Errorw("error in unmarshal", "err", err)
+		return nil, err
 	}
 
 	rb, err := json.Marshal(helmRepositories)
 	if err != nil {
-		panic(err)
+		impl.logger.Errorw("error in marshal", "err", err)
+		return nil, err
 	}
 	helmRepositoriesYamlByte, err := yaml.JSONToYAML(rb)
 	if err != nil {
-		panic(err)
+		impl.logger.Errorw("error in yaml patch", "err", err)
+		return nil, err
 	}
 
 	//SETUP for repositories
@@ -658,11 +682,13 @@ func (impl *ChartRepositoryServiceImpl) updateAndDeleteData(data map[string]stri
 	repoStr := data["repositories"]
 	repoByte, err := yaml.YAMLToJSON([]byte(repoStr))
 	if err != nil {
-		panic(err)
+		impl.logger.Errorw("error in json patch", "err", err)
+		return nil, err
 	}
 	err = json.Unmarshal(repoByte, &repositories)
 	if err != nil {
-		panic(err)
+		impl.logger.Errorw("error in unmarshal", "err", err)
+		return nil, err
 	}
 
 	found := false
@@ -699,11 +725,13 @@ func (impl *ChartRepositoryServiceImpl) updateAndDeleteData(data map[string]stri
 
 	rb, err = json.Marshal(repositories)
 	if err != nil {
-		panic(err)
+		impl.logger.Errorw("error in marshal", "err", err)
+		return nil, err
 	}
 	repositoriesYamlByte, err := yaml.JSONToYAML(rb)
 	if err != nil {
-		panic(err)
+		impl.logger.Errorw("error in yaml patch", "err", err)
+		return nil, err
 	}
 
 	if len(helmRepositoriesYamlByte) > 0 {
@@ -715,29 +743,33 @@ func (impl *ChartRepositoryServiceImpl) updateAndDeleteData(data map[string]stri
 	//dex config copy as it is
 	dexConfigStr := data["dex.config"]
 	data["dex.config"] = string([]byte(dexConfigStr))
-	return data
+	return data, nil
 }
 
 // deleteData delete the request field from the argo-cm
-func (impl *ChartRepositoryServiceImpl) deleteData(data map[string]string, request *ChartRepoDto) map[string]string {
+func (impl *ChartRepositoryServiceImpl) deleteData(data map[string]string, request *ChartRepoDto) (map[string]string, error) {
 	helmRepoStr := data["helm.repositories"]
 	helmRepoByte, err := yaml.YAMLToJSON([]byte(helmRepoStr))
 	if err != nil {
-		panic(err)
+		impl.logger.Errorw("error in json patch", "err", err)
+		return nil, err
 	}
 	var helmRepositories []*AcdConfigMapRepositoriesDto
 	err = json.Unmarshal(helmRepoByte, &helmRepositories)
 	if err != nil {
-		panic(err)
+		impl.logger.Errorw("error in unmarshal", "err", err)
+		return nil, err
 	}
 
 	rb, err := json.Marshal(helmRepositories)
 	if err != nil {
-		panic(err)
+		impl.logger.Errorw("error in marshal", "err", err)
+		return nil, err
 	}
 	helmRepositoriesYamlByte, err := yaml.JSONToYAML(rb)
 	if err != nil {
-		panic(err)
+		impl.logger.Errorw("error in yaml patch", "err", err)
+		return nil, err
 	}
 
 	//SETUP for repositories
@@ -745,11 +777,13 @@ func (impl *ChartRepositoryServiceImpl) deleteData(data map[string]string, reque
 	repoStr := data["repositories"]
 	repoByte, err := yaml.YAMLToJSON([]byte(repoStr))
 	if err != nil {
-		panic(err)
+		impl.logger.Errorw("error in json patch", "err", err)
+		return nil, err
 	}
 	err = json.Unmarshal(repoByte, &repositories)
 	if err != nil {
-		panic(err)
+		impl.logger.Errorw("error in unmarshal", "err", err)
+		return nil, err
 	}
 
 	found := false
@@ -764,16 +798,19 @@ func (impl *ChartRepositoryServiceImpl) deleteData(data map[string]string, reque
 
 	// if request chart repo not found, add new one
 	if !found {
-		panic("No repo found to delete")
+		impl.logger.Errorw("Repo not found", "err", err)
+		return nil, err
 	}
 
 	rb, err = json.Marshal(repositories)
 	if err != nil {
-		panic(err)
+		impl.logger.Errorw("error in marshal", "err", err)
+		return nil, err
 	}
 	repositoriesYamlByte, err := yaml.JSONToYAML(rb)
 	if err != nil {
-		panic(err)
+		impl.logger.Errorw("error in yaml patch", "err", err)
+		return nil, err
 	}
 
 	if len(helmRepositoriesYamlByte) > 0 {
@@ -785,5 +822,5 @@ func (impl *ChartRepositoryServiceImpl) deleteData(data map[string]string, reque
 	//dex config copy as it is
 	dexConfigStr := data["dex.config"]
 	data["dex.config"] = string([]byte(dexConfigStr))
-	return data
+	return data, nil
 }
