@@ -31,6 +31,7 @@ import (
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"strings"
+	"time"
 )
 
 type UserAuthRepository interface {
@@ -46,8 +47,8 @@ type UserAuthRepository interface {
 	GetUserRoleMappingByUserId(userId int32) ([]*UserRoleModel, error)
 	DeleteUserRoleMapping(userRoleModel *UserRoleModel, tx *pg.Tx) (bool, error)
 	DeleteUserRoleByRoleId(roleId int, tx *pg.Tx) error
-	CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string) (bool, error, []casbin2.Policy)
-	CreateRoleForSuperAdminIfNotExists(tx *pg.Tx) (bool, error)
+	CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, UserId int32) (bool, error, []casbin2.Policy)
+	CreateRoleForSuperAdminIfNotExists(tx *pg.Tx, UserId int32) (bool, error)
 	SyncOrchestratorToCasbin(team string, entityName string, env string, tx *pg.Tx) (bool, error)
 	UpdateTriggerPolicyForTerminalAccess() error
 	GetRolesForEnvironment(envName, envIdentifier string) ([]*RoleModel, error)
@@ -379,7 +380,7 @@ func (impl UserAuthRepositoryImpl) DeleteUserRoleByRoleId(roleId int, tx *pg.Tx)
 	return nil
 }
 
-func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string) (bool, error, []casbin2.Policy) {
+func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, UserId int32) (bool, error, []casbin2.Policy) {
 	//not using txn from parent caller because of conflicts in fetching of transactional save
 	dbConnection := impl.dbConnection
 	tx, err := dbConnection.Begin()
@@ -484,7 +485,7 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team, entity
 		impl.Logger.Errorw("decode err", "err", err)
 		return false, err, nil
 	}
-	_, err = impl.createRole(&roleData, tx)
+	_, err = impl.createRole(&roleData, tx, UserId)
 	if err != nil && strings.Contains("duplicate key value violates unique constraint", err.Error()) {
 		return false, err, nil
 	}
@@ -495,7 +496,7 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team, entity
 	return true, nil, policiesToBeAdded
 }
 
-func (impl UserAuthRepositoryImpl) CreateRoleForSuperAdminIfNotExists(tx *pg.Tx) (bool, error) {
+func (impl UserAuthRepositoryImpl) CreateRoleForSuperAdminIfNotExists(tx *pg.Tx, UserId int32) (bool, error) {
 	transaction, err := impl.dbConnection.Begin()
 	if err != nil {
 		return false, err
@@ -515,7 +516,7 @@ func (impl UserAuthRepositoryImpl) CreateRoleForSuperAdminIfNotExists(tx *pg.Tx)
 			impl.Logger.Errorw("decode err", "err", err)
 			return false, err
 		}
-		_, err = impl.createRole(&roleManagerData, transaction)
+		_, err = impl.createRole(&roleManagerData, transaction, UserId)
 		if err != nil && strings.Contains("duplicate key value violates unique constraint", err.Error()) {
 			return false, err
 		}
@@ -527,7 +528,7 @@ func (impl UserAuthRepositoryImpl) CreateRoleForSuperAdminIfNotExists(tx *pg.Tx)
 	return true, nil
 }
 
-func (impl UserAuthRepositoryImpl) createRole(roleData *bean.RoleData, tx *pg.Tx) (bool, error) {
+func (impl UserAuthRepositoryImpl) createRole(roleData *bean.RoleData, tx *pg.Tx, UserId int32) (bool, error) {
 	roleModel := &RoleModel{
 		Role:        roleData.Role,
 		Entity:      roleData.Entity,
@@ -541,6 +542,12 @@ func (impl UserAuthRepositoryImpl) createRole(roleData *bean.RoleData, tx *pg.Tx
 		Group:       roleData.Group,
 		Kind:        roleData.Kind,
 		Resource:    roleData.Resource,
+		AuditLog: sql.AuditLog{
+			CreatedBy: UserId,
+			CreatedOn: time.Now(),
+			UpdatedBy: UserId,
+			UpdatedOn: time.Now(),
+		},
 	}
 	roleModel, err := impl.CreateRole(roleModel, tx)
 	if err != nil || roleModel == nil {
