@@ -20,7 +20,7 @@ DELETE FROM ci_template WHERE git_material_id IN (SELECT id FROM git_material WH
 
 DELETE FROM git_material_history WHERE git_material_id IN(SELECT id FROM git_material WHERE app_id IN(SELECT id FROM app WHERE app_type = 2));
 
-DELETE FROM git_material WHERE app_id IN (SELECT id FROM app WHERE app_type = 2);
+DELETE FROM git_material WHERE app_id IN (SELECT id FROM app WHERE app_type = 2) ;
 
 DELETE FROM app_label WHERE app_id IN (SELECT id FROM app WHERE app_type = 2);
 

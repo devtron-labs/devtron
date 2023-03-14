@@ -169,7 +169,7 @@ func (impl WebhookServiceImpl) HandleCiSuccessEvent(ciPipelineId int, request *C
 	if pipeline.ScanEnabled {
 		artifact.Scanned = true
 	}
-
+	impl.logger.Infow("saving artifact data", "artifact", artifact)
 	if err = impl.ciArtifactRepository.Save(artifact); err != nil {
 		impl.logger.Errorw("error in saving material", "err", err)
 		return 0, err
@@ -184,15 +184,16 @@ func (impl WebhookServiceImpl) HandleCiSuccessEvent(ciPipelineId int, request *C
 	var ciArtifactArr []*repository.CiArtifact
 	for _, ci := range childrenCi {
 		ciArtifact := &repository.CiArtifact{
-			Image:            request.Image,
-			ImageDigest:      request.ImageDigest,
-			MaterialInfo:     string(materialJson),
-			DataSource:       request.DataSource,
-			PipelineId:       ci.Id,
-			ParentCiArtifact: artifact.Id,
-			ScanEnabled:      ci.ScanEnabled,
-			Scanned:          false,
-			AuditLog:         sql.AuditLog{CreatedBy: request.UserId, UpdatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now()},
+			Image:              request.Image,
+			ImageDigest:        request.ImageDigest,
+			MaterialInfo:       string(materialJson),
+			DataSource:         request.DataSource,
+			PipelineId:         ci.Id,
+			ParentCiArtifact:   artifact.Id,
+			ScanEnabled:        ci.ScanEnabled,
+			Scanned:            false,
+			IsArtifactUploaded: request.IsArtifactUploaded,
+			AuditLog:           sql.AuditLog{CreatedBy: request.UserId, UpdatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now()},
 		}
 		if ci.ScanEnabled {
 			ciArtifact.Scanned = true
@@ -264,6 +265,7 @@ func (impl WebhookServiceImpl) HandleExternalCiWebhook(externalCiId int, request
 		ExternalCiPipelineId: externalCiId,
 		ScanEnabled:          false,
 		Scanned:              false,
+		IsArtifactUploaded:   request.IsArtifactUploaded,
 		AuditLog:             sql.AuditLog{CreatedBy: request.UserId, UpdatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now()},
 	}
 	if err = impl.ciArtifactRepository.Save(artifact); err != nil {
