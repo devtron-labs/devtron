@@ -349,6 +349,7 @@ func (impl *GlobalCMCSServiceImpl) DeleteById(id int) error {
 	err = impl.globalCMCSRepository.Delete(model)
 	if err != nil {
 		impl.logger.Errorw("error in deleting model")
+		return err
 	}
 	return nil
 }

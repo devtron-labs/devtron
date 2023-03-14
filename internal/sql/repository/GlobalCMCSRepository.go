@@ -50,7 +50,7 @@ type GlobalCMCS struct {
 	Data               json.RawMessage `sql:"data"`
 	MountPath          string          `sql:"mount_path"`
 	Deleted            bool            `sql:"deleted,notnull"`
-	SecretIngestionFor string          `sql:"secret_ingestion_for,notnull"` // [CI, CD, CD/CD]
+	SecretIngestionFor string          `sql:"secret_ingestion_for,notnull"` // [CI, CD, CI/CD]
 	sql.AuditLog
 }
 
@@ -135,6 +135,7 @@ func (impl *GlobalCMCSRepositoryImpl) Delete(model *GlobalCMCS) error {
 	err := impl.dbConnection.Delete(model)
 	if err != nil {
 		impl.logger.Errorw("error in deleting global cm cs ", "err", err)
+		return err
 	}
 	return nil
 }
