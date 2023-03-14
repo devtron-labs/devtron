@@ -42,7 +42,7 @@ type UserTerminalAccessService interface {
 	FetchPodEvents(ctx context.Context, userTerminalAccessId int) (*application.EventsResponse, error)
 	ValidateShell(podName, namespace, shellName, containerName string, clusterId int) (bool, string, error)
 	EditTerminalPodManifest(ctx context.Context, request *models.UserTerminalSessionRequest, override bool) (ManifestEditResponse, error)
-	StartNodeDebug(nodeName, debugNodeImage string, userId int32)
+	//GenerateNodeDebugPod(o *models.UserTerminalSessionRequest) (*v1.Pod, error)
 }
 
 type UserTerminalAccessServiceImpl struct {
@@ -1229,7 +1229,7 @@ func (impl *UserTerminalAccessServiceImpl) forceDeletePod(ctx context.Context, p
 }
 
 func (impl *UserTerminalAccessServiceImpl) StartNodeDebug(nodeName, debugPodImage, namespace string, clusterId int, userId int32) {
-	nodeObject, err := impl.findNodeObject(nodeName, clusterId)
+
 	//store and pass the node-debugger pod data as terminal pod
 	userTerminalRequest := &models.UserTerminalSessionRequest{
 		UserId:    userId,
@@ -1240,7 +1240,7 @@ func (impl *UserTerminalAccessServiceImpl) StartNodeDebug(nodeName, debugPodImag
 		ShellName: "bash", //TODO: get it from user
 	}
 
-	podObject, err := impl.generateNodeDebugPod(userTerminalRequest, nodeObject)
+	podObject, err := impl.GenerateNodeDebugPod(userTerminalRequest)
 	terminalStartResponse, err := impl.createTerminalEntity(userTerminalRequest, podObject.Name)
 	if err != nil {
 		impl.Logger.Errorw("failed to create terminal entity", "userTerminalAccessId", terminalStartResponse.TerminalAccessId, "err", err)
@@ -1248,51 +1248,62 @@ func (impl *UserTerminalAccessServiceImpl) StartNodeDebug(nodeName, debugPodImag
 	}
 }
 
-func (impl *UserTerminalAccessServiceImpl) findNodeObject(nodeName, clusterId) (*v1.Node, error) {
-	impl.k8sApplicationService.
-}
-func (impl *UserTerminalAccessServiceImpl) generateNodeDebugPod(o *models.UserTerminalSessionRequest, node *v1.Node) (*v1.Pod, error) {
+func (impl *UserTerminalAccessServiceImpl) GenerateNodeDebugPod(o *models.UserTerminalSessionRequest) (*v1.Pod, error) {
 	cn := "debugger"
-	pn := fmt.Sprintf("node-debugger-%s-%s", node.Name, util.Generate(5))
+	nodeName := o.NodeName
+	pn := fmt.Sprintf("node-debugger-%s-%s", nodeName, util.Generate(5))
 
-	impl.Logger.Infow("Creating debugging pod ", "podName", pn, "containerName", cn, "nodeName", node.Name)
+	impl.Logger.Infow("Creating debugging pod ", "podName", pn, "containerName", cn, "nodeName", nodeName)
 
+	const volumeName = "host-root"
 	p := &v1.Pod{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Pod",
+			APIVersion: "v1",
+		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: pn,
+			Name:      pn,
+			Namespace: o.Namespace,
 		},
 		Spec: v1.PodSpec{
 			Containers: []v1.Container{
 				{
-					Name: cn,
-					//Env:                      o.Env,
+					Name:                     cn,
 					Image:                    o.BaseImage,
 					ImagePullPolicy:          v1.PullIfNotPresent,
 					Stdin:                    true,
 					TerminationMessagePolicy: v1.TerminationMessageReadFile,
 					TTY:                      true,
+					SecurityContext:          nil,
+					VolumeMounts: []v1.VolumeMount{
+						{
+							MountPath: "/host",
+							Name:      volumeName,
+						},
+					},
 				},
 			},
-			NodeName:      node.Name,
+			NodeName:      nodeName,
 			RestartPolicy: v1.RestartPolicyNever,
 			Tolerations: []v1.Toleration{
 				{
 					Operator: v1.TolerationOpExists,
 				},
 			},
+			Volumes: []v1.Volume{
+				{
+					Name: volumeName,
+					VolumeSource: v1.VolumeSource{
+						HostPath: &v1.HostPathVolumeSource{Path: "/"},
+					},
+				},
+			},
+			HostIPC:     true,
+			HostPID:     true,
+			HostNetwork: true,
 		},
 	}
 
-	impl.applyHelper(p, cn)
-	//if o.ArgsOnly {
-	//	p.Spec.Containers[0].Args = o.Args
-	//} else {
-	//	p.Spec.Containers[0].Command = o.Args
-	//}
-
-	//if err := o.Applier.Apply(p, cn, node); err != nil {
-	//	return nil, err
-	//}
 	podTemplateBytes, err := json.Marshal(&p)
 	if err != nil {
 
@@ -1302,44 +1313,29 @@ func (impl *UserTerminalAccessServiceImpl) generateNodeDebugPod(o *models.UserTe
 	return p, err
 }
 
-func (impl *UserTerminalAccessServiceImpl) applyHelper(pod *v1.Pod, containerName string) {
-	mountRootPartition(pod, containerName)
-	clearSecurityContext(pod, containerName)
-	useHostNamespaces(pod)
-}
-
-func mountRootPartition(p *v1.Pod, containerName string) {
-	const volumeName = "host-root"
-	p.Spec.Volumes = append(p.Spec.Volumes, v1.Volume{
-		Name: volumeName,
-		VolumeSource: v1.VolumeSource{
-			HostPath: &v1.HostPathVolumeSource{Path: "/"},
-		},
-	})
-	podutils.VisitContainers(&p.Spec, podutils.Containers, func(c *v1.Container, _ podutils.ContainerType) bool {
-		if c.Name != containerName {
-			return true
-		}
-		c.VolumeMounts = append(c.VolumeMounts, v1.VolumeMount{
-			MountPath: "/host",
-			Name:      volumeName,
-		})
+func isNodeDebugPod(pod *v1.Pod) bool {
+	if pod == nil || len(pod.Spec.Containers) == 0 || len(pod.Spec.Containers[0].VolumeMounts) == 0 || len(pod.Spec.Volumes) == 0 {
 		return false
-	})
-}
-
-func useHostNamespaces(p *v1.Pod) {
-	p.Spec.HostNetwork = true
-	p.Spec.HostPID = true
-	p.Spec.HostIPC = true
-}
-
-func clearSecurityContext(p *v1.Pod, containerName string) {
-	podutils.VisitContainers(&p.Spec, podutils.AllContainers, func(c *v1.Container, _ podutils.ContainerType) bool {
-		if c.Name != containerName {
-			return true
+	}
+	container := pod.Spec.Containers[0]
+	volumeMatch := false
+	hostVolumeMountVolumeName := ""
+	for _, volumeMount := range container.VolumeMounts {
+		if volumeMount.MountPath == "/host" {
+			hostVolumeMountVolumeName = volumeMount.Name
 		}
-		c.SecurityContext = nil
+	}
+	if hostVolumeMountVolumeName == "" {
 		return false
-	})
+	}
+	for _, volume := range pod.Spec.Volumes {
+		if volume.Name == hostVolumeMountVolumeName && volume.HostPath.Path == "/" {
+			volumeMatch = true
+		}
+	}
+
+	return volumeMatch && container.TTY && container.Stdin &&
+		(container.SecurityContext == nil) && (pod.Spec.NodeName == "") &&
+		pod.Spec.HostIPC && pod.Spec.HostPID && pod.Spec.HostNetwork
+
 }

@@ -64,7 +64,7 @@ func TestNewUserTerminalAccessService(t *testing.T) {
 				terminalMsg := &terminal.TerminalMessage{SessionID: randomSessionId}
 				return terminalMsg
 			}, nil)
-		terminalSessionStatus, err := terminalAccessServiceImpl.FetchTerminalStatus(context.Background(), terminalAccessId1, "default", "sh")
+		terminalSessionStatus, err := terminalAccessServiceImpl.FetchTerminalStatus(context.Background(), terminalAccessId1, "default", "", "sh")
 		assert.Nil(tt, err)
 		assert.Equal(tt, podStatus, string(terminalSessionStatus.Status))
 		assert.Equal(tt, randomSessionId, terminalSessionStatus.UserTerminalSessionId)
@@ -90,7 +90,7 @@ func TestNewUserTerminalAccessService(t *testing.T) {
 		terminalAccessRepository.On("FetchTerminalAccessTemplate", models.TerminalAccessPodTemplateName).Return(podTemplate, nil)
 		failedMsg := &k8sErrors.StatusError{ErrStatus: metav1.Status{Reason: metav1.StatusReasonForbidden}}
 		k8sApplicationService.On("GetResource", mock.AnythingOfType("*k8s.ResourceRequestBean")).Return(nil, failedMsg)
-		terminalSessionStatus, err := terminalAccessServiceImpl.FetchTerminalStatus(context.Background(), terminalAccessId, "default", "sh")
+		terminalSessionStatus, err := terminalAccessServiceImpl.FetchTerminalStatus(context.Background(), terminalAccessId, "default", "", "sh")
 		assert.Nil(tt, terminalSessionStatus)
 		assert.NotNil(tt, err)
 		assert.Equal(tt, failedMsg, err)
@@ -133,7 +133,7 @@ func TestNewUserTerminalAccessService(t *testing.T) {
 		terminalAccessRepository.On("GetUserTerminalAccessData", terminalAccessId).Return(terminalAccessData, nil)
 		podTemplate := &models.TerminalAccessTemplates{TemplateData: "wrong-pod-json"}
 		terminalAccessRepository.On("FetchTerminalAccessTemplate", models.TerminalAccessPodTemplateName).Return(podTemplate, nil)
-		terminalSessionStatus, err := terminalAccessServiceImpl.FetchTerminalStatus(context.Background(), terminalAccessId, "default", "sh")
+		terminalSessionStatus, err := terminalAccessServiceImpl.FetchTerminalStatus(context.Background(), terminalAccessId, "default", "", "sh")
 		assert.Nil(tt, terminalSessionStatus)
 		assert.NotNil(tt, err)
 	})
