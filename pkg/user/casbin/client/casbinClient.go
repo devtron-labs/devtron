@@ -7,6 +7,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/encoding/gzip"
 	"time"
 )
 
@@ -59,7 +60,8 @@ func (impl *CasbinClientImpl) getCasbinClient() (CasbinServiceClient, error) {
 
 func (impl *CasbinClientImpl) getConnection() (*grpc.ClientConn, error) {
 	var opts []grpc.DialOption
-	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 	opts = append(opts,
 		grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()),
 		grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()),
@@ -67,6 +69,7 @@ func (impl *CasbinClientImpl) getConnection() (*grpc.ClientConn, error) {
 		grpc.WithInsecure(),
 		grpc.WithDefaultCallOptions(
 			grpc.MaxCallRecvMsgSize(20*1024*1024),
+			grpc.UseCompressor(gzip.Name),
 		),
 		grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy":"round_robin"}`),
 	)

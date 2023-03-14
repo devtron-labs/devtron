@@ -106,6 +106,10 @@ func AddPolicy(policies []Policy) []Policy {
 	return failed*/
 }
 
+func AddPolicyTest(iterations int) {
+	casbinService.AddPolicyTest(iterations)
+	return
+}
 func LoadPolicy() {
 	defer HandlePanic()
 	err := enforcerImplRef.ReloadPolicy()

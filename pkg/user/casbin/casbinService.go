@@ -2,11 +2,14 @@ package casbin
 
 import (
 	"context"
+	"fmt"
 	"github.com/devtron-labs/devtron/pkg/user/casbin/client"
 	"go.uber.org/zap"
+	"log"
 )
 
 type CasbinService interface {
+	AddPolicyTest(iterations int)
 	AddPolicy(policies []Policy) ([]Policy, error)
 	LoadPolicy()
 	RemovePolicy(policies []Policy) ([]Policy, error)
@@ -52,6 +55,30 @@ func (impl *CasbinServiceImpl) AddPolicy(policies []Policy) ([]Policy, error) {
 	}
 	return policies, nil
 }
+
+func (impl *CasbinServiceImpl) AddPolicyTest(iterations int) {
+	convertedPolicies := make([]*client.Policy, 0, iterations)
+	for i := 0; i < iterations; i++ {
+		policy := Policy{Type: PolicyType(fmt.Sprintf("test-%v", i)), Sub: Subject(fmt.Sprintf("efgh-%v", i)), Res: Resource(fmt.Sprintf("abcd-%v", i)), Act: "view", Obj: Object(fmt.Sprintf("xyz-%v", i))}
+		convertedPolicy := &client.Policy{
+			Type: string(policy.Type),
+			Sub:  string(policy.Sub),
+			Res:  string(policy.Res),
+			Act:  string(policy.Act),
+			Obj:  string(policy.Obj),
+		}
+		convertedPolicies = append(convertedPolicies, convertedPolicy)
+	}
+	in := &client.MultiPolicyObj{
+		Policies: convertedPolicies,
+	}
+	_, err := impl.casbinClient.AddPolicy(context.Background(), in)
+	if err != nil {
+		log.Println("error in addPolicyTest method", err)
+	}
+	return
+}
+
 func (impl *CasbinServiceImpl) LoadPolicy() {
 	in := &client.EmptyObj{}
 	_, _ = impl.casbinClient.LoadPolicy(context.Background(), in)

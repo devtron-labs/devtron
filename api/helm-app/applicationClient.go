@@ -7,8 +7,6 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/encoding/gzip"
-	_ "google.golang.org/grpc/encoding/gzip"
 	"time"
 )
 
@@ -77,7 +75,6 @@ func (impl *HelmAppClientImpl) getConnection() (*grpc.ClientConn, error) {
 		grpc.WithInsecure(),
 		grpc.WithDefaultCallOptions(
 			grpc.MaxCallRecvMsgSize(20*1024*1024),
-			grpc.UseCompressor(gzip.Name),
 		),
 		grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy":"round_robin"}`),
 	)

@@ -35,6 +35,7 @@ import (
 )
 
 type TestSuitRestHandler interface {
+	CasbinTest(w http.ResponseWriter, r *http.Request)
 	SuitesProxy(w http.ResponseWriter, r *http.Request)
 	GetTestSuites(w http.ResponseWriter, r *http.Request)
 	DetailedTestSuites(w http.ResponseWriter, r *http.Request)
@@ -72,6 +73,17 @@ type TestSuiteBean struct {
 	Link       string `json:"link,omitempty"`
 	PipelineId int    `json:"PipelineId"`
 	TriggerId  int    `json:"triggerId"`
+}
+
+func (impl TestSuitRestHandlerImpl) CasbinTest(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	iterations, err := strconv.Atoi(vars["iterations"])
+	if err != nil {
+		impl.logger.Error(err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	casbin.AddPolicyTest(iterations)
 }
 
 func (impl TestSuitRestHandlerImpl) SuitesProxy(w http.ResponseWriter, r *http.Request) {
