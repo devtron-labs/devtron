@@ -1,12 +1,13 @@
 // Copyright 2016 The Mellium Contributors.
-// Use of this source code is governed by the BSD 2-clause license that can be
-// found in the LICENSE file.
+// Use of this source code is governed by the BSD 2-clause
+// license that can be found in the LICENSE file.
 
 package sasl
 
 import (
 	"bytes"
 	"crypto/hmac"
+	"crypto/tls"
 	"encoding/base64"
 	"errors"
 	"hash"
@@ -17,7 +18,10 @@ import (
 )
 
 const (
-	gs2HeaderCBSupport         = "p=tls-unique,"
+	exporterLen                = 32
+	exporterLabel              = "EXPORTER-Channel-Binding"
+	gs2HeaderCBSupportUnique   = "p=tls-unique,"
+	gs2HeaderCBSupportExporter = "p=tls-exporter,"
 	gs2HeaderNoServerCBSupport = "y,"
 	gs2HeaderNoCBSupport       = "n,"
 )
@@ -32,13 +36,18 @@ const noncerandlen = 16
 
 func getGS2Header(name string, n *Negotiator) (gs2Header []byte) {
 	_, _, identity := n.Credentials()
+	tlsState := n.TLSState()
 	switch {
-	case n.TLSState() == nil || !strings.HasSuffix(name, "-PLUS"):
+	case tlsState == nil || !strings.HasSuffix(name, "-PLUS"):
 		// We do not support channel binding
 		gs2Header = []byte(gs2HeaderNoCBSupport)
 	case n.State()&RemoteCB == RemoteCB:
 		// We support channel binding and the server does too
-		gs2Header = []byte(gs2HeaderCBSupport)
+		if tlsState.Version >= tls.VersionTLS13 {
+			gs2Header = []byte(gs2HeaderCBSupportExporter)
+		} else {
+			gs2Header = []byte(gs2HeaderCBSupportUnique)
+		}
 	case n.State()&RemoteCB != RemoteCB:
 		// We support channel binding but the server does not
 		gs2Header = []byte(gs2HeaderNoServerCBSupport)
@@ -88,7 +97,7 @@ func scram(name string, fn func() hash.Hash) Mechanism {
 			return true, append(getGS2Header(name, m), clientFirstMessage...), clientFirstMessage, nil
 		},
 		Next: func(m *Negotiator, challenge []byte, data interface{}) (more bool, resp []byte, cache interface{}, err error) {
-			if challenge == nil || len(challenge) == 0 {
+			if len(challenge) == 0 {
 				return more, resp, cache, ErrInvalidChallenge
 			}
 
@@ -108,7 +117,10 @@ func scramClientNext(name string, fn func() hash.Hash, m *Negotiator, challenge 
 	case AuthTextSent:
 		iter := -1
 		var salt, nonce []byte
-		for _, field := range bytes.Split(challenge, []byte{','}) {
+		remain := challenge
+		for {
+			var field []byte
+			field, remain = nextParam(remain)
 			if len(field) < 3 || (len(field) >= 2 && field[1] != '=') {
 				continue
 			}
@@ -135,45 +147,69 @@ func scramClientNext(name string, fn func() hash.Hash, m *Negotiator, challenge 
 				// version of SCRAM, its presence in a client or a server message
 				// MUST cause authentication failure when the attribute is parsed by
 				// the other end.
-				err = errors.New("Server sent reserved attribute `m'")
+				err = errors.New("server sent reserved attribute `m'")
 				return
+			}
+			if remain == nil {
+				break
 			}
 		}
 
 		switch {
 		case iter < 0:
-			err = errors.New("Iteration count is missing")
-			return
-		case iter < 0:
-			err = errors.New("Iteration count is invalid")
+			err = errors.New("iteration count is invalid")
 			return
 		case nonce == nil || !bytes.HasPrefix(nonce, m.Nonce()):
-			err = errors.New("Server nonce does not match client nonce")
+			err = errors.New("server nonce does not match client nonce")
 			return
 		case salt == nil:
-			err = errors.New("Server sent empty salt")
+			err = errors.New("server sent empty salt")
 			return
 		}
 
 		gs2Header := getGS2Header(name, m)
 		tlsState := m.TLSState()
 		var channelBinding []byte
-		if tlsState != nil && strings.HasSuffix(name, "-PLUS") {
-			channelBinding = make(
-				[]byte,
-				2+base64.StdEncoding.EncodedLen(len(gs2Header)+len(tlsState.TLSUnique)),
-			)
-			base64.StdEncoding.Encode(channelBinding[2:], append(gs2Header, tlsState.TLSUnique...))
+		switch plus := strings.HasSuffix(name, "-PLUS"); {
+		case plus && tlsState == nil:
+			err = errors.New("sasl: SCRAM with channel binding requires a TLS connection")
+			return
+		case bytes.Contains(gs2Header, []byte(gs2HeaderCBSupportExporter)):
+			keying, err := tlsState.ExportKeyingMaterial(exporterLabel, nil, exporterLen)
+			if err != nil {
+				return false, nil, nil, err
+			}
+			if len(keying) == 0 {
+				err = errors.New("sasl: SCRAM with channel binding requires valid TLS keying material")
+				return false, nil, nil, err
+			}
+			channelBinding = make([]byte, 2+base64.StdEncoding.EncodedLen(len(gs2Header)+len(keying)))
 			channelBinding[0] = 'c'
 			channelBinding[1] = '='
-		} else {
+			base64.StdEncoding.Encode(channelBinding[2:], append(gs2Header, keying...))
+		case bytes.Contains(gs2Header, []byte(gs2HeaderCBSupportUnique)):
+			//lint:ignore SA1019 TLS unique must be supported by SCRAM
+			if len(tlsState.TLSUnique) == 0 {
+				err = errors.New("sasl: SCRAM with channel binding requires valid tls-unique data")
+				return false, nil, nil, err
+			}
+			channelBinding = make(
+				[]byte,
+				//lint:ignore SA1019 TLS unique must be supported by SCRAM
+				2+base64.StdEncoding.EncodedLen(len(gs2Header)+len(tlsState.TLSUnique)),
+			)
+			channelBinding[0] = 'c'
+			channelBinding[1] = '='
+			//lint:ignore SA1019 TLS unique must be supported by SCRAM
+			base64.StdEncoding.Encode(channelBinding[2:], append(gs2Header, tlsState.TLSUnique...))
+		default:
 			channelBinding = make(
 				[]byte,
 				2+base64.StdEncoding.EncodedLen(len(gs2Header)),
 			)
-			base64.StdEncoding.Encode(channelBinding[2:], gs2Header)
 			channelBinding[0] = 'c'
 			channelBinding[1] = '='
+			base64.StdEncoding.Encode(channelBinding[2:], gs2Header)
 		}
 		clientFinalMessageWithoutProof := append(channelBinding, []byte(",r=")...)
 		clientFinalMessageWithoutProof = append(clientFinalMessageWithoutProof, nonce...)
@@ -187,25 +223,40 @@ func scramClientNext(name string, fn func() hash.Hash, m *Negotiator, challenge 
 		saltedPassword := pbkdf2.Key(password, salt, iter, fn().Size(), fn)
 
 		h := hmac.New(fn, saltedPassword)
-		h.Write(serverKeyInput)
+		_, err = h.Write(serverKeyInput)
+		if err != nil {
+			return
+		}
 		serverKey := h.Sum(nil)
 		h.Reset()
 
-		h.Write(clientKeyInput)
+		_, err = h.Write(clientKeyInput)
+		if err != nil {
+			return
+		}
 		clientKey := h.Sum(nil)
 
 		h = hmac.New(fn, serverKey)
-		h.Write(authMessage)
+		_, err = h.Write(authMessage)
+		if err != nil {
+			return
+		}
 		serverSignature := h.Sum(nil)
 
 		h = fn()
-		h.Write(clientKey)
+		_, err = h.Write(clientKey)
+		if err != nil {
+			return
+		}
 		storedKey := h.Sum(nil)
 		h = hmac.New(fn, storedKey)
-		h.Write(authMessage)
+		_, err = h.Write(authMessage)
+		if err != nil {
+			return
+		}
 		clientSignature := h.Sum(nil)
 		clientProof := make([]byte, len(clientKey))
-		xorBytes(clientProof, clientKey, clientSignature)
+		goXORBytes(clientProof, clientKey, clientSignature)
 
 		encodedClientProof := make([]byte, base64.StdEncoding.EncodedLen(len(clientProof)))
 		base64.StdEncoding.Encode(encodedClientProof, clientProof)
@@ -224,4 +275,12 @@ func scramClientNext(name string, fn func() hash.Hash, m *Negotiator, challenge 
 	}
 	err = ErrInvalidState
 	return
+}
+
+func nextParam(params []byte) ([]byte, []byte) {
+	idx := bytes.IndexByte(params, ',')
+	if idx == -1 {
+		return params, nil
+	}
+	return params[:idx], params[idx+1:]
 }
