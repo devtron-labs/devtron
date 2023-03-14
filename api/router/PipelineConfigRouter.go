@@ -169,7 +169,7 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 		HandlerFunc(router.pipelineHistoryRestHandler.FetchDeployedHistoryComponentDetail).
 		Methods("GET")
 
-	configRouter.Path("/history/deployed-configuration/all/latest/{appId}/{pipelineId}").
+	configRouter.Path("/history/deployed-configuration/latest/deployed/{appId}/{pipelineId}").
 		HandlerFunc(router.pipelineHistoryRestHandler.GetAllDeployedConfigurationHistoryForLatestWfrIdForPipeline).
 		Methods("GET")
 
