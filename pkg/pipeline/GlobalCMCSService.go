@@ -128,7 +128,8 @@ func (impl *GlobalCMCSServiceImpl) UpdateDataById(config *GlobalCMCSDataUpdateDt
 
 	model, err := impl.globalCMCSRepository.FindById(config.Id)
 	if err != nil {
-		impl.logger.Errorw("error in fetching data from ")
+		impl.logger.Errorw("error in fetching data from global cm cs")
+		return nil, err
 	}
 	//checking if same name config is present for this type
 	dataByte, err := json.Marshal(config.Data)
