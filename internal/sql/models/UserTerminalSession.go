@@ -44,6 +44,7 @@ type UserTerminalSessionResponse struct {
 	ShellName             string            `json:"shellName"`
 	Containers            []string          `json:"containers"`
 	PodExists             bool              `json:"podExists"`
+	DebugNode             bool              `json:"debugNode"`
 }
 
 const TerminalAccessPodNameTemplate = "terminal-access-" + TerminalAccessClusterIdTemplateVar + "-" + TerminalAccessUserIdTemplateVar + "-" + TerminalAccessRandomIdVar

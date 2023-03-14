@@ -1228,7 +1228,7 @@ func (impl *UserTerminalAccessServiceImpl) forceDeletePod(ctx context.Context, p
 	return true
 }
 
-func (impl *UserTerminalAccessServiceImpl) StartNodeDebug(nodeName, debugPodImage, namespace string, clusterId int, userId int32) {
+func (impl *UserTerminalAccessServiceImpl) StartNodeDebug(nodeName, debugPodImage, namespace string, clusterId int, userId int32) (*models.UserTerminalSessionResponse, error) {
 
 	//store and pass the node-debugger pod data as terminal pod
 	userTerminalRequest := &models.UserTerminalSessionRequest{
@@ -1241,11 +1241,25 @@ func (impl *UserTerminalAccessServiceImpl) StartNodeDebug(nodeName, debugPodImag
 	}
 
 	podObject, err := impl.GenerateNodeDebugPod(userTerminalRequest)
-	terminalStartResponse, err := impl.createTerminalEntity(userTerminalRequest, podObject.Name)
 	if err != nil {
-		impl.Logger.Errorw("failed to create terminal entity", "userTerminalAccessId", terminalStartResponse.TerminalAccessId, "err", err)
-		return
+		impl.Logger.Errorw("failed to create node-debug pod", "err", err, "userId", userTerminalRequest.UserId, "userTerminalRequest", userTerminalRequest)
+		return nil, err
 	}
+	result, err := impl.createTerminalEntity(userTerminalRequest, podObject.Name)
+	if err != nil {
+		impl.Logger.Errorw("failed to create terminal entity", "err", err, "userId", userTerminalRequest.UserId, "userTerminalRequest", userTerminalRequest)
+		return nil, err
+	}
+	result.PodExists = false
+	result.DebugNode = true
+	var containers []string
+	for _, con := range podObject.Spec.Containers {
+		containers = append(containers, con.Name)
+	}
+	result.Containers = containers
+	result.Status = ""
+	result.NodeName = podObject.Spec.NodeName
+	return result, nil
 }
 
 func (impl *UserTerminalAccessServiceImpl) GenerateNodeDebugPod(o *models.UserTerminalSessionRequest) (*v1.Pod, error) {
@@ -1256,7 +1270,7 @@ func (impl *UserTerminalAccessServiceImpl) GenerateNodeDebugPod(o *models.UserTe
 	impl.Logger.Infow("Creating debugging pod ", "podName", pn, "containerName", cn, "nodeName", nodeName)
 
 	const volumeName = "host-root"
-	p := &v1.Pod{
+	debugPod := &v1.Pod{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Pod",
 			APIVersion: "v1",
@@ -1304,13 +1318,14 @@ func (impl *UserTerminalAccessServiceImpl) GenerateNodeDebugPod(o *models.UserTe
 		},
 	}
 
-	podTemplateBytes, err := json.Marshal(&p)
+	podTemplateBytes, err := json.Marshal(&debugPod)
 	if err != nil {
-
+		impl.Logger.Errorw("error in converting pod object into pod yaml", "err", err, "pod", debugPod)
+		return debugPod, err
 	}
 	podTemplate := string(podTemplateBytes)
 	err = impl.applyTemplate(context.Background(), o.ClusterId, podTemplate, podTemplate, false, o.Namespace)
-	return p, err
+	return debugPod, err
 }
 
 func isNodeDebugPod(pod *v1.Pod) bool {
