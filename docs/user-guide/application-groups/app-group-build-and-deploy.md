@@ -1,6 +1,6 @@
 # Build and Deploy
 
-Each time you push a change to your application through GitHub, your application goes through a process to be built and deployed. On the `Build and Deploy` section of the `Application Groups`, you can trigger build or deploy more than one application at the same time. You can also `Select all apps` to trigger build or deploy all the applications. 
+For the applications to be built and deployed on pushing a change, the build and deployment pipelines must be set to `AUTO`. On the `Build and Deploy` section of the `Application Groups`, you can trigger build or deploy more than one application at the same time. You can also `Select all apps` to trigger build or deploy all the applications. 
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/build-and-deploy-app-groups.jpg)
 
@@ -24,5 +24,5 @@ The application with the pre-deployment or post-deployment pipeline can also be 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/pre-deployment-app-groups.jpg)
 
 
-You can also rollback the deployment. Refer [Rollback Deployment](rollback-deployment.md) for detail.
+
 

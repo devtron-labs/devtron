@@ -1,7 +1,7 @@
 # Application Groups
 
-`Application Groups` is a new functionality in Devtron. In the `Application Groups` section, you will find all the applications which are created under the same environment. 
-As an example, if you create two applications `app-A` and `app-B` and add them in the same [environment](https://docs.devtron.ai/v/v0.6/global-configurations/cluster-and-environments#add-environment) (e.g., `devtron-demo`), you will find both the applications in the same application group (environment name). 
+In the `Application Groups` section, you will find all the applications which are created under the same environment. 
+As an example, applications with the [CD pipelines](https://docs.devtron.ai/v/v0.6/usage/applications/creating-application/cd-pipeline) deployed in the same [environment](https://docs.devtron.ai/v/v0.6/global-configurations/cluster-and-environments#add-environment) (e.g., `devtron-demo`), will be available in the same application group.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/application-groups.jpg)
 
@@ -15,7 +15,8 @@ As an example, if you create two applications `app-A` and `app-B` and add them i
 You can search by using the `environment` name or you can also filter by the `cluster` name as shown in the above image.
 
 The benefits of using `Application Groups` in Devtron:
-- To deploy multiple microservices.
-- To perform bulk CI/CD across multiple applications under the same environment.
+- To trigger build pipelines for multiple applications in bulk.
+- To trigger deployment pipelines for the same environment across multiple applications in bulk.
 
-`Note`: You must have a [super admin](https://docs.devtron.ai/v/v0.6/global-configurations/authorization/user-access#role-based-access-levels) permission to access all the applications in the `Application Groups`. Permission users with `admin` can access only the limited applications which they created.
+
+`Note`: Users with [super admin](https://docs.devtron.ai/v/v0.6/global-configurations/authorization/user-access#role-based-access-levels) permission can view all the applications in the `Application Groups`. Other users can view the applications in the `Application Groups` for which they have `View only` permission or higher. 
