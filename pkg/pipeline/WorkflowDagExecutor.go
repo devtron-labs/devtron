@@ -1037,7 +1037,9 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 	if err != nil {
 		return err
 	}
-
+	runner.CdWorkflow = &pipelineConfig.CdWorkflow{
+		Pipeline: pipeline,
+	}
 	// creating cd pipeline status timeline for deployment initialisation
 	timeline := &pipelineConfig.PipelineStatusTimeline{
 		CdWorkflowRunnerId: runner.Id,
@@ -1380,6 +1382,9 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			impl.logger.Errorw("err", "err", err)
 			return 0, err
 		}
+		runner.CdWorkflow = &pipelineConfig.CdWorkflow{
+			Pipeline: cdPipeline,
+		}
 		overrideRequest.CdWorkflowId = cdWorkflowId
 		// creating cd pipeline status timeline for deployment initialisation
 		timeline := &pipelineConfig.PipelineStatusTimeline{
@@ -1451,6 +1456,9 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			if err != nil {
 				impl.logger.Errorw("err", "err", err)
 				return 0, err
+			}
+			runner.CdWorkflow = &pipelineConfig.CdWorkflow{
+				Pipeline: cdPipeline,
 			}
 			cdMetrics := util4.CDMetrics{
 				AppName:         runner.CdWorkflow.Pipeline.DeploymentAppName,

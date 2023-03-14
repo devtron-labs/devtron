@@ -416,6 +416,7 @@ func InitializeApp() (*App, error) {
 		pubsub.NewApplicationStatusHandlerImpl,
 		wire.Bind(new(pubsub.ApplicationStatusHandler), new(*pubsub.ApplicationStatusHandlerImpl)),
 
+		pubsub.GetCiEventConfig,
 		pubsub.NewCiEventHandlerImpl,
 		wire.Bind(new(pubsub.CiEventHandler), new(*pubsub.CiEventHandlerImpl)),
 

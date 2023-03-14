@@ -81,6 +81,7 @@ type InstalledAppService interface {
 	FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetail *bean2.AppDetailContainer) (bean2.AppDetailContainer, error)
 	MarkGitOpsInstalledAppsDeletedIfArgoAppIsDeleted(installedAppId int, envId int) error
 	CheckAppExistsByInstalledAppId(installedAppId int) error
+	FindNotesForArgoApplication(installedAppId, envId int) (string, string, error)
 }
 
 type InstalledAppServiceImpl struct {
@@ -779,6 +780,49 @@ func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(instal
 		DeploymentDetailContainer: deploymentContainer,
 	}
 	return appDetail, nil
+}
+func (impl *InstalledAppServiceImpl) FindNotesForArgoApplication(installedAppId, envId int) (string, string, error) {
+	installedAppVerison, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdAndEnvId(installedAppId, envId)
+	if err != nil {
+		impl.logger.Errorw("error fetching installed  app version in installed app service", "err", err)
+		return "", "", err
+	}
+	var notes string
+	appName := installedAppVerison.InstalledApp.App.AppName
+
+	if util.IsAcdApp(installedAppVerison.InstalledApp.DeploymentAppType) {
+		appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installedAppVerison.AppStoreApplicationVersion.Id)
+		if err != nil {
+			impl.logger.Errorw("error fetching app store app version in installed app service", "err", err)
+			return notes, appName, err
+		}
+
+		installReleaseRequest := &client.InstallReleaseRequest{
+			ChartName:    appStoreAppVersion.Name,
+			ChartVersion: appStoreAppVersion.Version,
+			ValuesYaml:   installedAppVerison.ValuesYaml,
+			ChartRepository: &client.ChartRepository{
+				Name:     appStoreAppVersion.AppStore.ChartRepo.Name,
+				Url:      appStoreAppVersion.AppStore.ChartRepo.Url,
+				Username: appStoreAppVersion.AppStore.ChartRepo.UserName,
+				Password: appStoreAppVersion.AppStore.ChartRepo.Password,
+			},
+			ReleaseIdentifier: &client.ReleaseIdentifier{
+				ReleaseNamespace: installedAppVerison.InstalledApp.Environment.Namespace,
+				ReleaseName:      installedAppVerison.InstalledApp.App.AppName,
+				ClusterConfig: &client.ClusterConfig{
+					ClusterId: int32(installedAppVerison.InstalledApp.Environment.ClusterId),
+				},
+			},
+		}
+
+		notes, err = impl.helmAppService.GetNotes(context.Background(), installReleaseRequest)
+		if err != nil {
+			impl.logger.Errorw("error in fetching notes", "err", err)
+			return notes, appName, err
+		}
+	}
+	return notes, appName, nil
 }
 
 func (impl InstalledAppServiceImpl) GetInstalledAppVersionHistory(installedAppId int) (*appStoreBean.InstallAppVersionHistoryDto, error) {
