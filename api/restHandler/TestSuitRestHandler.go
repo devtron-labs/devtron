@@ -77,6 +77,7 @@ type TestSuiteBean struct {
 
 func (impl TestSuitRestHandlerImpl) CasbinTest(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
+	impl.logger.Infow("received casbin test request", "iterations", vars["iterations"])
 	iterations, err := strconv.Atoi(vars["iterations"])
 	if err != nil {
 		impl.logger.Error(err)
