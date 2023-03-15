@@ -1,4 +1,5 @@
 ## Bugs
+- fix: updated condition for adding kubectl apply synced timeline (#3115)
 - fix: json unmarshal panic error temperory fix. (#3095)
 - fix: added otel for deployment history info api (#3107)
 - fix:showing right image imagetags in multiplecolons in registry url (#3103)
