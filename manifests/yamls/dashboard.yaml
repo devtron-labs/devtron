@@ -215,9 +215,17 @@ spec:
     spec:
       terminationGracePeriodSeconds: 30
       restartPolicy: Always
+      securityContext:
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsUser: 1000
       containers:
         - name: envoy
           image: "quay.io/devtron/envoy:v1.14.1"
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsUser: 1000
+            runAsNonRoot: true
           ports:
             - containerPort: 9901
               protocol: TCP
@@ -233,6 +241,10 @@ spec:
         - name: dashboard
           image: "quay.io/devtron/dashboard:de186b14-325-12876"
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsUser: 1000
+            runAsNonRoot: true
           ports:
             - name: app
               containerPort: 80
