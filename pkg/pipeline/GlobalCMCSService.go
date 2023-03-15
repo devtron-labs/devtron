@@ -103,6 +103,7 @@ func (impl *GlobalCMCSServiceImpl) FindAllActive() ([]*GlobalCMCSDto, error) {
 	var configDtos []*GlobalCMCSDto
 	for _, model := range models {
 		data := make(map[string]string)
+		//model.data should not be a pointer
 		err = json.Unmarshal([]byte(model.Data), &data)
 		if err != nil {
 			impl.logger.Errorw("error in un-marshaling cm/cs data", "err", err)
