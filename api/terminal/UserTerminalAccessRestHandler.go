@@ -29,6 +29,12 @@ type UserTerminalAccessRestHandler interface {
 	EditPodManifest(w http.ResponseWriter, r *http.Request)
 }
 
+type validShellResponse struct {
+	IsValidShell bool   `json:"isValidShell"`
+	ErrorReason  string `json:"errorReason"`
+	ShellName    string `json:"shellName"`
+}
+
 type UserTerminalAccessRestHandlerImpl struct {
 	Logger                    *zap.SugaredLogger
 	UserTerminalAccessService clusterTerminalAccess.UserTerminalAccessService
@@ -48,7 +54,6 @@ func NewUserTerminalAccessRestHandlerImpl(logger *zap.SugaredLogger, userTermina
 	}
 }
 func (handler UserTerminalAccessRestHandlerImpl) ValidateShell(w http.ResponseWriter, r *http.Request) {
-	handler.Logger.Infow("Inside validateShell method")
 	userId, err := handler.UserService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -71,11 +76,6 @@ func (handler UserTerminalAccessRestHandlerImpl) ValidateShell(w http.ResponseWr
 		return
 	}
 	res, shell, err := handler.UserTerminalAccessService.ValidateShell(podName, namespace, shellName, containerName, clusterId)
-	type validShellResponse struct {
-		IsValidShell bool   `json:"isValidShell"`
-		ErrorReason  string `json:"errorReason"`
-		ShellName    string `json:"shellName"`
-	}
 	reason := ""
 	if err != nil {
 		reason = err.Error()
