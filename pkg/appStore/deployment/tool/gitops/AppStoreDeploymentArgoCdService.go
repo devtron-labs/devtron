@@ -26,6 +26,7 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
 	"github.com/golang/protobuf/ptypes/timestamp"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"net/http"
 	"strings"
@@ -317,7 +318,9 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetDeploymentHistory(ctx context
 
 func (impl AppStoreDeploymentArgoCdServiceImpl) GetDeploymentHistoryInfo(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, version int32) (*openapi.HelmAppDeploymentManifestDetail, error) {
 	values := &openapi.HelmAppDeploymentManifestDetail{}
+	_, span := otel.Tracer("orchestrator").Start(ctx, "installedAppRepositoryHistory.GetInstalledAppVersionHistory")
 	versionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(int(version))
+	span.End()
 	if err != nil {
 		impl.Logger.Errorw("error while fetching installed version history", "error", err)
 		return nil, err
@@ -337,8 +340,9 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetDeploymentHistoryInfo(ctx con
 		ValuesYaml:                   values.ValuesYaml,
 	}
 
+	_, span = otel.Tracer("orchestrator").Start(ctx, "helmAppService.TemplateChart")
 	templateChart, manifestErr := impl.helmAppService.TemplateChart(ctx, &manifestRequest)
-
+	span.End()
 	manifest := templateChart.GetManifest()
 
 	if manifestErr != nil {
