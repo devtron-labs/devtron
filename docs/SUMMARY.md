@@ -9,6 +9,7 @@
   * [Install Devtron on Minikube, Microk8s, K3s, Kind](setup/install/Install-devtron-on-Minikube-Microk8s-K3s-Kind.md)
   * [FAQ on Installation](setup/install/faq-on-installation.md)
   * [Uninstall Devtron](setup/install/uninstall-devtron.md)
+* [Devtron Kubernetes Client](setup/install/install-devtron-Kubernetes-client.md)
 * [Configurations](setup/configurations/configurations-overview.md)
   * [Installation Configurations](setup/install/installation-configuration.md)
   * [Override Configurations](setup/install/override-default-devtron-installation-configs.md)

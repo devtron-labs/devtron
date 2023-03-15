@@ -18,6 +18,7 @@
 package sql
 
 import (
+	"github.com/devtron-labs/devtron/internal/middleware"
 	"go.uber.org/zap"
 	"reflect"
 	"time"
@@ -35,6 +36,7 @@ type Config struct {
 	ApplicationName        string `env:"APP" envDefault:"orchestrator"`
 	LogQuery               bool   `env:"PG_LOG_QUERY" envDefault:"true"`
 	LogAllQuery            bool   `env:"PG_LOG_ALL_QUERY" envDefault:"false"`
+	ExportPromMetrics      bool   `env:"PG_EXPORT_PROM_METRICS" envDefault:"false"`
 	QueryDurationThreshold int64  `env:"PG_QUERY_DUR_THRESHOLD" envDefault:"5000"`
 }
 
@@ -69,13 +71,18 @@ func NewDbConnection(cfg *Config, logger *zap.SugaredLogger) (*pg.DB, error) {
 
 		dbConnection.OnQueryProcessed(func(event *pg.QueryProcessedEvent) {
 			query, err := event.FormattedQuery()
+			queryDuration := time.Since(event.StartTime)
+
+			// Expose prom metrics
+			if cfg.ExportPromMetrics {
+				middleware.PgQueryDuration.WithLabelValues("value").Observe(queryDuration.Seconds())
+			}
+
 			if err != nil {
 				logger.Errorw("Error formatting query",
 					"err", err)
 				return
 			}
-
-			queryDuration := time.Since(event.StartTime)
 
 			if cfg.LogAllQuery || queryDuration.Milliseconds() > cfg.QueryDurationThreshold {
 				logger.Debugw("query time",
