@@ -36,7 +36,7 @@ var (
 var PgQueryDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 	Name: "pg_query_duration_seconds",
 	Help: "Duration of PG queries",
-}, []string{"query"})
+}, []string{"label"})
 
 var CdDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 	Name: "cd_duration_seconds",
