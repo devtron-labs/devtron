@@ -1143,8 +1143,11 @@ func (impl *UserTerminalAccessServiceImpl) StartNodeDebug(userTerminalRequest *m
 	//	NodeName:  nodeName,
 	//	ShellName: "bash", //TODO: get it from user
 	//}
-	if userTerminalRequest.NodeName == models.AUTO_SELECT_NODE || userTerminalRequest.NodeName == "" {
-		return nil, errors.New("node name is not valid, node-name : " + userTerminalRequest.NodeName)
+	if userTerminalRequest.NodeName == models.AUTO_SELECT_NODE {
+		return nil, errors.New("node-name is not valid, node-name : " + userTerminalRequest.NodeName)
+	}
+	if userTerminalRequest.NodeName == "" || userTerminalRequest.ShellName == "" {
+		return nil, errors.New("node-name or shell cannot be empty, node-name : " + userTerminalRequest.NodeName + ", shell : " + userTerminalRequest.ShellName)
 	}
 	podObject, err := impl.GenerateNodeDebugPod(userTerminalRequest)
 	if err != nil {
@@ -1179,7 +1182,7 @@ func (impl *UserTerminalAccessServiceImpl) GenerateNodeDebugPod(o *models.UserTe
 	const volumeName = "host-root"
 	debugPod := &v1.Pod{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "Pod",
+			Kind:       utils1.PodKind,
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
