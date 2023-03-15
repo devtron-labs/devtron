@@ -37,7 +37,6 @@ type ChartRepoFields struct {
 	External                bool                `sql:"external,notnull"`
 	Deleted                 bool                `sql:"deleted,notnull"`
 	AllowInsecureConnection bool                `sql:"allow_insecure_connection,notnull"`
-	IsHealthy               bool                `sql:"is_healthy"`
 }
 type ChartRepo struct {
 	tableName struct{} `sql:"chart_repo"`

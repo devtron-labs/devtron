@@ -29,7 +29,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/ghodss/yaml"
-	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
 	"io"
 	"io/ioutil"
@@ -71,7 +70,6 @@ type ChartRepositoryService interface {
 	TriggerChartSyncManual() error
 	DeleteChartRepo(request *ChartRepoDto) error
 	DeleteChartSecret(secretName string) error
-	CheckPrivateChartCredentialsHealth()
 }
 
 type ChartRepositoryServiceImpl struct {
@@ -96,17 +94,7 @@ func NewChartRepositoryServiceImpl(logger *zap.SugaredLogger, repoRepository cha
 		client:          client,
 		serverEnvConfig: serverEnvConfig,
 	}
-	cron := cron.New(
-		cron.WithChain())
-	cron.Start()
-
-	_, err := cron.AddFunc("@every 1m", ChartRepositoryServiceImpl.CheckPrivateChartCredentialsHealth)
-	if err != nil {
-		logger.Errorw("error in adding cron function into module chartRepo")
-	}
-
 	return ChartRepositoryServiceImpl
-
 }
 
 // Private helm charts credentials are saved as secrets
@@ -144,7 +132,7 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 	chartRepo.Default = false
 	chartRepo.External = true
 	chartRepo.AllowInsecureConnection = request.AllowInsecureConnection
-	chartRepo.IsHealthy = true
+
 	err = impl.repoRepository.Save(chartRepo, tx)
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
@@ -278,30 +266,17 @@ func (impl *ChartRepositoryServiceImpl) UpdateChartRepo(request *ChartRepoDto) (
 				continue
 			}
 		} else {
-
 			secretData := impl.CreateSecretDataForPrivateHelmChart(request)
-
-			if chartRepo.IsHealthy {
-				secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, chartRepo.Name, client)
-				if err != nil {
-					impl.logger.Errorw("error in fetching secret", "err", err)
-					continue
-				}
-				secret.StringData = secretData
-				_, err = impl.K8sUtil.UpdateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, secret, client)
-				if err != nil {
-					impl.logger.Warnw("secret update for chart repo failed", "err", err)
-					continue
-				}
-			} else {
-				secretLabel := make(map[string]string)
-				secretLabel[LABEL] = REPOSITORY
-				secretData := impl.CreateSecretDataForPrivateHelmChart(request)
-				_, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, nil, chartRepo.Name, "", client, secretLabel, secretData)
-				if err != nil {
-					impl.logger.Warnw("Error in creating secret for unhealthy chart", "err", err)
-					continue
-				}
+			secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, chartRepo.Name, client)
+			if err != nil {
+				impl.logger.Errorw("error in fetching secret", "err", err)
+				continue
+			}
+			secret.StringData = secretData
+			_, err = impl.K8sUtil.UpdateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, secret, client)
+			if err != nil {
+				impl.logger.Warnw("secret update for chart repo failed", "err", err)
+				continue
 			}
 		}
 		if err == nil {
@@ -352,7 +327,6 @@ func (impl *ChartRepositoryServiceImpl) convertFromDbResponse(model *chartRepoRe
 	chartRepo.Default = model.Default
 	chartRepo.Active = model.Active
 	chartRepo.AllowInsecureConnection = model.AllowInsecureConnection
-	chartRepo.IsHealthy = model.IsHealthy
 	return chartRepo
 }
 
@@ -375,7 +349,6 @@ func (impl *ChartRepositoryServiceImpl) GetChartRepoList() ([]*ChartRepoDto, err
 		chartRepo.Default = model.Default
 		chartRepo.Active = model.Active
 		chartRepo.IsEditable = true
-		chartRepo.IsHealthy = model.IsHealthy
 		if model.ActiveDeploymentCount > 0 {
 			chartRepo.IsEditable = false
 		}
@@ -702,58 +675,4 @@ func (impl *ChartRepositoryServiceImpl) DeleteChartSecret(secretName string) err
 	}
 	err = impl.K8sUtil.DeleteSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, secretName, client)
 	return err
-}
-
-func (impl *ChartRepositoryServiceImpl) CheckPrivateChartCredentialsHealth() {
-
-	impl.logger.Debugw("running chart health check")
-
-	chartRepos, err := impl.repoRepository.FindAll()
-	if err != nil {
-		impl.logger.Errorw("error in getting all active chart repos", "err", err)
-	}
-
-	for _, chart := range chartRepos {
-		ChartRepoDto := impl.convertFromDbResponse(chart)
-		validationResult := impl.ValidateChartRepo(ChartRepoDto)
-		if validationResult.CustomErrMsg != ValidationSuccessMsg && ChartRepoDto.IsHealthy && ChartRepoDto.AuthMode == "USERNAME_PASSWORD" {
-			impl.logger.Debugw("unhealth credentials found", "ChartRepoName", ChartRepoDto.Name)
-			dbConnection := impl.repoRepository.GetConnection()
-			tx, err := dbConnection.Begin()
-			if err != nil {
-				return
-			}
-			defer tx.Rollback()
-			//delete secret corresponding to invalid helm chart
-			clusterBean, err := impl.clusterService.FindOne(cluster.DefaultClusterName)
-			if err != nil {
-				return
-			}
-			cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
-			if err != nil {
-				return
-			}
-			client, err := impl.K8sUtil.GetClient(cfg)
-			if err != nil {
-				return
-			}
-			err = impl.K8sUtil.DeleteSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, ChartRepoDto.Name, client)
-			if err != nil {
-				impl.logger.Errorw("error in deleting invalid chart repo secret", "err", err)
-				return
-			}
-			chart.IsHealthy = false
-			err = impl.repoRepository.Update(chart, tx)
-			if err != nil {
-				impl.logger.Errorw("error in Marking chart unhealthy")
-				return
-			}
-			err = tx.Commit()
-			if err != nil {
-				return
-			}
-		}
-	}
-
-	return
 }
