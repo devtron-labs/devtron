@@ -13,6 +13,7 @@
 - fix: urls pipeline fetching bug fix (#3063)
 - fix: app grouping appid appname (#3058)
 ## Enhancements
+- feat: export pg query metrics to prometheus (#3118)
 - feat: Add timer/counter telemetry for CI process (#3081)
 - feat: Git, GitOps, Container Registries and SSO login token hide from dashboard (#2952)
 - feat:show notes for gitops app (#3082)
