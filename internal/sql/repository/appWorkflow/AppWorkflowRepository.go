@@ -32,6 +32,7 @@ type AppWorkflowRepository interface {
 	FindById(id int) (*AppWorkflow, error)
 	FindByIds(ids []int) (*AppWorkflow, error)
 	FindByAppId(appId int) (appWorkflow []*AppWorkflow, err error)
+	FindByAppIds(appIds []int) (appWorkflow []*AppWorkflow, err error)
 	DeleteAppWorkflow(appWorkflow *AppWorkflow, tx *pg.Tx) error
 
 	SaveAppWorkflowMapping(wf *AppWorkflowMapping, tx *pg.Tx) (*AppWorkflowMapping, error)
@@ -114,6 +115,14 @@ func (impl AppWorkflowRepositoryImpl) UpdateAppWorkflow(wf *AppWorkflow) (*AppWo
 func (impl AppWorkflowRepositoryImpl) FindByAppId(appId int) (appWorkflow []*AppWorkflow, err error) {
 	err = impl.dbConnection.Model(&appWorkflow).
 		Where("app_id = ?", appId).
+		Where("active = ?", true).
+		Select()
+	return appWorkflow, err
+}
+
+func (impl AppWorkflowRepositoryImpl) FindByAppIds(appIds []int) (appWorkflow []*AppWorkflow, err error) {
+	err = impl.dbConnection.Model(&appWorkflow).
+		Where("app_id in (?)", pg.In(appIds)).
 		Where("active = ?", true).
 		Select()
 	return appWorkflow, err
