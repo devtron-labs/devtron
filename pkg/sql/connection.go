@@ -75,7 +75,7 @@ func NewDbConnection(cfg *Config, logger *zap.SugaredLogger) (*pg.DB, error) {
 
 			// Expose prom metrics
 			if cfg.ExportPromMetrics {
-				middleware.PgQueryDuration.WithLabelValues(query).Observe(queryDuration.Seconds())
+				middleware.PgQueryDuration.WithLabelValues("value").Observe(queryDuration.Seconds())
 			}
 
 			if err != nil {
