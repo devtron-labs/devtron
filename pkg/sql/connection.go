@@ -18,6 +18,7 @@
 package sql
 
 import (
+	"github.com/devtron-labs/devtron/internal/middleware"
 	"go.uber.org/zap"
 	"reflect"
 	"time"
@@ -69,13 +70,16 @@ func NewDbConnection(cfg *Config, logger *zap.SugaredLogger) (*pg.DB, error) {
 
 		dbConnection.OnQueryProcessed(func(event *pg.QueryProcessedEvent) {
 			query, err := event.FormattedQuery()
+			queryDuration := time.Since(event.StartTime)
+
+			// Expose prom metrics
+			middleware.PgQueryDuration.WithLabelValues(query).Observe(queryDuration.Seconds())
+
 			if err != nil {
 				logger.Errorw("Error formatting query",
 					"err", err)
 				return
 			}
-
-			queryDuration := time.Since(event.StartTime)
 
 			if cfg.LogAllQuery || queryDuration.Milliseconds() > cfg.QueryDurationThreshold {
 				logger.Debugw("query time",
