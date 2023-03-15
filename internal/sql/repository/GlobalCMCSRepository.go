@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"encoding/json"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -10,7 +9,7 @@ import (
 type GlobalCMCSRepository interface {
 	Save(model *GlobalCMCS) (*GlobalCMCS, error)
 	Update(model *GlobalCMCS) (*GlobalCMCS, error)
-	FindAllActive() ([]*GlobalCMCS, error)
+	FindAllActive() ([]GlobalCMCS, error)
 	FindByConfigTypeAndName(configType, name string) (*GlobalCMCS, error)
 	FindByMountPath(mountPath string) (*GlobalCMCS, error)
 }
@@ -38,9 +37,9 @@ type GlobalCMCS struct {
 	Name       string   `sql:"name"`
 	Type       string   `sql:"type"` // [environment, volume]
 	//json string of map of key:value, example: '{ "a" : "b", "c" : "d"}'
-	Data      json.RawMessage `sql:"data"`
-	MountPath string          `sql:"mount_path"`
-	Deleted   bool            `sql:"deleted,notnull"`
+	Data      string `sql:"data"`
+	MountPath string `sql:"mount_path"`
+	Deleted   bool   `sql:"deleted,notnull"`
 	sql.AuditLog
 }
 
@@ -62,8 +61,8 @@ func (impl *GlobalCMCSRepositoryImpl) Update(model *GlobalCMCS) (*GlobalCMCS, er
 	return model, nil
 }
 
-func (impl *GlobalCMCSRepositoryImpl) FindAllActive() ([]*GlobalCMCS, error) {
-	var models []*GlobalCMCS
+func (impl *GlobalCMCSRepositoryImpl) FindAllActive() ([]GlobalCMCS, error) {
+	var models []GlobalCMCS
 	err := impl.dbConnection.Model(&models).
 		Where("deleted = ?", false).Select()
 	if err != nil {
