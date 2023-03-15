@@ -36,6 +36,7 @@ type Config struct {
 	ApplicationName        string `env:"APP" envDefault:"orchestrator"`
 	LogQuery               bool   `env:"PG_LOG_QUERY" envDefault:"true"`
 	LogAllQuery            bool   `env:"PG_LOG_ALL_QUERY" envDefault:"false"`
+	ExportPromMetrics      bool   `env:"PG_EXPORT_PROM_METRICS" envDefault:"false"`
 	QueryDurationThreshold int64  `env:"PG_QUERY_DUR_THRESHOLD" envDefault:"5000"`
 }
 
@@ -73,7 +74,9 @@ func NewDbConnection(cfg *Config, logger *zap.SugaredLogger) (*pg.DB, error) {
 			queryDuration := time.Since(event.StartTime)
 
 			// Expose prom metrics
-			middleware.PgQueryDuration.WithLabelValues(query).Observe(queryDuration.Seconds())
+			if cfg.ExportPromMetrics {
+				middleware.PgQueryDuration.WithLabelValues(query).Observe(queryDuration.Seconds())
+			}
 
 			if err != nil {
 				logger.Errorw("Error formatting query",
