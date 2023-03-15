@@ -173,8 +173,11 @@ func (impl UserServiceImpl) SelfRegisterUserIfNotExists(userInfo *bean.UserInfo)
 	if len(policies) > 0 {
 		//loading policy for safety
 		casbin2.LoadPolicy()
-		pRes := casbin2.AddPolicy(policies)
-		println(pRes)
+		err = casbin2.AddPolicy(policies)
+		if err != nil {
+			impl.logger.Errorw("casbin policy addition failed", "err", err)
+			return nil, err
+		}
 		//loading policy for syncing orchestrator to casbin with newly added policies
 		casbin2.LoadPolicy()
 	}
@@ -385,8 +388,11 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 	impl.logger.Infow("Checking the length of policies to be added and Adding in casbin ")
 	if len(policies) > 0 {
 		impl.logger.Infow("Adding policies in casbin")
-		pRes := casbin2.AddPolicy(policies)
-		println(pRes)
+		err = casbin2.AddPolicy(policies)
+		if err != nil {
+			impl.logger.Errorw("casbin policy addition failed", "err", err)
+			return nil, err
+		}
 	}
 	//Ends
 	err = tx.Commit()
@@ -786,8 +792,11 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 		println(pRes)
 	}
 	if len(addedPolicies) > 0 {
-		pRes := casbin2.AddPolicy(addedPolicies)
-		println(pRes)
+		err = casbin2.AddPolicy(addedPolicies)
+		if err != nil {
+			impl.logger.Errorw("casbin policy addition failed", "err", err)
+			return nil, false, false, nil, err
+		}
 	}
 	//Ends
 

@@ -5,13 +5,10 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/user/casbin/client"
 	"go.uber.org/zap"
-	"log"
 )
 
 type CasbinService interface {
-	AddPolicyTestWithoutCompression(iterations int)
-	AddPolicyTest(iterations int)
-	AddPolicy(policies []Policy) ([]Policy, error)
+	AddPolicy(policies []Policy) error
 	LoadPolicy()
 	RemovePolicy(policies []Policy) ([]Policy, error)
 	GetAllSubjects() ([]string, error)
@@ -35,8 +32,8 @@ func NewCasbinServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl *CasbinServiceImpl) AddPolicy(policies []Policy) ([]Policy, error) {
-	convertedPolicies := make([]*client.Policy, len(policies))
+func (impl *CasbinServiceImpl) AddPolicy(policies []Policy) error {
+	convertedPolicies := make([]*client.Policy, 0, len(policies))
 	for _, policy := range policies {
 		convertedPolicy := &client.Policy{
 			Type: string(policy.Type),
@@ -50,57 +47,15 @@ func (impl *CasbinServiceImpl) AddPolicy(policies []Policy) ([]Policy, error) {
 	in := &client.MultiPolicyObj{
 		Policies: convertedPolicies,
 	}
-	_, err := impl.casbinClient.AddPolicy(context.Background(), in)
+	resp, err := impl.casbinClient.AddPolicy(context.Background(), in)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return policies, nil
-}
-
-func (impl *CasbinServiceImpl) AddPolicyTest(iterations int) {
-	convertedPolicies := make([]*client.Policy, 0, iterations)
-	for i := 0; i < iterations; i++ {
-		policy := Policy{Type: PolicyType(fmt.Sprintf("test-%v", i)), Sub: Subject(fmt.Sprintf("efgh-%v", i)), Res: Resource(fmt.Sprintf("abcd-%v", i)), Act: "view", Obj: Object(fmt.Sprintf("xyz-%v", i))}
-		convertedPolicy := &client.Policy{
-			Type: string(policy.Type),
-			Sub:  string(policy.Sub),
-			Res:  string(policy.Res),
-			Act:  string(policy.Act),
-			Obj:  string(policy.Obj),
-		}
-		convertedPolicies = append(convertedPolicies, convertedPolicy)
+	if resp != nil && len(resp.FailedPolicies) > 0 {
+		impl.logger.Errorw("error in adding all policies", "err", err, "failedPolicies", resp.FailedPolicies)
+		return fmt.Errorf("error in adding access policies, rolling back")
 	}
-	in := &client.MultiPolicyObj{
-		Policies: convertedPolicies,
-	}
-	_, err := impl.casbinClient.AddPolicy(context.Background(), in)
-	if err != nil {
-		log.Println("error in addPolicyTest method", err)
-	}
-	return
-}
-
-func (impl *CasbinServiceImpl) AddPolicyTestWithoutCompression(iterations int) {
-	convertedPolicies := make([]*client.Policy, 0, iterations)
-	for i := 0; i < iterations; i++ {
-		policy := Policy{Type: PolicyType(fmt.Sprintf("test-%v", i)), Sub: Subject(fmt.Sprintf("efgh-%v", i)), Res: Resource(fmt.Sprintf("abcd-%v", i)), Act: "view", Obj: Object(fmt.Sprintf("xyz-%v", i))}
-		convertedPolicy := &client.Policy{
-			Type: string(policy.Type),
-			Sub:  string(policy.Sub),
-			Res:  string(policy.Res),
-			Act:  string(policy.Act),
-			Obj:  string(policy.Obj),
-		}
-		convertedPolicies = append(convertedPolicies, convertedPolicy)
-	}
-	in := &client.MultiPolicyObj{
-		Policies: convertedPolicies,
-	}
-	_, err := impl.casbinClient.AddPolicyWithoutCompression(context.Background(), in)
-	if err != nil {
-		log.Println("error in addPolicyTest method", err)
-	}
-	return
+	return nil
 }
 
 func (impl *CasbinServiceImpl) LoadPolicy() {
@@ -110,7 +65,7 @@ func (impl *CasbinServiceImpl) LoadPolicy() {
 }
 
 func (impl *CasbinServiceImpl) RemovePolicy(policies []Policy) ([]Policy, error) {
-	convertedPolicies := make([]*client.Policy, len(policies))
+	convertedPolicies := make([]*client.Policy, 0, len(policies))
 	for _, policy := range policies {
 		convertedPolicy := &client.Policy{
 			Type: string(policy.Type),

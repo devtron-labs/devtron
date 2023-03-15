@@ -616,7 +616,11 @@ func (impl UserAuthRepositoryImpl) SyncOrchestratorToCasbin(team string, entityN
 	}
 	impl.Logger.Debugw("add policy request", "policies", policiesView)
 	policies = append(policies, policiesView.Data...)
-	casbin2.AddPolicy(policies)
+	err = casbin2.AddPolicy(policies)
+	if err != nil {
+		impl.Logger.Errorw("casbin policy addition failed", "err", err)
+		return false, err
+	}
 	return true, nil
 }
 
@@ -759,7 +763,11 @@ func (impl UserAuthRepositoryImpl) UpdateDefaultPolicyByRoleType(newPolicy strin
 	casbin2.LoadPolicy()
 	//updating all policies(for all roles) in casbin
 	if len(addedPolicyFinal.Data) > 0 {
-		casbin2.AddPolicy(addedPolicyFinal.Data)
+		err = casbin2.AddPolicy(addedPolicyFinal.Data)
+		if err != nil {
+			impl.Logger.Errorw("casbin policy addition failed", "err", err)
+			return err
+		}
 	}
 	if len(deletedPolicyFinal.Data) > 0 {
 		casbin2.RemovePolicy(deletedPolicyFinal.Data)

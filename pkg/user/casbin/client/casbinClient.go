@@ -7,14 +7,15 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/encoding/gzip"
-	_ "google.golang.org/grpc/encoding/gzip"
 	"time"
 )
 
+const (
+	MegaBytes = 1024 * 1024
+)
+
 type CasbinClient interface {
-	AddPolicyWithoutCompression(ctx context.Context, in *MultiPolicyObj) (*MultiPolicyObj, error)
-	AddPolicy(ctx context.Context, in *MultiPolicyObj) (*MultiPolicyObj, error)
+	AddPolicy(ctx context.Context, in *MultiPolicyObj) (*AddPolicyResp, error)
 	LoadPolicy(ctx context.Context, in *EmptyObj) (*EmptyObj, error)
 	RemovePolicy(ctx context.Context, in *MultiPolicyObj) (*MultiPolicyObj, error)
 	GetAllSubjects(ctx context.Context, in *EmptyObj) (*GetAllSubjectsResp, error)
@@ -32,7 +33,8 @@ type CasbinClientImpl struct {
 }
 
 type CasbinClientConfig struct {
-	Url string `env:"CASBIN_CLIENT_URL" envDefault:"127.0.0.1:9000"`
+	Url                       string `env:"CASBIN_CLIENT_URL" envDefault:"127.0.0.1:9000"`
+	MaxSizeOfDataTransferInMb int    `env:"CASBIN_GRPC_DATA_TRANSFER_MAX_SIZE" envDefault:"30"`
 }
 
 func NewCasbinClientImpl(logger *zap.SugaredLogger,
@@ -59,14 +61,7 @@ func (impl *CasbinClientImpl) getCasbinClient() (CasbinServiceClient, error) {
 	}
 	return impl.casbinServiceClient, nil
 }
-func (impl *CasbinClientImpl) getCasbinClientWithoutCompression() (CasbinServiceClient, error) {
-	connection, err := impl.getConnectionWithoutCompression()
-	if err != nil {
-		return nil, err
-	}
-	return NewCasbinServiceClient(connection), nil
 
-}
 func (impl *CasbinClientImpl) getConnection() (*grpc.ClientConn, error) {
 	var opts []grpc.DialOption
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -77,7 +72,7 @@ func (impl *CasbinClientImpl) getConnection() (*grpc.ClientConn, error) {
 		grpc.WithBlock(),
 		grpc.WithInsecure(),
 		grpc.WithDefaultCallOptions(
-			grpc.MaxCallRecvMsgSize(20*1024*1024),
+			grpc.MaxCallRecvMsgSize(impl.casbinClientConfig.MaxSizeOfDataTransferInMb*MegaBytes),
 		),
 		grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy":"round_robin"}`),
 	)
@@ -89,43 +84,8 @@ func (impl *CasbinClientImpl) getConnection() (*grpc.ClientConn, error) {
 	return conn, err
 }
 
-func (impl *CasbinClientImpl) getConnectionWithoutCompression() (*grpc.ClientConn, error) {
-	var opts []grpc.DialOption
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	opts = append(opts,
-		grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()),
-		grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()),
-		grpc.WithBlock(),
-		grpc.WithInsecure(),
-		grpc.WithDefaultCallOptions(
-			grpc.MaxCallRecvMsgSize(20*1024*1024),
-			grpc.UseCompressor(gzip.Name),
-		),
-		grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy":"round_robin"}`),
-	)
-	endpoint := fmt.Sprintf("dns:///%s", impl.casbinClientConfig.Url)
-	conn, err := grpc.DialContext(ctx, endpoint, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return conn, err
-}
-
-func (impl *CasbinClientImpl) AddPolicy(ctx context.Context, in *MultiPolicyObj) (*MultiPolicyObj, error) {
+func (impl *CasbinClientImpl) AddPolicy(ctx context.Context, in *MultiPolicyObj) (*AddPolicyResp, error) {
 	casbinClient, err := impl.getCasbinClient()
-	if err != nil {
-		return nil, err
-	}
-	resp, err := casbinClient.AddPolicy(ctx, in)
-	if err != nil {
-		return nil, err
-	}
-	return resp, nil
-}
-
-func (impl *CasbinClientImpl) AddPolicyWithoutCompression(ctx context.Context, in *MultiPolicyObj) (*MultiPolicyObj, error) {
-	casbinClient, err := impl.getCasbinClientWithoutCompression()
 	if err != nil {
 		return nil, err
 	}

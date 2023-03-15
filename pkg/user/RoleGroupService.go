@@ -174,8 +174,11 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 		}
 
 		if len(policies) > 0 {
-			pRes := casbin2.AddPolicy(policies)
-			println(pRes)
+			err = casbin2.AddPolicy(policies)
+			if err != nil {
+				impl.logger.Errorw("casbin policy addition failed", "err", err)
+				return nil, err
+			}
 			//loading policy for syncing orchestrator to casbin with newly added policies
 			casbin2.LoadPolicy()
 		}
@@ -391,7 +394,11 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 
 	//updating in casbin
 	if len(policies) > 0 {
-		casbin2.AddPolicy(policies)
+		err = casbin2.AddPolicy(policies)
+		if err != nil {
+			impl.logger.Errorw("casbin policy addition failed", "err", err)
+			return nil, err
+		}
 	}
 	//loading policy for syncing orchestrator to casbin with newly added policies
 	//(not calling this method in above if condition because we are also removing policies in this update service)

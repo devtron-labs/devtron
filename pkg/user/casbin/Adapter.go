@@ -71,49 +71,15 @@ func setCasbinService(service CasbinService) {
 	casbinService = service
 }
 
-func AddPolicy(policies []Policy) []Policy {
-	policy, err := casbinService.AddPolicy(policies)
-	log.Println(err)
-	return policy
-	/*defer HandlePanic()
-	var failed = []Policy{}
-	emailIdList := map[string]struct{}{}
-	for _, p := range policies {
-		success := false
-		if strings.ToLower(string(p.Type)) == "p" && p.Sub != "" && p.Res != "" && p.Act != "" && p.Obj != "" {
-			sub := strings.ToLower(string(p.Sub))
-			res := strings.ToLower(string(p.Res))
-			act := strings.ToLower(string(p.Act))
-			obj := strings.ToLower(string(p.Obj))
-			success = e.AddPolicy([]string{sub, res, act, obj, "allow"})
-		} else if strings.ToLower(string(p.Type)) == "g" && p.Sub != "" && p.Obj != "" {
-			sub := strings.ToLower(string(p.Sub))
-			obj := strings.ToLower(string(p.Obj))
-			success = e.AddGroupingPolicy([]string{sub, obj})
-		}
-		if !success {
-			failed = append(failed, p)
-		}
-		if p.Sub != "" {
-			emailIdList[strings.ToLower(string(p.Sub))] = struct{}{}
-		}
+func AddPolicy(policies []Policy) error {
+	err := casbinService.AddPolicy(policies)
+	if err != nil {
+		log.Println("casbin policy addition failed", "err", err)
+		return err
 	}
-	if len(policies) != len(failed) {
-		for emailId := range emailIdList {
-			enforcerImplRef.InvalidateCache(emailId)
-		}
-	}
-	return failed*/
+	return nil
 }
 
-func AddPolicyTest(iterations int) {
-	casbinService.AddPolicyTest(iterations)
-	return
-}
-func AddPolicyTestWithoutCompression(iterations int) {
-	casbinService.AddPolicyTestWithoutCompression(iterations)
-	return
-}
 func LoadPolicy() {
 	defer HandlePanic()
 	err := enforcerImplRef.ReloadPolicy()
