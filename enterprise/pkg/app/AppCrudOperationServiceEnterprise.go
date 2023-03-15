@@ -29,7 +29,9 @@ import (
 )
 
 type AppCrudOperationServiceEnterpriseImpl struct {
+	logger           *zap.SugaredLogger
 	globalTagService globalTag.GlobalTagService
+	appRepository    app.AppRepository
 	*app2.AppCrudOperationServiceImpl
 }
 
@@ -38,21 +40,34 @@ func NewAppCrudOperationServiceEnterpriseImpl(appLabelRepository pipelineConfig.
 	globalTagService globalTag.GlobalTagService) *AppCrudOperationServiceEnterpriseImpl {
 	return &AppCrudOperationServiceEnterpriseImpl{
 		AppCrudOperationServiceImpl: app2.NewAppCrudOperationServiceImpl(appLabelRepository, logger, appRepository, userRepository, installedAppRepository),
+		logger:                      logger,
 		globalTagService:            globalTagService,
+		appRepository:               appRepository,
 	}
 }
 
 func (impl *AppCrudOperationServiceEnterpriseImpl) UpdateApp(request *bean.CreateAppDTO) (*bean.CreateAppDTO, error) {
 	// validate mandatory labels against project
-	labelsMap := make(map[string]string)
-	for _, label := range request.AppLabels {
-		labelsMap[label.Key] = label.Value
-	}
-	err := impl.globalTagService.ValidateMandatoryLabelsForProject(request.TeamId, labelsMap)
+	// if project is changed, then no need to validate mandatory tags against new project
+	app, err := impl.appRepository.FindById(request.Id)
 	if err != nil {
+		impl.logger.Errorw("error in fetching app", "error", err)
 		return nil, err
 	}
-
+	teamId := request.TeamId
+	if teamId == 0 {
+		teamId = app.TeamId
+	}
+	if app.TeamId == teamId {
+		labelsMap := make(map[string]string)
+		for _, label := range request.AppLabels {
+			labelsMap[label.Key] = label.Value
+		}
+		err := impl.globalTagService.ValidateMandatoryLabelsForProject(teamId, labelsMap)
+		if err != nil {
+			return nil, err
+		}
+	}
 	// call forward
 	return impl.AppCrudOperationServiceImpl.UpdateApp(request)
 }
