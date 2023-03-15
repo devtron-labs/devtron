@@ -137,7 +137,7 @@ func (impl *GlobalCMCSServiceImpl) UpdateDataById(config *GlobalCMCSDataUpdateDt
 		impl.logger.Errorw("error in marshaling cm/cs data", "err", err)
 		return nil, err
 	}
-	model.Data = dataByte
+	model.Data = string(dataByte)
 	if config.SecretIngestionFor != "" {
 		model.SecretIngestionFor = config.SecretIngestionFor
 	}
