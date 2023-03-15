@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/app"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
@@ -143,6 +144,9 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 		return 0, err
 	}
 
+	if len(workflowRequest.BeforeDockerBuildScripts) == 0 && pipeline.App != nil && pipeline.App.AppType == helper.Job {
+		return 0, errors.New("No tasks configured for this job")
+	}
 	err = impl.updateCiWorkflow(workflowRequest, savedCiWf)
 
 	appLabels, err := impl.appCrudOperationService.GetLabelsByAppId(pipeline.AppId)
