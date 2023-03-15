@@ -1134,15 +1134,6 @@ func (impl *UserTerminalAccessServiceImpl) forceDeletePod(ctx context.Context, p
 
 func (impl *UserTerminalAccessServiceImpl) StartNodeDebug(userTerminalRequest *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error) {
 
-	//store and pass the node-debugger pod data as terminal pod
-	//userTerminalRequest = &models.UserTerminalSessionRequest{
-	//	UserId:    userId,
-	//	Namespace: namespace,
-	//	ClusterId: clusterId,
-	//	BaseImage: debugPodImage,
-	//	NodeName:  nodeName,
-	//	ShellName: "bash", //TODO: get it from user
-	//}
 	if userTerminalRequest.NodeName == models.AUTO_SELECT_NODE {
 		return nil, errors.New("node-name is not valid, node-name : " + userTerminalRequest.NodeName)
 	}
