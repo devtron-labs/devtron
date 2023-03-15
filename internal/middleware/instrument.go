@@ -41,7 +41,7 @@ var CdDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 var GitOpsDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 	Name: "git_ops_duration_seconds",
 	Help: "Duration of GitOps",
-}, []string{"OperationName", "MethodName"})
+}, []string{"operationName", "methodName", "status", "time"})
 
 var requestCounter = promauto.NewCounterVec(
 	prometheus.CounterOpts{

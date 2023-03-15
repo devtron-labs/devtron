@@ -223,3 +223,11 @@ func TriggerCDMetrics(wfr CDMetrics, exposeCDMetrics bool) {
 		middleware.CdDuration.WithLabelValues(wfr.AppName, wfr.Status, wfr.EnvironmentName, wfr.DeploymentType).Observe(wfr.Time)
 	}
 }
+
+func TriggerGitOpsMetrics(operation string, method string, startTime time.Time, err error) {
+	if err != nil {
+		middleware.GitOpsDuration.WithLabelValues(operation, method, fmt.Sprintf("%v", startTime), "Failed").Observe(time.Since(startTime).Seconds())
+	} else {
+		middleware.GitOpsDuration.WithLabelValues(operation, method, fmt.Sprintf("%v", startTime), "Success").Observe(time.Since(startTime).Seconds())
+	}
+}

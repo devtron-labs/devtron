@@ -20,7 +20,7 @@ package util
 import (
 	"context"
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/middleware"
+	"github.com/devtron-labs/devtron/util"
 	"io/ioutil"
 	"net/url"
 	"path/filepath"
@@ -96,8 +96,8 @@ func (factory *GitFactory) Reload() error {
 		return err
 	}
 	factory.Client = client
-	middleware.GitOpsDuration.WithLabelValues("Reload", "GitService").Observe(time.Since(start).Seconds())
 	logger.Infow(" gitops details reload success")
+	defer util.TriggerGitOpsMetrics("Reload", "GitService", start, err)
 	return nil
 }
 
@@ -131,7 +131,7 @@ func (factory *GitFactory) GetGitLabGroupPath(gitOpsConfig *bean2.GitOpsConfigDt
 		factory.logger.Errorw("no matching groups found for gitlab", "gitLab groupID", gitOpsConfig.GitLabGroupId, "err", err)
 		return "", fmt.Errorf("no matching groups found for gitlab group ID : %s", gitOpsConfig.GitLabGroupId)
 	}
-	middleware.GitOpsDuration.WithLabelValues("GetGitLabGroupPath", "GitService").Observe(time.Since(start).Seconds())
+	defer util.TriggerGitOpsMetrics("GetGitLabGroupPath", "GitService", start, err)
 	return group.FullPath, nil
 }
 
@@ -159,7 +159,7 @@ func (factory *GitFactory) NewClientForValidation(gitOpsConfig *bean2.GitOpsConf
 
 	//factory.Client = client
 	logger.Infow("client changed successfully", "cfg", cfg)
-	middleware.GitOpsDuration.WithLabelValues("NewClientForValidation", "GitService").Observe(time.Since(start).Seconds())
+	defer util.TriggerGitOpsMetrics("NewClientForValidation", "GitService", start, err)
 	return client, gitService, nil
 }
 
@@ -290,7 +290,7 @@ func (impl GitServiceImpl) GetCloneDirectory(targetDir string) (clonedDir string
 
 	start := time.Now()
 	clonedDir = filepath.Join(impl.config.GitWorkingDir, targetDir)
-	middleware.GitOpsDuration.WithLabelValues("GetCloneDirectory", "GitService").Observe(time.Since(start).Seconds())
+	defer util.TriggerGitOpsMetrics("GetCloneDirectory", "GitService", start, nil)
 	return clonedDir
 }
 
@@ -306,7 +306,7 @@ func (impl GitServiceImpl) Clone(url, targetDir string) (clonedDir string, err e
 	if errorMsg != "" {
 		return "", fmt.Errorf(errorMsg)
 	}
-	middleware.GitOpsDuration.WithLabelValues("Clone", "GitService").Observe(time.Since(start).Seconds())
+	defer util.TriggerGitOpsMetrics("Clone", "GitService", start, err)
 	return clonedDir, nil
 }
 
@@ -341,8 +341,7 @@ func (impl GitServiceImpl) CommitAndPushAllChanges(repoRoot, commitMsg, name, em
 	err = repo.Push(&git.PushOptions{
 		Auth: impl.Auth,
 	})
-
-	middleware.GitOpsDuration.WithLabelValues("CommitAndPushAllChanges", "GitService").Observe(time.Since(start).Seconds())
+	defer util.TriggerGitOpsMetrics("CommitAndPushAllChanges", "GitService", start, err)
 	return commit.String(), err
 }
 
@@ -353,7 +352,7 @@ func (impl GitServiceImpl) getRepoAndWorktree(repoRoot string) (*git.Repository,
 		return nil, nil, err
 	}
 	w, err := r.Worktree()
-	middleware.GitOpsDuration.WithLabelValues("getRepoAndWorktree", "GitService").Observe(time.Since(start).Seconds())
+	defer util.TriggerGitOpsMetrics("getRepoAndWorktree", "GitService", start, err)
 	return r, w, err
 }
 
@@ -372,7 +371,7 @@ func (impl GitServiceImpl) ForceResetHead(repoRoot string) (err error) {
 		Force:        true,
 		SingleBranch: true,
 	})
-	middleware.GitOpsDuration.WithLabelValues("ForceResetHead", "GitService").Observe(time.Since(start).Seconds())
+	defer util.TriggerGitOpsMetrics("ForceResetHead", "GitService", start, err)
 	return err
 }
 
@@ -388,7 +387,7 @@ func (impl GitServiceImpl) CommitValues(config *ChartConfig) (commitHash string,
 		return "", err
 	}
 	hash, err := impl.CommitAndPushAllChanges(gitDir, config.ReleaseMessage, "devtron bot", "devtron-bot@devtron.ai")
-	middleware.GitOpsDuration.WithLabelValues("CommitValues", "GitService").Observe(time.Since(start).Seconds())
+	defer util.TriggerGitOpsMetrics("CommitValues", "GitService", start, err)
 	return hash, err
 }
 
@@ -406,6 +405,6 @@ func (impl GitServiceImpl) Pull(repoRoot string) (err error) {
 		err = nil
 		return nil
 	}
-	middleware.GitOpsDuration.WithLabelValues("Pull", "GitService").Observe(time.Since(start).Seconds())
+	defer util.TriggerGitOpsMetrics("Pull", "GitService", start, err)
 	return err
 }
