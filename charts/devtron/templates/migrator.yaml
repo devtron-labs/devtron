@@ -72,9 +72,17 @@ spec:
   template:
     spec:
       serviceAccountName: devtron
+      {{- if $.Values.components.migrator.podSecurityContext }}
+      securityContext:
+{{ toYaml $.Values.components.migrator.podSecurityContext | indent 8 }}
+      {{- end }}
       containers:
       - name: devtron-rollout
         image: "quay.io/devtron/kubectl:latest"
+        {{- if $.Values.components.migrator.containerSecurityContext }}
+        securityContext:
+{{ toYaml $.Values.components.migrator.containerSecurityContext | indent 10 }}
+        {{- end }}
         command: ['sh', '-c', 'kubectl rollout restart deployment/devtron -n devtroncd']
         {{- if .casbin }}
         {{- if .casbin.resources }}        
