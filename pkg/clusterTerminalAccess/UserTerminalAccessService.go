@@ -131,7 +131,7 @@ func (impl *UserTerminalAccessServiceImpl) ValidateShell(podName, namespace, she
 func (impl *UserTerminalAccessServiceImpl) StartTerminalSession(ctx context.Context, request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error) {
 	impl.Logger.Infow("terminal start request received for user", "request", request)
 	//if request.Manifest not empty, requested from edit-manifest page to start terminal session with edited manifest.
-	if request.Manifest != "" {
+	if request.Manifest != "" && !request.DebugNode {
 		res, err := impl.EditTerminalPodManifest(ctx, request, true)
 		return &models.UserTerminalSessionResponse{
 			TerminalAccessId:      res.TerminalAccessId,
@@ -308,18 +308,6 @@ func (impl *UserTerminalAccessServiceImpl) UpdateTerminalSession(ctx context.Con
 	err := impl.DisconnectTerminalSession(ctx, userTerminalAccessId)
 	if err != nil {
 		return nil, err
-	}
-	if request.Manifest != "" {
-		res, err := impl.EditTerminalPodManifest(ctx, request, true)
-		return &models.UserTerminalSessionResponse{
-			TerminalAccessId:      res.TerminalAccessId,
-			UserTerminalSessionId: res.UserTerminalSessionId,
-			Status:                res.Status,
-			PodName:               res.PodName,
-			NodeName:              res.NodeName,
-			ShellName:             res.ShellName,
-			Containers:            res.Containers,
-		}, err
 	}
 	return impl.StartTerminalSession(ctx, request)
 }
@@ -1164,60 +1152,28 @@ func (impl *UserTerminalAccessServiceImpl) StartNodeDebug(userTerminalRequest *m
 }
 
 func (impl *UserTerminalAccessServiceImpl) GenerateNodeDebugPod(o *models.UserTerminalSessionRequest) (*v1.Pod, error) {
-	cn := "debugger"
 	nodeName := o.NodeName
 	pn := fmt.Sprintf("node-debugger-%s-%s", nodeName, util.Generate(5))
 
-	impl.Logger.Infow("Creating debugging pod ", "podName", pn, "containerName", cn, "nodeName", nodeName)
-
-	const volumeName = "host-root"
-	debugPod := &v1.Pod{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       utils1.PodKind,
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      pn,
-			Namespace: o.Namespace,
-		},
-		Spec: v1.PodSpec{
-			Containers: []v1.Container{
-				{
-					Name:                     cn,
-					Image:                    o.BaseImage,
-					ImagePullPolicy:          v1.PullIfNotPresent,
-					Stdin:                    true,
-					TerminationMessagePolicy: v1.TerminationMessageReadFile,
-					TTY:                      true,
-					SecurityContext:          nil,
-					VolumeMounts: []v1.VolumeMount{
-						{
-							MountPath: "/host",
-							Name:      volumeName,
-						},
-					},
-				},
-			},
-			NodeName:      nodeName,
-			RestartPolicy: v1.RestartPolicyNever,
-			Tolerations: []v1.Toleration{
-				{
-					Operator: v1.TolerationOpExists,
-				},
-			},
-			Volumes: []v1.Volume{
-				{
-					Name: volumeName,
-					VolumeSource: v1.VolumeSource{
-						HostPath: &v1.HostPathVolumeSource{Path: "/"},
-					},
-				},
-			},
-			HostIPC:     true,
-			HostPID:     true,
-			HostNetwork: true,
-		},
+	impl.Logger.Infow("Creating node debugging pod ", "podName", pn, "nodeName", nodeName)
+	debugNodePodTemplate, err := impl.TerminalAccessRepository.FetchTerminalAccessTemplate("terminal-node-debug-pod")
+	if err != nil {
+		impl.Logger.Errorw("error in fetching debugNodePodTemplate by name from terminal_access_templates table ", "template_name", "terminal-node-debug-pod", "err", err)
+		return nil, err
 	}
+	debugNodePodTemplateData := debugNodePodTemplate.TemplateData
+
+	debugPod := &v1.Pod{}
+	err = json.Unmarshal([]byte(debugNodePodTemplateData), &debugPod)
+	if err != nil {
+		impl.Logger.Errorw("error occurred while unmarshaling template data into coreV1 Pod Object", "template_name", "terminal-node-debug-pod", "err", err)
+		return nil, errors.New("internal server error occurred while creating node debug pod")
+	}
+
+	debugPod.Spec.NodeName = nodeName
+	debugPod.Name = pn
+	debugPod.Namespace = o.Namespace
+	debugPod.Spec.Containers[0].Image = o.BaseImage
 
 	podTemplateBytes, err := json.Marshal(&debugPod)
 	if err != nil {
