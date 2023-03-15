@@ -13,6 +13,7 @@ type UserTerminalSessionRequest struct {
 	PodName       string       `json:"podName"`
 	ContainerName string       `json:"containerName"`
 	ForceDelete   bool         `json:"forceDelete"`
+	DebugNode     bool         `json:"debugNode"`
 }
 type UserTerminalShellSessionRequest struct {
 	TerminalAccessId int    `json:"terminalAccessId" validate:"number,gt=0"`

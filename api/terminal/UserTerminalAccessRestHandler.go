@@ -374,13 +374,6 @@ func (handler UserTerminalAccessRestHandlerImpl) EditPodManifest(w http.Response
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	//vars := mux.Vars(r)
-	//terminalAccessId, err := strconv.Atoi(vars["terminalAccessId"])
-	//if err != nil {
-	//	handler.Logger.Errorw("request err, FetchTerminalPodManifest", "err", err)
-	//	common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-	//	return
-	//}
 
 	decoder := json.NewDecoder(r.Body)
 	var request models.UserTerminalSessionRequest
