@@ -84,7 +84,7 @@ func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSu
 
 func (impl *CiEventHandlerImpl) Subscribe() error {
 	callback := func(msg *pubsub.PubSubMsg) {
-		impl.logger.Debugw("ci complete event received", "data", msg.Data)
+		impl.logger.Debugw("ci complete event received")
 		//defer msg.Ack()
 		ciCompleteEvent := CiCompleteEvent{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &ciCompleteEvent)
@@ -167,8 +167,6 @@ func (impl *CiEventHandlerImpl) BuildCiArtifactRequest(event CiCompleteEvent) (*
 		event.TriggeredBy = 1 // system triggered event
 	}
 
-	impl.logger.Infow("event data", "event", event)
-
 	request := &pipeline.CiArtifactWebhookRequest{
 		Image:              event.DockerImage,
 		ImageDigest:        event.Digest,
@@ -179,7 +177,6 @@ func (impl *CiEventHandlerImpl) BuildCiArtifactRequest(event CiCompleteEvent) (*
 		WorkflowId:         event.WorkflowId,
 		IsArtifactUploaded: event.IsArtifactUploaded,
 	}
-	impl.logger.Infow("req data", "req", request)
 	return request, nil
 }
 

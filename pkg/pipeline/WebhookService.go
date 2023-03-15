@@ -169,7 +169,6 @@ func (impl WebhookServiceImpl) HandleCiSuccessEvent(ciPipelineId int, request *C
 	if pipeline.ScanEnabled {
 		artifact.Scanned = true
 	}
-	impl.logger.Infow("saving artifact data", "artifact", artifact)
 	if err = impl.ciArtifactRepository.Save(artifact); err != nil {
 		impl.logger.Errorw("error in saving material", "err", err)
 		return 0, err
