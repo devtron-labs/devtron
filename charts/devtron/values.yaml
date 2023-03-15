@@ -12,10 +12,10 @@ installer:
       fsGroup: 1000
       runAsGroup: 1000
       runAsUser: 1000
-    containerSecurityContext:
-      allowPrivilegeEscalation: false
-      runAsUser: 1000
-      runAsNonRoot: true
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    runAsUser: 1000
+    runAsNonRoot: true
 
 # Change the below values for full mode only
 
