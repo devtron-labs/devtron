@@ -276,7 +276,7 @@ func (impl *CiHandlerImpl) RefreshMaterialByCiPipelineMaterialId(gitMaterialId i
 }
 
 func (impl *CiHandlerImpl) FetchMaterialsByPipelineId(pipelineId int) ([]CiPipelineMaterialResponse, error) {
-	ciMaterials, err := impl.ciPipelineMaterialRepository.GetByPipelineId(pipelineId)
+	ciMaterials, err := impl.ciPipelineMaterialRepository.GetByPipelineIdForRegexAndFixed(pipelineId)
 	impl.Logger.Infow("Testing Fetch Ci materials by pipeline Id ", "ci materials", ciMaterials)
 	if err != nil {
 		impl.Logger.Errorw("ciMaterials fetch failed", "err", err)
@@ -354,7 +354,7 @@ func (impl *CiHandlerImpl) FetchMaterialsByPipelineId(pipelineId int) ([]CiPipel
 }
 
 func (impl *CiHandlerImpl) GetBuildHistory(pipelineId int, offset int, size int) ([]WorkflowResponse, error) {
-	ciMaterials, err := impl.ciPipelineMaterialRepository.GetByPipelineId(pipelineId)
+	ciMaterials, err := impl.ciPipelineMaterialRepository.GetByPipelineIdForRegexAndFixed(pipelineId)
 	if err != nil {
 		impl.Logger.Errorw("ciMaterials fetch failed", "err", err)
 	}
