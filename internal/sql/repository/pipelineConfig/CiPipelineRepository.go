@@ -98,6 +98,7 @@ type CiPipelineRepository interface {
 	FinDByParentCiPipelineAndAppId(parentCiPipeline int, appIds []int) ([]*CiPipeline, error)
 	FindAllPipelineInLast24Hour() (pipelines []*CiPipeline, err error)
 	FindNumberOfAppsWithCiPipeline(appIds []int) (count int, err error)
+	FindAppAndProjectByCiPipelineIds(ciPipelineIds []int) ([]*CiPipeline, error)
 }
 type CiPipelineRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -376,4 +377,13 @@ func (impl CiPipelineRepositoryImpl) FindNumberOfAppsWithCiPipeline(appIds []int
 	}
 
 	return count, nil
+}
+
+func (impl CiPipelineRepositoryImpl) FindAppAndProjectByCiPipelineIds(ciPipelineIds []int) ([]*CiPipeline, error) {
+	var ciPipelines []*CiPipeline
+	err := impl.dbConnection.Model(&ciPipelines).Column("ci_pipeline.*", "App", "Team").
+		Where("environment_id in(?)", pg.In(ciPipelineIds)).
+		Where("deleted = ?", false).
+		Select()
+	return ciPipelines, err
 }

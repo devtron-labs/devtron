@@ -1309,23 +1309,26 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(envId int, 
 		impl.Logger.Warnw("there is no app id found for fetching ci pipelines", "envId", envId)
 		return ciWorkflowStatuses, nil
 	}
-	pipelines, err := impl.ciPipelineRepository.FindByAppIds(appIds)
+	ciPipelines, err := impl.ciPipelineRepository.FindByAppIds(appIds)
 	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("error in fetching ci pipeline", "err", err)
 		return ciWorkflowStatuses, err
 	}
+	pipelineIds := make([]int, 0)
+	for _, pipeline := range ciPipelines {
+		pipelineIds = append(pipelineIds, pipeline.Id)
+	}
 
 	//authorization block starts here
 	var appObjectArr []string
-	rbacObjectMap := make(map[int][]string)
-	for _, pipeline := range pipelines {
-		appObject := impl.enforcerUtil.GetAppRBACName(pipeline.App.AppName)
-		appObjectArr = append(appObjectArr, appObject)
-		rbacObjectMap[pipeline.Id] = []string{appObject, ""}
+	objects := impl.enforcerUtil.GetAppObjectByCiPipelineIds(pipelineIds)
+	pipelineIds = []int{}
+	for _, object := range objects {
+		appObjectArr = append(appObjectArr, object)
 	}
 	appResults, _ := checkAuthBatch(emailId, appObjectArr, []string{})
-	for _, pipeline := range pipelines {
-		appObject := rbacObjectMap[pipeline.Id][0] //here only app permission have to check
+	for _, pipeline := range ciPipelines {
+		appObject := objects[pipeline.Id] //here only app permission have to check
 		if !appResults[appObject] {
 			//if user unauthorized, skip items
 			continue
@@ -1336,21 +1339,32 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(envId int, 
 		} else {
 			pipelineId = pipeline.ParentCiPipeline
 		}
-		workflow, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflow(pipelineId)
-		if err != nil && !util.IsErrNoRows(err) {
-			impl.Logger.Errorw("err", "pipelineId", pipelineId, "err", err)
-			return ciWorkflowStatuses, err
-		}
+		pipelineIds = append(pipelineIds, pipelineId)
+	}
+
+	ciWorkflows, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflowByCiIds(pipelineIds)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.Logger.Errorw("err", "pipelineIds", pipelineIds, "err", err)
+		return ciWorkflowStatuses, err
+	}
+	notTriggeredWorkflows := make(map[int]bool)
+	for _, workflow := range ciWorkflows {
 		ciWorkflowStatus := &pipelineConfig.CiWorkflowStatus{}
-		ciWorkflowStatus.CiPipelineId = pipeline.Id
-		if workflow.Id > 0 {
-			ciWorkflowStatus.CiPipelineName = workflow.CiPipeline.Name
-			ciWorkflowStatus.CiStatus = workflow.Status
-			ciWorkflowStatus.StorageConfigured = workflow.BlobStorageEnabled
-		} else {
-			ciWorkflowStatus.CiStatus = "Not Triggered"
-		}
+		ciWorkflowStatus.CiPipelineId = workflow.CiPipelineId
+		ciWorkflowStatus.CiPipelineName = workflow.CiPipeline.Name
+		ciWorkflowStatus.CiStatus = workflow.Status
+		ciWorkflowStatus.StorageConfigured = workflow.BlobStorageEnabled
 		ciWorkflowStatuses = append(ciWorkflowStatuses, ciWorkflowStatus)
+		notTriggeredWorkflows[ciWorkflowStatus.CiPipelineId] = true
+	}
+
+	for _, workflow := range ciWorkflows {
+		if _, ok := notTriggeredWorkflows[workflow.CiPipelineId]; !ok {
+			ciWorkflowStatus := &pipelineConfig.CiWorkflowStatus{}
+			ciWorkflowStatus.CiPipelineId = workflow.CiPipelineId
+			ciWorkflowStatus.CiStatus = "Not Triggered"
+			ciWorkflowStatuses = append(ciWorkflowStatuses, ciWorkflowStatus)
+		}
 	}
 	return ciWorkflowStatuses, nil
 }
