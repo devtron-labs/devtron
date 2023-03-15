@@ -8,6 +8,14 @@ installer:
 #  mode: "dashboard" # Available options are dashboard, full and hyperion (deprecated) NOT USING THIS
   modules: [] # Available options are cicd
   production_overrides: "" # Set true if you want to use this Devtron stack in Production (This will require more resources)
+  podSecurityContext:
+      fsGroup: 1000
+      runAsGroup: 1000
+      runAsUser: 1000
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      runAsUser: 1000
+      runAsNonRoot: true
 
 # Change the below values for full mode only
 
@@ -94,6 +102,14 @@ components:
     imagePullPolicy: IfNotPresent
     initContainer:
       authenticator: "quay.io/devtron/authenticator:6e466830-393-11943"
+      podSecurityContext:
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsUser: 1000
+      containerSecurityContext:
+        allowPrivilegeEscalation: false
+        runAsUser: 1000
+        runAsNonRoot: true
 
   kubelink:
     image: "quay.io/devtron/kubelink:a5e179d4-318-12564"
@@ -116,6 +132,14 @@ components:
 
   migrator:
     image: "quay.io/devtron/migrator:71748de9-149-11112"
+    podSecurityContext:
+      fsGroup: 1000
+      runAsGroup: 1000
+      runAsUser: 1000
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      runAsUser: 1000
+      runAsNonRoot: true
     envVars:
       devtron:
         GIT_BRANCH: "main"

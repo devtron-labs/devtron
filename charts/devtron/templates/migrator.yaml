@@ -14,9 +14,17 @@ metadata:
 spec:
   template:
     spec:
+      {{- if $.Values.components.migrator.podSecurityContext }}
+      securityContext:
+{{ toYaml $.Values.components.migrator.podSecurityContext | indent 8 }}
+      {{- end }}
       containers:
       - name: postgresql-migrate-devtron
         image: {{ .image }}
+        {{- if $.Values.components.migrator.containerSecurityContext }}
+        securityContext:
+{{ toYaml $.Values.components.migrator.containerSecurityContext | indent 10 }}
+        {{- end }}
         env:
         - name: GIT_BRANCH
           value: {{ .envVars.devtron.GIT_BRANCH }}

@@ -25,9 +25,17 @@ spec:
         {{- end }}
         {{- end }}
         {{- end }}
+      securityContext:
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsUser: 1000
       containers:
       - name: chart-sync
         image: quay.io/devtron/chart-sync:07ac8fd7-150-11120
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsUser: 1000
+          runAsNonRoot: true
         env:
         - name: PG_ADDR
           value: postgresql-postgresql.devtroncd
@@ -66,9 +74,17 @@ spec:
     spec:
       template:
         spec:
+          securityContext:
+            fsGroup: 1000
+            runAsGroup: 1000
+            runAsUser: 1000
           containers:
           - name: chart-sync
             image: quay.io/devtron/chart-sync:07ac8fd7-150-11120
+            securityContext:
+              allowPrivilegeEscalation: false
+              runAsUser: 1000
+              runAsNonRoot: true
             env:
             - name: PG_ADDR
               value: postgresql-postgresql.devtroncd

@@ -16,9 +16,17 @@ metadata:
 spec:
   template:
     spec:
+      securityContext:
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsUser: 1000
       containers:
       - name: postgresql-migrate-devtron
         image: quay.io/devtron/migrator:71748de9-149-11112
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsUser: 1000
+          runAsNonRoot: true
         env:
         - name: GIT_BRANCH
           value: main
@@ -54,6 +62,10 @@ metadata:
 spec:
   template:
     spec:
+      securityContext:
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsUser: 1000
       serviceAccountName: devtron
       containers:
       - name: devtron-rollout
@@ -101,9 +113,17 @@ metadata:
 spec:
   template:
     spec:
+      securityContext:
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsUser: 1000
       containers:
       - name: postgresql-migrate-gitsensor
         image: quay.io/devtron/migrator:71748de9-149-11112
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsUser: 1000
+          runAsNonRoot: true
         env:
         - name: SCRIPT_LOCATION
           value: scripts/sql/
@@ -139,9 +159,17 @@ metadata:
 spec:
   template:
     spec:
+      securityContext:
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsUser: 1000
       containers:
       - name: postgresql-migrate-lens
         image: quay.io/devtron/migrator:71748de9-149-11112
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsUser: 1000
+          runAsNonRoot: true
         env:
         - name: SCRIPT_LOCATION
           value: scripts/sql/
@@ -181,9 +209,17 @@ spec:
   ttlSecondsAfterFinished: 1000
   template:
     spec:
+      securityContext:
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsUser: 1000
       containers:
       - name: postgresql-miscellaneous
         image: quay.io/devtron/postgres:11.9
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsUser: 1000
+          runAsNonRoot: true
         env:
         - name: PGPASSWORD
           valueFrom:
