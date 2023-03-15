@@ -45,12 +45,28 @@ components:
       applicationMetrics: "true"
     image: "quay.io/devtron/dashboard:de186b14-325-12876"
     imagePullPolicy: IfNotPresent
+    podSecurityContext:
+      fsGroup: 1000
+      runAsGroup: 1000
+      runAsUser: 1000
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      runAsUser: 1000
+      runAsNonRoot: true
 
   devtron:
     image: "quay.io/devtron/hyperion:e3c5a3a2-280-12878"
     cicdImage: "quay.io/devtron/devtron:e3c5a3a2-434-12877"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
+    podSecurityContext:
+      fsGroup: 1000
+      runAsGroup: 1000
+      runAsUser: 1000
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      runAsUser: 1000
+      runAsNonRoot: true
     serviceMonitor:
       enabled: false
     service:
@@ -82,6 +98,14 @@ components:
   kubelink:
     image: "quay.io/devtron/kubelink:a5e179d4-318-12564"
     imagePullPolicy: IfNotPresent
+    podSecurityContext:
+      fsGroup: 1000
+      runAsGroup: 1000
+      runAsUser: 1000
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      runAsUser: 1000
+      runAsNonRoot: true
 
   postgres:
     image: "quay.io/devtron/postgres:11.9.0-debian-10-r26"

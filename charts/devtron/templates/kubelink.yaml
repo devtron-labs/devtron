@@ -22,10 +22,18 @@ spec:
       terminationGracePeriodSeconds: 30
       restartPolicy: Always
       serviceAccount: devtron
+      {{- if $.Values.components.kubelink.podSecurityContext }}
+      securityContext:
+{{ toYaml $.Values.components.kubelink.podSecurityContext | indent 8 }}
+      {{- end }}
       containers:
         - name: kubelink
           image: {{ .image }}
           imagePullPolicy: {{ .imagePullPolicy }}
+          {{- if $.Values.components.kubelink.containerSecurityContext }}
+          securityContext:
+{{ toYaml $.Values.components.kubelink.containerSecurityContext | indent 12 }}
+          {{- end }}
           ports:
             - name: app
               containerPort: 50051
