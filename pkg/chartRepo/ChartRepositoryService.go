@@ -44,7 +44,7 @@ import (
 
 type ChartRepositoryService interface {
 	CreateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error)
-	UpdateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error)
+	UpdateDataInArgocdCm(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error)
 	GetChartRepoById(id int) (*ChartRepoDto, error)
 	GetChartRepoByName(name string) (*ChartRepoDto, error)
 	GetChartRepoList() ([]*ChartRepoDto, error)
@@ -52,7 +52,7 @@ type ChartRepositoryService interface {
 	ValidateAndCreateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error, *DetailedErrorHelmRepoValidation)
 	ValidateAndUpdateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error, *DetailedErrorHelmRepoValidation)
 	TriggerChartSyncManual() error
-	DeleteChartRepo(request *ChartRepoDto) error
+	DeleteChartRepoFromArgocdCM(request *ChartRepoDto) error
 }
 
 type ChartRepositoryServiceImpl struct {
@@ -152,7 +152,7 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 	return chartRepo, nil
 }
 
-func (impl *ChartRepositoryServiceImpl) UpdateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error) {
+func (impl *ChartRepositoryServiceImpl) UpdateDataInArgocdCm(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error) {
 	dbConnection := impl.repoRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -239,8 +239,8 @@ func (impl *ChartRepositoryServiceImpl) UpdateChartRepo(request *ChartRepoDto) (
 	return chartRepo, nil
 }
 
-// DeleteChartRepo update the active state from DB and modify the argo-cm with repo URL to null
-func (impl *ChartRepositoryServiceImpl) DeleteChartRepo(request *ChartRepoDto) error {
+// DeleteChartRepoFromArgocdCM update the active state from DB and modify the argo-cm with repo URL to null
+func (impl *ChartRepositoryServiceImpl) DeleteChartRepoFromArgocdCM(request *ChartRepoDto) error {
 	dbConnection := impl.repoRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -455,7 +455,7 @@ func (impl *ChartRepositoryServiceImpl) ValidateAndUpdateChartRepo(request *Char
 	if validationResult.CustomErrMsg != ValidationSuccessMsg {
 		return nil, nil, validationResult
 	}
-	chartRepo, err := impl.UpdateChartRepo(request)
+	chartRepo, err := impl.UpdateDataInArgocdCm(request)
 	if err != nil {
 		return nil, err, validationResult
 	}
