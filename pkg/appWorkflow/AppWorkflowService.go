@@ -301,6 +301,45 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowMapping(workflowId int) ([]App
 	return workflows, err
 }
 
+func (impl AppWorkflowServiceImpl) FindAppWorkflowMappingForEnv(workflowIds []int) (map[int][]AppWorkflowMappingDto, error) {
+	appWorkflowMappings, err := impl.appWorkflowRepository.FindByWorkflowIds(workflowIds)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("err", err)
+		return nil, err
+	}
+	pipelineIds := make([]int, 0)
+	for _, w := range appWorkflowMappings {
+		if w.Type == "CD_PIPELINE" {
+			pipelineIds = append(pipelineIds, w.ComponentId)
+		}
+	}
+	pipelines, err := impl.pipelineRepository.FindByIdsIn(pipelineIds)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("err", "err", err)
+		return nil, err
+	}
+	pipelineMap := make(map[int]*pipelineConfig.Pipeline)
+	for _, pipeline := range pipelines {
+		pipelineMap[pipeline.Id] = pipeline
+	}
+	workflows := make(map[int][]AppWorkflowMappingDto)
+	for _, w := range appWorkflowMappings {
+		workflow := AppWorkflowMappingDto{
+			Id:            w.Id,
+			ParentId:      w.ParentId,
+			ComponentId:   w.ComponentId,
+			Type:          w.Type,
+			AppWorkflowId: w.AppWorkflowId,
+			ParentType:    w.ParentType,
+		}
+		if w.Type == "CD_PIPELINE" {
+			workflow.DeploymentAppDeleteRequest = pipelineMap[w.ComponentId].DeploymentAppDeleteRequest
+		}
+		workflows[w.AppWorkflowId] = append(workflows[w.AppWorkflowId], workflow)
+	}
+	return workflows, err
+}
+
 func (impl AppWorkflowServiceImpl) FindAppWorkflowMappingByComponent(id int, compType string) ([]*appWorkflow.AppWorkflowMapping, error) {
 	appWorkflowMappings, err := impl.appWorkflowRepository.FindByComponent(id, compType)
 	if err != nil && err != pg.ErrNoRows {
@@ -409,20 +448,25 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowsByEnvironmentId(envId int, em
 	appNamesMap := make(map[int]string)
 	var appIds []int
 	//authorization block starts here
-	var envObjectArr []string
-	var appObjectArr []string
-	rbacObjectMap := make(map[int][]string)
+	pipelineIds := make([]int, 0)
 	for _, pipeline := range pipelines {
-		appObject := impl.enforcerUtil.GetAppRBACName(pipeline.App.AppName)
-		envObject := impl.enforcerUtil.GetEnvRBACNameByCdPipelineIdAndEnvId(pipeline.Id)
-		appObjectArr = append(appObjectArr, appObject)
-		envObjectArr = append(envObjectArr, envObject)
-		rbacObjectMap[pipeline.Id] = []string{appObject, envObject}
+		pipelineIds = append(pipelineIds, pipeline.Id)
+	}
+	if len(pipelineIds) == 0 {
+		return workflows, fmt.Errorf("no pipeline found for this environment")
+	}
+	var appObjectArr []string
+	var envObjectArr []string
+	objects := impl.enforcerUtil.GetAppAndEnvObjectByPipelineIdsId(pipelineIds)
+	pipelineIds = []int{}
+	for _, object := range objects {
+		appObjectArr = append(appObjectArr, object[0])
+		envObjectArr = append(envObjectArr, object[1])
 	}
 	appResults, envResults := checkAuthBatch(emailId, appObjectArr, envObjectArr)
 	for _, pipeline := range pipelines {
-		appObject := rbacObjectMap[pipeline.Id][0]
-		envObject := rbacObjectMap[pipeline.Id][1]
+		appObject := objects[pipeline.Id][0]
+		envObject := objects[pipeline.Id][1]
 		if !(appResults[appObject] && envResults[envObject]) {
 			//if user unauthorized, skip items
 			continue
@@ -437,23 +481,31 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowsByEnvironmentId(envId int, em
 		impl.Logger.Warnw("there is no app id found for fetching app workflows", "envId", envId)
 		return workflows, nil
 	}
-	appWorkflow, err := impl.appWorkflowRepository.FindByAppIds(appIds)
+	appWorkflows, err := impl.appWorkflowRepository.FindByAppIds(appIds)
 	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("error fetching app workflows by app ids", "err", err)
 		return nil, err
 	}
-	for _, w := range appWorkflow {
+	var workflowIds []int
+	for _, appWorkflow := range appWorkflows {
+		workflowIds = append(workflowIds, appWorkflow.Id)
+	}
+	if len(workflowIds) == 0 {
+		return workflows, fmt.Errorf("no app workflow found for this environment")
+	}
+	appWorkflowMapping, err := impl.FindAppWorkflowMappingForEnv(workflowIds)
+	if err != nil {
+		impl.Logger.Errorw("error fetching app workflow mapping by wf id", "err", err)
+		return nil, err
+	}
+	for _, w := range appWorkflows {
 		appName := appNamesMap[w.AppId]
 		workflow := AppWorkflowDto{
 			Id:    w.Id,
 			Name:  appName, // here workflow name is app name, only for environment app grouping view
 			AppId: w.AppId,
 		}
-		mappings, err := impl.FindAppWorkflowMapping(w.Id)
-		if err != nil {
-			impl.Logger.Errorw("error fetching app workflow mapping by wf id", "err", err)
-			return nil, err
-		}
+		mappings := appWorkflowMapping[w.Id]
 		valid := false
 		for _, mapping := range mappings {
 			if mapping.Type == CD_PIPELINE_TYPE {
