@@ -20,6 +20,7 @@ package pipeline
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -52,7 +53,10 @@ type CdWorkflowService interface {
 	TerminateWorkflow(name string, namespace string, url string, token string, isExtRun bool) error
 }
 
-const CD_WORKFLOW_NAME = "cd"
+const (
+	CD_WORKFLOW_NAME        = "cd"
+	CD_WORKFLOW_WITH_STAGES = "cd-stages-with-env"
+)
 
 type CdWorkflowServiceImpl struct {
 	Logger            *zap.SugaredLogger
@@ -162,10 +166,10 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		return nil, err
 	}
 	if len(globalCmCsConfigs) > 0 {
-		entryPoint = "cd-stages-with-env"
+		entryPoint = CD_WORKFLOW_WITH_STAGES
 	}
 	for i := range globalCmCsConfigs {
-		globalCmCsConfigs[i].Name = globalCmCsConfigs[i].Name + "-" + strconv.Itoa(workflowRequest.WorkflowRunnerId) + "-" + CD_WORKFLOW_NAME
+		globalCmCsConfigs[i].Name = fmt.Sprintf("%s-%s-%s", globalCmCsConfigs[i].Name, strconv.Itoa(workflowRequest.WorkflowRunnerId), CD_WORKFLOW_NAME)
 	}
 
 	steps := make([]v1alpha1.ParallelSteps, 0)
@@ -253,7 +257,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	secretsMapping := make(map[string]string)
 
 	if len(configMaps.Maps) > 0 {
-		entryPoint = "cd-stages-with-env"
+		entryPoint = CD_WORKFLOW_WITH_STAGES
 		for i, cm := range configMaps.Maps {
 			var datamap map[string]string
 			if err := json.Unmarshal(cm.Data, &datamap); err != nil {
@@ -309,7 +313,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	}
 
 	if len(secrets.Secrets) > 0 {
-		entryPoint = "cd-stages-with-env"
+		entryPoint = CD_WORKFLOW_WITH_STAGES
 		for i, s := range secrets.Secrets {
 			var datamap map[string][]byte
 			if err := json.Unmarshal(s.Data, &datamap); err != nil {
@@ -395,7 +399,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		},
 	})
 	templates = append(templates, v1alpha1.Template{
-		Name:  "cd-stages-with-env",
+		Name:  CD_WORKFLOW_WITH_STAGES,
 		Steps: steps,
 	})
 
