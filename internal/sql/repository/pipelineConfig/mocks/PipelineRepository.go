@@ -659,7 +659,7 @@ func (_m *PipelineRepository) GetArgoPipelineByArgoAppName(argoAppName string) (
 }
 
 // GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatuses provides a mock function with given fields: deployedBeforeMinutes
-func (_m *PipelineRepository) GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatuses(deployedBeforeMinutes int) ([]*pipelineConfig.Pipeline, error) {
+func (_m *PipelineRepository) GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatuses(deployedBeforeMinutes int, pipelineStatusCheckDeployedSince int) ([]*pipelineConfig.Pipeline, error) {
 	ret := _m.Called(deployedBeforeMinutes)
 
 	var r0 []*pipelineConfig.Pipeline
