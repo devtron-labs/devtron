@@ -1,9 +1,11 @@
 package chartRepo
 
 import (
-	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/stretchr/testify/mock"
 	"testing"
+
+	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 type ChartRepositoryServiceMock struct {
@@ -60,4 +62,74 @@ func TestChartRepositoryServiceImpl_ValidateChartDetails(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestChartRepositoryServiceRemoveRepoData(t *testing.T) {
+	sugaredLogger, err := util.NewSugardLogger()
+	assert.Nil(t, err)
+	
+    impl := &ChartRepositoryServiceImpl{
+        logger:  sugaredLogger,
+    }
+    t.Run("Invalid JSON byte array", func(t *testing.T) {
+        data := map[string]string{
+            "helm.repositories": "invalid json",
+        }
+        _, err := impl.removeRepoData(data, "test-repo")
+        if err == nil {
+            t.Errorf("Expected an error but got nil")
+        }
+    })
+
+    t.Run("Error in unmarshal helmRepositories", func(t *testing.T) {
+        data := map[string]string{
+            "helm.repositories": "- name: test-1\n  type: helm\n  url: https://localhost\n- name: test-repo\n  type: helm\n  url: https://localhost\n- name: test-2\n  type: helm\n  url: https://localhost\n",
+        }
+        _, err := impl.removeRepoData(data, "test-repo")
+        if err == nil {
+            t.Errorf("Expected an error but got nil")
+        }
+    })
+
+    t.Run("Error in unmarshal repositories", func(t *testing.T) {
+        data := map[string]string{
+            "helm.repositories": "null\n",
+            "repositories": "invalid json",
+        }
+        _, err := impl.removeRepoData(data, "test-repo")
+        if err == nil {
+            t.Errorf("Expected an error but got nil")
+        }
+    })
+
+    t.Run("Repository is found and removed from repositories", func(t *testing.T) {
+        data := map[string]string{
+            "helm.repositories": "null\n",
+			"repositories": "- name: test-1\n  type: helm\n  url: https://localhost\n- name: test-repo\n  type: helm\n  url: https://localhost\n- name: test-2\n  type: helm\n  url: https://localhost\n",
+            "dex.config": "",
+        }
+        expected := map[string]string{
+            "helm.repositories": "null\n",
+			"repositories": "- name: test-1\n  type: helm\n  url: https://localhost\n- name: test-2\n  type: helm\n  url: https://localhost\n",
+            "dex.config": "",
+        }
+        result, err := impl.removeRepoData(data, "test-repo")
+        if err != nil {
+            t.Errorf("Unexpected error: %v", err)
+        }
+        if !assert.Equal(t, result, expected) {
+            t.Errorf("Expected %v, but got %v", expected, result)
+        }
+    })
+
+    t.Run("Repository is not found", func(t *testing.T) {
+        data := map[string]string{
+            "helm.repositories": "null\n",
+			"repositories": "- name: test-1\n  type: helm\n  url: https://localhost\n- name: test-2\n  type: helm\n  url: https://localhost\n",
+        }
+        _, err := impl.removeRepoData(data, "test-repo")
+        if err == nil {
+            t.Errorf("Expected an error but got nil")
+        }
+    })
 }

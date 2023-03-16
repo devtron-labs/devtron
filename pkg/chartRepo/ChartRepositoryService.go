@@ -127,7 +127,7 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 		if err != nil {
 			return nil, err
 		}
-		data, err := impl.updateData(cm.Data, request)
+		data, err := impl.updateRepoData(cm.Data, request)
 		if err != nil {
 			impl.logger.Warnw(" config map update failed", "err", err)
 			continue
@@ -206,10 +206,9 @@ func (impl *ChartRepositoryServiceImpl) UpdateChartRepo(request *ChartRepoDto) (
 			return nil, err
 		}
 		var data map[string]string
-		if previousName == request.Name {
-			data, err = impl.updateData(cm.Data, request)
-		} else {
-			data,err = impl.updateAndDeleteData(cm.Data, request, previousName)
+		data, err = impl.updateRepoData(cm.Data, request)
+		if previousName != request.Name {
+			data, err = impl.removeRepoData(cm.Data, previousName)
 		}
 		if err != nil {
 			impl.logger.Warnw(" config map update failed", "err", err)
@@ -293,7 +292,7 @@ func (impl *ChartRepositoryServiceImpl) DeleteChartRepo(request *ChartRepoDto) e
 		if err != nil {
 			return err
 		}
-		data, err := impl.deleteData(cm.Data, request)
+		data, err := impl.removeRepoData(cm.Data, request.Name)
 		if err != nil {
 			impl.logger.Warnw(" config map update failed", "err", err)
 			continue
@@ -562,8 +561,8 @@ func (impl *ChartRepositoryServiceImpl) createRepoElement(request *ChartRepoDto)
 	return repoData
 }
 
-// updateData update the request field in the argo-cm
-func (impl *ChartRepositoryServiceImpl) updateData(data map[string]string, request *ChartRepoDto) (map[string]string, error) {
+// updateRepoData update the request field in the argo-cm
+func (impl *ChartRepositoryServiceImpl) updateRepoData(data map[string]string, request *ChartRepoDto) (map[string]string, error) {
 	helmRepoStr := data["helm.repositories"]
 	helmRepoByte, err := yaml.YAMLToJSON([]byte(helmRepoStr))
 	if err != nil {
@@ -651,103 +650,8 @@ func (impl *ChartRepositoryServiceImpl) updateData(data map[string]string, reque
 	return data, nil
 }
 
-// updateAndDeleteData update the request field in the argo-cm and delete the previous repo
-func (impl *ChartRepositoryServiceImpl) updateAndDeleteData(data map[string]string, request *ChartRepoDto, previousName string) (map[string]string, error) {
-	helmRepoStr := data["helm.repositories"]
-	helmRepoByte, err := yaml.YAMLToJSON([]byte(helmRepoStr))
-	if err != nil {
-		impl.logger.Errorw("error in json patch", "err", err)
-		return nil, err
-	}
-	var helmRepositories []*AcdConfigMapRepositoriesDto
-	err = json.Unmarshal(helmRepoByte, &helmRepositories)
-	if err != nil {
-		impl.logger.Errorw("error in unmarshal", "err", err)
-		return nil, err
-	}
-
-	rb, err := json.Marshal(helmRepositories)
-	if err != nil {
-		impl.logger.Errorw("error in marshal", "err", err)
-		return nil, err
-	}
-	helmRepositoriesYamlByte, err := yaml.JSONToYAML(rb)
-	if err != nil {
-		impl.logger.Errorw("error in yaml patch", "err", err)
-		return nil, err
-	}
-
-	//SETUP for repositories
-	var repositories []*AcdConfigMapRepositoriesDto
-	repoStr := data["repositories"]
-	repoByte, err := yaml.YAMLToJSON([]byte(repoStr))
-	if err != nil {
-		impl.logger.Errorw("error in json patch", "err", err)
-		return nil, err
-	}
-	err = json.Unmarshal(repoByte, &repositories)
-	if err != nil {
-		impl.logger.Errorw("error in unmarshal", "err", err)
-		return nil, err
-	}
-
-	found := false
-	deleteIndex := -1
-	for index, item := range repositories {
-		//if request chart repo found, then update its values
-		if item.Name == request.Name {
-			if request.AuthMode == repository.AUTH_MODE_USERNAME_PASSWORD {
-				usernameSecret := &KeyDto{Name: request.UserName, Key: "username"}
-				passwordSecret := &KeyDto{Name: request.Password, Key: "password"}
-				item.PasswordSecret = passwordSecret
-				item.UsernameSecret = usernameSecret
-			} else if request.AuthMode == repository.AUTH_MODE_ACCESS_TOKEN {
-				// TODO - is it access token or ca cert nd secret
-			} else if request.AuthMode == repository.AUTH_MODE_SSH {
-				keySecret := &KeyDto{Name: request.SshKey, Key: "key"}
-				item.KeySecret = keySecret
-			}
-			item.Url = request.Url
-			found = true
-		}
-		if item.Name == previousName {
-			deleteIndex = index
-		}
-	}
-	if deleteIndex != -1 {
-		repositories = append(repositories[:deleteIndex], repositories[deleteIndex+1:]...)
-	}
-	// if request chart repo not found, add new one
-	if !found {
-		repoData := impl.createRepoElement(request)
-		repositories = append(repositories, repoData)
-	}
-
-	rb, err = json.Marshal(repositories)
-	if err != nil {
-		impl.logger.Errorw("error in marshal", "err", err)
-		return nil, err
-	}
-	repositoriesYamlByte, err := yaml.JSONToYAML(rb)
-	if err != nil {
-		impl.logger.Errorw("error in yaml patch", "err", err)
-		return nil, err
-	}
-
-	if len(helmRepositoriesYamlByte) > 0 {
-		data["helm.repositories"] = string(helmRepositoriesYamlByte)
-	}
-	if len(repositoriesYamlByte) > 0 {
-		data["repositories"] = string(repositoriesYamlByte)
-	}
-	//dex config copy as it is
-	dexConfigStr := data["dex.config"]
-	data["dex.config"] = string([]byte(dexConfigStr))
-	return data, nil
-}
-
-// deleteData delete the request field from the argo-cm
-func (impl *ChartRepositoryServiceImpl) deleteData(data map[string]string, request *ChartRepoDto) (map[string]string, error) {
+// removeRepoData delete the request field from the argo-cm
+func (impl *ChartRepositoryServiceImpl) removeRepoData(data map[string]string, name string) (map[string]string, error) {
 	helmRepoStr := data["helm.repositories"]
 	helmRepoByte, err := yaml.YAMLToJSON([]byte(helmRepoStr))
 	if err != nil {
@@ -789,7 +693,7 @@ func (impl *ChartRepositoryServiceImpl) deleteData(data map[string]string, reque
 	found := false
 	for index, item := range repositories {
 		//if request chart repo found, then delete its values
-		if item.Name == request.Name {
+		if item.Name == name {
 			repositories = append(repositories[:index], repositories[index+1:]...)
 			found = true
 			break
@@ -799,7 +703,7 @@ func (impl *ChartRepositoryServiceImpl) deleteData(data map[string]string, reque
 	// if request chart repo not found, add new one
 	if !found {
 		impl.logger.Errorw("Repo not found", "err", err)
-		return nil, err
+		return nil, fmt.Errorf("Repo not found in config-map")
 	}
 
 	rb, err = json.Marshal(repositories)
