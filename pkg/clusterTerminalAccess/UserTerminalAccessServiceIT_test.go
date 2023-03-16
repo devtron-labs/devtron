@@ -118,6 +118,18 @@ func TestNewUserTerminalAccessServiceIT(t *testing.T) {
 		assert.Equal(t, groupVersionKind.Version, "v1")
 		assert.Equal(t, groupVersionKind.Kind, "Pod")
 	})
+
+	t.Run("Pod Manifest : invalid manifest structure Test", func(t *testing.T) {
+
+	})
+
+	t.Run("Pod Manifest : valid manifest structure with invalid fields Test", func(t *testing.T) {
+
+	})
+
+	t.Run("Pod Manifest : valid manifest structure with invalid fields Test", func(t *testing.T) {
+
+	})
 }
 
 func initTerminalAccessService(t *testing.T) *UserTerminalAccessServiceImpl {
