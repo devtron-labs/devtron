@@ -9,9 +9,9 @@ installer:
   modules: [] # Available options are cicd
   production_overrides: "" # Set true if you want to use this Devtron stack in Production (This will require more resources)
   podSecurityContext:
-      fsGroup: 1000
-      runAsGroup: 1000
-      runAsUser: 1000
+    fsGroup: 1000
+    runAsGroup: 1000
+    runAsUser: 1000
   containerSecurityContext:
     allowPrivilegeEscalation: false
     runAsUser: 1000

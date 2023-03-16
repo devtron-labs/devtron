@@ -222,10 +222,6 @@ spec:
       containers:
         - name: envoy
           image: "quay.io/devtron/envoy:v1.14.1"
-          securityContext:
-            allowPrivilegeEscalation: false
-            runAsUser: 1000
-            runAsNonRoot: true
           ports:
             - containerPort: 9901
               protocol: TCP
@@ -247,7 +243,7 @@ spec:
             runAsNonRoot: true
           ports:
             - name: app
-              containerPort: 80
+              containerPort: 8080
               protocol: TCP
           env:
             - name: CONFIG_HASH

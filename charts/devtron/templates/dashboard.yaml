@@ -83,7 +83,7 @@ spec:
           {{- end }}
           ports:
             - name: app
-              containerPort: 80
+              containerPort: 8080
               protocol: TCP
           env:
             - name: DEVTRON_APP_NAME
