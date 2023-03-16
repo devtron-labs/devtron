@@ -27,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
@@ -169,7 +170,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		entryPoint = CD_WORKFLOW_WITH_STAGES
 	}
 	for i := range globalCmCsConfigs {
-		globalCmCsConfigs[i].Name = fmt.Sprintf("%s-%s-%s", globalCmCsConfigs[i].Name, strconv.Itoa(workflowRequest.WorkflowRunnerId), CD_WORKFLOW_NAME)
+		globalCmCsConfigs[i].Name = fmt.Sprintf("%s-%s-%s", strings.ToLower(globalCmCsConfigs[i].Name), strconv.Itoa(workflowRequest.WorkflowRunnerId), CD_WORKFLOW_NAME)
 	}
 
 	steps := make([]v1alpha1.ParallelSteps, 0)
