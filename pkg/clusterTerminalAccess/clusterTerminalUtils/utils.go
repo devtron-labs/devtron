@@ -26,6 +26,7 @@ const (
 	ServiceAccountKind       = "ServiceAccount"
 	ClusterRoleBindingKind   = "ClusterRoleBinding"
 	PodKind                  = "Pod"
+	TerminalNodeDebugPodName = "terminal-node-debug-pod"
 )
 
 func IsNodeDebugPod(pod *v1.Pod) bool {

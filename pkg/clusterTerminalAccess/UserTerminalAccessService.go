@@ -444,6 +444,10 @@ func (impl *UserTerminalAccessServiceImpl) startTerminalPod(ctx context.Context,
 		return err
 	}
 	for _, accessTemplate := range accessTemplates {
+		//do not apply the node debug pod template
+		if accessTemplate.TemplateName == utils1.TerminalNodeDebugPodName {
+			continue
+		}
 		err = impl.applyTemplateData(ctx, request, podNameVar, accessTemplate, false, isAutoSelect)
 		if err != nil {
 			return err
@@ -1156,9 +1160,9 @@ func (impl *UserTerminalAccessServiceImpl) GenerateNodeDebugPod(o *models.UserTe
 	pn := fmt.Sprintf("node-debugger-%s-%s", nodeName, util.Generate(5))
 
 	impl.Logger.Infow("Creating node debugging pod ", "podName", pn, "nodeName", nodeName)
-	debugNodePodTemplate, err := impl.TerminalAccessRepository.FetchTerminalAccessTemplate("terminal-node-debug-pod")
+	debugNodePodTemplate, err := impl.TerminalAccessRepository.FetchTerminalAccessTemplate(utils1.TerminalNodeDebugPodName)
 	if err != nil {
-		impl.Logger.Errorw("error in fetching debugNodePodTemplate by name from terminal_access_templates table ", "template_name", "terminal-node-debug-pod", "err", err)
+		impl.Logger.Errorw("error in fetching debugNodePodTemplate by name from terminal_access_templates table ", "template_name", utils1.TerminalNodeDebugPodName, "err", err)
 		return nil, err
 	}
 	debugNodePodTemplateData := debugNodePodTemplate.TemplateData
@@ -1166,7 +1170,7 @@ func (impl *UserTerminalAccessServiceImpl) GenerateNodeDebugPod(o *models.UserTe
 	debugPod := &v1.Pod{}
 	err = json.Unmarshal([]byte(debugNodePodTemplateData), &debugPod)
 	if err != nil {
-		impl.Logger.Errorw("error occurred while unmarshaling template data into coreV1 Pod Object", "template_name", "terminal-node-debug-pod", "err", err)
+		impl.Logger.Errorw("error occurred while unmarshaling template data into coreV1 Pod Object", "template_name", utils1.TerminalNodeDebugPodName, "err", err)
 		return nil, errors.New("internal server error occurred while creating node debug pod")
 	}
 
