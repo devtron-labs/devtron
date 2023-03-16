@@ -36,7 +36,7 @@ func TestNewGlobalCMCSServiceImpl(t *testing.T) {
 			SecretIngestionFor: "CI/CD",
 		}, &GlobalCMCSDto{
 			Id:                 0,
-			ConfigType:         "SECRET",
+			ConfigType:         "CONFIGMAP",
 			Name:               "test-secret-4",
 			Type:               "environment",
 			Data:               data,
