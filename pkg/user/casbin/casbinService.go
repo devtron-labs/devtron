@@ -2,7 +2,6 @@ package casbin
 
 import (
 	"context"
-	"fmt"
 	"github.com/devtron-labs/devtron/pkg/user/casbin/client"
 	"go.uber.org/zap"
 )
@@ -53,7 +52,6 @@ func (impl *CasbinServiceImpl) AddPolicy(policies []Policy) error {
 	}
 	if resp != nil && len(resp.FailedPolicies) > 0 {
 		impl.logger.Errorw("error in adding all policies", "err", err, "failedPolicies", resp.FailedPolicies)
-		return fmt.Errorf("error in adding access policies, rolling back")
 	}
 	return nil
 }
