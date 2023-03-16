@@ -40,6 +40,10 @@ func (impl ClusterRouterImpl) InitClusterRouter(clusterRouter *mux.Router) {
 		Methods("POST").
 		HandlerFunc(impl.clusterRestHandler.Save)
 
+	clusterRouter.Path("/kubeconfig").
+		Methods("POST").
+		HandlerFunc(impl.clusterRestHandler.ValidateKubeconfig)
+
 	clusterRouter.Path("").
 		Methods("GET").
 		Queries("id", "{id}").

@@ -57,6 +57,12 @@ type ClusterBean struct {
 	K8sVersion              string                     `json:"k8sVersion"`
 	HasConfigOrUrlChanged   bool                       `json:"-"`
 	ErrorInConnecting       string                     `json:"errorInConnecting,omitempty"`
+	UserName                string                     `json:"userName,omitempty"`
+	ValidationMessage       string                     `json:"validationMessage,omitempty""`
+}
+
+type Kubeconfig struct {
+	Config string `json:"config"`
 }
 
 type PrometheusAuth struct {
@@ -77,6 +83,7 @@ type DefaultClusterComponent struct {
 
 type ClusterService interface {
 	Save(parent context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error)
+	ValidateKubeconfig(Config string) ([]ClusterBean, error)
 	FindOne(clusterName string) (*ClusterBean, error)
 	FindOneActive(clusterName string) (*ClusterBean, error)
 	FindAll() ([]*ClusterBean, error)
@@ -155,6 +162,11 @@ func (impl *ClusterServiceImpl) GetClusterConfig(cluster *ClusterBean) (*util.Cl
 	return clusterCfg, nil
 }
 
+func (impl *ClusterServiceImpl) ValidateKubeconfig(Config string) ([]ClusterBean, error) {
+	var beans []ClusterBean
+
+	return beans, nil
+}
 func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
 	//validating config
 	err := impl.CheckIfConfigIsValid(bean)
