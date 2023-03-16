@@ -109,7 +109,7 @@ func (handler *GlobalCMCSRestHandlerImpl) UpdateGlobalCMCSDataById(w http.Respon
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -138,7 +138,7 @@ func (handler *GlobalCMCSRestHandlerImpl) GetGlobalCMCSDataByConfigTypeAndName(w
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -160,7 +160,7 @@ func (handler *GlobalCMCSRestHandlerImpl) GetAllGlobalCMCSData(w http.ResponseWr
 		return
 	}
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -191,7 +191,7 @@ func (handler *GlobalCMCSRestHandlerImpl) DeleteByID(w http.ResponseWriter, r *h
 		return
 	}
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionDelete, "*"); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
