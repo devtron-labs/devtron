@@ -161,25 +161,29 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 
 	entryPoint := CD_WORKFLOW_NAME
 
-	globalCmCsConfigs, err := impl.globalCMCSService.FindAllActiveByPipelineType(repository2.PIPELINE_TYPE_CD)
-	if err != nil {
-		impl.Logger.Errorw("error in getting all global cm/cs config", "err", err)
-		return nil, err
-	}
-	if len(globalCmCsConfigs) > 0 {
-		entryPoint = CD_WORKFLOW_WITH_STAGES
-	}
-	for i := range globalCmCsConfigs {
-		globalCmCsConfigs[i].Name = fmt.Sprintf("%s-%s-%s", strings.ToLower(globalCmCsConfigs[i].Name), strconv.Itoa(workflowRequest.WorkflowRunnerId), CD_WORKFLOW_NAME)
-	}
-
 	steps := make([]v1alpha1.ParallelSteps, 0)
 	volumes := make([]v12.Volume, 0)
 	templates := make([]v1alpha1.Template, 0)
 
-	err = impl.globalCMCSService.AddTemplatesForGlobalSecretsInWorkflowTemplate(globalCmCsConfigs, &steps, &volumes, &templates)
-	if err != nil {
-		impl.Logger.Errorw("error in creating templates for global secrets", "err", err)
+	globalCmCsConfigs, err := impl.globalCMCSService.FindAllActiveByPipelineType(repository2.PIPELINE_TYPE_CD)
+
+	if !workflowRequest.IsExtRun {
+		// inject global variables only if IsExtRun is false
+		if err != nil {
+			impl.Logger.Errorw("error in getting all global cm/cs config", "err", err)
+			return nil, err
+		}
+		if len(globalCmCsConfigs) > 0 {
+			entryPoint = CD_WORKFLOW_WITH_STAGES
+		}
+		for i := range globalCmCsConfigs {
+			globalCmCsConfigs[i].Name = fmt.Sprintf("%s-%s-%s", strings.ToLower(globalCmCsConfigs[i].Name), strconv.Itoa(workflowRequest.WorkflowRunnerId), CD_WORKFLOW_NAME)
+		}
+
+		err = impl.globalCMCSService.AddTemplatesForGlobalSecretsInWorkflowTemplate(globalCmCsConfigs, &steps, &volumes, &templates)
+		if err != nil {
+			impl.Logger.Errorw("error in creating templates for global secrets", "err", err)
+		}
 	}
 
 	preStageConfigMapSecretsJson := pipeline.PreStageConfigMapSecretNames
@@ -501,29 +505,31 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		cdTemplate.ArchiveLocation.GCS = gcsArtifact
 	}
 
-	for _, config := range globalCmCsConfigs {
-		if config.Type == repository2.VOLUME_CONFIG {
-			cdTemplate.Container.VolumeMounts = append(cdTemplate.Container.VolumeMounts, v12.VolumeMount{
-				Name:      config.Name + "-vol",
-				MountPath: config.MountPath,
-			})
-		} else if config.Type == repository2.ENVIRONMENT_CONFIG {
-			if config.ConfigType == repository2.CM_TYPE_CONFIG {
-				cdTemplate.Container.EnvFrom = append(cdTemplate.Container.EnvFrom, v12.EnvFromSource{
-					ConfigMapRef: &v12.ConfigMapEnvSource{
-						LocalObjectReference: v12.LocalObjectReference{
-							Name: config.Name,
-						},
-					},
+	if !workflowRequest.IsExtRun {
+		for _, config := range globalCmCsConfigs {
+			if config.Type == repository2.VOLUME_CONFIG {
+				cdTemplate.Container.VolumeMounts = append(cdTemplate.Container.VolumeMounts, v12.VolumeMount{
+					Name:      config.Name + "-vol",
+					MountPath: config.MountPath,
 				})
-			} else if config.ConfigType == repository2.CS_TYPE_CONFIG {
-				cdTemplate.Container.EnvFrom = append(cdTemplate.Container.EnvFrom, v12.EnvFromSource{
-					SecretRef: &v12.SecretEnvSource{
-						LocalObjectReference: v12.LocalObjectReference{
-							Name: config.Name,
+			} else if config.Type == repository2.ENVIRONMENT_CONFIG {
+				if config.ConfigType == repository2.CM_TYPE_CONFIG {
+					cdTemplate.Container.EnvFrom = append(cdTemplate.Container.EnvFrom, v12.EnvFromSource{
+						ConfigMapRef: &v12.ConfigMapEnvSource{
+							LocalObjectReference: v12.LocalObjectReference{
+								Name: config.Name,
+							},
 						},
-					},
-				})
+					})
+				} else if config.ConfigType == repository2.CS_TYPE_CONFIG {
+					cdTemplate.Container.EnvFrom = append(cdTemplate.Container.EnvFrom, v12.EnvFromSource{
+						SecretRef: &v12.SecretEnvSource{
+							LocalObjectReference: v12.LocalObjectReference{
+								Name: config.Name,
+							},
+						},
+					})
+				}
 			}
 		}
 	}
