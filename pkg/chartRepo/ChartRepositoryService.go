@@ -206,7 +206,9 @@ func (impl *ChartRepositoryServiceImpl) UpdateChartRepo(request *ChartRepoDto) (
 			return nil, err
 		}
 		var data map[string]string
+		// if the repo name has been updated then, create a new repo
 		data, err = impl.updateRepoData(cm.Data, request)
+		// if the repo name has been updated then, delete the previous repo
 		if previousName != request.Name {
 			data, err = impl.removeRepoData(cm.Data, previousName)
 		}
