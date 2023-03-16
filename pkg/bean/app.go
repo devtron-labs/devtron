@@ -602,21 +602,23 @@ type Rollback struct {
 }
 
 type CiArtifactBean struct {
-	Id                            int             `json:"id"`
-	Image                         string          `json:"image,notnull"`
-	ImageDigest                   string          `json:"image_digest,notnull"`
-	MaterialInfo                  json.RawMessage `json:"material_info"` //git material metadata json array string
-	DataSource                    string          `json:"data_source,notnull"`
-	DeployedTime                  string          `json:"deployed_time"`
-	Deployed                      bool            `json:"deployed,notnull"`
-	Latest                        bool            `json:"latest,notnull"`
-	LastSuccessfulTriggerOnParent bool            `json:"lastSuccessfulTriggerOnParent,notnull"`
-	RunningOnParentCd             bool            `json:"runningOnParentCd,omitempty"`
-	IsVulnerable                  bool            `json:"vulnerable,notnull"`
-	ScanEnabled                   bool            `json:"scanEnabled,notnull"`
-	Scanned                       bool            `json:"scanned,notnull"`
-	WfrId                         int             `json:"wfrId"`
-	DeployedBy                    string          `json:"deployedBy"`
+	Id                            int                       `json:"id"`
+	Image                         string                    `json:"image,notnull"`
+	ImageDigest                   string                    `json:"image_digest,notnull"`
+	MaterialInfo                  json.RawMessage           `json:"material_info"` //git material metadata json array string
+	DataSource                    string                    `json:"data_source,notnull"`
+	DeployedTime                  string                    `json:"deployed_time"`
+	Deployed                      bool                      `json:"deployed,notnull"`
+	Latest                        bool                      `json:"latest,notnull"`
+	LastSuccessfulTriggerOnParent bool                      `json:"lastSuccessfulTriggerOnParent,notnull"`
+	RunningOnParentCd             bool                      `json:"runningOnParentCd,omitempty"`
+	IsVulnerable                  bool                      `json:"vulnerable,notnull"`
+	ScanEnabled                   bool                      `json:"scanEnabled,notnull"`
+	Scanned                       bool                      `json:"scanned,notnull"`
+	WfrId                         int                       `json:"wfrId"`
+	DeployedBy                    string                    `json:"deployedBy"`
+	CiConfigureSourceType         pipelineConfig.SourceType `json:"ciConfigureSourceType"`
+	CiConfigureSourceValue        string                    `json:"ciConfigureSourceValue"`
 }
 
 type CiArtifactResponse struct {
