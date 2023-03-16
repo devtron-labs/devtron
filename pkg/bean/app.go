@@ -47,7 +47,7 @@ type CreateAppDTO struct {
 	TemplateId  int            `json:"templateId"`
 	AppLabels   []*Label       `json:"labels,omitempty" validate:"dive"`
 	Description string         `json:"description"`
-	AppType     helper.AppType `json:"appType"`
+	AppType     helper.AppType `json:"appType" validate:"gt=-1,lt=3"`
 }
 
 type CreateMaterialDTO struct {
