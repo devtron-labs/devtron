@@ -19,15 +19,20 @@ package cluster
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	casbin2 "github.com/devtron-labs/devtron/pkg/user/casbin"
 	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
+	errors1 "github.com/juju/errors"
 	"io/ioutil"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
 	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd/api"
+	"k8s.io/client-go/tools/clientcmd/api/latest"
 	"net/url"
 	"os"
 	"time"
@@ -58,7 +63,8 @@ type ClusterBean struct {
 	HasConfigOrUrlChanged   bool                       `json:"-"`
 	ErrorInConnecting       string                     `json:"errorInConnecting,omitempty"`
 	UserName                string                     `json:"userName,omitempty"`
-	ValidationMessage       string                     `json:"validationMessage,omitempty""`
+	InsecureSkipTLSVerify   bool                       `json:"insecure-skip-tls-verify,omitempty"`
+	ValidationMessage       string                     `json:"validationMessage,omitempty"`
 }
 
 type Kubeconfig struct {
@@ -162,11 +168,55 @@ func (impl *ClusterServiceImpl) GetClusterConfig(cluster *ClusterBean) (*util.Cl
 	return clusterCfg, nil
 }
 
-func (impl *ClusterServiceImpl) ValidateKubeconfig(Config string) ([]ClusterBean, error) {
-	var beans []ClusterBean
+func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) ([]ClusterBean, error) {
 
-	return beans, nil
+	kubeConfigObject := api.Config{}
+
+	gvk := &schema.GroupVersionKind{}
+
+	var kubeConfigDataMap map[string]interface{}
+	err := json.Unmarshal([]byte(kubeConfig), &kubeConfigDataMap)
+	if err != nil {
+		impl.logger.Errorw("error in unmarshalling kubeConfig", "kubeConfig", kubeConfig)
+		return nil, errors1.New("invalid kubeConfig found , " + err.Error())
+	}
+
+	gvk.Version = kubeConfigDataMap["apiVersion"].(string)
+	gvk.Kind = kubeConfigDataMap["kind"].(string)
+
+	_, _, err = latest.Codec.Decode([]byte(kubeConfig), gvk, &kubeConfigObject)
+	if err != nil {
+		impl.logger.Errorw("error in decoding kubeConfigObject", "kubeConfigObject", kubeConfigObject)
+	}
+	var clusterBeanObjects []ClusterBean
+
+	for _, ctx := range kubeConfigObject.Contexts {
+		var clusterBeanObject ClusterBean
+		clusterName := ctx.Cluster
+		userInfo := ctx.AuthInfo
+		clusterObj := kubeConfigObject.Clusters[clusterName]
+		userInfoObj := kubeConfigObject.AuthInfos[userInfo]
+
+		clusterBeanObject.ClusterName = clusterName
+		clusterBeanObject.UserName = userInfo
+		clusterBeanObject.ServerUrl = clusterObj.Server
+		clusterBeanObject.InsecureSkipTLSVerify = clusterObj.InsecureSkipTLSVerify
+		clusterBeanObject.Config = userInfoObj.Token
+
+		//  clusterObj empty
+
+		//
+
+		//get all the cluster config data
+
+		//validations
+
+		//
+	}
+	return clusters, nil
+
 }
+
 func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
 	//validating config
 	err := impl.CheckIfConfigIsValid(bean)
