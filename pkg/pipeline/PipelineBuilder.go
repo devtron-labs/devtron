@@ -3534,15 +3534,15 @@ func (impl PipelineBuilderImpl) MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDelete
 }
 
 func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*bean.CiConfigRequest, error) {
-	ciPipelines, err := impl.pipelineRepository.FindActiveByEnvId(envId)
+	cdPipelines, err := impl.pipelineRepository.FindActiveByEnvId(envId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error fetching pipelines for env id", "err", err)
 		return nil, err
 	}
 	var appIds []int
 	pipelineIds := make([]int, 0)
-	for _, pipeline := range ciPipelines {
-		pipelineIds = append(pipelineIds, pipeline.Id)
+	for _, pipeline := range cdPipelines {
+		pipelineIds = append(pipelineIds, pipeline.CiPipelineId)
 	}
 
 	//authorization block starts here
@@ -3553,8 +3553,8 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int, emailId st
 		appObjectArr = append(appObjectArr, object)
 	}
 	appResults, _ := checkAuthBatch(emailId, appObjectArr, []string{})
-	for _, pipeline := range ciPipelines {
-		appObject := objects[pipeline.Id]
+	for _, pipeline := range cdPipelines {
+		appObject := objects[pipeline.CiPipelineId]
 		if !appResults[appObject] {
 			//if user unauthorized, skip items
 			continue
@@ -3562,6 +3562,16 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int, emailId st
 		appIds = append(appIds, pipeline.AppId)
 	}
 	//authorization block ends here
+
+	if impl.ciConfig.ExternalCiWebhookUrl == "" {
+		hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+		if err != nil {
+			return nil, err
+		}
+		if hostUrl != nil {
+			impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/%s", hostUrl.Value, ExternalCiWebhookPath)
+		}
+	}
 
 	ciConfigs := make([]*bean.CiConfigRequest, 0)
 	var ciPipelineResp []*bean.CiPipeline
@@ -3578,29 +3588,17 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int, emailId st
 			impl.logger.Errorw("error in fetching ci pipeline", "appId", appId, "err", err)
 			return nil, err
 		}
-
-		if impl.ciConfig.ExternalCiWebhookUrl == "" {
-			hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
-			if err != nil {
-				return nil, err
-			}
-			if hostUrl != nil {
-				impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/%s", hostUrl.Value, ExternalCiWebhookPath)
-			}
-		}
 		//map of ciPipelineId and their templateOverrideConfig
 		ciOverrideTemplateMap := make(map[int]*bean3.CiTemplateBean)
 		ciTemplateBeanOverrides, err := impl.ciTemplateService.FindTemplateOverrideByAppId(appId)
 		if err != nil {
 			return nil, err
 		}
-
 		for _, templateBeanOverride := range ciTemplateBeanOverrides {
 			ciTemplateOverride := templateBeanOverride.CiTemplateOverride
 			ciOverrideTemplateMap[ciTemplateOverride.CiPipelineId] = templateBeanOverride
 		}
 		for _, pipeline := range ciPipelines {
-
 			dockerArgs := make(map[string]string)
 			if len(pipeline.DockerArgs) > 0 {
 				err := json.Unmarshal([]byte(pipeline.DockerArgs), &dockerArgs)
@@ -3608,9 +3606,7 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int, emailId st
 					impl.logger.Warnw("error in unmarshal", "err", err)
 				}
 			}
-
 			var externalCiConfig bean.ExternalCiConfig
-
 			ciPipelineScripts, err := impl.ciPipelineRepository.FindCiScriptsByCiPipelineId(pipeline.Id)
 			if err != nil && !util.IsErrNoRows(err) {
 				impl.logger.Errorw("error in fetching ci scripts")
