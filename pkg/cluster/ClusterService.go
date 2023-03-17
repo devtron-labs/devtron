@@ -201,7 +201,7 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) ([]Cluster
 		clusterBeanObject.UserName = userInfo
 		clusterBeanObject.ServerUrl = clusterObj.Server
 		clusterBeanObject.InsecureSkipTLSVerify = clusterObj.InsecureSkipTLSVerify
-		clusterBeanObject.Config = userInfoObj.Token
+		clusterBeanObject.Config = userInfoObj.
 
 		//  clusterObj empty
 
