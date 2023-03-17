@@ -13,6 +13,7 @@ import (
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"net/http"
 	"time"
@@ -218,8 +219,9 @@ func (impl *AppStoreDeploymentHelmServiceImpl) GetDeploymentHistoryInfo(ctx cont
 		},
 		DeploymentVersion: version,
 	}
-
+	_, span := otel.Tracer("orchestrator").Start(ctx, "helmAppClient.GetDeploymentDetail")
 	deploymentDetail, err := impl.helmAppClient.GetDeploymentDetail(ctx, req)
+	span.End()
 	if err != nil {
 		impl.Logger.Errorw("error in getting deployment detail", "err", err)
 		return nil, err

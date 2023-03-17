@@ -27,11 +27,12 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"os"
+	"path/filepath"
 )
 
 type CiLogService interface {
 	FetchRunningWorkflowLogs(ciLogRequest BuildLogRequest, token string, host string, isExt bool) (io.ReadCloser, func() error, error)
-	FetchLogs(ciLogRequest BuildLogRequest) (*os.File, func() error, error)
+	FetchLogs(baseLogLocationPathConfig string, ciLogRequest BuildLogRequest) (*os.File, func() error, error)
 }
 
 type CiLogServiceImpl struct {
@@ -114,9 +115,10 @@ func (impl *CiLogServiceImpl) FetchRunningWorkflowLogs(ciLogRequest BuildLogRequ
 	return podLogs, cleanUpFunc, nil
 }
 
-func (impl *CiLogServiceImpl) FetchLogs(logRequest BuildLogRequest) (*os.File, func() error, error) {
+func (impl *CiLogServiceImpl) FetchLogs(baseLogLocationPathConfig string, logRequest BuildLogRequest) (*os.File, func() error, error) {
+	tempFile := baseLogLocationPathConfig
+	tempFile = filepath.Clean(filepath.Join(tempFile, logRequest.PodName+".log"))
 
-	tempFile := logRequest.PodName + ".log"
 	blobStorageService := blob_storage.NewBlobStorageServiceImpl(nil)
 	request := &blob_storage.BlobStorageRequest{
 		StorageType:         logRequest.CloudProvider,
