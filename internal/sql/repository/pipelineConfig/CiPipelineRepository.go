@@ -382,7 +382,7 @@ func (impl CiPipelineRepositoryImpl) FindNumberOfAppsWithCiPipeline(appIds []int
 func (impl CiPipelineRepositoryImpl) FindAppAndProjectByCiPipelineIds(ciPipelineIds []int) ([]*CiPipeline, error) {
 	var ciPipelines []*CiPipeline
 	err := impl.dbConnection.Model(&ciPipelines).Column("ci_pipeline.*", "App", "App.Team").
-		Where("environment_id in(?)", pg.In(ciPipelineIds)).
+		Where("id in(?)", pg.In(ciPipelineIds)).
 		Where("deleted = ?", false).
 		Select()
 	return ciPipelines, err

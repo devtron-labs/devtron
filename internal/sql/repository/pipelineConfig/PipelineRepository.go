@@ -606,7 +606,7 @@ func (impl PipelineRepositoryImpl) FindActiveByAppIds(appIds []int) (pipelines [
 
 func (impl PipelineRepositoryImpl) FindAppAndEnvironmentAndProjectByPipelineIds(pipelineIds []int) (pipelines []*Pipeline, err error) {
 	err = impl.dbConnection.Model(&pipelines).Column("pipeline.*", "App", "Environment", "App.Team").
-		Where("environment_id in(?)", pg.In(pipelineIds)).
+		Where("id in(?)", pg.In(pipelineIds)).
 		Where("deleted = ?", false).
 		Select()
 	return pipelines, err
