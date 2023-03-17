@@ -259,6 +259,60 @@ Semgrep is a fast, open source, static analysis engine for finding bugs, detecti
 * Click **Update Pipeline**.
 
 
+
+
+#### Jira Issue Validator During Git Push
+
+Jira is a software application developed for  teams to track issues, manage projects, and automate workflows.This plugin extends the filtering capabilities of the Devtron CI and lets the users perform validation based on JIRA Ticket ID status.
+
+**Prerequisite**: Make sure you have the jira issue tittle or tickert-id.<br>
+Note: During Build Pipeline Must Choose Source Type to `Pull Request` and and Configure Webhook that the title should be in Pull request should be in
+` ^(?P<jira_Id>([a-zA-Z0-9-].*))/ `this regeular expression format .
+
+1. On the **Edit build pipeline** page, select the **Pre-Build Stage** .
+2. Click **+ Add task**.
+3. Select **Jira Issue Validator** from **PRESET PLUGINS**.
+
+* Enter a relevant name in the `Task name` field. It is a mandatory field.
+* Enter a descriptive message for the task in the `Description` field. It is an optional field.
+* Provide  values for the input variables. It is a mandatory field.<br> 
+
+ | Variable | Format | Description |
+| ---- | ---- | ---- |
+| JiraUsername | String | Enter the  Username of Jira account.  |
+| JiraPassword | String | Enter the Api-token for Jira account. Don't write the password of your jira account  |
+| JiraBaseUrl  | String | Enter the base url of your Jira account. |
+
+* `Trigger/Skip Condition` refers to a conditional statement to execute or skip the task. You can select either:<ul><li>`Set trigger conditions` or</li><li>`Set skip conditions`</li></ul> 
+
+* Click **Update Pipeline**.
+
+#### Jira Issue Updater After build
+
+This plugin extends the capabilities of Devtron CI and can update issues in JIRA by adding pipeline status and metadata as comment on the tickets..
+
+**Prerequisite**: Make sure you have the jira issue tittle or tickert-id.
+
+1. On the **Edit build pipeline** page, select the **Post-Build Stage** .
+2. Click **+ Add task**.
+3. Select **Jira Issue Updater** from **PRESET PLUGINS**.
+
+
+* Enter a relevant name in the `Task name` field. It is a mandatory field.
+* Enter a descriptive message for the task in the `Description` field. It is an optional field.
+* Provide  values for the input variables. It is a mandatory field.<br> 
+
+ | Variable | Format | Description |
+| ---- | ---- | ---- |
+| JiraUsername | String | Enter the Username of Jira account.  |
+| JiraPassword | String | Enter the Api-token for Jira account. Don't write the password of your jira account.  |
+| JiraBaseUrl  | String | Enter the base url of your Jira account. |
+| UpdateWithDockerImageId | BOOL | Enter either `true` or `false` . If it is `true`, Jira issue will be updated with docker image id in comment.By default its is true. |
+| UpdateWithBuildStatus |  BOOL |  Enter either `true` or `false` . If it is `true`, Jira issue will be updated with build status in comment .By default its is true. |
+* `Trigger/Skip Condition` refers to a conditional statement to execute or skip the task. You can select either:<ul><li>`Set trigger conditions` or</li><li>`Set skip conditions`</li></ul> 
+
+* Click **Update Pipeline**.
+
 #### Codacy
 
 Codacy is an automated code analysis/quality tool that helps developers to ship better software in a faster manner.
