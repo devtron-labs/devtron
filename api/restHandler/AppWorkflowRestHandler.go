@@ -18,6 +18,7 @@
 package restHandler
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -29,6 +30,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"net/http"
 	"strconv"
@@ -239,7 +241,9 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflowByEnvironment(w http.Respo
 		return
 	}
 	workflows := make(map[string]interface{})
+	_, span := otel.Tracer("orchestrator").Start(context.Background(), "ciHandler.FetchAppWorkflowsInAppGrouping")
 	workflowsList, err := impl.appWorkflowService.FindAppWorkflowsByEnvironmentId(envId, userEmailId, impl.checkAuthBatch)
+	span.End()
 	if err != nil {
 		impl.Logger.Errorw("error in fetching workflows for app", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

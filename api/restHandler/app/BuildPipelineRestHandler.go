@@ -14,6 +14,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
+	"go.opentelemetry.io/otel"
 	"io"
 	"net/http"
 	"strconv"
@@ -1265,7 +1266,9 @@ func (handler PipelineConfigRestHandlerImpl) GetCiPipelineByEnvironment(w http.R
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	_, span := otel.Tracer("orchestrator").Start(context.Background(), "ciHandler.FetchCiPipelinesForAppGrouping")
 	ciConf, err := handler.pipelineBuilder.GetCiPipelineByEnvironment(envId, userEmailId, handler.checkAuthBatch)
+	span.End()
 	if err != nil {
 		handler.Logger.Errorw("service err, GetCiPipeline", "err", err, "envId", envId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

@@ -38,6 +38,7 @@ import (
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
+	"go.opentelemetry.io/otel"
 	"net/http"
 	"net/url"
 	"sort"
@@ -3594,6 +3595,7 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int, emailId st
 
 	ciConfigs := make([]*bean.CiConfigRequest, 0)
 	var ciPipelineResp []*bean.CiPipeline
+	_, span := otel.Tracer("orchestrator").Start(context.Background(), "ciHandler.GetCiTemplateVariables")
 	for _, appId := range appIds {
 		ciConfig, err := impl.getCiTemplateVariables(appId)
 		if err != nil {
@@ -3707,6 +3709,7 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int, emailId st
 		ciConfig.CiPipelines = ciPipelineResp
 		ciConfigs = append(ciConfigs, ciConfig)
 	}
+	span.End()
 	//--------pipeline population end
 	return ciConfigs, err
 }
