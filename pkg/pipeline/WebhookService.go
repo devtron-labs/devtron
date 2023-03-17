@@ -154,10 +154,6 @@ func (impl WebhookServiceImpl) HandleCiSuccessEvent(ciPipelineId int, request *C
 		return 0, err
 	}
 	materialJson = dst.Bytes()
-	var IsArtifactUploadedDB bool
-	if request.IsArtifactUploaded != true {
-		IsArtifactUploadedDB = false
-	}
 	artifact := &repository.CiArtifact{
 		Image:              request.Image,
 		ImageDigest:        request.ImageDigest,
@@ -167,7 +163,7 @@ func (impl WebhookServiceImpl) HandleCiSuccessEvent(ciPipelineId int, request *C
 		WorkflowId:         request.WorkflowId,
 		ScanEnabled:        pipeline.ScanEnabled,
 		Scanned:            false,
-		IsArtifactUploaded: IsArtifactUploadedDB,
+		IsArtifactUploaded: request.IsArtifactUploaded,
 		AuditLog:           sql.AuditLog{CreatedBy: request.UserId, UpdatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now()},
 	}
 	if pipeline.ScanEnabled {
