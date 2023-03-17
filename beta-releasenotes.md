@@ -1,4 +1,5 @@
 ## Bugs
+- fix: pg prom metrics not getting exported when pg query logging is disabled (#3124)
 - fix: Send webhook data(source value and source type) in pipeline api response (#3120)
 - fix: updated condition for adding kubectl apply synced timeline (#3115)
 - fix: json unmarshal panic error temperory fix. (#3095)
