@@ -457,7 +457,7 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowsByEnvironmentId(envId int, em
 	}
 	var appObjectArr []string
 	var envObjectArr []string
-	objects := impl.enforcerUtil.GetAppAndEnvObjectByPipelineIdsId(pipelineIds)
+	objects := impl.enforcerUtil.GetAppAndEnvObjectByPipelineIds(pipelineIds)
 	pipelineIds = []int{}
 	for _, object := range objects {
 		appObjectArr = append(appObjectArr, object[0])

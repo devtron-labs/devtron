@@ -1013,11 +1013,13 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(en
 	for _, pipeline := range pipelines {
 		pipelineIds = append(pipelineIds, pipeline.Id)
 	}
-
+	if len(pipelineIds) == 0 {
+		return cdWorkflowStatus, nil
+	}
 	//authorization block starts here
 	var appObjectArr []string
 	var envObjectArr []string
-	objects := impl.enforcerUtil.GetAppAndEnvObjectByPipelineIdsId(pipelineIds)
+	objects := impl.enforcerUtil.GetAppAndEnvObjectByPipelineIds(pipelineIds)
 	pipelineIds = []int{}
 	for _, object := range objects {
 		appObjectArr = append(appObjectArr, object[0])

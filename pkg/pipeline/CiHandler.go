@@ -1312,7 +1312,9 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(envId int, 
 	for _, pipeline := range ciPipelines {
 		pipelineIds = append(pipelineIds, pipeline.Id)
 	}
-
+	if len(pipelineIds) == 0 {
+		return ciWorkflowStatuses, nil
+	}
 	//authorization block starts here
 	var appObjectArr []string
 	objects := impl.enforcerUtil.GetAppObjectByCiPipelineIds(pipelineIds)
@@ -1335,7 +1337,9 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(envId int, 
 		}
 		pipelineIds = append(pipelineIds, pipelineId)
 	}
-
+	if len(pipelineIds) == 0 {
+		return ciWorkflowStatuses, nil
+	}
 	ciWorkflows, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflowByCiIds(pipelineIds)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.Logger.Errorw("err", "pipelineIds", pipelineIds, "err", err)

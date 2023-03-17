@@ -3721,10 +3721,13 @@ func (impl PipelineBuilderImpl) GetCdPipelinesByEnvironment(envId int, emailId s
 	for _, pipeline := range cdPipelines.Pipelines {
 		pipelineIds = append(pipelineIds, pipeline.Id)
 	}
+	if len(pipelineIds) == 0 {
+		return cdPipelines, fmt.Errorf("no pipeline found for this environment")
+	}
 	//authorization block starts here
 	var appObjectArr []string
 	var envObjectArr []string
-	objects := impl.enforcerUtil.GetAppAndEnvObjectByPipelineIdsId(pipelineIds)
+	objects := impl.enforcerUtil.GetAppAndEnvObjectByPipelineIds(pipelineIds)
 	pipelineIds = []int{}
 	for _, object := range objects {
 		appObjectArr = append(appObjectArr, object[0])
@@ -3749,8 +3752,11 @@ func (impl PipelineBuilderImpl) GetCdPipelinesByEnvironment(envId int, emailId s
 	pipelineStrategies := make(map[int][]bean.Strategy)
 	pipelineDeploymentTemplate := make(map[int]chartRepoRepository.DeploymentStrategy)
 	pipelineWorkflowMapping := make(map[int]*appWorkflow.AppWorkflowMapping)
+	if len(pipelineIds) == 0 {
+		return cdPipelines, fmt.Errorf("no authorized pipeline found for this environment")
+	}
 	strategies, err := impl.pipelineConfigRepository.GetAllStrategyByPipelineIds(pipelineIds)
-	if err != nil && errors.IsNotFound(err) {
+	if err != nil {
 		impl.logger.Errorw("error in fetching strategies", "err", err)
 		return cdPipelines, err
 	}
@@ -3765,7 +3771,7 @@ func (impl PipelineBuilderImpl) GetCdPipelinesByEnvironment(envId int, emailId s
 		}
 	}
 	appWorkflowMappings, err := impl.appWorkflowRepository.FindWFCDMappingByCDPipelineIds(pipelineIds)
-	if err != nil && errors.IsNotFound(err) {
+	if err != nil {
 		impl.logger.Errorw("error in fetching workflows", "err", err)
 		return nil, err
 	}

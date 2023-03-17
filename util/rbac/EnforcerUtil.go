@@ -51,7 +51,7 @@ type EnforcerUtil interface {
 	GetAppRBACNameByTeamIdAndAppId(teamId int, appId int) string
 	GetRBACNameForClusterEntity(clusterName string, resourceIdentifier application.ResourceIdentifier) (resourceName, objectName string)
 	GetAppObjectByCiPipelineIds(ciPipelineIds []int) map[int]string
-	GetAppAndEnvObjectByPipelineIdsId(cdPipelineIds []int) map[int][]string
+	GetAppAndEnvObjectByPipelineIds(cdPipelineIds []int) map[int][]string
 }
 
 type EnforcerUtilImpl struct {
@@ -447,7 +447,7 @@ func (impl EnforcerUtilImpl) GetAppObjectByCiPipelineIds(ciPipelineIds []int) ma
 	return objects
 }
 
-func (impl EnforcerUtilImpl) GetAppAndEnvObjectByPipelineIdsId(cdPipelineIds []int) map[int][]string {
+func (impl EnforcerUtilImpl) GetAppAndEnvObjectByPipelineIds(cdPipelineIds []int) map[int][]string {
 	objects := make(map[int][]string)
 	models, err := impl.pipelineRepository.FindAppAndEnvironmentAndProjectByPipelineIds(cdPipelineIds)
 	if err != nil {
