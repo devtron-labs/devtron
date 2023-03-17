@@ -67,30 +67,28 @@ func NewDbConnection(cfg *Config, logger *zap.SugaredLogger) (*pg.DB, error) {
 	}
 
 	//--------------
-	if cfg.LogQuery || cfg.LogAllQuery {
+	dbConnection.OnQueryProcessed(func(event *pg.QueryProcessedEvent) {
+		queryDuration := time.Since(event.StartTime)
 
-		dbConnection.OnQueryProcessed(func(event *pg.QueryProcessedEvent) {
-			query, err := event.FormattedQuery()
-			queryDuration := time.Since(event.StartTime)
+		// Expose prom metrics
+		if cfg.ExportPromMetrics {
+			middleware.PgQueryDuration.WithLabelValues("value").Observe(queryDuration.Seconds())
+		}
 
-			// Expose prom metrics
-			if cfg.ExportPromMetrics {
-				middleware.PgQueryDuration.WithLabelValues("value").Observe(queryDuration.Seconds())
-			}
+		query, err := event.FormattedQuery()
+		if err != nil {
+			logger.Errorw("Error formatting query",
+				"err", err)
+			return
+		}
 
-			if err != nil {
-				logger.Errorw("Error formatting query",
-					"err", err)
-				return
-			}
-
-			if cfg.LogAllQuery || queryDuration.Milliseconds() > cfg.QueryDurationThreshold {
-				logger.Debugw("query time",
-					"duration", queryDuration.Seconds(),
-					"query", query)
-			}
-		})
-	}
+		// Log pg query if enabled
+		if cfg.LogAllQuery || (cfg.LogQuery && queryDuration.Milliseconds() > cfg.QueryDurationThreshold) {
+			logger.Debugw("query time",
+				"duration", queryDuration.Seconds(),
+				"query", query)
+		}
+	})
 	return dbConnection, err
 }
 
