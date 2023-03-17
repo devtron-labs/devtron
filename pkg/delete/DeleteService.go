@@ -80,16 +80,10 @@ func (impl DeleteServiceImpl) DeleteChartRepo(deleteRequest *chartRepo.ChartRepo
 		impl.logger.Errorw("err in deleting repo, found charts deployed using this repo", "deleteRequest", deployedCharts)
 		return fmt.Errorf("cannot delete repo, found charts deployed in this repo")
 	}
-
 	err = impl.chartRepositoryService.DeleteChartRepo(deleteRequest)
 	if err != nil {
 		impl.logger.Errorw("error in deleting chart repo", "err", err, "deleteRequest", deleteRequest)
 		return err
-	}
-
-	err = impl.chartRepositoryService.DeleteChartSecret(deleteRequest.Name)
-	if err != nil {
-		impl.logger.Errorw("Error in deleting secret for chart repo", "Chart Name", deleteRequest.Name, "err", err)
 	}
 
 	return nil
