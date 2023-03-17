@@ -43,7 +43,7 @@ type CiArtifact struct {
 	ScanEnabled          bool      `sql:"scan_enabled,notnull"`
 	Scanned              bool      `sql:"scanned,notnull"`
 	ExternalCiPipelineId int       `sql:"external_ci_pipeline_id"`
-	IsArtifactUploaded   bool      `sql:"is_artifact_uploaded,default:false"`
+	IsArtifactUploaded   bool      `sql:"is_artifact_uploaded"`
 	DeployedTime         time.Time `sql:"-"`
 	Deployed             bool      `sql:"-"`
 	Latest               bool      `sql:"-"`
