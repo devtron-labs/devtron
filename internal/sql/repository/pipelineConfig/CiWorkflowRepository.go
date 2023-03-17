@@ -206,13 +206,12 @@ func (impl *CiWorkflowRepositoryImpl) UpdateWorkFlow(wf *CiWorkflow) error {
 }
 
 func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowByCiIds(pipelineId []int) (ciWorkflow []*CiWorkflow, err error) {
-	var workflow []*CiWorkflow
-	err = impl.dbConnection.Model(workflow).
+	err = impl.dbConnection.Model(&ciWorkflow).
 		Column("ci_workflow.*", "CiPipeline").
-		Where("ci_workflow.ci_pipeline_id = ? ", pg.In(pipelineId)).
+		Where("ci_workflow.ci_pipeline_id in (?) ", pg.In(pipelineId)).
 		Order("ci_workflow.started_on Desc").
 		Select()
-	return workflow, err
+	return ciWorkflow, err
 }
 
 func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowByArtifactId(ciArtifactId int) (ciWorkflow *CiWorkflow, err error) {
