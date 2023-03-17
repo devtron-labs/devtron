@@ -1345,8 +1345,16 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(envId int, 
 		impl.Logger.Errorw("err", "pipelineIds", pipelineIds, "err", err)
 		return ciWorkflowStatuses, err
 	}
+
 	notTriggeredWorkflows := make(map[int]bool)
+	latestCiWorkflows := make(map[int]*pipelineConfig.CiWorkflow)
 	for _, workflow := range ciWorkflows {
+		//adding only latest status in the list
+		if _, ok := latestCiWorkflows[workflow.CiPipelineId]; !ok {
+			latestCiWorkflows[workflow.CiPipelineId] = workflow
+		}
+	}
+	for _, workflow := range latestCiWorkflows {
 		ciWorkflowStatus := &pipelineConfig.CiWorkflowStatus{}
 		ciWorkflowStatus.CiPipelineId = workflow.CiPipelineId
 		ciWorkflowStatus.CiPipelineName = workflow.CiPipeline.Name
@@ -1356,7 +1364,7 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(envId int, 
 		notTriggeredWorkflows[ciWorkflowStatus.CiPipelineId] = true
 	}
 
-	for _, workflow := range ciWorkflows {
+	for _, workflow := range latestCiWorkflows {
 		if _, ok := notTriggeredWorkflows[workflow.CiPipelineId]; !ok {
 			ciWorkflowStatus := &pipelineConfig.CiWorkflowStatus{}
 			ciWorkflowStatus.CiPipelineId = workflow.CiPipelineId
