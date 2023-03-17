@@ -165,9 +165,10 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	volumes := make([]v12.Volume, 0)
 	templates := make([]v1alpha1.Template, 0)
 
-	globalCmCsConfigs, err := impl.globalCMCSService.FindAllActiveByPipelineType(repository2.PIPELINE_TYPE_CD)
+	var globalCmCsConfigs []*GlobalCMCSDto
 
 	if !workflowRequest.IsExtRun {
+		globalCmCsConfigs, err = impl.globalCMCSService.FindAllActiveByPipelineType(repository2.PIPELINE_TYPE_CD)
 		// inject global variables only if IsExtRun is false
 		if err != nil {
 			impl.Logger.Errorw("error in getting all global cm/cs config", "err", err)
