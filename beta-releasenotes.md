@@ -15,6 +15,7 @@
 - fix: urls pipeline fetching bug fix (#3063)
 - fix: app grouping appid appname (#3058)
 ## Enhancements
+- feat: Review config changes before deployment (#3077)
 - feat: global secrets for pre/post cd (#3073)
 - feat: export pg query metrics to prometheus (#3118)
 - feat: Add timer/counter telemetry for CI process (#3081)
