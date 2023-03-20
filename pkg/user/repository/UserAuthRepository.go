@@ -37,12 +37,13 @@ import (
 type UserAuthRepository interface {
 	CreateRole(userModel *RoleModel, tx *pg.Tx) (*RoleModel, error)
 	GetRoleById(id int) (*RoleModel, error)
+	GetRolesByIds(ids []int) ([]RoleModel, error)
 	GetRoleByRoles(roles []string) ([]RoleModel, error)
 	GetRolesByUserId(userId int32) ([]RoleModel, error)
 	GetRolesByGroupId(userId int32) ([]*RoleModel, error)
 	GetAllRole() ([]RoleModel, error)
 	GetRolesByActionAndAccessType(action string, accessType string) ([]RoleModel, error)
-	GetRoleByFilterForAllTypes(entity, team, app, env, act, accessType, cluster, namespace, group, kind, resource, action string) (RoleModel, error)
+	GetRoleByFilterForAllTypes(entity, team, app, env, act, accessType, cluster, namespace, group, kind, resource, action string, oldValues bool) (RoleModel, error)
 	CreateUserRoleMapping(userRoleModel *UserRoleModel, tx *pg.Tx) (*UserRoleModel, error)
 	GetUserRoleMappingByUserId(userId int32) ([]*UserRoleModel, error)
 	DeleteUserRoleMapping(userRoleModel *UserRoleModel, tx *pg.Tx) (bool, error)
@@ -58,6 +59,7 @@ type UserAuthRepository interface {
 	DeleteRole(role *RoleModel, tx *pg.Tx) error
 	//GetRoleByFilterForClusterEntity(cluster, namespace, group, kind, resource, action string) (RoleModel, error)
 	GetRolesByUserIdAndEntityType(userId int32, entityType string) ([]*RoleModel, error)
+	CreateRolesWithAccessTypeAndEntity(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, UserId int32, role string) (bool, error)
 }
 
 type UserAuthRepositoryImpl struct {
@@ -149,7 +151,15 @@ func (impl UserAuthRepositoryImpl) GetRoleById(id int) (*RoleModel, error) {
 	}
 	return &model, nil
 }
-
+func (impl UserAuthRepositoryImpl) GetRolesByIds(ids []int) ([]RoleModel, error) {
+	var model []RoleModel
+	err := impl.dbConnection.Model(&model).Where("id IN (?)", pg.In(ids)).Select()
+	if err != nil {
+		impl.Logger.Error(err)
+		return model, err
+	}
+	return model, nil
+}
 func (impl UserAuthRepositoryImpl) GetRoleByRoles(roles []string) ([]RoleModel, error) {
 	var model []RoleModel
 	err := impl.dbConnection.Model(&model).Where("role IN (?)", pg.In(roles)).Select()
@@ -223,7 +233,7 @@ func (impl UserAuthRepositoryImpl) GetRolesByActionAndAccessType(action string, 
 	return models, nil
 }
 
-func (impl UserAuthRepositoryImpl) GetRoleByFilterForAllTypes(entity, team, app, env, act, accessType, cluster, namespace, group, kind, resource, action string) (RoleModel, error) {
+func (impl UserAuthRepositoryImpl) GetRoleByFilterForAllTypes(entity, team, app, env, act, accessType, cluster, namespace, group, kind, resource, action string, oldValues bool) (RoleModel, error) {
 	var model RoleModel
 	if entity == bean2.CLUSTER {
 
@@ -295,28 +305,40 @@ func (impl UserAuthRepositoryImpl) GetRoleByFilterForAllTypes(entity, team, app,
 
 		if len(team) > 0 && len(app) > 0 && len(env) > 0 && len(act) > 0 {
 			query := "SELECT role.* FROM roles role WHERE role.team = ? AND role.entity_name=? AND role.environment=? AND role.action=?"
-
-			query += " and role.access_type='" + accessType + "'"
+			if oldValues {
+				query = query + " and role.access_type is NULL"
+			} else {
+				query += " and role.access_type='" + accessType + "'"
+			}
 
 			_, err = impl.dbConnection.Query(&model, query, team, app, env, act)
 		} else if len(team) > 0 && app == "" && len(env) > 0 && len(act) > 0 {
+
 			query := "SELECT role.* FROM roles role WHERE role.team=? AND coalesce(role.entity_name,'')=? AND role.environment=? AND role.action=?"
-
-			query += " and role.access_type='" + accessType + "'"
-
+			if oldValues {
+				query = query + " and role.access_type is NULL"
+			} else {
+				query += " and role.access_type='" + accessType + "'"
+			}
 			_, err = impl.dbConnection.Query(&model, query, team, EMPTY, env, act)
 		} else if len(team) > 0 && len(app) > 0 && env == "" && len(act) > 0 {
 			//this is applicable for all environment of a team
 			query := "SELECT role.* FROM roles role WHERE role.team = ? AND role.entity_name=? AND coalesce(role.environment,'')=? AND role.action=?"
-
-			query += " and role.access_type='" + accessType + "'"
+			if oldValues {
+				query = query + " and role.access_type is NULL"
+			} else {
+				query += " and role.access_type='" + accessType + "'"
+			}
 
 			_, err = impl.dbConnection.Query(&model, query, team, app, EMPTY, act)
 		} else if len(team) > 0 && app == "" && env == "" && len(act) > 0 {
 			//this is applicable for all environment of a team
 			query := "SELECT role.* FROM roles role WHERE role.team = ? AND coalesce(role.entity_name,'')=? AND coalesce(role.environment,'')=? AND role.action=?"
-
-			query += " and role.access_type='" + accessType + "'"
+			if oldValues {
+				query = query + " and role.access_type is NULL"
+			} else {
+				query += " and role.access_type='" + accessType + "'"
+			}
 
 			_, err = impl.dbConnection.Query(&model, query, team, EMPTY, EMPTY, act)
 		} else if team == "" && app == "" && env == "" && len(act) > 0 {
@@ -495,6 +517,39 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team, entity
 	}
 	return true, nil, policiesToBeAdded
 }
+func (impl UserAuthRepositoryImpl) CreateRolesWithAccessTypeAndEntity(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, UserId int32, role string) (bool, error) {
+	dbConnection := impl.dbConnection
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return false, err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+
+	roleData := bean.RoleData{
+		Role:        role,
+		Entity:      entity,
+		Team:        team,
+		EntityName:  entityName,
+		Environment: env,
+		Action:      actionType,
+		AccessType:  accessType,
+		Cluster:     cluster,
+		Namespace:   namespace,
+		Group:       group,
+		Kind:        kind,
+		Resource:    resource,
+	}
+	_, err = impl.createRole(&roleData, tx, UserId)
+	if err != nil && strings.Contains("duplicate key value violates unique constraint", err.Error()) {
+		return false, err
+	}
+	err = tx.Commit()
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
 
 func (impl UserAuthRepositoryImpl) CreateRoleForSuperAdminIfNotExists(tx *pg.Tx, UserId int32) (bool, error) {
 	transaction, err := impl.dbConnection.Begin()
@@ -503,7 +558,7 @@ func (impl UserAuthRepositoryImpl) CreateRoleForSuperAdminIfNotExists(tx *pg.Tx,
 	}
 
 	//Creating ROLES
-	roleModel, err := impl.GetRoleByFilterForAllTypes("", "", "", "", bean2.SUPER_ADMIN, "", "", "", "", "", "", "")
+	roleModel, err := impl.GetRoleByFilterForAllTypes("", "", "", "", bean2.SUPER_ADMIN, "", "", "", "", "", "", "", false)
 	if err != nil && err != pg.ErrNoRows {
 		return false, err
 	}

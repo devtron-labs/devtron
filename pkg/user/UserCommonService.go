@@ -92,7 +92,7 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 							if !isValidAuth {
 								continue
 							}
-							roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes("", "", "", "", "", accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType)
+							roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes("", "", "", "", "", accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType, false)
 							if err != nil {
 								impl.logger.Errorw("Error in fetching roles by filter", "roleFilter", roleFilter)
 								return nil, err
@@ -135,7 +135,7 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 					if environment == "NONE" {
 						environment = ""
 					}
-					roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "")
+					roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "", false)
 					if err != nil {
 						impl.logger.Errorw("Error in fetching roles by filter", "user", userInfo)
 						return nil, err
@@ -229,7 +229,7 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 							if !isValidAuth {
 								continue
 							}
-							roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, "", "", "", "", accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType)
+							roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, "", "", "", "", accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType, false)
 							if err != nil {
 								impl.logger.Errorw("Error in fetching roles by filter", "user", request)
 								return nil, err
@@ -272,7 +272,7 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 					if environment == "NONE" {
 						environment = ""
 					}
-					roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "")
+					roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "", false)
 					if err != nil {
 						impl.logger.Errorw("Error in fetching roles by filter", "user", request)
 						return nil, err
