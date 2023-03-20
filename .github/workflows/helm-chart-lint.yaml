@@ -17,7 +17,7 @@ jobs:
         list-files: shell
         filters: |
           charts:
-            - added|modified: 'scripts/devtron-reference-helm-charts/**'
+            - added|modified: 'scripts/devtron-reference-helm-charts/**/templates/**'
     - run: echo ${{ steps.filter.outputs.charts }}
     - uses: actions/setup-python@v2
     - uses: jannekem/run-python-script-action@v1
