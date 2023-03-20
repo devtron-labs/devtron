@@ -168,9 +168,14 @@ func (impl UserServiceImpl) SelfRegisterUserIfNotExists(userInfo *bean.UserInfo)
 		userInfo.Exist = dbUser.Active
 		userResponse = append(userResponse, &bean.UserInfo{Id: userInfo.Id, EmailId: emailId, Groups: userInfo.Groups, RoleFilters: userInfo.RoleFilters, SuperAdmin: userInfo.SuperAdmin})
 	}
+
 	if len(policies) > 0 {
+		//loading policy for safety
+		casbin2.LoadPolicy()
 		pRes := casbin2.AddPolicy(policies)
 		println(pRes)
+		//loading policy for syncing orchestrator to casbin with newly added policies
+		casbin2.LoadPolicy()
 	}
 	err = tx.Commit()
 	if err != nil {
@@ -218,6 +223,7 @@ func (impl UserServiceImpl) saveUser(userInfo *bean.UserInfo, emailId string) (*
 }
 
 func (impl UserServiceImpl) CreateUser(userInfo *bean.UserInfo, token string, managerAuth func(resource, token string, object string) bool) ([]*bean.UserInfo, error) {
+
 	var pass []string
 	var userResponse []*bean.UserInfo
 	emailIds := strings.Split(userInfo.EmailId, ",")
@@ -317,7 +323,8 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 		return nil, err
 	}
 	userInfo.Id = model.Id
-
+	//loading policy for safety
+	casbin2.LoadPolicy()
 	//Starts Role and Mapping
 	var policies []casbin2.Policy
 	if userInfo.SuperAdmin == false {
@@ -454,11 +461,12 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 		println(pRes)
 	}
 	//Ends
-
 	err = tx.Commit()
 	if err != nil {
 		return nil, err
 	}
+	//loading policy for syncing orchestrator to casbin with newly added policies
+	casbin2.LoadPolicy()
 	return userInfo, nil
 }
 
@@ -653,7 +661,8 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 	restrictedGroups := []string{}
 	rolesChanged := false
 	groupsModified := false
-
+	//loading policy for safety
+	casbin2.LoadPolicy()
 	if userInfo.SuperAdmin == false {
 		//Starts Role and Mapping
 		userRoleModels, err := impl.userAuthRepository.GetUserRoleMappingByUserId(model.Id)
@@ -887,6 +896,8 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 	if err != nil {
 		return nil, false, false, nil, err
 	}
+	//loading policy for syncing orchestrator to casbin with newly added policies
+	casbin2.LoadPolicy()
 
 	return userInfo, rolesChanged, groupsModified, restrictedGroups, nil
 }
@@ -1320,6 +1331,8 @@ func (impl UserServiceImpl) SyncOrchestratorToCasbin() (bool, error) {
 	total := len(roles)
 	processed := 0
 	impl.logger.Infow("total roles found for sync", "len", total)
+	//loading policy for safety
+	casbin2.LoadPolicy()
 	for _, role := range roles {
 		if len(role.Team) > 0 {
 			flag, err := impl.userAuthRepository.SyncOrchestratorToCasbin(role.Team, role.EntityName, role.Environment, nil)
@@ -1333,6 +1346,8 @@ func (impl UserServiceImpl) SyncOrchestratorToCasbin() (bool, error) {
 		}
 		processed = processed + 1
 	}
+	//loading policy for syncing orchestrator to casbin with updated policies(if any)
+	casbin2.LoadPolicy()
 	impl.logger.Infow("total roles processed for sync", "len", processed)
 	return true, nil
 }

@@ -43,6 +43,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"net/http"
 	"strings"
@@ -527,13 +528,6 @@ func (impl AppStoreDeploymentServiceImpl) GetAllInstalledAppsByAppStoreId(w http
 }
 
 func (impl AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error) {
-
-	environment, err := impl.environmentRepository.FindById(installAppVersionRequest.EnvironmentId)
-	if err != nil {
-		impl.logger.Errorw("fetching error", "err", err)
-		return nil, err
-	}
-
 	dbConnection := impl.installedAppRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -542,59 +536,90 @@ func (impl AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context
 	// Rollback tx on error.
 	defer tx.Rollback()
 
+	environment, err := impl.environmentRepository.FindById(installAppVersionRequest.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("fetching error", "err", err)
+		return nil, err
+	}
 	app, err := impl.appRepository.FindById(installAppVersionRequest.AppId)
 	if err != nil {
 		return nil, err
 	}
-	app.Active = false
-	app.UpdatedBy = installAppVersionRequest.UserId
-	app.UpdatedOn = time.Now()
-	err = impl.appRepository.UpdateWithTxn(app, tx)
-	if err != nil {
-		impl.logger.Errorw("error in update entity ", "entity", app)
-		return nil, err
-	}
-
 	model, err := impl.installedAppRepository.GetInstalledApp(installAppVersionRequest.InstalledAppId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching installed app", "id", installAppVersionRequest.InstalledAppId, "err", err)
 		return nil, err
 	}
-	model.Active = false
-	model.UpdatedBy = installAppVersionRequest.UserId
-	model.UpdatedOn = time.Now()
-	_, err = impl.installedAppRepository.UpdateInstalledApp(model, tx)
-	if err != nil {
-		impl.logger.Errorw("error while creating install app", "error", err)
-		return nil, err
-	}
-	models, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppId(installAppVersionRequest.InstalledAppId)
-	if err != nil {
-		impl.logger.Errorw("error while fetching install app versions", "error", err)
-		return nil, err
-	}
-	for _, item := range models {
-		item.Active = false
-		item.UpdatedBy = installAppVersionRequest.UserId
-		item.UpdatedOn = time.Now()
-		_, err = impl.installedAppRepository.UpdateInstalledAppVersion(item, tx)
+
+	if installAppVersionRequest.AcdPartialDelete == true {
+		if util2.IsBaseStack() || util2.IsHelmApp(app.AppOfferingMode) || util.IsHelmApp(model.DeploymentAppType) {
+			err = impl.appStoreDeploymentHelmService.DeleteDeploymentApp(ctx, app.AppName, environment.Name, installAppVersionRequest)
+		} else {
+			err = impl.appStoreDeploymentArgoCdService.DeleteDeploymentApp(ctx, app.AppName, environment.Name, installAppVersionRequest)
+		}
 		if err != nil {
-			impl.logger.Errorw("error while fetching from db", "error", err)
+			impl.logger.Errorw("error on delete installed app", "err", err)
 			return nil, err
 		}
-	}
+		model.DeploymentAppDeleteRequest = true
+		model.UpdatedBy = installAppVersionRequest.UserId
+		model.UpdatedOn = time.Now()
+		_, err = impl.installedAppRepository.UpdateInstalledApp(model, tx)
+		if err != nil {
+			impl.logger.Errorw("error while creating install app", "error", err)
+			return nil, err
+		}
 
-	if util2.IsBaseStack() || util2.IsHelmApp(app.AppOfferingMode) || util.IsHelmApp(model.DeploymentAppType) {
-		// there might be a case if helm release gets uninstalled from helm cli.
-		//in this case on deleting the app from API, it should not give error as it should get deleted from db, otherwise due to delete error, db does not get clean
-		// so in helm, we need to check first if the release exists or not, if exists then only delete
-		err = impl.appStoreDeploymentHelmService.DeleteInstalledApp(ctx, app.AppName, environment.Name, installAppVersionRequest, model, tx)
 	} else {
-		err = impl.appStoreDeploymentArgoCdService.DeleteInstalledApp(ctx, app.AppName, environment.Name, installAppVersionRequest, model, tx)
-	}
+		//soft delete app
+		app.Active = false
+		app.UpdatedBy = installAppVersionRequest.UserId
+		app.UpdatedOn = time.Now()
+		err = impl.appRepository.UpdateWithTxn(app, tx)
+		if err != nil {
+			impl.logger.Errorw("error in update entity ", "entity", app)
+			return nil, err
+		}
 
-	if err != nil {
-		return nil, err
+		// soft delete install app
+		model.Active = false
+		model.UpdatedBy = installAppVersionRequest.UserId
+		model.UpdatedOn = time.Now()
+		_, err = impl.installedAppRepository.UpdateInstalledApp(model, tx)
+		if err != nil {
+			impl.logger.Errorw("error while creating install app", "error", err)
+			return nil, err
+		}
+		models, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppId(installAppVersionRequest.InstalledAppId)
+		if err != nil {
+			impl.logger.Errorw("error while fetching install app versions", "error", err)
+			return nil, err
+		}
+
+		// soft delete install app versions
+		for _, item := range models {
+			item.Active = false
+			item.UpdatedBy = installAppVersionRequest.UserId
+			item.UpdatedOn = time.Now()
+			_, err = impl.installedAppRepository.UpdateInstalledAppVersion(item, tx)
+			if err != nil {
+				impl.logger.Errorw("error while fetching from db", "error", err)
+				return nil, err
+			}
+		}
+
+		if util2.IsBaseStack() || util2.IsHelmApp(app.AppOfferingMode) || util.IsHelmApp(model.DeploymentAppType) {
+			// there might be a case if helm release gets uninstalled from helm cli.
+			//in this case on deleting the app from API, it should not give error as it should get deleted from db, otherwise due to delete error, db does not get clean
+			// so in helm, we need to check first if the release exists or not, if exists then only delete
+			err = impl.appStoreDeploymentHelmService.DeleteInstalledApp(ctx, app.AppName, environment.Name, installAppVersionRequest, model, tx)
+		} else {
+			err = impl.appStoreDeploymentArgoCdService.DeleteInstalledApp(ctx, app.AppName, environment.Name, installAppVersionRequest, model, tx)
+		}
+		if err != nil {
+			impl.logger.Errorw("error on delete installed app", "err", err)
+			return nil, err
+		}
 	}
 	err = tx.Commit()
 	if err != nil {
@@ -883,13 +908,17 @@ func (impl AppStoreDeploymentServiceImpl) GetDeploymentHistoryInfo(ctx context.C
 	result := &openapi.HelmAppDeploymentManifestDetail{}
 	var err error
 	if util2.IsHelmApp(installedApp.AppOfferingMode) || installedApp.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
+		_, span := otel.Tracer("orchestrator").Start(ctx, "appStoreDeploymentHelmService.GetDeploymentHistoryInfo")
 		result, err = impl.appStoreDeploymentHelmService.GetDeploymentHistoryInfo(ctx, installedApp, int32(version))
+		span.End()
 		if err != nil {
 			impl.logger.Errorw("error while getting deployment history info", "error", err)
 			return nil, err
 		}
 	} else {
+		_, span := otel.Tracer("orchestrator").Start(ctx, "appStoreDeploymentArgoCdService.GetDeploymentHistoryInfo")
 		result, err = impl.appStoreDeploymentArgoCdService.GetDeploymentHistoryInfo(ctx, installedApp, int32(version))
+		span.End()
 		if err != nil {
 			impl.logger.Errorw("error while getting deployment history info", "error", err)
 			return nil, err

@@ -22,6 +22,7 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/juju/errors"
 	"io"
 	"io/ioutil"
@@ -35,6 +36,29 @@ import (
 
 	"go.uber.org/zap"
 )
+
+type CDMetrics struct {
+	AppName         string
+	DeploymentType  string
+	Status          string
+	EnvironmentName string
+	Time            float64
+}
+
+type CIMetrics struct {
+	CacheDownDuration  float64   `json:"cacheDownDuration"`
+	PreCiDuration      float64   `json:"preCiDuration"`
+	BuildDuration      float64   `json:"buildDuration"`
+	PostCiDuration     float64   `json:"postCiDuration"`
+	CacheUpDuration    float64   `json:"cacheUpDuration"`
+	TotalDuration      float64   `json:"totalDuration"`
+	CacheDownStartTime time.Time `json:"cacheDownStartTime"`
+	PreCiStartTime     time.Time `json:"preCiStart"`
+	BuildStartTime     time.Time `json:"buildStartTime"`
+	PostCiStartTime    time.Time `json:"postCiStartTime"`
+	CacheUpStartTime   time.Time `json:"cacheUpStartTime"`
+	TotalStartTime     time.Time `json:"totalStartTime"`
+}
 
 func ContainsString(list []string, element string) bool {
 	if len(list) == 0 {
@@ -83,6 +107,9 @@ type Closer interface {
 }
 
 func Close(c Closer, logger *zap.SugaredLogger) {
+	if c == nil {
+		return
+	}
 	if err := c.Close(); err != nil {
 		logger.Warnf("failed to close %v: %v", c, err)
 	}
@@ -207,6 +234,29 @@ func InterfaceToMapAdapter(resp interface{}) map[string]interface{} {
 		return dat
 	}
 	return dat
+}
+
+func TriggerCDMetrics(wfr CDMetrics, exposeCDMetrics bool) {
+	if exposeCDMetrics && (wfr.Status == WorkflowFailed || wfr.Status == WorkflowSucceeded) {
+		middleware.CdDuration.WithLabelValues(wfr.AppName, wfr.Status, wfr.EnvironmentName, wfr.DeploymentType).Observe(wfr.Time)
+	}
+}
+
+func TriggerCIMetrics(Metrics CIMetrics, exposeCIMetrics bool, PipelineName string, AppName string) {
+	if exposeCIMetrics {
+		middleware.CacheDownloadDuration.WithLabelValues(PipelineName, AppName).Observe(Metrics.CacheDownDuration)
+		middleware.CiDuration.WithLabelValues(PipelineName, AppName).Observe(Metrics.TotalDuration)
+		if Metrics.CacheUpDuration != 0 {
+			middleware.CacheUploadDuration.WithLabelValues(PipelineName, AppName).Observe(Metrics.CacheUpDuration)
+		}
+		if Metrics.PostCiDuration != 0 {
+			middleware.PostCiDuration.WithLabelValues(PipelineName, AppName).Observe(Metrics.PostCiDuration)
+		}
+		if Metrics.PreCiDuration != 0 {
+			middleware.PreCiDuration.WithLabelValues(PipelineName, AppName).Observe(Metrics.PreCiDuration)
+		}
+		middleware.BuildDuration.WithLabelValues(PipelineName, AppName).Observe(Metrics.BuildDuration)
+	}
 }
 
 func InterfaceToString(resp interface{}) string {
