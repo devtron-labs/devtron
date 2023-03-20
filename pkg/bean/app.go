@@ -19,6 +19,7 @@ package bean
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
@@ -38,13 +39,15 @@ type SourceTypeConfig struct {
 }
 
 type CreateAppDTO struct {
-	Id         int            `json:"id,omitempty" validate:"number"`
-	AppName    string         `json:"appName" validate:"name-component,max=100"`
-	UserId     int32          `json:"-"` //not exposed to UI
-	Material   []*GitMaterial `json:"material" validate:"dive,min=1"`
-	TeamId     int            `json:"teamId,omitempty" validate:"number,required"`
-	TemplateId int            `json:"templateId"`
-	AppLabels  []*Label       `json:"labels,omitempty" validate:"dive"`
+	Id          int            `json:"id,omitempty" validate:"number"`
+	AppName     string         `json:"appName" validate:"name-component,max=100"`
+	UserId      int32          `json:"-"` //not exposed to UI
+	Material    []*GitMaterial `json:"material" validate:"dive,min=1"`
+	TeamId      int            `json:"teamId,omitempty" validate:"number,required"`
+	TemplateId  int            `json:"templateId"`
+	AppLabels   []*Label       `json:"labels,omitempty" validate:"dive"`
+	Description string         `json:"description"`
+	AppType     helper.AppType `json:"appType" validate:"gt=-1,lt=3"` //TODO: Change Validation if new AppType is introduced
 }
 
 type CreateMaterialDTO struct {
@@ -289,6 +292,7 @@ type CiConfigRequest struct {
 	CreatedBy         int32                   `sql:"created_by,type:integer"`
 	UpdatedOn         time.Time               `sql:"updated_on,type:timestamptz"`
 	UpdatedBy         int32                   `sql:"updated_by,type:integer"`
+	IsJob             bool                    `json:"-"`
 }
 
 type TestExecutorImageProperties struct {
@@ -658,6 +662,7 @@ type AppMetaInfoDto struct {
 	CreatedOn   time.Time `json:"createdOn"`
 	Active      bool      `json:"active,notnull"`
 	Labels      []*Label  `json:"labels"`
+	Description string    `json:"description"`
 	UserId      int32     `json:"-"`
 }
 
