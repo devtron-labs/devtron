@@ -31,6 +31,7 @@
 - feat: branch name field added in API response for a cd Artifact material (#3064)
 - feat: github PR updater plugin added (#3051)
 ## Documentation
+- docs: added jobs section (#3097)
 - docs: added K8s client doc (#3028)
 - docs: doc for GCP external secret (#3029)
 ## Others
