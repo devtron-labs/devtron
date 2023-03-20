@@ -5,29 +5,7 @@ RUN apt update
 RUN apt install git gcc musl-dev make -y
 RUN go install github.com/google/wire/cmd/wire@latest
 WORKDIR /go/src/github.com/devtron-labs/devtron
-
-ADD \.github/  /go/src/github.com/devtron-labs/devtron/\.github/
-ADD \.git/  /go/src/github.com/devtron-labs/devtron/\.git/
-ADD api/  /go/src/github.com/devtron-labs/devtron/api/
-ADD assets/  /go/src/github.com/devtron-labs/devtron/assets/
-ADD charts/  /go/src/github.com/devtron-labs/devtron/charts/
-ADD client/  /go/src/github.com/devtron-labs/devtron/client/
-ADD cmd/  /go/src/github.com/devtron-labs/devtron/cmd/
-ADD contrib-chart/  /go/src/github.com/devtron-labs/devtron/contrib-chart/
-ADD internal/  /go/src/github.com/devtron-labs/devtron/internal/
-#ADD manifests/  /go/src/github.com/devtron-labs/devtron/manifests/
-ADD otel/  /go/src/github.com/devtron-labs/devtron/otel/
-ADD pkg/  /go/src/github.com/devtron-labs/devtron/pkg/
-ADD scripts/  /go/src/github.com/devtron-labs/devtron/scripts/
-ADD tests/  /go/src/github.com/devtron-labs/devtron/tests/
-ADD util/  /go/src/github.com/devtron-labs/devtron/util/
-ADD vendor/  /go/src/github.com/devtron-labs/devtron/vendor/
-
-
-ADD  .deepsource.toml .gitattributes .gitbook.yaml .gitignore auth_model.conf git-ask-pass.sh go.mod go.sum main.go Wire.go wire_gen.go App.go authWire.go Makefile /go/src/github.com/devtron-labs/devtron/
-# ADD . /go/src/github.com/devtron-labs/devtron/
-# RUN  apt install tree
-# RUN echo $(tree -L 1 -a /go/src/github.com/devtron-labs/devtron)
+ADD .  /go/src/github.com/devtron-labs/devtron/
 RUN GOOS=linux make build-all
 
 # uncomment this post build arg
