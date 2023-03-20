@@ -53,7 +53,7 @@ const (
 	KopsNodeGroupLabel  = "kops.k8s.io/instancegroup"
 )
 
-//TODO: add any new nodeGrouplabel in this array
+// TODO: add any new nodeGrouplabel in this array
 var NodeGroupLabels = [4]string{AWSNodeGroupLabel, AzureNodeGroupLabel, GcpNodeGroupLabel, KopsNodeGroupLabel}
 
 // below const set is used for pod delete status

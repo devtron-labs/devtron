@@ -20,12 +20,24 @@ package pubsub
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/caarlos0/env/v6"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
 )
+
+type CiEventConfig struct {
+	ExposeCiMetrics bool `env:"EXPOSE_CI_METRICS" envDefault:"false"`
+}
+
+func GetCiEventConfig() (*CiEventConfig, error) {
+	cfg := &CiEventConfig{}
+	err := env.Parse(cfg)
+	return cfg, err
+}
 
 type CiEventHandler interface {
 	Subscribe() error
@@ -37,25 +49,30 @@ type CiEventHandlerImpl struct {
 	logger         *zap.SugaredLogger
 	pubsubClient   *pubsub.PubSubClientServiceImpl
 	webhookService pipeline.WebhookService
+	ciEventConfig  *CiEventConfig
 }
 
 type CiCompleteEvent struct {
-	CiProjectDetails []pipeline.CiProjectDetails `json:"ciProjectDetails"`
-	DockerImage      string                      `json:"dockerImage" validate:"required,image-validator"`
-	Digest           string                      `json:"digest"`
-	PipelineId       int                         `json:"pipelineId"`
-	WorkflowId       *int                        `json:"workflowId"`
-	TriggeredBy      int32                       `json:"triggeredBy"`
-	PipelineName     string                      `json:"pipelineName"`
-	DataSource       string                      `json:"dataSource"`
-	MaterialType     string                      `json:"materialType"`
+	CiProjectDetails   []pipeline.CiProjectDetails `json:"ciProjectDetails"`
+	DockerImage        string                      `json:"dockerImage" validate:"required,image-validator"`
+	Digest             string                      `json:"digest"`
+	PipelineId         int                         `json:"pipelineId"`
+	WorkflowId         *int                        `json:"workflowId"`
+	TriggeredBy        int32                       `json:"triggeredBy"`
+	PipelineName       string                      `json:"pipelineName"`
+	DataSource         string                      `json:"dataSource"`
+	MaterialType       string                      `json:"materialType"`
+	Metrics            util.CIMetrics              `json:"metrics"`
+	AppName            string                      `json:"appName"`
+	IsArtifactUploaded bool                        `json:"isArtifactUploaded"`
 }
 
-func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClientServiceImpl, webhookService pipeline.WebhookService) *CiEventHandlerImpl {
+func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClientServiceImpl, webhookService pipeline.WebhookService, ciEventConfig *CiEventConfig) *CiEventHandlerImpl {
 	ciEventHandlerImpl := &CiEventHandlerImpl{
 		logger:         logger,
 		pubsubClient:   pubsubClient,
 		webhookService: webhookService,
+		ciEventConfig:  ciEventConfig,
 	}
 	err := ciEventHandlerImpl.Subscribe()
 	if err != nil {
@@ -67,7 +84,7 @@ func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSu
 
 func (impl *CiEventHandlerImpl) Subscribe() error {
 	callback := func(msg *pubsub.PubSubMsg) {
-		impl.logger.Debug("ci complete event received")
+		impl.logger.Debugw("ci complete event received")
 		//defer msg.Ack()
 		ciCompleteEvent := CiCompleteEvent{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &ciCompleteEvent)
@@ -80,6 +97,7 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 		if err != nil {
 			return
 		}
+
 		resp, err := impl.webhookService.HandleCiSuccessEvent(ciCompleteEvent.PipelineId, req)
 		if err != nil {
 			impl.logger.Error(err)
@@ -150,13 +168,14 @@ func (impl *CiEventHandlerImpl) BuildCiArtifactRequest(event CiCompleteEvent) (*
 	}
 
 	request := &pipeline.CiArtifactWebhookRequest{
-		Image:        event.DockerImage,
-		ImageDigest:  event.Digest,
-		DataSource:   event.DataSource,
-		PipelineName: event.PipelineName,
-		MaterialInfo: rawMaterialInfo,
-		UserId:       event.TriggeredBy,
-		WorkflowId:   event.WorkflowId,
+		Image:              event.DockerImage,
+		ImageDigest:        event.Digest,
+		DataSource:         event.DataSource,
+		PipelineName:       event.PipelineName,
+		MaterialInfo:       rawMaterialInfo,
+		UserId:             event.TriggeredBy,
+		WorkflowId:         event.WorkflowId,
+		IsArtifactUploaded: event.IsArtifactUploaded,
 	}
 	return request, nil
 }
@@ -219,13 +238,14 @@ func (impl *CiEventHandlerImpl) BuildCiArtifactRequestForWebhook(event CiComplet
 	}
 
 	request := &pipeline.CiArtifactWebhookRequest{
-		Image:        event.DockerImage,
-		ImageDigest:  event.Digest,
-		DataSource:   event.DataSource,
-		PipelineName: event.PipelineName,
-		MaterialInfo: rawMaterialInfo,
-		UserId:       event.TriggeredBy,
-		WorkflowId:   event.WorkflowId,
+		Image:              event.DockerImage,
+		ImageDigest:        event.Digest,
+		DataSource:         event.DataSource,
+		PipelineName:       event.PipelineName,
+		MaterialInfo:       rawMaterialInfo,
+		UserId:             event.TriggeredBy,
+		WorkflowId:         event.WorkflowId,
+		IsArtifactUploaded: event.IsArtifactUploaded,
 	}
 	return request, nil
 }

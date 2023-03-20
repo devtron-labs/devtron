@@ -84,10 +84,40 @@ func (impl PubSubClientServiceImpl) Subscribe(topic string, callback func(msg *P
 	}
 	processingBatchSize := NatsConsumerWiseConfigMapping[consumerName].NatsMsgProcessingBatchSize
 	msgBufferSize := NatsConsumerWiseConfigMapping[consumerName].NatsMsgBufferSize
-	//processingBatchSize := natsClient.NatsMsgProcessingBatchSize
-	//msgBufferSize := natsClient.NatsMsgBufferSize
+
+	// Converting provided ack wait (int) into duration for comparing with nats-server config
+	ackWait := time.Duration(NatsConsumerWiseConfigMapping[consumerName].AckWaitInSecs) * time.Second
+
+	// Get the current Consumer config from NATS-server
+	info, err := natsClient.JetStrCtxt.ConsumerInfo(streamName, consumerName)
+
+	if err != nil {
+		impl.Logger.Errorw("unable to retrieve consumer info from NATS-server",
+			"stream", streamName,
+			"consumer", consumerName,
+			"err", err)
+
+	} else {
+		// Update NATS Consumer config if new changes detected
+		// Currently only checking for AckWait, but can be done for other editable properties as well
+
+		if ackWait > 0 && info.Config.AckWait != ackWait {
+
+			updatedConfig := info.Config
+			updatedConfig.AckWait = ackWait
+
+			_, err = natsClient.JetStrCtxt.UpdateConsumer(streamName, &updatedConfig)
+
+			if err != nil {
+				impl.Logger.Errorw("failed to update Consumer config",
+					"received consumer config", info.Config,
+					"err", err)
+			}
+		}
+	}
+
 	channel := make(chan *nats.Msg, msgBufferSize)
-	_, err := natsClient.JetStrCtxt.ChanQueueSubscribe(topic, queueName, channel, nats.Durable(consumerName), deliveryOption, nats.ManualAck(),
+	_, err = natsClient.JetStrCtxt.ChanQueueSubscribe(topic, queueName, channel, nats.Durable(consumerName), deliveryOption, nats.ManualAck(),
 		nats.BindStream(streamName))
 	if err != nil {
 		impl.Logger.Fatalw("error while subscribing to nats ", "stream", streamName, "topic", topic, "error", err)
@@ -116,7 +146,7 @@ func (impl PubSubClientServiceImpl) processMessages(wg *sync.WaitGroup, channel 
 	}
 }
 
-//TODO need to extend msg ack depending upon response from callback like error scenario
+// TODO need to extend msg ack depending upon response from callback like error scenario
 func (impl PubSubClientServiceImpl) processMsg(msg *nats.Msg, callback func(msg *PubSubMsg)) {
 	timeLimitInMillSecs := impl.logsConfig.DefaultLogTimeLimit * 1000
 	t1 := time.Now()
