@@ -1,4 +1,5 @@
 ## Bugs
+- fix: apps in progressing state indefinitely (#3137)
 - fix: ci artifacts not coming for linked CI pipeline (#3134)
 - fix: Helm repository deleted from argocd-cm when deleted from UI (Github Issue #1399) (#2970)
 - fix: pg prom metrics not getting exported when pg query logging is disabled (#3124)
