@@ -552,6 +552,27 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		}
 	}
 
+	for _, cm := range existingConfigMap.Maps {
+		if _, ok := cdPipelineLevelConfigMaps[cm.Name]; ok {
+			if cm.External {
+				if cm.Type == "environment" {
+					cdTemplate.Container.EnvFrom = append(cdTemplate.Container.EnvFrom, v12.EnvFromSource{
+						ConfigMapRef: &v12.ConfigMapEnvSource{
+							LocalObjectReference: v12.LocalObjectReference{
+								Name: cm.Name,
+							},
+						},
+					})
+				} else if cm.Type == "volume" {
+					cdTemplate.Container.VolumeMounts = append(cdTemplate.Container.VolumeMounts, v12.VolumeMount{
+						Name:      cm.Name + "-vol",
+						MountPath: cm.MountPath,
+					})
+				}
+			}
+		}
+	}
+
 	for _, s := range secrets.Secrets {
 		if s.Type == "environment" {
 			cdTemplate.Container.EnvFrom = append(cdTemplate.Container.EnvFrom, v12.EnvFromSource{
@@ -566,6 +587,25 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 				Name:      s.Name + "-vol",
 				MountPath: s.MountPath,
 			})
+		}
+	}
+
+	for _, s := range existingSecrets.Secrets {
+		if s.External {
+			if s.Type == "environment" {
+				cdTemplate.Container.EnvFrom = append(cdTemplate.Container.EnvFrom, v12.EnvFromSource{
+					SecretRef: &v12.SecretEnvSource{
+						LocalObjectReference: v12.LocalObjectReference{
+							Name: s.Name,
+						},
+					},
+				})
+			} else if s.Type == "volume" {
+				cdTemplate.Container.VolumeMounts = append(cdTemplate.Container.VolumeMounts, v12.VolumeMount{
+					Name:      s.Name + "-vol",
+					MountPath: s.MountPath,
+				})
+			}
 		}
 	}
 
