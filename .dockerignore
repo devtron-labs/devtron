@@ -10,6 +10,7 @@ DockerfileEA
 localhost.key
 localhost.crt
 DCO
+LICENSE
 
 #Folders
 assets/
