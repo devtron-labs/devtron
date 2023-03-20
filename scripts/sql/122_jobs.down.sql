@@ -6,7 +6,7 @@ UPDATE ci_template SET active = false WHERE app_id IN (SELECT id FROM app WHERE 
 
 UPDATE git_material SET active = false WHERE app_id IN (SELECT id FROM app WHERE app_type = 2);
 
-UPDATE app_workflow_mapping SET active = false FROM app_workflow JOIN app ON app_workflow.app_id = app.id AND app.app_type = 2WHERE app_workflow_mapping.app_workflow_id = app_workflow.id;
+UPDATE app_workflow_mapping SET active = false FROM app_workflow JOIN app ON app_workflow.app_id = app.id WHERE app.app_type = 2 AND app_workflow_mapping.app_workflow_id = app_workflow.id;
 
 UPDATE app_workflow SET active = false WHERE app_id IN (SELECT id FROM app WHERE app_type = 2);
 
