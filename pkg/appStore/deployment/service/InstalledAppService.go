@@ -1000,6 +1000,7 @@ func fetchResourceTreeForACD(rctx context.Context, cn http.CloseNotifier, appDet
 	query := &application.ResourcesQuery{
 		ApplicationName: &acdAppName,
 	}
+
 	ctx, cancel := context.WithCancel(rctx)
 	if cn != nil {
 		go func(done <-chan struct{}, closed <-chan bool) {
