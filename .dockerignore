@@ -1,0 +1,20 @@
+#Markdown files
+**/*.md
+
+#Docker files
+docker-compose.yml
+Dockerfile
+DockerfileEA
+
+#certificates and license
+localhost.key
+localhost.crt
+DCO
+
+#Folders
+assets/
+CHANGELOG/
+contrib-chart/
+docs/
+developers-guide/
+sample-docker-templates/
