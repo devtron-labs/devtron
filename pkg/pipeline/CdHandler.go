@@ -320,11 +320,20 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipel
 			//return err
 			//skip this error and continue for next workflow status
 			impl.Logger.Warnw("found error, skipping helm apps status update for this trigger", "appIdentifier", appIdentifier, "err", err)
-			continue
+
+			// Handle release not found apps
+			if !strings.Contains(err.Error(), "release: not found") {
+				continue
+			}
 		}
 		if helmAppStatus == application.Healthy {
 			wfr.Status = pipelineConfig.WorkflowSucceeded
 			wfr.FinishedOn = time.Now()
+
+		} else if strings.Contains(err.Error(), "release: not found") || helmAppStatus == application.Degraded {
+			// If release not found or application status is degraded, mark the deployment as failure
+			wfr.Status = pipelineConfig.WorkflowFailed
+
 		} else {
 			wfr.Status = pipelineConfig.WorkflowInProgress
 		}
