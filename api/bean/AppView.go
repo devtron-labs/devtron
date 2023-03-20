@@ -20,6 +20,7 @@ package bean
 import (
 	"encoding/json"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"time"
 )
 
 type AppContainer struct {
@@ -36,6 +37,11 @@ type AppContainerResponse struct {
 	DeploymentGroupDTO DeploymentGroupDTO `json:"deploymentGroup,omitempty"`
 }
 
+type JobContainerResponse struct {
+	JobContainers []*JobContainer `json:"jobContainers"`
+	JobCount      int             `json:"jobCount"`
+}
+
 type DeploymentGroupDTO struct {
 	Id             int             `json:"id"`
 	Name           string          `json:"name"`
@@ -50,6 +56,36 @@ type CiMaterialDTO struct {
 	Name        string `json:"name"`
 	SourceType  string `json:"type"`
 	SourceValue string `json:"value"`
+}
+
+type JobContainer struct {
+	JobId          int             `json:"jobId"`
+	JobName        string          `json:"jobName""`
+	Description    string          `json:"description"`
+	JobCiPipelines []JobCIPipeline `json:"ciPipelines"'`
+}
+
+type JobCIPipeline struct {
+	CiPipelineId   int       `json:"ciPipelineId"`
+	CiPipelineName string    `json:"ciPipelineName"`
+	Status         string    `json:"status"`
+	LastRunAt      time.Time `json:"lastRunAt"`
+	LastSuccessAt  time.Time `json:"lastSuccessAt"`
+}
+
+type JobListingContainer struct {
+	JobId          int       `json:"job_id"`
+	JobName        string    `json:"job_name"`
+	Description    string    `json:"description"`
+	CiPipelineID   int       `json:"ci_pipeline_id"`
+	CiPipelineName string    `json:"ci_pipeline_name"`
+	Status         string    `json:"status"`
+	StartedOn      time.Time `json:"started_on"`
+}
+
+type CiPipelineLastSucceededTime struct {
+	CiPipelineID    int       `json:"ci_pipeline_id"`
+	LastSucceededOn time.Time `json:"last_succeeded_on"`
 }
 
 type AppEnvironmentContainer struct {
