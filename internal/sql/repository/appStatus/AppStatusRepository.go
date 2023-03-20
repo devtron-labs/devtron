@@ -13,7 +13,7 @@ type AppStatusContainer struct {
 	InstalledAppId int       `json:"installed_app_id"`
 	EnvId          int       `json:"env_id"`
 	Status         string    `json:"status"`
-	AppStore       bool      `json:"app_store"`
+	AppType        int       `json:"app_type"`
 	UpdatedOn      time.Time `json:"updated_on"`
 }
 
