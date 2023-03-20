@@ -47,7 +47,7 @@ jobs:
          fi
          git commit -m "OSS main synced" && git status
          git checkout -b oss-enterprise-sync-$GIT_COMMIT && git push -u origin oss-enterprise-sync-$GIT_COMMIT
-         PR_RESPONSE=$(gh pr create --title "SYNC: OSS sync for $GIT_COMMIT" --body "synced OSS main" --base main --head oss-enterprise-sync-$GIT_COMMIT --repo $ENTERPRISE_REPO)
+         PR_RESPONSE=$(gh pr create --title "SYNC: OSS sync for $GIT_COMMIT" --fill --base main --head oss-enterprise-sync-$GIT_COMMIT --repo $ENTERPRISE_REPO)
          echo "FINAL PR RESPONSE: $PR_RESPONSE"
       env:
        GH_TOKEN: ${{ secrets.GIT_TOKEN }}
