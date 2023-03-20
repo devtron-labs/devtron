@@ -2725,11 +2725,19 @@ func (impl PipelineBuilderImpl) GetArtifactsForCdStage(cdPipelineId int, parentI
 			impl.logger.Errorw("error in getting artifactBean for one ci_artifact", "err", err, "parentStage", parentType, "stage", stage)
 			return ciArtifactsResponse, err
 		}
-
-		ciWorkflow, err := impl.ciWorkflowRepository.FindById(*artifactBean.WorkflowId)
-		if err != nil {
-			impl.logger.Errorw("error in getting ci_workflow for artifacts", "err", err, "artifact", artifact, "parentStage", parentType, "stage", stage)
-			return ciArtifactsResponse, err
+		var ciWorkflow *pipelineConfig.CiWorkflow
+		if artifactBean.ParentCiArtifact != 0 {
+			ciWorkflow, err = impl.ciWorkflowRepository.FindLastTriggeredWorkflowByArtifactId(artifactBean.ParentCiArtifact)
+			if err != nil {
+				impl.logger.Errorw("error in getting ci_workflow for artifacts", "err", err, "artifact", artifact, "parentStage", parentType, "stage", stage)
+				return ciArtifactsResponse, err
+			}
+		} else {
+			ciWorkflow, err = impl.ciWorkflowRepository.FindById(*artifactBean.WorkflowId)
+			if err != nil {
+				impl.logger.Errorw("error in getting ci_workflow for artifacts", "err", err, "artifact", artifact, "parentStage", parentType, "stage", stage)
+				return ciArtifactsResponse, err
+			}
 		}
 		ciArtifacts[i].CiConfigureSourceType = ciWorkflow.GitTriggers[ciWorkflow.CiPipelineId].CiConfigureSourceType
 		ciArtifacts[i].CiConfigureSourceValue = ciWorkflow.GitTriggers[ciWorkflow.CiPipelineId].CiConfigureSourceValue
