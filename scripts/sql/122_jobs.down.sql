@@ -17,3 +17,6 @@ UPDATE app_workflow_mapping SET active = false FROM app_workflow JOIN app ON app
 UPDATE app_workflow SET active = false WHERE app_id IN (SELECT id FROM app WHERE app_type = 2);
 
 UPDATE app SET active = false WHERE app_type = 2;
+
+
+
