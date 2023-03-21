@@ -261,8 +261,8 @@ func TriggerCIMetrics(Metrics CIMetrics, exposeCIMetrics bool, PipelineName stri
 
 func TriggerGitOpsMetrics(operation string, method string, startTime time.Time, err error) {
 	if err != nil {
-		middleware.GitOpsDuration.WithLabelValues(operation, method, "Failed", fmt.Sprintf("%v", startTime.Format("Mon, 02 Jan 2006 15:04:05 MST"))).Observe(time.Since(startTime).Seconds())
+		middleware.GitOpsDuration.WithLabelValues(operation, method, "Failed").Observe(time.Since(startTime).Seconds())
 	} else {
-		middleware.GitOpsDuration.WithLabelValues(operation, method, "Success", fmt.Sprintf("%v", startTime.Format("Mon, 02 Jan 2006 15:04:05 MST"))).Observe(time.Since(startTime).Seconds())
+		middleware.GitOpsDuration.WithLabelValues(operation, method, "Success").Observe(time.Since(startTime).Seconds())
 	}
 }
