@@ -69,9 +69,11 @@ type DockerArtifactStoreRepository interface {
 	FindAllActiveForAutocomplete() ([]DockerArtifactStore, error)
 	FindAll() ([]DockerArtifactStore, error)
 	FindOne(storeId string) (*DockerArtifactStore, error)
+	FindOneInactive(storeId string) (*DockerArtifactStore, error)
 	Update(artifactStore *DockerArtifactStore, tx *pg.Tx) error
 	Delete(storeId string) error
 	MarkRegistryDeleted(artifactStore *DockerArtifactStore) error
+	FindInactive(storeId string) (bool, error)
 }
 type DockerArtifactStoreRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -137,6 +139,16 @@ func (impl DockerArtifactStoreRepositoryImpl) FindOne(storeId string) (*DockerAr
 	return &provider, err
 }
 
+func (impl DockerArtifactStoreRepositoryImpl) FindOneInactive(storeId string) (*DockerArtifactStore, error) {
+	var provider DockerArtifactStore
+	err := impl.dbConnection.Model(&provider).
+		Column("docker_artifact_store.*", "IpsConfig").
+		Where("docker_artifact_store.id = ?", storeId).
+		Where("active = ?", false).
+		Select()
+	return &provider, err
+}
+
 func (impl DockerArtifactStoreRepositoryImpl) Update(artifactStore *DockerArtifactStore, tx *pg.Tx) error {
 	//TODO check for unique default
 	//there can be only one default
@@ -169,4 +181,13 @@ func (impl DockerArtifactStoreRepositoryImpl) MarkRegistryDeleted(deleteReq *Doc
 	}
 	deleteReq.Active = false
 	return impl.dbConnection.Update(deleteReq)
+}
+
+func (impl DockerArtifactStoreRepositoryImpl) FindInactive(storeId string) (bool, error) {
+	var provider DockerArtifactStore
+	exist, err := impl.dbConnection.Model(&provider).
+		Where("docker_artifact_store.id = ?", storeId).
+		Where("active = ?", false).
+		Exists()
+	return exist, err
 }

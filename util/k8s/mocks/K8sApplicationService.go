@@ -20,6 +20,10 @@ import (
 
 	rest "k8s.io/client-go/rest"
 
+	schema "k8s.io/apimachinery/pkg/runtime/schema"
+
+	unstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
 	util "github.com/devtron-labs/devtron/internal/util"
 )
 
@@ -352,6 +356,41 @@ func (_m *K8sApplicationService) UpdateResource(ctx context.Context, request *k8
 	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, *k8s.ResourceRequestBean) error); ok {
 		r1 = rf(ctx, request)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ValidateClusterResourceBean provides a mock function with given fields: ctx, clusterId, manifest, gvk, rbacCallback
+func (_m *K8sApplicationService) ValidateClusterResourceBean(ctx context.Context, clusterId int, manifest unstructured.Unstructured, gvk schema.GroupVersionKind, rbacCallback func(string, application.ResourceIdentifier) bool) bool {
+	ret := _m.Called(ctx, clusterId, manifest, gvk, rbacCallback)
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(context.Context, int, unstructured.Unstructured, schema.GroupVersionKind, func(string, application.ResourceIdentifier) bool) bool); ok {
+		r0 = rf(ctx, clusterId, manifest, gvk, rbacCallback)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	return r0
+}
+
+// ValidateClusterResourceRequest provides a mock function with given fields: ctx, clusterResourceRequest, rbacCallback
+func (_m *K8sApplicationService) ValidateClusterResourceRequest(ctx context.Context, clusterResourceRequest *k8s.ResourceRequestBean, rbacCallback func(string, application.ResourceIdentifier) bool) (bool, error) {
+	ret := _m.Called(ctx, clusterResourceRequest, rbacCallback)
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(context.Context, *k8s.ResourceRequestBean, func(string, application.ResourceIdentifier) bool) bool); ok {
+		r0 = rf(ctx, clusterResourceRequest, rbacCallback)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, *k8s.ResourceRequestBean, func(string, application.ResourceIdentifier) bool) error); ok {
+		r1 = rf(ctx, clusterResourceRequest, rbacCallback)
 	} else {
 		r1 = ret.Error(1)
 	}

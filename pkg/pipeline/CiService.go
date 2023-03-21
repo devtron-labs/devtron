@@ -157,7 +157,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 	}
 	impl.Logger.Debugw("ci triggered", "wf name ", createdWf.Name, " pipeline ", trigger.PipelineId)
 
-	middleware.CiTriggerCounter.WithLabelValues(strconv.Itoa(pipeline.AppId), strconv.Itoa(trigger.PipelineId)).Inc()
+	middleware.CiTriggerCounter.WithLabelValues(pipeline.App.AppName, pipeline.Name).Inc()
 	go impl.WriteCITriggerEvent(trigger, pipeline, workflowRequest)
 	return savedCiWf.Id, err
 }
@@ -482,6 +482,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		IgnoreDockerCachePush:      impl.ciConfig.IgnoreDockerCacheForCI,
 		IgnoreDockerCachePull:      impl.ciConfig.IgnoreDockerCacheForCI,
 		CacheInvalidate:            trigger.InvalidateCache,
+		ExtraEnvironmentVariables:  trigger.ExtraEnvironmentVariables,
 	}
 
 	if ciWorkflowConfig.LogsBucket == "" {
