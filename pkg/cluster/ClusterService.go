@@ -63,7 +63,7 @@ type ClusterBean struct {
 	HasConfigOrUrlChanged      bool                       `json:"-"`
 	ErrorInConnecting          string                     `json:"errorInConnecting,omitempty"`
 	UserName                   string                     `json:"userName,omitempty"`
-	InsecureSkipTLSVerify      bool                       `json:"insecure-skip-tls-verify,omitempty"`
+	InsecureSkipTLSVerify      bool                       `json:"insecure-skip-tls-verify"`
 	ValidationAndSavingMessage string                     `json:"validationAndSavingMessage"`
 }
 
@@ -199,49 +199,46 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) ([]Cluster
 
 		if clusterName == "" {
 			clusterBeanObject.ValidationAndSavingMessage = "Error in validating"
-			continue
 		} else {
 			clusterBeanObject.ClusterName = clusterName
 		}
 
-		if clusterObj.Server == "" {
+		if clusterObj == nil || clusterObj.Server == "" {
 			clusterBeanObject.ValidationAndSavingMessage = "Error in validating"
-			continue
 		} else {
 			clusterBeanObject.ServerUrl = clusterObj.Server
 		}
 
 		if userInfo == "" {
 			clusterBeanObject.ValidationAndSavingMessage = "Error in validating"
-			continue
 		} else {
 			clusterBeanObject.UserName = userInfo
 		}
 
 		if userInfo == "" {
 			clusterBeanObject.ValidationAndSavingMessage = "Error in validating"
-			continue
 		} else {
 			clusterBeanObject.UserName = userInfo
 		}
 
-		if userInfoObj.Token == "" {
-			clusterBeanObject.ValidationAndSavingMessage = "Error in validating"
-			continue
-		} else {
-			clusterBeanObject.Config["bearer-token"] = userInfoObj.Token
-		}
+		clusterBeanObject.Config = map[string]string{}
 
-		clusterBeanObject.InsecureSkipTLSVerify = clusterObj.InsecureSkipTLSVerify
+		if userInfoObj == nil || userInfoObj.Token == "" {
+			clusterBeanObject.ValidationAndSavingMessage = "Error in validating"
+		} else {
+			clusterBeanObject.Config["bearer_token"] = userInfoObj.Token
+		}
+		if clusterObj != nil {
+			clusterBeanObject.InsecureSkipTLSVerify = clusterObj.InsecureSkipTLSVerify
+		}
 
 		if clusterObj.InsecureSkipTLSVerify {
 			if clusterObj.TLSServerName == "" || clusterObj.CertificateAuthority == "" || string(clusterObj.CertificateAuthorityData) == "" {
 				clusterBeanObject.ValidationAndSavingMessage = "Error in validating"
-				continue
 			} else {
-				clusterBeanObject.Config["certificate-auth-data"] = string(clusterObj.CertificateAuthorityData)
-				clusterBeanObject.Config["tls-key"] = clusterObj.TLSServerName
-				clusterBeanObject.Config["tls-certificate"] = clusterObj.CertificateAuthority
+				clusterBeanObject.Config["tls_key"] = clusterObj.TLSServerName
+				clusterBeanObject.Config["tls_certificate"] = clusterObj.CertificateAuthority
+				clusterBeanObject.Config["certificate_auth_data"] = string(clusterObj.CertificateAuthorityData)
 			}
 		}
 
