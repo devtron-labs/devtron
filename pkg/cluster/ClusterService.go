@@ -238,15 +238,6 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) ([]Cluster
 
 		clusterBeanObjects = append(clusterBeanObjects, clusterBeanObject)
 
-		//  clusterObj empty
-
-		//
-
-		//get all the cluster config data
-
-		//validations
-
-		//
 	}
 	return clusterBeanObjects, nil
 
