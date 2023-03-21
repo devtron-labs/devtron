@@ -64,7 +64,7 @@ type ClusterBean struct {
 	ErrorInConnecting          string                     `json:"errorInConnecting,omitempty"`
 	UserName                   string                     `json:"userName,omitempty"`
 	InsecureSkipTLSVerify      bool                       `json:"insecure-skip-tls-verify"`
-	ValidationAndSavingMessage string                     `json:"validationAndSavingMessage"`
+	ValidationAndSavingMessage string                     `json:"validationAndSavingMessage,omitempty"`
 }
 
 type Kubeconfig struct {
