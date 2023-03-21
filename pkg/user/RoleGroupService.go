@@ -134,10 +134,12 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 						environment = impl.userCommonService.RemovePlaceHolderInRoleFilterField(environment)
 						roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "", false)
 						if err != nil {
+							impl.logger.Errorw("error in getting new role model")
 							return nil, err
 						}
 						oldRoleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "", true)
 						if err != nil {
+							impl.logger.Errorw("error in getting old role model already present", "err", err)
 							return nil, err
 						}
 
@@ -244,10 +246,12 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForClusterEntity(roleFil
 					}
 					roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, "", "", "", "", accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType, false)
 					if err != nil {
+						impl.logger.Errorw("error in getting new role model by filter")
 						return policiesToBeAdded, err
 					}
 					oldRoleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, "", "", "", "", accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType, true)
 					if err != nil {
+						impl.logger.Errorw("error in getting old role model by filter already present")
 						return policiesToBeAdded, err
 					}
 					if roleModel.Id == 0 && oldRoleModel.Id == 0 {
@@ -268,7 +272,7 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForClusterEntity(roleFil
 						if err != nil || flag == false {
 							return policiesToBeAdded, err
 						}
-						impl.logger.Infow("Getting Role by filter Again for other Types  ", "roleFilter", roleFilter)
+						impl.logger.Infow("Getting Role by filter Again for other Types  ")
 						roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, "", "", "", "", accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType, false)
 						if err != nil {
 							return policiesToBeAdded, err
