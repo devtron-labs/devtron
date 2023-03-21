@@ -172,9 +172,9 @@ func (repo AppRepositoryImpl) FindAppsByTeamId(teamId int) ([]*App, error) {
 }
 
 func (repo AppRepositoryImpl) FindAppsByTeamIds(teamId []int, appType string) ([]App, error) {
-	onlyDevtronCharts := false
+	onlyDevtronCharts := 0
 	if len(appType) > 0 && appType == DevtronChart {
-		onlyDevtronCharts = true
+		onlyDevtronCharts = 1
 	}
 	var apps []App
 	err := repo.dbConnection.Model(&apps).Column("app.*", "Team").Where("team_id in (?)", pg.In(teamId)).
