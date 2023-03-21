@@ -132,11 +132,11 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 					for _, entityName := range entityNames {
 						entityName = impl.userCommonService.RemovePlaceHolderInRoleFilterField(entityName)
 						environment = impl.userCommonService.RemovePlaceHolderInRoleFilterField(environment)
-						roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, actionType, "", "", "", "", "", "", false)
+						roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "", false)
 						if err != nil {
 							return nil, err
 						}
-						oldRoleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", actionType, true)
+						oldRoleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "", true)
 						if err != nil {
 							return nil, err
 						}
@@ -165,7 +165,7 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 								return nil, err
 							}
 							impl.logger.Infow("Getting Role by filter Again for other Types  ", "roleFilter", roleFilter)
-							roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", actionType, false)
+							roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "", false)
 							if err != nil {
 								return nil, err
 							}
@@ -403,7 +403,7 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 					if err != nil {
 						return nil, err
 					}
-					oldRoleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", actionType, true)
+					oldRoleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "", true)
 					if err != nil {
 						return nil, err
 					}
@@ -417,7 +417,7 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 							if err != nil || flag == false {
 								return nil, err
 							}
-							roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", actionType, false)
+							roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "", false)
 							if err != nil {
 								return nil, err
 							}
@@ -435,7 +435,7 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 							return nil, err
 						}
 						impl.logger.Infow("Getting Role by filter Again for other Types  ", "roleFilter", roleFilter)
-						roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", actionType, false)
+						roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "", false)
 						if err != nil {
 							return nil, err
 						}
