@@ -86,6 +86,7 @@ func (factory *GitFactory) Reload() error {
 	start := time.Now()
 	logger.Infow("reloading gitops details")
 	cfg, err := GetGitConfig(factory.gitOpsRepository)
+	defer util.TriggerGitOpsMetrics("Reload", "GitService", start, err)
 	if err != nil {
 		return err
 	}
@@ -97,7 +98,6 @@ func (factory *GitFactory) Reload() error {
 	}
 	factory.Client = client
 	logger.Infow(" gitops details reload success")
-	defer util.TriggerGitOpsMetrics("Reload", "GitService", start, err)
 	return nil
 }
 
@@ -105,6 +105,7 @@ func (factory *GitFactory) GetGitLabGroupPath(gitOpsConfig *bean2.GitOpsConfigDt
 	start := time.Now()
 	var gitLabClient *gitlab.Client
 	var err error
+	defer util.TriggerGitOpsMetrics("GetGitLabGroupPath", "GitService", start, err)
 	if len(gitOpsConfig.Host) > 0 {
 		_, err = url.ParseRequestURI(gitOpsConfig.Host)
 		if err != nil {
@@ -131,7 +132,6 @@ func (factory *GitFactory) GetGitLabGroupPath(gitOpsConfig *bean2.GitOpsConfigDt
 		factory.logger.Errorw("no matching groups found for gitlab", "gitLab groupID", gitOpsConfig.GitLabGroupId, "err", err)
 		return "", fmt.Errorf("no matching groups found for gitlab group ID : %s", gitOpsConfig.GitLabGroupId)
 	}
-	defer util.TriggerGitOpsMetrics("GetGitLabGroupPath", "GitService", start, err)
 	return group.FullPath, nil
 }
 
