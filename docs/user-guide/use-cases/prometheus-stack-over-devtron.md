@@ -4,7 +4,7 @@
 
 Prometheus is an open-source technology designed to provide monitoring and alerting functionality for cloud-native environments, including Kubernetes. It can collect and store metrics as time-series data, recording information with a timestamp. It can also collect and record labels, which are optional key-value pairs.
 
-### ***Open Devtron DashBoard and Search for ChartStore*** 
+### ***Open devtron dashboard and choose  ChartStore from side panel*** 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/use-cases/prometheus-stack/chart.png)
 
 ### Search for Prometheus and Choose the community kube-prometheus one
