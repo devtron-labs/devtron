@@ -50,21 +50,21 @@ import (
 const DEFAULT_CLUSTER = "default_cluster"
 
 type ClusterBean struct {
-	Id                      int                        `json:"id,omitempty" validate:"number"`
-	ClusterName             string                     `json:"cluster_name,omitempty" validate:"required"`
-	ServerUrl               string                     `json:"server_url,omitempty" validate:"url,required"`
-	PrometheusUrl           string                     `json:"prometheus_url,omitempty" validate:"validate-non-empty-url"`
-	Active                  bool                       `json:"active"`
-	Config                  map[string]string          `json:"config,omitempty"`
-	PrometheusAuth          *PrometheusAuth            `json:"prometheusAuth,omitempty"`
-	DefaultClusterComponent []*DefaultClusterComponent `json:"defaultClusterComponent"`
-	AgentInstallationStage  int                        `json:"agentInstallationStage,notnull"` // -1=external, 0=not triggered, 1=progressing, 2=success, 3=fails
-	K8sVersion              string                     `json:"k8sVersion"`
-	HasConfigOrUrlChanged   bool                       `json:"-"`
-	ErrorInConnecting       string                     `json:"errorInConnecting,omitempty"`
-	UserName                string                     `json:"userName,omitempty"`
-	InsecureSkipTLSVerify   bool                       `json:"insecure-skip-tls-verify,omitempty"`
-	ValidationMessage       string                     `json:"validationMessage,omitempty"`
+	Id                         int                        `json:"id,omitempty" validate:"number"`
+	ClusterName                string                     `json:"cluster_name,omitempty" validate:"required"`
+	ServerUrl                  string                     `json:"server_url,omitempty" validate:"url,required"`
+	PrometheusUrl              string                     `json:"prometheus_url,omitempty" validate:"validate-non-empty-url"`
+	Active                     bool                       `json:"active"`
+	Config                     map[string]string          `json:"config,omitempty"`
+	PrometheusAuth             *PrometheusAuth            `json:"prometheusAuth,omitempty"`
+	DefaultClusterComponent    []*DefaultClusterComponent `json:"defaultClusterComponent"`
+	AgentInstallationStage     int                        `json:"agentInstallationStage,notnull"` // -1=external, 0=not triggered, 1=progressing, 2=success, 3=fails
+	K8sVersion                 string                     `json:"k8sVersion"`
+	HasConfigOrUrlChanged      bool                       `json:"-"`
+	ErrorInConnecting          string                     `json:"errorInConnecting,omitempty"`
+	UserName                   string                     `json:"userName,omitempty"`
+	InsecureSkipTLSVerify      bool                       `json:"insecure-skip-tls-verify,omitempty"`
+	ValidationAndSavingMessage string                     `json:"validationAndSavingMessage"`
 }
 
 type Kubeconfig struct {
@@ -197,11 +197,55 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) ([]Cluster
 		clusterObj := kubeConfigObject.Clusters[clusterName]
 		userInfoObj := kubeConfigObject.AuthInfos[userInfo]
 
-		clusterBeanObject.ClusterName = clusterName
-		clusterBeanObject.UserName = userInfo
-		clusterBeanObject.ServerUrl = clusterObj.Server
+		if clusterName == "" {
+			clusterBeanObject.ValidationAndSavingMessage = "Error in validating"
+			continue
+		} else {
+			clusterBeanObject.ClusterName = clusterName
+		}
+
+		if clusterObj.Server == "" {
+			clusterBeanObject.ValidationAndSavingMessage = "Error in validating"
+			continue
+		} else {
+			clusterBeanObject.ServerUrl = clusterObj.Server
+		}
+
+		if userInfo == "" {
+			clusterBeanObject.ValidationAndSavingMessage = "Error in validating"
+			continue
+		} else {
+			clusterBeanObject.UserName = userInfo
+		}
+
+		if userInfo == "" {
+			clusterBeanObject.ValidationAndSavingMessage = "Error in validating"
+			continue
+		} else {
+			clusterBeanObject.UserName = userInfo
+		}
+
+		if userInfoObj.Token == "" {
+			clusterBeanObject.ValidationAndSavingMessage = "Error in validating"
+			continue
+		} else {
+			clusterBeanObject.Config["bearer-token"] = userInfoObj.Token
+		}
+
 		clusterBeanObject.InsecureSkipTLSVerify = clusterObj.InsecureSkipTLSVerify
-		clusterBeanObject.Config = userInfoObj.
+
+		if clusterObj.InsecureSkipTLSVerify {
+			if clusterObj.TLSServerName == "" || clusterObj.CertificateAuthority == "" || string(clusterObj.CertificateAuthorityData) == "" {
+				clusterBeanObject.ValidationAndSavingMessage = "Error in validating"
+				continue
+			} else {
+				clusterBeanObject.Config["certificate-auth-data"] = string(clusterObj.CertificateAuthorityData)
+				clusterBeanObject.Config["tls-key"] = clusterObj.TLSServerName
+				clusterBeanObject.Config["tls-certificate"] = clusterObj.CertificateAuthority
+			}
+		}
+
+		clusterBeanObjects = append(clusterBeanObjects, clusterBeanObject)
 
 		//  clusterObj empty
 
@@ -213,7 +257,7 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) ([]Cluster
 
 		//
 	}
-	return clusters, nil
+	return clusterBeanObjects, nil
 
 }
 
