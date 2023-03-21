@@ -34,6 +34,6 @@ jobs:
           ado_close_state: "Done"
           ado_bypassrules: true
           log_level: 100
-        if: not(contains(github.event.issue.labels.*.name, 'bug'))
+        if: "!contains(github.event.issue.labels.*.name, 'bug')"
         with:
           ado_wit: "Issue"
