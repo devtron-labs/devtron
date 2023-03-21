@@ -93,20 +93,20 @@ func (impl ClusterRestHandlerImpl) SaveClusters(w http.ResponseWriter, r *http.R
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	beans := []*cluster.ClusterBean{}
-	err = decoder.Decode(beans)
+	beans := []cluster.ClusterBean{}
+	err = decoder.Decode(&beans)
 	if err != nil {
 		impl.logger.Errorw("request err, Save", "error", err, "payload", beans)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	impl.logger.Infow("request payload, Save", "payload", beans)
-	err = impl.validator.Struct(beans)
-	if err != nil {
-		impl.logger.Errorw("validation err, Save", "err", err, "payload", beans)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
+	//err = impl.validator.Struct(beans)
+	//if err != nil {
+	//	impl.logger.Errorw("validation err, Save", "err", err, "payload", beans)
+	//	common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	//	return
+	//}
 
 	// RBAC enforcer applying
 	if ok := impl.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionCreate, "*"); !ok {
@@ -136,11 +136,11 @@ func (impl ClusterRestHandlerImpl) SaveClusters(w http.ResponseWriter, r *http.R
 		ctx = context.WithValue(ctx, "token", acdToken)
 	}
 	for _, bean := range beans {
-		res, err := impl.clusterService.Save(ctx, bean, userId)
+		res, err := impl.clusterService.Save(ctx, &bean, userId)
 		if err != nil {
 			bean.ValidationAndSavingMessage = "Error in Saving the cluster"
 		}
-		beans = append(beans, res)
+		beans = append(beans, *res)
 	}
 
 	common.WriteJsonResp(w, err, beans, http.StatusOK)
