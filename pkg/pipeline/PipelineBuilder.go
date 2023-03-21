@@ -25,6 +25,7 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
@@ -126,7 +127,7 @@ type PipelineBuilder interface {
 	GetCiPipelineById(pipelineId int) (ciPipeline *bean.CiPipeline, err error)
 
 	GetMaterialsForAppId(appId int) []*bean.GitMaterial
-	FindAllMatchesByAppName(appName string) ([]*AppBean, error)
+	FindAllMatchesByAppName(appName string, appType helper.AppType) ([]*AppBean, error)
 	GetEnvironmentByCdPipelineId(pipelineId int) (int, error)
 	PatchRegexCiPipeline(request *bean.CiRegexPatchRequest) (err error)
 
@@ -327,6 +328,7 @@ func formatDate(t time.Time, layout string) string {
 
 func (impl PipelineBuilderImpl) CreateApp(request *bean.CreateAppDTO) (*bean.CreateAppDTO, error) {
 	impl.logger.Debugw("app create request received", "req", request)
+
 	res, err := impl.ciCdPipelineOrchestrator.CreateApp(request)
 	if err != nil {
 		impl.logger.Errorw("error in saving create app req", "req", request, "err", err)
@@ -403,13 +405,17 @@ func (impl PipelineBuilderImpl) GetApp(appId int) (application *bean.CreateAppDT
 		impl.logger.Errorw("error in fetching app", "id", appId, "err", err)
 		return nil, err
 	}
-	gitMaterials := impl.GetMaterialsForAppId(appId)
 
+	gitMaterials := impl.GetMaterialsForAppId(appId)
+	if app.AppType == helper.Job {
+		app.AppName = app.DisplayName
+	}
 	application = &bean.CreateAppDTO{
 		Id:       app.Id,
 		AppName:  app.AppName,
 		Material: gitMaterials,
 		TeamId:   app.TeamId,
+		AppType:  app.AppType,
 	}
 	return application, nil
 }
@@ -454,6 +460,7 @@ func (impl PipelineBuilderImpl) GetMaterialsForAppId(appId int) []*bean.GitMater
 */
 
 func (impl PipelineBuilderImpl) getDefaultArtifactStore(id string) (store *dockerRegistryRepository.DockerArtifactStore, err error) {
+
 	if id == "" {
 		impl.logger.Debugw("docker repo is empty adding default repo")
 		store, err = impl.dockerArtifactStoreRepository.FindActiveDefaultStore()
@@ -503,17 +510,21 @@ func (impl PipelineBuilderImpl) getCiTemplateVariables(appId int) (ciConfig *bea
 	//	impl.logger.Debugw("error in json unmarshal", "app", appId, "err", err)
 	//	return nil, err
 	//}
-	regHost, err := template.DockerRegistry.GetRegistryLocation()
-	if err != nil {
-		impl.logger.Errorw("invalid reg url", "err", err)
-		return nil, err
+	var regHost string
+	dockerRegistry := template.DockerRegistry
+	if dockerRegistry != nil {
+		regHost, err = dockerRegistry.GetRegistryLocation()
+		if err != nil {
+			impl.logger.Errorw("invalid reg url", "err", err)
+			return nil, err
+		}
 	}
 	ciConfig = &bean.CiConfigRequest{
-		Id:                template.Id,
-		AppId:             template.AppId,
-		AppName:           template.App.AppName,
-		DockerRepository:  template.DockerRepository,
-		DockerRegistry:    template.DockerRegistry.Id,
+		Id:               template.Id,
+		AppId:            template.AppId,
+		AppName:          template.App.AppName,
+		DockerRepository: template.DockerRepository,
+		//DockerRegistry:    dockerRegistry.Id,
 		DockerRegistryUrl: regHost,
 		CiBuildConfig:     ciTemplateBean.CiBuildConfig,
 		//DockerBuildConfig: &bean.DockerBuildConfig{DockerfilePath: template.DockerfilePath, Args: dockerArgs, GitMaterialId: template.GitMaterialId, TargetPlatform: template.TargetPlatform},
@@ -524,6 +535,9 @@ func (impl PipelineBuilderImpl) getCiTemplateVariables(appId int) (ciConfig *bea
 		UpdatedBy:      template.UpdatedBy,
 		CreatedBy:      template.CreatedBy,
 		CreatedOn:      template.CreatedOn,
+	}
+	if dockerRegistry != nil {
+		ciConfig.DockerRegistry = dockerRegistry.Id
 	}
 	return ciConfig, err
 }
@@ -927,7 +941,7 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 		Version:           originalCiConf.Version,
 		Id:                originalCiConf.Id,
 		DockerRepository:  originalCiConf.DockerRepository,
-		DockerRegistryId:  originalCiConf.DockerRegistry,
+		DockerRegistryId:  &originalCiConf.DockerRegistry,
 		Active:            true,
 		AuditLog: sql.AuditLog{
 			CreatedOn: originalCiConf.CreatedOn,
@@ -970,35 +984,37 @@ func (impl PipelineBuilderImpl) CreateCiPipeline(createRequest *bean.CiConfigReq
 	}
 	//--ecr config
 	createRequest.AppName = app.AppName
-	store, err := impl.getDefaultArtifactStore(createRequest.DockerRegistry)
-	if err != nil {
-		impl.logger.Errorw("error in fetching docker store ", "id", createRequest.DockerRepository, "err", err)
-		return nil, err
-	}
-	regHost, err := store.GetRegistryLocation()
-	if err != nil {
-		impl.logger.Errorw("invalid reg url", "err", err)
-		return nil, err
-	}
-	createRequest.DockerRegistryUrl = regHost
-	createRequest.DockerRegistry = store.Id
-
-	var repo string
-	if createRequest.DockerRepository != "" {
-		repo = createRequest.DockerRepository
-	} else {
-		repo = impl.ecrConfig.EcrPrefix + app.AppName
-	}
-
-	if store.RegistryType == dockerRegistryRepository.REGISTRYTYPE_ECR {
-		err := impl.ciCdPipelineOrchestrator.CreateEcrRepo(repo, store.AWSRegion, store.AWSAccessKeyId, store.AWSSecretAccessKey)
+	if !createRequest.IsJob {
+		store, err := impl.getDefaultArtifactStore(createRequest.DockerRegistry)
 		if err != nil {
-			impl.logger.Errorw("ecr repo creation failed while creating ci pipeline", "repo", repo, "err", err)
+			impl.logger.Errorw("error in fetching docker store ", "id", createRequest.DockerRepository, "err", err)
 			return nil, err
 		}
-	}
-	createRequest.DockerRepository = repo
 
+		regHost, err := store.GetRegistryLocation()
+		if err != nil {
+			impl.logger.Errorw("invalid reg url", "err", err)
+			return nil, err
+		}
+		createRequest.DockerRegistryUrl = regHost
+		createRequest.DockerRegistry = store.Id
+
+		var repo string
+		if createRequest.DockerRepository != "" {
+			repo = createRequest.DockerRepository
+		} else {
+			repo = impl.ecrConfig.EcrPrefix + app.AppName
+		}
+
+		if store.RegistryType == dockerRegistryRepository.REGISTRYTYPE_ECR {
+			err := impl.ciCdPipelineOrchestrator.CreateEcrRepo(repo, store.AWSRegion, store.AWSAccessKeyId, store.AWSSecretAccessKey)
+			if err != nil {
+				impl.logger.Errorw("ecr repo creation failed while creating ci pipeline", "repo", repo, "err", err)
+				return nil, err
+			}
+		}
+		createRequest.DockerRepository = repo
+	}
 	//--ecr config	end
 	//-- template config start
 
@@ -1016,9 +1032,9 @@ func (impl PipelineBuilderImpl) CreateCiPipeline(createRequest *bean.CiConfigReq
 	}
 	buildConfig := createRequest.CiBuildConfig
 	ciTemplate := &pipelineConfig.CiTemplate{
-		DockerRegistryId: createRequest.DockerRegistry,
-		DockerRepository: createRequest.DockerRepository,
-		GitMaterialId:    buildConfig.GitMaterialId,
+		//DockerRegistryId: createRequest.DockerRegistry,
+		//DockerRepository: createRequest.DockerRepository,
+		GitMaterialId: buildConfig.GitMaterialId,
 		//DockerfilePath:    createRequest.DockerBuildConfig.DockerfilePath,
 		//Args:              string(argByte),
 		//TargetPlatform:    createRequest.DockerBuildConfig.TargetPlatform,
@@ -1029,6 +1045,10 @@ func (impl PipelineBuilderImpl) CreateCiPipeline(createRequest *bean.CiConfigReq
 		AfterDockerBuild:  string(afterByte),
 		BeforeDockerBuild: string(beforeByte),
 		AuditLog:          sql.AuditLog{CreatedOn: time.Now(), UpdatedOn: time.Now(), CreatedBy: createRequest.UserId, UpdatedBy: createRequest.UserId},
+	}
+	if !createRequest.IsJob {
+		ciTemplate.DockerRegistryId = &createRequest.DockerRegistry
+		ciTemplate.DockerRepository = createRequest.DockerRepository
 	}
 
 	ciTemplateBean := &bean3.CiTemplateBean{
@@ -2726,11 +2746,19 @@ func (impl PipelineBuilderImpl) GetArtifactsForCdStage(cdPipelineId int, parentI
 			impl.logger.Errorw("error in getting artifactBean for one ci_artifact", "err", err, "parentStage", parentType, "stage", stage)
 			return ciArtifactsResponse, err
 		}
-
-		ciWorkflow, err := impl.ciWorkflowRepository.FindById(*artifactBean.WorkflowId)
-		if err != nil {
-			impl.logger.Errorw("error in getting ci_workflow for artifacts", "err", err, "artifact", artifact, "parentStage", parentType, "stage", stage)
-			return ciArtifactsResponse, err
+		var ciWorkflow *pipelineConfig.CiWorkflow
+		if artifactBean.ParentCiArtifact != 0 {
+			ciWorkflow, err = impl.ciWorkflowRepository.FindLastTriggeredWorkflowByArtifactId(artifactBean.ParentCiArtifact)
+			if err != nil {
+				impl.logger.Errorw("error in getting ci_workflow for artifacts", "err", err, "artifact", artifact, "parentStage", parentType, "stage", stage)
+				return ciArtifactsResponse, err
+			}
+		} else {
+			ciWorkflow, err = impl.ciWorkflowRepository.FindById(*artifactBean.WorkflowId)
+			if err != nil {
+				impl.logger.Errorw("error in getting ci_workflow for artifacts", "err", err, "artifact", artifact, "parentStage", parentType, "stage", stage)
+				return ciArtifactsResponse, err
+			}
 		}
 		ciArtifacts[i].CiConfigureSourceType = ciWorkflow.GitTriggers[ciWorkflow.CiPipelineId].CiConfigureSourceType
 		ciArtifacts[i].CiConfigureSourceValue = ciWorkflow.GitTriggers[ciWorkflow.CiPipelineId].CiConfigureSourceValue
@@ -3306,21 +3334,25 @@ func (impl PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *b
 	return ciPipeline, err
 }
 
-func (impl PipelineBuilderImpl) FindAllMatchesByAppName(appName string) ([]*AppBean, error) {
+func (impl PipelineBuilderImpl) FindAllMatchesByAppName(appName string, appType helper.AppType) ([]*AppBean, error) {
 	var appsRes []*AppBean
 	var apps []*app2.App
 	var err error
 	if len(appName) == 0 {
 		apps, err = impl.appRepo.FindAll()
 	} else {
-		apps, err = impl.appRepo.FindAllMatchesByAppName(appName)
+		apps, err = impl.appRepo.FindAllMatchesByAppName(appName, appType)
 	}
 	if err != nil {
 		impl.logger.Errorw("error while fetching app", "err", err)
 		return nil, err
 	}
 	for _, app := range apps {
-		appsRes = append(appsRes, &AppBean{Id: app.Id, Name: app.AppName})
+		name := app.AppName
+		if appType == helper.Job {
+			name = app.DisplayName
+		}
+		appsRes = append(appsRes, &AppBean{Id: app.Id, Name: name})
 	}
 	return appsRes, err
 }
