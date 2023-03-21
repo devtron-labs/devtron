@@ -593,20 +593,22 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 
 	// Adding external secret reference in workflow template
 	for _, s := range existingSecrets.Secrets {
-		if s.External {
-			if s.Type == "environment" {
-				cdTemplate.Container.EnvFrom = append(cdTemplate.Container.EnvFrom, v12.EnvFromSource{
-					SecretRef: &v12.SecretEnvSource{
-						LocalObjectReference: v12.LocalObjectReference{
-							Name: s.Name,
+		if _, ok := cdPipelineLevelSecrets[s.Name]; ok {
+			if s.External {
+				if s.Type == "environment" {
+					cdTemplate.Container.EnvFrom = append(cdTemplate.Container.EnvFrom, v12.EnvFromSource{
+						SecretRef: &v12.SecretEnvSource{
+							LocalObjectReference: v12.LocalObjectReference{
+								Name: s.Name,
+							},
 						},
-					},
-				})
-			} else if s.Type == "volume" {
-				cdTemplate.Container.VolumeMounts = append(cdTemplate.Container.VolumeMounts, v12.VolumeMount{
-					Name:      s.Name,
-					MountPath: s.MountPath,
-				})
+					})
+				} else if s.Type == "volume" {
+					cdTemplate.Container.VolumeMounts = append(cdTemplate.Container.VolumeMounts, v12.VolumeMount{
+						Name:      s.Name,
+						MountPath: s.MountPath,
+					})
+				}
 			}
 		}
 	}
