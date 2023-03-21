@@ -1,4 +1,5 @@
 ## Bugs
+- fix: Optimize app grouping apis (#3125)
 - fix: log api panic (#3156)
 - fix: kubernetes external secret not accessible (#3143)
 - fix: apps in progressing state indefinitely (#3137)
