@@ -166,7 +166,7 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 							if err != nil || flag == false {
 								return nil, err
 							}
-							impl.logger.Infow("Getting Role by filter Again for other Types  ", "roleFilter", roleFilter)
+							impl.logger.Infow("Getting Role by filter Again for other Types  ")
 							roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "", false)
 							if err != nil {
 								return nil, err
@@ -177,14 +177,14 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 							// shift user_role_mapping queries
 							userRole, err := impl.userRepository.UpdateRoleIdForUserRolesMappings(oldRoleModel.Id, roleModel.Id)
 							if err != nil {
-								impl.logger.Errorw("Error in updating User Role Mappings for role", "err", err)
+								impl.logger.Errorw("Error in updating role id from old roles with new role(access_type  and entity)", "err", err)
 							}
 
 							roleGroupRole, err := impl.roleGroupRepository.UpdateRoleGroupIdForRoleGroupMappings(oldRoleModel.Id, roleModel.Id)
 							if err != nil {
-								impl.logger.Errorw("Error in updating Role Group Role Mappings for role", "err", err)
+								impl.logger.Errorw("Error in updating Role Group Role Mappings for old role with new roles (access_type and entity)", "err", err)
 							}
-							impl.logger.Infow("updated user role and roleGroups", "userrole", userRole, "grouprole", roleGroupRole)
+							impl.logger.Infow("updated user role and roleGroups with new values", "userrole", userRole, "grouprole", roleGroupRole)
 
 						}
 
