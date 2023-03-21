@@ -38,6 +38,7 @@
 - docs: added K8s client doc (#3028)
 - docs: doc for GCP external secret (#3029)
 ## Others
+- chore: ado-sync workflow changes  (#3151)
 - chore: ADO-sync github action changes (#3149)
 - chore: Helm lint mechanism and azure ADO sync github action (#3138)
 - chore:  enterprise-repo-sync.yaml (#3127)
