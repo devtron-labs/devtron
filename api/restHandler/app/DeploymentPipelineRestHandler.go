@@ -340,8 +340,6 @@ func (handler PipelineConfigRestHandlerImpl) HandleChangeDeploymentRequest(w htt
 	}
 	ctx := context.WithValue(r.Context(), "token", acdToken)
 
-	// Disabling auto-trigger until bulk trigger API is fixed
-	deploymentAppTypeChangeRequest.AutoTriggerDeployment = false
 	resp, err := handler.pipelineBuilder.ChangeDeploymentType(ctx, deploymentAppTypeChangeRequest)
 
 	if err != nil {

@@ -158,6 +158,7 @@ type AppDetailContainer struct {
 	Environments              []Environment          `json:"otherEnvironment,omitempty"`
 	LinkOuts                  []LinkOuts             `json:"linkOuts,omitempty"`
 	ResourceTree              map[string]interface{} `json:"resourceTree,omitempty"`
+	Notes                     string                 `json:"notes,omitempty"`
 }
 type Notes struct {
 	Notes string `json:"gitOpsNotes,omitempty"`
