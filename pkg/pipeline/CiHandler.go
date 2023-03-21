@@ -1364,10 +1364,10 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(envId int, 
 		notTriggeredWorkflows[ciWorkflowStatus.CiPipelineId] = true
 	}
 
-	for _, workflow := range latestCiWorkflows {
-		if _, ok := notTriggeredWorkflows[workflow.CiPipelineId]; !ok {
+	for _, pipelineId := range pipelineIds {
+		if _, ok := notTriggeredWorkflows[pipelineId]; !ok {
 			ciWorkflowStatus := &pipelineConfig.CiWorkflowStatus{}
-			ciWorkflowStatus.CiPipelineId = workflow.CiPipelineId
+			ciWorkflowStatus.CiPipelineId = pipelineId
 			ciWorkflowStatus.CiStatus = "Not Triggered"
 			ciWorkflowStatuses = append(ciWorkflowStatuses, ciWorkflowStatus)
 		}
