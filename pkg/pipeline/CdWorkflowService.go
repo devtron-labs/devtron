@@ -20,11 +20,14 @@ package pipeline
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
+	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
@@ -51,14 +54,18 @@ type CdWorkflowService interface {
 	TerminateWorkflow(name string, namespace string, url string, token string, isExtRun bool) error
 }
 
-const CD_WORKFLOW_NAME = "cd"
+const (
+	CD_WORKFLOW_NAME        = "cd"
+	CD_WORKFLOW_WITH_STAGES = "cd-stages-with-env"
+)
 
 type CdWorkflowServiceImpl struct {
-	Logger        *zap.SugaredLogger
-	config        *rest.Config
-	cdConfig      *CdConfig
-	appService    app.AppService
-	envRepository repository.EnvironmentRepository
+	Logger            *zap.SugaredLogger
+	config            *rest.Config
+	cdConfig          *CdConfig
+	appService        app.AppService
+	envRepository     repository.EnvironmentRepository
+	globalCMCSService GlobalCMCSService
 }
 
 type CdWorkflowRequest struct {
@@ -110,9 +117,17 @@ type CdWorkflowRequest struct {
 const PRE = "PRE"
 const POST = "POST"
 
-func NewCdWorkflowServiceImpl(Logger *zap.SugaredLogger, envRepository repository.EnvironmentRepository, cdConfig *CdConfig, appService app.AppService) *CdWorkflowServiceImpl {
-	return &CdWorkflowServiceImpl{Logger: Logger, config: cdConfig.ClusterConfig,
-		cdConfig: cdConfig, appService: appService, envRepository: envRepository}
+func NewCdWorkflowServiceImpl(Logger *zap.SugaredLogger,
+	envRepository repository.EnvironmentRepository,
+	cdConfig *CdConfig,
+	appService app.AppService,
+	globalCMCSService GlobalCMCSService) *CdWorkflowServiceImpl {
+	return &CdWorkflowServiceImpl{Logger: Logger,
+		config:            cdConfig.ClusterConfig,
+		cdConfig:          cdConfig,
+		appService:        appService,
+		envRepository:     envRepository,
+		globalCMCSService: globalCMCSService}
 }
 
 func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowRequest, pipeline *pipelineConfig.Pipeline, env *repository.Environment) (*v1alpha1.Workflow, error) {
@@ -144,8 +159,33 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	reqMem := impl.cdConfig.ReqMem
 	ttl := int32(impl.cdConfig.BuildLogTTLValue)
 
-	var volumes []v12.Volume
-	var steps []v1alpha1.ParallelSteps
+	entryPoint := CD_WORKFLOW_NAME
+
+	steps := make([]v1alpha1.ParallelSteps, 0)
+	volumes := make([]v12.Volume, 0)
+	templates := make([]v1alpha1.Template, 0)
+
+	var globalCmCsConfigs []*GlobalCMCSDto
+
+	if !workflowRequest.IsExtRun {
+		globalCmCsConfigs, err = impl.globalCMCSService.FindAllActiveByPipelineType(repository2.PIPELINE_TYPE_CD)
+		// inject global variables only if IsExtRun is false
+		if err != nil {
+			impl.Logger.Errorw("error in getting all global cm/cs config", "err", err)
+			return nil, err
+		}
+		if len(globalCmCsConfigs) > 0 {
+			entryPoint = CD_WORKFLOW_WITH_STAGES
+		}
+		for i := range globalCmCsConfigs {
+			globalCmCsConfigs[i].Name = fmt.Sprintf("%s-%s-%s", strings.ToLower(globalCmCsConfigs[i].Name), strconv.Itoa(workflowRequest.WorkflowRunnerId), CD_WORKFLOW_NAME)
+		}
+
+		err = impl.globalCMCSService.AddTemplatesForGlobalSecretsInWorkflowTemplate(globalCmCsConfigs, &steps, &volumes, &templates)
+		if err != nil {
+			impl.Logger.Errorw("error in creating templates for global secrets", "err", err)
+		}
+	}
 
 	preStageConfigMapSecretsJson := pipeline.PreStageConfigMapSecretNames
 	postStageConfigMapSecretsJson := pipeline.PostStageConfigMapSecretNames
@@ -222,9 +262,8 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	configsMapping := make(map[string]string)
 	secretsMapping := make(map[string]string)
 
-	entryPoint := CD_WORKFLOW_NAME
 	if len(configMaps.Maps) > 0 {
-		entryPoint = "cd-stages-with-env"
+		entryPoint = CD_WORKFLOW_WITH_STAGES
 		for i, cm := range configMaps.Maps {
 			var datamap map[string]string
 			if err := json.Unmarshal(cm.Data, &datamap); err != nil {
@@ -280,7 +319,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	}
 
 	if len(secrets.Secrets) > 0 {
-		entryPoint = "cd-stages-with-env"
+		entryPoint = CD_WORKFLOW_WITH_STAGES
 		for i, s := range secrets.Secrets {
 			var datamap map[string][]byte
 			if err := json.Unmarshal(s.Data, &datamap); err != nil {
@@ -333,7 +372,6 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		}
 	}
 
-	var templates []v1alpha1.Template
 	if len(configsMapping) > 0 {
 		for i, cm := range configMaps.Maps {
 			templates = append(templates, v1alpha1.Template{
@@ -367,72 +405,9 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		},
 	})
 	templates = append(templates, v1alpha1.Template{
-		Name:  "cd-stages-with-env",
+		Name:  CD_WORKFLOW_WITH_STAGES,
 		Steps: steps,
 	})
-
-	var s3Artifact *v1alpha1.S3Artifact
-	var gcsArtifact *v1alpha1.GCSArtifact
-	blobStorageS3Config := workflowRequest.BlobStorageS3Config
-	gcpBlobConfig := workflowRequest.GcpBlobConfig
-	cloudStorageKey := impl.cdConfig.DefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowNamePrefix
-	if storageConfigured && blobStorageS3Config != nil {
-		s3CompatibleEndpointUrl := blobStorageS3Config.EndpointUrl
-		if s3CompatibleEndpointUrl == "" {
-			s3CompatibleEndpointUrl = "s3.amazonaws.com"
-		} else {
-			parsedUrl, err := url.Parse(s3CompatibleEndpointUrl)
-			if err != nil {
-				impl.Logger.Errorw("error occurred while parsing s3CompatibleEndpointUrl, ", "s3CompatibleEndpointUrl", s3CompatibleEndpointUrl, "err", err)
-			} else {
-				s3CompatibleEndpointUrl = parsedUrl.Host
-			}
-		}
-		isInsecure := blobStorageS3Config.IsInSecure
-		var accessKeySelector *v12.SecretKeySelector
-		var secretKeySelector *v12.SecretKeySelector
-		if blobStorageS3Config.AccessKey != "" {
-			accessKeySelector = &v12.SecretKeySelector{
-				Key: "accessKey",
-				LocalObjectReference: v12.LocalObjectReference{
-					Name: "workflow-minio-cred",
-				},
-			}
-			secretKeySelector = &v12.SecretKeySelector{
-				Key: "secretKey",
-				LocalObjectReference: v12.LocalObjectReference{
-					Name: "workflow-minio-cred",
-				},
-			}
-		}
-		s3Artifact = &v1alpha1.S3Artifact{
-			Key: cloudStorageKey,
-			S3Bucket: v1alpha1.S3Bucket{
-				Endpoint:        s3CompatibleEndpointUrl,
-				AccessKeySecret: accessKeySelector,
-				SecretKeySecret: secretKeySelector,
-				Bucket:          blobStorageS3Config.CiLogBucketName,
-				Insecure:        &isInsecure,
-			},
-		}
-		if blobStorageS3Config.CiLogRegion != "" {
-			//TODO checking for Azure
-			s3Artifact.Region = blobStorageS3Config.CiLogRegion
-		}
-	} else if storageConfigured && gcpBlobConfig != nil {
-		gcsArtifact = &v1alpha1.GCSArtifact{
-			Key: cloudStorageKey,
-			GCSBucket: v1alpha1.GCSBucket{
-				Bucket: gcpBlobConfig.LogBucketName,
-				ServiceAccountKeySecret: &v12.SecretKeySelector{
-					Key: "secretKey",
-					LocalObjectReference: v12.LocalObjectReference{
-						Name: "workflow-minio-cred",
-					},
-				},
-			},
-		}
-	}
 
 	cdTemplate := v1alpha1.Template{
 		Name: "cd",
@@ -459,10 +434,107 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		},
 		ArchiveLocation: &v1alpha1.ArtifactLocation{
 			ArchiveLogs: &archiveLogs,
-			S3:          s3Artifact,
-			GCS:         gcsArtifact,
 		},
 	}
+
+	if impl.cdConfig.UseBlobStorageConfigInCdWorkflow || !workflowRequest.IsExtRun {
+		var s3Artifact *v1alpha1.S3Artifact
+		var gcsArtifact *v1alpha1.GCSArtifact
+		blobStorageS3Config := workflowRequest.BlobStorageS3Config
+		gcpBlobConfig := workflowRequest.GcpBlobConfig
+		cloudStorageKey := impl.cdConfig.DefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowNamePrefix
+		if storageConfigured && blobStorageS3Config != nil {
+			s3CompatibleEndpointUrl := blobStorageS3Config.EndpointUrl
+			if s3CompatibleEndpointUrl == "" {
+				s3CompatibleEndpointUrl = "s3.amazonaws.com"
+			} else {
+				parsedUrl, err := url.Parse(s3CompatibleEndpointUrl)
+				if err != nil {
+					impl.Logger.Errorw("error occurred while parsing s3CompatibleEndpointUrl, ", "s3CompatibleEndpointUrl", s3CompatibleEndpointUrl, "err", err)
+				} else {
+					s3CompatibleEndpointUrl = parsedUrl.Host
+				}
+			}
+			isInsecure := blobStorageS3Config.IsInSecure
+			var accessKeySelector *v12.SecretKeySelector
+			var secretKeySelector *v12.SecretKeySelector
+			if blobStorageS3Config.AccessKey != "" {
+				accessKeySelector = &v12.SecretKeySelector{
+					Key: "accessKey",
+					LocalObjectReference: v12.LocalObjectReference{
+						Name: "workflow-minio-cred",
+					},
+				}
+				secretKeySelector = &v12.SecretKeySelector{
+					Key: "secretKey",
+					LocalObjectReference: v12.LocalObjectReference{
+						Name: "workflow-minio-cred",
+					},
+				}
+			}
+			s3Artifact = &v1alpha1.S3Artifact{
+				Key: cloudStorageKey,
+				S3Bucket: v1alpha1.S3Bucket{
+					Endpoint:        s3CompatibleEndpointUrl,
+					AccessKeySecret: accessKeySelector,
+					SecretKeySecret: secretKeySelector,
+					Bucket:          blobStorageS3Config.CiLogBucketName,
+					Insecure:        &isInsecure,
+				},
+			}
+			if blobStorageS3Config.CiLogRegion != "" {
+				//TODO checking for Azure
+				s3Artifact.Region = blobStorageS3Config.CiLogRegion
+			}
+		} else if storageConfigured && gcpBlobConfig != nil {
+			gcsArtifact = &v1alpha1.GCSArtifact{
+				Key: cloudStorageKey,
+				GCSBucket: v1alpha1.GCSBucket{
+					Bucket: gcpBlobConfig.LogBucketName,
+					ServiceAccountKeySecret: &v12.SecretKeySelector{
+						Key: "secretKey",
+						LocalObjectReference: v12.LocalObjectReference{
+							Name: "workflow-minio-cred",
+						},
+					},
+				},
+			}
+		}
+
+		// set in ArchiveLocation
+		cdTemplate.ArchiveLocation.S3 = s3Artifact
+		cdTemplate.ArchiveLocation.GCS = gcsArtifact
+	}
+
+	if !workflowRequest.IsExtRun {
+		for _, config := range globalCmCsConfigs {
+			if config.Type == repository2.VOLUME_CONFIG {
+				cdTemplate.Container.VolumeMounts = append(cdTemplate.Container.VolumeMounts, v12.VolumeMount{
+					Name:      config.Name + "-vol",
+					MountPath: config.MountPath,
+				})
+			} else if config.Type == repository2.ENVIRONMENT_CONFIG {
+				if config.ConfigType == repository2.CM_TYPE_CONFIG {
+					cdTemplate.Container.EnvFrom = append(cdTemplate.Container.EnvFrom, v12.EnvFromSource{
+						ConfigMapRef: &v12.ConfigMapEnvSource{
+							LocalObjectReference: v12.LocalObjectReference{
+								Name: config.Name,
+							},
+						},
+					})
+				} else if config.ConfigType == repository2.CS_TYPE_CONFIG {
+					cdTemplate.Container.EnvFrom = append(cdTemplate.Container.EnvFrom, v12.EnvFromSource{
+						SecretRef: &v12.SecretEnvSource{
+							LocalObjectReference: v12.LocalObjectReference{
+								Name: config.Name,
+							},
+						},
+					})
+				}
+			}
+		}
+	}
+
 	for _, cm := range configMaps.Maps {
 		if cm.Type == "environment" {
 			cdTemplate.Container.EnvFrom = append(cdTemplate.Container.EnvFrom, v12.EnvFromSource{
@@ -480,6 +552,28 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		}
 	}
 
+	// Adding external config map reference in workflow template
+	for _, cm := range existingConfigMap.Maps {
+		if _, ok := cdPipelineLevelConfigMaps[cm.Name]; ok {
+			if cm.External {
+				if cm.Type == "environment" {
+					cdTemplate.Container.EnvFrom = append(cdTemplate.Container.EnvFrom, v12.EnvFromSource{
+						ConfigMapRef: &v12.ConfigMapEnvSource{
+							LocalObjectReference: v12.LocalObjectReference{
+								Name: cm.Name,
+							},
+						},
+					})
+				} else if cm.Type == "volume" {
+					cdTemplate.Container.VolumeMounts = append(cdTemplate.Container.VolumeMounts, v12.VolumeMount{
+						Name:      cm.Name,
+						MountPath: cm.MountPath,
+					})
+				}
+			}
+		}
+	}
+
 	for _, s := range secrets.Secrets {
 		if s.Type == "environment" {
 			cdTemplate.Container.EnvFrom = append(cdTemplate.Container.EnvFrom, v12.EnvFromSource{
@@ -494,6 +588,28 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 				Name:      s.Name + "-vol",
 				MountPath: s.MountPath,
 			})
+		}
+	}
+
+	// Adding external secret reference in workflow template
+	for _, s := range existingSecrets.Secrets {
+		if _, ok := cdPipelineLevelSecrets[s.Name]; ok {
+			if s.External {
+				if s.Type == "environment" {
+					cdTemplate.Container.EnvFrom = append(cdTemplate.Container.EnvFrom, v12.EnvFromSource{
+						SecretRef: &v12.SecretEnvSource{
+							LocalObjectReference: v12.LocalObjectReference{
+								Name: s.Name,
+							},
+						},
+					})
+				} else if s.Type == "volume" {
+					cdTemplate.Container.VolumeMounts = append(cdTemplate.Container.VolumeMounts, v12.VolumeMount{
+						Name:      s.Name,
+						MountPath: s.MountPath,
+					})
+				}
+			}
 		}
 	}
 

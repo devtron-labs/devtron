@@ -9,9 +9,11 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	bean1 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
 	"io"
@@ -40,6 +42,8 @@ type DevtronAppBuildRestHandler interface {
 	CancelWorkflow(w http.ResponseWriter, r *http.Request)
 
 	UpdateBranchCiPipelinesWithRegex(w http.ResponseWriter, r *http.Request)
+	GetCiPipelineByEnvironment(w http.ResponseWriter, r *http.Request)
+	GetExternalCiByEnvironment(w http.ResponseWriter, r *http.Request)
 }
 
 type DevtronAppBuildMaterialRestHandler interface {
@@ -206,6 +210,11 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
+	isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
+	if err != nil {
+		common.WriteJsonResp(w, err, "failed to check if user is super admin", http.StatusInternalServerError)
+		return
+	}
 	var patchRequest bean.CiPatchRequest
 	err = decoder.Decode(&patchRequest)
 	patchRequest.UserId = userId
@@ -228,32 +237,46 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName); !ok {
+	var ok bool
+	if app.AppType == helper.Job {
+		ok = isSuperAdmin
+	} else {
+		ok = handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName)
+	}
+	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 
-	pipelineData, err := handler.pipelineRepository.FindActiveByAppIdAndPipelineId(patchRequest.AppId, patchRequest.CiPipeline.Id)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	var environmentIds []int
-	for _, pipeline := range pipelineData {
-		environmentIds = append(environmentIds, pipeline.EnvironmentId)
-	}
-	if handler.appWorkflowService.CheckCdPipelineByCiPipelineId(patchRequest.CiPipeline.Id) {
-		for _, envId := range environmentIds {
-			envObject := handler.enforcerUtil.GetEnvRBACNameByCiPipelineIdAndEnvId(patchRequest.CiPipeline.Id, envId)
-			if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, envObject); !ok {
-				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-				return
-			}
+	ciConf, err := handler.pipelineBuilder.GetCiPipeline(patchRequest.AppId)
+
+	var emptyDockerRegistry string
+	if app.AppType == helper.Job && ciConf == nil {
+		ciConfigRequest := bean.CiConfigRequest{}
+		ciConfigRequest.DockerRegistry = emptyDockerRegistry
+		ciConfigRequest.AppId = patchRequest.AppId
+		ciConfigRequest.CiBuildConfig = &bean1.CiBuildConfigBean{}
+		ciConfigRequest.CiBuildConfig.CiBuildType = "skip-build"
+		ciConfigRequest.UserId = patchRequest.UserId
+		if patchRequest.CiPipeline == nil || patchRequest.CiPipeline.CiMaterial == nil {
+			handler.Logger.Errorw("Invalid patch ci-pipeline request", "request", patchRequest, "err", "invalid CiPipeline data")
+			common.WriteJsonResp(w, fmt.Errorf("invalid CiPipeline data"), nil, http.StatusBadRequest)
+			return
+		}
+		ciConfigRequest.CiBuildConfig.GitMaterialId = patchRequest.CiPipeline.CiMaterial[0].GitMaterialId
+		ciConfigRequest.IsJob = true
+		_, err = handler.pipelineBuilder.CreateCiPipeline(&ciConfigRequest)
+		if err != nil {
+			handler.Logger.Errorw("error occurred in creating ci-pipeline for the Job", "payload", ciConfigRequest, "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
 		}
 	}
 
 	createResp, err := handler.pipelineBuilder.PatchCiPipeline(&patchRequest)
+	createResp.AppName = app.AppName
 	if err != nil {
 		handler.Logger.Errorw("service err, PatchCiPipelines", "err", err, "PatchCiPipelines", patchRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -435,7 +458,6 @@ func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWr
 
 	common.WriteJsonResp(w, err, response, http.StatusOK)
 }
-
 func (handler PipelineConfigRestHandlerImpl) FetchMaterials(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -870,6 +892,27 @@ func (handler PipelineConfigRestHandlerImpl) CreateMaterial(w http.ResponseWrite
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	app, err := handler.pipelineBuilder.GetApp(createMaterialDto.AppId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	if app.AppType == helper.Job {
+		isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
+		if !isSuperAdmin || err != nil {
+			if err != nil {
+				handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
+			}
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+			return
+		}
+	} else {
+		resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(createMaterialDto.AppId)
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceObject); !ok {
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+			return
+		}
+	}
 	for _, gitMaterial := range createMaterialDto.Material {
 		validationResult, err := handler.ValidateGitMaterialUrl(gitMaterial.GitProviderId, gitMaterial.Url)
 		if err != nil {
@@ -883,11 +926,6 @@ func (handler PipelineConfigRestHandlerImpl) CreateMaterial(w http.ResponseWrite
 				return
 			}
 		}
-	}
-	resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(createMaterialDto.AppId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceObject); !ok {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-		return
 	}
 
 	createResp, err := handler.pipelineBuilder.CreateMaterialsForApp(&createMaterialDto)
@@ -934,10 +972,26 @@ func (handler PipelineConfigRestHandlerImpl) UpdateMaterial(w http.ResponseWrite
 			return
 		}
 	}
-	resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(updateMaterialDto.AppId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceObject); !ok {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+	app, err := handler.pipelineBuilder.GetApp(updateMaterialDto.AppId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
+	}
+	if app.AppType == helper.Job {
+		isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
+		if !isSuperAdmin || err != nil {
+			if err != nil {
+				handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
+			}
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+			return
+		}
+	} else {
+		resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(updateMaterialDto.AppId)
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceObject); !ok {
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+			return
+		}
 	}
 
 	createResp, err := handler.pipelineBuilder.UpdateMaterialsForApp(&updateMaterialDto)
@@ -972,11 +1026,27 @@ func (handler PipelineConfigRestHandlerImpl) DeleteMaterial(w http.ResponseWrite
 		return
 	}
 	//rbac starts
-	resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(deleteMaterial.AppId)
-	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceObject); !ok {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+	app, err := handler.pipelineBuilder.GetApp(deleteMaterial.AppId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
+	}
+	if app.AppType == helper.Job {
+		isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
+		if !isSuperAdmin || err != nil {
+			if err != nil {
+				handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
+			}
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+			return
+		}
+	} else {
+		resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(deleteMaterial.AppId)
+		token := r.Header.Get("token")
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceObject); !ok {
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+			return
+		}
 	}
 	//rbac ends
 	err = handler.pipelineBuilder.DeleteMaterial(&deleteMaterial)
@@ -1242,4 +1312,59 @@ func (handler PipelineConfigRestHandlerImpl) FetchWorkflowDetails(w http.Respons
 		return
 	}
 	common.WriteJsonResp(w, err, resp, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) GetCiPipelineByEnvironment(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	user, err := handler.userAuthService.GetById(userId)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	userEmailId := strings.ToLower(user.EmailId)
+	envId, err := strconv.Atoi(vars["envId"])
+	if err != nil {
+		handler.Logger.Errorw("request err, GetCdPipelines", "err", err, "envId", envId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	ciConf, err := handler.pipelineBuilder.GetCiPipelineByEnvironment(envId, userEmailId, handler.checkAuthBatch)
+	if err != nil {
+		handler.Logger.Errorw("service err, GetCiPipeline", "err", err, "envId", envId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, ciConf, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) GetExternalCiByEnvironment(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	user, err := handler.userAuthService.GetById(userId)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	userEmailId := strings.ToLower(user.EmailId)
+	envId, err := strconv.Atoi(vars["envId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	ciConf, err := handler.pipelineBuilder.GetExternalCiByEnvironment(envId, userEmailId, handler.checkAuthBatch)
+	if err != nil {
+		handler.Logger.Errorw("service err, GetExternalCi", "err", err, "envId", envId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, ciConf, http.StatusOK)
 }

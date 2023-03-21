@@ -1380,6 +1380,8 @@ func (impl UserAuthRepositoryImpl) UpdateDefaultPolicyByRoleType(newPolicy strin
 			deletedPolicyFinal.Data = append(deletedPolicyFinal.Data, deletedPolicyReq.Data...)
 		}
 	}
+	//loading policy for safety
+	casbin.LoadPolicy()
 	//updating all policies(for all roles) in casbin
 	if len(addedPolicyFinal.Data) > 0 {
 		casbin.AddPolicy(addedPolicyFinal.Data)
@@ -1387,6 +1389,8 @@ func (impl UserAuthRepositoryImpl) UpdateDefaultPolicyByRoleType(newPolicy strin
 	if len(deletedPolicyFinal.Data) > 0 {
 		casbin.RemovePolicy(deletedPolicyFinal.Data)
 	}
+	//loading policy for syncing orchestrator to casbin with newly added policies
+	casbin.LoadPolicy()
 	return nil
 }
 

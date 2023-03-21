@@ -173,7 +173,7 @@ func InitializeApp() (*App, error) {
 
 		restHandler.NewPipelineRestHandler,
 		wire.Bind(new(restHandler.PipelineTriggerRestHandler), new(*restHandler.PipelineTriggerRestHandlerImpl)),
-		app.GetAppStatusConfig,
+		app.GetAppServiceConfig,
 		app.NewAppService,
 		wire.Bind(new(app.AppService), new(*app.AppServiceImpl)),
 
@@ -247,6 +247,9 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(app.AppListingService), new(*app.AppListingServiceImpl)),
 		repository.NewAppListingRepositoryImpl,
 		wire.Bind(new(repository.AppListingRepository), new(*repository.AppListingRepositoryImpl)),
+
+		router.NewJobRouterImpl,
+		wire.Bind(new(router.JobRouter), new(*router.JobRouterImpl)),
 
 		pipelineConfig.NewPipelineRepositoryImpl,
 		wire.Bind(new(pipelineConfig.PipelineRepository), new(*pipelineConfig.PipelineRepositoryImpl)),
@@ -407,9 +410,10 @@ func InitializeApp() (*App, error) {
 		pubsub.NewWorkflowStatusUpdateHandlerImpl,
 		wire.Bind(new(pubsub.WorkflowStatusUpdateHandler), new(*pubsub.WorkflowStatusUpdateHandlerImpl)),
 
-		pubsub.NewApplicationStatusUpdateHandlerImpl,
-		wire.Bind(new(pubsub.ApplicationStatusUpdateHandler), new(*pubsub.ApplicationStatusUpdateHandlerImpl)),
+		pubsub.NewApplicationStatusHandlerImpl,
+		wire.Bind(new(pubsub.ApplicationStatusHandler), new(*pubsub.ApplicationStatusHandlerImpl)),
 
+		pubsub.GetCiEventConfig,
 		pubsub.NewCiEventHandlerImpl,
 		wire.Bind(new(pubsub.CiEventHandler), new(*pubsub.CiEventHandlerImpl)),
 
@@ -819,6 +823,9 @@ func InitializeApp() (*App, error) {
 
 		kubernetesResourceAuditLogs.Newk8sResourceHistoryServiceImpl,
 		wire.Bind(new(kubernetesResourceAuditLogs.K8sResourceHistoryService), new(*kubernetesResourceAuditLogs.K8sResourceHistoryServiceImpl)),
+
+		router.NewAppGroupingRouterImpl,
+		wire.Bind(new(router.AppGroupingRouter), new(*router.AppGroupingRouterImpl)),
 	)
 	return &App{}, nil
 }

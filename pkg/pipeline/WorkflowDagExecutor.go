@@ -23,6 +23,8 @@ import (
 	"fmt"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
+	"github.com/devtron-labs/devtron/client/gitSensor"
+	util4 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"go.opentelemetry.io/otel"
 	"strconv"
@@ -101,6 +103,7 @@ type WorkflowDagExecutorImpl struct {
 	CiTemplateRepository          pipelineConfig.CiTemplateRepository
 	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
 	appLabelRepository            pipelineConfig.AppLabelRepository
+	gitSensorClient               gitSensor.GitSensorClient
 }
 
 const (
@@ -165,7 +168,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	pipelineStatusTimelineService app.PipelineStatusTimelineService,
 	CiTemplateRepository pipelineConfig.CiTemplateRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
-	appLabelRepository pipelineConfig.AppLabelRepository) *WorkflowDagExecutorImpl {
+	appLabelRepository pipelineConfig.AppLabelRepository, gitSensorClient gitSensor.GitSensorClient) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
 		cdWorkflowRepository:          cdWorkflowRepository,
@@ -196,6 +199,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		CiTemplateRepository:          CiTemplateRepository,
 		ciWorkflowRepository:          ciWorkflowRepository,
 		appLabelRepository:            appLabelRepository,
+		gitSensorClient:               gitSensorClient,
 	}
 	err := wde.Subscribe()
 	if err != nil {
@@ -600,6 +604,10 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		}
 
 		for _, m := range ciPipeline.CiPipelineMaterials {
+			// git material should be active in this case
+			if m == nil || m.GitMaterial == nil || !m.GitMaterial.Active {
+				continue
+			}
 			var ciMaterialCurrent repository.CiMaterialInfo
 			for _, ciMaterial := range ciMaterialInfo {
 				if ciMaterial.Material.GitConfiguration.URL == m.GitMaterial.Url {
@@ -734,10 +742,33 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 
 	if ciWf != nil && ciWf.GitTriggers != nil {
 		i := 1
-		for _, gitTrigger := range ciWf.GitTriggers {
+		for ciPipelineMaterialId, gitTrigger := range ciWf.GitTriggers {
 			extraEnvVariables[fmt.Sprintf("%s_%d", GIT_COMMIT_HASH_PREFIX, i)] = gitTrigger.Commit
 			extraEnvVariables[fmt.Sprintf("%s_%d", GIT_SOURCE_TYPE_PREFIX, i)] = string(gitTrigger.CiConfigureSourceType)
 			extraEnvVariables[fmt.Sprintf("%s_%d", GIT_SOURCE_VALUE_PREFIX, i)] = gitTrigger.CiConfigureSourceValue
+
+			// CODE-BLOCK starts - store extra environment variables if webhook
+			if gitTrigger.CiConfigureSourceType == pipelineConfig.SOURCE_TYPE_WEBHOOK {
+				webhookDataId := gitTrigger.WebhookData.Id
+				if webhookDataId > 0 {
+					webhookDataRequest := &gitSensor.WebhookDataRequest{
+						Id:                   webhookDataId,
+						CiPipelineMaterialId: ciPipelineMaterialId,
+					}
+					webhookAndCiData, err := impl.gitSensorClient.GetWebhookData(webhookDataRequest)
+					if err != nil {
+						impl.logger.Errorw("err while getting webhook data from git-sensor", "err", err, "webhookDataRequest", webhookDataRequest)
+						return nil, err
+					}
+					if webhookAndCiData != nil {
+						for extEnvVariableKey, extEnvVariableVal := range webhookAndCiData.ExtraEnvironmentVariables {
+							extraEnvVariables[extEnvVariableKey] = extEnvVariableVal
+						}
+					}
+				}
+			}
+			// CODE_BLOCK ends
+
 			i++
 		}
 		extraEnvVariables[GIT_SOURCE_COUNT] = strconv.Itoa(len(ciWf.GitTriggers))
@@ -1006,7 +1037,9 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 	if err != nil {
 		return err
 	}
-
+	runner.CdWorkflow = &pipelineConfig.CdWorkflow{
+		Pipeline: pipeline,
+	}
 	// creating cd pipeline status timeline for deployment initialisation
 	timeline := &pipelineConfig.PipelineStatusTimeline{
 		CdWorkflowRunnerId: runner.Id,
@@ -1061,6 +1094,14 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 			impl.logger.Errorw("error in updating status", "err", err)
 			return err
 		}
+		cdMetrics := util4.CDMetrics{
+			AppName:         runner.CdWorkflow.Pipeline.DeploymentAppName,
+			Status:          runner.Status,
+			DeploymentType:  runner.CdWorkflow.Pipeline.DeploymentAppType,
+			EnvironmentName: runner.CdWorkflow.Pipeline.Environment.Name,
+			Time:            time.Since(runner.StartedOn).Seconds() - time.Since(runner.FinishedOn).Seconds(),
+		}
+		util4.TriggerCDMetrics(cdMetrics, impl.cdConfig.ExposeCDMetrics)
 		// creating cd pipeline status timeline for deployment failed
 		timeline := &pipelineConfig.PipelineStatusTimeline{
 			CdWorkflowRunnerId: runner.Id,
@@ -1128,6 +1169,14 @@ func (impl *WorkflowDagExecutorImpl) updatePreviousDeploymentStatus(currentRunne
 			impl.logger.Errorw("error updating cd wf runner status", "err", err, "currentRunner", currentRunner)
 			return err
 		}
+		cdMetrics := util4.CDMetrics{
+			AppName:         currentRunner.CdWorkflow.Pipeline.DeploymentAppName,
+			Status:          currentRunner.Status,
+			DeploymentType:  currentRunner.CdWorkflow.Pipeline.DeploymentAppType,
+			EnvironmentName: currentRunner.CdWorkflow.Pipeline.Environment.Name,
+			Time:            time.Since(currentRunner.StartedOn).Seconds() - time.Since(currentRunner.FinishedOn).Seconds(),
+		}
+		util4.TriggerCDMetrics(cdMetrics, impl.cdConfig.ExposeCDMetrics)
 		return nil
 		//update current WF with error status
 	} else {
@@ -1333,6 +1382,9 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			impl.logger.Errorw("err", "err", err)
 			return 0, err
 		}
+		runner.CdWorkflow = &pipelineConfig.CdWorkflow{
+			Pipeline: cdPipeline,
+		}
 		overrideRequest.CdWorkflowId = cdWorkflowId
 		// creating cd pipeline status timeline for deployment initialisation
 		timeline := &pipelineConfig.PipelineStatusTimeline{
@@ -1405,6 +1457,17 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 				impl.logger.Errorw("err", "err", err)
 				return 0, err
 			}
+			runner.CdWorkflow = &pipelineConfig.CdWorkflow{
+				Pipeline: cdPipeline,
+			}
+			cdMetrics := util4.CDMetrics{
+				AppName:         runner.CdWorkflow.Pipeline.DeploymentAppName,
+				Status:          runner.Status,
+				DeploymentType:  runner.CdWorkflow.Pipeline.DeploymentAppType,
+				EnvironmentName: runner.CdWorkflow.Pipeline.Environment.Name,
+				Time:            time.Since(runner.StartedOn).Seconds() - time.Since(runner.FinishedOn).Seconds(),
+			}
+			util4.TriggerCDMetrics(cdMetrics, impl.cdConfig.ExposeCDMetrics)
 			// creating cd pipeline status timeline for deployment failed
 			timeline := &pipelineConfig.PipelineStatusTimeline{
 				CdWorkflowRunnerId: runner.Id,

@@ -1,4 +1,4 @@
-name: Sync issue to Azure DevOps work item
+name: Sync issue to Azure DevOps work item (testing)
 
 on:
   issues:
@@ -6,7 +6,7 @@ on:
       [opened, edited, deleted, closed, reopened]
 
 jobs:
-  alert:
+  create_issues:
     runs-on: ubuntu-latest
     steps:
       - uses: danhellem/github-actions-issue-to-work-item@v2.0
@@ -15,11 +15,25 @@ jobs:
           github_token: "${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}"
           ado_organization: "DevtronLabs"
           ado_project: "Devtron"
-#           ado_area_path: "optional_area_path\\optional_area_path"
-#           ado_iteration_path: "optional_iteration_path\\optional_iteration_path"
-          ado_wit: "Issue"
           ado_new_state: "To Do"
           ado_active_state: "Doing"
           ado_close_state: "Done"
           ado_bypassrules: true
           log_level: 100
+        if: contains(github.event.issue.labels.*.name, 'bug')
+        with:
+          ado_wit: "Bug"
+      - uses: danhellem/github-actions-issue-to-work-item@v2.0
+        env:
+          ado_token: "${{ secrets.ADO_PERSONAL_ACCESS_TOKEN }}"
+          github_token: "${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}"
+          ado_organization: "DevtronLabs"
+          ado_project: "Devtron"
+          ado_new_state: "To Do"
+          ado_active_state: "Doing"
+          ado_close_state: "Done"
+          ado_bypassrules: true
+          log_level: 100
+        if: not(contains(github.event.issue.labels.*.name, 'bug'))
+        with:
+          ado_wit: "Issue"

@@ -134,7 +134,7 @@ func initAppStoreDeploymentService(t *testing.T, internalUse bool) *AppStoreDepl
 
 	appStoreDiscoverRepository := appStoreDiscoverRepository.NewAppStoreApplicationVersionRepositoryImpl(sugaredLogger, db)
 
-	environmentRepository := repository2.NewEnvironmentRepositoryImpl(db)
+	environmentRepository := repository2.NewEnvironmentRepositoryImpl(db, sugaredLogger, nil)
 
 	k8sUtil := util.NewK8sUtil(sugaredLogger, &client.RuntimeConfig{LocalDevMode: true})
 

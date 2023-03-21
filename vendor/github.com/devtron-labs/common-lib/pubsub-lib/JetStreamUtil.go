@@ -49,6 +49,9 @@ const (
 	APPLICATION_STATUS_UPDATE_TOPIC     string = "APPLICATION_STATUS_UPDATE"
 	APPLICATION_STATUS_UPDATE_GROUP     string = "APPLICATION_STATUS_UPDATE_GROUP-1"
 	APPLICATION_STATUS_UPDATE_DURABLE   string = "APPLICATION_STATUS_UPDATE_DURABLE-1"
+	APPLICATION_STATUS_DELETE_TOPIC     string = "APPLICATION_STATUS_DELETE"
+	APPLICATION_STATUS_DELETE_GROUP     string = "APPLICATION_STATUS_DELETE_GROUP-1"
+	APPLICATION_STATUS_DELETE_DURABLE   string = "APPLICATION_STATUS_DELETE_DURABLE-1"
 	CRON_EVENTS                         string = "CRON_EVENTS"
 	CRON_EVENTS_GROUP                   string = "CRON_EVENTS_GROUP-2"
 	CRON_EVENTS_DURABLE                 string = "CRON_EVENTS_DURABLE-2"
@@ -102,6 +105,7 @@ var natsTopicMapping = map[string]NatsTopic{
 	CD_STAGE_COMPLETE_TOPIC: {topicName: CD_STAGE_COMPLETE_TOPIC, streamName: CI_RUNNER_STREAM, queueName: CD_COMPLETE_GROUP, consumerName: CD_COMPLETE_DURABLE},
 
 	APPLICATION_STATUS_UPDATE_TOPIC: {topicName: APPLICATION_STATUS_UPDATE_TOPIC, streamName: KUBEWATCH_STREAM, queueName: APPLICATION_STATUS_UPDATE_GROUP, consumerName: APPLICATION_STATUS_UPDATE_DURABLE},
+	APPLICATION_STATUS_DELETE_TOPIC: {topicName: APPLICATION_STATUS_DELETE_TOPIC, streamName: KUBEWATCH_STREAM, queueName: APPLICATION_STATUS_DELETE_GROUP, consumerName: APPLICATION_STATUS_DELETE_DURABLE},
 	CRON_EVENTS:                     {topicName: CRON_EVENTS, streamName: KUBEWATCH_STREAM, queueName: CRON_EVENTS_GROUP, consumerName: CRON_EVENTS_DURABLE},
 	WORKFLOW_STATUS_UPDATE_TOPIC:    {topicName: WORKFLOW_STATUS_UPDATE_TOPIC, streamName: KUBEWATCH_STREAM, queueName: WORKFLOW_STATUS_UPDATE_GROUP, consumerName: WORKFLOW_STATUS_UPDATE_DURABLE},
 	CD_WORKFLOW_STATUS_UPDATE:       {topicName: CD_WORKFLOW_STATUS_UPDATE, streamName: KUBEWATCH_STREAM, queueName: CD_WORKFLOW_STATUS_UPDATE_GROUP, consumerName: CD_WORKFLOW_STATUS_UPDATE_DURABLE},
@@ -129,6 +133,7 @@ var NatsConsumerWiseConfigMapping = map[string]NatsConsumerConfig{
 	WORKFLOW_STATUS_UPDATE_DURABLE:      {},
 	CRON_EVENTS_DURABLE:                 {},
 	APPLICATION_STATUS_UPDATE_DURABLE:   {},
+	APPLICATION_STATUS_DELETE_DURABLE:   {},
 	CD_COMPLETE_DURABLE:                 {},
 	CI_COMPLETE_DURABLE:                 {},
 	WEBHOOK_EVENT_DURABLE:               {},
@@ -196,11 +201,31 @@ func ParseAndFillStreamWiseAndConsumerWiseConfigMaps() {
 		NatsMsgProcessingBatchSize: defaultConfig.NatsMsgProcessingBatchSize,
 	}
 
+	// default NATS Consumer config value for BULK CD TRIGGER topic
+	defaultConsumerConfigForBulkCdTriggerTopic := NatsConsumerConfig{}
+
+	err = json.Unmarshal([]byte(defaultConfig.NatsConsumerConfig), &defaultConsumerConfigForBulkCdTriggerTopic)
+
+	if err != nil {
+		log.Print("error in unmarshalling nats consumer config",
+			"consumer-config", defaultConfig.NatsConsumerConfig,
+			"err", err)
+	}
+
 	for key, _ := range NatsConsumerWiseConfigMapping {
 		defaultValue := defaultConsumerConfigVal
-		if _, ok := consumerConfigMap[key]; ok {
+
+		// Setting AckWait config. Only for BULK CD TRIGGER topic. Can be used for other topics
+		// if required to be made configurable
+		if key == BULK_DEPLOY_DURABLE {
+			defaultValue.AckWaitInSecs = defaultConsumerConfigForBulkCdTriggerTopic.AckWaitInSecs
+		}
+
+		// Overriding default config with explicitly provided topic-specific config
+		if _, ok := consumerConfigMap[key]; ok && (key != BULK_DEPLOY_DURABLE) {
 			defaultValue = consumerConfigMap[key]
 		}
+
 		NatsConsumerWiseConfigMapping[key] = defaultValue
 	}
 
@@ -246,6 +271,7 @@ func AddStream(js nats.JetStreamContext, streamConfig *nats.StreamConfig, stream
 			log.Fatal("Error while getting stream info", "stream name", streamName, "error", err)
 		} else {
 			config := streamInfo.Config
+			streamConfig.Name = streamName
 			if checkConfigChangeReqd(&config, streamConfig) {
 				_, err1 := js.UpdateStream(&config)
 				if err1 != nil {
@@ -260,8 +286,9 @@ func AddStream(js nats.JetStreamContext, streamConfig *nats.StreamConfig, stream
 func checkConfigChangeReqd(existingConfig *nats.StreamConfig, toUpdateConfig *nats.StreamConfig) bool {
 	configChanged := false
 	newStreamSubjects := GetStreamSubjects(toUpdateConfig.Name)
-	if toUpdateConfig.MaxAge != time.Duration(0) && toUpdateConfig.MaxAge != existingConfig.MaxAge || len(newStreamSubjects) != len(existingConfig.Subjects) {
+	if ((toUpdateConfig.MaxAge != time.Duration(0)) && (toUpdateConfig.MaxAge != existingConfig.MaxAge)) || (len(newStreamSubjects) != len(existingConfig.Subjects)) {
 		existingConfig.MaxAge = toUpdateConfig.MaxAge
+		existingConfig.Subjects = newStreamSubjects
 		configChanged = true
 	}
 

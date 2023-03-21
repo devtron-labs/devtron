@@ -402,6 +402,9 @@ components:
           type: string
         Value:
           type: string
+        propagate:
+          type: boolean
+          description: Whether to propagate to kubernetes resources
     GitMaterial:
       type: object
       properties:
@@ -541,6 +544,11 @@ components:
           type: string
         triggerType:
           type: string
+        deploymentAppType:
+          type: string
+          oneOf:
+            - 'argo_cd'
+            - 'helm'
         deploymentType:
           type: string
         deploymentStrategies:
