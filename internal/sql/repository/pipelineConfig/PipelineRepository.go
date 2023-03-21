@@ -104,6 +104,7 @@ type PipelineRepository interface {
 	GetArgoPipelineByArgoAppName(argoAppName string) (Pipeline, error)
 	GetPartiallyDeletedPipelineByStatus(appId int, envId int) (Pipeline, error)
 	FindActiveByAppIds(appIds []int) (pipelines []*Pipeline, err error)
+	FindAppAndEnvironmentAndProjectByPipelineIds(pipelineIds []int) (pipelines []*Pipeline, err error)
 }
 
 type CiArtifactDTO struct {
@@ -599,6 +600,14 @@ func (impl PipelineRepositoryImpl) FindActiveByAppIds(appIds []int) (pipelines [
 		Column("pipeline.*", "App", "Environment").
 		Where("app_id in(?)", pg.In(appIds)).
 		Where("deleted = ?", false).
+		Select()
+	return pipelines, err
+}
+
+func (impl PipelineRepositoryImpl) FindAppAndEnvironmentAndProjectByPipelineIds(pipelineIds []int) (pipelines []*Pipeline, err error) {
+	err = impl.dbConnection.Model(&pipelines).Column("pipeline.*", "App", "Environment", "App.Team").
+		Where("pipeline.id in(?)", pg.In(pipelineIds)).
+		Where("pipeline.deleted = ?", false).
 		Select()
 	return pipelines, err
 }
