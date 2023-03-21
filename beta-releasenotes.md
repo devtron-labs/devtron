@@ -1,4 +1,5 @@
 ## Bugs
+- fix: log api panic (#3156)
 - fix: kubernetes external secret not accessible (#3143)
 - fix: apps in progressing state indefinitely (#3137)
 - fix: ci artifacts not coming for linked CI pipeline (#3134)
