@@ -566,7 +566,7 @@ func (impl UserServiceImpl) createOrUpdateUserRolesForClusterEntity(roleFilter b
 							continue
 						}
 					} else if oldRoleModel.Id > 0 && roleModel.Id == 0 {
-						flag, err := impl.userAuthRepository.CreateRolesWithAccessTypeAndEntity("", "", "", "", roleFilter.Cluster, namespace, group, kind, resource, actionType, accessType, userId, oldRoleModel.Role)
+						flag, err := impl.userAuthRepository.CreateRolesWithAccessTypeAndEntity("", "", "", roleFilter.Entity, roleFilter.Cluster, namespace, group, kind, resource, actionType, accessType, userId, oldRoleModel.Role)
 						if err != nil || flag == false {
 							return policiesToBeAdded, rolesChanged, err
 						}
