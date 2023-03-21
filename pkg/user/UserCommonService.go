@@ -92,16 +92,23 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 							if !isValidAuth {
 								continue
 							}
-							roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes("", "", "", "", "", accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType)
+							roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, "", "", "", "", accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType, false)
 							if err != nil {
 								impl.logger.Errorw("Error in fetching roles by filter", "roleFilter", roleFilter)
 								return nil, err
 							}
-							if roleModel.Id == 0 {
+							oldRoleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, "", "", "", "", accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType, true)
+							if err != nil {
+								return nil, err
+							}
+							if roleModel.Id == 0 && oldRoleModel.Id == 0 {
 								impl.logger.Warnw("no role found for given filter", "filter", roleFilter)
 								continue
 							}
 							if _, ok := existingRoleIds[roleModel.Id]; ok {
+								delete(eliminatedRoleIds, roleModel.Id)
+							}
+							if _, ok := existingRoleIds[oldRoleModel.Id]; ok {
 								delete(eliminatedRoleIds, roleModel.Id)
 							}
 						}
@@ -135,9 +142,13 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 					if environment == "NONE" {
 						environment = ""
 					}
-					roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "")
+					roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", actionType, false)
 					if err != nil {
 						impl.logger.Errorw("Error in fetching roles by filter", "user", userInfo)
+						return nil, err
+					}
+					oldRoleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", actionType, true)
+					if err != nil {
 						return nil, err
 					}
 					if roleModel.Id == 0 {
@@ -148,6 +159,10 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 					if _, ok := existingRoleIds[roleModel.Id]; ok {
 						delete(eliminatedRoleIds, roleModel.Id)
 					}
+					if _, ok := existingRoleIds[oldRoleModel.Id]; ok {
+						delete(eliminatedRoleIds, roleModel.Id)
+					}
+
 				}
 			}
 		}
@@ -229,16 +244,24 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 							if !isValidAuth {
 								continue
 							}
-							roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, "", "", "", "", accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType)
+							roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, "", "", "", "", accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType, false)
 							if err != nil {
 								impl.logger.Errorw("Error in fetching roles by filter", "user", request)
 								return nil, err
 							}
-							if roleModel.Id == 0 {
+							oldRoleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, "", "", "", "", accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType, true)
+							if err != nil {
+								impl.logger.Errorw("Error in fetching roles by filter", "user", request)
+								return nil, err
+							}
+							if roleModel.Id == 0 && oldRoleModel.Id == 0 {
 								impl.logger.Warnw("no role found for given filter", "filter", roleFilter)
 								continue
 							}
 							if _, ok := existingRoles[roleModel.Id]; ok {
+								delete(eliminatedRoles, roleModel.Id)
+							}
+							if _, ok := existingRoles[oldRoleModel.Id]; ok {
 								delete(eliminatedRoles, roleModel.Id)
 							}
 						}
@@ -272,12 +295,17 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 					if environment == "NONE" {
 						environment = ""
 					}
-					roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "")
+					roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "", false)
 					if err != nil {
 						impl.logger.Errorw("Error in fetching roles by filter", "user", request)
 						return nil, err
 					}
-					if roleModel.Id == 0 {
+					oldRoleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "", true)
+					if err != nil {
+						impl.logger.Errorw("Error in fetching roles by filter by old values", "user", request)
+						return nil, err
+					}
+					if roleModel.Id == 0 && oldRoleModel.Id == 0 {
 						impl.logger.Warnw("no role found for given filter", "filter", roleFilter)
 						request.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + actionType
 						continue
@@ -286,6 +314,10 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 					if _, ok := existingRoles[roleModel.Id]; ok {
 						delete(eliminatedRoles, roleModel.Id)
 					}
+					if _, ok := existingRoles[roleModel.Id]; ok {
+						delete(eliminatedRoles, roleModel.Id)
+					}
+
 				}
 			}
 		}

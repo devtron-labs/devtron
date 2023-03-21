@@ -268,12 +268,3 @@ INSERT INTO "public"."default_auth_role" ( "role_type", "role", "created_on", "c
 }', 'now()', '1', 'now()', '1','helm-app','apps');
 
 
-
-UPDATE "public"."roles"
-SET entity='apps'
-WHERE access_type ='helm-app';
-
-UPDATE "public"."roles"
-SET entity = 'apps', access_type='devtron-app'
-WHERE access_type IS NULL AND entity IS NULL AND action != 'super-admin';
-
