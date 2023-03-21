@@ -35,6 +35,7 @@
 - docs: added K8s client doc (#3028)
 - docs: doc for GCP external secret (#3029)
 ## Others
+- chore:  enterprise-repo-sync.yaml (#3127)
 - task: restricted deployment status updation cron to fetch pipelines deployed within hours (#3104)
 - chore: upgrade common-lib dependency (#3052)
 - feat - Use cluster-name instead of server url in Argo cd application objects  (#2958)
