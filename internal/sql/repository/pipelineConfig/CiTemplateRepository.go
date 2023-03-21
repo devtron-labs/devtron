@@ -30,7 +30,7 @@ type CiTemplate struct {
 	tableName          struct{} `sql:"ci_template" pg:",discard_unknown_columns"`
 	Id                 int      `sql:"id"`
 	AppId              int      `sql:"app_id"`             //foreign key of app
-	DockerRegistryId   string   `sql:"docker_registry_id"` //foreign key of registry
+	DockerRegistryId   *string  `sql:"docker_registry_id"` //foreign key of registry
 	DockerRepository   string   `sql:"docker_repository"`
 	DockerfilePath     string   `sql:"dockerfile_path"`
 	Args               string   `sql:"args"` //json string format of map[string]string

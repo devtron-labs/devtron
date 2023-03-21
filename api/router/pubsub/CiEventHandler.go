@@ -53,17 +53,18 @@ type CiEventHandlerImpl struct {
 }
 
 type CiCompleteEvent struct {
-	CiProjectDetails []pipeline.CiProjectDetails `json:"ciProjectDetails"`
-	DockerImage      string                      `json:"dockerImage" validate:"required,image-validator"`
-	Digest           string                      `json:"digest"`
-	PipelineId       int                         `json:"pipelineId"`
-	WorkflowId       *int                        `json:"workflowId"`
-	TriggeredBy      int32                       `json:"triggeredBy"`
-	PipelineName     string                      `json:"pipelineName"`
-	DataSource       string                      `json:"dataSource"`
-	MaterialType     string                      `json:"materialType"`
-	Metrics          util.CIMetrics              `json:"metrics"`
-	AppName          string                      `json:"appName"`
+	CiProjectDetails   []pipeline.CiProjectDetails `json:"ciProjectDetails"`
+	DockerImage        string                      `json:"dockerImage" validate:"required,image-validator"`
+	Digest             string                      `json:"digest"`
+	PipelineId         int                         `json:"pipelineId"`
+	WorkflowId         *int                        `json:"workflowId"`
+	TriggeredBy        int32                       `json:"triggeredBy"`
+	PipelineName       string                      `json:"pipelineName"`
+	DataSource         string                      `json:"dataSource"`
+	MaterialType       string                      `json:"materialType"`
+	Metrics            util.CIMetrics              `json:"metrics"`
+	AppName            string                      `json:"appName"`
+	IsArtifactUploaded bool                        `json:"isArtifactUploaded"`
 }
 
 func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClientServiceImpl, webhookService pipeline.WebhookService, ciEventConfig *CiEventConfig) *CiEventHandlerImpl {
@@ -83,11 +84,10 @@ func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSu
 
 func (impl *CiEventHandlerImpl) Subscribe() error {
 	callback := func(msg *pubsub.PubSubMsg) {
-		impl.logger.Debug("ci complete event received")
+		impl.logger.Debugw("ci complete event received")
 		//defer msg.Ack()
 		ciCompleteEvent := CiCompleteEvent{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &ciCompleteEvent)
-		util.TriggerCIMetrics(ciCompleteEvent.Metrics, impl.ciEventConfig.ExposeCiMetrics, ciCompleteEvent.PipelineName, ciCompleteEvent.AppName)
 		if err != nil {
 			impl.logger.Error("error while unmarshalling json data", "error", err)
 			return
@@ -168,13 +168,14 @@ func (impl *CiEventHandlerImpl) BuildCiArtifactRequest(event CiCompleteEvent) (*
 	}
 
 	request := &pipeline.CiArtifactWebhookRequest{
-		Image:        event.DockerImage,
-		ImageDigest:  event.Digest,
-		DataSource:   event.DataSource,
-		PipelineName: event.PipelineName,
-		MaterialInfo: rawMaterialInfo,
-		UserId:       event.TriggeredBy,
-		WorkflowId:   event.WorkflowId,
+		Image:              event.DockerImage,
+		ImageDigest:        event.Digest,
+		DataSource:         event.DataSource,
+		PipelineName:       event.PipelineName,
+		MaterialInfo:       rawMaterialInfo,
+		UserId:             event.TriggeredBy,
+		WorkflowId:         event.WorkflowId,
+		IsArtifactUploaded: event.IsArtifactUploaded,
 	}
 	return request, nil
 }
@@ -237,13 +238,14 @@ func (impl *CiEventHandlerImpl) BuildCiArtifactRequestForWebhook(event CiComplet
 	}
 
 	request := &pipeline.CiArtifactWebhookRequest{
-		Image:        event.DockerImage,
-		ImageDigest:  event.Digest,
-		DataSource:   event.DataSource,
-		PipelineName: event.PipelineName,
-		MaterialInfo: rawMaterialInfo,
-		UserId:       event.TriggeredBy,
-		WorkflowId:   event.WorkflowId,
+		Image:              event.DockerImage,
+		ImageDigest:        event.Digest,
+		DataSource:         event.DataSource,
+		PipelineName:       event.PipelineName,
+		MaterialInfo:       rawMaterialInfo,
+		UserId:             event.TriggeredBy,
+		WorkflowId:         event.WorkflowId,
+		IsArtifactUploaded: event.IsArtifactUploaded,
 	}
 	return request, nil
 }
