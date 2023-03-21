@@ -198,25 +198,19 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) ([]Cluster
 		userInfoObj := kubeConfigObject.AuthInfos[userInfo]
 
 		if clusterName == "" {
-			clusterBeanObject.ValidationAndSavingMessage = "Error in validating"
+			clusterBeanObject.ValidationAndSavingMessage = "cluster name missing from the kubeconfig"
 		} else {
 			clusterBeanObject.ClusterName = clusterName
 		}
 
 		if clusterObj == nil || clusterObj.Server == "" {
-			clusterBeanObject.ValidationAndSavingMessage = "Error in validating"
+			clusterBeanObject.ValidationAndSavingMessage = "server url missing from the kubeconfig"
 		} else {
 			clusterBeanObject.ServerUrl = clusterObj.Server
 		}
 
 		if userInfo == "" {
-			clusterBeanObject.ValidationAndSavingMessage = "Error in validating"
-		} else {
-			clusterBeanObject.UserName = userInfo
-		}
-
-		if userInfo == "" {
-			clusterBeanObject.ValidationAndSavingMessage = "Error in validating"
+			clusterBeanObject.ValidationAndSavingMessage = "user info missing from the kubeconfig"
 		} else {
 			clusterBeanObject.UserName = userInfo
 		}
@@ -224,7 +218,7 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) ([]Cluster
 		clusterBeanObject.Config = map[string]string{}
 
 		if userInfoObj == nil || userInfoObj.Token == "" {
-			clusterBeanObject.ValidationAndSavingMessage = "Error in validating"
+			clusterBeanObject.ValidationAndSavingMessage = "token missing from the kubeconfig"
 		} else {
 			clusterBeanObject.Config["bearer_token"] = userInfoObj.Token
 		}
@@ -234,7 +228,7 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) ([]Cluster
 
 		if clusterObj.InsecureSkipTLSVerify {
 			if clusterObj.TLSServerName == "" || clusterObj.CertificateAuthority == "" || string(clusterObj.CertificateAuthorityData) == "" {
-				clusterBeanObject.ValidationAndSavingMessage = "Error in validating"
+				clusterBeanObject.ValidationAndSavingMessage = "InsecureSkipTLSVerify is true but the required data corresponding to it is missing from the kubeconfig"
 			} else {
 				clusterBeanObject.Config["tls_key"] = clusterObj.TLSServerName
 				clusterBeanObject.Config["tls_certificate"] = clusterObj.CertificateAuthority
