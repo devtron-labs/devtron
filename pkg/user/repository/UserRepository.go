@@ -178,9 +178,6 @@ func (impl UserRepositoryImpl) FetchActiveOrDeletedUserByEmail(email string) (*U
 
 func (impl UserRepositoryImpl) UpdateRoleIdForUserRolesMappings(roleId int, newRoleId int) (*UserRoleModel, error) {
 	var model UserRoleModel
-	//query := "UPDATE user_roles SET role_id = ? WHERE role_id = (?) ;"
-	//
-	//_, err := impl.dbConnection.Query(&model, query, newRoleId, roleId)
 	_, err := impl.dbConnection.Model(&model).Set("role_id = ? ", newRoleId).Where("role_id = ? ", roleId).Update()
 	return &model, err
 

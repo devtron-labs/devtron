@@ -457,10 +457,8 @@ func (impl UserServiceImpl) CreateOrUpdateUserRolesForAllTypes(roleFilter bean.R
 					if roleModel.Id == 0 {
 						continue
 					}
-				}
-				if oldRoleModel.Id > 0 && roleModel.Id == 0 {
+				} else if oldRoleModel.Id > 0 && roleModel.Id == 0 {
 
-					// TODO:CREATE NEW ROLES WITH ACCESS TYPE AND ENTITY
 					flag, err := impl.userAuthRepository.CreateRolesWithAccessTypeAndEntity(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType, userId, oldRoleModel.Role)
 					if err != nil || flag == false {
 						return policiesToBeAdded, rolesChanged, err
@@ -486,24 +484,6 @@ func (impl UserServiceImpl) CreateOrUpdateUserRolesForAllTypes(roleFilter bean.R
 					impl.logger.Infow("updated user role and roleGroups", "userrole", userRole, "grouprole", roleGroupRole)
 
 				}
-				//if roleModel.Id == 0 {
-				//	impl.logger.Debugw("no role found for given filter", "filter", "roleFilter", roleFilter)
-				//	flag, err, policiesAdded := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType, userId)
-				//	if err != nil || flag == false {
-				//		return policiesToBeAdded, rolesChanged, err
-				//	}
-				//	impl.logger.Infow("Getting Role by filter Again for other Types  ", "roleFilter", roleFilter)
-				//
-				//	policiesToBeAdded = append(policiesToBeAdded, policiesAdded...)
-				//	roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", actionType, false)
-				//	if err != nil {
-				//		return policiesToBeAdded, rolesChanged, err
-				//	}
-				//	if roleModel.Id == 0 {
-				//		continue
-				//	}
-				//}
-
 				if _, ok := existingRoles[roleModel.Id]; ok {
 					//Adding policies which is removed
 					impl.logger.Infow("Adding policies which is removed")
@@ -586,8 +566,6 @@ func (impl UserServiceImpl) createOrUpdateUserRolesForClusterEntity(roleFilter b
 							continue
 						}
 					} else if oldRoleModel.Id > 0 && roleModel.Id == 0 {
-
-						// TODO:CREATE NEW ROLES WITH ACCESS TYPE AND ENTITY
 						flag, err := impl.userAuthRepository.CreateRolesWithAccessTypeAndEntity("", "", "", "", roleFilter.Cluster, namespace, group, kind, resource, actionType, accessType, userId, oldRoleModel.Role)
 						if err != nil || flag == false {
 							return policiesToBeAdded, rolesChanged, err
