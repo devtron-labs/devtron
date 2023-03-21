@@ -1266,8 +1266,8 @@ func (handler PipelineConfigRestHandlerImpl) GetCiPipelineByEnvironment(w http.R
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	_, span := otel.Tracer("orchestrator").Start(context.Background(), "ciHandler.FetchCiPipelinesForAppGrouping")
-	ciConf, err := handler.pipelineBuilder.GetCiPipelineByEnvironment(envId, userEmailId, handler.checkAuthBatch)
+	_, span := otel.Tracer("orchestrator").Start(r.Context(), "ciHandler.FetchCiPipelinesForAppGrouping")
+	ciConf, err := handler.pipelineBuilder.GetCiPipelineByEnvironment(envId, userEmailId, handler.checkAuthBatch, r.Context())
 	span.End()
 	if err != nil {
 		handler.Logger.Errorw("service err, GetCiPipeline", "err", err, "envId", envId)

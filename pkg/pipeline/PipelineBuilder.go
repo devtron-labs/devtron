@@ -136,7 +136,7 @@ type PipelineBuilder interface {
 	IsGitOpsRequiredForCD(pipelineCreateRequest *bean.CdPipelines) bool
 	SetPipelineDeploymentAppType(pipelineCreateRequest *bean.CdPipelines, isGitOpsConfigured bool)
 	MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(appId int, envId int, acdToken string, pipeline *pipelineConfig.Pipeline) (bool, error)
-	GetCiPipelineByEnvironment(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*bean.CiConfigRequest, error)
+	GetCiPipelineByEnvironment(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) ([]*bean.CiConfigRequest, error)
 	GetCdPipelinesByEnvironment(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) (cdPipelines *bean.CdPipelines, err error)
 	GetExternalCiByEnvironment(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) (ciConfig []*bean.ExternalCiConfig, err error)
 	GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) (*cluster.AppGroupingResponse, error)
@@ -3553,7 +3553,7 @@ func (impl PipelineBuilderImpl) MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDelete
 	return acdAppFound, nil
 }
 
-func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*bean.CiConfigRequest, error) {
+func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) ([]*bean.CiConfigRequest, error) {
 	cdPipelines, err := impl.pipelineRepository.FindActiveByEnvId(envId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error fetching pipelines for env id", "err", err)
@@ -3595,7 +3595,8 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int, emailId st
 
 	ciConfigs := make([]*bean.CiConfigRequest, 0)
 	var ciPipelineResp []*bean.CiPipeline
-	_, span := otel.Tracer("orchestrator").Start(context.Background(), "ciHandler.GetCiTemplateVariables")
+	_, span := otel.Tracer("orchestrator").Start(ctx, "ciHandler.GetCiTemplateVariables")
+	defer span.End()
 	for _, appId := range appIds {
 		ciConfig, err := impl.getCiTemplateVariables(appId)
 		if err != nil {
@@ -3709,7 +3710,6 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int, emailId st
 		ciConfig.CiPipelines = ciPipelineResp
 		ciConfigs = append(ciConfigs, ciConfig)
 	}
-	span.End()
 	//--------pipeline population end
 	return ciConfigs, err
 }
@@ -3773,7 +3773,7 @@ func (impl PipelineBuilderImpl) GetCdPipelinesByEnvironment(envId int, emailId s
 			pipelineDeploymentTemplate[item.PipelineId] = item.Strategy
 		}
 	}
-	appWorkflowMappings, err := impl.appWorkflowRepository.FindWFCDMappingByCDPipelineIds(pipelineIds)
+	appWorkflowMappings, err := impl.appWorkflowRepository.FindByCDPipelineIds(pipelineIds)
 	if err != nil {
 		impl.logger.Errorw("error in fetching workflows", "err", err)
 		return nil, err

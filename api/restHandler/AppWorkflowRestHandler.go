@@ -18,7 +18,6 @@
 package restHandler
 
 import (
-	"context"
 	"encoding/json"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -241,7 +240,7 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflowByEnvironment(w http.Respo
 		return
 	}
 	workflows := make(map[string]interface{})
-	_, span := otel.Tracer("orchestrator").Start(context.Background(), "ciHandler.FetchAppWorkflowsInAppGrouping")
+	_, span := otel.Tracer("orchestrator").Start(r.Context(), "ciHandler.FetchAppWorkflowsInAppGrouping")
 	workflowsList, err := impl.appWorkflowService.FindAppWorkflowsByEnvironmentId(envId, userEmailId, impl.checkAuthBatch)
 	span.End()
 	if err != nil {

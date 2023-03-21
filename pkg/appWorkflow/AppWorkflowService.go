@@ -48,7 +48,7 @@ type AppWorkflowService interface {
 	FindAppWorkflowByName(name string, appId int) (AppWorkflowDto, error)
 
 	FindAllWorkflowsComponentDetails(appId int) (*AllAppWorkflowComponentDetails, error)
-	FindAppWorkflowsByEnvironmentId(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]AppWorkflowDto, error)
+	FindAppWorkflowsByEnvironmentId(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*AppWorkflowDto, error)
 }
 
 type AppWorkflowServiceImpl struct {
@@ -301,8 +301,8 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowMapping(workflowId int) ([]App
 	return workflows, err
 }
 
-func (impl AppWorkflowServiceImpl) FindAppWorkflowMappingForEnv(workflowIds []int) (map[int][]AppWorkflowMappingDto, error) {
-	appWorkflowMappings, err := impl.appWorkflowRepository.FindByWorkflowIds(workflowIds)
+func (impl AppWorkflowServiceImpl) FindAppWorkflowMappingForEnv(appIds []int) (map[int]*AppWorkflowDto, error) {
+	appWorkflowMappings, err := impl.appWorkflowRepository.FindMappingByAppIds(appIds)
 	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("err", err)
 		return nil, err
@@ -322,8 +322,15 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowMappingForEnv(workflowIds []in
 	for _, pipeline := range pipelines {
 		pipelineMap[pipeline.Id] = pipeline
 	}
-	workflows := make(map[int][]AppWorkflowMappingDto)
+	workflowMappings := make(map[int][]AppWorkflowMappingDto)
+	workflows := make(map[int]*AppWorkflowDto)
 	for _, w := range appWorkflowMappings {
+		if _, ok := workflows[w.AppWorkflowId]; !ok {
+			workflows[w.AppWorkflowId] = &AppWorkflowDto{
+				Id:    w.AppWorkflowId,
+				AppId: w.AppWorkflow.AppId,
+			}
+		}
 		workflow := AppWorkflowMappingDto{
 			Id:            w.Id,
 			ParentId:      w.ParentId,
@@ -335,7 +342,8 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowMappingForEnv(workflowIds []in
 		if w.Type == "CD_PIPELINE" {
 			workflow.DeploymentAppDeleteRequest = pipelineMap[w.ComponentId].DeploymentAppDeleteRequest
 		}
-		workflows[w.AppWorkflowId] = append(workflows[w.AppWorkflowId], workflow)
+		workflowMappings[w.AppWorkflowId] = append(workflowMappings[w.AppWorkflowId], workflow)
+		workflows[w.AppWorkflowId].AppWorkflowMappingDto = workflowMappings[w.AppWorkflowId]
 	}
 	return workflows, err
 }
@@ -437,8 +445,8 @@ func (impl AppWorkflowServiceImpl) FindAllWorkflowsComponentDetails(appId int) (
 	return resp, nil
 }
 
-func (impl AppWorkflowServiceImpl) FindAppWorkflowsByEnvironmentId(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]AppWorkflowDto, error) {
-	workflows := make([]AppWorkflowDto, 0)
+func (impl AppWorkflowServiceImpl) FindAppWorkflowsByEnvironmentId(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*AppWorkflowDto, error) {
+	workflows := make([]*AppWorkflowDto, 0)
 	pipelines, err := impl.pipelineRepository.FindActiveByEnvId(envId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("error fetching pipelines for env id", "err", err)
@@ -481,31 +489,15 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowsByEnvironmentId(envId int, em
 		impl.Logger.Warnw("there is no app id found for fetching app workflows", "envId", envId)
 		return workflows, nil
 	}
-	appWorkflows, err := impl.appWorkflowRepository.FindByAppIds(appIds)
-	if err != nil && err != pg.ErrNoRows {
-		impl.Logger.Errorw("error fetching app workflows by app ids", "err", err)
-		return nil, err
-	}
-	var workflowIds []int
-	for _, appWorkflow := range appWorkflows {
-		workflowIds = append(workflowIds, appWorkflow.Id)
-	}
-	if len(workflowIds) == 0 {
-		return workflows, fmt.Errorf("no app workflow found for this environment")
-	}
-	appWorkflowMapping, err := impl.FindAppWorkflowMappingForEnv(workflowIds)
+	appWorkflows, err := impl.FindAppWorkflowMappingForEnv(appIds)
 	if err != nil {
 		impl.Logger.Errorw("error fetching app workflow mapping by wf id", "err", err)
 		return nil, err
 	}
-	for _, w := range appWorkflows {
-		appName := appNamesMap[w.AppId]
-		workflow := AppWorkflowDto{
-			Id:    w.Id,
-			Name:  appName, // here workflow name is app name, only for environment app grouping view
-			AppId: w.AppId,
-		}
-		mappings := appWorkflowMapping[w.Id]
+	for _, appWorkflow := range appWorkflows {
+		appName := appNamesMap[appWorkflow.AppId]
+		appWorkflow.Name = appName
+		mappings := appWorkflow.AppWorkflowMappingDto
 		valid := false
 		for _, mapping := range mappings {
 			if mapping.Type == CD_PIPELINE_TYPE {
@@ -516,8 +508,7 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowsByEnvironmentId(envId int, em
 		}
 		//if there is no matching pipeline for requested environment, skip from workflow listing
 		if valid {
-			workflow.AppWorkflowMappingDto = mappings
-			workflows = append(workflows, workflow)
+			workflows = append(workflows, appWorkflow)
 		}
 	}
 	return workflows, err
