@@ -1,4 +1,4 @@
-name: Sync issue to Azure DevOps work item
+name: Sync issue to Azure DevOps work item (testing)
 
 on:
   issues:

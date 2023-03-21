@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'scripts/devtron-reference-helm-charts/**'
+      - 'charts/devtron/**'
 jobs:
   helm-lint_and_helm-template:
     runs-on: ubuntu-latest
@@ -18,6 +19,7 @@ jobs:
         filters: |
           charts:
             - added|modified: 'scripts/devtron-reference-helm-charts/**/templates/**'
+            - added|modified: 'charts/devtron/**/templates/**'
     - run: echo ${{ steps.filter.outputs.charts }}
     - uses: actions/setup-python@v2
     - uses: jannekem/run-python-script-action@v1
