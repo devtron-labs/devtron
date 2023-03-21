@@ -35,6 +35,7 @@
 - docs: added K8s client doc (#3028)
 - docs: doc for GCP external secret (#3029)
 ## Others
+- chore: Helm lint mechanism and azure ADO sync github action (#3138)
 - chore:  enterprise-repo-sync.yaml (#3127)
 - task: restricted deployment status updation cron to fetch pipelines deployed within hours (#3104)
 - chore: upgrade common-lib dependency (#3052)
