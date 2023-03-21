@@ -94,6 +94,7 @@ func (impl *GitCliUtil) Init(rootDir string, remoteUrl string, isBare bool) erro
 	//-----------------
 	start := time.Now()
 	err := os.RemoveAll(rootDir)
+	defer util.TriggerGitOpsMetrics("Init", "GitCli", start, err)
 	if err != nil {
 		impl.logger.Errorw("error in cleaning rootDir", "err", err)
 		return err
@@ -110,7 +111,6 @@ func (impl *GitCliUtil) Init(rootDir string, remoteUrl string, isBare bool) erro
 		Name: git.DefaultRemoteName,
 		URLs: []string{remoteUrl},
 	})
-	defer util.TriggerGitOpsMetrics("Init", "GitCli", start, err)
 	return err
 }
 
@@ -118,6 +118,7 @@ func (impl *GitCliUtil) Clone(rootDir string, remoteUrl string, username string,
 	start := time.Now()
 	impl.logger.Infow("git clone request", "rootDir", rootDir, "remoteUrl", remoteUrl, "username", username)
 	err = impl.Init(rootDir, remoteUrl, false)
+	defer util.TriggerGitOpsMetrics("Clone", "GitCli", start, err)
 	if err != nil {
 		return "", "", err
 	}
@@ -151,6 +152,5 @@ func (impl *GitCliUtil) Clone(rootDir string, remoteUrl string, username string,
 			return response, errMsg, err
 		}
 	}
-	defer util.TriggerGitOpsMetrics("Clone", "GitCli", start, err)
 	return response, errMsg, err
 }

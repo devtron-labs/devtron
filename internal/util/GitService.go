@@ -153,13 +153,13 @@ func (factory *GitFactory) NewClientForValidation(gitOpsConfig *bean2.GitOpsConf
 	gitService := NewGitServiceImpl(cfg, logger, factory.gitCliUtil)
 	//factory.gitService = gitService
 	client, err := NewGitOpsClient(cfg, logger, gitService, factory.gitOpsRepository)
+	defer util.TriggerGitOpsMetrics("NewClientForValidation", "GitService", start, err)
 	if err != nil {
 		return client, gitService, err
 	}
 
 	//factory.Client = client
 	logger.Infow("client changed successfully", "cfg", cfg)
-	defer util.TriggerGitOpsMetrics("NewClientForValidation", "GitService", start, err)
 	return client, gitService, nil
 }
 
@@ -299,6 +299,7 @@ func (impl GitServiceImpl) Clone(url, targetDir string) (clonedDir string, err e
 	impl.logger.Debugw("git checkout ", "url", url, "dir", targetDir)
 	clonedDir = filepath.Join(impl.config.GitWorkingDir, targetDir)
 	_, errorMsg, err := impl.gitCliUtil.Clone(clonedDir, url, impl.Auth.Username, impl.Auth.Password)
+	defer util.TriggerGitOpsMetrics("Clone", "GitService", start, err)
 	if err != nil {
 		impl.logger.Errorw("error in git checkout", "url", url, "targetDir", targetDir, "err", err)
 		return "", err
@@ -306,13 +307,13 @@ func (impl GitServiceImpl) Clone(url, targetDir string) (clonedDir string, err e
 	if errorMsg != "" {
 		return "", fmt.Errorf(errorMsg)
 	}
-	defer util.TriggerGitOpsMetrics("Clone", "GitService", start, err)
 	return clonedDir, nil
 }
 
 func (impl GitServiceImpl) CommitAndPushAllChanges(repoRoot, commitMsg, name, emailId string) (commitHash string, err error) {
 	start := time.Now()
 	repo, workTree, err := impl.getRepoAndWorktree(repoRoot)
+	defer util.TriggerGitOpsMetrics("CommitAndPushAllChanges", "GitService", start, err)
 	if err != nil {
 		return "", err
 	}
@@ -341,24 +342,24 @@ func (impl GitServiceImpl) CommitAndPushAllChanges(repoRoot, commitMsg, name, em
 	err = repo.Push(&git.PushOptions{
 		Auth: impl.Auth,
 	})
-	defer util.TriggerGitOpsMetrics("CommitAndPushAllChanges", "GitService", start, err)
 	return commit.String(), err
 }
 
 func (impl GitServiceImpl) getRepoAndWorktree(repoRoot string) (*git.Repository, *git.Worktree, error) {
 	start := time.Now()
 	r, err := git.PlainOpen(repoRoot)
+	defer util.TriggerGitOpsMetrics("getRepoAndWorktree", "GitService", start, err)
 	if err != nil {
 		return nil, nil, err
 	}
 	w, err := r.Worktree()
-	defer util.TriggerGitOpsMetrics("getRepoAndWorktree", "GitService", start, err)
 	return r, w, err
 }
 
 func (impl GitServiceImpl) ForceResetHead(repoRoot string) (err error) {
 	start := time.Now()
 	_, workTree, err := impl.getRepoAndWorktree(repoRoot)
+	defer util.TriggerGitOpsMetrics("ForceResetHead", "GitService", start, err)
 	if err != nil {
 		return err
 	}
@@ -371,7 +372,6 @@ func (impl GitServiceImpl) ForceResetHead(repoRoot string) (err error) {
 		Force:        true,
 		SingleBranch: true,
 	})
-	defer util.TriggerGitOpsMetrics("ForceResetHead", "GitService", start, err)
 	return err
 }
 
@@ -379,6 +379,7 @@ func (impl GitServiceImpl) CommitValues(config *ChartConfig) (commitHash string,
 	//TODO acquire lock
 	start := time.Now()
 	gitDir := filepath.Join(impl.config.GitWorkingDir, config.ChartName)
+	defer util.TriggerGitOpsMetrics("CommitValues", "GitService", start, err)
 	if err != nil {
 		return "", err
 	}
@@ -387,13 +388,13 @@ func (impl GitServiceImpl) CommitValues(config *ChartConfig) (commitHash string,
 		return "", err
 	}
 	hash, err := impl.CommitAndPushAllChanges(gitDir, config.ReleaseMessage, "devtron bot", "devtron-bot@devtron.ai")
-	defer util.TriggerGitOpsMetrics("CommitValues", "GitService", start, err)
 	return hash, err
 }
 
 func (impl GitServiceImpl) Pull(repoRoot string) (err error) {
 	start := time.Now()
 	_, workTree, err := impl.getRepoAndWorktree(repoRoot)
+	defer util.TriggerGitOpsMetrics("Pull", "GitService", start, err)
 	if err != nil {
 		return err
 	}
@@ -405,6 +406,5 @@ func (impl GitServiceImpl) Pull(repoRoot string) (err error) {
 		err = nil
 		return nil
 	}
-	defer util.TriggerGitOpsMetrics("Pull", "GitService", start, err)
 	return err
 }
