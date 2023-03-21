@@ -401,7 +401,7 @@
             "type": "object",
             "description": "used to configure some options for HPA",
             "title": "annotations"
-          },                  
+          },
           "extraMetrics": {
             "type": "array",
             "items": {},
@@ -430,7 +430,7 @@
             "items": {},
             "description": "contains the working directory",
             "title": "Working directory"
-          }                    
+          }
         }
       },
       "containerSecurityContext": {
@@ -602,7 +602,7 @@
             "description": "labels for ingress",
             "title": "Ingress labels",
             "default": ""
-          },           
+          },
           "enabled": {
             "type": "boolean",
             "description": "used to enable or disable ingress",
