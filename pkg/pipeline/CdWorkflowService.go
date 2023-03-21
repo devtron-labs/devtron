@@ -552,6 +552,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		}
 	}
 
+	// Adding external config map reference in workflow template
 	for _, cm := range existingConfigMap.Maps {
 		if _, ok := cdPipelineLevelConfigMaps[cm.Name]; ok {
 			if cm.External {
@@ -565,7 +566,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 					})
 				} else if cm.Type == "volume" {
 					cdTemplate.Container.VolumeMounts = append(cdTemplate.Container.VolumeMounts, v12.VolumeMount{
-						Name:      cm.Name + "-vol",
+						Name:      cm.Name,
 						MountPath: cm.MountPath,
 					})
 				}
@@ -590,6 +591,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		}
 	}
 
+	// Adding external secret reference in workflow template
 	for _, s := range existingSecrets.Secrets {
 		if s.External {
 			if s.Type == "environment" {
@@ -602,7 +604,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 				})
 			} else if s.Type == "volume" {
 				cdTemplate.Container.VolumeMounts = append(cdTemplate.Container.VolumeMounts, v12.VolumeMount{
-					Name:      s.Name + "-vol",
+					Name:      s.Name,
 					MountPath: s.MountPath,
 				})
 			}
