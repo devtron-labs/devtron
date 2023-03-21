@@ -20,7 +20,8 @@ package app
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -49,13 +50,13 @@ type AppCrudOperationService interface {
 type AppCrudOperationServiceImpl struct {
 	logger                 *zap.SugaredLogger
 	appLabelRepository     pipelineConfig.AppLabelRepository
-	appRepository          app.AppRepository
+	appRepository          appRepository.AppRepository
 	userRepository         repository.UserRepository
 	installedAppRepository repository2.InstalledAppRepository
 }
 
 func NewAppCrudOperationServiceImpl(appLabelRepository pipelineConfig.AppLabelRepository,
-	logger *zap.SugaredLogger, appRepository app.AppRepository, userRepository repository.UserRepository, installedAppRepository repository2.InstalledAppRepository) *AppCrudOperationServiceImpl {
+	logger *zap.SugaredLogger, appRepository appRepository.AppRepository, userRepository repository.UserRepository, installedAppRepository repository2.InstalledAppRepository) *AppCrudOperationServiceImpl {
 	return &AppCrudOperationServiceImpl{
 		appLabelRepository:     appLabelRepository,
 		logger:                 logger,
@@ -104,6 +105,7 @@ func (impl AppCrudOperationServiceImpl) UpdateApp(request *bean.CreateAppDTO) (*
 		impl.logger.Errorw("error in fetching app", "error", err)
 		return nil, err
 	}
+	app.Description = request.Description
 	app.TeamId = request.TeamId
 	app.UpdatedOn = time.Now()
 	app.UpdatedBy = request.UserId
@@ -313,15 +315,20 @@ func (impl AppCrudOperationServiceImpl) GetAppMetaInfo(appId int) (*bean.AppMeta
 			userEmailId = fmt.Sprintf("%s (inactive)", user.EmailId)
 		}
 	}
+	appName := app.AppName
+	if app.AppType == helper.Job {
+		appName = app.DisplayName
+	}
 	info := &bean.AppMetaInfoDto{
 		AppId:       app.Id,
-		AppName:     app.AppName,
+		AppName:     appName,
 		ProjectId:   app.TeamId,
 		ProjectName: app.Team.Name,
 		CreatedBy:   userEmailId,
 		CreatedOn:   app.CreatedOn,
 		Labels:      labels,
 		Active:      app.Active,
+		Description: app.Description,
 	}
 	return info, nil
 }
@@ -331,7 +338,7 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.
 	// adding separate function for helm apps because for CLI helm apps, apps can be of form "1|clusterName|releaseName"
 	// In this case app details can be fetched using app name / release Name.
 	appIdSplitted := strings.Split(appId, "|")
-	app := &app.App{}
+	app := &appRepository.App{}
 	var err error
 	impl.logger.Info("request payload, appId", appId)
 	if len(appIdSplitted) > 1 {
