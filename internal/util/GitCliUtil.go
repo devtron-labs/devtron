@@ -27,7 +27,9 @@ const Branch_Master = "master"
 
 func (impl *GitCliUtil) Fetch(rootDir string, username string, password string) (response, errMsg string, err error) {
 	start := time.Now()
-	defer util.TriggerGitOpsMetrics("Fetch", "GitCli", start, err)
+	defer func() {
+		util.TriggerGitOpsMetrics("Fetch", "GitCli", start, err)
+	}()
 	impl.logger.Debugw("git fetch ", "location", rootDir)
 	cmd := exec.Command("git", "-C", rootDir, "fetch", "origin", "--tags", "--force")
 	output, errMsg, err := impl.runCommandWithCred(cmd, username, password)
@@ -37,7 +39,9 @@ func (impl *GitCliUtil) Fetch(rootDir string, username string, password string) 
 
 func (impl *GitCliUtil) Pull(rootDir string, username string, password string, branch string) (response, errMsg string, err error) {
 	start := time.Now()
-	defer util.TriggerGitOpsMetrics("Pull", "GitCli", start, err)
+	defer func() {
+		util.TriggerGitOpsMetrics("Pull", "GitCli", start, err)
+	}()
 	impl.logger.Debugw("git pull ", "location", rootDir)
 	cmd := exec.Command("git", "-C", rootDir, "pull", "origin", branch, "--force")
 	output, errMsg, err := impl.runCommandWithCred(cmd, username, password)
@@ -47,7 +51,9 @@ func (impl *GitCliUtil) Pull(rootDir string, username string, password string, b
 
 func (impl *GitCliUtil) Checkout(rootDir string, branch string) (response, errMsg string, err error) {
 	start := time.Now()
-	defer util.TriggerGitOpsMetrics("Checkout", "GitCli", start, err)
+	defer func() {
+		util.TriggerGitOpsMetrics("Checkout", "GitCli", start, err)
+	}()
 	impl.logger.Debugw("git checkout ", "location", rootDir)
 	cmd := exec.Command("git", "-C", rootDir, "checkout", branch, "--force")
 	output, errMsg, err := impl.runCommand(cmd)
@@ -57,7 +63,9 @@ func (impl *GitCliUtil) Checkout(rootDir string, branch string) (response, errMs
 
 func (impl *GitCliUtil) ListBranch(rootDir string, username string, password string) (response, errMsg string, err error) {
 	start := time.Now()
-	defer util.TriggerGitOpsMetrics("ListBranch", "GitCli", start, err)
+	defer func() {
+		util.TriggerGitOpsMetrics("ListBranch", "GitCli", start, err)
+	}()
 	impl.logger.Debugw("git branch ", "location", rootDir)
 	cmd := exec.Command("git", "-C", rootDir, "branch", "-r")
 	output, errMsg, err := impl.runCommandWithCred(cmd, username, password)
@@ -94,7 +102,9 @@ func (impl *GitCliUtil) Init(rootDir string, remoteUrl string, isBare bool) erro
 	//-----------------
 	start := time.Now()
 	var err error
-	defer util.TriggerGitOpsMetrics("Init", "GitCli", start, err)
+	defer func() {
+		util.TriggerGitOpsMetrics("Init", "GitCli", start, err)
+	}()
 	err = os.RemoveAll(rootDir)
 	if err != nil {
 		impl.logger.Errorw("error in cleaning rootDir", "err", err)
@@ -117,7 +127,9 @@ func (impl *GitCliUtil) Init(rootDir string, remoteUrl string, isBare bool) erro
 
 func (impl *GitCliUtil) Clone(rootDir string, remoteUrl string, username string, password string) (response, errMsg string, err error) {
 	start := time.Now()
-	defer util.TriggerGitOpsMetrics("Clone", "GitCli", start, err)
+	defer func() {
+		util.TriggerGitOpsMetrics("Clone", "GitCli", start, err)
+	}()
 	impl.logger.Infow("git clone request", "rootDir", rootDir, "remoteUrl", remoteUrl, "username", username)
 	err = impl.Init(rootDir, remoteUrl, false)
 	if err != nil {
