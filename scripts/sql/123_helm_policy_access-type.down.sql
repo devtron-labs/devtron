@@ -127,13 +127,6 @@ ALTER TABLE "public"."default_auth_policy"
 DROP COLUMN entity;
 
 
-UPDATE "public"."roles"
-SET entity = NULL
-WHERE access_type ='helm-app' ;
-
-UPDATE "public"."roles"
-SET entity = NULL, access_type = NULL
-WHERE access_type = 'devtron-app' AND entity = 'apps' AND (action = 'view' OR action = 'trigger' OR action = 'manager' OR action = 'admin');
 
 
 
