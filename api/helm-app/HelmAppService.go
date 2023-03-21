@@ -77,6 +77,7 @@ type HelmAppServiceImpl struct {
 	installedAppRepository               repository.InstalledAppRepository
 	appRepository                        app.AppRepository
 	clusterRepository                    clusterRepository.ClusterRepository
+	K8sUtil                              *util.K8sUtil
 }
 
 func NewHelmAppServiceImpl(Logger *zap.SugaredLogger,
@@ -84,7 +85,7 @@ func NewHelmAppServiceImpl(Logger *zap.SugaredLogger,
 	helmAppClient HelmAppClient,
 	pump connector.Pump, enforcerUtil rbac.EnforcerUtilHelm, serverDataStore *serverDataStore.ServerDataStore,
 	serverEnvConfig *serverEnvConfig.ServerEnvConfig, appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
-	environmentService cluster.EnvironmentService, pipelineRepository pipelineConfig.PipelineRepository, installedAppRepository repository.InstalledAppRepository, appRepository app.AppRepository, clusterRepository clusterRepository.ClusterRepository) *HelmAppServiceImpl {
+	environmentService cluster.EnvironmentService, pipelineRepository pipelineConfig.PipelineRepository, installedAppRepository repository.InstalledAppRepository, appRepository app.AppRepository, clusterRepository clusterRepository.ClusterRepository, K8sUtil *util.K8sUtil) *HelmAppServiceImpl {
 	return &HelmAppServiceImpl{
 		logger:                               Logger,
 		clusterService:                       clusterService,
@@ -99,6 +100,7 @@ func NewHelmAppServiceImpl(Logger *zap.SugaredLogger,
 		installedAppRepository:               installedAppRepository,
 		appRepository:                        appRepository,
 		clusterRepository:                    clusterRepository,
+		K8sUtil:                              K8sUtil,
 	}
 }
 
@@ -691,11 +693,21 @@ func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChart
 		}
 		return nil, clusterNotFoundErr
 	}
-
+	discoveryClient, err := impl.K8sUtil.GetK8sDiscoveryClientInCluster()
+	if err != nil {
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		return nil, err
+	}
+	k8sServerVersion, err := discoveryClient.ServerVersion()
+	if err != nil {
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		return nil, err
+	}
 	installReleaseRequest := &InstallReleaseRequest{
 		ChartName:    appStoreAppVersion.Name,
 		ChartVersion: appStoreAppVersion.Version,
 		ValuesYaml:   *templateChartRequest.ValuesYaml,
+		K8SVersion:   k8sServerVersion.String(),
 		ChartRepository: &ChartRepository{
 			Name:     appStoreAppVersion.AppStore.ChartRepo.Name,
 			Url:      appStoreAppVersion.AppStore.ChartRepo.Url,
