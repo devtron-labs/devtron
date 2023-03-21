@@ -1,4 +1,5 @@
 ## Bugs
+- fix: onlyDevtronCharts flag changed type from boolean to integer (#3161)
 - fix: Optimize app grouping apis (#3125)
 - fix: log api panic (#3156)
 - fix: kubernetes external secret not accessible (#3143)
