@@ -1,4 +1,5 @@
 ## Bugs
+- fix:notes.txt throws error when charts require special KubeVersion (#3170)
 - fix: Gitops validate and update with empty token (#3168)
 - fix:Manifest output throws error when charts require special KubeVersion (#3162)
 - fix: onlyDevtronCharts flag changed type from boolean to integer (#3161)
