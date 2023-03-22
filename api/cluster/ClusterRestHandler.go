@@ -138,7 +138,7 @@ func (impl ClusterRestHandlerImpl) SaveClusters(w http.ResponseWriter, r *http.R
 	result := []cluster.ClusterBean{}
 	for _, bean := range beans {
 		res, err := impl.clusterService.Save(ctx, &bean, userId)
-		if err != nil {
+		if res == nil || err != nil {
 			bean.ValidationAndSavingMessage = "Error in Saving the cluster"
 			result = append(result, bean)
 		} else {
