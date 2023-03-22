@@ -25,6 +25,5 @@ docs/
 developers-guide/
 manifests/
 scripts/argo-assets/
-scripts/dev-conf/
 scripts/sql/
 specs/
