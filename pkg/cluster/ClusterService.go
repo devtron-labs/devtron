@@ -188,7 +188,20 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) ([]Cluster
 	if err != nil {
 		impl.logger.Errorw("error in decoding kubeConfigObject", "kubeConfigObject", kubeConfigObject)
 	}
+
 	var clusterBeanObjects []ClusterBean
+
+	clusterList, err := impl.FindAllWithoutConfig()
+	if err != nil {
+		impl.logger.Errorw("service err, FindAll", "err", err)
+		return clusterBeanObjects, err
+	}
+
+	clusterNames := make(map[string]string)
+	for _, item := range clusterList {
+		var clusterName = item.ClusterName
+		clusterNames[clusterName] = ""
+	}
 
 	for _, ctx := range kubeConfigObject.Contexts {
 		var clusterBeanObject ClusterBean
@@ -199,25 +212,27 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) ([]Cluster
 
 		if clusterName == "" {
 			clusterBeanObject.ValidationAndSavingMessage = "cluster name missing from the kubeconfig"
+		} else if _, ok := clusterNames[clusterName]; ok {
+			clusterBeanObject.ValidationAndSavingMessage = "cluster already exists"
 		} else {
 			clusterBeanObject.ClusterName = clusterName
 		}
 
-		if clusterObj == nil || clusterObj.Server == "" {
+		if (clusterObj == nil || clusterObj.Server == "") && (clusterBeanObject.ValidationAndSavingMessage == "") {
 			clusterBeanObject.ValidationAndSavingMessage = "server url missing from the kubeconfig"
 		} else {
 			clusterBeanObject.ServerUrl = clusterObj.Server
 		}
 
-		if userInfo == "" {
+		if (userInfo == "") && (clusterBeanObject.ValidationAndSavingMessage == "") {
 			clusterBeanObject.ValidationAndSavingMessage = "user info missing from the kubeconfig"
 		} else {
 			clusterBeanObject.UserName = userInfo
 		}
 
-		clusterBeanObject.Config = map[string]string{}
+		clusterBeanObject.Config = make(map[string]string)
 
-		if userInfoObj == nil || userInfoObj.Token == "" {
+		if (userInfoObj == nil || userInfoObj.Token == "") && (clusterBeanObject.ValidationAndSavingMessage == "") {
 			clusterBeanObject.ValidationAndSavingMessage = "token missing from the kubeconfig"
 		} else {
 			clusterBeanObject.Config["bearer_token"] = userInfoObj.Token
@@ -227,7 +242,7 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) ([]Cluster
 		}
 
 		if clusterObj.InsecureSkipTLSVerify {
-			if clusterObj.TLSServerName == "" || clusterObj.CertificateAuthority == "" || string(clusterObj.CertificateAuthorityData) == "" {
+			if (clusterObj.TLSServerName == "" || clusterObj.CertificateAuthority == "" || string(clusterObj.CertificateAuthorityData) == "") && (clusterBeanObject.ValidationAndSavingMessage == "") {
 				clusterBeanObject.ValidationAndSavingMessage = "InsecureSkipTLSVerify is true but the  data required corresponding to it is missing from the kubeconfig"
 			} else {
 				clusterBeanObject.Config["tls_key"] = clusterObj.TLSServerName
