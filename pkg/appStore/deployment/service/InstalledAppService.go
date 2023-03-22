@@ -113,6 +113,7 @@ type InstalledAppServiceImpl struct {
 	helmAppService                       client.HelmAppService
 	attributesRepository                 repository3.AttributesRepository
 	appStatusService                     appStatus.AppStatusService
+	K8sUtil                              *util.K8sUtil
 }
 
 func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
@@ -134,7 +135,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	installedAppRepositoryHistory repository2.InstalledAppVersionHistoryRepository,
 	argoUserService argo.ArgoUserService, helmAppClient client.HelmAppClient, helmAppService client.HelmAppService,
 	attributesRepository repository3.AttributesRepository,
-	appStatusService appStatus.AppStatusService) (*InstalledAppServiceImpl, error) {
+	appStatusService appStatus.AppStatusService, K8sUtil *util.K8sUtil) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -164,6 +165,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		helmAppService:                       helmAppService,
 		attributesRepository:                 attributesRepository,
 		appStatusService:                     appStatusService,
+		K8sUtil:                              K8sUtil,
 	}
 	err := impl.Subscribe()
 	if err != nil {
@@ -796,11 +798,22 @@ func (impl *InstalledAppServiceImpl) FindNotesForArgoApplication(installedAppId,
 			impl.logger.Errorw("error fetching app store app version in installed app service", "err", err)
 			return notes, appName, err
 		}
+		discoveryClient, err := impl.K8sUtil.GetK8sDiscoveryClientInCluster()
+		if err != nil {
+			impl.logger.Errorw("eexception caught in getting discoveryClient", "err", err)
+			return notes, appName, err
+		}
+		k8sServerVersion, err := discoveryClient.ServerVersion()
+		if err != nil {
+			impl.logger.Errorw("exception caught in getting k8sServerVersion", "err", err)
+			return notes, appName, err
+		}
 
 		installReleaseRequest := &client.InstallReleaseRequest{
 			ChartName:    appStoreAppVersion.Name,
 			ChartVersion: appStoreAppVersion.Version,
 			ValuesYaml:   installedAppVerison.ValuesYaml,
+			K8SVersion:   k8sServerVersion.String(),
 			ChartRepository: &client.ChartRepository{
 				Name:     appStoreAppVersion.AppStore.ChartRepo.Name,
 				Url:      appStoreAppVersion.AppStore.ChartRepo.Url,
