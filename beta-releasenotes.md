@@ -1,4 +1,5 @@
 ## Bugs
+- fix:Manifest output throws error when charts require special KubeVersion (#3162)
 - fix: onlyDevtronCharts flag changed type from boolean to integer (#3161)
 - fix: Optimize app grouping apis (#3125)
 - fix: log api panic (#3156)
