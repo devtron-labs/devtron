@@ -19,6 +19,11 @@ func (_m *PipelineRepository) FindActiveByAppIds(appIds []int) (pipelines []*pip
 	return nil, err
 }
 
+func (_m *PipelineRepository) FindAppAndEnvironmentAndProjectByPipelineIds(pipelineIds []int) (pipelines []*pipelineConfig.Pipeline, err error) {
+	//
+	return nil, err
+}
+
 // Delete provides a mock function with given fields: id, tx
 func (_m *PipelineRepository) Delete(id int, tx *pg.Tx) error {
 	ret := _m.Called(id, tx)
@@ -654,7 +659,7 @@ func (_m *PipelineRepository) GetArgoPipelineByArgoAppName(argoAppName string) (
 }
 
 // GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatuses provides a mock function with given fields: deployedBeforeMinutes
-func (_m *PipelineRepository) GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatuses(deployedBeforeMinutes int) ([]*pipelineConfig.Pipeline, error) {
+func (_m *PipelineRepository) GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatuses(deployedBeforeMinutes int, pipelineStatusCheckDeployedSince int) ([]*pipelineConfig.Pipeline, error) {
 	ret := _m.Called(deployedBeforeMinutes)
 
 	var r0 []*pipelineConfig.Pipeline

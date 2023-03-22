@@ -33,10 +33,20 @@ var (
 	}, []string{"path", "method", "status"})
 )
 
+var PgQueryDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
+	Name: "pg_query_duration_seconds",
+	Help: "Duration of PG queries",
+}, []string{"label"})
+
 var CdDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 	Name: "cd_duration_seconds",
 	Help: "Duration of CD process",
 }, []string{"appName", "status", "envName", "deploymentType"})
+
+var GitOpsDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
+	Name: "git_ops_duration_seconds",
+	Help: "Duration of GitOps",
+}, []string{"operationName", "methodName", "status"})
 
 var CiDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 	Name:    "ci_duration_seconds",

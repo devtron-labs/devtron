@@ -87,6 +87,7 @@ type WorkflowWithArtifact struct {
 	CiArtifactId       int               `json:"ci_artifact_d"`
 	BlobStorageEnabled bool              `json:"blobStorageEnabled"`
 	CiBuildType        string            `json:"ci_build_type"`
+	IsArtifactUploaded bool              `json:"is_artifact_uploaded"`
 }
 
 type GitCommit struct {
@@ -158,7 +159,7 @@ func (impl *CiWorkflowRepositoryImpl) FindByStatusesIn(activeStatuses []string) 
 
 func (impl *CiWorkflowRepositoryImpl) FindByPipelineId(pipelineId int, offset int, limit int) ([]WorkflowWithArtifact, error) {
 	var wfs []WorkflowWithArtifact
-	queryTemp := "select cia.id as ci_artifact_id, cia.image, wf.*, u.email_id from ci_workflow wf left join users u on u.id = wf.triggered_by left join ci_artifact cia on wf.id = cia.ci_workflow_id where wf.ci_pipeline_id = ? order by wf.started_on desc offset ? limit ?;"
+	queryTemp := "select cia.id as ci_artifact_id, cia.image, cia.is_artifact_uploaded, wf.*, u.email_id from ci_workflow wf left join users u on u.id = wf.triggered_by left join ci_artifact cia on wf.id = cia.ci_workflow_id where wf.ci_pipeline_id = ? order by wf.started_on desc offset ? limit ?;"
 	_, err := impl.dbConnection.Query(&wfs, queryTemp, pipelineId, offset, limit)
 	if err != nil {
 		return nil, err
@@ -206,13 +207,12 @@ func (impl *CiWorkflowRepositoryImpl) UpdateWorkFlow(wf *CiWorkflow) error {
 }
 
 func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowByCiIds(pipelineId []int) (ciWorkflow []*CiWorkflow, err error) {
-	var workflow []*CiWorkflow
-	err = impl.dbConnection.Model(workflow).
+	err = impl.dbConnection.Model(&ciWorkflow).
 		Column("ci_workflow.*", "CiPipeline").
-		Where("ci_workflow.ci_pipeline_id = ? ", pg.In(pipelineId)).
+		Where("ci_workflow.ci_pipeline_id in (?) ", pg.In(pipelineId)).
 		Order("ci_workflow.started_on Desc").
 		Select()
-	return workflow, err
+	return ciWorkflow, err
 }
 
 func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowByArtifactId(ciArtifactId int) (ciWorkflow *CiWorkflow, err error) {
