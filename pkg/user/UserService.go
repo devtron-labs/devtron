@@ -1053,6 +1053,14 @@ func (impl UserServiceImpl) GetAllDetailedUsers() ([]bean.UserInfo, error) {
 	var response []bean.UserInfo
 	for _, model := range models {
 		isSuperAdmin, roleFilters, filterGroups := impl.getUserMetadata(&model)
+		for _, roleFilter := range roleFilters {
+			if roleFilter.Entity == "" {
+				roleFilter.Entity = "apps"
+			}
+			if roleFilter.Entity == "apps" && roleFilter.AccessType == "" {
+				roleFilter.AccessType = "devtron-app"
+			}
+		}
 		response = append(response, bean.UserInfo{
 			Id:          model.Id,
 			EmailId:     model.EmailId,
@@ -1492,6 +1500,14 @@ func (impl UserServiceImpl) GetRoleFiltersByGroupNames(groupNames []string) ([]b
 			continue
 		}
 		roleFilters = append(roleFilters, *v)
+	}
+	for _, roleFilter := range roleFilters {
+		if roleFilter.Entity == "" {
+			roleFilter.Entity = "apps"
+		}
+		if roleFilter.Entity == "apps" && roleFilter.AccessType == "" {
+			roleFilter.AccessType = "devtron-app"
+		}
 	}
 	return roleFilters, nil
 }

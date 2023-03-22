@@ -293,6 +293,14 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 			}
 		}
 	}
+	for _, roleFilter := range filteredRoleFilter {
+		if roleFilter.Entity == "" {
+			roleFilter.Entity = "apps"
+		}
+		if roleFilter.Entity == "apps" && roleFilter.AccessType == "" {
+			roleFilter.AccessType = "devtron-app"
+		}
+	}
 	res.RoleFilters = filteredRoleFilter
 	//RBAC enforcer Ends
 
