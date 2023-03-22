@@ -241,9 +241,9 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) ([]Cluster
 			clusterBeanObject.InsecureSkipTLSVerify = clusterObj.InsecureSkipTLSVerify
 		}
 
-		if clusterObj.InsecureSkipTLSVerify {
+		if !clusterObj.InsecureSkipTLSVerify {
 			if (clusterObj.TLSServerName == "" || clusterObj.CertificateAuthority == "" || string(clusterObj.CertificateAuthorityData) == "") && (clusterBeanObject.ValidationAndSavingMessage == "") {
-				clusterBeanObject.ValidationAndSavingMessage = "InsecureSkipTLSVerify is true but the  data required corresponding to it is missing from the kubeconfig"
+				clusterBeanObject.ValidationAndSavingMessage = "InsecureSkipTLSVerify is false but the  data required corresponding to it is missing from the kubeconfig"
 			} else {
 				clusterBeanObject.Config["tls_key"] = clusterObj.TLSServerName
 				clusterBeanObject.Config["tls_certificate"] = clusterObj.CertificateAuthority
