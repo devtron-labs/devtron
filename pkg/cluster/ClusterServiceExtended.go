@@ -340,6 +340,7 @@ func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterB
 		}
 
 		if !bean.InsecureSkipTLSVerify {
+			tlsConfig.ServerName = serverUrl
 			tlsConfig.KeyData = []byte(bean.Config["tls_key"])
 			tlsConfig.CertData = []byte(bean.Config["cert_data"])
 			tlsConfig.CAData = []byte(bean.Config["cert_auth_data"])
