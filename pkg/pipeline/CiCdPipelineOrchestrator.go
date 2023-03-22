@@ -699,11 +699,6 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 			if ciMaterial != nil && ciMaterial.GitMaterial != nil {
 				r.GitMaterialName = ciMaterial.GitMaterial.Name[strings.Index(ciMaterial.GitMaterial.Name, "-")+1:]
 			}
-			//if ciMaterial.Regex != "" {
-			//	r.IsRegex = true
-			//} else {
-			//	r.IsRegex = false
-			//}
 		}
 	}
 	return createRequest, nil
