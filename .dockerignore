@@ -24,6 +24,5 @@ charts/
 docs/
 developers-guide/
 manifests/
-scripts/argo-assets/
 scripts/sql/
 specs/
