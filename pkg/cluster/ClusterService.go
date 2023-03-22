@@ -246,8 +246,8 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) ([]Cluster
 				clusterBeanObject.ValidationAndSavingMessage = "InsecureSkipTLSVerify is false but the  data required corresponding to it is missing from the kubeconfig"
 			} else {
 				clusterBeanObject.Config["tls_key"] = clusterObj.TLSServerName
-				clusterBeanObject.Config["tls_certificate"] = clusterObj.CertificateAuthority
-				clusterBeanObject.Config["certificate_auth_data"] = string(clusterObj.CertificateAuthorityData)
+				clusterBeanObject.Config["cert_data"] = clusterObj.CertificateAuthority
+				clusterBeanObject.Config["cert_auth_data"] = string(clusterObj.CertificateAuthorityData)
 			}
 		}
 
