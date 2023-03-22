@@ -798,12 +798,7 @@ func (impl *InstalledAppServiceImpl) FindNotesForArgoApplication(installedAppId,
 			impl.logger.Errorw("error fetching app store app version in installed app service", "err", err)
 			return notes, appName, err
 		}
-		discoveryClient, err := impl.K8sUtil.GetK8sDiscoveryClientInCluster()
-		if err != nil {
-			impl.logger.Errorw("eexception caught in getting discoveryClient", "err", err)
-			return notes, appName, err
-		}
-		k8sServerVersion, err := discoveryClient.ServerVersion()
+		k8sServerVersion, err := impl.K8sUtil.GetKubeVersion()
 		if err != nil {
 			impl.logger.Errorw("exception caught in getting k8sServerVersion", "err", err)
 			return notes, appName, err
