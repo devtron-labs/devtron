@@ -260,9 +260,9 @@ func TriggerCIMetrics(Metrics CIMetrics, exposeCIMetrics bool, PipelineName stri
 }
 
 func TriggerGitOpsMetrics(operation string, method string, startTime time.Time, err error) {
+	status := "Success"
 	if err != nil {
-		middleware.GitOpsDuration.WithLabelValues(operation, method, "Failed").Observe(time.Since(startTime).Seconds())
-	} else {
-		middleware.GitOpsDuration.WithLabelValues(operation, method, "Success").Observe(time.Since(startTime).Seconds())
+		status = "Failed"
 	}
+	middleware.GitOpsDuration.WithLabelValues(operation, method, status).Observe(time.Since(startTime).Seconds())
 }
