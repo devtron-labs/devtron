@@ -42,6 +42,7 @@
 - docs: added K8s client doc (#3028)
 - docs: doc for GCP external secret (#3029)
 ## Others
+- chore: ADO sync action changes (#3167)
 - chore: Enterprise repo sync (#3146)
 - chore: version upgrade of github action (ado-sync) (#3160)
 - chore: ado-sync workflow (#3153)
