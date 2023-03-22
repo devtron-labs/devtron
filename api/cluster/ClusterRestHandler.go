@@ -44,10 +44,10 @@ const CLUSTER_DELETE_SUCCESS_RESP = "Cluster deleted successfully."
 type ClusterRestHandler interface {
 	Save(w http.ResponseWriter, r *http.Request)
 	FindAll(w http.ResponseWriter, r *http.Request)
-
 	FindById(w http.ResponseWriter, r *http.Request)
+	FindByClusterId(w http.ResponseWriter, r *http.Request)
 	Update(w http.ResponseWriter, r *http.Request)
-
+	UpdateClusterNote(w http.ResponseWriter, r *http.Request)
 	FindAllForAutoComplete(w http.ResponseWriter, r *http.Request)
 	DeleteCluster(w http.ResponseWriter, r *http.Request)
 	GetClusterNamespaces(w http.ResponseWriter, r *http.Request)
@@ -56,16 +56,18 @@ type ClusterRestHandler interface {
 }
 
 type ClusterRestHandlerImpl struct {
-	clusterService  cluster.ClusterService
-	logger          *zap.SugaredLogger
-	userService     user.UserService
-	validator       *validator.Validate
-	enforcer        casbin.Enforcer
-	deleteService   delete2.DeleteService
-	argoUserService argo.ArgoUserService
+	clusterService  		cluster.ClusterService
+	clusterNoteService  	cluster.ClusterNoteService
+	logger          		*zap.SugaredLogger
+	userService     		user.UserService
+	validator       		*validator.Validate
+	enforcer        		casbin.Enforcer
+	deleteService   		delete2.DeleteService
+	argoUserService 		argo.ArgoUserService
 }
 
 func NewClusterRestHandlerImpl(clusterService cluster.ClusterService,
+	clusterNoteService cluster.ClusterNoteService,
 	logger *zap.SugaredLogger,
 	userService user.UserService,
 	validator *validator.Validate,
@@ -73,13 +75,14 @@ func NewClusterRestHandlerImpl(clusterService cluster.ClusterService,
 	deleteService delete2.DeleteService,
 	argoUserService argo.ArgoUserService) *ClusterRestHandlerImpl {
 	return &ClusterRestHandlerImpl{
-		clusterService:  clusterService,
-		logger:          logger,
-		userService:     userService,
-		validator:       validator,
-		enforcer:        enforcer,
-		deleteService:   deleteService,
-		argoUserService: argoUserService,
+		clusterService:  		clusterService,
+		clusterNoteService:  	clusterNoteService,
+		logger:          		logger,
+		userService:     		userService,
+		validator:       		validator,
+		enforcer:        		enforcer,
+		deleteService:   		deleteService,
+		argoUserService: 		argoUserService,
 	}
 }
 
@@ -200,6 +203,24 @@ func (impl ClusterRestHandlerImpl) FindById(w http.ResponseWriter, r *http.Reque
 	common.WriteJsonResp(w, err, bean, http.StatusOK)
 }
 
+func (impl ClusterRestHandlerImpl) FindByClusterId(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+	i, err := strconv.Atoi(id)
+	if err != nil {
+		impl.logger.Errorw("request err, FindById", "error", err, "clusterId", id)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	bean, err := impl.clusterNoteService.FindByClusterId(i)
+	if err != nil {
+		impl.logger.Errorw("service err, FindById", "err", err, "clusterId", id)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, bean, http.StatusOK)
+}
+
 func (impl ClusterRestHandlerImpl) Update(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	decoder := json.NewDecoder(r.Body)
@@ -252,6 +273,61 @@ func (impl ClusterRestHandlerImpl) Update(w http.ResponseWriter, r *http.Request
 		ctx = context.WithValue(ctx, "token", acdToken)
 	}
 	_, err = impl.clusterService.Update(ctx, &bean, userId)
+	if err != nil {
+		impl.logger.Errorw("service err, Update", "error", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, err, bean, http.StatusOK)
+}
+
+func (impl ClusterRestHandlerImpl) UpdateClusterNote(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	decoder := json.NewDecoder(r.Body)
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		impl.logger.Errorw("service err, Update", "error", err, "userId", userId)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	var bean cluster.ClusterNoteBean
+	err = decoder.Decode(&bean)
+	if err != nil {
+		impl.logger.Errorw("request err, Update", "error", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	impl.logger.Infow("request payload, Update", "payload", bean)
+	err = impl.validator.Struct(bean)
+	if err != nil {
+		impl.logger.Errorw("validate err, Update", "error", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	ctx, cancel := context.WithCancel(r.Context())
+	if cn, ok := w.(http.CloseNotifier); ok {
+		go func(done <-chan struct{}, closed <-chan bool) {
+			select {
+			case <-done:
+			case <-closed:
+				cancel()
+			}
+		}(ctx.Done(), cn.CloseNotify())
+	}
+	if util2.IsBaseStack() {
+		ctx = context.WithValue(ctx, "token", token)
+	} else {
+		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+		if err != nil {
+			impl.logger.Errorw("error in getting acd token", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		ctx = context.WithValue(ctx, "token", acdToken)
+	}
+	_, err = impl.clusterNoteService.Update(ctx, &bean, userId)
 	if err != nil {
 		impl.logger.Errorw("service err, Update", "error", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
