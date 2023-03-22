@@ -61,7 +61,7 @@ func (impl GlobalTagServiceImpl) GetAllActiveTags() ([]*GlobalTagDto, error) {
 	}
 
 	// convert to DTO
-	var globalTags []*GlobalTagDto
+	globalTags := make([]*GlobalTagDto, 0)
 	for _, globalTagFromDb := range globalTagsFromDb {
 		globalTag := impl.convertGlobalTagDtoFromDBObject(globalTagFromDb)
 		globalTags = append(globalTags, globalTag)
@@ -102,7 +102,7 @@ func (impl GlobalTagServiceImpl) GetAllActiveTagsForProject(projectId int) ([]*G
 	}
 
 	// convert to DTO
-	var globalTags []*GlobalTagDtoForProject
+	globalTags := make([]*GlobalTagDtoForProject, 0)
 	for _, globalTagFromDb := range globalTagsFromDb {
 		isMandatory := CheckIfTagIsMandatoryForProject(globalTagFromDb.MandatoryProjectIdsCsv, projectId)
 		globalTag := &GlobalTagDtoForProject{
