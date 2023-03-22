@@ -693,12 +693,7 @@ func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChart
 		}
 		return nil, clusterNotFoundErr
 	}
-	discoveryClient, err := impl.K8sUtil.GetK8sDiscoveryClientInCluster()
-	if err != nil {
-		impl.logger.Errorw("eexception caught in getting discoveryClient", "err", err)
-		return nil, err
-	}
-	k8sServerVersion, err := discoveryClient.ServerVersion()
+	k8sServerVersion, err := impl.K8sUtil.GetKubeVersion()
 	if err != nil {
 		impl.logger.Errorw("exception caught in getting k8sServerVersion", "err", err)
 		return nil, err
