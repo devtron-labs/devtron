@@ -411,7 +411,16 @@ func (handler *InstalledAppRestHandlerImpl) FetchNotesForArgoInstalledApp(w http
 		return
 	}
 	handler.Logger.Infow("request payload, FetchNotesForArgoInstalledApp, app store", "installedAppId", installedAppId, "envId", envId)
-
+	notes, err := handler.installedAppService.FetchNotesFromdb(installedAppId)
+	if err != nil {
+		handler.Logger.Errorw("service err, FetchNotesFromdb, app store", "err", err, "installedAppId", installedAppId, "envId", envId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	if notes != "" {
+		common.WriteJsonResp(w, err, &bean2.Notes{Notes: notes}, http.StatusOK)
+		return
+	}
 	notes, appName, err := handler.installedAppService.FindNotesForArgoApplication(installedAppId, envId)
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchNotesForArgoInstalledApp, app store", "err", err, "installedAppId", installedAppId, "envId", envId)

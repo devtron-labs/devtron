@@ -82,6 +82,7 @@ type InstalledAppService interface {
 	MarkGitOpsInstalledAppsDeletedIfArgoAppIsDeleted(installedAppId int, envId int) error
 	CheckAppExistsByInstalledAppId(installedAppId int) error
 	FindNotesForArgoApplication(installedAppId, envId int) (string, string, error)
+	FetchNotesFromdb(installedAppId int) (string, error)
 }
 
 type InstalledAppServiceImpl struct {
@@ -783,6 +784,16 @@ func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(instal
 	}
 	return appDetail, nil
 }
+func (impl *InstalledAppServiceImpl) FetchNotesFromdb(installedAppId int) (string, error) {
+
+	notes, err := impl.installedAppRepository.FetchNotesFromdb(installedAppId)
+	if err != nil {
+		impl.logger.Errorw("error fetching notes from db", "err", err)
+		return "", err
+	}
+
+	return notes, nil
+}
 func (impl *InstalledAppServiceImpl) FindNotesForArgoApplication(installedAppId, envId int) (string, string, error) {
 	installedAppVerison, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdAndEnvId(installedAppId, envId)
 	if err != nil {
@@ -830,6 +841,12 @@ func (impl *InstalledAppServiceImpl) FindNotesForArgoApplication(installedAppId,
 			return notes, appName, err
 		}
 	}
+	_, err = impl.appStoreDeploymentService.AppStoreDeployOperationNotesUpdate(installedAppId, notes)
+	if err != nil {
+		impl.logger.Errorw("error in updating notes in db ", "err", err)
+		return notes, appName, err
+	}
+
 	return notes, appName, nil
 }
 
