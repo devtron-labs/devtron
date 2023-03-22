@@ -18,7 +18,6 @@
 package cluster
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -46,10 +45,10 @@ type ClusterNoteHistoryBean struct {
 }
 
 type ClusterNoteService interface {
-	Save(parent context.Context, bean *ClusterNoteBean, userId int32) (*ClusterNoteBean, error)
+	Save(bean *ClusterNoteBean, userId int32) (*ClusterNoteBean, error)
 	FindByClusterId(id int) (*ClusterNoteBean, error)
 	FindByClusterIds(id []int) ([]ClusterNoteBean, error)
-	Update(ctx context.Context, bean *ClusterNoteBean, userId int32) (*ClusterNoteBean, error)
+	Update(bean *ClusterNoteBean, userId int32) (*ClusterNoteBean, error)
 	Delete(bean *ClusterNoteBean, userId int32) error
 }
 
@@ -68,7 +67,7 @@ func NewClusterNoteServiceImpl(repository repository.ClusterNoteRepository, repo
 	return clusterNoteService
 }
 
-func (impl *ClusterNoteServiceImpl) Save(parent context.Context, bean *ClusterNoteBean, userId int32) (*ClusterNoteBean, error) {
+func (impl *ClusterNoteServiceImpl) Save(bean *ClusterNoteBean, userId int32) (*ClusterNoteBean, error) {
 	existingModel, err := impl.clusterNoteRepository.FindByClusterId(bean.ClusterId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Error(err)
@@ -149,7 +148,7 @@ func (impl *ClusterNoteServiceImpl) FindByClusterIds(ids []int) ([]ClusterNoteBe
 	return beans, nil
 }
 
-func (impl *ClusterNoteServiceImpl) Update(ctx context.Context, bean *ClusterNoteBean, userId int32) (*ClusterNoteBean, error) {
+func (impl *ClusterNoteServiceImpl) Update(bean *ClusterNoteBean, userId int32) (*ClusterNoteBean, error) {
 	model, err := impl.clusterNoteRepository.FindByClusterId(bean.ClusterId)
 	if err != nil {
 		impl.logger.Error(err)
@@ -158,6 +157,11 @@ func (impl *ClusterNoteServiceImpl) Update(ctx context.Context, bean *ClusterNot
 	if model.Id == 0 {
 		impl.logger.Errorw("error on fetching cluster note, not found", "id", bean.Id)
 		return nil, fmt.Errorf("cluster note not found")
+	}
+	if bean.Description == "" {
+		// blank description
+		impl.logger.Errorw("blank cluster note, blank", "id", bean.Id)
+		return nil, fmt.Errorf("blank cluster note")
 	}
 	if bean.Description == "" || bean.Description == model.Description {
 		// no change in description

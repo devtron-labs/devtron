@@ -305,37 +305,22 @@ func (impl ClusterRestHandlerImpl) UpdateClusterNote(w http.ResponseWriter, r *h
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
-	ctx, cancel := context.WithCancel(r.Context())
-	if cn, ok := w.(http.CloseNotifier); ok {
-		go func(done <-chan struct{}, closed <-chan bool) {
-			select {
-			case <-done:
-			case <-closed:
-				cancel()
-			}
-		}(ctx.Done(), cn.CloseNotify())
-	}
-	if util2.IsBaseStack() {
-		ctx = context.WithValue(ctx, "token", token)
-	} else {
-		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
-		if err != nil {
-			impl.logger.Errorw("error in getting acd token", "err", err)
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
-		ctx = context.WithValue(ctx, "token", acdToken)
-	}
-	_, err = impl.clusterService.FindByIdWithoutConfig(bean.ClusterId)
+	cluster, err := impl.clusterService.FindByIdWithoutConfig(bean.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("service err, FindById", "err", err, "clusterId", bean.ClusterId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	_, err = impl.clusterNoteService.Update(ctx, &bean, userId)
+	// RBAC enforcer applying
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionUpdate, strings.ToLower(cluster.ClusterName)); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	// RBAC enforcer ends
+	
+	_, err = impl.clusterNoteService.Update(&bean, userId)
 	if err == pg.ErrNoRows {
-		_, err = impl.clusterNoteService.Save(ctx, &bean, userId)
+		_, err = impl.clusterNoteService.Save(&bean, userId)
 	}
 	if err != nil {
 		impl.logger.Errorw("service err, Update", "error", err, "payload", bean)
