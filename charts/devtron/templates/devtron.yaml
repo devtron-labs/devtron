@@ -18,7 +18,7 @@ data:
   PG_DATABASE: orchestrator
   DEX_HOST: http://argocd-dex-server.devtroncd
   DEX_PORT: "5556"
-  APP_SYNC_IMAGE: "quay.io/devtron/chart-sync:07ac8fd7-150-11120"
+  APP_SYNC_IMAGE: {{$.Values.global.image_repository }}/{{ $.Values.components.devtron.configmap.app_sync_image }} #"quay.io/devtron/chart-sync:07ac8fd7-150-11120"
 {{- if $.Values.installer.modules }}
 {{- if has "cicd" $.Values.installer.modules }}
 {{- if $.Values.configs }}
@@ -101,12 +101,12 @@ spec:
         - name: devtron
           {{- if $.Values.installer.modules }}
           {{- if and (has "cicd" $.Values.installer.modules) ($.Release.IsUpgrade) }}
-          image: {{ $.Values.components.devtron.cicdImage }}
+          image: {{ $.Values.global.image_repository }}/{{ $.Values.components.devtron.cicdImage }}
           {{- else }}
-          image: {{ $.Values.components.devtron.image }}
+          image: {{ $.Values.global.image_repository }}/{{ $.Values.components.devtron.image }}
           {{- end }}
           {{- else }}
-          image: {{ $.Values.components.devtron.image }}
+          image: {{ $.Values.global.image_repository }}/{{ $.Values.components.devtron.image }}
           {{- end }}
           imagePullPolicy: {{ .imagePullPolicy }}
           lifecycle:

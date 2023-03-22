@@ -92,7 +92,7 @@ spec:
         - -n
         - /authenticator
         - /shared
-        image: {{ .initContainer.authenticator }}
+        image: {{ $.Values.global.image_repository }}/{{ .initContainer.authenticator }}
         imagePullPolicy: IfNotPresent
         name: copyutil
         volumeMounts:

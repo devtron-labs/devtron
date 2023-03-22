@@ -1,8 +1,12 @@
+global:
+    image_repository: quay.io/devtron
+    
+
 installer:
   repo: "devtron-labs/devtron"
 #  For Kubernetes version < 1.16, set release: legacy. You won't be able to upgrade Devtron unless you upgrade the K8s version to 1.16 or above.
   release: "v0.6.13" #You can use a branch name or a release tag name as a release, for gitee as source only "main" is supported as of now
-  image: quay.io/devtron/inception
+  image: inception
   tag: 1d2b87e5-185-11095
   source: "github" # Available options are github and gitee
 #  mode: "dashboard" # Available options are dashboard, full and hyperion (deprecated) NOT USING THIS
@@ -43,12 +47,14 @@ components:
       sentry: "false"
       sentryEnv: "PRODUCTION"
       applicationMetrics: "true"
-    image: "quay.io/devtron/dashboard:de186b14-325-12876"
+    image: "dashboard:de186b14-325-12876"
     imagePullPolicy: IfNotPresent
 
   devtron:
-    image: "quay.io/devtron/hyperion:e3c5a3a2-280-12878"
-    cicdImage: "quay.io/devtron/devtron:e3c5a3a2-434-12877"
+    configmap:
+      app_sync_image: "chart-sync:07ac8fd7-150-11120"
+    image: "hyperion:e3c5a3a2-280-12878"
+    cicdImage: "devtron:e3c5a3a2-434-12877"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
     serviceMonitor:
@@ -77,21 +83,21 @@ components:
     image: "ghcr.io/dexidp/dex:v2.35.3"
     imagePullPolicy: IfNotPresent
     initContainer:
-      authenticator: "quay.io/devtron/authenticator:6e466830-393-11943"
+      authenticator: "authenticator:6e466830-393-11943"
 
   kubelink:
-    image: "quay.io/devtron/kubelink:a5e179d4-318-12564"
+    image: "kubelink:a5e179d4-318-12564"
     imagePullPolicy: IfNotPresent
 
   postgres:
-    image: "quay.io/devtron/postgres:11.9.0-debian-10-r26"
-    armImage: "quay.io/devtron/postgres:11.9"
+    image: "postgres:11.9.0-debian-10-r26"
+    armImage: "postgres:11.9"
     imagePullPolicy: "IfNotPresent"
     persistence:
       volumeSize: "20Gi"
 
   migrator:
-    image: "quay.io/devtron/migrator:71748de9-149-11112"
+    image: "migrator:71748de9-149-11112"
     envVars:
       devtron:
         GIT_BRANCH: "main"
@@ -269,7 +275,7 @@ security:
 notifier:
   enabled: false
   imagePullPolicy: IfNotPresent
-  image: "quay.io/devtron/notifier:6c7a356a-372-11107"
+  image: "notifier:6c7a356a-372-11107"
   configs:
     CD_ENVIRONMENT: PROD
     DB: orchestrator
@@ -285,9 +291,9 @@ notifier:
 minio:
   enabled: false
   replicaCount: 1
-  image: "quay.io/devtron/minio:RELEASE.2021-02-14T04-01-33Z"
+  image: "minio:RELEASE.2021-02-14T04-01-33Z"
   imagePullPolicy: IfNotPresent
-  mbImage: "quay.io/devtron/minio-mc:RELEASE.2021-02-14T04-28-06Z"
+  mbImage: "minio-mc:RELEASE.2021-02-14T04-28-06Z"
   mbImagePullPolicy: IfNotPresent
   persistence:
     storage: "50Gi"
@@ -299,7 +305,7 @@ workflowController:
 monitoring:
   grafana:
     enabled: false
-    image: "quay.io/devtron/grafana:7.3.1"
+    image: "grafana:7.3.1"
     imagePullPolicy: IfNotPresent
     resources: {}
     grafanaDashboards:

@@ -117,7 +117,7 @@ spec:
         fsGroup: 1001
       initContainers:
         - name: init-chmod-data
-          image: "quay.io/devtron/minideb:latest"
+          image: {{ $.Values.global.image_repository }}/minideb:latest
           imagePullPolicy: "IfNotPresent"
           command:
             - /bin/sh
@@ -145,7 +145,7 @@ spec:
               mountPath: /dev/shm
       containers:
         - name: postgresql-postgresql
-          image: {{ .image }}
+          image: {{ $.Values.global.image_repository }}/{{ .image }}
           imagePullPolicy: {{ .imagePullPolicy }}
           securityContext:
             runAsUser: 1001
@@ -212,7 +212,7 @@ spec:
               mountPath: /bitnami/postgresql
               subPath:
         - name: metrics
-          image: quay.io/devtron/postgres_exporter:v0.4.7
+          image: {{ $.Values.global.image_repository }}/postgres_exporter:v0.4.7
           imagePullPolicy: "IfNotPresent"
           env:
             - name: DATA_SOURCE_URI
@@ -453,7 +453,7 @@ spec:
             runAsGroup: 999
             runAsNonRoot: true
             runAsUser: 999
-          image: {{ .armImage }}
+          image: {{ $.Values.global.image_repository }}/{{ .armImage }}
           imagePullPolicy: {{ .imagePullPolicy }}
           {{- if .initContainer }}
           {{- if .initContainer.resources }}
@@ -480,7 +480,7 @@ spec:
             runAsGroup: 999
             runAsNonRoot: true
             runAsUser: 999
-          image: {{ .armImage }}
+          image: {{ $.Values.global.image_repository }}/{{ .armImage }}
           imagePullPolicy: {{ .imagePullPolicy }}
           {{- if .resources }}
           resources:

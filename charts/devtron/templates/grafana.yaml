@@ -17,14 +17,14 @@ spec:
       serviceAccountName: devtron
       containers:
       - name: grafana-restart
-        image: "quay.io/devtron/kubectl:latest"
+        image: {{ $.Values.global.image_repository }}/kubectl:latest
         command: ["sh", "/tmp/kubectl-grafana.sh"]
         volumeMounts:
           - name: grafana-org-volume
             mountPath: "/tmp/"
       initContainers:
       - name: grafana-org
-        image: quay.io/devtron/k8s-utils:tutum-curl
+        image: {{ $.Values.global.image_repository }}/k8s-utils:tutum-curl
         command: ["sh","/tmp/org.sh"]
         env:
           - name: GRAFANA_PASSWORD
@@ -512,7 +512,7 @@ spec:
         runAsUser: 472
       initContainers:
         - name: init-chown-data
-          image: "quay.io/devtron/busybox:1.31.1"
+          image: {{ $.Values.global.image_repository }}/busybox:1.31.1
           imagePullPolicy: IfNotPresent
           securityContext:
             runAsNonRoot: false
@@ -524,7 +524,7 @@ spec:
             - name: storage
               mountPath: "/var/lib/grafana"
         - name: download-dashboards
-          image: "quay.io/devtron/curl:7.73.0"
+          image: {{ $.Values.global.image_repository }}/curl:7.73.0
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh"]
           args: [ "-c", "mkdir -p /var/lib/grafana/dashboards/default && /bin/sh /etc/grafana/download_dashboards.sh" ]
@@ -578,7 +578,7 @@ spec:
           {{- end }}
       {{- with $.Values.monitoring.grafana}}
         - name: grafana
-          image: {{ .image }}
+          image: {{ $.Values.global.image_repository }}/{{ .image }}
           imagePullPolicy: {{ .imagePullPolicy }}
           volumeMounts:
             - name: config
@@ -662,7 +662,7 @@ spec:
   serviceAccountName: devtron-grafana-test
   containers:
     - name: devtron-test
-      image: "quay.io/devtron/bats:v1.4.1"
+      image: {{ $.Values.global.image_repository }}/bats:v1.4.1
       imagePullPolicy: "IfNotPresent"
       command: ["/opt/bats/bin/bats", "-t", "/tests/run.sh"]
       volumeMounts:

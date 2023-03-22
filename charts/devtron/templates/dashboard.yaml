@@ -71,7 +71,8 @@ spec:
       restartPolicy: Always
       containers:
         - name: dashboard
-          image: {{ .image }}
+          
+          image: {{ $.Values.global.image_repository }}/{{ .image }}
           imagePullPolicy: {{ .imagePullPolicy }}
           ports:
             - name: app
