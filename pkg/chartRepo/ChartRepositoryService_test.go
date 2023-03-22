@@ -2,12 +2,12 @@ package chartRepo
 
 import (
 	"encoding/json"
-	"testing"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"testing"
 )
 
 type ChartRepositoryServiceMock struct {
@@ -108,7 +108,7 @@ func TestUpdateRepository_NewRepository(t *testing.T) {
 	var newRepositories []*AcdConfigMapRepositoriesDto
 	repoByte, _ := yaml.YAMLToJSON([]byte(newYaml))
 	json.Unmarshal(repoByte, &newRepositories)
-	
+
 	// verify
 	assert.Equal(t, "https://github.com/devtron/myrepo2/", newRepositories[1].Url)
 	assert.Equal(t, "myuser", newRepositories[1].UsernameSecret.Name)
