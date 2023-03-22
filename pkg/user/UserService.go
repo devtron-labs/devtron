@@ -376,7 +376,12 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 			return nil, err
 		}
 		if roleModel.Id > 0 {
-			userRoleModel := &repository2.UserRoleModel{UserId: model.Id, RoleId: roleModel.Id}
+			userRoleModel := &repository2.UserRoleModel{UserId: model.Id, RoleId: roleModel.Id, AuditLog: sql.AuditLog{
+				CreatedBy: userInfo.UserId,
+				CreatedOn: time.Now(),
+				UpdatedBy: userInfo.UserId,
+				UpdatedOn: time.Now(),
+			}}
 			userRoleModel, err = impl.userAuthRepository.CreateUserRoleMapping(userRoleModel, tx)
 			if err != nil {
 				return nil, err
