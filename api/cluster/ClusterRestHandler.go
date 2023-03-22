@@ -140,8 +140,10 @@ func (impl ClusterRestHandlerImpl) SaveClusters(w http.ResponseWriter, r *http.R
 		res, err := impl.clusterService.Save(ctx, &bean, userId)
 		if err != nil {
 			bean.ValidationAndSavingMessage = "Error in Saving the cluster"
+			result = append(result, bean)
+		} else {
+			result = append(result, *res)
 		}
-		result = append(result, *res)
 	}
 
 	common.WriteJsonResp(w, err, result, http.StatusOK)
