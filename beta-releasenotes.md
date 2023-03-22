@@ -23,6 +23,7 @@
 - fix: urls pipeline fetching bug fix (#3063)
 - fix: app grouping appid appname (#3058)
 ## Enhancements
+- feat: Add timer/counter telemetry for GitOps (#3119)
 - feat: show notes txt for  helmapps deployed by  helm (#2966)
 - feat: enable auto deployment trigger option after deployment app change (#3110)
 - feat: jobs feature (#3074)
