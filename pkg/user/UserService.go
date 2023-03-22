@@ -892,12 +892,12 @@ func (impl UserServiceImpl) GetById(id int32) (*bean.UserInfo, error) {
 	}
 
 	isSuperAdmin, roleFilters, filterGroups := impl.getUserMetadata(model)
-	for _, roleFilter := range roleFilters {
+	for index, roleFilter := range roleFilters {
 		if roleFilter.Entity == "" {
-			roleFilter.Entity = "apps"
+			roleFilters[index].Entity = bean2.ENTITY_APPS
 		}
-		if roleFilter.Entity == "apps" && roleFilter.AccessType == "" {
-			roleFilter.AccessType = "devtron-app"
+		if roleFilter.Entity == bean2.ENTITY_APPS && roleFilter.AccessType == "" {
+			roleFilters[index].AccessType = bean2.DEVTRON_APP
 		}
 	}
 	response := &bean.UserInfo{
@@ -1062,6 +1062,14 @@ func (impl UserServiceImpl) GetAllDetailedUsers() ([]bean.UserInfo, error) {
 	var response []bean.UserInfo
 	for _, model := range models {
 		isSuperAdmin, roleFilters, filterGroups := impl.getUserMetadata(&model)
+		for index, roleFilter := range roleFilters {
+			if roleFilter.Entity == "" {
+				roleFilters[index].Entity = bean2.ENTITY_APPS
+			}
+			if roleFilter.Entity == bean2.ENTITY_APPS && roleFilter.AccessType == "" {
+				roleFilters[index].AccessType = bean2.DEVTRON_APP
+			}
+		}
 		response = append(response, bean.UserInfo{
 			Id:          model.Id,
 			EmailId:     model.EmailId,
@@ -1501,6 +1509,14 @@ func (impl UserServiceImpl) GetRoleFiltersByGroupNames(groupNames []string) ([]b
 			continue
 		}
 		roleFilters = append(roleFilters, *v)
+	}
+	for index, roleFilter := range roleFilters {
+		if roleFilter.Entity == "" {
+			roleFilters[index].Entity = bean2.ENTITY_APPS
+		}
+		if roleFilter.Entity == bean2.ENTITY_APPS && roleFilter.AccessType == "" {
+			roleFilters[index].AccessType = bean2.DEVTRON_APP
+		}
 	}
 	return roleFilters, nil
 }

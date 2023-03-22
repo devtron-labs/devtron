@@ -606,6 +606,14 @@ func (impl RoleGroupServiceImpl) getRoleGroupMetadata(roleGroup *repository2.Rol
 	for _, v := range roleFilterMap {
 		roleFilters = append(roleFilters, *v)
 	}
+	for index, roleFilter := range roleFilters {
+		if roleFilter.Entity == "" {
+			roleFilters[index].Entity = bean2.ENTITY_APPS
+		}
+		if roleFilter.Entity == bean2.ENTITY_APPS && roleFilter.AccessType == "" {
+			roleFilters[index].AccessType = bean2.DEVTRON_APP
+		}
+	}
 	if len(roleFilters) == 0 {
 		roleFilters = make([]bean.RoleFilter, 0)
 	}
@@ -621,6 +629,14 @@ func (impl RoleGroupServiceImpl) FetchDetailedRoleGroups() ([]*bean.RoleGroup, e
 	var list []*bean.RoleGroup
 	for _, roleGroup := range roleGroups {
 		roleFilters := impl.getRoleGroupMetadata(roleGroup)
+		for index, roleFilter := range roleFilters {
+			if roleFilter.Entity == "" {
+				roleFilters[index].Entity = bean2.ENTITY_APPS
+			}
+			if roleFilter.Entity == bean2.ENTITY_APPS && roleFilter.AccessType == "" {
+				roleFilters[index].AccessType = bean2.DEVTRON_APP
+			}
+		}
 		roleGrp := &bean.RoleGroup{
 			Id:          roleGroup.Id,
 			Name:        roleGroup.Name,
@@ -694,6 +710,17 @@ func (impl RoleGroupServiceImpl) DeleteRoleGroup(bean *bean.RoleGroup) (bool, er
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return false, err
 	}
+	allRoleGroupRoleMappings, err := impl.roleGroupRepository.GetRoleGroupRoleMappingByRoleGroupId(model.Id)
+	if err != nil {
+		impl.logger.Errorw("error in getting all role group role mappings or not found", "err", err)
+	}
+	for _, roleGroupRoleMapping := range allRoleGroupRoleMappings {
+		err = impl.roleGroupRepository.DeleteRoleGroupRoleMappingByRoleId(roleGroupRoleMapping.RoleId, tx)
+		if err != nil {
+			impl.logger.Errorw("error in deleting role group role mapping by role id", "err", err)
+			return false, err
+		}
+	}
 	model.Active = false
 	model.UpdatedOn = time.Now()
 	model.UpdatedBy = bean.UserId
@@ -701,6 +728,19 @@ func (impl RoleGroupServiceImpl) DeleteRoleGroup(bean *bean.RoleGroup) (bool, er
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return false, err
+	}
+
+	allUsersMappedToGroup, err := casbin2.GetUserByRole(model.CasbinName)
+	if err != nil {
+		impl.logger.Errorw("error while fetching all users mapped to given group", "err", err)
+
+	}
+	for _, userMappedToGroup := range allUsersMappedToGroup {
+		flag := casbin2.DeleteRoleForUser(userMappedToGroup, model.CasbinName)
+		if flag == false {
+			impl.logger.Warnw("unable to delete mapping of group and user in casbin", "user", model.CasbinName, "role", userMappedToGroup)
+			return false, err
+		}
 	}
 	err = tx.Commit()
 	if err != nil {
