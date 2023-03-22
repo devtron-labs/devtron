@@ -32,17 +32,17 @@ import (
 type ClusterNoteBean struct {
 	Id          int       `json:"id,omitempty" validate:"number"`
 	ClusterId   int       `json:"cluster_id,omitempty" validate:"required"`
-	Description string    `json:"description,omitempty"`
-	CreatedBy   int       `json:"created_by,omitempty"`
-	CreatedOn   time.Time `json:"created_on,omitempty"`
+	Description string    `json:"description,omitempty" validate:"required"`
+	CreatedBy   int       `json:"created_by"`
+	CreatedOn   time.Time `json:"created_on"`
 }
 
 type ClusterNoteHistoryBean struct {
 	Id          int       `json:"id,omitempty" validate:"number"`
 	NoteId      int       `json:"note_id,omitempty" validate:"required"`
-	Description string    `json:"description,omitempty"`
-	CreatedBy   int       `json:"created_by,omitempty"`
-	CreatedOn   time.Time `json:"created_on,omitempty"`
+	Description string    `json:"description,omitempty" validate:"required"`
+	CreatedBy   int       `json:"created_by"`
+	CreatedOn   time.Time `json:"created_on"`
 }
 
 type ClusterNoteService interface {
@@ -100,11 +100,15 @@ func (impl *ClusterNoteServiceImpl) Save(parent context.Context, bean *ClusterNo
 	}
 	bean.Id = model.Id
 	// audit the existing description to cluster audit history
-	cluster_audit := &repository.ClusterNoteHistory{
+	clusterAudit := &repository.ClusterNoteHistory{
 		NoteId:      bean.Id,
 		Description: bean.Description,
 	}
-	err = impl.clusterNoteHistoryRepository.SaveHistory(cluster_audit)
+	clusterAudit.CreatedBy = userId
+	clusterAudit.UpdatedBy = userId
+	clusterAudit.CreatedOn = time.Now()
+	clusterAudit.UpdatedOn = time.Now()
+	err = impl.clusterNoteHistoryRepository.SaveHistory(clusterAudit)
 	if err != nil {
 		return nil, err
 	}
@@ -176,11 +180,15 @@ func (impl *ClusterNoteServiceImpl) Update(ctx context.Context, bean *ClusterNot
 	}
 	bean.Id = model.Id
 	// audit the existing description to cluster audit history
-	cluster_audit := &repository.ClusterNoteHistory{
+	clusterAudit := &repository.ClusterNoteHistory{
 		NoteId:      bean.Id,
 		Description: bean.Description,
 	}
-	err = impl.clusterNoteHistoryRepository.SaveHistory(cluster_audit)
+	clusterAudit.CreatedBy = userId
+	clusterAudit.UpdatedBy = userId
+	clusterAudit.CreatedOn = time.Now()
+	clusterAudit.UpdatedOn = time.Now()
+	err = impl.clusterNoteHistoryRepository.SaveHistory(clusterAudit)
 	if err != nil {
 		return nil, err
 	}

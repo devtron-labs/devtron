@@ -27,13 +27,13 @@ import (
 	"time"
 
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/pkg/cluster"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
+	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
-
-	"github.com/devtron-labs/devtron/pkg/cluster"
-	"github.com/devtron-labs/devtron/pkg/user"
+	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -327,7 +327,16 @@ func (impl ClusterRestHandlerImpl) UpdateClusterNote(w http.ResponseWriter, r *h
 		}
 		ctx = context.WithValue(ctx, "token", acdToken)
 	}
+	_, err = impl.clusterService.FindByIdWithoutConfig(bean.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("service err, FindById", "err", err, "clusterId", bean.ClusterId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
 	_, err = impl.clusterNoteService.Update(ctx, &bean, userId)
+	if err == pg.ErrNoRows {
+		_, err = impl.clusterNoteService.Save(ctx, &bean, userId)
+	}
 	if err != nil {
 		impl.logger.Errorw("service err, Update", "error", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

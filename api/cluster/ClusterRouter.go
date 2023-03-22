@@ -56,11 +56,11 @@ func (impl ClusterRouterImpl) InitClusterRouter(clusterRouter *mux.Router) {
 
 	clusterRouter.Path("").
 		Methods("PUT").
-		HandlerFunc(impl.clusterRestHandler.UpdateClusterNote)
+		HandlerFunc(impl.clusterRestHandler.Update)
 
 	clusterRouter.Path("/description").
 		Methods("PUT").
-		HandlerFunc(impl.clusterRestHandler.Update)
+		HandlerFunc(impl.clusterRestHandler.UpdateClusterNote)
 
 	clusterRouter.Path("/autocomplete").
 		Methods("GET").
