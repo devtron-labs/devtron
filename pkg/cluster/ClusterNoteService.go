@@ -158,16 +158,6 @@ func (impl *ClusterNoteServiceImpl) Update(bean *ClusterNoteBean, userId int32) 
 		impl.logger.Errorw("error on fetching cluster note, not found", "id", bean.Id)
 		return nil, fmt.Errorf("cluster note not found")
 	}
-	if bean.Description == "" {
-		// blank description
-		impl.logger.Errorw("blank cluster note, blank", "id", bean.Id)
-		return nil, fmt.Errorf("blank cluster note")
-	}
-	if bean.Description == "" || bean.Description == model.Description {
-		// no change in description
-		impl.logger.Errorw("no change found in cluster note, duplicate", "id", bean.Id)
-		return nil, fmt.Errorf("duplicate cluster note")
-	}
 	// update the cluster description with new data
 	model.Description = bean.Description
 	model.UpdatedBy = userId
