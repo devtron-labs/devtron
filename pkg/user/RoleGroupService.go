@@ -599,12 +599,12 @@ func (impl RoleGroupServiceImpl) getRoleGroupMetadata(roleGroup *repository2.Rol
 	for _, v := range roleFilterMap {
 		roleFilters = append(roleFilters, *v)
 	}
-	for _, roleFilter := range roleFilters {
+	for index, roleFilter := range roleFilters {
 		if roleFilter.Entity == "" {
-			roleFilter.Entity = "apps"
+			roleFilters[index].Entity = bean2.ENTITY_APPS
 		}
-		if roleFilter.Entity == "apps" && roleFilter.AccessType == "" {
-			roleFilter.AccessType = "devtron-app"
+		if roleFilter.Entity == bean2.ENTITY_APPS && roleFilter.AccessType == "" {
+			roleFilters[index].AccessType = bean2.DEVTRON_APP
 		}
 	}
 	if len(roleFilters) == 0 {
@@ -622,12 +622,12 @@ func (impl RoleGroupServiceImpl) FetchDetailedRoleGroups() ([]*bean.RoleGroup, e
 	var list []*bean.RoleGroup
 	for _, roleGroup := range roleGroups {
 		roleFilters := impl.getRoleGroupMetadata(roleGroup)
-		for _, roleFilter := range roleFilters {
+		for index, roleFilter := range roleFilters {
 			if roleFilter.Entity == "" {
-				roleFilter.Entity = "apps"
+				roleFilters[index].Entity = bean2.ENTITY_APPS
 			}
-			if roleFilter.Entity == "apps" && roleFilter.AccessType == "" {
-				roleFilter.AccessType = "devtron-app"
+			if roleFilter.Entity == bean2.ENTITY_APPS && roleFilter.AccessType == "" {
+				roleFilters[index].AccessType = bean2.DEVTRON_APP
 			}
 		}
 		roleGrp := &bean.RoleGroup{

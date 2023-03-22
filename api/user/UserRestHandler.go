@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	bean2 "github.com/devtron-labs/devtron/pkg/user/bean"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"net/http"
 	"strconv"
@@ -293,12 +294,12 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 			}
 		}
 	}
-	for _, roleFilter := range filteredRoleFilter {
+	for index, roleFilter := range filteredRoleFilter {
 		if roleFilter.Entity == "" {
-			roleFilter.Entity = "apps"
+			filteredRoleFilter[index].Entity = bean2.ENTITY_APPS
 		}
-		if roleFilter.Entity == "apps" && roleFilter.AccessType == "" {
-			roleFilter.AccessType = "devtron-app"
+		if roleFilter.Entity == bean2.ENTITY_APPS && roleFilter.AccessType == "" {
+			filteredRoleFilter[index].AccessType = bean2.DEVTRON_APP
 		}
 	}
 	res.RoleFilters = filteredRoleFilter
@@ -505,12 +506,12 @@ func (handler UserRestHandlerImpl) FetchRoleGroupById(w http.ResponseWriter, r *
 			}
 		}
 	}
-	for _, roleFilter := range filteredRoleFilter {
+	for index, roleFilter := range filteredRoleFilter {
 		if roleFilter.Entity == "" {
-			roleFilter.Entity = "apps"
+			filteredRoleFilter[index].Entity = bean2.ENTITY_APPS
 		}
-		if roleFilter.Entity == "apps" && roleFilter.AccessType == "" {
-			roleFilter.AccessType = "devtron-app"
+		if roleFilter.Entity == bean2.ENTITY_APPS && roleFilter.AccessType == "" {
+			filteredRoleFilter[index].AccessType = bean2.DEVTRON_APP
 		}
 	}
 
