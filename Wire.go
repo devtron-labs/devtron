@@ -249,6 +249,9 @@ func InitializeApp() (*App, error) {
 		repository.NewAppListingRepositoryImpl,
 		wire.Bind(new(repository.AppListingRepository), new(*repository.AppListingRepositoryImpl)),
 
+		router.NewJobRouterImpl,
+		wire.Bind(new(router.JobRouter), new(*router.JobRouterImpl)),
+
 		pipelineConfig.NewPipelineRepositoryImpl,
 		wire.Bind(new(pipelineConfig.PipelineRepository), new(*pipelineConfig.PipelineRepositoryImpl)),
 		pipeline.NewPropertiesConfigServiceImpl,
