@@ -135,15 +135,16 @@ func (impl ClusterRestHandlerImpl) SaveClusters(w http.ResponseWriter, r *http.R
 		}
 		ctx = context.WithValue(ctx, "token", acdToken)
 	}
+	result := []cluster.ClusterBean{}
 	for _, bean := range beans {
 		res, err := impl.clusterService.Save(ctx, &bean, userId)
 		if err != nil {
 			bean.ValidationAndSavingMessage = "Error in Saving the cluster"
 		}
-		beans = append(beans, *res)
+		result = append(result, *res)
 	}
 
-	common.WriteJsonResp(w, err, beans, http.StatusOK)
+	common.WriteJsonResp(w, err, result, http.StatusOK)
 }
 
 func (impl ClusterRestHandlerImpl) Save(w http.ResponseWriter, r *http.Request) {
