@@ -337,9 +337,14 @@ func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterB
 		}
 		tlsConfig := v1alpha1.TLSClientConfig{
 			Insecure: bean.InsecureSkipTLSVerify,
-			KeyData:  []byte(bean.Config["tls_key"]),
-			CertData: []byte(bean.Config["cert_data"]),
 		}
+
+		if !bean.InsecureSkipTLSVerify {
+			tlsConfig.KeyData = []byte(bean.Config["tls_key"])
+			tlsConfig.CertData = []byte(bean.Config["cert_data"])
+			tlsConfig.CAData = []byte(bean.Config["cert_auth_data"])
+		}
+
 		cdClusterConfig := v1alpha1.ClusterConfig{
 			BearerToken:     bearerToken,
 			TLSClientConfig: tlsConfig,
