@@ -279,7 +279,7 @@ func (impl *ChartRepositoryServiceImpl) UpdateData(request *ChartRepoDto) (*char
 			_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
 		} else {
 			secretData := impl.CreateSecretDataForPrivateHelmChart(request)
-			secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, chartRepo.Name, client)
+			secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, previousName, client)
 			if err != nil {
 				impl.logger.Errorw("error in fetching secret", "err", err)
 				continue
