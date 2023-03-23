@@ -904,7 +904,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateMaterial(w http.ResponseWrite
 			if err != nil {
 				handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
 			}
-			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 			return
 		}
 	} else {
@@ -984,7 +984,7 @@ func (handler PipelineConfigRestHandlerImpl) UpdateMaterial(w http.ResponseWrite
 			if err != nil {
 				handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
 			}
-			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 			return
 		}
 	} else {
@@ -1038,7 +1038,7 @@ func (handler PipelineConfigRestHandlerImpl) DeleteMaterial(w http.ResponseWrite
 			if err != nil {
 				handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
 			}
-			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 			return
 		}
 	} else {
