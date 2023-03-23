@@ -47,9 +47,8 @@ type ClusterNoteHistoryBean struct {
 type ClusterNoteService interface {
 	Save(bean *ClusterNoteBean, userId int32) (*ClusterNoteBean, error)
 	FindByClusterId(id int) (*ClusterNoteBean, error)
-	FindByClusterIds(id []int) ([]ClusterNoteBean, error)
+	FindByClusterIds(id []int) ([]*ClusterNoteBean, error)
 	Update(bean *ClusterNoteBean, userId int32) (*ClusterNoteBean, error)
-	Delete(bean *ClusterNoteBean, userId int32) error
 }
 
 type ClusterNoteServiceImpl struct {
@@ -129,15 +128,15 @@ func (impl *ClusterNoteServiceImpl) FindByClusterId(id int) (*ClusterNoteBean, e
 	return bean, nil
 }
 
-func (impl *ClusterNoteServiceImpl) FindByClusterIds(ids []int) ([]ClusterNoteBean, error) {
+func (impl *ClusterNoteServiceImpl) FindByClusterIds(ids []int) ([]*ClusterNoteBean, error) {
 	models, err := impl.clusterNoteRepository.FindByClusterIds(ids)
 	if err != nil {
 		return nil, err
 	}
-	var beans []ClusterNoteBean
+	var beans []*ClusterNoteBean
 
 	for _, model := range models {
-		beans = append(beans, ClusterNoteBean{
+		beans = append(beans, &ClusterNoteBean{
 			Id:          model.Id,
 			ClusterId:   model.ClusterId,
 			Description: model.Description,
@@ -187,12 +186,4 @@ func (impl *ClusterNoteServiceImpl) Update(bean *ClusterNoteBean, userId int32) 
 		return nil, err
 	}
 	return bean, err
-}
-
-func (impl *ClusterNoteServiceImpl) Delete(bean *ClusterNoteBean, userId int32) error {
-	model, err := impl.clusterNoteRepository.FindByClusterId(bean.ClusterId)
-	if err != nil {
-		return err
-	}
-	return impl.clusterNoteRepository.Delete(model)
 }

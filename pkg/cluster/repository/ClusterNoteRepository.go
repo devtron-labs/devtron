@@ -34,9 +34,8 @@ type ClusterNote struct {
 type ClusterNoteRepository interface {
 	Save(model *ClusterNote) error
 	FindByClusterId(id int) (*ClusterNote, error)
-	FindByClusterIds(id []int) ([]ClusterNote, error)
+	FindByClusterIds(id []int) ([]*ClusterNote, error)
 	Update(model *ClusterNote) error
-	Delete(model *ClusterNote) error
 }
 
 func NewClusterNoteRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *ClusterNoteRepositoryImpl {
@@ -58,26 +57,22 @@ func (impl ClusterNoteRepositoryImpl) Save(model *ClusterNote) error {
 func (impl ClusterNoteRepositoryImpl) FindByClusterId(id int) (*ClusterNote, error) {
 	clusterNote := &ClusterNote{}
 	err := impl.dbConnection.
-	Model(clusterNote).
-	Where("cluster_id =?", id).
-	Limit(1).
-	Select()
+		Model(clusterNote).
+		Where("cluster_id =?", id).
+		Limit(1).
+		Select()
 	return clusterNote, err
 }
 
-func (impl ClusterNoteRepositoryImpl) FindByClusterIds(id []int) ([]ClusterNote, error) {
-	var clusterNotes []ClusterNote
+func (impl ClusterNoteRepositoryImpl) FindByClusterIds(id []int) ([]*ClusterNote, error) {
+	var clusterNotes []*ClusterNote
 	err := impl.dbConnection.
-	Model(&clusterNotes).
-	Where("cluster_id in(?)", pg.In(id)).
-	Select()
+		Model(&clusterNotes).
+		Where("cluster_id in(?)", pg.In(id)).
+		Select()
 	return clusterNotes, err
 }
 
 func (impl ClusterNoteRepositoryImpl) Update(model *ClusterNote) error {
 	return impl.dbConnection.Update(model)
-}
-
-func (impl ClusterNoteRepositoryImpl) Delete(model *ClusterNote) error {
-	return impl.dbConnection.Delete(model)
 }
