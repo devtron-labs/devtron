@@ -50,7 +50,10 @@ type EnforcerUtil interface {
 	GetEnvRBACNameByCdPipelineIdAndEnvId(cdPipelineId int) string
 	GetAppRBACNameByTeamIdAndAppId(teamId int, appId int) string
 	GetRBACNameForClusterEntity(clusterName string, resourceIdentifier application.ResourceIdentifier) (resourceName, objectName string)
+	GetAppObjectByCiPipelineIds(ciPipelineIds []int) map[int]string
+	GetAppAndEnvObjectByPipelineIds(cdPipelineIds []int) map[int][]string
 }
+
 type EnforcerUtilImpl struct {
 	logger                *zap.SugaredLogger
 	teamRepository        team.TeamRepository
@@ -426,4 +429,37 @@ func (impl EnforcerUtilImpl) GetRBACNameForClusterEntity(clusterName string, res
 	resourceName = fmt.Sprintf(casbin.ClusterResourceRegex, clusterName, namespace)
 	objectName = fmt.Sprintf(casbin.ClusterObjectRegex, groupName, kindName, objectName)
 	return resourceName, objectName
+}
+
+func (impl EnforcerUtilImpl) GetAppObjectByCiPipelineIds(ciPipelineIds []int) map[int]string {
+	objects := make(map[int]string)
+	models, err := impl.ciPipelineRepository.FindAppAndProjectByCiPipelineIds(ciPipelineIds)
+	if err != nil {
+		impl.logger.Error(err)
+		return objects
+	}
+	for _, pipeline := range models {
+		if _, ok := objects[pipeline.Id]; !ok {
+			appObject := fmt.Sprintf("%s/%s", strings.ToLower(pipeline.App.Team.Name), strings.ToLower(pipeline.App.AppName))
+			objects[pipeline.Id] = appObject
+		}
+	}
+	return objects
+}
+
+func (impl EnforcerUtilImpl) GetAppAndEnvObjectByPipelineIds(cdPipelineIds []int) map[int][]string {
+	objects := make(map[int][]string)
+	models, err := impl.pipelineRepository.FindAppAndEnvironmentAndProjectByPipelineIds(cdPipelineIds)
+	if err != nil {
+		impl.logger.Error(err)
+		return objects
+	}
+	for _, pipeline := range models {
+		if _, ok := objects[pipeline.Id]; !ok {
+			appObject := fmt.Sprintf("%s/%s", strings.ToLower(pipeline.App.Team.Name), strings.ToLower(pipeline.App.AppName))
+			envObject := fmt.Sprintf("%s/%s", strings.ToLower(pipeline.Environment.EnvironmentIdentifier), strings.ToLower(pipeline.App.AppName))
+			objects[pipeline.Id] = []string{appObject, envObject}
+		}
+	}
+	return objects
 }

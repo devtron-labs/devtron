@@ -259,6 +259,14 @@ func TriggerCIMetrics(Metrics CIMetrics, exposeCIMetrics bool, PipelineName stri
 	}
 }
 
+func TriggerGitOpsMetrics(operation string, method string, startTime time.Time, err error) {
+	status := "Success"
+	if err != nil {
+		status = "Failed"
+	}
+	middleware.GitOpsDuration.WithLabelValues(operation, method, status).Observe(time.Since(startTime).Seconds())
+}
+
 func InterfaceToString(resp interface{}) string {
 	var dat string
 	b, err := json.Marshal(resp)

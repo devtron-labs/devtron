@@ -20,6 +20,7 @@ package util
 import (
 	"context"
 	"fmt"
+	"github.com/devtron-labs/devtron/util"
 	"io/ioutil"
 	"net/url"
 	"path/filepath"
@@ -82,6 +83,11 @@ type GitCommitDto struct {
 }
 
 func (factory *GitFactory) Reload() error {
+	var err error
+	start := time.Now()
+	defer func() {
+		util.TriggerGitOpsMetrics("Reload", "GitService", start, err)
+	}()
 	logger.Infow("reloading gitops details")
 	cfg, err := GetGitConfig(factory.gitOpsRepository)
 	if err != nil {
@@ -99,8 +105,12 @@ func (factory *GitFactory) Reload() error {
 }
 
 func (factory *GitFactory) GetGitLabGroupPath(gitOpsConfig *bean2.GitOpsConfigDto) (string, error) {
+	start := time.Now()
 	var gitLabClient *gitlab.Client
 	var err error
+	defer func() {
+		util.TriggerGitOpsMetrics("GetGitLabGroupPath", "GitService", start, err)
+	}()
 	if len(gitOpsConfig.Host) > 0 {
 		_, err = url.ParseRequestURI(gitOpsConfig.Host)
 		if err != nil {
@@ -131,6 +141,11 @@ func (factory *GitFactory) GetGitLabGroupPath(gitOpsConfig *bean2.GitOpsConfigDt
 }
 
 func (factory *GitFactory) NewClientForValidation(gitOpsConfig *bean2.GitOpsConfigDto) (GitClient, *GitServiceImpl, error) {
+	start := time.Now()
+	var err error
+	defer func() {
+		util.TriggerGitOpsMetrics("NewClientForValidation", "GitService", start, err)
+	}()
 	cfg := &GitConfig{
 		GitlabGroupId:        gitOpsConfig.GitLabGroupId,
 		GitToken:             gitOpsConfig.Token,
@@ -280,11 +295,20 @@ func NewGitServiceImpl(config *GitConfig, logger *zap.SugaredLogger, GitCliUtil 
 }
 
 func (impl GitServiceImpl) GetCloneDirectory(targetDir string) (clonedDir string) {
+
+	start := time.Now()
+	defer func() {
+		util.TriggerGitOpsMetrics("GetCloneDirectory", "GitService", start, nil)
+	}()
 	clonedDir = filepath.Join(impl.config.GitWorkingDir, targetDir)
 	return clonedDir
 }
 
 func (impl GitServiceImpl) Clone(url, targetDir string) (clonedDir string, err error) {
+	start := time.Now()
+	defer func() {
+		util.TriggerGitOpsMetrics("Clone", "GitService", start, err)
+	}()
 	impl.logger.Debugw("git checkout ", "url", url, "dir", targetDir)
 	clonedDir = filepath.Join(impl.config.GitWorkingDir, targetDir)
 	_, errorMsg, err := impl.gitCliUtil.Clone(clonedDir, url, impl.Auth.Username, impl.Auth.Password)
@@ -299,6 +323,10 @@ func (impl GitServiceImpl) Clone(url, targetDir string) (clonedDir string, err e
 }
 
 func (impl GitServiceImpl) CommitAndPushAllChanges(repoRoot, commitMsg, name, emailId string) (commitHash string, err error) {
+	start := time.Now()
+	defer func() {
+		util.TriggerGitOpsMetrics("CommitAndPushAllChanges", "GitService", start, err)
+	}()
 	repo, workTree, err := impl.getRepoAndWorktree(repoRoot)
 	if err != nil {
 		return "", err
@@ -328,11 +356,15 @@ func (impl GitServiceImpl) CommitAndPushAllChanges(repoRoot, commitMsg, name, em
 	err = repo.Push(&git.PushOptions{
 		Auth: impl.Auth,
 	})
-
 	return commit.String(), err
 }
 
 func (impl GitServiceImpl) getRepoAndWorktree(repoRoot string) (*git.Repository, *git.Worktree, error) {
+	var err error
+	start := time.Now()
+	defer func() {
+		util.TriggerGitOpsMetrics("getRepoAndWorktree", "GitService", start, err)
+	}()
 	r, err := git.PlainOpen(repoRoot)
 	if err != nil {
 		return nil, nil, err
@@ -342,6 +374,10 @@ func (impl GitServiceImpl) getRepoAndWorktree(repoRoot string) (*git.Repository,
 }
 
 func (impl GitServiceImpl) ForceResetHead(repoRoot string) (err error) {
+	start := time.Now()
+	defer func() {
+		util.TriggerGitOpsMetrics("ForceResetHead", "GitService", start, err)
+	}()
 	_, workTree, err := impl.getRepoAndWorktree(repoRoot)
 	if err != nil {
 		return err
@@ -360,6 +396,10 @@ func (impl GitServiceImpl) ForceResetHead(repoRoot string) (err error) {
 
 func (impl GitServiceImpl) CommitValues(config *ChartConfig) (commitHash string, err error) {
 	//TODO acquire lock
+	start := time.Now()
+	defer func() {
+		util.TriggerGitOpsMetrics("CommitValues", "GitService", start, err)
+	}()
 	gitDir := filepath.Join(impl.config.GitWorkingDir, config.ChartName)
 	if err != nil {
 		return "", err
@@ -373,7 +413,12 @@ func (impl GitServiceImpl) CommitValues(config *ChartConfig) (commitHash string,
 }
 
 func (impl GitServiceImpl) Pull(repoRoot string) (err error) {
+	start := time.Now()
+	defer func() {
+		util.TriggerGitOpsMetrics("Pull", "GitService", start, err)
+	}()
 	_, workTree, err := impl.getRepoAndWorktree(repoRoot)
+
 	if err != nil {
 		return err
 	}
