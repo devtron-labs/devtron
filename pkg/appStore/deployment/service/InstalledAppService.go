@@ -1051,6 +1051,12 @@ func (impl InstalledAppServiceImpl) FetchResourceTreeWithHibernateForACD(rctx co
 	ctx = context.WithValue(ctx, "token", acdToken)
 	defer cancel()
 	appDetail, err = fetchResourceTreeForACD(rctx, cn, appDetail, impl)
+	if err != nil {
+		return *appDetail
+	}
+	if appDetail.ResourceTree["nodes"] == nil {
+		return *appDetail
+	}
 	appDetail.ResourceTree = checkHibernate(impl, appDetail, ctx)
 	return *appDetail
 }
