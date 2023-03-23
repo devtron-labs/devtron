@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.2.0
 // - protoc             v3.9.1
-// source: api/casbin/casbin.proto
+// source: pkg/user/casbin/client/casbin.proto
 
 package client
 
@@ -22,7 +22,7 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type CasbinServiceClient interface {
-	AddPolicy(ctx context.Context, in *MultiPolicyObj, opts ...grpc.CallOption) (*MultiPolicyObj, error)
+	AddPolicy(ctx context.Context, in *MultiPolicyObj, opts ...grpc.CallOption) (*AddPolicyResp, error)
 	LoadPolicy(ctx context.Context, in *EmptyObj, opts ...grpc.CallOption) (*EmptyObj, error)
 	RemovePolicy(ctx context.Context, in *MultiPolicyObj, opts ...grpc.CallOption) (*MultiPolicyObj, error)
 	GetAllSubjects(ctx context.Context, in *EmptyObj, opts ...grpc.CallOption) (*GetAllSubjectsResp, error)
@@ -41,8 +41,8 @@ func NewCasbinServiceClient(cc grpc.ClientConnInterface) CasbinServiceClient {
 	return &casbinServiceClient{cc}
 }
 
-func (c *casbinServiceClient) AddPolicy(ctx context.Context, in *MultiPolicyObj, opts ...grpc.CallOption) (*MultiPolicyObj, error) {
-	out := new(MultiPolicyObj)
+func (c *casbinServiceClient) AddPolicy(ctx context.Context, in *MultiPolicyObj, opts ...grpc.CallOption) (*AddPolicyResp, error) {
+	out := new(AddPolicyResp)
 	err := c.cc.Invoke(ctx, "/CasbinService/AddPolicy", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -126,7 +126,7 @@ func (c *casbinServiceClient) RemovePoliciesByRoles(ctx context.Context, in *Rem
 // All implementations must embed UnimplementedCasbinServiceServer
 // for forward compatibility
 type CasbinServiceServer interface {
-	AddPolicy(context.Context, *MultiPolicyObj) (*MultiPolicyObj, error)
+	AddPolicy(context.Context, *MultiPolicyObj) (*AddPolicyResp, error)
 	LoadPolicy(context.Context, *EmptyObj) (*EmptyObj, error)
 	RemovePolicy(context.Context, *MultiPolicyObj) (*MultiPolicyObj, error)
 	GetAllSubjects(context.Context, *EmptyObj) (*GetAllSubjectsResp, error)
@@ -142,7 +142,7 @@ type CasbinServiceServer interface {
 type UnimplementedCasbinServiceServer struct {
 }
 
-func (UnimplementedCasbinServiceServer) AddPolicy(context.Context, *MultiPolicyObj) (*MultiPolicyObj, error) {
+func (UnimplementedCasbinServiceServer) AddPolicy(context.Context, *MultiPolicyObj) (*AddPolicyResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AddPolicy not implemented")
 }
 func (UnimplementedCasbinServiceServer) LoadPolicy(context.Context, *EmptyObj) (*EmptyObj, error) {
@@ -389,5 +389,5 @@ var CasbinService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "api/casbin/casbin.proto",
+	Metadata: "pkg/user/casbin/client/casbin.proto",
 }
