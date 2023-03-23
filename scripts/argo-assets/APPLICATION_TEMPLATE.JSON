@@ -9,7 +9,7 @@
   "spec": {
     "destination": {
       "namespace": "{{.TargetNamespace}}",
-      "name": "{{.TargetName}}"
+      "server": "{{.TargetServer}}"
     },
     "project": "{{.Project}}",
     "source": {
