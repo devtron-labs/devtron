@@ -24,6 +24,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/middleware"
 	"go.opentelemetry.io/otel"
 	"strconv"
 	"strings"
@@ -132,7 +133,9 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter hel
 	impl.Logger.Debugw("basic app detail query: ", query)
 	var lastDeployedTimeDTO []*bean.AppEnvironmentContainer
 	lastDeployedTimeMap := map[int]*bean.AppEnvironmentContainer{}
+	start := time.Now()
 	_, err := impl.dbConnection.Query(&lastDeployedTimeDTO, query)
+	middleware.AppListingDuration.WithLabelValues("BuildAppListingQueryLastDeploymentTime").Observe(time.Since(start).Seconds())
 	if err != nil {
 		impl.Logger.Error(err)
 		return appEnvArr, err
@@ -152,7 +155,9 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter hel
 	var appEnvContainer []*bean.AppEnvironmentContainer
 	appsEnvquery := impl.appListingRepositoryQueryBuilder.BuildAppListingQuery(appListingFilter)
 	impl.Logger.Debugw("basic app detail query: ", appsEnvquery)
+	start = time.Now()
 	_, appsErr := impl.dbConnection.Query(&appEnvContainer, appsEnvquery)
+	middleware.AppListingDuration.WithLabelValues("BuildAppListingQuery").Observe(time.Since(start).Seconds())
 	if appsErr != nil {
 		impl.Logger.Error(appsErr)
 		return appEnvContainer, appsErr
