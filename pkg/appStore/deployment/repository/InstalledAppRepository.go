@@ -45,7 +45,6 @@ type InstalledAppRepository interface {
 	GetInstalledAppVersionByInstalledAppIdAndEnvId(installedAppId int, envId int) (*InstalledAppVersions, error)
 	FetchNotesFromdb(installedAppId int) (string, error)
 	GetInstalledAppVersionByAppStoreId(appStoreId int) ([]*InstalledAppVersions, error)
-
 	DeleteInstalledApp(model *InstalledApps) (*InstalledApps, error)
 	DeleteInstalledAppVersion(model *InstalledAppVersions) (*InstalledAppVersions, error)
 	GetInstalledAppVersionByInstalledAppId(id int) ([]*InstalledAppVersions, error)
