@@ -48,7 +48,7 @@ type ClusterRepository interface {
 	FindOneActive(clusterName string) (*Cluster, error)
 	FindAll() ([]Cluster, error)
 	FindAllActive() ([]Cluster, error)
-
+	FindNames() ([]string, error)
 	FindById(id int) (*Cluster, error)
 	FindByIds(id []int) ([]Cluster, error)
 	Update(model *Cluster) error
@@ -102,6 +102,13 @@ func (impl ClusterRepositoryImpl) FindAll() ([]Cluster, error) {
 		Where("active =?", true).
 		Select()
 	return clusters, err
+}
+
+func (impl ClusterRepositoryImpl) FindNames() ([]string, error) {
+	var clusterNames []string
+	query := "select cluster_name from cluster where active = true "
+	_, err := impl.dbConnection.Query(&clusterNames, query)
+	return clusterNames, err
 }
 
 func (impl ClusterRepositoryImpl) FindAllActive() ([]Cluster, error) {
