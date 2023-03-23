@@ -714,6 +714,10 @@ func (impl RoleGroupServiceImpl) DeleteRoleGroup(bean *bean.RoleGroup) (bool, er
 	if err != nil {
 		impl.logger.Errorw("error in getting all role group role mappings or not found", "err", err)
 	}
+	allRolesForGroup, err := impl.roleGroupRepository.GetRolesByGroupCasbinName(model.CasbinName)
+	if err != nil {
+		impl.logger.Errorw("error in getting all roles for groups", "err", err)
+	}
 	for _, roleGroupRoleMapping := range allRoleGroupRoleMappings {
 		err = impl.roleGroupRepository.DeleteRoleGroupRoleMappingByRoleId(roleGroupRoleMapping.RoleId, tx)
 		if err != nil {
@@ -742,6 +746,15 @@ func (impl RoleGroupServiceImpl) DeleteRoleGroup(bean *bean.RoleGroup) (bool, er
 			return false, err
 		}
 	}
+
+	for _, role := range allRolesForGroup {
+		flag := casbin2.DeleteRoleForUser(model.CasbinName, role.Role)
+		if flag == false {
+			impl.logger.Warnw("unable to delete mapping of group and user in casbin", "user", model.CasbinName, "role", role)
+			return false, err
+		}
+	}
+
 	err = tx.Commit()
 	if err != nil {
 		return false, err
