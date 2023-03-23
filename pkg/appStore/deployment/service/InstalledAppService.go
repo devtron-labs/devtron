@@ -82,7 +82,7 @@ type InstalledAppService interface {
 	MarkGitOpsInstalledAppsDeletedIfArgoAppIsDeleted(installedAppId int, envId int) error
 	CheckAppExistsByInstalledAppId(installedAppId int) error
 	FindNotesForArgoApplication(installedAppId, envId int) (string, string, error)
-	FetchNotesFromdb(installedAppId int) (string, error)
+	FetchNotesFromdb(installedAppId int, envId int, token string, checkNotesAuth func(token string, appName string, envId int) bool) (string, error)
 }
 
 type InstalledAppServiceImpl struct {
@@ -784,15 +784,32 @@ func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(instal
 	}
 	return appDetail, nil
 }
-func (impl *InstalledAppServiceImpl) FetchNotesFromdb(installedAppId int) (string, error) {
+func (impl *InstalledAppServiceImpl) FetchNotesFromdb(installedAppId int, envId int, token string, checkNotesAuth func(token string, appName string, envId int) bool) (string, error) {
+	installedApp, err := impl.installedAppRepository.FetchNotesFromdb(installedAppId)
+	appName := installedApp.App.AppName
 
-	notes, err := impl.installedAppRepository.FetchNotesFromdb(installedAppId)
+	isValidAuth := checkNotesAuth(token, appName, envId)
+	if !isValidAuth {
+		impl.logger.Errorw("unauthorized user", "isValidAuth", isValidAuth)
+		return "", nil
+	}
 	if err != nil {
 		impl.logger.Errorw("error fetching notes from db", "err", err)
 		return "", err
 	}
+	if installedApp.Notes == "" {
+		notes, _, err := impl.FindNotesForArgoApplication(installedAppId, envId)
+		if err != nil {
+			impl.logger.Errorw("error fetching notes", "err", err)
+			return "", err
+		}
+		if notes == "" {
+			impl.logger.Errorw("error fetching notes", "err", err)
+		}
+		return notes, err
+	}
 
-	return notes, nil
+	return installedApp.Notes, nil
 }
 func (impl *InstalledAppServiceImpl) FindNotesForArgoApplication(installedAppId, envId int) (string, string, error) {
 	installedAppVerison, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdAndEnvId(installedAppId, envId)
@@ -840,11 +857,11 @@ func (impl *InstalledAppServiceImpl) FindNotesForArgoApplication(installedAppId,
 			impl.logger.Errorw("error in fetching notes", "err", err)
 			return notes, appName, err
 		}
-	}
-	_, err = impl.appStoreDeploymentService.AppStoreDeployOperationNotesUpdate(installedAppId, notes)
-	if err != nil {
-		impl.logger.Errorw("error in updating notes in db ", "err", err)
-		return notes, appName, err
+		_, err = impl.appStoreDeploymentService.AppStoreDeployOperationNotesUpdate(installedAppId, notes)
+		if err != nil {
+			impl.logger.Errorw("error in updating notes in db ", "err", err)
+			return notes, appName, err
+		}
 	}
 
 	return notes, appName, nil

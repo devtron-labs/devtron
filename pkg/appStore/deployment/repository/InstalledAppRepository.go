@@ -43,7 +43,7 @@ type InstalledAppRepository interface {
 	GetAllIntalledAppsByAppStoreId(appStoreId int) ([]InstalledAppAndEnvDetails, error)
 	GetAllInstalledAppsByChartRepoId(chartRepoId int) ([]InstalledAppAndEnvDetails, error)
 	GetInstalledAppVersionByInstalledAppIdAndEnvId(installedAppId int, envId int) (*InstalledAppVersions, error)
-	FetchNotesFromdb(installedAppId int) (string, error)
+	FetchNotesFromdb(installedAppId int) (*InstalledApps, error)
 	GetInstalledAppVersionByAppStoreId(appStoreId int) ([]*InstalledAppVersions, error)
 	DeleteInstalledApp(model *InstalledApps) (*InstalledApps, error)
 	DeleteInstalledAppVersion(model *InstalledAppVersions) (*InstalledAppVersions, error)
@@ -190,12 +190,12 @@ func (impl InstalledAppRepositoryImpl) UpdateInstalledAppVersion(model *Installe
 	}
 	return model, nil
 }
-func (impl InstalledAppRepositoryImpl) FetchNotesFromdb(installedAppId int) (string, error) {
+func (impl InstalledAppRepositoryImpl) FetchNotesFromdb(installedAppId int) (*InstalledApps, error) {
 	model := &InstalledApps{}
 	err := impl.dbConnection.Model(model).
-		Column("notes").
+		Column("installed_apps.*", "App").
 		Where("installed_apps.id = ?", installedAppId).Where("installed_apps.active = true").Select()
-	return model.Notes, err
+	return model, err
 }
 
 func (impl InstalledAppRepositoryImpl) GetInstalledApp(id int) (*InstalledApps, error) {
