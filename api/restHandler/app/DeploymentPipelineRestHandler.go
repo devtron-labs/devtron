@@ -340,8 +340,6 @@ func (handler PipelineConfigRestHandlerImpl) HandleChangeDeploymentRequest(w htt
 	}
 	ctx := context.WithValue(r.Context(), "token", acdToken)
 
-	// Disabling auto-trigger until bulk trigger API is fixed
-	deploymentAppTypeChangeRequest.AutoTriggerDeployment = false
 	resp, err := handler.pipelineBuilder.ChangeDeploymentType(ctx, deploymentAppTypeChangeRequest)
 
 	if err != nil {
@@ -1963,7 +1961,9 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelinesByEnvironment(w http.
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	_, span := otel.Tracer("orchestrator").Start(context.Background(), "ciHandler.FetchCdPipelinesForAppGrouping")
 	results, err := handler.pipelineBuilder.GetCdPipelinesByEnvironment(envId, userEmailId, handler.checkAuthBatch)
+	span.End()
 	if err != nil {
 		handler.Logger.Errorw("service err, GetCdPipelines", "err", err, "envId", envId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

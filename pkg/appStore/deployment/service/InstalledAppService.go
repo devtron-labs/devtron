@@ -113,6 +113,7 @@ type InstalledAppServiceImpl struct {
 	helmAppService                       client.HelmAppService
 	attributesRepository                 repository3.AttributesRepository
 	appStatusService                     appStatus.AppStatusService
+	K8sUtil                              *util.K8sUtil
 }
 
 func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
@@ -134,7 +135,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	installedAppRepositoryHistory repository2.InstalledAppVersionHistoryRepository,
 	argoUserService argo.ArgoUserService, helmAppClient client.HelmAppClient, helmAppService client.HelmAppService,
 	attributesRepository repository3.AttributesRepository,
-	appStatusService appStatus.AppStatusService) (*InstalledAppServiceImpl, error) {
+	appStatusService appStatus.AppStatusService, K8sUtil *util.K8sUtil) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -164,6 +165,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		helmAppService:                       helmAppService,
 		attributesRepository:                 attributesRepository,
 		appStatusService:                     appStatusService,
+		K8sUtil:                              K8sUtil,
 	}
 	err := impl.Subscribe()
 	if err != nil {
@@ -796,11 +798,17 @@ func (impl *InstalledAppServiceImpl) FindNotesForArgoApplication(installedAppId,
 			impl.logger.Errorw("error fetching app store app version in installed app service", "err", err)
 			return notes, appName, err
 		}
+		k8sServerVersion, err := impl.K8sUtil.GetKubeVersion()
+		if err != nil {
+			impl.logger.Errorw("exception caught in getting k8sServerVersion", "err", err)
+			return notes, appName, err
+		}
 
 		installReleaseRequest := &client.InstallReleaseRequest{
 			ChartName:    appStoreAppVersion.Name,
 			ChartVersion: appStoreAppVersion.Version,
 			ValuesYaml:   installedAppVerison.ValuesYaml,
+			K8SVersion:   k8sServerVersion.String(),
 			ChartRepository: &client.ChartRepository{
 				Name:     appStoreAppVersion.AppStore.ChartRepo.Name,
 				Url:      appStoreAppVersion.AppStore.ChartRepo.Url,
@@ -995,6 +1003,7 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 			resourceTree := util3.InterfaceToMapAdapter(detail.ResourceTreeResponse)
 			resourceTree["status"] = detail.ApplicationStatus
 			appDetail.ResourceTree = resourceTree
+			appDetail.Notes = detail.ChartMetadata.Notes
 			impl.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
 		} else {
 			appDetail.ResourceTree = map[string]interface{}{}
