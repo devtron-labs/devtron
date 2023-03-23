@@ -64,11 +64,11 @@ func (impl ClusterNoteRepositoryImpl) FindByClusterId(id int) (*ClusterNote, err
 	return clusterNote, err
 }
 
-func (impl ClusterNoteRepositoryImpl) FindByClusterIds(id []int) ([]*ClusterNote, error) {
+func (impl ClusterNoteRepositoryImpl) FindByClusterIds(ids []int) ([]*ClusterNote, error) {
 	var clusterNotes []*ClusterNote
 	err := impl.dbConnection.
 		Model(&clusterNotes).
-		Where("cluster_id in(?)", pg.In(id)).
+		Where("cluster_id in(?)", pg.In(ids)).
 		Select()
 	return clusterNotes, err
 }
