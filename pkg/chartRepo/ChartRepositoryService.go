@@ -286,7 +286,7 @@ func (impl *ChartRepositoryServiceImpl) UpdateData(request *ChartRepoDto) (*char
 			}
 			secret.StringData = secretData
 			if previousName != request.Name {
-				err = impl.DeleteChartSecret(chartRepo.Name)
+				err = impl.DeleteChartSecret(previousName)
 				if err != nil {
 					impl.logger.Errorw("Error in deleting secret for chart repo", "Chart Name", chartRepo.Name, "err", err)
 					continue
