@@ -135,7 +135,9 @@ func (impl PumpImpl) StartK8sStreamWithHeartBeat(w http.ResponseWriter, isReconn
 		}
 		eventId := strconv.FormatInt(parsedTime.UnixNano(), 10)
 		mux.Lock()
-		err = impl.sendEvent([]byte(eventId), nil, []byte(splitLog[1]), w)
+		if len(splitLog) == 2 {
+			err = impl.sendEvent([]byte(eventId), nil, []byte(splitLog[1]), w)
+		}
 		mux.Unlock()
 		if err != nil {
 			impl.logger.Errorw("error in writing data over sse", "err", err)
