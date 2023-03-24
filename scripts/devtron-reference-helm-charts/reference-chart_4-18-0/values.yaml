@@ -300,10 +300,19 @@ istio:
     provider: {}
     rules: []
 
+networkPolicy:
+  enabled: false
+  annotations: {}
+  labels: {}
+  podSelector: 
+    matchExpressions: []
+    matchLabels: {}
+  policyTypes: []
+  ingress: []
+  egress: []
 
 hibernator:
   enable: false
-  
 
 dbMigrationConfig:
   enabled: false

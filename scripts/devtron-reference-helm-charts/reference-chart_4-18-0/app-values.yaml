@@ -357,6 +357,17 @@ istio:
     provider: {}
     rules: []
 
+networkPolicy:
+  enabled: false
+  annotations: {}
+  labels: {}
+  podSelector: 
+    matchExpressions: []
+    matchLabels: {}
+  policyTypes: []
+  ingress: []
+  egress: []
+
 winterSoldier:
   enabled: false
   apiVersion: pincher.devtron.ai/v1alpha1
