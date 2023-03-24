@@ -58,6 +58,7 @@ type PodLogsRequest struct {
 	Follow            bool         `json:"follow"`
 	ContainerName     string       `json:"containerName"`
 	PreviousContainer bool         `json:"previousContainer"`
+	Timestamps        bool         `json:"timestamps"`
 }
 
 type ResourceIdentifier struct {
@@ -235,7 +236,7 @@ func (impl K8sClientServiceImpl) GetPodLogs(ctx context.Context, restConfig *res
 		Follow:     podLogsRequest.Follow,
 		TailLines:  &tailLines,
 		Container:  podLogsRequest.ContainerName,
-		Timestamps: true,
+		Timestamps: podLogsRequest.Timestamps,
 		Previous:   podLogsRequest.PreviousContainer,
 	}
 	if podLogsRequest.SinceTime != nil {
