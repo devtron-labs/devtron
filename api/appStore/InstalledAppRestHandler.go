@@ -411,7 +411,7 @@ func (handler *InstalledAppRestHandlerImpl) FetchNotesForArgoInstalledApp(w http
 		return
 	}
 	handler.Logger.Infow("request payload, FetchNotesForArgoInstalledApp, app store", "installedAppId", installedAppId, "envId", envId)
-	notes, err := handler.installedAppService.FetchNotesFromdb(installedAppId, envId, token, handler.checkNotesAuth)
+	notes, err := handler.installedAppService.FetchChartNotes(installedAppId, envId, token, handler.checkNotesAuth)
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchNotesFromdb, app store", "err", err, "installedAppId", installedAppId, "envId", envId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

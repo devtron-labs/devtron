@@ -68,7 +68,7 @@ type AppStoreDeploymentService interface {
 	GetInstalledAppVersion(id int, userId int32) (*appStoreBean.InstallAppVersionDTO, error)
 	InstallAppByHelm(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error)
 	UpdateProjectHelmApp(updateAppRequest *appStoreBean.UpdateProjectHelmAppDTO) error
-	AppStoreDeployOperationNotesUpdate(installAppId int, notes string) (bool, error)
+	UpdateNotesForInstalledApp(installAppId int, notes string) (bool, error)
 }
 
 type DeploymentServiceTypeConfig struct {
@@ -281,7 +281,7 @@ func (impl AppStoreDeploymentServiceImpl) GetGitOpsRepoName(appName string) stri
 	return repoName
 }
 
-func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationNotesUpdate(installAppId int, notes string) (bool, error) {
+func (impl AppStoreDeploymentServiceImpl) UpdateNotesForInstalledApp(installAppId int, notes string) (bool, error) {
 	dbConnection := impl.installedAppRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {

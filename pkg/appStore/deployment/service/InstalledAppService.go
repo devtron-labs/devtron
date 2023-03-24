@@ -82,7 +82,7 @@ type InstalledAppService interface {
 	MarkGitOpsInstalledAppsDeletedIfArgoAppIsDeleted(installedAppId int, envId int) error
 	CheckAppExistsByInstalledAppId(installedAppId int) error
 	FindNotesForArgoApplication(installedAppId, envId int) (string, string, error)
-	FetchNotesFromdb(installedAppId int, envId int, token string, checkNotesAuth func(token string, appName string, envId int) bool) (string, error)
+	FetchChartNotes(installedAppId int, envId int, token string, checkNotesAuth func(token string, appName string, envId int) bool) (string, error)
 }
 
 type InstalledAppServiceImpl struct {
@@ -784,8 +784,9 @@ func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(instal
 	}
 	return appDetail, nil
 }
-func (impl *InstalledAppServiceImpl) FetchNotesFromdb(installedAppId int, envId int, token string, checkNotesAuth func(token string, appName string, envId int) bool) (string, error) {
-	installedApp, err := impl.installedAppRepository.FetchNotesFromdb(installedAppId)
+func (impl *InstalledAppServiceImpl) FetchChartNotes(installedAppId int, envId int, token string, checkNotesAuth func(token string, appName string, envId int) bool) (string, error) {
+	//check notes.txt in db
+	installedApp, err := impl.installedAppRepository.FetchNotes(installedAppId)
 	appName := installedApp.App.AppName
 	if err != nil {
 		impl.logger.Errorw("error fetching notes from db", "err", err)
@@ -794,9 +795,9 @@ func (impl *InstalledAppServiceImpl) FetchNotesFromdb(installedAppId int, envId 
 	isValidAuth := checkNotesAuth(token, appName, envId)
 	if !isValidAuth {
 		impl.logger.Errorw("unauthorized user", "isValidAuth", isValidAuth)
-		return "", nil
+		return "", fmt.Errorf("unauthorized user")
 	}
-
+	//if notes is not present in db then below call will happen
 	if installedApp.Notes == "" {
 		notes, _, err := impl.FindNotesForArgoApplication(installedAppId, envId)
 		if err != nil {
@@ -857,7 +858,7 @@ func (impl *InstalledAppServiceImpl) FindNotesForArgoApplication(installedAppId,
 			impl.logger.Errorw("error in fetching notes", "err", err)
 			return notes, appName, err
 		}
-		_, err = impl.appStoreDeploymentService.AppStoreDeployOperationNotesUpdate(installedAppId, notes)
+		_, err = impl.appStoreDeploymentService.UpdateNotesForInstalledApp(installedAppId, notes)
 		if err != nil {
 			impl.logger.Errorw("error in updating notes in db ", "err", err)
 			return notes, appName, err
