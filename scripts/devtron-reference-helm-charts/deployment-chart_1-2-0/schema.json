@@ -240,7 +240,7 @@
         "title": "Network Policy",
         "properties": {
           "enabled":{
-            "type":"object",
+            "type":"boolean",
             "description": "used to enable or disable NetworkPolicy"
           },
           "annotations":{
