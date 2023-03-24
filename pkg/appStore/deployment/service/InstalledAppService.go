@@ -25,6 +25,7 @@ import (
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/constants"
+	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/appStatus"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
@@ -186,7 +187,9 @@ func (impl InstalledAppServiceImpl) GetAll(filter *appStoreBean.AppStoreFilter) 
 		ApplicationType: &applicationType,
 		ClusterIds:      &clusterIdsConverted,
 	}
+	start := time.Now()
 	installedApps, err := impl.installedAppRepository.GetAllInstalledApps(filter)
+	middleware.AppListingDuration.WithLabelValues("getAllInstalledApps", "helm").Observe(time.Since(start).Seconds())
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Error(err)
 		return installedAppsResponse, err
