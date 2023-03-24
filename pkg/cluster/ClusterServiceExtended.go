@@ -315,13 +315,13 @@ func (impl *ClusterServiceImplExtended) CreateGrafanaDataSource(clusterBean *Clu
 	return grafanaDatasourceId, nil
 }
 
-func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
+func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterBean, userId int32, livezConnectionChecked bool) (*ClusterBean, error) {
 	isGitOpsConfigured, err := impl.gitOpsRepository.IsGitOpsConfigured()
 	if err != nil {
 		return nil, err
 	}
 
-	clusterBean, err := impl.ClusterServiceImpl.Save(ctx, bean, userId)
+	clusterBean, err := impl.ClusterServiceImpl.Save(ctx, bean, userId, livezConnectionChecked)
 	if err != nil {
 		return nil, err
 	}

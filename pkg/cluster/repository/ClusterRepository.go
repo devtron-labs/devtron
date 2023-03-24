@@ -39,6 +39,7 @@ type Cluster struct {
 	AgentInstallationStage int               `sql:"agent_installation_stage"`
 	K8sVersion             string            `sql:"k8s_version"`
 	ErrorInConnecting      string            `sql:"error_in_connecting"`
+	InsecureSkipTlsVerify  bool              `sql:"insecure_skip_tls_verify"`
 	sql.AuditLog
 }
 
@@ -48,7 +49,7 @@ type ClusterRepository interface {
 	FindOneActive(clusterName string) (*Cluster, error)
 	FindAll() ([]Cluster, error)
 	FindAllActive() ([]Cluster, error)
-	FindNames() ([]string, error)
+	FindActiveClusterNames() ([]string, error)
 	FindById(id int) (*Cluster, error)
 	FindByIds(id []int) ([]Cluster, error)
 	Update(model *Cluster) error
@@ -104,7 +105,7 @@ func (impl ClusterRepositoryImpl) FindAll() ([]Cluster, error) {
 	return clusters, err
 }
 
-func (impl ClusterRepositoryImpl) FindNames() ([]string, error) {
+func (impl ClusterRepositoryImpl) FindActiveClusterNames() ([]string, error) {
 	var clusterNames []string
 	query := "select cluster_name from cluster where active = true "
 	_, err := impl.dbConnection.Query(&clusterNames, query)
