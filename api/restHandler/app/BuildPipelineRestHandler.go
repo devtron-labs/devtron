@@ -16,6 +16,7 @@ import (
 	bean1 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
+	"go.opentelemetry.io/otel"
 	"io"
 	"net/http"
 	"strconv"
@@ -903,7 +904,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateMaterial(w http.ResponseWrite
 			if err != nil {
 				handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
 			}
-			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 			return
 		}
 	} else {
@@ -983,7 +984,7 @@ func (handler PipelineConfigRestHandlerImpl) UpdateMaterial(w http.ResponseWrite
 			if err != nil {
 				handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
 			}
-			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 			return
 		}
 	} else {
@@ -1037,7 +1038,7 @@ func (handler PipelineConfigRestHandlerImpl) DeleteMaterial(w http.ResponseWrite
 			if err != nil {
 				handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
 			}
-			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 			return
 		}
 	} else {
@@ -1333,7 +1334,9 @@ func (handler PipelineConfigRestHandlerImpl) GetCiPipelineByEnvironment(w http.R
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	ciConf, err := handler.pipelineBuilder.GetCiPipelineByEnvironment(envId, userEmailId, handler.checkAuthBatch)
+	_, span := otel.Tracer("orchestrator").Start(r.Context(), "ciHandler.FetchCiPipelinesForAppGrouping")
+	ciConf, err := handler.pipelineBuilder.GetCiPipelineByEnvironment(envId, userEmailId, handler.checkAuthBatch, r.Context())
+	span.End()
 	if err != nil {
 		handler.Logger.Errorw("service err, GetCiPipeline", "err", err, "envId", envId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
