@@ -30,6 +30,7 @@
 - fix: urls pipeline fetching bug fix (#3063)
 - fix: app grouping appid appname (#3058)
 ## Enhancements
+- feat: Add timer telemetry for App List (#3185)
 - feat:Sorting applist according to deployed time (#3108)
 - feat:git material source type editable (#3015)
 - feat: Using server url in application object (#3175)
