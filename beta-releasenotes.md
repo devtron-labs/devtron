@@ -28,6 +28,7 @@
 - fix: urls pipeline fetching bug fix (#3063)
 - fix: app grouping appid appname (#3058)
 ## Enhancements
+- feat:git material source type editable (#3015)
 - feat: Using server url in application object (#3175)
 - feat: Add timer/counter telemetry for GitOps (#3119)
 - feat: show notes txt for  helmapps deployed by  helm (#2966)
