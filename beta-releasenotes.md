@@ -1,4 +1,5 @@
 ## Bugs
+- fix: eks nodegroup label added (#3184)
 - fix:http status fix for access to jobs (#3176)
 - fix:wire issue fixed (#3179)
 - fix:notes.txt throws error when charts require special KubeVersion (#3170)
