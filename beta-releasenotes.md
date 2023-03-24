@@ -1,4 +1,5 @@
 ## Bugs
+- fix: scale workloads for helm app created on Devtron  (#3131)
 - fix: select image not working for external webhook (#3187)
 - fix: eks nodegroup label added (#3184)
 - fix:http status fix for access to jobs (#3176)
