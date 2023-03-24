@@ -67,6 +67,7 @@ func (impl *K8sInformerFactoryImpl) GetLatestNamespaceListGroupByCLuster() map[s
 }
 
 func (impl *K8sInformerFactoryImpl) BuildInformer(clusterInfo []*bean.ClusterInfo) {
+	// TODO
 	var restConfig *rest.Config
 	for _, info := range clusterInfo {
 		if info.ClusterName == "default_cluster" {
@@ -105,6 +106,7 @@ func (impl *K8sInformerFactoryImpl) BuildInformer(clusterInfo []*bean.ClusterInf
 }
 
 func (impl *K8sInformerFactoryImpl) buildInformerAndNamespaceList(clusterName string, config *rest.Config, mutex *sync.Mutex) map[string]map[string]bool {
+	// TODO
 	allNamespaces := make(map[string]bool)
 	impl.globalMapClusterNamespace[clusterName] = allNamespaces
 	httpClient, err := util.OverrideK8sHttpClientWithTracer(config)

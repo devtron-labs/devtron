@@ -90,7 +90,8 @@ type DefaultClusterComponent struct {
 }
 
 type ClusterService interface {
-	Save(parent context.Context, bean *ClusterBean, userId int32, livezConnectionChecked bool) (*ClusterBean, error)
+	Save(parent context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error)
+	SaveClusters(bean []*ClusterBean, userId int32) ([]*ClusterBean, error)
 	ValidateKubeconfig(kubeConfig string) ([]*ClusterBean, error)
 	FindOne(clusterName string) (*ClusterBean, error)
 	FindOneActive(clusterName string) (*ClusterBean, error)
@@ -114,6 +115,7 @@ type ClusterService interface {
 	FindAllForClusterByUserId(userId int32, isActionUserSuperAdmin bool) ([]ClusterBean, error)
 	FetchRolesFromGroup(userId int32) ([]*repository2.RoleModel, error)
 	ConnectClustersInBatch(clusters []*ClusterBean, clusterExistInDb bool)
+	ConvertClusterBeanToCluster(clusterBean *ClusterBean, userId int32) *repository.Cluster
 }
 
 type ClusterServiceImpl struct {
@@ -151,6 +153,7 @@ func (impl *ClusterServiceImpl) GetK8sClient() (*v12.CoreV1Client, error) {
 }
 
 func (impl *ClusterServiceImpl) GetClusterConfig(cluster *ClusterBean) (*util.ClusterConfig, error) {
+	// TODO
 	host := cluster.ServerUrl
 	configMap := cluster.Config
 	bearerToken := configMap["bearer_token"]
@@ -171,44 +174,78 @@ func (impl *ClusterServiceImpl) GetClusterConfig(cluster *ClusterBean) (*util.Cl
 	return clusterCfg, nil
 }
 
-func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, userId int32, livezConnectionChecked bool) (*ClusterBean, error) {
-	//validating config
-	// TODO
-	if !livezConnectionChecked {
-		err := impl.CheckIfConfigIsValid(bean)
-		if err != nil {
-			return nil, err
-		}
+func (impl *ClusterServiceImpl) SaveClusters(beans []*ClusterBean, userId int32) ([]*ClusterBean, error) {
+	errorInSaving := false
+	for _, bean := range beans {
 		existingModel, err := impl.clusterRepository.FindOne(bean.ClusterName)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Error(err)
 			return nil, err
 		}
 		if existingModel.Id > 0 {
-			impl.logger.Errorw("error on fetching cluster, duplicate", "name", bean.ClusterName)
-			return nil, fmt.Errorf("cluster already exists")
+			bean.ValidationAndSavingMessage = "cluster already exists"
+			errorInSaving = true
 		}
 	}
 
-	model := &repository.Cluster{
-		ClusterName:        bean.ClusterName,
-		Active:             bean.Active,
-		ServerUrl:          bean.ServerUrl,
-		Config:             bean.Config,
-		PrometheusEndpoint: bean.PrometheusUrl,
-	}
+	if !errorInSaving {
+		for _, bean := range beans {
+			model := impl.ConvertClusterBeanToCluster(bean, userId)
+			err := impl.clusterRepository.Save(model)
+			if err != nil {
+				bean.ValidationAndSavingMessage = "error in saving cluster in db"
+			}
+			bean.Id = model.Id
+		}
 
-	if bean.PrometheusAuth != nil {
-		model.PUserName = bean.PrometheusAuth.UserName
-		model.PPassword = bean.PrometheusAuth.Password
-		model.PTlsClientCert = bean.PrometheusAuth.TlsClientCert
-		model.PTlsClientKey = bean.PrometheusAuth.TlsClientKey
+	}
+	return beans, nil
+}
+func (impl *ClusterServiceImpl) ConvertClusterBeanToCluster(clusterBean *ClusterBean, userId int32) *repository.Cluster {
+
+	model := &repository.Cluster{}
+
+	model.ClusterName = clusterBean.ClusterName
+	model.Active = clusterBean.Active
+	model.ServerUrl = clusterBean.ServerUrl
+	model.Config = clusterBean.Config
+	model.PrometheusEndpoint = clusterBean.PrometheusUrl
+
+	if clusterBean.PrometheusAuth != nil {
+		model.PUserName = clusterBean.PrometheusAuth.UserName
+		model.PPassword = clusterBean.PrometheusAuth.Password
+		model.PTlsClientCert = clusterBean.PrometheusAuth.TlsClientCert
+		model.PTlsClientKey = clusterBean.PrometheusAuth.TlsClientKey
 	}
 
 	model.CreatedBy = userId
 	model.UpdatedBy = userId
 	model.CreatedOn = time.Now()
 	model.UpdatedOn = time.Now()
+
+	return model
+}
+
+func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
+	//validating config
+	// TODO
+
+	err := impl.CheckIfConfigIsValid(bean)
+	if err != nil {
+		return nil, err
+	}
+
+	existingModel, err := impl.clusterRepository.FindOne(bean.ClusterName)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Error(err)
+		return nil, err
+	}
+	if existingModel.Id > 0 {
+		impl.logger.Errorw("error on fetching cluster, duplicate", "name", bean.ClusterName)
+		return nil, fmt.Errorf("cluster already exists")
+	}
+
+	model := impl.ConvertClusterBeanToCluster(bean, userId)
 
 	cfg, err := impl.GetClusterConfig(bean)
 	if err != nil {
@@ -397,6 +434,7 @@ func (impl *ClusterServiceImpl) FindByIds(ids []int) ([]ClusterBean, error) {
 }
 
 func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
+	// TODO
 	model, err := impl.clusterRepository.FindById(bean.Id)
 	if err != nil {
 		impl.logger.Error(err)
@@ -484,6 +522,7 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 }
 
 func (impl *ClusterServiceImpl) SyncNsInformer(bean *ClusterBean) {
+	// TODO
 	requestConfig := bean.Config["bearer_token"]
 	//before creating new informer for cluster, close existing one
 	impl.K8sInformerFactory.CleanNamespaceInformer(bean.ClusterName)
@@ -863,6 +902,10 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) ([]*Cluste
 			clusterBeanObject.ValidationAndSavingMessage = "user info missing from the kubeconfig"
 		} else {
 			clusterBeanObject.UserName = userInfo
+		}
+
+		if kubeConfigObject.APIVersion != "" {
+			clusterBeanObject.K8sVersion = kubeConfigObject.APIVersion
 		}
 
 		clusterBeanObject.Config = make(map[string]string)

@@ -93,7 +93,7 @@ func (impl ClusterRestHandlerImpl) SaveClusters(w http.ResponseWriter, r *http.R
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	beans := []cluster.ClusterBean{}
+	beans := []*cluster.ClusterBean{}
 	err = decoder.Decode(&beans)
 	if err != nil {
 		impl.logger.Errorw("request err, Save", "error", err, "payload", beans)
@@ -139,18 +139,10 @@ func (impl ClusterRestHandlerImpl) SaveClusters(w http.ResponseWriter, r *http.R
 		}
 		ctx = context.WithValue(ctx, "token", acdToken)
 	}
-	result := []cluster.ClusterBean{}
-	for _, bean := range beans {
-		res, err := impl.clusterService.Save(ctx, &bean, userId, true)
-		if res == nil || err != nil {
-			bean.ValidationAndSavingMessage = "Error in Saving the cluster"
-			result = append(result, bean)
-		} else {
-			result = append(result, *res)
-		}
-	}
 
-	common.WriteJsonResp(w, err, result, http.StatusOK)
+	res, err := impl.clusterService.SaveClusters(beans, userId)
+
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (impl ClusterRestHandlerImpl) Save(w http.ResponseWriter, r *http.Request) {
@@ -203,7 +195,7 @@ func (impl ClusterRestHandlerImpl) Save(w http.ResponseWriter, r *http.Request) 
 		}
 		ctx = context.WithValue(ctx, "token", acdToken)
 	}
-	bean, err = impl.clusterService.Save(ctx, bean, userId, false)
+	bean, err = impl.clusterService.Save(ctx, bean, userId)
 	if err != nil {
 		impl.logger.Errorw("service err, Save", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

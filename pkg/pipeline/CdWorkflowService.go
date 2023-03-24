@@ -644,6 +644,7 @@ func (impl *CdWorkflowServiceImpl) getClientInstance(namespace string) (v1alpha1
 }
 
 func (impl *CdWorkflowServiceImpl) getRuntimeEnvClientInstance(namespace string, token string, host string) (v1alpha12.WorkflowInterface, error) {
+	// TODO
 	config := &rest.Config{
 		Host:        host,
 		BearerToken: token,

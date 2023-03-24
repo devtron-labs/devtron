@@ -344,6 +344,7 @@ func getNewPassword() string {
 }
 
 func getClient(clusterConfig *util.ClusterConfig) (*v1.CoreV1Client, error) {
+	// TODO
 	cfg := &rest.Config{}
 	cfg.Host = clusterConfig.Host
 	cfg.BearerToken = clusterConfig.BearerToken

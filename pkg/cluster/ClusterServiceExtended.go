@@ -143,6 +143,7 @@ func (impl *ClusterServiceImplExtended) FindAll() ([]*ClusterBean, error) {
 }
 
 func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
+	// TODO
 	isGitOpsConfigured, err1 := impl.gitOpsRepository.IsGitOpsConfigured()
 	if err1 != nil {
 		return nil, err1
@@ -228,7 +229,7 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *Cluste
 		if configMap["bearer_token"] != "" {
 			bearerToken = configMap["bearer_token"]
 		}
-
+		// TODO
 		tlsConfig := v1alpha1.TLSClientConfig{
 			Insecure: true,
 		}
@@ -315,13 +316,13 @@ func (impl *ClusterServiceImplExtended) CreateGrafanaDataSource(clusterBean *Clu
 	return grafanaDatasourceId, nil
 }
 
-func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterBean, userId int32, livezConnectionChecked bool) (*ClusterBean, error) {
+func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
 	isGitOpsConfigured, err := impl.gitOpsRepository.IsGitOpsConfigured()
 	if err != nil {
 		return nil, err
 	}
 
-	clusterBean, err := impl.ClusterServiceImpl.Save(ctx, bean, userId, livezConnectionChecked)
+	clusterBean, err := impl.ClusterServiceImpl.Save(ctx, bean, userId)
 	if err != nil {
 		return nil, err
 	}
@@ -335,6 +336,7 @@ func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterB
 		if configMap["bearer_token"] != "" {
 			bearerToken = configMap["bearer_token"]
 		}
+		// TODO
 		tlsConfig := v1alpha1.TLSClientConfig{
 			Insecure: bean.InsecureSkipTLSVerify,
 		}
@@ -345,7 +347,7 @@ func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterB
 			tlsConfig.CertData = []byte(bean.Config["cert_data"])
 			tlsConfig.CAData = []byte(bean.Config["cert_auth_data"])
 		}
-
+		// TODO
 		cdClusterConfig := v1alpha1.ClusterConfig{
 			BearerToken:     bearerToken,
 			TLSClientConfig: tlsConfig,
