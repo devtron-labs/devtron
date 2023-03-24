@@ -15,6 +15,7 @@ LICENSE
 #git files
 . gitattributes
 .gitignore
+.gitbook.yaml
 
 #Folders
 assets/
@@ -24,5 +25,4 @@ charts/
 docs/
 developers-guide/
 manifests/
-scripts/sql/
 specs/
