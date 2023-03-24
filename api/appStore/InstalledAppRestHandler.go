@@ -239,7 +239,7 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 	start := time.Now()
 	resultObjectMap1 := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceHelmApp, casbin.ActionGet, objectArray1)
 	resultObjectMap2 := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceHelmApp, casbin.ActionGet, objectArray2)
-	middleware.AppListingDuration.WithLabelValues("enforceByEmailInBatch", "Helm").Observe(time.Since(start).Seconds())
+	middleware.AppListingDuration.WithLabelValues("enforceByEmailInBatch", "helm").Observe(time.Since(start).Seconds())
 	authorizedAppIdSet := make(map[string]bool)
 	//O(n) time loop , at max we will only iterate through all the apps
 	for obj, ok := range resultObjectMap1 {
