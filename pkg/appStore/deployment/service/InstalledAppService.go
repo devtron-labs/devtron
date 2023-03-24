@@ -187,7 +187,7 @@ func (impl InstalledAppServiceImpl) GetAll(filter *appStoreBean.AppStoreFilter) 
 	}
 	start := time.Now()
 	installedApps, err := impl.installedAppRepository.GetAllInstalledApps(filter)
-	middleware.AppListingDuration.WithLabelValues("getAllInstalledApps", "Helm").Observe(time.Since(start).Seconds())
+	middleware.AppListingDuration.WithLabelValues("getAllInstalledApps", "helm").Observe(time.Since(start).Seconds())
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Error(err)
 		return installedAppsResponse, err
