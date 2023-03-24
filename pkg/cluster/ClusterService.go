@@ -175,19 +175,20 @@ func (impl *ClusterServiceImpl) GetClusterConfig(cluster *ClusterBean) (*util.Cl
 }
 
 func (impl *ClusterServiceImpl) SaveClusters(beans []*ClusterBean, userId int32) ([]*ClusterBean, error) {
+
 	errorInSaving := false
+
+	clusterList, err := impl.clusterRepository.FindActiveClusters()
+	if err != nil {
+		impl.logger.Errorw("service err, FindAll", "err", err)
+		return nil, err
+	}
 	for _, bean := range beans {
-		existingModel, err := impl.clusterRepository.FindOne(bean.ClusterName)
-		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Error(err)
-			return nil, err
-		}
-		if existingModel.Id > 0 {
+		if _, ok := clusterList[bean.ClusterName]; ok {
 			bean.ValidationAndSavingMessage = "cluster already exists"
 			errorInSaving = true
 		}
 	}
-
 	if !errorInSaving {
 		for _, bean := range beans {
 			model := impl.ConvertClusterBeanToCluster(bean, userId)
@@ -206,7 +207,7 @@ func (impl *ClusterServiceImpl) ConvertClusterBeanToCluster(clusterBean *Cluster
 	model := &repository.Cluster{}
 
 	model.ClusterName = clusterBean.ClusterName
-	model.Active = clusterBean.Active
+	model.Active = true
 	model.ServerUrl = clusterBean.ServerUrl
 	model.Config = clusterBean.Config
 	model.PrometheusEndpoint = clusterBean.PrometheusUrl
@@ -866,15 +867,15 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) ([]*Cluste
 	var clusterBeanObjects []*ClusterBean
 	var clusterBeansWithNoValidationErrors []*ClusterBean
 
-	clusterList, err := impl.clusterRepository.FindActiveClusterNames()
 	if err != nil {
 		impl.logger.Errorw("service err, FindAll", "err", err)
 		return clusterBeanObjects, err
 	}
 
-	clusterNamesMap := make(map[string]bool)
-	for _, clusterName := range clusterList {
-		clusterNamesMap[clusterName] = true
+	clusterNamesMap, err := impl.clusterRepository.FindActiveClusters()
+	if err != nil {
+		impl.logger.Errorw("service err, FindAll", "err", err)
+		return nil, err
 	}
 
 	for _, ctx := range kubeConfigObject.Contexts {

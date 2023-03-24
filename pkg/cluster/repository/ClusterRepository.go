@@ -49,13 +49,13 @@ type ClusterRepository interface {
 	FindOneActive(clusterName string) (*Cluster, error)
 	FindAll() ([]Cluster, error)
 	FindAllActive() ([]Cluster, error)
-	FindActiveClusterNames() ([]string, error)
 	FindById(id int) (*Cluster, error)
 	FindByIds(id []int) ([]Cluster, error)
 	Update(model *Cluster) error
 	Delete(model *Cluster) error
 	MarkClusterDeleted(model *Cluster) error
 	UpdateClusterConnectionStatus(clusterId int, errorInConnecting string) error
+	FindActiveClusters() (map[string]bool, error)
 }
 
 func NewClusterRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *ClusterRepositoryImpl {
@@ -105,11 +105,11 @@ func (impl ClusterRepositoryImpl) FindAll() ([]Cluster, error) {
 	return clusters, err
 }
 
-func (impl ClusterRepositoryImpl) FindActiveClusterNames() ([]string, error) {
-	var clusterNames []string
-	query := "select cluster_name from cluster where active = true "
-	_, err := impl.dbConnection.Query(&clusterNames, query)
-	return clusterNames, err
+func (impl ClusterRepositoryImpl) FindActiveClusters() (map[string]bool, error) {
+	activeClusters := make(map[string]bool)
+	query := "select cluster_name, active from cluster where active = true"
+	_, err := impl.dbConnection.Query(&activeClusters, query)
+	return activeClusters, err
 }
 
 func (impl ClusterRepositoryImpl) FindAllActive() ([]Cluster, error) {
