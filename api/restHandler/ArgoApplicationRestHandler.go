@@ -217,6 +217,10 @@ func (impl ArgoApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, r *
 	if err != nil {
 		tailLines = 0
 	}
+	previousContainer, err := strconv.ParseBool(v.Get("previousContainer"))
+	if err != nil {
+		follow = false
+	}
 	query := application2.ApplicationPodLogsQuery{
 		Name:         &name,
 		PodName:      &podName,
@@ -225,6 +229,7 @@ func (impl ArgoApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, r *
 		TailLines:    &tailLines,
 		Follow:       &follow,
 		SinceSeconds: &sinceSeconds,
+		Previous:     &previousContainer,
 	}
 	lastEventId := r.Header.Get("Last-Event-ID")
 	isReconnect := false

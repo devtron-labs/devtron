@@ -54,6 +54,7 @@ func (r ApplicationRouterImpl) initApplicationRouter(router *mux.Router) {
 		Queries("sinceTime.seconds", "{sinceTime.seconds}").
 		Queries("sinceTime.nanos", "{sinceTime.nanos}").
 		Queries("tailLines", "{tailLines}").
+		Queries("previousContainer", "{previousContainer}").
 		Methods("GET").
 		HandlerFunc(r.handler.GetPodLogs)
 	router.Path("/{name}/pods/{podName}/logs").

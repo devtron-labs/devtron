@@ -443,6 +443,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 	if err != nil {
 		sinceSeconds = 0
 	}*/
+	previousContainer := v.Get("previousContainer") == "true"
 	token := r.Header.Get("token")
 	follow, err := strconv.ParseBool(v.Get("follow"))
 	if err != nil {
@@ -471,9 +472,10 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 				},
 				PodLogsRequest: application.PodLogsRequest{
 					//SinceTime:     sinceSeconds,
-					TailLines:     tailLines,
-					Follow:        follow,
-					ContainerName: containerName,
+					TailLines:         tailLines,
+					Follow:            follow,
+					ContainerName:     containerName,
+					PreviousContainer: previousContainer,
 				},
 			},
 		}
@@ -524,9 +526,10 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 				},
 				PodLogsRequest: application.PodLogsRequest{
 					//SinceTime:     sinceSeconds,
-					TailLines:     tailLines,
-					Follow:        follow,
-					ContainerName: containerName,
+					TailLines:         tailLines,
+					Follow:            follow,
+					ContainerName:     containerName,
+					PreviousContainer: previousContainer,
 				},
 			},
 		}
