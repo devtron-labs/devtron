@@ -27,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/constants"
+	"github.com/devtron-labs/devtron/internal/middleware"
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
@@ -43,6 +44,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type InstalledAppRestHandler interface {
@@ -234,10 +236,10 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 		}
 
 	}
-
+	start := time.Now()
 	resultObjectMap1 := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceHelmApp, casbin.ActionGet, objectArray1)
 	resultObjectMap2 := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceHelmApp, casbin.ActionGet, objectArray2)
-
+	middleware.AppListingDuration.WithLabelValues("enforceByEmailInBatch", "Helm").Observe(time.Since(start).Seconds())
 	authorizedAppIdSet := make(map[string]bool)
 	//O(n) time loop , at max we will only iterate through all the apps
 	for obj, ok := range resultObjectMap1 {

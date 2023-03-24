@@ -135,7 +135,7 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter hel
 	lastDeployedTimeMap := map[int]*bean.AppEnvironmentContainer{}
 	start := time.Now()
 	_, err := impl.dbConnection.Query(&lastDeployedTimeDTO, query)
-	middleware.AppListingDuration.WithLabelValues("BuildAppListingQueryLastDeploymentTime").Observe(time.Since(start).Seconds())
+	middleware.AppListingDuration.WithLabelValues("buildAppListingQueryLastDeploymentTime", "devtron").Observe(time.Since(start).Seconds())
 	if err != nil {
 		impl.Logger.Error(err)
 		return appEnvArr, err
@@ -157,12 +157,11 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter hel
 	impl.Logger.Debugw("basic app detail query: ", appsEnvquery)
 	start = time.Now()
 	_, appsErr := impl.dbConnection.Query(&appEnvContainer, appsEnvquery)
-	middleware.AppListingDuration.WithLabelValues("BuildAppListingQuery").Observe(time.Since(start).Seconds())
+	middleware.AppListingDuration.WithLabelValues("buildAppListingQuery", "devtron").Observe(time.Since(start).Seconds())
 	if appsErr != nil {
 		impl.Logger.Error(appsErr)
 		return appEnvContainer, appsErr
 	}
-
 	latestDeploymentStatusMap := map[string]*bean.AppEnvironmentContainer{}
 	for _, item := range appEnvContainer {
 		if item.EnvironmentId > 0 && item.PipelineId > 0 && item.Active == false {

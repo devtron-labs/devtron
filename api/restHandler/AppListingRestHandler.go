@@ -299,7 +299,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 	newCtx, span = otel.Tracer("appListingService").Start(newCtx, "FetchAppsByEnvironment")
 	start := time.Now()
 	envContainers, err := handler.appListingService.FetchAppsByEnvironment(fetchAppListingRequest, w, r, token)
-	middleware.AppListingDuration.WithLabelValues("FetchAppsByEnvironment").Observe(time.Since(start).Seconds())
+	middleware.AppListingDuration.WithLabelValues("fetchAppsByEnvironment", "devtron").Observe(time.Since(start).Seconds())
 	span.End()
 	if err != nil {
 		handler.logger.Errorw("service err, FetchAppsByEnvironment", "err", err, "payload", fetchAppListingRequest)
@@ -338,7 +338,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 		newCtx, span = otel.Tracer("enforcer").Start(newCtx, "EnforceByEmailInBatchForTeams")
 		start = time.Now()
 		resultMap := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceTeam, casbin.ActionGet, objectArray)
-		middleware.AppListingDuration.WithLabelValues("EnforceByEmailInBatchResourceTeam").Observe(time.Since(start).Seconds())
+		middleware.AppListingDuration.WithLabelValues("enforceByEmailInBatchResourceTeam", "devtron").Observe(time.Since(start).Seconds())
 		span.End()
 		for teamId, teamName := range uniqueTeams {
 			object := strings.ToLower(teamName)
@@ -369,7 +369,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 		newCtx, span = otel.Tracer("enforcer").Start(newCtx, "EnforceByEmailInBatchForApps")
 		start = time.Now()
 		resultMap = handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceApplications, casbin.ActionGet, objectArray)
-		middleware.AppListingDuration.WithLabelValues("EnforceByEmailInBatchResourceApplication").Observe(time.Since(start).Seconds())
+		middleware.AppListingDuration.WithLabelValues("enforceByEmailInBatchResourceApplication", "devtron").Observe(time.Since(start).Seconds())
 		span.End()
 		for _, filteredAppEnvContainer := range filteredAppEnvContainers {
 			if fetchAppListingRequest.DeploymentGroupId > 0 {

@@ -369,14 +369,14 @@ func (impl AppListingServiceImpl) GetReleaseCount(appId, envId int) (int, error)
 func (impl AppListingServiceImpl) BuildAppListingResponse(fetchAppListingRequest FetchAppListingRequest, envContainers []*bean.AppEnvironmentContainer) ([]*bean.AppContainer, error) {
 	start := time.Now()
 	appEnvMapping, err := impl.fetchACDAppStatus(fetchAppListingRequest, envContainers)
-	middleware.AppListingDuration.WithLabelValues("fetchACDAppStatus").Observe(time.Since(start).Seconds())
+	middleware.AppListingDuration.WithLabelValues("fetchACDAppStatus", "devtron").Observe(time.Since(start).Seconds())
 	if err != nil {
 		impl.Logger.Errorw("error in fetching app statuses", "error", err)
 		return []*bean.AppContainer{}, err
 	}
 	start = time.Now()
 	appContainerResponses, err := impl.appListingViewBuilder.BuildView(fetchAppListingRequest, appEnvMapping)
-	middleware.AppListingDuration.WithLabelValues("BuildView").Observe(time.Since(start).Seconds())
+	middleware.AppListingDuration.WithLabelValues("buildView", "devtron").Observe(time.Since(start).Seconds())
 	return appContainerResponses, err
 }
 func GetCIPipelineIDs(jobContainers []*bean.JobListingContainer) []int {
