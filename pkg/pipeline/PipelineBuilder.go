@@ -2748,6 +2748,10 @@ func (impl PipelineBuilderImpl) GetArtifactsForCdStage(cdPipelineId int, parentI
 			impl.logger.Errorw("error in getting artifactBean for one ci_artifact", "err", err, "parentStage", parentType, "stage", stage)
 			return ciArtifactsResponse, err
 		}
+		if artifactBean.ExternalCiPipelineId != 0 {
+			// if external webhook continue
+			continue
+		}
 		var ciWorkflow *pipelineConfig.CiWorkflow
 		if artifactBean.ParentCiArtifact != 0 {
 			ciWorkflow, err = impl.ciWorkflowRepository.FindLastTriggeredWorkflowByArtifactId(artifactBean.ParentCiArtifact)
