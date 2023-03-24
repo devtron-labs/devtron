@@ -233,6 +233,61 @@
             "title": "Timeout Seconds"
           }
         }
+      },   
+      "networkPolicy": {
+        "type": "object",
+        "description": "NetworkPolicy describes what network traffic is allowed for a set of Pods",
+        "title": "Network Policy",
+        "properties": {
+          "enabled":{
+            "type":"object",
+            "description": "used to enable or disable NetworkPolicy"
+          },
+          "annotations":{
+            "type": "object",
+            "description": "Annotations for NetworkPolicy"
+          },
+          "labels":{
+            "type":"object",
+            "description": "Labels for NetworkPolicy"
+          },
+          "podSelector":{
+            "type": "object",
+            "description": "Selects the pods to which this NetworkPolicy object applies",
+            "properties": {
+              "matchExpressions":{
+                "type":"array",
+                "description": "list of label selector"
+              },
+              "matchLabels":{
+                "type":"object",
+                "description": "map of {key,value} pairs"
+              }
+            }
+          },
+          "policyTypes":{
+            "type":"array",
+            "description": "List of rule types that the NetworkPolicy relates to. Valid options are Ingress,Egress."
+          },
+          "ingress":{
+            "type":"array",
+            "description": "List of ingress rules to be applied to the selected pods"
+          },
+          "egress":{
+            "type":"array",
+            "description": "List of egress rules to be applied to the selected pods"
+          }
+        }
+      },
+      "istio": {
+        "type": "object",
+        "description": "Istio Service mesh",
+        "title": "Istio"
+      },
+      "flaggerCanary":{
+        "type": "object",
+        "description": "Flagger for canary release with istio service mesh",
+        "title": "Flagger Canary Release"      
       },
       "Spec": {
         "type": "object",
