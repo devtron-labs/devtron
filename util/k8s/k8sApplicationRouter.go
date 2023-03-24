@@ -42,7 +42,7 @@ func (impl *K8sApplicationRouterImpl) InitK8sApplicationRouter(k8sAppRouter *mux
 		Queries("containerName", "{containerName}").
 		//Queries("containerName", "{containerName}", "appId", "{appId}").
 		//Queries("clusterId", "{clusterId}", "namespace", "${namespace}").
-		//Queries("sinceSeconds", "{sinceSeconds}").
+		Queries("sinceSeconds", "{sinceSeconds}").
 		Queries("follow", "{follow}").
 		Queries("tailLines", "{tailLines}").
 		Queries("previousContainer", "{previousContainer}").

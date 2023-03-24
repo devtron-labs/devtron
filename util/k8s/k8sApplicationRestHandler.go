@@ -26,6 +26,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type K8sApplicationRestHandler interface {
@@ -439,10 +440,18 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 	appId := v.Get("appId")
 	clusterIdString := v.Get("clusterId")
 	namespace := v.Get("namespace")
-	/*sinceSeconds, err := strconv.Atoi(v.Get("sinceSeconds"))
+	sinceSecondsString := v.Get("sinceSeconds")
+	sinceSeconds, err := strconv.Atoi(sinceSecondsString)
 	if err != nil {
 		sinceSeconds = 0
-	}*/
+	}
+	var sinceTime *v1.Time
+	if len(sinceSecondsString) > 0 && sinceSeconds > 0 {
+		currentTime := time.Now()
+		timeSinceSeconds := currentTime.Add(time.Duration(-sinceSeconds) * time.Second)
+		sinceTime = &v1.Time{Time: timeSinceSeconds}
+	}
+
 	previousContainer := v.Get("previousContainer") == "true"
 	token := r.Header.Get("token")
 	follow, err := strconv.ParseBool(v.Get("follow"))
@@ -471,7 +480,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 					GroupVersionKind: schema.GroupVersionKind{},
 				},
 				PodLogsRequest: application.PodLogsRequest{
-					//SinceTime:     sinceSeconds,
+					SinceTime:         sinceTime,
 					TailLines:         tailLines,
 					Follow:            follow,
 					ContainerName:     containerName,
@@ -525,7 +534,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 					},
 				},
 				PodLogsRequest: application.PodLogsRequest{
-					//SinceTime:     sinceSeconds,
+					SinceTime:         sinceTime,
 					TailLines:         tailLines,
 					Follow:            follow,
 					ContainerName:     containerName,
