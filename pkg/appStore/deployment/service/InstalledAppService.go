@@ -787,16 +787,16 @@ func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(instal
 func (impl *InstalledAppServiceImpl) FetchNotesFromdb(installedAppId int, envId int, token string, checkNotesAuth func(token string, appName string, envId int) bool) (string, error) {
 	installedApp, err := impl.installedAppRepository.FetchNotesFromdb(installedAppId)
 	appName := installedApp.App.AppName
-
+	if err != nil {
+		impl.logger.Errorw("error fetching notes from db", "err", err)
+		return "", err
+	}
 	isValidAuth := checkNotesAuth(token, appName, envId)
 	if !isValidAuth {
 		impl.logger.Errorw("unauthorized user", "isValidAuth", isValidAuth)
 		return "", nil
 	}
-	if err != nil {
-		impl.logger.Errorw("error fetching notes from db", "err", err)
-		return "", err
-	}
+
 	if installedApp.Notes == "" {
 		notes, _, err := impl.FindNotesForArgoApplication(installedAppId, envId)
 		if err != nil {
