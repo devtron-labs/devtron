@@ -56,8 +56,12 @@ type K8sUtil struct {
 }
 
 type ClusterConfig struct {
-	Host        string
-	BearerToken string
+	Host                  string
+	BearerToken           string
+	InsecureSkipTLSVerify bool
+	KeyData               string
+	CertData              string
+	CAData                string
 }
 
 func NewK8sUtil(logger *zap.SugaredLogger, runTimeConfig *client.RuntimeConfig) *K8sUtil {
