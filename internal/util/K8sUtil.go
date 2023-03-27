@@ -79,11 +79,13 @@ func NewK8sUtil(logger *zap.SugaredLogger, runTimeConfig *client.RuntimeConfig) 
 }
 
 func (impl K8sUtil) GetClient(clusterConfig *ClusterConfig) (*v12.CoreV1Client, error) {
-	// TODO
 	cfg := &rest.Config{}
 	cfg.Host = clusterConfig.Host
 	cfg.BearerToken = clusterConfig.BearerToken
-	cfg.Insecure = true
+	cfg.Insecure = clusterConfig.InsecureSkipTLSVerify
+	cfg.KeyData = []byte(clusterConfig.KeyData)
+	cfg.CertData = []byte(clusterConfig.CertData)
+	cfg.CAData = []byte(clusterConfig.CAData)
 	httpClient, err := OverrideK8sHttpClientWithTracer(cfg)
 	if err != nil {
 		return nil, err
@@ -93,11 +95,13 @@ func (impl K8sUtil) GetClient(clusterConfig *ClusterConfig) (*v12.CoreV1Client, 
 }
 
 func (impl K8sUtil) GetClientSet(clusterConfig *ClusterConfig) (*kubernetes.Clientset, error) {
-	// TODO
 	cfg := &rest.Config{}
 	cfg.Host = clusterConfig.Host
 	cfg.BearerToken = clusterConfig.BearerToken
-	cfg.Insecure = true
+	cfg.Insecure = clusterConfig.InsecureSkipTLSVerify
+	cfg.KeyData = []byte(clusterConfig.KeyData)
+	cfg.CertData = []byte(clusterConfig.CertData)
+	cfg.CAData = []byte(clusterConfig.CAData)
 	httpClient, err := OverrideK8sHttpClientWithTracer(cfg)
 	if err != nil {
 		return nil, err
@@ -163,11 +167,13 @@ func (impl K8sUtil) GetK8sClient() (*v12.CoreV1Client, error) {
 }
 
 func (impl K8sUtil) GetK8sDiscoveryClient(clusterConfig *ClusterConfig) (*discovery.DiscoveryClient, error) {
-	// TODO
 	cfg := &rest.Config{}
 	cfg.Host = clusterConfig.Host
 	cfg.BearerToken = clusterConfig.BearerToken
-	cfg.Insecure = true
+	cfg.Insecure = clusterConfig.InsecureSkipTLSVerify
+	cfg.KeyData = []byte(clusterConfig.KeyData)
+	cfg.CertData = []byte(clusterConfig.CertData)
+	cfg.CAData = []byte(clusterConfig.CAData)
 	httpClient, err := OverrideK8sHttpClientWithTracer(cfg)
 	if err != nil {
 		return nil, err
