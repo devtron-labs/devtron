@@ -67,6 +67,16 @@ type ClusterBean struct {
 	ValidationAndSavingMessage string                     `json:"validationAndSavingMessage,omitempty"`
 }
 
+type UserInfos struct {
+	UserName string            `json:"userName,omitempty"`
+	Config   map[string]string `json:"config,omitempty"`
+}
+
+type Validate struct {
+	UserInfos map[string]*UserInfos `json:"userInfos,omitempty""`
+	*ClusterBean
+}
+
 type Kubeconfig struct {
 	Config string `json:"config"`
 }
@@ -89,8 +99,8 @@ type DefaultClusterComponent struct {
 
 type ClusterService interface {
 	Save(parent context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error)
-	SaveClusters(bean []*ClusterBean, userId int32) ([]*ClusterBean, error)
-	ValidateKubeconfig(kubeConfig string) ([]*ClusterBean, error)
+	SaveClusters(beans []*ClusterBean, userId int32) ([]*ClusterBean, error)
+	ValidateKubeconfig(kubeConfig string) (map[string]*ClusterBean, error)
 	FindOne(clusterName string) (*ClusterBean, error)
 	FindOneActive(clusterName string) (*ClusterBean, error)
 	FindAll() ([]*ClusterBean, error)
@@ -179,7 +189,7 @@ func (impl *ClusterServiceImpl) GetClusterConfig(cluster *ClusterBean) (*util.Cl
 	return clusterCfg, nil
 }
 
-func (impl *ClusterServiceImpl) SaveClusters(beans []*ClusterBean, userId int32) ([]*ClusterBean, error) {
+func (impl *ClusterServiceImpl) SaveClusters(beans []*Validate, userId int32) ([]*Validate, error) {
 
 	errorInSaving := false
 
@@ -192,26 +202,24 @@ func (impl *ClusterServiceImpl) SaveClusters(beans []*ClusterBean, userId int32)
 		impl.logger.Errorw("service err, FindAll", "err", err)
 		return nil, err
 	}
+	models := make([]*repository.Cluster, 0)
 	for _, bean := range beans {
 		if _, ok := clusterListMap[bean.ClusterName]; ok {
 			bean.ValidationAndSavingMessage = "cluster already exists"
 			errorInSaving = true
 		}
+		model := impl.ConvertClusterBeanToCluster(bean, userId)
+		models = append(models, model)
 	}
 	if !errorInSaving {
-		for _, bean := range beans {
-			model := impl.ConvertClusterBeanToCluster(bean, userId)
-			err := impl.clusterRepository.Save(model)
-			if err != nil {
-				bean.ValidationAndSavingMessage = "error in saving cluster in db"
-			}
-			bean.Id = model.Id
+		err = impl.clusterRepository.SaveBulk(models)
+		if err != nil {
+			impl.logger.Errorw("Error in saving clusters", "err", err, "clusters", models)
 		}
-
 	}
 	return beans, nil
 }
-func (impl *ClusterServiceImpl) ConvertClusterBeanToCluster(clusterBean *ClusterBean, userId int32) *repository.Cluster {
+func (impl *ClusterServiceImpl) ConvertClusterBeanToCluster(clusterBean *Validate, userId int32) *repository.Cluster {
 
 	model := &repository.Cluster{}
 
@@ -254,7 +262,7 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, 
 		return nil, fmt.Errorf("cluster already exists")
 	}
 
-	model := impl.ConvertClusterBeanToCluster(bean, userId)
+	model := impl.ConvertClusterBeanToCluster(&Validate{ClusterBean: bean}, userId)
 
 	cfg, err := impl.GetClusterConfig(bean)
 	if err != nil {
@@ -876,7 +884,7 @@ func (impl *ClusterServiceImpl) HandleErrorInClusterConnections(clusters []*Clus
 	}
 }
 
-func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) ([]*ClusterBean, error) {
+func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) ([]*Validate, error) {
 
 	kubeConfigObject := api.Config{}
 
@@ -898,7 +906,9 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) ([]*Cluste
 		return nil, err
 	}
 
-	var clusterBeanObjects []*ClusterBean
+	//var clusterBeanObjects []*ClusterBean
+	var clusterBeanObjects []*Validate
+
 	var clusterBeansWithNoValidationErrors []*ClusterBean
 
 	if err != nil {
@@ -915,13 +925,12 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) ([]*Cluste
 		impl.logger.Errorw("service err, FindAll", "err", err)
 		return nil, err
 	}
-
 	for _, ctx := range kubeConfigObject.Contexts {
 		clusterBeanObject := &ClusterBean{}
 		clusterName := ctx.Cluster
-		userInfo := ctx.AuthInfo
+		userName := ctx.AuthInfo
 		clusterObj := kubeConfigObject.Clusters[clusterName]
-		userInfoObj := kubeConfigObject.AuthInfos[userInfo]
+		userInfoObj := kubeConfigObject.AuthInfos[userName]
 
 		if clusterName == "" {
 			clusterBeanObject.ValidationAndSavingMessage = "cluster name missing from the contexts in kubeconfig"
@@ -937,10 +946,10 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) ([]*Cluste
 			clusterBeanObject.ServerUrl = clusterObj.Server
 		}
 
-		if (userInfo == "") && (clusterBeanObject.ValidationAndSavingMessage == "") {
+		if (userName == "") && (clusterBeanObject.ValidationAndSavingMessage == "") {
 			clusterBeanObject.ValidationAndSavingMessage = "user info missing from the contexts in kubeconfig"
 		} else {
-			clusterBeanObject.UserName = userInfo
+			clusterBeanObject.UserName = userName
 		}
 
 		if gvk.Version == "" {
@@ -972,7 +981,16 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) ([]*Cluste
 		if clusterBeanObject.ValidationAndSavingMessage == "" {
 			clusterBeansWithNoValidationErrors = append(clusterBeansWithNoValidationErrors, clusterBeanObject)
 		}
-		clusterBeanObjects = append(clusterBeanObjects, clusterBeanObject)
+		userInfo := UserInfos{
+			UserName: userName,
+			Config:   clusterBeanObject.Config,
+		}
+		if _, ok := clusterBeanObject.UserInfos[clusterName]; !ok {
+			clusterBeanObjects[clusterName] = clusterBeanObject
+		} else {
+			clusterBeanObjects[clusterName].UserInfos[userName] = userInfo
+		}
+
 	}
 
 	impl.ConnectClustersInBatch(clusterBeansWithNoValidationErrors, false)
@@ -996,7 +1014,7 @@ func GetAndUpdateConnectionStatusForOneCluster(k8sClientSet *kubernetes.Clientse
 	return
 }
 
-func (impl ClusterServiceImplExtended) ConvertClusterBeanObjectToCluster(bean *ClusterBean) *v1alpha1.Cluster {
+func (impl ClusterServiceImpl) ConvertClusterBeanObjectToCluster(bean *ClusterBean) *v1alpha1.Cluster {
 	configMap := bean.Config
 	serverUrl := bean.ServerUrl
 	bearerToken := ""
