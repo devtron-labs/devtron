@@ -22,7 +22,7 @@ spec:
         runAsUser: 1000
       containers:
       - name: postgresql-migrate-devtron
-        image: quay.io/devtron/migrator:ec1dcab8-149-13278"
+        image: quay.io/devtron/migrator:ec1dcab8-149-13278
         securityContext:
           allowPrivilegeEscalation: false
           runAsUser: 1000
@@ -73,7 +73,7 @@ spec:
         command: ['sh', '-c', 'kubectl rollout restart deployment/devtron -n devtroncd']
       initContainers:
       - name: postgresql-migrate-casbin
-        image: quay.io/devtron/migrator:ec1dcab8-149-13278"
+        image: quay.io/devtron/migrator:ec1dcab8-149-13278
         env:
         - name: SCRIPT_LOCATION
           value: scripts/casbin/
@@ -119,7 +119,7 @@ spec:
         runAsUser: 1000
       containers:
       - name: postgresql-migrate-gitsensor
-        image: quay.io/devtron/migrator:ec1dcab8-149-13278"
+        image: quay.io/devtron/migrator:ec1dcab8-149-13278
         securityContext:
           allowPrivilegeEscalation: false
           runAsUser: 1000
@@ -165,7 +165,7 @@ spec:
         runAsUser: 1000
       containers:
       - name: postgresql-migrate-lens
-        image: quay.io/devtron/migrator:ec1dcab8-149-13278"
+        image: quay.io/devtron/migrator:ec1dcab8-149-13278
         securityContext:
           allowPrivilegeEscalation: false
           runAsUser: 1000
