@@ -114,8 +114,9 @@ func (impl *CleanUpPoliciesServiceImpl) cleanUpUnusedRolesFromCasbin() bool {
 	impl.logger.Infow("Got all unused roles for casbin clean up")
 	impl.logger.Infow("Now Removing it from casbin through remove policies by roles", "count of policies to be deleted from casbin", len(rolesToBeDeleted))
 	flag, err := casbin2.RemovePoliciesByRoles(rolesToBeDeleted)
+	impl.logger.Infow("printing flag for casbin", "flag", flag)
 	impl.logger.Infow("removed from casbin")
-	if !flag || err != nil {
+	if err != nil {
 		impl.logger.Warnw("error in deleting casbin policy for role", "roles", rolesToBeDeleted)
 		return false
 	}
