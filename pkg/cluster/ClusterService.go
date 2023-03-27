@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	casbin2 "github.com/devtron-labs/devtron/pkg/user/casbin"
 	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	errors1 "github.com/juju/errors"
@@ -113,6 +114,7 @@ type ClusterService interface {
 	FetchRolesFromGroup(userId int32) ([]*repository2.RoleModel, error)
 	ConnectClustersInBatch(clusters []*ClusterBean, clusterExistInDb bool)
 	ConvertClusterBeanToCluster(clusterBean *ClusterBean, userId int32) *repository.Cluster
+	ConvertClusterBeanObjectToCluster(bean *ClusterBean) *v1alpha1.Cluster
 }
 
 type ClusterServiceImpl struct {
@@ -992,4 +994,34 @@ func GetAndUpdateConnectionStatusForOneCluster(k8sClientSet *kubernetes.Clientse
 	respMap[clusterId] = err
 	mutex.Unlock()
 	return
+}
+
+func (impl ClusterServiceImplExtended) ConvertClusterBeanObjectToCluster(bean *ClusterBean) *v1alpha1.Cluster {
+	configMap := bean.Config
+	serverUrl := bean.ServerUrl
+	bearerToken := ""
+	if configMap["bearer_token"] != "" {
+		bearerToken = configMap["bearer_token"]
+	}
+	tlsConfig := v1alpha1.TLSClientConfig{
+		Insecure: bean.InsecureSkipTLSVerify,
+	}
+
+	if !bean.InsecureSkipTLSVerify {
+		tlsConfig.ServerName = serverUrl
+		tlsConfig.KeyData = []byte(bean.Config["tls_key"])
+		tlsConfig.CertData = []byte(bean.Config["cert_data"])
+		tlsConfig.CAData = []byte(bean.Config["cert_auth_data"])
+	}
+	cdClusterConfig := v1alpha1.ClusterConfig{
+		BearerToken:     bearerToken,
+		TLSClientConfig: tlsConfig,
+	}
+
+	cl := &v1alpha1.Cluster{
+		Name:   bean.ClusterName,
+		Server: serverUrl,
+		Config: cdClusterConfig,
+	}
+	return cl
 }
