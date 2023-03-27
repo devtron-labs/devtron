@@ -799,7 +799,6 @@ func (impl *InstalledAppServiceImpl) FetchChartNotes(installedAppId int, envId i
 		return "", err
 	}
 	chartVersion := appStoreAppVersion.Version
-	fmt.Println(chartVersion)
 	re := regexp.MustCompile(`CHART VERSION: ([0-9]+\.[0-9]+\.[0-9]+)`)
 	newStr := re.ReplaceAllString(installedApp.Notes, "CHART VERSION: "+chartVersion)
 	installedApp.Notes = newStr
