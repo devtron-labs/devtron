@@ -65,7 +65,8 @@ const (
 )
 
 const (
-	AppNameSortBy SortBy = "appNameSort"
+	AppNameSortBy      SortBy = "appNameSort"
+	LastDeployedSortBy        = "lastDeployedSort"
 )
 
 func (impl AppListingRepositoryQueryBuilder) BuildJobListingQuery(appIDs []int, statuses []string, sortOrder string) string {
