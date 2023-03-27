@@ -74,6 +74,10 @@ spec:
       initContainers:
       - name: postgresql-migrate-casbin
         image: quay.io/devtron/migrator:ec1dcab8-149-13278
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsUser: 1000
+          runAsNonRoot: true
         env:
         - name: SCRIPT_LOCATION
           value: scripts/casbin/
