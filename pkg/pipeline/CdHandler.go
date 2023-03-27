@@ -834,7 +834,9 @@ func (impl *CdHandlerImpl) converterWFR(wfr pipelineConfig.CdWorkflowRunner) pip
 		workflow.PipelineId = wfr.CdWorkflow.PipelineId
 		workflow.CiArtifactId = wfr.CdWorkflow.CiArtifactId
 		workflow.BlobStorageEnabled = wfr.BlobStorageEnabled
-
+		if wfr.DeploymentApprovalRequest != nil {
+			workflow.UserApprovalMetadata = wfr.DeploymentApprovalRequest.ConvertToApprovalMetadata()
+		}
 	}
 	return workflow
 }

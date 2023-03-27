@@ -59,6 +59,7 @@ type Pipeline struct {
 	DeploymentAppType             string      `sql:"deployment_app_type,notnull"` //helm, acd
 	DeploymentAppName             string      `sql:"deployment_app_name"`
 	DeploymentAppDeleteRequest    bool        `sql:"deployment_app_delete_request,notnull"`
+	UserApprovalConfig            string      `sql:"user_approval_config"`
 	Environment                   repository.Environment
 	sql.AuditLog
 }

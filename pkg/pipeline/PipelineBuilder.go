@@ -2840,6 +2840,9 @@ func (impl PipelineBuilderImpl) BuildArtifactsForCdStage(pipelineId int, stageTy
 					Scanned:                       wfr.CdWorkflow.CiArtifact.Scanned,
 					ScanEnabled:                   wfr.CdWorkflow.CiArtifact.ScanEnabled,
 				}
+				if wfr.DeploymentApprovalRequest != nil {
+					ciArtifact.UserApprovalMetadata = wfr.DeploymentApprovalRequest.ConvertToApprovalMetadata()
+				}
 				if !parent {
 					ciArtifact.Deployed = true
 					ciArtifact.DeployedTime = formatDate(wfr.StartedOn, bean.LayoutRFC3339)

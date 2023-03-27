@@ -611,39 +611,25 @@ type Rollback struct {
 	enabled bool   `json:"enabled"`
 }
 
-type UserApprovalData struct {
-	DataId         int       `json:"dataId"`
-	UserEmail      string    `json:"userEmail"`
-	UserActionTime time.Time `json:"userActionTime"`
-	UserComment    string    `json:"userComment"`
-}
-
-type UserApprovalMetadata struct {
-	ApprovalRequestId    int                `json:"approvalRequestId"`
-	ApprovalRuntimeState string             `json:"approvalRuntimeState"`
-	RequestedUserData    UserApprovalData   `json:"requestedUserData"`
-	ApprovedUsersData    []UserApprovalData `json:"approvedUsersData"`
-}
-
 type CiArtifactBean struct {
-	Id                            int                       `json:"id"`
-	Image                         string                    `json:"image,notnull"`
-	ImageDigest                   string                    `json:"image_digest,notnull"`
-	MaterialInfo                  json.RawMessage           `json:"material_info"` //git material metadata json array string
-	DataSource                    string                    `json:"data_source,notnull"`
-	DeployedTime                  string                    `json:"deployed_time"`
-	Deployed                      bool                      `json:"deployed,notnull"`
-	Latest                        bool                      `json:"latest,notnull"`
-	LastSuccessfulTriggerOnParent bool                      `json:"lastSuccessfulTriggerOnParent,notnull"`
-	RunningOnParentCd             bool                      `json:"runningOnParentCd,omitempty"`
-	IsVulnerable                  bool                      `json:"vulnerable,notnull"`
-	ScanEnabled                   bool                      `json:"scanEnabled,notnull"`
-	Scanned                       bool                      `json:"scanned,notnull"`
-	WfrId                         int                       `json:"wfrId"`
-	DeployedBy                    string                    `json:"deployedBy"`
-	CiConfigureSourceType         pipelineConfig.SourceType `json:"ciConfigureSourceType"`
-	CiConfigureSourceValue        string                    `json:"ciConfigureSourceValue"`
-	UserApprovalMetadata          UserApprovalMetadata      `json:"userApprovalMetadata"`
+	Id                            int                                  `json:"id"`
+	Image                         string                               `json:"image,notnull"`
+	ImageDigest                   string                               `json:"image_digest,notnull"`
+	MaterialInfo                  json.RawMessage                      `json:"material_info"` //git material metadata json array string
+	DataSource                    string                               `json:"data_source,notnull"`
+	DeployedTime                  string                               `json:"deployed_time"`
+	Deployed                      bool                                 `json:"deployed,notnull"`
+	Latest                        bool                                 `json:"latest,notnull"`
+	LastSuccessfulTriggerOnParent bool                                 `json:"lastSuccessfulTriggerOnParent,notnull"`
+	RunningOnParentCd             bool                                 `json:"runningOnParentCd,omitempty"`
+	IsVulnerable                  bool                                 `json:"vulnerable,notnull"`
+	ScanEnabled                   bool                                 `json:"scanEnabled,notnull"`
+	Scanned                       bool                                 `json:"scanned,notnull"`
+	WfrId                         int                                  `json:"wfrId"`
+	DeployedBy                    string                               `json:"deployedBy"`
+	CiConfigureSourceType         pipelineConfig.SourceType            `json:"ciConfigureSourceType"`
+	CiConfigureSourceValue        string                               `json:"ciConfigureSourceValue"`
+	UserApprovalMetadata          *pipelineConfig.UserApprovalMetadata `json:"userApprovalMetadata"`
 }
 
 type CiArtifactResponse struct {

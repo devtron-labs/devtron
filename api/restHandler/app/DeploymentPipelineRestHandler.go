@@ -8,6 +8,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -786,6 +787,14 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 	if len(stage) == 0 {
 		stage = "PRE"
 	}
+
+	isApprovalNode := false
+
+	if stage == "APPROVAL" {
+		isApprovalNode = true
+		stage = "DEPLOY"
+	}
+
 	handler.Logger.Infow("request payload, GetArtifactsByCDPipeline", "cdPipelineId", cdPipelineId, "stage", stage)
 	deploymentPipeline, err := handler.pipelineBuilder.FindPipelineById(cdPipelineId)
 	if err != nil {
@@ -834,6 +843,7 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 		handler.Logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 	}
+
 	if len(digests) > 0 {
 		vulnerableMap := make(map[string]bool)
 		cvePolicy, severityPolicy, err := handler.policyService.GetApplicablePolicy(pipelineModel.Environment.ClusterId, pipelineModel.EnvironmentId, pipelineModel.AppId, pipelineModel.App.AppType == helper.ChartStoreApp)
@@ -878,6 +888,50 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 				//}
 			}
 			ciArtifactsFinal = append(ciArtifactsFinal, item)
+		}
+		ciArtifactResponse.CiArtifacts = ciArtifactsFinal
+	}
+
+	userApprovalConfig := pipelineModel.UserApprovalConfig
+	if len(userApprovalConfig) > 0 && stage == "DEPLOY" {
+		approvalConfig := bean.UserApprovalConfig{}
+		err := json.Unmarshal([]byte(userApprovalConfig), &approvalConfig)
+		if err != nil {
+			handler.Logger.Errorw("service err, failed to unmarshal userApprovalConfig", "err", err, "cdPipelineId", cdPipelineId, "stage", stage, "userApprovalConfig", userApprovalConfig)
+			common.WriteJsonResp(w, errors.New("failed to unmarshal pipeline approval config"), nil, http.StatusInternalServerError)
+			return
+		}
+		var ciArtifactsFinal []bean.CiArtifactBean
+		var artifactIds []int
+		for _, item := range ciArtifactResponse.CiArtifacts {
+			if !item.Deployed { // would not be fetching approval req data for deployed artifacts
+				artifactIds = append(artifactIds, item.Id)
+			}
+		}
+
+		var userApprovalMetadata map[int]*pipelineConfig.UserApprovalMetadata
+		userApprovalMetadata = handler.fetchApprovalArtifactsMetadata(artifactIds, pipelineModel.Id, approvalConfig) // it will fetch all the request data with nil cd_wfr_rnr_id
+		for _, artifact := range ciArtifactResponse.CiArtifacts {
+			allowed := false
+			approvalRuntimeState := pipelineConfig.InitApprovalState
+			approvalMetadataForArtifact, ok := userApprovalMetadata[artifact.Id]
+			if ok {
+				// either approved or requested
+				approvalRuntimeState = approvalMetadataForArtifact.ApprovalRuntimeState
+				artifact.UserApprovalMetadata = approvalMetadataForArtifact
+			} else if artifact.Deployed {
+				approvalRuntimeState = pipelineConfig.ConsumedApprovalState
+			}
+			if isApprovalNode {
+				//TODO KB: return all the artifacts with state in init, requested or consumed
+				allowed = approvalRuntimeState == pipelineConfig.InitApprovalState || approvalRuntimeState == pipelineConfig.RequestedApprovalState || approvalRuntimeState == pipelineConfig.ConsumedApprovalState
+			} else {
+				//TODO KB: return only approved state artifacts
+				allowed = approvalRuntimeState == pipelineConfig.ApprovedApprovalState
+			}
+			if allowed {
+				ciArtifactsFinal = append(ciArtifactsFinal, artifact)
+			}
 		}
 		ciArtifactResponse.CiArtifacts = ciArtifactsFinal
 	}
