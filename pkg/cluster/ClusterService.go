@@ -538,10 +538,16 @@ func (impl *ClusterServiceImpl) SyncNsInformer(bean *ClusterBean) {
 	impl.K8sInformerFactory.CleanNamespaceInformer(bean.ClusterName)
 	//create new informer for cluster with new config
 	clusterInfo := &bean2.ClusterInfo{
-		ClusterId:   bean.Id,
-		ClusterName: bean.ClusterName,
-		BearerToken: requestConfig,
-		ServerUrl:   bean.ServerUrl,
+		ClusterId:             bean.Id,
+		ClusterName:           bean.ClusterName,
+		BearerToken:           requestConfig,
+		ServerUrl:             bean.ServerUrl,
+		InsecureSkipTLSVerify: bean.InsecureSkipTLSVerify,
+	}
+	if !bean.InsecureSkipTLSVerify {
+		clusterInfo.KeyData = bean.Config["tls_key"]
+		clusterInfo.CertData = bean.Config["cert_data"]
+		clusterInfo.CAData = bean.Config["cert_auth_data"]
 	}
 	impl.K8sInformerFactory.BuildInformer([]*bean2.ClusterInfo{clusterInfo})
 }
@@ -585,10 +591,14 @@ func (impl *ClusterServiceImpl) buildInformer() {
 	for _, model := range models {
 		bearerToken := model.Config["bearer_token"]
 		clusterInfo = append(clusterInfo, &bean2.ClusterInfo{
-			ClusterId:   model.Id,
-			ClusterName: model.ClusterName,
-			BearerToken: bearerToken,
-			ServerUrl:   model.ServerUrl,
+			ClusterId:             model.Id,
+			ClusterName:           model.ClusterName,
+			BearerToken:           bearerToken,
+			ServerUrl:             model.ServerUrl,
+			InsecureSkipTLSVerify: model.InsecureSkipTlsVerify,
+			KeyData:               model.Config["tls_key"],
+			CertData:              model.Config["cert_data"],
+			CAData:                model.Config["cert_auth_data"],
 		})
 	}
 	impl.K8sInformerFactory.BuildInformer(clusterInfo)
