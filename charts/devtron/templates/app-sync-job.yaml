@@ -27,14 +27,14 @@ spec:
         {{- end }}
       {{- if and $.Values.global $.Values.global.podSecurityContext }}
       securityContext:
-{{- toYaml . | nindent 8 }}
+{{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
       {{- end }}
       containers:
       - name: chart-sync
         image: quay.io/devtron/chart-sync:07ac8fd7-150-11120
         {{- if and $.Values.global $.Values.global.containerSecurityContext }}
         securityContext:
-{{- toYaml . | nindent 10 }}
+{{- toYaml $.Values.global.containerSecurityContext | nindent 10 }}
         {{- end }}
         env:
         - name: PG_ADDR
@@ -76,14 +76,14 @@ spec:
         spec:
           {{- if and $.Values.global $.Values.global.podSecurityContext }}
           securityContext:
-{{- toYaml . | nindent 12 }}
+{{- toYaml $.Values.global.podSecurityContext | nindent 12 }}
           {{- end }}
           containers:
           - name: chart-sync
             image: quay.io/devtron/chart-sync:07ac8fd7-150-11120
             {{- if and $.Values.global $.Values.global.containerSecurityContext }}
             securityContext:
-{{- toYaml . | nindent 14 }}
+{{- toYaml $.Values.global.containerSecurityContext | nindent 14 }}
            {{- end }}
             env:
             - name: PG_ADDR
