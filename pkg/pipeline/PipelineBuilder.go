@@ -1687,6 +1687,7 @@ func (impl PipelineBuilderImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipeli
 			}
 		}
 	}
+	//TODO KB: also delete mapping of approval node
 	err = impl.appWorkflowRepository.DeleteAppWorkflowMapping(appWorkflowMapping, tx)
 	if err != nil {
 		impl.logger.Errorw("error in deleting workflow mapping", "err", err)
@@ -2309,6 +2310,8 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 		return 0, err
 	}
 
+	//TODO KB: check for approval Node, if present create approval node conf, then store that in app_wf_mapping as component and check for its parentPipelineId & Type,
+
 	// Get pipeline override based on Deployment strategy
 	//TODO: mark as created in our db
 	pipelineId, err := impl.ciCdPipelineOrchestrator.CreateCDPipelines(pipeline, app.Id, userId, tx, app.AppName)
@@ -2323,6 +2326,7 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 		return 0, err
 	}
 	if pipeline.AppWorkflowId > 0 {
+		//TODO KB: use this logic in approval node, parent mapping in case approval node conf is present and pass approval node as its parent
 		var parentPipelineId int
 		var parentPipelineType string
 		if pipeline.ParentPipelineId == 0 {
@@ -2425,6 +2429,9 @@ func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, pipeline *
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
+
+	// TODO KB: check for approval node config update
+
 	err = impl.ciCdPipelineOrchestrator.UpdateCDPipeline(pipeline, userID, tx)
 	if err != nil {
 		impl.logger.Errorw("error in updating pipeline")

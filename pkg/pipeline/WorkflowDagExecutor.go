@@ -257,6 +257,7 @@ func (impl *WorkflowDagExecutorImpl) Subscribe() error {
 }
 
 func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(artifact *repository.CiArtifact, applyAuth bool, async bool, triggeredBy int32) error {
+	//TODO KB: extract app_wf_mapping with parent ci pipeline and for approval nodes, create ApprovalRequest and for cd pipelines, impl like below code
 	//1. get cd pipelines
 	//2. get config
 	//3. trigger wf/ deployment
@@ -288,6 +289,7 @@ func (impl *WorkflowDagExecutorImpl) HandleWebhookExternalCiEvent(artifact *repo
 
 	var pipelines []*pipelineConfig.Pipeline
 	for _, appWorkflowMapping := range appWorkflowMappings {
+		//TODO KB: check for appWorkflowMapping type, if approval node is present then create ApprovalRequest and ignore pipeline data
 		pipeline, err := impl.pipelineRepository.FindById(appWorkflowMapping.ComponentId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching cd pipeline", "pipelineId", artifact.PipelineId, "err", err)
@@ -972,6 +974,7 @@ func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(cdWorkflowId in
 		applyAuth = true
 	}
 	for _, cdPipelineMapping := range cdPipelinesMapping {
+		// TODO KB: check for approval node type, if approval node then raise an ApprovalRequest and ignore
 		//find pipeline by cdPipeline ID
 		pipeline, err := impl.pipelineRepository.FindById(cdPipelineMapping.ComponentId)
 		if err != nil {

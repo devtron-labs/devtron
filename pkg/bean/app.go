@@ -456,6 +456,11 @@ type CDSourceObject struct {
 	Metadata    CDMaterialMetadata `json:"metadata"`
 }
 
+type UserApprovalConfig struct {
+	RequiredCount int    `json:"requiredCount" validate:"number,required"`
+	Description   string `json:"description,omitempty"`
+}
+
 type CDPipelineConfigObject struct {
 	Id                            int                                    `json:"id,omitempty"  validate:"number" `
 	EnvironmentId                 int                                    `json:"environmentId,omitempty"  validate:"number,required" `
@@ -477,6 +482,7 @@ type CDPipelineConfigObject struct {
 	ParentPipelineId              int                                    `json:"parentPipelineId"`
 	ParentPipelineType            string                                 `json:"parentPipelineType"`
 	DeploymentAppType             string                                 `json:"deploymentAppType"`
+	UserApprovalConf              UserApprovalConfig                     `json:"userApprovalConf"`
 	AppName                       string                                 `json:"appName"`
 	DeploymentAppDeleteRequest    bool                                   `json:"deploymentAppDeleteRequest"`
 	DeploymentAppCreated          bool                                   `json:"deploymentAppCreated"`
@@ -605,6 +611,20 @@ type Rollback struct {
 	enabled bool   `json:"enabled"`
 }
 
+type UserApprovalData struct {
+	DataId         int       `json:"dataId"`
+	UserEmail      string    `json:"userEmail"`
+	UserActionTime time.Time `json:"userActionTime"`
+	UserComment    string    `json:"userComment"`
+}
+
+type UserApprovalMetadata struct {
+	ApprovalRequestId    int                `json:"approvalRequestId"`
+	ApprovalRuntimeState string             `json:"approvalRuntimeState"`
+	RequestedUserData    UserApprovalData   `json:"requestedUserData"`
+	ApprovedUsersData    []UserApprovalData `json:"approvedUsersData"`
+}
+
 type CiArtifactBean struct {
 	Id                            int                       `json:"id"`
 	Image                         string                    `json:"image,notnull"`
@@ -623,14 +643,17 @@ type CiArtifactBean struct {
 	DeployedBy                    string                    `json:"deployedBy"`
 	CiConfigureSourceType         pipelineConfig.SourceType `json:"ciConfigureSourceType"`
 	CiConfigureSourceValue        string                    `json:"ciConfigureSourceValue"`
+	UserApprovalMetadata          UserApprovalMetadata      `json:"userApprovalMetadata"`
 }
 
 type CiArtifactResponse struct {
 	//AppId           int      `json:"app_id"`
-	CdPipelineId           int              `json:"cd_pipeline_id,notnull"`
-	LatestWfArtifactId     int              `json:"latest_wf_artifact_id"`
-	LatestWfArtifactStatus string           `json:"latest_wf_artifact_status"`
-	CiArtifacts            []CiArtifactBean `json:"ci_artifacts,notnull"`
+	CdPipelineId           int                `json:"cd_pipeline_id,notnull"`
+	LatestWfArtifactId     int                `json:"latest_wf_artifact_id"`
+	LatestWfArtifactStatus string             `json:"latest_wf_artifact_status"`
+	CiArtifacts            []CiArtifactBean   `json:"ci_artifacts,notnull"`
+	UserApprovalConfig     UserApprovalConfig `json:"userApprovalConfig"`
+	ArtifactTriggeredBy    string             `json:"artifactTriggeredBy"`
 }
 
 type AppLabelsDto struct {
