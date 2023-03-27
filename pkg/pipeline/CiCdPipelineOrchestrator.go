@@ -170,7 +170,6 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-
 	ciPipelineObject := &pipelineConfig.CiPipeline{
 		Version:                  createRequest.Version,
 		Id:                       createRequest.Id,
@@ -187,7 +186,6 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 
 	createOnTimeMap := make(map[int]time.Time)
 	createByMap := make(map[int]int32)
-
 	for _, oldMaterial := range oldPipeline.CiPipelineMaterials {
 		createOnTimeMap[oldMaterial.GitMaterialId] = oldMaterial.CreatedOn
 		createByMap[oldMaterial.GitMaterialId] = oldMaterial.CreatedBy
@@ -219,7 +217,13 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 			return nil, err
 		}
 	}
-
+	for _, material := range createRequest.CiMaterial {
+		if material.IsRegex == true && material.Source.Value != "" {
+			material.IsRegex = false
+		} else if material.IsRegex == false && material.Source.Regex != "" {
+			material.IsRegex = true
+		}
+	}
 	var materials []*pipelineConfig.CiPipelineMaterial
 	var materialsAdd []*pipelineConfig.CiPipelineMaterial
 	var materialsUpdate []*pipelineConfig.CiPipelineMaterial
@@ -243,30 +247,12 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 			pipelineMaterial.CreatedOn = time.Now()
 			materialsAdd = append(materialsAdd, pipelineMaterial)
 		} else {
+			pipelineMaterial.CiPipelineId = createRequest.Id
+			pipelineMaterial.CreatedBy = userId
 			materialsUpdate = append(materialsUpdate, pipelineMaterial)
 			pipelineMaterial.CreatedOn = createOnTimeMap[material.GitMaterialId]
 			pipelineMaterial.CreatedBy = createByMap[material.GitMaterialId]
 		}
-	}
-	regexMaterial, err := impl.ciPipelineMaterialRepository.GetRegexByPipelineId(createRequest.Id)
-	if err != nil {
-		impl.logger.Errorw("err", "err", err)
-	}
-	var errorList string
-	if len(regexMaterial) != 0 {
-		for _, material := range regexMaterial {
-			val, exists := materialGitMap[material.GitMaterialId]
-			if exists && !impl.CheckStringMatchRegex(material.Regex, val) {
-				if errorList == "" {
-					errorList = "string is mismatching with regex " + strconv.Itoa(material.GitMaterialId)
-				} else {
-					errorList = errorList + "; " + "string is mismatching with regex " + strconv.Itoa(material.GitMaterialId)
-				}
-			}
-		}
-	}
-	if errorList != "" {
-		return nil, errors.New(errorList)
 	}
 	if len(materialsAdd) > 0 {
 		err = impl.ciPipelineMaterialRepository.Save(tx, materialsAdd...)
@@ -274,10 +260,13 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 			return nil, err
 		}
 	}
-	err = impl.ciPipelineMaterialRepository.Update(tx, materialsUpdate...)
-	if err != nil {
-		return nil, err
+	if len(materialsUpdate) > 0 {
+		err = impl.ciPipelineMaterialRepository.Update(tx, materialsUpdate...)
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	materials = append(materials, materialsAdd...)
 	materials = append(materials, materialsUpdate...)
 
@@ -411,10 +400,14 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 		for _, ciPipelineMaterial := range ciPipelineMaterials {
 			if parentMaterial, ok := parentMaterialsMap[ciPipelineMaterial.GitMaterialId]; ok {
 				pipelineMaterial := &pipelineConfig.CiPipelineMaterial{
-					Id:       ciPipelineMaterial.Id,
-					Value:    parentMaterial.Source.Value,
-					Active:   createRequest.Active,
-					AuditLog: sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
+					Id:            ciPipelineMaterial.Id,
+					Value:         parentMaterial.Source.Value,
+					Active:        createRequest.Active,
+					Regex:         parentMaterial.Source.Regex,
+					AuditLog:      sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now(), CreatedBy: userId},
+					Type:          parentMaterial.Source.Type,
+					GitMaterialId: parentMaterial.GitMaterialId,
+					CiPipelineId:  ciPipelineMaterial.CiPipelineId,
 				}
 				linkedMaterials = append(linkedMaterials, pipelineMaterial)
 			} else {
