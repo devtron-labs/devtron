@@ -155,7 +155,6 @@ func (impl *ClusterServiceImpl) GetK8sClient() (*v12.CoreV1Client, error) {
 }
 
 func (impl *ClusterServiceImpl) GetClusterConfig(cluster *ClusterBean) (*util.ClusterConfig, error) {
-	// TODO
 	host := cluster.ServerUrl
 	configMap := cluster.Config
 	bearerToken := configMap["bearer_token"]
