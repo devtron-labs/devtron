@@ -44,7 +44,8 @@ type EnvironmentBean struct {
 	Namespace             string `json:"namespace,omitempty" validate:"name-space-component,max=50"`
 	CdArgoSetup           bool   `json:"isClusterCdActive"`
 	EnvironmentIdentifier string `json:"environmentIdentifier"`
-	Description           string `json:"description" validate:"max=50"`
+
+	Description string `json:"description" validate:"max=40"`
 }
 
 type EnvDto struct {
@@ -52,7 +53,7 @@ type EnvDto struct {
 	EnvironmentName       string `json:"environmentName,omitempty" validate:"max=50"`
 	Namespace             string `json:"namespace,omitempty" validate:"name-space-component,max=50"`
 	EnvironmentIdentifier string `json:"environmentIdentifier,omitempty"`
-	Description           string `json:"description" validate:"max=50"`
+	Description           string `json:"description" validate:"max=40"`
 }
 
 type ClusterEnvDto struct {
