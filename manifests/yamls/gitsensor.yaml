@@ -59,7 +59,7 @@ spec:
         runAsUser: 1000
       containers:
         - name: git-sensor
-          image: "quay.io/devtron/git-sensor:f73daf19-200-12822"
+          image: "quay.io/devtron/git-sensor:e5e66474-200-13254"
           securityContext:
             allowPrivilegeEscalation: false
             runAsUser: 1000
