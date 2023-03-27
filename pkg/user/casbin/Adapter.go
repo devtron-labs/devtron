@@ -143,11 +143,20 @@ func GetUserByRole(role string) ([]string, error) {
 	return e.GetUsersForRole(role)
 }
 
-func RemovePoliciesByRoles(roles string) bool {
-	roles = strings.ToLower(roles)
-	policyResponse := e.RemovePolicy([]string{roles})
+func RemovePoliciesByRole(role string) bool {
+	role = strings.ToLower(role)
+	policyResponse, err := casbinService.RemovePoliciesByRole(role)
+	if err != nil {
+		return false
+	}
 	enforcerImplRef.InvalidateCompleteCache()
 	return policyResponse
+}
+
+func RemovePoliciesByRoles(roles []string) (bool, error) {
+	policyResponse, err := casbinService.RemovePoliciesByRoles(roles)
+	enforcerImplRef.InvalidateCompleteCache()
+	return policyResponse, err
 }
 
 func HandlePanic() {

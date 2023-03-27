@@ -57,6 +57,7 @@ type UserRestHandler interface {
 	UpdateTriggerPolicyForTerminalAccess(w http.ResponseWriter, r *http.Request)
 	GetRoleCacheDump(w http.ResponseWriter, r *http.Request)
 	InvalidateRoleCache(w http.ResponseWriter, r *http.Request)
+	CleanUpPolicies(w http.ResponseWriter, r *http.Request)
 }
 
 type userNamePassword struct {
@@ -65,24 +66,26 @@ type userNamePassword struct {
 }
 
 type UserRestHandlerImpl struct {
-	userService       user.UserService
-	validator         *validator.Validate
-	logger            *zap.SugaredLogger
-	enforcer          casbin.Enforcer
-	roleGroupService  user.RoleGroupService
-	userCommonService user.UserCommonService
+	userService            user.UserService
+	validator              *validator.Validate
+	logger                 *zap.SugaredLogger
+	enforcer               casbin.Enforcer
+	roleGroupService       user.RoleGroupService
+	userCommonService      user.UserCommonService
+	cleanUpPoliciesService user.CleanUpPoliciesService
 }
 
 func NewUserRestHandlerImpl(userService user.UserService, validator *validator.Validate,
 	logger *zap.SugaredLogger, enforcer casbin.Enforcer, roleGroupService user.RoleGroupService,
-	userCommonService user.UserCommonService) *UserRestHandlerImpl {
+	userCommonService user.UserCommonService, cleanUpPoliciesService user.CleanUpPoliciesService) *UserRestHandlerImpl {
 	userAuthHandler := &UserRestHandlerImpl{
-		userService:       userService,
-		validator:         validator,
-		logger:            logger,
-		enforcer:          enforcer,
-		roleGroupService:  roleGroupService,
-		userCommonService: userCommonService,
+		userService:            userService,
+		validator:              validator,
+		logger:                 logger,
+		enforcer:               enforcer,
+		roleGroupService:       roleGroupService,
+		userCommonService:      userCommonService,
+		cleanUpPoliciesService: cleanUpPoliciesService,
 	}
 	return userAuthHandler
 }
@@ -854,7 +857,34 @@ func (handler UserRestHandlerImpl) CheckUserRoles(w http.ResponseWriter, r *http
 	}
 	common.WriteJsonResp(w, err, result, http.StatusOK)
 }
+func (handler UserRestHandlerImpl) CleanUpPolicies(w http.ResponseWriter, r *http.Request) {
 
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionDelete, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
+	//RBAC enforcer Ends
+
+	res, err := handler.cleanUpPoliciesService.CleanUpPolicies()
+	if err != nil || !res {
+		handler.logger.Errorw("service err, DeleteRoleGroup", "err", err)
+		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, err, res, http.StatusOK)
+
+}
 func (handler UserRestHandlerImpl) SyncOrchestratorToCasbin(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
