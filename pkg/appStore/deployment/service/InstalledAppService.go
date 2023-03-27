@@ -793,12 +793,11 @@ func (impl *InstalledAppServiceImpl) FetchChartNotes(installedAppId int, envId i
 		impl.logger.Errorw("error fetching installed  app version in installed app service", "err", err)
 		return "", err
 	}
-	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installedAppVerison.AppStoreApplicationVersion.Id)
+	chartVersion := installedAppVerison.AppStoreApplicationVersion.Version
 	if err != nil {
-		impl.logger.Errorw("error fetching app store app version in installed app service", "err", err)
+		impl.logger.Errorw("error fetching chart  version in installed app service", "err", err)
 		return "", err
 	}
-	chartVersion := appStoreAppVersion.Version
 	re := regexp.MustCompile(`CHART VERSION: ([0-9]+\.[0-9]+\.[0-9]+)`)
 	newStr := re.ReplaceAllString(installedApp.Notes, "CHART VERSION: "+chartVersion)
 	installedApp.Notes = newStr
