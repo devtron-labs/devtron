@@ -261,6 +261,7 @@ argo-cd:
 # Values for security integration
 security:
   enabled: false
+  image: "quay.io/devtron/image-scanner:b7873c95-103-13245"
   # Values for clair
   clair:
     enabled: false
@@ -308,3 +309,12 @@ monitoring:
       resources: {}
     persistence:
       storage: "2Gi"
+global:
+  podSecurityContext:
+    fsGroup: 1000
+    runAsGroup: 1000
+    runAsUser: 1000
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    runAsUser: 1000
+    runAsNonRoot: true
