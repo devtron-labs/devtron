@@ -82,7 +82,7 @@ spec:
     spec:
       {{- if and $.Values.global $.Values.global.podSecurityContext }}
       securityContext:
-{{- toYaml . | nindent 8 }}
+{{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
       {{- end }}
       containers:
         -
@@ -95,7 +95,7 @@ spec:
           name: inception
           {{- if and $.Values.global $.Values.global.containerSecurityContext }}
           securityContext:
-          {{- toYaml . | nindent 12 }}
+{{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
           {{- end }}
           ports:
             -
