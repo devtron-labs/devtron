@@ -12,6 +12,7 @@ type GlobalTagDto struct {
 
 type GlobalTagDtoForProject struct {
 	Key         string `json:"key,notnull"`
+	Description string `json:"description,notnull"`
 	IsMandatory bool   `json:"isMandatory,notnull"`
 	Propagate   bool   `json:"propagate"`
 }

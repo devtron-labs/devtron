@@ -132,6 +132,11 @@ components:
           type: boolean
           description: Whether to propagate to kubernetes resources
           example: true
+        description:
+          type: string
+          description: Description of global-tag
+          example: "some description"
+          nullable: false
     CreateGlobalTagsRequest:
       type: object
       properties:

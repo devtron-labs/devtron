@@ -107,6 +107,7 @@ func (impl GlobalTagServiceImpl) GetAllActiveTagsForProject(projectId int) ([]*G
 		isMandatory := CheckIfTagIsMandatoryForProject(globalTagFromDb.MandatoryProjectIdsCsv, projectId)
 		globalTag := &GlobalTagDtoForProject{
 			Key:         globalTagFromDb.Key,
+			Description: globalTagFromDb.Description,
 			IsMandatory: isMandatory,
 			Propagate:   globalTagFromDb.Propagate,
 		}
