@@ -421,25 +421,15 @@ func (impl *K8sApplicationServiceImpl) GetRestConfigByClusterId(ctx context.Cont
 		impl.logger.Errorw("error in getting cluster by ID", "err", err, "clusterId")
 		return nil, err
 	}
-
-	configMap := cluster.Config
-	bearerToken := configMap["bearer_token"]
-	var restConfig *rest.Config
-	if cluster.ClusterName == DEFAULT_CLUSTER && len(bearerToken) == 0 {
-		restConfig, err = impl.K8sUtil.GetK8sClusterRestConfig()
-		if err != nil {
-			impl.logger.Errorw("error in getting rest config for default cluster", "err", err)
-			return nil, err
-		}
-	} else {
-		restConfig = &rest.Config{Host: cluster.ServerUrl, BearerToken: bearerToken, TLSClientConfig: rest.TLSClientConfig{Insecure: cluster.InsecureSkipTLSVerify}}
-		if cluster.InsecureSkipTLSVerify == false {
-			restConfig.TLSClientConfig.ServerName = restConfig.ServerName
-			restConfig.TLSClientConfig.KeyData = []byte(cluster.Config["tls_key"])
-			restConfig.TLSClientConfig.CertData = []byte(cluster.Config["cert_data"])
-			restConfig.TLSClientConfig.CAData = []byte(cluster.Config["cert_auth_data"])
-		}
-	}
+	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(&util.ClusterConfig{
+		ClusterName:           cluster.ClusterName,
+		Host:                  cluster.ServerUrl,
+		BearerToken:           cluster.Config["bearer_token"],
+		InsecureSkipTLSVerify: cluster.InsecureSkipTLSVerify,
+		KeyData:               cluster.Config["tls_key"],
+		CertData:              cluster.Config["cert_data"],
+		CAData:                cluster.Config["cert_auth_data"],
+	})
 	return restConfig, nil
 }
 
