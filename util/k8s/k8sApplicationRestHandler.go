@@ -481,7 +481,15 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 		valid, err := handler.k8sApplicationService.ValidateResourceRequest(r.Context(), request.AppIdentifier, request.K8sRequest)
 		if err != nil || !valid {
 			handler.logger.Errorw("error in validating resource request", "err", err)
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			apiError := util2.ApiError{
+				InternalMessage: "failed to validate the resource with error " + err.Error(),
+				UserMessage:     "Failed to validate resource",
+			}
+			if !valid {
+				apiError.InternalMessage = "failed to validate the resource"
+				apiError.UserMessage = "requested Pod or Container doesn't exist"
+			}
+			common.WriteJsonResp(w, &apiError, nil, http.StatusBadRequest)
 			return
 		}
 		// RBAC enforcer applying
@@ -544,6 +552,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 		isReconnect = true
 	}
 	stream, err := handler.k8sApplicationService.GetPodLogs(r.Context(), request)
+	//err is handled inside StartK8sStreamWithHeartBeat method
 	ctx, cancel := context.WithCancel(r.Context())
 	if cn, ok := w.(http.CloseNotifier); ok {
 		go func(done <-chan struct{}, closed <-chan bool) {

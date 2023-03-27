@@ -52,6 +52,7 @@ type CiPipelineMaterialRepository interface {
 	GetByPipelineId(id int) ([]*CiPipelineMaterial, error)
 	GetRegexByPipelineId(id int) ([]*CiPipelineMaterial, error)
 	CheckRegexExistsForMaterial(id int) bool
+	GetByPipelineIdForRegexAndFixed(id int) ([]*CiPipelineMaterial, error)
 }
 
 type CiPipelineMaterialRepositoryImpl struct {
@@ -86,11 +87,20 @@ func (impl CiPipelineMaterialRepositoryImpl) GetByPipelineId(id int) ([]*CiPipel
 		Select()
 	return ciPipelineMaterials, err
 }
+func (impl CiPipelineMaterialRepositoryImpl) GetByPipelineIdForRegexAndFixed(id int) ([]*CiPipelineMaterial, error) {
+	var ciPipelineMaterials []*CiPipelineMaterial
+	err := impl.dbConnection.Model(&ciPipelineMaterials).
+		Column("ci_pipeline_material.*", "CiPipeline", "CiPipeline.CiTemplate", "CiPipeline.CiTemplate.GitMaterial", "CiPipeline.App", "CiPipeline.CiTemplate.DockerRegistry", "CiPipeline.CiTemplate.CiBuildConfig", "GitMaterial", "GitMaterial.GitProvider").
+		Where("ci_pipeline_material.ci_pipeline_id = ?", id).
+		Where("ci_pipeline_material.active = ?", true).
+		Select()
+	return ciPipelineMaterials, err
+}
 
 func (impl CiPipelineMaterialRepositoryImpl) FindByCiPipelineIdsIn(ids []int) ([]*CiPipelineMaterial, error) {
 	var ciPipelineMaterials []*CiPipelineMaterial
 	err := impl.dbConnection.Model(&ciPipelineMaterials).
-		//Column("ci_pipeline_material.*", "CiPipeline", "CiPipeline.CiTemplate", "CiPipeline.CiTemplate.DockerRegistry", "GitMaterial", "GitMaterial.GitProvider").
+		Column("ci_pipeline_material.*", "CiPipeline", "CiPipeline.CiTemplate", "CiPipeline.CiTemplate.DockerRegistry", "GitMaterial", "GitMaterial.GitProvider").
 		Where("ci_pipeline_material.active = ?", true).
 		Where("ci_pipeline_material.ci_pipeline_id in (?)", pg.In(ids)).
 		Select()
@@ -114,11 +124,10 @@ func (impl CiPipelineMaterialRepositoryImpl) Update(tx *pg.Tx, materials ...*CiP
 		return nil
 	})*/
 	for _, material := range materials {
-		r, err := tx.Model(material).WherePK().UpdateNotNull()
+		err := tx.Update(material)
 		if err != nil {
 			return err
 		}
-		impl.logger.Infof("total rows saved %d", r.RowsAffected())
 	}
 
 	return nil

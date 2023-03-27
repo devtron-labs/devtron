@@ -1,7 +1,7 @@
 name: 🚀 Feature
 description: "Submit a proposal for a new feature"
 title: "Feature: "
-labels: [feature]
+labels: ["enhancement"]
 assignees: ["prakarsh-dt","nishant-d","anupdhiran"]
 body:
   - type: markdown

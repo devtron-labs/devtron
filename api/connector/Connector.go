@@ -63,14 +63,20 @@ func (impl PumpImpl) StartK8sStreamWithHeartBeat(w http.ResponseWriter, isReconn
 	if !ok {
 		http.Error(w, "unexpected server doesnt support streaming", http.StatusInternalServerError)
 	}
-	if err != nil {
-		http.Error(w, errors.Details(err), http.StatusInternalServerError)
-	}
+
 	w.Header().Set("Transfer-Encoding", "chunked")
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("X-Accel-Buffering", "no")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Cache-Control", "no-cache, no-transform")
+
+	if err != nil {
+		err := impl.sendEvent(nil, []byte("CUSTOM_ERR_STREAM"), []byte(err.Error()), w)
+		if err != nil {
+			impl.logger.Errorw("error in writing data over sse", "err", err)
+		}
+		return
+	}
 
 	if isReconnect {
 		err := impl.sendEvent(nil, []byte("RECONNECT_STREAM"), []byte("RECONNECT_STREAM"), w)
@@ -129,7 +135,9 @@ func (impl PumpImpl) StartK8sStreamWithHeartBeat(w http.ResponseWriter, isReconn
 		}
 		eventId := strconv.FormatInt(parsedTime.UnixNano(), 10)
 		mux.Lock()
-		err = impl.sendEvent([]byte(eventId), nil, []byte(splitLog[1]), w)
+		if len(splitLog) == 2 {
+			err = impl.sendEvent([]byte(eventId), nil, []byte(splitLog[1]), w)
+		}
 		mux.Unlock()
 		if err != nil {
 			impl.logger.Errorw("error in writing data over sse", "err", err)

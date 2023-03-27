@@ -55,6 +55,7 @@ type MuxRouter struct {
 	Router                             *mux.Router
 	HelmRouter                         PipelineTriggerRouter
 	PipelineConfigRouter               PipelineConfigRouter
+	JobRouter                          JobRouter
 	MigrateDbRouter                    MigrateDbRouter
 	EnvironmentClusterMappingsRouter   cluster.EnvironmentRouter
 	AppListingRouter                   AppListingRouter
@@ -73,7 +74,7 @@ type MuxRouter struct {
 	UserRouter                         user.UserRouter
 	gitWebhookHandler                  pubsub.GitWebhookHandler
 	workflowUpdateHandler              pubsub.WorkflowStatusUpdateHandler
-	appUpdateHandler                   pubsub.ApplicationStatusUpdateHandler
+	appUpdateHandler                   pubsub.ApplicationStatusHandler
 	ciEventHandler                     pubsub.CiEventHandler
 	ChartRefRouter                     ChartRefRouter
 	ConfigMapRouter                    ConfigMapRouter
@@ -116,6 +117,7 @@ type MuxRouter struct {
 	globalCMCSRouter                   GlobalCMCSRouter
 	userTerminalAccessRouter           terminal2.UserTerminalAccessRouter
 	ciStatusUpdateCron                 cron.CiStatusUpdateCron
+	appGroupingRouter                  AppGroupingRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -129,7 +131,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 	TeamRouter team.TeamRouter,
 	gitWebhookHandler pubsub.GitWebhookHandler,
 	workflowUpdateHandler pubsub.WorkflowStatusUpdateHandler,
-	appUpdateHandler pubsub.ApplicationStatusUpdateHandler,
+	appUpdateHandler pubsub.ApplicationStatusHandler,
 	ciEventHandler pubsub.CiEventHandler, pubsubClient *pubsub2.PubSubClientServiceImpl, UserRouter user.UserRouter,
 	ChartRefRouter ChartRefRouter, ConfigMapRouter ConfigMapRouter, AppStoreRouter appStore.AppStoreRouter, chartRepositoryRouter chartRepo.ChartRepositoryRouter,
 	ReleaseMetricsRouter ReleaseMetricsRouter, deploymentGroupRouter DeploymentGroupRouter, batchOperationRouter BatchOperationRouter,
@@ -143,7 +145,8 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 	serverRouter server.ServerRouter, apiTokenRouter apiToken.ApiTokenRouter,
 	helmApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler, k8sCapacityRouter k8s.K8sCapacityRouter,
 	webhookHelmRouter webhookHelm.WebhookHelmRouter, globalCMCSRouter GlobalCMCSRouter,
-	userTerminalAccessRouter terminal2.UserTerminalAccessRouter, ciStatusUpdateCron cron.CiStatusUpdateCron) *MuxRouter {
+	userTerminalAccessRouter terminal2.UserTerminalAccessRouter,
+	jobRouter JobRouter, ciStatusUpdateCron cron.CiStatusUpdateCron, appGroupingRouter AppGroupingRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
 		HelmRouter:                         HelmRouter,
@@ -210,6 +213,8 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 		globalCMCSRouter:                   globalCMCSRouter,
 		userTerminalAccessRouter:           userTerminalAccessRouter,
 		ciStatusUpdateCron:                 ciStatusUpdateCron,
+		JobRouter:                          jobRouter,
+		appGroupingRouter:                  appGroupingRouter,
 	}
 	return r
 }
@@ -258,11 +263,15 @@ func (r MuxRouter) Init() {
 	r.HelmRouter.initPipelineTriggerRouter(pipelineConfigRouter)
 	r.appRouter.InitAppRouter(pipelineConfigRouter)
 
+	jobConfigRouter := r.Router.PathPrefix("/orchestrator/job").Subrouter()
+	r.JobRouter.InitJobRouter(jobConfigRouter)
+
 	migrateRouter := r.Router.PathPrefix("/orchestrator/migrate").Subrouter()
 	r.MigrateDbRouter.InitMigrateDbRouter(migrateRouter)
 
 	environmentClusterMappingsRouter := r.Router.PathPrefix("/orchestrator/env").Subrouter()
 	r.EnvironmentClusterMappingsRouter.InitEnvironmentClusterMappingsRouter(environmentClusterMappingsRouter)
+	r.appGroupingRouter.InitAppGroupingRouter(environmentClusterMappingsRouter)
 
 	clusterRouter := r.Router.PathPrefix("/orchestrator/cluster").Subrouter()
 	r.ClusterRouter.InitClusterRouter(clusterRouter)
