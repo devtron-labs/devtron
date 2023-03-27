@@ -421,6 +421,7 @@ func (impl *K8sApplicationServiceImpl) GetRestConfigByClusterId(ctx context.Cont
 		impl.logger.Errorw("error in getting cluster by ID", "err", err, "clusterId")
 		return nil, err
 	}
+
 	configMap := cluster.Config
 	bearerToken := configMap["bearer_token"]
 	var restConfig *rest.Config
