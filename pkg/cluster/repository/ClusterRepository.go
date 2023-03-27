@@ -55,7 +55,7 @@ type ClusterRepository interface {
 	Delete(model *Cluster) error
 	MarkClusterDeleted(model *Cluster) error
 	UpdateClusterConnectionStatus(clusterId int, errorInConnecting string) error
-	FindActiveClusters() (map[string]bool, error)
+	FindActiveClusters() ([]Cluster, error)
 }
 
 func NewClusterRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *ClusterRepositoryImpl {
@@ -105,8 +105,8 @@ func (impl ClusterRepositoryImpl) FindAll() ([]Cluster, error) {
 	return clusters, err
 }
 
-func (impl ClusterRepositoryImpl) FindActiveClusters() (map[string]bool, error) {
-	activeClusters := make(map[string]bool)
+func (impl ClusterRepositoryImpl) FindActiveClusters() ([]Cluster, error) {
+	activeClusters := make([]Cluster, 0)
 	query := "select cluster_name, active from cluster where active = true"
 	_, err := impl.dbConnection.Query(&activeClusters, query)
 	return activeClusters, err

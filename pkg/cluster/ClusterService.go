@@ -30,7 +30,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
 	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/client-go/tools/clientcmd/api/latest"
 	"log"
@@ -48,8 +47,6 @@ import (
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
-
-const DEFAULT_CLUSTER = "default_cluster"
 
 type ClusterBean struct {
 	Id                         int                        `json:"id,omitempty" validate:"number"`
@@ -116,7 +113,6 @@ type ClusterService interface {
 	FetchRolesFromGroup(userId int32) ([]*repository2.RoleModel, error)
 	ConnectClustersInBatch(clusters []*ClusterBean, clusterExistInDb bool)
 	ConvertClusterBeanToCluster(clusterBean *ClusterBean, userId int32) *repository.Cluster
-	GetRestConfigByCluster(cluster *ClusterBean) (*rest.Config, error)
 }
 
 type ClusterServiceImpl struct {
@@ -186,12 +182,16 @@ func (impl *ClusterServiceImpl) SaveClusters(beans []*ClusterBean, userId int32)
 	errorInSaving := false
 
 	clusterList, err := impl.clusterRepository.FindActiveClusters()
+	clusterListMap := make(map[string]bool)
+	for _, c := range clusterList {
+		clusterListMap[c.ClusterName] = c.Active
+	}
 	if err != nil {
 		impl.logger.Errorw("service err, FindAll", "err", err)
 		return nil, err
 	}
 	for _, bean := range beans {
-		if _, ok := clusterList[bean.ClusterName]; ok {
+		if _, ok := clusterListMap[bean.ClusterName]; ok {
 			bean.ValidationAndSavingMessage = "cluster already exists"
 			errorInSaving = true
 		}
@@ -638,7 +638,15 @@ func (impl ClusterServiceImpl) DeleteFromDb(bean *ClusterBean, userId int32) err
 
 func (impl ClusterServiceImpl) CheckIfConfigIsValid(cluster *ClusterBean) error {
 
-	restConfig, err := impl.GetRestConfigByCluster(cluster)
+	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(&util.ClusterConfig{
+		ClusterName:           cluster.ClusterName,
+		Host:                  cluster.ServerUrl,
+		BearerToken:           cluster.Config["bearer_token"],
+		InsecureSkipTLSVerify: cluster.InsecureSkipTLSVerify,
+		KeyData:               cluster.Config["tls_key"],
+		CertData:              cluster.Config["cert_data"],
+		CAData:                cluster.Config["cert_auth_data"],
+	})
 	if err != nil {
 		return err
 	}
@@ -807,7 +815,15 @@ func (impl *ClusterServiceImpl) ConnectClustersInBatch(clusters []*ClusterBean, 
 	respMap := make(map[int]error)
 	for idx, cluster := range clusters {
 		// getting restConfig and clientSet outside the goroutine because we don't want to call goroutine func with receiver function
-		restConfig, err := impl.GetRestConfigByCluster(cluster)
+		restConfig, err := impl.K8sUtil.GetRestConfigByCluster(&util.ClusterConfig{
+			ClusterName:           cluster.ClusterName,
+			Host:                  cluster.ServerUrl,
+			BearerToken:           cluster.Config["bearer_token"],
+			InsecureSkipTLSVerify: cluster.InsecureSkipTLSVerify,
+			KeyData:               cluster.Config["tls_key"],
+			CertData:              cluster.Config["cert_data"],
+			CAData:                cluster.Config["cert_auth_data"],
+		})
 		if err != nil {
 			impl.logger.Errorw("error in getting restConfig by cluster", "err", err, "clusterId", cluster.Id)
 			mutex.Lock()
@@ -888,7 +904,11 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) ([]*Cluste
 		return clusterBeanObjects, err
 	}
 
-	clusterNamesMap, err := impl.clusterRepository.FindActiveClusters()
+	clusterList, err := impl.clusterRepository.FindActiveClusters()
+	clusterListMap := make(map[string]bool)
+	for _, c := range clusterList {
+		clusterListMap[c.ClusterName] = c.Active
+	}
 	if err != nil {
 		impl.logger.Errorw("service err, FindAll", "err", err)
 		return nil, err
@@ -902,8 +922,8 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) ([]*Cluste
 		userInfoObj := kubeConfigObject.AuthInfos[userInfo]
 
 		if clusterName == "" {
-			clusterBeanObject.ValidationAndSavingMessage = "cluster name missing from the kubeconfig"
-		} else if _, ok := clusterNamesMap[clusterName]; ok {
+			clusterBeanObject.ValidationAndSavingMessage = "cluster name missing from the contexts in kubeconfig"
+		} else if _, ok := clusterListMap[clusterName]; ok {
 			clusterBeanObject.ValidationAndSavingMessage = "this cluster name is already added in devtron, change the cluster name"
 		} else {
 			clusterBeanObject.ClusterName = clusterName
@@ -916,40 +936,38 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) ([]*Cluste
 		}
 
 		if (userInfo == "") && (clusterBeanObject.ValidationAndSavingMessage == "") {
-			clusterBeanObject.ValidationAndSavingMessage = "user info missing from the kubeconfig"
+			clusterBeanObject.ValidationAndSavingMessage = "user info missing from the contexts in kubeconfig"
 		} else {
 			clusterBeanObject.UserName = userInfo
 		}
 
-		if kubeConfigObject.APIVersion != "" {
-			clusterBeanObject.K8sVersion = kubeConfigObject.APIVersion
+		if gvk.Version == "" {
+			clusterBeanObject.ValidationAndSavingMessage = "api version missing from the contexts in kubeconfig"
+		} else {
+			clusterBeanObject.K8sVersion = gvk.Version
 		}
 
 		clusterBeanObject.Config = make(map[string]string)
 
-		if (userInfoObj == nil || userInfoObj.Token == "") && (clusterBeanObject.ValidationAndSavingMessage == "") {
+		if (userInfoObj == nil || userInfoObj.Token == "" && clusterObj.InsecureSkipTLSVerify) && (clusterBeanObject.ValidationAndSavingMessage == "") {
 			clusterBeanObject.ValidationAndSavingMessage = "token missing from the kubeconfig"
-		} else {
-			clusterBeanObject.Config["bearer_token"] = userInfoObj.Token
 		}
+		clusterBeanObject.Config["bearer_token"] = userInfoObj.Token
+
 		if clusterObj != nil {
 			clusterBeanObject.InsecureSkipTLSVerify = clusterObj.InsecureSkipTLSVerify
 		}
 
 		if !clusterObj.InsecureSkipTLSVerify {
-			if (clusterObj.TLSServerName == "" || clusterObj.CertificateAuthority == "" || string(clusterObj.CertificateAuthorityData) == "") && (clusterBeanObject.ValidationAndSavingMessage == "") {
+			if (string(userInfoObj.ClientKeyData) == "" || string(clusterObj.CertificateAuthorityData) == "" || string(userInfoObj.ClientCertificateData) == "") && (clusterBeanObject.ValidationAndSavingMessage == "") {
 				clusterBeanObject.ValidationAndSavingMessage = "InsecureSkipTLSVerify is false but the  data required corresponding to it is missing from the kubeconfig"
 			} else {
-				clusterBeanObject.Config["tls_key"] = clusterObj.TLSServerName
-				clusterBeanObject.Config["cert_data"] = clusterObj.CertificateAuthority
+				clusterBeanObject.Config["tls_key"] = string(userInfoObj.ClientKeyData)
+				clusterBeanObject.Config["cert_data"] = string(userInfoObj.ClientCertificateData)
 				clusterBeanObject.Config["cert_auth_data"] = string(clusterObj.CertificateAuthorityData)
 			}
 		}
 		if clusterBeanObject.ValidationAndSavingMessage == "" {
-			//	errInConnecting := impl.CheckIfConfigIsValid(&clusterBeanObject)
-			//	if errInConnecting != nil {
-			//		clusterBeanObject.ErrorInConnecting = errInConnecting.Error()
-			//	}
 			clusterBeansWithNoValidationErrors = append(clusterBeansWithNoValidationErrors, clusterBeanObject)
 		}
 		clusterBeanObjects = append(clusterBeanObjects, clusterBeanObject)
@@ -974,27 +992,4 @@ func GetAndUpdateConnectionStatusForOneCluster(k8sClientSet *kubernetes.Clientse
 	respMap[clusterId] = err
 	mutex.Unlock()
 	return
-}
-
-func (impl *ClusterServiceImpl) GetRestConfigByCluster(cluster *ClusterBean) (*rest.Config, error) {
-	configMap := cluster.Config
-	bearerToken := configMap["bearer_token"]
-	var restConfig *rest.Config
-	var err error
-	if cluster.ClusterName == DEFAULT_CLUSTER && len(bearerToken) == 0 {
-		restConfig, err = impl.K8sUtil.GetK8sClusterRestConfig()
-		if err != nil {
-			impl.logger.Errorw("error in getting rest config for default cluster", "err", err)
-			return nil, err
-		}
-	} else {
-		restConfig = &rest.Config{Host: cluster.ServerUrl, BearerToken: bearerToken, TLSClientConfig: rest.TLSClientConfig{Insecure: cluster.InsecureSkipTLSVerify}}
-		if cluster.InsecureSkipTLSVerify == false {
-			restConfig.TLSClientConfig.ServerName = restConfig.ServerName
-			restConfig.TLSClientConfig.KeyData = []byte(cluster.Config["tls_key"])
-			restConfig.TLSClientConfig.CertData = []byte(cluster.Config["cert_data"])
-			restConfig.TLSClientConfig.CAData = []byte(cluster.Config["cert_auth_data"])
-		}
-	}
-	return restConfig, nil
 }
