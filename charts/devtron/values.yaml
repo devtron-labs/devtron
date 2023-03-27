@@ -270,7 +270,7 @@ argo-cd:
 # Values for security integration
 security:
   enabled: false
-  image: "quay.io/devtron/image-scanner:b7873c95-103-13245"
+  image: "quay.io/devtron/image-scanner:b7873c95-334-13266"
   # Values for clair
   clair:
     enabled: false

@@ -47,7 +47,7 @@ argo-cd:
       imagePullPolicy: IfNotPresent
 
 security:
-  image: "quay.io/devtron/image-scanner:b7873c95-103-13245"
+  image: "quay.io/devtron/image-scanner:b7873c95-334-13266"
 
 notifier:
   image: "quay.io/devtron/notifier:6c7a356a-372-11107"
