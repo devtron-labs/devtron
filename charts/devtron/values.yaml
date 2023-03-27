@@ -52,7 +52,7 @@ components:
       sentry: "false"
       sentryEnv: "PRODUCTION"
       applicationMetrics: "true"
-    image: "quay.io/devtron/dashboard:de186b14-325-12876"
+    image: "quay.io/devtron/dashboard:be354866-325-13271"
     imagePullPolicy: IfNotPresent
 
   devtron:
