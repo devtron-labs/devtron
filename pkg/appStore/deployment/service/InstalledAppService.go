@@ -40,6 +40,7 @@ import (
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"net/http"
+	"regexp"
 
 	/* #nosec */
 	"crypto/sha1"
@@ -787,6 +788,21 @@ func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(instal
 func (impl *InstalledAppServiceImpl) FetchChartNotes(installedAppId int, envId int, token string, checkNotesAuth func(token string, appName string, envId int) bool) (string, error) {
 	//check notes.txt in db
 	installedApp, err := impl.installedAppRepository.FetchNotes(installedAppId)
+	installedAppVerison, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdAndEnvId(installedAppId, envId)
+	if err != nil {
+		impl.logger.Errorw("error fetching installed  app version in installed app service", "err", err)
+		return "", err
+	}
+	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installedAppVerison.AppStoreApplicationVersion.Id)
+	if err != nil {
+		impl.logger.Errorw("error fetching app store app version in installed app service", "err", err)
+		return "", err
+	}
+	chartVersion := appStoreAppVersion.Version
+	fmt.Println(chartVersion)
+	re := regexp.MustCompile(`CHART VERSION: ([0-9]+\.[0-9]+\.[0-9]+)`)
+	newStr := re.ReplaceAllString(installedApp.Notes, "CHART VERSION: "+chartVersion)
+	installedApp.Notes = newStr
 	appName := installedApp.App.AppName
 	if err != nil {
 		impl.logger.Errorw("error fetching notes from db", "err", err)
