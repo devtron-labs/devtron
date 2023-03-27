@@ -54,11 +54,12 @@ type K8sRequestBean struct {
 
 type PodLogsRequest struct {
 	SinceTime         *metav1.Time `json:"sinceTime,omitempty"`
-	TailLines         int          `json:"tailLines"`
+	SinceSeconds      *int64       `json:"sinceSeconds,omitempty"`
+	TailLines         *int64       `json:"tailLines"`
 	Follow            bool         `json:"follow"`
 	ContainerName     string       `json:"containerName"`
 	PreviousContainer bool         `json:"previousContainer"`
-	Timestamps        bool         `json:"timestamps"`
+	NoTimeLimit       bool         `json:"noTimeLimit"`
 }
 
 type ResourceIdentifier struct {
@@ -231,16 +232,23 @@ func (impl K8sClientServiceImpl) GetPodLogs(ctx context.Context, restConfig *res
 		impl.logger.Errorw("error in getting client for resource", "err", err)
 		return nil, err
 	}
-	tailLines := int64(podLogsRequest.TailLines)
 	podLogOptions := &apiv1.PodLogOptions{
-		Follow:     podLogsRequest.Follow,
-		TailLines:  &tailLines,
+		Follow: podLogsRequest.Follow,
+		//if not nil get logs of TailLines no of lines,else gets logs starting from sinceTime or from creation of pod
 		Container:  podLogsRequest.ContainerName,
-		Timestamps: podLogsRequest.Timestamps,
+		Timestamps: true, // pod logs are being fetched if Timestamps is set to true
 		Previous:   podLogsRequest.PreviousContainer,
 	}
-	if podLogsRequest.SinceTime != nil {
-		podLogOptions.SinceTime = podLogsRequest.SinceTime
+
+	if !podLogsRequest.NoTimeLimit {
+		//if none of these params are set then the logs will be shown since the time of container creation
+		podLogOptions.TailLines = podLogsRequest.TailLines
+		if podLogsRequest.SinceTime != nil && podLogsRequest.SinceSeconds == nil {
+			podLogOptions.SinceTime = podLogsRequest.SinceTime
+		}
+		if podLogsRequest.SinceSeconds != nil {
+			podLogOptions.SinceSeconds = podLogsRequest.SinceSeconds
+		}
 	}
 	podIf := podClient.Pods(resourceIdentifier.Namespace)
 	logsRequest := podIf.GetLogs(resourceIdentifier.Name, podLogOptions)

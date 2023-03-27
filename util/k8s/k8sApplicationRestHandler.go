@@ -26,7 +26,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 )
 
 type K8sApplicationRestHandler interface {
@@ -440,26 +439,19 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 	appId := v.Get("appId")
 	clusterIdString := v.Get("clusterId")
 	namespace := v.Get("namespace")
-	sinceSecondsString := v.Get("sinceSeconds")
-	sinceSeconds, err := strconv.Atoi(sinceSecondsString)
+	sinceSeconds, err := strconv.ParseInt(v.Get("sinceSeconds"), 10, 64)
 	if err != nil {
 		sinceSeconds = 0
 	}
-	var sinceTime *v1.Time
-	if len(sinceSecondsString) > 0 && sinceSeconds > 0 {
-		currentTime := time.Now()
-		timeSinceSeconds := currentTime.Add(time.Duration(-sinceSeconds) * time.Second)
-		sinceTime = &v1.Time{Time: timeSinceSeconds}
-	}
-
+	noTimeLimit := v.Get("noTimeLimit") == "true"
 	previousContainer := v.Get("previousContainer") == "true"
-	timestamps := v.Get("timestamps") == "true"
 	token := r.Header.Get("token")
 	follow, err := strconv.ParseBool(v.Get("follow"))
 	if err != nil {
 		follow = false
 	}
-	tailLines, err := strconv.Atoi(v.Get("tailLines"))
+
+	tailLines, err := strconv.ParseInt(v.Get("tailLines"), 10, 64)
 	if err != nil {
 		tailLines = 0
 	}
@@ -481,16 +473,19 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 					GroupVersionKind: schema.GroupVersionKind{},
 				},
 				PodLogsRequest: application.PodLogsRequest{
-					SinceTime:         sinceTime,
-					TailLines:         tailLines,
 					Follow:            follow,
 					ContainerName:     containerName,
 					PreviousContainer: previousContainer,
-					Timestamps:        timestamps,
+					NoTimeLimit:       noTimeLimit,
 				},
 			},
 		}
-
+		if tailLines > 0 {
+			request.K8sRequest.PodLogsRequest.TailLines = &tailLines
+		}
+		if sinceSeconds > 0 {
+			request.K8sRequest.PodLogsRequest.SinceSeconds = &sinceSeconds
+		}
 		valid, err := handler.k8sApplicationService.ValidateResourceRequest(r.Context(), request.AppIdentifier, request.K8sRequest)
 		if err != nil || !valid {
 			handler.logger.Errorw("error in validating resource request", "err", err)
@@ -536,14 +531,18 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 					},
 				},
 				PodLogsRequest: application.PodLogsRequest{
-					SinceTime:         sinceTime,
-					TailLines:         tailLines,
 					Follow:            follow,
 					ContainerName:     containerName,
 					PreviousContainer: previousContainer,
-					Timestamps:        timestamps,
+					NoTimeLimit:       noTimeLimit,
 				},
 			},
+		}
+		if tailLines > 0 {
+			request.K8sRequest.PodLogsRequest.TailLines = &tailLines
+		}
+		if sinceSeconds > 0 {
+			request.K8sRequest.PodLogsRequest.SinceSeconds = &sinceSeconds
 		}
 		if ok := handler.handleRbac(r, w, *request, token, casbin.ActionGet); !ok {
 			return
