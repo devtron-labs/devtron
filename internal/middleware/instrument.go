@@ -84,6 +84,11 @@ var CacheUploadDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 	Buckets: prometheus.LinearBuckets(20, 20, 5),
 }, []string{"pipelineName", "appName"})
 
+var AppListingDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
+	Name: "app_listing_duration_seconds",
+	Help: "Duration of App Listing process",
+}, []string{"MethodName", "AppType"})
+
 var requestCounter = promauto.NewCounterVec(
 	prometheus.CounterOpts{
 		Name: "orchestrator_http_requests_total",

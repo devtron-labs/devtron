@@ -1233,14 +1233,16 @@ func (impl PipelineBuilderImpl) PatchRegexCiPipeline(request *bean.CiRegexPatchR
 		pipelineMaterial := &pipelineConfig.CiPipelineMaterial{
 			Id:            material.Id,
 			Value:         material.Value,
+			CiPipelineId:  materialDbObject.CiPipelineId,
 			Type:          pipelineConfig.SourceType(material.Type),
 			Active:        true,
 			GitMaterialId: materialDbObject.GitMaterialId,
 			Regex:         materialDbObject.Regex,
-			AuditLog:      sql.AuditLog{UpdatedBy: request.UserId, UpdatedOn: time.Now()},
+			AuditLog:      sql.AuditLog{UpdatedBy: request.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now(), CreatedBy: request.UserId},
 		}
 		materials = append(materials, pipelineMaterial)
 	}
+
 	dbConnection := impl.pipelineRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -2745,6 +2747,10 @@ func (impl PipelineBuilderImpl) GetArtifactsForCdStage(cdPipelineId int, parentI
 		if err != nil {
 			impl.logger.Errorw("error in getting artifactBean for one ci_artifact", "err", err, "parentStage", parentType, "stage", stage)
 			return ciArtifactsResponse, err
+		}
+		if artifactBean.ExternalCiPipelineId != 0 {
+			// if external webhook continue
+			continue
 		}
 		var ciWorkflow *pipelineConfig.CiWorkflow
 		if artifactBean.ParentCiArtifact != 0 {
