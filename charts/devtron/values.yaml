@@ -89,7 +89,7 @@ components:
       authenticator: "quay.io/devtron/authenticator:6e466830-393-11943"
 
   kubelink:
-    image: "quay.io/devtron/kubelink:a5e179d4-318-12564"
+    image: "quay.io/devtron/kubelink:d2406e8a-318-13263"
     imagePullPolicy: IfNotPresent
 
   postgres:
