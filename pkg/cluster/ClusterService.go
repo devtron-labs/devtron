@@ -444,7 +444,6 @@ func (impl *ClusterServiceImpl) FindByIds(ids []int) ([]ClusterBean, error) {
 }
 
 func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
-	// TODO
 	model, err := impl.clusterRepository.FindById(bean.Id)
 	if err != nil {
 		impl.logger.Error(err)
@@ -461,12 +460,31 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 	}
 
 	// check whether config modified or not, if yes create informer with updated config
-	dbConfig := model.Config["bearer_token"]
-	requestConfig := bean.Config["bearer_token"]
-	if len(requestConfig) == 0 {
-		bean.Config = model.Config
+	dbConfigBearerToken := model.Config["bearer_token"]
+	requestConfigBearerToken := bean.Config["bearer_token"]
+	if len(requestConfigBearerToken) == 0 {
+		bean.Config["bearer_token"] = model.Config["bearer_token"]
 	}
-	if bean.ServerUrl != model.ServerUrl || dbConfig != requestConfig {
+
+	dbConfigTlsKey := model.Config["tls_key"]
+	requestConfigTlsKey := bean.Config["tls_key"]
+	if len(requestConfigTlsKey) == 0 {
+		bean.Config["tls_key"] = model.Config["tls_key"]
+	}
+
+	dbConfigCertData := model.Config["cert_data"]
+	requestConfigCertData := bean.Config["cert_data"]
+	if len(requestConfigCertData) == 0 {
+		bean.Config["cert_data"] = model.Config["cert_data"]
+	}
+
+	dbConfigCAData := model.Config["cert_auth_data"]
+	requestConfigCAData := bean.Config["cert_auth_data"]
+	if len(requestConfigCAData) == 0 {
+		bean.Config["cert_auth_data"] = model.Config["cert_auth_data"]
+	}
+
+	if bean.ServerUrl != model.ServerUrl || bean.InsecureSkipTLSVerify != model.InsecureSkipTlsVerify || dbConfigBearerToken != requestConfigBearerToken || dbConfigTlsKey != requestConfigTlsKey || dbConfigCertData != requestConfigCertData || dbConfigCAData != requestConfigCAData {
 		bean.HasConfigOrUrlChanged = true
 		//validating config
 		err := impl.CheckIfConfigIsValid(bean)
@@ -476,6 +494,7 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 	}
 	model.ClusterName = bean.ClusterName
 	model.ServerUrl = bean.ServerUrl
+	model.InsecureSkipTlsVerify = bean.InsecureSkipTLSVerify
 	model.PrometheusEndpoint = bean.PrometheusUrl
 
 	if bean.PrometheusAuth != nil {
@@ -532,7 +551,6 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 }
 
 func (impl *ClusterServiceImpl) SyncNsInformer(bean *ClusterBean) {
-	// TODO
 	requestConfig := bean.Config["bearer_token"]
 	//before creating new informer for cluster, close existing one
 	impl.K8sInformerFactory.CleanNamespaceInformer(bean.ClusterName)
@@ -627,7 +645,6 @@ func (impl ClusterServiceImpl) CheckIfConfigIsValid(cluster *ClusterBean) error 
 	if err != nil {
 		return err
 	}
-	// TODO
 	k8sHttpClient, err := util.OverrideK8sHttpClientWithTracer(restConfig)
 	if err != nil {
 		return err
