@@ -1,3 +1,5 @@
+## v0.6.14
+
 ## Bugs
 - fix: scale workloads for helm app created on Devtron  (#3131)
 - fix: select image not working for external webhook (#3187)
@@ -67,3 +69,5 @@
 - task: restricted deployment status updation cron to fetch pipelines deployed within hours (#3104)
 - chore: upgrade common-lib dependency (#3052)
 - feat - Use cluster-name instead of server url in Argo cd application objects  (#2958)
+
+
