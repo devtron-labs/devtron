@@ -73,7 +73,6 @@ func NewCiLogServiceImpl(logger *zap.SugaredLogger, ciService CiService, ciConfi
 }
 
 func (impl *CiLogServiceImpl) FetchRunningWorkflowLogs(ciLogRequest BuildLogRequest, clusterConfig util.ClusterConfig, isExt bool) (io.ReadCloser, func() error, error) {
-	// TODO
 
 	podLogOpts := &v12.PodLogOptions{
 		Container: "main",
