@@ -237,7 +237,6 @@ func (impl *ClusterServiceImpl) ConvertClusterBeanToCluster(clusterBean *Cluster
 
 func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
 	//validating config
-	// TODO
 
 	err := impl.CheckIfConfigIsValid(bean)
 	if err != nil {
