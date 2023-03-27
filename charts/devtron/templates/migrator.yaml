@@ -89,6 +89,10 @@ spec:
       initContainers:
       - name: postgresql-migrate-casbin
         image: {{ .image }}
+        {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+        securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 10 }}
+        {{- end }}
         env:
         - name: SCRIPT_LOCATION
           value: {{ .envVars.casbin.SCRIPT_LOCATION }}
