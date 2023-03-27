@@ -1,3 +1,13 @@
+global:
+  podSecurityContext:
+    fsGroup: 1000
+    runAsGroup: 1000
+    runAsUser: 1000
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    runAsUser: 1000
+    runAsNonRoot: true
+
 installer:
   release: "v0.6.13"
   image: "quay.io/devtron/inception"
@@ -35,6 +45,9 @@ argo-cd:
       repository: quay.io/argoproj/argocd
       tag: "v2.5.2"
       imagePullPolicy: IfNotPresent
+
+security:
+  image: "quay.io/devtron/image-scanner:b7873c95-103-13245"
 
 notifier:
   image: "quay.io/devtron/notifier:6c7a356a-372-11107"

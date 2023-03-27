@@ -1,3 +1,12 @@
+global:
+  podSecurityContext:
+    fsGroup: 1000
+    runAsGroup: 1000
+    runAsUser: 1000
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    runAsUser: 1000
+    runAsNonRoot: true
 installer:
   repo: "devtron-labs/devtron"
 #  For Kubernetes version < 1.16, set release: legacy. You won't be able to upgrade Devtron unless you upgrade the K8s version to 1.16 or above.
@@ -261,6 +270,7 @@ argo-cd:
 # Values for security integration
 security:
   enabled: false
+  image: "quay.io/devtron/image-scanner:b7873c95-103-13245"
   # Values for clair
   clair:
     enabled: false
