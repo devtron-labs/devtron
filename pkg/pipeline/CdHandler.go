@@ -391,10 +391,17 @@ func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int, userId int32) (int,
 		impl.Logger.Errorw("could not fetch stage env", "err", err)
 		return 0, err
 	}
-
-	serverUrl := env.Cluster.ServerUrl
 	configMap := env.Cluster.Config
-	bearerToken := configMap["bearer_token"]
+	clusterConfig := util.ClusterConfig{
+		Host:                  env.Cluster.ServerUrl,
+		BearerToken:           configMap["bearer_token"],
+		InsecureSkipTLSVerify: env.Cluster.InsecureSkipTlsVerify,
+	}
+	if env.Cluster.InsecureSkipTlsVerify == false {
+		clusterConfig.KeyData = configMap["tls_key"]
+		clusterConfig.CertData = configMap["cert_data"]
+		clusterConfig.CAData = configMap["cert_auth_data"]
+	}
 
 	var isExtCluster bool
 	if workflowRunner.WorkflowType == PRE {
@@ -403,14 +410,14 @@ func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int, userId int32) (int,
 		isExtCluster = pipeline.RunPostStageInEnv
 	}
 
-	runningWf, err := impl.cdService.GetWorkflow(workflowRunner.Name, workflowRunner.Namespace, serverUrl, bearerToken, isExtCluster)
+	runningWf, err := impl.cdService.GetWorkflow(workflowRunner.Name, workflowRunner.Namespace, clusterConfig, isExtCluster)
 	if err != nil {
 		impl.Logger.Errorw("cannot find workflow ", "name", workflowRunner.Name)
 		return 0, errors.New("cannot find workflow " + workflowRunner.Name)
 	}
 
 	// Terminate workflow
-	err = impl.cdService.TerminateWorkflow(runningWf.Name, runningWf.Namespace, serverUrl, bearerToken, isExtCluster)
+	err = impl.cdService.TerminateWorkflow(runningWf.Name, runningWf.Namespace, clusterConfig, isExtCluster)
 	if err != nil {
 		impl.Logger.Error("cannot terminate wf runner", "err", err)
 		return 0, err
