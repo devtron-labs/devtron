@@ -80,9 +80,11 @@ spec:
       labels:
         app: inception
     spec:
-      {{- if $.Values.installer.podSecurityContext }}
+      {{- if or  $.Values.installer.podSecurityContext  (and $.Values.global $.Values.global.podSecurityContext) }}
+      {{- with  $.Values.installer.podSecurityContext | default $.Values.global.podSecurityContext }}
       securityContext:
-{{ toYaml $.Values.installer.podSecurityContext | indent 8 }}
+{{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- end }}
       containers:
         -
@@ -93,9 +95,11 @@ spec:
         {{- end }}
           imagePullPolicy: IfNotPresent
           name: inception
-          {{- if $.Values.installer.containerSecurityContext }}
+          {{- if or  $.Values.components.installer.containerSecurityContext  (and $.Values.global $.Values.global.containerSecurityContext) }}
+          {{- with  $.Values.components.installer.containerSecurityContext | default $.Values.global.containerSecurityContext }}
           securityContext:
-{{ toYaml $.Values.installer.containerSecurityContext | indent 12 }}
+  {{- toYaml . | nindent 112 }}
+          {{- end }}
           {{- end }}
           ports:
             -
