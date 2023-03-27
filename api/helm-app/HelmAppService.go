@@ -8,6 +8,7 @@ import (
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/client/k8s/application"
+	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -141,14 +142,18 @@ func (impl *HelmAppServiceImpl) listApplications(ctx context.Context, clusterIds
 func (impl *HelmAppServiceImpl) ListHelmApplications(ctx context.Context, clusterIds []int, w http.ResponseWriter, token string, helmAuth func(token string, object string) bool) {
 	var helmCdPipelines []*pipelineConfig.Pipeline
 	var installedHelmApps []*repository.InstalledApps
+	start := time.Now()
 	appStream, err := impl.listApplications(ctx, clusterIds)
+	middleware.AppListingDuration.WithLabelValues("listApplications", "helm").Observe(time.Since(start).Seconds())
 	if err != nil {
 		impl.logger.Errorw("error in fetching app list", "clusters", clusterIds, "err", err)
 	}
 	if err == nil && len(clusterIds) > 0 {
 		// get helm apps which are created using cd_pipelines
 		newCtx, span := otel.Tracer("pipelineRepository").Start(ctx, "GetAppAndEnvDetailsForDeploymentAppTypePipeline")
+		start = time.Now()
 		helmCdPipelines, err = impl.pipelineRepository.GetAppAndEnvDetailsForDeploymentAppTypePipeline(util.PIPELINE_DEPLOYMENT_TYPE_HELM, clusterIds)
+		middleware.AppListingDuration.WithLabelValues("getAppAndEnvDetailsForDeploymentAppTypePipeline", "helm").Observe(time.Since(start).Seconds())
 		span.End()
 		if err != nil {
 			impl.logger.Errorw("error in fetching helm app list from DB created using cd_pipelines", "clusters", clusterIds, "err", err)
@@ -157,7 +162,9 @@ func (impl *HelmAppServiceImpl) ListHelmApplications(ctx context.Context, cluste
 		// if not hyperion mode, then fetch from installed_apps whose deployment_app_type is helm (as in hyperion mode, these apps should be treated as external-apps)
 		if !util2.IsBaseStack() {
 			newCtx, span = otel.Tracer("pipelineRepository").Start(newCtx, "GetAppAndEnvDetailsForDeploymentAppTypePipeline")
+			start = time.Now()
 			installedHelmApps, err = impl.installedAppRepository.GetAppAndEnvDetailsForDeploymentAppTypeInstalledApps(util.PIPELINE_DEPLOYMENT_TYPE_HELM, clusterIds)
+			middleware.AppListingDuration.WithLabelValues("getAppAndEnvDetailsForDeploymentAppTypeInstalledApps", "helm").Observe(time.Since(start).Seconds())
 			span.End()
 			if err != nil {
 				impl.logger.Errorw("error in fetching helm app list from DB created from app store", "clusters", clusterIds, "err", err)
