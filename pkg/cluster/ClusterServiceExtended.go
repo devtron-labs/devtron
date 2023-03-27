@@ -143,7 +143,6 @@ func (impl *ClusterServiceImplExtended) FindAll() ([]*ClusterBean, error) {
 }
 
 func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
-	// TODO
 	isGitOpsConfigured, err1 := impl.gitOpsRepository.IsGitOpsConfigured()
 	if err1 != nil {
 		return nil, err1
@@ -229,9 +228,12 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *Cluste
 		if configMap["bearer_token"] != "" {
 			bearerToken = configMap["bearer_token"]
 		}
-		// TODO
+
 		tlsConfig := v1alpha1.TLSClientConfig{
-			Insecure: true,
+			Insecure: bean.InsecureSkipTLSVerify,
+			KeyData:  []byte(configMap["tls_key"]),
+			CertData: []byte(configMap["cert_data"]),
+			CAData:   []byte(configMap["cert_auth_data"]),
 		}
 		cdClusterConfig := v1alpha1.ClusterConfig{
 			BearerToken:     bearerToken,
