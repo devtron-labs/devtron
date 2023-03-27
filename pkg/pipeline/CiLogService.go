@@ -31,7 +31,7 @@ import (
 )
 
 type CiLogService interface {
-	FetchRunningWorkflowLogs(ciLogRequest BuildLogRequest, token string, host string, isExt bool) (io.ReadCloser, func() error, error)
+	FetchRunningWorkflowLogs(ciLogRequest BuildLogRequest, clusterConfig util.ClusterConfig, isExt bool) (io.ReadCloser, func() error, error)
 	FetchLogs(baseLogLocationPathConfig string, ciLogRequest BuildLogRequest) (*os.File, func() error, error)
 }
 
@@ -72,8 +72,9 @@ func NewCiLogServiceImpl(logger *zap.SugaredLogger, ciService CiService, ciConfi
 	}
 }
 
-func (impl *CiLogServiceImpl) FetchRunningWorkflowLogs(ciLogRequest BuildLogRequest, token string, host string, isExt bool) (io.ReadCloser, func() error, error) {
+func (impl *CiLogServiceImpl) FetchRunningWorkflowLogs(ciLogRequest BuildLogRequest, clusterConfig util.ClusterConfig, isExt bool) (io.ReadCloser, func() error, error) {
 	// TODO
+
 	podLogOpts := &v12.PodLogOptions{
 		Container: "main",
 		Follow:    true,
@@ -83,10 +84,13 @@ func (impl *CiLogServiceImpl) FetchRunningWorkflowLogs(ciLogRequest BuildLogRequ
 	var err error
 	if isExt {
 		config := &rest.Config{
-			Host:        host,
-			BearerToken: token,
+			Host:        clusterConfig.Host,
+			BearerToken: clusterConfig.BearerToken,
 			TLSClientConfig: rest.TLSClientConfig{
-				Insecure: true,
+				Insecure: clusterConfig.InsecureSkipTLSVerify,
+				KeyData:  []byte(clusterConfig.KeyData),
+				CertData: []byte(clusterConfig.CertData),
+				CAData:   []byte(clusterConfig.CAData),
 			},
 		}
 		k8sHttpClient, err := util.OverrideK8sHttpClientWithTracer(config)

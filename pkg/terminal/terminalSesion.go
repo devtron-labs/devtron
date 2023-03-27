@@ -417,7 +417,6 @@ func (impl *TerminalSessionHandlerImpl) GetTerminalSession(req *TerminalSessionR
 }
 
 func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequest) (*rest.Config, *kubernetes.Clientset, error) {
-	// TODO
 	var clusterBean *cluster.ClusterBean
 	var err error
 	if req.ClusterId != 0 {

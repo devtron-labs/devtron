@@ -576,10 +576,17 @@ func (impl *CdHandlerImpl) GetRunningWorkflowLogs(environmentId int, pipelineId 
 		impl.Logger.Errorw("error while fetching cd pipeline", "err", err)
 		return nil, nil, err
 	}
-
-	serverUrl := env.Cluster.ServerUrl
 	configMap := env.Cluster.Config
-	bearerToken := configMap["bearer_token"]
+	clusterConfig := util.ClusterConfig{
+		Host:                  env.Cluster.ServerUrl,
+		BearerToken:           configMap["bearer_token"],
+		InsecureSkipTLSVerify: env.Cluster.InsecureSkipTlsVerify,
+	}
+	if env.Cluster.InsecureSkipTlsVerify == false {
+		clusterConfig.KeyData = configMap["tls_key"]
+		clusterConfig.CertData = configMap["cert_data"]
+		clusterConfig.CAData = configMap["cert_auth_data"]
+	}
 
 	var isExtCluster bool
 	if cdWorkflow.WorkflowType == PRE {
@@ -587,16 +594,16 @@ func (impl *CdHandlerImpl) GetRunningWorkflowLogs(environmentId int, pipelineId 
 	} else if cdWorkflow.WorkflowType == POST {
 		isExtCluster = pipeline.RunPostStageInEnv
 	}
-	return impl.getWorkflowLogs(pipelineId, cdWorkflow, bearerToken, serverUrl, isExtCluster)
+	return impl.getWorkflowLogs(pipelineId, cdWorkflow, clusterConfig, isExtCluster)
 }
 
-func (impl *CdHandlerImpl) getWorkflowLogs(pipelineId int, cdWorkflow *pipelineConfig.CdWorkflowRunner, token string, host string, runStageInEnv bool) (*bufio.Reader, func() error, error) {
+func (impl *CdHandlerImpl) getWorkflowLogs(pipelineId int, cdWorkflow *pipelineConfig.CdWorkflowRunner, clusterConfig util.ClusterConfig, runStageInEnv bool) (*bufio.Reader, func() error, error) {
 	cdLogRequest := BuildLogRequest{
 		PodName:   cdWorkflow.PodName,
 		Namespace: cdWorkflow.Namespace,
 	}
 
-	logStream, cleanUp, err := impl.ciLogService.FetchRunningWorkflowLogs(cdLogRequest, token, host, runStageInEnv)
+	logStream, cleanUp, err := impl.ciLogService.FetchRunningWorkflowLogs(cdLogRequest, clusterConfig, runStageInEnv)
 	if logStream == nil || err != nil {
 		if !cdWorkflow.BlobStorageEnabled {
 			return nil, nil, errors.New("logs-not-stored-in-repository")

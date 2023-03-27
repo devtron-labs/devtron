@@ -415,7 +415,6 @@ func (impl *K8sApplicationServiceImpl) GetPodLogs(ctx context.Context, request *
 }
 
 func (impl *K8sApplicationServiceImpl) GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error) {
-	// TODO
 	_, span := otel.Tracer("orchestrator").Start(ctx, "K8sApplicationService.GetRestConfigByClusterId")
 	defer span.End()
 	cluster, err := impl.clusterService.FindById(clusterId)
