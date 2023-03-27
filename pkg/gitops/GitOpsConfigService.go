@@ -338,8 +338,10 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(ctx context.Context, req
 				Config: v1alpha1.ClusterConfig{
 					BearerToken: cluster.Config["bearer_token"],
 					TLSClientConfig: v1alpha1.TLSClientConfig{
-						// TODO
-						Insecure: true,
+						Insecure: cluster.InsecureSkipTLSVerify,
+						KeyData:  []byte(cluster.Config["tls_key"]),
+						CertData: []byte(cluster.Config["cert_data"]),
+						CAData:   []byte(cluster.Config["cert_auth_data"]),
 					},
 				},
 			}
