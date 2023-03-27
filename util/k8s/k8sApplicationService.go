@@ -47,7 +47,6 @@ type K8sApplicationService interface {
 	ValidateClusterResourceBean(ctx context.Context, clusterId int, manifest unstructured.Unstructured, gvk schema.GroupVersionKind, rbacCallback func(clusterName string, resourceIdentifier application.ResourceIdentifier) bool) bool
 	GetResourceInfo(ctx context.Context) (*ResourceInfo, error)
 	GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error)
-	GetRestConfigByCluster(cluster *cluster.ClusterBean) (*rest.Config, error)
 	GetManifestsByBatch(ctx context.Context, request []ResourceRequestBean) ([]BatchResourceResponse, error)
 	FilterServiceAndIngress(ctx context.Context, resourceTreeInf map[string]interface{}, validRequests []ResourceRequestBean, appDetail bean.AppDetailContainer, appId string) []ResourceRequestBean
 	GetUrlsByBatch(ctx context.Context, resp []BatchResourceResponse) []interface{}
@@ -443,29 +442,6 @@ func (impl *K8sApplicationServiceImpl) GetRestConfigByClusterId(ctx context.Cont
 	return restConfig, nil
 }
 
-func (impl *K8sApplicationServiceImpl) GetRestConfigByCluster(cluster *cluster.ClusterBean) (*rest.Config, error) {
-	configMap := cluster.Config
-	bearerToken := configMap["bearer_token"]
-	var restConfig *rest.Config
-	var err error
-	if cluster.ClusterName == DEFAULT_CLUSTER && len(bearerToken) == 0 {
-		restConfig, err = impl.K8sUtil.GetK8sClusterRestConfig()
-		if err != nil {
-			impl.logger.Errorw("error in getting rest config for default cluster", "err", err)
-			return nil, err
-		}
-	} else {
-		restConfig = &rest.Config{Host: cluster.ServerUrl, BearerToken: bearerToken, TLSClientConfig: rest.TLSClientConfig{Insecure: cluster.InsecureSkipTLSVerify}}
-		if cluster.InsecureSkipTLSVerify == false {
-			restConfig.TLSClientConfig.ServerName = restConfig.ServerName
-			restConfig.TLSClientConfig.KeyData = []byte(cluster.Config["tls_key"])
-			restConfig.TLSClientConfig.CertData = []byte(cluster.Config["cert_data"])
-			restConfig.TLSClientConfig.CAData = []byte(cluster.Config["cert_auth_data"])
-		}
-	}
-	return restConfig, nil
-}
-
 func (impl *K8sApplicationServiceImpl) ValidateClusterResourceRequest(ctx context.Context, clusterResourceRequest *ResourceRequestBean,
 	rbacCallback func(clusterName string, resourceIdentifier application.ResourceIdentifier) bool) (bool, error) {
 	clusterId := clusterResourceRequest.ClusterId
@@ -475,7 +451,7 @@ func (impl *K8sApplicationServiceImpl) ValidateClusterResourceRequest(ctx contex
 		return false, err
 	}
 	clusterName := clusterBean.ClusterName
-	restConfig, err := impl.GetRestConfigByCluster(clusterBean)
+	restConfig, err := impl.clusterService.GetRestConfigByCluster(clusterBean)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster", "clusterId", clusterId, "err", err)
 		return false, err
@@ -693,7 +669,7 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 		impl.logger.Errorw("error in getting cluster by cluster Id", "err", err, "clusterId", clusterId)
 		return resourceList, err
 	}
-	restConfig, err := impl.GetRestConfigByCluster(clusterBean)
+	restConfig, err := impl.clusterService.GetRestConfigByCluster(clusterBean)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.ClusterId)
 		return resourceList, err
@@ -738,7 +714,7 @@ func (impl *K8sApplicationServiceImpl) ApplyResources(ctx context.Context, token
 		impl.logger.Errorw("error in getting clusterBean by cluster Id", "clusterId", clusterId, "err", err)
 		return nil, err
 	}
-	restConfig, err := impl.GetRestConfigByCluster(clusterBean)
+	restConfig, err := impl.clusterService.GetRestConfigByCluster(clusterBean)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster", "clusterId", clusterId, "err", err)
 		return nil, err

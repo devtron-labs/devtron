@@ -23,7 +23,6 @@ import (
 	"fmt"
 	casbin2 "github.com/devtron-labs/devtron/pkg/user/casbin"
 	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
-	"github.com/devtron-labs/devtron/util/k8s"
 	errors1 "github.com/juju/errors"
 	"io/ioutil"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -31,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
 	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/client-go/tools/clientcmd/api/latest"
 	"log"
@@ -116,32 +116,31 @@ type ClusterService interface {
 	FetchRolesFromGroup(userId int32) ([]*repository2.RoleModel, error)
 	ConnectClustersInBatch(clusters []*ClusterBean, clusterExistInDb bool)
 	ConvertClusterBeanToCluster(clusterBean *ClusterBean, userId int32) *repository.Cluster
+	GetRestConfigByCluster(cluster *ClusterBean) (*rest.Config, error)
 }
 
 type ClusterServiceImpl struct {
-	clusterRepository     repository.ClusterRepository
-	logger                *zap.SugaredLogger
-	K8sUtil               *util.K8sUtil
-	K8sInformerFactory    informer.K8sInformerFactory
-	userAuthRepository    repository2.UserAuthRepository
-	userRepository        repository2.UserRepository
-	roleGroupRepository   repository2.RoleGroupRepository
-	k8sApplicationService k8s.K8sApplicationService
+	clusterRepository   repository.ClusterRepository
+	logger              *zap.SugaredLogger
+	K8sUtil             *util.K8sUtil
+	K8sInformerFactory  informer.K8sInformerFactory
+	userAuthRepository  repository2.UserAuthRepository
+	userRepository      repository2.UserRepository
+	roleGroupRepository repository2.RoleGroupRepository
 }
 
 func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.SugaredLogger,
 	K8sUtil *util.K8sUtil, K8sInformerFactory informer.K8sInformerFactory,
 	userAuthRepository repository2.UserAuthRepository, userRepository repository2.UserRepository,
-	roleGroupRepository repository2.RoleGroupRepository, k8sApplicationService k8s.K8sApplicationService) *ClusterServiceImpl {
+	roleGroupRepository repository2.RoleGroupRepository) *ClusterServiceImpl {
 	clusterService := &ClusterServiceImpl{
-		clusterRepository:     repository,
-		logger:                logger,
-		K8sUtil:               K8sUtil,
-		K8sInformerFactory:    K8sInformerFactory,
-		userAuthRepository:    userAuthRepository,
-		userRepository:        userRepository,
-		roleGroupRepository:   roleGroupRepository,
-		k8sApplicationService: k8sApplicationService,
+		clusterRepository:   repository,
+		logger:              logger,
+		K8sUtil:             K8sUtil,
+		K8sInformerFactory:  K8sInformerFactory,
+		userAuthRepository:  userAuthRepository,
+		userRepository:      userRepository,
+		roleGroupRepository: roleGroupRepository,
 	}
 	go clusterService.buildInformer()
 	return clusterService
@@ -639,7 +638,7 @@ func (impl ClusterServiceImpl) DeleteFromDb(bean *ClusterBean, userId int32) err
 
 func (impl ClusterServiceImpl) CheckIfConfigIsValid(cluster *ClusterBean) error {
 
-	restConfig, err := impl.k8sApplicationService.GetRestConfigByCluster(cluster)
+	restConfig, err := impl.GetRestConfigByCluster(cluster)
 	if err != nil {
 		return err
 	}
@@ -808,7 +807,7 @@ func (impl *ClusterServiceImpl) ConnectClustersInBatch(clusters []*ClusterBean, 
 	respMap := make(map[int]error)
 	for idx, cluster := range clusters {
 		// getting restConfig and clientSet outside the goroutine because we don't want to call goroutine func with receiver function
-		restConfig, err := impl.k8sApplicationService.GetRestConfigByCluster(cluster)
+		restConfig, err := impl.GetRestConfigByCluster(cluster)
 		if err != nil {
 			impl.logger.Errorw("error in getting restConfig by cluster", "err", err, "clusterId", cluster.Id)
 			mutex.Lock()
@@ -975,4 +974,27 @@ func GetAndUpdateConnectionStatusForOneCluster(k8sClientSet *kubernetes.Clientse
 	respMap[clusterId] = err
 	mutex.Unlock()
 	return
+}
+
+func (impl *ClusterServiceImpl) GetRestConfigByCluster(cluster *ClusterBean) (*rest.Config, error) {
+	configMap := cluster.Config
+	bearerToken := configMap["bearer_token"]
+	var restConfig *rest.Config
+	var err error
+	if cluster.ClusterName == DEFAULT_CLUSTER && len(bearerToken) == 0 {
+		restConfig, err = impl.K8sUtil.GetK8sClusterRestConfig()
+		if err != nil {
+			impl.logger.Errorw("error in getting rest config for default cluster", "err", err)
+			return nil, err
+		}
+	} else {
+		restConfig = &rest.Config{Host: cluster.ServerUrl, BearerToken: bearerToken, TLSClientConfig: rest.TLSClientConfig{Insecure: cluster.InsecureSkipTLSVerify}}
+		if cluster.InsecureSkipTLSVerify == false {
+			restConfig.TLSClientConfig.ServerName = restConfig.ServerName
+			restConfig.TLSClientConfig.KeyData = []byte(cluster.Config["tls_key"])
+			restConfig.TLSClientConfig.CertData = []byte(cluster.Config["cert_data"])
+			restConfig.TLSClientConfig.CAData = []byte(cluster.Config["cert_auth_data"])
+		}
+	}
+	return restConfig, nil
 }
