@@ -63,7 +63,7 @@ func TestGetPodLogs(t *testing.T) {
 		return
 	}
 	var testManifest unstructured.Unstructured
-	testManifestYaml := `{"apiVersion": "v1","kind": "Pod","metadata": {"name": "%s","labels": {"env": "test"}},"spec": {"containers": [{"name": "%s","image": "nginx","imagePullPolicy": "IfNotPresent"}]}}`
+	testManifestYaml := `{"apiVersion": "v1","kind": "Pod","metadata": {"name": "%s"},"spec": {"containers": [{"name": "%s","image": "nginx","imagePullPolicy": "IfNotPresent"}]}}`
 	testManifestYaml = fmt.Sprintf(testManifestYaml, testPodName, testContainerName)
 	manifestMap := make(map[string]interface{})
 	err = yaml.Unmarshal([]byte(testManifestYaml), &manifestMap)
@@ -222,4 +222,8 @@ func TestGetPodLogs(t *testing.T) {
 		err = logs.Close()
 		assert.Nil(tt, err)
 	})
+
+	//delete the created pod after tests
+	_, err = k8sApplicationService.DeleteResource(context.Background(), request, 1)
+	assert.Nil(t, err)
 }
