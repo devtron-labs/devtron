@@ -338,7 +338,6 @@ func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterB
 		if configMap["bearer_token"] != "" {
 			bearerToken = configMap["bearer_token"]
 		}
-		// TODO
 		tlsConfig := v1alpha1.TLSClientConfig{
 			Insecure: bean.InsecureSkipTLSVerify,
 		}
@@ -349,7 +348,6 @@ func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterB
 			tlsConfig.CertData = []byte(bean.Config["cert_data"])
 			tlsConfig.CAData = []byte(bean.Config["cert_auth_data"])
 		}
-		// TODO
 		cdClusterConfig := v1alpha1.ClusterConfig{
 			BearerToken:     bearerToken,
 			TLSClientConfig: tlsConfig,
