@@ -101,7 +101,76 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
+  /orchestrator/cluster/saveClusters:
+    post:
+      description: Add Multiple Clusters
+      requestBody:
+        description: A JSON object containing Array of cluster config
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClusterBean'
+      responses:
+        '200':
+          description: Successfully Added  all the clusters. Response payload will be A JSON object containing Array of cluster config
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClusterBean'
+        '400':
+          description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/cluster/validate:
+    post:
+      description: Validate Multiple Clusters
+      requestBody:
+        description: A JSON object containing string of cluster's Kubeconfig
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Kubeconfig'
+      responses:
+        '200':
+          description: Successfully Validating all the clusters. Response payload will be A JSON object containing Array of cluster config
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClusterBean'
+        '400':
+          description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 # components mentioned below
 components:
   schemas:
@@ -114,17 +183,37 @@ components:
           type: string
         server_url:
           type: string
+        InsecureSkipTlsVerify:
+          type: boolean
         prometheus_url:
           type: string
         active:
           type: boolean
+        ErrorInConnecting:
+          type: string
+        ValidationAndSavingMessage:
+          type: string
         config:
           type: object
           properties:
             bearer_token:
               type: string
               description: it will be empty while fetching, and if no change while updating
+            tls_key:
+              type: string
+              description: it will be empty while fetching, and if no change while updating
+            cert_data:
+              type: string
+              description: it will be empty while fetching, and if no change while updating
+            cert_auth_data:
+              type: string
+              description: it will be empty while fetching, and if no change while updating
         k8sversion:
+          type: string
+    Kubeconfig:
+      type: object
+      properties:
+        Config:
           type: string
     PrometheusAuth:
       type: object
