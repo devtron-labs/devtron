@@ -9,9 +9,9 @@ global:
     runAsNonRoot: true
 
 installer:
-  release: "v0.6.14"
+  release: "v0.6.13"
   image: "quay.io/devtron/inception"
-  tag: "1d2b87e5-185-11095"
+  tag: "44b30917-185-13275"
   
 components:
   dashboard:
