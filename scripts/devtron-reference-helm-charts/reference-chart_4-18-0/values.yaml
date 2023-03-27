@@ -159,7 +159,7 @@ ReadinessProbe:
 #      value: abc
 
 StartupProbe:
-  Path: "/"
+  Path: ""
   port: 8080
   initialDelaySeconds: 20
   periodSeconds: 10
