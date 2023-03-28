@@ -379,7 +379,35 @@ spec:
 {{- end }}
           resources:
 {{ toYaml $.Values.resources | trim | indent 12 }}
-
+{{- if or $.Values.StartupProbe.Path  $.Values.StartupProbe.command $.Values.StartupProbe.tcp }}
+          startupProbe:
+{{- if $.Values.StartupProbe.Path }}
+            httpGet:
+              path: {{ $.Values.StartupProbe.Path  }}
+              port: {{ $.Values.StartupProbe.port }}
+            {{- if $.Values.StartupProbe.httpHeaders }}
+              httpHeaders:
+              {{- range $.Values.StartupProbe.httpHeaders}}
+                - name: {{.name}}
+                  value: {{.value}}
+              {{- end}}
+        {{- end }}
+{{- end }}
+{{- if $.Values.StartupProbe.command }}
+            exec:
+              command:
+{{ toYaml .Values.StartupProbe.command | indent 16 }}
+{{- end}}
+{{- if and $.Values.StartupProbe.tcp }}
+            tcpSocket:
+              port: {{ $.Values.StartupProbe.port }}
+{{- end}}
+            initialDelaySeconds: {{ $.Values.StartupProbe.initialDelaySeconds  }}
+            periodSeconds: {{ $.Values.StartupProbe.periodSeconds  }}
+            successThreshold: {{ $.Values.StartupProbe.successThreshold  }}
+            timeoutSeconds: {{ $.Values.StartupProbe.timeoutSeconds  }}
+            failureThreshold: {{ $.Values.StartupProbe.failureThreshold  }}
+{{- end }}
           volumeMounts:
 {{- with .Values.volumeMounts }}
 {{ toYaml . | trim | indent 12 }}
