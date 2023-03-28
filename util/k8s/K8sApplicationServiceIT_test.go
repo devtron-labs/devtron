@@ -70,6 +70,11 @@ func TestGetPodLogs(t *testing.T) {
 		ClusterId: testClusterId,
 	}
 
+	requestCloned := *request
+	*requestCloned.AppIdentifier = *request.AppIdentifier
+	*requestCloned.K8sRequest = *request.K8sRequest
+	requestCloned.ClusterId = request.ClusterId
+
 	clusterServiceMocked := mocks2.NewClusterService(t)
 	clusterServiceMocked.On("FindById", testClusterId).Return(&cluster.ClusterBean{
 		ClusterName: DEFAULT_CLUSTER,
@@ -105,7 +110,7 @@ func TestGetPodLogs(t *testing.T) {
 	}
 	defer func() {
 		//delete the created pod after tests
-		_, err1 := k8sApplicationService.DeleteResource(context.Background(), request, 1)
+		_, err1 := k8sApplicationService.DeleteResource(context.Background(), &requestCloned, 1)
 		assert.Nil(t, err1)
 	}()
 
