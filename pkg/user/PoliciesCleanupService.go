@@ -66,14 +66,14 @@ func (impl *CleanUpPoliciesServiceImpl) cleanUpDuplicateRolesFromOrchestrator(tx
 	impl.logger.Infow("deleting duplicate mappings for all users from orchestrator")
 	err := impl.cleanUpPoliciesRepository.DeleteDuplicateMappingForAllUsers(tx)
 	if err != nil {
-		impl.logger.Errorw("error in  deleting duplicate role mapping for superadmin", "err", err)
+		impl.logger.Errorw("error in  deleting duplicate role mapping for users", "err", err)
 		return err
 	}
 	impl.logger.Infow("deleted duplicate mappings for all users from orchestrator")
 	impl.logger.Infow("deleting duplicate mappings for all groups from orchestrator")
 	err = impl.cleanUpPoliciesRepository.DeleteDuplicateMappingForAllGroups(tx)
 	if err != nil {
-		impl.logger.Errorw("error in  deleting duplicate role mapping for superadmin", "err", err)
+		impl.logger.Errorw("error in  deleting duplicate role mapping for groups", "err", err)
 		return err
 	}
 	impl.logger.Infow("deleted duplicate mappings for all groups from orchestrator")
@@ -91,6 +91,14 @@ func (impl *CleanUpPoliciesServiceImpl) cleanUpDuplicateRolesFromOrchestrator(tx
 		return err
 	}
 	impl.logger.Infow("updated duplicate role mappings for all groups from orchestrator")
+	impl.logger.Infow("deleting user roles mappings for all users from orchestrator")
+	err = impl.cleanUpPoliciesRepository.DeleteRoleGroupRoleMappingforInactiveUsers(tx)
+	if err != nil {
+		impl.logger.Errorw("error in deleting user roles mappings for deleted users", "err", err)
+		return err
+	}
+	impl.logger.Infow("deleted user roles mappings for all users  for inactive users")
+	impl.logger.Infow("deleting role group role mappings for all groups from orchestrator")
 	err = impl.cleanUpPoliciesRepository.DeleteRoleGroupRoleMappingforInactiveGroups(tx)
 	if err != nil {
 		impl.logger.Errorw("error in deleting role group role mappings for deleted rolegroups", "err", err)
@@ -103,7 +111,7 @@ func (impl *CleanUpPoliciesServiceImpl) cleanUpDuplicateRolesFromOrchestrator(tx
 		impl.logger.Errorw("error in committing transaction", "err", err)
 		return err
 	}
-	impl.logger.Infow("commited transaction")
+	impl.logger.Infow("committed transaction")
 	return nil
 }
 
