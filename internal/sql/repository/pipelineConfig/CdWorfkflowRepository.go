@@ -356,7 +356,7 @@ func (impl *CdWorkflowRepositoryImpl) FindArtifactByPipelineIdAndRunnerType(pipe
 	var wfrList []CdWorkflowRunner
 	err := impl.dbConnection.
 		Model(&wfrList).
-		Column("cd_workflow_runner.*", "CdWorkflow", "DeploymentApprovalRequest", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact", "DeploymentApprovalRequest.DeploymentApprovalUsers", "DeploymentApprovalRequest.DeploymentApprovalUsers.User").
+		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact").
 		Where("cd_workflow.pipeline_id = ?", pipelineId).
 		Where("cd_workflow_runner.workflow_type = ?", runnerType).
 		Order("cd_workflow_runner.id DESC").

@@ -67,6 +67,7 @@ type CdHandler interface {
 	CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipelineId int, userId int32)
 	FetchAppWorkflowStatusForTriggerViewForEnvironment(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*pipelineConfig.CdWorkflowStatus, error)
 	FetchAppDeploymentStatusForEnvironments(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*pipelineConfig.AppDeploymentStatus, error)
+	FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int, requiredApprovals int) (map[int]*pipelineConfig.UserApprovalMetadata, error)
 }
 
 type CdHandlerImpl struct {
@@ -98,6 +99,7 @@ type CdHandlerImpl struct {
 	appService                             app.AppService
 	appStatusService                       app_status.AppStatusService
 	enforcerUtil                           rbac.EnforcerUtil
+	deploymentApprovalRepository           pipelineConfig.DeploymentApprovalRepository
 }
 
 func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService user.UserService,
@@ -120,7 +122,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 	pipelineStatusSyncDetailService app.PipelineStatusSyncDetailService,
 	pipelineStatusTimelineService app.PipelineStatusTimelineService,
 	appService app.AppService,
-	appStatusService app_status.AppStatusService, enforcerUtil rbac.EnforcerUtil) *CdHandlerImpl {
+	appStatusService app_status.AppStatusService, enforcerUtil rbac.EnforcerUtil, deploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository) *CdHandlerImpl {
 	return &CdHandlerImpl{
 		Logger:                                 Logger,
 		cdConfig:                               cdConfig,
@@ -150,6 +152,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 		appService:                             appService,
 		appStatusService:                       appStatusService,
 		enforcerUtil:                           enforcerUtil,
+		deploymentApprovalRepository:           deploymentApprovalRepository,
 	}
 }
 
@@ -1229,3 +1232,24 @@ func (impl *CdHandlerImpl) FetchAppDeploymentStatusForEnvironments(envId int, em
 
 	return deploymentStatuses, err
 }
+
+func (impl *CdHandlerImpl) FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int, requiredApprovals int) (map[int]*pipelineConfig.UserApprovalMetadata, error) {
+	deploymentApprovalRequests, err := impl.deploymentApprovalRepository.FetchApprovalDataForArtifacts(artifactIds, pipelineId)
+	if err != nil {
+		return nil, err
+	}
+	artifactIdVsApprovalMetadata := make(map[int]*pipelineConfig.UserApprovalMetadata)
+	for _, approvalRequest := range deploymentApprovalRequests {
+		artifactId := approvalRequest.ArtifactId
+		approvalMetadata := approvalRequest.ConvertToApprovalMetadata()
+		if approvalRequest.GetApprovedCount() == requiredApprovals {
+			approvalMetadata.ApprovalRuntimeState = pipelineConfig.ApprovedApprovalState
+		} else {
+			approvalMetadata.ApprovalRuntimeState = pipelineConfig.RequestedApprovalState
+		}
+		artifactIdVsApprovalMetadata[artifactId] = approvalMetadata
+	}
+	return artifactIdVsApprovalMetadata, nil
+
+}
+

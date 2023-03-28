@@ -828,6 +828,9 @@ func InitializeApp() (*App, error) {
 
 		router.NewAppGroupingRouterImpl,
 		wire.Bind(new(router.AppGroupingRouter), new(*router.AppGroupingRouterImpl)),
+
+		pipelineConfig.NewDeploymentApprovalRepositoryImpl,
+		wire.Bind(new(pipelineConfig.DeploymentApprovalRepository), new(*pipelineConfig.DeploymentApprovalRepositoryImpl)),
 	)
 	return &App{}, nil
 }

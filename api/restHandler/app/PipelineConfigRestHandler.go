@@ -731,8 +731,3 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppDeploymentStatusForEnvironm
 	}
 	common.WriteJsonResp(w, err, results, http.StatusOK)
 }
-
-func (handler PipelineConfigRestHandlerImpl) fetchApprovalArtifactsMetadata(artifactIds []int, cdPipelineId int, config bean.UserApprovalConfig) map[int]*pipelineConfig.UserApprovalMetadata {
-	//TODO KB: would fetch artifacts with request data, either state would be requested or approved
-	return nil
-}

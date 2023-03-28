@@ -894,6 +894,7 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 
 	userApprovalConfig := pipelineModel.UserApprovalConfig
 	if len(userApprovalConfig) > 0 && stage == "DEPLOY" {
+		handler.Logger.Infow("approval node configured", "pipelineId", pipelineModel.Id, "isApproval", isApprovalNode, "stage", stage)
 		approvalConfig := bean.UserApprovalConfig{}
 		err := json.Unmarshal([]byte(userApprovalConfig), &approvalConfig)
 		if err != nil {
@@ -904,29 +905,29 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 		var ciArtifactsFinal []bean.CiArtifactBean
 		var artifactIds []int
 		for _, item := range ciArtifactResponse.CiArtifacts {
-			if !item.Deployed { // would not be fetching approval req data for deployed artifacts
-				artifactIds = append(artifactIds, item.Id)
-			}
+			artifactIds = append(artifactIds, item.Id)
 		}
 
 		var userApprovalMetadata map[int]*pipelineConfig.UserApprovalMetadata
-		userApprovalMetadata = handler.fetchApprovalArtifactsMetadata(artifactIds, pipelineModel.Id, approvalConfig) // it will fetch all the request data with nil cd_wfr_rnr_id
+		userApprovalMetadata, err = handler.cdHandler.FetchApprovalDataForArtifacts(artifactIds, cdPipelineId, approvalConfig.RequiredCount) // it will fetch all the request data with nil cd_wfr_rnr_id
+		if err != nil {
+			common.WriteJsonResp(w, errors.New("failed to fetch approval artifacts metadata"), nil, http.StatusInternalServerError)
+			return
+		}
 		for _, artifact := range ciArtifactResponse.CiArtifacts {
 			allowed := false
 			approvalRuntimeState := pipelineConfig.InitApprovalState
 			approvalMetadataForArtifact, ok := userApprovalMetadata[artifact.Id]
-			if ok {
-				// either approved or requested
+			if ok { // either approved or requested
 				approvalRuntimeState = approvalMetadataForArtifact.ApprovalRuntimeState
 				artifact.UserApprovalMetadata = approvalMetadataForArtifact
 			} else if artifact.Deployed {
 				approvalRuntimeState = pipelineConfig.ConsumedApprovalState
 			}
-			if isApprovalNode {
-				//TODO KB: return all the artifacts with state in init, requested or consumed
+
+			if isApprovalNode { // return all the artifacts with state in init, requested or consumed
 				allowed = approvalRuntimeState == pipelineConfig.InitApprovalState || approvalRuntimeState == pipelineConfig.RequestedApprovalState || approvalRuntimeState == pipelineConfig.ConsumedApprovalState
-			} else {
-				//TODO KB: return only approved state artifacts
+			} else { // return only approved state artifacts
 				allowed = approvalRuntimeState == pipelineConfig.ApprovedApprovalState
 			}
 			if allowed {
