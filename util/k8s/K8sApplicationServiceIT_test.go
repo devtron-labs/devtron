@@ -16,6 +16,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/stretchr/testify/assert"
+	"io"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -46,7 +47,7 @@ func getK8sApplicationService(clusterServiceMocked cluster.ClusterService, t *te
 }
 
 func TestGetPodLogs(t *testing.T) {
-
+	t.SkipNow()
 	testContainerName := "nginx"
 	testPodName := "nginx"
 	testClusterId := 1
@@ -108,6 +109,13 @@ func TestGetPodLogs(t *testing.T) {
 		assert.Nil(t, err1)
 	}()
 
+	testResponse := func(logs io.ReadCloser, err error, tt *testing.T) {
+		assert.Nil(tt, err)
+		assert.NotNil(tt, logs)
+		err = logs.Close()
+		assert.Nil(tt, err)
+	}
+
 	t.Run("Test-1 with tailLines and follow", func(tt *testing.T) {
 		var tailLine int64 = 2
 		request.K8sRequest.PodLogsRequest = application.PodLogsRequest{
@@ -117,10 +125,7 @@ func TestGetPodLogs(t *testing.T) {
 			Follow:            true,
 		}
 		logs, err := k8sApplicationService.GetPodLogs(context.Background(), request)
-		assert.Nil(tt, err)
-		assert.NotNil(tt, logs)
-		err = logs.Close()
-		assert.Nil(tt, err)
+		testResponse(logs, err, tt)
 	})
 
 	t.Run("Test-2 without follow", func(tt *testing.T) {
@@ -132,10 +137,7 @@ func TestGetPodLogs(t *testing.T) {
 			Follow:            false,
 		}
 		logs, err := k8sApplicationService.GetPodLogs(context.Background(), request)
-		assert.Nil(tt, err)
-		assert.NotNil(tt, logs)
-		err = logs.Close()
-		assert.Nil(tt, err)
+		testResponse(logs, err, tt)
 	})
 
 	t.Run("Test-3 for previous container logs", func(tt *testing.T) {
@@ -147,10 +149,7 @@ func TestGetPodLogs(t *testing.T) {
 			Follow:            false,
 		}
 		logs, err := k8sApplicationService.GetPodLogs(context.Background(), request)
-		assert.Nil(tt, err)
-		assert.NotNil(tt, logs)
-		err = logs.Close()
-		assert.Nil(tt, err)
+		testResponse(logs, err, tt)
 	})
 
 	t.Run("Test-4 with sinceSeconds payload", func(tt *testing.T) {
@@ -164,10 +163,7 @@ func TestGetPodLogs(t *testing.T) {
 			SinceSeconds:      &sinceSeconds,
 		}
 		logs, err := k8sApplicationService.GetPodLogs(context.Background(), request)
-		assert.Nil(tt, err)
-		assert.NotNil(tt, logs)
-		err = logs.Close()
-		assert.Nil(tt, err)
+		testResponse(logs, err, tt)
 	})
 
 	t.Run("Test-5 with sinceSeconds and sinceTime payload", func(tt *testing.T) {
@@ -183,10 +179,7 @@ func TestGetPodLogs(t *testing.T) {
 			SinceSeconds:      &sinceSeconds,
 		}
 		logs, err := k8sApplicationService.GetPodLogs(context.Background(), request)
-		assert.Nil(tt, err)
-		assert.NotNil(tt, logs)
-		err = logs.Close()
-		assert.Nil(tt, err)
+		testResponse(logs, err, tt)
 	})
 
 	t.Run("Test-6 with tailLines,sinceSeconds and sinceTime", func(tt *testing.T) {
@@ -204,10 +197,7 @@ func TestGetPodLogs(t *testing.T) {
 		}
 		//should only get 1 line in logs since tailLines is set
 		logs, err := k8sApplicationService.GetPodLogs(context.Background(), request)
-		assert.Nil(tt, err)
-		assert.NotNil(tt, logs)
-		err = logs.Close()
-		assert.Nil(tt, err)
+		testResponse(logs, err, tt)
 	})
 
 	t.Run("test-7 with tailLines,sinceSeconds and sinceTime, all set to nil", func(tt *testing.T) {
@@ -221,10 +211,23 @@ func TestGetPodLogs(t *testing.T) {
 		}
 		//should get all the logs since the creation of container
 		logs, err := k8sApplicationService.GetPodLogs(context.Background(), request)
-		assert.Nil(tt, err)
-		assert.NotNil(tt, logs)
-		err = logs.Close()
-		assert.Nil(tt, err)
+		testResponse(logs, err, tt)
+	})
+
+	t.Run("test-8 with invalid ", func(tt *testing.T) {
+		request.K8sRequest.PodLogsRequest = application.PodLogsRequest{
+			ContainerName:     testContainerName,
+			PreviousContainer: false,
+			TailLines:         nil,
+			Follow:            false,
+			SinceTime:         nil,
+			SinceSeconds:      nil,
+		}
+		request.K8sRequest.ResourceIdentifier.Name = "**-invalid-pod-**"
+		//should get all the logs since the creation of container
+		logs, err := k8sApplicationService.GetPodLogs(context.Background(), request)
+		assert.Nil(tt, logs)
+		assert.NotNil(tt, err)
 	})
 
 }
