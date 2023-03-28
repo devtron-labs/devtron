@@ -1,9 +1,5 @@
 ## v0.6.14
 
-
-
-## v0.6.14
-
 ## Bugs
 - fix: scale workloads for helm app created on Devtron  (#3131)
 - fix: select image not working for external webhook (#3187)
