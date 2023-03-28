@@ -80,6 +80,10 @@ spec:
       labels:
         app: inception
     spec:
+      {{- if and $.Values.global $.Values.global.podSecurityContext }}
+      securityContext:
+{{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
+      {{- end }}
       containers:
         -
         {{- if $.Values.installer.tag }}
@@ -89,6 +93,10 @@ spec:
         {{- end }}
           imagePullPolicy: IfNotPresent
           name: inception
+          {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+          securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
+          {{- end }}
           ports:
             -
               containerPort: 8080
