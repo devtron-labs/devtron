@@ -5,10 +5,15 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"time"
 )
 
 type DeploymentApprovalRepository interface {
 	FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int) ([]*DeploymentApprovalRequest, error)
+	FetchById(requestId int) (*DeploymentApprovalRequest, error)
+	Save(deploymentApprovalRequest *DeploymentApprovalRequest) error
+	Update(deploymentApprovalRequest *DeploymentApprovalRequest) error
+	SaveDeploymentUserData(userData *DeploymentApprovalUserData) error
 }
 
 type DeploymentApprovalRepositoryImpl struct {
@@ -21,13 +26,13 @@ func NewDeploymentApprovalRepositoryImpl(dbConnection *pg.DB, logger *zap.Sugare
 }
 
 type DeploymentApprovalRequest struct {
-	tableName               struct{} `sql:"deployment_approval_request" pg:",discard_unknown_columns"`
-	Id                      int      `sql:"id,pk"`
-	PipelineId              int      `sql:"pipeline_id"`           // keep in mind foreign key constraint
-	ArtifactId              int      `sql:"artifact_id"`           // keep in mind foreign key constraint
-	Active                  bool     `sql:"active,notnull"`        // user can cancel request anytime
-	CdWorkflowRunnerId      int      `sql:"cd_workflow_runner_id"` // keep in mind foreign key constraint
-	DeploymentApprovalUsers []*DeploymentApprovalUserData
+	tableName                   struct{} `sql:"deployment_approval_request" pg:",discard_unknown_columns"`
+	Id                          int      `sql:"id,pk"`
+	PipelineId                  int      `sql:"pipeline_id"`                   // keep in mind foreign key constraint
+	ArtifactId                  int      `sql:"artifact_id"`                   // keep in mind foreign key constraint
+	Active                      bool     `sql:"active,notnull"`                // user can cancel request anytime
+	ArtifactDeploymentTriggered bool     `sql:"artifact_deployment_triggered"` // keep in mind foreign key constraint
+	DeploymentApprovalUsers     []*DeploymentApprovalUserData
 	sql.AuditLog
 }
 
@@ -58,6 +63,36 @@ func (impl *DeploymentApprovalRepositoryImpl) FetchApprovalDataForArtifacts(arti
 		return nil, err
 	}
 	return requests, nil
+}
+
+func (impl *DeploymentApprovalRepositoryImpl) FetchById(requestId int) (*DeploymentApprovalRequest, error) {
+	var request *DeploymentApprovalRequest
+	err := impl.dbConnection.
+		Model(request).Where("id = ?", requestId).Where("active = ?", true).Select()
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching request data", "id", requestId, "err", err)
+		return nil, err
+	}
+	return request, nil
+}
+
+func (impl *DeploymentApprovalRepositoryImpl) Save(deploymentApprovalRequest *DeploymentApprovalRequest) error {
+	currentTime := time.Now()
+	deploymentApprovalRequest.CreatedOn = currentTime
+	deploymentApprovalRequest.UpdatedOn = currentTime
+	return impl.dbConnection.Insert(deploymentApprovalRequest)
+}
+
+func (impl *DeploymentApprovalRepositoryImpl) Update(deploymentApprovalRequest *DeploymentApprovalRequest) error {
+	deploymentApprovalRequest.UpdatedOn = time.Now()
+	return impl.dbConnection.Update(deploymentApprovalRequest)
+}
+
+func (impl *DeploymentApprovalRepositoryImpl) SaveDeploymentUserData(userData *DeploymentApprovalUserData) error {
+	currentTime := time.Now()
+	userData.CreatedOn = currentTime
+	userData.UpdatedOn = currentTime
+	return impl.dbConnection.Insert(userData)
 }
 
 func (request *DeploymentApprovalRequest) ConvertToApprovalMetadata() *UserApprovalMetadata {

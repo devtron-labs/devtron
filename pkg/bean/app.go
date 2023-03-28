@@ -538,6 +538,21 @@ const (
 	CD_DELETE_PARTIAL // Partially delete means it will only delete ACD app
 )
 
+type UserApprovalActionType int
+
+const (
+	APPROVAL_REQUEST_ACTION UserApprovalActionType = iota
+	APPROVAL_APPROVE_ACTION
+	APPROVAL_REQUEST_CANCEL_ACTION
+)
+
+type UserApprovalActionRequest struct {
+	ActionType        UserApprovalActionType `json:"actionType" validate:"required"`
+	ApprovalRequestId int                    `json:"approvalRequestId"`
+	PipelineId        int                    `json:"pipelineId" validate:"required"` // would be required while raising approval request
+	ArtifactId        int                    `json:"artifactId"`                     // would be required while raising approval request
+}
+
 type DeploymentAppTypeChangeRequest struct {
 	EnvId                 int            `json:"envId,omitempty" validate:"required"`
 	DesiredDeploymentType DeploymentType `json:"desiredDeploymentType,omitempty" validate:"required"`

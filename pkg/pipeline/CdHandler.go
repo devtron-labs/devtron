@@ -36,6 +36,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	app_status "github.com/devtron-labs/devtron/pkg/appStatus"
+	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -68,6 +69,7 @@ type CdHandler interface {
 	FetchAppWorkflowStatusForTriggerViewForEnvironment(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*pipelineConfig.CdWorkflowStatus, error)
 	FetchAppDeploymentStatusForEnvironments(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*pipelineConfig.AppDeploymentStatus, error)
 	FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int, requiredApprovals int) (map[int]*pipelineConfig.UserApprovalMetadata, error)
+	PerformDeploymentApprovalAction(userId int32, approvalActionRequest bean2.UserApprovalActionRequest) error
 }
 
 type CdHandlerImpl struct {
@@ -1251,5 +1253,76 @@ func (impl *CdHandlerImpl) FetchApprovalDataForArtifacts(artifactIds []int, pipe
 	}
 	return artifactIdVsApprovalMetadata, nil
 
+}
+
+func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(userId int32, approvalActionRequest bean2.UserApprovalActionRequest) error {
+	approvalActionType := approvalActionRequest.ActionType
+	artifactId := approvalActionRequest.ArtifactId
+	approvalRequestId := approvalActionRequest.ApprovalRequestId
+	if approvalActionType == bean2.APPROVAL_APPROVE_ACTION {
+		//fetch approval request data, same user should not be Approval requester
+		approvalRequest, err := impl.deploymentApprovalRepository.FetchById(approvalRequestId)
+		if err != nil {
+			return errors.New("failed to fetch approval request data")
+		}
+		if approvalRequest.CreatedBy == userId {
+			return errors.New("requester cannot be an approver")
+		}
+
+		//fetch artifact metadata, who triggered this build
+		ciWorkflow, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflowByArtifactId(artifactId)
+		if err != nil {
+			impl.Logger.Errorw("error occurred while fetching workflow data for artifact", "artifactId", artifactId, "userId", userId, "err", err)
+			return errors.New("failed to fetch workflow for artifact data")
+		}
+		if ciWorkflow.TriggeredBy == userId {
+			return errors.New("user who triggered the build cannot be an approver")
+		}
+		deploymentApprovalData := &pipelineConfig.DeploymentApprovalUserData{
+			ApprovalRequestId: approvalRequestId,
+			UserId:            userId,
+			UserResponse:      pipelineConfig.APPROVED,
+		}
+		deploymentApprovalData.CreatedBy = userId
+		deploymentApprovalData.UpdatedBy = userId
+		err = impl.deploymentApprovalRepository.SaveDeploymentUserData(deploymentApprovalData)
+		if err != nil {
+			impl.Logger.Errorw("error occurred while saving user approval data", "approvalRequestId", approvalRequestId, "err", err)
+			return err
+		}
+	} else if approvalActionType == bean2.APPROVAL_REQUEST_ACTION {
+		pipelineId := approvalActionRequest.PipelineId
+		deploymentApprovalRequest := &pipelineConfig.DeploymentApprovalRequest{
+			PipelineId: pipelineId,
+			ArtifactId: artifactId,
+			Active:     true,
+		}
+		deploymentApprovalRequest.CreatedBy = userId
+		deploymentApprovalRequest.UpdatedBy = userId
+		err := impl.deploymentApprovalRepository.Save(deploymentApprovalRequest)
+		if err != nil {
+			impl.Logger.Errorw("error occurred while submitting approval request", "pipelineId", pipelineId, "artifactId", artifactId, "err", err)
+			return err
+		}
+	} else {
+		// fetch if cd wf runner is present then user cannot cancel the request, as deployment has been triggered already
+		approvalRequest, err := impl.deploymentApprovalRepository.FetchById(approvalRequestId)
+		if err != nil {
+			return errors.New("failed to fetch approval request data")
+		}
+		if approvalRequest.CreatedBy != userId {
+			return errors.New("request cannot be cancelled as not initiated by the same")
+		}
+		if approvalRequest.ArtifactDeploymentTriggered {
+			return errors.New("request cannot be cancelled as deployment is already been made for this request")
+		}
+		approvalRequest.Active = false
+		err = impl.deploymentApprovalRepository.Update(approvalRequest)
+		if err != nil {
+			impl.Logger.Errorw("error occurred while updating approval request", "pipelineId", approvalRequest.PipelineId, "artifactId", artifactId, "err", err)
+			return err
+		}
+	}
+	return nil
 }
 

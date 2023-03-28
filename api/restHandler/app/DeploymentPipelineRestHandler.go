@@ -40,6 +40,7 @@ type DevtronAppDeploymentRestHandler interface {
 	IsReadyToTrigger(w http.ResponseWriter, r *http.Request)
 	FetchCdWorkflowDetails(w http.ResponseWriter, r *http.Request)
 	GetCdPipelinesByEnvironment(w http.ResponseWriter, r *http.Request)
+	PerformDeploymentApprovalAction(w http.ResponseWriter, r *http.Request)
 }
 
 type DevtronAppDeploymentConfigRestHandler interface {
@@ -772,6 +773,32 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelinesForAppAndEnv(w http.R
 		return
 	}
 	common.WriteJsonResp(w, err, cdPipelines, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) PerformDeploymentApprovalAction(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	var approvalActionRequest bean.UserApprovalActionRequest
+	err = decoder.Decode(&approvalActionRequest)
+
+	approvalActionType := approvalActionRequest.ActionType
+	if approvalActionType == bean.APPROVAL_APPROVE_ACTION {
+		// check for Approve role
+	} else {
+		// check for trigger access
+	}
+
+	err = handler.cdHandler.PerformDeploymentApprovalAction(userId, approvalActionRequest)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, nil, http.StatusOK)
+
 }
 
 func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.ResponseWriter, r *http.Request) {
