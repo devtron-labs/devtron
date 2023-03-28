@@ -5,7 +5,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"time"
 )
 
 type DeploymentApprovalRepository interface {
@@ -19,38 +18,6 @@ type DeploymentApprovalRepositoryImpl struct {
 
 func NewDeploymentApprovalRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *DeploymentApprovalRepositoryImpl {
 	return &DeploymentApprovalRepositoryImpl{dbConnection: dbConnection, logger: logger}
-}
-
-type DeploymentApprovalResponse int
-
-const (
-	APPROVED DeploymentApprovalResponse = iota
-	REJECTED
-)
-
-type UserApprovalData struct {
-	DataId         int                        `json:"dataId"`
-	UserId         int32                      `json:"userId"`
-	UserEmail      string                     `json:"userEmail"`
-	UserResponse   DeploymentApprovalResponse `json:"userResponse"`
-	UserActionTime time.Time                  `json:"userActionTime"`
-	UserComment    string                     `json:"userComment"`
-}
-
-type ApprovalRequestState int
-
-const (
-	InitApprovalState ApprovalRequestState = iota
-	RequestedApprovalState
-	ApprovedApprovalState
-	ConsumedApprovalState
-)
-
-type UserApprovalMetadata struct {
-	ApprovalRequestId    int                  `json:"approvalRequestId"`
-	ApprovalRuntimeState ApprovalRequestState `json:"approvalRuntimeState"`
-	RequestedUserData    UserApprovalData     `json:"requestedUserData"`
-	ApprovalUsersData    []UserApprovalData   `json:"approvedUsersData"`
 }
 
 type DeploymentApprovalRequest struct {
@@ -75,6 +42,24 @@ type DeploymentApprovalUserData struct {
 	sql.AuditLog
 }
 
+func (impl *DeploymentApprovalRepositoryImpl) FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int) ([]*DeploymentApprovalRequest, error) {
+	impl.logger.Debugw("fetching approval data for artifacts", "ids", artifactIds, "pipelineId", pipelineId)
+	var requests []*DeploymentApprovalRequest
+	err := impl.dbConnection.
+		Model(&requests).
+		Column("deployment_approval_request.*", "DeploymentApprovalUsers", "DeploymentApprovalUsers.User").
+		Where("artifact_id in (?) ", pg.In(artifactIds)).
+		Where("pipeline_id = ?", pipelineId).
+		Where("cd_workflow_runner_id is null ").
+		Where("active = ?", true).
+		Select()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error occurred while fetching artifacts", "pipelineId", pipelineId, "err", err)
+		return nil, err
+	}
+	return requests, nil
+}
+
 func (request *DeploymentApprovalRequest) ConvertToApprovalMetadata() *UserApprovalMetadata {
 	approvalMetadata := &UserApprovalMetadata{ApprovalRequestId: request.Id}
 	requestedUserData := UserApprovalData{}
@@ -97,22 +82,4 @@ func (request *DeploymentApprovalRequest) GetApprovedCount() int {
 		}
 	}
 	return count
-}
-
-func (impl *DeploymentApprovalRepositoryImpl) FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int) ([]*DeploymentApprovalRequest, error) {
-	impl.logger.Debugw("fetching approval data for artifacts", "ids", artifactIds, "pipelineId", pipelineId)
-	var requests []*DeploymentApprovalRequest
-	err := impl.dbConnection.
-		Model(&requests).
-		Column("deployment_approval_request.*", "DeploymentApprovalUsers", "DeploymentApprovalUsers.User").
-		Where("artifact_id in (?) ", pg.In(artifactIds)).
-		Where("pipeline_id = ?", pipelineId).
-		Where("cd_workflow_runner_id is null ").
-		Where("active = ?", true).
-		Select()
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error occurred while fetching artifacts", "pipelineId", pipelineId, "err", err)
-		return nil, err
-	}
-	return requests, nil
 }
