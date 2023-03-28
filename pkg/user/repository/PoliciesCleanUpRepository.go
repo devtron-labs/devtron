@@ -18,6 +18,7 @@ type PoliciesCleanUpRepository interface {
 	DeleteDuplicateMappingForAllGroups(tx *pg.Tx) error
 	GetAllUnMappedRoles(ids []int32) ([]*RoleModel, error)
 	GetAllUnusedRolesForCasbinCleanUp() ([]string, error)
+	DeleteRoleGroupRoleMappingforInactiveGroups(tx *pg.Tx) error
 }
 
 type PoliciesCleanUpRepositoryImpl struct {
@@ -152,4 +153,13 @@ func (impl *PoliciesCleanUpRepositoryImpl) GetAllUnMappedRoles(ids []int32) ([]*
 		return roleModels, err
 	}
 	return roleModels, nil
+}
+func (impl *PoliciesCleanUpRepositoryImpl) DeleteRoleGroupRoleMappingforInactiveGroups(tx *pg.Tx) error {
+	var roleGroupsRoleModels []*RoleGroupRoleMapping
+	query := "delete from role_group_role_mapping where role_group_id in ( select id from role_group where active=false);"
+	_, err := tx.Query(roleGroupsRoleModels, query)
+	if err != nil {
+		return err
+	}
+	return nil
 }

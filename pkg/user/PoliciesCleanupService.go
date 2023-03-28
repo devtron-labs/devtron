@@ -91,6 +91,12 @@ func (impl *CleanUpPoliciesServiceImpl) cleanUpDuplicateRolesFromOrchestrator(tx
 		return err
 	}
 	impl.logger.Infow("updated duplicate role mappings for all groups from orchestrator")
+	err = impl.cleanUpPoliciesRepository.DeleteRoleGroupRoleMappingforInactiveGroups(tx)
+	if err != nil {
+		impl.logger.Errorw("error in deleting role group role mappings for deleted rolegroups", "err", err)
+		return err
+	}
+	impl.logger.Infow("deleted role group roleMapping for inactive groups")
 	impl.logger.Infow("Committing transaction")
 	err = tx.Commit()
 	if err != nil {
@@ -167,6 +173,7 @@ func (impl *CleanUpPoliciesServiceImpl) cleanUpUnusedRolesFromOrchestrator() err
 	err = impl.cleanUpPoliciesRepository.DeleteAllRolesExceptActive(idsToKeep)
 	if err != nil {
 		impl.logger.Errorw("error in deleting all role groups except active")
+		return err
 	}
 	impl.logger.Infow("deleted all roles except active from orchestrator")
 	return nil
