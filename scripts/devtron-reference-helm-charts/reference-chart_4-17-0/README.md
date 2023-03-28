@@ -368,8 +368,8 @@ To wait for given period of time before switch active the container.
 
 ### Winter-Soldier
 Winter Soldier can be used to
-- cleans up (delete) Kubernetes resources
-- reduce workload pods to 0
+- Delete Kubernetes resources after a specified period (Cleanup an environmet)
+- Scale down the replicas to 0 (During night time or on weekend)
 
 **_NOTE:_** After deploying this we can create the Hibernator object and provide the custom configuration by which workloads going to delete, sleep and many more.   for more information check [the main repo](https://github.com/devtron-labs/winter-soldier)
 
@@ -397,7 +397,7 @@ Here,
 | `fieldSelector` | `- AfterTime(AddTime( ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '5m'), Now()) `  | These value will take a list of methods to select the resources on which we perform specified `action` .  |
 
 
-here is an example,
+Here is an example:
 ```yaml
 winterSoilder:
   apiVersion: pincher.devtron.ai/v1alpha1 
