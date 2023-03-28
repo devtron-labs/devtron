@@ -1286,6 +1286,7 @@ func (impl PipelineBuilderImpl) DeleteCiPipeline(request *bean.CiPatchRequest) (
 	pipeline, err := impl.ciPipelineRepository.FindById(ciPipelineId)
 	if err != nil {
 		impl.logger.Errorw("pipeline fetch err", "id", ciPipelineId, "err", err)
+		return nil, err
 	}
 	appId := request.AppId
 	if pipeline.AppId != appId {
