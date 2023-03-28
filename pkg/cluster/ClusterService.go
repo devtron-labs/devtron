@@ -54,11 +54,11 @@ type ClusterBean struct {
 	ClusterName                string                     `json:"cluster_name,omitempty" validate:"required"`
 	ServerUrl                  string                     `json:"server_url,omitempty" validate:"url,required"`
 	PrometheusUrl              string                     `json:"prometheus_url,omitempty" validate:"validate-non-empty-url"`
-	Active                     bool                       `json:"active"`
+	Active                     bool                       `json:"active,omitempty"`
 	Config                     map[string]string          `json:"config,omitempty"`
 	PrometheusAuth             *PrometheusAuth            `json:"prometheusAuth,omitempty"`
-	DefaultClusterComponent    []*DefaultClusterComponent `json:"defaultClusterComponent"`
-	AgentInstallationStage     int                        `json:"agentInstallationStage,notnull"` // -1=external, 0=not triggered, 1=progressing, 2=success, 3=fails
+	DefaultClusterComponent    []*DefaultClusterComponent `json:"defaultClusterComponent,omitempty"`
+	AgentInstallationStage     int                        `json:"agentInstallationStage,notnull,omitempty"` // -1=external, 0=not triggered, 1=progressing, 2=success, 3=fails
 	K8sVersion                 string                     `json:"k8sVersion"`
 	HasConfigOrUrlChanged      bool                       `json:"-"`
 	ErrorInConnecting          string                     `json:"errorInConnecting,omitempty"`
@@ -72,7 +72,7 @@ type UserInfos struct {
 	Config   map[string]string `json:"config,omitempty"`
 }
 
-type Validate struct {
+type ValidateClusterBean struct {
 	UserInfos map[string]*UserInfos `json:"userInfos,omitempty""`
 	*ClusterBean
 }
@@ -99,8 +99,8 @@ type DefaultClusterComponent struct {
 
 type ClusterService interface {
 	Save(parent context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error)
-	SaveClusters(beans []*ClusterBean, userId int32) ([]*ClusterBean, error)
-	ValidateKubeconfig(kubeConfig string) (map[string]*ClusterBean, error)
+	SaveClusters(beans []*ValidateClusterBean, userId int32) ([]*ValidateClusterBean, error)
+	ValidateKubeconfig(kubeConfig string) (map[string]*ValidateClusterBean, error)
 	FindOne(clusterName string) (*ClusterBean, error)
 	FindOneActive(clusterName string) (*ClusterBean, error)
 	FindAll() ([]*ClusterBean, error)
@@ -123,7 +123,7 @@ type ClusterService interface {
 	FindAllForClusterByUserId(userId int32, isActionUserSuperAdmin bool) ([]ClusterBean, error)
 	FetchRolesFromGroup(userId int32) ([]*repository2.RoleModel, error)
 	ConnectClustersInBatch(clusters []*ClusterBean, clusterExistInDb bool)
-	ConvertClusterBeanToCluster(clusterBean *ClusterBean, userId int32) *repository.Cluster
+	ConvertClusterBeanToCluster(clusterBean *ValidateClusterBean, userId int32) *repository.Cluster
 	ConvertClusterBeanObjectToCluster(bean *ClusterBean) *v1alpha1.Cluster
 }
 
@@ -189,7 +189,7 @@ func (impl *ClusterServiceImpl) GetClusterConfig(cluster *ClusterBean) (*util.Cl
 	return clusterCfg, nil
 }
 
-func (impl *ClusterServiceImpl) SaveClusters(beans []*Validate, userId int32) ([]*Validate, error) {
+func (impl *ClusterServiceImpl) SaveClusters(beans []*ValidateClusterBean, userId int32) ([]*ValidateClusterBean, error) {
 
 	errorInSaving := false
 
@@ -208,6 +208,7 @@ func (impl *ClusterServiceImpl) SaveClusters(beans []*Validate, userId int32) ([
 			bean.ValidationAndSavingMessage = "cluster already exists"
 			errorInSaving = true
 		}
+		bean.Config = bean.UserInfos[bean.UserName].Config
 		model := impl.ConvertClusterBeanToCluster(bean, userId)
 		models = append(models, model)
 	}
@@ -219,7 +220,7 @@ func (impl *ClusterServiceImpl) SaveClusters(beans []*Validate, userId int32) ([
 	}
 	return beans, nil
 }
-func (impl *ClusterServiceImpl) ConvertClusterBeanToCluster(clusterBean *Validate, userId int32) *repository.Cluster {
+func (impl *ClusterServiceImpl) ConvertClusterBeanToCluster(clusterBean *ValidateClusterBean, userId int32) *repository.Cluster {
 
 	model := &repository.Cluster{}
 
@@ -262,7 +263,7 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, 
 		return nil, fmt.Errorf("cluster already exists")
 	}
 
-	model := impl.ConvertClusterBeanToCluster(&Validate{ClusterBean: bean}, userId)
+	model := impl.ConvertClusterBeanToCluster(&ValidateClusterBean{ClusterBean: bean}, userId)
 
 	cfg, err := impl.GetClusterConfig(bean)
 	if err != nil {
@@ -884,7 +885,7 @@ func (impl *ClusterServiceImpl) HandleErrorInClusterConnections(clusters []*Clus
 	}
 }
 
-func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) ([]*Validate, error) {
+func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[string]*ValidateClusterBean, error) {
 
 	kubeConfigObject := api.Config{}
 
@@ -907,13 +908,13 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) ([]*Valida
 	}
 
 	//var clusterBeanObjects []*ClusterBean
-	var clusterBeanObjects []*Validate
+	ValidateObjects := make(map[string]*ValidateClusterBean)
 
 	var clusterBeansWithNoValidationErrors []*ClusterBean
 
 	if err != nil {
 		impl.logger.Errorw("service err, FindAll", "err", err)
-		return clusterBeanObjects, err
+		return ValidateObjects, err
 	}
 
 	clusterList, err := impl.clusterRepository.FindActiveClusters()
@@ -946,11 +947,11 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) ([]*Valida
 			clusterBeanObject.ServerUrl = clusterObj.Server
 		}
 
-		if (userName == "") && (clusterBeanObject.ValidationAndSavingMessage == "") {
-			clusterBeanObject.ValidationAndSavingMessage = "user info missing from the contexts in kubeconfig"
-		} else {
-			clusterBeanObject.UserName = userName
-		}
+		//if (userName == "") && (clusterBeanObject.ValidationAndSavingMessage == "") {
+		//	clusterBeanObject.ValidationAndSavingMessage = "user info missing from the contexts in kubeconfig"
+		//} else {
+		//	clusterBeanObject.UserName = userName
+		//}
 
 		if gvk.Version == "" {
 			clusterBeanObject.ValidationAndSavingMessage = "api version missing from the contexts in kubeconfig"
@@ -958,24 +959,34 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) ([]*Valida
 			clusterBeanObject.K8sVersion = gvk.Version
 		}
 
-		clusterBeanObject.Config = make(map[string]string)
+		Config := make(map[string]string)
 
 		if (userInfoObj == nil || userInfoObj.Token == "" && clusterObj.InsecureSkipTLSVerify) && (clusterBeanObject.ValidationAndSavingMessage == "") {
 			clusterBeanObject.ValidationAndSavingMessage = "token missing from the kubeconfig"
 		}
-		clusterBeanObject.Config["bearer_token"] = userInfoObj.Token
+		Config["bearer_token"] = userInfoObj.Token
 
 		if clusterObj != nil {
 			clusterBeanObject.InsecureSkipTLSVerify = clusterObj.InsecureSkipTLSVerify
 		}
 
 		if !clusterObj.InsecureSkipTLSVerify {
-			if (string(userInfoObj.ClientKeyData) == "" || string(clusterObj.CertificateAuthorityData) == "" || string(userInfoObj.ClientCertificateData) == "") && (clusterBeanObject.ValidationAndSavingMessage == "") {
-				clusterBeanObject.ValidationAndSavingMessage = "InsecureSkipTLSVerify is false but the  data required corresponding to it is missing from the kubeconfig"
+			missingFieldsStr := ""
+			if string(userInfoObj.ClientKeyData) == "" {
+				missingFieldsStr += "clientKeyData "
+			}
+			if string(clusterObj.CertificateAuthorityData) == "" {
+				missingFieldsStr += "certificateAuthorityData "
+			}
+			if string(userInfoObj.ClientCertificateData) == "" {
+				missingFieldsStr += "clientCertificateData"
+			}
+			if len(missingFieldsStr) > 0 {
+				clusterBeanObject.ValidationAndSavingMessage = fmt.Sprintf("InsecureSkipTLSVerify is false but the data required corresponding to it is missing from the kubeconfig. Missing fields: %s", missingFieldsStr)
 			} else {
-				clusterBeanObject.Config["tls_key"] = string(userInfoObj.ClientKeyData)
-				clusterBeanObject.Config["cert_data"] = string(userInfoObj.ClientCertificateData)
-				clusterBeanObject.Config["cert_auth_data"] = string(clusterObj.CertificateAuthorityData)
+				Config["tls_key"] = string(userInfoObj.ClientKeyData)
+				Config["cert_data"] = string(userInfoObj.ClientCertificateData)
+				Config["cert_auth_data"] = string(clusterObj.CertificateAuthorityData)
 			}
 		}
 		if clusterBeanObject.ValidationAndSavingMessage == "" {
@@ -983,19 +994,22 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) ([]*Valida
 		}
 		userInfo := UserInfos{
 			UserName: userName,
-			Config:   clusterBeanObject.Config,
+			Config:   Config,
 		}
-		if _, ok := clusterBeanObject.UserInfos[clusterName]; !ok {
-			clusterBeanObjects[clusterName] = clusterBeanObject
-		} else {
-			clusterBeanObjects[clusterName].UserInfos[userName] = userInfo
+		validateObject := &ValidateClusterBean{}
+		if _, ok := ValidateObjects[clusterName]; !ok {
+			validateObject.UserInfos = make(map[string]*UserInfos)
+			validateObject.ClusterBean = clusterBeanObject
+			ValidateObjects[clusterName] = validateObject
 		}
+
+		ValidateObjects[clusterName].UserInfos[userName] = &userInfo
 
 	}
 
 	impl.ConnectClustersInBatch(clusterBeansWithNoValidationErrors, false)
 
-	return clusterBeanObjects, nil
+	return ValidateObjects, nil
 
 }
 
