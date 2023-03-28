@@ -24,6 +24,7 @@ data:
   SENTRY_ENABLED: {{ .config.sentry | default "false" | quote }}
   SENTRY_ENV: {{ .config.sentryEnv | default "PRODUCTION" | quote }}
   APPLICATION_METRICS_ENABLED: {{ .config.applicationMetrics | default "true" | quote }}
+  HIDE_APPLICATION_GROUPS: {{ .config.hideApplicationGroups | default "false" | quote }}
 {{- end }} 
 ---
 apiVersion: v1
