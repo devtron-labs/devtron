@@ -108,7 +108,7 @@ func TestGetPodLogs(t *testing.T) {
 		assert.Nil(t, err1)
 	}()
 
-	t.Run("", func(tt *testing.T) {
+	t.Run("Test-1 with tailLines and follow", func(tt *testing.T) {
 		var tailLine int64 = 2
 		request.K8sRequest.PodLogsRequest = application.PodLogsRequest{
 			ContainerName:     testContainerName,
@@ -123,7 +123,7 @@ func TestGetPodLogs(t *testing.T) {
 		assert.Nil(tt, err)
 	})
 
-	t.Run("", func(tt *testing.T) {
+	t.Run("Test-2 without follow", func(tt *testing.T) {
 		var tailLine int64 = 2
 		request.K8sRequest.PodLogsRequest = application.PodLogsRequest{
 			ContainerName:     testContainerName,
@@ -138,7 +138,7 @@ func TestGetPodLogs(t *testing.T) {
 		assert.Nil(tt, err)
 	})
 
-	t.Run("", func(tt *testing.T) {
+	t.Run("Test-3 for previous container logs", func(tt *testing.T) {
 		var tailLine int64 = 2
 		request.K8sRequest.PodLogsRequest = application.PodLogsRequest{
 			ContainerName:     testContainerName,
@@ -153,11 +153,11 @@ func TestGetPodLogs(t *testing.T) {
 		assert.Nil(tt, err)
 	})
 
-	t.Run("", func(tt *testing.T) {
+	t.Run("Test-4 with sinceSeconds payload", func(tt *testing.T) {
 		var sinceSeconds int64 = 100
 		request.K8sRequest.PodLogsRequest = application.PodLogsRequest{
 			ContainerName:     testContainerName,
-			PreviousContainer: true,
+			PreviousContainer: false,
 			TailLines:         nil,
 			Follow:            false,
 			SinceTime:         nil,
@@ -170,13 +170,13 @@ func TestGetPodLogs(t *testing.T) {
 		assert.Nil(tt, err)
 	})
 
-	t.Run("", func(tt *testing.T) {
+	t.Run("Test-5 with sinceSeconds and sinceTime payload", func(tt *testing.T) {
 		var sinceSeconds int64 = 100
 		timeNow := time.Now()
 		sinceTime := metav1.Time{Time: timeNow.Add(time.Duration(-1 * sinceSeconds))}
 		request.K8sRequest.PodLogsRequest = application.PodLogsRequest{
 			ContainerName:     testContainerName,
-			PreviousContainer: true,
+			PreviousContainer: false,
 			TailLines:         nil,
 			Follow:            false,
 			SinceTime:         &sinceTime,
@@ -189,14 +189,14 @@ func TestGetPodLogs(t *testing.T) {
 		assert.Nil(tt, err)
 	})
 
-	t.Run("", func(tt *testing.T) {
+	t.Run("Test-6 with tailLines,sinceSeconds and sinceTime", func(tt *testing.T) {
 		var tailLine int64 = 1
 		var sinceSeconds int64 = 3600
 		timeNow := time.Now()
 		sinceTime := metav1.Time{Time: timeNow.Add(time.Duration(-1 * sinceSeconds))}
 		request.K8sRequest.PodLogsRequest = application.PodLogsRequest{
 			ContainerName:     testContainerName,
-			PreviousContainer: true,
+			PreviousContainer: false,
 			TailLines:         &tailLine,
 			Follow:            false,
 			SinceTime:         &sinceTime,
@@ -210,10 +210,10 @@ func TestGetPodLogs(t *testing.T) {
 		assert.Nil(tt, err)
 	})
 
-	t.Run("", func(tt *testing.T) {
+	t.Run("test-7 with tailLines,sinceSeconds and sinceTime, all set to nil", func(tt *testing.T) {
 		request.K8sRequest.PodLogsRequest = application.PodLogsRequest{
 			ContainerName:     testContainerName,
-			PreviousContainer: true,
+			PreviousContainer: false,
 			TailLines:         nil,
 			Follow:            false,
 			SinceTime:         nil,
