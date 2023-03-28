@@ -96,14 +96,20 @@ func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger,
 }
 
 type ResourceRequestBean struct {
-	AppId         string                      `json:"appId"`
-	AppIdentifier *client.AppIdentifier       `json:"-"`
-	K8sRequest    *application.K8sRequestBean `json:"k8sRequest"`
-	ClusterId     int                         `json:"clusterId"` // clusterId is used when request is for direct cluster (not for helm release)
+	AppId            string                      `json:"appId"`
+	AppIdentifier    *client.AppIdentifier       `json:"-"`
+	K8sRequest       *application.K8sRequestBean `json:"k8sRequest"`
+	AcdAppIdentifier *AcdAppIdentifier           `json:"acdAppIdentifier"`
+	ClusterId        int                         `json:"clusterId"` // clusterId is used when request is for direct cluster (not for helm release)
 }
 
 type ResourceInfo struct {
 	PodName string `json:"podName"`
+}
+
+type AcdAppIdentifier struct {
+	AppId int `json:"appId"`
+	EnvId int `json:"envId"`
 }
 
 type BatchResourceResponse struct {
