@@ -214,7 +214,7 @@ func TestGetPodLogs(t *testing.T) {
 		testResponse(logs, err, tt)
 	})
 
-	t.Run("test-8 with invalid ", func(tt *testing.T) {
+	t.Run("test-8 with invalid pod name", func(tt *testing.T) {
 		request.K8sRequest.PodLogsRequest = application.PodLogsRequest{
 			ContainerName:     testContainerName,
 			PreviousContainer: false,
