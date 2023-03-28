@@ -68,6 +68,7 @@ type AppStoreDeploymentService interface {
 	GetInstalledAppVersion(id int, userId int32) (*appStoreBean.InstallAppVersionDTO, error)
 	InstallAppByHelm(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error)
 	UpdateProjectHelmApp(updateAppRequest *appStoreBean.UpdateProjectHelmAppDTO) error
+	UpdateNotesForInstalledApp(installAppId int, notes string) (bool, error)
 }
 
 type DeploymentServiceTypeConfig struct {
@@ -278,6 +279,33 @@ func (impl AppStoreDeploymentServiceImpl) GetGitOpsRepoName(appName string) stri
 		repoName = fmt.Sprintf("%s-%s", impl.globalEnvVariables.GitOpsRepoPrefix, appName)
 	}
 	return repoName
+}
+
+func (impl AppStoreDeploymentServiceImpl) UpdateNotesForInstalledApp(installAppId int, notes string) (bool, error) {
+	dbConnection := impl.installedAppRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return false, err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+	installedApp, err := impl.installedAppRepository.GetInstalledApp(installAppId)
+	if err != nil {
+		impl.logger.Errorw("error while fetching from db", "error", err)
+		return false, err
+	}
+	installedApp.Notes = notes
+	_, err = impl.installedAppRepository.UpdateInstalledApp(installedApp, tx)
+	if err != nil {
+		impl.logger.Errorw("error while fetching from db", "error", err)
+		return false, err
+	}
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error while commit db transaction to db", "error", err)
+		return false, err
+	}
+	return true, nil
 }
 
 func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationStatusUpdate(installAppId int, status appStoreBean.AppstoreDeploymentStatus) (bool, error) {
