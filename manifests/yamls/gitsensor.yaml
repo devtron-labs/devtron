@@ -58,6 +58,22 @@ spec:
         runAsGroup: 1000
         runAsUser: 1000
       containers:
+        initContainers:
+        - command:
+          - /bin/sh
+          - -c
+          - chown -R devtron:devtron /git-base
+          image: "quay.io/devtron/git-sensor:e5e66474-200-13261"
+          imagePullPolicy: IfNotPresent
+          name: chown-git-base
+          resources: {}
+          securityContext:
+            runAsUser: 0
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /git-base/
+            name: git-volume
         - name: git-sensor
           image: "quay.io/devtron/git-sensor:e5e66474-200-13261"
           securityContext:
