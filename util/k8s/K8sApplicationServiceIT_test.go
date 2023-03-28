@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	client2 "github.com/devtron-labs/authenticator/client"
 	"github.com/devtron-labs/devtron/api/connector"
@@ -15,7 +16,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/yaml.v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -51,42 +51,6 @@ func TestGetPodLogs(t *testing.T) {
 	testPodName := "nginx"
 	testClusterId := 1
 
-	clusterServiceMocked := mocks2.NewClusterService(t)
-	k8sApplicationService := getK8sApplicationService(clusterServiceMocked, t)
-	if k8sApplicationService == nil {
-		t.Fail()
-		return
-	}
-	restConfig, err := k8sApplicationService.K8sUtil.GetK8sClusterRestConfig()
-	if err != nil {
-		t.Fail()
-		return
-	}
-	var testManifest unstructured.Unstructured
-	testManifestYaml := `{"apiVersion": "v1","kind": "Pod","metadata": {"name": "%s"},"spec": {"containers": [{"name": "%s","image": "nginx","imagePullPolicy": "IfNotPresent"}]}}`
-	testManifestYaml = fmt.Sprintf(testManifestYaml, testPodName, testContainerName)
-	manifestMap := make(map[string]interface{})
-	err = yaml.Unmarshal([]byte(testManifestYaml), &manifestMap)
-	testManifest.SetUnstructuredContent(manifestMap)
-	if err != nil {
-		t.Fail()
-		return
-	}
-	success, err := k8sApplicationService.applyResourceFromManifest(context.Background(), testManifest, restConfig, DEFAULT_NAMESPACE)
-	assert.Equal(t, true, success)
-	if err != nil || !success {
-		if err != nil {
-			k8sApplicationService.logger.Errorw("err : ", err.Error())
-		}
-		t.Fail()
-		return
-	}
-
-	clusterServiceMocked.On("FindById", testClusterId).Return(cluster.ClusterBean{
-		ClusterName: DEFAULT_CLUSTER,
-		Config:      make(map[string]string),
-	})
-
 	request := &ResourceRequestBean{
 		AppIdentifier: &client.AppIdentifier{
 			ClusterId: testClusterId,
@@ -102,7 +66,47 @@ func TestGetPodLogs(t *testing.T) {
 				},
 			},
 		},
+		ClusterId: testClusterId,
 	}
+
+	clusterServiceMocked := mocks2.NewClusterService(t)
+	clusterServiceMocked.On("FindById", testClusterId).Return(&cluster.ClusterBean{
+		ClusterName: DEFAULT_CLUSTER,
+		Config:      make(map[string]string),
+	})
+
+	k8sApplicationService := getK8sApplicationService(clusterServiceMocked, t)
+	if k8sApplicationService == nil {
+		t.Fail()
+		return
+	}
+	restConfig, err := k8sApplicationService.K8sUtil.GetK8sClusterRestConfig()
+	if err != nil {
+		t.Fail()
+		return
+	}
+	var testManifest unstructured.Unstructured
+	testManifestYaml := `{"apiVersion": "v1","kind": "Pod","metadata": {"name": "%s"},"spec": {"containers": [{"name": "%s","image": "nginx","imagePullPolicy": "IfNotPresent"}]}}`
+	testManifestYaml = fmt.Sprintf(testManifestYaml, testPodName, testContainerName)
+	manifestMap := make(map[string]interface{})
+	err = json.Unmarshal([]byte(testManifestYaml), &manifestMap)
+	testManifest.Object = manifestMap
+	if err != nil {
+		t.Fail()
+		return
+	}
+	isUpdate, err := k8sApplicationService.applyResourceFromManifest(context.Background(), testManifest, restConfig, DEFAULT_NAMESPACE)
+	assert.Equal(t, false, isUpdate)
+	if err != nil {
+		k8sApplicationService.logger.Errorw("err : ", err.Error())
+		t.Fail()
+		return
+	}
+	defer func() {
+		//delete the created pod after tests
+		_, err1 := k8sApplicationService.DeleteResource(context.Background(), request, 1)
+		assert.Nil(t, err1)
+	}()
 
 	t.Run("", func(tt *testing.T) {
 		var tailLine int64 = 2
@@ -223,7 +227,4 @@ func TestGetPodLogs(t *testing.T) {
 		assert.Nil(tt, err)
 	})
 
-	//delete the created pod after tests
-	_, err = k8sApplicationService.DeleteResource(context.Background(), request, 1)
-	assert.Nil(t, err)
 }
