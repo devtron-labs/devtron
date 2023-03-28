@@ -58,6 +58,5 @@ func (impl *ClusterCronServiceImpl) GetAndUpdateClusterConnectionStatus() {
 		impl.logger.Errorw("error in getting all clusters", "err", err)
 		return
 	}
-	userInfo := map[string]*cluster.UserInfos{}
-	impl.clusterService.ConnectClustersInBatch(clusters, true, userInfo)
+	impl.clusterService.ConnectClustersInBatch(clusters, true)
 }

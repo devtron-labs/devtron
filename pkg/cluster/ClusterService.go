@@ -133,7 +133,7 @@ type ClusterService interface {
 	FindAllNamespacesByUserIdAndClusterId(userId int32, clusterId int, isActionUserSuperAdmin bool) ([]string, error)
 	FindAllForClusterByUserId(userId int32, isActionUserSuperAdmin bool) ([]ClusterBean, error)
 	FetchRolesFromGroup(userId int32) ([]*repository2.RoleModel, error)
-	ConnectClustersInBatch(clusters []*ClusterBean, clusterExistInDb bool, userInfo map[string]*UserInfos)
+	ConnectClustersInBatch(clusters []*ClusterBean, clusterExistInDb bool)
 	ConvertClusterBeanToCluster(clusterBean *ValidateClusterBean, userId int32) *repository.Cluster
 	ConvertClusterBeanObjectToCluster(bean *ClusterBean) *v1alpha1.Cluster
 }
@@ -824,7 +824,7 @@ func (impl *ClusterServiceImpl) FetchRolesFromGroup(userId int32) ([]*repository
 	return roles, nil
 }
 
-func (impl *ClusterServiceImpl) ConnectClustersInBatch(clusters []*ClusterBean, clusterExistInDb bool, userInfo map[string]*UserInfos) {
+func (impl *ClusterServiceImpl) ConnectClustersInBatch(clusters []*ClusterBean, clusterExistInDb bool) {
 	wg := &sync.WaitGroup{}
 	wg.Add(len(clusters))
 	mutex := &sync.Mutex{}
@@ -867,10 +867,10 @@ func (impl *ClusterServiceImpl) ConnectClustersInBatch(clusters []*ClusterBean, 
 		go GetAndUpdateConnectionStatusForOneCluster(k8sClientSet, id, respMap, wg, mutex)
 	}
 	wg.Wait()
-	impl.HandleErrorInClusterConnections(clusters, respMap, clusterExistInDb, userInfo)
+	impl.HandleErrorInClusterConnections(clusters, respMap, clusterExistInDb)
 }
 
-func (impl *ClusterServiceImpl) HandleErrorInClusterConnections(clusters []*ClusterBean, respMap map[int]error, clusterExistInDb bool, userInfo map[string]*UserInfos) {
+func (impl *ClusterServiceImpl) HandleErrorInClusterConnections(clusters []*ClusterBean, respMap map[int]error, clusterExistInDb bool) {
 	for id, err := range respMap {
 		errorInConnecting := ""
 		if err != nil {
@@ -885,9 +885,7 @@ func (impl *ClusterServiceImpl) HandleErrorInClusterConnections(clusters []*Clus
 			}
 		} else {
 			//id is index of the cluster in clusters array
-			//clusters[id].ExtraFields.ErrorInConnecting = errorInConnecting
-			serverUrl := clusters[id].ServerUrl
-			userInfo[serverUrl].ErrorInConnecting = errorInConnecting
+			clusters[id].ErrorInConnecting = errorInConnecting
 		}
 	}
 }
@@ -918,7 +916,7 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 	ValidateObjects := make(map[string]*ValidateClusterBean)
 
 	var clusterBeansWithNoValidationErrors []*ClusterBean
-
+	var clusterBeanObjects []*ClusterBean
 	if err != nil {
 		impl.logger.Errorw("service err, FindAll", "err", err)
 		return ValidateObjects, err
@@ -933,6 +931,7 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 		impl.logger.Errorw("service err, FindAll", "err", err)
 		return nil, err
 	}
+
 	userInfosMap := map[string]*UserInfos{}
 	for _, ctx := range kubeConfigObject.Contexts {
 		clusterBeanObject := &ClusterBean{}
@@ -999,9 +998,7 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 				Config["cert_auth_data"] = string(clusterObj.CertificateAuthorityData)
 			}
 		}
-		if clusterBeanObject.ErrorInConnecting == "" {
-			clusterBeansWithNoValidationErrors = append(clusterBeansWithNoValidationErrors, clusterBeanObject)
-		}
+
 		userInfo := UserInfos{
 			UserName: userName,
 			Config:   Config,
@@ -1017,13 +1014,26 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 			validateObject.ClusterFields = clusterBeanObject.ClusterFields
 			ValidateObjects[clusterName] = validateObject
 		}
-
+		clusterBeanObject.UserName = userName
 		ValidateObjects[clusterName].UserInfos[userName] = &userInfo
-
+		if clusterBeanObject.ErrorInConnecting == "" {
+			clusterBeanObject.Config = Config
+			clusterBeansWithNoValidationErrors = append(clusterBeansWithNoValidationErrors, clusterBeanObject)
+		}
+		clusterBeanObjects = append(clusterBeanObjects, clusterBeanObject)
 	}
 
-	impl.ConnectClustersInBatch(clusterBeansWithNoValidationErrors, false, userInfosMap)
+	impl.ConnectClustersInBatch(clusterBeansWithNoValidationErrors, false)
 
+	for _, clusterBeanObject := range clusterBeanObjects {
+		if clusterBeanObject.ErrorInConnecting != "" {
+			ValidateObjects[clusterBeanObject.ClusterName].UserInfos[clusterBeanObject.UserName].ErrorInConnecting = clusterBeanObject.ErrorInConnecting
+		}
+	}
+	for _, clusterBeanObject := range clusterBeanObjects {
+		clusterBeanObject.Config = nil
+		clusterBeanObject.UserName = ""
+	}
 	return ValidateObjects, nil
 
 }
