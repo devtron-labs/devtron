@@ -39,6 +39,10 @@ metadata:
 {{- if .Values.appLabels }}
 {{ toYaml .Values.appLabels | indent 4 }}
 {{- end }}
+  {{- if .Values.rolloutAnnotations }}
+  annotations:
+{{ toYaml .Values.rolloutAnnotations | indent 4 }}
+{{- end }}
 spec:
   selector:
     matchLabels:
@@ -371,7 +375,7 @@ spec:
 {{- end }}
           resources:
 {{ toYaml $.Values.resources | trim | indent 12 }} 
-          volume:
+          volumeMounts:
 {{- with .Values.volumeMounts }}
 {{ toYaml . | trim | indent 12 }}
 {{- end }}
