@@ -502,7 +502,7 @@ topologySpreadConstraints: []
   #   customLabelSelector: {}
 
 envoyproxy:
- image: quay.io/devtron/envoy:v1.14.1
+ image: docker.io/envoyproxy/envoy:v1.16.1
  lifecycle: {}
  configMapName: ""
  resources:
