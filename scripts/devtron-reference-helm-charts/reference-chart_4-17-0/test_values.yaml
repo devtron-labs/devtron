@@ -117,8 +117,16 @@ autoscaling:
 statefulSet:
   podManagementPolicy: "Parallel"
   updateStrategy: RollingUpdate
-  volumeClaimTEmplates: 
-      name: www
+  volumeClaimTemplates: 
+    - name: www
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "my-storage-class"
+      storage: 1Gi
+    - name: www
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "my-storage-class"
+      storage: 1Gi
+    - name: www
       accessModes: [ "ReadWriteOnce" ]
       storageClassName: "my-storage-class"
       storage: 1Gi
@@ -290,13 +298,13 @@ resources:
     cpu: 0.10
     memory: 100Mi
 
-volumeMounts: []
-#     - name: log-volume
-#       mountPath: /var/log
+volumeMounts: 
+     - name: log-volume
+       mountPath: /var/log
 
-volumes: []
-#     - name: log-volume
-#       emptyDir: {}
+volumes: 
+     - name: log-volume
+       emptyDir: {}
 
 
 nodeSelector: {}

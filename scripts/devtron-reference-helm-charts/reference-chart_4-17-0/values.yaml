@@ -117,11 +117,12 @@ statefulSet:
   podManagementPolicy: 
   updateStrategy:
   serviceName: 
-  volumeClaimTEmplates:
-      name:
-      accessModes:
-      storageClassName:
-      storage:
+  volumeClaimTemplates:
+    - name: www
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "my-storage-class"
+      storage: 1Gi
+    
 
 service:
   type: ClusterIP
