@@ -32,6 +32,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
@@ -521,10 +522,26 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerVie
 	//RBAC CHECK
 
 	triggerWorkflowStatus := pipelineConfig.TriggerWorkflowStatus{}
-	//t0 := time.Now()
-	ciWorkflowStatus, err := handler.ciHandler.FetchCiStatusForTriggerView(appId)
-	//dt := time.Since(t0).Milliseconds()
-	//fmt.Println(dt)
+
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+	var ciWorkflowStatus []*pipelineConfig.CiWorkflowStatus
+	go func() {
+		//t0 := time.Now()
+		ciWorkflowStatus, err = handler.ciHandler.FetchCiStatusForTriggerView(appId)
+		//dt := time.Since(t0).Milliseconds()
+		//fmt.Println(dt)
+		wg.Done()
+	}()
+
+	var err1 error
+	var cdWorkflowStatus []*pipelineConfig.CdWorkflowStatus
+	go func() {
+		cdWorkflowStatus, err1 = handler.cdHandler.FetchAppWorkflowStatusForTriggerView(appId)
+		wg.Done()
+	}()
+	wg.Wait()
+
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchAppWorkflowStatusForTriggerView", "err", err, "appId", appId)
 		if util.IsErrNoRows(err) {
@@ -536,19 +553,19 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerVie
 		return
 	}
 
-	//cdWorkflowStatus, err := handler.cdHandler.FetchAppWorkflowStatusForTriggerView(appId)
-	//if err != nil {
-	//	handler.Logger.Errorw("service err, FetchAppWorkflowStatusForTriggerView", "err", err, "appId", appId)
-	//	if util.IsErrNoRows(err) {
-	//		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no status found"}
-	//		common.WriteJsonResp(w, err, nil, http.StatusOK)
-	//	} else {
-	//		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-	//	}
-	//	return
-	//}
+	if err1 != nil {
+		handler.Logger.Errorw("service err, FetchAppWorkflowStatusForTriggerView", "err", err1, "appId", appId)
+		if util.IsErrNoRows(err1) {
+			err1 = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no status found"}
+			common.WriteJsonResp(w, err1, nil, http.StatusOK)
+		} else {
+			common.WriteJsonResp(w, err1, nil, http.StatusInternalServerError)
+		}
+		return
+	}
+
 	triggerWorkflowStatus.CiWorkflowStatus = ciWorkflowStatus
-	//triggerWorkflowStatus.CdWorkflowStatus = cdWorkflowStatus
+	triggerWorkflowStatus.CdWorkflowStatus = cdWorkflowStatus
 	common.WriteJsonResp(w, err, triggerWorkflowStatus, http.StatusOK)
 }
 
