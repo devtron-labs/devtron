@@ -874,6 +874,7 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 			return
 		}
 		appDetail = handler.fetchResourceTreeFromInstallAppService(w, r, appDetail, *installedApp)
+		resourceTree = appDetail.ResourceTree
 	} else {
 		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
 		if err != nil {
