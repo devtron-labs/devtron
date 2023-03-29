@@ -23,10 +23,8 @@
   {{- end }}
   {{- end }}
   {{- end }}
-
-
-apiVersion: argoproj.io/v1alpha1
-kind: Rollout
+apiVersion: apps/v1
+kind: StatefulSet
 metadata:
   name: {{ include ".Chart.Name .fullname" $ }}
   labels:
@@ -41,12 +39,6 @@ metadata:
 {{- if .Values.appLabels }}
 {{ toYaml .Values.appLabels | indent 4 }}
 {{- end }}
-
-{{- if .Values.rolloutAnnotations }}
-  annotations:
-{{ toYaml .Values.rolloutAnnotations | indent 4 }}
-{{- end }}
-
 spec:
   selector:
     matchLabels:
@@ -67,12 +59,12 @@ spec:
         appId: {{ $.Values.app | quote }}
         envId: {{ $.Values.env | quote }}
         release: {{ $.Release.Name }}
-{{- if .Values.appLabels }}
-{{ toYaml .Values.appLabels | indent 8 }}
-{{- end }}
-{{- if .Values.podLabels }}
-{{ toYaml .Values.podLabels | indent 8 }}
-{{- end }}
+        {{- if .Values.appLabels }}
+        {{ toYaml .Values.appLabels | indent 8 }}
+        {{- end }}
+        {{- if .Values.podLabels }}
+        {{ toYaml .Values.podLabels | indent 8 }}
+        {{- end }}
     spec:
 {{- if $.Values.podExtraSpecs }}	
 {{ toYaml .Values.podExtraSpecs | indent 6 }}	
@@ -81,7 +73,7 @@ spec:
       restartPolicy: Always
 {{- if $.Values.hostAliases }}
       hostAliases:
-{{ toYaml .Values.hostAliases | indent 8 }}
+{{ toYaml .Values.hostAliases | nindent 8 }}
 {{- end }}
 {{- if and $.Values.Spec.Affinity.Key $.Values.Spec.Affinity.Values }}
       affinity:
@@ -89,7 +81,7 @@ spec:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
             - matchExpressions:
-              - key: {{ $.Values.Spec.Affinity.Key  }}
+              - key: {{ $.Values.Spec.Affinity.Key | indent 14 }}
                 operator: In
                 values:
                 - {{ $.Values.Spec.Affinity.Values | default "nodes"  }}
@@ -378,9 +370,8 @@ spec:
             failureThreshold: {{ $.Values.ReadinessProbe.failureThreshold  }}
 {{- end }}
           resources:
-{{ toYaml $.Values.resources | trim | indent 12 }}
-
-          volumeMounts:
+{{ toYaml $.Values.resources | trim | indent 12 }} 
+          volume:
 {{- with .Values.volumeMounts }}
 {{ toYaml . | trim | indent 12 }}
 {{- end }}
@@ -426,7 +417,7 @@ spec:
           {{- if and (eq (len .Values.volumes) 0) (or (eq (.Values.ConfigSecrets.enabled) true) (eq (.Values.ConfigMaps.enabled) true)) (eq ($hasCMVolumeExists) false) (eq ($hasSecretVolumeExists) false) }} []{{- end }}
           {{- if and (eq (len .Values.volumeMounts) 0) (eq (.Values.ConfigSecrets.enabled) false) (eq (.Values.ConfigMaps.enabled) false) }} []{{- end }}
 
-      volumes:
+      volumeClaimTemplates:
   {{- if $.Values.appMetrics }}
         - name: envoy-config-volume
           configMap:
