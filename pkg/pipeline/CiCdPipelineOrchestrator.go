@@ -443,6 +443,7 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteCiPipeline(pipeline *pipelineConf
 	}
 	err := impl.ciPipelineRepository.Update(p, tx)
 	if err != nil {
+		impl.logger.Errorw("error in updating ci pipeline, DeleteCiPipeline", "err", err, "pipelineId", pipeline.Id)
 		return err
 	}
 	var materials []*pipelineConfig.CiPipelineMaterial
@@ -469,7 +470,10 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteCiPipeline(pipeline *pipelineConf
 	}
 
 	err = impl.ciPipelineMaterialRepository.Update(tx, materials...)
-
+	if err != nil {
+		impl.logger.Errorw("error in updating ci pipeline materials, DeleteCiPipeline", "err", err, "pipelineId", pipeline.Id)
+		return err
+	}
 	if !request.CiPipeline.IsDockerConfigOverridden {
 
 		CiTemplateBean := bean2.CiTemplateBean{

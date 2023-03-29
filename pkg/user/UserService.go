@@ -18,6 +18,7 @@
 package user
 
 import (
+	"context"
 	"fmt"
 	"github.com/devtron-labs/authenticator/jwt"
 	"github.com/devtron-labs/authenticator/middleware"
@@ -30,6 +31,7 @@ import (
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/sessions"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"net/http"
 	"strings"
@@ -49,7 +51,7 @@ type UserService interface {
 	DeleteUser(userInfo *bean.UserInfo) (bool, error)
 	CheckUserRoles(id int32) ([]string, error)
 	SyncOrchestratorToCasbin() (bool, error)
-	GetUserByToken(token string) (int32, string, error)
+	GetUserByToken(context context.Context, token string) (int32, string, error)
 	IsSuperAdmin(userId int) (bool, error)
 	GetByIdIncludeDeleted(id int32) (*bean.UserInfo, error)
 	UserExists(emailId string) bool
@@ -1160,13 +1162,15 @@ func (impl UserServiceImpl) GetUserByEmail(emailId string) (*bean.UserInfo, erro
 	return response, nil
 }
 func (impl UserServiceImpl) GetLoggedInUser(r *http.Request) (int32, error) {
+	_, span := otel.Tracer("userService").Start(r.Context(), "GetLoggedInUser")
+	defer span.End()
 	token := ""
 	if strings.Contains(r.URL.Path, "/orchestrator/webhook/ext-ci/") {
 		token = r.Header.Get("api-token")
 	} else {
 		token = r.Header.Get("token")
 	}
-	userId, userType, err := impl.GetUserByToken(token)
+	userId, userType, err := impl.GetUserByToken(r.Context(), token)
 	// if user is of api-token type, then update lastUsedBy and lastUsedAt
 	if err == nil && userType == bean.USER_TYPE_API_TOKEN {
 		go impl.saveUserAudit(r, userId)
@@ -1174,12 +1178,13 @@ func (impl UserServiceImpl) GetLoggedInUser(r *http.Request) (int32, error) {
 	return userId, err
 }
 
-func (impl UserServiceImpl) GetUserByToken(token string) (int32, string, error) {
+func (impl UserServiceImpl) GetUserByToken(context context.Context, token string) (int32, string, error) {
+	_, span := otel.Tracer("userService").Start(context, "GetUserByToken")
 	email, err := impl.GetEmailFromToken(token)
+	span.End()
 	if err != nil {
 		return http.StatusUnauthorized, "", err
 	}
-
 	userInfo, err := impl.GetUserByEmail(email)
 	if err != nil {
 		impl.logger.Errorw("unable to fetch user from db", "error", err)
