@@ -43,6 +43,7 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListForAutocomplete(w http.Re
 			return
 		}
 	}
+	var teamIdInt int
 	handler.Logger.Infow("request payload, GetAppListForAutocomplete", "teamId", teamId)
 	var apps []*pipeline.AppBean
 	if len(teamId) == 0 {
@@ -53,12 +54,12 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListForAutocomplete(w http.Re
 			return
 		}
 	} else {
-		teamId, err := strconv.Atoi(teamId)
+		teamIdInt, err = strconv.Atoi(teamId)
 		if err != nil {
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		} else {
-			apps, err = handler.pipelineBuilder.FindAppsByTeamId(teamId)
+			apps, err = handler.pipelineBuilder.FindAppsByTeamId(teamIdInt)
 			if err != nil {
 				handler.Logger.Errorw("service err, GetAppListForAutocomplete", "err", err, "teamId", teamId)
 				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -86,8 +87,7 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListForAutocomplete(w http.Re
 	if len(teamId) == 0 {
 		appIdToObjectMap = handler.enforcerUtil.GetRbacObjectsForAllAppsWithMatchingAppName(appName)
 	} else {
-		//get these objects with teamIDs
-		appIdToObjectMap = handler.enforcerUtil.GetRbacObjectsForAllApps()
+		appIdToObjectMap = handler.enforcerUtil.GetRbacObjectsForAllAppsWithTeamID(teamIdInt)
 	}
 
 	for _, app := range apps {

@@ -32,6 +32,7 @@ import (
 type EnforcerUtil interface {
 	GetAppRBACName(appName string) string
 	GetRbacObjectsForAllApps() map[int]string
+	GetRbacObjectsForAllAppsWithTeamID(teamID int) map[int]string
 	GetAppRBACNameByAppId(appId int) string
 	GetAppRBACByAppNameAndEnvId(appName string, envId int) string
 	GetAppRBACByAppIdAndPipelineId(appId int, pipelineId int) string
@@ -104,6 +105,20 @@ func (impl EnforcerUtilImpl) GetProjectAdminRBACNameBYAppName(appName string) st
 func (impl EnforcerUtilImpl) GetRbacObjectsForAllApps() map[int]string {
 	objects := make(map[int]string)
 	result, err := impl.appRepo.FindAllActiveAppsWithTeam()
+	if err != nil {
+		return objects
+	}
+	for _, item := range result {
+		if _, ok := objects[item.Id]; !ok {
+			objects[item.Id] = fmt.Sprintf("%s/%s", strings.ToLower(item.Team.Name), strings.ToLower(item.AppName))
+		}
+	}
+	return objects
+}
+
+func (impl EnforcerUtilImpl) GetRbacObjectsForAllAppsWithTeamID(teamID int) map[int]string {
+	objects := make(map[int]string)
+	result, err := impl.appRepo.FindAllActiveAppsWithTeamWithTeamId(teamID)
 	if err != nil {
 		return objects
 	}
