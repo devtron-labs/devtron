@@ -22,7 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/repository"
+	"github.com/devtron-labs/devtron/pkg/user/bean"
 	"go.uber.org/zap"
 	"time"
 )
@@ -178,7 +178,7 @@ func (impl TeamServiceImpl) Delete(deleteRequest *TeamRequest) error {
 		return err
 	}
 	//deleting auth roles entries for this project
-	err = impl.userAuthService.DeleteRoles(repository.PROJECT_TYPE, deleteRequest.Name, tx, "")
+	err = impl.userAuthService.DeleteRoles(bean.PROJECT_TYPE, deleteRequest.Name, tx, "")
 	if err != nil {
 		impl.logger.Errorw("error in deleting auth roles", "err", err)
 		return err
