@@ -59,6 +59,7 @@ type EnvConfigOverrideRepository interface {
 	UpdateEnvConfigStatus(config *EnvConfigOverride) error
 	Delete(envConfigOverride *EnvConfigOverride) error
 	FindLatestChartForAppByAppIdAndEnvId(appId, targetEnvironmentId int) (*EnvConfigOverride, error)
+	FindChartRefIdForLatestChartForAppByAppIdAndEnvId(appId, targetEnvironmentId int) (int, error)
 	FindChartByAppIdAndEnvIdAndChartRefId(appId, targetEnvironmentId int, chartRefId int) (*EnvConfigOverride, error)
 	Update(envConfigOverride *EnvConfigOverride) (*EnvConfigOverride, error)
 	FindChartForAppByAppIdAndEnvId(appId, targetEnvironmentId int) (*EnvConfigOverride, error)
@@ -272,6 +273,21 @@ func (r EnvConfigOverrideRepositoryImpl) FindLatestChartForAppByAppIdAndEnvId(ap
 		return nil, errors.NotFoundf(err.Error())
 	}
 	return eco, err
+}
+func (r EnvConfigOverrideRepositoryImpl) FindChartRefIdForLatestChartForAppByAppIdAndEnvId(appId, targetEnvironmentId int) (int, error) {
+	eco := &EnvConfigOverride{}
+	err := r.dbConnection.
+		Model(eco).
+		Column("Chart.chart_ref_id").
+		Where("env_config_override.target_environment = ?", targetEnvironmentId).
+		Where("env_config_override.latest = ?", true).
+		Where("Chart.app_id =? ", appId).
+		Column("env_config_override.*", "Chart").
+		Select()
+	if pg.ErrNoRows == err {
+		return 0, errors.NotFoundf(err.Error())
+	}
+	return eco.Chart.ChartRefId, err
 }
 
 func (r EnvConfigOverrideRepositoryImpl) FindChartByAppIdAndEnvIdAndChartRefId(appId, targetEnvironmentId int, chartRefId int) (*EnvConfigOverride, error) {

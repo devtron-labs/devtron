@@ -84,6 +84,7 @@ type AppListingService interface {
 	FetchAppStageStatus(appId int, appType int) ([]bean.AppStageStatus, error)
 
 	FetchOtherEnvironment(ctx context.Context, appId int) ([]*bean.Environment, error)
+	FetchMinDetailOtherEnvironment(appId int) ([]*bean.Environment, error)
 	RedirectToLinkouts(Id int, appId int, envId int, podName string, containerName string) (string, error)
 	ISLastReleaseStopType(appId, envId int) (bool, error)
 	ISLastReleaseStopTypeV2(pipelineIds []int) (map[int]bool, error)
@@ -1585,6 +1586,56 @@ func (impl AppListingServiceImpl) FetchOtherEnvironment(ctx context.Context, app
 			env.ChartRefId = envOverride.Chart.ChartRefId
 		} else {
 			env.ChartRefId = chart.ChartRefId
+		}
+		if env.AppMetrics == nil {
+			env.AppMetrics = &appLevelAppMetrics
+		}
+		if env.InfraMetrics == nil {
+			env.InfraMetrics = &appLevelInfraMetrics
+		}
+	}
+	return envs, nil
+}
+
+func (impl AppListingServiceImpl) FetchMinDetailOtherEnvironment(appId int) ([]*bean.Environment, error) {
+	envs, err := impl.appListingRepository.FetchMinDetailOtherEnvironment(appId)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.Logger.Errorw("err", err)
+		return envs, err
+	}
+	//if envs == nil {
+	//	return envs, nil
+	//}
+	appLevelAppMetrics := false  //default value
+	appLevelInfraMetrics := true //default val
+	appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(appId)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.Logger.Errorw("error in fetching app metrics", "err", err)
+		return envs, err
+	} else if util.IsErrNoRows(err) {
+		//populate default val
+		appLevelAppMetrics = false  //default value
+		appLevelInfraMetrics = true //default val
+	} else {
+		appLevelAppMetrics = appLevelMetrics.AppMetrics
+		appLevelInfraMetrics = appLevelMetrics.InfraMetrics
+	}
+
+	chartRefId, err := impl.chartRepository.FindChartRefIdForLatestChartForAppByAppId(appId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("error in fetching latest chartRefId", "err", err)
+		return envs, err
+	}
+	for _, env := range envs {
+		overrideChartRefId, err := impl.envOverrideRepository.FindChartRefIdForLatestChartForAppByAppIdAndEnvId(appId, env.EnvironmentId)
+		if err != nil && !errors2.IsNotFound(err) {
+			impl.Logger.Errorw("error in fetching latest chartRefId id by appId and envId", "err", err, "appId", appId, "envId", env.EnvironmentId)
+			return envs, err
+		}
+		if overrideChartRefId != 0 {
+			env.ChartRefId = overrideChartRefId
+		} else {
+			env.ChartRefId = chartRefId
 		}
 		if env.AppMetrics == nil {
 			env.AppMetrics = &appLevelAppMetrics
