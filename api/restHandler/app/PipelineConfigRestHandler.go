@@ -522,20 +522,17 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerVie
 	//RBAC CHECK
 
 	triggerWorkflowStatus := pipelineConfig.TriggerWorkflowStatus{}
+	var ciWorkflowStatus []*pipelineConfig.CiWorkflowStatus
+	var err1 error
+	var cdWorkflowStatus []*pipelineConfig.CdWorkflowStatus
 
 	wg := sync.WaitGroup{}
 	wg.Add(2)
-	var ciWorkflowStatus []*pipelineConfig.CiWorkflowStatus
 	go func() {
-		//t0 := time.Now()
 		ciWorkflowStatus, err = handler.ciHandler.FetchCiStatusForTriggerView(appId)
-		//dt := time.Since(t0).Milliseconds()
-		//fmt.Println(dt)
 		wg.Done()
 	}()
 
-	var err1 error
-	var cdWorkflowStatus []*pipelineConfig.CdWorkflowStatus
 	go func() {
 		cdWorkflowStatus, err1 = handler.cdHandler.FetchAppWorkflowStatusForTriggerView(appId)
 		wg.Done()

@@ -244,17 +244,18 @@ func (impl *CiWorkflowRepositoryImpl) FindBuildTypeAndStatusDataOfLast1Day() []*
 }
 
 func (impl *CiWorkflowRepositoryImpl) FIndCiWorkflowStatusesByAppId(appId int) ([]*CiWorkflowStatus, error) {
+
 	ciworkflowStatuses := make([]*CiWorkflowStatus, 0)
-	query := " select cp.id as ci_pipeline_id,cp.name as ci_pipeline_name,cw.status as ci_status,cw.blob_storage_enabled as storage_configured  " +
-		"from ci_pipeline cp " +
-		"LEFT JOIN (" +
-		"    SELECT ci_pipeline_id, MAX(started_on) AS latest_started_on" +
-		"    FROM ci_workflow" +
-		"    GROUP BY ci_pipeline_id" +
-		") latest_cw ON cp.id = latest_cw.ci_pipeline_id" +
-		" LEFT JOIN ci_workflow cw ON latest_cw.ci_pipeline_id = cw.ci_pipeline_id AND latest_cw.latest_started_on = cw.started_on" +
-		" WHERE cp.app_id = ? AND cp.active = true;"
-	_, err := impl.dbConnection.Query(&ciworkflowStatuses, query, appId)
+
+	query := "SELECT cw1.id,cw1.status,cw1.blob_storage_enabled,cw1.ci_pipeline_id " +
+		" FROM ci_workflow cw1 INNER JOIN " +
+		" (SELECT cw.ci_pipeline_id, max(cw.id) " +
+		" FROM ci_workflow cw INNER JOIN " +
+		" ci_pipeline cp ON cw.ci_pipeline_id = cp.id " +
+		" WHERE cp.app_id=? AND cp.deleted=false " +
+		" GROUP BY cw.ci_pipeline_id) cw2 " +
+		" ON cw1.id = cw2.max;"
+	_, err := impl.dbConnection.Query(&ciworkflowStatuses, query, appId) //, pg.In(ciPipelineIds))
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching build type vs status vs count data", "err", err)
 	}
