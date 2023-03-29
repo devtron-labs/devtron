@@ -97,6 +97,7 @@ type PipelineBuilder interface {
 	DeleteMaterial(request *bean.UpdateMaterialDTO) error
 	DeleteApp(appId int, userId int32) error
 	GetCiPipeline(appId int) (ciConfig *bean.CiConfigRequest, err error)
+	GetTriggerViewCiPipeline(appId int) (*bean.TriggerViewCiConfig, error)
 	GetExternalCi(appId int) (ciConfig []*bean.ExternalCiConfig, err error)
 	GetExternalCiById(appId int, externalCiId int) (ciConfig *bean.ExternalCiConfig, err error)
 	UpdateCiTemplate(updateRequest *bean.CiConfigRequest) (*bean.CiConfigRequest, error)
@@ -540,6 +541,77 @@ func (impl PipelineBuilderImpl) getCiTemplateVariables(appId int) (ciConfig *bea
 		ciConfig.DockerRegistry = dockerRegistry.Id
 	}
 	return ciConfig, err
+}
+
+func (impl PipelineBuilderImpl) GetTriggerViewCiPipeline(appId int) (*bean.TriggerViewCiConfig, error) {
+
+	triggerViewCiConfig := &bean.TriggerViewCiConfig{}
+	// fetch ci git material id
+	ciTemplateBean, err := impl.ciTemplateService.FindByAppId(appId)
+	if err != nil && !errors.IsNotFound(err) {
+		impl.logger.Errorw("error in fetching ci pipeline", "appId", appId, "err", err)
+		return nil, err
+	}
+	if errors.IsNotFound(err) {
+		impl.logger.Debugw("no ci pipeline exists", "appId", appId, "err", err)
+		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no ci pipeline exists"}
+		return nil, err
+	}
+	template := ciTemplateBean.CiTemplate
+
+	triggerViewCiConfig.CiGitMaterialId = template.GitMaterialId
+
+	// fetch pipelines
+	pipelines, err := impl.ciPipelineRepository.FindByAppId(appId)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.logger.Errorw("error in fetching ci pipeline", "appId", appId, "err", err)
+		return nil, err
+	}
+
+	var ciPipelineResp []*bean.CiPipeline
+	for _, pipeline := range pipelines {
+		isLinkedCiPipeline := pipeline.IsExternal
+		ciPipeline := &bean.CiPipeline{
+			Id:                       pipeline.Id,
+			Version:                  pipeline.Version,
+			Name:                     pipeline.Name,
+			Active:                   pipeline.Active,
+			Deleted:                  pipeline.Deleted,
+			IsManual:                 pipeline.IsManual,
+			IsExternal:               isLinkedCiPipeline,
+			ParentCiPipeline:         pipeline.ParentCiPipeline,
+			ScanEnabled:              pipeline.ScanEnabled,
+			IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
+		}
+		for _, material := range pipeline.CiPipelineMaterials {
+			// ignore those materials which have inactive git material
+			if material == nil || material.GitMaterial == nil || !material.GitMaterial.Active {
+				continue
+			}
+			ciMaterial := &bean.CiMaterial{
+				Id:              material.Id,
+				CheckoutPath:    material.CheckoutPath,
+				Path:            material.Path,
+				ScmId:           material.ScmId,
+				GitMaterialId:   material.GitMaterialId,
+				GitMaterialName: material.GitMaterial.Name[strings.Index(material.GitMaterial.Name, "-")+1:],
+				ScmName:         material.ScmName,
+				ScmVersion:      material.ScmVersion,
+				IsRegex:         material.Regex != "",
+				Source:          &bean.SourceTypeConfig{Type: material.Type, Value: material.Value, Regex: material.Regex},
+			}
+			ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, ciMaterial)
+		}
+		linkedCis, err := impl.ciPipelineRepository.FindByParentCiPipelineId(ciPipeline.Id)
+		if err != nil && !util.IsErrNoRows(err) {
+			return nil, err
+		}
+		ciPipeline.LinkedCount = len(linkedCis)
+		ciPipelineResp = append(ciPipelineResp, ciPipeline)
+	}
+	triggerViewCiConfig.CiPipelines = ciPipelineResp
+
+	return triggerViewCiConfig, nil
 }
 
 func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfigRequest, err error) {
