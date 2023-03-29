@@ -387,6 +387,26 @@ func (impl ModuleServiceImpl) GetAllModuleInfo() ([]ModuleInfoDto, error) {
 			Name:   module.Name,
 			Status: module.Status,
 		}
+		moduleId := module.Id
+		moduleResourcesStatusFromDb, err := impl.moduleResourceStatusRepository.FindAllActiveByModuleId(moduleId)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in getting module resources status from DB ", "moduleId", moduleId, "moduleName", module.Name, "err", err)
+			return nil, err
+		}
+		if moduleResourcesStatusFromDb != nil {
+			var moduleResourcesStatus []*ModuleResourceStatusDto
+			for _, moduleResourceStatusFromDb := range moduleResourcesStatusFromDb {
+				moduleResourcesStatus = append(moduleResourcesStatus, &ModuleResourceStatusDto{
+					Group:         moduleResourceStatusFromDb.Group,
+					Version:       moduleResourceStatusFromDb.Version,
+					Kind:          moduleResourceStatusFromDb.Kind,
+					Name:          moduleResourceStatusFromDb.Name,
+					HealthStatus:  moduleResourceStatusFromDb.HealthStatus,
+					HealthMessage: moduleResourceStatusFromDb.HealthMessage,
+				})
+			}
+			moduleInfoDto.ModuleResourcesStatus = moduleResourcesStatus
+		}
 		installedModules = append(installedModules, moduleInfoDto)
 	}
 

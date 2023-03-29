@@ -34,7 +34,6 @@ type ModuleRestHandler interface {
 	GetModuleInfo(w http.ResponseWriter, r *http.Request)
 	GetModuleConfig(w http.ResponseWriter, r *http.Request)
 	HandleModuleAction(w http.ResponseWriter, r *http.Request)
-	GetAllModuleInfo(w http.ResponseWriter, r *http.Request)
 }
 
 type ModuleRestHandlerImpl struct {
@@ -97,8 +96,12 @@ func (impl ModuleRestHandlerImpl) GetModuleInfo(w http.ResponseWriter, r *http.R
 	params := mux.Vars(r)
 	moduleName := params["name"]
 	if len(moduleName) == 0 {
-		impl.logger.Error("module name is not supplied")
-		common.WriteJsonResp(w, errors.New("module name is not supplied"), nil, http.StatusBadRequest)
+		res, err := impl.moduleService.GetAllModuleInfo()
+		if err != nil {
+			impl.logger.Errorw("service err, GetAllModuleInfo", "err", err)
+			return
+		}
+		common.WriteJsonResp(w, err, res, http.StatusOK)
 		return
 	}
 
@@ -156,23 +159,6 @@ func (impl ModuleRestHandlerImpl) HandleModuleAction(w http.ResponseWriter, r *h
 	res, err := impl.moduleService.HandleModuleAction(userId, moduleName, moduleActionRequestDto)
 	if err != nil {
 		impl.logger.Errorw("service err, HandleModuleAction", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	common.WriteJsonResp(w, err, res, http.StatusOK)
-}
-
-func (impl ModuleRestHandlerImpl) GetAllModuleInfo(w http.ResponseWriter, r *http.Request) {
-	userId, err := impl.userService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-
-	// service call
-	res, err := impl.moduleService.GetAllModuleInfo()
-	if err != nil {
-		impl.logger.Errorw("service err, GetModuleInfo", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
