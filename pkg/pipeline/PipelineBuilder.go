@@ -402,14 +402,17 @@ func (impl PipelineBuilderImpl) GetApp(appId int) (application *bean.CreateAppDT
 		impl.logger.Errorw("error in fetching app", "id", appId, "err", err)
 		return nil, err
 	}
-	gitMaterials := impl.GetMaterialsForAppId(appId)
-
 	application = &bean.CreateAppDTO{
 		Id:       app.Id,
 		AppName:  app.AppName,
-		Material: gitMaterials,
 		TeamId:   app.TeamId,
+		AppStore: app.AppStore,
 	}
+	if app.AppStore {
+		return application, nil
+	}
+	gitMaterials := impl.GetMaterialsForAppId(appId)
+	application.Material = gitMaterials
 	return application, nil
 }
 

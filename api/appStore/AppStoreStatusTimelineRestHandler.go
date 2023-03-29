@@ -1,4 +1,4 @@
-package restHandler
+package appStore
 
 import (
 	"fmt"
@@ -12,21 +12,22 @@ import (
 	"strconv"
 )
 
-type PipelineStatusTimelineRestHandler interface {
-	FetchTimelines(w http.ResponseWriter, r *http.Request)
+type AppStoreStatusTimelineRestHandler interface {
+	FetchTimelinesForAppStore(w http.ResponseWriter, r *http.Request)
 }
 
-type PipelineStatusTimelineRestHandlerImpl struct {
+type AppStoreStatusTimelineRestHandlerImpl struct {
 	logger                        *zap.SugaredLogger
 	pipelineStatusTimelineService status.PipelineStatusTimelineService
 	enforcerUtil                  rbac.EnforcerUtil
 	enforcer                      casbin.Enforcer
 }
 
-func NewPipelineStatusTimelineRestHandlerImpl(logger *zap.SugaredLogger,
-	pipelineStatusTimelineService status.PipelineStatusTimelineService, enforcerUtil rbac.EnforcerUtil,
-	enforcer casbin.Enforcer) *PipelineStatusTimelineRestHandlerImpl {
-	return &PipelineStatusTimelineRestHandlerImpl{
+func NewAppStoreStatusTimelineRestHandlerImpl(logger *zap.SugaredLogger,
+	pipelineStatusTimelineService status.PipelineStatusTimelineService,
+	enforcerUtil rbac.EnforcerUtil,
+	enforcer casbin.Enforcer) *AppStoreStatusTimelineRestHandlerImpl {
+	return &AppStoreStatusTimelineRestHandlerImpl{
 		logger:                        logger,
 		pipelineStatusTimelineService: pipelineStatusTimelineService,
 		enforcerUtil:                  enforcerUtil,
@@ -34,9 +35,9 @@ func NewPipelineStatusTimelineRestHandlerImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (handler *PipelineStatusTimelineRestHandlerImpl) FetchTimelines(w http.ResponseWriter, r *http.Request) {
+func (handler AppStoreStatusTimelineRestHandlerImpl) FetchTimelinesForAppStore(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	appId, err := strconv.Atoi(vars["appId"])
+	installedAppId, err := strconv.Atoi(vars["installedAppId"])
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
@@ -46,25 +47,25 @@ func (handler *PipelineStatusTimelineRestHandlerImpl) FetchTimelines(w http.Resp
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	wfrId := 0
-	wfrIdParam := r.URL.Query().Get("wfrId")
-	if len(wfrIdParam) != 0 {
-		wfrId, err = strconv.Atoi(wfrIdParam)
+	installedAppVersionHistoryId := 0
+	installedAppVersionHistoryIdParam := r.URL.Query().Get("installedAppVersionHistoryId")
+	if len(installedAppVersionHistoryIdParam) != 0 {
+		installedAppVersionHistoryId, err = strconv.Atoi(installedAppVersionHistoryIdParam)
 		if err != nil {
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
 	}
-	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(installedAppId)
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 
-	timelines, err := handler.pipelineStatusTimelineService.FetchTimelines(appId, envId, wfrId)
+	timelines, err := handler.pipelineStatusTimelineService.FetchTimelinesForAppStore(installedAppId, envId, installedAppVersionHistoryId)
 	if err != nil {
-		handler.logger.Errorw("error in getting cd pipeline status timelines by wfrId", "err", err, "wfrId", wfrId)
+		handler.logger.Errorw("error in getting cd pipeline status timelines by wfrId", "err", err, "wfrId", installedAppVersionHistoryId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

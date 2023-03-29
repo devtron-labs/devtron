@@ -45,6 +45,7 @@ type CreateAppDTO struct {
 	TeamId     int            `json:"teamId,omitempty" validate:"number,required"`
 	TemplateId int            `json:"templateId"`
 	AppLabels  []*Label       `json:"labels,omitempty" validate:"dive"`
+	AppStore   bool           `json:"appStore,omitempty"`
 }
 
 type CreateMaterialDTO struct {

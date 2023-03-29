@@ -100,7 +100,12 @@ func (impl *ApplicationStatusHandlerImpl) Subscribe() error {
 		if applicationDetail.StatusTime.IsZero() {
 			applicationDetail.StatusTime = time.Now()
 		}
-		isSucceeded, err := impl.appService.UpdateDeploymentStatusAndCheckIsSucceeded(app, applicationDetail.StatusTime)
+		isAppStoreApplication := false
+		_, err = impl.pipelineRepository.GetArgoPipelineByArgoAppName(app.ObjectMeta.Name)
+		if err != nil && err != pg.ErrNoRows {
+			isAppStoreApplication = true
+		}
+		isSucceeded, err := impl.appService.UpdateDeploymentStatusAndCheckIsSucceeded(app, applicationDetail.StatusTime, isAppStoreApplication)
 		if err != nil {
 			impl.logger.Errorw("error on application status update", "err", err, "msg", string(msg.Data))
 			//TODO - check update for charts - fix this call

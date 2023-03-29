@@ -34,6 +34,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appStatus"
+	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	service1 "github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
@@ -88,6 +89,7 @@ type AppListingRestHandlerImpl struct {
 	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler
 	pipelineRepository               pipelineConfig.PipelineRepository
 	appStatusService                 appStatus.AppStatusService
+	installedAppRepository           repository.InstalledAppRepository
 }
 
 type AppStatus struct {
@@ -109,7 +111,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 	argoUserService argo.ArgoUserService, k8sApplicationService k8s.K8sApplicationService, installedAppService service1.InstalledAppService,
 	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler,
 	pipelineRepository pipelineConfig.PipelineRepository,
-	appStatusService appStatus.AppStatusService) *AppListingRestHandlerImpl {
+	appStatusService appStatus.AppStatusService, installedAppRepository repository.InstalledAppRepository) *AppListingRestHandlerImpl {
 	appListingHandler := &AppListingRestHandlerImpl{
 		application:                      application,
 		appListingService:                appListingService,
@@ -129,6 +131,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 		cdApplicationStatusUpdateHandler: cdApplicationStatusUpdateHandler,
 		pipelineRepository:               pipelineRepository,
 		appStatusService:                 appStatusService,
+		installedAppRepository:           installedAppRepository,
 	}
 	return appListingHandler
 }
@@ -705,6 +708,12 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 		common.WriteJsonResp(w, fmt.Errorf("error in parsing envId : %s must be integer", envIdParam), nil, http.StatusBadRequest)
 		return
 	}
+	installedAppId, err := strconv.Atoi(installedAppIdParam)
+	if err != nil {
+		handler.logger.Errorw("error in parsing installedAppId from request body", "installedAppId", installedAppIdParam, "err", err)
+		common.WriteJsonResp(w, fmt.Errorf("error in parsing installedAppId : %s must be integer", installedAppIdParam), nil, http.StatusBadRequest)
+		return
+	}
 
 	appDetail, err, appId = handler.getAppDetails(r.Context(), appIdParam, installedAppIdParam, envId)
 	if err != nil {
@@ -732,6 +741,26 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 
 	if installedAppIdParam != "" {
 		appDetail = handler.fetchResourceTreeFromInstallAppService(w, r, appDetail)
+		installedAppVersions, err := handler.installedAppRepository.GetInstalledAppVersionByInstalledAppIdAndEnvId(installedAppId, envId)
+		if err != nil && err != pg.ErrNoRows {
+			handler.logger.Errorw("error in fetching installedAppVersions from db", "installedAppId", installedAppId, "envId", envId)
+			common.WriteJsonResp(w, err, "error in fetching installedAppVersions from db", http.StatusInternalServerError)
+			return
+		}
+		if !installedAppVersions.Active {
+			handler.logger.Errorw("this installedAppVersion is not active", "installedAppId", installedAppId, "envId", envId)
+			common.WriteJsonResp(w, err, "trying to fetch deleted installedAppVersions", http.StatusInternalServerError)
+			return
+		}
+		//TODO check values here for app status
+		appStatus := appDetail.ResourceTree["3"]
+		if appStatus == string(health.HealthStatusHealthy) {
+			err = handler.cdApplicationStatusUpdateHandler.SyncPipelineStatusForAppStoreForResourceTreeCall(installedAppVersions)
+			if err != nil {
+				handler.logger.Errorw("error in syncing pipeline status", "err", err)
+			}
+		}
+
 	} else {
 		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
 		if err != nil {
@@ -924,6 +953,7 @@ func (handler AppListingRestHandlerImpl) ManualSyncAcdPipelineDeploymentStatus(w
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+
 	app, err := handler.pipeline.GetApp(appId)
 	if err != nil {
 		handler.logger.Errorw("bad request", "err", err)
@@ -937,7 +967,12 @@ func (handler AppListingRestHandlerImpl) ManualSyncAcdPipelineDeploymentStatus(w
 		return
 	}
 	//RBAC enforcer Ends
-	err = handler.cdApplicationStatusUpdateHandler.ManualSyncPipelineStatus(appId, envId, userId)
+	if app.AppStore {
+		err = handler.cdApplicationStatusUpdateHandler.ManualSyncPipelineStatus(appId, 0, userId)
+	} else {
+		err = handler.cdApplicationStatusUpdateHandler.ManualSyncPipelineStatus(appId, envId, userId)
+	}
+
 	if err != nil {
 		handler.logger.Errorw("service err, ManualSyncAcdPipelineDeploymentStatus", "err", err, "appId", appId, "envId", envId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

@@ -18,7 +18,9 @@
 package repository
 
 import (
+	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
@@ -62,6 +64,11 @@ type InstalledAppRepository interface {
 	GetDeploymentSuccessfulStatusCountForTelemetry() (int, error)
 	GetGitOpsInstalledAppsWhereArgoAppDeletedIsTrue(installedAppId int, envId int) (InstalledApps, error)
 	GetInstalledAppByGitHash(gitHash string) (InstallAppDeleteRequest, error)
+	GetInstalledAppByAppId(appId int) (InstalledApps, error)
+	GetInstalledAppByInstalledAppVersionId(installedAppVersionId int) (InstalledApps, error)
+
+	GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatusesForAppStore(getPipelineDeployedBeforeMinutes int, getPipelineDeployedWithinHours int) ([]*InstalledAppVersions, error)
+	GetArgoPipelinesHavingTriggersStuckInLastPossibleNonTerminalTimelinesForAppStore(pendingSinceSeconds int, timeForDegradation int) ([]*InstalledAppVersions, error)
 }
 
 type InstalledAppRepositoryImpl struct {
@@ -536,4 +543,68 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppByGitHash(gitHash string) 
 		return model, err
 	}
 	return model, nil
+}
+
+func (impl InstalledAppRepositoryImpl) GetInstalledAppByAppId(appId int) (InstalledApps, error) {
+	var installedApps InstalledApps
+	queryString := `select * from installed_apps where active=? and app_id=? and deployment_app_type=?;`
+	_, err := impl.dbConnection.Query(&installedApps, queryString, true, appId, util2.PIPELINE_DEPLOYMENT_TYPE_ACD)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching InstalledApp", "err", err)
+		return installedApps, err
+	}
+
+	return installedApps, nil
+}
+
+func (impl InstalledAppRepositoryImpl) GetInstalledAppByInstalledAppVersionId(installedAppVersionId int) (InstalledApps, error) {
+	var installedApps InstalledApps
+	queryString := `select ia.* from installed_apps ia inner join installed_app_versions iav on ia.id=iav.installed_app_id
+         			where iav.active=? and iav.id=? and ia.deployment_app_type=?;`
+	_, err := impl.dbConnection.Query(&installedApps, queryString, true, installedAppVersionId, util2.PIPELINE_DEPLOYMENT_TYPE_ACD)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching InstalledApp", "err", err)
+		return installedApps, err
+	}
+
+	return installedApps, nil
+}
+
+func (impl InstalledAppRepositoryImpl) GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatusesForAppStore(getPipelineDeployedBeforeMinutes int, getPipelineDeployedWithinHours int) ([]*InstalledAppVersions, error) {
+	var installedAppVersions []*InstalledAppVersions
+	queryString := `select iav.* from installed_app_versions iav 
+    				inner join installed_apps ia on iav.installed_app_id=ia.id 
+    				inner join installed_app_version_history iavh on iavh.installed_app_version_id=iav.id 
+             		where iavh.id in (select DISTINCT ON (installed_app_version_id) max(id) as id from installed_app_version_history 
+                         where updated_on < NOW() - INTERVAL '? minutes' and updated_on > NOW() - INTERVAL '? hours' and status not in (?)
+                         group by installed_app_version_id, id order by installed_app_version_id, id desc ) and ia.deployment_app_type=? and iav.active=?;`
+
+	_, err := impl.dbConnection.Query(&installedAppVersions, queryString, getPipelineDeployedBeforeMinutes, getPipelineDeployedWithinHours,
+		pg.In([]string{pipelineConfig.WorkflowAborted, pipelineConfig.WorkflowFailed, pipelineConfig.WorkflowSucceeded, string(health.HealthStatusHealthy), string(health.HealthStatusDegraded)}),
+		util2.PIPELINE_DEPLOYMENT_TYPE_ACD, true)
+	if err != nil {
+		impl.Logger.Errorw("error in GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatusesForAppStore", "err", err)
+		return nil, err
+	}
+	return installedAppVersions, nil
+}
+
+func (impl InstalledAppRepositoryImpl) GetArgoPipelinesHavingTriggersStuckInLastPossibleNonTerminalTimelinesForAppStore(pendingSinceSeconds int, timeForDegradation int) ([]*InstalledAppVersions, error) {
+	var installedAppVersions []*InstalledAppVersions
+	queryString := `select iav.* from installed_app_versions iav inner join installed_apps ia on iav.installed_app_id=ia.id 
+					inner join installed_app_version_history iavh on iavh.installed_app_version_id=iav.id
+					where iavh.id in (select DISTINCT ON (installed_app_version_history_id) max(id) as id from pipeline_status_timeline
+					                    where status in (?) and status_time < NOW() - INTERVAL '? seconds'
+										group by installed_app_version_history_id, id order by installed_app_version_history_id, id desc)
+					and iavh.updated_on > NOW() - INTERVAL '? minutes' and ia.deployment_app_type=? and iav.active=?;`
+
+	_, err := impl.dbConnection.Query(&installedAppVersions, queryString,
+		pg.In([]pipelineConfig.TimelineStatus{pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED,
+			pipelineConfig.TIMELINE_STATUS_FETCH_TIMED_OUT, pipelineConfig.TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS}),
+		pendingSinceSeconds, timeForDegradation, util2.PIPELINE_DEPLOYMENT_TYPE_ACD, true)
+	if err != nil {
+		impl.Logger.Errorw("error in GetArgoPipelinesHavingTriggersStuckInLastPossibleNonTerminalTimelinesForAppStore", "err", err)
+		return nil, err
+	}
+	return installedAppVersions, nil
 }

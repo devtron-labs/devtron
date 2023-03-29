@@ -4,6 +4,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"time"
 )
 
 type InstalledAppVersionHistoryRepository interface {
@@ -14,6 +15,7 @@ type InstalledAppVersionHistoryRepository interface {
 	GetLatestInstalledAppVersionHistory(installAppVersionId int) (*InstalledAppVersionHistory, error)
 	GetLatestInstalledAppVersionHistoryByGitHash(gitHash string) (*InstalledAppVersionHistory, error)
 	GetAppIdAndEnvIdWithInstalledAppVersionId(id int) (int, int, error)
+	GetLatestInstalledAppVersionHistoryByInstalledAppId(installedAppId int) (*InstalledAppVersionHistory, error)
 }
 
 type InstalledAppVersionHistoryRepositoryImpl struct {
@@ -26,12 +28,14 @@ func NewInstalledAppVersionHistoryRepositoryImpl(Logger *zap.SugaredLogger, dbCo
 }
 
 type InstalledAppVersionHistory struct {
-	TableName             struct{} `sql:"installed_app_version_history" pg:",discard_unknown_columns"`
-	Id                    int      `sql:"id,pk"`
-	InstalledAppVersionId int      `sql:"installed_app_version_id,notnull"`
-	ValuesYamlRaw         string   `sql:"values_yaml_raw"`
-	Status                string   `sql:"status"`
-	GitHash               string   `sql:"git_hash"`
+	TableName             struct{}  `sql:"installed_app_version_history" pg:",discard_unknown_columns"`
+	Id                    int       `sql:"id,pk"`
+	InstalledAppVersionId int       `sql:"installed_app_version_id,notnull"`
+	ValuesYamlRaw         string    `sql:"values_yaml_raw"`
+	Status                string    `sql:"status"`
+	GitHash               string    `sql:"git_hash"`
+	StartedOn             time.Time `sql:"started_on"`
+	FinishedOn            time.Time `sql:"finished_on"`
 	sql.AuditLog
 }
 
@@ -101,4 +105,16 @@ func (impl InstalledAppVersionHistoryRepositoryImpl) GetAppIdAndEnvIdWithInstall
 		" where iav.id = ?;"
 	_, err := impl.dbConnection.Query(&model, query, id)
 	return model.AppId, model.EnvId, err
+}
+
+func (impl InstalledAppVersionHistoryRepositoryImpl) GetLatestInstalledAppVersionHistoryByInstalledAppId(installedAppId int) (*InstalledAppVersionHistory, error) {
+	model := &InstalledAppVersionHistory{}
+	query := `select iavh.* from installed_app_version_history iavh inner join installed_app_versions iav on iavh.installed_app_version_id=iav.id
+				inner join installed_apps ia on iav.installed_app_id=ia.id where ia.id=? and iav.active=? order by iavh.id desc limit ?;`
+	_, err := impl.dbConnection.Query(model, query, installedAppId, true, 1)
+	if err != nil {
+		impl.Logger.Errorw("error in GetLatestInstalledAppVersionHistoryByInstalledAppId", "err", err)
+		return nil, err
+	}
+	return model, nil
 }

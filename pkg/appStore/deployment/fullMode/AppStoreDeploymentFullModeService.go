@@ -22,10 +22,13 @@ import (
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/app/status"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
@@ -80,6 +83,8 @@ type AppStoreDeploymentFullModeServiceImpl struct {
 	tokenCache                           *util2.TokenCache
 	argoUserService                      argo.ArgoUserService
 	gitOpsConfigRepository               repository3.GitOpsConfigRepository
+	pipelineStatusTimelineService        status.PipelineStatusTimelineService
+	installedAppRepositoryHistory        repository4.InstalledAppVersionHistoryRepository
 }
 
 func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
@@ -92,7 +97,10 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 	gitFactory *util.GitFactory, aCDAuthConfig *util2.ACDAuthConfig,
 	globalEnvVariables *util3.GlobalEnvVariables,
 	installedAppRepository repository4.InstalledAppRepository, tokenCache *util2.TokenCache,
-	argoUserService argo.ArgoUserService, gitOpsConfigRepository repository3.GitOpsConfigRepository) *AppStoreDeploymentFullModeServiceImpl {
+	argoUserService argo.ArgoUserService, gitOpsConfigRepository repository3.GitOpsConfigRepository,
+	pipelineStatusTimelineService status.PipelineStatusTimelineService,
+	installedAppRepositoryHistory repository4.InstalledAppVersionHistoryRepository,
+) *AppStoreDeploymentFullModeServiceImpl {
 	return &AppStoreDeploymentFullModeServiceImpl{
 		logger:                               logger,
 		chartTemplateService:                 chartTemplateService,
@@ -109,6 +117,8 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 		tokenCache:                           tokenCache,
 		argoUserService:                      argoUserService,
 		gitOpsConfigRepository:               gitOpsConfigRepository,
+		pipelineStatusTimelineService:        pipelineStatusTimelineService,
+		installedAppRepositoryHistory:        installedAppRepositoryHistory,
 	}
 }
 
@@ -231,11 +241,50 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 		UserEmailId:    userEmailId,
 		UserName:       userName,
 	}
+	installedAppVersionHistory, err := impl.installedAppRepositoryHistory.GetLatestInstalledAppVersionHistory(installAppVersionRequest.Id)
+
 	commitHash, _, err := impl.gitFactory.Client.CommitValues(valuesYamlConfig, gitOpsConfig)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
+		//update timeline status for git commit failed state
+		gitCommitStatus := pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED
+		gitCommitStatusDetail := fmt.Sprintf("Git commit failed - %v", err)
+		timeline := &pipelineConfig.PipelineStatusTimeline{
+			InstalledAppVersionHistoryId: installedAppVersionHistory.Id,
+			Status:                       gitCommitStatus,
+			StatusDetail:                 gitCommitStatusDetail,
+			StatusTime:                   time.Now(),
+			AuditLog: sql.AuditLog{
+				CreatedBy: installAppVersionRequest.UserId,
+				CreatedOn: time.Now(),
+				UpdatedBy: installAppVersionRequest.UserId,
+				UpdatedOn: time.Now(),
+			},
+		}
+		timelineErr := impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, true)
+		if timelineErr != nil {
+			impl.logger.Errorw("error in creating timeline status for git commit", "err", timelineErr, "timeline", timeline)
+		}
 		return installAppVersionRequest, nil, err
 	}
+	//creating timeline for Git Commit stage
+	timeline := &pipelineConfig.PipelineStatusTimeline{
+		InstalledAppVersionHistoryId: installedAppVersionHistory.Id,
+		Status:                       pipelineConfig.TIMELINE_STATUS_GIT_COMMIT,
+		StatusDetail:                 "Git commit done successfully.",
+		StatusTime:                   time.Now(),
+		AuditLog: sql.AuditLog{
+			CreatedBy: installAppVersionRequest.UserId,
+			CreatedOn: time.Now(),
+			UpdatedBy: installAppVersionRequest.UserId,
+			UpdatedOn: time.Now(),
+		},
+	}
+	err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, true)
+	if err != nil {
+		impl.logger.Errorw("error in creating timeline status for git commit", "err", err, "timeline", timeline)
+	}
+
 	//sync local dir with remote
 	err = impl.chartTemplateService.GitPull(clonedDir, chartGitAttr.RepoUrl, appStoreName)
 	if err != nil {
