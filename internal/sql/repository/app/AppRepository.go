@@ -69,6 +69,7 @@ type AppRepository interface {
 	FetchAllActiveDevtronAppsWithAppIdAndName() ([]*App, error)
 	FindEnvironmentIdForInstalledApp(appId int) (int, error)
 	FetchAppIdsWithFilter(jobListingFilter helper.AppListingFilter) ([]int, error)
+	FindAllActiveAppsWithTeamByAppNameMatch(appNameMatch string) ([]*App, error)
 }
 
 const DevtronApp = "DevtronApp"
@@ -209,6 +210,15 @@ func (repo AppRepositoryImpl) FindAllActiveAppsWithTeam() ([]*App, error) {
 	var apps []*App
 	err := repo.dbConnection.Model(&apps).Column("Team").
 		Where("app.active = ?", true).Where("app.app_type = ?", 0).
+		Select()
+	return apps, err
+}
+
+func (repo AppRepositoryImpl) FindAllActiveAppsWithTeamByAppNameMatch(appNameMatch string) ([]*App, error) {
+	var apps []*App
+	appNameLikeQuery := "app.app_name like %" + appNameMatch + "%"
+	err := repo.dbConnection.Model(&apps).Column("Team").
+		Where("app.active = ?", true).Where("app.app_type = ?", 0).Where(appNameLikeQuery).
 		Select()
 	return apps, err
 }

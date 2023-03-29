@@ -66,25 +66,43 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListForAutocomplete(w http.Re
 			}
 		}
 	}
+	if isActionUserSuperAdmin {
+		common.WriteJsonResp(w, err, apps, http.StatusOK)
+		return
+	}
 
+	// RBAC
 	token := r.Header.Get("token")
-	var accessedApps []*pipeline.AppBean
-	// RBAC
-	objects := handler.enforcerUtil.GetRbacObjectsForAllApps()
+	userEmailId, err := handler.userAuthService.GetEmailFromToken(token)
+	if err != nil {
+		handler.Logger.Errorw("error in getting user emailId from token", "userId", userId, "token", token)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	accessedApps := make([]*pipeline.AppBean, 0)
+	rbacObjects := make([]string, 0)
+
+	var appIdToObjectMap map[int]string
+	if len(teamId) == 0 {
+		appIdToObjectMap = handler.enforcerUtil.GetRbacObjectsForAllAppsWithMatchingAppName(appName)
+	} else {
+		//get these objects with teamIDs
+		appIdToObjectMap = handler.enforcerUtil.GetRbacObjectsForAllApps()
+	}
+
 	for _, app := range apps {
-		if isActionUserSuperAdmin {
-			accessedApps = append(accessedApps, app)
-			continue
-		}
-		object := objects[app.Id]
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); ok {
+		object := appIdToObjectMap[app.Id]
+		rbacObjects = append(rbacObjects, object)
+	}
+
+	enforcedMap := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceApplications, casbin.ActionGet, rbacObjects)
+	for _, app := range apps {
+		object := appIdToObjectMap[app.Id]
+		if enforcedMap[object] {
 			accessedApps = append(accessedApps, app)
 		}
 	}
 	// RBAC
-	if len(accessedApps) == 0 {
-		accessedApps = make([]*pipeline.AppBean, 0)
-	}
 	common.WriteJsonResp(w, err, accessedApps, http.StatusOK)
 }
 
