@@ -109,7 +109,8 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 								delete(eliminatedRoleIds, roleModel.Id)
 							}
 							if _, ok := existingRoleIds[oldRoleModel.Id]; ok {
-								delete(eliminatedRoleIds, roleModel.Id)
+								//delete old role mapping from existing but not from eliminated roles (so that it gets deleted)
+								delete(existingRoleIds, oldRoleModel.Id)
 							}
 						}
 					}
@@ -160,7 +161,8 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 						delete(eliminatedRoleIds, roleModel.Id)
 					}
 					if _, ok := existingRoleIds[oldRoleModel.Id]; ok {
-						delete(eliminatedRoleIds, roleModel.Id)
+						//delete old role mapping from existing but not from eliminated roles (so that it gets deleted)
+						delete(existingRoleIds, oldRoleModel.Id)
 					}
 
 				}
@@ -262,7 +264,8 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 								delete(eliminatedRoles, roleModel.Id)
 							}
 							if _, ok := existingRoles[oldRoleModel.Id]; ok {
-								delete(eliminatedRoles, roleModel.Id)
+								//delete old role mapping from existing but not from eliminated roles (so that it gets deleted)
+								delete(existingRoles, oldRoleModel.Id)
 							}
 						}
 					}
@@ -310,12 +313,12 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 						request.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + actionType
 						continue
 					}
-					//roleModel := roleModels[0]
 					if _, ok := existingRoles[roleModel.Id]; ok {
 						delete(eliminatedRoles, roleModel.Id)
 					}
-					if _, ok := existingRoles[roleModel.Id]; ok {
-						delete(eliminatedRoles, roleModel.Id)
+					if _, ok := existingRoles[oldRoleModel.Id]; ok {
+						//delete old role mapping from existing but not from eliminated roles (so that it gets deleted)
+						delete(existingRoles, oldRoleModel.Id)
 					}
 
 				}
