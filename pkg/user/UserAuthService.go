@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/authenticator/middleware"
+	bean2 "github.com/devtron-labs/devtron/pkg/user/bean"
 	casbin2 "github.com/devtron-labs/devtron/pkg/user/casbin"
 	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/go-pg/pg"
@@ -492,13 +493,13 @@ func (impl UserAuthServiceImpl) AuthVerification(r *http.Request) (bool, error) 
 func (impl UserAuthServiceImpl) DeleteRoles(entityType string, entityName string, tx *pg.Tx, envIdentifier string) (err error) {
 	var roleModels []*repository2.RoleModel
 	switch entityType {
-	case repository2.PROJECT_TYPE:
+	case bean2.PROJECT_TYPE:
 		roleModels, err = impl.userAuthRepository.GetRolesForProject(entityName)
-	case repository2.ENV_TYPE:
+	case bean2.ENV_TYPE:
 		roleModels, err = impl.userAuthRepository.GetRolesForEnvironment(entityName, envIdentifier)
-	case repository2.APP_TYPE:
+	case bean2.APP_TYPE:
 		roleModels, err = impl.userAuthRepository.GetRolesForApp(entityName)
-	case repository2.CHART_GROUP_TYPE:
+	case bean2.CHART_GROUP_TYPE:
 		roleModels, err = impl.userAuthRepository.GetRolesForChartGroup(entityName)
 	}
 	if err != nil {
