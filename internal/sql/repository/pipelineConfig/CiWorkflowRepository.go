@@ -247,7 +247,7 @@ func (impl *CiWorkflowRepositoryImpl) FIndCiWorkflowStatusesByAppId(appId int) (
 
 	ciworkflowStatuses := make([]*CiWorkflowStatus, 0)
 
-	query := "SELECT cw1.id,cw1.status,cw1.blob_storage_enabled,cw1.ci_pipeline_id " +
+	query := "SELECT cw1.ci_pipeline_id,cw1.status as ci_status,cw1.blob_storage_enabled as storage_configured,cw1.ci_pipeline_id " +
 		" FROM ci_workflow cw1 INNER JOIN " +
 		" (SELECT cw.ci_pipeline_id, max(cw.id) " +
 		" FROM ci_workflow cw INNER JOIN " +
