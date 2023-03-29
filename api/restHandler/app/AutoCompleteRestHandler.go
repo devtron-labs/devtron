@@ -1,11 +1,13 @@
 package app
 
 import (
+	"context"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
+	"go.opentelemetry.io/otel"
 	"net/http"
 	"strconv"
 )
@@ -73,6 +75,7 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListForAutocomplete(w http.Re
 	}
 
 	// RBAC
+	_, span := otel.Tracer("autoCompleteAppAPI").Start(context.Background(), "RBACForAutoCompleteAppAPI")
 	token := r.Header.Get("token")
 	userEmailId, err := handler.userAuthService.GetEmailFromToken(token)
 	if err != nil {
@@ -102,6 +105,7 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListForAutocomplete(w http.Re
 			accessedApps = append(accessedApps, app)
 		}
 	}
+	span.End()
 	// RBAC
 	common.WriteJsonResp(w, err, accessedApps, http.StatusOK)
 }
