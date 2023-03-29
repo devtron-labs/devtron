@@ -105,6 +105,7 @@ type PipelineRepository interface {
 	GetPartiallyDeletedPipelineByStatus(appId int, envId int) (Pipeline, error)
 	FindActiveByAppIds(appIds []int) (pipelines []*Pipeline, err error)
 	FindAppAndEnvironmentAndProjectByPipelineIds(pipelineIds []int) (pipelines []*Pipeline, err error)
+	FilterDeploymentDeleteRequestedPipelineIds(cdPipelineIds []int) (map[int]bool, error)
 }
 
 type CiArtifactDTO struct {
@@ -610,4 +611,18 @@ func (impl PipelineRepositoryImpl) FindAppAndEnvironmentAndProjectByPipelineIds(
 		Where("pipeline.deleted = ?", false).
 		Select()
 	return pipelines, err
+}
+
+func (impl PipelineRepositoryImpl) FilterDeploymentDeleteRequestedPipelineIds(cdPipelineIds []int) (map[int]bool, error) {
+	var pipelineIds []int
+	pipelineIdsMap := make(map[int]bool)
+	query := "select pipeline.id from pipeline where pipeline.id in (?) and pipeline.deployment_app_delete_request = ?;"
+	_, err := impl.dbConnection.Query(&pipelineIds, query, pg.In(cdPipelineIds), true)
+	if err != nil {
+		return pipelineIdsMap, err
+	}
+	for _, pipelineId := range pipelineIds {
+		pipelineIdsMap[pipelineId] = true
+	}
+	return pipelineIdsMap, nil
 }

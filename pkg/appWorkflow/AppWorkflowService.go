@@ -43,6 +43,7 @@ type AppWorkflowService interface {
 
 	SaveAppWorkflowMapping(wf AppWorkflowMappingDto) (AppWorkflowMappingDto, error)
 	FindAppWorkflowMapping(workflowId int) ([]AppWorkflowMappingDto, error)
+	FindAllAppWorkflowMapping(workflowIds []int) (map[int][]AppWorkflowMappingDto, error)
 	FindAppWorkflowMappingByComponent(id int, compType string) ([]*appWorkflow.AppWorkflowMapping, error)
 	CheckCdPipelineByCiPipelineId(id int) bool
 	FindAppWorkflowByName(name string, appId int) (AppWorkflowDto, error)
@@ -143,26 +144,32 @@ func (impl AppWorkflowServiceImpl) CreateAppWorkflow(req AppWorkflowDto) (AppWor
 }
 
 func (impl AppWorkflowServiceImpl) FindAppWorkflows(appId int) ([]AppWorkflowDto, error) {
-	appWorkflow, err := impl.appWorkflowRepository.FindByAppId(appId)
+	appWorkflows, err := impl.appWorkflowRepository.FindByAppId(appId)
 	if err != nil && err != pg.ErrNoRows {
-		impl.Logger.Errorw("err", err)
+		impl.Logger.Errorw("error occurred while fetching app workflows", "appId", appId, "err", err)
 		return nil, err
 	}
 	var workflows []AppWorkflowDto
-	for _, w := range appWorkflow {
+	var wfIds []int
+	for _, appWf := range appWorkflows {
+		wfIds = append(wfIds, appWf.Id)
+	}
+
+	wfrIdVsMappings, err := impl.FindAllAppWorkflowMapping(wfIds)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, w := range appWorkflows {
 		workflow := AppWorkflowDto{
 			Id:    w.Id,
 			Name:  w.Name,
 			AppId: w.AppId,
 		}
-
-		mapping, err := impl.FindAppWorkflowMapping(w.Id)
-		if err != nil {
-			return nil, err
-		}
-		workflow.AppWorkflowMappingDto = mapping
+		workflow.AppWorkflowMappingDto = wfrIdVsMappings[w.Id]
 		workflows = append(workflows, workflow)
 	}
+
 	return workflows, err
 }
 
@@ -268,6 +275,52 @@ func (impl AppWorkflowServiceImpl) SaveAppWorkflowMapping(req AppWorkflowMapping
 	}
 
 	return AppWorkflowMappingDto{}, nil
+}
+
+func (impl AppWorkflowServiceImpl) FindAllAppWorkflowMapping(workflowIds []int) (map[int][]AppWorkflowMappingDto, error) {
+	appWorkflowMappings, err := impl.appWorkflowRepository.FindByWorkflowIds(workflowIds)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("error occurred while fetching app wf mapping", "workflowIds", workflowIds, "err", err)
+		return nil, err
+	}
+	var workflowMappingDtos []AppWorkflowMappingDto
+	var cdPipelineIds []int
+	for _, w := range appWorkflowMappings {
+		workflow := AppWorkflowMappingDto{
+			Id:            w.Id,
+			ParentId:      w.ParentId,
+			ComponentId:   w.ComponentId,
+			Type:          w.Type,
+			AppWorkflowId: w.AppWorkflowId,
+			ParentType:    w.ParentType,
+		}
+		if w.Type == "CD_PIPELINE" {
+			cdPipelineIds = append(cdPipelineIds, w.ComponentId)
+		}
+		workflowMappingDtos = append(workflowMappingDtos, workflow)
+	}
+	if len(cdPipelineIds) > 0 {
+		var cdPipelineIdMap map[int]bool
+		cdPipelineIdMap, err = impl.pipelineRepository.FilterDeploymentDeleteRequestedPipelineIds(cdPipelineIds)
+		if err != nil && err != pg.ErrNoRows {
+			impl.Logger.Errorw("error occurred while filtering out delete request pipelines", "cdPipelineIds", cdPipelineIds, "err", err)
+			return nil, err
+		}
+		for _, workflowMapping := range workflowMappingDtos {
+			if workflowMapping.Type == "CD_PIPELINE" && cdPipelineIdMap[workflowMapping.ComponentId] {
+				workflowMapping.DeploymentAppDeleteRequest = true
+			}
+		}
+	}
+	wfIdVsMappings := make(map[int][]AppWorkflowMappingDto)
+	for _, workflowMappingDto := range workflowMappingDtos {
+		appWorkflowId := workflowMappingDto.AppWorkflowId
+		workflowMappings := wfIdVsMappings[appWorkflowId]
+		workflowMappings = append(workflowMappings, workflowMappingDto)
+		wfIdVsMappings[appWorkflowId] = workflowMappings
+	}
+	return wfIdVsMappings, err
+
 }
 
 func (impl AppWorkflowServiceImpl) FindAppWorkflowMapping(workflowId int) ([]AppWorkflowMappingDto, error) {
