@@ -22,17 +22,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/chart"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/argo"
 	"go.opentelemetry.io/otel"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
-
-	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
@@ -522,7 +521,10 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerVie
 	//RBAC CHECK
 
 	triggerWorkflowStatus := pipelineConfig.TriggerWorkflowStatus{}
+	//t0 := time.Now()
 	ciWorkflowStatus, err := handler.ciHandler.FetchCiStatusForTriggerView(appId)
+	//dt := time.Since(t0).Milliseconds()
+	//fmt.Println(dt)
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchAppWorkflowStatusForTriggerView", "err", err, "appId", appId)
 		if util.IsErrNoRows(err) {
@@ -534,19 +536,19 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerVie
 		return
 	}
 
-	cdWorkflowStatus, err := handler.cdHandler.FetchAppWorkflowStatusForTriggerView(appId)
-	if err != nil {
-		handler.Logger.Errorw("service err, FetchAppWorkflowStatusForTriggerView", "err", err, "appId", appId)
-		if util.IsErrNoRows(err) {
-			err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no status found"}
-			common.WriteJsonResp(w, err, nil, http.StatusOK)
-		} else {
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		}
-		return
-	}
+	//cdWorkflowStatus, err := handler.cdHandler.FetchAppWorkflowStatusForTriggerView(appId)
+	//if err != nil {
+	//	handler.Logger.Errorw("service err, FetchAppWorkflowStatusForTriggerView", "err", err, "appId", appId)
+	//	if util.IsErrNoRows(err) {
+	//		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no status found"}
+	//		common.WriteJsonResp(w, err, nil, http.StatusOK)
+	//	} else {
+	//		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+	//	}
+	//	return
+	//}
 	triggerWorkflowStatus.CiWorkflowStatus = ciWorkflowStatus
-	triggerWorkflowStatus.CdWorkflowStatus = cdWorkflowStatus
+	//triggerWorkflowStatus.CdWorkflowStatus = cdWorkflowStatus
 	common.WriteJsonResp(w, err, triggerWorkflowStatus, http.StatusOK)
 }
 
