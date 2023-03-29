@@ -97,6 +97,10 @@ spec:
       terminationGracePeriodSeconds: 30
       restartPolicy: Always
       serviceAccountName: devtron
+      {{- if and $.Values.global $.Values.global.podSecurityContext }}
+      securityContext:
+{{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
+      {{- end }}
       containers:
         - name: devtron
           {{- if $.Values.installer.modules }}
@@ -109,6 +113,10 @@ spec:
           image: {{ $.Values.components.devtron.image }}
           {{- end }}
           imagePullPolicy: {{ .imagePullPolicy }}
+          {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+          securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
+          {{- end }}
           lifecycle:
             preStop:
               exec:

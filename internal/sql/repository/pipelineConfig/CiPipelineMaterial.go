@@ -124,8 +124,9 @@ func (impl CiPipelineMaterialRepositoryImpl) Update(tx *pg.Tx, materials ...*CiP
 		return nil
 	})*/
 	for _, material := range materials {
-		err := tx.Update(material)
+		_, err := tx.Model(material).WherePK().UpdateNotNull()
 		if err != nil {
+			impl.logger.Errorw("error in deleting ci pipeline material", "err", err)
 			return err
 		}
 	}

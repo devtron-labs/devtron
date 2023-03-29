@@ -30,6 +30,7 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/cron"
 	"github.com/devtron-labs/devtron/internal/constants"
+	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -296,7 +297,9 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 	}
 
 	newCtx, span = otel.Tracer("appListingService").Start(newCtx, "FetchAppsByEnvironment")
+	start := time.Now()
 	envContainers, err := handler.appListingService.FetchAppsByEnvironment(fetchAppListingRequest, w, r, token)
+	middleware.AppListingDuration.WithLabelValues("fetchAppsByEnvironment", "devtron").Observe(time.Since(start).Seconds())
 	span.End()
 	if err != nil {
 		handler.logger.Errorw("service err, FetchAppsByEnvironment", "err", err, "payload", fetchAppListingRequest)
@@ -333,7 +336,9 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 		}
 
 		newCtx, span = otel.Tracer("enforcer").Start(newCtx, "EnforceByEmailInBatchForTeams")
+		start = time.Now()
 		resultMap := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceTeam, casbin.ActionGet, objectArray)
+		middleware.AppListingDuration.WithLabelValues("enforceByEmailInBatchResourceTeam", "devtron").Observe(time.Since(start).Seconds())
 		span.End()
 		for teamId, teamName := range uniqueTeams {
 			object := strings.ToLower(teamName)
@@ -362,7 +367,9 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 		}
 
 		newCtx, span = otel.Tracer("enforcer").Start(newCtx, "EnforceByEmailInBatchForApps")
+		start = time.Now()
 		resultMap = handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceApplications, casbin.ActionGet, objectArray)
+		middleware.AppListingDuration.WithLabelValues("enforceByEmailInBatchResourceApplication", "devtron").Observe(time.Since(start).Seconds())
 		span.End()
 		for _, filteredAppEnvContainer := range filteredAppEnvContainers {
 			if fetchAppListingRequest.DeploymentGroupId > 0 {

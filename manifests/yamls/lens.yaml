@@ -64,10 +64,18 @@ spec:
     spec:
       terminationGracePeriodSeconds: 30
       restartPolicy: Always
+      securityContext:
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsUser: 1000
       containers:
         - name: lens
-          image: "quay.io/devtron/lens:fbb005ef-333-12563"
+          image: "quay.io/devtron/lens:f71dba2a-333-13262"
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsUser: 1000
+            runAsNonRoot: true
           ports:
             - name: app
               containerPort: 8080
