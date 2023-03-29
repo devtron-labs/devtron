@@ -114,12 +114,14 @@ secret:
   enabled: false
 
 statefulSet:
+  podManagementPolicy: 
+  updateStrategy:
+  serviceName: 
   volumeClaimTEmplates:
       name:
       accessModes:
       storageClassName:
       storage:
-  serviceName: 
 
 service:
   type: ClusterIP

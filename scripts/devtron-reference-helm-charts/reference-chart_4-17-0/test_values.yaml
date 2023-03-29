@@ -114,6 +114,16 @@ autoscaling:
 #      type: External
 #
 
+statefulSet:
+  podManagementPolicy: "Parallel"
+  updateStrategy: RollingUpdate
+  volumeClaimTEmplates: 
+      name: www
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "my-storage-class"
+      storage: 1Gi
+  serviceName: "nginx"
+
 secret:
   enabled: false
 
