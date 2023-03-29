@@ -113,6 +113,14 @@ kedaAutoscaling:
 secret:
   enabled: false
 
+statefulSet:
+  volumeClaimTEmplates:
+      name:
+      accessModes:
+      storageClassName:
+      storage:
+  serviceName: 
+
 service:
   type: ClusterIP
 #  name: "1234567890123456789012345678901234567890123456789012345678901234567890"
