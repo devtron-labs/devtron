@@ -124,7 +124,6 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 				}
 			} else {
 				actionType := roleFilter.Action
-
 				accessType := roleFilter.AccessType
 				entityNames := strings.Split(roleFilter.EntityName, ",")
 				environments := strings.Split(roleFilter.Environment, ",")
@@ -137,13 +136,7 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 							impl.logger.Errorw("error in getting new role model")
 							return nil, err
 						}
-						oldRoleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "", true)
-						if err != nil {
-							impl.logger.Errorw("error in getting old role model already present", "err", err)
-							return nil, err
-						}
-
-						if oldRoleModel.Id == 0 && roleModel.Id == 0 {
+						if roleModel.Id == 0 {
 							if roleFilter.Entity == bean2.ENTITY_APPS || roleFilter.Entity == bean.CHART_GROUP_ENTITY {
 								flag, err, policiesAdded := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType, request.UserId)
 								if err != nil || flag == false {
@@ -161,33 +154,7 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 							} else {
 								continue
 							}
-						} else if oldRoleModel.Id > 0 && roleModel.Id == 0 {
-							flag, err := impl.userAuthRepository.CreateRolesWithAccessTypeAndEntity(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType, request.UserId, oldRoleModel.Role)
-							if err != nil || flag == false {
-								return nil, err
-							}
-							impl.logger.Infow("Getting Role by filter Again for other Types  ")
-							roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "", false)
-							if err != nil {
-								return nil, err
-							}
-							if roleModel.Id == 0 {
-								continue
-							}
-							// shift user_role_mapping queries
-							userRole, err := impl.userRepository.UpdateRoleIdForUserRolesMappings(oldRoleModel.Id, roleModel.Id)
-							if err != nil {
-								impl.logger.Errorw("Error in updating role id from old roles with new role(access_type  and entity)", "err", err)
-							}
-
-							roleGroupRole, err := impl.roleGroupRepository.UpdateRoleGroupIdForRoleGroupMappings(oldRoleModel.Id, roleModel.Id)
-							if err != nil {
-								impl.logger.Errorw("Error in updating Role Group Role Mappings for old role with new roles (access_type and entity)", "err", err)
-							}
-							impl.logger.Infow("updated user role and roleGroups with new values", "userrole", userRole, "grouprole", roleGroupRole)
-
 						}
-
 						if roleModel.Id > 0 {
 							roleGroupMappingModel := &repository2.RoleGroupRoleMapping{RoleGroupId: model.Id, RoleId: roleModel.Id}
 							roleGroupMappingModel.CreatedBy = request.UserId
@@ -249,12 +216,7 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForClusterEntity(roleFil
 						impl.logger.Errorw("error in getting new role model by filter")
 						return policiesToBeAdded, err
 					}
-					oldRoleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, "", "", "", "", accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType, true)
-					if err != nil {
-						impl.logger.Errorw("error in getting old role model by filter already present")
-						return policiesToBeAdded, err
-					}
-					if roleModel.Id == 0 && oldRoleModel.Id == 0 {
+					if roleModel.Id == 0 {
 						flag, err, policiesAdded := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes("", "", "", entity, roleFilter.Cluster, namespace, group, kind, resource, actionType, accessType, userId)
 						if err != nil || flag == false {
 							return policiesToBeAdded, err
@@ -267,31 +229,6 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForClusterEntity(roleFil
 						if roleModel.Id == 0 {
 							continue
 						}
-					} else if oldRoleModel.Id > 0 && roleModel.Id == 0 {
-						flag, err := impl.userAuthRepository.CreateRolesWithAccessTypeAndEntity("", "", "", roleFilter.Entity, roleFilter.Cluster, namespace, group, kind, resource, actionType, accessType, userId, oldRoleModel.Role)
-						if err != nil || flag == false {
-							return policiesToBeAdded, err
-						}
-						impl.logger.Infow("Getting Role by filter Again for other Types  ")
-						roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, "", "", "", "", accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType, false)
-						if err != nil {
-							return policiesToBeAdded, err
-						}
-						if roleModel.Id == 0 {
-							continue
-						}
-						// shift user_role_mapping queries
-						userRole, err := impl.userRepository.UpdateRoleIdForUserRolesMappings(oldRoleModel.Id, roleModel.Id)
-						if err != nil {
-							impl.logger.Errorw("Error in updating User Role Mappings for role", "err", err)
-						}
-
-						roleGroupRole, err := impl.roleGroupRepository.UpdateRoleGroupIdForRoleGroupMappings(oldRoleModel.Id, roleModel.Id)
-						if err != nil {
-							impl.logger.Errorw("Error in updating Role Group Role Mappings for role", "err", err)
-						}
-						impl.logger.Infow("updated user role and roleGroups", "userrole", userRole, "grouprole", roleGroupRole)
-
 					}
 					if _, ok := existingRoles[roleModel.Id]; ok {
 						//Adding policies which are removed
@@ -373,7 +310,6 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 	// DELETE PROCESS ENDS
 
 	//Adding New Policies
-	//var policies []casbin2.Policy
 	capacity, mapping := impl.userCommonService.GetCapacityForRoleFilter(request.RoleFilters)
 	var policies = make([]casbin2.Policy, 0, capacity)
 	for index, roleFilter := range request.RoleFilters {
@@ -407,14 +343,8 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 					if err != nil {
 						return nil, err
 					}
-					oldRoleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "", true)
-					if err != nil {
-						return nil, err
-					}
-					if oldRoleModel.Id == 0 && roleModel.Id == 0 {
-
+					if roleModel.Id == 0 {
 						request.Status = bean2.RoleNotFoundStatusPrefix + roleFilter.Team + "," + environment + "," + entityName + "," + actionType
-
 						if roleFilter.Entity == bean2.ENTITY_APPS || roleFilter.Entity == bean.CHART_GROUP_ENTITY {
 							flag, err, policiesAdded := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType, request.UserId)
 							policies = append(policies, policiesAdded...)
@@ -432,34 +362,7 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 						} else {
 							continue
 						}
-					} else if oldRoleModel.Id > 0 && roleModel.Id == 0 {
-
-						flag, err := impl.userAuthRepository.CreateRolesWithAccessTypeAndEntity(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType, request.UserId, oldRoleModel.Role)
-						if err != nil || flag == false {
-							return nil, err
-						}
-						impl.logger.Infow("Getting Role by filter Again for other Types  ", "roleFilter", roleFilter)
-						roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "", false)
-						if err != nil {
-							return nil, err
-						}
-						if roleModel.Id == 0 {
-							continue
-						}
-						// shift user_role_mapping queries
-						userRole, err := impl.userRepository.UpdateRoleIdForUserRolesMappings(oldRoleModel.Id, roleModel.Id)
-						if err != nil {
-							impl.logger.Errorw("Error in updating User Role Mappings for role", "err", err)
-						}
-
-						roleGroupRole, err := impl.roleGroupRepository.UpdateRoleGroupIdForRoleGroupMappings(oldRoleModel.Id, roleModel.Id)
-						if err != nil {
-							impl.logger.Errorw("Error in updating Role Group Role Mappings for role", "err", err)
-						}
-						impl.logger.Infow("updated user role and roleGroups", "userrole", userRole, "grouprole", roleGroupRole)
-
 					}
-
 					if _, ok := existingRoles[roleModel.Id]; ok {
 						//Adding policies which is removed
 						policies = append(policies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(roleGroup.CasbinName), Obj: casbin2.Object(roleModel.Role)})
