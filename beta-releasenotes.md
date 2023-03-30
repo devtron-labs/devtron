@@ -1,4 +1,5 @@
 ## Bugs
+- fix: label key can be saved without value if saved without propagation (#3190)
 - fix: rbac optimisation for creation of policies for devtron app, helm app and cluster (#2948)
 - fix: handled case for failed type assertion (#3208)
 ## Enhancements
