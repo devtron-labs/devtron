@@ -103,6 +103,20 @@ func (impl *AppListingViewBuilderImpl) BuildView(fetchAppListingRequest FetchApp
 					return appContainersResponses[i].AppName > appContainersResponses[j].AppName
 				})
 			}
+		} else if helper.LastDeployedSortBy == fetchAppListingRequest.SortBy {
+			if fetchAppListingRequest.SortOrder == helper.Asc {
+				sort.Slice(appContainersResponses, func(i, j int) bool {
+					deployedTime1 := appContainersResponses[i].AppEnvironmentContainer[0].LastDeployedTime
+					deployedTime2 := appContainersResponses[j].AppEnvironmentContainer[0].LastDeployedTime
+					return deployedTime1 > deployedTime2
+				})
+			} else if fetchAppListingRequest.SortOrder == helper.Desc {
+				sort.Slice(appContainersResponses, func(i, j int) bool {
+					deployedTime1 := appContainersResponses[i].AppEnvironmentContainer[0].LastDeployedTime
+					deployedTime2 := appContainersResponses[j].AppEnvironmentContainer[0].LastDeployedTime
+					return deployedTime1 < deployedTime2
+				})
+			}
 		}
 	}
 	return appContainersResponses, nil
