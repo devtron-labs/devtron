@@ -99,6 +99,7 @@ type CiPipelineRepository interface {
 	FindAllPipelineInLast24Hour() (pipelines []*CiPipeline, err error)
 	FindNumberOfAppsWithCiPipeline(appIds []int) (count int, err error)
 	FindAppAndProjectByCiPipelineIds(ciPipelineIds []int) ([]*CiPipeline, error)
+	FindWithMinDataByCiPipelineId(id int) (pipeline *CiPipeline, err error)
 }
 type CiPipelineRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -243,6 +244,17 @@ func (impl CiPipelineRepositoryImpl) FindById(id int) (pipeline *CiPipeline, err
 	pipeline = &CiPipeline{Id: id}
 	err = impl.dbConnection.Model(pipeline).
 		Column("ci_pipeline.*", "App", "CiPipelineMaterials", "CiTemplate", "CiTemplate.DockerRegistry", "CiPipelineMaterials.GitMaterial").
+		Where("ci_pipeline.id= ?", id).
+		Where("ci_pipeline.deleted =? ", false).
+		Select()
+
+	return pipeline, err
+}
+
+func (impl CiPipelineRepositoryImpl) FindWithMinDataByCiPipelineId(id int) (pipeline *CiPipeline, err error) {
+	pipeline = &CiPipeline{Id: id}
+	err = impl.dbConnection.Model(pipeline).
+		Column("ci_pipeline.*", "CiTemplate").
 		Where("ci_pipeline.id= ?", id).
 		Where("ci_pipeline.deleted =? ", false).
 		Select()
