@@ -555,8 +555,8 @@ func (impl PipelineBuilderImpl) GetTriggerViewCiPipeline(appId int) (*bean.Trigg
 	}
 	if errors.IsNotFound(err) {
 		impl.logger.Debugw("no ci pipeline exists", "appId", appId, "err", err)
-		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no ci pipeline exists"}
-		return nil, err
+		//err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no ci pipeline exists"}
+		return nil, nil
 	}
 	template := ciTemplateBean.CiTemplate
 
