@@ -69,6 +69,7 @@ type AppRepository interface {
 	FetchAllActiveDevtronAppsWithAppIdAndName() ([]*App, error)
 	FindEnvironmentIdForInstalledApp(appId int) (int, error)
 	FetchAppIdsWithFilter(jobListingFilter helper.AppListingFilter) ([]int, error)
+	FindAppAndProjectByIdsIn(ids []int) ([]*App, error)
 }
 
 const DevtronApp = "DevtronApp"
@@ -383,4 +384,10 @@ func (repo AppRepositoryImpl) FetchAppIdsWithFilter(jobListingFilter helper.AppL
 		appCounts = append(appCounts, id.Id)
 	}
 	return appCounts, err
+}
+
+func (repo AppRepositoryImpl) FindAppAndProjectByIdsIn(ids []int) ([]*App, error) {
+	var apps []*App
+	err := repo.dbConnection.Model(&apps).Column("app.*", "Team").Where("app.active = ?", true).Where("app.id in (?)", pg.In(ids)).Select()
+	return apps, err
 }
