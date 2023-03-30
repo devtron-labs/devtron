@@ -1,5 +1,6 @@
 # Mandatory configs
 
+kind: Rollout
 rolloutLabels: {}
 rolloutAnnotations: {}
 
@@ -14,6 +15,19 @@ containerSpec:
         host: example.com
         path: /example
         port: 90
+
+statefulSet:
+  annotations: {}
+  labels: {}
+  podManagementPolicy: OrderedReady
+  serviceName: test
+  volumeClaimTemplates:
+  - apiVersion: v1
+    kind: PersistentVolumeClaim
+    annotations: {}
+    storage: 5Gi
+    accessModes: []
+    storageClass: gp2
 
 replicaCount: 1
 MinReadySeconds: 60
