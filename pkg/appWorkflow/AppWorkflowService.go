@@ -22,6 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -67,6 +68,13 @@ type AppWorkflowDto struct {
 	AppId                 int                     `json:"appId"`
 	AppWorkflowMappingDto []AppWorkflowMappingDto `json:"tree,omitempty"`
 	UserId                int32                   `json:"-"`
+}
+
+type TriggerViewWorkflowConfig struct {
+	Workflows        []AppWorkflowDto          `json:"workflows"`
+	CiConfig         *bean.TriggerViewCiConfig `json:"ciConfig"`
+	CdPipelines      *bean.CdPipelines         `json:"cdConfig"`
+	ExternalCiConfig []*bean.ExternalCiConfig  `json:"externalCiConfig"`
 }
 
 type AppWorkflowMappingDto struct {

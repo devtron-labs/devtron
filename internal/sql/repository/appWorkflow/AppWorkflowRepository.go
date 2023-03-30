@@ -417,6 +417,9 @@ func (impl AppWorkflowRepositoryImpl) FindByCDPipelineIds(cdPipelineIds []int) (
 
 func (impl AppWorkflowRepositoryImpl) FindByWorkflowIds(workflowIds []int) ([]*AppWorkflowMapping, error) {
 	var appWorkflowsMapping []*AppWorkflowMapping
+	if len(workflowIds) == 0 {
+		return appWorkflowsMapping, nil
+	}
 	err := impl.dbConnection.Model(&appWorkflowsMapping).
 		Where("app_workflow_id in (?)", pg.In(workflowIds)).
 		Where("active = ?", true).
