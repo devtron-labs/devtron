@@ -116,6 +116,7 @@ type PipelineBuilder interface {
 	FindAppsByTeamId(teamId int) ([]*AppBean, error)
 	FindAppsByTeamName(teamName string) ([]AppBean, error)
 	FindPipelineById(cdPipelineId int) (*pipelineConfig.Pipeline, error)
+	FindAppAndEnvDetailsByPipelineId(cdPipelineId int) (*pipelineConfig.Pipeline, error)
 	GetAppList() ([]AppBean, error)
 	GetCiPipelineMin(appId int) ([]*bean.CiPipelineMin, error)
 
@@ -3023,6 +3024,10 @@ func (impl PipelineBuilderImpl) FindAppsByTeamName(teamName string) ([]AppBean, 
 
 func (impl PipelineBuilderImpl) FindPipelineById(cdPipelineId int) (*pipelineConfig.Pipeline, error) {
 	return impl.pipelineRepository.FindById(cdPipelineId)
+}
+
+func (impl PipelineBuilderImpl) FindAppAndEnvDetailsByPipelineId(cdPipelineId int) (*pipelineConfig.Pipeline, error) {
+	return impl.pipelineRepository.FindAppAndEnvDetailsByPipelineId(cdPipelineId)
 }
 
 type TeamAppBean struct {
