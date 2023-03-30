@@ -42,6 +42,7 @@ import (
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/tidwall/gjson"
 	"net/http"
+	"regexp"
 
 	/* #nosec */
 	"crypto/sha1"
@@ -84,6 +85,7 @@ type InstalledAppService interface {
 	MarkGitOpsInstalledAppsDeletedIfArgoAppIsDeleted(installedAppId int, envId int) error
 	CheckAppExistsByInstalledAppId(installedAppId int) error
 	FindNotesForArgoApplication(installedAppId, envId int) (string, string, error)
+	FetchChartNotes(installedAppId int, envId int, token string, checkNotesAuth func(token string, appName string, envId int) bool) (string, error)
 	FetchResourceTreeWithHibernateForACD(rctx context.Context, cn http.CloseNotifier, appDetail *bean2.AppDetailContainer) bean2.AppDetailContainer
 }
 
@@ -788,6 +790,47 @@ func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(instal
 	}
 	return appDetail, nil
 }
+func (impl *InstalledAppServiceImpl) FetchChartNotes(installedAppId int, envId int, token string, checkNotesAuth func(token string, appName string, envId int) bool) (string, error) {
+	//check notes.txt in db
+	installedApp, err := impl.installedAppRepository.FetchNotes(installedAppId)
+	installedAppVerison, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdAndEnvId(installedAppId, envId)
+	if err != nil {
+		impl.logger.Errorw("error fetching installed  app version in installed app service", "err", err)
+		return "", err
+	}
+	chartVersion := installedAppVerison.AppStoreApplicationVersion.Version
+	if err != nil {
+		impl.logger.Errorw("error fetching chart  version in installed app service", "err", err)
+		return "", err
+	}
+	re := regexp.MustCompile(`CHART VERSION: ([0-9]+\.[0-9]+\.[0-9]+)`)
+	newStr := re.ReplaceAllString(installedApp.Notes, "CHART VERSION: "+chartVersion)
+	installedApp.Notes = newStr
+	appName := installedApp.App.AppName
+	if err != nil {
+		impl.logger.Errorw("error fetching notes from db", "err", err)
+		return "", err
+	}
+	isValidAuth := checkNotesAuth(token, appName, envId)
+	if !isValidAuth {
+		impl.logger.Errorw("unauthorized user", "isValidAuth", isValidAuth)
+		return "", fmt.Errorf("unauthorized user")
+	}
+	//if notes is not present in db then below call will happen
+	if installedApp.Notes == "" {
+		notes, _, err := impl.FindNotesForArgoApplication(installedAppId, envId)
+		if err != nil {
+			impl.logger.Errorw("error fetching notes", "err", err)
+			return "", err
+		}
+		if notes == "" {
+			impl.logger.Errorw("error fetching notes", "err", err)
+		}
+		return notes, err
+	}
+
+	return installedApp.Notes, nil
+}
 func (impl *InstalledAppServiceImpl) FindNotesForArgoApplication(installedAppId, envId int) (string, string, error) {
 	installedAppVerison, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdAndEnvId(installedAppId, envId)
 	if err != nil {
@@ -834,7 +877,13 @@ func (impl *InstalledAppServiceImpl) FindNotesForArgoApplication(installedAppId,
 			impl.logger.Errorw("error in fetching notes", "err", err)
 			return notes, appName, err
 		}
+		_, err = impl.appStoreDeploymentService.UpdateNotesForInstalledApp(installedAppId, notes)
+		if err != nil {
+			impl.logger.Errorw("error in updating notes in db ", "err", err)
+			return notes, appName, err
+		}
 	}
+
 	return notes, appName, nil
 }
 

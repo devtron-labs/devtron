@@ -37,6 +37,7 @@
 - feat: Add timer telemetry for App List (#3185)
 - feat:Sorting applist according to deployed time (#3108)
 - feat:git material source type editable (#3015)
+- feat: Using server url in application object (#3175)
 - feat: Add timer/counter telemetry for GitOps (#3119)
 - feat: show notes txt for  helmapps deployed by  helm (#2966)
 - feat: enable auto deployment trigger option after deployment app change (#3110)
@@ -67,5 +68,6 @@
 - chore:  enterprise-repo-sync.yaml (#3127)
 - task: restricted deployment status updation cron to fetch pipelines deployed within hours (#3104)
 - chore: upgrade common-lib dependency (#3052)
+- feat - Use cluster-name instead of server url in Argo cd application objects  (#2958)
 
 
