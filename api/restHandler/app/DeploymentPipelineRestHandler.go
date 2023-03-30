@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type DevtronAppDeploymentRestHandler interface {
@@ -718,7 +719,10 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelines(w http.ResponseWrite
 		return
 	}
 
+	t := time.Now()
 	ciConf, err := handler.pipelineBuilder.GetCdPipelinesForApp(appId)
+	tAfter := time.Since(t)
+	println(tAfter)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetCdPipelines", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
