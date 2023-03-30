@@ -3735,28 +3735,6 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int, emailId st
 		ciOverrideTemplateMap[ciTemplateOverride.CiPipelineId] = templateBeanOverride
 	}
 
-	ciPipelineScripts, err := impl.ciPipelineRepository.FindCiScriptsByCiPipelineIds(ciPipelineIds)
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.logger.Errorw("error in fetching ci scripts")
-		return nil, err
-	}
-
-	beforeDockerBuildScripts := make(map[int][]*bean.CiScript)
-	afterDockerBuildScripts := make(map[int][]*bean.CiScript)
-	for _, ciScript := range ciPipelineScripts {
-		ciScriptResp := &bean.CiScript{
-			Id:             ciScript.Id,
-			Index:          ciScript.Index,
-			Name:           ciScript.Name,
-			Script:         ciScript.Script,
-			OutputLocation: ciScript.OutputLocation,
-		}
-		if ciScript.Stage == BEFORE_DOCKER_BUILD {
-			beforeDockerBuildScripts[ciScript.CiPipelineId] = append(beforeDockerBuildScripts[ciScript.CiPipelineId], ciScriptResp)
-		} else if ciScript.Stage == AFTER_DOCKER_BUILD {
-			afterDockerBuildScripts[ciScript.CiPipelineId] = append(afterDockerBuildScripts[ciScript.CiPipelineId], ciScriptResp)
-		}
-	}
 	var externalCiConfig bean.ExternalCiConfig
 	var parentCiPipelineIds []int
 	for appId, ciPipelinesConfigByApp := range ciPipelinesConfigMap {
@@ -3782,8 +3760,6 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int, emailId st
 				IsExternal:               pipeline.IsExternal,
 				ParentCiPipeline:         pipeline.ParentCiPipeline,
 				ExternalCiConfig:         externalCiConfig,
-				BeforeDockerBuildScripts: beforeDockerBuildScripts[pipeline.Id],
-				AfterDockerBuildScripts:  afterDockerBuildScripts[pipeline.Id],
 				ScanEnabled:              pipeline.ScanEnabled,
 				IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
 			}
@@ -3829,21 +3805,6 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int, emailId st
 		ciPipelinesConfigByApps = append(ciPipelinesConfigByApps, ciPipelinesConfigByApp)
 	}
 
-	parentCiPipelines, err := impl.ciPipelineRepository.FindByIdsIn(parentCiPipelineIds)
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.logger.Errorw("err", err)
-		return nil, err
-	}
-	parentCiPipelineMap := make(map[int]*pipelineConfig.CiPipeline)
-	for _, parentCiPipeline := range parentCiPipelines {
-		parentCiPipelineMap[parentCiPipeline.Id] = parentCiPipeline
-	}
-	for _, ciPipelinesConfigByApp := range ciPipelinesConfigByApps {
-		for _, pipeline := range ciPipelinesConfigByApp.CiPipelines {
-			appId := parentCiPipelineMap[pipeline.ParentCiPipeline].AppId
-			pipeline.ParentAppId = appId
-		}
-	}
 	return ciPipelinesConfigByApps, err
 }
 
