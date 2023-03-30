@@ -508,11 +508,13 @@ func (impl AppListingRepositoryImpl) FetchOtherEnvironment(appId int) ([]*bean.E
 func (impl AppListingRepositoryImpl) FetchMinDetailOtherEnvironment(appId int) ([]*bean.Environment, error) {
 	impl.Logger.Debug("reached at FetchMinDetailOtherEnvironment:")
 	var otherEnvironments []*bean.Environment
-	query := `SELECT p.environment_id,env.environment_name, env.default as prod, p.deployment_app_delete_request from 
+	query := `SELECT p.environment_id,env.environment_name, env.default as prod, p.deployment_app_delete_request,
+       			env_app_m.app_metrics,env_app_m.infra_metrics from 
  				(SELECT pl.id,pl.app_id,pl.environment_id,pl.deleted, pl.deployment_app_delete_request from pipeline pl 
   					LEFT JOIN pipeline_config_override pco on pco.pipeline_id = pl.id where pl.app_id = ? and pl.deleted = FALSE 
   					GROUP BY pl.id) p INNER JOIN environment env on env.id=p.environment_id 
-                	where p.app_id=? and p.deleted = FALSE and env.active = TRUE;`
+                	LEFT JOIN env_level_app_metrics env_app_m on env.id=env_app_m.env_id and p.app_id = env_app_m.app_id 
+                    where p.app_id=? and p.deleted = FALSE AND env.active = TRUE`
 	_, err := impl.dbConnection.Query(&otherEnvironments, query, appId, appId)
 	if err != nil {
 		impl.Logger.Error("error in fetching other environment", "error", err)
