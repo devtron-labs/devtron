@@ -21,8 +21,10 @@ import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
+	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -303,14 +305,20 @@ func (handler *AppWorkflowRestHandlerImpl) GetWorkflowsViewData(w http.ResponseW
 			handler.Logger.Errorw("error in fetching trigger view cd pipeline data for app", "appId", appId, "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
+		} else {
+			err = nil
 		}
 	}
 
-	externalCiData, err := handler.pipelineBuilder.GetExternalCi(appId)
-	if err != nil {
-		handler.Logger.Errorw("service err, GetExternalCi", "appId", appId, "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
+	containsExternalCi := handler.containsExternalCi(appWorkflows)
+	var externalCiData []*bean.ExternalCiConfig
+	if containsExternalCi {
+		externalCiData, err = handler.pipelineBuilder.GetExternalCi(appId)
+		if err != nil {
+			handler.Logger.Errorw("service err, GetExternalCi", "appId", appId, "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
 	}
 
 	response := appWorkflow.TriggerViewWorkflowConfig{
@@ -333,4 +341,15 @@ func (handler *AppWorkflowRestHandlerImpl) checkAuthBatch(emailId string, appObj
 		envResult = handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceEnvironment, casbin.ActionGet, envObject)
 	}
 	return appResult, envResult
+}
+
+func (handler AppWorkflowRestHandlerImpl) containsExternalCi(appWorkflows []appWorkflow.AppWorkflowDto) bool {
+	for _, appWorkflowDto := range appWorkflows {
+		for _, workflowMappingDto := range appWorkflowDto.AppWorkflowMappingDto {
+			if workflowMappingDto.Type == appWorkflow2.WEBHOOK {
+				return true
+			}
+		}
+	}
+	return false
 }
