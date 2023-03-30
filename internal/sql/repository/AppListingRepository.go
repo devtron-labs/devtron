@@ -37,7 +37,7 @@ import (
 )
 
 type AppListingRepository interface {
-	FetchAppsByEnvironment(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, error)
+	FetchAppsByEnvironment(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, int, error)
 	FetchJobs(appIds []int, statuses []string, sortOrder string) ([]*bean.JobListingContainer, error)
 	FetchOverviewCiPipelines(jobId int) ([]*bean.JobListingContainer, error)
 	FetchJobsLastSucceededOn(ciPipelineIDs []int) ([]*bean.CiPipelineLastSucceededTime, error)
@@ -125,10 +125,23 @@ func (impl AppListingRepositoryImpl) FetchJobsLastSucceededOn(CiPipelineIDs []in
 	}
 	return lastSucceededTimeArray, nil
 }
-func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, error) {
+
+func getRequiredAppIdsInSequence(appIds []int) []int {
+	resIDs := make([]int, 0)
+	appIdsSet := make(map[int]bool)
+	for _, appId := range appIds {
+		if _, ok := appIdsSet[appId]; !ok {
+			resIDs = append(resIDs, appId)
+			appIdsSet[appId] = true
+		}
+	}
+	return resIDs
+}
+
+func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, int, error) {
 	impl.Logger.Debug("reached at FetchAppsByEnvironment:")
 	var appEnvArr []*bean.AppEnvironmentContainer
-
+	appsSize := 0
 	query := impl.appListingRepositoryQueryBuilder.BuildAppListingQueryLastDeploymentTime()
 	impl.Logger.Debugw("basic app detail query: ", query)
 	var lastDeployedTimeDTO []*bean.AppEnvironmentContainer
@@ -138,7 +151,7 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter hel
 	middleware.AppListingDuration.WithLabelValues("buildAppListingQueryLastDeploymentTime", "devtron").Observe(time.Since(start).Seconds())
 	if err != nil {
 		impl.Logger.Error(err)
-		return appEnvArr, err
+		return appEnvArr, appsSize, err
 	}
 	for _, item := range lastDeployedTimeDTO {
 		if _, ok := lastDeployedTimeMap[item.PipelineId]; ok {
@@ -152,15 +165,32 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter hel
 		}
 	}
 
+	allValidAppIds := make([]int, 0)
 	var appEnvContainer []*bean.AppEnvironmentContainer
+	appsSize = len(allValidAppIds)
+	allValidAppIdsQuery := impl.appListingRepositoryQueryBuilder.BuildAppListingQueryForAppIds(appListingFilter)
+	start = time.Now()
+	_, appsErr := impl.dbConnection.Query(&allValidAppIds, allValidAppIdsQuery)
+	middleware.AppListingDuration.WithLabelValues("BuildAppListingQueryForAppIds", "devtron").Observe(time.Since(start).Seconds())
+	if appsErr != nil {
+		impl.Logger.Error(appsErr)
+		return appEnvContainer, appsSize, appsErr
+	}
+	requiredAppIds := getRequiredAppIdsInSequence(allValidAppIds)
+	l := appListingFilter.Offset
+	r := len(requiredAppIds)
+	if r > appListingFilter.Offset+appListingFilter.Size {
+		r = appListingFilter.Offset + appListingFilter.Size
+	}
+	appListingFilter.AppIds = requiredAppIds[l:r]
 	appsEnvquery := impl.appListingRepositoryQueryBuilder.BuildAppListingQuery(appListingFilter)
 	impl.Logger.Debugw("basic app detail query: ", appsEnvquery)
 	start = time.Now()
-	_, appsErr := impl.dbConnection.Query(&appEnvContainer, appsEnvquery)
+	_, appsErr = impl.dbConnection.Query(&appEnvContainer, appsEnvquery)
 	middleware.AppListingDuration.WithLabelValues("buildAppListingQuery", "devtron").Observe(time.Since(start).Seconds())
 	if appsErr != nil {
 		impl.Logger.Error(appsErr)
-		return appEnvContainer, appsErr
+		return appEnvContainer, appsSize, appsErr
 	}
 	latestDeploymentStatusMap := map[string]*bean.AppEnvironmentContainer{}
 	for _, item := range appEnvContainer {
@@ -197,7 +227,7 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter hel
 		latestDeploymentStatusMap[key] = item
 	}
 
-	return appEnvArr, nil
+	return appEnvArr, appsSize, nil
 }
 
 // It will return the deployment detail of any cd pipeline which is latest triggered for Environment of any App
