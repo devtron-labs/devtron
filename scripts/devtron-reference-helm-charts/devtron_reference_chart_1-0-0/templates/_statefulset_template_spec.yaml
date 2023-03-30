@@ -1,0 +1,76 @@
+{{- define "statefulset-template-spec" }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include ".Chart.Name .fullname" $ }}
+  labels:
+    app: {{ template ".Chart.Name .name" $ }}
+    chart: {{ template ".Chart.Name .chart" $ }}
+    release: {{ $.Release.Name }}
+    releaseVersion: {{ $.Values.releaseVersion | quote }}
+    pipelineName: {{ .Values.pipelineName }}
+{{- if $.Values.statefulSet.labels }}
+{{ toYaml .Values.statefulSet.labels | indent 4 }}
+{{- end }}
+{{- if .Values.appLabels }}
+{{ toYaml .Values.appLabels | indent 4 }}
+{{- end }}
+{{- if .Values.statefulSet.annotations }}
+  annotations:
+{{ toYaml .Values.statefulSet.annotations | indent 4 }}
+{{- end }}
+spec:
+  replicas: {{ $.Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ template ".Chart.Name .name" $ }}
+      release: {{ $.Release.Name }}
+  template:
+    {{- include "pod-template-spec" . | indent 4 }}
+  revisionHistoryLimit: 3
+  podManagementPolicy: {{ $.Values.statefulSet.podManagementPolicy }}
+  serviceName: {{ $.Values.statefulSet.serviceName }}
+  updateStrategy:
+    type: {{ $.Values.deploymentType }}
+    rollingUpdate:
+      partition: {{ $.Values.deployment.strategy.rollingUpdate.partition }}
+  volumeClaimTemplates:
+  {{- range $.Values.statefulSet.volumeClaimTemplates }}
+  - apiVersion: {{ .apiVersion | default "v1" }}
+    {{- if .dataSource }}
+    dataSource:
+      apiGroup: {{ .dataSource.apiGroup }}
+      kind: {{ .dataSource.kind }}
+      name: {{ .dataSource.name }}
+    {{- end }}
+    kind: {{ .kind | default "PersistentVolumeClaim" }}
+    metadata:
+      name: {{ template ".Chart.Name .name" $ }}
+      namespace: {{ $.Release.Namespace }}
+      {{- if .annotations }}
+      annotations:
+{{ toYaml .annotations | indent 8 }}
+      {{- end }}
+    {{- if .selector }}
+    selector:
+      {{- if .selector.matchExpressions }}
+      matchExpressions:
+{{ toYaml .selector.matchExpressions |indent 8 }}
+      {{- end }}
+      {{- if .selector.matchLabels }}
+      matchLabels:
+{{ toYaml .selector.matchLabels |indent 8 }}
+      {{- end }}
+    {{- end }}
+    spec:
+      {{- if .accessModes }}
+      accessModes:
+{{ toYaml .accessModes | indent 8 }}
+      {{- end }}
+      resources:
+        requests:
+          storage: {{ .storage }}
+      volumeMode: {{ .volumeMode }}
+      storageClassName: {{ .storageClass }}
+    {{- end }}
+{{- end }}

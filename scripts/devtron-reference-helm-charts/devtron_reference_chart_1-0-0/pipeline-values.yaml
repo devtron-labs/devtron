@@ -1,0 +1,4 @@
+deployment:
+  strategy:
+    rollingUpdate:
+      partition: 0

@@ -1,0 +1,7 @@
+{{- if eq .Values.kind "Rollout" }}
+{{- include "rollout-template-spec" . }}
+{{- else if eq .Values.kind "Deployment" }}
+{{- include "deployment-template-spec" . }}
+{{- else if eq .Values.kind "StatefulSet" }}
+{{- include "statefulset-template-spec" . }}
+{{- end }}
