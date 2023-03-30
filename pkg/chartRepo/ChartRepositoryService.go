@@ -47,7 +47,7 @@ type ChartRepositoryService interface {
 	UpdateDataInArgocdCm(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error)
 	GetChartRepoById(id int) (*ChartRepoDto, error)
 	GetChartRepoByName(name string) (*ChartRepoDto, error)
-	GetChartRepoList() ([]*ChartRepoDtoWithIsEditable, error)
+	GetChartRepoList() ([]*ChartRepoWithIsEditableDto, error)
 	GetChartRepoListMin() ([]*ChartRepoDto, error)
 	ValidateChartRepo(request *ChartRepoDto) *DetailedErrorHelmRepoValidation
 	ValidateAndCreateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error, *DetailedErrorHelmRepoValidation)
@@ -355,14 +355,14 @@ func (impl *ChartRepositoryServiceImpl) convertFromDbResponse(model *chartRepoRe
 	return chartRepo
 }
 
-func (impl *ChartRepositoryServiceImpl) GetChartRepoList() ([]*ChartRepoDtoWithIsEditable, error) {
-	var chartRepos []*ChartRepoDtoWithIsEditable
+func (impl *ChartRepositoryServiceImpl) GetChartRepoList() ([]*ChartRepoWithIsEditableDto, error) {
+	var chartRepos []*ChartRepoWithIsEditableDto
 	models, err := impl.repoRepository.FindAllWithDeploymentCount()
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
 	}
 	for _, model := range models {
-		chartRepo := &ChartRepoDtoWithIsEditable{}
+		chartRepo := &ChartRepoWithIsEditableDto{}
 		chartRepo.Id = model.Id
 		chartRepo.Name = model.Name
 		chartRepo.Url = model.Url
