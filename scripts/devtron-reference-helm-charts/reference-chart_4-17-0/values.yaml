@@ -113,17 +113,6 @@ kedaAutoscaling:
 secret:
   enabled: false
 
-statefulSet:
-  podManagementPolicy: 
-  updateStrategy:
-  serviceName: 
-  volumeClaimTemplates:
-    - name: www
-      accessModes: [ "ReadWriteOnce" ]
-      storageClassName: "my-storage-class"
-      storage: 1Gi
-    
-
 service:
   type: ClusterIP
 #  name: "1234567890123456789012345678901234567890123456789012345678901234567890"
