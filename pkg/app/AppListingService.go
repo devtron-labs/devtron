@@ -1603,9 +1603,6 @@ func (impl AppListingServiceImpl) FetchMinDetailOtherEnvironment(appId int) ([]*
 		impl.Logger.Errorw("err", err)
 		return envs, err
 	}
-	//if envs == nil {
-	//	return envs, nil
-	//}
 	appLevelAppMetrics := false  //default value
 	appLevelInfraMetrics := true //default val
 	appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(appId)
@@ -1626,14 +1623,20 @@ func (impl AppListingServiceImpl) FetchMinDetailOtherEnvironment(appId int) ([]*
 		impl.Logger.Errorw("error in fetching latest chartRefId", "err", err)
 		return envs, err
 	}
+	var envIds []int
 	for _, env := range envs {
-		overrideChartRefId, err := impl.envOverrideRepository.FindChartRefIdForLatestChartForAppByAppIdAndEnvId(appId, env.EnvironmentId)
-		if err != nil && !errors2.IsNotFound(err) {
-			impl.Logger.Errorw("error in fetching latest chartRefId id by appId and envId", "err", err, "appId", appId, "envId", env.EnvironmentId)
-			return envs, err
-		}
-		if overrideChartRefId != 0 {
-			env.ChartRefId = overrideChartRefId
+		envIds = append(envIds, env.EnvironmentId)
+	}
+	overrideChartRefIds, err := impl.envOverrideRepository.FindChartRefIdsForLatestChartForAppByAppIdAndEnvIds(appId, envIds)
+	if err != nil && !errors2.IsNotFound(err) {
+		impl.Logger.Errorw("error in fetching latest chartRefIds id by appId and envIds", "err", err, "appId", appId, "envId", envIds)
+		return envs, err
+	}
+	for _, env := range envs {
+		if len(overrideChartRefIds) != 0 {
+			if overrideChartRefIds[env.EnvironmentId] != 0 {
+				env.ChartRefId = overrideChartRefIds[env.EnvironmentId]
+			}
 		} else {
 			env.ChartRefId = chartRefId
 		}
