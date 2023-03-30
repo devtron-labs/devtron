@@ -16,10 +16,9 @@ type ChartRepoDto struct {
 	Active      bool                `json:"active"`
 	Default     bool                `json:"default"`
 	UserId      int32               `json:"-"`
-	//IsEditable  bool                `json:"isEditable"`
 }
 
-type ChartRepoDtoWithIsEditable struct {
+type ChartRepoWithIsEditableDto struct {
 	ChartRepoDto
 	IsEditable bool `json:"isEditable"`
 }

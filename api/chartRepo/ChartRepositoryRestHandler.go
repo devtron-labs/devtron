@@ -125,7 +125,7 @@ func (handler *ChartRepositoryRestHandlerImpl) GetChartRepoList(w http.ResponseW
 
 	err = handler.attributesService.UpdateKeyValueByOne(CHART_STORE_VISITED_COUNTER)
 	// ignoring error here since it shouldn't break the main call. logging it instead
-	handler.Logger.Errorw("service err, GetChartRepoList, app store, updating visited counter", "err", err, "userId", userId)
+	handler.Logger.Errorw("service err, GetChartRepoList, app store, update visited counter", "err", err, "userId", userId)
 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
@@ -136,7 +136,7 @@ func (handler *ChartRepositoryRestHandlerImpl) GetChartRepoListMin(w http.Respon
 		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
 		return
 	}
-	handler.Logger.Infow("request payload, GetChartRepoList, app store")
+	handler.Logger.Infow("request payload, GetChartRepoListMin, app store")
 	res, err := handler.chartRepositoryService.GetChartRepoListMin()
 
 	if err != nil {
