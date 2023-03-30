@@ -699,6 +699,10 @@ func (impl PipelineBuilderImpl) GetExternalCi(appId int) (ciConfig []*bean.Exter
 	}
 
 	appWorkflowMappings, err := impl.appWorkflowRepository.FindWFCDMappingByExternalCiIdByIdsIn(externalCiPipelineIds)
+	if err != nil {
+		impl.logger.Errorw("Error in fetching app workflow mapping for CD pipeline by external CI ID", "err", err)
+		return nil, err
+	}
 
 	for _, appWorkflowMapping := range appWorkflowMappings {
 		appWorkflowMappingsMap[appWorkflowMapping.ParentId] = append(appWorkflowMappingsMap[appWorkflowMapping.ParentId], appWorkflowMapping)
@@ -712,12 +716,10 @@ func (impl PipelineBuilderImpl) GetExternalCi(appId int) (ciConfig []*bean.Exter
 			AccessKey:  "",
 		}
 
-		appWorkflowMappings := appWorkflowMappingsMap[externalCiPipeline.Id]
-		appWorkflowMappings, err := impl.appWorkflowRepository.FindWFCDMappingByExternalCiId(externalCiPipeline.Id)
-		//if err != nil && !util.IsErrNoRows(err) {
-		//	impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
-		//	return nil, err
-		//}
+		if _, ok := appWorkflowMappingsMap[externalCiPipeline.Id]; !ok {
+			impl.logger.Errorw("unable to find app workflow cd mapping corresponding to external ci pipeline id")
+			return nil, errors.New("unable to find app workflow cd mapping corresponding to external ci pipeline id")
+		}
 
 		var appWorkflowComponentIds []int
 		var appIds []int
@@ -747,14 +749,14 @@ func (impl PipelineBuilderImpl) GetExternalCi(appId int) (ciConfig []*bean.Exter
 		for _, appWorkflowMapping := range appWorkflowMappings {
 			if _, ok := CDPipelineMap[appWorkflowMapping.ComponentId]; !ok {
 				impl.logger.Errorw("error in getting cd pipeline data for workflow", "app workflow id", appWorkflowMapping.ComponentId, "err", err)
-				return nil, err
+				return nil, errors.New("error in getting cd pipeline data for workflow")
 			}
 			cdPipeline := CDPipelineMap[appWorkflowMapping.ComponentId]
 
 			if _, ok := roleData[teamIdKey]; !ok {
 				if _, ok := appIdMap[cdPipeline.AppId]; !ok {
-					impl.logger.Errorw("error in getting app data for pipeline", "app id", cdPipeline.AppId, "err", err)
-					return nil, err
+					impl.logger.Errorw("error in getting app data for pipeline", "app id", cdPipeline.AppId)
+					return nil, errors.New("error in getting app data for pipeline")
 				}
 				app := appIdMap[cdPipeline.AppId]
 				roleData[teamIdKey] = app.TeamId
@@ -3933,6 +3935,23 @@ func (impl PipelineBuilderImpl) GetExternalCiByEnvironment(envId int, emailId st
 		impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/%s", hostUrl.Value, ExternalCiWebhookPath)
 	}
 
+	var externalCiPipelineIds []int
+	appWorkflowMappingsMap := make(map[int][]*appWorkflow.AppWorkflowMapping)
+
+	for _, externalCiPipeline := range externalCiPipelines {
+		externalCiPipelineIds = append(externalCiPipelineIds, externalCiPipeline.Id)
+	}
+
+	appWorkflowMappings, err := impl.appWorkflowRepository.FindWFCDMappingByExternalCiIdByIdsIn(externalCiPipelineIds)
+	if err != nil {
+		impl.logger.Errorw("Error in fetching app workflow mapping for CD pipeline by external CI ID", "err", err)
+		return nil, err
+	}
+
+	for _, appWorkflowMapping := range appWorkflowMappings {
+		appWorkflowMappingsMap[appWorkflowMapping.ParentId] = append(appWorkflowMappingsMap[appWorkflowMapping.ParentId], appWorkflowMapping)
+	}
+
 	for _, externalCiPipeline := range externalCiPipelines {
 		externalCiConfig := &bean.ExternalCiConfig{
 			Id:         externalCiPipeline.Id,
@@ -3941,11 +3960,11 @@ func (impl PipelineBuilderImpl) GetExternalCiByEnvironment(envId int, emailId st
 			AccessKey:  "",
 		}
 
-		appWorkflowMappings, err := impl.appWorkflowRepository.FindWFCDMappingByExternalCiId(externalCiPipeline.Id)
-		if err != nil && !util.IsErrNoRows(err) {
-			impl.logger.Errorw("error in fetching external ci", "envId", envId, "err", err)
-			return nil, err
+		if _, ok := appWorkflowMappingsMap[externalCiPipeline.Id]; !ok {
+			return nil, errors.New("Error in fetching app workflow mapping for cd pipeline by parent id")
 		}
+
+		appWorkflowMappings := appWorkflowMappingsMap[externalCiPipeline.Id]
 
 		roleData := make(map[string]interface{})
 
@@ -3978,14 +3997,14 @@ func (impl PipelineBuilderImpl) GetExternalCiByEnvironment(envId int, emailId st
 
 			if _, ok := CDPipelineMap[appWorkflowMapping.ComponentId]; !ok {
 				impl.logger.Errorw("error in getting cd pipeline data for workflow", "app workflow id", appWorkflowMapping.ComponentId, "err", err)
-				return nil, err
+				return nil, errors.New("error in getting cd pipeline data for workflow")
 			}
 			cdPipeline := CDPipelineMap[appWorkflowMapping.ComponentId]
 
 			if _, ok := roleData[teamIdKey]; !ok {
 				if _, ok := appIdMap[cdPipeline.AppId]; !ok {
 					impl.logger.Errorw("error in getting app data for pipeline", "app id", cdPipeline.AppId, "err", err)
-					return nil, err
+					return nil, errors.New("error in getting app data for pipeline")
 				}
 				app := appIdMap[cdPipeline.AppId]
 				roleData[teamIdKey] = app.TeamId

@@ -402,10 +402,9 @@ func (impl AppWorkflowRepositoryImpl) FindWFCDMappingByExternalCiId(externalCiId
 func (impl AppWorkflowRepositoryImpl) FindWFCDMappingByExternalCiIdByIdsIn(externalCiId []int) ([]*AppWorkflowMapping, error) {
 	var models []*AppWorkflowMapping
 	err := impl.dbConnection.Model(&models).
-		Where("parent_id = ?", externalCiId).
+		Where("parent_id in (?)", pg.In(externalCiId)).
 		Where("parent_type = ?", WEBHOOK).
 		Where("type = ?", CDPIPELINE).
-		Where("component_id in (?)", pg.In(externalCiId)).
 		Where("active = ?", true).
 		Select()
 	return models, err
