@@ -788,7 +788,7 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 	}
 	handler.Logger.Infow("request payload, GetArtifactsByCDPipeline", "cdPipelineId", cdPipelineId, "stage", stage)
 
-	pipelineWithOnlyAppAndEnvDetails, err := handler.pipelineBuilder.FindAppAndEnvDetailsByPipelineId(cdPipelineId)
+	pipeline, err := handler.pipelineBuilder.FindPipelineById(cdPipelineId)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
@@ -801,20 +801,20 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 	}
 
 	//rbac block starts from here
-	object := handler.enforcerUtil.GetAppRBACName(pipelineWithOnlyAppAndEnvDetails.App.AppName)
+	object := handler.enforcerUtil.GetAppRBACName(pipeline.App.AppName)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 
-	object = handler.enforcerUtil.GetAppRBACByAppNameAndEnvId(pipelineWithOnlyAppAndEnvDetails.App.AppName, pipelineWithOnlyAppAndEnvDetails.EnvironmentId)
+	object = handler.enforcerUtil.GetAppRBACByAppNameAndEnvId(pipeline.App.AppName, pipeline.EnvironmentId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//rbac block ends here
 
-	ciArtifactResponse, err := handler.pipelineBuilder.GetArtifactsByCDPipeline(cdPipelineId, bean2.WorkflowType(stage))
+	ciArtifactResponse, err := handler.pipelineBuilder.RetrieveArtifactsByCDPipeline(pipeline, bean2.WorkflowType(stage))
 	if err != nil {
 		handler.Logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -837,10 +837,10 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 	//}
 	if len(digests) > 0 {
 		//vulnerableMap := make(map[string]bool)
-		cvePolicy, severityPolicy, err := handler.policyService.GetApplicablePolicy(pipelineWithOnlyAppAndEnvDetails.Environment.ClusterId,
-			pipelineWithOnlyAppAndEnvDetails.EnvironmentId,
-			pipelineWithOnlyAppAndEnvDetails.AppId,
-			pipelineWithOnlyAppAndEnvDetails.App.AppType == helper.ChartStoreApp)
+		cvePolicy, severityPolicy, err := handler.policyService.GetApplicablePolicy(pipeline.Environment.ClusterId,
+			pipeline.EnvironmentId,
+			pipeline.AppId,
+			pipeline.App.AppType == helper.ChartStoreApp)
 
 		if err != nil {
 			handler.Logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
@@ -861,8 +861,9 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 			// For an imageHash, append all cveStores
 			if val, ok := digestVsCveStores[imageHash]; !ok {
 
-				// configuring size as len of ImageScanExecutionResult assuming all the scan results could belong to a single hash
-				cveStores := make([]*security.CveStore, len(imageScanResults))
+				// configuring size as len of ImageScanExecutionResult assuming all the
+				//scan results could belong to a single hash
+				cveStores := make([]*security.CveStore, 0, len(imageScanResults))
 				cveStores = append(cveStores, &result.CveStore)
 				digestVsCveStores[imageHash] = cveStores
 

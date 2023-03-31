@@ -55,6 +55,7 @@ type CiArtifactRepository interface {
 	Save(artifact *CiArtifact) error
 	Delete(artifact *CiArtifact) error
 	Get(id int) (artifact *CiArtifact, err error)
+	GetArtifactParentCiAndWorkflowDetailsByIds(ids []int) ([]*CiArtifact, error)
 	GetByWfId(wfId int) (artifact *CiArtifact, err error)
 	GetArtifactsByCDPipeline(cdPipelineId, limit int, parentId int, parentType bean.WorkflowType) ([]CiArtifact, error)
 
@@ -103,6 +104,26 @@ func (impl CiArtifactRepositoryImpl) Get(id int) (artifact *CiArtifact, err erro
 	artifact = &CiArtifact{Id: id}
 	err = impl.dbConnection.Model(artifact).WherePK().Select()
 	return artifact, err
+}
+
+func (impl CiArtifactRepositoryImpl) GetArtifactParentCiAndWorkflowDetailsByIds(ids []int) ([]*CiArtifact, error) {
+	artifacts := make([]*CiArtifact, 0)
+	if len(ids) == 0 {
+		return artifacts, nil
+	}
+
+	err := impl.dbConnection.Model(&artifacts).
+		Column("ci_artifact.ci_workflow_id", "ci_artifact.parent_ci_artifact", "ci_artifact.external_ci_pipeline_id").
+		Where("ci_artifact.id in (?)", pg.In(ids)).
+		Select()
+
+	if err != nil {
+		impl.logger.Errorw("failed to get artifact parent ci and workflow details",
+			"ids", ids,
+			"err", err)
+		return nil, err
+	}
+	return artifacts, nil
 }
 
 func (impl CiArtifactRepositoryImpl) GetByWfId(wfId int) (*CiArtifact, error) {
