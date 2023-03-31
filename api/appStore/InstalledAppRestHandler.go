@@ -26,9 +26,7 @@ import (
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
-	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/middleware"
-	util2 "github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	"github.com/devtron-labs/devtron/pkg/cluster"
@@ -37,7 +35,6 @@ import (
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/devtron-labs/devtron/util/response"
-	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -442,7 +439,6 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
 		return
 	}
-
 	vars := mux.Vars(r)
 	installedAppId, err := strconv.Atoi(vars["installed-app-id"])
 	if err != nil {
@@ -458,13 +454,6 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 		return
 	}
 	handler.Logger.Infow("request payload, FetchAppDetailsForInstalledApp, app store", "installedAppId", installedAppId, "envId", envId)
-
-	err = handler.installedAppService.CheckAppExistsByInstalledAppId(installedAppId)
-	if err == pg.ErrNoRows {
-		common.WriteJsonResp(w, err, "App not found in database", http.StatusBadRequest)
-		return
-	}
-
 	appDetail, err := handler.installedAppService.FindAppDetailsForAppstoreApplication(installedAppId, envId)
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchAppDetailsForInstalledApp, app store", "err", err, "installedAppId", installedAppId, "envId", envId)
@@ -474,42 +463,15 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 
 	//rbac block starts from here
 	object, object2 := handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(appDetail.AppName, appDetail.EnvironmentId)
-
 	var ok bool
-
 	if object2 == "" {
 		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object)
 	} else {
 		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object2)
 	}
-
 	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
-	}
-	//rback block ends here
-	if len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 {
-		err = handler.fetchResourceTree(w, r, &appDetail)
-		if appDetail.DeploymentAppType == util2.PIPELINE_DEPLOYMENT_TYPE_ACD {
-			apiError, ok := err.(*util2.ApiError)
-			if ok && apiError != nil {
-				if apiError.Code == constants.AppDetailResourceTreeNotFound && appDetail.DeploymentAppDeleteRequest == true {
-					err = handler.installedAppService.MarkGitOpsInstalledAppsDeletedIfArgoAppIsDeleted(installedAppId, envId)
-					appDeleteErr, appDeleteErrOk := err.(*util2.ApiError)
-					if appDeleteErrOk && appDeleteErr != nil {
-						common.WriteJsonResp(w, fmt.Errorf(appDeleteErr.InternalMessage), nil, appDeleteErr.HttpStatusCode)
-						return
-					}
-				}
-			}
-		} else if err != nil {
-			common.WriteJsonResp(w, fmt.Errorf("error in fetching resource tree"), nil, http.StatusInternalServerError)
-			return
-		}
-
-	} else {
-		appDetail.ResourceTree = map[string]interface{}{}
-		handler.Logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
 	}
 	common.WriteJsonResp(w, nil, appDetail, http.StatusOK)
 }
