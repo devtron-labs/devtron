@@ -160,6 +160,10 @@ type AppDetailContainer struct {
 	ResourceTree              map[string]interface{} `json:"resourceTree,omitempty"`
 	Notes                     string                 `json:"notes,omitempty"`
 }
+type ResourceTreeAndNotesContainer struct {
+	ResourceTree map[string]interface{} `json:"resourceTree,omitempty"`
+	Notes        string                 `json:"notes,omitempty"`
+}
 type Notes struct {
 	Notes string `json:"gitOpsNotes,omitempty"`
 }
