@@ -56,6 +56,7 @@ type CiTemplateRepository interface {
 	Update(material *CiTemplate) error
 	FindByDockerRegistryId(dockerRegistryId string) (ciTemplates []*CiTemplate, err error)
 	FindNumberOfAppsWithDockerConfigured(appIds []int) (int, error)
+	FindByAppIds(appIds []int) ([]*CiTemplate, error)
 }
 
 type CiTemplateRepositoryImpl struct {
@@ -110,4 +111,16 @@ func (impl CiTemplateRepositoryImpl) FindNumberOfAppsWithDockerConfigured(appIds
 		return 0, err
 	}
 	return count, nil
+}
+
+func (impl CiTemplateRepositoryImpl) FindByAppIds(appIds []int) ([]*CiTemplate, error) {
+	var templates []*CiTemplate
+	err := impl.dbConnection.Model(&templates).
+		Where("app_id in (?) ", pg.In(appIds)).
+		Column("ci_template.*", "App", "DockerRegistry", "CiBuildConfig").
+		Select()
+	if pg.ErrNoRows == err {
+		return nil, errors.NotFoundf(err.Error())
+	}
+	return templates, err
 }
