@@ -116,7 +116,9 @@ autoscaling:
 
 statefulSet:
   podManagementPolicy: "Parallel"
-  updateStrategy: RollingUpdate
+  updateStrategy:
+    type: RollingUpdate
+    partition: 2
   volumeClaimTemplates: 
     - name: www
       accessModes: [ "ReadWriteOnce" ]

@@ -52,7 +52,12 @@ spec:
   minReadySeconds: {{ $.Values.MinReadySeconds }}
   serviceName: {{ $.Values.statefulSet.serviceName }}
   podManagementPolicy: {{ $.Values.statefulSet.podManagementPolicy }}
-  updateStrategy: {{ $.Values.statefulSet.updateStrategy }}
+  updateStrategy: 
+    {{- if $.Values.statefulSet.updateStrategy.partition }}
+      rollingUpdate:
+          partition: {{ $.Values.statefulSet.updateStrategy.partition }}
+         {{- end }} 
+      type: {{ $.Values.statefulSet.updateStrategy.type }}
   template:
     metadata:
     {{- if .Values.podAnnotations }}
