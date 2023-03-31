@@ -33,6 +33,10 @@ func (_m *PipelineRepository) FilterDeploymentDeleteRequestedPipelineIds(cdPipel
 	ret := _m.Called(cdPipelineIds)
 
 	var r0 map[int]bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func([]int) (map[int]bool, error)); ok {
+		return rf(cdPipelineIds)
+	}
 	if rf, ok := ret.Get(0).(func([]int) map[int]bool); ok {
 		r0 = rf(cdPipelineIds)
 	} else {
@@ -41,7 +45,6 @@ func (_m *PipelineRepository) FilterDeploymentDeleteRequestedPipelineIds(cdPipel
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func([]int) error); ok {
 		r1 = rf(cdPipelineIds)
 	} else {
@@ -56,6 +59,10 @@ func (_m *PipelineRepository) FindActiveByAppId(appId int) ([]*pipelineConfig.Pi
 	ret := _m.Called(appId)
 
 	var r0 []*pipelineConfig.Pipeline
+	var r1 error
+	if rf, ok := ret.Get(0).(func(int) ([]*pipelineConfig.Pipeline, error)); ok {
+		return rf(appId)
+	}
 	if rf, ok := ret.Get(0).(func(int) []*pipelineConfig.Pipeline); ok {
 		r0 = rf(appId)
 	} else {
@@ -64,7 +71,6 @@ func (_m *PipelineRepository) FindActiveByAppId(appId int) ([]*pipelineConfig.Pi
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func(int) error); ok {
 		r1 = rf(appId)
 	} else {
@@ -79,6 +85,10 @@ func (_m *PipelineRepository) FindActiveByAppIdAndEnvironmentId(appId int, envir
 	ret := _m.Called(appId, environmentId)
 
 	var r0 []*pipelineConfig.Pipeline
+	var r1 error
+	if rf, ok := ret.Get(0).(func(int, int) ([]*pipelineConfig.Pipeline, error)); ok {
+		return rf(appId, environmentId)
+	}
 	if rf, ok := ret.Get(0).(func(int, int) []*pipelineConfig.Pipeline); ok {
 		r0 = rf(appId, environmentId)
 	} else {
@@ -87,7 +97,6 @@ func (_m *PipelineRepository) FindActiveByAppIdAndEnvironmentId(appId int, envir
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func(int, int) error); ok {
 		r1 = rf(appId, environmentId)
 	} else {
@@ -102,6 +111,10 @@ func (_m *PipelineRepository) FindActiveByAppIdAndEnvironmentIdV2() ([]*pipeline
 	ret := _m.Called()
 
 	var r0 []*pipelineConfig.Pipeline
+	var r1 error
+	if rf, ok := ret.Get(0).(func() ([]*pipelineConfig.Pipeline, error)); ok {
+		return rf()
+	}
 	if rf, ok := ret.Get(0).(func() []*pipelineConfig.Pipeline); ok {
 		r0 = rf()
 	} else {
@@ -110,7 +123,6 @@ func (_m *PipelineRepository) FindActiveByAppIdAndEnvironmentIdV2() ([]*pipeline
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func() error); ok {
 		r1 = rf()
 	} else {
@@ -125,6 +137,10 @@ func (_m *PipelineRepository) FindActiveByAppIdAndPipelineId(appId int, pipeline
 	ret := _m.Called(appId, pipelineId)
 
 	var r0 []*pipelineConfig.Pipeline
+	var r1 error
+	if rf, ok := ret.Get(0).(func(int, int) ([]*pipelineConfig.Pipeline, error)); ok {
+		return rf(appId, pipelineId)
+	}
 	if rf, ok := ret.Get(0).(func(int, int) []*pipelineConfig.Pipeline); ok {
 		r0 = rf(appId, pipelineId)
 	} else {
@@ -133,7 +149,6 @@ func (_m *PipelineRepository) FindActiveByAppIdAndPipelineId(appId int, pipeline
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func(int, int) error); ok {
 		r1 = rf(appId, pipelineId)
 	} else {
@@ -174,6 +189,10 @@ func (_m *PipelineRepository) FindActiveByEnvId(envId int) ([]*pipelineConfig.Pi
 	ret := _m.Called(envId)
 
 	var r0 []*pipelineConfig.Pipeline
+	var r1 error
+	if rf, ok := ret.Get(0).(func(int) ([]*pipelineConfig.Pipeline, error)); ok {
+		return rf(envId)
+	}
 	if rf, ok := ret.Get(0).(func(int) []*pipelineConfig.Pipeline); ok {
 		r0 = rf(envId)
 	} else {
@@ -182,7 +201,6 @@ func (_m *PipelineRepository) FindActiveByEnvId(envId int) ([]*pipelineConfig.Pi
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func(int) error); ok {
 		r1 = rf(envId)
 	} else {
@@ -197,6 +215,10 @@ func (_m *PipelineRepository) FindActiveByEnvIdAndDeploymentType(environmentId i
 	ret := _m.Called(environmentId, deploymentAppType, exclusionList, includeApps)
 
 	var r0 []*pipelineConfig.Pipeline
+	var r1 error
+	if rf, ok := ret.Get(0).(func(int, string, []int, []int) ([]*pipelineConfig.Pipeline, error)); ok {
+		return rf(environmentId, deploymentAppType, exclusionList, includeApps)
+	}
 	if rf, ok := ret.Get(0).(func(int, string, []int, []int) []*pipelineConfig.Pipeline); ok {
 		r0 = rf(environmentId, deploymentAppType, exclusionList, includeApps)
 	} else {
@@ -205,7 +227,6 @@ func (_m *PipelineRepository) FindActiveByEnvIdAndDeploymentType(environmentId i
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func(int, string, []int, []int) error); ok {
 		r1 = rf(environmentId, deploymentAppType, exclusionList, includeApps)
 	} else {
@@ -220,6 +241,10 @@ func (_m *PipelineRepository) FindActiveByInFilter(envId int, appIdIncludes []in
 	ret := _m.Called(envId, appIdIncludes)
 
 	var r0 []*pipelineConfig.Pipeline
+	var r1 error
+	if rf, ok := ret.Get(0).(func(int, []int) ([]*pipelineConfig.Pipeline, error)); ok {
+		return rf(envId, appIdIncludes)
+	}
 	if rf, ok := ret.Get(0).(func(int, []int) []*pipelineConfig.Pipeline); ok {
 		r0 = rf(envId, appIdIncludes)
 	} else {
@@ -228,7 +253,6 @@ func (_m *PipelineRepository) FindActiveByInFilter(envId int, appIdIncludes []in
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func(int, []int) error); ok {
 		r1 = rf(envId, appIdIncludes)
 	} else {
@@ -243,6 +267,10 @@ func (_m *PipelineRepository) FindActiveByNotFilter(envId int, appIdExcludes []i
 	ret := _m.Called(envId, appIdExcludes)
 
 	var r0 []*pipelineConfig.Pipeline
+	var r1 error
+	if rf, ok := ret.Get(0).(func(int, []int) ([]*pipelineConfig.Pipeline, error)); ok {
+		return rf(envId, appIdExcludes)
+	}
 	if rf, ok := ret.Get(0).(func(int, []int) []*pipelineConfig.Pipeline); ok {
 		r0 = rf(envId, appIdExcludes)
 	} else {
@@ -251,7 +279,6 @@ func (_m *PipelineRepository) FindActiveByNotFilter(envId int, appIdExcludes []i
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func(int, []int) error); ok {
 		r1 = rf(envId, appIdExcludes)
 	} else {
@@ -266,6 +293,10 @@ func (_m *PipelineRepository) FindAllPipelineInLast24Hour() ([]*pipelineConfig.P
 	ret := _m.Called()
 
 	var r0 []*pipelineConfig.Pipeline
+	var r1 error
+	if rf, ok := ret.Get(0).(func() ([]*pipelineConfig.Pipeline, error)); ok {
+		return rf()
+	}
 	if rf, ok := ret.Get(0).(func() []*pipelineConfig.Pipeline); ok {
 		r0 = rf()
 	} else {
@@ -274,7 +305,6 @@ func (_m *PipelineRepository) FindAllPipelineInLast24Hour() ([]*pipelineConfig.P
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func() error); ok {
 		r1 = rf()
 	} else {
@@ -289,6 +319,10 @@ func (_m *PipelineRepository) FindAllPipelinesByChartsOverrideAndAppIdAndChartId
 	ret := _m.Called(chartOverridden, appId, chartId)
 
 	var r0 []*pipelineConfig.Pipeline
+	var r1 error
+	if rf, ok := ret.Get(0).(func(bool, int, int) ([]*pipelineConfig.Pipeline, error)); ok {
+		return rf(chartOverridden, appId, chartId)
+	}
 	if rf, ok := ret.Get(0).(func(bool, int, int) []*pipelineConfig.Pipeline); ok {
 		r0 = rf(chartOverridden, appId, chartId)
 	} else {
@@ -297,32 +331,8 @@ func (_m *PipelineRepository) FindAllPipelinesByChartsOverrideAndAppIdAndChartId
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func(bool, int, int) error); ok {
 		r1 = rf(chartOverridden, appId, chartId)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// FindAppAndEnvironmentAndProjectByPipelineIds provides a mock function with given fields: pipelineIds
-func (_m *PipelineRepository) FindAppAndEnvironmentAndProjectByPipelineIds(pipelineIds []int) ([]*pipelineConfig.Pipeline, error) {
-	ret := _m.Called(pipelineIds)
-
-	var r0 []*pipelineConfig.Pipeline
-	if rf, ok := ret.Get(0).(func([]int) []*pipelineConfig.Pipeline); ok {
-		r0 = rf(pipelineIds)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*pipelineConfig.Pipeline)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func([]int) error); ok {
-		r1 = rf(pipelineIds)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -387,6 +397,10 @@ func (_m *PipelineRepository) FindAutomaticByCiPipelineId(ciPipelineId int) ([]*
 	ret := _m.Called(ciPipelineId)
 
 	var r0 []*pipelineConfig.Pipeline
+	var r1 error
+	if rf, ok := ret.Get(0).(func(int) ([]*pipelineConfig.Pipeline, error)); ok {
+		return rf(ciPipelineId)
+	}
 	if rf, ok := ret.Get(0).(func(int) []*pipelineConfig.Pipeline); ok {
 		r0 = rf(ciPipelineId)
 	} else {
@@ -395,7 +409,6 @@ func (_m *PipelineRepository) FindAutomaticByCiPipelineId(ciPipelineId int) ([]*
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func(int) error); ok {
 		r1 = rf(ciPipelineId)
 	} else {
@@ -410,6 +423,10 @@ func (_m *PipelineRepository) FindByCiPipelineId(ciPipelineId int) ([]*pipelineC
 	ret := _m.Called(ciPipelineId)
 
 	var r0 []*pipelineConfig.Pipeline
+	var r1 error
+	if rf, ok := ret.Get(0).(func(int) ([]*pipelineConfig.Pipeline, error)); ok {
+		return rf(ciPipelineId)
+	}
 	if rf, ok := ret.Get(0).(func(int) []*pipelineConfig.Pipeline); ok {
 		r0 = rf(ciPipelineId)
 	} else {
@@ -418,7 +435,6 @@ func (_m *PipelineRepository) FindByCiPipelineId(ciPipelineId int) ([]*pipelineC
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func(int) error); ok {
 		r1 = rf(ciPipelineId)
 	} else {
@@ -433,6 +449,10 @@ func (_m *PipelineRepository) FindByCiPipelineIdsIn(ciPipelineIds []int) ([]*pip
 	ret := _m.Called(ciPipelineIds)
 
 	var r0 []*pipelineConfig.Pipeline
+	var r1 error
+	if rf, ok := ret.Get(0).(func([]int) ([]*pipelineConfig.Pipeline, error)); ok {
+		return rf(ciPipelineIds)
+	}
 	if rf, ok := ret.Get(0).(func([]int) []*pipelineConfig.Pipeline); ok {
 		r0 = rf(ciPipelineIds)
 	} else {
@@ -441,7 +461,6 @@ func (_m *PipelineRepository) FindByCiPipelineIdsIn(ciPipelineIds []int) ([]*pip
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func([]int) error); ok {
 		r1 = rf(ciPipelineIds)
 	} else {
@@ -456,6 +475,10 @@ func (_m *PipelineRepository) FindById(id int) (*pipelineConfig.Pipeline, error)
 	ret := _m.Called(id)
 
 	var r0 *pipelineConfig.Pipeline
+	var r1 error
+	if rf, ok := ret.Get(0).(func(int) (*pipelineConfig.Pipeline, error)); ok {
+		return rf(id)
+	}
 	if rf, ok := ret.Get(0).(func(int) *pipelineConfig.Pipeline); ok {
 		r0 = rf(id)
 	} else {
@@ -464,7 +487,6 @@ func (_m *PipelineRepository) FindById(id int) (*pipelineConfig.Pipeline, error)
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func(int) error); ok {
 		r1 = rf(id)
 	} else {
@@ -479,6 +501,10 @@ func (_m *PipelineRepository) FindByIdsIn(ids []int) ([]*pipelineConfig.Pipeline
 	ret := _m.Called(ids)
 
 	var r0 []*pipelineConfig.Pipeline
+	var r1 error
+	if rf, ok := ret.Get(0).(func([]int) ([]*pipelineConfig.Pipeline, error)); ok {
+		return rf(ids)
+	}
 	if rf, ok := ret.Get(0).(func([]int) []*pipelineConfig.Pipeline); ok {
 		r0 = rf(ids)
 	} else {
@@ -487,7 +513,6 @@ func (_m *PipelineRepository) FindByIdsIn(ids []int) ([]*pipelineConfig.Pipeline
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func([]int) error); ok {
 		r1 = rf(ids)
 	} else {
@@ -502,6 +527,10 @@ func (_m *PipelineRepository) FindByIdsInAndEnvironment(ids []int, environmentId
 	ret := _m.Called(ids, environmentId)
 
 	var r0 []*pipelineConfig.Pipeline
+	var r1 error
+	if rf, ok := ret.Get(0).(func([]int, int) ([]*pipelineConfig.Pipeline, error)); ok {
+		return rf(ids, environmentId)
+	}
 	if rf, ok := ret.Get(0).(func([]int, int) []*pipelineConfig.Pipeline); ok {
 		r0 = rf(ids, environmentId)
 	} else {
@@ -510,7 +539,6 @@ func (_m *PipelineRepository) FindByIdsInAndEnvironment(ids []int, environmentId
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func([]int, int) error); ok {
 		r1 = rf(ids, environmentId)
 	} else {
@@ -525,6 +553,10 @@ func (_m *PipelineRepository) FindByName(pipelineName string) (*pipelineConfig.P
 	ret := _m.Called(pipelineName)
 
 	var r0 *pipelineConfig.Pipeline
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string) (*pipelineConfig.Pipeline, error)); ok {
+		return rf(pipelineName)
+	}
 	if rf, ok := ret.Get(0).(func(string) *pipelineConfig.Pipeline); ok {
 		r0 = rf(pipelineName)
 	} else {
@@ -533,7 +565,6 @@ func (_m *PipelineRepository) FindByName(pipelineName string) (*pipelineConfig.P
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func(string) error); ok {
 		r1 = rf(pipelineName)
 	} else {
@@ -548,6 +579,10 @@ func (_m *PipelineRepository) FindByParentCiPipelineId(ciPipelineId int) ([]*pip
 	ret := _m.Called(ciPipelineId)
 
 	var r0 []*pipelineConfig.Pipeline
+	var r1 error
+	if rf, ok := ret.Get(0).(func(int) ([]*pipelineConfig.Pipeline, error)); ok {
+		return rf(ciPipelineId)
+	}
 	if rf, ok := ret.Get(0).(func(int) []*pipelineConfig.Pipeline); ok {
 		r0 = rf(ciPipelineId)
 	} else {
@@ -556,7 +591,6 @@ func (_m *PipelineRepository) FindByParentCiPipelineId(ciPipelineId int) ([]*pip
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func(int) error); ok {
 		r1 = rf(ciPipelineId)
 	} else {
@@ -571,6 +605,10 @@ func (_m *PipelineRepository) FindByPipelineTriggerGitHash(gitHash string) (*pip
 	ret := _m.Called(gitHash)
 
 	var r0 *pipelineConfig.Pipeline
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string) (*pipelineConfig.Pipeline, error)); ok {
+		return rf(gitHash)
+	}
 	if rf, ok := ret.Get(0).(func(string) *pipelineConfig.Pipeline); ok {
 		r0 = rf(gitHash)
 	} else {
@@ -579,7 +617,6 @@ func (_m *PipelineRepository) FindByPipelineTriggerGitHash(gitHash string) (*pip
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func(string) error); ok {
 		r1 = rf(gitHash)
 	} else {
@@ -594,6 +631,10 @@ func (_m *PipelineRepository) FindIdsByAppIdsAndEnvironmentIds(appIds []int, env
 	ret := _m.Called(appIds, environmentIds)
 
 	var r0 []int
+	var r1 error
+	if rf, ok := ret.Get(0).(func([]int, []int) ([]int, error)); ok {
+		return rf(appIds, environmentIds)
+	}
 	if rf, ok := ret.Get(0).(func([]int, []int) []int); ok {
 		r0 = rf(appIds, environmentIds)
 	} else {
@@ -602,7 +643,6 @@ func (_m *PipelineRepository) FindIdsByAppIdsAndEnvironmentIds(appIds []int, env
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func([]int, []int) error); ok {
 		r1 = rf(appIds, environmentIds)
 	} else {
@@ -617,6 +657,10 @@ func (_m *PipelineRepository) FindIdsByProjectIdsAndEnvironmentIds(projectIds []
 	ret := _m.Called(projectIds, environmentIds)
 
 	var r0 []int
+	var r1 error
+	if rf, ok := ret.Get(0).(func([]int, []int) ([]int, error)); ok {
+		return rf(projectIds, environmentIds)
+	}
 	if rf, ok := ret.Get(0).(func([]int, []int) []int); ok {
 		r0 = rf(projectIds, environmentIds)
 	} else {
@@ -625,7 +669,6 @@ func (_m *PipelineRepository) FindIdsByProjectIdsAndEnvironmentIds(projectIds []
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func([]int, []int) error); ok {
 		r1 = rf(projectIds, environmentIds)
 	} else {
@@ -640,13 +683,16 @@ func (_m *PipelineRepository) FindNumberOfAppsWithCdPipeline(appIds []int) (int,
 	ret := _m.Called(appIds)
 
 	var r0 int
+	var r1 error
+	if rf, ok := ret.Get(0).(func([]int) (int, error)); ok {
+		return rf(appIds)
+	}
 	if rf, ok := ret.Get(0).(func([]int) int); ok {
 		r0 = rf(appIds)
 	} else {
 		r0 = ret.Get(0).(int)
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func([]int) error); ok {
 		r1 = rf(appIds)
 	} else {
@@ -661,6 +707,10 @@ func (_m *PipelineRepository) GetAppAndEnvDetailsForDeploymentAppTypePipeline(de
 	ret := _m.Called(deploymentAppType, clusterIds)
 
 	var r0 []*pipelineConfig.Pipeline
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string, []int) ([]*pipelineConfig.Pipeline, error)); ok {
+		return rf(deploymentAppType, clusterIds)
+	}
 	if rf, ok := ret.Get(0).(func(string, []int) []*pipelineConfig.Pipeline); ok {
 		r0 = rf(deploymentAppType, clusterIds)
 	} else {
@@ -669,7 +719,6 @@ func (_m *PipelineRepository) GetAppAndEnvDetailsForDeploymentAppTypePipeline(de
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func(string, []int) error); ok {
 		r1 = rf(deploymentAppType, clusterIds)
 	} else {
@@ -684,13 +733,16 @@ func (_m *PipelineRepository) GetArgoPipelineByArgoAppName(argoAppName string) (
 	ret := _m.Called(argoAppName)
 
 	var r0 pipelineConfig.Pipeline
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string) (pipelineConfig.Pipeline, error)); ok {
+		return rf(argoAppName)
+	}
 	if rf, ok := ret.Get(0).(func(string) pipelineConfig.Pipeline); ok {
 		r0 = rf(argoAppName)
 	} else {
 		r0 = ret.Get(0).(pipelineConfig.Pipeline)
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func(string) error); ok {
 		r1 = rf(argoAppName)
 	} else {
@@ -705,6 +757,10 @@ func (_m *PipelineRepository) GetArgoPipelinesHavingLatestTriggerStuckInNonTermi
 	ret := _m.Called(deployedBeforeMinutes, getPipelineDeployedWithinHours)
 
 	var r0 []*pipelineConfig.Pipeline
+	var r1 error
+	if rf, ok := ret.Get(0).(func(int, int) ([]*pipelineConfig.Pipeline, error)); ok {
+		return rf(deployedBeforeMinutes, getPipelineDeployedWithinHours)
+	}
 	if rf, ok := ret.Get(0).(func(int, int) []*pipelineConfig.Pipeline); ok {
 		r0 = rf(deployedBeforeMinutes, getPipelineDeployedWithinHours)
 	} else {
@@ -713,7 +769,6 @@ func (_m *PipelineRepository) GetArgoPipelinesHavingLatestTriggerStuckInNonTermi
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func(int, int) error); ok {
 		r1 = rf(deployedBeforeMinutes, getPipelineDeployedWithinHours)
 	} else {
@@ -728,6 +783,10 @@ func (_m *PipelineRepository) GetArgoPipelinesHavingTriggersStuckInLastPossibleN
 	ret := _m.Called(pendingSinceSeconds, timeForDegradation)
 
 	var r0 []*pipelineConfig.Pipeline
+	var r1 error
+	if rf, ok := ret.Get(0).(func(int, int) ([]*pipelineConfig.Pipeline, error)); ok {
+		return rf(pendingSinceSeconds, timeForDegradation)
+	}
 	if rf, ok := ret.Get(0).(func(int, int) []*pipelineConfig.Pipeline); ok {
 		r0 = rf(pendingSinceSeconds, timeForDegradation)
 	} else {
@@ -736,7 +795,6 @@ func (_m *PipelineRepository) GetArgoPipelinesHavingTriggersStuckInLastPossibleN
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func(int, int) error); ok {
 		r1 = rf(pendingSinceSeconds, timeForDegradation)
 	} else {
@@ -751,6 +809,10 @@ func (_m *PipelineRepository) GetByEnvOverrideId(envOverrideId int) ([]pipelineC
 	ret := _m.Called(envOverrideId)
 
 	var r0 []pipelineConfig.Pipeline
+	var r1 error
+	if rf, ok := ret.Get(0).(func(int) ([]pipelineConfig.Pipeline, error)); ok {
+		return rf(envOverrideId)
+	}
 	if rf, ok := ret.Get(0).(func(int) []pipelineConfig.Pipeline); ok {
 		r0 = rf(envOverrideId)
 	} else {
@@ -759,7 +821,6 @@ func (_m *PipelineRepository) GetByEnvOverrideId(envOverrideId int) ([]pipelineC
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func(int) error); ok {
 		r1 = rf(envOverrideId)
 	} else {
@@ -774,13 +835,16 @@ func (_m *PipelineRepository) GetByEnvOverrideIdAndEnvId(envOverrideId int, envI
 	ret := _m.Called(envOverrideId, envId)
 
 	var r0 pipelineConfig.Pipeline
+	var r1 error
+	if rf, ok := ret.Get(0).(func(int, int) (pipelineConfig.Pipeline, error)); ok {
+		return rf(envOverrideId, envId)
+	}
 	if rf, ok := ret.Get(0).(func(int, int) pipelineConfig.Pipeline); ok {
 		r0 = rf(envOverrideId, envId)
 	} else {
 		r0 = ret.Get(0).(pipelineConfig.Pipeline)
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func(int, int) error); ok {
 		r1 = rf(envOverrideId, envId)
 	} else {
@@ -861,13 +925,16 @@ func (_m *PipelineRepository) PipelineExists(pipelineName string) (bool, error) 
 	ret := _m.Called(pipelineName)
 
 	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string) (bool, error)); ok {
+		return rf(pipelineName)
+	}
 	if rf, ok := ret.Get(0).(func(string) bool); ok {
 		r0 = rf(pipelineName)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func(string) error); ok {
 		r1 = rf(pipelineName)
 	} else {
@@ -910,6 +977,10 @@ func (_m *PipelineRepository) UniqueAppEnvironmentPipelines() ([]*pipelineConfig
 	ret := _m.Called()
 
 	var r0 []*pipelineConfig.Pipeline
+	var r1 error
+	if rf, ok := ret.Get(0).(func() ([]*pipelineConfig.Pipeline, error)); ok {
+		return rf()
+	}
 	if rf, ok := ret.Get(0).(func() []*pipelineConfig.Pipeline); ok {
 		r0 = rf()
 	} else {
@@ -918,7 +989,6 @@ func (_m *PipelineRepository) UniqueAppEnvironmentPipelines() ([]*pipelineConfig
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func() error); ok {
 		r1 = rf()
 	} else {
