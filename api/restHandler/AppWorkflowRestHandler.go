@@ -294,9 +294,13 @@ func (handler *AppWorkflowRestHandlerImpl) GetWorkflowsViewData(w http.ResponseW
 
 	ciPipelineViewData, err := handler.pipelineBuilder.GetTriggerViewCiPipeline(appId)
 	if err != nil {
-		handler.Logger.Errorw("error in fetching trigger view ci pipeline data for app", "appId", appId, "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
+		if _, ok := err.(*util.ApiError); !ok {
+			handler.Logger.Errorw("error in fetching trigger view ci pipeline data for app", "appId", appId, "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		} else {
+			err = nil
+		}
 	}
 
 	cdPipelinesForApp, err := handler.pipelineBuilder.GetTriggerViewCdPipelinesForApp(appId)
