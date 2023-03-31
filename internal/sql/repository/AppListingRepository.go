@@ -170,13 +170,13 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter hel
 	allValidAppIdsQuery := impl.appListingRepositoryQueryBuilder.BuildAppListingQueryForAppIds(appListingFilter)
 	start = time.Now()
 	_, appsErr := impl.dbConnection.Query(&allValidAppIds, allValidAppIdsQuery)
-	appsSize = len(allValidAppIds)
 	middleware.AppListingDuration.WithLabelValues("BuildAppListingQueryForAppIds", "devtron").Observe(time.Since(start).Seconds())
 	if appsErr != nil {
 		impl.Logger.Error(appsErr)
 		return appEnvContainer, appsSize, appsErr
 	}
 	requiredAppIds := getRequiredAppIdsInSequence(allValidAppIds)
+	appsSize = len(requiredAppIds)
 	l := appListingFilter.Offset
 	r := len(requiredAppIds)
 	if r > appListingFilter.Offset+appListingFilter.Size {
