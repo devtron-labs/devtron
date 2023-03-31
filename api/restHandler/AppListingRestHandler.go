@@ -335,7 +335,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 	newCtx, span = otel.Tracer("appListingService").Start(newCtx, "FetchAppsByEnvironment")
 	start := time.Now()
 	fetchAppListingRequest.AppIds = validAppIds
-	envContainers, appsSize, err := handler.appListingService.FetchAppsByEnvironment(fetchAppListingRequest, w, r, token)
+	envContainers, _, err := handler.appListingService.FetchAppsByEnvironment(fetchAppListingRequest, w, r, token)
 	middleware.AppListingDuration.WithLabelValues("fetchAppsByEnvironment", "devtron").Observe(time.Since(start).Seconds())
 	span.End()
 	if err != nil {
@@ -447,7 +447,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 	//}
 	appContainerResponse := bean.AppContainerResponse{
 		AppContainers: apps,
-		AppCount:      appsSize,
+		AppCount:      len(apps),
 	}
 	if fetchAppListingRequest.DeploymentGroupId > 0 {
 		var ciMaterialDTOs []bean.CiMaterialDTO
