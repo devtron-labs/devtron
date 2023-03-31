@@ -96,30 +96,6 @@ func RemovePolicy(policies []Policy) []Policy {
 		log.Println(err)
 	}
 	return policy
-	/*
-		defer HandlePanic()
-		var failed = []Policy{}
-		emailIdList := map[string]struct{}{}
-		for _, p := range policies {
-			success := false
-			if strings.ToLower(string(p.Type)) == "p" && p.Sub != "" && p.Res != "" && p.Act != "" && p.Obj != "" {
-				success = e.RemovePolicy([]string{strings.ToLower(string(p.Sub)), strings.ToLower(string(p.Res)), strings.ToLower(string(p.Act)), strings.ToLower(string(p.Obj))})
-			} else if strings.ToLower(string(p.Type)) == "g" && p.Sub != "" && p.Obj != "" {
-				success = e.RemoveGroupingPolicy([]string{strings.ToLower(string(p.Sub)), strings.ToLower(string(p.Obj))})
-			}
-			if !success {
-				failed = append(failed, p)
-			}
-			if p.Sub != "" {
-				emailIdList[strings.ToLower(string(p.Sub))] = struct{}{}
-			}
-		}
-		if len(policies) != len(failed) {
-			for emailId := range emailIdList {
-				enforcerImplRef.InvalidateCache(emailId)
-			}
-		}
-		return failed*/
 }
 
 func GetAllSubjects() []string {
