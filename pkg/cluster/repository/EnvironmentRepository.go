@@ -221,7 +221,6 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindById(id int) (*Environment, 
 	err := repositoryImpl.dbConnection.
 		Model(environmentCluster).
 		Column("environment.*", "Cluster").
-		Join("inner join cluster c on environment.cluster_id = c.id").
 		Where("environment.id = ?", id).
 		Where("environment.active = ?", true).
 		Limit(1).

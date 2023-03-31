@@ -41,7 +41,6 @@ type AppListingRepository interface {
 	FetchJobs(appIds []int, statuses []string, sortOrder string) ([]*bean.JobListingContainer, error)
 	FetchOverviewCiPipelines(jobId int) ([]*bean.JobListingContainer, error)
 	FetchJobsLastSucceededOn(ciPipelineIDs []int) ([]*bean.CiPipelineLastSucceededTime, error)
-	DeploymentDetailsByAppIdAndEnvId(ctx context.Context, appId int, envId int) (bean.DeploymentDetailContainer, error)
 	FetchAppDetail(ctx context.Context, appId int, envId int) (bean.AppDetailContainer, error)
 
 	FetchAppTriggerView(appId int) ([]bean.TriggerView, error)
@@ -51,6 +50,7 @@ type AppListingRepository interface {
 	PrometheusApiByEnvId(id int) (*string, error)
 
 	FetchOtherEnvironment(appId int) ([]*bean.Environment, error)
+	FetchMinDetailOtherEnvironment(appId int) ([]*bean.Environment, error)
 	DeploymentDetailByArtifactId(ciArtifactId int) (bean.DeploymentDetailContainer, error)
 	FindAppCount(isProd bool) (int, error)
 }
@@ -200,37 +200,35 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter hel
 	return appEnvArr, nil
 }
 
-// It will return the deployment detail of any cd pipeline which is latest triggered for Environment of any App
-func (impl AppListingRepositoryImpl) DeploymentDetailsByAppIdAndEnvId(ctx context.Context, appId int, envId int) (bean.DeploymentDetailContainer, error) {
+// DeploymentDetailsByAppIdAndEnvId It will return the deployment detail of any cd pipeline which is latest triggered for Environment of any App
+func (impl AppListingRepositoryImpl) deploymentDetailsByAppIdAndEnvId(ctx context.Context, appId int, envId int) (bean.DeploymentDetailContainer, error) {
 	_, span := otel.Tracer("orchestrator").Start(ctx, "DeploymentDetailsByAppIdAndEnvId")
 	defer span.End()
-	impl.Logger.Debugf("reached at AppListingRepository:")
 	var deploymentDetail bean.DeploymentDetailContainer
-	query := "SELECT env.environment_name, a.app_name, ceco.namespace, u.email_id as last_deployed_by" +
-		" , cia.material_info as material_info_json_string, pco.created_on AS last_deployed_time, pco.pipeline_release_counter as release_version" +
-		" , env.default, cia.data_source, p.pipeline_name as last_deployed_pipeline, cia.id as ci_artifact_id" +
-		", p.deployment_app_type, p.ci_pipeline_id, p.deployment_app_delete_request" +
-		" FROM chart_env_config_override ceco" +
-		" INNER JOIN environment env ON env.id=ceco.target_environment" +
-		" INNER JOIN pipeline_config_override pco ON pco.env_config_override_id = ceco.id" +
-		" INNER JOIN pipeline p on p.id = pco.pipeline_id" +
+	query := "SELECT" +
+		" a.app_name," +
+		" env.environment_name," +
+		" env.default," +
+		" p.deployment_app_type," +
+		" p.ci_pipeline_id," +
+		" p.deployment_app_delete_request," +
+		" cia.data_source," +
+		" cia.id as ci_artifact_id," +
+		" cl.k8s_version," +
+		" env.cluster_id," +
+		" cl.cluster_name" +
+		" FROM pipeline p" +
+		" INNER JOIN pipeline_config_override pco on pco.pipeline_id=p.id" +
+		" INNER JOIN environment env ON env.id=p.environment_id" +
+		" INNER JOIN cluster cl on cl.id=env.cluster_id" +
 		" INNER JOIN ci_artifact cia on cia.id = pco.ci_artifact_id" +
 		" INNER JOIN app a ON a.id=p.app_id" +
-		" LEFT JOIN users u on u.id=pco.created_by" +
 		" WHERE a.app_type = 0 AND a.id=? AND env.id=? AND p.deleted = FALSE AND env.active = TRUE" +
-		" ORDER BY pco.created_on desc limit 1;"
-	impl.Logger.Debugf("query:", query)
+		" ORDER BY pco.created_on DESC LIMIT 1;"
 	_, err := impl.dbConnection.Query(&deploymentDetail, query, appId, envId)
 	if err != nil {
-		impl.Logger.Errorw("Exception caught:", err)
+		impl.Logger.Errorw("Exception caught:", "err", err)
 		return deploymentDetail, err
-	}
-
-	mInfo, err := parseMaterialInfo(deploymentDetail.MaterialInfoJsonString, deploymentDetail.DataSource)
-	if err == nil && len(mInfo) > 0 {
-		deploymentDetail.MaterialInfo = mInfo
-	} else {
-		deploymentDetail.MaterialInfo = []byte("[]")
 	}
 	deploymentDetail.EnvironmentId = envId
 	return deploymentDetail, nil
@@ -297,23 +295,10 @@ func (impl AppListingRepositoryImpl) FetchAppDetail(ctx context.Context, appId i
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "DeploymentDetailsByAppIdAndEnvId")
 	defer span.End()
 	//Fetch deployment detail of cd pipeline latest triggered within env of any App.
-	deploymentDetail, err := impl.DeploymentDetailsByAppIdAndEnvId(newCtx, appId, envId)
+	deploymentDetail, err := impl.deploymentDetailsByAppIdAndEnvId(newCtx, appId, envId)
 	if err != nil {
 		impl.Logger.Warn("unable to fetch deployment detail for app")
 	}
-
-	// other environment tab
-	var otherEnvironments []bean.Environment
-	query := "SELECT p.environment_id,env.environment_name,p.deployment_app_delete_request from pipeline p" +
-		" INNER JOIN environment env on env.id=p.environment_id" +
-		" where p.app_id=? and p.deleted = FALSE AND env.active = TRUE GROUP by 1,2,3"
-	impl.Logger.Debugw("other env query:", query)
-	_, err = impl.dbConnection.Query(&otherEnvironments, query, appId)
-
-	//linkOuts, err := impl.fetchLinkOutsByAppIdAndEnvId(appId, deploymentDetail.EnvironmentId)
-
-	//appDetailContainer.LinkOuts = linkOuts
-	appDetailContainer.Environments = otherEnvironments
 	appDetailContainer.DeploymentDetailContainer = deploymentDetail
 	return appDetailContainer, nil
 }
@@ -498,6 +483,23 @@ func (impl AppListingRepositoryImpl) FetchOtherEnvironment(appId int) ([]*bean.E
 		" LEFT JOIN app_status B ON OE.environment_id = B.env_id AND B.app_id = ? ;"
 	impl.Logger.Debugw("other env query:", query)
 	_, err := impl.dbConnection.Query(&otherEnvironments, query, appId, appId, appId)
+	if err != nil {
+		impl.Logger.Error("error in fetching other environment", "error", err)
+	}
+	return otherEnvironments, nil
+}
+
+func (impl AppListingRepositoryImpl) FetchMinDetailOtherEnvironment(appId int) ([]*bean.Environment, error) {
+	impl.Logger.Debug("reached at FetchMinDetailOtherEnvironment:")
+	var otherEnvironments []*bean.Environment
+	query := `SELECT p.environment_id,env.environment_name, env.default as prod, p.deployment_app_delete_request,
+       			env_app_m.app_metrics,env_app_m.infra_metrics from 
+ 				(SELECT pl.id,pl.app_id,pl.environment_id,pl.deleted, pl.deployment_app_delete_request from pipeline pl 
+  					LEFT JOIN pipeline_config_override pco on pco.pipeline_id = pl.id where pl.app_id = ? and pl.deleted = FALSE 
+  					GROUP BY pl.id) p INNER JOIN environment env on env.id=p.environment_id 
+                	LEFT JOIN env_level_app_metrics env_app_m on env.id=env_app_m.env_id and p.app_id = env_app_m.app_id 
+                    where p.app_id=? and p.deleted = FALSE AND env.active = TRUE`
+	_, err := impl.dbConnection.Query(&otherEnvironments, query, appId, appId)
 	if err != nil {
 		impl.Logger.Error("error in fetching other environment", "error", err)
 	}

@@ -71,6 +71,8 @@ type PipelineRepository interface {
 	FindByName(pipelineName string) (pipeline *Pipeline, err error)
 	PipelineExists(pipelineName string) (bool, error)
 	FindById(id int) (pipeline *Pipeline, err error)
+	GetPostStageConfigById(id int) (pipeline *Pipeline, err error)
+	FindAppAndEnvDetailsByPipelineId(id int) (pipeline *Pipeline, err error)
 	FindActiveByEnvIdAndDeploymentType(environmentId int, deploymentAppType string, exclusionList []int, includeApps []int) ([]*Pipeline, error)
 	FindByIdsIn(ids []int) ([]*Pipeline, error)
 	FindByCiPipelineIdsIn(ciPipelineIds []int) ([]*Pipeline, error)
@@ -105,6 +107,7 @@ type PipelineRepository interface {
 	GetPartiallyDeletedPipelineByStatus(appId int, envId int) (Pipeline, error)
 	FindActiveByAppIds(appIds []int) (pipelines []*Pipeline, err error)
 	FindAppAndEnvironmentAndProjectByPipelineIds(pipelineIds []int) (pipelines []*Pipeline, err error)
+	FilterDeploymentDeleteRequestedPipelineIds(cdPipelineIds []int) (map[int]bool, error)
 }
 
 type CiArtifactDTO struct {
@@ -229,6 +232,7 @@ func (impl PipelineRepositoryImpl) FindActiveByAppId(appId int) (pipelines []*Pi
 
 func (impl PipelineRepositoryImpl) FindActiveByAppIdAndEnvironmentId(appId int, environmentId int) (pipelines []*Pipeline, err error) {
 	err = impl.dbConnection.Model(&pipelines).
+		Column("pipeline.*", "Environment").
 		Where("app_id = ?", appId).
 		Where("deleted = ?", false).
 		Where("environment_id = ? ", environmentId).
@@ -278,6 +282,30 @@ func (impl PipelineRepositoryImpl) FindById(id int) (pipeline *Pipeline, err err
 		Model(pipeline).
 		Column("pipeline.*", "App", "Environment").
 		Join("inner join app a on pipeline.app_id = a.id").
+		Where("pipeline.id = ?", id).
+		Where("deleted = ?", false).
+		Select()
+	return pipeline, err
+}
+
+func (impl PipelineRepositoryImpl) GetPostStageConfigById(id int) (pipeline *Pipeline, err error) {
+	pipeline = &Pipeline{}
+	err = impl.dbConnection.
+		Model(pipeline).
+		Column("pipeline.post_stage_config_yaml").
+		Where("pipeline.id = ?", id).
+		Where("deleted = ?", false).
+		Select()
+	return pipeline, err
+}
+
+func (impl PipelineRepositoryImpl) FindAppAndEnvDetailsByPipelineId(id int) (pipeline *Pipeline, err error) {
+	pipeline = &Pipeline{}
+	err = impl.dbConnection.
+		Model(pipeline).
+		Column("App.id", "App.app_name", "App.app_type", "Environment.id", "Environment.cluster_id").
+		Join("inner join app a on pipeline.app_id = a.id").
+		Join("inner join environment e on pipeline.environment_id = e.id").
 		Where("pipeline.id = ?", id).
 		Where("deleted = ?", false).
 		Select()
@@ -610,4 +638,18 @@ func (impl PipelineRepositoryImpl) FindAppAndEnvironmentAndProjectByPipelineIds(
 		Where("pipeline.deleted = ?", false).
 		Select()
 	return pipelines, err
+}
+
+func (impl PipelineRepositoryImpl) FilterDeploymentDeleteRequestedPipelineIds(cdPipelineIds []int) (map[int]bool, error) {
+	var pipelineIds []int
+	pipelineIdsMap := make(map[int]bool)
+	query := "select pipeline.id from pipeline where pipeline.id in (?) and pipeline.deployment_app_delete_request = ?;"
+	_, err := impl.dbConnection.Query(&pipelineIds, query, pg.In(cdPipelineIds), true)
+	if err != nil {
+		return pipelineIdsMap, err
+	}
+	for _, pipelineId := range pipelineIds {
+		pipelineIdsMap[pipelineId] = true
+	}
+	return pipelineIdsMap, nil
 }

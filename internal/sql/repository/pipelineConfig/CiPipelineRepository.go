@@ -79,6 +79,7 @@ type CiPipelineRepository interface {
 	FindExternalCiByAppId(appId int) ([]*ExternalCiPipeline, error)
 	FindExternalCiByAppIds(appIds []int) ([]*ExternalCiPipeline, error)
 	FindCiScriptsByCiPipelineId(ciPipelineId int) ([]*CiPipelineScript, error)
+	FindCiScriptsByCiPipelineIds(ciPipelineId []int) ([]*CiPipelineScript, error)
 	SaveCiPipelineScript(ciPipelineScript *CiPipelineScript, tx *pg.Tx) error
 	UpdateCiPipelineScript(script *CiPipelineScript, tx *pg.Tx) error
 	MarkCiPipelineScriptsInactiveByCiPipelineId(ciPipelineId int, tx *pg.Tx) error
@@ -86,6 +87,7 @@ type CiPipelineRepository interface {
 	FindByAppIds(appIds []int) (pipelines []*CiPipeline, err error)
 	//find non deleted pipeline
 	FindById(id int) (pipeline *CiPipeline, err error)
+	FindParentCiPipelineMapByAppId(appId int) ([]*CiPipeline, []int, error)
 	FindByCiAndAppDetailsById(pipelineId int) (pipeline *CiPipeline, err error)
 	FindByIdsIn(ids []int) ([]*CiPipeline, error)
 	Update(pipeline *CiPipeline, tx *pg.Tx) error
@@ -99,6 +101,9 @@ type CiPipelineRepository interface {
 	FindAllPipelineInLast24Hour() (pipelines []*CiPipeline, err error)
 	FindNumberOfAppsWithCiPipeline(appIds []int) (count int, err error)
 	FindAppAndProjectByCiPipelineIds(ciPipelineIds []int) ([]*CiPipeline, error)
+	FindCiPipelineConfigsByIds(ids []int) ([]*CiPipeline, error)
+	FindByParentCiPipelineIds(parentCiPipelineIds []int) ([]*CiPipeline, error)
+	FindWithMinDataByCiPipelineId(id int) (pipeline *CiPipeline, err error)
 }
 type CiPipelineRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -234,6 +239,16 @@ func (impl CiPipelineRepositoryImpl) FindCiScriptsByCiPipelineId(ciPipelineId in
 	return ciPipelineScripts, err
 }
 
+func (impl CiPipelineRepositoryImpl) FindCiScriptsByCiPipelineIds(ciPipelineIds []int) ([]*CiPipelineScript, error) {
+	var ciPipelineScripts []*CiPipelineScript
+	err := impl.dbConnection.Model(&ciPipelineScripts).
+		Where("ci_pipeline_id in (?)", ciPipelineIds).
+		Where("active = ?", true).
+		Order("index ASC").
+		Select()
+	return ciPipelineScripts, err
+}
+
 func (impl CiPipelineRepositoryImpl) SaveCiPipelineScript(ciPipelineScript *CiPipelineScript, tx *pg.Tx) error {
 	ciPipelineScript.Active = true
 	return tx.Insert(ciPipelineScript)
@@ -248,6 +263,36 @@ func (impl CiPipelineRepositoryImpl) FindById(id int) (pipeline *CiPipeline, err
 		Select()
 
 	return pipeline, err
+}
+
+func (impl CiPipelineRepositoryImpl) FindWithMinDataByCiPipelineId(id int) (pipeline *CiPipeline, err error) {
+	pipeline = &CiPipeline{Id: id}
+	err = impl.dbConnection.Model(pipeline).
+		Column("ci_pipeline.*", "CiTemplate").
+		Where("ci_pipeline.id= ?", id).
+		Where("ci_pipeline.deleted =? ", false).
+		Select()
+
+	return pipeline, err
+}
+
+func (impl CiPipelineRepositoryImpl) FindParentCiPipelineMapByAppId(appId int) ([]*CiPipeline, []int, error) {
+	var parentCiPipelines []*CiPipeline
+	var linkedCiPipelineIds []int
+	queryLinked := `select * from ci_pipeline where id in (select parent_ci_pipeline from ci_pipeline where app_id=? and deleted=? and parent_ci_pipeline is not null) order by id asc;`
+	_, err := impl.dbConnection.Query(&parentCiPipelines, queryLinked, appId, false)
+	if err != nil {
+		impl.logger.Error("error in fetching linked ci pipelines", "error", err)
+		return nil, nil, err
+	}
+	queryParent := `select id from ci_pipeline where app_id=? and deleted=? and parent_ci_pipeline is not null order by parent_ci_pipeline asc;`
+	_, err = impl.dbConnection.Query(&linkedCiPipelineIds, queryParent, appId, false)
+	if err != nil {
+		impl.logger.Error("error in fetching parent ci pipelines", "error", err)
+		return nil, nil, err
+	}
+
+	return parentCiPipelines, linkedCiPipelineIds, nil
 }
 
 func (impl CiPipelineRepositoryImpl) PipelineExistsByName(names []string) (found []string, err error) {
@@ -384,6 +429,25 @@ func (impl CiPipelineRepositoryImpl) FindAppAndProjectByCiPipelineIds(ciPipeline
 	err := impl.dbConnection.Model(&ciPipelines).Column("ci_pipeline.*", "App", "App.Team").
 		Where("ci_pipeline.id in(?)", pg.In(ciPipelineIds)).
 		Where("ci_pipeline.deleted = ?", false).
+		Select()
+	return ciPipelines, err
+}
+
+func (impl CiPipelineRepositoryImpl) FindCiPipelineConfigsByIds(ids []int) ([]*CiPipeline, error) {
+	var ciPipelines []*CiPipeline
+	err := impl.dbConnection.Model(&ciPipelines).
+		Column("ci_pipeline.*", "App", "CiPipelineMaterials", "CiTemplate", "CiTemplate.DockerRegistry", "CiPipelineMaterials.GitMaterial").
+		Where("ci_pipeline.id in (?)", pg.In(ids)).
+		Where("ci_pipeline.deleted =? ", false).
+		Select()
+	return ciPipelines, err
+}
+
+func (impl CiPipelineRepositoryImpl) FindByParentCiPipelineIds(parentCiPipelineIds []int) ([]*CiPipeline, error) {
+	var ciPipelines []*CiPipeline
+	err := impl.dbConnection.Model(&ciPipelines).
+		Where("parent_ci_pipeline in (?)", pg.In(parentCiPipelineIds)).
+		Where("active = ?", true).
 		Select()
 	return ciPipelines, err
 }
