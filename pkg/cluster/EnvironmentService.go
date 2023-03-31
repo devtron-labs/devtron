@@ -79,7 +79,7 @@ type EnvironmentService interface {
 	FindByIds(ids []*int) ([]*EnvironmentBean, error)
 	FindByNamespaceAndClusterName(namespaces string, clusterName string) (*repository.Environment, error)
 	GetByClusterId(id int) ([]*EnvironmentBean, error)
-	GetCombinedEnvironmentListForDropDown(token string, isActionUserSuperAdmin bool, auth func(token string, object string) bool) ([]*ClusterEnvDto, error)
+	GetCombinedEnvironmentListForDropDown(emailId string, isActionUserSuperAdmin bool, auth func(email string, object []string) map[string]bool) ([]*ClusterEnvDto, error)
 	GetCombinedEnvironmentListForDropDownByClusterIds(token string, clusterIds []int, auth func(token string, object string) bool) ([]*ClusterEnvDto, error)
 }
 
@@ -429,7 +429,7 @@ func (impl EnvironmentServiceImpl) GetByClusterId(id int) ([]*EnvironmentBean, e
 	return beans, nil
 }
 
-func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token string, isActionUserSuperAdmin bool, auth func(token string, object string) bool) ([]*ClusterEnvDto, error) {
+func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(emailId string, isActionUserSuperAdmin bool, auth func(email string, object []string) map[string]bool) ([]*ClusterEnvDto, error) {
 	var namespaceGroupByClusterResponse []*ClusterEnvDto
 	clusterModels, err := impl.clusterService.FindAllActive()
 	if err != nil {
@@ -445,13 +445,19 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token s
 		impl.logger.Errorw("error in fetching environments", "err", err)
 		return namespaceGroupByClusterResponse, err
 	}
+	rbacObject := make([]string, 0)
+	for _, model := range models {
+		rbacObject = append(rbacObject, model.EnvironmentIdentifier)
+	}
+	// auth enforcer applied here in batch
+	rbacObjectResult := auth(emailId, rbacObject)
+
 	uniqueComboMap := make(map[string]bool)
 	grantedEnvironmentMap := make(map[string][]*EnvDto)
 	for _, model := range models {
 		// isActionUserSuperAdmin tell that user is super admin or not. auth check skip for admin
 		if !isActionUserSuperAdmin {
-			// auth enforcer applied here
-			isValidAuth := auth(token, model.EnvironmentIdentifier)
+			isValidAuth := rbacObjectResult[model.EnvironmentIdentifier]
 			if !isValidAuth {
 				impl.logger.Debugw("authentication for env failed", "object", model.EnvironmentIdentifier)
 				continue
@@ -469,6 +475,16 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token s
 	}
 
 	namespaceListGroupByClusters := impl.k8sInformerFactory.GetLatestNamespaceListGroupByCLuster()
+	rbacObject2 := make([]string, 0)
+	for clusterName, namespaces := range namespaceListGroupByClusters {
+		for namespace := range namespaces {
+			environmentIdentifier := fmt.Sprintf("%s__%s", clusterName, namespace)
+			rbacObject2 = append(rbacObject2, environmentIdentifier)
+		}
+	}
+	// auth enforcer applied here in batch
+	rbacObjectResult2 := auth(emailId, rbacObject)
+
 	for clusterName, namespaces := range namespaceListGroupByClusters {
 		clusterId := clusterMap[clusterName]
 		for namespace := range namespaces {
@@ -479,8 +495,7 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token s
 				environmentIdentifier := fmt.Sprintf("%s__%s", clusterName, namespace)
 				// isActionUserSuperAdmin tell that user is super admin or not. auth check skip for admin
 				if !isActionUserSuperAdmin {
-					// auth enforcer applied here
-					isValidAuth := auth(token, environmentIdentifier)
+					isValidAuth := rbacObjectResult2[environmentIdentifier]
 					if !isValidAuth {
 						impl.logger.Debugw("authentication for env failed", "object", environmentIdentifier)
 						continue
