@@ -267,29 +267,39 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-
-	//for non super admin users
-	userEmailId := strings.ToLower(user.EmailId)
-	rbacObjectsForAllAppsMap := handler.enforcerUtil.GetRbacObjectsForAllApps()
-	validAppIds := make([]int, 0)
-	rbacObjectToAppIdsMap := make(map[string]([]int))
-	rbacObjects := make([]string, len(rbacObjectsForAllAppsMap))
-	itr := 0
-	for appId, object := range rbacObjectsForAllAppsMap {
-		rbacObjects[itr] = object
-		itr++
-		if _, ok := rbacObjectToAppIdsMap[object]; !ok {
-			rbacObjectToAppIdsMap[object] = make([]int, 0)
-		}
-		rbacObjectToAppIdsMap[object] = append(rbacObjectToAppIdsMap[object], appId)
+	newCtx, span = otel.Tracer("userService").Start(newCtx, "IsSuperAdmin")
+	isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
+	span.End()
+	if err != nil {
+		handler.logger.Errorw("request err, FetchAppsByEnvironment", "err", err, "userId", userId)
+		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
+		return
 	}
 
-	result := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceApplications, casbin.ActionGet, rbacObjects)
-	//O(n) loop n = len(rbacObjectsForAllAppsMap)
-	for object, ok := range result {
-		if ok {
-			for _, appId := range rbacObjectToAppIdsMap[object] {
-				validAppIds = append(validAppIds, appId)
+	validAppIds := make([]int, 0)
+	//for non super admin users
+	if !isActionUserSuperAdmin {
+		userEmailId := strings.ToLower(user.EmailId)
+		rbacObjectsForAllAppsMap := handler.enforcerUtil.GetRbacObjectsForAllApps()
+		rbacObjectToAppIdsMap := make(map[string]([]int))
+		rbacObjects := make([]string, len(rbacObjectsForAllAppsMap))
+		itr := 0
+		for appId, object := range rbacObjectsForAllAppsMap {
+			rbacObjects[itr] = object
+			itr++
+			if _, ok := rbacObjectToAppIdsMap[object]; !ok {
+				rbacObjectToAppIdsMap[object] = make([]int, 0)
+			}
+			rbacObjectToAppIdsMap[object] = append(rbacObjectToAppIdsMap[object], appId)
+		}
+
+		result := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceApplications, casbin.ActionGet, rbacObjects)
+		//O(n) loop n = len(rbacObjectsForAllAppsMap)
+		for object, ok := range result {
+			if ok {
+				for _, appId := range rbacObjectToAppIdsMap[object] {
+					validAppIds = append(validAppIds, appId)
+				}
 			}
 		}
 	}

@@ -165,28 +165,30 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter hel
 		}
 	}
 
-	allValidAppIds := make([]int, 0)
 	var appEnvContainer []*bean.AppEnvironmentContainer
-	allValidAppIdsQuery := impl.appListingRepositoryQueryBuilder.BuildAppListingQueryForAppIds(appListingFilter)
-	start = time.Now()
-	_, appsErr := impl.dbConnection.Query(&allValidAppIds, allValidAppIdsQuery)
-	middleware.AppListingDuration.WithLabelValues("BuildAppListingQueryForAppIds", "devtron").Observe(time.Since(start).Seconds())
-	if appsErr != nil {
-		impl.Logger.Error(appsErr)
-		return appEnvContainer, appsSize, appsErr
+	if len(appListingFilter.AppIds) > 0 {
+		allValidAppIds := make([]int, 0)
+		allValidAppIdsQuery := impl.appListingRepositoryQueryBuilder.BuildAppListingQueryForAppIds(appListingFilter)
+		start = time.Now()
+		_, appsErr := impl.dbConnection.Query(&allValidAppIds, allValidAppIdsQuery)
+		middleware.AppListingDuration.WithLabelValues("BuildAppListingQueryForAppIds", "devtron").Observe(time.Since(start).Seconds())
+		if appsErr != nil {
+			impl.Logger.Error(appsErr)
+			return appEnvContainer, appsSize, appsErr
+		}
+		requiredAppIds := getRequiredAppIdsInSequence(allValidAppIds)
+		appsSize = len(requiredAppIds)
+		l := appListingFilter.Offset
+		r := len(requiredAppIds)
+		if r > appListingFilter.Offset+appListingFilter.Size {
+			r = appListingFilter.Offset + appListingFilter.Size
+		}
+		appListingFilter.AppIds = requiredAppIds[l:r]
 	}
-	requiredAppIds := getRequiredAppIdsInSequence(allValidAppIds)
-	appsSize = len(requiredAppIds)
-	l := appListingFilter.Offset
-	r := len(requiredAppIds)
-	if r > appListingFilter.Offset+appListingFilter.Size {
-		r = appListingFilter.Offset + appListingFilter.Size
-	}
-	appListingFilter.AppIds = requiredAppIds[l:r]
 	appsEnvquery := impl.appListingRepositoryQueryBuilder.BuildAppListingQuery(appListingFilter)
 	impl.Logger.Debugw("basic app detail query: ", appsEnvquery)
 	start = time.Now()
-	_, appsErr = impl.dbConnection.Query(&appEnvContainer, appsEnvquery)
+	_, appsErr := impl.dbConnection.Query(&appEnvContainer, appsEnvquery)
 	middleware.AppListingDuration.WithLabelValues("buildAppListingQuery", "devtron").Observe(time.Since(start).Seconds())
 	if appsErr != nil {
 		impl.Logger.Error(appsErr)
