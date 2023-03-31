@@ -550,26 +550,31 @@ func (impl PipelineBuilderImpl) getCiTemplateVariables(appId int) (ciConfig *bea
 func (impl PipelineBuilderImpl) GetTriggerViewCiPipeline(appId int) (*bean.TriggerViewCiConfig, error) {
 
 	triggerViewCiConfig := &bean.TriggerViewCiConfig{}
-	// fetch ci git material id
-	ciTemplateBean, err := impl.ciTemplateService.FindByAppId(appId)
-	if err != nil && !errors.IsNotFound(err) {
-		impl.logger.Errorw("error in fetching ci pipeline", "appId", appId, "err", err)
+
+	ciConfig, err := impl.getCiTemplateVariables(appId)
+	if err != nil {
+		impl.logger.Debugw("error in fetching ci pipeline", "appId", appId, "err", err)
 		return nil, err
 	}
-	if errors.IsNotFound(err) {
-		impl.logger.Debugw("no ci pipeline exists", "appId", appId, "err", err)
-		//err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no ci pipeline exists"}
-		return nil, nil
-	}
-	template := ciTemplateBean.CiTemplate
 
-	triggerViewCiConfig.CiGitMaterialId = template.GitMaterialId
+	triggerViewCiConfig.CiGitMaterialId = ciConfig.CiBuildConfig.GitMaterialId
 
 	// fetch pipelines
 	pipelines, err := impl.ciPipelineRepository.FindByAppId(appId)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("error in fetching ci pipeline", "appId", appId, "err", err)
 		return nil, err
+	}
+
+	ciOverrideTemplateMap := make(map[int]*bean3.CiTemplateBean)
+	ciTemplateBeanOverrides, err := impl.ciTemplateService.FindTemplateOverrideByAppId(appId)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, templateBeanOverride := range ciTemplateBeanOverrides {
+		ciTemplateOverride := templateBeanOverride.CiTemplateOverride
+		ciOverrideTemplateMap[ciTemplateOverride.CiPipelineId] = templateBeanOverride
 	}
 
 	var ciPipelineResp []*bean.CiPipeline
@@ -586,6 +591,14 @@ func (impl PipelineBuilderImpl) GetTriggerViewCiPipeline(appId int) (*bean.Trigg
 			ParentCiPipeline:         pipeline.ParentCiPipeline,
 			ScanEnabled:              pipeline.ScanEnabled,
 			IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
+		}
+		if ciTemplateBean, ok := ciOverrideTemplateMap[pipeline.Id]; ok {
+			templateOverride := ciTemplateBean.CiTemplateOverride
+			ciPipeline.DockerConfigOverride = bean.DockerConfigOverride{
+				DockerRegistry:   templateOverride.DockerRegistryId,
+				DockerRepository: templateOverride.DockerRepository,
+				CiBuildConfig:    ciTemplateBean.CiBuildConfig,
+			}
 		}
 		for _, material := range pipeline.CiPipelineMaterials {
 			// ignore those materials which have inactive git material
@@ -614,6 +627,7 @@ func (impl PipelineBuilderImpl) GetTriggerViewCiPipeline(appId int) (*bean.Trigg
 		ciPipelineResp = append(ciPipelineResp, ciPipeline)
 	}
 	triggerViewCiConfig.CiPipelines = ciPipelineResp
+	triggerViewCiConfig.Materials = ciConfig.Materials
 
 	return triggerViewCiConfig, nil
 }
