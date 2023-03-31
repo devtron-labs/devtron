@@ -167,10 +167,10 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter hel
 
 	allValidAppIds := make([]int, 0)
 	var appEnvContainer []*bean.AppEnvironmentContainer
-	appsSize = len(allValidAppIds)
 	allValidAppIdsQuery := impl.appListingRepositoryQueryBuilder.BuildAppListingQueryForAppIds(appListingFilter)
 	start = time.Now()
 	_, appsErr := impl.dbConnection.Query(&allValidAppIds, allValidAppIdsQuery)
+	appsSize = len(allValidAppIds)
 	middleware.AppListingDuration.WithLabelValues("BuildAppListingQueryForAppIds", "devtron").Observe(time.Since(start).Seconds())
 	if appsErr != nil {
 		impl.Logger.Error(appsErr)

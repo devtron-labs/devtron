@@ -154,19 +154,7 @@ func (impl AppListingRepositoryQueryBuilder) BuildAppListingQueryLastDeploymentT
 }
 
 func (impl AppListingRepositoryQueryBuilder) buildAppListingSortBy(appListingFilter AppListingFilter) string {
-	orderByCondition := ""
-	if len(appListingFilter.SortBy) > 0 {
-		orderByCondition = " ORDER BY "
-		if appListingFilter.SortBy == "lastDeployedSort" {
-			orderByCondition += " p.updated_on "
-		} else {
-			orderByCondition += " a.app_name "
-		}
-
-		if appListingFilter.SortOrder != "ASC" {
-			orderByCondition += " DESC "
-		}
-	}
+	orderByCondition := " ORDER BY p.updated_on desc "
 	return orderByCondition
 }
 
