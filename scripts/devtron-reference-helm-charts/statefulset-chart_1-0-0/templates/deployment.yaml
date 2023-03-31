@@ -516,8 +516,8 @@ spec:
         {{- end}}
     {{- end }}   
     {{- end }}
+  {{- if eq .Values.deploymentType "ROLLING" }}  
   updateStrategy: 
-  {{- if eq .Values.deploymentType "ROLLING" }}
     {{- if .updateStrategy.partition }}
       rollingUpdate:
           partition: {{ .updateStrategy.partition }}
