@@ -46,7 +46,7 @@ type BulkUpdateService interface {
 
 	BulkHibernate(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationForEnvironmentResponse, error)
 	BulkUnHibernate(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationForEnvironmentResponse, error)
-	BulkDeploy(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationForEnvironmentResponse, error)
+	BulkDeploy(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, email string, checkAuthForBulkActions func(token string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) (*BulkApplicationForEnvironmentResponse, error)
 	BulkBuildTrigger(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationForEnvironmentResponse, error)
 
 	GetBulkActionImpactedPipelinesAndWfs(dto *CdBulkActionRequestDto) ([]*pipelineConfig.Pipeline, []int, []int, error)
@@ -1138,7 +1138,7 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 	bulkOperationResponse.Response = response
 	return bulkOperationResponse, nil
 }
-func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationForEnvironmentResponse, error) {
+func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, email string, checkAuthForBulkActions func(token string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) (*BulkApplicationForEnvironmentResponse, error) {
 	var pipelines []*pipelineConfig.Pipeline
 	var err error
 	if len(request.AppIdIncludes) > 0 {
@@ -1153,6 +1153,24 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 		return nil, err
 	}
 	response := make(map[string]map[string]bool)
+
+	var pipelineIds []int
+
+	for _, pipeline := range pipelines {
+		pipelineIds = append(pipelineIds, pipeline.Id)
+	}
+
+	var appObjectArr []string
+	var envObjectArr []string
+
+	objects := impl.enforcerUtil.GetAppAndEnvObjectByPipelineIds(pipelineIds)
+
+	for _, object := range objects {
+		appObjectArr = append(appObjectArr, object[0])
+		envObjectArr = append(envObjectArr, object[1])
+	}
+	appResults, envResults := checkAuthForBulkActions(email, appObjectArr, envObjectArr)
+
 	for _, pipeline := range pipelines {
 		appKey := fmt.Sprintf("%d_%s", pipeline.AppId, pipeline.App.AppName)
 		pipelineKey := fmt.Sprintf("%d_%s", pipeline.Id, pipeline.Name)
@@ -1162,16 +1180,24 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 			pResponse[pipelineKey] = false
 			response[appKey] = pResponse
 		}
-		appObject := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
-		envObject := impl.enforcerUtil.GetEnvRBACNameByAppId(pipeline.AppId, pipeline.EnvironmentId)
-		isValidAuth := checkAuthForBulkActions(token, appObject, envObject)
-		if !isValidAuth {
-			//skip hibernate for the app if user does not have access on that
-			pipelineResponse := response[appKey]
-			pipelineResponse[pipelineKey] = false
-			response[appKey] = pipelineResponse
+		appObject := objects[pipeline.Id][0]
+		envObject := objects[pipeline.Id][1]
+
+		if !(appResults[appObject] && envResults[envObject]) {
+			//if user unauthorized, skip items
 			continue
 		}
+		//appObject := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
+		//envObject := impl.enforcerUtil.GetEnvRBACNameByAppId(pipeline.AppId, pipeline.EnvironmentId)
+		//
+		//_, isValidAuth := checkAuthForBulkActions(token, appObject, envObject)
+		//if !isValidAuth {
+		//	//skip hibernate for the app if user does not have access on that
+		//	pipelineResponse := response[appKey]
+		//	pipelineResponse[pipelineKey] = false
+		//	response[appKey] = pipelineResponse
+		//	continue
+		//}
 
 		artifactResponse, err := impl.pipelineBuilder.GetArtifactsByCDPipeline(pipeline.Id, bean.CD_WORKFLOW_TYPE_DEPLOY)
 		if err != nil {

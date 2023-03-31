@@ -332,6 +332,13 @@ func (handler BulkUpdateRestHandlerImpl) BulkDeploy(w http.ResponseWriter, r *ht
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
+
+	user, err := handler.userAuthService.GetById(userId)
+	if err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
 	decoder := json.NewDecoder(r.Body)
 	var request bulkAction.BulkApplicationForEnvironmentPayload
 	err = decoder.Decode(&request)
@@ -353,8 +360,8 @@ func (handler BulkUpdateRestHandlerImpl) BulkDeploy(w http.ResponseWriter, r *ht
 		return
 	}
 	ctx := context.WithValue(r.Context(), "token", acdToken)
-	token := r.Header.Get("token")
-	response, err := handler.bulkUpdateService.BulkDeploy(&request, ctx, w, token, handler.checkAuthForBulkActions)
+	//token := r.Header.Get("token")
+	response, err := handler.bulkUpdateService.BulkDeploy(&request, ctx, w, user.EmailId, handler.checkAuthInBatchForBulkActions)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -406,6 +413,18 @@ func (handler BulkUpdateRestHandlerImpl) checkAuthForBulkActions(token string, a
 		return false
 	}
 	return true
+}
+
+func (handler BulkUpdateRestHandlerImpl) checkAuthInBatchForBulkActions(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool) {
+	var appResult map[string]bool
+	var envResult map[string]bool
+	if len(appObject) > 0 {
+		appResult = handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceApplications, casbin.ActionGet, appObject)
+	}
+	if len(envObject) > 0 {
+		envResult = handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceEnvironment, casbin.ActionGet, envObject)
+	}
+	return appResult, envResult
 }
 
 func (handler BulkUpdateRestHandlerImpl) HandleCdPipelineBulkAction(w http.ResponseWriter, r *http.Request) {
