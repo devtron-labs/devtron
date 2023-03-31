@@ -828,13 +828,6 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 		}
 	}
 
-	//FIXME: next 3 loops are same combine them
-	//FIXME: already fetched above as deployment pipeline
-	//pipelineModel, err := handler.pipelineRepository.FindById(cdPipelineId)
-	//if err != nil {
-	//	handler.Logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
-	//	common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-	//}
 	if len(digests) > 0 {
 		//vulnerableMap := make(map[string]bool)
 		cvePolicy, severityPolicy, err := handler.policyService.GetApplicablePolicy(pipeline.Environment.ClusterId,
@@ -886,38 +879,6 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 			item.IsVulnerable = handler.policyService.HasBlockedCVE(cveStores, cvePolicy, severityPolicy)
 			ciArtifactsFinal = append(ciArtifactsFinal, item)
 		}
-
-		// build digest vs scan-results
-		//digestVsScanResults := make(map[string][]*security.ImageScanExecutionResult)
-		//for _, imageScanResult := range imageScanResults {
-		//	imageHash := imageScanResult.ImageScanExecutionHistory.ImageHash
-		//	if val, ok := digestVsScanResults[imageHash]; !ok {
-		//		var scanResults []*security.ImageScanExecutionResult
-		//		scanResults = append(scanResults, imageScanResult)
-		//		digestVsScanResults[imageHash] = scanResults
-		//	} else {
-		//		digestVsScanResults[imageHash] = append(val, imageScanResult)
-		//	}
-		//}
-
-		// for each digest, check vulnerability
-		//for digest, scanResults := range digestVsScanResults {
-		//	var cveStores []*security.CveStore
-		//	for _, item := range scanResults {
-		//		cveStores = append(cveStores, &item.CveStore)
-		//	}
-		//	vulnerableMap[digest] = handler.policyService.HasBlockedCVE(cveStores, cvePolicy, severityPolicy)
-		//}
-
-		//var ciArtifactsFinal []bean.CiArtifactBean
-		//for _, item := range ciArtifactResponse.CiArtifacts {
-		//	if item.ScanEnabled { // skip setting for artifacts which have marked scan disabled, but here deal with same digest
-		//		//if isVulnerable, ok := vulnerableMap[item.ImageDigest]; ok {
-		//		item.IsVulnerable = vulnerableMap[item.ImageDigest]
-		//		//}
-		//	}
-		//	ciArtifactsFinal = append(ciArtifactsFinal, item)
-		//}
 		ciArtifactResponse.CiArtifacts = ciArtifactsFinal
 	}
 
