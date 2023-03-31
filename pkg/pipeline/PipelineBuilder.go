@@ -2750,6 +2750,9 @@ func (impl PipelineBuilderImpl) GetCdPipelinesForApp(appId int) (cdPipelines *be
 	cdPipelines, err = impl.ciCdPipelineOrchestrator.GetCdPipelinesForApp(appId)
 	var envIds []*int
 	var dbPipelineIds []int
+	if cdPipelines == nil || (cdPipelines != nil && len(cdPipelines.Pipelines) == 0) {
+		return cdPipelines, nil
+	}
 	for _, dbPipeline := range cdPipelines.Pipelines {
 		envIds = append(envIds, &dbPipeline.EnvironmentId)
 		dbPipelineIds = append(dbPipelineIds, dbPipeline.Id)
