@@ -3655,7 +3655,7 @@ func (impl PipelineBuilderImpl) MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDelete
 
 func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) ([]*bean.CiConfigRequest, error) {
 	ciPipelinesConfigByApps := make([]*bean.CiConfigRequest, 0)
-
+	_, span := otel.Tracer("orchestrator").Start(ctx, "ciHandler.AppGroupingCiPipelinesAuthorization")
 	cdPipelines, err := impl.pipelineRepository.FindActiveByEnvId(envId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error fetching pipelines for env id", "err", err)
@@ -3685,6 +3685,7 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int, emailId st
 		ciPipelineIds = append(ciPipelineIds, pipeline.CiPipelineId)
 	}
 	//authorization block ends here
+	span.End()
 
 	if impl.ciConfig.ExternalCiWebhookUrl == "" {
 		hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
@@ -3696,9 +3697,8 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int, emailId st
 		}
 	}
 
-	_, span := otel.Tracer("orchestrator").Start(ctx, "ciHandler.GetCiTemplateVariables")
+	_, span = otel.Tracer("orchestrator").Start(ctx, "ciHandler.GetCiTemplateVariables")
 	defer span.End()
-
 	ciPipelinesConfigMap, err := impl.getCiTemplateVariablesByAppIds(appIds)
 	if err != nil {
 		impl.logger.Debugw("error in fetching ci pipeline", "appIds", appIds, "err", err)
