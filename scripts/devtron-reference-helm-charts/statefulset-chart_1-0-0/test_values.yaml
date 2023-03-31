@@ -119,20 +119,55 @@ statefulSet:
   updateStrategy:
     type: RollingUpdate
     partition: 2
-  volumeClaimTemplates: 
-    - name: www
-      accessModes: [ "ReadWriteOnce" ]
-      storageClassName: "my-storage-class"
-      storage: 1Gi
-    - name: www
-      accessModes: [ "ReadWriteOnce" ]
-      storageClassName: "my-storage-class"
-      storage: 1Gi
-    - name: www
-      accessModes: [ "ReadWriteOnce" ]
-      storageClassName: "my-storage-class"
-      storage: 1Gi
-  serviceName: "nginx"
+  volumeClaimTemplates:
+  - apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      name: pvc-data
+      labels:
+        app: myapp
+    spec:
+      accessModes:
+        - ReadWriteOnce
+      dataSource:
+        kind: Snapshot
+        apiGroup: snapshot.storage.k8s.io
+        name: my-snapshot
+      resources:
+        requests:
+          storage: 10Gi
+        limits:
+          storage: 20Gi
+      storageClassName: my-storage-class
+      selector:
+        matchLabels:
+          app: myapp
+      volumeMode: Filesystem
+      volumeName: my-pv
+  - apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      name: pvc-logs
+      labels:
+        app: myapp
+    spec:
+      accessModes:
+        - ReadWriteMany
+      dataSourceRef:
+        kind: Secret
+        apiGroup: v1
+        name: my-secret
+        namespace: my-namespace
+      resources:
+        requests:
+          storage: 5Gi
+      storageClassName: my-storage-class
+      selector:
+        matchExpressions:
+          - {key: environment, operator: In, values: [production]}
+      volumeMode: Block
+      volumeName: my-pv
+
 
 secret:
   enabled: false

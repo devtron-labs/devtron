@@ -52,12 +52,6 @@ spec:
   minReadySeconds: {{ $.Values.MinReadySeconds }}
   serviceName: {{ $.Values.statefulSet.serviceName }}
   podManagementPolicy: {{ $.Values.statefulSet.podManagementPolicy }}
-  updateStrategy: 
-    {{- if $.Values.statefulSet.updateStrategy.partition }}
-      rollingUpdate:
-          partition: {{ $.Values.statefulSet.updateStrategy.partition }}
-         {{- end }} 
-      type: {{ $.Values.statefulSet.updateStrategy.type }}
   template:
     metadata:
     {{- if .Values.podAnnotations }}
@@ -472,14 +466,62 @@ spec:
   {{- if $.Values.statefulSet.volumeClaimTemplates }}
   volumeClaimTemplates: 
     {{- range $.Values.statefulSet.volumeClaimTemplates }}
-    - metadata:
-          name: {{ .name }}
+    - apiVersion: {{ .apiVersion}}
+      kind: {{.kind}}
+      metadata:
+          {{- if .metadata.annotations }}
+          annotations: {{ toYaml .metadata.annotations | nindent 14 }}
+          {{- end}}
+          {{- if .metadata.labels }}
+          labels: {{ toYaml .metadata.labels | nindent 14 }}
+          {{- end}}
+          name: {{ .metadata.name }}
+          {{- if .metadata.namespace }}
+          namespace: {{  .metadata.namespace  }}
+          {{- end}}
       spec:
-        accessModes: {{ .accessModes }}
-        storageClassName: {{ .storageClassName }}
+        accessModes: {{ .spec.accessModes }}
+         {{- if .spec.dataSource }}
+        dataSource:
+            apiGroup: {{ .spec.dataSource.apiGroup}}
+            kind:  {{ .spec.dataSource.kind}}
+            name:  {{ .spec.dataSource.name}}
+          {{- end }}
+         {{- if .spec.dataSourceRef }}
+        dataSourceRef:
+            apiGroup: {{ .spec.dataSourceRef.apiGroup}}
+            kind: {{ .spec.dataSourceRef.kind}}
+            name:  {{ .spec.dataSourceRef.name}}
+            namespace: {{ .spec.dataSourceRef.namespace}}
+          {{- end }}
+        {{- if .spec.selector }}
+        selector: {{ toYaml .spec.selector | nindent 10 }}
+        {{- end}}
+        storageClassName: {{ .spec.storageClassName }}
         resources:
+         {{- if .spec.resources.claim }}
+            claims:
+                name: {{ .spec.resources.claim.name}}
+            {{- end}}
+            {{- if .spec.resources.limits }}
+            limits: {{ toYaml .spec.resources.limits | nindent 14 }}
+            {{- end}}
             requests:
-              storage: {{ .storage }}
+              storage: {{ .spec.resources.requests.storage }}
+        {{- if .volumeMode }}
+        volumeMode: {{ .volumeMode}}
+        {{- end}}
+        {{- if .volumeName }}
+        volumeName: {{ .volumeName}}
+        {{- end}}
     {{- end }}   
     {{- end }}
+  updateStrategy: 
+  {{- if eq .Values.deploymentType "ROLLING" }}
+    {{- if .updateStrategy.partition }}
+      rollingUpdate:
+          partition: {{ .updateStrategy.partition }}
+         {{- end }} 
+      type: {{  .updateStrategy.type }}
+  {{- end }}
   revisionHistoryLimit: 3
