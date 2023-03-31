@@ -840,16 +840,23 @@ func (impl PipelineBuilderImpl) GetCiPipelineMin(appId int) ([]*bean.CiPipelineM
 		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no ci pipeline found"}
 		return nil, err
 	}
+	parentCiPipelines, linkedCiPipelineIds, err := impl.ciPipelineRepository.FindParentCiPipelineMapByAppId(appId)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.logger.Errorw("err", err)
+		return nil, err
+	}
+	pipelineParentCiMap := make(map[int]*pipelineConfig.CiPipeline)
+	for index, item := range parentCiPipelines {
+		pipelineParentCiMap[linkedCiPipelineIds[index]] = item
+	}
+
 	var ciPipelineResp []*bean.CiPipelineMin
 	for _, pipeline := range pipelines {
-		parentCiPipeline, err := impl.ciPipelineRepository.FindById(pipeline.ParentCiPipeline)
-		if err != nil && !util.IsErrNoRows(err) {
-			impl.logger.Errorw("err", err)
-			return nil, err
-		}
-
+		parentCiPipeline := pipelineConfig.CiPipeline{}
 		pipelineType := bean.PipelineType(bean.NORMAL)
-		if parentCiPipeline.Id > 0 {
+
+		if pipelineParentCiMap[pipeline.Id] != nil {
+			parentCiPipeline = *pipelineParentCiMap[pipeline.Id]
 			pipelineType = bean.PipelineType(bean.LINKED)
 		} else if pipeline.IsExternal == true {
 			pipelineType = bean.PipelineType(bean.EXTERNAL)

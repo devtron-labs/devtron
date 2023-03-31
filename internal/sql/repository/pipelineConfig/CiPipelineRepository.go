@@ -86,6 +86,7 @@ type CiPipelineRepository interface {
 	FindByAppIds(appIds []int) (pipelines []*CiPipeline, err error)
 	//find non deleted pipeline
 	FindById(id int) (pipeline *CiPipeline, err error)
+	FindParentCiPipelineMapByAppId(appId int) ([]*CiPipeline, []int, error)
 	FindByCiAndAppDetailsById(pipelineId int) (pipeline *CiPipeline, err error)
 	FindByIdsIn(ids []int) ([]*CiPipeline, error)
 	Update(pipeline *CiPipeline, tx *pg.Tx) error
@@ -260,6 +261,25 @@ func (impl CiPipelineRepositoryImpl) FindWithMinDataByCiPipelineId(id int) (pipe
 		Select()
 
 	return pipeline, err
+}
+
+func (impl CiPipelineRepositoryImpl) FindParentCiPipelineMapByAppId(appId int) ([]*CiPipeline, []int, error) {
+	var parentCiPipelines []*CiPipeline
+	var linkedCiPipelineIds []int
+	queryLinked := `select * from ci_pipeline where id in (select parent_ci_pipeline from ci_pipeline where app_id=? and deleted=? and parent_ci_pipeline is not null) order by id asc;`
+	_, err := impl.dbConnection.Query(&parentCiPipelines, queryLinked, appId, false)
+	if err != nil {
+		impl.logger.Error("error in fetching linked ci pipelines", "error", err)
+		return nil, nil, err
+	}
+	queryParent := `select id from ci_pipeline where app_id=? and deleted=? and parent_ci_pipeline is not null order by parent_ci_pipeline asc;`
+	_, err = impl.dbConnection.Query(&linkedCiPipelineIds, queryParent, appId, false)
+	if err != nil {
+		impl.logger.Error("error in fetching parent ci pipelines", "error", err)
+		return nil, nil, err
+	}
+
+	return parentCiPipelines, linkedCiPipelineIds, nil
 }
 
 func (impl CiPipelineRepositoryImpl) PipelineExistsByName(names []string) (found []string, err error) {
