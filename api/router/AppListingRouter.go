@@ -80,4 +80,8 @@ func (router AppListingRouterImpl) initAppListingRouter(appListingRouter *mux.Ro
 	appListingRouter.Path("/deployment-status/manual-sync/{appId}/{envId}").
 		HandlerFunc(router.appListingRestHandler.ManualSyncAcdPipelineDeploymentStatus).
 		Methods("GET")
+
+	appListingRouter.Path("/team/env/cluster/autocomplete").
+		HandlerFunc(router.appListingRestHandler.GetClusterTeamAndEnvListForAutocomplete).Methods("GET")
+
 }
