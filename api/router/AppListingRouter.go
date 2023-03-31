@@ -69,6 +69,9 @@ func (router AppListingRouterImpl) initAppListingRouter(appListingRouter *mux.Ro
 		HandlerFunc(router.appListingRestHandler.FetchOtherEnvironment).
 		Methods("GET")
 
+	appListingRouter.Path("/other-env/min").Queries("app-id", "{app-id}").
+		HandlerFunc(router.appListingRestHandler.FetchMinDetailOtherEnvironment).Methods("GET")
+
 	appListingRouter.Path("/linkouts/{Id}/{appId}/{envId}").Queries("podName", "{podName}").
 		Queries("containerName", "{containerName}").
 		HandlerFunc(router.appListingRestHandler.RedirectToLinkouts).
