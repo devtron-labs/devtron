@@ -148,7 +148,10 @@ func getAppListingCommonQueryString() string {
 
 func (impl AppListingRepositoryQueryBuilder) TestForBuildAppsQuery(appListingFilter AppListingFilter) string {
 
-	query := "SELECT p.environment_id , a.id AS app_id, a.app_name,p.id as pipeline_id, a.team_id"
+	query := "SELECT p.environment_id , a.id AS app_id, a.app_name,p.id as pipeline_id, a.team_id "
+	if len(appListingFilter.AppStatuses) > 0 {
+		query += " ,aps.status as app_status "
+	}
 	query += impl.TestForCommonAppFilter(appListingFilter)
 	return query
 }
