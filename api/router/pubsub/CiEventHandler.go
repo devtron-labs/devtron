@@ -92,6 +92,7 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 			impl.logger.Error("error while unmarshalling json data", "error", err)
 			return
 		}
+		util.TriggerCIMetrics(ciCompleteEvent.Metrics, impl.ciEventConfig.ExposeCiMetrics, ciCompleteEvent.PipelineName, ciCompleteEvent.AppName)
 		impl.logger.Debugw("ci complete event for ci", "ciPipelineId", ciCompleteEvent.PipelineId)
 		req, err := impl.BuildCiArtifactRequest(ciCompleteEvent)
 		if err != nil {
