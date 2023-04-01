@@ -76,6 +76,7 @@ type EnvironmentService interface {
 	Update(mappings *EnvironmentBean, userId int32) (*EnvironmentBean, error)
 	FindClusterByEnvId(id int) (*ClusterBean, error)
 	GetEnvironmentListForAutocomplete() ([]EnvironmentBean, error)
+	GetEnvironmentOnlyListForAutocomplete() ([]EnvironmentBean, error)
 	FindByIds(ids []*int) ([]*EnvironmentBean, error)
 	FindByNamespaceAndClusterName(namespaces string, clusterName string) (*repository.Environment, error)
 	GetByClusterId(id int) ([]*EnvironmentBean, error)
@@ -366,6 +367,23 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete() ([]Enviro
 			CdArgoSetup:           model.Cluster.CdArgoSetup,
 			EnvironmentIdentifier: model.EnvironmentIdentifier,
 			ClusterName:           model.Cluster.ClusterName,
+		})
+	}
+	return beans, nil
+}
+
+func (impl EnvironmentServiceImpl) GetEnvironmentOnlyListForAutocomplete() ([]EnvironmentBean, error) {
+	models, err := impl.environmentRepository.FindAllActiveEnvOnlyDetails()
+	if err != nil {
+		impl.logger.Errorw("error in fetching environment", "err", err)
+	}
+	var beans []EnvironmentBean
+	for _, model := range models {
+		beans = append(beans, EnvironmentBean{
+			Id:                    model.Id,
+			Environment:           model.Name,
+			Namespace:             model.Namespace,
+			EnvironmentIdentifier: model.EnvironmentIdentifier,
 		})
 	}
 	return beans, nil

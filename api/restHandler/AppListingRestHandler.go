@@ -1111,7 +1111,7 @@ func (handler AppListingRestHandlerImpl) GetClusterTeamAndEnvListForAutocomplete
 
 	//getting environment for autocomplete
 	start = time.Now()
-	environments, err := handler.environmentClusterMappingsService.GetEnvironmentListForAutocomplete()
+	environments, err := handler.environmentClusterMappingsService.GetEnvironmentOnlyListForAutocomplete()
 	if err != nil {
 		handler.logger.Errorw("service err, GetEnvironmentListForAutocomplete at environmentClusterMappingsService layer", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
