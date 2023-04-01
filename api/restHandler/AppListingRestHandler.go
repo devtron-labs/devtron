@@ -446,66 +446,20 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
 	envId, err := strconv.Atoi(vars["env-id"])
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	pipelines, err := handler.pipelineRepository.FindActiveByAppIdAndEnvironmentId(appId, envId)
-	if err == pg.ErrNoRows {
-		common.WriteJsonResp(w, err, "pipeline Not found in database", http.StatusNotFound)
-		return
-	}
-	if err != nil {
-		handler.logger.Errorw("error in fetching pipelines from db", "appId", appId, "envId", envId)
-		common.WriteJsonResp(w, err, "error in fetching pipeline from database", http.StatusInternalServerError)
-		return
-	}
-	if len(pipelines) == 0 {
-		common.WriteJsonResp(w, fmt.Errorf("app deleted"), nil, http.StatusNotFound)
-		return
-	}
-	if len(pipelines) != 1 {
-		common.WriteJsonResp(w, err, "multiple pipelines found for an envId", http.StatusBadRequest)
-		return
-	}
-	cdPipeline := pipelines[0]
-	appDetail, err := handler.appListingService.FetchAppDetails(r.Context(), appId, envId)
-	if err != nil {
-		handler.logger.Errorw("service err, FetchAppDetails", "err", err, "appId", appId, "envId", envId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
-	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	appDetail, err := handler.appListingService.FetchAppDetails(r.Context(), appId, envId)
 	if err != nil {
-		common.WriteJsonResp(w, fmt.Errorf("error in getting acd token"), nil, http.StatusInternalServerError)
-		return
-	}
-	appDetail, err = handler.fetchResourceTree(w, r, appId, envId, appDetail, acdToken, cdPipeline)
-	if appDetail.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
-		apiError, ok := err.(*util.ApiError)
-		if ok && apiError != nil {
-			if apiError.Code == constants.AppDetailResourceTreeNotFound && appDetail.DeploymentAppDeleteRequest == true {
-				acdAppFound, _ := handler.pipeline.MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(appId, envId, acdToken, cdPipeline)
-				if acdAppFound {
-					common.WriteJsonResp(w, fmt.Errorf("unable to fetch resource tree"), nil, http.StatusInternalServerError)
-					return
-				} else {
-					common.WriteJsonResp(w, fmt.Errorf("app deleted"), nil, http.StatusNotFound)
-					return
-				}
-			}
-		}
-	}
-	if err != nil {
-		common.WriteJsonResp(w, fmt.Errorf("unable to fetch resource tree"), nil, http.StatusInternalServerError)
+		handler.logger.Errorw("service err, FetchAppDetails", "err", err, "appId", appId, "envId", envId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, err, appDetail, http.StatusOK)

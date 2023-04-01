@@ -35,8 +35,8 @@ import (
 	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
-	repository3 "github.com/devtron-labs/devtron/pkg/user/repository"
 	util2 "github.com/devtron-labs/devtron/util"
+	bean3 "github.com/devtron-labs/devtron/pkg/user/bean"
 	"path"
 	"regexp"
 	"strconv"
@@ -897,7 +897,7 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteApp(appId int, userId int32) erro
 		return err
 	}
 	//deleting auth roles entries for this project
-	err = impl.userAuthService.DeleteRoles(repository3.APP_TYPE, app.AppName, tx, "")
+	err = impl.userAuthService.DeleteRoles(bean3.APP_TYPE, app.AppName, tx, "")
 	if err != nil {
 		impl.logger.Errorw("error in deleting auth roles", "err", err)
 		return err

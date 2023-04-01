@@ -758,7 +758,7 @@ func (impl InstalledAppServiceImpl) DeployDefaultComponent(chartGroupInstallRequ
 func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(installedAppId, envId int) (bean2.AppDetailContainer, error) {
 	installedAppVerison, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdAndEnvId(installedAppId, envId)
 	if err != nil {
-		impl.logger.Error(err)
+		impl.logger.Errorw("error while fetcing ", "err",err)
 		return bean2.AppDetailContainer{}, err
 	}
 	deploymentContainer := bean2.DeploymentDetailContainer{
