@@ -89,32 +89,33 @@ type CiPipelineLastSucceededTime struct {
 }
 
 type AppEnvironmentContainer struct {
-	AppId                       int                       `json:"appId"`
-	AppName                     string                    `json:"appName"`
-	EnvironmentId               int                       `json:"environmentId"`
-	EnvironmentName             string                    `json:"environmentName"`
-	Namespace                   string                    `json:"namespace"`
-	ClusterName                 string                    `json:"clusterName"`
-	DeploymentCounter           int                       `json:"deploymentCounter,omitempty"`
-	InstanceCounter             int                       `json:"instanceCounter,omitempty"`
-	Status                      string                    `json:"status"`
-	AppStatus                   string                    `json:"appStatus"`
-	CdStageStatus               *string                   `json:"cdStageStatus"`
-	PreStageStatus              *string                   `json:"preStageStatus"`
-	PostStageStatus             *string                   `json:"postStageStatus"`
+	AppId             int     `json:"appId"`
+	AppName           string  `json:"appName"`
+	EnvironmentId     int     `json:"environmentId"`
+	EnvironmentName   string  `json:"environmentName"`
+	Namespace         string  `json:"namespace"`
+	ClusterName       string  `json:"clusterName"`
+	DeploymentCounter int     `json:"deploymentCounter,omitempty"`
+	InstanceCounter   int     `json:"instanceCounter,omitempty"`
+	Status            string  `json:"status"`
+	AppStatus         string  `json:"appStatus"`
+	CdStageStatus     *string `json:"cdStageStatus"`
+	//PreStageStatus              *string                   `json:"preStageStatus"`
+	//PostStageStatus             *string                   `json:"postStageStatus"`
 	LastDeployedTime            string                    `json:"lastDeployedTime,omitempty"`
 	LastSuccessDeploymentDetail DeploymentDetailContainer `json:"-"`
 	Default                     bool                      `json:"default"`
 	Deleted                     bool                      `json:"deleted"`
 	MaterialInfo                json.RawMessage           `json:"materialInfo,omitempty"`
-	DataSource                  string                    `json:"dataSource,omitempty"`
-	MaterialInfoJson            string                    `json:"-"`
-	PipelineId                  int                       `json:"-"`
-	PipelineReleaseCounter      int                       `json:"-"`
-	CiArtifactId                int                       `json:"ciArtifactId"`
-	Active                      bool                      `json:"-"`
-	TeamId                      int                       `json:"teamId"`
-	TeamName                    string                    `json:"teamName"`
+	//DataSource                  string                    `json:"dataSource,omitempty"`
+	//MaterialInfoJson            string                    `json:"-"`
+	PipelineId             int `json:"-"`
+	PipelineReleaseCounter int `json:"-"`
+	//CiArtifactId                int                       `json:"ciArtifactId"`
+	Active     bool   `json:"-"`
+	TeamId     int    `json:"teamId"`
+	TeamName   string `json:"teamName"`
+	TotalCount int    `json:"-"`
 }
 
 type DeploymentDetailContainer struct {

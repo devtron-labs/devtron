@@ -54,6 +54,7 @@ type AppListingFilter struct {
 	Offset            int       `json:"offset"`
 	Size              int       `json:"size"`
 	DeploymentGroupId int       `json:"deploymentGroupId"`
+	AppIds            []int     `json:"-"` //internal use only
 }
 
 type SortBy string
@@ -112,36 +113,128 @@ func (impl AppListingRepositoryQueryBuilder) JobsLastSucceededOnTimeQuery(ciPipe
 	return query
 }
 
-func (impl AppListingRepositoryQueryBuilder) BuildAppListingQuery(appListingFilter AppListingFilter) string {
-	whereCondition := impl.buildAppListingWhereCondition(appListingFilter)
-	orderByClause := impl.buildAppListingSortBy(appListingFilter)
-	query := "SELECT env.id AS environment_id, env.environment_name,env.namespace as namespace ,a.id AS app_id, a.app_name, env.default,aps.status as app_status," +
-		" p.id as pipeline_id, env.active, a.team_id, t.name as team_name" +
-		" , cluster.cluster_name as cluster_name" +
-		" FROM pipeline p" +
+func getAppListingCommonQueryString() string {
+	return " FROM pipeline p" +
 		" INNER JOIN environment env ON env.id=p.environment_id" +
 		" INNER JOIN cluster cluster ON cluster.id=env.cluster_id" +
 		" RIGHT JOIN app a ON a.id=p.app_id  and p.deleted=false" +
 		" RIGHT JOIN team t ON t.id=a.team_id " +
-		" LEFT JOIN app_status aps on aps.app_id = a.id and env.id = aps.env_id "
+		" LEFT JOIN app_status aps on aps.app_id = a.id and p.environment_id = aps.env_id "
+}
+
+//func (impl AppListingRepositoryQueryBuilder) BuildAppListingQueryForAppIds(appListingFilter AppListingFilter) string {
+//	whereCondition := impl.buildAppListingWhereCondition(appListingFilter)
+//	orderByClause := impl.buildAppListingSortBy(appListingFilter)
+//	query := "SELECT a.id as app_id " + getAppListingCommonQueryString()
+//	if appListingFilter.DeploymentGroupId != 0 {
+//		query = query + " INNER JOIN deployment_group_app dga ON a.id = dga.app_id "
+//	}
+//	query = query + whereCondition + orderByClause
+//	return query
+//}
+
+//func (impl AppListingRepositoryQueryBuilder) BuildAppListingQuery(appListingFilter AppListingFilter) string {
+//	whereCondition := impl.buildAppListingWhereCondition(appListingFilter)
+//	orderByClause := impl.buildAppListingSortBy(appListingFilter)
+//	query := "SELECT env.id AS environment_id, env.environment_name,env.namespace as namespace ,a.id AS app_id, a.app_name, env.default,aps.status as app_status," +
+//		" p.id as pipeline_id, env.active, a.team_id, t.name as team_name" +
+//		" , cluster.cluster_name as cluster_name" + getAppListingCommonQueryString()
+//	if appListingFilter.DeploymentGroupId != 0 {
+//		query = query + " INNER JOIN deployment_group_app dga ON a.id = dga.app_id "
+//	}
+//	query = query + whereCondition + orderByClause
+//	return query
+//}
+
+func (impl AppListingRepositoryQueryBuilder) GetQueryForAppEnvContainerss(appListingFilter AppListingFilter) string {
+
+	query := "SELECT p.environment_id , a.id AS app_id, a.app_name,p.id as pipeline_id, a.team_id "
+	if len(appListingFilter.AppStatuses) > 0 {
+		query += " ,aps.status as app_status "
+	}
+	query += impl.TestForCommonAppFilter(appListingFilter)
+	return query
+}
+
+func (impl AppListingRepositoryQueryBuilder) CommonJoinSubQuery(appListingFilter AppListingFilter) string {
+	whereCondition := impl.buildAppListingWhereCondition(appListingFilter)
+
+	query := " LEFT JOIN pipeline p ON a.id=p.app_id  and p.deleted=false "
+	if len(appListingFilter.AppStatuses) > 0 {
+		query += " LEFT JOIN app_status aps on aps.app_id = a.id and p.environment_id = aps.env_id "
+	}
 	if appListingFilter.DeploymentGroupId != 0 {
 		query = query + " INNER JOIN deployment_group_app dga ON a.id = dga.app_id "
 	}
-	query = query + whereCondition + orderByClause
+
+	query = query + whereCondition
+
+	return query
+}
+func (impl AppListingRepositoryQueryBuilder) TestForCommonAppFilter(appListingFilter AppListingFilter) string {
+	query := " FROM app a" + impl.CommonJoinSubQuery(appListingFilter)
 	return query
 }
 
-func (impl AppListingRepositoryQueryBuilder) BuildAppListingQueryLastDeploymentTime() string {
-	query := "select DISTINCT ON( pco.pipeline_id) pco.pipeline_id, pco.pipeline_release_counter, pco.created_on as last_deployed_time," +
-		" cia.data_source, cia.material_info as material_info_json, cia.id as ci_artifact_id" +
-		" from pipeline_config_override pco" +
-		" inner join ci_artifact cia on cia.id=pco.ci_artifact_id" +
-		" order by pco.pipeline_id,pco.pipeline_release_counter desc;"
+func (impl AppListingRepositoryQueryBuilder) BuildAppListingQueryLastDeploymentTime(pipelineIDs []int) string {
+	whereCondition := ""
+	if len(pipelineIDs) > 0 {
+		whereCondition += fmt.Sprintf(" Where pco.pipeline_id IN (%s) ", GetCommaSepratedString(pipelineIDs))
+	}
+	query := "select pco.pipeline_id , MAX(pco.created_on) as last_deployed_time" +
+		" from pipeline_config_override pco" + whereCondition +
+		" GROUP BY pco.pipeline_id;"
 	return query
 }
+
+func (impl AppListingRepositoryQueryBuilder) GetAppIdsQueryWithPaginationForLastDeployedSearch(appListingFilter AppListingFilter) string {
+
+	query := "SELECT a.id as app_id,MAX(pco.created_on) as last_deployed_time " +
+		" FROM app a " +
+		" LEFT JOIN pipeline p ON p.app_id = a.id and p.deleted=false " +
+		" INNER JOIN pipeline_config_override pco ON pco.pipeline_id = p.id "
+	//if len(appListingFilter.AppIds) > 0 {
+	join := impl.CommonJoinSubQuery(appListingFilter)
+	conditionalJoin := " INNER JOIN (   SELECT DISTINCT(a.id) as id, dt.count as total_count FROM app a " +
+		"       CROSS JOIN ( SELECT count(distinct(a.id)) as count FROM app a" + join + ") dt " +
+		join + ") da on da.id = a.id "
+	query += conditionalJoin
+	//}
+
+	query += fmt.Sprintf(" GROUP BY a.id "+" ORDER BY last_deployed_time %s ", appListingFilter.SortOrder)
+
+	query += fmt.Sprintf(" LIMIT %v OFFSET %v", appListingFilter.Size, appListingFilter.Offset)
+	return query
+}
+
+func (impl AppListingRepositoryQueryBuilder) GetAppIdsQueryWithPaginationForAppNameSearch(appListingFilter AppListingFilter) string {
+	orderByClause := impl.buildAppListingSortBy(appListingFilter)
+	join := impl.CommonJoinSubQuery(appListingFilter)
+	query := "SELECT DISTINCT(a.id) as app_id, dt.count as total_count, a.app_name " +
+		" FROM app a " +
+		" CROSS JOIN ( SELECT count(distinct(a.id)) as count FROM app a" +
+		join + ") dt" +
+		join
+	if appListingFilter.SortBy == "appNameSort" {
+		query += orderByClause
+	}
+	query += fmt.Sprintf("LIMIT %v OFFSET %v", appListingFilter.Size, appListingFilter.Offset)
+	return query
+}
+
+//func (impl AppListingRepositoryQueryBuilder) TestForUniqueAppIdsWithFilterV2(appListingFilter AppListingFilter) string {
+//	query := "SELECT DISTINCT a.id "
+//	query += impl.TestForCommonAppFilter(appListingFilter)
+//	return query
+//}
 
 func (impl AppListingRepositoryQueryBuilder) buildAppListingSortBy(appListingFilter AppListingFilter) string {
-	orderByCondition := " ORDER BY p.updated_on desc "
+	orderByCondition := " ORDER BY a.app_name "
+
+	if appListingFilter.SortOrder != "ASC" {
+		orderByCondition += " DESC "
+	}
+
 	return orderByCondition
 }
 
@@ -174,7 +267,7 @@ func (impl AppListingRepositoryQueryBuilder) buildAppListingWhereCondition(appLi
 	whereCondition := "WHERE a.active = true and a.app_type = 0 "
 	if len(appListingFilter.Environments) > 0 {
 		envIds := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(appListingFilter.Environments)), ","), "[]")
-		whereCondition = whereCondition + "and env.id IN (" + envIds + ") "
+		whereCondition = whereCondition + "and p.environment_id IN (" + envIds + ") "
 	}
 
 	if len(appListingFilter.Teams) > 0 {
@@ -194,6 +287,11 @@ func (impl AppListingRepositoryQueryBuilder) buildAppListingWhereCondition(appLi
 	if len(appListingFilter.AppStatuses) > 0 {
 		appStatuses := util.ProcessAppStatuses(appListingFilter.AppStatuses)
 		whereCondition = whereCondition + "and aps.status IN (" + appStatuses + ") "
+	}
+
+	if len(appListingFilter.AppIds) > 0 {
+		appIds := GetCommaSepratedString(appListingFilter.AppIds)
+		whereCondition = whereCondition + "and a.id IN (" + appIds + ") "
 	}
 	return whereCondition
 }
