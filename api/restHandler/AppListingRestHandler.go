@@ -1068,7 +1068,7 @@ func (handler AppListingRestHandlerImpl) GetClusterTeamAndEnvListForAutocomplete
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-
+	clusterMapping := make(map[string]cluster.ClusterBean)
 	start := time.Now()
 	clusterList, err := handler.clusterService.FindAllForAutoComplete()
 	dbOperationTime := time.Since(start)
@@ -1093,6 +1093,7 @@ func (handler AppListingRestHandlerImpl) GetClusterTeamAndEnvListForAutocomplete
 	token := r.Header.Get("token")
 	start = time.Now()
 	for _, item := range clusterList {
+		clusterMapping[strings.ToLower(item.ClusterName)] = item
 		if authEnabled == true {
 			if ok := handler.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionGet, item.ClusterName); ok {
 				granterClusters = append(granterClusters, item)
@@ -1126,7 +1127,12 @@ func (handler AppListingRestHandlerImpl) GetClusterTeamAndEnvListForAutocomplete
 		emailId, _ := handler.userService.GetEmailFromToken(token)
 		// RBAC enforcer applying
 		var envIdentifierList []string
-		for _, item := range environments {
+		for index, item := range environments {
+			clusterName := strings.ToLower(strings.Split(item.EnvironmentIdentifier, "__")[0])
+			if clusterMapping[clusterName].Id != 0 {
+				environments[index].CdArgoSetup = clusterMapping[clusterName].IsCdArgoSetup
+				environments[index].ClusterName = clusterMapping[clusterName].ClusterName
+			}
 			envIdentifierList = append(envIdentifierList, strings.ToLower(item.EnvironmentIdentifier))
 		}
 
