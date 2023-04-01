@@ -24,6 +24,7 @@ import (
 	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/caarlos0/env/v6"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
@@ -67,31 +68,35 @@ type AppListingRestHandler interface {
 	FetchAppStageStatus(w http.ResponseWriter, r *http.Request)
 
 	FetchOtherEnvironment(w http.ResponseWriter, r *http.Request)
+	FetchMinDetailOtherEnvironment(w http.ResponseWriter, r *http.Request)
 	RedirectToLinkouts(w http.ResponseWriter, r *http.Request)
 	GetHostUrlsByBatch(w http.ResponseWriter, r *http.Request)
 
 	ManualSyncAcdPipelineDeploymentStatus(w http.ResponseWriter, r *http.Request)
+	GetClusterTeamAndEnvListForAutocomplete(w http.ResponseWriter, r *http.Request)
 }
 
 type AppListingRestHandlerImpl struct {
-	application                      application.ServiceClient
-	appListingService                app.AppListingService
-	teamService                      team.TeamService
-	enforcer                         casbin.Enforcer
-	pipeline                         pipeline.PipelineBuilder
-	logger                           *zap.SugaredLogger
-	enforcerUtil                     rbac.EnforcerUtil
-	deploymentGroupService           deploymentGroup.DeploymentGroupService
-	userService                      user.UserService
-	helmAppClient                    client.HelmAppClient
-	clusterService                   cluster.ClusterService
-	helmAppService                   client.HelmAppService
-	argoUserService                  argo.ArgoUserService
-	k8sApplicationService            k8s.K8sApplicationService
-	installedAppService              service1.InstalledAppService
-	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler
-	pipelineRepository               pipelineConfig.PipelineRepository
-	appStatusService                 appStatus.AppStatusService
+	application                       application.ServiceClient
+	appListingService                 app.AppListingService
+	teamService                       team.TeamService
+	enforcer                          casbin.Enforcer
+	pipeline                          pipeline.PipelineBuilder
+	logger                            *zap.SugaredLogger
+	enforcerUtil                      rbac.EnforcerUtil
+	deploymentGroupService            deploymentGroup.DeploymentGroupService
+	userService                       user.UserService
+	helmAppClient                     client.HelmAppClient
+	clusterService                    cluster.ClusterService
+	helmAppService                    client.HelmAppService
+	argoUserService                   argo.ArgoUserService
+	k8sApplicationService             k8s.K8sApplicationService
+	installedAppService               service1.InstalledAppService
+	cdApplicationStatusUpdateHandler  cron.CdApplicationStatusUpdateHandler
+	pipelineRepository                pipelineConfig.PipelineRepository
+	appStatusService                  appStatus.AppStatusService
+	environmentClusterMappingsService cluster.EnvironmentService
+	cfg                               *bean.Config
 }
 
 type AppStatus struct {
@@ -100,6 +105,12 @@ type AppStatus struct {
 	message    string
 	err        error
 	conditions []v1alpha1.ApplicationCondition
+}
+
+type AppAutocomplete struct {
+	Teams        []team.TeamRequest
+	Environments []cluster.EnvironmentBean
+	Clusters     []cluster.ClusterBean
 }
 
 func NewAppListingRestHandlerImpl(application application.ServiceClient,
@@ -113,26 +124,37 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 	argoUserService argo.ArgoUserService, k8sApplicationService k8s.K8sApplicationService, installedAppService service1.InstalledAppService,
 	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler,
 	pipelineRepository pipelineConfig.PipelineRepository,
-	appStatusService appStatus.AppStatusService) *AppListingRestHandlerImpl {
+	appStatusService appStatus.AppStatusService,
+	environmentClusterMappingsService cluster.EnvironmentService,
+) *AppListingRestHandlerImpl {
+	cfg := &bean.Config{}
+	err := env.Parse(cfg)
+	if err != nil {
+		logger.Errorw("error occurred while parsing config ", "err", err)
+		cfg.IgnoreAuthCheck = false
+	}
+	logger.Infow("app listing rest handler initialized", "ignoreAuthCheckValue", cfg.IgnoreAuthCheck)
 	appListingHandler := &AppListingRestHandlerImpl{
-		application:                      application,
-		appListingService:                appListingService,
-		logger:                           logger,
-		teamService:                      teamService,
-		pipeline:                         pipeline,
-		enforcer:                         enforcer,
-		enforcerUtil:                     enforcerUtil,
-		deploymentGroupService:           deploymentGroupService,
-		userService:                      userService,
-		helmAppClient:                    helmAppClient,
-		clusterService:                   clusterService,
-		helmAppService:                   helmAppService,
-		argoUserService:                  argoUserService,
-		k8sApplicationService:            k8sApplicationService,
-		installedAppService:              installedAppService,
-		cdApplicationStatusUpdateHandler: cdApplicationStatusUpdateHandler,
-		pipelineRepository:               pipelineRepository,
-		appStatusService:                 appStatusService,
+		application:                       application,
+		appListingService:                 appListingService,
+		logger:                            logger,
+		teamService:                       teamService,
+		pipeline:                          pipeline,
+		enforcer:                          enforcer,
+		enforcerUtil:                      enforcerUtil,
+		deploymentGroupService:            deploymentGroupService,
+		userService:                       userService,
+		helmAppClient:                     helmAppClient,
+		clusterService:                    clusterService,
+		helmAppService:                    helmAppService,
+		argoUserService:                   argoUserService,
+		k8sApplicationService:             k8sApplicationService,
+		installedAppService:               installedAppService,
+		cdApplicationStatusUpdateHandler:  cdApplicationStatusUpdateHandler,
+		pipelineRepository:                pipelineRepository,
+		appStatusService:                  appStatusService,
+		environmentClusterMappingsService: environmentClusterMappingsService,
+		cfg:                               cfg,
 	}
 	return appListingHandler
 }
@@ -669,6 +691,42 @@ func (handler AppListingRestHandlerImpl) FetchOtherEnvironment(w http.ResponseWr
 	common.WriteJsonResp(w, err, otherEnvironment, http.StatusOK)
 }
 
+func (handler AppListingRestHandlerImpl) FetchMinDetailOtherEnvironment(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	appId, err := strconv.Atoi(vars["app-id"])
+	if err != nil {
+		handler.logger.Errorw("request err, FetchMinDetailOtherEnvironment", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	token := r.Header.Get("token")
+	app, err := handler.pipeline.GetApp(appId)
+	if err != nil {
+		handler.logger.Errorw("service err, FetchMinDetailOtherEnvironment", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	// RBAC enforcer applying
+	object := handler.enforcerUtil.GetAppRBACName(app.AppName)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, err, "unauthorized user", http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+
+	otherEnvironment, err := handler.appListingService.FetchMinDetailOtherEnvironment(appId)
+	if err != nil {
+		handler.logger.Errorw("service err, FetchMinDetailOtherEnvironment", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	//TODO - rbac env level
+
+	common.WriteJsonResp(w, err, otherEnvironment, http.StatusOK)
+}
+
 func (handler AppListingRestHandlerImpl) RedirectToLinkouts(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	vars := mux.Vars(r)
@@ -993,4 +1051,140 @@ func (handler AppListingRestHandlerImpl) ManualSyncAcdPipelineDeploymentStatus(w
 		return
 	}
 	common.WriteJsonResp(w, nil, "App synced successfully.", http.StatusOK)
+}
+
+func (handler AppListingRestHandlerImpl) GetClusterTeamAndEnvListForAutocomplete(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	clusterMapping := make(map[string]cluster.ClusterBean)
+	start := time.Now()
+	clusterList, err := handler.clusterService.FindAllForAutoComplete()
+	dbOperationTime := time.Since(start)
+	if err != nil {
+		handler.logger.Errorw("service err, FindAllForAutoComplete in clusterService layer", "error", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	var granterClusters []cluster.ClusterBean
+	v := r.URL.Query()
+	authEnabled := true
+	auth := v.Get("auth")
+	if len(auth) > 0 {
+		authEnabled, err = strconv.ParseBool(auth)
+		if err != nil {
+			authEnabled = true
+			err = nil
+			//ignore error, apply rbac by default
+		}
+	}
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	start = time.Now()
+	for _, item := range clusterList {
+		clusterMapping[strings.ToLower(item.ClusterName)] = item
+		if authEnabled == true {
+			if ok := handler.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionGet, item.ClusterName); ok {
+				granterClusters = append(granterClusters, item)
+			}
+		} else {
+			granterClusters = append(granterClusters, item)
+		}
+
+	}
+	handler.logger.Infow("Cluster elapsed Time for enforcer", "dbElapsedTime", dbOperationTime, "enforcerTime", time.Since(start), "token", token, "envSize", len(granterClusters))
+	//RBAC enforcer Ends
+
+	if len(granterClusters) == 0 {
+		granterClusters = make([]cluster.ClusterBean, 0)
+	}
+
+	//getting environment for autocomplete
+	start = time.Now()
+	environments, err := handler.environmentClusterMappingsService.GetEnvironmentOnlyListForAutocomplete()
+	if err != nil {
+		handler.logger.Errorw("service err, GetEnvironmentListForAutocomplete at environmentClusterMappingsService layer", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	dbElapsedTime := time.Since(start)
+	var grantedEnvironment = environments
+	start = time.Now()
+	println(dbElapsedTime, grantedEnvironment)
+	if !handler.cfg.IgnoreAuthCheck {
+		grantedEnvironment = make([]cluster.EnvironmentBean, 0)
+		emailId, _ := handler.userService.GetEmailFromToken(token)
+		// RBAC enforcer applying
+		var envIdentifierList []string
+		for index, item := range environments {
+			clusterName := strings.ToLower(strings.Split(item.EnvironmentIdentifier, "__")[0])
+			if clusterMapping[clusterName].Id != 0 {
+				environments[index].CdArgoSetup = clusterMapping[clusterName].IsCdArgoSetup
+				environments[index].ClusterName = clusterMapping[clusterName].ClusterName
+			}
+			envIdentifierList = append(envIdentifierList, strings.ToLower(item.EnvironmentIdentifier))
+		}
+
+		result := handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceGlobalEnvironment, casbin.ActionGet, envIdentifierList)
+		for _, item := range environments {
+
+			var hasAccess bool
+			EnvironmentIdentifier := item.ClusterName + "__" + item.Namespace
+			if item.EnvironmentIdentifier != EnvironmentIdentifier {
+				// fix for futuristic case
+				hasAccess = result[strings.ToLower(EnvironmentIdentifier)] || result[strings.ToLower(item.EnvironmentIdentifier)]
+			} else {
+				hasAccess = result[strings.ToLower(item.EnvironmentIdentifier)]
+			}
+			if hasAccess {
+				grantedEnvironment = append(grantedEnvironment, item)
+			}
+		}
+		//RBAC enforcer Ends
+	}
+	elapsedTime := time.Since(start)
+	handler.logger.Infow("Env elapsed Time for enforcer", "dbElapsedTime", dbElapsedTime, "elapsedTime",
+		elapsedTime, "token", token, "envSize", len(grantedEnvironment))
+
+	//getting teams for autocomplete
+	start = time.Now()
+	teams, err := handler.teamService.FetchForAutocomplete()
+	if err != nil {
+		handler.logger.Errorw("service err, FetchForAutocomplete at teamService layer", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	dbElapsedTime = time.Since(start)
+	var grantedTeams = teams
+	start = time.Now()
+	if !handler.cfg.IgnoreAuthCheck {
+		grantedTeams = make([]team.TeamRequest, 0)
+		emailId, _ := handler.userService.GetEmailFromToken(token)
+		// RBAC enforcer applying
+		var teamNameList []string
+		for _, item := range teams {
+			teamNameList = append(teamNameList, strings.ToLower(item.Name))
+		}
+
+		result := handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceTeam, casbin.ActionGet, teamNameList)
+
+		for _, item := range teams {
+			if hasAccess := result[strings.ToLower(item.Name)]; hasAccess {
+				grantedTeams = append(grantedTeams, item)
+			}
+		}
+	}
+	handler.logger.Infow("Team elapsed Time for enforcer", "dbElapsedTime", dbElapsedTime, "elapsedTime", time.Since(start),
+		"token", token, "envSize", len(grantedTeams))
+
+	//RBAC enforcer Ends
+	resp := &AppAutocomplete{
+		Teams:        grantedTeams,
+		Environments: grantedEnvironment,
+		Clusters:     granterClusters,
+	}
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+
 }

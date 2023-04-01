@@ -65,6 +65,9 @@ func (router AppListingRouterImpl) initAppListingRouter(appListingRouter *mux.Ro
 		HandlerFunc(router.appListingRestHandler.FetchOtherEnvironment).
 		Methods("GET")
 
+	appListingRouter.Path("/other-env/min").Queries("app-id", "{app-id}").
+		HandlerFunc(router.appListingRestHandler.FetchMinDetailOtherEnvironment).Methods("GET")
+
 	appListingRouter.Path("/linkouts/{Id}/{appId}/{envId}").Queries("podName", "{podName}").
 		Queries("containerName", "{containerName}").
 		HandlerFunc(router.appListingRestHandler.RedirectToLinkouts).
@@ -73,4 +76,8 @@ func (router AppListingRouterImpl) initAppListingRouter(appListingRouter *mux.Ro
 	appListingRouter.Path("/deployment-status/manual-sync/{appId}/{envId}").
 		HandlerFunc(router.appListingRestHandler.ManualSyncAcdPipelineDeploymentStatus).
 		Methods("GET")
+
+	appListingRouter.Path("/team/env/cluster/autocomplete").
+		HandlerFunc(router.appListingRestHandler.GetClusterTeamAndEnvListForAutocomplete).Methods("GET")
+
 }

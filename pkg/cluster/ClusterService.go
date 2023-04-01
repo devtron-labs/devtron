@@ -57,6 +57,7 @@ type ClusterBean struct {
 	K8sVersion              string                     `json:"k8sVersion"`
 	HasConfigOrUrlChanged   bool                       `json:"-"`
 	ErrorInConnecting       string                     `json:"errorInConnecting,omitempty"`
+	IsCdArgoSetup           bool                       `json:"isCdArgoSetup"`
 }
 
 type PrometheusAuth struct {
@@ -491,6 +492,7 @@ func (impl *ClusterServiceImpl) FindAllForAutoComplete() ([]ClusterBean, error) 
 			Id:                m.Id,
 			ClusterName:       m.ClusterName,
 			ErrorInConnecting: m.ErrorInConnecting,
+			IsCdArgoSetup:     m.CdArgoSetup,
 		})
 	}
 	return beans, nil

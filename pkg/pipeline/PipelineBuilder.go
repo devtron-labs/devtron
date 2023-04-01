@@ -988,16 +988,23 @@ func (impl PipelineBuilderImpl) GetCiPipelineMin(appId int) ([]*bean.CiPipelineM
 		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no ci pipeline found"}
 		return nil, err
 	}
+	parentCiPipelines, linkedCiPipelineIds, err := impl.ciPipelineRepository.FindParentCiPipelineMapByAppId(appId)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.logger.Errorw("err", err)
+		return nil, err
+	}
+	pipelineParentCiMap := make(map[int]*pipelineConfig.CiPipeline)
+	for index, item := range parentCiPipelines {
+		pipelineParentCiMap[linkedCiPipelineIds[index]] = item
+	}
+
 	var ciPipelineResp []*bean.CiPipelineMin
 	for _, pipeline := range pipelines {
-		parentCiPipeline, err := impl.ciPipelineRepository.FindById(pipeline.ParentCiPipeline)
-		if err != nil && !util.IsErrNoRows(err) {
-			impl.logger.Errorw("err", err)
-			return nil, err
-		}
-
+		parentCiPipeline := pipelineConfig.CiPipeline{}
 		pipelineType := bean.PipelineType(bean.NORMAL)
-		if parentCiPipeline.Id > 0 {
+
+		if pipelineParentCiMap[pipeline.Id] != nil {
+			parentCiPipeline = *pipelineParentCiMap[pipeline.Id]
 			pipelineType = bean.PipelineType(bean.LINKED)
 		} else if pipeline.IsExternal == true {
 			pipelineType = bean.PipelineType(bean.EXTERNAL)
@@ -2738,17 +2745,59 @@ func (impl PipelineBuilderImpl) GetTriggerViewCdPipelinesForApp(appId int) (cdPi
 
 func (impl PipelineBuilderImpl) GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error) {
 	cdPipelines, err = impl.ciCdPipelineOrchestrator.GetCdPipelinesForApp(appId)
+	var envIds []*int
+	var dbPipelineIds []int
+	for _, dbPipeline := range cdPipelines.Pipelines {
+		envIds = append(envIds, &dbPipeline.EnvironmentId)
+		dbPipelineIds = append(dbPipelineIds, dbPipeline.Id)
+	}
+	envMapping := make(map[int]*repository2.Environment)
+	strategiesMapping := make(map[int][]*chartConfig.PipelineStrategy)
+	appWorkflowMapping := make(map[int]*appWorkflow.AppWorkflowMapping)
+
+	envs, err := impl.environmentRepository.FindByIds(envIds)
+	if err != nil && errors.IsNotFound(err) {
+		impl.logger.Errorw("error in fetching environments", "err", err)
+		return cdPipelines, err
+	}
+	//creating map for envId and respective env
+	for _, env := range envs {
+		envMapping[env.Id] = env
+	}
+
+	strategiesByPipelineIds, err := impl.pipelineConfigRepository.GetAllStrategyByPipelineIds(dbPipelineIds)
+	if err != nil && errors.IsNotFound(err) {
+		impl.logger.Errorw("error in fetching strategies by pipelineIds", "err", err)
+		return cdPipelines, err
+	}
+	//creating map for dbPipelineId and it's respective strategies
+	for _, strategy := range strategiesByPipelineIds {
+		strategiesMapping[strategy.PipelineId] = append(strategiesMapping[strategy.PipelineId], strategy)
+	}
+
+	appWorkflowMappings, err := impl.appWorkflowRepository.FindByCDPipelineIds(dbPipelineIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching app workflow mappings by pipelineIds", "err", err)
+		return nil, err
+	}
+	for _, appWorkflow := range appWorkflowMappings {
+		appWorkflowMapping[appWorkflow.ComponentId] = appWorkflow
+	}
+
 	var pipelines []*bean.CDPipelineConfigObject
 	for _, dbPipeline := range cdPipelines.Pipelines {
-		environment, err := impl.environmentRepository.FindById(dbPipeline.EnvironmentId)
-		if err != nil && errors.IsNotFound(err) {
-			impl.logger.Errorw("error in fetching pipeline", "err", err)
-			return cdPipelines, err
+		environment := &repository2.Environment{}
+		var strategies []*chartConfig.PipelineStrategy
+		appToWorkflowMapping := &appWorkflow.AppWorkflowMapping{}
+
+		if envMapping[dbPipeline.EnvironmentId] != nil {
+			environment = envMapping[dbPipeline.EnvironmentId]
 		}
-		strategies, err := impl.pipelineConfigRepository.GetAllStrategyByPipelineId(dbPipeline.Id)
-		if err != nil && errors.IsNotFound(err) {
-			impl.logger.Errorw("error in fetching strategies", "err", err)
-			return cdPipelines, err
+		if len(strategiesMapping[dbPipeline.Id]) != 0 {
+			strategies = strategiesMapping[dbPipeline.Id]
+		}
+		if appWorkflowMapping[dbPipeline.Id] != nil {
+			appToWorkflowMapping = appWorkflowMapping[dbPipeline.Id]
 		}
 		var strategiesBean []bean.Strategy
 		var deploymentTemplate chartRepoRepository.DeploymentStrategy
@@ -2762,10 +2811,6 @@ func (impl PipelineBuilderImpl) GetCdPipelinesForApp(appId int) (cdPipelines *be
 			if item.Default {
 				deploymentTemplate = item.Strategy
 			}
-		}
-		appWorkflowMapping, err := impl.appWorkflowRepository.FindWFCDMappingByCDPipelineId(dbPipeline.Id)
-		if err != nil {
-			return nil, err
 		}
 		pipeline := &bean.CDPipelineConfigObject{
 			Id:                            dbPipeline.Id,
@@ -2783,8 +2828,8 @@ func (impl PipelineBuilderImpl) GetCdPipelinesForApp(appId int) (cdPipelines *be
 			RunPreStageInEnv:              dbPipeline.RunPreStageInEnv,
 			RunPostStageInEnv:             dbPipeline.RunPostStageInEnv,
 			DeploymentAppType:             dbPipeline.DeploymentAppType,
-			ParentPipelineType:            appWorkflowMapping.ParentType,
-			ParentPipelineId:              appWorkflowMapping.ParentId,
+			ParentPipelineType:            appToWorkflowMapping.ParentType,
+			ParentPipelineId:              appToWorkflowMapping.ParentId,
 			DeploymentAppDeleteRequest:    dbPipeline.DeploymentAppDeleteRequest,
 		}
 		pipelines = append(pipelines, pipeline)

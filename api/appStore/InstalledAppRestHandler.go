@@ -191,12 +191,7 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	isActionUserSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
-	if err != nil {
-		handler.Logger.Errorw("request err, GetAllInstalledApp", "err", err, "userId", userId)
-		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
-		return
-	}
+	isActionUserSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, "*")
 	if isActionUserSuperAdmin {
 		common.WriteJsonResp(w, err, res, http.StatusOK)
 		return
