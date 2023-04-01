@@ -847,7 +847,10 @@ func (impl PipelineBuilderImpl) GetExternalCi(appId int) (ciConfig []*bean.Exter
 	for _, externalCiPipeline := range externalCiPipelines {
 		externalCiPipelineIds = append(externalCiPipelineIds, externalCiPipeline.Id)
 	}
-
+	if len(externalCiPipelineIds) == 0 {
+		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no external ci pipeline found"}
+		return externalCiConfigs, err
+	}
 	appWorkflowMappings, err := impl.appWorkflowRepository.FindWFCDMappingByExternalCiIdByIdsIn(externalCiPipelineIds)
 	if err != nil {
 		impl.logger.Errorw("Error in fetching app workflow mapping for CD pipeline by external CI ID", "err", err)
@@ -880,6 +883,9 @@ func (impl PipelineBuilderImpl) GetExternalCi(appId int) (ciConfig []*bean.Exter
 		for _, appWorkflowMappings := range appWorkflowMappings {
 			appWorkflowComponentIds = append(appWorkflowComponentIds, appWorkflowMappings.ComponentId)
 		}
+		if len(appWorkflowComponentIds) == 0 {
+			continue
+		}
 		cdPipelines, err := impl.pipelineRepository.FindAppAndEnvironmentAndProjectByPipelineIds(appWorkflowComponentIds)
 		if err != nil && !util.IsErrNoRows(err) {
 			impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
@@ -889,7 +895,9 @@ func (impl PipelineBuilderImpl) GetExternalCi(appId int) (ciConfig []*bean.Exter
 			CDPipelineMap[pipeline.Id] = pipeline
 			appIds = append(appIds, pipeline.AppId)
 		}
-
+		if len(appIds) == 0 {
+			continue
+		}
 		apps, err := impl.appRepo.FindAppAndProjectByIdsIn(appIds)
 		for _, app := range apps {
 			appIdMap[app.Id] = app
@@ -4173,7 +4181,10 @@ func (impl PipelineBuilderImpl) GetExternalCiByEnvironment(envId int, emailId st
 	for _, externalCiPipeline := range externalCiPipelines {
 		externalCiPipelineIds = append(externalCiPipelineIds, externalCiPipeline.Id)
 	}
-
+	if len(externalCiPipelineIds) == 0 {
+		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no external ci pipeline found"}
+		return externalCiConfigs, err
+	}
 	appWorkflowMappings, err := impl.appWorkflowRepository.FindWFCDMappingByExternalCiIdByIdsIn(externalCiPipelineIds)
 	if err != nil {
 		impl.logger.Errorw("Error in fetching app workflow mapping for CD pipeline by external CI ID", "err", err)
@@ -4210,6 +4221,9 @@ func (impl PipelineBuilderImpl) GetExternalCiByEnvironment(envId int, emailId st
 		for _, appWorkflowMappings := range appWorkflowMappings {
 			appWorkflowComponentIds = append(appWorkflowComponentIds, appWorkflowMappings.ComponentId)
 		}
+		if len(appWorkflowComponentIds) == 0 {
+			continue
+		}
 		cdPipelines, err := impl.pipelineRepository.FindAppAndEnvironmentAndProjectByPipelineIds(appWorkflowComponentIds)
 		if err != nil && !util.IsErrNoRows(err) {
 			impl.logger.Errorw("error in fetching external ci", "envId", envId, "err", err)
@@ -4219,7 +4233,9 @@ func (impl PipelineBuilderImpl) GetExternalCiByEnvironment(envId int, emailId st
 			CDPipelineMap[pipeline.Id] = pipeline
 			appIds = append(appIds, pipeline.AppId)
 		}
-
+		if len(appIds) == 0 {
+			continue
+		}
 		apps, err := impl.appRepo.FindAppAndProjectByIdsIn(appIds)
 		for _, app := range apps {
 			appIdMap[app.Id] = app
