@@ -498,7 +498,7 @@ func (impl AppListingRepositoryImpl) FetchMinDetailOtherEnvironment(appId int) (
   					LEFT JOIN pipeline_config_override pco on pco.pipeline_id = pl.id where pl.app_id = ? and pl.deleted = FALSE 
   					GROUP BY pl.id) p INNER JOIN environment env on env.id=p.environment_id 
                 	LEFT JOIN env_level_app_metrics env_app_m on env.id=env_app_m.env_id and p.app_id = env_app_m.app_id 
-                    where p.app_id=? and p.deleted = FALSE AND env.active = TRUE`
+                    where p.app_id=? and p.deleted = FALSE AND env.active = TRUE;`
 	_, err := impl.dbConnection.Query(&otherEnvironments, query, appId, appId)
 	if err != nil {
 		impl.Logger.Error("error in fetching other environment", "error", err)
