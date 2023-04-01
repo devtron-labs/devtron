@@ -1,0 +1,1 @@
+DROP INDEX "public"."ci_artifact_id";

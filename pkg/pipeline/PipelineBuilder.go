@@ -464,7 +464,6 @@ func (impl PipelineBuilderImpl) GetMaterialsForAppId(appId int) []*bean.GitMater
 */
 
 func (impl PipelineBuilderImpl) getDefaultArtifactStore(id string) (store *dockerRegistryRepository.DockerArtifactStore, err error) {
-
 	if id == "" {
 		impl.logger.Debugw("docker repo is empty adding default repo")
 		store, err = impl.dockerArtifactStoreRepository.FindActiveDefaultStore()
@@ -476,7 +475,6 @@ func (impl PipelineBuilderImpl) getDefaultArtifactStore(id string) (store *docke
 }
 
 func (impl PipelineBuilderImpl) getCiTemplateVariables(appId int) (ciConfig *bean.CiConfigRequest, err error) {
-	//template, err := impl.ciTemplateRepository.FindByAppId(appId)
 	ciTemplateBean, err := impl.ciTemplateService.FindByAppId(appId)
 	if err != nil && !errors.IsNotFound(err) {
 		impl.logger.Errorw("error in fetching ci pipeline", "appId", appId, "err", err)
@@ -509,11 +507,6 @@ func (impl PipelineBuilderImpl) getCiTemplateVariables(appId int) (ciConfig *bea
 		materials = append(materials, m)
 	}
 
-	//dockerArgs := map[string]string{}
-	//if err := json.Unmarshal([]byte(template.Args), &dockerArgs); err != nil {
-	//	impl.logger.Debugw("error in json unmarshal", "app", appId, "err", err)
-	//	return nil, err
-	//}
 	var regHost string
 	dockerRegistry := template.DockerRegistry
 	if dockerRegistry != nil {
@@ -524,21 +517,19 @@ func (impl PipelineBuilderImpl) getCiTemplateVariables(appId int) (ciConfig *bea
 		}
 	}
 	ciConfig = &bean.CiConfigRequest{
-		Id:               template.Id,
-		AppId:            template.AppId,
-		AppName:          template.App.AppName,
-		DockerRepository: template.DockerRepository,
-		//DockerRegistry:    dockerRegistry.Id,
+		Id:                template.Id,
+		AppId:             template.AppId,
+		AppName:           template.App.AppName,
+		DockerRepository:  template.DockerRepository,
 		DockerRegistryUrl: regHost,
 		CiBuildConfig:     ciTemplateBean.CiBuildConfig,
-		//DockerBuildConfig: &bean.DockerBuildConfig{DockerfilePath: template.DockerfilePath, Args: dockerArgs, GitMaterialId: template.GitMaterialId, TargetPlatform: template.TargetPlatform},
-		Version:        template.Version,
-		CiTemplateName: template.TemplateName,
-		Materials:      materials,
-		UpdatedOn:      template.UpdatedOn,
-		UpdatedBy:      template.UpdatedBy,
-		CreatedBy:      template.CreatedBy,
-		CreatedOn:      template.CreatedOn,
+		Version:           template.Version,
+		CiTemplateName:    template.TemplateName,
+		Materials:         materials,
+		UpdatedOn:         template.UpdatedOn,
+		UpdatedBy:         template.UpdatedBy,
+		CreatedBy:         template.CreatedBy,
+		CreatedOn:         template.CreatedOn,
 	}
 	if dockerRegistry != nil {
 		ciConfig.DockerRegistry = dockerRegistry.Id
@@ -546,29 +537,104 @@ func (impl PipelineBuilderImpl) getCiTemplateVariables(appId int) (ciConfig *bea
 	return ciConfig, err
 }
 
-func (impl PipelineBuilderImpl) GetTriggerViewCiPipeline(appId int) (*bean.TriggerViewCiConfig, error) {
-
-	triggerViewCiConfig := &bean.TriggerViewCiConfig{}
-	// fetch ci git material id
-	ciTemplateBean, err := impl.ciTemplateService.FindByAppId(appId)
+func (impl PipelineBuilderImpl) getCiTemplateVariablesByAppIds(appIds []int) (map[int]*bean.CiConfigRequest, error) {
+	ciConfigMap := make(map[int]*bean.CiConfigRequest)
+	ciTemplateMap, err := impl.ciTemplateService.FindByAppIds(appIds)
 	if err != nil && !errors.IsNotFound(err) {
-		impl.logger.Errorw("error in fetching ci pipeline", "appId", appId, "err", err)
+		impl.logger.Errorw("error in fetching ci pipeline", "appIds", appIds, "err", err)
 		return nil, err
 	}
 	if errors.IsNotFound(err) {
-		impl.logger.Debugw("no ci pipeline exists", "appId", appId, "err", err)
-		//err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no ci pipeline exists"}
-		return nil, nil
+		impl.logger.Debugw("no ci pipeline exists", "appIds", appIds, "err", err)
+		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no ci pipeline exists"}
+		return nil, err
 	}
-	template := ciTemplateBean.CiTemplate
+	gitMaterialsMap := make(map[int][]*pipelineConfig.GitMaterial)
+	allGitMaterials, err := impl.materialRepo.FindByAppIds(appIds)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching git materials", "appIds", appIds, "err", err)
+		return nil, err
+	}
+	if err == pg.ErrNoRows {
+		impl.logger.Debugw(" no git materials exists", "appIds", appIds, "err", err)
+		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no git materials exists"}
+		return nil, err
+	}
+	for _, gitMaterial := range allGitMaterials {
+		gitMaterialsMap[gitMaterial.AppId] = append(gitMaterialsMap[gitMaterial.AppId], gitMaterial)
+	}
+	for _, ciTemplate := range ciTemplateMap {
+		template := ciTemplate.CiTemplate
+		var materials []bean.Material
+		gitMaterials := gitMaterialsMap[ciTemplate.CiTemplate.AppId]
+		for _, g := range gitMaterials {
+			m := bean.Material{
+				GitMaterialId: g.Id,
+				MaterialName:  g.Name[strings.Index(g.Name, "-")+1:],
+			}
+			materials = append(materials, m)
+		}
 
-	triggerViewCiConfig.CiGitMaterialId = template.GitMaterialId
+		var regHost string
+		dockerRegistry := template.DockerRegistry
+		if dockerRegistry != nil {
+			regHost, err = dockerRegistry.GetRegistryLocation()
+			if err != nil {
+				impl.logger.Errorw("invalid reg url", "err", err)
+				return nil, err
+			}
+		}
+		ciConfig := &bean.CiConfigRequest{
+			Id:                template.Id,
+			AppId:             template.AppId,
+			AppName:           template.App.AppName,
+			DockerRepository:  template.DockerRepository,
+			DockerRegistryUrl: regHost,
+			CiBuildConfig:     ciTemplate.CiBuildConfig,
+			Version:           template.Version,
+			CiTemplateName:    template.TemplateName,
+			Materials:         materials,
+			UpdatedOn:         template.UpdatedOn,
+			UpdatedBy:         template.UpdatedBy,
+			CreatedBy:         template.CreatedBy,
+			CreatedOn:         template.CreatedOn,
+		}
+		if dockerRegistry != nil {
+			ciConfig.DockerRegistry = dockerRegistry.Id
+		}
+		ciConfigMap[template.AppId] = ciConfig
+	}
+	return ciConfigMap, err
+}
+
+func (impl PipelineBuilderImpl) GetTriggerViewCiPipeline(appId int) (*bean.TriggerViewCiConfig, error) {
+
+	triggerViewCiConfig := &bean.TriggerViewCiConfig{}
+
+	ciConfig, err := impl.getCiTemplateVariables(appId)
+	if err != nil {
+		impl.logger.Debugw("error in fetching ci pipeline", "appId", appId, "err", err)
+		return nil, err
+	}
+
+	triggerViewCiConfig.CiGitMaterialId = ciConfig.CiBuildConfig.GitMaterialId
 
 	// fetch pipelines
 	pipelines, err := impl.ciPipelineRepository.FindByAppId(appId)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("error in fetching ci pipeline", "appId", appId, "err", err)
 		return nil, err
+	}
+
+	ciOverrideTemplateMap := make(map[int]*bean3.CiTemplateBean)
+	ciTemplateBeanOverrides, err := impl.ciTemplateService.FindTemplateOverrideByAppId(appId)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, templateBeanOverride := range ciTemplateBeanOverrides {
+		ciTemplateOverride := templateBeanOverride.CiTemplateOverride
+		ciOverrideTemplateMap[ciTemplateOverride.CiPipelineId] = templateBeanOverride
 	}
 
 	var ciPipelineResp []*bean.CiPipeline
@@ -585,6 +651,14 @@ func (impl PipelineBuilderImpl) GetTriggerViewCiPipeline(appId int) (*bean.Trigg
 			ParentCiPipeline:         pipeline.ParentCiPipeline,
 			ScanEnabled:              pipeline.ScanEnabled,
 			IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
+		}
+		if ciTemplateBean, ok := ciOverrideTemplateMap[pipeline.Id]; ok {
+			templateOverride := ciTemplateBean.CiTemplateOverride
+			ciPipeline.DockerConfigOverride = bean.DockerConfigOverride{
+				DockerRegistry:   templateOverride.DockerRegistryId,
+				DockerRepository: templateOverride.DockerRepository,
+				CiBuildConfig:    ciTemplateBean.CiBuildConfig,
+			}
 		}
 		for _, material := range pipeline.CiPipelineMaterials {
 			// ignore those materials which have inactive git material
@@ -613,6 +687,7 @@ func (impl PipelineBuilderImpl) GetTriggerViewCiPipeline(appId int) (*bean.Trigg
 		ciPipelineResp = append(ciPipelineResp, ciPipeline)
 	}
 	triggerViewCiConfig.CiPipelines = ciPipelineResp
+	triggerViewCiConfig.Materials = ciConfig.Materials
 
 	return triggerViewCiConfig, nil
 }
@@ -2689,6 +2764,9 @@ func (impl PipelineBuilderImpl) GetCdPipelinesForApp(appId int) (cdPipelines *be
 	cdPipelines, err = impl.ciCdPipelineOrchestrator.GetCdPipelinesForApp(appId)
 	var envIds []*int
 	var dbPipelineIds []int
+	if cdPipelines == nil || (cdPipelines != nil && len(cdPipelines.Pipelines) == 0) {
+		return cdPipelines, nil
+	}
 	for _, dbPipeline := range cdPipelines.Pipelines {
 		envIds = append(envIds, &dbPipeline.EnvironmentId)
 		dbPipelineIds = append(dbPipelineIds, dbPipeline.Id)
@@ -3756,21 +3834,23 @@ func (impl PipelineBuilderImpl) MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDelete
 }
 
 func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) ([]*bean.CiConfigRequest, error) {
+	ciPipelinesConfigByApps := make([]*bean.CiConfigRequest, 0)
+	_, span := otel.Tracer("orchestrator").Start(ctx, "ciHandler.AppGroupingCiPipelinesAuthorization")
 	cdPipelines, err := impl.pipelineRepository.FindActiveByEnvId(envId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error fetching pipelines for env id", "err", err)
 		return nil, err
 	}
 	var appIds []int
-	pipelineIds := make([]int, 0)
+	ciPipelineIds := make([]int, 0)
 	for _, pipeline := range cdPipelines {
-		pipelineIds = append(pipelineIds, pipeline.CiPipelineId)
+		ciPipelineIds = append(ciPipelineIds, pipeline.CiPipelineId)
 	}
 
 	//authorization block starts here
 	var appObjectArr []string
-	objects := impl.enforcerUtil.GetAppObjectByCiPipelineIds(pipelineIds)
-	pipelineIds = []int{}
+	objects := impl.enforcerUtil.GetAppObjectByCiPipelineIds(ciPipelineIds)
+	ciPipelineIds = []int{}
 	for _, object := range objects {
 		appObjectArr = append(appObjectArr, object)
 	}
@@ -3782,8 +3862,10 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int, emailId st
 			continue
 		}
 		appIds = append(appIds, pipeline.AppId)
+		ciPipelineIds = append(ciPipelineIds, pipeline.CiPipelineId)
 	}
 	//authorization block ends here
+	span.End()
 
 	if impl.ciConfig.ExternalCiWebhookUrl == "" {
 		hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
@@ -3795,33 +3877,50 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int, emailId st
 		}
 	}
 
-	ciConfigs := make([]*bean.CiConfigRequest, 0)
-	var ciPipelineResp []*bean.CiPipeline
-	_, span := otel.Tracer("orchestrator").Start(ctx, "ciHandler.GetCiTemplateVariables")
+	_, span = otel.Tracer("orchestrator").Start(ctx, "ciHandler.GetCiTemplateVariables")
 	defer span.End()
-	for _, appId := range appIds {
-		ciConfig, err := impl.getCiTemplateVariables(appId)
-		if err != nil {
-			impl.logger.Debugw("error in fetching ci pipeline", "appId", appId, "err", err)
-			return nil, err
-		}
-		//TODO fill these variables
-		//--------pipeline population start
-		ciPipelines, err := impl.ciPipelineRepository.FindByAppId(appId)
-		if err != nil && !util.IsErrNoRows(err) {
-			impl.logger.Errorw("error in fetching ci pipeline", "appId", appId, "err", err)
-			return nil, err
-		}
-		//map of ciPipelineId and their templateOverrideConfig
-		ciOverrideTemplateMap := make(map[int]*bean3.CiTemplateBean)
-		ciTemplateBeanOverrides, err := impl.ciTemplateService.FindTemplateOverrideByAppId(appId)
-		if err != nil {
-			return nil, err
-		}
-		for _, templateBeanOverride := range ciTemplateBeanOverrides {
-			ciTemplateOverride := templateBeanOverride.CiTemplateOverride
-			ciOverrideTemplateMap[ciTemplateOverride.CiPipelineId] = templateBeanOverride
-		}
+	ciPipelinesConfigMap, err := impl.getCiTemplateVariablesByAppIds(appIds)
+	if err != nil {
+		impl.logger.Debugw("error in fetching ci pipeline", "appIds", appIds, "err", err)
+		return nil, err
+	}
+
+	ciPipelineByApp := make(map[int][]*pipelineConfig.CiPipeline)
+	ciPipelines, err := impl.ciPipelineRepository.FindByAppIds(appIds)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.logger.Errorw("error in fetching ci pipeline", "appIds", appIds, "err", err)
+		return nil, err
+	}
+	for _, ciPipeline := range ciPipelines {
+		ciPipelineByApp[ciPipeline.AppId] = append(ciPipelineByApp[ciPipeline.AppId], ciPipeline)
+	}
+
+	linkedCiPipelinesMap := make(map[int][]*pipelineConfig.CiPipeline)
+	linkedCiPipelines, err := impl.ciPipelineRepository.FindByParentCiPipelineIds(ciPipelineIds)
+	if err != nil && !util.IsErrNoRows(err) {
+		return nil, err
+	}
+	for _, linkedCiPipeline := range linkedCiPipelines {
+		linkedCiPipelinesMap[linkedCiPipeline.ParentCiPipeline] = append(linkedCiPipelinesMap[linkedCiPipeline.Id], linkedCiPipeline)
+	}
+
+	ciTemplateBeanOverrides, err := impl.ciTemplateService.FindTemplateOverrideByCiPipelineIds(ciPipelineIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching templates override", "appIds", appIds, "err", err)
+		return nil, err
+	}
+	ciOverrideTemplateMap := make(map[int]*bean3.CiTemplateBean)
+	for _, templateBeanOverride := range ciTemplateBeanOverrides {
+		ciTemplateOverride := templateBeanOverride.CiTemplateOverride
+		ciOverrideTemplateMap[ciTemplateOverride.CiPipelineId] = templateBeanOverride
+	}
+
+	var externalCiConfig bean.ExternalCiConfig
+	var parentCiPipelineIds []int
+	for appId, ciPipelinesConfigByApp := range ciPipelinesConfigMap {
+		var ciPipelineResp []*bean.CiPipeline
+
+		ciPipelines := ciPipelineByApp[appId]
 		for _, pipeline := range ciPipelines {
 			dockerArgs := make(map[string]string)
 			if len(pipeline.DockerArgs) > 0 {
@@ -3829,34 +3928,6 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int, emailId st
 				if err != nil {
 					impl.logger.Warnw("error in unmarshal", "err", err)
 				}
-			}
-			var externalCiConfig bean.ExternalCiConfig
-			ciPipelineScripts, err := impl.ciPipelineRepository.FindCiScriptsByCiPipelineId(pipeline.Id)
-			if err != nil && !util.IsErrNoRows(err) {
-				impl.logger.Errorw("error in fetching ci scripts")
-				return nil, err
-			}
-
-			var beforeDockerBuildScripts []*bean.CiScript
-			var afterDockerBuildScripts []*bean.CiScript
-			for _, ciScript := range ciPipelineScripts {
-				ciScriptResp := &bean.CiScript{
-					Id:             ciScript.Id,
-					Index:          ciScript.Index,
-					Name:           ciScript.Name,
-					Script:         ciScript.Script,
-					OutputLocation: ciScript.OutputLocation,
-				}
-				if ciScript.Stage == BEFORE_DOCKER_BUILD {
-					beforeDockerBuildScripts = append(beforeDockerBuildScripts, ciScriptResp)
-				} else if ciScript.Stage == AFTER_DOCKER_BUILD {
-					afterDockerBuildScripts = append(afterDockerBuildScripts, ciScriptResp)
-				}
-			}
-			parentCiPipeline, err := impl.ciPipelineRepository.FindById(pipeline.ParentCiPipeline)
-			if err != nil && !util.IsErrNoRows(err) {
-				impl.logger.Errorw("err", err)
-				return nil, err
 			}
 			ciPipeline := &bean.CiPipeline{
 				Id:                       pipeline.Id,
@@ -3868,10 +3939,7 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int, emailId st
 				IsManual:                 pipeline.IsManual,
 				IsExternal:               pipeline.IsExternal,
 				ParentCiPipeline:         pipeline.ParentCiPipeline,
-				ParentAppId:              parentCiPipeline.AppId,
 				ExternalCiConfig:         externalCiConfig,
-				BeforeDockerBuildScripts: beforeDockerBuildScripts,
-				AfterDockerBuildScripts:  afterDockerBuildScripts,
 				ScanEnabled:              pipeline.ScanEnabled,
 				IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
 			}
@@ -3883,6 +3951,8 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int, emailId st
 					CiBuildConfig:    ciTemplateBean.CiBuildConfig,
 				}
 			}
+
+			//this will build ci materials for each ci pipeline
 			for _, material := range pipeline.CiPipelineMaterials {
 				// ignore those materials which have inactive git material
 				if material == nil || material.GitMaterial == nil || !material.GitMaterial.Active {
@@ -3902,18 +3972,20 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int, emailId st
 				}
 				ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, ciMaterial)
 			}
-			linkedCis, err := impl.ciPipelineRepository.FindByParentCiPipelineId(ciPipeline.Id)
-			if err != nil && !util.IsErrNoRows(err) {
-				return nil, err
-			}
-			ciPipeline.LinkedCount = len(linkedCis)
+
+			//this will count the length of child ci pipelines, of each ci pipeline
+			linkedCi := linkedCiPipelinesMap[pipeline.Id]
+			ciPipeline.LinkedCount = len(linkedCi)
 			ciPipelineResp = append(ciPipelineResp, ciPipeline)
+
+			//this will use for fetch the parent ci pipeline app id, of each ci pipeline
+			parentCiPipelineIds = append(parentCiPipelineIds, pipeline.ParentCiPipeline)
 		}
-		ciConfig.CiPipelines = ciPipelineResp
-		ciConfigs = append(ciConfigs, ciConfig)
+		ciPipelinesConfigByApp.CiPipelines = ciPipelineResp
+		ciPipelinesConfigByApps = append(ciPipelinesConfigByApps, ciPipelinesConfigByApp)
 	}
-	//--------pipeline population end
-	return ciConfigs, err
+
+	return ciPipelinesConfigByApps, err
 }
 
 func (impl PipelineBuilderImpl) GetCdPipelinesByEnvironment(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) (cdPipelines *bean.CdPipelines, err error) {
