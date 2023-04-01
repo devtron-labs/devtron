@@ -81,7 +81,7 @@ type InstalledAppService interface {
 	DeployDefaultChartOnCluster(bean *cluster2.ClusterBean, userId int32) (bool, error)
 	FindAppDetailsForAppstoreApplication(installedAppId, envId int) (bean2.AppDetailContainer, error)
 	UpdateInstalledAppVersionStatus(application *v1alpha1.Application) (bool, error)
-	FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetail *bean2.AppDetailContainer, installedApp repository2.InstalledApps) (bean2.AppDetailContainer, error)
+	FetchResourceTree(rctx context.Context, cn http.CloseNotifier, resourceTreeAndNotesContainer *bean2.ResourceTreeAndNotesContainer, installedApp repository2.InstalledApps) error
 	MarkGitOpsInstalledAppsDeletedIfArgoAppIsDeleted(installedAppId int, envId int) error
 	CheckAppExistsByInstalledAppId(installedAppId int) (*repository2.InstalledApps, error)
 	FindNotesForArgoApplication(installedAppId, envId int) (string, string, error)
@@ -759,7 +759,7 @@ func (impl InstalledAppServiceImpl) DeployDefaultComponent(chartGroupInstallRequ
 func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(installedAppId, envId int) (bean2.AppDetailContainer, error) {
 	installedAppVerison, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdAndEnvId(installedAppId, envId)
 	if err != nil {
-		impl.logger.Errorw("error while fetcing ", "err",err)
+		impl.logger.Error(err)
 		return bean2.AppDetailContainer{}, err
 	}
 	deploymentContainer := bean2.DeploymentDetailContainer{
@@ -996,7 +996,7 @@ func (impl InstalledAppServiceImpl) GetInstalledAppVersionHistoryValues(installe
 	values.ValuesYaml = versionHistory.ValuesYamlRaw
 	return values, err
 }
-func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetail *bean2.AppDetailContainer, installedApp repository2.InstalledApps) (bean2.AppDetailContainer, error) {
+func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn http.CloseNotifier, resourceTreeAndNotesContainer *bean2.ResourceTreeAndNotesContainer, installedApp repository2.InstalledApps) error {
 	var err error
 	var resourceTree map[string]interface{}
 	deploymentAppName := fmt.Sprintf("%s-%s", installedApp.App.AppName, installedApp.Environment.Name)
@@ -1019,12 +1019,12 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 		if detail != nil {
 			resourceTree = util3.InterfaceToMapAdapter(detail.ResourceTreeResponse)
 			resourceTree["status"] = detail.ApplicationStatus
-			appDetail.Notes = detail.ChartMetadata.Notes
-			impl.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
+			resourceTreeAndNotesContainer.Notes = detail.ChartMetadata.Notes
+			impl.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", installedApp.App.AppName, "env", installedApp.Environment.Name)
 		}
 	}
-	appDetail.ResourceTree = resourceTree
-	return *appDetail, err
+	resourceTreeAndNotesContainer.ResourceTree = resourceTree
+	return err
 }
 
 func (impl InstalledAppServiceImpl) MarkGitOpsInstalledAppsDeletedIfArgoAppIsDeleted(installedAppId int, envId int) error {
@@ -1207,10 +1207,12 @@ func (impl InstalledAppServiceImpl) fetchResourceTreeForACD(rctx context.Context
 	}
 	// TODO: using this resp.Status to update in app_status table
 	resourceTree = util3.InterfaceToMapAdapter(resp)
-	err = impl.appStatusService.UpdateStatusWithAppIdEnvId(appId, envId, resp.Status)
-	if err != nil {
-		impl.logger.Warnw("error in updating app status", "err", err, appId, "envId", envId)
-	}
+	go func() {
+		err = impl.appStatusService.UpdateStatusWithAppIdEnvId(appId, envId, resp.Status)
+		if err != nil {
+			impl.logger.Warnw("error in updating app status", "err", err, appId, "envId", envId)
+		}
+	}()
 	impl.logger.Debugf("application %s in environment %s had status %+v\n", appId, envId, resp)
 	return resourceTree, err
 }

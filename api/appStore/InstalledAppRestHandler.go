@@ -514,37 +514,34 @@ func (handler *InstalledAppRestHandlerImpl) FetchResourceTree(w http.ResponseWri
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
-	appDetail := bean2.AppDetailContainer{}
-	err = handler.fetchResourceTree(w, r, &appDetail, *installedApp)
 
-	if err != nil {
-		err = handler.fetchResourceTree(w, r, &appDetail, *installedApp)
-		if len(installedApp.App.AppName) > 0 && len(installedApp.Environment.Name) > 0 {
-			if installedApp.DeploymentAppType == util2.PIPELINE_DEPLOYMENT_TYPE_ACD {
-				apiError, ok := err.(*util2.ApiError)
-				if ok && apiError != nil {
-					if apiError.Code == constants.AppDetailResourceTreeNotFound && installedApp.DeploymentAppDeleteRequest == true {
+	resourceTreeAndNotesContainer := bean2.ResourceTreeAndNotesContainer{}
+	resourceTreeAndNotesContainer.ResourceTree = map[string]interface{}{}
+
+	if len(installedApp.App.AppName) > 0 && len(installedApp.Environment.Name) > 0 {
+		err = handler.fetchResourceTree(w, r, &resourceTreeAndNotesContainer, *installedApp)
+		if installedApp.DeploymentAppType == util2.PIPELINE_DEPLOYMENT_TYPE_ACD {
+			apiError, ok := err.(*util2.ApiError)
+			if ok && apiError != nil {
+				if apiError.Code == constants.AppDetailResourceTreeNotFound && installedApp.DeploymentAppDeleteRequest == true {
+					go func() {
 						err = handler.installedAppService.MarkGitOpsInstalledAppsDeletedIfArgoAppIsDeleted(installedAppId, envId)
 						appDeleteErr, appDeleteErrOk := err.(*util2.ApiError)
 						if appDeleteErrOk && appDeleteErr != nil {
-							common.WriteJsonResp(w, fmt.Errorf(appDeleteErr.InternalMessage), nil, appDeleteErr.HttpStatusCode)
+							handler.Logger.Errorw(appDeleteErr.InternalMessage)
 							return
 						}
-					}
+					}()
 				}
-			} else if err != nil {
-				common.WriteJsonResp(w, fmt.Errorf("error in fetching resource tree"), nil, http.StatusInternalServerError)
-				return
 			}
-
-		} else {
-			appDetail.ResourceTree = map[string]interface{}{}
-			handler.Logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
+		} else if err != nil {
+			common.WriteJsonResp(w, fmt.Errorf("error in fetching resource tree"), nil, http.StatusInternalServerError)
+			return
 		}
 	}
-
-	common.WriteJsonResp(w, nil, appDetail, http.StatusOK)
+	common.WriteJsonResp(w, nil, resourceTreeAndNotesContainer, http.StatusOK)
 }
+
 func (handler *InstalledAppRestHandlerImpl) FetchResourceTreeForACDApp(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -600,10 +597,10 @@ func (handler *InstalledAppRestHandlerImpl) FetchResourceTreeForACDApp(w http.Re
 	common.WriteJsonResp(w, err, appDetail, http.StatusOK)
 }
 
-func (handler *InstalledAppRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, appDetail *bean2.AppDetailContainer, installedApp repository.InstalledApps) error {
+func (handler *InstalledAppRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, resourceTreeAndNotesContainer *bean2.ResourceTreeAndNotesContainer, installedApp repository.InstalledApps) error {
 	ctx := r.Context()
 	cn, _ := w.(http.CloseNotifier)
-	_, err := handler.installedAppService.FetchResourceTree(ctx, cn, appDetail, installedApp)
+	err := handler.installedAppService.FetchResourceTree(ctx, cn, resourceTreeAndNotesContainer, installedApp)
 	return err
 }
 

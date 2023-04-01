@@ -536,14 +536,16 @@ func (handler AppListingRestHandlerImpl) FetchResourceTree(w http.ResponseWriter
 		apiError, ok := err.(*util.ApiError)
 		if ok && apiError != nil {
 			if apiError.Code == constants.AppDetailResourceTreeNotFound && cdPipeline.DeploymentAppDeleteRequest == true {
-				acdAppFound, _ := handler.pipeline.MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(appId, envId, acdToken, cdPipeline)
-				if acdAppFound {
-					common.WriteJsonResp(w, fmt.Errorf("unable to fetch resource tree"), nil, http.StatusInternalServerError)
-					return
-				} else {
-					common.WriteJsonResp(w, fmt.Errorf("app deleted"), nil, http.StatusNotFound)
-					return
-				}
+				go func() {
+					acdAppFound, _ := handler.pipeline.MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(appId, envId, acdToken, cdPipeline)
+					if acdAppFound {
+						common.WriteJsonResp(w, fmt.Errorf("unable to fetch resource tree"), nil, http.StatusInternalServerError)
+						return
+					} else {
+						common.WriteJsonResp(w, fmt.Errorf("app deleted"), nil, http.StatusNotFound)
+						return
+					}
+				}()
 			}
 		}
 	}
@@ -836,11 +838,11 @@ func (handler AppListingRestHandlerImpl) RedirectToLinkouts(w http.ResponseWrite
 	}
 	http.Redirect(w, r, link, http.StatusOK)
 }
-func (handler AppListingRestHandlerImpl) fetchResourceTreeFromInstallAppService(w http.ResponseWriter, r *http.Request, appDetail bean.AppDetailContainer, installedApps repository.InstalledApps) bean.AppDetailContainer {
+func (handler AppListingRestHandlerImpl) fetchResourceTreeFromInstallAppService(w http.ResponseWriter, r *http.Request, resourceTreeAndNotesContainer bean.ResourceTreeAndNotesContainer, installedApps repository.InstalledApps) (bean.ResourceTreeAndNotesContainer, error) {
 	rctx := r.Context()
 	cn, _ := w.(http.CloseNotifier)
-	_, _ = handler.installedAppService.FetchResourceTree(rctx, cn, &appDetail, installedApps)
-	return appDetail
+	err := handler.installedAppService.FetchResourceTree(rctx, cn, &resourceTreeAndNotesContainer, installedApps)
+	return resourceTreeAndNotesContainer, err
 }
 func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWriter, r *http.Request) {
 	vars := r.URL.Query()
@@ -912,7 +914,13 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 			common.WriteJsonResp(w, err, "App not found in database", http.StatusBadRequest)
 			return
 		}
-		appDetail = handler.fetchResourceTreeFromInstallAppService(w, r, appDetail, *installedApp)
+		resourceTreeAndNotesContainer := bean.ResourceTreeAndNotesContainer{}
+		resourceTreeAndNotesContainer, err = handler.fetchResourceTreeFromInstallAppService(w, r, resourceTreeAndNotesContainer, *installedApp)
+		if err != nil {
+			common.WriteJsonResp(w, fmt.Errorf("error in fetching resource tree"), nil, http.StatusInternalServerError)
+			return
+		}
+		resourceTree = resourceTreeAndNotesContainer.ResourceTree
 	} else {
 		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
 		if err != nil {
@@ -1015,36 +1023,38 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 			}
 			return resourceTree, err
 		}
-		if resp.Status == string(health.HealthStatusHealthy) {
-			status, err := handler.appListingService.ISLastReleaseStopType(appId, envId)
-			if err != nil {
-				handler.logger.Errorw("service err, FetchAppDetails", "err", err, "app", appId, "env", envId)
-			} else if status {
-				resp.Status = application.HIBERNATING
-			}
-		}
 		handler.logger.Debugw("FetchAppDetails, time elapsed in fetching application for environment ", "elapsed", elapsed, "appId", appId, "envId", envId)
-
-		if resp.Status == string(health.HealthStatusDegraded) {
-			count, err := handler.appListingService.GetReleaseCount(appId, envId)
-			if err != nil {
-				handler.logger.Errorw("service err, FetchAppDetails, release count", "err", err, "app", appId, "env", envId)
-			} else if count == 0 {
-				resp.Status = app.NotDeployed
-			}
-		}
 		resourceTree = util2.InterfaceToMapAdapter(resp)
-		if resp.Status == string(health.HealthStatusHealthy) {
-			err = handler.cdApplicationStatusUpdateHandler.SyncPipelineStatusForResourceTreeCall(cdPipeline)
-			if err != nil {
-				handler.logger.Errorw("error in syncing pipeline status", "err", err)
+
+		go func() {
+			if resp.Status == string(health.HealthStatusHealthy) {
+				status, err := handler.appListingService.ISLastReleaseStopType(appId, envId)
+				if err != nil {
+					handler.logger.Errorw("service err, FetchAppDetails", "err", err, "app", appId, "env", envId)
+				} else if status {
+					resp.Status = application.HIBERNATING
+				}
 			}
-		}
-		//updating app_status table here
-		err = handler.appStatusService.UpdateStatusWithAppIdEnvId(appId, envId, resp.Status)
-		if err != nil {
-			handler.logger.Warnw("error in updating app status", "err", err, "appId", cdPipeline.AppId, "envId", cdPipeline.EnvironmentId)
-		}
+			if resp.Status == string(health.HealthStatusDegraded) {
+				count, err := handler.appListingService.GetReleaseCount(appId, envId)
+				if err != nil {
+					handler.logger.Errorw("service err, FetchAppDetails, release count", "err", err, "app", appId, "env", envId)
+				} else if count == 0 {
+					resp.Status = app.NotDeployed
+				}
+			}
+			if resp.Status == string(health.HealthStatusHealthy) {
+				err = handler.cdApplicationStatusUpdateHandler.SyncPipelineStatusForResourceTreeCall(cdPipeline)
+				if err != nil {
+					handler.logger.Errorw("error in syncing pipeline status", "err", err)
+				}
+			}
+			//updating app_status table here
+			err = handler.appStatusService.UpdateStatusWithAppIdEnvId(appId, envId, resp.Status)
+			if err != nil {
+				handler.logger.Warnw("error in updating app status", "err", err, "appId", cdPipeline.AppId, "envId", cdPipeline.EnvironmentId)
+			}
+		}()
 
 	} else if len(cdPipeline.DeploymentAppName) > 0 && cdPipeline.EnvironmentId > 0 && util.IsHelmApp(cdPipeline.DeploymentAppType) {
 		config, err := handler.helmAppService.GetClusterConf(cdPipeline.Environment.ClusterId)
