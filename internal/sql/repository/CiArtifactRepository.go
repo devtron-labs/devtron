@@ -137,7 +137,7 @@ func (impl CiArtifactRepositoryImpl) GetByWfId(wfId int) (*CiArtifact, error) {
 
 // this method takes CD Pipeline id and Returns List of Artifacts Latest By last deployed
 func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipeline(cdPipelineId, limit int, parentId int, parentType bean.WorkflowType) ([]*CiArtifact, error) {
-	artifacts := make([]*CiArtifact, 0)
+	artifacts := make([]*CiArtifact, 0, limit)
 
 	if parentType == bean.WEBHOOK_WORKFLOW_TYPE {
 		// WEBHOOK type parent
@@ -145,6 +145,7 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipeline(cdPipelineId, limi
 			Column("ci_artifact.id", "ci_artifact.material_info", "ci_artifact.data_source", "ci_artifact.image", "ci_artifact.image_digest", "ci_artifact.scan_enabled", "ci_artifact.scanned").
 			Where("ci_artifact.external_ci_pipeline_id = ?", parentId).
 			Order("ci_artifact.id DESC").
+			Limit(limit).
 			Select()
 
 		if err != nil {
@@ -164,6 +165,7 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipeline(cdPipelineId, limi
 			Join("INNER JOIN pipeline p on p.ci_pipeline_id = cp.id").
 			Where("p.id = ?", cdPipelineId).
 			Order("ci_artifact.id DESC").
+			Limit(limit).
 			Select()
 
 		if err != nil {
@@ -175,14 +177,15 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipeline(cdPipelineId, limi
 		}
 	}
 
-	artifactsDeployed := make([]*CiArtifact, 0)
+	artifactsDeployed := make([]*CiArtifact, 0, limit)
 	query := "" +
 		" SELECT cia.id, pco.created_on as created_on" +
 		" FROM ci_artifact cia" +
 		" INNER JOIN pipeline_config_override pco ON pco.ci_artifact_id=cia.id" +
-		" WHERE pco.pipeline_id = ? ORDER BY pco.ci_artifact_id DESC, pco.created_on ASC;"
+		" WHERE pco.pipeline_id = ? ORDER BY pco.ci_artifact_id DESC, pco.created_on ASC" +
+		" LIMIT ?;"
 
-	_, err := impl.dbConnection.Query(&artifactsDeployed, query, cdPipelineId)
+	_, err := impl.dbConnection.Query(&artifactsDeployed, query, cdPipelineId, limit)
 
 	if err != nil {
 		impl.logger.Errorw("error while fetching deployed artifacts for cd pipeline from db",
@@ -215,7 +218,7 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipeline(cdPipelineId, limi
 		return nil, err
 	}
 
-	var artifactsAll []*CiArtifact
+	artifactsAll := make([]*CiArtifact, 0, limit)
 	mapData2 := make(map[int]time.Time)
 	for _, a := range artifactsDeployed {
 		mapData2[a.Id] = a.CreatedOn
@@ -229,9 +232,6 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipeline(cdPipelineId, limi
 			}
 		}
 		artifactsAll = append(artifactsAll, a)
-		if len(artifactsAll) >= limit {
-			break
-		}
 	}
 	return artifactsAll, err
 }
