@@ -33,10 +33,12 @@ type CiWorkflowRepository interface {
 	FindByStatusesIn(activeStatuses []string) ([]*CiWorkflow, error)
 	FindByPipelineId(pipelineId int, offset int, size int) ([]WorkflowWithArtifact, error)
 	FindById(id int) (*CiWorkflow, error)
+	FindCiWorkflowGitTriggersById(id int) (workflow *CiWorkflow, err error)
 	FindByName(name string) (*CiWorkflow, error)
 
 	FindLastTriggeredWorkflowByCiIds(pipelineId []int) (ciWorkflow []*CiWorkflow, err error)
 	FindLastTriggeredWorkflowByArtifactId(ciArtifactId int) (ciWorkflow *CiWorkflow, err error)
+	FindLastTriggeredWorkflowGitTriggersByArtifactId(ciArtifactId int) (ciWorkflow *CiWorkflow, err error)
 	ExistsByStatus(status string) (bool, error)
 	FindBuildTypeAndStatusDataOfLast1Day() []*BuildTypeCount
 	FIndCiWorkflowStatusesByAppId(appId int) ([]*CiWorkflowStatus, error)
@@ -186,6 +188,16 @@ func (impl *CiWorkflowRepositoryImpl) FindById(id int) (*CiWorkflow, error) {
 	return workflow, err
 }
 
+func (impl *CiWorkflowRepositoryImpl) FindCiWorkflowGitTriggersById(id int) (ciWorkflow *CiWorkflow, err error) {
+	workflow := &CiWorkflow{}
+	err = impl.dbConnection.Model(workflow).
+		Column("ci_workflow.git_triggers").
+		Where("ci_workflow.id = ? ", id).
+		Select()
+
+	return workflow, err
+}
+
 func (impl *CiWorkflowRepositoryImpl) SaveWorkFlowConfig(config *CiWorkflowConfig) error {
 	err := impl.dbConnection.Insert(config)
 	return err
@@ -223,6 +235,17 @@ func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowByArtifactId(ciAr
 		Join("inner join ci_artifact cia on cia.ci_workflow_id = ci_workflow.id").
 		Where("cia.id = ? ", ciArtifactId).
 		Select()
+	return workflow, err
+}
+
+func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowGitTriggersByArtifactId(ciArtifactId int) (ciWorkflow *CiWorkflow, err error) {
+	workflow := &CiWorkflow{}
+	err = impl.dbConnection.Model(workflow).
+		Column("ci_workflow.git_triggers").
+		Join("inner join ci_artifact cia on cia.ci_workflow_id = ci_workflow.id").
+		Where("cia.id = ? ", ciArtifactId).
+		Select()
+
 	return workflow, err
 }
 
