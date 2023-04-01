@@ -146,7 +146,7 @@ func getAppListingCommonQueryString() string {
 //	return query
 //}
 
-func (impl AppListingRepositoryQueryBuilder) TestForBuildAppsQuery(appListingFilter AppListingFilter) string {
+func (impl AppListingRepositoryQueryBuilder) GetQueryForAppEnvContainerss(appListingFilter AppListingFilter) string {
 
 	query := "SELECT p.environment_id , a.id AS app_id, a.app_name,p.id as pipeline_id, a.team_id "
 	if len(appListingFilter.AppStatuses) > 0 {
@@ -187,7 +187,7 @@ func (impl AppListingRepositoryQueryBuilder) BuildAppListingQueryLastDeploymentT
 	return query
 }
 
-func (impl AppListingRepositoryQueryBuilder) BuildAppListingQueryLastDeploymentTimeV2(appListingFilter AppListingFilter) string {
+func (impl AppListingRepositoryQueryBuilder) GetAppIdsQueryWithPaginationForLastDeployedSearch(appListingFilter AppListingFilter) string {
 
 	query := "SELECT a.id as app_id,MAX(pco.created_on) as last_deployed_time " +
 		" FROM app a " +
@@ -207,7 +207,7 @@ func (impl AppListingRepositoryQueryBuilder) BuildAppListingQueryLastDeploymentT
 	return query
 }
 
-func (impl AppListingRepositoryQueryBuilder) TestForAppIdsWithFilter(appListingFilter AppListingFilter) string {
+func (impl AppListingRepositoryQueryBuilder) GetAppIdsQueryWithPaginationForAppNameSearch(appListingFilter AppListingFilter) string {
 	orderByClause := impl.buildAppListingSortBy(appListingFilter)
 	join := impl.CommonJoinSubQuery(appListingFilter)
 	query := "SELECT DISTINCT(a.id) as app_id, dt.count as total_count, a.app_name " +
