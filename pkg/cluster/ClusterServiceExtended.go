@@ -2,12 +2,18 @@ package cluster
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	cluster3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	repository4 "github.com/devtron-labs/devtron/pkg/user/repository"
+	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 	"net/http"
+	"os/user"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -259,7 +265,39 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *Cluste
 			return nil, err
 		}
 	}
-
+	restConfig := &rest.Config{}
+	if bean.Id == 0 {
+		usr, err := user.Current()
+		if err != nil {
+			impl.logger.Errorw("Error while getting user current env details", "error", err)
+		}
+		kubeconfig := flag.String("build-informer", filepath.Join(usr.HomeDir, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+		flag.Parse()
+		restConfig, err = clientcmd.BuildConfigFromFlags("", *kubeconfig)
+		if err != nil {
+			impl.logger.Errorw("Error while building config from flags", "error", err)
+		}
+	} else {
+		restConfig.BearerToken = bean.Config["bearer_token"]
+		restConfig.Host = bean.ServerUrl
+	}
+	httpClientFor, err := rest.HTTPClientFor(restConfig)
+	if err != nil {
+		fmt.Println("error occurred while overriding k8s client", "reason", err)
+		return nil, err
+	}
+	k8sClient, err := v12.NewForConfigAndClient(restConfig, httpClientFor)
+	if err != nil {
+		impl.logger.Errorw("error creating k8s client", "error", err)
+		return nil, err
+	}
+	data := make(map[string][]byte)
+	data["cluster_id"] = []byte(fmt.Sprintf("%v", bean.Id))
+	_, err = impl.K8sUtil.CreateSecret("default", data, "cluster_add_event", "CLUSTER_ADD_REQUEST", k8sClient)
+	if err != nil {
+		impl.logger.Errorw("err on creating secret", "err", err)
+		return nil, err
+	}
 	if bean.HasConfigOrUrlChanged {
 		impl.ClusterServiceImpl.SyncNsInformer(bean)
 	}
