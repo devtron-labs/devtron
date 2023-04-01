@@ -21,7 +21,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
@@ -262,45 +261,6 @@ func (impl AppListingServiceImpl) FetchOverviewCiPipelines(jobId int) ([]*bean.J
 
 func (impl AppListingServiceImpl) FetchAppsByEnvironment(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, int, error) {
 	impl.Logger.Debug("reached at FetchAppsByEnvironment:")
-	// TODO: check statuses
-	appSize := 0
-	newCtx, span := otel.Tracer("fetchAppListingRequest").Start(r.Context(), "GetNamespaceClusterMapping")
-	mappings, clusterIds, err := fetchAppListingRequest.GetNamespaceClusterMapping()
-	span.End()
-	if err != nil {
-		impl.Logger.Errorw("error in fetching app list", "error", err)
-		return []*bean.AppEnvironmentContainer{}, appSize, err
-	}
-	if len(mappings) > 0 {
-		newCtx, span = otel.Tracer("environmentRepository").Start(newCtx, "FindByClusterIdAndNamespace")
-		envs, err := impl.environmentRepository.FindByClusterIdAndNamespace(mappings)
-		span.End()
-		if err != nil {
-			impl.Logger.Errorw("error in cluster ns mapping")
-			return []*bean.AppEnvironmentContainer{}, appSize, err
-		}
-		for _, env := range envs {
-			fetchAppListingRequest.Environments = append(fetchAppListingRequest.Environments, env.Id)
-		}
-	}
-	if len(clusterIds) > 0 {
-		newCtx, span = otel.Tracer("environmentRepository").Start(newCtx, "FindByClusterIds")
-		envs, err := impl.environmentRepository.FindByClusterIds(clusterIds)
-		span.End()
-		if err != nil {
-			impl.Logger.Errorw("error in cluster ns mapping")
-			return []*bean.AppEnvironmentContainer{}, appSize, err
-		}
-		for _, env := range envs {
-			fetchAppListingRequest.Environments = append(fetchAppListingRequest.Environments, env.Id)
-		}
-
-	}
-	if (len(clusterIds) > 0 || len(mappings) > 0) && len(fetchAppListingRequest.Environments) == 0 {
-		// no result when no matching cluster and env
-		return []*bean.AppEnvironmentContainer{}, appSize, nil
-	}
-
 	appListingFilter := helper.AppListingFilter{
 		Environments:      fetchAppListingRequest.Environments,
 		Statuses:          fetchAppListingRequest.Statuses,
@@ -314,14 +274,14 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironment(fetchAppListingRequest 
 		AppStatuses:       fetchAppListingRequest.AppStatuses,
 		AppIds:            fetchAppListingRequest.AppIds,
 	}
-	newCtx, span = otel.Tracer("appListingRepository").Start(newCtx, "FetchAppsByEnvironment")
+	_, span := otel.Tracer("appListingRepository").Start(r.Context(), "FetchAppsByEnvironment")
 	envContainers, appSize, err := impl.appListingRepository.FetchAppsByEnvironment(appListingFilter)
 	span.End()
 	if err != nil {
 		impl.Logger.Errorw("error in fetching app list", "error", err)
 		return []*bean.AppEnvironmentContainer{}, appSize, err
 	}
-	return envContainers, appSize, err
+	return envContainers, appSize, nil
 }
 
 func (impl AppListingServiceImpl) ISLastReleaseStopType(appId, envId int) (bool, error) {
@@ -443,183 +403,8 @@ func BuildJobListingResponse(jobContainers []*bean.JobListingContainer, JobsLast
 
 func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest FetchAppListingRequest, existingAppEnvContainers []*bean.AppEnvironmentContainer) (map[string][]*bean.AppEnvironmentContainer, error) {
 	appEnvMapping := make(map[string][]*bean.AppEnvironmentContainer)
-	var appNames []string
-	var appIds []int
-	var pipelineIds []int
-	for _, env := range existingAppEnvContainers {
-		appIds = append(appIds, env.AppId)
-		if env.EnvironmentName == "" {
-			continue
-		}
-		appName := fmt.Sprintf("%s-%s", env.AppName, env.EnvironmentName)
-		appNames = append(appNames, appName)
-		pipelineIds = append(pipelineIds, env.PipelineId)
-	}
-
-	appEnvPipelinesMap := make(map[string][]*pipelineConfig.Pipeline)
-	appEnvCdWorkflowMap := make(map[string]*pipelineConfig.CdWorkflow)
-	appEnvCdWorkflowRunnerMap := make(map[int][]*pipelineConfig.CdWorkflowRunner)
-
-	//get all the active cd pipelines
-	if len(pipelineIds) > 0 {
-		pipelinesAll, err := impl.pipelineRepository.FindByIdsIn(pipelineIds) //TODO - OPTIMIZE 1
-		if err != nil && !util.IsErrNoRows(err) {
-			impl.Logger.Errorw("err", err)
-			return nil, err
-		}
-		//here to build a map of pipelines list for each (appId and envId)
-		for _, p := range pipelinesAll {
-			key := fmt.Sprintf("%d-%d", p.AppId, p.EnvironmentId)
-			if _, ok := appEnvPipelinesMap[key]; !ok {
-				var appEnvPipelines []*pipelineConfig.Pipeline
-				appEnvPipelines = append(appEnvPipelines, p)
-				appEnvPipelinesMap[key] = appEnvPipelines
-			} else {
-				appEnvPipelines := appEnvPipelinesMap[key]
-				appEnvPipelines = append(appEnvPipelines, p)
-				appEnvPipelinesMap[key] = appEnvPipelines
-			}
-		}
-
-		// from all the active pipeline, get all the cd workflow
-		cdWorkflowAll, err := impl.cdWorkflowRepository.FindLatestCdWorkflowByPipelineIdV2(pipelineIds) //TODO - OPTIMIZE 2
-		if err != nil && !util.IsErrNoRows(err) {
-			impl.Logger.Error(err)
-			return nil, err
-		}
-		// find and build a map of latest cd workflow for each (appId and envId), single latest CDWF for any of the cd pipelines.
-		var wfIds []int
-		for key, v := range appEnvPipelinesMap {
-			if _, ok := appEnvCdWorkflowMap[key]; !ok {
-				for _, itemW := range cdWorkflowAll {
-					for _, itemP := range v {
-						if itemW.PipelineId == itemP.Id {
-							// GOT LATEST CD WF, AND PUT INTO MAP
-							appEnvCdWorkflowMap[key] = itemW
-							wfIds = append(wfIds, itemW.Id)
-						}
-					}
-				}
-				//if no cd wf found for appid-envid, add it into map with nil
-				if _, ok := appEnvCdWorkflowMap[key]; !ok {
-					appEnvCdWorkflowMap[key] = nil
-				}
-			}
-		}
-
-		//fetch all the cd workflow runner from cdWF ids,
-		cdWorkflowRunnersAll, err := impl.cdWorkflowRepository.FindWorkflowRunnerByCdWorkflowId(wfIds) //TODO - OPTIMIZE 3
-		if err != nil {
-			impl.Logger.Errorw("error in getting wf", "err", err)
-		}
-		//build a map with key cdWF containing cdWFRunner List, which are later put in map for further requirement
-		for _, item := range cdWorkflowRunnersAll {
-			if _, ok := appEnvCdWorkflowRunnerMap[item.CdWorkflowId]; !ok {
-				var cdWorkflowRunners []*pipelineConfig.CdWorkflowRunner
-				cdWorkflowRunners = append(cdWorkflowRunners, item)
-				appEnvCdWorkflowRunnerMap[item.CdWorkflowId] = cdWorkflowRunners
-			} else {
-				appEnvCdWorkflowRunnerMap[item.CdWorkflowId] = append(appEnvCdWorkflowRunnerMap[item.CdWorkflowId], item)
-			}
-		}
-	}
-	releaseMap, _ := impl.ISLastReleaseStopTypeV2(pipelineIds)
-
 	for _, env := range existingAppEnvContainers {
 		appKey := strconv.Itoa(env.AppId) + "_" + env.AppName
-		if _, ok := appEnvMapping[appKey]; !ok {
-			var appEnvContainers []*bean.AppEnvironmentContainer
-			appEnvMapping[appKey] = appEnvContainers
-		}
-
-		key := fmt.Sprintf("%d-%d", env.AppId, env.EnvironmentId)
-		pipelines := appEnvPipelinesMap[key]
-		if len(pipelines) == 0 {
-			impl.Logger.Debugw("no pipeline found")
-			appEnvMapping[appKey] = append(appEnvMapping[appKey], env)
-			continue
-		}
-
-		latestTriggeredWf := appEnvCdWorkflowMap[key]
-		if latestTriggeredWf == nil || latestTriggeredWf.Id == 0 {
-			appEnvMapping[appKey] = append(appEnvMapping[appKey], env)
-			continue
-		}
-		var pipeline *pipelineConfig.Pipeline
-		for _, p := range pipelines {
-			if p.Id == latestTriggeredWf.PipelineId {
-				pipeline = p
-				break
-			}
-		}
-		var preCdStageRunner, postCdStageRunner, cdStageRunner *pipelineConfig.CdWorkflowRunner
-		cdStageRunners := appEnvCdWorkflowRunnerMap[latestTriggeredWf.Id]
-		for _, runner := range cdStageRunners {
-			if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
-				preCdStageRunner = runner
-			} else if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_DEPLOY {
-				cdStageRunner = runner
-			} else if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
-				postCdStageRunner = runner
-			}
-		}
-
-		if latestTriggeredWf.WorkflowStatus == pipelineConfig.WF_STARTED || latestTriggeredWf.WorkflowStatus == pipelineConfig.WF_UNKNOWN {
-			if pipeline.PreStageConfig != "" {
-				if preCdStageRunner != nil && preCdStageRunner.Id != 0 {
-					env.PreStageStatus = &preCdStageRunner.Status
-				} else {
-					status := ""
-					env.PreStageStatus = &status
-				}
-			}
-			if pipeline.PostStageConfig != "" {
-				if postCdStageRunner != nil && postCdStageRunner.Id != 0 {
-					env.PostStageStatus = &postCdStageRunner.Status
-				} else {
-					status := ""
-					env.PostStageStatus = &status
-				}
-			}
-			if cdStageRunner != nil {
-				status := cdStageRunner.Status
-				if status == string(health.HealthStatusHealthy) {
-					stopType := releaseMap[pipeline.Id]
-					if stopType {
-						status = application2.HIBERNATING
-						env.Status = status
-					}
-				}
-				env.CdStageStatus = &status
-
-			} else {
-				status := ""
-				env.CdStageStatus = &status
-			}
-		} else {
-			if pipeline.PreStageConfig != "" {
-				if preCdStageRunner != nil && preCdStageRunner.Id != 0 {
-					var status string = latestTriggeredWf.WorkflowStatus.String()
-					env.PreStageStatus = &status
-				} else {
-					status := ""
-					env.PreStageStatus = &status
-				}
-			}
-			if pipeline.PostStageConfig != "" {
-				if postCdStageRunner != nil && postCdStageRunner.Id != 0 {
-					var status string = latestTriggeredWf.WorkflowStatus.String()
-					env.PostStageStatus = &status
-				} else {
-					status := ""
-					env.PostStageStatus = &status
-				}
-			}
-			var status string = latestTriggeredWf.WorkflowStatus.String()
-
-			env.CdStageStatus = &status
-		}
-
 		appEnvMapping[appKey] = append(appEnvMapping[appKey], env)
 	}
 	return appEnvMapping, nil
