@@ -26,7 +26,6 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"go.opentelemetry.io/otel"
-	"strconv"
 	"strings"
 	"time"
 
@@ -37,7 +36,7 @@ import (
 )
 
 type AppListingRepository interface {
-	FetchAppsByEnvironment(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, error)
+	FetchAppsByEnvironment(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, int, error)
 	FetchJobs(appIds []int, statuses []string, sortOrder string) ([]*bean.JobListingContainer, error)
 	FetchOverviewCiPipelines(jobId int) ([]*bean.JobListingContainer, error)
 	FetchJobsLastSucceededOn(ciPipelineIDs []int) ([]*bean.CiPipelineLastSucceededTime, error)
@@ -125,79 +124,153 @@ func (impl AppListingRepositoryImpl) FetchJobsLastSucceededOn(CiPipelineIDs []in
 	}
 	return lastSucceededTimeArray, nil
 }
-func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, error) {
+
+func getRequiredAppIdsInSequence(appIds []int) []int {
+	resIDs := make([]int, 0)
+	appIdsSet := make(map[int]bool)
+	for _, appId := range appIds {
+		if _, ok := appIdsSet[appId]; !ok {
+			resIDs = append(resIDs, appId)
+			appIdsSet[appId] = true
+		}
+	}
+	return resIDs
+}
+
+func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, int, error) {
 	impl.Logger.Debug("reached at FetchAppsByEnvironment:")
 	var appEnvArr []*bean.AppEnvironmentContainer
+	appsSize := 0
+	lastDeployedTimeMap := make(map[int]string)
+	var appEnvContainer []*bean.AppEnvironmentContainer
+	var lastDeployedTimeDTO = make([]*bean.AppEnvironmentContainer, 0)
 
-	query := impl.appListingRepositoryQueryBuilder.BuildAppListingQueryLastDeploymentTime()
-	impl.Logger.Debugw("basic app detail query: ", query)
-	var lastDeployedTimeDTO []*bean.AppEnvironmentContainer
-	lastDeployedTimeMap := map[int]*bean.AppEnvironmentContainer{}
-	start := time.Now()
-	_, err := impl.dbConnection.Query(&lastDeployedTimeDTO, query)
-	middleware.AppListingDuration.WithLabelValues("buildAppListingQueryLastDeploymentTime", "devtron").Observe(time.Since(start).Seconds())
-	if err != nil {
-		impl.Logger.Error(err)
-		return appEnvArr, err
+	//allValidAppIds := make([]int, 0)
+	if appListingFilter.SortOrder == "LastDeployedSort" {
+
+		//change this
+		filteredAppIDs := make([]int, 0)
+		appIdsQuery := impl.appListingRepositoryQueryBuilder.TestForUniqueAppIdsWithFilterV2(appListingFilter)
+		_, err := impl.dbConnection.Query(&filteredAppIDs, appIdsQuery)
+		if err != nil {
+			impl.Logger.Error(err)
+			return appEnvArr, appsSize, err
+		}
+		appsSize = len(filteredAppIDs)
+		//change this end
+
+		query := impl.appListingRepositoryQueryBuilder.TestBuildAppListingQueryLastDeploymentTime(appListingFilter)
+		impl.Logger.Debugw("basic app detail query: ", query)
+		start := time.Now()
+		_, err = impl.dbConnection.Query(&lastDeployedTimeDTO, query)
+		middleware.AppListingDuration.WithLabelValues("buildAppListingQueryLastDeploymentTime", "devtron").Observe(time.Since(start).Seconds())
+		if err != nil {
+			impl.Logger.Error(err)
+			return appEnvArr, appsSize, err
+		}
+		appIdsFound := make([]int, len(lastDeployedTimeDTO))
+		for i, obj := range lastDeployedTimeDTO {
+			appIdsFound[i] = obj.AppId
+		}
+		appListingFilter.AppIds = appIdsFound
+		appContainerQuery := impl.appListingRepositoryQueryBuilder.TestForBuildAppsQuery(appListingFilter)
+		_, err = impl.dbConnection.Query(&appEnvContainer, appContainerQuery)
+		if err != nil {
+			impl.Logger.Error(err)
+			return appEnvArr, appsSize, err
+		}
+
+	} else {
+		allValidAppIDsWithFilter := make([]int, 0)
+		//to get all the appIds in appEnvs allowed for user and filtered by the appListing filter and sorted by name
+		appIdsQuery := impl.appListingRepositoryQueryBuilder.TestForAppIdsWithFilter(appListingFilter)
+		start := time.Now()
+		_, appsErr := impl.dbConnection.Query(&allValidAppIDsWithFilter, appIdsQuery)
+		middleware.AppListingDuration.WithLabelValues("BuildAppListingQueryForAppIds", "devtron").Observe(time.Since(start).Seconds())
+		if appsErr != nil {
+			impl.Logger.Error(appsErr)
+			return appEnvContainer, appsSize, appsErr
+		}
+		//get all the unique appIds in the same order got from above query
+		uniqueAppIds := getRequiredAppIdsInSequence(allValidAppIDsWithFilter)
+		appsSize = len(uniqueAppIds)
+
+		l := appListingFilter.Offset
+
+		if appsSize == 0 || appsSize < l {
+			impl.Logger.Error(appsErr)
+			return appEnvContainer, appsSize, nil
+		}
+		//apply pagination
+		r := l + appListingFilter.Size
+		if r > appsSize {
+			r = appsSize
+		}
+		//did not use uniqueAppIds[l:r] because the capacity of the appIdsInThisPage array will be set to capacity of uniqueAppIds array
+		appIdsInThisPage := make([]int, r-l)
+		for i := 0; i < len(appIdsInThisPage); i++ {
+			appIdsInThisPage[i] = uniqueAppIds[l+i]
+		}
+
+		//set appids required for this page in the filter and get the appEnv containers of these apps
+		appListingFilter.AppIds = appIdsInThisPage
+		appsEnvquery := impl.appListingRepositoryQueryBuilder.TestForBuildAppsQuery(appListingFilter)
+		impl.Logger.Debugw("basic app detail query: ", appsEnvquery)
+		start = time.Now()
+		_, appsErr = impl.dbConnection.Query(&appEnvContainer, appsEnvquery)
+		middleware.AppListingDuration.WithLabelValues("buildAppListingQuery", "devtron").Observe(time.Since(start).Seconds())
+		if appsErr != nil {
+			impl.Logger.Error(appsErr)
+			return appEnvContainer, appsSize, appsErr
+		}
+
+		//filter out unique pipelineIds from the above result and get the deployment times for them
+		//some items don't have pipelineId if no pipeline is configured for the app in the appEnv container
+		pipelineIdsSet := make(map[int]bool)
+		pipelineIds := make([]int, 0)
+		for _, item := range appEnvContainer {
+			pId := item.PipelineId
+			if _, ok := pipelineIdsSet[pId]; !ok && pId > 0 {
+				pipelineIds = append(pipelineIds, pId)
+				pipelineIdsSet[pId] = true
+			}
+		}
+
+		//if any pipeline found get the latest deployment time
+		if len(pipelineIds) > 0 {
+			query := impl.appListingRepositoryQueryBuilder.BuildAppListingQueryLastDeploymentTime(pipelineIds)
+			impl.Logger.Debugw("basic app detail query: ", query)
+			//var lastDeployedTimeDTO []*bean.AppEnvironmentContainer
+			start = time.Now()
+			_, err := impl.dbConnection.Query(&lastDeployedTimeDTO, query)
+			middleware.AppListingDuration.WithLabelValues("buildAppListingQueryLastDeploymentTime", "devtron").Observe(time.Since(start).Seconds())
+			if err != nil {
+				impl.Logger.Error(err)
+				return appEnvArr, appsSize, err
+			}
+		}
+
 	}
+
+	//TODO:REVISIT
+	//get the last deployment time for all the items
 	for _, item := range lastDeployedTimeDTO {
 		if _, ok := lastDeployedTimeMap[item.PipelineId]; ok {
 			continue
 		}
-		lastDeployedTimeMap[item.PipelineId] = &bean.AppEnvironmentContainer{
-			LastDeployedTime: item.LastDeployedTime,
-			DataSource:       item.DataSource,
-			MaterialInfoJson: item.MaterialInfoJson,
-			CiArtifactId:     item.CiArtifactId,
-		}
+		lastDeployedTimeMap[item.PipelineId] = item.LastDeployedTime
+
 	}
 
-	var appEnvContainer []*bean.AppEnvironmentContainer
-	appsEnvquery := impl.appListingRepositoryQueryBuilder.BuildAppListingQuery(appListingFilter)
-	impl.Logger.Debugw("basic app detail query: ", appsEnvquery)
-	start = time.Now()
-	_, appsErr := impl.dbConnection.Query(&appEnvContainer, appsEnvquery)
-	middleware.AppListingDuration.WithLabelValues("buildAppListingQuery", "devtron").Observe(time.Since(start).Seconds())
-	if appsErr != nil {
-		impl.Logger.Error(appsErr)
-		return appEnvContainer, appsErr
-	}
-	latestDeploymentStatusMap := map[string]*bean.AppEnvironmentContainer{}
+	//set the time for corresponding appEnv container
 	for _, item := range appEnvContainer {
-		if item.EnvironmentId > 0 && item.PipelineId > 0 && item.Active == false {
-			// skip adding apps which have linked with cd pipeline and that environment has marked as deleted.
-			continue
-		}
-		// include only apps which are not linked with any cd pipeline + those linked with cd pipeline and env has active.
-		key := strconv.Itoa(item.AppId) + "_" + strconv.Itoa(item.EnvironmentId)
-		if _, ok := latestDeploymentStatusMap[key]; ok {
-			continue
-		}
-
 		if lastDeployedTime, ok := lastDeployedTimeMap[item.PipelineId]; ok {
-			item.LastDeployedTime = lastDeployedTime.LastDeployedTime
-			item.DataSource = lastDeployedTime.DataSource
-			item.MaterialInfoJson = lastDeployedTime.MaterialInfoJson
-			item.CiArtifactId = lastDeployedTime.CiArtifactId
-		}
-
-		if len(item.DataSource) > 0 {
-			mInfo, err := parseMaterialInfo(item.MaterialInfoJson, item.DataSource)
-			if err == nil && len(mInfo) > 0 {
-				item.MaterialInfo = mInfo
-			} else {
-				item.MaterialInfo = []byte("[]")
-			}
-			item.MaterialInfoJson = ""
-		} else {
-			item.MaterialInfo = []byte("[]")
-			item.MaterialInfoJson = ""
+			item.LastDeployedTime = lastDeployedTime
 		}
 		appEnvArr = append(appEnvArr, item)
-		latestDeploymentStatusMap[key] = item
 	}
 
-	return appEnvArr, nil
+	return appEnvArr, appsSize, nil
 }
 
 // DeploymentDetailsByAppIdAndEnvId It will return the deployment detail of any cd pipeline which is latest triggered for Environment of any App
