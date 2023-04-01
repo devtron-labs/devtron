@@ -378,7 +378,8 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 			}
 		}
 
-		objectArray = make([]string, len(filteredAppEnvContainers))
+		objectArray = make([]string, 0, len(filteredAppEnvContainers))
+		uniqueAppsData := make(map[string]bool) // creating it for unique apps
 		for _, filteredAppEnvContainer := range filteredAppEnvContainers {
 			if fetchAppListingRequest.DeploymentGroupId > 0 {
 				if filteredAppEnvContainer.EnvironmentId != 0 && filteredAppEnvContainer.EnvironmentId != dg.EnvironmentId {
@@ -387,7 +388,10 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 			}
 			object := fmt.Sprintf("%s/%s", filteredAppEnvContainer.TeamName, filteredAppEnvContainer.AppName)
 			object = strings.ToLower(object)
-			objectArray = append(objectArray, object)
+			if _, ok := uniqueAppsData[object]; !ok {
+				objectArray = append(objectArray, object)
+				uniqueAppsData[object] = true
+			}
 		}
 
 		newCtx, span = otel.Tracer("enforcer").Start(newCtx, "EnforceByEmailInBatchForApps")
