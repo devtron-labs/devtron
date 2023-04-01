@@ -146,7 +146,7 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter hel
 	var lastDeployedTimeDTO = make([]*bean.AppEnvironmentContainer, 0)
 
 	//allValidAppIds := make([]int, 0)
-	if appListingFilter.SortOrder == "LastDeployedSort" {
+	if string(appListingFilter.SortBy) == "lastDeployedSort" {
 
 		query := impl.appListingRepositoryQueryBuilder.BuildAppListingQueryLastDeploymentTimeV2(appListingFilter)
 		impl.Logger.Debugw("basic app detail query: ", query)
