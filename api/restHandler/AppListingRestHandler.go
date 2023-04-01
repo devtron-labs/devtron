@@ -24,6 +24,7 @@ import (
 	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/caarlos0/env/v6"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
@@ -36,6 +37,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appStatus"
+	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	service1 "github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
@@ -62,36 +64,41 @@ type AppListingRestHandler interface {
 	FetchJobs(w http.ResponseWriter, r *http.Request)
 	FetchJobOverviewCiPipelines(w http.ResponseWriter, r *http.Request)
 	FetchAppDetails(w http.ResponseWriter, r *http.Request)
+	FetchResourceTree(w http.ResponseWriter, r *http.Request)
 	FetchAllDevtronManagedApps(w http.ResponseWriter, r *http.Request)
 	FetchAppTriggerView(w http.ResponseWriter, r *http.Request)
 	FetchAppStageStatus(w http.ResponseWriter, r *http.Request)
 
 	FetchOtherEnvironment(w http.ResponseWriter, r *http.Request)
+	FetchMinDetailOtherEnvironment(w http.ResponseWriter, r *http.Request)
 	RedirectToLinkouts(w http.ResponseWriter, r *http.Request)
 	GetHostUrlsByBatch(w http.ResponseWriter, r *http.Request)
 
 	ManualSyncAcdPipelineDeploymentStatus(w http.ResponseWriter, r *http.Request)
+	GetClusterTeamAndEnvListForAutocomplete(w http.ResponseWriter, r *http.Request)
 }
 
 type AppListingRestHandlerImpl struct {
-	application                      application.ServiceClient
-	appListingService                app.AppListingService
-	teamService                      team.TeamService
-	enforcer                         casbin.Enforcer
-	pipeline                         pipeline.PipelineBuilder
-	logger                           *zap.SugaredLogger
-	enforcerUtil                     rbac.EnforcerUtil
-	deploymentGroupService           deploymentGroup.DeploymentGroupService
-	userService                      user.UserService
-	helmAppClient                    client.HelmAppClient
-	clusterService                   cluster.ClusterService
-	helmAppService                   client.HelmAppService
-	argoUserService                  argo.ArgoUserService
-	k8sApplicationService            k8s.K8sApplicationService
-	installedAppService              service1.InstalledAppService
-	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler
-	pipelineRepository               pipelineConfig.PipelineRepository
-	appStatusService                 appStatus.AppStatusService
+	application                       application.ServiceClient
+	appListingService                 app.AppListingService
+	teamService                       team.TeamService
+	enforcer                          casbin.Enforcer
+	pipeline                          pipeline.PipelineBuilder
+	logger                            *zap.SugaredLogger
+	enforcerUtil                      rbac.EnforcerUtil
+	deploymentGroupService            deploymentGroup.DeploymentGroupService
+	userService                       user.UserService
+	helmAppClient                     client.HelmAppClient
+	clusterService                    cluster.ClusterService
+	helmAppService                    client.HelmAppService
+	argoUserService                   argo.ArgoUserService
+	k8sApplicationService             k8s.K8sApplicationService
+	installedAppService               service1.InstalledAppService
+	cdApplicationStatusUpdateHandler  cron.CdApplicationStatusUpdateHandler
+	pipelineRepository                pipelineConfig.PipelineRepository
+	appStatusService                  appStatus.AppStatusService
+	environmentClusterMappingsService cluster.EnvironmentService
+	cfg                               *bean.Config
 }
 
 type AppStatus struct {
@@ -100,6 +107,12 @@ type AppStatus struct {
 	message    string
 	err        error
 	conditions []v1alpha1.ApplicationCondition
+}
+
+type AppAutocomplete struct {
+	Teams        []team.TeamRequest
+	Environments []cluster.EnvironmentBean
+	Clusters     []cluster.ClusterBean
 }
 
 func NewAppListingRestHandlerImpl(application application.ServiceClient,
@@ -113,26 +126,37 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 	argoUserService argo.ArgoUserService, k8sApplicationService k8s.K8sApplicationService, installedAppService service1.InstalledAppService,
 	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler,
 	pipelineRepository pipelineConfig.PipelineRepository,
-	appStatusService appStatus.AppStatusService) *AppListingRestHandlerImpl {
+	appStatusService appStatus.AppStatusService,
+	environmentClusterMappingsService cluster.EnvironmentService,
+) *AppListingRestHandlerImpl {
+	cfg := &bean.Config{}
+	err := env.Parse(cfg)
+	if err != nil {
+		logger.Errorw("error occurred while parsing config ", "err", err)
+		cfg.IgnoreAuthCheck = false
+	}
+	logger.Infow("app listing rest handler initialized", "ignoreAuthCheckValue", cfg.IgnoreAuthCheck)
 	appListingHandler := &AppListingRestHandlerImpl{
-		application:                      application,
-		appListingService:                appListingService,
-		logger:                           logger,
-		teamService:                      teamService,
-		pipeline:                         pipeline,
-		enforcer:                         enforcer,
-		enforcerUtil:                     enforcerUtil,
-		deploymentGroupService:           deploymentGroupService,
-		userService:                      userService,
-		helmAppClient:                    helmAppClient,
-		clusterService:                   clusterService,
-		helmAppService:                   helmAppService,
-		argoUserService:                  argoUserService,
-		k8sApplicationService:            k8sApplicationService,
-		installedAppService:              installedAppService,
-		cdApplicationStatusUpdateHandler: cdApplicationStatusUpdateHandler,
-		pipelineRepository:               pipelineRepository,
-		appStatusService:                 appStatusService,
+		application:                       application,
+		appListingService:                 appListingService,
+		logger:                            logger,
+		teamService:                       teamService,
+		pipeline:                          pipeline,
+		enforcer:                          enforcer,
+		enforcerUtil:                      enforcerUtil,
+		deploymentGroupService:            deploymentGroupService,
+		userService:                       userService,
+		helmAppClient:                     helmAppClient,
+		clusterService:                    clusterService,
+		helmAppService:                    helmAppService,
+		argoUserService:                   argoUserService,
+		k8sApplicationService:             k8sApplicationService,
+		installedAppService:               installedAppService,
+		cdApplicationStatusUpdateHandler:  cdApplicationStatusUpdateHandler,
+		pipelineRepository:                pipelineRepository,
+		appStatusService:                  appStatusService,
+		environmentClusterMappingsService: environmentClusterMappingsService,
+		cfg:                               cfg,
 	}
 	return appListingHandler
 }
@@ -354,7 +378,8 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 			}
 		}
 
-		objectArray = make([]string, len(filteredAppEnvContainers))
+		objectArray = make([]string, 0, len(filteredAppEnvContainers))
+		uniqueAppsData := make(map[string]bool) // creating it for unique apps
 		for _, filteredAppEnvContainer := range filteredAppEnvContainers {
 			if fetchAppListingRequest.DeploymentGroupId > 0 {
 				if filteredAppEnvContainer.EnvironmentId != 0 && filteredAppEnvContainer.EnvironmentId != dg.EnvironmentId {
@@ -363,7 +388,10 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 			}
 			object := fmt.Sprintf("%s/%s", filteredAppEnvContainer.TeamName, filteredAppEnvContainer.AppName)
 			object = strings.ToLower(object)
-			objectArray = append(objectArray, object)
+			if _, ok := uniqueAppsData[object]; !ok {
+				objectArray = append(objectArray, object)
+				uniqueAppsData[object] = true
+			}
 		}
 
 		newCtx, span = otel.Tracer("enforcer").Start(newCtx, "EnforceByEmailInBatchForApps")
@@ -446,7 +474,33 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	envId, err := strconv.Atoi(vars["env-id"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		return
+	}
+	appDetail, err := handler.appListingService.FetchAppDetails(r.Context(), appId, envId)
+	if err != nil {
+		handler.logger.Errorw("service err, FetchAppDetails", "err", err, "appId", appId, "envId", envId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, appDetail, http.StatusOK)
+}
 
+func (handler AppListingRestHandlerImpl) FetchResourceTree(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	token := r.Header.Get("token")
+	appId, err := strconv.Atoi(vars["app-id"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 	envId, err := strconv.Atoi(vars["env-id"])
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -471,13 +525,6 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 		return
 	}
 	cdPipeline := pipelines[0]
-	appDetail, err := handler.appListingService.FetchAppDetails(r.Context(), appId, envId)
-	if err != nil {
-		handler.logger.Errorw("service err, FetchAppDetails", "err", err, "appId", appId, "envId", envId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
@@ -488,27 +535,25 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 		common.WriteJsonResp(w, fmt.Errorf("error in getting acd token"), nil, http.StatusInternalServerError)
 		return
 	}
-	appDetail, err = handler.fetchResourceTree(w, r, appId, envId, appDetail, acdToken, cdPipeline)
-	if appDetail.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+	resourceTree, err := handler.fetchResourceTree(w, r, appId, envId, acdToken, cdPipeline)
+	if cdPipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
 		apiError, ok := err.(*util.ApiError)
 		if ok && apiError != nil {
-			if apiError.Code == constants.AppDetailResourceTreeNotFound && appDetail.DeploymentAppDeleteRequest == true {
-				acdAppFound, _ := handler.pipeline.MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(appId, envId, acdToken, cdPipeline)
-				if acdAppFound {
-					common.WriteJsonResp(w, fmt.Errorf("unable to fetch resource tree"), nil, http.StatusInternalServerError)
-					return
-				} else {
-					common.WriteJsonResp(w, fmt.Errorf("app deleted"), nil, http.StatusNotFound)
-					return
-				}
+			if apiError.Code == constants.AppDetailResourceTreeNotFound && cdPipeline.DeploymentAppDeleteRequest == true {
+				go func() {
+					acdAppFound, _ := handler.pipeline.MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(appId, envId, acdToken, cdPipeline)
+					if acdAppFound {
+						common.WriteJsonResp(w, fmt.Errorf("unable to fetch resource tree"), nil, http.StatusInternalServerError)
+						return
+					} else {
+						common.WriteJsonResp(w, fmt.Errorf("app deleted"), nil, http.StatusNotFound)
+						return
+					}
+				}()
 			}
 		}
 	}
-	if err != nil {
-		common.WriteJsonResp(w, fmt.Errorf("unable to fetch resource tree"), nil, http.StatusInternalServerError)
-		return
-	}
-	common.WriteJsonResp(w, err, appDetail, http.StatusOK)
+	common.WriteJsonResp(w, err, resourceTree, http.StatusOK)
 }
 
 func (handler AppListingRestHandlerImpl) FetchAppTriggerView(w http.ResponseWriter, r *http.Request) {
@@ -715,6 +760,42 @@ func (handler AppListingRestHandlerImpl) FetchOtherEnvironment(w http.ResponseWr
 	common.WriteJsonResp(w, err, otherEnvironment, http.StatusOK)
 }
 
+func (handler AppListingRestHandlerImpl) FetchMinDetailOtherEnvironment(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	appId, err := strconv.Atoi(vars["app-id"])
+	if err != nil {
+		handler.logger.Errorw("request err, FetchMinDetailOtherEnvironment", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	token := r.Header.Get("token")
+	app, err := handler.pipeline.GetApp(appId)
+	if err != nil {
+		handler.logger.Errorw("service err, FetchMinDetailOtherEnvironment", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	// RBAC enforcer applying
+	object := handler.enforcerUtil.GetAppRBACName(app.AppName)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, err, "unauthorized user", http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+
+	otherEnvironment, err := handler.appListingService.FetchMinDetailOtherEnvironment(appId)
+	if err != nil {
+		handler.logger.Errorw("service err, FetchMinDetailOtherEnvironment", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	//TODO - rbac env level
+
+	common.WriteJsonResp(w, err, otherEnvironment, http.StatusOK)
+}
+
 func (handler AppListingRestHandlerImpl) RedirectToLinkouts(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	vars := mux.Vars(r)
@@ -761,11 +842,11 @@ func (handler AppListingRestHandlerImpl) RedirectToLinkouts(w http.ResponseWrite
 	}
 	http.Redirect(w, r, link, http.StatusOK)
 }
-func (handler AppListingRestHandlerImpl) fetchResourceTreeFromInstallAppService(w http.ResponseWriter, r *http.Request, appDetail bean.AppDetailContainer) bean.AppDetailContainer {
+func (handler AppListingRestHandlerImpl) fetchResourceTreeFromInstallAppService(w http.ResponseWriter, r *http.Request, resourceTreeAndNotesContainer bean.ResourceTreeAndNotesContainer, installedApps repository.InstalledApps) (bean.ResourceTreeAndNotesContainer, error) {
 	rctx := r.Context()
 	cn, _ := w.(http.CloseNotifier)
-	_, _ = handler.installedAppService.FetchResourceTree(rctx, cn, &appDetail)
-	return appDetail
+	err := handler.installedAppService.FetchResourceTree(rctx, cn, &resourceTreeAndNotesContainer, installedApps)
+	return resourceTreeAndNotesContainer, err
 }
 func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWriter, r *http.Request) {
 	vars := r.URL.Query()
@@ -824,9 +905,26 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 			return
 		}
 	}
-
+	var resourceTree map[string]interface{}
 	if installedAppIdParam != "" {
-		appDetail = handler.fetchResourceTreeFromInstallAppService(w, r, appDetail)
+		installedAppId, err := strconv.Atoi(installedAppIdParam)
+		if err != nil {
+			handler.logger.Errorw("request err, FetchAppDetailsForInstalledApp", "err", err, "installedAppId", installedAppId)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+		installedApp, err := handler.installedAppService.CheckAppExistsByInstalledAppId(installedAppId)
+		if err == pg.ErrNoRows {
+			common.WriteJsonResp(w, err, "App not found in database", http.StatusBadRequest)
+			return
+		}
+		resourceTreeAndNotesContainer := bean.ResourceTreeAndNotesContainer{}
+		resourceTreeAndNotesContainer, err = handler.fetchResourceTreeFromInstallAppService(w, r, resourceTreeAndNotesContainer, *installedApp)
+		if err != nil {
+			common.WriteJsonResp(w, fmt.Errorf("error in fetching resource tree"), nil, http.StatusInternalServerError)
+			return
+		}
+		resourceTree = resourceTreeAndNotesContainer.ResourceTree
 	} else {
 		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
 		if err != nil {
@@ -849,10 +947,8 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 		}
 
 		cdPipeline := pipelines[0]
-		appDetail, err = handler.fetchResourceTree(w, r, appId, envId, appDetail, acdToken, cdPipeline)
+		resourceTree, err = handler.fetchResourceTree(w, r, appId, envId, acdToken, cdPipeline)
 	}
-
-	resourceTree := appDetail.ResourceTree
 	_, ok := resourceTree["nodes"]
 	if !ok {
 		err = fmt.Errorf("no nodes found for this resource tree appName:%s , envName:%s", appDetail.AppName, appDetail.EnvironmentName)
@@ -900,8 +996,9 @@ func (handler AppListingRestHandlerImpl) getAppDetails(ctx context.Context, appI
 }
 
 // TODO: move this to service
-func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, appId int, envId int, appDetail bean.AppDetailContainer, acdToken string, cdPipeline *pipelineConfig.Pipeline) (bean.AppDetailContainer, error) {
-	if len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 && util.IsAcdApp(appDetail.DeploymentAppType) {
+func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, appId int, envId int, acdToken string, cdPipeline *pipelineConfig.Pipeline) (map[string]interface{}, error) {
+	var resourceTree map[string]interface{}
+	if len(cdPipeline.DeploymentAppName) > 0 && cdPipeline.EnvironmentId > 0 && util.IsAcdApp(cdPipeline.DeploymentAppType) {
 		//RBAC enforcer Ends
 		query := &application2.ResourcesQuery{
 			ApplicationName: &cdPipeline.DeploymentAppName,
@@ -928,55 +1025,57 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 				InternalMessage: "app detail fetched, failed to get resource tree from acd",
 				UserMessage:     "Error fetching detail, if you have recently created this deployment pipeline please try after sometime.",
 			}
-			return appDetail, err
-		}
-		if resp.Status == string(health.HealthStatusHealthy) {
-			status, err := handler.appListingService.ISLastReleaseStopType(appId, envId)
-			if err != nil {
-				handler.logger.Errorw("service err, FetchAppDetails", "err", err, "app", appId, "env", envId)
-			} else if status {
-				resp.Status = application.HIBERNATING
-			}
+			return resourceTree, err
 		}
 		handler.logger.Debugw("FetchAppDetails, time elapsed in fetching application for environment ", "elapsed", elapsed, "appId", appId, "envId", envId)
+		resourceTree = util2.InterfaceToMapAdapter(resp)
 
-		if resp.Status == string(health.HealthStatusDegraded) {
-			count, err := handler.appListingService.GetReleaseCount(appId, envId)
-			if err != nil {
-				handler.logger.Errorw("service err, FetchAppDetails, release count", "err", err, "app", appId, "env", envId)
-			} else if count == 0 {
-				resp.Status = app.NotDeployed
+		go func() {
+			if resp.Status == string(health.HealthStatusHealthy) {
+				status, err := handler.appListingService.ISLastReleaseStopType(appId, envId)
+				if err != nil {
+					handler.logger.Errorw("service err, FetchAppDetails", "err", err, "app", appId, "env", envId)
+				} else if status {
+					resp.Status = application.HIBERNATING
+				}
 			}
-		}
-		appDetail.ResourceTree = util2.InterfaceToMapAdapter(resp)
-		if resp.Status == string(health.HealthStatusHealthy) {
-			err = handler.cdApplicationStatusUpdateHandler.SyncPipelineStatusForResourceTreeCall(cdPipeline)
-			if err != nil {
-				handler.logger.Errorw("error in syncing pipeline status", "err", err)
+			if resp.Status == string(health.HealthStatusDegraded) {
+				count, err := handler.appListingService.GetReleaseCount(appId, envId)
+				if err != nil {
+					handler.logger.Errorw("service err, FetchAppDetails, release count", "err", err, "app", appId, "env", envId)
+				} else if count == 0 {
+					resp.Status = app.NotDeployed
+				}
 			}
-		}
-		//updating app_status table here
-		err = handler.appStatusService.UpdateStatusWithAppIdEnvId(appDetail.AppId, appDetail.EnvironmentId, resp.Status)
-		if err != nil {
-			handler.logger.Warnw("error in updating app status", "err", err, "appId", appDetail.AppId, "envId", appDetail.EnvironmentId)
-		}
+			if resp.Status == string(health.HealthStatusHealthy) {
+				err = handler.cdApplicationStatusUpdateHandler.SyncPipelineStatusForResourceTreeCall(cdPipeline)
+				if err != nil {
+					handler.logger.Errorw("error in syncing pipeline status", "err", err)
+				}
+			}
+			//updating app_status table here
+			err = handler.appStatusService.UpdateStatusWithAppIdEnvId(appId, envId, resp.Status)
+			if err != nil {
+				handler.logger.Warnw("error in updating app status", "err", err, "appId", cdPipeline.AppId, "envId", cdPipeline.EnvironmentId)
+			}
+		}()
 
-	} else if len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 && util.IsHelmApp(appDetail.DeploymentAppType) {
-		config, err := handler.helmAppService.GetClusterConf(appDetail.ClusterId)
+	} else if len(cdPipeline.DeploymentAppName) > 0 && cdPipeline.EnvironmentId > 0 && util.IsHelmApp(cdPipeline.DeploymentAppType) {
+		config, err := handler.helmAppService.GetClusterConf(cdPipeline.Environment.ClusterId)
 		if err != nil {
 			handler.logger.Errorw("error in fetching cluster detail", "err", err)
 		}
 		req := &client.AppDetailRequest{
 			ClusterConfig: config,
-			Namespace:     appDetail.Namespace,
-			ReleaseName:   fmt.Sprintf("%s-%s", appDetail.AppName, appDetail.EnvironmentName),
+			Namespace:     cdPipeline.Environment.Namespace,
+			ReleaseName:   cdPipeline.DeploymentAppName,
 		}
 		detail, err := handler.helmAppClient.GetAppDetail(context.Background(), req)
 		if err != nil {
 			handler.logger.Errorw("error in fetching app detail", "err", err)
 		}
 		if detail != nil {
-			resourceTree := util2.InterfaceToMapAdapter(detail.ResourceTreeResponse)
+			resourceTree = util2.InterfaceToMapAdapter(detail.ResourceTreeResponse)
 			applicationStatus := detail.ApplicationStatus
 			resourceTree["status"] = applicationStatus
 			if applicationStatus == application.Healthy {
@@ -987,16 +1086,12 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 					resourceTree["status"] = application.HIBERNATING
 				}
 			}
-			appDetail.ResourceTree = resourceTree
-			handler.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
-		} else {
-			appDetail.ResourceTree = map[string]interface{}{}
+			handler.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", cdPipeline.DeploymentAppName, "env", cdPipeline.Environment.Name)
 		}
 	} else {
-		appDetail.ResourceTree = map[string]interface{}{}
-		handler.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
+		handler.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", cdPipeline.DeploymentAppName, "env", cdPipeline.Environment.Name)
 	}
-	return appDetail, nil
+	return resourceTree, nil
 }
 
 func (handler AppListingRestHandlerImpl) ManualSyncAcdPipelineDeploymentStatus(w http.ResponseWriter, r *http.Request) {
@@ -1039,4 +1134,140 @@ func (handler AppListingRestHandlerImpl) ManualSyncAcdPipelineDeploymentStatus(w
 		return
 	}
 	common.WriteJsonResp(w, nil, "App synced successfully.", http.StatusOK)
+}
+
+func (handler AppListingRestHandlerImpl) GetClusterTeamAndEnvListForAutocomplete(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	clusterMapping := make(map[string]cluster.ClusterBean)
+	start := time.Now()
+	clusterList, err := handler.clusterService.FindAllForAutoComplete()
+	dbOperationTime := time.Since(start)
+	if err != nil {
+		handler.logger.Errorw("service err, FindAllForAutoComplete in clusterService layer", "error", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	var granterClusters []cluster.ClusterBean
+	v := r.URL.Query()
+	authEnabled := true
+	auth := v.Get("auth")
+	if len(auth) > 0 {
+		authEnabled, err = strconv.ParseBool(auth)
+		if err != nil {
+			authEnabled = true
+			err = nil
+			//ignore error, apply rbac by default
+		}
+	}
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	start = time.Now()
+	for _, item := range clusterList {
+		clusterMapping[strings.ToLower(item.ClusterName)] = item
+		if authEnabled == true {
+			if ok := handler.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionGet, item.ClusterName); ok {
+				granterClusters = append(granterClusters, item)
+			}
+		} else {
+			granterClusters = append(granterClusters, item)
+		}
+
+	}
+	handler.logger.Infow("Cluster elapsed Time for enforcer", "dbElapsedTime", dbOperationTime, "enforcerTime", time.Since(start), "token", token, "envSize", len(granterClusters))
+	//RBAC enforcer Ends
+
+	if len(granterClusters) == 0 {
+		granterClusters = make([]cluster.ClusterBean, 0)
+	}
+
+	//getting environment for autocomplete
+	start = time.Now()
+	environments, err := handler.environmentClusterMappingsService.GetEnvironmentOnlyListForAutocomplete()
+	if err != nil {
+		handler.logger.Errorw("service err, GetEnvironmentListForAutocomplete at environmentClusterMappingsService layer", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	dbElapsedTime := time.Since(start)
+	var grantedEnvironment = environments
+	start = time.Now()
+	println(dbElapsedTime, grantedEnvironment)
+	if !handler.cfg.IgnoreAuthCheck {
+		grantedEnvironment = make([]cluster.EnvironmentBean, 0)
+		emailId, _ := handler.userService.GetEmailFromToken(token)
+		// RBAC enforcer applying
+		var envIdentifierList []string
+		for index, item := range environments {
+			clusterName := strings.ToLower(strings.Split(item.EnvironmentIdentifier, "__")[0])
+			if clusterMapping[clusterName].Id != 0 {
+				environments[index].CdArgoSetup = clusterMapping[clusterName].IsCdArgoSetup
+				environments[index].ClusterName = clusterMapping[clusterName].ClusterName
+			}
+			envIdentifierList = append(envIdentifierList, strings.ToLower(item.EnvironmentIdentifier))
+		}
+
+		result := handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceGlobalEnvironment, casbin.ActionGet, envIdentifierList)
+		for _, item := range environments {
+
+			var hasAccess bool
+			EnvironmentIdentifier := item.ClusterName + "__" + item.Namespace
+			if item.EnvironmentIdentifier != EnvironmentIdentifier {
+				// fix for futuristic case
+				hasAccess = result[strings.ToLower(EnvironmentIdentifier)] || result[strings.ToLower(item.EnvironmentIdentifier)]
+			} else {
+				hasAccess = result[strings.ToLower(item.EnvironmentIdentifier)]
+			}
+			if hasAccess {
+				grantedEnvironment = append(grantedEnvironment, item)
+			}
+		}
+		//RBAC enforcer Ends
+	}
+	elapsedTime := time.Since(start)
+	handler.logger.Infow("Env elapsed Time for enforcer", "dbElapsedTime", dbElapsedTime, "elapsedTime",
+		elapsedTime, "token", token, "envSize", len(grantedEnvironment))
+
+	//getting teams for autocomplete
+	start = time.Now()
+	teams, err := handler.teamService.FetchForAutocomplete()
+	if err != nil {
+		handler.logger.Errorw("service err, FetchForAutocomplete at teamService layer", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	dbElapsedTime = time.Since(start)
+	var grantedTeams = teams
+	start = time.Now()
+	if !handler.cfg.IgnoreAuthCheck {
+		grantedTeams = make([]team.TeamRequest, 0)
+		emailId, _ := handler.userService.GetEmailFromToken(token)
+		// RBAC enforcer applying
+		var teamNameList []string
+		for _, item := range teams {
+			teamNameList = append(teamNameList, strings.ToLower(item.Name))
+		}
+
+		result := handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceTeam, casbin.ActionGet, teamNameList)
+
+		for _, item := range teams {
+			if hasAccess := result[strings.ToLower(item.Name)]; hasAccess {
+				grantedTeams = append(grantedTeams, item)
+			}
+		}
+	}
+	handler.logger.Infow("Team elapsed Time for enforcer", "dbElapsedTime", dbElapsedTime, "elapsedTime", time.Since(start),
+		"token", token, "envSize", len(grantedTeams))
+
+	//RBAC enforcer Ends
+	resp := &AppAutocomplete{
+		Teams:        grantedTeams,
+		Environments: grantedEnvironment,
+		Clusters:     granterClusters,
+	}
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+
 }
