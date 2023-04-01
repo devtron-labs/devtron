@@ -242,6 +242,7 @@ func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowGitTriggersByArti
 	workflow := &CiWorkflow{}
 	err = impl.dbConnection.Model(workflow).
 		Column("ci_workflow.git_triggers").
+		Join("inner join ci_artifact cia on cia.ci_workflow_id = ci_workflow.id").
 		Where("cia.id = ? ", ciArtifactId).
 		Select()
 
