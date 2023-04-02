@@ -262,6 +262,10 @@ func (_m *PipelineRepository) FindActiveByInFilter(envId int, appIdIncludes []in
 	return r0, r1
 }
 
+func (_m *PipelineRepository) FindActiveByEnvIds(envIds []int) (pipelines []*pipelineConfig.Pipeline, err error) {
+	return nil, err
+}
+
 // FindActiveByNotFilter provides a mock function with given fields: envId, appIdExcludes
 func (_m *PipelineRepository) FindActiveByNotFilter(envId int, appIdExcludes []int) ([]*pipelineConfig.Pipeline, error) {
 	ret := _m.Called(envId, appIdExcludes)

@@ -4305,6 +4305,46 @@ func (impl PipelineBuilderImpl) GetEnvironmentListForAutocompleteFilter(envName 
 		impl.logger.Errorw("error in fetching environment", "err", err)
 		return result, err
 	}
+	var envIds []int
+	for _, model := range models {
+		envIds = append(envIds, model.Id)
+	}
+	if len(envIds) == 0 {
+		return nil, fmt.Errorf("no environment founds")
+	}
+	cdPipelines, err := impl.pipelineRepository.FindActiveByEnvIds(envIds)
+	if err != nil && err != pg.ErrNoRows {
+		return result, err
+	}
+	pipelineIds := make([]int, 0)
+	for _, pipeline := range cdPipelines {
+		pipelineIds = append(pipelineIds, pipeline.Id)
+	}
+	if len(pipelineIds) == 0 {
+		return nil, fmt.Errorf("no pipeline found for this environment")
+	}
+	//authorization block starts here
+	var appObjectArr []string
+	var envObjectArr []string
+	objects := impl.enforcerUtil.GetAppAndEnvObjectByPipelineIds(pipelineIds)
+	pipelineIds = []int{}
+	for _, object := range objects {
+		appObjectArr = append(appObjectArr, object[0])
+		envObjectArr = append(envObjectArr, object[1])
+	}
+	appResults, envResults := checkAuthBatch(emailId, appObjectArr, envObjectArr)
+	//authorization block ends here
+
+	pipelinesMap := make(map[int][]*pipelineConfig.Pipeline)
+	for _, pipeline := range cdPipelines {
+		appObject := objects[pipeline.Id][0]
+		envObject := objects[pipeline.Id][1]
+		if !(appResults[appObject] && envResults[envObject]) {
+			//if user unauthorized, skip items
+			continue
+		}
+		pipelinesMap[pipeline.EnvironmentId] = append(pipelinesMap[pipeline.EnvironmentId], pipeline)
+	}
 	for _, model := range models {
 		environment := cluster.EnvironmentBean{
 			Id:                    model.Id,
@@ -4314,33 +4354,13 @@ func (impl PipelineBuilderImpl) GetEnvironmentListForAutocompleteFilter(envName 
 			EnvironmentIdentifier: model.EnvironmentIdentifier,
 			ClusterName:           model.Cluster.ClusterName,
 		}
-		pipelines, err := impl.pipelineRepository.FindActiveByEnvId(model.Id)
-		if err != nil && err != pg.ErrNoRows {
-			return result, err
-		}
-		appCount := 0
+
 		//authorization block starts here
-		var envObjectArr []string
-		var appObjectArr []string
-		rbacObjectMap := make(map[int][]string)
-		for _, pipeline := range pipelines {
-			appObject := impl.enforcerUtil.GetAppRBACName(pipeline.App.AppName)
-			envObject := impl.enforcerUtil.GetEnvRBACNameByCdPipelineIdAndEnvId(pipeline.Id)
-			appObjectArr = append(appObjectArr, appObject)
-			envObjectArr = append(envObjectArr, envObject)
-			rbacObjectMap[pipeline.Id] = []string{appObject, envObject}
+		appCount := 0
+		envPipelines := pipelinesMap[model.Id]
+		if _, ok := pipelinesMap[model.Id]; ok {
+			appCount = len(envPipelines)
 		}
-		appResults, envResults := checkAuthBatch(emailId, appObjectArr, envObjectArr)
-		for _, pipeline := range pipelines {
-			appObject := rbacObjectMap[pipeline.Id][0]
-			envObject := rbacObjectMap[pipeline.Id][1]
-			if !(appResults[appObject] && envResults[envObject]) {
-				//if user unauthorized, skip items
-				continue
-			}
-			appCount = appCount + 1
-		}
-		//authorization block ends here
 		environment.AppCount = appCount
 		beans = append(beans, environment)
 	}
