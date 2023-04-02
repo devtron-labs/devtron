@@ -179,7 +179,7 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter hel
 		start := time.Now()
 		_, appsErr := impl.dbConnection.Query(&appIdCountDtos, appIdCountQuery)
 		middleware.AppListingDuration.WithLabelValues("getAppIdsQueryWithPaginationForAppNameSearch", "devtron").Observe(time.Since(start).Seconds())
-		if appsErr != nil {
+		if appsErr != nil || len(appIdCountDtos) == 0 {
 			impl.Logger.Error(appsErr)
 			return appEnvContainer, appsSize, appsErr
 		}
