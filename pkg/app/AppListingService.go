@@ -1387,6 +1387,10 @@ func (impl AppListingServiceImpl) FetchMinDetailOtherEnvironment(appId int) ([]*
 	for _, env := range envs {
 		envIds = append(envIds, env.EnvironmentId)
 	}
+	if len(envIds) == 0 {
+		impl.Logger.Infow("No environments found for appId", "appId", appId)
+		return envs, nil
+	}
 	overrideChartRefIds, err := impl.envOverrideRepository.FindChartRefIdsForLatestChartForAppByAppIdAndEnvIds(appId, envIds)
 	if err != nil && !errors2.IsNotFound(err) {
 		impl.Logger.Errorw("error in fetching latest chartRefIds id by appId and envIds", "err", err, "appId", appId, "envId", envIds)
