@@ -182,7 +182,10 @@ spec:
           value: "true"
         - name: NATS_STREAM_MAX_AGE
           value: "10800"
-        imagePullPolicy: IfNotPresent
+        {{- if .resources }}        
+        resources:
+{{- toYaml .resources | nindent 10 }}
+        {{- end }}
         volumeMounts:
         - name: kubewatch-config-map
           mountPath: /root/.kubewatch.yaml
