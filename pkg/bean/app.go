@@ -649,7 +649,7 @@ type AppLabelDto struct {
 
 type Label struct {
 	Key       string `json:"key" validate:"required"`
-	Value     string `json:"value" validate:"required"`
+	Value     string `json:"value"` // intentionally not added required tag as tag can be added without value
 	Propagate bool   `json:"propagate"`
 }
 

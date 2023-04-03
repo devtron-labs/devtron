@@ -22,8 +22,16 @@ type EnterpriseEnforcerImpl struct {
 	*casbin2.EnforcerImpl
 }
 
+type DefinitionType int
+
+const (
+	PTypeDefinition DefinitionType = iota
+	GTypeDefinition
+)
+
 type EnterpriseEnforcerConfig struct {
 	EnterpriseEnforcerEnabled bool `env:"ENTERPRISE_ENFORCER_ENABLED" envDefault:"true"`
+	UseCustomEnforcer         bool `env:"USE_CUSTOM_ENFORCER" envDefault:"false"`
 }
 
 func NewEnterpriseEnforcerImpl(enforcer *casbin.SyncedEnforcer,
@@ -77,11 +85,18 @@ func (e *EnterpriseEnforcerImpl) EnforceByEmailInBatch(emailId string, resource 
 	}
 	return e.EnforcerImpl.EnforceByEmailInBatch(emailId, resource, action, resourceItems)
 }
-
 func (e *EnterpriseEnforcerImpl) EnforceForSubjectInBatch(subject string, resource string, action string, resourceItems []string) (resultArr []bool) {
+	enforcedModel := e.SyncedEnforcer.Enforcer.GetModel()
+	if e.Config.UseCustomEnforcer {
+		return e.EnforceForSubjectInBatchCustom(subject, resource, action, resourceItems, enforcedModel)
+	} else {
+		return e.EnforceForSubjectInBatchCasbin(subject, resource, action, resourceItems, enforcedModel)
+	}
+}
+
+func (e *EnterpriseEnforcerImpl) EnforceForSubjectInBatchCasbin(subject string, resource string, action string, resourceItems []string, enforcedModel model.Model) (resultArr []bool) {
 	defer casbin2.HandlePanic()
 	functions := make(map[string]govaluate.ExpressionFunction)
-	enforcedModel := e.SyncedEnforcer.Enforcer.GetModel()
 	fm := model.LoadFunctionMap()
 	for key, function := range fm {
 		functions[key] = function
@@ -134,7 +149,6 @@ func (e *EnterpriseEnforcerImpl) EnforceForSubjectInBatch(subject string, resour
 						rvals))
 			}
 			for i, pvals := range filteredPolicies {
-				// log.LogPrint("Policy Rule: ", pvals)
 				if len(enforcedModel["p"]["p"].Tokens) != len(pvals) {
 					panic(
 						fmt.Sprintf(
@@ -147,7 +161,6 @@ func (e *EnterpriseEnforcerImpl) EnforceForSubjectInBatch(subject string, resour
 				parameters.pVals = pvals
 
 				result, err := expression.Eval(parameters)
-				// log.LogPrint("Result: ", result)
 
 				if err != nil {
 					policyEffects[i] = effect.Indeterminate
@@ -221,8 +234,78 @@ func (e *EnterpriseEnforcerImpl) EnforceForSubjectInBatch(subject string, resour
 	return resultArr
 }
 
-func (e *EnterpriseEnforcerImpl) getRval(rval ...interface{}) []interface{} {
-	return rval
+func (e *EnterpriseEnforcerImpl) EnforceForSubjectInBatchCustom(subject string, resource string, action string, resourceItems []string, enforcedModel model.Model) (resultArr []bool) {
+	defer casbin2.HandlePanic()
+	filteredPolicies := e.GetFilteredPolicies(subject, enforcedModel["p"]["p"].Policy, enforcedModel["g"]["g"].RM)
+	for _, resourceItem := range resourceItems {
+		rVals := e.getRvalCustom(subject, resource, action, resourceItem)
+		result := false
+		if policyLen := len(filteredPolicies); policyLen != 0 {
+			if len(enforcedModel["r"]["r"].Tokens) != len(rVals) { //will break if our code assumptions for definition check and auth_model.conf mismatch
+				panic(
+					fmt.Sprintf(
+						"Invalid Request Definition size: expected %d got %d rVals: %v",
+						len(enforcedModel["r"]["r"].Tokens),
+						len(rVals),
+						rVals))
+			}
+			for _, pVals := range filteredPolicies {
+				if len(enforcedModel["p"]["p"].Tokens) != len(pVals) { //will break if our code assumptions for definition check and auth_model.conf mismatch
+					panic(
+						fmt.Sprintf(
+							"Invalid Policy Rule size: expected %d got %d pVals: %v",
+							len(enforcedModel["p"]["p"].Tokens),
+							len(pVals),
+							pVals))
+				}
+				definitionEvalResult := e.EvaluateDefinitions(PTypeDefinition, pVals, rVals)
+				if !definitionEvalResult { //continuing on getting deny or indeterminate (not allow)
+					continue
+				}
+				//assumptions
+				//1. every policy have effect at 4th place, order - [sub, res, act, obj, eft]
+				//2. assuming policy effect is "some(where (p_eft == allow)) && !some(where (p_eft == deny))"
+				eft := pVals[4]
+				if eft == "allow" {
+					result = true
+				} else if eft == "deny" {
+					result = false
+					break
+				}
+			}
+		}
+		resultArr = append(resultArr, result)
+	}
+	return resultArr
+}
+
+func (e *EnterpriseEnforcerImpl) EvaluateDefinitions(t DefinitionType, pVals, rVals []string) bool {
+	switch t {
+	case PTypeDefinition:
+		return e.EvaluatePTypeDefinition(pVals, rVals)
+	default:
+		return false
+	}
+}
+
+func (e *EnterpriseEnforcerImpl) EvaluatePTypeDefinition(pVals, rVals []string) bool {
+	result := true
+	if len(rVals) > len(pVals) || len(pVals) < 4 || len(rVals) < 4 { //need minimum 4 values for evaluating; values are - [sub, res, act, obj]
+		result = false
+	} else {
+		result = casbin2.MatchKeyByPart(rVals[1], pVals[1]) && //checking res
+			casbin2.MatchKeyByPart(rVals[2], pVals[2]) && //checking act
+			casbin2.MatchKeyByPart(rVals[3], pVals[3])
+	}
+	return result
+}
+
+func (e *EnterpriseEnforcerImpl) getRval(rVal ...interface{}) []interface{} {
+	return rVal
+}
+
+func (e *EnterpriseEnforcerImpl) getRvalCustom(rVal ...string) []string {
+	return rVal
 }
 
 func (e *EnterpriseEnforcerImpl) GetFilteredPolicies(subject string, policies [][]string, rm rbac.RoleManager) [][]string {

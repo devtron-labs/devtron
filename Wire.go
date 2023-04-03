@@ -60,6 +60,9 @@ import (
 	jClient "github.com/devtron-labs/devtron/client/jira"
 	"github.com/devtron-labs/devtron/client/lens"
 	"github.com/devtron-labs/devtron/client/telemetry"
+	"github.com/devtron-labs/devtron/enterprise/api/globalTag"
+	app3 "github.com/devtron-labs/devtron/enterprise/pkg/app"
+	pipeline3 "github.com/devtron-labs/devtron/enterprise/pkg/pipeline"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	appStatusRepo "github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
@@ -139,6 +142,7 @@ func InitializeApp() (*App, error) {
 		webhookHelm.WebhookHelmWireSet,
 		terminal.TerminalWireSet,
 		client2.CasbinWireSet,
+		globalTag.GlobalTagWireSet,
 		// -------wireset end ----------
 		gitSensor.GetGitSensorConfig,
 		gitSensor.NewGitSensorSession,
@@ -212,8 +216,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipeline2.PipelineConfigRestHandler), new(*pipeline2.PipelineConfigRestHandlerImpl)),
 		router.NewPipelineRouterImpl,
 		wire.Bind(new(router.PipelineConfigRouter), new(*router.PipelineConfigRouterImpl)),
-		pipeline.NewCiCdPipelineOrchestrator,
-		wire.Bind(new(pipeline.CiCdPipelineOrchestrator), new(*pipeline.CiCdPipelineOrchestratorImpl)),
+		pipeline3.NewCiCdPipelineOrchestratorEnterpriseImpl,
+		wire.Bind(new(pipeline.CiCdPipelineOrchestrator), new(*pipeline3.CiCdPipelineOrchestratorEnterpriseImpl)),
 		pipelineConfig.NewMaterialRepositoryImpl,
 		wire.Bind(new(pipelineConfig.MaterialRepository), new(*pipelineConfig.MaterialRepositoryImpl)),
 
@@ -667,8 +671,8 @@ func InitializeApp() (*App, error) {
 		restHandler.NewAppRestHandlerImpl,
 		wire.Bind(new(restHandler.AppRestHandler), new(*restHandler.AppRestHandlerImpl)),
 
-		app.NewAppCrudOperationServiceImpl,
-		wire.Bind(new(app.AppCrudOperationService), new(*app.AppCrudOperationServiceImpl)),
+		app3.NewAppCrudOperationServiceEnterpriseImpl,
+		wire.Bind(new(app.AppCrudOperationService), new(*app3.AppCrudOperationServiceEnterpriseImpl)),
 		pipelineConfig.NewAppLabelRepositoryImpl,
 		wire.Bind(new(pipelineConfig.AppLabelRepository), new(*pipelineConfig.AppLabelRepositoryImpl)),
 

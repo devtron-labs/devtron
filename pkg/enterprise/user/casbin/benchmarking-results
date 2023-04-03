@@ -1,0 +1,379 @@
+WITH ~58k total policies(pType + gType) and 40 requests with varying requestsResourceItems, results were -
+goos: darwin
+goarch: amd64
+pkg: github.com/devtron-labs/devtron/pkg/enterprise/user/casbin
+cpu: Intel(R) Core(TM) i5-8257U CPU @ 1.40GHz
+
+1. Scenario 1 -
+FilteredPolicies: 257
+Total Policies: 58k
+Request Objects Counts: [100,200,300,400,500,600,700,800,900,1000] (100 to 1k with diff of 100)
+
+FOR CUSTOM FUNCTION -
+BenchmarkEnforceForSubjectInBatchCustom/input-res:team,_100_resouceItems-8         	      51	  23228936 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:team,_200_resouceItems-8         	      44	  26711885 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:team,_300_resouceItems-8         	      39	  30242349 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:team,_400_resouceItems-8         	      34	  33661401 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:team,_500_resouceItems-8         	      32	  37433907 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:team,_600_resouceItems-8         	      30	  40886488 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:team,_700_resouceItems-8         	      27	  44205481 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:team,_800_resouceItems-8         	      25	  47726817 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:team,_900_resouceItems-8         	      24	  51323153 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:team,_1000_resouceItems-8        	      20	  54671516 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:applications,_100_resouceItems-8 	      52	  23007477 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:applications,_200_resouceItems-8 	      45	  26272318 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:applications,_300_resouceItems-8 	      40	  29645059 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:applications,_400_resouceItems-8 	      36	  32972643 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:applications,_500_resouceItems-8 	      33	  36266331 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:applications,_600_resouceItems-8 	      30	  39582036 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:applications,_700_resouceItems-8 	      27	  42809668 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:applications,_800_resouceItems-8 	      26	  46572473 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:applications,_900_resouceItems-8 	      24	  49395006 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:applications,_1000_resouceItems-8         	      22	  52619977 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:helm-app,_100_resouceItems-8              	      54	  22043016 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:helm-app,_200_resouceItems-8              	      49	  24479315 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:helm-app,_300_resouceItems-8              	      45	  27167081 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:helm-app,_400_resouceItems-8              	      40	  29651392 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:helm-app,_500_resouceItems-8              	      37	  32027019 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:helm-app,_600_resouceItems-8              	      34	  34604489 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:helm-app,_700_resouceItems-8              	      32	  36994469 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:helm-app,_800_resouceItems-8              	      30	  39494352 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:helm-app,_900_resouceItems-8              	      28	  41960921 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:helm-app,_1000_resouceItems-8             	      27	  44684742 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:environment,_100_resouceItems-8           	      52	  22938965 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:environment,_200_resouceItems-8           	      44	  26408781 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:environment,_300_resouceItems-8           	      38	  29690191 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:environment,_400_resouceItems-8           	      37	  33213278 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:environment,_500_resouceItems-8           	      33	  36539979 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:environment,_600_resouceItems-8           	      30	  39921507 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:environment,_700_resouceItems-8           	      26	  43092046 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:environment,_800_resouceItems-8           	      26	  46538578 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:environment,_900_resouceItems-8           	      24	  49799749 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:environment,_1000_resouceItems-8          	      22	  53345201 ns/op
+
+
+
+FOR CASBIN FUNCTION -
+
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:team,_100_resouceItems-8         	      19	  65499496 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:team,_200_resouceItems-8         	      10	 105751381 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:team,_300_resouceItems-8         	       7	 155261481 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:team,_400_resouceItems-8         	       6	 193429010 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:team,_500_resouceItems-8         	       5	 234090460 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:team,_600_resouceItems-8         	       4	 286699308 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:team,_700_resouceItems-8         	       3	 339413930 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:team,_800_resouceItems-8         	       3	 376051709 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:team,_900_resouceItems-8         	       3	 430957621 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:team,_1000_resouceItems-8        	       3	 476551688 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:applications,_100_resouceItems-8 	      16	  71186724 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:applications,_200_resouceItems-8 	       9	 115309903 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:applications,_300_resouceItems-8 	       7	 158252265 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:applications,_400_resouceItems-8 	       5	 203044402 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:applications,_500_resouceItems-8 	       5	 245420412 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:applications,_600_resouceItems-8 	       4	 292100784 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:applications,_700_resouceItems-8 	       3	 335022706 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:applications,_800_resouceItems-8 	       3	 376670635 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:applications,_900_resouceItems-8 	       3	 421291828 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:applications,_1000_resouceItems-8         	       3	 462749264 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:helm-app,_100_resouceItems-8              	      18	  66539268 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:helm-app,_200_resouceItems-8              	      10	 106367262 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:helm-app,_300_resouceItems-8              	       7	 146198878 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:helm-app,_400_resouceItems-8              	       6	 185411855 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:helm-app,_500_resouceItems-8              	       5	 233863209 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:helm-app,_600_resouceItems-8              	       4	 266574110 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:helm-app,_700_resouceItems-8              	       4	 304072705 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:helm-app,_800_resouceItems-8              	       3	 368198002 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:helm-app,_900_resouceItems-8              	       3	 387573454 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:helm-app,_1000_resouceItems-8             	       3	 424645572 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:environment,_100_resouceItems-8           	      16	  71355609 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:environment,_200_resouceItems-8           	       9	 116089029 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:environment,_300_resouceItems-8           	       7	 158910650 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:environment,_400_resouceItems-8           	       5	 205765998 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:environment,_500_resouceItems-8           	       5	 247603168 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:environment,_600_resouceItems-8           	       4	 289971999 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:environment,_700_resouceItems-8           	       3	 334881483 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:environment,_800_resouceItems-8           	       3	 381884725 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:environment,_900_resouceItems-8           	       3	 423061984 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:environment,_1000_resouceItems-8          	       3	 468799581 ns/op
+PASS
+
+
+2. Scenario 2-
+FilteredPolicies: 257
+Total Policies: 58k
+Request Objects Counts: [1000,2000,3000,4000,5000,6000,7000,8000,9000,10000] (1k to 10k with diff of 1k)
+
+FOR CUSTOM FUNCTION -
+BenchmarkEnforceForSubjectInBatchCustom/input-res:team,_1000_resouceItems-8         	      20	  54633747 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:team,_2000_resouceItems-8         	      13	  89581272 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:team,_3000_resouceItems-8         	       9	 124226166 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:team,_4000_resouceItems-8         	       7	 160257468 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:team,_5000_resouceItems-8         	       6	 193572877 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:team,_6000_resouceItems-8         	       5	 230175104 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:team,_7000_resouceItems-8         	       4	 263539798 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:team,_8000_resouceItems-8         	       4	 297754280 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:team,_9000_resouceItems-8         	       4	 332931455 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:team,_10000_resouceItems-8        	       3	 368306395 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:applications,_1000_resouceItems-8 	      22	  53314783 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:applications,_2000_resouceItems-8 	      13	  95989473 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:applications,_3000_resouceItems-8 	       9	 120312991 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:applications,_4000_resouceItems-8 	       7	 152956008 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:applications,_5000_resouceItems-8 	       6	 194104160 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:applications,_6000_resouceItems-8 	       5	 223388036 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:applications,_7000_resouceItems-8 	       4	 260191169 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:applications,_8000_resouceItems-8 	       4	 284330820 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:applications,_9000_resouceItems-8 	       4	 321731331 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:applications,_10000_resouceItems-8         	       3	 349732985 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:helm-app,_1000_resouceItems-8              	      26	  44469914 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:helm-app,_2000_resouceItems-8              	      16	  69180760 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:helm-app,_3000_resouceItems-8              	      12	  95703336 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:helm-app,_4000_resouceItems-8              	       9	 120364912 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:helm-app,_5000_resouceItems-8              	       7	 144346688 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:helm-app,_6000_resouceItems-8              	       6	 168881421 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:helm-app,_7000_resouceItems-8              	       6	 194090726 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:helm-app,_8000_resouceItems-8              	       5	 218916681 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:helm-app,_9000_resouceItems-8              	       5	 244193225 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:helm-app,_10000_resouceItems-8             	       4	 268351758 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:environment,_1000_resouceItems-8           	      22	  52917984 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:environment,_2000_resouceItems-8           	      13	  86210130 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:environment,_3000_resouceItems-8           	       9	 119837826 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:environment,_4000_resouceItems-8           	       7	 156200831 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:environment,_5000_resouceItems-8           	       6	 186613647 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:environment,_6000_resouceItems-8           	       5	 218658147 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:environment,_7000_resouceItems-8           	       4	 252015224 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:environment,_8000_resouceItems-8           	       4	 285705328 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:environment,_9000_resouceItems-8           	       4	 318712132 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:environment,_10000_resouceItems-8          	       3	 358284270 ns/op
+PASS
+
+
+FOR CASBIN FUNCTION -
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:team,_1000_resouceItems-8         	       3	 452782757 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:team,_2000_resouceItems-8         	       2	 857334746 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:team,_3000_resouceItems-8         	       1	1269960896 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:team,_4000_resouceItems-8         	       1	1692259904 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:team,_5000_resouceItems-8         	       1	2163579341 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:team,_6000_resouceItems-8         	       1	2615119221 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:team,_7000_resouceItems-8         	       1	3131725025 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:team,_8000_resouceItems-8         	       1	3585739673 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:team,_9000_resouceItems-8         	       1	4053877186 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:team,_10000_resouceItems-8        	       1	4494737209 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:applications,_1000_resouceItems-8 	       3	 464777325 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:applications,_2000_resouceItems-8 	       2	 898520458 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:applications,_3000_resouceItems-8 	       1	1338054298 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:applications,_4000_resouceItems-8 	       1	1778109572 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:applications,_5000_resouceItems-8 	       1	2213508317 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:applications,_6000_resouceItems-8 	       1	2651749406 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:applications,_7000_resouceItems-8 	       1	3078456265 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:applications,_8000_resouceItems-8 	       1	3526745395 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:applications,_9000_resouceItems-8 	       1	3967412279 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:applications,_10000_resouceItems-8         	       1	4405519773 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:helm-app,_1000_resouceItems-8              	       3	 422971766 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:helm-app,_2000_resouceItems-8              	       2	 811992224 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:helm-app,_3000_resouceItems-8              	       1	1211343044 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:helm-app,_4000_resouceItems-8              	       1	1610822662 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:helm-app,_5000_resouceItems-8              	       1	2012107547 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:helm-app,_6000_resouceItems-8              	       1	2499348005 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:helm-app,_7000_resouceItems-8              	       1	2865500690 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:helm-app,_8000_resouceItems-8              	       1	3213415442 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:helm-app,_9000_resouceItems-8              	       1	3590078457 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:helm-app,_10000_resouceItems-8             	       1	3991632867 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:environment,_1000_resouceItems-8           	       3	 463953469 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:environment,_2000_resouceItems-8           	       2	 898416246 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:environment,_3000_resouceItems-8           	       1	1359915879 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:environment,_4000_resouceItems-8           	       1	1773567694 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:environment,_5000_resouceItems-8           	       1	2217453001 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:environment,_6000_resouceItems-8           	       1	2648809378 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:environment,_7000_resouceItems-8           	       1	3230731967 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:environment,_8000_resouceItems-8           	       1	3678272027 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:environment,_9000_resouceItems-8           	       1	3995979204 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:environment,_10000_resouceItems-8          	       1	4432954280 ns/op
+PASS
+
+
+
+3. Scenario 3 -
+FilteredPolicies: 257
+Total Policies: 58k
+Request Objects Counts: [10000,20000,30000,40000,50000,60000,70000,80000,90000,100000] (10k to 1 lac with diff of 10k)
+
+FOR CUSTOM FUNCTION -
+BenchmarkEnforceForSubjectInBatchCustom/input-res:team,_10000_resouceItems-8         	       3	 423798955 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:team,_20000_resouceItems-8         	       2	 741712505 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:team,_30000_resouceItems-8         	       1	1113557814 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:team,_40000_resouceItems-8         	       1	1414318748 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:team,_50000_resouceItems-8         	       1	1752064696 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:team,_60000_resouceItems-8         	       1	2172778089 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:team,_70000_resouceItems-8         	       1	2479570129 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:team,_80000_resouceItems-8         	       1	2872575385 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:team,_90000_resouceItems-8         	       1	3243732165 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:team,_100000_resouceItems-8        	       1	3579217869 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:applications,_10000_resouceItems-8 	       3	 350925470 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:applications,_20000_resouceItems-8 	       2	 704113329 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:applications,_30000_resouceItems-8 	       1	1035273099 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:applications,_40000_resouceItems-8 	       1	1399325725 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:applications,_50000_resouceItems-8 	       1	1747928699 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:applications,_60000_resouceItems-8 	       1	2061467564 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:applications,_70000_resouceItems-8 	       1	2367260261 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:applications,_80000_resouceItems-8 	       1	2773342303 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:applications,_90000_resouceItems-8 	       1	3102362359 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:applications,_100000_resouceItems-8         	       1	3431500027 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:helm-app,_10000_resouceItems-8              	       4	 283295273 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:helm-app,_20000_resouceItems-8              	       2	 527673860 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:helm-app,_30000_resouceItems-8              	       2	 777903240 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:helm-app,_40000_resouceItems-8              	       1	1027537666 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:helm-app,_50000_resouceItems-8              	       1	1257734720 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:helm-app,_60000_resouceItems-8              	       1	1517562876 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:helm-app,_70000_resouceItems-8              	       1	1752721031 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:helm-app,_80000_resouceItems-8              	       1	2015751656 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:helm-app,_90000_resouceItems-8              	       1	2246006065 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:helm-app,_100000_resouceItems-8             	       1	2502834777 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:environment,_10000_resouceItems-8           	       3	 347130677 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:environment,_20000_resouceItems-8           	       2	 676964078 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:environment,_30000_resouceItems-8           	       1	1013805866 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:environment,_40000_resouceItems-8           	       1	1342952873 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:environment,_50000_resouceItems-8           	       1	1675681249 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:environment,_60000_resouceItems-8           	       1	2014974986 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:environment,_70000_resouceItems-8           	       1	2344062262 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:environment,_80000_resouceItems-8           	       1	2740026352 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:environment,_90000_resouceItems-8           	       1	3061777773 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:environment,_100000_resouceItems-8          	       1	3450949548 ns/op
+PASS
+
+
+
+
+FOR CASBIN FUNCTION -
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:team,_10000_resouceItems-8         	       1	4154384754 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:team,_20000_resouceItems-8         	       1	8698189811 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:team,_30000_resouceItems-8         	       1	13558446584 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:team,_40000_resouceItems-8         	       1	18447459996 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:team,_50000_resouceItems-8         	       1	23447922176 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:team,_60000_resouceItems-8         	       1	27745638137 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:team,_70000_resouceItems-8         	       1	31258991331 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:team,_80000_resouceItems-8         	       1	39730565009 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:team,_90000_resouceItems-8         	       1	44090310481 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:team,_100000_resouceItems-8        	       1	45759024468 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:applications,_10000_resouceItems-8 	       1	4370605315 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:applications,_20000_resouceItems-8 	       1	8696849987 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:applications,_30000_resouceItems-8 	       1	13008035945 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:applications,_40000_resouceItems-8 	       1	17291434547 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:applications,_50000_resouceItems-8 	       1	20952200942 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:applications,_60000_resouceItems-8 	       1	25929623107 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:applications,_70000_resouceItems-8 	       1	30628335920 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:applications,_80000_resouceItems-8 	       1	36078179789 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:applications,_90000_resouceItems-8 	       1	39365903560 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:applications,_100000_resouceItems-8         	       1	43346792729 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:helm-app,_10000_resouceItems-8              	       1	4211583702 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:helm-app,_20000_resouceItems-8              	       1	8339248002 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:helm-app,_30000_resouceItems-8              	       1	12696050477 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:helm-app,_40000_resouceItems-8              	       1	17001213378 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:helm-app,_50000_resouceItems-8              	       1	21882556056 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:helm-app,_60000_resouceItems-8              	       1	26320791689 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:helm-app,_70000_resouceItems-8              	       1	29145061682 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:helm-app,_80000_resouceItems-8              	       1	33883158433 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:helm-app,_90000_resouceItems-8              	       1	39501356123 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:helm-app,_100000_resouceItems-8             	       1	42523707054 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:environment,_10000_resouceItems-8           	       1	4492112486 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:environment,_20000_resouceItems-8           	       1	9355502227 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:environment,_30000_resouceItems-8           	       1	13875898604 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:environment,_40000_resouceItems-8           	       1	18945370108 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:environment,_50000_resouceItems-8           	       1	27555791005 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:environment,_60000_resouceItems-8           	       1	30727673116 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:environment,_70000_resouceItems-8           	       1	32229750080 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:environment,_80000_resouceItems-8           	       1	34468523989 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:environment,_90000_resouceItems-8           	       1	32735434554 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:environment,_100000_resouceItems-8          	       1	36088409120 ns/op
+PASS
+
+4. Scenario 4-
+FilteredPolicies: 257
+Total Policies: 58k
+Request Objects Counts: [100000,200000,300000,400000,500000,600000,700000,800000,900000,1000000] (1 lac to 1 million with diff of 1 lac)
+
+FOR CUSTOM FUNCTION -
+BenchmarkEnforceForSubjectInBatchCustom/input-res:team,_100000_resouceItems-8         	       1	4040698718 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:team,_200000_resouceItems-8         	       1	7355914636 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:team,_300000_resouceItems-8         	       1	10482184688 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:team,_400000_resouceItems-8         	       1	14090559536 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:team,_500000_resouceItems-8         	       1	17280541280 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:team,_600000_resouceItems-8         	       1	20696392148 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:team,_700000_resouceItems-8         	       1	24298205765 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:team,_800000_resouceItems-8         	       1	27534597757 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:team,_900000_resouceItems-8         	       1	36334245108 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:team,_1000000_resouceItems-8        	       1	41526420045 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:applications,_100000_resouceItems-8 	       1	3441049349 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:applications,_200000_resouceItems-8 	       1	8429294073 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:applications,_300000_resouceItems-8 	       1	13167209205 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:applications,_400000_resouceItems-8 	       1	16167819876 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:applications,_500000_resouceItems-8 	       1	23224141931 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:applications,_600000_resouceItems-8 	       1	25988778051 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:applications,_700000_resouceItems-8 	       1	30340155715 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:applications,_800000_resouceItems-8 	       1	35712706112 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:applications,_900000_resouceItems-8 	       1	36587893757 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:applications,_1000000_resouceItems-8         	       1	38112300414 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:helm-app,_100000_resouceItems-8              	       1	2716534904 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:helm-app,_200000_resouceItems-8              	       1	5169284739 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:helm-app,_300000_resouceItems-8              	       1	7716973998 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:helm-app,_400000_resouceItems-8              	       1	10074623731 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:helm-app,_500000_resouceItems-8              	       1	12613601036 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:helm-app,_600000_resouceItems-8              	       1	14998366652 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:helm-app,_700000_resouceItems-8              	       1	17715681880 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:helm-app,_800000_resouceItems-8              	       1	20137076500 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:helm-app,_900000_resouceItems-8              	       1	22618768788 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:helm-app,_1000000_resouceItems-8             	       1	25323278848 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:environment,_100000_resouceItems-8           	       1	3334316741 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:environment,_200000_resouceItems-8           	       1	6841588788 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:environment,_300000_resouceItems-8           	       1	10151972387 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:environment,_400000_resouceItems-8           	       1	13683415844 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:environment,_500000_resouceItems-8           	       1	16804540374 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:environment,_600000_resouceItems-8           	       1	20340134417 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:environment,_700000_resouceItems-8           	       1	23352283388 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:environment,_800000_resouceItems-8           	       1	39998737484 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:environment,_900000_resouceItems-8           	       1	41161365589 ns/op
+BenchmarkEnforceForSubjectInBatchCustom/input-res:environment,_1000000_resouceItems-8          	       1	46844455033 ns/op
+
+
+
+FOR CASBIN FUNCTION -
+
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:team,_100000_resouceItems-8         	       1	43671255033 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:team,_200000_resouceItems-8         	       1	83806138932 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:team,_300000_resouceItems-8         	       1	137842314272 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:team,_400000_resouceItems-8         	       1	156861302901 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:team,_500000_resouceItems-8         	       1	193233319325 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:team,_600000_resouceItems-8         	       1	214810172066 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:team,_700000_resouceItems-8         	       1	231354749498 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:team,_800000_resouceItems-8         	       1	262016316726 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:team,_900000_resouceItems-8         	       1	310462667941 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:team,_1000000_resouceItems-8        	       1	297389365765 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:applications,_100000_resouceItems-8 	       1	28816352466 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:applications,_200000_resouceItems-8 	       1	57912499576 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:applications,_300000_resouceItems-8 	       1	86235768807 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:applications,_400000_resouceItems-8 	       1	114739511188 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:applications,_500000_resouceItems-8 	       1	151630870419 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:applications,_600000_resouceItems-8 	       1	197267289515 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:applications,_700000_resouceItems-8 	       1	266164619447 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:applications,_800000_resouceItems-8 	       1	271803423818 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:applications,_900000_resouceItems-8 	       1	283663990736 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:applications,_1000000_resouceItems-8         	       1	314214145243 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:helm-app,_100000_resouceItems-8              	       1	27808932211 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:helm-app,_200000_resouceItems-8              	       1	55504387810 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:helm-app,_300000_resouceItems-8              	       1	84476770749 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:helm-app,_400000_resouceItems-8              	       1	110747615152 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:helm-app,_500000_resouceItems-8              	       1	158648312948 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:helm-app,_600000_resouceItems-8              	       1	212554494142 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:helm-app,_700000_resouceItems-8              	       1	252455359629 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:helm-app,_800000_resouceItems-8              	       1	267230855490 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:helm-app,_900000_resouceItems-8              	       1	258466042218 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:helm-app,_1000000_resouceItems-8             	       1	285248713349 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:environment,_100000_resouceItems-8           	       1	30898560207 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:environment,_200000_resouceItems-8           	       1	62787604969 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:environment,_300000_resouceItems-8           	       1	97130011938 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:environment,_400000_resouceItems-8           	       1	126154793772 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:environment,_500000_resouceItems-8           	       1	153712555571 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:environment,_600000_resouceItems-8           	       1	184713664787 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:environment,_700000_resouceItems-8           	       1	218098827474 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:environment,_800000_resouceItems-8           	       1	246726146067 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:environment,_900000_resouceItems-8           	       1	290286220314 ns/op
+BenchmarkEnforceForSubjectInBatchCasbin/input-res:environment,_1000000_resouceItems-8          	       1	310606659934 ns/op
