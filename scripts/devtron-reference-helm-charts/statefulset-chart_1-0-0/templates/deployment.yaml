@@ -516,12 +516,15 @@ spec:
         {{- end}}
     {{- end }}   
     {{- end }}
-  {{- if eq .Values.deploymentType "ROLLING" }}  
   updateStrategy: 
-    {{- if .updateStrategy.partition }}
+    {{- if eq .Values.deploymentType "ROLLING" }}  
+      type: RollingUpdate
+    {{- if .Values.deployment.updateStrategy.RollingUpdate.rollingUpdate.partition }}
       rollingUpdate:
-          partition: {{ .updateStrategy.partition }}
-         {{- end }} 
-      type: {{  .updateStrategy.type }}
+          partition: {{ .Values.deployment.updateStrategy.RollingUpdate.rollingUpdate.partition }}
+    {{- end }} 
+      {{- else }}
+      type: OnDelete
+      {{-end }}
   {{- end }}
   revisionHistoryLimit: 3

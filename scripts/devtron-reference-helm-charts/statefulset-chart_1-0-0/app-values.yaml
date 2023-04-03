@@ -15,6 +15,48 @@ containerSpec:
         path: /example
         port: 90
 
+
+statefulSet:
+  podManagementPolicy: "Parallel"
+  updateStrategy:
+    type: RollingUpdate
+    partition: 2
+  volumeClaimTemplates: 
+  - apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      annotations:
+        example.com/storage-policy: low-cost
+      labels:
+        app: my-app
+        release: v1
+      name: values
+      namespace: www
+    spec:
+      accessModes:
+        - ReadWriteOnce
+      dataSource:
+        kind: VolumeSnapshot
+        name: my-snapshot
+        apiGroup: snapshot.storage.k8s.io
+      dataSourceRef:
+        apiGroup: v1
+        kind: Secret
+        name: my-secret
+        namespace: default
+      selector:
+        matchLabels:
+          app: my-app
+      storageClassName: my-storage-class
+      volumeMode: Filesystem
+      volumeName: my-volume
+      resources:
+        requests:
+          storage: 1Gi
+        limits:
+          storage: 2Gi
+  serviceName: "nginx"
+
 replicaCount: 1
 MinReadySeconds: 60
 GracePeriod: 30
