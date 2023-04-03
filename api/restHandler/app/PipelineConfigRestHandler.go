@@ -740,7 +740,9 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppDeploymentStatusForEnvironm
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	results, err := handler.cdHandler.FetchAppDeploymentStatusForEnvironments(envId, userEmailId, handler.checkAuthBatch)
+	_, span := otel.Tracer("orchestrator").Start(r.Context(), "pipelineBuilder.FetchAppDeploymentStatusForEnvironments")
+	results, err := handler.cdHandler.FetchAppDeploymentStatusForEnvironments(envId, userEmailId, handler.checkAuthBatch, r.Context())
+	span.End()
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchAppWorkflowStatusForTriggerView", "err", err)
 		if util.IsErrNoRows(err) {

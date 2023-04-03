@@ -35,8 +35,8 @@ import (
 	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
-	util2 "github.com/devtron-labs/devtron/util"
 	bean3 "github.com/devtron-labs/devtron/pkg/user/bean"
+	util2 "github.com/devtron-labs/devtron/util"
 	"path"
 	"regexp"
 	"strconv"
@@ -1402,6 +1402,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int) (cdPipe
 		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no cd pipeline found"}
 		return cdPipelines, err
 	}
+	// fetch other environments also which are linked with this app
 	dbPipelines, err = impl.pipelineRepository.FindActiveByAppIds(appIds)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error fetching pipelines for env id", "err", err)
