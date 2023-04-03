@@ -91,7 +91,9 @@ components:
   kubelink:
     image: "quay.io/devtron/kubelink:d2406e8a-318-13263"
     imagePullPolicy: IfNotPresent
-
+  kubewatch:
+    image: "quay.io/devtron/kubewatch:fb2c1579-419-13257"
+    imagePullPolicy: IfNotPresent
   postgres:
     image: "quay.io/devtron/postgres:11.9.0-debian-10-r26"
     armImage: "quay.io/devtron/postgres:11.9"
