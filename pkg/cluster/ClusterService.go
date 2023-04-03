@@ -42,7 +42,11 @@ import (
 	"go.uber.org/zap"
 )
 
-const DEFAULT_CLUSTER = "default_cluster"
+const (
+	DEFAULT_CLUSTER                = "default_cluster"
+	CLUSTER_ADD_REQ_SECRET_TYPE    = "cluster.request/add"
+	CLUSTER_UPDATE_REQ_SECRET_TYPE = "cluster.request/update"
+)
 
 type ClusterBean struct {
 	Id                      int                        `json:"id,omitempty" validate:"number"`
@@ -222,7 +226,7 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, 
 	}
 	impl.logger.Infow("saving secret for cluster informer")
 	restConfig := &rest.Config{}
-	if model.ClusterName == "default_cluster" {
+	if model.ClusterName == DefaultClusterName {
 		restConfig, err = rest.InClusterConfig()
 		if err != nil {
 			impl.logger.Errorw("Error in creating config for default cluster", "err", err)
@@ -246,7 +250,7 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, 
 	//creating cluster secret, this secret will be read informer in kubelink to know that a new cluster has been added
 	data := make(map[string][]byte)
 	data["cluster_id"] = []byte(fmt.Sprintf("%v", bean.Id))
-	_, err = impl.K8sUtil.CreateSecret("default", data, "cluster_add_event", "CLUSTER_ADD_REQUEST", k8sClient)
+	_, err = impl.K8sUtil.CreateSecret("default", data, "cluster-add-event", CLUSTER_ADD_REQ_SECRET_TYPE, k8sClient)
 	if err != nil {
 		impl.logger.Errorw("err on creating secret", "err", err)
 		return nil, err
@@ -486,6 +490,36 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 	//here sync for ea mode only
 	if bean.HasConfigOrUrlChanged && util2.IsBaseStack() {
 		impl.SyncNsInformer(bean)
+	}
+	impl.logger.Infow("saving secret for cluster informer")
+	restConfig := &rest.Config{}
+	if bean.ClusterName == DefaultClusterName {
+		restConfig, err = rest.InClusterConfig()
+		if err != nil {
+			impl.logger.Errorw("Error in creating config for default cluster", "err", err)
+			return nil, err
+		}
+	} else {
+		restConfig.BearerToken = bean.Config["bearer_token"]
+		restConfig.Host = bean.ServerUrl
+		restConfig.Insecure = true
+	}
+	httpClientFor, err := rest.HTTPClientFor(restConfig)
+	if err != nil {
+		fmt.Println("error occurred while overriding k8s client", "reason", err)
+		return nil, err
+	}
+	k8sClient, err := v12.NewForConfigAndClient(restConfig, httpClientFor)
+	if err != nil {
+		impl.logger.Errorw("error creating k8s client", "error", err)
+		return nil, err
+	}
+	data := make(map[string][]byte)
+	data["cluster_id"] = []byte(fmt.Sprintf("%v", bean.Id))
+	_, err = impl.K8sUtil.CreateSecret("default", data, "cluster-update-event", CLUSTER_UPDATE_REQ_SECRET_TYPE, k8sClient)
+	if err != nil {
+		impl.logger.Errorw("err on creating secret", "err", err)
+		return nil, err
 	}
 	return bean, err
 }
