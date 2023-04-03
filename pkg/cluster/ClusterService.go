@@ -226,16 +226,10 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, 
 	}
 	impl.logger.Infow("saving secret for cluster informer")
 	restConfig := &rest.Config{}
-	if model.ClusterName == DefaultClusterName {
-		restConfig, err = rest.InClusterConfig()
-		if err != nil {
-			impl.logger.Errorw("Error in creating config for default cluster", "err", err)
-			return nil, err
-		}
-	} else {
-		restConfig.BearerToken = model.Config["bearer_token"]
-		restConfig.Host = model.ServerUrl
-		restConfig.Insecure = true
+	restConfig, err = rest.InClusterConfig()
+	if err != nil {
+		impl.logger.Errorw("Error in creating config for default cluster", "err", err)
+		return nil, err
 	}
 	httpClientFor, err := rest.HTTPClientFor(restConfig)
 	if err != nil {
@@ -493,17 +487,13 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 	}
 	impl.logger.Infow("saving secret for cluster informer")
 	restConfig := &rest.Config{}
-	if bean.ClusterName == DefaultClusterName {
-		restConfig, err = rest.InClusterConfig()
-		if err != nil {
-			impl.logger.Errorw("Error in creating config for default cluster", "err", err)
-			return nil, err
-		}
-	} else {
-		restConfig.BearerToken = bean.Config["bearer_token"]
-		restConfig.Host = bean.ServerUrl
-		restConfig.Insecure = true
+	
+	restConfig, err = rest.InClusterConfig()
+	if err != nil {
+		impl.logger.Errorw("Error in creating config for default cluster", "err", err)
+		return nil, err
 	}
+
 	httpClientFor, err := rest.HTTPClientFor(restConfig)
 	if err != nil {
 		fmt.Println("error occurred while overriding k8s client", "reason", err)

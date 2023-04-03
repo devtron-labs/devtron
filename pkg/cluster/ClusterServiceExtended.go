@@ -7,8 +7,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	repository4 "github.com/devtron-labs/devtron/pkg/user/repository"
-	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/client-go/rest"
 	"net/http"
 	"strings"
 	"time"
@@ -265,36 +263,6 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *Cluste
 	if bean.HasConfigOrUrlChanged {
 		impl.ClusterServiceImpl.SyncNsInformer(bean)
 	}
-	impl.logger.Infow("saving secret for cluster informer")
-	restConfig := &rest.Config{}
-	if bean.Id == 0 {
-		restConfig, err = rest.InClusterConfig()
-		if err != nil {
-			impl.logger.Errorw("Error in creating config for default cluster", "err", err)
-			return nil, err
-		}
-	} else {
-		restConfig.BearerToken = bean.Config["bearer_token"]
-		restConfig.Host = bean.ServerUrl
-		restConfig.Insecure = true
-	}
-	httpClientFor, err := rest.HTTPClientFor(restConfig)
-	if err != nil {
-		fmt.Println("error occurred while overriding k8s client", "reason", err)
-		return nil, err
-	}
-	k8sClient, err := v12.NewForConfigAndClient(restConfig, httpClientFor)
-	if err != nil {
-		impl.logger.Errorw("error creating k8s client", "error", err)
-		return nil, err
-	}
-	data := make(map[string][]byte)
-	data["cluster_id"] = []byte(fmt.Sprintf("%v", bean.Id))
-	_, err = impl.K8sUtil.CreateSecret("default", data, "cluster-update-event", CLUSTER_UPDATE_REQ_SECRET_TYPE, k8sClient)
-	if err != nil {
-		impl.logger.Errorw("err on creating secret", "err", err)
-		return nil, err
-	}
 
 	return bean, err
 }
@@ -407,38 +375,6 @@ func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterB
 
 	//on successful creation of new cluster, update informer cache for namespace group by cluster
 	impl.SyncNsInformer(bean)
-	impl.logger.Infow("saving secret for cluster informer")
-	restConfig := &rest.Config{}
-	if clusterBean.ClusterName == DEFAULT_CLUSTER {
-		restConfig, err = rest.InClusterConfig()
-		if err != nil {
-			impl.logger.Errorw("Error in creating config for default cluster", "err", err)
-			return nil, err
-		}
-	} else {
-		restConfig.BearerToken = clusterBean.Config["bearer_token"]
-		restConfig.Host = clusterBean.ServerUrl
-		restConfig.Insecure = true
-	}
-	httpClientFor, err := rest.HTTPClientFor(restConfig)
-	if err != nil {
-		fmt.Println("error occurred while overriding k8s client", "reason", err)
-		return nil, err
-	}
-	k8sClient, err := v12.NewForConfigAndClient(restConfig, httpClientFor)
-	if err != nil {
-		impl.logger.Errorw("error creating k8s client", "error", err)
-		return nil, err
-	}
-	//creating cluster secret, this secret will be read informer in kubelink to know that a new cluster has been added
-	data := make(map[string][]byte)
-	data["cluster_id"] = []byte(fmt.Sprintf("%v", bean.Id))
-	_, err = impl.K8sUtil.CreateSecret("default", data, "cluster-add-event", CLUSTER_ADD_REQ_SECRET_TYPE, k8sClient)
-	if err != nil {
-		impl.logger.Errorw("err on creating secret", "err", err)
-		return nil, err
-	}
-
 	return clusterBean, nil
 }
 
