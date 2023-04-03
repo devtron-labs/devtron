@@ -265,7 +265,7 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *Cluste
 	if bean.HasConfigOrUrlChanged {
 		impl.ClusterServiceImpl.SyncNsInformer(bean)
 	}
-
+	impl.logger.Infow("saving secret for cluster informer")
 	restConfig := &rest.Config{}
 	if bean.Id == 0 {
 		restConfig, err = rest.InClusterConfig()

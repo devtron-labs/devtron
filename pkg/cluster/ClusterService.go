@@ -220,7 +220,7 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, 
 	if util2.IsBaseStack() {
 		impl.SyncNsInformer(bean)
 	}
-
+	impl.logger.Infow("saving secret for cluster informer")
 	restConfig := &rest.Config{}
 	if model.ClusterName == "default_cluster" {
 		restConfig, err = rest.InClusterConfig()
