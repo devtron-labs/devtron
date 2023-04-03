@@ -384,6 +384,7 @@ func (impl EnvironmentServiceImpl) GetEnvironmentOnlyListForAutocomplete() ([]En
 			Environment:           model.Name,
 			Namespace:             model.Namespace,
 			EnvironmentIdentifier: model.EnvironmentIdentifier,
+			ClusterId:             model.ClusterId,
 		})
 	}
 	return beans, nil

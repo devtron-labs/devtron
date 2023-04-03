@@ -1152,7 +1152,6 @@ func (handler AppListingRestHandlerImpl) GetClusterTeamAndEnvListForAutocomplete
 			if clusterMapping[clusterName].Id != 0 {
 				environments[index].CdArgoSetup = clusterMapping[clusterName].IsCdArgoSetup
 				environments[index].ClusterName = clusterMapping[clusterName].ClusterName
-				environments[index].ClusterId = clusterMapping[clusterName].Id
 			}
 			envIdentifierList = append(envIdentifierList, strings.ToLower(item.EnvironmentIdentifier))
 		}
