@@ -223,13 +223,11 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, 
 
 	restConfig := &rest.Config{}
 	if model.ClusterName == "default_cluster" {
-		config, err := rest.InClusterConfig()
+		restConfig, err = rest.InClusterConfig()
 		if err != nil {
 			impl.logger.Errorw("Error in creating config for default cluster", "err", err)
 			return nil, err
 		}
-		restConfig = config
-
 	} else {
 		restConfig.BearerToken = model.Config["bearer_token"]
 		restConfig.Host = model.ServerUrl
