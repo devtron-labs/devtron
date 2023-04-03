@@ -32,6 +32,7 @@ import (
 type EnforcerUtil interface {
 	GetAppRBACName(appName string) string
 	GetRbacObjectsForAllApps() map[int]string
+	GetRbacObjectsForAllAppsWithTeamID(teamID int) map[int]string
 	GetAppRBACNameByAppId(appId int) string
 	GetAppRBACByAppNameAndEnvId(appName string, envId int) string
 	GetAppRBACByAppIdAndPipelineId(appId int, pipelineId int) string
@@ -52,6 +53,7 @@ type EnforcerUtil interface {
 	GetRBACNameForClusterEntity(clusterName string, resourceIdentifier application.ResourceIdentifier) (resourceName, objectName string)
 	GetAppObjectByCiPipelineIds(ciPipelineIds []int) map[int]string
 	GetAppAndEnvObjectByPipelineIds(cdPipelineIds []int) map[int][]string
+	GetRbacObjectsForAllAppsWithMatchingAppName(appNameMatch string) map[int]string
 }
 
 type EnforcerUtilImpl struct {
@@ -103,6 +105,20 @@ func (impl EnforcerUtilImpl) GetProjectAdminRBACNameBYAppName(appName string) st
 func (impl EnforcerUtilImpl) GetRbacObjectsForAllApps() map[int]string {
 	objects := make(map[int]string)
 	result, err := impl.appRepo.FindAllActiveAppsWithTeam()
+	if err != nil {
+		return objects
+	}
+	for _, item := range result {
+		if _, ok := objects[item.Id]; !ok {
+			objects[item.Id] = fmt.Sprintf("%s/%s", strings.ToLower(item.Team.Name), strings.ToLower(item.AppName))
+		}
+	}
+	return objects
+}
+
+func (impl EnforcerUtilImpl) GetRbacObjectsForAllAppsWithTeamID(teamID int) map[int]string {
+	objects := make(map[int]string)
+	result, err := impl.appRepo.FindAllActiveAppsWithTeamWithTeamId(teamID)
 	if err != nil {
 		return objects
 	}
@@ -452,6 +468,20 @@ func (impl EnforcerUtilImpl) GetAppAndEnvObjectByPipelineIds(cdPipelineIds []int
 			appObject := fmt.Sprintf("%s/%s", strings.ToLower(pipeline.App.Team.Name), strings.ToLower(pipeline.App.AppName))
 			envObject := fmt.Sprintf("%s/%s", strings.ToLower(pipeline.Environment.EnvironmentIdentifier), strings.ToLower(pipeline.App.AppName))
 			objects[pipeline.Id] = []string{appObject, envObject}
+		}
+	}
+	return objects
+}
+
+func (impl EnforcerUtilImpl) GetRbacObjectsForAllAppsWithMatchingAppName(appNameMatch string) map[int]string {
+	objects := make(map[int]string)
+	result, err := impl.appRepo.FindAllActiveAppsWithTeamByAppNameMatch(appNameMatch)
+	if err != nil {
+		return objects
+	}
+	for _, item := range result {
+		if _, ok := objects[item.Id]; !ok {
+			objects[item.Id] = fmt.Sprintf("%s/%s", strings.ToLower(item.Team.Name), strings.ToLower(item.AppName))
 		}
 	}
 	return objects
