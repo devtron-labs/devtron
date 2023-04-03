@@ -74,7 +74,7 @@ func (router AppListingRouterImpl) initAppListingRouter(appListingRouter *mux.Ro
 		HandlerFunc(router.appListingRestHandler.ManualSyncAcdPipelineDeploymentStatus).
 		Methods("GET")
 
-	appListingRouter.Path("/team/env/cluster/autocomplete").
+	appListingRouter.Path("/app-listing/autocomplete").
 		HandlerFunc(router.appListingRestHandler.GetClusterTeamAndEnvListForAutocomplete).Methods("GET")
 
 }
