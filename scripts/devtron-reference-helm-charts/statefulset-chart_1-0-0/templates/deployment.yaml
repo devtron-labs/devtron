@@ -525,6 +525,5 @@ spec:
     {{- end }} 
       {{- else }}
       type: OnDelete
-      {{-end }}
-  {{- end }}
+      {{- end }}
   revisionHistoryLimit: 3
