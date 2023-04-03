@@ -102,7 +102,8 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
-
+		// TODO: this rbac is commented because we are only checking helm apps access whereas this api is being used in devtron apps too
+		// this  needs to be updated with conditional rbac depending on where the call came from,until then this will get prevented with the view page permission
 		//rbacObject, rbacObject2 = handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
 		//token := r.Header.Get("token")
 		//ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject2)
@@ -403,7 +404,8 @@ func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, 
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
-		// RBAC enforcer applying
+		// TODO: this rbac is commented because we are only checking helm apps access whereas this api is being used in devtron apps too
+		// this  needs to be updated with conditional rbac depending on where the call came from,until then this will get prevented with the view page permission
 		//rbacObject, rbacObject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
 		//token := r.Header.Get("token")
 		//
@@ -492,7 +494,8 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 			common.WriteJsonResp(w, &apiError, nil, http.StatusBadRequest)
 			return
 		}
-		// RBAC enforcer applying
+		// TODO: this rbac is commented because we are only checking helm apps access whereas this api is being used in devtron apps too
+		// this  needs to be updated with conditional rbac depending on where the call came from,until then this will get prevented with the view page permission
 		//rbacObject, rbacObject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
 		//token := r.Header.Get("token")
 		//
