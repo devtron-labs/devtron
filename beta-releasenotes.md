@@ -1,4 +1,5 @@
 ## Bugs
+- fix: updated rbac for devtron apps/helm pipeline (#3227)
 - fix: updated query for getting workflow runner by appId and envId for active pipelines only (#3222)
 - Fix: App grouping optimisation on ci pipelines (#3219)
 - fix: label key can be saved without value if saved without propagation (#3190)
