@@ -19,7 +19,6 @@ package cluster
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	casbin2 "github.com/devtron-labs/devtron/pkg/user/casbin"
 	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
@@ -29,11 +28,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 	"net/url"
 	"os"
-	"os/user"
-	"path/filepath"
 	"time"
 
 	bean2 "github.com/devtron-labs/devtron/api/bean"
@@ -219,21 +215,25 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, 
 	}
 	bean.Id = model.Id
 
+	//on successful creation of new cluster, update informer cache for namespace group by cluster
+	//here sync for ea mode only
+	if util2.IsBaseStack() {
+		impl.SyncNsInformer(bean)
+	}
+
 	restConfig := &rest.Config{}
-	if model.Id == 0 {
-		usr, err := user.Current()
+	if model.ClusterName == "default_cluster" {
+		config, err := rest.InClusterConfig()
 		if err != nil {
-			impl.logger.Errorw("Error while getting user current env details", "error", err)
+			impl.logger.Errorw("Error in creating config for default cluster", "err", err)
+			return nil, err
 		}
-		kubeconfig := flag.String("build-informer", filepath.Join(usr.HomeDir, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
-		flag.Parse()
-		restConfig, err = clientcmd.BuildConfigFromFlags("", *kubeconfig)
-		if err != nil {
-			impl.logger.Errorw("Error while building config from flags", "error", err)
-		}
+		restConfig = config
+
 	} else {
 		restConfig.BearerToken = model.Config["bearer_token"]
 		restConfig.Host = model.ServerUrl
+		restConfig.Insecure = true
 	}
 	httpClientFor, err := rest.HTTPClientFor(restConfig)
 	if err != nil {
@@ -254,11 +254,6 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, 
 		return nil, err
 	}
 
-	//on successful creation of new cluster, update informer cache for namespace group by cluster
-	//here sync for ea mode only
-	if util2.IsBaseStack() {
-		impl.SyncNsInformer(bean)
-	}
 	return bean, err
 }
 

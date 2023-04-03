@@ -2,7 +2,6 @@ package cluster
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	cluster3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -10,10 +9,7 @@ import (
 	repository4 "github.com/devtron-labs/devtron/pkg/user/repository"
 	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 	"net/http"
-	"os/user"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -265,21 +261,22 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *Cluste
 			return nil, err
 		}
 	}
+
+	if bean.HasConfigOrUrlChanged {
+		impl.ClusterServiceImpl.SyncNsInformer(bean)
+	}
+
 	restConfig := &rest.Config{}
 	if bean.Id == 0 {
-		usr, err := user.Current()
+		restConfig, err = rest.InClusterConfig()
 		if err != nil {
-			impl.logger.Errorw("Error while getting user current env details", "error", err)
-		}
-		kubeconfig := flag.String("build-informer", filepath.Join(usr.HomeDir, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
-		flag.Parse()
-		restConfig, err = clientcmd.BuildConfigFromFlags("", *kubeconfig)
-		if err != nil {
-			impl.logger.Errorw("Error while building config from flags", "error", err)
+			impl.logger.Errorw("Error in creating config for default cluster", "err", err)
+			return nil, err
 		}
 	} else {
 		restConfig.BearerToken = bean.Config["bearer_token"]
 		restConfig.Host = bean.ServerUrl
+		restConfig.Insecure = true
 	}
 	httpClientFor, err := rest.HTTPClientFor(restConfig)
 	if err != nil {
@@ -298,9 +295,7 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *Cluste
 		impl.logger.Errorw("err on creating secret", "err", err)
 		return nil, err
 	}
-	if bean.HasConfigOrUrlChanged {
-		impl.ClusterServiceImpl.SyncNsInformer(bean)
-	}
+
 	return bean, err
 }
 
