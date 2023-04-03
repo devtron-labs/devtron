@@ -519,9 +519,9 @@ spec:
   updateStrategy: 
     {{- if eq .Values.deploymentType "ROLLING" }}  
       type: RollingUpdate
-    {{- if .Values.deployment.updateStrategy.RollingUpdate.rollingUpdate.partition }}
+    {{- if .Values.deployment.strategy.rollingUpdate.partition }}
       rollingUpdate:
-          partition: {{ .Values.deployment.updateStrategy.RollingUpdate.rollingUpdate.partition }}
+          partition: {{ .Values.deployment.strategy.rollingUpdate.partition }}
     {{- end }} 
       {{- else }}
       type: OnDelete

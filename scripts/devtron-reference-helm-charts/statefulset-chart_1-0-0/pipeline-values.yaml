@@ -1,6 +1,6 @@
 deployment:
-  updateStrategy:
-    RollingUpdate:
-        rollingUpdate:
+  strategy:
+    rollingUpdate:
           partition: 0
     OnDelete: {}
+    
