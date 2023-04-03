@@ -440,7 +440,7 @@ func (impl PipelineRepositoryImpl) FindActiveByEnvId(envId int) (pipelines []*Pi
 }
 
 func (impl PipelineRepositoryImpl) FindActiveByEnvIds(envIds []int) (pipelines []*Pipeline, err error) {
-	err = impl.dbConnection.Model(&pipelines).Column("pipeline.*", "App", "Environment").
+	err = impl.dbConnection.Model(&pipelines).Column("pipeline.*").
 		Where("environment_id in (?)", pg.In(envIds)).
 		Where("deleted = ?", false).
 		Select()
