@@ -487,7 +487,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV2(w http.Respons
 		}
 
 		result := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceApplications, casbin.ActionGet, rbacObjects)
-		//O(n) loop n = len(rbacObjectsForAllAppsMap)
+		//O(n) loop, n = len(rbacObjectsForAllAppsMap)
 		for object, ok := range result {
 			if ok {
 				for _, appId := range rbacObjectToAppIdsMap[object] {
@@ -496,6 +496,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV2(w http.Respons
 			}
 		}
 		if len(validAppIds) == 0 {
+			handler.logger.Infow("user doesn't have access to any app", "userId", userId)
 			common.WriteJsonResp(w, err, bean.AppContainerResponse{}, http.StatusOK)
 			return
 		}

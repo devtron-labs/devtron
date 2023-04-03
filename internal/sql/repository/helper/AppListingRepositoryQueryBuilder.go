@@ -194,21 +194,21 @@ func (impl AppListingRepositoryQueryBuilder) BuildAppListingQueryLastDeploymentT
 }
 
 func (impl AppListingRepositoryQueryBuilder) GetAppIdsQueryWithPaginationForLastDeployedSearch(appListingFilter AppListingFilter) string {
-
-	query := "SELECT a.id as app_id,MAX(pco.created_on) as last_deployed_time,da.total_count " +
-		" FROM app a " +
-		" LEFT JOIN pipeline p ON p.app_id = a.id and p.deleted=false " +
-		" INNER JOIN pipeline_config_override pco ON pco.pipeline_id = p.id "
-	//if len(appListingFilter.AppIds) > 0 {
 	join := impl.CommonJoinSubQuery(appListingFilter)
-	conditionalJoin := " INNER JOIN (   SELECT DISTINCT(a.id) as id, dt.count as total_count FROM app a " +
-		"       CROSS JOIN ( SELECT count(distinct(a.id)) as count FROM app a" + join + ") dt " +
-		join + ") da on da.id = a.id "
-	query += conditionalJoin
-	//}
+	countQuery := " (SELECT count(distinct(a.id)) as count " +
+		" FROM app a " + join + ") AS total_count "
 
-	query += fmt.Sprintf(" GROUP BY a.id,da.total_count "+" ORDER BY last_deployed_time %s ", appListingFilter.SortOrder)
-
+	query := "SELECT a.id as app_id,MAX(pco.id) as last_deployed_time, " + countQuery +
+		" FROM pipeline p " +
+		" INNER JOIN pipeline_config_override pco ON pco.pipeline_id = p.id and p.deleted=false " +
+		" RIGHT JOIN ( SELECT DISTINCT(a.id) as id FROM app a " + join + " ) da on p.app_id = da.id and p.deleted=false " +
+		" INNER JOIN app a ON da.id = a.id "
+	query += fmt.Sprintf(" GROUP BY a.id,total_count ORDER BY last_deployed_time %s NULLS ", appListingFilter.SortOrder)
+	if appListingFilter.SortOrder == "DESC" {
+		query += " LAST "
+	} else {
+		query += " FIRST "
+	}
 	query += fmt.Sprintf(" LIMIT %v OFFSET %v", appListingFilter.Size, appListingFilter.Offset)
 	return query
 }
@@ -216,23 +216,15 @@ func (impl AppListingRepositoryQueryBuilder) GetAppIdsQueryWithPaginationForLast
 func (impl AppListingRepositoryQueryBuilder) GetAppIdsQueryWithPaginationForAppNameSearch(appListingFilter AppListingFilter) string {
 	orderByClause := impl.buildAppListingSortBy(appListingFilter)
 	join := impl.CommonJoinSubQuery(appListingFilter)
-	query := "SELECT DISTINCT(a.id) as app_id, dt.count as total_count, a.app_name " +
-		" FROM app a " +
-		" CROSS JOIN ( SELECT count(distinct(a.id)) as count FROM app a" +
-		join + ") dt" +
-		join
+	countQuery := "( SELECT count(distinct(a.id)) as count FROM app a" + join + " ) as total_count"
+	query := "SELECT DISTINCT(a.id) as app_id, a.app_name, " + countQuery +
+		" FROM app a " + join
 	if appListingFilter.SortBy == "appNameSort" {
 		query += orderByClause
 	}
 	query += fmt.Sprintf("LIMIT %v OFFSET %v", appListingFilter.Size, appListingFilter.Offset)
 	return query
 }
-
-//func (impl AppListingRepositoryQueryBuilder) TestForUniqueAppIdsWithFilterV2(appListingFilter AppListingFilter) string {
-//	query := "SELECT DISTINCT a.id "
-//	query += impl.TestForCommonAppFilter(appListingFilter)
-//	return query
-//}
 
 func (impl AppListingRepositoryQueryBuilder) buildAppListingSortBy(appListingFilter AppListingFilter) string {
 	orderByCondition := " ORDER BY a.app_name "
