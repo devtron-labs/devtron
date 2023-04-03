@@ -234,8 +234,8 @@ func (impl DockerRegistryIpsConfigServiceImpl) createOrUpdateDockerRegistryImage
 	}
 	secret, err := impl.k8sUtil.GetSecret(namespace, ipsName, k8sClient)
 	if err != nil {
-		statusError, _ := err.(*k8sErrors.StatusError)
-		if statusError.Status().Code != http.StatusNotFound {
+		statusError, ok := err.(*k8sErrors.StatusError)
+		if !ok || (statusError != nil && statusError.Status().Code != http.StatusNotFound) {
 			impl.logger.Errorw("error in getting secret", "clusterId", clusterId, "namespace", namespace, "ipsName", ipsName, "error", err)
 			return err
 		}
