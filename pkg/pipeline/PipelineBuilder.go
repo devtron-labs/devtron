@@ -2812,11 +2812,18 @@ func (impl PipelineBuilderImpl) GetTriggerViewCdPipelinesForApp(appId int) (cdPi
 
 func (impl PipelineBuilderImpl) GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error) {
 	cdPipelines, err = impl.ciCdPipelineOrchestrator.GetCdPipelinesForApp(appId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching cd Pipelines for appId", "err", err, "appId", appId)
+		return nil, err
+	}
 	var envIds []*int
 	var dbPipelineIds []int
 	for _, dbPipeline := range cdPipelines.Pipelines {
 		envIds = append(envIds, &dbPipeline.EnvironmentId)
 		dbPipelineIds = append(dbPipelineIds, dbPipeline.Id)
+	}
+	if len(envIds) == 0 || len(dbPipelineIds) == 0 {
+		return cdPipelines, nil
 	}
 	envMapping := make(map[int]*repository2.Environment)
 	strategiesMapping := make(map[int][]*chartConfig.PipelineStrategy)
