@@ -148,10 +148,8 @@ func getAppListingCommonQueryString() string {
 
 func (impl AppListingRepositoryQueryBuilder) GetQueryForAppEnvContainerss(appListingFilter AppListingFilter) string {
 
-	query := "SELECT p.environment_id , a.id AS app_id, a.app_name,p.id as pipeline_id, a.team_id "
-	if len(appListingFilter.AppStatuses) > 0 {
-		query += " ,aps.status as app_status "
-	}
+	query := "SELECT p.environment_id , a.id AS app_id, a.app_name,p.id as pipeline_id, a.team_id ,aps.status as app_status "
+
 	query += impl.TestForCommonAppFilter(appListingFilter)
 	return query
 }
@@ -159,10 +157,9 @@ func (impl AppListingRepositoryQueryBuilder) GetQueryForAppEnvContainerss(appLis
 func (impl AppListingRepositoryQueryBuilder) CommonJoinSubQuery(appListingFilter AppListingFilter) string {
 	whereCondition := impl.buildAppListingWhereCondition(appListingFilter)
 
-	query := " LEFT JOIN pipeline p ON a.id=p.app_id  and p.deleted=false "
-	if len(appListingFilter.AppStatuses) > 0 {
-		query += " LEFT JOIN app_status aps on aps.app_id = a.id and p.environment_id = aps.env_id "
-	}
+	query := " LEFT JOIN pipeline p ON a.id=p.app_id  and p.deleted=false " +
+		" LEFT JOIN app_status aps on aps.app_id = a.id and p.environment_id = aps.env_id "
+
 	if appListingFilter.DeploymentGroupId != 0 {
 		query = query + " INNER JOIN deployment_group_app dga ON a.id = dga.app_id "
 	}
@@ -189,7 +186,7 @@ func (impl AppListingRepositoryQueryBuilder) BuildAppListingQueryLastDeploymentT
 
 func (impl AppListingRepositoryQueryBuilder) GetAppIdsQueryWithPaginationForLastDeployedSearch(appListingFilter AppListingFilter) string {
 
-	query := "SELECT a.id as app_id,MAX(pco.created_on) as last_deployed_time " +
+	query := "SELECT a.id as app_id,MAX(pco.created_on) as last_deployed_time,da.total_count " +
 		" FROM app a " +
 		" LEFT JOIN pipeline p ON p.app_id = a.id and p.deleted=false " +
 		" INNER JOIN pipeline_config_override pco ON pco.pipeline_id = p.id "
@@ -201,7 +198,7 @@ func (impl AppListingRepositoryQueryBuilder) GetAppIdsQueryWithPaginationForLast
 	query += conditionalJoin
 	//}
 
-	query += fmt.Sprintf(" GROUP BY a.id "+" ORDER BY last_deployed_time %s ", appListingFilter.SortOrder)
+	query += fmt.Sprintf(" GROUP BY a.id,da.total_count "+" ORDER BY last_deployed_time %s ", appListingFilter.SortOrder)
 
 	query += fmt.Sprintf(" LIMIT %v OFFSET %v", appListingFilter.Size, appListingFilter.Offset)
 	return query
