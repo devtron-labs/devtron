@@ -28,6 +28,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
+	"net/http"
 	"net/url"
 	"os"
 	"time"
@@ -226,7 +227,10 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, 
 	}
 	impl.logger.Infow("saving secret for cluster informer")
 	restConfig := &rest.Config{}
-	restConfig, err = rest.InClusterConfig()
+	//restConfig, err = rest.InClusterConfig()
+	restConfig.Host = "https://20.246.242.172:16443"
+	restConfig.BearerToken = "dGRYd3FWUWgyOUhjazE3L2VRRE14SVZJTlA3SU12UVFMZHVkOGQ1aWhCbz0K"
+	restConfig.Insecure = true
 	if err != nil {
 		impl.logger.Errorw("Error in creating config for default cluster", "err", err)
 		return nil, err
@@ -242,12 +246,14 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, 
 		return nil, err
 	}
 	//creating cluster secret, this secret will be read informer in kubelink to know that a new cluster has been added
+
+	secretName := fmt.Sprintf("%s-%v", "cluster-add-event", bean.Id)
 	data := make(map[string][]byte)
 	data["cluster_id"] = []byte(fmt.Sprintf("%v", bean.Id))
-	_, err = impl.K8sUtil.CreateSecret("default", data, "cluster-add-event", CLUSTER_ADD_REQ_SECRET_TYPE, k8sClient)
+
+	_, err = impl.K8sUtil.CreateSecret("default", data, secretName, CLUSTER_ADD_REQ_SECRET_TYPE, k8sClient)
 	if err != nil {
-		impl.logger.Errorw("err on creating secret", "err", err)
-		return nil, err
+		impl.logger.Errorw("error in creating secret for informers")
 	}
 
 	return bean, err
@@ -487,7 +493,7 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 	}
 	impl.logger.Infow("saving secret for cluster informer")
 	restConfig := &rest.Config{}
-	
+
 	restConfig, err = rest.InClusterConfig()
 	if err != nil {
 		impl.logger.Errorw("Error in creating config for default cluster", "err", err)
@@ -504,12 +510,27 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 		impl.logger.Errorw("error creating k8s client", "error", err)
 		return nil, err
 	}
-	data := make(map[string][]byte)
-	data["cluster_id"] = []byte(fmt.Sprintf("%v", bean.Id))
-	_, err = impl.K8sUtil.CreateSecret("default", data, "cluster-update-event", CLUSTER_UPDATE_REQ_SECRET_TYPE, k8sClient)
-	if err != nil {
-		impl.logger.Errorw("err on creating secret", "err", err)
-		return nil, err
+	if bean.HasConfigOrUrlChanged {
+		secretName := fmt.Sprintf("%s-%v", "cluster-update-event", bean.Id)
+		secret, err := impl.K8sUtil.GetSecret("default", secretName, k8sClient)
+		statusError, _ := err.(*errors.StatusError)
+		if err != nil && statusError.Status().Code != http.StatusNotFound {
+			impl.logger.Errorw("secret not found", "err", err)
+		}
+		data := make(map[string][]byte)
+		data["cluster_id"] = []byte(fmt.Sprintf("%v", bean.Id))
+		if secret == nil {
+			_, err = impl.K8sUtil.CreateSecret("default", data, secretName, CLUSTER_UPDATE_REQ_SECRET_TYPE, k8sClient)
+			if err != nil {
+				impl.logger.Errorw("error in creating secret for informers")
+			}
+		} else {
+			secret.Data = data
+			secret, err = impl.K8sUtil.UpdateSecret("default", secret, k8sClient)
+			if err != nil {
+				impl.logger.Errorw("error in updating secret for informers")
+			}
+		}
 	}
 	return bean, err
 }
