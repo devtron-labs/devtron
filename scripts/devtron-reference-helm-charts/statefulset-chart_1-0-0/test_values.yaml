@@ -114,7 +114,7 @@ autoscaling:
 #      type: External
 #
 
-statefulSet:
+statefulSetConfig:
   podManagementPolicy: "Parallel"
   updateStrategy:
     type: RollingUpdate
@@ -128,6 +128,8 @@ statefulSet:
         app: myapp
     spec:
       accessModes:
+        - ReadWriteOnce
+        - ReadWriteOnce
         - ReadWriteOnce
       dataSource:
         kind: Snapshot

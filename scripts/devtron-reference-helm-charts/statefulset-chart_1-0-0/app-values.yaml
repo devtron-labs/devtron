@@ -18,9 +18,6 @@ containerSpec:
 
 statefulSetConfig:
   podManagementPolicy: "Parallel"
-  updateStrategy:
-    type: RollingUpdate
-    partition: 2
   volumeClaimTemplates: 
   - apiVersion: v1
     kind: PersistentVolumeClaim

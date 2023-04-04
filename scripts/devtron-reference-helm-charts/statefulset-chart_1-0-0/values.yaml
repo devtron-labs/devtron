@@ -1,7 +1,6 @@
 # Default values for myapp.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
-
 replicaCount: 1
 MinReadySeconds: 5
 MaxSurge: 1
@@ -119,43 +118,16 @@ statefulSetConfig:
     type: RollingUpdate
     partition: 2
   volumeClaimTemplates: 
-  - apiVersion: v1
-    kind: PersistentVolumeClaim
-    metadata:
-      annotations:
-        example.com/storage-policy: low-cost
-      labels:
-        app: my-app
-        release: v1
+  - metadata:
       name: values
-      namespace: www
     spec:
       accessModes:
         - ReadWriteOnce
-      dataSource:
-        kind: VolumeSnapshot
-        name: my-snapshot
-        apiGroup: snapshot.storage.k8s.io
-      dataSourceRef:
-        apiGroup: v1
-        kind: Secret
-        name: my-secret
-      selector:
-        matchLabels:
-          app: my-app
-      storageClassName: my-storage-class
-      volumeMode: Filesystem
-      volumeName: my-volume
       resources:
         requests:
           storage: 1Gi
-        limits:
-          storage: 2Gi
 serviceName: "nginx"
-deployment:
-  strategy:
-    rollingUpdate:
-          partition: 0
+
 service:
   type: ClusterIP
 #  name: "1234567890123456789012345678901234567890123456789012345678901234567890"

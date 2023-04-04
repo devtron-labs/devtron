@@ -466,8 +466,10 @@ spec:
   {{- if $.Values.statefulSetConfig.volumeClaimTemplates }}
   volumeClaimTemplates: 
     {{- range $.Values.statefulSetConfig.volumeClaimTemplates }}
-    - apiVersion: {{ .apiVersion}}
+    - apiVersion: {{ .apiVersion | default "v1" }}
+      {{- if .kind }}
       kind: {{.kind}}
+      {{- end}}
       metadata:
           {{- if .metadata.annotations }}
           annotations: {{ toYaml .metadata.annotations | nindent 14 }}
@@ -480,7 +482,10 @@ spec:
           namespace: {{  .metadata.namespace  }}
           {{- end}}
       spec:
-        accessModes: {{ .spec.accessModes }}
+        accessModes: 
+        {{- range .spec.accessModes }}
+            - {{ . }}
+        {{- end }}
          {{- if .spec.dataSource }}
         dataSource:
             apiGroup: {{ .spec.dataSource.apiGroup}}
@@ -496,7 +501,9 @@ spec:
         {{- if .spec.selector }}
         selector: {{ toYaml .spec.selector | nindent 10 }}
         {{- end}}
+        {{- if .spec.storageClassName }}
         storageClassName: {{ .spec.storageClassName }}
+        {{- end}}
         resources:
          {{- if .spec.resources.claim }}
             claims:
@@ -516,13 +523,13 @@ spec:
     {{- end }}   
     {{- end }}
   updateStrategy: 
-    {{- if eq .Values.deploymentType "ROLLING" }}  
+    {{- if eq .Values.deploymentType "ROLLINGUPDATE" }}  
       type: RollingUpdate
-    {{- if .Values.deployment.strategy.rolling.partition }}
+    {{- if $.Values.deployment.strategy.rollingupdate.partition }}
       rollingUpdate:
-          partition: {{ .Values.deployment.strategy.rolling.partition }}
+          partition: {{ .Values.deployment.strategy.rollingupdate.partition }}
     {{- end }} 
-      {{- else }}
+      {{- else if eq .Values.deploymentType "ONDELETE" }}
       type: OnDelete
       {{- end }}
   revisionHistoryLimit: 3
