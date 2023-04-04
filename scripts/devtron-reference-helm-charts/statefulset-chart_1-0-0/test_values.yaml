@@ -157,7 +157,6 @@ statefulSet:
         kind: Secret
         apiGroup: v1
         name: my-secret
-        namespace: my-namespace
       resources:
         requests:
           storage: 5Gi

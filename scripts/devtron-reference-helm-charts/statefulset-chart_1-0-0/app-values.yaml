@@ -43,7 +43,6 @@ statefulSetConfig:
         apiGroup: v1
         kind: Secret
         name: my-secret
-        namespace: default
       selector:
         matchLabels:
           app: my-app

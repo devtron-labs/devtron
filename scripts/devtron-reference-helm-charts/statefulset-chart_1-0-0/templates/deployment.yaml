@@ -492,7 +492,6 @@ spec:
             apiGroup: {{ .spec.dataSourceRef.apiGroup}}
             kind: {{ .spec.dataSourceRef.kind}}
             name:  {{ .spec.dataSourceRef.name}}
-            namespace: {{ .spec.dataSourceRef.namespace}}
           {{- end }}
         {{- if .spec.selector }}
         selector: {{ toYaml .spec.selector | nindent 10 }}
