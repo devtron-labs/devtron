@@ -145,8 +145,7 @@ statefulSetConfig:
       volumeMode: Filesystem
       volumeName: my-pv
 
-service_headless:
-  enabled: false
+service_headless: {}
   #name: "test-service_headless"
 service:
   type: ClusterIP

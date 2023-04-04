@@ -50,14 +50,10 @@ spec:
       release: {{ $.Release.Name }}
   replicas: {{ $.Values.replicaCount }}
   minReadySeconds: {{ $.Values.MinReadySeconds }}
-  {{- if .Values.service_headless.enabled }}
   {{- if .Values.service_headless.name  }}
-  servicename: {{ .Values.service_headless.name }}
+  serviceName: {{ .Values.service_headless.name }}
   {{- else }}
   serviceName: {{ template ".servicename" . }}-headless
-  {{- end }}
-  # {{- else}}
-  # serviceName: my-service
   {{- end}}
   {{- if $.Values.statefulSetConfig.podManagementPolicy }}
   podManagementPolicy: {{ $.Values.statefulSetConfig.podManagementPolicy }}
@@ -532,14 +528,15 @@ spec:
         {{- end}}
     {{- end }}   
     {{- end }}
-  updateStrategy: 
     {{- if eq .Values.deploymentType "ROLLINGUPDATE" }}  
+  updateStrategy: 
       type: RollingUpdate
     {{- if $.Values.deployment.strategy.rollingupdate.partition }}
       rollingUpdate:
           partition: {{ .Values.deployment.strategy.rollingupdate.partition }}
     {{- end }} 
       {{- else if eq .Values.deploymentType "ONDELETE" }}
+  updateStrategy:
       type: OnDelete
       {{- end }}
   revisionHistoryLimit: 3

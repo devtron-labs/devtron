@@ -174,7 +174,6 @@ secret:
   enabled: false
 
 service_headless:
-  enabled: true
   name: "test-service_headless"
 service:
   type: ClusterIP

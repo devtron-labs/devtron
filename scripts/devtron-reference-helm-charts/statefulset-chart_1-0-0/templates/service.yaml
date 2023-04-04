@@ -54,12 +54,11 @@ spec:
     app: {{ template ".Chart.Name .name" . }}
 {{- end }}
 ---
-{{- if .Values.service_headless.enabled }}
 apiVersion: v1
 kind: Service
 metadata:
-  {{- if .Values.service_headless.name  }}
-  name: {{ .Values.service_headless.name}}
+  {{- if $.Values.service_headless.name  }}
+  name: {{ .Values.service_headless.name }}
   {{- else }}
   name: {{ template ".servicename" . }}-headless
   {{- end }}
@@ -108,6 +107,4 @@ spec:
  {{- range .Values.service.loadBalancerSourceRanges }}
       - {{ . }}
  {{- end }}
-{{- end }}
-
 {{- end }}
