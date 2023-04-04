@@ -142,7 +142,7 @@ apiVersion: batch/v1beta1
 {{- end }}
 kind: Job
 metadata:
-  name: postgresql-migrate-gitsensor
+  name: postgresql-migrate-gitsensor-{{ randAlphaNum 5 | lower }}
 spec:
   template:
     spec:
@@ -200,7 +200,7 @@ apiVersion: batch/v1beta1
 {{- end }}
 kind: Job
 metadata:
-  name: postgresql-migrate-lens
+  name: postgresql-migrate-lens-{{ randAlphaNum 5 | lower }}
 spec:
   template:
     spec:
