@@ -50,7 +50,15 @@ spec:
       release: {{ $.Release.Name }}
   replicas: {{ $.Values.replicaCount }}
   minReadySeconds: {{ $.Values.MinReadySeconds }}
-  serviceName: {{ $.Values.statefulSetConfig.serviceName }}
+  {{- if .Values.service_headless.enabled }}
+  {{- if .Values.service_headless.name  }}
+  servicename: {{ .Values.service_headless.name }}
+  {{- else }}
+  serviceName: {{ template ".servicename" . }}-headless
+  {{- end }}
+  # {{- else}}
+  # serviceName: my-service
+  {{- end}}
   {{- if $.Values.statefulSetConfig.podManagementPolicy }}
   podManagementPolicy: {{ $.Values.statefulSetConfig.podManagementPolicy }}
   {{- end }}

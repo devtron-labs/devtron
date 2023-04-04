@@ -113,7 +113,6 @@ secret:
   enabled: false
 
 statefulSetConfig:
-  serviceName: "nginx"
   podManagementPolicy: "Parallel"
   updateStrategy:
     type: RollingUpdate
@@ -146,9 +145,13 @@ statefulSetConfig:
       volumeMode: Filesystem
       volumeName: my-pv
 
+service_headless:
+  enabled: false
+  #name: "test-service_headless"
 service:
   type: ClusterIP
-#  name: "1234567890123456789012345678901234567890123456789012345678901234567890"
+  enabled: false
+  #name: "test-service"
   annotations: {}
     # test1: test2
     # test3: test4

@@ -173,8 +173,12 @@ statefulSetConfig:
 secret:
   enabled: false
 
+service_headless:
+  enabled: true
+  name: "test-service_headless"
 service:
   type: ClusterIP
+  enabled: true
   #  name: "1234567890123456789012345678901234567890123456789012345678901234567890"
   annotations: {}
     # test1: test2

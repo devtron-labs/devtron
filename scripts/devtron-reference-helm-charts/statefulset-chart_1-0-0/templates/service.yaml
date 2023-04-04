@@ -1,7 +1,12 @@
+{{- if .Values.service.enabled }}
 apiVersion: v1
 kind: Service
 metadata:
+  {{- if .Values.service.name  }}
+  name: {{ .Values.service.name}}
+  {{- else }}
   name: {{ template ".servicename" . }}
+  {{- end }}
   labels:
     app: {{ template ".Chart.Name .name" . }}
     appId: {{ $.Values.app | quote }}
@@ -14,7 +19,7 @@ metadata:
 {{- if .Values.service.annotations }}
   annotations:
 {{ toYaml .Values.service.annotations | indent 4 }}
-{{- end}}
+{{- end }}
 spec:
   type: {{ .Values.service.type | default "ClusterIP" }}
 {{- if (and (eq .Values.service.type "LoadBalancer") .Values.service.loadBalancerSourceRanges )}}
@@ -47,43 +52,17 @@ spec:
       {{- end }}
   selector:
     app: {{ template ".Chart.Name .name" . }}
-{{- if eq .Values.deploymentType "BLUE-GREEN" }}
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ template ".previewservicename" . }}
-  labels:
-    app: {{ template ".Chart.Name .name" . }}
-    appId: {{ $.Values.app | quote }}
-    envId: {{ $.Values.env | quote }}
-    chart: {{ template ".Chart.Name .chart" . }}
-    release: {{ .Release.Name }}
-spec:
-  type: ClusterIP
-  ports:
-    {{- range .Values.ContainerPort }}
-      {{- if .servicePort }}
-      - port: {{ .servicePort }}
-        {{- else }}
-      - port: {{ .port }}
-        {{- end }}
-        targetPort: {{ .name }}
-        protocol: TCP
-        name: {{ .name }}
-      {{- end }}
-      {{- if $.Values.appMetrics }}
-      - port: 9901
-        name: envoy-admin
-      {{- end }}
-  selector:
-    app: {{ template ".Chart.Name .name" . }}
 {{- end }}
 ---
+{{- if .Values.service_headless.enabled }}
 apiVersion: v1
 kind: Service
 metadata:
+  {{- if .Values.service_headless.name  }}
+  name: {{ .Values.service_headless.name}}
+  {{- else }}
   name: {{ template ".servicename" . }}-headless
+  {{- end }}
   labels:
     app: {{ template ".Chart.Name .name" . }}
     appId: {{ $.Values.app | quote }}
@@ -96,7 +75,7 @@ metadata:
 {{- if .Values.service.annotations }}
   annotations:
 {{ toYaml .Values.service.annotations | indent 4 }}
-{{- end}}
+{{- end }}
 spec:
   clusterIP: None
   ports:
@@ -131,3 +110,4 @@ spec:
  {{- end }}
 {{- end }}
 
+{{- end }}
