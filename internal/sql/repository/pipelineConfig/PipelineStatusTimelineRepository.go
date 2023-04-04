@@ -275,7 +275,7 @@ func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelinesByInstalledAppVe
 func (impl *PipelineStatusTimelineRepositoryImpl) FetchLatestTimelinesByInstalledAppVersionHistoryId(installedAppVersionHistoryId int) (*PipelineStatusTimeline, error) {
 	timeline := &PipelineStatusTimeline{}
 	err := impl.dbConnection.Model(timeline).
-		Where("cd_workflow_runner_id = ?", installedAppVersionHistoryId).
+		Where("installed_app_version_history_id = ?", installedAppVersionHistoryId).
 		Order("status_time DESC").
 		Limit(1).Select()
 	if err != nil {

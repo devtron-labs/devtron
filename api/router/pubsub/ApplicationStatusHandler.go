@@ -104,6 +104,8 @@ func (impl *ApplicationStatusHandlerImpl) Subscribe() error {
 		_, err = impl.pipelineRepository.GetArgoPipelineByArgoAppName(app.ObjectMeta.Name)
 		if err != nil && err != pg.ErrNoRows {
 			isAppStoreApplication = true
+		} else if err != nil {
+			return
 		}
 		isSucceeded, err := impl.appService.UpdateDeploymentStatusAndCheckIsSucceeded(app, applicationDetail.StatusTime, isAppStoreApplication)
 		if err != nil {
