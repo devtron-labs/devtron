@@ -1,3 +1,37 @@
+Skip to content
+Search or jump to…
+Pull requests
+Issues
+Codespaces
+Marketplace
+Explore
+ 
+@jatin-jangir-0220 
+devtron-labs
+/
+devtron
+Public
+Fork your own copy of devtron-labs/devtron
+Code
+Issues
+369
+Pull requests
+88
+Actions
+Projects
+1
+Security
+Insights
+devtron/manifests/yamls/gitsensor.yaml
+@dheeth
+dheeth fixed initcontainer array
+Latest commit 1cbe3cc last week
+ History
+ 10 contributors
+@prakarsh-dt@dheeth@pawan-59@pawan-mehta-dt@pghildiyal@deepak-devtron@anupdhiran@jatin-jangir@ladung@jatin-jangir-0220
+119 lines (119 sloc)  2.68 KB
+ 
+
 # Source: gitsensor/templates/generic.yaml
 apiVersion: v1
 kind: Secret
@@ -57,8 +91,7 @@ spec:
         fsGroup: 1000
         runAsGroup: 1000
         runAsUser: 1000
-      containers:
-        initContainers:
+      initContainers:
         - command:
           - /bin/sh
           - -c
@@ -74,6 +107,7 @@ spec:
           volumeMounts:
           - mountPath: /git-base/
             name: git-volume
+      containers:
         - name: git-sensor
           image: "quay.io/devtron/git-sensor:e5e66474-200-13261"
           securityContext:
@@ -117,3 +151,18 @@ spec:
   selector:
     matchLabels:
       app: git-sensor
+Footer
+© 2023 GitHub, Inc.
+Footer navigation
+Terms
+Privacy
+Security
+Status
+Docs
+Contact GitHub
+Pricing
+API
+Training
+Blog
+About
+devtron/gitsensor.yaml at v0.6.14 · devtron-labs/devtron
