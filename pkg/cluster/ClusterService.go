@@ -622,6 +622,27 @@ func (impl ClusterServiceImpl) DeleteFromDb(bean *ClusterBean, userId int32) err
 		impl.logger.Errorw("error in deleting cluster", "id", bean.Id, "err", err)
 		return err
 	}
+	restConfig := &rest.Config{}
+	restConfig, err = rest.InClusterConfig()
+
+	if err != nil {
+		impl.logger.Errorw("Error in creating config for default cluster", "err", err)
+		return nil
+	}
+	// this secret was created for syncing cluster information with kubelink
+	httpClientFor, err := rest.HTTPClientFor(restConfig)
+	if err != nil {
+		impl.logger.Errorw("error occurred while overriding k8s client", "reason", err)
+		return nil
+	}
+	k8sClient, err := v12.NewForConfigAndClient(restConfig, httpClientFor)
+	if err != nil {
+		impl.logger.Errorw("error creating k8s client", "error", err)
+		return nil
+	}
+	secretName := fmt.Sprintf("%s-%v", "cluster-event", bean.Id)
+	err = impl.K8sUtil.DeleteSecret("default", secretName, k8sClient)
+	impl.logger.Errorw("error in deleting secret", "error", err)
 	return nil
 }
 
