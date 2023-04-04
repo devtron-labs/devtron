@@ -10,3 +10,6 @@ INSERT INTO global_strategy_metadata_chart_ref_mapping ("global_strategy_metadat
 VALUES (1,(select id from chart_ref where location='statefulset-chart_1-0-0' and name is null), true, now(), 1, now(), 1),
 VALUES ((select id from global_strategy_metadata where name='ONDELETE') ,(select id from chart_ref where location='statefulset-chart_1-0-0' and name is null), true, now(), 1, now(), 1);
 
+
+INSERT INTO chart_ref_metadata("chart_name","chart_description")
+VALUES('StatefulSet','StatefulSet  is a controller object that manages the deployment and scaling of stateful applications while providing guarantees around the order of deployment and uniqueness of names for each pod.');
