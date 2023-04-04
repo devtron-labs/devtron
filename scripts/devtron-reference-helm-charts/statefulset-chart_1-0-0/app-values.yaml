@@ -16,7 +16,7 @@ containerSpec:
         port: 90
 
 
-statefulSet:
+statefulSetConfig:
   podManagementPolicy: "Parallel"
   updateStrategy:
     type: RollingUpdate

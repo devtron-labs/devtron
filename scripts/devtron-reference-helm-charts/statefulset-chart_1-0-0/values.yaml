@@ -113,7 +113,7 @@ kedaAutoscaling:
 secret:
   enabled: false
 
-statefulSet:
+statefulSetConfig:
   podManagementPolicy: "Parallel"
   updateStrategy:
     type: RollingUpdate
@@ -152,7 +152,7 @@ statefulSet:
           storage: 1Gi
         limits:
           storage: 2Gi
-  serviceName: "nginx"
+serviceName: "nginx"
 deployment:
   strategy:
     rollingUpdate:
