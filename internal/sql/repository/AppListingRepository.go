@@ -338,6 +338,7 @@ func (impl AppListingRepositoryImpl) deploymentDetailsByAppIdAndEnvId(ctx contex
 	query := "SELECT" +
 		" a.app_name," +
 		" env.environment_name," +
+		" env.namespace," +
 		" env.default," +
 		" p.deployment_app_type," +
 		" p.ci_pipeline_id," +
