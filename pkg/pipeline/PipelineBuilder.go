@@ -2004,6 +2004,8 @@ func (impl PipelineBuilderImpl) ChangeDeploymentType(ctx context.Context,
 		return response, nil
 	}
 
+	time.Sleep(20 * time.Second)
+
 	// Trigger
 	_, err = impl.workflowDagExecutor.TriggerBulkDeploymentAsync(bulkTriggerRequest, request.UserId)
 
