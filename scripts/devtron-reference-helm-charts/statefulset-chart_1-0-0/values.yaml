@@ -113,20 +113,38 @@ secret:
   enabled: false
 
 statefulSetConfig:
+  serviceName: "nginx"
   podManagementPolicy: "Parallel"
   updateStrategy:
     type: RollingUpdate
     partition: 2
-  volumeClaimTemplates: 
-  - metadata:
-      name: values
+  volumeClaimTemplates:
+  - apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      name: pvc-data
+      labels:
+        app: myapp
     spec:
       accessModes:
         - ReadWriteOnce
+        - ReadWriteOnce
+        - ReadWriteOnce
+      dataSource:
+        kind: Snapshot
+        apiGroup: snapshot.storage.k8s.io
+        name: my-snapshot
       resources:
         requests:
-          storage: 1Gi
-serviceName: "nginx"
+          storage: 10Gi
+        limits:
+          storage: 20Gi
+      storageClassName: my-storage-class
+      selector:
+        matchLabels:
+          app: myapp
+      volumeMode: Filesystem
+      volumeName: my-pv
 
 service:
   type: ClusterIP
