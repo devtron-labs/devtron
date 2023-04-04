@@ -1,3 +1,5 @@
+{{- if $.Values.installer.modules }}
+{{- if has "cicd" $.Values.installer.modules }}
 {{- with $.Values.lens }}
 # Source: lens/templates/configmap.yaml
 apiVersion: v1
@@ -107,5 +109,7 @@ spec:
 {{- if $.Values.lens.resources }}
           resources:
 {{ toYaml $.Values.lens.resources | indent 12 }}
+{{- end }}
+{{- end }}
 {{- end }}
 {{- end }}
