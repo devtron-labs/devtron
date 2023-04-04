@@ -99,18 +99,19 @@ const (
 )
 
 type FetchAppListingRequest struct {
-	Environments      []int            `json:"environments"`
-	Statuses          []string         `json:"statuses"`
-	Teams             []int            `json:"teams"`
-	AppNameSearch     string           `json:"appNameSearch"`
-	SortOrder         helper.SortOrder `json:"sortOrder"`
-	SortBy            helper.SortBy    `json:"sortBy"`
-	Offset            int              `json:"offset"`
-	Size              int              `json:"size"`
-	DeploymentGroupId int              `json:"deploymentGroupId"`
-	Namespaces        []string         `json:"namespaces"` //{clusterId}_{namespace}
-	AppStatuses       []string         `json:"appStatuses"`
-	AppIds            []int            `json:"-"` //internal use only
+	Environments                 []int            `json:"environments"`
+	Statuses                     []string         `json:"statuses"`
+	Teams                        []int            `json:"teams"`
+	AppNameSearch                string           `json:"appNameSearch"`
+	SortOrder                    helper.SortOrder `json:"sortOrder"`
+	SortBy                       helper.SortBy    `json:"sortBy"`
+	Offset                       int              `json:"offset"`
+	Size                         int              `json:"size"`
+	DeploymentGroupId            int              `json:"deploymentGroupId"`
+	Namespaces                   []string         `json:"namespaces"` //{clusterId}_{namespace}
+	AppStatuses                  []string         `json:"appStatuses"`
+	AppIds                       []int            `json:"-"` //internal use only
+	IsClusterOrNamespaceSelected bool             `json:"isClusterOrNamespaceSelected"`
 }
 type AppNameTypeIdContainer struct {
 	AppName string `json:"appName"`
@@ -265,6 +266,9 @@ func (impl AppListingServiceImpl) FetchOverviewCiPipelines(jobId int) ([]*bean.J
 
 func (impl AppListingServiceImpl) FetchAppsByEnvironment(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, error) {
 	impl.Logger.Debug("reached at FetchAppsByEnvironment:")
+	if fetchAppListingRequest.IsClusterOrNamespaceSelected && len(fetchAppListingRequest.Environments) == 0 {
+		return []*bean.AppEnvironmentContainer{}, nil
+	}
 	// TODO: check statuses
 	appListingFilter := helper.AppListingFilter{
 		Environments:      fetchAppListingRequest.Environments,
@@ -289,6 +293,9 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironment(fetchAppListingRequest 
 }
 func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, int, error) {
 	impl.Logger.Debug("reached at FetchAppsByEnvironment:")
+	if fetchAppListingRequest.IsClusterOrNamespaceSelected && len(fetchAppListingRequest.Environments) == 0 {
+		return []*bean.AppEnvironmentContainer{}, 0, nil
+	}
 	appListingFilter := helper.AppListingFilter{
 		Environments:      fetchAppListingRequest.Environments,
 		Statuses:          fetchAppListingRequest.Statuses,
