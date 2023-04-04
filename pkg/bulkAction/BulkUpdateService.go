@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
@@ -84,6 +85,7 @@ type BulkUpdateServiceImpl struct {
 	ciPipelineRepository             pipelineConfig.CiPipelineRepository
 	appWorkflowRepository            appWorkflow.AppWorkflowRepository
 	appWorkflowService               appWorkflow2.AppWorkflowService
+	pubsubClient                     *pubsub.PubSubClientServiceImpl
 }
 
 func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateRepository,
@@ -111,8 +113,9 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 	enforcerUtilHelm rbac.EnforcerUtilHelm, ciHandler pipeline.CiHandler,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
-	appWorkflowService appWorkflow2.AppWorkflowService) *BulkUpdateServiceImpl {
-	return &BulkUpdateServiceImpl{
+	appWorkflowService appWorkflow2.AppWorkflowService,
+	pubsubClient *pubsub.PubSubClientServiceImpl) (*BulkUpdateServiceImpl, error) {
+	impl := &BulkUpdateServiceImpl{
 		bulkUpdateRepository:             bulkUpdateRepository,
 		chartRepository:                  chartRepository,
 		logger:                           logger,
@@ -143,7 +146,11 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 		ciPipelineRepository:             ciPipelineRepository,
 		appWorkflowRepository:            appWorkflowRepository,
 		appWorkflowService:               appWorkflowService,
+		pubsubClient:                     pubsubClient,
 	}
+
+	err := impl.SubscribeToCdBulkTriggerTopic()
+	return impl, err
 }
 
 func (impl BulkUpdateServiceImpl) FindBulkUpdateReadme(operation string) (*BulkUpdateSeeExampleResponse, error) {
@@ -1198,14 +1205,32 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 			UserId:         request.UserId,
 			CdWorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
 		}
-		_, err = impl.workflowDagExecutor.ManualCdTrigger(overrideRequest, ctx)
+
+		payload, err := json.Marshal(overrideRequest)
 		if err != nil {
-			impl.logger.Errorw("request err, OverrideConfig", "err", err, "payload", overrideRequest)
+			impl.logger.Errorw("failed to marshal override request",
+				"request", overrideRequest,
+				"err", err)
+
 			pipelineResponse := response[appKey]
 			pipelineResponse[pipelineKey] = false
 			response[appKey] = pipelineResponse
-			//return nil, err
+			continue
 		}
+
+		err = impl.pubsubClient.Publish(pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC, string(payload))
+		if err != nil {
+			impl.logger.Errorw("failed to publish trigger request event",
+				"topic", pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC,
+				"request", overrideRequest,
+				"err", err)
+
+			pipelineResponse := response[appKey]
+			pipelineResponse[pipelineKey] = false
+			response[appKey] = pipelineResponse
+			continue
+		}
+
 		pipelineResponse := response[appKey]
 		pipelineResponse[pipelineKey] = success
 		response[appKey] = pipelineResponse
@@ -1214,6 +1239,41 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 	bulkOperationResponse.BulkApplicationForEnvironmentPayload = *request
 	bulkOperationResponse.Response = response
 	return bulkOperationResponse, nil
+}
+
+func (impl BulkUpdateServiceImpl) SubscribeToCdBulkTriggerTopic() error {
+
+	callback := func(msg *pubsub.PubSubMsg) {
+		impl.logger.Debugw("Event received",
+			"topic", pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC)
+
+		overrideReq := &bean.ValuesOverrideRequest{}
+		err := json.Unmarshal([]byte(msg.Data), overrideReq)
+		if err != nil {
+			impl.logger.Errorw("Error unmarshalling received event",
+				"topic", pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC,
+				"msg", msg.Data,
+				"err", err)
+			return
+		}
+
+		// trigger
+		_, err = impl.workflowDagExecutor.ManualCdTrigger(overrideReq, context.Background())
+		if err != nil {
+			impl.logger.Errorw("Error triggering CD",
+				"topic", pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC,
+				"msg", msg.Data,
+				"err", err)
+		}
+	}
+	err := impl.pubsubClient.Subscribe(pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC, callback)
+	if err != nil {
+		impl.logger.Error("failed to subscribe to NATS topic",
+			"topic", pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC,
+			"err", err)
+		return err
+	}
+	return nil
 }
 
 func (impl BulkUpdateServiceImpl) BulkBuildTrigger(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationForEnvironmentResponse, error) {
