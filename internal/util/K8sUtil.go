@@ -359,6 +359,15 @@ func (impl K8sUtil) UpdateSecret(namespace string, secret *v1.Secret, client *v1
 	}
 }
 
+func (impl K8sUtil) DeleteSecret(namespace string, name string, client *v12.CoreV1Client) error {
+	err := client.Secrets(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
+	if err != nil {
+		return err
+	} else {
+		return nil
+	}
+}
+
 func (impl K8sUtil) DeleteJob(namespace string, name string, clusterConfig *ClusterConfig) error {
 	clientSet, err := impl.GetClientSet(clusterConfig)
 	if err != nil {
