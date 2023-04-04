@@ -117,6 +117,18 @@ components:
         GIT_REPO_URL: "https://github.com/devtron-labs/devtron.git"
         DB_NAME: "casbin"
         GIT_HASH: "85c4a6d76492f9a1cc45360dd910f03fabac1b13"
+      gitsensor: 
+        GIT_BRANCH: "main"
+        GIT_HASH: "e5e66474064b6ffb7f8210004b59dd9316ea1e0d"
+        SCRIPT_LOCATION: "scripts/sql/"
+        GIT_REPO_URL: "https://github.com/devtron-labs/git-sensor.git"
+        DB_NAME: "git_sensor"
+      lens: 
+        GIT_BRANCH: "main"
+        GIT_HASH: "f71dba2a1da52949b5fdc68c32b090366089d47c"
+        SCRIPT_LOCATION: "scripts/sql/"
+        GIT_REPO_URL: "https://github.com/devtron-labs/lens.git"
+        DB_NAME: "lens"
 
 # values for argocd integration
 argo-cd:
