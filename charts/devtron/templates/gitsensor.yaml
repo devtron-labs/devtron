@@ -65,8 +65,7 @@ spec:
       securityContext:
 {{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
       {{- end }}
-      containers:
-        initContainers:
+      initContainers:
         - command:
           - /bin/sh
           - -c
@@ -82,6 +81,7 @@ spec:
           volumeMounts:
           - mountPath: /git-base/
             name: git-volume
+      containers:
         - name: git-sensor
           image: {{ $.Values.gitsensor.image }}
           imagePullPolicy: {{ $.Values.gitsensor.imagePullPolicy }}
