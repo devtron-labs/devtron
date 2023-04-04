@@ -27,6 +27,7 @@ import (
 	"fmt"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	history3 "github.com/devtron-labs/devtron/pkg/pipeline/history"
@@ -34,7 +35,7 @@ import (
 	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
-	repository3 "github.com/devtron-labs/devtron/pkg/user/repository"
+	bean3 "github.com/devtron-labs/devtron/pkg/user/bean"
 	util2 "github.com/devtron-labs/devtron/util"
 	"path"
 	"regexp"
@@ -169,7 +170,6 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-
 	ciPipelineObject := &pipelineConfig.CiPipeline{
 		Version:                  createRequest.Version,
 		Id:                       createRequest.Id,
@@ -186,7 +186,6 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 
 	createOnTimeMap := make(map[int]time.Time)
 	createByMap := make(map[int]int32)
-
 	for _, oldMaterial := range oldPipeline.CiPipelineMaterials {
 		createOnTimeMap[oldMaterial.GitMaterialId] = oldMaterial.CreatedOn
 		createByMap[oldMaterial.GitMaterialId] = oldMaterial.CreatedBy
@@ -218,7 +217,13 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 			return nil, err
 		}
 	}
-
+	for _, material := range createRequest.CiMaterial {
+		if material.IsRegex == true && material.Source.Value != "" {
+			material.IsRegex = false
+		} else if material.IsRegex == false && material.Source.Regex != "" {
+			material.IsRegex = true
+		}
+	}
 	var materials []*pipelineConfig.CiPipelineMaterial
 	var materialsAdd []*pipelineConfig.CiPipelineMaterial
 	var materialsUpdate []*pipelineConfig.CiPipelineMaterial
@@ -242,30 +247,12 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 			pipelineMaterial.CreatedOn = time.Now()
 			materialsAdd = append(materialsAdd, pipelineMaterial)
 		} else {
+			pipelineMaterial.CiPipelineId = createRequest.Id
+			pipelineMaterial.CreatedBy = userId
 			materialsUpdate = append(materialsUpdate, pipelineMaterial)
 			pipelineMaterial.CreatedOn = createOnTimeMap[material.GitMaterialId]
 			pipelineMaterial.CreatedBy = createByMap[material.GitMaterialId]
 		}
-	}
-	regexMaterial, err := impl.ciPipelineMaterialRepository.GetRegexByPipelineId(createRequest.Id)
-	if err != nil {
-		impl.logger.Errorw("err", "err", err)
-	}
-	var errorList string
-	if len(regexMaterial) != 0 {
-		for _, material := range regexMaterial {
-			val, exists := materialGitMap[material.GitMaterialId]
-			if exists && !impl.CheckStringMatchRegex(material.Regex, val) {
-				if errorList == "" {
-					errorList = "string is mismatching with regex " + strconv.Itoa(material.GitMaterialId)
-				} else {
-					errorList = errorList + "; " + "string is mismatching with regex " + strconv.Itoa(material.GitMaterialId)
-				}
-			}
-		}
-	}
-	if errorList != "" {
-		return nil, errors.New(errorList)
 	}
 	if len(materialsAdd) > 0 {
 		err = impl.ciPipelineMaterialRepository.Save(tx, materialsAdd...)
@@ -273,10 +260,13 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 			return nil, err
 		}
 	}
-	err = impl.ciPipelineMaterialRepository.Update(tx, materialsUpdate...)
-	if err != nil {
-		return nil, err
+	if len(materialsUpdate) > 0 {
+		err = impl.ciPipelineMaterialRepository.Update(tx, materialsUpdate...)
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	materials = append(materials, materialsAdd...)
 	materials = append(materials, materialsUpdate...)
 
@@ -410,10 +400,14 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 		for _, ciPipelineMaterial := range ciPipelineMaterials {
 			if parentMaterial, ok := parentMaterialsMap[ciPipelineMaterial.GitMaterialId]; ok {
 				pipelineMaterial := &pipelineConfig.CiPipelineMaterial{
-					Id:       ciPipelineMaterial.Id,
-					Value:    parentMaterial.Source.Value,
-					Active:   createRequest.Active,
-					AuditLog: sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
+					Id:            ciPipelineMaterial.Id,
+					Value:         parentMaterial.Source.Value,
+					Active:        createRequest.Active,
+					Regex:         parentMaterial.Source.Regex,
+					AuditLog:      sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now(), CreatedBy: userId},
+					Type:          parentMaterial.Source.Type,
+					GitMaterialId: parentMaterial.GitMaterialId,
+					CiPipelineId:  ciPipelineMaterial.CiPipelineId,
 				}
 				linkedMaterials = append(linkedMaterials, pipelineMaterial)
 			} else {
@@ -449,6 +443,7 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteCiPipeline(pipeline *pipelineConf
 	}
 	err := impl.ciPipelineRepository.Update(p, tx)
 	if err != nil {
+		impl.logger.Errorw("error in updating ci pipeline, DeleteCiPipeline", "err", err, "pipelineId", pipeline.Id)
 		return err
 	}
 	var materials []*pipelineConfig.CiPipelineMaterial
@@ -475,7 +470,10 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteCiPipeline(pipeline *pipelineConf
 	}
 
 	err = impl.ciPipelineMaterialRepository.Update(tx, materials...)
-
+	if err != nil {
+		impl.logger.Errorw("error in updating ci pipeline materials, DeleteCiPipeline", "err", err, "pipelineId", pipeline.Id)
+		return err
+	}
 	if !request.CiPipeline.IsDockerConfigOverridden {
 
 		CiTemplateBean := bean2.CiTemplateBean{
@@ -813,7 +811,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateApp(createRequest *bean.CreateApp
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-	app, err := impl.createAppGroup(createRequest.AppName, createRequest.UserId, createRequest.TeamId, tx)
+	app, err := impl.createAppGroup(createRequest.AppName, createRequest.UserId, createRequest.TeamId, createRequest.AppType, createRequest.Description, tx)
 	if err != nil {
 		return nil, err
 	}
@@ -840,6 +838,9 @@ func (impl CiCdPipelineOrchestratorImpl) CreateApp(createRequest *bean.CreateApp
 		return nil, err
 	}
 	createRequest.Id = app.Id
+	if createRequest.AppType == helper.Job {
+		createRequest.AppName = app.DisplayName
+	}
 	return createRequest, nil
 }
 
@@ -896,7 +897,7 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteApp(appId int, userId int32) erro
 		return err
 	}
 	//deleting auth roles entries for this project
-	err = impl.userAuthService.DeleteRoles(repository3.APP_TYPE, app.AppName, tx, "")
+	err = impl.userAuthService.DeleteRoles(bean3.APP_TYPE, app.AppName, tx, "")
 	if err != nil {
 		impl.logger.Errorw("error in deleting auth roles", "err", err)
 		return err
@@ -995,25 +996,50 @@ func (impl CiCdPipelineOrchestratorImpl) addRepositoryToGitSensor(materials []*b
 }
 
 // FIXME: not thread safe
-func (impl CiCdPipelineOrchestratorImpl) createAppGroup(name string, userId int32, teamId int, tx *pg.Tx) (*app2.App, error) {
+func (impl CiCdPipelineOrchestratorImpl) createAppGroup(name string, userId int32, teamId int, appType helper.AppType, description string, tx *pg.Tx) (*app2.App, error) {
 	app, err := impl.appRepository.FindActiveByName(name)
 	if err != nil && err != pg.ErrNoRows {
 		return nil, err
 	}
-	if app != nil && app.Id > 0 {
-		impl.logger.Warnw("app already exists", "name", name)
-		err = &util.ApiError{
-			Code:            constants.AppAlreadyExists.Code,
-			InternalMessage: "app already exists",
-			UserMessage:     constants.AppAlreadyExists.UserMessage(name),
+	if appType != helper.Job {
+		if app != nil && app.Id > 0 {
+			impl.logger.Warnw("app already exists", "name", name)
+			err = &util.ApiError{
+				Code:            constants.AppAlreadyExists.Code,
+				InternalMessage: "app already exists",
+				UserMessage:     constants.AppAlreadyExists.UserMessage(name),
+			}
+			return nil, err
 		}
-		return nil, err
+	} else {
+		job, err := impl.appRepository.FindJobByDisplayName(name)
+		if err != nil && err != pg.ErrNoRows {
+			return nil, err
+		}
+		if job != nil && job.Id > 0 {
+			impl.logger.Warnw("job already exists", "name", name)
+			err = &util.ApiError{
+				Code:            constants.AppAlreadyExists.Code,
+				InternalMessage: "job already exists",
+				UserMessage:     constants.AppAlreadyExists.UserMessage(name),
+			}
+			return nil, err
+		}
+	}
+
+	displayName := name
+	appName := name
+	if appType == helper.Job {
+		appName = name + "/" + util2.Generate(8) + "J"
 	}
 	pg := &app2.App{
-		Active:   true,
-		AppName:  name,
-		TeamId:   teamId,
-		AuditLog: sql.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
+		Active:      true,
+		AppName:     appName,
+		DisplayName: displayName,
+		TeamId:      teamId,
+		AppType:     appType,
+		Description: description,
+		AuditLog:    sql.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 	}
 	err = impl.appRepository.SaveWithTxn(pg, tx)
 	if err != nil {
@@ -1418,6 +1444,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int) (cdPipe
 			Id:                            dbPipeline.Id,
 			Name:                          dbPipeline.Name,
 			EnvironmentId:                 dbPipeline.EnvironmentId,
+			EnvironmentName:               dbPipeline.Environment.Name,
 			CiPipelineId:                  dbPipeline.CiPipelineId,
 			TriggerType:                   dbPipeline.TriggerType,
 			PreStage:                      preStage,

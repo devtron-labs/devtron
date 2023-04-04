@@ -45,8 +45,8 @@ type InstalledAppRepository interface {
 	GetAllIntalledAppsByAppStoreId(appStoreId int) ([]InstalledAppAndEnvDetails, error)
 	GetAllInstalledAppsByChartRepoId(chartRepoId int) ([]InstalledAppAndEnvDetails, error)
 	GetInstalledAppVersionByInstalledAppIdAndEnvId(installedAppId int, envId int) (*InstalledAppVersions, error)
+	FetchNotes(installedAppId int) (*InstalledApps, error)
 	GetInstalledAppVersionByAppStoreId(appStoreId int) ([]*InstalledAppVersions, error)
-
 	DeleteInstalledApp(model *InstalledApps) (*InstalledApps, error)
 	DeleteInstalledAppVersion(model *InstalledAppVersions) (*InstalledAppVersions, error)
 	GetInstalledAppVersionByInstalledAppId(id int) ([]*InstalledAppVersions, error)
@@ -100,6 +100,7 @@ type InstalledApps struct {
 	DeploymentAppType          string                                `sql:"deployment_app_type"`
 	Status                     appStoreBean.AppstoreDeploymentStatus `sql:"status"`
 	DeploymentAppDeleteRequest bool                                  `sql:"deployment_app_delete_request"`
+	Notes                      string                                `json:"notes"`
 	App                        app.App
 	Environment                repository.Environment
 	sql.AuditLog
@@ -195,6 +196,13 @@ func (impl InstalledAppRepositoryImpl) UpdateInstalledAppVersion(model *Installe
 		return model, err
 	}
 	return model, nil
+}
+func (impl InstalledAppRepositoryImpl) FetchNotes(installedAppId int) (*InstalledApps, error) {
+	model := &InstalledApps{}
+	err := impl.dbConnection.Model(model).
+		Column("installed_apps.*", "App").
+		Where("installed_apps.id = ?", installedAppId).Where("installed_apps.active = true").Select()
+	return model, err
 }
 
 func (impl InstalledAppRepositoryImpl) GetInstalledApp(id int) (*InstalledApps, error) {

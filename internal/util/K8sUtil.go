@@ -27,6 +27,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/version"
 	"net/http"
 	"os/user"
 	"path/filepath"
@@ -747,4 +748,17 @@ func OverrideK8sHttpClientWithTracer(restConfig *rest.Config) (*http.Client, err
 	}
 	httpClientFor.Transport = otelhttp.NewTransport(httpClientFor.Transport)
 	return httpClientFor, nil
+}
+func (impl K8sUtil) GetKubeVersion() (*version.Info, error) {
+	discoveryClient, err := impl.GetK8sDiscoveryClientInCluster()
+	if err != nil {
+		impl.logger.Errorw("eexception caught in getting discoveryClient", "err", err)
+		return nil, err
+	}
+	k8sServerVersion, err := discoveryClient.ServerVersion()
+	if err != nil {
+		impl.logger.Errorw("exception caught in getting k8sServerVersion", "err", err)
+		return nil, err
+	}
+	return k8sServerVersion, err
 }

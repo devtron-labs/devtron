@@ -26,7 +26,6 @@ type AppTemplate struct {
 	ValuesFile      string
 	RepoPath        string
 	RepoUrl         string
-	TargetName      string
 }
 
 const TimeoutSlow = 30 * time.Second
