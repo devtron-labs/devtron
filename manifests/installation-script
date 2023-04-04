@@ -135,10 +135,10 @@ rollout = kubectl apply -n devtroncd rollout -u rolloutOverride;
 log("executed rollout setup command");
 
 #git-sensor
-kubeYamlEdit(gitSensor, "data.PG_PASSWORD", postgresqlPassword, `/Secret//git-sensor-secret`);
+#kubeYamlEdit(gitSensor, "data.PG_PASSWORD", postgresqlPassword, `/Secret//git-sensor-secret`);
 
 #lens
-kubeYamlEdit(lens, "data.PG_PASSWORD", postgresqlPassword, `/Secret//lens-secret`);
+#kubeYamlEdit(lens, "data.PG_PASSWORD", postgresqlPassword, `/Secret//lens-secret`);
 
 #migrator
 #delete migrator job

@@ -1,0 +1,111 @@
+{{- with $.Values.lens }}
+# Source: lens/templates/configmap.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: lens-secret
+  labels:
+    release: devtron
+type: Opaque
+{{- if $.Values.lens.secrets }}
+data:
+{{- range $k, $v := $.Values.lens.secrets }}
+  {{ $k }}: {{ $v | b64enc }}
+{{- end }}
+{{- end }}
+---
+# Source: lens/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lens-cm
+  labels:
+    release: devtron
+data:
+{{- if $.Values.lens.configs}}
+{{ toYaml $.Values.lens.configs | indent 2 }}
+{{- end }}
+---
+# Source: lens/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: lens-service
+  labels:
+    app: lens
+    chart: lens-3.7.1
+    release: devtron
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: app
+      protocol: TCP
+      name: app
+  selector:
+    app: lens
+---
+# Source: lens/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lens
+  labels:
+    app: lens
+    chart: lens-3.7.1
+    release: devtron
+spec:
+  selector:
+    matchLabels:
+      app: lens
+      release: devtron
+  replicas: 1
+  minReadySeconds: 60
+  template:
+    metadata:
+      labels:
+        app: lens
+        release: devtron
+    spec:
+      terminationGracePeriodSeconds: 30
+      restartPolicy: Always
+      {{- if and $.Values.global $.Values.global.podSecurityContext }}
+      securityContext:
+{{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: lens
+          image: {{ $.Values.lens.image }}
+          imagePullPolicy: {{ $.Values.lens.imagePullPolicy }}
+          {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+          securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: app
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            {{- if $.Values.lens.dbconfig }}
+            - name: PG_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{  $.Values.lens.dbconfig.secretName }}
+                  key: {{  $.Values.lens.dbconfig.keyName }}
+            {{- end }}
+          envFrom:
+          - configMapRef:
+              name: lens-cm
+          - secretRef:
+              name: lens-secret
+          volumeMounts: []
+  revisionHistoryLimit: 3
+{{- if $.Values.lens.resources }}
+          resources:
+{{ toYaml $.Values.lens.resources | indent 12 }}
+{{- end }}
+{{- end }}

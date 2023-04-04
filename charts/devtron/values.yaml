@@ -15,15 +15,16 @@ installer:
   tag: 44b30917-185-13275
   source: "github" # Available options are github and gitee
 #  mode: "dashboard" # Available options are dashboard, full and hyperion (deprecated) NOT USING THIS
-  modules: [] # Available options are cicd
+  modules: 
+  - "cicd" # Available options are cicd
   production_overrides: "" # Set true if you want to use this Devtron stack in Production (This will require more resources)
 
 # Change the below values for full mode only
 
 #Use secrets in plaintext, they'll be encoded to base64 automatically.
-secrets: {}
+secrets: 
 #  If No POSTGRESQL_PASSWORD is provided, a password is automatically generated and saved in secret devtron-secret
-#  POSTGRESQL_PASSWORD: "change-me"
+  POSTGRESQL_PASSWORD: "change-me"
 
 #  REQUIRED IF BLOB_STORAGE_PROVIDER=AZURE Token with read write access to AZURE_BLOB_CONTAINER_CI_LOG and AZURE_BLOB_CONTAINER_CI_CACHE
 #  AZURE_ACCOUNT_KEY: "xxxxxxxxxx"
@@ -279,7 +280,7 @@ security:
     fullnameOverride: clair
 # Values for notifier integration
 notifier:
-  enabled: false
+  enabled: true
   imagePullPolicy: IfNotPresent
   image: "quay.io/devtron/notifier:6c7a356a-372-11107"
   configs:
@@ -293,6 +294,33 @@ notifier:
     secretName: postgresql-postgresql
     keyName: postgresql-password
   resources: {}
+lens: 
+  image: "quay.io/devtron/lens:f71dba2a-333-13262"
+  imagePullPolicy: IfNotPresent
+  secrets: {}
+  resources: {}
+  configs:
+    GIT_SENSOR_URL: http://git-sensor-service.devtroncd:80
+    NATS_SERVER_HOST: nats://devtron-nats.devtroncd:4222
+    PG_ADDR: postgresql-postgresql.devtroncd
+    PG_PORT: "5432"
+    PG_USER: postgres
+    PG_DATABASE: lens
+  dbconfig:
+    secretName: postgresql-postgresql
+    keyName: postgresql-password
+
+gitsensor:
+  image: "quay.io/devtron/git-sensor:e5e66474-200-13261"
+  imagePullPolicy: IfNotPresent
+  secrets: {}
+  configs:
+    PG_ADDR: postgresql-postgresql.devtroncd
+    PG_USER: postgres
+    COMMIT_STATS_TIMEOUT_IN_SEC: "2"
+  dbconfig:
+    secretName: postgresql-postgresql
+    keyName: postgresql-password
 # Set enable to true if you want to use minio for storing cache and logs
 minio:
   enabled: false

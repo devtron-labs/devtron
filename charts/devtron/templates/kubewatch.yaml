@@ -1,3 +1,4 @@
+{{- if $.Values.components }}
 {{- with .Values.components.kubewatch }}
 # Source: kubewatch/templates/generic.yaml
 # Source: kubewatch/templates/servieaccount.yaml
@@ -197,4 +198,5 @@ spec:
       - name: kubewatch-config-map
         configMap:
           name: kubewatch-config
+{{- end }}
 {{- end }}
