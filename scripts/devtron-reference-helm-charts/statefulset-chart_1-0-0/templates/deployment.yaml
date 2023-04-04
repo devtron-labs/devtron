@@ -51,7 +51,9 @@ spec:
   replicas: {{ $.Values.replicaCount }}
   minReadySeconds: {{ $.Values.MinReadySeconds }}
   serviceName: {{ $.Values.statefulSetConfig.serviceName }}
+  {{- if $.Values.statefulSetConfig.podManagementPolicy }}
   podManagementPolicy: {{ $.Values.statefulSetConfig.podManagementPolicy }}
+  {{- end }}
   template:
     metadata:
     {{- if .Values.podAnnotations }}
