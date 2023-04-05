@@ -2404,10 +2404,7 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 }
 
 func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, pipeline *bean.CDPipelineConfigObject, userID int32) (err error) {
-
-	pipeline.UserApprovalConf = pipelineConfig.UserApprovalConfig{
-		RequiredCount: 3,
-	}
+	
 	if len(pipeline.PreStage.Config) > 0 && !strings.Contains(pipeline.PreStage.Config, "beforeStages") {
 		err = &util.ApiError{
 			HttpStatusCode:  http.StatusBadRequest,
