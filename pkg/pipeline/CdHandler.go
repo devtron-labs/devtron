@@ -704,6 +704,11 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		impl.Logger.Errorw("err", "err", err)
 		return WorkflowResponse{}, err
 	}
+	ciArtifact, err := impl.ciArtifactRepository.Get(ciArtifactId)
+	if err != nil {
+		impl.Logger.Errorw("error in getting ci artifact by id", "err", err, "id", ciArtifactId)
+		return WorkflowResponse{}, err
+	}
 
 	var ciMaterialsArr []CiPipelineMaterialResponse
 	for _, m := range ciMaterials {
@@ -739,6 +744,7 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		Stage:              workflow.WorkflowType,
 		GitTriggers:        gitTriggers,
 		BlobStorageEnabled: workflow.BlobStorageEnabled,
+		IsArtifactUploaded: ciArtifact.IsArtifactUploaded,
 	}
 	return workflowResponse, nil
 
