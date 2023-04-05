@@ -676,22 +676,40 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 	} else if err == pg.ErrNoRows {
 		return WorkflowResponse{}, nil
 	}
-	if workflowR.DeploymentApprovalRequest != nil {
+
+	var userIds []int32
+	var approvalRequestedUserId int32
+	approvalRequest := workflowR.DeploymentApprovalRequest
+	if approvalRequest != nil {
 		approvalReqId := workflowR.DeploymentApprovalRequestId
 		approvalUserData, err := impl.deploymentApprovalRepository.FetchApprovalDataForRequests([]int{approvalReqId})
 		if err != nil {
 			return WorkflowResponse{}, err
 		}
-		workflowR.DeploymentApprovalRequest.DeploymentApprovalUserData = approvalUserData
-
+		approvalRequest.DeploymentApprovalUserData = approvalUserData
+		approvalRequestedUserId = approvalRequest.CreatedBy
+		userIds = append(userIds, approvalRequestedUserId)
 	}
-	workflow := impl.converterWFR(*workflowR)
 
-	triggeredByUser, err := impl.userService.GetById(workflow.TriggeredBy)
+	triggeredBy := workflowR.TriggeredBy
+
+	var triggeredByUser *bean.UserInfo
+	userIds = append(userIds, triggeredBy)
+	userInfos, err := impl.userService.GetByIds(userIds)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.Logger.Errorw("err", "err", err)
 		return WorkflowResponse{}, err
 	}
+	for _, userInfo := range userInfos {
+		if userInfo.Id == triggeredBy {
+			triggeredByUser = &userInfo
+		} else if userInfo.Id == approvalRequestedUserId {
+			approvalRequest.UserEmail = userInfo.EmailId
+		}
+	}
+
+	workflow := impl.converterWFR(*workflowR)
+
 	if triggeredByUser == nil {
 		triggeredByUser = &bean.UserInfo{EmailId: "anonymous"}
 	}

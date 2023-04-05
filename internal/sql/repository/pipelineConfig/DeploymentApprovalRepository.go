@@ -35,6 +35,7 @@ type DeploymentApprovalRequest struct {
 	ArtifactId                  int                           `sql:"artifact_id"`    // keep in mind foreign key constraint
 	Active                      bool                          `sql:"active,notnull"` // user can cancel request anytime
 	ArtifactDeploymentTriggered bool                          `sql:"artifact_deployment_triggered"`
+	UserEmail                   string                        `sql:"-"` // used for internal purpose
 	DeploymentApprovalUserData  []*DeploymentApprovalUserData `sql:"-"`
 	sql.AuditLog
 }
@@ -146,7 +147,7 @@ func (request *DeploymentApprovalRequest) ConvertToApprovalMetadata() *UserAppro
 	approvalMetadata := &UserApprovalMetadata{ApprovalRequestId: request.Id}
 	requestedUserData := UserApprovalData{DataId: request.Id}
 	requestedUserData.UserId = request.CreatedBy
-	//TODO KB: need to fetch requester email id
+	requestedUserData.UserEmail = request.UserEmail
 	requestedUserData.UserActionTime = request.CreatedOn
 	approvalMetadata.RequestedUserData = requestedUserData
 	var userApprovalData []UserApprovalData

@@ -43,12 +43,12 @@ type UserAuthRepository interface {
 	GetRolesByGroupId(userId int32) ([]*RoleModel, error)
 	GetAllRole() ([]RoleModel, error)
 	GetRolesByActionAndAccessType(action string, accessType string) ([]RoleModel, error)
-	GetRoleByFilterForAllTypes(entity, team, app, env, act, accessType, cluster, namespace, group, kind, resource, action string, oldValues bool) (RoleModel, error)
+	GetRoleByFilterForAllTypes(entity, team, app, env, act string, approver bool, accessType, cluster, namespace, group, kind, resource, action string, oldValues bool) (RoleModel, error)
 	CreateUserRoleMapping(userRoleModel *UserRoleModel, tx *pg.Tx) (*UserRoleModel, error)
 	GetUserRoleMappingByUserId(userId int32) ([]*UserRoleModel, error)
 	DeleteUserRoleMapping(userRoleModel *UserRoleModel, tx *pg.Tx) (bool, error)
 	DeleteUserRoleByRoleId(roleId int, tx *pg.Tx) error
-	CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, UserId int32) (bool, error, []casbin2.Policy)
+	CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, approver bool, UserId int32) (bool, error, []casbin2.Policy)
 	CreateRoleForSuperAdminIfNotExists(tx *pg.Tx, UserId int32) (bool, error)
 	SyncOrchestratorToCasbin(team string, entityName string, env string, tx *pg.Tx) (bool, error)
 	UpdateTriggerPolicyForTerminalAccess() error
@@ -60,6 +60,7 @@ type UserAuthRepository interface {
 	//GetRoleByFilterForClusterEntity(cluster, namespace, group, kind, resource, action string) (RoleModel, error)
 	GetRolesByUserIdAndEntityType(userId int32, entityType string) ([]*RoleModel, error)
 	CreateRolesWithAccessTypeAndEntity(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, UserId int32, role string) (bool, error)
+	GetApprovalUsersByEnv(appName, envName string) ([]string, error)
 }
 
 type UserAuthRepositoryImpl struct {
@@ -90,6 +91,7 @@ type RoleModel struct {
 	Environment string   `sql:"environment"`
 	Action      string   `sql:"action"`
 	AccessType  string   `sql:"access_type"`
+	Approver    bool     `sql:"approver"`
 	Cluster     string   `sql:"cluster"`
 	Namespace   string   `sql:"namespace"`
 	Group       string   `sql:"group"`
@@ -107,6 +109,7 @@ type RolePolicyDetails struct {
 	AppObj     string
 	Entity     string
 	EntityName string
+	Approver   bool
 
 	Cluster      string
 	Namespace    string
@@ -233,7 +236,7 @@ func (impl UserAuthRepositoryImpl) GetRolesByActionAndAccessType(action string, 
 	return models, nil
 }
 
-func (impl UserAuthRepositoryImpl) GetRoleByFilterForAllTypes(entity, team, app, env, act, accessType, cluster, namespace, group, kind, resource, action string, oldValues bool) (RoleModel, error) {
+func (impl UserAuthRepositoryImpl) GetRoleByFilterForAllTypes(entity, team, app, env, act string, approver bool, accessType, cluster, namespace, group, kind, resource, action string, oldValues bool) (RoleModel, error) {
 	var model RoleModel
 	if entity == bean2.CLUSTER {
 
@@ -310,6 +313,11 @@ func (impl UserAuthRepositoryImpl) GetRoleByFilterForAllTypes(entity, team, app,
 			} else {
 				query += " and role.access_type='" + accessType + "'"
 			}
+			if approver {
+				query += " and role.approver = true"
+			} else {
+				query += " and ( role.approver = false OR role.approver is null)"
+			}
 
 			_, err = impl.dbConnection.Query(&model, query, team, app, env, act)
 		} else if len(team) > 0 && app == "" && len(env) > 0 && len(act) > 0 {
@@ -320,6 +328,11 @@ func (impl UserAuthRepositoryImpl) GetRoleByFilterForAllTypes(entity, team, app,
 			} else {
 				query += " and role.access_type='" + accessType + "'"
 			}
+			if approver {
+				query += " and role.approver = true"
+			} else {
+				query += " and ( role.approver = false OR role.approver is null)"
+			}
 			_, err = impl.dbConnection.Query(&model, query, team, EMPTY, env, act)
 		} else if len(team) > 0 && len(app) > 0 && env == "" && len(act) > 0 {
 			//this is applicable for all environment of a team
@@ -328,6 +341,11 @@ func (impl UserAuthRepositoryImpl) GetRoleByFilterForAllTypes(entity, team, app,
 				query = query + " and role.access_type is NULL"
 			} else {
 				query += " and role.access_type='" + accessType + "'"
+			}
+			if approver {
+				query += " and role.approver = true"
+			} else {
+				query += " and ( role.approver = false OR role.approver is null)"
 			}
 
 			_, err = impl.dbConnection.Query(&model, query, team, app, EMPTY, act)
@@ -339,6 +357,11 @@ func (impl UserAuthRepositoryImpl) GetRoleByFilterForAllTypes(entity, team, app,
 			} else {
 				query += " and role.access_type='" + accessType + "'"
 			}
+			if approver {
+				query += " and role.approver = true"
+			} else {
+				query += " and ( role.approver = false OR role.approver is null)"
+			}
 
 			_, err = impl.dbConnection.Query(&model, query, team, EMPTY, EMPTY, act)
 		} else if team == "" && app == "" && env == "" && len(act) > 0 {
@@ -348,6 +371,11 @@ func (impl UserAuthRepositoryImpl) GetRoleByFilterForAllTypes(entity, team, app,
 				query = query + " and role.access_type is NULL"
 			} else {
 				query += " and role.access_type='" + accessType + "'"
+			}
+			if approver {
+				query += " and role.approver = true"
+			} else {
+				query += " and ( role.approver = false OR role.approver is null)"
 			}
 			_, err = impl.dbConnection.Query(&model, query, EMPTY, EMPTY, EMPTY, act)
 		} else if team == "" && app == "" && env == "" && act == "" {
@@ -402,7 +430,7 @@ func (impl UserAuthRepositoryImpl) DeleteUserRoleByRoleId(roleId int, tx *pg.Tx)
 	return nil
 }
 
-func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, UserId int32) (bool, error, []casbin2.Policy) {
+func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, approver bool, UserId int32) (bool, error, []casbin2.Policy) {
 	//not using txn from parent caller because of conflicts in fetching of transactional save
 	dbConnection := impl.dbConnection
 	tx, err := dbConnection.Begin()
@@ -457,6 +485,7 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team, entity
 		AppObj:       appObj,
 		Entity:       entity,
 		EntityName:   entityName,
+		Approver:     approver,
 		Cluster:      cluster,
 		Namespace:    namespace,
 		Group:        group,
@@ -517,6 +546,18 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team, entity
 	}
 	return true, nil, policiesToBeAdded
 }
+
+func (impl UserAuthRepositoryImpl) GetApprovalUsersByEnv(appName, envName string) ([]string, error) {
+	//TODO KB: need to handle permission groups also
+	var emailIds []string
+	query := "select distinct(email_id) from users us inner join user_roles ur on us.id=ur.user_id inner join roles on ur.role_id = roles.id where roles.approver = true and  and roles.environment=? and entity_name=?;"
+	_, err := impl.dbConnection.Query(&emailIds, query, envName, appName)
+	if err != nil && err != pg.ErrNoRows {
+		return emailIds, err
+	}
+	return emailIds, nil
+}
+
 func (impl UserAuthRepositoryImpl) CreateRolesWithAccessTypeAndEntity(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, UserId int32, role string) (bool, error) {
 	dbConnection := impl.dbConnection
 	tx, err := dbConnection.Begin()
@@ -558,7 +599,7 @@ func (impl UserAuthRepositoryImpl) CreateRoleForSuperAdminIfNotExists(tx *pg.Tx,
 	}
 
 	//Creating ROLES
-	roleModel, err := impl.GetRoleByFilterForAllTypes("", "", "", "", bean2.SUPER_ADMIN, "", "", "", "", "", "", "", false)
+	roleModel, err := impl.GetRoleByFilterForAllTypes("", "", "", "", bean2.SUPER_ADMIN, false, "", "", "", "", "", "", "", false)
 	if err != nil && err != pg.ErrNoRows {
 		return false, err
 	}
@@ -592,6 +633,7 @@ func (impl UserAuthRepositoryImpl) createRole(roleData *bean.RoleData, tx *pg.Tx
 		Environment: roleData.Environment,
 		Action:      roleData.Action,
 		AccessType:  roleData.AccessType,
+		Approver:    roleData.Approver,
 		Cluster:     roleData.Cluster,
 		Namespace:   roleData.Namespace,
 		Group:       roleData.Group,

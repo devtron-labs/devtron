@@ -59,6 +59,7 @@ type UserService interface {
 	UpdateTriggerPolicyForTerminalAccess() (err error)
 	GetRoleFiltersByGroupNames(groupNames []string) ([]bean.RoleFilter, error)
 	SaveLoginAudit(emailId, clientIp string, id int32)
+	GetApprovalUsersByEnv(appName, envName string) ([]string, error)
 }
 
 type UserServiceImpl struct {
@@ -373,7 +374,7 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 		if err != nil || flag == false {
 			return nil, err
 		}
-		roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes("", "", "", "", bean2.SUPER_ADMIN, "", "", "", "", "", "", "", false)
+		roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes("", "", "", "", bean2.SUPER_ADMIN, false, "", "", "", "", "", "", "", false)
 		if err != nil {
 			return nil, err
 		}
@@ -438,19 +439,19 @@ func (impl UserServiceImpl) CreateOrUpdateUserRolesForAllTypes(roleFilter bean.R
 				}
 				entityName = impl.userCommonService.RemovePlaceHolderInRoleFilterField(entityName)
 				environment = impl.userCommonService.RemovePlaceHolderInRoleFilterField(environment)
-				roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", actionType, false)
+				roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, roleFilter.Approver, accessType, "", "", "", "", "", actionType, false)
 				if err != nil {
 					impl.logger.Errorw("error in getting role by all type", "err", err, "roleFilter", roleFilter)
 					return policiesToBeAdded, rolesChanged, err
 				}
 				if roleModel.Id == 0 {
 					impl.logger.Debugw("no role found for given filter", "filter", "roleFilter", roleFilter)
-					flag, err, policiesAdded := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType, userId)
+					flag, err, policiesAdded := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType, roleFilter.Approver, userId)
 					if err != nil || flag == false {
 						return policiesToBeAdded, rolesChanged, err
 					}
 					policiesToBeAdded = append(policiesToBeAdded, policiesAdded...)
-					roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", actionType, false)
+					roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, roleFilter.Approver, accessType, "", "", "", "", "", actionType, false)
 					if err != nil {
 						return policiesToBeAdded, rolesChanged, err
 					}
@@ -512,19 +513,19 @@ func (impl UserServiceImpl) createOrUpdateUserRolesForClusterEntity(roleFilter b
 						}
 					}
 					impl.logger.Infow("Getting Role by filter for cluster")
-					roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, "", "", "", "", accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType, false)
+					roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, "", "", "", "", false, accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType, false)
 					if err != nil {
 						return policiesToBeAdded, rolesChanged, err
 					}
 					if roleModel.Id == 0 {
 						impl.logger.Infow("Creating Polices for cluster", resource, kind, namespace, group)
-						flag, err, policiesAdded := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes("", "", "", entity, roleFilter.Cluster, namespace, group, kind, resource, actionType, accessType, userId)
+						flag, err, policiesAdded := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes("", "", "", entity, roleFilter.Cluster, namespace, group, kind, resource, actionType, accessType, false, userId)
 						if err != nil || flag == false {
 							return policiesToBeAdded, rolesChanged, err
 						}
 						policiesToBeAdded = append(policiesToBeAdded, policiesAdded...)
 						impl.logger.Infow("getting role again for cluster")
-						roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, "", "", "", "", accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType, false)
+						roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, "", "", "", "", false, accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType, false)
 						if err != nil {
 							return policiesToBeAdded, rolesChanged, err
 						}
@@ -766,7 +767,7 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 		if err != nil || flag == false {
 			return nil, false, false, nil, err
 		}
-		roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes("", "", "", "", bean2.SUPER_ADMIN, "", "", "", "", "", "", "", false)
+		roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes("", "", "", "", bean2.SUPER_ADMIN, false, "", "", "", "", "", "", "", false)
 		if err != nil {
 			return nil, false, false, nil, err
 		}
@@ -1025,6 +1026,10 @@ func (impl UserServiceImpl) UserExists(emailId string) bool {
 	} else {
 		return true
 	}
+}
+
+func (impl UserServiceImpl) GetApprovalUsersByEnv(appName, envName string) ([]string, error) {
+	return impl.userAuthRepository.GetApprovalUsersByEnv(appName, envName)
 }
 func (impl UserServiceImpl) SaveLoginAudit(emailId, clientIp string, id int32) {
 

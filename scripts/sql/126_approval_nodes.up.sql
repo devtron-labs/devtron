@@ -1,7 +1,5 @@
 alter table pipeline add column user_approval_config character varying(1000);
 
-alter table cd_workflow_runner add column deployment_approval_request_id int CONSTRAINT "cd_workflow_runner_deployment_approval_request_id_fkey" REFERENCES "public"."deployment_approval_request" ("id")
-
 CREATE SEQUENCE IF NOT EXISTS id_seq_deployment_approval_request;
 
 CREATE TABLE public.deployment_approval_request (
@@ -36,3 +34,63 @@ CONSTRAINT "deployment_approval_user_data_user_id_fkey" FOREIGN KEY ("user_id") 
 PRIMARY KEY ("id")
 );
 
+alter table cd_workflow_runner add column deployment_approval_request_id int CONSTRAINT "cd_workflow_runner_deployment_approval_request_id_fkey" REFERENCES "public"."deployment_approval_request" ("id");
+
+Alter table roles
+add column approver bool;
+
+update default_auth_role
+set role = '{
+    "role": "role:manager_{{.Team}}_{{.Env}}_{{.App}}",
+    "casbinSubjects": [
+        "role:manager_{{.Team}}_{{.Env}}_{{.App}}"
+    ],
+    "team": "{{.Team}}",
+    "entityName": "{{.App}}",
+    "environment": "{{.Env}}",
+    "approver":{{.Approver}},
+    "action": "manager",
+    "access_type": "devtron-app"
+}' where id = 1;
+
+update default_auth_role
+set role = '{
+    "role": "role:admin_{{.Team}}_{{.Env}}_{{.App}}",
+     "casbinSubjects": [
+         "role:admin_{{.Team}}_{{.Env}}_{{.App}}"
+     ],
+     "team": "{{.Team}}",
+     "entityName": "{{.App}}",
+     "environment": "{{.Env}}",
+     "approver":{{.Approver}},
+     "action": "admin",
+     "access_type": "devtron-app"
+}' where id = 2;
+
+update default_auth_role
+set role = '{
+    "role": "role:trigger_{{.Team}}_{{.Env}}_{{.App}}",
+     "casbinSubjects": [
+         "role:trigger_{{.Team}}_{{.Env}}_{{.App}}"
+     ],
+     "team": "{{.Team}}",
+     "entityName": "{{.App}}",
+     "environment": "{{.Env}}",
+     "approver":{{.Approver}},
+     "action": "trigger",
+     "access_type": "devtron-app"
+}' where id = 3;
+
+update default_auth_role
+set role = '{
+    "role": "role:view_{{.Team}}_{{.Env}}_{{.App}}",
+    "casbinSubjects": [
+        "role:view_{{.Team}}_{{.Env}}_{{.App}}"
+    ],
+    "team": "{{.Team}}",
+    "entityName": "{{.App}}",
+    "environment": "{{.Env}}",
+    "approver":{{.Approver}},
+    "action": "view",
+    "access_type": "devtron-app"
+}' where id = 4;

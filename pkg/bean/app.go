@@ -650,6 +650,7 @@ type CiArtifactResponse struct {
 	CiArtifacts            []CiArtifactBean                  `json:"ci_artifacts,notnull"`
 	UserApprovalConfig     pipelineConfig.UserApprovalConfig `json:"userApprovalConfig"`
 	ArtifactTriggeredBy    string                            `json:"artifactTriggeredBy"`
+	ApprovalUsers          []string                          `json:"approvalUsers"`
 }
 
 type AppLabelsDto struct {
