@@ -58,3 +58,10 @@ You can change SSO configuration anytime by updating the configuration and click
 * `config` : User can put connector details for this key. Platforms may not have same structure but common configurations are `clientID`, `clientSecret`, `redirectURI`.
 * `hostedDomains` : Domains authorized for SSO login.
  
+ ### 3. Google SSO Integration In Case Of VPN
+
+ If you want configure SSO login for the Devtron dashboard that is restricted through the VPN, then you need to whitelist the VPN IP under `loadBalancerSourceRanges:` either way i.e. by editing the `devtron-service` or by whitelisting the IP from the `ingress controller`. 
+
+![Whitelist VPN IP in devtron-service](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/sso-login-service/vpn-devtron-service.jpg)
+
+![Whitelist VPN IP in ingress controller](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/sso-login-service/vpn-ingress.jpg)
