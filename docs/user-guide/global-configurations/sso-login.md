@@ -26,7 +26,7 @@ Refer the following documents for more detail.
 * https://dexidp.io/docs/connectors/google/
 
 
-### 1. Create new SSO Configuration
+### 1. Create New SSO Configuration
 
 Make sure that you have a [super admin access](https://docs.devtron.ai/global-configurations/authorization/user-access#assign-super-admin-permission).
 
@@ -57,3 +57,4 @@ You can change SSO configuration anytime by updating the configuration and click
 * `id` : Identity provider platform which is a unique ID in string. (Refer to [dexidp.io](https://dexidp.io/)
 * `config` : User can put connector details for this key. Platforms may not have same structure but common configurations are `clientID`, `clientSecret`, `redirectURI`.
 * `hostedDomains` : Domains authorized for SSO login.
+ 
