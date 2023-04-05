@@ -1173,7 +1173,7 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 			continue
 		}
 
-		artifactResponse, err := impl.pipelineBuilder.GetArtifactsByCDPipeline(pipeline.Id, bean.CD_WORKFLOW_TYPE_DEPLOY)
+		artifactResponse, err := impl.pipelineBuilder.GetArtifactsByCDPipeline(pipeline.Id, bean.CD_WORKFLOW_TYPE_DEPLOY, false)
 		if err != nil {
 			impl.logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", pipeline.Id)
 			//return nil, err
@@ -1190,7 +1190,7 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 			response[appKey] = pipelineResponse
 			continue
 		}
-		artifact := artifacts[0]
+		artifact := artifacts[0] //TODO KB: fetch latest approved artifact in case of approval node configured
 		overrideRequest := &bean.ValuesOverrideRequest{
 			PipelineId:     pipeline.Id,
 			AppId:          pipeline.AppId,

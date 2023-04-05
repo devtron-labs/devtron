@@ -1,6 +1,7 @@
 package pipelineConfig
 
 import (
+	"errors"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/go-pg/pg"
@@ -14,6 +15,7 @@ type DeploymentApprovalRepository interface {
 	Save(deploymentApprovalRequest *DeploymentApprovalRequest) error
 	Update(deploymentApprovalRequest *DeploymentApprovalRequest) error
 	SaveDeploymentUserData(userData *DeploymentApprovalUserData) error
+	ConsumeApprovalRequest(requestId int) error
 }
 
 type DeploymentApprovalRepositoryImpl struct {
@@ -28,10 +30,10 @@ func NewDeploymentApprovalRepositoryImpl(dbConnection *pg.DB, logger *zap.Sugare
 type DeploymentApprovalRequest struct {
 	tableName                   struct{} `sql:"deployment_approval_request" pg:",discard_unknown_columns"`
 	Id                          int      `sql:"id,pk"`
-	PipelineId                  int      `sql:"pipeline_id"`                   // keep in mind foreign key constraint
-	ArtifactId                  int      `sql:"artifact_id"`                   // keep in mind foreign key constraint
-	Active                      bool     `sql:"active,notnull"`                // user can cancel request anytime
-	ArtifactDeploymentTriggered bool     `sql:"artifact_deployment_triggered"` // keep in mind foreign key constraint
+	PipelineId                  int      `sql:"pipeline_id"`    // keep in mind foreign key constraint
+	ArtifactId                  int      `sql:"artifact_id"`    // keep in mind foreign key constraint
+	Active                      bool     `sql:"active,notnull"` // user can cancel request anytime
+	ArtifactDeploymentTriggered bool     `sql:"artifact_deployment_triggered"`
 	DeploymentApprovalUsers     []*DeploymentApprovalUserData
 	sql.AuditLog
 }
@@ -52,15 +54,36 @@ func (impl *DeploymentApprovalRepositoryImpl) FetchApprovalDataForArtifacts(arti
 	var requests []*DeploymentApprovalRequest
 	err := impl.dbConnection.
 		Model(&requests).
-		Column("deployment_approval_request.*", "DeploymentApprovalUsers", "DeploymentApprovalUsers.User").
+		Column("deployment_approval_request.*", /*"DeploymentApprovalUsers", "DeploymentApprovalUsers.User"*/).
 		Where("artifact_id in (?) ", pg.In(artifactIds)).
 		Where("pipeline_id = ?", pipelineId).
-		Where("cd_workflow_runner_id is null ").
+		Where("artifact_deployment_triggered = ?", false).
 		Where("active = ?", true).
 		Select()
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error occurred while fetching artifacts", "pipelineId", pipelineId, "err", err)
 		return nil, err
+	}
+	var requestIdMap map[int]*DeploymentApprovalRequest
+	for _, request := range requests {
+		requestIdMap[request.Id] = request
+	}
+	var usersData []*DeploymentApprovalUserData
+	err = impl.dbConnection.
+		Model(&usersData).
+		Column("deployment_approval_user_data.*", "User").
+		Where("approval_request_id in (?) ", pg.In(artifactIds)).
+		Select()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error occurred while fetching artifacts", "pipelineId", pipelineId, "err", err)
+		return nil, err
+	}
+	for _, userData := range usersData {
+		approvalRequestId := userData.ApprovalRequestId
+		deploymentApprovalRequest := requestIdMap[approvalRequestId]
+		approvalUsers := deploymentApprovalRequest.DeploymentApprovalUsers
+		approvalUsers = append(approvalUsers, userData)
+		deploymentApprovalRequest.DeploymentApprovalUsers = approvalUsers
 	}
 	return requests, nil
 }
@@ -74,6 +97,18 @@ func (impl *DeploymentApprovalRepositoryImpl) FetchById(requestId int) (*Deploym
 		return nil, err
 	}
 	return request, nil
+}
+
+func (impl *DeploymentApprovalRepositoryImpl) ConsumeApprovalRequest(requestId int) error {
+	request, err := impl.FetchById(requestId)
+	if err != pg.ErrNoRows {
+		impl.logger.Errorw("error occurred while fetching approval request", "requestId", requestId, "err", err)
+		return err
+	} else if err == pg.ErrNoRows {
+		return errors.New("approval request not raised for this artifact")
+	}
+	request.ArtifactDeploymentTriggered = true
+	return impl.Update(request)
 }
 
 func (impl *DeploymentApprovalRepositoryImpl) Save(deploymentApprovalRequest *DeploymentApprovalRequest) error {

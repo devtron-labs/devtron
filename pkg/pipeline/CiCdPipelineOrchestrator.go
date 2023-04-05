@@ -1199,6 +1199,13 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCDPipelines(pipelineRequest *bean
 		impl.logger.Error(err)
 		return 0, err
 	}
+
+	userApprovalConf, err := json.Marshal(&pipelineRequest.UserApprovalConf)
+	if err != nil {
+		impl.logger.Error(err)
+		return 0, err
+	}
+
 	env, err := impl.envRepository.FindById(pipelineRequest.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in getting environment by id", "err", err)
@@ -1222,6 +1229,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCDPipelines(pipelineRequest *bean
 		DeploymentAppCreated:          false,
 		DeploymentAppType:             pipelineRequest.DeploymentAppType,
 		DeploymentAppName:             fmt.Sprintf("%s-%s", appName, env.Name),
+		UserApprovalConfig:            string(userApprovalConf),
 		AuditLog:                      sql.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 	}
 	err = impl.pipelineRepository.Save([]*pipelineConfig.Pipeline{pipeline}, tx)
@@ -1281,6 +1289,12 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateCDPipeline(pipelineRequest *bean.
 		return err
 	}
 
+	userApprovalConf, err := json.Marshal(&pipelineRequest.UserApprovalConf)
+	if err != nil {
+		impl.logger.Error(err)
+		return err
+	}
+
 	pipeline.TriggerType = pipelineRequest.TriggerType
 	pipeline.PreStageConfig = preStageConfig
 	pipeline.PostStageConfig = postStageConfig
@@ -1290,6 +1304,7 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateCDPipeline(pipelineRequest *bean.
 	pipeline.PostStageConfigMapSecretNames = string(postStageConfigMapSecretNames)
 	pipeline.RunPreStageInEnv = pipelineRequest.RunPreStageInEnv
 	pipeline.RunPostStageInEnv = pipelineRequest.RunPostStageInEnv
+	pipeline.UserApprovalConfig = string(userApprovalConf)
 	pipeline.UpdatedBy = userId
 	pipeline.UpdatedOn = time.Now()
 	err = impl.pipelineRepository.Update(pipeline, tx)
@@ -1345,6 +1360,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 
 		preStageConfigmapSecrets := bean.PreStageConfigMapSecretNames{}
 		postStageConfigmapSecrets := bean.PostStageConfigMapSecretNames{}
+		approvalConfig := pipelineConfig.UserApprovalConfig{}
 
 		if dbPipeline.PreStageConfigMapSecretNames != "" {
 			err = json.Unmarshal([]byte(dbPipeline.PreStageConfigMapSecretNames), &preStageConfigmapSecrets)
@@ -1355,6 +1371,14 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 		}
 		if dbPipeline.PostStageConfigMapSecretNames != "" {
 			err = json.Unmarshal([]byte(dbPipeline.PostStageConfigMapSecretNames), &postStageConfigmapSecrets)
+			if err != nil {
+				impl.logger.Error(err)
+				return nil, err
+			}
+		}
+
+		if dbPipeline.ApprovalNodeConfigured() {
+			err = json.Unmarshal([]byte(dbPipeline.UserApprovalConfig), &approvalConfig)
 			if err != nil {
 				impl.logger.Error(err)
 				return nil, err
@@ -1375,6 +1399,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 			PostStageConfigMapSecretNames: postStageConfigmapSecrets,
 			DeploymentAppType:             dbPipeline.DeploymentAppType,
 			DeploymentAppDeleteRequest:    dbPipeline.DeploymentAppDeleteRequest,
+			UserApprovalConf:              approvalConfig,
 		}
 		pipelines = append(pipelines, pipeline)
 	}
@@ -1427,6 +1452,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int) (cdPipe
 
 		preStageConfigmapSecrets := bean.PreStageConfigMapSecretNames{}
 		postStageConfigmapSecrets := bean.PostStageConfigMapSecretNames{}
+		approvalConfig := pipelineConfig.UserApprovalConfig{}
 
 		if dbPipeline.PreStageConfigMapSecretNames != "" {
 			err = json.Unmarshal([]byte(dbPipeline.PreStageConfigMapSecretNames), &preStageConfigmapSecrets)
@@ -1439,6 +1465,13 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int) (cdPipe
 			err = json.Unmarshal([]byte(dbPipeline.PostStageConfigMapSecretNames), &postStageConfigmapSecrets)
 			if err != nil {
 				impl.logger.Errorw("unmarshal error", "err", err)
+				return nil, err
+			}
+		}
+		if dbPipeline.ApprovalNodeConfigured() {
+			err = json.Unmarshal([]byte(dbPipeline.UserApprovalConfig), &approvalConfig)
+			if err != nil {
+				impl.logger.Error(err)
 				return nil, err
 			}
 		}
@@ -1459,6 +1492,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int) (cdPipe
 			DeploymentAppType:             dbPipeline.DeploymentAppType,
 			AppName:                       dbPipeline.App.AppName,
 			AppId:                         dbPipeline.AppId,
+			UserApprovalConf:              approvalConfig,
 		}
 		pipelines = append(pipelines, pipeline)
 	}
@@ -1495,6 +1529,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForAppAndEnv(appId int, e
 
 		preStageConfigmapSecrets := bean.PreStageConfigMapSecretNames{}
 		postStageConfigmapSecrets := bean.PostStageConfigMapSecretNames{}
+		approvalConfig := pipelineConfig.UserApprovalConfig{}
 
 		if dbPipeline.PreStageConfigMapSecretNames != "" {
 			err = json.Unmarshal([]byte(dbPipeline.PreStageConfigMapSecretNames), &preStageConfigmapSecrets)
@@ -1505,6 +1540,13 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForAppAndEnv(appId int, e
 		}
 		if dbPipeline.PostStageConfigMapSecretNames != "" {
 			err = json.Unmarshal([]byte(dbPipeline.PostStageConfigMapSecretNames), &postStageConfigmapSecrets)
+			if err != nil {
+				impl.logger.Error(err)
+				return nil, err
+			}
+		}
+		if dbPipeline.ApprovalNodeConfigured() {
+			err = json.Unmarshal([]byte(dbPipeline.UserApprovalConfig), &approvalConfig)
 			if err != nil {
 				impl.logger.Error(err)
 				return nil, err
@@ -1528,6 +1570,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForAppAndEnv(appId int, e
 			RunPreStageInEnv:              dbPipeline.RunPreStageInEnv,
 			RunPostStageInEnv:             dbPipeline.RunPostStageInEnv,
 			CdArgoSetup:                   env.Cluster.CdArgoSetup,
+			UserApprovalConf:              approvalConfig,
 		}
 		pipelines = append(pipelines, pipeline)
 	}

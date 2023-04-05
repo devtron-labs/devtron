@@ -71,7 +71,14 @@ type UserApprovalConfig struct {
 }
 
 func (pipeline Pipeline) ApprovalNodeConfigured() bool {
-	return len(pipeline.UserApprovalConfig) > 0
+	if len(pipeline.UserApprovalConfig) > 0 {
+		approvalConfig, err := pipeline.GetApprovalConfig()
+		if err != nil {
+			return false
+		}
+		return approvalConfig.RequiredCount > 0
+	}
+	return false
 }
 
 func (pipeline Pipeline) GetApprovalConfig() (UserApprovalConfig, error) {

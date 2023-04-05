@@ -8,7 +8,6 @@ import (
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -849,7 +848,7 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 	}
 	//rbac block ends here
 
-	ciArtifactResponse, err := handler.pipelineBuilder.GetArtifactsByCDPipeline(cdPipelineId, bean2.WorkflowType(stage))
+	ciArtifactResponse, err := handler.pipelineBuilder.GetArtifactsByCDPipeline(cdPipelineId, bean2.WorkflowType(stage), isApprovalNode)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -915,50 +914,6 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 				//}
 			}
 			ciArtifactsFinal = append(ciArtifactsFinal, item)
-		}
-		ciArtifactResponse.CiArtifacts = ciArtifactsFinal
-	}
-
-	userApprovalConfig := pipelineModel.UserApprovalConfig
-	if len(userApprovalConfig) > 0 && stage == "DEPLOY" {
-		handler.Logger.Infow("approval node configured", "pipelineId", pipelineModel.Id, "isApproval", isApprovalNode, "stage", stage)
-		approvalConfig, err := pipelineModel.GetApprovalConfig()
-		if err != nil {
-			handler.Logger.Errorw("service err, failed to unmarshal userApprovalConfig", "err", err, "cdPipelineId", cdPipelineId, "stage", stage, "userApprovalConfig", userApprovalConfig)
-			common.WriteJsonResp(w, errors.New("failed to unmarshal pipeline approval config"), nil, http.StatusInternalServerError)
-			return
-		}
-		var ciArtifactsFinal []bean.CiArtifactBean
-		var artifactIds []int
-		for _, item := range ciArtifactResponse.CiArtifacts {
-			artifactIds = append(artifactIds, item.Id)
-		}
-
-		var userApprovalMetadata map[int]*pipelineConfig.UserApprovalMetadata
-		userApprovalMetadata, err = handler.cdHandler.FetchApprovalDataForArtifacts(artifactIds, cdPipelineId, approvalConfig.RequiredCount) // it will fetch all the request data with nil cd_wfr_rnr_id
-		if err != nil {
-			common.WriteJsonResp(w, errors.New("failed to fetch approval artifacts metadata"), nil, http.StatusInternalServerError)
-			return
-		}
-		for _, artifact := range ciArtifactResponse.CiArtifacts {
-			allowed := false
-			approvalRuntimeState := pipelineConfig.InitApprovalState
-			approvalMetadataForArtifact, ok := userApprovalMetadata[artifact.Id]
-			if ok { // either approved or requested
-				approvalRuntimeState = approvalMetadataForArtifact.ApprovalRuntimeState
-				artifact.UserApprovalMetadata = approvalMetadataForArtifact
-			} else if artifact.Deployed {
-				approvalRuntimeState = pipelineConfig.ConsumedApprovalState
-			}
-
-			if isApprovalNode { // return all the artifacts with state in init, requested or consumed
-				allowed = approvalRuntimeState == pipelineConfig.InitApprovalState || approvalRuntimeState == pipelineConfig.RequestedApprovalState || approvalRuntimeState == pipelineConfig.ConsumedApprovalState
-			} else { // return only approved state artifacts
-				allowed = approvalRuntimeState == pipelineConfig.ApprovedApprovalState
-			}
-			if allowed {
-				ciArtifactsFinal = append(ciArtifactsFinal, artifact)
-			}
 		}
 		ciArtifactResponse.CiArtifacts = ciArtifactsFinal
 	}
