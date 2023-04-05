@@ -115,6 +115,7 @@ type AppEnvironmentContainer struct {
 	Active                      bool                      `json:"-"`
 	TeamId                      int                       `json:"teamId"`
 	TeamName                    string                    `json:"teamName"`
+	Description                 string                    `json:"description" validate:"max=40"`
 }
 
 type DeploymentDetailContainer struct {
@@ -150,6 +151,7 @@ type DeploymentDetailContainer struct {
 	DockerRegistryId              string          `json:"dockerRegistryId,omitempty"`
 	IpsAccessProvided             bool            `json:"ipsAccessProvided"`
 	DeploymentAppDeleteRequest    bool            `json:"deploymentAppDeleteRequest"`
+	Description                   string          `json:"description" validate:"max=40"`
 }
 
 type AppDetailContainer struct {
@@ -174,6 +176,7 @@ type Environment struct {
 	ChartRefId                 int    `json:"chartRefId"`
 	LastDeployed               string `json:"lastDeployed"`
 	DeploymentAppDeleteRequest bool   `json:"deploymentAppDeleteRequest"`
+	Description                string `json:"description" validate:"max=40"`
 }
 
 type InstanceDetail struct {
