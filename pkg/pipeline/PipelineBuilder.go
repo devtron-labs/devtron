@@ -3897,21 +3897,22 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int, emailId st
 	}
 	var appIds []int
 	ciPipelineIds := make([]int, 0)
+	cdPipelineIds := make([]int, 0)
 	for _, pipeline := range cdPipelines {
-		ciPipelineIds = append(ciPipelineIds, pipeline.CiPipelineId)
+		cdPipelineIds = append(cdPipelineIds, pipeline.Id)
 	}
 
 	//authorization block starts here
 	var appObjectArr []string
-	objects := impl.enforcerUtil.GetAppObjectByCiPipelineIds(ciPipelineIds)
+	objects := impl.enforcerUtil.GetAppAndEnvObjectByDbPipeline(cdPipelines)
 	ciPipelineIds = []int{}
 	for _, object := range objects {
-		appObjectArr = append(appObjectArr, object)
+		appObjectArr = append(appObjectArr, object[0])
 	}
 	appResults, _ := checkAuthBatch(emailId, appObjectArr, []string{})
 	for _, pipeline := range cdPipelines {
-		appObject := objects[pipeline.CiPipelineId]
-		if !appResults[appObject] {
+		appObject := objects[pipeline.Id]
+		if !appResults[appObject[0]] {
 			//if user unauthorized, skip items
 			continue
 		}
@@ -4065,7 +4066,7 @@ func (impl PipelineBuilderImpl) GetCdPipelinesByEnvironment(envId int, emailId s
 	//authorization block starts here
 	var appObjectArr []string
 	var envObjectArr []string
-	objects := impl.enforcerUtil.GetAppAndEnvObjectByPipelineIds(pipelineIds)
+	objects := impl.enforcerUtil.GetAppAndEnvObjectByPipeline(cdPipelines.Pipelines)
 	pipelineIds = []int{}
 	for _, object := range objects {
 		appObjectArr = append(appObjectArr, object[0])

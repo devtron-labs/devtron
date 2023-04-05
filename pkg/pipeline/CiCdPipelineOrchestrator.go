@@ -1402,6 +1402,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int) (cdPipe
 		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no cd pipeline found"}
 		return cdPipelines, err
 	}
+
 	// fetch other environments also which are linked with this app
 	dbPipelines, err = impl.pipelineRepository.FindActiveByAppIds(appIds)
 	if err != nil && err != pg.ErrNoRows {
@@ -1458,6 +1459,8 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int) (cdPipe
 			DeploymentAppType:             dbPipeline.DeploymentAppType,
 			AppName:                       dbPipeline.App.AppName,
 			AppId:                         dbPipeline.AppId,
+			TeamId:                        dbPipeline.App.TeamId,
+			EnvironmentIdentifier:         dbPipeline.Environment.EnvironmentIdentifier,
 		}
 		pipelines = append(pipelines, pipeline)
 	}

@@ -487,7 +487,8 @@ type CDPipelineConfigObject struct {
 	DeploymentAppDeleteRequest    bool                                   `json:"deploymentAppDeleteRequest"`
 	DeploymentAppCreated          bool                                   `json:"deploymentAppCreated"`
 	AppId                         int                                    `json:"appId"`
-	//Downstream         []int                             `json:"downstream"` //PipelineCounter of downstream	(for future reference only)
+	TeamId                        int                                    `json:"teamId"`
+	EnvironmentIdentifier         string                                 `json:"-" `
 }
 
 type PreStageConfigMapSecretNames struct {

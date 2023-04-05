@@ -22,6 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
@@ -54,6 +55,8 @@ type EnforcerUtil interface {
 	GetAppObjectByCiPipelineIds(ciPipelineIds []int) map[int]string
 	GetAppAndEnvObjectByPipelineIds(cdPipelineIds []int) map[int][]string
 	GetRbacObjectsForAllAppsWithMatchingAppName(appNameMatch string) map[int]string
+	GetAppAndEnvObjectByPipeline(cdPipelines []*bean.CDPipelineConfigObject) map[int][]string
+	GetAppAndEnvObjectByDbPipeline(cdPipelines []*pipelineConfig.Pipeline) map[int][]string
 }
 
 type EnforcerUtilImpl struct {
@@ -482,6 +485,58 @@ func (impl EnforcerUtilImpl) GetRbacObjectsForAllAppsWithMatchingAppName(appName
 	for _, item := range result {
 		if _, ok := objects[item.Id]; !ok {
 			objects[item.Id] = fmt.Sprintf("%s/%s", strings.ToLower(item.Team.Name), strings.ToLower(item.AppName))
+		}
+	}
+	return objects
+}
+func (impl EnforcerUtilImpl) GetAppAndEnvObjectByPipeline(cdPipelines []*bean.CDPipelineConfigObject) map[int][]string {
+	objects := make(map[int][]string)
+	var teamIds []*int
+	teamMap := make(map[int]string)
+	for _, pipeline := range cdPipelines {
+		teamIds = append(teamIds, &pipeline.TeamId)
+	}
+	teams, err := impl.teamRepository.FindByIds(teamIds)
+	if err != nil {
+		return objects
+	}
+	for _, team := range teams {
+		if _, ok := teamMap[team.Id]; !ok {
+			teamMap[team.Id] = team.Name
+		}
+	}
+	for _, pipeline := range cdPipelines {
+		if _, ok := objects[pipeline.Id]; !ok {
+			appObject := fmt.Sprintf("%s/%s", strings.ToLower(teamMap[pipeline.TeamId]), strings.ToLower(pipeline.AppName))
+			envObject := fmt.Sprintf("%s/%s", strings.ToLower(pipeline.EnvironmentIdentifier), strings.ToLower(pipeline.AppName))
+			objects[pipeline.Id] = []string{appObject, envObject}
+		}
+	}
+	return objects
+}
+
+// GetAppAndEnvObjectByDbPipeline TODO - This function will be merge into GetAppAndEnvObjectByPipeline
+func (impl EnforcerUtilImpl) GetAppAndEnvObjectByDbPipeline(cdPipelines []*pipelineConfig.Pipeline) map[int][]string {
+	objects := make(map[int][]string)
+	var teamIds []*int
+	teamMap := make(map[int]string)
+	for _, pipeline := range cdPipelines {
+		teamIds = append(teamIds, &pipeline.App.TeamId)
+	}
+	teams, err := impl.teamRepository.FindByIds(teamIds)
+	if err != nil {
+		return objects
+	}
+	for _, team := range teams {
+		if _, ok := teamMap[team.Id]; !ok {
+			teamMap[team.Id] = team.Name
+		}
+	}
+	for _, pipeline := range cdPipelines {
+		if _, ok := objects[pipeline.Id]; !ok {
+			appObject := fmt.Sprintf("%s/%s", strings.ToLower(teamMap[pipeline.App.TeamId]), strings.ToLower(pipeline.App.AppName))
+			envObject := fmt.Sprintf("%s/%s", strings.ToLower(pipeline.Environment.EnvironmentIdentifier), strings.ToLower(pipeline.App.AppName))
+			objects[pipeline.Id] = []string{appObject, envObject}
 		}
 	}
 	return objects
