@@ -86,7 +86,6 @@ func (impl *CiPipelineHistoryServiceImpl) SaveHistory(pipeline *pipelineConfig.C
 	}
 
 	err := impl.CiPipelineHistoryRepository.Save(&CiPipelineHistory)
-
 	if err != nil {
 		impl.logger.Errorw("error in saving history of ci pipeline")
 		return err
