@@ -5,7 +5,6 @@ operatorSecret = kubectl get secret -n devtroncd devtron-operator-secret;
 operatorConfigMap = kubectl get cm -n devtroncd devtron-operator-cm;
 postgresqlPassword = jsonSelect(operatorSecret, "data.POSTGRESQL_PASSWORD");
 webHookToken = jsonSelect(operatorSecret, "data.WEBHOOK_TOKEN");
-postgresSecret = kubectl get secret -n devtroncd postgresql-postgresql;
 setupDevtronIngress = jsonSelect(operatorConfigMap, "data.ENABLE_INGRESS");
 devtronIngressAnnotations = jsonSelect(operatorConfigMap, "data.INGRESS_ANNOTATIONS");
 
@@ -25,19 +24,8 @@ base64DecoderPrefix = `#!/bin/bash
 `;
 base64DecoderSuffix = ` | base64 -d | tr -d ':\n'`;
 
-existingPostgresSecret = jsonSelect(postgresSecret, "data.postgresql-password");
 
-if existingPostgresSecret {
-    postgresqlPassword = existingPostgresSecret;
-}
 
-log("postgres pwd");
-log(existingPostgresSecret);
-log(existingPostgresSecretPlain);
-
-if !postgresqlPassword {
-	postgresqlPassword = shellScript passwordGen;
-}
 if !baseURL {
 	log("baseURL is mandatory");
 }
@@ -52,25 +40,14 @@ if !defaultCacheBucket {
 
 ######Generating raw urls
 argocdResource_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/argocd-resource.json";
-devtronHousekeeping_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron-housekeeping.yaml";
 devtron_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron.yaml";
-devtronIngress_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron-ingress.yaml";
-if enableLegacyApi=="true" {
-devtronIngress_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron-ingress-legacy.yaml";
-}
-log(devtronIngress_raw);
 serviceAccount_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/serviceaccount.yaml";
 
 ######Downloading the manifests
 argocdResource = download(argocdResource_raw);
-devtronHousekeeping = download(devtronHousekeeping_raw);
 devtron = download(devtron_raw);
-devtronIngress = download(devtronIngress_raw);
 serviceAccount = download(serviceAccount_raw);
 
-######Getting the ConfigMap
-
-devtronHousekeepingOverride = kubectl get cm -n devtroncd devtron-housekeeping-override-cm;
 devtronOverride = kubectl get cm -n devtroncd devtron-override-cm;
 serviceAccountOverride = kubectl get cm -n devtroncd devtron-service-account-override-cm;
 
@@ -92,8 +69,6 @@ dexSecret = shellScript passwordGen;
 dexJwtKey = shellScript passwordGen;
 dexCStoreKey = shellScript passwordGen;
 externalCIAPISecret = shellScript passwordGen;
-
-kubeYamlEdit(devtron, "data.PG_PASSWORD", postgresqlPassword, `/Secret//devtron-secret`);
 
 if hasDevtron {
     devtronSecret = kubectl get secret -n devtroncd devtron-secret;
@@ -124,7 +99,6 @@ if tdexCStoreKey {
     dexCStoreKey = tdexCStoreKey;
 }
 
-
 kubeYamlEdit(devtron, "data.EXTERNAL_CI_API_SECRET", externalCIAPISecret, `/Secret//devtron-secret`);
 kubeYamlEdit(devtron, "data.WEBHOOK_TOKEN", webHookToken, `/Secret//devtron-secret`);
 kubeYamlEdit(devtron, "data.ORCH_TOKEN", orchToken, `/Secret//devtron-secret`);
@@ -132,10 +106,5 @@ kubeYamlEdit(devtron, "data.DEX_SECRET", dexSecret, `/Secret//devtron-secret`);
 kubeYamlEdit(devtron, "data.DEX_JWTKEY", dexJwtKey, `/Secret//devtron-secret`);
 kubeYamlEdit(devtron, "data.DEX_CSTOREKEY", dexCStoreKey, `/Secret//devtron-secret`);
 
-
 devtron = kubectl apply -n devtroncd devtron -u devtronOverride;
 log("executed devtron setup");
-
-## Applying Housekeeping Job
-appHousekeeping = kubectl apply -n devtroncd devtronHousekeeping -u devtronHousekeepingOverride;
-log("executed devtron-housekeeping setup");
