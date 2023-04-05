@@ -4088,7 +4088,6 @@ func (impl PipelineBuilderImpl) GetCdPipelinesByEnvironment(envId int, emailId s
 		authorizedPipelines[dbPipeline.Id] = dbPipeline
 	}
 
-	pipelineStrategies := make(map[int][]bean.Strategy)
 	pipelineDeploymentTemplate := make(map[int]chartRepoRepository.DeploymentStrategy)
 	pipelineWorkflowMapping := make(map[int]*appWorkflow.AppWorkflowMapping)
 	if len(pipelineIds) == 0 {
@@ -4102,11 +4101,6 @@ func (impl PipelineBuilderImpl) GetCdPipelinesByEnvironment(envId int, emailId s
 		return cdPipelines, err
 	}
 	for _, item := range strategies {
-		pipelineStrategies[item.PipelineId] = append(pipelineStrategies[item.PipelineId], bean.Strategy{
-			Config:             []byte(item.Config),
-			DeploymentTemplate: item.Strategy,
-			Default:            item.Default,
-		})
 		if item.Default {
 			pipelineDeploymentTemplate[item.PipelineId] = item.Strategy
 		}
@@ -4131,7 +4125,6 @@ func (impl PipelineBuilderImpl) GetCdPipelinesByEnvironment(envId int, emailId s
 			CiPipelineId:                  dbPipeline.CiPipelineId,
 			DeploymentTemplate:            pipelineDeploymentTemplate[dbPipeline.Id],
 			TriggerType:                   dbPipeline.TriggerType,
-			Strategies:                    pipelineStrategies[dbPipeline.Id],
 			PreStage:                      dbPipeline.PreStage,
 			PostStage:                     dbPipeline.PostStage,
 			PreStageConfigMapSecretNames:  dbPipeline.PreStageConfigMapSecretNames,
