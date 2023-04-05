@@ -1244,8 +1244,9 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 func (impl BulkUpdateServiceImpl) SubscribeToCdBulkTriggerTopic() error {
 
 	callback := func(msg *pubsub.PubSubMsg) {
-		impl.logger.Debugw("Event received",
-			"topic", pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC)
+		impl.logger.Infow("Event received",
+			"topic", pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC,
+			"msg", msg.Data)
 
 		overrideReq := &bean.ValuesOverrideRequest{}
 		err := json.Unmarshal([]byte(msg.Data), overrideReq)
