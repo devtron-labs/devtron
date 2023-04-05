@@ -27,6 +27,17 @@ metadata:
   annotations:
     "helm.sh/hook": pre-install
     "helm.sh/resource-policy": keep
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: devtron-demo
+  labels:
+    name: devtron
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/resource-policy": keep
+
 {{- if $.Values.installer.modules }}
 {{- if has "cicd" $.Values.installer.modules }}
 ---
