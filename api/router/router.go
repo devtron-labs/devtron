@@ -41,6 +41,7 @@ import (
 	"github.com/devtron-labs/devtron/client/cron"
 	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/devtron-labs/devtron/client/telemetry"
+	"github.com/devtron-labs/devtron/enterprise/api/globalTag"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/k8s"
@@ -118,6 +119,7 @@ type MuxRouter struct {
 	userTerminalAccessRouter           terminal2.UserTerminalAccessRouter
 	ciStatusUpdateCron                 cron.CiStatusUpdateCron
 	appGroupingRouter                  AppGroupingRouter
+	globalTagRouter                    globalTag.GlobalTagRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -146,7 +148,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 	helmApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler, k8sCapacityRouter k8s.K8sCapacityRouter,
 	webhookHelmRouter webhookHelm.WebhookHelmRouter, globalCMCSRouter GlobalCMCSRouter,
 	userTerminalAccessRouter terminal2.UserTerminalAccessRouter,
-	jobRouter JobRouter, ciStatusUpdateCron cron.CiStatusUpdateCron, appGroupingRouter AppGroupingRouter) *MuxRouter {
+	jobRouter JobRouter, ciStatusUpdateCron cron.CiStatusUpdateCron, appGroupingRouter AppGroupingRouter, globalTagRouter globalTag.GlobalTagRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
 		HelmRouter:                         HelmRouter,
@@ -215,6 +217,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 		ciStatusUpdateCron:                 ciStatusUpdateCron,
 		JobRouter:                          jobRouter,
 		appGroupingRouter:                  appGroupingRouter,
+		globalTagRouter:                    globalTagRouter,
 	}
 	return r
 }
@@ -422,4 +425,8 @@ func (r MuxRouter) Init() {
 
 	userTerminalAccessRouter := r.Router.PathPrefix("/orchestrator/user/terminal").Subrouter()
 	r.userTerminalAccessRouter.InitTerminalAccessRouter(userTerminalAccessRouter)
+
+	// global-tags router
+	globalTagSubRouter := r.Router.PathPrefix("/orchestrator/global-tag").Subrouter()
+	r.globalTagRouter.InitGlobalTagRouter(globalTagSubRouter)
 }

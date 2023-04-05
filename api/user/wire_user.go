@@ -2,11 +2,11 @@ package user
 
 import (
 	"github.com/devtron-labs/devtron/pkg/auth"
+	casbin2 "github.com/devtron-labs/devtron/pkg/enterprise/user/casbin"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/google/wire"
-	casbin2 "github.com/devtron-labs/devtron/pkg/enterprise/user/casbin"
 )
 
 //depends on sql,validate,logger
@@ -31,6 +31,10 @@ var UserWireSet = wire.NewSet(
 	wire.Bind(new(UserRouter), new(*UserRouterImpl)),
 	NewUserRestHandlerImpl,
 	wire.Bind(new(UserRestHandler), new(*UserRestHandlerImpl)),
+	user.NewCleanUpPoliciesServiceImpl,
+	wire.Bind(new(user.CleanUpPoliciesService), new(*user.CleanUpPoliciesServiceImpl)),
+	repository.NewPoliciesCleanUpRepositoryImpl,
+	wire.Bind(new(repository.PoliciesCleanUpRepository), new(*repository.PoliciesCleanUpRepositoryImpl)),
 	user.NewUserServiceImpl,
 	wire.Bind(new(user.UserService), new(*user.UserServiceImpl)),
 	repository.NewUserRepositoryImpl,

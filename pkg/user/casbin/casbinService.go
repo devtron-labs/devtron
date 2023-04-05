@@ -7,7 +7,7 @@ import (
 )
 
 type CasbinService interface {
-	AddPolicy(policies []Policy) ([]Policy, error)
+	AddPolicy(policies []Policy) error
 	LoadPolicy()
 	RemovePolicy(policies []Policy) ([]Policy, error)
 	GetAllSubjects() ([]string, error)
@@ -31,8 +31,8 @@ func NewCasbinServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl *CasbinServiceImpl) AddPolicy(policies []Policy) ([]Policy, error) {
-	convertedPolicies := make([]*client.Policy, len(policies))
+func (impl *CasbinServiceImpl) AddPolicy(policies []Policy) error {
+	convertedPolicies := make([]*client.Policy, 0, len(policies))
 	for _, policy := range policies {
 		convertedPolicy := &client.Policy{
 			Type: string(policy.Type),
@@ -46,12 +46,16 @@ func (impl *CasbinServiceImpl) AddPolicy(policies []Policy) ([]Policy, error) {
 	in := &client.MultiPolicyObj{
 		Policies: convertedPolicies,
 	}
-	_, err := impl.casbinClient.AddPolicy(context.Background(), in)
+	resp, err := impl.casbinClient.AddPolicy(context.Background(), in)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return policies, nil
+	if resp != nil && len(resp.FailedPolicies) > 0 {
+		impl.logger.Errorw("error in adding all policies", "err", err, "failedPolicies", resp.FailedPolicies)
+	}
+	return nil
 }
+
 func (impl *CasbinServiceImpl) LoadPolicy() {
 	in := &client.EmptyObj{}
 	_, _ = impl.casbinClient.LoadPolicy(context.Background(), in)
@@ -59,7 +63,7 @@ func (impl *CasbinServiceImpl) LoadPolicy() {
 }
 
 func (impl *CasbinServiceImpl) RemovePolicy(policies []Policy) ([]Policy, error) {
-	convertedPolicies := make([]*client.Policy, len(policies))
+	convertedPolicies := make([]*client.Policy, 0, len(policies))
 	for _, policy := range policies {
 		convertedPolicy := &client.Policy{
 			Type: string(policy.Type),
