@@ -1168,7 +1168,6 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 			return resourceTree, err
 		}
 		handler.logger.Debugw("FetchAppDetails, time elapsed in fetching application for environment ", "elapsed", elapsed, "appId", appId, "envId", envId)
-		resourceTree = util2.InterfaceToMapAdapter(resp)
 
 		if resp.Status == string(health.HealthStatusHealthy) {
 			status, err := handler.appListingService.ISLastReleaseStopType(appId, envId)
@@ -1186,7 +1185,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 				resp.Status = app.NotDeployed
 			}
 		}
-
+		resourceTree = util2.InterfaceToMapAdapter(resp)
 		go func() {
 			if resp.Status == string(health.HealthStatusHealthy) {
 				err = handler.cdApplicationStatusUpdateHandler.SyncPipelineStatusForResourceTreeCall(cdPipeline)
