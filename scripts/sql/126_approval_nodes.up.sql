@@ -1,6 +1,6 @@
 alter table pipeline add column user_approval_config character varying(1000);
 
-alter table cd_workflow_runner add column approval_request_id int CONSTRAINT "cd_workflow_runner_approval_request_id_fkey" REFERENCES "public"."deployment_approval_request" ("id")
+alter table cd_workflow_runner add column deployment_approval_request_id int CONSTRAINT "cd_workflow_runner_deployment_approval_request_id_fkey" REFERENCES "public"."deployment_approval_request" ("id")
 
 CREATE SEQUENCE IF NOT EXISTS id_seq_deployment_approval_request;
 
@@ -9,7 +9,7 @@ CREATE TABLE public.deployment_approval_request (
 "pipeline_id"                                   integer,
 "artifact_id"                                   integer,
 "active"                                        BOOL,
-"artifact_deployment_triggered"                 BOOL,
+"artifact_deployment_triggered"                 BOOL DEFAULT false,
 "created_on"                                    timestamptz,
 "created_by"                                    int4,
 "updated_on"                                    timestamptz,

@@ -147,18 +147,18 @@ type WorkflowResponse struct {
 	StartedOn            time.Time                           `json:"startedOn"`
 	FinishedOn           time.Time                           `json:"finishedOn"`
 	CiPipelineId         int                                 `json:"ciPipelineId"`
-	Namespace            string                              `json:"namespace"`
-	LogLocation          string                              `json:"logLocation"`
-	BlobStorageEnabled   bool                                `json:"blobStorageEnabled"`
-	GitTriggers          map[int]pipelineConfig.GitCommit    `json:"gitTriggers"`
-	CiMaterials          []CiPipelineMaterialResponse        `json:"ciMaterials"`
-	TriggeredBy          int32                               `json:"triggeredBy"`
-	Artifact             string                              `json:"artifact"`
-	TriggeredByEmail     string                              `json:"triggeredByEmail"`
-	Stage                string                              `json:"stage"`
-	ArtifactId           int                                 `json:"artifactId"`
-	IsArtifactUploaded   bool                                `json:"isArtifactUploaded"`
-	UserApprovalMetadata pipelineConfig.UserApprovalMetadata `json:"userApprovalMetadata"`
+	Namespace            string                               `json:"namespace"`
+	LogLocation          string                               `json:"logLocation"`
+	BlobStorageEnabled   bool                                 `json:"blobStorageEnabled"`
+	GitTriggers          map[int]pipelineConfig.GitCommit     `json:"gitTriggers"`
+	CiMaterials          []CiPipelineMaterialResponse         `json:"ciMaterials"`
+	TriggeredBy          int32                                `json:"triggeredBy"`
+	Artifact             string                               `json:"artifact"`
+	TriggeredByEmail     string                               `json:"triggeredByEmail"`
+	Stage                string                               `json:"stage"`
+	ArtifactId           int                                  `json:"artifactId"`
+	IsArtifactUploaded   bool                                 `json:"isArtifactUploaded"`
+	UserApprovalMetadata *pipelineConfig.UserApprovalMetadata `json:"userApprovalMetadata"`
 }
 
 type GitTriggerInfoResponse struct {

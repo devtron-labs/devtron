@@ -11,6 +11,7 @@ import (
 
 type DeploymentApprovalRepository interface {
 	FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int) ([]*DeploymentApprovalRequest, error)
+	FetchApprovalDataForRequests(requestIds []int) ([]*DeploymentApprovalUserData, error)
 	FetchById(requestId int) (*DeploymentApprovalRequest, error)
 	Save(deploymentApprovalRequest *DeploymentApprovalRequest) error
 	Update(deploymentApprovalRequest *DeploymentApprovalRequest) error
@@ -28,13 +29,13 @@ func NewDeploymentApprovalRepositoryImpl(dbConnection *pg.DB, logger *zap.Sugare
 }
 
 type DeploymentApprovalRequest struct {
-	tableName                   struct{} `sql:"deployment_approval_request" pg:",discard_unknown_columns"`
-	Id                          int      `sql:"id,pk"`
-	PipelineId                  int      `sql:"pipeline_id"`    // keep in mind foreign key constraint
-	ArtifactId                  int      `sql:"artifact_id"`    // keep in mind foreign key constraint
-	Active                      bool     `sql:"active,notnull"` // user can cancel request anytime
-	ArtifactDeploymentTriggered bool     `sql:"artifact_deployment_triggered"`
-	DeploymentApprovalUsers     []*DeploymentApprovalUserData
+	tableName                   struct{}                      `sql:"deployment_approval_request" pg:",discard_unknown_columns"`
+	Id                          int                           `sql:"id,pk"`
+	PipelineId                  int                           `sql:"pipeline_id"`    // keep in mind foreign key constraint
+	ArtifactId                  int                           `sql:"artifact_id"`    // keep in mind foreign key constraint
+	Active                      bool                          `sql:"active,notnull"` // user can cancel request anytime
+	ArtifactDeploymentTriggered bool                          `sql:"artifact_deployment_triggered"`
+	DeploymentApprovalUserData  []*DeploymentApprovalUserData `sql:"-"`
 	sql.AuditLog
 }
 
@@ -54,7 +55,7 @@ func (impl *DeploymentApprovalRepositoryImpl) FetchApprovalDataForArtifacts(arti
 	var requests []*DeploymentApprovalRequest
 	err := impl.dbConnection.
 		Model(&requests).
-		Column("deployment_approval_request.*", /*"DeploymentApprovalUsers", "DeploymentApprovalUsers.User"*/).
+		//Column("deployment_approval_request.*", /*"DeploymentApprovalUserData", "DeploymentApprovalUserData.User"*/).
 		Where("artifact_id in (?) ", pg.In(artifactIds)).
 		Where("pipeline_id = ?", pipelineId).
 		Where("artifact_deployment_triggered = ?", false).
@@ -64,34 +65,45 @@ func (impl *DeploymentApprovalRepositoryImpl) FetchApprovalDataForArtifacts(arti
 		impl.logger.Errorw("error occurred while fetching artifacts", "pipelineId", pipelineId, "err", err)
 		return nil, err
 	}
-	var requestIdMap map[int]*DeploymentApprovalRequest
+	requestIdMap := make(map[int]*DeploymentApprovalRequest)
+	var requestIds []int
 	for _, request := range requests {
-		requestIdMap[request.Id] = request
+		requestId := request.Id
+		requestIdMap[requestId] = request
+		requestIds = append(requestIds, requestId)
 	}
-	var usersData []*DeploymentApprovalUserData
-	err = impl.dbConnection.
-		Model(&usersData).
-		Column("deployment_approval_user_data.*", "User").
-		Where("approval_request_id in (?) ", pg.In(artifactIds)).
-		Select()
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error occurred while fetching artifacts", "pipelineId", pipelineId, "err", err)
-		return nil, err
+	usersData, err := impl.FetchApprovalDataForRequests(requestIds)
+	if err != nil {
+		return requests, err
 	}
 	for _, userData := range usersData {
 		approvalRequestId := userData.ApprovalRequestId
 		deploymentApprovalRequest := requestIdMap[approvalRequestId]
-		approvalUsers := deploymentApprovalRequest.DeploymentApprovalUsers
+		approvalUsers := deploymentApprovalRequest.DeploymentApprovalUserData
 		approvalUsers = append(approvalUsers, userData)
-		deploymentApprovalRequest.DeploymentApprovalUsers = approvalUsers
+		deploymentApprovalRequest.DeploymentApprovalUserData = approvalUsers
 	}
 	return requests, nil
 }
 
-func (impl *DeploymentApprovalRepositoryImpl) FetchById(requestId int) (*DeploymentApprovalRequest, error) {
-	var request *DeploymentApprovalRequest
+func (impl *DeploymentApprovalRepositoryImpl) FetchApprovalDataForRequests(requestIds []int) ([]*DeploymentApprovalUserData, error) {
+	var usersData []*DeploymentApprovalUserData
 	err := impl.dbConnection.
-		Model(request).Where("id = ?", requestId).Where("active = ?", true).Select()
+		Model(&usersData).
+		Column("deployment_approval_user_data.*", "User").
+		Where("approval_request_id in (?) ", pg.In(requestIds)).
+		Select()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error occurred while fetching artifacts", "requestIds", requestIds, "err", err)
+		return nil, err
+	}
+	return usersData, nil
+}
+
+func (impl *DeploymentApprovalRepositoryImpl) FetchById(requestId int) (*DeploymentApprovalRequest, error) {
+	request := &DeploymentApprovalRequest{Id: requestId}
+	err := impl.dbConnection.
+		Model(request).Where("active = ?", true).WherePK().Select()
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching request data", "id", requestId, "err", err)
 		return nil, err
@@ -132,12 +144,13 @@ func (impl *DeploymentApprovalRepositoryImpl) SaveDeploymentUserData(userData *D
 
 func (request *DeploymentApprovalRequest) ConvertToApprovalMetadata() *UserApprovalMetadata {
 	approvalMetadata := &UserApprovalMetadata{ApprovalRequestId: request.Id}
-	requestedUserData := UserApprovalData{}
+	requestedUserData := UserApprovalData{DataId: request.Id}
 	requestedUserData.UserId = request.CreatedBy
+	//TODO KB: need to fetch requester email id
 	requestedUserData.UserActionTime = request.CreatedOn
 	approvalMetadata.RequestedUserData = requestedUserData
 	var userApprovalData []UserApprovalData
-	for _, approvalUser := range request.DeploymentApprovalUsers {
+	for _, approvalUser := range request.DeploymentApprovalUserData {
 		userApprovalData = append(userApprovalData, UserApprovalData{DataId: approvalUser.Id, UserId: approvalUser.UserId, UserEmail: approvalUser.User.EmailId, UserResponse: approvalUser.UserResponse, UserActionTime: approvalUser.CreatedOn})
 	}
 	approvalMetadata.ApprovalUsersData = userApprovalData
@@ -146,7 +159,7 @@ func (request *DeploymentApprovalRequest) ConvertToApprovalMetadata() *UserAppro
 
 func (request *DeploymentApprovalRequest) GetApprovedCount() int {
 	count := 0
-	for _, approvalUser := range request.DeploymentApprovalUsers {
+	for _, approvalUser := range request.DeploymentApprovalUserData {
 		if approvalUser.UserResponse == APPROVED {
 			count++
 		}

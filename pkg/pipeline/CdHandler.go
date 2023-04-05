@@ -676,6 +676,15 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 	} else if err == pg.ErrNoRows {
 		return WorkflowResponse{}, nil
 	}
+	if workflowR.DeploymentApprovalRequest != nil {
+		approvalReqId := workflowR.DeploymentApprovalRequestId
+		approvalUserData, err := impl.deploymentApprovalRepository.FetchApprovalDataForRequests([]int{approvalReqId})
+		if err != nil {
+			return WorkflowResponse{}, err
+		}
+		workflowR.DeploymentApprovalRequest.DeploymentApprovalUserData = approvalUserData
+
+	}
 	workflow := impl.converterWFR(*workflowR)
 
 	triggeredByUser, err := impl.userService.GetById(workflow.TriggeredBy)
@@ -839,7 +848,7 @@ func (impl *CdHandlerImpl) converterWFR(wfr pipelineConfig.CdWorkflowRunner) pip
 		workflow.PipelineId = wfr.CdWorkflow.PipelineId
 		workflow.CiArtifactId = wfr.CdWorkflow.CiArtifactId
 		workflow.BlobStorageEnabled = wfr.BlobStorageEnabled
-		if wfr.DeploymentApprovalRequest != nil {
+		if wfr.DeploymentApprovalRequestId > 0 {
 			workflow.UserApprovalMetadata = wfr.DeploymentApprovalRequest.ConvertToApprovalMetadata()
 		}
 	}
