@@ -680,16 +680,14 @@ func (handler AppListingRestHandlerImpl) FetchResourceTree(w http.ResponseWriter
 		apiError, ok := err.(*util.ApiError)
 		if ok && apiError != nil {
 			if apiError.Code == constants.AppDetailResourceTreeNotFound && cdPipeline.DeploymentAppDeleteRequest == true {
-				go func() {
-					acdAppFound, _ := handler.pipeline.MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(appId, envId, acdToken, cdPipeline)
-					if acdAppFound {
-						common.WriteJsonResp(w, fmt.Errorf("unable to fetch resource tree"), nil, http.StatusInternalServerError)
-						return
-					} else {
-						common.WriteJsonResp(w, fmt.Errorf("app deleted"), nil, http.StatusNotFound)
-						return
-					}
-				}()
+				acdAppFound, _ := handler.pipeline.MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(appId, envId, acdToken, cdPipeline)
+				if acdAppFound {
+					common.WriteJsonResp(w, fmt.Errorf("unable to fetch resource tree"), nil, http.StatusInternalServerError)
+					return
+				} else {
+					common.WriteJsonResp(w, fmt.Errorf("app deleted"), nil, http.StatusNotFound)
+					return
+				}
 			}
 		}
 	}

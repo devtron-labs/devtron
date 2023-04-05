@@ -524,14 +524,12 @@ func (handler *InstalledAppRestHandlerImpl) FetchResourceTree(w http.ResponseWri
 			apiError, ok := err.(*util2.ApiError)
 			if ok && apiError != nil {
 				if apiError.Code == constants.AppDetailResourceTreeNotFound && installedApp.DeploymentAppDeleteRequest == true {
-					go func() {
-						err = handler.installedAppService.MarkGitOpsInstalledAppsDeletedIfArgoAppIsDeleted(installedAppId, envId)
-						appDeleteErr, appDeleteErrOk := err.(*util2.ApiError)
-						if appDeleteErrOk && appDeleteErr != nil {
-							handler.Logger.Errorw(appDeleteErr.InternalMessage)
-							return
-						}
-					}()
+					err = handler.installedAppService.MarkGitOpsInstalledAppsDeletedIfArgoAppIsDeleted(installedAppId, envId)
+					appDeleteErr, appDeleteErrOk := err.(*util2.ApiError)
+					if appDeleteErrOk && appDeleteErr != nil {
+						handler.Logger.Errorw(appDeleteErr.InternalMessage)
+						return
+					}
 				}
 			}
 		} else if err != nil {
