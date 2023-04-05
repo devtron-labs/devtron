@@ -1170,23 +1170,24 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		handler.logger.Debugw("FetchAppDetails, time elapsed in fetching application for environment ", "elapsed", elapsed, "appId", appId, "envId", envId)
 		resourceTree = util2.InterfaceToMapAdapter(resp)
 
+		if resp.Status == string(health.HealthStatusHealthy) {
+			status, err := handler.appListingService.ISLastReleaseStopType(appId, envId)
+			if err != nil {
+				handler.logger.Errorw("service err, FetchAppDetails", "err", err, "app", appId, "env", envId)
+			} else if status {
+				resp.Status = application.HIBERNATING
+			}
+		}
+		if resp.Status == string(health.HealthStatusDegraded) {
+			count, err := handler.appListingService.GetReleaseCount(appId, envId)
+			if err != nil {
+				handler.logger.Errorw("service err, FetchAppDetails, release count", "err", err, "app", appId, "env", envId)
+			} else if count == 0 {
+				resp.Status = app.NotDeployed
+			}
+		}
+
 		go func() {
-			if resp.Status == string(health.HealthStatusHealthy) {
-				status, err := handler.appListingService.ISLastReleaseStopType(appId, envId)
-				if err != nil {
-					handler.logger.Errorw("service err, FetchAppDetails", "err", err, "app", appId, "env", envId)
-				} else if status {
-					resp.Status = application.HIBERNATING
-				}
-			}
-			if resp.Status == string(health.HealthStatusDegraded) {
-				count, err := handler.appListingService.GetReleaseCount(appId, envId)
-				if err != nil {
-					handler.logger.Errorw("service err, FetchAppDetails, release count", "err", err, "app", appId, "env", envId)
-				} else if count == 0 {
-					resp.Status = app.NotDeployed
-				}
-			}
 			if resp.Status == string(health.HealthStatusHealthy) {
 				err = handler.cdApplicationStatusUpdateHandler.SyncPipelineStatusForResourceTreeCall(cdPipeline)
 				if err != nil {
