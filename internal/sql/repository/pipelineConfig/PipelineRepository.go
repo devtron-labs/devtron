@@ -18,6 +18,7 @@
 package pipelineConfig
 
 import (
+	"encoding/json"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -62,6 +63,25 @@ type Pipeline struct {
 	UserApprovalConfig            string      `sql:"user_approval_config"`
 	Environment                   repository.Environment
 	sql.AuditLog
+}
+
+type UserApprovalConfig struct {
+	RequiredCount int    `json:"requiredCount" validate:"number,required"`
+	Description   string `json:"description,omitempty"`
+}
+
+func (pipeline Pipeline) ApprovalNodeConfigured() bool {
+	return len(pipeline.UserApprovalConfig) > 0
+}
+
+func (pipeline Pipeline) GetApprovalConfig() (UserApprovalConfig, error) {
+	approvalConfig := UserApprovalConfig{}
+	err := json.Unmarshal([]byte(pipeline.UserApprovalConfig), &approvalConfig)
+	return approvalConfig, err
+}
+
+func (pipeline Pipeline) IsManualTrigger() bool {
+	return pipeline.TriggerType == TRIGGER_TYPE_MANUAL
 }
 
 type PipelineRepository interface {

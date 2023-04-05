@@ -68,8 +68,8 @@ type CdHandler interface {
 	CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipelineId int, userId int32)
 	FetchAppWorkflowStatusForTriggerViewForEnvironment(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*pipelineConfig.CdWorkflowStatus, error)
 	FetchAppDeploymentStatusForEnvironments(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*pipelineConfig.AppDeploymentStatus, error)
-	FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int, requiredApprovals int) (map[int]*pipelineConfig.UserApprovalMetadata, error)
 	PerformDeploymentApprovalAction(userId int32, approvalActionRequest bean2.UserApprovalActionRequest) error
+	FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int, requiredApprovals int) (map[int]*pipelineConfig.UserApprovalMetadata, error)
 }
 
 type CdHandlerImpl struct {
@@ -1236,23 +1236,7 @@ func (impl *CdHandlerImpl) FetchAppDeploymentStatusForEnvironments(envId int, em
 }
 
 func (impl *CdHandlerImpl) FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int, requiredApprovals int) (map[int]*pipelineConfig.UserApprovalMetadata, error) {
-	deploymentApprovalRequests, err := impl.deploymentApprovalRepository.FetchApprovalDataForArtifacts(artifactIds, pipelineId)
-	if err != nil {
-		return nil, err
-	}
-	artifactIdVsApprovalMetadata := make(map[int]*pipelineConfig.UserApprovalMetadata)
-	for _, approvalRequest := range deploymentApprovalRequests {
-		artifactId := approvalRequest.ArtifactId
-		approvalMetadata := approvalRequest.ConvertToApprovalMetadata()
-		if approvalRequest.GetApprovedCount() == requiredApprovals {
-			approvalMetadata.ApprovalRuntimeState = pipelineConfig.ApprovedApprovalState
-		} else {
-			approvalMetadata.ApprovalRuntimeState = pipelineConfig.RequestedApprovalState
-		}
-		artifactIdVsApprovalMetadata[artifactId] = approvalMetadata
-	}
-	return artifactIdVsApprovalMetadata, nil
-
+	return impl.workflowDagExecutor.FetchApprovalDataForArtifacts(artifactIds, pipelineId, requiredApprovals)
 }
 
 func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(userId int32, approvalActionRequest bean2.UserApprovalActionRequest) error {

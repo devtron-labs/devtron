@@ -20,6 +20,7 @@ package pipeline
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
@@ -70,6 +71,7 @@ type WorkflowDagExecutor interface {
 	TriggerBulkDeploymentAsync(requests []*BulkTriggerRequest, UserId int32) (interface{}, error)
 	StopStartApp(stopRequest *StopAppRequest, ctx context.Context) (int, error)
 	TriggerBulkHibernateAsync(request StopDeploymentGroupRequest, ctx context.Context) (interface{}, error)
+	FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int, requiredApprovals int) (map[int]*pipelineConfig.UserApprovalMetadata, error)
 }
 
 type WorkflowDagExecutorImpl struct {
@@ -104,6 +106,7 @@ type WorkflowDagExecutorImpl struct {
 	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
 	appLabelRepository            pipelineConfig.AppLabelRepository
 	gitSensorClient               gitSensor.GitSensorClient
+	deploymentApprovalRepository  pipelineConfig.DeploymentApprovalRepository
 }
 
 const (
@@ -168,7 +171,8 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	pipelineStatusTimelineService app.PipelineStatusTimelineService,
 	CiTemplateRepository pipelineConfig.CiTemplateRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
-	appLabelRepository pipelineConfig.AppLabelRepository, gitSensorClient gitSensor.GitSensorClient) *WorkflowDagExecutorImpl {
+	appLabelRepository pipelineConfig.AppLabelRepository, gitSensorClient gitSensor.GitSensorClient,
+	deploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
 		cdWorkflowRepository:          cdWorkflowRepository,
@@ -200,6 +204,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		ciWorkflowRepository:          ciWorkflowRepository,
 		appLabelRepository:            appLabelRepository,
 		gitSensorClient:               gitSensorClient,
+		deploymentApprovalRepository:  deploymentApprovalRepository,
 	}
 	err := wde.Subscribe()
 	if err != nil {
@@ -257,7 +262,6 @@ func (impl *WorkflowDagExecutorImpl) Subscribe() error {
 }
 
 func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(artifact *repository.CiArtifact, applyAuth bool, async bool, triggeredBy int32) error {
-	//TODO KB: extract app_wf_mapping with parent ci pipeline and for approval nodes, create ApprovalRequest and for cd pipelines, impl like below code
 	//1. get cd pipelines
 	//2. get config
 	//3. trigger wf/ deployment
@@ -289,7 +293,6 @@ func (impl *WorkflowDagExecutorImpl) HandleWebhookExternalCiEvent(artifact *repo
 
 	var pipelines []*pipelineConfig.Pipeline
 	for _, appWorkflowMapping := range appWorkflowMappings {
-		//TODO KB: check for appWorkflowMapping type, if approval node is present then create ApprovalRequest and ignore pipeline data
 		pipeline, err := impl.pipelineRepository.FindById(appWorkflowMapping.ComponentId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching cd pipeline", "pipelineId", artifact.PipelineId, "err", err)
@@ -301,7 +304,11 @@ func (impl *WorkflowDagExecutorImpl) HandleWebhookExternalCiEvent(artifact *repo
 			err = &util.ApiError{Code: "401", HttpStatusCode: 401, UserMessage: "Unauthorized"}
 			return hasAnyTriggered, err
 		}
-		if pipeline.TriggerType == pipelineConfig.TRIGGER_TYPE_MANUAL {
+		if pipeline.ApprovalNodeConfigured() {
+			impl.logger.Warnw("approval node configured, so skipping pipeline for approval", "pipeline", pipeline)
+			continue
+		}
+		if pipeline.IsManualTrigger() {
 			impl.logger.Warnw("skipping deployment for manual trigger for webhook", "pipeline", pipeline)
 			continue
 		}
@@ -322,6 +329,10 @@ func (impl *WorkflowDagExecutorImpl) HandleWebhookExternalCiEvent(artifact *repo
 }
 
 func (impl *WorkflowDagExecutorImpl) triggerStage(cdWf *pipelineConfig.CdWorkflow, pipeline *pipelineConfig.Pipeline, artifact *repository.CiArtifact, applyAuth bool, triggeredBy int32) error {
+	if pipeline.ApprovalNodeConfigured() {
+		impl.logger.Warnw("approval node configured, so skipping pipeline for approval", "pipeline", pipeline)
+		return nil
+	}
 	var err error
 	if len(pipeline.PreStageConfig) > 0 {
 		// pre stage exists
@@ -387,6 +398,8 @@ func (impl *WorkflowDagExecutorImpl) HandlePreStageSuccessEvent(cdStageCompleteE
 }
 
 func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *pipelineConfig.CdWorkflow, artifact *repository.CiArtifact, pipeline *pipelineConfig.Pipeline, triggeredBy int32, applyAuth bool) error {
+	//TODO KB: check for approval config
+
 	//setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
 	triggeredAt := time.Now()
 
@@ -974,7 +987,6 @@ func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(cdWorkflowId in
 		applyAuth = true
 	}
 	for _, cdPipelineMapping := range cdPipelinesMapping {
-		// TODO KB: check for approval node type, if approval node then raise an ApprovalRequest and ignore
 		//find pipeline by cdPipeline ID
 		pipeline, err := impl.pipelineRepository.FindById(cdPipelineMapping.ComponentId)
 		if err != nil {
@@ -995,6 +1007,7 @@ func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(cdWorkflowId in
 // Only used for auto trigger
 func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWorkflow, artifact *repository.CiArtifact, pipeline *pipelineConfig.Pipeline, applyAuth bool, triggeredBy int32) error {
 	//in case of manual ci RBAC need to apply, this method used for auto cd deployment
+	pipelineId := pipeline.Id
 	if applyAuth {
 		user, err := impl.user.GetById(triggeredBy)
 		if err != nil {
@@ -1005,9 +1018,16 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		object := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
 		impl.logger.Debugw("Triggered Request (App Permission Checking):", "token", token, "object", object)
 		if ok := impl.enforcer.EnforceByEmail(strings.ToLower(token), casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
-			err = &util.ApiError{Code: "401", HttpStatusCode: 401, UserMessage: "unauthorized for pipeline " + strconv.Itoa(pipeline.Id)}
+			err = &util.ApiError{Code: "401", HttpStatusCode: 401, UserMessage: "unauthorized for pipeline " + strconv.Itoa(pipelineId)}
 			return err
 		}
+	}
+
+	artifactId := artifact.Id
+	// need to check for approved artifact only in case configured
+	err := impl.checkApprovalNode(pipeline, artifactId)
+	if err != nil {
+		return err
 	}
 
 	//setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
@@ -1015,8 +1035,8 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 
 	if cdWf == nil {
 		cdWf = &pipelineConfig.CdWorkflow{
-			CiArtifactId: artifact.Id,
-			PipelineId:   pipeline.Id,
+			CiArtifactId: artifactId,
+			PipelineId:   pipelineId,
 			AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: 1, UpdatedOn: triggeredAt, UpdatedBy: 1},
 		}
 		err := impl.cdWorkflowRepository.SaveWorkFlow(context.Background(), cdWf)
@@ -1126,10 +1146,30 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 	}
 
 	err = impl.appService.TriggerCD(artifact, cdWf.Id, savedWfr.Id, pipeline, triggeredAt)
-	err1 := impl.updatePreviousDeploymentStatus(runner, pipeline.Id, err, triggeredAt, triggeredBy)
+	err1 := impl.updatePreviousDeploymentStatus(runner, pipelineId, err, triggeredAt, triggeredBy)
 	if err1 != nil || err != nil {
-		impl.logger.Errorw("error while update previous cd workflow runners", "err", err, "runner", runner, "pipelineId", pipeline.Id)
+		impl.logger.Errorw("error while update previous cd workflow runners", "err", err, "runner", runner, "pipelineId", pipelineId)
 		return err
+	}
+	return nil
+}
+
+func (impl *WorkflowDagExecutorImpl) checkApprovalNode(pipeline *pipelineConfig.Pipeline, artifactId int) error {
+	if pipeline.ApprovalNodeConfigured() {
+		pipelineId := pipeline.Id
+		approvalConfig, err := pipeline.GetApprovalConfig()
+		if err != nil {
+			impl.logger.Errorw("error occurred while fetching approval node config", "approvalConfig", pipeline.UserApprovalConfig, "err", err)
+			return err
+		}
+		userApprovalMetadata, err := impl.FetchApprovalDataForArtifacts([]int{artifactId}, pipelineId, approvalConfig.RequiredCount)
+		if err != nil {
+			return err
+		}
+		if userApprovalMetadata[artifactId].ApprovalRuntimeState != pipelineConfig.ApprovedApprovalState {
+			impl.logger.Errorw("not triggering deployment since artifact is not approved", "pipelineId", pipelineId, "artifactId", artifactId)
+			return errors.New("not triggering deployment since artifact is not approved")
+		}
 	}
 	return nil
 }
@@ -1609,6 +1649,26 @@ func (impl *WorkflowDagExecutorImpl) TriggerBulkHibernateAsync(request StopDeplo
 		}
 	}
 	return nil, nil
+}
+
+func (impl *WorkflowDagExecutorImpl) FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int, requiredApprovals int) (map[int]*pipelineConfig.UserApprovalMetadata, error) {
+	deploymentApprovalRequests, err := impl.deploymentApprovalRepository.FetchApprovalDataForArtifacts(artifactIds, pipelineId)
+	if err != nil {
+		return nil, err
+	}
+	artifactIdVsApprovalMetadata := make(map[int]*pipelineConfig.UserApprovalMetadata)
+	for _, approvalRequest := range deploymentApprovalRequests {
+		artifactId := approvalRequest.ArtifactId
+		approvalMetadata := approvalRequest.ConvertToApprovalMetadata()
+		if approvalRequest.GetApprovedCount() == requiredApprovals {
+			approvalMetadata.ApprovalRuntimeState = pipelineConfig.ApprovedApprovalState
+		} else {
+			approvalMetadata.ApprovalRuntimeState = pipelineConfig.RequestedApprovalState
+		}
+		artifactIdVsApprovalMetadata[artifactId] = approvalMetadata
+	}
+	return artifactIdVsApprovalMetadata, nil
+
 }
 
 func (impl *WorkflowDagExecutorImpl) triggerNatsEventForBulkAction(cdWorkflows []*pipelineConfig.CdWorkflow) {

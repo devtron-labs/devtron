@@ -922,8 +922,7 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 	userApprovalConfig := pipelineModel.UserApprovalConfig
 	if len(userApprovalConfig) > 0 && stage == "DEPLOY" {
 		handler.Logger.Infow("approval node configured", "pipelineId", pipelineModel.Id, "isApproval", isApprovalNode, "stage", stage)
-		approvalConfig := bean.UserApprovalConfig{}
-		err := json.Unmarshal([]byte(userApprovalConfig), &approvalConfig)
+		approvalConfig, err := pipelineModel.GetApprovalConfig()
 		if err != nil {
 			handler.Logger.Errorw("service err, failed to unmarshal userApprovalConfig", "err", err, "cdPipelineId", cdPipelineId, "stage", stage, "userApprovalConfig", userApprovalConfig)
 			common.WriteJsonResp(w, errors.New("failed to unmarshal pipeline approval config"), nil, http.StatusInternalServerError)

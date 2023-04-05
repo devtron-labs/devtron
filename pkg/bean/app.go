@@ -456,11 +456,6 @@ type CDSourceObject struct {
 	Metadata    CDMaterialMetadata `json:"metadata"`
 }
 
-type UserApprovalConfig struct {
-	RequiredCount int    `json:"requiredCount" validate:"number,required"`
-	Description   string `json:"description,omitempty"`
-}
-
 type CDPipelineConfigObject struct {
 	Id                            int                                    `json:"id,omitempty"  validate:"number" `
 	EnvironmentId                 int                                    `json:"environmentId,omitempty"  validate:"number,required" `
@@ -482,7 +477,7 @@ type CDPipelineConfigObject struct {
 	ParentPipelineId              int                                    `json:"parentPipelineId"`
 	ParentPipelineType            string                                 `json:"parentPipelineType"`
 	DeploymentAppType             string                                 `json:"deploymentAppType"`
-	UserApprovalConf              UserApprovalConfig                     `json:"userApprovalConf"`
+	UserApprovalConf              pipelineConfig.UserApprovalConfig      `json:"userApprovalConf"`
 	AppName                       string                                 `json:"appName"`
 	DeploymentAppDeleteRequest    bool                                   `json:"deploymentAppDeleteRequest"`
 	DeploymentAppCreated          bool                                   `json:"deploymentAppCreated"`
