@@ -60,7 +60,6 @@ devtronIngress_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron-ingress-leg
 }
 log(devtronIngress_raw);
 serviceAccount_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/serviceaccount.yaml";
-rollout_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/rollout.yaml";
 
 ######Downloading the manifests
 argocdResource = download(argocdResource_raw);
@@ -68,32 +67,21 @@ devtronHousekeeping = download(devtronHousekeeping_raw);
 devtron = download(devtron_raw);
 devtronIngress = download(devtronIngress_raw);
 serviceAccount = download(serviceAccount_raw);
-rollout = download(rollout_raw);
 
 ######Getting the ConfigMap
 
 devtronHousekeepingOverride = kubectl get cm -n devtroncd devtron-housekeeping-override-cm;
 devtronOverride = kubectl get cm -n devtroncd devtron-override-cm;
-devtronIngressOverride = kubectl get cm -n devtroncd devtron-ingress-override-cm;
 serviceAccountOverride = kubectl get cm -n devtroncd devtron-service-account-override-cm;
-rolloutOverride = kubectl get cm -n devtroncd rollout-override-cm;
 
 devtronOverride = jsonSelect(devtronOverride, "data.override");
-devtronIngressOverride = jsonSelect(devtronIngressOverride, "data.override");
 serviceAccountOverride = jsonSelect(serviceAccountOverride, "data.override");
-rolloutOverride = jsonSelect(rolloutOverride, "data.override");
 
 sa = kubectl apply serviceAccount;
 log("created service account");
 
 pa = kubectl patch -n devtroncd cm/argocd-cm --type "application/json-patch+json" -p argocdResource;
 log("executed argocd setup command");
-
-#rollout
-rollout = kubectl apply -n devtroncd rollout -u rolloutOverride;
-log("executed rollout setup command");
-
-
 
 
 # devtron
@@ -144,47 +132,9 @@ kubeYamlEdit(devtron, "data.DEX_SECRET", dexSecret, `/Secret//devtron-secret`);
 kubeYamlEdit(devtron, "data.DEX_JWTKEY", dexJwtKey, `/Secret//devtron-secret`);
 kubeYamlEdit(devtron, "data.DEX_CSTOREKEY", dexCStoreKey, `/Secret//devtron-secret`);
 
-if helmInstallation {
-  kubeYamlDelete(devtron, filter=`/Service//devtron-service`);
-}
-
-if !helmInstallation {
-  if !setupDevtronIngress {
-    kubeYamlEdit(devtron, "spec.type", "LoadBalancer", `/Service//devtron-service`);
-  }
-}
 
 devtron = kubectl apply -n devtroncd devtron -u devtronOverride;
 log("executed devtron setup");
-
-if !helmInstallation {
-  if devtronIngressAnnotations {
-      log("editing ingress");
-    kubeYamlEdit(devtronIngress, "metadata.annotations", devtronIngressAnnotations, `extensions/Ingress//devtron-ingress`, "asObject");
-  }
-
-  if setupDevtronIngress {
-    log("fetch ingress");
-    existingIngress = kubectl get -n devtroncd ing devtron-ingress;
-  }
-
-  if existingIngress {
-    annotations = jsonSelect(existingIngress, "metadata.annotations");
-  }
-
-  if annotations {
-    kubeYamlEdit(devtronIngress, "metadata.annotations", annotations, `extensions/Ingress//devtron-ingress`, "asObject");
-  }
-
-  if setupDevtronIngress {
-    log("setup ingress");
-    log(devtronIngress);
-    devtronIngress = kubectl apply -n devtroncd devtronIngress -u devtronIngressOverride;
-  }
-
-  log("executed devtron ingress setup");
-}
-
 
 ## Applying Housekeeping Job
 appHousekeeping = kubectl apply -n devtroncd devtronHousekeeping -u devtronHousekeepingOverride;

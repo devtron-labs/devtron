@@ -262,11 +262,18 @@ spec:
   volumeClaimTemplates:
   - metadata:
       name: data
+    {{- if and $.Values.nats.persistence $.Values.nats.persistence.kind }}
+    kind: {{ $.Values.nats.persistence.kind }}
+    {{- end }}
     spec:
       accessModes: [ "ReadWriteOnce" ]
       resources:
         requests:
+          {{- if and $.Values.nats.persistence $.Values.nats.persistence.storage }}
+          storage: {{ $.Values.nats.persistence.storage }}
+          {{- else }}
           storage: 5Gi
+          {{- end }}
 ---
 # Source: nats/templates/tests/test-request-reply.yaml
 apiVersion: v1
