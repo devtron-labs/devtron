@@ -1412,56 +1412,54 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int) (cdPipe
 
 	var pipelines []*bean.CDPipelineConfigObject
 	for _, dbPipeline := range dbPipelines {
-		preStage := bean.CdStage{}
+		pipeline := &bean.CDPipelineConfigObject{
+			Id:                    dbPipeline.Id,
+			Name:                  dbPipeline.Name,
+			EnvironmentId:         dbPipeline.EnvironmentId,
+			EnvironmentName:       dbPipeline.Environment.Name,
+			CiPipelineId:          dbPipeline.CiPipelineId,
+			TriggerType:           dbPipeline.TriggerType,
+			RunPreStageInEnv:      dbPipeline.RunPreStageInEnv,
+			RunPostStageInEnv:     dbPipeline.RunPostStageInEnv,
+			DeploymentAppType:     dbPipeline.DeploymentAppType,
+			AppName:               dbPipeline.App.AppName,
+			AppId:                 dbPipeline.AppId,
+			TeamId:                dbPipeline.App.TeamId,
+			EnvironmentIdentifier: dbPipeline.Environment.EnvironmentIdentifier,
+		}
 		if len(dbPipeline.PreStageConfig) > 0 {
+			preStage := bean.CdStage{}
 			preStage.Name = "Pre-Deployment"
 			preStage.Config = dbPipeline.PreStageConfig
 			preStage.TriggerType = dbPipeline.PreTriggerType
+			pipeline.PreStage = preStage
 		}
-		postStage := bean.CdStage{}
 		if len(dbPipeline.PostStageConfig) > 0 {
+			postStage := bean.CdStage{}
 			postStage.Name = "Post-Deployment"
 			postStage.Config = dbPipeline.PostStageConfig
 			postStage.TriggerType = dbPipeline.PostTriggerType
+			pipeline.PostStage = postStage
 		}
-
-		preStageConfigmapSecrets := bean.PreStageConfigMapSecretNames{}
-		postStageConfigmapSecrets := bean.PostStageConfigMapSecretNames{}
-
 		if dbPipeline.PreStageConfigMapSecretNames != "" {
+			preStageConfigmapSecrets := bean.PreStageConfigMapSecretNames{}
 			err = json.Unmarshal([]byte(dbPipeline.PreStageConfigMapSecretNames), &preStageConfigmapSecrets)
 			if err != nil {
 				impl.logger.Errorw("unmarshal error", "err", err)
 				return nil, err
 			}
+			pipeline.PreStageConfigMapSecretNames = preStageConfigmapSecrets
 		}
 		if dbPipeline.PostStageConfigMapSecretNames != "" {
+			postStageConfigmapSecrets := bean.PostStageConfigMapSecretNames{}
 			err = json.Unmarshal([]byte(dbPipeline.PostStageConfigMapSecretNames), &postStageConfigmapSecrets)
 			if err != nil {
 				impl.logger.Errorw("unmarshal error", "err", err)
 				return nil, err
 			}
+			pipeline.PostStageConfigMapSecretNames = postStageConfigmapSecrets
 		}
 
-		pipeline := &bean.CDPipelineConfigObject{
-			Id:                            dbPipeline.Id,
-			Name:                          dbPipeline.Name,
-			EnvironmentId:                 dbPipeline.EnvironmentId,
-			EnvironmentName:               dbPipeline.Environment.Name,
-			CiPipelineId:                  dbPipeline.CiPipelineId,
-			TriggerType:                   dbPipeline.TriggerType,
-			PreStage:                      preStage,
-			PostStage:                     postStage,
-			RunPreStageInEnv:              dbPipeline.RunPreStageInEnv,
-			RunPostStageInEnv:             dbPipeline.RunPostStageInEnv,
-			PreStageConfigMapSecretNames:  preStageConfigmapSecrets,
-			PostStageConfigMapSecretNames: postStageConfigmapSecrets,
-			DeploymentAppType:             dbPipeline.DeploymentAppType,
-			AppName:                       dbPipeline.App.AppName,
-			AppId:                         dbPipeline.AppId,
-			TeamId:                        dbPipeline.App.TeamId,
-			EnvironmentIdentifier:         dbPipeline.Environment.EnvironmentIdentifier,
-		}
 		pipelines = append(pipelines, pipeline)
 	}
 	cdPipelines = &bean.CdPipelines{

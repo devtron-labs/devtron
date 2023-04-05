@@ -594,10 +594,10 @@ func (impl PipelineBuilderImpl) getCiTemplateVariablesByAppIds(appIds []int) (ma
 			Version:           template.Version,
 			CiTemplateName:    template.TemplateName,
 			Materials:         materials,
-			UpdatedOn:         template.UpdatedOn,
-			UpdatedBy:         template.UpdatedBy,
-			CreatedBy:         template.CreatedBy,
-			CreatedOn:         template.CreatedOn,
+			//UpdatedOn:         template.UpdatedOn,
+			//UpdatedBy:         template.UpdatedBy,
+			//CreatedBy:         template.CreatedBy,
+			//CreatedOn:         template.CreatedOn,
 		}
 		if dockerRegistry != nil {
 			ciConfig.DockerRegistry = dockerRegistry.Id
