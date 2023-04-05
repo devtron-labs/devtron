@@ -18,6 +18,7 @@
 package chartRepo
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
@@ -28,6 +29,7 @@ import (
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -65,11 +67,12 @@ type ChartRepositoryRestHandlerImpl struct {
 	chartRefRepository     chartRepoRepository.ChartRefRepository
 	refChartDir            chartRepoRepository.RefChartDir
 	attributesService      attributes.AttributesService
+	argoUserService        argo.ArgoUserService
 }
 
 func NewChartRepositoryRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService, chartRepositoryService chartRepo.ChartRepositoryService,
 	enforcer casbin.Enforcer, validator *validator.Validate, deleteService delete2.DeleteService,
-	chartRefRepository chartRepoRepository.ChartRefRepository, refChartDir chartRepoRepository.RefChartDir, attributesService attributes.AttributesService) *ChartRepositoryRestHandlerImpl {
+	chartRefRepository chartRepoRepository.ChartRefRepository, refChartDir chartRepoRepository.RefChartDir, attributesService attributes.AttributesService, argoUserService argo.ArgoUserService) *ChartRepositoryRestHandlerImpl {
 	return &ChartRepositoryRestHandlerImpl{
 		Logger:                 Logger,
 		chartRepositoryService: chartRepositoryService,
@@ -80,6 +83,7 @@ func NewChartRepositoryRestHandlerImpl(Logger *zap.SugaredLogger, userAuthServic
 		chartRefRepository:     chartRefRepository,
 		refChartDir:            refChartDir,
 		attributesService:      attributesService,
+		argoUserService:        argoUserService,
 	}
 }
 
@@ -153,10 +157,17 @@ func (handler *ChartRepositoryRestHandlerImpl) CreateChartRepo(w http.ResponseWr
 		return
 	}
 
+	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		handler.Logger.Errorw("error in getting acd token", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	ctx := context.WithValue(r.Context(), "token", acdToken)
 	//rback block ends here
 	request.UserId = userId
 	handler.Logger.Infow("request payload, CreateChartRepo", "payload", request)
-	res, err, validationResult := handler.chartRepositoryService.ValidateAndCreateChartRepo(request)
+	res, err, validationResult := handler.chartRepositoryService.ValidateAndCreateChartRepo(request, ctx)
 	if validationResult.CustomErrMsg != chartRepo.ValidationSuccessMsg {
 		common.WriteJsonResp(w, nil, validationResult, http.StatusOK)
 		return
