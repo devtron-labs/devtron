@@ -73,16 +73,18 @@ func (impl *DeploymentApprovalRepositoryImpl) FetchApprovalDataForArtifacts(arti
 		requestIdMap[requestId] = request
 		requestIds = append(requestIds, requestId)
 	}
-	usersData, err := impl.FetchApprovalDataForRequests(requestIds)
-	if err != nil {
-		return requests, err
-	}
-	for _, userData := range usersData {
-		approvalRequestId := userData.ApprovalRequestId
-		deploymentApprovalRequest := requestIdMap[approvalRequestId]
-		approvalUsers := deploymentApprovalRequest.DeploymentApprovalUserData
-		approvalUsers = append(approvalUsers, userData)
-		deploymentApprovalRequest.DeploymentApprovalUserData = approvalUsers
+	if len(requestIds) > 0 {
+		usersData, err := impl.FetchApprovalDataForRequests(requestIds)
+		if err != nil {
+			return requests, err
+		}
+		for _, userData := range usersData {
+			approvalRequestId := userData.ApprovalRequestId
+			deploymentApprovalRequest := requestIdMap[approvalRequestId]
+			approvalUsers := deploymentApprovalRequest.DeploymentApprovalUserData
+			approvalUsers = append(approvalUsers, userData)
+			deploymentApprovalRequest.DeploymentApprovalUserData = approvalUsers
+		}
 	}
 	return requests, nil
 }
