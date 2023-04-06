@@ -279,7 +279,7 @@ func (impl *PipelineStatusTimelineRepositoryImpl) FetchLatestTimelinesByInstalle
 		Order("status_time DESC").
 		Limit(1).Select()
 	if err != nil {
-		impl.logger.Errorw("error in getting timeline of latest wf by wfrId", "err", err, "wfrId", installedAppVersionHistoryId)
+		impl.logger.Errorw("error in getting timeline of latest installed_app_version_history by installed_app_version_history_id", "err", err, "installed_app_version_history_id", installedAppVersionHistoryId)
 		return nil, err
 	}
 	return timeline, nil
