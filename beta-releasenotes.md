@@ -1,4 +1,5 @@
 ## Bugs
+- fix: helm pipeline force delete check update (#3245)
 - fix: git sensor initContainer indentation fix (#3229)
 - fix: updated rbac for devtron apps/helm pipeline (#3227)
 - fix: updated query for getting workflow runner by appId and envId for active pipelines only (#3222)
