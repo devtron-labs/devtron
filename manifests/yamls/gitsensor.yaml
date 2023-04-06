@@ -57,8 +57,7 @@ spec:
         fsGroup: 1000
         runAsGroup: 1000
         runAsUser: 1000
-      containers:
-        initContainers:
+      initContainers:
         - command:
           - /bin/sh
           - -c
@@ -74,6 +73,7 @@ spec:
           volumeMounts:
           - mountPath: /git-base/
             name: git-volume
+      containers:
         - name: git-sensor
           image: "quay.io/devtron/git-sensor:e5e66474-200-13261"
           securityContext:

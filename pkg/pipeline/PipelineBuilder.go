@@ -1814,12 +1814,16 @@ func (impl PipelineBuilderImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipeli
 				Namespace:   pipeline.Environment.Namespace,
 			}
 			deleteResponse, err := impl.helmAppService.DeleteApplication(ctx, appIdentifier)
-			if err != nil {
-				impl.logger.Errorw("error in deleting helm application", "error", err, "appIdentifier", appIdentifier)
-				return err
-			}
-			if deleteResponse == nil || !deleteResponse.GetSuccess() {
-				return errors.New("delete application response unsuccessful")
+			if forceDelete {
+				impl.logger.Warnw("error while deletion of helm application, ignore error and delete from db since force delete req", "error", err, "pipelineId", pipeline.Id)
+			} else {
+				if err != nil {
+					impl.logger.Errorw("error in deleting helm application", "error", err, "appIdentifier", appIdentifier)
+					return err
+				}
+				if deleteResponse == nil || !deleteResponse.GetSuccess() {
+					return errors.New("delete application response unsuccessful")
+				}
 			}
 		}
 	}
