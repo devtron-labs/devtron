@@ -6,7 +6,22 @@ import (
 	"github.com/google/wire"
 )
 
-var ChartRepositoryWireSet = wire.NewSet(
+var ChartRepositoryWireSetFullMode = wire.NewSet(
+	chartRepoRepository.NewChartRepoRepositoryImpl,
+	wire.Bind(new(chartRepoRepository.ChartRepoRepository), new(*chartRepoRepository.ChartRepoRepositoryImpl)),
+	chartRepoRepository.NewChartRefRepositoryImpl,
+	wire.Bind(new(chartRepoRepository.ChartRefRepository), new(*chartRepoRepository.ChartRefRepositoryImpl)),
+	chartRepoRepository.NewChartRepository,
+	wire.Bind(new(chartRepoRepository.ChartRepository), new(*chartRepoRepository.ChartRepositoryImpl)),
+	chartRepo.NewChartRepositoryServiceExtendedImpl,
+	wire.Bind(new(chartRepo.ChartRepositoryService), new(*chartRepo.ChartRepositoryServiceExtendedImpl)),
+	NewChartRepositoryRestHandlerImpl,
+	wire.Bind(new(ChartRepositoryRestHandler), new(*ChartRepositoryRestHandlerImpl)),
+	NewChartRepositoryRouterImpl,
+	wire.Bind(new(ChartRepositoryRouter), new(*ChartRepositoryRouterImpl)),
+)
+
+var ChartRepositoryWireSetEAMode = wire.NewSet(
 	chartRepoRepository.NewChartRepoRepositoryImpl,
 	wire.Bind(new(chartRepoRepository.ChartRepoRepository), new(*chartRepoRepository.ChartRepoRepositoryImpl)),
 	chartRepoRepository.NewChartRefRepositoryImpl,

@@ -41,6 +41,10 @@ type ServiceClient interface {
 	Update(ctx context.Context, query *repository2.RepoUpdateRequest) (*v1alpha1.Repository, error)
 	// Delete deletes a repo
 	Delete(ctx context.Context, query *repository2.RepoQuery) (*repository2.RepoResponse, error)
+	// Get fetches repo details
+	Get(ctx context.Context, query *repository2.RepoQuery) (*v1alpha1.Repository, error)
+	// ValidateAccess validates acces to given repo
+	ValidateAccess(ctx context.Context, query *repository2.RepoAccessQuery) (*repository2.RepoResponse, error)
 }
 
 type ServiceClientImpl struct {
@@ -123,4 +127,32 @@ func (r ServiceClientImpl) Delete(ctx context.Context, query *repository2.RepoQu
 		return nil, err
 	}
 	return client.DeleteRepository(ctx, query)
+}
+
+func (r ServiceClientImpl) Get(ctx context.Context, query *repository2.RepoQuery) (*v1alpha1.Repository, error) {
+	ctx, cancel := context.WithTimeout(ctx, application.TimeoutSlow)
+	defer cancel()
+	client, err := r.getService(ctx)
+	if err != nil {
+		return nil, err
+	}
+	res, err := client.Get(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
+func (r ServiceClientImpl) ValidateAccess(ctx context.Context, query *repository2.RepoAccessQuery) (*repository2.RepoResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, application.TimeoutSlow)
+	defer cancel()
+	client, err := r.getService(ctx)
+	if err != nil {
+		return nil, err
+	}
+	res, err := client.ValidateAccess(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	return res, err
 }

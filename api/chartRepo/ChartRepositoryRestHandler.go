@@ -18,7 +18,6 @@
 package chartRepo
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
@@ -157,17 +156,12 @@ func (handler *ChartRepositoryRestHandlerImpl) CreateChartRepo(w http.ResponseWr
 		return
 	}
 
-	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		handler.Logger.Errorw("error in getting acd token", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	ctx := context.WithValue(r.Context(), "token", acdToken)
 	//rback block ends here
 	request.UserId = userId
 	handler.Logger.Infow("request payload, CreateChartRepo", "payload", request)
-	res, err, validationResult := handler.chartRepositoryService.ValidateAndCreateChartRepo(request, ctx)
+
+	res, err, validationResult := handler.chartRepositoryService.ValidateAndCreateChartRepo(request)
+
 	if validationResult.CustomErrMsg != chartRepo.ValidationSuccessMsg {
 		common.WriteJsonResp(w, nil, validationResult, http.StatusOK)
 		return
