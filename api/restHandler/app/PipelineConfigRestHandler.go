@@ -301,11 +301,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r 
 			return
 		}
 		ctx = context.WithValue(r.Context(), "token", acdToken)
-		for i := 0; i < 100; i++ {
-			createRequest.AppName = fmt.Sprintf("clone-test-app-%s-%v", util2.Generate(4), i)
-			createResp, err = handler.appCloneService.CloneApp(&createRequest, ctx)
-		}
-		//createResp, err = handler.appCloneService.CloneApp(&createRequest, ctx)
+		createResp, err = handler.appCloneService.CloneApp(&createRequest, ctx)
 	}
 	if err != nil {
 		handler.Logger.Errorw("service err, CreateApp", "err", err, "CreateApp", createRequest)
