@@ -66,6 +66,8 @@ type InstalledAppRepository interface {
 	GetInstalledAppByGitHash(gitHash string) (InstallAppDeleteRequest, error)
 	GetInstalledAppByAppId(appId int) (InstalledApps, error)
 	GetInstalledAppByInstalledAppVersionId(installedAppVersionId int) (InstalledApps, error)
+	GetAllGitOpsDeploymentAppName() ([]string, error)
+	GetAllGitOpsAppNameAndInstalledAppMapping() ([]*GitOpsAppDetails, error)
 
 	GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatusesForAppStore(getPipelineDeployedBeforeMinutes int, getPipelineDeployedWithinHours int) ([]*InstalledAppVersions, error)
 	GetArgoPipelinesHavingTriggersStuckInLastPossibleNonTerminalTimelinesForAppStore(pendingSinceSeconds int, timeForDegradation int) ([]*InstalledAppVersions, error)
@@ -118,6 +120,11 @@ type InstalledAppVersions struct {
 	sql.AuditLog
 	InstalledApp               InstalledApps
 	AppStoreApplicationVersion appStoreDiscoverRepository.AppStoreApplicationVersion
+}
+
+type GitOpsAppDetails struct {
+	GitOpsAppName  string `sql:"git_ops_app_name"`
+	InstalledAppId int    `sql:"installed_app_id"`
 }
 
 type InstalledAppsWithChartDetails struct {
@@ -576,6 +583,39 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppByInstalledAppVersionId(in
 	}
 
 	return installedApps, nil
+}
+
+func (impl InstalledAppRepositoryImpl) GetAllGitOpsDeploymentAppName() ([]string, error) {
+	type GitOpsAppName struct {
+		GitOpsAppName string `sql:"git_ops_app_name"`
+	}
+	var gitOpsApplicationName []*GitOpsAppName
+	allGitOpsAppName := make([]string, 0)
+
+	query := `select concat(a.git_ops_repo_name, '-',e.environment_name) as git_ops_app_name from installed_apps a inner join environment e on a.environment_id=e.id;`
+	_, err := impl.dbConnection.Query(&gitOpsApplicationName, query)
+	if err != nil {
+		impl.Logger.Errorw("error in GetAllGitOpsDeploymentAppName", "err", err)
+		return nil, err
+	}
+
+	for _, item := range gitOpsApplicationName {
+		allGitOpsAppName = append(allGitOpsAppName, item.GitOpsAppName)
+	}
+	return allGitOpsAppName, err
+}
+
+func (impl InstalledAppRepositoryImpl) GetAllGitOpsAppNameAndInstalledAppMapping() ([]*GitOpsAppDetails, error) {
+	var model []*GitOpsAppDetails
+
+	query := `select concat(a.git_ops_repo_name, '-',e.environment_name) as git_ops_app_name, a.id as installed_app_id from installed_apps a 
+    			inner join environment e on a.environment_id=e.id;`
+	_, err := impl.dbConnection.Query(&model, query)
+	if err != nil {
+		impl.Logger.Errorw("error in GetAllGitOpsDeploymentAppName", "err", err)
+		return nil, err
+	}
+	return model, err
 }
 
 func (impl InstalledAppRepositoryImpl) GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatusesForAppStore(getPipelineDeployedBeforeMinutes int, getPipelineDeployedWithinHours int) ([]*InstalledAppVersions, error) {

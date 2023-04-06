@@ -71,6 +71,7 @@ type InstallAppVersionDTO struct {
 	EnvironmentId                int                        `json:"environmentId,omitempty"`
 	InstalledAppId               int                        `json:"installedAppId,omitempty,notnull"`
 	InstalledAppVersionId        int                        `json:"installedAppVersionId,omitempty,notnull"`
+	InstalledAppVersionHistoryId int                        `json:"installedAppVersionHistoryId,omitempty"`
 	AppStoreVersion              int                        `json:"appStoreVersion,omitempty,notnull"`
 	ValuesOverrideYaml           string                     `json:"valuesOverrideYaml,omitempty"`
 	Readme                       string                     `json:"readme,omitempty"`

@@ -1,1 +1,1 @@
-alter table installed_app_version_history add column started_on time, add column finished_on time;
+alter table installed_app_version_history add column started_on timestamp with time zone, add column finished_on timestamp with time zone NOT NULL;

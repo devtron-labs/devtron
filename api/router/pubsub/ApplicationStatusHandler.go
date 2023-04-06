@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
+	"k8s.io/utils/strings/slices"
 	"time"
 
 	v1alpha12 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -102,10 +103,25 @@ func (impl *ApplicationStatusHandlerImpl) Subscribe() error {
 		}
 		isAppStoreApplication := false
 		_, err = impl.pipelineRepository.GetArgoPipelineByArgoAppName(app.ObjectMeta.Name)
-		if err != nil && err != pg.ErrNoRows {
-			isAppStoreApplication = true
-		} else if err != nil {
-			return
+		if err != nil && err == pg.ErrNoRows {
+			impl.logger.Infow("this app not found in pipeline table looking in installed_apps table", "appName", app.ObjectMeta.Name)
+			//if not found in pipeline table then search in installed_apps table
+			gitOpsDeployedAppNames, err := impl.installedAppRepository.GetAllGitOpsDeploymentAppName()
+			if err != nil && err == pg.ErrNoRows {
+				//no installed_apps found
+				impl.logger.Errorw("no installed apps found", "err", err)
+				return
+			} else if err != nil {
+				impl.logger.Errorw("error in getting all gitops deployment app names from installed_apps ", "err", err)
+				return
+			}
+			if slices.Contains(gitOpsDeployedAppNames, app.ObjectMeta.Name) {
+				//app found in installed_apps table hence setting flag to true
+				isAppStoreApplication = true
+			} else {
+				//app neither found in installed_apps nor in pipeline table hence returning
+				return
+			}
 		}
 		isSucceeded, err := impl.appService.UpdateDeploymentStatusAndCheckIsSucceeded(app, applicationDetail.StatusTime, isAppStoreApplication)
 		if err != nil {

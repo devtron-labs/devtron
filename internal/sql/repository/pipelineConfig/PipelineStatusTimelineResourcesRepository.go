@@ -38,7 +38,7 @@ type PipelineStatusTimelineResources struct {
 	tableName                    struct{}              `sql:"pipeline_status_timeline_resources" pg:",discard_unknown_columns"`
 	Id                           int                   `sql:"id,pk"`
 	InstalledAppVersionHistoryId int                   `sql:"installed_app_version_history_id,type:integer"`
-	CdWorkflowRunnerId           int                   `sql:"cd_workflow_runner_id"`
+	CdWorkflowRunnerId           int                   `sql:"cd_workflow_runner_id,type:integer"`
 	ResourceName                 string                `sql:"resource_name"`
 	ResourceKind                 string                `sql:"resource_kind"`
 	ResourceGroup                string                `sql:"resource_group"`
@@ -70,7 +70,7 @@ func (impl *PipelineStatusTimelineResourcesRepositoryImpl) SaveTimelineResources
 func (impl *PipelineStatusTimelineResourcesRepositoryImpl) UpdateTimelineResources(timelineResources []*PipelineStatusTimelineResources) error {
 	_, err := impl.dbConnection.Model(&timelineResources).Update()
 	if err != nil {
-		impl.logger.Errorw("error in updating timeline resources of cd pipeline status", "err", err, "timelineResources", timelineResources)
+		impl.logger.Errorw("error in updating timeline resources of pipeline status", "err", err, "timelineResources", timelineResources)
 		return err
 	}
 	return nil

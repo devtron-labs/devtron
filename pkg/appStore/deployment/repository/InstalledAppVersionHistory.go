@@ -34,8 +34,8 @@ type InstalledAppVersionHistory struct {
 	ValuesYamlRaw         string    `sql:"values_yaml_raw"`
 	Status                string    `sql:"status"`
 	GitHash               string    `sql:"git_hash"`
-	StartedOn             time.Time `sql:"started_on"`
-	FinishedOn            time.Time `sql:"finished_on"`
+	StartedOn             time.Time `sql:"started_on,type:timestamptz"`
+	FinishedOn            time.Time `sql:"finished_on,type:timestamptz"`
 	sql.AuditLog
 }
 
@@ -48,12 +48,22 @@ func (impl InstalledAppVersionHistoryRepositoryImpl) CreateInstalledAppVersionHi
 	return model, nil
 }
 func (impl InstalledAppVersionHistoryRepositoryImpl) UpdateInstalledAppVersionHistory(model *InstalledAppVersionHistory, tx *pg.Tx) (*InstalledAppVersionHistory, error) {
-	err := tx.Update(model)
-	if err != nil {
-		impl.Logger.Error(err)
-		return model, err
+	if tx == nil {
+		err := impl.dbConnection.Update(model)
+		if err != nil {
+			impl.Logger.Errorw("error in updating installed app version history", "err", err, "InstalledAppVersionHistory", model)
+			return nil, err
+		}
+		return model, nil
+	} else {
+		err := tx.Update(model)
+		if err != nil {
+			impl.Logger.Error(err)
+			return model, err
+		}
+		return model, nil
 	}
-	return model, nil
+
 }
 func (impl InstalledAppVersionHistoryRepositoryImpl) GetInstalledAppVersionHistory(id int) (*InstalledAppVersionHistory, error) {
 	model := &InstalledAppVersionHistory{}

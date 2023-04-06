@@ -58,7 +58,7 @@ const (
 )
 
 type AppStoreDeploymentFullModeService interface {
-	AppStoreDeployOperationGIT(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, *util.ChartGitAttribute, error)
+	AppStoreDeployOperationGIT(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, *util.ChartGitAttribute, error)
 	AppStoreDeployOperationACD(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *util.ChartGitAttribute, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error)
 	RegisterInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context) error
 	SyncACD(acdAppName string, ctx context.Context)
@@ -84,7 +84,6 @@ type AppStoreDeploymentFullModeServiceImpl struct {
 	argoUserService                      argo.ArgoUserService
 	gitOpsConfigRepository               repository3.GitOpsConfigRepository
 	pipelineStatusTimelineService        status.PipelineStatusTimelineService
-	installedAppRepositoryHistory        repository4.InstalledAppVersionHistoryRepository
 }
 
 func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
@@ -99,7 +98,6 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 	installedAppRepository repository4.InstalledAppRepository, tokenCache *util2.TokenCache,
 	argoUserService argo.ArgoUserService, gitOpsConfigRepository repository3.GitOpsConfigRepository,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
-	installedAppRepositoryHistory repository4.InstalledAppVersionHistoryRepository,
 ) *AppStoreDeploymentFullModeServiceImpl {
 	return &AppStoreDeploymentFullModeServiceImpl{
 		logger:                               logger,
@@ -118,11 +116,10 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 		argoUserService:                      argoUserService,
 		gitOpsConfigRepository:               gitOpsConfigRepository,
 		pipelineStatusTimelineService:        pipelineStatusTimelineService,
-		installedAppRepositoryHistory:        installedAppRepositoryHistory,
 	}
 }
 
-func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, *util.ChartGitAttribute, error) {
+func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, *util.ChartGitAttribute, error) {
 	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
 	if err != nil {
 		impl.logger.Errorw("fetching error", "err", err)
@@ -241,7 +238,6 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 		UserEmailId:    userEmailId,
 		UserName:       userName,
 	}
-	installedAppVersionHistory, err := impl.installedAppRepositoryHistory.GetLatestInstalledAppVersionHistory(installAppVersionRequest.Id)
 
 	commitHash, _, err := impl.gitFactory.Client.CommitValues(valuesYamlConfig, gitOpsConfig)
 	if err != nil {
@@ -250,7 +246,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 		gitCommitStatus := pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED
 		gitCommitStatusDetail := fmt.Sprintf("Git commit failed - %v", err)
 		timeline := &pipelineConfig.PipelineStatusTimeline{
-			InstalledAppVersionHistoryId: installedAppVersionHistory.Id,
+			InstalledAppVersionHistoryId: installAppVersionRequest.InstalledAppVersionHistoryId,
 			Status:                       gitCommitStatus,
 			StatusDetail:                 gitCommitStatusDetail,
 			StatusTime:                   time.Now(),
@@ -261,7 +257,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 				UpdatedOn: time.Now(),
 			},
 		}
-		timelineErr := impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, true)
+		timelineErr := impl.pipelineStatusTimelineService.SaveTimeline(timeline, tx, true)
 		if timelineErr != nil {
 			impl.logger.Errorw("error in creating timeline status for git commit", "err", timelineErr, "timeline", timeline)
 		}
@@ -269,7 +265,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 	}
 	//creating timeline for Git Commit stage
 	timeline := &pipelineConfig.PipelineStatusTimeline{
-		InstalledAppVersionHistoryId: installedAppVersionHistory.Id,
+		InstalledAppVersionHistoryId: installAppVersionRequest.InstalledAppVersionHistoryId,
 		Status:                       pipelineConfig.TIMELINE_STATUS_GIT_COMMIT,
 		StatusDetail:                 "Git commit done successfully.",
 		StatusTime:                   time.Now(),
@@ -280,7 +276,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 			UpdatedOn: time.Now(),
 		},
 	}
-	err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, true)
+	err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, tx, true)
 	if err != nil {
 		impl.logger.Errorw("error in creating timeline status for git commit", "err", err, "timeline", timeline)
 	}

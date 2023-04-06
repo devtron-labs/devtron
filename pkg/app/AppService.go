@@ -487,7 +487,7 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsPipelines(app *v1alph
 			// new revision is not reconciled yet, thus status will not be changes and will remain in progress
 		}
 	} else {
-		isValid, installedAppVersionHistory, appId, envId, err := impl.CheckIfPipelineUpdateEventIsValidForAppStore(gitHash)
+		isValid, installedAppVersionHistory, appId, envId, err := impl.CheckIfPipelineUpdateEventIsValidForAppStore(app.ObjectMeta.Name)
 		if err != nil {
 			impl.logger.Errorw("service err, CheckIfPipelineUpdateEventIsValidForAppStore", "err", err)
 			return isSucceeded, isTimelineUpdated, err
@@ -535,14 +535,28 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsPipelines(app *v1alph
 	return isSucceeded, isTimelineUpdated, nil
 }
 
-func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValidForAppStore(gitHash string) (bool, *repository4.InstalledAppVersionHistory, int, int, error) {
+func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValidForAppStore(gitOpsAppName string) (bool, *repository4.InstalledAppVersionHistory, int, int, error) {
 	isValid := false
 	var err error
 	installedAppVersionHistory := &repository4.InstalledAppVersionHistory{}
-
-	installedAppVersionHistory, err = impl.installedAppVersionHistoryRepository.GetLatestInstalledAppVersionHistoryByGitHash(gitHash)
+	installedAppId := 0
+	gitOpsAppNameAndInstalledAppMapping := make(map[string]*int)
+	//checking if the gitOpsAppName is present in installed_apps table, if yes the find installed_app_version_history else return
+	gitOpsAppNameAndInstalledAppId, err := impl.installedAppRepository.GetAllGitOpsAppNameAndInstalledAppMapping()
 	if err != nil {
-		impl.logger.Errorw("error in getting latest installedAppVersionHistory by githash", "err", err, "gitHash", gitHash)
+		impl.logger.Errorw("error in getting all installed apps in GetAllGitOpsAppNameAndInstalledAppMapping", "err", err, "gitOpsAppName", gitOpsAppName)
+		return isValid, installedAppVersionHistory, 0, 0, err
+	}
+	for _, item := range gitOpsAppNameAndInstalledAppId {
+		gitOpsAppNameAndInstalledAppMapping[item.GitOpsAppName] = &item.InstalledAppId
+	}
+	if gitOpsAppNameAndInstalledAppMapping[gitOpsAppName] != nil {
+		installedAppId = *gitOpsAppNameAndInstalledAppMapping[gitOpsAppName]
+	}
+
+	installedAppVersionHistory, err = impl.installedAppVersionHistoryRepository.GetLatestInstalledAppVersionHistoryByInstalledAppId(installedAppId)
+	if err != nil {
+		impl.logger.Errorw("error in getting latest installedAppVersionHistory by installedAppId", "err", err, "installedAppId", installedAppId)
 		return isValid, installedAppVersionHistory, 0, 0, err
 	}
 	appId, envId, err := impl.installedAppVersionHistoryRepository.GetAppIdAndEnvIdWithInstalledAppVersionId(installedAppVersionHistory.InstalledAppVersionId)
@@ -2142,7 +2156,7 @@ func (impl *AppServiceImpl) UpdateInstalledAppVersionHistoryByACDObject(app *v1a
 	installedAppVersionHistory.UpdatedOn = time.Now()
 	_, err = impl.installedAppVersionHistoryRepository.UpdateInstalledAppVersionHistory(installedAppVersionHistory, nil)
 	if err != nil {
-		impl.logger.Errorw("error on update installedAppVersionHistory", "installedAppVersionHistory", installedAppVersionHistoryId, "app", app, "err", err)
+		impl.logger.Errorw("error on update installedAppVersionHistory", "installedAppVersionHistoryId", installedAppVersionHistoryId, "app", app, "err", err)
 		return err
 	}
 	return nil
