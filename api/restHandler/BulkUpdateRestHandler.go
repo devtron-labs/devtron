@@ -332,6 +332,12 @@ func (handler BulkUpdateRestHandlerImpl) BulkDeploy(w http.ResponseWriter, r *ht
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
+	user, err := handler.userAuthService.GetById(userId)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	userEmailId := strings.ToLower(user.EmailId)
 	decoder := json.NewDecoder(r.Body)
 	var request bulkAction.BulkApplicationForEnvironmentPayload
 	err = decoder.Decode(&request)
@@ -346,15 +352,7 @@ func (handler BulkUpdateRestHandlerImpl) BulkDeploy(w http.ResponseWriter, r *ht
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		handler.logger.Errorw("error in getting acd token", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	ctx := context.WithValue(r.Context(), "token", acdToken)
-	token := r.Header.Get("token")
-	response, err := handler.bulkUpdateService.BulkDeploy(&request, ctx, w, token, handler.checkAuthBatch)
+	response, err := handler.bulkUpdateService.BulkDeploy(&request, userEmailId, handler.checkAuthBatch)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
