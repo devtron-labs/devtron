@@ -550,7 +550,7 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team, entity
 func (impl UserAuthRepositoryImpl) GetApprovalUsersByEnv(appName, envName string) ([]string, error) {
 	//TODO KB: need to handle permission groups also
 	var emailIds []string
-	query := "select distinct(email_id) from users us inner join user_roles ur on us.id=ur.user_id inner join roles on ur.role_id = roles.id where roles.approver = true and  and roles.environment=? and entity_name=?;"
+	query := "select distinct(email_id) from users us inner join user_roles ur on us.id=ur.user_id inner join roles on ur.role_id = roles.id where roles.approver = true and roles.environment=? and entity_name=?;"
 	_, err := impl.dbConnection.Query(&emailIds, query, envName, appName)
 	if err != nil && err != pg.ErrNoRows {
 		return emailIds, err

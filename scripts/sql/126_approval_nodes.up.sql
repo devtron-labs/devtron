@@ -39,6 +39,10 @@ alter table cd_workflow_runner add column deployment_approval_request_id int CON
 Alter table roles
 add column approver bool;
 
+DROP INDEX "public"."role_unique";
+
+CREATE UNIQUE INDEX IF NOT EXISTS "role_unique" ON "public"."roles" USING BTREE ("role","access_type","approver");
+
 update default_auth_role
 set role = '{
     "role": "role:manager_{{.Team}}_{{.Env}}_{{.App}}",
@@ -50,7 +54,7 @@ set role = '{
     "environment": "{{.Env}}",
     "approver":{{.Approver}},
     "action": "manager",
-    "access_type": "devtron-app"
+    "accessType": "devtron-app"
 }' where id = 1;
 
 update default_auth_role
@@ -64,7 +68,7 @@ set role = '{
      "environment": "{{.Env}}",
      "approver":{{.Approver}},
      "action": "admin",
-     "access_type": "devtron-app"
+     "accessType": "devtron-app"
 }' where id = 2;
 
 update default_auth_role
@@ -78,7 +82,7 @@ set role = '{
      "environment": "{{.Env}}",
      "approver":{{.Approver}},
      "action": "trigger",
-     "access_type": "devtron-app"
+     "accessType": "devtron-app"
 }' where id = 3;
 
 update default_auth_role
@@ -92,5 +96,5 @@ set role = '{
     "environment": "{{.Env}}",
     "approver":{{.Approver}},
     "action": "view",
-    "access_type": "devtron-app"
+    "accessType": "devtron-app"
 }' where id = 4;
