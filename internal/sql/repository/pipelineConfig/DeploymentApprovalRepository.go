@@ -114,7 +114,7 @@ func (impl *DeploymentApprovalRepositoryImpl) FetchById(requestId int) (*Deploym
 
 func (impl *DeploymentApprovalRepositoryImpl) ConsumeApprovalRequest(requestId int) error {
 	request, err := impl.FetchById(requestId)
-	if err != pg.ErrNoRows {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error occurred while fetching approval request", "requestId", requestId, "err", err)
 		return err
 	} else if err == pg.ErrNoRows {

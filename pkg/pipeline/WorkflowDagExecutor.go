@@ -1177,7 +1177,7 @@ func (impl *WorkflowDagExecutorImpl) checkApprovalNodeForDeployment(pipeline *pi
 		} else if ok {
 			return approvalMetadata.ApprovalRequestId, nil
 		} else {
-			return 0, errors.New("request not raised for ")
+			return 0, errors.New("request not raised for artifact")
 		}
 	}
 	return 0, nil
@@ -1426,15 +1426,16 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 		}
 
 		runner := &pipelineConfig.CdWorkflowRunner{
-			Name:         cdPipeline.Name,
-			WorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
-			ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
-			Status:       pipelineConfig.WorkflowInProgress,
-			TriggeredBy:  overrideRequest.UserId,
-			StartedOn:    triggeredAt,
-			Namespace:    impl.cdConfig.DefaultNamespace,
-			CdWorkflowId: cdWorkflowId,
-			AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
+			Name:                        cdPipeline.Name,
+			WorkflowType:                bean.CD_WORKFLOW_TYPE_DEPLOY,
+			ExecutorType:                pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
+			Status:                      pipelineConfig.WorkflowInProgress,
+			TriggeredBy:                 overrideRequest.UserId,
+			DeploymentApprovalRequestId: approvalRequestId,
+			StartedOn:                   triggeredAt,
+			Namespace:                   impl.cdConfig.DefaultNamespace,
+			CdWorkflowId:                cdWorkflowId,
+			AuditLog:                    sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
 		}
 		savedWfr, err := impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
 		if err != nil {
