@@ -503,6 +503,7 @@ func (impl RoleGroupServiceImpl) getRoleGroupMetadata(roleGroup *repository2.Rol
 				Group:       role.Group,
 				Kind:        role.Kind,
 				Resource:    role.Resource,
+				Approver:    role.Approver,
 			}
 		}
 	}

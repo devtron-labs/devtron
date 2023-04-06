@@ -915,6 +915,7 @@ func (impl UserServiceImpl) getUserMetadata(model *repository2.UserModel) (bool,
 				Group:       role.Group,
 				Kind:        role.Kind,
 				Resource:    role.Resource,
+				Approver:    role.Approver,
 			}
 
 		}
