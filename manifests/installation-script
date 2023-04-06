@@ -11,18 +11,6 @@ devtronIngressAnnotations = jsonSelect(operatorConfigMap, "data.INGRESS_ANNOTATI
 passwordGen = `#!/bin/bash
 openssl rand -base64 20 | base64 | tr -d ':\n' | tr -d '=' | base64 | tr -d ':\n'`;
 
-shebang = `#!/bin/bash
-`;
-sleep50 = shebang + `
-sleep 50`;
-
-base64EncoderPrefix = `#!/bin/bash
-`;
-base64EncoderSuffix = ` | base64 | tr -d ':\n'`;
-
-base64DecoderPrefix = `#!/bin/bash
-`;
-base64DecoderSuffix = ` | base64 -d | tr -d ':\n'`;
 
 
 
@@ -39,26 +27,14 @@ if !defaultCacheBucket {
 }
 
 ######Generating raw urls
-argocdResource_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/argocd-resource.json";
 devtron_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron.yaml";
-serviceAccount_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/serviceaccount.yaml";
 
 ######Downloading the manifests
-argocdResource = download(argocdResource_raw);
 devtron = download(devtron_raw);
-serviceAccount = download(serviceAccount_raw);
 
 devtronOverride = kubectl get cm -n devtroncd devtron-override-cm;
-serviceAccountOverride = kubectl get cm -n devtroncd devtron-service-account-override-cm;
 
 devtronOverride = jsonSelect(devtronOverride, "data.override");
-serviceAccountOverride = jsonSelect(serviceAccountOverride, "data.override");
-
-sa = kubectl apply serviceAccount;
-log("created service account");
-
-pa = kubectl patch -n devtroncd cm/argocd-cm --type "application/json-patch+json" -p argocdResource;
-log("executed argocd setup command");
 
 
 # devtron
