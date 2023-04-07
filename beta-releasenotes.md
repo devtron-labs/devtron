@@ -1,4 +1,5 @@
 ## Bugs
+- fix: bulk cd deployment trigger failing (#3233)
 - fix: Pipeline strategy empty check (#3256)
 - fix: SSO Login credentials are sent null to secret if we save after obfuscation (#3248)
 - fix: helm pipeline force delete check update (#3245)
