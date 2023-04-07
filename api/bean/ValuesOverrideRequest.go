@@ -42,7 +42,7 @@ type ValuesOverrideRequest struct {
 	PipelineId                            int                         `json:"pipelineId" validate:"required"`
 	AppId                                 int                         `json:"appId" validate:"required"`
 	CiArtifactId                          int                         `json:"ciArtifactId" validate:"required"`
-	AdditionalOverride                    json.RawMessage             `json:"additionalOverride"`
+	AdditionalOverride                    json.RawMessage             `json:"additionalOverride,omitempty"`
 	TargetDbVersion                       int                         `json:"targetDbVersion"`
 	ForceTrigger                          bool                        `json:"forceTrigger,notnull"`
 	DeploymentTemplate                    string                      `json:"strategy,omitempty"` // validate:"oneof=BLUE-GREEN ROLLING"`
@@ -52,6 +52,11 @@ type ValuesOverrideRequest struct {
 	CdWorkflowId                          int                         `json:"cdWorkflowId"`
 	UserId                                int32                       `json:"-"`
 	DeploymentType                        models.DeploymentType       `json:"-"`
+}
+
+type BulkCdDeployEvent struct {
+	ValuesOverrideRequest *ValuesOverrideRequest `json:"valuesOverrideRequest"`
+	UserId                int32                  `json:"userId"`
 }
 
 type ReleaseStatusUpdateRequest struct {
