@@ -1,12 +1,15 @@
 package common
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strconv"
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // Default service addresses and URLS of Argo CD internal services
@@ -316,3 +319,10 @@ const (
 	SecurityMedium    = 2 // Could indicate malicious events, but has a high likelihood of being user/system error (i.e. access denied)
 	SecurityLow       = 1 // Unexceptional entries (i.e. successful access logs)
 )
+
+// Common error messages
+const TokenVerificationError = "failed to verify the token"
+
+var TokenVerificationErr = errors.New(TokenVerificationError)
+
+var PermissionDeniedAPIError = status.Error(codes.PermissionDenied, "permission denied")
