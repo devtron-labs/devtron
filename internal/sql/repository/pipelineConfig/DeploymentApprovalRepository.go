@@ -53,6 +53,9 @@ type DeploymentApprovalUserData struct {
 
 func (impl *DeploymentApprovalRepositoryImpl) FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int) ([]*DeploymentApprovalRequest, error) {
 	impl.logger.Debugw("fetching approval data for artifacts", "ids", artifactIds, "pipelineId", pipelineId)
+	if len(artifactIds) == 0 {
+		return []*DeploymentApprovalRequest{}, nil
+	}
 	var requests []*DeploymentApprovalRequest
 	err := impl.dbConnection.
 		Model(&requests).
@@ -91,6 +94,9 @@ func (impl *DeploymentApprovalRepositoryImpl) FetchApprovalDataForArtifacts(arti
 
 func (impl *DeploymentApprovalRepositoryImpl) FetchApprovalDataForRequests(requestIds []int) ([]*DeploymentApprovalUserData, error) {
 	var usersData []*DeploymentApprovalUserData
+	if len(requestIds) == 0 {
+		return usersData, nil
+	}
 	err := impl.dbConnection.
 		Model(&usersData).
 		Column("deployment_approval_user_data.*", "User").
