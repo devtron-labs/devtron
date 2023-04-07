@@ -50,7 +50,7 @@ func (impl *ChartRepositoryServiceExtendedImpl) ValidateAndCreateChartRepo(reque
 
 	chartRepo, err := impl.CreateChartRepo(request)
 	if err != nil {
-		return nil, err, nil
+		return nil, err, validationResult
 	}
 
 	// Trigger chart sync job, ignore error
@@ -58,7 +58,7 @@ func (impl *ChartRepositoryServiceExtendedImpl) ValidateAndCreateChartRepo(reque
 	if err != nil {
 		impl.logger.Errorw("Error in triggering chart sync job manually ", "err", err)
 	}
-	return chartRepo, err, nil
+	return chartRepo, err, validationResult
 }
 
 func (impl *ChartRepositoryServiceExtendedImpl) ValidateAndUpdateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error, *DetailedErrorHelmRepoValidation) {
