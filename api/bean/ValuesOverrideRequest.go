@@ -54,6 +54,11 @@ type ValuesOverrideRequest struct {
 	DeploymentType                        models.DeploymentType       `json:"-"`
 }
 
+type BulkCdDeployEvent struct {
+	ValuesOverrideRequest *ValuesOverrideRequest `json:"valuesOverrideRequest"`
+	UserId                int32                  `json:"userId"`
+}
+
 type ReleaseStatusUpdateRequest struct {
 	RequestId string             `json:"requestId"`
 	NewStatus models.ChartStatus `json:"newStatus"`

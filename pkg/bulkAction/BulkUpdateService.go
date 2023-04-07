@@ -1224,11 +1224,15 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 			UserId:         request.UserId,
 			CdWorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
 		}
+		event := &bean.BulkCdDeployEvent{
+			ValuesOverrideRequest: overrideRequest,
+			UserId:                overrideRequest.UserId,
+		}
 
-		payload, err := json.Marshal(overrideRequest)
+		payload, err := json.Marshal(event)
 		if err != nil {
-			impl.logger.Errorw("failed to marshal override request",
-				"request", overrideRequest,
+			impl.logger.Errorw("failed to marshal cd bulk deploy event request",
+				"request", event,
 				"err", err)
 
 			pipelineResponse := response[appKey]
@@ -1267,8 +1271,8 @@ func (impl BulkUpdateServiceImpl) SubscribeToCdBulkTriggerTopic() error {
 			"topic", pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC,
 			"msg", msg.Data)
 
-		overrideReq := &bean.ValuesOverrideRequest{}
-		err := json.Unmarshal([]byte(msg.Data), overrideReq)
+		event := &bean.BulkCdDeployEvent{}
+		err := json.Unmarshal([]byte(msg.Data), event)
 		if err != nil {
 			impl.logger.Errorw("Error unmarshalling received event",
 				"topic", pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC,
@@ -1276,9 +1280,10 @@ func (impl BulkUpdateServiceImpl) SubscribeToCdBulkTriggerTopic() error {
 				"err", err)
 			return
 		}
+		event.ValuesOverrideRequest.UserId = event.UserId
 
 		// trigger
-		_, err = impl.workflowDagExecutor.ManualCdTrigger(overrideReq, context.Background())
+		_, err = impl.workflowDagExecutor.ManualCdTrigger(event.ValuesOverrideRequest, context.Background())
 		if err != nil {
 			impl.logger.Errorw("Error triggering CD",
 				"topic", pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC,
