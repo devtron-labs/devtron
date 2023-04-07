@@ -200,11 +200,11 @@ const AcdInvalidAppErr = "invalid acd app name and env"
 const NotDeployed = "Not Deployed"
 
 type OverviewAppsByEnvironmentBean struct {
-	EnvironmentId   int                             `json:""`
-	EnvironmentName string                          `json:""`
-	Namespace       string                          `json:""`
+	EnvironmentId   int                             `json:"environmentId"`
+	EnvironmentName string                          `json:"environmentName"`
+	Namespace       string                          `json:"namespace"`
 	ClusterName     string                          `json:"clusterName"`
-	Apps            []*bean.AppEnvironmentContainer `json:""`
+	Apps            []*bean.AppEnvironmentContainer `json:"apps"`
 }
 
 func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, offset int) (*OverviewAppsByEnvironmentBean, error) {
