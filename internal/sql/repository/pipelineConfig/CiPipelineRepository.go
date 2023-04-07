@@ -223,7 +223,7 @@ func (impl CiPipelineRepositoryImpl) FindExternalCiByAppIds(appIds []int) ([]*Ex
 	var externalCiPipeline []*ExternalCiPipeline
 	err := impl.dbConnection.Model(&externalCiPipeline).
 		Column("external_ci_pipeline.*").
-		Where("app_id in(?)", pg.In(appIds)).
+		Where("app_id in (?)", pg.In(appIds)).
 		Where("active =? ", true).
 		Select()
 	return externalCiPipeline, err

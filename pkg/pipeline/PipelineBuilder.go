@@ -4153,28 +4153,26 @@ func (impl PipelineBuilderImpl) GetExternalCiByEnvironment(envId int, emailId st
 		return nil, err
 	}
 	var appIds []int
-	ciPipelineIds := make([]int, 0)
-	for _, pipeline := range cdPipelines {
-		ciPipelineIds = append(ciPipelineIds, pipeline.CiPipelineId)
-	}
 
 	//authorization block starts here
 	var appObjectArr []string
-	objects := impl.enforcerUtil.GetAppObjectByCiPipelineIds(ciPipelineIds)
-	ciPipelineIds = []int{}
+	objects := impl.enforcerUtil.GetAppAndEnvObjectByDbPipeline(cdPipelines)
 	for _, object := range objects {
-		appObjectArr = append(appObjectArr, object)
+		appObjectArr = append(appObjectArr, object[0])
 	}
 	appResults, _ := checkAuthBatch(emailId, appObjectArr, []string{})
 	for _, pipeline := range cdPipelines {
-		appObject := objects[pipeline.CiPipelineId]
-		if !appResults[appObject] {
+		appObject := objects[pipeline.Id]
+		if !appResults[appObject[0]] {
 			//if user unauthorized, skip items
 			continue
 		}
-		appIds = append(appIds, pipeline.AppId)
-		ciPipelineIds = append(ciPipelineIds, pipeline.CiPipelineId)
+		//add only those who have external ci
+		if pipeline.CiPipelineId == 0 {
+			appIds = append(appIds, pipeline.AppId)
+		}
 	}
+
 	//authorization block ends here
 	span.End()
 
