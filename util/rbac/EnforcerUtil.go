@@ -57,6 +57,7 @@ type EnforcerUtil interface {
 	GetRbacObjectsForAllAppsWithMatchingAppName(appNameMatch string) map[int]string
 	GetAppAndEnvObjectByPipeline(cdPipelines []*bean.CDPipelineConfigObject) map[int][]string
 	GetAppAndEnvObjectByDbPipeline(cdPipelines []*pipelineConfig.Pipeline) map[int][]string
+	GetRbacObjectsByAppIds(appIds []int) map[int]string
 }
 
 type EnforcerUtilImpl struct {
@@ -87,6 +88,21 @@ func NewEnforcerUtilImpl(logger *zap.SugaredLogger, teamRepository team.TeamRepo
 			clusterRepository: clusterRepository,
 		},
 	}
+}
+
+func (impl EnforcerUtilImpl) GetRbacObjectsByAppIds(appIds []int) map[int]string {
+	objects := make(map[int]string)
+	result, err := impl.appRepo.FindAppAndProjectByIdsIn(appIds)
+	if err != nil {
+		impl.logger.Errorw("error occurred in fetching apps", "appIds", appIds)
+		return objects
+	}
+	for _, item := range result {
+		if _, ok := objects[item.Id]; !ok {
+			objects[item.Id] = fmt.Sprintf("%s/%s", strings.ToLower(item.Team.Name), strings.ToLower(item.AppName))
+		}
+	}
+	return objects
 }
 
 func (impl EnforcerUtilImpl) GetAppRBACName(appName string) string {

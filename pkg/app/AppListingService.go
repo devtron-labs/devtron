@@ -92,6 +92,7 @@ type AppListingService interface {
 	GetReleaseCount(appId, envId int) (int, error)
 
 	FetchAppsByEnvironmentV2(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, int, error)
+	FetchOverviewAppsByEnvironment(envId, limit, offset int) (*OverviewAppsByEnvironmentBean, error)
 }
 
 const (
@@ -197,6 +198,33 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 
 const AcdInvalidAppErr = "invalid acd app name and env"
 const NotDeployed = "Not Deployed"
+
+type OverviewAppsByEnvironmentBean struct {
+	EnvironmentId   int                             `json:"environmentId"`
+	EnvironmentName string                          `json:"environmentName"`
+	Namespace       string                          `json:"namespace"`
+	ClusterName     string                          `json:"clusterName"`
+	AppCount        int                             `json:"appCount"`
+	Apps            []*bean.AppEnvironmentContainer `json:"apps"`
+}
+
+func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, offset int) (*OverviewAppsByEnvironmentBean, error) {
+	resp := &OverviewAppsByEnvironmentBean{}
+	env, err := impl.environmentRepository.FindById(envId)
+	if err != nil {
+		return resp, err
+	}
+	resp.EnvironmentId = envId
+	resp.EnvironmentName = env.Name
+	resp.ClusterName = env.Cluster.ClusterName
+	resp.Namespace = env.Namespace
+	envContainers, err := impl.appListingRepository.FetchOverviewAppsByEnvironment(envId, limit, offset)
+	if err != nil {
+		return resp, err
+	}
+	resp.Apps = envContainers
+	return resp, err
+}
 
 func (impl AppListingServiceImpl) FetchAllDevtronManagedApps() ([]AppNameTypeIdContainer, error) {
 	impl.Logger.Debug("reached at FetchAllDevtronManagedApps:")
