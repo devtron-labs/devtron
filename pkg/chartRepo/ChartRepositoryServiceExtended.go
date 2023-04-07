@@ -62,11 +62,11 @@ func (impl *ChartRepositoryServiceExtendedImpl) ValidateAndCreateChartRepo(reque
 }
 
 func (impl *ChartRepositoryServiceExtendedImpl) ValidateAndUpdateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error, *DetailedErrorHelmRepoValidation) {
-	//validationResult := impl.ValidateChartRepo(request)
-	//if validationResult.CustomErrMsg != ValidationSuccessMsg {
-	//	return nil, nil, validationResult
-	//}
-	validationResult := &DetailedErrorHelmRepoValidation{}
+	validationResult := impl.ValidateChartRepo(request)
+	if validationResult.CustomErrMsg != ValidationSuccessMsg {
+		return nil, nil, validationResult
+	}
+	//validationResult := &DetailedErrorHelmRepoValidation{}
 	chartRepo, err := impl.UpdateData(request)
 	if err != nil {
 		return nil, err, validationResult
