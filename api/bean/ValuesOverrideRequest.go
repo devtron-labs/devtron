@@ -42,7 +42,7 @@ type ValuesOverrideRequest struct {
 	PipelineId                            int                         `json:"pipelineId" validate:"required"`
 	AppId                                 int                         `json:"appId" validate:"required"`
 	CiArtifactId                          int                         `json:"ciArtifactId" validate:"required"`
-	AdditionalOverride                    json.RawMessage             `json:"additionalOverride"`
+	AdditionalOverride                    json.RawMessage             `json:"additionalOverride,omitempty"`
 	TargetDbVersion                       int                         `json:"targetDbVersion"`
 	ForceTrigger                          bool                        `json:"forceTrigger,notnull"`
 	DeploymentTemplate                    string                      `json:"strategy,omitempty"` // validate:"oneof=BLUE-GREEN ROLLING"`
