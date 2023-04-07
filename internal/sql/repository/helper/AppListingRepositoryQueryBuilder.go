@@ -209,9 +209,7 @@ func (impl AppListingRepositoryQueryBuilder) GetAppIdsQueryWithPaginationForLast
 	} else {
 		query += " FIRST "
 	}
-	if appListingFilter.Size > 0 && appListingFilter.Offset > 0 {
-		query += fmt.Sprintf(" LIMIT %v OFFSET %v", appListingFilter.Size, appListingFilter.Offset)
-	}
+	query += fmt.Sprintf(" LIMIT %v OFFSET %v", appListingFilter.Size, appListingFilter.Offset)
 	return query
 }
 
@@ -224,9 +222,7 @@ func (impl AppListingRepositoryQueryBuilder) GetAppIdsQueryWithPaginationForAppN
 	if appListingFilter.SortBy == "appNameSort" {
 		query += orderByClause
 	}
-	if appListingFilter.Offset > 0 && appListingFilter.Size > 0 {
-		query += fmt.Sprintf("LIMIT %v OFFSET %v", appListingFilter.Size, appListingFilter.Offset)
-	}
+	query += fmt.Sprintf("LIMIT %v OFFSET %v", appListingFilter.Size, appListingFilter.Offset)
 	return query
 }
 
