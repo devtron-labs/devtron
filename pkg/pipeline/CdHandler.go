@@ -67,6 +67,7 @@ type CdHandler interface {
 	CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipelineId int, userId int32)
 	FetchAppWorkflowStatusForTriggerViewForEnvironment(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*pipelineConfig.CdWorkflowStatus, error)
 	FetchAppDeploymentStatusForEnvironments(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*pipelineConfig.AppDeploymentStatus, error)
+	FetchLatestImageDeployedStatus(appId int) ([]*pipelineConfig.LatestImageDeployedStatus, error)
 }
 
 type CdHandlerImpl struct {
@@ -98,6 +99,10 @@ type CdHandlerImpl struct {
 	appService                             app.AppService
 	appStatusService                       app_status.AppStatusService
 	enforcerUtil                           rbac.EnforcerUtil
+}
+type key struct {
+	PipelineId   int
+	CiArtifactId int
 }
 
 func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService user.UserService,
@@ -930,7 +935,6 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerView(appId int) ([]*p
 			statusMap[item.Id] = item.Status
 		}
 	}
-
 	for _, item := range result {
 		if _, ok := cdMap[item.PipelineId]; !ok {
 			cdWorkflowStatus := &pipelineConfig.CdWorkflowStatus{}
@@ -996,6 +1000,68 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerView(appId int) ([]*p
 	}
 
 	return cdWorkflowStatus, err
+}
+func (impl *CdHandlerImpl) FetchLatestImageDeployedStatus(appId int) ([]*pipelineConfig.LatestImageDeployedStatus, error) {
+	var latestArtifactsDeployedStatus []*pipelineConfig.LatestImageDeployedStatus
+	pipelines, err := impl.pipelineRepository.FindActiveByAppId(appId)
+	if err != nil && err != pg.ErrNoRows {
+		return latestArtifactsDeployedStatus, err
+	}
+	pipelineIds := make([]int, 0)
+	partialDeletedPipelines := make(map[int]bool)
+	//pipelineIdsMap := make(map[int]int)
+	for _, pipeline := range pipelines {
+		pipelineIds = append(pipelineIds, pipeline.Id)
+		partialDeletedPipelines[pipeline.Id] = pipeline.DeploymentAppDeleteRequest
+	}
+
+	if len(pipelineIds) == 0 {
+		return latestArtifactsDeployedStatus, nil
+	}
+	artifactsResponse, err := impl.cdWorkflowRepository.FetchAllCdPipelinesArtifactStatus(pipelineIds)
+	if err != nil {
+		return latestArtifactsDeployedStatus, err
+	}
+	cdArtifactMap := make(map[string]*pipelineConfig.LatestImageDeployedStatus)
+	cdPipelineIdMap := make(map[int]bool)
+	for _, item := range artifactsResponse {
+		latestArtifactDeployedStatus := &pipelineConfig.LatestImageDeployedStatus{}
+		k := fmt.Sprintf("%d-%d", item.PipelineId, item.CiArtifactId)
+		if artifactAlreadyFound, ok := cdArtifactMap[k]; ok {
+			if item.WorkflowType == "PRE" {
+				if artifactAlreadyFound.PreLatestImageDeployStatus == "" {
+					artifactAlreadyFound.PreLatestImageDeployStatus = item.Status
+				}
+
+			} else if item.WorkflowType == "POST" {
+
+				if artifactAlreadyFound.PostLatestImageDeployStatus == "" {
+					artifactAlreadyFound.PostLatestImageDeployStatus = item.Status
+				}
+
+			} else {
+				if artifactAlreadyFound.CdLatestImageDeployStatus == "" {
+					artifactAlreadyFound.CdLatestImageDeployStatus = item.Status
+				}
+
+			}
+
+		} else if _, ok := cdPipelineIdMap[item.PipelineId]; !ok {
+			cdPipelineIdMap[item.PipelineId] = true
+			latestArtifactDeployedStatus.PipelineId = item.PipelineId
+			if item.WorkflowType == "POST" {
+				latestArtifactDeployedStatus.PostLatestImageDeployStatus = item.Status
+			} else if item.WorkflowType == "PRE" {
+				latestArtifactDeployedStatus.PreLatestImageDeployStatus = item.Status
+			} else {
+				latestArtifactDeployedStatus.CdLatestImageDeployStatus = item.Status
+			}
+			cdArtifactMap[k] = latestArtifactDeployedStatus
+			latestArtifactsDeployedStatus = append(latestArtifactsDeployedStatus, latestArtifactDeployedStatus)
+		}
+
+	}
+	return latestArtifactsDeployedStatus, err
 }
 
 func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*pipelineConfig.CdWorkflowStatus, error) {
