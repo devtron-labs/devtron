@@ -77,6 +77,7 @@ type AppListingRestHandler interface {
 	ManualSyncAcdPipelineDeploymentStatus(w http.ResponseWriter, r *http.Request)
 	GetClusterTeamAndEnvListForAutocomplete(w http.ResponseWriter, r *http.Request)
 	FetchAppsByEnvironmentV2(w http.ResponseWriter, r *http.Request)
+	FetchOverviewAppsByEnvironment(w http.ResponseWriter, r *http.Request)
 }
 
 type AppListingRestHandlerImpl struct {
@@ -609,6 +610,11 @@ func (handler AppListingRestHandlerImpl) FetchOverviewAppsByEnvironment(w http.R
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
+	user, err := handler.userService.GetById(userId)
+	if user == nil || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
 	envId, err := strconv.Atoi(vars["env-id"])
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -626,19 +632,50 @@ func (handler AppListingRestHandlerImpl) FetchOverviewAppsByEnvironment(w http.R
 	}
 	resp, err := handler.appListingService.FetchOverviewAppsByEnvironment(envId, limit, offset)
 	if err != nil {
+		handler.logger.Errorw("error in getting apps for app-group overview", "envid", envId, "limit", limit, "offset", offset)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
+	if err != nil {
+		handler.logger.Errorw("request err, FetchOverviewAppsByEnvironment", "err", err, "userId", userId)
+		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
+		return
+	}
+
+	//return if user is super admin
 	if isActionUserSuperAdmin {
 		common.WriteJsonResp(w, err, resp, http.StatusOK)
 		return
 	}
-	appBeansMap := make(map[int]*bean.AppEnvironmentContainer)
-	for _, appBean := range resp.Apps {
-		appBeansMap[appBean.AppId] = appBean
-	}
+
 	//apply rbac
+	userEmailId := strings.ToLower(user.EmailId)
+	//get all the appIds
+	appIds := make([]int, 0)
+	appContainers := resp.Apps
+	for _, appBean := range resp.Apps {
+		appIds = append(appIds, appBean.AppId)
+	}
+
+	//get rbac objects for the appids
+	rbacObjectsWithAppId := handler.enforcerUtil.GetRbacObjectsByAppIds(appIds)
+	rbacObjects := make([]string, len(rbacObjectsWithAppId))
+	itr := 0
+	for _, object := range rbacObjects {
+		rbacObjects[itr] = object
+		itr++
+	}
+	//enforce rbac in batch
+	rbacResult := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceApplications, casbin.ActionGet, rbacObjects)
+	//filter out rbac passed apps
+	resp.Apps = make([]*bean.AppEnvironmentContainer, 0)
+	for _, appBean := range appContainers {
+		rbacObject := rbacObjectsWithAppId[appBean.AppId]
+		if rbacResult[rbacObject] {
+			resp.Apps = append(resp.Apps, appBean)
+		}
+	}
 	common.WriteJsonResp(w, err, resp, http.StatusOK)
 
 }
