@@ -616,7 +616,7 @@ func (handler AppListingRestHandlerImpl) FetchOverviewAppsByEnvironment(w http.R
 		return
 	}
 	envId, err := strconv.Atoi(vars["env-id"])
-	if err != nil {
+	if err != nil || envId == 0 {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -636,6 +636,7 @@ func (handler AppListingRestHandlerImpl) FetchOverviewAppsByEnvironment(w http.R
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	resp.AppCount = len(resp.Apps)
 	isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
 	if err != nil {
 		handler.logger.Errorw("request err, FetchOverviewAppsByEnvironment", "err", err, "userId", userId)

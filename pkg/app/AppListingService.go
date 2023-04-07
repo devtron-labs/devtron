@@ -204,6 +204,7 @@ type OverviewAppsByEnvironmentBean struct {
 	EnvironmentName string                          `json:"environmentName"`
 	Namespace       string                          `json:"namespace"`
 	ClusterName     string                          `json:"clusterName"`
+	AppCount        int                             `json:"appCount"`
 	Apps            []*bean.AppEnvironmentContainer `json:"apps"`
 }
 

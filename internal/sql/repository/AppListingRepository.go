@@ -130,7 +130,7 @@ func (impl AppListingRepositoryImpl) FetchOverviewAppsByEnvironment(envId, limit
 		query += fmt.Sprintf("OFFSET %v", offset)
 	}
 	var envContainers []*bean.AppEnvironmentContainer
-	_, err := impl.dbConnection.Query(&envContainers, query, envId)
+	_, err := impl.dbConnection.Query(&envContainers, query, envId, envId)
 	return envContainers, err
 }
 
