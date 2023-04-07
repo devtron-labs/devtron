@@ -1,6 +1,6 @@
 // Copyright 2016 The Mellium Contributors.
-// Use of this source code is governed by the BSD 2-clause license that can be
-// found in the LICENSE file.
+// Use of this source code is governed by the BSD 2-clause
+// license that can be found in the LICENSE file.
 
 package sasl
 
@@ -28,6 +28,14 @@ func getOpts(n *Negotiator, o ...Option) {
 func TLSState(cs tls.ConnectionState) Option {
 	return func(n *Negotiator) {
 		n.tlsState = &cs
+	}
+}
+
+// nonce overrides the nonce used for authentication attempts.
+// This defaults to a random value and should not be changed.
+func setNonce(v []byte) Option {
+	return func(n *Negotiator) {
+		n.nonce = v
 	}
 }
 
