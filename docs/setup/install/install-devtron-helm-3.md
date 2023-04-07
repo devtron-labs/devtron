@@ -1,10 +1,10 @@
-# Install Devtron using Helm3
+# Install Devtron using Helm
 
 ## Before you begin
 
 Install [Helm3](https://helm.sh/docs/intro/install/).
 
-## Installing Devtron using Helm3 (Stable)
+## Installing Devtron using Helm
 
 1. Add Devtron repository
 2. Install Devtron
@@ -70,7 +70,7 @@ helm install devtron devtron/devtron-operator --create-namespace --namespace dev
 If you are planning to use Devtron for `production deployments`, please refer to our recommended overrides for [Devtron Installation](override-default-devtron-installation-configs.md).
 
 
-## Install with Helm (Beta)
+## Installing Devtron (Beta) using Helm
 
 We also release beta versions of devtron every few days before the stable release for people who would like to explore and test beta features before everyone else. If you want to install a fresh devtron from beta release channel, use the chart in our official devtron repository.
 
