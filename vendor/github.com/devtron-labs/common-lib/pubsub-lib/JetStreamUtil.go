@@ -145,6 +145,7 @@ var NatsConsumerWiseConfigMapping = map[string]NatsConsumerConfig{
 	BULK_HIBERNATE_DURABLE:              {},
 	BULK_DEPLOY_DURABLE:                 {},
 	BULK_APPSTORE_DEPLOY_DURABLE:        {},
+	CD_BULK_DEPLOY_TRIGGER_DURABLE:      {},
 }
 
 func getConsumerConfigMap(jsonString string) map[string]NatsConsumerConfig {
