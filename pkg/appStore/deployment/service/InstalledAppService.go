@@ -1203,7 +1203,7 @@ func fetchResourceTreeForACD(rctx context.Context, cn http.CloseNotifier, appDet
 		appDetail.ResourceTree = map[string]interface{}{}
 		return appDetail, err
 	}
-	// TODO: using this resp.Status to update in app_status table
+	//using this resp.Status to update in app_status table
 	appDetail.ResourceTree = util3.InterfaceToMapAdapter(resp)
 	err = impl.appStatusService.UpdateStatusWithAppIdEnvId(appDetail.AppId, appDetail.EnvironmentId, resp.Status)
 	if err != nil {

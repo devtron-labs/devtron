@@ -803,13 +803,6 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 		common.WriteJsonResp(w, fmt.Errorf("error in parsing envId : %s must be integer", envIdParam), nil, http.StatusBadRequest)
 		return
 	}
-	installedAppId, err := strconv.Atoi(installedAppIdParam)
-	if err != nil {
-		handler.logger.Errorw("error in parsing installedAppId from request body", "installedAppId", installedAppIdParam, "err", err)
-		common.WriteJsonResp(w, fmt.Errorf("error in parsing installedAppId : %s must be integer", installedAppIdParam), nil, http.StatusBadRequest)
-		return
-	}
-
 	appDetail, err, appId = handler.getAppDetails(r.Context(), appIdParam, installedAppIdParam, envId)
 	if err != nil {
 		handler.logger.Errorw("error occurred while getting app details", "appId", appIdParam, "installedAppId", installedAppIdParam, "envId", envId)
@@ -836,25 +829,6 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 
 	if installedAppIdParam != "" {
 		appDetail = handler.fetchResourceTreeFromInstallAppService(w, r, appDetail)
-		installedAppVersions, err := handler.installedAppRepository.GetInstalledAppVersionByInstalledAppIdAndEnvId(installedAppId, envId)
-		if err != nil && err != pg.ErrNoRows {
-			handler.logger.Errorw("error in fetching installedAppVersions from db", "installedAppId", installedAppId, "envId", envId)
-			common.WriteJsonResp(w, err, "error in fetching installedAppVersions from db", http.StatusInternalServerError)
-			return
-		}
-		if !installedAppVersions.Active {
-			handler.logger.Errorw("this installedAppVersion is not active", "installedAppId", installedAppId, "envId", envId)
-			common.WriteJsonResp(w, err, "trying to fetch deleted installedAppVersions", http.StatusInternalServerError)
-			return
-		}
-		//TODO check values here for app status
-		appStatus := appDetail.ResourceTree["3"]
-		if appStatus == string(health.HealthStatusHealthy) {
-			err = handler.cdApplicationStatusUpdateHandler.SyncPipelineStatusForAppStoreForResourceTreeCall(installedAppVersions)
-			if err != nil {
-				handler.logger.Errorw("error in syncing pipeline status", "err", err)
-			}
-		}
 
 	} else {
 		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()

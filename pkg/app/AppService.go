@@ -744,11 +744,11 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 	} else {
 		terminalStatusExists, err := impl.pipelineStatusTimelineRepository.CheckIfTerminalStatusTimelinePresentByInstalledAppVersionHistoryId(pipelineId)
 		if err != nil {
-			impl.logger.Errorw("error in checking if terminal status timeline exists by installedAppVersionHistoryId", "err", err, "wfrId", pipelineId)
+			impl.logger.Errorw("error in checking if terminal status timeline exists by installedAppVersionHistoryId", "err", err, "installedAppVersionHistoryId", pipelineId)
 			return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, err
 		}
 		if terminalStatusExists {
-			impl.logger.Infow("terminal status timeline exists for installed App, skipping more timeline changes", "wfrId", pipelineId)
+			impl.logger.Infow("terminal status timeline exists for installed App, skipping more timeline changes", "installedAppVersionHistoryId", pipelineId)
 			return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, nil
 		}
 		err = impl.pipelineStatusSyncDetailService.SaveOrUpdateSyncDetailForAppStore(pipelineId, 1)

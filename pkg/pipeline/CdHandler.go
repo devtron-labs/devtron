@@ -240,7 +240,7 @@ func (impl *CdHandlerImpl) CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipel
 		return
 	}
 	//TODO: remove hard coding
-	//pipelineId can be cdPipelineId or installedAppVersionId also using isAppStoreApplication flag to identify between them
+	//pipelineId can be cdPipelineId or installedAppVersionId, using isAppStoreApplication flag to identify between them
 	if lastSyncTime.IsZero() || (!lastSyncTime.IsZero() && time.Since(lastSyncTime) > 5*time.Second) { //create new nats event
 		statusUpdateEvent := ArgoPipelineStatusSyncEvent{
 			PipelineId:            pipelineId,
