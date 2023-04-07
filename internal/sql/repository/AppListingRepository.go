@@ -54,6 +54,7 @@ type AppListingRepository interface {
 	DeploymentDetailByArtifactId(ciArtifactId int) (bean.DeploymentDetailContainer, error)
 	FindAppCount(isProd bool) (int, error)
 	FetchAppsByEnvironmentV2(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, int, error)
+	FetchOverviewAppsByEnvironment(envId, limit, offset int) ([]*bean.AppEnvironmentContainer, error)
 }
 
 // below table is deprecated, not being used anywhere
@@ -110,6 +111,27 @@ func (impl AppListingRepositoryImpl) FetchOverviewCiPipelines(jobId int) ([]*bea
 		return jobContainers, appsErr
 	}
 	return jobContainers, nil
+}
+
+func (impl AppListingRepositoryImpl) FetchOverviewAppsByEnvironment(envId, limit, offset int) ([]*bean.AppEnvironmentContainer, error) {
+	query := " SELECT a.id as app_id,a.app_name,aps.status as app_status, ld.last_deployed_time " +
+		" FROM app a " +
+		" INNER JOIN pipeline p ON p.app_id = a.id and p.deleted = false and p.environment_id = ? " +
+		" LEFT JOIN app_status aps ON aps.app_id = a.id and aps.env_id = ? " +
+		" LEFT JOIN " +
+		" (SELECT pco.pipeline_id,MAX(pco.created_on) as last_deployed_time from pipeline_config_override pco " +
+		" GROUP BY pco.pipeline_id) ld ON ld.pipeline_id = p.id " +
+		" WHERE a.active = true " +
+		" ORDER BY a.app_name "
+	if limit > 0 {
+		query += fmt.Sprintf("LIMIT %v", limit)
+	}
+	if offset > 0 {
+		query += fmt.Sprintf("OFFSET %v", offset)
+	}
+	var envContainers []*bean.AppEnvironmentContainer
+	_, err := impl.dbConnection.Query(&envContainers, query, envId)
+	return envContainers, err
 }
 
 func (impl AppListingRepositoryImpl) FetchJobsLastSucceededOn(CiPipelineIDs []int) ([]*bean.CiPipelineLastSucceededTime, error) {
