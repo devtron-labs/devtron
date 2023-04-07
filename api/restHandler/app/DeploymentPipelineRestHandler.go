@@ -802,6 +802,11 @@ func (handler PipelineConfigRestHandlerImpl) PerformDeploymentApprovalAction(w h
 
 func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
 	vars := mux.Vars(r)
 	cdPipelineId, err := strconv.Atoi(vars["cd_pipeline_id"])
 	if err != nil {
@@ -880,6 +885,8 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 		handler.Logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 	}
+
+	ciArtifactResponse.RequestedUserId = userId
 
 	if len(digests) > 0 {
 		vulnerableMap := make(map[string]bool)
