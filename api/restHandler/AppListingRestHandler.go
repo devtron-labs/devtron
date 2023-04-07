@@ -621,12 +621,12 @@ func (handler AppListingRestHandlerImpl) FetchOverviewAppsByEnvironment(w http.R
 		return
 	}
 	limit, err := strconv.Atoi(vars["size"])
-	if err != nil {
+	if _, ok := vars["size"]; ok && err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	offset, err := strconv.Atoi(vars["offset"])
-	if err != nil {
+	if _, ok := vars["offset"]; ok && err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}

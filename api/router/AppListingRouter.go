@@ -52,10 +52,12 @@ func (router AppListingRouterImpl) initAppListingRouter(appListingRouter *mux.Ro
 		HandlerFunc(router.appListingRestHandler.FetchAppsByEnvironmentV2).
 		Methods("POST")
 
-	appListingRouter.Path("/list/group").
-		Queries("env-id", "{env-id}").
-		Queries("size", "{size}").
-		Queries("offset", "{offset}").
+	appListingRouter.Path("/list/group/{env-id}").
+		HandlerFunc(router.appListingRestHandler.FetchOverviewAppsByEnvironment).
+		Methods("GET")
+
+	appListingRouter.Path("/list/group/{env-id}").
+		Queries("size", "{size}", "offset", "{offset}").
 		HandlerFunc(router.appListingRestHandler.FetchOverviewAppsByEnvironment).
 		Methods("GET")
 	//This API used for fetch app details, not deployment details
