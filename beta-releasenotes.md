@@ -1,4 +1,5 @@
 ## Bugs
+- fix: Pipeline strategy empty check (#3256)
 - fix: SSO Login credentials are sent null to secret if we save after obfuscation (#3248)
 - fix: helm pipeline force delete check update (#3245)
 - fix: git sensor initContainer indentation fix (#3229)
