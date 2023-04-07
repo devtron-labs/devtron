@@ -392,6 +392,7 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 		}
 
 	}
+	impl.logger.Infow("Checking the length of policies to be added and Adding in casbin ")
 	if len(policies) > 0 {
 		impl.logger.Infow("Adding policies in casbin")
 		err = casbin2.AddPolicy(policies)
