@@ -104,6 +104,7 @@ type CiPipelineRepository interface {
 	FindCiPipelineConfigsByIds(ids []int) ([]*CiPipeline, error)
 	FindByParentCiPipelineIds(parentCiPipelineIds []int) ([]*CiPipeline, error)
 	FindWithMinDataByCiPipelineId(id int) (pipeline *CiPipeline, err error)
+	FindAppIdsForCiPipelineIds(pipelineIds []int) (map[int]int, error)
 }
 type CiPipelineRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -450,4 +451,25 @@ func (impl CiPipelineRepositoryImpl) FindByParentCiPipelineIds(parentCiPipelineI
 		Where("active = ?", true).
 		Select()
 	return ciPipelines, err
+}
+
+func (impl CiPipelineRepositoryImpl) FindAppIdsForCiPipelineIds(pipelineIds []int) (map[int]int, error) {
+	ciPipelineIdVsAppId := make(map[int]int, 0)
+	if len(pipelineIds) == 0 {
+		return ciPipelineIdVsAppId, nil
+	}
+
+	pipelineResponse := []CiPipeline{}
+	query := "select ci_pipeline.id, ci_pipeline.app_id from ci_pipeline where id in (?) and active = ?"
+
+	_, err := impl.dbConnection.Query(&pipelineResponse, query, pg.In(pipelineIds), true)
+
+	if err != nil && err != pg.ErrNoRows {
+		return ciPipelineIdVsAppId, err
+	}
+	for _, ciPipeline := range pipelineResponse {
+		ciPipelineIdVsAppId[ciPipeline.Id] = ciPipeline.AppId
+	}
+
+	return ciPipelineIdVsAppId, nil
 }

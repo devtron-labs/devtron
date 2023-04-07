@@ -3948,8 +3948,18 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int, emailId st
 		impl.logger.Errorw("error in fetching ci pipeline", "appIds", appIds, "err", err)
 		return nil, err
 	}
+	var parentCiPipelineIds []int
 	for _, ciPipeline := range ciPipelines {
 		ciPipelineByApp[ciPipeline.AppId] = append(ciPipelineByApp[ciPipeline.AppId], ciPipeline)
+		if ciPipeline.ParentCiPipeline > 0 && ciPipeline.IsExternal {
+			parentCiPipelineIds = append(parentCiPipelineIds, ciPipeline.ParentCiPipeline)
+		}
+	}
+
+	pipelineIdVsAppId, err := impl.ciPipelineRepository.FindAppIdsForCiPipelineIds(parentCiPipelineIds)
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching appIds for pipelineIds", "parentCiPipelineIds", parentCiPipelineIds, "err", err)
+		return nil, err
 	}
 
 	linkedCiPipelinesMap := make(map[int][]*pipelineConfig.CiPipeline)
@@ -3977,7 +3987,7 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int, emailId st
 	}
 
 	var externalCiConfig bean.ExternalCiConfig
-	var parentCiPipelineIds []int
+	//var parentCiPipelineIds []int
 	for appId, ciPipelinesConfigByApp := range ciPipelinesConfigMap {
 		var ciPipelineResp []*bean.CiPipeline
 
@@ -3990,6 +4000,7 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int, emailId st
 					impl.logger.Warnw("error in unmarshal", "err", err)
 				}
 			}
+			parentCiPipelineId := pipeline.ParentCiPipeline
 			ciPipeline := &bean.CiPipeline{
 				Id:                       pipeline.Id,
 				Version:                  pipeline.Version,
@@ -3999,10 +4010,14 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int, emailId st
 				DockerArgs:               dockerArgs,
 				IsManual:                 pipeline.IsManual,
 				IsExternal:               pipeline.IsExternal,
-				ParentCiPipeline:         pipeline.ParentCiPipeline,
+				ParentCiPipeline:         parentCiPipelineId,
 				ExternalCiConfig:         externalCiConfig,
 				ScanEnabled:              pipeline.ScanEnabled,
 				IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
+			}
+			parentPipelineAppId, ok := pipelineIdVsAppId[parentCiPipelineId]
+			if ok {
+				ciPipeline.ParentAppId = parentPipelineAppId
 			}
 			if ciTemplateBean, ok := ciOverrideTemplateMap[pipeline.Id]; ok {
 				templateOverride := ciTemplateBean.CiTemplateOverride
@@ -4040,7 +4055,7 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int, emailId st
 			ciPipelineResp = append(ciPipelineResp, ciPipeline)
 
 			//this will use for fetch the parent ci pipeline app id, of each ci pipeline
-			parentCiPipelineIds = append(parentCiPipelineIds, pipeline.ParentCiPipeline)
+			//parentCiPipelineIds = append(parentCiPipelineIds, pipeline.ParentCiPipeline)
 		}
 		ciPipelinesConfigByApp.CiPipelines = ciPipelineResp
 		ciPipelinesConfigByApps = append(ciPipelinesConfigByApps, ciPipelinesConfigByApp)
