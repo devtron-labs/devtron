@@ -69,7 +69,7 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentConfigurationByPipel
 	configResp.DeploymentTemplateConfig = deploymentTemplateConfig
 
 	pipelineStrategyConfig, err := impl.GetLatestPipelineStrategyConfig(pipeline)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting latest pipelineStrategyConfig", "err", err)
 		return nil, err
 	}
