@@ -132,3 +132,123 @@ spec:
   backoffLimit: 20
   activeDeadlineSeconds: 1500
 {{- end }}
+---
+{{- if $.Values.components.migrator }}
+{{- if has "cicd" $.Values.installer.modules }}
+{{- if $.Capabilities.APIVersions.Has "batch/v1/Job" }}
+apiVersion: batch/v1
+{{- else -}}
+apiVersion: batch/v1beta1
+{{- end }}
+kind: Job
+metadata:
+  name: postgresql-migrate-gitsensor-{{ randAlphaNum 5 | lower }}
+spec:
+  template:
+    spec:
+      {{- if and $.Values.global $.Values.global.podSecurityContext }}
+      securityContext:
+{{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: postgresql-migrate-gitsensor
+        image: {{ $.Values.components.migrator.image }}
+        {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+        securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 10 }}
+        {{- end }}
+        env:
+        - name: SCRIPT_LOCATION
+          value: {{ $.Values.components.migrator.envVars.gitsensor.SCRIPT_LOCATION }}
+        - name: GIT_REPO_URL
+          value: {{ $.Values.components.migrator.envVars.gitsensor.GIT_REPO_URL }}
+        - name: DB_TYPE
+          value: postgres
+        - name: DB_USER_NAME
+          value: postgres
+        - name: DB_HOST
+          value: postgresql-postgresql.devtroncd
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_NAME
+          value: {{ $.Values.components.migrator.envVars.gitsensor.DB_NAME }}
+        - name: MIGRATE_TO_VERSION
+          value: "0"
+        - name: GIT_BRANCH
+          value: {{ $.Values.components.migrator.envVars.gitsensor.GIT_BRANCH }}
+        - name: GIT_HASH
+          value: {{ $.Values.components.migrator.envVars.gitsensor.GIT_HASH }}
+        envFrom:
+          - secretRef:
+              name: postgresql-migrator
+        {{- if $.Values.components.migrator.gitsensor }}
+        {{- if $.Values.components.migrator.gitsensor.initContainer }}
+        {{- if $.Values.components.migrator.gitsensor.initContainer.resources }}        
+        resources:
+        {{- toYaml $.Values.components.migrator.gitsensor.initContainer.resources | nindent 10 }}
+        {{- end }}
+        {{- end }} 
+        {{- end }}
+      restartPolicy: OnFailure
+  backoffLimit: 20
+  activeDeadlineSeconds: 1500
+---
+{{- if $.Capabilities.APIVersions.Has "batch/v1/Job" }}
+apiVersion: batch/v1
+{{- else -}}
+apiVersion: batch/v1beta1
+{{- end }}
+kind: Job
+metadata:
+  name: postgresql-migrate-lens-{{ randAlphaNum 5 | lower }}
+spec:
+  template:
+    spec:
+      {{- if and $.Values.global $.Values.global.podSecurityContext }}
+      securityContext:
+{{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: postgresql-migrate-lens
+        image: {{ $.Values.components.migrator.image }}
+        {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+        securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 10 }}
+        {{- end }}
+        env:
+        - name: SCRIPT_LOCATION
+          value: {{ $.Values.components.migrator.envVars.gitsensor.SCRIPT_LOCATION }}
+        - name: GIT_REPO_URL
+          value: {{ $.Values.components.migrator.envVars.gitsensor.GIT_REPO_URL }}
+        - name: DB_TYPE
+          value: postgres
+        - name: DB_USER_NAME
+          value: postgres
+        - name: DB_HOST
+          value: postgresql-postgresql.devtroncd
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_NAME
+          value: {{ $.Values.components.migrator.envVars.gitsensor.DB_NAME }}
+        - name: MIGRATE_TO_VERSION
+          value: "0"
+        - name: GIT_BRANCH
+          value: {{ $.Values.components.migrator.envVars.gitsensor.GIT_BRANCH }}
+        - name: GIT_HASH
+          value: {{ $.Values.components.migrator.envVars.gitsensor.GIT_HASH }}
+        envFrom:
+          - secretRef:
+              name: postgresql-migrator
+        {{- if $.Values.components.migrator.lens }}
+        {{- if $.Values.components.migrator.lens.initContainer }}
+        {{- if $.Values.components.migrator.lens.initContainer.resources }}        
+        resources:
+{{- toYaml $.Values.components.migrator.lens.initContainer.resources | nindent 10 }}
+        {{- end }}
+        {{- end }} 
+        {{- end }}
+      restartPolicy: OnFailure
+  backoffLimit: 20
+  activeDeadlineSeconds: 1500
+{{- end }}
+{{- end }}

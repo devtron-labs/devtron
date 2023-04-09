@@ -27,6 +27,17 @@ metadata:
   annotations:
     "helm.sh/hook": pre-install
     "helm.sh/resource-policy": keep
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: devtron-demo
+  labels:
+    name: devtron
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/resource-policy": keep
+
 {{- if $.Values.installer.modules }}
 {{- if has "cicd" $.Values.installer.modules }}
 ---
@@ -308,6 +319,36 @@ rules:
   - create
   - get
   - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: argo-ui-cluster-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - pods/exec
+  - pods/log
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+- apiGroups:
+  - argoproj.io
+  resources:
+  - workflows
+  verbs:
+  - get
+  - list
+  - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
