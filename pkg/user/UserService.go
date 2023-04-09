@@ -855,7 +855,7 @@ func (impl UserServiceImpl) getUserMetadata(model *repository2.UserModel) (bool,
 	for _, role := range roles {
 		key := ""
 		if len(role.Team) > 0 {
-			key = fmt.Sprintf("%s_%s_%s", role.Team, role.Action, role.AccessType)
+			key = fmt.Sprintf("%s_%s_%s_%t", role.Team, role.Action, role.AccessType, role.Approver)
 		} else if len(role.Entity) > 0 {
 			if role.Entity == bean.CLUSTER_ENTITIY {
 				key = fmt.Sprintf("%s_%s_%s_%s_%s_%s", role.Entity, role.Action, role.Cluster,
@@ -1402,7 +1402,7 @@ func (impl UserServiceImpl) GetRoleFiltersByGroupNames(groupNames []string) ([]b
 	for _, role := range roles {
 		key := ""
 		if len(role.Team) > 0 {
-			key = fmt.Sprintf("%s_%s_%s", role.Team, role.Action, role.AccessType)
+			key = fmt.Sprintf("%s_%s_%s_%t", role.Team, role.Action, role.AccessType, role.Approver)
 		} else if len(role.Entity) > 0 {
 			if role.Entity == bean.CLUSTER_ENTITIY {
 				key = fmt.Sprintf("%s_%s_%s_%s_%s_%s", role.Entity, role.Action, role.Cluster,
