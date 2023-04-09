@@ -2763,52 +2763,61 @@ func (impl PipelineBuilderImpl) GetArtifactsByCDPipeline(cdPipelineId int, stage
 		impl.logger.Errorw("error in getting artifacts for cd", "err", err, "stage", stage, "cdPipelineId", cdPipelineId)
 		return ciArtifactsResponse, err
 	}
-	userApprovalConfig := pipeline.UserApprovalConfig
+	//userApprovalConfig := pipeline.UserApprovalConfig
 	if pipeline.ApprovalNodeConfigured() && stage == bean2.CD_WORKFLOW_TYPE_DEPLOY { // for now, we are checking artifacts for deploy stage only
-		impl.logger.Infow("approval node configured", "pipelineId", pipeline.Id, "isApproval", isApprovalNode, "stage", stage)
-		approvalConfig, err := pipeline.GetApprovalConfig()
+		ciArtifactsFinal, approvalConfig, err := impl.overrideArtifactsWithUserApprovalData(pipeline, ciArtifactsResponse.CiArtifacts, isApprovalNode)
 		if err != nil {
-			impl.logger.Errorw("service err, failed to unmarshal userApprovalConfig", "err", err, "cdPipelineId", cdPipelineId, "stage", stage, "userApprovalConfig", userApprovalConfig)
-			//common.WriteJsonResp(w, errors.New("failed to unmarshal pipeline approval config"), nil, http.StatusInternalServerError)
 			return ciArtifactsResponse, err
 		}
 		ciArtifactsResponse.UserApprovalConfig = approvalConfig
-		var ciArtifactsFinal []bean.CiArtifactBean
-		var artifactIds []int
-		for _, item := range ciArtifactsResponse.CiArtifacts {
-			artifactIds = append(artifactIds, item.Id)
-		}
-
-		var userApprovalMetadata map[int]*pipelineConfig.UserApprovalMetadata
-		userApprovalMetadata, err = impl.workflowDagExecutor.FetchApprovalDataForArtifacts(artifactIds, cdPipelineId, approvalConfig.RequiredCount) // it will fetch all the request data with nil cd_wfr_rnr_id
-		if err != nil {
-			impl.logger.Errorw("error occurred while fetching approval data for artifacts", "cdPipelineId", cdPipelineId, "artifactIds", artifactIds, "err", err)
-			//common.WriteJsonResp(w, errors.New("failed to fetch approval artifacts metadata"), nil, http.StatusInternalServerError)
-			return ciArtifactsResponse, err
-		}
-		for _, artifact := range ciArtifactsResponse.CiArtifacts {
-			allowed := false
-			approvalRuntimeState := pipelineConfig.InitApprovalState
-			approvalMetadataForArtifact, ok := userApprovalMetadata[artifact.Id]
-			if ok { // either approved or requested
-				approvalRuntimeState = approvalMetadataForArtifact.ApprovalRuntimeState
-				artifact.UserApprovalMetadata = approvalMetadataForArtifact
-			} else if artifact.Deployed {
-				approvalRuntimeState = pipelineConfig.ConsumedApprovalState
-			}
-
-			if isApprovalNode { // return all the artifacts with state in init, requested or consumed
-				allowed = approvalRuntimeState == pipelineConfig.InitApprovalState || approvalRuntimeState == pipelineConfig.RequestedApprovalState || approvalRuntimeState == pipelineConfig.ConsumedApprovalState
-			} else { // return only approved state artifacts
-				allowed = approvalRuntimeState == pipelineConfig.ApprovedApprovalState
-			}
-			if allowed {
-				ciArtifactsFinal = append(ciArtifactsFinal, artifact)
-			}
-		}
 		ciArtifactsResponse.CiArtifacts = ciArtifactsFinal
 	}
 	return ciArtifactsResponse, nil
+}
+
+func (impl PipelineBuilderImpl) overrideArtifactsWithUserApprovalData(pipeline *pipelineConfig.Pipeline, inputArtifacts []bean.CiArtifactBean, isApprovalNode bool) ([]bean.CiArtifactBean, pipelineConfig.UserApprovalConfig, error) {
+	impl.logger.Infow("approval node configured", "pipelineId", pipeline.Id, "isApproval", isApprovalNode)
+	var ciArtifactsFinal []bean.CiArtifactBean
+	var artifactIds []int
+	cdPipelineId := pipeline.Id
+	approvalConfig, err := pipeline.GetApprovalConfig()
+	if err != nil {
+		impl.logger.Errorw("failed to unmarshal userApprovalConfig", "err", err, "cdPipelineId", cdPipelineId, "approvalConfig", approvalConfig)
+		return ciArtifactsFinal, approvalConfig, err
+	}
+
+	for _, item := range inputArtifacts {
+		artifactIds = append(artifactIds, item.Id)
+	}
+
+	var userApprovalMetadata map[int]*pipelineConfig.UserApprovalMetadata
+	requiredApprovals := approvalConfig.RequiredCount
+	userApprovalMetadata, err = impl.workflowDagExecutor.FetchApprovalDataForArtifacts(artifactIds, cdPipelineId, requiredApprovals) // it will fetch all the request data with nil cd_wfr_rnr_id
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching approval data for artifacts", "cdPipelineId", cdPipelineId, "artifactIds", artifactIds, "err", err)
+		return ciArtifactsFinal, approvalConfig, err
+	}
+	for _, artifact := range inputArtifacts {
+		allowed := false
+		approvalRuntimeState := pipelineConfig.InitApprovalState
+		approvalMetadataForArtifact, ok := userApprovalMetadata[artifact.Id]
+		if ok { // either approved or requested
+			approvalRuntimeState = approvalMetadataForArtifact.ApprovalRuntimeState
+			artifact.UserApprovalMetadata = approvalMetadataForArtifact
+		} else if artifact.Deployed {
+			approvalRuntimeState = pipelineConfig.ConsumedApprovalState
+		}
+
+		if isApprovalNode { // return all the artifacts with state in init, requested or consumed
+			allowed = approvalRuntimeState == pipelineConfig.InitApprovalState || approvalRuntimeState == pipelineConfig.RequestedApprovalState || approvalRuntimeState == pipelineConfig.ConsumedApprovalState
+		} else { // return only approved state artifacts
+			allowed = approvalRuntimeState == pipelineConfig.ApprovedApprovalState
+		}
+		if allowed {
+			ciArtifactsFinal = append(ciArtifactsFinal, artifact)
+		}
+	}
+	return ciArtifactsFinal, approvalConfig, nil
 }
 
 func (impl PipelineBuilderImpl) GetCdParentDetails(cdPipelineId int) (parentId int, parentType bean2.WorkflowType, err error) {
@@ -3011,6 +3020,7 @@ func (impl PipelineBuilderImpl) BuildArtifactsForCIParent(cdPipelineId int, pare
 func (impl PipelineBuilderImpl) FetchArtifactForRollback(cdPipelineId, offset, limit int) (bean.CiArtifactResponse, error) {
 	var deployedCiArtifacts []bean.CiArtifactBean
 	var deployedCiArtifactsResponse bean.CiArtifactResponse
+	var pipeline *pipelineConfig.Pipeline
 
 	cdWfrs, err := impl.cdWorkflowRepository.FetchArtifactsByCdPipelineId(cdPipelineId, bean2.CD_WORKFLOW_TYPE_DEPLOY, offset, limit)
 	if err != nil {
@@ -3020,6 +3030,9 @@ func (impl PipelineBuilderImpl) FetchArtifactForRollback(cdPipelineId, offset, l
 	var ids []int32
 	for _, item := range cdWfrs {
 		ids = append(ids, item.TriggeredBy)
+		if pipeline == nil && item.CdWorkflow != nil {
+			pipeline = item.CdWorkflow.Pipeline
+		}
 	}
 	userEmails := make(map[int32]string)
 	users, err := impl.userService.GetByIds(ids)
@@ -3056,6 +3069,14 @@ func (impl PipelineBuilderImpl) FetchArtifactForRollback(cdPipelineId, offset, l
 	deployedCiArtifactsResponse.CdPipelineId = cdPipelineId
 	if deployedCiArtifacts == nil {
 		deployedCiArtifacts = []bean.CiArtifactBean{}
+	}
+	if pipeline != nil && pipeline.ApprovalNodeConfigured() {
+		var approvalConfig pipelineConfig.UserApprovalConfig
+		deployedCiArtifacts, approvalConfig, err = impl.overrideArtifactsWithUserApprovalData(pipeline, deployedCiArtifacts, false)
+		deployedCiArtifactsResponse.UserApprovalConfig = approvalConfig
+		if err != nil {
+			return deployedCiArtifactsResponse, err
+		}
 	}
 	deployedCiArtifactsResponse.CiArtifacts = deployedCiArtifacts
 

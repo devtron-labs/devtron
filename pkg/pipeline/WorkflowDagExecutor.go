@@ -1676,11 +1676,11 @@ func (impl *WorkflowDagExecutorImpl) TriggerBulkHibernateAsync(request StopDeplo
 }
 
 func (impl *WorkflowDagExecutorImpl) FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int, requiredApprovals int) (map[int]*pipelineConfig.UserApprovalMetadata, error) {
+	artifactIdVsApprovalMetadata := make(map[int]*pipelineConfig.UserApprovalMetadata)
 	deploymentApprovalRequests, err := impl.deploymentApprovalRepository.FetchApprovalDataForArtifacts(artifactIds, pipelineId)
 	if err != nil {
-		return nil, err
+		return artifactIdVsApprovalMetadata, err
 	}
-	artifactIdVsApprovalMetadata := make(map[int]*pipelineConfig.UserApprovalMetadata)
 	for _, approvalRequest := range deploymentApprovalRequests {
 		artifactId := approvalRequest.ArtifactId
 		approvalMetadata := approvalRequest.ConvertToApprovalMetadata()
