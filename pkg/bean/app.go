@@ -271,6 +271,12 @@ type Material struct {
 	MaterialName  string `json:"materialName"`
 }
 
+type TriggerViewCiConfig struct {
+	CiGitMaterialId int           `json:"ciGitConfiguredId"`
+	CiPipelines     []*CiPipeline `json:"ciPipelines,omitempty" validate:"dive"` //a pipeline will be built for each ciMaterial
+	Materials       []Material    `json:"materials"`
+}
+
 type CiConfigRequest struct {
 	Id                int                     `json:"id,omitempty" validate:"number"` //ciTemplateId
 	AppId             int                     `json:"appId,omitempty" validate:"required,number"`
