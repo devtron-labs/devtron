@@ -71,6 +71,7 @@ type AppListingRestHandler interface {
 	GetHostUrlsByBatch(w http.ResponseWriter, r *http.Request)
 
 	ManualSyncAcdPipelineDeploymentStatus(w http.ResponseWriter, r *http.Request)
+	FetchAppsByEnvironmentV2(w http.ResponseWriter, r *http.Request)
 }
 
 type AppListingRestHandlerImpl struct {
@@ -246,6 +247,7 @@ func (handler AppListingRestHandlerImpl) FetchJobOverviewCiPipelines(w http.Resp
 
 	common.WriteJsonResp(w, err, jobCi, http.StatusOK)
 }
+
 func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseWriter, r *http.Request) {
 	//Allow CORS here By * or specific origin
 	setupResponse(&w, r)
@@ -408,6 +410,148 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 			apps = apps[offset:]
 		}
 	}
+	appContainerResponse := bean.AppContainerResponse{
+		AppContainers: apps,
+		AppCount:      appsCount,
+	}
+	if fetchAppListingRequest.DeploymentGroupId > 0 {
+		var ciMaterialDTOs []bean.CiMaterialDTO
+		for _, ci := range dg.CiMaterialDTOs {
+			ciMaterialDTOs = append(ciMaterialDTOs, bean.CiMaterialDTO{
+				Name:        ci.Name,
+				SourceValue: ci.SourceValue,
+				SourceType:  ci.SourceType,
+			})
+		}
+		appContainerResponse.DeploymentGroupDTO = bean.DeploymentGroupDTO{
+			Id:             dg.Id,
+			Name:           dg.Name,
+			AppCount:       dg.AppCount,
+			NoOfApps:       dg.NoOfApps,
+			EnvironmentId:  dg.EnvironmentId,
+			CiPipelineId:   dg.CiPipelineId,
+			CiMaterialDTOs: ciMaterialDTOs,
+		}
+	}
+	t2 = time.Now()
+	handler.logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "4")
+	t1 = t2
+	handler.logger.Infow("api response time testing", "total time", time.Now().String(), "total time", t1.Unix()-t0.Unix())
+	common.WriteJsonResp(w, err, appContainerResponse, http.StatusOK)
+}
+func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV2(w http.ResponseWriter, r *http.Request) {
+	//Allow CORS here By * or specific origin
+	setupResponse(&w, r)
+	token := r.Header.Get("token")
+	t0 := time.Now()
+	t1 := time.Now()
+	handler.logger.Infow("api response time testing", "time", time.Now().String(), "stage", "1")
+	newCtx, span := otel.Tracer("userService").Start(r.Context(), "GetLoggedInUser")
+	userId, err := handler.userService.GetLoggedInUser(r)
+	span.End()
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	newCtx, span = otel.Tracer("userService").Start(newCtx, "GetById")
+	user, err := handler.userService.GetById(userId)
+	span.End()
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	newCtx, span = otel.Tracer("userService").Start(newCtx, "IsSuperAdmin")
+	isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
+	span.End()
+	if err != nil {
+		handler.logger.Errorw("request err, FetchAppsByEnvironment", "err", err, "userId", userId)
+		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
+		return
+	}
+
+	validAppIds := make([]int, 0)
+	//for non super admin users
+	if !isActionUserSuperAdmin {
+		userEmailId := strings.ToLower(user.EmailId)
+		rbacObjectsForAllAppsMap := handler.enforcerUtil.GetRbacObjectsForAllApps()
+		rbacObjectToAppIdsMap := make(map[string]([]int))
+		rbacObjects := make([]string, len(rbacObjectsForAllAppsMap))
+		itr := 0
+		for appId, object := range rbacObjectsForAllAppsMap {
+			rbacObjects[itr] = object
+			itr++
+			if _, ok := rbacObjectToAppIdsMap[object]; !ok {
+				rbacObjectToAppIdsMap[object] = make([]int, 0)
+			}
+			rbacObjectToAppIdsMap[object] = append(rbacObjectToAppIdsMap[object], appId)
+		}
+
+		result := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceApplications, casbin.ActionGet, rbacObjects)
+		//O(n) loop, n = len(rbacObjectsForAllAppsMap)
+		for object, ok := range result {
+			if ok {
+				for _, appId := range rbacObjectToAppIdsMap[object] {
+					validAppIds = append(validAppIds, appId)
+				}
+			}
+		}
+		if len(validAppIds) == 0 {
+			handler.logger.Infow("user doesn't have access to any app", "userId", userId)
+			common.WriteJsonResp(w, err, bean.AppContainerResponse{}, http.StatusOK)
+			return
+		}
+	}
+
+	var fetchAppListingRequest app.FetchAppListingRequest
+	decoder := json.NewDecoder(r.Body)
+	err = decoder.Decode(&fetchAppListingRequest)
+	if err != nil {
+		handler.logger.Errorw("request err, FetchAppsByEnvironment", "err", err, "payload", fetchAppListingRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	newCtx, span = otel.Tracer("fetchAppListingRequest").Start(newCtx, "GetNamespaceClusterMapping")
+	_, _, err = fetchAppListingRequest.GetNamespaceClusterMapping()
+	span.End()
+	if err != nil {
+		handler.logger.Errorw("request err, GetNamespaceClusterMapping", "err", err, "payload", fetchAppListingRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	var dg *deploymentGroup.DeploymentGroupDTO
+	if fetchAppListingRequest.DeploymentGroupId > 0 {
+		newCtx, span = otel.Tracer("deploymentGroupService").Start(newCtx, "FindById")
+		dg, err = handler.deploymentGroupService.FindById(fetchAppListingRequest.DeploymentGroupId)
+		span.End()
+		if err != nil {
+			handler.logger.Errorw("service err, FetchAppsByEnvironment", "err", err, "payload", fetchAppListingRequest)
+			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+		}
+	}
+
+	newCtx, span = otel.Tracer("appListingService").Start(newCtx, "FetchAppsByEnvironment")
+	start := time.Now()
+	fetchAppListingRequest.AppIds = validAppIds
+	envContainers, appsCount, err := handler.appListingService.FetchAppsByEnvironmentV2(fetchAppListingRequest, w, r, token)
+	middleware.AppListingDuration.WithLabelValues("fetchAppsByEnvironment", "devtron").Observe(time.Since(start).Seconds())
+	span.End()
+	if err != nil {
+		handler.logger.Errorw("service err, FetchAppsByEnvironment", "err", err, "payload", fetchAppListingRequest)
+		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+	}
+
+	t2 := time.Now()
+	handler.logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3")
+	t1 = t2
+	newCtx, span = otel.Tracer("appListingService").Start(newCtx, "BuildAppListingResponse")
+	apps, err := handler.appListingService.BuildAppListingResponseV2(fetchAppListingRequest, envContainers)
+	span.End()
+	if err != nil {
+		handler.logger.Errorw("service err, FetchAppsByEnvironment", "err", err, "payload", fetchAppListingRequest)
+		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+	}
+
 	appContainerResponse := bean.AppContainerResponse{
 		AppContainers: apps,
 		AppCount:      appsCount,

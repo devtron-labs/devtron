@@ -115,6 +115,7 @@ type AppEnvironmentContainer struct {
 	Active                      bool                      `json:"-"`
 	TeamId                      int                       `json:"teamId"`
 	TeamName                    string                    `json:"teamName"`
+	TotalCount                  int                       `json:"-"`
 }
 
 type DeploymentDetailContainer struct {

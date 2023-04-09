@@ -57,6 +57,7 @@ type AppListingService interface {
 	FetchJobs(fetchJobListingRequest FetchAppListingRequest) ([]*bean.JobContainer, error)
 	FetchOverviewCiPipelines(jobId int) ([]*bean.JobListingContainer, error)
 	BuildAppListingResponse(fetchAppListingRequest FetchAppListingRequest, envContainers []*bean.AppEnvironmentContainer) ([]*bean.AppContainer, error)
+	BuildAppListingResponseV2(fetchAppListingRequest FetchAppListingRequest, envContainers []*bean.AppEnvironmentContainer) ([]*bean.AppContainer, error)
 	FetchAllDevtronManagedApps() ([]AppNameTypeIdContainer, error)
 	FetchAppDetails(ctx context.Context, appId int, envId int) (bean.AppDetailContainer, error)
 
@@ -88,6 +89,8 @@ type AppListingService interface {
 	ISLastReleaseStopType(appId, envId int) (bool, error)
 	ISLastReleaseStopTypeV2(pipelineIds []int) (map[int]bool, error)
 	GetReleaseCount(appId, envId int) (int, error)
+
+	FetchAppsByEnvironmentV2(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, int, error)
 }
 
 const (
@@ -107,6 +110,8 @@ type FetchAppListingRequest struct {
 	DeploymentGroupId int              `json:"deploymentGroupId"`
 	Namespaces        []string         `json:"namespaces"` //{clusterId}_{namespace}
 	AppStatuses       []string         `json:"appStatuses"`
+	AppIds            []int            `json:"-"` //internal use only
+	//IsClusterOrNamespaceSelected bool             `json:"isClusterOrNamespaceSelected"`
 }
 type AppNameTypeIdContainer struct {
 	AppName string `json:"appName"`
@@ -261,44 +266,10 @@ func (impl AppListingServiceImpl) FetchOverviewCiPipelines(jobId int) ([]*bean.J
 
 func (impl AppListingServiceImpl) FetchAppsByEnvironment(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, error) {
 	impl.Logger.Debug("reached at FetchAppsByEnvironment:")
-	// TODO: check statuses
-	newCtx, span := otel.Tracer("fetchAppListingRequest").Start(r.Context(), "GetNamespaceClusterMapping")
-	mappings, clusterIds, err := fetchAppListingRequest.GetNamespaceClusterMapping()
-	span.End()
-	if err != nil {
-		impl.Logger.Errorw("error in fetching app list", "error", err)
-		return []*bean.AppEnvironmentContainer{}, err
-	}
-	if len(mappings) > 0 {
-		newCtx, span = otel.Tracer("environmentRepository").Start(newCtx, "FindByClusterIdAndNamespace")
-		envs, err := impl.environmentRepository.FindByClusterIdAndNamespace(mappings)
-		span.End()
-		if err != nil {
-			impl.Logger.Errorw("error in cluster ns mapping")
-			return []*bean.AppEnvironmentContainer{}, err
-		}
-		for _, env := range envs {
-			fetchAppListingRequest.Environments = append(fetchAppListingRequest.Environments, env.Id)
-		}
-	}
-	if len(clusterIds) > 0 {
-		newCtx, span = otel.Tracer("environmentRepository").Start(newCtx, "FindByClusterIds")
-		envs, err := impl.environmentRepository.FindByClusterIds(clusterIds)
-		span.End()
-		if err != nil {
-			impl.Logger.Errorw("error in cluster ns mapping")
-			return []*bean.AppEnvironmentContainer{}, err
-		}
-		for _, env := range envs {
-			fetchAppListingRequest.Environments = append(fetchAppListingRequest.Environments, env.Id)
-		}
-
-	}
-	if (len(clusterIds) > 0 || len(mappings) > 0) && len(fetchAppListingRequest.Environments) == 0 {
-		// no result when no matching cluster and env
+	if len(fetchAppListingRequest.Namespaces) != 0 && len(fetchAppListingRequest.Environments) == 0 {
 		return []*bean.AppEnvironmentContainer{}, nil
 	}
-
+	// TODO: check statuses
 	appListingFilter := helper.AppListingFilter{
 		Environments:      fetchAppListingRequest.Environments,
 		Statuses:          fetchAppListingRequest.Statuses,
@@ -311,7 +282,7 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironment(fetchAppListingRequest 
 		DeploymentGroupId: fetchAppListingRequest.DeploymentGroupId,
 		AppStatuses:       fetchAppListingRequest.AppStatuses,
 	}
-	newCtx, span = otel.Tracer("appListingRepository").Start(newCtx, "FetchAppsByEnvironment")
+	_, span := otel.Tracer("appListingRepository").Start(r.Context(), "FetchAppsByEnvironment")
 	envContainers, err := impl.appListingRepository.FetchAppsByEnvironment(appListingFilter)
 	span.End()
 	if err != nil {
@@ -319,6 +290,33 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironment(fetchAppListingRequest 
 		return []*bean.AppEnvironmentContainer{}, err
 	}
 	return envContainers, err
+}
+func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, int, error) {
+	impl.Logger.Debug("reached at FetchAppsByEnvironment:")
+	if len(fetchAppListingRequest.Namespaces) != 0 && len(fetchAppListingRequest.Environments) == 0 {
+		return []*bean.AppEnvironmentContainer{}, 0, nil
+	}
+	appListingFilter := helper.AppListingFilter{
+		Environments:      fetchAppListingRequest.Environments,
+		Statuses:          fetchAppListingRequest.Statuses,
+		Teams:             fetchAppListingRequest.Teams,
+		AppNameSearch:     fetchAppListingRequest.AppNameSearch,
+		SortOrder:         fetchAppListingRequest.SortOrder,
+		SortBy:            fetchAppListingRequest.SortBy,
+		Offset:            fetchAppListingRequest.Offset,
+		Size:              fetchAppListingRequest.Size,
+		DeploymentGroupId: fetchAppListingRequest.DeploymentGroupId,
+		AppStatuses:       fetchAppListingRequest.AppStatuses,
+		AppIds:            fetchAppListingRequest.AppIds,
+	}
+	_, span := otel.Tracer("appListingRepository").Start(r.Context(), "FetchAppsByEnvironment")
+	envContainers, appSize, err := impl.appListingRepository.FetchAppsByEnvironmentV2(appListingFilter)
+	span.End()
+	if err != nil {
+		impl.Logger.Errorw("error in fetching app list", "error", err, "filter", appListingFilter)
+		return []*bean.AppEnvironmentContainer{}, appSize, err
+	}
+	return envContainers, appSize, nil
 }
 
 func (impl AppListingServiceImpl) ISLastReleaseStopType(appId, envId int) (bool, error) {
@@ -369,6 +367,20 @@ func (impl AppListingServiceImpl) GetReleaseCount(appId, envId int) (int, error)
 func (impl AppListingServiceImpl) BuildAppListingResponse(fetchAppListingRequest FetchAppListingRequest, envContainers []*bean.AppEnvironmentContainer) ([]*bean.AppContainer, error) {
 	start := time.Now()
 	appEnvMapping, err := impl.fetchACDAppStatus(fetchAppListingRequest, envContainers)
+	middleware.AppListingDuration.WithLabelValues("fetchACDAppStatus", "devtron").Observe(time.Since(start).Seconds())
+	if err != nil {
+		impl.Logger.Errorw("error in fetching app statuses", "error", err)
+		return []*bean.AppContainer{}, err
+	}
+	start = time.Now()
+	appContainerResponses, err := impl.appListingViewBuilder.BuildView(fetchAppListingRequest, appEnvMapping)
+	middleware.AppListingDuration.WithLabelValues("buildView", "devtron").Observe(time.Since(start).Seconds())
+	return appContainerResponses, err
+}
+
+func (impl AppListingServiceImpl) BuildAppListingResponseV2(fetchAppListingRequest FetchAppListingRequest, envContainers []*bean.AppEnvironmentContainer) ([]*bean.AppContainer, error) {
+	start := time.Now()
+	appEnvMapping, err := impl.fetchACDAppStatusV2(fetchAppListingRequest, envContainers)
 	middleware.AppListingDuration.WithLabelValues("fetchACDAppStatus", "devtron").Observe(time.Since(start).Seconds())
 	if err != nil {
 		impl.Logger.Errorw("error in fetching app statuses", "error", err)
@@ -617,6 +629,15 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 			env.CdStageStatus = &status
 		}
 
+		appEnvMapping[appKey] = append(appEnvMapping[appKey], env)
+	}
+	return appEnvMapping, nil
+}
+
+func (impl AppListingServiceImpl) fetchACDAppStatusV2(fetchAppListingRequest FetchAppListingRequest, existingAppEnvContainers []*bean.AppEnvironmentContainer) (map[string][]*bean.AppEnvironmentContainer, error) {
+	appEnvMapping := make(map[string][]*bean.AppEnvironmentContainer)
+	for _, env := range existingAppEnvContainers {
+		appKey := strconv.Itoa(env.AppId) + "_" + env.AppName
 		appEnvMapping[appKey] = append(appEnvMapping[appKey], env)
 	}
 	return appEnvMapping, nil
