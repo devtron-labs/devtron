@@ -1305,6 +1305,8 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateCDPipeline(pipelineRequest *bean.
 			return err
 		}
 		pipeline.UserApprovalConfig = string(userApprovalConf)
+	} else {
+		pipeline.UserApprovalConfig = ""
 	}
 	pipeline.UpdatedBy = userId
 	pipeline.UpdatedOn = time.Now()
