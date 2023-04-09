@@ -60,7 +60,7 @@ type UserAuthRepository interface {
 	//GetRoleByFilterForClusterEntity(cluster, namespace, group, kind, resource, action string) (RoleModel, error)
 	GetRolesByUserIdAndEntityType(userId int32, entityType string) ([]*RoleModel, error)
 	CreateRolesWithAccessTypeAndEntity(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, UserId int32, role string) (bool, error)
-	GetApprovalUsersByEnv(appName, envName string) ([]string, error)
+	GetApprovalUsersByEnv(appName, envName string) ([]string, []string, error)
 }
 
 type UserAuthRepositoryImpl struct {
@@ -547,15 +547,25 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team, entity
 	return true, nil, policiesToBeAdded
 }
 
-func (impl UserAuthRepositoryImpl) GetApprovalUsersByEnv(appName, envName string) ([]string, error) {
-	//TODO KB: need to handle permission groups also
+func (impl UserAuthRepositoryImpl) GetApprovalUsersByEnv(appName, envName string) ([]string, []string, error) {
 	var emailIds []string
-	query := "select distinct(email_id) from users us inner join user_roles ur on us.id=ur.user_id inner join roles on ur.role_id = roles.id where roles.approver = true and roles.environment=? and entity_name=?;"
-	_, err := impl.dbConnection.Query(&emailIds, query, envName, appName)
+	var roleGroups []string
+	
+	query := "select distinct(email_id) from users us inner join user_roles ur on us.id=ur.user_id inner join roles on ur.role_id = roles.id " +
+		"where (roles.approver = true OR roles.role = ? ) and roles.environment=? and entity_name=? and us.id not in (1,2);"
+	_, err := impl.dbConnection.Query(&emailIds, query, "role:super-admin___", envName, appName)
 	if err != nil && err != pg.ErrNoRows {
-		return emailIds, err
+		return emailIds, roleGroups, err
 	}
-	return emailIds, nil
+
+	roleGroupQuery := "select rg.casbin_name from role_group rg inner join role_group_role_mapping rgrm on rg.id = rgrm.role_group_id " +
+		"inner join roles r on rgrm.role_id = r.id where r.approver = true  and r.environment=? and r.entity_name=?;"
+	_, err = impl.dbConnection.Query(&roleGroups, roleGroupQuery, envName, appName)
+	if err != nil && err != pg.ErrNoRows {
+		return emailIds, roleGroups, err
+	}
+
+	return emailIds, roleGroups, nil
 }
 
 func (impl UserAuthRepositoryImpl) CreateRolesWithAccessTypeAndEntity(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, UserId int32, role string) (bool, error) {

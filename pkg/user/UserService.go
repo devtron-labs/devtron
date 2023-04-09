@@ -1032,7 +1032,29 @@ func (impl UserServiceImpl) UserExists(emailId string) bool {
 }
 
 func (impl UserServiceImpl) GetApprovalUsersByEnv(appName, envName string) ([]string, error) {
-	return impl.userAuthRepository.GetApprovalUsersByEnv(appName, envName)
+	emailIds, permissionGroupNames, err := impl.userAuthRepository.GetApprovalUsersByEnv(appName, envName)
+	if err != nil {
+		return emailIds, err
+	}
+	for _, groupName := range permissionGroupNames {
+		userEmails, err := casbin2.GetUserByRole(groupName)
+		if err != nil {
+			return emailIds, err
+		}
+		emailIds = append(emailIds, userEmails...)
+	}
+	uniqueEmails := make(map[string]bool)
+	for _, emailId := range emailIds {
+		_, ok := uniqueEmails[emailId]
+		if !ok {
+			uniqueEmails[emailId] = true
+		}
+	}
+	var finalEmails []string
+	for emailId, _ := range uniqueEmails {
+		finalEmails = append(finalEmails, emailId)
+	}
+	return finalEmails, nil
 }
 func (impl UserServiceImpl) SaveLoginAudit(emailId, clientIp string, id int32) {
 
