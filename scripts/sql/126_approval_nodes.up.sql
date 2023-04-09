@@ -31,13 +31,13 @@ CREATE TABLE public.deployment_approval_user_data (
 "updated_by"                                    int4,
 CONSTRAINT "deployment_approval_user_data_approval_request_id_fkey" FOREIGN KEY ("approval_request_id") REFERENCES "public"."deployment_approval_request" ("id"),
 CONSTRAINT "deployment_approval_user_data_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."users" ("id"),
-PRIMARY KEY ("id")
+PRIMARY KEY ("id"),
+UNIQUE("approval_request_id","user_id")
 );
 
 alter table cd_workflow_runner add column deployment_approval_request_id int CONSTRAINT "cd_workflow_runner_deployment_approval_request_id_fkey" REFERENCES "public"."deployment_approval_request" ("id");
 
-Alter table roles
-add column approver bool;
+Alter table roles add column approver bool;
 
 DROP INDEX "public"."role_unique";
 

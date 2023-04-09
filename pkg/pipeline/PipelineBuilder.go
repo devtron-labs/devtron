@@ -2373,8 +2373,6 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 		return 0, err
 	}
 
-	//TODO KB: check for approval Node, if present create approval node conf, then store that in app_wf_mapping as component and check for its parentPipelineId & Type,
-
 	// Get pipeline override based on Deployment strategy
 	//TODO: mark as created in our db
 	pipelineId, err := impl.ciCdPipelineOrchestrator.CreateCDPipelines(pipeline, app.Id, userId, tx, app.AppName)
@@ -2389,7 +2387,6 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 		return 0, err
 	}
 	if pipeline.AppWorkflowId > 0 {
-		//TODO KB: use this logic in approval node, parent mapping in case approval node conf is present and pass approval node as its parent
 		var parentPipelineId int
 		var parentPipelineType string
 		if pipeline.ParentPipelineId == 0 {
@@ -2798,7 +2795,6 @@ func (impl PipelineBuilderImpl) overrideArtifactsWithUserApprovalData(pipeline *
 		return ciArtifactsFinal, approvalConfig, err
 	}
 	for _, artifact := range inputArtifacts {
-		allowed := false
 		approvalRuntimeState := pipelineConfig.InitApprovalState
 		approvalMetadataForArtifact, ok := userApprovalMetadata[artifact.Id]
 		if ok { // either approved or requested
@@ -2808,6 +2804,7 @@ func (impl PipelineBuilderImpl) overrideArtifactsWithUserApprovalData(pipeline *
 			approvalRuntimeState = pipelineConfig.ConsumedApprovalState
 		}
 
+		allowed := false
 		if isApprovalNode { // return all the artifacts with state in init, requested or consumed
 			allowed = approvalRuntimeState == pipelineConfig.InitApprovalState || approvalRuntimeState == pipelineConfig.RequestedApprovalState || approvalRuntimeState == pipelineConfig.ConsumedApprovalState
 		} else { // return only approved state artifacts
@@ -3290,7 +3287,7 @@ func (impl PipelineBuilderImpl) GetCdPipelineById(pipelineId int) (cdPipeline *b
 
 	preStageConfigmapSecrets := bean.PreStageConfigMapSecretNames{}
 	postStageConfigmapSecrets := bean.PostStageConfigMapSecretNames{}
-	approvalConfig := pipelineConfig.UserApprovalConfig{}
+	var approvalConfig *pipelineConfig.UserApprovalConfig
 
 	if dbPipeline.PreStageConfigMapSecretNames != "" {
 		err = json.Unmarshal([]byte(dbPipeline.PreStageConfigMapSecretNames), &preStageConfigmapSecrets)
@@ -3308,7 +3305,8 @@ func (impl PipelineBuilderImpl) GetCdPipelineById(pipelineId int) (cdPipeline *b
 	}
 
 	if dbPipeline.ApprovalNodeConfigured() {
-		err = json.Unmarshal([]byte(dbPipeline.UserApprovalConfig), &approvalConfig)
+		approvalConfig = &pipelineConfig.UserApprovalConfig{}
+		err = json.Unmarshal([]byte(dbPipeline.UserApprovalConfig), approvalConfig)
 		if err != nil {
 			impl.logger.Error(err)
 			return nil, err
