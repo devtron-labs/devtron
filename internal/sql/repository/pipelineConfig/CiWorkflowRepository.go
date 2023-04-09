@@ -39,6 +39,7 @@ type CiWorkflowRepository interface {
 	FindLastTriggeredWorkflowByArtifactId(ciArtifactId int) (ciWorkflow *CiWorkflow, err error)
 	ExistsByStatus(status string) (bool, error)
 	FindBuildTypeAndStatusDataOfLast1Day() []*BuildTypeCount
+	FIndCiWorkflowStatusesByAppId(appId int) ([]*CiWorkflowStatus, error)
 }
 
 type CiWorkflowRepositoryImpl struct {
@@ -240,4 +241,23 @@ func (impl *CiWorkflowRepositoryImpl) FindBuildTypeAndStatusDataOfLast1Day() []*
 		impl.logger.Errorw("error occurred while fetching build type vs status vs count data", "err", err)
 	}
 	return buildTypeCounts
+}
+
+func (impl *CiWorkflowRepositoryImpl) FIndCiWorkflowStatusesByAppId(appId int) ([]*CiWorkflowStatus, error) {
+
+	ciworkflowStatuses := make([]*CiWorkflowStatus, 0)
+
+	query := "SELECT cw1.ci_pipeline_id,cw1.status as ci_status,cw1.blob_storage_enabled as storage_configured,cw1.ci_pipeline_id " +
+		" FROM ci_workflow cw1 INNER JOIN " +
+		" (SELECT cw.ci_pipeline_id, max(cw.id) " +
+		" FROM ci_workflow cw INNER JOIN " +
+		" ci_pipeline cp ON cw.ci_pipeline_id = cp.id " +
+		" WHERE cp.app_id=? AND cp.deleted=false " +
+		" GROUP BY cw.ci_pipeline_id) cw2 " +
+		" ON cw1.id = cw2.max;"
+	_, err := impl.dbConnection.Query(&ciworkflowStatuses, query, appId) //, pg.In(ciPipelineIds))
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching build type vs status vs count data", "err", err)
+	}
+	return ciworkflowStatuses, err
 }
