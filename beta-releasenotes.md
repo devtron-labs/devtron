@@ -1,4 +1,5 @@
 ## Bugs
+- fix: updated condition for getting role filters  (#3261)
 - fix: bulk cd deployment trigger failing (#3233)
 - fix: Pipeline strategy empty check (#3256)
 - fix: SSO Login credentials are sent null to secret if we save after obfuscation (#3248)
