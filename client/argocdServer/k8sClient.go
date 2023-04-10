@@ -26,9 +26,6 @@ type AppTemplate struct {
 	ValuesFile      string
 	RepoPath        string
 	RepoUrl         string
-	TargetName      string
-	RepoUsername    string
-	RepoPassword    string
 }
 
 const TimeoutSlow = 30 * time.Second
@@ -62,7 +59,6 @@ func (impl ArgoK8sClientImpl) tprintf(tmpl string, data interface{}) (string, er
 }
 
 func (impl ArgoK8sClientImpl) CreateAcdApp(appRequest *AppTemplate, cluster *repository.Cluster) (string, error) {
-
 	chartYamlContent, err := ioutil.ReadFile(filepath.Clean("./scripts/argo-assets/APPLICATION_TEMPLATE.JSON"))
 	if err != nil {
 		impl.logger.Errorw("err in reading template", "err", err)

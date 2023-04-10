@@ -105,12 +105,12 @@ func (impl DockerRegistryIpsConfigServiceImpl) HandleImagePullSecretOnApplicatio
 	}
 
 	dockerRegistryId := ciPipeline.CiTemplate.DockerRegistryId
-	if len(dockerRegistryId) == 0 {
+	if len(*dockerRegistryId) == 0 {
 		impl.logger.Warn("returning as dockerRegistryId is found empty")
 		return valuesFileContent, nil
 	}
 
-	dockerRegistryBean, err := impl.dockerArtifactStoreRepository.FindOne(dockerRegistryId)
+	dockerRegistryBean, err := impl.dockerArtifactStoreRepository.FindOne(*dockerRegistryId)
 	if err != nil {
 		impl.logger.Errorw("error in getting docker registry", "dockerRegistryId", dockerRegistryId, "error", err)
 		if err == pg.ErrNoRows {
@@ -134,7 +134,7 @@ func (impl DockerRegistryIpsConfigServiceImpl) HandleImagePullSecretOnApplicatio
 	}
 
 	ipsCredentialType := string(ipsConfig.CredentialType)
-	ipsName := BuildIpsName(dockerRegistryId, ipsCredentialType, ipsConfig.CredentialValue)
+	ipsName := BuildIpsName(*dockerRegistryId, ipsCredentialType, ipsConfig.CredentialValue)
 
 	// Create or update secret of credential type is not of NAME type
 	if ipsCredentialType != IPS_CREDENTIAL_TYPE_NAME {
@@ -234,8 +234,8 @@ func (impl DockerRegistryIpsConfigServiceImpl) createOrUpdateDockerRegistryImage
 	}
 	secret, err := impl.k8sUtil.GetSecret(namespace, ipsName, k8sClient)
 	if err != nil {
-		statusError, _ := err.(*k8sErrors.StatusError)
-		if statusError.Status().Code != http.StatusNotFound {
+		statusError, ok := err.(*k8sErrors.StatusError)
+		if !ok || (statusError != nil && statusError.Status().Code != http.StatusNotFound) {
 			impl.logger.Errorw("error in getting secret", "clusterId", clusterId, "namespace", namespace, "ipsName", ipsName, "error", err)
 			return err
 		}

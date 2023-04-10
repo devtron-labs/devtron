@@ -186,7 +186,6 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 			updateSuccess = true
 		}
 	}
-
 	if !updateSuccess {
 		return nil, fmt.Errorf("resouce version not matched with config map attempted 3 times")
 	}
@@ -251,7 +250,6 @@ func (impl *ChartRepositoryServiceImpl) UpdateData(request *ChartRepoDto) (*char
 	updateSuccess := false
 	retryCount := 0
 	for !updateSuccess && retryCount < 3 {
-
 		retryCount = retryCount + 1
 
 		if !isPrivateChart {
@@ -318,7 +316,6 @@ func (impl *ChartRepositoryServiceImpl) UpdateData(request *ChartRepoDto) (*char
 			updateSuccess = true
 		}
 	}
-
 	if !updateSuccess {
 		return nil, fmt.Errorf("resouce version not matched with config map attempted 3 times")
 	}

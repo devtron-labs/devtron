@@ -43,6 +43,11 @@ var CdDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 	Help: "Duration of CD process",
 }, []string{"appName", "status", "envName", "deploymentType"})
 
+var GitOpsDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
+	Name: "git_ops_duration_seconds",
+	Help: "Duration of GitOps",
+}, []string{"operationName", "methodName", "status"})
+
 var CiDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 	Name:    "ci_duration_seconds",
 	Help:    "Duration of CI process",
@@ -78,6 +83,11 @@ var CacheUploadDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 	Help:    "Duration of Cache Upload process",
 	Buckets: prometheus.LinearBuckets(20, 20, 5),
 }, []string{"pipelineName", "appName"})
+
+var AppListingDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
+	Name: "app_listing_duration_seconds",
+	Help: "Duration of App Listing process",
+}, []string{"MethodName", "AppType"})
 
 var requestCounter = promauto.NewCounterVec(
 	prometheus.CounterOpts{

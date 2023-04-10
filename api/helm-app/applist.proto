@@ -249,6 +249,7 @@ message InstallReleaseRequest {
   string chartVersion = 3;
   string valuesYaml = 4;
   ChartRepository chartRepository = 5;
+  string K8sVersion = 6;
 }
 
 message InstallReleaseResponse {
