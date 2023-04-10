@@ -244,6 +244,8 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 	installAppVersionRequest.ACDAppName = argocdAppName
 	installAppVersionRequest.Environment = environment
 
+	installAppVersionRequest.InstallAppVersionChartDTO = &appStoreBean.InstallAppVersionChartDTO{InstallAppVersionChartRepoDTO: &appStoreBean.InstallAppVersionChartRepoDTO{}}
+
 	installAppVersionRequest.InstallAppVersionChartDTO.InstallAppVersionChartRepoDTO.RepoName = appStoreAppVersion.AppStore.ChartRepo.Name
 	installAppVersionRequest.InstallAppVersionChartDTO.InstallAppVersionChartRepoDTO.RepoUrl = appStoreAppVersion.AppStore.ChartRepo.Url
 	installAppVersionRequest.InstallAppVersionChartDTO.InstallAppVersionChartRepoDTO.UserName = appStoreAppVersion.AppStore.ChartRepo.UserName
