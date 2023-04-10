@@ -1175,10 +1175,8 @@ func (impl *CdHandlerImpl) FetchAppDeploymentStatusForEnvironments(envId int, em
 		pipelineIds = append(pipelineIds, pipeline.Id)
 		pipelineAppMap[pipeline.Id] = pipeline.AppId
 	}
+	span.End()
 	//authorization block ends here
-	if len(pipelineIds) == 0 {
-		return nil, nil
-	}
 
 	if len(pipelineIds) == 0 {
 		return deploymentStatuses, nil
