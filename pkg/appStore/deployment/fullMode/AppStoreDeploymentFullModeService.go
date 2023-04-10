@@ -319,9 +319,8 @@ func (impl AppStoreDeploymentFullModeServiceImpl) createInArgo(chartGitAttribute
 		RepoPath:        chartGitAttribute.ChartLocation,
 		RepoUrl:         chartGitAttribute.RepoUrl,
 		TargetName:      envModel.Cluster.ClusterName,
-		PassCredentials: isPrivateChart,
 	}
-	_, err := impl.ArgoK8sClient.CreateAcdApp(appreq, envModel.Cluster)
+	_, err := impl.ArgoK8sClient.CreateAcdApp(appreq, envModel.Cluster, isPrivateChart)
 
 	//create
 	if err != nil {

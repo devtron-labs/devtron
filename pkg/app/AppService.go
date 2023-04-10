@@ -327,7 +327,7 @@ func (impl *AppServiceImpl) createArgoApplicationIfRequired(appId int, appName s
 			TargetName:      envModel.Cluster.ClusterName,
 		}
 
-		argoAppName, err := impl.ArgoK8sClient.CreateAcdApp(appRequest, envModel.Cluster)
+		argoAppName, err := impl.ArgoK8sClient.CreateAcdApp(appRequest, envModel.Cluster, false)
 		if err != nil {
 			return "", err
 		}
