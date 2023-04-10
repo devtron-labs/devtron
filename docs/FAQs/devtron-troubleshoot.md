@@ -435,7 +435,7 @@ To provide the auto-inject credentials to the specific clusters for pulling the 
 
 
 
-#### Devtron Terminal Connection Timeout Issue on GKE Cluster
+#### 24. Devtron Terminal Connection Timeout Issue on GKE Cluster
 
 **Problem:**
 
