@@ -566,7 +566,7 @@ func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValidForAppStore(gitOpsA
 	}
 	devtronAcdAppName := "devtron-" + gitOpsAppName
 	if gitOpsAppNameAndInstalledAppMapping[devtronAcdAppName] != nil {
-		installedAppId = *gitOpsAppNameAndInstalledAppMapping[gitOpsAppName]
+		installedAppId = *gitOpsAppNameAndInstalledAppMapping[devtronAcdAppName]
 	}
 
 	installedAppVersionHistory, err = impl.installedAppVersionHistoryRepository.GetLatestInstalledAppVersionHistoryByInstalledAppId(installedAppId)
