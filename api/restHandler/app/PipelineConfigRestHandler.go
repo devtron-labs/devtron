@@ -22,17 +22,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/chart"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/argo"
 	"go.opentelemetry.io/otel"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
-
-	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"sync"
 
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
@@ -522,7 +522,23 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerVie
 	//RBAC CHECK
 
 	triggerWorkflowStatus := pipelineConfig.TriggerWorkflowStatus{}
-	ciWorkflowStatus, err := handler.ciHandler.FetchCiStatusForTriggerView(appId)
+	var ciWorkflowStatus []*pipelineConfig.CiWorkflowStatus
+	var err1 error
+	var cdWorkflowStatus []*pipelineConfig.CdWorkflowStatus
+
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+	go func() {
+		ciWorkflowStatus, err = handler.ciHandler.FetchCiStatusForTriggerView(appId)
+		wg.Done()
+	}()
+
+	go func() {
+		cdWorkflowStatus, err1 = handler.cdHandler.FetchAppWorkflowStatusForTriggerView(appId)
+		wg.Done()
+	}()
+	wg.Wait()
+
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchAppWorkflowStatusForTriggerView", "err", err, "appId", appId)
 		if util.IsErrNoRows(err) {
@@ -534,17 +550,17 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerVie
 		return
 	}
 
-	cdWorkflowStatus, err := handler.cdHandler.FetchAppWorkflowStatusForTriggerView(appId)
-	if err != nil {
-		handler.Logger.Errorw("service err, FetchAppWorkflowStatusForTriggerView", "err", err, "appId", appId)
-		if util.IsErrNoRows(err) {
-			err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no status found"}
-			common.WriteJsonResp(w, err, nil, http.StatusOK)
+	if err1 != nil {
+		handler.Logger.Errorw("service err, FetchAppWorkflowStatusForTriggerView", "err", err1, "appId", appId)
+		if util.IsErrNoRows(err1) {
+			err1 = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no status found"}
+			common.WriteJsonResp(w, err1, nil, http.StatusOK)
 		} else {
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			common.WriteJsonResp(w, err1, nil, http.StatusInternalServerError)
 		}
 		return
 	}
+
 	triggerWorkflowStatus.CiWorkflowStatus = ciWorkflowStatus
 	triggerWorkflowStatus.CdWorkflowStatus = cdWorkflowStatus
 	common.WriteJsonResp(w, err, triggerWorkflowStatus, http.StatusOK)
@@ -663,7 +679,9 @@ func (handler PipelineConfigRestHandlerImpl) GetEnvironmentListWithAppData(w htt
 			clusterIds = append(clusterIds, id)
 		}
 	}
-	result, err := handler.pipelineBuilder.GetEnvironmentListForAutocompleteFilter(envName, clusterIds, offset, size, userEmailId, handler.checkAuthBatch)
+	_, span := otel.Tracer("orchestrator").Start(r.Context(), "pipelineBuilder.GetEnvironmentListWithAppData")
+	result, err := handler.pipelineBuilder.GetEnvironmentListForAutocompleteFilter(envName, clusterIds, offset, size, userEmailId, handler.checkAuthBatch, r.Context())
+	span.End()
 	if err != nil {
 		handler.Logger.Errorw("service err, get app", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -718,7 +736,9 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppDeploymentStatusForEnvironm
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	results, err := handler.cdHandler.FetchAppDeploymentStatusForEnvironments(envId, userEmailId, handler.checkAuthBatch)
+	_, span := otel.Tracer("orchestrator").Start(r.Context(), "pipelineBuilder.FetchAppDeploymentStatusForEnvironments")
+	results, err := handler.cdHandler.FetchAppDeploymentStatusForEnvironments(envId, userEmailId, handler.checkAuthBatch, r.Context())
+	span.End()
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchAppWorkflowStatusForTriggerView", "err", err)
 		if util.IsErrNoRows(err) {
