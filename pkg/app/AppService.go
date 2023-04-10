@@ -564,7 +564,8 @@ func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValidForAppStore(gitOpsA
 	for _, item := range gitOpsAppNameAndInstalledAppId {
 		gitOpsAppNameAndInstalledAppMapping[item.GitOpsAppName] = &item.InstalledAppId
 	}
-	if gitOpsAppNameAndInstalledAppMapping[gitOpsAppName] != nil {
+	devtronAcdAppName := "devtron-" + gitOpsAppName
+	if gitOpsAppNameAndInstalledAppMapping[devtronAcdAppName] != nil {
 		installedAppId = *gitOpsAppNameAndInstalledAppMapping[gitOpsAppName]
 	}
 
