@@ -14,5 +14,6 @@
 - Feat: Added observability for logged in user (#3204)
 ## Documentation
 ## Others
+- chore: Discord notification for pager duty label issues  (#3265)
 - chore: Discord notification for a specific label (pager-duty) (#3249)
 - fix  - handled nil pointer access, fixed not null constraint for git material deletion (#3199)
