@@ -3921,7 +3921,10 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int, emailId st
 	}
 	//authorization block ends here
 	span.End()
-
+	if len(appIds) == 0 {
+		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no matching app found"}
+		return nil, err
+	}
 	if impl.ciConfig.ExternalCiWebhookUrl == "" {
 		hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
 		if err != nil {
@@ -3948,20 +3951,23 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int, emailId st
 		impl.logger.Errorw("error in fetching ci pipeline", "appIds", appIds, "err", err)
 		return nil, err
 	}
-	var parentCiPipelineIds []int
+	parentCiPipelineIds := make([]int, 0)
 	for _, ciPipeline := range ciPipelines {
 		ciPipelineByApp[ciPipeline.AppId] = append(ciPipelineByApp[ciPipeline.AppId], ciPipeline)
 		if ciPipeline.ParentCiPipeline > 0 && ciPipeline.IsExternal {
 			parentCiPipelineIds = append(parentCiPipelineIds, ciPipeline.ParentCiPipeline)
 		}
 	}
-
 	pipelineIdVsAppId, err := impl.ciPipelineRepository.FindAppIdsForCiPipelineIds(parentCiPipelineIds)
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching appIds for pipelineIds", "parentCiPipelineIds", parentCiPipelineIds, "err", err)
 		return nil, err
 	}
 
+	if len(ciPipelineIds) == 0 {
+		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no matching ci pipeline found"}
+		return nil, err
+	}
 	linkedCiPipelinesMap := make(map[int][]*pipelineConfig.CiPipeline)
 	_, span = otel.Tracer("orchestrator").Start(ctx, "ciHandler.FindByParentCiPipelineIds")
 	linkedCiPipelines, err := impl.ciPipelineRepository.FindByParentCiPipelineIds(ciPipelineIds)
@@ -4076,7 +4082,8 @@ func (impl PipelineBuilderImpl) GetCdPipelinesByEnvironment(envId int, emailId s
 		pipelineIds = append(pipelineIds, pipeline.Id)
 	}
 	if len(pipelineIds) == 0 {
-		return cdPipelines, fmt.Errorf("no pipeline found for this environment")
+		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no matching pipeline found"}
+		return cdPipelines, err
 	}
 	//authorization block starts here
 	var appObjectArr []string
@@ -4106,7 +4113,8 @@ func (impl PipelineBuilderImpl) GetCdPipelinesByEnvironment(envId int, emailId s
 	pipelineDeploymentTemplate := make(map[int]chartRepoRepository.DeploymentStrategy)
 	pipelineWorkflowMapping := make(map[int]*appWorkflow.AppWorkflowMapping)
 	if len(pipelineIds) == 0 {
-		return cdPipelines, fmt.Errorf("no authorized pipeline found for this environment")
+		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no authorized pipeline found"}
+		return cdPipelines, err
 	}
 	_, span = otel.Tracer("orchestrator").Start(ctx, "cdHandler.GetAllStrategyByPipelineIds")
 	strategies, err := impl.pipelineConfigRepository.GetAllStrategyByPipelineIds(pipelineIds)
@@ -4247,6 +4255,7 @@ func (impl PipelineBuilderImpl) GetExternalCiByEnvironment(envId int, emailId st
 		appIds = append(appIds, pipeline.AppId)
 	}
 	if len(appIds) == 0 {
+		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no matching apps found"}
 		return nil, err
 	}
 	apps, err := impl.appRepo.FindAppAndProjectByIdsIn(appIds)
@@ -4336,7 +4345,8 @@ func (impl PipelineBuilderImpl) GetEnvironmentListForAutocompleteFilter(envName 
 		envIds = append(envIds, model.Id)
 	}
 	if len(envIds) == 0 {
-		return nil, fmt.Errorf("no environment founds")
+		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no matching environment found"}
+		return nil, err
 	}
 	_, span := otel.Tracer("orchestrator").Start(ctx, "pipelineBuilder.FindActiveByEnvIds")
 	cdPipelines, err := impl.pipelineRepository.FindActiveByEnvIds(envIds)
@@ -4349,7 +4359,8 @@ func (impl PipelineBuilderImpl) GetEnvironmentListForAutocompleteFilter(envName 
 		pipelineIds = append(pipelineIds, pipeline.Id)
 	}
 	if len(pipelineIds) == 0 {
-		return nil, fmt.Errorf("no pipeline found for this environment")
+		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no matching pipeline found"}
+		return nil, err
 	}
 	//authorization block starts here
 	var appObjectArr []string
