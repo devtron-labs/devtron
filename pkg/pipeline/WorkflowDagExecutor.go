@@ -1711,8 +1711,29 @@ func (impl *WorkflowDagExecutorImpl) FetchApprovalDataForArtifacts(artifactIds [
 	if err != nil {
 		return artifactIdVsApprovalMetadata, err
 	}
+
+	var requestedUserIds []int32
+	for _, approvalRequest := range deploymentApprovalRequests {
+		requestedUserIds = append(requestedUserIds, approvalRequest.CreatedBy)
+	}
+
+	userInfos, err := impl.user.GetByIds(requestedUserIds)
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching users", "requestedUserIds", requestedUserIds, "err", err)
+		return artifactIdVsApprovalMetadata, err
+	}
+	userInfoMap := make(map[int32]bean.UserInfo)
+	for _, userInfo := range userInfos {
+		userId := userInfo.UserId
+		userInfoMap[userId] = userInfo
+	}
+
 	for _, approvalRequest := range deploymentApprovalRequests {
 		artifactId := approvalRequest.ArtifactId
+		requestedUserId := approvalRequest.CreatedBy
+		if userInfo, ok := userInfoMap[requestedUserId]; ok {
+			approvalRequest.UserEmail = userInfo.EmailId
+		}
 		approvalMetadata := approvalRequest.ConvertToApprovalMetadata()
 		if approvalRequest.GetApprovedCount() == requiredApprovals {
 			approvalMetadata.ApprovalRuntimeState = pipelineConfig.ApprovedApprovalState
