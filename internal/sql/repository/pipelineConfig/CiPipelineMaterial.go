@@ -133,7 +133,6 @@ func (impl CiPipelineMaterialRepositoryImpl) Update(tx *pg.Tx, materials ...*CiP
 	}
 
 	return nil
-
 }
 
 func (impl CiPipelineMaterialRepositoryImpl) GetRegexByPipelineId(id int) ([]*CiPipelineMaterial, error) {

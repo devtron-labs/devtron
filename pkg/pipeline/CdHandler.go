@@ -61,7 +61,7 @@ type CdHandler interface {
 	CancelStage(workflowRunnerId int, userId int32) (int, error)
 	FetchAppWorkflowStatusForTriggerView(appId int) ([]*pipelineConfig.CdWorkflowStatus, error)
 	CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipelineStatusCheckEligibleTime int) error
-	CheckArgoAppStatusPeriodicallyAndUpdateInDb(timeForDegradation int) error
+	CheckArgoAppStatusPeriodicallyAndUpdateInDb(getPipelineDeployedBeforeMinutes int, getPipelineDeployedWithinHours int) error
 	CheckArgoPipelineTimelineStatusPeriodicallyAndUpdateInDb(pendingSinceSeconds int, timeForDegradation int) error
 	UpdatePipelineTimelineAndStatusByLiveApplicationFetch(pipeline *pipelineConfig.Pipeline, userId int32) (err error, isTimelineUpdated bool)
 	CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipelineId int, userId int32)
@@ -164,8 +164,8 @@ const WorklowTypeDeploy = "DEPLOY"
 const WorklowTypePre = "PRE"
 const WorklowTypePost = "POST"
 
-func (impl *CdHandlerImpl) CheckArgoAppStatusPeriodicallyAndUpdateInDb(deployedBeforeMinutes int) error {
-	pipelines, err := impl.pipelineRepository.GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatuses(deployedBeforeMinutes)
+func (impl *CdHandlerImpl) CheckArgoAppStatusPeriodicallyAndUpdateInDb(getPipelineDeployedBeforeMinutes int, getPipelineDeployedWithinHours int) error {
+	pipelines, err := impl.pipelineRepository.GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatuses(getPipelineDeployedBeforeMinutes, getPipelineDeployedWithinHours)
 	if err != nil {
 		impl.Logger.Errorw("error in getting pipelines having latest trigger stuck in non terminal statuses", "err", err)
 		return err
@@ -320,11 +320,20 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipel
 			//return err
 			//skip this error and continue for next workflow status
 			impl.Logger.Warnw("found error, skipping helm apps status update for this trigger", "appIdentifier", appIdentifier, "err", err)
-			continue
+
+			// Handle release not found errors
+			if !strings.Contains(err.Error(), "release: not found") {
+				continue
+			}
 		}
 		if helmAppStatus == application.Healthy {
 			wfr.Status = pipelineConfig.WorkflowSucceeded
 			wfr.FinishedOn = time.Now()
+
+		} else if err != nil && strings.Contains(err.Error(), "release: not found") {
+			// If release not found, mark the deployment as failure
+			wfr.Status = pipelineConfig.WorkflowFailed
+
 		} else {
 			wfr.Status = pipelineConfig.WorkflowInProgress
 		}
@@ -1010,21 +1019,25 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(en
 		return cdWorkflowStatus, err
 	}
 	pipelineIds := make([]int, 0)
-	//authorization block starts here
-	var envObjectArr []string
-	var appObjectArr []string
-	rbacObjectMap := make(map[int][]string)
 	for _, pipeline := range pipelines {
-		appObject := impl.enforcerUtil.GetAppRBACName(pipeline.App.AppName)
-		envObject := impl.enforcerUtil.GetEnvRBACNameByCdPipelineIdAndEnvId(pipeline.Id)
-		appObjectArr = append(appObjectArr, appObject)
-		envObjectArr = append(envObjectArr, envObject)
-		rbacObjectMap[pipeline.Id] = []string{appObject, envObject}
+		pipelineIds = append(pipelineIds, pipeline.Id)
 	}
+	if len(pipelineIds) == 0 {
+		return cdWorkflowStatus, nil
+	}
+	//authorization block starts here
+	var appObjectArr []string
+	var envObjectArr []string
+	objects := impl.enforcerUtil.GetAppAndEnvObjectByPipelineIds(pipelineIds)
+	pipelineIds = []int{}
+	for _, object := range objects {
+		appObjectArr = append(appObjectArr, object[0])
+		envObjectArr = append(envObjectArr, object[1])
+	}
+	appResults, envResults := checkAuthBatch(emailId, appObjectArr, envObjectArr)
 	for _, pipeline := range pipelines {
-		appResults, envResults := checkAuthBatch(emailId, appObjectArr, envObjectArr)
-		appObject := rbacObjectMap[pipeline.Id][0]
-		envObject := rbacObjectMap[pipeline.Id][1]
+		appObject := objects[pipeline.Id][0]
+		envObject := objects[pipeline.Id][1]
 		if !(appResults[appObject] && envResults[envObject]) {
 			//if user unauthorized, skip items
 			continue
@@ -1036,27 +1049,27 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(en
 		return cdWorkflowStatus, nil
 	}
 	cdMap := make(map[int]*pipelineConfig.CdWorkflowStatus)
-	result, err := impl.cdWorkflowRepository.FetchAllCdStagesLatestEntity(pipelineIds)
+	wfrStatus, err := impl.cdWorkflowRepository.FetchAllCdStagesLatestEntity(pipelineIds)
 	if err != nil {
 		return cdWorkflowStatus, err
 	}
 	var wfrIds []int
-	for _, item := range result {
+	for _, item := range wfrStatus {
 		wfrIds = append(wfrIds, item.WfrId)
 	}
 
 	statusMap := make(map[int]string)
 	if len(wfrIds) > 0 {
-		wfrList, err := impl.cdWorkflowRepository.FetchAllCdStagesLatestEntityStatus(wfrIds)
+		cdWorkflowRunners, err := impl.cdWorkflowRepository.FetchAllCdStagesLatestEntityStatus(wfrIds)
 		if err != nil && !util.IsErrNoRows(err) {
 			return cdWorkflowStatus, err
 		}
-		for _, item := range wfrList {
+		for _, item := range cdWorkflowRunners {
 			statusMap[item.Id] = item.Status
 		}
 	}
 
-	for _, item := range result {
+	for _, item := range wfrStatus {
 		if _, ok := cdMap[item.PipelineId]; !ok {
 			cdWorkflowStatus := &pipelineConfig.CdWorkflowStatus{}
 			cdWorkflowStatus.PipelineId = item.PipelineId

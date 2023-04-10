@@ -30,6 +30,8 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/cron"
 	"github.com/devtron-labs/devtron/internal/constants"
+	"github.com/devtron-labs/devtron/internal/middleware"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
@@ -57,6 +59,8 @@ import (
 
 type AppListingRestHandler interface {
 	FetchAppsByEnvironment(w http.ResponseWriter, r *http.Request)
+	FetchJobs(w http.ResponseWriter, r *http.Request)
+	FetchJobOverviewCiPipelines(w http.ResponseWriter, r *http.Request)
 	FetchAppDetails(w http.ResponseWriter, r *http.Request)
 	FetchAllDevtronManagedApps(w http.ResponseWriter, r *http.Request)
 	FetchAppTriggerView(w http.ResponseWriter, r *http.Request)
@@ -157,6 +161,91 @@ func (handler AppListingRestHandlerImpl) FetchAllDevtronManagedApps(w http.Respo
 	res, err := handler.appListingService.FetchAllDevtronManagedApps()
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
+func (handler AppListingRestHandlerImpl) FetchJobs(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		handler.logger.Errorw("request err, userId", "err", err, "payload", userId)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	isSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
+	if !isSuperAdmin || err != nil {
+		if err != nil {
+			handler.logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
+		}
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	var fetchJobListingRequest app.FetchAppListingRequest
+	decoder := json.NewDecoder(r.Body)
+	err = decoder.Decode(&fetchJobListingRequest)
+	if err != nil {
+		handler.logger.Errorw("request err, FetchAppsByEnvironment", "err", err, "payload", fetchJobListingRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	jobs, err := handler.appListingService.FetchJobs(fetchJobListingRequest)
+	if err != nil {
+		handler.logger.Errorw("service err, FetchJobs", "err", err, "payload", fetchJobListingRequest)
+		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+		return
+	}
+	jobsCount := len(jobs)
+	offset := fetchJobListingRequest.Offset
+	limit := fetchJobListingRequest.Size
+
+	if limit > 0 {
+		if offset+limit <= len(jobs) {
+			jobs = jobs[offset : offset+limit]
+		} else {
+			jobs = jobs[offset:]
+		}
+	}
+	jobContainerResponse := bean.JobContainerResponse{
+		JobContainers: jobs,
+		JobCount:      jobsCount,
+	}
+
+	common.WriteJsonResp(w, err, jobContainerResponse, http.StatusOK)
+}
+func (handler AppListingRestHandlerImpl) FetchJobOverviewCiPipelines(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		handler.logger.Errorw("request err, userId", "err", err, "payload", userId)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	isSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
+	if !isSuperAdmin || err != nil {
+		if err != nil {
+			handler.logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
+		}
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	vars := mux.Vars(r)
+	jobId, err := strconv.Atoi(vars["jobId"])
+	if err != nil {
+		handler.logger.Errorw("request err, GetAppMetaInfo", "err", err, "jobId", jobId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	job, err := handler.pipeline.GetApp(jobId)
+	if err != nil || job == nil || job.AppType != helper.Job {
+		handler.logger.Errorw("Job with the given Id does not exist", "err", err, "jobId", jobId)
+		common.WriteJsonResp(w, err, "Job with the given Id does not exist", http.StatusBadRequest)
+		return
+	}
+
+	jobCi, err := handler.appListingService.FetchOverviewCiPipelines(jobId)
+	if err != nil {
+		handler.logger.Errorw("request err, GetJobCi", "err", jobCi, "jobCi", jobCi)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	common.WriteJsonResp(w, err, jobCi, http.StatusOK)
+}
 func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseWriter, r *http.Request) {
 	//Allow CORS here By * or specific origin
 	setupResponse(&w, r)
@@ -208,7 +297,9 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 	}
 
 	newCtx, span = otel.Tracer("appListingService").Start(newCtx, "FetchAppsByEnvironment")
+	start := time.Now()
 	envContainers, err := handler.appListingService.FetchAppsByEnvironment(fetchAppListingRequest, w, r, token)
+	middleware.AppListingDuration.WithLabelValues("fetchAppsByEnvironment", "devtron").Observe(time.Since(start).Seconds())
 	span.End()
 	if err != nil {
 		handler.logger.Errorw("service err, FetchAppsByEnvironment", "err", err, "payload", fetchAppListingRequest)
@@ -245,7 +336,9 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 		}
 
 		newCtx, span = otel.Tracer("enforcer").Start(newCtx, "EnforceByEmailInBatchForTeams")
+		start = time.Now()
 		resultMap := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceTeam, casbin.ActionGet, objectArray)
+		middleware.AppListingDuration.WithLabelValues("enforceByEmailInBatchResourceTeam", "devtron").Observe(time.Since(start).Seconds())
 		span.End()
 		for teamId, teamName := range uniqueTeams {
 			object := strings.ToLower(teamName)
@@ -274,7 +367,9 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 		}
 
 		newCtx, span = otel.Tracer("enforcer").Start(newCtx, "EnforceByEmailInBatchForApps")
+		start = time.Now()
 		resultMap = handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceApplications, casbin.ActionGet, objectArray)
+		middleware.AppListingDuration.WithLabelValues("enforceByEmailInBatchResourceApplication", "devtron").Observe(time.Since(start).Seconds())
 		span.End()
 		for _, filteredAppEnvContainer := range filteredAppEnvContainers {
 			if fetchAppListingRequest.DeploymentGroupId > 0 {
@@ -571,7 +666,7 @@ func (handler AppListingRestHandlerImpl) FetchAppStageStatus(w http.ResponseWrit
 	}
 	//RBAC enforcer Ends
 
-	triggerView, err := handler.appListingService.FetchAppStageStatus(appId)
+	triggerView, err := handler.appListingService.FetchAppStageStatus(appId, int(app.AppType))
 	if err != nil {
 		handler.logger.Errorw("service err, FetchAppStageStatus", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
