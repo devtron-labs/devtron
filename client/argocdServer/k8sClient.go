@@ -70,7 +70,6 @@ func (impl ArgoK8sClientImpl) CreateAcdApp(appRequest *AppTemplate, cluster *rep
 	} else {
 		chartYamlContent, err = ioutil.ReadFile(filepath.Clean("./scripts/argo-assets/APPLICATION_TEMPLATE_PRIVATE_CHART.JSON"))
 	}
-
 	if err != nil {
 		impl.logger.Errorw("err in reading template", "err", err)
 		return "", err
