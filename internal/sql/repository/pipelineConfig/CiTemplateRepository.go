@@ -43,7 +43,7 @@ type CiTemplate struct {
 	GitMaterialId      int      `sql:"git_material_id"`
 	DockerBuildOptions string   `sql:"docker_build_options"` //json string format of map[string]string
 	CiBuildConfigId    int      `sql:"ci_build_config_id"`
-	BuildContext       string   `sql:"build_context"`
+	BuildContext       string   `sql:"build_context,notnull"`
 	sql.AuditLog
 	App            *app.App
 	DockerRegistry *dockerRegistryRepository.DockerArtifactStore
