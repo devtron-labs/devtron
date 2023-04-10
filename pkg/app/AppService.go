@@ -2172,6 +2172,7 @@ func (impl *AppServiceImpl) UpdateInstalledAppVersionHistoryByACDObject(app *v1a
 	}
 	if updateTimedOutStatus {
 		installedAppVersionHistory.Status = pipelineConfig.WorkflowTimedOut
+		installedAppVersionHistory.FinishedOn = time.Now()
 	} else {
 		if app.Status.Health.Status == health.HealthStatusHealthy {
 			installedAppVersionHistory.Status = pipelineConfig.WorkflowSucceeded
