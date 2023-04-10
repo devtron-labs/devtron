@@ -114,16 +114,6 @@ func (impl CiPipelineMaterialRepositoryImpl) Save(tx *pg.Tx, material ...*CiPipe
 }
 
 func (impl CiPipelineMaterialRepositoryImpl) UpdateForSwitch(tx *pg.Tx, materials ...*CiPipelineMaterial) error {
-	/*err := tx.RunInTransaction(func(tx *pg.Tx) error {
-		for _, material := range materials {
-			r, err := tx.Model(material).WherePK().UpdateNotNull()
-			if err != nil {
-				return err
-			}
-			impl.logger.Infof("total rows saved %d", r.RowsAffected())
-		}
-		return nil
-	})*/
 	for _, material := range materials {
 		err := tx.Update(material)
 		if err != nil {
@@ -134,23 +124,14 @@ func (impl CiPipelineMaterialRepositoryImpl) UpdateForSwitch(tx *pg.Tx, material
 	return nil
 }
 func (impl CiPipelineMaterialRepositoryImpl) Update(tx *pg.Tx, materials ...*CiPipelineMaterial) error {
-	/*err := tx.RunInTransaction(func(tx *pg.Tx) error {
-		for _, material := range materials {
-			r, err := tx.Model(material).WherePK().UpdateNotNull()
-			if err != nil {
-				return err
-			}
-			impl.logger.Infof("total rows saved %d", r.RowsAffected())
-		}
-		return nil
-	})*/
 	for _, material := range materials {
-		r, err := tx.Model(material).WherePK().UpdateNotNull()
+		_, err := tx.Model(material).WherePK().UpdateNotNull()
 		if err != nil {
+			impl.logger.Errorw("error in deleting ci pipeline material", "err", err)
 			return err
 		}
-		impl.logger.Infof("total rows saved %d", r.RowsAffected())
 	}
+
 	return nil
 
 }
