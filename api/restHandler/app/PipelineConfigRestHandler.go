@@ -709,13 +709,13 @@ func (handler PipelineConfigRestHandlerImpl) GetApplicationsByEnvironment(w http
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	ciConf, err := handler.pipelineBuilder.GetAppListForEnvironment(envId, userEmailId, handler.checkAuthBatch)
+	results, err := handler.pipelineBuilder.GetAppListForEnvironment(envId, userEmailId, handler.checkAuthBatch)
 	if err != nil {
 		handler.Logger.Errorw("service err, get app", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, err, ciConf, http.StatusOK)
+	common.WriteJsonResp(w, err, results, http.StatusOK)
 }
 
 func (handler PipelineConfigRestHandlerImpl) FetchAppDeploymentStatusForEnvironments(w http.ResponseWriter, r *http.Request) {

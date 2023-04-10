@@ -4412,34 +4412,31 @@ func (impl PipelineBuilderImpl) GetEnvironmentListForAutocompleteFilter(envName 
 }
 
 func (impl PipelineBuilderImpl) GetAppListForEnvironment(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*AppBean, error) {
-	var appsRes []*AppBean
-	pipelines, err := impl.pipelineRepository.FindActiveByEnvId(envId)
+	var applicationList []*AppBean
+	cdPipelines, err := impl.pipelineRepository.FindActiveByEnvId(envId)
 	if err != nil {
 		impl.logger.Errorw("error while fetching app", "err", err)
-		return nil, err
+		return applicationList, err
 	}
-
-	//authorization block starts here
-	var envObjectArr []string
+	if len(cdPipelines) == 0 {
+		return applicationList, nil
+	}
 	var appObjectArr []string
-	rbacObjectMap := make(map[int][]string)
-	for _, pipeline := range pipelines {
-		appObject := impl.enforcerUtil.GetAppRBACName(pipeline.App.AppName)
-		envObject := impl.enforcerUtil.GetEnvRBACNameByCdPipelineIdAndEnvId(pipeline.Id)
-		appObjectArr = append(appObjectArr, appObject)
-		envObjectArr = append(envObjectArr, envObject)
-		rbacObjectMap[pipeline.Id] = []string{appObject, envObject}
+	var envObjectArr []string
+	objects := impl.enforcerUtil.GetAppAndEnvObjectByDbPipeline(cdPipelines)
+	for _, object := range objects {
+		appObjectArr = append(appObjectArr, object[0])
+		envObjectArr = append(envObjectArr, object[1])
 	}
 	appResults, envResults := checkAuthBatch(emailId, appObjectArr, envObjectArr)
-	for _, pipeline := range pipelines {
-		appObject := rbacObjectMap[pipeline.Id][0]
-		envObject := rbacObjectMap[pipeline.Id][1]
+	for _, pipeline := range cdPipelines {
+		appObject := objects[pipeline.Id][0]
+		envObject := objects[pipeline.Id][1]
 		if !(appResults[appObject] && envResults[envObject]) {
 			//if user unauthorized, skip items
 			continue
 		}
-		appsRes = append(appsRes, &AppBean{Id: pipeline.AppId, Name: pipeline.App.AppName})
+		applicationList = append(applicationList, &AppBean{Id: pipeline.AppId, Name: pipeline.App.AppName})
 	}
-	//authorization block ends here
-	return appsRes, err
+	return applicationList, err
 }
