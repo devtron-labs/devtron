@@ -46,6 +46,12 @@ spec:
           value: "0"
         - name: GIT_HASH
           value: {{ .envVars.devtron.GIT_HASH }}
+        - name: ENABLE_VALIDATE_COUNTER
+          value: {{ .envVars.devtron.ENABLE_VALIDATE_COUNTER }}
+        - name: RETRY_DELAY
+          value: {{ .envVars.devtron.RETRY_DELAY }}
+        - name: RETRY_COUNTER
+          value: {{ .envVars.devtron.RETRY_COUNTER }}
         envFrom:
           - secretRef:
               name: postgresql-migrator
@@ -114,6 +120,12 @@ spec:
           value: {{ .envVars.casbin.GIT_HASH }}
         - name: GIT_BRANCH
           value: {{ .envVars.casbin.GIT_BRANCH }}
+        - name: ENABLE_VALIDATE_COUNTER
+          value: {{ .envVars.casbin.ENABLE_VALIDATE_COUNTER }}
+        - name: RETRY_DELAY
+          value: {{ .envVars.casbin.RETRY_DELAY }}
+        - name: RETRY_COUNTER
+          value: {{ .envVars.casbin.RETRY_COUNTER }}
         envFrom:
           - secretRef:
               name: postgresql-migrator
