@@ -813,14 +813,14 @@ func (impl UserServiceImpl) GetById(id int32) (*bean.UserInfo, error) {
 	}
 
 	isSuperAdmin, roleFilters, filterGroups := impl.getUserMetadata(model)
-	//for index, roleFilter := range roleFilters {
-	//	if roleFilter.Entity == "" {
-	//		roleFilters[index].Entity = bean2.ENTITY_APPS
-	//	}
-	//	if roleFilter.Entity == bean2.ENTITY_APPS && roleFilter.AccessType == "" {
-	//		roleFilters[index].AccessType = bean2.DEVTRON_APP
-	//	}
-	//}
+	for index, roleFilter := range roleFilters {
+		if roleFilter.Entity == "" {
+			roleFilters[index].Entity = bean2.ENTITY_APPS
+			if roleFilter.AccessType == "" {
+				roleFilters[index].AccessType = bean2.DEVTRON_APP
+			}
+		}
+	}
 	response := &bean.UserInfo{
 		Id:          model.Id,
 		EmailId:     model.EmailId,
