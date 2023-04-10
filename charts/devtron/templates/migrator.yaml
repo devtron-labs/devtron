@@ -46,12 +46,18 @@ spec:
           value: "0"
         - name: GIT_HASH
           value: {{ .envVars.devtron.GIT_HASH }}
+        {{- if $.Values.components.migrator.envVars.devtron.ENABLE_VALIDATE_COUNTER }}
         - name: ENABLE_VALIDATE_COUNTER
-          value: {{ .envVars.devtron.ENABLE_VALIDATE_COUNTER }}
+          value: {{ $.Values.components.migrator.envVars.devtron.ENABLE_VALIDATE_COUNTER }}
+        {{- end }}
+        {{- if $.Values.components.migrator.envVars.devtron.RETRY_DELAY }}
         - name: RETRY_DELAY
-          value: {{ .envVars.devtron.RETRY_DELAY }}
+          value: {{ $.Values.components.migrator.envVars.devtron.RETRY_DELAY }}
+        {{- end }}
+        {{- if $.Values.components.migrator.envVars.devtron.RETRY_COUNTER }}
         - name: RETRY_COUNTER
-          value: {{ .envVars.devtron.RETRY_COUNTER }}
+          value: {{ $.Values.components.migrator.envVars.devtron.RETRY_COUNTER }}
+        {{- end }}
         envFrom:
           - secretRef:
               name: postgresql-migrator
@@ -120,12 +126,18 @@ spec:
           value: {{ .envVars.casbin.GIT_HASH }}
         - name: GIT_BRANCH
           value: {{ .envVars.casbin.GIT_BRANCH }}
+        {{- if $.Values.components.migrator.envVars.casbin.ENABLE_VALIDATE_COUNTER }}
         - name: ENABLE_VALIDATE_COUNTER
-          value: {{ .envVars.casbin.ENABLE_VALIDATE_COUNTER }}
+          value: {{ $.Values.components.migrator.envVars.casbin.ENABLE_VALIDATE_COUNTER }}
+        {{- end }}
+        {{- if $.Values.components.migrator.envVars.casbin.RETRY_DELAY }}
         - name: RETRY_DELAY
-          value: {{ .envVars.casbin.RETRY_DELAY }}
+          value: {{ $.Values.components.migrator.envVars.casbin.RETRY_DELAY }}
+        {{- end }}
+        {{- if $.Values.components.migrator.envVars.casbin.RETRY_COUNTER }}
         - name: RETRY_COUNTER
-          value: {{ .envVars.casbin.RETRY_COUNTER }}
+          value: {{ $.Values.components.migrator.envVars.casbin.RETRY_COUNTER }}
+        {{- end }}
         envFrom:
           - secretRef:
               name: postgresql-migrator
