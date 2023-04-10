@@ -11,8 +11,8 @@ import (
 type PipelineStatusSyncDetail struct {
 	tableName                    struct{}  `sql:"pipeline_status_timeline_sync_detail" pg:",discard_unknown_columns"`
 	Id                           int       `sql:"id,pk"`
-	InstalledAppVersionHistoryId int       `sql:"installed_app_version_history_id"`
-	CdWorkflowRunnerId           int       `sql:"cd_workflow_runner_id"`
+	InstalledAppVersionHistoryId int       `sql:"installed_app_version_history_id,type:integer"`
+	CdWorkflowRunnerId           int       `sql:"cd_workflow_runner_id,type:integer"`
 	LastSyncedAt                 time.Time `sql:"last_synced_at"`
 	SyncCount                    int       `sql:"sync_count"`
 	sql.AuditLog

@@ -516,8 +516,9 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsPipelines(app *v1alph
 		if app != nil {
 			reconciledAt = app.Status.ReconciledAt
 		}
+		var kubectlSyncedTimeline *pipelineConfig.PipelineStatusTimeline
 		//updating versionHistory pipeline status timeline
-		isTimelineUpdated, isTimelineTimedOut, _, err = impl.UpdatePipelineStatusTimelineForApplicationChanges(app, installedAppVersionHistory.Id, statusTime, installedAppVersionHistory.StartedOn, timeoutDuration, latestTimelineBeforeThisEvent, reconciledAt, true)
+		isTimelineUpdated, isTimelineTimedOut, kubectlSyncedTimeline, err = impl.UpdatePipelineStatusTimelineForApplicationChanges(app, installedAppVersionHistory.Id, statusTime, installedAppVersionHistory.StartedOn, timeoutDuration, latestTimelineBeforeThisEvent, reconciledAt, true)
 		if err != nil {
 			impl.logger.Errorw("error in updating pipeline status timeline", "err", err)
 		}
@@ -529,6 +530,19 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsPipelines(app *v1alph
 				return isSucceeded, isTimelineUpdated, err
 			}
 			return isSucceeded, isTimelineUpdated, nil
+		}
+
+		if reconciledAt.IsZero() || (kubectlSyncedTimeline != nil && kubectlSyncedTimeline.Id > 0) {
+			isSucceeded, err = impl.UpdateDeploymentStatusForAppStore(app, installedAppVersionHistory.Id)
+			if err != nil {
+				impl.logger.Errorw("error in updating deployment status for pipeline", "err", err)
+				return isSucceeded, isTimelineUpdated, err
+			}
+			if isSucceeded {
+				impl.logger.Infow("writing installed app success event", "gitHash", gitHash, "installedAppVersionHistory", installedAppVersionHistory)
+			}
+		} else {
+			impl.logger.Debugw("event received for older triggered revision", "gitHash", gitHash)
 		}
 	}
 
@@ -621,6 +635,20 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForPipeline(app *v1alpha1.Appl
 	err := impl.UpdateCdWorkflowRunnerByACDObject(app, cdWfrId, false)
 	if err != nil {
 		impl.logger.Errorw("error on update cd workflow runner", "CdWorkflowId", pipelineOverride.CdWorkflowId, "app", app, "err", err)
+		return isSucceeded, err
+	}
+	if application.Healthy == app.Status.Health.Status {
+		isSucceeded = true
+	}
+	return isSucceeded, nil
+}
+
+func (impl *AppServiceImpl) UpdateDeploymentStatusForAppStore(app *v1alpha1.Application, installedVersionHistoryId int) (bool, error) {
+	impl.logger.Debugw("inserting new app status", "status", app.Status.Health.Status, "argoAppName", app.Name)
+	isSucceeded := false
+	err := impl.UpdateInstalledAppVersionHistoryByACDObject(app, installedVersionHistoryId, false)
+	if err != nil {
+		impl.logger.Errorw("error on update installed version history", "installedVersionHistoryId", installedVersionHistoryId, "app", app, "err", err)
 		return isSucceeded, err
 	}
 	if application.Healthy == app.Status.Health.Status {
@@ -801,7 +829,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 			kubectlApplySyncedTimeline = timeline
 			impl.logger.Debugw("APP_STATUS_UPDATE_REQ", "stage", "APPLY_SYNCED", "app", app, "status", timeline.Status)
 		}
-		if reconciledAt.IsZero() || (kubectlApplySyncedTimeline != nil && kubectlApplySyncedTimeline.Id > 0 && reconciledAt.After(kubectlApplySyncedTimeline.StatusTime)) {
+		if reconciledAt.IsZero() || (kubectlApplySyncedTimeline != nil && kubectlApplySyncedTimeline.Id > 0) {
 			haveNewTimeline := false
 			timeline.Id = 0
 			if app.Status.Health.Status == health.HealthStatusHealthy {
