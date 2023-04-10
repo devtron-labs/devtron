@@ -57,8 +57,8 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  {{- if $.Values.service_headless.name  }}
-  name: {{ .Values.service_headless.name }}
+  {{- if .Values.statefulSetConfig.serviceName  }}
+  name: {{ .Values.statefulSetConfig.serviceName }}
   {{- else }}
   name: {{ template ".servicename" . }}-headless
   {{- end }}

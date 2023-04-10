@@ -33,15 +33,15 @@ metadata:
     release: {{ $.Release.Name }}
     releaseVersion: {{ $.Values.releaseVersion | quote }}
     pipelineName: {{ .Values.pipelineName }}
-{{- if .Values.statefulsetLabels }}
-{{ toYaml .Values.statefulsetLabels | indent 4 }}
+{{- if .Values.statefulSetConfig.labels }}
+{{ toYaml .Values.statefulSetConfig.labels | indent 4 }}
 {{- end }}
 {{- if .Values.appLabels }}
 {{ toYaml .Values.appLabels | indent 4 }}
 {{- end }}
-  {{- if .Values.statefulsetAnnotations }}
+  {{- if .Values.statefulSetConfig.annotations }}
   annotations:
-{{ toYaml .Values.statefulsetAnnotations | indent 4 }}
+{{ toYaml .Values.statefulSetConfig.annotations | indent 4 }}
 {{- end }}
 spec:
   selector:
@@ -50,8 +50,8 @@ spec:
       release: {{ $.Release.Name }}
   replicas: {{ $.Values.replicaCount }}
   minReadySeconds: {{ $.Values.MinReadySeconds }}
-  {{- if .Values.service_headless.name  }}
-  serviceName: {{ .Values.service_headless.name }}
+  {{- if .Values.statefulSetConfig.serviceName  }}
+  serviceName: {{ .Values.statefulSetConfig.serviceName }}
   {{- else }}
   serviceName: {{ template ".servicename" . }}-headless
   {{- end}}

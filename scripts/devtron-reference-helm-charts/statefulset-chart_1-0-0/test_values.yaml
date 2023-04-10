@@ -115,6 +115,11 @@ autoscaling:
 #
 
 statefulSetConfig:
+  labels: 
+    app: example
+  annotations:
+     example.com/version: "1.0"
+  serviceName: "test-service-headless-statefulset"
   podManagementPolicy: "Parallel"
   updateStrategy:
     type: RollingUpdate
@@ -173,8 +178,6 @@ statefulSetConfig:
 secret:
   enabled: false
 
-service_headless:
-  name: "test-service_headless"
 service:
   type: ClusterIP
   enabled: true

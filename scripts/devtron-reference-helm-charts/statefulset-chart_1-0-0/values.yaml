@@ -113,6 +113,9 @@ secret:
   enabled: false
 
 statefulSetConfig:
+  labels: {}
+  annotations: {}
+  #serviceName: "test-service_headless"
   podManagementPolicy: "Parallel"
   updateStrategy:
     type: RollingUpdate
@@ -145,7 +148,7 @@ statefulSetConfig:
       volumeMode: Filesystem
       volumeName: my-pv
 
-service_headless: {}
+#service_headless: {}
   #name: "test-service_headless"
 service:
   type: ClusterIP
