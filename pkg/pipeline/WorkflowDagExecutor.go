@@ -1724,7 +1724,7 @@ func (impl *WorkflowDagExecutorImpl) FetchApprovalDataForArtifacts(artifactIds [
 	}
 	userInfoMap := make(map[int32]bean.UserInfo)
 	for _, userInfo := range userInfos {
-		userId := userInfo.UserId
+		userId := userInfo.Id
 		userInfoMap[userId] = userInfo
 	}
 
