@@ -243,6 +243,12 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 	installAppVersionRequest.GitHash = commitHash
 	installAppVersionRequest.ACDAppName = argocdAppName
 	installAppVersionRequest.Environment = environment
+
+	installAppVersionRequest.InstallAppVersionChartDTO.InstallAppVersionChartRepoDTO.RepoName = appStoreAppVersion.AppStore.ChartRepo.Name
+	installAppVersionRequest.InstallAppVersionChartDTO.InstallAppVersionChartRepoDTO.RepoUrl = appStoreAppVersion.AppStore.ChartRepo.Url
+	installAppVersionRequest.InstallAppVersionChartDTO.InstallAppVersionChartRepoDTO.UserName = appStoreAppVersion.AppStore.ChartRepo.UserName
+	installAppVersionRequest.InstallAppVersionChartDTO.InstallAppVersionChartRepoDTO.Password = appStoreAppVersion.AppStore.ChartRepo.Password
+
 	return installAppVersionRequest, chartGitAttr, nil
 }
 
@@ -256,7 +262,11 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationACD(ins
 		return nil, err
 	}
 	//STEP 5: createInArgo
-	err = impl.createInArgo(chartGitAttr, ctx, *installAppVersionRequest.Environment, installAppVersionRequest.ACDAppName)
+	var isPrivateChart bool
+	if len(installAppVersionRequest.InstallAppVersionChartDTO.InstallAppVersionChartRepoDTO.UserName) > 0 && len(installAppVersionRequest.InstallAppVersionChartDTO.InstallAppVersionChartRepoDTO.Password) > 0 {
+		isPrivateChart = true
+	}
+	err = impl.createInArgo(chartGitAttr, ctx, *installAppVersionRequest.Environment, installAppVersionRequest.ACDAppName, isPrivateChart)
 	if err != nil {
 		impl.logger.Errorw("error in create in argo", "err", err)
 		return nil, err
@@ -291,7 +301,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) SyncACD(acdAppName string, ctx
 	}
 }
 
-func (impl AppStoreDeploymentFullModeServiceImpl) createInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context, envModel repository5.Environment, argocdAppName string) error {
+func (impl AppStoreDeploymentFullModeServiceImpl) createInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context, envModel repository5.Environment, argocdAppName string, isPrivateChart bool) error {
 	appNamespace := envModel.Namespace
 	if appNamespace == "" {
 		appNamespace = "default"
@@ -307,6 +317,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) createInArgo(chartGitAttribute
 		RepoPath:        chartGitAttribute.ChartLocation,
 		RepoUrl:         chartGitAttribute.RepoUrl,
 		TargetName:      envModel.Cluster.ClusterName,
+		PassCredentials: isPrivateChart,
 	}
 	_, err := impl.ArgoK8sClient.CreateAcdApp(appreq, envModel.Cluster)
 

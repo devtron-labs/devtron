@@ -14,7 +14,7 @@
     "project": "{{.Project}}",
     "source": {
       "helm": {
-        "passCredentials": true,
+        "passCredentials": "{{.PassCredentials}}",
         "valueFiles": [
           "{{.ValuesFile}}"
         ]

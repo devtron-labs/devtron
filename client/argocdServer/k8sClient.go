@@ -27,6 +27,9 @@ type AppTemplate struct {
 	RepoPath        string
 	RepoUrl         string
 	TargetName      string
+	RepoUsername    string
+	RepoPassword    string
+	PassCredentials bool
 }
 
 const TimeoutSlow = 30 * time.Second
