@@ -108,6 +108,9 @@ func convertMetadataToBuildPackConfig(buildConfMetadata string) (*BuildPackConfi
 func convertMetadataToDockerBuildConfig(dockerBuildMetadata string) (*DockerBuildConfig, error) {
 	dockerBuildConfig := &DockerBuildConfig{}
 	err := json.Unmarshal([]byte(dockerBuildMetadata), dockerBuildConfig)
+	if dockerBuildConfig.BuildContext == "" {
+		dockerBuildConfig.BuildContext = "."
+	}
 	return dockerBuildConfig, err
 }
 
