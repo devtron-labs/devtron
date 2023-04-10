@@ -412,12 +412,17 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstallAppVersionHistory(install
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-	savedInstalledAppVersionHistory, err := impl.installedAppRepositoryHistory.GetLatestInstalledAppVersionHistory(installAppVersionRequest.Id)
-	savedInstalledAppVersionHistory.GitHash = installAppVersionRequest.GitHash
-	savedInstalledAppVersionHistory.UpdatedOn = time.Now()
-	savedInstalledAppVersionHistory.UpdatedBy = installAppVersionRequest.UserId
-
-	_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(savedInstalledAppVersionHistory, tx)
+	installedAppVersionHistory := &repository.InstalledAppVersionHistory{
+		InstalledAppVersionId: installAppVersionRequest.Id,
+	}
+	installedAppVersionHistory.ValuesYamlRaw = installAppVersionRequest.ValuesOverrideYaml
+	installedAppVersionHistory.CreatedBy = installAppVersionRequest.UserId
+	installedAppVersionHistory.CreatedOn = time.Now()
+	installedAppVersionHistory.UpdatedBy = installAppVersionRequest.UserId
+	installedAppVersionHistory.UpdatedOn = time.Now()
+	installedAppVersionHistory.GitHash = installAppVersionRequest.GitHash
+	installedAppVersionHistory.Status = "Unknown"
+	_, err = impl.installedAppRepositoryHistory.CreateInstalledAppVersionHistory(installedAppVersionHistory, tx)
 	if err != nil {
 		impl.logger.Errorw("error while fetching from db", "error", err)
 		return err
@@ -899,8 +904,33 @@ func (impl AppStoreDeploymentServiceImpl) installAppPostDbOperation(installAppVe
 		return err
 	}
 
-	//step 5 create build history first entry for install app version
-	if len(installAppVersionRequest.GitHash) > 0 || installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
+	//step 5 create build history first entry for install app version for argocd
+	if len(installAppVersionRequest.GitHash) > 0 {
+		dbConnection := impl.installedAppRepository.GetConnection()
+		tx, err := dbConnection.Begin()
+		if err != nil {
+			return err
+		}
+		// Rollback tx on error.
+		defer tx.Rollback()
+		savedInstalledAppVersionHistory, err := impl.installedAppRepositoryHistory.GetLatestInstalledAppVersionHistory(installAppVersionRequest.Id)
+		savedInstalledAppVersionHistory.GitHash = installAppVersionRequest.GitHash
+		savedInstalledAppVersionHistory.UpdatedOn = time.Now()
+		savedInstalledAppVersionHistory.UpdatedBy = installAppVersionRequest.UserId
+
+		_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(savedInstalledAppVersionHistory, tx)
+		if err != nil {
+			impl.logger.Errorw("error while fetching from db", "error", err)
+			return err
+		}
+		err = tx.Commit()
+		if err != nil {
+			impl.logger.Errorw("error while committing transaction to db", "error", err)
+			return err
+		}
+	}
+	//step 5 create build history first entry for install app version for helm apps
+	if installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
 		err = impl.UpdateInstallAppVersionHistory(installAppVersionRequest)
 		if err != nil {
 			impl.logger.Errorw("error on creating history for chart deployment", "error", err)
