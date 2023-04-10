@@ -35,8 +35,8 @@ import (
 	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
-	util2 "github.com/devtron-labs/devtron/util"
 	bean3 "github.com/devtron-labs/devtron/pkg/user/bean"
+	util2 "github.com/devtron-labs/devtron/util"
 	"path"
 	"regexp"
 	"strconv"
@@ -414,7 +414,7 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 				return nil, fmt.Errorf("error while updating linked pipeline")
 			}
 		}
-		err = impl.ciPipelineMaterialRepository.Update(tx, linkedMaterials...)
+		err = impl.ciPipelineMaterialRepository.UpdateForSwitch(tx, linkedMaterials...)
 		if err != nil {
 			return nil, err
 		}
