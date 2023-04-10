@@ -463,7 +463,7 @@ you can adjust the `timeoutSec` value in the `backendConfig` as per your specifi
  kubectl apply -f <path-to-backendconfig.yaml> -n devtroncd
  ```
 
-3. Add the `cloud.google.com/backend-config` annotation to the Devtron service with the BackendConfig name. For example:
+3. Add the `cloud.google.com/backend-config: '{"default": "devtron-backendconfig"}'` annotation to the Devtron service with the BackendConfig name. For example:
 
 ```yaml
 apiVersion: v1
