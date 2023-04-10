@@ -38,7 +38,7 @@ jobs:
       - if: contains(github.event.issue.labels.*.name, 'pager-duty')
         name: custom issues
         env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          DISCORD_WEBHOOK: ${{ secrets.PAGERDUTY_DISCORD_WEBHOOK}}
           
         uses: devtron-labs/action-discord@master
         with:
