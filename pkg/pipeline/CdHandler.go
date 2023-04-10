@@ -1153,7 +1153,8 @@ func (impl *CdHandlerImpl) FetchAppDeploymentStatusForEnvironments(envId int, em
 		pipelineIds = append(pipelineIds, pipeline.Id)
 	}
 	if len(pipelineIds) == 0 {
-		return nil, fmt.Errorf("no pipeline found for this environment")
+		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no matching pipeline found"}
+		return nil, err
 	}
 	//authorization block starts here
 	var appObjectArr []string
@@ -1175,10 +1176,8 @@ func (impl *CdHandlerImpl) FetchAppDeploymentStatusForEnvironments(envId int, em
 		pipelineIds = append(pipelineIds, pipeline.Id)
 		pipelineAppMap[pipeline.Id] = pipeline.AppId
 	}
+	span.End()
 	//authorization block ends here
-	if len(pipelineIds) == 0 {
-		return nil, nil
-	}
 
 	if len(pipelineIds) == 0 {
 		return deploymentStatuses, nil

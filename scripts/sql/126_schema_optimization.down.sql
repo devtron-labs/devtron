@@ -1,1 +1,1 @@
-DROP INDEX "public"."ci_artifact_id";
+DROP INDEX "public"."pco_ci_artifact_id";
