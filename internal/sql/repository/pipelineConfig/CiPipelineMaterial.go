@@ -47,6 +47,7 @@ type CiPipelineMaterial struct {
 type CiPipelineMaterialRepository interface {
 	Save(tx *pg.Tx, pipeline ...*CiPipelineMaterial) error
 	Update(tx *pg.Tx, material ...*CiPipelineMaterial) error
+	UpdateForSwitch(tx *pg.Tx, material ...*CiPipelineMaterial) error
 	FindByCiPipelineIdsIn(ids []int) ([]*CiPipelineMaterial, error)
 	GetById(id int) (*CiPipelineMaterial, error)
 	GetByPipelineId(id int) ([]*CiPipelineMaterial, error)
@@ -112,7 +113,7 @@ func (impl CiPipelineMaterialRepositoryImpl) Save(tx *pg.Tx, material ...*CiPipe
 	return err
 }
 
-func (impl CiPipelineMaterialRepositoryImpl) Update(tx *pg.Tx, materials ...*CiPipelineMaterial) error {
+func (impl CiPipelineMaterialRepositoryImpl) UpdateForSwitch(tx *pg.Tx, materials ...*CiPipelineMaterial) error {
 	/*err := tx.RunInTransaction(func(tx *pg.Tx) error {
 		for _, material := range materials {
 			r, err := tx.Model(material).WherePK().UpdateNotNull()
@@ -131,6 +132,27 @@ func (impl CiPipelineMaterialRepositoryImpl) Update(tx *pg.Tx, materials ...*CiP
 	}
 
 	return nil
+}
+func (impl CiPipelineMaterialRepositoryImpl) Update(tx *pg.Tx, materials ...*CiPipelineMaterial) error {
+	/*err := tx.RunInTransaction(func(tx *pg.Tx) error {
+		for _, material := range materials {
+			r, err := tx.Model(material).WherePK().UpdateNotNull()
+			if err != nil {
+				return err
+			}
+			impl.logger.Infof("total rows saved %d", r.RowsAffected())
+		}
+		return nil
+	})*/
+	for _, material := range materials {
+		r, err := tx.Model(material).WherePK().UpdateNotNull()
+		if err != nil {
+			return err
+		}
+		impl.logger.Infof("total rows saved %d", r.RowsAffected())
+	}
+	return nil
+
 }
 
 func (impl CiPipelineMaterialRepositoryImpl) GetRegexByPipelineId(id int) ([]*CiPipelineMaterial, error) {

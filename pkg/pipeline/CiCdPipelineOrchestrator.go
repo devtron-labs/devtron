@@ -248,9 +248,8 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 		} else {
 			pipelineMaterial.CiPipelineId = createRequest.Id
 			pipelineMaterial.CreatedBy = userId
-			materialsUpdate = append(materialsUpdate, pipelineMaterial)
 			pipelineMaterial.CreatedOn = createOnTimeMap[material.GitMaterialId]
-			pipelineMaterial.CreatedBy = createByMap[material.GitMaterialId]
+			materialsUpdate = append(materialsUpdate, pipelineMaterial)
 		}
 	}
 	if len(materialsAdd) > 0 {
@@ -260,7 +259,7 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 		}
 	}
 	if len(materialsUpdate) > 0 {
-		err = impl.ciPipelineMaterialRepository.Update(tx, materialsUpdate...)
+		err = impl.ciPipelineMaterialRepository.UpdateForSwitch(tx, materialsUpdate...)
 		if err != nil {
 			return nil, err
 		}
