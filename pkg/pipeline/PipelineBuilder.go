@@ -3983,6 +3983,7 @@ func (impl PipelineBuilderImpl) GetCdPipelinesByEnvironment(envId int, emailId s
 			ParentPipelineId:              pipelineWorkflowMapping[dbPipeline.Id].ParentId,
 			AppName:                       dbPipeline.AppName,
 			AppId:                         dbPipeline.AppId,
+			UserApprovalConf:              dbPipeline.UserApprovalConf,
 		}
 		pipelines = append(pipelines, pipeline)
 	}
