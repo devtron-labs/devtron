@@ -1227,7 +1227,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCDPipelines(pipelineRequest *bean
 	if pipelineRequest.UserApprovalConf != nil {
 		userApprovalConf, err := json.Marshal(pipelineRequest.UserApprovalConf)
 		if err != nil {
-			impl.logger.Error(err)
+			impl.logger.Error("error occurred while marshalling user approval conf", "pipeline", pipeline, "err", err)
 			return 0, err
 		}
 		pipeline.UserApprovalConfig = string(userApprovalConf)
