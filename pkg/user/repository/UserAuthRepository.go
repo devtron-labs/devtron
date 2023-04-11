@@ -552,7 +552,7 @@ func (impl UserAuthRepositoryImpl) GetApprovalUsersByEnv(appName, envName string
 	var roleGroups []string
 
 	query := "select distinct(email_id) from users us inner join user_roles ur on us.id=ur.user_id inner join roles on ur.role_id = roles.id " +
-		"where ((roles.approver = true and roles.environment=? and entity_name=? ) OR roles.role = ?) and us.id not in (1,2);"
+		"where ((roles.approver = true and roles.environment=? and entity_name=? ) OR roles.role = ?) and us.id not in (1);"
 	_, err := impl.dbConnection.Query(&emailIds, query, envName, appName, "role:super-admin___")
 	if err != nil && err != pg.ErrNoRows {
 		return emailIds, roleGroups, err
