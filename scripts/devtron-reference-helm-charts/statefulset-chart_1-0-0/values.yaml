@@ -120,6 +120,7 @@ statefulSetConfig:
   updateStrategy:
     type: RollingUpdate
     partition: 2
+  revisionHistoryLimit: 3
   volumeClaimTemplates:
   - apiVersion: v1
     kind: PersistentVolumeClaim

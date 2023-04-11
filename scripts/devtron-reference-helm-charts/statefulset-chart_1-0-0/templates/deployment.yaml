@@ -539,4 +539,4 @@ spec:
   updateStrategy:
       type: OnDelete
       {{- end }}
-  revisionHistoryLimit: 3
+  revisionHistoryLimit: {{ .Values.statefulSetConfig.revisionHistoryLimit }}

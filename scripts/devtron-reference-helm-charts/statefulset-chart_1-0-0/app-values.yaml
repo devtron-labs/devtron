@@ -19,6 +19,7 @@ statefulSetConfig:
   labels: {}
   annotations: {}
   #serviceName: "test-service_headless"
+  revisionHistoryLimit: 3
   volumeClaimTemplates: 
   - metadata:
       name: app-values
