@@ -50,7 +50,6 @@ const (
 	PASSWORD string = "password"
 	TYPE     string = "type"
 	URL      string = "url"
-	INSECURE string = "insecure"
 )
 
 // secret values
@@ -104,13 +103,6 @@ func (impl *ChartRepositoryServiceImpl) CreateSecretDataForPrivateHelmChart(requ
 	secretData[PASSWORD] = request.Password
 	secretData[TYPE] = HELM
 	secretData[URL] = request.Url
-	var insecure string
-	if request.AllowInsecureConnection {
-		insecure = "true"
-	} else {
-		insecure = "false"
-	}
-	secretData[INSECURE] = insecure
 	return secretData
 }
 
