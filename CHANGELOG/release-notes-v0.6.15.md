@@ -1,3 +1,5 @@
+## v0.6.15
+
 ## Bugs
 - fix: updated condition for handling linked ci creation with parent ci docker config overriden (#3243)
 - fix: updated condition for getting role filters  (#3261)
@@ -17,3 +19,5 @@
 ## Others
 - chore: Discord notification for pager duty label issues  (#3265)
 - fix  - handled nil pointer access, fixed not null constraint for git material deletion (#3199)
+
+
