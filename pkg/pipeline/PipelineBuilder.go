@@ -2808,7 +2808,7 @@ func (impl PipelineBuilderImpl) overrideArtifactsWithUserApprovalData(pipeline *
 		if isApprovalNode { // return all the artifacts with state in init, requested or consumed
 			allowed = approvalRuntimeState == pipelineConfig.InitApprovalState || approvalRuntimeState == pipelineConfig.RequestedApprovalState || approvalRuntimeState == pipelineConfig.ConsumedApprovalState
 		} else { // return only approved state artifacts
-			allowed = (approvalRuntimeState == pipelineConfig.ApprovedApprovalState) || (artifact.Latest && approvalRuntimeState == pipelineConfig.ConsumedApprovalState)
+			allowed = approvalRuntimeState == pipelineConfig.ApprovedApprovalState || artifact.Latest
 		}
 		if allowed {
 			ciArtifactsFinal = append(ciArtifactsFinal, artifact)
