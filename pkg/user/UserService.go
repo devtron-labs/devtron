@@ -1199,6 +1199,9 @@ func (impl UserServiceImpl) GetEmailFromToken(token string) (string, error) {
 
 func (impl UserServiceImpl) GetByIds(ids []int32) ([]bean.UserInfo, error) {
 	var beans []bean.UserInfo
+	if len(ids) == 0 {
+		return beans, nil
+	}
 	models, err := impl.userRepository.GetByIds(ids)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
