@@ -50,6 +50,7 @@ const (
 	PASSWORD string = "password"
 	TYPE     string = "type"
 	URL      string = "url"
+	INSECURE string = "insecure"
 )
 
 // secret values
@@ -97,14 +98,19 @@ func NewChartRepositoryServiceImpl(logger *zap.SugaredLogger, repoRepository cha
 
 // Private helm charts credentials are saved as secrets
 func (impl *ChartRepositoryServiceImpl) CreateSecretDataForPrivateHelmChart(request *ChartRepoDto) (secretData map[string]string) {
-
 	secretData = make(map[string]string)
 	secretData[NAME] = request.Name
 	secretData[USERNAME] = request.UserName
 	secretData[PASSWORD] = request.Password
 	secretData[TYPE] = HELM
 	secretData[URL] = request.Url
-
+	var insecure string
+	if request.AllowInsecureConnection {
+		insecure = "true"
+	} else {
+		insecure = "false"
+	}
+	secretData[insecure] = insecure
 	return secretData
 }
 
