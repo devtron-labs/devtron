@@ -784,11 +784,37 @@ func (handler PipelineConfigRestHandlerImpl) PerformDeploymentApprovalAction(w h
 	var approvalActionRequest bean.UserApprovalActionRequest
 	err = decoder.Decode(&approvalActionRequest)
 
+	appId := approvalActionRequest.AppId
+	pipelineId := approvalActionRequest.PipelineId
+
 	approvalActionType := approvalActionRequest.ActionType
+
 	if approvalActionType == bean.APPROVAL_APPROVE_ACTION {
-		// check for Approve role
+		pipeline, err := handler.pipelineBuilder.FindPipelineById(pipelineId)
+		if err != nil {
+			handler.Logger.Errorw("error occurred while fetching pipeline details", "pipelineId", pipelineId, "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		allowed := handler.userAuthService.CheckForApproverAccess(pipeline.App.AppName, pipeline.Environment.EnvironmentIdentifier, userId)
+		if !allowed {
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			return
+		}
 	} else {
-		// check for trigger access
+		//rbac block starts from here
+		token := r.Header.Get("token")
+		object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			return
+		}
+		object = handler.enforcerUtil.GetAppRBACByAppIdAndPipelineId(appId, pipelineId)
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionTrigger, object); !ok {
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			return
+		}
+		//rback block ends here
 	}
 
 	err = handler.cdHandler.PerformDeploymentApprovalAction(userId, approvalActionRequest)

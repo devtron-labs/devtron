@@ -702,7 +702,7 @@ func (impl *DeploymentGroupServiceImpl) checkForApprovalNode(cdPipeline *pipelin
 		}
 		artifacts, err := impl.workflowDagExecutor.FetchApprovalDataForArtifacts([]int{ciArtifactId}, cdPipelineId, approvalConfig.RequiredCount)
 		if err != nil {
-			impl.logger.Errorw("error occurred whilefetching approval data for artifact", "ciArtifactId", ciArtifactId, "err", err)
+			impl.logger.Errorw("error occurred while fetching approval data for artifact", "ciArtifactId", ciArtifactId, "err", err)
 			return false
 		}
 		approvalMetadata, ok := artifacts[ciArtifactId]

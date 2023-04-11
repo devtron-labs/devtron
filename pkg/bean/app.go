@@ -542,6 +542,7 @@ const (
 )
 
 type UserApprovalActionRequest struct {
+	AppId             int                    `json:"appId"` // would be required for RBAC
 	ActionType        UserApprovalActionType `json:"actionType" validate:"required"`
 	ApprovalRequestId int                    `json:"approvalRequestId"`
 	PipelineId        int                    `json:"pipelineId" validate:"required"` // would be required while raising approval request

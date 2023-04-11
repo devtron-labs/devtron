@@ -60,6 +60,7 @@ type UserService interface {
 	GetRoleFiltersByGroupNames(groupNames []string) ([]bean.RoleFilter, error)
 	SaveLoginAudit(emailId, clientIp string, id int32)
 	GetApprovalUsersByEnv(appName, envName string) ([]string, error)
+	CheckForApproverAccess(appName, envName string, userId int32) bool
 }
 
 type UserServiceImpl struct {
@@ -1029,6 +1030,29 @@ func (impl UserServiceImpl) UserExists(emailId string) bool {
 	} else {
 		return true
 	}
+}
+
+func (impl UserServiceImpl) CheckForApproverAccess(appName, envName string, userId int32) bool {
+	allowedUsers, err := impl.GetApprovalUsersByEnv(appName, envName)
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching approval users", "appName", appName, "envName", envName, "err", err)
+		return false
+	}
+	userInfo, err := impl.GetById(userId)
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching user details", "userId", userId, "err", err)
+		return false
+	}
+	allowed := userId == 2 // admin user
+	if !allowed {
+		for _, allowedUser := range allowedUsers {
+			if userInfo.EmailId == allowedUser {
+				allowed = true
+				break
+			}
+		}
+	}
+	return allowed
 }
 
 func (impl UserServiceImpl) GetApprovalUsersByEnv(appName, envName string) ([]string, error) {
