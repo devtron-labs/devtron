@@ -297,7 +297,6 @@ func (impl *ChartRepositoryServiceImpl) UpdateData(request *ChartRepoDto) (*char
 				}
 				secretLabel := make(map[string]string)
 				secretLabel[LABEL] = REPOSITORY
-				secretData := impl.CreateSecretDataForPrivateHelmChart(request)
 				_, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, nil, chartRepo.Name, "", client, secretLabel, secretData)
 				if err != nil {
 					impl.logger.Errorw("Error in creating secret for chart repo", "Chart Name", chartRepo.Name, "err", err)
