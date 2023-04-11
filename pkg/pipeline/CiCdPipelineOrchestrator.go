@@ -478,7 +478,7 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteCiPipeline(pipeline *pipelineConf
 		CiTemplateBean := bean2.CiTemplateBean{
 			CiTemplate:         nil,
 			CiTemplateOverride: &pipelineConfig.CiTemplateOverride{},
-			CiBuildConfig:      request.CiPipeline.DockerConfigOverride.CiBuildConfig,
+			CiBuildConfig:      &bean2.CiBuildConfigBean{},
 			UserId:             userId,
 		}
 		err = impl.ciPipelineHistoryService.SaveHistory(p, materials, &CiTemplateBean, repository4.TRIGGER_DELETE)
