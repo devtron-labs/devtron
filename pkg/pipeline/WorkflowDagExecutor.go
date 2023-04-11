@@ -1735,7 +1735,7 @@ func (impl *WorkflowDagExecutorImpl) FetchApprovalDataForArtifacts(artifactIds [
 			approvalRequest.UserEmail = userInfo.EmailId
 		}
 		approvalMetadata := approvalRequest.ConvertToApprovalMetadata()
-		if approvalRequest.GetApprovedCount() == requiredApprovals {
+		if approvalRequest.GetApprovedCount() >= requiredApprovals {
 			approvalMetadata.ApprovalRuntimeState = pipelineConfig.ApprovedApprovalState
 		} else {
 			approvalMetadata.ApprovalRuntimeState = pipelineConfig.RequestedApprovalState

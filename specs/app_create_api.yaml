@@ -569,8 +569,8 @@ components:
           type: boolean
         isClusterCdActive:
           type: boolean
-        userApprovalConf:
-          $ref: '#/components/schemas/UserApprovalConf'
+        userApprovalConfig:
+          $ref: '#/components/schemas/UserApprovalConfig'
     DeploymentStrategy:
       type: object
       properties:
@@ -588,7 +588,7 @@ components:
               Values:
                 type: object
                 description: interface{}
-    UserApprovalConf:
+    UserApprovalConfig:
       type: object
       properties:
         requiredCount:

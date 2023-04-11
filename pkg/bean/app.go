@@ -477,7 +477,7 @@ type CDPipelineConfigObject struct {
 	ParentPipelineId              int                                    `json:"parentPipelineId"`
 	ParentPipelineType            string                                 `json:"parentPipelineType"`
 	DeploymentAppType             string                                 `json:"deploymentAppType"`
-	UserApprovalConf              *pipelineConfig.UserApprovalConfig     `json:"userApprovalConf"`
+	UserApprovalConf              *pipelineConfig.UserApprovalConfig     `json:"userApprovalConfig"`
 	AppName                       string                                 `json:"appName"`
 	DeploymentAppDeleteRequest    bool                                   `json:"deploymentAppDeleteRequest"`
 	DeploymentAppCreated          bool                                   `json:"deploymentAppCreated"`
