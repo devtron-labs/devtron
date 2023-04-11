@@ -110,7 +110,7 @@ func (impl *ChartRepositoryServiceImpl) CreateSecretDataForPrivateHelmChart(requ
 	} else {
 		insecure = "false"
 	}
-	secretData[insecure] = insecure
+	secretData[INSECURE] = insecure
 	return secretData
 }
 
