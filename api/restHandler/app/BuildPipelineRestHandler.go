@@ -277,11 +277,13 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 	}
 
 	createResp, err := handler.pipelineBuilder.PatchCiPipeline(&patchRequest)
-	createResp.AppName = app.AppName
 	if err != nil {
 		handler.Logger.Errorw("service err, PatchCiPipelines", "err", err, "PatchCiPipelines", patchRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
+	}
+	if createResp != nil && app != nil {
+		createResp.AppName = app.AppName
 	}
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
 }
