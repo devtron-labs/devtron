@@ -1,4 +1,5 @@
 ## Bugs
+- fix: updated condition for handling linked ci creation with parent ci docker config overriden (#3243)
 - fix: updated condition for getting role filters  (#3261)
 - fix: bulk cd deployment trigger failing (#3233)
 - fix: Pipeline strategy empty check (#3256)
