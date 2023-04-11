@@ -69,7 +69,6 @@ type CdHandler interface {
 	FetchAppWorkflowStatusForTriggerViewForEnvironment(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*pipelineConfig.CdWorkflowStatus, error)
 	FetchAppDeploymentStatusForEnvironments(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*pipelineConfig.AppDeploymentStatus, error)
 	PerformDeploymentApprovalAction(userId int32, approvalActionRequest bean2.UserApprovalActionRequest) error
-	FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int, requiredApprovals int) (map[int]*pipelineConfig.UserApprovalMetadata, error)
 }
 
 type CdHandlerImpl struct {
@@ -1261,10 +1260,6 @@ func (impl *CdHandlerImpl) FetchAppDeploymentStatusForEnvironments(envId int, em
 	}
 
 	return deploymentStatuses, err
-}
-
-func (impl *CdHandlerImpl) FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int, requiredApprovals int) (map[int]*pipelineConfig.UserApprovalMetadata, error) {
-	return impl.workflowDagExecutor.FetchApprovalDataForArtifacts(artifactIds, pipelineId, requiredApprovals)
 }
 
 func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(userId int32, approvalActionRequest bean2.UserApprovalActionRequest) error {
