@@ -92,12 +92,12 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 							if !isValidAuth {
 								continue
 							}
-							roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, "", "", "", "", false, accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType, false)
+							roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, "", "", "", "", roleFilter.Approver, accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType, false)
 							if err != nil {
 								impl.logger.Errorw("Error in fetching roles by filter", "roleFilter", roleFilter)
 								return nil, err
 							}
-							oldRoleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, "", "", "", "", false, accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType, true)
+							oldRoleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, "", "", "", "", roleFilter.Approver, accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType, true)
 							if err != nil {
 								return nil, err
 							}

@@ -2490,8 +2490,6 @@ func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, pipeline *
 	// Rollback tx on error.
 	defer tx.Rollback()
 
-	// TODO KB: check for approval node config update
-
 	err = impl.ciCdPipelineOrchestrator.UpdateCDPipeline(pipeline, userID, tx)
 	if err != nil {
 		impl.logger.Errorw("error in updating pipeline")
