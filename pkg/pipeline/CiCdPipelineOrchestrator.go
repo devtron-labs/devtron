@@ -474,7 +474,7 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteCiPipeline(pipeline *pipelineConf
 		impl.logger.Errorw("error in updating ci pipeline materials, DeleteCiPipeline", "err", err, "pipelineId", pipeline.Id)
 		return err
 	}
-	if !request.CiPipeline.IsDockerConfigOverridden {
+	if !request.CiPipeline.IsDockerConfigOverridden || request.CiPipeline.IsExternal { //if pipeline is external or if config is not overridden then ignore override and ciBuildConfig values
 		CiTemplateBean := bean2.CiTemplateBean{
 			CiTemplate:         nil,
 			CiTemplateOverride: &pipelineConfig.CiTemplateOverride{},
