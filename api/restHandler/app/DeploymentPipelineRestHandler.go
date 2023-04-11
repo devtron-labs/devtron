@@ -790,13 +790,13 @@ func (handler PipelineConfigRestHandlerImpl) PerformDeploymentApprovalAction(w h
 	approvalActionType := approvalActionRequest.ActionType
 
 	if approvalActionType == bean.APPROVAL_APPROVE_ACTION {
-		pipeline, err := handler.pipelineBuilder.FindPipelineById(pipelineId)
+		pipelineInfo, err := handler.pipelineBuilder.FindPipelineById(pipelineId)
 		if err != nil {
 			handler.Logger.Errorw("error occurred while fetching pipeline details", "pipelineId", pipelineId, "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
-		allowed := handler.userAuthService.CheckForApproverAccess(pipeline.App.AppName, pipeline.Environment.EnvironmentIdentifier, userId)
+		allowed := handler.userAuthService.CheckForApproverAccess(pipelineInfo.App.AppName, pipelineInfo.Environment.EnvironmentIdentifier, userId)
 		if !allowed {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 			return
