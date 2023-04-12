@@ -34,7 +34,7 @@ type UserCommonServiceImpl struct {
 	roleGroupRepository         repository2.RoleGroupRepository
 	sessionManager2             *middleware.SessionManager
 	defaultRbacDataCacheFactory repository2.RbacDataCacheFactory
-	enterpriseUserConfig        *EnterpriseUserConfig
+	userRbacConfig              *UserRbacConfig
 }
 
 func NewUserCommonServiceImpl(userAuthRepository repository2.UserAuthRepository,
@@ -43,7 +43,7 @@ func NewUserCommonServiceImpl(userAuthRepository repository2.UserAuthRepository,
 	userGroupRepository repository2.RoleGroupRepository,
 	sessionManager2 *middleware.SessionManager,
 	defaultRbacDataCacheFactory repository2.RbacDataCacheFactory) *UserCommonServiceImpl {
-	userConfig := &EnterpriseUserConfig{}
+	userConfig := &UserRbacConfig{}
 	err := env.Parse(userConfig)
 	if err != nil {
 		logger.Fatal("error occurred while parsing user config", err)
@@ -55,7 +55,7 @@ func NewUserCommonServiceImpl(userAuthRepository repository2.UserAuthRepository,
 		roleGroupRepository:         userGroupRepository,
 		sessionManager2:             sessionManager2,
 		defaultRbacDataCacheFactory: defaultRbacDataCacheFactory,
-		enterpriseUserConfig:        userConfig,
+		userRbacConfig:              userConfig,
 	}
 	cStore = sessions.NewCookieStore(randKey())
 	defaultRbacDataCacheFactory.SyncPolicyCache()
@@ -63,12 +63,12 @@ func NewUserCommonServiceImpl(userAuthRepository repository2.UserAuthRepository,
 	return serviceImpl
 }
 
-type EnterpriseUserConfig struct {
+type UserRbacConfig struct {
 	UseRbacCreationV2 bool `env:"USE_RBAC_CREATION_V2" envDefault:"false"`
 }
 
 func (impl UserCommonServiceImpl) CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, userId int32) (bool, error, []casbin.Policy) {
-	if impl.enterpriseUserConfig.UseRbacCreationV2 {
+	if impl.userRbacConfig.UseRbacCreationV2 {
 		return impl.CreateDefaultPoliciesForAllTypesV2(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType)
 	} else {
 		return impl.userAuthRepository.CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType, userId)
@@ -77,7 +77,7 @@ func (impl UserCommonServiceImpl) CreateDefaultPoliciesForAllTypes(team, entityN
 
 func (impl UserCommonServiceImpl) CreateDefaultPoliciesForAllTypesV2(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string) (bool, error, []casbin.Policy) {
 	//TODO: below txn is making this process slow, need to do bulk operation for role creation.
-	//For detail - https://github.com/devtron-labs/devtron-enterprise/blob/main/pkg/user/benchmarking-results
+	//For detail - https://github.com/devtron-labs/devtron/blob/main/pkg/user/benchmarking-results
 
 	renderedRole, renderedPolicyDetails := impl.getRenderedRoleAndPolicy(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType)
 	_, err := impl.userAuthRepository.CreateRole(renderedRole)

@@ -1,6 +1,6 @@
 goos: darwin
 goarch: amd64
-pkg: github.com/devtron-labs/devtron/pkg/enterprise/user/casbin
+pkg: github.com/devtron-labs/devtron/pkg/user/casbin
 cpu: Intel(R) Core(TM) i5-8257U CPU @ 1.40GHz
 
 
