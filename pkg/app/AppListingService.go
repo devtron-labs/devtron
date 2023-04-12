@@ -53,7 +53,7 @@ import (
 )
 
 type AppListingService interface {
-	FetchAppsByEnvironment(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, error)
+	FetchAppsByEnvironment(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string, apiVersion string) ([]*bean.AppEnvironmentContainer, error)
 	FetchJobs(fetchJobListingRequest FetchAppListingRequest) ([]*bean.JobContainer, error)
 	FetchOverviewCiPipelines(jobId int) ([]*bean.JobListingContainer, error)
 	BuildAppListingResponse(fetchAppListingRequest FetchAppListingRequest, envContainers []*bean.AppEnvironmentContainer) ([]*bean.AppContainer, error)
@@ -102,7 +102,6 @@ const (
 	APIVersionV2          string = "v2"
 )
 
-var APIVersion string = "" // for appListing
 type FetchAppListingRequest struct {
 	Environments      []int            `json:"environments"`
 	Statuses          []string         `json:"statuses"`
@@ -296,9 +295,9 @@ func (impl AppListingServiceImpl) FetchOverviewCiPipelines(jobId int) ([]*bean.J
 	return jobCiContainers, nil
 }
 
-func (impl AppListingServiceImpl) FetchAppsByEnvironment(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, error) {
+func (impl AppListingServiceImpl) FetchAppsByEnvironment(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string, apiVersion string) ([]*bean.AppEnvironmentContainer, error) {
 	impl.Logger.Debugw("reached at FetchAppsByEnvironment", "fetchAppListingRequest", fetchAppListingRequest)
-	if APIVersion == APIVersionV1 {
+	if apiVersion == APIVersionV1 {
 		if len(fetchAppListingRequest.Namespaces) != 0 && len(fetchAppListingRequest.Environments) == 0 {
 			return []*bean.AppEnvironmentContainer{}, nil
 		}
