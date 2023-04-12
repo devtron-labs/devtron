@@ -609,7 +609,7 @@ func (impl InstalledAppRepositoryImpl) GetAllGitOpsAppNameAndInstalledAppMapping
 	var model []*GitOpsAppDetails
 
 	query := `select concat(a.git_ops_repo_name, '-',e.environment_name) as git_ops_app_name, a.id as installed_app_id from installed_apps a 
-    			inner join environment e on a.environment_id=e.id where a.active=true;`
+    			inner join environment e on a.environment_id=e.id where a.active=true and e.active=true;`
 	_, err := impl.dbConnection.Query(&model, query)
 	if err != nil {
 		impl.Logger.Errorw("error in GetAllGitOpsDeploymentAppName", "err", err)
