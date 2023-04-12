@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
@@ -115,7 +116,14 @@ func (impl *ApplicationStatusHandlerImpl) Subscribe() error {
 				impl.logger.Errorw("error in getting all gitops deployment app names from installed_apps ", "err", err)
 				return
 			}
-			if slices.Contains(gitOpsDeployedAppNames, app.ObjectMeta.Name) {
+			var devtronGitOpsAppName string
+			gitOpsRepoPrefix := impl.appService.GetGitOpsRepoPrefix()
+			if len(gitOpsRepoPrefix) > 0 {
+				devtronGitOpsAppName = fmt.Sprintf("%s-%s", gitOpsRepoPrefix, app.ObjectMeta.Name)
+			} else {
+				devtronGitOpsAppName = app.ObjectMeta.Name
+			}
+			if slices.Contains(gitOpsDeployedAppNames, devtronGitOpsAppName) {
 				//app found in installed_apps table hence setting flag to true
 				isAppStoreApplication = true
 			} else {

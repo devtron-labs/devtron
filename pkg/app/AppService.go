@@ -177,6 +177,7 @@ type AppService interface {
 	GetChartRepoName(gitRepoUrl string) string
 	UpdateDeploymentStatusForGitOpsPipelines(app *v1alpha1.Application, statusTime time.Time, isAppStore bool) (bool, bool, error)
 	WriteCDSuccessEvent(appId int, envId int, override *chartConfig.PipelineOverride)
+	GetGitOpsRepoPrefix() string
 }
 
 func NewAppService(
@@ -2590,4 +2591,8 @@ func (impl *AppServiceImpl) helmInstallReleaseWithCustomChart(ctx context.Contex
 
 	// Request exec
 	return impl.helmAppClient.InstallReleaseWithCustomChart(ctx, &helmInstallRequest)
+}
+
+func (impl *AppServiceImpl) GetGitOpsRepoPrefix() string {
+	return impl.globalEnvVariables.GitOpsRepoPrefix
 }
