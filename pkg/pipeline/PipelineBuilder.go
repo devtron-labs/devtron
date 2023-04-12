@@ -415,11 +415,12 @@ func (impl PipelineBuilderImpl) GetApp(appId int) (application *bean.CreateAppDT
 		app.AppName = app.DisplayName
 	}
 	application = &bean.CreateAppDTO{
-		Id:       app.Id,
-		AppName:  app.AppName,
-		Material: gitMaterials,
-		TeamId:   app.TeamId,
-		AppType:  app.AppType,
+		Id:          app.Id,
+		AppName:     app.AppName,
+		Material:    gitMaterials,
+		TeamId:      app.TeamId,
+		AppType:     app.AppType,
+		Description: app.Description,
 	}
 	return application, nil
 }
