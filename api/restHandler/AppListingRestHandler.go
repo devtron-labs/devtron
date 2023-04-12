@@ -78,6 +78,7 @@ type AppListingRestHandler interface {
 	ManualSyncAcdPipelineDeploymentStatus(w http.ResponseWriter, r *http.Request)
 	GetClusterTeamAndEnvListForAutocomplete(w http.ResponseWriter, r *http.Request)
 	FetchAppsByEnvironmentV2(w http.ResponseWriter, r *http.Request)
+	FetchAppsByEnvironmentVersioned(w http.ResponseWriter, r *http.Request)
 	FetchOverviewAppsByEnvironment(w http.ResponseWriter, r *http.Request)
 }
 
@@ -273,7 +274,19 @@ func (handler AppListingRestHandlerImpl) FetchJobOverviewCiPipelines(w http.Resp
 
 	common.WriteJsonResp(w, err, jobCi, http.StatusOK)
 }
-
+func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentVersioned(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	version := vars["version"]
+	if version == app.APIVersionV1 {
+		app.APIVersion = app.APIVersionV1
+		handler.FetchAppsByEnvironment(w, r)
+		return
+	}
+	if version == app.APIVersionV2 {
+		handler.FetchAppsByEnvironmentV2(w, r)
+		return
+	}
+}
 func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseWriter, r *http.Request) {
 	//Allow CORS here By * or specific origin
 	setupResponse(&w, r)
