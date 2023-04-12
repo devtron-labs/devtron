@@ -51,6 +51,7 @@ const (
 	PASSWORD string = "password"
 	TYPE     string = "type"
 	URL      string = "url"
+	INSECRUE string = "insecure"
 )
 
 // secret values
@@ -99,11 +100,16 @@ func NewChartRepositoryServiceImpl(logger *zap.SugaredLogger, repoRepository cha
 // Private helm charts credentials are saved as secrets
 func (impl *ChartRepositoryServiceImpl) CreateSecretDataForPrivateHelmChart(request *ChartRepoDto) (secretData map[string]string) {
 	secretData = make(map[string]string)
-	secretData[NAME] = request.Name
+	secretData[NAME] = request.Name + uuid.New().String()
 	secretData[USERNAME] = request.UserName
 	secretData[PASSWORD] = request.Password
 	secretData[TYPE] = HELM
 	secretData[URL] = request.Url
+	isInsecureConnection := "false"
+	if request.AllowInsecureConnection {
+		isInsecureConnection = "true"
+	}
+	secretData[INSECRUE] = isInsecureConnection
 	return secretData
 }
 
@@ -295,7 +301,6 @@ func (impl *ChartRepositoryServiceImpl) UpdateData(request *ChartRepoDto) (*char
 					impl.logger.Errorw("Error in creating secret for chart repo", "Chart Name", chartRepo.Name, "err", err)
 				}
 			} else {
-				secret.StringData[NAME] = secret.StringData[NAME] + uuid.New().String()
 				_, err = impl.K8sUtil.UpdateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, secret, client)
 				if err != nil {
 					impl.logger.Errorw("Error in creating secret for chart repo", "Chart Name", chartRepo.Name, "err", err)
