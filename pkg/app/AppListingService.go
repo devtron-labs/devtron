@@ -98,8 +98,11 @@ type AppListingService interface {
 const (
 	Initiate              string = "Initiate"
 	ScalingReplicaSetDown string = "ScalingReplicaSetDown"
+	APIVersionV1          string = "v1"
+	APIVersionV2          string = "v2"
 )
 
+var APIVersion string = "" // for appListing
 type FetchAppListingRequest struct {
 	Environments      []int            `json:"environments"`
 	Statuses          []string         `json:"statuses"`
@@ -294,9 +297,48 @@ func (impl AppListingServiceImpl) FetchOverviewCiPipelines(jobId int) ([]*bean.J
 }
 
 func (impl AppListingServiceImpl) FetchAppsByEnvironment(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, error) {
-	impl.Logger.Debug("reached at FetchAppsByEnvironment:")
-	if len(fetchAppListingRequest.Namespaces) != 0 && len(fetchAppListingRequest.Environments) == 0 {
-		return []*bean.AppEnvironmentContainer{}, nil
+	impl.Logger.Debugw("reached at FetchAppsByEnvironment", "fetchAppListingRequest", fetchAppListingRequest)
+	if APIVersion == APIVersionV1 {
+		if len(fetchAppListingRequest.Namespaces) != 0 && len(fetchAppListingRequest.Environments) == 0 {
+			return []*bean.AppEnvironmentContainer{}, nil
+		}
+	} else {
+		newCtx, span := otel.Tracer("fetchAppListingRequest").Start(r.Context(), "GetNamespaceClusterMapping")
+		mappings, clusterIds, err := fetchAppListingRequest.GetNamespaceClusterMapping()
+		span.End()
+		if err != nil {
+			impl.Logger.Errorw("error in fetching app list", "error", err)
+			return []*bean.AppEnvironmentContainer{}, err
+		}
+		if len(mappings) > 0 {
+			newCtx, span = otel.Tracer("environmentRepository").Start(newCtx, "FindByClusterIdAndNamespace")
+			envs, err := impl.environmentRepository.FindByClusterIdAndNamespace(mappings)
+			span.End()
+			if err != nil {
+				impl.Logger.Errorw("error in cluster ns mapping")
+				return []*bean.AppEnvironmentContainer{}, err
+			}
+			for _, env := range envs {
+				fetchAppListingRequest.Environments = append(fetchAppListingRequest.Environments, env.Id)
+			}
+		}
+		if len(clusterIds) > 0 {
+			newCtx, span = otel.Tracer("environmentRepository").Start(newCtx, "FindByClusterIds")
+			envs, err := impl.environmentRepository.FindByClusterIds(clusterIds)
+			span.End()
+			if err != nil {
+				impl.Logger.Errorw("error in cluster ns mapping")
+				return []*bean.AppEnvironmentContainer{}, err
+			}
+			for _, env := range envs {
+				fetchAppListingRequest.Environments = append(fetchAppListingRequest.Environments, env.Id)
+			}
+
+		}
+		if (len(clusterIds) > 0 || len(mappings) > 0) && len(fetchAppListingRequest.Environments) == 0 {
+			// no result when no matching cluster and env
+			return []*bean.AppEnvironmentContainer{}, nil
+		}
 	}
 	// TODO: check statuses
 	appListingFilter := helper.AppListingFilter{
