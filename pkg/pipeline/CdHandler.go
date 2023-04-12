@@ -1268,7 +1268,7 @@ func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(userId int32, approva
 	approvalRequestId := approvalActionRequest.ApprovalRequestId
 	if approvalActionType == bean2.APPROVAL_APPROVE_ACTION {
 		//fetch approval request data, same user should not be Approval requester
-		approvalRequest, err := impl.deploymentApprovalRepository.FetchById(approvalRequestId)
+		approvalRequest, err := impl.deploymentApprovalRepository.FetchWithPipelineAndArtifactDetails(approvalRequestId)
 		if err != nil {
 			return errors.New("failed to fetch approval request data")
 		}
@@ -1297,6 +1297,30 @@ func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(userId int32, approva
 			impl.Logger.Errorw("error occurred while saving user approval data", "approvalRequestId", approvalRequestId, "err", err)
 			return err
 		}
+		//TODO KB: trigger deployment if approved and pipeline type is automatic
+		pipeline := approvalRequest.Pipeline
+		if pipeline.TriggerType == pipelineConfig.TRIGGER_TYPE_AUTOMATIC {
+			pipelineId := approvalRequest.PipelineId
+			approvalConfig, err := pipeline.GetApprovalConfig()
+			if err != nil {
+				impl.Logger.Errorw("error occurred while fetching approval config", "pipelineId", pipelineId, "config", pipeline.UserApprovalConfig, "err", err)
+				return nil
+			}
+			approvalDataForArtifacts, err := impl.workflowDagExecutor.FetchApprovalDataForArtifacts([]int{artifactId}, pipelineId, approvalConfig.RequiredCount)
+			if err != nil {
+				impl.Logger.Errorw("error occurred while fetching approval data for artifacts", "artifactId", artifactId, "pipelineId", pipelineId, "config", pipeline.UserApprovalConfig, "err", err)
+				return nil
+			}
+			if approvedData, ok := approvalDataForArtifacts[artifactId]; ok && approvedData.ApprovalRuntimeState == pipelineConfig.ApprovedApprovalState {
+				// trigger deployment
+				err = impl.workflowDagExecutor.TriggerDeployment(nil, approvalRequest.CiArtifact, pipeline, false, 1)
+				if err != nil {
+					impl.Logger.Errorw("error occurred while triggering deployment", "pipelineId", pipelineId, "artifactId", artifactId, "err", err)
+					return errors.New("auto deployment failed, please try manually")
+				}
+			}
+		}
+
 	} else if approvalActionType == bean2.APPROVAL_REQUEST_ACTION {
 		pipelineId := approvalActionRequest.PipelineId
 		deploymentApprovalRequest := &pipelineConfig.DeploymentApprovalRequest{

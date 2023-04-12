@@ -2,6 +2,7 @@ package pipelineConfig
 
 import (
 	"errors"
+	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/go-pg/pg"
@@ -13,6 +14,7 @@ type DeploymentApprovalRepository interface {
 	FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int) ([]*DeploymentApprovalRequest, error)
 	FetchApprovalDataForRequests(requestIds []int) ([]*DeploymentApprovalUserData, error)
 	FetchById(requestId int) (*DeploymentApprovalRequest, error)
+	FetchWithPipelineAndArtifactDetails(requestId int) (*DeploymentApprovalRequest, error)
 	Save(deploymentApprovalRequest *DeploymentApprovalRequest) error
 	Update(deploymentApprovalRequest *DeploymentApprovalRequest) error
 	SaveDeploymentUserData(userData *DeploymentApprovalUserData) error
@@ -29,12 +31,14 @@ func NewDeploymentApprovalRepositoryImpl(dbConnection *pg.DB, logger *zap.Sugare
 }
 
 type DeploymentApprovalRequest struct {
-	tableName                   struct{}                      `sql:"deployment_approval_request" pg:",discard_unknown_columns"`
-	Id                          int                           `sql:"id,pk"`
-	PipelineId                  int                           `sql:"pipeline_id"`    // keep in mind foreign key constraint
-	ArtifactId                  int                           `sql:"artifact_id"`    // keep in mind foreign key constraint
-	Active                      bool                          `sql:"active,notnull"` // user can cancel request anytime
-	ArtifactDeploymentTriggered bool                          `sql:"artifact_deployment_triggered"`
+	tableName                   struct{} `sql:"deployment_approval_request" pg:",discard_unknown_columns"`
+	Id                          int      `sql:"id,pk"`
+	PipelineId                  int      `sql:"pipeline_id"`    // keep in mind foreign key constraint
+	ArtifactId                  int      `sql:"ci_artifact_id"` // keep in mind foreign key constraint
+	Active                      bool     `sql:"active,notnull"` // user can cancel request anytime
+	ArtifactDeploymentTriggered bool     `sql:"artifact_deployment_triggered"`
+	Pipeline                    *Pipeline
+	CiArtifact                  *repository2.CiArtifact
 	UserEmail                   string                        `sql:"-"` // used for internal purpose
 	DeploymentApprovalUserData  []*DeploymentApprovalUserData `sql:"-"`
 	sql.AuditLog
@@ -60,7 +64,7 @@ func (impl *DeploymentApprovalRepositoryImpl) FetchApprovalDataForArtifacts(arti
 	err := impl.dbConnection.
 		Model(&requests).
 		//Column("deployment_approval_request.*", /*"DeploymentApprovalUserData", "DeploymentApprovalUserData.User"*/).
-		Where("artifact_id in (?) ", pg.In(artifactIds)).
+		Where("ci_artifact_id in (?) ", pg.In(artifactIds)).
 		Where("pipeline_id = ?", pipelineId).
 		Where("artifact_deployment_triggered = ?", false).
 		Where("active = ?", true).
@@ -107,6 +111,19 @@ func (impl *DeploymentApprovalRepositoryImpl) FetchApprovalDataForRequests(reque
 		return nil, err
 	}
 	return usersData, nil
+}
+
+func (impl *DeploymentApprovalRepositoryImpl) FetchWithPipelineAndArtifactDetails(requestId int) (*DeploymentApprovalRequest, error) {
+	request := &DeploymentApprovalRequest{Id: requestId}
+	err := impl.dbConnection.
+		Model(request).
+		Column("deployment_approval_request.*", "Pipeline", "CiArtifact").
+		Where("active = ?", true).WherePK().Select()
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching request data", "id", requestId, "err", err)
+		return nil, err
+	}
+	return request, nil
 }
 
 func (impl *DeploymentApprovalRepositoryImpl) FetchById(requestId int) (*DeploymentApprovalRequest, error) {

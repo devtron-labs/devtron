@@ -5,7 +5,7 @@ CREATE SEQUENCE IF NOT EXISTS id_seq_deployment_approval_request;
 CREATE TABLE public.deployment_approval_request (
 "id"                                            integer NOT NULL DEFAULT nextval('id_seq_deployment_approval_request'::regclass),
 "pipeline_id"                                   integer,
-"artifact_id"                                   integer,
+"ci_artifact_id"                                integer,
 "active"                                        BOOL,
 "artifact_deployment_triggered"                 BOOL DEFAULT false,
 "created_on"                                    timestamptz,
@@ -13,7 +13,7 @@ CREATE TABLE public.deployment_approval_request (
 "updated_on"                                    timestamptz,
 "updated_by"                                    int4,
 CONSTRAINT "deployment_approval_request_pipeline_id_fkey" FOREIGN KEY ("pipeline_id") REFERENCES "public"."pipeline" ("id"),
-CONSTRAINT "deployment_approval_request_artifact_id_fkey" FOREIGN KEY ("artifact_id") REFERENCES "public"."ci_artifact" ("id"),
+CONSTRAINT "deployment_approval_request_artifact_id_fkey" FOREIGN KEY ("ci_artifact_id") REFERENCES "public"."ci_artifact" ("id"),
 PRIMARY KEY ("id")
 );
 
