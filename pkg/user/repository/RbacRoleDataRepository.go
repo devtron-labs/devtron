@@ -34,7 +34,7 @@ type RbacRoleData struct {
 	RoleData        string   `sql:"role_data"`
 	RoleDescription string   `sql:"role_description"`
 	IsPresetRole    bool     `sql:"is_preset_role,notnull"`
-	Deleted         bool     `sql:"deleted"`
+	Deleted         bool     `sql:"deleted,notnull"`
 	sql.AuditLog
 }
 
