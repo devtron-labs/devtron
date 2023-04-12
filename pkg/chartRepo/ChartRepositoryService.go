@@ -29,6 +29,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/ghodss/yaml"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"io"
 	"io/ioutil"
@@ -294,6 +295,7 @@ func (impl *ChartRepositoryServiceImpl) UpdateData(request *ChartRepoDto) (*char
 					impl.logger.Errorw("Error in creating secret for chart repo", "Chart Name", chartRepo.Name, "err", err)
 				}
 			} else {
+				secret.StringData[NAME] = secret.StringData[NAME] + uuid.New().String()
 				_, err = impl.K8sUtil.UpdateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, secret, client)
 				if err != nil {
 					impl.logger.Errorw("Error in creating secret for chart repo", "Chart Name", chartRepo.Name, "err", err)
