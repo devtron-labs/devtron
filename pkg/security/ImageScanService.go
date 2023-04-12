@@ -242,9 +242,10 @@ func (impl ImageScanServiceImpl) FetchScanExecutionListing(request *ImageScanReq
 					return nil, err
 				}
 				if err == pg.ErrNoRows {
-					imageScanHistoryResponse.AppId = app.Id
-					imageScanHistoryResponse.Name = app.AppName
+					continue
 				}
+				imageScanHistoryResponse.AppId = app.Id
+				imageScanHistoryResponse.Name = app.AppName
 				imageScanHistoryResponse.Type = item.ObjectType
 			} else if item.ObjectType == security.ScanObjectType_POD {
 				scanObjectMeta, err := impl.scanObjectMetaRepository.FindOne(item.ScanObjectMetaId)
@@ -252,8 +253,9 @@ func (impl ImageScanServiceImpl) FetchScanExecutionListing(request *ImageScanReq
 					return nil, err
 				}
 				if err == pg.ErrNoRows {
-					imageScanHistoryResponse.Name = scanObjectMeta.Name
+					continue
 				}
+				imageScanHistoryResponse.Name = scanObjectMeta.Name
 				imageScanHistoryResponse.Type = item.ObjectType
 			}
 		}
