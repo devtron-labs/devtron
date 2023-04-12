@@ -47,7 +47,8 @@ type ChartRepositoryService interface {
 	UpdateDataInArgocdCm(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error)
 	GetChartRepoById(id int) (*ChartRepoDto, error)
 	GetChartRepoByName(name string) (*ChartRepoDto, error)
-	GetChartRepoList() ([]*ChartRepoDto, error)
+	GetChartRepoList() ([]*ChartRepoWithIsEditableDto, error)
+	GetChartRepoListMin() ([]*ChartRepoDto, error)
 	ValidateChartRepo(request *ChartRepoDto) *DetailedErrorHelmRepoValidation
 	ValidateAndCreateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error, *DetailedErrorHelmRepoValidation)
 	ValidateAndUpdateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error, *DetailedErrorHelmRepoValidation)
@@ -354,14 +355,14 @@ func (impl *ChartRepositoryServiceImpl) convertFromDbResponse(model *chartRepoRe
 	return chartRepo
 }
 
-func (impl *ChartRepositoryServiceImpl) GetChartRepoList() ([]*ChartRepoDto, error) {
-	var chartRepos []*ChartRepoDto
+func (impl *ChartRepositoryServiceImpl) GetChartRepoList() ([]*ChartRepoWithIsEditableDto, error) {
+	var chartRepos []*ChartRepoWithIsEditableDto
 	models, err := impl.repoRepository.FindAllWithDeploymentCount()
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
 	}
 	for _, model := range models {
-		chartRepo := &ChartRepoDto{}
+		chartRepo := &ChartRepoWithIsEditableDto{}
 		chartRepo.Id = model.Id
 		chartRepo.Name = model.Name
 		chartRepo.Url = model.Url
@@ -375,6 +376,30 @@ func (impl *ChartRepositoryServiceImpl) GetChartRepoList() ([]*ChartRepoDto, err
 		chartRepo.IsEditable = true
 		if model.ActiveDeploymentCount > 0 {
 			chartRepo.IsEditable = false
+		}
+		chartRepos = append(chartRepos, chartRepo)
+	}
+	return chartRepos, nil
+}
+
+func (impl *ChartRepositoryServiceImpl) GetChartRepoListMin() ([]*ChartRepoDto, error) {
+	var chartRepos []*ChartRepoDto
+	models, err := impl.repoRepository.FindAll()
+	if err != nil && !util.IsErrNoRows(err) {
+		return nil, err
+	}
+	for _, model := range models {
+		chartRepo := &ChartRepoDto{
+			Id:          model.Id,
+			Name:        model.Name,
+			Url:         model.Url,
+			AuthMode:    model.AuthMode,
+			Password:    model.Password,
+			UserName:    model.UserName,
+			SshKey:      model.SshKey,
+			AccessToken: model.AccessToken,
+			Default:     model.Default,
+			Active:      model.Active,
 		}
 		chartRepos = append(chartRepos, chartRepo)
 	}
