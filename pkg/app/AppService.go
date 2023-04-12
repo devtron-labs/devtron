@@ -162,6 +162,7 @@ type AppServiceImpl struct {
 	AppStoreDeploymentService              service.AppStoreDeploymentService
 	k8sApplicationService                  k8s.K8sApplicationService
 	installedAppVersionHistoryRepository   repository4.InstalledAppVersionHistoryRepository
+	globalEnvVariables                     *util2.GlobalEnvVariables
 }
 
 type AppService interface {
@@ -230,6 +231,7 @@ func NewAppService(
 	AppStoreDeploymentService service.AppStoreDeploymentService,
 	k8sApplicationService k8s.K8sApplicationService,
 	installedAppVersionHistoryRepository repository4.InstalledAppVersionHistoryRepository,
+	globalEnvVariables *util2.GlobalEnvVariables,
 ) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:            environmentConfigRepository,
@@ -287,6 +289,7 @@ func NewAppService(
 		AppStoreDeploymentService:              AppStoreDeploymentService,
 		k8sApplicationService:                  k8sApplicationService,
 		installedAppVersionHistoryRepository:   installedAppVersionHistoryRepository,
+		globalEnvVariables:                     globalEnvVariables,
 	}
 	return appServiceImpl
 }
@@ -564,7 +567,13 @@ func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValidForAppStore(gitOpsA
 	for _, item := range gitOpsAppNameAndInstalledAppId {
 		gitOpsAppNameAndInstalledAppMapping[item.GitOpsAppName] = &item.InstalledAppId
 	}
-	devtronAcdAppName := "devtron-" + gitOpsAppName
+	var devtronAcdAppName string
+	if len(impl.globalEnvVariables.GitOpsRepoPrefix) > 0 {
+		devtronAcdAppName = fmt.Sprintf("%s-%s", impl.globalEnvVariables.GitOpsRepoPrefix, gitOpsAppName)
+	} else {
+		devtronAcdAppName = gitOpsAppName
+	}
+
 	if gitOpsAppNameAndInstalledAppMapping[devtronAcdAppName] != nil {
 		installedAppId = *gitOpsAppNameAndInstalledAppMapping[devtronAcdAppName]
 	}
