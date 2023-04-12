@@ -101,7 +101,7 @@ func (impl *ModuleCronServiceImpl) handleAllModuleStatusIfNotInProgress() {
 }
 
 // check modules from DB.
-//if status is installing for 1 hour, mark it as timeout
+// if status is installing for 1 hour, mark it as timeout
 // if status is installing and helm release is healthy then mark as installed
 func (impl *ModuleCronServiceImpl) handleModuleStatus(moduleNameInput string) {
 	impl.logger.Debug("starting module status check thread")

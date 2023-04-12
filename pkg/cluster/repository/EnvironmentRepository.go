@@ -18,9 +18,11 @@
 package repository
 
 import (
+	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
+	"go.uber.org/zap"
 )
 
 type Environment struct {
@@ -41,7 +43,7 @@ type EnvironmentRepository interface {
 	FindOne(environment string) (*Environment, error)
 	Create(mappings *Environment) error
 	FindAll() ([]Environment, error)
-	FindAllActive() ([]Environment, error)
+	FindAllActive() ([]*Environment, error)
 	MarkEnvironmentDeleted(mappings *Environment, tx *pg.Tx) error
 	GetConnection() (dbConnection *pg.DB)
 
@@ -57,14 +59,25 @@ type EnvironmentRepository interface {
 	FindByClusterIdAndNamespace(namespaceClusterPair []*ClusterNamespacePair) ([]*Environment, error)
 	FindByClusterIds(clusterIds []int) ([]*Environment, error)
 	FindIdsByNames(envNames []string) ([]int, error)
+
+	FindByEnvName(envName string) ([]*Environment, error)
+	FindByEnvNameAndClusterIds(envName string, clusterIds []int) ([]*Environment, error)
+	FindByClusterIdsWithFilter(clusterIds []int) ([]*Environment, error)
+	FindAllActiveWithFilter() ([]*Environment, error)
 }
 
-func NewEnvironmentRepositoryImpl(dbConnection *pg.DB) *EnvironmentRepositoryImpl {
-	return &EnvironmentRepositoryImpl{dbConnection: dbConnection}
+func NewEnvironmentRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger, appStatusRepository appStatus.AppStatusRepository) *EnvironmentRepositoryImpl {
+	return &EnvironmentRepositoryImpl{
+		dbConnection:        dbConnection,
+		logger:              logger,
+		appStatusRepository: appStatusRepository,
+	}
 }
 
 type EnvironmentRepositoryImpl struct {
-	dbConnection *pg.DB
+	dbConnection        *pg.DB
+	appStatusRepository appStatus.AppStatusRepository
+	logger              *zap.SugaredLogger
 }
 
 func (repositoryImpl EnvironmentRepositoryImpl) FindOne(environment string) (*Environment, error) {
@@ -180,6 +193,7 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindByClusterIdAndNamespace(name
 		Select()
 	return mappings, err
 }
+
 func (repositoryImpl EnvironmentRepositoryImpl) FindByClusterIds(clusterIds []int) ([]*Environment, error) {
 	var mappings []*Environment
 	err := repositoryImpl.dbConnection.
@@ -191,8 +205,8 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindByClusterIds(clusterIds []in
 	return mappings, err
 }
 
-func (repositoryImpl EnvironmentRepositoryImpl) FindAllActive() ([]Environment, error) {
-	var mappings []Environment
+func (repositoryImpl EnvironmentRepositoryImpl) FindAllActive() ([]*Environment, error) {
+	var mappings []*Environment
 	err := repositoryImpl.
 		dbConnection.Model(&mappings).
 		Where("environment.active = ?", true).
@@ -237,6 +251,12 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindByIds(ids []*int) ([]*Enviro
 }
 
 func (repo EnvironmentRepositoryImpl) MarkEnvironmentDeleted(deleteReq *Environment, tx *pg.Tx) error {
+	//TODO : delete entries in app_status repo
+	err := repo.appStatusRepository.DeleteWithEnvId(tx, deleteReq.Id)
+	if err != nil {
+		repo.logger.Errorw("error in deleting from app_status table with appId", "appId", deleteReq.Id, "err", err)
+		return err
+	}
 	deleteReq.Active = false
 	return tx.Update(deleteReq)
 }
@@ -249,4 +269,46 @@ func (repo EnvironmentRepositoryImpl) FindIdsByNames(envNames []string) ([]int, 
 	query := "select id from environment where environment_name in (?) and active=?;"
 	_, err := repo.dbConnection.Query(&ids, query, pg.In(envNames), true)
 	return ids, err
+}
+
+func (repositoryImpl EnvironmentRepositoryImpl) FindByEnvName(envName string) ([]*Environment, error) {
+	var environmentCluster []*Environment
+	err := repositoryImpl.dbConnection.
+		Model(&environmentCluster).
+		Column("environment.*", "Cluster").
+		Where("environment_name like ?", "%"+envName+"%").
+		Where("environment.active = ?", true).
+		Order("environment.environment_name ASC").Select()
+	return environmentCluster, err
+}
+
+func (repositoryImpl EnvironmentRepositoryImpl) FindByEnvNameAndClusterIds(envName string, clusterIds []int) ([]*Environment, error) {
+	var mappings []*Environment
+	err := repositoryImpl.dbConnection.
+		Model(&mappings).
+		Column("environment.*", "Cluster").
+		Where("environment_name like ?", "%"+envName+"%").
+		Where("environment.active = true").
+		Where("environment.cluster_id in (?)", pg.In(clusterIds)).
+		Order("environment.environment_name ASC").Select()
+	return mappings, err
+}
+
+func (repositoryImpl EnvironmentRepositoryImpl) FindByClusterIdsWithFilter(clusterIds []int) ([]*Environment, error) {
+	var mappings []*Environment
+	err := repositoryImpl.dbConnection.Model(&mappings).
+		Column("environment.*", "Cluster").
+		Where("environment.active = true").
+		Where("environment.cluster_id in (?)", pg.In(clusterIds)).
+		Order("environment.environment_name ASC").Select()
+	return mappings, err
+}
+
+func (repositoryImpl EnvironmentRepositoryImpl) FindAllActiveWithFilter() ([]*Environment, error) {
+	var mappings []*Environment
+	err := repositoryImpl.dbConnection.Model(&mappings).
+		Column("environment.*", "Cluster").
+		Where("environment.active = ?", true).
+		Order("environment.environment_name ASC").Select()
+	return mappings, err
 }

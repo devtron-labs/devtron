@@ -19,9 +19,18 @@ package helper
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
 	"strconv"
 	"strings"
+)
+
+type AppType int
+
+const (
+	CustomApp     AppType = 0 // cicd app
+	ChartStoreApp AppType = 1 // helm app
+	Job           AppType = 2 // jobs
 )
 
 type AppListingRepositoryQueryBuilder struct {
@@ -38,6 +47,7 @@ type AppListingFilter struct {
 	Environments      []int     `json:"environments"`
 	Statuses          []string  `json:"statutes"`
 	Teams             []int     `json:"teams"`
+	AppStatuses       []string  `json:"appStatuses"`
 	AppNameSearch     string    `json:"appNameSearch"`
 	SortOrder         SortOrder `json:"sortOrder"`
 	SortBy            SortBy    `json:"sortBy"`
@@ -55,20 +65,65 @@ const (
 )
 
 const (
-	AppNameSortBy SortBy = "appNameSort"
+	AppNameSortBy      SortBy = "appNameSort"
+	LastDeployedSortBy        = "lastDeployedSort"
 )
+
+func (impl AppListingRepositoryQueryBuilder) BuildJobListingQuery(appIDs []int, statuses []string, sortOrder string) string {
+	query := "select ci_pipeline.name as ci_pipeline_name,ci_pipeline.id as ci_pipeline_id,app.id as job_id,app.display_name " +
+		"as job_name,app.description,cwr.started_on,cwr.status from app left join ci_pipeline on" +
+		" app.id = ci_pipeline.app_id and ci_pipeline.active=true left join (select cw.ci_pipeline_id, cw.status, cw.started_on " +
+		"  from ci_workflow cw inner join (select ci_pipeline_id, MAX(started_on) max_started_on from ci_workflow group by ci_pipeline_id ) " +
+		"cws on cw.ci_pipeline_id = cws.ci_pipeline_id " +
+		"and cw.started_on = cws.max_started_on order by cw.ci_pipeline_id) cwr on cwr.ci_pipeline_id = ci_pipeline.id" +
+		" where app.active = true and app.app_type = 2 "
+	if len(appIDs) > 0 {
+		query += "and app.id IN (" + GetCommaSepratedString(appIDs) + ") "
+	}
+	if len(statuses) > 0 {
+		query += "and cwr.status IN (" + util.ProcessAppStatuses(statuses) + ") "
+	}
+	query += " order by app.display_name"
+	if sortOrder == "DESC" {
+		query += " DESC "
+	}
+	return query
+}
+func (impl AppListingRepositoryQueryBuilder) OverviewCiPipelineQuery() string {
+	query := "select ci_pipeline.id as ci_pipeline_id,ci_pipeline.name " +
+		"as ci_pipeline_name,cwr.status,cwr.started_on from ci_pipeline" +
+		" left join (select cw.ci_pipeline_id,cw.status,cw.started_on from ci_workflow cw" +
+		" inner join (SELECT  ci_pipeline_id, MAX(started_on) max_started_on FROM ci_workflow GROUP BY ci_pipeline_id)" +
+		" cws on cw.ci_pipeline_id = cws.ci_pipeline_id and cw.started_on = cws.max_started_on order by cw.ci_pipeline_id)" +
+		" cwr on cwr.ci_pipeline_id = ci_pipeline.id where ci_pipeline.active = true and ci_pipeline.app_id = ? ;"
+	return query
+}
+
+// use this query with atleast 1 cipipeline id
+func (impl AppListingRepositoryQueryBuilder) JobsLastSucceededOnTimeQuery(ciPipelineIDs []int) string {
+	// use this query with atleast 1 cipipeline id
+	query := "select cw.ci_pipeline_id,cw.finished_on " +
+		"as last_succeeded_on from ci_workflow cw inner join " +
+		"(SELECT  ci_pipeline_id, MAX(finished_on) finished_on " +
+		"FROM ci_workflow WHERE ci_workflow.status = 'Succeeded'" +
+		"GROUP BY ci_pipeline_id) cws on cw.ci_pipeline_id = cws.ci_pipeline_id and cw.finished_on = cws.finished_on " +
+		"where cw.ci_pipeline_id IN (" + GetCommaSepratedString(ciPipelineIDs) + "); "
+
+	return query
+}
 
 func (impl AppListingRepositoryQueryBuilder) BuildAppListingQuery(appListingFilter AppListingFilter) string {
 	whereCondition := impl.buildAppListingWhereCondition(appListingFilter)
 	orderByClause := impl.buildAppListingSortBy(appListingFilter)
-	query := "SELECT env.id AS environment_id, env.environment_name,env.namespace as namespace ,a.id AS app_id, a.app_name, env.default," +
+	query := "SELECT env.id AS environment_id, env.environment_name,env.namespace as namespace ,a.id AS app_id, a.app_name, env.default,aps.status as app_status," +
 		" p.id as pipeline_id, env.active, a.team_id, t.name as team_name" +
 		" , cluster.cluster_name as cluster_name" +
 		" FROM pipeline p" +
 		" INNER JOIN environment env ON env.id=p.environment_id" +
 		" INNER JOIN cluster cluster ON cluster.id=env.cluster_id" +
 		" RIGHT JOIN app a ON a.id=p.app_id  and p.deleted=false" +
-		" RIGHT JOIN team t ON t.id=a.team_id "
+		" RIGHT JOIN team t ON t.id=a.team_id " +
+		" LEFT JOIN app_status aps on aps.app_id = a.id and env.id = aps.env_id "
 	if appListingFilter.DeploymentGroupId != 0 {
 		query = query + " INNER JOIN deployment_group_app dga ON a.id = dga.app_id "
 	}
@@ -90,8 +145,33 @@ func (impl AppListingRepositoryQueryBuilder) buildAppListingSortBy(appListingFil
 	return orderByCondition
 }
 
+func (impl AppListingRepositoryQueryBuilder) buildJobListingSortBy(appListingFilter AppListingFilter) string {
+	orderByCondition := " ORDER BY a.name"
+	return orderByCondition
+}
+
+func (impl AppListingRepositoryQueryBuilder) buildJobListingWhereCondition(jobListingFilter AppListingFilter) string {
+	whereCondition := "WHERE a.active = true and a.app_type = 2 "
+
+	if len(jobListingFilter.Teams) > 0 {
+		teamIds := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(jobListingFilter.Teams)), ","), "[]")
+		whereCondition = whereCondition + "and a.team_id IN (" + teamIds + ") "
+	}
+
+	if jobListingFilter.AppNameSearch != "" {
+		likeClause := "'%" + jobListingFilter.AppNameSearch + "%'"
+		whereCondition = whereCondition + "and a.display_name like " + likeClause + " "
+	}
+	// add job stats filter here
+	if len(jobListingFilter.AppStatuses) > 0 {
+		appStatuses := util.ProcessAppStatuses(jobListingFilter.AppStatuses)
+		whereCondition = whereCondition + "and aps.status IN (" + appStatuses + ") "
+	}
+	return whereCondition
+}
+
 func (impl AppListingRepositoryQueryBuilder) buildAppListingWhereCondition(appListingFilter AppListingFilter) string {
-	whereCondition := "WHERE a.active = true and a.app_store is false "
+	whereCondition := "WHERE a.active = true and a.app_type = 0 "
 	if len(appListingFilter.Environments) > 0 {
 		envIds := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(appListingFilter.Environments)), ","), "[]")
 		whereCondition = whereCondition + "and env.id IN (" + envIds + ") "
@@ -110,5 +190,20 @@ func (impl AppListingRepositoryQueryBuilder) buildAppListingWhereCondition(appLi
 	if appListingFilter.DeploymentGroupId > 0 {
 		whereCondition = whereCondition + "and dga.deployment_group_id = " + strconv.Itoa(appListingFilter.DeploymentGroupId) + " "
 	}
+	//add app-status filter here
+	if len(appListingFilter.AppStatuses) > 0 {
+		appStatuses := util.ProcessAppStatuses(appListingFilter.AppStatuses)
+		whereCondition = whereCondition + "and aps.status IN (" + appStatuses + ") "
+	}
 	return whereCondition
+}
+func GetCommaSepratedString(appIds []int) string {
+	appIdsString := ""
+	for i, appId := range appIds {
+		appIdsString += fmt.Sprintf("%d", appId)
+		if i != len(appIds)-1 {
+			appIdsString += ","
+		}
+	}
+	return appIdsString
 }

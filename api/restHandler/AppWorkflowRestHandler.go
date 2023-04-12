@@ -29,9 +29,11 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type AppWorkflowRestHandler interface {
@@ -39,6 +41,7 @@ type AppWorkflowRestHandler interface {
 	FindAppWorkflow(w http.ResponseWriter, r *http.Request)
 	DeleteAppWorkflow(w http.ResponseWriter, r *http.Request)
 	FindAllWorkflows(w http.ResponseWriter, r *http.Request)
+	FindAppWorkflowByEnvironment(w http.ResponseWriter, r *http.Request)
 }
 
 type AppWorkflowRestHandlerImpl struct {
@@ -215,4 +218,53 @@ func (impl AppWorkflowRestHandlerImpl) FindAllWorkflows(w http.ResponseWriter, r
 		return
 	}
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+}
+
+func (impl AppWorkflowRestHandlerImpl) FindAppWorkflowByEnvironment(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	userId, err := impl.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	user, err := impl.userAuthService.GetById(userId)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	userEmailId := strings.ToLower(user.EmailId)
+	envId, err := strconv.Atoi(vars["envId"])
+	if err != nil {
+		impl.Logger.Errorw("bad request", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	workflows := make(map[string]interface{})
+	_, span := otel.Tracer("orchestrator").Start(r.Context(), "ciHandler.FetchAppWorkflowsInAppGrouping")
+	workflowsList, err := impl.appWorkflowService.FindAppWorkflowsByEnvironmentId(envId, userEmailId, impl.checkAuthBatch)
+	span.End()
+	if err != nil {
+		impl.Logger.Errorw("error in fetching workflows for app", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	workflows["envId"] = envId
+	if len(workflowsList) > 0 {
+		workflows["workflows"] = workflowsList
+	} else {
+		workflows["workflows"] = []appWorkflow.AppWorkflowDto{}
+	}
+	common.WriteJsonResp(w, err, workflows, http.StatusOK)
+}
+
+func (handler *AppWorkflowRestHandlerImpl) checkAuthBatch(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool) {
+	var appResult map[string]bool
+	var envResult map[string]bool
+	if len(appObject) > 0 {
+		appResult = handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceApplications, casbin.ActionGet, appObject)
+	}
+	if len(envObject) > 0 {
+		envResult = handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceEnvironment, casbin.ActionGet, envObject)
+	}
+	return appResult, envResult
 }

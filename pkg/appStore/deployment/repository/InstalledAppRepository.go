@@ -19,10 +19,12 @@ package repository
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	util2 "github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"strconv"
@@ -41,8 +43,8 @@ type InstalledAppRepository interface {
 	GetAllIntalledAppsByAppStoreId(appStoreId int) ([]InstalledAppAndEnvDetails, error)
 	GetAllInstalledAppsByChartRepoId(chartRepoId int) ([]InstalledAppAndEnvDetails, error)
 	GetInstalledAppVersionByInstalledAppIdAndEnvId(installedAppId int, envId int) (*InstalledAppVersions, error)
+	FetchNotes(installedAppId int) (*InstalledApps, error)
 	GetInstalledAppVersionByAppStoreId(appStoreId int) ([]*InstalledAppVersions, error)
-
 	DeleteInstalledApp(model *InstalledApps) (*InstalledApps, error)
 	DeleteInstalledAppVersion(model *InstalledAppVersions) (*InstalledAppVersions, error)
 	GetInstalledAppVersionByInstalledAppId(id int) ([]*InstalledAppVersions, error)
@@ -58,6 +60,8 @@ type InstalledAppRepository interface {
 	GetInstalledApplicationByClusterIdAndNamespaceAndAppName(clusterId int, namespace string, appName string) (*InstalledApps, error)
 	GetAppAndEnvDetailsForDeploymentAppTypeInstalledApps(deploymentAppType string, clusterIds []int) ([]*InstalledApps, error)
 	GetDeploymentSuccessfulStatusCountForTelemetry() (int, error)
+	GetGitOpsInstalledAppsWhereArgoAppDeletedIsTrue(installedAppId int, envId int) (InstalledApps, error)
+	GetInstalledAppByGitHash(gitHash string) (InstallAppDeleteRequest, error)
 }
 
 type InstalledAppRepositoryImpl struct {
@@ -65,21 +69,33 @@ type InstalledAppRepositoryImpl struct {
 	Logger       *zap.SugaredLogger
 }
 
+type InstallAppDeleteRequest struct {
+	InstalledAppId  int    `json:"installed_app_id,omitempty,notnull"`
+	AppName         string `json:"app_name,omitempty"`
+	AppId           int    `json:"app_id,omitempty"`
+	EnvironmentId   int    `json:"environment_id,omitempty"`
+	AppOfferingMode string `json:"app_offering_mode"`
+	ClusterId       int    `json:"cluster_id"`
+	Namespace       string `json:"namespace"`
+}
+
 func NewInstalledAppRepositoryImpl(Logger *zap.SugaredLogger, dbConnection *pg.DB) *InstalledAppRepositoryImpl {
 	return &InstalledAppRepositoryImpl{dbConnection: dbConnection, Logger: Logger}
 }
 
 type InstalledApps struct {
-	TableName         struct{}                              `sql:"installed_apps" pg:",discard_unknown_columns"`
-	Id                int                                   `sql:"id,pk"`
-	AppId             int                                   `sql:"app_id,notnull"`
-	EnvironmentId     int                                   `sql:"environment_id,notnull"`
-	Active            bool                                  `sql:"active, notnull"`
-	GitOpsRepoName    string                                `sql:"git_ops_repo_name"`
-	DeploymentAppType string                                `sql:"deployment_app_type"`
-	Status            appStoreBean.AppstoreDeploymentStatus `sql:"status"`
-	App               app.App
-	Environment       repository.Environment
+	TableName                  struct{}                              `sql:"installed_apps" pg:",discard_unknown_columns"`
+	Id                         int                                   `sql:"id,pk"`
+	AppId                      int                                   `sql:"app_id,notnull"`
+	EnvironmentId              int                                   `sql:"environment_id,notnull"`
+	Active                     bool                                  `sql:"active, notnull"`
+	GitOpsRepoName             string                                `sql:"git_ops_repo_name"`
+	DeploymentAppType          string                                `sql:"deployment_app_type"`
+	Status                     appStoreBean.AppstoreDeploymentStatus `sql:"status"`
+	DeploymentAppDeleteRequest bool                                  `sql:"deployment_app_delete_request"`
+	Notes                      string                                `json:"notes"`
+	App                        app.App
+	Environment                repository.Environment
 	sql.AuditLog
 }
 
@@ -116,6 +132,8 @@ type InstalledAppsWithChartDetails struct {
 	TeamId                       int       `json:"teamId"`
 	ClusterId                    int       `json:"clusterId"`
 	AppOfferingMode              string    `json:"app_offering_mode"`
+	AppStatus                    string    `json:"app_status"`
+	DeploymentAppDeleteRequest   bool      `json:"deploymentAppDeleteRequest"`
 }
 
 type InstalledAppAndEnvDetails struct {
@@ -126,6 +144,7 @@ type InstalledAppAndEnvDetails struct {
 	UpdatedOn                    time.Time `json:"updated_on"`
 	EmailId                      string    `json:"email_id"`
 	InstalledAppVersionId        int       `json:"installed_app_version_id"`
+	AppId                        int       `json:"app_id"`
 	InstalledAppId               int       `json:"installed_app_id"`
 	AppStoreApplicationVersionId int       `json:"app_store_application_version_id"`
 	DeploymentAppType            string    `json:"-"`
@@ -171,11 +190,18 @@ func (impl InstalledAppRepositoryImpl) UpdateInstalledAppVersion(model *Installe
 	}
 	return model, nil
 }
+func (impl InstalledAppRepositoryImpl) FetchNotes(installedAppId int) (*InstalledApps, error) {
+	model := &InstalledApps{}
+	err := impl.dbConnection.Model(model).
+		Column("installed_apps.*", "App").
+		Where("installed_apps.id = ?", installedAppId).Where("installed_apps.active = true").Select()
+	return model, err
+}
 
 func (impl InstalledAppRepositoryImpl) GetInstalledApp(id int) (*InstalledApps, error) {
 	model := &InstalledApps{}
 	err := impl.dbConnection.Model(model).
-		Column("installed_apps.*", "App", "Environment").
+		Column("installed_apps.*", "App", "Environment", "App.Team", "Environment.Cluster").
 		Where("installed_apps.id = ?", id).Where("installed_apps.active = true").Select()
 	return model, err
 }
@@ -224,7 +250,7 @@ func (impl InstalledAppRepositoryImpl) GetLatestInstalledAppVersionByGitHash(git
 func (impl InstalledAppRepositoryImpl) GetInstalledAppVersion(id int) (*InstalledAppVersions, error) {
 	model := &InstalledAppVersions{}
 	err := impl.dbConnection.Model(model).
-		Column("installed_app_versions.*", "InstalledApp", "InstalledApp.App", "InstalledApp.Environment", "AppStoreApplicationVersion", "AppStoreApplicationVersion.AppStore").
+		Column("installed_app_versions.*", "InstalledApp", "InstalledApp.App", "InstalledApp.Environment", "AppStoreApplicationVersion", "AppStoreApplicationVersion.AppStore", "InstalledApp.App.Team").
 		Column("AppStoreApplicationVersion.AppStore.ChartRepo").
 		Where("installed_app_versions.id = ?", id).Where("installed_app_versions.active = true").Select()
 	return model, err
@@ -246,7 +272,7 @@ func (impl InstalledAppRepositoryImpl) GetAllInstalledApps(filter *appStoreBean.
 	query = "select iav.updated_on, iav.id as installed_app_version_id, ch.name as chart_repo_name,"
 	query = query + " env.environment_name, env.id as environment_id, a.app_name, a.app_offering_mode, asav.icon, asav.name as app_store_application_name,"
 	query = query + " env.namespace, cluster.cluster_name, a.team_id, cluster.id as cluster_id, "
-	query = query + " asav.id as app_store_application_version_id, ia.id , asav.deprecated"
+	query = query + " asav.id as app_store_application_version_id, ia.id , asav.deprecated , app_status.status as app_status, ia.deployment_app_delete_request"
 	query = query + " from installed_app_versions iav"
 	query = query + " inner join installed_apps ia on iav.installed_app_id = ia.id"
 	query = query + " inner join app a on a.id = ia.app_id"
@@ -255,6 +281,7 @@ func (impl InstalledAppRepositoryImpl) GetAllInstalledApps(filter *appStoreBean.
 	query = query + " inner join app_store_application_version asav on iav.app_store_application_version_id = asav.id"
 	query = query + " inner join app_store aps on aps.id = asav.app_store_id"
 	query = query + " inner join chart_repo ch on ch.id = aps.chart_repo_id"
+	query = query + " left join app_status on app_status.app_id = ia.app_id and ia.environment_id = app_status.env_id"
 	query = query + " where ia.active = true and iav.active = true"
 	if filter.OnlyDeprecated {
 		query = query + " AND asav.deprecated = TRUE"
@@ -274,6 +301,10 @@ func (impl InstalledAppRepositoryImpl) GetAllInstalledApps(filter *appStoreBean.
 	if len(filter.ClusterIds) > 0 {
 		query = query + " AND cluster.id IN (" + sqlIntSeq(filter.ClusterIds) + ")"
 	}
+	if len(filter.AppStatuses) > 0 {
+		appStatuses := util.ProcessAppStatuses(filter.AppStatuses)
+		query = query + " and app_status.status IN (" + appStatuses + ") "
+	}
 	query = query + " ORDER BY aps.name ASC"
 	if filter.Size > 0 {
 		query = query + " OFFSET " + strconv.Itoa(filter.Offset) + " LIMIT " + strconv.Itoa(filter.Size) + ""
@@ -290,7 +321,7 @@ func (impl InstalledAppRepositoryImpl) GetAllInstalledApps(filter *appStoreBean.
 func (impl InstalledAppRepositoryImpl) GetAllIntalledAppsByAppStoreId(appStoreId int) ([]InstalledAppAndEnvDetails, error) {
 	var installedAppAndEnvDetails []InstalledAppAndEnvDetails
 	var queryTemp = "select env.environment_name, env.id as environment_id, a.app_name, a.app_offering_mode, ia.updated_on, u.email_id," +
-		" asav.id as app_store_application_version_id, iav.id as installed_app_version_id, ia.id as installed_app_id, ia.deployment_app_type" +
+		" asav.id as app_store_application_version_id, iav.id as installed_app_version_id, ia.id as installed_app_id, ia.app_id, ia.deployment_app_type" +
 		" from installed_app_versions iav inner join installed_apps ia on iav.installed_app_id = ia.id" +
 		" inner join app a on a.id = ia.app_id " +
 		" inner join app_store_application_version asav on iav.app_store_application_version_id = asav.id " +
@@ -449,7 +480,7 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByClusterIdsV2(clus
 func (impl InstalledAppRepositoryImpl) GetInstalledApplicationByClusterIdAndNamespaceAndAppName(clusterId int, namespace string, appName string) (*InstalledApps, error) {
 	model := &InstalledApps{}
 	err := impl.dbConnection.Model(model).
-		Column("installed_apps.*", "App", "Environment").
+		Column("installed_apps.*", "App", "Environment", "App.Team").
 		Where("environment.cluster_id = ?", clusterId).
 		Where("environment.namespace = ?", namespace).
 		Where("app.app_name = ?", appName).
@@ -482,4 +513,35 @@ func (impl InstalledAppRepositoryImpl) GetDeploymentSuccessfulStatusCountForTele
 		impl.Logger.Errorw("unable to get deployment count of successfully deployed Helm apps")
 	}
 	return count, err
+}
+
+func (impl InstalledAppRepositoryImpl) GetGitOpsInstalledAppsWhereArgoAppDeletedIsTrue(installedAppId int, envId int) (InstalledApps, error) {
+	var installedApps InstalledApps
+	err := impl.dbConnection.Model(&installedApps).
+		Column("installed_apps.*", "App.app_name", "Environment.namespace", "Environment.cluster_id", "Environment.environment_name").
+		Where("deployment_app_delete_request = ?", true).
+		Where("installed_apps.active = ?", true).
+		Where("installed_apps.id = ?", installedAppId).
+		Where("installed_apps.environment_id = ?", envId).
+		Where("deployment_app_type = ?", util2.PIPELINE_DEPLOYMENT_TYPE_ACD).
+		Select()
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("error in fetching pipeline while udating delete status", "err", err)
+		return installedApps, err
+	}
+	return installedApps, nil
+}
+func (impl InstalledAppRepositoryImpl) GetInstalledAppByGitHash(gitHash string) (InstallAppDeleteRequest, error) {
+	model := InstallAppDeleteRequest{}
+	query := "select iv.installed_app_id, a.app_name, i.app_id, i.environment_id, a.app_offering_mode, e.cluster_id, e.namespace " +
+		" from app a inner join installed_apps i on a.id=i.app_id  " +
+		"inner join installed_app_versions iv on i.id=iv.installed_app_id " +
+		"inner join installed_app_version_history ivh on ivh.installed_app_version_id=iv.id " +
+		"inner join environment e on e.id=i.environment_id where ivh.git_hash=?;"
+	_, err := impl.dbConnection.Query(&model, query, gitHash)
+	if err != nil {
+		impl.Logger.Errorw("error in getting delete request data", "err", err)
+		return model, err
+	}
+	return model, nil
 }

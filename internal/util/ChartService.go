@@ -23,11 +23,14 @@ import (
 	"fmt"
 	repository3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/devtron-labs/devtron/api/bean"
 	repository4 "github.com/devtron-labs/devtron/client/argocdServer/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/devtron-labs/devtron/util"
+	"github.com/go-pg/pg"
+	"go.opentelemetry.io/otel"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
@@ -56,12 +59,14 @@ type ChartTemplateService interface {
 	CreateChartProxy(chartMetaData *chart.Metadata, refChartLocation string, templateName string, version string, envName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (string, *ChartGitAttribute, error)
 	GitPull(clonedDir string, repoUrl string, appStoreName string) error
 	GetDir() string
+	CleanDir(dir string)
 	GetUserEmailIdAndNameForGitOpsCommit(userId int32) (emailId, name string)
 	GetGitOpsRepoName(appName string) string
 	GetGitOpsRepoNameFromUrl(gitRepoUrl string) string
 	CreateGitRepositoryForApp(gitOpsRepoName, baseTemplateName, version string, userId int32) (chartGitAttribute *ChartGitAttribute, err error)
+	BuildChart(ctx context.Context, chartMetaData *chart.Metadata, referenceTemplatePath string) (string, error)
+	PushChartToGitRepo(gitOpsRepoName, referenceTemplate, version, tempReferenceTemplateDir string, repoUrl string, userId int32) (err error)
 	RegisterInArgo(chartGitAttribute *ChartGitAttribute, ctx context.Context, allowInsecureTLS bool) error
-	BuildChartAndPushToGitRepo(chartMetaData *chart.Metadata, referenceTemplatePath string, gitOpsRepoName, referenceTemplate, version, repoUrl string, userId int32) error
 	GetByteArrayRefChart(chartMetaData *chart.Metadata, referenceTemplatePath string) ([]byte, error)
 	CreateReadmeInGitRepo(gitOpsRepoName string, userId int32) error
 }
@@ -182,8 +187,7 @@ func (impl ChartTemplateServiceImpl) FetchValuesFromReferenceChart(chartMetaData
 	return values, chartGitAttr, nil
 }
 
-func (impl ChartTemplateServiceImpl) BuildChartAndPushToGitRepo(chartMetaData *chart.Metadata, referenceTemplatePath string, gitOpsRepoName, referenceTemplate, version, repoUrl string, userId int32) error {
-	impl.logger.Debugw("package chart and push to git", "gitOpsRepoName", gitOpsRepoName, "version", version, "referenceTemplate", referenceTemplate, "repoUrl", repoUrl)
+func (impl ChartTemplateServiceImpl) BuildChart(ctx context.Context, chartMetaData *chart.Metadata, referenceTemplatePath string) (string, error) {
 	chartMetaData.ApiVersion = "v1" // ensure always v1
 	dir := impl.GetDir()
 	tempReferenceTemplateDir := filepath.Join(string(impl.chartWorkingDir), dir)
@@ -191,27 +195,22 @@ func (impl ChartTemplateServiceImpl) BuildChartAndPushToGitRepo(chartMetaData *c
 	err := os.MkdirAll(tempReferenceTemplateDir, os.ModePerm) //hack for concurrency handling
 	if err != nil {
 		impl.logger.Errorw("err in creating dir", "dir", tempReferenceTemplateDir, "err", err)
-		return err
+		return "", err
 	}
-	defer impl.CleanDir(tempReferenceTemplateDir)
 	err = dirCopy.Copy(referenceTemplatePath, tempReferenceTemplateDir)
 
 	if err != nil {
 		impl.logger.Errorw("error in copying chart for app", "app", chartMetaData.Name, "error", err)
-		return err
+		return "", err
 	}
+	_, span := otel.Tracer("orchestrator").Start(ctx, "impl.packageChart")
 	_, _, err = impl.packageChart(tempReferenceTemplateDir, chartMetaData)
+	span.End()
 	if err != nil {
 		impl.logger.Errorw("error in creating archive", "err", err)
-		return err
+		return "", err
 	}
-
-	err = impl.pushChartToGitRepo(gitOpsRepoName, referenceTemplate, version, tempReferenceTemplateDir, repoUrl, userId)
-	if err != nil {
-		impl.logger.Errorw("error in pushing chart to git ", "err", err)
-		return err
-	}
-	return nil
+	return tempReferenceTemplateDir, nil
 }
 
 type ChartGitAttribute struct {
@@ -223,9 +222,25 @@ func (impl ChartTemplateServiceImpl) CreateGitRepositoryForApp(gitOpsRepoName, b
 	space := regexp.MustCompile(`\s+`)
 	gitOpsRepoName = space.ReplaceAllString(gitOpsRepoName, "-")
 
+	gitOpsConfigBitbucket, err := impl.gitOpsConfigRepository.GetGitOpsConfigByProvider(BITBUCKET_PROVIDER)
+	if err != nil {
+		if err == pg.ErrNoRows {
+			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
+		} else {
+			return nil, err
+		}
+	}
 	//getting user name & emailId for commit author data
 	userEmailId, userName := impl.GetUserEmailIdAndNameForGitOpsCommit(userId)
-	repoUrl, _, detailedError := impl.gitFactory.Client.CreateRepository(gitOpsRepoName, fmt.Sprintf("helm chart for "+gitOpsRepoName), userName, userEmailId)
+	gitRepoRequest := &bean.GitOpsConfigDto{
+		GitRepoName:          gitOpsRepoName,
+		Description:          fmt.Sprintf("helm chart for " + gitOpsRepoName),
+		Username:             userName,
+		UserEmailId:          userEmailId,
+		BitBucketWorkspaceId: gitOpsConfigBitbucket.BitBucketWorkspaceId,
+		BitBucketProjectKey:  gitOpsConfigBitbucket.BitBucketProjectKey,
+	}
+	repoUrl, _, detailedError := impl.gitFactory.Client.CreateRepository(gitRepoRequest)
 	for _, err := range detailedError.StageErrorMap {
 		if err != nil {
 			impl.logger.Errorw("error in creating git project", "name", gitOpsRepoName, "err", err)
@@ -235,7 +250,7 @@ func (impl ChartTemplateServiceImpl) CreateGitRepositoryForApp(gitOpsRepoName, b
 	return &ChartGitAttribute{RepoUrl: repoUrl, ChartLocation: filepath.Join(baseTemplateName, version)}, nil
 }
 
-func (impl ChartTemplateServiceImpl) pushChartToGitRepo(gitOpsRepoName, referenceTemplate, version, tempReferenceTemplateDir string, repoUrl string, userId int32) (err error) {
+func (impl ChartTemplateServiceImpl) PushChartToGitRepo(gitOpsRepoName, referenceTemplate, version, tempReferenceTemplateDir string, repoUrl string, userId int32) (err error) {
 	chartDir := fmt.Sprintf("%s-%s", gitOpsRepoName, impl.GetDir())
 	clonedDir := impl.gitFactory.gitService.GetCloneDirectory(chartDir)
 	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
@@ -488,9 +503,25 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 		gitOpsRepoName := impl.GetGitOpsRepoName(installAppVersionRequest.AppName)
 		installAppVersionRequest.GitOpsRepoName = gitOpsRepoName
 	}
+	gitOpsConfigBitbucket, err := impl.gitOpsConfigRepository.GetGitOpsConfigByProvider(BITBUCKET_PROVIDER)
+	if err != nil {
+		if err == pg.ErrNoRows {
+			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
+		} else {
+			return nil, err
+		}
+	}
 	//getting user name & emailId for commit author data
 	userEmailId, userName := impl.GetUserEmailIdAndNameForGitOpsCommit(installAppVersionRequest.UserId)
-	repoUrl, _, detailedError := impl.gitFactory.Client.CreateRepository(installAppVersionRequest.GitOpsRepoName, "helm chart for "+installAppVersionRequest.GitOpsRepoName, userName, userEmailId)
+	gitRepoRequest := &bean.GitOpsConfigDto{
+		GitRepoName:          installAppVersionRequest.GitOpsRepoName,
+		Description:          "helm chart for " + installAppVersionRequest.GitOpsRepoName,
+		Username:             userName,
+		UserEmailId:          userEmailId,
+		BitBucketWorkspaceId: gitOpsConfigBitbucket.BitBucketWorkspaceId,
+		BitBucketProjectKey:  gitOpsConfigBitbucket.BitBucketProjectKey,
+	}
+	repoUrl, _, detailedError := impl.gitFactory.Client.CreateRepository(gitRepoRequest)
 	for _, err := range detailedError.StageErrorMap {
 		if err != nil {
 			impl.logger.Errorw("error in creating git project", "name", installAppVersionRequest.GitOpsRepoName, "err", err)
@@ -642,7 +673,14 @@ func (impl ChartTemplateServiceImpl) GetByteArrayRefChart(chartMetaData *chart.M
 
 func (impl ChartTemplateServiceImpl) CreateReadmeInGitRepo(gitOpsRepoName string, userId int32) error {
 	userEmailId, userName := impl.GetUserEmailIdAndNameForGitOpsCommit(userId)
-	_, err := impl.gitFactory.Client.CreateReadme(gitOpsRepoName, userName, userEmailId)
+	gitOpsConfig, err := impl.gitOpsConfigRepository.GetGitOpsConfigActive()
+	config := &bean.GitOpsConfigDto{
+		Username:             userName,
+		UserEmailId:          userEmailId,
+		GitRepoName:          gitOpsRepoName,
+		BitBucketWorkspaceId: gitOpsConfig.BitBucketWorkspaceId,
+	}
+	_, err = impl.gitFactory.Client.CreateReadme(config)
 	if err != nil {
 		return err
 	}

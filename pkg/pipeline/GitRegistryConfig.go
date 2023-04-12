@@ -126,7 +126,7 @@ func (impl GitRegistryConfigImpl) Create(request *GitRegistry) (*GitRegistry, er
 	return request, nil
 }
 
-//get all active git providers
+// get all active git providers
 func (impl GitRegistryConfigImpl) GetAll() ([]GitRegistry, error) {
 	impl.logger.Debug("get all provider request")
 	providers, err := impl.gitProviderRepo.FindAllActiveForAutocomplete()
@@ -162,10 +162,10 @@ func (impl GitRegistryConfigImpl) FetchAllGitProviders() ([]GitRegistry, error) 
 			Name:          provider.Name,
 			Url:           provider.Url,
 			UserName:      provider.UserName,
-			Password:      provider.Password,
+			Password:      "",
 			AuthMode:      provider.AuthMode,
-			AccessToken:   provider.AccessToken,
-			SshPrivateKey: provider.SshPrivateKey,
+			AccessToken:   "",
+			SshPrivateKey: "",
 			Active:        provider.Active,
 			UserId:        provider.CreatedBy,
 			GitHostId:     provider.GitHostId,
@@ -226,6 +226,15 @@ func (impl GitRegistryConfigImpl) Update(request *GitRegistry) (*GitRegistry, er
 		}
 		return nil, err0
 	}
+	if request.Password == "" {
+		request.Password = existingProvider.Password
+	}
+	if request.SshPrivateKey == "" {
+		request.SshPrivateKey = existingProvider.SshPrivateKey
+	}
+	if request.AccessToken == "" {
+		request.AccessToken = existingProvider.AccessToken
+	}
 	provider := &repository.GitProvider{
 		Name:          request.Name,
 		Url:           request.Url,
@@ -264,19 +273,19 @@ func (impl GitRegistryConfigImpl) Update(request *GitRegistry) (*GitRegistry, er
 	return request, nil
 }
 
-func (impl GitRegistryConfigImpl) Delete(request *GitRegistry) error{
+func (impl GitRegistryConfigImpl) Delete(request *GitRegistry) error {
 	providerId := strconv.Itoa(request.Id)
 	gitProviderConfig, err := impl.gitProviderRepo.FindOne(providerId)
-	if err != nil{
-		impl.logger.Errorw("No matching entry found for delete.", "id", request.Id, "err",err)
+	if err != nil {
+		impl.logger.Errorw("No matching entry found for delete.", "id", request.Id, "err", err)
 		return err
 	}
 	deleteReq := gitProviderConfig
 	deleteReq.UpdatedOn = time.Now()
 	deleteReq.UpdatedBy = request.UserId
 	err = impl.gitProviderRepo.MarkProviderDeleted(&deleteReq)
-	if err != nil{
-		impl.logger.Errorw("err in deleting git account", "id", request.Id,"err",err)
+	if err != nil {
+		impl.logger.Errorw("err in deleting git account", "id", request.Id, "err", err)
 		return err
 	}
 	deleteReq.Active = false

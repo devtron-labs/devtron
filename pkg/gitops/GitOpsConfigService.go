@@ -137,6 +137,18 @@ func (impl *GitOpsConfigServiceImpl) ValidateAndCreateGitOpsConfig(config *bean2
 	return detailedErrorGitOpsConfigResponse, nil
 }
 func (impl *GitOpsConfigServiceImpl) ValidateAndUpdateGitOpsConfig(config *bean2.GitOpsConfigDto) (DetailedErrorGitOpsConfigResponse, error) {
+	if config.Token == "" {
+		model, err := impl.gitOpsRepository.GetGitOpsConfigById(config.Id)
+		if err != nil {
+			impl.logger.Errorw("No matching entry found for update.", "id", config.Id)
+			err = &util.ApiError{
+				InternalMessage: "gitops config update failed, does not exist",
+				UserMessage:     "gitops config update failed, does not exist",
+			}
+			return DetailedErrorGitOpsConfigResponse{}, err
+		}
+		config.Token = model.Token
+	}
 	detailedErrorGitOpsConfigResponse := impl.GitOpsValidateDryRun(config)
 	if len(detailedErrorGitOpsConfigResponse.StageErrorMap) == 0 {
 		err := impl.UpdateGitOpsConfig(config)
@@ -566,7 +578,7 @@ func (impl *GitOpsConfigServiceImpl) GetAllGitOpsConfig() ([]*bean2.GitOpsConfig
 			GitHubOrgId:          model.GitHubOrgId,
 			GitLabGroupId:        model.GitLabGroupId,
 			Username:             model.Username,
-			Token:                model.Token,
+			Token:                "",
 			Host:                 model.Host,
 			Active:               model.Active,
 			UserId:               model.CreatedBy,
@@ -683,6 +695,18 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigActive() (*bean2.GitOpsConfi
 }
 
 func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsConfigDto) DetailedErrorGitOpsConfigResponse {
+	if config.Token == "" {
+		model, err := impl.gitOpsRepository.GetGitOpsConfigById(config.Id)
+		if err != nil {
+			impl.logger.Errorw("No matching entry found for update.", "id", config.Id)
+			err = &util.ApiError{
+				InternalMessage: "gitops config update failed, does not exist",
+				UserMessage:     "gitops config update failed, does not exist",
+			}
+			return DetailedErrorGitOpsConfigResponse{}
+		}
+		config.Token = model.Token
+	}
 	detailedErrorGitOpsConfigActions := util.DetailedErrorGitOpsConfigActions{}
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 	/*if strings.ToUpper(config.Provider) == GITHUB_PROVIDER {
@@ -703,7 +727,9 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsCo
 	appName := DryrunRepoName + util2.Generate(6)
 	//getting username & emailId for commit author data
 	userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(config.UserId)
-	repoUrl, _, detailedErrorCreateRepo := client.CreateRepository(appName, "sample dry-run repo", userName, userEmailId)
+	config.UserEmailId = userEmailId
+	config.GitRepoName = appName
+	repoUrl, _, detailedErrorCreateRepo := client.CreateRepository(config)
 
 	detailedErrorGitOpsConfigActions.StageErrorMap = detailedErrorCreateRepo.StageErrorMap
 	detailedErrorGitOpsConfigActions.SuccessfulStages = detailedErrorCreateRepo.SuccessfulStages
@@ -748,7 +774,7 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsCo
 		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CommitOnRestStage, PushStage)
 	}
 
-	err = client.DeleteRepository(appName)
+	err = client.DeleteRepository(config)
 	if err != nil {
 		impl.logger.Errorw("error in deleting repo", "err", err)
 		//here below the assignment of delete is removed for making this stage optional, and it's failure not preventing it from saving/updating gitOps config

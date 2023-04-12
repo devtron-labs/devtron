@@ -20,6 +20,7 @@ package bean
 import (
 	"encoding/json"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"time"
 )
 
 type AppContainer struct {
@@ -34,6 +35,11 @@ type AppContainerResponse struct {
 	AppContainers      []*AppContainer    `json:"appContainers"`
 	AppCount           int                `json:"appCount"`
 	DeploymentGroupDTO DeploymentGroupDTO `json:"deploymentGroup,omitempty"`
+}
+
+type JobContainerResponse struct {
+	JobContainers []*JobContainer `json:"jobContainers"`
+	JobCount      int             `json:"jobCount"`
 }
 
 type DeploymentGroupDTO struct {
@@ -52,6 +58,36 @@ type CiMaterialDTO struct {
 	SourceValue string `json:"value"`
 }
 
+type JobContainer struct {
+	JobId          int             `json:"jobId"`
+	JobName        string          `json:"jobName""`
+	Description    string          `json:"description"`
+	JobCiPipelines []JobCIPipeline `json:"ciPipelines"'`
+}
+
+type JobCIPipeline struct {
+	CiPipelineId   int       `json:"ciPipelineId"`
+	CiPipelineName string    `json:"ciPipelineName"`
+	Status         string    `json:"status"`
+	LastRunAt      time.Time `json:"lastRunAt"`
+	LastSuccessAt  time.Time `json:"lastSuccessAt"`
+}
+
+type JobListingContainer struct {
+	JobId          int       `json:"job_id"`
+	JobName        string    `json:"job_name"`
+	Description    string    `json:"description"`
+	CiPipelineID   int       `json:"ci_pipeline_id"`
+	CiPipelineName string    `json:"ci_pipeline_name"`
+	Status         string    `json:"status"`
+	StartedOn      time.Time `json:"started_on"`
+}
+
+type CiPipelineLastSucceededTime struct {
+	CiPipelineID    int       `json:"ci_pipeline_id"`
+	LastSucceededOn time.Time `json:"last_succeeded_on"`
+}
+
 type AppEnvironmentContainer struct {
 	AppId                       int                       `json:"appId"`
 	AppName                     string                    `json:"appName"`
@@ -62,6 +98,7 @@ type AppEnvironmentContainer struct {
 	DeploymentCounter           int                       `json:"deploymentCounter,omitempty"`
 	InstanceCounter             int                       `json:"instanceCounter,omitempty"`
 	Status                      string                    `json:"status"`
+	AppStatus                   string                    `json:"appStatus"`
 	CdStageStatus               *string                   `json:"cdStageStatus"`
 	PreStageStatus              *string                   `json:"preStageStatus"`
 	PostStageStatus             *string                   `json:"postStageStatus"`
@@ -112,6 +149,7 @@ type DeploymentDetailContainer struct {
 	ClusterName                   string          `json:"clusterName,omitempty"`
 	DockerRegistryId              string          `json:"dockerRegistryId,omitempty"`
 	IpsAccessProvided             bool            `json:"ipsAccessProvided"`
+	DeploymentAppDeleteRequest    bool            `json:"deploymentAppDeleteRequest"`
 }
 
 type AppDetailContainer struct {
@@ -120,16 +158,22 @@ type AppDetailContainer struct {
 	Environments              []Environment          `json:"otherEnvironment,omitempty"`
 	LinkOuts                  []LinkOuts             `json:"linkOuts,omitempty"`
 	ResourceTree              map[string]interface{} `json:"resourceTree,omitempty"`
+	Notes                     string                 `json:"notes,omitempty"`
+}
+type Notes struct {
+	Notes string `json:"gitOpsNotes,omitempty"`
 }
 
 type Environment struct {
-	EnvironmentId   int    `json:"environmentId"`
-	EnvironmentName string `json:"environmentName"`
-	AppMetrics      *bool  `json:"appMetrics"`
-	InfraMetrics    *bool  `json:"infraMetrics"`
-	Prod            bool   `json:"prod"`
-	ChartRefId      int    `json:"chartRefId"`
-	LastDeployed    string `json:"lastDeployed"`
+	AppStatus                  string `json:"appStatus"` //this is not the status of environment , this make sense with a specific app only
+	EnvironmentId              int    `json:"environmentId"`
+	EnvironmentName            string `json:"environmentName"`
+	AppMetrics                 *bool  `json:"appMetrics"`
+	InfraMetrics               *bool  `json:"infraMetrics"`
+	Prod                       bool   `json:"prod"`
+	ChartRefId                 int    `json:"chartRefId"`
+	LastDeployed               string `json:"lastDeployed"`
+	DeploymentAppDeleteRequest bool   `json:"deploymentAppDeleteRequest"`
 }
 
 type InstanceDetail struct {

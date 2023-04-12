@@ -113,7 +113,7 @@ type Manifests struct {
 }
 
 type ServiceClientImpl struct {
-	logger        *zap.SugaredLogger
+	logger                  *zap.SugaredLogger
 	argoCDConnectionManager argocdServer.ArgoCDConnectionManager
 }
 
@@ -121,7 +121,7 @@ func NewApplicationClientImpl(
 	logger *zap.SugaredLogger, argoCDConnectionManager argocdServer.ArgoCDConnectionManager,
 ) *ServiceClientImpl {
 	return &ServiceClientImpl{
-		logger:        logger,
+		logger:                  logger,
 		argoCDConnectionManager: argoCDConnectionManager,
 	}
 }
@@ -366,6 +366,7 @@ func (c ServiceClientImpl) Create(ctxt context.Context, query *application.Appli
 }
 
 func (c ServiceClientImpl) ResourceTree(ctxt context.Context, query *application.ResourcesQuery) (*ResourceTreeResponse, error) {
+	//all the apps deployed via argo are fetching status from here
 	ctx, cancel := context.WithTimeout(ctxt, TimeoutSlow)
 	defer cancel()
 	token, ok := ctxt.Value("token").(string)

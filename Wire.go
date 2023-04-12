@@ -22,6 +22,7 @@ package main
 
 import (
 	"github.com/devtron-labs/authenticator/middleware"
+	pubsub1 "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/apiToken"
 	appStoreRestHandler "github.com/devtron-labs/devtron/api/appStore"
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
@@ -58,10 +59,10 @@ import (
 	"github.com/devtron-labs/devtron/client/grafana"
 	jClient "github.com/devtron-labs/devtron/client/jira"
 	"github.com/devtron-labs/devtron/client/lens"
-	pubsub2 "github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
+	appStatusRepo "github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/bulkUpdate"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
@@ -74,6 +75,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appClone"
 	"github.com/devtron-labs/devtron/pkg/appClone/batch"
+	"github.com/devtron-labs/devtron/pkg/appStatus"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
@@ -91,6 +93,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/git"
 	"github.com/devtron-labs/devtron/pkg/gitops"
 	jira2 "github.com/devtron-labs/devtron/pkg/jira"
+	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
+	repository7 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/notifier"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	history3 "github.com/devtron-labs/devtron/pkg/pipeline/history"
@@ -169,7 +173,7 @@ func InitializeApp() (*App, error) {
 
 		restHandler.NewPipelineRestHandler,
 		wire.Bind(new(restHandler.PipelineTriggerRestHandler), new(*restHandler.PipelineTriggerRestHandlerImpl)),
-
+		app.GetAppServiceConfig,
 		app.NewAppService,
 		wire.Bind(new(app.AppService), new(*app.AppServiceImpl)),
 
@@ -243,6 +247,9 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(app.AppListingService), new(*app.AppListingServiceImpl)),
 		repository.NewAppListingRepositoryImpl,
 		wire.Bind(new(repository.AppListingRepository), new(*repository.AppListingRepositoryImpl)),
+
+		router.NewJobRouterImpl,
+		wire.Bind(new(router.JobRouter), new(*router.JobRouterImpl)),
 
 		pipelineConfig.NewPipelineRepositoryImpl,
 		wire.Bind(new(pipelineConfig.PipelineRepository), new(*pipelineConfig.PipelineRepositoryImpl)),
@@ -334,6 +341,8 @@ func InitializeApp() (*App, error) {
 		//ArgoUtil.NewClusterServiceImpl,
 		//wire.Bind(new(ArgoUtil.ClusterService), new(ArgoUtil.ClusterServiceImpl)),
 		pipeline.GetEcrConfig,
+		//otel.NewOtelTracingServiceImpl,
+		//wire.Bind(new(otel.OtelTracingService), new(*otel.OtelTracingServiceImpl)),
 		NewApp,
 		//session.NewK8sClient,
 
@@ -393,7 +402,7 @@ func InitializeApp() (*App, error) {
 		pipeline.NewCiLogServiceImpl,
 		wire.Bind(new(pipeline.CiLogService), new(*pipeline.CiLogServiceImpl)),
 
-		pubsub2.NewPubSubClient,
+		pubsub1.NewPubSubClientServiceImpl,
 
 		pubsub.NewGitWebhookHandler,
 		wire.Bind(new(pubsub.GitWebhookHandler), new(*pubsub.GitWebhookHandlerImpl)),
@@ -401,9 +410,10 @@ func InitializeApp() (*App, error) {
 		pubsub.NewWorkflowStatusUpdateHandlerImpl,
 		wire.Bind(new(pubsub.WorkflowStatusUpdateHandler), new(*pubsub.WorkflowStatusUpdateHandlerImpl)),
 
-		pubsub.NewApplicationStatusUpdateHandlerImpl,
-		wire.Bind(new(pubsub.ApplicationStatusUpdateHandler), new(*pubsub.ApplicationStatusUpdateHandlerImpl)),
+		pubsub.NewApplicationStatusHandlerImpl,
+		wire.Bind(new(pubsub.ApplicationStatusHandler), new(*pubsub.ApplicationStatusHandlerImpl)),
 
+		pubsub.GetCiEventConfig,
 		pubsub.NewCiEventHandlerImpl,
 		wire.Bind(new(pubsub.CiEventHandler), new(*pubsub.CiEventHandlerImpl)),
 
@@ -514,8 +524,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(repository.DeploymentGroupAppRepository), new(*repository.DeploymentGroupAppRepositoryImpl)),
 		restHandler.NewPubSubClientRestHandlerImpl,
 		wire.Bind(new(restHandler.PubSubClientRestHandler), new(*restHandler.PubSubClientRestHandlerImpl)),
-		pubsub2.NewNatsPublishClientImpl,
-		wire.Bind(new(pubsub2.NatsPublishClient), new(*pubsub2.NatsPublishClientImpl)),
 
 		//Batch actions
 		batch.NewWorkflowActionImpl,
@@ -655,7 +663,7 @@ func InitializeApp() (*App, error) {
 		router.NewAppRouterImpl,
 		wire.Bind(new(router.AppRouter), new(*router.AppRouterImpl)),
 		restHandler.NewAppRestHandlerImpl,
-		wire.Bind(new(restHandler.AppRestHandlerHandler), new(*restHandler.AppRestHandlerImpl)),
+		wire.Bind(new(restHandler.AppRestHandler), new(*restHandler.AppRestHandlerImpl)),
 
 		app.NewAppCrudOperationServiceImpl,
 		wire.Bind(new(app.AppCrudOperationService), new(*app.AppCrudOperationServiceImpl)),
@@ -745,14 +753,20 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(argo.ArgoUserService), new(*argo.ArgoUserServiceImpl)),
 		util2.GetDevtronSecretName,
 		//	AuthWireSet,
-		cron.GetAppStatusConfig,
+
 		cron.NewCdApplicationStatusUpdateHandlerImpl,
 		wire.Bind(new(cron.CdApplicationStatusUpdateHandler), new(*cron.CdApplicationStatusUpdateHandlerImpl)),
+
+		//app_status
+		appStatusRepo.NewAppStatusRepositoryImpl,
+		wire.Bind(new(appStatusRepo.AppStatusRepository), new(*appStatusRepo.AppStatusRepositoryImpl)),
+		appStatus.NewAppStatusServiceImpl,
+		wire.Bind(new(appStatus.AppStatusService), new(*appStatus.AppStatusServiceImpl)),
+		//app_status ends
 
 		cron.GetCiWorkflowStatusUpdateConfig,
 		cron.NewCiStatusUpdateCronImpl,
 		wire.Bind(new(cron.CiStatusUpdateCron), new(*cron.CiStatusUpdateCronImpl)),
-
 
 		restHandler.NewPipelineStatusTimelineRestHandlerImpl,
 		wire.Bind(new(restHandler.PipelineStatusTimelineRestHandler), new(*restHandler.PipelineStatusTimelineRestHandlerImpl)),
@@ -793,6 +807,25 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(chartRepoRepository.GlobalStrategyMetadataRepository), new(*chartRepoRepository.GlobalStrategyMetadataRepositoryImpl)),
 		chartRepoRepository.NewGlobalStrategyMetadataChartRefMappingRepositoryImpl,
 		wire.Bind(new(chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepository), new(*chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepositoryImpl)),
+
+		app.NewPipelineStatusTimelineResourcesServiceImpl,
+		wire.Bind(new(app.PipelineStatusTimelineResourcesService), new(*app.PipelineStatusTimelineResourcesServiceImpl)),
+		pipelineConfig.NewPipelineStatusTimelineResourcesRepositoryImpl,
+		wire.Bind(new(pipelineConfig.PipelineStatusTimelineResourcesRepository), new(*pipelineConfig.PipelineStatusTimelineResourcesRepositoryImpl)),
+
+		app.NewPipelineStatusSyncDetailServiceImpl,
+		wire.Bind(new(app.PipelineStatusSyncDetailService), new(*app.PipelineStatusSyncDetailServiceImpl)),
+		pipelineConfig.NewPipelineStatusSyncDetailRepositoryImpl,
+		wire.Bind(new(pipelineConfig.PipelineStatusSyncDetailRepository), new(*pipelineConfig.PipelineStatusSyncDetailRepositoryImpl)),
+
+		repository7.NewK8sResourceHistoryRepositoryImpl,
+		wire.Bind(new(repository7.K8sResourceHistoryRepository), new(*repository7.K8sResourceHistoryRepositoryImpl)),
+
+		kubernetesResourceAuditLogs.Newk8sResourceHistoryServiceImpl,
+		wire.Bind(new(kubernetesResourceAuditLogs.K8sResourceHistoryService), new(*kubernetesResourceAuditLogs.K8sResourceHistoryServiceImpl)),
+
+		router.NewAppGroupingRouterImpl,
+		wire.Bind(new(router.AppGroupingRouter), new(*router.AppGroupingRouterImpl)),
 	)
 	return &App{}, nil
 }

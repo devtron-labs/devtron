@@ -44,7 +44,7 @@ import (
 
 type ChartRepositoryService interface {
 	CreateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error)
-	UpdateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error)
+	UpdateDataInArgocdCm(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error)
 	GetChartRepoById(id int) (*ChartRepoDto, error)
 	GetChartRepoByName(name string) (*ChartRepoDto, error)
 	GetChartRepoList() ([]*ChartRepoDto, error)
@@ -52,7 +52,7 @@ type ChartRepositoryService interface {
 	ValidateAndCreateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error, *DetailedErrorHelmRepoValidation)
 	ValidateAndUpdateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error, *DetailedErrorHelmRepoValidation)
 	TriggerChartSyncManual() error
-	DeleteChartRepo(request *ChartRepoDto) error
+	DeleteChartRepoFromArgocdCM(request *ChartRepoDto) error
 }
 
 type ChartRepositoryServiceImpl struct {
@@ -127,7 +127,11 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 		if err != nil {
 			return nil, err
 		}
-		data := impl.updateData(cm.Data, request)
+		data, err := impl.updateRepoData(cm.Data, request)
+		if err != nil {
+			impl.logger.Warnw(" config map update failed", "err", err)
+			continue
+		}
 		cm.Data = data
 		_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
 		if err != nil {
@@ -148,7 +152,7 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 	return chartRepo, nil
 }
 
-func (impl *ChartRepositoryServiceImpl) UpdateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error) {
+func (impl *ChartRepositoryServiceImpl) UpdateDataInArgocdCm(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error) {
 	dbConnection := impl.repoRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -156,22 +160,24 @@ func (impl *ChartRepositoryServiceImpl) UpdateChartRepo(request *ChartRepoDto) (
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-
 	chartRepo, err := impl.repoRepository.FindById(request.Id)
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
 	}
+	previousName := chartRepo.Name
 
 	chartRepo.Url = request.Url
+	chartRepo.Name = request.Name
 	chartRepo.AuthMode = request.AuthMode
 	chartRepo.UserName = request.UserName
 	chartRepo.Password = request.Password
-	chartRepo.Active = request.Active
+	chartRepo.Name = request.Name
 	chartRepo.AccessToken = request.AccessToken
 	chartRepo.SshKey = request.SshKey
 	chartRepo.Active = request.Active
 	chartRepo.UpdatedBy = request.UserId
 	chartRepo.UpdatedOn = time.Now()
+	//}
 	err = impl.repoRepository.Update(chartRepo, tx)
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
@@ -186,7 +192,6 @@ func (impl *ChartRepositoryServiceImpl) UpdateChartRepo(request *ChartRepoDto) (
 	if err != nil {
 		return nil, err
 	}
-
 	client, err := impl.K8sUtil.GetClient(cfg)
 	if err != nil {
 		return nil, err
@@ -200,7 +205,18 @@ func (impl *ChartRepositoryServiceImpl) UpdateChartRepo(request *ChartRepoDto) (
 		if err != nil {
 			return nil, err
 		}
-		data := impl.updateData(cm.Data, request)
+		var data map[string]string
+		// if the repo name has been updated then, create a new repo
+		data, err = impl.updateRepoData(cm.Data, request)
+		// if the repo name has been updated then, delete the previous repo
+		if previousName != request.Name {
+			data, err = impl.removeRepoData(cm.Data, previousName)
+		}
+		if err != nil {
+			impl.logger.Warnw(" config map update failed", "err", err)
+			continue
+		}
+
 		cm.Data = data
 		_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
 		if err != nil {
@@ -221,6 +237,88 @@ func (impl *ChartRepositoryServiceImpl) UpdateChartRepo(request *ChartRepoDto) (
 	}
 
 	return chartRepo, nil
+}
+
+// DeleteChartRepoFromArgocdCM update the active state from DB and modify the argo-cm with repo URL to null
+func (impl *ChartRepositoryServiceImpl) DeleteChartRepoFromArgocdCM(request *ChartRepoDto) error {
+	dbConnection := impl.repoRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		impl.logger.Errorw("error in establishing db connection, DeleteChartRepo", "err", err)
+		return err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+
+	chartRepo, err := impl.repoRepository.FindById(request.Id)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.logger.Errorw("error in finding chart repo by id", "err", err, "id", request.Id)
+		return err
+	}
+	chartRepo.Url = request.Url
+	chartRepo.AuthMode = request.AuthMode
+	chartRepo.UserName = request.UserName
+	chartRepo.Password = request.Password
+	chartRepo.Active = request.Active
+	chartRepo.AccessToken = request.AccessToken
+	chartRepo.SshKey = request.SshKey
+	chartRepo.Active = request.Active
+	chartRepo.UpdatedBy = request.UserId
+	chartRepo.UpdatedOn = time.Now()
+	err = impl.repoRepository.MarkChartRepoDeleted(chartRepo, tx)
+	if err != nil {
+		impl.logger.Errorw("error in deleting chart repo", "err", err)
+		return err
+	}
+
+	// modify configmap
+	clusterBean, err := impl.clusterService.FindOne(cluster.DefaultClusterName)
+	if err != nil {
+		return err
+	}
+	cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
+	if err != nil {
+		return err
+	}
+	client, err := impl.K8sUtil.GetClient(cfg)
+	if err != nil {
+		return err
+	}
+	updateSuccess := false
+	retryCount := 0
+	//request.Url = ""
+	for !updateSuccess && retryCount < 3 {
+		retryCount = retryCount + 1
+
+		cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
+		if err != nil {
+			return err
+		}
+		data, err := impl.removeRepoData(cm.Data, request.Name)
+		if err != nil {
+			impl.logger.Warnw(" config map update failed", "err", err)
+			continue
+		}
+		cm.Data = data
+		_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+		if err != nil {
+			impl.logger.Warnw(" config map failed", "err", err)
+			continue
+		}
+		if err == nil {
+			impl.logger.Warnw(" config map apply succeeded", "on retryCount", retryCount)
+			updateSuccess = true
+		}
+	}
+	if !updateSuccess {
+		return fmt.Errorf("resouce version not matched with config map attempted 3 times")
+	}
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error in tx commit, DeleteChartRepo", "err", err)
+		return err
+	}
+	return nil
 }
 
 func (impl *ChartRepositoryServiceImpl) GetChartRepoById(id int) (*ChartRepoDto, error) {
@@ -258,7 +356,7 @@ func (impl *ChartRepositoryServiceImpl) convertFromDbResponse(model *chartRepoRe
 
 func (impl *ChartRepositoryServiceImpl) GetChartRepoList() ([]*ChartRepoDto, error) {
 	var chartRepos []*ChartRepoDto
-	models, err := impl.repoRepository.FindAll()
+	models, err := impl.repoRepository.FindAllWithDeploymentCount()
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
 	}
@@ -274,6 +372,10 @@ func (impl *ChartRepositoryServiceImpl) GetChartRepoList() ([]*ChartRepoDto, err
 		chartRepo.AccessToken = model.AccessToken
 		chartRepo.Default = model.Default
 		chartRepo.Active = model.Active
+		chartRepo.IsEditable = true
+		if model.ActiveDeploymentCount > 0 {
+			chartRepo.IsEditable = false
+		}
 		chartRepos = append(chartRepos, chartRepo)
 	}
 	return chartRepos, nil
@@ -353,7 +455,7 @@ func (impl *ChartRepositoryServiceImpl) ValidateAndUpdateChartRepo(request *Char
 	if validationResult.CustomErrMsg != ValidationSuccessMsg {
 		return nil, nil, validationResult
 	}
-	chartRepo, err := impl.UpdateChartRepo(request)
+	chartRepo, err := impl.UpdateDataInArgocdCm(request)
 	if err != nil {
 		return nil, err, validationResult
 	}
@@ -364,7 +466,7 @@ func (impl *ChartRepositoryServiceImpl) ValidateAndUpdateChartRepo(request *Char
 		impl.logger.Errorw("Error in triggering chart sync job manually", "err", err)
 	}
 
-	return chartRepo, err, validationResult
+	return chartRepo, nil, validationResult
 }
 
 func (impl *ChartRepositoryServiceImpl) TriggerChartSyncManual() error {
@@ -461,25 +563,30 @@ func (impl *ChartRepositoryServiceImpl) createRepoElement(request *ChartRepoDto)
 	return repoData
 }
 
-func (impl *ChartRepositoryServiceImpl) updateData(data map[string]string, request *ChartRepoDto) map[string]string {
+// updateRepoData update the request field in the argo-cm
+func (impl *ChartRepositoryServiceImpl) updateRepoData(data map[string]string, request *ChartRepoDto) (map[string]string, error) {
 	helmRepoStr := data["helm.repositories"]
 	helmRepoByte, err := yaml.YAMLToJSON([]byte(helmRepoStr))
 	if err != nil {
-		panic(err)
+		impl.logger.Errorw("error in json patch", "err", err)
+		return nil, err
 	}
 	var helmRepositories []*AcdConfigMapRepositoriesDto
 	err = json.Unmarshal(helmRepoByte, &helmRepositories)
 	if err != nil {
-		panic(err)
+		impl.logger.Errorw("error in unmarshal", "err", err)
+		return nil, err
 	}
 
 	rb, err := json.Marshal(helmRepositories)
 	if err != nil {
-		panic(err)
+		impl.logger.Errorw("error in marshal", "err", err)
+		return nil, err
 	}
 	helmRepositoriesYamlByte, err := yaml.JSONToYAML(rb)
 	if err != nil {
-		panic(err)
+		impl.logger.Errorw("error in yaml patch", "err", err)
+		return nil, err
 	}
 
 	//SETUP for repositories
@@ -487,16 +594,18 @@ func (impl *ChartRepositoryServiceImpl) updateData(data map[string]string, reque
 	repoStr := data["repositories"]
 	repoByte, err := yaml.YAMLToJSON([]byte(repoStr))
 	if err != nil {
-		panic(err)
+		impl.logger.Errorw("error in json patch", "err", err)
+		return nil, err
 	}
 	err = json.Unmarshal(repoByte, &repositories)
 	if err != nil {
-		panic(err)
+		impl.logger.Errorw("error in unmarshal", "err", err)
+		return nil, err
 	}
 
 	found := false
 	for _, item := range repositories {
-		//if request chart repo found, than update its values
+		//if request chart repo found, then update its values
 		if item.Name == request.Name {
 			if request.AuthMode == repository.AUTH_MODE_USERNAME_PASSWORD {
 				usernameSecret := &KeyDto{Name: request.UserName, Key: "username"}
@@ -522,11 +631,13 @@ func (impl *ChartRepositoryServiceImpl) updateData(data map[string]string, reque
 
 	rb, err = json.Marshal(repositories)
 	if err != nil {
-		panic(err)
+		impl.logger.Errorw("error in marshal", "err", err)
+		return nil, err
 	}
 	repositoriesYamlByte, err := yaml.JSONToYAML(rb)
 	if err != nil {
-		panic(err)
+		impl.logger.Errorw("error in yaml patch", "err", err)
+		return nil, err
 	}
 
 	if len(helmRepositoriesYamlByte) > 0 {
@@ -538,44 +649,84 @@ func (impl *ChartRepositoryServiceImpl) updateData(data map[string]string, reque
 	//dex config copy as it is
 	dexConfigStr := data["dex.config"]
 	data["dex.config"] = string([]byte(dexConfigStr))
-	return data
+	return data, nil
 }
 
-func (impl *ChartRepositoryServiceImpl) DeleteChartRepo(request *ChartRepoDto) error {
-	dbConnection := impl.repoRepository.GetConnection()
-	tx, err := dbConnection.Begin()
+// removeRepoData delete the request field from the argo-cm
+func (impl *ChartRepositoryServiceImpl) removeRepoData(data map[string]string, name string) (map[string]string, error) {
+	helmRepoStr := data["helm.repositories"]
+	helmRepoByte, err := yaml.YAMLToJSON([]byte(helmRepoStr))
 	if err != nil {
-		impl.logger.Errorw("error in establishing db connection, DeleteChartRepo", "err", err)
-		return err
+		impl.logger.Errorw("error in json patch", "err", err)
+		return nil, err
 	}
-	// Rollback tx on error.
-	defer tx.Rollback()
+	var helmRepositories []*AcdConfigMapRepositoriesDto
+	err = json.Unmarshal(helmRepoByte, &helmRepositories)
+	if err != nil {
+		impl.logger.Errorw("error in unmarshal", "err", err)
+		return nil, err
+	}
 
-	chartRepo, err := impl.repoRepository.FindById(request.Id)
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.logger.Errorw("error in finding chart repo by id", "err", err, "id", request.Id)
-		return err
+	rb, err := json.Marshal(helmRepositories)
+	if err != nil {
+		impl.logger.Errorw("error in marshal", "err", err)
+		return nil, err
+	}
+	helmRepositoriesYamlByte, err := yaml.JSONToYAML(rb)
+	if err != nil {
+		impl.logger.Errorw("error in yaml patch", "err", err)
+		return nil, err
 	}
 
-	chartRepo.Url = request.Url
-	chartRepo.AuthMode = request.AuthMode
-	chartRepo.UserName = request.UserName
-	chartRepo.Password = request.Password
-	chartRepo.Active = request.Active
-	chartRepo.AccessToken = request.AccessToken
-	chartRepo.SshKey = request.SshKey
-	chartRepo.Active = request.Active
-	chartRepo.UpdatedBy = request.UserId
-	chartRepo.UpdatedOn = time.Now()
-	err = impl.repoRepository.MarkChartRepoDeleted(chartRepo, tx)
+	//SETUP for repositories
+	var repositories []*AcdConfigMapRepositoriesDto
+	repoStr := data["repositories"]
+	repoByte, err := yaml.YAMLToJSON([]byte(repoStr))
 	if err != nil {
-		impl.logger.Errorw("error in deleting chart repo", "err", err)
-		return err
+		impl.logger.Errorw("error in json patch", "err", err)
+		return nil, err
 	}
-	err = tx.Commit()
+	err = json.Unmarshal(repoByte, &repositories)
 	if err != nil {
-		impl.logger.Errorw("error in tx commit, DeleteChartRepo", "err", err)
-		return err
+		impl.logger.Errorw("error in unmarshal", "err", err)
+		return nil, err
 	}
-	return nil
+
+	found := false
+	for index, item := range repositories {
+		//if request chart repo found, then delete its values
+		if item.Name == name {
+			repositories = append(repositories[:index], repositories[index+1:]...)
+			found = true
+			break
+		}
+	}
+
+	// if request chart repo not found, add new one
+	if !found {
+		impl.logger.Errorw("Repo not found", "err", err)
+		return nil, fmt.Errorf("Repo not found in config-map")
+	}
+
+	rb, err = json.Marshal(repositories)
+	if err != nil {
+		impl.logger.Errorw("error in marshal", "err", err)
+		return nil, err
+	}
+	repositoriesYamlByte, err := yaml.JSONToYAML(rb)
+	if err != nil {
+		impl.logger.Errorw("error in yaml patch", "err", err)
+		return nil, err
+	}
+
+	if len(helmRepositoriesYamlByte) > 0 {
+		data["helm.repositories"] = string(helmRepositoriesYamlByte)
+	}
+	if len(repositoriesYamlByte) > 0 {
+		data["repositories"] = string(repositoriesYamlByte)
+	}
+	//dex config copy as it is
+	dexConfigStr := data["dex.config"]
+	data["dex.config"] = string([]byte(dexConfigStr))
+	return data, nil
 }

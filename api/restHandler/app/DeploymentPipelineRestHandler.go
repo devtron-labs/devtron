@@ -3,9 +3,11 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -14,6 +16,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
+	"go.opentelemetry.io/otel"
 	"io"
 	"net/http"
 	"strconv"
@@ -24,6 +27,7 @@ type DevtronAppDeploymentRestHandler interface {
 	CreateCdPipeline(w http.ResponseWriter, r *http.Request)
 	GetCdPipelineById(w http.ResponseWriter, r *http.Request)
 	PatchCdPipeline(w http.ResponseWriter, r *http.Request)
+	HandleChangeDeploymentRequest(w http.ResponseWriter, r *http.Request)
 	GetCdPipelines(w http.ResponseWriter, r *http.Request)
 	GetCdPipelinesForAppAndEnv(w http.ResponseWriter, r *http.Request)
 
@@ -34,11 +38,13 @@ type DevtronAppDeploymentRestHandler interface {
 
 	IsReadyToTrigger(w http.ResponseWriter, r *http.Request)
 	FetchCdWorkflowDetails(w http.ResponseWriter, r *http.Request)
+	GetCdPipelinesByEnvironment(w http.ResponseWriter, r *http.Request)
 }
 
 type DevtronAppDeploymentConfigRestHandler interface {
 	ConfigureDeploymentTemplateForApp(w http.ResponseWriter, r *http.Request)
 	GetDeploymentTemplate(w http.ResponseWriter, r *http.Request)
+	GetDefaultDeploymentTemplate(w http.ResponseWriter, r *http.Request)
 	GetAppOverrideForDefaultTemplate(w http.ResponseWriter, r *http.Request)
 
 	EnvConfigOverrideCreate(w http.ResponseWriter, r *http.Request)
@@ -88,7 +94,7 @@ func (handler PipelineConfigRestHandlerImpl) ConfigureDeploymentTemplateForApp(w
 	}
 	chartRefId := templateRequest.ChartRefId
 
-	validate, err2 := handler.chartService.DeploymentTemplateValidate(templateRequest.ValuesOverride, chartRefId)
+	validate, err2 := handler.chartService.DeploymentTemplateValidate(r.Context(), templateRequest.ValuesOverride, chartRefId)
 	if !validate {
 		common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
 		return
@@ -172,7 +178,10 @@ func (handler PipelineConfigRestHandlerImpl) CreateCdPipeline(w http.ResponseWri
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
+	if app.AppType == helper.Job {
+		common.WriteJsonResp(w, fmt.Errorf("cannot create cd-pipeline for job"), "cannot create cd-pipeline for job", http.StatusBadRequest)
+		return
+	}
 	//RBAC
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName); !ok {
@@ -240,6 +249,8 @@ func (handler PipelineConfigRestHandlerImpl) PatchCdPipeline(w http.ResponseWrit
 			err = handler.validator.Struct(cdPipeline.Pipeline)
 		} else if cdPipeline.Action == bean.CD_DELETE {
 			err = handler.validator.Var(cdPipeline.Pipeline.Id, "gt=0")
+		} else if cdPipeline.Action == bean.CD_DELETE_PARTIAL {
+			err = handler.validator.Var(cdPipeline.Pipeline.Id, "gt=0")
 		}
 	}
 	if err != nil {
@@ -278,6 +289,70 @@ func (handler PipelineConfigRestHandlerImpl) PatchCdPipeline(w http.ResponseWrit
 		return
 	}
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
+}
+
+// HandleChangeDeploymentRequest changes the deployment app type for all pipelines in all apps for a given environment.
+func (handler PipelineConfigRestHandlerImpl) HandleChangeDeploymentRequest(w http.ResponseWriter, r *http.Request) {
+
+	// Auth check
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	// Retrieving and parsing request body
+	decoder := json.NewDecoder(r.Body)
+	var deploymentAppTypeChangeRequest *bean.DeploymentAppTypeChangeRequest
+	err = decoder.Decode(&deploymentAppTypeChangeRequest)
+	if err != nil {
+		handler.Logger.Errorw("request err, HandleChangeDeploymentRequest", "err", err, "payload",
+			deploymentAppTypeChangeRequest)
+
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	deploymentAppTypeChangeRequest.UserId = userId
+
+	// Validate incoming request
+	err = handler.validator.Struct(deploymentAppTypeChangeRequest)
+	if err != nil {
+		handler.Logger.Errorw("validation err, HandleChangeDeploymentRequest", "err", err, "payload",
+			deploymentAppTypeChangeRequest)
+
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	// Only super-admin access
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionDelete, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
+	// Retrieve argocd token
+	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		handler.Logger.Errorw("error in getting acd token", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	ctx := context.WithValue(r.Context(), "token", acdToken)
+
+	resp, err := handler.pipelineBuilder.ChangeDeploymentType(ctx, deploymentAppTypeChangeRequest)
+
+	if err != nil {
+		nErr := errors.New("failed to change deployment type with error msg: " + err.Error())
+		handler.Logger.Errorw(err.Error(),
+			"payload", deploymentAppTypeChangeRequest,
+			"err", err)
+
+		common.WriteJsonResp(w, nErr, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+	return
 }
 
 func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.ResponseWriter, r *http.Request) {
@@ -321,7 +396,7 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.Resp
 		return
 	}
 	chartRefId := envConfigProperties.ChartRefId
-	validate, err2 := handler.chartService.DeploymentTemplateValidate(envConfigProperties.EnvOverrideValues, chartRefId)
+	validate, err2 := handler.chartService.DeploymentTemplateValidate(r.Context(), envConfigProperties.EnvOverrideValues, chartRefId)
 	if !validate {
 		handler.Logger.Errorw("validation err, UpdateAppOverride", "err", err2, "payload", envConfigProperties)
 		common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
@@ -424,7 +499,7 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideUpdate(w http.Resp
 		return
 	}
 	chartRefId := envConfigProperties.ChartRefId
-	validate, err2 := handler.chartService.DeploymentTemplateValidate(envConfigProperties.EnvOverrideValues, chartRefId)
+	validate, err2 := handler.chartService.DeploymentTemplateValidate(r.Context(), envConfigProperties.EnvOverrideValues, chartRefId)
 	if !validate {
 		handler.Logger.Errorw("validation err, UpdateAppOverride", "err", err2, "payload", envConfigProperties)
 		common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
@@ -587,6 +662,40 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 	common.WriteJsonResp(w, nil, appConfigResponse, http.StatusOK)
 }
 
+func (handler *PipelineConfigRestHandlerImpl) GetDefaultDeploymentTemplate(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	appId, err := strconv.Atoi(vars["appId"])
+	if err != nil {
+		handler.Logger.Error("error in getting appId path param, GetDefaultDeploymentTemplate", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	chartRefId, err := strconv.Atoi(vars["chartRefId"])
+	if err != nil {
+		handler.Logger.Error("error in getting chartRefId path param, GetDefaultDeploymentTemplate", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	token := r.Header.Get("token")
+	app, err := handler.pipelineBuilder.GetApp(appId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	obj := handler.enforcerUtil.GetAppRBACName(app.AppName)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, obj); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "unauthorized user", http.StatusForbidden)
+		return
+	}
+	defaultTemplate, err := handler.chartService.GetAppOverrideForDefaultTemplate(chartRefId)
+	if err != nil {
+		handler.Logger.Errorw("error in getting default deployment template, GetDefaultDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, defaultTemplate, http.StatusOK)
+}
+
 func (handler PipelineConfigRestHandlerImpl) GetCdPipelines(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
@@ -727,7 +836,7 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 	}
 	if len(digests) > 0 {
 		vulnerableMap := make(map[string]bool)
-		cvePolicy, severityPolicy, err := handler.policyService.GetApplicablePolicy(pipelineModel.Environment.ClusterId, pipelineModel.EnvironmentId, pipelineModel.AppId, pipelineModel.App.AppStore)
+		cvePolicy, severityPolicy, err := handler.policyService.GetApplicablePolicy(pipelineModel.Environment.ClusterId, pipelineModel.EnvironmentId, pipelineModel.AppId, pipelineModel.App.AppType == helper.ChartStoreApp)
 		if err != nil {
 			handler.Logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
 		}
@@ -835,7 +944,10 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 	handler.Logger.Infow("request payload, UpdateAppOverride", "payload", templateRequest)
 
 	token := r.Header.Get("token")
+	ctx := r.Context()
+	_, span := otel.Tracer("orchestrator").Start(ctx, "pipelineBuilder.GetApp")
 	app, err := handler.pipelineBuilder.GetApp(templateRequest.AppId)
+	span.End()
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
@@ -847,14 +959,18 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 		return
 	}
 	chartRefId := templateRequest.ChartRefId
-	validate, err2 := handler.chartService.DeploymentTemplateValidate(templateRequest.ValuesOverride, chartRefId)
+	_, span = otel.Tracer("orchestrator").Start(ctx, "chartService.DeploymentTemplateValidate")
+	validate, err2 := handler.chartService.DeploymentTemplateValidate(ctx, templateRequest.ValuesOverride, chartRefId)
+	span.End()
 	if !validate {
 		handler.Logger.Errorw("validation err, UpdateAppOverride", "err", err2, "payload", templateRequest)
 		common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
 		return
 	}
 
-	createResp, err := handler.chartService.UpdateAppOverride(&templateRequest)
+	_, span = otel.Tracer("orchestrator").Start(ctx, "chartService.UpdateAppOverride")
+	createResp, err := handler.chartService.UpdateAppOverride(ctx, &templateRequest)
+	span.End()
 	if err != nil {
 		handler.Logger.Errorw("service err, UpdateAppOverride", "err", err, "payload", templateRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -1535,13 +1651,7 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelineById(w http.ResponseWr
 		return
 	}
 
-	envId, err := handler.pipelineBuilder.GetEnvironmentByCdPipelineId(pipelineId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	envObject := handler.enforcerUtil.GetEnvRBACNameByCdPipelineIdAndEnvId(pipelineId, envId)
+	envObject := handler.enforcerUtil.GetEnvRBACNameByCdPipelineIdAndEnvId(pipelineId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, envObject); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
@@ -1589,7 +1699,7 @@ func (handler PipelineConfigRestHandlerImpl) CancelStage(w http.ResponseWriter, 
 	}
 	//RBAC
 
-	resp, err := handler.cdHandler.CancelStage(workflowRunnerId)
+	resp, err := handler.cdHandler.CancelStage(workflowRunnerId, userId)
 	if err != nil {
 		handler.Logger.Errorw("service err, CancelStage", "err", err, "pipelineId", pipelineId, "workflowRunnerId", workflowRunnerId)
 		if util.IsErrNoRows(err) {
@@ -1830,4 +1940,46 @@ func (handler PipelineConfigRestHandlerImpl) UpgradeForAllApps(w http.ResponseWr
 	}
 	response["failed"] = failedIds
 	common.WriteJsonResp(w, err, response, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) GetCdPipelinesByEnvironment(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	user, err := handler.userAuthService.GetById(userId)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	userEmailId := strings.ToLower(user.EmailId)
+	envId, err := strconv.Atoi(vars["envId"])
+	if err != nil {
+		handler.Logger.Errorw("request err, GetCdPipelines", "err", err, "envId", envId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	_, span := otel.Tracer("orchestrator").Start(context.Background(), "ciHandler.FetchCdPipelinesForAppGrouping")
+	results, err := handler.pipelineBuilder.GetCdPipelinesByEnvironment(envId, userEmailId, handler.checkAuthBatch)
+	span.End()
+	if err != nil {
+		handler.Logger.Errorw("service err, GetCdPipelines", "err", err, "envId", envId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, results, http.StatusOK)
+}
+
+func (handler *PipelineConfigRestHandlerImpl) checkAuthBatch(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool) {
+	var appResult map[string]bool
+	var envResult map[string]bool
+	if len(appObject) > 0 {
+		appResult = handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceApplications, casbin.ActionGet, appObject)
+	}
+	if len(envObject) > 0 {
+		envResult = handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceEnvironment, casbin.ActionGet, envObject)
+	}
+	return appResult, envResult
 }

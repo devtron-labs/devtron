@@ -12,6 +12,25 @@ type GitOpsConfigDto struct {
 	AzureProjectName     string `json:"azureProjectName"`
 	BitBucketWorkspaceId string `json:"bitBucketWorkspaceId"`
 	BitBucketProjectKey  string `json:"bitBucketProjectKey"`
+
+	GitRepoName string `json:"gitRepoName"`
+	UserEmailId string `json:"userEmailId"`
+	Description string `json:"description"`
 	AllowInsecureTLS     bool   `json:"allowInsecureTLS"`
 	UserId               int32  `json:"-"`
+}
+
+type GitRepoRequestDto struct {
+	Host                 string `json:"host"`
+	Provider             string `json:"provider"`
+	GitRepoName          string `json:"gitRepoName"`
+	Username             string `json:"username"`
+	UserEmailId          string `json:"userEmailId"`
+	Token                string `json:"token"`
+	GitLabGroupId        string `json:"gitLabGroupId"`
+	GitHubOrgId          string `json:"gitHubOrgId"`
+	AzureProjectName     string `json:"azureProjectName"`
+	BitBucketWorkspaceId string `json:"bitBucketWorkspaceId"`
+	BitBucketProjectKey  string `json:"bitBucketProjectKey"`
+	AllowInsecureTLS     bool   `json:"allowInsecureTLS"`
 }

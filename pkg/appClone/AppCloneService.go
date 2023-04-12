@@ -20,7 +20,12 @@ package appClone
 import (
 	"context"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/internal/constants"
+	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/chart"
+	"github.com/go-pg/pg"
 	"strings"
 
 	"fmt"
@@ -47,6 +52,7 @@ type AppCloneServiceImpl struct {
 	propertiesConfigService pipeline.PropertiesConfigService
 	pipelineStageService    pipeline.PipelineStageService
 	ciTemplateService       pipeline.CiTemplateService
+	appRepository           app2.AppRepository
 }
 
 func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
@@ -58,7 +64,8 @@ func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 	appListingService app.AppListingService,
 	propertiesConfigService pipeline.PropertiesConfigService,
 	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository,
-	pipelineStageService pipeline.PipelineStageService, ciTemplateService pipeline.CiTemplateService) *AppCloneServiceImpl {
+	pipelineStageService pipeline.PipelineStageService, ciTemplateService pipeline.CiTemplateService,
+	appRepository app2.AppRepository) *AppCloneServiceImpl {
 	return &AppCloneServiceImpl{
 		logger:                  logger,
 		pipelineBuilder:         pipelineBuilder,
@@ -70,26 +77,48 @@ func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 		propertiesConfigService: propertiesConfigService,
 		pipelineStageService:    pipelineStageService,
 		ciTemplateService:       ciTemplateService,
+		appRepository:           appRepository,
 	}
 }
 
 type CloneRequest struct {
-	RefAppId  int           `json:"refAppId"`
-	Name      string        `json:"name"`
-	ProjectId int           `json:"projectId"`
-	AppLabels []*bean.Label `json:"labels,omitempty" validate:"dive"`
+	RefAppId    int            `json:"refAppId"`
+	Name        string         `json:"name"`
+	ProjectId   int            `json:"projectId"`
+	AppLabels   []*bean.Label  `json:"labels,omitempty" validate:"dive"`
+	Description string         `json:"description"`
+	AppType     helper.AppType `json:"appType"`
 }
 
 func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context context.Context) (*bean.CreateAppDTO, error) {
+	//validate template app
+	templateApp, err := impl.appRepository.FindById(createReq.TemplateId)
+	if err != nil && err != pg.ErrNoRows {
+		return nil, err
+	}
+	//If the template does not exist then don't clone
+	//If the template app-type is chart-store app then don't clone
+	//If the template app-type and create request app-type is not same then don't clone
+	if (templateApp == nil && templateApp.Id == 0) || (templateApp.AppType == helper.ChartStoreApp) || (templateApp.AppType != createReq.AppType) {
+		impl.logger.Warnw("template app does not exist", "id", createReq.TemplateId)
+		err = &util.ApiError{
+			Code:            constants.AppDoesNotExist.Code,
+			InternalMessage: "app does not exist",
+			UserMessage:     constants.AppAlreadyExists.UserMessage(createReq.TemplateId),
+		}
+		return nil, err
+	}
 	//create new app
 	cloneReq := &CloneRequest{
-		RefAppId:  createReq.TemplateId,
-		Name:      createReq.AppName,
-		ProjectId: createReq.TeamId,
-		AppLabels: createReq.AppLabels,
+		RefAppId:    createReq.TemplateId,
+		Name:        createReq.AppName,
+		ProjectId:   createReq.TeamId,
+		AppLabels:   createReq.AppLabels,
+		AppType:     createReq.AppType,
+		Description: createReq.Description,
 	}
 	userId := createReq.UserId
-	appStatus, err := impl.appListingService.FetchAppStageStatus(cloneReq.RefAppId)
+	appStatus, err := impl.appListingService.FetchAppStageStatus(cloneReq.RefAppId, int(cloneReq.AppType))
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +126,7 @@ func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context 
 	if err != nil {
 		return nil, err
 	}
-	isSmaeProject := refApp.TeamId == cloneReq.ProjectId
+	isSameProject := refApp.TeamId == cloneReq.ProjectId
 	/*	appStageStatus = append(appStageStatus, impl.makeAppStageStatus(0, "APP", stages.AppId))
 		appStageStatus = append(appStageStatus, impl.makeAppStageStatus(1, "MATERIAL", materialExists))
 		appStageStatus = append(appStageStatus, impl.makeAppStageStatus(2, "TEMPLATE", stages.CiTemplateId))
@@ -111,9 +140,11 @@ func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context 
 	}
 
 	//TODO check stage of current app
-	if !refAppStatus["APP"] {
-		impl.logger.Warnw("status not", "APP", cloneReq.RefAppId)
-		return nil, nil
+	if createReq.AppType != helper.Job {
+		if !refAppStatus["APP"] {
+			impl.logger.Warnw("status not", "APP", cloneReq.RefAppId)
+			return nil, nil
+		}
 	}
 	app, err := impl.CreateApp(cloneReq, userId)
 	if err != nil {
@@ -136,49 +167,50 @@ func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context 
 		impl.logger.Errorw("error in cloning docker template", "ref", cloneReq.RefAppId, "new", newAppId, "err", err)
 		return nil, err
 	}
-	if !refAppStatus["TEMPLATE"] {
-		impl.logger.Errorw("status not", "TEMPLATE", cloneReq.RefAppId)
-		return app, nil
-	}
-	if !refAppStatus["CHART"] {
-		impl.logger.Errorw("status not", "CHART", cloneReq.RefAppId)
-		return app, nil
-	}
-	_, err = impl.CreateDeploymentTemplate(cloneReq.RefAppId, newAppId, userId, context)
-	if err != nil {
-		impl.logger.Errorw("error in creating deployment template", "ref", cloneReq.RefAppId, "new", newAppId, "err", err)
-		return nil, err
-	}
-	_, err = impl.CreateGlobalCM(cloneReq.RefAppId, newAppId, userId)
+	if createReq.AppType != helper.Job {
+		if !refAppStatus["TEMPLATE"] {
+			impl.logger.Errorw("status not", "TEMPLATE", cloneReq.RefAppId)
+			return app, nil
+		}
+		if !refAppStatus["CHART"] {
+			impl.logger.Errorw("status not", "CHART", cloneReq.RefAppId)
+			return app, nil
+		}
+		_, err = impl.CreateDeploymentTemplate(cloneReq.RefAppId, newAppId, userId, context)
+		if err != nil {
+			impl.logger.Errorw("error in creating deployment template", "ref", cloneReq.RefAppId, "new", newAppId, "err", err)
+			return nil, err
+		}
+		_, err = impl.CreateGlobalCM(cloneReq.RefAppId, newAppId, userId)
 
-	if err != nil {
-		impl.logger.Errorw("error in creating global cm", "ref", cloneReq.RefAppId, "new", newAppId, "err", err)
-		return nil, err
-	}
-	_, err = impl.CreateGlobalSecret(cloneReq.RefAppId, newAppId, userId)
-	if err != nil {
-		impl.logger.Errorw("error in creating global secret", "ref", cloneReq.RefAppId, "new", newAppId, "err", err)
-		return nil, err
-	}
-	if isSmaeProject {
-		_, err = impl.CreateEnvCm(cloneReq.RefAppId, newAppId, userId)
 		if err != nil {
-			impl.logger.Errorw("error in creating env cm", "err", err)
+			impl.logger.Errorw("error in creating global cm", "ref", cloneReq.RefAppId, "new", newAppId, "err", err)
 			return nil, err
 		}
-		_, err = impl.CreateEnvSecret(cloneReq.RefAppId, newAppId, userId)
+		_, err = impl.CreateGlobalSecret(cloneReq.RefAppId, newAppId, userId)
 		if err != nil {
-			impl.logger.Errorw("error in creating env secret", "err", err)
+			impl.logger.Errorw("error in creating global secret", "ref", cloneReq.RefAppId, "new", newAppId, "err", err)
 			return nil, err
 		}
-		_, err = impl.createEnvOverride(cloneReq.RefAppId, newAppId, userId, context)
-		if err != nil {
-			impl.logger.Errorw("error in cloning  env override", "err", err)
-			return nil, err
+		if isSameProject {
+			_, err = impl.CreateEnvCm(context, cloneReq.RefAppId, newAppId, userId)
+			if err != nil {
+				impl.logger.Errorw("error in creating env cm", "err", err)
+				return nil, err
+			}
+			_, err = impl.CreateEnvSecret(context, cloneReq.RefAppId, newAppId, userId)
+			if err != nil {
+				impl.logger.Errorw("error in creating env secret", "err", err)
+				return nil, err
+			}
+			_, err = impl.createEnvOverride(cloneReq.RefAppId, newAppId, userId, context)
+			if err != nil {
+				impl.logger.Errorw("error in cloning  env override", "err", err)
+				return nil, err
+			}
 		}
 	}
-
-	_, err = impl.CreateWf(cloneReq.RefAppId, newAppId, userId, gitMaerialMap, context, isSmaeProject)
+	_, err = impl.CreateWf(cloneReq.RefAppId, newAppId, userId, gitMaerialMap, context, isSameProject)
 	if err != nil {
 		impl.logger.Errorw("error in creating wf", "ref", cloneReq.RefAppId, "new", newAppId, "err", err)
 		return nil, err
@@ -189,10 +221,12 @@ func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context 
 
 func (impl *AppCloneServiceImpl) CreateApp(cloneReq *CloneRequest, userId int32) (*bean.CreateAppDTO, error) {
 	createAppReq := &bean.CreateAppDTO{
-		AppName:   cloneReq.Name,
-		UserId:    userId,
-		TeamId:    cloneReq.ProjectId,
-		AppLabels: cloneReq.AppLabels,
+		AppName:     cloneReq.Name,
+		UserId:      userId,
+		TeamId:      cloneReq.ProjectId,
+		AppLabels:   cloneReq.AppLabels,
+		AppType:     cloneReq.AppType,
+		Description: cloneReq.Description,
 	}
 	createRes, err := impl.pipelineBuilder.CreateApp(createAppReq)
 	return createRes, err
@@ -350,8 +384,8 @@ func (impl *AppCloneServiceImpl) CreateGlobalCM(oldAppId, newAppId int, userId i
 
 }
 
-func (impl *AppCloneServiceImpl) CreateEnvCm(oldAppId, newAppId int, userId int32) (interface{}, error) {
-	refEnvs, err := impl.appListingService.FetchOtherEnvironment(oldAppId)
+func (impl *AppCloneServiceImpl) CreateEnvCm(ctx context.Context, oldAppId, newAppId int, userId int32) (interface{}, error) {
+	refEnvs, err := impl.appListingService.FetchOtherEnvironment(ctx, oldAppId)
 	if err != nil {
 		return nil, err
 	}
@@ -394,8 +428,8 @@ func (impl *AppCloneServiceImpl) CreateEnvCm(oldAppId, newAppId int, userId int3
 	return nil, nil
 }
 
-func (impl *AppCloneServiceImpl) CreateEnvSecret(oldAppId, newAppId int, userId int32) (interface{}, error) {
-	refEnvs, err := impl.appListingService.FetchOtherEnvironment(oldAppId)
+func (impl *AppCloneServiceImpl) CreateEnvSecret(ctx context.Context, oldAppId, newAppId int, userId int32) (interface{}, error) {
+	refEnvs, err := impl.appListingService.FetchOtherEnvironment(ctx, oldAppId)
 	if err != nil {
 		return nil, err
 	}
@@ -441,7 +475,7 @@ func (impl *AppCloneServiceImpl) CreateEnvSecret(oldAppId, newAppId int, userId 
 }
 
 func (impl *AppCloneServiceImpl) createEnvOverride(oldAppId, newAppId int, userId int32, ctx context.Context) (interface{}, error) {
-	refEnvs, err := impl.appListingService.FetchOtherEnvironment(oldAppId)
+	refEnvs, err := impl.appListingService.FetchOtherEnvironment(ctx, oldAppId)
 	if err != nil {
 		return nil, err
 	}
@@ -557,7 +591,7 @@ func (impl *AppCloneServiceImpl) CreateGlobalSecret(oldAppId, newAppId int, user
 	return thisCm, err
 }
 
-func (impl *AppCloneServiceImpl) CreateWf(oldAppId, newAppId int, userId int32, gitMaterialMapping map[int]int, ctx context.Context, isSmaeProject bool) (interface{}, error) {
+func (impl *AppCloneServiceImpl) CreateWf(oldAppId, newAppId int, userId int32, gitMaterialMapping map[int]int, ctx context.Context, isSameProject bool) (interface{}, error) {
 	refAppWFs, err := impl.appWorkflowService.FindAppWorkflows(oldAppId)
 	if err != nil {
 		return nil, err
@@ -575,7 +609,7 @@ func (impl *AppCloneServiceImpl) CreateWf(oldAppId, newAppId int, userId int32, 
 		if err != nil {
 			return nil, err
 		}
-		err = impl.createWfMappings(refAppWF.AppWorkflowMappingDto, oldAppId, newAppId, userId, thisWf.Id, gitMaterialMapping, ctx, isSmaeProject)
+		err = impl.createWfMappings(refAppWF.AppWorkflowMappingDto, oldAppId, newAppId, userId, thisWf.Id, gitMaterialMapping, ctx, isSameProject)
 		if err != nil {
 			return nil, err
 		}
@@ -583,7 +617,7 @@ func (impl *AppCloneServiceImpl) CreateWf(oldAppId, newAppId int, userId int32, 
 	return nil, nil
 }
 
-func (impl *AppCloneServiceImpl) createWfMappings(refWfMappings []appWorkflow.AppWorkflowMappingDto, oldAppId, newAppId int, userId int32, thisWfId int, gitMaterialMapping map[int]int, ctx context.Context, isSmaeProject bool) error {
+func (impl *AppCloneServiceImpl) createWfMappings(refWfMappings []appWorkflow.AppWorkflowMappingDto, oldAppId, newAppId int, userId int32, thisWfId int, gitMaterialMapping map[int]int, ctx context.Context, isSameProject bool) error {
 	impl.logger.Debugw("wf mapping cloning", "refWfMappings", refWfMappings)
 	var ciMapping []appWorkflow.AppWorkflowMappingDto
 	var cdMappings []appWorkflow.AppWorkflowMappingDto
@@ -633,7 +667,7 @@ func (impl *AppCloneServiceImpl) createWfMappings(refWfMappings []appWorkflow.Ap
 		}
 		impl.logger.Debugw("ci created", "ci", ci)
 	}
-	if isSmaeProject {
+	if isSameProject {
 		for _, refCdMapping := range cdMappings {
 			cdCloneReq := &cloneCdPipelineRequest{
 				refCdPipelineId: refCdMapping.ComponentId,

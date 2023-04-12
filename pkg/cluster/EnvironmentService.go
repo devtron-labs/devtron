@@ -19,6 +19,7 @@ package cluster
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/user/bean"
 	"strconv"
 	"strings"
 	"time"
@@ -27,7 +28,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/user"
-	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -44,6 +44,7 @@ type EnvironmentBean struct {
 	Namespace             string `json:"namespace,omitempty" validate:"name-space-component,max=50"`
 	CdArgoSetup           bool   `json:"isClusterCdActive"`
 	EnvironmentIdentifier string `json:"environmentIdentifier"`
+	AppCount              int    `json:"appCount"`
 }
 
 type EnvDto struct {
@@ -57,6 +58,11 @@ type ClusterEnvDto struct {
 	ClusterId    int       `json:"clusterId"`
 	ClusterName  string    `json:"clusterName,omitempty"`
 	Environments []*EnvDto `json:"environments,omitempty"`
+}
+
+type AppGroupingResponse struct {
+	EnvList  []EnvironmentBean `json:"envList"`
+	EnvCount int               `json:"envCount"`
 }
 
 type EnvironmentService interface {
@@ -359,6 +365,7 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete() ([]Enviro
 			Namespace:             model.Namespace,
 			CdArgoSetup:           model.Cluster.CdArgoSetup,
 			EnvironmentIdentifier: model.EnvironmentIdentifier,
+			ClusterName:           model.Cluster.ClusterName,
 		})
 	}
 	return beans, nil
@@ -606,7 +613,7 @@ func (impl EnvironmentServiceImpl) Delete(deleteReq *EnvironmentBean, userId int
 		return err
 	}
 	//deleting auth roles entries for this environment
-	err = impl.userAuthService.DeleteRoles(repository2.ENV_TYPE, deleteRequest.Name, tx, existingEnv.EnvironmentIdentifier)
+	err = impl.userAuthService.DeleteRoles(bean.ENV_TYPE, deleteRequest.Name, tx, existingEnv.EnvironmentIdentifier)
 	if err != nil {
 		impl.logger.Errorw("error in deleting auth roles", "err", err)
 		return err

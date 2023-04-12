@@ -57,17 +57,18 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/material/delete").HandlerFunc(router.restHandler.DeleteMaterial).Methods("DELETE")
 	configRouter.Path("/get/{appId}").HandlerFunc(router.restHandler.GetApp).Methods("GET")
 	configRouter.Path("/autocomplete").HandlerFunc(router.restHandler.GetAppListForAutocomplete).Methods("GET")
-	configRouter.Path("/min").HandlerFunc(router.restHandler.GetAppListByTeamIds).Methods("GET")
 
 	//Deprecated
 	configRouter.Path("/template/{appId}/default/{chartRefId}").HandlerFunc(router.restHandler.GetAppOverrideForDefaultTemplate).Methods("GET")
 
 	configRouter.Path("/template").HandlerFunc(router.restHandler.ConfigureDeploymentTemplateForApp).Methods("POST")
 	configRouter.Path("/template/{appId}/{chartRefId}").HandlerFunc(router.restHandler.GetDeploymentTemplate).Methods("GET")
+	configRouter.Path("/template/default/{appId}/{chartRefId}").HandlerFunc(router.restHandler.GetDefaultDeploymentTemplate).Methods("GET")
 	configRouter.Path("/template/update").HandlerFunc(router.restHandler.UpdateAppOverride).Methods("POST")
 
 	configRouter.Path("/cd-pipeline").HandlerFunc(router.restHandler.CreateCdPipeline).Methods("POST")
 	configRouter.Path("/cd-pipeline/patch").HandlerFunc(router.restHandler.PatchCdPipeline).Methods("POST")
+	configRouter.Path("/cd-pipeline/patch/deployment").HandlerFunc(router.restHandler.HandleChangeDeploymentRequest).Methods("POST")
 	configRouter.Path("/cd-pipeline/{appId}").HandlerFunc(router.restHandler.GetCdPipelines).Methods("GET")
 	configRouter.Path("/cd-pipeline/{appId}/env/{envId}").HandlerFunc(router.restHandler.GetCdPipelinesForAppAndEnv).Methods("GET")
 	//save environment specific override
@@ -94,6 +95,7 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/team/by-name/{teamName}").HandlerFunc(router.restHandler.FindAppsByTeamName).Methods("GET")
 
 	configRouter.Path("/ci-pipeline/trigger").HandlerFunc(router.restHandler.TriggerCiPipeline).Methods("POST")
+
 	configRouter.Path("/{appId}/ci-pipeline/min").HandlerFunc(router.restHandler.GetCiPipelineMin).Methods("GET")
 	configRouter.Path("/ci-pipeline/{pipelineId}/material").HandlerFunc(router.restHandler.FetchMaterials).Methods("GET")
 	configRouter.Path("/ci-pipeline/refresh-material/{gitMaterialId}").HandlerFunc(router.restHandler.RefreshMaterials).Methods("GET")
@@ -168,7 +170,7 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 		HandlerFunc(router.pipelineHistoryRestHandler.FetchDeployedHistoryComponentDetail).
 		Methods("GET")
 
-	configRouter.Path("/history/deployed-configuration/all/latest/{appId}/{pipelineId}").
+	configRouter.Path("/history/deployed-configuration/latest/deployed/{appId}/{pipelineId}").
 		HandlerFunc(router.pipelineHistoryRestHandler.GetAllDeployedConfigurationHistoryForLatestWfrIdForPipeline).
 		Methods("GET")
 

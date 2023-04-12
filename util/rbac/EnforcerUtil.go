@@ -19,10 +19,12 @@ package rbac
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/team"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"go.uber.org/zap"
 	"strings"
 )
@@ -45,9 +47,13 @@ type EnforcerUtil interface {
 	GetHelmObject(appId int, envId int) (string, string)
 	GetHelmObjectByAppNameAndEnvId(appName string, envId int) (string, string)
 	GetHelmObjectByProjectIdAndEnvId(teamId int, envId int) (string, string)
-	GetEnvRBACNameByCdPipelineIdAndEnvId(cdPipelineId int, envId int) string
+	GetEnvRBACNameByCdPipelineIdAndEnvId(cdPipelineId int) string
 	GetAppRBACNameByTeamIdAndAppId(teamId int, appId int) string
+	GetRBACNameForClusterEntity(clusterName string, resourceIdentifier application.ResourceIdentifier) (resourceName, objectName string)
+	GetAppObjectByCiPipelineIds(ciPipelineIds []int) map[int]string
+	GetAppAndEnvObjectByPipelineIds(cdPipelineIds []int) map[int][]string
 }
+
 type EnforcerUtilImpl struct {
 	logger                *zap.SugaredLogger
 	teamRepository        team.TeamRepository
@@ -208,22 +214,13 @@ func (impl EnforcerUtilImpl) GetEnvRBACNameByCiPipelineIdAndEnvId(ciPipelineId i
 	return fmt.Sprintf("%s/%s", strings.ToLower(env.EnvironmentIdentifier), strings.ToLower(appName))
 }
 
-func (impl EnforcerUtilImpl) GetEnvRBACNameByCdPipelineIdAndEnvId(cdPipelineId int, envId int) string {
+func (impl EnforcerUtilImpl) GetEnvRBACNameByCdPipelineIdAndEnvId(cdPipelineId int) string {
 	pipeline, err := impl.pipelineRepository.FindById(cdPipelineId)
 	if err != nil {
 		impl.logger.Error(err)
 		return fmt.Sprintf("%s/%s", "", "")
 	}
-	application, err := impl.appRepo.FindById(pipeline.AppId)
-	if err != nil {
-		return fmt.Sprintf("%s/%s", "", "")
-	}
-	appName := application.AppName
-	env, err := impl.environmentRepository.FindById(envId)
-	if err != nil {
-		return fmt.Sprintf("%s/%s", "", strings.ToLower(appName))
-	}
-	return fmt.Sprintf("%s/%s", strings.ToLower(env.EnvironmentIdentifier), strings.ToLower(appName))
+	return fmt.Sprintf("%s/%s", strings.ToLower(pipeline.Environment.EnvironmentIdentifier), strings.ToLower(pipeline.App.AppName))
 }
 
 func (impl EnforcerUtilImpl) GetTeamRbacObjectByCiPipelineId(ciPipelineId int) string {
@@ -415,4 +412,54 @@ func (impl EnforcerUtilImpl) GetAppRBACNameByTeamIdAndAppId(teamId int, appId in
 		return fmt.Sprintf("%s/%s", "", "")
 	}
 	return fmt.Sprintf("%s/%s", strings.ToLower(team.Name), strings.ToLower(application.AppName))
+}
+
+func (impl EnforcerUtilImpl) GetRBACNameForClusterEntity(clusterName string, resourceIdentifier application.ResourceIdentifier) (resourceName, objectName string) {
+	namespace := resourceIdentifier.Namespace
+	objectName = resourceIdentifier.Name
+	groupVersionKind := resourceIdentifier.GroupVersionKind
+	groupName := groupVersionKind.Group
+	kindName := groupVersionKind.Kind
+	if groupName == "" {
+		groupName = casbin.ClusterEmptyGroupPlaceholder
+	}
+	if namespace == "" { //empty value means all namespace access would occur for non-namespace resources
+		namespace = "*"
+	}
+	resourceName = fmt.Sprintf(casbin.ClusterResourceRegex, clusterName, namespace)
+	objectName = fmt.Sprintf(casbin.ClusterObjectRegex, groupName, kindName, objectName)
+	return resourceName, objectName
+}
+
+func (impl EnforcerUtilImpl) GetAppObjectByCiPipelineIds(ciPipelineIds []int) map[int]string {
+	objects := make(map[int]string)
+	models, err := impl.ciPipelineRepository.FindAppAndProjectByCiPipelineIds(ciPipelineIds)
+	if err != nil {
+		impl.logger.Error(err)
+		return objects
+	}
+	for _, pipeline := range models {
+		if _, ok := objects[pipeline.Id]; !ok {
+			appObject := fmt.Sprintf("%s/%s", strings.ToLower(pipeline.App.Team.Name), strings.ToLower(pipeline.App.AppName))
+			objects[pipeline.Id] = appObject
+		}
+	}
+	return objects
+}
+
+func (impl EnforcerUtilImpl) GetAppAndEnvObjectByPipelineIds(cdPipelineIds []int) map[int][]string {
+	objects := make(map[int][]string)
+	models, err := impl.pipelineRepository.FindAppAndEnvironmentAndProjectByPipelineIds(cdPipelineIds)
+	if err != nil {
+		impl.logger.Error(err)
+		return objects
+	}
+	for _, pipeline := range models {
+		if _, ok := objects[pipeline.Id]; !ok {
+			appObject := fmt.Sprintf("%s/%s", strings.ToLower(pipeline.App.Team.Name), strings.ToLower(pipeline.App.AppName))
+			envObject := fmt.Sprintf("%s/%s", strings.ToLower(pipeline.Environment.EnvironmentIdentifier), strings.ToLower(pipeline.App.AppName))
+			objects[pipeline.Id] = []string{appObject, envObject}
+		}
+	}
+	return objects
 }

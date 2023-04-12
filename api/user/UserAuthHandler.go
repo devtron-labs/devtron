@@ -75,7 +75,7 @@ func (handler UserAuthHandlerImpl) LoginHandler(w http.ResponseWriter, r *http.R
 	}
 	//token, err := handler.loginService.CreateLoginSession(up.Username, up.Password)
 	clientIp := util.GetClientIP(r)
-	token, err := handler.userAuthService.HandleLoginWithClientIp(up.Username, up.Password, clientIp)
+	token, err := handler.userAuthService.HandleLoginWithClientIp(r.Context(),up.Username, up.Password, clientIp)
 	if err != nil {
 		common.WriteJsonResp(w, fmt.Errorf("invalid username or password"), nil, http.StatusForbidden)
 		return
@@ -141,7 +141,9 @@ func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWrite
 	viewPolicies = strings.ReplaceAll(viewPolicies, "<ENV_OBJ>", envObj)
 	viewPolicies = strings.ReplaceAll(viewPolicies, "<APP_OBJ>", appObj)
 	//for START in Casbin Object Ends Here
-
+	//loading policy for safety
+	casbin.LoadPolicy()
+	var policies []casbin.Policy
 	var policiesAdmin bean.PolicyRequest
 	err := json.Unmarshal([]byte(adminPolicies), &policiesAdmin)
 	if err != nil {
@@ -150,8 +152,7 @@ func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWrite
 		return
 	}
 	handler.logger.Debugw("request payload, AddDefaultPolicyAndRoles", "policiesAdmin", policiesAdmin)
-	casbin.AddPolicy(policiesAdmin.Data)
-
+	policies = append(policies, policiesAdmin.Data...)
 	var policiesTrigger bean.PolicyRequest
 	err = json.Unmarshal([]byte(triggerPolicies), &policiesTrigger)
 	if err != nil {
@@ -160,8 +161,7 @@ func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWrite
 		return
 	}
 	handler.logger.Debugw("request payload, AddDefaultPolicyAndRoles", "policiesTrigger", policiesTrigger)
-	casbin.AddPolicy(policiesTrigger.Data)
-
+	policies = append(policies, policiesTrigger.Data...)
 	var policiesView bean.PolicyRequest
 	err = json.Unmarshal([]byte(viewPolicies), &policiesView)
 	if err != nil {
@@ -170,8 +170,10 @@ func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWrite
 		return
 	}
 	handler.logger.Debugw("request payload, AddDefaultPolicyAndRoles", "policiesView", policiesView)
-	casbin.AddPolicy(policiesView.Data)
-
+	policies = append(policies, policiesView.Data...)
+	casbin.AddPolicy(policies)
+	//loading policy for syncing orchestrator to casbin with newly added policies
+	casbin.LoadPolicy()
 	//Creating ROLES
 	roleAdmin := "{\n    \"role\": \"role:admin_<TEAM>_<ENV>_<APP>\",\n    \"casbinSubjects\": [\n        \"role:admin_<TEAM>_<ENV>_<APP>\"\n    ],\n    \"team\": \"<TEAM>\",\n    \"application\": \"<APP>\",\n    \"environment\": \"<ENV>\",\n    \"action\": \"*\"\n}"
 	roleTrigger := "{\n    \"role\": \"role:trigger_<TEAM>_<ENV>_<APP>\",\n    \"casbinSubjects\": [\n        \"role:trigger_<TEAM>_<ENV>_<APP>\"\n    ],\n    \"team\": \"<TEAM>\",\n    \"application\": \"<APP>\",\n    \"environment\": \"<ENV>\",\n    \"action\": \"trigger\"\n}"
