@@ -20,7 +20,7 @@ func NewK8sCapacityRouterImpl(k8sCapacityRestHandler K8sCapacityRestHandler) *K8
 func (impl *K8sCapacityRouterImpl) InitK8sCapacityRouter(k8sCapacityRouter *mux.Router) {
 
 	k8sCapacityRouter.Path("/cluster/list/raw").
-		HandlerFunc(impl.k8sCapacityRestHandler.GetClusterListWithDetail).Methods("GET")
+		HandlerFunc(impl.k8sCapacityRestHandler.GetClusterListRaw).Methods("GET")
 
 	k8sCapacityRouter.Path("/cluster/list").
 		HandlerFunc(impl.k8sCapacityRestHandler.GetClusterListWithDetail).Methods("GET")
