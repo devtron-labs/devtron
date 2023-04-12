@@ -504,12 +504,13 @@ func (impl *ChartRepositoryServiceImpl) ValidateChartRepo(request *ChartRepoDto)
 		return &detailedErrorHelmRepoValidation
 	}
 	parsedURL, _ := url.Parse(helmRepo.Config.URL)
-	if len(request.UserName) > 0 && len(request.Password) > 0 {
-		// for private chart verify only if '/' is already in path, because saving URL without '/' in secret is giving error
-		parsedURL.Path = parsedURL.Path + "index.yaml"
-	} else {
-		parsedURL.Path = strings.TrimSuffix(parsedURL.Path, "/") + "/index.yaml"
-	}
+	//if len(request.UserName) > 0 && len(request.Password) > 0 {
+	//	// for private chart verify only if '/' is already in path, because saving URL without '/' in secret is giving error
+	//	parsedURL.Path = parsedURL.Path + "index.yaml"
+	//} else {
+	//
+	//}
+	parsedURL.Path = strings.TrimSuffix(parsedURL.Path, "/") + "/index.yaml"
 	indexURL := parsedURL.String()
 	if t, ok := helmRepo.Client.(*getter.HttpGetter); ok {
 		t.SetCredentials(helmRepo.Config.Username, helmRepo.Config.Password)
