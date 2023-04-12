@@ -297,9 +297,9 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 	for index, roleFilter := range filteredRoleFilter {
 		if roleFilter.Entity == "" {
 			filteredRoleFilter[index].Entity = bean2.ENTITY_APPS
-		}
-		if roleFilter.Entity == bean2.ENTITY_APPS && roleFilter.AccessType == "" {
-			filteredRoleFilter[index].AccessType = bean2.DEVTRON_APP
+			if roleFilter.AccessType == "" {
+				filteredRoleFilter[index].AccessType = bean2.DEVTRON_APP
+			}
 		}
 	}
 	res.RoleFilters = filteredRoleFilter
