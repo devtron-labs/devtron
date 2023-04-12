@@ -33,7 +33,7 @@ type UserCommonServiceImpl struct {
 	userRepository              repository2.UserRepository
 	roleGroupRepository         repository2.RoleGroupRepository
 	sessionManager2             *middleware.SessionManager
-	defaultRbacDataCacheFactory repository2.DefaultRbacDataCacheFactory
+	defaultRbacDataCacheFactory repository2.RbacDataCacheFactory
 	enterpriseUserConfig        *EnterpriseUserConfig
 }
 
@@ -42,7 +42,7 @@ func NewUserCommonServiceImpl(userAuthRepository repository2.UserAuthRepository,
 	userRepository repository2.UserRepository,
 	userGroupRepository repository2.RoleGroupRepository,
 	sessionManager2 *middleware.SessionManager,
-	defaultRbacDataCacheFactory repository2.DefaultRbacDataCacheFactory) *UserCommonServiceImpl {
+	defaultRbacDataCacheFactory repository2.RbacDataCacheFactory) *UserCommonServiceImpl {
 	userConfig := &EnterpriseUserConfig{}
 	err := env.Parse(userConfig)
 	if err != nil {

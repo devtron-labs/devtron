@@ -7,19 +7,19 @@ import (
 	"sync"
 )
 
-type DefaultRbacDataCacheFactory interface {
+type RbacDataCacheFactory interface {
 	GetDefaultRoleDataAndPolicyByEntityAccessTypeAndRoleType(entity, accessType, roleType string) (RoleCacheDetailObj, PolicyCacheDetailObj)
 	SyncPolicyCache()
 	SyncRoleDataCache()
 }
 
-type DefaultRbacDataCacheFactoryImpl struct {
+type RbacDataCacheFactoryImpl struct {
 	logger                          *zap.SugaredLogger
 	policyCache                     map[string]PolicyCacheDetailObj
 	roleCache                       map[string]RoleCacheDetailObj
 	mutex                           sync.Mutex
-	defaultRbacPolicyDataRepository DefaultRbacPolicyDataRepository
-	defaultRbacRoleDataRepository   DefaultRbacRoleDataRepository
+	defaultRbacPolicyDataRepository RbacPolicyDataRepository
+	defaultRbacRoleDataRepository   RbacRoleDataRepository
 }
 
 type PolicyCacheDetailObj struct {
@@ -54,12 +54,12 @@ type PValDetailObj struct {
 	IndexKeyMap map[int]PValUpdateKey `json:"indexKeyMap"` //map of index at which replacement is to be done and name of key that is to for updating value
 }
 
-func NewDefaultRbacDataCacheFactoryImpl(logger *zap.SugaredLogger,
-	defaultRbacPolicyDataRepository DefaultRbacPolicyDataRepository,
-	defaultRbacRoleDataRepository DefaultRbacRoleDataRepository) *DefaultRbacDataCacheFactoryImpl {
+func NewRbacDataCacheFactoryImpl(logger *zap.SugaredLogger,
+	defaultRbacPolicyDataRepository RbacPolicyDataRepository,
+	defaultRbacRoleDataRepository RbacRoleDataRepository) *RbacDataCacheFactoryImpl {
 	policyCache := initialisePolicyDataCache()
 	roleCache := initialiseRoleDataCache()
-	return &DefaultRbacDataCacheFactoryImpl{
+	return &RbacDataCacheFactoryImpl{
 		logger:                          logger,
 		policyCache:                     policyCache,
 		roleCache:                       roleCache,
@@ -68,7 +68,7 @@ func NewDefaultRbacDataCacheFactoryImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl *DefaultRbacDataCacheFactoryImpl) GetDefaultRoleDataAndPolicyByEntityAccessTypeAndRoleType(entity, accessType, roleType string) (RoleCacheDetailObj, PolicyCacheDetailObj) {
+func (impl *RbacDataCacheFactoryImpl) GetDefaultRoleDataAndPolicyByEntityAccessTypeAndRoleType(entity, accessType, roleType string) (RoleCacheDetailObj, PolicyCacheDetailObj) {
 	defaultPolicyData := PolicyCacheDetailObj{}
 	defaultRoleData := RoleCacheDetailObj{}
 
@@ -87,9 +87,9 @@ func (impl *DefaultRbacDataCacheFactoryImpl) GetDefaultRoleDataAndPolicyByEntity
 	return defaultRoleData, defaultPolicyData
 }
 
-func (impl *DefaultRbacDataCacheFactoryImpl) SyncPolicyCache() {
+func (impl *RbacDataCacheFactoryImpl) SyncPolicyCache() {
 	//getting all default policies
-	defaultRbacPolicies, err := impl.defaultRbacPolicyDataRepository.GetDefaultPolicyForAllRoles()
+	defaultRbacPolicies, err := impl.defaultRbacPolicyDataRepository.GetPolicyDataForAllRoles()
 	if err != nil {
 		return
 	}
@@ -108,9 +108,9 @@ func (impl *DefaultRbacDataCacheFactoryImpl) SyncPolicyCache() {
 	}
 }
 
-func (impl *DefaultRbacDataCacheFactoryImpl) SyncRoleDataCache() {
+func (impl *RbacDataCacheFactoryImpl) SyncRoleDataCache() {
 	//getting all default policies
-	defaultRbacRoles, err := impl.defaultRbacRoleDataRepository.GetDefaultRoleDataForAllRoles()
+	defaultRbacRoles, err := impl.defaultRbacRoleDataRepository.GetRoleDataForAllRoles()
 	if err != nil {
 		return
 	}
