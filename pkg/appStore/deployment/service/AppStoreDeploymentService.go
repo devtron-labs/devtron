@@ -1135,7 +1135,7 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 
 			//update requirements yaml in chart for full mode app, if migration happened that means it's already done
 			if !isHelmApp && !monoRepoMigrationRequired {
-				err = impl.appStoreDeploymentArgoCdService.UpdateRequirementDependencies(environment, installedAppVersion, installAppVersionRequest, appStoreAppVersion, tx)
+				err = impl.appStoreDeploymentArgoCdService.UpdateRequirementDependencies(environment, installedAppVersion, installAppVersionRequest, appStoreAppVersion)
 				if err != nil {
 					impl.logger.Errorw("error while commit required dependencies to git", "error", err)
 					noTargetFound, _ := impl.appStoreDeploymentCommonService.ParseGitRepoErrorResponse(err)
@@ -1292,7 +1292,7 @@ func (impl AppStoreDeploymentServiceImpl) upgradeInstalledApp(environment *clust
 
 		//here if migration happen that means git and acd operations already done.
 		if !monoRepoMigrationRequired {
-			err = impl.appStoreDeploymentArgoCdService.UpdateRequirementDependencies(environment, installedAppVersion, installAppVersionRequest, appStoreAppVersion, tx)
+			err = impl.appStoreDeploymentArgoCdService.UpdateRequirementDependencies(environment, installedAppVersion, installAppVersionRequest, appStoreAppVersion)
 			if err != nil {
 				impl.logger.Errorw("error while commit required dependencies to git", "error", err)
 				return installAppVersionRequest, installedAppVersion, err
