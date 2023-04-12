@@ -61,9 +61,10 @@ import (
 
 type AppListingRestHandler interface {
 	FetchAppsByEnvironment(w http.ResponseWriter, r *http.Request)
+	FetchAppDetails(w http.ResponseWriter, r *http.Request)
 	FetchJobs(w http.ResponseWriter, r *http.Request)
 	FetchJobOverviewCiPipelines(w http.ResponseWriter, r *http.Request)
-	FetchAppDetails(w http.ResponseWriter, r *http.Request)
+	FetchAppDetailsV2(w http.ResponseWriter, r *http.Request)
 	FetchResourceTree(w http.ResponseWriter, r *http.Request)
 	FetchAllDevtronManagedApps(w http.ResponseWriter, r *http.Request)
 	FetchAppTriggerView(w http.ResponseWriter, r *http.Request)
@@ -680,7 +681,82 @@ func (handler AppListingRestHandlerImpl) FetchOverviewAppsByEnvironment(w http.R
 	common.WriteJsonResp(w, err, resp, http.StatusOK)
 
 }
+
 func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	token := r.Header.Get("token")
+	appId, err := strconv.Atoi(vars["app-id"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	envId, err := strconv.Atoi(vars["env-id"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	pipelines, err := handler.pipelineRepository.FindActiveByAppIdAndEnvironmentId(appId, envId)
+	if err == pg.ErrNoRows {
+		common.WriteJsonResp(w, err, "pipeline Not found in database", http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		handler.logger.Errorw("error in fetching pipelines from db", "appId", appId, "envId", envId)
+		common.WriteJsonResp(w, err, "error in fetching pipeline from database", http.StatusInternalServerError)
+		return
+	}
+	if len(pipelines) == 0 {
+		common.WriteJsonResp(w, fmt.Errorf("app deleted"), nil, http.StatusNotFound)
+		return
+	}
+	if len(pipelines) != 1 {
+		common.WriteJsonResp(w, err, "multiple pipelines found for an envId", http.StatusBadRequest)
+		return
+	}
+	cdPipeline := pipelines[0]
+	appDetail, err := handler.appListingService.FetchAppDetails(r.Context(), appId, envId)
+	if err != nil {
+		handler.logger.Errorw("service err, FetchAppDetails", "err", err, "appId", appId, "envId", envId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		return
+	}
+	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		common.WriteJsonResp(w, fmt.Errorf("error in getting acd token"), nil, http.StatusInternalServerError)
+		return
+	}
+	resourceTree, err := handler.fetchResourceTree(w, r, appId, envId, acdToken, cdPipeline)
+	if appDetail.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+		apiError, ok := err.(*util.ApiError)
+		if ok && apiError != nil {
+			if apiError.Code == constants.AppDetailResourceTreeNotFound && appDetail.DeploymentAppDeleteRequest == true {
+				acdAppFound, _ := handler.pipeline.MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(appId, envId, acdToken, cdPipeline)
+				if acdAppFound {
+					common.WriteJsonResp(w, fmt.Errorf("unable to fetch resource tree"), nil, http.StatusInternalServerError)
+					return
+				} else {
+					common.WriteJsonResp(w, fmt.Errorf("app deleted"), nil, http.StatusNotFound)
+					return
+				}
+			}
+		}
+	}
+	if err != nil {
+		common.WriteJsonResp(w, fmt.Errorf("unable to fetch resource tree"), nil, http.StatusInternalServerError)
+		return
+	}
+	appDetail.ResourceTree = resourceTree
+	common.WriteJsonResp(w, err, appDetail, http.StatusOK)
+}
+
+func (handler AppListingRestHandlerImpl) FetchAppDetailsV2(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	token := r.Header.Get("token")
 	appId, err := strconv.Atoi(vars["app-id"])
@@ -700,7 +776,7 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 	}
 	appDetail, err := handler.appListingService.FetchAppDetails(r.Context(), appId, envId)
 	if err != nil {
-		handler.logger.Errorw("service err, FetchAppDetails", "err", err, "appId", appId, "envId", envId)
+		handler.logger.Errorw("service err, FetchAppDetailsV2", "err", err, "appId", appId, "envId", envId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -1121,7 +1197,7 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 	if installedAppIdParam != "" {
 		installedAppId, err := strconv.Atoi(installedAppIdParam)
 		if err != nil {
-			handler.logger.Errorw("request err, FetchAppDetailsForInstalledApp", "err", err, "installedAppId", installedAppId)
+			handler.logger.Errorw("request err, FetchAppDetailsForInstalledAppV2", "err", err, "installedAppId", installedAppId)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
@@ -1231,7 +1307,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		resp, err := handler.application.ResourceTree(ctx, query)
 		elapsed := time.Since(start)
 		if err != nil {
-			handler.logger.Errorw("service err, FetchAppDetails, resource tree", "err", err, "app", appId, "env", envId)
+			handler.logger.Errorw("service err, FetchAppDetailsV2, resource tree", "err", err, "app", appId, "env", envId)
 			err = &util.ApiError{
 				Code:            constants.AppDetailResourceTreeNotFound,
 				InternalMessage: "app detail fetched, failed to get resource tree from acd",
@@ -1239,12 +1315,12 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 			}
 			return resourceTree, err
 		}
-		handler.logger.Debugw("FetchAppDetails, time elapsed in fetching application for environment ", "elapsed", elapsed, "appId", appId, "envId", envId)
+		handler.logger.Debugw("FetchAppDetailsV2, time elapsed in fetching application for environment ", "elapsed", elapsed, "appId", appId, "envId", envId)
 
 		if resp.Status == string(health.HealthStatusHealthy) {
 			status, err := handler.appListingService.ISLastReleaseStopType(appId, envId)
 			if err != nil {
-				handler.logger.Errorw("service err, FetchAppDetails", "err", err, "app", appId, "env", envId)
+				handler.logger.Errorw("service err, FetchAppDetailsV2", "err", err, "app", appId, "env", envId)
 			} else if status {
 				resp.Status = application.HIBERNATING
 			}
@@ -1252,7 +1328,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		if resp.Status == string(health.HealthStatusDegraded) {
 			count, err := handler.appListingService.GetReleaseCount(appId, envId)
 			if err != nil {
-				handler.logger.Errorw("service err, FetchAppDetails, release count", "err", err, "app", appId, "env", envId)
+				handler.logger.Errorw("service err, FetchAppDetailsV2, release count", "err", err, "app", appId, "env", envId)
 			} else if count == 0 {
 				resp.Status = app.NotDeployed
 			}
@@ -1293,7 +1369,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 			if applicationStatus == application.Healthy {
 				status, err := handler.appListingService.ISLastReleaseStopType(appId, envId)
 				if err != nil {
-					handler.logger.Errorw("service err, FetchAppDetails", "err", err, "app", appId, "env", envId)
+					handler.logger.Errorw("service err, FetchAppDetailsV2", "err", err, "app", appId, "env", envId)
 				} else if status {
 					resourceTree["status"] = application.HIBERNATING
 				}

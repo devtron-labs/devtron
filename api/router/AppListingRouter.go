@@ -65,6 +65,10 @@ func (router AppListingRouterImpl) initAppListingRouter(appListingRouter *mux.Ro
 		HandlerFunc(router.appListingRestHandler.FetchAppDetails).
 		Methods("GET")
 
+	appListingRouter.Path("/detail/v2").Queries("app-id", "{app-id}").Queries("env-id", "{env-id}").
+		HandlerFunc(router.appListingRestHandler.FetchAppDetailsV2).
+		Methods("GET")
+
 	appListingRouter.Path("/detail/resource-tree").Queries("app-id", "{app-id}").Queries("env-id", "{env-id}").
 		HandlerFunc(router.appListingRestHandler.FetchResourceTree).
 		Methods("GET")
