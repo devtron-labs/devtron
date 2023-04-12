@@ -105,11 +105,6 @@ func (impl *ChartRepositoryServiceImpl) CreateSecretDataForPrivateHelmChart(requ
 	secretData[PASSWORD] = request.Password
 	secretData[TYPE] = HELM
 	secretData[URL] = request.Url
-	isInsecureConnection := "true"
-	if !request.AllowInsecureConnection {
-		isInsecureConnection = "false"
-	}
-	secretData[INSECRUE] = isInsecureConnection
 	return secretData
 }
 
