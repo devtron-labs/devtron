@@ -40,6 +40,7 @@ type ModuleService interface {
 	GetModuleInfo(name string) (*ModuleInfoDto, error)
 	GetModuleConfig(name string) (*ModuleConfigDto, error)
 	HandleModuleAction(userId int32, moduleName string, moduleActionRequest *ModuleActionRequestDto) (*ActionResponse, error)
+	GetAllModuleInfo() ([]ModuleInfoDto, error)
 }
 
 type ModuleServiceImpl struct {
@@ -365,4 +366,49 @@ func (impl ModuleServiceImpl) saveModule(moduleName string, moduleStatus ModuleS
 		return ModuleStatusNotInstalled, err
 	}
 	return moduleStatus, nil
+}
+
+func (impl ModuleServiceImpl) GetAllModuleInfo() ([]ModuleInfoDto, error) {
+	// fetch from DB
+	modules, err := impl.moduleRepository.FindAll()
+	if err != nil {
+		if err == pg.ErrNoRows {
+			impl.logger.Errorw("no installed modules found ", "err", err)
+			return nil, err
+		}
+		// otherwise some error case
+		impl.logger.Errorw("error in getting modules from DB ", "err", err)
+		return nil, err
+	}
+	var installedModules []ModuleInfoDto
+	// now this is the case when data found in DB
+	for _, module := range modules {
+		moduleInfoDto := ModuleInfoDto{
+			Name:   module.Name,
+			Status: module.Status,
+		}
+		moduleId := module.Id
+		moduleResourcesStatusFromDb, err := impl.moduleResourceStatusRepository.FindAllActiveByModuleId(moduleId)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in getting module resources status from DB ", "moduleId", moduleId, "moduleName", module.Name, "err", err)
+			return nil, err
+		}
+		if moduleResourcesStatusFromDb != nil {
+			var moduleResourcesStatus []*ModuleResourceStatusDto
+			for _, moduleResourceStatusFromDb := range moduleResourcesStatusFromDb {
+				moduleResourcesStatus = append(moduleResourcesStatus, &ModuleResourceStatusDto{
+					Group:         moduleResourceStatusFromDb.Group,
+					Version:       moduleResourceStatusFromDb.Version,
+					Kind:          moduleResourceStatusFromDb.Kind,
+					Name:          moduleResourceStatusFromDb.Name,
+					HealthStatus:  moduleResourceStatusFromDb.HealthStatus,
+					HealthMessage: moduleResourceStatusFromDb.HealthMessage,
+				})
+			}
+			moduleInfoDto.ModuleResourcesStatus = moduleResourcesStatus
+		}
+		installedModules = append(installedModules, moduleInfoDto)
+	}
+
+	return installedModules, nil
 }
