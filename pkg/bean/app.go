@@ -271,6 +271,12 @@ type Material struct {
 	MaterialName  string `json:"materialName"`
 }
 
+type TriggerViewCiConfig struct {
+	CiGitMaterialId int           `json:"ciGitConfiguredId"`
+	CiPipelines     []*CiPipeline `json:"ciPipelines,omitempty" validate:"dive"` //a pipeline will be built for each ciMaterial
+	Materials       []Material    `json:"materials"`
+}
+
 type CiConfigRequest struct {
 	Id                int                     `json:"id,omitempty" validate:"number"` //ciTemplateId
 	AppId             int                     `json:"appId,omitempty" validate:"required,number"`
@@ -468,12 +474,12 @@ type CDPipelineConfigObject struct {
 	Namespace                     string                                 `json:"namespace,omitempty" validate:"name-space-component,max=50"` //namespace
 	AppWorkflowId                 int                                    `json:"appWorkflowId,omitempty" `
 	DeploymentTemplate            chartRepoRepository.DeploymentStrategy `json:"deploymentTemplate,omitempty"` //
-	PreStage                      CdStage                                `json:"preStage"`
-	PostStage                     CdStage                                `json:"postStage"`
-	PreStageConfigMapSecretNames  PreStageConfigMapSecretNames           `json:"preStageConfigMapSecretNames"`
-	PostStageConfigMapSecretNames PostStageConfigMapSecretNames          `json:"postStageConfigMapSecretNames"`
-	RunPreStageInEnv              bool                                   `json:"runPreStageInEnv"`
-	RunPostStageInEnv             bool                                   `json:"runPostStageInEnv"`
+	PreStage                      CdStage                                `json:"preStage,omitempty"`
+	PostStage                     CdStage                                `json:"postStage,omitempty"`
+	PreStageConfigMapSecretNames  PreStageConfigMapSecretNames           `json:"preStageConfigMapSecretNames,omitempty"`
+	PostStageConfigMapSecretNames PostStageConfigMapSecretNames          `json:"postStageConfigMapSecretNames,omitempty"`
+	RunPreStageInEnv              bool                                   `json:"runPreStageInEnv,omitempty"`
+	RunPostStageInEnv             bool                                   `json:"runPostStageInEnv,omitempty"`
 	CdArgoSetup                   bool                                   `json:"isClusterCdActive"`
 	ParentPipelineId              int                                    `json:"parentPipelineId"`
 	ParentPipelineType            string                                 `json:"parentPipelineType"`
@@ -482,7 +488,8 @@ type CDPipelineConfigObject struct {
 	DeploymentAppDeleteRequest    bool                                   `json:"deploymentAppDeleteRequest"`
 	DeploymentAppCreated          bool                                   `json:"deploymentAppCreated"`
 	AppId                         int                                    `json:"appId"`
-	//Downstream         []int                             `json:"downstream"` //PipelineCounter of downstream	(for future reference only)
+	TeamId                        int                                    `json:"-"`
+	EnvironmentIdentifier         string                                 `json:"-" `
 }
 
 type PreStageConfigMapSecretNames struct {
