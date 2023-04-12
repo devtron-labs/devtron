@@ -100,7 +100,7 @@ func NewChartRepositoryServiceImpl(logger *zap.SugaredLogger, repoRepository cha
 // Private helm charts credentials are saved as secrets
 func (impl *ChartRepositoryServiceImpl) CreateSecretDataForPrivateHelmChart(request *ChartRepoDto) (secretData map[string]string) {
 	secretData = make(map[string]string)
-	secretData[NAME] = request.Name + uuid.New().String()
+	secretData[NAME] = fmt.Sprintf("%s-%s", request.Name, uuid.New().String()) // making repo name unique so that "helm repp add" command in argo-repo-server doesn't give error
 	secretData[USERNAME] = request.UserName
 	secretData[PASSWORD] = request.Password
 	secretData[TYPE] = HELM
@@ -331,7 +331,7 @@ func (impl *ChartRepositoryServiceImpl) UpdateData(request *ChartRepoDto) (*char
 	return chartRepo, nil
 }
 
-// DeleteChartRepoFromArgocdCM update the active state from DB and modify the argo-cm with repo URL to null
+// DeleteChartRepo update the active state from DB and modify the argo-cm with repo URL to null in case of public chart and delete secret in case of private chart
 func (impl *ChartRepositoryServiceImpl) DeleteChartRepo(request *ChartRepoDto) error {
 	dbConnection := impl.repoRepository.GetConnection()
 	tx, err := dbConnection.Begin()
