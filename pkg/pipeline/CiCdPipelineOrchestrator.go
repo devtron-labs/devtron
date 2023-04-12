@@ -250,6 +250,8 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 			pipelineMaterial.CiPipelineId = createRequest.Id
 			pipelineMaterial.CreatedBy = userId
 			pipelineMaterial.CreatedOn = createOnTimeMap[material.GitMaterialId]
+			pipelineMaterial.UpdatedOn = time.Now()
+			pipelineMaterial.UpdatedBy = userId
 			materialsUpdate = append(materialsUpdate, pipelineMaterial)
 		}
 	}
@@ -260,7 +262,7 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 		}
 	}
 	if len(materialsUpdate) > 0 {
-		err = impl.ciPipelineMaterialRepository.UpdateForSwitch(tx, materialsUpdate...)
+		err = impl.ciPipelineMaterialRepository.Update(tx, materialsUpdate...)
 		if err != nil {
 			return nil, err
 		}
@@ -414,7 +416,7 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 				return nil, fmt.Errorf("error while updating linked pipeline")
 			}
 		}
-		err = impl.ciPipelineMaterialRepository.UpdateForSwitch(tx, linkedMaterials...)
+		err = impl.ciPipelineMaterialRepository.Update(tx, linkedMaterials...)
 		if err != nil {
 			return nil, err
 		}
@@ -451,13 +453,8 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteCiPipeline(pipeline *pipelineConf
 		if err != nil {
 			return err
 		}
-		pipelineMaterial := &pipelineConfig.CiPipelineMaterial{
-			Id:       material.Id,
-			Active:   false,
-			Type:     materialDbObject.Type,
-			AuditLog: sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
-		}
-		materials = append(materials, pipelineMaterial)
+		materialDbObject.Active = false
+		materials = append(materials, materialDbObject)
 	}
 
 	if request.CiPipeline.ExternalCiConfig.Id != 0 {
