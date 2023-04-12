@@ -48,4 +48,11 @@ var UserWireSet = wire.NewSet(
 
 	auth.NewUserAuthOidcHelperImpl,
 	wire.Bind(new(auth.UserAuthOidcHelper), new(*auth.UserAuthOidcHelperImpl)),
+
+	repository.NewDefaultRbacPolicyDataRepositoryImpl,
+	wire.Bind(new(repository.DefaultRbacPolicyDataRepository), new(*repository.DefaultRbacPolicyDataRepositoryImpl)),
+	repository.NewDefaultRbacRoleDataRepositoryImpl,
+	wire.Bind(new(repository.DefaultRbacRoleDataRepository), new(*repository.DefaultRbacRoleDataRepositoryImpl)),
+	repository.NewDefaultRbacDataCacheFactoryImpl,
+	wire.Bind(new(repository.DefaultRbacDataCacheFactory), new(*repository.DefaultRbacDataCacheFactoryImpl)),
 )
