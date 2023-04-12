@@ -238,16 +238,22 @@ func (impl ImageScanServiceImpl) FetchScanExecutionListing(request *ImageScanReq
 		} else {
 			if item.ObjectType == security.ScanObjectType_APP || item.ObjectType == security.ScanObjectType_CHART {
 				app, err := impl.appRepository.FindById(item.ScanObjectMetaId)
-				if err != nil {
+				if err != nil && err != pg.ErrNoRows {
 					return nil, err
+				}
+				if err == pg.ErrNoRows {
+					continue
 				}
 				imageScanHistoryResponse.AppId = app.Id
 				imageScanHistoryResponse.Name = app.AppName
 				imageScanHistoryResponse.Type = item.ObjectType
 			} else if item.ObjectType == security.ScanObjectType_POD {
 				scanObjectMeta, err := impl.scanObjectMetaRepository.FindOne(item.ScanObjectMetaId)
-				if err != nil {
+				if err != nil && err != pg.ErrNoRows {
 					return nil, err
+				}
+				if err == pg.ErrNoRows {
+					continue
 				}
 				imageScanHistoryResponse.Name = scanObjectMeta.Name
 				imageScanHistoryResponse.Type = item.ObjectType
