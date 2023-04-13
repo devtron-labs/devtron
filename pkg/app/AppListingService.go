@@ -386,6 +386,29 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingReques
 		impl.Logger.Errorw("error in fetching app list", "error", err, "filter", appListingFilter)
 		return []*bean.AppEnvironmentContainer{}, appSize, err
 	}
+
+	envContainersMap := make(map[int][]*bean.AppEnvironmentContainer)
+	envIds := make([]*int, 0)
+	for _, container := range envContainers {
+		if container.EnvironmentId != 0 {
+			if _, ok := envContainersMap[container.EnvironmentId]; !ok {
+				envContainersMap[container.EnvironmentId] = make([]*bean.AppEnvironmentContainer, 0)
+			}
+			envContainersMap[container.EnvironmentId] = append(envContainersMap[container.EnvironmentId], container)
+			envIds = append(envIds, &container.EnvironmentId)
+		}
+	}
+	envClusterInfos, err := impl.environmentRepository.FindEnvClusterInfosByIds(envIds)
+	if err != nil {
+		impl.Logger.Errorw("error in envClusterInfos list", "error", err, "envIds", envIds)
+		return []*bean.AppEnvironmentContainer{}, appSize, err
+	}
+	for _, info := range envClusterInfos {
+		for _, container := range envContainersMap[info.Id] {
+			container.Namespace = info.Namespace
+			container.ClusterName = info.ClusterName
+		}
+	}
 	return envContainers, appSize, nil
 }
 
