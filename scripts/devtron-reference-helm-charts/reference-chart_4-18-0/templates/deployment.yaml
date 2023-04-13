@@ -303,7 +303,7 @@ spec:
                   name: {{ .secretName }}
                   key: {{ .keyName }}
           {{- end }}
-          {{- end}}
+          {{- end }}
           {{- range $.Values.EnvVariablesFromCongigMapKeys }}
           {{- if and .name .configMapName .keyName }}
             - name: {{ .name }}
@@ -312,7 +312,7 @@ spec:
                   name: {{ .configMapName }}
                   key: {{ .keyName }}
           {{- end }}
-          {{- end}}
+          {{- end }}
           {{- if or (and ($hasCMEnvExists) (.Values.ConfigMaps.enabled)) (and ($hasSecretEnvExists) (.Values.ConfigSecrets.enabled)) }}
           envFrom:
           {{- if .Values.ConfigMaps.enabled }}

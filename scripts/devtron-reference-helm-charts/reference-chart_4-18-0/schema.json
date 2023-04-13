@@ -87,7 +87,7 @@
     },
     "EnvVariablesFromSecretKeys": {
       "type": "array",
-      "description": "Selects a field of the deplyment: It is use to get the name of Environment Variable name, Secret name and the Key name from which we are using the value in that corresponding Environment Variable.",
+      "description": "Selects a field of the deployment: It is use to get the name of Environment Variable name, Secret name and the Key name from which we are using the value in that corresponding Environment Variable.",
       "title": "EnvVariablesFromSecretKeys",
       "items": [
         {
@@ -114,7 +114,7 @@
     },
     "EnvVariablesFromCongigMapKeys": {
       "type": "array",
-      "description": "Selects a field of the deplyment: It is use to get the name of Environment Variable name, Config Map name and the Key name from which we are using the value in that corresponding Environment Variable.",
+      "description": "Selects a field of the deployment: It is use to get the name of Environment Variable name, Config Map name and the Key name from which we are using the value in that corresponding Environment Variable.",
       "title": "EnvVariablesFromCongigMapKeys",
       "items": [
         {

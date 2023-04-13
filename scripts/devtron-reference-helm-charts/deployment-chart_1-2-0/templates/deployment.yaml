@@ -288,13 +288,34 @@ spec:
                  fieldPath: {{ .fieldPath }}
           {{- end}}
           {{- range $.Values.EnvVariables }}
-            - name: {{ .name}}
+          {{- if and .name .value }}
+            - name: {{ .name }}
               value: {{ .value | quote }}
-          {{- end}}
+          {{- end }}
+          {{- end }}
+          {{- range $.Values.EnvVariablesFromSecretKeys }}
+          {{- if and .name .secretName .keyName }}
+            - name: {{ .name }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .secretName }}
+                  key: {{ .keyName }}
+          {{- end }}
+          {{- end }}
+          {{- range $.Values.EnvVariablesFromCongigMapKeys }}
+          {{- if and .name .configMapName .keyName }}
+            - name: {{ .name }}
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .configMapName }}
+                  key: {{ .keyName }}
+          {{- end }}
+          {{- end }}
           {{- if or (and ($hasCMEnvExists) (.Values.ConfigMaps.enabled)) (and ($hasSecretEnvExists) (.Values.ConfigSecrets.enabled)) }}
           envFrom:
           {{- if .Values.ConfigMaps.enabled }}
           {{- range .Values.ConfigMaps.maps }}
+          {{- if and .name .type .external }}
           {{- if eq .type "environment" }}
           - configMapRef:
               {{- if eq .external true }}
@@ -305,8 +326,10 @@ spec:
           {{- end }}
           {{- end }}
           {{- end }}
+          {{- end }}
           {{- if .Values.ConfigSecrets.enabled }}
           {{- range .Values.ConfigSecrets.secrets }}
+          {{- if and .name .type .external }}
           {{- if eq .type "environment" }}
           - secretRef:
               {{if eq .external true}}
@@ -314,6 +337,7 @@ spec:
               {{else if eq .external false}}
               name: {{ .name}}-{{ $.Values.app }}
               {{- end }}
+          {{- end }}
           {{- end }}
           {{- end }}
           {{- end }}
