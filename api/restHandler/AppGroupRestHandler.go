@@ -86,7 +86,7 @@ func (handler AppGroupRestHandlerImpl) GetApplicationsForAppGroup(w http.Respons
 		return
 	}
 	vars := mux.Vars(r)
-	id, err := strconv.Atoi(vars["id"])
+	id, err := strconv.Atoi(vars["appGroupId"])
 	if err != nil {
 		common.WriteJsonResp(w, err, "", http.StatusBadRequest)
 		return
@@ -113,7 +113,7 @@ func (handler AppGroupRestHandlerImpl) CreateAppGroup(w http.ResponseWriter, r *
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
+	dto.UserId=userId
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
@@ -143,7 +143,7 @@ func (handler AppGroupRestHandlerImpl) UpdateAppGroup(w http.ResponseWriter, r *
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
+	dto.UserId=userId
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
