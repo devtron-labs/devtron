@@ -86,7 +86,6 @@ type PipelineConfigRestHandler interface {
 	DevtronAppDeploymentHistoryRestHandler
 	DevtronAppPrePostDeploymentRestHandler
 	DevtronAppDeploymentConfigRestHandler
-
 	PipelineNameSuggestion(w http.ResponseWriter, r *http.Request)
 }
 

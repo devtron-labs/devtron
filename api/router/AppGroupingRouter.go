@@ -12,12 +12,16 @@ type AppGroupingRouter interface {
 type AppGroupingRouterImpl struct {
 	restHandler            app.PipelineConfigRestHandler
 	appWorkflowRestHandler restHandler.AppWorkflowRestHandler
+	appGroupRestHandler    restHandler.AppGroupRestHandler
 }
 
-func NewAppGroupingRouterImpl(restHandler app.PipelineConfigRestHandler, appWorkflowRestHandler restHandler.AppWorkflowRestHandler) *AppGroupingRouterImpl {
+func NewAppGroupingRouterImpl(restHandler app.PipelineConfigRestHandler,
+	appWorkflowRestHandler restHandler.AppWorkflowRestHandler,
+	appGroupRestHandler restHandler.AppGroupRestHandler) *AppGroupingRouterImpl {
 	return &AppGroupingRouterImpl{
 		restHandler:            restHandler,
 		appWorkflowRestHandler: appWorkflowRestHandler,
+		appGroupRestHandler:    appGroupRestHandler,
 	}
 }
 
@@ -31,5 +35,10 @@ func (router AppGroupingRouterImpl) InitAppGroupingRouter(appGroupingRouter *mux
 	appGroupingRouter.Path("/app-grouping").HandlerFunc(router.restHandler.GetEnvironmentListWithAppData).Methods("GET")
 	appGroupingRouter.Path("/{envId}/applications").HandlerFunc(router.restHandler.GetApplicationsByEnvironment).Methods("GET")
 	appGroupingRouter.Path("/{envId}/deployment/status").HandlerFunc(router.restHandler.FetchAppDeploymentStatusForEnvironments).Methods("GET")
+
+	appGroupingRouter.Path("/{envId}/group/create").HandlerFunc(router.appGroupRestHandler.CreateAppGroup).Methods("GET")
+	appGroupingRouter.Path("/{envId}/group/update").HandlerFunc(router.appGroupRestHandler.UpdateAppGroup).Methods("GET")
+	appGroupingRouter.Path("/{envId}/group/{appGroupId}").HandlerFunc(router.appGroupRestHandler.GetApplicationsForAppGroup).Methods("GET")
+	appGroupingRouter.Path("/{envId}/group").HandlerFunc(router.appGroupRestHandler.GetActiveAppGroupList).Methods("GET")
 
 }
