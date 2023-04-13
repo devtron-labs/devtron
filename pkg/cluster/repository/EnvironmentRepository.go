@@ -36,6 +36,7 @@ type Environment struct {
 	GrafanaDatasourceId   int    `sql:"grafana_datasource_id"`
 	Namespace             string `sql:"namespace"`
 	EnvironmentIdentifier string `sql:"environment_identifier"`
+	Description           string `sql:"description"`
 	sql.AuditLog
 }
 
