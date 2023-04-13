@@ -85,6 +85,60 @@
         }
       ]
     },
+    "EnvVariablesFromSecretKeys": {
+      "type": "array",
+      "description": "Selects a field of the deplyment: It is use to get the name of Environment Variable name, Secret name and the Key name from which we are using the value in that corresponding Environment Variable.",
+      "title": "EnvVariablesFromSecretKeys",
+      "items": [
+        {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "title": "name",
+              "description": "Env variable name to be used."
+            },
+            "secretName": {
+              "type": "string",
+              "title": "secretName",
+              "description": "Name of Secret from which we are taking the value."
+            },
+            "keyName": {
+              "type": "string",
+              "title": "keyName",
+              "description": "Name of The Key Where the value is mapped with."
+            }
+          }
+        }
+      ]
+    },
+    "EnvVariablesFromCongigMapKeys": {
+      "type": "array",
+      "description": "Selects a field of the deplyment: It is use to get the name of Environment Variable name, Config Map name and the Key name from which we are using the value in that corresponding Environment Variable.",
+      "title": "EnvVariablesFromCongigMapKeys",
+      "items": [
+        {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "title": "name",
+              "description": "Env variable name to be used."
+            },
+            "configMapName": {
+              "type": "string",
+              "title": "configMapName",
+              "description": "Name of configMap from which we are taking the value."
+            },
+            "keyName": {
+              "type": "string",
+              "title": "keyName",
+              "description": "Name of The Key Where the value is mapped with."
+            }
+          }
+        }
+      ]
+    },
     "GracePeriod": {
       "type": "integer",
       "description": "time for which Kubernetes waits before terminating the pods",
