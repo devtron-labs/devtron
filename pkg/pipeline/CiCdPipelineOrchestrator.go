@@ -827,8 +827,20 @@ func (impl CiCdPipelineOrchestratorImpl) CreateApp(createRequest *bean.CreateApp
 }
 
 func (impl CiCdPipelineOrchestratorImpl) DeleteApp(appId int, userId int32) error {
-	// Delete git materials,call git sensor and delete app
-	impl.logger.Debug("deleting materials in orchestrator")
+
+	// start transaction block
+	tx, err := impl.materialRepository.GetConnection().Begin()
+	if err != nil {
+		impl.logger.Errorw("error while starting transaction block",
+			"err", err)
+		return err
+	}
+	defer func() {
+		impl.logger.Errorw("failed to delete app. rolling back")
+		tx.Rollback()
+	}()
+
+	// Update all git materials as deleted (with transaction)
 	materials, err := impl.materialRepository.FindByAppId(appId)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("err", err)
@@ -839,16 +851,49 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteApp(appId int, userId int32) erro
 		materials[i].UpdatedOn = time.Now()
 		materials[i].UpdatedBy = userId
 	}
-	err = impl.materialRepository.Update(materials)
 
+	err = impl.materialRepository.UpdateWithTransaction(materials, tx)
 	if err != nil {
 		impl.logger.Errorw("could not delete materials ", "err", err)
 		return err
 	}
 
-	err = impl.gitMaterialHistoryService.CreateDeleteMaterialHistory(materials)
+	// Create delete material history (with transaction)
+	err = impl.gitMaterialHistoryService.CreateDeleteMaterialHistoryWithTransaction(materials, tx)
+	if err != nil {
+		impl.logger.Errorw("error creating git material history",
+			"err", err)
+		return err
+	}
 
-	impl.logger.Debug("deleting materials in git_sensor")
+	// delete app (with transaction), using xApp to avoid conflict with package name
+	xApp, err := impl.appRepository.FindById(appId)
+	if err != nil {
+		impl.logger.Errorw("error getting app details",
+			"appId", appId,
+			"err", err)
+		return err
+	}
+
+	xApp.Active = false
+	xApp.UpdatedOn = time.Now()
+	xApp.UpdatedBy = userId
+	err = impl.appRepository.UpdateWithTxn(xApp, tx)
+	if err != nil {
+		impl.logger.Errorw("error updating app",
+			"appId", appId,
+			"err", "err", err)
+		return err
+	}
+
+	// delete auth roles entries for this project (with transaction)
+	err = impl.userAuthService.DeleteRoles(bean3.APP_TYPE, xApp.AppName, tx, "")
+	if err != nil {
+		impl.logger.Errorw("error in deleting auth roles", "err", err)
+		return err
+	}
+
+	// delete repository in git sensor
 	for _, m := range materials {
 		err = impl.updateRepositoryToGitSensor(m)
 		if err != nil {
@@ -857,33 +902,6 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteApp(appId int, userId int32) erro
 		}
 	}
 
-	app, err := impl.appRepository.FindById(appId)
-	if err != nil {
-		impl.logger.Errorw("err", err)
-		return err
-	}
-	dbConnection := impl.appRepository.GetConnection()
-	tx, err := dbConnection.Begin()
-	if err != nil {
-		impl.logger.Errorw("error in establishing connection", "err", err)
-		return err
-	}
-	// Rollback tx on error.
-	defer tx.Rollback()
-	app.Active = false
-	app.UpdatedOn = time.Now()
-	app.UpdatedBy = userId
-	err = impl.appRepository.UpdateWithTxn(app, tx)
-	if err != nil {
-		impl.logger.Errorw("err", "err", err)
-		return err
-	}
-	//deleting auth roles entries for this project
-	err = impl.userAuthService.DeleteRoles(bean3.APP_TYPE, app.AppName, tx, "")
-	if err != nil {
-		impl.logger.Errorw("error in deleting auth roles", "err", err)
-		return err
-	}
 	err = tx.Commit()
 	if err != nil {
 		return err

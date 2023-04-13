@@ -33,7 +33,7 @@ const (
 	SOURCE_TYPE_WEBHOOK      SourceType = "WEBHOOK"
 )
 
-//TODO: add support for submodule
+// TODO: add support for submodule
 type GitMaterial struct {
 	tableName       struct{} `sql:"git_material" pg:",discard_unknown_columns"`
 	Id              int      `sql:"id,pk"`
@@ -50,10 +50,12 @@ type GitMaterial struct {
 }
 
 type MaterialRepository interface {
+	GetConnection() *pg.DB
 	MaterialExists(url string) (bool, error)
 	SaveMaterial(material *GitMaterial) error
 	UpdateMaterial(material *GitMaterial) error
 	Update(materials []*GitMaterial) error
+	UpdateWithTransaction(materials []*GitMaterial, tx *pg.Tx) error
 	FindByAppId(appId int) ([]*GitMaterial, error)
 	FindById(Id int) (*GitMaterial, error)
 	UpdateMaterialScmId(material *GitMaterial) error
@@ -69,6 +71,10 @@ type MaterialRepositoryImpl struct {
 
 func NewMaterialRepositoryImpl(dbConnection *pg.DB) *MaterialRepositoryImpl {
 	return &MaterialRepositoryImpl{dbConnection: dbConnection}
+}
+
+func (impl MaterialRepositoryImpl) GetConnection() *pg.DB {
+	return impl.dbConnection
 }
 
 func (repo MaterialRepositoryImpl) FindByAppId(appId int) ([]*GitMaterial, error) {
@@ -130,6 +136,20 @@ func (impl MaterialRepositoryImpl) Update(materials []*GitMaterial) error {
 		return nil
 	})
 	return err
+}
+
+func (impl MaterialRepositoryImpl) UpdateWithTransaction(materials []*GitMaterial, tx *pg.Tx) error {
+
+	for _, material := range materials {
+		_, err := tx.Model(material).
+			WherePK().
+			UpdateNotNull()
+
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (repo MaterialRepositoryImpl) FindByAppIdAndCheckoutPath(appId int, checkoutPath string) (*GitMaterial, error) {
