@@ -910,6 +910,19 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteApp(appId int, userId int32) erro
 }
 
 func (impl CiCdPipelineOrchestratorImpl) CreateMaterials(createMaterialRequest *bean.CreateMaterialDTO) (*bean.CreateMaterialDTO, error) {
+
+	// start transaction block
+	tx, err := impl.materialRepository.GetConnection().Begin()
+	if err != nil {
+		impl.logger.Errorw("error while starting transaction block",
+			"err", err)
+		return nil, err
+	}
+	defer func() {
+		impl.logger.Errorw("failed to delete app. rolling back")
+		tx.Rollback()
+	}()
+
 	existingMaterials, err := impl.materialRepository.FindByAppId(createMaterialRequest.AppId)
 	if err != nil {
 		impl.logger.Errorw("err", "err", err)
@@ -933,7 +946,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateMaterials(createMaterialRequest *
 	}
 	var materials []*bean.GitMaterial
 	for _, inputMaterial := range createMaterialRequest.Material {
-		m, err := impl.createMaterial(inputMaterial, createMaterialRequest.AppId, createMaterialRequest.UserId)
+		m, err := impl.createMaterialWithTransaction(inputMaterial, createMaterialRequest.AppId, createMaterialRequest.UserId, tx)
 		inputMaterial.Id = m.Id
 		if err != nil {
 			return nil, err
@@ -945,6 +958,12 @@ func (impl CiCdPipelineOrchestratorImpl) CreateMaterials(createMaterialRequest *
 		impl.logger.Errorw("error in updating to sensor", "err", err)
 		return nil, err
 	}
+
+	err = tx.Commit()
+	if err != nil {
+		return nil, err
+	}
+
 	impl.logger.Debugw("all materials are ", "materials", materials)
 	return createMaterialRequest, nil
 }
@@ -1162,7 +1181,7 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateMaterialWithTransaction(dto *bean
 	return currentMaterial, nil
 }
 
-func (impl CiCdPipelineOrchestratorImpl) createMaterial(inputMaterial *bean.GitMaterial, appId int, userId int32) (*pipelineConfig.GitMaterial, error) {
+func (impl CiCdPipelineOrchestratorImpl) createMaterialWithTransaction(inputMaterial *bean.GitMaterial, appId int, userId int32, tx *pg.Tx) (*pipelineConfig.GitMaterial, error) {
 	basePath := path.Base(inputMaterial.Url)
 	basePath = strings.TrimSuffix(basePath, ".git")
 	material := &pipelineConfig.GitMaterial{
@@ -1175,12 +1194,12 @@ func (impl CiCdPipelineOrchestratorImpl) createMaterial(inputMaterial *bean.GitM
 		FetchSubmodules: inputMaterial.FetchSubmodules,
 		AuditLog:        sql.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 	}
-	err := impl.materialRepository.SaveMaterial(material)
+	err := impl.materialRepository.SaveMaterialWithTransaction(material, tx)
 	if err != nil {
 		impl.logger.Errorw("error in saving material", "material", material, "err", err)
 		return nil, err
 	}
-	err = impl.gitMaterialHistoryService.CreateMaterialHistory(material)
+	err = impl.gitMaterialHistoryService.CreateMaterialHistoryWithTransaction(material, tx)
 	return material, err
 }
 

@@ -53,6 +53,7 @@ type MaterialRepository interface {
 	GetConnection() *pg.DB
 	MaterialExists(url string) (bool, error)
 	SaveMaterial(material *GitMaterial) error
+	SaveMaterialWithTransaction(material *GitMaterial, tx *pg.Tx) error
 	UpdateMaterial(material *GitMaterial) error
 	UpdateMaterialWithTransaction(material *GitMaterial, tx *pg.Tx) error
 	Update(materials []*GitMaterial) error
@@ -109,6 +110,10 @@ func (repo MaterialRepositoryImpl) MaterialExists(url string) (bool, error) {
 
 func (repo MaterialRepositoryImpl) SaveMaterial(material *GitMaterial) error {
 	return repo.dbConnection.Insert(material)
+}
+
+func (repo MaterialRepositoryImpl) SaveMaterialWithTransaction(material *GitMaterial, tx *pg.Tx) error {
+	return tx.Insert(material)
 }
 
 func (repo MaterialRepositoryImpl) UpdateMaterial(material *GitMaterial) error {
