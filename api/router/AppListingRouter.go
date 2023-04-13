@@ -48,8 +48,8 @@ func (router AppListingRouterImpl) initAppListingRouter(appListingRouter *mux.Ro
 		HandlerFunc(router.appListingRestHandler.FetchAppsByEnvironment).
 		Methods("POST")
 
-	appListingRouter.Path("/list/v2").
-		HandlerFunc(router.appListingRestHandler.FetchAppsByEnvironmentV2).
+	appListingRouter.Path("/list/{version}").
+		HandlerFunc(router.appListingRestHandler.FetchAppsByEnvironmentVersioned).
 		Methods("POST")
 
 	appListingRouter.Path("/list/group/{env-id}").
@@ -63,6 +63,10 @@ func (router AppListingRouterImpl) initAppListingRouter(appListingRouter *mux.Ro
 	//This API used for fetch app details, not deployment details
 	appListingRouter.Path("/detail").Queries("app-id", "{app-id}").Queries("env-id", "{env-id}").
 		HandlerFunc(router.appListingRestHandler.FetchAppDetails).
+		Methods("GET")
+
+	appListingRouter.Path("/detail/v2").Queries("app-id", "{app-id}").Queries("env-id", "{env-id}").
+		HandlerFunc(router.appListingRestHandler.FetchAppDetailsV2).
 		Methods("GET")
 
 	appListingRouter.Path("/detail/resource-tree").Queries("app-id", "{app-id}").Queries("env-id", "{env-id}").
