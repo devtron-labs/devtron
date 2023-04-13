@@ -48,8 +48,8 @@ func (router AppListingRouterImpl) initAppListingRouter(appListingRouter *mux.Ro
 		HandlerFunc(router.appListingRestHandler.FetchAppsByEnvironment).
 		Methods("POST")
 
-	appListingRouter.Path("/list/v2").
-		HandlerFunc(router.appListingRestHandler.FetchAppsByEnvironmentV2).
+	appListingRouter.Path("/list/{version}").
+		HandlerFunc(router.appListingRestHandler.FetchAppsByEnvironmentVersioned).
 		Methods("POST")
 
 	appListingRouter.Path("/list/group/{env-id}").
