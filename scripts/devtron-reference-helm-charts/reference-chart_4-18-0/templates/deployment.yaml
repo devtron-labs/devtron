@@ -292,18 +292,22 @@ spec:
               value: {{ .value | quote }}
           {{- end}}
           {{- range $.Values.EnvVariablesFromSecretKeys }}
+          {{- if and .name .secretName .keyName }}
             - name: {{ .name }}
               valueFrom:
                 secretKeyRef:
                   name: {{ .secretName }}
                   key: {{ .keyName }}
+          {{- end }}
           {{- end}}
           {{- range $.Values.EnvVariablesFromCongigMapKeys }}
+          {{- if and .name .configMapName .keyName }}
             - name: {{ .name }}
               valueFrom:
                 configMapKeyRef:
                   name: {{ .configMapName }}
                   key: {{ .keyName }}
+          {{- end }}
           {{- end}}
           {{- if or (and ($hasCMEnvExists) (.Values.ConfigMaps.enabled)) (and ($hasSecretEnvExists) (.Values.ConfigSecrets.enabled)) }}
           envFrom:
