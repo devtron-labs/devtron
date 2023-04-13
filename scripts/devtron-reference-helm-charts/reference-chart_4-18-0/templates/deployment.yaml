@@ -288,8 +288,22 @@ spec:
                  fieldPath: {{ .fieldPath }}
           {{- end}}
           {{- range $.Values.EnvVariables }}
-            - name: {{ .name}}
+            - name: {{ .name }}
               value: {{ .value | quote }}
+          {{- end}}
+          {{- range $.Values.EnvVariablesFromSecretKeys }}
+            - name: {{ .name }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .secretName }}
+                  key: {{ .keyName }}
+          {{- end}}
+          {{- range $.Values.EnvVariablesFromCongigMapKeys }}
+            - name: {{ .name }}
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .configMapName }}
+                  key: {{ .keyName }}
           {{- end}}
           {{- if or (and ($hasCMEnvExists) (.Values.ConfigMaps.enabled)) (and ($hasSecretEnvExists) (.Values.ConfigSecrets.enabled)) }}
           envFrom:
