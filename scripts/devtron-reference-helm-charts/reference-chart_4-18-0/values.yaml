@@ -134,14 +134,14 @@ EnvVariables:
   - name: FLASK_ENV
     value: qa
 
-EnvVariablesFromSecretKeys: 
-  - name: ENV_NAME1
-    keyName: SECRET_KEY1
-  - name: ENV_NAME2
-    secretName: SECRET_NAME2
-    keyName: SECRET_KEY2
-  - name: ENV_NAME3
-    secretName: SECRET_NAME3
+EnvVariablesFromSecretKeys: []
+  # - name: ENV_NAME1
+  #   keyName: SECRET_KEY1
+  # - name: ENV_NAME2
+  #   secretName: SECRET_NAME2
+  #   keyName: SECRET_KEY2
+  # - name: ENV_NAME3
+  #   secretName: SECRET_NAME3
 
 EnvVariablesFromCongigMapKeys: []
   # - name: ENV_NAME
