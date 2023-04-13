@@ -54,6 +54,7 @@ type MaterialRepository interface {
 	MaterialExists(url string) (bool, error)
 	SaveMaterial(material *GitMaterial) error
 	UpdateMaterial(material *GitMaterial) error
+	UpdateMaterialWithTransaction(material *GitMaterial, tx *pg.Tx) error
 	Update(materials []*GitMaterial) error
 	UpdateWithTransaction(materials []*GitMaterial, tx *pg.Tx) error
 	FindByAppId(appId int) ([]*GitMaterial, error)
@@ -112,6 +113,10 @@ func (repo MaterialRepositoryImpl) SaveMaterial(material *GitMaterial) error {
 
 func (repo MaterialRepositoryImpl) UpdateMaterial(material *GitMaterial) error {
 	return repo.dbConnection.Update(material)
+}
+
+func (repo MaterialRepositoryImpl) UpdateMaterialWithTransaction(material *GitMaterial, tx *pg.Tx) error {
+	return tx.Update(material)
 }
 
 func (repo MaterialRepositoryImpl) UpdateMaterialScmId(material *GitMaterial) error {

@@ -10,6 +10,7 @@ import (
 
 type GitMaterialHistoryService interface {
 	CreateMaterialHistory(inputMaterial *pipelineConfig.GitMaterial) error
+	CreateMaterialHistoryWithTransaction(inputMaterial *pipelineConfig.GitMaterial, tx *pg.Tx) error
 	CreateDeleteMaterialHistory(materials []*pipelineConfig.GitMaterial) error
 	CreateDeleteMaterialHistoryWithTransaction(materials []*pipelineConfig.GitMaterial, tx *pg.Tx) error
 	MarkMaterialDeletedAndCreateHistory(material *pipelineConfig.GitMaterial) error
@@ -49,6 +50,27 @@ func (impl GitMaterialHistoryServiceImpl) CreateMaterialHistory(inputMaterial *p
 
 	return nil
 
+}
+
+func (impl GitMaterialHistoryServiceImpl) CreateMaterialHistoryWithTransaction(inputMaterial *pipelineConfig.GitMaterial, tx *pg.Tx) error {
+
+	material := &repository.GitMaterialHistory{
+		GitMaterialId:   inputMaterial.Id,
+		Url:             inputMaterial.Url,
+		AppId:           inputMaterial.AppId,
+		Name:            inputMaterial.Name,
+		GitProviderId:   inputMaterial.GitProviderId,
+		Active:          inputMaterial.Active,
+		CheckoutPath:    inputMaterial.CheckoutPath,
+		FetchSubmodules: inputMaterial.FetchSubmodules,
+		AuditLog:        sql.AuditLog{UpdatedBy: inputMaterial.UpdatedBy, CreatedBy: inputMaterial.CreatedBy, UpdatedOn: inputMaterial.UpdatedOn, CreatedOn: inputMaterial.CreatedOn},
+	}
+	err := impl.gitMaterialHistoryRepository.SaveGitMaterialHistoryWithTransaction(material, tx)
+	if err != nil {
+		impl.logger.Errorw("error in saving create/update history for git repository")
+	}
+
+	return nil
 }
 
 func (impl GitMaterialHistoryServiceImpl) CreateDeleteMaterialHistory(materials []*pipelineConfig.GitMaterial) error {

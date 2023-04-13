@@ -950,7 +950,20 @@ func (impl CiCdPipelineOrchestratorImpl) CreateMaterials(createMaterialRequest *
 }
 
 func (impl CiCdPipelineOrchestratorImpl) UpdateMaterial(updateMaterialDTO *bean.UpdateMaterialDTO) (*bean.UpdateMaterialDTO, error) {
-	updatedMaterial, err := impl.updateMaterial(updateMaterialDTO)
+
+	// start transaction block
+	tx, err := impl.materialRepository.GetConnection().Begin()
+	if err != nil {
+		impl.logger.Errorw("error while starting transaction block",
+			"err", err)
+		return nil, err
+	}
+	defer func() {
+		impl.logger.Errorw("failed to update material. rolling back")
+		tx.Rollback()
+	}()
+
+	updatedMaterial, err := impl.UpdateMaterialWithTransaction(updateMaterialDTO, tx)
 	if err != nil {
 		impl.logger.Errorw("err", "err", err)
 		return nil, err
@@ -959,6 +972,11 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateMaterial(updateMaterialDTO *bean.
 	err = impl.updateRepositoryToGitSensor(updatedMaterial)
 	if err != nil {
 		impl.logger.Errorw("error in updating to git-sensor", "err", err)
+		return nil, err
+	}
+
+	err = tx.Commit()
+	if err != nil {
 		return nil, err
 	}
 	return updateMaterialDTO, nil
@@ -1094,19 +1112,20 @@ func (impl CiCdPipelineOrchestratorImpl) validateCheckoutPathsForMultiGit(allPat
 	return nil
 }
 
-func (impl CiCdPipelineOrchestratorImpl) updateMaterial(updateMaterialDTO *bean.UpdateMaterialDTO) (*pipelineConfig.GitMaterial, error) {
-	existingMaterials, err := impl.materialRepository.FindByAppId(updateMaterialDTO.AppId)
+func (impl CiCdPipelineOrchestratorImpl) UpdateMaterialWithTransaction(dto *bean.UpdateMaterialDTO, tx *pg.Tx) (*pipelineConfig.GitMaterial, error) {
+	existingMaterials, err := impl.materialRepository.FindByAppId(dto.AppId)
 	if err != nil {
 		impl.logger.Errorw("err", "err", err)
 		return nil, err
 	}
+
 	checkoutPaths := make(map[int]string)
 	for _, material := range existingMaterials {
 		checkoutPaths[material.Id] = material.CheckoutPath
 	}
 	var currentMaterial *pipelineConfig.GitMaterial
 	for _, m := range existingMaterials {
-		if m.Id == updateMaterialDTO.Material.Id {
+		if m.Id == dto.Material.Id {
 			currentMaterial = m
 			break
 		}
@@ -1114,34 +1133,32 @@ func (impl CiCdPipelineOrchestratorImpl) updateMaterial(updateMaterialDTO *bean.
 	if currentMaterial == nil {
 		return nil, errors.New("material to be updated does not exist")
 	}
-	if updateMaterialDTO.Material.CheckoutPath == "" {
-		updateMaterialDTO.Material.CheckoutPath = "./"
+	if dto.Material.CheckoutPath == "" {
+		dto.Material.CheckoutPath = "./"
 	}
-	checkoutPaths[updateMaterialDTO.Material.Id] = updateMaterialDTO.Material.CheckoutPath
+	checkoutPaths[dto.Material.Id] = dto.Material.CheckoutPath
 	validationErr := impl.validateCheckoutPathsForMultiGit(checkoutPaths)
 	if validationErr != nil {
 		impl.logger.Errorw("validation err", "err", err)
 		return nil, validationErr
 	}
-	currentMaterial.Url = updateMaterialDTO.Material.Url
-	basePath := path.Base(updateMaterialDTO.Material.Url)
+	currentMaterial.Url = dto.Material.Url
+	basePath := path.Base(dto.Material.Url)
 	basePath = strings.TrimSuffix(basePath, ".git")
 
-	currentMaterial.Name = strconv.Itoa(updateMaterialDTO.Material.GitProviderId) + "-" + basePath
-	currentMaterial.GitProviderId = updateMaterialDTO.Material.GitProviderId
-	currentMaterial.CheckoutPath = updateMaterialDTO.Material.CheckoutPath
-	currentMaterial.FetchSubmodules = updateMaterialDTO.Material.FetchSubmodules
-	currentMaterial.AuditLog = sql.AuditLog{UpdatedBy: updateMaterialDTO.UserId, CreatedBy: currentMaterial.CreatedBy, UpdatedOn: time.Now(), CreatedOn: currentMaterial.CreatedOn}
+	currentMaterial.Name = strconv.Itoa(dto.Material.GitProviderId) + "-" + basePath
+	currentMaterial.GitProviderId = dto.Material.GitProviderId
+	currentMaterial.CheckoutPath = dto.Material.CheckoutPath
+	currentMaterial.FetchSubmodules = dto.Material.FetchSubmodules
+	currentMaterial.AuditLog = sql.AuditLog{UpdatedBy: dto.UserId, CreatedBy: currentMaterial.CreatedBy, UpdatedOn: time.Now(), CreatedOn: currentMaterial.CreatedOn}
 
-	err = impl.materialRepository.UpdateMaterial(currentMaterial)
-
+	err = impl.materialRepository.UpdateMaterialWithTransaction(currentMaterial, tx)
 	if err != nil {
 		impl.logger.Errorw("error in updating material", "material", currentMaterial, "err", err)
 		return nil, err
 	}
 
-	err = impl.gitMaterialHistoryService.CreateMaterialHistory(currentMaterial)
-
+	err = impl.gitMaterialHistoryService.CreateMaterialHistoryWithTransaction(currentMaterial, tx)
 	return currentMaterial, nil
 }
 
