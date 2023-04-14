@@ -44,6 +44,7 @@ type EnvironmentBean struct {
 	Namespace             string `json:"namespace,omitempty" validate:"name-space-component,max=50"`
 	CdArgoSetup           bool   `json:"isClusterCdActive"`
 	EnvironmentIdentifier string `json:"environmentIdentifier"`
+	Description           string `json:"description" validate:"max=40"`
 	AppCount              int    `json:"appCount"`
 }
 
@@ -52,6 +53,7 @@ type EnvDto struct {
 	EnvironmentName       string `json:"environmentName,omitempty" validate:"max=50"`
 	Namespace             string `json:"namespace,omitempty" validate:"name-space-component,max=50"`
 	EnvironmentIdentifier string `json:"environmentIdentifier,omitempty"`
+	Description           string `json:"description" validate:"max=40"`
 }
 
 type ClusterEnvDto struct {
@@ -144,6 +146,7 @@ func (impl EnvironmentServiceImpl) Create(mappings *EnvironmentBean, userId int3
 		Active:                mappings.Active,
 		Namespace:             mappings.Namespace,
 		Default:               mappings.Default,
+		Description:           mappings.Description,
 		EnvironmentIdentifier: identifier,
 	}
 	model.CreatedBy = userId
@@ -192,6 +195,7 @@ func (impl EnvironmentServiceImpl) FindOne(environment string) (*EnvironmentBean
 		Namespace:             model.Namespace,
 		Default:               model.Default,
 		EnvironmentIdentifier: model.EnvironmentIdentifier,
+		Description:           model.Description,
 	}
 	return bean, nil
 }
@@ -214,6 +218,7 @@ func (impl EnvironmentServiceImpl) GetAll() ([]EnvironmentBean, error) {
 			Default:               model.Default,
 			CdArgoSetup:           model.Cluster.CdArgoSetup,
 			EnvironmentIdentifier: model.EnvironmentIdentifier,
+			Description:           model.Description,
 		})
 	}
 	return beans, nil
@@ -236,6 +241,7 @@ func (impl EnvironmentServiceImpl) GetAllActive() ([]EnvironmentBean, error) {
 			Namespace:             model.Namespace,
 			Default:               model.Default,
 			EnvironmentIdentifier: model.EnvironmentIdentifier,
+			Description:           model.Description,
 		})
 	}
 	return beans, nil
@@ -256,6 +262,7 @@ func (impl EnvironmentServiceImpl) FindById(id int) (*EnvironmentBean, error) {
 		Namespace:             model.Namespace,
 		Default:               model.Default,
 		EnvironmentIdentifier: model.EnvironmentIdentifier,
+		Description:           model.Description,
 	}
 
 	/*clusterBean := &ClusterBean{
@@ -288,6 +295,7 @@ func (impl EnvironmentServiceImpl) Update(mappings *EnvironmentBean, userId int3
 	model.Default = mappings.Default
 	model.UpdatedBy = userId
 	model.UpdatedOn = time.Now()
+	model.Description = mappings.Description
 
 	//namespace create if not exist
 	if len(model.Namespace) > 0 {
@@ -367,6 +375,7 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete() ([]Enviro
 			CdArgoSetup:           model.Cluster.CdArgoSetup,
 			EnvironmentIdentifier: model.EnvironmentIdentifier,
 			ClusterName:           model.Cluster.ClusterName,
+			Description:           model.Description,
 		})
 	}
 	return beans, nil
@@ -421,6 +430,7 @@ func (impl EnvironmentServiceImpl) FindByIds(ids []*int) ([]*EnvironmentBean, er
 			Default:               model.Default,
 			EnvironmentIdentifier: model.EnvironmentIdentifier,
 			ClusterId:             model.ClusterId,
+			Description:           model.Description,
 		})
 	}
 	return beans, nil
@@ -443,6 +453,7 @@ func (impl EnvironmentServiceImpl) GetByClusterId(id int) ([]*EnvironmentBean, e
 			Environment:           model.Name,
 			Namespace:             model.Namespace,
 			EnvironmentIdentifier: model.EnvironmentIdentifier,
+			Description:           model.Description,
 		})
 	}
 	return beans, nil
@@ -490,6 +501,7 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(emailId
 			EnvironmentName:       model.Name,
 			Namespace:             model.Namespace,
 			EnvironmentIdentifier: model.EnvironmentIdentifier,
+			Description:           model.Description,
 		})
 	}
 
@@ -578,6 +590,7 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDownByCluste
 			EnvironmentName:       model.Name,
 			Namespace:             model.Namespace,
 			EnvironmentIdentifier: model.EnvironmentIdentifier,
+			Description:           model.Description,
 		})
 	}
 
