@@ -299,6 +299,7 @@ type CiConfigRequest struct {
 	UpdatedOn         time.Time               `sql:"updated_on,type:timestamptz"`
 	UpdatedBy         int32                   `sql:"updated_by,type:integer"`
 	IsJob             bool                    `json:"-"`
+	CiGitMaterialId   int                     `json:"ciGitConfiguredId"`
 }
 
 type TestExecutorImageProperties struct {

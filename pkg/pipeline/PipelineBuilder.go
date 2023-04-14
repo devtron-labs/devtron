@@ -4069,6 +4069,7 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int, emailId st
 			//parentCiPipelineIds = append(parentCiPipelineIds, pipeline.ParentCiPipeline)
 		}
 		ciPipelinesConfigByApp.CiPipelines = ciPipelineResp
+		ciPipelinesConfigByApp.CiGitMaterialId = ciPipelinesConfigByApp.CiBuildConfig.GitMaterialId
 		ciPipelinesConfigByApps = append(ciPipelinesConfigByApps, ciPipelinesConfigByApp)
 	}
 
