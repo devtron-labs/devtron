@@ -1346,32 +1346,33 @@ func (impl *WorkflowDagExecutorImpl) StopStartApp(stopRequest *StopAppRequest, c
 	latestArtifactId := wf.CiArtifactId
 	cdPipelineId := pipeline.Id
 	if pipeline.ApprovalNodeConfigured() {
+		return 0, errors.New("application deployment requiring approval cannot be hibernated")
 		// check artifact approved or not for this pipeline
-		approvalConfig, err := pipeline.GetApprovalConfig()
-		if err != nil {
-			impl.logger.Errorw("failed to unmarshal userApprovalConfig", "err", err, "cdPipelineId", cdPipelineId, "approvalConfig", approvalConfig)
-			return 0, err
-		}
-		userApprovalMetadata, err := impl.FetchApprovalDataForArtifacts([]int{latestArtifactId}, cdPipelineId, approvalConfig.RequiredCount) // it will fetch all the request data with nil cd_wfr_rnr_id
-		if err != nil {
-			impl.logger.Errorw("error occurred while fetching approval data for artifacts", "cdPipelineId", cdPipelineId, "latestArtifactId", latestArtifactId, "err", err)
-			return 0, err
-		}
-		errorMsg := "The currently deployed image is not approved. Please raise an approval request for the image and retry after the approval."
-		approvalMetadata, ok := userApprovalMetadata[latestArtifactId]
-		if ok {
-			approvalRuntimeState := approvalMetadata.ApprovalRuntimeState
-			if approvalRuntimeState != pipelineConfig.ApprovedApprovalState {
-				// return error that no request is approved
-				impl.logger.Errorw("latest artifact is not approved", "cdPipelineId", cdPipelineId, "latestArtifactId", latestArtifactId)
-				return 0, errors.New(errorMsg)
-			}
-		} else {
-			// return error that no request is approved
-			impl.logger.Errorw("latest artifact is not approved", "cdPipelineId", cdPipelineId, "latestArtifactId", latestArtifactId)
-			return 0, errors.New(errorMsg)
-		}
-		impl.logger.Infow("artifact is approved already, so proceeding", "cdPipelineId", cdPipelineId, "latestArtifactId", latestArtifactId)
+		//approvalConfig, err := pipeline.GetApprovalConfig()
+		//if err != nil {
+		//	impl.logger.Errorw("failed to unmarshal userApprovalConfig", "err", err, "cdPipelineId", cdPipelineId, "approvalConfig", approvalConfig)
+		//	return 0, err
+		//}
+		//userApprovalMetadata, err := impl.FetchApprovalDataForArtifacts([]int{latestArtifactId}, cdPipelineId, approvalConfig.RequiredCount) // it will fetch all the request data with nil cd_wfr_rnr_id
+		//if err != nil {
+		//	impl.logger.Errorw("error occurred while fetching approval data for artifacts", "cdPipelineId", cdPipelineId, "latestArtifactId", latestArtifactId, "err", err)
+		//	return 0, err
+		//}
+		//errorMsg := "The currently deployed image is not approved. Please raise an approval request for the image and retry after the approval."
+		//approvalMetadata, ok := userApprovalMetadata[latestArtifactId]
+		//if ok {
+		//	approvalRuntimeState := approvalMetadata.ApprovalRuntimeState
+		//	if approvalRuntimeState != pipelineConfig.ApprovedApprovalState {
+		//		// return error that no request is approved
+		//		impl.logger.Errorw("latest artifact is not approved", "cdPipelineId", cdPipelineId, "latestArtifactId", latestArtifactId)
+		//		return 0, errors.New(errorMsg)
+		//	}
+		//} else {
+		//	// return error that no request is approved
+		//	impl.logger.Errorw("latest artifact is not approved", "cdPipelineId", cdPipelineId, "latestArtifactId", latestArtifactId)
+		//	return 0, errors.New(errorMsg)
+		//}
+		//impl.logger.Infow("artifact is approved already, so proceeding", "cdPipelineId", cdPipelineId, "latestArtifactId", latestArtifactId)
 	}
 	overrideRequest := &bean.ValuesOverrideRequest{
 		PipelineId:     cdPipelineId,
