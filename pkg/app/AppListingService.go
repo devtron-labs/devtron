@@ -412,6 +412,7 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingReques
 		for _, container := range envContainersMap[info.Id] {
 			container.Namespace = info.Namespace
 			container.ClusterName = info.ClusterName
+			container.EnvironmentName = info.Name
 		}
 	}
 	return envContainers, appSize, nil
