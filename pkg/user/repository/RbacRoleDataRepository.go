@@ -8,8 +8,8 @@ import (
 
 type RbacRoleDataRepository interface {
 	GetRoleDataForAllRoles() ([]*RbacRoleData, error)
-	CreateNewRoleDataForRole() (*RbacRoleData, error)
-	UpdateRoleDataForRole() (*RbacRoleData, error)
+	CreateNewRoleDataForRole(model *RbacRoleData) (*RbacRoleData, error)
+	UpdateRoleDataForRole(model *RbacRoleData) (*RbacRoleData, error)
 }
 
 type RbacRoleDataRepositoryImpl struct {
@@ -48,22 +48,20 @@ func (repo *RbacRoleDataRepositoryImpl) GetRoleDataForAllRoles() ([]*RbacRoleDat
 	return models, nil
 }
 
-func (repo *RbacRoleDataRepositoryImpl) CreateNewRoleDataForRole() (*RbacRoleData, error) {
-	var model RbacRoleData
+func (repo *RbacRoleDataRepositoryImpl) CreateNewRoleDataForRole(model *RbacRoleData) (*RbacRoleData, error) {
 	_, err := repo.dbConnection.Model(&model).Insert()
 	if err != nil {
 		repo.logger.Errorw("error in creating role data for a role", "err", err)
 		return nil, err
 	}
-	return &model, nil
+	return model, nil
 }
 
-func (repo *RbacRoleDataRepositoryImpl) UpdateRoleDataForRole() (*RbacRoleData, error) {
-	var model RbacRoleData
+func (repo *RbacRoleDataRepositoryImpl) UpdateRoleDataForRole(model *RbacRoleData) (*RbacRoleData, error) {
 	_, err := repo.dbConnection.Model(&model).Update()
 	if err != nil {
 		repo.logger.Errorw("error in updating role data for a role", "err", err)
 		return nil, err
 	}
-	return &model, nil
+	return model, nil
 }
