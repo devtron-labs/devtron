@@ -386,6 +386,35 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingReques
 		impl.Logger.Errorw("error in fetching app list", "error", err, "filter", appListingFilter)
 		return []*bean.AppEnvironmentContainer{}, appSize, err
 	}
+
+	envContainersMap := make(map[int][]*bean.AppEnvironmentContainer)
+	envIds := make([]int, 0)
+	envsSet := make(map[int]bool)
+
+	for _, container := range envContainers {
+		if container.EnvironmentId != 0 {
+			if _, ok := envContainersMap[container.EnvironmentId]; !ok {
+				envContainersMap[container.EnvironmentId] = make([]*bean.AppEnvironmentContainer, 0)
+			}
+			envContainersMap[container.EnvironmentId] = append(envContainersMap[container.EnvironmentId], container)
+			if _, ok := envsSet[container.EnvironmentId]; !ok {
+				envIds = append(envIds, container.EnvironmentId)
+				envsSet[container.EnvironmentId] = true
+			}
+		}
+	}
+	envClusterInfos, err := impl.environmentRepository.FindEnvClusterInfosByIds(envIds)
+	if err != nil {
+		impl.Logger.Errorw("error in envClusterInfos list", "error", err, "envIds", envIds)
+		return []*bean.AppEnvironmentContainer{}, appSize, err
+	}
+	for _, info := range envClusterInfos {
+		for _, container := range envContainersMap[info.Id] {
+			container.Namespace = info.Namespace
+			container.ClusterName = info.ClusterName
+			container.EnvironmentName = info.Name
+		}
+	}
 	return envContainers, appSize, nil
 }
 
