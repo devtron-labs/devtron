@@ -107,7 +107,7 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindOne(environment string) (*En
 
 func (repositoryImpl EnvironmentRepositoryImpl) FindEnvClusterInfosByIds(envIds []int) ([]*EnvCluserInfo, error) {
 	query := "SELECT env.id as id,cluster.cluster_name,env.environment_name as name,env.namespace " +
-		" FROM environment INNER JOIN  cluster ON environment.cluster_id = cluster.id "
+		" FROM environment env INNER JOIN  cluster ON environment.cluster_id = cluster.id "
 	if len(envIds) > 0 {
 		query += fmt.Sprintf(" WHERE env.id IN (%s)", helper.GetCommaSepratedString(envIds))
 	}
