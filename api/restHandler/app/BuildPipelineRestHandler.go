@@ -277,11 +277,13 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 	}
 
 	createResp, err := handler.pipelineBuilder.PatchCiPipeline(&patchRequest)
-	createResp.AppName = app.AppName
 	if err != nil {
 		handler.Logger.Errorw("service err, PatchCiPipelines", "err", err, "PatchCiPipelines", patchRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
+	}
+	if createResp != nil && app != nil {
+		createResp.AppName = app.AppName
 	}
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
 }
@@ -904,7 +906,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateMaterial(w http.ResponseWrite
 			if err != nil {
 				handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
 			}
-			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 			return
 		}
 	} else {
@@ -984,7 +986,7 @@ func (handler PipelineConfigRestHandlerImpl) UpdateMaterial(w http.ResponseWrite
 			if err != nil {
 				handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
 			}
-			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 			return
 		}
 	} else {
@@ -1038,7 +1040,7 @@ func (handler PipelineConfigRestHandlerImpl) DeleteMaterial(w http.ResponseWrite
 			if err != nil {
 				handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
 			}
-			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 			return
 		}
 	} else {
@@ -1363,7 +1365,9 @@ func (handler PipelineConfigRestHandlerImpl) GetExternalCiByEnvironment(w http.R
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	ciConf, err := handler.pipelineBuilder.GetExternalCiByEnvironment(envId, userEmailId, handler.checkAuthBatch)
+	_, span := otel.Tracer("orchestrator").Start(r.Context(), "ciHandler.FetchExternalCiPipelinesForAppGrouping")
+	ciConf, err := handler.pipelineBuilder.GetExternalCiByEnvironment(envId, userEmailId, handler.checkAuthBatch, r.Context())
+	span.End()
 	if err != nil {
 		handler.Logger.Errorw("service err, GetExternalCi", "err", err, "envId", envId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

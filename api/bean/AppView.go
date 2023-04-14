@@ -115,6 +115,8 @@ type AppEnvironmentContainer struct {
 	Active                      bool                      `json:"-"`
 	TeamId                      int                       `json:"teamId"`
 	TeamName                    string                    `json:"teamName"`
+	Description                 string                    `json:"description" validate:"max=40"`
+	TotalCount                  int                       `json:"-"`
 }
 
 type DeploymentDetailContainer struct {
@@ -150,6 +152,7 @@ type DeploymentDetailContainer struct {
 	DockerRegistryId              string          `json:"dockerRegistryId,omitempty"`
 	IpsAccessProvided             bool            `json:"ipsAccessProvided"`
 	DeploymentAppDeleteRequest    bool            `json:"deploymentAppDeleteRequest"`
+	Description                   string          `json:"description" validate:"max=40"`
 }
 
 type AppDetailContainer struct {
@@ -159,6 +162,10 @@ type AppDetailContainer struct {
 	LinkOuts                  []LinkOuts             `json:"linkOuts,omitempty"`
 	ResourceTree              map[string]interface{} `json:"resourceTree,omitempty"`
 	Notes                     string                 `json:"notes,omitempty"`
+}
+type ResourceTreeAndNotesContainer struct {
+	ResourceTree map[string]interface{} `json:"resourceTree,omitempty"`
+	Notes        string                 `json:"notes,omitempty"`
 }
 type Notes struct {
 	Notes string `json:"gitOpsNotes,omitempty"`
@@ -174,6 +181,7 @@ type Environment struct {
 	ChartRefId                 int    `json:"chartRefId"`
 	LastDeployed               string `json:"lastDeployed"`
 	DeploymentAppDeleteRequest bool   `json:"deploymentAppDeleteRequest"`
+	Description                string `json:"description" validate:"max=40"`
 }
 
 type InstanceDetail struct {

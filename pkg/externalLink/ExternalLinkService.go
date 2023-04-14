@@ -92,6 +92,11 @@ type ExternalLinkDto struct {
 	UserId           int32            `json:"-"`
 }
 
+type ExternalLinkAndMonitoringToolDTO struct {
+	Tools         []ExternalLinkMonitoringToolDto
+	ExternalLinks []*ExternalLinkDto
+}
+
 type ExternalLinkApiResponse struct {
 	Success bool `json:"success"`
 }

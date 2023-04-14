@@ -146,6 +146,15 @@ func (impl ExternalLinkRestHandlerImpl) GetExternalLinks(w http.ResponseWriter, 
 	linkType := v.Get("type")
 	identifier := v.Get("identifier")
 
+	externalLinkAndMonitoringTools := externalLink.ExternalLinkAndMonitoringToolDTO{}
+	externalLinks := []*externalLink.ExternalLinkDto{}
+
+	tools, err := impl.externalLinkService.GetAllActiveTools()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("service err, GetAllActiveTools", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
 	token := r.Header.Get("token")
 	if len(identifier) == 0 && len(linkType) == 0 && len(clusterId) == 0 {
 		if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
@@ -153,14 +162,12 @@ func (impl ExternalLinkRestHandlerImpl) GetExternalLinks(w http.ResponseWriter, 
 			return
 		}
 		clusterIdNumber := 0
-		res, err := impl.externalLinkService.FetchAllActiveLinksByLinkIdentifier(nil, clusterIdNumber)
+		externalLinks, err = impl.externalLinkService.FetchAllActiveLinksByLinkIdentifier(nil, clusterIdNumber)
 		if err != nil {
 			impl.logger.Errorw("service err, FetchAllActive", "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
-		common.WriteJsonResp(w, err, res, http.StatusOK)
-		return
 
 	} else if len(identifier) != 0 && len(linkType) != 0 { //api to get external links from app-level external links tab and from app-details page
 		clusterIdNumber := 0
@@ -177,18 +184,17 @@ func (impl ExternalLinkRestHandlerImpl) GetExternalLinks(w http.ResponseWriter, 
 			Identifier: identifier,
 			ClusterId:  0,
 		}
-		res, err := impl.externalLinkService.FetchAllActiveLinksByLinkIdentifier(linkIdentifier, clusterIdNumber)
+		externalLinks, err = impl.externalLinkService.FetchAllActiveLinksByLinkIdentifier(linkIdentifier, clusterIdNumber)
 		if err != nil {
 			impl.logger.Errorw("service err, FetchAllActive", "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
-		common.WriteJsonResp(w, err, res, http.StatusOK)
-		return
 	}
+	externalLinkAndMonitoringTools.ExternalLinks = externalLinks
+	externalLinkAndMonitoringTools.Tools = tools
 
-	impl.logger.Errorw("invalid request, FetchAllActive external links", "err", err)
-	common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	common.WriteJsonResp(w, err, externalLinkAndMonitoringTools, http.StatusOK)
 	return
 
 }
