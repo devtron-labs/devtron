@@ -2895,6 +2895,7 @@ func (impl PipelineBuilderImpl) GetCdPipelinesForApp(appId int) (cdPipelines *be
 			Name:                          dbPipeline.Name,
 			EnvironmentId:                 dbPipeline.EnvironmentId,
 			EnvironmentName:               environment.Name,
+			Description:                   environment.Description,
 			CiPipelineId:                  dbPipeline.CiPipelineId,
 			DeploymentTemplate:            deploymentTemplate,
 			TriggerType:                   dbPipeline.TriggerType,
