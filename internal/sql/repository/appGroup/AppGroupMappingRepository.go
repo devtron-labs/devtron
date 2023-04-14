@@ -38,6 +38,7 @@ type AppGroupMappingRepository interface {
 	Update(model *AppGroupMapping, tx *pg.Tx) error
 	FindById(id int) (*AppGroupMapping, error)
 	FindByAppGroupId(appGroupId int) ([]*AppGroupMapping, error)
+	FindAll() ([]*AppGroupMapping, error)
 	GetConnection() (dbConnection *pg.DB)
 }
 
@@ -76,5 +77,11 @@ func (repo AppGroupMappingRepositoryImpl) FindByAppGroupId(appGroupId int) ([]*A
 		Column("app_group_mapping.*", "App").
 		Where("app_group_mapping.app_group_id = ?", appGroupId).
 		Select()
+	return models, err
+}
+
+func (repo AppGroupMappingRepositoryImpl) FindAll() ([]*AppGroupMapping, error) {
+	var models []*AppGroupMapping
+	err := repo.dbConnection.Model(&models).Select()
 	return models, err
 }

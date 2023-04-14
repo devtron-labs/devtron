@@ -608,9 +608,23 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerVie
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	v := r.URL.Query()
+	appIdsString := v.Get("appIds")
+	var appIds []int
+	if len(appIdsString) > 0 {
+		appIdsSlices := strings.Split(appIdsString, ",")
+		for _, appId := range appIdsSlices {
+			id, err := strconv.Atoi(appId)
+			if err != nil {
+				common.WriteJsonResp(w, err, "please provide valid appIds", http.StatusBadRequest)
+				return
+			}
+			appIds = append(appIds, id)
+		}
+	}
 	triggerWorkflowStatus := pipelineConfig.TriggerWorkflowStatus{}
 	_, span := otel.Tracer("orchestrator").Start(r.Context(), "ciHandler.FetchCiStatusForBuildAndDeployInAppGrouping")
-	ciWorkflowStatus, err := handler.ciHandler.FetchCiStatusForTriggerViewForEnvironment(envId, userEmailId, handler.checkAuthBatch)
+	ciWorkflowStatus, err := handler.ciHandler.FetchCiStatusForTriggerViewForEnvironment(envId, userEmailId, appIds, handler.checkAuthBatch)
 	span.End()
 	if err != nil {
 		handler.Logger.Errorw("service err", "err", err)
@@ -624,7 +638,7 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerVie
 	}
 
 	_, span = otel.Tracer("orchestrator").Start(r.Context(), "ciHandler.FetchCdStatusForBuildAndDeployInAppGrouping")
-	cdWorkflowStatus, err := handler.cdHandler.FetchAppWorkflowStatusForTriggerViewForEnvironment(envId, userEmailId, handler.checkAuthBatch)
+	cdWorkflowStatus, err := handler.cdHandler.FetchAppWorkflowStatusForTriggerViewForEnvironment(envId, userEmailId, appIds, handler.checkAuthBatch)
 	span.End()
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchAppWorkflowStatusForTriggerView", "err", err)
@@ -708,7 +722,21 @@ func (handler PipelineConfigRestHandlerImpl) GetApplicationsByEnvironment(w http
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	results, err := handler.pipelineBuilder.GetAppListForEnvironment(envId, userEmailId, handler.checkAuthBatch)
+	v := r.URL.Query()
+	appIdsString := v.Get("appIds")
+	var appIds []int
+	if len(appIdsString) > 0 {
+		appIdsSlices := strings.Split(appIdsString, ",")
+		for _, appId := range appIdsSlices {
+			id, err := strconv.Atoi(appId)
+			if err != nil {
+				common.WriteJsonResp(w, err, "please provide valid appIds", http.StatusBadRequest)
+				return
+			}
+			appIds = append(appIds, id)
+		}
+	}
+	results, err := handler.pipelineBuilder.GetAppListForEnvironment(envId, userEmailId, appIds, handler.checkAuthBatch)
 	if err != nil {
 		handler.Logger.Errorw("service err, get app", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -735,8 +763,22 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppDeploymentStatusForEnvironm
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	v := r.URL.Query()
+	appIdsString := v.Get("appIds")
+	var appIds []int
+	if len(appIdsString) > 0 {
+		appIdsSlices := strings.Split(appIdsString, ",")
+		for _, appId := range appIdsSlices {
+			id, err := strconv.Atoi(appId)
+			if err != nil {
+				common.WriteJsonResp(w, err, "please provide valid appIds", http.StatusBadRequest)
+				return
+			}
+			appIds = append(appIds, id)
+		}
+	}
 	_, span := otel.Tracer("orchestrator").Start(r.Context(), "pipelineBuilder.FetchAppDeploymentStatusForEnvironments")
-	results, err := handler.cdHandler.FetchAppDeploymentStatusForEnvironments(envId, userEmailId, handler.checkAuthBatch, r.Context())
+	results, err := handler.cdHandler.FetchAppDeploymentStatusForEnvironments(envId, userEmailId, appIds, handler.checkAuthBatch, r.Context())
 	span.End()
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchAppWorkflowStatusForTriggerView", "err", err)

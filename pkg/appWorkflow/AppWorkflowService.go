@@ -50,7 +50,7 @@ type AppWorkflowService interface {
 	FindAppWorkflowByName(name string, appId int) (AppWorkflowDto, error)
 
 	FindAllWorkflowsComponentDetails(appId int) (*AllAppWorkflowComponentDetails, error)
-	FindAppWorkflowsByEnvironmentId(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*AppWorkflowDto, error)
+	FindAppWorkflowsByEnvironmentId(envId int, emailId string, requestedAppIds []int, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*AppWorkflowDto, error)
 }
 
 type AppWorkflowServiceImpl struct {
@@ -506,13 +506,20 @@ func (impl AppWorkflowServiceImpl) FindAllWorkflowsComponentDetails(appId int) (
 	return resp, nil
 }
 
-func (impl AppWorkflowServiceImpl) FindAppWorkflowsByEnvironmentId(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*AppWorkflowDto, error) {
+func (impl AppWorkflowServiceImpl) FindAppWorkflowsByEnvironmentId(envId int, emailId string, requestedAppIds []int, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*AppWorkflowDto, error) {
 	workflows := make([]*AppWorkflowDto, 0)
-	pipelines, err := impl.pipelineRepository.FindActiveByEnvId(envId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.Logger.Errorw("error fetching pipelines for env id", "err", err)
+	var pipelines []*pipelineConfig.Pipeline
+	var err error
+	if len(requestedAppIds) > 0 {
+		pipelines, err = impl.pipelineRepository.FindActiveByInFilter(envId, requestedAppIds)
+	} else {
+		pipelines, err = impl.pipelineRepository.FindActiveByEnvId(envId)
+	}
+	if err != nil {
+		impl.Logger.Errorw("error in fetching pipelines", "envId", envId, "err", err)
 		return nil, err
 	}
+
 	pipelineMap := make(map[int]bool)
 	appNamesMap := make(map[int]string)
 	var appIds []int

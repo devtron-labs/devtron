@@ -1961,8 +1961,22 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelinesByEnvironment(w http.
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	v := r.URL.Query()
+	appIdsString := v.Get("appIds")
+	var appIds []int
+	if len(appIdsString) > 0 {
+		appIdsSlices := strings.Split(appIdsString, ",")
+		for _, appId := range appIdsSlices {
+			id, err := strconv.Atoi(appId)
+			if err != nil {
+				common.WriteJsonResp(w, err, "please provide valid appIds", http.StatusBadRequest)
+				return
+			}
+			appIds = append(appIds, id)
+		}
+	}
 	_, span := otel.Tracer("orchestrator").Start(r.Context(), "cdHandler.FetchCdPipelinesForAppGrouping")
-	results, err := handler.pipelineBuilder.GetCdPipelinesByEnvironment(envId, userEmailId, handler.checkAuthBatch, r.Context())
+	results, err := handler.pipelineBuilder.GetCdPipelinesByEnvironment(envId, userEmailId,appIds, handler.checkAuthBatch, r.Context())
 	span.End()
 	if err != nil {
 		handler.Logger.Errorw("service err, GetCdPipelines", "err", err, "envId", envId)

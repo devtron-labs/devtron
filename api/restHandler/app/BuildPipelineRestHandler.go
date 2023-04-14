@@ -1336,8 +1336,22 @@ func (handler PipelineConfigRestHandlerImpl) GetCiPipelineByEnvironment(w http.R
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	v := r.URL.Query()
+	appIdsString := v.Get("appIds")
+	var appIds []int
+	if len(appIdsString) > 0 {
+		appIdsSlices := strings.Split(appIdsString, ",")
+		for _, appId := range appIdsSlices {
+			id, err := strconv.Atoi(appId)
+			if err != nil {
+				common.WriteJsonResp(w, err, "please provide valid appIds", http.StatusBadRequest)
+				return
+			}
+			appIds = append(appIds, id)
+		}
+	}
 	_, span := otel.Tracer("orchestrator").Start(r.Context(), "ciHandler.FetchCiPipelinesForAppGrouping")
-	ciConf, err := handler.pipelineBuilder.GetCiPipelineByEnvironment(envId, userEmailId, handler.checkAuthBatch, r.Context())
+	ciConf, err := handler.pipelineBuilder.GetCiPipelineByEnvironment(envId, userEmailId,appIds, handler.checkAuthBatch, r.Context())
 	span.End()
 	if err != nil {
 		handler.Logger.Errorw("service err, GetCiPipeline", "err", err, "envId", envId)
@@ -1365,8 +1379,22 @@ func (handler PipelineConfigRestHandlerImpl) GetExternalCiByEnvironment(w http.R
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	v := r.URL.Query()
+	appIdsString := v.Get("appIds")
+	var appIds []int
+	if len(appIdsString) > 0 {
+		appIdsSlices := strings.Split(appIdsString, ",")
+		for _, appId := range appIdsSlices {
+			id, err := strconv.Atoi(appId)
+			if err != nil {
+				common.WriteJsonResp(w, err, "please provide valid appIds", http.StatusBadRequest)
+				return
+			}
+			appIds = append(appIds, id)
+		}
+	}
 	_, span := otel.Tracer("orchestrator").Start(r.Context(), "ciHandler.FetchExternalCiPipelinesForAppGrouping")
-	ciConf, err := handler.pipelineBuilder.GetExternalCiByEnvironment(envId, userEmailId, handler.checkAuthBatch, r.Context())
+	ciConf, err := handler.pipelineBuilder.GetExternalCiByEnvironment(envId, userEmailId,appIds, handler.checkAuthBatch, r.Context())
 	span.End()
 	if err != nil {
 		handler.Logger.Errorw("service err, GetExternalCi", "err", err, "envId", envId)

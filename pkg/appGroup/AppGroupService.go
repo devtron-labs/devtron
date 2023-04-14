@@ -162,15 +162,27 @@ func (impl *AppGroupServiceImpl) UpdateAppGroup(request *AppGroupDto) (*AppGroup
 
 func (impl *AppGroupServiceImpl) GetActiveAppGroupList() ([]*AppGroupDto, error) {
 	appGroupsDto := make([]*AppGroupDto, 0)
+	appGroupMappings, err := impl.appGroupMappingRepository.FindAll()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in update new attributes", "error", err)
+		return nil, err
+	}
+	appIdsMap := make(map[int][]int)
+	for _, appGroupMapping := range appGroupMappings {
+		appIdsMap[appGroupMapping.AppGroupId] = append(appIdsMap[appGroupMapping.AppGroupId], appGroupMapping.AppId)
+	}
+
 	appGroups, err := impl.appGroupRepository.FindActiveList()
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in update new attributes", "error", err)
 		return nil, err
 	}
 	for _, appGroup := range appGroups {
+		appIds := appIdsMap[appGroup.Id]
 		appGroupDto := &AppGroupDto{
-			Id:   appGroup.Id,
-			Name: appGroup.Name,
+			Id:     appGroup.Id,
+			Name:   appGroup.Name,
+			AppIds: appIds,
 		}
 		appGroupsDto = append(appGroupsDto, appGroupDto)
 	}

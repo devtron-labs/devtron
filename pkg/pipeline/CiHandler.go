@@ -71,7 +71,7 @@ type CiHandler interface {
 	FetchMaterialInfoByArtifactId(ciArtifactId int) (*GitTriggerInfoResponse, error)
 	WriteToCreateTestSuites(pipelineId int, buildId int, triggeredBy int)
 	UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuild int) error
-	FetchCiStatusForTriggerViewForEnvironment(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*pipelineConfig.CiWorkflowStatus, error)
+	FetchCiStatusForTriggerViewForEnvironment(envId int, emailId string, requestedAppIds []int, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*pipelineConfig.CiWorkflowStatus, error)
 }
 
 type CiHandlerImpl struct {
@@ -1268,13 +1268,20 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 	return nil
 }
 
-func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*pipelineConfig.CiWorkflowStatus, error) {
+func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(envId int, emailId string, requestedAppIds []int, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*pipelineConfig.CiWorkflowStatus, error) {
 	ciWorkflowStatuses := make([]*pipelineConfig.CiWorkflowStatus, 0)
-	cdPipelines, err := impl.cdPipelineRepository.FindActiveByEnvId(envId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.Logger.Errorw("error fetching pipelines for env id", "err", err)
+	var cdPipelines []*pipelineConfig.Pipeline
+	var err error
+	if len(requestedAppIds) > 0 {
+		cdPipelines, err = impl.cdPipelineRepository.FindActiveByInFilter(envId, requestedAppIds)
+	} else {
+		cdPipelines, err = impl.cdPipelineRepository.FindActiveByEnvId(envId)
+	}
+	if err != nil {
+		impl.Logger.Errorw("error in fetching pipelines", "envId", envId, "err", err)
 		return nil, err
 	}
+
 	var appIds []int
 	for _, pipeline := range cdPipelines {
 		appIds = append(appIds, pipeline.AppId)
