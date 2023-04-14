@@ -8,8 +8,8 @@ import (
 
 type RbacPolicyDataRepository interface {
 	GetPolicyDataForAllRoles() ([]*RbacPolicyData, error)
-	CreateNewPolicyDataForRole(model *RbacPolicyData) (*RbacPolicyData, error)
-	UpdatePolicyDataForRole(model *RbacPolicyData) (*RbacPolicyData, error)
+	CreateNewPolicyDataForRoleWithTxn(model *RbacPolicyData, tx *pg.Tx) (*RbacPolicyData, error)
+	UpdatePolicyDataForRoleWithTxn(model *RbacPolicyData, tx *pg.Tx) (*RbacPolicyData, error)
 }
 
 type RbacPolicyDataRepositoryImpl struct {
@@ -47,8 +47,8 @@ func (repo *RbacPolicyDataRepositoryImpl) GetPolicyDataForAllRoles() ([]*RbacPol
 	return models, nil
 }
 
-func (repo *RbacPolicyDataRepositoryImpl) CreateNewPolicyDataForRole(model *RbacPolicyData) (*RbacPolicyData, error) {
-	_, err := repo.dbConnection.Model(&model).Insert()
+func (repo *RbacPolicyDataRepositoryImpl) CreateNewPolicyDataForRoleWithTxn(model *RbacPolicyData, tx *pg.Tx) (*RbacPolicyData, error) {
+	_, err := tx.Model(&model).Insert()
 	if err != nil {
 		repo.logger.Errorw("error in creating policy for a role", "err", err)
 		return nil, err
@@ -56,8 +56,8 @@ func (repo *RbacPolicyDataRepositoryImpl) CreateNewPolicyDataForRole(model *Rbac
 	return model, nil
 }
 
-func (repo *RbacPolicyDataRepositoryImpl) UpdatePolicyDataForRole(model *RbacPolicyData) (*RbacPolicyData, error) {
-	_, err := repo.dbConnection.Model(&model).Update()
+func (repo *RbacPolicyDataRepositoryImpl) UpdatePolicyDataForRoleWithTxn(model *RbacPolicyData, tx *pg.Tx) (*RbacPolicyData, error) {
+	_, err := tx.Model(&model).Update()
 	if err != nil {
 		repo.logger.Errorw("error in updating policy for a role", "err", err)
 		return nil, err
