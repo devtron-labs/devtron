@@ -787,12 +787,13 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 		stage = "PRE"
 	}
 	handler.Logger.Infow("request payload, GetArtifactsByCDPipeline", "cdPipelineId", cdPipelineId, "stage", stage)
-	deploymentPipeline, err := handler.pipelineBuilder.FindPipelineById(cdPipelineId)
+
+	pipeline, err := handler.pipelineBuilder.FindPipelineById(cdPipelineId)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	app, err := handler.pipelineBuilder.GetApp(deploymentPipeline.AppId)
+
 	if err != nil {
 		handler.Logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -800,20 +801,20 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 	}
 
 	//rbac block starts from here
-	object := handler.enforcerUtil.GetAppRBACName(app.AppName)
+	object := handler.enforcerUtil.GetAppRBACName(pipeline.App.AppName)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 
-	object = handler.enforcerUtil.GetAppRBACByAppNameAndEnvId(app.AppName, deploymentPipeline.EnvironmentId)
+	object = handler.enforcerUtil.GetAppRBACByAppNameAndEnvId(pipeline.App.AppName, pipeline.EnvironmentId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//rbac block ends here
 
-	ciArtifactResponse, err := handler.pipelineBuilder.GetArtifactsByCDPipeline(cdPipelineId, bean2.WorkflowType(stage))
+	ciArtifactResponse, err := handler.pipelineBuilder.RetrieveArtifactsByCDPipeline(pipeline, bean2.WorkflowType(stage))
 	if err != nil {
 		handler.Logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -827,16 +828,13 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 		}
 	}
 
-	//FIXME: next 3 loops are same combine them
-	//FIXME: already fetched above as deployment pipeline
-	pipelineModel, err := handler.pipelineRepository.FindById(cdPipelineId)
-	if err != nil {
-		handler.Logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-	}
 	if len(digests) > 0 {
-		vulnerableMap := make(map[string]bool)
-		cvePolicy, severityPolicy, err := handler.policyService.GetApplicablePolicy(pipelineModel.Environment.ClusterId, pipelineModel.EnvironmentId, pipelineModel.AppId, pipelineModel.App.AppType == helper.ChartStoreApp)
+		//vulnerableMap := make(map[string]bool)
+		cvePolicy, severityPolicy, err := handler.policyService.GetApplicablePolicy(pipeline.Environment.ClusterId,
+			pipeline.EnvironmentId,
+			pipeline.AppId,
+			pipeline.App.AppType == helper.ChartStoreApp)
+
 		if err != nil {
 			handler.Logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
 		}
@@ -848,35 +846,37 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 			handler.Logger.Errorw("service err, FindByImageDigests", "err", err, "cdPipelineId", cdPipelineId, "stage", stage, "digests", digests)
 		}
 
-		// build digest vs scan-results
-		digestVsScanResults := make(map[string][]*security.ImageScanExecutionResult)
-		for _, imageScanResult := range imageScanResults {
-			imageHash := imageScanResult.ImageScanExecutionHistory.ImageHash
-			if val, ok := digestVsScanResults[imageHash]; !ok {
-				var scanResults []*security.ImageScanExecutionResult
-				scanResults = append(scanResults, imageScanResult)
-				digestVsScanResults[imageHash] = scanResults
-			} else {
-				digestVsScanResults[imageHash] = append(val, imageScanResult)
-			}
-		}
+		// build digest vs cve-stores
+		digestVsCveStores := make(map[string][]*security.CveStore)
+		for _, result := range imageScanResults {
+			imageHash := result.ImageScanExecutionHistory.ImageHash
 
-		// for each digest, check vulnerability
-		for digest, scanResults := range digestVsScanResults {
-			var cveStores []*security.CveStore
-			for _, item := range scanResults {
-				cveStores = append(cveStores, &item.CveStore)
+			// For an imageHash, append all cveStores
+			if val, ok := digestVsCveStores[imageHash]; !ok {
+
+				// configuring size as len of ImageScanExecutionResult assuming all the
+				//scan results could belong to a single hash
+				cveStores := make([]*security.CveStore, 0, len(imageScanResults))
+				cveStores = append(cveStores, &result.CveStore)
+				digestVsCveStores[imageHash] = cveStores
+
+			} else {
+				// append to existing one
+				digestVsCveStores[imageHash] = append(val, &result.CveStore)
 			}
-			vulnerableMap[digest] = handler.policyService.HasBlockedCVE(cveStores, cvePolicy, severityPolicy)
 		}
 
 		var ciArtifactsFinal []bean.CiArtifactBean
 		for _, item := range ciArtifactResponse.CiArtifacts {
-			if item.ScanEnabled { // skip setting for artifacts which have marked scan disabled, but here deal with same digest
-				//if isVulnerable, ok := vulnerableMap[item.ImageDigest]; ok {
-				item.IsVulnerable = vulnerableMap[item.ImageDigest]
-				//}
+
+			// ignore cve check if scan is not enabled
+			if !item.ScanEnabled {
+				ciArtifactsFinal = append(ciArtifactsFinal, item)
+				continue
 			}
+
+			cveStores, _ := digestVsCveStores[item.ImageDigest]
+			item.IsVulnerable = handler.policyService.HasBlockedCVE(cveStores, cvePolicy, severityPolicy)
 			ciArtifactsFinal = append(ciArtifactsFinal, item)
 		}
 		ciArtifactResponse.CiArtifacts = ciArtifactsFinal
@@ -1961,8 +1961,8 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelinesByEnvironment(w http.
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	_, span := otel.Tracer("orchestrator").Start(context.Background(), "ciHandler.FetchCdPipelinesForAppGrouping")
-	results, err := handler.pipelineBuilder.GetCdPipelinesByEnvironment(envId, userEmailId, handler.checkAuthBatch)
+	_, span := otel.Tracer("orchestrator").Start(r.Context(), "cdHandler.FetchCdPipelinesForAppGrouping")
+	results, err := handler.pipelineBuilder.GetCdPipelinesByEnvironment(envId, userEmailId, handler.checkAuthBatch, r.Context())
 	span.End()
 	if err != nil {
 		handler.Logger.Errorw("service err, GetCdPipelines", "err", err, "envId", envId)
