@@ -224,6 +224,7 @@ func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, o
 	if err != nil {
 		return resp, err
 	}
+	impl.Logger.Infow("envs fetched from db", "envId", envId, "envContainers", envContainers)
 	resp.Apps = envContainers
 	return resp, err
 }
