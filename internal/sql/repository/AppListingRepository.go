@@ -367,6 +367,7 @@ func (impl AppListingRepositoryImpl) deploymentDetailsByAppIdAndEnvId(ctx contex
 		" p.deployment_app_type," +
 		" p.ci_pipeline_id," +
 		" p.deployment_app_delete_request," +
+		" p.user_approval_config," +
 		" cia.data_source," +
 		" cia.id as ci_artifact_id," +
 		" cl.k8s_version," +

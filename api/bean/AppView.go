@@ -151,6 +151,7 @@ type DeploymentDetailContainer struct {
 	DockerRegistryId              string          `json:"dockerRegistryId,omitempty"`
 	IpsAccessProvided             bool            `json:"ipsAccessProvided"`
 	DeploymentAppDeleteRequest    bool            `json:"deploymentAppDeleteRequest"`
+	UserApprovalConfig            string          `json:"userApprovalConfig"`
 }
 
 type AppDetailContainer struct {
