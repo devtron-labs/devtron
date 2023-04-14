@@ -25,6 +25,7 @@ import (
 	"fmt"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/internal/sql/repository/appGroup"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"io/ioutil"
 	errors2 "k8s.io/apimachinery/pkg/api/errors"
@@ -92,13 +93,15 @@ type CiHandlerImpl struct {
 	K8sUtil                      *util.K8sUtil
 	cdPipelineRepository         pipelineConfig.PipelineRepository
 	enforcerUtil                 rbac.EnforcerUtil
+	appGroupMappingRepository    appGroup.AppGroupMappingRepository
 }
 
 func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	gitSensorClient gitSensor.GitSensorClient, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, workflowService WorkflowService,
 	ciLogService CiLogService, ciConfig *CiConfig, ciArtifactRepository repository.CiArtifactRepository, userService user.UserService, eventClient client.EventClient,
 	eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository, appListingRepository repository.AppListingRepository,
-	K8sUtil *util.K8sUtil, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil) *CiHandlerImpl {
+	K8sUtil *util.K8sUtil, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil,
+	appGroupMappingRepository appGroup.AppGroupMappingRepository) *CiHandlerImpl {
 	return &CiHandlerImpl{
 		Logger:                       Logger,
 		ciService:                    ciService,
@@ -117,6 +120,7 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 		K8sUtil:                      K8sUtil,
 		cdPipelineRepository:         cdPipelineRepository,
 		enforcerUtil:                 enforcerUtil,
+		appGroupMappingRepository:    appGroupMappingRepository,
 	}
 }
 

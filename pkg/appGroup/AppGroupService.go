@@ -30,6 +30,7 @@ type AppGroupService interface {
 	GetApplicationsForAppGroup(appGroupId int) ([]*ApplicationDto, error)
 	CreateAppGroup(request *AppGroupDto) (*AppGroupDto, error)
 	UpdateAppGroup(request *AppGroupDto) (*AppGroupDto, error)
+	DeleteAppGroup(appGroupId int) (bool, error)
 }
 type AppGroupServiceImpl struct {
 	logger                    *zap.SugaredLogger
@@ -204,4 +205,45 @@ func (impl *AppGroupServiceImpl) GetApplicationsForAppGroup(appGroupId int) ([]*
 		applications = append(applications, appGroupDto)
 	}
 	return applications, nil
+}
+
+func (impl *AppGroupServiceImpl) DeleteAppGroup(appGroupId int) (bool, error) {
+	dbConnection := impl.appGroupRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return false, err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+
+	appGroup, err := impl.appGroupRepository.FindById(appGroupId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in update new attributes", "error", err)
+		return false, err
+	}
+
+	appGroupMappings, err := impl.appGroupMappingRepository.FindByAppGroupId(appGroupId)
+	if err != nil && err != pg.ErrNoRows {
+		return false, err
+	}
+	for _, appGroupMapping := range appGroupMappings {
+		err = impl.appGroupMappingRepository.Delete(appGroupMapping, tx)
+		if err != nil {
+			return false, err
+		}
+	}
+
+	appGroup.Active = false
+	appGroup.UpdatedOn = time.Now()
+	appGroup.UpdatedBy = 1
+	err = impl.appGroupRepository.Update(appGroup, tx)
+	if err != nil {
+		return false, err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }

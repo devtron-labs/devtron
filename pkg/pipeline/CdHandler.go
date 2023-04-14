@@ -31,6 +31,7 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	client2 "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/repository/appGroup"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -99,6 +100,7 @@ type CdHandlerImpl struct {
 	appService                             app.AppService
 	appStatusService                       app_status.AppStatusService
 	enforcerUtil                           rbac.EnforcerUtil
+	appGroupMappingRepository              appGroup.AppGroupMappingRepository
 }
 
 func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService user.UserService,
@@ -121,7 +123,8 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 	pipelineStatusSyncDetailService app.PipelineStatusSyncDetailService,
 	pipelineStatusTimelineService app.PipelineStatusTimelineService,
 	appService app.AppService,
-	appStatusService app_status.AppStatusService, enforcerUtil rbac.EnforcerUtil) *CdHandlerImpl {
+	appStatusService app_status.AppStatusService, enforcerUtil rbac.EnforcerUtil,
+	appGroupMappingRepository appGroup.AppGroupMappingRepository) *CdHandlerImpl {
 	return &CdHandlerImpl{
 		Logger:                                 Logger,
 		cdConfig:                               cdConfig,
@@ -151,6 +154,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 		appService:                             appService,
 		appStatusService:                       appStatusService,
 		enforcerUtil:                           enforcerUtil,
+		appGroupMappingRepository:              appGroupMappingRepository,
 	}
 }
 

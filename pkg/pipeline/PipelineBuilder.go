@@ -24,6 +24,7 @@ import (
 	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/internal/sql/repository/appGroup"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
@@ -204,6 +205,7 @@ type PipelineBuilderImpl struct {
 	ArgoUserService                                 argo.ArgoUserService
 	workflowDagExecutor                             WorkflowDagExecutor
 	enforcerUtil                                    rbac.EnforcerUtil
+	appGroupMappingRepository                       appGroup.AppGroupMappingRepository
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -252,7 +254,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	deploymentConfig *DeploymentServiceTypeConfig, appStatusRepository appStatus.AppStatusRepository,
 	workflowDagExecutor WorkflowDagExecutor,
 	enforcerUtil rbac.EnforcerUtil, ArgoUserService argo.ArgoUserService,
-	ciWorkflowRepository pipelineConfig.CiWorkflowRepository) *PipelineBuilderImpl {
+	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
+	appGroupMappingRepository appGroup.AppGroupMappingRepository) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                        logger,
 		ciCdPipelineOrchestrator:      ciCdPipelineOrchestrator,
@@ -309,6 +312,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		workflowDagExecutor:                             workflowDagExecutor,
 		enforcerUtil:                                    enforcerUtil,
 		ciWorkflowRepository:                            ciWorkflowRepository,
+		appGroupMappingRepository:                       appGroupMappingRepository,
 	}
 }
 
@@ -3906,7 +3910,6 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int, emailId st
 		impl.logger.Errorw("error in fetching pipelines", "envId", envId, "err", err)
 		return nil, err
 	}
-
 
 	var appIds []int
 	ciPipelineIds := make([]int, 0)

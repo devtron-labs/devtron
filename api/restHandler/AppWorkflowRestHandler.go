@@ -257,10 +257,19 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflowByEnvironment(w http.Respo
 			appIds = append(appIds, id)
 		}
 	}
+	var appGroupId int
+	appGroupIdStr := v.Get("appGroupId")
+	if len(appGroupIdStr) > 0 {
+		appGroupId, err = strconv.Atoi(appGroupIdStr)
+		if err != nil {
+			common.WriteJsonResp(w, err, "please provide valid appGroupId", http.StatusBadRequest)
+			return
+		}
+	}
 
 	workflows := make(map[string]interface{})
 	_, span := otel.Tracer("orchestrator").Start(r.Context(), "ciHandler.FetchAppWorkflowsInAppGrouping")
-	workflowsList, err := impl.appWorkflowService.FindAppWorkflowsByEnvironmentId(envId, userEmailId, appIds, impl.checkAuthBatch)
+	workflowsList, err := impl.appWorkflowService.FindAppWorkflowsByEnvironmentId(envId, userEmailId, appGroupId, appIds, impl.checkAuthBatch)
 	span.End()
 	if err != nil {
 		impl.Logger.Errorw("error in fetching workflows for app", "err", err)

@@ -35,6 +35,7 @@ type AppGroupRestHandler interface {
 	GetApplicationsForAppGroup(w http.ResponseWriter, r *http.Request)
 	CreateAppGroup(w http.ResponseWriter, r *http.Request)
 	UpdateAppGroup(w http.ResponseWriter, r *http.Request)
+	DeleteAppGroup(w http.ResponseWriter, r *http.Request)
 }
 
 type AppGroupRestHandlerImpl struct {
@@ -113,7 +114,7 @@ func (handler AppGroupRestHandlerImpl) CreateAppGroup(w http.ResponseWriter, r *
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	dto.UserId=userId
+	dto.UserId = userId
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
@@ -143,7 +144,7 @@ func (handler AppGroupRestHandlerImpl) UpdateAppGroup(w http.ResponseWriter, r *
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	dto.UserId=userId
+	dto.UserId = userId
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
@@ -154,6 +155,34 @@ func (handler AppGroupRestHandlerImpl) UpdateAppGroup(w http.ResponseWriter, r *
 	resp, err := handler.appGroupService.UpdateAppGroup(&dto)
 	if err != nil {
 		handler.logger.Errorw("service err, UpdateAppGroup", "err", err, "payload", dto)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+}
+
+func (handler AppGroupRestHandlerImpl) DeleteAppGroup(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	appGroupId, err := strconv.Atoi(vars["appGroupId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, "", http.StatusBadRequest)
+		return
+	}
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
+	handler.logger.Infow("request payload, DeleteAppGroup", "appGroupId", appGroupId)
+	resp, err := handler.appGroupService.DeleteAppGroup(appGroupId)
+	if err != nil {
+		handler.logger.Errorw("service err, DeleteAppGroup", "err", err, "appGroupId", appGroupId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

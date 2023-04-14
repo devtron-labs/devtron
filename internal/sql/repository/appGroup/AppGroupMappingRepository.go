@@ -36,6 +36,7 @@ type AppGroupMapping struct {
 type AppGroupMappingRepository interface {
 	Save(model *AppGroupMapping, tx *pg.Tx) (*AppGroupMapping, error)
 	Update(model *AppGroupMapping, tx *pg.Tx) error
+	Delete(model *AppGroupMapping, tx *pg.Tx) error
 	FindById(id int) (*AppGroupMapping, error)
 	FindByAppGroupId(appGroupId int) ([]*AppGroupMapping, error)
 	FindAll() ([]*AppGroupMapping, error)
@@ -61,6 +62,11 @@ func (repo AppGroupMappingRepositoryImpl) Save(model *AppGroupMapping, tx *pg.Tx
 
 func (repo AppGroupMappingRepositoryImpl) Update(model *AppGroupMapping, tx *pg.Tx) error {
 	err := tx.Update(model)
+	return err
+}
+
+func (repo AppGroupMappingRepositoryImpl) Delete(model *AppGroupMapping, tx *pg.Tx) error {
+	err := tx.Delete(model)
 	return err
 }
 

@@ -40,5 +40,5 @@ func (router AppGroupingRouterImpl) InitAppGroupingRouter(appGroupingRouter *mux
 	appGroupingRouter.Path("/{envId}/group").HandlerFunc(router.appGroupRestHandler.UpdateAppGroup).Methods("PUT")
 	appGroupingRouter.Path("/{envId}/group/{appGroupId}").HandlerFunc(router.appGroupRestHandler.GetApplicationsForAppGroup).Methods("GET")
 	appGroupingRouter.Path("/{envId}/groups").HandlerFunc(router.appGroupRestHandler.GetActiveAppGroupList).Methods("GET")
-
+	appGroupingRouter.Path("/{envId}/group/{appGroupId}").HandlerFunc(router.appGroupRestHandler.DeleteAppGroup).Methods("DELETE")
 }

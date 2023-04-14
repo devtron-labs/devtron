@@ -19,6 +19,7 @@ package appWorkflow
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/appGroup"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -50,16 +51,17 @@ type AppWorkflowService interface {
 	FindAppWorkflowByName(name string, appId int) (AppWorkflowDto, error)
 
 	FindAllWorkflowsComponentDetails(appId int) (*AllAppWorkflowComponentDetails, error)
-	FindAppWorkflowsByEnvironmentId(envId int, emailId string, requestedAppIds []int, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*AppWorkflowDto, error)
+	FindAppWorkflowsByEnvironmentId(envId int, emailId string, appGroupId int, requestedAppIds []int, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*AppWorkflowDto, error)
 }
 
 type AppWorkflowServiceImpl struct {
-	Logger                   *zap.SugaredLogger
-	appWorkflowRepository    appWorkflow.AppWorkflowRepository
-	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator
-	ciPipelineRepository     pipelineConfig.CiPipelineRepository
-	pipelineRepository       pipelineConfig.PipelineRepository
-	enforcerUtil             rbac.EnforcerUtil
+	Logger                    *zap.SugaredLogger
+	appWorkflowRepository     appWorkflow.AppWorkflowRepository
+	ciCdPipelineOrchestrator  pipeline.CiCdPipelineOrchestrator
+	ciPipelineRepository      pipelineConfig.CiPipelineRepository
+	pipelineRepository        pipelineConfig.PipelineRepository
+	appGroupMappingRepository appGroup.AppGroupMappingRepository
+	enforcerUtil              rbac.EnforcerUtil
 }
 
 type AppWorkflowDto struct {
@@ -102,14 +104,15 @@ type WorkflowComponentNamesDto struct {
 
 func NewAppWorkflowServiceImpl(logger *zap.SugaredLogger, appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator, ciPipelineRepository pipelineConfig.CiPipelineRepository,
-	pipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil) *AppWorkflowServiceImpl {
+	pipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, appGroupMappingRepository appGroup.AppGroupMappingRepository) *AppWorkflowServiceImpl {
 	return &AppWorkflowServiceImpl{
-		Logger:                   logger,
-		appWorkflowRepository:    appWorkflowRepository,
-		ciCdPipelineOrchestrator: ciCdPipelineOrchestrator,
-		ciPipelineRepository:     ciPipelineRepository,
-		pipelineRepository:       pipelineRepository,
-		enforcerUtil:             enforcerUtil,
+		Logger:                    logger,
+		appWorkflowRepository:     appWorkflowRepository,
+		ciCdPipelineOrchestrator:  ciCdPipelineOrchestrator,
+		ciPipelineRepository:      ciPipelineRepository,
+		pipelineRepository:        pipelineRepository,
+		enforcerUtil:              enforcerUtil,
+		appGroupMappingRepository: appGroupMappingRepository,
 	}
 }
 
@@ -506,7 +509,7 @@ func (impl AppWorkflowServiceImpl) FindAllWorkflowsComponentDetails(appId int) (
 	return resp, nil
 }
 
-func (impl AppWorkflowServiceImpl) FindAppWorkflowsByEnvironmentId(envId int, emailId string, requestedAppIds []int, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*AppWorkflowDto, error) {
+func (impl AppWorkflowServiceImpl) FindAppWorkflowsByEnvironmentId(envId int, emailId string, appGroupId int, requestedAppIds []int, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*AppWorkflowDto, error) {
 	workflows := make([]*AppWorkflowDto, 0)
 	var pipelines []*pipelineConfig.Pipeline
 	var err error
