@@ -388,14 +388,19 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingReques
 	}
 
 	envContainersMap := make(map[int][]*bean.AppEnvironmentContainer)
-	envIds := make([]*int, 0)
+	envIds := make([]int, 0)
+	envsSet := make(map[int]bool)
+
 	for _, container := range envContainers {
 		if container.EnvironmentId != 0 {
 			if _, ok := envContainersMap[container.EnvironmentId]; !ok {
 				envContainersMap[container.EnvironmentId] = make([]*bean.AppEnvironmentContainer, 0)
 			}
 			envContainersMap[container.EnvironmentId] = append(envContainersMap[container.EnvironmentId], container)
-			envIds = append(envIds, &container.EnvironmentId)
+			if _, ok := envsSet[container.EnvironmentId]; !ok {
+				envIds = append(envIds, container.EnvironmentId)
+				envsSet[container.EnvironmentId] = true
+			}
 		}
 	}
 	envClusterInfos, err := impl.environmentRepository.FindEnvClusterInfosByIds(envIds)

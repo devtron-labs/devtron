@@ -74,7 +74,7 @@ type EnvironmentRepository interface {
 	FindByEnvNameAndClusterIds(envName string, clusterIds []int) ([]*Environment, error)
 	FindByClusterIdsWithFilter(clusterIds []int) ([]*Environment, error)
 	FindAllActiveWithFilter() ([]*Environment, error)
-	FindEnvClusterInfosByIds([]*int) ([]*EnvCluserInfo, error)
+	FindEnvClusterInfosByIds([]int) ([]*EnvCluserInfo, error)
 }
 
 func NewEnvironmentRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger, appStatusRepository appStatus.AppStatusRepository) *EnvironmentRepositoryImpl {
