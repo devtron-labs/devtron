@@ -530,7 +530,7 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerVie
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 	go func() {
-		if apiVersion == "v1" {
+		if apiVersion == "v2" {
 			ciWorkflowStatus, err = handler.ciHandler.FetchCiStatusForTriggerViewV1(appId)
 		} else {
 			ciWorkflowStatus, err = handler.ciHandler.FetchCiStatusForTriggerView(appId)
