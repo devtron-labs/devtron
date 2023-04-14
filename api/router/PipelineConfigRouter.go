@@ -134,6 +134,9 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/app-wf/{app-id}").
 		HandlerFunc(router.appWorkflowRestHandler.FindAppWorkflow).Methods("GET")
 
+	configRouter.Path("/app-wf/view/{app-id}").
+		HandlerFunc(router.appWorkflowRestHandler.GetWorkflowsViewData).Methods("GET")
+
 	configRouter.Path("/app-wf/{app-id}/{app-wf-id}").
 		HandlerFunc(router.appWorkflowRestHandler.DeleteAppWorkflow).Methods("DELETE")
 

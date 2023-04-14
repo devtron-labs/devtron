@@ -115,6 +115,7 @@ type AppEnvironmentContainer struct {
 	Active                      bool                      `json:"-"`
 	TeamId                      int                       `json:"teamId"`
 	TeamName                    string                    `json:"teamName"`
+	TotalCount                  int                       `json:"-"`
 }
 
 type DeploymentDetailContainer struct {
@@ -159,6 +160,10 @@ type AppDetailContainer struct {
 	LinkOuts                  []LinkOuts             `json:"linkOuts,omitempty"`
 	ResourceTree              map[string]interface{} `json:"resourceTree,omitempty"`
 	Notes                     string                 `json:"notes,omitempty"`
+}
+type ResourceTreeAndNotesContainer struct {
+	ResourceTree map[string]interface{} `json:"resourceTree,omitempty"`
+	Notes        string                 `json:"notes,omitempty"`
 }
 type Notes struct {
 	Notes string `json:"gitOpsNotes,omitempty"`

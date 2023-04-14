@@ -162,14 +162,22 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelines(appId, envId, wfrI
 			impl.logger.Errorw("error in getting timelines by wfrId", "err", err, "wfrId", wfrId)
 			return nil, err
 		}
+		var cdWorkflowRunnerIds []int
 		for _, timeline := range timelines {
-			var timelineResourceDetails []*SyncStageResourceDetailDto
+			cdWorkflowRunnerIds = append(cdWorkflowRunnerIds, timeline.CdWorkflowRunnerId)
+		}
+		if len(cdWorkflowRunnerIds) == 0 {
+			return nil, err
+		}
+		timelineResourceMap, err := impl.pipelineStatusTimelineResourcesService.GetTimelineResourcesForATimeline(cdWorkflowRunnerIds)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in getting timeline resources details", "err", err)
+			return nil, err
+		}
+		for _, timeline := range timelines {
+			timelineResourceDetails := make([]*SyncStageResourceDetailDto, 0)
 			if timeline.Status == pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_STARTED {
-				timelineResourceDetails, err = impl.pipelineStatusTimelineResourcesService.GetTimelineResourcesForATimeline(timeline.CdWorkflowRunnerId)
-				if err != nil && err != pg.ErrNoRows {
-					impl.logger.Errorw("error in getting timeline resources details", "err", err, "cdWfrId", timeline.CdWorkflowRunnerId)
-					return nil, err
-				}
+				timelineResourceDetails = timelineResourceMap[timeline.CdWorkflowRunnerId]
 			}
 			timelineDto := &PipelineStatusTimelineDto{
 				Id:                 timeline.Id,

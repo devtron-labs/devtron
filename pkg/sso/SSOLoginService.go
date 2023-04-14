@@ -199,7 +199,7 @@ func (impl SSOLoginServiceImpl) UpdateSSOLogin(request *bean.SSOLoginDto) (*bean
 		impl.logger.Errorw("error in creating new sso login config", "error", err)
 		return nil, err
 	}
-
+	request.Config = newConfigString
 	_, err = impl.updateDexConfig(request)
 	if err != nil {
 		impl.logger.Errorw("error in creating new sso login config", "error", err)

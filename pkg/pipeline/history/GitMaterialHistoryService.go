@@ -40,9 +40,7 @@ func (impl GitMaterialHistoryServiceImpl) CreateMaterialHistory(inputMaterial *p
 		FetchSubmodules: inputMaterial.FetchSubmodules,
 		AuditLog:        sql.AuditLog{UpdatedBy: inputMaterial.UpdatedBy, CreatedBy: inputMaterial.CreatedBy, UpdatedOn: inputMaterial.UpdatedOn, CreatedOn: inputMaterial.CreatedOn},
 	}
-
 	err := impl.gitMaterialHistoryRepository.SaveGitMaterialHistory(material)
-
 	if err != nil {
 		impl.logger.Errorw("error in saving create/update history for git repository")
 	}

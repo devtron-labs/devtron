@@ -124,7 +124,7 @@ func (e *EnterpriseEnforcerImpl) EnforceForSubjectInBatchCasbin(subject string, 
 	for i, token := range enforcedModel["p"]["p"].Tokens {
 		pTokens[token] = i
 	}
-	filteredPolicies := e.GetFilteredPolicies(subject, enforcedModel["p"]["p"].Policy, enforcedModel["g"]["g"].RM)
+	filteredPolicies := e.GetFilteredPolicies(subject, resource, action, enforcedModel["p"]["p"].Policy, enforcedModel["g"]["g"].RM)
 	eft := effect.NewDefaultEffector()
 	for _, resourceItem := range resourceItems {
 		rvals := e.getRval(subject, resource, action, resourceItem)
@@ -236,7 +236,7 @@ func (e *EnterpriseEnforcerImpl) EnforceForSubjectInBatchCasbin(subject string, 
 
 func (e *EnterpriseEnforcerImpl) EnforceForSubjectInBatchCustom(subject string, resource string, action string, resourceItems []string, enforcedModel model.Model) (resultArr []bool) {
 	defer casbin2.HandlePanic()
-	filteredPolicies := e.GetFilteredPolicies(subject, enforcedModel["p"]["p"].Policy, enforcedModel["g"]["g"].RM)
+	filteredPolicies := e.GetFilteredPolicies(subject, resource, action, enforcedModel["p"]["p"].Policy, enforcedModel["g"]["g"].RM)
 	for _, resourceItem := range resourceItems {
 		rVals := e.getRvalCustom(subject, resource, action, resourceItem)
 		result := false
@@ -293,9 +293,9 @@ func (e *EnterpriseEnforcerImpl) EvaluatePTypeDefinition(pVals, rVals []string) 
 	if len(rVals) > len(pVals) || len(pVals) < 4 || len(rVals) < 4 { //need minimum 4 values for evaluating; values are - [sub, res, act, obj]
 		result = false
 	} else {
-		result = casbin2.MatchKeyByPart(rVals[1], pVals[1]) && //checking res
-			casbin2.MatchKeyByPart(rVals[2], pVals[2]) && //checking act
-			casbin2.MatchKeyByPart(rVals[3], pVals[3])
+		//only checking resourceObject and not resource, action
+		//because we have already got filtered policies on the basis of their matching
+		result = casbin2.MatchKeyByPart(rVals[3], pVals[3])
 	}
 	return result
 }
@@ -308,12 +308,20 @@ func (e *EnterpriseEnforcerImpl) getRvalCustom(rVal ...string) []string {
 	return rVal
 }
 
-func (e *EnterpriseEnforcerImpl) GetFilteredPolicies(subject string, policies [][]string, rm rbac.RoleManager) [][]string {
+func (e *EnterpriseEnforcerImpl) GetFilteredPolicies(subject string, resource string, action string, policies [][]string, rm rbac.RoleManager) [][]string {
 	var filteredPolicies [][]string
 	for _, policy := range policies {
 		role := policy[0]
+		policyResource := policy[1]
+		policyAction := policy[2]
 		hasLink, _ := rm.HasLink(subject, role)
 		if hasLink {
+			if !casbin2.MatchKeyByPart(action, policyAction) {
+				continue
+			}
+			if !casbin2.MatchKeyByPart(resource, policyResource) {
+				continue
+			}
 			filteredPolicies = append(filteredPolicies, policy)
 		}
 	}

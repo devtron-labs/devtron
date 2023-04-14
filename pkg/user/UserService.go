@@ -394,6 +394,7 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 		}
 
 	}
+	impl.logger.Infow("Checking the length of policies to be added and Adding in casbin ")
 	if len(policies) > 0 {
 		impl.logger.Infow("Adding policies in casbin")
 		err = casbin2.AddPolicy(policies)
@@ -828,9 +829,9 @@ func (impl UserServiceImpl) GetById(id int32) (*bean.UserInfo, error) {
 	for index, roleFilter := range roleFilters {
 		if roleFilter.Entity == "" {
 			roleFilters[index].Entity = bean2.ENTITY_APPS
-		}
-		if roleFilter.Entity == bean2.ENTITY_APPS && roleFilter.AccessType == "" {
-			roleFilters[index].AccessType = bean2.DEVTRON_APP
+			if roleFilter.AccessType == "" {
+				roleFilters[index].AccessType = bean2.DEVTRON_APP
+			}
 		}
 	}
 	response := &bean.UserInfo{
