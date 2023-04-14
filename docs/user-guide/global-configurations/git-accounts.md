@@ -2,69 +2,37 @@
 
 Git Accounts allow you to connect your code source with Devtron. You will be able to use these git accounts to build the code using the CI pipeline.
 
-## Git Account Configuration
+## Add Git Account
 
-`Global Configuration` helps you to add a Git provider. Click on `Add git account` button at the top of the Git Account Section. To add a new git provider, add the details as mentioned below.
+To add git account, go to the `Git accounts` section of `Global Configurations`. Click **Add git account**.
 
-1. Name
-2. Git Host
-3. URL
-4. Authentication type
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/git-accounts/git-accounts.jpg)
+
+Provide the information in the following fields to add your git account:
+
+| Field | Description |
+| :--- | :--- |
+| `Name` | Provide a name to your Git provider.<br>Note: This name will be available on the App Configuration > [Git repository](../creating-application/git-material.md) drop-down list.</br> |
+| `Git host` |  It is the git provider on which corresponding application git repository is hosted.<br>Note: By default, `Bitbucket` and `GitHub` are available in the drop-down list. You can add many as you want by clicking `[+ Add Git Host]`.</br>  |
+| `URL` | Provide the Git host `URL`.<br>As an example: [https://github.com](https://github.com) for Github, [https://gitlab.com](https://gitlab.com) for GitLab etc. |
+| `Authentication Type` | Devtron supports three types of authentications:<ul><li>**User auth:** If you select `User auth` as an authentication type, then you must provide the `Username` and `Password`or `Auth token` for the authentication of your version control account.</li></ul> <ul><li>**Anonymous:** If you select `Anonymous` as an authentication type, then you do not need to provide the `Username` and `Password`.<br>Note: If authentication type is set as `Anonymous`, only public git repository will be accessible.</li></ul><ul><li>**SSH Key:** If you choose `SSH Key` as an authentication type, then you must provide the `Private SSH Key` corresponding to the public key added in your version control account.</li></ul> |
 
 
-![](../../user-guide/global-configurations/images/git-accounts.jpg)
-
-### 1. Name
-
-Provide a `Name` to your Git provider. This name will be displayed in the the Git Provider drop-down inside the Git Material configuration section.
-
-### 2. Git Host
-
-It is the git provider on which corresponding application git repository is hosted. By default you will get Bitbucket and GitHub but you can add many as you want clicking on **[+ Add Git Host]**.
-
-### 3. URL
-
-Provide the `URL`. **For example**- [https://github.com](https://github.com) for Github, [https://gitlab.com](https://gitlab.com) for GitLab, etc.
-
-### 4. Authentication type
-
-Here provide the type of authentication required by your version controller. Devtron supports three types of authentications. You can choose the one that suits you the best.
-
-* **Anonymous**
-
-If authentication type is set as `Anonymous` then you do not need to provide any username, password/authentication token or SSH key. Just click on `Save` to save the git account provider details. 
->If authentication type is set as `Anonymous`, only public git repository will be accessible.
-
-![](../../user-guide/global-configurations/images/git-accounts-anonymous.jpg)
-
-* **User Auth**
-
-If you select `User Auth` then you have to provide the `Username` and either of `Password` or `Auth Token` for the authentication of your version controller account. Click on `Save` to save the git account provider details.
-
-![](../../user-guide/global-configurations/images/git-accounts-user-auth.jpg)
-
-* **SSH Key**
-
-If you choose `SSH Key` then you have to provide the `Private SSH Key` corresponding to the public key added in your version controller account. Click on `Save` to save the git account provider details.
-
-![](../../user-guide/global-configurations/images/git-accounts-ssh.jpg)
 
 ## Update Git Account
 
-You can update your saved git account settings at anytime. To update the git account:
+To update the git account:
 
-1. Click on the git account which you want to update. 
-2. Make the required changes 
-3. Click on `Update` to save the changes.
+1. Click the git account which you want to update. 
+2. Update the required changes.
+3. Click `Update` to save the changes.
 
-Updates can only be made within one Authentication type or one protocol type, i.e. HTTPS(Anonymous or User Auth) & SSH. You can update from Anonymous to User Auth & vice versa, but not from Anonymous/User Auth to SSH or reverse.
+Updates can only be made within one Authentication type or one protocol type, i.e. HTTPS (Anonymous or User Auth) & SSH. You can update from `Anonymous` to `User Auth` & vice versa, but not from `Anonymous` or `User Auth` to `SSH` and vice versa.
 
-![](../../user-guide/global-configurations/images/git-account-update.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/git-accounts/update-git-accounts.jpg)
 
-### Note:
+Note:
+* You can enable or disable a git account. Enabled git accounts will be available on the App Configuration > [Git repository](../creating-application/git-material.md).
 
-You can enable or disable a git account. Enabled git accounts will be available to be used in Application configuration > [Git repository](../creating-application/git-material.md).
-
-Disabled git accounts will be unavailable for use in future applications. Applications already using a disabled git account will not be affected.
 
 ![](../../user-guide/global-configurations/images/git-account-enable-disable.jpg)

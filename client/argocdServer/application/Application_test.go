@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/settings"
 	"testing"
 
 	"go.uber.org/zap"
@@ -29,7 +28,6 @@ import (
 
 func TestServiceClientImpl_getRolloutStatus(t *testing.T) {
 	type fields struct {
-		asc    *settings.ArgoCDSettings
 		logger *zap.SugaredLogger
 	}
 	type args struct {
@@ -53,7 +51,6 @@ func TestServiceClientImpl_getRolloutStatus(t *testing.T) {
 		{
 			name: "test1",
 			fields: fields{
-				asc:    nil,
 				logger: logger.Sugar(),
 			},
 			args: args{
@@ -68,7 +65,6 @@ func TestServiceClientImpl_getRolloutStatus(t *testing.T) {
 		{
 			name: "test2",
 			fields: fields{
-				asc:    nil,
 				logger: logger.Sugar(),
 			},
 			args: args{
@@ -83,7 +79,6 @@ func TestServiceClientImpl_getRolloutStatus(t *testing.T) {
 		{
 			name: "test3",
 			fields: fields{
-				asc:    nil,
 				logger: logger.Sugar(),
 			},
 			args: args{
@@ -98,7 +93,6 @@ func TestServiceClientImpl_getRolloutStatus(t *testing.T) {
 		{
 			name: "test4",
 			fields: fields{
-				asc:    nil,
 				logger: logger.Sugar(),
 			},
 			args: args{

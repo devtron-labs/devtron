@@ -32,6 +32,7 @@ type DeploymentGroupRepository interface {
 	Delete(model *DeploymentGroup) error
 	FindByIdWithApp(id int) (*DeploymentGroup, error)
 	FindByAppIdAndEnvId(envId, appId int) ([]DeploymentGroup, error)
+	GetNamesByAppIdAndEnvId(envId, appId int) ([]string, error)
 }
 
 type DeploymentGroupRepositoryImpl struct {
@@ -122,4 +123,15 @@ func (impl *DeploymentGroupRepositoryImpl) FindByAppIdAndEnvId(envId, appId int)
 		return nil, err
 	}
 	return models, err
+}
+
+func (impl *DeploymentGroupRepositoryImpl) GetNamesByAppIdAndEnvId(envId, appId int) ([]string, error) {
+	var groupNames []string
+	query := "select dg.name from deployment_group dg INNER JOIN deployment_group_app dga ON dga.deployment_group_id = dg.id where dga.active = ? and dga.app_id = ? and environment_id = ? and dg.active = ?;"
+	_, err := impl.dbConnection.Query(&groupNames, query, true, appId, envId, true)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching group names by appId and envId", "err", err, "appId", appId, "envId", envId)
+		return nil, err
+	}
+	return groupNames, err
 }

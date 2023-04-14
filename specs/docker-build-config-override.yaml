@@ -1,0 +1,284 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Create App Api
+paths:
+  /orchestrator/app/wf/all/component-names/{appId}:
+    get:
+      description: Get names of all workflows and included pipelines
+      operationId: GetWorkflowDetail
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Successfully return all details of the workflow.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CiConfigRequest"
+        "400":
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /orchestrator/app/ci-pipeline/{appId}:
+    get:
+      description: Get ci pipeline
+      operationId: GetCiPipeline
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Successfully return all details of the ci pipelines.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CiConfigRequest"
+        "400":
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /orchestrator/app/ci-pipeline/patch:
+    post:
+      description: Create/Update ci pipeline.
+      operationId: PatchCiPipeline
+      requestBody:
+        description: A JSON object containing the pipeline configuration
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CiPatchRequest"
+      responses:
+        "200":
+          description: Successfully return a message stating the operation is successful.
+          content:
+            application/json:
+              schema:
+                type: string
+        "400":
+          description: Bad Request. Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+components:
+  schemas:
+    WorkflowsDto:
+      type: object
+      properties:
+        workflows:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkflowDetail"
+    WorkflowDetail:
+      type: object
+      properties:
+        name:
+          type: string
+        id:
+          type: integer
+        ciPipelineName:
+          type: string
+        ciPipelineId:
+          type: integer
+        cdPipelines:
+          type: array
+          items:
+            type: string
+    CiPatchRequest:
+      type: object
+      properties:
+        action:
+          type: integer
+        appId:
+          type: integer
+        appWorkflowId:
+          type: integer
+        ciPipeline:
+          $ref: "#/components/schemas/CiPipelineDetails"
+    CiConfigRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+        scanEnabled:
+          type: boolean
+        appId:
+          type: integer
+        appName:
+          type: string
+        dockerBuildConfig:
+          $ref: "#/components/schemas/DockerBuildConfig"
+        ciPipelines:
+          type: array
+          items:
+            $ref: "#/components/schemas/CiPipelineDetails"
+        dockerRegistry:
+          type: string
+        dockerRepository:
+          type: string
+        materials:
+          type: array
+          items:
+            $ref: "#/components/schemas/GitMaterial"
+    GitMaterial:
+      type: object
+      properties:
+        gitProviderUrl:
+          type: string
+        gitRepoUrl:
+          type: string
+        checkoutPath:
+          type: string
+        fetchSubmodules:
+          type: boolean
+    DockerConfig:
+      type: object
+      properties:
+        dockerRegistry:
+          type: string
+        dockerRepository:
+          type: string
+        dockerBuildConfig:
+          $ref: "#/components/schemas/DockerBuildConfig"
+    DockerBuildConfig:
+      type: object
+      properties:
+        gitMaterialId:
+          type: integer
+        dockerfileRelativePath:
+          type: string
+        targetPlatform:
+          type: string
+        args:
+          type: array
+          items:
+            type: object
+            properties:
+              Key:
+                type: string
+              Value:
+                type: string
+          description: map of docker arguments, i.e. key-value pairs
+    CiPipelineDetails:
+      type: object
+      properties:
+        isDockerConfigOverridden:
+          type: boolean
+        dockerConfigOverride:
+          $ref: "#/components/schemas/DockerBuildConfig"
+        name:
+          type: string
+        isManual:
+          type: boolean
+        scanEnabled:
+          type: boolean
+        isExternal:
+          type: boolean
+        parentAppId:
+          type: integer
+        parentCiPipeline:
+          type: integer
+        linkedCount:
+          type: integer
+        ciMaterials:
+          type: array
+          items:
+            $ref: "#/components/schemas/CiPipelineMaterialConfig"
+        dockerArgs:
+          type: array
+          items:
+            type: object
+            properties:
+              Key:
+                type: string
+              Value:
+                type: string
+          description: map of docker arguments, i.e. key-value pairs
+        beforeDockerBuildScripts:
+          type: array
+          items:
+            $ref: "#/components/schemas/BuildScript"
+        afterDockerbuildScripts:
+          type: array
+          items:
+            $ref: "#/components/schemas/BuildScript"
+    CiPipelineMaterialConfig:
+      type: object
+      properties:
+        type:
+          type: string
+        value:
+          type: string
+        checkoutPath:
+          type: string
+    BuildScript:
+      type: object
+      properties:
+        index:
+          type: integer
+        name:
+          type: string
+        script:
+          type: string
+        reportDirectoryPath:
+          type: string
+    Error:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message

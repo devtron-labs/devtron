@@ -101,14 +101,19 @@ func (impl *SelfRegistrationRolesServiceImpl) SelfRegister(emailId string) (*bea
 
 func (impl *SelfRegistrationRolesServiceImpl) CheckAndCreateUserIfConfigured(emailId string) bool {
 	exists := impl.userService.UserExists(emailId)
+	var id int32
 	if !exists {
 		impl.logger.Infow("self registering user,  ", "email", emailId)
 		user, err := impl.SelfRegister(emailId)
 		if err != nil {
 			impl.logger.Errorw("error while register user", "error", err)
 		} else if user != nil && user.Id > 0 {
+			id = user.Id
 			exists = true
 		}
+	}
+	if exists {
+		impl.userService.SaveLoginAudit(emailId, "localhost", id)
 	}
 	impl.logger.Infow("user status", "email", emailId, "status", exists)
 	return exists

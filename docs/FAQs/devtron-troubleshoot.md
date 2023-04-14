@@ -11,20 +11,29 @@ This occurs most of the time because any one or multiple jobs get failed during 
 kubectl get jobs -n devtroncd
 ```
 - Note down or remember the names of jobs with 0/1 completions and check if their pods are in running state still or not by running the command:
+```bash
 kubectl get pods -n devtroncd
-- If they are in running condition, please wait for the jobs to be completed as it may be due to internet issue and if not in running condition, then delete those incomplete jobs using:
+```
+- If they are in running condition, please wait for the jobs to be completed as it may be due to internet issue. And if not in running condition, then delete those incomplete jobs using command:
+
+```bash
 kubectl delete jobs <job1-name> <job2-name> -n devtroncd
-- Now download migrator.yaml file from our github repository using the command:
+```
+
+- Now download `migrator.yaml` file from our github repository using the command:
 ```bash
 wget https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/yamls/migrator.yaml
 ```
 - Now edit the file you downloaded in step 3 and remove the postgresql-migrator secret resource creation and then apply the yaml file using the command:
+```bash
 kubectl apply -f migrator.yaml -n devtroncd
+```
 - It will re-create the failed jobs and you’ll see their pods created again. Just wait for a few minutes until the jobs gets completed then you are good to go. You should be able to save your global configurations now.
 
 #### 2. Not able to see deployment metrics on production environment or Not able to enable application-metrics or Not able to deploy the app after creating a configmap or secret with data-volume option enabled
 
-Update the rollout crds to latest version, run the following command:
+Update the rollout CRDs to latest version, run the following command:
+
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/yamls/rollout.yaml -n devtroncd
 ```
@@ -32,10 +41,13 @@ kubectl apply -f https://raw.githubusercontent.com/devtron-labs/devtron/main/man
 #### 3. SSO Login not working even after entering correct SSO Credentials
 
 ```error: user/UserAuthHandler.go:236","msg":"service err, AuthVerification","err":"no token provided```
+
 Or
+
 ```error: Failed to query provider "api/dex": Get "api/dex/.well-known/openid-configuration": unsupported protocol scheme```
 
 Delete devtron pod once to reload the configurations using:
+
 ```bash
 kubectl delete pod -n devtroncd -l app=devtron
 ```
@@ -69,8 +81,8 @@ If you see `Not Found` on this page, then follow all the given steps or if the p
 3. Copy the following and change `grafana-password` with your password of grafana and change the value of `prometheusUrl` with your prometheus endpoint
 ```
 cat << EOF
-grafanaUrl = "http://admin:grafana-password@devtron-grafana.devtroncd/grafana"
-prometheusUrl = "http://prometheus.example.com"
+grafanaUrl="http://admin:grafana-password@devtron-grafana.devtroncd/grafana"
+prometheusUrl="http://prometheus.example.com"
 
 ORG_ID=$( curl -d '{"name":"devtron-metrics-view"}' -H "Content-Type: application/json" -X POST "${grafanaUrl}/api/orgs" )
 
@@ -161,7 +173,7 @@ In `Global Configurations` >> `Cluters & Environments`, if you try to update a c
 
 #### 9. Postgresql is in crashloop with error - Failed to pull image
     
-There may be some other pods also in crashloop as they are not able to connect to database. To resolve this issue, you can either [update devtron to latest version](https://docs.devtron.ai/devtron/setup/upgrade) or run the following commands to fix instantly on the same version you are using: 
+There may be some other pods also in crashloop as they are not able to connect to database. To resolve this issue, you can either [update devtron to latest version](../setup/upgrade/README.md) or run the following commands to fix instantly on the same version you are using: 
 ```bash
 kubectl patch -n devtroncd statefulset postgresql-postgresql -p '{"spec":{"template":{"spec":{"initContainers":[{"name":"init-chmod-data","image":"quay.io/devtron/minideb:latest"}],"containers":[{"name":"postgresql-postgresql","image":"quay.io/devtron/postgres:11.3.0-debian-9-r28"}]}}}}'
 ```
@@ -223,29 +235,31 @@ DETAIL: There is 1 other session using the database.
 
 You have to terminate the connections to the database first, for that you can use the command.
 ```bash
-SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = 'TARGET_DB';
+SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname='TARGET_DB';
 ```
 Then run the command to delete database - `drop databases <db-name>`
 
-#### 18. Unable to login with the auth password (argocd server)
+#### 18. Unable to login with admin password or reset devtron admin password
 
 `Debug`
 
 Run the command for admin credentials and use it for login in dashboard:
 
 ```bash
-kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
+kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ADMIN_PASSWORD}' | base64 -d
 ```
 
-If you are getting an error message of  “invalid username or password”, follow the solution to solve it.
+If you are getting an error message of "invalid username or password" or you want to "reset admin password", follow the steps given below:
 
 `Solution:`
 
-Run `kubectl get secret -n devtroncd` and then edit the `argocd-secret`, remove both the admin.password lines.
+1. Make sure you are on latest version or atleast you are using devtron version v0.6.9 or above. You can check your devtron version using `kubectl -n devtroncd get installers installer-devtron -o jsonpath='{.status.sync.data}' | grep "^LTAG=" | cut -d"=" -f2-`
+1. Take a backup of devtron secret using `kubectl get secret devtron-secret -n devtroncd -o yaml > devtron-secret-backup.yaml`
+2. Edit devtron secret using `kubectl edit secret devtron-secret -n devtroncd` and remove the key value pairs of ADMIN_PASSWORD, admin.password and admin.passwordMtime
+3. Restart argocd dex server to create new admin password for devtron using `kubectl delete po -n devtroncd -l app.kubernetes.io/name=argocd-dex-server`
+4. Run the command given above to get the new admin password
 
-Run `kubectl delete po your-argocd-server-pod -n devtroncd`, it will create a new pod after deletion and reset your admin password. Re-run the command for admin credentials again to get the new password.
-
-#### 19. After installing Devtron using helm, getting the admin password does not work.(if using windows)
+#### 19. After installing Devtron using Helm, getting the admin password does not work.(if using windows)
 
 `Debug`
 
@@ -262,7 +276,7 @@ The other way is to get the password in the encoded form using the cmd
 
 #### 20. Getting `UPGRADE FAILED: cannot patch "postgresql-postgresql"` while upgrading Devtron to newer versions
 `Debug:`
-1. Make sure to [annotate and label](https://docs.devtron.ai/devtron/setup/upgrade/devtron-upgrade-0.3.x-0.4.x#3.-annotate-and-label-all-the-devtron-resources) all the Devtron resources.
+1. Make sure to [annotate and label](../setup/upgrade/devtron-upgrade-0.3.x-0.4.x.md#3.-annotate-and-label-all-the-devtron-resources) all the Devtron resources.
 2. Description of error
 ```
 Error: UPGRADE FAILED: cannot patch "postgresql-postgresql" with kind StatefulSet: StatefulSet.apps "postgresql-postgresql" is invalid: spec: Forbidden: updates to statefulset spec for fields other than 'replicas', 'template', 'updateStrategy' and 'minReadySeconds' are forbidden
@@ -275,3 +289,146 @@ helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 --set installer.modules={cicd} --reuse-values \
 --set components.postgres.persistence.volumeSize=20Gi
 ```
+
+#### 21. Configure Blob Storage
+
+
+You can configure blob storage with one of the following:
+{% tabs %}
+
+
+{% tab title="MinIO storage" %}
+
+This configuration will use MinIO for storing logs and cache.
+
+```bash
+helm repo update
+
+helm upgrade devtron devtron/devtron-operator \
+--create-namespace --namespace devtroncd \
+--set installer.modules={cicd} \
+--set minio.enabled=true
+```
+
+{% endtab %}
+
+{% tab title="AWS S3 Bucket" %}
+This configuration will use AWS S3 bucket for storing build logs and cache. Refer to the `AWS specific` parameters on the [Storage for Logs and Cache](../setup/install/installation-configuration.md#aws-specific) page.
+
+*  **Configure using S3 IAM policy:**
+
+>NOTE: Pleasee ensure that S3 permission policy to the IAM role attached to the nodes of the cluster if you are using the below command.
+
+```bash
+helm repo update
+helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
+--set installer.modules={cicd} \
+--set configs.BLOB_STORAGE_PROVIDER=S3 \
+--set configs.DEFAULT_CACHE_BUCKET=demo-s3-bucket \
+--set configs.DEFAULT_CACHE_BUCKET_REGION=us-east-1 \
+--set configs.DEFAULT_BUILD_LOGS_BUCKET=demo-s3-bucket \
+--set configs.DEFAULT_CD_LOGS_BUCKET_REGION=us-east-1
+```
+
+*  **Configure using access-key and secret-key for aws S3 authentication:**
+
+```bash
+helm repo update
+
+helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
+--set installer.modules={cicd} \
+--set configs.BLOB_STORAGE_PROVIDER=S3 \
+--set configs.DEFAULT_CACHE_BUCKET=demo-s3-bucket \
+--set configs.DEFAULT_CACHE_BUCKET_REGION=us-east-1 \
+--set configs.DEFAULT_BUILD_LOGS_BUCKET=demo-s3-bucket \
+--set configs.DEFAULT_CD_LOGS_BUCKET_REGION=us-east-1 \
+--set secrets.BLOB_STORAGE_S3_ACCESS_KEY=<access-key> \
+--set secrets.BLOB_STORAGE_S3_SECRET_KEY=<secret-key>
+```
+
+*  **Configure using S3 compatible storages:**
+
+```bash
+helm repo update
+
+helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
+--set installer.modules={cicd} \
+--set configs.BLOB_STORAGE_PROVIDER=S3 \
+--set configs.DEFAULT_CACHE_BUCKET=demo-s3-bucket \
+--set configs.DEFAULT_CACHE_BUCKET_REGION=us-east-1 \
+--set configs.DEFAULT_BUILD_LOGS_BUCKET=demo-s3-bucket \
+--set configs.DEFAULT_CD_LOGS_BUCKET_REGION=us-east-1 \
+--set secrets.BLOB_STORAGE_S3_ACCESS_KEY=<access-key> \
+--set secrets.BLOB_STORAGE_S3_SECRET_KEY=<secret-key> \
+--set configs.BLOB_STORAGE_S3_ENDPOINT=<endpoint>
+```
+
+{% endtab %}
+
+{% tab title="Azure Blob Storage" %}
+This configuration will use Azure Blob Storage for storing build logs and cache.
+Refer to the `Azure specific` parameters on the [Storage for Logs and Cache](../setup/install/installation-configuration.md#azure-specific) page.
+
+```bash
+helm repo update
+helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
+--set installer.modules={cicd} \
+--set secrets.AZURE_ACCOUNT_KEY=xxxxxxxxxx \
+--set configs.BLOB_STORAGE_PROVIDER=AZURE \
+--set configs.AZURE_ACCOUNT_NAME=test-account \
+--set configs.AZURE_BLOB_CONTAINER_CI_LOG=ci-log-container \
+--set configs.AZURE_BLOB_CONTAINER_CI_CACHE=ci-cache-container
+```
+
+{% endtab %}
+
+{% tab title="Google Cloud Storage" %}
+This configuration will use Google Cloud Storage for storing build logs and cache.
+Refer to the `Google Cloud specific` parameters on the [Storage for Logs and Cache](../setup/install/installation-configuration.md#google-cloud-storage-specific) page.
+
+```bash
+helm repo update
+
+helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
+--set installer.modules={cicd} \
+--set configs.BLOB_STORAGE_PROVIDER: GCP \
+--set secrets.BLOB_STORAGE_GCP_CREDENTIALS_JSON: {\"type\": \"service_account\",\"project_id\": \"<your-project-id>\",\"private_key_id\": \"<your-private-key-id>\",\"private_key\": \"<your-private-key>\",\"client_email\": \"<your-client-email>\",\"client_id\": \"<your-client-id>\",\"auth_uri\": \"https://accounts.google.com/o/oauth2/auth\",\"token_uri\": \"https://oauth2.googleapis.com/token\",\"auth_provider_x509_cert_url\": \"https://www.googleapis.com/oauth2/v1/certs\",\"client_x509_cert_url\": \"<your-client-cert-url>\"} \
+--set configs.DEFAULT_CACHE_BUCKET: cache-bucket
+--set configs.DEFAULT_BUILD_LOGS_BUCKET: log-bucket
+```
+
+{% endtab %}
+{% endtabs %}
+
+#### 22. Rollout is showing error - <string>:111: attempt to index a non-table object(nil) with key 'stableRS' stack traceback: <string>:111: in main chunk [G]: ?
+
+This can occur if you are using or recently upgraded to Kubernetes version 1.22 or above and you are using rollout controller version 0.13.0 from chart `devtron-charts/rollout` or `devtron/rollout`. The issue can be because of CRDs which were updated in later versions of rollout chart.
+
+1. Check which chart repo and version of rollout controller are you using on that cluster from Helm Apps section
+2. Update the rollout chart version to latest and re-deploy. If your rollout controller is deployed from `devtron-charts` helm repo then change the repo to `devtron/rollout` and then update the version to latest. Also, if devtron helm repo is not showing on your devtron then go to Global Configurations > Chart Repositories and add a new repo with the name `devtron` and url `https://helm.devtron.ai`. Wait for few minutes and then charts from devtron repo will be there on your devtron. This should resolve your issue
+
+
+
+#### 23. How to resolve if Deployment Status shows Failed or Degraded when you pull images from private container registry
+
+If the deployment status shows `Failed` or `Degraded`, then the cluster is not able to pull container image from the private registry. In that case, the status of pod shows `ImagePullBackOff`.
+
+The failure of deployment can be one of the following reasons:
+
+* Provided credentials may not have permission to pull container image from registry.
+* Provided credentials may be invalid.
+
+You can resolve the `ImagePullBackOff` issue by clicking **How to resolve?** on the **App Details** page.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/container-registries/how-to-resolve-latest1.png)
+
+
+To provide the auto-inject credentials to the specific clusters for pulling the image from the private repository, click **Manage Access** which will take you to the **Container Registries** page. 
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/container-registries/manage-access-latest.jpg)
+
+1. On the **Container Registries** page, select the docker registry and click **Manage**.
+2. In the **Auto-inject credentials to clusters**, click **Confirm to edit** to select the specific cluster or all clusters for which you want to auto-inject the credentials to and click **Save**.
+3. Redeploy the application after allowing the access.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/container-registries/auto-inject-to-clusters.jpg)

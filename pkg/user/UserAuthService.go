@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/authenticator/middleware"
+	bean2 "github.com/devtron-labs/devtron/pkg/user/bean"
 	casbin2 "github.com/devtron-labs/devtron/pkg/user/casbin"
 	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/go-pg/pg"
@@ -46,6 +47,7 @@ import (
 )
 
 type UserAuthService interface {
+	HandleLoginWithClientIp(ctx context.Context, username, password, clientIp string) (string, error)
 	HandleLogin(username string, password string) (string, error)
 	HandleDexCallback(w http.ResponseWriter, r *http.Request)
 	HandleRefresh(w http.ResponseWriter, r *http.Request)
@@ -63,6 +65,7 @@ type UserAuthServiceImpl struct {
 	userRepository      repository2.UserRepository
 	sessionManager      *middleware.SessionManager
 	roleGroupRepository repository2.RoleGroupRepository
+	userService         UserService
 }
 
 var (
@@ -107,7 +110,7 @@ type WebhookToken struct {
 
 func NewUserAuthServiceImpl(userAuthRepository repository2.UserAuthRepository, sessionManager *middleware.SessionManager,
 	client session2.ServiceClient, logger *zap.SugaredLogger, userRepository repository2.UserRepository,
-	roleGroupRepository repository2.RoleGroupRepository) *UserAuthServiceImpl {
+	roleGroupRepository repository2.RoleGroupRepository, userService UserService) *UserAuthServiceImpl {
 	serviceImpl := &UserAuthServiceImpl{
 		userAuthRepository:  userAuthRepository,
 		sessionManager:      sessionManager,
@@ -115,6 +118,7 @@ func NewUserAuthServiceImpl(userAuthRepository repository2.UserAuthRepository, s
 		logger:              logger,
 		userRepository:      userRepository,
 		roleGroupRepository: roleGroupRepository,
+		userService:         userService,
 	}
 	cStore = sessions.NewCookieStore(randKey())
 	return serviceImpl
@@ -252,6 +256,19 @@ func (impl UserAuthServiceImpl) HandleRefresh(w http.ResponseWriter, r *http.Req
 	}
 }
 
+func (impl UserAuthServiceImpl) HandleLoginWithClientIp(ctx context.Context, username, password, clientIp string) (string, error) {
+	token, err := impl.HandleLogin(username, password)
+	if err == nil {
+		id, _, err := impl.userService.GetUserByToken(ctx, token)
+		if err != nil {
+			impl.logger.Infow("error occured while getting user by token", "err", err)
+		} else {
+			impl.userService.SaveLoginAudit("", clientIp, id)
+		}
+	}
+	return token, err
+}
+
 func (impl UserAuthServiceImpl) HandleLogin(username string, password string) (string, error) {
 	return impl.sessionClient.Create(context.Background(), username, password)
 }
@@ -349,10 +366,9 @@ func (impl UserAuthServiceImpl) HandleDexCallback(w http.ResponseWriter, r *http
 
 func WhitelistChecker(url string) bool {
 	urls := []string{
-		"/orchestrator/health",
+		"/health",
 		"/metrics",
 		"/orchestrator/webhook/ci/gocd/artifact",
-		"/orchestrator/webhook/ext-ci/",
 		"/orchestrator/auth/login",
 		"/orchestrator/auth/callback",
 		"/orchestrator/api/v1/session",
@@ -374,7 +390,6 @@ func WhitelistChecker(url string) bool {
 		}
 	}
 	prefixUrls := []string{
-		"/orchestrator/webhook/ext-ci/",
 		"/orchestrator/api/vi/pod/exec/ws",
 		"/orchestrator/k8s/pod/exec/sockjs/ws",
 		"/orchestrator/api/dex",
@@ -421,6 +436,11 @@ func (impl UserAuthServiceImpl) CreateRole(roleData *bean.RoleData) (bool, error
 		EntityName:  roleData.EntityName,
 		Environment: roleData.Environment,
 		Action:      roleData.Action,
+		Cluster:     roleData.Cluster,
+		Namespace:   roleData.Namespace,
+		Group:       roleData.Group,
+		Kind:        roleData.Kind,
+		Resource:    roleData.Resource,
 	}
 	dbConnection := impl.userRepository.GetConnection()
 	tx, err := dbConnection.Begin()
@@ -473,13 +493,13 @@ func (impl UserAuthServiceImpl) AuthVerification(r *http.Request) (bool, error) 
 func (impl UserAuthServiceImpl) DeleteRoles(entityType string, entityName string, tx *pg.Tx, envIdentifier string) (err error) {
 	var roleModels []*repository2.RoleModel
 	switch entityType {
-	case repository2.PROJECT_TYPE:
+	case bean2.PROJECT_TYPE:
 		roleModels, err = impl.userAuthRepository.GetRolesForProject(entityName)
-	case repository2.ENV_TYPE:
+	case bean2.ENV_TYPE:
 		roleModels, err = impl.userAuthRepository.GetRolesForEnvironment(entityName, envIdentifier)
-	case repository2.APP_TYPE:
+	case bean2.APP_TYPE:
 		roleModels, err = impl.userAuthRepository.GetRolesForApp(entityName)
-	case repository2.CHART_GROUP_TYPE:
+	case bean2.CHART_GROUP_TYPE:
 		roleModels, err = impl.userAuthRepository.GetRolesForChartGroup(entityName)
 	}
 	if err != nil {

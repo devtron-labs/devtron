@@ -28,34 +28,33 @@ import (
 )
 
 type CiPipeline struct {
-	tableName        struct{} `sql:"ci_pipeline" pg:",discard_unknown_columns"`
-	Id               int      `sql:"id,pk"`
-	AppId            int      `sql:"app_id"`
-	App              *app.App
-	CiTemplateId     int    `sql:"ci_template_id"`
-	DockerArgs       string `sql:"docker_args"`
-	Name             string `sql:"name"`
-	Version          string `sql:"version"`
-	Active           bool   `sql:"active,notnull"`
-	Deleted          bool   `sql:"deleted,notnull"`
-	IsManual         bool   `sql:"manual,notnull"`
-	IsExternal       bool   `sql:"external,notnull"`
-	ParentCiPipeline int    `sql:"parent_ci_pipeline"`
-	ScanEnabled      bool   `sql:"scan_enabled,notnull"`
+	tableName                struct{} `sql:"ci_pipeline" pg:",discard_unknown_columns"`
+	Id                       int      `sql:"id,pk"`
+	AppId                    int      `sql:"app_id"`
+	App                      *app.App
+	CiTemplateId             int    `sql:"ci_template_id"`
+	DockerArgs               string `sql:"docker_args"`
+	Name                     string `sql:"name"`
+	Version                  string `sql:"version"`
+	Active                   bool   `sql:"active,notnull"`
+	Deleted                  bool   `sql:"deleted,notnull"`
+	IsManual                 bool   `sql:"manual,notnull"`
+	IsExternal               bool   `sql:"external,notnull"`
+	ParentCiPipeline         int    `sql:"parent_ci_pipeline"`
+	ScanEnabled              bool   `sql:"scan_enabled,notnull"`
+	IsDockerConfigOverridden bool   `sql:"is_docker_config_overridden, notnull"`
 	sql.AuditLog
 	CiPipelineMaterials []*CiPipelineMaterial
 	CiTemplate          *CiTemplate
-	ExternalCiPipeline  *ExternalCiPipeline
 }
 
 type ExternalCiPipeline struct {
-	tableName    struct{} `sql:"external_ci_pipeline" pg:",discard_unknown_columns"`
-	Id           int      `sql:"id,pk"`
-	CiPipelineId int      `sql:"ci_pipeline_id"`
-	Active       bool     `sql:"active,notnull"`
-	AccessToken  string   `sql:"access_token,notnull"`
+	tableName   struct{} `sql:"external_ci_pipeline" pg:",discard_unknown_columns"`
+	Id          int      `sql:"id,pk"`
+	AppId       int      `sql:"app_id"`
+	Active      bool     `sql:"active,notnull"`
+	AccessToken string   `sql:"access_token"`
 	sql.AuditLog
-	CiPipeline *CiPipeline
 }
 
 type CiPipelineScript struct {
@@ -74,15 +73,21 @@ type CiPipelineScript struct {
 type CiPipelineRepository interface {
 	Save(pipeline *CiPipeline, tx *pg.Tx) error
 	SaveExternalCi(pipeline *ExternalCiPipeline, tx *pg.Tx) (*ExternalCiPipeline, error)
-	UpdateExternalCi(pipeline *ExternalCiPipeline, tx *pg.Tx) (*ExternalCiPipeline, int, error)
+	UpdateExternalCi(pipeline *ExternalCiPipeline, tx *pg.Tx) (*ExternalCiPipeline, error)
 	FindExternalCiByCiPipelineId(ciPipelineId int) (*ExternalCiPipeline, error)
+	FindExternalCiById(id int) (*ExternalCiPipeline, error)
+	FindExternalCiByAppId(appId int) ([]*ExternalCiPipeline, error)
+	FindExternalCiByAppIds(appIds []int) ([]*ExternalCiPipeline, error)
 	FindCiScriptsByCiPipelineId(ciPipelineId int) ([]*CiPipelineScript, error)
+	FindCiScriptsByCiPipelineIds(ciPipelineId []int) ([]*CiPipelineScript, error)
 	SaveCiPipelineScript(ciPipelineScript *CiPipelineScript, tx *pg.Tx) error
 	UpdateCiPipelineScript(script *CiPipelineScript, tx *pg.Tx) error
 	MarkCiPipelineScriptsInactiveByCiPipelineId(ciPipelineId int, tx *pg.Tx) error
 	FindByAppId(appId int) (pipelines []*CiPipeline, err error)
+	FindByAppIds(appIds []int) (pipelines []*CiPipeline, err error)
 	//find non deleted pipeline
 	FindById(id int) (pipeline *CiPipeline, err error)
+	FindParentCiPipelineMapByAppId(appId int) ([]*CiPipeline, []int, error)
 	FindByCiAndAppDetailsById(pipelineId int) (pipeline *CiPipeline, err error)
 	FindByIdsIn(ids []int) ([]*CiPipeline, error)
 	Update(pipeline *CiPipeline, tx *pg.Tx) error
@@ -95,6 +100,11 @@ type CiPipelineRepository interface {
 	FinDByParentCiPipelineAndAppId(parentCiPipeline int, appIds []int) ([]*CiPipeline, error)
 	FindAllPipelineInLast24Hour() (pipelines []*CiPipeline, err error)
 	FindNumberOfAppsWithCiPipeline(appIds []int) (count int, err error)
+	FindAppAndProjectByCiPipelineIds(ciPipelineIds []int) ([]*CiPipeline, error)
+	FindCiPipelineConfigsByIds(ids []int) ([]*CiPipeline, error)
+	FindByParentCiPipelineIds(parentCiPipelineIds []int) ([]*CiPipeline, error)
+	FindWithMinDataByCiPipelineId(id int) (pipeline *CiPipeline, err error)
+	FindAppIdsForCiPipelineIds(pipelineIds []int) (map[int]int, error)
 }
 type CiPipelineRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -130,11 +140,9 @@ func (impl CiPipelineRepositoryImpl) SaveExternalCi(pipeline *ExternalCiPipeline
 	return pipeline, err
 }
 
-func (impl CiPipelineRepositoryImpl) UpdateExternalCi(pipeline *ExternalCiPipeline, tx *pg.Tx) (*ExternalCiPipeline, int, error) {
-	r, err := tx.Model(pipeline).Where("ci_pipeline_id= ?", pipeline.CiPipelineId).UpdateNotNull()
-	rowsUpdated := r.RowsAffected()
-	impl.logger.Infof("total rows updated %d", rowsUpdated)
-	return pipeline, rowsUpdated, err
+func (impl CiPipelineRepositoryImpl) UpdateExternalCi(pipeline *ExternalCiPipeline, tx *pg.Tx) (*ExternalCiPipeline, error) {
+	err := tx.Update(pipeline)
+	return pipeline, err
 }
 
 func (impl CiPipelineRepositoryImpl) Save(pipeline *CiPipeline, tx *pg.Tx) error {
@@ -166,8 +174,17 @@ func (impl CiPipelineRepositoryImpl) MarkCiPipelineScriptsInactiveByCiPipelineId
 
 func (impl CiPipelineRepositoryImpl) FindByAppId(appId int) (pipelines []*CiPipeline, err error) {
 	err = impl.dbConnection.Model(&pipelines).
-		Column("ci_pipeline.*", "CiPipelineMaterials", "ExternalCiPipeline", "CiPipelineMaterials.GitMaterial").
-		Where("app_id =?", appId).
+		Column("ci_pipeline.*", "CiPipelineMaterials", "CiPipelineMaterials.GitMaterial").
+		Where("ci_pipeline.app_id =?", appId).
+		Where("deleted =? ", false).
+		Select()
+	return pipelines, err
+}
+
+func (impl CiPipelineRepositoryImpl) FindByAppIds(appIds []int) (pipelines []*CiPipeline, err error) {
+	err = impl.dbConnection.Model(&pipelines).
+		Column("ci_pipeline.*", "App", "CiPipelineMaterials", "CiPipelineMaterials.GitMaterial").
+		Where("ci_pipeline.app_id in (?)", pg.In(appIds)).
 		Where("deleted =? ", false).
 		Select()
 	return pipelines, err
@@ -183,10 +200,50 @@ func (impl CiPipelineRepositoryImpl) FindExternalCiByCiPipelineId(ciPipelineId i
 	return externalCiPipeline, err
 }
 
+func (impl CiPipelineRepositoryImpl) FindExternalCiById(id int) (*ExternalCiPipeline, error) {
+	externalCiPipeline := &ExternalCiPipeline{}
+	err := impl.dbConnection.Model(externalCiPipeline).
+		Column("external_ci_pipeline.*").
+		Where("id = ?", id).
+		Where("active =? ", true).
+		Select()
+	return externalCiPipeline, err
+}
+
+func (impl CiPipelineRepositoryImpl) FindExternalCiByAppId(appId int) ([]*ExternalCiPipeline, error) {
+	var externalCiPipeline []*ExternalCiPipeline
+	err := impl.dbConnection.Model(&externalCiPipeline).
+		Column("external_ci_pipeline.*").
+		Where("app_id = ?", appId).
+		Where("active =? ", true).
+		Select()
+	return externalCiPipeline, err
+}
+
+func (impl CiPipelineRepositoryImpl) FindExternalCiByAppIds(appIds []int) ([]*ExternalCiPipeline, error) {
+	var externalCiPipeline []*ExternalCiPipeline
+	err := impl.dbConnection.Model(&externalCiPipeline).
+		Column("external_ci_pipeline.*").
+		Where("app_id in (?)", pg.In(appIds)).
+		Where("active =? ", true).
+		Select()
+	return externalCiPipeline, err
+}
+
 func (impl CiPipelineRepositoryImpl) FindCiScriptsByCiPipelineId(ciPipelineId int) ([]*CiPipelineScript, error) {
 	var ciPipelineScripts []*CiPipelineScript
 	err := impl.dbConnection.Model(&ciPipelineScripts).
 		Where("ci_pipeline_id = ?", ciPipelineId).
+		Where("active = ?", true).
+		Order("index ASC").
+		Select()
+	return ciPipelineScripts, err
+}
+
+func (impl CiPipelineRepositoryImpl) FindCiScriptsByCiPipelineIds(ciPipelineIds []int) ([]*CiPipelineScript, error) {
+	var ciPipelineScripts []*CiPipelineScript
+	err := impl.dbConnection.Model(&ciPipelineScripts).
+		Where("ci_pipeline_id in (?)", ciPipelineIds).
 		Where("active = ?", true).
 		Order("index ASC").
 		Select()
@@ -201,12 +258,42 @@ func (impl CiPipelineRepositoryImpl) SaveCiPipelineScript(ciPipelineScript *CiPi
 func (impl CiPipelineRepositoryImpl) FindById(id int) (pipeline *CiPipeline, err error) {
 	pipeline = &CiPipeline{Id: id}
 	err = impl.dbConnection.Model(pipeline).
-		Column("ci_pipeline.*", "App", "CiPipelineMaterials", "CiTemplate", "CiTemplate.DockerRegistry", "CiPipelineMaterials.GitMaterial", "ExternalCiPipeline").
+		Column("ci_pipeline.*", "App", "CiPipelineMaterials", "CiTemplate", "CiTemplate.DockerRegistry", "CiPipelineMaterials.GitMaterial").
 		Where("ci_pipeline.id= ?", id).
 		Where("ci_pipeline.deleted =? ", false).
 		Select()
 
 	return pipeline, err
+}
+
+func (impl CiPipelineRepositoryImpl) FindWithMinDataByCiPipelineId(id int) (pipeline *CiPipeline, err error) {
+	pipeline = &CiPipeline{Id: id}
+	err = impl.dbConnection.Model(pipeline).
+		Column("ci_pipeline.*", "CiTemplate").
+		Where("ci_pipeline.id= ?", id).
+		Where("ci_pipeline.deleted =? ", false).
+		Select()
+
+	return pipeline, err
+}
+
+func (impl CiPipelineRepositoryImpl) FindParentCiPipelineMapByAppId(appId int) ([]*CiPipeline, []int, error) {
+	var parentCiPipelines []*CiPipeline
+	var linkedCiPipelineIds []int
+	queryLinked := `select * from ci_pipeline where id in (select parent_ci_pipeline from ci_pipeline where app_id=? and deleted=? and parent_ci_pipeline is not null) order by id asc;`
+	_, err := impl.dbConnection.Query(&parentCiPipelines, queryLinked, appId, false)
+	if err != nil {
+		impl.logger.Error("error in fetching linked ci pipelines", "error", err)
+		return nil, nil, err
+	}
+	queryParent := `select id from ci_pipeline where app_id=? and deleted=? and parent_ci_pipeline is not null order by parent_ci_pipeline asc;`
+	_, err = impl.dbConnection.Query(&linkedCiPipelineIds, queryParent, appId, false)
+	if err != nil {
+		impl.logger.Error("error in fetching parent ci pipelines", "error", err)
+		return nil, nil, err
+	}
+
+	return parentCiPipelines, linkedCiPipelineIds, nil
 }
 
 func (impl CiPipelineRepositoryImpl) PipelineExistsByName(names []string) (found []string, err error) {
@@ -336,4 +423,53 @@ func (impl CiPipelineRepositoryImpl) FindNumberOfAppsWithCiPipeline(appIds []int
 	}
 
 	return count, nil
+}
+
+func (impl CiPipelineRepositoryImpl) FindAppAndProjectByCiPipelineIds(ciPipelineIds []int) ([]*CiPipeline, error) {
+	var ciPipelines []*CiPipeline
+	err := impl.dbConnection.Model(&ciPipelines).Column("ci_pipeline.*", "App", "App.Team").
+		Where("ci_pipeline.id in(?)", pg.In(ciPipelineIds)).
+		Where("ci_pipeline.deleted = ?", false).
+		Select()
+	return ciPipelines, err
+}
+
+func (impl CiPipelineRepositoryImpl) FindCiPipelineConfigsByIds(ids []int) ([]*CiPipeline, error) {
+	var ciPipelines []*CiPipeline
+	err := impl.dbConnection.Model(&ciPipelines).
+		Column("ci_pipeline.*", "App", "CiPipelineMaterials", "CiTemplate", "CiTemplate.DockerRegistry", "CiPipelineMaterials.GitMaterial").
+		Where("ci_pipeline.id in (?)", pg.In(ids)).
+		Where("ci_pipeline.deleted =? ", false).
+		Select()
+	return ciPipelines, err
+}
+
+func (impl CiPipelineRepositoryImpl) FindByParentCiPipelineIds(parentCiPipelineIds []int) ([]*CiPipeline, error) {
+	var ciPipelines []*CiPipeline
+	err := impl.dbConnection.Model(&ciPipelines).
+		Where("parent_ci_pipeline in (?)", pg.In(parentCiPipelineIds)).
+		Where("active = ?", true).
+		Select()
+	return ciPipelines, err
+}
+
+func (impl CiPipelineRepositoryImpl) FindAppIdsForCiPipelineIds(pipelineIds []int) (map[int]int, error) {
+	ciPipelineIdVsAppId := make(map[int]int, 0)
+	if len(pipelineIds) == 0 {
+		return ciPipelineIdVsAppId, nil
+	}
+
+	pipelineResponse := []CiPipeline{}
+	query := "select ci_pipeline.id, ci_pipeline.app_id from ci_pipeline where id in (?) and active = ?"
+
+	_, err := impl.dbConnection.Query(&pipelineResponse, query, pg.In(pipelineIds), true)
+
+	if err != nil && err != pg.ErrNoRows {
+		return ciPipelineIdVsAppId, err
+	}
+	for _, ciPipeline := range pipelineResponse {
+		ciPipelineIdVsAppId[ciPipeline.Id] = ciPipeline.AppId
+	}
+
+	return ciPipelineIdVsAppId, nil
 }

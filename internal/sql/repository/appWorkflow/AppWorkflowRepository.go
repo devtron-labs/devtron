@@ -26,9 +26,13 @@ import (
 
 type AppWorkflowRepository interface {
 	SaveAppWorkflow(wf *AppWorkflow) (*AppWorkflow, error)
+	SaveAppWorkflowWithTx(wf *AppWorkflow, tx *pg.Tx) (*AppWorkflow, error)
 	UpdateAppWorkflow(wf *AppWorkflow) (*AppWorkflow, error)
 	FindByIdAndAppId(id int, appId int) (*AppWorkflow, error)
+	FindById(id int) (*AppWorkflow, error)
+	FindByIds(ids []int) (*AppWorkflow, error)
 	FindByAppId(appId int) (appWorkflow []*AppWorkflow, err error)
+	FindByAppIds(appIds []int) (appWorkflow []*AppWorkflow, err error)
 	DeleteAppWorkflow(appWorkflow *AppWorkflow, tx *pg.Tx) error
 
 	SaveAppWorkflowMapping(wf *AppWorkflowMapping, tx *pg.Tx) (*AppWorkflowMapping, error)
@@ -41,10 +45,22 @@ type AppWorkflowRepository interface {
 	FindWFAllMappingByWorkflowId(workflowId int) ([]*AppWorkflowMapping, error)
 	FindWFCIMappingByCIPipelineId(ciPipelineId int) ([]*AppWorkflowMapping, error)
 	FindWFCDMappingByCIPipelineId(ciPipelineId int) ([]*AppWorkflowMapping, error)
-	FindWFCDMappingByCDPipelineId(cdPipelineId int) ([]*AppWorkflowMapping, error)
+	FindWFCDMappingByCDPipelineId(cdPipelineId int) (*AppWorkflowMapping, error)
+	GetParentDetailsByPipelineId(pipelineId int) (*AppWorkflowMapping, error)
 	DeleteAppWorkflowMapping(appWorkflow *AppWorkflowMapping, tx *pg.Tx) error
+	DeleteAppWorkflowMappingsByCdPipelineId(pipelineId int, tx *pg.Tx) error
 	FindWFCDMappingByCIPipelineIds(ciPipelineIds []int) ([]*AppWorkflowMapping, error)
 	FindWFCDMappingByParentCDPipelineId(cdPipelineId int) ([]*AppWorkflowMapping, error)
+	FindAllWFMappingsByAppId(appId int) ([]*AppWorkflowMapping, error)
+	FindWFCDMappingByExternalCiId(externalCiId int) ([]*AppWorkflowMapping, error)
+	FindWFCDMappingByExternalCiIdByIdsIn(externalCiId []int) ([]*AppWorkflowMapping, error)
+	FindByTypeAndComponentId(wfId int, componentId int, componentType string) (*AppWorkflowMapping, error)
+	FindAllWfsHavingCdPipelinesFromSpecificEnvsOnly(envIds []int, appIds []int) ([]*AppWorkflowMapping, error)
+	FindCiPipelineIdsFromAppWfIds(appWfIds []int) ([]int, error)
+	FindChildCDIdsByParentCDPipelineId(cdPipelineId int) ([]int, error)
+	FindByCDPipelineIds(cdPipelineIds []int) ([]*AppWorkflowMapping, error)
+	FindByWorkflowIds(workflowIds []int) ([]*AppWorkflowMapping, error)
+	FindMappingByAppIds(appIds []int) ([]*AppWorkflowMapping, error)
 }
 
 type AppWorkflowRepositoryImpl struct {
@@ -59,13 +75,14 @@ func NewAppWorkflowRepositoryImpl(Logger *zap.SugaredLogger, dbConnection *pg.DB
 const (
 	CIPIPELINE string = "CI_PIPELINE"
 	CDPIPELINE string = "CD_PIPELINE"
+	WEBHOOK    string = "WEBHOOK"
 )
 
 type AppWorkflow struct {
 	TableName   struct{}        `sql:"app_workflow" pg:",discard_unknown_columns"`
 	Id          int             `sql:"id,pk"`
 	Name        string          `sql:"name,notnull"`
-	Active      bool            `sql:"active"`
+	Active      bool            `sql:"active,notnull"`
 	WorkflowDAG json.RawMessage `sql:"workflow_dag"`
 	AppId       int             `sql:"app_id"`
 	sql.AuditLog
@@ -86,6 +103,15 @@ func (impl AppWorkflowRepositoryImpl) SaveAppWorkflow(wf *AppWorkflow) (*AppWork
 	return wf, nil
 }
 
+func (impl AppWorkflowRepositoryImpl) SaveAppWorkflowWithTx(wf *AppWorkflow, tx *pg.Tx) (*AppWorkflow, error) {
+	err := tx.Insert(wf)
+	if err != nil {
+		impl.Logger.Errorw("err", err)
+		return wf, err
+	}
+	return wf, nil
+}
+
 func (impl AppWorkflowRepositoryImpl) UpdateAppWorkflow(wf *AppWorkflow) (*AppWorkflow, error) {
 	_, err := impl.dbConnection.Model(wf).WherePK().UpdateNotNull()
 	return wf, err
@@ -99,11 +125,37 @@ func (impl AppWorkflowRepositoryImpl) FindByAppId(appId int) (appWorkflow []*App
 	return appWorkflow, err
 }
 
+func (impl AppWorkflowRepositoryImpl) FindByAppIds(appIds []int) (appWorkflow []*AppWorkflow, err error) {
+	err = impl.dbConnection.Model(&appWorkflow).
+		Where("app_id in (?)", pg.In(appIds)).
+		Where("active = ?", true).
+		Select()
+	return appWorkflow, err
+}
+
 func (impl AppWorkflowRepositoryImpl) FindByIdAndAppId(id int, appId int) (*AppWorkflow, error) {
 	appWorkflow := &AppWorkflow{}
 	err := impl.dbConnection.Model(appWorkflow).
 		Where("id = ?", id).
 		Where("app_id = ?", appId).
+		Where("active = ?", true).
+		Select()
+	return appWorkflow, err
+}
+
+func (impl AppWorkflowRepositoryImpl) FindById(id int) (*AppWorkflow, error) {
+	appWorkflow := &AppWorkflow{}
+	err := impl.dbConnection.Model(appWorkflow).
+		Where("id = ?", id).
+		Where("active = ?", true).
+		Select()
+	return appWorkflow, err
+}
+
+func (impl AppWorkflowRepositoryImpl) FindByIds(ids []int) (*AppWorkflow, error) {
+	appWorkflow := &AppWorkflow{}
+	err := impl.dbConnection.Model(appWorkflow).
+		Where("id in (?)", pg.In(ids)).
 		Where("active = ?", true).
 		Select()
 	return appWorkflow, err
@@ -143,7 +195,7 @@ type AppWorkflowMapping struct {
 	AppWorkflowId int      `sql:"app_workflow_id"`
 	Type          string   `sql:"type,notnull"`
 	ParentId      int      `sql:"parent_id"`
-	Active        bool     `sql:"active"`
+	Active        bool     `sql:"active,notnull"`
 	ParentType    string   `sql:"parent_type,notnull"`
 	AppWorkflow   *AppWorkflow
 	sql.AuditLog
@@ -244,13 +296,37 @@ func (impl AppWorkflowRepositoryImpl) FindWFCDMappingByCIPipelineIds(ciPipelineI
 	return appWorkflowsMapping, err
 }
 
-func (impl AppWorkflowRepositoryImpl) FindWFCDMappingByCDPipelineId(cdPipelineId int) ([]*AppWorkflowMapping, error) {
-	var appWorkflowsMapping []*AppWorkflowMapping
-
-	err := impl.dbConnection.Model(&appWorkflowsMapping).
+func (impl AppWorkflowRepositoryImpl) FindWFCDMappingByCDPipelineId(cdPipelineId int) (*AppWorkflowMapping, error) {
+	appWorkflowsMapping := &AppWorkflowMapping{}
+	err := impl.dbConnection.Model(appWorkflowsMapping).
 		Where("component_id = ?", cdPipelineId).
 		Where("type = ?", CDPIPELINE).
 		Where("active = ?", true).
+		Select()
+	return appWorkflowsMapping, err
+}
+
+// GetParentDetailsByPipelineId returns app workflow which contains only the parent id and parent type for the
+// given pipeline component id
+func (impl AppWorkflowRepositoryImpl) GetParentDetailsByPipelineId(pipelineId int) (*AppWorkflowMapping, error) {
+	appWorkflowsMapping := &AppWorkflowMapping{}
+	err := impl.dbConnection.Model(appWorkflowsMapping).
+		Column("app_workflow_mapping.parent_id", "app_workflow_mapping.parent_type").
+		Where("component_id = ?", pipelineId).
+		Where("type = ?", CDPIPELINE).
+		Where("active = ?", true).
+		Select()
+	return appWorkflowsMapping, err
+}
+
+func (impl AppWorkflowRepositoryImpl) FindByTypeAndComponentId(wfId int, componentId int, componentType string) (*AppWorkflowMapping, error) {
+	appWorkflowsMapping := &AppWorkflowMapping{}
+	err := impl.dbConnection.Model(appWorkflowsMapping).
+		Where("app_workflow_id = ?", wfId).
+		Where("component_id = ?", componentId).
+		Where("type = ?", componentType).
+		Where("active = ?", true).
+		Limit(1).
 		Select()
 	return appWorkflowsMapping, err
 }
@@ -265,6 +341,7 @@ func (impl AppWorkflowRepositoryImpl) FindWFCDMappingByParentCDPipelineId(cdPipe
 		Select()
 	return appWorkflowsMapping, err
 }
+
 func (impl AppWorkflowRepositoryImpl) DeleteAppWorkflowMapping(appWorkflow *AppWorkflowMapping, tx *pg.Tx) error {
 	appWorkflow.Active = false
 	err := tx.Update(appWorkflow)
@@ -273,4 +350,115 @@ func (impl AppWorkflowRepositoryImpl) DeleteAppWorkflowMapping(appWorkflow *AppW
 		return err
 	}
 	return nil
+}
+
+func (impl AppWorkflowRepositoryImpl) FindAllWFMappingsByAppId(appId int) ([]*AppWorkflowMapping, error) {
+	var appWorkflowsMapping []*AppWorkflowMapping
+	err := impl.dbConnection.Model(&appWorkflowsMapping).
+		Join("INNER JOIN app_workflow aw on aw.id=app_workflow_mapping.app_workflow_id").
+		Where("aw.app_id = ?", appId).
+		Where("aw.active = ?", true).
+		Where("app_workflow_mapping.active = ?", true).
+		Select()
+	return appWorkflowsMapping, err
+}
+
+func (impl AppWorkflowRepositoryImpl) DeleteAppWorkflowMappingsByCdPipelineId(pipelineId int, tx *pg.Tx) error {
+	var model AppWorkflowMapping
+	_, err := tx.Model(&model).Set("active = ?", false).
+		Where("component_id = ?", pipelineId).
+		Where("type = ?", CDPIPELINE).
+		Update()
+	if err != nil {
+		impl.Logger.Errorw("error in deleting appWorkflowMapping by cdPipelineId", "err", err, "cdPipelineId", pipelineId)
+		return err
+	}
+	return nil
+}
+
+func (impl AppWorkflowRepositoryImpl) FindAllWfsHavingCdPipelinesFromSpecificEnvsOnly(envIds []int, appIds []int) ([]*AppWorkflowMapping, error) {
+	var models []*AppWorkflowMapping
+	query := `select * from app_workflow_mapping awm inner join app_workflow aw on aw.id=awm.app_workflow_id 
+				where awm.type = ? and aw.app_id in (?) and awm.active = ? and awm.app_workflow_id not in  
+					(select app_workflow_id from app_workflow_mapping awm inner join pipeline p on p.id=awm.component_id  
+					and awm.type = ? and p.environment_id not in (?) and p.app_id in (?) and p.deleted = ? and awm.active = ?); `
+	_, err := impl.dbConnection.Query(&models, query, CDPIPELINE, pg.In(appIds), true, CDPIPELINE, pg.In(envIds), pg.In(appIds), false, true)
+	if err != nil {
+		impl.Logger.Errorw("error, FindAllWfsHavingCdPipelinesFromSpecificEnvsOnly", "err", err)
+		return nil, err
+	}
+	return models, nil
+}
+
+func (impl AppWorkflowRepositoryImpl) FindCiPipelineIdsFromAppWfIds(appWfIds []int) ([]int, error) {
+	var ciPipelineIds []int
+	query := `select DISTINCT component_id from app_workflow_mapping 
+				where type = ? and app_workflow_id in (?) and active = ?; `
+	_, err := impl.dbConnection.Query(&ciPipelineIds, query, CIPIPELINE, pg.In(appWfIds), true)
+	if err != nil {
+		impl.Logger.Errorw("error, FindCiPipelineIdsFromAppWfIds", "err", err)
+		return nil, err
+	}
+	return ciPipelineIds, nil
+}
+
+func (impl AppWorkflowRepositoryImpl) FindWFCDMappingByExternalCiId(externalCiId int) ([]*AppWorkflowMapping, error) {
+	var models []*AppWorkflowMapping
+	err := impl.dbConnection.Model(&models).
+		Where("parent_id = ?", externalCiId).
+		Where("parent_type = ?", WEBHOOK).
+		Where("type = ?", CDPIPELINE).
+		Where("active = ?", true).
+		Select()
+	return models, err
+}
+
+func (impl AppWorkflowRepositoryImpl) FindWFCDMappingByExternalCiIdByIdsIn(externalCiId []int) ([]*AppWorkflowMapping, error) {
+	var models []*AppWorkflowMapping
+	err := impl.dbConnection.Model(&models).
+		Where("parent_id in (?)", pg.In(externalCiId)).
+		Where("parent_type = ?", WEBHOOK).
+		Where("type = ?", CDPIPELINE).
+		Where("active = ?", true).
+		Select()
+	return models, err
+}
+
+func (impl AppWorkflowRepositoryImpl) FindChildCDIdsByParentCDPipelineId(cdPipelineId int) ([]int, error) {
+	var ids []int
+	query := `select component_id from app_workflow_mapping where parent_id=? and parent_type=? and type=? and active=?;`
+	_, err := impl.dbConnection.Query(&ids, query, cdPipelineId, CDPIPELINE, CDPIPELINE, true)
+	return ids, err
+}
+
+func (impl AppWorkflowRepositoryImpl) FindByCDPipelineIds(cdPipelineIds []int) ([]*AppWorkflowMapping, error) {
+	var appWorkflowsMapping []*AppWorkflowMapping
+	err := impl.dbConnection.Model(&appWorkflowsMapping).
+		Where("component_id in (?)", pg.In(cdPipelineIds)).
+		Where("type = ?", CDPIPELINE).
+		Where("active = ?", true).
+		Select()
+	return appWorkflowsMapping, err
+}
+
+func (impl AppWorkflowRepositoryImpl) FindByWorkflowIds(workflowIds []int) ([]*AppWorkflowMapping, error) {
+	var appWorkflowsMapping []*AppWorkflowMapping
+	if len(workflowIds) == 0 {
+		return appWorkflowsMapping, nil
+	}
+	err := impl.dbConnection.Model(&appWorkflowsMapping).
+		Where("app_workflow_id in (?)", pg.In(workflowIds)).
+		Where("active = ?", true).
+		Select()
+	return appWorkflowsMapping, err
+}
+
+func (impl AppWorkflowRepositoryImpl) FindMappingByAppIds(appIds []int) ([]*AppWorkflowMapping, error) {
+	var appWorkflowsMapping []*AppWorkflowMapping
+	err := impl.dbConnection.Model(&appWorkflowsMapping).Column("app_workflow_mapping.*", "AppWorkflow").
+		Where("app_workflow.app_id in (?)", pg.In(appIds)).
+		Where("app_workflow.active = ?", true).
+		Where("app_workflow_mapping.active = ?", true).
+		Select()
+	return appWorkflowsMapping, err
 }

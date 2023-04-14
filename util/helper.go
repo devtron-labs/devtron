@@ -22,6 +22,7 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/juju/errors"
 	"io"
 	"io/ioutil"
@@ -35,6 +36,29 @@ import (
 
 	"go.uber.org/zap"
 )
+
+type CDMetrics struct {
+	AppName         string
+	DeploymentType  string
+	Status          string
+	EnvironmentName string
+	Time            float64
+}
+
+type CIMetrics struct {
+	CacheDownDuration  float64   `json:"cacheDownDuration"`
+	PreCiDuration      float64   `json:"preCiDuration"`
+	BuildDuration      float64   `json:"buildDuration"`
+	PostCiDuration     float64   `json:"postCiDuration"`
+	CacheUpDuration    float64   `json:"cacheUpDuration"`
+	TotalDuration      float64   `json:"totalDuration"`
+	CacheDownStartTime time.Time `json:"cacheDownStartTime"`
+	PreCiStartTime     time.Time `json:"preCiStart"`
+	BuildStartTime     time.Time `json:"buildStartTime"`
+	PostCiStartTime    time.Time `json:"postCiStartTime"`
+	CacheUpStartTime   time.Time `json:"cacheUpStartTime"`
+	TotalStartTime     time.Time `json:"totalStartTime"`
+}
 
 func ContainsString(list []string, element string) bool {
 	if len(list) == 0 {
@@ -83,6 +107,9 @@ type Closer interface {
 }
 
 func Close(c Closer, logger *zap.SugaredLogger) {
+	if c == nil {
+		return
+	}
 	if err := c.Close(); err != nil {
 		logger.Warnf("failed to close %v: %v", c, err)
 	}
@@ -90,7 +117,7 @@ func Close(c Closer, logger *zap.SugaredLogger) {
 
 var chars = []rune("abcdefghijklmnopqrstuvwxyz0123456789")
 
-//Generates random string
+// Generates random string
 func Generate(size int) string {
 	rand.Seed(time.Now().UnixNano())
 	var b strings.Builder
@@ -155,7 +182,7 @@ func ExtractTarGz(gzipStream io.Reader, chartDir string) error {
 		switch header.Typeflag {
 		case tar.TypeDir:
 			if _, err := os.Stat(filepath.Join(chartDir, header.Name)); os.IsNotExist(err) {
-				if err := os.Mkdir(filepath.Join(chartDir, header.Name), 0755); err != nil {
+				if err := os.MkdirAll(filepath.Join(chartDir, header.Name), 0755); err != nil {
 					return err
 				}
 			} else {
@@ -167,7 +194,7 @@ func ExtractTarGz(gzipStream io.Reader, chartDir string) error {
 			if err != nil {
 				dirName := filepath.Dir(header.Name)
 				if _, err1 := os.Stat(filepath.Join(chartDir, dirName)); os.IsNotExist(err1) {
-					if err1 = os.Mkdir(filepath.Join(chartDir, dirName), 0755); err1 != nil {
+					if err1 = os.MkdirAll(filepath.Join(chartDir, dirName), 0755); err1 != nil {
 						return err1
 					}
 					outFile, err = os.Create(filepath.Join(chartDir, header.Name))
@@ -197,6 +224,65 @@ func BuildDevtronBomUrl(bomUrl string, version string) string {
 // InterfaceToMapAdapter it will convert any golang struct into map
 func InterfaceToMapAdapter(resp interface{}) map[string]interface{} {
 	var dat map[string]interface{}
+	b, err := json.Marshal(resp)
+	if err != nil {
+		fmt.Printf("Error: %s", err)
+		return dat
+	}
+	if err := json.Unmarshal(b, &dat); err != nil {
+		fmt.Printf("Error: %s", err)
+		return dat
+	}
+	return dat
+}
+
+func TriggerCDMetrics(wfr CDMetrics, exposeCDMetrics bool) {
+	if exposeCDMetrics && (wfr.Status == WorkflowFailed || wfr.Status == WorkflowSucceeded) {
+		middleware.CdDuration.WithLabelValues(wfr.AppName, wfr.Status, wfr.EnvironmentName, wfr.DeploymentType).Observe(wfr.Time)
+	}
+}
+
+func TriggerCIMetrics(Metrics CIMetrics, exposeCIMetrics bool, PipelineName string, AppName string) {
+	if exposeCIMetrics {
+		middleware.CacheDownloadDuration.WithLabelValues(PipelineName, AppName).Observe(Metrics.CacheDownDuration)
+		middleware.CiDuration.WithLabelValues(PipelineName, AppName).Observe(Metrics.TotalDuration)
+		if Metrics.CacheUpDuration != 0 {
+			middleware.CacheUploadDuration.WithLabelValues(PipelineName, AppName).Observe(Metrics.CacheUpDuration)
+		}
+		if Metrics.PostCiDuration != 0 {
+			middleware.PostCiDuration.WithLabelValues(PipelineName, AppName).Observe(Metrics.PostCiDuration)
+		}
+		if Metrics.PreCiDuration != 0 {
+			middleware.PreCiDuration.WithLabelValues(PipelineName, AppName).Observe(Metrics.PreCiDuration)
+		}
+		middleware.BuildDuration.WithLabelValues(PipelineName, AppName).Observe(Metrics.BuildDuration)
+	}
+}
+
+func TriggerGitOpsMetrics(operation string, method string, startTime time.Time, err error) {
+	status := "Success"
+	if err != nil {
+		status = "Failed"
+	}
+	middleware.GitOpsDuration.WithLabelValues(operation, method, status).Observe(time.Since(startTime).Seconds())
+}
+
+func InterfaceToString(resp interface{}) string {
+	var dat string
+	b, err := json.Marshal(resp)
+	if err != nil {
+		fmt.Printf("Error: %s", err)
+		return dat
+	}
+	if err := json.Unmarshal(b, &dat); err != nil {
+		fmt.Printf("Error: %s", err)
+		return dat
+	}
+	return dat
+}
+
+func InterfaceToFloat(resp interface{}) float64 {
+	var dat float64
 	b, err := json.Marshal(resp)
 	if err != nil {
 		fmt.Printf("Error: %s", err)

@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	bean2 "github.com/devtron-labs/devtron/pkg/user/bean"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"net/http"
 	"strconv"
@@ -64,21 +65,24 @@ type userNamePassword struct {
 }
 
 type UserRestHandlerImpl struct {
-	userService      user.UserService
-	validator        *validator.Validate
-	logger           *zap.SugaredLogger
-	enforcer         casbin.Enforcer
-	roleGroupService user.RoleGroupService
+	userService       user.UserService
+	validator         *validator.Validate
+	logger            *zap.SugaredLogger
+	enforcer          casbin.Enforcer
+	roleGroupService  user.RoleGroupService
+	userCommonService user.UserCommonService
 }
 
 func NewUserRestHandlerImpl(userService user.UserService, validator *validator.Validate,
-	logger *zap.SugaredLogger, enforcer casbin.Enforcer, roleGroupService user.RoleGroupService) *UserRestHandlerImpl {
+	logger *zap.SugaredLogger, enforcer casbin.Enforcer, roleGroupService user.RoleGroupService,
+	userCommonService user.UserCommonService) *UserRestHandlerImpl {
 	userAuthHandler := &UserRestHandlerImpl{
-		userService:      userService,
-		validator:        validator,
-		logger:           logger,
-		enforcer:         enforcer,
-		roleGroupService: roleGroupService,
+		userService:       userService,
+		validator:         validator,
+		logger:            logger,
+		enforcer:          enforcer,
+		roleGroupService:  roleGroupService,
+		userCommonService: userCommonService,
 	}
 	return userAuthHandler
 }
@@ -114,6 +118,12 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 			}
 			if len(filter.Team) > 0 {
 				if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionCreate, strings.ToLower(filter.Team)); !ok {
+					response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+					return
+				}
+			}
+			if filter.Entity == bean.CLUSTER_ENTITIY {
+				if ok := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth); !ok {
 					response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 					return
 				}
@@ -165,7 +175,7 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	res, err := handler.userService.CreateUser(&userInfo, token, handler.checkManagerAuth)
+	res, err := handler.userService.CreateUser(&userInfo, token, handler.CheckManagerAuth)
 	if err != nil {
 		handler.logger.Errorw("service err, CreateUser", "err", err, "payload", userInfo)
 		if _, ok := err.(*util.ApiError); ok {
@@ -213,13 +223,32 @@ func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Req
 	if userInfo.EmailId == "admin@github.com/devtron-labs" {
 		userInfo.EmailId = "admin"
 	}
-	res, err := handler.userService.UpdateUser(&userInfo, token, handler.checkManagerAuth)
+
+	res, rolesChanged, groupsModified, restrictedGroups, err := handler.userService.UpdateUser(&userInfo, token, handler.CheckManagerAuth)
+
 	if err != nil {
 		handler.logger.Errorw("service err, UpdateUser", "err", err, "payload", userInfo)
 		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, err, res, http.StatusOK)
+
+	if len(restrictedGroups) == 0 {
+		common.WriteJsonResp(w, err, res, http.StatusOK)
+	} else {
+		groups := strings.Join(restrictedGroups, ", ")
+
+		if rolesChanged || groupsModified {
+			// warning
+			message := fmt.Errorf("User permissions updated partially. Group(s): " + groups + " could not be added/removed. You do not have manager permission for some or all projects in these groups.")
+			common.WriteJsonResp(w, message, nil, http.StatusExpectationFailed)
+
+		} else {
+			//error
+			message := fmt.Errorf("Permission could not be added/removed: You do not have manager permission for some or all projects in group(s): " + groups + ".")
+			common.WriteJsonResp(w, message, nil, http.StatusBadRequest)
+		}
+	}
+
 }
 
 func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Request) {
@@ -255,8 +284,21 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 					authPass = false
 				}
 			}
+			if filter.Entity == bean.CLUSTER_ENTITIY {
+				if ok := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth); !ok {
+					authPass = false
+				}
+			}
 			if authPass {
 				filteredRoleFilter = append(filteredRoleFilter, filter)
+			}
+		}
+	}
+	for index, roleFilter := range filteredRoleFilter {
+		if roleFilter.Entity == "" {
+			filteredRoleFilter[index].Entity = bean2.ENTITY_APPS
+			if roleFilter.AccessType == "" {
+				filteredRoleFilter[index].AccessType = bean2.DEVTRON_APP
 			}
 		}
 	}
@@ -309,6 +351,12 @@ func (handler UserRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request
 			for _, filter := range roleFilters {
 				if len(filter.Team) > 0 {
 					if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionGet, strings.ToLower(filter.Team)); ok {
+						isAuthorised = true
+						break
+					}
+				}
+				if filter.Entity == bean.CLUSTER_ENTITIY {
+					if ok := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth); ok {
 						isAuthorised = true
 						break
 					}
@@ -395,6 +443,12 @@ func (handler UserRestHandlerImpl) DeleteUser(w http.ResponseWriter, r *http.Req
 					return
 				}
 			}
+			if filter.Entity == bean.CLUSTER_ENTITIY {
+				if ok := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth); !ok {
+					common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+					return
+				}
+			}
 		}
 	} else {
 		if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionDelete, ""); !ok {
@@ -442,11 +496,25 @@ func (handler UserRestHandlerImpl) FetchRoleGroupById(w http.ResponseWriter, r *
 					authPass = false
 				}
 			}
+			if filter.Entity == bean.CLUSTER_ENTITIY {
+				if isValidAuth := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth); !isValidAuth {
+					authPass = false
+				}
+			}
 			if authPass {
 				filteredRoleFilter = append(filteredRoleFilter, filter)
 			}
 		}
 	}
+	for index, roleFilter := range filteredRoleFilter {
+		if roleFilter.Entity == "" {
+			filteredRoleFilter[index].Entity = bean2.ENTITY_APPS
+		}
+		if roleFilter.Entity == bean2.ENTITY_APPS && roleFilter.AccessType == "" {
+			filteredRoleFilter[index].AccessType = bean2.DEVTRON_APP
+		}
+	}
+
 	res.RoleFilters = filteredRoleFilter
 	//RBAC enforcer Ends
 
@@ -484,6 +552,12 @@ func (handler UserRestHandlerImpl) CreateRoleGroup(w http.ResponseWriter, r *htt
 			}
 			if len(filter.Team) > 0 {
 				if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionCreate, strings.ToLower(filter.Team)); !ok {
+					common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+					return
+				}
+			}
+			if filter.Entity == bean.CLUSTER_ENTITIY && !isActionUserSuperAdmin {
+				if isValidAuth := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth); !isValidAuth {
 					common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 					return
 				}
@@ -541,7 +615,7 @@ func (handler UserRestHandlerImpl) UpdateRoleGroup(w http.ResponseWriter, r *htt
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	res, err := handler.roleGroupService.UpdateRoleGroup(&request, token, handler.checkManagerAuth)
+	res, err := handler.roleGroupService.UpdateRoleGroup(&request, token, handler.CheckManagerAuth)
 	if err != nil {
 		handler.logger.Errorw("service err, UpdateRoleGroup", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
@@ -555,6 +629,60 @@ func (handler UserRestHandlerImpl) FetchRoleGroups(w http.ResponseWriter, r *htt
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	isAuthorised := false
+	//checking superAdmin access
+	isAuthorised, err = handler.userService.IsSuperAdmin(int(userId))
+	if err != nil {
+		handler.logger.Errorw("error in checking superAdmin access of user", "err", err)
+		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+		return
+	}
+	if !isAuthorised {
+		user, err := handler.userService.GetById(userId)
+		if err != nil {
+			handler.logger.Errorw("error in getting user by id", "err", err)
+			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+			return
+		}
+		var roleFilters []bean.RoleFilter
+		if len(user.Groups) > 0 {
+			groupRoleFilters, err := handler.userService.GetRoleFiltersByGroupNames(user.Groups)
+			if err != nil {
+				handler.logger.Errorw("Error in getting role filters by group names", "err", err, "groupNames", user.Groups)
+				common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+				return
+			}
+			if len(groupRoleFilters) > 0 {
+				roleFilters = append(roleFilters, groupRoleFilters...)
+			}
+		}
+		if user.RoleFilters != nil && len(user.RoleFilters) > 0 {
+			roleFilters = append(roleFilters, user.RoleFilters...)
+		}
+		if len(roleFilters) > 0 {
+			for _, filter := range roleFilters {
+				if len(filter.Team) > 0 {
+					if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionGet, strings.ToLower(filter.Team)); ok {
+						isAuthorised = true
+						break
+					}
+				}
+				if filter.Entity == bean.CLUSTER_ENTITIY {
+					if isValidAuth := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth); isValidAuth {
+						isAuthorised = true
+						break
+					}
+				}
+
+			}
+		}
+	}
+	if !isAuthorised {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 	res, err := handler.roleGroupService.FetchRoleGroups()
@@ -648,6 +776,12 @@ func (handler UserRestHandlerImpl) DeleteRoleGroup(w http.ResponseWriter, r *htt
 					return
 				}
 			}
+			if filter.Entity == bean.CLUSTER_ENTITIY {
+				if isValidAuth := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth); !isValidAuth {
+					common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+					return
+				}
+			}
 		}
 	}
 	//RBAC enforcer Ends
@@ -674,9 +808,45 @@ func (handler UserRestHandlerImpl) CheckUserRoles(w http.ResponseWriter, r *http
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+
+	v := r.URL.Query()
+
+	if v.Has("appName") {
+		appName := v.Get("appName")
+		result := make(map[string]interface{})
+		var isSuperAdmin, isAdmin, isManager, isTrigger bool
+		for _, role := range roles {
+			if role == bean.SUPERADMIN {
+				isSuperAdmin = true
+				break
+			}
+			frags := strings.Split(role, "_")
+			n := len(frags)
+			if n >= 2 && (frags[n-1] == appName || frags[n-1] == "") {
+				isManager = strings.Contains(frags[0], "manager")
+				isAdmin = strings.Contains(frags[0], "admin")
+				isTrigger = strings.Contains(frags[0], "trigger")
+			}
+		}
+		if isSuperAdmin {
+			result["role"] = "SuperAdmin"
+		} else if isManager {
+			result["role"] = "Manager"
+		} else if isAdmin {
+			result["role"] = "Admin"
+		} else if isTrigger {
+			result["role"] = "Trigger"
+		} else {
+			result["role"] = "View"
+		}
+		result["roles"] = roles
+
+		common.WriteJsonResp(w, err, result, http.StatusOK)
+		return
+	}
 	result := make(map[string]interface{})
 	result["roles"] = roles
-	result["superAdmin"] = true
+	result["superAdmin"] = false
 	for _, item := range roles {
 		if item == bean.SUPERADMIN {
 			result["superAdmin"] = true
@@ -779,9 +949,10 @@ func (handler UserRestHandlerImpl) InvalidateRoleCache(w http.ResponseWriter, r 
 
 }
 
-func (handler UserRestHandlerImpl) checkManagerAuth(token string, object string) bool {
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionUpdate, strings.ToLower(object)); !ok {
+func (handler UserRestHandlerImpl) CheckManagerAuth(resource, token string, object string) bool {
+	if ok := handler.enforcer.Enforce(token, resource, casbin.ActionUpdate, strings.ToLower(object)); !ok {
 		return false
 	}
 	return true
+
 }

@@ -84,8 +84,10 @@ type ExternalSecret struct {
 }
 
 type ESOSecretData struct {
-	SecretStore json.RawMessage `json:"secretStore,omitempty"`
-	EsoData     []ESOData       `json:"esoData,omitempty"`
+	SecretStore     json.RawMessage `json:"secretStore,omitempty"`
+	SecretStoreRef  json.RawMessage `json:"secretStoreRef,omitempty"`
+	EsoData         []ESOData       `json:"esoData,omitempty"`
+	RefreshInterval string          `json:"refreshInterval,omitempty"`
 }
 
 type ESOData struct {
@@ -553,6 +555,7 @@ func (impl ConfigMapServiceImpl) CSGlobalAddUpdate(configMapRequest *ConfigDataR
 		}
 		for _, item := range secretsList.ConfigData {
 			if item.Name == configData.Name {
+				found = true
 				item.Data = configData.Data
 				item.MountPath = configData.MountPath
 				item.Type = configData.Type
@@ -561,7 +564,6 @@ func (impl ConfigMapServiceImpl) CSGlobalAddUpdate(configMapRequest *ConfigDataR
 				item.ESOSecretData = configData.ESOSecretData
 				item.ExternalSecret = configData.ExternalSecret
 				item.RoleARN = configData.RoleARN
-				found = true
 				item.SubPath = configData.SubPath
 				item.FilePermission = configData.FilePermission
 			}
@@ -687,8 +689,10 @@ func (impl ConfigMapServiceImpl) CSGlobalFetch(appId int) (*ConfigDataRequest, e
 		}
 
 		esoSecretData := ESOSecretData{
-			SecretStore: item.ESOSecretData.SecretStore,
-			EsoData:     esoData,
+			SecretStore:     item.ESOSecretData.SecretStore,
+			SecretStoreRef:  item.ESOSecretData.SecretStoreRef,
+			EsoData:         esoData,
+			RefreshInterval: item.ESOSecretData.RefreshInterval,
 		}
 		item.ESOSecretData = esoSecretData
 		configs = append(configs, item)
@@ -889,6 +893,8 @@ func (impl ConfigMapServiceImpl) CSEnvironmentFetch(appId int, envId int) (*Conf
 			item.DefaultESOSecretData = item.ESOSecretData
 			item.ESOSecretData.EsoData = nil
 			item.ESOSecretData.SecretStore = nil
+			item.ESOSecretData.SecretStoreRef = nil
+			item.ESOSecretData.RefreshInterval = ""
 			item.DefaultMountPath = item.MountPath
 			item.Data = nil
 			item.ExternalSecret = nil
@@ -958,8 +964,10 @@ func (impl ConfigMapServiceImpl) CSEnvironmentFetch(appId int, envId int) (*Conf
 		}
 
 		esoSecretData := ESOSecretData{
-			SecretStore: item.ESOSecretData.SecretStore,
-			EsoData:     esoData,
+			SecretStore:     item.ESOSecretData.SecretStore,
+			SecretStoreRef:  item.ESOSecretData.SecretStoreRef,
+			EsoData:         esoData,
+			RefreshInterval: item.ESOSecretData.RefreshInterval,
 		}
 		item.ESOSecretData = esoSecretData
 

@@ -79,6 +79,44 @@ paths:
               schema:
                 $ref: '#/components/schemas/UpdateApiTokenResponse'
           description: Api-token update response
+  /orchestrator/api-token/webhook:
+    get:
+      description: Get all api tokens which have given permission
+      parameters:
+        - in: query
+          name: appName
+          example: "abc"
+          description: app name
+          required: false
+          allowEmptyValue: true
+          schema:
+            type: string
+        - in: query
+          name: environmentName
+          example: "abc"
+          description: environment name, comma separated in case multi environment, it will take environment identifier
+          required: false
+          allowEmptyValue: true
+          schema:
+            type: string
+        - in: query
+          name: projectName
+          example: "abc"
+          description: project name
+          required: false
+          allowEmptyValue: false
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/ApiToken'
+                type: array
+          description: Successfully fetched active API tokens links
+
 components:
   schemas:
     ApiToken:

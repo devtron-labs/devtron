@@ -1,6 +1,6 @@
 {{- with .Values.components.migrator }}
 ---
-{{- if $.Capabilities.APIVersions.Has "batch/v1" -}}
+{{- if $.Capabilities.APIVersions.Has "batch/v1/Job" -}}
 apiVersion: batch/v1
 {{- else -}}
 apiVersion: batch/v1beta1
@@ -12,12 +12,19 @@ metadata:
   labels:
     job: postgresql-migrate-devtron
 spec:
-  ttlSecondsAfterFinished: 1000
   template:
     spec:
+      {{- if and $.Values.global $.Values.global.podSecurityContext }}
+      securityContext:
+{{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
+      {{- end }}
       containers:
       - name: postgresql-migrate-devtron
         image: {{ .image }}
+        {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+        securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 10 }}
+        {{- end }}
         env:
         - name: GIT_BRANCH
           value: {{ .envVars.devtron.GIT_BRANCH }}
@@ -42,11 +49,17 @@ spec:
         envFrom:
           - secretRef:
               name: postgresql-migrator
+        {{- if .devtron }}
+        {{- if .devtron.resources }}        
+        resources:
+        {{- toYaml .devtron.resources | nindent 10 }}
+        {{- end }}
+        {{- end }}           
       restartPolicy: OnFailure
   backoffLimit: 20
   activeDeadlineSeconds: 1500
 ---
-{{- if $.Capabilities.APIVersions.Has "batch/v1" -}}
+{{- if $.Capabilities.APIVersions.Has "batch/v1/Job" -}}
 apiVersion: batch/v1
 {{- else -}}
 apiVersion: batch/v1beta1
@@ -59,13 +72,27 @@ spec:
   template:
     spec:
       serviceAccountName: devtron
+      {{- if and $.Values.global $.Values.global.podSecurityContext }}
+      securityContext:
+{{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
+      {{- end }}
       containers:
       - name: devtron-rollout
         image: "quay.io/devtron/kubectl:latest"
         command: ['sh', '-c', 'kubectl rollout restart deployment/devtron -n devtroncd']
+        {{- if .casbin }}
+        {{- if .casbin.resources }}        
+        resources:
+        {{- toYaml .casbin.resources | nindent 10 }}
+        {{- end }}
+        {{- end }} 
       initContainers:
       - name: postgresql-migrate-casbin
         image: {{ .image }}
+        {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+        securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 10 }}
+        {{- end }}
         env:
         - name: SCRIPT_LOCATION
           value: {{ .envVars.casbin.SCRIPT_LOCATION }}
@@ -90,10 +117,17 @@ spec:
         envFrom:
           - secretRef:
               name: postgresql-migrator
+        {{- if .casbin }}
+        {{- if .casbin.initContainer.resources }}        
+        resources:
+        {{- toYaml .casbin.initContainer.resources | nindent 10 }}
+        {{- end }}
+        {{- else }}
         resources:
           requests:
             cpu: 0.5
             memory: 500Mi
+        {{- end }}                     
       restartPolicy: OnFailure
   backoffLimit: 20
   activeDeadlineSeconds: 1500

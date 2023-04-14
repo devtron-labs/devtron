@@ -299,6 +299,16 @@
             "description": "used for enabling/disabling autoscaling",
             "title": "Enabled"
           },
+          "labels": {
+            "type": "object",
+            "description": "labels for HPA",
+            "title": "labels"
+          },
+          "annotations": {
+            "type": "object",
+            "description": "used to configure some options for HPA",
+            "title": "annotations"
+          },                  
           "extraMetrics": {
             "type": "array",
             "items": {},
@@ -321,7 +331,13 @@
             "items": {},
             "description": "contains the commands",
             "title": "Value"
-          }
+          },
+          "workingDir": {
+            "type": "object",
+            "items": {},
+            "description": "contains the working directory",
+            "title": "Working directory"
+          }                    
         }
       },
       "containerSecurityContext": {
@@ -442,6 +458,12 @@
             "title": "Ingress class name",
             "default": "nginx"
           },
+          "labels": {
+            "type": "object",
+            "description": "labels for ingress",
+            "title": "Ingress labels",
+            "default": ""
+          },          
           "enabled": {
             "type": "boolean",
             "description": "used to enable or disable ingress",

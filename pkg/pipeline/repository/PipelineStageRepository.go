@@ -50,18 +50,19 @@ type PipelineStage struct {
 }
 
 type PipelineStageStep struct {
-	tableName           struct{}         `sql:"pipeline_stage_step" pg:",discard_unknown_columns"`
-	Id                  int              `sql:"id,pk"`
-	PipelineStageId     int              `sql:"pipeline_stage_id"`
-	Name                string           `sql:"name"`
-	Description         string           `sql:"description"`
-	Index               int              `sql:"index"`
-	StepType            PipelineStepType `sql:"step_type"`
-	ScriptId            int              `sql:"script_id"`
-	RefPluginId         int              `sql:"ref_plugin_id"` //id of plugin used as reference
-	OutputDirectoryPath []string         `sql:"output_directory_path" pg:",array"`
-	DependentOnStep     string           `sql:"dependent_on_step"`
-	Deleted             bool             `sql:"deleted,notnull"`
+	tableName                struct{}         `sql:"pipeline_stage_step" pg:",discard_unknown_columns"`
+	Id                       int              `sql:"id,pk"`
+	PipelineStageId          int              `sql:"pipeline_stage_id"`
+	Name                     string           `sql:"name"`
+	Description              string           `sql:"description"`
+	Index                    int              `sql:"index"`
+	StepType                 PipelineStepType `sql:"step_type"`
+	ScriptId                 int              `sql:"script_id"`
+	RefPluginId              int              `sql:"ref_plugin_id"` //id of plugin used as reference
+	OutputDirectoryPath      []string         `sql:"output_directory_path" pg:",array"`
+	DependentOnStep          string           `sql:"dependent_on_step"`
+	Deleted                  bool             `sql:"deleted,notnull"`
+	TriggerIfParentStageFail bool             `sql:"trigger_if_parent_stage_fail"`
 	sql.AuditLog
 }
 

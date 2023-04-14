@@ -18,6 +18,11 @@ type ChartRepoDto struct {
 	UserId      int32               `json:"-"`
 }
 
+type ChartRepoWithIsEditableDto struct {
+	ChartRepoDto
+	IsEditable bool `json:"isEditable"`
+}
+
 type DetailedErrorHelmRepoValidation struct {
 	CustomErrMsg string `json:"customErrMsg"`
 	ActualErrMsg string `json:"actualErrMsg"`

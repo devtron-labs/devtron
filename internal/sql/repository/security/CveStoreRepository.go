@@ -117,7 +117,7 @@ func (impl CveStoreRepositoryImpl) Update(team *CveStore) error {
 func (impl CveStoreRepositoryImpl) VulnerabilityExposure(request *VulnerabilityRequest) ([]*VulnerabilityExposure, error) {
 	var items []*VulnerabilityExposure
 
-	query := "SELECT a.id as app_id, a.app_name, a.app_store, p.environment_id as pipeline_env_id, ia.environment_id  as chart_env_id " +
+	query := "SELECT a.id as app_id, a.app_name, a.app_type, p.environment_id as pipeline_env_id, ia.environment_id  as chart_env_id " +
 		" FROM app a" +
 		" LEFT JOIN pipeline p ON p.app_id=a.id" +
 		" LEFT JOIN installed_apps ia ON ia.app_id=a.id" +

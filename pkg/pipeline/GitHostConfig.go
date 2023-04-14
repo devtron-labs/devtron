@@ -96,11 +96,19 @@ func (impl GitHostConfigImpl) GetById(id int) (*GitHostRequest, error) {
 		return nil, err
 	}
 
+	var webhookUrlPrepend string
+	if orchestratorHost == nil || len(orchestratorHost.Value) == 0 {
+		webhookUrlPrepend = "{HOST_URL_PLACEHOLDER}"
+	} else {
+		webhookUrlPrepend = orchestratorHost.Value
+	}
+	webhookUrl := webhookUrlPrepend + host.WebhookUrl
+
 	gitHost := &GitHostRequest{
 		Id:              host.Id,
 		Name:            host.Name,
 		Active:          host.Active,
-		WebhookUrl:      orchestratorHost.Value + host.WebhookUrl,
+		WebhookUrl:      webhookUrl,
 		WebhookSecret:   host.WebhookSecret,
 		EventTypeHeader: host.EventTypeHeader,
 		SecretHeader:    host.SecretHeader,

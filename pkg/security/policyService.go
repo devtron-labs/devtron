@@ -21,7 +21,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	repository1 "github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"net/http"
 	"strings"
@@ -52,7 +53,7 @@ type PolicyService interface {
 type PolicyServiceImpl struct {
 	environmentService            cluster.EnvironmentService
 	logger                        *zap.SugaredLogger
-	apRepository                  app.AppRepository
+	apRepository                  repository1.AppRepository
 	pipelineOverride              chartConfig.PipelineOverrideRepository
 	cvePolicyRepository           security.CvePolicyRepository
 	clusterService                cluster.ClusterService
@@ -70,7 +71,7 @@ type PolicyServiceImpl struct {
 
 func NewPolicyServiceImpl(environmentService cluster.EnvironmentService,
 	logger *zap.SugaredLogger,
-	apRepository app.AppRepository,
+	apRepository repository1.AppRepository,
 	pipelineOverride chartConfig.PipelineOverrideRepository,
 	cvePolicyRepository security.CvePolicyRepository,
 	clusterService cluster.ClusterService,
@@ -190,7 +191,7 @@ func (impl *PolicyServiceImpl) VerifyImage(verifyImageRequest *VerifyImageReques
 		return nil, err
 	} else if app != nil {
 		appId = app.Id
-		isAppStore = app.AppStore
+		isAppStore = app.AppType == helper.ChartStoreApp
 	} else {
 		//np app do nothing
 	}
@@ -327,7 +328,7 @@ func (impl *PolicyServiceImpl) VerifyImage(verifyImageRequest *VerifyImageReques
 	return imageBlockedCves, nil
 }
 
-//image(cve), appId, envId
+// image(cve), appId, envId
 func (impl *PolicyServiceImpl) enforceCvePolicy(cves []*security.CveStore, cvePolicy map[string]*security.CvePolicy, severityPolicy map[security.Severity]*security.CvePolicy) (blockedCVE []*security.CveStore) {
 
 	for _, cve := range cves {
@@ -497,8 +498,8 @@ func (impl *PolicyServiceImpl) SavePolicy(request bean.CreateVulnerabilityPolicy
 }
 
 /*
-  1. policy id
-  2. action
+1. policy id
+2. action
 */
 func (impl *PolicyServiceImpl) UpdatePolicy(updatePolicyParams bean.UpdatePolicyParams, userId int32) (*bean.IdVulnerabilityPolicyResult, error) {
 	policyAction, err := impl.parsePolicyAction(updatePolicyParams.Action)
@@ -550,13 +551,12 @@ func (impl *PolicyServiceImpl) DeletePolicy(id int, userId int32) (*bean.IdVulne
 }
 
 /*
- global: na
- cluster: clusterId
- environment: environmentId
- application : appId, envId
+	global: na
+	cluster: clusterId
+	environment: environmentId
+	application : appId, envId
 
 res:
-
 */
 func (impl *PolicyServiceImpl) GetPolicies(policyLevel security.PolicyLevel, clusterId, environmentId, appId int) (*bean.GetVulnerabilityPolicyResult, error) {
 

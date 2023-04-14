@@ -18,11 +18,11 @@
 package app
 
 import (
+	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/client/lens"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
 )
 
@@ -93,7 +93,7 @@ func (impl *ReleaseDataServiceImpl) TriggerEventForAllRelease(appId, environment
 	}
 	for _, deploymentEvent := range deployments {
 		impl.logger.Infow("triggering deployment event", "event", deploymentEvent)
-		err = impl.eventClient.WriteNatsEvent(util.CD_SUCCESS, deploymentEvent)
+		err = impl.eventClient.WriteNatsEvent(pubsub.CD_SUCCESS, deploymentEvent)
 		if err != nil {
 			impl.logger.Errorw("error in writing cd trigger event", "err", err)
 			return err

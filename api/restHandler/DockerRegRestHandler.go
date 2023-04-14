@@ -113,6 +113,24 @@ func (impl DockerRegRestHandlerImpl) SaveDockerRegistryConfig(w http.ResponseWri
 			return
 		}
 		//RBAC enforcer Ends
+		exist, err := impl.dockerRegistryConfig.CheckInActiveDockerAccount(bean.Id)
+
+		if err != nil {
+			impl.logger.Errorw("service err, SaveDockerRegistryConfig", "err", err, "payload", bean)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+
+		if exist {
+			res, err := impl.dockerRegistryConfig.UpdateInactive(&bean)
+			if err != nil {
+				impl.logger.Errorw("service err, UpdateDockerRegistryConfig", "err", err, "payload", bean)
+				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+				return
+			}
+			common.WriteJsonResp(w, err, res, http.StatusOK)
+			return
+		}
 
 		res, err := impl.dockerRegistryConfig.Create(&bean)
 		if err != nil {

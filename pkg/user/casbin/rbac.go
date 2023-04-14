@@ -304,7 +304,14 @@ func (e *EnforcerImpl) storeCacheData(emailId string, resource string, action st
 	if !found {
 		emailResult = make(map[string]map[string]bool)
 	}
-	emailResult.(map[string]map[string]bool)[getCacheKey(resource, action)] = result
+	existingCachedResult, found := emailResult.(map[string]map[string]bool)[getCacheKey(resource, action)]
+	if found {
+		for key, value := range result {
+			existingCachedResult[key] = value
+		}
+	} else {
+		emailResult.(map[string]map[string]bool)[getCacheKey(resource, action)] = result
+	}
 	e.Cache.Set(emailId, emailResult, cache.DefaultExpiration)
 }
 
@@ -354,11 +361,11 @@ func (e *EnforcerImpl) GetCacheDump() string {
 // enforce is a helper to additionally check a default role and invoke a custom claims enforcement function
 func (e *EnforcerImpl) enforce(token string, resource string, action string, resourceItem string) bool {
 	// check the default role
-	email, invalid := e.verifyTokenAndGetEmail(token)
+	email, invalid := e.VerifyTokenAndGetEmail(token)
 	if invalid {
 		return false
 	}
-	return e.enforceByEmail(strings.ToLower(email), resource, action, resourceItem)
+	return e.EnforceByEmail(strings.ToLower(email), resource, action, resourceItem)
 }
 
 func (e *EnforcerImpl) enforceAndUpdateCache(email string, resource string, action string, resourceItem string) bool {
@@ -392,7 +399,7 @@ func (e *EnforcerImpl) enforcerEnforce(email string, resource string, action str
 	return response, err
 }
 
-func (e *EnforcerImpl) verifyTokenAndGetEmail(tokenString string) (string, bool) {
+func (e *EnforcerImpl) VerifyTokenAndGetEmail(tokenString string) (string, bool) {
 	claims, err := e.SessionManager.VerifyToken(tokenString)
 	if err != nil {
 		return "", true

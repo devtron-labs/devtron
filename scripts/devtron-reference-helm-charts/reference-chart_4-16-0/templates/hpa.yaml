@@ -1,0 +1,57 @@
+{{- if $.Values.autoscaling.enabled }}
+{{- if semverCompare ">=1.16-0" .Capabilities.KubeVersion.GitVersion }}
+apiVersion: autoscaling/v2beta2
+{{- else }}
+apiVersion: autoscaling/v2beta1
+{{- end }}
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ template ".Chart.Name .fullname" $ }}-hpa
+  {{- if .Values.autoscaling.annotations }}
+  annotations:
+{{ toYaml .Values.autoscaling.annotations | indent 4 }}
+  {{- end }}
+  {{- if .Values.autoscaling.labels }}
+  labels:
+{{ toYaml .Values.autoscaling.labels | indent 4 }}
+  {{- end }}
+spec:
+  scaleTargetRef:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    name: {{ include ".Chart.Name .fullname" $ }}
+  minReplicas: {{ $.Values.autoscaling.MinReplicas  }}
+  maxReplicas: {{ $.Values.autoscaling.MaxReplicas }}
+  metrics:
+  {{- if $.Values.autoscaling.TargetMemoryUtilizationPercentage }}
+  - type: Resource
+    resource:
+      name: memory
+      {{- if semverCompare ">=1.16-0" .Capabilities.KubeVersion.GitVersion }}
+      target:
+        type: Utilization
+        averageUtilization: {{ $.Values.autoscaling.TargetMemoryUtilizationPercentage }}
+      {{- else }}
+      targetAverageUtilization: {{ $.Values.autoscaling.TargetMemoryUtilizationPercentage }}
+      {{- end }}
+  {{- end }}
+  {{- if $.Values.autoscaling.TargetCPUUtilizationPercentage }}
+  - type: Resource
+    resource:
+      name: cpu
+      {{- if semverCompare ">=1.16-0" .Capabilities.KubeVersion.GitVersion }}
+      target:
+        type: Utilization
+        averageUtilization: {{ $.Values.autoscaling.TargetCPUUtilizationPercentage }}
+      {{- else }}
+      targetAverageUtilization: {{ $.Values.autoscaling.TargetCPUUtilizationPercentage }}
+      {{- end }}
+  {{- end }}
+    {{- if and $.Values.autoscaling.extraMetrics (semverCompare ">=1.16-0" .Capabilities.KubeVersion.GitVersion) }}
+  {{- toYaml $.Values.autoscaling.extraMetrics | nindent 2 }}
+    {{- end}}
+  {{- if and $.Values.autoscaling.behavior (semverCompare ">=1.18-0" .Capabilities.KubeVersion.GitVersion) }}
+  behavior:
+    {{- toYaml $.Values.autoscaling.behavior | nindent 4 }}
+  {{- end }}
+  {{- end }}

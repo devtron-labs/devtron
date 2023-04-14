@@ -1,0 +1,88 @@
+openapi: "3.0.2"
+info:
+  title: "Plugin System Integration - CI stages"
+  description: >-
+    Provide functionality to user to use plugins in pre/post ci steps.
+  version: "1.0.0"
+
+paths:
+  /orchestrator/chartref/autocomplete/{appId}:
+    get:
+      description: Get list of all charts
+      operationId: ChartRefAutocompleteForApp
+      parameters:
+        - name: appId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully return all charts
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ChartRefResponse'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    ChartRefResponse:
+      type: object
+      properties:
+        chartRefs:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChartRef'
+        latestChartRef:
+          type: integer
+        latestAppChartRef:
+          type: integer
+        latestEnvChartRef:
+          type: integer
+        chartMetadata:
+          type: array
+          items:
+           type: string
+    ChartRef:
+      type: object
+      properties:
+        id:
+          type: integer
+        version:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        userUploaded:
+          type: boolean
+        isAppMetricsSupported:
+          type: boolean

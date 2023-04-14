@@ -1,0 +1,18 @@
+{{- if .Values.ConfigMaps.enabled }}
+  {{- range .Values.ConfigMaps.maps }}
+    {{if eq .external false}}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  creationTimestamp: 2019-08-12T18:38:34Z
+  name: {{ .name}}-{{ $.Values.app }}
+{{- if $.Values.appLabels }}
+  labels:
+{{ toYaml $.Values.appLabels | indent 4 }}
+{{- end }}
+data:
+{{ toYaml .data | trim | indent 2 }}
+    {{- end}}
+  {{- end}}
+{{- end }}

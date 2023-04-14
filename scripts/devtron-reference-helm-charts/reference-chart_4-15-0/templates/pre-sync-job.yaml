@@ -1,0 +1,23 @@
+{{- if $.Values.dbMigrationConfig.enabled }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ template ".Chart.Name .fullname" $ }}-migrator
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+#    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+spec:
+  template:
+    spec:
+      containers:
+        - name: migrator
+          image: 686244538589.dkr.ecr.us-east-2.amazonaws.com/migrator:0.0.1-rc14
+          env:
+            {{- range $.Values.dbMigrationConfig.envValues }}
+            - name: {{ .key}}
+              value: {{ .value  | quote }}
+            {{- end}}
+      restartPolicy: Never
+  backoffLimit: 0
+{{- end }}

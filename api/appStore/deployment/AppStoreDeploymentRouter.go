@@ -54,4 +54,8 @@ func (router AppStoreDeploymentRouterImpl) Init(configRouter *mux.Router) {
 
 	configRouter.Path("/application/version/{installedAppVersionId}").
 		HandlerFunc(router.appStoreDeploymentRestHandler.GetInstalledAppVersion).Methods("GET")
+
+	configRouter.Path("/application/update/project").
+		HandlerFunc(router.appStoreDeploymentRestHandler.UpdateProjectHelmApp).Methods("PUT")
+
 }

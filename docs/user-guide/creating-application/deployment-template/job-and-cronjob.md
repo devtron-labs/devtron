@@ -1,4 +1,10 @@
-# Job and Cronjob chart
+# Job and CronJob 
+
+
+This chart deploys Job & CronJob. A Job is a controller object that represents a finite task and CronJob is used to schedule the creation of Jobs.
+
+ * [Job](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/job-and-cronjob#1.-job)
+ * [CronJob](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/job-and-cronjob#2.-cronjob)
 
 ## 1. Job
 
@@ -28,10 +34,10 @@ jobConfigs:
 | `kind` | As with all other Kubernetes config, a Job and cronjob needs apiVersion, kind.cronjob and job also needs a section fields which is optional . these fields specify to deploy which job (conjob or job) should be kept. by default, they are set job. |
 
 
-## 2. Cronjob
+## 2. CronJob
 
-A Cronjob creates Jobs on a repeating schedule , One Cronjob object is like one line of a crontab (cron table) file. It runs a job periodically on a given schedule, written in Cron format.
- Cronjobs are meant for performing regular scheduled actions such as backups, report generation, and so on. Each of those tasks should be configured to recur indefinitely (for example: once a day / week / month); you can define the point in time within that interval when the job should start.
+A CronJob creates jobs on a repeating schedule. One Cronjob object is like one line of a crontab (cron table) file. It runs a job periodically on a given schedule, written in Cron format.
+ CronJobs are meant for performing regular scheduled actions such as backups, report generation, and so on. Each task must be configured to recur indefinitely (as an example: once a day / week / month). You can schedule the time within that interval when the job should start.
 
  ## **Example:**
 

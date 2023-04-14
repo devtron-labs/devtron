@@ -2,6 +2,7 @@ name: "🐛 Bug Report"
 description: "Submit a bug report to help us improve"
 title: "Bug: "
 labels: [bug]
+assignees: ["prakarsh-dt","anupdhiran"]
 body:
   - type: markdown
     attributes:
@@ -39,25 +40,22 @@ body:
       label: "👎 Actual Behavior"
       description: "What did actually happen? Add screenshots, if applicable."
       placeholder: "It actually ..."
-  - type: dropdown
-    id: device
+  - type: textarea
+    id: kuberentes-version
     attributes:
-      label: "💻 Device"
-      description: "Which device running on?"
-      options:
-        - Desktop/Laptop
+      label: "☸ Kubernetes version"
+      description: "What is your Kubernetes service and version?"
+      placeholder: "EKS 1.23, KOps 1.22, AKS 1.21 etc."
     validations:
       required: true
-  - type: dropdown
-    id: operating-system
+  - type: textarea
+    id: cloudProvider
     attributes:
-      label: "💻 Operating system"
-      description: "What OS is your app running on?"
-      options:
-        - Linux
-        - MacOS
-        - Windows
-        - Something else
+      label: "Cloud provider"
+      value: |
+        <details>
+
+        </details>
     validations:
       required: true
   - type: dropdown

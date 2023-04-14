@@ -96,7 +96,7 @@ func (session *LensClientImpl) doRequest(clientRequest *ClientRequest) (resBody 
 	defer httpRes.Body.Close()
 	resBody, err = ioutil.ReadAll(httpRes.Body)
 	if err != nil {
-		session.logger.Errorw("error in argocd communication ", "err", err)
+		session.logger.Errorw("error in lens communication ", "err", err)
 		return nil, nil, err
 	}
 	status := StatusCode(httpRes.StatusCode)

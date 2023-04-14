@@ -14,14 +14,15 @@ type PipelineStageDto struct {
 }
 
 type PipelineStageStepDto struct {
-	Id                  int                         `json:"id"`
-	Name                string                      `json:"name"`
-	Description         string                      `json:"description"`
-	Index               int                         `json:"index"`
-	StepType            repository.PipelineStepType `json:"stepType" validate:"omitempty,oneof=INLINE REF_PLUGIN"`
-	OutputDirectoryPath []string                    `json:"outputDirectoryPath"`
-	InlineStepDetail    *InlineStepDetailDto        `json:"inlineStepDetail"`
-	RefPluginStepDetail *RefPluginStepDetailDto     `json:"pluginRefStepDetail"`
+	Id                       int                         `json:"id"`
+	Name                     string                      `json:"name"`
+	Description              string                      `json:"description"`
+	Index                    int                         `json:"index"`
+	StepType                 repository.PipelineStepType `json:"stepType" validate:"omitempty,oneof=INLINE REF_PLUGIN"`
+	OutputDirectoryPath      []string                    `json:"outputDirectoryPath"`
+	InlineStepDetail         *InlineStepDetailDto        `json:"inlineStepDetail"`
+	RefPluginStepDetail      *RefPluginStepDetailDto     `json:"pluginRefStepDetail"`
+	TriggerIfParentStageFail bool                        `json:"triggerIfParentStageFail"`
 }
 
 type InlineStepDetailDto struct {

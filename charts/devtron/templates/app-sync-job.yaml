@@ -1,4 +1,5 @@
-{{- if .Capabilities.APIVersions.Has "batch/v1/CronJob" }}
+{{- if $.Release.IsInstall }}
+{{- if .Capabilities.APIVersions.Has "batch/v1/Job" }}
 apiVersion: batch/v1
 {{- else -}}
 apiVersion: batch/v1beta1
@@ -7,30 +8,57 @@ kind: Job
 metadata:
   name: app-sync-job-{{ randAlphaNum 5 | lower }}
 spec:
-      template:
-        spec:
-          serviceAccountName: devtron
-          initContainers:
-          - name: migration-wait
-            image: "quay.io/devtron/kubectl:latest"
-            command: ['sh', '-c', 'while [ ! $(kubectl -n devtroncd get $(kubectl -n devtroncd get job -l job=postgresql-migrate-devtron -o name) -o jsonpath="{.status.succeeded}")  ]; do sleep 10; done']
-          containers:
-          - name: chart-sync
-            image: quay.io/devtron/chart-sync:57e17953-373-10147
-            env:
-            - name: PG_ADDR
-              value: postgresql-postgresql.devtroncd
-            - name: PG_DATABASE
-              value: orchestrator
-            - name: PG_USER
-              value: postgres
-            envFrom:
-            - secretRef:
-                name: devtron-secret
-          restartPolicy: OnFailure
-      backoffLimit: 4
+  template:
+    spec:
+      serviceAccountName: devtron
+      initContainers:
+      - name: migration-wait
+        image: "quay.io/devtron/kubectl:latest"
+        command: ['sh', '-c', 'while [ ! $(kubectl -n devtroncd get $(kubectl -n devtroncd get job -l job=postgresql-migrate-devtron -o name) -o jsonpath="{.status.succeeded}")  ]; do sleep 10; done']
+        {{- if .Values.components.migrator }}
+        {{- if .Values.components.migrator.appSync }}
+        {{- if .Values.components.migrator.appSync.initContainer }}
+        {{- if .Values.components.migrator.appSync.initContainer.resources }}
+        resources:
+        {{- toYaml .Values.components.migrator.appSync.initContainer.resources | nindent 10 }}
+        {{- end }}
+        {{- end }}
+        {{- end }}
+        {{- end }}
+      {{- if and $.Values.global $.Values.global.podSecurityContext }}
+      securityContext:
+{{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: chart-sync
+        image: quay.io/devtron/chart-sync:6bdaa674-150-13276
+        {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+        securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 10 }}
+        {{- end }}
+        env:
+        - name: PG_ADDR
+          value: postgresql-postgresql.devtroncd
+        - name: PG_DATABASE
+          value: orchestrator
+        - name: PG_USER
+          value: postgres
+        envFrom:
+        - secretRef:
+            name: devtron-secret
+        {{- if .Values.components.migrator }}
+        {{- if .Values.components.migrator.appSync }}
+        {{- if .Values.components.migrator.appSync.resources }}
+        resources:
+        {{- toYaml .Values.components.migrator.appSync.resources | nindent 14 }}
+        {{- end }}
+        {{- end }}
+        {{- end }}
+      restartPolicy: OnFailure
+  backoffLimit: 4
 ---
-{{- if .Capabilities.APIVersions.Has "batch/v1/Job" }}
+{{- end }}
+{{- if .Capabilities.APIVersions.Has "batch/v1/CronJob" }}
 apiVersion: batch/v1
 {{- else -}}
 apiVersion: batch/v1beta1
@@ -46,9 +74,17 @@ spec:
     spec:
       template:
         spec:
+          {{- if and $.Values.global $.Values.global.podSecurityContext }}
+          securityContext:
+{{- toYaml $.Values.global.podSecurityContext | nindent 12 }}
+          {{- end }}
           containers:
           - name: chart-sync
-            image: quay.io/devtron/chart-sync:57e17953-373-10147
+            image: quay.io/devtron/chart-sync:6bdaa674-150-13276
+            {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+            securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 14 }}
+           {{- end }}
             env:
             - name: PG_ADDR
               value: postgresql-postgresql.devtroncd
@@ -59,5 +95,13 @@ spec:
             envFrom:
             - secretRef:
                 name: devtron-secret
+            {{- if .Values.components.migrator }}
+            {{- if .Values.components.migrator.appSync }}
+            {{- if .Values.components.migrator.appSync.resources }}
+            resources:
+            {{- toYaml .Values.components.migrator.appSync.resources | nindent 14 }}
+            {{- end }}
+            {{- end }}
+            {{- end }}
           restartPolicy: Never
       backoffLimit: 4

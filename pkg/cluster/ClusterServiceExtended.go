@@ -6,6 +6,9 @@ import (
 	cluster3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
+	repository4 "github.com/devtron-labs/devtron/pkg/user/repository"
+	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/rest"
 	"net/http"
 	"strings"
 	"time"
@@ -21,7 +24,7 @@ import (
 	"go.uber.org/zap"
 )
 
-//extends ClusterServiceImpl and enhances method of ClusterService with full mode specific errors
+// extends ClusterServiceImpl and enhances method of ClusterService with full mode specific errors
 type ClusterServiceImplExtended struct {
 	environmentRepository  repository.EnvironmentRepository
 	grafanaClient          grafana.GrafanaClient
@@ -35,7 +38,9 @@ type ClusterServiceImplExtended struct {
 func NewClusterServiceImplExtended(repository repository.ClusterRepository, environmentRepository repository.EnvironmentRepository,
 	grafanaClient grafana.GrafanaClient, logger *zap.SugaredLogger, installedAppRepository repository2.InstalledAppRepository,
 	K8sUtil *util.K8sUtil,
-	clusterServiceCD cluster2.ServiceClient, K8sInformerFactory informer.K8sInformerFactory, gitOpsRepository repository3.GitOpsConfigRepository) *ClusterServiceImplExtended {
+	clusterServiceCD cluster2.ServiceClient, K8sInformerFactory informer.K8sInformerFactory,
+	gitOpsRepository repository3.GitOpsConfigRepository, userAuthRepository repository4.UserAuthRepository,
+	userRepository repository4.UserRepository, roleGroupRepository repository4.RoleGroupRepository) *ClusterServiceImplExtended {
 	clusterServiceExt := &ClusterServiceImplExtended{
 		environmentRepository:  environmentRepository,
 		grafanaClient:          grafanaClient,
@@ -43,14 +48,28 @@ func NewClusterServiceImplExtended(repository repository.ClusterRepository, envi
 		clusterServiceCD:       clusterServiceCD,
 		gitOpsRepository:       gitOpsRepository,
 		ClusterServiceImpl: &ClusterServiceImpl{
-			clusterRepository:  repository,
-			logger:             logger,
-			K8sUtil:            K8sUtil,
-			K8sInformerFactory: K8sInformerFactory,
+			clusterRepository:   repository,
+			logger:              logger,
+			K8sUtil:             K8sUtil,
+			K8sInformerFactory:  K8sInformerFactory,
+			userAuthRepository:  userAuthRepository,
+			userRepository:      userRepository,
+			roleGroupRepository: roleGroupRepository,
 		},
 	}
 	go clusterServiceExt.buildInformer()
 	return clusterServiceExt
+}
+
+func (impl *ClusterServiceImplExtended) FindAllWithoutConfig() ([]*ClusterBean, error) {
+	beans, err := impl.FindAll()
+	if err != nil {
+		return nil, err
+	}
+	for _, bean := range beans {
+		bean.Config = map[string]string{"bearer_token": ""}
+	}
+	return beans, nil
 }
 
 func (impl *ClusterServiceImplExtended) FindAll() ([]*ClusterBean, error) {
@@ -246,6 +265,7 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *Cluste
 	if bean.HasConfigOrUrlChanged {
 		impl.ClusterServiceImpl.SyncNsInformer(bean)
 	}
+
 	return bean, err
 }
 
@@ -357,7 +377,6 @@ func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterB
 
 	//on successful creation of new cluster, update informer cache for namespace group by cluster
 	impl.SyncNsInformer(bean)
-
 	return clusterBean, nil
 }
 
@@ -375,5 +394,25 @@ func (impl ClusterServiceImplExtended) DeleteFromDb(bean *ClusterBean, userId in
 		impl.logger.Errorw("error in deleting cluster", "id", bean.Id, "err", err)
 		return err
 	}
+	restConfig := &rest.Config{}
+	restConfig, err = rest.InClusterConfig()
+
+	if err != nil {
+		impl.logger.Errorw("Error in creating config for default cluster", "err", err)
+		return nil
+	}
+	httpClientFor, err := rest.HTTPClientFor(restConfig)
+	if err != nil {
+		impl.logger.Errorw("error occurred while overriding k8s client", "reason", err)
+		return nil
+	}
+	k8sClient, err := v12.NewForConfigAndClient(restConfig, httpClientFor)
+	if err != nil {
+		impl.logger.Errorw("error creating k8s client", "error", err)
+		return nil
+	}
+	secretName := fmt.Sprintf("%s-%v", "cluster-event", bean.Id)
+	err = impl.K8sUtil.DeleteSecret("default", secretName, k8sClient)
+	impl.logger.Errorw("error in deleting secret", "error", err)
 	return nil
 }

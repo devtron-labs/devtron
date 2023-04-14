@@ -1,0 +1,251 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Historical Task definitions - get api changes
+paths:
+  /orchestrator/app/history/deployed-configuration/all/{appId}/{pipelineId}/{wfrId}:
+    get:
+      operationId: FetchHistoryDetail
+      description: Fetch history configuration for a particular trigger (by wfrId)
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: pipelineId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: wfrId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully return history detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoryConfigurationDetailDto'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/app/history/deployed-configuration/all/latest/{appId}/{pipelineId}:
+    get:
+      operationId: FetchLatestHistoryDetail
+      description: Fetch latest deployed history configuration
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: pipelineId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully return history detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoryConfigurationDetailDto'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/app/deployment-configuration/all/latest/{appId}/{pipelineId}:
+    get:
+      operationId: FetchDeploymentConfiguration
+      description: Fetch latest deployment configuration i.e. currently saved in the system and marked as active
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: pipelineId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully return configuration detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoryConfigurationDetailDto'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    HistoryConfigurationDetailDto:
+      type: object
+      properties:
+        deploymentTemplate:
+          type: object
+          properties:
+            config:
+              type: object
+              properties:
+                codeEditorValue:
+                  type: object
+                  properties:
+                    value:
+                      type: string
+                    displayName:
+                      type: string
+                isAppMetrics:
+                  type: string
+                templateName:
+                  type: string
+                templateVersion:
+                  type: string
+        configMap:
+          type: object
+          properties:
+            childList:
+              type: array
+              items:
+                type: object
+                properties:
+                  componentName:
+                    type: string
+                  config:
+                    type: object
+                    properties:
+                      codeEditorValue:
+                        type: object
+                        properties:
+                          value:
+                            type: string
+                          displayName:
+                            type: string
+                      type:
+                        type: string
+                      external:
+                        type: string
+                      mountPath:
+                        type: string
+                      externalType:
+                        type: string
+                      roleARN:
+                        type: string
+                      subPath:
+                        type: string
+                      filePermission:
+                        type: string
+        secret:
+          type: object
+          properties:
+            childList:
+              type: array
+              items:
+                type: object
+                properties:
+                  componentName:
+                    type: string
+                  config:
+                    type: object
+                    properties:
+                      codeEditorValue:
+                        type: object
+                        properties:
+                          value:
+                            type: string
+                          displayName:
+                            type: string
+                      type:
+                        type: string
+                      external:
+                        type: string
+                      mountPath:
+                        type: string
+                      externalType:
+                        type: string
+                      roleARN:
+                        type: string
+                      subPath:
+                        type: string
+                      filePermission:
+                        type: string
+        pipelineStrategy:
+          type: object
+          properties:
+            config:
+              type: object
+              properties:
+                codeEditorValue:
+                  type: object
+                  properties:
+                    value:
+                      type: string
+                    displayName:
+                      type: string
+                pipelineTriggerType:
+                  type: string
+                strategy:
+                  type: string
+    Error:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message

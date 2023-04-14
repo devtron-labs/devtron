@@ -10,25 +10,29 @@ type BlobStorageRequest struct {
 }
 
 type BlobStorageS3Config struct {
-	AccessKey            string `json:"accessKey"`
-	Passkey              string `json:"passkey"`
-	EndpointUrl          string `json:"endpointUrl"`
-	IsInSecure           bool   `json:"isInSecure"`
-	CiLogBucketName      string `json:"ciLogBucketName"`
-	CiLogRegion          string `json:"ciLogRegion"`
-	CiCacheBucketName    string `json:"ciCacheBucketName"`
-	CiCacheRegion        string `json:"ciCacheRegion"`
-	CiArtifactBucketName string `json:"ciArtifactBucketName"`
-	CiArtifactRegion     string `json:"ciArtifactRegion"`
+	AccessKey                  string `json:"accessKey"`
+	Passkey                    string `json:"passkey"`
+	EndpointUrl                string `json:"endpointUrl"`
+	IsInSecure                 bool   `json:"isInSecure"`
+	CiLogBucketName            string `json:"ciLogBucketName"`
+	CiLogRegion                string `json:"ciLogRegion"`
+	CiLogBucketVersioning      bool   `json:"ciLogBucketVersioning"`
+	CiCacheBucketName          string `json:"ciCacheBucketName"`
+	CiCacheRegion              string `json:"ciCacheRegion"`
+	CiCacheBucketVersioning    bool   `json:"ciCacheBucketVersioning"`
+	CiArtifactBucketName       string `json:"ciArtifactBucketName"`
+	CiArtifactRegion           string `json:"ciArtifactRegion"`
+	CiArtifactBucketVersioning bool   `json:"ciArtifactBucketVersioning"`
 }
 
 type AwsS3BaseConfig struct {
-	AccessKey   string `json:"accessKey"`
-	Passkey     string `json:"passkey"`
-	EndpointUrl string `json:"endpointUrl"`
-	IsInSecure  bool   `json:"isInSecure"`
-	BucketName  string `json:"bucketName"`
-	Region      string `json:"region"`
+	AccessKey         string `json:"accessKey"`
+	Passkey           string `json:"passkey"`
+	EndpointUrl       string `json:"endpointUrl"`
+	IsInSecure        bool   `json:"isInSecure"`
+	BucketName        string `json:"bucketName"`
+	Region            string `json:"region"`
+	VersioningEnabled bool   `json:"versioningEnabled"`
 }
 
 type AzureBlobConfig struct {

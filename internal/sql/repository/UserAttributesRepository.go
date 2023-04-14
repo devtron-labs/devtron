@@ -43,6 +43,7 @@ type UserAttributesRepository interface {
 	AddUserAttribute(attrDto *UserAttributesDao) (*UserAttributesDao, error)
 	UpdateDataValByKey(attrDto *UserAttributesDao) error
 	GetDataValueByKey(attrDto *UserAttributesDao) (string, error)
+	GetUserDataByEmailId(emailId string) (string, error)
 }
 
 type UserAttributesRepositoryImpl struct {
@@ -114,4 +115,14 @@ func (repo UserAttributesRepositoryImpl) GetDataValueByKey(attrDto *UserAttribut
 		response = dataVal.(string)
 	}
 	return response, err
+}
+
+func (repo UserAttributesRepositoryImpl) GetUserDataByEmailId(emailId string) (string, error) {
+	model := &UserAttributes{}
+	err := repo.dbConnection.Model(model).Where("email_id = ?", emailId).
+		Select()
+	if err != nil {
+		return "", err
+	}
+	return model.UserData, err
 }

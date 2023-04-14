@@ -17,7 +17,9 @@ paths:
                   $ref: "#/components/schemas/ExternalLinkMonitoringTool"
   /orchestrator/external-link:
     get:
-      description: Get All active External links (If query parameter is not supplied then it will give all external links otherwise it will give externl links mapped to that cluster Id)
+      description: Get All active External links (If query parameter is not supplied
+        then it will give all external links otherwise it will give external links
+        mapped to that type and identifier)
       parameters:
         - in: query
           name: clusterId
@@ -27,6 +29,22 @@ paths:
           allowEmptyValue: false
           schema:
             type: number
+        - in: query
+          name: identifier
+          example: '1'
+          description: link type identifier
+          required: false
+          allowEmptyValue: false
+          schema:
+            type: string
+        - in: query
+          name: type
+          example: devtron-app
+          description: link type,only [devtron-app,devtron-installed-app,external-helm-app] allowed
+          required: false
+          allowEmptyValue: false
+          schema:
+            type: string
       responses:
         "200":
           description: Successfully fetched external links
@@ -104,8 +122,11 @@ components:
           example: "grafana"
         icon:
           type: string
-          description: icon of monitoring tool
-          example: "some url"
+          description: url of monitoring tool icon
+        category:
+          type: integer
+          description: category of monitoring tool
+          example: 1
     ExternalLink:
       type: object
       properties:
@@ -125,14 +146,23 @@ components:
           type: string
           description: url given to this external link
           example: "some url"
-        clusterIds:
+        type:
+          type: string
+          description: type of link (appLevel/clusterLevel)
+        identifiers:
           type: array
-          description: clusters to which this url is applied e.g 1,2,3
+          description: link identifiers to which this url is applied e.g {"type":"devtron-app","identifier":"1"}
           items:
-            type: integer
+            "$ref": "#/components/schemas/LinkIdentifier"
         updatedOn:
           type: string
           description: updated on
+        isEditable:
+          type: boolean
+          description: explains link is editable by app admin or not
+        description:
+          type: string
+          description: description about the external link
     ActionResponse:
       type: object
       properties:
@@ -140,3 +170,17 @@ components:
           type: boolean
           description: success or failure
           example: true
+    LinkIdentifier:
+      type: object
+      properties:
+        type:
+          type: string
+          description: type of link identifier[devtron-app,devtron-installed-app,external-helm-app,cluster]
+          example: cluster
+        identifier:
+          type: string
+          description: identifier for this type,(for cluster type this will be empty)
+          example: ''
+        clusterId:
+          type: integer
+          description: cluster-id for which you want to configure the app level external-link

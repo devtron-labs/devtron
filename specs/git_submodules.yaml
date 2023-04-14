@@ -335,6 +335,8 @@ components:
           type: string
         fetchSubmodules:
           type: boolean
+        isUsedInCiConfig:
+          type: boolean
     Error:
       required:
         - code

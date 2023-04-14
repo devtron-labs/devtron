@@ -21,6 +21,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"strconv"
 	"time"
 )
 
@@ -30,10 +31,11 @@ type AttributesService interface {
 	GetById(id int) (*AttributesDto, error)
 	GetActiveList() ([]*AttributesDto, error)
 	GetByKey(key string) (*AttributesDto, error)
+	UpdateKeyValueByOne(key string) error
 }
 
 const (
-	HostUrlKey string = "url"
+	HostUrlKey     string = "url"
 	API_SECRET_KEY string = "apiTokenSecret"
 )
 
@@ -195,4 +197,39 @@ func (impl AttributesServiceImpl) GetByKey(key string) (*AttributesDto, error) {
 		Value:  model.Value,
 	}
 	return dto, nil
+}
+
+func (impl AttributesServiceImpl) UpdateKeyValueByOne(key string) error {
+
+	model, err := impl.attributesRepository.FindByKey(key)
+
+	dbConnection := impl.attributesRepository.GetConnection()
+
+	tx, err := dbConnection.Begin()
+
+	defer tx.Rollback()
+
+	model.Key = key
+
+	if err != nil {
+		return err
+	}
+	if model.Value == "" {
+		model.Value = "1"
+		model.Active = true
+	} else {
+		newValue, _ := strconv.Atoi(model.Value)
+		model.Value = strconv.Itoa(newValue + 1)
+	}
+
+	err = impl.attributesRepository.Update(model, tx)
+
+	if err == pg.ErrNoRows {
+		_, err = impl.attributesRepository.Save(model, tx)
+	}
+
+	err = tx.Commit()
+
+	return err
+
 }

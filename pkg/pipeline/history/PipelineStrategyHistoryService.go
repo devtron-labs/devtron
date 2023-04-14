@@ -19,6 +19,7 @@ type PipelineStrategyHistoryService interface {
 	GetHistoryForDeployedStrategyById(id, pipelineId int) (*HistoryDetailDto, error)
 	CheckIfHistoryExistsForPipelineIdAndWfrId(pipelineId, wfrId int) (historyId int, exists bool, err error)
 	GetDeployedHistoryList(pipelineId, baseConfigId int) ([]*DeployedHistoryComponentMetadataDto, error)
+	GetLatestDeployedHistoryByPipelineIdAndWfrId(pipelineId, wfrId int) (*HistoryDetailDto, error)
 }
 
 type PipelineStrategyHistoryServiceImpl struct {
@@ -156,6 +157,28 @@ func (impl PipelineStrategyHistoryServiceImpl) GetHistoryForDeployedStrategyById
 	history, err := impl.pipelineStrategyHistoryRepository.GetHistoryForDeployedStrategyById(id, pipelineId)
 	if err != nil {
 		impl.logger.Errorw("error in getting history for strategy", "err", err, "id", id, "pipelineId", pipelineId)
+		return nil, err
+	}
+	historyDto := &HistoryDetailDto{
+		Strategy: string(history.Strategy),
+		CodeEditorValue: &HistoryDetailConfig{
+			DisplayName: "Strategy configuration",
+			Value:       history.Config,
+		},
+	}
+	if len(history.PipelineTriggerType) > 0 {
+		historyDto.PipelineTriggerType = history.PipelineTriggerType
+	}
+	return historyDto, nil
+}
+
+func (impl PipelineStrategyHistoryServiceImpl) GetLatestDeployedHistoryByPipelineIdAndWfrId(pipelineId, wfrId int) (*HistoryDetailDto, error) {
+	impl.logger.Debugw("received request, GetLatestDeployedHistoryByPipelineIdAndWfrId", "pipelineId", pipelineId, "wfrId", wfrId)
+
+	//checking if history exists for pipelineId and wfrId
+	history, err := impl.pipelineStrategyHistoryRepository.GetHistoryByPipelineIdAndWfrId(pipelineId, wfrId)
+	if err != nil {
+		impl.logger.Errorw("error in checking if history exists for pipelineId and wfrId", "err", err, "pipelineId", pipelineId, "wfrId", wfrId)
 		return nil, err
 	}
 	historyDto := &HistoryDetailDto{

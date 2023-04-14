@@ -1,30 +1,53 @@
+global:
+  podSecurityContext:
+    fsGroup: 1000
+    runAsGroup: 1000
+    runAsUser: 1000
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    runAsUser: 1000
+    runAsNonRoot: true
+
 installer:
-  release: "v0.5.2"
+  release: "v0.6.15"
   image: "quay.io/devtron/inception"
-  tag: "c62d4c30-185-9354"
+  tag: "44b30917-185-13275"
   
 components:
   dashboard:
-    image: "quay.io/devtron/dashboard:22b5e4e1-325-10252"
+    image: "quay.io/devtron/dashboard:28017af9-325-13418"
   devtron:
-    image: "quay.io/devtron/hyperion:e9175e98-282-10212"
-    cicdImage: "quay.io/devtron/devtron:e9175e98-4-10210"
+    image: "quay.io/devtron/hyperion:9f3934ee-280-13407"
+    cicdImage: "quay.io/devtron/devtron:9f3934ee-434-13409"
   argocdDexServer:
     image: "ghcr.io/dexidp/dex:v2.30.2"
     initContainer:
-      authenticator: "quay.io/devtron/authenticator:415f5470-279-6520"
-      cicdAuthenticator: "quay.io/argoproj/argocd:v2.4.0"
+      authenticator: "quay.io/devtron/authenticator:e414faff-393-13273"
   kubelink:
-    image: "quay.io/devtron/kubelink:59a0df88-318-9226"
+    image: "quay.io/devtron/kubelink:18bf720b-318-13404"
   postgres:
     image: "quay.io/devtron/postgres:11.9.0-debian-10-r26"
+    armImage: "quay.io/devtron/postgres:11.9"
   
   migrator:
-    image: "quay.io/devtron/migrator:9c933d29-149-10140"
+    image: "quay.io/devtron/migrator:ec1dcab8-149-13278"
     envVars:
       devtron:
         GIT_BRANCH: "main"
-        GIT_HASH: "e9175e9845c9ca8f6260ea58ce7ad22118244eac"
+        GIT_HASH: "9f3934ee51a1cfa1631f90bc6cc55a240aa98b07"
       casbin:
         GIT_BRANCH: "main"
-        GIT_HASH: "e9175e9845c9ca8f6260ea58ce7ad22118244eac"
+        GIT_HASH: "9f3934ee51a1cfa1631f90bc6cc55a240aa98b07"
+        
+argo-cd:
+  global:
+    image:
+      repository: quay.io/argoproj/argocd
+      tag: "v2.5.2"
+      imagePullPolicy: IfNotPresent
+
+security:
+  image: "quay.io/devtron/image-scanner:b7873c95-334-13266"
+
+notifier:
+  image: "quay.io/devtron/notifier:6c7a356a-372-11107"

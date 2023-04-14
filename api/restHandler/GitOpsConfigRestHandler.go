@@ -123,6 +123,15 @@ func (impl GitOpsConfigRestHandlerImpl) UpdateGitOpsConfig(w http.ResponseWriter
 	//RBAC enforcer Ends
 	var bean bean2.GitOpsConfigDto
 	err = decoder.Decode(&bean)
+	if bean.Token == "" {
+		res, err := impl.gitOpsConfigService.GetGitOpsConfigByProvider(bean.Provider)
+		if err != nil {
+			impl.logger.Errorw("service err, GetGitOpsConfigByProvider", "err", err, "provider", bean.Provider, "response", res)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		bean.Token = res.Token
+	}
 	if err != nil {
 		impl.logger.Errorw("request err, UpdateGitOpsConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -267,6 +276,15 @@ func (impl GitOpsConfigRestHandlerImpl) GitOpsValidator(w http.ResponseWriter, r
 	//RBAC enforcer Ends
 	var bean bean2.GitOpsConfigDto
 	err = decoder.Decode(&bean)
+	if bean.Token == "" {
+		res, err := impl.gitOpsConfigService.GetGitOpsConfigByProvider(bean.Provider)
+		if err != nil {
+			impl.logger.Errorw("service err, GetGitOpsConfigByProvider", "err", err, "provider", bean.Provider, "response", res)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		bean.Token = res.Token
+	}
 	if err != nil {
 		impl.logger.Errorw("request err, ValidateGitOpsConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)

@@ -123,7 +123,7 @@ func (impl ArgoK8sClientImpl) GetArgoApplication(namespace string, appName strin
 
 	config, err := rest.InClusterConfig()
 	if err != nil {
-		impl.logger.Errorw("error in config", "err", err)
+		impl.logger.Errorw("error in cluster config", "err", err)
 		return nil, err
 	}
 	config.GroupVersion = &schema.GroupVersion{Group: "argoproj.io", Version: "v1alpha1"}

@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/auth"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/ghodss/yaml"
@@ -43,17 +44,34 @@ type SSOLoginServiceImpl struct {
 	ssoLoginRepository  SSOLoginRepository
 	K8sUtil             *util.K8sUtil
 	devtronSecretConfig *util2.DevtronSecretConfig
+	userAuthOidcHelper  auth.UserAuthOidcHelper
+}
+
+type Configs struct {
+	Issuer        string   `json:"issuer"`
+	ClientID      string   `json:"clientID"`
+	ClientSecret  string   `json:"clientSecret"`
+	RedirectURI   string   `json:"redirectURI"`
+	HostedDomains []string `json:"hostedDomains"`
+}
+
+type Config struct {
+	Id     string  `json:"id"`
+	Type   string  `json:"type"`
+	Name   string  `json:"name"`
+	Config Configs `json:"config"`
 }
 
 func NewSSOLoginServiceImpl(
 	logger *zap.SugaredLogger,
 	ssoLoginRepository SSOLoginRepository,
-	K8sUtil *util.K8sUtil, devtronSecretConfig *util2.DevtronSecretConfig) *SSOLoginServiceImpl {
+	K8sUtil *util.K8sUtil, devtronSecretConfig *util2.DevtronSecretConfig, userAuthOidcHelper auth.UserAuthOidcHelper) *SSOLoginServiceImpl {
 	serviceImpl := &SSOLoginServiceImpl{
 		logger:              logger,
 		ssoLoginRepository:  ssoLoginRepository,
 		K8sUtil:             K8sUtil,
 		devtronSecretConfig: devtronSecretConfig,
+		userAuthOidcHelper:  userAuthOidcHelper,
 	}
 	return serviceImpl
 }
@@ -114,6 +132,10 @@ func (impl SSOLoginServiceImpl) CreateSSOLogin(request *bean.SSOLoginDto) (*bean
 	if err != nil {
 		return nil, err
 	}
+
+	// update in memory data on sso add-update
+	impl.userAuthOidcHelper.UpdateInMemoryDataOnSsoAddUpdate(request.Url)
+
 	return request, nil
 }
 
@@ -153,9 +175,22 @@ func (impl SSOLoginServiceImpl) UpdateSSOLogin(request *bean.SSOLoginDto) (*bean
 			}
 		}
 	}
+	configString := string(configDataByte)
+	var configData Config
+	err = json.Unmarshal([]byte(configString), &configData)
+	var modelConfigData Config
+	err = json.Unmarshal([]byte(model.Config), &modelConfigData)
+	if configData.Config.ClientID == "" {
+		configData.Config.ClientID = modelConfigData.Config.ClientID
+	}
+	if configData.Config.ClientSecret == "" {
+		configData.Config.ClientSecret = modelConfigData.Config.ClientSecret
+	}
+	newConfigString, _ := json.Marshal(configData)
+	updatedConfig := string(newConfigString)
 	model.Label = request.Label
 	model.Url = request.Url
-	model.Config = string(configDataByte)
+	model.Config = updatedConfig
 	model.Active = true
 	model.UpdatedBy = request.UserId
 	model.UpdatedOn = time.Now()
@@ -164,7 +199,7 @@ func (impl SSOLoginServiceImpl) UpdateSSOLogin(request *bean.SSOLoginDto) (*bean
 		impl.logger.Errorw("error in creating new sso login config", "error", err)
 		return nil, err
 	}
-
+	request.Config = newConfigString
 	_, err = impl.updateDexConfig(request)
 	if err != nil {
 		impl.logger.Errorw("error in creating new sso login config", "error", err)
@@ -175,6 +210,10 @@ func (impl SSOLoginServiceImpl) UpdateSSOLogin(request *bean.SSOLoginDto) (*bean
 	if err != nil {
 		return nil, err
 	}
+
+	// update in memory data on sso add-update
+	impl.userAuthOidcHelper.UpdateInMemoryDataOnSsoAddUpdate(request.Url)
+
 	return request, nil
 }
 
@@ -311,8 +350,13 @@ func (impl SSOLoginServiceImpl) GetByName(name string) (*bean.SSOLoginDto, error
 	if err == pg.ErrNoRows {
 		return nil, nil
 	}
+	var configData Config
+	err = json.Unmarshal([]byte(model.Config), &configData)
+	configData.Config.ClientID = ""
+	configData.Config.ClientSecret = ""
+	configString, _ := json.Marshal(configData)
 	var config json.RawMessage
-	err = json.Unmarshal([]byte(model.Config), &config)
+	err = json.Unmarshal(configString, &config)
 	if err != nil {
 		impl.logger.Warnw("error while Unmarshal", "error", err)
 	}

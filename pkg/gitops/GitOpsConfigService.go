@@ -41,11 +41,9 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
-	"github.com/ktrysmt/go-bitbucket"
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	"github.com/xanzy/go-gitlab"
 	"go.uber.org/zap"
@@ -104,7 +102,7 @@ type GitOpsConfigServiceImpl struct {
 	clusterServiceCD     cluster2.ServiceClient
 }
 
-func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger, ciHandler pipeline.CiHandler,
+func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger,
 	gitOpsRepository repository.GitOpsConfigRepository, K8sUtil *util.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig,
 	clusterService cluster.ClusterService, envService cluster.EnvironmentService, versionService argocdServer.VersionService,
 	gitFactory *util.GitFactory, chartTemplateService util.ChartTemplateService, argoUserService argo.ArgoUserService, clusterServiceCD cluster2.ServiceClient) *GitOpsConfigServiceImpl {
@@ -139,6 +137,18 @@ func (impl *GitOpsConfigServiceImpl) ValidateAndCreateGitOpsConfig(config *bean2
 	return detailedErrorGitOpsConfigResponse, nil
 }
 func (impl *GitOpsConfigServiceImpl) ValidateAndUpdateGitOpsConfig(config *bean2.GitOpsConfigDto) (DetailedErrorGitOpsConfigResponse, error) {
+	if config.Token == "" {
+		model, err := impl.gitOpsRepository.GetGitOpsConfigById(config.Id)
+		if err != nil {
+			impl.logger.Errorw("No matching entry found for update.", "id", config.Id)
+			err = &util.ApiError{
+				InternalMessage: "gitops config update failed, does not exist",
+				UserMessage:     "gitops config update failed, does not exist",
+			}
+			return DetailedErrorGitOpsConfigResponse{}, err
+		}
+		config.Token = model.Token
+	}
 	detailedErrorGitOpsConfigResponse := impl.GitOpsValidateDryRun(config)
 	if len(detailedErrorGitOpsConfigResponse.StageErrorMap) == 0 {
 		err := impl.UpdateGitOpsConfig(config)
@@ -230,7 +240,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(ctx context.Context, req
 	data["username"] = []byte(request.Username)
 	data["password"] = []byte(request.Token)
 	if secret == nil {
-		secret, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, data, GitOpsSecretName, client)
+		secret, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, data, GitOpsSecretName, "", client)
 		if err != nil {
 			impl.logger.Errorw("err on creating secret", "err", err)
 			return nil, err
@@ -440,7 +450,7 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *bean2.GitOpsCon
 	data["username"] = []byte(request.Username)
 	data["password"] = []byte(request.Token)
 	if secret == nil {
-		secret, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, data, GitOpsSecretName, client)
+		secret, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, data, GitOpsSecretName, "", client)
 		if err != nil {
 			impl.logger.Errorw("err on creating secret", "err", err)
 			return err
@@ -566,7 +576,7 @@ func (impl *GitOpsConfigServiceImpl) GetAllGitOpsConfig() ([]*bean2.GitOpsConfig
 			GitHubOrgId:          model.GitHubOrgId,
 			GitLabGroupId:        model.GitLabGroupId,
 			Username:             model.Username,
-			Token:                model.Token,
+			Token:                "",
 			Host:                 model.Host,
 			Active:               model.Active,
 			UserId:               model.CreatedBy,
@@ -683,6 +693,18 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigActive() (*bean2.GitOpsConfi
 }
 
 func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsConfigDto) DetailedErrorGitOpsConfigResponse {
+	if config.Token == "" {
+		model, err := impl.gitOpsRepository.GetGitOpsConfigById(config.Id)
+		if err != nil {
+			impl.logger.Errorw("No matching entry found for update.", "id", config.Id)
+			err = &util.ApiError{
+				InternalMessage: "gitops config update failed, does not exist",
+				UserMessage:     "gitops config update failed, does not exist",
+			}
+			return DetailedErrorGitOpsConfigResponse{}
+		}
+		config.Token = model.Token
+	}
 	detailedErrorGitOpsConfigActions := util.DetailedErrorGitOpsConfigActions{}
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 	/*if strings.ToUpper(config.Provider) == GITHUB_PROVIDER {
@@ -703,7 +725,9 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsCo
 	appName := DryrunRepoName + util2.Generate(6)
 	//getting user name & emailId for commit author data
 	userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(config.UserId)
-	repoUrl, _, detailedErrorCreateRepo := client.CreateRepository(appName, "sample dry-run repo", config.BitBucketWorkspaceId, config.BitBucketProjectKey, userName, userEmailId)
+	config.UserEmailId = userEmailId
+	config.GitRepoName = appName
+	repoUrl, _, detailedErrorCreateRepo := client.CreateRepository(config)
 
 	detailedErrorGitOpsConfigActions.StageErrorMap = detailedErrorCreateRepo.StageErrorMap
 	detailedErrorGitOpsConfigActions.SuccessfulStages = detailedErrorCreateRepo.SuccessfulStages
@@ -747,13 +771,8 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsCo
 	} else {
 		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CommitOnRestStage, PushStage)
 	}
-	repoOptions := &bitbucket.RepositoryOptions{
-		Owner:     config.BitBucketWorkspaceId,
-		RepoSlug:  appName,
-		IsPrivate: "true",
-		Project:   config.BitBucketProjectKey,
-	}
-	err = client.DeleteRepository(appName, config.Username, config.GitHubOrgId, config.AzureProjectName, repoOptions)
+
+	err = client.DeleteRepository(config)
 	if err != nil {
 		impl.logger.Errorw("error in deleting repo", "err", err)
 		//here below the assignment of delete is removed for making this stage optional, and it's failure not preventing it from saving/updating gitOps config

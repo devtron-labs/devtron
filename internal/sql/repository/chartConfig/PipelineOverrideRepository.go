@@ -27,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
+	"time"
 )
 
 type PipelineOverride struct {
@@ -38,6 +39,7 @@ type PipelineOverride struct {
 	PipelineMergedValues   string                `sql:"merged_values_yaml, notnull"` //merge of appOverride, envOverride, pipelineOverride
 	Status                 models.ChartStatus    `sql:"status,notnull"`              // new , deployment-in-progress, success, rollbacked
 	GitHash                string                `sql:"git_hash"`
+	CommitTime             time.Time             `sql:"commit_time,type:timestamptz"`
 	PipelineId             int                   `sql:"pipeline_id"`
 	CiArtifactId           int                   `sql:"ci_artifact_id"`
 	PipelineReleaseCounter int                   `sql:"pipeline_release_counter"` //built index
@@ -65,6 +67,8 @@ type PipelineOverrideRepository interface {
 	GetLatestReleaseByPipelineIds(pipelineIds []int) (pipelineOverrides []*PipelineOverride, err error)
 	GetLatestReleaseDeploymentType(pipelineIds []int) ([]*PipelineOverride, error)
 	FetchHelmTypePipelineOverridesForStatusUpdate() (pipelines []*PipelineOverride, err error)
+	FindLatestByAppIdAndEnvId(appId, environmentId int) (pipelineOverrides *PipelineOverride, err error)
+	FindLatestByCdWorkflowId(cdWorkflowId int) (pipelineOverride *PipelineOverride, err error)
 }
 
 type PipelineOverrideRepositoryImpl struct {
@@ -232,4 +236,28 @@ func (impl PipelineOverrideRepositoryImpl) FetchHelmTypePipelineOverridesForStat
 		Where("p.deleted = ?", false).
 		Select()
 	return pipelines, err
+}
+
+func (impl PipelineOverrideRepositoryImpl) FindLatestByAppIdAndEnvId(appId, environmentId int) (pipelineOverrides *PipelineOverride, err error) {
+	var override PipelineOverride
+	err = impl.dbConnection.Model(&override).
+		Column("pipeline_override.*", "Pipeline").
+		Join("inner join pipeline p on p.id = pipeline_override.pipeline_id").
+		Where("pipeline.app_id =? ", appId).
+		Where("pipeline.environment_id =?", environmentId).
+		Where("p.deployment_app_type = ?", util.PIPELINE_DEPLOYMENT_TYPE_ACD).
+		Where("p.deleted = ?", false).
+		Order("id DESC").Limit(1).
+		Select()
+	return &override, err
+}
+
+func (impl PipelineOverrideRepositoryImpl) FindLatestByCdWorkflowId(cdWorkflowId int) (*PipelineOverride, error) {
+	var override PipelineOverride
+	err := impl.dbConnection.Model(&override).
+		Column("pipeline_override.*", "Pipeline").
+		Where("cd_workflow_id=?", cdWorkflowId).
+		Order("id DESC").Limit(1).
+		Select()
+	return &override, err
 }

@@ -31,6 +31,7 @@ type AppLabel struct {
 	AppId     int      `sql:"app_id,notnull"`
 	Key       string   `sql:"key,notnull"`
 	Value     string   `sql:"value,notnull"`
+	Propagate bool     `sql:"propagate,notnull"`
 	App       app.App
 	sql.AuditLog
 }

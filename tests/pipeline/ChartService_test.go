@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/bulkUpdate"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/bulkAction"
 	"github.com/devtron-labs/devtron/pkg/chart"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	jsonpatch "github.com/evanphx/json-patch"
 	"io"
@@ -18,7 +18,7 @@ import (
 	"testing"
 )
 
-var bulkUpdateService *pipeline.BulkUpdateServiceImpl
+var bulkUpdateService *bulkAction.BulkUpdateServiceImpl
 var bulkUpdateRepository bulkUpdate.BulkUpdateRepositoryImpl
 
 func setup() {
@@ -26,7 +26,7 @@ func setup() {
 	logger, _ := util.NewSugardLogger()
 	dbConnection, _ := sql.NewDbConnection(config, logger)
 	bulkUpdateRepository := bulkUpdate.NewBulkUpdateRepository(dbConnection, logger)
-	bulkUpdateService = pipeline.NewBulkUpdateServiceImpl(bulkUpdateRepository, nil, nil, nil, nil, "",
+	bulkUpdateService = bulkAction.NewBulkUpdateServiceImpl(bulkUpdateRepository, nil, nil, nil, nil, "",
 		chart.DefaultChart(""), util.MergeUtil{}, nil, nil, nil, nil, nil,
 		nil, nil, nil, nil, nil)
 }
@@ -36,7 +36,7 @@ func TestBulkUpdateDeploymentTemplate(t *testing.T) {
 	type test struct {
 		ApiVersion string
 		Kind       string
-		Payload    *pipeline.BulkUpdatePayload
+		Payload    *bulkAction.BulkUpdatePayload
 		want       string
 	}
 	TestsCsvFile, err := os.Open("ChartService_test.csv")
@@ -65,14 +65,14 @@ func TestBulkUpdateDeploymentTemplate(t *testing.T) {
 		}
 		namesIncludes := strings.Fields(record[2])
 		namesExcludes := strings.Fields(record[3])
-		includes := &pipeline.NameIncludesExcludes{Names: namesIncludes}
-		excludes := &pipeline.NameIncludesExcludes{Names: namesExcludes}
-		spec := &pipeline.DeploymentTemplateSpec{
+		includes := &bulkAction.NameIncludesExcludes{Names: namesIncludes}
+		excludes := &bulkAction.NameIncludesExcludes{Names: namesExcludes}
+		spec := &bulkAction.DeploymentTemplateSpec{
 			PatchJson: record[6]}
-		task := &pipeline.DeploymentTemplateTask{
+		task := &bulkAction.DeploymentTemplateTask{
 			Spec: spec,
 		}
-		payload := &pipeline.BulkUpdatePayload{
+		payload := &bulkAction.BulkUpdatePayload{
 			Includes:           includes,
 			Excludes:           excludes,
 			EnvIds:             envId,

@@ -8,5 +8,5 @@ _**Welcome, this document consists of Devtron Use Cases**_
 
 [Connect Expressjs With Mongodb Database](connect-expressjs-with-mongodb-database.md)
 
-[Connect Django With Mysql Database](untitled-3.md)
+[Connect Django With Mysql Database](/connect-django-with-mysql-database.md)
 

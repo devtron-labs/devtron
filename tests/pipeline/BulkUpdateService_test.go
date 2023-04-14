@@ -4,7 +4,7 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/bulkAction"
 	"io"
 	"log"
 	"os"
@@ -18,7 +18,7 @@ func TestBulkUpdate(t *testing.T) {
 	type test struct {
 		ApiVersion             string
 		Kind                   string
-		Payload                *pipeline.BulkUpdatePayload
+		Payload                *bulkAction.BulkUpdatePayload
 		deploymentTemplateWant string
 		configMapWant          string
 		secretWant             string
@@ -49,28 +49,28 @@ func TestBulkUpdate(t *testing.T) {
 		}
 		namesIncludes := strings.Fields(record[2])
 		namesExcludes := strings.Fields(record[3])
-		includes := &pipeline.NameIncludesExcludes{Names: namesIncludes}
-		excludes := &pipeline.NameIncludesExcludes{Names: namesExcludes}
-		deploymentTemplateSpec := &pipeline.DeploymentTemplateSpec{
+		includes := &bulkAction.NameIncludesExcludes{Names: namesIncludes}
+		excludes := &bulkAction.NameIncludesExcludes{Names: namesExcludes}
+		deploymentTemplateSpec := &bulkAction.DeploymentTemplateSpec{
 			PatchJson: record[6]}
-		deploymentTemplateTask := &pipeline.DeploymentTemplateTask{
+		deploymentTemplateTask := &bulkAction.DeploymentTemplateTask{
 			Spec: deploymentTemplateSpec,
 		}
-		configMapSpec := &pipeline.CmAndSecretSpec{
+		configMapSpec := &bulkAction.CmAndSecretSpec{
 			Names:     strings.Fields(record[7]),
 			PatchJson: record[8],
 		}
-		configMapTask := &pipeline.CmAndSecretTask{
+		configMapTask := &bulkAction.CmAndSecretTask{
 			Spec: configMapSpec,
 		}
-		secretSpec := &pipeline.CmAndSecretSpec{
+		secretSpec := &bulkAction.CmAndSecretSpec{
 			Names:     strings.Fields(record[9]),
 			PatchJson: record[10],
 		}
-		secretTask := &pipeline.CmAndSecretTask{
+		secretTask := &bulkAction.CmAndSecretTask{
 			Spec: secretSpec,
 		}
-		payload := &pipeline.BulkUpdatePayload{
+		payload := &bulkAction.BulkUpdatePayload{
 			Includes:           includes,
 			Excludes:           excludes,
 			EnvIds:             envId,

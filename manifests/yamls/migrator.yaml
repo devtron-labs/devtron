@@ -14,12 +14,19 @@ kind: Job
 metadata:
   name: postgresql-migrate-devtron
 spec:
-  ttlSecondsAfterFinished: 1000
   template:
     spec:
+      securityContext:
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsUser: 1000
       containers:
       - name: postgresql-migrate-devtron
-        image: quay.io/devtron/migrator:9c933d29-149-10140
+        image: quay.io/devtron/migrator:ec1dcab8-149-13278
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsUser: 1000
+          runAsNonRoot: true
         env:
         - name: GIT_BRANCH
           value: main
@@ -40,7 +47,7 @@ spec:
         - name: MIGRATE_TO_VERSION
           value: "0"
         - name: GIT_HASH
-          value: 588ebc7d5408069e994b239dfba2553fc283a91f
+          value: 9f3934ee51a1cfa1631f90bc6cc55a240aa98b07
         envFrom:
           - secretRef:
               name: postgresql-migrator
@@ -55,6 +62,10 @@ metadata:
 spec:
   template:
     spec:
+      securityContext:
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsUser: 1000
       serviceAccountName: devtron
       containers:
       - name: devtron-rollout
@@ -62,7 +73,11 @@ spec:
         command: ['sh', '-c', 'kubectl rollout restart deployment/devtron -n devtroncd']
       initContainers:
       - name: postgresql-migrate-casbin
-        image: quay.io/devtron/migrator:9c933d29-149-10140
+        image: quay.io/devtron/migrator:ec1dcab8-149-13278
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsUser: 1000
+          runAsNonRoot: true
         env:
         - name: SCRIPT_LOCATION
           value: scripts/casbin/
@@ -81,7 +96,7 @@ spec:
         - name: MIGRATE_TO_VERSION
           value: "0"
         - name: GIT_HASH
-          value: 588ebc7d5408069e994b239dfba2553fc283a91f
+          value: 9f3934ee51a1cfa1631f90bc6cc55a240aa98b07
         - name: GIT_BRANCH
           value: main
         envFrom:
@@ -102,9 +117,17 @@ metadata:
 spec:
   template:
     spec:
+      securityContext:
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsUser: 1000
       containers:
       - name: postgresql-migrate-gitsensor
-        image: quay.io/devtron/migrator:9c933d29-149-10140
+        image: quay.io/devtron/migrator:ec1dcab8-149-13278
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsUser: 1000
+          runAsNonRoot: true
         env:
         - name: SCRIPT_LOCATION
           value: scripts/sql/
@@ -125,7 +148,7 @@ spec:
         - name: GIT_BRANCH
           value: main
         - name: GIT_HASH
-          value: 56168e03a472401fb4f8cda8f9a5664708409c55
+          value: e5e66474064b6ffb7f8210004b59dd9316ea1e0d
         envFrom:
           - secretRef:
               name: postgresql-migrator
@@ -140,9 +163,17 @@ metadata:
 spec:
   template:
     spec:
+      securityContext:
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsUser: 1000
       containers:
       - name: postgresql-migrate-lens
-        image: quay.io/devtron/migrator:9c933d29-149-10140
+        image: quay.io/devtron/migrator:ec1dcab8-149-13278
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsUser: 1000
+          runAsNonRoot: true
         env:
         - name: SCRIPT_LOCATION
           value: scripts/sql/
@@ -163,7 +194,7 @@ spec:
         - name: GIT_BRANCH
           value: main
         - name: GIT_HASH
-          value: c20fad054db2de04547cce65dbb74ccb61bfd76f
+          value: f71dba2a1da52949b5fdc68c32b090366089d47c
         envFrom:
           - secretRef:
               name: postgresql-migrator
@@ -182,9 +213,17 @@ spec:
   ttlSecondsAfterFinished: 1000
   template:
     spec:
+      securityContext:
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsUser: 1000
       containers:
       - name: postgresql-miscellaneous
-        image: quay.io/devtron/postgres:11.9.0-debian-10-r26
+        image: quay.io/devtron/postgres:11.9
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsUser: 1000
+          runAsNonRoot: true
         env:
         - name: PGPASSWORD
           valueFrom:
@@ -220,7 +259,7 @@ spec:
         spec:
           containers:
           - name: chart-sync
-            image: quay.io/devtron/chart-sync:57e17953-373-10147
+            image: quay.io/devtron/chart-sync:6bdaa674-150-13276
             env:
             - name: PG_ADDR
               value: postgresql-postgresql.devtroncd

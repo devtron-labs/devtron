@@ -121,7 +121,11 @@ func (impl *ModuleCacheServiceImpl) buildInformerToListenOnInstallerObject() {
 		log.Fatalln("not able to get k8s cluster rest config.", "error", err)
 	}
 
-	clusterClient, err := dynamic.NewForConfig(clusterConfig)
+	k8sHttpClient, err := util.OverrideK8sHttpClientWithTracer(clusterConfig)
+	if err != nil {
+		log.Fatalln("not able to get k8s http client from rest config.", "error", err)
+	}
+	clusterClient, err := dynamic.NewForConfigAndClient(clusterConfig, k8sHttpClient)
 	if err != nil {
 		log.Fatalln("not able to get config from rest config.", "error", err)
 	}

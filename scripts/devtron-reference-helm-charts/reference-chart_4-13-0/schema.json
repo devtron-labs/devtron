@@ -264,6 +264,32 @@
           }
         }
       },
+      "hostAliases":{
+        "type": "array",
+        "title": "hostAliases",
+        "description": "HostAlias holds the mapping between IP and hostnames that will be injected as an entry in the pod's hosts file",
+        "items": [
+          {
+            "type": "object",
+            "properties": {
+              "ip":{
+                "type": "string",
+                "title": "IP",
+                "description": "IP address of the host file entry"
+              },
+              "hostnames":{
+                "type": "array",
+                "description": "Hostnames for the above IP address",
+                "items": [
+                  {
+                    "type": "string"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },      
       "autoscaling": {
         "type": "object",
         "description": "connected to HPA and controls scaling up and down in response to request load",
@@ -299,6 +325,16 @@
             "description": "used for enabling/disabling autoscaling",
             "title": "Enabled"
           },
+          "labels": {
+            "type": "object",
+            "description": "labels for HPA",
+            "title": "labels"
+          },
+          "annotations": {
+            "type": "object",
+            "description": "used to configure some options for HPA",
+            "title": "annotations"
+          },                  
           "extraMetrics": {
             "type": "array",
             "items": {},
@@ -321,7 +357,13 @@
             "items": {},
             "description": "contains the commands",
             "title": "Value"
-          }
+          },
+          "workingDir": {
+            "type": "object",
+            "items": {},
+            "description": "contains the working directory",
+            "title": "Working directory"
+          }                    
         }
       },
       "containerSecurityContext": {
@@ -442,6 +484,12 @@
             "title": "Ingress class name",
             "default": "nginx"
           },
+          "labels": {
+            "type": "object",
+            "description": "labels for ingress",
+            "title": "Ingress labels",
+            "default": ""
+          },           
           "enabled": {
             "type": "boolean",
             "description": "used to enable or disable ingress",

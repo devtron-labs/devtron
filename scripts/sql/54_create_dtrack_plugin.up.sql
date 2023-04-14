@@ -179,7 +179,7 @@ VALUES ((nextval('id_seq_plugin_step_variable')), (select currval('id_seq_plugin
 
 INSERT INTO "public"."plugin_metadata" ("id", "name", "description", "type", "icon", "deleted", "created_on",
                                         "created_by", "updated_on", "updated_by")
-VALUES (nextval('id_seq_plugin_metadata'), 'Dependency track for Maven & Gradle)',
+VALUES (nextval('id_seq_plugin_metadata'), 'Dependency track for Maven & Gradle',
         'Creates a bill of materials from Maven/Gradle projects and environments and uploads it to D-track for Component Analysis, to identify and reduce risk in the software supply chain.',
         'PRESET',
         'https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/dTrack-plugin-icon.png', 'f', 'now()', '1',
@@ -233,7 +233,7 @@ fi', 'SHELL', 'f', 'now()', '1', 'now()', '1');
 INSERT INTO "public"."plugin_step" ("id", "plugin_id", "name", "description", "index", "step_type", "script_id",
                                     "deleted", "created_on", "created_by", "updated_on", "updated_by")
 VALUES ((nextval('id_seq_plugin_step')), (select currval('id_seq_plugin_metadata')), 'Step 1',
-        'Step 1 for Dependency Track for Maven & Gradle)', '1', 'INLINE',
+        'Step 1 for Dependency Track for Maven & Gradle', '1', 'INLINE',
         (select currval('id_seq_plugin_pipeline_script')),
         'f',
         'now()', '1', 'now()', '1');

@@ -1,7 +1,8 @@
+Please wait for ~1 minute before running any of the following commands.
 
 1. Run the following command to get the password for the default admin user:
 
-   kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
+   kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ADMIN_PASSWORD}' | base64 -d
 
 {{- if $.Values.components }}
 {{- if $.Values.components.devtron }}
@@ -48,6 +49,9 @@
 3. To track the progress of Devtron microservices installation, run the following command:
 
    kubectl -n devtroncd get installers installer-devtron -o jsonpath='{.status.sync.status}'
+   
+   After running this command, if you get the results as:
+   1. "Downloaded" means installation in progress. But you can still start exploring Devtron
+   2. "Applied" means installation is successful.
 
 {{- end }}
-

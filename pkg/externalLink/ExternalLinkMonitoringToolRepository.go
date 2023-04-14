@@ -27,6 +27,7 @@ type ExternalLinkMonitoringTool struct {
 	Id        int      `sql:"id,pk"`
 	Name      string   `sql:"name,notnull"`
 	Icon      string   `sql:"icon,notnull"`
+	Category  int      `sql:"category"`
 	Active    bool     `sql:"active,notnull"`
 	sql.AuditLog
 }

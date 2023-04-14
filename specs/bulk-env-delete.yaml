@@ -1,0 +1,140 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Devtron Labs
+paths:
+  /orchestrtor/batch/v1beta1/cd-pipeline:
+    post:
+      description: perform bulk actions on cd pipelines
+      parameters:
+        - name: forceDelete
+          in: query
+          required: true
+          schema:
+            type: boolean
+        - name: dryRun
+          in: query
+          required: true
+          schema:
+            type: boolean
+      requestBody:
+        description: A JSON object containing the bulk action configuration
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CdPipelineBulkActionDto'
+      responses:
+        '200':
+          description: Successfully return a object containing information for all impacted objects
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CdPipelineImpactedObjectDto'
+        '400':
+          description: Bad Request. Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+# components mentioned below
+components:
+  schemas:
+    CdPipelineBulkActionDto:
+      type: object
+      properties:
+        action:
+          type: integer
+          description: action id (iota constant). for now will only support delete environment
+        envIds:
+          type: array
+          items:
+            type: integer
+          description: ids of all environments whose pipelines are to be included in action
+        envNames:
+          type: array
+          items:
+            type: integer
+          description: names of all environments whose pipelines are to be included in action
+        appIds:
+          type: array
+          items:
+            type: integer
+          description: ids of all apps for which the environment is to be included
+        appNames:
+          type: array
+          items:
+            type: integer
+          description: names of all apps for which the environment is to be included
+        projectIds:
+          type: array
+          items:
+            type: integer
+          description: ids of all projects for which the environment is to be included
+        projectNames:
+          type: array
+          items:
+            type: integer
+          description: names of all projects for which the environment is to be included
+    CdPipelineImpactedObjectDto:
+      type: object
+      properties:
+        pipelineName:
+          type: integer
+        environmentName:
+          type: string
+        appName:
+          type: string
+        projectName:
+          type: string
+    ErrorResponse:
+      required:
+        - code
+        - status
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        status:
+          type: string
+          description: Error message
+        errors:
+          type: array
+          description: errors
+          items:
+            $ref: '#/components/schemas/Error'
+    Error:
+      required:
+        - code
+        - status
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error internal code
+        internalMessage:
+          type: string
+          description: Error internal message
+        userMessage:
+          type: string
+          description: Error user message

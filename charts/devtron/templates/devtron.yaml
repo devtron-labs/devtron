@@ -18,6 +18,46 @@ data:
   PG_DATABASE: orchestrator
   DEX_HOST: http://argocd-dex-server.devtroncd
   DEX_PORT: "5556"
+  APP_SYNC_IMAGE: "quay.io/devtron/chart-sync:07ac8fd7-150-11120"
+{{- if $.Values.installer.modules }}
+{{- if has "cicd" $.Values.installer.modules }}
+{{- if $.Values.configs }}
+{{- if or ($.Values.minio.enabled) ($.Values.configs.BLOB_STORAGE_PROVIDER) }}
+  BLOB_STORAGE_ENABLED: "true"
+{{- end }}
+{{ toYaml $.Values.configs | indent 2 }}
+{{- if and ($.Values.minio.enabled) (not $.Values.configs.BLOB_STORAGE_PROVIDER) }}
+  BLOB_STORAGE_PROVIDER: "S3"
+  BLOB_STORAGE_S3_ENDPOINT: "http://devtron-minio.devtroncd:9000"
+  BLOB_STORAGE_S3_ENDPOINT_INSECURE: "true"
+  DEFAULT_BUILD_LOGS_BUCKET: "devtron-ci-log"
+  DEFAULT_CACHE_BUCKET: "devtron-ci-cache"
+{{- if lt ($.Values.minio.replicaCount | int) 4 }}
+  BLOB_STORAGE_S3_BUCKET_VERSIONED: "false"
+{{- else }}
+  BLOB_STORAGE_S3_BUCKET_VERSIONED: "true"
+{{- end }}
+{{- end }}
+{{- if or ($.Values.minio.enabled) (eq $.Values.configs.BLOB_STORAGE_PROVIDER "AZURE") }}
+  DEFAULT_CACHE_BUCKET_REGION: "us-west-2"
+  DEFAULT_CD_LOGS_BUCKET_REGION: "us-west-2"
+{{- end }}
+{{- if and (eq $.Values.configs.BLOB_STORAGE_PROVIDER "S3") (not $.Values.configs.BLOB_STORAGE_S3_ENDPOINT) }}
+  BLOB_STORAGE_S3_ENDPOINT: ""
+{{- end }}
+{{- if $.Values.configs.BLOB_STORAGE_PROVIDER }}
+  BLOB_STORAGE_S3_BUCKET_VERSIONED: "true"
+{{- end }}
+{{- if $.Values.monitoring }}
+{{- if $.Values.monitoring.grafana }}
+{{- if $.Values.monitoring.grafana.enabled }}
+  GRAFANA_URL: "http://%s:%s@devtron-grafana.devtroncd/grafana"
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -47,12 +87,7 @@ spec:
       app: devtron
       release: devtron
   replicas: 1
-  {{- if $.Release.IsUpgrade }}
-  minReadySeconds: 700
-  progressDeadlineSeconds: 800
-  {{- else }}
   minReadySeconds: 60
-  {{- end }}
   template:
     metadata:
       labels:
@@ -62,20 +97,26 @@ spec:
       terminationGracePeriodSeconds: 30
       restartPolicy: Always
       serviceAccountName: devtron
+      {{- if and $.Values.global $.Values.global.podSecurityContext }}
+      securityContext:
+{{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
+      {{- end }}
       containers:
         - name: devtron
           {{- if $.Values.installer.modules }}
-          {{ range $.Values.installer.modules }}
-          {{- if and (eq . "cicd") ($.Release.IsUpgrade) }}
+          {{- if and (has "cicd" $.Values.installer.modules) ($.Release.IsUpgrade) }}
           image: {{ $.Values.components.devtron.cicdImage }}
           {{- else }}
           image: {{ $.Values.components.devtron.image }}
-          {{- end }}
           {{- end }}
           {{- else }}
           image: {{ $.Values.components.devtron.image }}
           {{- end }}
           imagePullPolicy: {{ .imagePullPolicy }}
+          {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+          securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
+          {{- end }}
           lifecycle:
             preStop:
               exec:
@@ -102,6 +143,12 @@ spec:
               name: "devtron-secret"
           - configMapRef:
               name: "devtron-custom-cm"
+          - secretRef:
+              name: "devtron-custom-secret"
+          {{- if .resources }}   
+          resources:
+          {{- toYaml .resources | nindent 12 }}
+          {{- end }}
   revisionHistoryLimit: 3
 ---
 {{- if .serviceMonitor.enabled }}

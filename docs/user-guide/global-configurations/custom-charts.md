@@ -1,4 +1,4 @@
-# Custom charts
+# Custom Charts
 
 Devtron includes predefined helm charts that cover the majority of use cases.
 For any use case not addressed by the default helm charts, you can upload your own helm chart and use it as a custom chart in Devtron.
@@ -13,29 +13,33 @@ For any use case not addressed by the default helm charts, you can upload your o
 ## Prerequisites
 
 1. A valid helm chart, which contains `Chart.yaml` file with name and version fields.
-2. Image descriptor template file - `.image_descriptor_template.json`.
+2. Image descriptor template file `.image_descriptor_template.json`.
 3. Custom chart packaged in the `*.tgz` format.
 
 ### 1. How to create a helm chart
 
-`Chart.yaml` is the metadata file that gets created when you create a [helm chart](https://helm.sh/docs/helm/helm_create/).
+You can use the following command to create the Helm chart:
 
 ```bash
 helm create my-custom-chart
 ```
 
+>Note: `Chart.yaml` is the metadata file that gets created when you create a [helm chart](https://helm.sh/docs/helm/helm_create/).
+
 | Field | Description |
 | --- | --- |
-| Name | Required. Name of the helm chart. |
-| Version | Required. This is the chart version. Update this value for each new version of the chart. |
-| Description | Optional. Description of the chart. |
+| `Name` | Name of the helm chart (Required). |
+| `Version` | This is the chart version. Update this value for each new version of the chart (Required). |
+| `Description` | Description of the chart (Optional). |
+
+Please see the following example:
 
 ![Chart.yaml file](https://devtron-public-asset.s3.us-east-2.amazonaws.com/custom-charts/chart-yaml-file.png)
 
-### 2. Create the image descriptor template file - `.image_descriptor_template.json`
+### 2. Create the image descriptor template file `.image_descriptor_template.json`
 
 It's a GO template file that should produce a valid `JSON` file upon rendering. This file is passed as the last argument in
-`helm install -f myvalues.yaml -f override.yaml ` command.
+`helm install -f myvalues.yaml -f override.yaml` command.
 
 Place the `.image_descriptor_template.json` file in the root directory of your chart.
 
@@ -47,19 +51,16 @@ You can use the following variables in the helm template (all the placeholders a
 {
     "server": {
         "deployment": {
-            "image_tag": "{{.Tag}}"
+            "image_tag": "{{.Tag}}",
             "image": "{{.Name}}"
         }
     },
     "pipelineName": "{{.PipelineName}}",
     "releaseVersion": "{{.ReleaseVersion}}",
-    "deploymentType": "{{.DeploymentType}}", ?
+    "deploymentType": "{{.DeploymentType}}",
     "app": "{{.App}}",
     "env": "{{.Env}}",
-    "appMetrics": {
-        {.AppMetrics
-        }
-    }
+    "appMetrics": "{{.AppMetrics}}"
 }
 ```
 
@@ -90,7 +91,7 @@ You can use the following variables in the helm template (all the placeholders a
 
 > Before you begin, ensure that your helm chart includes both `Chart.yaml` (with `name` and `version` fields) and `.image_descriptor_template.json` files.
 
-The helm chart to be uploaded must be packaged as a versioned archive file in the format - `<helm-chart-name>-vx.x.x.tgz`.
+The helm chart to be uploaded must be packaged as a versioned archive file in the format `<helm-chart-name>-vx.x.x.tgz`.
 
 ```
 helm package my-custom-chart
@@ -104,7 +105,7 @@ The above command will create a `my-custom-chart-0.1.0.tgz` file.
 
 * On the Devtron dashboard, select **Global Configurations > Custom charts**.
 * Select **Import Chart**.
-* Choose **Select tar.gz file...** and upload the packaged custom chart in the `*.tgz` format.
+* **Select tar.gz file...** and upload the packaged custom chart in the `*.tgz` format.
 
 ![Selecting custom chart](https://devtron-public-asset.s3.us-east-2.amazonaws.com/custom-charts/Chart+pre-requisites.png)
 
@@ -117,8 +118,12 @@ The chart is being uploaded and validated. You may also **Cancel upload** if req
 The uploaded archive will be validated against:
 
 - Supported archive template should be in `*.tgz` format.
+- Content of `values.yaml` should be there in `app-values.yaml` file.
+- `release-values.yaml` file is required.
+- ConfigMap/Secret template should be same as that of our [reference chart](https://github.com/devtron-labs/devtron/tree/main/scripts/devtron-reference-helm-charts/reference-chart_4-14-0).
 - `Chart.yaml` must include the name and the version number.
-- `image_descriptor_template.json` file should be present and the field format must match the format listed in the image builder template section.
+- `..image_descriptor_template.json` file should be present and the field format must match the format listed in the image builder template section.
+
 
 The following are the validation results:
 

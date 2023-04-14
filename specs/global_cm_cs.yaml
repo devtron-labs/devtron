@@ -1,0 +1,74 @@
+openapi: "3.0.0"
+info:
+  title: Global CM/CS support
+  version: "1.0"
+paths:
+  /orchestrator/global/cm-cs:
+    post:
+      description: save a configmap/secret
+      operationId: CreateGlobalCMCSConfig
+      responses:
+        '200':
+          description: Successfully create given config
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GlobalCMCSDto'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    GlobalCMCSDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: not needed in payload
+        name:
+          type: string
+        mountPath:
+          type: string
+        configType:
+          type: string
+          example:
+            - "CONFIGMAP"
+            - "SECRET"
+        type:
+          type: string
+          example:
+            - "environment"
+            - "volume"
+        data:
+          type: object
+          additionalProperties:
+            type: string
+    Error:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        message:
+          type: string
+          description: Error message

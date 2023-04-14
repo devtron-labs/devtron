@@ -49,4 +49,8 @@ const (
 	ActionTrigger   = "trigger"
 	ActionNotify    = "notify"
 	ActionExec      = "exec"
+
+	ClusterResourceRegex         = "%s/%s"    // {cluster}/{namespace}
+	ClusterObjectRegex           = "%s/%s/%s" // {groupName}/{kindName}/{objectName}
+	ClusterEmptyGroupPlaceholder = "k8sempty"
 )

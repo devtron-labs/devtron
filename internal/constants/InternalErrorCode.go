@@ -82,3 +82,4 @@ const (
 )
 
 var AppAlreadyExists = &ErrorCode{"4001", "application %s already exists"}
+var AppDoesNotExist = &ErrorCode{"4004", "application %s does not exist"}

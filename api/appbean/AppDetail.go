@@ -1,7 +1,10 @@
 package appbean
 
 import (
+	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 )
 
 type AppDetail struct {
@@ -15,6 +18,13 @@ type AppDetail struct {
 	EnvironmentOverrides     map[string]*EnvironmentOverride `json:"environmentOverride"`
 }
 
+type AppWorkflowCloneDto struct {
+	AppId                int                             `json:"appId"`
+	AppName              string                          `json:"appName"`
+	AppWorkflows         []*AppWorkflow                  `json:"workflows"`
+	EnvironmentOverrides map[string]*EnvironmentOverride `json:"environmentOverride"`
+}
+
 type AppMetadata struct {
 	AppName     string      `json:"appName" validate:"required"`
 	ProjectName string      `json:"projectName" validate:"required"`
@@ -22,8 +32,9 @@ type AppMetadata struct {
 }
 
 type AppLabel struct {
-	Key   string `json:"key,notnull" validate:"required"`
-	Value string `json:"value,notnull" validate:"required"`
+	Key       string `json:"key,notnull" validate:"required"`
+	Value     string `json:"value,notnull"` // intentionally not added required tag as tag can be added without value
+	Propagate bool   `json:"propagate"`
 }
 
 type GitMaterial struct {
@@ -34,9 +45,11 @@ type GitMaterial struct {
 }
 
 type DockerConfig struct {
-	DockerRegistry   string             `json:"dockerRegistry" validate:"required"`
-	DockerRepository string             `json:"dockerRepository" validate:"required"`
-	BuildConfig      *DockerBuildConfig `json:"dockerBuildConfig"`
+	DockerRegistry    string                  `json:"dockerRegistry" validate:"required"`
+	DockerRepository  string                  `json:"dockerRepository" validate:"required"`
+	CiBuildConfig     *bean.CiBuildConfigBean `json:"ciBuildConfig"`
+	DockerBuildConfig *DockerBuildConfig      `json:"dockerBuildConfig,omitempty"` // Deprecated, should use CiBuildConfig for development
+	CheckoutPath      string                  `json:"checkoutPath"`
 }
 
 type DockerBuildConfig struct {
@@ -44,13 +57,16 @@ type DockerBuildConfig struct {
 	DockerfileRelativePath string            `json:"dockerfileRelativePath,omitempty" validate:"required"`
 	Args                   map[string]string `json:"args,omitempty"`
 	TargetPlatform         string            `json:"targetPlatform"`
+	DockerBuildOptions     map[string]string `json:"dockerBuildOptions,omitempty"`
 }
 
 type DeploymentTemplate struct {
-	ChartRefId     int                    `json:"chartRefId,notnull" validate:"required"`
-	Template       map[string]interface{} `json:"template,notnull" validate:"required"`
-	ShowAppMetrics bool                   `json:"showAppMetrics"`
-	IsOverride     bool                   `json:"isOverride"`
+	ChartRefId        int                         `json:"chartRefId,notnull" validate:"required"`
+	Template          map[string]interface{}      `json:"template,notnull" validate:"required"`
+	ShowAppMetrics    bool                        `json:"showAppMetrics"`
+	IsOverride        bool                        `json:"isOverride"`
+	IsBasicViewLocked bool                        `json:"isBasicViewLocked"`
+	CurrentViewEditor models.ChartsViewEditorType `json:"currentViewEditor"` //default "UNDEFINED" in db
 }
 
 type AppWorkflow struct {
@@ -67,13 +83,19 @@ type CiPipelineDetails struct {
 	BeforeDockerBuildScripts  []*BuildScript              `json:"beforeDockerBuildScripts"`
 	AfterDockerBuildScripts   []*BuildScript              `json:"afterDockerBuildScripts"`
 	VulnerabilityScanEnabled  bool                        `json:"vulnerabilitiesScanEnabled"`
+	PreBuildStage             *bean.PipelineStageDto      `json:"preBuildStage,omitempty"`
+	PostBuildStage            *bean.PipelineStageDto      `json:"postBuildStage,omitempty"`
 	IsExternal                bool                        `json:"isExternal"` // true for linked and external
+	ParentCiPipeline          int                         `json:"parentCiPipeline,omitempty"`
+	ParentAppId               int                         `json:"parentAppId,omitempty"`
+	LinkedCount               int                         `json:"linkedCount,omitempty"`
 }
 
 type CiPipelineMaterialConfig struct {
-	Type         pipelineConfig.SourceType `json:"type,omitempty" validate:"oneof=SOURCE_TYPE_BRANCH_FIXED WEBHOOK"`
-	Value        string                    `json:"value,omitempty" `
-	CheckoutPath string                    `json:"checkoutPath"`
+	Type          pipelineConfig.SourceType `json:"type,omitempty" validate:"oneof=SOURCE_TYPE_BRANCH_FIXED WEBHOOK"`
+	Value         string                    `json:"value,omitempty" `
+	CheckoutPath  string                    `json:"checkoutPath"`
+	GitMaterialId int                       `json:"gitMaterialId"`
 }
 
 type BuildScript struct {
@@ -84,24 +106,25 @@ type BuildScript struct {
 }
 
 type CdPipelineDetails struct {
-	Name                          string                            `json:"name"` //pipelineName
-	EnvironmentName               string                            `json:"environmentName" `
-	TriggerType                   pipelineConfig.TriggerType        `json:"triggerType" validate:"required"`
-	DeploymentType                pipelineConfig.DeploymentTemplate `json:"deploymentType,omitempty" validate:"oneof=BLUE-GREEN ROLLING CANARY RECREATE"` //
-	DeploymentStrategies          []*DeploymentStrategy             `json:"deploymentStrategies"`
-	PreStage                      *CdStage                          `json:"preStage"`
-	PostStage                     *CdStage                          `json:"postStage"`
-	PreStageConfigMapSecretNames  *CdStageConfigMapSecretNames      `json:"preStageConfigMapSecretNames"`
-	PostStageConfigMapSecretNames *CdStageConfigMapSecretNames      `json:"postStageConfigMapSecretNames"`
-	RunPreStageInEnv              bool                              `json:"runPreStageInEnv"`
-	RunPostStageInEnv             bool                              `json:"runPostStageInEnv"`
-	IsClusterCdActive             bool                              `json:"isClusterCdActive"`
+	Name                          string                                 `json:"name"` //pipelineName
+	EnvironmentName               string                                 `json:"environmentName" `
+	TriggerType                   pipelineConfig.TriggerType             `json:"triggerType" validate:"required"`
+	DeploymentAppType             string                                 `json:"deploymentAppType"`
+	DeploymentStrategyType        chartRepoRepository.DeploymentStrategy `json:"deploymentType,omitempty"` //
+	DeploymentStrategies          []*DeploymentStrategy                  `json:"deploymentStrategies"`
+	PreStage                      *CdStage                               `json:"preStage"`
+	PostStage                     *CdStage                               `json:"postStage"`
+	PreStageConfigMapSecretNames  *CdStageConfigMapSecretNames           `json:"preStageConfigMapSecretNames"`
+	PostStageConfigMapSecretNames *CdStageConfigMapSecretNames           `json:"postStageConfigMapSecretNames"`
+	RunPreStageInEnv              bool                                   `json:"runPreStageInEnv"`
+	RunPostStageInEnv             bool                                   `json:"runPostStageInEnv"`
+	IsClusterCdActive             bool                                   `json:"isClusterCdActive"`
 }
 
 type DeploymentStrategy struct {
-	DeploymentType pipelineConfig.DeploymentTemplate `json:"deploymentType,omitempty" validate:"oneof=BLUE-GREEN ROLLING CANARY RECREATE"` //
-	Config         map[string]interface{}            `json:"config,omitempty" validate:"string"`
-	IsDefault      bool                              `json:"isDefault" validate:"required"`
+	DeploymentStrategyType chartRepoRepository.DeploymentStrategy `json:"deploymentType,omitempty"` //
+	Config                 map[string]interface{}                 `json:"config,omitempty" validate:"string"`
+	IsDefault              bool                                   `json:"isDefault" validate:"required"`
 }
 
 type CdStage struct {

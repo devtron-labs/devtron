@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -37,22 +38,25 @@ type UserAuthHandler interface {
 	RefreshTokenHandler(w http.ResponseWriter, r *http.Request)
 	AddDefaultPolicyAndRoles(w http.ResponseWriter, r *http.Request)
 	AuthVerification(w http.ResponseWriter, r *http.Request)
+	AuthVerificationV2(w http.ResponseWriter, r *http.Request)
 }
 
 type UserAuthHandlerImpl struct {
 	userAuthService user.UserAuthService
 	validator       *validator.Validate
 	logger          *zap.SugaredLogger
+	enforcer        casbin.Enforcer
 }
 
 func NewUserAuthHandlerImpl(
 	userAuthService user.UserAuthService,
 	validator *validator.Validate,
-	logger *zap.SugaredLogger) *UserAuthHandlerImpl {
+	logger *zap.SugaredLogger, enforcer casbin.Enforcer) *UserAuthHandlerImpl {
 	userAuthHandler := &UserAuthHandlerImpl{
 		userAuthService: userAuthService,
 		validator:       validator,
 		logger:          logger,
+		enforcer:        enforcer,
 	}
 	return userAuthHandler
 }
@@ -73,7 +77,8 @@ func (handler UserAuthHandlerImpl) LoginHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 	//token, err := handler.loginService.CreateLoginSession(up.Username, up.Password)
-	token, err := handler.userAuthService.HandleLogin(up.Username, up.Password)
+	clientIp := util.GetClientIP(r)
+	token, err := handler.userAuthService.HandleLoginWithClientIp(r.Context(), up.Username, up.Password, clientIp)
 	if err != nil {
 		common.WriteJsonResp(w, fmt.Errorf("invalid username or password"), nil, http.StatusForbidden)
 		return
@@ -139,7 +144,9 @@ func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWrite
 	viewPolicies = strings.ReplaceAll(viewPolicies, "<ENV_OBJ>", envObj)
 	viewPolicies = strings.ReplaceAll(viewPolicies, "<APP_OBJ>", appObj)
 	//for START in Casbin Object Ends Here
-
+	//loading policy for safety
+	casbin.LoadPolicy()
+	var policies []casbin.Policy
 	var policiesAdmin bean.PolicyRequest
 	err := json.Unmarshal([]byte(adminPolicies), &policiesAdmin)
 	if err != nil {
@@ -148,8 +155,7 @@ func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWrite
 		return
 	}
 	handler.logger.Debugw("request payload, AddDefaultPolicyAndRoles", "policiesAdmin", policiesAdmin)
-	casbin.AddPolicy(policiesAdmin.Data)
-
+	policies = append(policies, policiesAdmin.Data...)
 	var policiesTrigger bean.PolicyRequest
 	err = json.Unmarshal([]byte(triggerPolicies), &policiesTrigger)
 	if err != nil {
@@ -158,8 +164,7 @@ func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWrite
 		return
 	}
 	handler.logger.Debugw("request payload, AddDefaultPolicyAndRoles", "policiesTrigger", policiesTrigger)
-	casbin.AddPolicy(policiesTrigger.Data)
-
+	policies = append(policies, policiesTrigger.Data...)
 	var policiesView bean.PolicyRequest
 	err = json.Unmarshal([]byte(viewPolicies), &policiesView)
 	if err != nil {
@@ -168,8 +173,10 @@ func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWrite
 		return
 	}
 	handler.logger.Debugw("request payload, AddDefaultPolicyAndRoles", "policiesView", policiesView)
-	casbin.AddPolicy(policiesView.Data)
-
+	policies = append(policies, policiesView.Data...)
+	casbin.AddPolicy(policies)
+	//loading policy for syncing orchestrator to casbin with newly added policies
+	casbin.LoadPolicy()
 	//Creating ROLES
 	roleAdmin := "{\n    \"role\": \"role:admin_<TEAM>_<ENV>_<APP>\",\n    \"casbinSubjects\": [\n        \"role:admin_<TEAM>_<ENV>_<APP>\"\n    ],\n    \"team\": \"<TEAM>\",\n    \"application\": \"<APP>\",\n    \"environment\": \"<ENV>\",\n    \"action\": \"*\"\n}"
 	roleTrigger := "{\n    \"role\": \"role:trigger_<TEAM>_<ENV>_<APP>\",\n    \"casbinSubjects\": [\n        \"role:trigger_<TEAM>_<ENV>_<APP>\"\n    ],\n    \"team\": \"<TEAM>\",\n    \"application\": \"<APP>\",\n    \"environment\": \"<ENV>\",\n    \"action\": \"trigger\"\n}"
@@ -229,13 +236,30 @@ func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWrite
 	}
 
 }
-
 func (handler UserAuthHandlerImpl) AuthVerification(w http.ResponseWriter, r *http.Request) {
-	res, err := handler.userAuthService.AuthVerification(r)
+	verified, err := handler.userAuthService.AuthVerification(r)
 	if err != nil {
 		handler.logger.Errorw("service err, AuthVerification", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, nil, res, http.StatusOK)
+	common.WriteJsonResp(w, nil, verified, http.StatusOK)
+}
+
+func (handler UserAuthHandlerImpl) AuthVerificationV2(w http.ResponseWriter, r *http.Request) {
+	isSuperAdmin := false
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); ok {
+		isSuperAdmin = true
+	}
+	response := make(map[string]interface{})
+	verified, err := handler.userAuthService.AuthVerification(r)
+	if err != nil {
+		handler.logger.Errorw("service err, AuthVerification", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	response["isSuperAdmin"] = isSuperAdmin
+	response["isVerified"] = verified
+	common.WriteJsonResp(w, nil, response, http.StatusOK)
 }

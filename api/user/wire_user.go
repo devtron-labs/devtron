@@ -1,6 +1,7 @@
 package user
 
 import (
+	"github.com/devtron-labs/devtron/pkg/auth"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/pkg/user/repository"
@@ -44,4 +45,7 @@ var UserWireSet = wire.NewSet(
 
 	user.NewUserCommonServiceImpl,
 	wire.Bind(new(user.UserCommonService), new(*user.UserCommonServiceImpl)),
+
+	auth.NewUserAuthOidcHelperImpl,
+	wire.Bind(new(auth.UserAuthOidcHelper), new(*auth.UserAuthOidcHelperImpl)),
 )

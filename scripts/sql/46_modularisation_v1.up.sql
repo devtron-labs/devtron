@@ -9,7 +9,8 @@ CREATE TABLE "public"."module"
     "version"    varchar(255) NOT NULL,
     "status"     varchar(255) NOT NULL,
     "updated_on" timestamptz,
-    PRIMARY KEY ("id")
+    PRIMARY KEY ("id"),
+    UNIQUE("name")
 );
 
 -- Sequence and defined type

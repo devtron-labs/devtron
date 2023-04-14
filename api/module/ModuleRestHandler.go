@@ -96,8 +96,12 @@ func (impl ModuleRestHandlerImpl) GetModuleInfo(w http.ResponseWriter, r *http.R
 	params := mux.Vars(r)
 	moduleName := params["name"]
 	if len(moduleName) == 0 {
-		impl.logger.Error("module name is not supplied")
-		common.WriteJsonResp(w, errors.New("module name is not supplied"), nil, http.StatusBadRequest)
+		res, err := impl.moduleService.GetAllModuleInfo()
+		if err != nil {
+			impl.logger.Errorw("service err, GetAllModuleInfo", "err", err)
+			return
+		}
+		common.WriteJsonResp(w, err, res, http.StatusOK)
 		return
 	}
 
