@@ -654,13 +654,13 @@ type CiArtifactBean struct {
 
 type CiArtifactResponse struct {
 	//AppId           int      `json:"app_id"`
-	CdPipelineId           int                               `json:"cd_pipeline_id,notnull"`
-	LatestWfArtifactId     int                               `json:"latest_wf_artifact_id"`
-	LatestWfArtifactStatus string                            `json:"latest_wf_artifact_status"`
-	CiArtifacts            []CiArtifactBean                  `json:"ci_artifacts,notnull"`
-	UserApprovalConfig     pipelineConfig.UserApprovalConfig `json:"userApprovalConfig"`
-	ApprovalUsers          []string                          `json:"approvalUsers"`
-	RequestedUserId        int32                             `json:"requestedUserId"`
+	CdPipelineId           int                                `json:"cd_pipeline_id,notnull"`
+	LatestWfArtifactId     int                                `json:"latest_wf_artifact_id"`
+	LatestWfArtifactStatus string                             `json:"latest_wf_artifact_status"`
+	CiArtifacts            []CiArtifactBean                   `json:"ci_artifacts,notnull"`
+	UserApprovalConfig     *pipelineConfig.UserApprovalConfig `json:"userApprovalConfig"`
+	ApprovalUsers          []string                           `json:"approvalUsers"`
+	RequestedUserId        int32                              `json:"requestedUserId"`
 }
 
 type AppLabelsDto struct {

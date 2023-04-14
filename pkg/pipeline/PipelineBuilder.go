@@ -3327,7 +3327,7 @@ func (impl PipelineBuilderImpl) RetrieveArtifactsByCDPipeline(pipeline *pipeline
 		if err != nil {
 			return ciArtifactsResponse, err
 		}
-		ciArtifactsResponse.UserApprovalConfig = approvalConfig
+		ciArtifactsResponse.UserApprovalConfig = &approvalConfig
 		ciArtifactsResponse.CiArtifacts = ciArtifactsFinal
 	}
 	return ciArtifactsResponse, nil
@@ -3501,9 +3501,7 @@ func (impl PipelineBuilderImpl) FetchArtifactForRollback(cdPipelineId, offset, l
 		deployedCiArtifacts = []bean.CiArtifactBean{}
 	}
 	if pipeline != nil && pipeline.ApprovalNodeConfigured() {
-		var approvalConfig pipelineConfig.UserApprovalConfig
-		deployedCiArtifacts, approvalConfig, err = impl.overrideArtifactsWithUserApprovalData(pipeline, deployedCiArtifacts, false)
-		deployedCiArtifactsResponse.UserApprovalConfig = approvalConfig
+		deployedCiArtifacts, _, err = impl.overrideArtifactsWithUserApprovalData(pipeline, deployedCiArtifacts, false)
 		if err != nil {
 			return deployedCiArtifactsResponse, err
 		}
