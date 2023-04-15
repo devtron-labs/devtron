@@ -521,6 +521,7 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerVie
 	}
 	//RBAC CHECK
 
+	apiVersion := vars["version"]
 	triggerWorkflowStatus := pipelineConfig.TriggerWorkflowStatus{}
 	var ciWorkflowStatus []*pipelineConfig.CiWorkflowStatus
 	var err1 error
@@ -529,7 +530,11 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerVie
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 	go func() {
-		ciWorkflowStatus, err = handler.ciHandler.FetchCiStatusForTriggerView(appId)
+		if apiVersion == "v2" {
+			ciWorkflowStatus, err = handler.ciHandler.FetchCiStatusForTriggerViewV1(appId)
+		} else {
+			ciWorkflowStatus, err = handler.ciHandler.FetchCiStatusForTriggerView(appId)
+		}
 		wg.Done()
 	}()
 

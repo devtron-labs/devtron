@@ -1157,7 +1157,7 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 			CreatedOn: originalCiConf.CreatedOn,
 			CreatedBy: originalCiConf.CreatedBy,
 			UpdatedOn: time.Now(),
-			UpdatedBy: updateRequest.UpdatedBy,
+			UpdatedBy: updateRequest.UserId,
 		},
 	}
 
@@ -4087,6 +4087,7 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(request appGroup2.App
 			//parentCiPipelineIds = append(parentCiPipelineIds, pipeline.ParentCiPipeline)
 		}
 		ciPipelinesConfigByApp.CiPipelines = ciPipelineResp
+		ciPipelinesConfigByApp.CiGitMaterialId = ciPipelinesConfigByApp.CiBuildConfig.GitMaterialId
 		ciPipelinesConfigByApps = append(ciPipelinesConfigByApps, ciPipelinesConfigByApp)
 	}
 
