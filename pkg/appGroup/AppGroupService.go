@@ -18,6 +18,7 @@
 package appGroup
 
 import (
+	"context"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appGroup"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -28,6 +29,7 @@ import (
 type AppGroupService interface {
 	GetActiveAppGroupList() ([]*AppGroupDto, error)
 	GetApplicationsForAppGroup(appGroupId int) ([]*ApplicationDto, error)
+	GetAppIdsByAppGroupId(appGroupId int) ([]int, error)
 	CreateAppGroup(request *AppGroupDto) (*AppGroupDto, error)
 	UpdateAppGroup(request *AppGroupDto) (*AppGroupDto, error)
 	DeleteAppGroup(appGroupId int) (bool, error)
@@ -45,6 +47,16 @@ func NewAppGroupServiceImpl(logger *zap.SugaredLogger, appGroupRepository appGro
 		appGroupRepository:        appGroupRepository,
 		appGroupMappingRepository: appGroupMappingRepository,
 	}
+}
+
+type AppGroupingRequest struct {
+	EnvId          int                                                                                             `json:"envId,omitempty"`
+	AppGroupId     int                                                                                             `json:"appGroupId,omitempty"`
+	AppIds         []int                                                                                           `json:"appIds,omitempty"`
+	EmailId        string                                                                                          `json:"emailId,omitempty"`
+	CheckAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool) `json:"-"`
+	Ctx            context.Context                                                                                 `json:"-"`
+	UserId         int32                                                                                           `json:"-"`
 }
 
 type AppGroupDto struct {
@@ -205,6 +217,19 @@ func (impl *AppGroupServiceImpl) GetApplicationsForAppGroup(appGroupId int) ([]*
 		applications = append(applications, appGroupDto)
 	}
 	return applications, nil
+}
+
+func (impl *AppGroupServiceImpl) GetAppIdsByAppGroupId(appGroupId int) ([]int, error) {
+	appIds := make([]int, 0)
+	appGroups, err := impl.appGroupMappingRepository.FindByAppGroupId(appGroupId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in update new attributes", "error", err)
+		return nil, err
+	}
+	for _, appGroup := range appGroups {
+		appIds = append(appIds, appGroup.AppId)
+	}
+	return appIds, nil
 }
 
 func (impl *AppGroupServiceImpl) DeleteAppGroup(appGroupId int) (bool, error) {
