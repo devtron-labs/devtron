@@ -32,6 +32,7 @@ type RbacRoleData struct {
 	AccessType      string   `sql:"access_type"`
 	Role            string   `sql:"role"`
 	RoleData        string   `sql:"role_data"`
+	RoleDisplayName string   `sql:"role_display_name"`
 	RoleDescription string   `sql:"role_description"`
 	IsPresetRole    bool     `sql:"is_preset_role,notnull"`
 	Deleted         bool     `sql:"deleted,notnull"`
