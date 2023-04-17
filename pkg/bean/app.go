@@ -299,6 +299,7 @@ type CiConfigRequest struct {
 	UpdatedOn         time.Time               `sql:"updated_on,type:timestamptz"`
 	UpdatedBy         int32                   `sql:"updated_by,type:integer"`
 	IsJob             bool                    `json:"-"`
+	CiGitMaterialId   int                     `json:"ciGitConfiguredId"`
 }
 
 type TestExecutorImageProperties struct {
@@ -466,6 +467,7 @@ type CDPipelineConfigObject struct {
 	Id                            int                                    `json:"id,omitempty"  validate:"number" `
 	EnvironmentId                 int                                    `json:"environmentId,omitempty"  validate:"number,required" `
 	EnvironmentName               string                                 `json:"environmentName,omitempty" `
+	Description                   string                                 `json:"description" validate:"max=40"`
 	CiPipelineId                  int                                    `json:"ciPipelineId,omitempty" validate:"number"`
 	TriggerType                   pipelineConfig.TriggerType             `json:"triggerType,omitempty" validate:"oneof=AUTOMATIC MANUAL"`
 	Name                          string                                 `json:"name,omitempty" validate:"name-component,max=50"` //pipelineName

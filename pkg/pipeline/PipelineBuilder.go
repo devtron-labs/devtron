@@ -1154,7 +1154,7 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 			CreatedOn: originalCiConf.CreatedOn,
 			CreatedBy: originalCiConf.CreatedBy,
 			UpdatedOn: time.Now(),
-			UpdatedBy: updateRequest.UpdatedBy,
+			UpdatedBy: updateRequest.UserId,
 		},
 	}
 
@@ -2895,6 +2895,7 @@ func (impl PipelineBuilderImpl) GetCdPipelinesForApp(appId int) (cdPipelines *be
 			Name:                          dbPipeline.Name,
 			EnvironmentId:                 dbPipeline.EnvironmentId,
 			EnvironmentName:               environment.Name,
+			Description:                   environment.Description,
 			CiPipelineId:                  dbPipeline.CiPipelineId,
 			DeploymentTemplate:            deploymentTemplate,
 			TriggerType:                   dbPipeline.TriggerType,
@@ -4068,6 +4069,7 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(envId int, emailId st
 			//parentCiPipelineIds = append(parentCiPipelineIds, pipeline.ParentCiPipeline)
 		}
 		ciPipelinesConfigByApp.CiPipelines = ciPipelineResp
+		ciPipelinesConfigByApp.CiGitMaterialId = ciPipelinesConfigByApp.CiBuildConfig.GitMaterialId
 		ciPipelinesConfigByApps = append(ciPipelinesConfigByApps, ciPipelinesConfigByApp)
 	}
 
