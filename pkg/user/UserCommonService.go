@@ -69,6 +69,7 @@ type UserRbacConfig struct {
 
 func (impl UserCommonServiceImpl) CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, userId int32) (bool, error, []casbin.Policy) {
 	if impl.userRbacConfig.UseRbacCreationV2 {
+		impl.logger.Debugw("using rbac creation v2 for creating default policies")
 		return impl.CreateDefaultPoliciesForAllTypesV2(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType)
 	} else {
 		return impl.userAuthRepository.CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType, userId)

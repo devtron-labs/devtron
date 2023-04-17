@@ -948,7 +948,7 @@ VALUES ('apps', 'devtron-app', 'manager', 'Manager',
         "0": "Entity"
       }
     },
-    "access_type": {
+    "accessType": {
       "value": "devtron-app",
       "indexKeyMap": {}
     }
@@ -990,7 +990,7 @@ VALUES ('apps', 'devtron-app', 'manager', 'Manager',
              "0": "Entity"
            }
          },
-         "access_type": {
+         "accessType": {
            "value": "devtron-app",
            "indexKeyMap": {}
          }
@@ -1032,7 +1032,7 @@ VALUES ('apps', 'devtron-app', 'manager', 'Manager',
              "0": "Entity"
            }
          },
-         "access_type": {
+         "accessType": {
            "value": "devtron-app",
            "indexKeyMap": {}
          }
@@ -1074,7 +1074,7 @@ VALUES ('apps', 'devtron-app', 'manager', 'Manager',
              "0": "Entity"
            }
          },
-         "access_type": {
+         "accessType": {
            "value": "devtron-app",
            "indexKeyMap": {}
          }
