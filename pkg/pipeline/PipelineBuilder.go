@@ -4104,7 +4104,7 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironmentMin(request appGroup2.
 	if request.AppGroupId > 0 {
 		appIds, err := impl.appGroupService.GetAppIdsByAppGroupId(request.AppGroupId)
 		if err != nil {
-			return nil, err
+			return results, err
 		}
 		//override appIds if already provided app group id in request.
 		request.AppIds = appIds
@@ -4116,7 +4116,7 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironmentMin(request appGroup2.
 	}
 	if err != nil {
 		impl.logger.Errorw("error in fetching pipelines", "request", request, "err", err)
-		return nil, err
+		return results, err
 	}
 
 	//authorization block starts here
@@ -4250,7 +4250,7 @@ func (impl PipelineBuilderImpl) GetCdPipelinesByEnvironmentMin(request appGroup2
 	if request.AppGroupId > 0 {
 		appIds, err := impl.appGroupService.GetAppIdsByAppGroupId(request.AppGroupId)
 		if err != nil {
-			return nil, err
+			return cdPipelines, err
 		}
 		//override appIds if already provided app group id in request.
 		request.AppIds = appIds
@@ -4263,7 +4263,7 @@ func (impl PipelineBuilderImpl) GetCdPipelinesByEnvironmentMin(request appGroup2
 	}
 	if err != nil {
 		impl.logger.Errorw("error in fetching pipelines", "request", request, "err", err)
-		return nil, err
+		return cdPipelines, err
 	}
 	//authorization block starts here
 	var appObjectArr []string
