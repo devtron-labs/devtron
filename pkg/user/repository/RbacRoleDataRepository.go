@@ -59,7 +59,7 @@ func (repo *RbacRoleDataRepositoryImpl) CreateNewRoleDataForRoleWithTxn(model *R
 }
 
 func (repo *RbacRoleDataRepositoryImpl) UpdateRoleDataForRoleWithTxn(model *RbacRoleData, tx *pg.Tx) (*RbacRoleData, error) {
-	_, err := tx.Model(model).Update()
+	_, err := tx.Model(model).UpdateNotNull()
 	if err != nil {
 		repo.logger.Errorw("error in updating role data for a role", "err", err)
 		return nil, err
