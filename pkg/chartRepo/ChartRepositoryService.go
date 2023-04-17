@@ -497,16 +497,17 @@ func (impl *ChartRepositoryServiceImpl) GetChartRepoListMin() ([]*ChartRepoDto, 
 	}
 	for _, model := range models {
 		chartRepo := &ChartRepoDto{
-			Id:          model.Id,
-			Name:        model.Name,
-			Url:         model.Url,
-			AuthMode:    model.AuthMode,
-			Password:    model.Password,
-			UserName:    model.UserName,
-			SshKey:      model.SshKey,
-			AccessToken: model.AccessToken,
-			Default:     model.Default,
-			Active:      model.Active,
+			Id:                      model.Id,
+			Name:                    model.Name,
+			Url:                     model.Url,
+			AuthMode:                model.AuthMode,
+			Password:                model.Password,
+			UserName:                model.UserName,
+			SshKey:                  model.SshKey,
+			AccessToken:             model.AccessToken,
+			Default:                 model.Default,
+			Active:                  model.Active,
+			AllowInsecureConnection: model.AllowInsecureConnection,
 		}
 		chartRepos = append(chartRepos, chartRepo)
 	}
