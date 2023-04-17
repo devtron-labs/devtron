@@ -143,7 +143,9 @@ type PipelineBuilder interface {
 	SetPipelineDeploymentAppType(pipelineCreateRequest *bean.CdPipelines, isGitOpsConfigured bool)
 	MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(appId int, envId int, acdToken string, pipeline *pipelineConfig.Pipeline) (bool, error)
 	GetCiPipelineByEnvironment(request appGroup2.AppGroupingRequest) ([]*bean.CiConfigRequest, error)
+	GetCiPipelineByEnvironmentMin(request appGroup2.AppGroupingRequest) ([]*bean.CiConfigRequest, error)
 	GetCdPipelinesByEnvironment(request appGroup2.AppGroupingRequest) (cdPipelines *bean.CdPipelines, err error)
+	GetCdPipelinesByEnvironmentMin(request appGroup2.AppGroupingRequest) (cdPipelines []*bean.CDPipelineConfigObject, err error)
 	GetExternalCiByEnvironment(request appGroup2.AppGroupingRequest) (ciConfig []*bean.ExternalCiConfig, err error)
 	GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) (*cluster.AppGroupingResponse, error)
 	GetAppListForEnvironment(request appGroup2.AppGroupingRequest) ([]*AppBean, error)
@@ -4094,6 +4096,51 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(request appGroup2.App
 	return ciPipelinesConfigByApps, err
 }
 
+func (impl PipelineBuilderImpl) GetCiPipelineByEnvironmentMin(request appGroup2.AppGroupingRequest) ([]*bean.CiConfigRequest, error) {
+	results := make([]*bean.CiConfigRequest, 0)
+	_, span := otel.Tracer("orchestrator").Start(request.Ctx, "ciHandler.AppGroupingCiPipelinesAuthorization")
+	var cdPipelines []*pipelineConfig.Pipeline
+	var err error
+	if request.AppGroupId > 0 {
+		appIds, err := impl.appGroupService.GetAppIdsByAppGroupId(request.AppGroupId)
+		if err != nil {
+			return nil, err
+		}
+		//override appIds if already provided app group id in request.
+		request.AppIds = appIds
+	}
+	if len(request.AppIds) > 0 {
+		cdPipelines, err = impl.pipelineRepository.FindActiveByInFilter(request.EnvId, request.AppIds)
+	} else {
+		cdPipelines, err = impl.pipelineRepository.FindActiveByEnvId(request.EnvId)
+	}
+	if err != nil {
+		impl.logger.Errorw("error in fetching pipelines", "request", request, "err", err)
+		return nil, err
+	}
+
+	//authorization block starts here
+	var appObjectArr []string
+	objects := impl.enforcerUtil.GetAppAndEnvObjectByDbPipeline(cdPipelines)
+	for _, object := range objects {
+		appObjectArr = append(appObjectArr, object[0])
+	}
+	appResults, _ := request.CheckAuthBatch(request.EmailId, appObjectArr, []string{})
+	for _, pipeline := range cdPipelines {
+		appObject := objects[pipeline.Id]
+		if !appResults[appObject[0]] {
+			//if user unauthorized, skip items
+			continue
+		}
+		result := &bean.CiConfigRequest{Id: pipeline.CiPipelineId, AppId: pipeline.AppId, AppName: pipeline.App.AppName}
+		results = append(results, result)
+	}
+	//authorization block ends here
+	span.End()
+
+	return results, err
+}
+
 func (impl PipelineBuilderImpl) GetCdPipelinesByEnvironment(request appGroup2.AppGroupingRequest) (cdPipelines *bean.CdPipelines, err error) {
 	_, span := otel.Tracer("orchestrator").Start(request.Ctx, "cdHandler.authorizationCdPipelinesForAppGrouping")
 	if request.AppGroupId > 0 {
@@ -4195,6 +4242,55 @@ func (impl PipelineBuilderImpl) GetCdPipelinesByEnvironment(request appGroup2.Ap
 		pipelines = append(pipelines, pipeline)
 	}
 	cdPipelines.Pipelines = pipelines
+	return cdPipelines, err
+}
+
+func (impl PipelineBuilderImpl) GetCdPipelinesByEnvironmentMin(request appGroup2.AppGroupingRequest) (cdPipelines []*bean.CDPipelineConfigObject, err error) {
+	_, span := otel.Tracer("orchestrator").Start(request.Ctx, "cdHandler.authorizationCdPipelinesForAppGrouping")
+	if request.AppGroupId > 0 {
+		appIds, err := impl.appGroupService.GetAppIdsByAppGroupId(request.AppGroupId)
+		if err != nil {
+			return nil, err
+		}
+		//override appIds if already provided app group id in request.
+		request.AppIds = appIds
+	}
+	var pipelines []*pipelineConfig.Pipeline
+	if len(request.AppIds) > 0 {
+		pipelines, err = impl.pipelineRepository.FindActiveByInFilter(request.EnvId, request.AppIds)
+	} else {
+		pipelines, err = impl.pipelineRepository.FindActiveByEnvId(request.EnvId)
+	}
+	if err != nil {
+		impl.logger.Errorw("error in fetching pipelines", "request", request, "err", err)
+		return nil, err
+	}
+	//authorization block starts here
+	var appObjectArr []string
+	var envObjectArr []string
+	objects := impl.enforcerUtil.GetAppAndEnvObjectByDbPipeline(pipelines)
+	for _, object := range objects {
+		appObjectArr = append(appObjectArr, object[0])
+		envObjectArr = append(envObjectArr, object[1])
+	}
+	appResults, envResults := request.CheckAuthBatch(request.EmailId, appObjectArr, envObjectArr)
+	//authorization block ends here
+	span.End()
+	for _, dbPipeline := range pipelines {
+		appObject := objects[dbPipeline.Id][0]
+		envObject := objects[dbPipeline.Id][1]
+		if !(appResults[appObject] && envResults[envObject]) {
+			//if user unauthorized, skip items
+			continue
+		}
+		pcObject := &bean.CDPipelineConfigObject{
+			AppId:         dbPipeline.AppId,
+			AppName:       dbPipeline.App.AppName,
+			EnvironmentId: dbPipeline.EnvironmentId,
+			Id:            dbPipeline.Id,
+		}
+		cdPipelines = append(cdPipelines, pcObject)
+	}
 	return cdPipelines, err
 }
 
