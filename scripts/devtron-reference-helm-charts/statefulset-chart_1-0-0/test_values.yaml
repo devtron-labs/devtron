@@ -12,6 +12,8 @@ rolloutAnnotations:
   Company: Devtron
   Job: DevOps
 
+appLabels: 
+      test: thyjhgfv
 containerSpec:
   lifecycle: 
     enabled: true

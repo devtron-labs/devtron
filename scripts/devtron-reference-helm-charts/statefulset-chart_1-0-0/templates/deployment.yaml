@@ -33,12 +33,12 @@ metadata:
     release: {{ $.Release.Name }}
     releaseVersion: {{ $.Values.releaseVersion | quote }}
     pipelineName: {{ .Values.pipelineName }}
-{{- if .Values.statefulSetConfig.labels }}
+    {{- if .Values.statefulSetConfig.labels }}
 {{ toYaml .Values.statefulSetConfig.labels | indent 4 }}
-{{- end }}
-{{- if .Values.appLabels }}
-{{ toYaml .Values.appLabels | indent 4 }}
-{{- end }}
+    {{- end }}
+    {{- if .Values.appLabels }}
+{{ toYaml .Values.appLabels  | indent 4}}
+    {{- end }}
   {{- if .Values.statefulSetConfig.annotations }}
   annotations:
 {{ toYaml .Values.statefulSetConfig.annotations | indent 4 }}
@@ -72,7 +72,7 @@ spec:
         envId: {{ $.Values.env | quote }}
         release: {{ $.Release.Name }}
         {{- if .Values.appLabels }}
-        {{ toYaml .Values.appLabels | indent 8 }}
+{{ toYaml .Values.appLabels | indent 8 }}
         {{- end }}
         {{- if .Values.podLabels }}
         {{ toYaml .Values.podLabels | indent 8 }}

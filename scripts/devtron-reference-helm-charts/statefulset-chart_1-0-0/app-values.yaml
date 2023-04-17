@@ -14,6 +14,7 @@ containerSpec:
         host: example.com
         path: /example
         port: 90
+appLabels: {}
 
 statefulSetConfig:
   labels: {}
