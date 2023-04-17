@@ -483,7 +483,11 @@ spec:
           {{- if .metadata.labels }}
           labels: {{ toYaml .metadata.labels | nindent 14 }}
           {{- end}}
+          {{- if .metadata.name }}
           name: {{ .metadata.name }}
+          {{else}}
+          name: {{ $.Release.Name }}
+          {{- end}}
           {{- if .metadata.namespace }}
           namespace: {{  .metadata.namespace  }}
           {{- end}}
