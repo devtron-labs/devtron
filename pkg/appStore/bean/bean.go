@@ -183,7 +183,8 @@ const BULK_APPSTORE_DEPLOY_GROUP = "ORCHESTRATOR.APP-STORE.BULK-DEPLOY-GROUP-1"
 const BULK_APPSTORE_DEPLOY_DURABLE = "ORCHESTRATOR.APP-STORE.BULK-DEPLOY.DURABLE-1"
 
 type DeployPayload struct {
-	InstalledAppVersionId int
+	InstalledAppVersionId        int
+	InstalledAppVersionHistoryId int
 }
 
 const REFERENCE_TYPE_DEFAULT string = "DEFAULT"
