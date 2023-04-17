@@ -18,13 +18,21 @@
 package repository
 
 import (
+	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
 )
 
+type EnvCluserInfo struct {
+	Id          int    `sql:"id"`
+	ClusterName string `sql:"cluster_name"`
+	Namespace   string `sql:"namespace"`
+	Name        string `sql:"name"`
+}
 type Environment struct {
 	tableName             struct{} `sql:"environment" pg:",discard_unknown_columns"`
 	Id                    int      `sql:"id,pk"`
@@ -66,6 +74,7 @@ type EnvironmentRepository interface {
 	FindByEnvNameAndClusterIds(envName string, clusterIds []int) ([]*Environment, error)
 	FindByClusterIdsWithFilter(clusterIds []int) ([]*Environment, error)
 	FindAllActiveWithFilter() ([]*Environment, error)
+	FindEnvClusterInfosByIds([]int) ([]*EnvCluserInfo, error)
 }
 
 func NewEnvironmentRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger, appStatusRepository appStatus.AppStatusRepository) *EnvironmentRepositoryImpl {
@@ -94,6 +103,17 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindOne(environment string) (*En
 		Limit(1).
 		Select()
 	return environmentCluster, err
+}
+
+func (repositoryImpl EnvironmentRepositoryImpl) FindEnvClusterInfosByIds(envIds []int) ([]*EnvCluserInfo, error) {
+	query := "SELECT env.id as id,cluster.cluster_name,env.environment_name as name,env.namespace " +
+		" FROM environment env INNER JOIN  cluster ON env.cluster_id = cluster.id "
+	if len(envIds) > 0 {
+		query += fmt.Sprintf(" WHERE env.id IN (%s)", helper.GetCommaSepratedString(envIds))
+	}
+	res := make([]*EnvCluserInfo, 0)
+	_, err := repositoryImpl.dbConnection.Query(&res, query)
+	return res, err
 }
 
 func (repositoryImpl EnvironmentRepositoryImpl) FindByNamespaceAndClusterName(namespaces string, clusterName string) (*Environment, error) {

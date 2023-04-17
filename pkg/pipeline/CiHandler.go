@@ -68,6 +68,7 @@ type CiHandler interface {
 	UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus) (int, error)
 
 	FetchCiStatusForTriggerView(appId int) ([]*pipelineConfig.CiWorkflowStatus, error)
+	FetchCiStatusForTriggerViewV1(appId int) ([]*pipelineConfig.CiWorkflowStatus, error)
 	RefreshMaterialByCiPipelineMaterialId(gitMaterialId int) (refreshRes *gitSensor.RefreshGitMaterialResponse, err error)
 	FetchMaterialInfoByArtifactId(ciArtifactId int) (*GitTriggerInfoResponse, error)
 	WriteToCreateTestSuites(pipelineId int, buildId int, triggeredBy int)
@@ -1028,7 +1029,7 @@ func (impl *CiHandlerImpl) getLastSeenCommit(ciMaterialId int) (bean.GitCommit, 
 	return gitCommit, nil
 }
 
-func (impl *CiHandlerImpl) FetchCiStatusForTriggerView(appId int) ([]*pipelineConfig.CiWorkflowStatus, error) {
+func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewV1(appId int) ([]*pipelineConfig.CiWorkflowStatus, error) {
 	ciWorkflowStatuses, err := impl.ciWorkflowRepository.FIndCiWorkflowStatusesByAppId(appId)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.Logger.Errorw("err in fetching ciWorkflowStatuses from ciWorkflowRepository", "appId", appId, "err", err)
@@ -1036,6 +1037,39 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerView(appId int) ([]*pipelineCo
 	}
 
 	return ciWorkflowStatuses, err
+}
+
+func (impl *CiHandlerImpl) FetchCiStatusForTriggerView(appId int) ([]*pipelineConfig.CiWorkflowStatus, error) {
+	var ciWorkflowStatuses []*pipelineConfig.CiWorkflowStatus
+
+	pipelines, err := impl.ciPipelineRepository.FindByAppId(appId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("error in fetching ci pipeline", "appId", appId, "err", err)
+		return ciWorkflowStatuses, err
+	}
+	for _, pipeline := range pipelines {
+		pipelineId := 0
+		if pipeline.ParentCiPipeline == 0 {
+			pipelineId = pipeline.Id
+		} else {
+			pipelineId = pipeline.ParentCiPipeline
+		}
+		workflow, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflow(pipelineId)
+		if err != nil && !util.IsErrNoRows(err) {
+			impl.Logger.Errorw("err", "pipelineId", pipelineId, "err", err)
+			return ciWorkflowStatuses, err
+		}
+		ciWorkflowStatus := &pipelineConfig.CiWorkflowStatus{}
+		ciWorkflowStatus.CiPipelineId = pipeline.Id
+		if workflow.Id > 0 {
+			ciWorkflowStatus.CiPipelineName = workflow.CiPipeline.Name
+			ciWorkflowStatus.CiStatus = workflow.Status
+		} else {
+			ciWorkflowStatus.CiStatus = "Not Triggered"
+		}
+		ciWorkflowStatuses = append(ciWorkflowStatuses, ciWorkflowStatus)
+	}
+	return ciWorkflowStatuses, nil
 }
 
 func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int) (*GitTriggerInfoResponse, error) {
