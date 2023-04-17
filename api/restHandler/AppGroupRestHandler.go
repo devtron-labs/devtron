@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
+	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 	"strconv"
 )
@@ -43,15 +44,18 @@ type AppGroupRestHandlerImpl struct {
 	enforcer        casbin.Enforcer
 	userService     user.UserService
 	appGroupService appGroup.AppGroupService
+	validator       *validator.Validate
 }
 
 func NewAppGroupRestHandlerImpl(logger *zap.SugaredLogger, enforcer casbin.Enforcer,
-	userService user.UserService, appGroupService appGroup.AppGroupService) *AppGroupRestHandlerImpl {
+	userService user.UserService, appGroupService appGroup.AppGroupService,
+	validator *validator.Validate) *AppGroupRestHandlerImpl {
 	userAuthHandler := &AppGroupRestHandlerImpl{
 		logger:          logger,
 		enforcer:        enforcer,
 		userService:     userService,
 		appGroupService: appGroupService,
+		validator:       validator,
 	}
 	return userAuthHandler
 }
@@ -107,24 +111,30 @@ func (handler AppGroupRestHandlerImpl) CreateAppGroup(w http.ResponseWriter, r *
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var dto appGroup.AppGroupDto
-	err = decoder.Decode(&dto)
+	var request appGroup.AppGroupDto
+	err = decoder.Decode(&request)
 	if err != nil {
-		handler.logger.Errorw("request err, CreateAppGroup", "err", err, "payload", dto)
+		handler.logger.Errorw("request err, CreateAppGroup", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	dto.UserId = userId
+	request.UserId = userId
+	err = handler.validator.Struct(request)
+	if err != nil {
+		handler.logger.Errorw("validation error", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 
-	handler.logger.Infow("request payload, CreateAppGroup", "payload", dto)
-	resp, err := handler.appGroupService.CreateAppGroup(&dto)
+	handler.logger.Infow("request payload, CreateAppGroup", "payload", request)
+	resp, err := handler.appGroupService.CreateAppGroup(&request)
 	if err != nil {
-		handler.logger.Errorw("service err, CreateAppGroup", "err", err, "payload", dto)
+		handler.logger.Errorw("service err, CreateAppGroup", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -137,24 +147,30 @@ func (handler AppGroupRestHandlerImpl) UpdateAppGroup(w http.ResponseWriter, r *
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var dto appGroup.AppGroupDto
-	err = decoder.Decode(&dto)
+	var request appGroup.AppGroupDto
+	err = decoder.Decode(&request)
 	if err != nil {
-		handler.logger.Errorw("request err, UpdateAppGroup", "err", err, "payload", dto)
+		handler.logger.Errorw("request err, UpdateAppGroup", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	dto.UserId = userId
+	request.UserId = userId
+	err = handler.validator.Struct(request)
+	if err != nil {
+		handler.logger.Errorw("validation error", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 
-	handler.logger.Infow("request payload, UpdateAppGroup", "payload", dto)
-	resp, err := handler.appGroupService.UpdateAppGroup(&dto)
+	handler.logger.Infow("request payload, UpdateAppGroup", "payload", request)
+	resp, err := handler.appGroupService.UpdateAppGroup(&request)
 	if err != nil {
-		handler.logger.Errorw("service err, UpdateAppGroup", "err", err, "payload", dto)
+		handler.logger.Errorw("service err, UpdateAppGroup", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -174,7 +190,7 @@ func (handler AppGroupRestHandlerImpl) DeleteAppGroup(w http.ResponseWriter, r *
 		return
 	}
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionDelete, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}

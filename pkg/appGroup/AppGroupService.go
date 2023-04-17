@@ -60,17 +60,19 @@ type AppGroupingRequest struct {
 }
 
 type AppGroupDto struct {
-	Id     int    `json:"id,omitempty"`
-	Name   string `json:"name,omitempty"`
-	AppIds []int  `json:"appIds,omitempty"`
-	Active bool   `json:"active,omitempty"`
-	UserId int32  `json:"-"`
+	Id          int    `json:"id,omitempty"`
+	Name        string `json:"name,omitempty" validate:"required,max=50,name-component"`
+	Description string `json:"description,omitempty" validate:"required,max=50"`
+	AppIds      []int  `json:"appIds,omitempty"`
+	Active      bool   `json:"active,omitempty"`
+	UserId      int32  `json:"-"`
 }
 
 type ApplicationDto struct {
-	AppGroupId int    `json:"appGroupId,omitempty"`
-	AppId      int    `json:"appId,omitempty"`
-	AppName    string `json:"appName,omitempty"`
+	AppGroupId  int    `json:"appGroupId,omitempty"`
+	AppId       int    `json:"appId,omitempty"`
+	AppName     string `json:"appName,omitempty"`
+	Description string `json:"description,omitempty"`
 }
 
 func (impl *AppGroupServiceImpl) CreateAppGroup(request *AppGroupDto) (*AppGroupDto, error) {
@@ -83,13 +85,14 @@ func (impl *AppGroupServiceImpl) CreateAppGroup(request *AppGroupDto) (*AppGroup
 	defer tx.Rollback()
 
 	model := &appGroup.AppGroup{
-		Name:     request.Name,
-		Active:   true,
-		AuditLog: sql.AuditLog{CreatedOn: time.Now(), CreatedBy: request.UserId, UpdatedBy: request.UserId, UpdatedOn: time.Now()},
+		Name:        request.Name,
+		Description: request.Description,
+		Active:      true,
+		AuditLog:    sql.AuditLog{CreatedOn: time.Now(), CreatedBy: request.UserId, UpdatedBy: request.UserId, UpdatedOn: time.Now()},
 	}
 	_, err = impl.appGroupRepository.Save(model, tx)
 	if err != nil {
-		impl.logger.Errorw("error in creating new attributes", "error", err)
+		impl.logger.Errorw("error in creating app group", "error", err)
 		return nil, err
 	}
 
@@ -101,7 +104,7 @@ func (impl *AppGroupServiceImpl) CreateAppGroup(request *AppGroupDto) (*AppGroup
 		}
 		_, err = impl.appGroupMappingRepository.Save(mapping, tx)
 		if err != nil {
-			impl.logger.Errorw("error in creating new attributes", "error", err)
+			impl.logger.Errorw("error in creating app group", "error", err)
 			return nil, err
 		}
 	}
@@ -125,24 +128,25 @@ func (impl *AppGroupServiceImpl) UpdateAppGroup(request *AppGroupDto) (*AppGroup
 
 	existingModel, err := impl.appGroupRepository.FindById(request.Id)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in update new attributes", "error", err)
+		impl.logger.Errorw("error in update app group", "error", err)
 		return nil, err
 	}
 	if existingModel != nil && existingModel.Id > 0 {
 		existingModel.Name = request.Name
+		existingModel.Description = request.Description
 		existingModel.Active = true
 		existingModel.UpdatedOn = time.Now()
 		existingModel.UpdatedBy = request.UserId
 		err = impl.appGroupRepository.Update(existingModel, tx)
 		if err != nil {
-			impl.logger.Errorw("error in creating new attributes", "error", err)
+			impl.logger.Errorw("error in creating app group", "error", err)
 			return nil, err
 		}
 	}
 
 	mappings, err := impl.appGroupMappingRepository.FindByAppGroupId(request.Id)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in update new attributes", "error", err)
+		impl.logger.Errorw("error in update app group", "error", err)
 		return nil, err
 	}
 	existingAppIds := make(map[int]int)
@@ -161,7 +165,7 @@ func (impl *AppGroupServiceImpl) UpdateAppGroup(request *AppGroupDto) (*AppGroup
 		}
 		_, err = impl.appGroupMappingRepository.Save(mapping, tx)
 		if err != nil {
-			impl.logger.Errorw("error in creating new attributes", "error", err)
+			impl.logger.Errorw("error in creating app group", "error", err)
 			return nil, err
 		}
 	}
@@ -177,7 +181,7 @@ func (impl *AppGroupServiceImpl) GetActiveAppGroupList() ([]*AppGroupDto, error)
 	appGroupsDto := make([]*AppGroupDto, 0)
 	appGroupMappings, err := impl.appGroupMappingRepository.FindAll()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in update new attributes", "error", err)
+		impl.logger.Errorw("error in update app group", "error", err)
 		return nil, err
 	}
 	appIdsMap := make(map[int][]int)
@@ -187,15 +191,16 @@ func (impl *AppGroupServiceImpl) GetActiveAppGroupList() ([]*AppGroupDto, error)
 
 	appGroups, err := impl.appGroupRepository.FindActiveList()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in update new attributes", "error", err)
+		impl.logger.Errorw("error in update app group", "error", err)
 		return nil, err
 	}
 	for _, appGroup := range appGroups {
 		appIds := appIdsMap[appGroup.Id]
 		appGroupDto := &AppGroupDto{
-			Id:     appGroup.Id,
-			Name:   appGroup.Name,
-			AppIds: appIds,
+			Id:          appGroup.Id,
+			Name:        appGroup.Name,
+			Description: appGroup.Description,
+			AppIds:      appIds,
 		}
 		appGroupsDto = append(appGroupsDto, appGroupDto)
 	}
@@ -206,13 +211,14 @@ func (impl *AppGroupServiceImpl) GetApplicationsForAppGroup(appGroupId int) ([]*
 	applications := make([]*ApplicationDto, 0)
 	appGroups, err := impl.appGroupMappingRepository.FindByAppGroupId(appGroupId)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in update new attributes", "error", err)
+		impl.logger.Errorw("error in update app group", "error", err)
 		return nil, err
 	}
 	for _, appGroup := range appGroups {
 		appGroupDto := &ApplicationDto{
-			AppId:   appGroup.AppId,
-			AppName: appGroup.App.AppName,
+			AppId:       appGroup.AppId,
+			AppName:     appGroup.App.AppName,
+			Description: appGroup.AppGroup.Description,
 		}
 		applications = append(applications, appGroupDto)
 	}
@@ -223,7 +229,7 @@ func (impl *AppGroupServiceImpl) GetAppIdsByAppGroupId(appGroupId int) ([]int, e
 	appIds := make([]int, 0)
 	appGroups, err := impl.appGroupMappingRepository.FindByAppGroupId(appGroupId)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in update new attributes", "error", err)
+		impl.logger.Errorw("error in update app group", "error", err)
 		return nil, err
 	}
 	for _, appGroup := range appGroups {
@@ -243,7 +249,7 @@ func (impl *AppGroupServiceImpl) DeleteAppGroup(appGroupId int) (bool, error) {
 
 	appGroup, err := impl.appGroupRepository.FindById(appGroupId)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in update new attributes", "error", err)
+		impl.logger.Errorw("error in update app group", "error", err)
 		return false, err
 	}
 

@@ -80,7 +80,7 @@ func (repo AppGroupMappingRepositoryImpl) FindById(id int) (*AppGroupMapping, er
 func (repo AppGroupMappingRepositoryImpl) FindByAppGroupId(appGroupId int) ([]*AppGroupMapping, error) {
 	var models []*AppGroupMapping
 	err := repo.dbConnection.Model(&models).
-		Column("app_group_mapping.*", "App").
+		Column("app_group_mapping.*", "AppGroup", "App").
 		Where("app_group_mapping.app_group_id = ?", appGroupId).
 		Select()
 	return models, err

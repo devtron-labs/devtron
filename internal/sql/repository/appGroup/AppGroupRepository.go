@@ -23,10 +23,11 @@ import (
 )
 
 type AppGroup struct {
-	tableName struct{} `sql:"app_group" pg:",discard_unknown_columns"`
-	Id        int      `sql:"id,pk"`
-	Name      string   `sql:"name,notnull"`
-	Active    bool     `sql:"active, notnull"`
+	tableName   struct{} `sql:"app_group" pg:",discard_unknown_columns"`
+	Id          int      `sql:"id,pk"`
+	Name        string   `sql:"name,notnull"`
+	Description string   `sql:"description,notnull"`
+	Active      bool     `sql:"active, notnull"`
 	sql.AuditLog
 }
 
