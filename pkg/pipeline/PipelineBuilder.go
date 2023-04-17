@@ -4284,10 +4284,11 @@ func (impl PipelineBuilderImpl) GetCdPipelinesByEnvironmentMin(request appGroup2
 			continue
 		}
 		pcObject := &bean.CDPipelineConfigObject{
-			AppId:         dbPipeline.AppId,
-			AppName:       dbPipeline.App.AppName,
-			EnvironmentId: dbPipeline.EnvironmentId,
-			Id:            dbPipeline.Id,
+			AppId:             dbPipeline.AppId,
+			AppName:           dbPipeline.App.AppName,
+			EnvironmentId:     dbPipeline.EnvironmentId,
+			Id:                dbPipeline.Id,
+			DeploymentAppType: dbPipeline.DeploymentAppType,
 		}
 		cdPipelines = append(cdPipelines, pcObject)
 	}
