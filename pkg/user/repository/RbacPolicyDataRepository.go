@@ -48,7 +48,7 @@ func (repo *RbacPolicyDataRepositoryImpl) GetPolicyDataForAllRoles() ([]*RbacPol
 }
 
 func (repo *RbacPolicyDataRepositoryImpl) CreateNewPolicyDataForRoleWithTxn(model *RbacPolicyData, tx *pg.Tx) (*RbacPolicyData, error) {
-	_, err := tx.Model(&model).Insert()
+	_, err := tx.Model(model).Insert()
 	if err != nil {
 		repo.logger.Errorw("error in creating policy for a role", "err", err)
 		return nil, err
@@ -57,7 +57,7 @@ func (repo *RbacPolicyDataRepositoryImpl) CreateNewPolicyDataForRoleWithTxn(mode
 }
 
 func (repo *RbacPolicyDataRepositoryImpl) UpdatePolicyDataForRoleWithTxn(model *RbacPolicyData, tx *pg.Tx) (*RbacPolicyData, error) {
-	_, err := tx.Model(&model).Update()
+	_, err := tx.Model(model).Update()
 	if err != nil {
 		repo.logger.Errorw("error in updating policy for a role", "err", err)
 		return nil, err
