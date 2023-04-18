@@ -225,13 +225,15 @@ func (impl *AppGroupServiceImpl) GetActiveAppGroupList(emailId string, checkAuth
 	}
 	for _, appGroup := range appGroups {
 		appIds := appIdsMap[appGroup.Id]
-		appGroupDto := &AppGroupDto{
-			Id:          appGroup.Id,
-			Name:        appGroup.Name,
-			Description: appGroup.Description,
-			AppIds:      appIds,
+		if len(appIds) > 0 {
+			appGroupDto := &AppGroupDto{
+				Id:          appGroup.Id,
+				Name:        appGroup.Name,
+				Description: appGroup.Description,
+				AppIds:      appIds,
+			}
+			appGroupsDto = append(appGroupsDto, appGroupDto)
 		}
-		appGroupsDto = append(appGroupsDto, appGroupDto)
 	}
 	return appGroupsDto, nil
 }
