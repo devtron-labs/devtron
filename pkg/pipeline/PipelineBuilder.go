@@ -4098,7 +4098,6 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(request appGroup2.App
 
 func (impl PipelineBuilderImpl) GetCiPipelineByEnvironmentMin(request appGroup2.AppGroupingRequest) ([]*bean.CiPipelineMinResponse, error) {
 	results := make([]*bean.CiPipelineMinResponse, 0)
-	_, span := otel.Tracer("orchestrator").Start(request.Ctx, "ciHandler.AppGroupingCiPipelinesAuthorization")
 	var cdPipelines []*pipelineConfig.Pipeline
 	var err error
 	if request.AppGroupId > 0 {
@@ -4118,13 +4117,15 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironmentMin(request appGroup2.
 		impl.logger.Errorw("error in fetching pipelines", "request", request, "err", err)
 		return results, err
 	}
-
 	foundAppIds := make([]int, 0)
 	for _, pipeline := range cdPipelines {
 		foundAppIds = append(foundAppIds, pipeline.AppId)
 	}
+	if len(foundAppIds) == 0 {
+		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no matching pipeline found"}
+		return nil, err
+	}
 	ciPipelines, err := impl.ciPipelineRepository.FindByAppIds(foundAppIds)
-	span.End()
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("error in fetching ci pipeline", "err", err)
 		return nil, err
@@ -4159,7 +4160,7 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironmentMin(request appGroup2.
 		}
 
 		ciPipeline := ciPipelineByApp[pipeline.CiPipelineId]
-		parentAppId := pipelineIdVsAppId[pipeline.CiPipelineId]
+		parentAppId := pipelineIdVsAppId[ciPipeline.ParentCiPipeline]
 		result := &bean.CiPipelineMinResponse{
 			Id:               pipeline.CiPipelineId,
 			AppId:            pipeline.AppId,
@@ -4171,7 +4172,6 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironmentMin(request appGroup2.
 		authorizedIds = append(authorizedIds, pipeline.CiPipelineId)
 	}
 	//authorization block ends here
-	span.End()
 
 	return results, err
 }

@@ -65,7 +65,7 @@ type AppGroupingRequest struct {
 
 type AppGroupDto struct {
 	Id            int    `json:"id,omitempty"`
-	Name          string `json:"name,omitempty" validate:"required,max=50,name-component"`
+	Name          string `json:"name,omitempty" validate:"required,max=30,name-component"`
 	Description   string `json:"description,omitempty" validate:"max=50"`
 	AppIds        []int  `json:"appIds,omitempty"`
 	Active        bool   `json:"active,omitempty"`
