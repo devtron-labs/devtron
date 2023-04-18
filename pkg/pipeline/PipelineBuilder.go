@@ -530,6 +530,7 @@ func (impl PipelineBuilderImpl) getCiTemplateVariables(appId int) (ciConfig *bea
 		UpdatedBy:         template.UpdatedBy,
 		CreatedBy:         template.CreatedBy,
 		CreatedOn:         template.CreatedOn,
+		CiGitMaterialId:   template.GitMaterialId,
 	}
 	if dockerRegistry != nil {
 		ciConfig.DockerRegistry = dockerRegistry.Id
