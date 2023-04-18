@@ -442,24 +442,10 @@ func (impl UserAuthServiceImpl) CreateRole(roleData *bean.RoleData) (bool, error
 		Kind:        roleData.Kind,
 		Resource:    roleData.Resource,
 	}
-	dbConnection := impl.userRepository.GetConnection()
-	tx, err := dbConnection.Begin()
-	if err != nil {
-		return false, err
-	}
-	// Rollback tx on error.
-	defer tx.Rollback()
-
-	roleModel, err = impl.userAuthRepository.CreateRole(roleModel, tx)
+	roleModel, err := impl.userAuthRepository.CreateRole(roleModel)
 	if err != nil || roleModel == nil {
 		return false, err
 	}
-
-	err = tx.Commit()
-	if err != nil {
-		return false, err
-	}
-
 	return true, nil
 }
 
