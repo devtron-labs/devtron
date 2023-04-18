@@ -30,6 +30,5 @@ CREATE TABLE "public"."app_group_mapping"
     PRIMARY KEY ("id")
 );
 
-CREATE UNIQUE INDEX "app_group_unique" ON "public"."app_group" USING BTREE ("name");
 ALTER TABLE "public"."app_group_mapping" ADD FOREIGN KEY ("app_group_id") REFERENCES "public"."app_group"("id");
 ALTER TABLE "public"."app_group_mapping" ADD FOREIGN KEY ("app_id") REFERENCES "public"."app"("id");

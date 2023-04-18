@@ -40,6 +40,7 @@ type AppGroupMappingRepository interface {
 	FindById(id int) (*AppGroupMapping, error)
 	FindByAppGroupId(appGroupId int) ([]*AppGroupMapping, error)
 	FindAll() ([]*AppGroupMapping, error)
+	FindByAppGroupIds(appGroupIds []int) ([]*AppGroupMapping, error)
 	GetConnection() (dbConnection *pg.DB)
 }
 
@@ -89,5 +90,13 @@ func (repo AppGroupMappingRepositoryImpl) FindByAppGroupId(appGroupId int) ([]*A
 func (repo AppGroupMappingRepositoryImpl) FindAll() ([]*AppGroupMapping, error) {
 	var models []*AppGroupMapping
 	err := repo.dbConnection.Model(&models).Select()
+	return models, err
+}
+
+func (repo AppGroupMappingRepositoryImpl) FindByAppGroupIds(appGroupIds []int) ([]*AppGroupMapping, error) {
+	var models []*AppGroupMapping
+	err := repo.dbConnection.Model(&models).
+		Where("app_group_mapping.app_group_id in (?)", pg.In(appGroupIds)).
+		Select()
 	return models, err
 }

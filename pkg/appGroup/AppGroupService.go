@@ -19,8 +19,8 @@ package appGroup
 
 import (
 	"context"
-	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appGroup"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
@@ -88,6 +88,19 @@ func (impl *AppGroupServiceImpl) CreateAppGroup(request *AppGroupDto) (*AppGroup
 	// Rollback tx on error.
 	defer tx.Rollback()
 
+	existingModel, err := impl.appGroupRepository.FindByName(request.Name)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in create app group", "error", err)
+		return nil, err
+	}
+
+	if err == nil && existingModel.Id > 0 {
+		if existingModel.Name == request.Name {
+			err = &util.ApiError{Code: "302", HttpStatusCode: 200, UserMessage: "group name already exists"}
+			return nil, err
+		}
+	}
+
 	model := &appGroup.AppGroup{
 		Name:        request.Name,
 		Description: request.Description,
@@ -136,7 +149,6 @@ func (impl *AppGroupServiceImpl) UpdateAppGroup(request *AppGroupDto) (*AppGroup
 		return nil, err
 	}
 	if existingModel != nil && existingModel.Id > 0 {
-		existingModel.Name = request.Name
 		existingModel.Description = request.Description
 		existingModel.Active = true
 		existingModel.UpdatedOn = time.Now()
@@ -183,7 +195,19 @@ func (impl *AppGroupServiceImpl) UpdateAppGroup(request *AppGroupDto) (*AppGroup
 
 func (impl *AppGroupServiceImpl) GetActiveAppGroupList(emailId string, checkAuthBatch func(emailId string, appObject []string) map[string]bool) ([]*AppGroupDto, error) {
 	appGroupsDto := make([]*AppGroupDto, 0)
-	appGroupMappings, err := impl.appGroupMappingRepository.FindAll()
+	var appGroupIds []int
+	appGroups, err := impl.appGroupRepository.FindActiveList()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in update app group", "error", err)
+		return nil, err
+	}
+	for _, appGroup := range appGroups {
+		appGroupIds = append(appGroupIds, appGroup.Id)
+	}
+	if len(appGroupIds) == 0 {
+		return appGroupsDto, nil
+	}
+	appGroupMappings, err := impl.appGroupMappingRepository.FindByAppGroupIds(appGroupIds)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in update app group", "error", err)
 		return nil, err
@@ -218,11 +242,7 @@ func (impl *AppGroupServiceImpl) GetActiveAppGroupList(emailId string, checkAuth
 			appIdsMap[appGroupMapping.AppGroupId] = append(appIdsMap[appGroupMapping.AppGroupId], appGroupMapping.AppId)
 		}
 	}
-	appGroups, err := impl.appGroupRepository.FindActiveList()
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in update app group", "error", err)
-		return nil, err
-	}
+
 	for _, appGroup := range appGroups {
 		appIds := appIdsMap[appGroup.Id]
 		if len(appIds) > 0 {
@@ -283,18 +303,6 @@ func (impl *AppGroupServiceImpl) DeleteAppGroup(appGroupId int) (bool, error) {
 		impl.logger.Errorw("error in update app group", "error", err)
 		return false, err
 	}
-
-	appGroupMappings, err := impl.appGroupMappingRepository.FindByAppGroupId(appGroupId)
-	if err != nil && err != pg.ErrNoRows {
-		return false, err
-	}
-	for _, appGroupMapping := range appGroupMappings {
-		err = impl.appGroupMappingRepository.Delete(appGroupMapping, tx)
-		if err != nil {
-			return false, err
-		}
-	}
-	appGroup.Name = fmt.Sprintf("%s-deleted", appGroup.Name)
 	appGroup.Active = false
 	appGroup.UpdatedOn = time.Now()
 	appGroup.UpdatedBy = 1
