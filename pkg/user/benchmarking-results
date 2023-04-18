@@ -1,0 +1,30 @@
+goos: darwin
+goarch: amd64
+pkg: github.com/devtron-labs/devtron/pkg/user/casbin
+cpu: Intel(R) Core(TM) i5-8257U CPU @ 1.40GHz
+
+
+Scenario 1: Results of benchmarking when roleCreation part is commented and only default role/policy fetch and rendering is judged (250k times faster)-
+
+
+With V2 function -
+BenchmarkCreateDefaultPoliciesForAllTypesV2/BenchmarkCreateDefaultPoliciesForAllTypesV2-8             504132          2361 ns/op
+
+With V1 function -
+BenchmarkCreateDefaultPoliciesForAllTypes/BenchmarkCreateDefaultPoliciesForAllTypes-8                  2     561936517 ns/op
+
+
+
+Scenario 2: Results of benchmarking when roleCreation part is not commented (4 times faster)-
+
+
+With V2 function -
+BenchmarkCreateDefaultPoliciesForAllTypesV2/BenchmarkCreateDefaultPoliciesForAllTypesV2-8                  2     561547156 ns/op
+
+With V1 function -
+BenchmarkCreateDefaultPoliciesForAllTypes/BenchmarkCreateDefaultPoliciesForAllTypes-8                  1    1956079317 ns/op
+
+
+NOTE - From the above two scenarios, we can easily deduce that the while we have got significant improvements in default role/policy
+fetching & rendering we still need to work on the time taken for every role to be saved in DB. This should be done via introducing
+bulk update operation in role saving in further iterations of work in this area.
