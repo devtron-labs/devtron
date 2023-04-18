@@ -302,6 +302,14 @@ type CiConfigRequest struct {
 	CiGitMaterialId   int                     `json:"ciGitConfiguredId"`
 }
 
+type CiPipelineMinResponse struct {
+	Id               int    `json:"id,omitempty" validate:"number"` //ciTemplateId
+	AppId            int    `json:"appId,omitempty" validate:"required,number"`
+	AppName          string `json:"appName,omitempty"`
+	ParentCiPipeline int    `json:"parentCiPipeline"`
+	ParentAppId      int    `json:"parentAppId"`
+}
+
 type TestExecutorImageProperties struct {
 	ImageName string `json:"imageName,omitempty"`
 	Arg       string `json:"arg,omitempty"`
