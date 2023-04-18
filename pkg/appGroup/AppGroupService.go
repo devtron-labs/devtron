@@ -21,13 +21,14 @@ import (
 	"context"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appGroup"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
 )
 
 type AppGroupService interface {
-	GetActiveAppGroupList() ([]*AppGroupDto, error)
+	GetActiveAppGroupList(emailId string, checkAuthBatch func(emailId string, appObject []string) map[string]bool) ([]*AppGroupDto, error)
 	GetApplicationsForAppGroup(appGroupId int) ([]*ApplicationDto, error)
 	GetAppIdsByAppGroupId(appGroupId int) ([]int, error)
 	CreateAppGroup(request *AppGroupDto) (*AppGroupDto, error)
@@ -38,14 +39,16 @@ type AppGroupServiceImpl struct {
 	logger                    *zap.SugaredLogger
 	appGroupRepository        appGroup.AppGroupRepository
 	appGroupMappingRepository appGroup.AppGroupMappingRepository
+	enforcerUtil              rbac.EnforcerUtil
 }
 
 func NewAppGroupServiceImpl(logger *zap.SugaredLogger, appGroupRepository appGroup.AppGroupRepository,
-	appGroupMappingRepository appGroup.AppGroupMappingRepository) *AppGroupServiceImpl {
+	appGroupMappingRepository appGroup.AppGroupMappingRepository, enforcerUtil rbac.EnforcerUtil) *AppGroupServiceImpl {
 	return &AppGroupServiceImpl{
 		logger:                    logger,
 		appGroupRepository:        appGroupRepository,
 		appGroupMappingRepository: appGroupMappingRepository,
+		enforcerUtil:              enforcerUtil,
 	}
 }
 
@@ -177,18 +180,43 @@ func (impl *AppGroupServiceImpl) UpdateAppGroup(request *AppGroupDto) (*AppGroup
 	return request, nil
 }
 
-func (impl *AppGroupServiceImpl) GetActiveAppGroupList() ([]*AppGroupDto, error) {
+func (impl *AppGroupServiceImpl) GetActiveAppGroupList(emailId string, checkAuthBatch func(emailId string, appObject []string) map[string]bool) ([]*AppGroupDto, error) {
 	appGroupsDto := make([]*AppGroupDto, 0)
 	appGroupMappings, err := impl.appGroupMappingRepository.FindAll()
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in update app group", "error", err)
 		return nil, err
 	}
-	appIdsMap := make(map[int][]int)
+	var appIds []int
+	authorizedAppIds := make(map[int]bool)
 	for _, appGroupMapping := range appGroupMappings {
-		appIdsMap[appGroupMapping.AppGroupId] = append(appIdsMap[appGroupMapping.AppGroupId], appGroupMapping.AppId)
+		appIds = append(appIds, appGroupMapping.AppId)
 	}
 
+	//authorization block starts here
+	var appObjectArr []string
+	objects := impl.enforcerUtil.GetRbacObjectsByAppIds(appIds)
+	for _, object := range objects {
+		appObjectArr = append(appObjectArr, object)
+	}
+	appResults := checkAuthBatch(emailId, appObjectArr)
+	for _, appId := range appIds {
+		appObject := objects[appId]
+		if !appResults[appObject] {
+			//if user unauthorized, skip items
+			continue
+		}
+		authorizedAppIds[appId] = true
+	}
+	//authorization block ends here
+
+	appIdsMap := make(map[int][]int)
+	for _, appGroupMapping := range appGroupMappings {
+		// if this app from the group have the permission add in the result set
+		if _, ok := authorizedAppIds[appGroupMapping.AppId]; ok {
+			appIdsMap[appGroupMapping.AppGroupId] = append(appIdsMap[appGroupMapping.AppGroupId], appGroupMapping.AppId)
+		}
+	}
 	appGroups, err := impl.appGroupRepository.FindActiveList()
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in update app group", "error", err)

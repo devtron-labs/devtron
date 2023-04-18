@@ -35,6 +35,7 @@ type AppGroupRepository interface {
 	Save(model *AppGroup, tx *pg.Tx) (*AppGroup, error)
 	Update(model *AppGroup, tx *pg.Tx) error
 	FindById(id int) (*AppGroup, error)
+	FindByName(name string) (*AppGroup, error)
 	FindActiveList() ([]*AppGroup, error)
 	GetConnection() (dbConnection *pg.DB)
 }
@@ -64,6 +65,13 @@ func (repo AppGroupRepositoryImpl) Update(model *AppGroup, tx *pg.Tx) error {
 func (repo AppGroupRepositoryImpl) FindById(id int) (*AppGroup, error) {
 	model := &AppGroup{}
 	err := repo.dbConnection.Model(model).Where("id = ?", id).Where("active = ?", true).
+		Select()
+	return model, err
+}
+
+func (repo AppGroupRepositoryImpl) FindByName(name string) (*AppGroup, error) {
+	model := &AppGroup{}
+	err := repo.dbConnection.Model(model).Where("name = ?", name).Where("active = ?", true).
 		Select()
 	return model, err
 }

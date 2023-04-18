@@ -29,6 +29,7 @@ import (
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type AppGroupRestHandler interface {
@@ -71,7 +72,13 @@ func (handler AppGroupRestHandlerImpl) GetActiveAppGroupList(w http.ResponseWrit
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	res, err := handler.appGroupService.GetActiveAppGroupList()
+	user, err := handler.userService.GetById(userId)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	emailId := strings.ToLower(user.EmailId)
+	res, err := handler.appGroupService.GetActiveAppGroupList(emailId, handler.checkAuthBatch)
 	if err != nil {
 		handler.logger.Errorw("service err, GetActiveAppGroupList", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -130,7 +137,6 @@ func (handler AppGroupRestHandlerImpl) CreateAppGroup(w http.ResponseWriter, r *
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-
 	handler.logger.Infow("request payload, CreateAppGroup", "payload", request)
 	resp, err := handler.appGroupService.CreateAppGroup(&request)
 	if err != nil {
@@ -166,7 +172,6 @@ func (handler AppGroupRestHandlerImpl) UpdateAppGroup(w http.ResponseWriter, r *
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-
 	handler.logger.Infow("request payload, UpdateAppGroup", "payload", request)
 	resp, err := handler.appGroupService.UpdateAppGroup(&request)
 	if err != nil {
@@ -176,7 +181,6 @@ func (handler AppGroupRestHandlerImpl) UpdateAppGroup(w http.ResponseWriter, r *
 	}
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
-
 func (handler AppGroupRestHandlerImpl) DeleteAppGroup(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -194,7 +198,6 @@ func (handler AppGroupRestHandlerImpl) DeleteAppGroup(w http.ResponseWriter, r *
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-
 	handler.logger.Infow("request payload, DeleteAppGroup", "appGroupId", appGroupId)
 	resp, err := handler.appGroupService.DeleteAppGroup(appGroupId)
 	if err != nil {
@@ -203,4 +206,12 @@ func (handler AppGroupRestHandlerImpl) DeleteAppGroup(w http.ResponseWriter, r *
 		return
 	}
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+}
+
+func (handler AppGroupRestHandlerImpl) checkAuthBatch(emailId string, appObject []string) map[string]bool {
+	var appResult map[string]bool
+	if len(appObject) > 0 {
+		appResult = handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceApplications, casbin.ActionGet, appObject)
+	}
+	return appResult
 }
