@@ -144,10 +144,11 @@ func InitializeApp() (*App, error) {
 		client2.CasbinWireSet,
 		globalTag.GlobalTagWireSet,
 		// -------wireset end ----------
-		gitSensor.GetGitSensorConfig,
-		gitSensor.NewGitSensorSession,
-		wire.Bind(new(gitSensor.GitSensorClient), new(*gitSensor.GitSensorClientImpl)),
-		//--------
+		//-------
+		gitSensor.GetConfig,
+		gitSensor.NewGitSensorClient,
+		wire.Bind(new(gitSensor.Client), new(*gitSensor.ClientImpl)),
+		//-------
 		helper.NewAppListingRepositoryQueryBuilder,
 		//sql.GetConfig,
 		eClient.GetEventClientConfig,
