@@ -67,6 +67,7 @@ type CiHandler interface {
 	UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus) (int, error)
 
 	FetchCiStatusForTriggerView(appId int) ([]*pipelineConfig.CiWorkflowStatus, error)
+	FetchCiStatusForTriggerViewV1(appId int) ([]*pipelineConfig.CiWorkflowStatus, error)
 	RefreshMaterialByCiPipelineMaterialId(gitMaterialId int) (refreshRes *gitSensor.RefreshGitMaterialResponse, err error)
 	FetchMaterialInfoByArtifactId(ciArtifactId int) (*GitTriggerInfoResponse, error)
 	WriteToCreateTestSuites(pipelineId int, buildId int, triggeredBy int)
@@ -1022,6 +1023,16 @@ func (impl *CiHandlerImpl) getLastSeenCommit(ciMaterialId int) (bean.GitCommit, 
 	return gitCommit, nil
 }
 
+func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewV1(appId int) ([]*pipelineConfig.CiWorkflowStatus, error) {
+	ciWorkflowStatuses, err := impl.ciWorkflowRepository.FIndCiWorkflowStatusesByAppId(appId)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.Logger.Errorw("err in fetching ciWorkflowStatuses from ciWorkflowRepository", "appId", appId, "err", err)
+		return ciWorkflowStatuses, err
+	}
+
+	return ciWorkflowStatuses, err
+}
+
 func (impl *CiHandlerImpl) FetchCiStatusForTriggerView(appId int) ([]*pipelineConfig.CiWorkflowStatus, error) {
 	var ciWorkflowStatuses []*pipelineConfig.CiWorkflowStatus
 
@@ -1047,7 +1058,6 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerView(appId int) ([]*pipelineCo
 		if workflow.Id > 0 {
 			ciWorkflowStatus.CiPipelineName = workflow.CiPipeline.Name
 			ciWorkflowStatus.CiStatus = workflow.Status
-			ciWorkflowStatus.StorageConfigured = workflow.BlobStorageEnabled
 		} else {
 			ciWorkflowStatus.CiStatus = "Not Triggered"
 		}
