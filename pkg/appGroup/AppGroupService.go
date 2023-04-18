@@ -19,6 +19,7 @@ package appGroup
 
 import (
 	"context"
+	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appGroup"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -291,7 +292,7 @@ func (impl *AppGroupServiceImpl) DeleteAppGroup(appGroupId int) (bool, error) {
 			return false, err
 		}
 	}
-
+	appGroup.Name = fmt.Sprintf("%s-deleted", appGroup.Name)
 	appGroup.Active = false
 	appGroup.UpdatedOn = time.Now()
 	appGroup.UpdatedBy = 1
