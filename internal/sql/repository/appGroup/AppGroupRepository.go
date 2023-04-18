@@ -23,11 +23,12 @@ import (
 )
 
 type AppGroup struct {
-	tableName   struct{} `sql:"app_group" pg:",discard_unknown_columns"`
-	Id          int      `sql:"id,pk"`
-	Name        string   `sql:"name,notnull"`
-	Description string   `sql:"description,notnull"`
-	Active      bool     `sql:"active, notnull"`
+	tableName     struct{} `sql:"app_group" pg:",discard_unknown_columns"`
+	Id            int      `sql:"id,pk"`
+	Name          string   `sql:"name,notnull"`
+	Description   string   `sql:"description,notnull"`
+	Active        bool     `sql:"active, notnull"`
+	EnvironmentId int      `sql:"environment_id,notnull"`
 	sql.AuditLog
 }
 
@@ -35,8 +36,8 @@ type AppGroupRepository interface {
 	Save(model *AppGroup, tx *pg.Tx) (*AppGroup, error)
 	Update(model *AppGroup, tx *pg.Tx) error
 	FindById(id int) (*AppGroup, error)
-	FindByName(name string) (*AppGroup, error)
-	FindActiveList() ([]*AppGroup, error)
+	FindByNameAndEnvId(name string, envId int) (*AppGroup, error)
+	FindActiveListByEnvId(envId int) ([]*AppGroup, error)
 	GetConnection() (dbConnection *pg.DB)
 }
 
@@ -69,16 +70,19 @@ func (repo AppGroupRepositoryImpl) FindById(id int) (*AppGroup, error) {
 	return model, err
 }
 
-func (repo AppGroupRepositoryImpl) FindByName(name string) (*AppGroup, error) {
+func (repo AppGroupRepositoryImpl) FindByNameAndEnvId(name string, envId int) (*AppGroup, error) {
 	model := &AppGroup{}
-	err := repo.dbConnection.Model(model).Where("name = ?", name).Where("active = ?", true).
+	err := repo.dbConnection.Model(model).
+		Where("name = ?", name).Where("environment_id=?", envId).
+		Where("active = ?", true).
 		Select()
 	return model, err
 }
 
-func (repo AppGroupRepositoryImpl) FindActiveList() ([]*AppGroup, error) {
+func (repo AppGroupRepositoryImpl) FindActiveListByEnvId(envId int) ([]*AppGroup, error) {
 	var models []*AppGroup
 	err := repo.dbConnection.Model(&models).Where("active = ?", true).
+		Where("environment_id=?", envId).
 		Select()
 	return models, err
 }

@@ -73,7 +73,13 @@ func (handler AppGroupRestHandlerImpl) GetActiveAppGroupList(w http.ResponseWrit
 		return
 	}
 	emailId := strings.ToLower(user.EmailId)
-	res, err := handler.appGroupService.GetActiveAppGroupList(emailId, handler.checkAuthBatch)
+	vars := mux.Vars(r)
+	envId, err := strconv.Atoi(vars["envId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	res, err := handler.appGroupService.GetActiveAppGroupList(emailId, handler.checkAuthBatch, envId)
 	if err != nil {
 		handler.logger.Errorw("service err, GetActiveAppGroupList", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -121,6 +127,13 @@ func (handler AppGroupRestHandlerImpl) CreateAppGroup(w http.ResponseWriter, r *
 		return
 	}
 	request.UserId = userId
+	vars := mux.Vars(r)
+	envId, err := strconv.Atoi(vars["envId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	request.EnvironmentId = envId
 	err = handler.validator.Struct(request)
 	if err != nil {
 		handler.logger.Errorw("validation error", "err", err, "payload", request)

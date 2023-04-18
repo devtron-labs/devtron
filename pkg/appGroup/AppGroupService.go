@@ -29,7 +29,7 @@ import (
 )
 
 type AppGroupService interface {
-	GetActiveAppGroupList(emailId string, checkAuthBatch func(emailId string, appObject []string) map[string]bool) ([]*AppGroupDto, error)
+	GetActiveAppGroupList(emailId string, checkAuthBatch func(emailId string, appObject []string) map[string]bool, envId int) ([]*AppGroupDto, error)
 	GetApplicationsForAppGroup(appGroupId int) ([]*ApplicationDto, error)
 	GetAppIdsByAppGroupId(appGroupId int) ([]int, error)
 	CreateAppGroup(request *AppGroupDto) (*AppGroupDto, error)
@@ -64,19 +64,21 @@ type AppGroupingRequest struct {
 }
 
 type AppGroupDto struct {
-	Id          int    `json:"id,omitempty"`
-	Name        string `json:"name,omitempty" validate:"required,max=50,name-component"`
-	Description string `json:"description,omitempty" validate:"max=50"`
-	AppIds      []int  `json:"appIds,omitempty"`
-	Active      bool   `json:"active,omitempty"`
-	UserId      int32  `json:"-"`
+	Id            int    `json:"id,omitempty"`
+	Name          string `json:"name,omitempty" validate:"required,max=50,name-component"`
+	Description   string `json:"description,omitempty" validate:"max=50"`
+	AppIds        []int  `json:"appIds,omitempty"`
+	Active        bool   `json:"active,omitempty"`
+	EnvironmentId int    `json:"environmentId,omitempty"`
+	UserId        int32  `json:"-"`
 }
 
 type ApplicationDto struct {
-	AppGroupId  int    `json:"appGroupId,omitempty"`
-	AppId       int    `json:"appId,omitempty"`
-	AppName     string `json:"appName,omitempty"`
-	Description string `json:"description,omitempty"`
+	AppGroupId    int    `json:"appGroupId,omitempty"`
+	AppId         int    `json:"appId,omitempty"`
+	AppName       string `json:"appName,omitempty"`
+	EnvironmentId int    `json:"environmentId,omitempty"`
+	Description   string `json:"description,omitempty"`
 }
 
 func (impl *AppGroupServiceImpl) CreateAppGroup(request *AppGroupDto) (*AppGroupDto, error) {
@@ -88,7 +90,7 @@ func (impl *AppGroupServiceImpl) CreateAppGroup(request *AppGroupDto) (*AppGroup
 	// Rollback tx on error.
 	defer tx.Rollback()
 
-	existingModel, err := impl.appGroupRepository.FindByName(request.Name)
+	existingModel, err := impl.appGroupRepository.FindByNameAndEnvId(request.Name, request.EnvironmentId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in create app group", "error", err)
 		return nil, err
@@ -102,10 +104,11 @@ func (impl *AppGroupServiceImpl) CreateAppGroup(request *AppGroupDto) (*AppGroup
 	}
 
 	model := &appGroup.AppGroup{
-		Name:        request.Name,
-		Description: request.Description,
-		Active:      true,
-		AuditLog:    sql.AuditLog{CreatedOn: time.Now(), CreatedBy: request.UserId, UpdatedBy: request.UserId, UpdatedOn: time.Now()},
+		Name:          request.Name,
+		Description:   request.Description,
+		EnvironmentId: request.EnvironmentId,
+		Active:        true,
+		AuditLog:      sql.AuditLog{CreatedOn: time.Now(), CreatedBy: request.UserId, UpdatedBy: request.UserId, UpdatedOn: time.Now()},
 	}
 	_, err = impl.appGroupRepository.Save(model, tx)
 	if err != nil {
@@ -193,10 +196,10 @@ func (impl *AppGroupServiceImpl) UpdateAppGroup(request *AppGroupDto) (*AppGroup
 	return request, nil
 }
 
-func (impl *AppGroupServiceImpl) GetActiveAppGroupList(emailId string, checkAuthBatch func(emailId string, appObject []string) map[string]bool) ([]*AppGroupDto, error) {
+func (impl *AppGroupServiceImpl) GetActiveAppGroupList(emailId string, checkAuthBatch func(emailId string, appObject []string) map[string]bool, envId int) ([]*AppGroupDto, error) {
 	appGroupsDto := make([]*AppGroupDto, 0)
 	var appGroupIds []int
-	appGroups, err := impl.appGroupRepository.FindActiveList()
+	appGroups, err := impl.appGroupRepository.FindActiveListByEnvId(envId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in update app group", "error", err)
 		return nil, err
