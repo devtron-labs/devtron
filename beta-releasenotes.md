@@ -10,3 +10,4 @@
 - perf: Api optimizations (#3250)
 ## Documentation
 ## Others
+- chore: added workflow for notification on discord forum (#3300)
