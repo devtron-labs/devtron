@@ -10,4 +10,5 @@
 - perf: Api optimizations (#3250)
 ## Documentation
 ## Others
+- chore: added workflow for notification on discord forum ENV_NAME changes (#3301)
 - chore: added workflow for notification on discord forum (#3300)
