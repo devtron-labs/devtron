@@ -20,11 +20,13 @@ package pipeline
 import (
 	"archive/zip"
 	"bufio"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/client/gitSensor"
 	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"io/ioutil"
@@ -38,7 +40,6 @@ import (
 
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	client "github.com/devtron-labs/devtron/client/events"
-	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -80,7 +81,7 @@ type CiHandlerImpl struct {
 	Logger                       *zap.SugaredLogger
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository
 	ciService                    CiService
-	gitSensorClient              gitSensor.GitSensorClient
+	gitSensorClient              gitSensor.Client
 	ciWorkflowRepository         pipelineConfig.CiWorkflowRepository
 	workflowService              WorkflowService
 	ciLogService                 CiLogService
@@ -98,7 +99,7 @@ type CiHandlerImpl struct {
 }
 
 func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
-	gitSensorClient gitSensor.GitSensorClient, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, workflowService WorkflowService,
+	gitSensorClient gitSensor.Client, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, workflowService WorkflowService,
 	ciLogService CiLogService, ciConfig *CiConfig, ciArtifactRepository repository.CiArtifactRepository, userService user.UserService, eventClient client.EventClient,
 	eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository, appListingRepository repository.AppListingRepository,
 	K8sUtil *util.K8sUtil, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil,
@@ -277,7 +278,9 @@ func (impl *CiHandlerImpl) validateBuildSequence(gitCiTriggerRequest bean.GitCiT
 
 func (impl *CiHandlerImpl) RefreshMaterialByCiPipelineMaterialId(gitMaterialId int) (refreshRes *gitSensor.RefreshGitMaterialResponse, err error) {
 	impl.Logger.Debugw("refreshing git material", "id", gitMaterialId)
-	refreshRes, err = impl.gitSensorClient.RefreshGitMaterial(&gitSensor.RefreshGitMaterialRequest{GitMaterialId: gitMaterialId})
+	refreshRes, err = impl.gitSensorClient.RefreshGitMaterial(context.Background(),
+		&gitSensor.RefreshGitMaterialRequest{GitMaterialId: gitMaterialId},
+	)
 	return refreshRes, err
 }
 
@@ -299,7 +302,7 @@ func (impl *CiHandlerImpl) FetchMaterialsByPipelineId(pipelineId int) ([]CiPipel
 		changesRequest := &gitSensor.FetchScmChangesRequest{
 			PipelineMaterialId: m.Id,
 		}
-		changesResp, apiErr := impl.gitSensorClient.FetchChanges(changesRequest)
+		changesResp, apiErr := impl.gitSensorClient.FetchChanges(context.Background(), changesRequest)
 		impl.Logger.Debugw("commits for material ", "m", m, "commits: ", changesResp)
 		if apiErr != nil {
 			impl.Logger.Warnw("git sensor FetchChanges failed for material", "id", m.Id)
@@ -923,7 +926,7 @@ func (impl *CiHandlerImpl) BuildManualTriggerCommitHashesForSourceTypeBranchFix(
 		GitHash:            ciPipelineMaterial.GitCommit.Commit,
 		GitTag:             ciPipelineMaterial.GitTag,
 	}
-	gitCommitResponse, err := impl.gitSensorClient.GetCommitMetadataForPipelineMaterial(commitMetadataRequest)
+	gitCommitResponse, err := impl.gitSensorClient.GetCommitMetadataForPipelineMaterial(context.Background(), commitMetadataRequest)
 	if err != nil {
 		impl.Logger.Errorw("err in fetching commit metadata", "commitMetadataRequest", commitMetadataRequest, "err", err)
 		return bean.GitCommit{}, err
@@ -956,7 +959,7 @@ func (impl *CiHandlerImpl) BuildManualTriggerCommitHashesForSourceTypeWebhook(ci
 		CiPipelineMaterialId: ciPipelineMaterial.Id,
 	}
 
-	webhookAndCiData, err := impl.gitSensorClient.GetWebhookData(webhookDataRequest)
+	webhookAndCiData, err := impl.gitSensorClient.GetWebhookData(context.Background(), webhookDataRequest)
 	if err != nil {
 		impl.Logger.Errorw("err", "err", err)
 		return bean.GitCommit{}, nil, err
@@ -979,7 +982,7 @@ func (impl *CiHandlerImpl) BuildManualTriggerCommitHashesForSourceTypeWebhook(ci
 			BranchName:         targetBranchName,
 		}
 
-		latestCommit, err := impl.gitSensorClient.GetCommitMetadata(latestCommitMetadataRequest)
+		latestCommit, err := impl.gitSensorClient.GetCommitMetadata(context.Background(), latestCommitMetadataRequest)
 
 		if err != nil {
 			impl.Logger.Errorw("err", "err", err)
@@ -998,7 +1001,7 @@ func (impl *CiHandlerImpl) BuildManualTriggerCommitHashesForSourceTypeWebhook(ci
 		CiConfigureSourceValue: pipeLineMaterialFromDb.Value,
 		CiConfigureSourceType:  pipeLineMaterialFromDb.Type,
 		WebhookData: &bean.WebhookData{
-			Id:              webhookData.Id,
+			Id:              int(webhookData.Id),
 			EventActionType: webhookData.EventActionType,
 			Data:            webhookData.Data,
 		},
@@ -1013,16 +1016,19 @@ func (impl *CiHandlerImpl) getLastSeenCommit(ciMaterialId int) (bean.GitCommit, 
 	headReq := &gitSensor.HeadRequest{
 		MaterialIds: materialIds,
 	}
-	hashResponse, err := impl.gitSensorClient.GetHeadForPipelineMaterials(headReq)
+	res, err := impl.gitSensorClient.GetHeadForPipelineMaterials(context.Background(), headReq)
 	if err != nil {
 		return bean.GitCommit{}, err
 	}
+	if len(res) == 0 {
+		return bean.GitCommit{}, errors.New("received empty response")
+	}
 	gitCommit := bean.GitCommit{
-		Commit:  hashResponse[0].GitCommit.Commit,
-		Author:  hashResponse[0].GitCommit.Author,
-		Date:    hashResponse[0].GitCommit.Date,
-		Message: hashResponse[0].GitCommit.Message,
-		Changes: hashResponse[0].GitCommit.Changes,
+		Commit:  res[0].GitCommit.Commit,
+		Author:  res[0].GitCommit.Author,
+		Date:    res[0].GitCommit.Date,
+		Message: res[0].GitCommit.Message,
+		Changes: res[0].GitCommit.Changes,
 	}
 	return gitCommit, nil
 }

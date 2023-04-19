@@ -18,6 +18,7 @@
 package pipeline
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
@@ -25,6 +26,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/client/gitSensor"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
@@ -43,7 +45,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
@@ -86,7 +87,7 @@ type CiCdPipelineOrchestratorImpl struct {
 	pipelineRepository            pipelineConfig.PipelineRepository
 	ciPipelineRepository          pipelineConfig.CiPipelineRepository
 	ciPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
-	GitSensorClient               gitSensor.GitSensorClient
+	GitSensorClient               gitSensor.Client
 	ciConfig                      *CiConfig
 	appWorkflowRepository         appWorkflow.AppWorkflowRepository
 	envRepository                 repository2.EnvironmentRepository
@@ -112,7 +113,7 @@ func NewCiCdPipelineOrchestrator(
 	pipelineRepository pipelineConfig.PipelineRepository,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
-	GitSensorClient gitSensor.GitSensorClient, ciConfig *CiConfig,
+	GitSensorClient gitSensor.Client, ciConfig *CiConfig,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	envRepository repository2.EnvironmentRepository,
 	attributesService attributes.AttributesService,
@@ -760,8 +761,7 @@ func (impl CiCdPipelineOrchestratorImpl) AddPipelineMaterialInGitSensor(pipeline
 		}
 	}
 
-	_, err := impl.GitSensorClient.SavePipelineMaterial(materials)
-	return err
+	return impl.GitSensorClient.SavePipelineMaterial(context.Background(), materials)
 }
 
 func (impl CiCdPipelineOrchestratorImpl) CheckStringMatchRegex(regex string, value string) bool {
@@ -956,8 +956,7 @@ func (impl CiCdPipelineOrchestratorImpl) updateRepositoryToGitSensor(material *p
 		Deleted:          !material.Active,
 		FetchSubmodules:  material.FetchSubmodules,
 	}
-	_, err := impl.GitSensorClient.UpdateRepo(sensorMaterial)
-	return err
+	return impl.GitSensorClient.UpdateRepo(context.Background(), sensorMaterial)
 }
 
 func (impl CiCdPipelineOrchestratorImpl) addRepositoryToGitSensor(materials []*bean.GitMaterial) error {
@@ -973,8 +972,7 @@ func (impl CiCdPipelineOrchestratorImpl) addRepositoryToGitSensor(materials []*b
 		}
 		sensorMaterials = append(sensorMaterials, sensorMaterial)
 	}
-	_, err := impl.GitSensorClient.AddRepo(sensorMaterials)
-	return err
+	return impl.GitSensorClient.AddRepo(context.Background(), sensorMaterials)
 }
 
 // FIXME: not thread safe

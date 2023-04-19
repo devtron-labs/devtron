@@ -98,7 +98,7 @@ func (impl *AppGroupServiceImpl) CreateAppGroup(request *AppGroupDto) (*AppGroup
 
 	if err == nil && existingModel.Id > 0 {
 		if existingModel.Name == request.Name {
-			err = &util.ApiError{Code: "302", HttpStatusCode: 200, UserMessage: "group name already exists"}
+			err = &util.ApiError{Code: "409", HttpStatusCode: 409, UserMessage: "group name already exists"}
 			return nil, err
 		}
 	}
