@@ -162,7 +162,11 @@ func (impl *AppGroupServiceImpl) UpdateAppGroup(request *AppGroupDto) (*AppGroup
 			return nil, err
 		}
 	}
-
+	requestedAppIds := make(map[int]int)
+	for _, appId := range request.AppIds {
+		requestedAppIds[appId] = appId
+	}
+	requestedToEliminate := make(map[int]*appGroup.AppGroupMapping)
 	mappings, err := impl.appGroupMappingRepository.FindByAppGroupId(request.Id)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in update app group", "error", err)
@@ -171,12 +175,18 @@ func (impl *AppGroupServiceImpl) UpdateAppGroup(request *AppGroupDto) (*AppGroup
 	existingAppIds := make(map[int]int)
 	for _, mapping := range mappings {
 		existingAppIds[mapping.AppId] = mapping.AppId
+		if _, ok := requestedAppIds[mapping.AppId]; !ok {
+			//this app is not in request, need to eliminate
+			requestedToEliminate[mapping.AppId] = mapping
+		}
 	}
+
 	for _, appId := range request.AppIds {
 		if _, ok := existingAppIds[appId]; ok {
 			// app already added in mapping
 			continue
 		}
+
 		mapping := &appGroup.AppGroupMapping{
 			AppGroupId: existingModel.Id,
 			AppId:      appId,
@@ -185,6 +195,14 @@ func (impl *AppGroupServiceImpl) UpdateAppGroup(request *AppGroupDto) (*AppGroup
 		_, err = impl.appGroupMappingRepository.Save(mapping, tx)
 		if err != nil {
 			impl.logger.Errorw("error in creating app group", "error", err)
+			return nil, err
+		}
+	}
+
+	for _, appGroupMapping := range requestedToEliminate {
+		err = impl.appGroupMappingRepository.Delete(appGroupMapping, tx)
+		if err != nil {
+			impl.logger.Errorw("error in deleting app group", "error", err)
 			return nil, err
 		}
 	}
