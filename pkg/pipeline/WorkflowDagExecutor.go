@@ -23,7 +23,7 @@ import (
 	"fmt"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
-	"github.com/devtron-labs/devtron/client/gitSensor"
+	gitSensorClient "github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	util4 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
@@ -104,7 +104,7 @@ type WorkflowDagExecutorImpl struct {
 	CiTemplateRepository          pipelineConfig.CiTemplateRepository
 	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
 	appLabelRepository            pipelineConfig.AppLabelRepository
-	gitSensorClient               gitSensor.GitSensorClient
+	gitSensorGrpcClient           gitSensorClient.Client
 }
 
 const (
@@ -169,7 +169,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
 	CiTemplateRepository pipelineConfig.CiTemplateRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
-	appLabelRepository pipelineConfig.AppLabelRepository, gitSensorClient gitSensor.GitSensorClient) *WorkflowDagExecutorImpl {
+	appLabelRepository pipelineConfig.AppLabelRepository, gitSensorGrpcClient gitSensorClient.Client) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
 		cdWorkflowRepository:          cdWorkflowRepository,
@@ -200,7 +200,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		CiTemplateRepository:          CiTemplateRepository,
 		ciWorkflowRepository:          ciWorkflowRepository,
 		appLabelRepository:            appLabelRepository,
-		gitSensorClient:               gitSensorClient,
+		gitSensorGrpcClient:           gitSensorGrpcClient,
 	}
 	err := wde.Subscribe()
 	if err != nil {
@@ -752,11 +752,11 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			if gitTrigger.CiConfigureSourceType == pipelineConfig.SOURCE_TYPE_WEBHOOK {
 				webhookDataId := gitTrigger.WebhookData.Id
 				if webhookDataId > 0 {
-					webhookDataRequest := &gitSensor.WebhookDataRequest{
+					webhookDataRequest := &gitSensorClient.WebhookDataRequest{
 						Id:                   webhookDataId,
 						CiPipelineMaterialId: ciPipelineMaterialId,
 					}
-					webhookAndCiData, err := impl.gitSensorClient.GetWebhookData(webhookDataRequest)
+					webhookAndCiData, err := impl.gitSensorGrpcClient.GetWebhookData(context.Background(), webhookDataRequest)
 					if err != nil {
 						impl.logger.Errorw("err while getting webhook data from git-sensor", "err", err, "webhookDataRequest", webhookDataRequest)
 						return nil, err
