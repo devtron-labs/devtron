@@ -38,7 +38,7 @@ jobs:
       - if: github.event.label.name == 'pager-duty'
         name: custom issues
         env:
-          DISCORD_WEBHOOK: ${{ secrets.GITHUB_ISSUES_DISCORD_WEBHOOK }}
+          DISCORD_WEBHOOK: ${{ secrets.GH_ISSUES_DISCORD_WEBHOOK }}
           DISCORD_WEBHOOK_FORUM: ${{ secrets.PAGERDUTY_DISCORD_WEBHOOK }}
           ENABLE_FORUM: true
 
