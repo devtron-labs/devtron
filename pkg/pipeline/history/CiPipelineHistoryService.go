@@ -39,21 +39,20 @@ func (impl *CiPipelineHistoryServiceImpl) SaveHistory(pipeline *pipelineConfig.C
 	if IsDockerConfigOverriden {
 		ciTemplateId := 0
 		ciTemplateOverrideId := 0
-
-		CiBuildConfigDbEntity, _ := bean.ConvertBuildConfigBeanToDbEntity(ciTemplateId, ciTemplateOverrideId, CiTemplateBean.CiBuildConfig, CiTemplateBean.UserId)
-
 		CiTemplateOverride = repository.CiPipelineTemplateOverrideHistoryDTO{
 			DockerRegistryId:      CiTemplateBean.CiTemplateOverride.DockerRegistryId,
 			DockerRepository:      CiTemplateBean.CiTemplateOverride.DockerRepository,
 			DockerfilePath:        CiTemplateBean.CiTemplateOverride.DockerfilePath,
 			Active:                CiTemplateBean.CiTemplateOverride.Active,
-			CiBuildConfigId:       CiBuildConfigDbEntity.Id,
-			BuildMetaDataType:     CiBuildConfigDbEntity.Type,
-			BuildMetadata:         CiBuildConfigDbEntity.BuildMetadata,
 			AuditLog:              CiTemplateBean.CiTemplateOverride.AuditLog,
 			IsCiTemplateOverriden: true,
 		}
-
+		if CiTemplateBean.CiBuildConfig != nil {
+			CiBuildConfigDbEntity, _ := bean.ConvertBuildConfigBeanToDbEntity(ciTemplateId, ciTemplateOverrideId, CiTemplateBean.CiBuildConfig, CiTemplateBean.UserId)
+			CiTemplateOverride.CiBuildConfigId = CiBuildConfigDbEntity.Id
+			CiTemplateOverride.BuildMetaDataType = CiBuildConfigDbEntity.Type
+			CiTemplateOverride.BuildMetadata = CiBuildConfigDbEntity.BuildMetadata
+		}
 	} else {
 
 		CiTemplateOverride = repository.CiPipelineTemplateOverrideHistoryDTO{
@@ -86,7 +85,6 @@ func (impl *CiPipelineHistoryServiceImpl) SaveHistory(pipeline *pipelineConfig.C
 	}
 
 	err := impl.CiPipelineHistoryRepository.Save(&CiPipelineHistory)
-
 	if err != nil {
 		impl.logger.Errorw("error in saving history of ci pipeline")
 		return err
