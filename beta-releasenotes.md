@@ -4,6 +4,7 @@
 - fix: bulk cd trigger argo app unauthorized err (#3290)
 - fix: api optimize fixes (#3275)
 ## Enhancements
+- feat: add sharding sql scripts (#3302)
 - feat: add gRPC client for git-sensor (#3085)
 - feat: optimised user addition/creation flows (#3274)
 - feat: added description field for environment  (#3020)
