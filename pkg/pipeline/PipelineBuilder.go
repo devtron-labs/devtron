@@ -4159,7 +4159,10 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironmentMin(request appGroup2.
 			//if user unauthorized, skip items
 			continue
 		}
-
+		if pipeline.CiPipelineId == 0 {
+			//skip for external ci
+			continue
+		}
 		ciPipeline := ciPipelineByApp[pipeline.CiPipelineId]
 		parentAppId := pipelineIdVsAppId[ciPipeline.ParentCiPipeline]
 		result := &bean.CiPipelineMinResponse{
