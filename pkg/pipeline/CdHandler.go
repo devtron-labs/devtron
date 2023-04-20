@@ -1145,7 +1145,7 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(re
 				cdWs.PipelineId = item
 				cdWs.PreStatus = NotTriggered
 				cdWs.DeployStatus = NotDeployed
-				cdWs.PostStatus = WorklowTypeDeploy
+				cdWs.PostStatus = NotTriggered
 				cdWorkflowStatus = append(cdWorkflowStatus, cdWs)
 			}
 		}
