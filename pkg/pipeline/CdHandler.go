@@ -693,7 +693,8 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 
 	triggeredBy := workflowR.TriggeredBy
 
-	var triggeredByUser *bean.UserInfo
+	triggeredByUser := bean.UserInfo{EmailId: "anonymous"}
+	
 	userIds = append(userIds, triggeredBy)
 	userInfos, err := impl.userService.GetByIds(userIds)
 	if err != nil && !util.IsErrNoRows(err) {
@@ -702,7 +703,7 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 	}
 	for _, userInfo := range userInfos {
 		if userInfo.Id == triggeredBy {
-			triggeredByUser = &userInfo
+			triggeredByUser = userInfo
 		} else if userInfo.Id == approvalRequestedUserId {
 			approvalRequest.UserEmail = userInfo.EmailId
 		}
@@ -710,9 +711,6 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 
 	workflow := impl.converterWFR(*workflowR)
 
-	if triggeredByUser == nil {
-		triggeredByUser = &bean.UserInfo{EmailId: "anonymous"}
-	}
 	ciArtifactId := workflow.CiArtifactId
 	if ciArtifactId > 0 {
 		ciArtifact, err := impl.ciArtifactRepository.Get(ciArtifactId)
