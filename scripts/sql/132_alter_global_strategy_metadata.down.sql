@@ -1,0 +1,1 @@
+ALTER TABLE "public"."global_strategy_metadata" DROP COLUMN "key";

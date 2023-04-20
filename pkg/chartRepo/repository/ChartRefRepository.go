@@ -156,6 +156,7 @@ type GlobalStrategyMetadata struct {
 	tableName   struct{}           `sql:"global_strategy_metadata" pg:",discard_unknown_columns"`
 	Id          int                `sql:"id,pk"`
 	Name        DeploymentStrategy `sql:"name"`
+	Key         string             `sql:"key"`
 	Description string             `sql:"description"`
 	Deleted     bool               `sql:"deleted,notnull"`
 	sql.AuditLog
