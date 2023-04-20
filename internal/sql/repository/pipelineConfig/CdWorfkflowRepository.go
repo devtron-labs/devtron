@@ -441,7 +441,7 @@ func (impl *CdWorkflowRepositoryImpl) UpdateWorkFlowRunner(wfr *CdWorkflowRunner
 }
 
 func (impl *CdWorkflowRepositoryImpl) UpdateWorkFlowRunnersWithTxn(wfrs []*CdWorkflowRunner, tx *pg.Tx) error {
-	_, err := tx.Model(&wfrs).Update()
+	_, err := tx.Model(&wfrs).Column("finished_on", "message", "status", "updated_on", "updated_by").Update()
 	return err
 }
 
