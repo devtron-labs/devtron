@@ -2488,8 +2488,8 @@ type Recreate struct {
 }
 
 type Rolling struct {
-	MaxSurge       string `json:"maxSurge"`
-	MaxUnavailable int    `json:"maxUnavailable"`
+	MaxSurge       string `json:"maxSurge,omitempty"`
+	MaxUnavailable int    `json:"maxUnavailable,omitempty"`
 }
 
 func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.App, pipeline *bean.CDPipelineConfigObject, userId int32) (pipelineRes int, err error) {
