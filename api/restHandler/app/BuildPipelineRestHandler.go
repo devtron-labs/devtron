@@ -12,6 +12,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
+	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	bean1 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
@@ -44,6 +45,7 @@ type DevtronAppBuildRestHandler interface {
 
 	UpdateBranchCiPipelinesWithRegex(w http.ResponseWriter, r *http.Request)
 	GetCiPipelineByEnvironment(w http.ResponseWriter, r *http.Request)
+	GetCiPipelineByEnvironmentMin(w http.ResponseWriter, r *http.Request)
 	GetExternalCiByEnvironment(w http.ResponseWriter, r *http.Request)
 }
 
@@ -1336,8 +1338,40 @@ func (handler PipelineConfigRestHandlerImpl) GetCiPipelineByEnvironment(w http.R
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	v := r.URL.Query()
+	appIdsString := v.Get("appIds")
+	var appIds []int
+	if len(appIdsString) > 0 {
+		appIdsSlices := strings.Split(appIdsString, ",")
+		for _, appId := range appIdsSlices {
+			id, err := strconv.Atoi(appId)
+			if err != nil {
+				common.WriteJsonResp(w, err, "please provide valid appIds", http.StatusBadRequest)
+				return
+			}
+			appIds = append(appIds, id)
+		}
+	}
+	var appGroupId int
+	appGroupIdStr := v.Get("appGroupId")
+	if len(appGroupIdStr) > 0 {
+		appGroupId, err = strconv.Atoi(appGroupIdStr)
+		if err != nil {
+			common.WriteJsonResp(w, err, "please provide valid appGroupId", http.StatusBadRequest)
+			return
+		}
+	}
+	request := appGroup2.AppGroupingRequest{
+		EnvId:          envId,
+		AppGroupId:     appGroupId,
+		AppIds:         appIds,
+		EmailId:        userEmailId,
+		CheckAuthBatch: handler.checkAuthBatch,
+		UserId:         userId,
+		Ctx:            r.Context(),
+	}
 	_, span := otel.Tracer("orchestrator").Start(r.Context(), "ciHandler.FetchCiPipelinesForAppGrouping")
-	ciConf, err := handler.pipelineBuilder.GetCiPipelineByEnvironment(envId, userEmailId, handler.checkAuthBatch, r.Context())
+	ciConf, err := handler.pipelineBuilder.GetCiPipelineByEnvironment(request)
 	span.End()
 	if err != nil {
 		handler.Logger.Errorw("service err, GetCiPipeline", "err", err, "envId", envId)
@@ -1345,6 +1379,68 @@ func (handler PipelineConfigRestHandlerImpl) GetCiPipelineByEnvironment(w http.R
 		return
 	}
 	common.WriteJsonResp(w, err, ciConf, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) GetCiPipelineByEnvironmentMin(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	user, err := handler.userAuthService.GetById(userId)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	userEmailId := strings.ToLower(user.EmailId)
+	envId, err := strconv.Atoi(vars["envId"])
+	if err != nil {
+		handler.Logger.Errorw("request err, GetCdPipelines", "err", err, "envId", envId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	v := r.URL.Query()
+	appIdsString := v.Get("appIds")
+	var appIds []int
+	if len(appIdsString) > 0 {
+		appIdsSlices := strings.Split(appIdsString, ",")
+		for _, appId := range appIdsSlices {
+			id, err := strconv.Atoi(appId)
+			if err != nil {
+				common.WriteJsonResp(w, err, "please provide valid appIds", http.StatusBadRequest)
+				return
+			}
+			appIds = append(appIds, id)
+		}
+	}
+	var appGroupId int
+	appGroupIdStr := v.Get("appGroupId")
+	if len(appGroupIdStr) > 0 {
+		appGroupId, err = strconv.Atoi(appGroupIdStr)
+		if err != nil {
+			common.WriteJsonResp(w, err, "please provide valid appGroupId", http.StatusBadRequest)
+			return
+		}
+	}
+	request := appGroup2.AppGroupingRequest{
+		EnvId:          envId,
+		AppGroupId:     appGroupId,
+		AppIds:         appIds,
+		EmailId:        userEmailId,
+		CheckAuthBatch: handler.checkAuthBatch,
+		UserId:         userId,
+		Ctx:            r.Context(),
+	}
+	_, span := otel.Tracer("orchestrator").Start(r.Context(), "ciHandler.FetchCiPipelinesForAppGrouping")
+	results, err := handler.pipelineBuilder.GetCiPipelineByEnvironmentMin(request)
+	span.End()
+	if err != nil {
+		handler.Logger.Errorw("service err, GetCiPipeline", "err", err, "envId", envId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, results, http.StatusOK)
 }
 
 func (handler PipelineConfigRestHandlerImpl) GetExternalCiByEnvironment(w http.ResponseWriter, r *http.Request) {
@@ -1365,8 +1461,41 @@ func (handler PipelineConfigRestHandlerImpl) GetExternalCiByEnvironment(w http.R
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	v := r.URL.Query()
+	appIdsString := v.Get("appIds")
+	var appIds []int
+	if len(appIdsString) > 0 {
+		appIdsSlices := strings.Split(appIdsString, ",")
+		for _, appId := range appIdsSlices {
+			id, err := strconv.Atoi(appId)
+			if err != nil {
+				common.WriteJsonResp(w, err, "please provide valid appIds", http.StatusBadRequest)
+				return
+			}
+			appIds = append(appIds, id)
+		}
+	}
+
+	var appGroupId int
+	appGroupIdStr := v.Get("appGroupId")
+	if len(appGroupIdStr) > 0 {
+		appGroupId, err = strconv.Atoi(appGroupIdStr)
+		if err != nil {
+			common.WriteJsonResp(w, err, "please provide valid appGroupId", http.StatusBadRequest)
+			return
+		}
+	}
+	request := appGroup2.AppGroupingRequest{
+		EnvId:          envId,
+		AppGroupId:     appGroupId,
+		AppIds:         appIds,
+		EmailId:        userEmailId,
+		CheckAuthBatch: handler.checkAuthBatch,
+		UserId:         userId,
+		Ctx:            r.Context(),
+	}
 	_, span := otel.Tracer("orchestrator").Start(r.Context(), "ciHandler.FetchExternalCiPipelinesForAppGrouping")
-	ciConf, err := handler.pipelineBuilder.GetExternalCiByEnvironment(envId, userEmailId, handler.checkAuthBatch, r.Context())
+	ciConf, err := handler.pipelineBuilder.GetExternalCiByEnvironment(request)
 	span.End()
 	if err != nil {
 		handler.Logger.Errorw("service err, GetExternalCi", "err", err, "envId", envId)
