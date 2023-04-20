@@ -4,6 +4,7 @@
 - fix: bulk cd trigger argo app unauthorized err (#3290)
 - fix: api optimize fixes (#3275)
 ## Enhancements
+- feat: private chart support for helm apps (#3267)
 - feat: add sharding sql scripts (#3302)
 - feat: add gRPC client for git-sensor (#3085)
 - feat: optimised user addition/creation flows (#3274)
