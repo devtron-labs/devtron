@@ -18,6 +18,7 @@
 package pipeline
 
 import (
+	"context"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -39,9 +40,9 @@ type GitRegistryConfig interface {
 	Delete(request *GitRegistry) error
 }
 type GitRegistryConfigImpl struct {
-	logger          *zap.SugaredLogger
-	gitProviderRepo repository.GitProviderRepository
-	GitSensorClient gitSensor.GitSensorClient
+	logger              *zap.SugaredLogger
+	gitProviderRepo     repository.GitProviderRepository
+	GitSensorGrpcClient gitSensor.Client
 }
 
 type GitRegistry struct {
@@ -59,11 +60,11 @@ type GitRegistry struct {
 }
 
 func NewGitRegistryConfigImpl(logger *zap.SugaredLogger, gitProviderRepo repository.GitProviderRepository,
-	GitSensorClient gitSensor.GitSensorClient) *GitRegistryConfigImpl {
+	GitSensorClient gitSensor.Client) *GitRegistryConfigImpl {
 	return &GitRegistryConfigImpl{
-		logger:          logger,
-		gitProviderRepo: gitProviderRepo,
-		GitSensorClient: GitSensorClient,
+		logger:              logger,
+		gitProviderRepo:     gitProviderRepo,
+		GitSensorGrpcClient: GitSensorClient,
 	}
 }
 
@@ -314,8 +315,7 @@ func (impl GitRegistryConfigImpl) UpdateGitSensor(provider *repository.GitProvid
 		SshPrivateKey: provider.SshPrivateKey,
 		AuthMode:      provider.AuthMode,
 	}
-	_, err := impl.GitSensorClient.SaveGitProvider(sensorGitProvider)
-	return err
+	return impl.GitSensorGrpcClient.SaveGitProvider(context.Background(), sensorGitProvider)
 }
 
 // Modifying Ssh Private Key because Ssh key authentication requires a new-line at the end of string & there are chances that user skips sending \n
