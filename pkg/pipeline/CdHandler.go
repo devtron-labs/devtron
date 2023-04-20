@@ -694,7 +694,7 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 	triggeredBy := workflowR.TriggeredBy
 
 	triggeredByUser := bean.UserInfo{EmailId: "anonymous"}
-	
+
 	userIds = append(userIds, triggeredBy)
 	userInfos, err := impl.userService.GetByIds(userIds)
 	if err != nil && !util.IsErrNoRows(err) {
@@ -704,7 +704,8 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 	for _, userInfo := range userInfos {
 		if userInfo.Id == triggeredBy {
 			triggeredByUser = userInfo
-		} else if userInfo.Id == approvalRequestedUserId {
+		}
+		if userInfo.Id == approvalRequestedUserId {
 			approvalRequest.UserEmail = userInfo.EmailId
 		}
 	}
