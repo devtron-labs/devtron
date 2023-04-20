@@ -241,7 +241,7 @@ func (impl DockerRegistryIpsConfigServiceImpl) createOrUpdateDockerRegistryImage
 		// create secret
 		impl.logger.Infow("creating ips", "ipsName", ipsName, "clusterId", clusterId)
 		ipsData := BuildIpsData(registryURL, username, password, email)
-		_, err = impl.k8sUtil.CreateSecret(namespace, ipsData, ipsName, v1.SecretTypeDockerConfigJson, k8sClient)
+		_, err = impl.k8sUtil.CreateSecret(namespace, ipsData, ipsName, v1.SecretTypeDockerConfigJson, k8sClient, nil, nil)
 		if err != nil {
 			impl.logger.Errorw("error in creating secret", "clusterId", clusterId, "namespace", namespace, "ipsName", ipsName, "error", err)
 			return err
