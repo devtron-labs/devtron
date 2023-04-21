@@ -435,10 +435,7 @@ func (impl ChartTemplateServiceImpl) packageChart(tempReferenceTemplateDir strin
 	}
 	impl.logger.Debugw("chart archive path", "path", archivePath)
 	//chart.Values
-	var valuesYaml string
-	if chart != nil && chart.Values != nil {
-		valuesYaml = chart.Values.Raw
-	}
+	valuesYaml := chart.Values.Raw
 	return &archivePath, valuesYaml, nil
 }
 
