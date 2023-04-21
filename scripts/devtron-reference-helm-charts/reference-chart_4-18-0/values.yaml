@@ -46,6 +46,7 @@ Spec:
 
 image:
   pullPolicy: IfNotPresent
+  restartPolicy: Always
 
 autoscaling:
   enabled: false
