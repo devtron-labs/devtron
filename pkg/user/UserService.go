@@ -1227,11 +1227,18 @@ func (impl UserServiceImpl) DeleteUser(bean *bean.UserInfo) (bool, error) {
 	if err != nil {
 		impl.logger.Warnw("No Roles Found for user", "id", model.Id)
 	}
+	var eliminatedPolicies []casbin2.Policy
 	for _, item := range groups {
 		flag := casbin2.DeleteRoleForUser(model.EmailId, item)
 		if flag == false {
 			impl.logger.Warnw("unable to delete role:", "user", model.EmailId, "role", item)
 		}
+		eliminatedPolicies = append(eliminatedPolicies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.EmailId), Obj: casbin2.Object(item)})
+	}
+	// updating in casbin
+	if len(eliminatedPolicies) > 0 {
+		pRes := casbin2.RemovePolicy(eliminatedPolicies)
+		impl.logger.Infow("Failed to remove policies", "policies", pRes)
 	}
 
 	return true, nil
