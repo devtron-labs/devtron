@@ -2711,12 +2711,17 @@ func (impl PipelineBuilderImpl) filterDeploymentTemplate(strategyKey string, pip
 	var pipelineStrategies DeploymentType
 	err := json.Unmarshal([]byte(pipelineStrategiesJson), &pipelineStrategies)
 	if err != nil {
-		impl.logger.Errorw("err", err)
+		impl.logger.Errorw("error while unmarshal strategies", "err", err)
 		return "", err
 	}
+	if pipelineStrategies.Deployment.Strategy[strategyKey] == nil {
+		return "", fmt.Errorf("no deployment strategy found for %s", strategyKey)
+	}
+	strategy := make(map[string]interface{})
+	strategy[strategyKey] = pipelineStrategies.Deployment.Strategy[strategyKey].(map[string]interface{})
 	pipelineStrategy := DeploymentType{
 		Deployment: Deployment{
-			Strategy: pipelineStrategies.Deployment.Strategy[strategyKey].(map[string]interface{}),
+			Strategy: strategy,
 		},
 	}
 	pipelineOverrideBytes, err := json.Marshal(pipelineStrategy)
