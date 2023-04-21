@@ -3285,7 +3285,7 @@ func (impl PipelineBuilderImpl) FetchCDPipelineStrategy(appId int) (PipelineStra
 	}
 
 	//get global strategy for this chart
-	globalStrategies, err := impl.globalStrategyMetadataRepository.GetByChartRefId(chart.ChartRefId)
+	globalStrategies, err := impl.globalStrategyMetadataChartRefMappingRepository.GetByChartRefId(chart.ChartRefId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting global strategies", "err", err)
 		return pipelineStrategiesResponse, err
@@ -3295,19 +3295,15 @@ func (impl PipelineBuilderImpl) FetchCDPipelineStrategy(appId int) (PipelineStra
 	}
 	pipelineOverride := chart.PipelineOverride
 	for _, globalStrategy := range globalStrategies {
-		pipelineStrategyJson, err := impl.filterDeploymentTemplate(globalStrategy.Key, pipelineOverride)
+		pipelineStrategyJson, err := impl.filterDeploymentTemplate(globalStrategy.GlobalStrategyMetadata.Key, pipelineOverride)
 		if err != nil {
 			return pipelineStrategiesResponse, err
 		}
 		pipelineStrategy := PipelineStrategy{
-			DeploymentTemplate: globalStrategy.Name,
+			DeploymentTemplate: globalStrategy.GlobalStrategyMetadata.Name,
 			Config:             []byte(pipelineStrategyJson),
 		}
-		if globalStrategy.Name == chartRepoRepository.DEPLOYMENT_STRATEGY_ROLLING {
-			pipelineStrategy.Default = true
-		} else {
-			pipelineStrategy.Default = false
-		}
+		pipelineStrategy.Default = globalStrategy.Default
 		pipelineStrategiesResponse.PipelineStrategy = append(pipelineStrategiesResponse.PipelineStrategy, pipelineStrategy)
 	}
 	return pipelineStrategiesResponse, nil
