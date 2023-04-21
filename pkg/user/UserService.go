@@ -1238,7 +1238,7 @@ func (impl UserServiceImpl) DeleteUser(bean *bean.UserInfo) (bool, error) {
 	// updating in casbin
 	if len(eliminatedPolicies) > 0 {
 		pRes := casbin2.RemovePolicy(eliminatedPolicies)
-		println(pRes)
+		impl.logger.Infow("Failed to remove policies", "policies", pRes)
 	}
 
 	return true, nil
