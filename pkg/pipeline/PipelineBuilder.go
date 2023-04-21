@@ -3146,7 +3146,7 @@ func (impl PipelineBuilderImpl) overrideArtifactsWithUserApprovalData(pipeline *
 //		artifactIds = append(artifactIds, artifact.Id)
 //	}
 //
-//	artifacts, err := impl.ciArtifactRepository.GetArtifactParentCiAndWorkflowDetailsByIds(artifactIds)
+//	artifacts, err := impl.ciArtifactRepository.GetArtifactParentCiAndWorkflowDetailsByIdsInDesc(artifactIds)
 //	if err != nil {
 //		return ciArtifactsResponse, err
 //	}
@@ -3283,7 +3283,7 @@ func (impl PipelineBuilderImpl) RetrieveArtifactsByCDPipeline(pipeline *pipeline
 		artifactIds = append(artifactIds, artifact.Id)
 	}
 
-	artifacts, err := impl.ciArtifactRepository.GetArtifactParentCiAndWorkflowDetailsByIds(artifactIds)
+	artifacts, err := impl.ciArtifactRepository.GetArtifactParentCiAndWorkflowDetailsByIdsInDesc(artifactIds)
 	if err != nil {
 		return ciArtifactsResponse, err
 	}

@@ -1134,6 +1134,7 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 			pipelineResponse := response[appKey]
 			pipelineResponse[pipelineKey] = false
 			response[appKey] = pipelineResponse
+			continue
 			//return nil, err
 		}
 		pipelineResponse := response[appKey]
