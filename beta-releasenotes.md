@@ -1,4 +1,5 @@
 ## Bugs
+- fix: restore deleted sql script (#3306)
 - fix: jobs trigger not working (#3296)
 - fix: Api optimization fixes (#3292)
 - fix: bulk cd trigger argo app unauthorized err (#3290)
