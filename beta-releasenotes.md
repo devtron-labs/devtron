@@ -13,6 +13,7 @@
 - feat: added description field for environment  (#3020)
 - perf: Api optimizations (#3250)
 ## Documentation
+- docs: devtron terminal connection timeout issue on gke cluster (#3260)
 - docs: cluster and environment url fix (#3284)
 ## Others
 - Custom app grouping  (#3295)
