@@ -332,12 +332,20 @@ func (impl K8sUtil) GetSecret(namespace string, name string, client *v12.CoreV1C
 	}
 }
 
-func (impl K8sUtil) CreateSecret(namespace string, data map[string][]byte, secretName string, secretType v1.SecretType, client *v12.CoreV1Client) (*v1.Secret, error) {
+func (impl K8sUtil) CreateSecret(namespace string, data map[string][]byte, secretName string, secretType v1.SecretType, client *v12.CoreV1Client, labels map[string]string, stringData map[string]string) (*v1.Secret, error) {
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: secretName,
 		},
-		Data: data,
+	}
+	if labels != nil && len(labels) > 0 {
+		secret.ObjectMeta.Labels = labels
+	}
+	if stringData != nil && len(stringData) > 0 {
+		secret.StringData = stringData
+	}
+	if data != nil && len(data) > 0 {
+		secret.Data = data
 	}
 	if len(secretType) > 0 {
 		secret.Type = secretType
@@ -363,9 +371,8 @@ func (impl K8sUtil) DeleteSecret(namespace string, name string, client *v12.Core
 	err := client.Secrets(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
 	if err != nil {
 		return err
-	} else {
-		return nil
 	}
+	return nil
 }
 
 func (impl K8sUtil) DeleteJob(namespace string, name string, clusterConfig *ClusterConfig) error {

@@ -868,7 +868,7 @@ func (handler AppListingRestHandlerImpl) FetchOverviewAppsByEnvironment(w http.R
 	rbacObjectsWithAppId := handler.enforcerUtil.GetRbacObjectsByAppIds(appIds)
 	rbacObjects := make([]string, len(rbacObjectsWithAppId))
 	itr := 0
-	for _, object := range rbacObjects {
+	for _, object := range rbacObjectsWithAppId {
 		rbacObjects[itr] = object
 		itr++
 	}

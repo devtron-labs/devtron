@@ -26,6 +26,7 @@ import (
 	pipeline1 "github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
+	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/go-pg/pg"
@@ -74,18 +75,19 @@ type BulkUpdateServiceImpl struct {
 	client                           *http.Client
 	appRepository                    app.AppRepository
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
-	configMapHistoryService history.ConfigMapHistoryService
-	workflowDagExecutor     pipeline.WorkflowDagExecutor
-	cdWorkflowRepository    pipelineConfig.CdWorkflowRepository
-	pipelineBuilder         pipeline.PipelineBuilder
-	helmAppService          client.HelmAppService
-	enforcerUtil            rbac.EnforcerUtil
-	enforcerUtilHelm        rbac.EnforcerUtilHelm
-	ciHandler               pipeline.CiHandler
-	ciPipelineRepository    pipelineConfig.CiPipelineRepository
-	appWorkflowRepository   appWorkflow.AppWorkflowRepository
-	appWorkflowService      appWorkflow2.AppWorkflowService
-	pubsubClient            *pubsub.PubSubClientServiceImpl
+	configMapHistoryService          history.ConfigMapHistoryService
+	workflowDagExecutor              pipeline.WorkflowDagExecutor
+	cdWorkflowRepository             pipelineConfig.CdWorkflowRepository
+	pipelineBuilder                  pipeline.PipelineBuilder
+	helmAppService                   client.HelmAppService
+	enforcerUtil                     rbac.EnforcerUtil
+	enforcerUtilHelm                 rbac.EnforcerUtilHelm
+	ciHandler                        pipeline.CiHandler
+	ciPipelineRepository             pipelineConfig.CiPipelineRepository
+	appWorkflowRepository            appWorkflow.AppWorkflowRepository
+	appWorkflowService               appWorkflow2.AppWorkflowService
+	pubsubClient                     *pubsub.PubSubClientServiceImpl
+	argoUserService                  argo.ArgoUserService
 }
 
 func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateRepository,
@@ -114,7 +116,8 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	appWorkflowService appWorkflow2.AppWorkflowService,
-	pubsubClient *pubsub.PubSubClientServiceImpl) (*BulkUpdateServiceImpl, error) {
+	pubsubClient *pubsub.PubSubClientServiceImpl,
+	argoUserService argo.ArgoUserService) (*BulkUpdateServiceImpl, error) {
 	impl := &BulkUpdateServiceImpl{
 		bulkUpdateRepository:             bulkUpdateRepository,
 		chartRepository:                  chartRepository,
@@ -147,6 +150,7 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 		appWorkflowRepository:            appWorkflowRepository,
 		appWorkflowService:               appWorkflowService,
 		pubsubClient:                     pubsubClient,
+		argoUserService:                  argoUserService,
 	}
 
 	err := impl.SubscribeToCdBulkTriggerTopic()
@@ -1285,7 +1289,14 @@ func (impl BulkUpdateServiceImpl) SubscribeToCdBulkTriggerTopic() error {
 		event.ValuesOverrideRequest.UserId = event.UserId
 
 		// trigger
-		_, err = impl.workflowDagExecutor.ManualCdTrigger(event.ValuesOverrideRequest, context.Background())
+		ctx, err := impl.buildACDContext()
+		if err != nil {
+			impl.logger.Errorw("error in creating acd context",
+				"err", err)
+			return
+		}
+
+		_, err = impl.workflowDagExecutor.ManualCdTrigger(event.ValuesOverrideRequest, ctx)
 		if err != nil {
 			impl.logger.Errorw("Error triggering CD",
 				"topic", pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC,
@@ -1301,6 +1312,18 @@ func (impl BulkUpdateServiceImpl) SubscribeToCdBulkTriggerTopic() error {
 		return err
 	}
 	return nil
+}
+
+func (impl *BulkUpdateServiceImpl) buildACDContext() (acdContext context.Context, err error) {
+	//this part only accessible for acd apps hibernation, if acd configured it will fetch latest acdToken, else it will return error
+	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		impl.logger.Errorw("error in getting acd token", "err", err)
+		return nil, err
+	}
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, "token", acdToken)
+	return ctx, nil
 }
 
 func (impl BulkUpdateServiceImpl) BulkBuildTrigger(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationForEnvironmentResponse, error) {

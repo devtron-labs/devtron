@@ -35,7 +35,8 @@ import (
 )
 
 type UserAuthRepository interface {
-	CreateRole(userModel *RoleModel, tx *pg.Tx) (*RoleModel, error)
+	CreateRole(role *RoleModel) (*RoleModel, error)
+	CreateRoleWithTxn(userModel *RoleModel, tx *pg.Tx) (*RoleModel, error)
 	GetRoleById(id int) (*RoleModel, error)
 	GetRolesByIds(ids []int) ([]RoleModel, error)
 	GetRoleByRoles(roles []string) ([]RoleModel, error)
@@ -137,7 +138,16 @@ type ClusterRolePolicyDetails struct {
 	ResourceObj  string
 }
 
-func (impl UserAuthRepositoryImpl) CreateRole(userModel *RoleModel, tx *pg.Tx) (*RoleModel, error) {
+func (impl UserAuthRepositoryImpl) CreateRole(role *RoleModel) (*RoleModel, error) {
+	err := impl.dbConnection.Insert(role)
+	if err != nil {
+		impl.Logger.Error("error in creating role", "err", err, "role", role)
+		return role, err
+	}
+	return role, nil
+}
+
+func (impl UserAuthRepositoryImpl) CreateRoleWithTxn(userModel *RoleModel, tx *pg.Tx) (*RoleModel, error) {
 	err := tx.Insert(userModel)
 	if err != nil {
 		impl.Logger.Error(err)
@@ -145,6 +155,7 @@ func (impl UserAuthRepositoryImpl) CreateRole(userModel *RoleModel, tx *pg.Tx) (
 	}
 	return userModel, nil
 }
+
 func (impl UserAuthRepositoryImpl) GetRoleById(id int) (*RoleModel, error) {
 	var model RoleModel
 	err := impl.dbConnection.Model(&model).Where("id = ?", id).Select()
@@ -536,7 +547,7 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team, entity
 		impl.Logger.Errorw("decode err", "err", err)
 		return false, err, nil
 	}
-	_, err = impl.createRole(&roleData, tx, UserId)
+	_, err = impl.createRole(&roleData, UserId)
 	if err != nil && strings.Contains("duplicate key value violates unique constraint", err.Error()) {
 		return false, err, nil
 	}
@@ -570,14 +581,6 @@ func (impl UserAuthRepositoryImpl) GetApprovalUsersByEnv(appName, envName string
 }
 
 func (impl UserAuthRepositoryImpl) CreateRolesWithAccessTypeAndEntity(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, UserId int32, role string) (bool, error) {
-	dbConnection := impl.dbConnection
-	tx, err := dbConnection.Begin()
-	if err != nil {
-		return false, err
-	}
-	// Rollback tx on error.
-	defer tx.Rollback()
-
 	roleData := bean.RoleData{
 		Role:        role,
 		Entity:      entity,
@@ -592,12 +595,8 @@ func (impl UserAuthRepositoryImpl) CreateRolesWithAccessTypeAndEntity(team, enti
 		Kind:        kind,
 		Resource:    resource,
 	}
-	_, err = impl.createRole(&roleData, tx, UserId)
+	_, err := impl.createRole(&roleData, UserId)
 	if err != nil && strings.Contains("duplicate key value violates unique constraint", err.Error()) {
-		return false, err
-	}
-	err = tx.Commit()
-	if err != nil {
 		return false, err
 	}
 	return true, nil
@@ -623,7 +622,7 @@ func (impl UserAuthRepositoryImpl) CreateRoleForSuperAdminIfNotExists(tx *pg.Tx,
 			impl.Logger.Errorw("decode err", "err", err)
 			return false, err
 		}
-		_, err = impl.createRole(&roleManagerData, transaction, UserId)
+		_, err = impl.createRole(&roleManagerData, UserId)
 		if err != nil && strings.Contains("duplicate key value violates unique constraint", err.Error()) {
 			return false, err
 		}
@@ -635,7 +634,7 @@ func (impl UserAuthRepositoryImpl) CreateRoleForSuperAdminIfNotExists(tx *pg.Tx,
 	return true, nil
 }
 
-func (impl UserAuthRepositoryImpl) createRole(roleData *bean.RoleData, tx *pg.Tx, UserId int32) (bool, error) {
+func (impl UserAuthRepositoryImpl) createRole(roleData *bean.RoleData, UserId int32) (bool, error) {
 	roleModel := &RoleModel{
 		Role:        roleData.Role,
 		Entity:      roleData.Entity,
@@ -657,7 +656,7 @@ func (impl UserAuthRepositoryImpl) createRole(roleData *bean.RoleData, tx *pg.Tx
 			UpdatedOn: time.Now(),
 		},
 	}
-	roleModel, err := impl.CreateRole(roleModel, tx)
+	roleModel, err := impl.CreateRole(roleModel)
 	if err != nil || roleModel == nil {
 		return false, err
 	}

@@ -55,7 +55,7 @@ type BulkUpdateRestHandlerImpl struct {
 	validator               *validator.Validate
 	teamService             team.TeamService
 	enforcer                casbin.Enforcer
-	gitSensorClient         gitSensor.GitSensorClient
+	gitSensorClient         gitSensor.Client
 	pipelineRepository      pipelineConfig.PipelineRepository
 	appWorkflowService      appWorkflow.AppWorkflowService
 	enforcerUtil            rbac.EnforcerUtil
@@ -81,7 +81,7 @@ func NewBulkUpdateRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, logg
 	enforcer casbin.Enforcer,
 	ciHandler pipeline.CiHandler,
 	validator *validator.Validate,
-	gitSensorClient gitSensor.GitSensorClient,
+	gitSensorClient gitSensor.Client,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
 	enforcerUtil rbac.EnforcerUtil, envService request.EnvironmentService,
 	gitRegistryConfig pipeline.GitRegistryConfig, dockerRegistryConfig pipeline.DockerRegistryConfig,
