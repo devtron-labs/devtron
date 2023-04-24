@@ -18,6 +18,7 @@
 package restHandler
 
 import (
+	"context"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -42,20 +43,20 @@ type WebhookDataRestHandlerImpl struct {
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository
 	enforcerUtil                 rbac.EnforcerUtil
 	enforcer                     casbin.Enforcer
-	gitSensorClient              gitSensor.GitSensorClient
+	gitSensorClient              gitSensor.Client
 	webhookEventDataConfig       pipeline.WebhookEventDataConfig
 }
 
 func NewWebhookDataRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserService,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, enforcerUtil rbac.EnforcerUtil, enforcer casbin.Enforcer,
-	gitSensorClient gitSensor.GitSensorClient, webhookEventDataConfig pipeline.WebhookEventDataConfig) *WebhookDataRestHandlerImpl {
+	gitSensorGrpcClient gitSensor.Client, webhookEventDataConfig pipeline.WebhookEventDataConfig) *WebhookDataRestHandlerImpl {
 	return &WebhookDataRestHandlerImpl{
 		logger:                       logger,
 		userAuthService:              userAuthService,
 		ciPipelineMaterialRepository: ciPipelineMaterialRepository,
 		enforcerUtil:                 enforcerUtil,
 		enforcer:                     enforcer,
-		gitSensorClient:              gitSensorClient,
+		gitSensorClient:              gitSensorGrpcClient,
 		webhookEventDataConfig:       webhookEventDataConfig,
 	}
 }
@@ -118,7 +119,7 @@ func (impl WebhookDataRestHandlerImpl) GetWebhookPayloadDataForPipelineMaterialI
 		EventTimeSortOrder:   eventTimeSortOrder,
 	}
 
-	response, err := impl.gitSensorClient.GetWebhookPayloadDataForPipelineMaterialId(webhookPayloadDataRequest)
+	response, err := impl.gitSensorClient.GetWebhookPayloadDataForPipelineMaterialId(context.Background(), webhookPayloadDataRequest)
 	if err != nil {
 		impl.logger.Errorw("service err, GetWebhookPayloadDataForPipelineMaterialId", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -175,7 +176,7 @@ func (impl WebhookDataRestHandlerImpl) GetWebhookPayloadFilterDataForPipelineMat
 		ParsedDataId:         parsedDataId,
 	}
 
-	response, err := impl.gitSensorClient.GetWebhookPayloadFilterDataForPipelineMaterialId(webhookPayloadFilterDataRequest)
+	response, err := impl.gitSensorClient.GetWebhookPayloadFilterDataForPipelineMaterialId(context.Background(), webhookPayloadFilterDataRequest)
 	if err != nil {
 		impl.logger.Errorw("service err, GetWebhookPayloadFilterDataForPipelineMaterialId", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -184,7 +185,7 @@ func (impl WebhookDataRestHandlerImpl) GetWebhookPayloadFilterDataForPipelineMat
 
 	// set payload json
 	if response != nil && response.PayloadId != 0 {
-		webhookEventData, err := impl.webhookEventDataConfig.GetById(response.PayloadId)
+		webhookEventData, err := impl.webhookEventDataConfig.GetById(int(response.PayloadId))
 		if err != nil {
 			impl.logger.Errorw("error in getting webhook payload data", "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

@@ -223,32 +223,26 @@ func (impl ImageScanRestHandlerImpl) FetchExecutionDetail(w http.ResponseWriter,
 }
 
 func (impl ImageScanRestHandlerImpl) FetchMinScanResultByAppIdAndEnvId(w http.ResponseWriter, r *http.Request) {
-	userId, err := impl.userService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
 	v := r.URL.Query()
 	var appId, envId int
+	request := &security.ImageScanRequest{}
 	appIds := v.Get("appId")
 	if len(appIds) > 0 {
-		appId, err = strconv.Atoi(appIds)
+		appId, err := strconv.Atoi(appIds)
 		if err != nil {
 			impl.logger.Errorw("request err, FetchMinScanResultByAppIdAndEnvId", "err", err, "appIds", appIds)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		}
+		request.AppId = appId
 	}
 	envIds := v.Get("envId")
 	if len(envIds) > 0 {
-		envId, err = strconv.Atoi(envIds)
+		envId, err := strconv.Atoi(envIds)
 		if err != nil {
 			impl.logger.Errorw("request err, FetchMinScanResultByAppIdAndEnvId", "err", err, "envIds", envIds)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		}
-	}
-	request := &security.ImageScanRequest{
-		AppId: appId,
-		EnvId: envId,
+		request.EnvId = envId
 	}
 
 	//RBAC
