@@ -1,4 +1,4 @@
-alter table pipeline add column user_approval_config character varying(1000);
+alter table pipeline add column IF NOT EXISTS user_approval_config character varying(1000);
 
 CREATE SEQUENCE IF NOT EXISTS id_seq_deployment_approval_request;
 
@@ -147,7 +147,7 @@ set role_data = '{
         "0": "Approver"
       }
     }
-}' where entity = 'apps' and access_type = 'devtron-app' and role = 'manager'
+}' where entity = 'apps' and access_type = 'devtron-app' and role = 'manager';
 
 update "public"."rbac_role_data"
 set role_data = '{
@@ -197,7 +197,7 @@ set role_data = '{
         "0": "Approver"
       }
     }
-}' where entity = 'apps' and access_type = 'devtron-app' and role = 'admin'
+}' where entity = 'apps' and access_type = 'devtron-app' and role = 'admin';
 
 update "public"."rbac_role_data"
 set role_data = '{
@@ -247,8 +247,7 @@ set role_data = '{
         "0": "Approver"
       }
     }
-}' where entity = 'apps' and access_type = 'devtron-app' and role = 'trigger'
-
+}' where entity = 'apps' and access_type = 'devtron-app' and role = 'trigger';
 
 update "public"."rbac_role_data"
 set role_data = '{
@@ -298,4 +297,4 @@ set role_data = '{
         "0": "Approver"
       }
     }
-}' where entity = 'apps' and access_type = 'devtron-app' and role = 'view'
+}' where entity = 'apps' and access_type = 'devtron-app' and role = 'view';
