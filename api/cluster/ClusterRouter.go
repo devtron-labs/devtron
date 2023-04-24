@@ -48,7 +48,7 @@ func (impl ClusterRouterImpl) InitClusterRouter(clusterRouter *mux.Router) {
 	clusterRouter.Path("/description").
 		Methods("GET").
 		Queries("id", "{id}").
-		HandlerFunc(impl.clusterRestHandler.FindByClusterId)
+		HandlerFunc(impl.clusterRestHandler.FindNoteByClusterId)
 
 	clusterRouter.Path("").
 		Methods("GET").

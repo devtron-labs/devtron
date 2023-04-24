@@ -29,9 +29,9 @@ import (
 )
 
 type ClusterNoteBean struct {
-	Id          int       `json:"id,omitempty" validate:"number"`
-	ClusterId   int       `json:"cluster_id,omitempty" validate:"required"`
-	Description string    `json:"description,omitempty" validate:"required"`
+	Id          int       `json:"id" validate:"number"`
+	ClusterId   int       `json:"cluster_id" validate:"required"`
+	Description string    `json:"description" validate:"required"`
 	CreatedBy   int       `json:"created_by"`
 	CreatedOn   time.Time `json:"created_on"`
 }

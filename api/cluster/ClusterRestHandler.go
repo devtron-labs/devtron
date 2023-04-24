@@ -45,7 +45,7 @@ type ClusterRestHandler interface {
 	Save(w http.ResponseWriter, r *http.Request)
 	FindAll(w http.ResponseWriter, r *http.Request)
 	FindById(w http.ResponseWriter, r *http.Request)
-	FindByClusterId(w http.ResponseWriter, r *http.Request)
+	FindNoteByClusterId(w http.ResponseWriter, r *http.Request)
 	Update(w http.ResponseWriter, r *http.Request)
 	UpdateClusterNote(w http.ResponseWriter, r *http.Request)
 	FindAllForAutoComplete(w http.ResponseWriter, r *http.Request)
@@ -56,14 +56,14 @@ type ClusterRestHandler interface {
 }
 
 type ClusterRestHandlerImpl struct {
-	clusterService  		cluster.ClusterService
-	clusterNoteService  	cluster.ClusterNoteService
-	logger          		*zap.SugaredLogger
-	userService     		user.UserService
-	validator       		*validator.Validate
-	enforcer        		casbin.Enforcer
-	deleteService   		delete2.DeleteService
-	argoUserService 		argo.ArgoUserService
+	clusterService     cluster.ClusterService
+	clusterNoteService cluster.ClusterNoteService
+	logger             *zap.SugaredLogger
+	userService        user.UserService
+	validator          *validator.Validate
+	enforcer           casbin.Enforcer
+	deleteService      delete2.DeleteService
+	argoUserService    argo.ArgoUserService
 }
 
 func NewClusterRestHandlerImpl(clusterService cluster.ClusterService,
@@ -75,14 +75,14 @@ func NewClusterRestHandlerImpl(clusterService cluster.ClusterService,
 	deleteService delete2.DeleteService,
 	argoUserService argo.ArgoUserService) *ClusterRestHandlerImpl {
 	return &ClusterRestHandlerImpl{
-		clusterService:  		clusterService,
-		clusterNoteService:  	clusterNoteService,
-		logger:          		logger,
-		userService:     		userService,
-		validator:       		validator,
-		enforcer:        		enforcer,
-		deleteService:   		deleteService,
-		argoUserService: 		argoUserService,
+		clusterService:     clusterService,
+		clusterNoteService: clusterNoteService,
+		logger:             logger,
+		userService:        userService,
+		validator:          validator,
+		enforcer:           enforcer,
+		deleteService:      deleteService,
+		argoUserService:    argoUserService,
 	}
 }
 
@@ -203,7 +203,7 @@ func (impl ClusterRestHandlerImpl) FindById(w http.ResponseWriter, r *http.Reque
 	common.WriteJsonResp(w, err, bean, http.StatusOK)
 }
 
-func (impl ClusterRestHandlerImpl) FindByClusterId(w http.ResponseWriter, r *http.Request) {
+func (impl ClusterRestHandlerImpl) FindNoteByClusterId(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 	i, err := strconv.Atoi(id)
@@ -212,12 +212,37 @@ func (impl ClusterRestHandlerImpl) FindByClusterId(w http.ResponseWriter, r *htt
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	bean, err := impl.clusterNoteService.FindByClusterId(i)
+
+	clusterBean, err := impl.clusterService.FindByIdWithoutConfig(i)
 	if err != nil {
-		impl.logger.Errorw("service err, FindById", "err", err, "clusterId", id)
+		if err == pg.ErrNoRows {
+			impl.logger.Errorw("cluster id not found, FindById", "err", err, "clusterId", i)
+			common.WriteJsonResp(w, errors.New("invalid cluster id"), nil, http.StatusBadRequest)
+			return
+		}
+		impl.logger.Errorw("cluster service err, FindById", "err", err, "clusterId", i)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionGet, strings.ToLower(clusterBean.ClusterName)); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+	bean, err := impl.clusterNoteService.FindByClusterId(i)
+	if err != nil {
+		if err == pg.ErrNoRows {
+			impl.logger.Errorw("cluster note not found, FindById", "err", err, "clusterId", id)
+			common.WriteJsonResp(w, errors.New("no cluster note found"), nil, http.StatusOK)
+			return
+		}
+		impl.logger.Errorw("cluster note service err, FindById", "err", err, "clusterId", id)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
 	common.WriteJsonResp(w, err, bean, http.StatusOK)
 }
 
@@ -307,7 +332,12 @@ func (impl ClusterRestHandlerImpl) UpdateClusterNote(w http.ResponseWriter, r *h
 	}
 	cluster, err := impl.clusterService.FindByIdWithoutConfig(bean.ClusterId)
 	if err != nil {
-		impl.logger.Errorw("service err, FindById", "err", err, "clusterId", bean.ClusterId)
+		if err == pg.ErrNoRows {
+			impl.logger.Errorw("cluster id not found, FindById", "err", err, "clusterId", bean.ClusterId)
+			common.WriteJsonResp(w, errors.New("invalid cluster id"), nil, http.StatusBadRequest)
+			return
+		}
+		impl.logger.Errorw("cluster service err, FindById", "err", err, "clusterId", bean.ClusterId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -317,13 +347,13 @@ func (impl ClusterRestHandlerImpl) UpdateClusterNote(w http.ResponseWriter, r *h
 		return
 	}
 	// RBAC enforcer ends
-	
+
 	_, err = impl.clusterNoteService.Update(&bean, userId)
 	if err == pg.ErrNoRows {
 		_, err = impl.clusterNoteService.Save(&bean, userId)
 	}
 	if err != nil {
-		impl.logger.Errorw("service err, Update", "error", err, "payload", bean)
+		impl.logger.Errorw("cluster note service err, Update", "error", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
