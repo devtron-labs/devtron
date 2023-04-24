@@ -13,6 +13,7 @@
 - feat: added description field for environment  (#3020)
 - perf: Api optimizations (#3250)
 ## Documentation
+- docs: cluster and environment url fix (#3284)
 ## Others
 - Custom app grouping  (#3295)
 - chore: added workflow for notification on discord forum ENV_NAME changes (#3301)
