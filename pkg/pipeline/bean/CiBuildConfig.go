@@ -32,6 +32,7 @@ type DockerBuildConfig struct {
 	Language           string            `json:"language,omitempty"`
 	LanguageFramework  string            `json:"languageFramework,omitempty"`
 	DockerBuildOptions map[string]string `json:"dockerBuildOptions,omitempty"`
+	BuildContext       string            `json:"buildContext,omitempty"`
 }
 
 type BuildPackConfig struct {
@@ -107,10 +108,13 @@ func convertMetadataToBuildPackConfig(buildConfMetadata string) (*BuildPackConfi
 func convertMetadataToDockerBuildConfig(dockerBuildMetadata string) (*DockerBuildConfig, error) {
 	dockerBuildConfig := &DockerBuildConfig{}
 	err := json.Unmarshal([]byte(dockerBuildMetadata), dockerBuildConfig)
+	if dockerBuildConfig.BuildContext == "" {
+		dockerBuildConfig.BuildContext = "."
+	}
 	return dockerBuildConfig, err
 }
 
-func OverrideCiBuildConfig(dockerfilePath string, oldArgs string, ciLevelArgs string, dockerBuildOptions string, targetPlatform string, ciBuildConfigBean *CiBuildConfigBean) (*CiBuildConfigBean, error) {
+func OverrideCiBuildConfig(dockerfilePath string, oldArgs string, ciLevelArgs string, dockerBuildOptions string, targetPlatform string, buildContext string, ciBuildConfigBean *CiBuildConfigBean) (*CiBuildConfigBean, error) {
 	oldDockerArgs := map[string]string{}
 	ciLevelDockerArgs := map[string]string{}
 	dockerBuildOptionsMap := map[string]string{}
@@ -138,6 +142,7 @@ func OverrideCiBuildConfig(dockerfilePath string, oldArgs string, ciLevelArgs st
 				Args:               dockerArgs,
 				TargetPlatform:     targetPlatform,
 				DockerBuildOptions: dockerBuildOptionsMap,
+				BuildContext:       buildContext,
 			},
 		}
 	} else if ciBuildConfigBean.CiBuildType == SELF_DOCKERFILE_BUILD_TYPE || ciBuildConfigBean.CiBuildType == MANAGED_DOCKERFILE_BUILD_TYPE {
