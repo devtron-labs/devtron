@@ -5,6 +5,7 @@ import (
 	"fmt"
 	cluster3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/devtron-labs/devtron/client/argocdServer"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	repository4 "github.com/devtron-labs/devtron/pkg/user/repository"
 	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -33,6 +34,7 @@ type ClusterServiceImplExtended struct {
 	K8sInformerFactory     informer.K8sInformerFactory
 	gitOpsRepository       repository3.GitOpsConfigRepository
 	*ClusterServiceImpl
+	k8sClient argocdServer.ArgoK8sClient
 }
 
 func NewClusterServiceImplExtended(repository repository.ClusterRepository, environmentRepository repository.EnvironmentRepository,
@@ -40,13 +42,14 @@ func NewClusterServiceImplExtended(repository repository.ClusterRepository, envi
 	K8sUtil *util.K8sUtil,
 	clusterServiceCD cluster2.ServiceClient, K8sInformerFactory informer.K8sInformerFactory,
 	gitOpsRepository repository3.GitOpsConfigRepository, userAuthRepository repository4.UserAuthRepository,
-	userRepository repository4.UserRepository, roleGroupRepository repository4.RoleGroupRepository) *ClusterServiceImplExtended {
+	userRepository repository4.UserRepository, roleGroupRepository repository4.RoleGroupRepository, k8sClient argocdServer.ArgoK8sClient) *ClusterServiceImplExtended {
 	clusterServiceExt := &ClusterServiceImplExtended{
 		environmentRepository:  environmentRepository,
 		grafanaClient:          grafanaClient,
 		installedAppRepository: installedAppRepository,
 		clusterServiceCD:       clusterServiceCD,
 		gitOpsRepository:       gitOpsRepository,
+		k8sClient:              k8sClient,
 		ClusterServiceImpl: &ClusterServiceImpl{
 			clusterRepository:   repository,
 			logger:              logger,
@@ -338,21 +341,21 @@ func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterB
 		if configMap["bearer_token"] != "" {
 			bearerToken = configMap["bearer_token"]
 		}
-		tlsConfig := v1alpha1.TLSClientConfig{
+
+		tlsconfig := argocdServer.TLSClientConfig{
 			Insecure: true,
 		}
-		cdClusterConfig := v1alpha1.ClusterConfig{
+		cdClusterConfig := argocdServer.Clusterconfig{
 			BearerToken:     bearerToken,
-			TLSClientConfig: tlsConfig,
+			TLSClientConfig: tlsconfig,
 		}
-
-		cl := &v1alpha1.Cluster{
+		cl := argocdServer.Clustertest{
 			Name:   bean.ClusterName,
 			Server: serverUrl,
 			Config: cdClusterConfig,
 		}
 
-		_, err = impl.clusterServiceCD.Create(ctx, &cluster3.ClusterCreateRequest{Upsert: true, Cluster: cl})
+		_, err = impl.k8sClient.CreateCluster(ctx, argocdServer.Clusterrequest{Upsert: true, Clustertest: cl})
 		if err != nil {
 			impl.logger.Errorw("service err, Save", "err", err, "payload", cl)
 			err1 := impl.ClusterServiceImpl.Delete(bean, userId) //FIXME nishant call local
