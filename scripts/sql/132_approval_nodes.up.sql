@@ -98,3 +98,204 @@ set role = '{
     "action": "view",
     "accessType": "devtron-app"
 }' where id = 4;
+
+update "public"."rbac_role_data"
+set role_data = '{
+    "role": {
+      "value": "role:manager_%_%_%",
+      "indexKeyMap": {
+        "13": "Team",
+        "15": "Env",
+        "17": "App"
+      }
+    },
+    "team": {
+      "value": "%",
+      "indexKeyMap": {
+        "0": "Team"
+      }
+    },
+    "entityName": {
+      "value": "%",
+      "indexKeyMap": {
+        "0": "App"
+      }
+    },
+    "environment": {
+      "value": "%",
+      "indexKeyMap": {
+        "0": "Env"
+      }
+    },
+    "action": {
+      "value": "manager",
+      "indexKeyMap": {}
+    },
+    "entity": {
+      "value": "%",
+      "indexKeyMap": {
+        "0": "Entity"
+      }
+    },
+    "accessType": {
+      "value": "devtron-app",
+      "indexKeyMap": {}
+    },
+    "approver": {
+      "value": "%",
+      "indexKeyMap": {
+        "0": "Approver"
+      }
+    }
+}' where entity = 'apps' and access_type = 'devtron-app' and role = 'manager'
+
+update "public"."rbac_role_data"
+set role_data = '{
+    "role": {
+       "value": "role:admin_%_%_%",
+       "indexKeyMap": {
+         "11": "Team",
+         "13": "Env",
+         "15": "App"
+       }
+     },
+     "team": {
+       "value": "%",
+       "indexKeyMap": {
+         "0": "Team"
+       }
+     },
+     "entityName": {
+       "value": "%",
+       "indexKeyMap": {
+         "0": "App"
+       }
+     },
+     "environment": {
+       "value": "%",
+       "indexKeyMap": {
+         "0": "Env"
+       }
+     },
+     "action": {
+       "value": "admin",
+       "indexKeyMap": {}
+     },
+     "entity": {
+       "value": "%",
+       "indexKeyMap": {
+         "0": "Entity"
+       }
+     },
+     "accessType": {
+       "value": "devtron-app",
+       "indexKeyMap": {}
+     },
+    "approver": {
+      "value": "%",
+      "indexKeyMap": {
+        "0": "Approver"
+      }
+    }
+}' where entity = 'apps' and access_type = 'devtron-app' and role = 'admin'
+
+update "public"."rbac_role_data"
+set role_data = '{
+    "role": {
+       "value": "role:trigger_%_%_%",
+       "indexKeyMap": {
+         "13": "Team",
+         "15": "Env",
+         "17": "App"
+       }
+     },
+     "team": {
+       "value": "%",
+       "indexKeyMap": {
+         "0": "Team"
+       }
+     },
+     "entityName": {
+       "value": "%",
+       "indexKeyMap": {
+         "0": "App"
+       }
+     },
+     "environment": {
+       "value": "%",
+       "indexKeyMap": {
+         "0": "Env"
+       }
+     },
+     "action": {
+       "value": "trigger",
+       "indexKeyMap": {}
+     },
+     "entity": {
+       "value": "%",
+       "indexKeyMap": {
+         "0": "Entity"
+       }
+     },
+     "accessType": {
+       "value": "devtron-app",
+       "indexKeyMap": {}
+     },
+    "approver": {
+      "value": "%",
+      "indexKeyMap": {
+        "0": "Approver"
+      }
+    }
+}' where entity = 'apps' and access_type = 'devtron-app' and role = 'trigger'
+
+
+update "public"."rbac_role_data"
+set role_data = '{
+    "role": {
+       "value": "role:view_%_%_%",
+       "indexKeyMap": {
+         "10": "Team",
+         "12": "Env",
+         "14": "App"
+       }
+     },
+     "team": {
+       "value": "%",
+       "indexKeyMap": {
+         "0": "Team"
+       }
+     },
+     "entityName": {
+       "value": "%",
+       "indexKeyMap": {
+         "0": "App"
+       }
+     },
+     "environment": {
+       "value": "%",
+       "indexKeyMap": {
+         "0": "Env"
+       }
+     },
+     "action": {
+       "value": "view",
+       "indexKeyMap": {}
+     },
+     "entity": {
+       "value": "%",
+       "indexKeyMap": {
+         "0": "Entity"
+       }
+     },
+     "accessType": {
+       "value": "devtron-app",
+       "indexKeyMap": {}
+     },
+    "approver": {
+      "value": "%",
+      "indexKeyMap": {
+        "0": "Approver"
+      }
+    }
+}' where entity = 'apps' and access_type = 'devtron-app' and role = 'view'
