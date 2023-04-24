@@ -65,7 +65,7 @@ func (handler AppStoreStatusTimelineRestHandlerImpl) FetchTimelinesForAppStore(w
 
 	timelines, err := handler.pipelineStatusTimelineService.FetchTimelinesForAppStore(installedAppId, envId, installedAppVersionHistoryId)
 	if err != nil {
-		handler.logger.Errorw("error in getting cd pipeline status timelines by wfrId", "err", err, "wfrId", installedAppVersionHistoryId)
+		handler.logger.Errorw("error in getting cd pipeline status timelines by wfrId", "err", err, "wfrId", installedAppVersionHistoryId, "installedAppId", installedAppId, "envId", envId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

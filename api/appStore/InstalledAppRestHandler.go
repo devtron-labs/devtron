@@ -501,13 +501,9 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 		if installedApp.DeploymentAppType == util2.PIPELINE_DEPLOYMENT_TYPE_ACD {
 			//resource tree has been fetched now prepare to sync application deployment status with this resource tree call
 			go func() {
-				installedAppVersion, err := handler.installedAppRepository.GetInstalledAppVersion(appDetail.AppStoreInstalledAppVersionId)
+				err := handler.syncAppStoreAppDeploymentStatusWithResourceTreeCall(appDetail.AppStoreInstalledAppVersionId)
 				if err != nil {
-					handler.Logger.Errorw("error in getting installed_app_version in FetchAppDetailsForInstalledApp", "err", err)
-				}
-				err = handler.cdApplicationStatusUpdateHandler.SyncPipelineStatusForAppStoreForResourceTreeCall(installedAppVersion)
-				if err != nil {
-					handler.Logger.Errorw("error in syncing deployment status for installed_app ", "err", err, "installedAppVersion", installedAppVersion)
+					handler.Logger.Errorw("error syncing deployment status for installed_app with resource tree call ", "err", err)
 				}
 			}()
 			apiError, ok := err.(*util2.ApiError)
@@ -529,6 +525,18 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 	appDetail.ResourceTree = resourceTreeAndNotesContainer.ResourceTree
 	appDetail.Notes = resourceTreeAndNotesContainer.Notes
 	common.WriteJsonResp(w, nil, appDetail, http.StatusOK)
+}
+
+func (handler *InstalledAppRestHandlerImpl) syncAppStoreAppDeploymentStatusWithResourceTreeCall(installedAppVersionId int) error {
+	installedAppVersion, err := handler.installedAppRepository.GetInstalledAppVersion(installedAppVersionId)
+	if err != nil {
+		handler.Logger.Errorw("error in getting installed_app_version in FetchAppDetailsForInstalledApp", "err", err, "installedAppVersionId", installedAppVersionId)
+	}
+	err = handler.cdApplicationStatusUpdateHandler.SyncPipelineStatusForAppStoreForResourceTreeCall(installedAppVersion)
+	if err != nil {
+		handler.Logger.Errorw("error in syncing deployment status for installed_app ", "err", err, "installedAppVersion", installedAppVersion)
+	}
+	return err
 }
 
 func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledAppV2(w http.ResponseWriter, r *http.Request) {

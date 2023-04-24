@@ -377,7 +377,6 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch
 		}
 
 		ctx := context.WithValue(context.Background(), "token", acdToken)
-		//argoAppName := "prakash1-devtron-demo"
 		query := &application2.ApplicationQuery{
 			Name: &acdAppName,
 		}
