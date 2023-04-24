@@ -12,7 +12,7 @@ import (
 
 type PipelineStatusTimelineResourcesService interface {
 	SaveOrUpdateCdPipelineTimelineResources(cdWfrId int, application *v1alpha1.Application, tx *pg.Tx, userId int32) error
-	GetTimelineResourcesForATimeline(cdWfrId int) ([]*SyncStageResourceDetailDto, error)
+	GetTimelineResourcesForATimeline(cdWfrIds []int) (map[int][]*SyncStageResourceDetailDto, error)
 }
 
 type PipelineStatusTimelineResourcesServiceImpl struct {
@@ -128,12 +128,13 @@ func (impl *PipelineStatusTimelineResourcesServiceImpl) SaveOrUpdateCdPipelineTi
 	return nil
 }
 
-func (impl *PipelineStatusTimelineResourcesServiceImpl) GetTimelineResourcesForATimeline(cdWfrId int) ([]*SyncStageResourceDetailDto, error) {
-	timelineResources, err := impl.pipelineStatusTimelineResourcesRepository.GetByCdWfrIdAndTimelineStage(cdWfrId)
+func (impl *PipelineStatusTimelineResourcesServiceImpl) GetTimelineResourcesForATimeline(cdWfrIds []int) (map[int][]*SyncStageResourceDetailDto, error) {
+	timelineResources, err := impl.pipelineStatusTimelineResourcesRepository.GetByCdWfrIds(cdWfrIds)
 	if err != nil {
-		impl.logger.Errorw("error in getting timeline resources", "err", err, "cdWfrId", cdWfrId)
+		impl.logger.Errorw("error in getting timeline resources", "err", err, "cdWfrIds", cdWfrIds)
 		return nil, err
 	}
+	timelineResourcesMap := make(map[int][]*SyncStageResourceDetailDto)
 	var timelineResourcesDtos []*SyncStageResourceDetailDto
 	for _, timelineResource := range timelineResources {
 		dto := &SyncStageResourceDetailDto{
@@ -147,6 +148,7 @@ func (impl *PipelineStatusTimelineResourcesServiceImpl) GetTimelineResourcesForA
 			StatusMessage:      timelineResource.StatusMessage,
 		}
 		timelineResourcesDtos = append(timelineResourcesDtos, dto)
+		timelineResourcesMap[timelineResource.CdWorkflowRunnerId] = append(timelineResourcesMap[timelineResource.CdWorkflowRunnerId], dto)
 	}
-	return timelineResourcesDtos, nil
+	return timelineResourcesMap, nil
 }

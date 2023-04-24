@@ -65,6 +65,7 @@ import (
 	pipeline3 "github.com/devtron-labs/devtron/enterprise/pkg/pipeline"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
+	appGroup2 "github.com/devtron-labs/devtron/internal/sql/repository/appGroup"
 	appStatusRepo "github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/bulkUpdate"
@@ -78,6 +79,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appClone"
 	"github.com/devtron-labs/devtron/pkg/appClone/batch"
+	"github.com/devtron-labs/devtron/pkg/appGroup"
 	"github.com/devtron-labs/devtron/pkg/appStatus"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
@@ -144,10 +146,11 @@ func InitializeApp() (*App, error) {
 		client2.CasbinWireSet,
 		globalTag.GlobalTagWireSet,
 		// -------wireset end ----------
-		gitSensor.GetGitSensorConfig,
-		gitSensor.NewGitSensorSession,
-		wire.Bind(new(gitSensor.GitSensorClient), new(*gitSensor.GitSensorClientImpl)),
-		//--------
+		//-------
+		gitSensor.GetConfig,
+		gitSensor.NewGitSensorClient,
+		wire.Bind(new(gitSensor.Client), new(*gitSensor.ClientImpl)),
+		//-------
 		helper.NewAppListingRepositoryQueryBuilder,
 		//sql.GetConfig,
 		eClient.GetEventClientConfig,
@@ -832,6 +835,14 @@ func InitializeApp() (*App, error) {
 
 		router.NewAppGroupingRouterImpl,
 		wire.Bind(new(router.AppGroupingRouter), new(*router.AppGroupingRouterImpl)),
+		restHandler.NewAppGroupRestHandlerImpl,
+		wire.Bind(new(restHandler.AppGroupRestHandler), new(*restHandler.AppGroupRestHandlerImpl)),
+		appGroup.NewAppGroupServiceImpl,
+		wire.Bind(new(appGroup.AppGroupService), new(*appGroup.AppGroupServiceImpl)),
+		appGroup2.NewAppGroupRepositoryImpl,
+		wire.Bind(new(appGroup2.AppGroupRepository), new(*appGroup2.AppGroupRepositoryImpl)),
+		appGroup2.NewAppGroupMappingRepositoryImpl,
+		wire.Bind(new(appGroup2.AppGroupMappingRepository), new(*appGroup2.AppGroupMappingRepositoryImpl)),
 	)
 	return &App{}, nil
 }

@@ -392,6 +392,7 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 		}
 
 	}
+	impl.logger.Infow("Checking the length of policies to be added and Adding in casbin ")
 	if len(policies) > 0 {
 		impl.logger.Infow("Adding policies in casbin")
 		err = casbin2.AddPolicy(policies)
@@ -445,7 +446,7 @@ func (impl UserServiceImpl) CreateOrUpdateUserRolesForAllTypes(roleFilter bean.R
 				}
 				if roleModel.Id == 0 {
 					impl.logger.Debugw("no role found for given filter", "filter", "roleFilter", roleFilter)
-					flag, err, policiesAdded := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType, userId)
+					flag, err, policiesAdded := impl.userCommonService.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType, userId)
 					if err != nil || flag == false {
 						return policiesToBeAdded, rolesChanged, err
 					}
@@ -518,7 +519,7 @@ func (impl UserServiceImpl) createOrUpdateUserRolesForClusterEntity(roleFilter b
 					}
 					if roleModel.Id == 0 {
 						impl.logger.Infow("Creating Polices for cluster", resource, kind, namespace, group)
-						flag, err, policiesAdded := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes("", "", "", entity, roleFilter.Cluster, namespace, group, kind, resource, actionType, accessType, userId)
+						flag, err, policiesAdded := impl.userCommonService.CreateDefaultPoliciesForAllTypes("", "", "", entity, roleFilter.Cluster, namespace, group, kind, resource, actionType, accessType, userId)
 						if err != nil || flag == false {
 							return policiesToBeAdded, rolesChanged, err
 						}
@@ -824,9 +825,9 @@ func (impl UserServiceImpl) GetById(id int32) (*bean.UserInfo, error) {
 	for index, roleFilter := range roleFilters {
 		if roleFilter.Entity == "" {
 			roleFilters[index].Entity = bean2.ENTITY_APPS
-		}
-		if roleFilter.Entity == bean2.ENTITY_APPS && roleFilter.AccessType == "" {
-			roleFilters[index].AccessType = bean2.DEVTRON_APP
+			if roleFilter.AccessType == "" {
+				roleFilters[index].AccessType = bean2.DEVTRON_APP
+			}
 		}
 	}
 	response := &bean.UserInfo{
@@ -1226,11 +1227,18 @@ func (impl UserServiceImpl) DeleteUser(bean *bean.UserInfo) (bool, error) {
 	if err != nil {
 		impl.logger.Warnw("No Roles Found for user", "id", model.Id)
 	}
+	var eliminatedPolicies []casbin2.Policy
 	for _, item := range groups {
 		flag := casbin2.DeleteRoleForUser(model.EmailId, item)
 		if flag == false {
 			impl.logger.Warnw("unable to delete role:", "user", model.EmailId, "role", item)
 		}
+		eliminatedPolicies = append(eliminatedPolicies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.EmailId), Obj: casbin2.Object(item)})
+	}
+	// updating in casbin
+	if len(eliminatedPolicies) > 0 {
+		pRes := casbin2.RemovePolicy(eliminatedPolicies)
+		impl.logger.Infow("Failed to remove policies", "policies", pRes)
 	}
 
 	return true, nil
