@@ -440,7 +440,7 @@ func (impl UserServiceImpl) CreateOrUpdateUserRolesForAllTypes(roleFilter bean.R
 				}
 				if roleModel.Id == 0 {
 					impl.logger.Debugw("no role found for given filter", "filter", "roleFilter", roleFilter)
-					flag, err, policiesAdded := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType, userId)
+					flag, err, policiesAdded := impl.userCommonService.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType, userId)
 					if err != nil || flag == false {
 						return policiesToBeAdded, rolesChanged, err
 					}
@@ -513,7 +513,7 @@ func (impl UserServiceImpl) createOrUpdateUserRolesForClusterEntity(roleFilter b
 					}
 					if roleModel.Id == 0 {
 						impl.logger.Infow("Creating Polices for cluster", resource, kind, namespace, group)
-						flag, err, policiesAdded := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes("", "", "", entity, roleFilter.Cluster, namespace, group, kind, resource, actionType, accessType, userId)
+						flag, err, policiesAdded := impl.userCommonService.CreateDefaultPoliciesForAllTypes("", "", "", entity, roleFilter.Cluster, namespace, group, kind, resource, actionType, accessType, userId)
 						if err != nil || flag == false {
 							return policiesToBeAdded, rolesChanged, err
 						}
@@ -816,9 +816,9 @@ func (impl UserServiceImpl) GetById(id int32) (*bean.UserInfo, error) {
 	for index, roleFilter := range roleFilters {
 		if roleFilter.Entity == "" {
 			roleFilters[index].Entity = bean2.ENTITY_APPS
-		}
-		if roleFilter.Entity == bean2.ENTITY_APPS && roleFilter.AccessType == "" {
-			roleFilters[index].AccessType = bean2.DEVTRON_APP
+			if roleFilter.AccessType == "" {
+				roleFilters[index].AccessType = bean2.DEVTRON_APP
+			}
 		}
 	}
 	response := &bean.UserInfo{

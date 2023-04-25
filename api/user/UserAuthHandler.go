@@ -38,22 +38,25 @@ type UserAuthHandler interface {
 	RefreshTokenHandler(w http.ResponseWriter, r *http.Request)
 	AddDefaultPolicyAndRoles(w http.ResponseWriter, r *http.Request)
 	AuthVerification(w http.ResponseWriter, r *http.Request)
+	AuthVerificationV2(w http.ResponseWriter, r *http.Request)
 }
 
 type UserAuthHandlerImpl struct {
 	userAuthService user.UserAuthService
 	validator       *validator.Validate
 	logger          *zap.SugaredLogger
+	enforcer        casbin.Enforcer
 }
 
 func NewUserAuthHandlerImpl(
 	userAuthService user.UserAuthService,
 	validator *validator.Validate,
-	logger *zap.SugaredLogger) *UserAuthHandlerImpl {
+	logger *zap.SugaredLogger, enforcer casbin.Enforcer) *UserAuthHandlerImpl {
 	userAuthHandler := &UserAuthHandlerImpl{
 		userAuthService: userAuthService,
 		validator:       validator,
 		logger:          logger,
+		enforcer:        enforcer,
 	}
 	return userAuthHandler
 }
@@ -75,7 +78,7 @@ func (handler UserAuthHandlerImpl) LoginHandler(w http.ResponseWriter, r *http.R
 	}
 	//token, err := handler.loginService.CreateLoginSession(up.Username, up.Password)
 	clientIp := util.GetClientIP(r)
-	token, err := handler.userAuthService.HandleLoginWithClientIp(r.Context(),up.Username, up.Password, clientIp)
+	token, err := handler.userAuthService.HandleLoginWithClientIp(r.Context(), up.Username, up.Password, clientIp)
 	if err != nil {
 		common.WriteJsonResp(w, fmt.Errorf("invalid username or password"), nil, http.StatusForbidden)
 		return
@@ -233,13 +236,30 @@ func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWrite
 	}
 
 }
-
 func (handler UserAuthHandlerImpl) AuthVerification(w http.ResponseWriter, r *http.Request) {
-	res, err := handler.userAuthService.AuthVerification(r)
+	verified, err := handler.userAuthService.AuthVerification(r)
 	if err != nil {
 		handler.logger.Errorw("service err, AuthVerification", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, nil, res, http.StatusOK)
+	common.WriteJsonResp(w, nil, verified, http.StatusOK)
+}
+
+func (handler UserAuthHandlerImpl) AuthVerificationV2(w http.ResponseWriter, r *http.Request) {
+	isSuperAdmin := false
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); ok {
+		isSuperAdmin = true
+	}
+	response := make(map[string]interface{})
+	verified, err := handler.userAuthService.AuthVerification(r)
+	if err != nil {
+		handler.logger.Errorw("service err, AuthVerification", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	response["isSuperAdmin"] = isSuperAdmin
+	response["isVerified"] = verified
+	common.WriteJsonResp(w, nil, response, http.StatusOK)
 }

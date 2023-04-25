@@ -61,7 +61,6 @@ func NewDockerRegistryIpsConfigServiceImpl(logger *zap.SugaredLogger, dockerRegi
 
 func (impl DockerRegistryIpsConfigServiceImpl) IsImagePullSecretAccessProvided(dockerRegistryId string, clusterId int) (bool, error) {
 	impl.logger.Infow("checking if Ips access provided", "dockerRegistryId", dockerRegistryId, "clusterId", clusterId)
-
 	ipsConfig, err := impl.dockerRegistryIpsConfigRepository.FindByDockerRegistryId(dockerRegistryId)
 	if err != nil {
 		impl.logger.Errorw("Error while getting docker registry ips config", "dockerRegistryId", dockerRegistryId, "err", err)
@@ -242,7 +241,7 @@ func (impl DockerRegistryIpsConfigServiceImpl) createOrUpdateDockerRegistryImage
 		// create secret
 		impl.logger.Infow("creating ips", "ipsName", ipsName, "clusterId", clusterId)
 		ipsData := BuildIpsData(registryURL, username, password, email)
-		_, err = impl.k8sUtil.CreateSecret(namespace, ipsData, ipsName, v1.SecretTypeDockerConfigJson, k8sClient)
+		_, err = impl.k8sUtil.CreateSecret(namespace, ipsData, ipsName, v1.SecretTypeDockerConfigJson, k8sClient, nil, nil)
 		if err != nil {
 			impl.logger.Errorw("error in creating secret", "clusterId", clusterId, "namespace", namespace, "ipsName", ipsName, "error", err)
 			return err

@@ -138,7 +138,7 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 						}
 						if roleModel.Id == 0 {
 							if roleFilter.Entity == bean2.ENTITY_APPS || roleFilter.Entity == bean.CHART_GROUP_ENTITY {
-								flag, err, policiesAdded := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType, request.UserId)
+								flag, err, policiesAdded := impl.userCommonService.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType, request.UserId)
 								if err != nil || flag == false {
 									return nil, err
 								}
@@ -217,7 +217,7 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForClusterEntity(roleFil
 						return policiesToBeAdded, err
 					}
 					if roleModel.Id == 0 {
-						flag, err, policiesAdded := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes("", "", "", entity, roleFilter.Cluster, namespace, group, kind, resource, actionType, accessType, userId)
+						flag, err, policiesAdded := impl.userCommonService.CreateDefaultPoliciesForAllTypes("", "", "", entity, roleFilter.Cluster, namespace, group, kind, resource, actionType, accessType, userId)
 						if err != nil || flag == false {
 							return policiesToBeAdded, err
 						}
@@ -346,7 +346,7 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 					if roleModel.Id == 0 {
 						request.Status = bean2.RoleNotFoundStatusPrefix + roleFilter.Team + "," + environment + "," + entityName + "," + actionType
 						if roleFilter.Entity == bean2.ENTITY_APPS || roleFilter.Entity == bean.CHART_GROUP_ENTITY {
-							flag, err, policiesAdded := impl.userAuthRepository.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType, request.UserId)
+							flag, err, policiesAdded := impl.userCommonService.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType, request.UserId)
 							policies = append(policies, policiesAdded...)
 							if err != nil || flag == false {
 								return nil, err

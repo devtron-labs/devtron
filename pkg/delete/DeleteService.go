@@ -29,8 +29,10 @@ type DeleteServiceImpl struct {
 func NewDeleteServiceImpl(logger *zap.SugaredLogger,
 	teamService team.TeamService,
 	clusterService cluster.ClusterService,
-	environmentService cluster.EnvironmentService, chartRepositoryService chartRepo.ChartRepositoryService,
-	installedAppRepository repository.InstalledAppRepository) *DeleteServiceImpl {
+	environmentService cluster.EnvironmentService,
+	chartRepositoryService chartRepo.ChartRepositoryService,
+	installedAppRepository repository.InstalledAppRepository,
+) *DeleteServiceImpl {
 	return &DeleteServiceImpl{
 		logger:                 logger,
 		teamService:            teamService,
@@ -78,10 +80,11 @@ func (impl DeleteServiceImpl) DeleteChartRepo(deleteRequest *chartRepo.ChartRepo
 		impl.logger.Errorw("err in deleting repo, found charts deployed using this repo", "deleteRequest", deployedCharts)
 		return fmt.Errorf("cannot delete repo, found charts deployed in this repo")
 	}
-	err = impl.chartRepositoryService.DeleteChartRepoFromArgocdCM(deleteRequest)
+	err = impl.chartRepositoryService.DeleteChartRepo(deleteRequest)
 	if err != nil {
 		impl.logger.Errorw("error in deleting chart repo", "err", err, "deleteRequest", deleteRequest)
 		return err
 	}
+
 	return nil
 }
