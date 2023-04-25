@@ -1,4 +1,5 @@
 ## Bugs
+- fix: getting cluster list min api optimized by enforcing env object in batch (#3317)
 - fix: helm install error, nil pointer fix (#3310)
 - fix: restore deleted sql script (#3306)
 - fix: jobs trigger not working (#3296)
