@@ -79,7 +79,7 @@ func (impl *RbacDataCacheFactoryImpl) GetDefaultRoleDataAndPolicyByEntityAccessT
 	if val, ok := impl.policyCache[keyForMap]; ok {
 		defaultPolicyData = val
 	} else {
-		impl.logger.Errorw("default policy not found", "entity", entity, "accessType", accessType, "roleType", roleType)
+		impl.logger.Errorw("default role not found", "entity", entity, "accessType", accessType, "roleType", roleType)
 		return defaultRoleData, defaultPolicyData, fmt.Errorf("default policy not found")
 	}
 
