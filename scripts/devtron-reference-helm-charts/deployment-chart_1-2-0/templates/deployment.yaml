@@ -133,6 +133,9 @@ spec:
       securityContext:
 {{ toYaml .Values.podSecurityContext | indent 8 }}
 {{- end }}
+{{- if $.Values.image.restartPolicy }}
+      restartPolicy: {{  $.Values.image.restartPolicy  }}
+{{- end }}
 {{- if $.Values.initContainers}}
       initContainers:
 {{- range $i, $c := .Values.initContainers }}
