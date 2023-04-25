@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -32,14 +33,25 @@ type ClusterNoteBean struct {
 	Id          int       `json:"id" validate:"number"`
 	ClusterId   int       `json:"cluster_id" validate:"required"`
 	Description string    `json:"description" validate:"required"`
-	CreatedBy   int       `json:"created_by"`
-	CreatedOn   time.Time `json:"created_on"`
+	UpdatedBy   int       `json:"updated_by"`
+	UpdatedOn   time.Time `json:"updated_on"`
+}
+
+type ClusterDescriptionBean struct {
+	Id               int        `json:"id,omitempty"`
+	ClusterId        int        `json:"cluster_id"`
+	ClusterName      string     `json:"cluster_name"`
+	Description      string     `json:"description,omitempty"`
+	CreatedBy        string     `json:"updated_by,omitempty"`
+	CreatedOn        *time.Time `json:"updated_on,omitempty"`
+	ClusterCreatedBy string     `json:"cluster_created_by"`
+	ClusterCreatedOn *time.Time `json:"cluster_created_on"`
 }
 
 type ClusterNoteHistoryBean struct {
-	Id          int       `json:"id,omitempty" validate:"number"`
-	NoteId      int       `json:"note_id,omitempty" validate:"required"`
-	Description string    `json:"description,omitempty" validate:"required"`
+	Id          int       `json:"id" validate:"number"`
+	NoteId      int       `json:"note_id" validate:"required"`
+	Description string    `json:"description" validate:"required"`
 	CreatedBy   int       `json:"created_by"`
 	CreatedOn   time.Time `json:"created_on"`
 }
@@ -49,21 +61,51 @@ type ClusterNoteService interface {
 	FindByClusterId(id int) (*ClusterNoteBean, error)
 	FindByClusterIds(id []int) ([]*ClusterNoteBean, error)
 	Update(bean *ClusterNoteBean, userId int32) (*ClusterNoteBean, error)
+	GenerateClusterDescription(bean *ClusterNoteBean, clusterBean *ClusterBean, isUpdate bool) (*ClusterDescriptionBean, error)
 }
 
 type ClusterNoteServiceImpl struct {
 	clusterNoteRepository        repository.ClusterNoteRepository
 	clusterNoteHistoryRepository repository.ClusterNoteHistoryRepository
+	userRepository               repository2.UserRepository
 	logger                       *zap.SugaredLogger
 }
 
-func NewClusterNoteServiceImpl(repository repository.ClusterNoteRepository, repositoryHistory repository.ClusterNoteHistoryRepository, logger *zap.SugaredLogger) *ClusterNoteServiceImpl {
+func NewClusterNoteServiceImpl(repository repository.ClusterNoteRepository, repositoryHistory repository.ClusterNoteHistoryRepository, userRepository repository2.UserRepository, logger *zap.SugaredLogger) *ClusterNoteServiceImpl {
 	clusterNoteService := &ClusterNoteServiceImpl{
 		clusterNoteRepository:        repository,
 		clusterNoteHistoryRepository: repositoryHistory,
+		userRepository:               userRepository,
 		logger:                       logger,
 	}
 	return clusterNoteService
+}
+
+func (impl *ClusterNoteServiceImpl) GenerateClusterDescription(bean *ClusterNoteBean, clusterBean *ClusterBean, isUpdate bool) (*ClusterDescriptionBean, error) {
+	clusterDescription := &ClusterDescriptionBean{}
+	if !isUpdate {
+		userDetails, err := impl.userRepository.GetById(int32(clusterBean.CreatedBy))
+		if err != nil {
+			impl.logger.Errorw("user service err, GetById", "err", err, "id", clusterBean.CreatedBy)
+			return nil, err
+		}
+		clusterDescription.ClusterCreatedOn = &clusterBean.CreatedOn
+		clusterDescription.ClusterCreatedBy = userDetails.EmailId
+		clusterDescription.ClusterId = clusterBean.Id
+		clusterDescription.ClusterName = clusterBean.ClusterName
+	}
+	if bean != nil {
+		userDetails, err := impl.userRepository.GetById(int32(bean.UpdatedBy))
+		if err != nil {
+			impl.logger.Errorw("user service err, GetById", "err", err, "id", bean.UpdatedBy)
+			return nil, err
+		}
+		clusterDescription.Id = bean.Id
+		clusterDescription.Description = bean.Description
+		clusterDescription.CreatedOn = &bean.UpdatedOn
+		clusterDescription.CreatedBy = userDetails.EmailId
+	}
+	return clusterDescription, nil
 }
 
 func (impl *ClusterNoteServiceImpl) Save(bean *ClusterNoteBean, userId int32) (*ClusterNoteBean, error) {
@@ -122,8 +164,8 @@ func (impl *ClusterNoteServiceImpl) FindByClusterId(id int) (*ClusterNoteBean, e
 		Id:          model.Id,
 		ClusterId:   model.ClusterId,
 		Description: model.Description,
-		CreatedBy:   int(model.CreatedBy),
-		CreatedOn:   model.CreatedOn,
+		UpdatedBy:   int(model.UpdatedBy),
+		UpdatedOn:   model.UpdatedOn,
 	}
 	return bean, nil
 }
@@ -140,8 +182,8 @@ func (impl *ClusterNoteServiceImpl) FindByClusterIds(ids []int) ([]*ClusterNoteB
 			Id:          model.Id,
 			ClusterId:   model.ClusterId,
 			Description: model.Description,
-			CreatedBy:   int(model.CreatedBy),
-			CreatedOn:   model.CreatedOn,
+			UpdatedBy:   int(model.CreatedBy),
+			UpdatedOn:   model.CreatedOn,
 		})
 	}
 	return beans, nil
@@ -172,6 +214,8 @@ func (impl *ClusterNoteServiceImpl) Update(bean *ClusterNoteBean, userId int32) 
 		return bean, err
 	}
 	bean.Id = model.Id
+	bean.UpdatedBy = int(model.UpdatedBy)
+	bean.UpdatedOn = model.UpdatedOn
 	// audit the existing description to cluster audit history
 	clusterAudit := &repository.ClusterNoteHistory{
 		NoteId:      bean.Id,

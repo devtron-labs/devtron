@@ -217,7 +217,7 @@ func (impl ClusterRestHandlerImpl) FindNoteByClusterId(w http.ResponseWriter, r 
 	if err != nil {
 		if err == pg.ErrNoRows {
 			impl.logger.Errorw("cluster id not found, FindById", "err", err, "clusterId", i)
-			common.WriteJsonResp(w, errors.New("invalid cluster id"), nil, http.StatusBadRequest)
+			common.WriteJsonResp(w, errors.New("invalid cluster id"), nil, http.StatusNotFound)
 			return
 		}
 		impl.logger.Errorw("cluster service err, FindById", "err", err, "clusterId", i)
@@ -234,16 +234,25 @@ func (impl ClusterRestHandlerImpl) FindNoteByClusterId(w http.ResponseWriter, r 
 	bean, err := impl.clusterNoteService.FindByClusterId(i)
 	if err != nil {
 		if err == pg.ErrNoRows {
+			clusterDescriptionBean, userIdErr := impl.clusterNoteService.GenerateClusterDescription(bean, clusterBean, false)
+			if userIdErr != nil {
+				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+				return
+			}
 			impl.logger.Errorw("cluster note not found, FindById", "err", err, "clusterId", id)
-			common.WriteJsonResp(w, errors.New("no cluster note found"), nil, http.StatusOK)
+			common.WriteJsonResp(w, nil, clusterDescriptionBean, http.StatusOK)
 			return
 		}
 		impl.logger.Errorw("cluster note service err, FindById", "err", err, "clusterId", id)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-
-	common.WriteJsonResp(w, err, bean, http.StatusOK)
+	clusterDescriptionBean, userIdErr := impl.clusterNoteService.GenerateClusterDescription(bean, clusterBean, false)
+	if userIdErr != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, clusterDescriptionBean, http.StatusOK)
 }
 
 func (impl ClusterRestHandlerImpl) Update(w http.ResponseWriter, r *http.Request) {
@@ -334,7 +343,7 @@ func (impl ClusterRestHandlerImpl) UpdateClusterNote(w http.ResponseWriter, r *h
 	if err != nil {
 		if err == pg.ErrNoRows {
 			impl.logger.Errorw("cluster id not found, FindById", "err", err, "clusterId", bean.ClusterId)
-			common.WriteJsonResp(w, errors.New("invalid cluster id"), nil, http.StatusBadRequest)
+			common.WriteJsonResp(w, errors.New("invalid cluster id"), nil, http.StatusNotFound)
 			return
 		}
 		impl.logger.Errorw("cluster service err, FindById", "err", err, "clusterId", bean.ClusterId)
@@ -357,8 +366,12 @@ func (impl ClusterRestHandlerImpl) UpdateClusterNote(w http.ResponseWriter, r *h
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-
-	common.WriteJsonResp(w, err, bean, http.StatusOK)
+	clusterDescriptionBean, userIdErr := impl.clusterNoteService.GenerateClusterDescription(&bean, cluster, true)
+	if userIdErr != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, clusterDescriptionBean, http.StatusOK)
 }
 
 func (impl ClusterRestHandlerImpl) FindAllForAutoComplete(w http.ResponseWriter, r *http.Request) {
