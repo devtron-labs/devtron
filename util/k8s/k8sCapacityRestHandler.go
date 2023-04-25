@@ -415,7 +415,7 @@ func (handler *K8sCapacityRestHandlerImpl) CheckRbacForCluster(cluster *cluster.
 	}
 	emailId, err := handler.userService.GetEmailFromToken(token)
 	if err != nil {
-		handler.logger.Errorw("error in getting emailId from token", "err", err, "token", token)
+		handler.logger.Errorw("error in getting emailId from token", "err", err)
 		return false, err
 	}
 
