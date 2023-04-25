@@ -86,7 +86,7 @@ type BulkApplicationForEnvironmentPayload struct {
 	AppIdExcludes   []int `json:"appIdExcludes,omitempty"`
 	EnvId           int   `json:"envId"`
 	UserId          int32 `json:"-"`
-	InvalidateCache bool  `json:"InvalidateCache"`
+	InvalidateCache bool  `json:"invalidateCache"`
 }
 
 type BulkApplicationForEnvironmentResponse struct {
