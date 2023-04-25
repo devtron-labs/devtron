@@ -420,11 +420,11 @@ func (handler *K8sCapacityRestHandlerImpl) CheckRbacForCluster(cluster *cluster.
 	}
 
 	var envIdentifierList []string
-	envIdentifierMap := make(map[string]*int)
+	envIdentifierMap := make(map[string]bool)
 	for _, env := range envs {
 		envIdentifier := strings.ToLower(env.EnvironmentIdentifier)
 		envIdentifierList = append(envIdentifierList, envIdentifier)
-		envIdentifierMap[envIdentifier] = &env.Id
+		envIdentifierMap[envIdentifier] = true
 	}
 	if len(envIdentifierList) == 0 {
 		return false, errors.New("environment identifier list for rbac batch enforcing contains zero environments")
