@@ -139,6 +139,8 @@ func (impl *ClusterNoteServiceImpl) Save(bean *ClusterNoteBean, userId int32) (*
 		}
 	}
 	bean.Id = model.Id
+	bean.UpdatedBy = int(model.UpdatedBy)
+	bean.UpdatedOn = model.UpdatedOn
 	// audit the existing description to cluster audit history
 	clusterAudit := &repository.ClusterNoteHistory{
 		NoteId:      bean.Id,
