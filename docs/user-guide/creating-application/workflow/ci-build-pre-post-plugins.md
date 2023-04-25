@@ -266,7 +266,7 @@ Jira is a tool developed for teams to track issues, manage projects, and automat
 
 **Prerequisite**: Make sure you have the Jira issue title and ticket-id.<br>
 Note: During build pipeline must choose source type to `Pull Request` and configure the webhook that the title of Pull request ` ^(?P<Jira_Id>([a-zA-Z0-9-].*))/ ` should be in this regular expression format .</br>
-
+Example-: If your jira id is DEMO-1 then your pull request title  should be like DEMO-1/any title for pr.
 1. On the **Edit Build Pipeline** page, select the **Pre-Build Stage**.
 2. Click **+ Add task**.
 3. Select **Jira Issue Validator** from **PRESET PLUGINS**.
