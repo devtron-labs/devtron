@@ -2450,49 +2450,7 @@ type DeploymentType struct {
 }
 
 type Deployment struct {
-	Strategy Strategy `json:"strategy"`
-}
-
-type Strategy struct {
-	BlueGreen *BlueGreen `json:"blueGreen,omitempty"`
-	Rolling   *Rolling   `json:"rolling,omitempty"`
-	Canary    *Canary    `json:"canary,omitempty"`
-	Recreate  *Recreate  `json:"recreate,omitempty"`
-}
-
-type BlueGreen struct {
-	AutoPromotionSeconds  int  `json:"autoPromotionSeconds"`
-	ScaleDownDelaySeconds int  `json:"scaleDownDelaySeconds"`
-	PreviewReplicaCount   int  `json:"previewReplicaCount"`
-	AutoPromotionEnabled  bool `json:"autoPromotionEnabled"`
-}
-
-type Canary struct {
-	MaxSurge       string       `json:"maxSurge,omitempty"`
-	MaxUnavailable int          `json:"maxUnavailable,omitempty"`
-	Steps          []CanaryStep `json:"steps,omitempty"`
-}
-
-type CanaryStep struct {
-	// SetWeight sets what percentage of the newRS should receive
-	SetWeight *int32 `json:"setWeight,omitempty"`
-	// Pause freezes the rollout by setting spec.Paused to true.
-	// A Rollout will resume when spec.Paused is reset to false.
-	// +optional
-	Pause *RolloutPause `json:"pause,omitempty"`
-}
-
-type RolloutPause struct {
-	// Duration the amount of time to wait before moving to the next step.
-	// +optional
-	Duration *int32 `json:"duration,omitempty"`
-}
-type Recreate struct {
-}
-
-type Rolling struct {
-	MaxSurge       string `json:"maxSurge"`
-	MaxUnavailable int    `json:"maxUnavailable"`
+	Strategy map[string]interface{} `json:"strategy"`
 }
 
 func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.App, pipeline *bean.CDPipelineConfigObject, userId int32) (pipelineRes int, err error) {
@@ -2752,71 +2710,30 @@ func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, pipeline *
 	return nil
 }
 
-func (impl PipelineBuilderImpl) filterDeploymentTemplate(deploymentTemplate chartRepoRepository.DeploymentStrategy, pipelineOverride string) (string, error) {
-	var deploymentType DeploymentType
-	err := json.Unmarshal([]byte(pipelineOverride), &deploymentType)
+func (impl PipelineBuilderImpl) filterDeploymentTemplate(strategyKey string, pipelineStrategiesJson string) (string, error) {
+	var pipelineStrategies DeploymentType
+	err := json.Unmarshal([]byte(pipelineStrategiesJson), &pipelineStrategies)
 	if err != nil {
-		impl.logger.Errorw("err", err)
+		impl.logger.Errorw("error while unmarshal strategies", "err", err)
 		return "", err
 	}
-	if chartRepoRepository.DEPLOYMENT_STRATEGY_BLUE_GREEN == deploymentTemplate {
-		newDeploymentType := DeploymentType{
-			Deployment: Deployment{
-				Strategy: Strategy{
-					BlueGreen: deploymentType.Deployment.Strategy.BlueGreen,
-				},
-			},
-		}
-		pipelineOverrideBytes, err := json.Marshal(newDeploymentType)
-		if err != nil {
-			impl.logger.Errorw("err", err)
-			return "", err
-		}
-		pipelineOverride = string(pipelineOverrideBytes)
-	} else if chartRepoRepository.DEPLOYMENT_STRATEGY_ROLLING == deploymentTemplate {
-		newDeploymentType := DeploymentType{
-			Deployment: Deployment{
-				Strategy: Strategy{
-					Rolling: deploymentType.Deployment.Strategy.Rolling,
-				},
-			},
-		}
-		pipelineOverrideBytes, err := json.Marshal(newDeploymentType)
-		if err != nil {
-			impl.logger.Errorw("err", err)
-			return "", err
-		}
-		pipelineOverride = string(pipelineOverrideBytes)
-	} else if chartRepoRepository.DEPLOYMENT_STRATEGY_CANARY == deploymentTemplate {
-		newDeploymentType := DeploymentType{
-			Deployment: Deployment{
-				Strategy: Strategy{
-					Canary: deploymentType.Deployment.Strategy.Canary,
-				},
-			},
-		}
-		pipelineOverrideBytes, err := json.Marshal(newDeploymentType)
-		if err != nil {
-			impl.logger.Errorw("err", err)
-			return "", err
-		}
-		pipelineOverride = string(pipelineOverrideBytes)
-	} else if chartRepoRepository.DEPLOYMENT_STRATEGY_RECREATE == deploymentTemplate {
-		newDeploymentType := DeploymentType{
-			Deployment: Deployment{
-				Strategy: Strategy{
-					Recreate: deploymentType.Deployment.Strategy.Recreate,
-				},
-			},
-		}
-		pipelineOverrideBytes, err := json.Marshal(newDeploymentType)
-		if err != nil {
-			impl.logger.Errorw("err", err)
-			return "", err
-		}
-		pipelineOverride = string(pipelineOverrideBytes)
+	if pipelineStrategies.Deployment.Strategy[strategyKey] == nil {
+		return "", fmt.Errorf("no deployment strategy found for %s", strategyKey)
 	}
-	return pipelineOverride, nil
+	strategy := make(map[string]interface{})
+	strategy[strategyKey] = pipelineStrategies.Deployment.Strategy[strategyKey].(map[string]interface{})
+	pipelineStrategy := DeploymentType{
+		Deployment: Deployment{
+			Strategy: strategy,
+		},
+	}
+	pipelineOverrideBytes, err := json.Marshal(pipelineStrategy)
+	if err != nil {
+		impl.logger.Errorw("error while marshal strategies", "err", err)
+		return "", err
+	}
+	pipelineStrategyJson := string(pipelineOverrideBytes)
+	return pipelineStrategyJson, nil
 }
 
 func (impl PipelineBuilderImpl) GetTriggerViewCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error) {
@@ -3371,7 +3288,7 @@ func (impl PipelineBuilderImpl) FetchCDPipelineStrategy(appId int) (PipelineStra
 	}
 
 	//get global strategy for this chart
-	globalStrategies, err := impl.globalStrategyMetadataRepository.GetByChartRefId(chart.ChartRefId)
+	globalStrategies, err := impl.globalStrategyMetadataChartRefMappingRepository.GetByChartRefId(chart.ChartRefId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting global strategies", "err", err)
 		return pipelineStrategiesResponse, err
@@ -3381,19 +3298,15 @@ func (impl PipelineBuilderImpl) FetchCDPipelineStrategy(appId int) (PipelineStra
 	}
 	pipelineOverride := chart.PipelineOverride
 	for _, globalStrategy := range globalStrategies {
-		config, err := impl.filterDeploymentTemplate(globalStrategy.Name, pipelineOverride)
+		pipelineStrategyJson, err := impl.filterDeploymentTemplate(globalStrategy.GlobalStrategyMetadata.Key, pipelineOverride)
 		if err != nil {
 			return pipelineStrategiesResponse, err
 		}
 		pipelineStrategy := PipelineStrategy{
-			DeploymentTemplate: globalStrategy.Name,
-			Config:             []byte(config),
+			DeploymentTemplate: globalStrategy.GlobalStrategyMetadata.Name,
+			Config:             []byte(pipelineStrategyJson),
 		}
-		if globalStrategy.Name == chartRepoRepository.DEPLOYMENT_STRATEGY_ROLLING {
-			pipelineStrategy.Default = true
-		} else {
-			pipelineStrategy.Default = false
-		}
+		pipelineStrategy.Default = globalStrategy.Default
 		pipelineStrategiesResponse.PipelineStrategy = append(pipelineStrategiesResponse.PipelineStrategy, pipelineStrategy)
 	}
 	return pipelineStrategiesResponse, nil
