@@ -181,6 +181,7 @@ message  HelmAppDeploymentDetail {
   repeated string dockerImages = 2;
   int32 version = 3;
   google.protobuf.Timestamp deployedAt = 4;
+  string DeployedBy = 5;
 }
 
 message HelmAppDeploymentHistory {
