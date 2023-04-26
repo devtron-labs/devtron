@@ -146,6 +146,7 @@ func (impl CiTemplateServiceImpl) extractBuildConfigBean(templateOverride *pipel
 		}
 	}
 	ciBuildConfigBean.GitMaterialId = templateOverride.GitMaterialId
+	ciBuildConfigBean.BuildContextGitMaterialId = templateOverride.BuildContextGitMaterialId
 	return ciBuildConfigBean, nil
 }
 

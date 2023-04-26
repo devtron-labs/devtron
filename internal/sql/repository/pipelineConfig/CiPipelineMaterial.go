@@ -53,6 +53,7 @@ type CiPipelineMaterialRepository interface {
 	GetRegexByPipelineId(id int) ([]*CiPipelineMaterial, error)
 	CheckRegexExistsForMaterial(id int) bool
 	GetByPipelineIdForRegexAndFixed(id int) ([]*CiPipelineMaterial, error)
+	GetCheckoutPath(gitMaterialId int) (string, error)
 }
 
 type CiPipelineMaterialRepositoryImpl struct {
@@ -156,4 +157,13 @@ func (impl CiPipelineMaterialRepositoryImpl) CheckRegexExistsForMaterial(id int)
 		return false
 	}
 	return exists
+}
+
+func (impl CiPipelineMaterialRepositoryImpl) GetCheckoutPath(gitMaterialId int) (string, error) {
+	var checkoutPath string
+	err := impl.dbConnection.Model((*GitMaterial)(nil)).
+		Column("git_material.checkout_path").
+		Where("id=?", gitMaterialId).
+		Select(&checkoutPath)
+	return checkoutPath, err
 }

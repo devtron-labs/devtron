@@ -17,11 +17,12 @@ const (
 )
 
 type CiBuildConfigBean struct {
-	Id                int                `json:"id"`
-	GitMaterialId     int                `json:"gitMaterialId,omitempty" validate:"required"`
-	CiBuildType       CiBuildType        `json:"ciBuildType"`
-	DockerBuildConfig *DockerBuildConfig `json:"dockerBuildConfig,omitempty"`
-	BuildPackConfig   *BuildPackConfig   `json:"buildPackConfig"`
+	Id                        int                `json:"id"`
+	GitMaterialId             int                `json:"gitMaterialId,omitempty" validate:"required"`
+	BuildContextGitMaterialId int                `json:"buildContextGitMaterialId,omitempty" validate:"required"`
+	CiBuildType               CiBuildType        `json:"ciBuildType"`
+	DockerBuildConfig         *DockerBuildConfig `json:"dockerBuildConfig,omitempty"`
+	BuildPackConfig           *BuildPackConfig   `json:"buildPackConfig"`
 }
 
 type DockerBuildConfig struct {
