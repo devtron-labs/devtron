@@ -14,5 +14,5 @@ $ cd devtron/charts/devtron
 $ helm dependency up
 $ #modify values in values.yaml
 $ helm upgrade devtron . --reuse-values --namespace devtroncd \
--f  https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/devtron-bom.yaml
+-f https://raw.githubusercontent.com/devtron-labs/devtron/main/charts/devtron/devtron-bom.yaml
 ```
