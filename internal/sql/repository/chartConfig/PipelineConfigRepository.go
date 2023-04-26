@@ -44,6 +44,7 @@ type PipelineConfigRepository interface {
 	GetAllStrategyByPipelineId(pipelineId int) ([]*PipelineStrategy, error)
 	GetDefaultStrategyByPipelineId(pipelineId int) (pipelineStrategy *PipelineStrategy, err error)
 	Delete(pipelineStrategy *PipelineStrategy, tx *pg.Tx) error
+	GetAllStrategyByPipelineIds(pipelineIds []int) ([]*PipelineStrategy, error)
 }
 
 type PipelineConfigRepositoryImpl struct {
@@ -116,4 +117,17 @@ func (impl PipelineConfigRepositoryImpl) GetDefaultStrategyByPipelineId(pipeline
 
 func (impl PipelineConfigRepositoryImpl) Delete(pipelineStrategy *PipelineStrategy, tx *pg.Tx) error {
 	return tx.Delete(pipelineStrategy)
+}
+
+func (impl PipelineConfigRepositoryImpl) GetAllStrategyByPipelineIds(pipelineIds []int) ([]*PipelineStrategy, error) {
+	var pipelineStrategies []*PipelineStrategy
+	err := impl.dbConnection.
+		Model(&pipelineStrategies).
+		Where("pipeline_id in (?)", pg.In(pipelineIds)).
+		Where("deleted = ?", false).
+		Select()
+	if pg.ErrNoRows == err {
+		return nil, errors.NotFoundf(err.Error())
+	}
+	return pipelineStrategies, err
 }

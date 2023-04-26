@@ -42,13 +42,14 @@ func NewPipelineStatusTimelineServiceImpl(logger *zap.SugaredLogger,
 }
 
 type PipelineTimelineDetailDto struct {
-	DeploymentStartedOn  time.Time                    `json:"deploymentStartedOn"`
-	DeploymentFinishedOn time.Time                    `json:"deploymentFinishedOn"`
-	TriggeredBy          string                       `json:"triggeredBy"`
-	Timelines            []*PipelineStatusTimelineDto `json:"timelines"`
-	StatusLastFetchedAt  time.Time                    `json:"statusLastFetchedAt"`
-	StatusFetchCount     int                          `json:"statusFetchCount"`
-	WfrStatus            string                       `json:"wfrStatus"`
+	DeploymentStartedOn        time.Time                    `json:"deploymentStartedOn"`
+	DeploymentFinishedOn       time.Time                    `json:"deploymentFinishedOn"`
+	TriggeredBy                string                       `json:"triggeredBy"`
+	Timelines                  []*PipelineStatusTimelineDto `json:"timelines"`
+	StatusLastFetchedAt        time.Time                    `json:"statusLastFetchedAt"`
+	StatusFetchCount           int                          `json:"statusFetchCount"`
+	WfrStatus                  string                       `json:"wfrStatus"`
+	DeploymentAppDeleteRequest bool                         `json:"deploymentAppDeleteRequest"`
 }
 
 type PipelineStatusTimelineDto struct {
@@ -161,14 +162,22 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelines(appId, envId, wfrI
 			impl.logger.Errorw("error in getting timelines by wfrId", "err", err, "wfrId", wfrId)
 			return nil, err
 		}
+		var cdWorkflowRunnerIds []int
 		for _, timeline := range timelines {
-			var timelineResourceDetails []*SyncStageResourceDetailDto
+			cdWorkflowRunnerIds = append(cdWorkflowRunnerIds, timeline.CdWorkflowRunnerId)
+		}
+		if len(cdWorkflowRunnerIds) == 0 {
+			return nil, err
+		}
+		timelineResourceMap, err := impl.pipelineStatusTimelineResourcesService.GetTimelineResourcesForATimeline(cdWorkflowRunnerIds)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in getting timeline resources details", "err", err)
+			return nil, err
+		}
+		for _, timeline := range timelines {
+			timelineResourceDetails := make([]*SyncStageResourceDetailDto, 0)
 			if timeline.Status == pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_STARTED {
-				timelineResourceDetails, err = impl.pipelineStatusTimelineResourcesService.GetTimelineResourcesForATimeline(timeline.CdWorkflowRunnerId)
-				if err != nil && err != pg.ErrNoRows {
-					impl.logger.Errorw("error in getting timeline resources details", "err", err, "cdWfrId", timeline.CdWorkflowRunnerId)
-					return nil, err
-				}
+				timelineResourceDetails = timelineResourceMap[timeline.CdWorkflowRunnerId]
 			}
 			timelineDto := &PipelineStatusTimelineDto{
 				Id:                 timeline.Id,
@@ -186,13 +195,14 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelines(appId, envId, wfrI
 		}
 	}
 	timelineDetail := &PipelineTimelineDetailDto{
-		TriggeredBy:          triggeredByUser.EmailId,
-		DeploymentStartedOn:  deploymentStartedOn,
-		DeploymentFinishedOn: deploymentFinishedOn,
-		Timelines:            timelineDtos,
-		StatusLastFetchedAt:  statusLastFetchedAt,
-		StatusFetchCount:     statusFetchCount,
-		WfrStatus:            wfrStatus,
+		TriggeredBy:                triggeredByUser.EmailId,
+		DeploymentStartedOn:        deploymentStartedOn,
+		DeploymentFinishedOn:       deploymentFinishedOn,
+		Timelines:                  timelineDtos,
+		StatusLastFetchedAt:        statusLastFetchedAt,
+		StatusFetchCount:           statusFetchCount,
+		WfrStatus:                  wfrStatus,
+		DeploymentAppDeleteRequest: wfr.CdWorkflow.Pipeline.DeploymentAppDeleteRequest,
 	}
 	return timelineDetail, nil
 }

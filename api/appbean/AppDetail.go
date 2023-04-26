@@ -33,7 +33,7 @@ type AppMetadata struct {
 
 type AppLabel struct {
 	Key       string `json:"key,notnull" validate:"required"`
-	Value     string `json:"value,notnull" validate:"required"`
+	Value     string `json:"value,notnull"` // intentionally not added required tag as tag can be added without value
 	Propagate bool   `json:"propagate"`
 }
 
@@ -109,6 +109,7 @@ type CdPipelineDetails struct {
 	Name                          string                                 `json:"name"` //pipelineName
 	EnvironmentName               string                                 `json:"environmentName" `
 	TriggerType                   pipelineConfig.TriggerType             `json:"triggerType" validate:"required"`
+	DeploymentAppType             string                                 `json:"deploymentAppType"`
 	DeploymentStrategyType        chartRepoRepository.DeploymentStrategy `json:"deploymentType,omitempty"` //
 	DeploymentStrategies          []*DeploymentStrategy                  `json:"deploymentStrategies"`
 	PreStage                      *CdStage                               `json:"preStage"`

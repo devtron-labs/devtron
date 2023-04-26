@@ -19,6 +19,7 @@ package bean
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
@@ -38,13 +39,15 @@ type SourceTypeConfig struct {
 }
 
 type CreateAppDTO struct {
-	Id         int            `json:"id,omitempty" validate:"number"`
-	AppName    string         `json:"appName" validate:"name-component,max=100"`
-	UserId     int32          `json:"-"` //not exposed to UI
-	Material   []*GitMaterial `json:"material" validate:"dive,min=1"`
-	TeamId     int            `json:"teamId,omitempty" validate:"number,required"`
-	TemplateId int            `json:"templateId"`
-	AppLabels  []*Label       `json:"labels,omitempty" validate:"dive"`
+	Id          int            `json:"id,omitempty" validate:"number"`
+	AppName     string         `json:"appName" validate:"name-component,max=100"`
+	UserId      int32          `json:"-"` //not exposed to UI
+	Material    []*GitMaterial `json:"material" validate:"dive,min=1"`
+	TeamId      int            `json:"teamId,omitempty" validate:"number,required"`
+	TemplateId  int            `json:"templateId"`
+	AppLabels   []*Label       `json:"labels,omitempty" validate:"dive"`
+	Description string         `json:"description"`
+	AppType     helper.AppType `json:"appType" validate:"gt=-1,lt=3"` //TODO: Change Validation if new AppType is introduced
 }
 
 type CreateMaterialDTO struct {
@@ -215,8 +218,9 @@ type CiRegexPatchRequest struct {
 }
 
 type GitCiTriggerRequest struct {
-	CiPipelineMaterial CiPipelineMaterial `json:"ciPipelineMaterial" validate:"required"`
-	TriggeredBy        int32              `json:"triggeredBy"`
+	CiPipelineMaterial        CiPipelineMaterial `json:"ciPipelineMaterial" validate:"required"`
+	TriggeredBy               int32              `json:"triggeredBy"`
+	ExtraEnvironmentVariables map[string]string  `json:"extraEnvironmentVariables"` // extra env variables which will be used for CI
 }
 
 type GitCommit struct {
@@ -267,6 +271,12 @@ type Material struct {
 	MaterialName  string `json:"materialName"`
 }
 
+type TriggerViewCiConfig struct {
+	CiGitMaterialId int           `json:"ciGitConfiguredId"`
+	CiPipelines     []*CiPipeline `json:"ciPipelines,omitempty" validate:"dive"` //a pipeline will be built for each ciMaterial
+	Materials       []Material    `json:"materials"`
+}
+
 type CiConfigRequest struct {
 	Id                int                     `json:"id,omitempty" validate:"number"` //ciTemplateId
 	AppId             int                     `json:"appId,omitempty" validate:"required,number"`
@@ -288,6 +298,16 @@ type CiConfigRequest struct {
 	CreatedBy         int32                   `sql:"created_by,type:integer"`
 	UpdatedOn         time.Time               `sql:"updated_on,type:timestamptz"`
 	UpdatedBy         int32                   `sql:"updated_by,type:integer"`
+	IsJob             bool                    `json:"-"`
+	CiGitMaterialId   int                     `json:"ciGitConfiguredId"`
+}
+
+type CiPipelineMinResponse struct {
+	Id               int    `json:"id,omitempty" validate:"number"` //ciTemplateId
+	AppId            int    `json:"appId,omitempty" validate:"required,number"`
+	AppName          string `json:"appName,omitempty"`
+	ParentCiPipeline int    `json:"parentCiPipeline"`
+	ParentAppId      int    `json:"parentAppId"`
 }
 
 type TestExecutorImageProperties struct {
@@ -455,6 +475,7 @@ type CDPipelineConfigObject struct {
 	Id                            int                                    `json:"id,omitempty"  validate:"number" `
 	EnvironmentId                 int                                    `json:"environmentId,omitempty"  validate:"number,required" `
 	EnvironmentName               string                                 `json:"environmentName,omitempty" `
+	Description                   string                                 `json:"description" validate:"max=40"`
 	CiPipelineId                  int                                    `json:"ciPipelineId,omitempty" validate:"number"`
 	TriggerType                   pipelineConfig.TriggerType             `json:"triggerType,omitempty" validate:"oneof=AUTOMATIC MANUAL"`
 	Name                          string                                 `json:"name,omitempty" validate:"name-component,max=50"` //pipelineName
@@ -462,17 +483,22 @@ type CDPipelineConfigObject struct {
 	Namespace                     string                                 `json:"namespace,omitempty" validate:"name-space-component,max=50"` //namespace
 	AppWorkflowId                 int                                    `json:"appWorkflowId,omitempty" `
 	DeploymentTemplate            chartRepoRepository.DeploymentStrategy `json:"deploymentTemplate,omitempty"` //
-	PreStage                      CdStage                                `json:"preStage"`
-	PostStage                     CdStage                                `json:"postStage"`
-	PreStageConfigMapSecretNames  PreStageConfigMapSecretNames           `json:"preStageConfigMapSecretNames"`
-	PostStageConfigMapSecretNames PostStageConfigMapSecretNames          `json:"postStageConfigMapSecretNames"`
-	RunPreStageInEnv              bool                                   `json:"runPreStageInEnv"`
-	RunPostStageInEnv             bool                                   `json:"runPostStageInEnv"`
+	PreStage                      CdStage                                `json:"preStage,omitempty"`
+	PostStage                     CdStage                                `json:"postStage,omitempty"`
+	PreStageConfigMapSecretNames  PreStageConfigMapSecretNames           `json:"preStageConfigMapSecretNames,omitempty"`
+	PostStageConfigMapSecretNames PostStageConfigMapSecretNames          `json:"postStageConfigMapSecretNames,omitempty"`
+	RunPreStageInEnv              bool                                   `json:"runPreStageInEnv,omitempty"`
+	RunPostStageInEnv             bool                                   `json:"runPostStageInEnv,omitempty"`
 	CdArgoSetup                   bool                                   `json:"isClusterCdActive"`
 	ParentPipelineId              int                                    `json:"parentPipelineId"`
 	ParentPipelineType            string                                 `json:"parentPipelineType"`
 	DeploymentAppType             string                                 `json:"deploymentAppType"`
-	//Downstream         []int                             `json:"downstream"` //PipelineCounter of downstream	(for future reference only)
+	AppName                       string                                 `json:"appName"`
+	DeploymentAppDeleteRequest    bool                                   `json:"deploymentAppDeleteRequest"`
+	DeploymentAppCreated          bool                                   `json:"deploymentAppCreated"`
+	AppId                         int                                    `json:"appId"`
+	TeamId                        int                                    `json:"-"`
+	EnvironmentIdentifier         string                                 `json:"-" `
 }
 
 type PreStageConfigMapSecretNames struct {
@@ -520,6 +546,53 @@ const (
 	CD_CREATE CdPatchAction = iota
 	CD_DELETE               //delete this pipeline
 	CD_UPDATE
+	CD_DELETE_PARTIAL // Partially delete means it will only delete ACD app
+)
+
+type DeploymentAppTypeChangeRequest struct {
+	EnvId                 int            `json:"envId,omitempty" validate:"required"`
+	DesiredDeploymentType DeploymentType `json:"desiredDeploymentType,omitempty" validate:"required"`
+	ExcludeApps           []int          `json:"excludeApps"`
+	IncludeApps           []int          `json:"includeApps"`
+	AutoTriggerDeployment bool           `json:"autoTriggerDeployment"`
+	UserId                int32          `json:"-"`
+}
+
+type DeploymentChangeStatus struct {
+	Id      int    `json:"id,omitempty"`
+	AppId   int    `json:"appId,omitempty"`
+	AppName string `json:"appName,omitempty"`
+	EnvId   int    `json:"envId,omitempty"`
+	EnvName string `json:"envName,omitempty"`
+	Error   string `json:"error,omitempty"`
+	Status  Status `json:"status,omitempty"`
+}
+
+type DeploymentAppTypeChangeResponse struct {
+	EnvId                 int                       `json:"envId,omitempty"`
+	DesiredDeploymentType DeploymentType            `json:"desiredDeploymentType,omitempty"`
+	SuccessfulPipelines   []*DeploymentChangeStatus `json:"successfulPipelines"`
+	FailedPipelines       []*DeploymentChangeStatus `json:"failedPipelines"`
+	TriggeredPipelines    []*CdPipelineTrigger      `json:"-"` // Disabling auto-trigger until bulk trigger API is fixed
+}
+
+type CdPipelineTrigger struct {
+	CiArtifactId int `json:"ciArtifactId"`
+	PipelineId   int `json:"pipelineId"`
+}
+
+type DeploymentType string
+
+const (
+	Helm   DeploymentType = "helm"
+	ArgoCd DeploymentType = "argo_cd"
+)
+
+type Status string
+
+const (
+	Success Status = "Success"
+	Failed  Status = "Failed"
 )
 
 func (a CdPatchAction) String() string {
@@ -550,21 +623,23 @@ type Rollback struct {
 }
 
 type CiArtifactBean struct {
-	Id                            int             `json:"id"`
-	Image                         string          `json:"image,notnull"`
-	ImageDigest                   string          `json:"image_digest,notnull"`
-	MaterialInfo                  json.RawMessage `json:"material_info"` //git material metadata json array string
-	DataSource                    string          `json:"data_source,notnull"`
-	DeployedTime                  string          `json:"deployed_time"`
-	Deployed                      bool            `json:"deployed,notnull"`
-	Latest                        bool            `json:"latest,notnull"`
-	LastSuccessfulTriggerOnParent bool            `json:"lastSuccessfulTriggerOnParent,notnull"`
-	RunningOnParentCd             bool            `json:"runningOnParentCd,omitempty"`
-	IsVulnerable                  bool            `json:"vulnerable,notnull"`
-	ScanEnabled                   bool            `json:"scanEnabled,notnull"`
-	Scanned                       bool            `json:"scanned,notnull"`
-	WfrId                         int             `json:"wfrId"`
-	DeployedBy                    string          `json:"deployedBy"`
+	Id                            int                       `json:"id"`
+	Image                         string                    `json:"image,notnull"`
+	ImageDigest                   string                    `json:"image_digest,notnull"`
+	MaterialInfo                  json.RawMessage           `json:"material_info"` //git material metadata json array string
+	DataSource                    string                    `json:"data_source,notnull"`
+	DeployedTime                  string                    `json:"deployed_time"`
+	Deployed                      bool                      `json:"deployed,notnull"`
+	Latest                        bool                      `json:"latest,notnull"`
+	LastSuccessfulTriggerOnParent bool                      `json:"lastSuccessfulTriggerOnParent,notnull"`
+	RunningOnParentCd             bool                      `json:"runningOnParentCd,omitempty"`
+	IsVulnerable                  bool                      `json:"vulnerable,notnull"`
+	ScanEnabled                   bool                      `json:"scanEnabled,notnull"`
+	Scanned                       bool                      `json:"scanned,notnull"`
+	WfrId                         int                       `json:"wfrId"`
+	DeployedBy                    string                    `json:"deployedBy"`
+	CiConfigureSourceType         pipelineConfig.SourceType `json:"ciConfigureSourceType"`
+	CiConfigureSourceValue        string                    `json:"ciConfigureSourceValue"`
 }
 
 type CiArtifactResponse struct {
@@ -591,7 +666,7 @@ type AppLabelDto struct {
 
 type Label struct {
 	Key       string `json:"key" validate:"required"`
-	Value     string `json:"value" validate:"required"`
+	Value     string `json:"value"` // intentionally not added required tag as tag can be added without value
 	Propagate bool   `json:"propagate"`
 }
 
@@ -604,6 +679,7 @@ type AppMetaInfoDto struct {
 	CreatedOn   time.Time `json:"createdOn"`
 	Active      bool      `json:"active,notnull"`
 	Labels      []*Label  `json:"labels"`
+	Description string    `json:"description"`
 	UserId      int32     `json:"-"`
 }
 
@@ -676,3 +752,8 @@ type ExampleValueDto struct {
 	Result string     `json:"result,omitempty"`
 	Status string     `json:"status,omitempty"`
 }
+
+const CustomAutoScalingEnabledPathKey = "CUSTOM_AUTOSCALING_ENABLED_PATH"
+const CustomAutoscalingReplicaCountPathKey = "CUSTOM_AUTOSCALING_REPLICA_COUNT_PATH"
+const CustomAutoscalingMinPathKey = "CUSTOM_AUTOSCALING_MIN_PATH"
+const CustomAutoscalingMaxPathKey = "CUSTOM_AUTOSCALING_MAX_PATH"

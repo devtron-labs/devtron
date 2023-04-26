@@ -27,6 +27,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/version"
 	"net/http"
 	"os/user"
 	"path/filepath"
@@ -331,12 +332,20 @@ func (impl K8sUtil) GetSecret(namespace string, name string, client *v12.CoreV1C
 	}
 }
 
-func (impl K8sUtil) CreateSecret(namespace string, data map[string][]byte, secretName string, secretType v1.SecretType, client *v12.CoreV1Client) (*v1.Secret, error) {
+func (impl K8sUtil) CreateSecret(namespace string, data map[string][]byte, secretName string, secretType v1.SecretType, client *v12.CoreV1Client, labels map[string]string, stringData map[string]string) (*v1.Secret, error) {
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: secretName,
 		},
-		Data: data,
+	}
+	if labels != nil && len(labels) > 0 {
+		secret.ObjectMeta.Labels = labels
+	}
+	if stringData != nil && len(stringData) > 0 {
+		secret.StringData = stringData
+	}
+	if data != nil && len(data) > 0 {
+		secret.Data = data
 	}
 	if len(secretType) > 0 {
 		secret.Type = secretType
@@ -356,6 +365,14 @@ func (impl K8sUtil) UpdateSecret(namespace string, secret *v1.Secret, client *v1
 	} else {
 		return secret, nil
 	}
+}
+
+func (impl K8sUtil) DeleteSecret(namespace string, name string, client *v12.CoreV1Client) error {
+	err := client.Secrets(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (impl K8sUtil) DeleteJob(namespace string, name string, clusterConfig *ClusterConfig) error {
@@ -747,4 +764,17 @@ func OverrideK8sHttpClientWithTracer(restConfig *rest.Config) (*http.Client, err
 	}
 	httpClientFor.Transport = otelhttp.NewTransport(httpClientFor.Transport)
 	return httpClientFor, nil
+}
+func (impl K8sUtil) GetKubeVersion() (*version.Info, error) {
+	discoveryClient, err := impl.GetK8sDiscoveryClientInCluster()
+	if err != nil {
+		impl.logger.Errorw("eexception caught in getting discoveryClient", "err", err)
+		return nil, err
+	}
+	k8sServerVersion, err := discoveryClient.ServerVersion()
+	if err != nil {
+		impl.logger.Errorw("exception caught in getting k8sServerVersion", "err", err)
+		return nil, err
+	}
+	return k8sServerVersion, err
 }

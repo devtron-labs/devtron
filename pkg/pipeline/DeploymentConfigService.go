@@ -9,6 +9,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/go-pg/pg"
+	errors2 "github.com/juju/errors"
 	"go.uber.org/zap"
 )
 
@@ -69,7 +70,7 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentConfigurationByPipel
 	configResp.DeploymentTemplateConfig = deploymentTemplateConfig
 
 	pipelineStrategyConfig, err := impl.GetLatestPipelineStrategyConfig(pipeline)
-	if err != nil {
+	if err != nil && errors2.IsNotFound(err) == false {
 		impl.logger.Errorw("error in getting latest pipelineStrategyConfig", "err", err)
 		return nil, err
 	}

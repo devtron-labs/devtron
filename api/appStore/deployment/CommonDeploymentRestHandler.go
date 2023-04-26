@@ -34,6 +34,7 @@ import (
 	"github.com/devtron-labs/devtron/util/k8sObjectsUtil"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
@@ -207,13 +208,11 @@ func (handler *CommonDeploymentRestHandlerImpl) GetDeploymentHistoryValues(w htt
 	}
 
 	var ok bool
-
 	if rbacObject2 == "" {
 		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject)
 	} else {
 		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject2)
 	}
-
 	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
@@ -222,7 +221,9 @@ func (handler *CommonDeploymentRestHandlerImpl) GetDeploymentHistoryValues(w htt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+	_, span := otel.Tracer("orchestrator").Start(ctx, "appStoreDeploymentService.GetDeploymentHistoryInfo")
 	res, err := handler.appStoreDeploymentService.GetDeploymentHistoryInfo(ctx, installedAppDto, installedAppVersionHistoryId)
+	span.End()
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -230,7 +231,9 @@ func (handler *CommonDeploymentRestHandlerImpl) GetDeploymentHistoryValues(w htt
 	if util2.IsHelmApp(appOfferingMode) {
 		canUpdate := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject)
 		if !canUpdate && res != nil && res.Manifest != nil {
+			_, span = otel.Tracer("orchestrator").Start(ctx, "k8sObjectsUtil.HideValuesIfSecretForWholeYamlInput")
 			modifiedManifest, err := k8sObjectsUtil.HideValuesIfSecretForWholeYamlInput(*res.Manifest)
+			span.End()
 			if err != nil {
 				handler.Logger.Errorw("error in hiding secret values", "err", err)
 				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

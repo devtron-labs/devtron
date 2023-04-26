@@ -102,14 +102,15 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
-
-		rbacObject, rbacObject2 = handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
-		token := r.Header.Get("token")
-		ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject2)
-		if !ok {
-			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
-			return
-		}
+		// TODO: this rbac is commented because we are only checking helm apps access whereas this api is being used in devtron apps too
+		// this  needs to be updated with conditional rbac depending on where the call came from,until then this will get prevented with the view page permission
+		//rbacObject, rbacObject2 = handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
+		//token := r.Header.Get("token")
+		//ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject2)
+		//if !ok {
+		//	common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
+		//	return
+		//}
 	} else if request.ClusterId <= 0 {
 		common.WriteJsonResp(w, errors.New("can not resource manifest as target cluster is not provided"), nil, http.StatusBadRequest)
 		return
@@ -403,16 +404,17 @@ func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, 
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
-		// RBAC enforcer applying
-		rbacObject, rbacObject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
-		token := r.Header.Get("token")
-
-		ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject2)
-
-		if !ok {
-			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
-			return
-		}
+		// TODO: this rbac is commented because we are only checking helm apps access whereas this api is being used in devtron apps too
+		// this  needs to be updated with conditional rbac depending on where the call came from,until then this will get prevented with the view page permission
+		//rbacObject, rbacObject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
+		//token := r.Header.Get("token")
+		//
+		//ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject2)
+		//
+		//if !ok {
+		//	common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
+		//	return
+		//}
 		//RBAC enforcer Ends
 	} else if request.ClusterId > 0 {
 		if ok := handler.handleRbac(r, w, request, token, casbin.ActionGet); !ok {
@@ -481,19 +483,28 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 		valid, err := handler.k8sApplicationService.ValidateResourceRequest(r.Context(), request.AppIdentifier, request.K8sRequest)
 		if err != nil || !valid {
 			handler.logger.Errorw("error in validating resource request", "err", err)
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			apiError := util2.ApiError{
+				InternalMessage: "failed to validate the resource with error " + err.Error(),
+				UserMessage:     "Failed to validate resource",
+			}
+			if !valid {
+				apiError.InternalMessage = "failed to validate the resource"
+				apiError.UserMessage = "requested Pod or Container doesn't exist"
+			}
+			common.WriteJsonResp(w, &apiError, nil, http.StatusBadRequest)
 			return
 		}
-		// RBAC enforcer applying
-		rbacObject, rbacObject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
-		token := r.Header.Get("token")
-
-		ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject2)
-
-		if !ok {
-			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
-			return
-		}
+		// TODO: this rbac is commented because we are only checking helm apps access whereas this api is being used in devtron apps too
+		// this  needs to be updated with conditional rbac depending on where the call came from,until then this will get prevented with the view page permission
+		//rbacObject, rbacObject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
+		//token := r.Header.Get("token")
+		//
+		//ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject2)
+		//
+		//if !ok {
+		//	common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
+		//	return
+		//}
 		//RBAC enforcer Ends
 	} else if clusterIdString != "" && namespace != "" {
 		clusterId, err := strconv.Atoi(clusterIdString)
@@ -544,6 +555,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 		isReconnect = true
 	}
 	stream, err := handler.k8sApplicationService.GetPodLogs(r.Context(), request)
+	//err is handled inside StartK8sStreamWithHeartBeat method
 	ctx, cancel := context.WithCancel(r.Context())
 	if cn, ok := w.(http.CloseNotifier); ok {
 		go func(done <-chan struct{}, closed <-chan bool) {

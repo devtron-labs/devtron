@@ -1,40 +1,53 @@
+global:
+  podSecurityContext:
+    fsGroup: 1000
+    runAsGroup: 1000
+    runAsUser: 1000
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    runAsUser: 1000
+    runAsNonRoot: true
+
 installer:
-  release: "v0.6.11"
+  release: "v0.6.15"
   image: "quay.io/devtron/inception"
-  tag: "1d2b87e5-185-11095"
+  tag: "44b30917-185-13275"
   
 components:
   dashboard:
-    image: "quay.io/devtron/dashboard:c49004b1-325-12557"
+    image: "quay.io/devtron/dashboard:28017af9-325-13418"
   devtron:
-    image: "quay.io/devtron/hyperion:c35045c2-280-12565"
-    cicdImage: "quay.io/devtron/devtron:c35045c2-326-12555"
+    image: "quay.io/devtron/hyperion:9f3934ee-280-13407"
+    cicdImage: "quay.io/devtron/devtron:9f3934ee-434-13409"
   argocdDexServer:
     image: "ghcr.io/dexidp/dex:v2.30.2"
     initContainer:
-      authenticator: "quay.io/devtron/authenticator:6e466830-393-11943"
+      authenticator: "quay.io/devtron/authenticator:e414faff-393-13273"
   kubelink:
-    image: "quay.io/devtron/kubelink:a5e179d4-318-12564"
+    image: "quay.io/devtron/kubelink:18bf720b-318-13404"
   postgres:
     image: "quay.io/devtron/postgres:11.9.0-debian-10-r26"
     armImage: "quay.io/devtron/postgres:11.9"
   
   migrator:
-    image: "quay.io/devtron/migrator:71748de9-149-11112"
+    image: "quay.io/devtron/migrator:ec1dcab8-149-13278"
     envVars:
       devtron:
         GIT_BRANCH: "main"
-        GIT_HASH: "c35045c218d95741522fee8b27ee42e3956ba4c6"
+        GIT_HASH: "9f3934ee51a1cfa1631f90bc6cc55a240aa98b07"
       casbin:
         GIT_BRANCH: "main"
-        GIT_HASH: "c35045c218d95741522fee8b27ee42e3956ba4c6"
+        GIT_HASH: "9f3934ee51a1cfa1631f90bc6cc55a240aa98b07"
         
 argo-cd:
   global:
     image:
       repository: quay.io/argoproj/argocd
-      tag: "v2.4.0"
+      tag: "v2.5.2"
       imagePullPolicy: IfNotPresent
+
+security:
+  image: "quay.io/devtron/image-scanner:b7873c95-334-13266"
 
 notifier:
   image: "quay.io/devtron/notifier:6c7a356a-372-11107"
