@@ -28,6 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/constants"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
@@ -43,6 +44,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"net/http"
 	"strings"
@@ -66,6 +68,7 @@ type AppStoreDeploymentService interface {
 	GetInstalledAppVersion(id int, userId int32) (*appStoreBean.InstallAppVersionDTO, error)
 	InstallAppByHelm(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error)
 	UpdateProjectHelmApp(updateAppRequest *appStoreBean.UpdateProjectHelmAppDTO) error
+	UpdateNotesForInstalledApp(installAppId int, notes string) (bool, error)
 }
 
 type DeploymentServiceTypeConfig struct {
@@ -278,6 +281,33 @@ func (impl AppStoreDeploymentServiceImpl) GetGitOpsRepoName(appName string) stri
 	return repoName
 }
 
+func (impl AppStoreDeploymentServiceImpl) UpdateNotesForInstalledApp(installAppId int, notes string) (bool, error) {
+	dbConnection := impl.installedAppRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return false, err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+	installedApp, err := impl.installedAppRepository.GetInstalledApp(installAppId)
+	if err != nil {
+		impl.logger.Errorw("error while fetching from db", "error", err)
+		return false, err
+	}
+	installedApp.Notes = notes
+	_, err = impl.installedAppRepository.UpdateInstalledApp(installedApp, tx)
+	if err != nil {
+		impl.logger.Errorw("error while fetching from db", "error", err)
+		return false, err
+	}
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error while commit db transaction to db", "error", err)
+		return false, err
+	}
+	return true, nil
+}
+
 func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationStatusUpdate(installAppId int, status appStoreBean.AppstoreDeploymentStatus) (bool, error) {
 	dbConnection := impl.installedAppRepository.GetConnection()
 	tx, err := dbConnection.Begin()
@@ -410,7 +440,7 @@ func (impl AppStoreDeploymentServiceImpl) createAppForAppStore(createRequest *be
 		Active:          true,
 		AppName:         createRequest.AppName,
 		TeamId:          createRequest.TeamId,
-		AppStore:        true,
+		AppType:         helper.ChartStoreApp,
 		AppOfferingMode: appInstallationMode,
 		AuditLog:        sql.AuditLog{UpdatedBy: createRequest.UserId, CreatedBy: createRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 	}
@@ -907,13 +937,17 @@ func (impl AppStoreDeploymentServiceImpl) GetDeploymentHistoryInfo(ctx context.C
 	result := &openapi.HelmAppDeploymentManifestDetail{}
 	var err error
 	if util2.IsHelmApp(installedApp.AppOfferingMode) || installedApp.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
+		_, span := otel.Tracer("orchestrator").Start(ctx, "appStoreDeploymentHelmService.GetDeploymentHistoryInfo")
 		result, err = impl.appStoreDeploymentHelmService.GetDeploymentHistoryInfo(ctx, installedApp, int32(version))
+		span.End()
 		if err != nil {
 			impl.logger.Errorw("error while getting deployment history info", "error", err)
 			return nil, err
 		}
 	} else {
+		_, span := otel.Tracer("orchestrator").Start(ctx, "appStoreDeploymentArgoCdService.GetDeploymentHistoryInfo")
 		result, err = impl.appStoreDeploymentArgoCdService.GetDeploymentHistoryInfo(ctx, installedApp, int32(version))
+		span.End()
 		if err != nil {
 			impl.logger.Errorw("error while getting deployment history info", "error", err)
 			return nil, err

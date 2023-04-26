@@ -18,7 +18,8 @@
 package security
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	repository1 "github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	repository2 "github.com/devtron-labs/devtron/pkg/team"
 	"time"
 
@@ -48,7 +49,7 @@ type ImageScanServiceImpl struct {
 	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository
 	userService                   user.UserService
 	teamRepository                repository2.TeamRepository
-	appRepository                 app.AppRepository
+	appRepository                 repository1.AppRepository
 	envService                    cluster.EnvironmentService
 	ciArtifactRepository          repository.CiArtifactRepository
 	policyService                 PolicyService
@@ -123,7 +124,7 @@ func NewImageScanServiceImpl(Logger *zap.SugaredLogger, scanHistoryRepository se
 	scanResultRepository security.ImageScanResultRepository, scanObjectMetaRepository security.ImageScanObjectMetaRepository,
 	cveStoreRepository security.CveStoreRepository, imageScanDeployInfoRepository security.ImageScanDeployInfoRepository,
 	userService user.UserService, teamRepository repository2.TeamRepository,
-	appRepository app.AppRepository,
+	appRepository repository1.AppRepository,
 	envService cluster.EnvironmentService, ciArtifactRepository repository.CiArtifactRepository, policyService PolicyService,
 	pipelineRepository pipelineConfig.PipelineRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository) *ImageScanServiceImpl {
 	return &ImageScanServiceImpl{Logger: Logger, scanHistoryRepository: scanHistoryRepository, scanResultRepository: scanResultRepository,
@@ -237,16 +238,22 @@ func (impl ImageScanServiceImpl) FetchScanExecutionListing(request *ImageScanReq
 		} else {
 			if item.ObjectType == security.ScanObjectType_APP || item.ObjectType == security.ScanObjectType_CHART {
 				app, err := impl.appRepository.FindById(item.ScanObjectMetaId)
-				if err != nil {
+				if err != nil && err != pg.ErrNoRows {
 					return nil, err
+				}
+				if err == pg.ErrNoRows {
+					continue
 				}
 				imageScanHistoryResponse.AppId = app.Id
 				imageScanHistoryResponse.Name = app.AppName
 				imageScanHistoryResponse.Type = item.ObjectType
 			} else if item.ObjectType == security.ScanObjectType_POD {
 				scanObjectMeta, err := impl.scanObjectMetaRepository.FindOne(item.ScanObjectMetaId)
-				if err != nil {
+				if err != nil && err != pg.ErrNoRows {
 					return nil, err
+				}
+				if err == pg.ErrNoRows {
+					continue
 				}
 				imageScanHistoryResponse.Name = scanObjectMeta.Name
 				imageScanHistoryResponse.Type = item.ObjectType
@@ -409,7 +416,7 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *ImageScanRe
 		imageScanResponse.EnvId = request.EnvId
 		imageScanResponse.EnvName = env.Environment
 
-		blockCveList, err := impl.policyService.GetBlockedCVEList(cveStores, env.ClusterId, env.Id, request.AppId, app.AppStore)
+		blockCveList, err := impl.policyService.GetBlockedCVEList(cveStores, env.ClusterId, env.Id, request.AppId, app.AppType == helper.ChartStoreApp)
 		if err != nil {
 			impl.Logger.Errorw("error while fetching env", "err", err)
 			//return nil, err

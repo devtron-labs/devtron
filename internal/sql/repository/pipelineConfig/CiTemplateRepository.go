@@ -30,7 +30,7 @@ type CiTemplate struct {
 	tableName          struct{} `sql:"ci_template" pg:",discard_unknown_columns"`
 	Id                 int      `sql:"id"`
 	AppId              int      `sql:"app_id"`             //foreign key of app
-	DockerRegistryId   string   `sql:"docker_registry_id"` //foreign key of registry
+	DockerRegistryId   *string  `sql:"docker_registry_id"` //foreign key of registry
 	DockerRepository   string   `sql:"docker_repository"`
 	DockerfilePath     string   `sql:"dockerfile_path"`
 	Args               string   `sql:"args"` //json string format of map[string]string
@@ -56,6 +56,7 @@ type CiTemplateRepository interface {
 	Update(material *CiTemplate) error
 	FindByDockerRegistryId(dockerRegistryId string) (ciTemplates []*CiTemplate, err error)
 	FindNumberOfAppsWithDockerConfigured(appIds []int) (int, error)
+	FindByAppIds(appIds []int) ([]*CiTemplate, error)
 }
 
 type CiTemplateRepositoryImpl struct {
@@ -110,4 +111,16 @@ func (impl CiTemplateRepositoryImpl) FindNumberOfAppsWithDockerConfigured(appIds
 		return 0, err
 	}
 	return count, nil
+}
+
+func (impl CiTemplateRepositoryImpl) FindByAppIds(appIds []int) ([]*CiTemplate, error) {
+	var templates []*CiTemplate
+	err := impl.dbConnection.Model(&templates).
+		Where("app_id in (?) ", pg.In(appIds)).
+		Column("ci_template.*", "App", "DockerRegistry", "CiBuildConfig").
+		Select()
+	if pg.ErrNoRows == err {
+		return nil, errors.NotFoundf(err.Error())
+	}
+	return templates, err
 }

@@ -292,6 +292,7 @@ func (impl *CdWorkflowRepositoryImpl) FindCdWorkflowMetaByEnvironmentId(appId in
 		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact").
 		Where("p.environment_id = ?", environmentId).
 		Where("p.app_id = ?", appId).
+		Where("p.deleted = ?", false).
 		Order("cd_workflow_runner.id DESC").
 		Join("inner join cd_workflow wf on wf.id = cd_workflow_runner.cd_workflow_id").
 		Join("inner join ci_artifact cia on cia.id = wf.ci_artifact_id").

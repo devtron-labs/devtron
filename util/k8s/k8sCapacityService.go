@@ -54,7 +54,7 @@ const (
 	AWSEKSNodeGroupLabel = "eks.amazonaws.com/nodegroup"
 )
 
-//TODO: add any new nodeGrouplabel in this array
+// TODO: add any new nodeGrouplabel in this array
 var NodeGroupLabels = [5]string{AWSNodeGroupLabel, AzureNodeGroupLabel, GcpNodeGroupLabel, KopsNodeGroupLabel, AWSEKSNodeGroupLabel}
 
 // below const set is used for pod delete status

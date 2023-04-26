@@ -87,9 +87,10 @@ import (
 type AppServiceConfig struct {
 	CdPipelineStatusCronTime            string `env:"CD_PIPELINE_STATUS_CRON_TIME" envDefault:"*/2 * * * *"`
 	CdHelmPipelineStatusCronTime        string `env:"CD_HELM_PIPELINE_STATUS_CRON_TIME" envDefault:"*/2 * * * *"`
-	CdPipelineStatusTimeoutDuration     string `env:"CD_PIPELINE_STATUS_TIMEOUT_DURATION" envDefault:"20"`       //in minutes
-	PipelineDegradedTime                string `env:"PIPELINE_DEGRADED_TIME" envDefault:"10"`                    //in minutes
-	HelmPipelineStatusCheckEligibleTime string `env:"HELM_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME" envDefault:"120"` //in seconds
+	CdPipelineStatusTimeoutDuration     string `env:"CD_PIPELINE_STATUS_TIMEOUT_DURATION" envDefault:"20"`                   //in minutes
+	PipelineDegradedTime                string `env:"PIPELINE_DEGRADED_TIME" envDefault:"10"`                                //in minutes
+	GetPipelineDeployedWithinHours      int    `env:"DEPLOY_STATUS_CRON_GET_PIPELINE_DEPLOYED_WITHIN_HOURS" envDefault:"12"` //in hours
+	HelmPipelineStatusCheckEligibleTime string `env:"HELM_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME" envDefault:"120"`             //in seconds
 	ExposeCDMetrics                     bool   `env:"EXPOSE_CD_METRICS" envDefault:"false"`
 }
 
@@ -323,7 +324,6 @@ func (impl *AppServiceImpl) createArgoApplicationIfRequired(appId int, appName s
 			ValuesFile:      impl.getValuesFileForEnv(envModel.Id),
 			RepoPath:        chart.ChartLocation,
 			RepoUrl:         chart.GitRepoUrl,
-			TargetName:      envModel.Cluster.ClusterName,
 		}
 
 		argoAppName, err := impl.ArgoK8sClient.CreateAcdApp(appRequest, envModel.Cluster)
@@ -419,8 +419,9 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsCdPipelines(app *v1al
 	if app != nil {
 		reconciledAt = app.Status.ReconciledAt
 	}
+	var kubectlSyncedTimeline *pipelineConfig.PipelineStatusTimeline
 	//updating cd pipeline status timeline
-	isTimelineUpdated, isTimelineTimedOut, err = impl.UpdatePipelineStatusTimelineForApplicationChanges(app, cdWfr.Id, statusTime, cdWfr.StartedOn, timeoutDuration, latestTimelineBeforeThisEvent, reconciledAt)
+	isTimelineUpdated, isTimelineTimedOut, kubectlSyncedTimeline, err = impl.UpdatePipelineStatusTimelineForApplicationChanges(app, cdWfr.Id, statusTime, cdWfr.StartedOn, timeoutDuration, latestTimelineBeforeThisEvent, reconciledAt)
 	if err != nil {
 		impl.logger.Errorw("error in updating pipeline status timeline", "err", err)
 	}
@@ -432,11 +433,6 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsCdPipelines(app *v1al
 			return isSucceeded, isTimelineUpdated, err
 		}
 		return isSucceeded, isTimelineUpdated, nil
-	}
-	kubectlSyncedTimeline, err := impl.pipelineStatusTimelineRepository.FetchTimelineByWfrIdAndStatus(cdWfr.Id, pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in getting latest timeline", "err", err, "cdWfrId", cdWfr.Id)
-		return isSucceeded, isTimelineUpdated, err
 	}
 	if reconciledAt.IsZero() || (kubectlSyncedTimeline != nil && kubectlSyncedTimeline.Id > 0 && reconciledAt.After(kubectlSyncedTimeline.StatusTime)) {
 		releaseCounter, err := impl.pipelineOverrideRepository.GetCurrentPipelineReleaseCounter(pipelineOverride.PipelineId)
@@ -520,18 +516,21 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForPipeline(app *v1alpha1.Appl
 	return isSucceeded, nil
 }
 
-func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(app *v1alpha1.Application, cdWfrId int, statusTime time.Time, triggeredAt time.Time, statusTimeoutDuration int, latestTimelineBeforeUpdate *pipelineConfig.PipelineStatusTimeline, reconciledAt *metav1.Time) (bool, bool, error) {
+func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(app *v1alpha1.Application, cdWfrId int,
+	statusTime time.Time, triggeredAt time.Time, statusTimeoutDuration int,
+	latestTimelineBeforeUpdate *pipelineConfig.PipelineStatusTimeline, reconciledAt *metav1.Time) (isTimelineUpdated bool,
+	isTimelineTimedOut bool, kubectlApplySyncedTimeline *pipelineConfig.PipelineStatusTimeline, err error) {
 	impl.logger.Debugw("updating pipeline status timeline", "app", app, "pipelineOverride", cdWfrId, "APP_TO_UPDATE", app.Name)
-	isTimelineUpdated := false
-	isTimelineTimedOut := false
+	isTimelineUpdated = false
+	isTimelineTimedOut = false
 	terminalStatusExists, err := impl.pipelineStatusTimelineRepository.CheckIfTerminalStatusTimelinePresentByWfrId(cdWfrId)
 	if err != nil {
 		impl.logger.Errorw("error in checking if terminal status timeline exists by wfrId", "err", err, "wfrId", cdWfrId)
-		return isTimelineUpdated, isTimelineTimedOut, err
+		return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, err
 	}
 	if terminalStatusExists {
 		impl.logger.Infow("terminal status timeline exists for cdWfr, skipping more timeline changes", "wfrId", cdWfrId)
-		return isTimelineUpdated, isTimelineTimedOut, nil
+		return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, nil
 	}
 	err = impl.pipelineStatusSyncDetailService.SaveOrUpdateSyncDetail(cdWfrId, 1)
 	if err != nil {
@@ -556,24 +555,31 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 	_, err, isTimelineUpdated = impl.SavePipelineStatusTimelineIfNotAlreadyPresent(cdWfrId, timeline.Status, timeline)
 	if err != nil {
 		impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
-		return isTimelineUpdated, isTimelineTimedOut, err
+		return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, err
 	}
 	//saving timeline resource details
 	err = impl.pipelineStatusTimelineResourcesService.SaveOrUpdateCdPipelineTimelineResources(cdWfrId, app, nil, 1)
 	if err != nil {
 		impl.logger.Errorw("error in saving/updating timeline resources", "err", err, "cdWfrId", cdWfrId)
 	}
-	var kubectlApplySyncedTimeline *pipelineConfig.PipelineStatusTimeline
-	if app != nil && app.Status.OperationState != nil && app.Status.OperationState.Phase == common.OperationSucceeded {
+	var kubectlSyncTimelineFetchErr error
+	kubectlApplySyncedTimeline, kubectlSyncTimelineFetchErr = impl.pipelineStatusTimelineRepository.FetchTimelineByWfrIdAndStatus(cdWfrId, pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED)
+	if kubectlSyncTimelineFetchErr != nil && kubectlSyncTimelineFetchErr != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting latest timeline", "err", kubectlSyncTimelineFetchErr, "cdWfrId", cdWfrId)
+		return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, kubectlSyncTimelineFetchErr
+	}
+	if (kubectlApplySyncedTimeline == nil || kubectlApplySyncedTimeline.Id == 0) && app != nil && app.Status.OperationState != nil && app.Status.OperationState.Phase == common.OperationSucceeded {
 		timeline.Id = 0
 		timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED
 		timeline.StatusDetail = app.Status.OperationState.Message
 		//checking and saving if this timeline is present or not because kubewatch may stream same objects multiple times
-		kubectlApplySyncedTimeline, err, isTimelineUpdated = impl.SavePipelineStatusTimelineIfNotAlreadyPresent(cdWfrId, timeline.Status, timeline)
+		err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
 		if err != nil {
 			impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
-			return isTimelineUpdated, isTimelineTimedOut, err
+			return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, err
 		}
+		isTimelineUpdated = true
+		kubectlApplySyncedTimeline = timeline
 		impl.logger.Debugw("APP_STATUS_UPDATE_REQ", "stage", "APPLY_SYNCED", "app", app, "status", timeline.Status)
 	}
 	if reconciledAt.IsZero() || (kubectlApplySyncedTimeline != nil && kubectlApplySyncedTimeline.Id > 0 && reconciledAt.After(kubectlApplySyncedTimeline.StatusTime)) {
@@ -590,7 +596,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 			err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
 			if err != nil {
 				impl.logger.Errorw("error in creating timeline status", "err", err, "timeline", timeline)
-				return isTimelineUpdated, isTimelineTimedOut, err
+				return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, err
 			}
 			isTimelineUpdated = true
 			impl.logger.Debugw("APP_STATUS_UPDATE_REQ", "stage", "terminal_status", "app", app, "status", timeline.Status)
@@ -612,14 +618,14 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 			_, err, isTimelineUpdated = impl.SavePipelineStatusTimelineIfNotAlreadyPresent(cdWfrId, timeline.Status, timeline)
 			if err != nil {
 				impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
-				return isTimelineUpdated, isTimelineTimedOut, err
+				return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, err
 			}
 			isTimelineTimedOut = true
 		} else {
 			// deployment status will be in progress so leave timeline
 		}
 	}
-	return isTimelineUpdated, isTimelineTimedOut, nil
+	return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, nil
 }
 
 func (impl *AppServiceImpl) SavePipelineStatusTimelineIfNotAlreadyPresent(cdWfrId int, timelineStatus pipelineConfig.TimelineStatus, timeline *pipelineConfig.PipelineStatusTimeline) (latestTimeline *pipelineConfig.PipelineStatusTimeline, err error, isTimelineUpdated bool) {
@@ -1592,6 +1598,18 @@ func (impl *AppServiceImpl) getReleaseOverride(envOverride *chartConfig.EnvConfi
 	artifactImage := artifact.Image
 	imageTag := strings.Split(artifactImage, ":")
 
+	imageTagLen := len(imageTag)
+
+	imageName := ""
+
+	for i := 0; i < imageTagLen-1; i++ {
+		if i != imageTagLen-2 {
+			imageName = imageName + imageTag[i] + ":"
+		} else {
+			imageName = imageName + imageTag[i]
+		}
+	}
+
 	appId := strconv.Itoa(pipeline.App.Id)
 	envId := strconv.Itoa(pipeline.EnvironmentId)
 
@@ -1600,8 +1618,8 @@ func (impl *AppServiceImpl) getReleaseOverride(envOverride *chartConfig.EnvConfi
 		deploymentStrategy = string(strategy.Strategy)
 	}
 	releaseAttribute := ReleaseAttributes{
-		Name:           imageTag[0],
-		Tag:            imageTag[1],
+		Name:           imageName,
+		Tag:            imageTag[imageTagLen-1],
 		PipelineName:   pipeline.Name,
 		ReleaseVersion: strconv.Itoa(pipelineOverride.PipelineReleaseCounter),
 		DeploymentType: deploymentStrategy,
@@ -2171,13 +2189,13 @@ func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Val
 					impl.logger.Errorw("release not found, failed to re-install helm application", "err", err)
 					return false, err
 				}
-			}
-
-			if err != nil {
+			} else if err != nil {
 				impl.logger.Errorw("error in updating helm application for cd pipeline", "err", err)
 				return false, err
+			} else {
+				impl.logger.Debugw("updated helm application", "response", updateApplicationResponse, "isSuccess", updateApplicationResponse.Success)
 			}
-			impl.logger.Debugw("updated helm application", "response", updateApplicationResponse, "isSuccess", updateApplicationResponse.Success)
+
 		} else {
 
 			helmResponse, err := impl.helmInstallReleaseWithCustomChart(ctx, releaseIdentifier, referenceChartByte, mergeAndSave)

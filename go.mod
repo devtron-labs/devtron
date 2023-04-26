@@ -15,7 +15,8 @@ require (
 	github.com/coreos/go-oidc v2.2.1+incompatible
 	github.com/davecgh/go-spew v1.1.1
 	github.com/devtron-labs/authenticator v0.4.31-0.20221213131053-6e4668309f53
-	github.com/devtron-labs/common-lib v0.0.0-20230220122715-29f6f63d39e9
+	github.com/devtron-labs/common-lib v0.0.0-20230407072229-d4f665f5ca12
+	github.com/devtron-labs/protos v0.0.0-20230307051313-ecb763b443a8
 	github.com/evanphx/json-patch v5.6.0+incompatible
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-pg/pg v6.15.1+incompatible
@@ -36,7 +37,6 @@ require (
 	github.com/ktrysmt/go-bitbucket v0.9.40
 	github.com/lib/pq v1.10.4
 	github.com/microsoft/azure-devops-go-api/azuredevops v1.0.0-b5
-	github.com/nats-io/nats.go v1.19.0
 	github.com/otiai10/copy v1.0.2
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.9.1
@@ -190,6 +190,7 @@ require (
 	github.com/monochromegane/go-gitignore v0.0.0-20200626010858-205db1a8cc00 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/nats-io/jwt/v2 v2.2.1-0.20220330180145-442af02fd36a // indirect
+	github.com/nats-io/nats.go v1.19.0 // indirect
 	github.com/nats-io/nkeys v0.3.0 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/oliveagle/jsonpath v0.0.0-20180606110733-2e52cf6e6852 // indirect
