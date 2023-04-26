@@ -38,13 +38,14 @@ import (
 )
 
 type CiArtifactWebhookRequest struct {
-	Image        string          `json:"image"`
-	ImageDigest  string          `json:"imageDigest"`
-	MaterialInfo json.RawMessage `json:"materialInfo"`
-	DataSource   string          `json:"dataSource"`
-	PipelineName string          `json:"pipelineName"`
-	WorkflowId   *int            `json:"workflowId"`
-	UserId       int32           `json:"userId"`
+	Image              string          `json:"image"`
+	ImageDigest        string          `json:"imageDigest"`
+	MaterialInfo       json.RawMessage `json:"materialInfo"`
+	DataSource         string          `json:"dataSource"`
+	PipelineName       string          `json:"pipelineName"`
+	WorkflowId         *int            `json:"workflowId"`
+	UserId             int32           `json:"userId"`
+	IsArtifactUploaded bool            `json:"isArtifactUploaded"`
 }
 
 type WebhookService interface {
@@ -154,15 +155,16 @@ func (impl WebhookServiceImpl) HandleCiSuccessEvent(ciPipelineId int, request *C
 	}
 	materialJson = dst.Bytes()
 	artifact := &repository.CiArtifact{
-		Image:        request.Image,
-		ImageDigest:  request.ImageDigest,
-		MaterialInfo: string(materialJson),
-		DataSource:   request.DataSource,
-		PipelineId:   pipeline.Id,
-		WorkflowId:   request.WorkflowId,
-		ScanEnabled:  pipeline.ScanEnabled,
-		Scanned:      false,
-		AuditLog:     sql.AuditLog{CreatedBy: request.UserId, UpdatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now()},
+		Image:              request.Image,
+		ImageDigest:        request.ImageDigest,
+		MaterialInfo:       string(materialJson),
+		DataSource:         request.DataSource,
+		PipelineId:         pipeline.Id,
+		WorkflowId:         request.WorkflowId,
+		ScanEnabled:        pipeline.ScanEnabled,
+		Scanned:            false,
+		IsArtifactUploaded: request.IsArtifactUploaded,
+		AuditLog:           sql.AuditLog{CreatedBy: request.UserId, UpdatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now()},
 	}
 	if pipeline.ScanEnabled {
 		artifact.Scanned = true
@@ -181,15 +183,16 @@ func (impl WebhookServiceImpl) HandleCiSuccessEvent(ciPipelineId int, request *C
 	var ciArtifactArr []*repository.CiArtifact
 	for _, ci := range childrenCi {
 		ciArtifact := &repository.CiArtifact{
-			Image:            request.Image,
-			ImageDigest:      request.ImageDigest,
-			MaterialInfo:     string(materialJson),
-			DataSource:       request.DataSource,
-			PipelineId:       ci.Id,
-			ParentCiArtifact: artifact.Id,
-			ScanEnabled:      ci.ScanEnabled,
-			Scanned:          false,
-			AuditLog:         sql.AuditLog{CreatedBy: request.UserId, UpdatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now()},
+			Image:              request.Image,
+			ImageDigest:        request.ImageDigest,
+			MaterialInfo:       string(materialJson),
+			DataSource:         request.DataSource,
+			PipelineId:         ci.Id,
+			ParentCiArtifact:   artifact.Id,
+			ScanEnabled:        ci.ScanEnabled,
+			Scanned:            false,
+			IsArtifactUploaded: request.IsArtifactUploaded,
+			AuditLog:           sql.AuditLog{CreatedBy: request.UserId, UpdatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now()},
 		}
 		if ci.ScanEnabled {
 			ciArtifact.Scanned = true
@@ -206,6 +209,7 @@ func (impl WebhookServiceImpl) HandleCiSuccessEvent(ciPipelineId int, request *C
 		}
 	}
 	ciArtifactArr = append(ciArtifactArr, artifact)
+	go impl.WriteCISuccessEvent(request, pipeline, artifact)
 	isCiManual := true
 	if request.UserId == 1 {
 		impl.logger.Debugw("Trigger (auto) by system user", "userId", request.UserId)
@@ -260,6 +264,7 @@ func (impl WebhookServiceImpl) HandleExternalCiWebhook(externalCiId int, request
 		ExternalCiPipelineId: externalCiId,
 		ScanEnabled:          false,
 		Scanned:              false,
+		IsArtifactUploaded:   request.IsArtifactUploaded,
 		AuditLog:             sql.AuditLog{CreatedBy: request.UserId, UpdatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now()},
 	}
 	if err = impl.ciArtifactRepository.Save(artifact); err != nil {

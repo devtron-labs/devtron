@@ -11,6 +11,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	repository4 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -133,12 +134,17 @@ func initAppStoreDeploymentService(t *testing.T, internalUse bool) *AppStoreDepl
 
 	appStoreDiscoverRepository := appStoreDiscoverRepository.NewAppStoreApplicationVersionRepositoryImpl(sugaredLogger, db)
 
-	environmentRepository := repository2.NewEnvironmentRepositoryImpl(db)
+	environmentRepository := repository2.NewEnvironmentRepositoryImpl(db, sugaredLogger, nil)
 
 	k8sUtil := util.NewK8sUtil(sugaredLogger, &client.RuntimeConfig{LocalDevMode: true})
 
 	clusterRepository := repository2.NewClusterRepositoryImpl(db, sugaredLogger)
-	clusterService := cluster.NewClusterServiceImpl(clusterRepository, sugaredLogger, k8sUtil, nil)
+	defaultAuthPolicyRepositoryImpl := repository4.NewDefaultAuthPolicyRepositoryImpl(db, sugaredLogger)
+	defaultAuthRoleRepositoryImpl := repository4.NewDefaultAuthRoleRepositoryImpl(db, sugaredLogger)
+	userAuthRepositoryImpl := repository4.NewUserAuthRepositoryImpl(db, sugaredLogger, defaultAuthPolicyRepositoryImpl, defaultAuthRoleRepositoryImpl)
+	userRepositoryImpl := repository4.NewUserRepositoryImpl(db, sugaredLogger)
+	roleGroupRepositoryImpl := repository4.NewRoleGroupRepositoryImpl(db, sugaredLogger)
+	clusterService := cluster.NewClusterServiceImpl(clusterRepository, sugaredLogger, k8sUtil, nil, userAuthRepositoryImpl, userRepositoryImpl, roleGroupRepositoryImpl)
 
 	environmentService := cluster.NewEnvironmentServiceImpl(environmentRepository, clusterService, sugaredLogger, k8sUtil, nil, nil)
 

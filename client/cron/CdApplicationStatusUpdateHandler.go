@@ -3,16 +3,15 @@ package cron
 import (
 	"encoding/json"
 	"fmt"
+	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/bean"
 	client2 "github.com/devtron-labs/devtron/client/events"
-	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/util"
-	"github.com/nats-io/nats.go"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
 	"strconv"
@@ -34,8 +33,8 @@ type CdApplicationStatusUpdateHandlerImpl struct {
 	workflowDagExecutor              pipeline.WorkflowDagExecutor
 	installedAppService              service.InstalledAppService
 	CdHandler                        pipeline.CdHandler
-	AppStatusConfig                  *app.AppStatusConfig
-	pubsubClient                     *pubsub.PubSubClient
+	AppStatusConfig                  *app.AppServiceConfig
+	pubsubClient                     *pubsub.PubSubClientServiceImpl
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository
 	eventClient                      client2.EventClient
 	appListingRepository             repository.AppListingRepository
@@ -45,7 +44,7 @@ type CdApplicationStatusUpdateHandlerImpl struct {
 
 func NewCdApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, appService app.AppService,
 	workflowDagExecutor pipeline.WorkflowDagExecutor, installedAppService service.InstalledAppService,
-	CdHandler pipeline.CdHandler, AppStatusConfig *app.AppStatusConfig, pubsubClient *pubsub.PubSubClient,
+	CdHandler pipeline.CdHandler, AppStatusConfig *app.AppServiceConfig, pubsubClient *pubsub.PubSubClientServiceImpl,
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository,
 	eventClient client2.EventClient, appListingRepository repository.AppListingRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
@@ -68,16 +67,13 @@ func NewCdApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, appServi
 		cdWorkflowRepository:             cdWorkflowRepository,
 		pipelineRepository:               pipelineRepository,
 	}
-	err := util.AddStream(pubsubClient.JetStrCtxt, util.ORCHESTRATOR_STREAM)
-	if err != nil {
-		return nil
-	}
-	err = impl.Subscribe()
+
+	err := impl.Subscribe()
 	if err != nil {
 		logger.Errorw("error on subscribe", "err", err)
 		return nil
 	}
-	_, err = cron.AddFunc(AppStatusConfig.CdPipelineStatusCronTime, impl.HelmApplicationStatusUpdate)
+	_, err = cron.AddFunc(AppStatusConfig.CdHelmPipelineStatusCronTime, impl.HelmApplicationStatusUpdate)
 	if err != nil {
 		logger.Errorw("error in starting helm application status update cron job", "err", err)
 		return nil
@@ -96,8 +92,7 @@ func NewCdApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, appServi
 }
 
 func (impl *CdApplicationStatusUpdateHandlerImpl) Subscribe() error {
-	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(util.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, util.ARGO_PIPELINE_STATUS_UPDATE_GROUP, func(msg *nats.Msg) {
-		defer msg.Ack()
+	callback := func(msg *pubsub.PubSubMsg) {
 		statusUpdateEvent := pipeline.ArgoPipelineStatusSyncEvent{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &statusUpdateEvent)
 		if err != nil {
@@ -115,7 +110,8 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) Subscribe() error {
 			impl.logger.Errorw("error on argo pipeline status update", "err", err, "msg", string(msg.Data))
 			return
 		}
-	}, nats.Durable(util.ARGO_PIPELINE_STATUS_UPDATE_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util.ORCHESTRATOR_STREAM))
+	}
+	err := impl.pubsubClient.Subscribe(pubsub.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, callback)
 	if err != nil {
 		impl.logger.Errorw("error in subscribing to argo application status update topic", "err", err)
 		return err
@@ -124,12 +120,12 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) Subscribe() error {
 }
 
 func (impl *CdApplicationStatusUpdateHandlerImpl) HelmApplicationStatusUpdate() {
-	degradedTime, err := strconv.Atoi(impl.AppStatusConfig.PipelineDegradedTime)
+	HelmPipelineStatusCheckEligibleTime, err := strconv.Atoi(impl.AppStatusConfig.HelmPipelineStatusCheckEligibleTime)
 	if err != nil {
 		impl.logger.Errorw("error in converting string to int", "err", err)
 		return
 	}
-	err = impl.CdHandler.CheckHelmAppStatusPeriodicallyAndUpdateInDb(degradedTime)
+	err = impl.CdHandler.CheckHelmAppStatusPeriodicallyAndUpdateInDb(HelmPipelineStatusCheckEligibleTime)
 	if err != nil {
 		impl.logger.Errorw("error helm app status update - cron job", "err", err)
 		return
@@ -138,13 +134,13 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) HelmApplicationStatusUpdate() 
 }
 
 func (impl *CdApplicationStatusUpdateHandlerImpl) ArgoApplicationStatusUpdate() {
-	degradedTime, err := strconv.Atoi(impl.AppStatusConfig.PipelineDegradedTime)
+	getPipelineDeployedBeforeMinutes, err := strconv.Atoi(impl.AppStatusConfig.PipelineDegradedTime)
 	if err != nil {
 		impl.logger.Errorw("error in converting string to int", "err", err)
 		return
 	}
-
-	err = impl.CdHandler.CheckArgoAppStatusPeriodicallyAndUpdateInDb(degradedTime)
+	getPipelineDeployedWithinHours := impl.AppStatusConfig.GetPipelineDeployedWithinHours
+	err = impl.CdHandler.CheckArgoAppStatusPeriodicallyAndUpdateInDb(getPipelineDeployedBeforeMinutes, getPipelineDeployedWithinHours)
 	if err != nil {
 		impl.logger.Errorw("error argo app status update - cron job", "err", err)
 		return

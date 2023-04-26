@@ -63,10 +63,12 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 
 	configRouter.Path("/template").HandlerFunc(router.restHandler.ConfigureDeploymentTemplateForApp).Methods("POST")
 	configRouter.Path("/template/{appId}/{chartRefId}").HandlerFunc(router.restHandler.GetDeploymentTemplate).Methods("GET")
+	configRouter.Path("/template/default/{appId}/{chartRefId}").HandlerFunc(router.restHandler.GetDefaultDeploymentTemplate).Methods("GET")
 	configRouter.Path("/template/update").HandlerFunc(router.restHandler.UpdateAppOverride).Methods("POST")
 
 	configRouter.Path("/cd-pipeline").HandlerFunc(router.restHandler.CreateCdPipeline).Methods("POST")
 	configRouter.Path("/cd-pipeline/patch").HandlerFunc(router.restHandler.PatchCdPipeline).Methods("POST")
+	configRouter.Path("/cd-pipeline/patch/deployment").HandlerFunc(router.restHandler.HandleChangeDeploymentRequest).Methods("POST")
 	configRouter.Path("/cd-pipeline/{appId}").HandlerFunc(router.restHandler.GetCdPipelines).Methods("GET")
 	configRouter.Path("/cd-pipeline/{appId}/env/{envId}").HandlerFunc(router.restHandler.GetCdPipelinesForAppAndEnv).Methods("GET")
 	//save environment specific override
@@ -93,6 +95,7 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/team/by-name/{teamName}").HandlerFunc(router.restHandler.FindAppsByTeamName).Methods("GET")
 
 	configRouter.Path("/ci-pipeline/trigger").HandlerFunc(router.restHandler.TriggerCiPipeline).Methods("POST")
+
 	configRouter.Path("/{appId}/ci-pipeline/min").HandlerFunc(router.restHandler.GetCiPipelineMin).Methods("GET")
 	configRouter.Path("/ci-pipeline/{pipelineId}/material").HandlerFunc(router.restHandler.FetchMaterials).Methods("GET")
 	configRouter.Path("/ci-pipeline/refresh-material/{gitMaterialId}").HandlerFunc(router.restHandler.RefreshMaterials).Methods("GET")
@@ -130,6 +133,9 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/app-wf/{app-id}").
 		HandlerFunc(router.appWorkflowRestHandler.FindAppWorkflow).Methods("GET")
 
+	configRouter.Path("/app-wf/view/{app-id}").
+		HandlerFunc(router.appWorkflowRestHandler.GetWorkflowsViewData).Methods("GET")
+
 	configRouter.Path("/app-wf/{app-id}/{app-wf-id}").
 		HandlerFunc(router.appWorkflowRestHandler.DeleteAppWorkflow).Methods("DELETE")
 
@@ -146,6 +152,7 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/cd/configmap-secrets/{pipelineId}").HandlerFunc(router.restHandler.GetConfigmapSecretsForDeploymentStages).Methods("GET")
 
 	configRouter.Path("/workflow/status/{appId}").HandlerFunc(router.restHandler.FetchAppWorkflowStatusForTriggerView).Methods("GET")
+	configRouter.Path("/workflow/status/{appId}/{version}").HandlerFunc(router.restHandler.FetchAppWorkflowStatusForTriggerView).Methods("GET")
 
 	configRouter.Path("/material-info/{appId}/{ciArtifactId}").HandlerFunc(router.restHandler.FetchMaterialInfo).Methods("GET")
 	configRouter.Path("/ci-pipeline/webhook-payload/{pipelineMaterialId}").HandlerFunc(router.webhookDataRestHandler.GetWebhookPayloadDataForPipelineMaterialId).Methods("GET")
@@ -167,7 +174,7 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 		HandlerFunc(router.pipelineHistoryRestHandler.FetchDeployedHistoryComponentDetail).
 		Methods("GET")
 
-	configRouter.Path("/history/deployed-configuration/all/latest/{appId}/{pipelineId}").
+	configRouter.Path("/history/deployed-configuration/latest/deployed/{appId}/{pipelineId}").
 		HandlerFunc(router.pipelineHistoryRestHandler.GetAllDeployedConfigurationHistoryForLatestWfrIdForPipeline).
 		Methods("GET")
 

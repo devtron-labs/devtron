@@ -29,7 +29,7 @@ helm install devtron devtron/devtron-operator \
 To install Devtron on clusters with the multi-architecture nodes (ARM and AMD), append the Devtron installation command with `--set installer.arch=multi-arch`.
 
 **Note**: 
-* To install a particular version of Devtron where `vx.x.x` is the [release tag](https://github.com/devtron-labs/devtron/releases), append the command with `--set installer.release="vX.X.X"`.
+
 * If you want to install Devtron for `production deployments`, please refer to our recommended overrides for [Devtron Installation](override-default-devtron-installation-configs.md).
 
 
@@ -238,7 +238,9 @@ kubectl -n devtroncd get secret devtron-secret \
 -o jsonpath='{.data.ADMIN_PASSWORD}' | base64 -d
 ```
 
-### For Devtron version less than v0.6.0
+
+<details>
+<summary>For Devtron version less than v0.6.0</summary>
 
 **Username**: `admin` <br>
 **Password**: Run the following command to get the admin password:
@@ -247,10 +249,12 @@ kubectl -n devtroncd get secret devtron-secret \
 kubectl -n devtroncd get secret devtron-secret \
 -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
 ```
+</details>
+
 
 * If you want to uninstall Devtron or clean Devtron helm installer, refer our [uninstall Devtron](https://docs.devtron.ai/install/uninstall-devtron).
 
-* Related to installaltion, please also refer [FAQ](https://docs.devtron.ai/install/faq-on-installation) section also.
+* Related to installation, please also refer [FAQ](https://docs.devtron.ai/install/faq-on-installation) section also.
 
 
 **Note**: If you have questions, please let us know on our discord channel. [![Join Discord](https://img.shields.io/badge/Join%20us%20on-Discord-e01563.svg)](https://discord.gg/jsRG5qx2gp)

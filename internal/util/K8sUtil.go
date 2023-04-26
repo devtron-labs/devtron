@@ -22,8 +22,13 @@ import (
 	"encoding/json"
 	error2 "errors"
 	"flag"
-	"github.com/devtron-labs/devtron/client/k8s/application"
+	"fmt"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/version"
+	"net/http"
 	"os/user"
 	"path/filepath"
 	"strings"
@@ -74,7 +79,11 @@ func (impl K8sUtil) GetClient(clusterConfig *ClusterConfig) (*v12.CoreV1Client, 
 	cfg.Host = clusterConfig.Host
 	cfg.BearerToken = clusterConfig.BearerToken
 	cfg.Insecure = true
-	client, err := v12.NewForConfig(cfg)
+	httpClient, err := OverrideK8sHttpClientWithTracer(cfg)
+	if err != nil {
+		return nil, err
+	}
+	client, err := v12.NewForConfigAndClient(cfg, httpClient)
 	return client, err
 }
 
@@ -83,7 +92,11 @@ func (impl K8sUtil) GetClientSet(clusterConfig *ClusterConfig) (*kubernetes.Clie
 	cfg.Host = clusterConfig.Host
 	cfg.BearerToken = clusterConfig.BearerToken
 	cfg.Insecure = true
-	client, err := kubernetes.NewForConfig(cfg)
+	httpClient, err := OverrideK8sHttpClientWithTracer(cfg)
+	if err != nil {
+		return nil, err
+	}
+	client, err := kubernetes.NewForConfigAndClient(cfg, httpClient)
 	return client, err
 }
 
@@ -107,7 +120,11 @@ func (impl K8sUtil) GetClientForInCluster() (*v12.CoreV1Client, error) {
 	// creates the in-cluster config
 	config, err := impl.getKubeConfig(impl.runTimeConfig.LocalDevMode)
 	// creates the clientset
-	clientset, err := v12.NewForConfig(config)
+	httpClient, err := OverrideK8sHttpClientWithTracer(config)
+	if err != nil {
+		return nil, err
+	}
+	clientset, err := v12.NewForConfigAndClient(config, httpClient)
 	if err != nil {
 		impl.logger.Errorw("error", "error", err)
 		return nil, err
@@ -127,7 +144,11 @@ func (impl K8sUtil) GetK8sClient() (*v12.CoreV1Client, error) {
 		impl.logger.Errorw("error fetching cluster config", "error", err)
 		return nil, err
 	}
-	client, err := v12.NewForConfig(config)
+	httpClient, err := OverrideK8sHttpClientWithTracer(config)
+	if err != nil {
+		return nil, err
+	}
+	client, err := v12.NewForConfigAndClient(config, httpClient)
 	if err != nil {
 		impl.logger.Errorw("error creating k8s client", "error", err)
 		return nil, err
@@ -140,7 +161,11 @@ func (impl K8sUtil) GetK8sDiscoveryClient(clusterConfig *ClusterConfig) (*discov
 	cfg.Host = clusterConfig.Host
 	cfg.BearerToken = clusterConfig.BearerToken
 	cfg.Insecure = true
-	client, err := discovery.NewDiscoveryClientForConfig(cfg)
+	httpClient, err := OverrideK8sHttpClientWithTracer(cfg)
+	if err != nil {
+		return nil, err
+	}
+	client, err := discovery.NewDiscoveryClientForConfigAndClient(cfg, httpClient)
 	if err != nil {
 		impl.logger.Errorw("error", "error", err, "clusterConfig", clusterConfig)
 		return nil, err
@@ -161,7 +186,11 @@ func (impl K8sUtil) GetK8sDiscoveryClientInCluster() (*discovery.DiscoveryClient
 		impl.logger.Errorw("error", "error", err)
 		return nil, err
 	}
-	client, err := discovery.NewDiscoveryClientForConfig(config)
+	httpClient, err := OverrideK8sHttpClientWithTracer(config)
+	if err != nil {
+		return nil, err
+	}
+	client, err := discovery.NewDiscoveryClientForConfigAndClient(config, httpClient)
 	if err != nil {
 		impl.logger.Errorw("error", "error", err)
 		return nil, err
@@ -303,12 +332,20 @@ func (impl K8sUtil) GetSecret(namespace string, name string, client *v12.CoreV1C
 	}
 }
 
-func (impl K8sUtil) CreateSecret(namespace string, data map[string][]byte, secretName string, secretType v1.SecretType, client *v12.CoreV1Client) (*v1.Secret, error) {
+func (impl K8sUtil) CreateSecret(namespace string, data map[string][]byte, secretName string, secretType v1.SecretType, client *v12.CoreV1Client, labels map[string]string, stringData map[string]string) (*v1.Secret, error) {
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: secretName,
 		},
-		Data: data,
+	}
+	if labels != nil && len(labels) > 0 {
+		secret.ObjectMeta.Labels = labels
+	}
+	if stringData != nil && len(stringData) > 0 {
+		secret.StringData = stringData
+	}
+	if data != nil && len(data) > 0 {
+		secret.Data = data
 	}
 	if len(secretType) > 0 {
 		secret.Type = secretType
@@ -328,6 +365,14 @@ func (impl K8sUtil) UpdateSecret(namespace string, secret *v1.Secret, client *v1
 	} else {
 		return secret, nil
 	}
+}
+
+func (impl K8sUtil) DeleteSecret(namespace string, name string, client *v12.CoreV1Client) error {
+	err := client.Secrets(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (impl K8sUtil) DeleteJob(namespace string, name string, clusterConfig *ClusterConfig) error {
@@ -469,13 +514,13 @@ func (impl K8sUtil) GetClientByToken(serverUrl string, token map[string]string) 
 	return client, nil
 }
 
-func (impl K8sUtil) GetResourceInfoByLabelSelector(namespace string, labelSelector string) (*v1.Pod, error) {
+func (impl K8sUtil) GetResourceInfoByLabelSelector(ctx context.Context, namespace string, labelSelector string) (*v1.Pod, error) {
 	client, err := impl.GetClientForInCluster()
 	if err != nil {
 		impl.logger.Errorw("cluster config error", "err", err)
 		return nil, err
 	}
-	pods, err := client.Pods(namespace).List(context.Background(), metav1.ListOptions{
+	pods, err := client.Pods(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: labelSelector,
 	})
 	if err != nil {
@@ -520,15 +565,16 @@ func (impl K8sUtil) GetPodByName(namespace string, name string, client *v12.Core
 	}
 }
 
-func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.UnstructuredList, namespaced bool, kind string, validateResourceAccess func(namespace, resourceName string) bool) (*application.ClusterResourceListMap, error) {
-	clusterResourceListMap := &application.ClusterResourceListMap{}
+func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.UnstructuredList, namespaced bool, gvk schema.GroupVersionKind, validateResourceAccess func(namespace string, group string, kind string, resourceName string) bool) (*ClusterResourceListMap, error) {
+	clusterResourceListMap := &ClusterResourceListMap{}
 	// build headers
 	var headers []string
 	columnIndexes := make(map[int]string)
+	kind := gvk.Kind
 	if kind == "Event" {
 		headers, columnIndexes = impl.getEventKindHeader()
 	} else {
-		columnDefinitionsUncast := manifest.Object[application.K8sClusterResourceColumnDefinitionKey]
+		columnDefinitionsUncast := manifest.Object[K8sClusterResourceColumnDefinitionKey]
 		if columnDefinitionsUncast != nil {
 			columnDefinitions := columnDefinitionsUncast.([]interface{})
 			for index, cd := range columnDefinitions {
@@ -536,11 +582,11 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 					continue
 				}
 				columnMap := cd.(map[string]interface{})
-				columnNameUncast := columnMap[application.K8sClusterResourceNameKey]
+				columnNameUncast := columnMap[K8sClusterResourceNameKey]
 				if columnNameUncast == nil {
 					continue
 				}
-				priorityUncast := columnMap[application.K8sClusterResourcePriorityKey]
+				priorityUncast := columnMap[K8sClusterResourcePriorityKey]
 				if priorityUncast == nil {
 					continue
 				}
@@ -548,7 +594,7 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 				columnName = strings.ToLower(columnName)
 				priority := priorityUncast.(int64)
 				if namespaced && index == 1 {
-					headers = append(headers, application.K8sClusterResourceNamespaceKey)
+					headers = append(headers, K8sClusterResourceNamespaceKey)
 				}
 				if priority == 0 || (manifest.GetKind() == "Event" && columnName == "source") {
 					columnIndexes[index] = columnName
@@ -560,19 +606,17 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 
 	// build rows
 	rowsMapping := make([]map[string]interface{}, 0)
-	rowsDataUncast := manifest.Object[application.K8sClusterResourceRowsKey]
-	var resourceName string
+	rowsDataUncast := manifest.Object[K8sClusterResourceRowsKey]
 	var namespace string
 	var allowed bool
 	if rowsDataUncast != nil {
 		rows := rowsDataUncast.([]interface{})
 		for _, row := range rows {
-			resourceName = ""
 			namespace = ""
 			allowed = true
 			rowIndex := make(map[string]interface{})
 			rowMap := row.(map[string]interface{})
-			cellsUncast := rowMap[application.K8sClusterResourceCellKey]
+			cellsUncast := rowMap[K8sClusterResourceCellKey]
 			if cellsUncast == nil {
 				continue
 			}
@@ -588,27 +632,21 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 				rowIndex[columnName] = cell
 			}
 
-			// set namespace
-
-			cellObjUncast := rowMap[application.K8sClusterResourceObjectKey]
+			cellObjUncast := rowMap[K8sClusterResourceObjectKey]
+			var cellObj map[string]interface{}
 			if cellObjUncast != nil {
-				cellObj := cellObjUncast.(map[string]interface{})
-				if cellObj != nil && cellObj[application.K8sClusterResourceMetadataKey] != nil {
-					metadata := cellObj[application.K8sClusterResourceMetadataKey].(map[string]interface{})
-					if metadata[application.K8sClusterResourceNamespaceKey] != nil {
-						namespace = metadata[application.K8sClusterResourceNamespaceKey].(string)
+				cellObj = cellObjUncast.(map[string]interface{})
+				if cellObj != nil && cellObj[K8sClusterResourceMetadataKey] != nil {
+					metadata := cellObj[K8sClusterResourceMetadataKey].(map[string]interface{})
+					if metadata[K8sClusterResourceNamespaceKey] != nil {
+						namespace = metadata[K8sClusterResourceNamespaceKey].(string)
 						if namespaced {
-							rowIndex[application.K8sClusterResourceNamespaceKey] = namespace
+							rowIndex[K8sClusterResourceNamespaceKey] = namespace
 						}
-					}
-					if metadata[application.K8sClusterResourceMetadataNameKey] != nil {
-						resourceName = metadata[application.K8sClusterResourceMetadataNameKey].(string)
 					}
 				}
 			}
-			if resourceName != "" {
-				allowed = validateResourceAccess(namespace, resourceName)
-			}
+			allowed = impl.ValidateResource(cellObj, gvk, validateResourceAccess)
 			if allowed {
 				rowsMapping = append(rowsMapping, rowIndex)
 			}
@@ -619,6 +657,89 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 	clusterResourceListMap.Data = rowsMapping
 	impl.logger.Debugw("resource listing response", "clusterResourceListMap", clusterResourceListMap)
 	return clusterResourceListMap, nil
+}
+
+func (impl K8sUtil) ValidateResource(resourceObj map[string]interface{}, gvk schema.GroupVersionKind, validateCallback func(namespace string, group string, kind string, resourceName string) bool) bool {
+	resKind := gvk.Kind
+	groupName := gvk.Group
+	metadata := resourceObj[K8sClusterResourceMetadataKey]
+	if metadata == nil {
+		return false
+	}
+	metadataMap := metadata.(map[string]interface{})
+	var namespace, resourceName string
+	var ownerReferences []interface{}
+	if metadataMap[K8sClusterResourceNamespaceKey] != nil {
+		namespace = metadataMap[K8sClusterResourceNamespaceKey].(string)
+	}
+	if metadataMap[K8sClusterResourceMetadataNameKey] != nil {
+		resourceName = metadataMap[K8sClusterResourceMetadataNameKey].(string)
+	}
+	if metadataMap[K8sClusterResourceOwnerReferenceKey] != nil {
+		ownerReferences = metadataMap[K8sClusterResourceOwnerReferenceKey].([]interface{})
+	}
+	if len(ownerReferences) > 0 {
+		for _, ownerRef := range ownerReferences {
+			allowed := impl.validateForResource(namespace, ownerRef, validateCallback)
+			if allowed {
+				return allowed
+			}
+		}
+	}
+	// check current RBAC in case not matched with above one
+	return validateCallback(namespace, groupName, resKind, resourceName)
+}
+
+func (impl K8sUtil) validateForResource(namespace string, resourceRef interface{}, validateCallback func(namespace string, group string, kind string, resourceName string) bool) bool {
+	resourceReference := resourceRef.(map[string]interface{})
+	resKind := resourceReference[K8sClusterResourceKindKey].(string)
+	apiVersion := resourceReference[K8sClusterResourceApiVersionKey].(string)
+	groupName := ""
+	if strings.Contains(apiVersion, "/") {
+		groupName = apiVersion[:strings.LastIndex(apiVersion, "/")] // extracting group from this apiVersion
+	}
+	resName := ""
+	if resourceReference["name"] != "" {
+		resName = resourceReference["name"].(string)
+		switch resKind {
+		case kube.ReplicaSetKind:
+			// check deployment first, then RO and then RS
+			if strings.Contains(resName, "-") {
+				deploymentName := resName[:strings.LastIndex(resName, "-")]
+				allowed := validateCallback(namespace, groupName, kube.DeploymentKind, deploymentName)
+				if allowed {
+					return true
+				}
+				allowed = validateCallback(namespace, K8sClusterResourceRolloutGroup, K8sClusterResourceRolloutKind, deploymentName)
+				if allowed {
+					return true
+				}
+			}
+			allowed := validateCallback(namespace, groupName, resKind, resName)
+			if allowed {
+				return true
+			}
+		case kube.JobKind:
+			// check CronJob first, then Job
+			if strings.Contains(resName, "-") {
+				cronJobName := resName[:strings.LastIndex(resName, "-")]
+				allowed := validateCallback(namespace, groupName, K8sClusterResourceCronJobKind, cronJobName)
+				if allowed {
+					return true
+				}
+			}
+			allowed := validateCallback(namespace, groupName, resKind, resName)
+			if allowed {
+				return true
+			}
+		case kube.DeploymentKind, K8sClusterResourceCronJobKind, kube.StatefulSetKind, kube.DaemonSetKind, K8sClusterResourceRolloutKind, K8sClusterResourceReplicationControllerKind:
+			allowed := validateCallback(namespace, groupName, resKind, resName)
+			if allowed {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (impl K8sUtil) getEventKindHeader() ([]string, map[int]string) {
@@ -633,4 +754,27 @@ func (impl K8sUtil) getEventKindHeader() ([]string, map[int]string) {
 	columnIndexes[7] = "age"
 	columnIndexes[8] = "count"
 	return headers, columnIndexes
+}
+
+func OverrideK8sHttpClientWithTracer(restConfig *rest.Config) (*http.Client, error) {
+	httpClientFor, err := rest.HTTPClientFor(restConfig)
+	if err != nil {
+		fmt.Println("error occurred while overriding k8s client", "reason", err)
+		return nil, err
+	}
+	httpClientFor.Transport = otelhttp.NewTransport(httpClientFor.Transport)
+	return httpClientFor, nil
+}
+func (impl K8sUtil) GetKubeVersion() (*version.Info, error) {
+	discoveryClient, err := impl.GetK8sDiscoveryClientInCluster()
+	if err != nil {
+		impl.logger.Errorw("eexception caught in getting discoveryClient", "err", err)
+		return nil, err
+	}
+	k8sServerVersion, err := discoveryClient.ServerVersion()
+	if err != nil {
+		impl.logger.Errorw("exception caught in getting k8sServerVersion", "err", err)
+		return nil, err
+	}
+	return k8sServerVersion, err
 }

@@ -185,6 +185,9 @@ components:
         value:
           type: string
           description: label value
+        propagate:
+          type: boolean
+          description: Whether to propagate to kubernetes resources
 
     App:
       type: object
@@ -317,6 +320,9 @@ components:
         status:
           type: string
           description: app name
+        appStatus:
+          type: string
+          description: app status for this environment
         postStageStatus:
           type: string
           description: app name

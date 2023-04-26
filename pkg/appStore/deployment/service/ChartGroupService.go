@@ -18,12 +18,13 @@
 package service
 
 import (
+	"errors"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreValuesRepository "github.com/devtron-labs/devtron/pkg/appStore/values/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
-	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
+	"github.com/devtron-labs/devtron/pkg/user/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -69,7 +70,7 @@ type ChartGroupList struct {
 	Groups []*ChartGroupBean `json:"groups,omitempty"`
 }
 type ChartGroupBean struct {
-	Name               string                 `json:"name,omitempty" validate:"name-component,max=200"`
+	Name               string                 `json:"name,omitempty" validate:"name-component,max=200,min=5"`
 	Description        string                 `json:"description,omitempty"`
 	Id                 int                    `json:"id,omitempty"`
 	ChartGroupEntries  []*ChartGroupEntryBean `json:"chartGroupEntries,omitempty"`
@@ -108,8 +109,21 @@ type InstalledChart struct {
 	InstalledAppId int `json:"installedAppId,omitempty"`
 }
 
+const AppNameAlreadyExistsError = "A chart with this name already exist"
+
 func (impl *ChartGroupServiceImpl) CreateChartGroup(req *ChartGroupBean) (*ChartGroupBean, error) {
 	impl.Logger.Debugw("chart group create request", "req", req)
+
+	exist, err := impl.chartGroupRepository.FindByName(req.Name)
+	if err != nil {
+		impl.Logger.Errorw("error in creating chart group", "req", req, "err", err)
+		return nil, err
+	}
+	if exist {
+		impl.Logger.Errorw("Chart with this name already exist", "req", req, "err", err)
+		return nil, errors.New(AppNameAlreadyExistsError)
+	}
+
 	chartGrouModel := &repository.ChartGroup{
 		Name:        req.Name,
 		Description: req.Description,
@@ -433,7 +447,7 @@ func (impl *ChartGroupServiceImpl) DeleteChartGroup(req *ChartGroupBean) error {
 		return err
 	}
 	//deleting auth roles entries for this chart group
-	err = impl.userAuthService.DeleteRoles(repository2.CHART_GROUP_TYPE, req.Name, tx, "")
+	err = impl.userAuthService.DeleteRoles(bean.CHART_GROUP_TYPE, req.Name, tx, "")
 	if err != nil {
 		impl.Logger.Errorw("error in deleting auth roles", "err", err)
 		return err

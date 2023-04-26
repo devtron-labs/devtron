@@ -3,6 +3,7 @@
 package mocks
 
 import (
+	"context"
 	bean "github.com/devtron-labs/devtron/api/bean"
 	mock "github.com/stretchr/testify/mock"
 
@@ -153,7 +154,7 @@ func (_m *CdWorkflowRepository) FindById(wfId int) (*pipelineConfig.CdWorkflow, 
 }
 
 // FindByWorkflowIdAndRunnerType provides a mock function with given fields: wfId, runnerType
-func (_m *CdWorkflowRepository) FindByWorkflowIdAndRunnerType(wfId int, runnerType bean.WorkflowType) (pipelineConfig.CdWorkflowRunner, error) {
+func (_m *CdWorkflowRepository) FindByWorkflowIdAndRunnerType(ctx context.Context, wfId int, runnerType bean.WorkflowType) (pipelineConfig.CdWorkflowRunner, error) {
 	ret := _m.Called(wfId, runnerType)
 
 	var r0 pipelineConfig.CdWorkflowRunner
@@ -373,7 +374,7 @@ func (_m *CdWorkflowRepository) FindLatestCdWorkflowByPipelineIdV2(pipelineIds [
 }
 
 // FindLatestWfrByAppIdAndEnvironmentId provides a mock function with given fields: appId, environmentId
-func (_m *CdWorkflowRepository) FindLatestWfrByAppIdAndEnvironmentId(appId int, environmentId int) (pipelineConfig.CdWorkflowRunner, error) {
+func (_m *CdWorkflowRepository) FindLatestWfrByAppIdAndEnvironmentId(appId int, environmentId int) (*pipelineConfig.CdWorkflowRunner, error) {
 	ret := _m.Called(appId, environmentId)
 
 	var r0 pipelineConfig.CdWorkflowRunner
@@ -390,7 +391,7 @@ func (_m *CdWorkflowRepository) FindLatestWfrByAppIdAndEnvironmentId(appId int, 
 		r1 = ret.Error(1)
 	}
 
-	return r0, r1
+	return &r0, r1
 }
 
 // FindPreviousCdWfRunnerByStatus provides a mock function with given fields: pipelineId, currentWFRunnerId, status
@@ -500,7 +501,7 @@ func (_m *CdWorkflowRepository) IsLatestWf(pipelineId int, wfId int) (bool, erro
 }
 
 // SaveWorkFlow provides a mock function with given fields: wf
-func (_m *CdWorkflowRepository) SaveWorkFlow(wf *pipelineConfig.CdWorkflow) error {
+func (_m *CdWorkflowRepository) SaveWorkFlow(ctx context.Context, wf *pipelineConfig.CdWorkflow) error {
 	ret := _m.Called(wf)
 
 	var r0 error

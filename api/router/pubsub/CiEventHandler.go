@@ -20,14 +20,24 @@ package pubsub
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/client/pubsub"
+	"github.com/caarlos0/env/v6"
+	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/util"
-	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
 )
+
+type CiEventConfig struct {
+	ExposeCiMetrics bool `env:"EXPOSE_CI_METRICS" envDefault:"false"`
+}
+
+func GetCiEventConfig() (*CiEventConfig, error) {
+	cfg := &CiEventConfig{}
+	err := env.Parse(cfg)
+	return cfg, err
+}
 
 type CiEventHandler interface {
 	Subscribe() error
@@ -37,34 +47,34 @@ type CiEventHandler interface {
 
 type CiEventHandlerImpl struct {
 	logger         *zap.SugaredLogger
-	pubsubClient   *pubsub.PubSubClient
+	pubsubClient   *pubsub.PubSubClientServiceImpl
 	webhookService pipeline.WebhookService
+	ciEventConfig  *CiEventConfig
 }
 
 type CiCompleteEvent struct {
-	CiProjectDetails []pipeline.CiProjectDetails `json:"ciProjectDetails"`
-	DockerImage      string                      `json:"dockerImage" validate:"required,image-validator"`
-	Digest           string                      `json:"digest"`
-	PipelineId       int                         `json:"pipelineId"`
-	WorkflowId       *int                        `json:"workflowId"`
-	TriggeredBy      int32                       `json:"triggeredBy"`
-	PipelineName     string                      `json:"pipelineName"`
-	DataSource       string                      `json:"dataSource"`
-	MaterialType     string                      `json:"materialType"`
+	CiProjectDetails   []pipeline.CiProjectDetails `json:"ciProjectDetails"`
+	DockerImage        string                      `json:"dockerImage" validate:"required,image-validator"`
+	Digest             string                      `json:"digest"`
+	PipelineId         int                         `json:"pipelineId"`
+	WorkflowId         *int                        `json:"workflowId"`
+	TriggeredBy        int32                       `json:"triggeredBy"`
+	PipelineName       string                      `json:"pipelineName"`
+	DataSource         string                      `json:"dataSource"`
+	MaterialType       string                      `json:"materialType"`
+	Metrics            util.CIMetrics              `json:"metrics"`
+	AppName            string                      `json:"appName"`
+	IsArtifactUploaded bool                        `json:"isArtifactUploaded"`
 }
 
-func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClient, webhookService pipeline.WebhookService) *CiEventHandlerImpl {
+func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClientServiceImpl, webhookService pipeline.WebhookService, ciEventConfig *CiEventConfig) *CiEventHandlerImpl {
 	ciEventHandlerImpl := &CiEventHandlerImpl{
 		logger:         logger,
 		pubsubClient:   pubsubClient,
 		webhookService: webhookService,
+		ciEventConfig:  ciEventConfig,
 	}
-	err := util.AddStream(ciEventHandlerImpl.pubsubClient.JetStrCtxt, util.CI_RUNNER_STREAM)
-	if err != nil {
-		logger.Error(err)
-		return nil
-	}
-	err = ciEventHandlerImpl.Subscribe()
+	err := ciEventHandlerImpl.Subscribe()
 	if err != nil {
 		logger.Error(err)
 		return nil
@@ -73,27 +83,30 @@ func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSu
 }
 
 func (impl *CiEventHandlerImpl) Subscribe() error {
-	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(util.CI_COMPLETE_TOPIC, util.CI_COMPLETE_GROUP, func(msg *nats.Msg) {
-		impl.logger.Debug("ci complete event received")
-		defer msg.Ack()
+	callback := func(msg *pubsub.PubSubMsg) {
+		impl.logger.Debugw("ci complete event received")
+		//defer msg.Ack()
 		ciCompleteEvent := CiCompleteEvent{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &ciCompleteEvent)
 		if err != nil {
 			impl.logger.Error("error while unmarshalling json data", "error", err)
 			return
 		}
+		util.TriggerCIMetrics(ciCompleteEvent.Metrics, impl.ciEventConfig.ExposeCiMetrics, ciCompleteEvent.PipelineName, ciCompleteEvent.AppName)
 		impl.logger.Debugw("ci complete event for ci", "ciPipelineId", ciCompleteEvent.PipelineId)
 		req, err := impl.BuildCiArtifactRequest(ciCompleteEvent)
 		if err != nil {
 			return
 		}
+
 		resp, err := impl.webhookService.HandleCiSuccessEvent(ciCompleteEvent.PipelineId, req)
 		if err != nil {
 			impl.logger.Error(err)
 			return
 		}
 		impl.logger.Debug(resp)
-	}, nats.Durable(util.CI_COMPLETE_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util.CI_RUNNER_STREAM))
+	}
+	err := impl.pubsubClient.Subscribe(pubsub.CI_COMPLETE_TOPIC, callback)
 	if err != nil {
 		impl.logger.Error(err)
 		return err
@@ -156,13 +169,14 @@ func (impl *CiEventHandlerImpl) BuildCiArtifactRequest(event CiCompleteEvent) (*
 	}
 
 	request := &pipeline.CiArtifactWebhookRequest{
-		Image:        event.DockerImage,
-		ImageDigest:  event.Digest,
-		DataSource:   event.DataSource,
-		PipelineName: event.PipelineName,
-		MaterialInfo: rawMaterialInfo,
-		UserId:       event.TriggeredBy,
-		WorkflowId:   event.WorkflowId,
+		Image:              event.DockerImage,
+		ImageDigest:        event.Digest,
+		DataSource:         event.DataSource,
+		PipelineName:       event.PipelineName,
+		MaterialInfo:       rawMaterialInfo,
+		UserId:             event.TriggeredBy,
+		WorkflowId:         event.WorkflowId,
+		IsArtifactUploaded: event.IsArtifactUploaded,
 	}
 	return request, nil
 }
@@ -225,13 +239,14 @@ func (impl *CiEventHandlerImpl) BuildCiArtifactRequestForWebhook(event CiComplet
 	}
 
 	request := &pipeline.CiArtifactWebhookRequest{
-		Image:        event.DockerImage,
-		ImageDigest:  event.Digest,
-		DataSource:   event.DataSource,
-		PipelineName: event.PipelineName,
-		MaterialInfo: rawMaterialInfo,
-		UserId:       event.TriggeredBy,
-		WorkflowId:   event.WorkflowId,
+		Image:              event.DockerImage,
+		ImageDigest:        event.Digest,
+		DataSource:         event.DataSource,
+		PipelineName:       event.PipelineName,
+		MaterialInfo:       rawMaterialInfo,
+		UserId:             event.TriggeredBy,
+		WorkflowId:         event.WorkflowId,
+		IsArtifactUploaded: event.IsArtifactUploaded,
 	}
 	return request, nil
 }

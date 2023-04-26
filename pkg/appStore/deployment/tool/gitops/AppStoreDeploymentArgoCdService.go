@@ -10,10 +10,12 @@ import (
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
+	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/constants"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/appStatus"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
@@ -24,6 +26,7 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
 	"github.com/golang/protobuf/ptypes/timestamp"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"net/http"
 	"strings"
@@ -41,6 +44,7 @@ type AppStoreDeploymentArgoCdService interface {
 	OnUpdateRepoInInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error)
 	UpdateRequirementDependencies(environment *clusterRepository.Environment, installedAppVersion *repository.InstalledAppVersions, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error
 	UpdateInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, environment *clusterRepository.Environment, installedAppVersion *repository.InstalledAppVersions) (*appStoreBean.InstallAppVersionDTO, error)
+	DeleteDeploymentApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error
 }
 
 type AppStoreDeploymentArgoCdServiceImpl struct {
@@ -54,14 +58,16 @@ type AppStoreDeploymentArgoCdServiceImpl struct {
 	gitFactory                        *util.GitFactory
 	argoUserService                   argo.ArgoUserService
 	appStoreDeploymentCommonService   appStoreDeploymentCommon.AppStoreDeploymentCommonService
+	helmAppService                    client.HelmAppService
 	gitOpsConfigRepository            repository3.GitOpsConfigRepository
+	appStatusService                  appStatus.AppStatusService
 }
 
 func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
 	acdClient application2.ServiceClient, chartGroupDeploymentRepository repository.ChartGroupDeploymentRepository,
 	installedAppRepository repository.InstalledAppRepository, installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository, chartTemplateService util.ChartTemplateService,
 	gitFactory *util.GitFactory, argoUserService argo.ArgoUserService, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
-	gitOpsConfigRepository repository3.GitOpsConfigRepository) *AppStoreDeploymentArgoCdServiceImpl {
+	helmAppService client.HelmAppService, gitOpsConfigRepository repository3.GitOpsConfigRepository, appStatusService appStatus.AppStatusService) *AppStoreDeploymentArgoCdServiceImpl {
 	return &AppStoreDeploymentArgoCdServiceImpl{
 		Logger:                            logger,
 		appStoreDeploymentFullModeService: appStoreDeploymentFullModeService,
@@ -73,7 +79,9 @@ func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreD
 		gitFactory:                        gitFactory,
 		argoUserService:                   argoUserService,
 		appStoreDeploymentCommonService:   appStoreDeploymentCommonService,
+		helmAppService:                    helmAppService,
 		gitOpsConfigRepository:            gitOpsConfigRepository,
+		appStatusService:                  appStatusService,
 	}
 }
 
@@ -132,34 +140,26 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetAppStatus(installedAppAndEnvD
 			return "", err
 
 		}
+		//use this resp.Status to update app_status table
+		err = impl.appStatusService.UpdateStatusWithAppIdEnvId(installedAppAndEnvDetails.AppId, installedAppAndEnvDetails.EnvironmentId, resp.Status)
+		if err != nil {
+			impl.Logger.Warnw("error in updating app status", "err", err, installedAppAndEnvDetails.AppId, "envId", installedAppAndEnvDetails.EnvironmentId)
+		}
 		return resp.Status, nil
 	}
 	return "", errors.New("invalid app name or env name")
 }
 
 func (impl AppStoreDeploymentArgoCdServiceImpl) DeleteInstalledApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *repository.InstalledApps, dbTransaction *pg.Tx) error {
-	acdAppName := appName + "-" + environmentName
-	err := impl.deleteACD(acdAppName, ctx)
-	if err != nil {
-		impl.Logger.Errorw("error in deleting ACD ", "name", acdAppName, "err", err)
-		if installAppVersionRequest.ForceDelete {
-			impl.Logger.Warnw("error while deletion of app in acd, continue to delete in db as this operation is force delete", "error", err)
-		} else {
-			//statusError, _ := err.(*errors2.StatusError)
-			if strings.Contains(err.Error(), "code = NotFound") {
-				err = &util.ApiError{
-					UserMessage:     "Could not delete as application not found in argocd",
-					InternalMessage: err.Error(),
-				}
-			} else {
-				err = &util.ApiError{
-					UserMessage:     "Could not delete application",
-					InternalMessage: err.Error(),
-				}
-			}
-			return err
-		}
+
+	err := impl.appStatusService.DeleteWithAppIdEnvId(dbTransaction, installedApps.AppId, installedApps.EnvironmentId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("error in deleting app_status", "appId", installedApps.AppId, "envId", installedApps.EnvironmentId, "err", err)
+		return err
+	} else if err == pg.ErrNoRows {
+		impl.Logger.Warnw("App status not present, skipping app status delete ")
 	}
+
 	deployment, err := impl.chartGroupDeploymentRepository.FindByInstalledAppId(installedApps.Id)
 	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("error in fetching chartGroupMapping", "id", installedApps.Id, "err", err)
@@ -176,7 +176,6 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) DeleteInstalledApp(ctx context.C
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -319,12 +318,39 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetDeploymentHistory(ctx context
 
 func (impl AppStoreDeploymentArgoCdServiceImpl) GetDeploymentHistoryInfo(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, version int32) (*openapi.HelmAppDeploymentManifestDetail, error) {
 	values := &openapi.HelmAppDeploymentManifestDetail{}
+	_, span := otel.Tracer("orchestrator").Start(ctx, "installedAppRepositoryHistory.GetInstalledAppVersionHistory")
 	versionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(int(version))
+	span.End()
 	if err != nil {
 		impl.Logger.Errorw("error while fetching installed version history", "error", err)
 		return nil, err
 	}
 	values.ValuesYaml = &versionHistory.ValuesYamlRaw
+
+	envId := int32(installedApp.EnvironmentId)
+	clusterId := int32(installedApp.ClusterId)
+	appStoreVersionId := int32(installedApp.AppStoreApplicationVersionId)
+
+	manifestRequest := openapi2.TemplateChartRequest{
+		EnvironmentId:                &envId,
+		ClusterId:                    &clusterId,
+		Namespace:                    &installedApp.Namespace,
+		ReleaseName:                  &installedApp.AppName,
+		AppStoreApplicationVersionId: &appStoreVersionId,
+		ValuesYaml:                   values.ValuesYaml,
+	}
+
+	_, span = otel.Tracer("orchestrator").Start(ctx, "helmAppService.TemplateChart")
+	templateChart, manifestErr := impl.helmAppService.TemplateChart(ctx, &manifestRequest)
+	span.End()
+	manifest := templateChart.GetManifest()
+
+	if manifestErr != nil {
+		impl.Logger.Errorw("error in genetating manifest for argocd app", "err", manifestErr)
+	} else {
+		values.Manifest = &manifest
+	}
+
 	return values, err
 }
 
@@ -498,4 +524,30 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) updateValuesYaml(environment *cl
 	}
 	installAppVersionRequest.GitHash = commitHash
 	return installAppVersionRequest, nil
+}
+
+func (impl AppStoreDeploymentArgoCdServiceImpl) DeleteDeploymentApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error {
+	acdAppName := appName + "-" + environmentName
+	err := impl.deleteACD(acdAppName, ctx)
+	if err != nil {
+		impl.Logger.Errorw("error in deleting ACD ", "name", acdAppName, "err", err)
+		if installAppVersionRequest.ForceDelete {
+			impl.Logger.Warnw("error while deletion of app in acd, continue to delete in db as this operation is force delete", "error", err)
+		} else {
+			//statusError, _ := err.(*errors2.StatusError)
+			if strings.Contains(err.Error(), "code = NotFound") {
+				err = &util.ApiError{
+					UserMessage:     "Could not delete as application not found in argocd",
+					InternalMessage: err.Error(),
+				}
+			} else {
+				err = &util.ApiError{
+					UserMessage:     "Could not delete application",
+					InternalMessage: err.Error(),
+				}
+			}
+			return err
+		}
+	}
+	return nil
 }

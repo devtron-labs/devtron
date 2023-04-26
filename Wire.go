@@ -22,6 +22,7 @@ package main
 
 import (
 	"github.com/devtron-labs/authenticator/middleware"
+	pubsub1 "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/apiToken"
 	appStoreRestHandler "github.com/devtron-labs/devtron/api/appStore"
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
@@ -58,10 +59,11 @@ import (
 	"github.com/devtron-labs/devtron/client/grafana"
 	jClient "github.com/devtron-labs/devtron/client/jira"
 	"github.com/devtron-labs/devtron/client/lens"
-	pubsub2 "github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
+	appGroup2 "github.com/devtron-labs/devtron/internal/sql/repository/appGroup"
+	appStatusRepo "github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/bulkUpdate"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
@@ -74,6 +76,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appClone"
 	"github.com/devtron-labs/devtron/pkg/appClone/batch"
+	"github.com/devtron-labs/devtron/pkg/appGroup"
+	"github.com/devtron-labs/devtron/pkg/appStatus"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
@@ -136,10 +140,11 @@ func InitializeApp() (*App, error) {
 		webhookHelm.WebhookHelmWireSet,
 		terminal.TerminalWireSet,
 		// -------wireset end ----------
-		gitSensor.GetGitSensorConfig,
-		gitSensor.NewGitSensorSession,
-		wire.Bind(new(gitSensor.GitSensorClient), new(*gitSensor.GitSensorClientImpl)),
-		//--------
+		//-------
+		gitSensor.GetConfig,
+		gitSensor.NewGitSensorClient,
+		wire.Bind(new(gitSensor.Client), new(*gitSensor.ClientImpl)),
+		//-------
 		helper.NewAppListingRepositoryQueryBuilder,
 		//sql.GetConfig,
 		eClient.GetEventClientConfig,
@@ -171,7 +176,7 @@ func InitializeApp() (*App, error) {
 
 		restHandler.NewPipelineRestHandler,
 		wire.Bind(new(restHandler.PipelineTriggerRestHandler), new(*restHandler.PipelineTriggerRestHandlerImpl)),
-		app.GetAppStatusConfig,
+		app.GetAppServiceConfig,
 		app.NewAppService,
 		wire.Bind(new(app.AppService), new(*app.AppServiceImpl)),
 
@@ -245,6 +250,9 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(app.AppListingService), new(*app.AppListingServiceImpl)),
 		repository.NewAppListingRepositoryImpl,
 		wire.Bind(new(repository.AppListingRepository), new(*repository.AppListingRepositoryImpl)),
+
+		router.NewJobRouterImpl,
+		wire.Bind(new(router.JobRouter), new(*router.JobRouterImpl)),
 
 		pipelineConfig.NewPipelineRepositoryImpl,
 		wire.Bind(new(pipelineConfig.PipelineRepository), new(*pipelineConfig.PipelineRepositoryImpl)),
@@ -336,6 +344,8 @@ func InitializeApp() (*App, error) {
 		//ArgoUtil.NewClusterServiceImpl,
 		//wire.Bind(new(ArgoUtil.ClusterService), new(ArgoUtil.ClusterServiceImpl)),
 		pipeline.GetEcrConfig,
+		//otel.NewOtelTracingServiceImpl,
+		//wire.Bind(new(otel.OtelTracingService), new(*otel.OtelTracingServiceImpl)),
 		NewApp,
 		//session.NewK8sClient,
 
@@ -395,7 +405,7 @@ func InitializeApp() (*App, error) {
 		pipeline.NewCiLogServiceImpl,
 		wire.Bind(new(pipeline.CiLogService), new(*pipeline.CiLogServiceImpl)),
 
-		pubsub2.NewPubSubClient,
+		pubsub1.NewPubSubClientServiceImpl,
 
 		pubsub.NewGitWebhookHandler,
 		wire.Bind(new(pubsub.GitWebhookHandler), new(*pubsub.GitWebhookHandlerImpl)),
@@ -403,9 +413,10 @@ func InitializeApp() (*App, error) {
 		pubsub.NewWorkflowStatusUpdateHandlerImpl,
 		wire.Bind(new(pubsub.WorkflowStatusUpdateHandler), new(*pubsub.WorkflowStatusUpdateHandlerImpl)),
 
-		pubsub.NewApplicationStatusUpdateHandlerImpl,
-		wire.Bind(new(pubsub.ApplicationStatusUpdateHandler), new(*pubsub.ApplicationStatusUpdateHandlerImpl)),
+		pubsub.NewApplicationStatusHandlerImpl,
+		wire.Bind(new(pubsub.ApplicationStatusHandler), new(*pubsub.ApplicationStatusHandlerImpl)),
 
+		pubsub.GetCiEventConfig,
 		pubsub.NewCiEventHandlerImpl,
 		wire.Bind(new(pubsub.CiEventHandler), new(*pubsub.CiEventHandlerImpl)),
 
@@ -516,8 +527,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(repository.DeploymentGroupAppRepository), new(*repository.DeploymentGroupAppRepositoryImpl)),
 		restHandler.NewPubSubClientRestHandlerImpl,
 		wire.Bind(new(restHandler.PubSubClientRestHandler), new(*restHandler.PubSubClientRestHandlerImpl)),
-		pubsub2.NewNatsPublishClientImpl,
-		wire.Bind(new(pubsub2.NatsPublishClient), new(*pubsub2.NatsPublishClientImpl)),
 
 		//Batch actions
 		batch.NewWorkflowActionImpl,
@@ -751,6 +760,13 @@ func InitializeApp() (*App, error) {
 		cron.NewCdApplicationStatusUpdateHandlerImpl,
 		wire.Bind(new(cron.CdApplicationStatusUpdateHandler), new(*cron.CdApplicationStatusUpdateHandlerImpl)),
 
+		//app_status
+		appStatusRepo.NewAppStatusRepositoryImpl,
+		wire.Bind(new(appStatusRepo.AppStatusRepository), new(*appStatusRepo.AppStatusRepositoryImpl)),
+		appStatus.NewAppStatusServiceImpl,
+		wire.Bind(new(appStatus.AppStatusService), new(*appStatus.AppStatusServiceImpl)),
+		//app_status ends
+
 		cron.GetCiWorkflowStatusUpdateConfig,
 		cron.NewCiStatusUpdateCronImpl,
 		wire.Bind(new(cron.CiStatusUpdateCron), new(*cron.CiStatusUpdateCronImpl)),
@@ -810,6 +826,17 @@ func InitializeApp() (*App, error) {
 
 		kubernetesResourceAuditLogs.Newk8sResourceHistoryServiceImpl,
 		wire.Bind(new(kubernetesResourceAuditLogs.K8sResourceHistoryService), new(*kubernetesResourceAuditLogs.K8sResourceHistoryServiceImpl)),
+
+		router.NewAppGroupingRouterImpl,
+		wire.Bind(new(router.AppGroupingRouter), new(*router.AppGroupingRouterImpl)),
+		restHandler.NewAppGroupRestHandlerImpl,
+		wire.Bind(new(restHandler.AppGroupRestHandler), new(*restHandler.AppGroupRestHandlerImpl)),
+		appGroup.NewAppGroupServiceImpl,
+		wire.Bind(new(appGroup.AppGroupService), new(*appGroup.AppGroupServiceImpl)),
+		appGroup2.NewAppGroupRepositoryImpl,
+		wire.Bind(new(appGroup2.AppGroupRepository), new(*appGroup2.AppGroupRepositoryImpl)),
+		appGroup2.NewAppGroupMappingRepositoryImpl,
+		wire.Bind(new(appGroup2.AppGroupMappingRepository), new(*appGroup2.AppGroupMappingRepositoryImpl)),
 	)
 	return &App{}, nil
 }

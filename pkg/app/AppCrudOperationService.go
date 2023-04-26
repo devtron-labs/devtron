@@ -20,14 +20,15 @@ package app
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/user/repository"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"k8s.io/apimachinery/pkg/util/validation"
 	"strconv"
 	"strings"
 	"time"
@@ -49,13 +50,13 @@ type AppCrudOperationService interface {
 type AppCrudOperationServiceImpl struct {
 	logger                 *zap.SugaredLogger
 	appLabelRepository     pipelineConfig.AppLabelRepository
-	appRepository          app.AppRepository
+	appRepository          appRepository.AppRepository
 	userRepository         repository.UserRepository
 	installedAppRepository repository2.InstalledAppRepository
 }
 
 func NewAppCrudOperationServiceImpl(appLabelRepository pipelineConfig.AppLabelRepository,
-	logger *zap.SugaredLogger, appRepository app.AppRepository, userRepository repository.UserRepository, installedAppRepository repository2.InstalledAppRepository) *AppCrudOperationServiceImpl {
+	logger *zap.SugaredLogger, appRepository appRepository.AppRepository, userRepository repository.UserRepository, installedAppRepository repository2.InstalledAppRepository) *AppCrudOperationServiceImpl {
 	return &AppCrudOperationServiceImpl{
 		appLabelRepository:     appLabelRepository,
 		logger:                 logger,
@@ -78,6 +79,19 @@ type TeamAppBean struct {
 }
 
 func (impl AppCrudOperationServiceImpl) UpdateApp(request *bean.CreateAppDTO) (*bean.CreateAppDTO, error) {
+	// validate the labels key-value if propagate is true
+	for _, label := range request.AppLabels {
+		if !label.Propagate {
+			continue
+		}
+		labelKey := label.Key
+		labelValue := label.Value
+		err := util2.CheckIfValidLabel(labelKey, labelValue)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	dbConnection := impl.appRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -91,6 +105,7 @@ func (impl AppCrudOperationServiceImpl) UpdateApp(request *bean.CreateAppDTO) (*
 		impl.logger.Errorw("error in fetching app", "error", err)
 		return nil, err
 	}
+	app.Description = request.Description
 	app.TeamId = request.TeamId
 	app.UpdatedOn = time.Now()
 	app.UpdatedBy = request.UserId
@@ -154,9 +169,10 @@ func (impl AppCrudOperationServiceImpl) Create(request *bean.AppLabelDto, tx *pg
 	}
 	if err == pg.ErrNoRows {
 		model := &pipelineConfig.AppLabel{
-			Key:   request.Key,
-			Value: request.Value,
-			AppId: request.AppId,
+			Key:       request.Key,
+			Value:     request.Value,
+			Propagate: request.Propagate,
+			AppId:     request.AppId,
 		}
 		model.CreatedBy = request.UserId
 		model.UpdatedBy = request.UserId
@@ -181,20 +197,21 @@ func (impl AppCrudOperationServiceImpl) UpdateLabelsInApp(request *bean.CreateAp
 	}
 	appLabelMap := make(map[string]*pipelineConfig.AppLabel)
 	for _, appLabel := range appLabels {
-		uniqueLabelExists := fmt.Sprintf("%s:%s", appLabel.Key, appLabel.Value)
+		uniqueLabelExists := fmt.Sprintf("%s:%s:%t", appLabel.Key, appLabel.Value, appLabel.Propagate)
 		if _, ok := appLabelMap[uniqueLabelExists]; !ok {
 			appLabelMap[uniqueLabelExists] = appLabel
 		}
 	}
 
 	for _, label := range request.AppLabels {
-		uniqueLabelRequest := fmt.Sprintf("%s:%s", label.Key, label.Value)
+		uniqueLabelRequest := fmt.Sprintf("%s:%s:%t", label.Key, label.Value, label.Propagate)
 		if _, ok := appLabelMap[uniqueLabelRequest]; !ok {
 			// create new
 			model := &pipelineConfig.AppLabel{
-				Key:   label.Key,
-				Value: label.Value,
-				AppId: request.Id,
+				Key:       label.Key,
+				Value:     label.Value,
+				Propagate: label.Propagate,
+				AppId:     request.Id,
 			}
 			model.CreatedBy = request.UserId
 			model.UpdatedBy = request.UserId
@@ -230,9 +247,10 @@ func (impl AppCrudOperationServiceImpl) FindById(id int) (*bean.AppLabelDto, err
 		return &bean.AppLabelDto{}, nil
 	}
 	label := &bean.AppLabelDto{
-		Key:   model.Key,
-		Value: model.Value,
-		AppId: model.AppId,
+		Key:       model.Key,
+		Value:     model.Value,
+		Propagate: model.Propagate,
+		AppId:     model.AppId,
 	}
 	return label, nil
 }
@@ -249,9 +267,10 @@ func (impl AppCrudOperationServiceImpl) FindAll() ([]*bean.AppLabelDto, error) {
 	}
 	for _, model := range models {
 		dto := &bean.AppLabelDto{
-			AppId: model.AppId,
-			Key:   model.Key,
-			Value: model.Value,
+			AppId:     model.AppId,
+			Key:       model.Key,
+			Value:     model.Value,
+			Propagate: model.Propagate,
 		}
 		results = append(results, dto)
 	}
@@ -275,8 +294,9 @@ func (impl AppCrudOperationServiceImpl) GetAppMetaInfo(appId int) (*bean.AppMeta
 	} else {
 		for _, model := range models {
 			dto := &bean.Label{
-				Key:   model.Key,
-				Value: model.Value,
+				Key:       model.Key,
+				Value:     model.Value,
+				Propagate: model.Propagate,
 			}
 			labels = append(labels, dto)
 		}
@@ -295,15 +315,20 @@ func (impl AppCrudOperationServiceImpl) GetAppMetaInfo(appId int) (*bean.AppMeta
 			userEmailId = fmt.Sprintf("%s (inactive)", user.EmailId)
 		}
 	}
+	appName := app.AppName
+	if app.AppType == helper.Job {
+		appName = app.DisplayName
+	}
 	info := &bean.AppMetaInfoDto{
 		AppId:       app.Id,
-		AppName:     app.AppName,
+		AppName:     appName,
 		ProjectId:   app.TeamId,
 		ProjectName: app.Team.Name,
 		CreatedBy:   userEmailId,
 		CreatedOn:   app.CreatedOn,
 		Labels:      labels,
 		Active:      app.Active,
+		Description: app.Description,
 	}
 	return info, nil
 }
@@ -313,7 +338,7 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.
 	// adding separate function for helm apps because for CLI helm apps, apps can be of form "1|clusterName|releaseName"
 	// In this case app details can be fetched using app name / release Name.
 	appIdSplitted := strings.Split(appId, "|")
-	app := &app.App{}
+	app := &appRepository.App{}
 	var err error
 	impl.logger.Info("request payload, appId", appId)
 	if len(appIdSplitted) > 1 {
@@ -387,6 +412,11 @@ func (impl AppCrudOperationServiceImpl) GetLabelsByAppIdForDeployment(appId int)
 		labelKey := strings.TrimSpace(label.Key)
 		labelValue := strings.TrimSpace(label.Value)
 
+		if !label.Propagate {
+			impl.logger.Warnw("Ignoring label to propagate to app level as propagation is false", "labelKey", labelKey, "labelValue", labelValue, "appId", appId)
+			continue
+		}
+
 		// if labelKey or labelValue is empty then don't add in labels
 		if len(labelKey) == 0 || len(labelValue) == 0 {
 			impl.logger.Warnw("Ignoring label to propagate to app level", "labelKey", labelKey, "labelValue", labelValue, "appId", appId)
@@ -395,16 +425,9 @@ func (impl AppCrudOperationServiceImpl) GetLabelsByAppIdForDeployment(appId int)
 
 		// if labelKey is not satisfying the label key criteria don't add in labels
 		// label key must be a 'qualified name' (https://github.com/kubernetes/website/issues/17969)
-		errs := validation.IsQualifiedName(labelKey)
-		if len(errs) > 0 {
-			impl.logger.Warnw("Ignoring label to propagate to app level", "message", fmt.Sprintf("Validation error - label key - %s is not satisfying the label key criteria", labelKey), "appId", appId)
-			continue
-		}
-
-		// if labelValue is not satisfying the label value criteria don't add in labels
-		errs = validation.IsValidLabelValue(labelValue)
-		if len(errs) > 0 {
-			impl.logger.Warnw("Ignoring label to propagate to app level", "message", fmt.Sprintf("Validation error - label value - %s is not satisfying the label value criteria", labelValue), "appId", appId)
+		err = util2.CheckIfValidLabel(labelKey, labelValue)
+		if err != nil {
+			impl.logger.Warnw("Ignoring label to propagate to app level", "err", err, "appId", appId)
 			continue
 		}
 

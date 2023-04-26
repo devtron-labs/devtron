@@ -3,7 +3,7 @@
 
 # Devtron Installation
 
-Devtron is an open source software delivery workflow for kubernetes written in go. It is designed as a self-serve platform for operationalizing and maintaining applications (AppOps) on kubernetes in a developer friendly way.
+Devtron is an open source software delivery workflow for Kubernetes written in Go language. It is designed as a self-serve platform for operationalizing and maintaining applications (AppOps) on Kubernetes in a developer friendly way.
 
 ## Introduction
 
@@ -15,7 +15,7 @@ It packages third party components like
  - [Argocd](https://github.com/argoproj/argo-cd/) for gitops 
  - [Argo workflows](https://github.com/argoproj/argo) for CI
  - [Clair](https://github.com/quay/clair) & [Guard](https://github.com/guard/guard) for image scanning
- - [Kubernetes External Secrets](https://github.com/godaddy/kubernetes-external-secrets) for ingegrating with external secret management stores like [AWS Secrets Manager](https://aws.amazon.com/secrets-manager/) or [HashiCorp Vault](https://www.vaultproject.io/)
+ - [External Secret Operator](https://github.com/external-secrets/external-secrets) and [Kubernetes External Secrets (Depricated) ](https://github.com/godaddy/kubernetes-external-secrets) for integrating with external secret management systems like [AWS Secrets Manager](https://aws.amazon.com/secrets-manager/) or [HashiCorp Vault](https://www.vaultproject.io/)
  - [Nats](https://github.com/nats-io) for event streaming
  - [Postgres](https://github.com/postgres/postgres) as datastore
  - Fork of [Argo Rollout](https://github.com/argoproj/argo-rollouts) 
@@ -27,11 +27,12 @@ It packages third party components like
 Follow the given steps to install devtron stable release on your kubernetes cluster
 
 ```bash
-$ helm repo add devtron https://helm.devtron.ai
-$ #modify values in values.yaml
-$ helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd -f values.yaml
+helm repo add devtron https://helm.devtron.ai 
+
+helm install devtron devtron/devtron-operator \
+--create-namespace --namespace devtroncd \
+--set installer.modules={cicd}
 ```
-For more details about configuration see the [helm chart configuration](#configuration)
 
 ### Install with Helm (Beta)
 
@@ -58,9 +59,11 @@ $ helm upgrade devtron . --reuse-values --namespace devtroncd -f devtron-bom.yam
 ```
 For more details about configuration see the [helm chart configuration](#configuration)
 
-### Access devtron dashboard
+[Link to](https://docs.devtron.ai/install) more installation options for Devtron.
 
-devtron dashboard in now available at the `BASE_URL/dashboard`, where `BASE_URL` is same as provided in `values.yaml` in case of installation via helm chart OR provided in `charts/template/configmap-secret.yaml` in case of installation via kubectl.
+### Access Devtron dashboard
+
+Devtron dashboard in now available at the `BASE_URL/dashboard`, where `BASE_URL` is same as provided in `values.yaml` in case of installation via Helm chart.
 
 #### Check your current devtron version
 
@@ -74,14 +77,14 @@ kubectl -n devtroncd get installers installer-devtron -o jsonpath='{.status.sync
 
 Use username:`admin` and for password run command mentioned below.
 ```bash
-$ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ADMIN_PASSWORD}' | base64 -d
+kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ADMIN_PASSWORD}' | base64 -d
 ```
 
 #### For Devtron version less than v0.6.0
 
 Use username:`admin` and for password run command mentioned below.
 ```bash
-$ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
+kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
 ```
 
 ### Configuration

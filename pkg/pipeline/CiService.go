@@ -157,7 +157,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 	}
 	impl.Logger.Debugw("ci triggered", "wf name ", createdWf.Name, " pipeline ", trigger.PipelineId)
 
-	middleware.CiTriggerCounter.WithLabelValues(strconv.Itoa(pipeline.AppId), strconv.Itoa(trigger.PipelineId)).Inc()
+	middleware.CiTriggerCounter.WithLabelValues(pipeline.App.AppName, pipeline.Name).Inc()
 	go impl.WriteCITriggerEvent(trigger, pipeline, workflowRequest)
 	return savedCiWf.Id, err
 }
@@ -291,6 +291,10 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	var ciProjectDetails []CiProjectDetails
 	commitHashes := trigger.CommitHashes
 	for _, ciMaterial := range ciMaterials {
+		// ignore those materials which have inactive git material
+		if ciMaterial == nil || ciMaterial.GitMaterial == nil || !ciMaterial.GitMaterial.Active {
+			continue
+		}
 		commitHashForPipelineId := commitHashes[ciMaterial.Id]
 		ciProjectDetail := CiProjectDetails{
 			GitRepository:   ciMaterial.GitMaterial.Url,
@@ -442,19 +446,6 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		WorkflowNamePrefix:         strconv.Itoa(savedWf.Id) + "-" + savedWf.Name,
 		PipelineName:               pipeline.Name,
 		PipelineId:                 pipeline.Id,
-		DockerRegistryId:           dockerRegistry.Id,
-		DockerRegistryType:         string(dockerRegistry.RegistryType),
-		DockerImageTag:             dockerImageTag,
-		DockerRegistryURL:          dockerRegistry.RegistryURL,
-		DockerRepository:           dockerRepository,
-		CheckoutPath:               checkoutPath,
-		DockerUsername:             dockerRegistry.Username,
-		DockerPassword:             dockerRegistry.Password,
-		AwsRegion:                  dockerRegistry.AWSRegion,
-		AccessKey:                  dockerRegistry.AWSAccessKeyId,
-		SecretKey:                  dockerRegistry.AWSSecretAccessKey,
-		DockerConnection:           dockerRegistry.Connection,
-		DockerCert:                 dockerRegistry.Cert,
 		CiCacheFileName:            pipeline.Name + "-" + strconv.Itoa(pipeline.Id) + ".tar.gz",
 		CiProjectDetails:           ciProjectDetails,
 		Namespace:                  ciWorkflowConfig.Namespace,
@@ -476,9 +467,27 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		CiBuildConfig:              ciBuildConfigBean,
 		CiBuildDockerMtuValue:      impl.ciConfig.CiRunnerDockerMTUValue,
 		IgnoreDockerCachePush:      impl.ciConfig.IgnoreDockerCacheForCI,
-		IgnoreDockerCachePull:      impl.ciConfig.IgnoreDockerCacheForCI || trigger.InvalidateCache,
+		IgnoreDockerCachePull:      impl.ciConfig.IgnoreDockerCacheForCI,
+		CacheInvalidate:            trigger.InvalidateCache,
+		ExtraEnvironmentVariables:  trigger.ExtraEnvironmentVariables,
 	}
+	if dockerRegistry != nil {
 
+		workflowRequest.DockerRegistryId = dockerRegistry.Id
+		workflowRequest.DockerRegistryType = string(dockerRegistry.RegistryType)
+		workflowRequest.DockerImageTag = dockerImageTag
+		workflowRequest.DockerRegistryURL = dockerRegistry.RegistryURL
+		workflowRequest.DockerRepository = dockerRepository
+		workflowRequest.CheckoutPath = checkoutPath
+		workflowRequest.DockerUsername = dockerRegistry.Username
+		workflowRequest.DockerPassword = dockerRegistry.Password
+		workflowRequest.AwsRegion = dockerRegistry.AWSRegion
+		workflowRequest.AccessKey = dockerRegistry.AWSAccessKeyId
+		workflowRequest.SecretKey = dockerRegistry.AWSSecretAccessKey
+		workflowRequest.DockerConnection = dockerRegistry.Connection
+		workflowRequest.DockerCert = dockerRegistry.Cert
+
+	}
 	if ciWorkflowConfig.LogsBucket == "" {
 		ciWorkflowConfig.LogsBucket = impl.ciConfig.DefaultBuildLogsBucket
 	}
