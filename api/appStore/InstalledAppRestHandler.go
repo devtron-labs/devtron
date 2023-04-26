@@ -26,6 +26,7 @@ import (
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
+	"github.com/devtron-labs/devtron/client/cron"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	util2 "github.com/devtron-labs/devtron/internal/util"
@@ -61,18 +62,20 @@ type InstalledAppRestHandler interface {
 }
 
 type InstalledAppRestHandlerImpl struct {
-	Logger                    *zap.SugaredLogger
-	userAuthService           user.UserService
-	enforcer                  casbin.Enforcer
-	enforcerUtil              rbac.EnforcerUtil
-	installedAppService       service.InstalledAppService
-	validator                 *validator.Validate
-	clusterService            cluster.ClusterService
-	acdServiceClient          application.ServiceClient
-	appStoreDeploymentService service.AppStoreDeploymentService
-	helmAppClient             client.HelmAppClient
-	helmAppService            client.HelmAppService
-	argoUserService           argo.ArgoUserService
+	Logger                           *zap.SugaredLogger
+	userAuthService                  user.UserService
+	enforcer                         casbin.Enforcer
+	enforcerUtil                     rbac.EnforcerUtil
+	installedAppService              service.InstalledAppService
+	validator                        *validator.Validate
+	clusterService                   cluster.ClusterService
+	acdServiceClient                 application.ServiceClient
+	appStoreDeploymentService        service.AppStoreDeploymentService
+	helmAppClient                    client.HelmAppClient
+	helmAppService                   client.HelmAppService
+	argoUserService                  argo.ArgoUserService
+	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler
+	installedAppRepository           repository.InstalledAppRepository
 }
 
 func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
@@ -80,20 +83,24 @@ func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService u
 	validator *validator.Validate, clusterService cluster.ClusterService, acdServiceClient application.ServiceClient,
 	appStoreDeploymentService service.AppStoreDeploymentService, helmAppClient client.HelmAppClient, helmAppService client.HelmAppService,
 	argoUserService argo.ArgoUserService,
+	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler,
+	installedAppRepository repository.InstalledAppRepository,
 ) *InstalledAppRestHandlerImpl {
 	return &InstalledAppRestHandlerImpl{
-		Logger:                    Logger,
-		userAuthService:           userAuthService,
-		enforcer:                  enforcer,
-		enforcerUtil:              enforcerUtil,
-		installedAppService:       installedAppService,
-		validator:                 validator,
-		clusterService:            clusterService,
-		acdServiceClient:          acdServiceClient,
-		appStoreDeploymentService: appStoreDeploymentService,
-		helmAppService:            helmAppService,
-		helmAppClient:             helmAppClient,
-		argoUserService:           argoUserService,
+		Logger:                           Logger,
+		userAuthService:                  userAuthService,
+		enforcer:                         enforcer,
+		enforcerUtil:                     enforcerUtil,
+		installedAppService:              installedAppService,
+		validator:                        validator,
+		clusterService:                   clusterService,
+		acdServiceClient:                 acdServiceClient,
+		appStoreDeploymentService:        appStoreDeploymentService,
+		helmAppService:                   helmAppService,
+		helmAppClient:                    helmAppClient,
+		argoUserService:                  argoUserService,
+		cdApplicationStatusUpdateHandler: cdApplicationStatusUpdateHandler,
+		installedAppRepository:           installedAppRepository,
 	}
 }
 
@@ -492,6 +499,13 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 	if len(installedApp.App.AppName) > 0 && len(installedApp.Environment.Name) > 0 {
 		err = handler.fetchResourceTree(w, r, &resourceTreeAndNotesContainer, *installedApp)
 		if installedApp.DeploymentAppType == util2.PIPELINE_DEPLOYMENT_TYPE_ACD {
+			//resource tree has been fetched now prepare to sync application deployment status with this resource tree call
+			go func() {
+				err := handler.syncAppStoreAppDeploymentStatusWithResourceTreeCall(appDetail.AppStoreInstalledAppVersionId)
+				if err != nil {
+					handler.Logger.Errorw("error syncing deployment status for installed_app with resource tree call ", "err", err)
+				}
+			}()
 			apiError, ok := err.(*util2.ApiError)
 			if ok && apiError != nil {
 				if apiError.Code == constants.AppDetailResourceTreeNotFound && installedApp.DeploymentAppDeleteRequest == true {
@@ -511,6 +525,18 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 	appDetail.ResourceTree = resourceTreeAndNotesContainer.ResourceTree
 	appDetail.Notes = resourceTreeAndNotesContainer.Notes
 	common.WriteJsonResp(w, nil, appDetail, http.StatusOK)
+}
+
+func (handler *InstalledAppRestHandlerImpl) syncAppStoreAppDeploymentStatusWithResourceTreeCall(installedAppVersionId int) error {
+	installedAppVersion, err := handler.installedAppRepository.GetInstalledAppVersion(installedAppVersionId)
+	if err != nil {
+		handler.Logger.Errorw("error in getting installed_app_version in FetchAppDetailsForInstalledApp", "err", err, "installedAppVersionId", installedAppVersionId)
+	}
+	err = handler.cdApplicationStatusUpdateHandler.SyncPipelineStatusForAppStoreForResourceTreeCall(installedAppVersion)
+	if err != nil {
+		handler.Logger.Errorw("error in syncing deployment status for installed_app ", "err", err, "installedAppVersion", installedAppVersion)
+	}
+	return err
 }
 
 func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledAppV2(w http.ResponseWriter, r *http.Request) {
@@ -594,6 +620,12 @@ func (handler *InstalledAppRestHandlerImpl) FetchResourceTree(w http.ResponseWri
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
+	appDetail, err := handler.installedAppService.FindAppDetailsForAppstoreApplication(installedAppId, envId)
+	if err != nil {
+		handler.Logger.Errorw("service err, FetchAppDetailsForInstalledApp, app store", "err", err, "installedAppId", installedAppId, "envId", envId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
 
 	resourceTreeAndNotesContainer := bean2.ResourceTreeAndNotesContainer{}
 	resourceTreeAndNotesContainer.ResourceTree = map[string]interface{}{}
@@ -601,6 +633,17 @@ func (handler *InstalledAppRestHandlerImpl) FetchResourceTree(w http.ResponseWri
 	if len(installedApp.App.AppName) > 0 && len(installedApp.Environment.Name) > 0 {
 		err = handler.fetchResourceTree(w, r, &resourceTreeAndNotesContainer, *installedApp)
 		if installedApp.DeploymentAppType == util2.PIPELINE_DEPLOYMENT_TYPE_ACD {
+			//resource tree has been fetched now prepare to sync application deployment status with this resource tree call
+			go func() {
+				installedAppVersion, err := handler.installedAppRepository.GetInstalledAppVersion(appDetail.AppStoreInstalledAppVersionId)
+				if err != nil {
+					handler.Logger.Errorw("error in getting installed_app_version in FetchAppDetailsForInstalledApp", "err", err)
+				}
+				err = handler.cdApplicationStatusUpdateHandler.SyncPipelineStatusForAppStoreForResourceTreeCall(installedAppVersion)
+				if err != nil {
+					handler.Logger.Errorw("error in syncing deployment status for installed_app ", "err", err, "installedAppVersion", installedAppVersion)
+				}
+			}()
 			apiError, ok := err.(*util2.ApiError)
 			if ok && apiError != nil {
 				if apiError.Code == constants.AppDetailResourceTreeNotFound && installedApp.DeploymentAppDeleteRequest == true {
