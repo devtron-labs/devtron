@@ -487,7 +487,7 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team, entity
 		return false, err, policiesToBeAdded
 	}
 	//getting updated policies
-	Policies, err := util.TprintfWithMissingKey(PoliciesDb, rolePolicyDetails)
+	Policies, err := util.Tprintf(PoliciesDb, rolePolicyDetails)
 	if err != nil {
 		impl.Logger.Errorw("error in getting updated policies", "err", err, "roleType", bean2.RoleType(actionType), accessType)
 		return false, err, policiesToBeAdded
@@ -507,7 +507,7 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team, entity
 	if err != nil {
 		return false, err, nil
 	}
-	role, err := util.TprintfWithMissingKey(roleDb, rolePolicyDetails)
+	role, err := util.Tprintf(roleDb, rolePolicyDetails)
 	if err != nil {
 		impl.Logger.Errorw("error in getting updated role", "err", err, "roleType", bean2.RoleType(actionType))
 		return false, err, nil
@@ -647,14 +647,14 @@ func (impl UserAuthRepositoryImpl) SyncOrchestratorToCasbin(team string, entityN
 	}
 
 	//getting updated trigger policies
-	triggerPolicies, err := util.TprintfWithMissingKey(triggerPoliciesDb, policyDetails)
+	triggerPolicies, err := util.Tprintf(triggerPoliciesDb, policyDetails)
 	if err != nil {
 		impl.Logger.Errorw("error in getting updated policies", "err", err, "roleType", bean2.TRIGGER_TYPE)
 		return false, err
 	}
 
 	//getting updated view policies
-	viewPolicies, err := util.TprintfWithMissingKey(viewPoliciesDb, policyDetails)
+	viewPolicies, err := util.Tprintf(viewPoliciesDb, policyDetails)
 	if err != nil {
 		impl.Logger.Errorw("error in getting updated policies", "err", err, "roleType", bean2.VIEW_TYPE)
 		return false, err
@@ -890,7 +890,7 @@ func (impl UserAuthRepositoryImpl) GetUpdatedAddedOrDeletedPolicies(policies []c
 		return policyResp, err
 	}
 	//getting updated policy
-	updatedPolicy, err := util.TprintfWithMissingKey(string(policy), rolePolicyDetails)
+	updatedPolicy, err := util.Tprintf(string(policy), rolePolicyDetails)
 	if err != nil {
 		impl.Logger.Errorw("error in getting updated policy", "err", err)
 		return policyResp, err
