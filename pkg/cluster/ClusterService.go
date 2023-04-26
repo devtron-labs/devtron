@@ -234,6 +234,7 @@ func (impl *ClusterServiceImpl) SaveClusters(beans []*ClusterBean, userId int32)
 		err = impl.clusterRepository.SaveBulk(models)
 		if err != nil {
 			impl.logger.Errorw("Error in saving clusters", "err", err, "clusters", models)
+			return nil, err
 		}
 	}
 	return beans, nil
