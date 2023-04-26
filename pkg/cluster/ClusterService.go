@@ -231,7 +231,7 @@ func (impl *ClusterServiceImpl) SaveClusters(beans []*ClusterBean, userId int32)
 		models = append(models, model)
 	}
 	if !errorInSaving {
-		err = impl.clusterRepository.SaveBulk(models)
+		err = impl.clusterRepository.SaveAll(models)
 		if err != nil {
 			impl.logger.Errorw("Error in saving clusters", "err", err, "clusters", models)
 			return nil, err
@@ -1165,7 +1165,6 @@ func (impl ClusterServiceImpl) ConvertClusterBeanObjectToCluster(bean *ClusterBe
 	}
 
 	if !bean.InsecureSkipTLSVerify {
-		tlsConfig.ServerName = serverUrl
 		tlsConfig.KeyData = []byte(bean.Config["tls_key"])
 		tlsConfig.CertData = []byte(bean.Config["cert_data"])
 		tlsConfig.CAData = []byte(bean.Config["cert_auth_data"])
