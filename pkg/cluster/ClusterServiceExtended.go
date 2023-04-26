@@ -7,6 +7,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/util/ArgoUtil"
 	repository4 "github.com/devtron-labs/devtron/pkg/user/repository"
 	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
@@ -34,7 +35,8 @@ type ClusterServiceImplExtended struct {
 	K8sInformerFactory     informer.K8sInformerFactory
 	gitOpsRepository       repository3.GitOpsConfigRepository
 	*ClusterServiceImpl
-	k8sClient argocdServer.ArgoK8sClient
+	k8sClient      argocdServer.ArgoK8sClient
+	ClusterService ArgoUtil.ArgoClusterService
 }
 
 func NewClusterServiceImplExtended(repository repository.ClusterRepository, environmentRepository repository.EnvironmentRepository,
@@ -42,7 +44,7 @@ func NewClusterServiceImplExtended(repository repository.ClusterRepository, envi
 	K8sUtil *util.K8sUtil,
 	clusterServiceCD cluster2.ServiceClient, K8sInformerFactory informer.K8sInformerFactory,
 	gitOpsRepository repository3.GitOpsConfigRepository, userAuthRepository repository4.UserAuthRepository,
-	userRepository repository4.UserRepository, roleGroupRepository repository4.RoleGroupRepository, k8sClient argocdServer.ArgoK8sClient) *ClusterServiceImplExtended {
+	userRepository repository4.UserRepository, roleGroupRepository repository4.RoleGroupRepository, k8sClient argocdServer.ArgoK8sClient, ClusterService ArgoUtil.ArgoClusterService) *ClusterServiceImplExtended {
 	clusterServiceExt := &ClusterServiceImplExtended{
 		environmentRepository:  environmentRepository,
 		grafanaClient:          grafanaClient,
@@ -50,6 +52,7 @@ func NewClusterServiceImplExtended(repository repository.ClusterRepository, envi
 		clusterServiceCD:       clusterServiceCD,
 		gitOpsRepository:       gitOpsRepository,
 		k8sClient:              k8sClient,
+		ClusterService:         ClusterService,
 		ClusterServiceImpl: &ClusterServiceImpl{
 			clusterRepository:   repository,
 			logger:              logger,
@@ -342,20 +345,21 @@ func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterB
 			bearerToken = configMap["bearer_token"]
 		}
 
-		tlsconfig := argocdServer.TLSClientConfig{
+		tlsConfig := ArgoUtil.TLSClientConfig{
 			Insecure: true,
 		}
-		cdClusterConfig := argocdServer.Clusterconfig{
+		cdClusterConfig := ArgoUtil.Clusterconfig{
 			BearerToken:     bearerToken,
-			TLSClientConfig: tlsconfig,
+			TLSClientConfig: tlsConfig,
 		}
-		cl := argocdServer.Clustertest{
+
+		cl := &ArgoUtil.ClusterRequest{
 			Name:   bean.ClusterName,
 			Server: serverUrl,
 			Config: cdClusterConfig,
 		}
 
-		_, err = impl.k8sClient.CreateCluster(ctx, argocdServer.Clusterrequest{Upsert: true, Clustertest: cl})
+		_, err = impl.ClusterService.CreateClusterWithGitpos(cl)
 		if err != nil {
 			impl.logger.Errorw("service err, Save", "err", err, "payload", cl)
 			err1 := impl.ClusterServiceImpl.Delete(bean, userId) //FIXME nishant call local

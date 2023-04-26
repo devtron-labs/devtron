@@ -19,9 +19,11 @@ package ArgoUtil
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"github.com/caarlos0/env"
+	"github.com/devtron-labs/devtron/util/argo"
 	"go.uber.org/zap"
 	"io"
 	"io/ioutil"
@@ -39,10 +41,28 @@ type ArgoConfig struct {
 }
 
 type ArgoSession struct {
-	httpClient *http.Client
-	logger     *zap.SugaredLogger
-	baseUrl    *url.URL
+	httpClient  *http.Client
+	logger      *zap.SugaredLogger
+	baseUrl     *url.URL
+	argocdToken argo.ArgoUserService
 }
+
+func NewArgoSession(httpClient *http.Client, logger *zap.SugaredLogger, argocdToken argo.ArgoUserService) *ArgoSession {
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
+	return &ArgoSession{
+		httpClient:  client,
+		logger:      logger,
+		argocdToken: argocdToken,
+		baseUrl: &url.URL{
+			Scheme: "https",
+			Host:   "172.190.10.24:31605",
+		},
+	}
+}
+
 type StatusCode int
 
 func (code StatusCode) IsSuccess() bool {
@@ -83,10 +103,13 @@ func (session *ArgoSession) DoRequest(clientRequest *ClientRequest) (resBody []b
 		}
 
 	}
-	httpReq, err := http.NewRequest(clientRequest.Method, rel.String(), body)
+	httpReq, err := http.NewRequest("POST", rel.String(), body)
 	if err != nil {
 		return nil, nil, err
 	}
+	argocdToken, _ := session.argocdToken.GetLatestDevtronArgoCdUserToken()
+	httpReq.Header.Set("Authorization", fmt.Sprintf("Bearer %s", argocdToken))
+	httpReq.Header.Set("Content-Type", "application/json")
 	httpRes, err := session.httpClient.Do(httpReq)
 	if err != nil {
 		return nil, nil, err
@@ -107,33 +130,33 @@ func (session *ArgoSession) DoRequest(clientRequest *ClientRequest) (resBody []b
 	return resBody, &status, err
 }
 
-func NewArgoSession(config *ArgoConfig, logger *zap.SugaredLogger) (session *ArgoSession, err error) {
-	/*location := "/api/v1/session"
-	baseUrl, err := url.Parse(config.Url)
-	if err != nil {
-		return nil, err
-	}
-	rel, err := baseUrl.Parse(location)
-	param := map[string]string{}
-	param["username"] = "admin"
-	param["password"] = "argocd-server-6cd5bcffd4-j6kcx"
-	paramJson, err := json.Marshal(param)
-	if err != nil {
-		return nil, err
-	}
-	req, _ := http.NewRequest("POST", rel.String(), bytes.NewBuffer(paramJson))
-	transCfg := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: config.InsecureSkipVerify},
-	}
-	cookieJar, err := cookiejar.New(nil)
-	if err != nil {
-		return nil, err
-	}
-	client := &http.Client{Transport: transCfg, Jar: cookieJar, Timeout: time.Duration(config.Timeout)}
-	res, err := client.Do(req)
-	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK {
-		return nil, err
-	}*/
-	return &ArgoSession{}, nil
-}
+//func NewArgoSession(config *ArgoConfig, logger *zap.SugaredLogger) (session *ArgoSession, err error) {
+//	location := "/api/v1/session"
+//	baseUrl, err := url.Parse(config.Url)
+//	if err != nil {
+//		return nil, err
+//	}
+//	rel, err := baseUrl.Parse(location)
+//	param := map[string]string{}
+//	param["username"] = "admin"
+//	param["password"] = "argocd-server-6cd5bcffd4-j6kcx"
+//	paramJson, err := json.Marshal(param)
+//	if err != nil {
+//		return nil, err
+//	}
+//	req, _ := http.NewRequest("POST", rel.String(), bytes.NewBuffer(paramJson))
+//	transCfg := &http.Transport{
+//		TLSClientConfig: &tls.Config{InsecureSkipVerify: config.InsecureSkipVerify},
+//	}
+//	cookieJar, err := cookiejar.New(nil)
+//	if err != nil {
+//		return nil, err
+//	}
+//	client := &http.Client{Transport: transCfg, Jar: cookieJar, Timeout: time.Duration(config.Timeout)}
+//	res, err := client.Do(req)
+//	defer res.Body.Close()
+//	if res.StatusCode != http.StatusOK {
+//		return nil, err
+//	}
+//	return &ArgoSession{}, nil
+//}

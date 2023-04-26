@@ -17,11 +17,12 @@
 
 package ArgoUtil
 
-func GetTestClient() (session *ArgoSession, err error) {
-	config, err := GetArgoConfig()
-	if err != nil {
-		return nil, err
-	}
-	session, err = NewArgoSession(config, nil)
-	return session, err
-}
+//
+//func GetTestClient() (session *ArgoSession, err error) {
+//	config, err := GetArgoConfig()
+//	if err != nil {
+//		return nil, err
+//	}
+//	session, err = NewArgoSession(config, nil)
+//	return session, err
+//}
