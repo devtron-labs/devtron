@@ -52,7 +52,7 @@ set role = '{
     "team": "{{.Team}}",
     "entityName": "{{.App}}",
     "environment": "{{.Env}}",
-    "approver":{{.Approver}},
+    "approver":"{{.Approver}}",
     "action": "manager",
     "accessType": "devtron-app"
 }' where id = 1;
@@ -66,7 +66,7 @@ set role = '{
      "team": "{{.Team}}",
      "entityName": "{{.App}}",
      "environment": "{{.Env}}",
-     "approver":{{.Approver}},
+     "approver":"{{.Approver}}",
      "action": "admin",
      "accessType": "devtron-app"
 }' where id = 2;
@@ -80,7 +80,7 @@ set role = '{
      "team": "{{.Team}}",
      "entityName": "{{.App}}",
      "environment": "{{.Env}}",
-     "approver":{{.Approver}},
+     "approver":"{{.Approver}}",
      "action": "trigger",
      "accessType": "devtron-app"
 }' where id = 3;
@@ -94,7 +94,7 @@ set role = '{
     "team": "{{.Team}}",
     "entityName": "{{.App}}",
     "environment": "{{.Env}}",
-    "approver":{{.Approver}},
+    "approver": "{{.Approver}}",
     "action": "view",
     "accessType": "devtron-app"
 }' where id = 4;

@@ -32,3 +32,12 @@ func Tprintf(tmpl string, data interface{}) (string, error) {
 	}
 	return buf.String(), nil
 }
+
+func TprintfWithMissingKey(tmpl string, data interface{}) (string, error) {
+	t := template.Must(template.New("tpl").Option("missingkey=zero").Parse(tmpl))
+	buf := &bytes.Buffer{}
+	if err := t.Execute(buf, data); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
+}
