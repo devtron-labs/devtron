@@ -92,19 +92,21 @@ type K8sCapacityServiceImpl struct {
 	k8sApplicationService K8sApplicationService
 	k8sClientService      application.K8sClientService
 	clusterCronService    ClusterCronService
+	K8sUtil               *util.K8sUtil
 }
 
 func NewK8sCapacityServiceImpl(Logger *zap.SugaredLogger,
 	clusterService cluster.ClusterService,
 	k8sApplicationService K8sApplicationService,
 	k8sClientService application.K8sClientService,
-	clusterCronService ClusterCronService) *K8sCapacityServiceImpl {
+	clusterCronService ClusterCronService, K8sUtil *util.K8sUtil) *K8sCapacityServiceImpl {
 	return &K8sCapacityServiceImpl{
 		logger:                Logger,
 		clusterService:        clusterService,
 		k8sApplicationService: k8sApplicationService,
 		k8sClientService:      k8sClientService,
 		clusterCronService:    clusterCronService,
+		K8sUtil:               K8sUtil,
 	}
 }
 
@@ -262,7 +264,15 @@ func (impl *K8sCapacityServiceImpl) updateMetricsData(ctx context.Context, metri
 
 func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailsListByCluster(ctx context.Context, cluster *cluster.ClusterBean) ([]*NodeCapacityDetail, error) {
 	//getting rest config by clusterId
-	restConfig, err := impl.k8sApplicationService.GetRestConfigByCluster(ctx, cluster)
+	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(&util.ClusterConfig{
+		ClusterName:           cluster.ClusterName,
+		Host:                  cluster.ServerUrl,
+		BearerToken:           cluster.Config["bearer_token"],
+		InsecureSkipTLSVerify: cluster.InsecureSkipTLSVerify,
+		KeyData:               cluster.Config["tls_key"],
+		CertData:              cluster.Config["cert_data"],
+		CAData:                cluster.Config["cert_auth_data"],
+	})
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster", "err", err, "clusterId", cluster.Id)
 		return nil, err
@@ -354,7 +364,15 @@ func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailByNameAndCluster(ctx co
 }
 
 func (impl *K8sCapacityServiceImpl) getK8sConfigAndClients(ctx context.Context, cluster *cluster.ClusterBean) (*rest.Config, *http.Client, *kubernetes.Clientset, error) {
-	restConfig, err := impl.k8sApplicationService.GetRestConfigByCluster(ctx, cluster)
+	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(&util.ClusterConfig{
+		ClusterName:           cluster.ClusterName,
+		Host:                  cluster.ServerUrl,
+		BearerToken:           cluster.Config["bearer_token"],
+		InsecureSkipTLSVerify: cluster.InsecureSkipTLSVerify,
+		KeyData:               cluster.Config["tls_key"],
+		CertData:              cluster.Config["cert_data"],
+		CAData:                cluster.Config["cert_auth_data"],
+	})
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster", "err", err, "clusterId", cluster.Id)
 		return nil, nil, nil, err

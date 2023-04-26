@@ -93,9 +93,14 @@ func (impl *K8sInformerFactoryImpl) BuildInformer(clusterInfo []*bean.ClusterInf
 			impl.buildInformerAndNamespaceList(info.ClusterName, restConfig, &impl.mutex)
 		} else {
 			c := &rest.Config{
-				Host:            info.ServerUrl,
-				BearerToken:     info.BearerToken,
-				TLSClientConfig: rest.TLSClientConfig{Insecure: true},
+				Host:        info.ServerUrl,
+				BearerToken: info.BearerToken,
+				TLSClientConfig: rest.TLSClientConfig{
+					Insecure: info.InsecureSkipTLSVerify,
+					KeyData:  []byte(info.KeyData),
+					CertData: []byte(info.CertData),
+					CAData:   []byte(info.CAData),
+				},
 			}
 			impl.buildInformerAndNamespaceList(info.ClusterName, c, &impl.mutex)
 		}

@@ -442,7 +442,13 @@ func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequ
 	cfg := &rest.Config{}
 	cfg.Host = config.Host
 	cfg.BearerToken = config.BearerToken
-	cfg.Insecure = true
+	cfg.Insecure = config.InsecureSkipTLSVerify
+	if config.InsecureSkipTLSVerify == false {
+		cfg.KeyData = []byte(config.KeyData)
+		cfg.CertData = []byte(config.CertData)
+		cfg.CAData = []byte(config.CAData)
+	}
+
 	k8sHttpClient, err := util.OverrideK8sHttpClientWithTracer(cfg)
 	if err != nil {
 		return nil, nil, err

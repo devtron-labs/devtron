@@ -39,6 +39,7 @@ type Cluster struct {
 	AgentInstallationStage int               `sql:"agent_installation_stage"`
 	K8sVersion             string            `sql:"k8s_version"`
 	ErrorInConnecting      string            `sql:"error_in_connecting"`
+	InsecureSkipTlsVerify  bool              `sql:"insecure_skip_tls_verify"`
 	sql.AuditLog
 }
 
@@ -55,6 +56,8 @@ type ClusterRepository interface {
 	Delete(model *Cluster) error
 	MarkClusterDeleted(model *Cluster) error
 	UpdateClusterConnectionStatus(clusterId int, errorInConnecting string) error
+	FindActiveClusters() ([]Cluster, error)
+	SaveBulk(models []*Cluster) error
 }
 
 func NewClusterRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *ClusterRepositoryImpl {
@@ -73,6 +76,10 @@ func (impl ClusterRepositoryImpl) Save(model *Cluster) error {
 	return impl.dbConnection.Insert(model)
 }
 
+func (impl ClusterRepositoryImpl) SaveBulk(models []*Cluster) error {
+	return impl.dbConnection.Insert(models)
+}
+
 func (impl ClusterRepositoryImpl) FindOne(clusterName string) (*Cluster, error) {
 	cluster := &Cluster{}
 	err := impl.dbConnection.
@@ -82,6 +89,13 @@ func (impl ClusterRepositoryImpl) FindOne(clusterName string) (*Cluster, error) 
 		Limit(1).
 		Select()
 	return cluster, err
+}
+
+func (impl ClusterRepositoryImpl) FindActiveClusters() ([]Cluster, error) {
+	activeClusters := make([]Cluster, 0)
+	query := "select cluster_name, active from cluster where active = true"
+	_, err := impl.dbConnection.Query(&activeClusters, query)
+	return activeClusters, err
 }
 
 func (impl ClusterRepositoryImpl) FindOneActive(clusterName string) (*Cluster, error) {
