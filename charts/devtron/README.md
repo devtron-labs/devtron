@@ -54,7 +54,7 @@ $ git clone [https://github.com/devtron-labs/devtron.git](https://github.com/dev
 $ cd devtron/charts/devtron
 $ helm dependency up
 $ #modify values in values.yaml
-$ helm upgrade devtron . --namespace devtroncd -f values.yaml
+$ helm upgrade devtron . --reuse-values --namespace devtroncd -f devtron-bom.yaml
 ```
 For more details about configuration see the [helm chart configuration](#configuration)
 
