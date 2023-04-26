@@ -174,16 +174,17 @@ func (impl *K8sCapacityServiceImpl) setBasicClusterDetails(nodeList *corev1.Node
 	var clusterCpuAllocatable resource.Quantity
 	var clusterMemoryAllocatable resource.Quantity
 	nodeCount := 0
-	clusterNodeDetails := make([]NodeNameGroupName, 0)
+	clusterNodeDetails := make([]NodeDetails, 0)
 	nodesK8sVersionMap := make(map[string]bool)
 	//map of node condition and name of all nodes that condition is true on
 	nodeErrors := make(map[corev1.NodeConditionType][]string)
 	var nodesK8sVersion []string
 	for _, node := range nodeList.Items {
-		nodeGroup := impl.getNodeGroup(&node)
-		nodeNameGroupName := NodeNameGroupName{
+		nodeGroup, taints := impl.getNodeGroupAndTaints(&node)
+		nodeNameGroupName := NodeDetails{
 			NodeName:  node.Name,
 			NodeGroup: nodeGroup,
+			Taints:    taints,
 		}
 		clusterNodeDetails = append(clusterNodeDetails, nodeNameGroupName)
 		errorsInNode := findNodeErrors(&node)
@@ -370,6 +371,12 @@ func (impl *K8sCapacityServiceImpl) getK8sConfigAndClients(ctx context.Context, 
 	}
 	return restConfig, k8sHttpClient, k8sClientSet, nil
 }
+func (impl *K8sCapacityServiceImpl) getNodeGroupAndTaints(node *corev1.Node) (string, []*LabelAnnotationTaintObject) {
+
+	nodeGroup := impl.getNodeGroup(node)
+	taints := impl.getTaints(node)
+	return nodeGroup, taints
+}
 
 func (impl *K8sCapacityServiceImpl) getNodeGroup(node *corev1.Node) string {
 	var nodeGroup = ""
@@ -442,16 +449,9 @@ func (impl *K8sCapacityServiceImpl) getNodeDetail(ctx context.Context, node *cor
 }
 
 func (impl *K8sCapacityServiceImpl) getNodeLabelsAndTaints(node *corev1.Node) ([]*LabelAnnotationTaintObject, []*LabelAnnotationTaintObject) {
-	var taints []*LabelAnnotationTaintObject
+
 	var labels []*LabelAnnotationTaintObject
-	for _, taint := range node.Spec.Taints {
-		taintObj := &LabelAnnotationTaintObject{
-			Key:    taint.Key,
-			Value:  taint.Value,
-			Effect: string(taint.Effect),
-		}
-		taints = append(taints, taintObj)
-	}
+	taints := impl.getTaints(node)
 	for k, v := range node.Labels {
 		labelObj := &LabelAnnotationTaintObject{
 			Key:   k,
@@ -460,6 +460,19 @@ func (impl *K8sCapacityServiceImpl) getNodeLabelsAndTaints(node *corev1.Node) ([
 		labels = append(labels, labelObj)
 	}
 	return labels, taints
+}
+
+func (impl *K8sCapacityServiceImpl) getTaints(node *corev1.Node) []*LabelAnnotationTaintObject {
+	var taints []*LabelAnnotationTaintObject
+	for _, taint := range node.Spec.Taints {
+		taintObj := &LabelAnnotationTaintObject{
+			Key:    taint.Key,
+			Value:  taint.Value,
+			Effect: string(taint.Effect),
+		}
+		taints = append(taints, taintObj)
+	}
+	return taints
 }
 
 func (impl *K8sCapacityServiceImpl) updateBasicDetailsForNode(nodeDetail *NodeCapacityDetail, node *corev1.Node, podCount int, nodeUsageResourceList corev1.ResourceList, cpuAllocatable resource.Quantity, memoryAllocatable resource.Quantity) {

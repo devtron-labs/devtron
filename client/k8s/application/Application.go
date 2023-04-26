@@ -50,6 +50,7 @@ type K8sRequestBean struct {
 	ResourceIdentifier ResourceIdentifier `json:"resourceIdentifier"`
 	Patch              string             `json:"patch,omitempty"`
 	PodLogsRequest     PodLogsRequest     `json:"podLogsRequest,omitempty"`
+	ForceDelete        bool               `json:"-"`
 }
 
 type PodLogsRequest struct {
@@ -156,20 +157,25 @@ func (impl K8sClientServiceImpl) DeleteResource(ctx context.Context, restConfig 
 	}
 	resourceIdentifier := request.ResourceIdentifier
 	var obj *unstructured.Unstructured
+	deleteOptions := metav1.DeleteOptions{}
+	if request.ForceDelete {
+		var gracePeriodSeconds int64 = 0
+		deleteOptions.GracePeriodSeconds = &gracePeriodSeconds
+	}
 	if len(resourceIdentifier.Namespace) > 0 && namespaced {
 		obj, err = resourceIf.Namespace(resourceIdentifier.Namespace).Get(ctx, request.ResourceIdentifier.Name, metav1.GetOptions{})
 		if err != nil {
 			impl.logger.Errorw("error in getting resource", "err", err, "resource", resourceIdentifier.Name)
 			return nil, err
 		}
-		err = resourceIf.Namespace(resourceIdentifier.Namespace).Delete(ctx, request.ResourceIdentifier.Name, metav1.DeleteOptions{})
+		err = resourceIf.Namespace(resourceIdentifier.Namespace).Delete(ctx, request.ResourceIdentifier.Name, deleteOptions)
 	} else {
 		obj, err = resourceIf.Get(ctx, request.ResourceIdentifier.Name, metav1.GetOptions{})
 		if err != nil {
 			impl.logger.Errorw("error in getting resource", "err", err, "resource", resourceIdentifier.Name)
 			return nil, err
 		}
-		err = resourceIf.Delete(ctx, request.ResourceIdentifier.Name, metav1.DeleteOptions{})
+		err = resourceIf.Delete(ctx, request.ResourceIdentifier.Name, deleteOptions)
 	}
 	if err != nil {
 		impl.logger.Errorw("error in deleting resource", "err", err, "resource", resourceIdentifier.Name)
