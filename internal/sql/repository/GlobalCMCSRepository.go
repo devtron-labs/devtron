@@ -47,9 +47,9 @@ type GlobalCMCS struct {
 	Type       string   `sql:"type"` // [environment, volume]
 	//json string of map of key:value, example: '{ "a" : "b", "c" : "d"}'
 	Data               string `sql:"data"`
-	MountPath          string          `sql:"mount_path"`
-	Deleted            bool            `sql:"deleted,notnull"`
-	SecretIngestionFor string          `sql:"secret_ingestion_for,notnull"` // [CI, CD, CI/CD]
+	MountPath          string `sql:"mount_path"`
+	Deleted            bool   `sql:"deleted,notnull"`
+	SecretIngestionFor string `sql:"secret_ingestion_for,notnull"` // [CI, CD, CI/CD]
 	sql.AuditLog
 }
 

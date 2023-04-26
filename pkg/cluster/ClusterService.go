@@ -31,9 +31,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
 	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/client-go/tools/clientcmd/api/latest"
 	"log"
+	"net/http"
 	"net/url"
 	"os"
 	"sync"
@@ -47,6 +49,18 @@ import (
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+)
+
+const (
+	DEFAULT_CLUSTER                  = "default_cluster"
+	DEFAULT_NAMESPACE                = "default"
+	CLUSTER_MODIFY_EVENT_SECRET_TYPE = "cluster.request/modify"
+	CLUSTER_ACTION_ADD               = "add"
+	CLUSTER_ACTION_UPDATE            = "update"
+	SECRET_NAME                      = "cluster-event"
+	SECRET_FIELD_CLUSTER_ID          = "cluster_id"
+	SECRET_FIELD_UPDATED_ON          = "updated_on"
+	SECRET_FIELD_ACTION              = "action"
 )
 
 type ClusterBean struct {
@@ -71,6 +85,7 @@ type ClusterFields struct {
 }
 type ExtraFields struct {
 	ErrorInConnecting string `json:"errorInConnecting,omitempty"`
+	IsCdArgoSetup     bool   `json:"isCdArgoSetup"`
 }
 
 type UserInfos struct {
@@ -305,6 +320,36 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, 
 	if util2.IsBaseStack() {
 		impl.SyncNsInformer(bean)
 	}
+	impl.logger.Info("saving secret for cluster informer")
+	restConfig := &rest.Config{}
+	restConfig, err = rest.InClusterConfig()
+	if err != nil {
+		impl.logger.Error("Error in creating config for default cluster", "err", err)
+		return bean, nil
+	}
+	httpClientFor, err := rest.HTTPClientFor(restConfig)
+	if err != nil {
+		impl.logger.Error("error occurred while overriding k8s client", "reason", err)
+		return bean, nil
+	}
+	k8sClient, err := v12.NewForConfigAndClient(restConfig, httpClientFor)
+	if err != nil {
+		impl.logger.Error("error creating k8s client", "error", err)
+		return bean, nil
+	}
+	//creating cluster secret, this secret will be read informer in kubelink to know that a new cluster has been added
+	secretName := fmt.Sprintf("%s-%v", SECRET_NAME, bean.Id)
+
+	data := make(map[string][]byte)
+	data[SECRET_FIELD_CLUSTER_ID] = []byte(fmt.Sprintf("%v", bean.Id))
+	data[SECRET_FIELD_ACTION] = []byte(CLUSTER_ACTION_ADD)
+	data[SECRET_FIELD_UPDATED_ON] = []byte(time.Now().String()) // this field will ensure that informer detects change as other fields can be constant even if cluster config changes
+	_, err = impl.K8sUtil.CreateSecret(DEFAULT_NAMESPACE, data, secretName, CLUSTER_MODIFY_EVENT_SECRET_TYPE, k8sClient, nil, nil)
+	if err != nil {
+		impl.logger.Errorw("error in updating secret for informers")
+		return bean, nil
+	}
+
 	return bean, err
 }
 
@@ -561,7 +606,52 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 	if bean.HasConfigOrUrlChanged && util2.IsBaseStack() {
 		impl.SyncNsInformer(bean)
 	}
-	return bean, err
+	impl.logger.Infow("saving secret for cluster informer")
+	restConfig := &rest.Config{}
+
+	restConfig, err = rest.InClusterConfig()
+	if err != nil {
+		impl.logger.Errorw("Error in creating config for default cluster", "err", err)
+		return bean, nil
+	}
+
+	httpClientFor, err := rest.HTTPClientFor(restConfig)
+	if err != nil {
+		impl.logger.Infow("error occurred while overriding k8s client", "reason", err)
+		return bean, nil
+	}
+	k8sClient, err := v12.NewForConfigAndClient(restConfig, httpClientFor)
+	if err != nil {
+		impl.logger.Errorw("error creating k8s client", "error", err)
+		return bean, nil
+	}
+	// below secret will act as an event for informer running on secret object in kubelink
+	if bean.HasConfigOrUrlChanged {
+		secretName := fmt.Sprintf("%s-%v", SECRET_NAME, bean.Id)
+		secret, err := impl.K8sUtil.GetSecret(DEFAULT_NAMESPACE, secretName, k8sClient)
+		statusError, _ := err.(*errors.StatusError)
+		if err != nil && statusError.Status().Code != http.StatusNotFound {
+			impl.logger.Errorw("secret not found", "err", err)
+			return bean, nil
+		}
+		data := make(map[string][]byte)
+		data[SECRET_FIELD_CLUSTER_ID] = []byte(fmt.Sprintf("%v", bean.Id))
+		data[SECRET_FIELD_ACTION] = []byte(CLUSTER_ACTION_UPDATE)
+		data[SECRET_FIELD_UPDATED_ON] = []byte(time.Now().String()) // this field will ensure that informer detects change as other fields can be constant even if cluster config changes
+		if secret == nil {
+			_, err = impl.K8sUtil.CreateSecret(DEFAULT_NAMESPACE, data, secretName, CLUSTER_MODIFY_EVENT_SECRET_TYPE, k8sClient, nil, nil)
+			if err != nil {
+				impl.logger.Errorw("error in creating secret for informers")
+			}
+		} else {
+			secret.Data = data
+			secret, err = impl.K8sUtil.UpdateSecret(DEFAULT_NAMESPACE, secret, k8sClient)
+			if err != nil {
+				impl.logger.Errorw("error in updating secret for informers")
+			}
+		}
+	}
+	return bean, nil
 }
 
 func (impl *ClusterServiceImpl) SyncNsInformer(bean *ClusterBean) {
@@ -603,6 +693,7 @@ func (impl *ClusterServiceImpl) FindAllForAutoComplete() ([]ClusterBean, error) 
 		bean.Id = m.Id
 		bean.ClusterName = m.ClusterName
 		bean.ErrorInConnecting = m.ErrorInConnecting
+		bean.IsCdArgoSetup = m.CdArgoSetup
 		beans = append(beans, bean)
 	}
 	return beans, nil
@@ -650,6 +741,27 @@ func (impl ClusterServiceImpl) DeleteFromDb(bean *ClusterBean, userId int32) err
 		impl.logger.Errorw("error in deleting cluster", "id", bean.Id, "err", err)
 		return err
 	}
+	restConfig := &rest.Config{}
+	restConfig, err = rest.InClusterConfig()
+
+	if err != nil {
+		impl.logger.Errorw("Error in creating config for default cluster", "err", err)
+		return nil
+	}
+	// this secret was created for syncing cluster information with kubelink
+	httpClientFor, err := rest.HTTPClientFor(restConfig)
+	if err != nil {
+		impl.logger.Errorw("error occurred while overriding k8s client", "reason", err)
+		return nil
+	}
+	k8sClient, err := v12.NewForConfigAndClient(restConfig, httpClientFor)
+	if err != nil {
+		impl.logger.Errorw("error creating k8s client", "error", err)
+		return nil
+	}
+	secretName := fmt.Sprintf("%s-%v", SECRET_NAME, bean.Id)
+	err = impl.K8sUtil.DeleteSecret(DEFAULT_NAMESPACE, secretName, k8sClient)
+	impl.logger.Errorw("error in deleting secret", "error", err)
 	return nil
 }
 
@@ -789,7 +901,6 @@ func (impl *ClusterServiceImpl) FindAllForClusterByUserId(userId int32, isAction
 			bean := ClusterBean{}
 			bean.Id = model.Id
 			bean.ClusterName = model.ClusterName
-			bean.ErrorInConnecting = model.ErrorInConnecting
 			beans = append(beans, bean)
 		}
 	}

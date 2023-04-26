@@ -5,18 +5,23 @@ import "github.com/devtron-labs/devtron/internal/sql/repository"
 const ValidationSuccessMsg = "Configurations are validated successfully"
 
 type ChartRepoDto struct {
-	Id          int                 `json:"id,omitempty" validate:"number"`
-	Name        string              `json:"name,omitempty" validate:"required"`
-	Url         string              `json:"url,omitempty"`
-	UserName    string              `json:"userName,omitempty"`
-	Password    string              `json:"password,omitempty"`
-	SshKey      string              `json:"sshKey,omitempty"`
-	AccessToken string              `json:"accessToken,omitempty"`
-	AuthMode    repository.AuthMode `json:"authMode,omitempty" validate:"required"`
-	Active      bool                `json:"active"`
-	Default     bool                `json:"default"`
-	UserId      int32               `json:"-"`
-	IsEditable  bool                `json:"isEditable"`
+	Id                      int                 `json:"id,omitempty" validate:"number"`
+	Name                    string              `json:"name,omitempty" validate:"required"`
+	Url                     string              `json:"url,omitempty"`
+	UserName                string              `json:"userName,omitempty"`
+	Password                string              `json:"password,omitempty"`
+	SshKey                  string              `json:"sshKey,omitempty"`
+	AccessToken             string              `json:"accessToken,omitempty"`
+	AuthMode                repository.AuthMode `json:"authMode,omitempty" validate:"required"`
+	Active                  bool                `json:"active"`
+	Default                 bool                `json:"default"`
+	UserId                  int32               `json:"-"`
+	AllowInsecureConnection bool                `json:"allow_insecure_connection"`
+}
+
+type ChartRepoWithIsEditableDto struct {
+	ChartRepoDto
+	IsEditable bool `json:"isEditable"`
 }
 
 type DetailedErrorHelmRepoValidation struct {

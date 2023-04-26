@@ -48,9 +48,29 @@ func (router AppListingRouterImpl) initAppListingRouter(appListingRouter *mux.Ro
 		HandlerFunc(router.appListingRestHandler.FetchAppsByEnvironment).
 		Methods("POST")
 
+	appListingRouter.Path("/list/{version}").
+		HandlerFunc(router.appListingRestHandler.FetchAppsByEnvironmentVersioned).
+		Methods("POST")
+
+	appListingRouter.Path("/list/group/{env-id}").
+		HandlerFunc(router.appListingRestHandler.FetchOverviewAppsByEnvironment).
+		Methods("GET")
+
+	appListingRouter.Path("/list/group/{env-id}").
+		Queries("size", "{size}", "offset", "{offset}").
+		HandlerFunc(router.appListingRestHandler.FetchOverviewAppsByEnvironment).
+		Methods("GET")
 	//This API used for fetch app details, not deployment details
 	appListingRouter.Path("/detail").Queries("app-id", "{app-id}").Queries("env-id", "{env-id}").
 		HandlerFunc(router.appListingRestHandler.FetchAppDetails).
+		Methods("GET")
+
+	appListingRouter.Path("/detail/v2").Queries("app-id", "{app-id}").Queries("env-id", "{env-id}").
+		HandlerFunc(router.appListingRestHandler.FetchAppDetailsV2).
+		Methods("GET")
+
+	appListingRouter.Path("/detail/resource-tree").Queries("app-id", "{app-id}").Queries("env-id", "{env-id}").
+		HandlerFunc(router.appListingRestHandler.FetchResourceTree).
 		Methods("GET")
 
 	appListingRouter.Path("/vsm").Queries("app-id", "{app-id}").
@@ -65,6 +85,9 @@ func (router AppListingRouterImpl) initAppListingRouter(appListingRouter *mux.Ro
 		HandlerFunc(router.appListingRestHandler.FetchOtherEnvironment).
 		Methods("GET")
 
+	appListingRouter.Path("/other-env/min").Queries("app-id", "{app-id}").
+		HandlerFunc(router.appListingRestHandler.FetchMinDetailOtherEnvironment).Methods("GET")
+
 	appListingRouter.Path("/linkouts/{Id}/{appId}/{envId}").Queries("podName", "{podName}").
 		Queries("containerName", "{containerName}").
 		HandlerFunc(router.appListingRestHandler.RedirectToLinkouts).
@@ -73,4 +96,8 @@ func (router AppListingRouterImpl) initAppListingRouter(appListingRouter *mux.Ro
 	appListingRouter.Path("/deployment-status/manual-sync/{appId}/{envId}").
 		HandlerFunc(router.appListingRestHandler.ManualSyncAcdPipelineDeploymentStatus).
 		Methods("GET")
+
+	appListingRouter.Path("/app-listing/autocomplete").
+		HandlerFunc(router.appListingRestHandler.GetClusterTeamAndEnvListForAutocomplete).Methods("GET")
+
 }

@@ -133,6 +133,9 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/app-wf/{app-id}").
 		HandlerFunc(router.appWorkflowRestHandler.FindAppWorkflow).Methods("GET")
 
+	configRouter.Path("/app-wf/view/{app-id}").
+		HandlerFunc(router.appWorkflowRestHandler.GetWorkflowsViewData).Methods("GET")
+
 	configRouter.Path("/app-wf/{app-id}/{app-wf-id}").
 		HandlerFunc(router.appWorkflowRestHandler.DeleteAppWorkflow).Methods("DELETE")
 
@@ -149,6 +152,7 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/cd/configmap-secrets/{pipelineId}").HandlerFunc(router.restHandler.GetConfigmapSecretsForDeploymentStages).Methods("GET")
 
 	configRouter.Path("/workflow/status/{appId}").HandlerFunc(router.restHandler.FetchAppWorkflowStatusForTriggerView).Methods("GET")
+	configRouter.Path("/workflow/status/{appId}/{version}").HandlerFunc(router.restHandler.FetchAppWorkflowStatusForTriggerView).Methods("GET")
 
 	configRouter.Path("/material-info/{appId}/{ciArtifactId}").HandlerFunc(router.restHandler.FetchMaterialInfo).Methods("GET")
 	configRouter.Path("/ci-pipeline/webhook-payload/{pipelineMaterialId}").HandlerFunc(router.webhookDataRestHandler.GetWebhookPayloadDataForPipelineMaterialId).Methods("GET")
