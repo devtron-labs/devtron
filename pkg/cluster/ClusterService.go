@@ -64,11 +64,6 @@ const (
 )
 
 type ClusterBean struct {
-	*ClusterFields
-	*ExtraFields
-}
-
-type ClusterFields struct {
 	Id                      int                        `json:"id,omitempty" validate:"number"`
 	ClusterName             string                     `json:"cluster_name,omitempty" validate:"required"`
 	ServerUrl               string                     `json:"server_url,omitempty" validate:"url,required"`
@@ -82,21 +77,19 @@ type ClusterFields struct {
 	HasConfigOrUrlChanged   bool                       `json:"-"`
 	UserName                string                     `json:"userName,omitempty"`
 	InsecureSkipTLSVerify   bool                       `json:"insecure-skip-tls-verify"`
-}
-type ExtraFields struct {
-	ErrorInConnecting string `json:"errorInConnecting,omitempty"`
-	IsCdArgoSetup     bool   `json:"isCdArgoSetup"`
+	ErrorInConnecting       string                     `json:"errorInConnecting,omitempty"`
+	IsCdArgoSetup           bool                       `json:"isCdArgoSetup"`
 }
 
 type UserInfos struct {
-	UserName string            `json:"userName,omitempty"`
-	Config   map[string]string `json:"config,omitempty"`
-	*ExtraFields
+	UserName          string            `json:"userName,omitempty"`
+	Config            map[string]string `json:"config,omitempty"`
+	ErrorInConnecting string            `json:"errorInConnecting,omitempty"`
 }
 
 type ValidateClusterBean struct {
 	UserInfos map[string]*UserInfos `json:"userInfos,omitempty""`
-	*ClusterFields
+	*ClusterBean
 }
 
 type UserClusterBeanMapping struct {
@@ -125,7 +118,7 @@ type DefaultClusterComponent struct {
 
 type ClusterService interface {
 	Save(parent context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error)
-	SaveClusters(beans []*ValidateClusterBean, userId int32) ([]*ValidateClusterBean, error)
+	SaveClusters(beans []*ClusterBean, userId int32) ([]*ClusterBean, error)
 	ValidateKubeconfig(kubeConfig string) (map[string]*ValidateClusterBean, error)
 	FindOne(clusterName string) (*ClusterBean, error)
 	FindOneActive(clusterName string) (*ClusterBean, error)
@@ -149,7 +142,7 @@ type ClusterService interface {
 	FindAllForClusterByUserId(userId int32, isActionUserSuperAdmin bool) ([]ClusterBean, error)
 	FetchRolesFromGroup(userId int32) ([]*repository2.RoleModel, error)
 	ConnectClustersInBatch(clusters []*ClusterBean, clusterExistInDb bool)
-	ConvertClusterBeanToCluster(clusterBean *ValidateClusterBean, userId int32) *repository.Cluster
+	ConvertClusterBeanToCluster(clusterBean *ClusterBean, userId int32) *repository.Cluster
 	ConvertClusterBeanObjectToCluster(bean *ClusterBean) *v1alpha1.Cluster
 }
 
@@ -215,7 +208,7 @@ func (impl *ClusterServiceImpl) GetClusterConfig(cluster *ClusterBean) (*util.Cl
 	return clusterCfg, nil
 }
 
-func (impl *ClusterServiceImpl) SaveClusters(beans []*ValidateClusterBean, userId int32) ([]*ValidateClusterBean, error) {
+func (impl *ClusterServiceImpl) SaveClusters(beans []*ClusterBean, userId int32) ([]*ClusterBean, error) {
 
 	errorInSaving := false
 
@@ -231,10 +224,9 @@ func (impl *ClusterServiceImpl) SaveClusters(beans []*ValidateClusterBean, userI
 	models := make([]*repository.Cluster, 0)
 	for _, bean := range beans {
 		if _, ok := clusterListMap[bean.ClusterName]; ok {
-			bean.UserInfos[bean.ClusterFields.UserName].ErrorInConnecting = "cluster already exists"
+			bean.ErrorInConnecting = "cluster already exists"
 			errorInSaving = true
 		}
-		bean.Config = bean.UserInfos[bean.UserName].Config
 		model := impl.ConvertClusterBeanToCluster(bean, userId)
 		models = append(models, model)
 	}
@@ -246,7 +238,7 @@ func (impl *ClusterServiceImpl) SaveClusters(beans []*ValidateClusterBean, userI
 	}
 	return beans, nil
 }
-func (impl *ClusterServiceImpl) ConvertClusterBeanToCluster(clusterBean *ValidateClusterBean, userId int32) *repository.Cluster {
+func (impl *ClusterServiceImpl) ConvertClusterBeanToCluster(clusterBean *ClusterBean, userId int32) *repository.Cluster {
 
 	model := &repository.Cluster{}
 
@@ -289,7 +281,7 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, 
 		return nil, fmt.Errorf("cluster already exists")
 	}
 
-	model := impl.ConvertClusterBeanToCluster(&ValidateClusterBean{ClusterFields: bean.ClusterFields}, userId)
+	model := impl.ConvertClusterBeanToCluster(bean, userId)
 
 	cfg, err := impl.GetClusterConfig(bean)
 	if err != nil {
@@ -1046,8 +1038,6 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 	userInfosMap := map[string]*UserInfos{}
 	for _, ctx := range kubeConfigObject.Contexts {
 		clusterBeanObject := &ClusterBean{}
-		clusterBeanObject.ClusterFields = &ClusterFields{}
-		clusterBeanObject.ExtraFields = &ExtraFields{}
 		clusterName := ctx.Cluster
 		userName := ctx.AuthInfo
 		clusterObj := kubeConfigObject.Clusters[clusterName]
@@ -1111,18 +1101,16 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 		}
 
 		userInfo := UserInfos{
-			UserName: userName,
-			Config:   Config,
-			ExtraFields: &ExtraFields{
-				ErrorInConnecting: clusterBeanObject.ErrorInConnecting,
-			},
+			UserName:          userName,
+			Config:            Config,
+			ErrorInConnecting: clusterBeanObject.ErrorInConnecting,
 		}
 
 		userInfosMap[userInfo.UserName] = &userInfo
 		validateObject := &ValidateClusterBean{}
 		if _, ok := ValidateObjects[clusterName]; !ok {
 			validateObject.UserInfos = make(map[string]*UserInfos)
-			validateObject.ClusterFields = clusterBeanObject.ClusterFields
+			validateObject.ClusterBean = clusterBeanObject
 			ValidateObjects[clusterName] = validateObject
 		}
 		clusterBeanObject.UserName = userName

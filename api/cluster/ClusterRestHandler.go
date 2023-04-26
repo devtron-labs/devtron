@@ -93,7 +93,7 @@ func (impl ClusterRestHandlerImpl) SaveClusters(w http.ResponseWriter, r *http.R
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	beans := []*cluster.ValidateClusterBean{}
+	beans := []*cluster.ClusterBean{}
 	err = decoder.Decode(&beans)
 	if err != nil {
 		impl.logger.Errorw("request err, Save", "error", err, "payload", beans)
