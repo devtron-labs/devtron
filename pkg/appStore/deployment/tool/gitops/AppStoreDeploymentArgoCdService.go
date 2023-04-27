@@ -294,7 +294,11 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetDeploymentHistory(ctx context
 			return result, err
 		}
 		for _, updateHistory := range versionHistory {
-			user, _ := impl.userService.GetById(updateHistory.CreatedBy)
+			user, err := impl.userService.GetById(updateHistory.CreatedBy)
+			if err != nil {
+				impl.Logger.Errorw("error while fetching user Details", "error", err)
+				return result, err
+			}
 			history = append(history, &client.HelmAppDeploymentDetail{
 				ChartMetadata: &client.ChartMetadata{
 					ChartName:    installedAppVersionModel.AppStoreApplicationVersion.AppStore.Name,
