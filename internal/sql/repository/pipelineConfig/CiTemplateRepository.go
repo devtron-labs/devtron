@@ -41,7 +41,7 @@ type CiTemplate struct {
 	Version                   string   `sql:"version"` //gocd etage
 	Active                    bool     `sql:"active,notnull"`
 	GitMaterialId             int      `sql:"git_material_id"`
-	BuildContextGitMaterialId int      `sql:"build_context_git_material_id,omitempty"`
+	BuildContextGitMaterialId int      `sql:"build_context_git_material_id"`
 	DockerBuildOptions        string   `sql:"docker_build_options"` //json string format of map[string]string
 	CiBuildConfigId           int      `sql:"ci_build_config_id"`
 	BuildContext              string   `sql:"build_context,notnull"`
