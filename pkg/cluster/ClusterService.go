@@ -88,7 +88,7 @@ type DefaultClusterComponent struct {
 }
 
 type ClusterService interface {
-	Save(parent context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error)
+	Save(parent context.Context, bean *ClusterBean, userId int32, acdToken string) (*ClusterBean, error)
 	FindOne(clusterName string) (*ClusterBean, error)
 	FindOneActive(clusterName string) (*ClusterBean, error)
 	FindAll() ([]*ClusterBean, error)
@@ -167,7 +167,7 @@ func (impl *ClusterServiceImpl) GetClusterConfig(cluster *ClusterBean) (*util.Cl
 	return clusterCfg, nil
 }
 
-func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
+func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, userId int32, acdToken string) (*ClusterBean, error) {
 	//validating config
 	err := impl.CheckIfConfigIsValid(bean)
 	if err != nil {

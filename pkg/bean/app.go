@@ -530,6 +530,7 @@ type CdPipelines struct {
 	Pipelines []*CDPipelineConfigObject `json:"pipelines,omitempty" validate:"dive"`
 	AppId     int                       `json:"appId,omitempty"  validate:"number,required" `
 	UserId    int32                     `json:"-"`
+	AcdToken  string                    `json:"acdToken"`
 }
 
 type CDPatchRequest struct {

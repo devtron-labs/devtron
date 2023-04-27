@@ -19,6 +19,7 @@ package ArgoUtil
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"github.com/caarlos0/env"
@@ -43,6 +44,28 @@ type ArgoSession struct {
 	logger     *zap.SugaredLogger
 	baseUrl    *url.URL
 }
+
+func NewArgoSession(httpClient *http.Client, logger *zap.SugaredLogger) *ArgoSession {
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	cfg, err := GetArgoConfig()
+	if err != nil {
+		return nil
+	}
+	baseUrl := &url.URL{
+		Scheme: "http",
+		Host:   cfg.Url,
+	}
+
+	client := &http.Client{Transport: tr}
+	return &ArgoSession{
+		httpClient: client,
+		logger:     logger,
+		baseUrl:    baseUrl,
+	}
+}
+
 type StatusCode int
 
 func (code StatusCode) IsSuccess() bool {
@@ -106,34 +129,79 @@ func (session *ArgoSession) DoRequest(clientRequest *ClientRequest) (resBody []b
 	}
 	return resBody, &status, err
 }
-
-func NewArgoSession(config *ArgoConfig, logger *zap.SugaredLogger) (session *ArgoSession, err error) {
-	/*location := "/api/v1/session"
-	baseUrl, err := url.Parse(config.Url)
+func (session *ArgoSession) DoRequestForArgo(clientRequest *ClientRequest, acdToken string) (resBody []byte, resCode *StatusCode, err error) {
+	if clientRequest.ResponseBody == nil {
+		return nil, nil, fmt.Errorf("response body cant be nil")
+	}
+	if reflect.ValueOf(clientRequest.ResponseBody).Kind() != reflect.Ptr {
+		return nil, nil, fmt.Errorf("responsebody non pointer")
+	}
+	rel, err := session.baseUrl.Parse(clientRequest.Path)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	rel, err := baseUrl.Parse(location)
-	param := map[string]string{}
-	param["username"] = "admin"
-	param["password"] = "argocd-server-6cd5bcffd4-j6kcx"
-	paramJson, err := json.Marshal(param)
+	var body io.Reader
+	if clientRequest.RequestBody != nil {
+		if req, err := json.Marshal(clientRequest.RequestBody); err != nil {
+			return nil, nil, err
+		} else {
+			session.logger.Debugw("argo req with body", "body", string(req))
+			body = bytes.NewBuffer(req)
+		}
+	}
+	httpReq, err := http.NewRequest("POST", rel.String(), body)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	req, _ := http.NewRequest("POST", rel.String(), bytes.NewBuffer(paramJson))
-	transCfg := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: config.InsecureSkipVerify},
-	}
-	cookieJar, err := cookiejar.New(nil)
+	httpReq.Header.Set("Authorization", fmt.Sprintf("Bearer %s", acdToken))
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpRes, err := session.httpClient.Do(httpReq)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	client := &http.Client{Transport: transCfg, Jar: cookieJar, Timeout: time.Duration(config.Timeout)}
-	res, err := client.Do(req)
-	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK {
-		return nil, err
-	}*/
-	return &ArgoSession{}, nil
+	defer httpRes.Body.Close()
+	resBody, err = ioutil.ReadAll(httpRes.Body)
+	if err != nil {
+		session.logger.Errorw("error in argocd communication ", "err", err)
+		return nil, nil, err
+	}
+	status := StatusCode(httpRes.StatusCode)
+	if status.IsSuccess() {
+		err = json.Unmarshal(resBody, clientRequest.ResponseBody)
+	} else {
+		session.logger.Errorw("api err", "res", string(resBody))
+		return resBody, &status, fmt.Errorf("res not success, code: %d ", status)
+	}
+	return resBody, &status, err
 }
+
+//func NewArgoSession(config *ArgoConfig, logger *zap.SugaredLogger) (session *ArgoSession, err error) {
+//	/*location := "/api/v1/session"
+//	baseUrl, err := url.Parse(config.Url)
+//	if err != nil {
+//		return nil, err
+//	}
+//	rel, err := baseUrl.Parse(location)
+//	param := map[string]string{}
+//	param["username"] = "admin"
+//	param["password"] = "argocd-server-6cd5bcffd4-j6kcx"
+//	paramJson, err := json.Marshal(param)
+//	if err != nil {
+//		return nil, err
+//	}
+//	req, _ := http.NewRequest("POST", rel.String(), bytes.NewBuffer(paramJson))
+//	transCfg := &http.Transport{
+//		TLSClientConfig: &tls.Config{InsecureSkipVerify: config.InsecureSkipVerify},
+//	}
+//	cookieJar, err := cookiejar.New(nil)
+//	if err != nil {
+//		return nil, err
+//	}
+//	client := &http.Client{Transport: transCfg, Jar: cookieJar, Timeout: time.Duration(config.Timeout)}
+//	res, err := client.Do(req)
+//	defer res.Body.Close()
+//	if res.StatusCode != http.StatusOK {
+//		return nil, err
+//	}*/
+//	return &ArgoSession{}, nil
+//}

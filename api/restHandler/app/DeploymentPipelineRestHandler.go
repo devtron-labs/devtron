@@ -200,6 +200,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateCdPipeline(w http.ResponseWri
 	}
 	//RBAC
 	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	cdPipeline.AcdToken = acdToken
 	if err != nil {
 		handler.Logger.Errorw("error in getting acd token", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

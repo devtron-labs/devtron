@@ -21,28 +21,49 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
-type ClusterService interface {
+type ClusterConfig struct {
+	BearerToken     string `json:"bearerToken"`
+	TLSClientConfig `json:"tlsClientConfig"`
+}
+type TLSClientConfig struct {
+	Insecure bool `json:"insecure"`
+}
+type ClusterRequest struct {
+	Name   string        `json:"name"`
+	Server string        `json:"server"`
+	Config ClusterConfig `json:"config"`
+}
+type ClusterResponse struct {
+	Id            string        `json:"id"`
+	Server        string        `json:"server"`
+	Name          string        `json:"name"`
+	ServerVersion string        `json:"serverVersion"`
+	Config        ClusterConfig `json:"config"`
+}
+
+type ArgoClusterService interface {
 	GetClusterByServer(server string) (*v1alpha1.Cluster, error)
 	ClusterList() (*v1alpha1.ClusterList, error)
 	CreateCluster(cluster v1alpha1.Cluster) (*v1alpha1.Cluster, error)
+	CreateClusterWithGitposConfigured(request *ClusterRequest, acdToken string) (*ClusterRequest, error)
 	UpdateCluster(cluster v1alpha1.Cluster) (*v1alpha1.Cluster, error)
 	DeleteCluster(server string) (string, error)
 }
 
-type ClusterServiceImpl struct {
+type ArgoClusterServiceImpl struct {
 	*ArgoSession
 	id       int
 	location string
 }
 
-func NewClusterServiceImpl(session *ArgoSession) *ClusterServiceImpl {
-	return &ClusterServiceImpl{
+func NewArgoClusterServiceImpl(session *ArgoSession) *ArgoClusterServiceImpl {
+	return &ArgoClusterServiceImpl{
 		ArgoSession: session,
-		location:    "/api/v1/clusters",
+		location:    "/api/v1/clusters?upsert=true",
 	}
 }
 
-func (impl *ClusterServiceImpl) GetClusterByServer(server string) (*v1alpha1.Cluster, error) {
+func (impl *ArgoClusterServiceImpl) GetClusterByServer(server string) (*v1alpha1.Cluster, error) {
 
 	path := impl.location + "/" + server
 	res := &v1alpha1.Cluster{}
@@ -53,7 +74,7 @@ func (impl *ClusterServiceImpl) GetClusterByServer(server string) (*v1alpha1.Clu
 	return res, nil
 }
 
-func (impl *ClusterServiceImpl) ClusterList() (*v1alpha1.ClusterList, error) {
+func (impl *ArgoClusterServiceImpl) ClusterList() (*v1alpha1.ClusterList, error) {
 
 	path := impl.location
 	res := &v1alpha1.ClusterList{}
@@ -64,7 +85,7 @@ func (impl *ClusterServiceImpl) ClusterList() (*v1alpha1.ClusterList, error) {
 	return res, nil
 }
 
-func (impl *ClusterServiceImpl) CreateCluster(cluster v1alpha1.Cluster) (*v1alpha1.Cluster, error) {
+func (impl *ArgoClusterServiceImpl) CreateCluster(cluster v1alpha1.Cluster) (*v1alpha1.Cluster, error) {
 
 	path := impl.location
 	res := &v1alpha1.Cluster{}
@@ -75,8 +96,17 @@ func (impl *ClusterServiceImpl) CreateCluster(cluster v1alpha1.Cluster) (*v1alph
 	}
 	return res, nil
 }
+func (impl *ArgoClusterServiceImpl) CreateClusterWithGitposConfigured(request *ClusterRequest, acdToken string) (*ClusterRequest, error) {
+	path := impl.location
+	res := &ClusterRequest{}
+	_, _, err := impl.DoRequestForArgo(&ClientRequest{ResponseBody: res, Path: path, RequestBody: request, Method: "POST"}, acdToken)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
 
-func (impl *ClusterServiceImpl) UpdateCluster(cluster v1alpha1.Cluster) (*v1alpha1.Cluster, error) {
+func (impl *ArgoClusterServiceImpl) UpdateCluster(cluster v1alpha1.Cluster) (*v1alpha1.Cluster, error) {
 
 	path := impl.location + "/" + cluster.Server
 	res := &v1alpha1.Cluster{}
@@ -87,7 +117,7 @@ func (impl *ClusterServiceImpl) UpdateCluster(cluster v1alpha1.Cluster) (*v1alph
 	return res, nil
 }
 
-func (impl *ClusterServiceImpl) DeleteCluster(server string) (string, error) {
+func (impl *ArgoClusterServiceImpl) DeleteCluster(server string) (string, error) {
 	res := ""
 	path := impl.location + "/" + server
 	_, _, err := impl.DoRequest(&ClientRequest{ResponseBody: &res, Path: path, Method: "DELETE"})

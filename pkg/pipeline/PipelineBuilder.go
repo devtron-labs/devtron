@@ -1678,7 +1678,8 @@ func (impl PipelineBuilderImpl) RegisterInACD(app *app2.App, pipelineCreateReque
 		impl.logger.Errorw("error in pushing chart to git ", "path", chartGitAttr.ChartLocation, "err", err)
 		return err
 	}
-	err = impl.chartTemplateService.RegisterInArgo(chartGitAttr, ctx)
+	acdToken := pipelineCreateRequest.AcdToken
+	err = impl.chartTemplateService.RegisterInArgo(chartGitAttr, ctx, acdToken)
 	if err != nil {
 		impl.logger.Errorw("error while register git repo in argo", "err", err)
 		emptyRepoErrorMessage := []string{"failed to get index: 404 Not Found", "remote repository is empty"}
@@ -1690,7 +1691,7 @@ func (impl PipelineBuilderImpl) RegisterInACD(app *app2.App, pipelineCreateReque
 				return err
 			}
 			// - retry register in argo
-			err = impl.chartTemplateService.RegisterInArgo(chartGitAttr, ctx)
+			err = impl.chartTemplateService.RegisterInArgo(chartGitAttr, ctx, acdToken)
 			if err != nil {
 				impl.logger.Errorw("error in re-try register in argo", "err", err)
 				return err

@@ -21,11 +21,10 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
-	repository3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/devtron/api/bean"
 	repository4 "github.com/devtron-labs/devtron/client/argocdServer/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/util/ArgoUtil"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/devtron-labs/devtron/util"
@@ -64,7 +63,7 @@ type ChartTemplateService interface {
 	GetGitOpsRepoName(appName string) string
 	GetGitOpsRepoNameFromUrl(gitRepoUrl string) string
 	CreateGitRepositoryForApp(gitOpsRepoName, baseTemplateName, version string, userId int32) (chartGitAttribute *ChartGitAttribute, err error)
-	RegisterInArgo(chartGitAttribute *ChartGitAttribute, ctx context.Context) error
+	RegisterInArgo(chartGitAttribute *ChartGitAttribute, ctx context.Context, acdToken string) error
 	BuildChart(ctx context.Context, chartMetaData *chart.Metadata, referenceTemplatePath string) (string, error)
 	PushChartToGitRepo(gitOpsRepoName, referenceTemplate, version, tempReferenceTemplateDir string, repoUrl string, userId int32) (err error)
 	GetByteArrayRefChart(chartMetaData *chart.Metadata, referenceTemplatePath string) ([]byte, error)
@@ -80,6 +79,7 @@ type ChartTemplateServiceImpl struct {
 	gitOpsConfigRepository repository.GitOpsConfigRepository
 	userRepository         repository2.UserRepository
 	repositoryService      repository4.ServiceClient
+	ArgoRepositoryService  ArgoUtil.RepositoryService
 }
 
 type ChartValues struct {
@@ -96,7 +96,7 @@ func NewChartTemplateServiceImpl(logger *zap.SugaredLogger,
 	client *http.Client,
 	gitFactory *GitFactory, globalEnvVariables *util.GlobalEnvVariables,
 	gitOpsConfigRepository repository.GitOpsConfigRepository,
-	userRepository repository2.UserRepository, repositoryService repository4.ServiceClient) *ChartTemplateServiceImpl {
+	userRepository repository2.UserRepository, repositoryService repository4.ServiceClient, ArgoRepositoryService ArgoUtil.RepositoryService) *ChartTemplateServiceImpl {
 	return &ChartTemplateServiceImpl{
 		randSource:             rand.NewSource(time.Now().UnixNano()),
 		logger:                 logger,
@@ -107,13 +107,16 @@ func NewChartTemplateServiceImpl(logger *zap.SugaredLogger,
 		gitOpsConfigRepository: gitOpsConfigRepository,
 		userRepository:         userRepository,
 		repositoryService:      repositoryService,
+		ArgoRepositoryService:  ArgoRepositoryService,
 	}
 }
-func (impl ChartTemplateServiceImpl) RegisterInArgo(chartGitAttribute *ChartGitAttribute, ctx context.Context) error {
-	repo := &v1alpha1.Repository{
+
+func (impl ChartTemplateServiceImpl) RegisterInArgo(chartGitAttribute *ChartGitAttribute, ctx context.Context, acdToken string) error {
+	repo := &ArgoUtil.Repository{
 		Repo: chartGitAttribute.RepoUrl,
 	}
-	repo, err := impl.repositoryService.Create(ctx, &repository3.RepoCreateRequest{Repo: repo, Upsert: true})
+	repo, err := impl.ArgoRepositoryService.CreateRepository(repo, acdToken)
+
 	if err != nil {
 		impl.logger.Errorw("error in creating argo Repository ", "err", err)
 		return err
