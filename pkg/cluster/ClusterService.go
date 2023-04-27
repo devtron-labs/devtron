@@ -79,6 +79,7 @@ type ClusterBean struct {
 	InsecureSkipTLSVerify   bool                       `json:"insecure-skip-tls-verify"`
 	ErrorInConnecting       string                     `json:"errorInConnecting,omitempty"`
 	IsCdArgoSetup           bool                       `json:"isCdArgoSetup"`
+	isClusterNameEmpty      bool                       `json:"-"`
 }
 
 type UserInfos struct {
@@ -118,7 +119,6 @@ type DefaultClusterComponent struct {
 
 type ClusterService interface {
 	Save(parent context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error)
-	SaveClusters(beans []*ClusterBean, userId int32) ([]*ClusterBean, error)
 	ValidateKubeconfig(kubeConfig string) (map[string]*ValidateClusterBean, error)
 	FindOne(clusterName string) (*ClusterBean, error)
 	FindOneActive(clusterName string) (*ClusterBean, error)
@@ -208,37 +208,6 @@ func (impl *ClusterServiceImpl) GetClusterConfig(cluster *ClusterBean) (*util.Cl
 	return clusterCfg, nil
 }
 
-func (impl *ClusterServiceImpl) SaveClusters(beans []*ClusterBean, userId int32) ([]*ClusterBean, error) {
-
-	errorInSaving := false
-
-	clusterList, err := impl.clusterRepository.FindActiveClusters()
-	clusterListMap := make(map[string]bool)
-	for _, c := range clusterList {
-		clusterListMap[c.ClusterName] = c.Active
-	}
-	if err != nil {
-		impl.logger.Errorw("service err, FindAll", "err", err)
-		return nil, err
-	}
-	models := make([]*repository.Cluster, 0)
-	for _, bean := range beans {
-		if _, ok := clusterListMap[bean.ClusterName]; ok {
-			bean.ErrorInConnecting = "cluster already exists"
-			errorInSaving = true
-		}
-		model := impl.ConvertClusterBeanToCluster(bean, userId)
-		models = append(models, model)
-	}
-	if !errorInSaving {
-		err = impl.clusterRepository.SaveAll(models)
-		if err != nil {
-			impl.logger.Errorw("Error in saving clusters", "err", err, "clusters", models)
-			return nil, err
-		}
-	}
-	return beans, nil
-}
 func (impl *ClusterServiceImpl) ConvertClusterBeanToCluster(clusterBean *ClusterBean, userId int32) *repository.Cluster {
 
 	model := &repository.Cluster{}
@@ -1045,9 +1014,12 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 		userInfoObj := kubeConfigObject.AuthInfos[userName]
 
 		if clusterName == "" {
-			clusterBeanObject.ErrorInConnecting = "cluster name missing from the contexts in kubeconfig"
+			clusterBeanObject.ErrorInConnecting = "cluster name missing in kubeconfig"
+			clusterBeanObject.ClusterName = "null"
+			clusterBeanObject.isClusterNameEmpty = true
 		} else if _, ok := clusterListMap[clusterName]; ok {
-			clusterBeanObject.ErrorInConnecting = "this cluster name is already added in devtron, change the cluster name"
+			clusterBeanObject.ErrorInConnecting = "cluster already exists"
+			clusterBeanObject.ClusterName = clusterName
 		} else {
 			clusterBeanObject.ClusterName = clusterName
 		}
@@ -1081,7 +1053,7 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 			clusterBeanObject.InsecureSkipTLSVerify = clusterObj.InsecureSkipTLSVerify
 		}
 
-		if !clusterObj.InsecureSkipTLSVerify {
+		if !clusterObj.InsecureSkipTLSVerify && (clusterBeanObject.ErrorInConnecting == "") {
 			missingFieldsStr := ""
 			if string(userInfoObj.ClientKeyData) == "" {
 				missingFieldsStr += "clientKeyData "
@@ -1109,13 +1081,13 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 
 		userInfosMap[userInfo.UserName] = &userInfo
 		validateObject := &ValidateClusterBean{}
-		if _, ok := ValidateObjects[clusterName]; !ok {
+		if _, ok := ValidateObjects[clusterBeanObject.ClusterName]; !ok {
 			validateObject.UserInfos = make(map[string]*UserInfos)
 			validateObject.ClusterBean = clusterBeanObject
-			ValidateObjects[clusterName] = validateObject
+			ValidateObjects[clusterBeanObject.ClusterName] = validateObject
 		}
 		clusterBeanObject.UserName = userName
-		ValidateObjects[clusterName].UserInfos[userName] = &userInfo
+		ValidateObjects[clusterBeanObject.ClusterName].UserInfos[userName] = &userInfo
 		if clusterBeanObject.ErrorInConnecting == "" {
 			clusterBeanObject.Config = Config
 			clusterBeansWithNoValidationErrors = append(clusterBeansWithNoValidationErrors, clusterBeanObject)
@@ -1123,7 +1095,9 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 		clusterBeanObjects = append(clusterBeanObjects, clusterBeanObject)
 	}
 
-	impl.ConnectClustersInBatch(clusterBeansWithNoValidationErrors, false)
+	if clusterBeansWithNoValidationErrors != nil {
+		impl.ConnectClustersInBatch(clusterBeansWithNoValidationErrors, false)
+	}
 
 	for _, clusterBeanObject := range clusterBeanObjects {
 		if clusterBeanObject.ErrorInConnecting != "" {
@@ -1132,7 +1106,9 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 	}
 	for _, clusterBeanObject := range clusterBeanObjects {
 		clusterBeanObject.Config = nil
-		clusterBeanObject.UserName = ""
+		if clusterBeanObject.isClusterNameEmpty {
+			clusterBeanObject.ClusterName = ""
+		}
 	}
 	return ValidateObjects, nil
 
