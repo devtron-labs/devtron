@@ -110,6 +110,7 @@ type PipelineBuilder interface {
 	ChangeDeploymentType(ctx context.Context, request *bean.DeploymentAppTypeChangeRequest) (*bean.DeploymentAppTypeChangeResponse, error)
 	DeleteDeploymentAppsForEnvironment(ctx context.Context, environmentId int, currentDeploymentAppType bean.DeploymentType, exclusionList []int, includeApps []int, userId int32) (*bean.DeploymentAppTypeChangeResponse, error)
 	DeleteDeploymentApps(ctx context.Context, pipelines []*pipelineConfig.Pipeline, userId int32) *bean.DeploymentAppTypeChangeResponse
+	DeleteDeploymentAppsGitOps(ctx context.Context, pipelines []*pipelineConfig.Pipeline, userId int32) *bean.DeploymentAppTypeChangeResponse
 	GetTriggerViewCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error)
 	GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error)
 	GetCdPipelinesForAppAndEnv(appId int, envId int) (cdPipelines *bean.CdPipelines, err error)
@@ -2083,10 +2084,17 @@ func (impl PipelineBuilderImpl) ChangeDeploymentType(ctx context.Context,
 		deleteDeploymentType = bean.ArgoCd
 	}
 
-	// Force delete apps
-	response, err = impl.DeleteDeploymentAppsForEnvironment(ctx,
-		request.EnvId, deleteDeploymentType, request.ExcludeApps, request.IncludeApps, request.UserId)
+	allPipelines, err := impl.pipelineRepository.FindActiveByEnvIdAndDeploymentType(request.EnvId,
+		string(deleteDeploymentType), request.ExcludeApps, request.IncludeApps)
+	var OldCdPipelineIds []int
+	for _, item := range allPipelines {
+		OldCdPipelineIds = append(OldCdPipelineIds, item.Id)
+	}
+	err = impl.pipelineRepository.UpdateCdPipelineDeploymentAppInFilter(string(request.DesiredDeploymentType),
+		OldCdPipelineIds, request.UserId)
 
+	// Force delete apps
+	response = impl.DeleteDeploymentAppsGitOps(ctx, allPipelines, request.UserId)
 	if err != nil {
 		return nil, err
 	}
@@ -2098,27 +2106,31 @@ func (impl PipelineBuilderImpl) ChangeDeploymentType(ctx context.Context,
 
 	// Update the deployment app type to Helm and toggle deployment_app_created to false in db
 	var cdPipelineIds []int
-	for _, item := range response.SuccessfulPipelines {
+	for _, item := range response.FailedPipelines {
 		cdPipelineIds = append(cdPipelineIds, item.Id)
 	}
 
+	if len(cdPipelineIds) != 0 {
+
+		err = impl.pipelineRepository.UpdateCdPipelineDeploymentAppInFilter(string(deleteDeploymentType),
+			cdPipelineIds, request.UserId)
+
+		if err != nil {
+			impl.logger.Errorw("failed to update deployment app type in db",
+				"pipeline ids", cdPipelineIds,
+				"desired deployment type", request.DesiredDeploymentType,
+				"err", err)
+
+			return response, nil
+		}
+	}
+
 	// If nothing to update in db
-	if len(cdPipelineIds) == 0 {
+	if len(response.SuccessfulPipelines) == 0 {
 		return response, nil
 	}
 
 	// Update in db
-	err = impl.pipelineRepository.UpdateCdPipelineDeploymentAppInFilter(string(request.DesiredDeploymentType),
-		cdPipelineIds, request.UserId)
-
-	if err != nil {
-		impl.logger.Errorw("failed to update deployment app type in db",
-			"pipeline ids", cdPipelineIds,
-			"desired deployment type", request.DesiredDeploymentType,
-			"err", err)
-
-		return response, nil
-	}
 
 	if !request.AutoTriggerDeployment {
 		return response, nil
@@ -2295,6 +2307,118 @@ func (impl PipelineBuilderImpl) DeleteDeploymentApps(ctx context.Context,
 			bean.Success)
 	}
 
+	checkDeleted := make(map[string]bool)
+
+	check := false
+
+	time.Sleep(5 * time.Second)
+
+	for check == false {
+		check = true
+		time.Sleep(5 * time.Second)
+		for _, pipeline := range pipelines {
+			if !checkDeleted[pipeline.Name] {
+				deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
+
+				req := &application2.ApplicationQuery{
+					Name: &deploymentAppName,
+				}
+				app, err := impl.application.Get(ctx, req)
+				fmt.Println(app, err)
+				if err != nil {
+					checkDeleted[pipeline.Name] = true
+				}
+			}
+			check = check && checkDeleted[pipeline.Name]
+		}
+	}
+
+	return &bean.DeploymentAppTypeChangeResponse{
+		SuccessfulPipelines: successfulPipelines,
+		FailedPipelines:     failedPipelines,
+	}
+}
+
+func (impl PipelineBuilderImpl) DeleteDeploymentAppsGitOps(ctx context.Context,
+	pipelines []*pipelineConfig.Pipeline, userId int32) *bean.DeploymentAppTypeChangeResponse {
+
+	successfulPipelines := make([]*bean.DeploymentChangeStatus, 0)
+	failedPipelines := make([]*bean.DeploymentChangeStatus, 0)
+	deletedPipelines := make([]*bean.DeploymentChangeStatus, 0)
+	// Iterate over all the pipelines in the environment for given deployment app type
+	for _, pipeline := range pipelines {
+
+		var isValid bool
+		// check if pipeline info like app name and environment is empty or not
+		if failedPipelines, isValid = impl.isPipelineInfoValid(pipeline, failedPipelines); !isValid {
+			continue
+		}
+
+		var healthChkErr error
+		// check health of the app if it is argocd deployment type
+		if failedPipelines, healthChkErr = impl.handleNotDeployedAppsIfArgoDeploymentType(pipeline, failedPipelines); healthChkErr != nil {
+
+			// cannot delete unhealthy app
+			continue
+		}
+
+		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
+		var err error
+
+		// delete request
+		err = impl.deleteArgoCdApp(ctx, pipeline, deploymentAppName, true)
+
+		if err != nil {
+			impl.logger.Errorw("error deleting app on "+pipeline.DeploymentAppType,
+				"deployment app name", deploymentAppName,
+				"err", err)
+
+			// deletion failed, append to the list of failed pipelines
+			failedPipelines = impl.handleFailedDeploymentAppChange(pipeline, failedPipelines,
+				"error deleting app with error: "+err.Error())
+
+			continue
+		}
+
+		// deletion successful, append to the list of successful pipelines
+		deletedPipelines = impl.appendToDeploymentChangeStatusList(
+			deletedPipelines,
+			pipeline,
+			"",
+			bean.Success)
+	}
+
+	checkDeleted := make(map[int]int)
+
+	check := false
+
+	time.Sleep(5 * time.Second)
+
+	for check == false {
+		check = true
+		time.Sleep(5 * time.Second)
+		for _, pipeline := range deletedPipelines {
+			if checkDeleted[pipeline.Id] <= 3 {
+				deploymentAppName := fmt.Sprintf("%s-%s", pipeline.AppName, pipeline.EnvName)
+				req := &application2.ApplicationQuery{
+					Name: &deploymentAppName,
+				}
+				_, err := impl.application.Get(ctx, req)
+				if err != nil {
+					successfulPipelines = impl.appendToDeploymentSuccessStatusList(
+						successfulPipelines,
+						pipeline,
+						"",
+						bean.Success)
+					checkDeleted[pipeline.Id] = 4
+				} else {
+					checkDeleted[pipeline.Id]++
+				}
+			}
+			check = check && checkDeleted[pipeline.Id] > 3
+		}
+	}
+
 	return &bean.DeploymentAppTypeChangeResponse{
 		SuccessfulPipelines: successfulPipelines,
 		FailedPipelines:     failedPipelines,
@@ -2367,14 +2491,41 @@ func (impl PipelineBuilderImpl) handleNotHealthyAppsIfArgoDeploymentType(pipelin
 	return failedPipelines, nil
 }
 
+func (impl PipelineBuilderImpl) handleNotDeployedAppsIfArgoDeploymentType(pipeline *pipelineConfig.Pipeline,
+	failedPipelines []*bean.DeploymentChangeStatus) ([]*bean.DeploymentChangeStatus, error) {
+
+	if pipeline.DeploymentAppType == string(bean.ArgoCd) {
+		// check if app status is Healthy
+		status, err := impl.appStatusRepository.Get(pipeline.AppId, pipeline.EnvironmentId)
+
+		// case: missing status row in db
+		if len(status.Status) == 0 {
+			return failedPipelines, nil
+		}
+
+		// cannot delete the app from argocd if app status is Progressing
+		if err != nil {
+
+			healthCheckErr := errors.New("unable to fetch app status or app status is progressing")
+
+			impl.logger.Errorw(healthCheckErr.Error(),
+				"appId", pipeline.AppId,
+				"environmentId", pipeline.EnvironmentId,
+				"err", err)
+
+			failedPipelines = impl.handleFailedDeploymentAppChange(pipeline, failedPipelines, healthCheckErr.Error())
+
+			return failedPipelines, healthCheckErr
+		}
+		return failedPipelines, nil
+	}
+	return failedPipelines, nil
+}
+
 // deleteArgoCdApp takes context and deployment app name used in argo cd and deletes
 // the application in argo cd.
 func (impl PipelineBuilderImpl) deleteArgoCdApp(ctx context.Context, pipeline *pipelineConfig.Pipeline, deploymentAppName string,
 	cascadeDelete bool) error {
-
-	if !pipeline.DeploymentAppCreated {
-		return nil
-	}
 
 	// building the argocd application delete request
 	req := &application2.ApplicationDeleteRequest{
@@ -2437,6 +2588,20 @@ func (impl PipelineBuilderImpl) appendToDeploymentChangeStatusList(pipelines []*
 		AppName: pipeline.App.AppName,
 		EnvId:   pipeline.EnvironmentId,
 		EnvName: pipeline.Environment.Name,
+		Error:   error,
+		Status:  status,
+	})
+}
+
+func (impl PipelineBuilderImpl) appendToDeploymentSuccessStatusList(pipelines []*bean.DeploymentChangeStatus,
+	pipeline *bean.DeploymentChangeStatus, error string, status bean.Status) []*bean.DeploymentChangeStatus {
+
+	return append(pipelines, &bean.DeploymentChangeStatus{
+		Id:      pipeline.Id,
+		AppId:   pipeline.AppId,
+		AppName: pipeline.AppName,
+		EnvId:   pipeline.EnvId,
+		EnvName: pipeline.EnvName,
 		Error:   error,
 		Status:  status,
 	})
