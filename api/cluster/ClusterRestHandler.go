@@ -141,11 +141,12 @@ func (impl ClusterRestHandlerImpl) SaveClusters(w http.ResponseWriter, r *http.R
 	}
 
 	for _, bean := range beans {
-		_, err = impl.clusterService.Save(ctx, bean, userId)
-		if err != nil {
-			bean.ErrorInConnecting = err.Error()
+		_, err1 := impl.clusterService.Save(ctx, bean, userId)
+		if err1 != nil {
+			bean.ErrorInConnecting = err1.Error()
 		}
 	}
+
 	res := beans
 
 	common.WriteJsonResp(w, err, res, http.StatusOK)

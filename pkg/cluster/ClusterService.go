@@ -76,7 +76,7 @@ type ClusterBean struct {
 	K8sVersion              string                     `json:"k8sVersion"`
 	HasConfigOrUrlChanged   bool                       `json:"-"`
 	UserName                string                     `json:"userName,omitempty"`
-	InsecureSkipTLSVerify   bool                       `json:"insecure-skip-tls-verify"`
+	InsecureSkipTLSVerify   bool                       `json:"insecureSkipTlsVerify"`
 	ErrorInConnecting       string                     `json:"errorInConnecting,omitempty"`
 	IsCdArgoSetup           bool                       `json:"isCdArgoSetup"`
 	isClusterNameEmpty      bool                       `json:"-"`
@@ -85,7 +85,7 @@ type ClusterBean struct {
 type UserInfos struct {
 	UserName          string            `json:"userName,omitempty"`
 	Config            map[string]string `json:"config,omitempty"`
-	ErrorInConnecting string            `json:"errorInConnecting,omitempty"`
+	ErrorInConnecting string            `json:"errorInConnecting"`
 }
 
 type ValidateClusterBean struct {
@@ -1106,6 +1106,7 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 	}
 	for _, clusterBeanObject := range clusterBeanObjects {
 		clusterBeanObject.Config = nil
+		clusterBeanObject.ErrorInConnecting = ""
 		if clusterBeanObject.isClusterNameEmpty {
 			clusterBeanObject.ClusterName = ""
 		}
