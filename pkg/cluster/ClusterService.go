@@ -68,11 +68,11 @@ type ClusterBean struct {
 	ClusterName             string                     `json:"cluster_name,omitempty" validate:"required"`
 	ServerUrl               string                     `json:"server_url,omitempty" validate:"url,required"`
 	PrometheusUrl           string                     `json:"prometheus_url,omitempty" validate:"validate-non-empty-url"`
-	Active                  bool                       `json:"active,omitempty"`
+	Active                  bool                       `json:"active"`
 	Config                  map[string]string          `json:"config,omitempty"`
 	PrometheusAuth          *PrometheusAuth            `json:"prometheusAuth,omitempty"`
-	DefaultClusterComponent []*DefaultClusterComponent `json:"defaultClusterComponent,omitempty"`
-	AgentInstallationStage  int                        `json:"agentInstallationStage,notnull,omitempty"` // -1=external, 0=not triggered, 1=progressing, 2=success, 3=fails
+	DefaultClusterComponent []*DefaultClusterComponent `json:"defaultClusterComponent"`
+	AgentInstallationStage  int                        `json:"agentInstallationStage,notnull"` // -1=external, 0=not triggered, 1=progressing, 2=success, 3=fails
 	K8sVersion              string                     `json:"k8sVersion"`
 	HasConfigOrUrlChanged   bool                       `json:"-"`
 	UserName                string                     `json:"userName,omitempty"`
