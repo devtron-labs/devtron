@@ -1,0 +1,1 @@
+ALTER ci_template ADD COLUMN build_context VARCHAR(200) DEFAULT '.'
