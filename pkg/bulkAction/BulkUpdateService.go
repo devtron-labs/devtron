@@ -1381,7 +1381,7 @@ func (impl BulkUpdateServiceImpl) BulkBuildTrigger(request *BulkApplicationForEn
 				PipelineId:         ciPipelineId,
 				CiPipelineMaterial: ciMaterials,
 				TriggeredBy:        request.UserId,
-				InvalidateCache:    false,
+				InvalidateCache:    request.InvalidateCache,
 			}
 			latestCommitsMap[ciPipelineId] = ciTriggerRequest
 			ciCompletedStatus[ciPipelineId] = false
