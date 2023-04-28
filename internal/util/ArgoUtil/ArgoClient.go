@@ -54,7 +54,7 @@ func NewArgoSession(httpClient *http.Client, logger *zap.SugaredLogger) *ArgoSes
 		return nil
 	}
 	baseUrl := &url.URL{
-		Scheme: "http",
+		Scheme: "https",
 		Host:   cfg.Url,
 	}
 
