@@ -236,6 +236,32 @@ func (_m *PipelineRepository) FindActiveByEnvIdAndDeploymentType(environmentId i
 	return r0, r1
 }
 
+// FindActiveByEnvIds provides a mock function with given fields: envId
+func (_m *PipelineRepository) FindActiveByEnvIds(envId []int) ([]*pipelineConfig.Pipeline, error) {
+	ret := _m.Called(envId)
+
+	var r0 []*pipelineConfig.Pipeline
+	var r1 error
+	if rf, ok := ret.Get(0).(func([]int) ([]*pipelineConfig.Pipeline, error)); ok {
+		return rf(envId)
+	}
+	if rf, ok := ret.Get(0).(func([]int) []*pipelineConfig.Pipeline); ok {
+		r0 = rf(envId)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*pipelineConfig.Pipeline)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func([]int) error); ok {
+		r1 = rf(envId)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // FindActiveByInFilter provides a mock function with given fields: envId, appIdIncludes
 func (_m *PipelineRepository) FindActiveByInFilter(envId int, appIdIncludes []int) ([]*pipelineConfig.Pipeline, error) {
 	ret := _m.Called(envId, appIdIncludes)
@@ -260,10 +286,6 @@ func (_m *PipelineRepository) FindActiveByInFilter(envId int, appIdIncludes []in
 	}
 
 	return r0, r1
-}
-
-func (_m *PipelineRepository) FindActiveByEnvIds(envIds []int) (pipelines []*pipelineConfig.Pipeline, err error) {
-	return nil, err
 }
 
 // FindActiveByNotFilter provides a mock function with given fields: envId, appIdExcludes
@@ -1030,13 +1052,13 @@ func (_m *PipelineRepository) UpdateCdPipeline(pipeline *pipelineConfig.Pipeline
 	return r0
 }
 
-// UpdateCdPipelineDeploymentAppInFilter provides a mock function with given fields: deploymentAppType, cdPipelineIdIncludes, userId
-func (_m *PipelineRepository) UpdateCdPipelineDeploymentAppInFilter(deploymentAppType string, cdPipelineIdIncludes []int, userId int32) error {
-	ret := _m.Called(deploymentAppType, cdPipelineIdIncludes, userId)
+// UpdateCdPipelineDeploymentAppInFilter provides a mock function with given fields: deploymentAppType, cdPipelineIdIncludes, userId, deploymentAppCreated
+func (_m *PipelineRepository) UpdateCdPipelineDeploymentAppInFilter(deploymentAppType string, cdPipelineIdIncludes []int, userId int32, deploymentAppCreated bool) error {
+	ret := _m.Called(deploymentAppType, cdPipelineIdIncludes, userId, deploymentAppCreated)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, []int, int32) error); ok {
-		r0 = rf(deploymentAppType, cdPipelineIdIncludes, userId)
+	if rf, ok := ret.Get(0).(func(string, []int, int32, bool) error); ok {
+		r0 = rf(deploymentAppType, cdPipelineIdIncludes, userId, deploymentAppCreated)
 	} else {
 		r0 = ret.Error(0)
 	}
