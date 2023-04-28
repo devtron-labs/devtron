@@ -97,6 +97,7 @@ type InstallAppVersionDTO struct {
 	DeploymentAppType            string                     `json:"deploymentAppType"`
 	AcdPartialDelete             bool                       `json:"acdPartialDelete"`
 	AppStoreApplicationVersionId int
+	AcdToken                     string `json:"acdToken"`
 }
 
 type InstallAppVersionChartDTO struct {

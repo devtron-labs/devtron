@@ -452,7 +452,8 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) patchAcdApp(ctx context.Context,
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Minute)
 	defer cancel()
 	//registerInArgo
-	err := impl.appStoreDeploymentFullModeService.RegisterInArgo(chartGitAttr, ctx)
+	acdToken := installAppVersionRequest.AcdToken
+	err := impl.chartTemplateService.RegisterInArgo(chartGitAttr, ctx, acdToken)
 	if err != nil {
 		impl.Logger.Errorw("error in argo registry", "err", err)
 		return nil, err

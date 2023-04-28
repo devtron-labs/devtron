@@ -160,10 +160,11 @@ func (handler AppStoreDeploymentRestHandlerImpl) InstallApp(w http.ResponseWrite
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
+	acdToken := ""
 	if util2.IsBaseStack() || util2.IsHelmApp(request.AppOfferingMode) {
 		ctx = context.WithValue(r.Context(), "token", token)
 	} else {
-		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+		acdToken, err = handler.argoUserService.GetLatestDevtronArgoCdUserToken()
 		if err != nil {
 			handler.Logger.Errorw("error in getting acd token", "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -173,6 +174,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) InstallApp(w http.ResponseWrite
 	}
 
 	defer cancel()
+	request.AcdToken = acdToken
 	res, err := handler.appStoreDeploymentService.InstallApp(&request, ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "application spec is invalid") {
