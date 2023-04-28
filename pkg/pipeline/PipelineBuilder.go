@@ -2733,8 +2733,51 @@ func (impl PipelineBuilderImpl) filterDeploymentTemplate(strategyKey string, pip
 	return pipelineStrategyJson, nil
 }
 
+func (impl PipelineBuilderImpl) getStrategiesMapping(dbPipelineIds []int) (map[int][]*chartConfig.PipelineStrategy, error) {
+	strategiesMapping := make(map[int][]*chartConfig.PipelineStrategy)
+	strategiesByPipelineIds, err := impl.pipelineConfigRepository.GetAllStrategyByPipelineIds(dbPipelineIds)
+	if err != nil && errors.IsNotFound(err) {
+		impl.logger.Errorw("error in fetching strategies by pipelineIds", "PipelineIds", dbPipelineIds, "err", err)
+		return strategiesMapping, err
+	}
+	for _, strategy := range strategiesByPipelineIds {
+		strategiesMapping[strategy.PipelineId] = append(strategiesMapping[strategy.PipelineId], strategy)
+	}
+	return strategiesMapping, nil
+}
+
 func (impl PipelineBuilderImpl) GetTriggerViewCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error) {
-	return impl.ciCdPipelineOrchestrator.GetCdPipelinesForApp(appId)
+	triggerViewCdPipelinesResp, err := impl.ciCdPipelineOrchestrator.GetCdPipelinesForApp(appId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching triggerViewCdPipelinesResp by appId", "err", err, "appId", appId)
+		return triggerViewCdPipelinesResp, err
+	}
+	var dbPipelineIds []int
+	for _, dbPipeline := range triggerViewCdPipelinesResp.Pipelines {
+		dbPipelineIds = append(dbPipelineIds, dbPipeline.Id)
+	}
+
+	//construct strategiesMapping to get all strategies against pipelineId
+	strategiesMapping, err := impl.getStrategiesMapping(dbPipelineIds)
+	if err != nil {
+		impl.logger.Errorw("error in getting strategiesMapping", "err", err)
+		return triggerViewCdPipelinesResp, err
+	}
+	for _, dbPipeline := range triggerViewCdPipelinesResp.Pipelines {
+		var strategies []*chartConfig.PipelineStrategy
+		var deploymentTemplate chartRepoRepository.DeploymentStrategy
+		if len(strategiesMapping[dbPipeline.Id]) != 0 {
+			strategies = strategiesMapping[dbPipeline.Id]
+		}
+		for _, item := range strategies {
+			if item.Default {
+				deploymentTemplate = item.Strategy
+			}
+		}
+		dbPipeline.DeploymentTemplate = deploymentTemplate
+	}
+
+	return triggerViewCdPipelinesResp, err
 }
 
 func (impl PipelineBuilderImpl) GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error) {
@@ -2753,7 +2796,6 @@ func (impl PipelineBuilderImpl) GetCdPipelinesForApp(appId int) (cdPipelines *be
 		return cdPipelines, nil
 	}
 	envMapping := make(map[int]*repository2.Environment)
-	strategiesMapping := make(map[int][]*chartConfig.PipelineStrategy)
 	appWorkflowMapping := make(map[int]*appWorkflow.AppWorkflowMapping)
 
 	envs, err := impl.environmentRepository.FindByIds(envIds)
@@ -2765,17 +2807,11 @@ func (impl PipelineBuilderImpl) GetCdPipelinesForApp(appId int) (cdPipelines *be
 	for _, env := range envs {
 		envMapping[env.Id] = env
 	}
-
-	strategiesByPipelineIds, err := impl.pipelineConfigRepository.GetAllStrategyByPipelineIds(dbPipelineIds)
-	if err != nil && errors.IsNotFound(err) {
-		impl.logger.Errorw("error in fetching strategies by pipelineIds", "err", err)
+	strategiesMapping, err := impl.getStrategiesMapping(dbPipelineIds)
+	if err != nil {
+		impl.logger.Errorw("error in getting strategiesMapping", "err", err)
 		return cdPipelines, err
 	}
-	//creating map for dbPipelineId and it's respective strategies
-	for _, strategy := range strategiesByPipelineIds {
-		strategiesMapping[strategy.PipelineId] = append(strategiesMapping[strategy.PipelineId], strategy)
-	}
-
 	appWorkflowMappings, err := impl.appWorkflowRepository.FindByCDPipelineIds(dbPipelineIds)
 	if err != nil {
 		impl.logger.Errorw("error in fetching app workflow mappings by pipelineIds", "err", err)
