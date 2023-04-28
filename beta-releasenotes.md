@@ -9,6 +9,7 @@
 - fix: bulk cd trigger argo app unauthorized err (#3290)
 - fix: api optimize fixes (#3275)
 ## Enhancements
+- feat: added deployedBy field in helm apps deployment history (#3324)
 - feat: private chart support for helm apps (#3267)
 - feat: add sharding sql scripts (#3302)
 - feat: add gRPC client for git-sensor (#3085)
