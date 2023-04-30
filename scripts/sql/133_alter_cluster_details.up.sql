@@ -14,12 +14,11 @@ CREATE TABLE IF NOT EXISTS public.cluster_note
     "created_by"                int4         NOT NULL,
     "updated_on"                timestamptz,
     "updated_by"                int4,
-    PRIMARY KEY ("id")
+    PRIMARY KEY ("id"),
+    CONSTRAINT cluster_note_cluster_id_fkey
+    FOREIGN KEY(cluster_id)
+    REFERENCES public.cluster(id)
 );
-
--- add foreign key
-ALTER TABLE "public"."cluster_note"
-    ADD FOREIGN KEY ("cluster_id") REFERENCES "public"."cluster" ("id");
 
 -- cluster_note_history Table Definition
 CREATE TABLE IF NOT EXISTS public.cluster_note_history
@@ -31,9 +30,8 @@ CREATE TABLE IF NOT EXISTS public.cluster_note_history
     "created_by"                int4         NOT NULL,
     "updated_on"                timestamptz,
     "updated_by"                int4,
-    PRIMARY KEY ("id")
+    PRIMARY KEY ("id"),
+    CONSTRAINT cluster_note_history_cluster_note_id_fkey
+    FOREIGN KEY(note_id)
+    REFERENCES public.cluster_note(id)
 );
-
--- add foreign key
-ALTER TABLE "public"."cluster_note_history"
-    ADD FOREIGN KEY ("note_id") REFERENCES "public"."cluster_note" ("id");

@@ -24,17 +24,16 @@ import (
 )
 
 type ClusterNote struct {
-	tableName              struct{}          `sql:"cluster_note" pg:",discard_unknown_columns"`
-	Id                     int               `sql:"id,pk"`
-	ClusterId              int               `sql:"cluster_id"`
-	Description            string            `sql:"description"`
+	tableName   struct{} `sql:"cluster_note" pg:",discard_unknown_columns"`
+	Id          int      `sql:"id,pk"`
+	ClusterId   int      `sql:"cluster_id"`
+	Description string   `sql:"description"`
 	sql.AuditLog
 }
 
 type ClusterNoteRepository interface {
 	Save(model *ClusterNote) error
 	FindByClusterId(id int) (*ClusterNote, error)
-	FindByClusterIds(id []int) ([]*ClusterNote, error)
 	Update(model *ClusterNote) error
 }
 
@@ -62,15 +61,6 @@ func (impl ClusterNoteRepositoryImpl) FindByClusterId(id int) (*ClusterNote, err
 		Limit(1).
 		Select()
 	return clusterNote, err
-}
-
-func (impl ClusterNoteRepositoryImpl) FindByClusterIds(ids []int) ([]*ClusterNote, error) {
-	var clusterNotes []*ClusterNote
-	err := impl.dbConnection.
-		Model(&clusterNotes).
-		Where("cluster_id in(?)", pg.In(ids)).
-		Select()
-	return clusterNotes, err
 }
 
 func (impl ClusterNoteRepositoryImpl) Update(model *ClusterNote) error {

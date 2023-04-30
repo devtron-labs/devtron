@@ -8,7 +8,6 @@ import (
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
-	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/go-pg/pg"
 	"github.com/stretchr/testify/assert"
 )
@@ -179,7 +178,7 @@ func InitClusterNoteService() {
 
 	clusterNoteHistoryRepository := repository.NewClusterNoteHistoryRepositoryImpl(conn, logger)
 	clusterNoteRepository := repository.NewClusterNoteRepositoryImpl(conn, logger)
-	userRepository := repository2.NewUserRepositoryImpl(conn, logger)
+	clusterNoteHistoryService := NewClusterNoteHistoryServiceImpl(clusterNoteHistoryRepository, logger)
 
-	clusterNoteService = NewClusterNoteServiceImpl(clusterNoteRepository, clusterNoteHistoryRepository, userRepository, logger)
+	clusterNoteService = NewClusterNoteServiceImpl(clusterNoteRepository, clusterNoteHistoryService, logger)
 }

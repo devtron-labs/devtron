@@ -69,8 +69,6 @@ type ClusterBean struct {
 	HasConfigOrUrlChanged   bool                       `json:"-"`
 	ErrorInConnecting       string                     `json:"errorInConnecting,omitempty"`
 	IsCdArgoSetup           bool                       `json:"isCdArgoSetup"`
-	CreatedBy               int                        `json:"cluster_created_by"`
-	CreatedOn               time.Time                  `json:"cluster_created_on"`
 }
 
 type PrometheusAuth struct {
@@ -372,8 +370,6 @@ func (impl *ClusterServiceImpl) FindById(id int) (*ClusterBean, error) {
 		Active:                 model.Active,
 		Config:                 model.Config,
 		K8sVersion:             model.K8sVersion,
-		CreatedOn:              model.CreatedOn,
-		CreatedBy:              int(model.CreatedBy),
 	}
 	prometheusAuth := &PrometheusAuth{
 		UserName:      model.PUserName,
