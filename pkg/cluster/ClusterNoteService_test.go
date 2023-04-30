@@ -37,7 +37,7 @@ func TestClusterNoteService_Save(t *testing.T) {
 			name: "TEST : successfully save the note",
 			input: &ClusterNoteBean{
 				Id:          0,
-				ClusterId:   1,
+				ClusterId:   10000,
 				Description: "Test Note",
 				UpdatedBy:   1,
 				UpdatedOn:   time.Now(),
@@ -48,7 +48,7 @@ func TestClusterNoteService_Save(t *testing.T) {
 			name: "TEST : error while saving the existing note",
 			input: &ClusterNoteBean{
 				Id:          0,
-				ClusterId:   1,
+				ClusterId:   10000,
 				Description: "Test Note",
 				UpdatedBy:   1,
 				UpdatedOn:   time.Now(),
@@ -79,7 +79,7 @@ func TestClusterNoteServiceImpl_Update_InvalidFields(t *testing.T) {
 	initialiseDb(t)
 	// insert a cluster note in the database which will be updated later
 	note := &ClusterNoteBean{
-		ClusterId:   100,
+		ClusterId:   10001,
 		Description: "test note",
 		UpdatedBy:   1,
 	}
@@ -89,16 +89,41 @@ func TestClusterNoteServiceImpl_Update_InvalidFields(t *testing.T) {
 	}
 
 	// define input for update function
-	input := &ClusterNoteBean{
-		Id:        1,
-		ClusterId: 100,
+	testCases := []struct {
+		name        string
+		input       *ClusterNoteBean
+		expectedErr bool
+	}{
+		{
+			name: "TEST : error while updating the existing note",
+			input: &ClusterNoteBean{
+				Id:        1,
+				ClusterId: 100,
+			},
+			expectedErr: true,
+		},
+		{
+			name: "TEST : successfully update the note",
+			input: &ClusterNoteBean{
+				Description: "Updated Text",
+				ClusterId:   10001,
+			},
+			expectedErr: false,
+		},
 	}
 
-	// try updating the record with invalid fields and check if it returns error
-	_, err = clusterNoteService.Update(input, 1)
-	if err == nil {
-		t.Fatal("Expected an error on updating record with invalid fields, but got nil")
+	for _, tc := range testCases {
+		t.Run(tc.name, func(tt *testing.T) {
+			res, err := clusterNoteService.Update(tc.input, 1)
+			if tc.expectedErr {
+				assert.NotNil(tt, err)
+			} else {
+				assert.Nil(tt, err)
+				assert.NotEqual(tt, res.Id, 0)
+			}
+		})
 	}
+
 	//clean data in db
 	cleanDb(t)
 }
@@ -134,33 +159,102 @@ func cleanDb(tt *testing.T) {
 	}
 }
 
+func createClusterData(DB *pg.DB, bean *ClusterBean) error {
+	model := &repository.Cluster{
+		Id:          bean.Id,
+		ClusterName: bean.ClusterName,
+		ServerUrl:   bean.ServerUrl,
+	}
+	model.CreatedBy = 1
+	model.UpdatedBy = 1
+	model.CreatedOn = time.Now()
+	model.UpdatedOn = time.Now()
+	return DB.Insert(model)
+}
+
 func initialiseDb(tt *testing.T) {
 	DB, _ := getDbConn()
-	query := "CREATE TABLE IF NOT EXISTS public.cluster (\n    id integer NOT NULL PRIMARY KEY,\n    cluster_name character varying(250) NOT NULL,\n    active boolean NOT NULL,\n    created_on timestamp with time zone NOT NULL,\n    created_by integer NOT NULL,\n    updated_on timestamp with time zone NOT NULL,\n    updated_by integer NOT NULL,\n    server_url character varying(250),\n    config json,\n    prometheus_endpoint character varying(250),\n    cd_argo_setup boolean DEFAULT false,\n    p_username character varying(250),\n    p_password character varying(250),\n    p_tls_client_cert text,\n    p_tls_client_key text\n);\n\n\nALTER TABLE public.cluster OWNER TO postgres;"
+	query := "CREATE TABLE IF NOT EXISTS public.cluster (\n" +
+		"    id integer NOT NULL PRIMARY KEY,\n" +
+		"    cluster_name character varying(250) NOT NULL,\n" +
+		"    active boolean NOT NULL,\n" +
+		"    created_on timestamp with time zone NOT NULL,\n" +
+		"    created_by integer NOT NULL,\n" +
+		"    updated_on timestamp with time zone NOT NULL,\n" +
+		"    updated_by integer NOT NULL,\n" +
+		"    server_url character varying(250),\n" +
+		"    config json,\n" +
+		"    prometheus_endpoint character varying(250),\n" +
+		"    cd_argo_setup boolean DEFAULT false,\n " +
+		"    p_username character varying(250),\n" +
+		"    p_password character varying(250),\n" +
+		"    p_tls_client_cert text,\n" +
+		"    p_tls_client_key text,\n" +
+		"    agent_installation_stage int4 DEFAULT 0,\n" +
+		"    error_in_connecting TEXT,\n" +
+		"    k8s_version varchar(250)\n" +
+		");\n\n\n" +
+		"ALTER TABLE public.cluster OWNER TO postgres;"
 	_, err := DB.Exec(query)
 	assert.Nil(tt, err)
 	if err != nil {
 		return
 	}
-	query = "-- Sequence and defined type for cluster_note\nCREATE SEQUENCE IF NOT EXISTS id_seq_cluster_note;\n\n-- Sequence and defined type for cluster_note_history\nCREATE SEQUENCE IF NOT EXISTS id_seq_cluster_note_history;\n\n-- cluster_note Table Definition\nCREATE TABLE IF NOT EXISTS public.cluster_note\n(\n    \"id\"                        int4         NOT NULL DEFAULT nextval('id_seq_cluster_note'::regclass),\n    \"cluster_id\"                int4         NOT NULL,\n    \"description\"               TEXT         NOT NULL,\n    \"created_on\"                timestamptz  NOT NULL,\n    \"created_by\"                int4         NOT NULL,\n    \"updated_on\"                timestamptz,\n    \"updated_by\"                int4,\n    PRIMARY KEY (\"id\")\n);\n\n-- add foreign key\nALTER TABLE \"public\".\"cluster_note\"\n    ADD FOREIGN KEY (\"cluster_id\") REFERENCES \"public\".\"cluster\" (\"id\");\n\n-- cluster_note_history Table Definition\nCREATE TABLE IF NOT EXISTS public.cluster_note_history\n(\n    \"id\"                        int4         NOT NULL DEFAULT nextval('id_seq_cluster_note_history'::regclass),\n    \"note_id\"                   int4         NOT NULL,\n    \"description\"               TEXT         NOT NULL,\n    \"created_on\"                timestamptz  NOT NULL,\n    \"created_by\"                int4         NOT NULL,\n    \"updated_on\"                timestamptz,\n    \"updated_by\"                int4,\n    PRIMARY KEY (\"id\")\n);\n\n-- add foreign key\nALTER TABLE \"public\".\"cluster_note_history\"\n    ADD FOREIGN KEY (\"note_id\") REFERENCES \"public\".\"cluster_note\" (\"id\");"
+	query = "-- Sequence and defined type for cluster_note\n" +
+		"CREATE SEQUENCE IF NOT EXISTS id_seq_cluster_note;\n\n" +
+		"-- Sequence and defined type for cluster_note_history\n" +
+		"CREATE SEQUENCE IF NOT EXISTS id_seq_cluster_note_history;\n\n" +
+		"-- cluster_note Table Definition\n" +
+		"CREATE TABLE IF NOT EXISTS public.cluster_note\n(\n" +
+		"    \"id\"                        int4         NOT NULL DEFAULT nextval('id_seq_cluster_note'::regclass),\n" +
+		"    \"cluster_id\"                int4         NOT NULL,\n" +
+		"    \"description\"               TEXT         NOT NULL,\n" +
+		"    \"created_on\"                timestamptz  NOT NULL,\n" +
+		"    \"created_by\"                int4         NOT NULL,\n" +
+		"    \"updated_on\"                timestamptz,\n" +
+		"    \"updated_by\"                int4,\n" +
+		"    PRIMARY KEY (\"id\")\n);\n\n" +
+		"-- add foreign key\n" +
+		"ALTER TABLE \"public\".\"cluster_note\"\n" +
+		"    ADD FOREIGN KEY (\"cluster_id\") REFERENCES \"public\".\"cluster\" (\"id\");\n\n" +
+		"-- cluster_note_history Table Definition\n" +
+		"CREATE TABLE IF NOT EXISTS public.cluster_note_history\n" +
+		"(\n" +
+		"    \"id\"                        int4         NOT NULL DEFAULT nextval('id_seq_cluster_note_history'::regclass),\n" +
+		"    \"note_id\"                   int4         NOT NULL,\n" +
+		"    \"description\"               TEXT         NOT NULL,\n" +
+		"    \"created_on\"                timestamptz  NOT NULL,\n" +
+		"    \"created_by\"                int4         NOT NULL,\n" +
+		"    \"updated_on\"                timestamptz,\n" +
+		"    \"updated_by\"                int4,\n" +
+		"    PRIMARY KEY (\"id\")\n);\n\n" +
+		"-- add foreign key\n" +
+		"ALTER TABLE \"public\".\"cluster_note_history\"\n" +
+		"    ADD FOREIGN KEY (\"note_id\") REFERENCES \"public\".\"cluster_note\" (\"id\");"
 	_, err = DB.Exec(query)
 	assert.Nil(tt, err)
 	if err != nil {
 		return
 	}
-	query = "INSERT INTO public.cluster (\nid, cluster_name, active, created_on, created_by, updated_on, updated_by) VALUES (\n'1'::integer, 'test'::character varying, true::boolean, '2009-10-31T01:48:52Z '::timestamp with time zone, '1'::integer, '2009-10-31T01:48:52Z '::timestamp with time zone, '1'::integer)\n returning id;"
-	_, err = DB.Exec(query)
-	assert.Nil(tt, err)
-	if err != nil {
-		return
+	clusters := []ClusterBean{
+		{
+			Id:          10000,
+			ClusterName: "test-cluster-1",
+			ServerUrl:   "https://test1.cluster",
+		},
+		{
+			Id:          10001,
+			ClusterName: "test-cluster-2",
+			ServerUrl:   "https://test2.cluster",
+		},
 	}
-	query = "INSERT INTO public.cluster (\nid, cluster_name, active, created_on, created_by, updated_on, updated_by) VALUES (\n'100'::integer, 'test-cluster'::character varying, true::boolean, '2009-10-31T01:48:52Z '::timestamp with time zone, '1'::integer, '2009-10-31T01:48:52Z '::timestamp with time zone, '1'::integer)\n returning id;"
-	_, err = DB.Exec(query)
-	assert.Nil(tt, err)
-	if err != nil {
-		return
+	for _, cluster := range clusters {
+		err = createClusterData(DB, &cluster)
+		assert.Nil(tt, err)
+		if err != nil {
+			return
+		}
 	}
-
 }
 
 func InitClusterNoteService() {
@@ -179,6 +273,5 @@ func InitClusterNoteService() {
 	clusterNoteHistoryRepository := repository.NewClusterNoteHistoryRepositoryImpl(conn, logger)
 	clusterNoteRepository := repository.NewClusterNoteRepositoryImpl(conn, logger)
 	clusterNoteHistoryService := NewClusterNoteHistoryServiceImpl(clusterNoteHistoryRepository, logger)
-
 	clusterNoteService = NewClusterNoteServiceImpl(clusterNoteRepository, clusterNoteHistoryService, logger)
 }
