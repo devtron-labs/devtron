@@ -82,10 +82,11 @@ type CmAndSecretBulkUpdateResponse struct {
 }
 
 type BulkApplicationForEnvironmentPayload struct {
-	AppIdIncludes []int `json:"appIdIncludes,omitempty"`
-	AppIdExcludes []int `json:"appIdExcludes,omitempty"`
-	EnvId         int   `json:"envId"`
-	UserId        int32 `json:"-"`
+	AppIdIncludes   []int `json:"appIdIncludes,omitempty"`
+	AppIdExcludes   []int `json:"appIdExcludes,omitempty"`
+	EnvId           int   `json:"envId"`
+	UserId          int32 `json:"-"`
+	InvalidateCache bool  `json:"invalidateCache"`
 }
 
 type BulkApplicationForEnvironmentResponse struct {
