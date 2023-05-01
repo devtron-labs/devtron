@@ -25,6 +25,7 @@ import (
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
@@ -65,6 +66,7 @@ type AppStoreDeploymentArgoCdServiceImpl struct {
 	gitOpsConfigRepository            repository3.GitOpsConfigRepository
 	appStatusService                  appStatus.AppStatusService
 	pipelineStatusTimelineService     status.PipelineStatusTimelineService
+	userService                       user.UserService
 }
 
 func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
@@ -72,7 +74,7 @@ func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreD
 	installedAppRepository repository.InstalledAppRepository, installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository, chartTemplateService util.ChartTemplateService,
 	gitFactory *util.GitFactory, argoUserService argo.ArgoUserService, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
 	helmAppService client.HelmAppService, gitOpsConfigRepository repository3.GitOpsConfigRepository, appStatusService appStatus.AppStatusService,
-	pipelineStatusTimelineService status.PipelineStatusTimelineService) *AppStoreDeploymentArgoCdServiceImpl {
+	pipelineStatusTimelineService status.PipelineStatusTimelineService, userService user.UserService) *AppStoreDeploymentArgoCdServiceImpl {
 	return &AppStoreDeploymentArgoCdServiceImpl{
 		Logger:                            logger,
 		appStoreDeploymentFullModeService: appStoreDeploymentFullModeService,
@@ -88,6 +90,7 @@ func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreD
 		gitOpsConfigRepository:            gitOpsConfigRepository,
 		appStatusService:                  appStatusService,
 		pipelineStatusTimelineService:     pipelineStatusTimelineService,
+		userService:                       userService,
 	}
 }
 
@@ -314,6 +317,11 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetDeploymentHistory(ctx context
 			return result, err
 		}
 		for _, updateHistory := range versionHistory {
+			user, err := impl.userService.GetById(updateHistory.CreatedBy)
+			if err != nil {
+				impl.Logger.Errorw("error while fetching user Details", "error", err)
+				return result, err
+			}
 			history = append(history, &client.HelmAppDeploymentDetail{
 				ChartMetadata: &client.ChartMetadata{
 					ChartName:    installedAppVersionModel.AppStoreApplicationVersion.AppStore.Name,
@@ -322,6 +330,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetDeploymentHistory(ctx context
 					Home:         installedAppVersionModel.AppStoreApplicationVersion.Home,
 					Sources:      sources,
 				},
+				DeployedBy:   user.EmailId,
 				DockerImages: []string{installedAppVersionModel.AppStoreApplicationVersion.AppVersion},
 				DeployedAt: &timestamp.Timestamp{
 					Seconds: updateHistory.UpdatedOn.Unix(),
