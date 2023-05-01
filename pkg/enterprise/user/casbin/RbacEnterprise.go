@@ -67,6 +67,7 @@ func (e *EnterpriseEnforcerImpl) EnforceByEmail(emailId string, resource string,
 }
 
 func (e *EnterpriseEnforcerImpl) EnforceByEmailInBatch(emailId string, resource string, action string, resourceItems []string) map[string]bool {
+	emailId = strings.ToLower(emailId)
 	if e.Config.EnterpriseEnforcerEnabled {
 		timestamp := time.Now()
 		enforcerResponse := e.EnforceForSubjectInBatch(emailId, resource, action, resourceItems)
