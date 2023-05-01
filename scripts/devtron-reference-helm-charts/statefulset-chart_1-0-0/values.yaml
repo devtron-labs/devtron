@@ -121,6 +121,9 @@ statefulSetConfig:
     type: RollingUpdate
     partition: 2
   revisionHistoryLimit: 3
+  volumeMounts: 
+      - name: pvc-data
+        mountPath: /tmp
   volumeClaimTemplates:
   - apiVersion: v1
     kind: PersistentVolumeClaim

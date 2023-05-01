@@ -21,9 +21,12 @@ statefulSetConfig:
   annotations: {}
   #serviceName: "test-service_headless"
   revisionHistoryLimit: 3
+  volumeMounts: []
+      # - name: pvc-data
+      #   mountPath: /tmp
   volumeClaimTemplates: 
-  - metadata:
-      name: app-values
+  - metadata: 
+      name: 
     spec:
       accessModes:
         - ReadWriteOnce

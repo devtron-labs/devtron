@@ -380,9 +380,12 @@ spec:
           resources:
 {{ toYaml $.Values.resources | trim | indent 12 }} 
           volumeMounts:
+{{- with .Values.statefulSetConfig.volumeMounts }}
+{{ toYaml . | trim | indent 12 }}
+{{- end }} 
 {{- with .Values.volumeMounts }}
 {{ toYaml . | trim | indent 12 }}
-{{- end }}
+{{- end }}  
           {{- if .Values.ConfigMaps.enabled }}
           {{- range .Values.ConfigMaps.maps }}
           {{- if eq .type "volume"}}
@@ -391,7 +394,7 @@ spec:
           {{- if eq .subPath false }}
             - name: {{ $cmName | replace "." "-"}}-vol
               mountPath: {{ $cmMountPath }}
-	  
+
           {{- else }}
           {{- range $k, $v := .data }}
             - name: {{ $cmName | replace "." "-"}}-vol
@@ -423,7 +426,7 @@ spec:
           {{- end }}
           {{- end }}
           {{- if and (eq (len .Values.volumes) 0) (or (eq (.Values.ConfigSecrets.enabled) true) (eq (.Values.ConfigMaps.enabled) true)) (eq ($hasCMVolumeExists) false) (eq ($hasSecretVolumeExists) false) }} []{{- end }}
-          {{- if and (eq (len .Values.volumeMounts) 0) (eq (.Values.ConfigSecrets.enabled) false) (eq (.Values.ConfigMaps.enabled) false) }} []{{- end }}
+          {{- if and (eq (len .Values.volumeMounts) 0) (eq (.Values.ConfigSecrets.enabled) false) (eq (.Values.ConfigMaps.enabled) false) (eq (len .Values.statefulSetConfig.volumeMounts) 0) }} [] {{- end }}
       volumes:
   {{- if $.Values.appMetrics }}
         - name: envoy-config-volume
@@ -483,11 +486,7 @@ spec:
           {{- if .metadata.labels }}
           labels: {{ toYaml .metadata.labels | nindent 14 }}
           {{- end}}
-          {{- if .metadata.name }}
           name: {{ .metadata.name }}
-          {{else}}
-          name: {{ $.Release.Name }}
-          {{- end}}
           {{- if .metadata.namespace }}
           namespace: {{  .metadata.namespace  }}
           {{- end}}
