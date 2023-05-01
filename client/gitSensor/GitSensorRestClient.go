@@ -108,7 +108,7 @@ type GitCommit struct {
 	Message     string
 	Changes     []string
 	WebhookData *WebhookData
-	Excluded    int
+	Excluded    bool
 }
 
 type WebhookAndCiData struct {
