@@ -181,6 +181,7 @@ message  HelmAppDeploymentDetail {
   repeated string dockerImages = 2;
   int32 version = 3;
   google.protobuf.Timestamp deployedAt = 4;
+  string deployedBy = 5;
 }
 
 message HelmAppDeploymentHistory {
@@ -249,6 +250,7 @@ message InstallReleaseRequest {
   string chartVersion = 3;
   string valuesYaml = 4;
   ChartRepository chartRepository = 5;
+  string K8sVersion = 6;
 }
 
 message InstallReleaseResponse {

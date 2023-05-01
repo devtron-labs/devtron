@@ -22,19 +22,22 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/client/gitSensor"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
 	"github.com/devtron-labs/devtron/pkg/chart"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/argo"
+	"go.opentelemetry.io/otel"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
-
-	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"sync"
 
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
-	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
@@ -61,7 +64,6 @@ type DevtronAppRestHandler interface {
 	CreateApp(w http.ResponseWriter, r *http.Request)
 	DeleteApp(w http.ResponseWriter, r *http.Request)
 	GetApp(w http.ResponseWriter, r *http.Request)
-
 	FindAppsByTeamId(w http.ResponseWriter, r *http.Request)
 	FindAppsByTeamName(w http.ResponseWriter, r *http.Request)
 	GetEnvironmentListWithAppData(w http.ResponseWriter, r *http.Request)
@@ -85,7 +87,6 @@ type PipelineConfigRestHandler interface {
 	DevtronAppDeploymentHistoryRestHandler
 	DevtronAppPrePostDeploymentRestHandler
 	DevtronAppDeploymentConfigRestHandler
-
 	PipelineNameSuggestion(w http.ResponseWriter, r *http.Request)
 }
 
@@ -103,7 +104,7 @@ type PipelineConfigRestHandlerImpl struct {
 	validator                    *validator.Validate
 	teamService                  team.TeamService
 	enforcer                     casbin.Enforcer
-	gitSensorClient              gitSensor.GitSensorClient
+	gitSensorClient              gitSensor.Client
 	pipelineRepository           pipelineConfig.PipelineRepository
 	appWorkflowService           appWorkflow.AppWorkflowService
 	enforcerUtil                 rbac.EnforcerUtil
@@ -129,7 +130,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	enforcer casbin.Enforcer,
 	ciHandler pipeline.CiHandler,
 	validator *validator.Validate,
-	gitSensorClient gitSensor.GitSensorClient,
+	gitSensorClient gitSensor.Client,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
 	enforcerUtil rbac.EnforcerUtil, envService request.EnvironmentService,
 	gitRegistryConfig pipeline.GitRegistryConfig, dockerRegistryConfig pipeline.DockerRegistryConfig,
@@ -203,13 +204,27 @@ func (handler PipelineConfigRestHandlerImpl) DeleteApp(w http.ResponseWriter, r 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
-	resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionDelete, resourceObject); !ok {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+	app, err := handler.pipelineBuilder.GetApp(appId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
+	if app.AppType == helper.Job {
+		isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
+		if !isSuperAdmin || err != nil {
+			if err != nil {
+				handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
+			}
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+			return
+		}
+	} else {
+		resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionDelete, resourceObject); !ok {
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+			return
+		}
+	}
 	err = handler.pipelineBuilder.DeleteApp(appId, userId)
 	if err != nil {
 		handler.Logger.Errorw("service error, delete app", "err", err, "appId", appId)
@@ -235,7 +250,16 @@ func (handler PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
+	if createRequest.AppType == helper.Job {
+		isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
+		if !isSuperAdmin || err != nil {
+			if err != nil {
+				handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
+			}
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+			return
+		}
+	}
 	handler.Logger.Infow("request payload, CreateApp", "CreateApp", createRequest)
 	err = handler.validator.Struct(createRequest)
 	if err != nil {
@@ -497,8 +521,29 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerVie
 	}
 	//RBAC CHECK
 
+	apiVersion := vars["version"]
 	triggerWorkflowStatus := pipelineConfig.TriggerWorkflowStatus{}
-	ciWorkflowStatus, err := handler.ciHandler.FetchCiStatusForTriggerView(appId)
+	var ciWorkflowStatus []*pipelineConfig.CiWorkflowStatus
+	var err1 error
+	var cdWorkflowStatus []*pipelineConfig.CdWorkflowStatus
+
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+	go func() {
+		if apiVersion == "v2" {
+			ciWorkflowStatus, err = handler.ciHandler.FetchCiStatusForTriggerViewV1(appId)
+		} else {
+			ciWorkflowStatus, err = handler.ciHandler.FetchCiStatusForTriggerView(appId)
+		}
+		wg.Done()
+	}()
+
+	go func() {
+		cdWorkflowStatus, err1 = handler.cdHandler.FetchAppWorkflowStatusForTriggerView(appId)
+		wg.Done()
+	}()
+	wg.Wait()
+
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchAppWorkflowStatusForTriggerView", "err", err, "appId", appId)
 		if util.IsErrNoRows(err) {
@@ -510,17 +555,17 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerVie
 		return
 	}
 
-	cdWorkflowStatus, err := handler.cdHandler.FetchAppWorkflowStatusForTriggerView(appId)
-	if err != nil {
-		handler.Logger.Errorw("service err, FetchAppWorkflowStatusForTriggerView", "err", err, "appId", appId)
-		if util.IsErrNoRows(err) {
-			err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no status found"}
-			common.WriteJsonResp(w, err, nil, http.StatusOK)
+	if err1 != nil {
+		handler.Logger.Errorw("service err, FetchAppWorkflowStatusForTriggerView", "err", err1, "appId", appId)
+		if util.IsErrNoRows(err1) {
+			err1 = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no status found"}
+			common.WriteJsonResp(w, err1, nil, http.StatusOK)
 		} else {
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			common.WriteJsonResp(w, err1, nil, http.StatusInternalServerError)
 		}
 		return
 	}
+
 	triggerWorkflowStatus.CiWorkflowStatus = ciWorkflowStatus
 	triggerWorkflowStatus.CdWorkflowStatus = cdWorkflowStatus
 	common.WriteJsonResp(w, err, triggerWorkflowStatus, http.StatusOK)
@@ -569,8 +614,42 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerVie
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	v := r.URL.Query()
+	appIdsString := v.Get("appIds")
+	var appIds []int
+	if len(appIdsString) > 0 {
+		appIdsSlices := strings.Split(appIdsString, ",")
+		for _, appId := range appIdsSlices {
+			id, err := strconv.Atoi(appId)
+			if err != nil {
+				common.WriteJsonResp(w, err, "please provide valid appIds", http.StatusBadRequest)
+				return
+			}
+			appIds = append(appIds, id)
+		}
+	}
+	var appGroupId int
+	appGroupIdStr := v.Get("appGroupId")
+	if len(appGroupIdStr) > 0 {
+		appGroupId, err = strconv.Atoi(appGroupIdStr)
+		if err != nil {
+			common.WriteJsonResp(w, err, "please provide valid appGroupId", http.StatusBadRequest)
+			return
+		}
+	}
+	request := appGroup2.AppGroupingRequest{
+		EnvId:          envId,
+		AppGroupId:     appGroupId,
+		AppIds:         appIds,
+		EmailId:        userEmailId,
+		CheckAuthBatch: handler.checkAuthBatch,
+		UserId:         userId,
+		Ctx:            r.Context(),
+	}
 	triggerWorkflowStatus := pipelineConfig.TriggerWorkflowStatus{}
-	ciWorkflowStatus, err := handler.ciHandler.FetchCiStatusForTriggerViewForEnvironment(envId, userEmailId, handler.checkAuthBatch)
+	_, span := otel.Tracer("orchestrator").Start(r.Context(), "ciHandler.FetchCiStatusForBuildAndDeployInAppGrouping")
+	ciWorkflowStatus, err := handler.ciHandler.FetchCiStatusForTriggerViewForEnvironment(request)
+	span.End()
 	if err != nil {
 		handler.Logger.Errorw("service err", "err", err)
 		if util.IsErrNoRows(err) {
@@ -582,7 +661,9 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerVie
 		return
 	}
 
-	cdWorkflowStatus, err := handler.cdHandler.FetchAppWorkflowStatusForTriggerViewForEnvironment(envId, userEmailId, handler.checkAuthBatch)
+	_, span = otel.Tracer("orchestrator").Start(r.Context(), "ciHandler.FetchCdStatusForBuildAndDeployInAppGrouping")
+	cdWorkflowStatus, err := handler.cdHandler.FetchAppWorkflowStatusForTriggerViewForEnvironment(request)
+	span.End()
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchAppWorkflowStatusForTriggerView", "err", err)
 		if util.IsErrNoRows(err) {
@@ -635,7 +716,9 @@ func (handler PipelineConfigRestHandlerImpl) GetEnvironmentListWithAppData(w htt
 			clusterIds = append(clusterIds, id)
 		}
 	}
-	result, err := handler.pipelineBuilder.GetEnvironmentListForAutocompleteFilter(envName, clusterIds, offset, size, userEmailId, handler.checkAuthBatch)
+	_, span := otel.Tracer("orchestrator").Start(r.Context(), "pipelineBuilder.GetEnvironmentListWithAppData")
+	result, err := handler.pipelineBuilder.GetEnvironmentListForAutocompleteFilter(envName, clusterIds, offset, size, userEmailId, handler.checkAuthBatch, r.Context())
+	span.End()
 	if err != nil {
 		handler.Logger.Errorw("service err, get app", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -663,13 +746,45 @@ func (handler PipelineConfigRestHandlerImpl) GetApplicationsByEnvironment(w http
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	ciConf, err := handler.pipelineBuilder.GetAppListForEnvironment(envId, userEmailId, handler.checkAuthBatch)
+	v := r.URL.Query()
+	appIdsString := v.Get("appIds")
+	var appIds []int
+	if len(appIdsString) > 0 {
+		appIdsSlices := strings.Split(appIdsString, ",")
+		for _, appId := range appIdsSlices {
+			id, err := strconv.Atoi(appId)
+			if err != nil {
+				common.WriteJsonResp(w, err, "please provide valid appIds", http.StatusBadRequest)
+				return
+			}
+			appIds = append(appIds, id)
+		}
+	}
+	var appGroupId int
+	appGroupIdStr := v.Get("appGroupId")
+	if len(appGroupIdStr) > 0 {
+		appGroupId, err = strconv.Atoi(appGroupIdStr)
+		if err != nil {
+			common.WriteJsonResp(w, err, "please provide valid appGroupId", http.StatusBadRequest)
+			return
+		}
+	}
+	request := appGroup2.AppGroupingRequest{
+		EnvId:          envId,
+		AppGroupId:     appGroupId,
+		AppIds:         appIds,
+		EmailId:        userEmailId,
+		CheckAuthBatch: handler.checkAuthBatch,
+		UserId:         userId,
+		Ctx:            r.Context(),
+	}
+	results, err := handler.pipelineBuilder.GetAppListForEnvironment(request)
 	if err != nil {
 		handler.Logger.Errorw("service err, get app", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, err, ciConf, http.StatusOK)
+	common.WriteJsonResp(w, err, results, http.StatusOK)
 }
 
 func (handler PipelineConfigRestHandlerImpl) FetchAppDeploymentStatusForEnvironments(w http.ResponseWriter, r *http.Request) {
@@ -690,7 +805,41 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppDeploymentStatusForEnvironm
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	results, err := handler.cdHandler.FetchAppDeploymentStatusForEnvironments(envId, userEmailId, handler.checkAuthBatch)
+	v := r.URL.Query()
+	appIdsString := v.Get("appIds")
+	var appIds []int
+	if len(appIdsString) > 0 {
+		appIdsSlices := strings.Split(appIdsString, ",")
+		for _, appId := range appIdsSlices {
+			id, err := strconv.Atoi(appId)
+			if err != nil {
+				common.WriteJsonResp(w, err, "please provide valid appIds", http.StatusBadRequest)
+				return
+			}
+			appIds = append(appIds, id)
+		}
+	}
+	var appGroupId int
+	appGroupIdStr := v.Get("appGroupId")
+	if len(appGroupIdStr) > 0 {
+		appGroupId, err = strconv.Atoi(appGroupIdStr)
+		if err != nil {
+			common.WriteJsonResp(w, err, "please provide valid appGroupId", http.StatusBadRequest)
+			return
+		}
+	}
+	request := appGroup2.AppGroupingRequest{
+		EnvId:          envId,
+		AppGroupId:     appGroupId,
+		AppIds:         appIds,
+		EmailId:        userEmailId,
+		CheckAuthBatch: handler.checkAuthBatch,
+		UserId:         userId,
+		Ctx:            r.Context(),
+	}
+	_, span := otel.Tracer("orchestrator").Start(r.Context(), "pipelineBuilder.FetchAppDeploymentStatusForEnvironments")
+	results, err := handler.cdHandler.FetchAppDeploymentStatusForEnvironments(request)
+	span.End()
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchAppWorkflowStatusForTriggerView", "err", err)
 		if util.IsErrNoRows(err) {

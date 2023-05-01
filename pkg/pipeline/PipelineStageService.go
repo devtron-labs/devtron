@@ -240,7 +240,7 @@ func (impl *PipelineStageServiceImpl) BuildVariableAndConditionDataByStepIdDeepC
 	return inputVariablesDto, outputVariablesDto, conditionsDto, nil
 }
 
-//GetCiPipelineStageData and related methods starts
+// GetCiPipelineStageData and related methods starts
 func (impl *PipelineStageServiceImpl) GetCiPipelineStageData(ciPipelineId int) (*bean.PipelineStageDto, *bean.PipelineStageDto, error) {
 
 	//getting all stages by ci pipeline id
@@ -452,7 +452,7 @@ func (impl *PipelineStageServiceImpl) BuildVariableAndConditionDataByStepId(step
 
 //GetCiPipelineStageData and related methods ends
 
-//CreateCiStage and related methods starts
+// CreateCiStage and related methods starts
 func (impl *PipelineStageServiceImpl) CreateCiStage(stageReq *bean.PipelineStageDto, stageType repository.PipelineStageType, ciPipelineId int, userId int32) error {
 	stage := &repository.PipelineStage{
 		Name:         stageReq.Name,
@@ -805,7 +805,7 @@ func (impl *PipelineStageServiceImpl) CreateConditionsEntryInDb(stepId int, cond
 
 //CreateCiStage and related methods ends
 
-//UpdateCiStage and related methods starts
+// UpdateCiStage and related methods starts
 func (impl *PipelineStageServiceImpl) UpdateCiStage(stageReq *bean.PipelineStageDto, stageType repository.PipelineStageType, ciPipelineId int, userId int32) error {
 	//getting stage by stageType and ciPipelineId
 	stageOld, err := impl.pipelineStageRepository.GetCiStageByCiPipelineIdAndStageType(ciPipelineId, stageType)
@@ -1341,7 +1341,7 @@ func (impl *PipelineStageServiceImpl) UpdatePipelineStageStepConditions(stepId i
 
 //UpdateCiStage and related methods ends
 
-//DeleteCiStage and related methods starts
+// DeleteCiStage and related methods starts
 func (impl *PipelineStageServiceImpl) DeleteCiStage(stageReq *bean.PipelineStageDto, userId int32, tx *pg.Tx) error {
 	//marking stage deleted
 	err := impl.pipelineStageRepository.MarkCiStageDeletedById(stageReq.Id, userId, tx)
@@ -1416,7 +1416,7 @@ func (impl *PipelineStageServiceImpl) DeleteCiStage(stageReq *bean.PipelineStage
 
 //DeleteCiStage and related methods starts
 
-//BuildPrePostAndRefPluginStepsDataForWfRequest and related methods starts
+// BuildPrePostAndRefPluginStepsDataForWfRequest and related methods starts
 func (impl *PipelineStageServiceImpl) BuildPrePostAndRefPluginStepsDataForWfRequest(ciPipelineId int) ([]*bean.StepObject, []*bean.StepObject, []*bean.RefPluginObject, error) {
 	//get all stages By ciPipelineId
 	ciStages, err := impl.pipelineStageRepository.GetAllCiStagesByCiPipelineId(ciPipelineId)

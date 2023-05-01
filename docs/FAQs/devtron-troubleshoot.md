@@ -432,3 +432,50 @@ To provide the auto-inject credentials to the specific clusters for pulling the 
 3. Redeploy the application after allowing the access.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/container-registries/auto-inject-to-clusters.jpg)
+
+
+
+#### 24. Devtron Terminal Connection Timeout Issue on GKE Cluster
+
+**Problem:**
+
+When connecting to the pod or cluster terminal from the Devtron dashboard on an ingress with gce class in a GKE cluster, the connection gets disconnected after every 30 seconds. This issue is caused by the default timeoutSec value of 30 seconds in the `backendConfig`.
+
+**Solution:**
+
+To resolve this issue, you can increase the timeoutSec value in the backendConfig and apply the configuration to the Devtron service. Here are the steps to do this:
+
+1. Create a `BackendConfig` yaml file with the increased `timeoutSec` value. For example:
+
+```yaml
+apiVersion: cloud.google.com/v1beta1
+kind: BackendConfig
+metadata:
+  name: devtron-backendconfig
+spec:
+  timeoutSec: 1800
+```
+you can adjust the `timeoutSec` value in the `backendConfig` as per your specific requirement. This value determines the maximum amount of time the load balancer should wait for a response from the backend before timing out. You can set the timeoutSec value to a higher or lower value based on your use case and the response time of your backend.
+
+ 2. Apply the BackendConfig to the GKE cluster using the following command:
+
+ ```bash
+ kubectl apply -f <path-to-backendconfig.yaml> -n devtroncd
+ ```
+
+3. Add the `cloud.google.com/backend-config: '{"default": "devtron-backendconfig"}'` annotation to the Devtron service with the BackendConfig name. For example:
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: devtron-service
+  namespace: devtroncd
+  annotations:
+    cloud.google.com/backend-config: '{"default": "devtron-backendconfig"}'
+...
+```
+
+4. Save the changes to the Devtron service configuration.
+
+With these configuration changes, the Devtron dashboard connection should no longer timeout after 30 seconds, allowing for a more stable and consistent connection.

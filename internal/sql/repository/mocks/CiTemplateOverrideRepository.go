@@ -12,6 +12,10 @@ type CiTemplateOverrideRepository struct {
 	mock.Mock
 }
 
+func (_m *CiTemplateOverrideRepository) FindByCiPipelineIds(ciPipelineIds []int) ([]*pipelineConfig.CiTemplateOverride, error) {
+	return nil, nil
+}
+
 // FindByAppId provides a mock function with given fields: appId
 func (_m *CiTemplateOverrideRepository) FindByAppId(appId int) ([]*pipelineConfig.CiTemplateOverride, error) {
 	ret := _m.Called(appId)
