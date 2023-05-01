@@ -24,6 +24,7 @@ import (
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	util2 "github.com/devtron-labs/devtron/pkg/pipeline/util"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"net/url"
 	"strconv"
@@ -112,6 +113,7 @@ type CdWorkflowRequest struct {
 	DeploymentTriggeredBy      string                            `json:"deploymentTriggeredBy,omitempty"`
 	DeploymentTriggerTime      time.Time                         `json:"deploymentTriggerTime,omitempty"`
 	DeploymentReleaseCounter   int                               `json:"deploymentReleaseCounter,omitempty"`
+	WorkflowOwner              pipelineConfig.WorkflowOwner      `json:"workflowOwner"`
 }
 
 const PRE = "PRE"
@@ -181,7 +183,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 			globalCmCsConfigs[i].Name = fmt.Sprintf("%s-%s-%s", strings.ToLower(globalCmCsConfigs[i].Name), strconv.Itoa(workflowRequest.WorkflowRunnerId), CD_WORKFLOW_NAME)
 		}
 
-		err = impl.globalCMCSService.AddTemplatesForGlobalSecretsInWorkflowTemplate(globalCmCsConfigs, &steps, &volumes, &templates)
+		err = util2.AddTemplatesForGlobalSecretsInWorkflowTemplate(globalCmCsConfigs, &steps, &volumes, &templates)
 		if err != nil {
 			impl.Logger.Errorw("error in creating templates for global secrets", "err", err)
 		}
@@ -361,6 +363,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 					},
 				})
 			}
+
 			steps = append(steps, v1alpha1.ParallelSteps{
 				Steps: []v1alpha1.WorkflowStep{
 					{
