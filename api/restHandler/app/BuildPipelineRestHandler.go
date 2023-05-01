@@ -1213,6 +1213,7 @@ func (handler PipelineConfigRestHandlerImpl) FetchChanges(w http.ResponseWriter,
 
 	changeRequest := &gitSensor.FetchScmChangesRequest{
 		PipelineMaterialId: ciMaterialId,
+		ShowAll:            true,
 	}
 	changes, err := handler.gitSensorClient.FetchChanges(context.Background(), changeRequest)
 	if err != nil {
