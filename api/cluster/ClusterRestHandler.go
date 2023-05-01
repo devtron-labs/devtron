@@ -65,6 +65,7 @@ type ClusterRestHandlerImpl struct {
 	enforcer                  casbin.Enforcer
 	deleteService             delete2.DeleteService
 	argoUserService           argo.ArgoUserService
+	environmentService        cluster.EnvironmentService
 }
 
 func NewClusterRestHandlerImpl(clusterService cluster.ClusterService,
@@ -75,7 +76,8 @@ func NewClusterRestHandlerImpl(clusterService cluster.ClusterService,
 	validator *validator.Validate,
 	enforcer casbin.Enforcer,
 	deleteService delete2.DeleteService,
-	argoUserService argo.ArgoUserService) *ClusterRestHandlerImpl {
+	argoUserService argo.ArgoUserService,
+	environmentService cluster.EnvironmentService) *ClusterRestHandlerImpl {
 	return &ClusterRestHandlerImpl{
 		clusterService:            clusterService,
 		clusterNoteService:        clusterNoteService,
@@ -86,6 +88,7 @@ func NewClusterRestHandlerImpl(clusterService cluster.ClusterService,
 		enforcer:                  enforcer,
 		deleteService:             deleteService,
 		argoUserService:           argoUserService,
+		environmentService:        environmentService,
 	}
 }
 
@@ -215,31 +218,30 @@ func (impl ClusterRestHandlerImpl) FindNoteByClusterId(w http.ResponseWriter, r 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
-	clusterBean, err := impl.clusterService.FindByIdWithoutConfig(i)
+	bean, err := impl.clusterDescriptionService.FindByClusterIdWithClusterDetails(i)
 	if err != nil {
 		if err == pg.ErrNoRows {
-			impl.logger.Errorw("cluster id not found, FindById", "err", err, "clusterId", i)
+			impl.logger.Errorw("cluster not found, FindById", "err", err, "clusterId", id)
 			common.WriteJsonResp(w, errors.New("invalid cluster id"), nil, http.StatusNotFound)
 			return
 		}
-		impl.logger.Errorw("cluster service err, FindById", "err", err, "clusterId", i)
+		impl.logger.Errorw("service err, FindById", "err", err, "clusterId", id)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionGet, strings.ToLower(clusterBean.ClusterName)); !ok {
+	authenticated, err := impl.CheckRbacForClusterDetails(bean.ClusterId, token)
+	if err != nil {
+		impl.logger.Errorw("error in checking rbac for cluster", "err", err, "clusterId", bean.ClusterId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	if !authenticated {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 	//RBAC enforcer Ends
-	bean, err := impl.clusterDescriptionService.FindByClusterIdWithClusterDetails(i)
-	if err != nil {
-		impl.logger.Errorw("cluster note service err, FindById", "err", err, "clusterId", id)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
 	common.WriteJsonResp(w, err, bean, http.StatusOK)
 }
 
@@ -534,4 +536,44 @@ func (impl ClusterRestHandlerImpl) FindAllForClusterPermission(w http.ResponseWr
 		}
 	}
 	common.WriteJsonResp(w, err, clusterList, http.StatusOK)
+}
+
+func (impl *ClusterRestHandlerImpl) CheckRbacForClusterDetails(clusterId int, token string) (authenticated bool, err error) {
+	//getting all environments for this cluster
+	envs, err := impl.environmentService.GetByClusterId(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting environments by clusterId", "err", err, "clusterId", clusterId)
+		return false, err
+	}
+	if len(envs) == 0 {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+			return false, nil
+		}
+		return true, nil
+	}
+	emailId, err := impl.userService.GetEmailFromToken(token)
+	if err != nil {
+		impl.logger.Errorw("error in getting emailId from token", "err", err)
+		return false, err
+	}
+
+	var envIdentifierList []string
+	envIdentifierMap := make(map[string]bool)
+	for _, env := range envs {
+		envIdentifier := strings.ToLower(env.EnvironmentIdentifier)
+		envIdentifierList = append(envIdentifierList, envIdentifier)
+		envIdentifierMap[envIdentifier] = true
+	}
+	if len(envIdentifierList) == 0 {
+		return false, errors.New("environment identifier list for rbac batch enforcing contains zero environments")
+	}
+	// RBAC enforcer applying
+	rbacResultMap := impl.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceGlobalEnvironment, casbin.ActionGet, envIdentifierList)
+	for envIdentifier, _ := range envIdentifierMap {
+		if rbacResultMap[envIdentifier] {
+			//if user has view permission to even one environment of this cluster, authorise the request
+			return true, nil
+		}
+	}
+	return false, nil
 }

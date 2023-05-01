@@ -101,6 +101,8 @@ func (impl *ClusterNoteServiceImpl) Save(bean *ClusterNoteBean, userId int32) (*
 	clusterAudit := &ClusterNoteHistoryBean{
 		NoteId:      bean.Id,
 		Description: bean.Description,
+		CreatedOn:   model.CreatedOn,
+		CreatedBy:   model.CreatedBy,
 	}
 	_, _ = impl.clusterNoteHistoryService.Save(clusterAudit, userId)
 	return bean, err
@@ -137,6 +139,8 @@ func (impl *ClusterNoteServiceImpl) Update(bean *ClusterNoteBean, userId int32) 
 	clusterAudit := &ClusterNoteHistoryBean{
 		NoteId:      bean.Id,
 		Description: bean.Description,
+		CreatedOn:   model.CreatedOn,
+		CreatedBy:   model.CreatedBy,
 	}
 	_, _ = impl.clusterNoteHistoryService.Save(clusterAudit, userId)
 	return bean, err

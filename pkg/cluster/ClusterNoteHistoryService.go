@@ -28,8 +28,8 @@ type ClusterNoteHistoryBean struct {
 	Id          int       `json:"id" validate:"number"`
 	NoteId      int       `json:"noteId" validate:"required"`
 	Description string    `json:"description" validate:"required"`
-	CreatedBy   int       `json:"createdBy"`
-	CreatedOn   time.Time `json:"createdOn"`
+	CreatedBy   int32     `json:"createdBy" validate:"number"`
+	CreatedOn   time.Time `json:"createdOn" validate:"required"`
 }
 
 type ClusterNoteHistoryService interface {
@@ -54,9 +54,9 @@ func (impl *ClusterNoteHistoryServiceImpl) Save(bean *ClusterNoteHistoryBean, us
 		NoteId:      bean.NoteId,
 		Description: bean.Description,
 	}
-	clusterAudit.CreatedBy = userId
+	clusterAudit.CreatedBy = bean.CreatedBy
+	clusterAudit.CreatedOn = bean.CreatedOn
 	clusterAudit.UpdatedBy = userId
-	clusterAudit.CreatedOn = time.Now()
 	clusterAudit.UpdatedOn = time.Now()
 	err := impl.clusterNoteHistoryRepository.SaveHistory(clusterAudit)
 	if err != nil {
