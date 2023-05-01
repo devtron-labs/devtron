@@ -32,7 +32,7 @@ type PipelineStatusTimelineRepository interface {
 	FetchTimelineByWfrIdAndStatus(wfrId int, status TimelineStatus) (*PipelineStatusTimeline, error)
 	FetchTimelineByInstalledAppVersionHistoryIdAndStatus(installedAppVersionHistoryId int, status TimelineStatus) (*PipelineStatusTimeline, error)
 	FetchTimelineByWfrIdAndStatuses(wfrId int, statuses []TimelineStatus) ([]*PipelineStatusTimeline, error)
-	FetchTimelineByInstalledAppVersionHistoryIdAndStatuses(installedAppVersionHistoryId int, statuses []TimelineStatus) ([]*PipelineStatusTimeline, error)
+	FetchTimelineByInstalledAppVersionHistoryIdAndPipelineStatuses(installedAppVersionHistoryId int, statuses []TimelineStatus) ([]*PipelineStatusTimeline, error)
 	FetchLatestTimelineByWfrId(wfrId int) (*PipelineStatusTimeline, error)
 	CheckIfTerminalStatusTimelinePresentByWfrId(wfrId int) (bool, error)
 	CheckIfTerminalStatusTimelinePresentByInstalledAppVersionHistoryId(installedAppVersionHistoryId int) (bool, error)
@@ -165,13 +165,13 @@ func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelineByWfrIdAndStatuse
 	return timelines, nil
 }
 
-func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelineByInstalledAppVersionHistoryIdAndStatuses(installedAppVersionHistoryId int, statuses []TimelineStatus) ([]*PipelineStatusTimeline, error) {
+func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelineByInstalledAppVersionHistoryIdAndPipelineStatuses(installedAppVersionHistoryId int, statuses []TimelineStatus) ([]*PipelineStatusTimeline, error) {
 	var timelines []*PipelineStatusTimeline
 	err := impl.dbConnection.Model(&timelines).
 		Where("installed_app_version_history_id = ?", installedAppVersionHistoryId).
 		Where("status in (?)", pg.In(statuses)).Select()
 	if err != nil {
-		impl.logger.Errorw("error in getting timeline of latest wf by wfrId and statuses", "err", err, "installedAppVersionHistoryId", installedAppVersionHistoryId, "statuses", statuses)
+		impl.logger.Errorw("error in getting timeline of latest wf by installedAppVersionHistoryId and statuses", "err", err, "installedAppVersionHistoryId", installedAppVersionHistoryId, "statuses", statuses)
 		return nil, err
 	}
 	return timelines, nil

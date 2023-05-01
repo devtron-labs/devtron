@@ -1054,7 +1054,8 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 			UpdatedOn: time.Now(),
 		},
 	}
-	err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
+	isAppStore := false
+	err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, isAppStore)
 	if err != nil {
 		impl.logger.Errorw("error in creating timeline status for deployment initiation", "err", err, "timeline", timeline)
 	}
@@ -1116,7 +1117,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 				UpdatedOn: time.Now(),
 			},
 		}
-		err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
+		err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, isAppStore)
 		if err != nil {
 			impl.logger.Errorw("error in creating timeline status for deployment fail - cve policy violation", "err", err, "timeline", timeline)
 		}

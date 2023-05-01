@@ -264,6 +264,7 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch
 	isTimelineUpdated := false
 	isSucceeded := false
 	if pipeline != nil {
+		isAppStore := false
 		cdWfr, err := impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(pipeline.Id, bean.CD_WORKFLOW_TYPE_DEPLOY)
 		if err != nil {
 			impl.Logger.Errorw("error in getting latest cdWfr by cdPipelineId", "err", err, "pipelineId", pipeline.Id)
@@ -309,7 +310,7 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch
 					UpdatedOn: time.Now(),
 				},
 			}
-			err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
+			err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, isAppStore)
 			if err != nil {
 				impl.Logger.Errorw("error in creating timeline status for app", "err", err, "timeline", timeline)
 				return err, isTimelineUpdated
@@ -319,7 +320,7 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch
 				impl.Logger.Errorw("found empty argo application object", "appName", pipeline.DeploymentAppName)
 				return fmt.Errorf("found empty argo application object"), isTimelineUpdated
 			}
-			isSucceeded, isTimelineUpdated, err = impl.appService.UpdateDeploymentStatusForGitOpsPipelines(app, time.Now(), false)
+			isSucceeded, isTimelineUpdated, err = impl.appService.UpdateDeploymentStatusForGitOpsPipelines(app, time.Now(), isAppStore)
 			if err != nil {
 				impl.Logger.Errorw("error in updating deployment status for gitOps cd pipelines", "app", app)
 				return err, isTimelineUpdated
@@ -344,6 +345,7 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch
 			}
 		}
 	} else {
+		isAppStore := true
 		installedAppVersionHistory, err := impl.installedAppVersionHistoryRepository.GetLatestInstalledAppVersionHistoryByInstalledAppId(installedApp.Id)
 		if err != nil {
 			impl.Logger.Errorw("error in getting latest installedAppVersionHistory by installedAppId", "err", err, "installedAppId", installedApp.Id)
@@ -409,7 +411,7 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch
 					UpdatedOn: time.Now(),
 				},
 			}
-			err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, true)
+			err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, isAppStore)
 			if err != nil {
 				impl.Logger.Errorw("error in creating timeline status for app", "err", err, "timeline", timeline)
 				return err, isTimelineUpdated
@@ -419,7 +421,7 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch
 				impl.Logger.Errorw("found empty argo application object", "appName", acdAppName)
 				return fmt.Errorf("found empty argo application object"), isTimelineUpdated
 			}
-			isSucceeded, isTimelineUpdated, err = impl.appService.UpdateDeploymentStatusForGitOpsPipelines(app, time.Now(), true)
+			isSucceeded, isTimelineUpdated, err = impl.appService.UpdateDeploymentStatusForGitOpsPipelines(app, time.Now(), isAppStore)
 			if err != nil {
 				impl.Logger.Errorw("error in updating deployment status for gitOps cd pipelines", "app", app)
 				return err, isTimelineUpdated
