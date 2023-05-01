@@ -955,6 +955,7 @@ func (impl CiCdPipelineOrchestratorImpl) updateRepositoryToGitSensor(material *p
 		CheckoutLocation: material.CheckoutPath,
 		Deleted:          !material.Active,
 		FetchSubmodules:  material.FetchSubmodules,
+		FilterPattern:    material.FilterPattern,
 	}
 	return impl.GitSensorClient.UpdateRepo(context.Background(), sensorMaterial)
 }
