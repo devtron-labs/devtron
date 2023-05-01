@@ -156,6 +156,7 @@ type GlobalStrategyMetadata struct {
 	tableName   struct{}           `sql:"global_strategy_metadata" pg:",discard_unknown_columns"`
 	Id          int                `sql:"id,pk"`
 	Name        DeploymentStrategy `sql:"name"`
+	Key         string             `sql:"key"`
 	Description string             `sql:"description"`
 	Deleted     bool               `sql:"deleted,notnull"`
 	sql.AuditLog
@@ -195,13 +196,16 @@ func (impl *GlobalStrategyMetadataRepositoryImpl) GetByChartRefId(chartRefId int
 type GlobalStrategyMetadataChartRefMapping struct {
 	tableName                struct{} `sql:"global_strategy_metadata_chart_ref_mapping" pg:",discard_unknown_columns"`
 	Id                       int      `sql:"id,pk"`
-	GlobalStrategyMetadataId string   `sql:"global_strategy_metadata_id"`
-	ChartRefId               string   `sql:"chart_ref_id"`
+	GlobalStrategyMetadataId int      `sql:"global_strategy_metadata_id"`
+	ChartRefId               int      `sql:"chart_ref_id"`
 	Active                   bool     `sql:"active,notnull"`
+	Default                  bool     `sql:"default,notnull"`
+	GlobalStrategyMetadata   *GlobalStrategyMetadata
 	sql.AuditLog
 }
 
 type GlobalStrategyMetadataChartRefMappingRepository interface {
+	GetByChartRefId(chartRefId int) ([]*GlobalStrategyMetadataChartRefMapping, error)
 }
 type GlobalStrategyMetadataChartRefMappingRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -214,4 +218,18 @@ func NewGlobalStrategyMetadataChartRefMappingRepositoryImpl(dbConnection *pg.DB,
 		dbConnection: dbConnection,
 		logger:       logger,
 	}
+}
+
+func (impl *GlobalStrategyMetadataChartRefMappingRepositoryImpl) GetByChartRefId(chartRefId int) ([]*GlobalStrategyMetadataChartRefMapping, error) {
+	var globalStrategies []*GlobalStrategyMetadataChartRefMapping
+	err := impl.dbConnection.Model(&globalStrategies).
+		Column("global_strategy_metadata_chart_ref_mapping.*", "GlobalStrategyMetadata").
+		Where("global_strategy_metadata_chart_ref_mapping.chart_ref_id = ?", chartRefId).
+		Where("global_strategy_metadata_chart_ref_mapping.active = ?", true).
+		Select()
+	if err != nil {
+		impl.logger.Errorw("error in getting global strategies metadata mapping by chartRefId", "err", err, "chartRefId", chartRefId)
+		return nil, err
+	}
+	return globalStrategies, err
 }
