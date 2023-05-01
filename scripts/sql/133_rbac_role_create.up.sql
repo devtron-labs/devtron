@@ -173,10 +173,11 @@ VALUES ('applications', '{
          "indexKeyMap": {}
        }', ARRAY ['get','update'],
         '{
-          "value": "%/%",
+          "value": "%/%/%",
           "indexKeyMap": {
             "0": "TeamObj",
-            "2": "AppObj"
+            "2": "EnvObj",
+            "4": "AppObj"
           }
         }', ARRAY ['apps/devtron-app'], false, now(), 1, now(), 1);
 
