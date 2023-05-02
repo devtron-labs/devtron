@@ -980,6 +980,7 @@ func (impl AppStoreDeploymentServiceImpl) GetDeploymentHistory(ctx context.Conte
 			AppStoreChartId:       installedApp.InstallAppVersionChartDTO.AppStoreChartId,
 			ClusterId:             installedApp.ClusterId,
 			EnvironmentId:         installedApp.EnvironmentId,
+			DeploymentType:        installedApp.DeploymentAppType,
 		}
 	}
 
