@@ -121,11 +121,12 @@ statefulSetConfig:
     type: RollingUpdate
     partition: 2
   revisionHistoryLimit: 3
+  volumeMounts: 
+        mountPath: /tmp
   volumeClaimTemplates:
   - apiVersion: v1
     kind: PersistentVolumeClaim
     metadata:
-      name: pvc-data
       labels:
         app: myapp
     spec:
@@ -147,6 +148,31 @@ statefulSetConfig:
         matchLabels:
           app: myapp
       volumeMode: Filesystem
+      volumeName: my-pv
+  - apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      name: pvc-logs
+      labels:
+        app: myapp
+    spec:
+      accessModes:
+        - ReadWriteMany
+      dataSourceRef:
+        kind: Secret
+        apiGroup: v1
+        name: my-secret
+      resources:
+        requests:
+          storage: 5Gi
+      storageClassName: my-storage-class
+      selector:
+        matchExpressions:
+          - key: environment
+            operator: In
+            values: 
+            - production
+      volumeMode: Block
       volumeName: my-pv
 
 #service_headless: {}
@@ -334,7 +360,9 @@ resources: {}
   # resources, such as Minikube. If you do want to specify resources, uncomment the following
   # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
 
-volumeMounts: []
+volumeMounts: 
+     - name: pvc-logs
+       mountPath: /tmp
 #     - name: log-volume
 #       mountPath: /var/log
 
