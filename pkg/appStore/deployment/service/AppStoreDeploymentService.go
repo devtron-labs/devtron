@@ -804,13 +804,13 @@ func (impl AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Contex
 	// Rollback starts
 	var success bool
 	if util2.IsHelmApp(installedApp.AppOfferingMode) {
-		installedApp, success, err = impl.appStoreDeploymentHelmService.RollbackRelease(ctx, installedApp, request.GetVersion())
+		installedApp, success, err = impl.appStoreDeploymentHelmService.RollbackRelease(ctx, installedApp, request.GetVersion(), tx)
 		if err != nil {
 			impl.logger.Errorw("error while rollback helm release", "error", err)
 			return false, err
 		}
 	} else {
-		installedApp, success, err = impl.appStoreDeploymentArgoCdService.RollbackRelease(ctx, installedApp, request.GetVersion())
+		installedApp, success, err = impl.appStoreDeploymentArgoCdService.RollbackRelease(ctx, installedApp, request.GetVersion(), tx)
 		if err != nil {
 			impl.logger.Errorw("error while rollback helm release", "error", err)
 			return false, err
@@ -846,7 +846,7 @@ func (impl AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Contex
 
 	if installedApp.AppOfferingMode == util2.SERVER_MODE_FULL {
 		// create build history for version upgrade, chart upgrade or simple update
-		err = impl.UpdateInstallAppVersionHistory(installedApp)
+		err = impl.UpdateInstalledAppVersionHistoryWithGitHash(installedApp)
 		if err != nil {
 			impl.logger.Errorw("error on creating history for chart deployment", "error", err)
 			return false, err

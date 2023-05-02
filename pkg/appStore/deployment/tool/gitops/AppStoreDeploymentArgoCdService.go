@@ -41,7 +41,7 @@ type AppStoreDeploymentArgoCdService interface {
 	InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error)
 	GetAppStatus(installedAppAndEnvDetails repository.InstalledAppAndEnvDetails, w http.ResponseWriter, r *http.Request, token string) (string, error)
 	DeleteInstalledApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *repository.InstalledApps, dbTransaction *pg.Tx) error
-	RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, deploymentVersion int32) (*appStoreBean.InstallAppVersionDTO, bool, error)
+	RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, deploymentVersion int32, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, bool, error)
 	GetDeploymentHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (*client.HelmAppDeploymentHistory, error)
 	GetDeploymentHistoryInfo(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, version int32) (*openapi.HelmAppDeploymentManifestDetail, error)
 	GetGitOpsRepoName(appName string, environmentName string) (string, error)
@@ -206,7 +206,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) DeleteInstalledApp(ctx context.C
 }
 
 // returns - valuesYamlStr, success, error
-func (impl AppStoreDeploymentArgoCdServiceImpl) RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, installedAppVersionHistoryId int32) (*appStoreBean.InstallAppVersionDTO, bool, error) {
+func (impl AppStoreDeploymentArgoCdServiceImpl) RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, installedAppVersionHistoryId int32, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, bool, error) {
 	//request version id for
 	versionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(int(installedAppVersionHistoryId))
 	if err != nil {
@@ -239,6 +239,42 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) RollbackRelease(ctx context.Cont
 	installedApp.AppStoreName = installedAppVersion.AppStoreApplicationVersion.AppStore.Name
 	installedApp.GitOpsRepoName = installedAppVersion.InstalledApp.GitOpsRepoName
 	installedApp.ACDAppName = fmt.Sprintf("%s-%s", installedApp.AppName, installedApp.EnvironmentName)
+
+	//create an entry in version history table
+	installedAppVersionHistory := &repository.InstalledAppVersionHistory{}
+	installedAppVersionHistory.InstalledAppVersionId = installedApp.InstalledAppVersionId
+	installedAppVersionHistory.ValuesYamlRaw = installedApp.ValuesOverrideYaml
+	installedAppVersionHistory.CreatedBy = installedApp.UserId
+	installedAppVersionHistory.CreatedOn = time.Now()
+	installedAppVersionHistory.UpdatedBy = installedApp.UserId
+	installedAppVersionHistory.UpdatedOn = time.Now()
+	installedAppVersionHistory.StartedOn = time.Now()
+	installedAppVersionHistory.Status = pipelineConfig.WorkflowInProgress
+	_, err = impl.installedAppRepositoryHistory.CreateInstalledAppVersionHistory(installedAppVersionHistory, tx)
+	if err != nil {
+		impl.Logger.Errorw("error while fetching from db", "error", err)
+		return installedApp, false, err
+	}
+	installedApp.InstalledAppVersionHistoryId = installedAppVersionHistory.Id
+
+	//creating deployment started status timeline when mono repo migration is not required
+	timeline := &pipelineConfig.PipelineStatusTimeline{
+		InstalledAppVersionHistoryId: installedApp.InstalledAppVersionHistoryId,
+		Status:                       pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED,
+		StatusDetail:                 "Deployment initiated successfully.",
+		StatusTime:                   time.Now(),
+		AuditLog: sql.AuditLog{
+			CreatedBy: installedApp.UserId,
+			CreatedOn: time.Now(),
+			UpdatedBy: installedApp.UserId,
+			UpdatedOn: time.Now(),
+		},
+	}
+	isAppStore := true
+	err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, tx, isAppStore)
+	if err != nil {
+		impl.Logger.Errorw("error in creating timeline status for deployment initiation for update of installedAppVersionHistoryId", "err", err, "installedAppVersionHistoryId", installedApp.InstalledAppVersionHistoryId)
+	}
 	//If current version upgrade/degrade to another, update requirement dependencies
 	if versionHistory.InstalledAppVersionId != activeInstalledAppVersion.Id {
 		err = impl.appStoreDeploymentFullModeService.UpdateRequirementYaml(installedApp, &installedAppVersion.AppStoreApplicationVersion)
@@ -255,7 +291,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) RollbackRelease(ctx context.Cont
 		}
 	}
 	//Update Values config
-	installedApp, err = impl.appStoreDeploymentFullModeService.UpdateValuesYaml(installedApp)
+	installedApp, err = impl.appStoreDeploymentFullModeService.UpdateValuesYaml(installedApp, tx)
 	if err != nil {
 		impl.Logger.Errorw("error", "err", err)
 		return installedApp, false, nil
