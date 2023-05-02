@@ -2111,7 +2111,7 @@ func (impl PipelineBuilderImpl) ChangeDeploymentType(ctx context.Context,
 
 	// Update in db
 	err = impl.pipelineRepository.UpdateCdPipelineDeploymentAppInFilter(string(request.DesiredDeploymentType),
-		cdPipelineIds, request.UserId, false, 1)
+		cdPipelineIds, request.UserId, false, true)
 
 	if err != nil {
 		impl.logger.Errorw("failed to update deployment app type in db",
@@ -2218,7 +2218,7 @@ func (impl PipelineBuilderImpl) ChangePipelineDeploymentType(ctx context.Context
 	}
 
 	err = impl.pipelineRepository.UpdateCdPipelineDeploymentAppInFilter(string(request.DesiredDeploymentType),
-		pipelineIds, request.UserId, false, 1)
+		pipelineIds, request.UserId, false, true)
 
 	if err != nil {
 		return response, nil
@@ -2241,7 +2241,7 @@ func (impl PipelineBuilderImpl) ChangePipelineDeploymentType(ctx context.Context
 
 	// Update in db
 	err = impl.pipelineRepository.UpdateCdPipelineDeploymentAppInFilter(string(deleteDeploymentType),
-		cdPipelineIds, request.UserId, true, 0)
+		cdPipelineIds, request.UserId, true, false)
 
 	if err != nil {
 		impl.logger.Errorw("failed to update deployment app type in db",
@@ -2290,9 +2290,13 @@ func (impl PipelineBuilderImpl) TriggerDeploymentAfterTypeChange(ctx context.Con
 		return response, nil
 	}
 
-	if !request.AutoTriggerDeployment {
-		return response, nil
+	var successPipelines []int
+	for _, item := range response.SuccessfulPipelines {
+		successPipelines = append(successPipelines, item.Id)
 	}
+
+	err = impl.pipelineRepository.UpdateCdPipelineDeploymentAppInFilter(string(request.DesiredDeploymentType),
+		successPipelines, request.UserId, false, false)
 
 	// Bulk trigger all the successfully changed pipelines (async)
 	bulkTriggerRequest := make([]*BulkTriggerRequest, 0)

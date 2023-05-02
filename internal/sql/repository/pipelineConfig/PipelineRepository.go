@@ -60,7 +60,6 @@ type Pipeline struct {
 	DeploymentAppName             string      `sql:"deployment_app_name"`
 	DeploymentAppDeleteRequest    bool        `sql:"deployment_app_delete_request,notnull"`
 	Environment                   repository.Environment
-	Migrating                     int `sql:"migrating"`
 	sql.AuditLog
 }
 
@@ -97,7 +96,7 @@ type PipelineRepository interface {
 	FindAllPipelinesByChartsOverrideAndAppIdAndChartId(chartOverridden bool, appId int, chartId int) (pipelines []*Pipeline, err error)
 	FindActiveByAppIdAndPipelineId(appId int, pipelineId int) ([]*Pipeline, error)
 	UpdateCdPipeline(pipeline *Pipeline) error
-	UpdateCdPipelineDeploymentAppInFilter(deploymentAppType string, cdPipelineIdIncludes []int, userId int32, deploymentAppCreated bool, migrating int) error
+	UpdateCdPipelineDeploymentAppInFilter(deploymentAppType string, cdPipelineIdIncludes []int, userId int32, deploymentAppCreated bool, delete bool) error
 	FindNumberOfAppsWithCdPipeline(appIds []int) (count int, err error)
 	GetAppAndEnvDetailsForDeploymentAppTypePipeline(deploymentAppType string, clusterIds []int) ([]*Pipeline, error)
 	GetArgoPipelinesHavingTriggersStuckInLastPossibleNonTerminalTimelines(pendingSinceSeconds int, timeForDegradation int) ([]*Pipeline, error)
@@ -499,18 +498,18 @@ func (impl PipelineRepositoryImpl) UpdateCdPipeline(pipeline *Pipeline) error {
 // UpdateCdPipelineDeploymentAppInFilter takes in deployment app type and list of cd pipeline ids and
 // updates the deployment_app_type and sets deployment_app_created to false in the table for given ids.
 func (impl PipelineRepositoryImpl) UpdateCdPipelineDeploymentAppInFilter(deploymentAppType string,
-	cdPipelineIdIncludes []int, userId int32, deploymentAppCreated bool, migrating int) error {
+	cdPipelineIdIncludes []int, userId int32, deploymentAppCreated bool, delete bool) error {
 
 	query := "update pipeline set " +
 		"deployment_app_created = ?, " +
 		"deployment_app_type = ?, " +
 		"updated_by = ?, " +
 		"updated_on = ?, " +
-		"migrating = ?" +
+		"deployment_app_delete_request = ?" +
 		"where id in (?)"
 
 	var pipeline *Pipeline
-	_, err := impl.dbConnection.Query(pipeline, query, deploymentAppCreated, deploymentAppType, userId, migrating, time.Now(), pg.In(cdPipelineIdIncludes))
+	_, err := impl.dbConnection.Query(pipeline, query, deploymentAppCreated, deploymentAppType, userId, delete, time.Now(), pg.In(cdPipelineIdIncludes))
 
 	return err
 }
