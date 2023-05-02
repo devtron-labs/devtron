@@ -127,7 +127,7 @@ func (impl DeleteServiceExtendedImpl) DeleteChartRepo(deleteRequest *chartRepo.C
 		impl.logger.Errorw("err in deleting repo, found charts deployed using this repo", "deleteRequest", deployedCharts)
 		return fmt.Errorf("cannot delete repo, found charts deployed in this repo")
 	}
-	err = impl.chartRepositoryService.DeleteChartRepoFromArgocdCM(deleteRequest)
+	err = impl.chartRepositoryService.DeleteChartRepo(deleteRequest)
 	if err != nil {
 		impl.logger.Errorw("error in deleting chart repo", "err", err, "deleteRequest", deleteRequest)
 		return err

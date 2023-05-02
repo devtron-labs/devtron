@@ -413,8 +413,26 @@ func (handler *K8sCapacityRestHandlerImpl) CheckRbacForCluster(cluster *cluster.
 		}
 		return true, nil
 	}
+	emailId, err := handler.userService.GetEmailFromToken(token)
+	if err != nil {
+		handler.logger.Errorw("error in getting emailId from token", "err", err)
+		return false, err
+	}
+
+	var envIdentifierList []string
+	envIdentifierMap := make(map[string]bool)
 	for _, env := range envs {
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(env.EnvironmentIdentifier)); ok {
+		envIdentifier := strings.ToLower(env.EnvironmentIdentifier)
+		envIdentifierList = append(envIdentifierList, envIdentifier)
+		envIdentifierMap[envIdentifier] = true
+	}
+	if len(envIdentifierList) == 0 {
+		return false, errors.New("environment identifier list for rbac batch enforcing contains zero environments")
+	}
+	// RBAC enforcer applying
+	rbacResultMap := handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceGlobalEnvironment, casbin.ActionGet, envIdentifierList)
+	for envIdentifier, _ := range envIdentifierMap {
+		if rbacResultMap[envIdentifier] {
 			//if user has view permission to even one environment of this cluster, authorise the request
 			return true, nil
 		}
