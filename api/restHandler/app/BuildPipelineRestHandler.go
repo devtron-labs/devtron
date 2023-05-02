@@ -197,7 +197,8 @@ func (handler PipelineConfigRestHandlerImpl) UpdateBranchCiPipelinesWithRegex(w 
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	resp, err := handler.ciHandler.FetchMaterialsByPipelineId(patchRequest.Id, true)
+	//if include/exclude configured showAll will include excluded materials also in list, if not configured it will ignore this flag
+	resp, err := handler.ciHandler.FetchMaterialsByPipelineId(patchRequest.Id, false)
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchMaterials", "err", err, "pipelineId", patchRequest.Id)
 		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)

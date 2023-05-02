@@ -301,7 +301,8 @@ func (impl *CiHandlerImpl) FetchMaterialsByPipelineId(pipelineId int, showAll bo
 		}
 		changesRequest := &gitSensor.FetchScmChangesRequest{
 			PipelineMaterialId: m.Id,
-			ShowAll: showAll,
+			ShowAll:            showAll,
+			FilterPattern:      m.GitMaterial.FilterPattern,
 		}
 		changesResp, apiErr := impl.gitSensorClient.FetchChanges(context.Background(), changesRequest)
 		impl.Logger.Debugw("commits for material ", "m", m, "commits: ", changesResp)
