@@ -56,11 +56,10 @@ type GitSensorApiError struct {
 
 // ---------------
 type FetchScmChangesRequest struct {
-	PipelineMaterialId int      `json:"pipelineMaterialId"`
-	From               string   `json:"from"`
-	To                 string   `json:"to"`
-	ShowAll            bool     `json:"showAll"`
-	FilterPattern      []string `json:"filterPattern"`
+	PipelineMaterialId int    `json:"pipelineMaterialId"`
+	From               string `json:"from"`
+	To                 string `json:"to"`
+	ShowAll            bool   `json:"showAll"`
 }
 type HeadRequest struct {
 	MaterialIds []int `json:"materialIds"`
@@ -88,6 +87,7 @@ type GitMaterial struct {
 	CheckoutMsgAny   string
 	Deleted          bool
 	FetchSubmodules  bool
+	FilterPattern    []string
 }
 type GitProvider struct {
 	Id            int
