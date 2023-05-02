@@ -299,6 +299,15 @@ type CiConfigRequest struct {
 	UpdatedOn         time.Time               `sql:"updated_on,type:timestamptz"`
 	UpdatedBy         int32                   `sql:"updated_by,type:integer"`
 	IsJob             bool                    `json:"-"`
+	CiGitMaterialId   int                     `json:"ciGitConfiguredId"`
+}
+
+type CiPipelineMinResponse struct {
+	Id               int    `json:"id,omitempty" validate:"number"` //ciTemplateId
+	AppId            int    `json:"appId,omitempty" validate:"required,number"`
+	AppName          string `json:"appName,omitempty"`
+	ParentCiPipeline int    `json:"parentCiPipeline"`
+	ParentAppId      int    `json:"parentAppId"`
 }
 
 type TestExecutorImageProperties struct {

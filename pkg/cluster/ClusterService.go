@@ -256,7 +256,7 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, 
 	data[SECRET_FIELD_CLUSTER_ID] = []byte(fmt.Sprintf("%v", bean.Id))
 	data[SECRET_FIELD_ACTION] = []byte(CLUSTER_ACTION_ADD)
 	data[SECRET_FIELD_UPDATED_ON] = []byte(time.Now().String()) // this field will ensure that informer detects change as other fields can be constant even if cluster config changes
-	_, err = impl.K8sUtil.CreateSecret(DEFAULT_NAMESPACE, data, secretName, CLUSTER_MODIFY_EVENT_SECRET_TYPE, k8sClient)
+	_, err = impl.K8sUtil.CreateSecret(DEFAULT_NAMESPACE, data, secretName, CLUSTER_MODIFY_EVENT_SECRET_TYPE, k8sClient, nil, nil)
 	if err != nil {
 		impl.logger.Errorw("error in updating secret for informers")
 		return bean, nil
@@ -530,7 +530,7 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 		data[SECRET_FIELD_ACTION] = []byte(CLUSTER_ACTION_UPDATE)
 		data[SECRET_FIELD_UPDATED_ON] = []byte(time.Now().String()) // this field will ensure that informer detects change as other fields can be constant even if cluster config changes
 		if secret == nil {
-			_, err = impl.K8sUtil.CreateSecret(DEFAULT_NAMESPACE, data, secretName, CLUSTER_MODIFY_EVENT_SECRET_TYPE, k8sClient)
+			_, err = impl.K8sUtil.CreateSecret(DEFAULT_NAMESPACE, data, secretName, CLUSTER_MODIFY_EVENT_SECRET_TYPE, k8sClient, nil, nil)
 			if err != nil {
 				impl.logger.Errorw("error in creating secret for informers")
 			}

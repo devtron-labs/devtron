@@ -29,6 +29,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/ghodss/yaml"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"io"
 	"io/ioutil"
@@ -42,9 +43,26 @@ import (
 	"time"
 )
 
+// secret keys
+const (
+	LABEL    string = "argocd.argoproj.io/secret-type"
+	NAME     string = "name"
+	USERNAME string = "username"
+	PASSWORD string = "password"
+	TYPE     string = "type"
+	URL      string = "url"
+	INSECRUE string = "insecure"
+)
+
+// secret values
+const (
+	HELM       string = "helm"
+	REPOSITORY string = "repository"
+)
+
 type ChartRepositoryService interface {
 	CreateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error)
-	UpdateDataInArgocdCm(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error)
+	UpdateData(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error)
 	GetChartRepoById(id int) (*ChartRepoDto, error)
 	GetChartRepoByName(name string) (*ChartRepoDto, error)
 	GetChartRepoList() ([]*ChartRepoWithIsEditableDto, error)
@@ -53,7 +71,8 @@ type ChartRepositoryService interface {
 	ValidateAndCreateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error, *DetailedErrorHelmRepoValidation)
 	ValidateAndUpdateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error, *DetailedErrorHelmRepoValidation)
 	TriggerChartSyncManual() error
-	DeleteChartRepoFromArgocdCM(request *ChartRepoDto) error
+	DeleteChartRepo(request *ChartRepoDto) error
+	DeleteChartSecret(secretName string) error
 }
 
 type ChartRepositoryServiceImpl struct {
@@ -79,6 +98,22 @@ func NewChartRepositoryServiceImpl(logger *zap.SugaredLogger, repoRepository cha
 	}
 }
 
+// Private helm charts credentials are saved as secrets
+func (impl *ChartRepositoryServiceImpl) CreateSecretDataForPrivateHelmChart(request *ChartRepoDto) (secretData map[string]string) {
+	secretData = make(map[string]string)
+	secretData[NAME] = fmt.Sprintf("%s-%s", request.Name, uuid.New().String()) // making repo name unique so that "helm repp add" command in argo-repo-server doesn't give error
+	secretData[USERNAME] = request.UserName
+	secretData[PASSWORD] = request.Password
+	secretData[TYPE] = HELM
+	secretData[URL] = request.Url
+	isInsecureConnection := "true"
+	if !request.AllowInsecureConnection {
+		isInsecureConnection = "false"
+	}
+	secretData[INSECRUE] = isInsecureConnection
+	return secretData
+}
+
 func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error) {
 	dbConnection := impl.repoRepository.GetConnection()
 	tx, err := dbConnection.Begin()
@@ -100,6 +135,8 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 	chartRepo.Active = true
 	chartRepo.Default = false
 	chartRepo.External = true
+	chartRepo.AllowInsecureConnection = request.AllowInsecureConnection
+
 	err = impl.repoRepository.Save(chartRepo, tx)
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
@@ -121,20 +158,33 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 
 	updateSuccess := false
 	retryCount := 0
+
+	isPrivateChart := false
+	if len(chartRepo.UserName) > 0 && len(chartRepo.Password) > 0 {
+		isPrivateChart = true
+	}
+
 	for !updateSuccess && retryCount < 3 {
 		retryCount = retryCount + 1
 
-		cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
-		if err != nil {
-			return nil, err
+		if !isPrivateChart {
+			cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
+			if err != nil {
+				return nil, err
+			}
+			data, err := impl.updateRepoData(cm.Data, request)
+			if err != nil {
+				impl.logger.Warnw(" config map update failed", "err", err)
+				continue
+			}
+			cm.Data = data
+			_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+		} else {
+			secretLabel := make(map[string]string)
+			secretLabel[LABEL] = REPOSITORY
+			secretData := impl.CreateSecretDataForPrivateHelmChart(request)
+			_, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, nil, chartRepo.Name, "", client, secretLabel, secretData)
 		}
-		data, err := impl.updateRepoData(cm.Data, request)
-		if err != nil {
-			impl.logger.Warnw(" config map update failed", "err", err)
-			continue
-		}
-		cm.Data = data
-		_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
 		if err != nil {
 			continue
 		}
@@ -153,7 +203,7 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 	return chartRepo, nil
 }
 
-func (impl *ChartRepositoryServiceImpl) UpdateDataInArgocdCm(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error) {
+func (impl *ChartRepositoryServiceImpl) UpdateData(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error) {
 	dbConnection := impl.repoRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -178,7 +228,7 @@ func (impl *ChartRepositoryServiceImpl) UpdateDataInArgocdCm(request *ChartRepoD
 	chartRepo.Active = request.Active
 	chartRepo.UpdatedBy = request.UserId
 	chartRepo.UpdatedOn = time.Now()
-	//}
+	chartRepo.AllowInsecureConnection = request.AllowInsecureConnection
 	err = impl.repoRepository.Update(chartRepo, tx)
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
@@ -197,29 +247,71 @@ func (impl *ChartRepositoryServiceImpl) UpdateDataInArgocdCm(request *ChartRepoD
 	if err != nil {
 		return nil, err
 	}
+
+	isPrivateChart := false
+	if len(chartRepo.UserName) > 0 && len(chartRepo.Password) > 0 {
+		isPrivateChart = true
+	}
+
 	updateSuccess := false
 	retryCount := 0
 	for !updateSuccess && retryCount < 3 {
 		retryCount = retryCount + 1
 
-		cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
-		if err != nil {
-			return nil, err
-		}
-		var data map[string]string
-		// if the repo name has been updated then, create a new repo
-		data, err = impl.updateRepoData(cm.Data, request)
-		// if the repo name has been updated then, delete the previous repo
-		if previousName != request.Name {
-			data, err = impl.removeRepoData(cm.Data, previousName)
-		}
-		if err != nil {
-			impl.logger.Warnw(" config map update failed", "err", err)
-			continue
-		}
+		if !isPrivateChart {
+			cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
+			if err != nil {
+				return nil, err
+			}
+			var data map[string]string
+			// if the repo name has been updated then, create a new repo
+			data, err = impl.updateRepoData(cm.Data, request)
+			// if the repo name has been updated then, delete the previous repo
+			if err != nil {
+				impl.logger.Warnw(" config map update failed", "err", err)
+				continue
+			}
+			if previousName != request.Name {
+				data, err = impl.removeRepoData(cm.Data, previousName)
+			}
+			if err != nil {
+				impl.logger.Warnw(" config map update failed", "err", err)
+				continue
+			}
 
-		cm.Data = data
-		_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+			cm.Data = data
+			_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+		} else {
+			secretData := impl.CreateSecretDataForPrivateHelmChart(request)
+			secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, previousName, client)
+			if err != nil {
+				impl.logger.Errorw("error in fetching secret", "err", err)
+				continue
+			}
+			secret.StringData = secretData
+			if previousName != request.Name {
+				err = impl.DeleteChartSecret(previousName)
+				if err != nil {
+					impl.logger.Errorw("Error in deleting secret for chart repo", "Chart Name", chartRepo.Name, "err", err)
+					continue
+				}
+				secretLabel := make(map[string]string)
+				secretLabel[LABEL] = REPOSITORY
+				_, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, nil, chartRepo.Name, "", client, secretLabel, secretData)
+				if err != nil {
+					impl.logger.Errorw("Error in creating secret for chart repo", "Chart Name", chartRepo.Name, "err", err)
+				}
+			} else {
+				_, err = impl.K8sUtil.UpdateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, secret, client)
+				if err != nil {
+					impl.logger.Errorw("Error in creating secret for chart repo", "Chart Name", chartRepo.Name, "err", err)
+				}
+			}
+			if err != nil {
+				impl.logger.Warnw("secret update for chart repo failed", "err", err)
+				continue
+			}
+		}
 		if err != nil {
 			impl.logger.Warnw(" config map failed", "err", err)
 			continue
@@ -240,8 +332,8 @@ func (impl *ChartRepositoryServiceImpl) UpdateDataInArgocdCm(request *ChartRepoD
 	return chartRepo, nil
 }
 
-// DeleteChartRepoFromArgocdCM update the active state from DB and modify the argo-cm with repo URL to null
-func (impl *ChartRepositoryServiceImpl) DeleteChartRepoFromArgocdCM(request *ChartRepoDto) error {
+// DeleteChartRepo update the active state from DB and modify the argo-cm with repo URL to null in case of public chart and delete secret in case of private chart
+func (impl *ChartRepositoryServiceImpl) DeleteChartRepo(request *ChartRepoDto) error {
 	dbConnection := impl.repoRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -288,22 +380,35 @@ func (impl *ChartRepositoryServiceImpl) DeleteChartRepoFromArgocdCM(request *Cha
 	updateSuccess := false
 	retryCount := 0
 	//request.Url = ""
+
+	isPrivateChart := false
+	if len(chartRepo.UserName) > 0 && len(chartRepo.Password) > 0 {
+		isPrivateChart = true
+	}
+
 	for !updateSuccess && retryCount < 3 {
 		retryCount = retryCount + 1
 
-		cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
-		if err != nil {
-			return err
+		if !isPrivateChart {
+			cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
+			if err != nil {
+				return err
+			}
+			data, err := impl.removeRepoData(cm.Data, request.Name)
+			if err != nil {
+				impl.logger.Warnw(" config map update failed", "err", err)
+				continue
+			}
+			cm.Data = data
+			_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+		} else {
+			err = impl.DeleteChartSecret(chartRepo.Name)
+			if err != nil {
+				impl.logger.Errorw("Error in deleting secret for chart repo", "Chart Name", chartRepo.Name, "err", err)
+			}
 		}
-		data, err := impl.removeRepoData(cm.Data, request.Name)
 		if err != nil {
-			impl.logger.Warnw(" config map update failed", "err", err)
-			continue
-		}
-		cm.Data = data
-		_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
-		if err != nil {
-			impl.logger.Warnw(" config map failed", "err", err)
+			impl.logger.Warnw(" error in deleting config/secret failed", "err", err)
 			continue
 		}
 		if err == nil {
@@ -352,6 +457,7 @@ func (impl *ChartRepositoryServiceImpl) convertFromDbResponse(model *chartRepoRe
 	chartRepo.AccessToken = model.AccessToken
 	chartRepo.Default = model.Default
 	chartRepo.Active = model.Active
+	chartRepo.AllowInsecureConnection = model.AllowInsecureConnection
 	return chartRepo
 }
 
@@ -377,6 +483,7 @@ func (impl *ChartRepositoryServiceImpl) GetChartRepoList() ([]*ChartRepoWithIsEd
 		if model.ActiveDeploymentCount > 0 {
 			chartRepo.IsEditable = false
 		}
+		chartRepo.AllowInsecureConnection = model.AllowInsecureConnection
 		chartRepos = append(chartRepos, chartRepo)
 	}
 	return chartRepos, nil
@@ -390,16 +497,17 @@ func (impl *ChartRepositoryServiceImpl) GetChartRepoListMin() ([]*ChartRepoDto, 
 	}
 	for _, model := range models {
 		chartRepo := &ChartRepoDto{
-			Id:          model.Id,
-			Name:        model.Name,
-			Url:         model.Url,
-			AuthMode:    model.AuthMode,
-			Password:    model.Password,
-			UserName:    model.UserName,
-			SshKey:      model.SshKey,
-			AccessToken: model.AccessToken,
-			Default:     model.Default,
-			Active:      model.Active,
+			Id:                      model.Id,
+			Name:                    model.Name,
+			Url:                     model.Url,
+			AuthMode:                model.AuthMode,
+			Password:                model.Password,
+			UserName:                model.UserName,
+			SshKey:                  model.SshKey,
+			AccessToken:             model.AccessToken,
+			Default:                 model.Default,
+			Active:                  model.Active,
+			AllowInsecureConnection: model.AllowInsecureConnection,
 		}
 		chartRepos = append(chartRepos, chartRepo)
 	}
@@ -480,7 +588,7 @@ func (impl *ChartRepositoryServiceImpl) ValidateAndUpdateChartRepo(request *Char
 	if validationResult.CustomErrMsg != ValidationSuccessMsg {
 		return nil, nil, validationResult
 	}
-	chartRepo, err := impl.UpdateDataInArgocdCm(request)
+	chartRepo, err := impl.UpdateData(request)
 	if err != nil {
 		return nil, err, validationResult
 	}
@@ -754,4 +862,21 @@ func (impl *ChartRepositoryServiceImpl) removeRepoData(data map[string]string, n
 	dexConfigStr := data["dex.config"]
 	data["dex.config"] = string([]byte(dexConfigStr))
 	return data, nil
+}
+
+func (impl *ChartRepositoryServiceImpl) DeleteChartSecret(secretName string) error {
+	clusterBean, err := impl.clusterService.FindOne(cluster.DefaultClusterName)
+	if err != nil {
+		return err
+	}
+	cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
+	if err != nil {
+		return err
+	}
+	client, err := impl.K8sUtil.GetClient(cfg)
+	if err != nil {
+		return err
+	}
+	err = impl.K8sUtil.DeleteSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, secretName, client)
+	return err
 }
