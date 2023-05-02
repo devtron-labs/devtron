@@ -31,7 +31,7 @@ const (
 
 type EnterpriseEnforcerConfig struct {
 	EnterpriseEnforcerEnabled bool `env:"ENTERPRISE_ENFORCER_ENABLED" envDefault:"true"`
-	UseCustomEnforcer         bool `env:"USE_CUSTOM_ENFORCER" envDefault:"false"`
+	UseCustomEnforcer         bool `env:"USE_CUSTOM_ENFORCER" envDefault:"true"`
 }
 
 func NewEnterpriseEnforcerImpl(enforcer *casbin.SyncedEnforcer,

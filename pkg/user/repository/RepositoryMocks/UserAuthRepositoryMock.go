@@ -488,20 +488,6 @@ func (_m *UserAuthRepository) SyncOrchestratorToCasbin(team string, entityName s
 	return r0, r1
 }
 
-// UpdateTriggerPolicyForTerminalAccess provides a mock function with given fields:
-func (_m *UserAuthRepository) UpdateTriggerPolicyForTerminalAccess() error {
-	ret := _m.Called()
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func() error); ok {
-		r0 = rf()
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
 type mockConstructorTestingTNewUserAuthRepository interface {
 	mock.TestingT
 	Cleanup(func())

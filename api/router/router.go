@@ -120,6 +120,7 @@ type MuxRouter struct {
 	ciStatusUpdateCron                 cron.CiStatusUpdateCron
 	appGroupingRouter                  AppGroupingRouter
 	globalTagRouter                    globalTag.GlobalTagRouter
+	rbacRoleRouter                     user.RbacRoleRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -148,7 +149,8 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 	helmApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler, k8sCapacityRouter k8s.K8sCapacityRouter,
 	webhookHelmRouter webhookHelm.WebhookHelmRouter, globalCMCSRouter GlobalCMCSRouter,
 	userTerminalAccessRouter terminal2.UserTerminalAccessRouter,
-	jobRouter JobRouter, ciStatusUpdateCron cron.CiStatusUpdateCron, appGroupingRouter AppGroupingRouter, globalTagRouter globalTag.GlobalTagRouter) *MuxRouter {
+	jobRouter JobRouter, ciStatusUpdateCron cron.CiStatusUpdateCron, appGroupingRouter AppGroupingRouter,
+	globalTagRouter globalTag.GlobalTagRouter, rbacRoleRouter user.RbacRoleRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
 		HelmRouter:                         HelmRouter,
@@ -218,6 +220,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 		JobRouter:                          jobRouter,
 		appGroupingRouter:                  appGroupingRouter,
 		globalTagRouter:                    globalTagRouter,
+		rbacRoleRouter:                     rbacRoleRouter,
 	}
 	return r
 }
@@ -429,4 +432,7 @@ func (r MuxRouter) Init() {
 	// global-tags router
 	globalTagSubRouter := r.Router.PathPrefix("/orchestrator/global-tag").Subrouter()
 	r.globalTagRouter.InitGlobalTagRouter(globalTagSubRouter)
+
+	rbacRoleRouter := r.Router.PathPrefix("/orchestrator/rbac/role").Subrouter()
+	r.rbacRoleRouter.InitRbacRoleRouter(rbacRoleRouter)
 }

@@ -1414,7 +1414,7 @@ func (impl PipelineBuilderImpl) PatchCiPipeline(request *bean.CiPatchRequest) (c
 		}
 		return res, nil
 	case bean.UPDATE_SOURCE:
-		return impl.patchCiPipelineUpdateSource(ciConfig, request.CiPipeline)
+		return impl.updateCiPipelineSourceValue(ciConfig, request.CiPipeline)
 	case bean.DELETE:
 		pipeline, err := impl.DeleteCiPipeline(request)
 		if err != nil {
@@ -1422,6 +1422,8 @@ func (impl PipelineBuilderImpl) PatchCiPipeline(request *bean.CiPatchRequest) (c
 		}
 		ciConfig.CiPipelines = []*bean.CiPipeline{pipeline}
 		return ciConfig, nil
+	case bean.UPDATE_PIPELINE:
+		return impl.updateCiPipeline(ciConfig, request.CiPipeline)
 	default:
 		impl.logger.Errorw("unsupported operation ", "op", request.Action)
 		return nil, fmt.Errorf("unsupported operation %s", request.Action)
@@ -1557,7 +1559,7 @@ func (impl PipelineBuilderImpl) DeleteCiPipeline(request *bean.CiPatchRequest) (
 
 }
 
-func (impl PipelineBuilderImpl) patchCiPipelineUpdateSource(baseCiConfig *bean.CiConfigRequest, modifiedCiPipeline *bean.CiPipeline) (ciConfig *bean.CiConfigRequest, err error) {
+func (impl PipelineBuilderImpl) updateCiPipeline(baseCiConfig *bean.CiConfigRequest, modifiedCiPipeline *bean.CiPipeline) (ciConfig *bean.CiConfigRequest, err error) {
 
 	pipeline, err := impl.ciPipelineRepository.FindById(modifiedCiPipeline.Id)
 	if err != nil {
@@ -1584,6 +1586,61 @@ func (impl PipelineBuilderImpl) patchCiPipelineUpdateSource(baseCiConfig *bean.C
 		}
 		baseCiConfig.CiPipelines = append(baseCiConfig.CiPipelines, modifiedCiPipeline)
 		return baseCiConfig, err
+	}
+
+}
+
+func (impl PipelineBuilderImpl) updateCiPipelineSourceValue(baseCiConfig *bean.CiConfigRequest, modifiedCiPipeline *bean.CiPipeline) (ciConfig *bean.CiConfigRequest, err error) {
+	pipeline, err := impl.ciPipelineRepository.FindById(modifiedCiPipeline.Id)
+	if err != nil {
+		impl.logger.Errorw("error in fetching pipeline", "id", modifiedCiPipeline.Id, "err", err)
+		return nil, err
+	}
+	cannotUpdate := false
+	for _, material := range pipeline.CiPipelineMaterials {
+		if material.ScmId != "" {
+			cannotUpdate = true
+		}
+	}
+	if cannotUpdate {
+		return nil, fmt.Errorf("update of plugin scm material not supported")
+	} else {
+		dbConnection := impl.pipelineRepository.GetConnection()
+		tx, err := dbConnection.Begin()
+		if err != nil {
+			return nil, err
+		}
+		// Rollback tx on error.
+		defer tx.Rollback()
+		var materialsUpdate []*pipelineConfig.CiPipelineMaterial
+		for _, material := range modifiedCiPipeline.CiMaterial {
+			pipelineMaterial := &pipelineConfig.CiPipelineMaterial{
+				Id:       material.Id,
+				Value:    material.Source.Value,
+				Active:   true,
+				AuditLog: sql.AuditLog{UpdatedBy: baseCiConfig.UserId, UpdatedOn: time.Now()},
+			}
+			if material.Id == 0 {
+				continue
+			} else {
+				materialsUpdate = append(materialsUpdate, pipelineMaterial)
+			}
+		}
+		if len(materialsUpdate) > 0 {
+			//using update not null
+			err = impl.ciPipelineMaterialRepository.Update(tx, materialsUpdate...)
+			if err != nil {
+				return nil, err
+			}
+		}
+		err = tx.Commit()
+		if err != nil {
+			impl.logger.Errorw("error in committing transaction", "err", err)
+			return nil, err
+		}
+		modifiedCiPipeline.ScanEnabled = baseCiConfig.ScanEnabled
+		baseCiConfig.CiPipelines = append(baseCiConfig.CiPipelines, modifiedCiPipeline)
+		return baseCiConfig, nil
 	}
 
 }

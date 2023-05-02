@@ -31,3 +31,34 @@ const (
 	EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER          = "NONE"
 	RoleNotFoundStatusPrefix                    = "role not fount for any given filter: "
 )
+
+// custom role const set
+
+const (
+	PTypePolicy                    = "p"
+	AllObjectAccessPlaceholder     = "*"
+	PValObjIndexReplacePlaceholder = "%"
+	Entity                         = "entity"
+	AccessType                     = "accessType"
+	Action                         = "action"
+)
+
+type RbacRoleDto struct {
+	Id                                     int    `json:"id"` // id of the default role
+	RoleName                               string `json:"roleName" validate:"required"`
+	RoleDisplayName                        string `json:"roleDisplayName" validate:"required"`
+	RoleDescription                        string `json:"roleDescription"`
+	UpdatePoliciesForExistingProvidedRoles bool   `json:"updatePoliciesForExistingProvidedRoles,omitempty"`
+	*RbacPolicyEntityGroupDto
+}
+
+type RbacPolicyEntityGroupDto struct {
+	Entity             string                `json:"entity" validate:"oneof=apps cluster chart-group"`
+	AccessType         string                `json:"accessType,omitempty"`
+	ResourceDetailList []*RbacPolicyResource `json:"policyResourceList,omitempty" validate:"required,min=1"`
+}
+
+type RbacPolicyResource struct {
+	Resource string   `json:"resource"`
+	Actions  []string `json:"actions"`
+}

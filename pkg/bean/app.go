@@ -168,9 +168,10 @@ type PatchAction int
 type PipelineType string
 
 const (
-	CREATE        PatchAction = iota
-	UPDATE_SOURCE             //update value of SourceTypeConfig
-	DELETE                    //delete this pipeline
+	CREATE          PatchAction = iota
+	UPDATE_PIPELINE             //update pipeline
+	DELETE                      //delete this pipeline
+	UPDATE_SOURCE               //update source value
 	//DEACTIVATE     //pause/deactivate this pipeline
 )
 
@@ -197,7 +198,7 @@ const (
 )
 
 func (a PatchAction) String() string {
-	return [...]string{"CREATE", "UPDATE_SOURCE", "DELETE", "DEACTIVATE"}[a]
+	return [...]string{"CREATE", "UPDATE_PIPELINE", "DELETE", "DEACTIVATE"}[a]
 
 }
 

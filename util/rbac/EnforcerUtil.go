@@ -58,6 +58,7 @@ type EnforcerUtil interface {
 	GetAppAndEnvObjectByPipeline(cdPipelines []*bean.CDPipelineConfigObject) map[int][]string
 	GetAppAndEnvObjectByDbPipeline(cdPipelines []*pipelineConfig.Pipeline) map[int][]string
 	GetRbacObjectsByAppIds(appIds []int) map[int]string
+	GetTeamNoEnvRBACNameByAppName(appName string) string
 }
 
 type EnforcerUtilImpl struct {
@@ -206,6 +207,15 @@ func (impl EnforcerUtilImpl) GetTeamEnvRBACNameByAppId(appId int, envId int) str
 		return fmt.Sprintf("%s/%s/%s", strings.ToLower(teamName), "", strings.ToLower(appName))
 	}
 	return fmt.Sprintf("%s/%s/%s", strings.ToLower(teamName), strings.ToLower(env.EnvironmentIdentifier), strings.ToLower(appName))
+}
+
+func (impl EnforcerUtilImpl) GetTeamNoEnvRBACNameByAppName(appName string) string {
+	app, err := impl.appRepo.FindAppAndProjectByAppName(appName)
+	if err != nil {
+		return fmt.Sprintf("%s/%s", "", strings.ToLower(appName))
+	}
+	var teamName = app.Team.Name
+	return fmt.Sprintf("%s/%s/%s", strings.ToLower(teamName), strings.ToLower(casbin.ResourceObjectIgnorePlaceholder), strings.ToLower(appName))
 }
 
 func (impl EnforcerUtilImpl) GetTeamRBACByCiPipelineId(pipelineId int) string {
