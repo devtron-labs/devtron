@@ -319,8 +319,9 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 			DockerRegistryId: createRequest.DockerConfigOverride.DockerRegistry,
 			DockerRepository: createRequest.DockerConfigOverride.DockerRepository,
 			//DockerfilePath:   createRequest.DockerConfigOverride.DockerBuildConfig.DockerfilePath,
-			GitMaterialId: ciBuildConfigBean.GitMaterialId,
-			Active:        true,
+			GitMaterialId:             ciBuildConfigBean.GitMaterialId,
+			BuildContextGitMaterialId: ciBuildConfigBean.BuildContextGitMaterialId,
+			Active:                    true,
 			AuditLog: sql.AuditLog{
 				CreatedOn: time.Now(),
 				CreatedBy: userId,
