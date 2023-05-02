@@ -10,6 +10,7 @@ INSERT INTO global_strategy_metadata_chart_ref_mapping ("global_strategy_metadat
 ((select id from global_strategy_metadata where name='ROLLINGUPDATE') ,(select id from chart_ref where location='statefulset-chart_1-0-0'), true, now(), 1, now(), 1),
 ((select id from global_strategy_metadata where name='ONDELETE') ,(select id from chart_ref where location='statefulset-chart_1-0-0'), true, now(), 1, now(), 1);
 
+UPDATE global_strategy_metadata_chart_ref_mapping set "default"=true WHERE global_strategy_metadata_id=(SELECT id from global_strategy_metadata WHERE name like 'ROLLINGUPDATE');
 
 
 INSERT INTO chart_ref_metadata("chart_name","chart_description") VALUES 
