@@ -2111,7 +2111,7 @@ func (impl PipelineBuilderImpl) ChangeDeploymentType(ctx context.Context,
 
 	// Update in db
 	err = impl.pipelineRepository.UpdateCdPipelineDeploymentAppInFilter(string(request.DesiredDeploymentType),
-		cdPipelineIds, request.UserId, false)
+		cdPipelineIds, request.UserId, false, 1)
 
 	if err != nil {
 		impl.logger.Errorw("failed to update deployment app type in db",
@@ -2218,7 +2218,7 @@ func (impl PipelineBuilderImpl) ChangePipelineDeploymentType(ctx context.Context
 	}
 
 	err = impl.pipelineRepository.UpdateCdPipelineDeploymentAppInFilter(string(request.DesiredDeploymentType),
-		pipelineIds, request.UserId, false)
+		pipelineIds, request.UserId, false, 1)
 
 	if err != nil {
 		return response, nil
@@ -2241,7 +2241,7 @@ func (impl PipelineBuilderImpl) ChangePipelineDeploymentType(ctx context.Context
 
 	// Update in db
 	err = impl.pipelineRepository.UpdateCdPipelineDeploymentAppInFilter(string(deleteDeploymentType),
-		cdPipelineIds, request.UserId, true)
+		cdPipelineIds, request.UserId, true, 0)
 
 	if err != nil {
 		impl.logger.Errorw("failed to update deployment app type in db",
@@ -2462,7 +2462,7 @@ func (impl PipelineBuilderImpl) DeleteDeploymentApps(ctx context.Context,
 			successfulPipelines,
 			pipeline,
 			"",
-			bean.Success)
+			bean.INITIATED)
 	}
 
 	return &bean.DeploymentAppTypeChangeResponse{
@@ -2594,7 +2594,7 @@ func (impl PipelineBuilderImpl) FetchDeletedApp(ctx context.Context,
 				failedPipelines,
 				pipeline,
 				"App Not Yet Deleted.",
-				bean.Failed)
+				bean.NOT_DELETED)
 		}
 	}
 
