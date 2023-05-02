@@ -71,6 +71,7 @@ type AppStoreDeploymentService interface {
 	InstallAppByHelm(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error)
 	UpdateProjectHelmApp(updateAppRequest *appStoreBean.UpdateProjectHelmAppDTO) error
 	UpdateNotesForInstalledApp(installAppId int, notes string) (bool, error)
+	UpdatePreviousDeploymentStatusForAppStore(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, err error) error
 }
 
 type DeploymentServiceTypeConfig struct {
@@ -1078,7 +1079,7 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 
 	//if charts in mono repo structure - do migrate it into independent git repo. here will create new repo and update acd application
 	if monoRepoMigrationRequired {
-		installAppVersionRequest, err = impl.appStoreDeploymentArgoCdService.OnUpdateRepoInInstalledApp(ctx, installAppVersionRequest, tx) //update here for deployment initiated, git timeline is already updated here
+		installAppVersionRequest, err = impl.appStoreDeploymentArgoCdService.OnUpdateRepoInInstalledApp(ctx, installAppVersionRequest, tx)
 		if err != nil {
 			impl.logger.Errorw("error while migrating the mono repo to individual", "error", err)
 			return nil, err
@@ -1087,7 +1088,7 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 	var installedAppVersion *repository.InstalledAppVersions
 	if installAppVersionRequest.Id == 0 {
 		// upgrade chart to other repo
-		_, installedAppVersion, err = impl.upgradeInstalledApp(environment, ctx, installAppVersionRequest, installedApp, tx, monoRepoMigrationRequired) //update git timeline here
+		_, installedAppVersion, err = impl.upgradeInstalledApp(environment, ctx, installAppVersionRequest, installedApp, tx, monoRepoMigrationRequired)
 		if err != nil {
 			impl.logger.Errorw("error while upgrade the chart", "error", err)
 			return nil, err
@@ -1392,4 +1393,14 @@ func (impl AppStoreDeploymentServiceImpl) UpdateProjectHelmApp(updateAppRequest 
 	tx.Commit()
 	return nil
 
+}
+
+func (impl AppStoreDeploymentServiceImpl) UpdatePreviousDeploymentStatusForAppStore(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, err error) error {
+	//creating pipeline status timeline for deployment failed
+	err1 := impl.appStoreDeploymentArgoCdService.UpdateInstalledAppAndPipelineStatusForFailedDeploymentStatus(installAppVersionRequest, err)
+	if err1 != nil {
+		impl.logger.Errorw("error in updating previous deployment status for appStore", "err", err1, "installAppVersionRequest", installAppVersionRequest)
+		return err1
+	}
+	return nil
 }

@@ -16,6 +16,10 @@ type InstalledAppVersionHistoryRepository interface {
 	GetLatestInstalledAppVersionHistoryByGitHash(gitHash string) (*InstalledAppVersionHistory, error)
 	GetAppIdAndEnvIdWithInstalledAppVersionId(id int) (int, int, error)
 	GetLatestInstalledAppVersionHistoryByInstalledAppId(installedAppId int) (*InstalledAppVersionHistory, error)
+	FindPreviousInstalledAppVersionHistoryByStatus(installedAppVersionId int, installedAppVersionHistoryId int, status []string) ([]*InstalledAppVersionHistory, error)
+	UpdateInstalledAppVersionHistoryWithTxn(models []*InstalledAppVersionHistory, tx *pg.Tx) error
+
+	GetConnection() *pg.DB
 }
 
 type InstalledAppVersionHistoryRepositoryImpl struct {
@@ -127,4 +131,26 @@ func (impl InstalledAppVersionHistoryRepositoryImpl) GetLatestInstalledAppVersio
 		return nil, err
 	}
 	return model, nil
+}
+
+func (impl InstalledAppVersionHistoryRepositoryImpl) FindPreviousInstalledAppVersionHistoryByStatus(installedAppVersionId int, installedAppVersionHistoryId int, status []string) ([]*InstalledAppVersionHistory, error) {
+	var iavr []*InstalledAppVersionHistory
+	err := impl.dbConnection.
+		Model(&iavr).
+		Column("installed_app_version_history.*").
+		Where("installed_app_version_history.installed_app_version_id = ?", installedAppVersionId).
+		Where("installed_app_version_history.id < ?", installedAppVersionHistoryId).
+		Where("installed_app_version_history.status not in (?) ", pg.In(status)).
+		Order("installed_app_version_history.id DESC").
+		Select()
+	return iavr, err
+}
+
+func (impl InstalledAppVersionHistoryRepositoryImpl) GetConnection() *pg.DB {
+	return impl.dbConnection
+}
+
+func (impl InstalledAppVersionHistoryRepositoryImpl) UpdateInstalledAppVersionHistoryWithTxn(models []*InstalledAppVersionHistory, tx *pg.Tx) error {
+	_, err := tx.Model(&models).Update()
+	return err
 }

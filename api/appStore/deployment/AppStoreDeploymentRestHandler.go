@@ -473,6 +473,12 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateInstalledApp(w http.Respo
 		return
 	}
 
+	err1 := handler.appStoreDeploymentService.UpdatePreviousDeploymentStatusForAppStore(res, err)
+	if err1 != nil {
+		handler.Logger.Errorw("error while update previous installed app version history", "err", err, "installAppVersionRequest", &res)
+		//if installed app is updated and error is in updating previous deployment status, then don't block user, just show error.
+	}
+
 	err = handler.attributesService.UpdateKeyValueByOne(HELM_APP_UPDATE_COUNTER)
 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
