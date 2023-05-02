@@ -1,2 +1,2 @@
 ALTER TABLE ci_template DROP COLUMN build_context;
-a
+ALTER TABLE ci_template DROP COLUMN build_context_git_material_id;
