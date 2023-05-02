@@ -1,41 +1,57 @@
-package util
+package pipeline
 
 import (
 	"encoding/json"
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
 	v12 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strconv"
 )
 
-var ArgoOwnerRef = v1.OwnerReference{APIVersion: "argoproj.io/v1alpha1", Kind: "Workflow", Name: "{{workflow.name}}", UID: "{{workflow.uid}}", BlockOwnerDeletion: &[]bool{true}[0]}
+var ArgoWorkflowOwnerRef = v1.OwnerReference{APIVersion: "argoproj.io/v1alpha1", Kind: "Workflow", Name: "{{workflow.name}}", UID: "{{workflow.uid}}", BlockOwnerDeletion: &[]bool{true}[0]}
 
-func GetConfigMapBody(globalCmCsConfigs *pipeline.GlobalCMCSDto, ownerRef v1.OwnerReference) v12.ConfigMap {
-	ownerDelete := true
+type ConfigMapSecretDto struct {
+	Name     string
+	Data     map[string]string
+	OwnerRef v1.OwnerReference
+}
+
+func GetConfigMapJson(configMapSecretDto ConfigMapSecretDto) (string, error) {
+	configMapBody := GetConfigMapBody(configMapSecretDto)
+	configMapJson, err := json.Marshal(configMapBody)
+	if err != nil {
+		return "", err
+	}
+	return string(configMapJson), err
+}
+
+func GetConfigMapBody(configMapSecretDto ConfigMapSecretDto) v12.ConfigMap {
 	return v12.ConfigMap{
 		TypeMeta: v1.TypeMeta{
 			Kind:       "ConfigMap",
 			APIVersion: "v1",
 		},
 		ObjectMeta: v1.ObjectMeta{
-			Name: globalCmCsConfigs.Name,
-			OwnerReferences: []v1.OwnerReference{{
-				APIVersion:         ownerRef.APIVersion,
-				Kind:               ownerRef.Kind,
-				Name:               ownerRef.Name,
-				UID:                ownerRef.UID,
-				BlockOwnerDeletion: &ownerDelete,
-			}},
+			Name:            configMapSecretDto.Name,
+			OwnerReferences: []v1.OwnerReference{configMapSecretDto.OwnerRef},
 		},
-		Data: globalCmCsConfigs.Data,
+		Data: configMapSecretDto.Data,
 	}
 }
 
-func GetSecretBody(globalCmCsConfigs *pipeline.GlobalCMCSDto, ownerRef v1.OwnerReference) v12.Secret {
+func GetSecretJson(configMapSecretDto ConfigMapSecretDto) (string, error) {
+	secretBody := GetSecretBody(configMapSecretDto)
+	secretJson, err := json.Marshal(secretBody)
+	if err != nil {
+		return "", err
+	}
+	return string(secretJson), err
+}
+
+func GetSecretBody(configMapSecretDto ConfigMapSecretDto) v12.Secret {
 	secretDataMap := make(map[string][]byte)
-	for key, value := range globalCmCsConfigs.Data {
+	for key, value := range configMapSecretDto.Data {
 		secretDataMap[key] = []byte(value)
 	}
 	return v12.Secret{
@@ -44,22 +60,21 @@ func GetSecretBody(globalCmCsConfigs *pipeline.GlobalCMCSDto, ownerRef v1.OwnerR
 			APIVersion: "v1",
 		},
 		ObjectMeta: v1.ObjectMeta{
-			Name:            globalCmCsConfigs.Name,
-			OwnerReferences: []v1.OwnerReference{ownerRef},
+			Name:            configMapSecretDto.Name,
+			OwnerReferences: []v1.OwnerReference{configMapSecretDto.OwnerRef},
 		},
 		Data: secretDataMap,
 		Type: "Opaque",
 	}
 }
 
-func AddTemplatesForGlobalSecretsInWorkflowTemplate(globalCmCsConfigs []*pipeline.GlobalCMCSDto, steps *[]v1alpha1.ParallelSteps, volumes *[]v12.Volume, templates *[]v1alpha1.Template) error {
+func AddTemplatesForGlobalSecretsInWorkflowTemplate(globalCmCsConfigs []*GlobalCMCSDto, steps *[]v1alpha1.ParallelSteps, volumes *[]v12.Volume, templates *[]v1alpha1.Template) error {
 
 	cmIndex := 0
 	csIndex := 0
 	for _, config := range globalCmCsConfigs {
 		if config.ConfigType == repository.CM_TYPE_CONFIG {
-			cmBody := GetConfigMapBody(config, ArgoOwnerRef)
-			cmJson, err := json.Marshal(cmBody)
+			cmJson, err := GetConfigMapJson(ConfigMapSecretDto{Name: config.Name, Data: config.Data, OwnerRef: ArgoWorkflowOwnerRef})
 			if err != nil {
 				return err
 			}
@@ -93,12 +108,7 @@ func AddTemplatesForGlobalSecretsInWorkflowTemplate(globalCmCsConfigs []*pipelin
 			})
 			cmIndex++
 		} else if config.ConfigType == repository.CS_TYPE_CONFIG {
-			secretDataMap := make(map[string][]byte)
-			for key, value := range config.Data {
-				secretDataMap[key] = []byte(value)
-			}
-			secretObject := GetSecretBody(config, ArgoOwnerRef)
-			secretJson, err := json.Marshal(secretObject)
+			secretJson, err := GetSecretJson(ConfigMapSecretDto{Name: config.Name, Data: config.Data, OwnerRef: ArgoWorkflowOwnerRef})
 			if err != nil {
 				return err
 			}

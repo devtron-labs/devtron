@@ -15,7 +15,7 @@ func TestNewGlobalCMCSServiceImpl(t *testing.T) {
 		sugaredLogger, err := util.NewSugardLogger()
 		assert.Nil(t, err)
 
-		GlobalCmcsService := NewGlobalCMCSServiceImpl(sugaredLogger, nil)
+		NewGlobalCMCSServiceImpl(sugaredLogger, nil)
 
 		var globalCmCsConfigs []*GlobalCMCSDto
 
@@ -68,7 +68,7 @@ func TestNewGlobalCMCSServiceImpl(t *testing.T) {
 		volumes := make([]v12.Volume, 0)
 		templates := make([]v1alpha1.Template, 0)
 
-		err = GlobalCmcsService.AddTemplatesForGlobalSecretsInWorkflowTemplate(globalCmCsConfigs, &steps, &volumes, &templates)
+		err = AddTemplatesForGlobalSecretsInWorkflowTemplate(globalCmCsConfigs, &steps, &volumes, &templates)
 		assert.Nil(t, err)
 		assert.Equal(t, len(steps), len(globalCmCsConfigs))
 		assert.Equal(t, len(templates), len(globalCmCsConfigs))

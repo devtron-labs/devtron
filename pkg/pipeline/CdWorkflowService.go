@@ -24,7 +24,6 @@ import (
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
-	util2 "github.com/devtron-labs/devtron/pkg/pipeline/util"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"net/url"
 	"strconv"
@@ -183,7 +182,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 			globalCmCsConfigs[i].Name = fmt.Sprintf("%s-%s-%s", strings.ToLower(globalCmCsConfigs[i].Name), strconv.Itoa(workflowRequest.WorkflowRunnerId), CD_WORKFLOW_NAME)
 		}
 
-		err = util2.AddTemplatesForGlobalSecretsInWorkflowTemplate(globalCmCsConfigs, &steps, &volumes, &templates)
+		err = AddTemplatesForGlobalSecretsInWorkflowTemplate(globalCmCsConfigs, &steps, &volumes, &templates)
 		if err != nil {
 			impl.Logger.Errorw("error in creating templates for global secrets", "err", err)
 		}
@@ -272,27 +271,9 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 				impl.Logger.Errorw("error while unmarshal data", "err", err)
 				return nil, err
 			}
-			ownerDelete := true
-			cmBody := v12.ConfigMap{
-				TypeMeta: v1.TypeMeta{
-					Kind:       "ConfigMap",
-					APIVersion: "v1",
-				},
-				ObjectMeta: v1.ObjectMeta{
-					Name: cm.Name,
-					OwnerReferences: []v1.OwnerReference{{
-						APIVersion:         "argoproj.io/v1alpha1",
-						Kind:               "Workflow",
-						Name:               "{{workflow.name}}",
-						UID:                "{{workflow.uid}}",
-						BlockOwnerDeletion: &ownerDelete,
-					}},
-				},
-				Data: datamap,
-			}
-			cmJson, err := json.Marshal(cmBody)
+			cmJson, err := GetConfigMapJson(ConfigMapSecretDto{Name: cm.Name, Data: datamap, OwnerRef: ArgoWorkflowOwnerRef})
 			if err != nil {
-				impl.Logger.Errorw("error in building json", "err", err)
+				impl.Logger.Errorw("error in building config map json", "err", err)
 				return nil, err
 			}
 			configsMapping[cm.Name] = string(cmJson)
@@ -323,31 +304,12 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	if len(secrets.Secrets) > 0 {
 		entryPoint = CD_WORKFLOW_WITH_STAGES
 		for i, s := range secrets.Secrets {
-			var datamap map[string][]byte
+			var datamap map[string]string
 			if err := json.Unmarshal(s.Data, &datamap); err != nil {
 				impl.Logger.Errorw("error while unmarshal data", "err", err)
 				return nil, err
 			}
-			ownerDelete := true
-			secretObject := v12.Secret{
-				TypeMeta: v1.TypeMeta{
-					Kind:       "Secret",
-					APIVersion: "v1",
-				},
-				ObjectMeta: v1.ObjectMeta{
-					Name: s.Name,
-					OwnerReferences: []v1.OwnerReference{{
-						APIVersion:         "argoproj.io/v1alpha1",
-						Kind:               "Workflow",
-						Name:               "{{workflow.name}}",
-						UID:                "{{workflow.uid}}",
-						BlockOwnerDeletion: &ownerDelete,
-					}},
-				},
-				Data: datamap,
-				Type: "Opaque",
-			}
-			secretJson, err := json.Marshal(secretObject)
+			secretJson, err := GetSecretJson(ConfigMapSecretDto{Name: s.Name, Data: datamap, OwnerRef: ArgoWorkflowOwnerRef})
 			if err != nil {
 				impl.Logger.Errorw("error in building json", "err", err)
 				return nil, err
