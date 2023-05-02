@@ -583,9 +583,9 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		return nil, err
 	}
 
-	workflowOwner := pipelineConfig.ArgoWorkflowOwner //TODO KB: extract from cd config
-	if cdWorkflowConfig.WorkflowOwner != nil {
-		workflowOwner = *cdWorkflowConfig.WorkflowOwner
+	workflowExecutor := pipelineConfig.ArgoWorkflowExecutor //TODO KB: extract from cd config
+	if cdWorkflowConfig.WorkflowExecutor != nil {
+		workflowExecutor = *cdWorkflowConfig.WorkflowExecutor
 	}
 
 	artifact, err := impl.ciArtifactRepository.Get(cdWf.CiArtifactId)
@@ -726,7 +726,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		OrchestratorHost:  impl.cdConfig.OrchestratorHost,
 		OrchestratorToken: impl.cdConfig.OrchestratorToken,
 		CloudProvider:     impl.cdConfig.CloudProvider,
-		WorkflowOwner:     workflowOwner,
+		WorkflowExecutor:  workflowExecutor,
 	}
 	extraEnvVariables := make(map[string]string)
 	env, err := impl.envRepository.FindById(cdPipeline.EnvironmentId)

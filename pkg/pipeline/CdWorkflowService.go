@@ -24,6 +24,7 @@ import (
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"net/url"
 	"strconv"
@@ -112,7 +113,7 @@ type CdWorkflowRequest struct {
 	DeploymentTriggeredBy      string                            `json:"deploymentTriggeredBy,omitempty"`
 	DeploymentTriggerTime      time.Time                         `json:"deploymentTriggerTime,omitempty"`
 	DeploymentReleaseCounter   int                               `json:"deploymentReleaseCounter,omitempty"`
-	WorkflowOwner              pipelineConfig.WorkflowOwner      `json:"workflowOwner"`
+	WorkflowExecutor           pipelineConfig.WorkflowExecutor   `json:"workflowExecutor"`
 }
 
 const PRE = "PRE"
@@ -132,6 +133,7 @@ func NewCdWorkflowServiceImpl(Logger *zap.SugaredLogger,
 }
 
 func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowRequest, pipeline *pipelineConfig.Pipeline, env *repository.Environment) (*v1alpha1.Workflow, error) {
+
 	containerEnvVariables := []v12.EnvVar{}
 	if impl.cdConfig.CloudProvider == BLOB_STORAGE_S3 && impl.cdConfig.BlobStorageS3AccessKey != "" {
 		miniCred := []v12.EnvVar{{Name: "AWS_ACCESS_KEY_ID", Value: impl.cdConfig.BlobStorageS3AccessKey}, {Name: "AWS_SECRET_ACCESS_KEY", Value: impl.cdConfig.BlobStorageS3SecretKey}}
@@ -160,13 +162,16 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	reqMem := impl.cdConfig.ReqMem
 	ttl := int32(impl.cdConfig.BuildLogTTLValue)
 
+	workflowTemplate := bean3.WorkflowTemplate{}
+	workflowTemplate.TTLValue = ttl
+
 	entryPoint := CD_WORKFLOW_NAME
 
 	steps := make([]v1alpha1.ParallelSteps, 0)
 	volumes := make([]v12.Volume, 0)
 	templates := make([]v1alpha1.Template, 0)
 
-	var globalCmCsConfigs []*GlobalCMCSDto
+	var globalCmCsConfigs []*bean3.GlobalCMCSDto
 
 	if !workflowRequest.IsExtRun {
 		globalCmCsConfigs, err = impl.globalCMCSService.FindAllActiveByPipelineType(repository2.PIPELINE_TYPE_CD)

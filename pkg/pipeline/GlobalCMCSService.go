@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -11,11 +12,11 @@ import (
 )
 
 type GlobalCMCSService interface {
-	Create(model *GlobalCMCSDto) (*GlobalCMCSDto, error)
+	Create(model *bean.GlobalCMCSDto) (*bean.GlobalCMCSDto, error)
 	UpdateDataById(config *GlobalCMCSDataUpdateDto) (*GlobalCMCSDataUpdateDto, error)
-	GetGlobalCMCSDataByConfigTypeAndName(configName string, configType string) (*GlobalCMCSDto, error)
-	FindAllActiveByPipelineType(pipelineType string) ([]*GlobalCMCSDto, error)
-	FindAllActive() ([]*GlobalCMCSDto, error)
+	GetGlobalCMCSDataByConfigTypeAndName(configName string, configType string) (*bean.GlobalCMCSDto, error)
+	FindAllActiveByPipelineType(pipelineType string) ([]*bean.GlobalCMCSDto, error)
+	FindAllActive() ([]*bean.GlobalCMCSDto, error)
 	DeleteById(id int) error
 }
 
@@ -32,18 +33,18 @@ func NewGlobalCMCSServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
-type GlobalCMCSDto struct {
-	Id         int    `json:"id"`
-	ConfigType string `json:"configType" validate:"oneof=CONFIGMAP SECRET"`
-	Name       string `json:"name"  validate:"required"`
-	Type       string `json:"type" validate:"oneof=environment volume"`
-	//map of key:value, example: '{ "a" : "b", "c" : "d"}'
-	Data               map[string]string `json:"data"  validate:"required"`
-	MountPath          string            `json:"mountPath"`
-	Deleted            bool              `json:"deleted"`
-	UserId             int32             `json:"-"`
-	SecretIngestionFor string            `json:"SecretIngestionFor"` // value can be one of [ci, cd, ci/cd]
-}
+//type GlobalCMCSDto struct {
+//	Id         int    `json:"id"`
+//	ConfigType string `json:"configType" validate:"oneof=CONFIGMAP SECRET"`
+//	Name       string `json:"name"  validate:"required"`
+//	Type       string `json:"type" validate:"oneof=environment volume"`
+//	//map of key:value, example: '{ "a" : "b", "c" : "d"}'
+//	Data               map[string]string `json:"data"  validate:"required"`
+//	MountPath          string            `json:"mountPath"`
+//	Deleted            bool              `json:"deleted"`
+//	UserId             int32             `json:"-"`
+//	SecretIngestionFor string            `json:"SecretIngestionFor"` // value can be one of [ci, cd, ci/cd]
+//}
 
 type GlobalCMCSDataUpdateDto struct {
 	Id                 int               `json:"id"`
@@ -52,7 +53,7 @@ type GlobalCMCSDataUpdateDto struct {
 	UserId             int32             `json:"-"`
 }
 
-func (impl *GlobalCMCSServiceImpl) validateGlobalCMCSData(config *GlobalCMCSDto) error {
+func (impl *GlobalCMCSServiceImpl) validateGlobalCMCSData(config *bean.GlobalCMCSDto) error {
 	sameNameConfig, err := impl.globalCMCSRepository.FindByConfigTypeAndName(config.ConfigType, config.Name)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting global cm/cs config by name and configType", "err", err, "configType", config.ConfigType, "name", config.Name)
@@ -80,7 +81,7 @@ func (impl *GlobalCMCSServiceImpl) validateGlobalCMCSData(config *GlobalCMCSDto)
 	return nil
 }
 
-func (impl *GlobalCMCSServiceImpl) Create(config *GlobalCMCSDto) (*GlobalCMCSDto, error) {
+func (impl *GlobalCMCSServiceImpl) Create(config *bean.GlobalCMCSDto) (*bean.GlobalCMCSDto, error) {
 
 	err := impl.validateGlobalCMCSData(config)
 	if err != nil {
@@ -147,15 +148,15 @@ func (impl *GlobalCMCSServiceImpl) UpdateDataById(config *GlobalCMCSDataUpdateDt
 	return config, nil
 }
 
-func (impl *GlobalCMCSServiceImpl) ConvertGlobalCmcsDbObjectToGlobalCmcsDto(GlobalCMCSDBObject []*repository.GlobalCMCS) []*GlobalCMCSDto {
-	var configDtos []*GlobalCMCSDto
+func (impl *GlobalCMCSServiceImpl) ConvertGlobalCmcsDbObjectToGlobalCmcsDto(GlobalCMCSDBObject []*repository.GlobalCMCS) []*bean.GlobalCMCSDto {
+	var configDtos []*bean.GlobalCMCSDto
 	for _, model := range GlobalCMCSDBObject {
 		data := make(map[string]string)
 		err := json.Unmarshal([]byte(model.Data), &data)
 		if err != nil {
 			impl.logger.Errorw("error in un-marshaling cm/cs data", "err", err)
 		}
-		configDto := &GlobalCMCSDto{
+		configDto := &bean.GlobalCMCSDto{
 			Id:         model.Id,
 			ConfigType: model.ConfigType,
 			Type:       model.Type,
@@ -168,7 +169,7 @@ func (impl *GlobalCMCSServiceImpl) ConvertGlobalCmcsDbObjectToGlobalCmcsDto(Glob
 	return configDtos
 }
 
-func (impl *GlobalCMCSServiceImpl) FindAllActiveByPipelineType(pipelineType string) ([]*GlobalCMCSDto, error) {
+func (impl *GlobalCMCSServiceImpl) FindAllActiveByPipelineType(pipelineType string) ([]*bean.GlobalCMCSDto, error) {
 	models, err := impl.globalCMCSRepository.FindAllActiveByPipelineType(pipelineType)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("err in getting all global cm/cs configs", "err", err)
@@ -178,7 +179,7 @@ func (impl *GlobalCMCSServiceImpl) FindAllActiveByPipelineType(pipelineType stri
 	return configDtos, nil
 }
 
-func (impl *GlobalCMCSServiceImpl) FindAllActive() ([]*GlobalCMCSDto, error) {
+func (impl *GlobalCMCSServiceImpl) FindAllActive() ([]*bean.GlobalCMCSDto, error) {
 	models, err := impl.globalCMCSRepository.FindAllActive()
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("err in getting all global cm/cs configs", "err", err)
@@ -188,7 +189,7 @@ func (impl *GlobalCMCSServiceImpl) FindAllActive() ([]*GlobalCMCSDto, error) {
 	return configDtos, nil
 }
 
-func (impl *GlobalCMCSServiceImpl) GetGlobalCMCSDataByConfigTypeAndName(configName string, configType string) (*GlobalCMCSDto, error) {
+func (impl *GlobalCMCSServiceImpl) GetGlobalCMCSDataByConfigTypeAndName(configName string, configType string) (*bean.GlobalCMCSDto, error) {
 
 	model, err := impl.globalCMCSRepository.FindByConfigTypeAndName(configType, configName)
 	if err != nil {
@@ -200,7 +201,7 @@ func (impl *GlobalCMCSServiceImpl) GetGlobalCMCSDataByConfigTypeAndName(configNa
 	if err != nil {
 		impl.logger.Errorw("error in un-marshaling cm/cs data", "err", err)
 	}
-	GlobalCMCSDto := &GlobalCMCSDto{
+	GlobalCMCSDto := &bean.GlobalCMCSDto{
 		Id:                 model.Id,
 		ConfigType:         model.ConfigType,
 		Name:               model.Name,
