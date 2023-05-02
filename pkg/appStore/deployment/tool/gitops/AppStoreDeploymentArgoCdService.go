@@ -379,6 +379,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetDeploymentHistory(ctx context
 					Nanos:   int32(updateHistory.UpdatedOn.Nanosecond()),
 				},
 				Version: int32(updateHistory.Id),
+				Status:  updateHistory.Status,
 			})
 		}
 	}
