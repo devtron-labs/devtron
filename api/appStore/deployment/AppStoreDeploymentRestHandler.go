@@ -41,6 +41,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const HELM_APP_UPDATE_COUNTER = "HelmAppUpdateCounter"
@@ -463,6 +464,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateInstalledApp(w http.Respo
 		}
 		ctx = context.WithValue(r.Context(), "token", acdToken)
 	}
+	triggeredAt := time.Now()
 	res, err := handler.appStoreDeploymentService.UpdateInstalledApp(ctx, &request)
 	if err != nil {
 		if strings.Contains(err.Error(), "application spec is invalid") {
@@ -473,7 +475,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateInstalledApp(w http.Respo
 		return
 	}
 
-	err1 := handler.appStoreDeploymentService.UpdatePreviousDeploymentStatusForAppStore(res, err)
+	err1 := handler.appStoreDeploymentService.UpdatePreviousDeploymentStatusForAppStore(res, triggeredAt, err)
 	if err1 != nil {
 		handler.Logger.Errorw("error while update previous installed app version history", "err", err, "installAppVersionRequest", res)
 		//if installed app is updated and error is in updating previous deployment status, then don't block user, just show error.

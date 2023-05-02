@@ -50,7 +50,7 @@ type AppStoreDeploymentArgoCdService interface {
 	UpdateRequirementDependencies(environment *clusterRepository.Environment, installedAppVersion *repository.InstalledAppVersions, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error
 	UpdateInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, environment *clusterRepository.Environment, installedAppVersion *repository.InstalledAppVersions, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error)
 	DeleteDeploymentApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error
-	UpdateInstalledAppAndPipelineStatusForFailedDeploymentStatus(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, err error) error
+	UpdateInstalledAppAndPipelineStatusForFailedDeploymentStatus(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, triggeredAt time.Time, err error) error
 }
 
 type AppStoreDeploymentArgoCdServiceImpl struct {
@@ -699,7 +699,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) DeleteDeploymentApp(ctx context.
 	return nil
 }
 
-func (impl AppStoreDeploymentArgoCdServiceImpl) UpdateInstalledAppAndPipelineStatusForFailedDeploymentStatus(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, err error) error {
+func (impl AppStoreDeploymentArgoCdServiceImpl) UpdateInstalledAppAndPipelineStatusForFailedDeploymentStatus(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, triggeredAt time.Time, err error) error {
 	if err != nil {
 		terminalStatusExists, timelineErr := impl.pipelineStatusTimelineRepository.CheckIfTerminalStatusTimelinePresentByInstalledAppVersionHistoryId(installAppVersionRequest.InstalledAppVersionHistoryId)
 		if timelineErr != nil {
@@ -734,7 +734,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) UpdateInstalledAppAndPipelineSta
 			return err
 		}
 		installedAppVersionHistory.Status = pipelineConfig.WorkflowFailed
-		installedAppVersionHistory.FinishedOn = time.Now()
+		installedAppVersionHistory.FinishedOn = triggeredAt
 		installedAppVersionHistory.UpdatedOn = time.Now()
 		installedAppVersionHistory.UpdatedBy = installAppVersionRequest.UserId
 		_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(installedAppVersionHistory, nil)
@@ -773,7 +773,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) UpdateInstalledAppAndPipelineSta
 				continue
 			}
 			impl.Logger.Infow("updating installedAppVersionHistory status as previous runner status is", "status", previousHistory.Status)
-			previousHistory.FinishedOn = time.Now()
+			previousHistory.FinishedOn = triggeredAt
 			previousHistory.Status = pipelineConfig.WorkflowFailed
 			previousHistory.UpdatedOn = time.Now()
 			previousHistory.UpdatedBy = installAppVersionRequest.UserId
