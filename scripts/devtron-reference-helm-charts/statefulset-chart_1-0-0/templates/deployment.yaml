@@ -541,9 +541,9 @@ spec:
     {{- if eq .Values.deploymentType "ROLLINGUPDATE" }}  
   updateStrategy: 
       type: RollingUpdate
-    {{- if $.Values.deployment.strategy.rollingupdate.partition }}
+    {{- if $.Values.deployment.strategy.rollingUpdate.partition }}
       rollingUpdate:
-          partition: {{ .Values.deployment.strategy.rollingupdate.partition }}
+          partition: {{ .Values.deployment.strategy.rollingUpdate.partition }}
     {{- end }} 
       {{- else if eq .Values.deploymentType "ONDELETE" }}
   updateStrategy:
