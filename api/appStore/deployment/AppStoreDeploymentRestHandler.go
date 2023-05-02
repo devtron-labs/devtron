@@ -475,7 +475,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateInstalledApp(w http.Respo
 
 	err1 := handler.appStoreDeploymentService.UpdatePreviousDeploymentStatusForAppStore(res, err)
 	if err1 != nil {
-		handler.Logger.Errorw("error while update previous installed app version history", "err", err, "installAppVersionRequest", &res)
+		handler.Logger.Errorw("error while update previous installed app version history", "err", err, "installAppVersionRequest", res)
 		//if installed app is updated and error is in updating previous deployment status, then don't block user, just show error.
 	}
 
