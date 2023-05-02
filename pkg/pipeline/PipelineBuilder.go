@@ -2197,7 +2197,6 @@ func (impl PipelineBuilderImpl) ChangePipelineDeploymentType(ctx context.Context
 	}
 
 	var deleteDeploymentType bean.DeploymentType
-	var err error
 
 	if request.DesiredDeploymentType == bean.ArgoCd {
 		deleteDeploymentType = bean.Helm
@@ -2207,6 +2206,14 @@ func (impl PipelineBuilderImpl) ChangePipelineDeploymentType(ctx context.Context
 
 	pipelines, err := impl.pipelineRepository.FindActiveByEnvIdAndDeploymentType(request.EnvId,
 		string(deleteDeploymentType), request.ExcludeApps, request.IncludeApps)
+
+	if err != nil {
+		impl.logger.Errorw("Error fetching cd pipelines",
+			"environmentId", request.EnvId,
+			"currentDeploymentAppType", string(deleteDeploymentType),
+			"err", err)
+		return response, err
+	}
 
 	var pipelineIds []int
 	for _, item := range pipelines {
