@@ -1052,13 +1052,13 @@ func (_m *PipelineRepository) UpdateCdPipeline(pipeline *pipelineConfig.Pipeline
 	return r0
 }
 
-// UpdateCdPipelineDeploymentAppInFilter provides a mock function with given fields: deploymentAppType, cdPipelineIdIncludes, userId, deploymentAppCreated
-func (_m *PipelineRepository) UpdateCdPipelineDeploymentAppInFilter(deploymentAppType string, cdPipelineIdIncludes []int, userId int32, deploymentAppCreated bool) error {
-	ret := _m.Called(deploymentAppType, cdPipelineIdIncludes, userId, deploymentAppCreated)
+// UpdateCdPipelineDeploymentAppInFilter provides a mock function with given fields: deploymentAppType, cdPipelineIdIncludes, userId, deploymentAppCreated, delete
+func (_m *PipelineRepository) UpdateCdPipelineDeploymentAppInFilter(deploymentAppType string, cdPipelineIdIncludes []int, userId int32, deploymentAppCreated bool, delete bool) error {
+	ret := _m.Called(deploymentAppType, cdPipelineIdIncludes, userId, deploymentAppCreated, delete)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, []int, int32, bool) error); ok {
-		r0 = rf(deploymentAppType, cdPipelineIdIncludes, userId, deploymentAppCreated)
+	if rf, ok := ret.Get(0).(func(string, []int, int32, bool, bool) error); ok {
+		r0 = rf(deploymentAppType, cdPipelineIdIncludes, userId, deploymentAppCreated, delete)
 	} else {
 		r0 = ret.Error(0)
 	}
