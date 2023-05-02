@@ -27,6 +27,11 @@ type NodeTaints struct {
 	Effect string `json:"effect,omitempty"`
 }
 
+type Container struct {
+	ContainerName string
+	Image         string
+}
+
 type UserTerminalPodEvents struct {
 	Status         string      `json:"status"`
 	ErrorReason    string      `json:"errorReason"`
@@ -50,7 +55,7 @@ type UserTerminalSessionResponse struct {
 	NodeName              string            `json:"nodeName"`
 	IsValidShell          bool              `json:"isValidShell"`
 	ShellName             string            `json:"shellName"`
-	Containers            []string          `json:"containers"`
+	Containers            []Container       `json:"containers"`
 	PodExists             bool              `json:"podExists"`
 	DebugNode             bool              `json:"debugNode"`
 }

@@ -1090,9 +1090,12 @@ func (impl *UserTerminalAccessServiceImpl) EditTerminalPodManifest(ctx context.C
 	}
 	result.PodExists = false
 	result.DebugNode = utils1.IsNodeDebugPod(&podObject)
-	var containers []string
+	var containers []models.Container
 	for _, con := range podObject.Spec.Containers {
-		containers = append(containers, con.Name)
+		containers = append(containers, models.Container{
+			ContainerName: con.Name,
+			Image:         con.Image,
+		})
 	}
 	result.TerminalAccessId = terminalStartResponse.TerminalAccessId
 	result.Containers = containers
@@ -1148,9 +1151,12 @@ func (impl *UserTerminalAccessServiceImpl) StartNodeDebug(userTerminalRequest *m
 	}
 	result.PodExists = false
 	result.DebugNode = true
-	var containers []string
+	var containers []models.Container
 	for _, con := range podObject.Spec.Containers {
-		containers = append(containers, con.Name)
+		containers = append(containers, models.Container{
+			ContainerName: con.Name,
+			Image:         con.Image,
+		})
 	}
 	result.ShellName = userTerminalRequest.ShellName
 	result.Containers = containers
