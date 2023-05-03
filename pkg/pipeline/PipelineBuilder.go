@@ -107,7 +107,7 @@ type PipelineBuilder interface {
 	GetApp(appId int) (application *bean.CreateAppDTO, err error)
 	PatchCdPipelines(cdPipelines *bean.CDPatchRequest, ctx context.Context) (*bean.CdPipelines, error)
 	DeleteCdPipeline(pipeline *pipelineConfig.Pipeline, ctx context.Context, forceDelete bool, acdDelete bool, userId int32) (err error)
-	DeleteACDAppCdPipelineWithCascadeOption(pipeline *pipelineConfig.Pipeline, ctx context.Context, cascadeDelete bool) (err error)
+	DeleteACDAppCdPipelineWithCascadeOption(pipeline *pipelineConfig.Pipeline, ctx context.Context, cascadeDelete bool)
 	ChangeDeploymentType(ctx context.Context, request *bean.DeploymentAppTypeChangeRequest) (*bean.DeploymentAppTypeChangeResponse, error)
 	DeleteDeploymentAppsForEnvironment(ctx context.Context, environmentId int, currentDeploymentAppType bean.DeploymentType, exclusionList []int, includeApps []int, userId int32) (*bean.DeploymentAppTypeChangeResponse, error)
 	DeleteDeploymentApps(ctx context.Context, pipelines []*pipelineConfig.Pipeline, userId int32) *bean.DeploymentAppTypeChangeResponse
@@ -2080,22 +2080,22 @@ func (impl PipelineBuilderImpl) DeleteCdPipelinePartial(pipeline *pipelineConfig
 	return nil
 }
 
-func (impl PipelineBuilderImpl) DeleteACDAppCdPipelineWithCascadeOption(pipeline *pipelineConfig.Pipeline, ctx context.Context, cascadeDelete bool) (err error) {
-	//delete app from argo cd, if created
-	if pipeline.DeploymentAppCreated && pipeline.DeploymentAppDeleteRequest && util.IsAcdApp(pipeline.DeploymentAppType) {
-		appDetails, err := impl.appRepo.FindById(pipeline.AppId)
-		deploymentAppName := fmt.Sprintf("%s-%s", appDetails.AppName, pipeline.Environment.Name)
-		impl.logger.Debugw("acd app is already deleted for this pipeline", "pipeline", pipeline)
-		req := &application2.ApplicationDeleteRequest{
-			Name:    &deploymentAppName,
-			Cascade: &cascadeDelete,
+func (impl PipelineBuilderImpl) DeleteACDAppCdPipelineWithCascadeOption(pipeline *pipelineConfig.Pipeline, ctx context.Context, cascadeDelete bool) {
+	go func() {
+		//delete app from argo cd, if created
+		if pipeline.DeploymentAppCreated && pipeline.DeploymentAppDeleteRequest && util.IsAcdApp(pipeline.DeploymentAppType) {
+			appDetails, err := impl.appRepo.FindById(pipeline.AppId)
+			deploymentAppName := fmt.Sprintf("%s-%s", appDetails.AppName, pipeline.Environment.Name)
+			impl.logger.Debugw("acd app is already deleted for this pipeline", "pipeline", pipeline)
+			req := &application2.ApplicationDeleteRequest{
+				Name:    &deploymentAppName,
+				Cascade: &cascadeDelete,
+			}
+			if _, err = impl.application.Delete(ctx, req); err != nil {
+				impl.logger.Errorw("err in deleting pipeline on argocd", "id", pipeline, "err", err)
+			}
 		}
-		if _, err = impl.application.Delete(ctx, req); err != nil {
-			impl.logger.Errorw("err in deleting pipeline on argocd", "id", pipeline, "err", err)
-			return err
-		}
-	}
-	return nil
+	}()
 }
 
 // ChangeDeploymentType takes in DeploymentAppTypeChangeRequest struct and
