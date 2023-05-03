@@ -479,7 +479,7 @@ func (handler PipelineConfigRestHandlerImpl) FetchMaterials(w http.ResponseWrite
 		return
 	}
 	v := r.URL.Query()
-	showAll := true
+	showAll := false
 	show := v.Get("showAll")
 	if len(show) > 0 {
 		showAll, err = strconv.ParseBool(show)
@@ -531,7 +531,7 @@ func (handler PipelineConfigRestHandlerImpl) FetchMaterialsByMaterialId(w http.R
 		return
 	}
 	v := r.URL.Query()
-	showAll := true
+	showAll := false
 	show := v.Get("showAll")
 	if len(show) > 0 {
 		showAll, err = strconv.ParseBool(show)
