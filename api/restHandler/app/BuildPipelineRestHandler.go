@@ -10,7 +10,6 @@ import (
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -405,53 +404,52 @@ func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWr
 			nil, http.StatusBadRequest)
 	}
 	ciTriggerRequest.TriggeredBy = userId
+	token := r.Header.Get("token")
+	userEmailId, err := handler.userAuthService.GetEmailFromToken(token)
+	if err != nil {
+		handler.Logger.Errorw("error in getting user emailId from token", "userId", userId, "err", err)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
 	handler.Logger.Infow("request payload, TriggerCiPipeline", "payload", ciTriggerRequest)
 
-	//RBAC CHECK CD PIPELINE - FOR USER
-	pipelines, err := handler.pipelineRepository.FindByCiPipelineId(ciTriggerRequest.PipelineId)
+	//RBAC STARTS
+	//checking if user has trigger access on app, if not will be forbidden to trigger independent of number of cd cdPipelines
+	ciPipeline, err := handler.ciPipelineRepository.FindById(ciTriggerRequest.PipelineId)
 	if err != nil {
-		handler.Logger.Errorw("error in finding ccd pipelines by ciPipelineId", "err", err)
+		handler.Logger.Errorw("err in finding ci pipeline, TriggerCiPipeline", "err", err, "ciPipelineId", ciTriggerRequest.PipelineId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	var authorizedPipelines []pipelineConfig.Pipeline
-	var unauthorizedPipelines []pipelineConfig.Pipeline
-	token := r.Header.Get("token")
-	for _, p := range pipelines {
-		object := handler.enforcerUtil.GetAppRBACNameByAppId(p.AppId)
-		appRbacOk := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object)
-		object = handler.enforcerUtil.GetAppRBACByAppIdAndPipelineId(p.AppId, p.Id)
-		envRbacOk := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionTrigger, object)
-		if appRbacOk && envRbacOk {
-			authorizedPipelines = append(authorizedPipelines, *p)
-		} else {
-			unauthorizedPipelines = append(unauthorizedPipelines, *p)
-		}
-	}
-	resMessage := "allowed for all pipelines"
-	response := make(map[string]string)
-	if len(unauthorizedPipelines) > 0 {
-		resMessage = "some pipelines not authorized"
+	appObject := handler.enforcerUtil.GetAppRBACNameByAppId(ciPipeline.AppId)
+	if appRbacOk := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, appObject); !appRbacOk {
+		handler.Logger.Debug(fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	if len(authorizedPipelines) == 0 {
-		//user has no cd pipeline
-		ciPipeline, err := handler.ciPipelineRepository.FindById(ciTriggerRequest.PipelineId)
-		if err != nil {
-			handler.Logger.Errorw("err in finding ci pipeline, TriggerCiPipeline", "err", err, "ciPipelineId", ciTriggerRequest.PipelineId)
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
-		object := handler.enforcerUtil.GetAppRBACNameByAppId(ciPipeline.AppId)
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
-			handler.Logger.Debug(fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+	//checking rbac for cd cdPipelines
+	cdPipelines, err := handler.pipelineRepository.FindByCiPipelineId(ciTriggerRequest.PipelineId)
+	if err != nil {
+		handler.Logger.Errorw("error in finding ccd cdPipelines by ciPipelineId", "err", err, "ciPipelineId", ciTriggerRequest.PipelineId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	cdPipelineRbacObjects := make([]string, len(cdPipelines))
+	for i, cdPipeline := range cdPipelines {
+		envObject := handler.enforcerUtil.GetAppRBACByAppIdAndPipelineId(cdPipeline.AppId, cdPipeline.Id)
+		cdPipelineRbacObjects[i] = envObject
+	}
+	envRbacResultMap := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceEnvironment, casbin.ActionTrigger, cdPipelineRbacObjects)
+	i := 0
+	for _, rbacResultOk := range envRbacResultMap {
+		if !rbacResultOk {
 			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 			return
 		}
+		i++
 	}
-	//RBAC CHECK CD PIPELINE - FOR USER
-
+	//RBAC ENDS
+	response := make(map[string]string)
 	resp, err := handler.ciHandler.HandleCIManual(ciTriggerRequest)
 	if err != nil {
 		handler.Logger.Errorw("service err, TriggerCiPipeline", "err", err, "payload", ciTriggerRequest)
@@ -459,8 +457,6 @@ func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWr
 		return
 	}
 	response["apiResponse"] = strconv.Itoa(resp)
-	response["authStatus"] = resMessage
-
 	common.WriteJsonResp(w, err, response, http.StatusOK)
 }
 func (handler PipelineConfigRestHandlerImpl) FetchMaterials(w http.ResponseWriter, r *http.Request) {
