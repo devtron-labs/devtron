@@ -22,7 +22,7 @@ const (
 	TolerationsKey           = "tolerations"
 	TolerationEffectKey      = "effect"
 	TolerationOperator       = "operator"
-	TolerationOperatorExists = "exists"
+	DefaultNamespace         = "default"
 	ServiceAccountKind       = "ServiceAccount"
 	ClusterRoleBindingKind   = "ClusterRoleBinding"
 	PodKind                  = "Pod"

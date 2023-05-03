@@ -1053,7 +1053,7 @@ func (impl *UserTerminalAccessServiceImpl) EditTerminalPodManifest(ctx context.C
 	}
 
 	if len(podObject.Namespace) == 0 {
-		podObject.Namespace = editManifestRequest.Namespace
+		podObject.Namespace = utils1.DefaultNamespace
 	}
 
 	if podObject.Name != editManifestRequest.PodName {
@@ -1104,6 +1104,7 @@ func (impl *UserTerminalAccessServiceImpl) EditTerminalPodManifest(ctx context.C
 	result.ShellName = editManifestRequest.ShellName
 	result.Status = ""
 	result.NodeName = podObject.Spec.NodeName
+	result.NameSpace = podObject.Namespace
 	return result, nil
 }
 
