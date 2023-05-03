@@ -257,21 +257,23 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 	installAppVersionRequest.InstalledAppVersionId = installedAppVersions.Id
 	installAppVersionRequest.Id = installedAppVersions.Id
 
-	installedAppVersionHistory := &repository.InstalledAppVersionHistory{}
-	installedAppVersionHistory.InstalledAppVersionId = installedAppVersions.Id
-	installedAppVersionHistory.ValuesYamlRaw = installAppVersionRequest.ValuesOverrideYaml
-	installedAppVersionHistory.CreatedBy = installAppVersionRequest.UserId
-	installedAppVersionHistory.CreatedOn = time.Now()
-	installedAppVersionHistory.UpdatedBy = installAppVersionRequest.UserId
-	installedAppVersionHistory.UpdatedOn = time.Now()
-	installedAppVersionHistory.StartedOn = time.Now()
-	installedAppVersionHistory.Status = pipelineConfig.WorkflowInProgress
-	_, err = impl.installedAppRepositoryHistory.CreateInstalledAppVersionHistory(installedAppVersionHistory, tx)
-	if err != nil {
-		impl.logger.Errorw("error while fetching from db", "error", err)
-		return nil, err
+	if installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+		installedAppVersionHistory := &repository.InstalledAppVersionHistory{}
+		installedAppVersionHistory.InstalledAppVersionId = installedAppVersions.Id
+		installedAppVersionHistory.ValuesYamlRaw = installAppVersionRequest.ValuesOverrideYaml
+		installedAppVersionHistory.CreatedBy = installAppVersionRequest.UserId
+		installedAppVersionHistory.CreatedOn = time.Now()
+		installedAppVersionHistory.UpdatedBy = installAppVersionRequest.UserId
+		installedAppVersionHistory.UpdatedOn = time.Now()
+		installedAppVersionHistory.StartedOn = time.Now()
+		installedAppVersionHistory.Status = pipelineConfig.WorkflowInProgress
+		_, err = impl.installedAppRepositoryHistory.CreateInstalledAppVersionHistory(installedAppVersionHistory, tx)
+		if err != nil {
+			impl.logger.Errorw("error while fetching from db", "error", err)
+			return nil, err
+		}
+		installAppVersionRequest.InstalledAppVersionHistoryId = installedAppVersionHistory.Id
 	}
-	installAppVersionRequest.InstalledAppVersionHistoryId = installedAppVersionHistory.Id
 
 	if installAppVersionRequest.DefaultClusterComponent {
 		clusterInstalledAppsModel := &repository.ClusterInstalledApps{
