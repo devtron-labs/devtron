@@ -37,7 +37,7 @@ type CiConfig struct {
 	DefaultCacheBucket               string                       `env:"DEFAULT_CACHE_BUCKET" envDefault:"ci-caching"`
 	DefaultCacheBucketRegion         string                       `env:"DEFAULT_CACHE_BUCKET_REGION" envDefault:"us-east-2"`
 	CiLogsKeyPrefix                  string                       `env:"CI_LOGS_KEY_PREFIX" envDefault:"my-artifacts"`
-	DefaultImage                     string                       `env:"DEFAULT_CI_IMAGE" envDefault:"quay.io/devtron/test:5ff67fae-5572-7013"`
+	DefaultImage                     string                       `env:"DEFAULT_CI_IMAGE" envDefault:"686244538589.dkr.ecr.us-east-2.amazonaws.com/cirunner:47"`
 	DefaultNamespace                 string                       `env:"DEFAULT_NAMESPACE" envDefault:"devtron-ci"`
 	DefaultTimeout                   int64                        `env:"DEFAULT_TIMEOUT" envDefault:"3600"`
 	Mode                             string                       `env:"MODE" envDefault:"DEV"`
