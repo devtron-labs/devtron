@@ -1140,7 +1140,7 @@ func checkHibernate(impl InstalledAppServiceImpl, resp *bean2.AppDetailContainer
 			t0 := time.Now()
 			res, err := impl.acdClient.GetResource(ctx, rQuery)
 			if err != nil {
-				impl.logger.Errorw("time taken to get response from acdClient", "request", rQuery, "data", res, "timeTaken", time.Since(t0), "err", err)
+				impl.logger.Errorw("error getting response from acdClient", "request", rQuery, "data", res, "timeTaken", time.Since(t0), "err", err)
 				continue
 			}
 			if res.Manifest != nil {
