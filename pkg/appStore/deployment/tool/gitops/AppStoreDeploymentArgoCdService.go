@@ -375,8 +375,8 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetDeploymentHistory(ctx context
 				DeployedBy:   user.EmailId,
 				DockerImages: []string{installedAppVersionModel.AppStoreApplicationVersion.AppVersion},
 				DeployedAt: &timestamp.Timestamp{
-					Seconds: updateHistory.UpdatedOn.Unix(),
-					Nanos:   int32(updateHistory.UpdatedOn.Nanosecond()),
+					Seconds: updateHistory.CreatedOn.Unix(),
+					Nanos:   int32(updateHistory.CreatedOn.Nanosecond()),
 				},
 				Version: int32(updateHistory.Id),
 				Status:  updateHistory.Status,
