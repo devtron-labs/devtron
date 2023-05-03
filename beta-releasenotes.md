@@ -1,4 +1,5 @@
 ## Bugs
+- fix: Helm acd scale workload fix (#3340)
 - fix: deployment strategy no visible in build and deploy page (#3326)
 - fix: Invalidate cache configure bulk build (#3319)
 - fix: getting cluster list min api optimized by enforcing env object in batch (#3317)
