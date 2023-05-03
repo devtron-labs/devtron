@@ -1628,7 +1628,7 @@ func (impl PipelineBuilderImpl) updateCiPipelineSourceValue(baseCiConfig *bean.C
 		}
 		if len(materialsUpdate) > 0 {
 			//using update not null
-			err = impl.ciPipelineMaterialRepository.Update(tx, materialsUpdate...)
+			err = impl.ciPipelineMaterialRepository.UpdateNotNull(tx, materialsUpdate...)
 			if err != nil {
 				return nil, err
 			}
