@@ -21,6 +21,7 @@
 - docs: devtron terminal connection timeout issue on gke cluster (#3260)
 - docs: cluster and environment url fix (#3284)
 ## Others
+- Fix for source type be (#3259)
 - Deployment pipeline strategies configurable (#3311)
 - Custom app grouping  (#3295)
 - chore: added workflow for notification on discord forum ENV_NAME changes (#3301)
