@@ -1121,7 +1121,7 @@ func checkHibernate(impl InstalledAppServiceImpl, resp *bean2.AppDetailContainer
 
 	for _, node := range responseTree["nodes"].(interface{}).([]interface{}) {
 		currNode := node.(interface{}).(map[string]interface{})
-		name := resp.AppName + "-" + resp.Namespace
+		name := resp.AppName + "-" + resp.EnvironmentName
 		resName := util3.InterfaceToString(currNode["name"])
 		resKind := util3.InterfaceToString(currNode["kind"])
 		resGroup := util3.InterfaceToString(currNode["group"])
