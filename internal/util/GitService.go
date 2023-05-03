@@ -62,7 +62,7 @@ type GitClient interface {
 
 type GitFactory struct {
 	Client           GitClient
-	gitService       GitService
+	GitService       GitService
 	GitWorkingDir    string
 	logger           *zap.SugaredLogger
 	gitOpsRepository repository.GitOpsConfigRepository
@@ -94,7 +94,7 @@ func (factory *GitFactory) Reload() error {
 		return err
 	}
 	gitService := NewGitServiceImpl(cfg, logger, factory.gitCliUtil)
-	factory.gitService = gitService
+	factory.GitService = gitService
 	client, err := NewGitOpsClient(cfg, logger, gitService, factory.gitOpsRepository)
 	if err != nil {
 		return err
@@ -160,7 +160,7 @@ func (factory *GitFactory) NewClientForValidation(gitOpsConfig *bean2.GitOpsConf
 		BitbucketProjectKey:  gitOpsConfig.BitBucketProjectKey,
 	}
 	gitService := NewGitServiceImpl(cfg, logger, factory.gitCliUtil)
-	//factory.gitService = gitService
+	//factory.GitService = GitService
 	client, err := NewGitOpsClient(cfg, logger, gitService, factory.gitOpsRepository)
 	if err != nil {
 		return client, gitService, err
@@ -184,7 +184,7 @@ func NewGitFactory(logger *zap.SugaredLogger, gitOpsRepository repository.GitOps
 	return &GitFactory{
 		Client:           client,
 		logger:           logger,
-		gitService:       gitService,
+		GitService:       gitService,
 		gitOpsRepository: gitOpsRepository,
 		GitWorkingDir:    cfg.GitWorkingDir,
 		gitCliUtil:       gitCliUtil,

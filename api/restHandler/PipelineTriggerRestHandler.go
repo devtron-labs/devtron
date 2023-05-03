@@ -47,6 +47,7 @@ type PipelineTriggerRestHandler interface {
 	StartStopApp(w http.ResponseWriter, r *http.Request)
 	StartStopDeploymentGroup(w http.ResponseWriter, r *http.Request)
 	GetAllLatestDeploymentConfiguration(w http.ResponseWriter, r *http.Request)
+	DownloadManifest(w http.ResponseWriter, r *http.Request)
 }
 
 type PipelineTriggerRestHandlerImpl struct {
@@ -318,4 +319,25 @@ func (handler PipelineTriggerRestHandlerImpl) GetAllLatestDeploymentConfiguratio
 		return
 	}
 	common.WriteJsonResp(w, nil, allDeploymentconfig, http.StatusOK)
+}
+
+func (handler PipelineTriggerRestHandlerImpl) DownloadManifest(w http.ResponseWriter, r *http.Request) {
+
+	vars := mux.Vars(r)
+	appId, err := strconv.Atoi(vars["appId"])
+	if err != nil {
+		handler.logger.Errorw("request err, DownloadManifest", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	envId, err := strconv.Atoi(vars["envId"])
+	if err != nil {
+		handler.logger.Errorw("request err, DownloadManifest", "err", err, "envId", envId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	manifestByteArr, err := handler.appService.GetLatestDeployedManifestByPipelineId(appId, envId, context.Background())
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Write(manifestByteArr)
 }

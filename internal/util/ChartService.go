@@ -18,15 +18,18 @@
 package util
 
 import (
+	"archive/zip"
+	"bytes"
 	"compress/gzip"
 	"context"
 	"fmt"
-	repository3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/devtron/api/bean"
-	repository4 "github.com/devtron-labs/devtron/client/argocdServer/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
+	"io"
+
+	//appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
@@ -53,10 +56,22 @@ type ChartWorkingDir string
 const PIPELINE_DEPLOYMENT_TYPE_ACD string = "argo_cd"
 const PIPELINE_DEPLOYMENT_TYPE_HELM string = "helm"
 
+type ChartCreateRequest struct {
+	ChartMetaData *chart.Metadata
+	ChartPath     string
+}
+
+type ChartCreateResponse struct {
+	BuiltChartPath string
+	valuesYaml     string
+}
+
 type ChartTemplateService interface {
 	FetchValuesFromReferenceChart(chartMetaData *chart.Metadata, refChartLocation string, templateName string, userId int32, pipelineStrategyPath string) (*ChartValues, *ChartGitAttribute, error)
 	GetChartVersion(location string) (string, error)
-	CreateChartProxy(chartMetaData *chart.Metadata, refChartLocation string, templateName string, version string, envName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (string, *ChartGitAttribute, error)
+	CreateChartProxy(chartMetaData *chart.Metadata, refChartLocation string, envName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (string, *ChartGitAttribute, error)
+	BuildChart(ctx context.Context, chartMetaData *chart.Metadata, referenceTemplatePath string) (string, error)
+	BuildChartProxyForHelmApps(chartCreateRequest *ChartCreateRequest) (chartCreateResponse *ChartCreateResponse, err error)
 	GitPull(clonedDir string, repoUrl string, appStoreName string) error
 	GetDir() string
 	CleanDir(dir string)
@@ -64,11 +79,12 @@ type ChartTemplateService interface {
 	GetGitOpsRepoName(appName string) string
 	GetGitOpsRepoNameFromUrl(gitRepoUrl string) string
 	CreateGitRepositoryForApp(gitOpsRepoName, baseTemplateName, version string, userId int32) (chartGitAttribute *ChartGitAttribute, err error)
-	RegisterInArgo(chartGitAttribute *ChartGitAttribute, ctx context.Context) error
-	BuildChart(ctx context.Context, chartMetaData *chart.Metadata, referenceTemplatePath string) (string, error)
 	PushChartToGitRepo(gitOpsRepoName, referenceTemplate, version, tempReferenceTemplateDir string, repoUrl string, userId int32) (err error)
 	GetByteArrayRefChart(chartMetaData *chart.Metadata, referenceTemplatePath string) ([]byte, error)
 	CreateReadmeInGitRepo(gitOpsRepoName string, userId int32) error
+	UpdateGitRepoUrlInCharts(appId int, chartGitAttribute *ChartGitAttribute, userId int32) error
+	CreateAndPushToGitChartProxy(appStoreName, tmpChartLocation string, envName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (chartGitAttribute *ChartGitAttribute, err error)
+	ZipFolder(folderPath string) ([]byte, error)
 }
 type ChartTemplateServiceImpl struct {
 	randSource             rand.Source
@@ -79,7 +95,7 @@ type ChartTemplateServiceImpl struct {
 	globalEnvVariables     *util.GlobalEnvVariables
 	gitOpsConfigRepository repository.GitOpsConfigRepository
 	userRepository         repository2.UserRepository
-	repositoryService      repository4.ServiceClient
+	chartRepository        chartRepoRepository.ChartRepository
 }
 
 type ChartValues struct {
@@ -96,7 +112,7 @@ func NewChartTemplateServiceImpl(logger *zap.SugaredLogger,
 	client *http.Client,
 	gitFactory *GitFactory, globalEnvVariables *util.GlobalEnvVariables,
 	gitOpsConfigRepository repository.GitOpsConfigRepository,
-	userRepository repository2.UserRepository, repositoryService repository4.ServiceClient) *ChartTemplateServiceImpl {
+	userRepository repository2.UserRepository, chartRepository chartRepoRepository.ChartRepository) *ChartTemplateServiceImpl {
 	return &ChartTemplateServiceImpl{
 		randSource:             rand.NewSource(time.Now().UnixNano()),
 		logger:                 logger,
@@ -106,20 +122,8 @@ func NewChartTemplateServiceImpl(logger *zap.SugaredLogger,
 		globalEnvVariables:     globalEnvVariables,
 		gitOpsConfigRepository: gitOpsConfigRepository,
 		userRepository:         userRepository,
-		repositoryService:      repositoryService,
+		chartRepository:        chartRepository,
 	}
-}
-func (impl ChartTemplateServiceImpl) RegisterInArgo(chartGitAttribute *ChartGitAttribute, ctx context.Context) error {
-	repo := &v1alpha1.Repository{
-		Repo: chartGitAttribute.RepoUrl,
-	}
-	repo, err := impl.repositoryService.Create(ctx, &repository3.RepoCreateRequest{Repo: repo, Upsert: true})
-	if err != nil {
-		impl.logger.Errorw("error in creating argo Repository ", "err", err)
-		return err
-	}
-	impl.logger.Infow("repo registered in argo", "name", chartGitAttribute.RepoUrl)
-	return err
 }
 
 func (impl ChartTemplateServiceImpl) GetChartVersion(location string) (string, error) {
@@ -186,6 +190,7 @@ func (impl ChartTemplateServiceImpl) FetchValuesFromReferenceChart(chartMetaData
 	return values, chartGitAttr, nil
 }
 
+// TODO: convert BuildChart and BuildChartProxyForHelmApps into one function
 func (impl ChartTemplateServiceImpl) BuildChart(ctx context.Context, chartMetaData *chart.Metadata, referenceTemplatePath string) (string, error) {
 	chartMetaData.ApiVersion = "v1" // ensure always v1
 	dir := impl.GetDir()
@@ -210,6 +215,34 @@ func (impl ChartTemplateServiceImpl) BuildChart(ctx context.Context, chartMetaDa
 		return "", err
 	}
 	return tempReferenceTemplateDir, nil
+}
+
+func (impl ChartTemplateServiceImpl) BuildChartProxyForHelmApps(chartCreateRequest *ChartCreateRequest) (*ChartCreateResponse, error) {
+	chartCreateResponse := &ChartCreateResponse{}
+	chartMetaData := chartCreateRequest.ChartMetaData
+	chartMetaData.ApiVersion = "v2" // ensure always v2
+	dir := impl.GetDir()
+	chartDir := filepath.Join(string(impl.chartWorkingDir), dir)
+	impl.logger.Debugw("chart dir ", "chart", chartMetaData.Name, "dir", chartDir)
+	err := os.MkdirAll(chartDir, os.ModePerm) //hack for concurrency handling
+	if err != nil {
+		impl.logger.Errorw("err in creating dir", "dir", chartDir, "err", err)
+		return chartCreateResponse, err
+	}
+	err = dirCopy.Copy(chartCreateRequest.ChartPath, chartDir)
+
+	if err != nil {
+		impl.logger.Errorw("error in copying chart for app", "app", chartMetaData.Name, "error", err)
+		return chartCreateResponse, err
+	}
+	_, valuesYaml, err := impl.packageChart(chartDir, chartMetaData)
+	if err != nil {
+		impl.logger.Errorw("error in creating archive", "err", err)
+		return chartCreateResponse, err
+	}
+	chartCreateResponse.valuesYaml = valuesYaml
+	chartCreateResponse.BuiltChartPath = chartDir
+	return chartCreateResponse, nil
 }
 
 type ChartGitAttribute struct {
@@ -251,9 +284,9 @@ func (impl ChartTemplateServiceImpl) CreateGitRepositoryForApp(gitOpsRepoName, b
 
 func (impl ChartTemplateServiceImpl) PushChartToGitRepo(gitOpsRepoName, referenceTemplate, version, tempReferenceTemplateDir string, repoUrl string, userId int32) (err error) {
 	chartDir := fmt.Sprintf("%s-%s", gitOpsRepoName, impl.GetDir())
-	clonedDir := impl.gitFactory.gitService.GetCloneDirectory(chartDir)
+	clonedDir := impl.gitFactory.GitService.GetCloneDirectory(chartDir)
 	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
-		clonedDir, err = impl.gitFactory.gitService.Clone(repoUrl, chartDir)
+		clonedDir, err = impl.gitFactory.GitService.Clone(repoUrl, chartDir)
 		if err != nil {
 			impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
 			return err
@@ -301,7 +334,7 @@ func (impl ChartTemplateServiceImpl) PushChartToGitRepo(gitOpsRepoName, referenc
 	// if push needed, then only push
 	if pushChartToGit {
 		userEmailId, userName := impl.GetUserEmailIdAndNameForGitOpsCommit(userId)
-		commit, err := impl.gitFactory.gitService.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
+		commit, err := impl.gitFactory.GitService.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
 		if err != nil {
 			impl.logger.Errorw("error in pushing git", "err", err)
 			impl.logger.Warn("re-trying, taking pull and then push again")
@@ -314,7 +347,7 @@ func (impl ChartTemplateServiceImpl) PushChartToGitRepo(gitOpsRepoName, referenc
 				impl.logger.Errorw("error copying dir", "err", err)
 				return err
 			}
-			commit, err = impl.gitFactory.gitService.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
+			commit, err = impl.gitFactory.GitService.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
 			if err != nil {
 				impl.logger.Errorw("error in pushing git", "err", err)
 				return err
@@ -452,7 +485,7 @@ func (impl ChartTemplateServiceImpl) GetDir() string {
 	return strconv.FormatInt(r1, 10)
 }
 
-func (impl ChartTemplateServiceImpl) CreateChartProxy(chartMetaData *chart.Metadata, refChartLocation string, templateName string, version string, envName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (string, *ChartGitAttribute, error) {
+func (impl ChartTemplateServiceImpl) CreateChartProxy(chartMetaData *chart.Metadata, refChartLocation string, envName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (string, *ChartGitAttribute, error) {
 	chartMetaData.ApiVersion = "v2" // ensure always v2
 	dir := impl.GetDir()
 	chartDir := filepath.Join(string(impl.chartWorkingDir), dir)
@@ -475,7 +508,7 @@ func (impl ChartTemplateServiceImpl) CreateChartProxy(chartMetaData *chart.Metad
 		return "", nil, err
 	}
 
-	chartGitAttr, err := impl.createAndPushToGitChartProxy(chartMetaData.Name, templateName, version, chartDir, envName, installAppVersionRequest)
+	chartGitAttr, err := impl.CreateAndPushToGitChartProxy(chartMetaData.Name, chartDir, envName, installAppVersionRequest)
 	if err != nil {
 		impl.logger.Errorw("error in pushing chart to git ", "path", archivePath, "err", err)
 		return "", nil, err
@@ -492,7 +525,7 @@ func (impl ChartTemplateServiceImpl) CreateChartProxy(chartMetaData *chart.Metad
 	return valuesYaml, chartGitAttr, nil
 }
 
-func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, baseTemplateName, version, tmpChartLocation string, envName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (chartGitAttribute *ChartGitAttribute, err error) {
+func (impl ChartTemplateServiceImpl) CreateAndPushToGitChartProxy(appStoreName, tmpChartLocation string, envName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (chartGitAttribute *ChartGitAttribute, err error) {
 	//baseTemplateName  replace whitespace
 	space := regexp.MustCompile(`\s+`)
 	appStoreName = space.ReplaceAllString(appStoreName, "-")
@@ -529,9 +562,9 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 	}
 
 	chartDir := fmt.Sprintf("%s-%s", installAppVersionRequest.AppName, impl.GetDir())
-	clonedDir := impl.gitFactory.gitService.GetCloneDirectory(chartDir)
+	clonedDir := impl.gitFactory.GitService.GetCloneDirectory(chartDir)
 	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
-		clonedDir, err = impl.gitFactory.gitService.Clone(repoUrl, chartDir)
+		clonedDir, err = impl.gitFactory.GitService.Clone(repoUrl, chartDir)
 		if err != nil {
 			impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
 			return nil, err
@@ -555,7 +588,7 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 		impl.logger.Errorw("error copying dir", "err", err)
 		return nil, err
 	}
-	commit, err := impl.gitFactory.gitService.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
+	commit, err := impl.gitFactory.GitService.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
 	if err != nil {
 		impl.logger.Errorw("error in pushing git", "err", err)
 		impl.logger.Warn("re-trying, taking pull and then push again")
@@ -568,7 +601,7 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 			impl.logger.Errorw("error copying dir", "err", err)
 			return nil, err
 		}
-		commit, err = impl.gitFactory.gitService.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
+		commit, err = impl.gitFactory.GitService.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
 		if err != nil {
 			impl.logger.Errorw("error in pushing git", "err", err)
 			return nil, err
@@ -580,10 +613,10 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 }
 
 func (impl ChartTemplateServiceImpl) GitPull(clonedDir string, repoUrl string, appStoreName string) error {
-	err := impl.gitFactory.gitService.Pull(clonedDir) //TODO check for local repo exists before clone
+	err := impl.gitFactory.GitService.Pull(clonedDir) //TODO check for local repo exists before clone
 	if err != nil {
 		impl.logger.Errorw("error in pulling git", "clonedDir", clonedDir, "err", err)
-		_, err := impl.gitFactory.gitService.Clone(repoUrl, appStoreName)
+		_, err := impl.gitFactory.GitService.Clone(repoUrl, appStoreName)
 		if err != nil {
 			impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
 			return err
@@ -686,10 +719,77 @@ func (impl ChartTemplateServiceImpl) CreateReadmeInGitRepo(gitOpsRepoName string
 	return nil
 }
 
+func (impl ChartTemplateServiceImpl) UpdateGitRepoUrlInCharts(appId int, chartGitAttribute *ChartGitAttribute, userId int32) error {
+	charts, err := impl.chartRepository.FindActiveChartsByAppId(appId)
+	if err != nil && pg.ErrNoRows != err {
+		return err
+	}
+	for _, ch := range charts {
+		if len(ch.GitRepoUrl) == 0 {
+			ch.GitRepoUrl = chartGitAttribute.RepoUrl
+			ch.ChartLocation = chartGitAttribute.ChartLocation
+			ch.UpdatedOn = time.Now()
+			ch.UpdatedBy = userId
+			err = impl.chartRepository.Update(ch)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func IsHelmApp(deploymentAppType string) bool {
 	return deploymentAppType == PIPELINE_DEPLOYMENT_TYPE_HELM
 }
 
 func IsAcdApp(deploymentAppType string) bool {
 	return deploymentAppType == PIPELINE_DEPLOYMENT_TYPE_ACD
+}
+
+// ZipFolder takes a folder name as input and returns a byte slice containing a zip archive of the folder.
+func (impl ChartTemplateServiceImpl) ZipFolder(folderPath string) ([]byte, error) {
+
+	buf := new(bytes.Buffer)
+	zipWriter := zip.NewWriter(buf)
+	err := filepath.Walk(folderPath, func(filePath string, fileInfo os.FileInfo, err error) error {
+		if folderPath == filePath {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		header, err := zip.FileInfoHeader(fileInfo)
+		if err != nil {
+			return err
+		}
+		header.Name, err = filepath.Rel(folderPath, filePath)
+		if err != nil {
+			return err
+		}
+		writer, err := zipWriter.CreateHeader(header)
+		if err != nil {
+			return err
+		}
+		file, err := os.Open(filePath)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+		_, err = io.Copy(writer, file)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	err = zipWriter.Close()
+	if err != nil {
+		return nil, err
+	}
+	bytes := buf.Bytes()
+
+	return bytes, nil
 }
