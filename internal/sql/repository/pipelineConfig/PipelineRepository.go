@@ -176,6 +176,7 @@ func (impl PipelineRepositoryImpl) Save(pipeline []*Pipeline, tx *pg.Tx) error {
 }
 
 func (impl PipelineRepositoryImpl) Update(pipeline *Pipeline, tx *pg.Tx) error {
+	pipeline.UpdatedBy = 10
 	impl.logger.Infow("pipeline update method called", "pipeline", pipeline)
 	err := tx.Update(pipeline)
 	return err
@@ -492,6 +493,8 @@ func (impl PipelineRepositoryImpl) FindActiveByAppIdAndPipelineId(appId int, pip
 }
 
 func (impl PipelineRepositoryImpl) UpdateCdPipeline(pipeline *Pipeline) error {
+	pipeline.UpdatedBy = 11
+
 	impl.logger.Infow("pipeline updateCdPipeline method called", "pipeline", pipeline)
 	err := impl.dbConnection.Update(pipeline)
 	return err
@@ -501,6 +504,7 @@ func (impl PipelineRepositoryImpl) UpdateCdPipeline(pipeline *Pipeline) error {
 // updates the deployment_app_type and sets deployment_app_created to false in the table for given ids.
 func (impl PipelineRepositoryImpl) UpdateCdPipelineDeploymentAppInFilter(deploymentAppType string,
 	cdPipelineIdIncludes []int, userId int32, deploymentAppCreated bool, delete bool) error {
+
 	impl.logger.Infow("pipeline updateCdPipeline method called", "pipelineIds", cdPipelineIdIncludes)
 	query := "update pipeline set " +
 		"deployment_app_created = ?, " +
@@ -511,7 +515,7 @@ func (impl PipelineRepositoryImpl) UpdateCdPipelineDeploymentAppInFilter(deploym
 		"where id in (?)"
 
 	var pipeline *Pipeline
-	_, err := impl.dbConnection.Query(pipeline, query, deploymentAppCreated, deploymentAppType, userId, time.Now(), delete, pg.In(cdPipelineIdIncludes))
+	_, err := impl.dbConnection.Query(pipeline, query, deploymentAppCreated, deploymentAppType, 13, time.Now(), delete, pg.In(cdPipelineIdIncludes))
 
 	return err
 }
