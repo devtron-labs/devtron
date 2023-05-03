@@ -94,7 +94,7 @@ func updatePodTemplate(templateDataMap map[string]interface{}, podNameVar string
 			for _, taint := range taints {
 				toleration := make(map[string]interface{})
 				toleration[Key] = interface{}(taint.Key)
-				toleration[TolerationOperator] = interface{}(TolerationOperatorExists)
+				toleration[TolerationOperator] = interface{}(v1.TolerationOpExists)
 				toleration[TolerationEffectKey] = interface{}(taint.Effect)
 				tolerationData = append(tolerationData, interface{}(toleration))
 			}
