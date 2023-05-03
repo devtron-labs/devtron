@@ -122,7 +122,7 @@ type RolePolicyDetails struct {
 	GroupObj     string
 	KindObj      string
 	ResourceObj  string
-	Approver     string
+	Approver     bool
 }
 
 type ClusterRolePolicyDetails struct {
