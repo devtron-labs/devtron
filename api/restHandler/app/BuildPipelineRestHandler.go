@@ -10,7 +10,6 @@ import (
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -428,7 +427,6 @@ func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWr
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
-
 	//checking rbac for cd cdPipelines
 	cdPipelines, err := handler.pipelineRepository.FindByCiPipelineId(ciTriggerRequest.PipelineId)
 	if err != nil {
@@ -436,7 +434,6 @@ func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWr
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	unauthorizedPipelines := make([]pipelineConfig.Pipeline, 0, len(cdPipelines))
 	cdPipelineRbacObjects := make([]string, len(cdPipelines))
 	for i, cdPipeline := range cdPipelines {
 		envObject := handler.enforcerUtil.GetAppRBACByAppIdAndPipelineId(cdPipeline.AppId, cdPipeline.Id)
@@ -446,13 +443,10 @@ func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWr
 	i := 0
 	for _, rbacResultOk := range envRbacResultMap {
 		if !rbacResultOk {
-			unauthorizedPipelines = append(unauthorizedPipelines, *cdPipelines[i])
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+			return
 		}
 		i++
-	}
-	if len(unauthorizedPipelines) > 0 {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-		return
 	}
 	//RBAC ENDS
 	response := make(map[string]string)
