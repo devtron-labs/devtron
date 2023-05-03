@@ -1054,7 +1054,7 @@ func (handler AppListingRestHandlerImpl) FetchResourceTree(w http.ResponseWriter
 			if err == nil {
 				var DeleteErrorConditionType []DeleteErrorConditionType
 				if json.Unmarshal(byteCondition, &DeleteErrorConditionType) == nil {
-					if DeleteErrorConditionType[0].ErrorType == "DeletionError" && cdPipeline.DeploymentAppDeleteRequest == true {
+					if len(DeleteErrorConditionType) == 1 && DeleteErrorConditionType[0].ErrorType == "DeletionError" && cdPipeline.DeploymentAppDeleteRequest == true {
 						ctx := context.WithValue(r.Context(), "token", acdToken)
 						if err = handler.pipeline.DeleteACDAppCdPipelineWithCascadeOption(cdPipeline, ctx, false); err != nil {
 							common.WriteJsonResp(w, fmt.Errorf("app deleted"), nil, http.StatusNotFound)
