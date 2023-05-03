@@ -407,7 +407,7 @@ func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWr
 	token := r.Header.Get("token")
 	userEmailId, err := handler.userAuthService.GetEmailFromToken(token)
 	if err != nil {
-		handler.Logger.Errorw("error in getting user emailId from token", "userId", userId)
+		handler.Logger.Errorw("error in getting user emailId from token", "userId", userId, "err", err)
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
@@ -430,7 +430,7 @@ func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWr
 	//checking rbac for cd cdPipelines
 	cdPipelines, err := handler.pipelineRepository.FindByCiPipelineId(ciTriggerRequest.PipelineId)
 	if err != nil {
-		handler.Logger.Errorw("error in finding ccd cdPipelines by ciPipelineId", "err", err)
+		handler.Logger.Errorw("error in finding ccd cdPipelines by ciPipelineId", "err", err, "ciPipelineId", ciTriggerRequest.PipelineId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

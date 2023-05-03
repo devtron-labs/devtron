@@ -356,7 +356,7 @@ func (impl EnvironmentRestHandlerImpl) GetCombinedEnvironmentListForDropDown(w h
 	token := r.Header.Get("token")
 	userEmailId, err := impl.userService.GetEmailFromToken(token)
 	if err != nil {
-		impl.logger.Errorw("error in getting user emailId from token", "userId", userId)
+		impl.logger.Errorw("error in getting user emailId from token", "userId", userId, "err", err)
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
