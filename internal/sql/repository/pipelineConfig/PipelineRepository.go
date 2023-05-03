@@ -501,7 +501,7 @@ func (impl PipelineRepositoryImpl) UpdateCdPipeline(pipeline *Pipeline) error {
 // updates the deployment_app_type and sets deployment_app_created to false in the table for given ids.
 func (impl PipelineRepositoryImpl) UpdateCdPipelineDeploymentAppInFilter(deploymentAppType string,
 	cdPipelineIdIncludes []int, userId int32, deploymentAppCreated bool, delete bool) error {
-
+	impl.logger.Infow("pipeline updateCdPipeline method called", "pipelineIds", cdPipelineIdIncludes)
 	query := "update pipeline set " +
 		"deployment_app_created = ?, " +
 		"deployment_app_type = ?, " +
