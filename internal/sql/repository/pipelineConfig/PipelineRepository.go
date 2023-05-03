@@ -176,6 +176,7 @@ func (impl PipelineRepositoryImpl) Save(pipeline []*Pipeline, tx *pg.Tx) error {
 }
 
 func (impl PipelineRepositoryImpl) Update(pipeline *Pipeline, tx *pg.Tx) error {
+	impl.logger.Infow("pipeline update method called", "pipeline", pipeline)
 	err := tx.Update(pipeline)
 	return err
 }
@@ -491,6 +492,7 @@ func (impl PipelineRepositoryImpl) FindActiveByAppIdAndPipelineId(appId int, pip
 }
 
 func (impl PipelineRepositoryImpl) UpdateCdPipeline(pipeline *Pipeline) error {
+	impl.logger.Infow("pipeline updateCdPipeline method called", "pipeline", pipeline)
 	err := impl.dbConnection.Update(pipeline)
 	return err
 }
