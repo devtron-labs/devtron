@@ -1039,7 +1039,7 @@ func (_m *PipelineRepository) Update(pipeline *pipelineConfig.Pipeline, tx *pg.T
 }
 
 // UpdateCdPipeline provides a mock function with given fields: pipeline
-func (_m *PipelineRepository) UpdateCdPipeline(pipeline *pipelineConfig.Pipeline) error {
+func (_m *PipelineRepository) SetDeploymentAppCreatedInPipeline(deploymentAppCreated bool, pipelineId int, userId int32) error {
 	ret := _m.Called(pipeline)
 
 	var r0 error
