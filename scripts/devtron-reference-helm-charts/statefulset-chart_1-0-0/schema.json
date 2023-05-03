@@ -58,6 +58,247 @@
           }
         }
       },
+      "statefulSetConfig":{
+        "type": "object",
+        "description": "used by the statefulset reference chart",
+        "title": "StatefulSetConfig",
+        "properties": {
+          "labels": {
+            "type": "object",
+            "description": "used to provide custom labels for statefulset",
+            "title": "Labels"
+          },
+          "annotations": {
+            "type": "object",
+            "description": "used to provide custom annotation for statefulset",
+            "title": "Annotations"
+          },
+          "serviceName":{
+            "type": "string",
+            "title": "ServiceName",
+            "description": "name of the service-headless you want to connect with your statefulset "
+          },
+          "revisionHistoryLimit":{
+            "type": "integer",
+            "title": "RevisionHistoryLimit",
+            "description": "revisionHistoryLimit is the maximum number of revisions that will bemaintained in the StatefulSet's revision history."
+          },
+          "volumeClaimTemplates":{
+            "title": "VolumeClaimTemplates",
+            "type":"array",
+            "description": "The volumeClaimTemplates will provide stable storage using PersistentVolumes provisioned by a PersistentVolume Provisioner",
+            "items": [
+              { "type": "object",
+            "properties": {
+              "apiVersion":{
+                "type": "string",
+                "description": "(optional): The API version to use for the volume claim template. If not specified, the default is v1.",
+                "title": "ApiVersion"
+              },
+              "kind":{
+                "type": "string",
+                "title": "Kind",
+                "description": "(optional): Kind is a string value representing the REST resource this object represents."
+              },
+              "mountPath":{
+                "type":"string",
+                "title": "MountPath",
+                "description": "used to provide mounts to the volume"
+              },
+              "metadata":{
+                "type":"object",
+                "title": "MetaData",
+                "description": " Standard object's metadata.",
+                "items": [
+                  {
+                    "type":"object",
+                    "properties": {
+                      "labels": {
+                        "type": "object",
+                        "description": "used to provide custom labels for statefulset volumes",
+                        "title": "Labels"
+                      },
+                      "annotations": {
+                        "type": "object",
+                        "description": "used to provide custom annotation for statefulset volumes",
+                        "title": "Annotations"
+                      },
+                      "name": {
+                        "type": "string",
+                        "description": "name of volume",
+                        "title": "Name"
+                      },
+                      "namespace":{
+                        "type":"string",
+                        "description": "namespaces provides a mechanism for isolating groups of resources within a single cluster."
+                        ,"title": "NameSpace"
+                      
+                      }
+                    }
+                  }
+                ]
+              },
+              "spec": {
+                "type": "object",
+                "description": "used to define the desire state of the given volume",
+                "title": "Spec",
+                "items": {
+                  "type":"object",
+                  "properties": {
+                    "accessModes":{
+                      "type":"array",
+                      "description": "accessModes contains the desired access modes the volume should have such as ReadWriteOnce or ReadWriteMany",
+                      "title": "AccessModes"
+                    },
+                    "dataSource":{
+                      "type":"object",
+                      "description": " (optional): A reference to the data source for the volume claim template.",
+                      "title": "DataSource",
+                      "items": {
+                        "type":"object",
+                        "properties": {
+                          "apiGroup":{
+                            "type":"string",
+                            "description": "The API group of the data source",
+                            "title": "ApiGroup"
+                          },
+                          "kind":{
+                            "type":"string",
+                            "description": "The kind of the data source",
+                            "title": "Kind"
+                          },
+                          "name":{
+                            "type":"string",
+                            "description": "The name of the data source",
+                            "title": "Name"
+                          }
+                        }
+                      }
+
+                    },
+                    "dataSourceRef":{
+                      "type":"object",
+                      "title": "DataSourceRef",
+                      "description": "(optional): A reference to the data source for the volume claim template.",
+                      "items": {
+                        "type":"object",
+                        "properties": {
+                          "apiGroup":{
+                            "type":"string",
+                            "description": "The API group of the data source reference",
+                            "title": "ApiGroup"
+                          },
+                          "kind":{
+                            "type":"string",
+                            "description": "The kind of the data source reference",
+                            "title": "Kind"
+                          },
+                          "name":{
+                            "type":"string",
+                            "description": "The name of the data source reference",
+                            "title": "Name"
+                          }
+                        }
+                      }
+                    },
+                    "resources":{
+                      "type":"object",
+                      "title":"Resources",
+                      "description": "The resource requirements for the volume claim",
+                      "items": [
+                        {
+                          "type":"object",
+                          "properties": {
+                            "claims":{
+                              "title": "Claims",
+                              "type":"object","description": "(optional): The name of the claim resource for the volume claim.",
+                              "items": {
+                                "properties": {
+                                  "name":{
+                                    "type":"string",
+                                    "description": "Name must match the name of one entry in pod.spec.resourceClaims of the Pod where this field is used. It makes that resource available inside a container."
+                                  }
+                                }
+                              }
+
+                            },
+                            "requests":{
+                              "type":"object",
+                              "title": "Requests",
+                              "description": "The resource requests for the volume claim.",
+                              "items": {
+                                "type":"object",
+                                "properties": {
+                                  "storage":{
+                                    "title":"Storage",
+                                    "type":"string",
+                                    "description": "The amount of storage requested for the volume claim"
+                                  }
+                                }
+                              }
+                            },
+                            "limits":{
+                              "type":"object",
+                              "title": "Limits",
+                              "description": " (optional): The resource limits for the volume claim.",
+                              "items": {
+                                "type":"object",
+                                "properties": {
+                                  "storage":{
+                                    "title":"Storage",
+                                    "type":"string",
+                                    "description": "The amount of storage requested for the volume claim"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "storageClassName":{
+                      "type":"string",
+                      "title": "StorageClassName",
+                      "description": " (optional): The name of the storage class to use for the volume claim."
+                    },
+                    "selector":{
+                      "title": "Selector",
+                      "type":"object",
+                      "description": "(optional): A selector to match a PersistentVolume to the PersistentVolumeClaim.",
+                      "items": {
+                        "properties": {
+                          "matchExpressions":{
+                            "type":"array",
+                            "title": "MatchExpression",
+                            "description": "to define more complex label selectors that match labels based on certain conditions."
+                          },
+                          "matchLabels":{
+                            "type":"object",
+                            "title": "Match Labels"
+                            ,"description": "selector to specify the labels that will be used to select which Pods the StatefulSet manages."
+                          }
+                        }
+                        
+                      }
+                    },
+                    "volumeMode":{
+                      "title": "VolumeModes",
+                      "type":"string",
+                      "description": " (optional): The mode for the volume claim, such as Filesystem or Block."
+                    },
+                    "volumeName":{
+                      "title": "VolumeName",
+                      "type":"string",
+                      "description": "(optional): The name of the PersistentVolume to use for the volume claim."
+                    }
+                  }
+                }
+              }
+            }}
+            ]
+          }
+        }
+      },
       "EnvVariables": {
         "type": "array",
         "items": {},

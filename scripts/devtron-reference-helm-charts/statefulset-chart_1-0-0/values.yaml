@@ -121,8 +121,7 @@ statefulSetConfig:
     type: RollingUpdate
     partition: 2
   revisionHistoryLimit: 3
-  volumeMounts: 
-        mountPath: /tmp
+  mountPath: ""
   volumeClaimTemplates:
   - apiVersion: v1
     kind: PersistentVolumeClaim
@@ -148,31 +147,6 @@ statefulSetConfig:
         matchLabels:
           app: myapp
       volumeMode: Filesystem
-      volumeName: my-pv
-  - apiVersion: v1
-    kind: PersistentVolumeClaim
-    metadata:
-      name: pvc-logs
-      labels:
-        app: myapp
-    spec:
-      accessModes:
-        - ReadWriteMany
-      dataSourceRef:
-        kind: Secret
-        apiGroup: v1
-        name: my-secret
-      resources:
-        requests:
-          storage: 5Gi
-      storageClassName: my-storage-class
-      selector:
-        matchExpressions:
-          - key: environment
-            operator: In
-            values: 
-            - production
-      volumeMode: Block
       volumeName: my-pv
 
 #service_headless: {}

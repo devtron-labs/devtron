@@ -380,12 +380,12 @@ spec:
           resources:
 {{ toYaml $.Values.resources | trim | indent 12 }} 
           volumeMounts:
-          {{- if .Values.statefulSetConfig.volumeMounts }}
-          {{- with (index  .Values.statefulSetConfig.volumeClaimTemplates 0) }}
-            - name: {{ .metadata.name | default  $.Release.Name }}
-           {{- end }} 
-              mountPath: {{ .Values.statefulSetConfig.volumeMounts.mountPath }}
-          {{- end }}
+            {{- if $.Values.statefulSetConfig.mountPath }}
+            {{- with (index $.Values.statefulSetConfig.volumeClaimTemplates 0) }}
+            - name: {{  .metadata.name  | default  $.Release.Name }}
+            {{- end}}
+              mountPath: {{ $.Values.statefulSetConfig.mountPath | default "/" }}
+            {{- end}}
 {{- with .Values.volumeMounts }}
 {{ toYaml . | trim | indent 12 }}
 {{- end }}  

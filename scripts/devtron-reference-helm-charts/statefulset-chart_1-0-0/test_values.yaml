@@ -123,18 +123,17 @@ statefulSetConfig:
      example.com/version: "1.0"
   serviceName: "test-service-headless-statefulset"
   podManagementPolicy: "Parallel"
+  revisionHistoryLimit: 3
   updateStrategy:
     type: RollingUpdate
     partition: 2
-  volumeMounts: 
-        mountPath: /
+  mountPath: "/tmp"
   volumeClaimTemplates:
   - apiVersion: v1
     kind: PersistentVolumeClaim
     metadata:
       labels:
         app: myapp
-      name: testing1
     spec:
       accessModes:
         - ReadWriteOnce
@@ -349,9 +348,6 @@ resources:
 volumeMounts: 
      - name: log-volume
        mountPath: /var/log
-     - name: pvc-logs
-       mountPath: /tmp
-
 volumes: 
      - name: log-volume
        emptyDir: {}

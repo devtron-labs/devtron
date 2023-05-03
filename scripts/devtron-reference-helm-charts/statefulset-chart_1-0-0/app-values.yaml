@@ -21,8 +21,7 @@ statefulSetConfig:
   annotations: {}
   #serviceName: "test-service_headless"
   revisionHistoryLimit: 3
-  volumeMounts: {}
-      #   mountPath: /tmp
+  mountPath: ""
   volumeClaimTemplates: 
   - metadata: {}
     spec:
