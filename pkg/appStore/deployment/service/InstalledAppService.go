@@ -1137,11 +1137,11 @@ func checkHibernate(impl InstalledAppServiceImpl, resp *bean2.AppDetailContainer
 		}
 		ctx, _ := context.WithTimeout(ctx, 60*time.Second)
 		if currNode["parentRefs"] == nil {
-
+			t0 := time.Now()
 			res, err := impl.acdClient.GetResource(ctx, rQuery)
 			if err != nil {
-				impl.logger.Errorw("GRPC_GET_RESOURCE", "data", res, "timeTaken", time.Since(time.Now()), "err", err)
-				return responseTree
+				impl.logger.Errorw("time taken to get response from acdClient", "request", rQuery, "data", res, "timeTaken", time.Since(t0), "err", err)
+				continue
 			}
 			if res.Manifest != nil {
 				manifest, _ := gjson.Parse(*res.Manifest).Value().(map[string]interface{})
@@ -1161,9 +1161,6 @@ func checkHibernate(impl InstalledAppServiceImpl, resp *bean2.AppDetailContainer
 
 			}
 
-			if err != nil {
-				impl.logger.Errorw("GRPC_GET_RESOURCE", "data", res, "timeTaken", time.Since(time.Now()), "err", err)
-			}
 		}
 		node = currNode
 	}
