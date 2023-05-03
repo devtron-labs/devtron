@@ -1118,17 +1118,17 @@ func (impl InstalledAppServiceImpl) FetchResourceTreeWithHibernateForACD(rctx co
 func checkHibernate(impl InstalledAppServiceImpl, resp *bean2.AppDetailContainer, ctx context.Context) map[string]interface{} {
 
 	responseTree := resp.ResourceTree
+	deploymentAppName := resp.AppName + "-" + resp.EnvironmentName
 
 	for _, node := range responseTree["nodes"].(interface{}).([]interface{}) {
 		currNode := node.(interface{}).(map[string]interface{})
-		name := resp.AppName + "-" + resp.EnvironmentName
 		resName := util3.InterfaceToString(currNode["name"])
 		resKind := util3.InterfaceToString(currNode["kind"])
 		resGroup := util3.InterfaceToString(currNode["group"])
 		resVersion := util3.InterfaceToString(currNode["version"])
 		resNamespace := util3.InterfaceToString(currNode["namespace"])
 		rQuery := &application.ApplicationResourceRequest{
-			Name:         &name,
+			Name:         &deploymentAppName,
 			ResourceName: &resName,
 			Kind:         &resKind,
 			Group:        &resGroup,
