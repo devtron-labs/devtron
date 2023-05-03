@@ -55,6 +55,7 @@ type CiHandler interface {
 	HandleCIManual(ciTriggerRequest bean.CiTriggerRequest) (int, error)
 
 	FetchMaterialsByPipelineId(pipelineId int, showAll bool) ([]CiPipelineMaterialResponse, error)
+	FetchMaterialsByPipelineIdAndGitMaterialId(pipelineId int, gitMaterialId int, showAll bool) ([]CiPipelineMaterialResponse, error)
 	FetchWorkflowDetails(appId int, pipelineId int, buildId int) (WorkflowResponse, error)
 
 	//FetchBuildById(appId int, pipelineId int) (WorkflowResponse, error)
@@ -284,6 +285,84 @@ func (impl *CiHandlerImpl) RefreshMaterialByCiPipelineMaterialId(gitMaterialId i
 	return refreshRes, err
 }
 
+func (impl *CiHandlerImpl) FetchMaterialsByPipelineIdAndGitMaterialId(pipelineId int, gitMaterialId int, showAll bool) ([]CiPipelineMaterialResponse, error) {
+	ciMaterials, err := impl.ciPipelineMaterialRepository.GetByPipelineIdAndGitMaterialId(pipelineId, gitMaterialId)
+	impl.Logger.Infow("Testing Fetch Ci materials by pipeline Id ", "ci materials", ciMaterials)
+	if err != nil {
+		impl.Logger.Errorw("ciMaterials fetch failed", "err", err)
+	}
+	var ciPipelineMaterialResponses []CiPipelineMaterialResponse
+	var responseMap = make(map[int]bool)
+
+	ciMaterialHistoryMap := make(map[*pipelineConfig.CiPipelineMaterial]*gitSensor.MaterialChangeResp)
+	for _, m := range ciMaterials {
+		// git material should be active in this case
+		if m == nil || m.GitMaterial == nil || !m.GitMaterial.Active {
+			continue
+		}
+		changesRequest := &gitSensor.FetchScmChangesRequest{
+			PipelineMaterialId: m.Id,
+			ShowAll:            showAll,
+		}
+		changesResp, apiErr := impl.gitSensorClient.FetchChanges(context.Background(), changesRequest)
+		impl.Logger.Debugw("commits for material ", "m", m, "commits: ", changesResp)
+		if apiErr != nil {
+			impl.Logger.Warnw("git sensor FetchChanges failed for material", "id", m.Id)
+			return []CiPipelineMaterialResponse{}, apiErr
+		}
+		ciMaterialHistoryMap[m] = changesResp
+	}
+
+	for k, v := range ciMaterialHistoryMap {
+		r := CiPipelineMaterialResponse{
+			Id:              k.Id,
+			GitMaterialId:   k.GitMaterialId,
+			GitMaterialName: k.GitMaterial.Name[strings.Index(k.GitMaterial.Name, "-")+1:],
+			Type:            string(k.Type),
+			Value:           k.Value,
+			Active:          k.Active,
+			GitMaterialUrl:  k.GitMaterial.Url,
+			History:         v.Commits,
+			LastFetchTime:   v.LastFetchTime,
+			IsRepoError:     v.IsRepoError,
+			RepoErrorMsg:    v.RepoErrorMsg,
+			IsBranchError:   v.IsBranchError,
+			BranchErrorMsg:  v.BranchErrorMsg,
+			Regex:           k.Regex,
+		}
+		responseMap[k.GitMaterialId] = true
+		ciPipelineMaterialResponses = append(ciPipelineMaterialResponses, r)
+	}
+
+	regexMaterials, err := impl.ciPipelineMaterialRepository.GetRegexByPipelineId(pipelineId)
+	if err != nil {
+		impl.Logger.Errorw("regex ciMaterials fetch failed", "err", err)
+		return []CiPipelineMaterialResponse{}, err
+	}
+	for _, k := range regexMaterials {
+		r := CiPipelineMaterialResponse{
+			Id:              k.Id,
+			GitMaterialId:   k.GitMaterialId,
+			GitMaterialName: k.GitMaterial.Name[strings.Index(k.GitMaterial.Name, "-")+1:],
+			Type:            string(k.Type),
+			Value:           k.Value,
+			Active:          k.Active,
+			GitMaterialUrl:  k.GitMaterial.Url,
+			History:         nil,
+			IsRepoError:     false,
+			RepoErrorMsg:    "",
+			IsBranchError:   false,
+			BranchErrorMsg:  "",
+			Regex:           k.Regex,
+		}
+		_, exists := responseMap[k.GitMaterialId]
+		if !exists {
+			ciPipelineMaterialResponses = append(ciPipelineMaterialResponses, r)
+		}
+	}
+	return ciPipelineMaterialResponses, nil
+}
+
 func (impl *CiHandlerImpl) FetchMaterialsByPipelineId(pipelineId int, showAll bool) ([]CiPipelineMaterialResponse, error) {
 	ciMaterials, err := impl.ciPipelineMaterialRepository.GetByPipelineId(pipelineId)
 	impl.Logger.Infow("Testing Fetch Ci materials by pipeline Id ", "ci materials", ciMaterials)
@@ -301,7 +380,7 @@ func (impl *CiHandlerImpl) FetchMaterialsByPipelineId(pipelineId int, showAll bo
 		}
 		changesRequest := &gitSensor.FetchScmChangesRequest{
 			PipelineMaterialId: m.Id,
-			ShowAll: showAll,
+			ShowAll:            showAll,
 		}
 		changesResp, apiErr := impl.gitSensorClient.FetchChanges(context.Background(), changesRequest)
 		impl.Logger.Debugw("commits for material ", "m", m, "commits: ", changesResp)

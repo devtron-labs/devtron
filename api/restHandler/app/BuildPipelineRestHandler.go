@@ -53,6 +53,7 @@ type DevtronAppBuildMaterialRestHandler interface {
 	CreateMaterial(w http.ResponseWriter, r *http.Request)
 	UpdateMaterial(w http.ResponseWriter, r *http.Request)
 	FetchMaterials(w http.ResponseWriter, r *http.Request)
+	FetchMaterialsByMaterialId(w http.ResponseWriter, r *http.Request)
 	RefreshMaterials(w http.ResponseWriter, r *http.Request)
 	FetchMaterialInfo(w http.ResponseWriter, r *http.Request)
 	FetchChanges(w http.ResponseWriter, r *http.Request)
@@ -464,6 +465,7 @@ func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWr
 
 	common.WriteJsonResp(w, err, response, http.StatusOK)
 }
+
 func (handler PipelineConfigRestHandlerImpl) FetchMaterials(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -503,6 +505,58 @@ func (handler PipelineConfigRestHandlerImpl) FetchMaterials(w http.ResponseWrite
 	}
 	//RBAC
 	resp, err := handler.ciHandler.FetchMaterialsByPipelineId(pipelineId, showAll)
+	if err != nil {
+		handler.Logger.Errorw("service err, FetchMaterials", "err", err, "pipelineId", pipelineId)
+		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, resp, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) FetchMaterialsByMaterialId(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	pipelineId, err := strconv.Atoi(vars["pipelineId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	gitMaterialId, err := strconv.Atoi(vars["gitMaterialId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	v := r.URL.Query()
+	showAll := true
+	show := v.Get("showAll")
+	if len(show) > 0 {
+		showAll, err = strconv.ParseBool(show)
+		if err != nil {
+			showAll = true
+			err = nil
+			//ignore error, apply rbac by default
+		}
+	}
+	handler.Logger.Infow("request payload, FetchMaterials", "pipelineId", pipelineId)
+	ciPipeline, err := handler.ciPipelineRepository.FindById(pipelineId)
+	if err != nil {
+		handler.Logger.Errorw("service err, UpdateCiTemplate", "err", err, "pipelineId", pipelineId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	//RBAC
+	token := r.Header.Get("token")
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(ciPipeline.AppId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//RBAC
+	resp, err := handler.ciHandler.FetchMaterialsByPipelineIdAndGitMaterialId(pipelineId, gitMaterialId, showAll)
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchMaterials", "err", err, "pipelineId", pipelineId)
 		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
