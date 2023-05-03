@@ -147,7 +147,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	}
 	workflowJson, err := json.Marshal(&ciCdTriggerEvent)
 	if err != nil {
-		impl.Logger.Errorw("err", err)
+		impl.Logger.Errorw("error occurred while marshalling ciCdTriggerEvent", "error", err)
 		return nil, err
 	}
 
@@ -155,15 +155,11 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	storageConfigured := workflowRequest.BlobStorageConfigured
 	archiveLogs := storageConfigured
 
-	limitCpu := impl.cdConfig.LimitCpu
-	limitMem := impl.cdConfig.LimitMem
-
-	reqCpu := impl.cdConfig.ReqCpu
-	reqMem := impl.cdConfig.ReqMem
 	ttl := int32(impl.cdConfig.BuildLogTTLValue)
 
 	workflowTemplate := bean3.WorkflowTemplate{}
 	workflowTemplate.TTLValue = ttl
+	workflowTemplate.WorkflowRequestJson = string(workflowJson)
 
 	entryPoint := CD_WORKFLOW_NAME
 
@@ -187,6 +183,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 			globalCmCsConfigs[i].Name = fmt.Sprintf("%s-%s-%s", strings.ToLower(globalCmCsConfigs[i].Name), strconv.Itoa(workflowRequest.WorkflowRunnerId), CD_WORKFLOW_NAME)
 		}
 
+		//TODO KB: get cm and secret data instead of templates
 		err = AddTemplatesForGlobalSecretsInWorkflowTemplate(globalCmCsConfigs, &steps, &volumes, &templates)
 		if err != nil {
 			impl.Logger.Errorw("error in creating templates for global secrets", "err", err)
@@ -201,7 +198,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		impl.Logger.Errorw("failed to get configmap data", "err", err)
 		return nil, err
 	}
-	impl.Logger.Debugw("existing cm sec", "cm", existingConfigMap, "sec", existingSecrets)
+	impl.Logger.Debugw("existing cm sec", "cm", existingConfigMap)
 
 	preStageConfigmapSecrets := bean2.PreStageConfigMapSecretNames{}
 	err = json.Unmarshal([]byte(preStageConfigMapSecretsJson), &preStageConfigmapSecrets)
@@ -218,7 +215,6 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 
 	cdPipelineLevelConfigMaps := make(map[string]bool)
 	cdPipelineLevelSecrets := make(map[string]bool)
-	//cdPipelineLevelSecrets := make(map[string]bool)
 
 	if workflowRequest.StageType == PRE {
 		for _, cm := range preStageConfigmapSecrets.ConfigMaps {
@@ -234,6 +230,69 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		for _, secret := range postStageConfigmapSecrets.Secrets {
 			cdPipelineLevelSecrets[secret] = true
 		}
+	}
+
+	var workflowConfigMaps []bean.ConfigSecretMap
+	var workflowSecrets []bean.ConfigSecretMap
+
+	for _, cm := range existingConfigMap.Maps {
+		if _, ok := cdPipelineLevelConfigMaps[cm.Name]; ok {
+			if !cm.External {
+				cm.Name = cm.Name + "-" + strconv.Itoa(workflowRequest.WorkflowId) + "-" + strconv.Itoa(workflowRequest.WorkflowRunnerId)
+			}
+			workflowConfigMaps = append(workflowConfigMaps, cm)
+		}
+	}
+
+	for _, secret := range existingSecrets.Secrets {
+		if _, ok := cdPipelineLevelSecrets[secret.Name]; ok {
+			if !secret.External {
+				secret.Name = secret.Name + "-" + strconv.Itoa(workflowRequest.WorkflowId) + "-" + strconv.Itoa(workflowRequest.WorkflowRunnerId)
+			}
+			workflowSecrets = append(workflowSecrets, *secret)
+		}
+	}
+
+	workflowTemplate.ConfigMaps = workflowConfigMaps
+	workflowTemplate.Secrets = workflowSecrets
+
+	// TODO KB: create container data and attach data to it, set tolerations, labels if required
+	workflowTemplate.ServiceAccountName = impl.cdConfig.WorkflowServiceAccount
+	workflowTemplate.NodeSelector = map[string]string{impl.cdConfig.TaintKey: impl.cdConfig.TaintValue}
+	workflowTemplate.Tolerations = []v12.Toleration{{Key: impl.cdConfig.TaintKey, Value: impl.cdConfig.TaintValue, Operator: v12.TolerationOpEqual, Effect: v12.TaintEffectNoSchedule}}
+	workflowTemplate.Volumes = ExtractVolumesFromCmCs(workflowConfigMaps, workflowSecrets) //TODO KB: make sure values are set properly
+
+	limitCpu := impl.cdConfig.LimitCpu
+	limitMem := impl.cdConfig.LimitMem
+	reqCpu := impl.cdConfig.ReqCpu
+	reqMem := impl.cdConfig.ReqMem
+
+	workflowMainContainer := v12.Container{
+		Env:   containerEnvVariables,
+		Image: workflowRequest.CdImage,
+		Args:  []string{string(workflowJson)},
+		SecurityContext: &v12.SecurityContext{
+			Privileged: &privileged,
+		},
+		Resources: v12.ResourceRequirements{
+			Limits: v12.ResourceList{
+				v12.ResourceCPU:    resource.MustParse(limitCpu),
+				v12.ResourceMemory: resource.MustParse(limitMem),
+			},
+			Requests: v12.ResourceList{
+				v12.ResourceCPU:    resource.MustParse(reqCpu),
+				v12.ResourceMemory: resource.MustParse(reqMem),
+			},
+		},
+	}
+	workflowTemplate.Containers = []v12.Container{workflowMainContainer}
+
+	for _, configMap := range workflowConfigMaps {
+		UpdateContainerEnvs(true, workflowMainContainer, configMap)
+	}
+
+	for _, secret := range workflowSecrets {
+		UpdateContainerEnvs(false, workflowMainContainer, secret)
 	}
 
 	configMaps := bean.ConfigMapJson{}

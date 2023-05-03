@@ -3,8 +3,10 @@ package pipeline
 import (
 	"encoding/json"
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
+	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/util"
 	v12 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strconv"
@@ -16,6 +18,84 @@ type ConfigMapSecretDto struct {
 	Name     string
 	Data     map[string]string
 	OwnerRef v1.OwnerReference
+}
+
+func ExtractVolumesFromCmCs(configMaps []bean2.ConfigSecretMap, secrets []bean2.ConfigSecretMap) []v12.Volume {
+	var volumes []v12.Volume
+	configMapVolumes := extractVolumesFromConfigSecretMaps(true, configMaps)
+	secretVolumes := extractVolumesFromConfigSecretMaps(false, secrets)
+
+	for _, volume := range configMapVolumes {
+		volumes = append(volumes, volume)
+	}
+	for _, volume := range secretVolumes {
+		volumes = append(volumes, volume)
+	}
+	return volumes
+}
+
+func extractVolumesFromConfigSecretMaps(isCm bool, configSecretMaps []bean2.ConfigSecretMap) []v12.Volume {
+	var volumes []v12.Volume
+	for _, configSecretMap := range configSecretMaps {
+		if configSecretMap.Type != util.ConfigMapSecretUsageTypeVolume {
+			// not volume type so ignoring
+			continue
+		}
+		var volumeSource v12.VolumeSource
+		if isCm {
+			volumeSource = v12.VolumeSource{
+				ConfigMap: &v12.ConfigMapVolumeSource{
+					LocalObjectReference: v12.LocalObjectReference{
+						Name: configSecretMap.Name,
+					},
+				},
+			}
+		} else {
+			volumeSource = v12.VolumeSource{
+				Secret: &v12.SecretVolumeSource{
+					SecretName: configSecretMap.Name,
+				},
+			}
+		}
+		volumes = append(volumes, v12.Volume{
+			Name:         configSecretMap.Name + "-vol",
+			VolumeSource: volumeSource,
+		})
+	}
+	return volumes
+}
+
+func UpdateContainerEnvs1(workflowMainContainer v12.Container, configMaps []bean2.ConfigSecretMap, secrets []bean2.ConfigSecretMap) {
+
+}
+
+func UpdateContainerEnvs(isCM bool, workflowMainContainer v12.Container, configSecretMap bean2.ConfigSecretMap) {
+	if configSecretMap.Type == repository.VOLUME_CONFIG {
+		workflowMainContainer.VolumeMounts = append(workflowMainContainer.VolumeMounts, v12.VolumeMount{
+			Name:      configSecretMap.Name + "-vol",
+			MountPath: configSecretMap.MountPath,
+		})
+	} else if configSecretMap.Type == repository.ENVIRONMENT_CONFIG {
+		var envFrom v12.EnvFromSource
+		if isCM {
+			envFrom = v12.EnvFromSource{
+				ConfigMapRef: &v12.ConfigMapEnvSource{
+					LocalObjectReference: v12.LocalObjectReference{
+						Name: configSecretMap.Name,
+					},
+				},
+			}
+		} else {
+			envFrom = v12.EnvFromSource{
+				SecretRef: &v12.SecretEnvSource{
+					LocalObjectReference: v12.LocalObjectReference{
+						Name: configSecretMap.Name,
+					},
+				},
+			}
+		}
+		workflowMainContainer.EnvFrom = append(workflowMainContainer.EnvFrom, envFrom)
+	}
 }
 
 func GetConfigMapJson(configMapSecretDto ConfigMapSecretDto) (string, error) {
