@@ -1261,6 +1261,17 @@ func (handler PipelineConfigRestHandlerImpl) FetchChanges(w http.ResponseWriter,
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	showAll := false
+	v := r.URL.Query()
+	show := v.Get("showAll")
+	if len(show) > 0 {
+		showAll, err = strconv.ParseBool(show)
+		if err != nil {
+			showAll = true
+			err = nil
+			//ignore error, apply rbac by default
+		}
+	}
 	handler.Logger.Infow("request payload, FetchChanges", "ciMaterialId", ciMaterialId, "pipelineId", pipelineId)
 	ciPipeline, err := handler.ciPipelineRepository.FindById(pipelineId)
 	if err != nil {
@@ -1279,7 +1290,7 @@ func (handler PipelineConfigRestHandlerImpl) FetchChanges(w http.ResponseWriter,
 
 	changeRequest := &gitSensor.FetchScmChangesRequest{
 		PipelineMaterialId: ciMaterialId,
-		ShowAll:            true,
+		ShowAll:            showAll,
 	}
 	changes, err := handler.gitSensorClient.FetchChanges(context.Background(), changeRequest)
 	if err != nil {
