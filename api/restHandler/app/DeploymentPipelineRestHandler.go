@@ -891,7 +891,7 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 
 	if isApprovalNode {
 		// fetch users with approval access to this app and Env
-		approvalUsersByEnv, err := handler.userAuthService.GetApprovalUsersByEnv(pipeline.App.AppName, pipeline.Environment.Name)
+		approvalUsersByEnv, err := handler.userAuthService.GetApprovalUsersByEnv(pipeline.App.AppName, pipeline.Environment.EnvironmentIdentifier)
 		if err != nil {
 			handler.Logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

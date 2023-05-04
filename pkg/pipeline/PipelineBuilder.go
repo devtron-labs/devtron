@@ -2959,8 +2959,8 @@ func (impl PipelineBuilderImpl) FetchConfigmapSecretsForCdStages(appId, envId, c
 
 func (impl PipelineBuilderImpl) overrideArtifactsWithUserApprovalData(pipeline *pipelineConfig.Pipeline, inputArtifacts []bean.CiArtifactBean, isApprovalNode bool) ([]bean.CiArtifactBean, pipelineConfig.UserApprovalConfig, error) {
 	impl.logger.Infow("approval node configured", "pipelineId", pipeline.Id, "isApproval", isApprovalNode)
-	var ciArtifactsFinal []bean.CiArtifactBean
-	var artifactIds []int
+	ciArtifactsFinal := make([]bean.CiArtifactBean, 0, len(inputArtifacts))
+	artifactIds := make([]int, 0, len(inputArtifacts))
 	cdPipelineId := pipeline.Id
 	approvalConfig, err := pipeline.GetApprovalConfig()
 	if err != nil {

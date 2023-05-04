@@ -1355,7 +1355,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 
 		if dbPipeline.ApprovalNodeConfigured() {
 			approvalConfig = &pipelineConfig.UserApprovalConfig{}
-			err = json.Unmarshal([]byte(dbPipeline.UserApprovalConfig), &approvalConfig)
+			err = json.Unmarshal([]byte(dbPipeline.UserApprovalConfig), approvalConfig)
 			if err != nil {
 				impl.logger.Errorw("error occurred while unmarshalling user approval config", "err", err)
 				return nil, err
