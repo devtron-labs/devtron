@@ -1316,12 +1316,12 @@ func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(userId int32, approva
 		}
 
 		//fetch artifact metadata, who triggered this build
-		ciWorkflow, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflowByArtifactId(artifactId)
+		ciArtifact, err := impl.ciArtifactRepository.Get(artifactId)
 		if err != nil {
 			impl.Logger.Errorw("error occurred while fetching workflow data for artifact", "artifactId", artifactId, "userId", userId, "err", err)
 			return errors.New("failed to fetch workflow for artifact data")
 		}
-		if ciWorkflow.TriggeredBy == userId {
+		if ciArtifact.CreatedBy == userId {
 			return errors.New("user who triggered the build cannot be an approver")
 		}
 		deploymentApprovalData := &pipelineConfig.DeploymentApprovalUserData{
