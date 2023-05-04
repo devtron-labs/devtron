@@ -1222,7 +1222,7 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 			response[appKey] = pipelineResponse
 			continue
 		}
-		artifact := artifacts[0] //TODO KB: fetch latest approved artifact in case of approval node configured
+		artifact := artifacts[0] // fetch latest approved artifact in case of approval node configured
 		overrideRequest := &bean.ValuesOverrideRequest{
 			PipelineId:     pipeline.Id,
 			AppId:          pipeline.AppId,

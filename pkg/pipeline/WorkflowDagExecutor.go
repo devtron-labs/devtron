@@ -1023,7 +1023,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 
 	artifactId := artifact.Id
 	// need to check for approved artifact only in case configured
-	approvalRequestId, err := impl.checkApprovalNodeForDeployment(pipeline, artifactId)
+	approvalRequestId, err := impl.checkApprovalNodeForDeployment(triggeredBy, pipeline, artifactId)
 	if err != nil {
 		return err
 	}
@@ -1161,7 +1161,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 	return nil
 }
 
-func (impl *WorkflowDagExecutorImpl) checkApprovalNodeForDeployment(pipeline *pipelineConfig.Pipeline, artifactId int) (int, error) {
+func (impl *WorkflowDagExecutorImpl) checkApprovalNodeForDeployment(requestedUserId int32, pipeline *pipelineConfig.Pipeline, artifactId int) (int, error) {
 	if pipeline.ApprovalNodeConfigured() {
 		pipelineId := pipeline.Id
 		approvalConfig, err := pipeline.GetApprovalConfig()
@@ -1178,6 +1178,12 @@ func (impl *WorkflowDagExecutorImpl) checkApprovalNodeForDeployment(pipeline *pi
 			impl.logger.Errorw("not triggering deployment since artifact is not approved", "pipelineId", pipelineId, "artifactId", artifactId)
 			return 0, errors.New("not triggering deployment since artifact is not approved")
 		} else if ok {
+			approvalUsersData := approvalMetadata.ApprovalUsersData
+			for _, approvalData := range approvalUsersData {
+				if approvalData.UserId == requestedUserId {
+					return 0, errors.New("approved user cannot deploy")
+				}
+			}
 			return approvalMetadata.ApprovalRequestId, nil
 		} else {
 			return 0, errors.New("request not raised for artifact")
@@ -1433,8 +1439,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 		if overrideRequest.DeploymentType == models.DEPLOYMENTTYPE_UNKNOWN {
 			overrideRequest.DeploymentType = models.DEPLOYMENTTYPE_DEPLOY
 		}
-		// TODO KB: need to handle Hibernate and unHibernate cases
-		approvalRequestId, err := impl.checkApprovalNodeForDeployment(cdPipeline, ciArtifactId)
+		approvalRequestId, err := impl.checkApprovalNodeForDeployment(overrideRequest.UserId, cdPipeline, ciArtifactId)
 		if err != nil {
 			return 0, err
 		}

@@ -1336,7 +1336,7 @@ func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(userId int32, approva
 			impl.Logger.Errorw("error occurred while saving user approval data", "approvalRequestId", approvalRequestId, "err", err)
 			return err
 		}
-		//TODO KB: trigger deployment if approved and pipeline type is automatic
+		// trigger deployment if approved and pipeline type is automatic
 		pipeline := approvalRequest.Pipeline
 		if pipeline.TriggerType == pipelineConfig.TRIGGER_TYPE_AUTOMATIC {
 			pipelineId := approvalRequest.PipelineId

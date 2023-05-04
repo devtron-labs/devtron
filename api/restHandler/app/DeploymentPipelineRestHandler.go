@@ -891,7 +891,7 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 	}
 
 	if isApprovalNode {
-		//TODO KB: fetch users with approval access to this app and Env
+		// fetch users with approval access to this app and Env
 		approvalUsersByEnv, err := handler.userAuthService.GetApprovalUsersByEnv(pipeline.App.AppName, pipeline.Environment.Name)
 		if err != nil {
 			handler.Logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
