@@ -1181,7 +1181,7 @@ func (impl *WorkflowDagExecutorImpl) checkApprovalNodeForDeployment(requestedUse
 			approvalUsersData := approvalMetadata.ApprovalUsersData
 			for _, approvalData := range approvalUsersData {
 				if approvalData.UserId == requestedUserId {
-					return 0, errors.New("approved user cannot deploy")
+					return 0, errors.New("image cannot be deployed by its approver")
 				}
 			}
 			return approvalMetadata.ApprovalRequestId, nil
