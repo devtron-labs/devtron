@@ -11,6 +11,7 @@
 - fix: bulk cd trigger argo app unauthorized err (#3290)
 - fix: api optimize fixes (#3275)
 ## Enhancements
+- feat: added api for getting list of all default rbac roles (#3344)
 - enhancement: added rbac resource db scripts (#3298)
 - feat: added deployedBy field in helm apps deployment history (#3324)
 - feat: private chart support for helm apps (#3267)
