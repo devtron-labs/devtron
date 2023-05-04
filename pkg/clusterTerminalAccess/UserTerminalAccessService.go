@@ -1059,6 +1059,8 @@ func (impl *UserTerminalAccessServiceImpl) EditTerminalPodManifest(ctx context.C
 	if podObject.Name != editManifestRequest.PodName {
 		if !editManifestRequest.ForceDelete && impl.checkOtherPodExists(ctx, podObject.Name, podObject.Namespace, editManifestRequest.ClusterId) {
 			result.PodExists = true
+			result.PodName = podObject.Name
+			result.NameSpace = podObject.Namespace
 			//log the pod exists info
 			//return, to warn user that pod with this name already exists in the given namespace
 			return result, nil
