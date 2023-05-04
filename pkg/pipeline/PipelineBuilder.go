@@ -114,7 +114,6 @@ type PipelineBuilder interface {
 	GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error)
 	GetCdPipelinesForAppAndEnv(appId int, envId int) (cdPipelines *bean.CdPipelines, err error)
 	/*	CreateCdPipelines(cdPipelines bean.CdPipelines) (*bean.CdPipelines, error)*/
-	//GetArtifactsByCDPipeline(cdPipelineId int, stage bean2.WorkflowType, isApprovalNode bool) (bean.CiArtifactResponse, error)
 	RetrieveArtifactsByCDPipeline(pipeline *pipelineConfig.Pipeline, stage bean2.WorkflowType, isApprovalNode bool) (*bean.CiArtifactResponse, error)
 	RetrieveParentDetails(pipelineId int) (parentId int, parentType bean2.WorkflowType, err error)
 	FetchArtifactForRollback(cdPipelineId, offset, limit int) (bean.CiArtifactResponse, error)
@@ -2145,7 +2144,6 @@ func (impl PipelineBuilderImpl) ChangeDeploymentType(ctx context.Context,
 
 	for _, pipeline := range pipelines {
 
-		//artifactDetails, err := impl.GetArtifactsByCDPipeline(item.Id, bean2.WorkflowType("DEPLOY"), false)
 		artifactDetails, err := impl.RetrieveArtifactsByCDPipeline(pipeline, "DEPLOY", false)
 
 		if err != nil {
@@ -2868,48 +2866,6 @@ func (impl PipelineBuilderImpl) FetchConfigmapSecretsForCdStages(appId, envId, c
 	return existingConfigMapSecrets, nil
 }
 
-//func (impl PipelineBuilderImpl) GetArtifactsByCDPipeline(cdPipelineId int, stage bean2.WorkflowType, isApprovalNode bool) (bean.CiArtifactResponse, error) {
-//	var ciArtifactsResponse bean.CiArtifactResponse
-//	var err error
-//	parentId, parentType, err := impl.GetCdParentDetails(cdPipelineId)
-//	if err != nil {
-//		impl.logger.Errorw("error in getting cd parent details", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
-//		return ciArtifactsResponse, err
-//	}
-//	//setting parent cd id for checking latest image running on parent cd
-//	parentCdId := 0
-//	if parentType == bean2.CD_WORKFLOW_TYPE_POST || (parentType == bean2.CD_WORKFLOW_TYPE_DEPLOY && stage != bean2.CD_WORKFLOW_TYPE_POST) {
-//		parentCdId = parentId
-//	}
-//	pipeline, err := impl.pipelineRepository.FindById(cdPipelineId)
-//	if err != nil && err != pg.ErrNoRows {
-//		impl.logger.Errorw("Error in getting cd pipeline details", err, "cdPipelineId", cdPipelineId)
-//	}
-//	if stage == bean2.CD_WORKFLOW_TYPE_DEPLOY && len(pipeline.PreStageConfig) > 0 {
-//		parentId = cdPipelineId
-//		parentType = bean2.CD_WORKFLOW_TYPE_PRE
-//	}
-//	if stage == bean2.CD_WORKFLOW_TYPE_POST {
-//		parentId = cdPipelineId
-//		parentType = bean2.CD_WORKFLOW_TYPE_DEPLOY
-//	}
-//	ciArtifactsResponse, err = impl.GetArtifactsForCdStage(cdPipelineId, parentId, parentType, stage, parentCdId)
-//	if err != nil {
-//		impl.logger.Errorw("error in getting artifacts for cd", "err", err, "stage", stage, "cdPipelineId", cdPipelineId)
-//		return ciArtifactsResponse, err
-//	}
-//	//userApprovalConfig := pipeline.UserApprovalConfig
-//	if pipeline.ApprovalNodeConfigured() && stage == bean2.CD_WORKFLOW_TYPE_DEPLOY { // for now, we are checking artifacts for deploy stage only
-//		ciArtifactsFinal, approvalConfig, err := impl.overrideArtifactsWithUserApprovalData(pipeline, ciArtifactsResponse.CiArtifacts, isApprovalNode)
-//		if err != nil {
-//			return ciArtifactsResponse, err
-//		}
-//		ciArtifactsResponse.UserApprovalConfig = approvalConfig
-//		ciArtifactsResponse.CiArtifacts = ciArtifactsFinal
-//	}
-//	return ciArtifactsResponse, nil
-//}
-//
 func (impl PipelineBuilderImpl) overrideArtifactsWithUserApprovalData(pipeline *pipelineConfig.Pipeline, inputArtifacts []bean.CiArtifactBean, isApprovalNode bool) ([]bean.CiArtifactBean, pipelineConfig.UserApprovalConfig, error) {
 	impl.logger.Infow("approval node configured", "pipelineId", pipeline.Id, "isApproval", isApprovalNode)
 	var ciArtifactsFinal []bean.CiArtifactBean
@@ -2954,162 +2910,6 @@ func (impl PipelineBuilderImpl) overrideArtifactsWithUserApprovalData(pipeline *
 	}
 	return ciArtifactsFinal, approvalConfig, nil
 }
-
-//
-//func (impl PipelineBuilderImpl) GetCdParentDetails(cdPipelineId int) (parentId int, parentType bean2.WorkflowType, err error) {
-//	appWorkflowMapping, err := impl.appWorkflowRepository.FindWFCDMappingByCDPipelineId(cdPipelineId)
-//	if err != nil {
-//		return 0, "", err
-//	}
-//	parentId = appWorkflowMapping.ParentId
-//	if appWorkflowMapping.ParentType == appWorkflow.CDPIPELINE {
-//		pipeline, err := impl.pipelineRepository.FindById(parentId)
-//		if err != nil && err != pg.ErrNoRows {
-//			impl.logger.Errorw("Error in fetching cd pipeline details", err, "pipelineId", parentId)
-//			return 0, "", err
-//		}
-//		if len(pipeline.PostStageConfig) > 0 {
-//			return parentId, bean2.CD_WORKFLOW_TYPE_POST, nil
-//		} else {
-//			return parentId, bean2.CD_WORKFLOW_TYPE_DEPLOY, nil
-//		}
-//	} else if appWorkflowMapping.ParentType == appWorkflow.WEBHOOK {
-//		return parentId, bean2.WEBHOOK_WORKFLOW_TYPE, nil
-//	}
-//	return parentId, bean2.CI_WORKFLOW_TYPE, nil
-//}
-
-//func (impl PipelineBuilderImpl) GetArtifactsByCDPipeline(cdPipelineId int, stage bean2.WorkflowType) (bean.CiArtifactResponse, error) {
-//	var ciArtifactsResponse bean.CiArtifactResponse
-//	var err error
-//	parentId, parentType, err := impl.GetCdParentDetails(cdPipelineId)
-//	if err != nil {
-//		impl.logger.Errorw("failed to retrieve parent details",
-//			"cdPipelineId", pipeline.Id,
-//			"err", err)
-//		return nil, err
-//	}
-//
-//	parentCdId := 0
-//	if parentType == bean2.CD_WORKFLOW_TYPE_POST || (parentType == bean2.CD_WORKFLOW_TYPE_DEPLOY && stage != bean2.CD_WORKFLOW_TYPE_POST) {
-//		// parentCdId is being set to store the artifact currently deployed on parent cd (if applicable).
-//		// Parent component is CD only if parent type is POST/DEPLOY
-//		parentCdId = parentId
-//	}
-//
-//	if stage == bean2.CD_WORKFLOW_TYPE_DEPLOY && len(pipeline.PreStageConfig) > 0 {
-//		// Parent type will be PRE for DEPLOY stage
-//		parentId = pipeline.Id
-//		parentType = bean2.CD_WORKFLOW_TYPE_PRE
-//	}
-//	if stage == bean2.CD_WORKFLOW_TYPE_POST {
-//		// Parent type will be DEPLOY for POST stage
-//		parentId = pipeline.Id
-//		parentType = bean2.CD_WORKFLOW_TYPE_DEPLOY
-//	}
-//	ciArtifactsResponse, err = impl.GetArtifactsForCdStage(cdPipelineId, parentId, parentType, stage, parentCdId)
-//	if err != nil {
-//		impl.logger.Errorw("error in getting artifacts for cd", "err", err, "stage", stage, "cdPipelineId", cdPipelineId)
-//		return ciArtifactsResponse, err
-//	}
-//	return ciArtifactsResponse, nil
-//}
-//
-//func (impl PipelineBuilderImpl) GetCdParentDetails(cdPipelineId int) (parentId int, parentType bean2.WorkflowType, err error) {
-//	appWorkflowMapping, err := impl.appWorkflowRepository.FindWFCDMappingByCDPipelineId(cdPipelineId)
-//	if err != nil {
-//		return 0, "", err
-//	}
-//	parentId = appWorkflowMapping.ParentId
-//	if appWorkflowMapping.ParentType == appWorkflow.CDPIPELINE {
-//		pipeline, err := impl.pipelineRepository.FindById(parentId)
-//		if err != nil && err != pg.ErrNoRows {
-//			impl.logger.Errorw("Error in fetching cd pipeline details", err, "pipelineId", parentId)
-//			return 0, "", err
-//		}
-//		if len(pipeline.PostStageConfig) > 0 {
-//			return parentId, bean2.CD_WORKFLOW_TYPE_POST, nil
-//		} else {
-//			return parentId, bean2.CD_WORKFLOW_TYPE_DEPLOY, nil
-//		}
-//	} else if appWorkflowMapping.ParentType == appWorkflow.WEBHOOK {
-//		return parentId, bean2.WEBHOOK_WORKFLOW_TYPE, nil
-//	}
-//	return parentId, bean2.CI_WORKFLOW_TYPE, nil
-//}
-
-//func (impl PipelineBuilderImpl) GetArtifactsForCdStage(cdPipelineId int, parentId int, parentType bean2.WorkflowType, stage bean2.WorkflowType, parentCdId int) (bean.CiArtifactResponse, error) {
-//	var ciArtifacts []bean.CiArtifactBean
-//	ciArtifactsResponse := &bean.CiArtifactResponse{}
-//
-//	artifactMap := make(map[int]int)
-//	limit := 10
-//
-//	ciArtifacts, artifactMap, latestWfArtifactId, latestWfArtifactStatus, err := impl.
-//		BuildArtifactsForCdStage(pipeline.Id, stage, ciArtifacts, artifactMap, false, limit, parentCdId)
-//	if err != nil && err != pg.ErrNoRows {
-//		impl.logger.Errorw("error in getting artifacts for child cd stage", "err", err, "stage", stage)
-//		return nil, err
-//	}
-//
-//	ciArtifacts, err = impl.BuildArtifactsForParentStage(pipeline.Id, parentId, parentType, ciArtifacts, artifactMap, limit, parentCdId)
-//	if err != nil && err != pg.ErrNoRows {
-//		impl.logger.Errorw("error in getting artifacts for cd", "err", err, "parentStage", parentType, "stage", stage)
-//		return nil, err
-//	}
-//
-//	//sorting ci artifacts on the basis of creation time
-//	if ciArtifacts != nil {
-//		sort.SliceStable(ciArtifacts, func(i, j int) bool {
-//			return ciArtifacts[i].Id > ciArtifacts[j].Id
-//		})
-//	}
-//
-//	artifactIds := make([]int, 0, len(ciArtifacts))
-//	for _, artifact := range ciArtifacts {
-//		artifactIds = append(artifactIds, artifact.Id)
-//	}
-//
-//	artifacts, err := impl.ciArtifactRepository.GetArtifactParentCiAndWorkflowDetailsByIdsInDesc(artifactIds)
-//	if err != nil {
-//		return ciArtifactsResponse, err
-//	}
-//
-//	for i, artifact := range artifacts {
-//		if artifact.ExternalCiPipelineId != 0 {
-//			// if external webhook continue
-//			continue
-//		}
-//
-//		var ciWorkflow *pipelineConfig.CiWorkflow
-//		if artifact.ParentCiArtifact != 0 {
-//			ciWorkflow, err = impl.ciWorkflowRepository.FindLastTriggeredWorkflowGitTriggersByArtifactId(artifact.ParentCiArtifact)
-//			if err != nil {
-//				impl.logger.Errorw("error in getting ci_workflow for artifacts", "err", err, "artifact", artifact, "parentStage", parentType, "stage", stage)
-//				return ciArtifactsResponse, err
-//			}
-//
-//		} else {
-//			ciWorkflow, err = impl.ciWorkflowRepository.FindCiWorkflowGitTriggersById(*artifact.WorkflowId)
-//			if err != nil {
-//				impl.logger.Errorw("error in getting ci_workflow for artifacts", "err", err, "artifact", artifact, "parentStage", parentType, "stage", stage)
-//				return ciArtifactsResponse, err
-//			}
-//		}
-//		ciArtifacts[i].TriggeredBy = ciWorkflow.TriggeredBy
-//		ciArtifacts[i].CiConfigureSourceType = ciWorkflow.GitTriggers[ciWorkflow.CiPipelineId].CiConfigureSourceType
-//		ciArtifacts[i].CiConfigureSourceValue = ciWorkflow.GitTriggers[ciWorkflow.CiPipelineId].CiConfigureSourceValue
-//	}
-//
-//	ciArtifactsResponse.CdPipelineId = pipeline.Id
-//	ciArtifactsResponse.LatestWfArtifactId = latestWfArtifactId
-//	ciArtifactsResponse.LatestWfArtifactStatus = latestWfArtifactStatus
-//	if ciArtifacts == nil {
-//		ciArtifacts = []bean.CiArtifactBean{}
-//	}
-//	ciArtifactsResponse.CiArtifacts = ciArtifacts
-//	return ciArtifactsResponse, nil
-//}
 
 // RetrieveParentDetails returns the parent id and type of the parent
 func (impl PipelineBuilderImpl) RetrieveParentDetails(pipelineId int) (parentId int, parentType bean2.WorkflowType, err error) {
@@ -3663,7 +3463,7 @@ func (impl PipelineBuilderImpl) GetCdPipelineById(pipelineId int) (cdPipeline *b
 		approvalConfig = &pipelineConfig.UserApprovalConfig{}
 		err = json.Unmarshal([]byte(dbPipeline.UserApprovalConfig), approvalConfig)
 		if err != nil {
-			impl.logger.Error(err)
+			impl.logger.Errorw("error occurred while unmarshalling user approval config", "err", err)
 			return nil, err
 		}
 	}

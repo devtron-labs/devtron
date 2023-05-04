@@ -447,7 +447,7 @@ func (impl UserServiceImpl) CreateOrUpdateUserRolesForAllTypes(roleFilter bean.R
 					return policiesToBeAdded, rolesChanged, err
 				}
 				if roleModel.Id == 0 {
-					impl.logger.Debugw("no role found for given filter", "filter", "roleFilter", roleFilter)
+					impl.logger.Debugw("no role found for given filter", "filter", roleFilter)
 					flag, err, policiesAdded := impl.userCommonService.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType, roleFilter.Approver, userId)
 					if err != nil || flag == false {
 						return policiesToBeAdded, rolesChanged, err
@@ -582,12 +582,12 @@ func (impl UserServiceImpl) mergeRoleFilter(oldR []bean.RoleFilter, newR []bean.
 			Resource:    role.Resource,
 			Approver:    role.Approver,
 		})
-		key := fmt.Sprintf("%s-%s-%s-%s-%s-%s-%s-%s-%s-%s-%s-%s", role.Entity, role.Team, role.Environment,
+		key := fmt.Sprintf("%s-%s-%s-%s-%s-%s-%t-%s-%s-%s-%s-%s", role.Entity, role.Team, role.Environment,
 			role.EntityName, role.Action, role.AccessType, role.Approver, role.Cluster, role.Namespace, role.Group, role.Kind, role.Resource)
 		keysMap[key] = true
 	}
 	for _, role := range newR {
-		key := fmt.Sprintf("%s-%s-%s-%s-%s-%s-%s-%s-%s-%s-%s-%s", role.Entity, role.Team, role.Environment,
+		key := fmt.Sprintf("%s-%s-%s-%s-%s-%s-%t-%s-%s-%s-%s-%s", role.Entity, role.Team, role.Environment,
 			role.EntityName, role.Action, role.AccessType, role.Approver, role.Cluster, role.Namespace, role.Group, role.Kind, role.Resource)
 		if _, ok := keysMap[key]; !ok {
 			roleFilters = append(roleFilters, bean.RoleFilter{

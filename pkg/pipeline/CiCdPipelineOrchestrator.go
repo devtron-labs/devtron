@@ -1278,7 +1278,7 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateCDPipeline(pipelineRequest *bean.
 	if pipelineRequest.UserApprovalConf != nil {
 		userApprovalConf, err := json.Marshal(pipelineRequest.UserApprovalConf)
 		if err != nil {
-			impl.logger.Error(err)
+			impl.logger.Error("error occurred while marshalling user approval conf", "pipeline", pipeline, "err", err)
 			return err
 		}
 		pipeline.UserApprovalConfig = string(userApprovalConf)
@@ -1361,7 +1361,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 			approvalConfig = &pipelineConfig.UserApprovalConfig{}
 			err = json.Unmarshal([]byte(dbPipeline.UserApprovalConfig), &approvalConfig)
 			if err != nil {
-				impl.logger.Error(err)
+				impl.logger.Errorw("error occurred while unmarshalling user approval config", "err", err)
 				return nil, err
 			}
 		}
@@ -1487,24 +1487,6 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int, request
 			}
 			pipeline.UserApprovalConf = approvalConfig
 		}
-
-		//pipeline := &bean.CDPipelineConfigObject{
-		//	Id:                            dbPipeline.Id,
-		//	Name:                          dbPipeline.Name,
-		//	EnvironmentId:                 dbPipeline.EnvironmentId,
-		//	EnvironmentName:               dbPipeline.Environment.Name,
-		//	CiPipelineId:                  dbPipeline.CiPipelineId,
-		//	TriggerType:                   dbPipeline.TriggerType,
-		//	PreStage:                      preStage,
-		//	PostStage:                     postStage,
-		//	RunPreStageInEnv:              dbPipeline.RunPreStageInEnv,
-		//	RunPostStageInEnv:             dbPipeline.RunPostStageInEnv,
-		//	PreStageConfigMapSecretNames:  preStageConfigmapSecrets,
-		//	PostStageConfigMapSecretNames: postStageConfigmapSecrets,
-		//	DeploymentAppType:             dbPipeline.DeploymentAppType,
-		//	AppName:                       dbPipeline.App.AppName,
-		//	AppId:                         dbPipeline.AppId,
-		//}
 		pipelines = append(pipelines, pipeline)
 	}
 	cdPipelines = &bean.CdPipelines{

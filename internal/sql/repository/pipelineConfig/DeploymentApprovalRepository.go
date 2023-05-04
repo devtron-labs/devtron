@@ -33,8 +33,8 @@ func NewDeploymentApprovalRepositoryImpl(dbConnection *pg.DB, logger *zap.Sugare
 type DeploymentApprovalRequest struct {
 	tableName                   struct{} `sql:"deployment_approval_request" pg:",discard_unknown_columns"`
 	Id                          int      `sql:"id,pk"`
-	PipelineId                  int      `sql:"pipeline_id"`    // keep in mind foreign key constraint
-	ArtifactId                  int      `sql:"ci_artifact_id"` // keep in mind foreign key constraint
+	PipelineId                  int      `sql:"pipeline_id"`
+	ArtifactId                  int      `sql:"ci_artifact_id"`
 	Active                      bool     `sql:"active,notnull"` // user can cancel request anytime
 	ArtifactDeploymentTriggered bool     `sql:"artifact_deployment_triggered"`
 	Pipeline                    *Pipeline
