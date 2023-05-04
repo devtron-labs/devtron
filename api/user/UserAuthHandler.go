@@ -174,7 +174,12 @@ func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWrite
 	}
 	handler.logger.Debugw("request payload, AddDefaultPolicyAndRoles", "policiesView", policiesView)
 	policies = append(policies, policiesView.Data...)
-	casbin.AddPolicy(policies)
+	err = casbin.AddPolicy(policies)
+	if err != nil {
+		handler.logger.Errorw("casbin policy addition failed", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
 	//loading policy for syncing orchestrator to casbin with newly added policies
 	casbin.LoadPolicy()
 	//Creating ROLES

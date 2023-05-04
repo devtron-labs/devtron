@@ -1,0 +1,79 @@
+syntax = "proto3";
+
+option go_package = "github.com/devtron-labs/casbin-enterprise/bean/grpc/client";
+
+service CasbinService {
+  rpc AddPolicy (MultiPolicyObj) returns (AddPolicyResp){}
+  rpc LoadPolicy (EmptyObj) returns (EmptyObj){}
+  rpc RemovePolicy (MultiPolicyObj) returns (MultiPolicyObj){}
+  rpc GetAllSubjects(EmptyObj) returns(GetAllSubjectsResp){}
+  rpc DeleteRoleForUser(DeleteRoleForUserRequest) returns(DeleteRoleForUserResp){}
+  rpc GetRolesForUser(GetRolesForUserRequest) returns(GetRolesForUserResp){}
+  rpc GetUserByRole(GetUserByRoleRequest) returns(GetUserByRoleResp){}
+  rpc RemovePoliciesByRole(RemovePoliciesByRoleRequest) returns(RemovePoliciesByRoleResp){}
+  rpc RemovePoliciesByRoles(RemovePoliciesByRolesRequest) returns(RemovePoliciesByRolesResp){}
+}
+
+message AddPolicyResp{
+  repeated Policy failedPolicies = 1;
+  string errorMessage = 2;
+}
+
+message EmptyObj {}
+
+message MultiPolicyObj {
+  repeated Policy policies = 1;
+}
+
+message Policy {
+  string  Type = 1;
+  string  Sub  = 2;
+  string  Res  = 3;
+  string  Act  = 4;
+  string  Obj  = 5;
+}
+
+message GetAllSubjectsResp {
+  repeated string subjects = 1;
+}
+
+message DeleteRoleForUserRequest {
+  string user = 1;
+  string role = 2;
+}
+
+message DeleteRoleForUserResp {
+  bool resp = 1;
+}
+
+message GetRolesForUserRequest {
+  string user = 1;
+}
+
+message GetRolesForUserResp {
+  repeated string roles = 1;
+}
+
+message GetUserByRoleRequest {
+  string role = 1;
+}
+
+message GetUserByRoleResp {
+  repeated string users = 1;
+}
+
+message RemovePoliciesByRoleRequest {
+  string role = 1;
+}
+
+message RemovePoliciesByRoleResp {
+  bool resp = 1;
+}
+
+message RemovePoliciesByRolesRequest {
+  repeated string roles = 1;
+}
+
+message RemovePoliciesByRolesResp {
+  bool resp = 1;
+}

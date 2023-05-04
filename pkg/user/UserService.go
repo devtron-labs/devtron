@@ -56,7 +56,6 @@ type UserService interface {
 	IsSuperAdmin(userId int) (bool, error)
 	GetByIdIncludeDeleted(id int32) (*bean.UserInfo, error)
 	UserExists(emailId string) bool
-	UpdateTriggerPolicyForTerminalAccess() (err error)
 	GetRoleFiltersByGroupNames(groupNames []string) ([]bean.RoleFilter, error)
 	SaveLoginAudit(emailId, clientIp string, id int32)
 }
@@ -175,8 +174,11 @@ func (impl UserServiceImpl) SelfRegisterUserIfNotExists(userInfo *bean.UserInfo)
 	if len(policies) > 0 {
 		//loading policy for safety
 		casbin2.LoadPolicy()
-		pRes := casbin2.AddPolicy(policies)
-		println(pRes)
+		err = casbin2.AddPolicy(policies)
+		if err != nil {
+			impl.logger.Errorw("casbin policy addition failed", "err", err)
+			return nil, err
+		}
 		//loading policy for syncing orchestrator to casbin with newly added policies
 		casbin2.LoadPolicy()
 	}
@@ -392,8 +394,11 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 	impl.logger.Infow("Checking the length of policies to be added and Adding in casbin ")
 	if len(policies) > 0 {
 		impl.logger.Infow("Adding policies in casbin")
-		pRes := casbin2.AddPolicy(policies)
-		println(pRes)
+		err = casbin2.AddPolicy(policies)
+		if err != nil {
+			impl.logger.Errorw("casbin policy addition failed", "err", err)
+			return nil, err
+		}
 	}
 	//Ends
 	err = tx.Commit()
@@ -781,8 +786,11 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 		println(pRes)
 	}
 	if len(addedPolicies) > 0 {
-		pRes := casbin2.AddPolicy(addedPolicies)
-		println(pRes)
+		err = casbin2.AddPolicy(addedPolicies)
+		if err != nil {
+			impl.logger.Errorw("casbin policy addition failed", "err", err)
+			return nil, false, false, nil, err
+		}
 	}
 	//Ends
 
@@ -1218,11 +1226,18 @@ func (impl UserServiceImpl) DeleteUser(bean *bean.UserInfo) (bool, error) {
 	if err != nil {
 		impl.logger.Warnw("No Roles Found for user", "id", model.Id)
 	}
+	var eliminatedPolicies []casbin2.Policy
 	for _, item := range groups {
 		flag := casbin2.DeleteRoleForUser(model.EmailId, item)
 		if flag == false {
 			impl.logger.Warnw("unable to delete role:", "user", model.EmailId, "role", item)
 		}
+		eliminatedPolicies = append(eliminatedPolicies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.EmailId), Obj: casbin2.Object(item)})
+	}
+	// updating in casbin
+	if len(eliminatedPolicies) > 0 {
+		pRes := casbin2.RemovePolicy(eliminatedPolicies)
+		impl.logger.Infow("Failed to remove policies", "policies", pRes)
 	}
 
 	return true, nil
@@ -1302,15 +1317,6 @@ func (impl UserServiceImpl) GetByIdIncludeDeleted(id int32) (*bean.UserInfo, err
 		EmailId: model.EmailId,
 	}
 	return response, nil
-}
-
-func (impl UserServiceImpl) UpdateTriggerPolicyForTerminalAccess() (err error) {
-	err = impl.userAuthRepository.UpdateTriggerPolicyForTerminalAccess()
-	if err != nil {
-		impl.logger.Errorw("error in updating policy for terminal access to trigger role", "err", err)
-		return err
-	}
-	return nil
 }
 
 func (impl UserServiceImpl) saveUserAudit(r *http.Request, userId int32) {
