@@ -844,14 +844,14 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 	}
 	stage := r.URL.Query().Get("stage")
 	if len(stage) == 0 {
-		stage = "PRE"
+		stage = pipeline.WorklowTypePre
 	}
 
 	isApprovalNode := false
 
-	if stage == "APPROVAL" {
+	if stage == pipeline.WorkflowApprovalNode {
 		isApprovalNode = true
-		stage = "DEPLOY"
+		stage = pipeline.WorklowTypeDeploy
 	}
 
 	handler.Logger.Infow("request payload, GetArtifactsByCDPipeline", "cdPipelineId", cdPipelineId, "stage", stage)
