@@ -28,8 +28,8 @@ type NodeTaints struct {
 }
 
 type Container struct {
-	ContainerName string
-	Image         string
+	ContainerName string `json:"containerName"`
+	Image         string `json:"image"`
 }
 
 type UserTerminalPodEvents struct {
