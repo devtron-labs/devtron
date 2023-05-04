@@ -56,7 +56,6 @@ type UserService interface {
 	IsSuperAdmin(userId int) (bool, error)
 	GetByIdIncludeDeleted(id int32) (*bean.UserInfo, error)
 	UserExists(emailId string) bool
-	UpdateTriggerPolicyForTerminalAccess() (err error)
 	GetRoleFiltersByGroupNames(groupNames []string) ([]bean.RoleFilter, error)
 	SaveLoginAudit(emailId, clientIp string, id int32)
 	GetApprovalUsersByEnv(appName, envName string) ([]string, error)
@@ -1181,7 +1180,7 @@ func (impl UserServiceImpl) GetUserByToken(context context.Context, token string
 
 func (impl UserServiceImpl) GetEmailFromToken(token string) (string, error) {
 	if token == "" {
-		impl.logger.Infow("no token provided", "token", token)
+		impl.logger.Infow("no token provided")
 		err := &util.ApiError{
 			Code:            constants.UserNoTokenProvided,
 			InternalMessage: "no token provided",
@@ -1375,15 +1374,6 @@ func (impl UserServiceImpl) GetByIdIncludeDeleted(id int32) (*bean.UserInfo, err
 		EmailId: model.EmailId,
 	}
 	return response, nil
-}
-
-func (impl UserServiceImpl) UpdateTriggerPolicyForTerminalAccess() (err error) {
-	err = impl.userAuthRepository.UpdateTriggerPolicyForTerminalAccess()
-	if err != nil {
-		impl.logger.Errorw("error in updating policy for terminal access to trigger role", "err", err)
-		return err
-	}
-	return nil
 }
 
 func (impl UserServiceImpl) saveUserAudit(r *http.Request, userId int32) {

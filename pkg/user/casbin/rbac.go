@@ -158,6 +158,7 @@ func (e *EnforcerImpl) enforceByEmailInBatchSync(wg *sync.WaitGroup, mutex *sync
 }
 
 func (e *EnforcerImpl) EnforceByEmailInBatch(emailId string, resource string, action string, vals []string) map[string]bool {
+	emailId = strings.ToLower(emailId)
 	var totalTimeGap int64 = 0
 	var maxTimegap int64 = 0
 	var minTimegap int64 = math.MaxInt64
@@ -467,6 +468,9 @@ func MatchKeyByPart(key1 string, key2 string) bool {
 		if key2Val == "" || key1Val == "" {
 			//empty values are not allowed in any key
 			return false
+		} else if key1Val == ResourceObjectIgnorePlaceholder {
+			//request contains ignore placeholder, ignoring this check and continuing on other
+			continue
 		} else {
 			// getting index of "*" in key2, will check values of key1 accordingly
 			//for example - key2Val = a/bc*/d & key1Val = a/bcd/d, in this case "bc" will be checked in key1Val(upto index of "*")

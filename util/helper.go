@@ -294,3 +294,16 @@ func InterfaceToFloat(resp interface{}) float64 {
 	}
 	return dat
 }
+
+func IsSubset(subset, superset []string) bool {
+	supersetMap := make(map[string]bool, len(superset))
+	for _, element := range superset {
+		supersetMap[element] = true
+	}
+	for _, value := range subset {
+		if !supersetMap[value] {
+			return false
+		}
+	}
+	return true
+}

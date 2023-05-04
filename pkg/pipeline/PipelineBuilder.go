@@ -1414,7 +1414,7 @@ func (impl PipelineBuilderImpl) PatchCiPipeline(request *bean.CiPatchRequest) (c
 		}
 		return res, nil
 	case bean.UPDATE_SOURCE:
-		return impl.patchCiPipelineUpdateSource(ciConfig, request.CiPipeline)
+		return impl.updateCiPipelineSourceValue(ciConfig, request.CiPipeline)
 	case bean.DELETE:
 		pipeline, err := impl.DeleteCiPipeline(request)
 		if err != nil {
@@ -1422,6 +1422,8 @@ func (impl PipelineBuilderImpl) PatchCiPipeline(request *bean.CiPatchRequest) (c
 		}
 		ciConfig.CiPipelines = []*bean.CiPipeline{pipeline}
 		return ciConfig, nil
+	case bean.UPDATE_PIPELINE:
+		return impl.updateCiPipeline(ciConfig, request.CiPipeline)
 	default:
 		impl.logger.Errorw("unsupported operation ", "op", request.Action)
 		return nil, fmt.Errorf("unsupported operation %s", request.Action)
@@ -1557,7 +1559,7 @@ func (impl PipelineBuilderImpl) DeleteCiPipeline(request *bean.CiPatchRequest) (
 
 }
 
-func (impl PipelineBuilderImpl) patchCiPipelineUpdateSource(baseCiConfig *bean.CiConfigRequest, modifiedCiPipeline *bean.CiPipeline) (ciConfig *bean.CiConfigRequest, err error) {
+func (impl PipelineBuilderImpl) updateCiPipeline(baseCiConfig *bean.CiConfigRequest, modifiedCiPipeline *bean.CiPipeline) (ciConfig *bean.CiConfigRequest, err error) {
 
 	pipeline, err := impl.ciPipelineRepository.FindById(modifiedCiPipeline.Id)
 	if err != nil {
@@ -1584,6 +1586,61 @@ func (impl PipelineBuilderImpl) patchCiPipelineUpdateSource(baseCiConfig *bean.C
 		}
 		baseCiConfig.CiPipelines = append(baseCiConfig.CiPipelines, modifiedCiPipeline)
 		return baseCiConfig, err
+	}
+
+}
+
+func (impl PipelineBuilderImpl) updateCiPipelineSourceValue(baseCiConfig *bean.CiConfigRequest, modifiedCiPipeline *bean.CiPipeline) (ciConfig *bean.CiConfigRequest, err error) {
+	pipeline, err := impl.ciPipelineRepository.FindById(modifiedCiPipeline.Id)
+	if err != nil {
+		impl.logger.Errorw("error in fetching pipeline", "id", modifiedCiPipeline.Id, "err", err)
+		return nil, err
+	}
+	cannotUpdate := false
+	for _, material := range pipeline.CiPipelineMaterials {
+		if material.ScmId != "" {
+			cannotUpdate = true
+		}
+	}
+	if cannotUpdate {
+		return nil, fmt.Errorf("update of plugin scm material not supported")
+	} else {
+		dbConnection := impl.pipelineRepository.GetConnection()
+		tx, err := dbConnection.Begin()
+		if err != nil {
+			return nil, err
+		}
+		// Rollback tx on error.
+		defer tx.Rollback()
+		var materialsUpdate []*pipelineConfig.CiPipelineMaterial
+		for _, material := range modifiedCiPipeline.CiMaterial {
+			pipelineMaterial := &pipelineConfig.CiPipelineMaterial{
+				Id:       material.Id,
+				Value:    material.Source.Value,
+				Active:   true,
+				AuditLog: sql.AuditLog{UpdatedBy: baseCiConfig.UserId, UpdatedOn: time.Now()},
+			}
+			if material.Id == 0 {
+				continue
+			} else {
+				materialsUpdate = append(materialsUpdate, pipelineMaterial)
+			}
+		}
+		if len(materialsUpdate) > 0 {
+			//using update not null
+			err = impl.ciPipelineMaterialRepository.UpdateNotNull(tx, materialsUpdate...)
+			if err != nil {
+				return nil, err
+			}
+		}
+		err = tx.Commit()
+		if err != nil {
+			impl.logger.Errorw("error in committing transaction", "err", err)
+			return nil, err
+		}
+		modifiedCiPipeline.ScanEnabled = baseCiConfig.ScanEnabled
+		baseCiConfig.CiPipelines = append(baseCiConfig.CiPipelines, modifiedCiPipeline)
+		return baseCiConfig, nil
 	}
 
 }
@@ -2734,8 +2791,50 @@ func (impl PipelineBuilderImpl) filterDeploymentTemplate(strategyKey string, pip
 	return pipelineStrategyJson, nil
 }
 
+func (impl PipelineBuilderImpl) getStrategiesMapping(dbPipelineIds []int) (map[int][]*chartConfig.PipelineStrategy, error) {
+	strategiesMapping := make(map[int][]*chartConfig.PipelineStrategy)
+	strategiesByPipelineIds, err := impl.pipelineConfigRepository.GetAllStrategyByPipelineIds(dbPipelineIds)
+	if err != nil && !errors.IsNotFound(err) {
+		impl.logger.Errorw("error in fetching strategies by pipelineIds", "PipelineIds", dbPipelineIds, "err", err)
+		return strategiesMapping, err
+	}
+	for _, strategy := range strategiesByPipelineIds {
+		strategiesMapping[strategy.PipelineId] = append(strategiesMapping[strategy.PipelineId], strategy)
+	}
+	return strategiesMapping, nil
+}
+
 func (impl PipelineBuilderImpl) GetTriggerViewCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error) {
-	return impl.ciCdPipelineOrchestrator.GetCdPipelinesForApp(appId)
+	triggerViewCdPipelinesResp, err := impl.ciCdPipelineOrchestrator.GetCdPipelinesForApp(appId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching triggerViewCdPipelinesResp by appId", "err", err, "appId", appId)
+		return triggerViewCdPipelinesResp, err
+	}
+	var dbPipelineIds []int
+	for _, dbPipeline := range triggerViewCdPipelinesResp.Pipelines {
+		dbPipelineIds = append(dbPipelineIds, dbPipeline.Id)
+	}
+
+	//construct strategiesMapping to get all strategies against pipelineId
+	strategiesMapping, err := impl.getStrategiesMapping(dbPipelineIds)
+	if err != nil {
+		return triggerViewCdPipelinesResp, err
+	}
+	for _, dbPipeline := range triggerViewCdPipelinesResp.Pipelines {
+		var strategies []*chartConfig.PipelineStrategy
+		var deploymentTemplate chartRepoRepository.DeploymentStrategy
+		if len(strategiesMapping[dbPipeline.Id]) != 0 {
+			strategies = strategiesMapping[dbPipeline.Id]
+		}
+		for _, item := range strategies {
+			if item.Default {
+				deploymentTemplate = item.Strategy
+			}
+		}
+		dbPipeline.DeploymentTemplate = deploymentTemplate
+	}
+
+	return triggerViewCdPipelinesResp, err
 }
 
 func (impl PipelineBuilderImpl) GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error) {
@@ -2754,7 +2853,6 @@ func (impl PipelineBuilderImpl) GetCdPipelinesForApp(appId int) (cdPipelines *be
 		return cdPipelines, nil
 	}
 	envMapping := make(map[int]*repository2.Environment)
-	strategiesMapping := make(map[int][]*chartConfig.PipelineStrategy)
 	appWorkflowMapping := make(map[int]*appWorkflow.AppWorkflowMapping)
 
 	envs, err := impl.environmentRepository.FindByIds(envIds)
@@ -2766,17 +2864,10 @@ func (impl PipelineBuilderImpl) GetCdPipelinesForApp(appId int) (cdPipelines *be
 	for _, env := range envs {
 		envMapping[env.Id] = env
 	}
-
-	strategiesByPipelineIds, err := impl.pipelineConfigRepository.GetAllStrategyByPipelineIds(dbPipelineIds)
-	if err != nil && errors.IsNotFound(err) {
-		impl.logger.Errorw("error in fetching strategies by pipelineIds", "err", err)
+	strategiesMapping, err := impl.getStrategiesMapping(dbPipelineIds)
+	if err != nil {
 		return cdPipelines, err
 	}
-	//creating map for dbPipelineId and it's respective strategies
-	for _, strategy := range strategiesByPipelineIds {
-		strategiesMapping[strategy.PipelineId] = append(strategiesMapping[strategy.PipelineId], strategy)
-	}
-
 	appWorkflowMappings, err := impl.appWorkflowRepository.FindByCDPipelineIds(dbPipelineIds)
 	if err != nil {
 		impl.logger.Errorw("error in fetching app workflow mappings by pipelineIds", "err", err)

@@ -19,6 +19,9 @@ import (
 )
 
 type UserCommonService interface {
+	GetPValUpdateMap(team, entityName, env, entity, cluster, namespace, group, kind, resource string, approver bool) map[repository2.PValUpdateKey]string
+	GetRenderedRoleData(defaultRoleData repository2.RoleCacheDetailObj, pValUpdateMap map[repository2.PValUpdateKey]string) *repository2.RoleModel
+	GetRenderedPolicy(defaultPolicy repository2.PolicyCacheDetailObj, pValUpdateMap map[repository2.PValUpdateKey]string) []casbin.Policy
 	CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, approver bool, userId int32) (bool, error, []casbin.Policy)
 	RemoveRolesAndReturnEliminatedPolicies(userInfo *bean.UserInfo, existingRoleIds map[int]repository2.UserRoleModel, eliminatedRoleIds map[int]*repository2.UserRoleModel, tx *pg.Tx, token string, managerAuth func(resource, token, object string) bool) ([]casbin.Policy, error)
 	RemoveRolesAndReturnEliminatedPoliciesForGroups(request *bean.RoleGroup, existingRoles map[int]*repository2.RoleGroupRoleMapping, eliminatedRoles map[int]*repository2.RoleGroupRoleMapping, tx *pg.Tx, token string, managerAuth func(resource string, token string, object string) bool) ([]casbin.Policy, error)
@@ -65,7 +68,7 @@ func NewUserCommonServiceImpl(userAuthRepository repository2.UserAuthRepository,
 }
 
 type UserRbacConfig struct {
-	UseRbacCreationV2 bool `env:"USE_RBAC_CREATION_V2" envDefault:"false"`
+	UseRbacCreationV2 bool `env:"USE_RBAC_CREATION_V2" envDefault:"true"`
 }
 
 func (impl UserCommonServiceImpl) CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, approver bool, userId int32) (bool, error, []casbin.Policy) {
@@ -81,35 +84,40 @@ func (impl UserCommonServiceImpl) CreateDefaultPoliciesForAllTypesV2(team, entit
 	//TODO: below txn is making this process slow, need to do bulk operation for role creation.
 	//For detail - https://github.com/devtron-labs/devtron/blob/main/pkg/user/benchmarking-results
 
-	renderedRole, renderedPolicyDetails := impl.getRenderedRoleAndPolicy(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType, approver)
-	_, err := impl.userAuthRepository.CreateRole(renderedRole)
+	renderedRole, renderedPolicyDetails, err := impl.getRenderedRoleAndPolicy(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType, approver)
+	if err != nil {
+		return false, err, nil
+	}
+	_, err = impl.userAuthRepository.CreateRole(renderedRole)
 	if err != nil && strings.Contains("duplicate key value violates unique constraint", err.Error()) {
 		return false, err, nil
 	}
 	return true, nil, renderedPolicyDetails
 }
 
-func (impl UserCommonServiceImpl) getRenderedRoleAndPolicy(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, approver bool) (*repository2.RoleModel, []casbin.Policy) {
+func (impl UserCommonServiceImpl) getRenderedRoleAndPolicy(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, approver bool) (*repository2.RoleModel, []casbin.Policy, error) {
 	//getting map of values to be used for rendering
-	pValUpdateMap := getPValUpdateMap(team, entityName, env, entity, cluster, namespace, group, kind, resource, approver)
+	pValUpdateMap := impl.GetPValUpdateMap(team, entityName, env, entity, cluster, namespace, group, kind, resource, approver)
 
 	//getting default role data and policy
-	defaultRoleData, defaultPolicy := impl.getDefaultRbacRoleAndPolicyByRoleFilter(entity, accessType, actionType)
-
+	defaultRoleData, defaultPolicy, err := impl.getDefaultRbacRoleAndPolicyByRoleFilter(entity, accessType, actionType)
+	if err != nil {
+		return nil, nil, err
+	}
 	//getting rendered role and policy data
-	renderedRoleData := getRenderedRoleData(defaultRoleData, pValUpdateMap)
-	renderedPolicy := getRenderedPolicy(defaultPolicy, pValUpdateMap)
+	renderedRoleData := impl.GetRenderedRoleData(defaultRoleData, pValUpdateMap)
+	renderedPolicy := impl.GetRenderedPolicy(defaultPolicy, pValUpdateMap)
 
-	return renderedRoleData, renderedPolicy
+	return renderedRoleData, renderedPolicy, nil
 }
 
-func (impl UserCommonServiceImpl) getDefaultRbacRoleAndPolicyByRoleFilter(entity, accessType, action string) (repository2.RoleCacheDetailObj, repository2.PolicyCacheDetailObj) {
+func (impl UserCommonServiceImpl) getDefaultRbacRoleAndPolicyByRoleFilter(entity, accessType, action string) (repository2.RoleCacheDetailObj, repository2.PolicyCacheDetailObj, error) {
 	//getting default role and policy data from cache
 	return impl.defaultRbacDataCacheFactory.
 		GetDefaultRoleDataAndPolicyByEntityAccessTypeAndRoleType(entity, accessType, action)
 }
 
-func getRenderedRoleData(defaultRoleData repository2.RoleCacheDetailObj, pValUpdateMap map[repository2.PValUpdateKey]string) *repository2.RoleModel {
+func (impl UserCommonServiceImpl) GetRenderedRoleData(defaultRoleData repository2.RoleCacheDetailObj, pValUpdateMap map[repository2.PValUpdateKey]string) *repository2.RoleModel {
 	renderedRoleData := &repository2.RoleModel{
 		Role:        getResolvedValueFromPValDetailObject(defaultRoleData.Role, pValUpdateMap).String(),
 		Entity:      getResolvedValueFromPValDetailObject(defaultRoleData.Entity, pValUpdateMap).String(),
@@ -132,7 +140,7 @@ func getRenderedRoleData(defaultRoleData repository2.RoleCacheDetailObj, pValUpd
 	return renderedRoleData
 }
 
-func getRenderedPolicy(defaultPolicy repository2.PolicyCacheDetailObj, pValUpdateMap map[repository2.PValUpdateKey]string) []casbin.Policy {
+func (impl UserCommonServiceImpl) GetRenderedPolicy(defaultPolicy repository2.PolicyCacheDetailObj, pValUpdateMap map[repository2.PValUpdateKey]string) []casbin.Policy {
 	renderedPolicies := make([]casbin.Policy, 0, len(defaultPolicy.ResActObjSet))
 	policyType := getResolvedValueFromPValDetailObject(defaultPolicy.Type, pValUpdateMap)
 	policySub := getResolvedValueFromPValDetailObject(defaultPolicy.Sub, pValUpdateMap)
@@ -170,7 +178,7 @@ func getResolvedValueFromPValDetailObject(pValDetailObj repository2.PValDetailOb
 	return repository2.NewPValResolvedValue(string(resolvedValueInBytes))
 }
 
-func getPValUpdateMap(team, entityName, env, entity, cluster,
+func (impl UserCommonServiceImpl) GetPValUpdateMap(team, entityName, env, entity, cluster,
 	namespace, group, kind, resource string, approver bool) map[repository2.PValUpdateKey]string {
 	pValUpdateMap := make(map[repository2.PValUpdateKey]string)
 	pValUpdateMap[repository2.EntityPValUpdateKey] = entity
