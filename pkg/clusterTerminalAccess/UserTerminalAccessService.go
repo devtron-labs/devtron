@@ -1079,7 +1079,8 @@ func (impl *UserTerminalAccessServiceImpl) EditTerminalPodManifest(ctx context.C
 		impl.Logger.Errorw("failed to create terminal entity", "userTerminalAccessId", userTerminalAccessId, "err", err)
 		return result, err
 	}
-
+	//delete resourceVersion before applying the pod yaml got from user, we are deleting this field because we never update the pod,we always create a new pod.
+	podObject.ResourceVersion = ""
 	//create podTemplate from PodObject
 	podTemplateBytes, err := json.Marshal(&podObject)
 	podTemplate := string(podTemplateBytes)
