@@ -1,0 +1,1 @@
+ALTER TABLE "public"."git_material" DROP COLUMN "filter_pattern";
