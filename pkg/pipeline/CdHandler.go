@@ -1311,6 +1311,9 @@ func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(userId int32, approva
 		if err != nil {
 			return errors.New("failed to fetch approval request data")
 		}
+		if approvalRequest.ArtifactDeploymentTriggered == true {
+			return errors.New("deployment has already been triggered for this request")
+		}
 		if approvalRequest.CreatedBy == userId {
 			return errors.New("requester cannot be an approver")
 		}
