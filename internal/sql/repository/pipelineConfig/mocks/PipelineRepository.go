@@ -984,6 +984,20 @@ func (_m *PipelineRepository) Save(pipeline []*pipelineConfig.Pipeline, tx *pg.T
 	return r0
 }
 
+// SetDeploymentAppCreatedInPipeline provides a mock function with given fields: deploymentAppCreated, pipelineId, userId
+func (_m *PipelineRepository) SetDeploymentAppCreatedInPipeline(deploymentAppCreated bool, pipelineId int, userId int32) error {
+	ret := _m.Called(deploymentAppCreated, pipelineId, userId)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(bool, int, int32) error); ok {
+		r0 = rf(deploymentAppCreated, pipelineId, userId)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // UndoDelete provides a mock function with given fields: id
 func (_m *PipelineRepository) UndoDelete(id int) error {
 	ret := _m.Called(id)
@@ -1031,20 +1045,6 @@ func (_m *PipelineRepository) Update(pipeline *pipelineConfig.Pipeline, tx *pg.T
 	var r0 error
 	if rf, ok := ret.Get(0).(func(*pipelineConfig.Pipeline, *pg.Tx) error); ok {
 		r0 = rf(pipeline, tx)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// UpdateCdPipeline provides a mock function with given fields: pipeline
-func (_m *PipelineRepository) SetDeploymentAppCreatedInPipeline(deploymentAppCreated bool, pipelineId int, userId int32) error {
-	ret := _m.Called(pipeline)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(*pipelineConfig.Pipeline) error); ok {
-		r0 = rf(pipeline)
 	} else {
 		r0 = ret.Error(0)
 	}
