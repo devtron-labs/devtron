@@ -1055,8 +1055,12 @@ func (impl *UserTerminalAccessServiceImpl) EditTerminalPodManifest(ctx context.C
 	if len(podObject.Namespace) == 0 {
 		podObject.Namespace = utils1.DefaultNamespace
 	}
-
-	if podObject.Name != editManifestRequest.PodName {
+	terminalAccessData, err := impl.TerminalAccessRepository.GetUserTerminalAccessData(userTerminalAccessId)
+	if err != nil {
+		impl.Logger.Errorw("error occurred while fetching user terminal access data", "userTerminalAccessId", userTerminalAccessId, "err", err)
+		return result, err
+	}
+	if podObject.Name != terminalAccessData.PodName {
 		if !editManifestRequest.ForceDelete && impl.checkOtherPodExists(ctx, podObject.Name, podObject.Namespace, editManifestRequest.ClusterId) {
 			result.PodExists = true
 			result.PodName = podObject.Name
