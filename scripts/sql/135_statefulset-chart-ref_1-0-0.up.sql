@@ -6,11 +6,9 @@ INSERT INTO global_strategy_metadata("id","name","key","description","deleted","
 (nextval('id_seq_global_strategy_metadata'),'ONDELETE','onDelete','OnDelete strategy for statefulset.',false,now(),1,now(),1);
 
 
-INSERT INTO global_strategy_metadata_chart_ref_mapping ("global_strategy_metadata_id", "chart_ref_id", "active", "created_on", "created_by", "updated_on", "updated_by") VALUES 
-((select id from global_strategy_metadata where name='ROLLINGUPDATE') ,(select id from chart_ref where location='statefulset-chart_1-0-0'), true, now(), 1, now(), 1),
-((select id from global_strategy_metadata where name='ONDELETE') ,(select id from chart_ref where location='statefulset-chart_1-0-0'), true, now(), 1, now(), 1);
-
-UPDATE global_strategy_metadata_chart_ref_mapping set "default"=true WHERE global_strategy_metadata_id=(SELECT id from global_strategy_metadata WHERE name like 'ROLLINGUPDATE');
+INSERT INTO global_strategy_metadata_chart_ref_mapping ("global_strategy_metadata_id","chart_ref_id", "active","default","created_on", "created_by", "updated_on", "updated_by") VALUES 
+((select id from global_strategy_metadata where name='ROLLINGUPDATE') ,(select id from chart_ref where location='statefulset-chart_1-0-0'), true,true,now(), 1, now(), 1),
+((select id from global_strategy_metadata where name='ONDELETE') ,(select id from chart_ref where location='statefulset-chart_1-0-0'), true, false,now(), 1, now(), 1);
 
 
 INSERT INTO chart_ref_metadata("chart_name","chart_description") VALUES 

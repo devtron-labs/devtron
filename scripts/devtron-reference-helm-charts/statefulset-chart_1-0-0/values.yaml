@@ -116,38 +116,15 @@ statefulSetConfig:
   labels: {}
   annotations: {}
   #serviceName: "test-service_headless"
-  podManagementPolicy: "Parallel"
-  updateStrategy:
-    type: RollingUpdate
-    partition: 2
-  revisionHistoryLimit: 3
+  # podManagementPolicy: "Parallel"
+  # revisionHistoryLimit: 3
   mountPath: ""
   volumeClaimTemplates:
-  - apiVersion: v1
-    kind: PersistentVolumeClaim
-    metadata:
-      labels:
-        app: myapp
+  - metadata: {}
     spec:
-      accessModes:
-        - ReadWriteOnce
-        - ReadWriteOnce
-        - ReadWriteOnce
-      dataSource:
-        kind: Snapshot
-        apiGroup: snapshot.storage.k8s.io
-        name: my-snapshot
-      resources:
-        requests:
-          storage: 10Gi
-        limits:
-          storage: 20Gi
-      storageClassName: my-storage-class
-      selector:
-        matchLabels:
-          app: myapp
-      volumeMode: Filesystem
-      volumeName: my-pv
+      accessModes: []
+      dataSource: {}
+      resources: {}
 
 #service_headless: {}
   #name: "test-service_headless"

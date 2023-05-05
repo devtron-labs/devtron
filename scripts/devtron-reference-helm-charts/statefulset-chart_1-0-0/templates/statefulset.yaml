@@ -291,6 +291,24 @@ spec:
             - name: {{ .name}}
               value: {{ .value | quote }}
           {{- end}}
+          {{- range $.Values.EnvVariablesFromSecretKeys }}
+          {{- if and .name .secretName .keyName }}
+            - name: {{ .name }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .secretName }}
+                  key: {{ .keyName }}
+          {{- end }}
+          {{- end }}
+          {{- range $.Values.EnvVariablesFromCongigMapKeys }}
+          {{- if and .name .configMapName .keyName }}
+            - name: {{ .name }}
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .configMapName }}
+                  key: {{ .keyName }}
+          {{- end }}
+          {{- end }}
           {{- if or (and ($hasCMEnvExists) (.Values.ConfigMaps.enabled)) (and ($hasSecretEnvExists) (.Values.ConfigSecrets.enabled)) }}
           envFrom:
           {{- if .Values.ConfigMaps.enabled }}
@@ -429,7 +447,7 @@ spec:
           {{- end }}
           {{- end }}
           {{- if and (eq (len .Values.volumes) 0) (or (eq (.Values.ConfigSecrets.enabled) true) (eq (.Values.ConfigMaps.enabled) true)) (eq ($hasCMVolumeExists) false) (eq ($hasSecretVolumeExists) false) }} []{{- end }}
-          {{- if and (eq (len .Values.volumeMounts) 0) (eq (.Values.ConfigSecrets.enabled) false) (eq (.Values.ConfigMaps.enabled) false) (eq (len .Values.statefulSetConfig.volumeMounts) 0) }} [] {{- end }}
+          {{- if and (eq (len .Values.volumeMounts) 0) (eq (.Values.ConfigSecrets.enabled) false) (eq (.Values.ConfigMaps.enabled) false) }} [] {{- end }}
       volumes:
   {{- if $.Values.appMetrics }}
         - name: envoy-config-volume
@@ -520,6 +538,7 @@ spec:
         {{- if .spec.storageClassName }}
         storageClassName: {{ .spec.storageClassName }}
         {{- end}}
+        {{- if .spec.resources }}
         resources:
          {{- if .spec.resources.claim }}
             claims:
@@ -530,6 +549,7 @@ spec:
             {{- end}}
             requests:
               storage: {{ .spec.resources.requests.storage }}
+        {{- end }}
         {{- if .volumeMode }}
         volumeMode: {{ .volumeMode}}
         {{- end}}

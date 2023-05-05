@@ -15,21 +15,29 @@ containerSpec:
         path: /example
         port: 90
 appLabels: {}
+EnvVariablesFromSecretKeys: []
+  # - name: ENV_NAME
+  #   secretName: SECRET_NAME
+  #   keyName: SECRET_KEY
+
+EnvVariablesFromCongigMapKeys: []
+  # - name: ENV_NAME
+  #   configMapName: CONFIG_MAP_NAME
+  #   keyName: CONFIG_MAP_KEY
+
 
 statefulSetConfig:
   labels: {}
   annotations: {}
   #serviceName: "test-service_headless"
-  revisionHistoryLimit: 3
+  #revisionHistoryLimit: 3
   mountPath: ""
-  volumeClaimTemplates: 
+  volumeClaimTemplates:
   - metadata: {}
     spec:
-      accessModes:
-        - ReadWriteOnce
-      resources:
-        requests:
-          storage: 2Gi
+      accessModes: []
+      dataSource: {}
+      resources: {}
 service:
   type: ClusterIP
   enabled: false
