@@ -36,6 +36,26 @@ EnvVariables: []
 ```
 To set environment variables for the containers that run in the Pod.
 
+### EnvVariablesFromSecretKeys
+```yaml
+EnvVariablesFromSecretKeys: 
+  - name: ENV_NAME
+    secretName: SECRET_NAME
+    keyName: SECRET_KEY
+
+```
+ It is use to get the name of Environment Variable name, Secret name and the Key name from which we are using the value in that corresponding Environment Variable.
+
+ ### EnvVariablesFromCongigMapKeys
+```yaml
+EnvVariablesFromCongigMapKeys: 
+  - name: ENV_NAME
+    configMapName: CONFIG_MAP_NAME
+    keyName: CONFIG_MAP_KEY
+
+```
+ It is use to get the name of Environment Variable name, Config Map name and the Key name from which we are using the value in that corresponding Environment Variable.
+
 ### Liveness Probe
 
 If this check fails, kubernetes restarts the pod. This should return error code in case of non-recoverable error.
