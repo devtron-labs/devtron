@@ -142,7 +142,7 @@
                 "type": "object",
                 "description": "used to define the desire state of the given volume",
                 "title": "Spec",
-                "items": {
+                "items": [{
                   "type":"object",
                   "properties": {
                     "accessModes":{
@@ -292,7 +292,7 @@
                       "description": "(optional): The name of the PersistentVolume to use for the volume claim."
                     }
                   }
-                }
+                }]
               }
             }}
             ]
