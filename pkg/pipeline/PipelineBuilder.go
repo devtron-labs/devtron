@@ -2361,8 +2361,8 @@ func (impl PipelineBuilderImpl) TriggerDeploymentAfterTypeChange(ctx context.Con
 			"err", err)
 	}
 
-	err = impl.pipelineRepository.UpdateCdPipelineDeploymentAppInFilter(string(request.DesiredDeploymentType),
-		successPipelines, request.UserId, true, false)
+	err = impl.pipelineRepository.UpdateCdPipelineAfterDeployment(string(request.DesiredDeploymentType),
+		successPipelines, request.UserId, false)
 
 	if err != nil {
 		impl.logger.Errorw("failed to update cd pipelines with error: : "+err.Error(),

@@ -97,6 +97,7 @@ type PipelineRepository interface {
 	FindActiveByAppIdAndPipelineId(appId int, pipelineId int) ([]*Pipeline, error)
 	SetDeploymentAppCreatedInPipeline(deploymentAppCreated bool, pipelineId int, userId int32) error
 	UpdateCdPipelineDeploymentAppInFilter(deploymentAppType string, cdPipelineIdIncludes []int, userId int32, deploymentAppCreated bool, delete bool) error
+	UpdateCdPipelineAfterDeployment(deploymentAppType string, cdPipelineIdIncludes []int, userId int32, delete bool) error
 	FindNumberOfAppsWithCdPipeline(appIds []int) (count int, err error)
 	GetAppAndEnvDetailsForDeploymentAppTypePipeline(deploymentAppType string, clusterIds []int) ([]*Pipeline, error)
 	GetArgoPipelinesHavingTriggersStuckInLastPossibleNonTerminalTimelines(pendingSinceSeconds int, timeForDegradation int) ([]*Pipeline, error)
@@ -505,6 +506,16 @@ func (impl PipelineRepositoryImpl) UpdateCdPipelineDeploymentAppInFilter(deploym
 		"updated_by = ?, updated_on = ?, deployment_app_delete_request = ? where id in (?);"
 	var pipeline *Pipeline
 	_, err := impl.dbConnection.Query(pipeline, query, deploymentAppCreated, deploymentAppType, userId, time.Now(), delete, pg.In(cdPipelineIdIncludes))
+
+	return err
+}
+
+func (impl PipelineRepositoryImpl) UpdateCdPipelineAfterDeployment(deploymentAppType string,
+	cdPipelineIdIncludes []int, userId int32, delete bool) error {
+	query := "update pipeline set deployment_app_type = ?, " +
+		"updated_by = ?, updated_on = ?, deployment_app_delete_request = ? where id in (?);"
+	var pipeline *Pipeline
+	_, err := impl.dbConnection.Query(pipeline, query, deploymentAppType, userId, time.Now(), delete, pg.In(cdPipelineIdIncludes))
 
 	return err
 }
