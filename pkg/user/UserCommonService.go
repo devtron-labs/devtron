@@ -80,29 +80,34 @@ func (impl UserCommonServiceImpl) CreateDefaultPoliciesForAllTypesV2(team, entit
 	//TODO: below txn is making this process slow, need to do bulk operation for role creation.
 	//For detail - https://github.com/devtron-labs/devtron/blob/main/pkg/user/benchmarking-results
 
-	renderedRole, renderedPolicyDetails := impl.getRenderedRoleAndPolicy(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType)
-	_, err := impl.userAuthRepository.CreateRole(renderedRole)
+	renderedRole, renderedPolicyDetails, err := impl.getRenderedRoleAndPolicy(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType)
+	if err != nil {
+		return false, err, nil
+	}
+	_, err = impl.userAuthRepository.CreateRole(renderedRole)
 	if err != nil && strings.Contains("duplicate key value violates unique constraint", err.Error()) {
 		return false, err, nil
 	}
 	return true, nil, renderedPolicyDetails
 }
 
-func (impl UserCommonServiceImpl) getRenderedRoleAndPolicy(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string) (*repository2.RoleModel, []casbin.Policy) {
+func (impl UserCommonServiceImpl) getRenderedRoleAndPolicy(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string) (*repository2.RoleModel, []casbin.Policy, error) {
 	//getting map of values to be used for rendering
 	pValUpdateMap := getPValUpdateMap(team, entityName, env, entity, cluster, namespace, group, kind, resource)
 
 	//getting default role data and policy
-	defaultRoleData, defaultPolicy := impl.getDefaultRbacRoleAndPolicyByRoleFilter(entity, accessType, actionType)
-
+	defaultRoleData, defaultPolicy, err := impl.getDefaultRbacRoleAndPolicyByRoleFilter(entity, accessType, actionType)
+	if err != nil {
+		return nil, nil, err
+	}
 	//getting rendered role and policy data
 	renderedRoleData := getRenderedRoleData(defaultRoleData, pValUpdateMap)
 	renderedPolicy := getRenderedPolicy(defaultPolicy, pValUpdateMap)
 
-	return renderedRoleData, renderedPolicy
+	return renderedRoleData, renderedPolicy, nil
 }
 
-func (impl UserCommonServiceImpl) getDefaultRbacRoleAndPolicyByRoleFilter(entity, accessType, action string) (repository2.RoleCacheDetailObj, repository2.PolicyCacheDetailObj) {
+func (impl UserCommonServiceImpl) getDefaultRbacRoleAndPolicyByRoleFilter(entity, accessType, action string) (repository2.RoleCacheDetailObj, repository2.PolicyCacheDetailObj, error) {
 	//getting default role and policy data from cache
 	return impl.defaultRbacDataCacheFactory.
 		GetDefaultRoleDataAndPolicyByEntityAccessTypeAndRoleType(entity, accessType, action)

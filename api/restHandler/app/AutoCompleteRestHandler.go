@@ -79,7 +79,7 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListForAutocomplete(w http.Re
 	token := r.Header.Get("token")
 	userEmailId, err := handler.userAuthService.GetEmailFromToken(token)
 	if err != nil {
-		handler.Logger.Errorw("error in getting user emailId from token", "userId", userId, "token", token)
+		handler.Logger.Errorw("error in getting user emailId from token", "userId", userId, "err", err)
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
