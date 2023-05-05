@@ -38,7 +38,6 @@ import (
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/app"
-	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"go.uber.org/zap"
 	v12 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -168,6 +167,8 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	templates := make([]v1alpha1.Template, 0)
 
 	var globalCmCsConfigs []*bean3.GlobalCMCSDto
+	var workflowConfigMaps []bean.ConfigSecretMap
+	var workflowSecrets []bean.ConfigSecretMap
 
 	if !workflowRequest.IsExtRun {
 		globalCmCsConfigs, err = impl.globalCMCSService.FindAllActiveByPipelineType(repository2.PIPELINE_TYPE_CD)
@@ -184,56 +185,25 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		}
 
 		//TODO KB: get cm and secret data instead of templates
-		err = AddTemplatesForGlobalSecretsInWorkflowTemplate(globalCmCsConfigs, &steps, &volumes, &templates)
+		//err = AddTemplatesForGlobalSecretsInWorkflowTemplate(globalCmCsConfigs, &steps, &volumes, &templates)
+		workflowConfigMaps, workflowSecrets, err = GetFromGlobalCmCsDtos(globalCmCsConfigs)
 		if err != nil {
 			impl.Logger.Errorw("error in creating templates for global secrets", "err", err)
 		}
 	}
 
-	preStageConfigMapSecretsJson := pipeline.PreStageConfigMapSecretNames
-	postStageConfigMapSecretsJson := pipeline.PostStageConfigMapSecretNames
+	cdPipelineLevelConfigMaps, cdPipelineLevelSecrets, err := pipeline.GetConfiguredCmCs(workflowRequest.StageType)
+	if err != nil {
+		impl.Logger.Errorw("error occurred while fetching pipeline configured cm and cs", "pipelineId", pipeline.Id, "err", err)
+		return nil, err
+	}
 
 	existingConfigMap, existingSecrets, err := impl.appService.GetCmSecretNew(workflowRequest.AppId, workflowRequest.EnvironmentId)
 	if err != nil {
 		impl.Logger.Errorw("failed to get configmap data", "err", err)
 		return nil, err
 	}
-	impl.Logger.Debugw("existing cm sec", "cm", existingConfigMap)
-
-	preStageConfigmapSecrets := bean2.PreStageConfigMapSecretNames{}
-	err = json.Unmarshal([]byte(preStageConfigMapSecretsJson), &preStageConfigmapSecrets)
-	if err != nil {
-		impl.Logger.Error(err)
-		return nil, err
-	}
-	postStageConfigmapSecrets := bean2.PostStageConfigMapSecretNames{}
-	err = json.Unmarshal([]byte(postStageConfigMapSecretsJson), &postStageConfigmapSecrets)
-	if err != nil {
-		impl.Logger.Error(err)
-		return nil, err
-	}
-
-	cdPipelineLevelConfigMaps := make(map[string]bool)
-	cdPipelineLevelSecrets := make(map[string]bool)
-
-	if workflowRequest.StageType == PRE {
-		for _, cm := range preStageConfigmapSecrets.ConfigMaps {
-			cdPipelineLevelConfigMaps[cm] = true
-		}
-		for _, secret := range preStageConfigmapSecrets.Secrets {
-			cdPipelineLevelSecrets[secret] = true
-		}
-	} else {
-		for _, cm := range postStageConfigmapSecrets.ConfigMaps {
-			cdPipelineLevelConfigMaps[cm] = true
-		}
-		for _, secret := range postStageConfigmapSecrets.Secrets {
-			cdPipelineLevelSecrets[secret] = true
-		}
-	}
-
-	var workflowConfigMaps []bean.ConfigSecretMap
-	var workflowSecrets []bean.ConfigSecretMap
+	impl.Logger.Debugw("existing cm", "pipelineId", pipeline.Id, "cm", existingConfigMap)
 
 	for _, cm := range existingConfigMap.Maps {
 		if _, ok := cdPipelineLevelConfigMaps[cm.Name]; ok {
@@ -285,15 +255,9 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 			},
 		},
 	}
+	UpdateContainerEnvsFromCmCs(workflowMainContainer, workflowConfigMaps, workflowSecrets)
+
 	workflowTemplate.Containers = []v12.Container{workflowMainContainer}
-
-	for _, configMap := range workflowConfigMaps {
-		UpdateContainerEnvs(true, workflowMainContainer, configMap)
-	}
-
-	for _, secret := range workflowSecrets {
-		UpdateContainerEnvs(false, workflowMainContainer, secret)
-	}
 
 	configMaps := bean.ConfigMapJson{}
 	for _, cm := range existingConfigMap.Maps {

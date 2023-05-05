@@ -65,11 +65,17 @@ func extractVolumesFromConfigSecretMaps(isCm bool, configSecretMaps []bean2.Conf
 	return volumes
 }
 
-func UpdateContainerEnvs1(workflowMainContainer v12.Container, configMaps []bean2.ConfigSecretMap, secrets []bean2.ConfigSecretMap) {
+func UpdateContainerEnvsFromCmCs(workflowMainContainer v12.Container, configMaps []bean2.ConfigSecretMap, secrets []bean2.ConfigSecretMap) {
+	for _, configMap := range configMaps {
+		updateContainerEnvs(true, workflowMainContainer, configMap)
+	}
 
+	for _, secret := range secrets {
+		updateContainerEnvs(false, workflowMainContainer, secret)
+	}
 }
 
-func UpdateContainerEnvs(isCM bool, workflowMainContainer v12.Container, configSecretMap bean2.ConfigSecretMap) {
+func updateContainerEnvs(isCM bool, workflowMainContainer v12.Container, configSecretMap bean2.ConfigSecretMap) {
 	if configSecretMap.Type == repository.VOLUME_CONFIG {
 		workflowMainContainer.VolumeMounts = append(workflowMainContainer.VolumeMounts, v12.VolumeMount{
 			Name:      configSecretMap.Name + "-vol",
@@ -147,6 +153,24 @@ func GetSecretBody(configMapSecretDto ConfigMapSecretDto) v12.Secret {
 		Data: secretDataMap,
 		Type: "Opaque",
 	}
+}
+
+func GetFromGlobalCmCsDtos(globalCmCsConfigs []*bean.GlobalCMCSDto) ([]bean2.ConfigSecretMap, []bean2.ConfigSecretMap, error) {
+	workflowConfigMaps := make([]bean2.ConfigSecretMap, 0, len(globalCmCsConfigs))
+	workflowSecrets := make([]bean2.ConfigSecretMap, 0, len(globalCmCsConfigs))
+
+	for _, config := range globalCmCsConfigs {
+		configSecretMap, err := config.ConvertToConfigSecretMap()
+		if err != nil {
+			return workflowConfigMaps, workflowSecrets, err
+		}
+		if config.ConfigType == repository.CM_TYPE_CONFIG {
+			workflowConfigMaps = append(workflowConfigMaps, configSecretMap)
+		} else {
+			workflowSecrets = append(workflowSecrets, configSecretMap)
+		}
+	}
+	return workflowConfigMaps, workflowSecrets, nil
 }
 
 func AddTemplatesForGlobalSecretsInWorkflowTemplate(globalCmCsConfigs []*bean.GlobalCMCSDto, steps *[]v1alpha1.ParallelSteps, volumes *[]v12.Volume, templates *[]v1alpha1.Template) error {
