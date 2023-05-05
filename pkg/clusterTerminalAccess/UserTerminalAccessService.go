@@ -14,6 +14,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/k8s"
+	"github.com/go-pg/pg"
 	"github.com/robfig/cron/v3"
 	"github.com/yannh/kubeconform/pkg/resource"
 	"github.com/yannh/kubeconform/pkg/validator"
@@ -1056,11 +1057,11 @@ func (impl *UserTerminalAccessServiceImpl) EditTerminalPodManifest(ctx context.C
 		podObject.Namespace = utils1.DefaultNamespace
 	}
 	terminalAccessData, err := impl.TerminalAccessRepository.GetUserTerminalAccessData(userTerminalAccessId)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("error occurred while fetching user terminal access data", "userTerminalAccessId", userTerminalAccessId, "err", err)
 		return result, err
 	}
-	if podObject.Name != terminalAccessData.PodName {
+	if terminalAccessData == nil || podObject.Name != terminalAccessData.PodName {
 		if !editManifestRequest.ForceDelete && impl.checkOtherPodExists(ctx, podObject.Name, podObject.Namespace, editManifestRequest.ClusterId) {
 			result.PodExists = true
 			result.PodName = podObject.Name
