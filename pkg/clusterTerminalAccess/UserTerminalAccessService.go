@@ -1056,7 +1056,7 @@ func (impl *UserTerminalAccessServiceImpl) EditTerminalPodManifest(ctx context.C
 	if len(podObject.Namespace) == 0 {
 		podObject.Namespace = utils1.DefaultNamespace
 	}
-	terminalAccessData, err := impl.TerminalAccessRepository.GetUserTerminalAccessData(userTerminalAccessId)
+	terminalAccessData, err := impl.getTerminalAccessDataForId(userTerminalAccessId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("error occurred while fetching user terminal access data", "userTerminalAccessId", userTerminalAccessId, "err", err)
 		return result, err
