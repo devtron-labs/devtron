@@ -19,6 +19,7 @@ service ApplicationService {
   rpc ListApplications(AppListRequest) returns (stream DeployedAppList){}
   rpc GetAppDetail(AppDetailRequest) returns (AppDetail){}
   rpc GetAppStatus(AppDetailRequest) returns (AppStatus){}
+  rpc GetAppStatusWithLastDeployed(AppDetailRequest) returns (AppStatusWithLastDeployed){}
   rpc Hibernate(HibernateRequest) returns (HibernateResponse){}
   rpc UnHibernate(HibernateRequest) returns (HibernateResponse){}
   rpc GetDeploymentHistory(AppDetailRequest) returns (HelmAppDeploymentHistory){}
@@ -79,6 +80,11 @@ message AppDetail{
 
 message AppStatus{
   string applicationStatus = 1;
+}
+
+message AppStatusWithLastDeployed{
+  string applicationStatus = 1;
+  google.protobuf.Timestamp LastDeployed = 6;
 }
 
 message ReleaseStatus {
