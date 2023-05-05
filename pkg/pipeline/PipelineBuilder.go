@@ -2611,7 +2611,7 @@ func (impl PipelineBuilderImpl) FetchDeletedApp(ctx context.Context,
 				failedPipelines,
 				pipeline,
 				"App Not Yet Deleted.",
-				bean.NOT_DELETED)
+				bean.NOT_YET_DELETED)
 		}
 	}
 
