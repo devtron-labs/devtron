@@ -51,7 +51,7 @@ func IsNodeDebugPod(pod *v1.Pod) bool {
 	}
 
 	return volumeMatch && container.TTY && container.Stdin &&
-		(container.SecurityContext == nil) && (pod.Spec.NodeName == "") &&
+		(container.SecurityContext == nil) && (pod.Spec.NodeName != "") &&
 		pod.Spec.HostIPC && pod.Spec.HostPID && pod.Spec.HostNetwork
 
 }
