@@ -1151,17 +1151,17 @@ func (impl InstalledAppServiceImpl) FetchResourceTreeWithHibernateForACD(rctx co
 func checkHibernate(impl InstalledAppServiceImpl, resp *bean2.AppDetailContainer, ctx context.Context) map[string]interface{} {
 
 	responseTree := resp.ResourceTree
+	deploymentAppName := resp.AppName + "-" + resp.EnvironmentName
 
 	for _, node := range responseTree["nodes"].(interface{}).([]interface{}) {
 		currNode := node.(interface{}).(map[string]interface{})
-		name := resp.AppName + "-" + resp.Namespace
 		resName := util3.InterfaceToString(currNode["name"])
 		resKind := util3.InterfaceToString(currNode["kind"])
 		resGroup := util3.InterfaceToString(currNode["group"])
 		resVersion := util3.InterfaceToString(currNode["version"])
 		resNamespace := util3.InterfaceToString(currNode["namespace"])
 		rQuery := &application.ApplicationResourceRequest{
-			Name:         &name,
+			Name:         &deploymentAppName,
 			ResourceName: &resName,
 			Kind:         &resKind,
 			Group:        &resGroup,
@@ -1170,11 +1170,11 @@ func checkHibernate(impl InstalledAppServiceImpl, resp *bean2.AppDetailContainer
 		}
 		ctx, _ := context.WithTimeout(ctx, 60*time.Second)
 		if currNode["parentRefs"] == nil {
-
+			t0 := time.Now()
 			res, err := impl.acdClient.GetResource(ctx, rQuery)
 			if err != nil {
-				impl.logger.Errorw("GRPC_GET_RESOURCE", "data", res, "timeTaken", time.Since(time.Now()), "err", err)
-				return responseTree
+				impl.logger.Errorw("error getting response from acdClient", "request", rQuery, "data", res, "timeTaken", time.Since(t0), "err", err)
+				continue
 			}
 			if res.Manifest != nil {
 				manifest, _ := gjson.Parse(*res.Manifest).Value().(map[string]interface{})
@@ -1194,9 +1194,6 @@ func checkHibernate(impl InstalledAppServiceImpl, resp *bean2.AppDetailContainer
 
 			}
 
-			if err != nil {
-				impl.logger.Errorw("GRPC_GET_RESOURCE", "data", res, "timeTaken", time.Since(time.Now()), "err", err)
-			}
 		}
 		node = currNode
 	}
