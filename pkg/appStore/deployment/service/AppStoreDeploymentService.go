@@ -1042,25 +1042,27 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 		impl.logger.Errorw("fetching error", "err", err)
 		return nil, err
 	}
-	installedAppVersionHistory := &repository.InstalledAppVersionHistory{
-		InstalledAppVersionId: installAppVersionRequest.Id,
-		ValuesYamlRaw:         installAppVersionRequest.ValuesOverrideYaml,
-		StartedOn:             time.Now(),
-		Status:                pipelineConfig.WorkflowInProgress,
-		AuditLog: sql.AuditLog{
-			CreatedOn: time.Now(),
-			CreatedBy: installAppVersionRequest.UserId,
-			UpdatedOn: time.Now(),
-			UpdatedBy: installAppVersionRequest.UserId,
-		},
-	}
+	if util.IsAcdApp(installedApp.DeploymentAppType) {
+		installedAppVersionHistory := &repository.InstalledAppVersionHistory{
+			InstalledAppVersionId: installAppVersionRequest.Id,
+			ValuesYamlRaw:         installAppVersionRequest.ValuesOverrideYaml,
+			StartedOn:             time.Now(),
+			Status:                pipelineConfig.WorkflowInProgress,
+			AuditLog: sql.AuditLog{
+				CreatedOn: time.Now(),
+				CreatedBy: installAppVersionRequest.UserId,
+				UpdatedOn: time.Now(),
+				UpdatedBy: installAppVersionRequest.UserId,
+			},
+		}
 
-	_, err = impl.installedAppRepositoryHistory.CreateInstalledAppVersionHistory(installedAppVersionHistory, tx)
-	if err != nil {
-		impl.logger.Errorw("error while creating installed app version history for updating installed app", "error", err)
-		return nil, err
+		_, err = impl.installedAppRepositoryHistory.CreateInstalledAppVersionHistory(installedAppVersionHistory, tx)
+		if err != nil {
+			impl.logger.Errorw("error while creating installed app version history for updating installed app", "error", err)
+			return nil, err
+		}
+		installAppVersionRequest.InstalledAppVersionHistoryId = installedAppVersionHistory.Id
 	}
-	installAppVersionRequest.InstalledAppVersionHistoryId = installedAppVersionHistory.Id
 
 	isHelmApp := util2.IsHelmApp(installedApp.App.AppOfferingMode) || util.IsHelmApp(installedApp.DeploymentAppType)
 	monoRepoMigrationRequired := false
@@ -1209,6 +1211,21 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 		return nil, err
 	}
 
+	if util.IsHelmApp(installedApp.DeploymentAppType) {
+		// create build history for chart on default component deployed via helm
+		err = impl.UpdateInstallAppVersionHistory(installAppVersionRequest)
+		if err != nil {
+			impl.logger.Errorw("error on creating history for chart deployment", "error", err, "installedAppVersion", installedAppVersion)
+			return nil, err
+		}
+	} else {
+		// update build history for chart for argo_cd apps
+		err = impl.UpdateInstalledAppVersionHistoryWithGitHash(installAppVersionRequest)
+		if err != nil {
+			impl.logger.Errorw("error on updating history for chart deployment", "error", err, "installedAppVersion", installedAppVersion)
+			return nil, err
+		}
+	}
 	// create build history for version upgrade, chart upgrade or simple update
 	err = impl.UpdateInstalledAppVersionHistoryWithGitHash(installAppVersionRequest)
 	if err != nil {
