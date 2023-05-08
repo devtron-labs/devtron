@@ -1044,9 +1044,10 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 	}
 	if util.IsAcdApp(installedApp.DeploymentAppType) {
 		installedAppVersionHistory := &repository.InstalledAppVersionHistory{
-			ValuesYamlRaw: installAppVersionRequest.ValuesOverrideYaml,
-			StartedOn:     time.Now(),
-			Status:        pipelineConfig.WorkflowInProgress,
+			InstalledAppVersionId: 0,
+			ValuesYamlRaw:         installAppVersionRequest.ValuesOverrideYaml,
+			StartedOn:             time.Now(),
+			Status:                pipelineConfig.WorkflowInProgress,
 			AuditLog: sql.AuditLog{
 				CreatedOn: time.Now(),
 				CreatedBy: installAppVersionRequest.UserId,
