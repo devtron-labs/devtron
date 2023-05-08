@@ -22,6 +22,7 @@
 - feat: added description field for environment  (#3020)
 - perf: Api optimizations (#3250)
 ## Documentation
+- docs: updated command for generating credentials to add cluster (#3346)
 - docs: devtron terminal connection timeout issue on gke cluster (#3260)
 - docs: cluster and environment url fix (#3284)
 ## Others
