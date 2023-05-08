@@ -875,6 +875,71 @@
         "description": "contains the docker credentials that are used for accessing a registry",
         "title": "Image PullSecrets"
       },
+      "winterSoldier": {
+          "type": "object",
+          "description": "allows to scale, sleep or delete the resource based on time.",
+          "title": "winterSoldier",
+          "properties": {
+            "annotations": {
+              "type": "object",
+              "description": "used to configure some options depending on the winterSoldier controller",
+              "title": "Annotations"
+            },
+            "labels": {
+              "type": "object",
+              "description": "labels for winterSoldier",
+              "title": "winterSoldier labels",
+              "default": ""
+            },
+            "enabled": {
+              "type": "boolean",
+              "description": "used to enable or disable ingress",
+              "title": "Enabled"
+            },
+            "apiVersion": {
+              "type": "string",
+              "description": "Api version for winterSoldier",
+              "title": "winterSoldier apiVersion",
+              "default": "pincher.devtron.ai/v1alpha1"
+            },
+            "timeRangesWithZone": {
+              "type": "object",
+              "description": "describe time zone and time ranges to input in the winterSoldier",
+              "title": "Time Ranges With Zone",
+              "timeZone": {
+                "type": "string",
+                "description": "describe time zone, and follow standard format",
+                "title": "Time Zone"
+              },
+              "timeRanges": {
+                "type": "array",
+                "items": {},
+                "description": "used to take array of time ranges in which each element contains timeFrom, timeTo, weekdayFrom and weekdayTo.",
+                "title": "Time Ranges"
+              }
+            },
+            "type": {
+              "type": "string",
+              "description": "describe the type of application Rollout/deployment.",
+              "title": "Type"
+            },
+            "action": {
+              "type": "string",
+              "description": "describe the action to be performed by winterSoldier.",
+              "title": "Action"
+            },
+            "targetReplicas": {
+              "type": "array",
+              "description": "describe the number of replicas to which the resource should scale up or down.",
+              "title": "Target Replicas"
+            },
+            "fieldSelector": {
+              "type": "array",
+              "description": "it takes arrays of methods to select specific fields.",
+              "title": "Field Selector"
+            }
+          }
+       },
       "ingress": {
         "type": "object",
         "description": "allows public access to URLs",

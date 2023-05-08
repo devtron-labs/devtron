@@ -214,7 +214,7 @@ winterSoldier:
   action: sleep
   targetReplicas: []
   fieldSelector: []
-  type: Rollout
+  type: StatefulSet
 ingress:
   enabled: false
   className: ""
