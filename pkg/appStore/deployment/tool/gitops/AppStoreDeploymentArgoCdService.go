@@ -50,7 +50,7 @@ type AppStoreDeploymentArgoCdService interface {
 	UpdateRequirementDependencies(environment *clusterRepository.Environment, installedAppVersion *repository.InstalledAppVersions, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error
 	UpdateInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, environment *clusterRepository.Environment, installedAppVersion *repository.InstalledAppVersions, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error)
 	DeleteDeploymentApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error
-	UpdateInstalledAppAndPipelineStatusForFailedDeploymentStatus(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, triggeredAt time.Time, err error) error
+	UpdateInstalledAppAndPipelineStatusForFailedDeploymentStatus(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, triggeredAt time.Time, err error, isPreviousVersionUpdate bool) error
 }
 
 type AppStoreDeploymentArgoCdServiceImpl struct {
@@ -699,7 +699,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) DeleteDeploymentApp(ctx context.
 	return nil
 }
 
-func (impl AppStoreDeploymentArgoCdServiceImpl) UpdateInstalledAppAndPipelineStatusForFailedDeploymentStatus(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, triggeredAt time.Time, err error) error {
+func (impl AppStoreDeploymentArgoCdServiceImpl) UpdateInstalledAppAndPipelineStatusForFailedDeploymentStatus(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, triggeredAt time.Time, err error, isPreviousVersionUpdate bool) error {
 	if err != nil {
 		terminalStatusExists, timelineErr := impl.pipelineStatusTimelineRepository.CheckIfTerminalStatusTimelinePresentByInstalledAppVersionHistoryId(installAppVersionRequest.InstalledAppVersionHistoryId)
 		if timelineErr != nil {
@@ -753,6 +753,19 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) UpdateInstalledAppAndPipelineSta
 		} else if len(previousNonTerminalHistory) == 0 {
 			impl.Logger.Errorw("no previous history found in updating installedAppVersionHistory status,", "err", err, "installAppVersionRequest", installAppVersionRequest)
 			return nil
+		}
+		if isPreviousVersionUpdate {
+			//this means that there are other versions of same chart deployed previously for which I want to supersede the deployment
+			previousVersionsNonTerminalHistory, err := impl.installedAppRepositoryHistory.FindPreviousVersionsOfInstalledAppVersionHistoryByStatus(installAppVersionRequest.InstalledAppId, installAppVersionRequest.InstalledAppVersionHistoryId, terminalStatus)
+			if err != nil {
+				impl.Logger.Errorw("error fetching previous versions installed app version history, updating installed app version history status,", "err", err, "installAppVersionRequest", installAppVersionRequest)
+				return err
+			} else if len(previousVersionsNonTerminalHistory) == 0 {
+				impl.Logger.Errorw("no previous history of other versions found in updating installedAppVersionHistory status,", "err", err, "installAppVersionRequest", installAppVersionRequest)
+			}
+			for _, previousVersionsHistory := range previousNonTerminalHistory {
+				previousNonTerminalHistory = append(previousNonTerminalHistory, previousVersionsHistory)
+			}
 		}
 		dbConnection := impl.installedAppRepositoryHistory.GetConnection()
 		tx, err := dbConnection.Begin()

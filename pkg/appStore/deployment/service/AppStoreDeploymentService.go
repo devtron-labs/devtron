@@ -71,7 +71,7 @@ type AppStoreDeploymentService interface {
 	InstallAppByHelm(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error)
 	UpdateProjectHelmApp(updateAppRequest *appStoreBean.UpdateProjectHelmAppDTO) error
 	UpdateNotesForInstalledApp(installAppId int, notes string) (bool, error)
-	UpdatePreviousDeploymentStatusForAppStore(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, triggeredAt time.Time, err error) error
+	UpdatePreviousDeploymentStatusForAppStore(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, triggeredAt time.Time, err error, isPreviousVersionUpdate bool) error
 }
 
 type DeploymentServiceTypeConfig struct {
@@ -856,7 +856,8 @@ func (impl AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Contex
 			return false, err
 		}
 	}
-	err1 := impl.UpdatePreviousDeploymentStatusForAppStore(installedApp, triggeredAt, err)
+	isPreviousVersionUpdate := false
+	err1 := impl.UpdatePreviousDeploymentStatusForAppStore(installedApp, triggeredAt, err, isPreviousVersionUpdate)
 	if err1 != nil {
 		impl.logger.Errorw("error while update previous installed app version history", "err", err, "installAppVersionRequest", installedApp)
 		//if installed app is updated and error is in updating previous deployment status, then don't block user, just show error.
@@ -1292,11 +1293,14 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 			return nil, err
 		}
 	}
-	err1 := impl.UpdatePreviousDeploymentStatusForAppStore(installAppVersionRequest, triggeredAt, err)
-	if err1 != nil {
-		impl.logger.Errorw("error while update previous installed app version history", "err", err, "installAppVersionRequest", installedApp)
+	//when in same chart multiple chart versions are deployed then prepare to update their status also with superseded or failed
+	isPreviousVersionUpdate := true
+	err2 := impl.UpdatePreviousDeploymentStatusForAppStore(installAppVersionRequest, triggeredAt, err, isPreviousVersionUpdate)
+	if err2 != nil {
+		impl.logger.Errorw("error while update previous versions of installed app version history", "err", err, "installAppVersionRequest", installedApp)
 		//if installed app is updated and error is in updating previous deployment status, then don't block user, just show error.
 	}
+
 	return installAppVersionRequest, nil
 }
 
@@ -1450,9 +1454,9 @@ func (impl AppStoreDeploymentServiceImpl) UpdateProjectHelmApp(updateAppRequest 
 
 }
 
-func (impl AppStoreDeploymentServiceImpl) UpdatePreviousDeploymentStatusForAppStore(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, triggeredAt time.Time, err error) error {
+func (impl AppStoreDeploymentServiceImpl) UpdatePreviousDeploymentStatusForAppStore(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, triggeredAt time.Time, err error, isPreviousVersionUpdate bool) error {
 	//creating pipeline status timeline for deployment failed
-	err1 := impl.appStoreDeploymentArgoCdService.UpdateInstalledAppAndPipelineStatusForFailedDeploymentStatus(installAppVersionRequest, triggeredAt, err)
+	err1 := impl.appStoreDeploymentArgoCdService.UpdateInstalledAppAndPipelineStatusForFailedDeploymentStatus(installAppVersionRequest, triggeredAt, err, isPreviousVersionUpdate)
 	if err1 != nil {
 		impl.logger.Errorw("error in updating previous deployment status for appStore", "err", err1, "installAppVersionRequest", installAppVersionRequest)
 		return err1
