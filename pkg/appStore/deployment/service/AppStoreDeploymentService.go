@@ -1019,7 +1019,97 @@ func (impl AppStoreDeploymentServiceImpl) GetDeploymentHistoryInfo(ctx context.C
 	}
 	return result, err
 }
+func (impl AppStoreDeploymentServiceImpl) updateInstalledAppVersion(installedAppVersion *repository.InstalledAppVersions, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx, installedApp *repository.InstalledApps) (*repository.InstalledAppVersions, *appStoreBean.InstallAppVersionDTO, error) {
+	var err error
+	if installAppVersionRequest.Id == 0 {
+		installedAppVersions, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppId(installAppVersionRequest.InstalledAppId)
+		if err != nil {
+			impl.logger.Errorw("error while fetching installed version", "error", err)
+			return installedAppVersion, installAppVersionRequest, err
+		}
+		for _, installedAppVersionModel := range installedAppVersions {
+			installedAppVersionModel.Active = false
+			installedAppVersionModel.UpdatedOn = time.Now()
+			installedAppVersionModel.UpdatedBy = installAppVersionRequest.UserId
+			_, err = impl.installedAppRepository.UpdateInstalledAppVersion(installedAppVersionModel, tx)
+			if err != nil {
+				impl.logger.Errorw("error while update installed chart", "error", err)
+				return installedAppVersion, installAppVersionRequest, err
+			}
+		}
 
+		appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
+		if err != nil {
+			impl.logger.Errorw("fetching error", "err", err)
+			return installedAppVersion, installAppVersionRequest, err
+		}
+		installedAppVersion = &repository.InstalledAppVersions{
+			InstalledAppId:               installAppVersionRequest.InstalledAppId,
+			AppStoreApplicationVersionId: installAppVersionRequest.AppStoreVersion,
+			ValuesYaml:                   installAppVersionRequest.ValuesOverrideYaml,
+		}
+		installedAppVersion.CreatedBy = installAppVersionRequest.UserId
+		installedAppVersion.UpdatedBy = installAppVersionRequest.UserId
+		installedAppVersion.CreatedOn = time.Now()
+		installedAppVersion.UpdatedOn = time.Now()
+		installedAppVersion.Active = true
+		installedAppVersion.ReferenceValueId = installAppVersionRequest.ReferenceValueId
+		installedAppVersion.ReferenceValueKind = installAppVersionRequest.ReferenceValueKind
+		_, err = impl.installedAppRepository.CreateInstalledAppVersion(installedAppVersion, tx)
+		if err != nil {
+			impl.logger.Errorw("error while fetching from db", "error", err)
+			return installedAppVersion, installAppVersionRequest, err
+		}
+		installedAppVersion.AppStoreApplicationVersion = *appStoreAppVersion
+		installedAppVersion.InstalledApp = *installedApp
+		installAppVersionRequest.InstalledAppVersionId = installedAppVersion.Id
+		installAppVersionRequest.Id = installedAppVersion.Id
+	} else {
+		installedAppVersionModel, err := impl.installedAppRepository.GetInstalledAppVersion(installAppVersionRequest.Id)
+		if err != nil {
+			impl.logger.Errorw("error while fetching chart installed version", "error", err)
+			return installedAppVersion, installAppVersionRequest, err
+		}
+		if installedAppVersionModel.AppStoreApplicationVersionId != installAppVersionRequest.AppStoreVersion {
+			// upgrade to new version of same chart
+			installedAppVersionModel.Active = false
+			installedAppVersionModel.UpdatedOn = time.Now()
+			installedAppVersionModel.UpdatedBy = installAppVersionRequest.UserId
+			_, err = impl.installedAppRepository.UpdateInstalledAppVersion(installedAppVersionModel, tx)
+			if err != nil {
+				impl.logger.Errorw("error while fetching from db", "error", err)
+				return installedAppVersion, installAppVersionRequest, err
+			}
+			appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
+			if err != nil {
+				impl.logger.Errorw("fetching error", "err", err)
+				return installedAppVersion, installAppVersionRequest, err
+			}
+			installedAppVersion = &repository.InstalledAppVersions{
+				InstalledAppId:               installAppVersionRequest.InstalledAppId,
+				AppStoreApplicationVersionId: installAppVersionRequest.AppStoreVersion,
+				ValuesYaml:                   installAppVersionRequest.ValuesOverrideYaml,
+			}
+			installedAppVersion.CreatedBy = installAppVersionRequest.UserId
+			installedAppVersion.UpdatedBy = installAppVersionRequest.UserId
+			installedAppVersion.CreatedOn = time.Now()
+			installedAppVersion.UpdatedOn = time.Now()
+			installedAppVersion.Active = true
+			installedAppVersion.ReferenceValueId = installAppVersionRequest.ReferenceValueId
+			installedAppVersion.ReferenceValueKind = installAppVersionRequest.ReferenceValueKind
+			_, err = impl.installedAppRepository.CreateInstalledAppVersion(installedAppVersion, tx)
+			if err != nil {
+				impl.logger.Errorw("error while fetching from db", "error", err)
+				return installedAppVersion, installAppVersionRequest, err
+			}
+			installedAppVersion.AppStoreApplicationVersion = *appStoreAppVersion
+		} else {
+			installedAppVersion = installedAppVersionModel
+		}
+
+	}
+	return installedAppVersion, installAppVersionRequest, err
+}
 func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error) {
 	dbConnection := impl.installedAppRepository.GetConnection()
 	tx, err := dbConnection.Begin()
@@ -1042,9 +1132,15 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 		impl.logger.Errorw("fetching error", "err", err)
 		return nil, err
 	}
+	var installedAppVersion *repository.InstalledAppVersions
+	installedAppVersion, installAppVersionRequest, err = impl.updateInstalledAppVersion(installedAppVersion, installAppVersionRequest, tx, installedApp)
+	if err != nil {
+		impl.logger.Errorw("error in updating installedAppVersion", "err", err, "installedAppVersion", installedAppVersion, "installAppVersionRequest", installAppVersionRequest)
+		return nil, err
+	}
 	if util.IsAcdApp(installedApp.DeploymentAppType) {
 		installedAppVersionHistory := &repository.InstalledAppVersionHistory{
-			InstalledAppVersionId: 0,
+			InstalledAppVersionId: installedAppVersion.Id,
 			ValuesYamlRaw:         installAppVersionRequest.ValuesOverrideYaml,
 			StartedOn:             time.Now(),
 			Status:                pipelineConfig.WorkflowInProgress,
@@ -1097,15 +1193,14 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 			return nil, err
 		}
 	}
-	var installedAppVersion *repository.InstalledAppVersions
+
 	if installAppVersionRequest.Id == 0 {
 		// upgrade chart to other repo
-		_, installedAppVersion, err = impl.upgradeInstalledApp(environment, ctx, installAppVersionRequest, installedApp, tx, monoRepoMigrationRequired)
+		_, installedAppVersion, err = impl.upgradeInstalledApp(environment, ctx, installAppVersionRequest, installedApp, tx, monoRepoMigrationRequired, installedAppVersion)
 		if err != nil {
 			impl.logger.Errorw("error while upgrade the chart", "error", err)
 			return nil, err
 		}
-		installAppVersionRequest.Id = installedAppVersion.Id
 	} else {
 		// update same chart or upgrade its version only
 		installedAppVersionModel, err := impl.installedAppRepository.GetInstalledAppVersion(installAppVersionRequest.Id)
@@ -1114,47 +1209,9 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 			return nil, err
 		}
 		if installedAppVersionModel.AppStoreApplicationVersionId != installAppVersionRequest.AppStoreVersion {
-			// upgrade to new version of same chart
-			installedAppVersionModel.Active = false
-			installedAppVersionModel.UpdatedOn = time.Now()
-			installedAppVersionModel.UpdatedBy = installAppVersionRequest.UserId
-			_, err = impl.installedAppRepository.UpdateInstalledAppVersion(installedAppVersionModel, tx)
-			if err != nil {
-				impl.logger.Errorw("error while fetching from db", "error", err)
-				return nil, err
-			}
 			appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
 			if err != nil {
 				impl.logger.Errorw("fetching error", "err", err)
-				return nil, err
-			}
-			installedAppVersion = &repository.InstalledAppVersions{
-				InstalledAppId:               installAppVersionRequest.InstalledAppId,
-				AppStoreApplicationVersionId: installAppVersionRequest.AppStoreVersion,
-				ValuesYaml:                   installAppVersionRequest.ValuesOverrideYaml,
-			}
-			installedAppVersion.CreatedBy = installAppVersionRequest.UserId
-			installedAppVersion.UpdatedBy = installAppVersionRequest.UserId
-			installedAppVersion.CreatedOn = time.Now()
-			installedAppVersion.UpdatedOn = time.Now()
-			installedAppVersion.Active = true
-			installedAppVersion.ReferenceValueId = installAppVersionRequest.ReferenceValueId
-			installedAppVersion.ReferenceValueKind = installAppVersionRequest.ReferenceValueKind
-			_, err = impl.installedAppRepository.CreateInstalledAppVersion(installedAppVersion, tx)
-			if err != nil {
-				impl.logger.Errorw("error while fetching from db", "error", err)
-				return nil, err
-			}
-			installedAppVersion.AppStoreApplicationVersion = *appStoreAppVersion
-			latestInstalledAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(installAppVersionRequest.InstalledAppVersionHistoryId)
-			if err != nil {
-				impl.logger.Errorw("error while getting installedAppVersionHistory by id", "error", err, "installedAppVersionHistoryId", installAppVersionRequest.InstalledAppVersionHistoryId)
-				return nil, err
-			}
-			latestInstalledAppVersionHistory.InstalledAppVersionId = installedAppVersion.Id
-			_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(latestInstalledAppVersionHistory, tx)
-			if err != nil {
-				impl.logger.Errorw("error while updating installedAppVersionId in installedAppVersionHistory", "error", err, "installedAppVersionId", installedAppVersion.Id)
 				return nil, err
 			}
 			//update requirements yaml in chart for full mode app, if migration happened that means it's already done
@@ -1176,8 +1233,6 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 				}
 			}
 			installAppVersionRequest.Id = installedAppVersion.Id
-		} else {
-			installedAppVersion = installedAppVersionModel
 		}
 
 		if isHelmApp {
@@ -1271,59 +1326,10 @@ func (impl AppStoreDeploymentServiceImpl) GetInstalledAppVersion(id int, userId 
 	return installAppVersion, err
 }
 
-func (impl AppStoreDeploymentServiceImpl) upgradeInstalledApp(environment *clusterRepository.Environment, ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApp *repository.InstalledApps, tx *pg.Tx, monoRepoMigrationRequired bool) (*appStoreBean.InstallAppVersionDTO, *repository.InstalledAppVersions, error) {
-	var installedAppVersion *repository.InstalledAppVersions
-	installedAppVersions, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppId(installAppVersionRequest.InstalledAppId)
-	if err != nil {
-		impl.logger.Errorw("error while fetching installed version", "error", err)
-		return installAppVersionRequest, installedAppVersion, err
-	}
-	for _, installedAppVersionModel := range installedAppVersions {
-		installedAppVersionModel.Active = false
-		installedAppVersionModel.UpdatedOn = time.Now()
-		installedAppVersionModel.UpdatedBy = installAppVersionRequest.UserId
-		_, err = impl.installedAppRepository.UpdateInstalledAppVersion(installedAppVersionModel, tx)
-		if err != nil {
-			impl.logger.Errorw("error while update installed chart", "error", err)
-			return installAppVersionRequest, installedAppVersion, err
-		}
-	}
-
+func (impl AppStoreDeploymentServiceImpl) upgradeInstalledApp(environment *clusterRepository.Environment, ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApp *repository.InstalledApps, tx *pg.Tx, monoRepoMigrationRequired bool, installedAppVersion *repository.InstalledAppVersions) (*appStoreBean.InstallAppVersionDTO, *repository.InstalledAppVersions, error) {
 	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
 	if err != nil {
 		impl.logger.Errorw("fetching error", "err", err)
-		return installAppVersionRequest, installedAppVersion, err
-	}
-	installedAppVersion = &repository.InstalledAppVersions{
-		InstalledAppId:               installAppVersionRequest.InstalledAppId,
-		AppStoreApplicationVersionId: installAppVersionRequest.AppStoreVersion,
-		ValuesYaml:                   installAppVersionRequest.ValuesOverrideYaml,
-	}
-	installedAppVersion.CreatedBy = installAppVersionRequest.UserId
-	installedAppVersion.UpdatedBy = installAppVersionRequest.UserId
-	installedAppVersion.CreatedOn = time.Now()
-	installedAppVersion.UpdatedOn = time.Now()
-	installedAppVersion.Active = true
-	installedAppVersion.ReferenceValueId = installAppVersionRequest.ReferenceValueId
-	installedAppVersion.ReferenceValueKind = installAppVersionRequest.ReferenceValueKind
-	_, err = impl.installedAppRepository.CreateInstalledAppVersion(installedAppVersion, tx)
-	if err != nil {
-		impl.logger.Errorw("error while fetching from db", "error", err)
-		return installAppVersionRequest, installedAppVersion, err
-	}
-	installedAppVersion.AppStoreApplicationVersion = *appStoreAppVersion
-	installedAppVersion.InstalledApp = *installedApp
-	installAppVersionRequest.InstalledAppVersionId = installedAppVersion.Id
-
-	latestInstalledAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(installAppVersionRequest.InstalledAppVersionHistoryId)
-	if err != nil {
-		impl.logger.Errorw("error while getting installedAppVersionHistory by id", "error", err, "installedAppVersionHistoryId", installAppVersionRequest.InstalledAppVersionHistoryId)
-		return installAppVersionRequest, installedAppVersion, err
-	}
-	latestInstalledAppVersionHistory.InstalledAppVersionId = installedAppVersion.Id
-	_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(latestInstalledAppVersionHistory, tx)
-	if err != nil {
-		impl.logger.Errorw("error while updating installedAppVersionId in installedAppVersionHistory", "error", err, "installedAppVersionId", installedAppVersion.Id)
 		return installAppVersionRequest, installedAppVersion, err
 	}
 
