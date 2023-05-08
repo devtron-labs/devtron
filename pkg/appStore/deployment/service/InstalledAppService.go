@@ -81,12 +81,13 @@ type InstalledAppService interface {
 	DeployDefaultChartOnCluster(bean *cluster2.ClusterBean, userId int32) (bool, error)
 	FindAppDetailsForAppstoreApplication(installedAppId, envId int) (bean2.AppDetailContainer, error)
 	UpdateInstalledAppVersionStatus(application *v1alpha1.Application) (bool, error)
-	FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetail *bean2.AppDetailContainer) (bean2.AppDetailContainer, error)
+	FetchResourceTree(rctx context.Context, cn http.CloseNotifier, resourceTreeAndNotesContainer *bean2.ResourceTreeAndNotesContainer, installedApp repository2.InstalledApps) error
 	MarkGitOpsInstalledAppsDeletedIfArgoAppIsDeleted(installedAppId int, envId int) error
-	CheckAppExistsByInstalledAppId(installedAppId int) error
+	CheckAppExistsByInstalledAppId(installedAppId int) (*repository2.InstalledApps, error)
 	FindNotesForArgoApplication(installedAppId, envId int) (string, string, error)
 	FetchChartNotes(installedAppId int, envId int, token string, checkNotesAuth func(token string, appName string, envId int) bool) (string, error)
 	FetchResourceTreeWithHibernateForACD(rctx context.Context, cn http.CloseNotifier, appDetail *bean2.AppDetailContainer) bean2.AppDetailContainer
+	fetchResourceTreeForACD(rctx context.Context, cn http.CloseNotifier, appId int, envId int, deploymentAppName string) (map[string]interface{}, error)
 }
 
 type InstalledAppServiceImpl struct {
@@ -995,35 +996,35 @@ func (impl InstalledAppServiceImpl) GetInstalledAppVersionHistoryValues(installe
 	values.ValuesYaml = versionHistory.ValuesYamlRaw
 	return values, err
 }
-func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetail *bean2.AppDetailContainer) (bean2.AppDetailContainer, error) {
+func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn http.CloseNotifier, resourceTreeAndNotesContainer *bean2.ResourceTreeAndNotesContainer, installedApp repository2.InstalledApps) error {
 	var err error
-	if util.IsAcdApp(appDetail.DeploymentAppType) {
-		appDetail, err = fetchResourceTreeForACD(rctx, cn, appDetail, impl)
-	} else if util.IsHelmApp(appDetail.DeploymentAppType) {
-		config, err := impl.helmAppService.GetClusterConf(appDetail.ClusterId)
+	var resourceTree map[string]interface{}
+	deploymentAppName := fmt.Sprintf("%s-%s", installedApp.App.AppName, installedApp.Environment.Name)
+	if util.IsAcdApp(installedApp.DeploymentAppType) {
+		resourceTree, err = impl.fetchResourceTreeForACD(rctx, cn, installedApp.App.Id, installedApp.EnvironmentId, deploymentAppName)
+	} else if util.IsHelmApp(installedApp.DeploymentAppType) {
+		config, err := impl.helmAppService.GetClusterConf(installedApp.Environment.ClusterId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching cluster detail", "err", err)
 		}
 		req := &client.AppDetailRequest{
 			ClusterConfig: config,
-			Namespace:     appDetail.Namespace,
-			ReleaseName:   fmt.Sprintf("%s", appDetail.AppName),
+			Namespace:     installedApp.Environment.Namespace,
+			ReleaseName:   installedApp.App.AppName,
 		}
 		detail, err := impl.helmAppClient.GetAppDetail(rctx, req)
 		if err != nil {
 			impl.logger.Errorw("error in fetching app detail", "err", err)
 		}
 		if detail != nil {
-			resourceTree := util3.InterfaceToMapAdapter(detail.ResourceTreeResponse)
+			resourceTree = util3.InterfaceToMapAdapter(detail.ResourceTreeResponse)
 			resourceTree["status"] = detail.ApplicationStatus
-			appDetail.ResourceTree = resourceTree
-			appDetail.Notes = detail.ChartMetadata.Notes
-			impl.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
-		} else {
-			appDetail.ResourceTree = map[string]interface{}{}
+			resourceTreeAndNotesContainer.Notes = detail.ChartMetadata.Notes
+			impl.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", installedApp.App.AppName, "env", installedApp.Environment.Name)
 		}
 	}
-	return *appDetail, err
+	resourceTreeAndNotesContainer.ResourceTree = resourceTree
+	return err
 }
 
 func (impl InstalledAppServiceImpl) MarkGitOpsInstalledAppsDeletedIfArgoAppIsDeleted(installedAppId int, envId int) error {
@@ -1079,9 +1080,9 @@ func (impl InstalledAppServiceImpl) MarkGitOpsInstalledAppsDeletedIfArgoAppIsDel
 	return apiError
 }
 
-func (impl InstalledAppServiceImpl) CheckAppExistsByInstalledAppId(installedAppId int) error {
-	_, err := impl.installedAppRepository.GetInstalledApp(installedAppId)
-	return err
+func (impl InstalledAppServiceImpl) CheckAppExistsByInstalledAppId(installedAppId int) (*repository2.InstalledApps, error) {
+	installedApp, err := impl.installedAppRepository.GetInstalledApp(installedAppId)
+	return installedApp, err
 }
 
 func (impl InstalledAppServiceImpl) FetchResourceTreeWithHibernateForACD(rctx context.Context, cn http.CloseNotifier, appDetail *bean2.AppDetailContainer) bean2.AppDetailContainer {
@@ -1102,7 +1103,9 @@ func (impl InstalledAppServiceImpl) FetchResourceTreeWithHibernateForACD(rctx co
 	}
 	ctx = context.WithValue(ctx, "token", acdToken)
 	defer cancel()
-	appDetail, err = fetchResourceTreeForACD(rctx, cn, appDetail, impl)
+	deploymentAppName := fmt.Sprintf("%s-%s", appDetail.AppName, appDetail.EnvironmentName)
+	resourceTree, err := impl.fetchResourceTreeForACD(rctx, cn, appDetail.InstalledAppId, appDetail.EnvironmentId, deploymentAppName)
+	appDetail.ResourceTree = resourceTree
 	if err != nil {
 		return *appDetail
 	}
@@ -1115,17 +1118,17 @@ func (impl InstalledAppServiceImpl) FetchResourceTreeWithHibernateForACD(rctx co
 func checkHibernate(impl InstalledAppServiceImpl, resp *bean2.AppDetailContainer, ctx context.Context) map[string]interface{} {
 
 	responseTree := resp.ResourceTree
+	deploymentAppName := resp.AppName + "-" + resp.EnvironmentName
 
 	for _, node := range responseTree["nodes"].(interface{}).([]interface{}) {
 		currNode := node.(interface{}).(map[string]interface{})
-		name := resp.AppName + "-" + resp.Namespace
 		resName := util3.InterfaceToString(currNode["name"])
 		resKind := util3.InterfaceToString(currNode["kind"])
 		resGroup := util3.InterfaceToString(currNode["group"])
 		resVersion := util3.InterfaceToString(currNode["version"])
 		resNamespace := util3.InterfaceToString(currNode["namespace"])
 		rQuery := &application.ApplicationResourceRequest{
-			Name:         &name,
+			Name:         &deploymentAppName,
 			ResourceName: &resName,
 			Kind:         &resKind,
 			Group:        &resGroup,
@@ -1134,11 +1137,11 @@ func checkHibernate(impl InstalledAppServiceImpl, resp *bean2.AppDetailContainer
 		}
 		ctx, _ := context.WithTimeout(ctx, 60*time.Second)
 		if currNode["parentRefs"] == nil {
-
+			t0 := time.Now()
 			res, err := impl.acdClient.GetResource(ctx, rQuery)
 			if err != nil {
-				impl.logger.Errorw("GRPC_GET_RESOURCE", "data", res, "timeTaken", time.Since(time.Now()), "err", err)
-				return responseTree
+				impl.logger.Errorw("error getting response from acdClient", "request", rQuery, "data", res, "timeTaken", time.Since(t0), "err", err)
+				continue
 			}
 			if res.Manifest != nil {
 				manifest, _ := gjson.Parse(*res.Manifest).Value().(map[string]interface{})
@@ -1158,19 +1161,16 @@ func checkHibernate(impl InstalledAppServiceImpl, resp *bean2.AppDetailContainer
 
 			}
 
-			if err != nil {
-				impl.logger.Errorw("GRPC_GET_RESOURCE", "data", res, "timeTaken", time.Since(time.Now()), "err", err)
-			}
 		}
 		node = currNode
 	}
 	return responseTree
 }
 
-func fetchResourceTreeForACD(rctx context.Context, cn http.CloseNotifier, appDetail *bean2.AppDetailContainer, impl InstalledAppServiceImpl) (*bean2.AppDetailContainer, error) {
-	acdAppName := appDetail.AppName + "-" + appDetail.EnvironmentName
+func (impl InstalledAppServiceImpl) fetchResourceTreeForACD(rctx context.Context, cn http.CloseNotifier, appId int, envId int, deploymentAppName string) (map[string]interface{}, error) {
+	var resourceTree map[string]interface{}
 	query := &application.ResourcesQuery{
-		ApplicationName: &acdAppName,
+		ApplicationName: &deploymentAppName,
 	}
 	ctx, cancel := context.WithCancel(rctx)
 	if cn != nil {
@@ -1185,30 +1185,31 @@ func fetchResourceTreeForACD(rctx context.Context, cn http.CloseNotifier, appDet
 	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 	if err != nil {
 		impl.logger.Errorw("error in getting acd token", "err", err)
-		return appDetail, err
+		return resourceTree, err
 	}
 	ctx = context.WithValue(ctx, "token", acdToken)
 	defer cancel()
 	start := time.Now()
 	resp, err := impl.acdClient.ResourceTree(ctx, query)
 	elapsed := time.Since(start)
-	impl.logger.Debugf("Time elapsed %s in fetching app-store installed application %s for environment %s", elapsed, appDetail.InstalledAppId, appDetail.EnvironmentId)
+	impl.logger.Debugf("Time elapsed %s in fetching app-store installed application %s for environment %s", elapsed, deploymentAppName, envId)
 	if err != nil {
-		impl.logger.Errorw("service err, FetchAppDetailsForInstalledApp, fetching resource tree", "err", err, "installedAppId", appDetail.InstalledAppId, "envId", appDetail.EnvironmentId)
+		impl.logger.Errorw("service err, FetchAppDetailsForInstalledAppV2, fetching resource tree", "err", err, "installedAppId", appId, "envId", envId)
 		err = &util.ApiError{
 			Code:            constants.AppDetailResourceTreeNotFound,
 			InternalMessage: "app detail fetched, failed to get resource tree from acd",
 			UserMessage:     "app detail fetched, failed to get resource tree from acd",
 		}
-		appDetail.ResourceTree = map[string]interface{}{}
-		return appDetail, err
+		return resourceTree, err
 	}
 	// TODO: using this resp.Status to update in app_status table
-	appDetail.ResourceTree = util3.InterfaceToMapAdapter(resp)
-	err = impl.appStatusService.UpdateStatusWithAppIdEnvId(appDetail.AppId, appDetail.EnvironmentId, resp.Status)
-	if err != nil {
-		impl.logger.Warnw("error in updating app status", "err", err, appDetail.AppId, "envId", appDetail.EnvironmentId)
-	}
-	impl.logger.Debugf("application %s in environment %s had status %+v\n", appDetail.InstalledAppId, appDetail.EnvironmentId, resp)
-	return appDetail, err
+	resourceTree = util3.InterfaceToMapAdapter(resp)
+	go func() {
+		err = impl.appStatusService.UpdateStatusWithAppIdEnvId(appId, envId, resp.Status)
+		if err != nil {
+			impl.logger.Warnw("error in updating app status", "err", err, appId, "envId", envId)
+		}
+	}()
+	impl.logger.Debugf("application %s in environment %s had status %+v\n", appId, envId, resp)
+	return resourceTree, err
 }

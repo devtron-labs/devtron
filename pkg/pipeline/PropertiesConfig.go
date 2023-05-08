@@ -55,6 +55,7 @@ type EnvironmentProperties struct {
 	IsOverride        bool                        `sql:"isOverride"`
 	IsBasicViewLocked bool                        `json:"isBasicViewLocked"`
 	CurrentViewEditor models.ChartsViewEditorType `json:"currentViewEditor"` //default "UNDEFINED" in db
+	Description       string                      `json:"description" validate:"max=40"`
 }
 
 type EnvironmentPropertiesResponse struct {
@@ -159,6 +160,7 @@ func (impl PropertiesConfigServiceImpl) GetEnvironmentProperties(appId, environm
 			ManualReviewed:    envOverride.ManualReviewed,
 			Active:            envOverride.Active,
 			Namespace:         env.Namespace,
+			Description:       env.Description,
 			EnvironmentId:     environmentId,
 			EnvironmentName:   env.Name,
 			Latest:            envOverride.Latest,

@@ -18,6 +18,7 @@ type PipelineStatusTimelineResourcesRepository interface {
 	UpdateTimelineResources(timelineResources []*PipelineStatusTimelineResources) error
 	UpdateTimelineResourcesWithTxn(timelineResources []*PipelineStatusTimelineResources, tx *pg.Tx) error
 	GetByCdWfrIdAndTimelineStage(cdWfrId int) ([]*PipelineStatusTimelineResources, error)
+	GetByCdWfrIds(cdWfrIds []int) ([]*PipelineStatusTimelineResources, error)
 }
 
 type PipelineStatusTimelineResourcesRepositoryImpl struct {
@@ -91,6 +92,18 @@ func (impl *PipelineStatusTimelineResourcesRepositoryImpl) GetByCdWfrIdAndTimeli
 		Select()
 	if err != nil {
 		impl.logger.Errorw("error in getting timeline resources by cdWfrId and timeline stage", "err", err, "cdWfrId", cdWfrId, "timelineStage", timelineResources)
+		return nil, err
+	}
+	return timelineResources, nil
+}
+
+func (impl *PipelineStatusTimelineResourcesRepositoryImpl) GetByCdWfrIds(cdWfrIds []int) ([]*PipelineStatusTimelineResources, error) {
+	var timelineResources []*PipelineStatusTimelineResources
+	err := impl.dbConnection.Model(&timelineResources).
+		Where("cd_workflow_runner_id in (?)", pg.In(cdWfrIds)).
+		Select()
+	if err != nil {
+		impl.logger.Errorw("error in getting timeline resources by cdWfrId and timeline stage", "err", err, "cdWfrIds", cdWfrIds, "timelineStage", timelineResources)
 		return nil, err
 	}
 	return timelineResources, nil

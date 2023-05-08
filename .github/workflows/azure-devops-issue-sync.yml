@@ -3,7 +3,7 @@ name: Sync issue to Azure DevOps work item (testing)
 on:
   issues:
     types:
-      [opened, edited, deleted, closed, reopened]
+      [opened, edited, deleted, closed, reopened, labeled]
 
 jobs:
   create_issues:
@@ -35,3 +35,13 @@ jobs:
           ado_close_state: "Done"
           ado_bypassrules: true
           log_level: 100
+      - if: github.event.label.name == 'pager-duty'
+        name: custom issues
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.GH_ISSUES_DISCORD_WEBHOOK }}
+          DISCORD_WEBHOOK_FORUM: ${{ secrets.PAGERDUTY_DISCORD_WEBHOOK }}
+          ENABLE_FORUM: true
+
+        uses: devtron-labs/action-discord@master
+        with:
+          args: " ${{ github.event.issue.title }} ${{ github.event.issue.html_url }}"
