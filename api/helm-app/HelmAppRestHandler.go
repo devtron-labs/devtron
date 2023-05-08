@@ -464,4 +464,5 @@ type InstalledAppInfo struct {
 	AppStoreChartName     string `json:"appStoreChartName"`
 	TeamId                int    `json:"teamId"`
 	TeamName              string `json:"teamName"`
+	DeploymentType        string `json:"deploymentType"`
 }
