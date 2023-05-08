@@ -2,16 +2,6 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-rolloutLabels:
-  name: abhinav
-  Company: Devtron
-  Job: DevOps
-
-rolloutAnnotations:
-  name: abhinav
-  Company: Devtron
-  Job: DevOps
-
 appLabels: 
       test: thyjhgfv
 containerSpec:
@@ -131,7 +121,7 @@ statefulSetConfig:
   annotations:
      example.com/version: "1.0"
   serviceName: "test-service-headless-statefulset"
-  podManagementPolicy: "Parallel"
+  podManagementPolicy: "OrderedReady"
   revisionHistoryLimit: 3
   updateStrategy:
     type: RollingUpdate

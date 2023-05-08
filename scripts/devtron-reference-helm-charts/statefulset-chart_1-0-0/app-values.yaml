@@ -1,8 +1,4 @@
 # Mandatory configs
-
-rolloutLabels: {}
-rolloutAnnotations: {}
-
 containerSpec:
   lifecycle: 
     enabled: false
