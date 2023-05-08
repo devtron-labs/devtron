@@ -750,9 +750,6 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) UpdateInstalledAppAndPipelineSta
 		if err != nil {
 			impl.Logger.Errorw("error fetching previous installed app version history, updating installed app version history status,", "err", err, "installAppVersionRequest", installAppVersionRequest)
 			return err
-		} else if len(previousNonTerminalHistory) == 0 {
-			impl.Logger.Errorw("no previous history found in updating installedAppVersionHistory status,", "err", err, "installAppVersionRequest", installAppVersionRequest)
-			return nil
 		}
 		if isPreviousVersionUpdate {
 			//this means that there are other versions of same chart deployed previously for which I want to supersede the deployment
@@ -762,10 +759,17 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) UpdateInstalledAppAndPipelineSta
 				return err
 			} else if len(previousVersionsNonTerminalHistory) == 0 {
 				impl.Logger.Errorw("no previous history of other versions found in updating installedAppVersionHistory status,", "err", err, "installAppVersionRequest", installAppVersionRequest)
+				return nil
+			} else {
+				for _, previousVersionsHistory := range previousNonTerminalHistory {
+					previousNonTerminalHistory = append(previousNonTerminalHistory, previousVersionsHistory)
+				}
 			}
-			for _, previousVersionsHistory := range previousNonTerminalHistory {
-				previousNonTerminalHistory = append(previousNonTerminalHistory, previousVersionsHistory)
-			}
+
+		}
+		if len(previousNonTerminalHistory) == 0 {
+			impl.Logger.Errorw("no previous history found in updating installedAppVersionHistory status,", "err", err, "installAppVersionRequest", installAppVersionRequest)
+			return nil
 		}
 		dbConnection := impl.installedAppRepositoryHistory.GetConnection()
 		tx, err := dbConnection.Begin()
