@@ -474,17 +474,9 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateInstalledApp(w http.Respo
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	isPreviousVersionUpdate := false
-	err1 := handler.appStoreDeploymentService.UpdatePreviousDeploymentStatusForAppStore(res, triggeredAt, err, isPreviousVersionUpdate)
+	err1 := handler.appStoreDeploymentService.UpdatePreviousDeploymentStatusForAppStore(res, triggeredAt, err)
 	if err1 != nil {
 		handler.Logger.Errorw("error while update previous installed app version history", "err", err, "installAppVersionRequest", res)
-		//if installed app is updated and error is in updating previous deployment status, then don't block user, just show error.
-	}
-	//when in same chart multiple chart versions are deployed then prepare to update their status also with superseded or failed
-	isPreviousVersionUpdate = true
-	err2 := handler.appStoreDeploymentService.UpdatePreviousDeploymentStatusForAppStore(res, triggeredAt, err, isPreviousVersionUpdate)
-	if err2 != nil {
-		handler.Logger.Errorw("error while update previous versions of installed app version history", "err", err, "installAppVersionRequest", installedApp)
 		//if installed app is updated and error is in updating previous deployment status, then don't block user, just show error.
 	}
 
