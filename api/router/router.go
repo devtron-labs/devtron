@@ -118,6 +118,7 @@ type MuxRouter struct {
 	userTerminalAccessRouter           terminal2.UserTerminalAccessRouter
 	ciStatusUpdateCron                 cron.CiStatusUpdateCron
 	appGroupingRouter                  AppGroupingRouter
+	rbacRoleRouter                     user.RbacRoleRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -146,7 +147,8 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 	helmApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler, k8sCapacityRouter k8s.K8sCapacityRouter,
 	webhookHelmRouter webhookHelm.WebhookHelmRouter, globalCMCSRouter GlobalCMCSRouter,
 	userTerminalAccessRouter terminal2.UserTerminalAccessRouter,
-	jobRouter JobRouter, ciStatusUpdateCron cron.CiStatusUpdateCron, appGroupingRouter AppGroupingRouter) *MuxRouter {
+	jobRouter JobRouter, ciStatusUpdateCron cron.CiStatusUpdateCron, appGroupingRouter AppGroupingRouter,
+	rbacRoleRouter user.RbacRoleRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
 		HelmRouter:                         HelmRouter,
@@ -215,6 +217,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 		ciStatusUpdateCron:                 ciStatusUpdateCron,
 		JobRouter:                          jobRouter,
 		appGroupingRouter:                  appGroupingRouter,
+		rbacRoleRouter:                     rbacRoleRouter,
 	}
 	return r
 }
@@ -422,4 +425,7 @@ func (r MuxRouter) Init() {
 
 	userTerminalAccessRouter := r.Router.PathPrefix("/orchestrator/user/terminal").Subrouter()
 	r.userTerminalAccessRouter.InitTerminalAccessRouter(userTerminalAccessRouter)
+
+	rbacRoleRouter := r.Router.PathPrefix("/orchestrator/rbac/role").Subrouter()
+	r.rbacRoleRouter.InitRbacRoleRouter(rbacRoleRouter)
 }

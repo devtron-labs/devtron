@@ -250,9 +250,10 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 		} else {
 			pipelineMaterial.CiPipelineId = createRequest.Id
 			pipelineMaterial.CreatedBy = userId
-			materialsUpdate = append(materialsUpdate, pipelineMaterial)
 			pipelineMaterial.CreatedOn = createOnTimeMap[material.GitMaterialId]
-			pipelineMaterial.CreatedBy = createByMap[material.GitMaterialId]
+			pipelineMaterial.UpdatedOn = time.Now()
+			pipelineMaterial.UpdatedBy = userId
+			materialsUpdate = append(materialsUpdate, pipelineMaterial)
 		}
 	}
 	if len(materialsAdd) > 0 {
@@ -454,13 +455,8 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteCiPipeline(pipeline *pipelineConf
 		if err != nil {
 			return err
 		}
-		pipelineMaterial := &pipelineConfig.CiPipelineMaterial{
-			Id:       material.Id,
-			Active:   false,
-			Type:     materialDbObject.Type,
-			AuditLog: sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
-		}
-		materials = append(materials, pipelineMaterial)
+		materialDbObject.Active = false
+		materials = append(materials, materialDbObject)
 	}
 
 	if request.CiPipeline.ExternalCiConfig.Id != 0 {

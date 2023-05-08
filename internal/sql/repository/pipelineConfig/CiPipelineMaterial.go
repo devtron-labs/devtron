@@ -47,6 +47,7 @@ type CiPipelineMaterial struct {
 type CiPipelineMaterialRepository interface {
 	Save(tx *pg.Tx, pipeline ...*CiPipelineMaterial) error
 	Update(tx *pg.Tx, material ...*CiPipelineMaterial) error
+	UpdateNotNull(tx *pg.Tx, material ...*CiPipelineMaterial) error
 	FindByCiPipelineIdsIn(ids []int) ([]*CiPipelineMaterial, error)
 	GetById(id int) (*CiPipelineMaterial, error)
 	GetByPipelineId(id int) ([]*CiPipelineMaterial, error)
@@ -114,6 +115,13 @@ func (impl CiPipelineMaterialRepositoryImpl) Save(tx *pg.Tx, material ...*CiPipe
 }
 
 func (impl CiPipelineMaterialRepositoryImpl) Update(tx *pg.Tx, materials ...*CiPipelineMaterial) error {
+	_, err := tx.Model(&materials).Update()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+func (impl CiPipelineMaterialRepositoryImpl) UpdateNotNull(tx *pg.Tx, materials ...*CiPipelineMaterial) error {
 	/*err := tx.RunInTransaction(func(tx *pg.Tx) error {
 		for _, material := range materials {
 			r, err := tx.Model(material).WherePK().UpdateNotNull()
@@ -134,7 +142,6 @@ func (impl CiPipelineMaterialRepositoryImpl) Update(tx *pg.Tx, materials ...*CiP
 
 	return nil
 }
-
 func (impl CiPipelineMaterialRepositoryImpl) GetRegexByPipelineId(id int) ([]*CiPipelineMaterial, error) {
 	var ciPipelineMaterials []*CiPipelineMaterial
 	err := impl.dbConnection.Model(&ciPipelineMaterials).
