@@ -2615,7 +2615,9 @@ func (impl PipelineBuilderImpl) FetchDeletedApp(ctx context.Context,
 			}
 			_, err = impl.application.Get(ctx, req)
 		}
-		if err != nil {
+		fmt.Println(err.Error() == "rpc error: code = NotFound desc = error getting application: applications.argoproj.io \"app-1-test-env\" not found")
+		fmt.Println(err.Error())
+		if strings.Contains(err.Error(), "not found") {
 			successfulPipelines = impl.appendToDeploymentChangeStatusList(
 				successfulPipelines,
 				pipeline,
