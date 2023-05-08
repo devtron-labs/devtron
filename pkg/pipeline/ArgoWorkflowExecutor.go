@@ -1,4 +1,4 @@
-package executors
+package pipeline
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 	"github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned"
 	v1alpha12 "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"go.uber.org/zap"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,10 +16,8 @@ import (
 )
 
 const (
-	CD_WORKFLOW_NAME        = "cd"
-	CD_WORKFLOW_WITH_STAGES = "cd-stages-with-env"
-	STEP_NAME_REGEX         = "create-env-%s-gb-%d"
-	TEMPLATE_NAME_REGEX     = "%s-gb-%d"
+	STEP_NAME_REGEX     = "create-env-%s-gb-%d"
+	TEMPLATE_NAME_REGEX = "%s-gb-%d"
 )
 
 type WorkflowExecutor interface {
@@ -159,11 +156,11 @@ func (impl *ArgoWorkflowExecutorImpl) appendCMCSToStepAndTemplate(isSecret bool,
 	}
 
 	var cmSecretJson string
-	configMapSecretDto := pipeline.ConfigMapSecretDto{Name: configSecretMap.Name, Data: configDataMap, OwnerRef: pipeline.ArgoWorkflowOwnerRef}
+	configMapSecretDto := ConfigMapSecretDto{Name: configSecretMap.Name, Data: configDataMap, OwnerRef: ArgoWorkflowOwnerRef}
 	if isSecret {
-		cmSecretJson, err = pipeline.GetSecretJson(configMapSecretDto)
+		cmSecretJson, err = GetSecretJson(configMapSecretDto)
 	} else {
-		cmSecretJson, err = pipeline.GetConfigMapJson(configMapSecretDto)
+		cmSecretJson, err = GetConfigMapJson(configMapSecretDto)
 	}
 	if err != nil {
 		impl.logger.Errorw("error occurred while extracting cm/secret json", "configSecretName", configSecretMap.Name, "err", err)

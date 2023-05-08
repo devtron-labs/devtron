@@ -18,13 +18,11 @@
 package pipelineConfig
 
 import (
-	"encoding/json"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/util"
-	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -63,41 +61,6 @@ type Pipeline struct {
 	DeploymentAppDeleteRequest    bool        `sql:"deployment_app_delete_request,notnull"`
 	Environment                   repository.Environment
 	sql.AuditLog
-}
-
-func (pipeline Pipeline) GetConfiguredCmCs(stage string) (map[string]bool, map[string]bool, error) {
-
-	cdPipelineLevelConfigMaps := make(map[string]bool)
-	cdPipelineLevelSecrets := make(map[string]bool)
-
-	if stage == "PRE" {
-		preStageConfigMapSecretsJson := pipeline.PreStageConfigMapSecretNames
-		preStageConfigmapSecrets := bean2.PreStageConfigMapSecretNames{}
-		err := json.Unmarshal([]byte(preStageConfigMapSecretsJson), &preStageConfigmapSecrets)
-		if err != nil {
-			return cdPipelineLevelConfigMaps, cdPipelineLevelSecrets, err
-		}
-		for _, cm := range preStageConfigmapSecrets.ConfigMaps {
-			cdPipelineLevelConfigMaps[cm] = true
-		}
-		for _, secret := range preStageConfigmapSecrets.Secrets {
-			cdPipelineLevelSecrets[secret] = true
-		}
-	} else {
-		postStageConfigMapSecretsJson := pipeline.PostStageConfigMapSecretNames
-		postStageConfigmapSecrets := bean2.PostStageConfigMapSecretNames{}
-		err := json.Unmarshal([]byte(postStageConfigMapSecretsJson), &postStageConfigmapSecrets)
-		if err != nil {
-			return cdPipelineLevelConfigMaps, cdPipelineLevelSecrets, err
-		}
-		for _, cm := range postStageConfigmapSecrets.ConfigMaps {
-			cdPipelineLevelConfigMaps[cm] = true
-		}
-		for _, secret := range postStageConfigmapSecrets.Secrets {
-			cdPipelineLevelSecrets[secret] = true
-		}
-	}
-	return cdPipelineLevelConfigMaps, cdPipelineLevelSecrets, nil
 }
 
 type PipelineRepository interface {

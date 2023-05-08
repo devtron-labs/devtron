@@ -23,9 +23,9 @@ import (
 	"fmt"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
+	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	"strconv"
 	"strings"
 	"time"
@@ -65,7 +65,7 @@ type CdWorkflowServiceImpl struct {
 	appService           app.AppService
 	envRepository        repository.EnvironmentRepository
 	globalCMCSService    GlobalCMCSService
-	argoWorkflowExecutor executors.ArgoWorkflowExecutor
+	argoWorkflowExecutor ArgoWorkflowExecutor
 }
 
 type CdWorkflowRequest struct {
@@ -123,7 +123,7 @@ func NewCdWorkflowServiceImpl(Logger *zap.SugaredLogger,
 	cdConfig *CdConfig,
 	appService app.AppService,
 	globalCMCSService GlobalCMCSService,
-	argoWorkflowExecutor executors.ArgoWorkflowExecutor) *CdWorkflowServiceImpl {
+	argoWorkflowExecutor ArgoWorkflowExecutor) *CdWorkflowServiceImpl {
 	return &CdWorkflowServiceImpl{Logger: Logger,
 		config:               cdConfig.ClusterConfig,
 		cdConfig:             cdConfig,
@@ -154,9 +154,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 
 	privileged := true
 	storageConfigured := workflowRequest.BlobStorageConfigured
-
 	ttl := int32(impl.cdConfig.BuildLogTTLValue)
-
 	workflowTemplate := bean3.WorkflowTemplate{}
 	workflowTemplate.TTLValue = ttl
 	workflowTemplate.WorkflowRequestJson = string(workflowJson)
@@ -193,7 +191,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		}
 	}
 
-	cdPipelineLevelConfigMaps, cdPipelineLevelSecrets, err := pipeline.GetConfiguredCmCs(workflowRequest.StageType)
+	cdPipelineLevelConfigMaps, cdPipelineLevelSecrets, err := impl.getConfiguredCmCs(pipeline, workflowRequest.StageType)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while fetching pipeline configured cm and cs", "pipelineId", pipeline.Id, "err", err)
 		return nil, err
@@ -677,6 +675,41 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	//impl.Logger.Debugw("workflow submitted: ", "name", createdWf.Name)
 	//impl.checkErr(err)
 	//return createdWf, err
+}
+
+func (impl *CdWorkflowServiceImpl) getConfiguredCmCs(pipeline *pipelineConfig.Pipeline, stage string) (map[string]bool, map[string]bool, error) {
+
+	cdPipelineLevelConfigMaps := make(map[string]bool)
+	cdPipelineLevelSecrets := make(map[string]bool)
+
+	if stage == "PRE" {
+		preStageConfigMapSecretsJson := pipeline.PreStageConfigMapSecretNames
+		preStageConfigmapSecrets := bean2.PreStageConfigMapSecretNames{}
+		err := json.Unmarshal([]byte(preStageConfigMapSecretsJson), &preStageConfigmapSecrets)
+		if err != nil {
+			return cdPipelineLevelConfigMaps, cdPipelineLevelSecrets, err
+		}
+		for _, cm := range preStageConfigmapSecrets.ConfigMaps {
+			cdPipelineLevelConfigMaps[cm] = true
+		}
+		for _, secret := range preStageConfigmapSecrets.Secrets {
+			cdPipelineLevelSecrets[secret] = true
+		}
+	} else {
+		postStageConfigMapSecretsJson := pipeline.PostStageConfigMapSecretNames
+		postStageConfigmapSecrets := bean2.PostStageConfigMapSecretNames{}
+		err := json.Unmarshal([]byte(postStageConfigMapSecretsJson), &postStageConfigmapSecrets)
+		if err != nil {
+			return cdPipelineLevelConfigMaps, cdPipelineLevelSecrets, err
+		}
+		for _, cm := range postStageConfigmapSecrets.ConfigMaps {
+			cdPipelineLevelConfigMaps[cm] = true
+		}
+		for _, secret := range postStageConfigmapSecrets.Secrets {
+			cdPipelineLevelSecrets[secret] = true
+		}
+	}
+	return cdPipelineLevelConfigMaps, cdPipelineLevelSecrets, nil
 }
 
 func (impl *CdWorkflowServiceImpl) GetWorkflow(name string, namespace string, url string, token string, isExtRun bool) (*v1alpha1.Workflow, error) {
