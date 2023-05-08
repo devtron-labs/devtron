@@ -18,6 +18,7 @@ type PipelineStatusTimelineResourcesRepository interface {
 	UpdateTimelineResources(timelineResources []*PipelineStatusTimelineResources) error
 	UpdateTimelineResourcesWithTxn(timelineResources []*PipelineStatusTimelineResources, tx *pg.Tx) error
 	GetByCdWfrIdAndTimelineStage(cdWfrId int) ([]*PipelineStatusTimelineResources, error)
+	GetByInstalledAppVersionHistoryIdAndTimelineStage(installedAppVersionHistoryId int) ([]*PipelineStatusTimelineResources, error)
 	GetByCdWfrIds(cdWfrIds []int) ([]*PipelineStatusTimelineResources, error)
 }
 
@@ -38,7 +39,7 @@ type PipelineStatusTimelineResources struct {
 	tableName                    struct{}              `sql:"pipeline_status_timeline_resources" pg:",discard_unknown_columns"`
 	Id                           int                   `sql:"id,pk"`
 	InstalledAppVersionHistoryId int                   `sql:"installed_app_version_history_id,type:integer"`
-	CdWorkflowRunnerId           int                   `sql:"cd_workflow_runner_id"`
+	CdWorkflowRunnerId           int                   `sql:"cd_workflow_runner_id,type:integer"`
 	ResourceName                 string                `sql:"resource_name"`
 	ResourceKind                 string                `sql:"resource_kind"`
 	ResourceGroup                string                `sql:"resource_group"`
@@ -70,7 +71,7 @@ func (impl *PipelineStatusTimelineResourcesRepositoryImpl) SaveTimelineResources
 func (impl *PipelineStatusTimelineResourcesRepositoryImpl) UpdateTimelineResources(timelineResources []*PipelineStatusTimelineResources) error {
 	_, err := impl.dbConnection.Model(&timelineResources).Update()
 	if err != nil {
-		impl.logger.Errorw("error in updating timeline resources of cd pipeline status", "err", err, "timelineResources", timelineResources)
+		impl.logger.Errorw("error in updating timeline resources of pipeline status", "err", err, "timelineResources", timelineResources)
 		return err
 	}
 	return nil
@@ -92,6 +93,18 @@ func (impl *PipelineStatusTimelineResourcesRepositoryImpl) GetByCdWfrIdAndTimeli
 		Select()
 	if err != nil {
 		impl.logger.Errorw("error in getting timeline resources by cdWfrId and timeline stage", "err", err, "cdWfrId", cdWfrId, "timelineStage", timelineResources)
+		return nil, err
+	}
+	return timelineResources, nil
+}
+
+func (impl *PipelineStatusTimelineResourcesRepositoryImpl) GetByInstalledAppVersionHistoryIdAndTimelineStage(installedAppVersionHistoryId int) ([]*PipelineStatusTimelineResources, error) {
+	var timelineResources []*PipelineStatusTimelineResources
+	err := impl.dbConnection.Model(&timelineResources).
+		Where("installed_app_version_history_id = ?", installedAppVersionHistoryId).
+		Select()
+	if err != nil {
+		impl.logger.Errorw("error in getting timeline resources by installedAppVersionHistoryId and timeline stage", "err", err, "cdWfrId", installedAppVersionHistoryId, "timelineStage", timelineResources)
 		return nil, err
 	}
 	return timelineResources, nil
