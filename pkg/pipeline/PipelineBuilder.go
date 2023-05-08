@@ -2228,6 +2228,11 @@ func (impl PipelineBuilderImpl) ChangePipelineDeploymentType(ctx context.Context
 		pipelineIds, request.UserId, false, true)
 
 	if err != nil {
+		impl.logger.Errorw("failed to update deployment app type in db",
+			"pipeline ids", pipelineIds,
+			"desired deployment type", request.DesiredDeploymentType,
+			"err", err)
+
 		return response, nil
 	}
 	// Force delete apps
@@ -2275,6 +2280,14 @@ func (impl PipelineBuilderImpl) TriggerDeploymentAfterTypeChange(ctx context.Con
 	cdPipelines, err := impl.pipelineRepository.FindActiveByEnvIdAndDeploymentType(request.EnvId,
 		string(request.DesiredDeploymentType), request.ExcludeApps, request.IncludeApps)
 
+	if err != nil {
+		impl.logger.Errorw("Error fetching cd pipelines",
+			"environmentId", request.EnvId,
+			"desiredDeploymentAppType", string(request.DesiredDeploymentType),
+			"err", err)
+		return response, err
+	}
+
 	// Update the deployment app type to Helm and toggle deployment_app_created to false in db
 	var cdPipelineIds []int
 	for _, item := range cdPipelines {
@@ -2288,14 +2301,6 @@ func (impl PipelineBuilderImpl) TriggerDeploymentAfterTypeChange(ctx context.Con
 
 	// Update in db
 	response = impl.FetchDeletedApp(ctx, cdPipelines)
-	if err != nil {
-		impl.logger.Errorw("failed to update deployment app type in db",
-			"pipeline ids", cdPipelineIds,
-			"desired deployment type", request.DesiredDeploymentType,
-			"err", err)
-
-		return response, nil
-	}
 
 	var successPipelines []int
 	for _, item := range response.SuccessfulPipelines {
@@ -2596,10 +2601,20 @@ func (impl PipelineBuilderImpl) FetchDeletedApp(ctx context.Context,
 	for _, pipeline := range pipelines {
 
 		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
-		req := &application2.ApplicationQuery{
-			Name: &deploymentAppName,
+		var err error
+		if pipeline.DeploymentAppType == string(bean.ArgoCd) {
+			appIdentifier := &client.AppIdentifier{
+				ClusterId:   pipeline.Environment.ClusterId,
+				ReleaseName: pipeline.DeploymentAppName,
+				Namespace:   pipeline.Environment.Namespace,
+			}
+			_, err = impl.helmAppService.GetApplicationDetail(ctx, appIdentifier)
+		} else {
+			req := &application2.ApplicationQuery{
+				Name: &deploymentAppName,
+			}
+			_, err = impl.application.Get(ctx, req)
 		}
-		_, err := impl.application.Get(ctx, req)
 		if err != nil {
 			successfulPipelines = impl.appendToDeploymentChangeStatusList(
 				successfulPipelines,
