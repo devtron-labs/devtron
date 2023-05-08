@@ -1043,16 +1043,10 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 		return nil, err
 	}
 	if util.IsAcdApp(installedApp.DeploymentAppType) {
-		installedAppVersion, err := impl.installedAppRepository.GetActiveInstalledAppVersionByInstalledAppId(installAppVersionRequest.InstalledAppId)
-		if err != nil {
-			impl.logger.Errorw("error in fetching latest active installed app version buy installedAppId", "err", err, "installedAppId", installAppVersionRequest.InstalledAppId)
-			return nil, err
-		}
 		installedAppVersionHistory := &repository.InstalledAppVersionHistory{
-			InstalledAppVersionId: installedAppVersion.Id,
-			ValuesYamlRaw:         installAppVersionRequest.ValuesOverrideYaml,
-			StartedOn:             time.Now(),
-			Status:                pipelineConfig.WorkflowInProgress,
+			ValuesYamlRaw: installAppVersionRequest.ValuesOverrideYaml,
+			StartedOn:     time.Now(),
+			Status:        pipelineConfig.WorkflowInProgress,
 			AuditLog: sql.AuditLog{
 				CreatedOn: time.Now(),
 				CreatedBy: installAppVersionRequest.UserId,
@@ -1151,7 +1145,17 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 				return nil, err
 			}
 			installedAppVersion.AppStoreApplicationVersion = *appStoreAppVersion
-
+			latestInstalledAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(installAppVersionRequest.InstalledAppVersionHistoryId)
+			if err != nil {
+				impl.logger.Errorw("error while getting installedAppVersionHistory by id", "error", err, "installedAppVersionHistoryId", installAppVersionRequest.InstalledAppVersionHistoryId)
+				return nil, err
+			}
+			latestInstalledAppVersionHistory.InstalledAppVersionId = installedAppVersion.Id
+			_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(latestInstalledAppVersionHistory, tx)
+			if err != nil {
+				impl.logger.Errorw("error while updating installedAppVersionId in installedAppVersionHistory", "error", err, "installedAppVersionId", installedAppVersion.Id)
+				return nil, err
+			}
 			//update requirements yaml in chart for full mode app, if migration happened that means it's already done
 			if !isHelmApp && !monoRepoMigrationRequired {
 				err = impl.appStoreDeploymentArgoCdService.UpdateRequirementDependencies(environment, installedAppVersion, installAppVersionRequest, appStoreAppVersion)
@@ -1231,12 +1235,6 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 			return nil, err
 		}
 	}
-	// create build history for version upgrade, chart upgrade or simple update
-	err = impl.UpdateInstalledAppVersionHistoryWithGitHash(installAppVersionRequest)
-	if err != nil {
-		impl.logger.Errorw("error on creating history for chart deployment", "error", err)
-		return nil, err
-	}
 	return installAppVersionRequest, nil
 }
 
@@ -1315,6 +1313,18 @@ func (impl AppStoreDeploymentServiceImpl) upgradeInstalledApp(environment *clust
 	installedAppVersion.AppStoreApplicationVersion = *appStoreAppVersion
 	installedAppVersion.InstalledApp = *installedApp
 	installAppVersionRequest.InstalledAppVersionId = installedAppVersion.Id
+
+	latestInstalledAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(installAppVersionRequest.InstalledAppVersionHistoryId)
+	if err != nil {
+		impl.logger.Errorw("error while getting installedAppVersionHistory by id", "error", err, "installedAppVersionHistoryId", installAppVersionRequest.InstalledAppVersionHistoryId)
+		return installAppVersionRequest, installedAppVersion, err
+	}
+	latestInstalledAppVersionHistory.InstalledAppVersionId = installedAppVersion.Id
+	_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(latestInstalledAppVersionHistory, tx)
+	if err != nil {
+		impl.logger.Errorw("error while updating installedAppVersionId in installedAppVersionHistory", "error", err, "installedAppVersionId", installedAppVersion.Id)
+		return installAppVersionRequest, installedAppVersion, err
+	}
 
 	if util2.IsHelmApp(installedApp.App.AppOfferingMode) || util.IsHelmApp(installedApp.DeploymentAppType) {
 		// update in helm
