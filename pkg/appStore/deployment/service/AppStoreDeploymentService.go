@@ -1043,8 +1043,13 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 		return nil, err
 	}
 	if util.IsAcdApp(installedApp.DeploymentAppType) {
+		installedAppVersion, err := impl.installedAppRepository.GetActiveInstalledAppVersionByInstalledAppId(installAppVersionRequest.InstalledAppId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching latest active installed app version buy installedAppId", "err", err, "installedAppId", installAppVersionRequest.InstalledAppId)
+			return nil, err
+		}
 		installedAppVersionHistory := &repository.InstalledAppVersionHistory{
-			InstalledAppVersionId: installAppVersionRequest.Id,
+			InstalledAppVersionId: installedAppVersion.Id,
 			ValuesYamlRaw:         installAppVersionRequest.ValuesOverrideYaml,
 			StartedOn:             time.Now(),
 			Status:                pipelineConfig.WorkflowInProgress,
