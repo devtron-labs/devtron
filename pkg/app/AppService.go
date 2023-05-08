@@ -142,6 +142,7 @@ type AppServiceImpl struct {
 	chartTemplateService                   ChartTemplateService
 	refChartDir                            chartRepoRepository.RefChartDir
 	helmAppClient                          client2.HelmAppClient
+	helmAppService                         client2.HelmAppService
 	chartRefRepository                     chartRepoRepository.ChartRefRepository
 	chartService                           chart.ChartService
 	argoUserService                        argo.ArgoUserService
@@ -226,7 +227,8 @@ func NewAppService(
 	appStatusService appStatus.AppStatusService,
 	installedAppRepository repository4.InstalledAppRepository,
 	AppStoreDeploymentService service.AppStoreDeploymentService,
-	k8sApplicationService k8s.K8sApplicationService) *AppServiceImpl {
+	k8sApplicationService k8s.K8sApplicationService,
+	helmAppService client2.HelmAppService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:            environmentConfigRepository,
 		mergeUtil:                              mergeUtil,
@@ -282,6 +284,7 @@ func NewAppService(
 		installedAppRepository:                 installedAppRepository,
 		AppStoreDeploymentService:              AppStoreDeploymentService,
 		k8sApplicationService:                  k8sApplicationService,
+		helmAppService:                         helmAppService,
 	}
 	return appServiceImpl
 }
@@ -2174,6 +2177,7 @@ func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Val
 			req := &client2.UpgradeReleaseRequest{
 				ReleaseIdentifier: releaseIdentifier,
 				ValuesYaml:        mergeAndSave,
+				RevisionMaxLimit:  impl.helmAppService.GetRevisionHistoryLimitValue(client2.ApiCallerDevtronApp),
 			}
 
 			updateApplicationResponse, err := impl.helmAppClient.UpdateApplication(ctx, req)
