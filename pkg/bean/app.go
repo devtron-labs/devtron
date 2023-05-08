@@ -494,6 +494,7 @@ type CDPipelineConfigObject struct {
 	ParentPipelineId              int                                    `json:"parentPipelineId"`
 	ParentPipelineType            string                                 `json:"parentPipelineType"`
 	DeploymentAppType             string                                 `json:"deploymentAppType"`
+	UserApprovalConf              *pipelineConfig.UserApprovalConfig     `json:"userApprovalConfig"`
 	AppName                       string                                 `json:"appName"`
 	DeploymentAppDeleteRequest    bool                                   `json:"deploymentAppDeleteRequest"`
 	DeploymentAppCreated          bool                                   `json:"deploymentAppCreated"`
@@ -549,6 +550,22 @@ const (
 	CD_UPDATE
 	CD_DELETE_PARTIAL // Partially delete means it will only delete ACD app
 )
+
+type UserApprovalActionType int
+
+const (
+	APPROVAL_REQUEST_ACTION UserApprovalActionType = iota
+	APPROVAL_APPROVE_ACTION
+	APPROVAL_REQUEST_CANCEL_ACTION
+)
+
+type UserApprovalActionRequest struct {
+	AppId             int                    `json:"appId"` // would be required for RBAC
+	ActionType        UserApprovalActionType `json:"actionType" validate:"required"`
+	ApprovalRequestId int                    `json:"approvalRequestId"`
+	PipelineId        int                    `json:"pipelineId" validate:"required,number"` // would be required while raising approval request
+	ArtifactId        int                    `json:"artifactId"`                            // would be required while raising approval request
+}
 
 type DeploymentAppTypeChangeRequest struct {
 	EnvId                 int            `json:"envId,omitempty" validate:"required"`
@@ -624,31 +641,37 @@ type Rollback struct {
 }
 
 type CiArtifactBean struct {
-	Id                            int                       `json:"id"`
-	Image                         string                    `json:"image,notnull"`
-	ImageDigest                   string                    `json:"image_digest,notnull"`
-	MaterialInfo                  json.RawMessage           `json:"material_info"` //git material metadata json array string
-	DataSource                    string                    `json:"data_source,notnull"`
-	DeployedTime                  string                    `json:"deployed_time"`
-	Deployed                      bool                      `json:"deployed,notnull"`
-	Latest                        bool                      `json:"latest,notnull"`
-	LastSuccessfulTriggerOnParent bool                      `json:"lastSuccessfulTriggerOnParent,notnull"`
-	RunningOnParentCd             bool                      `json:"runningOnParentCd,omitempty"`
-	IsVulnerable                  bool                      `json:"vulnerable,notnull"`
-	ScanEnabled                   bool                      `json:"scanEnabled,notnull"`
-	Scanned                       bool                      `json:"scanned,notnull"`
-	WfrId                         int                       `json:"wfrId"`
-	DeployedBy                    string                    `json:"deployedBy"`
-	CiConfigureSourceType         pipelineConfig.SourceType `json:"ciConfigureSourceType"`
-	CiConfigureSourceValue        string                    `json:"ciConfigureSourceValue"`
+	Id                            int             `json:"id"`
+	Image                         string          `json:"image,notnull"`
+	ImageDigest                   string          `json:"image_digest,notnull"`
+	MaterialInfo                  json.RawMessage `json:"material_info"` //git material metadata json array string
+	DataSource                    string          `json:"data_source,notnull"`
+	DeployedTime                  string          `json:"deployed_time"`
+	Deployed                      bool            `json:"deployed,notnull"`
+	Latest                        bool            `json:"latest,notnull"`
+	LastSuccessfulTriggerOnParent bool            `json:"lastSuccessfulTriggerOnParent,notnull"`
+	RunningOnParentCd             bool            `json:"runningOnParentCd,omitempty"`
+	IsVulnerable                  bool            `json:"vulnerable,notnull"`
+	ScanEnabled                   bool            `json:"scanEnabled,notnull"`
+	Scanned                       bool            `json:"scanned,notnull"`
+	WfrId                         int             `json:"wfrId"`
+	DeployedBy                    string          `json:"deployedBy"`
+	//TriggeredByEmail              string                               `json:"triggeredByEmail"`
+	TriggeredBy            int32                                `json:"triggeredBy"`
+	CiConfigureSourceType  pipelineConfig.SourceType            `json:"ciConfigureSourceType"`
+	CiConfigureSourceValue string                               `json:"ciConfigureSourceValue"`
+	UserApprovalMetadata   *pipelineConfig.UserApprovalMetadata `json:"userApprovalMetadata"`
 }
 
 type CiArtifactResponse struct {
 	//AppId           int      `json:"app_id"`
-	CdPipelineId           int              `json:"cd_pipeline_id,notnull"`
-	LatestWfArtifactId     int              `json:"latest_wf_artifact_id"`
-	LatestWfArtifactStatus string           `json:"latest_wf_artifact_status"`
-	CiArtifacts            []CiArtifactBean `json:"ci_artifacts,notnull"`
+	CdPipelineId           int                                `json:"cd_pipeline_id,notnull"`
+	LatestWfArtifactId     int                                `json:"latest_wf_artifact_id"`
+	LatestWfArtifactStatus string                             `json:"latest_wf_artifact_status"`
+	CiArtifacts            []CiArtifactBean                   `json:"ci_artifacts,notnull"`
+	UserApprovalConfig     *pipelineConfig.UserApprovalConfig `json:"userApprovalConfig"`
+	ApprovalUsers          []string                           `json:"approvalUsers"`
+	RequestedUserId        int32                              `json:"requestedUserId"`
 }
 
 type AppLabelsDto struct {

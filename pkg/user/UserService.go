@@ -58,6 +58,8 @@ type UserService interface {
 	UserExists(emailId string) bool
 	GetRoleFiltersByGroupNames(groupNames []string) ([]bean.RoleFilter, error)
 	SaveLoginAudit(emailId, clientIp string, id int32)
+	GetApprovalUsersByEnv(appName, envName string) ([]string, error)
+	CheckForApproverAccess(appName, envName string, userId int32) bool
 }
 
 type UserServiceImpl struct {
@@ -372,7 +374,7 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 		if err != nil || flag == false {
 			return nil, err
 		}
-		roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes("", "", "", "", bean2.SUPER_ADMIN, "", "", "", "", "", "", "", false)
+		roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes("", "", "", "", bean2.SUPER_ADMIN, false, "", "", "", "", "", "", "", false)
 		if err != nil {
 			return nil, err
 		}
@@ -438,19 +440,19 @@ func (impl UserServiceImpl) CreateOrUpdateUserRolesForAllTypes(roleFilter bean.R
 				}
 				entityName = impl.userCommonService.RemovePlaceHolderInRoleFilterField(entityName)
 				environment = impl.userCommonService.RemovePlaceHolderInRoleFilterField(environment)
-				roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", actionType, false)
+				roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, roleFilter.Approver, accessType, "", "", "", "", "", actionType, false)
 				if err != nil {
 					impl.logger.Errorw("error in getting role by all type", "err", err, "roleFilter", roleFilter)
 					return policiesToBeAdded, rolesChanged, err
 				}
 				if roleModel.Id == 0 {
-					impl.logger.Debugw("no role found for given filter", "filter", "roleFilter", roleFilter)
-					flag, err, policiesAdded := impl.userCommonService.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType, userId)
+					impl.logger.Debugw("no role found for given filter", "filter", roleFilter)
+					flag, err, policiesAdded := impl.userCommonService.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType, roleFilter.Approver, userId)
 					if err != nil || flag == false {
 						return policiesToBeAdded, rolesChanged, err
 					}
 					policiesToBeAdded = append(policiesToBeAdded, policiesAdded...)
-					roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", actionType, false)
+					roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, roleFilter.Approver, accessType, "", "", "", "", "", actionType, false)
 					if err != nil {
 						return policiesToBeAdded, rolesChanged, err
 					}
@@ -512,19 +514,19 @@ func (impl UserServiceImpl) createOrUpdateUserRolesForClusterEntity(roleFilter b
 						}
 					}
 					impl.logger.Infow("Getting Role by filter for cluster")
-					roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, "", "", "", "", accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType, false)
+					roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, "", "", "", "", false, accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType, false)
 					if err != nil {
 						return policiesToBeAdded, rolesChanged, err
 					}
 					if roleModel.Id == 0 {
 						impl.logger.Infow("Creating Polices for cluster", resource, kind, namespace, group)
-						flag, err, policiesAdded := impl.userCommonService.CreateDefaultPoliciesForAllTypes("", "", "", entity, roleFilter.Cluster, namespace, group, kind, resource, actionType, accessType, userId)
+						flag, err, policiesAdded := impl.userCommonService.CreateDefaultPoliciesForAllTypes("", "", "", entity, roleFilter.Cluster, namespace, group, kind, resource, actionType, accessType, false, userId)
 						if err != nil || flag == false {
 							return policiesToBeAdded, rolesChanged, err
 						}
 						policiesToBeAdded = append(policiesToBeAdded, policiesAdded...)
 						impl.logger.Infow("getting role again for cluster")
-						roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, "", "", "", "", accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType, false)
+						roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, "", "", "", "", false, accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType, false)
 						if err != nil {
 							return policiesToBeAdded, rolesChanged, err
 						}
@@ -577,14 +579,15 @@ func (impl UserServiceImpl) mergeRoleFilter(oldR []bean.RoleFilter, newR []bean.
 			Group:       role.Group,
 			Kind:        role.Kind,
 			Resource:    role.Resource,
+			Approver:    role.Approver,
 		})
-		key := fmt.Sprintf("%s-%s-%s-%s-%s-%s-%s-%s-%s-%s-%s", role.Entity, role.Team, role.Environment,
-			role.EntityName, role.Action, role.AccessType, role.Cluster, role.Namespace, role.Group, role.Kind, role.Resource)
+		key := fmt.Sprintf("%s-%s-%s-%s-%s-%s-%t-%s-%s-%s-%s-%s", role.Entity, role.Team, role.Environment,
+			role.EntityName, role.Action, role.AccessType, role.Approver, role.Cluster, role.Namespace, role.Group, role.Kind, role.Resource)
 		keysMap[key] = true
 	}
 	for _, role := range newR {
-		key := fmt.Sprintf("%s-%s-%s-%s-%s-%s-%s-%s-%s-%s-%s", role.Entity, role.Team, role.Environment,
-			role.EntityName, role.Action, role.AccessType, role.Cluster, role.Namespace, role.Group, role.Kind, role.Resource)
+		key := fmt.Sprintf("%s-%s-%s-%s-%s-%s-%t-%s-%s-%s-%s-%s", role.Entity, role.Team, role.Environment,
+			role.EntityName, role.Action, role.AccessType, role.Approver, role.Cluster, role.Namespace, role.Group, role.Kind, role.Resource)
 		if _, ok := keysMap[key]; !ok {
 			roleFilters = append(roleFilters, bean.RoleFilter{
 				Entity:      role.Entity,
@@ -598,6 +601,7 @@ func (impl UserServiceImpl) mergeRoleFilter(oldR []bean.RoleFilter, newR []bean.
 				Group:       role.Group,
 				Kind:        role.Kind,
 				Resource:    role.Resource,
+				Approver:    role.Approver,
 			})
 		}
 	}
@@ -766,7 +770,7 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 		if err != nil || flag == false {
 			return nil, false, false, nil, err
 		}
-		roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes("", "", "", "", bean2.SUPER_ADMIN, "", "", "", "", "", "", "", false)
+		roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes("", "", "", "", bean2.SUPER_ADMIN, false, "", "", "", "", "", "", "", false)
 		if err != nil {
 			return nil, false, false, nil, err
 		}
@@ -852,7 +856,7 @@ func (impl UserServiceImpl) getUserMetadata(model *repository2.UserModel) (bool,
 	for _, role := range roles {
 		key := ""
 		if len(role.Team) > 0 {
-			key = fmt.Sprintf("%s_%s_%s", role.Team, role.Action, role.AccessType)
+			key = fmt.Sprintf("%s_%s_%s_%t", role.Team, role.Action, role.AccessType, role.Approver)
 		} else if len(role.Entity) > 0 {
 			if role.Entity == bean.CLUSTER_ENTITIY {
 				key = fmt.Sprintf("%s_%s_%s_%s_%s_%s", role.Entity, role.Action, role.Cluster,
@@ -912,6 +916,7 @@ func (impl UserServiceImpl) getUserMetadata(model *repository2.UserModel) (bool,
 				Group:       role.Group,
 				Kind:        role.Kind,
 				Resource:    role.Resource,
+				Approver:    role.Approver,
 			}
 
 		}
@@ -1025,6 +1030,55 @@ func (impl UserServiceImpl) UserExists(emailId string) bool {
 	} else {
 		return true
 	}
+}
+
+func (impl UserServiceImpl) CheckForApproverAccess(appName, envName string, userId int32) bool {
+	allowedUsers, err := impl.GetApprovalUsersByEnv(appName, envName)
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching approval users", "appName", appName, "envName", envName, "err", err)
+		return false
+	}
+	userInfo, err := impl.GetById(userId)
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching user details", "userId", userId, "err", err)
+		return false
+	}
+	allowed := userId == 2 // admin user
+	if !allowed {
+		for _, allowedUser := range allowedUsers {
+			if userInfo.EmailId == allowedUser {
+				allowed = true
+				break
+			}
+		}
+	}
+	return allowed
+}
+
+func (impl UserServiceImpl) GetApprovalUsersByEnv(appName, envName string) ([]string, error) {
+	emailIds, permissionGroupNames, err := impl.userAuthRepository.GetApprovalUsersByEnv(appName, envName)
+	if err != nil {
+		return emailIds, err
+	}
+	for _, groupName := range permissionGroupNames {
+		userEmails, err := casbin2.GetUserByRole(groupName)
+		if err != nil {
+			return emailIds, err
+		}
+		emailIds = append(emailIds, userEmails...)
+	}
+	uniqueEmails := make(map[string]bool)
+	for _, emailId := range emailIds {
+		_, ok := uniqueEmails[emailId]
+		if !ok {
+			uniqueEmails[emailId] = true
+		}
+	}
+	var finalEmails []string
+	for emailId, _ := range uniqueEmails {
+		finalEmails = append(finalEmails, emailId)
+	}
+	return finalEmails, nil
 }
 func (impl UserServiceImpl) SaveLoginAudit(emailId, clientIp string, id int32) {
 
@@ -1169,6 +1223,9 @@ func (impl UserServiceImpl) GetEmailFromToken(token string) (string, error) {
 
 func (impl UserServiceImpl) GetByIds(ids []int32) ([]bean.UserInfo, error) {
 	var beans []bean.UserInfo
+	if len(ids) == 0 {
+		return beans, nil
+	}
 	models, err := impl.userRepository.GetByIds(ids)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
@@ -1370,7 +1427,7 @@ func (impl UserServiceImpl) GetRoleFiltersByGroupNames(groupNames []string) ([]b
 	for _, role := range roles {
 		key := ""
 		if len(role.Team) > 0 {
-			key = fmt.Sprintf("%s_%s_%s", role.Team, role.Action, role.AccessType)
+			key = fmt.Sprintf("%s_%s_%s_%t", role.Team, role.Action, role.AccessType, role.Approver)
 		} else if len(role.Entity) > 0 {
 			if role.Entity == bean.CLUSTER_ENTITIY {
 				key = fmt.Sprintf("%s_%s_%s_%s_%s_%s", role.Entity, role.Action, role.Cluster,

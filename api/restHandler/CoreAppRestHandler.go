@@ -757,6 +757,7 @@ func (handler CoreAppRestHandlerImpl) buildCdPipelineResp(appId int, cdPipeline 
 		RunPreStageInEnv:       cdPipeline.RunPreStageInEnv,
 		RunPostStageInEnv:      cdPipeline.RunPostStageInEnv,
 		IsClusterCdActive:      cdPipeline.CdArgoSetup,
+		UserApprovalConf:       cdPipeline.UserApprovalConf,
 	}
 
 	//build DeploymentStrategies resp
@@ -1656,6 +1657,7 @@ func (handler CoreAppRestHandlerImpl) createCdPipelines(ctx context.Context, app
 			PostStage:                     convertCdStages(cdPipeline.PostStage),
 			PreStageConfigMapSecretNames:  convertCdPreStageCMorCSNames(cdPipeline.PreStageConfigMapSecretNames),
 			PostStageConfigMapSecretNames: convertCdPostStageCMorCSNames(cdPipeline.PostStageConfigMapSecretNames),
+			UserApprovalConf:              cdPipeline.UserApprovalConf,
 		}
 		convertedDeploymentStrategies, err := convertCdDeploymentStrategies(cdPipeline.DeploymentStrategies)
 		if err != nil {
