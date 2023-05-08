@@ -78,12 +78,13 @@ func (impl CiTemplateServiceImpl) FindByAppId(appId int) (ciTemplateBean *bean.C
 			ciBuildConfig, "error", err)
 	}
 	if ciBuildConfigBean == nil {
-		ciBuildConfigBean, err = bean.OverrideCiBuildConfig(ciTemplate.DockerfilePath, ciTemplate.Args, "", ciTemplate.DockerBuildOptions, ciTemplate.TargetPlatform, nil)
+		ciBuildConfigBean, err = bean.OverrideCiBuildConfig(ciTemplate.DockerfilePath, ciTemplate.Args, "", ciTemplate.DockerBuildOptions, ciTemplate.TargetPlatform, ciTemplate.BuildContext, nil)
 		if err != nil {
 			impl.Logger.Errorw("error occurred while parsing ci build config", "err", err)
 		}
 	}
 	ciBuildConfigBean.GitMaterialId = ciTemplate.GitMaterialId
+	ciBuildConfigBean.BuildContextGitMaterialId = ciTemplate.BuildContextGitMaterialId
 	return &bean.CiTemplateBean{
 		CiTemplate:    ciTemplate,
 		CiBuildConfig: ciBuildConfigBean,
@@ -140,12 +141,13 @@ func (impl CiTemplateServiceImpl) extractBuildConfigBean(templateOverride *pipel
 		return nil, err
 	}
 	if ciBuildConfigBean == nil {
-		ciBuildConfigBean, err = bean.OverrideCiBuildConfig(templateOverride.DockerfilePath, "", "", "", "", nil)
+		ciBuildConfigBean, err = bean.OverrideCiBuildConfig(templateOverride.DockerfilePath, "", "", "", "", ".", nil)
 		if err != nil {
 			impl.Logger.Errorw("error occurred while parsing ci build config", "err", err)
 		}
 	}
 	ciBuildConfigBean.GitMaterialId = templateOverride.GitMaterialId
+	ciBuildConfigBean.BuildContextGitMaterialId = templateOverride.BuildContextGitMaterialId
 	return ciBuildConfigBean, nil
 }
 
@@ -206,7 +208,7 @@ func (impl CiTemplateServiceImpl) FindByAppIds(appIds []int) (map[int]*bean.CiTe
 				ciBuildConfig, "error", err)
 		}
 		if ciBuildConfigBean == nil {
-			ciBuildConfigBean, err = bean.OverrideCiBuildConfig(ciTemplate.DockerfilePath, ciTemplate.Args, "", ciTemplate.DockerBuildOptions, ciTemplate.TargetPlatform, nil)
+			ciBuildConfigBean, err = bean.OverrideCiBuildConfig(ciTemplate.DockerfilePath, ciTemplate.Args, "", ciTemplate.DockerBuildOptions, ciTemplate.TargetPlatform, ciTemplate.BuildContext, nil)
 			if err != nil {
 				impl.Logger.Errorw("error occurred while parsing ci build config", "err", err)
 			}
