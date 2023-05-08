@@ -499,13 +499,6 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 	if len(installedApp.App.AppName) > 0 && len(installedApp.Environment.Name) > 0 {
 		err = handler.fetchResourceTree(w, r, &resourceTreeAndNotesContainer, *installedApp)
 		if installedApp.DeploymentAppType == util2.PIPELINE_DEPLOYMENT_TYPE_ACD {
-			//resource tree has been fetched now prepare to sync application deployment status with this resource tree call
-			go func() {
-				err := handler.syncAppStoreAppDeploymentStatusWithResourceTreeCall(appDetail.AppStoreInstalledAppVersionId)
-				if err != nil {
-					handler.Logger.Errorw("error syncing deployment status for installed_app with resource tree call ", "err", err)
-				}
-			}()
 			apiError, ok := err.(*util2.ApiError)
 			if ok && apiError != nil {
 				if apiError.Code == constants.AppDetailResourceTreeNotFound && installedApp.DeploymentAppDeleteRequest == true {
@@ -525,18 +518,6 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 	appDetail.ResourceTree = resourceTreeAndNotesContainer.ResourceTree
 	appDetail.Notes = resourceTreeAndNotesContainer.Notes
 	common.WriteJsonResp(w, nil, appDetail, http.StatusOK)
-}
-
-func (handler *InstalledAppRestHandlerImpl) syncAppStoreAppDeploymentStatusWithResourceTreeCall(installedAppVersionId int) error {
-	installedAppVersion, err := handler.installedAppRepository.GetInstalledAppVersion(installedAppVersionId)
-	if err != nil {
-		handler.Logger.Errorw("error in getting installed_app_version in FetchAppDetailsForInstalledApp", "err", err, "installedAppVersionId", installedAppVersionId)
-	}
-	err = handler.cdApplicationStatusUpdateHandler.SyncPipelineStatusForAppStoreForResourceTreeCall(installedAppVersion)
-	if err != nil {
-		handler.Logger.Errorw("error in syncing deployment status for installed_app ", "err", err, "installedAppVersion", installedAppVersion)
-	}
-	return err
 }
 
 func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledAppV2(w http.ResponseWriter, r *http.Request) {
