@@ -2177,7 +2177,7 @@ func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Val
 			req := &client2.UpgradeReleaseRequest{
 				ReleaseIdentifier: releaseIdentifier,
 				ValuesYaml:        mergeAndSave,
-				RevisionMaxLimit:  impl.helmAppService.GetRevisionHistoryLimitValue(client2.ApiCallerDevtronApp),
+				RevisionMaxLimit:  impl.helmAppService.GetRevisionHistoryMaxValue(client2.ApiCallerDevtronApp),
 			}
 
 			updateApplicationResponse, err := impl.helmAppClient.UpdateApplication(ctx, req)

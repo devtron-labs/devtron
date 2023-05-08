@@ -37,8 +37,8 @@ import (
 )
 
 const (
-	DEFAULT_CLUSTER                           = "default_cluster"
-	DEFAULT_CLUSTER_ID                        = 1
+	DefaultCluster                            = "default_cluster"
+	DefaultClusterId                          = 1
 	ApiCallerDevtronApp      ApiCallerAppType = "devtron-app"
 	ApiCallerHelmApp         ApiCallerAppType = "helm-app"
 	ApiCallerExternalHelmApp ApiCallerAppType = "external-helm-app"
@@ -71,7 +71,7 @@ type HelmAppService interface {
 	UpdateApplicationWithChartInfoWithExtraValues(ctx context.Context, appIdentifier *AppIdentifier, chartRepository *ChartRepository, extraValues map[string]interface{}, extraValuesYamlUrl string, useLatestChartVersion bool) (*openapi.UpdateReleaseResponse, error)
 	TemplateChart(ctx context.Context, templateChartRequest *openapi2.TemplateChartRequest) (*openapi2.TemplateChartResponse, error)
 	GetNotes(ctx context.Context, request *InstallReleaseRequest) (string, error)
-	GetRevisionHistoryLimitValue(appType ApiCallerAppType) int32
+	GetRevisionHistoryMaxValue(appType ApiCallerAppType) int32
 }
 
 type HelmAppServiceImpl struct {
@@ -452,8 +452,8 @@ func (impl *HelmAppServiceImpl) UpdateApplication(ctx context.Context, app *AppI
 			ReleaseName:      app.ReleaseName,
 			ReleaseNamespace: app.Namespace,
 		},
-		ValuesYaml:       request.GetValuesYaml(),
-		RevisionMaxLimit: impl.GetRevisionHistoryLimitValue(apiCallerAppType),
+		ValuesYaml: request.GetValuesYaml(),
+		HistoryMax: impl.GetRevisionHistoryMaxValue(apiCallerAppType),
 	}
 
 	updateApplicationResponse, err := impl.helmAppClient.UpdateApplication(ctx, req)
@@ -523,7 +523,7 @@ func (impl *HelmAppServiceImpl) UpdateApplicationWithChartInfo(ctx context.Conte
 		impl.logger.Errorw("error in fetching cluster detail", "clusterId", clusterId, "err", err)
 		return nil, err
 	}
-	updateReleaseRequest.RevisionMaxLimit = impl.GetRevisionHistoryLimitValue(apiCallerAppType)
+	updateReleaseRequest.HistoryMax = impl.GetRevisionHistoryMaxValue(apiCallerAppType)
 	updateReleaseRequest.ReleaseIdentifier.ClusterConfig = config
 
 	updateReleaseResponse, err := impl.helmAppClient.UpdateApplicationWithChartInfo(ctx, updateReleaseRequest)
@@ -885,7 +885,7 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *Deploy
 	return appList
 }
 
-func (impl *HelmAppServiceImpl) GetRevisionHistoryLimitValue(appType ApiCallerAppType) int32 {
+func (impl *HelmAppServiceImpl) GetRevisionHistoryMaxValue(appType ApiCallerAppType) int32 {
 	switch appType {
 	case ApiCallerDevtronApp:
 		return int32(impl.helmReleaseConfig.RevisionHistoryLimitDevtronApp)
