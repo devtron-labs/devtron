@@ -203,7 +203,18 @@ prometheusRule:
 #        description: Too many 4XXs
 #        summary: More than 5% of the all requests did return 4XX, this require your attention
 #
-
+winterSoldier:
+  enabled: false
+  apiVersion: pincher.devtron.ai/v1alpha1
+  labels: {}
+  annotations: {}
+  timeRangesWithZone: {}
+  # timeZone: "Asia/Kolkata"
+  # timeRanges: []
+  action: sleep
+  targetReplicas: []
+  fieldSelector: []
+  type: Rollout
 ingress:
   enabled: false
   className: ""

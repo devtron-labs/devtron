@@ -20,6 +20,19 @@ EnvVariablesFromCongigMapKeys: []
   # - name: ENV_NAME
   #   configMapName: CONFIG_MAP_NAME
   #   keyName: CONFIG_MAP_KEY
+winterSoldier:
+  enabled: false
+  apiVersion: pincher.devtron.ai/v1alpha1
+  annotation: {}
+  labels: {}
+  type: Rollout
+  timeRangesWithZone:
+    timeZone: "Asia/Kolkata"
+    timeRanges: []
+  action: sleep
+  targetReplicas: []
+  fieldSelector: 
+    - AfterTime(AddTime(ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '5m'), Now())
 
 
 statefulSetConfig:
