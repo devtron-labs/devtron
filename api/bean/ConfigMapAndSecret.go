@@ -55,3 +55,9 @@ type ConfigSecretMap struct {
 	SubPath        bool            `json:"subPath"`
 	FilePermission string          `json:"filePermission"`
 }
+
+func (configSecret ConfigSecretMap) GetDataMap() (map[string]string, error) {
+	var datamap map[string]string
+	err := json.Unmarshal(configSecret.Data, &datamap)
+	return datamap, err
+}
