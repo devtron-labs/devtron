@@ -31,3 +31,16 @@ const (
 	EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER          = "NONE"
 	RoleNotFoundStatusPrefix                    = "role not fount for any given filter: "
 )
+
+type RbacRoleDto struct {
+	Id              int    `json:"id"` // id of the default role
+	RoleName        string `json:"roleName"`
+	RoleDisplayName string `json:"roleDisplayName"`
+	RoleDescription string `json:"roleDescription"`
+	*RbacPolicyEntityGroupDto
+}
+
+type RbacPolicyEntityGroupDto struct {
+	Entity     string `json:"entity" validate:"oneof=apps cluster chart-group"`
+	AccessType string `json:"accessType,omitempty"`
+}

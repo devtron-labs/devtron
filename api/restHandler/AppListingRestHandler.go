@@ -1669,7 +1669,7 @@ func (handler AppListingRestHandlerImpl) GetClusterTeamAndEnvListForAutocomplete
 		}
 
 	}
-	handler.logger.Infow("Cluster elapsed Time for enforcer", "dbElapsedTime", dbOperationTime, "enforcerTime", time.Since(start), "token", token, "envSize", len(granterClusters))
+	handler.logger.Infow("Cluster elapsed Time for enforcer", "dbElapsedTime", dbOperationTime, "enforcerTime", time.Since(start), "envSize", len(granterClusters))
 	//RBAC enforcer Ends
 
 	if len(granterClusters) == 0 {
@@ -1721,7 +1721,7 @@ func (handler AppListingRestHandlerImpl) GetClusterTeamAndEnvListForAutocomplete
 	}
 	elapsedTime := time.Since(start)
 	handler.logger.Infow("Env elapsed Time for enforcer", "dbElapsedTime", dbElapsedTime, "elapsedTime",
-		elapsedTime, "token", token, "envSize", len(grantedEnvironment))
+		elapsedTime, "envSize", len(grantedEnvironment))
 
 	//getting teams for autocomplete
 	start = time.Now()
@@ -1752,7 +1752,7 @@ func (handler AppListingRestHandlerImpl) GetClusterTeamAndEnvListForAutocomplete
 		}
 	}
 	handler.logger.Infow("Team elapsed Time for enforcer", "dbElapsedTime", dbElapsedTime, "elapsedTime", time.Since(start),
-		"token", token, "envSize", len(grantedTeams))
+		"envSize", len(grantedTeams))
 
 	//RBAC enforcer Ends
 	resp := &AppAutocomplete{
