@@ -1112,6 +1112,7 @@ func (impl AppStoreDeploymentServiceImpl) updateInstalledAppVersion(installedApp
 }
 func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error) {
 	dbConnection := impl.installedAppRepository.GetConnection()
+	triggeredAt := time.Now()
 	tx, err := dbConnection.Begin()
 	if err != nil {
 		return nil, err
@@ -1290,6 +1291,11 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 			impl.logger.Errorw("error on updating history for chart deployment", "error", err, "installedAppVersion", installedAppVersion)
 			return nil, err
 		}
+	}
+	err1 := impl.UpdatePreviousDeploymentStatusForAppStore(installAppVersionRequest, triggeredAt, err)
+	if err1 != nil {
+		impl.logger.Errorw("error while update previous installed app version history", "err", err, "installAppVersionRequest", installedApp)
+		//if installed app is updated and error is in updating previous deployment status, then don't block user, just show error.
 	}
 	return installAppVersionRequest, nil
 }
