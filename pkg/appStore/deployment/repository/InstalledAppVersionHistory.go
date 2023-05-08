@@ -17,7 +17,6 @@ type InstalledAppVersionHistoryRepository interface {
 	GetAppIdAndEnvIdWithInstalledAppVersionId(id int) (int, int, error)
 	GetLatestInstalledAppVersionHistoryByInstalledAppId(installedAppId int) (*InstalledAppVersionHistory, error)
 	FindPreviousInstalledAppVersionHistoryByStatus(installedAppVersionId int, installedAppVersionHistoryId int, status []string) ([]*InstalledAppVersionHistory, error)
-	FindPreviousVersionsOfInstalledAppVersionHistoryByStatus(installedAppId int, installedAppVersionHistoryId int, status []string) ([]*InstalledAppVersionHistory, error)
 	UpdateInstalledAppVersionHistoryWithTxn(models []*InstalledAppVersionHistory, tx *pg.Tx) error
 
 	GetConnection() *pg.DB
@@ -140,20 +139,6 @@ func (impl InstalledAppVersionHistoryRepositoryImpl) FindPreviousInstalledAppVer
 		Model(&iavr).
 		Column("installed_app_version_history.*").
 		Where("installed_app_version_history.installed_app_version_id = ?", installedAppVersionId).
-		Where("installed_app_version_history.id < ?", installedAppVersionHistoryId).
-		Where("installed_app_version_history.status not in (?) ", pg.In(status)).
-		Order("installed_app_version_history.id DESC").
-		Select()
-	return iavr, err
-}
-
-func (impl InstalledAppVersionHistoryRepositoryImpl) FindPreviousVersionsOfInstalledAppVersionHistoryByStatus(installedAppId int, installedAppVersionHistoryId int, status []string) ([]*InstalledAppVersionHistory, error) {
-	var iavr []*InstalledAppVersionHistory
-	err := impl.dbConnection.
-		Model(&iavr).
-		Column("installed_app_version_history.*").
-		Join("inner join installed_app_versions iav on iav.id = installed_app_version_history.installed_app_version_id").
-		Where("iav.installed_app_id = ?", installedAppId).
 		Where("installed_app_version_history.id < ?", installedAppVersionHistoryId).
 		Where("installed_app_version_history.status not in (?) ", pg.In(status)).
 		Order("installed_app_version_history.id DESC").
