@@ -948,6 +948,9 @@ func (impl *ClusterServiceImpl) HandleErrorInClusterConnections(clusters []*Clus
 		errorInConnecting := ""
 		if err != nil {
 			errorInConnecting = err.Error()
+			if len(errorInConnecting) > 5000 {
+				errorInConnecting = "invalid server url"
+			}
 		}
 		//updating cluster connection status
 		if clusterExistInDb {
