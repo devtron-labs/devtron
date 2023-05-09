@@ -1,4 +1,5 @@
 ## Bugs
+- fix: added deployment_strategy_ref_mapping_removal (#3362)
 - fix: optimised ci trigger rbac, updated handling for invalid roles in user creation request (#3316)
 - fix: Helm acd scale workload fix (#3340)
 - fix: deployment strategy no visible in build and deploy page (#3326)
