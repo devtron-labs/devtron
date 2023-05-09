@@ -21,7 +21,9 @@ type GitMaterialHistory struct {
 
 type GitMaterialHistoryRepository interface {
 	SaveGitMaterialHistory(material *GitMaterialHistory) error
+	SaveGitMaterialHistoryWithTransaction(material *GitMaterialHistory, tx *pg.Tx) error
 	SaveDeleteMaterialHistory(materials []*GitMaterialHistory) error
+	SaveDeleteMaterialHistoryWithTransaction(materials []*GitMaterialHistory, tx *pg.Tx) error
 }
 
 type GitMaterialHistoryRepositoryImpl struct {
@@ -38,6 +40,10 @@ func (repo GitMaterialHistoryRepositoryImpl) SaveGitMaterialHistory(material *Gi
 	return repo.dbConnection.Insert(material)
 }
 
+func (repo GitMaterialHistoryRepositoryImpl) SaveGitMaterialHistoryWithTransaction(material *GitMaterialHistory, tx *pg.Tx) error {
+	return tx.Insert(material)
+}
+
 func (repo GitMaterialHistoryRepositoryImpl) SaveDeleteMaterialHistory(materials []*GitMaterialHistory) error {
 
 	err := repo.dbConnection.RunInTransaction(func(tx *pg.Tx) error {
@@ -50,4 +56,18 @@ func (repo GitMaterialHistoryRepositoryImpl) SaveDeleteMaterialHistory(materials
 		return nil
 	})
 	return err
+}
+
+func (repo GitMaterialHistoryRepositoryImpl) SaveDeleteMaterialHistoryWithTransaction(materials []*GitMaterialHistory, tx *pg.Tx) error {
+
+	for _, material := range materials {
+		_, err := tx.Model(material).
+			WherePK().
+			Insert()
+
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
