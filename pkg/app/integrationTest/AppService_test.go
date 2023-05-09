@@ -15,6 +15,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	app2 "github.com/devtron-labs/devtron/pkg/app"
+	"github.com/devtron-labs/devtron/pkg/app/status"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository1 "github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -148,11 +149,11 @@ func InitAppService() *app2.AppServiceImpl {
 	appRepository := app.NewAppRepositoryImpl(dbConnection, logger)
 	chartRepository := chartRepoRepository.NewChartRepository(dbConnection)
 	pipelineStatusTimelineResourcesRepository := pipelineConfig.NewPipelineStatusTimelineResourcesRepositoryImpl(dbConnection, logger)
-	pipelineStatusTimelineResourcesService := app2.NewPipelineStatusTimelineResourcesServiceImpl(dbConnection, logger, pipelineStatusTimelineResourcesRepository)
+	pipelineStatusTimelineResourcesService := status.NewPipelineStatusTimelineResourcesServiceImpl(dbConnection, logger, pipelineStatusTimelineResourcesRepository)
 	pipelineStatusTimelineRepository := pipelineConfig.NewPipelineStatusTimelineRepositoryImpl(dbConnection, logger)
 	pipelineStatusSyncDetailRepository := pipelineConfig.NewPipelineStatusSyncDetailRepositoryImpl(dbConnection, logger)
-	pipelineStatusSyncDetailService := app2.NewPipelineStatusSyncDetailServiceImpl(logger, pipelineStatusSyncDetailRepository)
-	pipelineStatusTimelineService := app2.NewPipelineStatusTimelineServiceImpl(logger, pipelineStatusTimelineRepository, cdWorkflowRepository, nil, pipelineStatusTimelineResourcesService, pipelineStatusSyncDetailService)
+	pipelineStatusSyncDetailService := status.NewPipelineStatusSyncDetailServiceImpl(logger, pipelineStatusSyncDetailRepository)
+	pipelineStatusTimelineService := status.NewPipelineStatusTimelineServiceImpl(logger, pipelineStatusTimelineRepository, cdWorkflowRepository, nil, pipelineStatusTimelineResourcesService, pipelineStatusSyncDetailService)
 	refChartDir := chartRepoRepository.RefChartDir("scripts/devtron-reference-helm-charts")
 	appService := app2.NewAppService(nil, pipelineOverrideRepository, nil, logger, nil,
 		pipelineRepository, nil, eventClient, eventFactory, nil, nil, nil, nil, nil, nil,
@@ -161,6 +162,6 @@ func InitAppService() *app2.AppServiceImpl {
 		nil, nil, nil, nil, nil, refChartDir, nil,
 		nil, nil, nil, pipelineStatusTimelineRepository, nil, nil, nil,
 		nil, nil, pipelineStatusTimelineResourcesService, pipelineStatusSyncDetailService, pipelineStatusTimelineService,
-		nil, nil, nil, nil)
+		nil, nil, nil, nil, nil, nil, nil)
 	return appService
 }
