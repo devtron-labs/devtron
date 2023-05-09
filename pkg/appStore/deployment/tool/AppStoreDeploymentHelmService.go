@@ -284,7 +284,7 @@ func (impl *AppStoreDeploymentHelmServiceImpl) updateApplicationWithChartInfo(ct
 			Password: chartRepo.Password,
 		},
 	}
-	res, err := impl.helmAppService.UpdateApplicationWithChartInfo(ctx, installedApp.Environment.ClusterId, updateReleaseRequest)
+	res, err := impl.helmAppService.UpdateApplicationWithChartInfo(ctx, installedApp.Environment.ClusterId, updateReleaseRequest, client.API_CALLER_HELM_APP)
 	if err != nil {
 		impl.Logger.Errorw("error in updating helm application", "err", err)
 		return err
