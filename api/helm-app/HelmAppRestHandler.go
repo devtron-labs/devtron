@@ -299,7 +299,7 @@ func (handler *HelmAppRestHandlerImpl) DeleteApplication(w http.ResponseWriter, 
 	// validate if the devtron-operator helm release, block that for deletion
 	if appIdentifier.ReleaseName == handler.serverEnvConfig.DevtronHelmReleaseName &&
 		appIdentifier.Namespace == handler.serverEnvConfig.DevtronHelmReleaseNamespace &&
-		appIdentifier.ClusterId == DefaultClusterId {
+		appIdentifier.ClusterId == DEFAULT_CLUSTER_ID {
 		common.WriteJsonResp(w, errors.New("cannot delete this default helm app"), nil, http.StatusForbidden)
 		return
 	}
@@ -338,7 +338,7 @@ func (handler *HelmAppRestHandlerImpl) UpdateApplication(w http.ResponseWriter, 
 	//RBAC enforcer Ends
 
 	// update application externally
-	res, err := handler.helmAppService.UpdateApplication(r.Context(), appIdentifier, request, ApiCallerExternalHelmApp)
+	res, err := handler.helmAppService.UpdateApplication(r.Context(), appIdentifier, request, API_CALLER_EXTERNAL_HELM_APP)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return

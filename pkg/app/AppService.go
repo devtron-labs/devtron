@@ -233,7 +233,7 @@ func NewAppService(
 	AppStoreDeploymentService service.AppStoreDeploymentService,
 	k8sApplicationService k8s.K8sApplicationService,
 	installedAppVersionHistoryRepository repository4.InstalledAppVersionHistoryRepository,
-	globalEnvVariables *util2.GlobalEnvVariables,helmAppService client2.HelmAppService) *AppServiceImpl {
+	globalEnvVariables *util2.GlobalEnvVariables, helmAppService client2.HelmAppService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:            environmentConfigRepository,
 		mergeUtil:                              mergeUtil,
@@ -2477,7 +2477,7 @@ func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Val
 			req := &client2.UpgradeReleaseRequest{
 				ReleaseIdentifier: releaseIdentifier,
 				ValuesYaml:        mergeAndSave,
-				HistoryMax:        impl.helmAppService.GetRevisionHistoryMaxValue(client2.ApiCallerDevtronApp),
+				HistoryMax:        impl.helmAppService.GetRevisionHistoryMaxValue(client2.API_CALLER_DEVTRON_APP),
 			}
 
 			updateApplicationResponse, err := impl.helmAppClient.UpdateApplication(ctx, req)

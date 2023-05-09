@@ -909,7 +909,7 @@ func (impl AppStoreDeploymentServiceImpl) linkHelmApplicationToChartStore(instal
 			Password: chartRepoInfo.Password,
 		},
 	}
-	res, err := impl.helmAppService.UpdateApplicationWithChartInfo(ctx, installAppVersionRequest.ClusterId, updateReleaseRequest, client.ApiCallerHelmApp)
+	res, err := impl.helmAppService.UpdateApplicationWithChartInfo(ctx, installAppVersionRequest.ClusterId, updateReleaseRequest, client.API_CALLER_HELM_APP)
 	if err != nil {
 		return nil, err
 	}

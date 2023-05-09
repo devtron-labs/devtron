@@ -37,12 +37,12 @@ import (
 )
 
 const (
-	DefaultCluster                            = "default_cluster"
-	DefaultClusterId                          = 1
-	ApiCallerDevtronApp      ApiCallerAppType = "devtron-app"
-	ApiCallerHelmApp         ApiCallerAppType = "helm-app"
-	ApiCallerExternalHelmApp ApiCallerAppType = "external-helm-app"
-	ApiCallerUnknown         ApiCallerAppType = "unknown"
+	DEFAULT_CLUSTER                               = "default_cluster"
+	DEFAULT_CLUSTER_ID                            = 1
+	API_CALLER_DEVTRON_APP       ApiCallerAppType = "devtron-app"
+	API_CALLER_HELM_APP          ApiCallerAppType = "helm-app"
+	API_CALLER_EXTERNAL_HELM_APP ApiCallerAppType = "external-helm-app"
+	API_CALLER_UNKNOWN           ApiCallerAppType = "unknown"
 )
 
 type ApiCallerAppType string
@@ -681,7 +681,7 @@ func (impl *HelmAppServiceImpl) UpdateApplicationWithChartInfoWithExtraValues(ct
 		updateReleaseRequest.ChartVersion = releaseInfo.DeployedAppDetail.ChartVersion
 	}
 
-	updateResponse, err := impl.UpdateApplicationWithChartInfo(ctx, appIdentifier.ClusterId, updateReleaseRequest, ApiCallerUnknown)
+	updateResponse, err := impl.UpdateApplicationWithChartInfo(ctx, appIdentifier.ClusterId, updateReleaseRequest, API_CALLER_UNKNOWN)
 	if err != nil {
 		impl.logger.Errorw("error in upgrading release", "err", err)
 		return nil, err
@@ -887,11 +887,11 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *Deploy
 
 func (impl *HelmAppServiceImpl) GetRevisionHistoryMaxValue(appType ApiCallerAppType) int32 {
 	switch appType {
-	case ApiCallerDevtronApp:
+	case API_CALLER_DEVTRON_APP:
 		return int32(impl.helmReleaseConfig.RevisionHistoryLimitDevtronApp)
-	case ApiCallerHelmApp:
+	case API_CALLER_HELM_APP:
 		return int32(impl.helmReleaseConfig.RevisionHistoryLimitHelmApp)
-	case ApiCallerExternalHelmApp:
+	case API_CALLER_EXTERNAL_HELM_APP:
 		return int32(impl.helmReleaseConfig.RevisionHistoryLimitExternalHelmApp)
 	default:
 		return 0
