@@ -102,6 +102,7 @@ type AppListingRestHandlerImpl struct {
 	cdApplicationStatusUpdateHandler  cron.CdApplicationStatusUpdateHandler
 	pipelineRepository                pipelineConfig.PipelineRepository
 	appStatusService                  appStatus.AppStatusService
+	installedAppRepository            repository.InstalledAppRepository
 	environmentClusterMappingsService cluster.EnvironmentService
 	cfg                               *bean.Config
 }
@@ -131,7 +132,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 	argoUserService argo.ArgoUserService, k8sApplicationService k8s.K8sApplicationService, installedAppService service1.InstalledAppService,
 	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler,
 	pipelineRepository pipelineConfig.PipelineRepository,
-	appStatusService appStatus.AppStatusService,
+	appStatusService appStatus.AppStatusService, installedAppRepository repository.InstalledAppRepository,
 	environmentClusterMappingsService cluster.EnvironmentService,
 ) *AppListingRestHandlerImpl {
 	cfg := &bean.Config{}
@@ -160,6 +161,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 		cdApplicationStatusUpdateHandler:  cdApplicationStatusUpdateHandler,
 		pipelineRepository:                pipelineRepository,
 		appStatusService:                  appStatusService,
+		installedAppRepository:            installedAppRepository,
 		environmentClusterMappingsService: environmentClusterMappingsService,
 		cfg:                               cfg,
 	}
@@ -1373,7 +1375,6 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 		common.WriteJsonResp(w, fmt.Errorf("error in parsing envId : %s must be integer", envIdParam), nil, http.StatusBadRequest)
 		return
 	}
-
 	appDetail, err, appId = handler.getAppDetails(r.Context(), appIdParam, installedAppIdParam, envId)
 	if err != nil {
 		handler.logger.Errorw("error occurred while getting app details", "appId", appIdParam, "installedAppId", installedAppIdParam, "envId", envId)
@@ -1417,6 +1418,7 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 			return
 		}
 		resourceTree = resourceTreeAndNotesContainer.ResourceTree
+
 	} else {
 		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
 		if err != nil {
@@ -1606,6 +1608,7 @@ func (handler AppListingRestHandlerImpl) ManualSyncAcdPipelineDeploymentStatus(w
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+
 	app, err := handler.pipeline.GetApp(appId)
 	if err != nil {
 		handler.logger.Errorw("bad request", "err", err)
@@ -1619,7 +1622,12 @@ func (handler AppListingRestHandlerImpl) ManualSyncAcdPipelineDeploymentStatus(w
 		return
 	}
 	//RBAC enforcer Ends
-	err = handler.cdApplicationStatusUpdateHandler.ManualSyncPipelineStatus(appId, envId, userId)
+	if app.AppType == helper.ChartStoreApp {
+		err = handler.cdApplicationStatusUpdateHandler.ManualSyncPipelineStatus(appId, 0, userId)
+	} else {
+		err = handler.cdApplicationStatusUpdateHandler.ManualSyncPipelineStatus(appId, envId, userId)
+	}
+
 	if err != nil {
 		handler.logger.Errorw("service err, ManualSyncAcdPipelineDeploymentStatus", "err", err, "appId", appId, "envId", envId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -1669,7 +1677,7 @@ func (handler AppListingRestHandlerImpl) GetClusterTeamAndEnvListForAutocomplete
 		}
 
 	}
-	handler.logger.Infow("Cluster elapsed Time for enforcer", "dbElapsedTime", dbOperationTime, "enforcerTime", time.Since(start), "token", token, "envSize", len(granterClusters))
+	handler.logger.Infow("Cluster elapsed Time for enforcer", "dbElapsedTime", dbOperationTime, "enforcerTime", time.Since(start), "envSize", len(granterClusters))
 	//RBAC enforcer Ends
 
 	if len(granterClusters) == 0 {
@@ -1721,7 +1729,7 @@ func (handler AppListingRestHandlerImpl) GetClusterTeamAndEnvListForAutocomplete
 	}
 	elapsedTime := time.Since(start)
 	handler.logger.Infow("Env elapsed Time for enforcer", "dbElapsedTime", dbElapsedTime, "elapsedTime",
-		elapsedTime, "token", token, "envSize", len(grantedEnvironment))
+		elapsedTime, "envSize", len(grantedEnvironment))
 
 	//getting teams for autocomplete
 	start = time.Now()
@@ -1752,7 +1760,7 @@ func (handler AppListingRestHandlerImpl) GetClusterTeamAndEnvListForAutocomplete
 		}
 	}
 	handler.logger.Infow("Team elapsed Time for enforcer", "dbElapsedTime", dbElapsedTime, "elapsedTime", time.Since(start),
-		"token", token, "envSize", len(grantedTeams))
+		"envSize", len(grantedTeams))
 
 	//RBAC enforcer Ends
 	resp := &AppAutocomplete{
