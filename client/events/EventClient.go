@@ -89,6 +89,7 @@ type Payload struct {
 	DownloadLink          string               `json:"downloadLink"`
 	BuildHistoryLink      string               `json:"buildHistoryLink"`
 	MaterialTriggerInfo   *MaterialTriggerInfo `json:"material"`
+	FailedStepName        string               `json:"failedStepName"`
 }
 
 type CiPipelineMaterialResponse struct {

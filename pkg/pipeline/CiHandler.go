@@ -812,7 +812,12 @@ func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 		}
 		if string(v1alpha1.NodeError) == savedWorkflow.Status || string(v1alpha1.NodeFailed) == savedWorkflow.Status {
 			impl.Logger.Warnw("ci failed for workflow: ", "wfId", savedWorkflow.Id)
-			go impl.WriteCIFailEvent(savedWorkflow, ciWorkflowConfig.CiImage)
+
+			if savedWorkflow.Message != "Error (exit code 2)" {
+				go impl.WriteCIFailEvent(savedWorkflow, ciWorkflowConfig.CiImage)
+			} else {
+				impl.Logger.Infof("Step failed notification received for wfID %d with message %s", savedWorkflow.Id, savedWorkflow.Message)
+			}
 
 			impl.WriteToCreateTestSuites(savedWorkflow.CiPipelineId, workflowId, int(savedWorkflow.TriggeredBy))
 		}
