@@ -36,17 +36,6 @@ import (
 	"time"
 )
 
-const (
-	DEFAULT_CLUSTER                               = "default_cluster"
-	DEFAULT_CLUSTER_ID                            = 1
-	API_CALLER_DEVTRON_APP       ApiCallerAppType = "devtron-app"
-	API_CALLER_HELM_APP          ApiCallerAppType = "helm-app"
-	API_CALLER_EXTERNAL_HELM_APP ApiCallerAppType = "external-helm-app"
-	API_CALLER_UNKNOWN           ApiCallerAppType = "unknown"
-)
-
-type ApiCallerAppType string
-
 type HelmAppService interface {
 	ListHelmApplications(ctx context.Context, clusterIds []int, w http.ResponseWriter, token string, helmAuth func(token string, object string) bool)
 	GetApplicationDetail(ctx context.Context, app *AppIdentifier) (*AppDetail, error)
@@ -60,10 +49,10 @@ type HelmAppService interface {
 	GetValuesYaml(ctx context.Context, app *AppIdentifier) (*ReleaseInfo, error)
 	GetDesiredManifest(ctx context.Context, app *AppIdentifier, resource *openapi.ResourceIdentifier) (*openapi.DesiredManifestResponse, error)
 	DeleteApplication(ctx context.Context, app *AppIdentifier) (*openapi.UninstallReleaseResponse, error)
-	UpdateApplication(ctx context.Context, app *AppIdentifier, request *openapi.UpdateReleaseRequest, apiCallerAppType ApiCallerAppType) (*openapi.UpdateReleaseResponse, error)
+	UpdateApplication(ctx context.Context, app *AppIdentifier, request *UpdateApplicationRequestDto) (*openapi.UpdateReleaseResponse, error)
 	GetDeploymentDetail(ctx context.Context, app *AppIdentifier, version int32) (*openapi.HelmAppDeploymentManifestDetail, error)
 	InstallRelease(ctx context.Context, clusterId int, installReleaseRequest *InstallReleaseRequest) (*InstallReleaseResponse, error)
-	UpdateApplicationWithChartInfo(ctx context.Context, clusterId int, updateReleaseRequest *InstallReleaseRequest, apiCallerAppType ApiCallerAppType) (*openapi.UpdateReleaseResponse, error)
+	UpdateApplicationWithChartInfo(ctx context.Context, clusterId int, request *UpdateApplicationWithChartInfoRequestDto) (*openapi.UpdateReleaseResponse, error)
 	IsReleaseInstalled(ctx context.Context, app *AppIdentifier) (bool, error)
 	RollbackRelease(ctx context.Context, app *AppIdentifier, version int32) (bool, error)
 	GetClusterConf(clusterId int) (*ClusterConfig, error)
@@ -71,7 +60,7 @@ type HelmAppService interface {
 	UpdateApplicationWithChartInfoWithExtraValues(ctx context.Context, appIdentifier *AppIdentifier, chartRepository *ChartRepository, extraValues map[string]interface{}, extraValuesYamlUrl string, useLatestChartVersion bool) (*openapi.UpdateReleaseResponse, error)
 	TemplateChart(ctx context.Context, templateChartRequest *openapi2.TemplateChartRequest) (*openapi2.TemplateChartResponse, error)
 	GetNotes(ctx context.Context, request *InstallReleaseRequest) (string, error)
-	GetRevisionHistoryMaxValue(appType ApiCallerAppType) int32
+	GetRevisionHistoryMaxValue(appType SourceAppType) int32
 }
 
 type HelmAppServiceImpl struct {
@@ -439,7 +428,7 @@ func (impl *HelmAppServiceImpl) DeleteApplication(ctx context.Context, app *AppI
 	return response, nil
 }
 
-func (impl *HelmAppServiceImpl) UpdateApplication(ctx context.Context, app *AppIdentifier, request *openapi.UpdateReleaseRequest, apiCallerAppType ApiCallerAppType) (*openapi.UpdateReleaseResponse, error) {
+func (impl *HelmAppServiceImpl) UpdateApplication(ctx context.Context, app *AppIdentifier, request *UpdateApplicationRequestDto) (*openapi.UpdateReleaseResponse, error) {
 	config, err := impl.GetClusterConf(app.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cluster detail", "clusterId", app.ClusterId, "err", err)
@@ -453,7 +442,7 @@ func (impl *HelmAppServiceImpl) UpdateApplication(ctx context.Context, app *AppI
 			ReleaseNamespace: app.Namespace,
 		},
 		ValuesYaml: request.GetValuesYaml(),
-		HistoryMax: impl.GetRevisionHistoryMaxValue(apiCallerAppType),
+		HistoryMax: impl.GetRevisionHistoryMaxValue(request.SourceAppType),
 	}
 
 	updateApplicationResponse, err := impl.helmAppClient.UpdateApplication(ctx, req)
@@ -517,16 +506,16 @@ func (impl *HelmAppServiceImpl) InstallRelease(ctx context.Context, clusterId in
 }
 
 func (impl *HelmAppServiceImpl) UpdateApplicationWithChartInfo(ctx context.Context, clusterId int,
-	updateReleaseRequest *InstallReleaseRequest, apiCallerAppType ApiCallerAppType) (*openapi.UpdateReleaseResponse, error) {
+	request *UpdateApplicationWithChartInfoRequestDto) (*openapi.UpdateReleaseResponse, error) {
 	config, err := impl.GetClusterConf(clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cluster detail", "clusterId", clusterId, "err", err)
 		return nil, err
 	}
-	updateReleaseRequest.HistoryMax = impl.GetRevisionHistoryMaxValue(apiCallerAppType)
-	updateReleaseRequest.ReleaseIdentifier.ClusterConfig = config
+	request.HistoryMax = impl.GetRevisionHistoryMaxValue(request.SourceAppType)
+	request.ReleaseIdentifier.ClusterConfig = config
 
-	updateReleaseResponse, err := impl.helmAppClient.UpdateApplicationWithChartInfo(ctx, updateReleaseRequest)
+	updateReleaseResponse, err := impl.helmAppClient.UpdateApplicationWithChartInfo(ctx, request.InstallReleaseRequest)
 	if err != nil {
 		impl.logger.Errorw("error in installing release", "err", err)
 		return nil, err
@@ -668,20 +657,24 @@ func (impl *HelmAppServiceImpl) UpdateApplicationWithChartInfoWithExtraValues(ct
 	}
 
 	// update in helm
-	updateReleaseRequest := &InstallReleaseRequest{
-		ReleaseIdentifier: &ReleaseIdentifier{
-			ReleaseName:      appIdentifier.ReleaseName,
-			ReleaseNamespace: appIdentifier.Namespace,
+
+	updateReleaseRequest := &UpdateApplicationWithChartInfoRequestDto{
+		InstallReleaseRequest: &InstallReleaseRequest{
+			ReleaseIdentifier: &ReleaseIdentifier{
+				ReleaseName:      appIdentifier.ReleaseName,
+				ReleaseNamespace: appIdentifier.Namespace,
+			},
+			ChartName:       releaseInfo.DeployedAppDetail.ChartName,
+			ValuesYaml:      string(mergedValuesYamlByteArr),
+			ChartRepository: chartRepository,
 		},
-		ChartName:       releaseInfo.DeployedAppDetail.ChartName,
-		ValuesYaml:      string(mergedValuesYamlByteArr),
-		ChartRepository: chartRepository,
+		SourceAppType: SOURCE_UNKNOWN,
 	}
 	if !useLatestChartVersion {
 		updateReleaseRequest.ChartVersion = releaseInfo.DeployedAppDetail.ChartVersion
 	}
 
-	updateResponse, err := impl.UpdateApplicationWithChartInfo(ctx, appIdentifier.ClusterId, updateReleaseRequest, API_CALLER_UNKNOWN)
+	updateResponse, err := impl.UpdateApplicationWithChartInfo(ctx, appIdentifier.ClusterId, updateReleaseRequest)
 	if err != nil {
 		impl.logger.Errorw("error in upgrading release", "err", err)
 		return nil, err
@@ -885,13 +878,13 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *Deploy
 	return appList
 }
 
-func (impl *HelmAppServiceImpl) GetRevisionHistoryMaxValue(appType ApiCallerAppType) int32 {
+func (impl *HelmAppServiceImpl) GetRevisionHistoryMaxValue(appType SourceAppType) int32 {
 	switch appType {
-	case API_CALLER_DEVTRON_APP:
+	case SOURCE_DEVTRON_APP:
 		return int32(impl.helmReleaseConfig.RevisionHistoryLimitDevtronApp)
-	case API_CALLER_HELM_APP:
+	case SOURCE_HELM_APP:
 		return int32(impl.helmReleaseConfig.RevisionHistoryLimitHelmApp)
-	case API_CALLER_EXTERNAL_HELM_APP:
+	case SOURCE_EXTERNAL_HELM_APP:
 		return int32(impl.helmReleaseConfig.RevisionHistoryLimitExternalHelmApp)
 	default:
 		return 0
