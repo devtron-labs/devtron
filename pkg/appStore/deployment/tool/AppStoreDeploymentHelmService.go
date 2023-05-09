@@ -269,22 +269,25 @@ func (impl *AppStoreDeploymentHelmServiceImpl) updateApplicationWithChartInfo(ct
 
 	chartRepo := appStoreApplicationVersion.AppStore.ChartRepo
 
-	updateReleaseRequest := &client.InstallReleaseRequest{
-		ValuesYaml: valuesOverrideYaml,
-		ReleaseIdentifier: &client.ReleaseIdentifier{
-			ReleaseNamespace: installedApp.Environment.Namespace,
-			ReleaseName:      installedApp.App.AppName,
+	updateReleaseRequest := &client.UpdateApplicationWithChartInfoRequestDto{
+		InstallReleaseRequest: &client.InstallReleaseRequest{
+			ValuesYaml: valuesOverrideYaml,
+			ReleaseIdentifier: &client.ReleaseIdentifier{
+				ReleaseNamespace: installedApp.Environment.Namespace,
+				ReleaseName:      installedApp.App.AppName,
+			},
+			ChartName:    appStoreApplicationVersion.Name,
+			ChartVersion: appStoreApplicationVersion.Version,
+			ChartRepository: &client.ChartRepository{
+				Name:     chartRepo.Name,
+				Url:      chartRepo.Url,
+				Username: chartRepo.UserName,
+				Password: chartRepo.Password,
+			},
 		},
-		ChartName:    appStoreApplicationVersion.Name,
-		ChartVersion: appStoreApplicationVersion.Version,
-		ChartRepository: &client.ChartRepository{
-			Name:     chartRepo.Name,
-			Url:      chartRepo.Url,
-			Username: chartRepo.UserName,
-			Password: chartRepo.Password,
-		},
+		SourceAppType: client.SOURCE_HELM_APP,
 	}
-	res, err := impl.helmAppService.UpdateApplicationWithChartInfo(ctx, installedApp.Environment.ClusterId, updateReleaseRequest, client.API_CALLER_HELM_APP)
+	res, err := impl.helmAppService.UpdateApplicationWithChartInfo(ctx, installedApp.Environment.ClusterId, updateReleaseRequest)
 	if err != nil {
 		impl.Logger.Errorw("error in updating helm application", "err", err)
 		return err
