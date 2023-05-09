@@ -9,6 +9,8 @@ import (
 
 type TimelineStatus string
 
+var TimelineStatusDescription string
+
 const (
 	TIMELINE_STATUS_DEPLOYMENT_INITIATED   TimelineStatus = "DEPLOYMENT_INITIATED"
 	TIMELINE_STATUS_GIT_COMMIT             TimelineStatus = "GIT_COMMIT"
@@ -20,6 +22,11 @@ const (
 	TIMELINE_STATUS_FETCH_TIMED_OUT        TimelineStatus = "TIMED_OUT"
 	TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS TimelineStatus = "UNABLE_TO_FETCH_STATUS"
 	TIMELINE_STATUS_DEPLOYMENT_SUPERSEDED  TimelineStatus = "DEPLOYMENT_SUPERSEDED"
+)
+
+const (
+	TIMELINE_DESCRIPTION_DEPLOYMENT_INITIATED string = "Deployment initiated successfully."
+	TIMELINE_DESCRIPTION_VULNERABLE_IMAGE     string = "Deployment failed: Vulnerability policy violated."
 )
 
 type PipelineStatusTimelineRepository interface {

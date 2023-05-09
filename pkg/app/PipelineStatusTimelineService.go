@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -13,6 +14,7 @@ import (
 type PipelineStatusTimelineService interface {
 	SaveTimeline(timeline *pipelineConfig.PipelineStatusTimeline, tx *pg.Tx) error
 	FetchTimelines(appId, envId, wfrId int) (*PipelineTimelineDetailDto, error)
+	GetTimelineDbObjectByTimelineStatusAndTimelineDescription(cdWorkflowRunnerId int, timelineStatus pipelineConfig.TimelineStatus, timelineDescription string, userId int32) *pipelineConfig.PipelineStatusTimeline
 }
 
 type PipelineStatusTimelineServiceImpl struct {
@@ -60,6 +62,22 @@ type PipelineStatusTimelineDto struct {
 	StatusDetail                 string                        `json:"statusDetail"`
 	StatusTime                   time.Time                     `json:"statusTime"`
 	ResourceDetails              []*SyncStageResourceDetailDto `json:"resourceDetails,omitempty"`
+}
+
+func (impl *PipelineStatusTimelineServiceImpl) GetTimelineDbObjectByTimelineStatusAndTimelineDescription(cdWorkflowRunnerId int, timelineStatus pipelineConfig.TimelineStatus, timelineDescription string, userId int32) *pipelineConfig.PipelineStatusTimeline {
+	timeline := &pipelineConfig.PipelineStatusTimeline{
+		CdWorkflowRunnerId: cdWorkflowRunnerId,
+		Status:             timelineStatus,
+		StatusDetail:       timelineDescription,
+		StatusTime:         time.Now(),
+		AuditLog: sql.AuditLog{
+			CreatedBy: userId,
+			CreatedOn: time.Now(),
+			UpdatedBy: userId,
+			UpdatedOn: time.Now(),
+		},
+	}
+	return timeline
 }
 
 func (impl *PipelineStatusTimelineServiceImpl) SaveTimeline(timeline *pipelineConfig.PipelineStatusTimeline, tx *pg.Tx) error {

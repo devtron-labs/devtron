@@ -68,6 +68,7 @@ func (router PipelineTriggerRouterImpl) initPipelineTriggerRouter(pipelineTrigge
 
 	pipelineTriggerRouter.Path("/deployment-configuration/latest/saved/{appId}/{pipelineId}").HandlerFunc(router.restHandler.GetAllLatestDeploymentConfiguration).Methods("GET")
 	pipelineTriggerRouter.Path("/manifest/download/{appId}/{envId}").HandlerFunc(router.restHandler.DownloadManifest).Methods("GET")
+	pipelineTriggerRouter.Path("/manifest/download/{appId}/{envId}/{cd_workflow_id}").HandlerFunc(router.restHandler.DownloadManifestForSpecificTrigger).Methods("GET")
 }
 
 func fetchReleaseData(r *http.Request, receive <-chan int, send chan<- int) {

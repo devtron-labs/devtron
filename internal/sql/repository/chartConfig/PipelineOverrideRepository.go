@@ -67,7 +67,7 @@ type PipelineOverrideRepository interface {
 	GetLatestReleaseByPipelineIds(pipelineIds []int) (pipelineOverrides []*PipelineOverride, err error)
 	GetLatestReleaseDeploymentType(pipelineIds []int) ([]*PipelineOverride, error)
 	FetchHelmTypePipelineOverridesForStatusUpdate() (pipelines []*PipelineOverride, err error)
-	FindLatestByAppIdAndEnvId(appId, environmentId int) (pipelineOverrides *PipelineOverride, err error)
+	FindLatestByAppIdAndEnvId(appId, environmentId int, deploymentAppType string) (pipelineOverrides *PipelineOverride, err error)
 	FindLatestByCdWorkflowId(cdWorkflowId int) (pipelineOverride *PipelineOverride, err error)
 }
 
@@ -238,14 +238,14 @@ func (impl PipelineOverrideRepositoryImpl) FetchHelmTypePipelineOverridesForStat
 	return pipelines, err
 }
 
-func (impl PipelineOverrideRepositoryImpl) FindLatestByAppIdAndEnvId(appId, environmentId int) (pipelineOverrides *PipelineOverride, err error) {
+func (impl PipelineOverrideRepositoryImpl) FindLatestByAppIdAndEnvId(appId, environmentId int, deploymentAppType string) (pipelineOverrides *PipelineOverride, err error) {
 	var override PipelineOverride
 	err = impl.dbConnection.Model(&override).
 		Column("pipeline_override.*", "Pipeline").
 		Join("inner join pipeline p on p.id = pipeline_override.pipeline_id").
 		Where("pipeline.app_id =? ", appId).
 		Where("pipeline.environment_id =?", environmentId).
-		Where("p.deployment_app_type = ?", util.PIPELINE_DEPLOYMENT_TYPE_ACD).
+		Where("p.deployment_app_type = ?", deploymentAppType).
 		Where("p.deleted = ?", false).
 		Order("id DESC").Limit(1).
 		Select()

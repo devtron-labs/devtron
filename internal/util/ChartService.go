@@ -18,16 +18,12 @@
 package util
 
 import (
-	"archive/zip"
-	"bytes"
 	"compress/gzip"
 	"context"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
-	"io"
-
 	//appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
@@ -84,7 +80,7 @@ type ChartTemplateService interface {
 	CreateReadmeInGitRepo(gitOpsRepoName string, userId int32) error
 	UpdateGitRepoUrlInCharts(appId int, chartGitAttribute *ChartGitAttribute, userId int32) error
 	CreateAndPushToGitChartProxy(appStoreName, tmpChartLocation string, envName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (chartGitAttribute *ChartGitAttribute, err error)
-	ZipFolder(folderPath string) ([]byte, error)
+	LoadChartInBytes(ChartPath string, deleteChart bool) ([]byte, error)
 }
 type ChartTemplateServiceImpl struct {
 	randSource             rand.Source
@@ -739,57 +735,45 @@ func (impl ChartTemplateServiceImpl) UpdateGitRepoUrlInCharts(appId int, chartGi
 	return nil
 }
 
+func (impl ChartTemplateServiceImpl) LoadChartInBytes(ChartPath string, deleteChart bool) ([]byte, error) {
+
+	var chartBytesArr []byte
+	//this function is removed in latest helm release and is replaced by Loader in loader package
+	chart, err := chartutil.LoadDir(ChartPath)
+	if err != nil {
+		impl.logger.Errorw("error in loading chart dir", "err", err, "dir")
+		return chartBytesArr, err
+	}
+
+	chartZipPath, err := chartutil.Save(chart, ChartPath)
+	if err != nil {
+		impl.logger.Errorw("error in saving", "err", err, "dir")
+		return chartBytesArr, err
+	}
+
+	file, err := os.Open(chartZipPath)
+	reader, err := gzip.NewReader(file)
+	if err != nil {
+		impl.logger.Errorw("There is a problem with os.Open", "err", err)
+		return nil, err
+	}
+
+	if deleteChart {
+		defer impl.CleanDir(ChartPath)
+	}
+	bs, err := ioutil.ReadAll(reader)
+	if err != nil {
+		impl.logger.Errorw("There is a problem with readAll", "err", err)
+		return nil, err
+	}
+
+	return bs, err
+}
+
 func IsHelmApp(deploymentAppType string) bool {
 	return deploymentAppType == PIPELINE_DEPLOYMENT_TYPE_HELM
 }
 
 func IsAcdApp(deploymentAppType string) bool {
 	return deploymentAppType == PIPELINE_DEPLOYMENT_TYPE_ACD
-}
-
-// ZipFolder takes a folder name as input and returns a byte slice containing a zip archive of the folder.
-func (impl ChartTemplateServiceImpl) ZipFolder(folderPath string) ([]byte, error) {
-
-	buf := new(bytes.Buffer)
-	zipWriter := zip.NewWriter(buf)
-	err := filepath.Walk(folderPath, func(filePath string, fileInfo os.FileInfo, err error) error {
-		if folderPath == filePath {
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-		header, err := zip.FileInfoHeader(fileInfo)
-		if err != nil {
-			return err
-		}
-		header.Name, err = filepath.Rel(folderPath, filePath)
-		if err != nil {
-			return err
-		}
-		writer, err := zipWriter.CreateHeader(header)
-		if err != nil {
-			return err
-		}
-		file, err := os.Open(filePath)
-		if err != nil {
-			return err
-		}
-		defer file.Close()
-		_, err = io.Copy(writer, file)
-		if err != nil {
-			return err
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	err = zipWriter.Close()
-	if err != nil {
-		return nil, err
-	}
-	bytes := buf.Bytes()
-
-	return bytes, nil
 }

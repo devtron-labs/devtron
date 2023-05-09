@@ -2237,7 +2237,7 @@ func (impl PipelineBuilderImpl) DeleteDeploymentApps(ctx context.Context,
 		var err error
 
 		// delete request
-		if pipeline.DeploymentAppType == string(bean.ArgoCd) {
+		if pipeline.DeploymentAppType == bean.ArgoCd {
 			err = impl.deleteArgoCdApp(ctx, pipeline, deploymentAppName, true)
 
 		} else {
@@ -2356,7 +2356,7 @@ func (impl PipelineBuilderImpl) handleFailedDeploymentAppChange(pipeline *pipeli
 func (impl PipelineBuilderImpl) handleNotHealthyAppsIfArgoDeploymentType(pipeline *pipelineConfig.Pipeline,
 	failedPipelines []*bean.DeploymentChangeStatus) ([]*bean.DeploymentChangeStatus, error) {
 
-	if pipeline.DeploymentAppType == string(bean.ArgoCd) {
+	if pipeline.DeploymentAppType == bean.ArgoCd {
 		// check if app status is Healthy
 		status, err := impl.appStatusRepository.Get(pipeline.AppId, pipeline.EnvironmentId)
 

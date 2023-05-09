@@ -18,9 +18,9 @@
 package app
 
 import (
-	"compress/gzip"
 	"context"
 	"encoding/json"
+	error2 "errors"
 	"fmt"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -42,10 +42,8 @@ import (
 	"io/ioutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/helm/pkg/chartutil"
 	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
 	"net/url"
-	"os"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -167,8 +165,7 @@ type AppServiceImpl struct {
 }
 
 type AppService interface {
-	TriggerRelease(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, triggeredBy int32, wfrId int) (id int, err error)
-	TriggerReleaseV2(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, deployedBy int32, wfrId int) (id int, err error)
+	TriggerRelease(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, deployedBy int32) (releaseNo int, manifest []byte, err error)
 	UpdateReleaseStatus(request *bean.ReleaseStatusUpdateRequest) (bool, error)
 	UpdateDeploymentStatusAndCheckIsSucceeded(app *v1alpha1.Application, statusTime time.Time) (bool, error)
 	TriggerCD(artifact *repository.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, triggeredAt time.Time) error
@@ -181,6 +178,8 @@ type AppService interface {
 	GetValuesOverrideForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (ValuesOverrideResponse, error)
 	CreateGitopsRepo(app *app.App, userId int32) (gitopsRepoName string, chartGitAttr *ChartGitAttribute, err error)
 	GetLatestDeployedManifestByPipelineId(appId int, envId int, ctx context.Context) ([]byte, error)
+	GetDeployedManifestByPipelineIdAndCDWorkflowId(appId int, envId int, cdWorkflowId int, ctx context.Context) ([]byte, error)
+	SetPipelineFieldsInOverrideRequest(overrideRequest *bean.ValuesOverrideRequest, pipeline *pipelineConfig.Pipeline)
 }
 
 func NewAppService(
@@ -297,6 +296,17 @@ const (
 	Success = "SUCCESS"
 	Failure = "FAILURE"
 )
+
+func (impl *AppServiceImpl) SetPipelineFieldsInOverrideRequest(overrideRequest *bean.ValuesOverrideRequest, pipeline *pipelineConfig.Pipeline) {
+	overrideRequest.PipelineId = pipeline.Id
+	overrideRequest.PipelineName = pipeline.Name
+	overrideRequest.EnvId = pipeline.EnvironmentId
+	overrideRequest.EnvName = pipeline.Environment.Name
+	overrideRequest.ClusterId = pipeline.Environment.ClusterId
+	overrideRequest.AppId = pipeline.AppId
+	overrideRequest.AppName = pipeline.App.AppName
+	overrideRequest.DeploymentAppType = pipeline.DeploymentAppType
+}
 
 func (impl *AppServiceImpl) getValuesFileForEnv(environmentId int) string {
 	return fmt.Sprintf("_%d-values.yaml", environmentId) //-{envId}-values.yaml
@@ -479,7 +489,7 @@ func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValid(argoAppName, gitHa
 		return isValid, pipeline, cdWfr, pipelineOverride, err
 	}
 	//getting latest pipelineOverride for app (by appId and envId)
-	pipelineOverride, err = impl.pipelineOverrideRepository.FindLatestByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId)
+	pipelineOverride, err = impl.pipelineOverrideRepository.FindLatestByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId, bean2.ArgoCd)
 	if err != nil {
 		impl.logger.Errorw("error in getting latest pipelineOverride by appId and envId", "err", err, "appId", pipeline.AppId, "envId", pipeline.EnvironmentId)
 		return isValid, pipeline, cdWfr, pipelineOverride, err
@@ -673,7 +683,6 @@ func (impl *AppServiceImpl) BuildCDSuccessPayload(appName string, environmentNam
 type ValuesOverrideResponse struct {
 	MergedValues        string
 	ReleaseOverrideJSON string
-	Pipeline            *pipelineConfig.Pipeline
 	EnvOverride         *chartConfig.EnvConfigOverride
 	PipelineStrategy    *chartConfig.PipelineStrategy
 	PipelineOverride    *chartConfig.PipelineOverride
@@ -724,7 +733,13 @@ func (impl *AppServiceImpl) validateAndTrigger(p *pipelineConfig.Pipeline, artif
 
 func (impl *AppServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipeline, artifact *repository.CiArtifact, cdWorkflowId, wfrId int, triggeredAt time.Time) error {
 	impl.logger.Debugw("triggering release for ", "cdPipelineId", pipeline.Id, "artifactId", artifact.Id)
-	//Iterate for each even if there is error in one
+
+	pipeline, err := impl.pipelineRepository.FindById(pipeline.Id)
+	if err != nil {
+		impl.logger.Errorw("error in fetching pipeline by pipelineId", "err", err)
+		return err
+	}
+
 	request := &bean.ValuesOverrideRequest{
 		PipelineId:           pipeline.Id,
 		UserId:               artifact.CreatedBy,
@@ -733,7 +748,9 @@ func (impl *AppServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipeline, a
 		CdWorkflowId:         cdWorkflowId,
 		ForceTrigger:         true,
 		DeploymentWithConfig: bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED,
+		WfrId:                wfrId,
 	}
+	impl.SetPipelineFieldsInOverrideRequest(request, pipeline)
 
 	ctx, err := impl.buildACDContext()
 	if err != nil {
@@ -741,7 +758,7 @@ func (impl *AppServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipeline, a
 		return err
 	}
 	//setting deployedBy as 1(system user) since case of auto trigger
-	id, err := impl.TriggerRelease(request, ctx, triggeredAt, 1, wfrId)
+	id, _, err := impl.TriggerRelease(request, ctx, triggeredAt, 1)
 	if err != nil {
 		impl.logger.Errorw("error in auto  cd pipeline trigger", "pipelineId", pipeline.Id, "artifactId", artifact.Id, "err", err)
 	} else {
@@ -826,7 +843,7 @@ func (impl *AppServiceImpl) getDbMigrationOverride(overrideRequest *bean.ValuesO
 	return confByte, nil
 }
 
-func (impl *AppServiceImpl) getAppMetricsByTriggerType(overrideRequest *bean.ValuesOverrideRequest, envId int, ctx context.Context) (bool, error) {
+func (impl *AppServiceImpl) getAppMetricsByTriggerType(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (bool, error) {
 
 	var appMetrics bool
 	if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER {
@@ -850,7 +867,7 @@ func (impl *AppServiceImpl) getAppMetricsByTriggerType(overrideRequest *bean.Val
 		appMetrics = appLevelMetrics.AppMetrics
 
 		_, span = otel.Tracer("orchestrator").Start(ctx, "envLevelMetricsRepository.FindByAppIdAndEnvId")
-		envLevelMetrics, err := impl.envLevelMetricsRepository.FindByAppIdAndEnvId(overrideRequest.AppId, envId)
+		envLevelMetrics, err := impl.envLevelMetricsRepository.FindByAppIdAndEnvId(overrideRequest.AppId, overrideRequest.EnvId)
 		span.End()
 		if err != nil && !IsErrNoRows(err) {
 			impl.logger.Errorw("err", err)
@@ -913,7 +930,7 @@ func (impl *AppServiceImpl) getDeploymentStrategyByTriggerType(overrideRequest *
 	return strategy, nil
 }
 
-func (impl *AppServiceImpl) getEnvOverrideByTriggerType(overrideRequest *bean.ValuesOverrideRequest, envId int, triggeredAt time.Time, ctx context.Context) (*chartConfig.EnvConfigOverride, error) {
+func (impl *AppServiceImpl) getEnvOverrideByTriggerType(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*chartConfig.EnvConfigOverride, error) {
 
 	envOverride := &chartConfig.EnvConfigOverride{}
 	var err error
@@ -940,10 +957,10 @@ func (impl *AppServiceImpl) getEnvOverrideByTriggerType(overrideRequest *bean.Va
 		}
 		//assuming that if a chartVersion is deployed then it's envConfigOverride will be available
 		_, span = otel.Tracer("orchestrator").Start(ctx, "environmentConfigRepository.GetByAppIdEnvIdAndChartRefId")
-		envOverride, err = impl.environmentConfigRepository.GetByAppIdEnvIdAndChartRefId(overrideRequest.AppId, envId, chartRef.Id)
+		envOverride, err = impl.environmentConfigRepository.GetByAppIdEnvIdAndChartRefId(overrideRequest.AppId, overrideRequest.EnvId, chartRef.Id)
 		span.End()
 		if err != nil {
-			impl.logger.Errorw("error in getting envConfigOverride for pipeline for specific chartVersion", "err", err, "appId", overrideRequest.AppId, "envId", envId, "chartRefId", chartRef.Id)
+			impl.logger.Errorw("error in getting envConfigOverride for pipeline for specific chartVersion", "err", err, "appId", overrideRequest.AppId, "envId", overrideRequest.EnvId, "chartRefId", chartRef.Id)
 			return nil, err
 		}
 		//updating historical data in envConfigOverride and appMetrics flag
@@ -952,7 +969,7 @@ func (impl *AppServiceImpl) getEnvOverrideByTriggerType(overrideRequest *bean.Va
 
 	} else if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED {
 		_, span := otel.Tracer("orchestrator").Start(ctx, "environmentConfigRepository.ActiveEnvConfigOverride")
-		envOverride, err = impl.environmentConfigRepository.ActiveEnvConfigOverride(overrideRequest.AppId, envId)
+		envOverride, err = impl.environmentConfigRepository.ActiveEnvConfigOverride(overrideRequest.AppId, overrideRequest.EnvId)
 		span.End()
 		if err != nil {
 			impl.logger.Errorw("invalid state", "err", err, "req", overrideRequest)
@@ -967,7 +984,7 @@ func (impl *AppServiceImpl) getEnvOverrideByTriggerType(overrideRequest *bean.Va
 				return nil, err
 			}
 			_, span = otel.Tracer("orchestrator").Start(ctx, "environmentConfigRepository.FindChartByAppIdAndEnvIdAndChartRefId")
-			envOverride, err = impl.environmentConfigRepository.FindChartByAppIdAndEnvIdAndChartRefId(overrideRequest.AppId, envId, chart.ChartRefId)
+			envOverride, err = impl.environmentConfigRepository.FindChartByAppIdAndEnvIdAndChartRefId(overrideRequest.AppId, overrideRequest.EnvId, chart.ChartRefId)
 			span.End()
 			if err != nil && !errors2.IsNotFound(err) {
 				impl.logger.Errorw("invalid state", "err", err, "req", overrideRequest)
@@ -977,7 +994,7 @@ func (impl *AppServiceImpl) getEnvOverrideByTriggerType(overrideRequest *bean.Va
 			//creating new env override config
 			if errors2.IsNotFound(err) || envOverride == nil {
 				_, span = otel.Tracer("orchestrator").Start(ctx, "envRepository.FindById")
-				environment, err := impl.envRepository.FindById(envId)
+				environment, err := impl.envRepository.FindById(overrideRequest.EnvId)
 				span.End()
 				if err != nil && !IsErrNoRows(err) {
 					return nil, err
@@ -986,7 +1003,7 @@ func (impl *AppServiceImpl) getEnvOverrideByTriggerType(overrideRequest *bean.Va
 					Active:            true,
 					ManualReviewed:    true,
 					Status:            models.CHARTSTATUS_SUCCESS,
-					TargetEnvironment: envId,
+					TargetEnvironment: overrideRequest.EnvId,
 					ChartId:           chart.Id,
 					AuditLog:          sql.AuditLog{UpdatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId},
 					Namespace:         environment.Namespace,
@@ -1035,17 +1052,15 @@ func (impl *AppServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.Va
 		overrideRequest.DeploymentWithConfig = bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED
 	}
 	valuesOverrideResponse := ValuesOverrideResponse{}
-	pipeline, err := impl.pipelineRepository.FindById(overrideRequest.PipelineId)
-	if err != nil {
-		impl.logger.Errorw("error in fetching pipeline by pipelineId", "err", err)
-		return valuesOverrideResponse, err
-	}
-	envOverride, err := impl.getEnvOverrideByTriggerType(overrideRequest, pipeline.EnvironmentId, triggeredAt, ctx)
+
+	//pipeline := overrideRequest.Pipeline
+
+	envOverride, err := impl.getEnvOverrideByTriggerType(overrideRequest, triggeredAt, ctx)
 	if err != nil {
 		impl.logger.Errorw("error in getting env override by trigger type", "err", err)
 		return valuesOverrideResponse, err
 	}
-	appMetrics, err := impl.getAppMetricsByTriggerType(overrideRequest, pipeline.EnvironmentId, ctx)
+	appMetrics, err := impl.getAppMetricsByTriggerType(overrideRequest, ctx)
 	if err != nil {
 		impl.logger.Errorw("error in getting app metrics by trigger type", "err", err)
 		return valuesOverrideResponse, err
@@ -1091,14 +1106,14 @@ func (impl *AppServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.Va
 		return valuesOverrideResponse, err
 	}
 	//TODO: check status and apply lock
-	releaseOverrideJson, err := impl.getReleaseOverride(envOverride, overrideRequest, artifact, pipeline, pipelineOverride, strategy, &appMetrics)
+	releaseOverrideJson, err := impl.getReleaseOverride(envOverride, overrideRequest, artifact, pipelineOverride, strategy, &appMetrics)
 	if err != nil {
 		return valuesOverrideResponse, err
 	}
 	mergedValues, err := impl.mergeOverrideValues(envOverride, dbMigrationOverride, releaseOverrideJson, configMapJson, appLabelJsonByte, strategy)
 
-	appName := fmt.Sprintf("%s-%s", pipeline.App.AppName, envOverride.Environment.Name)
-	mergedValues = impl.autoscalingCheckBeforeTrigger(ctx, appName, envOverride.Namespace, mergedValues, pipeline, overrideRequest)
+	appName := fmt.Sprintf("%s-%s", overrideRequest.AppName, envOverride.Environment.Name)
+	mergedValues = impl.autoscalingCheckBeforeTrigger(ctx, appName, envOverride.Namespace, mergedValues, overrideRequest)
 
 	_, span = otel.Tracer("orchestrator").Start(ctx, "dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment")
 	// handle image pull secret if access given
@@ -1107,9 +1122,13 @@ func (impl *AppServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.Va
 	if err != nil {
 		return valuesOverrideResponse, err
 	}
+	pipelineOverride.PipelineMergedValues = string(mergedValues)
+	err = impl.pipelineOverrideRepository.Update(pipelineOverride)
+	if err != nil {
+		return valuesOverrideResponse, err
+	}
 	//valuesOverrideResponse.
 	valuesOverrideResponse.MergedValues = string(mergedValues)
-	valuesOverrideResponse.Pipeline = pipeline
 	valuesOverrideResponse.EnvOverride = envOverride
 	valuesOverrideResponse.PipelineOverride = pipelineOverride
 	valuesOverrideResponse.AppMetrics = appMetrics
@@ -1119,7 +1138,6 @@ func (impl *AppServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.Va
 	return valuesOverrideResponse, err
 }
 
-// referenceTemplatePath := path.Join(string(impl.refChartDir), envOverride.Chart.ReferenceTemplate)
 func (impl *AppServiceImpl) BuildManifestForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (valuesOverrideResponse ValuesOverrideResponse, builtChartPath string, err error) {
 
 	valuesOverrideResponse = ValuesOverrideResponse{}
@@ -1128,7 +1146,7 @@ func (impl *AppServiceImpl) BuildManifestForTrigger(overrideRequest *bean.Values
 		impl.logger.Errorw("error in fetching values for trigger", "err", err)
 		return valuesOverrideResponse, "", err
 	}
-	builtChartPath, err = impl.BuildChartAndGetPath(valuesOverrideResponse.Pipeline.App.AppName, valuesOverrideResponse.EnvOverride, ctx)
+	builtChartPath, err = impl.BuildChartAndGetPath(overrideRequest.AppName, valuesOverrideResponse.EnvOverride, ctx)
 	if err != nil {
 		impl.logger.Errorw("error in parsing reference chart", "err", err)
 		return valuesOverrideResponse, "", err
@@ -1146,7 +1164,52 @@ func (impl *AppServiceImpl) GetLatestDeployedManifestByPipelineId(appId int, env
 		return manifestByteArray, err
 	}
 
-	pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByAppIdAndEnvId(appId, envId)
+	pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByAppIdAndEnvId(appId, envId, pipeline[0].DeploymentAppType)
+	if err != nil {
+		impl.logger.Errorw("error in fetching latest release by appId and envId", "appId", appId, "envId", envId, "err", err)
+		return manifestByteArray, err
+	}
+
+	envConfigOverride, err := impl.environmentConfigRepository.Get(pipelineOverride.EnvConfigOverrideId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching env config repository by appId and envId", "appId", appId, "envId", envId, "err", err)
+		return manifestByteArray, err
+	}
+
+	appName := pipeline[0].App.AppName
+	builtChartPath, err := impl.BuildChartAndGetPath(appName, envConfigOverride, ctx)
+	if err != nil {
+		impl.logger.Errorw("error in parsing reference chart", "err", err)
+		return manifestByteArray, err
+	}
+
+	// create values file in built chart path
+	valuesFilePath := path.Join(builtChartPath, "valuesOverride.yaml")
+	err = ioutil.WriteFile(valuesFilePath, []byte(pipelineOverride.PipelineMergedValues), 0600)
+	if err != nil {
+		return manifestByteArray, nil
+	}
+
+	manifestByteArray, err = impl.chartTemplateService.LoadChartInBytes(builtChartPath, true)
+	if err != nil {
+		impl.logger.Errorw("error in converting chart to bytes", "err", err)
+		return manifestByteArray, err
+	}
+
+	return manifestByteArray, nil
+}
+
+func (impl *AppServiceImpl) GetDeployedManifestByPipelineIdAndCDWorkflowId(appId int, envId int, cdWorkflowId int, ctx context.Context) ([]byte, error) {
+
+	manifestByteArray := make([]byte, 0)
+
+	pipeline, err := impl.pipelineRepository.FindActiveByAppIdAndEnvironmentId(appId, envId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching pipeline by appId and envId", "appId", appId, "envId", envId, "err", err)
+		return manifestByteArray, err
+	}
+
+	pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByCdWorkflowId(cdWorkflowId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching latest release by appId and envId", "appId", appId, "envId", envId, "err", err)
 		return manifestByteArray, err
@@ -1164,36 +1227,21 @@ func (impl *AppServiceImpl) GetLatestDeployedManifestByPipelineId(appId int, env
 		return manifestByteArray, err
 	}
 
+	// create values file in built chart path
 	valuesFilePath := path.Join(builtChartPath, "valuesOverride.yaml")
 	err = ioutil.WriteFile(valuesFilePath, []byte(pipelineOverride.PipelineMergedValues), 0600)
 	if err != nil {
 		return manifestByteArray, nil
 	}
 
-	chart, err := chartutil.LoadDir(builtChartPath)
+	manifestByteArray, err = impl.chartTemplateService.LoadChartInBytes(builtChartPath, true)
 	if err != nil {
-		impl.logger.Errorw("error in loading chart dir", "err", err, "dir")
+		impl.logger.Errorw("error in converting chart to bytes", "err", err)
 		return manifestByteArray, err
 	}
 
-	chartZipPath, err := chartutil.Save(chart, builtChartPath)
-	if err != nil {
-		impl.logger.Errorw("error in saving", "err", err, "dir")
-		return manifestByteArray, err
-	}
-	file, err := os.Open(chartZipPath)
-	reader, err := gzip.NewReader(file)
-	if err != nil {
-		impl.logger.Errorw("There is a problem with os.Open", "err", err)
-		return nil, err
-	}
-	// read the complete content of the file h.Name into the bs []byte
-	bs, err := ioutil.ReadAll(reader)
-	if err != nil {
-		impl.logger.Errorw("There is a problem with readAll", "err", err)
-		return nil, err
-	}
-	return bs, nil
+	return manifestByteArray, nil
+
 }
 
 func (impl *AppServiceImpl) BuildChartAndGetPath(appName string, envOverride *chartConfig.EnvConfigOverride, ctx context.Context) (string, error) {
@@ -1220,6 +1268,25 @@ func (impl *AppServiceImpl) BuildChartAndGetPath(appName string, envOverride *ch
 	return tempReferenceTemplateDir, nil
 }
 
+func (impl *AppServiceImpl) GetHelmManifestInByte(overrideValues string, refChartPath string) ([]byte, error) {
+
+	var manifestByteArr []byte
+
+	valuesFilePath := path.Join(refChartPath, "valuesOverride.yaml")
+	err := ioutil.WriteFile(valuesFilePath, []byte(overrideValues), 0600)
+	if err != nil {
+		return manifestByteArr, nil
+	}
+
+	manifestByteArr, err = impl.chartTemplateService.LoadChartInBytes(refChartPath, false)
+	if err != nil {
+		impl.logger.Errorw("error in converting chart to bytes", "err", err)
+		return manifestByteArr, err
+	}
+
+	return manifestByteArr, err
+}
+
 func (impl *AppServiceImpl) CreateGitopsRepo(app *app.App, userId int32) (gitopsRepoName string, chartGitAttr *ChartGitAttribute, err error) {
 	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
 	if err != nil && pg.ErrNoRows != err {
@@ -1234,11 +1301,11 @@ func (impl *AppServiceImpl) CreateGitopsRepo(app *app.App, userId int32) (gitops
 	return gitOpsRepoName, chartGitAttr, nil
 }
 
-func (impl *AppServiceImpl) PushChartToGitRepoIfNotExistAndUpdateTimelineStatus(overrideRequest *bean.ValuesOverrideRequest, pipeline *pipelineConfig.Pipeline, tempReferenceTemplateDir string, envOverride *chartConfig.EnvConfigOverride, ctx context.Context) error {
+func (impl *AppServiceImpl) PushChartToGitRepoIfNotExistAndUpdateTimelineStatus(overrideRequest *bean.ValuesOverrideRequest, tempReferenceTemplateDir string, envOverride *chartConfig.EnvConfigOverride, ctx context.Context) error {
 
 	_, span := otel.Tracer("orchestrator").Start(ctx, "chartTemplateService.GetGitOpsRepoName")
 	// CHART COMMIT and PUSH STARTS HERE, it will push latest version, if found modified on deployment template and overrides
-	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(pipeline.App.AppName)
+	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(overrideRequest.AppName)
 	span.End()
 	_, span = otel.Tracer("orchestrator").Start(ctx, "chartService.CheckChartExists")
 	err := impl.chartService.CheckChartExists(envOverride.Chart.ChartRefId)
@@ -1248,30 +1315,32 @@ func (impl *AppServiceImpl) PushChartToGitRepoIfNotExistAndUpdateTimelineStatus(
 		return err
 	}
 	// for older apps this is created during cd pipeline creation, but for new helm apps this need to be done during CD trigger
+	// This condition will handle gitOps for old helm apps
 	if envOverride.Chart.GitRepoUrl == "" {
-		_, chartGitAttribute, err := impl.CreateGitopsRepo(&app.App{Id: pipeline.Id, AppName: pipeline.App.AppName}, overrideRequest.UserId)
+		_, chartGitAttribute, err := impl.CreateGitopsRepo(&app.App{Id: overrideRequest.PipelineId, AppName: overrideRequest.AppName}, overrideRequest.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in creating gitops repo", "err", nil)
 		}
-		err = impl.chartTemplateService.UpdateGitRepoUrlInCharts(pipeline.AppId, chartGitAttribute, overrideRequest.UserId)
+		err = impl.chartTemplateService.UpdateGitRepoUrlInCharts(overrideRequest.AppId, chartGitAttribute, overrideRequest.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in updating helm repo git url", "err", err)
 		}
 		envOverride.Chart.GitRepoUrl = chartGitAttribute.RepoUrl
 		envOverride.Chart.ChartLocation = chartGitAttribute.ChartLocation
 	}
+
 	var gitCommitStatus pipelineConfig.TimelineStatus
 	var gitCommitStatusDetail string
 	err = impl.chartTemplateService.PushChartToGitRepo(gitOpsRepoName, envOverride.Chart.ReferenceTemplate, envOverride.Chart.ChartVersion, tempReferenceTemplateDir, envOverride.Chart.GitRepoUrl, overrideRequest.UserId)
 	if err != nil {
-		impl.saveTimelineForError(overrideRequest, ctx, err, overrideRequest.CdWorkflowId)
+		impl.saveTimelineForError(overrideRequest, ctx, err)
 		return err
 	} else {
 		gitCommitStatus = pipelineConfig.TIMELINE_STATUS_GIT_COMMIT
 		gitCommitStatusDetail = "Git commit done successfully."
 		// creating cd pipeline status timeline for git commit
 		timeline := &pipelineConfig.PipelineStatusTimeline{
-			CdWorkflowRunnerId: overrideRequest.CdWorkflowId,
+			CdWorkflowRunnerId: overrideRequest.WfrId,
 			Status:             gitCommitStatus,
 			StatusDetail:       gitCommitStatusDetail,
 			StatusTime:         time.Now(),
@@ -1336,7 +1405,13 @@ func (impl *AppServiceImpl) CommitValuesToGit(valuesOverrideRequest *bean.Values
 	return commitHash, commitTime, nil
 }
 
-func (impl *AppServiceImpl) DeployArgocdApp(overrideRequest *bean.ValuesOverrideRequest, envOverride *chartConfig.EnvConfigOverride, pipeline *pipelineConfig.Pipeline, ctx context.Context) error {
+func (impl *AppServiceImpl) DeployArgocdApp(overrideRequest *bean.ValuesOverrideRequest, envOverride *chartConfig.EnvConfigOverride, ctx context.Context) error {
+
+	pipeline, err := impl.pipelineRepository.FindById(overrideRequest.PipelineId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching pipeline", "err", err)
+		return err
+	}
 	impl.logger.Debugw("new pipeline found", "pipeline", pipeline)
 	_, span := otel.Tracer("orchestrator").Start(ctx, "createArgoApplicationIfRequired")
 	name, err := impl.createArgoApplicationIfRequired(overrideRequest.AppId, envOverride, pipeline, overrideRequest.UserId)
@@ -1364,14 +1439,14 @@ func (impl *AppServiceImpl) DeployArgocdApp(overrideRequest *bean.ValuesOverride
 
 func (impl *AppServiceImpl) DeployApp(overrideRequest *bean.ValuesOverrideRequest, valuesOverrideResponse ValuesOverrideResponse, triggeredAt time.Time, ctx context.Context) error {
 
-	if IsAcdApp(valuesOverrideResponse.Pipeline.DeploymentAppType) {
-		err := impl.DeployArgocdApp(overrideRequest, valuesOverrideResponse.EnvOverride, valuesOverrideResponse.Pipeline, ctx)
+	if IsAcdApp(overrideRequest.DeploymentAppType) {
+		err := impl.DeployArgocdApp(overrideRequest, valuesOverrideResponse.EnvOverride, ctx)
 		if err != nil {
 			impl.logger.Errorw("error in deploying app on argocd", "err", err)
 			return err
 		}
-	} else if IsHelmApp(valuesOverrideResponse.Pipeline.DeploymentAppType) {
-		_, err := impl.createHelmAppForCdPipeline(overrideRequest, valuesOverrideResponse.EnvOverride, triggeredAt, valuesOverrideResponse.Pipeline, valuesOverrideResponse.MergedValues, ctx)
+	} else if IsHelmApp(overrideRequest.DeploymentAppType) {
+		_, err := impl.createHelmAppForCdPipeline(overrideRequest, valuesOverrideResponse.EnvOverride, triggeredAt, valuesOverrideResponse.MergedValues, ctx)
 		if err != nil {
 			impl.logger.Errorw("error in creating or updating helm application for cd pipeline", "err", err)
 			return err
@@ -1380,421 +1455,560 @@ func (impl *AppServiceImpl) DeployApp(overrideRequest *bean.ValuesOverrideReques
 	return nil
 }
 
-func (impl *AppServiceImpl) TriggerReleaseV2(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, deployedBy int32, wfrId int) (id int, err error) {
+func (impl *AppServiceImpl) ValidateTriggerEvent(triggerEvent bean.TriggerEvent) (bool, error) {
 
-	valuesOverrideResponse, err := impl.GetValuesOverrideForTrigger(overrideRequest, triggeredAt, ctx)
-	if err != nil {
-		impl.logger.Errorw("error in fetching values for trigger", "err", err)
-		return 0, err
+	switch triggerEvent.DeploymentAppType {
+	case bean2.ArgoCd:
+		if !triggerEvent.PerformGitOps {
+			return false, errors2.New("For deployment type ArgoCd, PerformGitOps flag expected value = true, got false")
+		}
+	case bean2.Helm:
+		return true, nil
+	case bean2.GitOpsWithoutDeployment:
+		if triggerEvent.PerformDeploymentOnCluster {
+			return false, errors2.New("For deployment type GitOpsWithoutDeployment, PerformDeploymentOnCluster flag expected value = false, got value = true")
+		}
+	case bean2.ManifestDownload:
+		if triggerEvent.PerformGitOps {
+			return false, error2.New("For deployment type ManifestDownload,  PerformGitOps flag expected value = false, got true")
+		}
+		if triggerEvent.PerformDeploymentOnCluster {
+			return false, error2.New("For deployment type ManifestDownload,  PerformDeploymentOnCluster flag expected value = false, got true")
+		}
+	}
+	return true, nil
+
+}
+
+func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverrideRequest, triggerEvent bean.TriggerEvent, ctx context.Context) (releaseNo int, manifest []byte, err error) {
+
+	isRequestValid, err := impl.ValidateTriggerEvent(triggerEvent)
+	if !isRequestValid {
+		return releaseNo, manifest, err
 	}
 
-	builtChartPath, err := impl.BuildChartAndGetPath(valuesOverrideResponse.Pipeline.App.AppName, valuesOverrideResponse.EnvOverride, ctx)
+	valuesOverrideResponse, builtChartPath, err := impl.BuildManifestForTrigger(overrideRequest, triggerEvent.TriggerdAt, ctx)
 	if err != nil {
-		impl.logger.Errorw("error in parsing reference chart", "err", err)
-		return 0, err
-	}
-	//TODO: delete tmp/chart
-	err = impl.PushChartToGitRepoIfNotExistAndUpdateTimelineStatus(overrideRequest, valuesOverrideResponse.Pipeline, builtChartPath, valuesOverrideResponse.EnvOverride, ctx)
-	if err != nil {
-		impl.logger.Errorw("error in pushing chart to git", "err", err)
-		return 0, err
+		return releaseNo, manifest, err
 	}
 
-	commitHash, commitTime, err := impl.CommitValuesToGit(overrideRequest, valuesOverrideResponse, triggeredAt, ctx)
-	if err != nil {
-		impl.logger.Errorw("error in commiting values to git", "err", err)
-		return 0, err
+	if triggerEvent.GetManifestInResponse {
+		manifest, err = impl.GetHelmManifestInByte(valuesOverrideResponse.MergedValues, builtChartPath)
+		if err != nil {
+			impl.logger.Errorw("error in converting manifest to bytes", "err", err)
+			return releaseNo, manifest, err
+		}
 	}
 
-	pipelineOverrideUpdateRequest := &chartConfig.PipelineOverride{
-		Id:                     valuesOverrideResponse.PipelineOverride.Id,
-		GitHash:                commitHash,
-		CommitTime:             commitTime,
-		EnvConfigOverrideId:    valuesOverrideResponse.EnvOverride.Id,
-		PipelineOverrideValues: valuesOverrideResponse.ReleaseOverrideJSON,
-		PipelineId:             overrideRequest.PipelineId,
-		CiArtifactId:           overrideRequest.CiArtifactId,
-		PipelineMergedValues:   string(valuesOverrideResponse.MergedValues),
-		AuditLog:               sql.AuditLog{UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
-	}
-	_, span := otel.Tracer("orchestrator").Start(ctx, "pipelineOverrideRepository.Update")
-	err = impl.pipelineOverrideRepository.Update(pipelineOverrideUpdateRequest)
+	if triggerEvent.PerformGitOps {
+		//TODO: clean chart from local after pushing
+		err = impl.PushChartToGitRepoIfNotExistAndUpdateTimelineStatus(overrideRequest, builtChartPath, valuesOverrideResponse.EnvOverride, ctx)
+		if err != nil {
+			impl.logger.Errorw("error in pushing chart to git", "err", err)
+			return releaseNo, manifest, err
+		}
 
-	err = impl.DeployApp(overrideRequest, valuesOverrideResponse, triggeredAt, ctx)
-	if err != nil {
-		impl.logger.Errorw("error in deploying app", "err", err)
-		return 0, err
+		commitHash, commitTime, err := impl.CommitValuesToGit(overrideRequest, valuesOverrideResponse, triggerEvent.TriggerdAt, ctx)
+		if err != nil {
+			impl.logger.Errorw("error in commiting values to git", "err", err)
+			return releaseNo, manifest, err
+		}
+
+		pipelineOverrideUpdateRequest := &chartConfig.PipelineOverride{
+			Id:                     valuesOverrideResponse.PipelineOverride.Id,
+			GitHash:                commitHash,
+			CommitTime:             commitTime,
+			EnvConfigOverrideId:    valuesOverrideResponse.EnvOverride.Id,
+			PipelineOverrideValues: valuesOverrideResponse.ReleaseOverrideJSON,
+			PipelineId:             overrideRequest.PipelineId,
+			CiArtifactId:           overrideRequest.CiArtifactId,
+			PipelineMergedValues:   valuesOverrideResponse.MergedValues,
+			AuditLog:               sql.AuditLog{UpdatedOn: triggerEvent.TriggerdAt, UpdatedBy: overrideRequest.UserId},
+		}
+		_, span := otel.Tracer("orchestrator").Start(ctx, "pipelineOverrideRepository.Update")
+		err = impl.pipelineOverrideRepository.Update(pipelineOverrideUpdateRequest)
+		span.End()
+
 	}
-	_, span = otel.Tracer("orchestrator").Start(ctx, "CreateHistoriesForDeploymentTrigger")
-	err = impl.CreateHistoriesForDeploymentTrigger(valuesOverrideResponse.Pipeline, valuesOverrideResponse.PipelineStrategy, valuesOverrideResponse.EnvOverride, triggeredAt, deployedBy)
-	span.End()
-	if err != nil {
-		impl.logger.Errorw("error in creating history entries for deployment trigger", "err", err)
-		return 0, err
+
+	if triggerEvent.PerformDeploymentOnCluster {
+		err = impl.DeployApp(overrideRequest, valuesOverrideResponse, triggerEvent.TriggerdAt, ctx)
+		if err != nil {
+			impl.logger.Errorw("error in deploying app", "err", err)
+			return releaseNo, manifest, err
+		}
 	}
-	materialInfoMap, mErr := valuesOverrideResponse.Artifact.ParseMaterialInfo()
-	if mErr != nil {
-		impl.logger.Errorw("material info map error", mErr)
-		return 0, err
-	}
-	go impl.WriteCDTriggerEvent(overrideRequest, valuesOverrideResponse.Pipeline, valuesOverrideResponse.EnvOverride, materialInfoMap, valuesOverrideResponse.Artifact, valuesOverrideResponse.PipelineOverride.PipelineReleaseCounter, valuesOverrideResponse.PipelineOverride.Id)
+
+	go impl.WriteCDTriggerEvent(overrideRequest, valuesOverrideResponse.Artifact, valuesOverrideResponse.PipelineOverride.PipelineReleaseCounter, valuesOverrideResponse.PipelineOverride.Id)
+
 	if valuesOverrideResponse.Artifact.ScanEnabled {
-		_, span = otel.Tracer("orchestrator").Start(ctx, "MarkImageScanDeployed")
-		_ = impl.MarkImageScanDeployed(overrideRequest.AppId, valuesOverrideResponse.EnvOverride.TargetEnvironment, valuesOverrideResponse.Artifact.ImageDigest, valuesOverrideResponse.Pipeline.Environment.ClusterId)
+		_, span := otel.Tracer("orchestrator").Start(ctx, "MarkImageScanDeployed")
+		_ = impl.MarkImageScanDeployed(overrideRequest.AppId, valuesOverrideResponse.EnvOverride.TargetEnvironment, valuesOverrideResponse.Artifact.ImageDigest, overrideRequest.ClusterId)
 		span.End()
 	}
-	middleware.CdTriggerCounter.WithLabelValues(valuesOverrideResponse.Pipeline.App.AppName, valuesOverrideResponse.Pipeline.Environment.Name).Inc()
 
-	return valuesOverrideResponse.PipelineOverride.PipelineReleaseCounter, nil
+	middleware.CdTriggerCounter.WithLabelValues(overrideRequest.AppName, overrideRequest.EnvName).Inc()
+
+	return valuesOverrideResponse.PipelineOverride.PipelineReleaseCounter, manifest, nil
+
 }
 
-func (impl *AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, deployedBy int32, wfrId int) (id int, err error) {
-	if overrideRequest.DeploymentType == models.DEPLOYMENTTYPE_UNKNOWN {
-		overrideRequest.DeploymentType = models.DEPLOYMENTTYPE_DEPLOY
+func (impl *AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, deployedBy int32) (releaseNo int, manifest []byte, err error) {
+
+	// trigger event will decide whether to perform GitOps or deployment for a particular deployment app type
+	triggerEvent := bean.TriggerEvent{
+		TriggeredBy: deployedBy,
+		TriggerdAt:  triggeredAt,
 	}
-	if len(overrideRequest.DeploymentWithConfig) == 0 {
-		overrideRequest.DeploymentWithConfig = bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED
+
+	switch overrideRequest.DeploymentAppType {
+	case bean2.ArgoCd:
+		triggerEvent.PerformGitOps = true
+		triggerEvent.PerformDeploymentOnCluster = true
+		triggerEvent.GetManifestInResponse = false
+		triggerEvent.DeploymentAppType = bean2.ArgoCd
+	case bean2.Helm:
+		triggerEvent.PerformGitOps = false
+		triggerEvent.PerformDeploymentOnCluster = true
+		triggerEvent.GetManifestInResponse = false
+		triggerEvent.DeploymentAppType = bean2.Helm
+	case bean2.ManifestDownload:
+		triggerEvent.PerformGitOps = false
+		triggerEvent.PerformDeploymentOnCluster = false
+		triggerEvent.GetManifestInResponse = true
+		triggerEvent.DeploymentAppType = bean2.ManifestDownload
+	case bean2.GitOpsWithoutDeployment:
+		triggerEvent.PerformGitOps = true
+		triggerEvent.PerformDeploymentOnCluster = false
+		triggerEvent.GetManifestInResponse = false
+		triggerEvent.DeploymentAppType = bean2.GitOpsWithoutDeployment
 	}
-	_, span := otel.Tracer("orchestrator").Start(ctx, "pipelineRepository.FindById")
-	pipeline, err := impl.pipelineRepository.FindById(overrideRequest.PipelineId)
-	span.End()
+
+	releaseNo, manifest, err = impl.TriggerPipeline(overrideRequest, triggerEvent, ctx)
 	if err != nil {
-		impl.logger.Errorw("invalid req", "err", err, "req", overrideRequest)
-		return 0, err
+		return 0, manifest, err
 	}
-	envOverride := &chartConfig.EnvConfigOverride{}
-	var appMetrics *bool
-	strategy := &chartConfig.PipelineStrategy{}
-	if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER {
-		_, span := otel.Tracer("orchestrator").Start(ctx, "deploymentTemplateHistoryRepository.GetHistoryByPipelineIdAndWfrId")
-		deploymentTemplateHistory, err := impl.deploymentTemplateHistoryRepository.GetHistoryByPipelineIdAndWfrId(overrideRequest.PipelineId, overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
-		span.End()
-		if err != nil {
-			impl.logger.Errorw("error in getting deployed deployment template history by pipelineId and wfrId", "err", err, "pipelineId", &overrideRequest, "wfrId", overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
-			return 0, err
-		}
-		templateName := deploymentTemplateHistory.TemplateName
-		templateVersion := deploymentTemplateHistory.TemplateVersion
-		if templateName == "Rollout Deployment" {
-			templateName = ""
-		}
-		//getting chart_ref by id
-		_, span = otel.Tracer("orchestrator").Start(ctx, "chartRefRepository.FindByVersionAndName")
-		chartRef, err := impl.chartRefRepository.FindByVersionAndName(templateName, templateVersion)
-		span.End()
-		if err != nil {
-			impl.logger.Errorw("error in getting chartRef by version and name", "err", err, "version", templateVersion, "name", templateName)
-			return 0, err
-		}
-		//assuming that if a chartVersion is deployed then it's envConfigOverride will be available
-		_, span = otel.Tracer("orchestrator").Start(ctx, "environmentConfigRepository.GetByAppIdEnvIdAndChartRefId")
-		envOverride, err = impl.environmentConfigRepository.GetByAppIdEnvIdAndChartRefId(pipeline.AppId, pipeline.EnvironmentId, chartRef.Id)
-		span.End()
-		if err != nil {
-			impl.logger.Errorw("error in getting envConfigOverride for pipeline for specific chartVersion", "err", err, "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "chartRefId", chartRef.Id)
-			return 0, err
-		}
-		//updating historical data in envConfigOverride and appMetrics flag
-		envOverride.IsOverride = true
-		envOverride.EnvOverrideValues = deploymentTemplateHistory.Template
-		appMetrics = &deploymentTemplateHistory.IsAppMetricsEnabled
-		_, span = otel.Tracer("orchestrator").Start(ctx, "strategyHistoryRepository.GetHistoryByPipelineIdAndWfrId")
-		strategyHistory, err := impl.strategyHistoryRepository.GetHistoryByPipelineIdAndWfrId(overrideRequest.PipelineId, overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
-		span.End()
-		if err != nil {
-			impl.logger.Errorw("error in getting deployed strategy history by pipleinId and wfrId", "err", err, "pipelineId", overrideRequest.PipelineId, "wfrId", overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
-			return 0, err
-		}
-		strategy.Strategy = strategyHistory.Strategy
-		strategy.Config = strategyHistory.Config
-		strategy.PipelineId = pipeline.Id
-	} else if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED {
-		_, span = otel.Tracer("orchestrator").Start(ctx, "environmentConfigRepository.ActiveEnvConfigOverride")
-		envOverride, err = impl.environmentConfigRepository.ActiveEnvConfigOverride(overrideRequest.AppId, pipeline.EnvironmentId)
-		span.End()
-		if err != nil {
-			impl.logger.Errorw("invalid state", "err", err, "req", overrideRequest)
-			return 0, err
-		}
-		if envOverride.Id == 0 {
-			_, span = otel.Tracer("orchestrator").Start(ctx, "chartRepository.FindLatestChartForAppByAppId")
-			chart, err := impl.chartRepository.FindLatestChartForAppByAppId(overrideRequest.AppId)
-			span.End()
-			if err != nil {
-				impl.logger.Errorw("invalid state", "err", err, "req", overrideRequest)
-				return 0, err
-			}
-			_, span = otel.Tracer("orchestrator").Start(ctx, "environmentConfigRepository.FindChartByAppIdAndEnvIdAndChartRefId")
-			envOverride, err = impl.environmentConfigRepository.FindChartByAppIdAndEnvIdAndChartRefId(overrideRequest.AppId, pipeline.EnvironmentId, chart.ChartRefId)
-			span.End()
-			if err != nil && !errors2.IsNotFound(err) {
-				impl.logger.Errorw("invalid state", "err", err, "req", overrideRequest)
-				return 0, err
-			}
-
-			//creating new env override config
-			if errors2.IsNotFound(err) || envOverride == nil {
-				_, span = otel.Tracer("orchestrator").Start(ctx, "envRepository.FindById")
-				environment, err := impl.envRepository.FindById(pipeline.EnvironmentId)
-				span.End()
-				if err != nil && !IsErrNoRows(err) {
-					return 0, err
-				}
-				envOverride = &chartConfig.EnvConfigOverride{
-					Active:            true,
-					ManualReviewed:    true,
-					Status:            models.CHARTSTATUS_SUCCESS,
-					TargetEnvironment: pipeline.EnvironmentId,
-					ChartId:           chart.Id,
-					AuditLog:          sql.AuditLog{UpdatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId},
-					Namespace:         environment.Namespace,
-					IsOverride:        false,
-					EnvOverrideValues: "{}",
-					Latest:            false,
-					IsBasicViewLocked: chart.IsBasicViewLocked,
-					CurrentViewEditor: chart.CurrentViewEditor,
-				}
-				_, span = otel.Tracer("orchestrator").Start(ctx, "environmentConfigRepository.Save")
-				err = impl.environmentConfigRepository.Save(envOverride)
-				span.End()
-				if err != nil {
-					impl.logger.Errorw("error in creating envconfig", "data", envOverride, "error", err)
-					return 0, err
-				}
-			}
-			envOverride.Chart = chart
-		} else if envOverride.Id > 0 && !envOverride.IsOverride {
-			_, span = otel.Tracer("orchestrator").Start(ctx, "chartRepository.FindLatestChartForAppByAppId")
-			chart, err := impl.chartRepository.FindLatestChartForAppByAppId(overrideRequest.AppId)
-			span.End()
-			if err != nil {
-				impl.logger.Errorw("invalid state", "err", err, "req", overrideRequest)
-				return 0, err
-			}
-			envOverride.Chart = chart
-		}
-
-		_, span = otel.Tracer("orchestrator").Start(ctx, "appLevelMetricsRepository.FindByAppId")
-		appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(pipeline.AppId)
-		span.End()
-		if err != nil && !IsErrNoRows(err) {
-			impl.logger.Errorw("err", err)
-			return 0, &ApiError{InternalMessage: "unable to fetch app level metrics flag"}
-		}
-		appMetrics = &appLevelMetrics.AppMetrics
-
-		_, span = otel.Tracer("orchestrator").Start(ctx, "envLevelMetricsRepository.FindByAppIdAndEnvId")
-		envLevelMetrics, err := impl.envLevelMetricsRepository.FindByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId)
-		span.End()
-		if err != nil && !IsErrNoRows(err) {
-			impl.logger.Errorw("err", err)
-			return 0, &ApiError{InternalMessage: "unable to fetch env level metrics flag"}
-		}
-		if envLevelMetrics.Id != 0 && envLevelMetrics.AppMetrics != nil {
-			appMetrics = envLevelMetrics.AppMetrics
-		}
-		//fetch pipeline config from strategy table, if pipeline is automatic fetch always default, else depends on request
-
-		//forceTrigger true if CD triggered Auto, triggered occurred from CI
-		if overrideRequest.ForceTrigger {
-			_, span = otel.Tracer("orchestrator").Start(ctx, "pipelineConfigRepository.GetDefaultStrategyByPipelineId")
-			strategy, err = impl.pipelineConfigRepository.GetDefaultStrategyByPipelineId(overrideRequest.PipelineId)
-			span.End()
-		} else {
-			var deploymentTemplate chartRepoRepository.DeploymentStrategy
-			if overrideRequest.DeploymentTemplate == "ROLLING" {
-				deploymentTemplate = chartRepoRepository.DEPLOYMENT_STRATEGY_ROLLING
-			} else if overrideRequest.DeploymentTemplate == "BLUE-GREEN" {
-				deploymentTemplate = chartRepoRepository.DEPLOYMENT_STRATEGY_BLUE_GREEN
-			} else if overrideRequest.DeploymentTemplate == "CANARY" {
-				deploymentTemplate = chartRepoRepository.DEPLOYMENT_STRATEGY_CANARY
-			} else if overrideRequest.DeploymentTemplate == "RECREATE" {
-				deploymentTemplate = chartRepoRepository.DEPLOYMENT_STRATEGY_RECREATE
-			}
-
-			if len(deploymentTemplate) > 0 {
-				_, span = otel.Tracer("orchestrator").Start(ctx, "pipelineConfigRepository.FindByStrategyAndPipelineId")
-				strategy, err = impl.pipelineConfigRepository.FindByStrategyAndPipelineId(deploymentTemplate, overrideRequest.PipelineId)
-				span.End()
-			} else {
-				_, span = otel.Tracer("orchestrator").Start(ctx, "pipelineConfigRepository.GetDefaultStrategyByPipelineId")
-				strategy, err = impl.pipelineConfigRepository.GetDefaultStrategyByPipelineId(overrideRequest.PipelineId)
-				span.End()
-			}
-		}
-		if err != nil && errors2.IsNotFound(err) == false {
-			impl.logger.Errorf("invalid state", "err", err, "req", strategy)
-			return 0, err
-		}
-	}
-	_, span = otel.Tracer("orchestrator").Start(ctx, "CreateHistoriesForDeploymentTrigger")
-	err = impl.CreateHistoriesForDeploymentTrigger(pipeline, strategy, envOverride, triggeredAt, deployedBy)
-	span.End()
-	if err != nil {
-		impl.logger.Errorw("error in creating history entries for deployment trigger", "err", err)
-		return 0, err
-	}
-
-	// auto-healing :  data corruption fix - if ChartLocation in chart is not correct, need correction
-	if !strings.HasSuffix(envOverride.Chart.ChartLocation, fmt.Sprintf("%s%s", "/", envOverride.Chart.ChartVersion)) {
-		_, span = otel.Tracer("orchestrator").Start(ctx, "autoHealChartLocationInChart")
-		err = impl.autoHealChartLocationInChart(ctx, envOverride)
-		span.End()
-		if err != nil {
-			return 0, err
-		}
-	}
-
-	_, span = otel.Tracer("orchestrator").Start(ctx, "envRepository.FindById")
-	env, err := impl.envRepository.FindById(envOverride.TargetEnvironment)
-	span.End()
-	if err != nil {
-		impl.logger.Errorw("unable to find env", "err", err)
-		return 0, err
-	}
-	envOverride.Environment = env
-
-	// CHART COMMIT and PUSH STARTS HERE, it will push latest version, if found modified on deployment template and overrides
-	chartMetaData := &chart2.Metadata{
-		Name:    pipeline.App.AppName,
-		Version: envOverride.Chart.ChartVersion,
-	}
-	referenceTemplatePath := path.Join(string(impl.refChartDir), envOverride.Chart.ReferenceTemplate)
-	if IsAcdApp(pipeline.DeploymentAppType) {
-		_, span = otel.Tracer("orchestrator").Start(ctx, "chartTemplateService.GetGitOpsRepoName")
-		// CHART COMMIT and PUSH STARTS HERE, it will push latest version, if found modified on deployment template and overrides
-		gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(pipeline.App.AppName)
-		span.End()
-		_, span = otel.Tracer("orchestrator").Start(ctx, "chartService.CheckChartExists")
-		err = impl.chartService.CheckChartExists(envOverride.Chart.ChartRefId)
-		span.End()
-		if err != nil {
-			impl.logger.Errorw("err in getting chart info", "err", err)
-			return 0, err
-		}
-		var gitCommitStatus pipelineConfig.TimelineStatus
-		var gitCommitStatusDetail string
-		err = impl.buildChartAndPushToGitRepo(overrideRequest, ctx, chartMetaData, referenceTemplatePath, wfrId, gitOpsRepoName, envOverride)
-		if err != nil {
-			impl.saveTimelineForError(overrideRequest, ctx, err, wfrId)
-			return 0, err
-		} else {
-			gitCommitStatus = pipelineConfig.TIMELINE_STATUS_GIT_COMMIT
-			gitCommitStatusDetail = "Git commit done successfully."
-			// creating cd pipeline status timeline for git commit
-			timeline := &pipelineConfig.PipelineStatusTimeline{
-				CdWorkflowRunnerId: wfrId,
-				Status:             gitCommitStatus,
-				StatusDetail:       gitCommitStatusDetail,
-				StatusTime:         time.Now(),
-				AuditLog: sql.AuditLog{
-					CreatedBy: overrideRequest.UserId,
-					CreatedOn: time.Now(),
-					UpdatedBy: overrideRequest.UserId,
-					UpdatedOn: time.Now(),
-				},
-			}
-			_, span = otel.Tracer("orchestrator").Start(ctx, "cdPipelineStatusTimelineRepo.SaveTimeline")
-			err := impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
-			span.End()
-			if err != nil {
-				impl.logger.Errorw("error in creating timeline status for git commit", "err", err, "timeline", timeline)
-			}
-		}
-
-		// ACD app creation STARTS HERE, it will use existing if already created
-		impl.logger.Debugw("new pipeline found", "pipeline", pipeline)
-		_, span = otel.Tracer("orchestrator").Start(ctx, "createArgoApplicationIfRequired")
-		name, err := impl.createArgoApplicationIfRequired(overrideRequest.AppId, envOverride, pipeline, overrideRequest.UserId)
-		span.End()
-		if err != nil {
-			impl.logger.Errorw("acd application create error on cd trigger", "err", err, "req", overrideRequest)
-			return 0, err
-		}
-		impl.logger.Debugw("argocd application created", "name", name)
-		// ENDS HERE
-	}
-
-	_, span = otel.Tracer("orchestrator").Start(ctx, "ciArtifactRepository.Get")
-	artifact, err := impl.ciArtifactRepository.Get(overrideRequest.CiArtifactId)
-	span.End()
-	if err != nil {
-		return 0, err
-	}
-	materialInfoMap, mErr := artifact.ParseMaterialInfo()
-	if mErr != nil {
-		impl.logger.Errorw("material info map error", mErr)
-		return 0, err
-	}
-
-	_, span = otel.Tracer("orchestrator").Start(ctx, "getDbMigrationOverride")
-	//FIXME: how to determine rollback
-	//we can't depend on ciArtifact ID because CI pipeline can be manually triggered in any order regardless of sourcecode status
-	dbMigrationOverride, err := impl.getDbMigrationOverride(overrideRequest, artifact, false)
-	span.End()
-	if err != nil {
-		impl.logger.Errorw("error in fetching db migration config", "req", overrideRequest, "err", err)
-		return 0, err
-	}
-	chartVersion := envOverride.Chart.ChartVersion
-	_, span = otel.Tracer("orchestrator").Start(ctx, "getConfigMapAndSecretJsonV2")
-	configMapJson, err := impl.getConfigMapAndSecretJsonV2(overrideRequest.AppId, envOverride.TargetEnvironment, overrideRequest.PipelineId, chartVersion, overrideRequest.DeploymentWithConfig, overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
-	span.End()
-	if err != nil {
-		impl.logger.Errorw("error in fetching config map n secret ", "err", err)
-		configMapJson = nil
-	}
-
-	_, span = otel.Tracer("orchestrator").Start(ctx, "appCrudOperationService.GetLabelsByAppIdForDeployment")
-	appLabelJsonByte, err := impl.appCrudOperationService.GetLabelsByAppIdForDeployment(overrideRequest.AppId)
-	span.End()
-	if err != nil {
-		impl.logger.Errorw("error in fetching app labels for gitOps commit", "err", err)
-		appLabelJsonByte = nil
-	}
-	_, span = otel.Tracer("orchestrator").Start(ctx, "mergeAndSave")
-	releaseId, pipelineOverrideId, mergeAndSave, saveErr := impl.mergeAndSave(envOverride, overrideRequest, dbMigrationOverride, artifact, pipeline, configMapJson, appLabelJsonByte, strategy, ctx, triggeredAt, deployedBy, appMetrics)
-	span.End()
-	if releaseId != 0 {
-		//updating the acd app with updated values and sync operation
-		if IsAcdApp(pipeline.DeploymentAppType) {
-			_, span = otel.Tracer("orchestrator").Start(ctx, "updateArgoPipeline")
-			updateAppInArgocd, err := impl.updateArgoPipeline(overrideRequest.AppId, pipeline.Name, envOverride, ctx)
-			span.End()
-			if err != nil {
-				impl.logger.Errorw("error in updating argocd app ", "err", err)
-				return 0, err
-			}
-			if updateAppInArgocd {
-				impl.logger.Debug("argo-cd successfully updated")
-			} else {
-				impl.logger.Debug("argo-cd failed to update, ignoring it")
-			}
-			//	impl.synchCD(pipeline, ctx, overrideRequest, envOverride)
-		}
-		//for helm type cd pipeline, create install helm application, update deployment status, update workflow runner for app detail status.
-		if IsHelmApp(pipeline.DeploymentAppType) {
-			_, span = otel.Tracer("orchestrator").Start(ctx, "createHelmAppForCdPipeline")
-			_, err = impl.createHelmAppForCdPipeline(overrideRequest, envOverride, triggeredAt, pipeline, mergeAndSave, ctx)
-			span.End()
-			if err != nil {
-				impl.logger.Errorw("error in creating or updating helm application for cd pipeline", "err", err)
-				return 0, err
-			}
-		}
-
-		go impl.WriteCDTriggerEvent(overrideRequest, pipeline, envOverride, materialInfoMap, artifact, releaseId, pipelineOverrideId)
-		if artifact.ScanEnabled {
-			_, span = otel.Tracer("orchestrator").Start(ctx, "MarkImageScanDeployed")
-			_ = impl.MarkImageScanDeployed(overrideRequest.AppId, envOverride.TargetEnvironment, artifact.ImageDigest, pipeline.Environment.ClusterId)
-			span.End()
-		}
-	}
-	middleware.CdTriggerCounter.WithLabelValues(pipeline.App.AppName, pipeline.Environment.Name).Inc()
-	return releaseId, saveErr
+	return releaseNo, manifest, nil
 }
 
-func (impl *AppServiceImpl) buildChartAndPushToGitRepo(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, chartMetaData *chart2.Metadata, referenceTemplatePath string, wfrId int, gitOpsRepoName string, envOverride *chartConfig.EnvConfigOverride) error {
+//func (impl *AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, deployedBy int32) (releaseNo int, err error) {
+//	valuesOverrideResponse, err := impl.GetValuesOverrideForTrigger(overrideRequest, triggeredAt, ctx)
+//	if err != nil {
+//		impl.logger.Errorw("error in fetching values for trigger", "err", err)
+//		return 0, err
+//	}
+//
+//	builtChartPath, err := impl.BuildChartAndGetPath(valuesOverrideResponse.Pipeline.App.AppName, valuesOverrideResponse.EnvOverride, ctx)
+//	if err != nil {
+//		impl.logger.Errorw("error in parsing reference chart", "err", err)
+//		return 0, err
+//	}
+//
+//	//TODO: make gitOps configurable for helm apps
+//	if valuesOverrideResponse.Pipeline.DeploymentAppType == string(bean2.ArgoCd) {
+//		//TODO: delete tmp/chart
+//		err = impl.PushChartToGitRepoIfNotExistAndUpdateTimelineStatus(overrideRequest, valuesOverrideResponse.Pipeline, builtChartPath, valuesOverrideResponse.EnvOverride, ctx)
+//		if err != nil {
+//			impl.logger.Errorw("error in pushing chart to git", "err", err)
+//			return 0, err
+//		}
+//
+//		commitHash, commitTime, err := impl.CommitValuesToGit(overrideRequest, valuesOverrideResponse, triggeredAt, ctx)
+//		if err != nil {
+//			impl.logger.Errorw("error in commiting values to git", "err", err)
+//			return 0, err
+//		}
+//
+//		pipelineOverrideUpdateRequest := &chartConfig.PipelineOverride{
+//			Id:                     valuesOverrideResponse.PipelineOverride.Id,
+//			GitHash:                commitHash,
+//			CommitTime:             commitTime,
+//			EnvConfigOverrideId:    valuesOverrideResponse.EnvOverride.Id,
+//			PipelineOverrideValues: valuesOverrideResponse.ReleaseOverrideJSON,
+//			PipelineId:             overrideRequest.PipelineId,
+//			CiArtifactId:           overrideRequest.CiArtifactId,
+//			PipelineMergedValues:   string(valuesOverrideResponse.MergedValues),
+//			AuditLog:               sql.AuditLog{UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
+//		}
+//		_, span := otel.Tracer("orchestrator").Start(ctx, "pipelineOverrideRepository.Update")
+//		err = impl.pipelineOverrideRepository.Update(pipelineOverrideUpdateRequest)
+//		span.End()
+//	}
+//
+//	err = impl.DeployApp(overrideRequest, valuesOverrideResponse, triggeredAt, ctx)
+//	if err != nil {
+//		impl.logger.Errorw("error in deploying app", "err", err)
+//		return 0, err
+//	}
+//	_, span := otel.Tracer("orchestrator").Start(ctx, "CreateHistoriesForDeploymentTrigger")
+//	err = impl.CreateHistoriesForDeploymentTrigger(valuesOverrideResponse.Pipeline, valuesOverrideResponse.PipelineStrategy, valuesOverrideResponse.EnvOverride, triggeredAt, deployedBy)
+//	span.End()
+//	if err != nil {
+//		impl.logger.Errorw("error in creating history entries for deployment trigger", "err", err)
+//		return 0, err
+//	}
+//	materialInfoMap, mErr := valuesOverrideResponse.Artifact.ParseMaterialInfo()
+//	if mErr != nil {
+//		impl.logger.Errorw("material info map error", mErr)
+//		return 0, err
+//	}
+//	go impl.WriteCDTriggerEvent(overrideRequest, valuesOverrideResponse.Pipeline, valuesOverrideResponse.EnvOverride, materialInfoMap, valuesOverrideResponse.Artifact, valuesOverrideResponse.PipelineOverride.PipelineReleaseCounter, valuesOverrideResponse.PipelineOverride.Id)
+//	if valuesOverrideResponse.Artifact.ScanEnabled {
+//		_, span = otel.Tracer("orchestrator").Start(ctx, "MarkImageScanDeployed")
+//		_ = impl.MarkImageScanDeployed(overrideRequest.AppId, valuesOverrideResponse.EnvOverride.TargetEnvironment, valuesOverrideResponse.Artifact.ImageDigest, valuesOverrideResponse.Pipeline.Environment.ClusterId)
+//		span.End()
+//	}
+//	middleware.CdTriggerCounter.WithLabelValues(valuesOverrideResponse.Pipeline.App.AppName, valuesOverrideResponse.Pipeline.Environment.Name).Inc()
+//	return valuesOverrideResponse.PipelineOverride.PipelineReleaseCounter, nil
+//}
+
+//func (impl *AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, deployedBy int32) (id int, err error) {
+//	if overrideRequest.DeploymentType == models.DEPLOYMENTTYPE_UNKNOWN {
+//		overrideRequest.DeploymentType = models.DEPLOYMENTTYPE_DEPLOY
+//	}
+//	if len(overrideRequest.DeploymentWithConfig) == 0 {
+//		overrideRequest.DeploymentWithConfig = bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED
+//	}
+//	_, span := otel.Tracer("orchestrator").Start(ctx, "pipelineRepository.FindById")
+//	pipeline, err := impl.pipelineRepository.FindById(overrideRequest.PipelineId)
+//	span.End()
+//	if err != nil {
+//		impl.logger.Errorw("invalid req", "err", err, "req", overrideRequest)
+//		return 0, err
+//	}
+//	envOverride := &chartConfig.EnvConfigOverride{}
+//	var appMetrics *bool
+//	strategy := &chartConfig.PipelineStrategy{}
+//	if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER {
+//		_, span := otel.Tracer("orchestrator").Start(ctx, "deploymentTemplateHistoryRepository.GetHistoryByPipelineIdAndWfrId")
+//		deploymentTemplateHistory, err := impl.deploymentTemplateHistoryRepository.GetHistoryByPipelineIdAndWfrId(overrideRequest.PipelineId, overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
+//		span.End()
+//		if err != nil {
+//			impl.logger.Errorw("error in getting deployed deployment template history by pipelineId and wfrId", "err", err, "pipelineId", &overrideRequest, "wfrId", overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
+//			return 0, err
+//		}
+//		templateName := deploymentTemplateHistory.TemplateName
+//		templateVersion := deploymentTemplateHistory.TemplateVersion
+//		if templateName == "Rollout Deployment" {
+//			templateName = ""
+//		}
+//		//getting chart_ref by id
+//		_, span = otel.Tracer("orchestrator").Start(ctx, "chartRefRepository.FindByVersionAndName")
+//		chartRef, err := impl.chartRefRepository.FindByVersionAndName(templateName, templateVersion)
+//		span.End()
+//		if err != nil {
+//			impl.logger.Errorw("error in getting chartRef by version and name", "err", err, "version", templateVersion, "name", templateName)
+//			return 0, err
+//		}
+//		//assuming that if a chartVersion is deployed then it's envConfigOverride will be available
+//		_, span = otel.Tracer("orchestrator").Start(ctx, "environmentConfigRepository.GetByAppIdEnvIdAndChartRefId")
+//		envOverride, err = impl.environmentConfigRepository.GetByAppIdEnvIdAndChartRefId(pipeline.AppId, pipeline.EnvironmentId, chartRef.Id)
+//		span.End()
+//		if err != nil {
+//			impl.logger.Errorw("error in getting envConfigOverride for pipeline for specific chartVersion", "err", err, "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "chartRefId", chartRef.Id)
+//			return 0, err
+//		}
+//		//updating historical data in envConfigOverride and appMetrics flag
+//		envOverride.IsOverride = true
+//		envOverride.EnvOverrideValues = deploymentTemplateHistory.Template
+//		appMetrics = &deploymentTemplateHistory.IsAppMetricsEnabled
+//		_, span = otel.Tracer("orchestrator").Start(ctx, "strategyHistoryRepository.GetHistoryByPipelineIdAndWfrId")
+//		strategyHistory, err := impl.strategyHistoryRepository.GetHistoryByPipelineIdAndWfrId(overrideRequest.PipelineId, overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
+//		span.End()
+//		if err != nil {
+//			impl.logger.Errorw("error in getting deployed strategy history by pipleinId and wfrId", "err", err, "pipelineId", overrideRequest.PipelineId, "wfrId", overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
+//			return 0, err
+//		}
+//		strategy.Strategy = strategyHistory.Strategy
+//		strategy.Config = strategyHistory.Config
+//		strategy.PipelineId = pipeline.Id
+//	} else if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED {
+//		_, span = otel.Tracer("orchestrator").Start(ctx, "environmentConfigRepository.ActiveEnvConfigOverride")
+//		envOverride, err = impl.environmentConfigRepository.ActiveEnvConfigOverride(overrideRequest.AppId, pipeline.EnvironmentId)
+//		span.End()
+//		if err != nil {
+//			impl.logger.Errorw("invalid state", "err", err, "req", overrideRequest)
+//			return 0, err
+//		}
+//		if envOverride.Id == 0 {
+//			_, span = otel.Tracer("orchestrator").Start(ctx, "chartRepository.FindLatestChartForAppByAppId")
+//			chart, err := impl.chartRepository.FindLatestChartForAppByAppId(overrideRequest.AppId)
+//			span.End()
+//			if err != nil {
+//				impl.logger.Errorw("invalid state", "err", err, "req", overrideRequest)
+//				return 0, err
+//			}
+//			_, span = otel.Tracer("orchestrator").Start(ctx, "environmentConfigRepository.FindChartByAppIdAndEnvIdAndChartRefId")
+//			envOverride, err = impl.environmentConfigRepository.FindChartByAppIdAndEnvIdAndChartRefId(overrideRequest.AppId, pipeline.EnvironmentId, chart.ChartRefId)
+//			span.End()
+//			if err != nil && !errors2.IsNotFound(err) {
+//				impl.logger.Errorw("invalid state", "err", err, "req", overrideRequest)
+//				return 0, err
+//			}
+//
+//			//creating new env override config
+//			if errors2.IsNotFound(err) || envOverride == nil {
+//				_, span = otel.Tracer("orchestrator").Start(ctx, "envRepository.FindById")
+//				environment, err := impl.envRepository.FindById(pipeline.EnvironmentId)
+//				span.End()
+//				if err != nil && !IsErrNoRows(err) {
+//					return 0, err
+//				}
+//				envOverride = &chartConfig.EnvConfigOverride{
+//					Active:            true,
+//					ManualReviewed:    true,
+//					Status:            models.CHARTSTATUS_SUCCESS,
+//					TargetEnvironment: pipeline.EnvironmentId,
+//					ChartId:           chart.Id,
+//					AuditLog:          sql.AuditLog{UpdatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId},
+//					Namespace:         environment.Namespace,
+//					IsOverride:        false,
+//					EnvOverrideValues: "{}",
+//					Latest:            false,
+//					IsBasicViewLocked: chart.IsBasicViewLocked,
+//					CurrentViewEditor: chart.CurrentViewEditor,
+//				}
+//				_, span = otel.Tracer("orchestrator").Start(ctx, "environmentConfigRepository.Save")
+//				err = impl.environmentConfigRepository.Save(envOverride)
+//				span.End()
+//				if err != nil {
+//					impl.logger.Errorw("error in creating envconfig", "data", envOverride, "error", err)
+//					return 0, err
+//				}
+//			}
+//			envOverride.Chart = chart
+//		} else if envOverride.Id > 0 && !envOverride.IsOverride {
+//			_, span = otel.Tracer("orchestrator").Start(ctx, "chartRepository.FindLatestChartForAppByAppId")
+//			chart, err := impl.chartRepository.FindLatestChartForAppByAppId(overrideRequest.AppId)
+//			span.End()
+//			if err != nil {
+//				impl.logger.Errorw("invalid state", "err", err, "req", overrideRequest)
+//				return 0, err
+//			}
+//			envOverride.Chart = chart
+//		}
+//
+//		_, span = otel.Tracer("orchestrator").Start(ctx, "appLevelMetricsRepository.FindByAppId")
+//		appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(pipeline.AppId)
+//		span.End()
+//		if err != nil && !IsErrNoRows(err) {
+//			impl.logger.Errorw("err", err)
+//			return 0, &ApiError{InternalMessage: "unable to fetch app level metrics flag"}
+//		}
+//		appMetrics = &appLevelMetrics.AppMetrics
+//
+//		_, span = otel.Tracer("orchestrator").Start(ctx, "envLevelMetricsRepository.FindByAppIdAndEnvId")
+//		envLevelMetrics, err := impl.envLevelMetricsRepository.FindByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId)
+//		span.End()
+//		if err != nil && !IsErrNoRows(err) {
+//			impl.logger.Errorw("err", err)
+//			return 0, &ApiError{InternalMessage: "unable to fetch env level metrics flag"}
+//		}
+//		if envLevelMetrics.Id != 0 && envLevelMetrics.AppMetrics != nil {
+//			appMetrics = envLevelMetrics.AppMetrics
+//		}
+//		//fetch pipeline config from strategy table, if pipeline is automatic fetch always default, else depends on request
+//
+//		//forceTrigger true if CD triggered Auto, triggered occurred from CI
+//		if overrideRequest.ForceTrigger {
+//			_, span = otel.Tracer("orchestrator").Start(ctx, "pipelineConfigRepository.GetDefaultStrategyByPipelineId")
+//			strategy, err = impl.pipelineConfigRepository.GetDefaultStrategyByPipelineId(overrideRequest.PipelineId)
+//			span.End()
+//		} else {
+//			var deploymentTemplate chartRepoRepository.DeploymentStrategy
+//			if overrideRequest.DeploymentTemplate == "ROLLING" {
+//				deploymentTemplate = chartRepoRepository.DEPLOYMENT_STRATEGY_ROLLING
+//			} else if overrideRequest.DeploymentTemplate == "BLUE-GREEN" {
+//				deploymentTemplate = chartRepoRepository.DEPLOYMENT_STRATEGY_BLUE_GREEN
+//			} else if overrideRequest.DeploymentTemplate == "CANARY" {
+//				deploymentTemplate = chartRepoRepository.DEPLOYMENT_STRATEGY_CANARY
+//			} else if overrideRequest.DeploymentTemplate == "RECREATE" {
+//				deploymentTemplate = chartRepoRepository.DEPLOYMENT_STRATEGY_RECREATE
+//			}
+//
+//			if len(deploymentTemplate) > 0 {
+//				_, span = otel.Tracer("orchestrator").Start(ctx, "pipelineConfigRepository.FindByStrategyAndPipelineId")
+//				strategy, err = impl.pipelineConfigRepository.FindByStrategyAndPipelineId(deploymentTemplate, overrideRequest.PipelineId)
+//				span.End()
+//			} else {
+//				_, span = otel.Tracer("orchestrator").Start(ctx, "pipelineConfigRepository.GetDefaultStrategyByPipelineId")
+//				strategy, err = impl.pipelineConfigRepository.GetDefaultStrategyByPipelineId(overrideRequest.PipelineId)
+//				span.End()
+//			}
+//		}
+//		if err != nil && errors2.IsNotFound(err) == false {
+//			impl.logger.Errorf("invalid state", "err", err, "req", strategy)
+//			return 0, err
+//		}
+//	}
+//	_, span = otel.Tracer("orchestrator").Start(ctx, "CreateHistoriesForDeploymentTrigger")
+//	err = impl.CreateHistoriesForDeploymentTrigger(pipeline, strategy, envOverride, triggeredAt, deployedBy)
+//	span.End()
+//	if err != nil {
+//		impl.logger.Errorw("error in creating history entries for deployment trigger", "err", err)
+//		return 0, err
+//	}
+//
+//	// auto-healing :  data corruption fix - if ChartLocation in chart is not correct, need correction
+//	if !strings.HasSuffix(envOverride.Chart.ChartLocation, fmt.Sprintf("%s%s", "/", envOverride.Chart.ChartVersion)) {
+//		_, span = otel.Tracer("orchestrator").Start(ctx, "autoHealChartLocationInChart")
+//		err = impl.autoHealChartLocationInChart(ctx, envOverride)
+//		span.End()
+//		if err != nil {
+//			return 0, err
+//		}
+//	}
+//
+//	_, span = otel.Tracer("orchestrator").Start(ctx, "envRepository.FindById")
+//	env, err := impl.envRepository.FindById(envOverride.TargetEnvironment)
+//	span.End()
+//	if err != nil {
+//		impl.logger.Errorw("unable to find env", "err", err)
+//		return 0, err
+//	}
+//	envOverride.Environment = env
+//
+//	// CHART COMMIT and PUSH STARTS HERE, it will push latest version, if found modified on deployment template and overrides
+//	chartMetaData := &chart2.Metadata{
+//		Name:    pipeline.App.AppName,
+//		Version: envOverride.Chart.ChartVersion,
+//	}
+//	referenceTemplatePath := path.Join(string(impl.refChartDir), envOverride.Chart.ReferenceTemplate)
+//	if IsAcdApp(pipeline.DeploymentAppType) {
+//		_, span = otel.Tracer("orchestrator").Start(ctx, "chartTemplateService.GetGitOpsRepoName")
+//		// CHART COMMIT and PUSH STARTS HERE, it will push latest version, if found modified on deployment template and overrides
+//		gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(pipeline.App.AppName)
+//		span.End()
+//		_, span = otel.Tracer("orchestrator").Start(ctx, "chartService.CheckChartExists")
+//		err = impl.chartService.CheckChartExists(envOverride.Chart.ChartRefId)
+//		span.End()
+//		if err != nil {
+//			impl.logger.Errorw("err in getting chart info", "err", err)
+//			return 0, err
+//		}
+//		var gitCommitStatus pipelineConfig.TimelineStatus
+//		var gitCommitStatusDetail string
+//		err = impl.buildChartAndPushToGitRepo(overrideRequest, ctx, chartMetaData, referenceTemplatePath, gitOpsRepoName, envOverride)
+//		if err != nil {
+//			impl.saveTimelineForError(overrideRequest, ctx, err)
+//			return 0, err
+//		} else {
+//			gitCommitStatus = pipelineConfig.TIMELINE_STATUS_GIT_COMMIT
+//			gitCommitStatusDetail = "Git commit done successfully."
+//			// creating cd pipeline status timeline for git commit
+//			timeline := &pipelineConfig.PipelineStatusTimeline{
+//				CdWorkflowRunnerId: overrideRequest.WfrId,
+//				Status:             gitCommitStatus,
+//				StatusDetail:       gitCommitStatusDetail,
+//				StatusTime:         time.Now(),
+//				AuditLog: sql.AuditLog{
+//					CreatedBy: overrideRequest.UserId,
+//					CreatedOn: time.Now(),
+//					UpdatedBy: overrideRequest.UserId,
+//					UpdatedOn: time.Now(),
+//				},
+//			}
+//			_, span = otel.Tracer("orchestrator").Start(ctx, "cdPipelineStatusTimelineRepo.SaveTimeline")
+//			err := impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
+//			span.End()
+//			if err != nil {
+//				impl.logger.Errorw("error in creating timeline status for git commit", "err", err, "timeline", timeline)
+//			}
+//		}
+//
+//		// ACD app creation STARTS HERE, it will use existing if already created
+//		impl.logger.Debugw("new pipeline found", "pipeline", pipeline)
+//		_, span = otel.Tracer("orchestrator").Start(ctx, "createArgoApplicationIfRequired")
+//		name, err := impl.createArgoApplicationIfRequired(overrideRequest.AppId, envOverride, pipeline, overrideRequest.UserId)
+//		span.End()
+//		if err != nil {
+//			impl.logger.Errorw("acd application create error on cd trigger", "err", err, "req", overrideRequest)
+//			return 0, err
+//		}
+//		impl.logger.Debugw("argocd application created", "name", name)
+//		// ENDS HERE
+//	}
+//
+//	_, span = otel.Tracer("orchestrator").Start(ctx, "ciArtifactRepository.Get")
+//	artifact, err := impl.ciArtifactRepository.Get(overrideRequest.CiArtifactId)
+//	span.End()
+//	if err != nil {
+//		return 0, err
+//	}
+//	materialInfoMap, mErr := artifact.ParseMaterialInfo()
+//	if mErr != nil {
+//		impl.logger.Errorw("material info map error", mErr)
+//		return 0, err
+//	}
+//
+//	_, span = otel.Tracer("orchestrator").Start(ctx, "getDbMigrationOverride")
+//	//FIXME: how to determine rollback
+//	//we can't depend on ciArtifact ID because CI pipeline can be manually triggered in any order regardless of sourcecode status
+//	dbMigrationOverride, err := impl.getDbMigrationOverride(overrideRequest, artifact, false)
+//	span.End()
+//	if err != nil {
+//		impl.logger.Errorw("error in fetching db migration config", "req", overrideRequest, "err", err)
+//		return 0, err
+//	}
+//	chartVersion := envOverride.Chart.ChartVersion
+//	_, span = otel.Tracer("orchestrator").Start(ctx, "getConfigMapAndSecretJsonV2")
+//	configMapJson, err := impl.getConfigMapAndSecretJsonV2(overrideRequest.AppId, envOverride.TargetEnvironment, overrideRequest.PipelineId, chartVersion, overrideRequest.DeploymentWithConfig, overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
+//	span.End()
+//	if err != nil {
+//		impl.logger.Errorw("error in fetching config map n secret ", "err", err)
+//		configMapJson = nil
+//	}
+//
+//	_, span = otel.Tracer("orchestrator").Start(ctx, "appCrudOperationService.GetLabelsByAppIdForDeployment")
+//	appLabelJsonByte, err := impl.appCrudOperationService.GetLabelsByAppIdForDeployment(overrideRequest.AppId)
+//	span.End()
+//	if err != nil {
+//		impl.logger.Errorw("error in fetching app labels for gitOps commit", "err", err)
+//		appLabelJsonByte = nil
+//	}
+//	_, span = otel.Tracer("orchestrator").Start(ctx, "mergeAndSave")
+//	releaseId, pipelineOverrideId, mergeAndSave, saveErr := impl.mergeAndSave(envOverride, overrideRequest, dbMigrationOverride, artifact, pipeline, configMapJson, appLabelJsonByte, strategy, ctx, triggeredAt, deployedBy, appMetrics)
+//	span.End()
+//	if releaseId != 0 {
+//		//updating the acd app with updated values and sync operation
+//		if IsAcdApp(pipeline.DeploymentAppType) {
+//			_, span = otel.Tracer("orchestrator").Start(ctx, "updateArgoPipeline")
+//			updateAppInArgocd, err := impl.updateArgoPipeline(overrideRequest.AppId, pipeline.Name, envOverride, ctx)
+//			span.End()
+//			if err != nil {
+//				impl.logger.Errorw("error in updating argocd app ", "err", err)
+//				return 0, err
+//			}
+//			if updateAppInArgocd {
+//				impl.logger.Debug("argo-cd successfully updated")
+//			} else {
+//				impl.logger.Debug("argo-cd failed to update, ignoring it")
+//			}
+//			//	impl.synchCD(pipeline, ctx, overrideRequest, envOverride)
+//		}
+//		//for helm type cd pipeline, create install helm application, update deployment status, update workflow runner for app detail status.
+//		if IsHelmApp(pipeline.DeploymentAppType) {
+//			_, span = otel.Tracer("orchestrator").Start(ctx, "createHelmAppForCdPipeline")
+//			_, err = impl.createHelmAppForCdPipeline(overrideRequest, envOverride, triggeredAt, pipeline, mergeAndSave, ctx)
+//			span.End()
+//			if err != nil {
+//				impl.logger.Errorw("error in creating or updating helm application for cd pipeline", "err", err)
+//				return 0, err
+//			}
+//		}
+//
+//		go impl.WriteCDTriggerEvent(overrideRequest, pipeline, envOverride, materialInfoMap, artifact, releaseId, pipelineOverrideId)
+//		if artifact.ScanEnabled {
+//			_, span = otel.Tracer("orchestrator").Start(ctx, "MarkImageScanDeployed")
+//			_ = impl.MarkImageScanDeployed(overrideRequest.AppId, envOverride.TargetEnvironment, artifact.ImageDigest, pipeline.Environment.ClusterId)
+//			span.End()
+//		}
+//	}
+//	middleware.CdTriggerCounter.WithLabelValues(pipeline.App.AppName, pipeline.Environment.Name).Inc()
+//	return releaseId, saveErr
+//}
+
+func (impl *AppServiceImpl) buildChartAndPushToGitRepo(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, chartMetaData *chart2.Metadata, referenceTemplatePath string, gitOpsRepoName string, envOverride *chartConfig.EnvConfigOverride) error {
 	_, span := otel.Tracer("orchestrator").Start(ctx, "chartTemplateService.BuildChart")
 	tempReferenceTemplateDir, err := impl.chartTemplateService.BuildChart(ctx, chartMetaData, referenceTemplatePath)
 	span.End()
@@ -1808,13 +2022,13 @@ func (impl *AppServiceImpl) buildChartAndPushToGitRepo(overrideRequest *bean.Val
 	return err
 }
 
-func (impl *AppServiceImpl) saveTimelineForError(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, err error, wfrId int) {
+func (impl *AppServiceImpl) saveTimelineForError(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, err error) {
 	impl.logger.Errorw("Ref chart commit error on cd trigger", "err", err, "req", overrideRequest)
 	gitCommitStatus := pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED
 	gitCommitStatusDetail := fmt.Sprintf("Git commit failed - %v", err)
 	// creating cd pipeline status timeline for git commit
 	timeline := &pipelineConfig.PipelineStatusTimeline{
-		CdWorkflowRunnerId: wfrId,
+		CdWorkflowRunnerId: overrideRequest.WfrId,
 		Status:             gitCommitStatus,
 		StatusDetail:       gitCommitStatusDetail,
 		StatusTime:         time.Now(),
@@ -2148,9 +2362,9 @@ func (impl *AppServiceImpl) synchCD(pipeline *pipelineConfig.Pipeline, ctx conte
 	}
 }
 
-func (impl *AppServiceImpl) WriteCDTriggerEvent(overrideRequest *bean.ValuesOverrideRequest, pipeline *pipelineConfig.Pipeline,
-	envOverride *chartConfig.EnvConfigOverride, materialInfoMap map[string]string, artifact *repository.CiArtifact, releaseId, pipelineOverrideId int) {
-	event := impl.eventFactory.Build(util.Trigger, &pipeline.Id, pipeline.AppId, &pipeline.EnvironmentId, util.CD)
+func (impl *AppServiceImpl) WriteCDTriggerEvent(overrideRequest *bean.ValuesOverrideRequest, artifact *repository.CiArtifact, releaseId, pipelineOverrideId int) {
+
+	event := impl.eventFactory.Build(util.Trigger, &overrideRequest.PipelineId, overrideRequest.AppId, &overrideRequest.EnvId, util.CD)
 	impl.logger.Debugw("event WriteCDTriggerEvent", "event", event)
 	event = impl.eventFactory.BuildExtraCDData(event, nil, pipelineOverrideId, bean.CD_WORKFLOW_TYPE_DEPLOY)
 	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
@@ -2158,8 +2372,8 @@ func (impl *AppServiceImpl) WriteCDTriggerEvent(overrideRequest *bean.ValuesOver
 		impl.logger.Errorw("CD trigger event not sent", "error", evtErr)
 	}
 	deploymentEvent := DeploymentEvent{
-		ApplicationId:      pipeline.AppId,
-		EnvironmentId:      pipeline.EnvironmentId, //check for production Environment
+		ApplicationId:      overrideRequest.AppId,
+		EnvironmentId:      overrideRequest.EnvId, //check for production Environment
 		ReleaseId:          releaseId,
 		PipelineOverrideId: pipelineOverrideId,
 		TriggerTime:        time.Now(),
@@ -2168,6 +2382,11 @@ func (impl *AppServiceImpl) WriteCDTriggerEvent(overrideRequest *bean.ValuesOver
 	ciPipelineMaterials, err := impl.ciPipelineMaterialRepository.GetByPipelineId(artifact.PipelineId)
 	if err != nil {
 		impl.logger.Errorw("error in ")
+	}
+	materialInfoMap, mErr := artifact.ParseMaterialInfo()
+	if mErr != nil {
+		impl.logger.Errorw("material info map error", mErr)
+		return
 	}
 	for _, ciPipelineMaterial := range ciPipelineMaterials {
 		hash := materialInfoMap[ciPipelineMaterial.GitMaterial.Url]
@@ -2229,11 +2448,7 @@ type ReleaseAttributes struct {
 	AppMetrics     *bool
 }
 
-func (impl *AppServiceImpl) getReleaseOverride(envOverride *chartConfig.EnvConfigOverride,
-	overrideRequest *bean.ValuesOverrideRequest,
-	artifact *repository.CiArtifact,
-	pipeline *pipelineConfig.Pipeline,
-	pipelineOverride *chartConfig.PipelineOverride, strategy *chartConfig.PipelineStrategy, appMetrics *bool) (releaseOverride string, err error) {
+func (impl *AppServiceImpl) getReleaseOverride(envOverride *chartConfig.EnvConfigOverride, overrideRequest *bean.ValuesOverrideRequest, artifact *repository.CiArtifact, pipelineOverride *chartConfig.PipelineOverride, strategy *chartConfig.PipelineStrategy, appMetrics *bool) (releaseOverride string, err error) {
 
 	artifactImage := artifact.Image
 	imageTag := strings.Split(artifactImage, ":")
@@ -2250,8 +2465,8 @@ func (impl *AppServiceImpl) getReleaseOverride(envOverride *chartConfig.EnvConfi
 		}
 	}
 
-	appId := strconv.Itoa(pipeline.App.Id)
-	envId := strconv.Itoa(pipeline.EnvironmentId)
+	appId := strconv.Itoa(overrideRequest.AppId)
+	envId := strconv.Itoa(overrideRequest.EnvId)
 
 	deploymentStrategy := ""
 	if strategy != nil {
@@ -2260,7 +2475,7 @@ func (impl *AppServiceImpl) getReleaseOverride(envOverride *chartConfig.EnvConfi
 	releaseAttribute := ReleaseAttributes{
 		Name:           imageName,
 		Tag:            imageTag[imageTagLen-1],
-		PipelineName:   pipeline.Name,
+		PipelineName:   overrideRequest.PipelineName,
 		ReleaseVersion: strconv.Itoa(pipelineOverride.PipelineReleaseCounter),
 		DeploymentType: deploymentStrategy,
 		App:            appId,
@@ -2409,7 +2624,7 @@ func (impl *AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverr
 		return 0, 0, "", err
 	}
 	//TODO: check status and apply lock
-	overrideJson, err := impl.getReleaseOverride(envOverride, overrideRequest, artifact, pipeline, override, strategy, appMetrics)
+	overrideJson, err := impl.getReleaseOverride(envOverride, overrideRequest, artifact, override, strategy, appMetrics)
 	if err != nil {
 		return 0, 0, "", err
 	}
@@ -2461,7 +2676,7 @@ func (impl *AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverr
 	}
 
 	appName := fmt.Sprintf("%s-%s", pipeline.App.AppName, envOverride.Environment.Name)
-	merged = impl.autoscalingCheckBeforeTrigger(ctx, appName, envOverride.Namespace, merged, pipeline, overrideRequest)
+	merged = impl.autoscalingCheckBeforeTrigger(ctx, appName, envOverride.Namespace, merged, overrideRequest)
 
 	_, span := otel.Tracer("orchestrator").Start(ctx, "dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment")
 	// handle image pull secret if access given
@@ -2678,11 +2893,12 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Appl
 	return nil
 }
 
-func (impl *AppServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, appName string, namespace string, merged []byte, pipeline *pipelineConfig.Pipeline, overrideRequest *bean.ValuesOverrideRequest) []byte {
-	var appId = pipeline.AppId
-	pipelineId := pipeline.Id
-	var appDeploymentType = pipeline.DeploymentAppType
-	var clusterId = pipeline.Environment.ClusterId
+func (impl *AppServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, appName string, namespace string, merged []byte, overrideRequest *bean.ValuesOverrideRequest) []byte {
+	//pipeline := overrideRequest.Pipeline
+	var appId = overrideRequest.AppId
+	pipelineId := overrideRequest.PipelineId
+	var appDeploymentType = overrideRequest.DeploymentAppType
+	var clusterId = overrideRequest.ClusterId
 	deploymentType := overrideRequest.DeploymentType
 	templateMap := make(map[string]interface{})
 	err := json.Unmarshal(merged, &templateMap)
@@ -2880,7 +3096,13 @@ func (impl *AppServiceImpl) updatePipeline(pipeline *pipelineConfig.Pipeline, us
 
 func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.ValuesOverrideRequest,
 	envOverride *chartConfig.EnvConfigOverride,
-	triggeredAt time.Time, pipeline *pipelineConfig.Pipeline, mergeAndSave string, ctx context.Context) (bool, error) {
+	triggeredAt time.Time, mergeAndSave string, ctx context.Context) (bool, error) {
+
+	pipeline, err := impl.pipelineRepository.FindById(overrideRequest.PipelineId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching pipeline", "err", err)
+		return false, err
+	}
 
 	chartMetaData := &chart2.Metadata{
 		Name:    pipeline.App.AppName,
