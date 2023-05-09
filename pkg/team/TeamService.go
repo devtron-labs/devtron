@@ -23,9 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/bean"
-	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"strings"
 	"time"
 )
 
@@ -38,7 +36,6 @@ type TeamService interface {
 	FetchForAutocomplete() ([]TeamRequest, error)
 	FindByIds(ids []*int) ([]*TeamBean, error)
 	FindByTeamName(teamName string) (*TeamRequest, error)
-	FindAllActiveTeamNamesForRbac() ([]string, error)
 }
 type TeamServiceImpl struct {
 	logger          *zap.SugaredLogger
@@ -244,18 +241,6 @@ func (impl TeamServiceImpl) FindByTeamName(teamName string) (*TeamRequest, error
 	}
 
 	return teamRes, err
-}
-
-func (impl TeamServiceImpl) FindAllActiveTeamNamesForRbac() ([]string, error) {
-	teamNames, err := impl.teamRepository.FindAllActiveTeamNames()
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in fetching active team names", "err", err)
-		return nil, err
-	}
-	for i, teamName := range teamNames {
-		teamNames[i] = strings.ToLower(teamName)
-	}
-	return teamNames, nil
 }
 
 type TeamBean struct {
