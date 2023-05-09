@@ -416,14 +416,12 @@ func (handler PipelineConfigRestHandlerImpl) HandleChangeDeploymentTypeRequest(w
 
 func (handler PipelineConfigRestHandlerImpl) HandleTriggerDeploymentAfterTypeChange(w http.ResponseWriter, r *http.Request) {
 
-	// Auth check
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 
-	// Retrieving and parsing request body
 	decoder := json.NewDecoder(r.Body)
 	var deploymentAppTriggerRequest *bean.DeploymentAppTypeChangeRequest
 	err = decoder.Decode(&deploymentAppTriggerRequest)
@@ -436,7 +434,6 @@ func (handler PipelineConfigRestHandlerImpl) HandleTriggerDeploymentAfterTypeCha
 	}
 	deploymentAppTriggerRequest.UserId = userId
 
-	// Validate incoming request
 	err = handler.validator.Struct(deploymentAppTriggerRequest)
 	if err != nil {
 		handler.Logger.Errorw("validation err, HandleChangeDeploymentTypeRequest", "err", err, "payload",
@@ -446,7 +443,6 @@ func (handler PipelineConfigRestHandlerImpl) HandleTriggerDeploymentAfterTypeCha
 		return
 	}
 
-	// Only super-admin access
 	token := r.Header.Get("token")
 
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionDelete, "*"); !ok {
@@ -454,7 +450,6 @@ func (handler PipelineConfigRestHandlerImpl) HandleTriggerDeploymentAfterTypeCha
 		return
 	}
 
-	// Retrieve argocd token
 	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
 
 	if err != nil {
