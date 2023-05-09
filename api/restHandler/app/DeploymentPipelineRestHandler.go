@@ -405,9 +405,7 @@ func (handler PipelineConfigRestHandlerImpl) HandleChangeDeploymentTypeRequest(w
 	resp, err := handler.pipelineBuilder.ChangePipelineDeploymentType(ctx, deploymentTypeChangeRequest)
 
 	if err != nil {
-		handler.Logger.Errorw(err.Error(),
-			"payload", deploymentTypeChangeRequest,
-			"err", err)
+		handler.Logger.Errorw(err.Error(), "payload", deploymentTypeChangeRequest, "err", err)
 
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
