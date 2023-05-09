@@ -77,7 +77,7 @@ type ClusterBean struct {
 	HasConfigOrUrlChanged   bool                       `json:"-"`
 	UserName                string                     `json:"userName,omitempty"`
 	InsecureSkipTLSVerify   bool                       `json:"insecureSkipTlsVerify"`
-	ErrorInConnecting       string                     `json:"errorInConnecting,omitempty"`
+	ErrorInConnecting       string                     `json:"errorInConnecting"`
 	IsCdArgoSetup           bool                       `json:"isCdArgoSetup"`
 	isClusterNameEmpty      bool                       `json:"-"`
 }
