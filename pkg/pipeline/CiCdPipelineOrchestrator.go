@@ -77,7 +77,7 @@ type CiCdPipelineOrchestrator interface {
 	AddPipelineMaterialInGitSensor(pipelineMaterials []*pipelineConfig.CiPipelineMaterial) error
 	CheckStringMatchRegex(regex string, value string) bool
 	CreateEcrRepo(dockerRepository, AWSRegion, AWSAccessKeyId, AWSSecretAccessKey string) error
-	GetCdPipelinesForEnv(envId int) (cdPipelines *bean.CdPipelines, err error)
+	GetCdPipelinesForEnv(envId int, requestedAppIds []int) (cdPipelines *bean.CdPipelines, err error)
 }
 
 type CiCdPipelineOrchestratorImpl struct {
@@ -250,9 +250,10 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 		} else {
 			pipelineMaterial.CiPipelineId = createRequest.Id
 			pipelineMaterial.CreatedBy = userId
-			materialsUpdate = append(materialsUpdate, pipelineMaterial)
 			pipelineMaterial.CreatedOn = createOnTimeMap[material.GitMaterialId]
-			pipelineMaterial.CreatedBy = createByMap[material.GitMaterialId]
+			pipelineMaterial.UpdatedOn = time.Now()
+			pipelineMaterial.UpdatedBy = userId
+			materialsUpdate = append(materialsUpdate, pipelineMaterial)
 		}
 	}
 	if len(materialsAdd) > 0 {
@@ -453,13 +454,8 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteCiPipeline(pipeline *pipelineConf
 		if err != nil {
 			return err
 		}
-		pipelineMaterial := &pipelineConfig.CiPipelineMaterial{
-			Id:       material.Id,
-			Active:   false,
-			Type:     materialDbObject.Type,
-			AuditLog: sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
-		}
-		materials = append(materials, pipelineMaterial)
+		materialDbObject.Active = false
+		materials = append(materials, materialDbObject)
 	}
 
 	if request.CiPipeline.ExternalCiConfig.Id != 0 {
@@ -1366,12 +1362,18 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 	return cdPipelines, err
 }
 
-func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int) (cdPipelines *bean.CdPipelines, err error) {
-	dbPipelines, err := impl.pipelineRepository.FindActiveByEnvId(envId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in fetching cdPipeline", "envId", envId, "err", err)
+func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int, requestedAppIds []int) (cdPipelines *bean.CdPipelines, err error) {
+	var dbPipelines []*pipelineConfig.Pipeline
+	if len(requestedAppIds) > 0 {
+		dbPipelines, err = impl.pipelineRepository.FindActiveByInFilter(envId, requestedAppIds)
+	} else {
+		dbPipelines, err = impl.pipelineRepository.FindActiveByEnvId(envId)
+	}
+	if err != nil {
+		impl.logger.Errorw("error in fetching pipelines", "envId", envId, "err", err)
 		return nil, err
 	}
+
 	var appIds []int
 	for _, pipeline := range dbPipelines {
 		appIds = append(appIds, pipeline.AppId)

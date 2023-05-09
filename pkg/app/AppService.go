@@ -3163,13 +3163,13 @@ func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Val
 					impl.logger.Errorw("release not found, failed to re-install helm application", "err", err)
 					return false, err
 				}
-			}
-
-			if err != nil {
+			} else if err != nil {
 				impl.logger.Errorw("error in updating helm application for cd pipeline", "err", err)
 				return false, err
+			} else {
+				impl.logger.Debugw("updated helm application", "response", updateApplicationResponse, "isSuccess", updateApplicationResponse.Success)
 			}
-			impl.logger.Debugw("updated helm application", "response", updateApplicationResponse, "isSuccess", updateApplicationResponse.Success)
+
 		} else {
 
 			helmResponse, err := impl.helmInstallReleaseWithCustomChart(ctx, releaseIdentifier, referenceChartByte, mergeAndSave)

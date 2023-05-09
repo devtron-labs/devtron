@@ -397,7 +397,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 		}
 		token := user.EmailId
 		object := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
-		impl.logger.Debugw("Triggered Request (App Permission Checking):", "token", token, "object", object)
+		impl.logger.Debugw("Triggered Request (App Permission Checking):", "object", object)
 		if ok := impl.enforcer.EnforceByEmail(strings.ToLower(token), casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
 			impl.logger.Warnw("unauthorized for pipeline ", "pipelineId", strconv.Itoa(pipeline.Id))
 			return fmt.Errorf("unauthorized for pipeline " + strconv.Itoa(pipeline.Id))
@@ -1000,7 +1000,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		}
 		token := user.EmailId
 		object := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
-		impl.logger.Debugw("Triggered Request (App Permission Checking):", "token", token, "object", object)
+		impl.logger.Debugw("Triggered Request (App Permission Checking):", "object", object)
 		if ok := impl.enforcer.EnforceByEmail(strings.ToLower(token), casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
 			err = &util.ApiError{Code: "401", HttpStatusCode: 401, UserMessage: "unauthorized for pipeline " + strconv.Itoa(pipeline.Id)}
 			return err

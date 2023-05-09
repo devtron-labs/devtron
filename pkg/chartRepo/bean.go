@@ -16,6 +16,7 @@ type ChartRepoDto struct {
 	Active      bool                `json:"active"`
 	Default     bool                `json:"default"`
 	UserId      int32               `json:"-"`
+	AllowInsecureConnection bool                `json:"allow_insecure_connection"`
 }
 
 type ChartRepoWithIsEditableDto struct {
