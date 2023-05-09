@@ -72,17 +72,17 @@ ContainerPort:
     useHTTP2: false
     supportStreaming: false
     idleTimeout: 1800s
-#    servicemonitor:
-#      enabled: true
-#      path: /abc
-#      scheme: 'http'
-#      interval: 30s
-#      scrapeTimeout: 20s
-#      metricRelabelings:
-#        - sourceLabels: [namespace]
-#          regex: '(.*)'
-#          replacement: myapp
-#          targetLabel: target_namespace
+    # servicemonitor:
+    #   enabled: false
+    #   path: /abc
+    #   scheme: 'http'
+    #   interval: 30s
+    #   scrapeTimeout: 20s
+    #   metricRelabelings:
+    #     - sourceLabels: [namespace]
+    #       regex: '(.*)'
+    #       replacement: myapp
+    #       targetLabel: target_namespace
 resources:
   # We usually recommend not to specify default resources and to leave this as a conscious
   # choice for the user. This also increases chances charts run on environments with little

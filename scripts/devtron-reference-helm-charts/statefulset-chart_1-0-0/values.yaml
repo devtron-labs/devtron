@@ -15,8 +15,8 @@ ContainerPort:
     useHTTP2: false
     supportStreaming: false
     idleTimeout: 1800s
-#    servicemonitor:
-#      enabled: true
+#   servicemonitor:
+#       enabled: false
 #      path: /abc
 #      scheme: 'http'
 #      interval: 30s
