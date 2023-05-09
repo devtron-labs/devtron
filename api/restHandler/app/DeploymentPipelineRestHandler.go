@@ -456,6 +456,7 @@ func (handler PipelineConfigRestHandlerImpl) HandleTriggerDeploymentAfterTypeCha
 
 	// Only super-admin access
 	token := r.Header.Get("token")
+
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionDelete, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
@@ -463,11 +464,13 @@ func (handler PipelineConfigRestHandlerImpl) HandleTriggerDeploymentAfterTypeCha
 
 	// Retrieve argocd token
 	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+
 	if err != nil {
 		handler.Logger.Errorw("error in getting acd token", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+	
 	ctx := context.WithValue(r.Context(), "token", acdToken)
 
 	resp, err := handler.pipelineBuilder.TriggerDeploymentAfterTypeChange(ctx, deploymentAppTriggerRequest)
