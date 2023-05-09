@@ -143,6 +143,7 @@ type AppServiceImpl struct {
 	chartTemplateService                   ChartTemplateService
 	refChartDir                            chartRepoRepository.RefChartDir
 	helmAppClient                          client2.HelmAppClient
+	helmAppService                         client2.HelmAppService
 	chartRefRepository                     chartRepoRepository.ChartRefRepository
 	chartService                           chart.ChartService
 	argoUserService                        argo.ArgoUserService
@@ -232,8 +233,7 @@ func NewAppService(
 	AppStoreDeploymentService service.AppStoreDeploymentService,
 	k8sApplicationService k8s.K8sApplicationService,
 	installedAppVersionHistoryRepository repository4.InstalledAppVersionHistoryRepository,
-	globalEnvVariables *util2.GlobalEnvVariables,
-) *AppServiceImpl {
+	globalEnvVariables *util2.GlobalEnvVariables, helmAppService client2.HelmAppService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:            environmentConfigRepository,
 		mergeUtil:                              mergeUtil,
@@ -291,6 +291,7 @@ func NewAppService(
 		k8sApplicationService:                  k8sApplicationService,
 		installedAppVersionHistoryRepository:   installedAppVersionHistoryRepository,
 		globalEnvVariables:                     globalEnvVariables,
+		helmAppService:                         helmAppService,
 	}
 	return appServiceImpl
 }
@@ -2476,6 +2477,7 @@ func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Val
 			req := &client2.UpgradeReleaseRequest{
 				ReleaseIdentifier: releaseIdentifier,
 				ValuesYaml:        mergeAndSave,
+				HistoryMax:        impl.helmAppService.GetRevisionHistoryMaxValue(client2.API_CALLER_DEVTRON_APP),
 			}
 
 			updateApplicationResponse, err := impl.helmAppClient.UpdateApplication(ctx, req)

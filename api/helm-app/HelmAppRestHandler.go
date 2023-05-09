@@ -338,7 +338,7 @@ func (handler *HelmAppRestHandlerImpl) UpdateApplication(w http.ResponseWriter, 
 	//RBAC enforcer Ends
 
 	// update application externally
-	res, err := handler.helmAppService.UpdateApplication(r.Context(), appIdentifier, request)
+	res, err := handler.helmAppService.UpdateApplication(r.Context(), appIdentifier, request, API_CALLER_EXTERNAL_HELM_APP)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
