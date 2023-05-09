@@ -105,16 +105,11 @@ const (
 	// App Type Identifiers
 	DevtronAppType = 0 // Identifier for Devtron Apps
 	HelmAppType    = 1 // Identifier for Helm Apps
-
-	// Deployment Type Identifiers
-	NonGitOpsDeploymentType = 0 // Identifier for Helm Deployed Apps
-	GitOpsDeploymentType    = 1 // Identifier for Argo Deployed Apps
 )
 
 type ResourceRequestBean struct {
 	AppId                string                      `json:"appId"`
-	AppType              int                         `json:"appType,omitempty"`        // 0: DevtronApp, 1: HelmApp
-	DeploymentType       int                         `json:"deploymentType,omitempty"` // 0: Non-Gitops, 1: Gitops
+	AppType              int                         `json:"appType,omitempty"` // 0: DevtronApp, 1: HelmApp
 	AppIdentifier        *client.AppIdentifier       `json:"-"`
 	K8sRequest           *application.K8sRequestBean `json:"k8sRequest"`
 	DevtronAppIdentifier *DevtronAppIdentifier       `json:"-"`         // For Devtron App Resources
@@ -175,13 +170,6 @@ func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Reque
 			return nil, err
 		}
 		request.AppType = appType
-		// Validate App Type
-		deploymentType, err := strconv.Atoi(v.Get("deploymentType"))
-		if err != nil || deploymentType < NonGitOpsDeploymentType || deploymentType > GitOpsDeploymentType {
-			impl.logger.Errorw("Invalid appType", "err", err, "appType", appType)
-			return nil, err
-		}
-		request.DeploymentType = deploymentType
 		// Validate App Id
 		if request.AppType == HelmAppType {
 			// For Helm App resources
