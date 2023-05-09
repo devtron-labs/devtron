@@ -370,22 +370,22 @@ func (handler PipelineConfigRestHandlerImpl) HandleChangeDeploymentTypeRequest(w
 
 	// Retrieving and parsing request body
 	decoder := json.NewDecoder(r.Body)
-	var deploymentAppTypeChangeRequest *bean.DeploymentAppTypeChangeRequest
-	err = decoder.Decode(&deploymentAppTypeChangeRequest)
+	var deploymentTypeChangeRequest *bean.DeploymentAppTypeChangeRequest
+	err = decoder.Decode(&deploymentTypeChangeRequest)
 	if err != nil {
 		handler.Logger.Errorw("request err, HandleChangeDeploymentTypeRequest", "err", err, "payload",
-			deploymentAppTypeChangeRequest)
+			deploymentTypeChangeRequest)
 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	deploymentAppTypeChangeRequest.UserId = userId
+	deploymentTypeChangeRequest.UserId = userId
 
 	// Validate incoming request
-	err = handler.validator.Struct(deploymentAppTypeChangeRequest)
+	err = handler.validator.Struct(deploymentTypeChangeRequest)
 	if err != nil {
 		handler.Logger.Errorw("validation err, HandleChangeDeploymentTypeRequest", "err", err, "payload",
-			deploymentAppTypeChangeRequest)
+			deploymentTypeChangeRequest)
 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
@@ -407,12 +407,12 @@ func (handler PipelineConfigRestHandlerImpl) HandleChangeDeploymentTypeRequest(w
 	}
 	ctx := context.WithValue(r.Context(), "token", acdToken)
 
-	resp, err := handler.pipelineBuilder.ChangePipelineDeploymentType(ctx, deploymentAppTypeChangeRequest)
+	resp, err := handler.pipelineBuilder.ChangePipelineDeploymentType(ctx, deploymentTypeChangeRequest)
 
 	if err != nil {
 		nErr := errors.New("failed to change deployment type with error msg: " + err.Error())
 		handler.Logger.Errorw(err.Error(),
-			"payload", deploymentAppTypeChangeRequest,
+			"payload", deploymentTypeChangeRequest,
 			"err", err)
 
 		common.WriteJsonResp(w, nErr, nil, http.StatusInternalServerError)
@@ -433,22 +433,22 @@ func (handler PipelineConfigRestHandlerImpl) HandleTriggerDeploymentAfterTypeCha
 
 	// Retrieving and parsing request body
 	decoder := json.NewDecoder(r.Body)
-	var deploymentAppTypeChangeRequest *bean.DeploymentAppTypeChangeRequest
-	err = decoder.Decode(&deploymentAppTypeChangeRequest)
+	var deploymentAppTriggerRequest *bean.DeploymentAppTypeChangeRequest
+	err = decoder.Decode(&deploymentAppTriggerRequest)
 	if err != nil {
 		handler.Logger.Errorw("request err, HandleChangeDeploymentTypeRequest", "err", err, "payload",
-			deploymentAppTypeChangeRequest)
+			deploymentAppTriggerRequest)
 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	deploymentAppTypeChangeRequest.UserId = userId
+	deploymentAppTriggerRequest.UserId = userId
 
 	// Validate incoming request
-	err = handler.validator.Struct(deploymentAppTypeChangeRequest)
+	err = handler.validator.Struct(deploymentAppTriggerRequest)
 	if err != nil {
 		handler.Logger.Errorw("validation err, HandleChangeDeploymentTypeRequest", "err", err, "payload",
-			deploymentAppTypeChangeRequest)
+			deploymentAppTriggerRequest)
 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
@@ -470,12 +470,12 @@ func (handler PipelineConfigRestHandlerImpl) HandleTriggerDeploymentAfterTypeCha
 	}
 	ctx := context.WithValue(r.Context(), "token", acdToken)
 
-	resp, err := handler.pipelineBuilder.TriggerDeploymentAfterTypeChange(ctx, deploymentAppTypeChangeRequest)
+	resp, err := handler.pipelineBuilder.TriggerDeploymentAfterTypeChange(ctx, deploymentAppTriggerRequest)
 
 	if err != nil {
 		nErr := errors.New("failed to change deployment type with error msg: " + err.Error())
 		handler.Logger.Errorw(err.Error(),
-			"payload", deploymentAppTypeChangeRequest,
+			"payload", deploymentAppTriggerRequest,
 			"err", err)
 
 		common.WriteJsonResp(w, nErr, nil, http.StatusInternalServerError)
