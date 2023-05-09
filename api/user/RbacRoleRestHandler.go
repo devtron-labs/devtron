@@ -3,6 +3,7 @@ package user
 import (
 	"errors"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"go.uber.org/zap"
@@ -20,17 +21,20 @@ type RbacRoleRestHandlerImpl struct {
 	rbacRoleService user.RbacRoleService
 	userService     user.UserService
 	enforcer        casbin.Enforcer
+	teamService     team.TeamService
 }
 
 func NewRbacRoleHandlerImpl(logger *zap.SugaredLogger,
 	validator *validator.Validate, rbacRoleService user.RbacRoleService,
-	userService user.UserService, enforcer casbin.Enforcer) *RbacRoleRestHandlerImpl {
+	userService user.UserService, enforcer casbin.Enforcer,
+	teamService team.TeamService) *RbacRoleRestHandlerImpl {
 	rbacRoleRestHandlerImpl := &RbacRoleRestHandlerImpl{
 		logger:          logger,
 		validator:       validator,
 		rbacRoleService: rbacRoleService,
 		userService:     userService,
 		enforcer:        enforcer,
+		teamService:     teamService,
 	}
 	return rbacRoleRestHandlerImpl
 }
@@ -44,9 +48,31 @@ func (handler *RbacRoleRestHandlerImpl) GetAllDefaultRoles(w http.ResponseWriter
 	handler.logger.Debugw("request payload, GetAllDefaultRoles")
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionGet, "*"); !ok {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+	emailId, err := handler.userService.GetEmailFromToken(token)
+	if err != nil {
+		handler.logger.Errorw("error in getting user emailId from token", "userId", userId, "err", err)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
+	}
+	teamNames, err := handler.teamService.FindAllActiveTeamNamesForRbac()
+	if err != nil {
+		handler.logger.Errorw("error in finding all active team names", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	if len(teamNames) > 0 {
+		rbacResultMap := handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceUser, casbin.ActionGet, teamNames)
+		isAuthorized := false
+		for _, authorizedOnTeam := range rbacResultMap {
+			if authorizedOnTeam {
+				isAuthorized = true
+				break
+			}
+		}
+		if !isAuthorized {
+			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusUnauthorized)
+			return
+		}
 	}
 	roles, err := handler.rbacRoleService.GetAllDefaultRoles()
 	if err != nil {
