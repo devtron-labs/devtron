@@ -114,7 +114,7 @@ const (
 type ResourceRequestBean struct {
 	AppId                string                      `json:"appId"`
 	AppType              int                         `json:"appType,omitempty"`        // 0: DevtronApp, 1: HelmApp
-	DeploymentType       int                         `json:"deploymentType,omitempty"` // 0: DevtronApp, 1: HelmApp
+	DeploymentType       int                         `json:"deploymentType,omitempty"` // 0: Non-Gitops, 1: Gitops
 	AppIdentifier        *client.AppIdentifier       `json:"-"`
 	K8sRequest           *application.K8sRequestBean `json:"k8sRequest"`
 	DevtronAppIdentifier *DevtronAppIdentifier       `json:"-"`         // For Devtron App Resources
