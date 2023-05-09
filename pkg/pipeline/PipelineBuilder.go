@@ -2235,23 +2235,17 @@ func (impl PipelineBuilderImpl) ChangePipelineDeploymentType(ctx context.Context
 
 		return response, nil
 	}
-	// Force delete apps
 	response = impl.DeleteDeploymentApps(ctx, pipelines, request.UserId)
 
-	// Updating the env id and desired deployment app type received from request in the response
-
-	// Update the deployment app type to Helm and toggle deployment_app_created to false in db
 	var cdPipelineIds []int
 	for _, item := range response.FailedPipelines {
 		cdPipelineIds = append(cdPipelineIds, item.Id)
 	}
 
-	// If nothing to update in db
 	if len(cdPipelineIds) == 0 {
 		return response, nil
 	}
 
-	// Update in db
 	err = impl.pipelineRepository.UpdateCdPipelineDeploymentAppInFilter(string(deleteDeploymentType),
 		cdPipelineIds, request.UserId, true, false)
 
@@ -2288,18 +2282,15 @@ func (impl PipelineBuilderImpl) TriggerDeploymentAfterTypeChange(ctx context.Con
 		return response, err
 	}
 
-	// Update the deployment app type to Helm and toggle deployment_app_created to false in db
 	var cdPipelineIds []int
 	for _, item := range cdPipelines {
 		cdPipelineIds = append(cdPipelineIds, item.Id)
 	}
 
-	// If nothing to update in db
 	if len(cdPipelineIds) == 0 {
 		return response, nil
 	}
 
-	// Update in db
 	response = impl.FetchDeletedApp(ctx, cdPipelines)
 
 	var successPipelines []int
@@ -2307,7 +2298,6 @@ func (impl PipelineBuilderImpl) TriggerDeploymentAfterTypeChange(ctx context.Con
 		successPipelines = append(successPipelines, item.Id)
 	}
 
-	// Bulk trigger all the successfully changed pipelines (async)
 	bulkTriggerRequest := make([]*BulkTriggerRequest, 0)
 
 	pipelineIds := make([]int, 0, len(response.SuccessfulPipelines))
@@ -2315,7 +2305,6 @@ func (impl PipelineBuilderImpl) TriggerDeploymentAfterTypeChange(ctx context.Con
 		pipelineIds = append(pipelineIds, item.Id)
 	}
 
-	// Get all pipelines
 	pipelines, err := impl.pipelineRepository.FindByIdsIn(pipelineIds)
 	if err != nil {
 		impl.logger.Errorw("failed to fetch pipeline details",
@@ -2353,12 +2342,10 @@ func (impl PipelineBuilderImpl) TriggerDeploymentAfterTypeChange(ctx context.Con
 		})
 	}
 
-	// pg panics if empty slice is passed as an argument
 	if len(bulkTriggerRequest) == 0 {
 		return response, nil
 	}
 
-	// Trigger
 	_, err = impl.workflowDagExecutor.TriggerBulkDeploymentAsync(bulkTriggerRequest, request.UserId)
 
 	if err != nil {
@@ -2615,8 +2602,6 @@ func (impl PipelineBuilderImpl) FetchDeletedApp(ctx context.Context,
 			}
 			_, err = impl.application.Get(ctx, req)
 		}
-		fmt.Println(err.Error() == "rpc error: code = NotFound desc = error getting application: applications.argoproj.io \"app-1-test-env\" not found")
-		fmt.Println(err.Error())
 		if strings.Contains(err.Error(), "not found") {
 			successfulPipelines = impl.appendToDeploymentChangeStatusList(
 				successfulPipelines,

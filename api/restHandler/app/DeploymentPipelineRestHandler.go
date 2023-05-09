@@ -361,14 +361,12 @@ func (handler PipelineConfigRestHandlerImpl) HandleChangeDeploymentRequest(w htt
 
 func (handler PipelineConfigRestHandlerImpl) HandleChangeDeploymentTypeRequest(w http.ResponseWriter, r *http.Request) {
 
-	// Auth check
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 
-	// Retrieving and parsing request body
 	decoder := json.NewDecoder(r.Body)
 	var deploymentTypeChangeRequest *bean.DeploymentAppTypeChangeRequest
 	err = decoder.Decode(&deploymentTypeChangeRequest)
@@ -381,7 +379,6 @@ func (handler PipelineConfigRestHandlerImpl) HandleChangeDeploymentTypeRequest(w
 	}
 	deploymentTypeChangeRequest.UserId = userId
 
-	// Validate incoming request
 	err = handler.validator.Struct(deploymentTypeChangeRequest)
 	if err != nil {
 		handler.Logger.Errorw("validation err, HandleChangeDeploymentTypeRequest", "err", err, "payload",
@@ -391,14 +388,12 @@ func (handler PipelineConfigRestHandlerImpl) HandleChangeDeploymentTypeRequest(w
 		return
 	}
 
-	// Only super-admin access
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionDelete, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 
-	// Retrieve argocd token
 	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
 	if err != nil {
 		handler.Logger.Errorw("error in getting acd token", "err", err)
@@ -410,12 +405,11 @@ func (handler PipelineConfigRestHandlerImpl) HandleChangeDeploymentTypeRequest(w
 	resp, err := handler.pipelineBuilder.ChangePipelineDeploymentType(ctx, deploymentTypeChangeRequest)
 
 	if err != nil {
-		nErr := errors.New("failed to change deployment type with error msg: " + err.Error())
 		handler.Logger.Errorw(err.Error(),
 			"payload", deploymentTypeChangeRequest,
 			"err", err)
 
-		common.WriteJsonResp(w, nErr, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
@@ -470,18 +464,17 @@ func (handler PipelineConfigRestHandlerImpl) HandleTriggerDeploymentAfterTypeCha
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	
+
 	ctx := context.WithValue(r.Context(), "token", acdToken)
 
 	resp, err := handler.pipelineBuilder.TriggerDeploymentAfterTypeChange(ctx, deploymentAppTriggerRequest)
 
 	if err != nil {
-		nErr := errors.New("failed to change deployment type with error msg: " + err.Error())
 		handler.Logger.Errorw(err.Error(),
 			"payload", deploymentAppTriggerRequest,
 			"err", err)
 
-		common.WriteJsonResp(w, nErr, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
