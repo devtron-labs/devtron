@@ -20,6 +20,7 @@ package pipeline
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
@@ -45,7 +46,7 @@ import (
 )
 
 type CdWorkflowService interface {
-	SubmitWorkflow(workflowRequest *CdWorkflowRequest, pipeline *pipelineConfig.Pipeline, env *repository.Environment) (*v1alpha1.Workflow, error)
+	SubmitWorkflow(workflowRequest *CdWorkflowRequest, pipeline *pipelineConfig.Pipeline, env *repository.Environment) error
 	DeleteWorkflow(wfName string, namespace string) error
 	GetWorkflow(name string, namespace string, url string, token string, isExtRun bool) (*v1alpha1.Workflow, error)
 	ListAllWorkflows(namespace string) (*v1alpha1.WorkflowList, error)
@@ -133,7 +134,7 @@ func NewCdWorkflowServiceImpl(Logger *zap.SugaredLogger,
 		argoWorkflowExecutor: argoWorkflowExecutor}
 }
 
-func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowRequest, pipeline *pipelineConfig.Pipeline, env *repository.Environment) (*v1alpha1.Workflow, error) {
+func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowRequest, pipeline *pipelineConfig.Pipeline, env *repository.Environment) error {
 
 	containerEnvVariables := []v12.EnvVar{}
 	if impl.cdConfig.CloudProvider == BLOB_STORAGE_S3 && impl.cdConfig.BlobStorageS3AccessKey != "" {
@@ -149,7 +150,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	workflowJson, err := json.Marshal(&ciCdTriggerEvent)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while marshalling ciCdTriggerEvent", "error", err)
-		return nil, err
+		return err
 	}
 
 	privileged := true
@@ -170,11 +171,11 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	var workflowSecrets []bean.ConfigSecretMap
 
 	if !workflowRequest.IsExtRun {
-		globalCmCsConfigs, err = impl.globalCMCSService.FindAllActiveByPipelineType(repository2.PIPELINE_TYPE_CD)
 		// inject global variables only if IsExtRun is false
+		globalCmCsConfigs, err = impl.globalCMCSService.FindAllActiveByPipelineType(repository2.PIPELINE_TYPE_CD)
 		if err != nil {
 			impl.Logger.Errorw("error in getting all global cm/cs config", "err", err)
-			return nil, err
+			return err
 		}
 		//if len(globalCmCsConfigs) > 0 {
 		//	entryPoint = CD_WORKFLOW_WITH_STAGES
@@ -194,13 +195,13 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	cdPipelineLevelConfigMaps, cdPipelineLevelSecrets, err := impl.getConfiguredCmCs(pipeline, workflowRequest.StageType)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while fetching pipeline configured cm and cs", "pipelineId", pipeline.Id, "err", err)
-		return nil, err
+		return err
 	}
 
 	existingConfigMap, existingSecrets, err := impl.appService.GetCmSecretNew(workflowRequest.AppId, workflowRequest.EnvironmentId)
 	if err != nil {
 		impl.Logger.Errorw("failed to get configmap data", "err", err)
-		return nil, err
+		return err
 	}
 	impl.Logger.Debugw("existing cm", "pipelineId", pipeline.Id, "cm", existingConfigMap)
 
@@ -225,7 +226,6 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	workflowTemplate.ConfigMaps = workflowConfigMaps
 	workflowTemplate.Secrets = workflowSecrets
 
-	// TODO KB: create container data and attach data to it, set tolerations, labels if required
 	workflowTemplate.ServiceAccountName = impl.cdConfig.WorkflowServiceAccount
 	workflowTemplate.NodeSelector = map[string]string{impl.cdConfig.TaintKey: impl.cdConfig.TaintValue}
 	workflowTemplate.Tolerations = []v12.Toleration{{Key: impl.cdConfig.TaintKey, Value: impl.cdConfig.TaintValue, Operator: v12.TolerationOpEqual, Effect: v12.TaintEffectNoSchedule}}
@@ -267,8 +267,11 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	} else {
 		workflowTemplate.ClusterConfig = impl.config
 	}
-
-	return impl.argoWorkflowExecutor.ExecuteWorkflow(workflowTemplate)
+	workflowExecutor := impl.getWorkflowExecutor(workflowRequest.WorkflowExecutor)
+	if workflowExecutor == nil {
+		return errors.New("workflow executor not found")
+	}
+	return workflowExecutor.ExecuteWorkflow(workflowTemplate)
 
 	//configMaps := bean.ConfigMapJson{}
 	//for _, cm := range existingConfigMap.Maps {
@@ -675,6 +678,14 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	//impl.Logger.Debugw("workflow submitted: ", "name", createdWf.Name)
 	//impl.checkErr(err)
 	//return createdWf, err
+}
+
+func (impl *CdWorkflowServiceImpl) getWorkflowExecutor(executorType pipelineConfig.WorkflowExecutorType) WorkflowExecutor {
+	if executorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF {
+		return impl.argoWorkflowExecutor
+	}
+	impl.Logger.Warnw("workflow executor not found", "type", executorType)
+	return nil
 }
 
 func (impl *CdWorkflowServiceImpl) getConfiguredCmCs(pipeline *pipelineConfig.Pipeline, stage string) (map[string]bool, map[string]bool, error) {
