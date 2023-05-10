@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	pipelineBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
@@ -51,7 +52,7 @@ func (handler *GlobalCMCSRestHandlerImpl) CreateGlobalCMCSConfig(w http.Response
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var bean pipeline.GlobalCMCSDto
+	var bean pipelineBean.GlobalCMCSDto
 	err = decoder.Decode(&bean)
 	if err != nil {
 		handler.logger.Errorw("request err, CreateGlobalCMCSConfig", "err", err, "payload", bean)

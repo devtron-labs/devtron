@@ -99,8 +99,8 @@ func (m MergeUtil) ConfigMapMerge(appLevelConfigMapJson string, envLevelConfigMa
 	appLevelConfigMap := bean.ConfigMapJson{}
 	envLevelConfigMap := bean.ConfigMapJson{}
 	configResponse := bean.ConfigMapJson{}
-	commonMaps := map[string]bean.Map{}
-	var finalMaps []bean.Map
+	commonMaps := map[string]bean.ConfigSecretMap{}
+	var finalMaps []bean.ConfigSecretMap
 	if appLevelConfigMapJson != "" {
 		err = json.Unmarshal([]byte(appLevelConfigMapJson), &appLevelConfigMap)
 		if err != nil {
@@ -142,8 +142,8 @@ func (m MergeUtil) ConfigSecretMerge(appLevelSecretJson string, envLevelSecretJs
 	appLevelSecret := bean.ConfigSecretJson{}
 	envLevelSecret := bean.ConfigSecretJson{}
 	secretResponse := bean.ConfigSecretJson{}
-	commonSecrets := map[string]*bean.Map{}
-	var finalMaps []*bean.Map
+	commonSecrets := map[string]*bean.ConfigSecretMap{}
+	var finalMaps []*bean.ConfigSecretMap
 	if appLevelSecretJson != "" {
 		err = json.Unmarshal([]byte(appLevelSecretJson), &appLevelSecret)
 		if err != nil {

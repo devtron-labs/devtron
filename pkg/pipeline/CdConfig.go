@@ -21,6 +21,7 @@ import (
 	"flag"
 	"fmt"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"os/user"
 	"path/filepath"
 	"strings"
@@ -45,7 +46,7 @@ type CdConfig struct {
 	NodeLabelSelector                []string `env:"CD_NODE_LABEL_SELECTOR"`
 	CdArtifactLocationFormat         string   `env:"CD_ARTIFACT_LOCATION_FORMAT" envDefault:"%d/%d.zip"`
 	DefaultNamespace                 string   `env:"DEFAULT_CD_NAMESPACE"`
-	DefaultImage                     string   `env:"DEFAULT_CI_IMAGE" `
+	DefaultImage                     string   `env:"DEFAULT_CI_IMAGE"`
 	DefaultTimeout                   int64    `env:"DEFAULT_CD_TIMEOUT" envDefault:"3600"`
 	DefaultCdLogsBucketRegion        string   `env:"DEFAULT_CD_LOGS_BUCKET_REGION" `
 	WfControllerInstanceID           string   `env:"WF_CONTROLLER_INSTANCE_ID" envDefault:"devtron-runner"`
@@ -53,26 +54,27 @@ type CdConfig struct {
 	OrchestratorToken                string   `env:"ORCH_TOKEN" envDefault:""`
 	ClusterConfig                    *rest.Config
 	NodeLabel                        map[string]string
-	CloudProvider                    blob_storage.BlobStorageType `env:"BLOB_STORAGE_PROVIDER" envDefault:"S3"`
-	BlobStorageEnabled               bool                         `env:"BLOB_STORAGE_ENABLED" envDefault:"false"`
-	BlobStorageS3AccessKey           string                       `env:"BLOB_STORAGE_S3_ACCESS_KEY"`
-	BlobStorageS3SecretKey           string                       `env:"BLOB_STORAGE_S3_SECRET_KEY"`
-	BlobStorageS3Endpoint            string                       `env:"BLOB_STORAGE_S3_ENDPOINT"`
-	BlobStorageS3EndpointInsecure    bool                         `env:"BLOB_STORAGE_S3_ENDPOINT_INSECURE" envDefault:"false"`
-	BlobStorageS3BucketVersioned     bool                         `env:"BLOB_STORAGE_S3_BUCKET_VERSIONED" envDefault:"true"`
-	BlobStorageGcpCredentialJson     string                       `env:"BLOB_STORAGE_GCP_CREDENTIALS_JSON"`
-	AzureAccountName                 string                       `env:"AZURE_ACCOUNT_NAME"`
-	AzureGatewayUrl                  string                       `env:"AZURE_GATEWAY_URL" envDefault:"http://devtron-minio.devtroncd:9000"`
-	AzureGatewayConnectionInsecure   bool                         `env:"AZURE_GATEWAY_CONNECTION_INSECURE" envDefault:"true"`
-	AzureBlobContainerCiLog          string                       `env:"AZURE_BLOB_CONTAINER_CI_LOG"`
-	AzureBlobContainerCiCache        string                       `env:"AZURE_BLOB_CONTAINER_CI_CACHE"`
-	AzureAccountKey                  string                       `env:"AZURE_ACCOUNT_KEY"`
-	BuildLogTTLValue                 int                          `env:"BUILD_LOG_TTL_VALUE_IN_SECS" envDefault:"3600"`
-	DefaultAddressPoolBaseCidr       string                       `env:"CD_DEFAULT_ADDRESS_POOL_BASE_CIDR"`
-	DefaultAddressPoolSize           int                          `env:"CD_DEFAULT_ADDRESS_POOL_SIZE"`
-	ExposeCDMetrics                  bool                         `env:"EXPOSE_CD_METRICS" envDefault:"false"`
-	UseBlobStorageConfigInCdWorkflow bool                         `env:"USE_BLOB_STORAGE_CONFIG_IN_CD_WORKFLOW" envDefault:"true"`
-	BaseLogLocationPath              string                       `env:"BASE_LOG_LOCATION_PATH" envDefault:"/home/devtron/"`
+	CloudProvider                    blob_storage.BlobStorageType        `env:"BLOB_STORAGE_PROVIDER" envDefault:"S3"`
+	BlobStorageEnabled               bool                                `env:"BLOB_STORAGE_ENABLED" envDefault:"false"`
+	BlobStorageS3AccessKey           string                              `env:"BLOB_STORAGE_S3_ACCESS_KEY"`
+	BlobStorageS3SecretKey           string                              `env:"BLOB_STORAGE_S3_SECRET_KEY"`
+	BlobStorageS3Endpoint            string                              `env:"BLOB_STORAGE_S3_ENDPOINT"`
+	BlobStorageS3EndpointInsecure    bool                                `env:"BLOB_STORAGE_S3_ENDPOINT_INSECURE" envDefault:"false"`
+	BlobStorageS3BucketVersioned     bool                                `env:"BLOB_STORAGE_S3_BUCKET_VERSIONED" envDefault:"true"`
+	BlobStorageGcpCredentialJson     string                              `env:"BLOB_STORAGE_GCP_CREDENTIALS_JSON"`
+	AzureAccountName                 string                              `env:"AZURE_ACCOUNT_NAME"`
+	AzureGatewayUrl                  string                              `env:"AZURE_GATEWAY_URL" envDefault:"http://devtron-minio.devtroncd:9000"`
+	AzureGatewayConnectionInsecure   bool                                `env:"AZURE_GATEWAY_CONNECTION_INSECURE" envDefault:"true"`
+	AzureBlobContainerCiLog          string                              `env:"AZURE_BLOB_CONTAINER_CI_LOG"`
+	AzureBlobContainerCiCache        string                              `env:"AZURE_BLOB_CONTAINER_CI_CACHE"`
+	AzureAccountKey                  string                              `env:"AZURE_ACCOUNT_KEY"`
+	BuildLogTTLValue                 int                                 `env:"BUILD_LOG_TTL_VALUE_IN_SECS" envDefault:"3600"`
+	DefaultAddressPoolBaseCidr       string                              `env:"CD_DEFAULT_ADDRESS_POOL_BASE_CIDR"`
+	DefaultAddressPoolSize           int                                 `env:"CD_DEFAULT_ADDRESS_POOL_SIZE"`
+	ExposeCDMetrics                  bool                                `env:"EXPOSE_CD_METRICS" envDefault:"false"`
+	UseBlobStorageConfigInCdWorkflow bool                                `env:"USE_BLOB_STORAGE_CONFIG_IN_CD_WORKFLOW" envDefault:"true"`
+	BaseLogLocationPath              string                              `env:"BASE_LOG_LOCATION_PATH" envDefault:"/home/devtron/"`
+	CdWorkflowExecutorType           pipelineConfig.WorkflowExecutorType `env:"CD_WORKFLOW_EXECUTOR_TYPE" envDefault:"AWF"`
 }
 
 func GetCdConfig() (*CdConfig, error) {

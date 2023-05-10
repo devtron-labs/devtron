@@ -25,16 +25,16 @@ type ConfigMapRootJson struct {
 	ConfigMapJson ConfigMapJson `json:"ConfigMaps"`
 }
 type ConfigMapJson struct {
-	Enabled bool  `json:"enabled"`
-	Maps    []Map `json:"maps"`
+	Enabled bool              `json:"enabled"`
+	Maps    []ConfigSecretMap `json:"maps"`
 }
 
 type ConfigSecretRootJson struct {
 	ConfigSecretJson ConfigSecretJson `json:"ConfigSecrets"`
 }
 type ConfigSecretJson struct {
-	Enabled bool   `json:"enabled"`
-	Secrets []*Map `json:"secrets"`
+	Enabled bool               `json:"enabled"`
+	Secrets []*ConfigSecretMap `json:"secrets"`
 }
 
 type ConfigMapAndSecretJson struct {
@@ -42,7 +42,7 @@ type ConfigMapAndSecretJson struct {
 	ConfigSecretJson ConfigSecretJson `json:"configSecretJson"`
 }
 
-type Map struct {
+type ConfigSecretMap struct {
 	Name           string          `json:"name"`
 	Type           string          `json:"type"`
 	External       bool            `json:"external"`
@@ -54,4 +54,10 @@ type Map struct {
 	SecretData     json.RawMessage `json:"secretData,omitempty"`
 	SubPath        bool            `json:"subPath"`
 	FilePermission string          `json:"filePermission"`
+}
+
+func (configSecret ConfigSecretMap) GetDataMap() (map[string]string, error) {
+	var datamap map[string]string
+	err := json.Unmarshal(configSecret.Data, &datamap)
+	return datamap, err
 }

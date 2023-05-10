@@ -121,6 +121,7 @@ type RolePolicyDetails struct {
 	GroupObj     string
 	KindObj      string
 	ResourceObj  string
+	Approver     bool
 }
 
 type ClusterRolePolicyDetails struct {
