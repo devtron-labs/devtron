@@ -76,7 +76,7 @@ func (impl *ArgoWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.Work
 				Tolerations:        workflowTemplate.Tolerations,
 				Entrypoint:         entryPoint,
 				TTLStrategy: &v1alpha1.TTLStrategy{
-					SecondsAfterCompletion: &workflowTemplate.TTLValue,
+					SecondsAfterCompletion: workflowTemplate.TTLValue,
 				},
 				Templates: templates,
 				Volumes:   workflowTemplate.Volumes,

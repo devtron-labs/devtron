@@ -60,13 +60,14 @@ const (
 )
 
 type CdWorkflowServiceImpl struct {
-	Logger               *zap.SugaredLogger
-	config               *rest.Config
-	cdConfig             *CdConfig
-	appService           app.AppService
-	envRepository        repository.EnvironmentRepository
-	globalCMCSService    GlobalCMCSService
-	argoWorkflowExecutor ArgoWorkflowExecutor
+	Logger                 *zap.SugaredLogger
+	config                 *rest.Config
+	cdConfig               *CdConfig
+	appService             app.AppService
+	envRepository          repository.EnvironmentRepository
+	globalCMCSService      GlobalCMCSService
+	argoWorkflowExecutor   ArgoWorkflowExecutor
+	systemWorkflowExecutor SystemWorkflowExecutor
 }
 
 type CdWorkflowRequest struct {
@@ -124,14 +125,15 @@ func NewCdWorkflowServiceImpl(Logger *zap.SugaredLogger,
 	cdConfig *CdConfig,
 	appService app.AppService,
 	globalCMCSService GlobalCMCSService,
-	argoWorkflowExecutor ArgoWorkflowExecutor) *CdWorkflowServiceImpl {
+	argoWorkflowExecutor ArgoWorkflowExecutor, systemWorkflowExecutor SystemWorkflowExecutor) *CdWorkflowServiceImpl {
 	return &CdWorkflowServiceImpl{Logger: Logger,
-		config:               cdConfig.ClusterConfig,
-		cdConfig:             cdConfig,
-		appService:           appService,
-		envRepository:        envRepository,
-		globalCMCSService:    globalCMCSService,
-		argoWorkflowExecutor: argoWorkflowExecutor}
+		config:                 cdConfig.ClusterConfig,
+		cdConfig:               cdConfig,
+		appService:             appService,
+		envRepository:          envRepository,
+		globalCMCSService:      globalCMCSService,
+		argoWorkflowExecutor:   argoWorkflowExecutor,
+		systemWorkflowExecutor: systemWorkflowExecutor}
 }
 
 func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowRequest, pipeline *pipelineConfig.Pipeline, env *repository.Environment) error {
@@ -157,7 +159,8 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	storageConfigured := workflowRequest.BlobStorageConfigured
 	ttl := int32(impl.cdConfig.BuildLogTTLValue)
 	workflowTemplate := bean3.WorkflowTemplate{}
-	workflowTemplate.TTLValue = ttl
+	workflowTemplate.TTLValue = &ttl
+	workflowTemplate.WorkflowId = workflowRequest.WorkflowId
 	workflowTemplate.WorkflowRequestJson = string(workflowJson)
 
 	//entryPoint := CD_WORKFLOW_NAME
@@ -231,6 +234,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	workflowTemplate.Tolerations = []v12.Toleration{{Key: impl.cdConfig.TaintKey, Value: impl.cdConfig.TaintValue, Operator: v12.TolerationOpEqual, Effect: v12.TaintEffectNoSchedule}}
 	workflowTemplate.Volumes = ExtractVolumesFromCmCs(workflowConfigMaps, workflowSecrets) //TODO KB: make sure values are set properly
 	workflowTemplate.ArchiveLogs = storageConfigured
+	workflowTemplate.RestartPolicy = v12.RestartPolicyNever
 
 	limitCpu := impl.cdConfig.LimitCpu
 	limitMem := impl.cdConfig.LimitMem
@@ -239,6 +243,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 
 	workflowMainContainer := v12.Container{
 		Env:   containerEnvVariables,
+		Name:  "main",
 		Image: workflowRequest.CdImage,
 		Args:  []string{string(workflowJson)},
 		SecurityContext: &v12.SecurityContext{
@@ -683,6 +688,8 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 func (impl *CdWorkflowServiceImpl) getWorkflowExecutor(executorType pipelineConfig.WorkflowExecutorType) WorkflowExecutor {
 	if executorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF {
 		return impl.argoWorkflowExecutor
+	} else if executorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM {
+		return impl.systemWorkflowExecutor
 	}
 	impl.Logger.Warnw("workflow executor not found", "type", executorType)
 	return nil

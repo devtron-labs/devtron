@@ -109,7 +109,6 @@ type RolePolicyDetails struct {
 	AppObj     string
 	Entity     string
 	EntityName string
-	Approver   bool
 
 	Cluster      string
 	Namespace    string
