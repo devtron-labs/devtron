@@ -4,6 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/connector"
@@ -20,17 +27,11 @@ import (
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
-	"io"
 	errors2 "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"
-	"net/http"
-	"strconv"
-	"strings"
-	"sync"
-	"time"
 )
 
 const (
@@ -105,11 +106,16 @@ const (
 	// App Type Identifiers
 	DevtronAppType = 0 // Identifier for Devtron Apps
 	HelmAppType    = 1 // Identifier for Helm Apps
+
+	// Deployment Type Identifiers
+	HelmInstalledType = 0 // Identifier for Helm deployment
+	ArgoInstalledType = 1 // Identifier for ArgoCD deployment
 )
 
 type ResourceRequestBean struct {
 	AppId                string                      `json:"appId"`
-	AppType              int                         `json:"appType,omitempty"` // 0: DevtronApp, 1: HelmApp
+	AppType              int                         `json:"appType,omitempty"`        // 0: DevtronApp, 1: HelmApp
+	DeploymentType       int                         `json:"deploymentType,omitempty"` // 0: DevtronApp, 1: HelmApp
 	AppIdentifier        *client.AppIdentifier       `json:"-"`
 	K8sRequest           *application.K8sRequestBean `json:"k8sRequest"`
 	DevtronAppIdentifier *DevtronAppIdentifier       `json:"-"`         // For Devtron App Resources
@@ -170,6 +176,13 @@ func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Reque
 			return nil, err
 		}
 		request.AppType = appType
+		// Validate Deployment Type
+		deploymentType, err := strconv.Atoi(v.Get("deploymentType"))
+		if err != nil || appType < HelmInstalledType || appType > ArgoInstalledType {
+			impl.logger.Errorw("Invalid deploymentType", "err", err, "deploymentType", deploymentType)
+			return nil, err
+		}
+		request.DeploymentType = deploymentType
 		// Validate App Id
 		if request.AppType == HelmAppType {
 			// For Helm App resources
