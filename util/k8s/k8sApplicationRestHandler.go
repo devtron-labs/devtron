@@ -124,12 +124,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 		request.DevtronAppIdentifier = devtronAppIdentifier
 		request.ClusterId = request.DevtronAppIdentifier.ClusterId
 		if request.DeploymentType == HelmInstalledType {
-			valid, err := handler.k8sApplicationService.ValidateResourceRequest(r.Context(), request.AppIdentifier, request.K8sRequest)
-			if err != nil || !valid {
-				handler.logger.Errorw("error in validating resource request", "err", err)
-				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-				return
-			}
+			//TODO: Implement ResourceRequest Validation for Helm Installed Devtron APPs
 		} else if request.DeploymentType == ArgoInstalledType {
 			//TODO: Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
 		}
@@ -335,12 +330,7 @@ func (handler *K8sApplicationRestHandlerImpl) UpdateResource(w http.ResponseWrit
 		request.DevtronAppIdentifier = devtronAppIdentifier
 		request.ClusterId = request.DevtronAppIdentifier.ClusterId
 		if request.DeploymentType == HelmInstalledType {
-			valid, err := handler.k8sApplicationService.ValidateResourceRequest(r.Context(), request.AppIdentifier, request.K8sRequest)
-			if err != nil || !valid {
-				handler.logger.Errorw("error in validating resource request", "err", err)
-				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-				return
-			}
+			//TODO: Implement ResourceRequest Validation for Helm Installed Devtron APPs
 		} else if request.DeploymentType == ArgoInstalledType {
 			//TODO: Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
 		}
@@ -443,12 +433,7 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 		request.DevtronAppIdentifier = devtronAppIdentifier
 		request.ClusterId = request.DevtronAppIdentifier.ClusterId
 		if request.DeploymentType == HelmInstalledType {
-			valid, err := handler.k8sApplicationService.ValidateResourceRequest(r.Context(), request.AppIdentifier, request.K8sRequest)
-			if err != nil || !valid {
-				handler.logger.Errorw("error in validating resource request", "err", err)
-				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-				return
-			}
+			//TODO: Implement ResourceRequest Validation for Helm Installed Devtron APPs
 		} else if request.DeploymentType == ArgoInstalledType {
 			//TODO: Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
 		}
@@ -531,12 +516,7 @@ func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, 
 		request.DevtronAppIdentifier = devtronAppIdentifier
 		request.ClusterId = request.DevtronAppIdentifier.ClusterId
 		if request.DeploymentType == HelmInstalledType {
-			valid, err := handler.k8sApplicationService.ValidateResourceRequest(r.Context(), request.AppIdentifier, request.K8sRequest)
-			if err != nil || !valid {
-				handler.logger.Errorw("error in validating resource request", "err", err)
-				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-				return
-			}
+			//TODO: Implement ResourceRequest Validation for Helm Installed Devtron APPs
 		} else if request.DeploymentType == ArgoInstalledType {
 			//TODO: Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
 		}
