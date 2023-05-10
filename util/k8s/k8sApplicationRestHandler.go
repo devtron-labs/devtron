@@ -103,7 +103,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 				return
 			}
 		} else if request.DeploymentType == ArgoInstalledType {
-			//TODO: Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
+			//TODO Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
 		}
 		// RBAC enforcer applying for Helm App
 		rbacObject, rbacObject2 = handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
@@ -124,9 +124,9 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 		request.DevtronAppIdentifier = devtronAppIdentifier
 		request.ClusterId = request.DevtronAppIdentifier.ClusterId
 		if request.DeploymentType == HelmInstalledType {
-			//TODO: Implement ResourceRequest Validation for Helm Installed Devtron APPs
+			//TODO Implement ResourceRequest Validation for Helm Installed Devtron APPs
 		} else if request.DeploymentType == ArgoInstalledType {
-			//TODO: Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
+			//TODO Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
 		}
 		// RBAC enforcer applying for Devtron App
 		envObject = handler.enforcerUtil.GetEnvRBACNameByAppId(request.DevtronAppIdentifier.AppId, request.DevtronAppIdentifier.EnvId)
@@ -307,7 +307,7 @@ func (handler *K8sApplicationRestHandlerImpl) UpdateResource(w http.ResponseWrit
 				return
 			}
 		} else if request.DeploymentType == ArgoInstalledType {
-			//TODO: Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
+			//TODO Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
 		}
 		// RBAC enforcer applying
 		rbacObject, rbacObject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
@@ -330,9 +330,9 @@ func (handler *K8sApplicationRestHandlerImpl) UpdateResource(w http.ResponseWrit
 		request.DevtronAppIdentifier = devtronAppIdentifier
 		request.ClusterId = request.DevtronAppIdentifier.ClusterId
 		if request.DeploymentType == HelmInstalledType {
-			//TODO: Implement ResourceRequest Validation for Helm Installed Devtron APPs
+			//TODO Implement ResourceRequest Validation for Helm Installed Devtron APPs
 		} else if request.DeploymentType == ArgoInstalledType {
-			//TODO: Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
+			//TODO Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
 		}
 		// RBAC enforcer applying for Devtron App
 		envObject := handler.enforcerUtil.GetEnvRBACNameByAppId(request.DevtronAppIdentifier.AppId, request.DevtronAppIdentifier.EnvId)
@@ -409,7 +409,7 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 				return
 			}
 		} else if request.DeploymentType == ArgoInstalledType {
-			//TODO: Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
+			//TODO Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
 		}
 		// RBAC enforcer applying for Helm App
 		rbacObject, rbacObject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
@@ -433,9 +433,9 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 		request.DevtronAppIdentifier = devtronAppIdentifier
 		request.ClusterId = request.DevtronAppIdentifier.ClusterId
 		if request.DeploymentType == HelmInstalledType {
-			//TODO: Implement ResourceRequest Validation for Helm Installed Devtron APPs
+			//TODO Implement ResourceRequest Validation for Helm Installed Devtron APPs
 		} else if request.DeploymentType == ArgoInstalledType {
-			//TODO: Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
+			//TODO Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
 		}
 		// RBAC enforcer applying for Devtron App
 		envObject := handler.enforcerUtil.GetEnvRBACNameByAppId(request.DevtronAppIdentifier.AppId, request.DevtronAppIdentifier.EnvId)
@@ -494,7 +494,7 @@ func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, 
 				return
 			}
 		} else if request.DeploymentType == ArgoInstalledType {
-			//TODO: Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
+			//TODO Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
 		}
 		// RBAC enforcer applying for Helm App
 		rbacObject, rbacObject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
@@ -516,9 +516,9 @@ func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, 
 		request.DevtronAppIdentifier = devtronAppIdentifier
 		request.ClusterId = request.DevtronAppIdentifier.ClusterId
 		if request.DeploymentType == HelmInstalledType {
-			//TODO: Implement ResourceRequest Validation for Helm Installed Devtron APPs
+			//TODO Implement ResourceRequest Validation for Helm Installed Devtron APPs
 		} else if request.DeploymentType == ArgoInstalledType {
-			//TODO: Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
+			//TODO Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
 		}
 		//RBAC enforcer applying for Devtron App
 		envObject := handler.enforcerUtil.GetEnvRBACNameByAppId(request.DevtronAppIdentifier.AppId, request.DevtronAppIdentifier.EnvId)
@@ -571,7 +571,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 				return
 			}
 		} else if request.DeploymentType == ArgoInstalledType {
-			//TODO: Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
+			//TODO Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
 		}
 		// RBAC enforcer applying for Helm App
 		rbacObject, rbacObject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
@@ -584,22 +584,9 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 		//RBAC enforcer Ends
 	} else if request.DevtronAppIdentifier != nil {
 		if request.DeploymentType == HelmInstalledType {
-			valid, err := handler.k8sApplicationService.ValidateResourceRequest(r.Context(), request.AppIdentifier, request.K8sRequest)
-			if err != nil || !valid {
-				handler.logger.Errorw("error in validating resource request", "err", err)
-				apiError := util2.ApiError{
-					InternalMessage: "failed to validate the resource with error " + err.Error(),
-					UserMessage:     "Failed to validate resource",
-				}
-				if !valid {
-					apiError.InternalMessage = "failed to validate the resource"
-					apiError.UserMessage = "requested Pod or Container doesn't exist"
-				}
-				common.WriteJsonResp(w, &apiError, nil, http.StatusBadRequest)
-				return
-			}
+			//TODO Implement ResourceRequest Validation for Helm Installed Devtron APPs
 		} else if request.DeploymentType == ArgoInstalledType {
-			//TODO: Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
+			//TODO Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
 		}
 		// RBAC enforcer applying For Devtron App
 		envObject := handler.enforcerUtil.GetEnvRBACNameByAppId(request.DevtronAppIdentifier.AppId, request.DevtronAppIdentifier.EnvId)
