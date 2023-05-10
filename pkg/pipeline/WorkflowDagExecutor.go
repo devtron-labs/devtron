@@ -24,6 +24,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	gitSensorClient "github.com/devtron-labs/devtron/client/gitSensor"
+	"github.com/devtron-labs/devtron/pkg/app/status"
 	util4 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"go.opentelemetry.io/otel"
@@ -99,7 +100,7 @@ type WorkflowDagExecutorImpl struct {
 	prePostCdScriptHistoryService history2.PrePostCdScriptHistoryService
 	argoUserService               argo.ArgoUserService
 	cdPipelineStatusTimelineRepo  pipelineConfig.PipelineStatusTimelineRepository
-	pipelineStatusTimelineService app.PipelineStatusTimelineService
+	pipelineStatusTimelineService status.PipelineStatusTimelineService
 	CiTemplateRepository          pipelineConfig.CiTemplateRepository
 	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
 	appLabelRepository            pipelineConfig.AppLabelRepository
@@ -165,7 +166,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	prePostCdScriptHistoryService history2.PrePostCdScriptHistoryService,
 	argoUserService argo.ArgoUserService,
 	cdPipelineStatusTimelineRepo pipelineConfig.PipelineStatusTimelineRepository,
-	pipelineStatusTimelineService app.PipelineStatusTimelineService,
+	pipelineStatusTimelineService status.PipelineStatusTimelineService,
 	CiTemplateRepository pipelineConfig.CiTemplateRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	appLabelRepository pipelineConfig.AppLabelRepository, gitSensorGrpcClient gitSensorClient.Client) *WorkflowDagExecutorImpl {
@@ -397,7 +398,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 		}
 		token := user.EmailId
 		object := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
-		impl.logger.Debugw("Triggered Request (App Permission Checking):", "token", token, "object", object)
+		impl.logger.Debugw("Triggered Request (App Permission Checking):", "object", object)
 		if ok := impl.enforcer.EnforceByEmail(strings.ToLower(token), casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
 			impl.logger.Warnw("unauthorized for pipeline ", "pipelineId", strconv.Itoa(pipeline.Id))
 			return fmt.Errorf("unauthorized for pipeline " + strconv.Itoa(pipeline.Id))
@@ -1004,7 +1005,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		}
 		token := user.EmailId
 		object := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
-		impl.logger.Debugw("Triggered Request (App Permission Checking):", "token", token, "object", object)
+		impl.logger.Debugw("Triggered Request (App Permission Checking):", "object", object)
 		if ok := impl.enforcer.EnforceByEmail(strings.ToLower(token), casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
 			err = &util.ApiError{Code: "401", HttpStatusCode: 401, UserMessage: "unauthorized for pipeline " + strconv.Itoa(pipeline.Id)}
 			return err
@@ -1057,7 +1058,8 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 			UpdatedOn: time.Now(),
 		},
 	}
-	err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
+	isAppStore := false
+	err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, isAppStore)
 	if err != nil {
 		impl.logger.Errorw("error in creating timeline status for deployment initiation", "err", err, "timeline", timeline)
 	}
@@ -1119,7 +1121,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 				UpdatedOn: time.Now(),
 			},
 		}
-		err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
+		err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, isAppStore)
 		if err != nil {
 			impl.logger.Errorw("error in creating timeline status for deployment fail - cve policy violation", "err", err, "timeline", timeline)
 		}
@@ -1157,7 +1159,7 @@ func (impl *WorkflowDagExecutorImpl) updatePreviousDeploymentStatus(currentRunne
 					UpdatedOn: time.Now(),
 				},
 			}
-			timelineErr = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
+			timelineErr = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
 			if timelineErr != nil {
 				impl.logger.Errorw("error in creating timeline status for deployment fail", "err", timelineErr, "timeline", timeline)
 			}
@@ -1404,7 +1406,8 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			},
 		}
 		_, span = otel.Tracer("orchestrator").Start(ctx, "cdPipelineStatusTimelineRepo.SaveTimeline")
-		err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
+		err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
+
 		span.End()
 		if err != nil {
 			impl.logger.Errorw("error in creating timeline status for deployment initiation", "err", err, "timeline", timeline)
@@ -1486,7 +1489,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 				},
 			}
 			_, span = otel.Tracer("orchestrator").Start(ctx, "cdPipelineStatusTimelineRepo.SaveTimeline")
-			err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
+			err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
 			span.End()
 			if err != nil {
 				impl.logger.Errorw("error in creating timeline status for deployment fail - cve policy violation", "err", err, "timeline", timeline)
