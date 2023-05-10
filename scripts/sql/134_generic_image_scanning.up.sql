@@ -6,7 +6,6 @@ CREATE TABLE public.scan_tool_metadata
     "name"                                text,
     "version"                             VARCHAR(50),
     "server_base_url"                     text,
-    "base_cli_command"                     text,
     "result_descriptor_template"            text,
     "scan_target"                          text,
     "active"                              bool,
@@ -15,6 +14,7 @@ CREATE TABLE public.scan_tool_metadata
     "created_by"                          int4,
     "updated_on"                          timestamptz,
     "updated_by"                          int4,
+    "tool_metadata"                         text,
     PRIMARY KEY ("id")
 );
 
@@ -22,7 +22,7 @@ CREATE SEQUENCE IF NOT EXISTS id_seq_scan_tool_execution_history_mapping;
 
 CREATE TABLE public.scan_tool_execution_history_mapping
 (
-    "id"                             integer NOT NULL DEFAULT nextval('id_seq_scan_execution_result_mapping'::regclass),
+    "id"                             integer NOT NULL DEFAULT nextval('id_seq_scan_tool_execution_history_mapping'::regclass),
     "image_scan_execution_history_id" integer,
     "scan_tool_id"             integer,
     "execution_start_time"           timestamptz,
@@ -35,7 +35,7 @@ CREATE TABLE public.scan_tool_execution_history_mapping
     "updated_by"                     int4,
     PRIMARY KEY ("id"),
     CONSTRAINT "scan_tool_execution_history_mapping_result_id_fkey" FOREIGN KEY ("image_scan_execution_history_id") REFERENCES "public"."image_scan_execution_history" ("id"),
-    CONSTRAINT "scan_tool_execution_history_mapping_scan_tool_id_fkey" FOREIGN KEY ("scan_tool_id") REFERENCES "public"."image_scan_tool_metadata" ("id")
+    CONSTRAINT "scan_tool_execution_history_mapping_scan_tool_id_fkey" FOREIGN KEY ("scan_tool_id") REFERENCES "public"."scan_tool_metadata" ("id")
 );
 
 CREATE SEQUENCE IF NOT EXISTS id_seq_scan_step_condition;
@@ -72,15 +72,15 @@ CREATE TABLE public.scan_tool_step
     "http_method_type"     text,
     "http_req_headers"     jsonb,
     "http_query_params"    jsonb,
-    "cli_args"            jsonb,
+    "cli_command"            text,
     "cli_output_type"      VARCHAR(10),
     "deleted"               bool,
     "created_on"           timestamptz,
     "created_by"           int4,
     "updated_on"           timestamptz,
     "updated_by"           int4,
-    PRIMARY KEY ("id")
-        CONSTRAINT "scan_tool_step_scan_tool_id_fkey" FOREIGN KEY ("scan_tool_id") REFERENCES "public"."scan_tool_metadata" ("id"),
+    PRIMARY KEY ("id"),
+    CONSTRAINT "scan_tool_step_scan_tool_id_fkey" FOREIGN KEY ("scan_tool_id") REFERENCES "public"."scan_tool_metadata" ("id")
 
 );
 
@@ -99,6 +99,18 @@ CREATE TABLE public.scan_step_condition_mapping
     CONSTRAINT "scan_step_condition_mapping_condition_id_fkey" FOREIGN KEY ("scan_step_condition_id") REFERENCES "public"."scan_step_condition" ("id"),
     CONSTRAINT "scan_step_condition_mapping_tool_step_id_fkey" FOREIGN KEY ("scan_tool_step_id") REFERENCES "public"."scan_tool_step" ("id")
 
+);
+
+CREATE SEQUENCE IF NOT EXISTS id_registry_index_mapping;
+
+CREATE TABLE public.registry_index_mapping
+(
+    "id"                           integer NOT NULL DEFAULT nextval('id_registry_index_mapping'::regclass),
+    "scan_tool_id"      integer,
+    "registry_type"                   varchar(20),
+    "starting_index"   integer,
+    PRIMARY KEY ("id"),
+    CONSTRAINT "registry_index_mapping_id_fkey" FOREIGN KEY ("scan_tool_id") REFERENCES "public"."scan_tool_metadata" ("id")
 );
 
 ALTER TABLE public.image_scan_execution_history

@@ -9,4 +9,5 @@ DROP TABLE scan_step_condition_mapping,
     scan_tool_step,
     scan_step_condition,
     scan_tool_execution_history_mapping,
-    scan_tool_metadata;
+    scan_tool_metadata,
+    registry_index_mapping;
