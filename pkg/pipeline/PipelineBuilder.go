@@ -2960,7 +2960,7 @@ func (impl PipelineBuilderImpl) FetchConfigmapSecretsForCdStages(appId, envId, c
 	return existingConfigMapSecrets, nil
 }
 
-func (impl PipelineBuilderImpl) overrideArtifactsWithUserApprovalData(pipeline *pipelineConfig.Pipeline, inputArtifacts []bean.CiArtifactBean, isApprovalNode bool) ([]bean.CiArtifactBean, pipelineConfig.UserApprovalConfig, error) {
+func (impl PipelineBuilderImpl) overrideArtifactsWithUserApprovalData(pipeline *pipelineConfig.Pipeline, inputArtifacts []bean.CiArtifactBean, isApprovalNode bool, latestArtifactId int) ([]bean.CiArtifactBean, pipelineConfig.UserApprovalConfig, error) {
 	impl.logger.Infow("approval node configured", "pipelineId", pipeline.Id, "isApproval", isApprovalNode)
 	ciArtifactsFinal := make([]bean.CiArtifactBean, 0, len(inputArtifacts))
 	artifactIds := make([]int, 0, len(inputArtifacts))
@@ -2996,7 +2996,7 @@ func (impl PipelineBuilderImpl) overrideArtifactsWithUserApprovalData(pipeline *
 		if isApprovalNode { // return all the artifacts with state in init, requested or consumed
 			allowed = approvalRuntimeState == pipelineConfig.InitApprovalState || approvalRuntimeState == pipelineConfig.RequestedApprovalState || approvalRuntimeState == pipelineConfig.ConsumedApprovalState
 		} else { // return only approved state artifacts
-			allowed = approvalRuntimeState == pipelineConfig.ApprovedApprovalState || artifact.Latest
+			allowed = approvalRuntimeState == pipelineConfig.ApprovedApprovalState || artifact.Latest || artifact.Id == latestArtifactId
 		}
 		if allowed {
 			ciArtifactsFinal = append(ciArtifactsFinal, artifact)
@@ -3141,7 +3141,7 @@ func (impl PipelineBuilderImpl) RetrieveArtifactsByCDPipeline(pipeline *pipeline
 	ciArtifactsResponse.CiArtifacts = ciArtifacts
 
 	if pipeline.ApprovalNodeConfigured() && stage == bean2.CD_WORKFLOW_TYPE_DEPLOY { // for now, we are checking artifacts for deploy stage only
-		ciArtifactsFinal, approvalConfig, err := impl.overrideArtifactsWithUserApprovalData(pipeline, ciArtifactsResponse.CiArtifacts, isApprovalNode)
+		ciArtifactsFinal, approvalConfig, err := impl.overrideArtifactsWithUserApprovalData(pipeline, ciArtifactsResponse.CiArtifacts, isApprovalNode, latestWfArtifactId)
 		if err != nil {
 			return ciArtifactsResponse, err
 		}
@@ -3319,7 +3319,7 @@ func (impl PipelineBuilderImpl) FetchArtifactForRollback(cdPipelineId, offset, l
 		deployedCiArtifacts = []bean.CiArtifactBean{}
 	}
 	if pipeline != nil && pipeline.ApprovalNodeConfigured() {
-		deployedCiArtifacts, _, err = impl.overrideArtifactsWithUserApprovalData(pipeline, deployedCiArtifacts, false)
+		deployedCiArtifacts, _, err = impl.overrideArtifactsWithUserApprovalData(pipeline, deployedCiArtifacts, false, 0)
 		if err != nil {
 			return deployedCiArtifactsResponse, err
 		}
