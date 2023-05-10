@@ -415,10 +415,11 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 			return err
 		}
 	}
+	cdWorkflowExecutorType := impl.cdConfig.CdWorkflowExecutorType
 	runner := &pipelineConfig.CdWorkflowRunner{
 		Name:               pipeline.Name,
 		WorkflowType:       bean.CD_WORKFLOW_TYPE_PRE,
-		ExecutorType:       pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
+		ExecutorType:       cdWorkflowExecutorType,
 		Status:             pipelineConfig.WorkflowStarting, //starting
 		TriggeredBy:        triggeredBy,
 		StartedOn:          triggeredAt,
@@ -507,7 +508,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 	runner := &pipelineConfig.CdWorkflowRunner{
 		Name:               pipeline.Name,
 		WorkflowType:       bean.CD_WORKFLOW_TYPE_POST,
-		ExecutorType:       pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
+		ExecutorType:       impl.cdConfig.CdWorkflowExecutorType,
 		Status:             pipelineConfig.WorkflowStarting,
 		TriggeredBy:        triggeredBy,
 		StartedOn:          triggeredAt,
@@ -583,10 +584,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		return nil, err
 	}
 
-	workflowExecutor := pipelineConfig.ArgoWorkflowExecutor //TODO KB: extract from cd config
-	if cdWorkflowConfig.WorkflowExecutor != nil {
-		workflowExecutor = *cdWorkflowConfig.WorkflowExecutor
-	}
+	workflowExecutor := runner.ExecutorType
 
 	artifact, err := impl.ciArtifactRepository.Get(cdWf.CiArtifactId)
 	if err != nil {

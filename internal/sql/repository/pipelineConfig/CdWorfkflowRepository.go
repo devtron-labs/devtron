@@ -75,12 +75,6 @@ type CdWorkflowRepositoryImpl struct {
 	logger       *zap.SugaredLogger
 }
 
-type WorkflowExecutor int
-
-const (
-	ArgoWorkflowExecutor WorkflowExecutor = iota
-)
-
 type WorkflowStatus int
 
 const (
@@ -121,25 +115,24 @@ type CdWorkflow struct {
 }
 
 type CdWorkflowConfig struct {
-	tableName                struct{}          `sql:"cd_workflow_config" pg:",discard_unknown_columns"`
-	Id                       int               `sql:"id,pk"`
-	CdTimeout                int64             `sql:"cd_timeout"`
-	MinCpu                   string            `sql:"min_cpu"`
-	MaxCpu                   string            `sql:"max_cpu"`
-	MinMem                   string            `sql:"min_mem"`
-	MaxMem                   string            `sql:"max_mem"`
-	MinStorage               string            `sql:"min_storage"`
-	MaxStorage               string            `sql:"max_storage"`
-	MinEphStorage            string            `sql:"min_eph_storage"`
-	MaxEphStorage            string            `sql:"max_eph_storage"`
-	CdCacheBucket            string            `sql:"cd_cache_bucket"`
-	CdCacheRegion            string            `sql:"cd_cache_region"`
-	CdImage                  string            `sql:"cd_image"`
-	Namespace                string            `sql:"wf_namespace"`
-	CdPipelineId             int               `sql:"cd_pipeline_id"`
-	LogsBucket               string            `sql:"logs_bucket"`
-	CdArtifactLocationFormat string            `sql:"cd_artifact_location_format"`
-	WorkflowExecutor         *WorkflowExecutor `sql:"workflow_executor"`
+	tableName                struct{} `sql:"cd_workflow_config" pg:",discard_unknown_columns"`
+	Id                       int      `sql:"id,pk"`
+	CdTimeout                int64    `sql:"cd_timeout"`
+	MinCpu                   string   `sql:"min_cpu"`
+	MaxCpu                   string   `sql:"max_cpu"`
+	MinMem                   string   `sql:"min_mem"`
+	MaxMem                   string   `sql:"max_mem"`
+	MinStorage               string   `sql:"min_storage"`
+	MaxStorage               string   `sql:"max_storage"`
+	MinEphStorage            string   `sql:"min_eph_storage"`
+	MaxEphStorage            string   `sql:"max_eph_storage"`
+	CdCacheBucket            string   `sql:"cd_cache_bucket"`
+	CdCacheRegion            string   `sql:"cd_cache_region"`
+	CdImage                  string   `sql:"cd_image"`
+	Namespace                string   `sql:"wf_namespace"`
+	CdPipelineId             int      `sql:"cd_pipeline_id"`
+	LogsBucket               string   `sql:"logs_bucket"`
+	CdArtifactLocationFormat string   `sql:"cd_artifact_location_format"`
 }
 
 type WorkflowExecutorType string
