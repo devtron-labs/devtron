@@ -280,6 +280,7 @@ func (impl *K8sApplicationServiceImpl) ValidateTerminalRequestQuery(r *http.Requ
 			return nil, nil, err
 		}
 		resourceRequestBean.ClusterId = clsuterId
+		request.ClusterId = clsuterId
 		k8sRequest := &application.K8sRequestBean{
 			ResourceIdentifier: application.ResourceIdentifier{
 				Name:      request.PodName,
