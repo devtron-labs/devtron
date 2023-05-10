@@ -312,9 +312,9 @@ func (impl *WebhookServiceImpl) WriteCIStepFailedEvent(pipeline *pipelineConfig.
 	material := &client.MaterialTriggerInfo{}
 	material.GitTriggers = ciWorkflow.GitTriggers
 	event.CiWorkflowRunnerId = ciWorkflow.Id
+	event.UserId = int(ciWorkflow.TriggeredBy)
 	event = impl.eventFactory.BuildExtraCIData(event, material, request.Image)
 	event.CiArtifactId = 0
-	event.UserId = int(ciWorkflow.TriggeredBy)
 	event.Payload.FailedStepName = request.FailedStepName
 	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
 	if evtErr != nil {

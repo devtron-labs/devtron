@@ -830,9 +830,9 @@ func (impl *CiHandlerImpl) WriteCIFailEvent(ciWorkflow *pipelineConfig.CiWorkflo
 	material := &client.MaterialTriggerInfo{}
 	material.GitTriggers = ciWorkflow.GitTriggers
 	event.CiWorkflowRunnerId = ciWorkflow.Id
+	event.UserId = int(ciWorkflow.TriggeredBy)
 	event = impl.eventFactory.BuildExtraCIData(event, material, ciImage)
 	event.CiArtifactId = 0
-	event.UserId = int(ciWorkflow.TriggeredBy)
 	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
 	if evtErr != nil {
 		impl.Logger.Errorw("error in writing event", "err", evtErr)
