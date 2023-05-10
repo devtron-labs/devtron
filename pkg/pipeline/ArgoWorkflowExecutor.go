@@ -21,7 +21,7 @@ const (
 )
 
 type WorkflowExecutor interface {
-	ExecuteWorkflow(workflowTemplate bean.WorkflowTemplate) (*v1alpha1.Workflow, error)
+	ExecuteWorkflow(workflowTemplate bean.WorkflowTemplate) error
 }
 
 type ArgoWorkflowExecutor interface {
@@ -36,14 +36,14 @@ func NewArgoWorkflowExecutorImpl(logger *zap.SugaredLogger) *ArgoWorkflowExecuto
 	return &ArgoWorkflowExecutorImpl{logger: logger}
 }
 
-func (impl *ArgoWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.WorkflowTemplate) (*v1alpha1.Workflow, error) {
+func (impl *ArgoWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.WorkflowTemplate) error {
 
 	entryPoint := CD_WORKFLOW_NAME
 	// get cm and cs argo step templates
 	templates, err := impl.getArgoTemplates(workflowTemplate.ConfigMaps, workflowTemplate.Secrets)
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching argo templates and steps", "err", err)
-		return nil, err
+		return err
 	}
 	if len(templates) > 0 {
 		entryPoint = CD_WORKFLOW_WITH_STAGES
@@ -93,16 +93,16 @@ func (impl *ArgoWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.Work
 	wfClient, err := impl.getClientInstance(workflowTemplate.Namespace, workflowTemplate.ClusterConfig)
 	if err != nil {
 		impl.logger.Errorw("cannot build wf client", "err", err)
-		return nil, err
+		return err
 	}
 
 	createdWf, err := wfClient.Create(context.Background(), &cdWorkflow, v1.CreateOptions{})
 	if err != nil {
 		impl.logger.Errorw("error in wf trigger", "err", err)
-		return nil, err
+		return err
 	}
 	impl.logger.Debugw("workflow submitted: ", "name", createdWf.Name)
-	return createdWf, nil
+	return nil
 }
 
 func (impl *ArgoWorkflowExecutorImpl) getArgoTemplates(configMaps []bean2.ConfigSecretMap, secrets []bean2.ConfigSecretMap) ([]v1alpha1.Template, error) {
