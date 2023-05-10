@@ -894,20 +894,23 @@ func (impl AppStoreDeploymentServiceImpl) linkHelmApplicationToChartStore(instal
 
 	// STEP-2 update APP with chart info
 	chartRepoInfo := appStoreAppVersion.AppStore.ChartRepo
-	updateReleaseRequest := &client.InstallReleaseRequest{
-		ValuesYaml:   installAppVersionRequest.ValuesOverrideYaml,
-		ChartName:    appStoreAppVersion.Name,
-		ChartVersion: appStoreAppVersion.Version,
-		ReleaseIdentifier: &client.ReleaseIdentifier{
-			ReleaseNamespace: installAppVersionRequest.Namespace,
-			ReleaseName:      installAppVersionRequest.AppName,
+	updateReleaseRequest := &client.UpdateApplicationWithChartInfoRequestDto{
+		InstallReleaseRequest: &client.InstallReleaseRequest{
+			ValuesYaml:   installAppVersionRequest.ValuesOverrideYaml,
+			ChartName:    appStoreAppVersion.Name,
+			ChartVersion: appStoreAppVersion.Version,
+			ReleaseIdentifier: &client.ReleaseIdentifier{
+				ReleaseNamespace: installAppVersionRequest.Namespace,
+				ReleaseName:      installAppVersionRequest.AppName,
+			},
+			ChartRepository: &client.ChartRepository{
+				Name:     chartRepoInfo.Name,
+				Url:      chartRepoInfo.Url,
+				Username: chartRepoInfo.UserName,
+				Password: chartRepoInfo.Password,
+			},
 		},
-		ChartRepository: &client.ChartRepository{
-			Name:     chartRepoInfo.Name,
-			Url:      chartRepoInfo.Url,
-			Username: chartRepoInfo.UserName,
-			Password: chartRepoInfo.Password,
-		},
+		SourceAppType: client.SOURCE_HELM_APP,
 	}
 	res, err := impl.helmAppService.UpdateApplicationWithChartInfo(ctx, installAppVersionRequest.ClusterId, updateReleaseRequest)
 	if err != nil {
