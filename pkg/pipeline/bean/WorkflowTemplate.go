@@ -7,7 +7,8 @@ import (
 )
 
 type WorkflowTemplate struct {
-	WorkflowId int
+	WorkflowId       int
+	WorkflowRunnerId int
 	v1.PodSpec
 	ConfigMaps             []bean.ConfigSecretMap
 	Secrets                []bean.ConfigSecretMap
@@ -18,5 +19,4 @@ type WorkflowTemplate struct {
 	ClusterConfig          *rest.Config
 	Namespace              string
 	ArchiveLogs            bool
-	//IsExt                  bool
 }
