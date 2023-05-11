@@ -141,7 +141,7 @@ func (impl CiTemplateServiceImpl) extractBuildConfigBean(templateOverride *pipel
 		return nil, err
 	}
 	if ciBuildConfigBean == nil {
-		ciBuildConfigBean, err = bean.OverrideCiBuildConfig(templateOverride.DockerfilePath, "", "", "", "", ".", nil)
+		ciBuildConfigBean, err = bean.OverrideCiBuildConfig(templateOverride.DockerfilePath, "", "", "", "", "", nil)
 		if err != nil {
 			impl.Logger.Errorw("error occurred while parsing ci build config", "err", err)
 		}
