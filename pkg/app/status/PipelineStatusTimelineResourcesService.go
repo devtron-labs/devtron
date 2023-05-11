@@ -1,4 +1,4 @@
-package app
+package status
 
 import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -11,8 +11,9 @@ import (
 )
 
 type PipelineStatusTimelineResourcesService interface {
-	SaveOrUpdateCdPipelineTimelineResources(cdWfrId int, application *v1alpha1.Application, tx *pg.Tx, userId int32) error
+	SaveOrUpdatePipelineTimelineResources(pipelineId int, application *v1alpha1.Application, tx *pg.Tx, userId int32, isAppStore bool) error
 	GetTimelineResourcesForATimeline(cdWfrIds []int) (map[int][]*SyncStageResourceDetailDto, error)
+	GetTimelineResourcesForATimelineForAppStore(installedAppVersionHistoryId int) ([]*SyncStageResourceDetailDto, error)
 }
 
 type PipelineStatusTimelineResourcesServiceImpl struct {
@@ -43,13 +44,25 @@ type SyncStageResourceDetailDto struct {
 	TimelineStage                pipelineConfig.ResourceTimelineStage `json:"timelineStage,omitempty"`
 }
 
-func (impl *PipelineStatusTimelineResourcesServiceImpl) SaveOrUpdateCdPipelineTimelineResources(cdWfrId int, application *v1alpha1.Application, tx *pg.Tx, userId int32) error {
-	//getting all timeline resources by cdWfrId
-	timelineResources, err := impl.pipelineStatusTimelineResourcesRepository.GetByCdWfrIdAndTimelineStage(cdWfrId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in getting timelineResources", "err", err)
-		return err
+func (impl *PipelineStatusTimelineResourcesServiceImpl) SaveOrUpdatePipelineTimelineResources(pipelineId int, application *v1alpha1.Application, tx *pg.Tx, userId int32, isAppStore bool) error {
+	var err error
+	var timelineResources []*pipelineConfig.PipelineStatusTimelineResources
+	if isAppStore {
+		//getting all timeline resources by installedAppVersionHistoryId
+		timelineResources, err = impl.pipelineStatusTimelineResourcesRepository.GetByInstalledAppVersionHistoryIdAndTimelineStage(pipelineId)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in getting timelineResources for installedAppVersionHistoryId", "err", err, "installedAppVersionHistoryId", pipelineId)
+			return err
+		}
+	} else {
+		//getting all timeline resources by cdWfrId
+		timelineResources, err = impl.pipelineStatusTimelineResourcesRepository.GetByCdWfrIdAndTimelineStage(pipelineId)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in getting timelineResources for wfrId", "err", err, "wfrId", pipelineId)
+			return err
+		}
 	}
+
 	//map of resourceName and its index
 	oldTimelineResourceMap := make(map[string]int)
 
@@ -71,18 +84,22 @@ func (impl *PipelineStatusTimelineResourcesServiceImpl) SaveOrUpdateCdPipelineTi
 					timelineResourcesToBeUpdated = append(timelineResourcesToBeUpdated, timelineResources[index])
 				} else {
 					newTimelineResource := &pipelineConfig.PipelineStatusTimelineResources{
-						CdWorkflowRunnerId: cdWfrId,
-						ResourceName:       resource.Name,
-						ResourceKind:       resource.Kind,
-						ResourceGroup:      resource.Group,
-						ResourceStatus:     string(resource.HookPhase),
-						StatusMessage:      resource.Message,
+						ResourceName:   resource.Name,
+						ResourceKind:   resource.Kind,
+						ResourceGroup:  resource.Group,
+						ResourceStatus: string(resource.HookPhase),
+						StatusMessage:  resource.Message,
 						AuditLog: sql.AuditLog{
 							CreatedBy: userId,
 							CreatedOn: time.Now(),
 							UpdatedBy: userId,
 							UpdatedOn: time.Now(),
 						},
+					}
+					if isAppStore {
+						newTimelineResource.InstalledAppVersionHistoryId = pipelineId
+					} else {
+						newTimelineResource.CdWorkflowRunnerId = pipelineId
 					}
 					if resource.HookType != "" {
 						newTimelineResource.ResourcePhase = string(resource.HookType)
@@ -151,4 +168,27 @@ func (impl *PipelineStatusTimelineResourcesServiceImpl) GetTimelineResourcesForA
 		timelineResourcesMap[timelineResource.CdWorkflowRunnerId] = append(timelineResourcesMap[timelineResource.CdWorkflowRunnerId], dto)
 	}
 	return timelineResourcesMap, nil
+}
+
+func (impl *PipelineStatusTimelineResourcesServiceImpl) GetTimelineResourcesForATimelineForAppStore(installedAppVersionHistoryId int) ([]*SyncStageResourceDetailDto, error) {
+	timelineResources, err := impl.pipelineStatusTimelineResourcesRepository.GetByInstalledAppVersionHistoryIdAndTimelineStage(installedAppVersionHistoryId)
+	if err != nil {
+		impl.logger.Errorw("error in getting timeline resources", "err", err, "installedAppVersionHistoryId", installedAppVersionHistoryId)
+		return nil, err
+	}
+	var timelineResourcesDtos []*SyncStageResourceDetailDto
+	for _, timelineResource := range timelineResources {
+		dto := &SyncStageResourceDetailDto{
+			Id:                           timelineResource.Id,
+			InstalledAppVersionHistoryId: timelineResource.InstalledAppVersionHistoryId,
+			ResourceKind:                 timelineResource.ResourceKind,
+			ResourceName:                 timelineResource.ResourceName,
+			ResourceGroup:                timelineResource.ResourceGroup,
+			ResourceStatus:               timelineResource.ResourceStatus,
+			ResourcePhase:                timelineResource.ResourcePhase,
+			StatusMessage:                timelineResource.StatusMessage,
+		}
+		timelineResourcesDtos = append(timelineResourcesDtos, dto)
+	}
+	return timelineResourcesDtos, nil
 }
