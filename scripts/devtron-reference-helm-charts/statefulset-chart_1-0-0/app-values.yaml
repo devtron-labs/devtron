@@ -41,7 +41,13 @@ statefulSetConfig:
   #serviceName: "test-service_headless"
   #revisionHistoryLimit: 3
   mountPath: ""
-  
+  volumeClaimTemplates:
+  - spec:
+      accessModes:
+        - ReadWriteOnce
+      resources: 
+        requests:
+          storage: "2Gi"
 service:
   type: ClusterIP
   enabled: false
