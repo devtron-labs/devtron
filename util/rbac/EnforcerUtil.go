@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"strings"
 )
@@ -58,6 +59,7 @@ type EnforcerUtil interface {
 	GetAppAndEnvObjectByPipeline(cdPipelines []*bean.CDPipelineConfigObject) map[int][]string
 	GetAppAndEnvObjectByDbPipeline(cdPipelines []*pipelineConfig.Pipeline) map[int][]string
 	GetRbacObjectsByAppIds(appIds []int) map[int]string
+	GetAllActiveTeamNames() ([]string, error)
 }
 
 type EnforcerUtilImpl struct {
@@ -556,4 +558,16 @@ func (impl EnforcerUtilImpl) GetAppAndEnvObjectByDbPipeline(cdPipelines []*pipel
 		}
 	}
 	return objects
+}
+
+func (impl EnforcerUtilImpl) GetAllActiveTeamNames() ([]string, error) {
+	teamNames, err := impl.teamRepository.FindAllActiveTeamNames()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching active team names", "err", err)
+		return nil, err
+	}
+	for i, teamName := range teamNames {
+		teamNames[i] = strings.ToLower(teamName)
+	}
+	return teamNames, nil
 }
