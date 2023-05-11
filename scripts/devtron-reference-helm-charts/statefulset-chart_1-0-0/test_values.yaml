@@ -52,7 +52,7 @@ ContainerPort:
     servicePort: 8080
     useGRPC: true
     servicemonitor:
-      enabled: false
+      enabled: true
   - name: app2
     port: 8091
     servicePort: 8081

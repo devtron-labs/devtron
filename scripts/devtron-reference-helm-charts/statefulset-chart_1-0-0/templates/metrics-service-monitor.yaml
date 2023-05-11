@@ -1,4 +1,4 @@
-{{-  if eq $.Values.appMetrics  true }}
+{{- if $.Values.appMetrics -}}
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
