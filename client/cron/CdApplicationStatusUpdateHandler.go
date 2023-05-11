@@ -158,7 +158,9 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) Subscribe() error {
 
 func (impl *CdApplicationStatusUpdateHandlerImpl) HelmApplicationStatusUpdate() {
 	cronProcessStartTime := time.Now()
-	defer middleware.DeploymentStatusCronDuration.WithLabelValues(pipeline.DEVTRON_APP_HELM_PIPELINE_STATUS_UPDATE_CRON).Observe(time.Since(cronProcessStartTime).Seconds())
+	defer func() {
+		middleware.DeploymentStatusCronDuration.WithLabelValues(pipeline.DEVTRON_APP_HELM_PIPELINE_STATUS_UPDATE_CRON).Observe(time.Since(cronProcessStartTime).Seconds())
+	}()
 	HelmPipelineStatusCheckEligibleTime, err := strconv.Atoi(impl.AppStatusConfig.HelmPipelineStatusCheckEligibleTime)
 	if err != nil {
 		impl.logger.Errorw("error in converting string to int", "err", err)
@@ -174,10 +176,13 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) HelmApplicationStatusUpdate() 
 
 func (impl *CdApplicationStatusUpdateHandlerImpl) ArgoApplicationStatusUpdate() {
 	cronProcessStartTime := time.Now()
-	defer middleware.DeploymentStatusCronDuration.WithLabelValues(pipeline.DEVTRON_APP_HELM_PIPELINE_STATUS_UPDATE_CRON).Observe(time.Since(cronProcessStartTime).Seconds())
+	defer func() {
+		middleware.DeploymentStatusCronDuration.WithLabelValues(pipeline.DEVTRON_APP_HELM_PIPELINE_STATUS_UPDATE_CRON).Observe(time.Since(cronProcessStartTime).Seconds())
+	}()
 	//TODO: remove below cron with division of cron for argo pipelines of devtron-apps and helm-apps
-	defer middleware.DeploymentStatusCronDuration.WithLabelValues(pipeline.HELM_APP_ARGO_PIPELINE_STATUS_UPDATE_CRON).Observe(time.Since(cronProcessStartTime).Seconds())
-
+	defer func() {
+		middleware.DeploymentStatusCronDuration.WithLabelValues(pipeline.HELM_APP_ARGO_PIPELINE_STATUS_UPDATE_CRON).Observe(time.Since(cronProcessStartTime).Seconds())
+	}()
 	getPipelineDeployedBeforeMinutes, err := strconv.Atoi(impl.AppStatusConfig.PipelineDegradedTime)
 	if err != nil {
 		impl.logger.Errorw("error in converting string to int", "err", err)
