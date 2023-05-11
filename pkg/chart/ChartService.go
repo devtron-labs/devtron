@@ -872,11 +872,13 @@ func (impl ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateRequ
 	if err != nil {
 		return nil, err
 	}
+
+	appMetrics := templateRequest.IsAppMetricsEnabled
 	isAppMetricsSupported, err := impl.CheckIsAppMetricsSupported(templateRequest.ChartRefId)
 	if err != nil {
 		return nil, err
 	}
-	if !(isAppMetricsSupported) {
+	if appMetrics && !(isAppMetricsSupported) {
 		appMetricRequest := AppMetricEnableDisableRequest{UserId: templateRequest.UserId, AppId: templateRequest.AppId, IsAppMetricsEnabled: false}
 		_, span = otel.Tracer("orchestrator").Start(ctx, "updateAppLevelMetrics")
 		_, err = impl.updateAppLevelMetrics(&appMetricRequest)
