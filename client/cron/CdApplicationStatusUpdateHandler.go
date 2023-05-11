@@ -177,7 +177,7 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) HelmApplicationStatusUpdate() 
 func (impl *CdApplicationStatusUpdateHandlerImpl) ArgoApplicationStatusUpdate() {
 	cronProcessStartTime := time.Now()
 	defer func() {
-		middleware.DeploymentStatusCronDuration.WithLabelValues(pipeline.DEVTRON_APP_HELM_PIPELINE_STATUS_UPDATE_CRON).Observe(time.Since(cronProcessStartTime).Seconds())
+		middleware.DeploymentStatusCronDuration.WithLabelValues(pipeline.DEVTRON_APP_ARGO_PIPELINE_STATUS_UPDATE_CRON).Observe(time.Since(cronProcessStartTime).Seconds())
 	}()
 	//TODO: remove below cron with division of cron for argo pipelines of devtron-apps and helm-apps
 	defer func() {
