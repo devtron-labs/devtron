@@ -78,6 +78,7 @@ func (handler SsoLoginRestHandlerImpl) CreateSSOLoginConfig(w http.ResponseWrite
 	}
 
 	handler.logger.Infow("request payload, CreateSSOLoginConfig", "payload", dto)
+	dto.UserId = userId
 	resp, err := handler.ssoLoginService.CreateSSOLogin(&dto)
 	if err != nil {
 		handler.logger.Errorw("service err, CreateSSOLoginConfig", "err", err, "payload", dto)
@@ -110,6 +111,7 @@ func (handler SsoLoginRestHandlerImpl) UpdateSSOLoginConfig(w http.ResponseWrite
 	}
 
 	handler.logger.Infow("request payload, UpdateSSOLoginConfig", "payload", dto)
+	dto.UserId = userId
 	resp, err := handler.ssoLoginService.UpdateSSOLogin(&dto)
 	if err != nil {
 		handler.logger.Errorw("service err, UpdateSSOLoginConfig", "err", err, "payload", dto)
