@@ -46,7 +46,7 @@ type CiArtifactWebhookRequest struct {
 	WorkflowId         *int            `json:"workflowId"`
 	UserId             int32           `json:"userId"`
 	IsArtifactUploaded bool            `json:"isArtifactUploaded"`
-	FailedStepName     string          `json:"failedStepName"`
+	FailureReason      string          `json:"failureReason"`
 }
 
 type WebhookService interface {
@@ -121,17 +121,17 @@ func (impl WebhookServiceImpl) HandleCiStepFailedEvent(ciPipelineId int, request
 
 	savedWorkflow, err := impl.ciWorkflowRepository.FindById(*request.WorkflowId)
 	if err != nil {
-		impl.logger.Errorw("cannot get saved wf", "err", err)
+		impl.logger.Errorw("cannot get saved wf", "wf ID: ", *request.WorkflowId, "err", err)
 		return err
 	}
 
 	pipeline, err := impl.ciPipelineRepository.FindByCiAndAppDetailsById(ciPipelineId)
 	if err != nil {
-		impl.logger.Errorw("unable to find pipeline", "name", request.PipelineName, "err", err)
+		impl.logger.Errorw("unable to find pipeline", "ID", ciPipelineId, "err", err)
 		return err
 	}
 
-	impl.WriteCIStepFailedEvent(pipeline, request, savedWorkflow)
+	go impl.WriteCIStepFailedEvent(pipeline, request, savedWorkflow)
 	return nil
 }
 
@@ -315,7 +315,7 @@ func (impl *WebhookServiceImpl) WriteCIStepFailedEvent(pipeline *pipelineConfig.
 	event.UserId = int(ciWorkflow.TriggeredBy)
 	event = impl.eventFactory.BuildExtraCIData(event, material, request.Image)
 	event.CiArtifactId = 0
-	event.Payload.FailedStepName = request.FailedStepName
+	event.Payload.FailureReason = request.FailureReason
 	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
 	if evtErr != nil {
 		impl.logger.Errorw("error in writing event", "err", evtErr)

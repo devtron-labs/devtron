@@ -65,7 +65,7 @@ type CiCompleteEvent struct {
 	Metrics            util.CIMetrics              `json:"metrics"`
 	AppName            string                      `json:"appName"`
 	IsArtifactUploaded bool                        `json:"isArtifactUploaded"`
-	FailedStepName     string                      `json:"failedStepName"`
+	FailureReason      string                      `json:"failureReason"`
 }
 
 func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClientServiceImpl, webhookService pipeline.WebhookService, ciEventConfig *CiEventConfig) *CiEventHandlerImpl {
@@ -99,11 +99,11 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 			return
 		}
 
-		if ciCompleteEvent.FailedStepName != "" {
-			req.FailedStepName = ciCompleteEvent.FailedStepName
+		if ciCompleteEvent.FailureReason != "" {
+			req.FailureReason = ciCompleteEvent.FailureReason
 			err := impl.webhookService.HandleCiStepFailedEvent(ciCompleteEvent.PipelineId, req)
 			if err != nil {
-				impl.logger.Error(err)
+				impl.logger.Error("Error while sending event for CI failure", "error: ", err)
 				return
 			}
 		} else {
