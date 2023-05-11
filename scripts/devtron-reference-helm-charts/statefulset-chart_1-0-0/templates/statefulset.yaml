@@ -398,11 +398,17 @@ spec:
           resources:
 {{ toYaml $.Values.resources | trim | indent 12 }} 
           volumeMounts:
-            {{- if $.Values.statefulSetConfig.mountPath }}
             {{- with (index $.Values.statefulSetConfig.volumeClaimTemplates 0) }}
-            - name: {{  .metadata.name  | default  $.Release.Name }}
+            {{- if and .metadata .metadata.name }}
+            - name: {{ .metadata.name }}
+            {{- else }}
+            - name: {{ $.Release.Name }}
             {{- end}}
-              mountPath: {{ $.Values.statefulSetConfig.mountPath | default "/" }}
+            {{- end}}
+            {{- if  .Values.statefulSetConfig.mountPath }}
+              mountPath: {{ $.Values.statefulSetConfig.mountPath  }}
+            {{- else}}
+              mountPath: /
             {{- end}}
 {{- with .Values.volumeMounts }}
 {{ toYaml . | trim | indent 12 }}
@@ -447,7 +453,7 @@ spec:
           {{- end }}
           {{- end }}
           {{- if and (eq (len .Values.volumes) 0) (or (eq (.Values.ConfigSecrets.enabled) true) (eq (.Values.ConfigMaps.enabled) true)) (eq ($hasCMVolumeExists) false) (eq ($hasSecretVolumeExists) false) }} []{{- end }}
-          {{- if and (eq (len .Values.volumeMounts) 0) (eq (.Values.ConfigSecrets.enabled) false) (eq (.Values.ConfigMaps.enabled) false) }} [] {{- end }}
+          {{- if and (eq (len .Values.volumeMounts) 0) (eq (len .Values.statefulSetConfig.volumeClaimTemplates) -1) (eq (.Values.ConfigSecrets.enabled) false) (eq (.Values.ConfigMaps.enabled) false) }} [] {{- end }}
       volumes:
   {{- if $.Values.appMetrics }}
         - name: envoy-config-volume
@@ -503,18 +509,18 @@ spec:
       kind: {{.kind}}
       {{- end}}
       metadata:
-          {{- if .metadata.annotations }}
+          {{- if and .metadata .metadata.annotations }}
           annotations: {{ toYaml .metadata.annotations | nindent 14 }}
           {{- end}}
-          {{- if .metadata.labels }}
+          {{- if and .metadata .metadata.labels }}
           labels: {{ toYaml .metadata.labels | nindent 14 }}
           {{- end}}
-          {{- if .metadata.name }}
+          {{- if and .metadata .metadata.name }}
           name: {{ .metadata.name }}
           {{- else }}
           name: {{ $.Release.Name }}
           {{- end}}
-          {{- if .metadata.namespace }}
+          {{- if  and .metadata .metadata.namespace }}
           namespace: {{  .metadata.namespace  }}
           {{- end}}
       spec:
@@ -522,7 +528,7 @@ spec:
         {{- range .spec.accessModes }}
             - {{ . }}
         {{- end }}
-         {{- if .spec.dataSource }}
+        {{- if .spec.dataSource }}
         dataSource:
             apiGroup: {{ .spec.dataSource.apiGroup}}
             kind:  {{ .spec.dataSource.kind}}
@@ -540,7 +546,6 @@ spec:
         {{- if .spec.storageClassName }}
         storageClassName: {{ .spec.storageClassName }}
         {{- end}}
-        {{- if .spec.resources }}
         resources:
          {{- if .spec.resources.claim }}
             claims:
@@ -550,16 +555,15 @@ spec:
             limits: {{ toYaml .spec.resources.limits | nindent 14 }}
             {{- end}}
             requests:
-              storage: {{ .spec.resources.requests.storage }}
-        {{- end }}
+              storage: {{ .spec.resources.requests.storage |default "2Gi" }}
         {{- if .volumeMode }}
         volumeMode: {{ .volumeMode}}
         {{- end}}
         {{- if .volumeName }}
         volumeName: {{ .volumeName}}
         {{- end}}
-    {{- end }}   
-    {{- end }}
+      {{- end }}   
+  {{- end }}
     {{- if eq .Values.deploymentType "ROLLINGUPDATE" }}  
   updateStrategy: 
       type: RollingUpdate
@@ -571,4 +575,6 @@ spec:
   updateStrategy:
       type: OnDelete
       {{- end }}
+  {{- if.Values.statefulSetConfig.revisionHistoryLimit }}
   revisionHistoryLimit: {{ .Values.statefulSetConfig.revisionHistoryLimit }}
+  {{- end }}

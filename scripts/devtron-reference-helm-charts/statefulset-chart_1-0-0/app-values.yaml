@@ -41,12 +41,7 @@ statefulSetConfig:
   #serviceName: "test-service_headless"
   #revisionHistoryLimit: 3
   mountPath: ""
-  volumeClaimTemplates:
-  - metadata: {}
-    spec:
-      accessModes: []
-      dataSource: {}
-      resources: {}
+  
 service:
   type: ClusterIP
   enabled: false

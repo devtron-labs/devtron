@@ -372,6 +372,8 @@ resources:
 volumeMounts: 
      - name: log-volume
        mountPath: /var/log
+     - name: pvc-logs
+       mountPath: /test
 volumes: 
      - name: log-volume
        emptyDir: {}

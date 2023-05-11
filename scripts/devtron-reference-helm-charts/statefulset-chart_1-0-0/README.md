@@ -68,9 +68,6 @@ statefulSetConfig:
   serviceName: "my-statefulset-service"
   podManagementPolicy: "Parallel"
   revisionHistoryLimit: 5
-  updateStrategy:
-    type: RollingUpdate
-    partition: 3
   mountPath: "/data"
   volumeClaimTemplates:
     - apiVersion: v1
@@ -119,6 +116,18 @@ statefulSetConfig:
       volumeMode: Block
       volumeName: my-pv
 
+```
+Mandatoryfields in statefulSetConfig is 
+```
+statefulSetConfig:
+  mountPath: "/"
+  volumeClaimTemplates:
+  - spec:
+      accessModes: 
+        - ReadWriteOnce
+      resources: 
+        requests:
+            storage: 2Gi
 ```
 Here is an explanation of each field in the statefulSetConfig :
 
