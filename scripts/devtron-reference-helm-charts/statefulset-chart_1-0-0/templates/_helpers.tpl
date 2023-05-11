@@ -140,7 +140,3 @@ Create chart name and version as used by the chart label.
     {{ default "default" .Values.serviceAccount.name }}
 {{- end -}}
 {{- end -}}
-
-{{- define "sts-volumename" -}}
-{{- randAlphaNum 5 | nospace -}}
-{{- end -}}
