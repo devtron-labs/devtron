@@ -481,7 +481,7 @@ metadata:
 With these configuration changes, the Devtron dashboard connection should no longer timeout after 30 seconds, allowing for a more stable and consistent connection.
 
 
-#### Refreshing ArgoCD Certificates When Expired
+#### 25. Refreshing ArgoCD Certificates When Expired
 
 1. **Edit ArgoCD Secret**
 
