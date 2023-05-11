@@ -111,7 +111,7 @@ func (impl ClusterRepositoryImpl) FindAll() ([]Cluster, error) {
 
 func (impl ClusterRepositoryImpl) FindActiveClusters() ([]Cluster, error) {
 	activeClusters := make([]Cluster, 0)
-	query := "select cluster_name, active from cluster where active = true"
+	query := "select id, cluster_name, active from cluster where active = true"
 	_, err := impl.dbConnection.Query(&activeClusters, query)
 	return activeClusters, err
 }

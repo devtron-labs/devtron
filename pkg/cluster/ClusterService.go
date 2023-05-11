@@ -1000,8 +1000,10 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 
 	clusterList, err := impl.clusterRepository.FindActiveClusters()
 	clusterListMap := make(map[string]bool)
+	clusterListMapWithId := make(map[string]int)
 	for _, c := range clusterList {
 		clusterListMap[c.ClusterName] = c.Active
+		clusterListMapWithId[c.ClusterName] = c.Id
 	}
 	if err != nil {
 		impl.logger.Errorw("service err, FindAll", "err", err)
@@ -1020,9 +1022,6 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 			clusterBeanObject.ErrorInConnecting = "cluster name missing in kubeconfig"
 			clusterBeanObject.ClusterName = "null"
 			clusterBeanObject.isClusterNameEmpty = true
-		} else if _, ok := clusterListMap[clusterName]; ok {
-			clusterBeanObject.ErrorInConnecting = "cluster already exists"
-			clusterBeanObject.ClusterName = clusterName
 		} else {
 			clusterBeanObject.ClusterName = clusterName
 		}
@@ -1091,7 +1090,7 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 		}
 		clusterBeanObject.UserName = userName
 		ValidateObjects[clusterBeanObject.ClusterName].UserInfos[userName] = &userInfo
-		if clusterBeanObject.ErrorInConnecting == "" {
+		if clusterBeanObject.ErrorInConnecting == "" || clusterBeanObject.ErrorInConnecting == "cluster already exists" {
 			clusterBeanObject.Config = Config
 			clusterBeansWithNoValidationErrors = append(clusterBeansWithNoValidationErrors, clusterBeanObject)
 		}
@@ -1103,6 +1102,10 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 	}
 
 	for _, clusterBeanObject := range clusterBeanObjects {
+		if _, ok := clusterListMap[clusterBeanObject.ClusterName]; ok && clusterBeanObject.ErrorInConnecting == "" {
+			clusterBeanObject.ErrorInConnecting = "cluster already exists"
+			clusterBeanObject.Id = clusterListMapWithId[clusterBeanObject.ClusterName]
+		}
 		if clusterBeanObject.ErrorInConnecting != "" {
 			ValidateObjects[clusterBeanObject.ClusterName].UserInfos[clusterBeanObject.UserName].ErrorInConnecting = clusterBeanObject.ErrorInConnecting
 		}

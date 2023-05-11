@@ -150,9 +150,16 @@ func (impl ClusterRestHandlerImpl) SaveClusters(w http.ResponseWriter, r *http.R
 	}
 
 	for _, bean := range beans {
-		_, err1 := impl.clusterService.Save(ctx, bean, userId)
-		if err1 != nil {
-			bean.ErrorInConnecting = err1.Error()
+		if bean.Id != 0 {
+			_, err1 := impl.clusterService.Update(ctx, bean, userId)
+			if err1 != nil {
+				bean.ErrorInConnecting = err1.Error()
+			}
+		} else {
+			_, err1 := impl.clusterService.Save(ctx, bean, userId)
+			if err1 != nil {
+				bean.ErrorInConnecting = err1.Error()
+			}
 		}
 	}
 
