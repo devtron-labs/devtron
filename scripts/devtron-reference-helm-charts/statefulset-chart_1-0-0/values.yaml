@@ -113,6 +113,7 @@ secret:
   enabled: false
 
 statefulSetConfig:
+  mountPath: "/tmp"
   volumeClaimTemplates:
   - spec:
       accessModes:
@@ -317,9 +318,9 @@ resources: {}
   # resources, such as Minikube. If you do want to specify resources, uncomment the following
   # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
 
-volumeMounts: 
-     - name: pvc-logs
-       mountPath: /tmp
+volumeMounts: []
+    #  - name: pvc-logs
+    #    mountPath: /test-tmp
 #     - name: log-volume
 #       mountPath: /var/log
 

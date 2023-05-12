@@ -120,7 +120,7 @@ statefulSetConfig:
 Mandatoryfields in statefulSetConfig is 
 ```
 statefulSetConfig:
-  mountPath: "/"
+  mountPath: /tmp
   volumeClaimTemplates:
   - spec:
       accessModes: 

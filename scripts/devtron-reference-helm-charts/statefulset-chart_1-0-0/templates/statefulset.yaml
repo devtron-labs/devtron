@@ -408,7 +408,7 @@ spec:
             {{- if  .Values.statefulSetConfig.mountPath }}
               mountPath: {{ $.Values.statefulSetConfig.mountPath  }}
             {{- else}}
-              mountPath: /
+              mountPath: "/tmp"
             {{- end}}
 {{- with .Values.volumeMounts }}
 {{ toYaml . | trim | indent 12 }}
