@@ -16,6 +16,7 @@
 - fix: bulk cd trigger argo app unauthorized err (#3290)
 - fix: api optimize fixes (#3275)
 ## Enhancements
+- feat: git material include exclude feature and partial commit search (#3343)
 - feat: added build-context support in ci build (#3329)
 - enhancement: made pipeline status crons cascading (#3372)
 - enhancement: made revision history limit configurable for helm upgrade (#3353)
