@@ -78,7 +78,7 @@ func (impl CiTemplateServiceImpl) FindByAppId(appId int) (ciTemplateBean *bean.C
 			ciBuildConfig, "error", err)
 	}
 	if ciBuildConfigBean == nil {
-		ciBuildConfigBean, err = bean.OverrideCiBuildConfig(ciTemplate.DockerfilePath, ciTemplate.Args, "", ciTemplate.DockerBuildOptions, ciTemplate.TargetPlatform, ciTemplate.BuildContext, nil)
+		ciBuildConfigBean, err = bean.OverrideCiBuildConfig(ciTemplate.DockerfilePath, ciTemplate.Args, "", ciTemplate.DockerBuildOptions, ciTemplate.TargetPlatform, nil)
 		if err != nil {
 			impl.Logger.Errorw("error occurred while parsing ci build config", "err", err)
 		}
@@ -141,7 +141,7 @@ func (impl CiTemplateServiceImpl) extractBuildConfigBean(templateOverride *pipel
 		return nil, err
 	}
 	if ciBuildConfigBean == nil {
-		ciBuildConfigBean, err = bean.OverrideCiBuildConfig(templateOverride.DockerfilePath, "", "", "", "", ".", nil)
+		ciBuildConfigBean, err = bean.OverrideCiBuildConfig(templateOverride.DockerfilePath, "", "", "", "", nil)
 		if err != nil {
 			impl.Logger.Errorw("error occurred while parsing ci build config", "err", err)
 		}
@@ -208,7 +208,7 @@ func (impl CiTemplateServiceImpl) FindByAppIds(appIds []int) (map[int]*bean.CiTe
 				ciBuildConfig, "error", err)
 		}
 		if ciBuildConfigBean == nil {
-			ciBuildConfigBean, err = bean.OverrideCiBuildConfig(ciTemplate.DockerfilePath, ciTemplate.Args, "", ciTemplate.DockerBuildOptions, ciTemplate.TargetPlatform, ciTemplate.BuildContext, nil)
+			ciBuildConfigBean, err = bean.OverrideCiBuildConfig(ciTemplate.DockerfilePath, ciTemplate.Args, "", ciTemplate.DockerBuildOptions, ciTemplate.TargetPlatform, nil)
 			if err != nil {
 				impl.Logger.Errorw("error occurred while parsing ci build config", "err", err)
 			}
