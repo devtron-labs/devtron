@@ -984,7 +984,7 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 
 	_, _, err = latest.Codec.Decode([]byte(kubeConfig), gvk, &kubeConfigObject)
 	if err != nil {
-		impl.logger.Errorw("error in decoding kubeConfigObject", "kubeConfigObject", kubeConfigObject)
+		impl.logger.Errorw("error in decoding kubeConfig", err, "kubeConfigObject", kubeConfigObject)
 		return nil, err
 	}
 
