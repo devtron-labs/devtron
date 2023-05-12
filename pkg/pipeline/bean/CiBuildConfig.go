@@ -112,7 +112,7 @@ func convertMetadataToDockerBuildConfig(dockerBuildMetadata string) (*DockerBuil
 	return dockerBuildConfig, err
 }
 
-func OverrideCiBuildConfig(dockerfilePath string, oldArgs string, ciLevelArgs string, dockerBuildOptions string, targetPlatform string, buildContext string, ciBuildConfigBean *CiBuildConfigBean) (*CiBuildConfigBean, error) {
+func OverrideCiBuildConfig(dockerfilePath string, oldArgs string, ciLevelArgs string, dockerBuildOptions string, targetPlatform string, ciBuildConfigBean *CiBuildConfigBean) (*CiBuildConfigBean, error) {
 	oldDockerArgs := map[string]string{}
 	ciLevelDockerArgs := map[string]string{}
 	dockerBuildOptionsMap := map[string]string{}
@@ -140,7 +140,7 @@ func OverrideCiBuildConfig(dockerfilePath string, oldArgs string, ciLevelArgs st
 				Args:               dockerArgs,
 				TargetPlatform:     targetPlatform,
 				DockerBuildOptions: dockerBuildOptionsMap,
-				BuildContext:       buildContext,
+				BuildContext:       "",
 			},
 		}
 	} else if ciBuildConfigBean.CiBuildType == SELF_DOCKERFILE_BUILD_TYPE || ciBuildConfigBean.CiBuildType == MANAGED_DOCKERFILE_BUILD_TYPE {
