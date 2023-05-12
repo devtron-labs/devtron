@@ -103,7 +103,8 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 			req.FailureReason = ciCompleteEvent.FailureReason
 			err := impl.webhookService.HandleCiStepFailedEvent(ciCompleteEvent.PipelineId, req)
 			if err != nil {
-				impl.logger.Error("Error while sending event for CI failure", "error: ", err)
+				impl.logger.Error("Error while sending event for CI failure for pipelineID: ",
+					ciCompleteEvent.PipelineId, "request: ", req, "error: ", err)
 				return
 			}
 		} else {
@@ -111,7 +112,8 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 
 			resp, err := impl.webhookService.HandleCiSuccessEvent(ciCompleteEvent.PipelineId, req)
 			if err != nil {
-				impl.logger.Error(err)
+				impl.logger.Error("Error while sending event for CI success for pipelineID: ",
+					ciCompleteEvent.PipelineId, "request: ", req, "error: ", err)
 				return
 			}
 			impl.logger.Debug(resp)

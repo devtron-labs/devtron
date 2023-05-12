@@ -318,7 +318,7 @@ func (impl *WebhookServiceImpl) WriteCIStepFailedEvent(pipeline *pipelineConfig.
 	event.Payload.FailureReason = request.FailureReason
 	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
 	if evtErr != nil {
-		impl.logger.Errorw("error in writing event", "err", evtErr)
+		impl.logger.Errorw("error in writing event: ", event, "error: ", evtErr)
 	}
 }
 
