@@ -45,7 +45,7 @@ type ArgoClusterService interface {
 	GetClusterByServer(server string) (*v1alpha1.Cluster, error)
 	ClusterList() (*v1alpha1.ClusterList, error)
 	CreateCluster(cluster v1alpha1.Cluster) (*v1alpha1.Cluster, error)
-	CreateClusterWithGitposConfigured(request *ClusterRequest, acdToken string) (*ClusterRequest, error)
+	CreateClusterWithGitOps(request *ClusterRequest, acdToken string) (*ClusterRequest, error)
 	UpdateCluster(cluster v1alpha1.Cluster) (*v1alpha1.Cluster, error)
 	DeleteCluster(server string) (string, error)
 }
@@ -96,7 +96,7 @@ func (impl *ArgoClusterServiceImpl) CreateCluster(cluster v1alpha1.Cluster) (*v1
 	}
 	return res, nil
 }
-func (impl *ArgoClusterServiceImpl) CreateClusterWithGitposConfigured(request *ClusterRequest, acdToken string) (*ClusterRequest, error) {
+func (impl *ArgoClusterServiceImpl) CreateClusterWithGitOps(request *ClusterRequest, acdToken string) (*ClusterRequest, error) {
 	path := impl.location
 	res := &ClusterRequest{}
 	_, _, err := impl.DoRequestForArgo(&ClientRequest{ResponseBody: res, Path: path, RequestBody: request, Method: "POST"}, acdToken)

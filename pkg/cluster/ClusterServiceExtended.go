@@ -353,7 +353,7 @@ func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterB
 			Server: serverUrl,
 			Config: cdClusterConfig,
 		}
-		_, err = impl.ArgoClusterService.CreateClusterWithGitposConfigured(cl, acdToken)
+		_, err = impl.ArgoClusterService.CreateClusterWithGitOps(cl, acdToken)
 		if err != nil {
 			impl.logger.Errorw("service err, Save", "err", err, "payload", cl)
 			err1 := impl.ClusterServiceImpl.Delete(bean, userId) //FIXME nishant call local
