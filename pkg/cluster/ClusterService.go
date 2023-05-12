@@ -979,6 +979,15 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 		return nil, errors1.New("invalid kubeConfig found , " + err.Error())
 	}
 
+	if kubeConfigDataMap["apiVersion"] == nil {
+		impl.logger.Errorw("api version missing from kubeConfig", "api version", kubeConfig)
+		return nil, errors1.New("api version missing from kubeConfig")
+	}
+	if kubeConfigDataMap["kind"] == nil {
+		impl.logger.Errorw("kind missing from kubeConfig", "kind", kubeConfig)
+		return nil, errors1.New("kind missing from kubeConfig")
+	}
+
 	gvk.Version = kubeConfigDataMap["apiVersion"].(string)
 	gvk.Kind = kubeConfigDataMap["kind"].(string)
 
