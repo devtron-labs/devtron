@@ -16,6 +16,7 @@
 - fix: bulk cd trigger argo app unauthorized err (#3290)
 - fix: api optimize fixes (#3275)
 ## Enhancements
+- feat: added build-context support in ci build (#3329)
 - enhancement: made pipeline status crons cascading (#3372)
 - enhancement: made revision history limit configurable for helm upgrade (#3353)
 - feat: Approval node scripts (#3345)
