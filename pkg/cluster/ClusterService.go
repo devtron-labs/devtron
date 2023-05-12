@@ -1032,12 +1032,6 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 			clusterBeanObject.ServerUrl = clusterObj.Server
 		}
 
-		//if (userName == "") && (clusterBeanObject.ErrorInConnecting == "") {
-		//	clusterBeanObject.ErrorInConnecting = "user info missing from the contexts in kubeconfig"
-		//} else {
-		//	clusterBeanObject.UserName = userName
-		//}
-
 		if gvk.Version == "" {
 			clusterBeanObject.ErrorInConnecting = "api version missing from the contexts in kubeconfig"
 		} else {
