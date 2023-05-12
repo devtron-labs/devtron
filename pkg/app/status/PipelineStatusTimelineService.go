@@ -253,8 +253,13 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelinesForAppStore(install
 			return nil, err
 		}
 	}
-	deploymentStartedOn = installedAppVersionHistory.StartedOn
-	deploymentFinishedOn = installedAppVersionHistory.FinishedOn
+	if installedAppVersionHistory.StartedOn.IsZero() && installedAppVersionHistory.FinishedOn.IsZero() {
+		deploymentStartedOn = installedAppVersionHistory.CreatedOn
+		deploymentFinishedOn = installedAppVersionHistory.UpdatedOn
+	} else {
+		deploymentStartedOn = installedAppVersionHistory.StartedOn
+		deploymentFinishedOn = installedAppVersionHistory.FinishedOn
+	}
 	installedAppVersionHistoryStatus = installedAppVersionHistory.Status
 	deploymentAppType = installedAppVersion.InstalledApp.DeploymentAppType
 	triggeredByUser, err := impl.userService.GetById(installedAppVersionHistory.CreatedBy)
