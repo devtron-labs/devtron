@@ -753,6 +753,19 @@ func (impl *K8sCapacityServiceImpl) EditNodeTaints(ctx context.Context, request 
 	return respMessage, nil
 }
 
+func (impl *K8sCapacityServiceImpl) GetNode(ctx context.Context, clusterId int, nodeName string) (*corev1.Node, error) {
+	cluster, err := impl.getClusterBean(clusterId)
+	if err != nil {
+		return nil, err
+	}
+	//getting kubernetes clientSet by rest config
+	_, _, k8sClientSet, err := impl.getK8sConfigAndClients(ctx, cluster)
+	if err != nil {
+		return nil, err
+	}
+	return k8sClientSet.CoreV1().Nodes().Get(context.Background(), nodeName, v1.GetOptions{})
+}
+
 func validateTaintEditRequest(reqTaints []corev1.Taint) error {
 	if len(reqTaints) == 0 {
 		return nil
