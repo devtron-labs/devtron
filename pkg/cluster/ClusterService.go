@@ -82,14 +82,14 @@ type ClusterBean struct {
 	isClusterNameEmpty      bool                       `json:"-"`
 }
 
-type UserInfos struct {
+type UserInfo struct {
 	UserName          string            `json:"userName,omitempty"`
 	Config            map[string]string `json:"config,omitempty"`
 	ErrorInConnecting string            `json:"errorInConnecting"`
 }
 
 type ValidateClusterBean struct {
-	UserInfos map[string]*UserInfos `json:"userInfos,omitempty""`
+	UserInfos map[string]*UserInfo `json:"userInfos,omitempty""`
 	*ClusterBean
 }
 
@@ -1010,7 +1010,7 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 		return nil, err
 	}
 
-	userInfosMap := map[string]*UserInfos{}
+	userInfosMap := map[string]*UserInfo{}
 	for _, ctx := range kubeConfigObject.Contexts {
 		clusterBeanObject := &ClusterBean{}
 		clusterName := ctx.Cluster
@@ -1075,7 +1075,7 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 			}
 		}
 
-		userInfo := UserInfos{
+		userInfo := UserInfo{
 			UserName:          userName,
 			Config:            Config,
 			ErrorInConnecting: clusterBeanObject.ErrorInConnecting,
@@ -1084,7 +1084,7 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 		userInfosMap[userInfo.UserName] = &userInfo
 		validateObject := &ValidateClusterBean{}
 		if _, ok := ValidateObjects[clusterBeanObject.ClusterName]; !ok {
-			validateObject.UserInfos = make(map[string]*UserInfos)
+			validateObject.UserInfos = make(map[string]*UserInfo)
 			validateObject.ClusterBean = clusterBeanObject
 			ValidateObjects[clusterBeanObject.ClusterName] = validateObject
 		}
