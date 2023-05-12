@@ -402,7 +402,7 @@ spec:
             {{- if and .metadata .metadata.name }}
             - name: {{ .metadata.name }}
             {{- else }}
-            - name: {{ $.Release.Name }}
+            - name: {{ template ".Chart.Name .name" $ }}
             {{- end}}
             {{- end}}
             {{- if  .Values.statefulSetConfig.mountPath }}
@@ -518,7 +518,7 @@ spec:
           {{- if and .metadata .metadata.name }}
           name: {{ .metadata.name }}
           {{- else }}
-          name: {{ $.Release.Name }}
+          name: {{ template ".Chart.Name .name" $ }}
           {{- end}}
           {{- if  and .metadata .metadata.namespace }}
           namespace: {{  .metadata.namespace  }}
