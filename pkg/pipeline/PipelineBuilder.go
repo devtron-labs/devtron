@@ -1148,7 +1148,8 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 	originalCiBuildConfig := originalCiConf.CiBuildConfig
 	ciTemplate := &pipelineConfig.CiTemplate{
 		//DockerfilePath:    originalCiConf.DockerBuildConfig.DockerfilePath,
-		GitMaterialId: ciBuildConfig.GitMaterialId,
+		GitMaterialId:             ciBuildConfig.GitMaterialId,
+		BuildContextGitMaterialId: ciBuildConfig.BuildContextGitMaterialId,
 		//Args:              string(argByte),
 		//TargetPlatform:    originalCiConf.DockerBuildConfig.TargetPlatform,
 		AppId:             originalCiConf.AppId,
@@ -1250,7 +1251,8 @@ func (impl PipelineBuilderImpl) CreateCiPipeline(createRequest *bean.CiConfigReq
 	ciTemplate := &pipelineConfig.CiTemplate{
 		//DockerRegistryId: createRequest.DockerRegistry,
 		//DockerRepository: createRequest.DockerRepository,
-		GitMaterialId: buildConfig.GitMaterialId,
+		GitMaterialId:             buildConfig.GitMaterialId,
+		BuildContextGitMaterialId: buildConfig.BuildContextGitMaterialId,
 		//DockerfilePath:    createRequest.DockerBuildConfig.DockerfilePath,
 		//Args:              string(argByte),
 		//TargetPlatform:    createRequest.DockerBuildConfig.TargetPlatform,
