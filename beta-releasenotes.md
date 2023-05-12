@@ -1,4 +1,5 @@
 ## Bugs
+- fix: deployment triggered time handling for pre deployed apps (#3378)
 - fix: Rbac not working for resources having long names (#3370)
 - fix: updated_by and created_by fields not getting updated in database for sso login services (#3368)
 - fix: updated rbac for fetching all default role (#3363)
