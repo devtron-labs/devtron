@@ -96,6 +96,9 @@ const (
 	WorkflowSucceeded          = "Succeeded"
 	WorkflowTimedOut           = "TimedOut"
 	WorkflowUnableToFetchState = "UnableToFetch"
+
+	//below status is not valid, only used for handling historical corrupt data
+	WorkflowUnknown = "Unknown"
 )
 
 func (a WorkflowStatus) String() string {
