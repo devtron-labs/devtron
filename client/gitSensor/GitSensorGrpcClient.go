@@ -137,6 +137,7 @@ func (client *GrpcApiClientImpl) AddRepo(ctx context.Context, materials []*GitMa
 				CheckoutStatus:   item.CheckoutStatus,
 				CheckoutMsgAny:   item.CheckoutMsgAny,
 				Deleted:          item.Deleted,
+				FilterPattern:    item.FilterPattern,
 			})
 		}
 	}
@@ -166,6 +167,7 @@ func (client *GrpcApiClientImpl) UpdateRepo(ctx context.Context, material *GitMa
 		CheckoutStatus:   material.CheckoutStatus,
 		CheckoutMsgAny:   material.CheckoutMsgAny,
 		Deleted:          material.Deleted,
+		FilterPattern:    material.FilterPattern,
 	}
 
 	_, err = serviceClient.UpdateRepo(ctx, mappedMaterial)
@@ -214,6 +216,7 @@ func (client *GrpcApiClientImpl) FetchChanges(ctx context.Context, req *FetchScm
 		PipelineMaterialId: int64(req.PipelineMaterialId),
 		From:               req.From,
 		To:                 req.To,
+		ShowAll:            req.ShowAll,
 	})
 	if err != nil {
 		return nil, err
