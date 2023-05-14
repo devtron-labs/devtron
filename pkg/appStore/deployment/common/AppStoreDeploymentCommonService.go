@@ -183,6 +183,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) convert(chart *repository.Instal
 				Password: chartRepo.Password,
 			},
 		},
+		DeploymentAppType:            chart.DeploymentAppType,
 		AppStoreApplicationVersionId: installedAppVersion.AppStoreApplicationVersionId,
 	}
 }
@@ -384,6 +385,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) CreateGitOpsRepo(installAppVersi
 	gitOpsConfigBitbucket, err := impl.gitOpsConfigRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
 	if err != nil {
 		if err == pg.ErrNoRows {
+			err = nil
 			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
 		} else {
 			return "", err

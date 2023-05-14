@@ -71,6 +71,7 @@ type InstallAppVersionDTO struct {
 	EnvironmentId                int                        `json:"environmentId,omitempty"`
 	InstalledAppId               int                        `json:"installedAppId,omitempty,notnull"`
 	InstalledAppVersionId        int                        `json:"installedAppVersionId,omitempty,notnull"`
+	InstalledAppVersionHistoryId int                        `json:"installedAppVersionHistoryId,omitempty"`
 	AppStoreVersion              int                        `json:"appStoreVersion,omitempty,notnull"`
 	ValuesOverrideYaml           string                     `json:"valuesOverrideYaml,omitempty"`
 	Readme                       string                     `json:"readme,omitempty"`
@@ -98,6 +99,9 @@ type InstallAppVersionDTO struct {
 	AcdPartialDelete             bool                       `json:"acdPartialDelete"`
 	AppStoreApplicationVersionId int
 	PerformGitOpsForHelmApp      bool `json:"performGitOpsForHelmApp"`
+	PerformGitOps                bool `json:"performGitOps"`
+	PerformACDDeployment         bool `json:"performACDDeployment"`
+	PerformHelmDeployment        bool `json:"performHelmDeployment"`
 }
 
 type InstallAppVersionChartDTO struct {
@@ -183,7 +187,8 @@ const BULK_APPSTORE_DEPLOY_GROUP = "ORCHESTRATOR.APP-STORE.BULK-DEPLOY-GROUP-1"
 const BULK_APPSTORE_DEPLOY_DURABLE = "ORCHESTRATOR.APP-STORE.BULK-DEPLOY.DURABLE-1"
 
 type DeployPayload struct {
-	InstalledAppVersionId int
+	InstalledAppVersionId        int
+	InstalledAppVersionHistoryId int
 }
 
 const REFERENCE_TYPE_DEFAULT string = "DEFAULT"

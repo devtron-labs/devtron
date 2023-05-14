@@ -51,6 +51,7 @@ type ChartWorkingDir string
 
 const PIPELINE_DEPLOYMENT_TYPE_ACD string = "argo_cd"
 const PIPELINE_DEPLOYMENT_TYPE_HELM string = "helm"
+const PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD string = "manifest_download"
 
 type ChartCreateRequest struct {
 	ChartMetaData *chart.Metadata
