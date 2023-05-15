@@ -1712,31 +1712,42 @@ func (impl PipelineBuilderImpl) IsGitOpsRequiredForCD(pipelineCreateRequest *bea
 }
 
 func (impl PipelineBuilderImpl) SetPipelineDeploymentAppType(pipelineCreateRequest *bean.CdPipelines, isGitOpsConfigured bool) {
-	isInternalUse := impl.deploymentConfig.IsInternalUse
-	var globalDeploymentAppType string
-	if !isInternalUse {
-		if isGitOpsConfigured {
-			globalDeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
-		} else {
-			globalDeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
-		}
-	} else {
-		// if gitops or helm is option available, and deployment app type is not present in pipeline request/
-		for _, pipeline := range pipelineCreateRequest.Pipelines {
-			if pipeline.DeploymentAppType == "" {
-				if isGitOpsConfigured {
-					pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
-				} else {
-					pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
-				}
+	//isInternalUse := impl.deploymentConfig.IsInternalUse
+	//var globalDeploymentAppType string
+	//if !isInternalUse {
+	//	if isGitOpsConfigured {
+	//		globalDeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
+	//	} else {
+	//		globalDeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
+	//	}
+	//} else {
+	//	// if gitops or helm is option available, and deployment app type is not present in pipeline request/
+	//	for _, pipeline := range pipelineCreateRequest.Pipelines {
+	//		if pipeline.DeploymentAppType == "" {
+	//			if isGitOpsConfigured {
+	//				pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
+	//			} else {
+	//				pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
+	//			}
+	//		}
+	//	}
+	//}
+	//for _, pipeline := range pipelineCreateRequest.Pipelines {
+	//	if !isInternalUse {
+	//		pipeline.DeploymentAppType = globalDeploymentAppType
+	//	}
+	//}
+
+	for _, pipeline := range pipelineCreateRequest.Pipelines {
+		if pipeline.DeploymentAppType == "" {
+			if isGitOpsConfigured {
+				pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
+			} else {
+				pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
 			}
 		}
 	}
-	for _, pipeline := range pipelineCreateRequest.Pipelines {
-		if !isInternalUse {
-			pipeline.DeploymentAppType = globalDeploymentAppType
-		}
-	}
+
 }
 
 func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error) {

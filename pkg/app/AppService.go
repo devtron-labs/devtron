@@ -1775,6 +1775,24 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 			impl.logger.Errorw("error in converting manifest to bytes", "err", err)
 			return releaseNo, manifest, err
 		}
+		timeline := &pipelineConfig.PipelineStatusTimeline{
+			CdWorkflowRunnerId: overrideRequest.WfrId,
+			Status:             "Helm package generated successfully.",
+			StatusDetail:       "Helm package generated successfully.",
+			StatusTime:         time.Now(),
+			AuditLog: sql.AuditLog{
+				CreatedBy: overrideRequest.UserId,
+				CreatedOn: time.Now(),
+				UpdatedBy: overrideRequest.UserId,
+				UpdatedOn: time.Now(),
+			},
+		}
+		_, span := otel.Tracer("orchestrator").Start(ctx, "cdPipelineStatusTimelineRepo.SaveTimelineForACDHelmApps")
+		err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
+		if err != nil {
+			impl.logger.Errorw("error in saving timeline for manifest_download type")
+		}
+		span.End()
 	}
 
 	if triggerEvent.PerformGitOps {

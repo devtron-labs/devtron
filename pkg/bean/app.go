@@ -499,6 +499,7 @@ type CDPipelineConfigObject struct {
 	AppId                         int                                    `json:"appId"`
 	TeamId                        int                                    `json:"-"`
 	EnvironmentIdentifier         string                                 `json:"-" `
+	IsVirtualEnvironment          string                                 `json:"isVirtualEnvironment"`
 }
 
 type PreStageConfigMapSecretNames struct {

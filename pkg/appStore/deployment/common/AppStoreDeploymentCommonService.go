@@ -527,6 +527,11 @@ func (impl AppStoreDeploymentCommonServiceImpl) GitOpsOperations(manifestRespons
 		impl.logger.Errorw("error in committing values config to git", "err", err)
 		return appStoreGitOpsResponse, err
 	}
+	err = impl.chartTemplateService.GitPull(clonedDir, chartGitAttribute.RepoUrl, appStoreName)
+	if err != nil {
+		impl.logger.Errorw("error in git pull", "err", err)
+		return appStoreGitOpsResponse, err
+	}
 	appStoreGitOpsResponse.ChartGitAttribute = chartGitAttribute
 	appStoreGitOpsResponse.GitHash = githash
 	return appStoreGitOpsResponse, nil
