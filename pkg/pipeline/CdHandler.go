@@ -708,6 +708,55 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 			return cdWorkflowArtifact, err
 		}
 		cdWorkflowArtifact = impl.converterWFRList(wfrList)
+		var newCdWorkflowArtifact []pipelineConfig.CdWorkflowWithArtifact
+
+		var ciArtifactIds []int
+		for _, cdWfA := range cdWorkflowArtifact {
+			ciArtifactIds = append(ciArtifactIds, cdWfA.CiArtifactId)
+		}
+		ciWfs, err := impl.ciWorkflowRepository.FindAllLastTriggeredWorkflowByArtifactId(ciArtifactIds)
+		if err != nil && err != pg.ErrNoRows {
+			impl.Logger.Errorw("error in fetching ci wfs", "artifactIds", ciArtifactIds, "err", err)
+			return cdWorkflowArtifact, err
+		}
+		wfGitTriggers := make(map[int]map[int]pipelineConfig.GitCommit)
+		var ciPipelineId int
+		for _, ciWf := range ciWfs {
+			ciPipelineId = ciWf.CiPipelineId
+			wfGitTriggers[ciWf.Id] = ciWf.GitTriggers
+		}
+		ciMaterials, err := impl.ciPipelineMaterialRepository.GetByPipelineIdForRegexAndFixed(ciPipelineId)
+		if err != nil {
+			impl.Logger.Errorw("err", "err", err)
+			ciMaterials = []*pipelineConfig.CiPipelineMaterial{}
+		}
+
+		var ciMaterialsArr []pipelineConfig.CiPipelineMaterialResponse
+		for _, m := range ciMaterials {
+			res := pipelineConfig.CiPipelineMaterialResponse{
+				Id:              m.Id,
+				GitMaterialId:   m.GitMaterialId,
+				GitMaterialName: m.GitMaterial.Name[strings.Index(m.GitMaterial.Name, "-")+1:],
+				Type:            string(m.Type),
+				Value:           m.Value,
+				Active:          m.Active,
+				Url:             m.GitMaterial.Url,
+			}
+			ciMaterialsArr = append(ciMaterialsArr, res)
+		}
+		for _, cdWfA := range cdWorkflowArtifact {
+
+			gitTriggers := make(map[int]pipelineConfig.GitCommit)
+			if wfGitTriggers[cdWfA.CiArtifactId] != nil {
+				gitTriggers = wfGitTriggers[cdWfA.CiArtifactId]
+			}
+
+			cdWfA.GitTriggers = gitTriggers
+			cdWfA.CiMaterials = ciMaterialsArr
+			newCdWorkflowArtifact = append(newCdWorkflowArtifact, cdWfA)
+
+		}
+		cdWorkflowArtifact = newCdWorkflowArtifact
 	}
 
 	return cdWorkflowArtifact, nil
