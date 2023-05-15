@@ -71,6 +71,7 @@ type GitMaterial struct {
 	CheckoutPath     string `json:"checkoutPath" validate:"checkout-path-component"`
 	FetchSubmodules  bool   `json:"fetchSubmodules"`
 	IsUsedInCiConfig bool   `json:"isUsedInCiConfig"`
+	FilterPattern    []string `json:"filterPattern"`
 }
 
 type CiMaterial struct {
@@ -501,6 +502,7 @@ type CDPipelineConfigObject struct {
 	AppId                         int                                    `json:"appId"`
 	TeamId                        int                                    `json:"-"`
 	EnvironmentIdentifier         string                                 `json:"-" `
+	IsVirtualEnvironment          string                                 `json:"isVirtualEnvironment"`
 }
 
 type PreStageConfigMapSecretNames struct {
@@ -599,12 +601,30 @@ type CdPipelineTrigger struct {
 	PipelineId   int `json:"pipelineId"`
 }
 
-type DeploymentType string
+type DeploymentType = string
 
 const (
-	Helm   DeploymentType = "helm"
-	ArgoCd DeploymentType = "argo_cd"
+	Helm                    DeploymentType = "helm"
+	ArgoCd                  DeploymentType = "argo_cd"
+	ManifestDownload        DeploymentType = "manifest_download"
+	GitOpsWithoutDeployment DeploymentType = "git_ops_without_deployment"
 )
+
+func IsAcdApp(deploymentType string) bool {
+	return deploymentType == ArgoCd
+}
+
+func IsHelmApp(deploymentType string) bool {
+	return deploymentType == Helm
+}
+
+func IsManifestDownload(deploymentType string) bool {
+	return deploymentType == ManifestDownload
+}
+
+func IsGitOpsWithoutDeployment(deploymentType string) bool {
+	return deploymentType == GitOpsWithoutDeployment
+}
 
 type Status string
 

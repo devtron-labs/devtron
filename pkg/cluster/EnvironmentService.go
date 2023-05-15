@@ -20,6 +20,7 @@ package cluster
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/user/bean"
+	"github.com/google/uuid"
 	"strconv"
 	"strings"
 	"time"
@@ -46,6 +47,18 @@ type EnvironmentBean struct {
 	EnvironmentIdentifier string `json:"environmentIdentifier"`
 	Description           string `json:"description" validate:"max=40"`
 	AppCount              int    `json:"appCount"`
+	IsVirtualEnvironment  bool   `json:"isVirtualEnvironment"`
+}
+
+type VirtualEnvironmentBean struct {
+	Id                   int    `json:"id,omitempty" validate:"number"`
+	Environment          string `json:"environment_name,omitempty" validate:"required,max=50"`
+	ClusterId            int    `json:"cluster_id,omitempty" validate:"number,required"`
+	ClusterName          string `json:"cluster_name,omitempty"`
+	Active               bool   `json:"active"`
+	Namespace            string `json:"namespace,omitempty"`
+	Description          string `json:"description" validate:"max=40"`
+	IsVirtualEnvironment bool   `json:"isVirtualEnvironment"`
 }
 
 type EnvDto struct {
@@ -70,12 +83,14 @@ type AppGroupingResponse struct {
 type EnvironmentService interface {
 	FindOne(environment string) (*EnvironmentBean, error)
 	Create(mappings *EnvironmentBean, userId int32) (*EnvironmentBean, error)
+	CreateVirtualEnvironment(mappings *VirtualEnvironmentBean, userId int32) (*VirtualEnvironmentBean, error)
 	GetAll() ([]EnvironmentBean, error)
 	GetAllActive() ([]EnvironmentBean, error)
 	Delete(deleteReq *EnvironmentBean, userId int32) error
 
 	FindById(id int) (*EnvironmentBean, error)
 	Update(mappings *EnvironmentBean, userId int32) (*EnvironmentBean, error)
+	UpdateVirtualEnvironment(mappings *VirtualEnvironmentBean, userId int32) (*VirtualEnvironmentBean, error)
 	FindClusterByEnvId(id int) (*ClusterBean, error)
 	GetEnvironmentListForAutocomplete() ([]EnvironmentBean, error)
 	GetEnvironmentOnlyListForAutocomplete() ([]EnvironmentBean, error)
@@ -180,6 +195,47 @@ func (impl EnvironmentServiceImpl) Create(mappings *EnvironmentBean, userId int3
 	return mappings, nil
 }
 
+func (impl EnvironmentServiceImpl) CreateVirtualEnvironment(mappings *VirtualEnvironmentBean, userId int32) (*VirtualEnvironmentBean, error) {
+
+	model, err := impl.environmentRepository.FindByName(mappings.Environment)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in finding environment for update", "err", err)
+		return mappings, err
+	}
+	if model.Id > 0 {
+		impl.logger.Warnw("environment already exists for this cluster and namespace", "model", model)
+		return mappings, fmt.Errorf("environment already exists")
+	}
+
+	environmentIdentifier := ""
+	if len(mappings.Namespace) == 0 {
+		environmentIdentifier = fmt.Sprintf("%s__%s", mappings.Environment, uuid.New().String())
+	} else {
+		environmentIdentifier = fmt.Sprintf("%s__%s", mappings.Environment, mappings.Namespace)
+	}
+
+	model = &repository.Environment{
+		Name:                  mappings.Environment,
+		ClusterId:             mappings.ClusterId,
+		Active:                true,
+		Namespace:             mappings.Namespace,
+		Description:           mappings.Description,
+		EnvironmentIdentifier: environmentIdentifier,
+		IsVirtualEnvironment:  mappings.IsVirtualEnvironment,
+	}
+
+	model.CreatedBy = userId
+	model.UpdatedBy = userId
+	model.CreatedOn = time.Now()
+	model.UpdatedOn = time.Now()
+	err = impl.environmentRepository.Create(model)
+	if err != nil {
+		impl.logger.Errorw("error in saving environment", "err", err)
+		return mappings, err
+	}
+	return nil, err
+}
+
 func (impl EnvironmentServiceImpl) FindOne(environment string) (*EnvironmentBean, error) {
 	model, err := impl.environmentRepository.FindOne(environment)
 	if err != nil {
@@ -219,6 +275,7 @@ func (impl EnvironmentServiceImpl) GetAll() ([]EnvironmentBean, error) {
 			CdArgoSetup:           model.Cluster.CdArgoSetup,
 			EnvironmentIdentifier: model.EnvironmentIdentifier,
 			Description:           model.Description,
+			IsVirtualEnvironment:  model.IsVirtualEnvironment,
 		})
 	}
 	return beans, nil
@@ -242,6 +299,7 @@ func (impl EnvironmentServiceImpl) GetAllActive() ([]EnvironmentBean, error) {
 			Default:               model.Default,
 			EnvironmentIdentifier: model.EnvironmentIdentifier,
 			Description:           model.Description,
+			IsVirtualEnvironment:  model.IsVirtualEnvironment,
 		})
 	}
 	return beans, nil
@@ -263,6 +321,7 @@ func (impl EnvironmentServiceImpl) FindById(id int) (*EnvironmentBean, error) {
 		Default:               model.Default,
 		EnvironmentIdentifier: model.EnvironmentIdentifier,
 		Description:           model.Description,
+		IsVirtualEnvironment:  model.IsVirtualEnvironment,
 	}
 
 	/*clusterBean := &ClusterBean{
@@ -344,6 +403,33 @@ func (impl EnvironmentServiceImpl) Update(mappings *EnvironmentBean, userId int3
 	return mappings, nil
 }
 
+func (impl EnvironmentServiceImpl) UpdateVirtualEnvironment(mappings *VirtualEnvironmentBean, userId int32) (*VirtualEnvironmentBean, error) {
+	model, err := impl.environmentRepository.FindById(mappings.Id)
+	if err != nil {
+		impl.logger.Errorw("error in finding environment for update", "err", err)
+		return mappings, err
+	}
+	/*isNamespaceChange := false
+	if model.Namespace != mappings.Namespace {
+		isNamespaceChange = true
+	}*/
+
+	model.Name = mappings.Environment
+	model.Namespace = mappings.Namespace
+	model.UpdatedBy = userId
+	model.UpdatedOn = time.Now()
+	model.Description = mappings.Description
+
+	err = impl.environmentRepository.Update(model)
+	if err != nil {
+		impl.logger.Errorw("error in updating environment", "err", err)
+		return mappings, err
+	}
+
+	mappings.Id = model.Id
+	return mappings, nil
+}
+
 func (impl EnvironmentServiceImpl) FindClusterByEnvId(id int) (*ClusterBean, error) {
 	model, err := impl.environmentRepository.FindById(id)
 	if err != nil {
@@ -376,6 +462,7 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete() ([]Enviro
 			EnvironmentIdentifier: model.EnvironmentIdentifier,
 			ClusterName:           model.Cluster.ClusterName,
 			Description:           model.Description,
+			IsVirtualEnvironment:  model.IsVirtualEnvironment,
 		})
 	}
 	return beans, nil
@@ -394,6 +481,7 @@ func (impl EnvironmentServiceImpl) GetEnvironmentOnlyListForAutocomplete() ([]En
 			Namespace:             model.Namespace,
 			EnvironmentIdentifier: model.EnvironmentIdentifier,
 			ClusterId:             model.ClusterId,
+			IsVirtualEnvironment:  model.IsVirtualEnvironment,
 		})
 	}
 	return beans, nil
@@ -431,6 +519,7 @@ func (impl EnvironmentServiceImpl) FindByIds(ids []*int) ([]*EnvironmentBean, er
 			EnvironmentIdentifier: model.EnvironmentIdentifier,
 			ClusterId:             model.ClusterId,
 			Description:           model.Description,
+			IsVirtualEnvironment:  model.IsVirtualEnvironment,
 		})
 	}
 	return beans, nil

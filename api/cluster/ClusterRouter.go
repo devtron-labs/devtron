@@ -40,6 +40,10 @@ func (impl ClusterRouterImpl) InitClusterRouter(clusterRouter *mux.Router) {
 		Methods("POST").
 		HandlerFunc(impl.clusterRestHandler.Save)
 
+	clusterRouter.Path("/virtual").
+		Methods("POST").
+		HandlerFunc(impl.clusterRestHandler.SaveVirtualCluster)
+
 	clusterRouter.Path("").
 		Methods("GET").
 		Queries("id", "{id}").
@@ -57,6 +61,14 @@ func (impl ClusterRouterImpl) InitClusterRouter(clusterRouter *mux.Router) {
 	clusterRouter.Path("").
 		Methods("PUT").
 		HandlerFunc(impl.clusterRestHandler.Update)
+
+	clusterRouter.Path("/description/note").
+		Methods("PUT").
+		HandlerFunc(impl.clusterRestHandler.UpdateClusterNote)
+
+	clusterRouter.Path("/virtual").
+		Methods("PUT").
+		HandlerFunc(impl.clusterRestHandler.UpdateVirtualCluster)
 
 	clusterRouter.Path("/description/note").
 		Methods("PUT").

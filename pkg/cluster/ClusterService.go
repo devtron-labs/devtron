@@ -69,6 +69,14 @@ type ClusterBean struct {
 	HasConfigOrUrlChanged   bool                       `json:"-"`
 	ErrorInConnecting       string                     `json:"errorInConnecting,omitempty"`
 	IsCdArgoSetup           bool                       `json:"isCdArgoSetup"`
+	IsVirtualCluster        bool                       `json:"isVirtualCluster"`
+}
+
+type VirtualClusterBean struct {
+	Id               int    `json:"id,omitempty" validate:"number"`
+	ClusterName      string `json:"clusterName,omitempty" validate:"required"`
+	Active           bool   `json:"active"`
+	IsVirtualCluster bool   `json:"isVirtualCluster" validate:"required"`
 }
 
 type PrometheusAuth struct {
@@ -89,6 +97,7 @@ type DefaultClusterComponent struct {
 
 type ClusterService interface {
 	Save(parent context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error)
+	SaveVirtualCluster(bean *VirtualClusterBean, userId int32) (*VirtualClusterBean, error)
 	FindOne(clusterName string) (*ClusterBean, error)
 	FindOneActive(clusterName string) (*ClusterBean, error)
 	FindAll() ([]*ClusterBean, error)
@@ -100,6 +109,7 @@ type ClusterService interface {
 	FindByIdWithoutConfig(id int) (*ClusterBean, error)
 	FindByIds(id []int) ([]ClusterBean, error)
 	Update(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error)
+	UpdateVirtualCluster(bean *VirtualClusterBean, userId int32) (*VirtualClusterBean, error)
 	Delete(bean *ClusterBean, userId int32) error
 
 	FindAllForAutoComplete() ([]ClusterBean, error)
@@ -265,6 +275,24 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, 
 	return bean, err
 }
 
+func (impl *ClusterServiceImpl) SaveVirtualCluster(bean *VirtualClusterBean, userId int32) (*VirtualClusterBean, error) {
+	model := &repository.Cluster{
+		ClusterName:      bean.ClusterName,
+		Active:           true,
+		IsVirtualCluster: bean.IsVirtualCluster,
+	}
+	model.CreatedBy = userId
+	model.UpdatedBy = userId
+	model.CreatedOn = time.Now()
+	model.UpdatedOn = time.Now()
+	err := impl.clusterRepository.Save(model)
+	if err != nil {
+		impl.logger.Errorw("error in saving cluster in db")
+		return nil, err
+	}
+	return bean, err
+}
+
 func (impl *ClusterServiceImpl) FindOne(clusterName string) (*ClusterBean, error) {
 	model, err := impl.clusterRepository.FindOne(clusterName)
 	if err != nil {
@@ -279,6 +307,7 @@ func (impl *ClusterServiceImpl) FindOne(clusterName string) (*ClusterBean, error
 		Active:                 model.Active,
 		Config:                 model.Config,
 		K8sVersion:             model.K8sVersion,
+		IsVirtualCluster:       model.IsVirtualCluster,
 	}
 	return bean, nil
 }
@@ -297,6 +326,7 @@ func (impl *ClusterServiceImpl) FindOneActive(clusterName string) (*ClusterBean,
 		Active:                 model.Active,
 		Config:                 model.Config,
 		K8sVersion:             model.K8sVersion,
+		IsVirtualCluster:       model.IsVirtualCluster,
 	}
 	return bean, nil
 }
@@ -329,6 +359,7 @@ func (impl *ClusterServiceImpl) FindAll() ([]*ClusterBean, error) {
 			K8sVersion:             m.K8sVersion,
 			ErrorInConnecting:      m.ErrorInConnecting,
 			Config:                 m.Config,
+			IsVirtualCluster:       m.IsVirtualCluster,
 		})
 	}
 	return beans, nil
@@ -351,6 +382,7 @@ func (impl *ClusterServiceImpl) FindAllActive() ([]ClusterBean, error) {
 			Config:                 m.Config,
 			K8sVersion:             m.K8sVersion,
 			ErrorInConnecting:      m.ErrorInConnecting,
+			IsVirtualCluster:       m.IsVirtualCluster,
 		})
 	}
 	return beans, nil
@@ -370,6 +402,7 @@ func (impl *ClusterServiceImpl) FindById(id int) (*ClusterBean, error) {
 		Active:                 model.Active,
 		Config:                 model.Config,
 		K8sVersion:             model.K8sVersion,
+		IsVirtualCluster:       model.IsVirtualCluster,
 	}
 	prometheusAuth := &PrometheusAuth{
 		UserName:      model.PUserName,
@@ -408,6 +441,7 @@ func (impl *ClusterServiceImpl) FindByIds(ids []int) ([]ClusterBean, error) {
 			Active:                 model.Active,
 			Config:                 model.Config,
 			K8sVersion:             model.K8sVersion,
+			IsVirtualCluster:       model.IsVirtualCluster,
 		})
 	}
 	return beans, nil
@@ -545,6 +579,23 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 	return bean, nil
 }
 
+func (impl *ClusterServiceImpl) UpdateVirtualCluster(bean *VirtualClusterBean, userId int32) (*VirtualClusterBean, error) {
+	model, err := impl.clusterRepository.FindById(bean.Id)
+	if err != nil {
+		impl.logger.Error(err)
+		return nil, err
+	}
+	model.ClusterName = bean.ClusterName
+	err = impl.clusterRepository.Update(model)
+	model.UpdatedBy = userId
+	model.UpdatedOn = time.Now()
+	if err != nil {
+		impl.logger.Errorw("error in updating cluster", "err", err)
+		return bean, err
+	}
+	return nil, err
+}
+
 func (impl *ClusterServiceImpl) SyncNsInformer(bean *ClusterBean) {
 	requestConfig := bean.Config["bearer_token"]
 	//before creating new informer for cluster, close existing one
@@ -579,6 +630,7 @@ func (impl *ClusterServiceImpl) FindAllForAutoComplete() ([]ClusterBean, error) 
 			ClusterName:       m.ClusterName,
 			ErrorInConnecting: m.ErrorInConnecting,
 			IsCdArgoSetup:     m.CdArgoSetup,
+			IsVirtualCluster:  m.IsVirtualCluster,
 		})
 	}
 	return beans, nil

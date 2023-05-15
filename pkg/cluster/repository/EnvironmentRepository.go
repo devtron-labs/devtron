@@ -45,6 +45,7 @@ type Environment struct {
 	Namespace             string `sql:"namespace"`
 	EnvironmentIdentifier string `sql:"environment_identifier"`
 	Description           string `sql:"description"`
+	IsVirtualEnvironment  bool   `sql:"is_virtual_environment"`
 	sql.AuditLog
 }
 
