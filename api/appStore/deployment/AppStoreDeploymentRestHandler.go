@@ -255,8 +255,20 @@ func (handler AppStoreDeploymentRestHandlerImpl) DeleteInstalledApp(w http.Respo
 	v := r.URL.Query()
 	forceDelete := false
 	force := v.Get("force")
+	cascadeDelete := true
+	cascade := v.Get("cascade")
+	if len(force) > 0 && len(cascade) > 0 {
+		common.WriteJsonResp(w, fmt.Errorf("invalid query params! cannot perform both force and cascade together"), nil, http.StatusBadRequest)
+		return
+	}
 	if len(force) > 0 {
 		forceDelete, err = strconv.ParseBool(force)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+	} else if len(cascade) > 0 {
+		cascadeDelete, err = strconv.ParseBool(cascade)
 		if err != nil {
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
@@ -310,6 +322,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) DeleteInstalledApp(w http.Respo
 	request.EnvironmentId = installedApp.EnvironmentId
 	request.UserId = userId
 	request.ForceDelete = forceDelete
+	request.NonCascadeDelete = !cascadeDelete
 	request.AppOfferingMode = installedApp.AppOfferingMode
 	request.ClusterId = installedApp.ClusterId
 	request.Namespace = installedApp.Namespace

@@ -45,7 +45,7 @@ type AppStoreDeploymentArgoCdService interface {
 	OnUpdateRepoInInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error)
 	UpdateRequirementDependencies(environment *clusterRepository.Environment, installedAppVersion *repository.InstalledAppVersions, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error
 	UpdateInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, environment *clusterRepository.Environment, installedAppVersion *repository.InstalledAppVersions) (*appStoreBean.InstallAppVersionDTO, error)
-	DeleteDeploymentApp(ctx context.Context, appName string, environmentName string, clusterErrorInConnecting string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error
+	DeleteDeploymentApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error
 }
 
 type AppStoreDeploymentArgoCdServiceImpl struct {
@@ -242,10 +242,11 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) RollbackRelease(ctx context.Cont
 	return installedApp, true, nil
 }
 
-func (impl AppStoreDeploymentArgoCdServiceImpl) deleteACD(acdAppName string, ctx context.Context, isCascade bool) error {
+func (impl AppStoreDeploymentArgoCdServiceImpl) deleteACD(acdAppName string, ctx context.Context, isNonCascade bool) error {
 	req := new(application.ApplicationDeleteRequest)
 	req.Name = &acdAppName
-	req.Cascade = &isCascade
+	cascadeDelete := !isNonCascade
+	req.Cascade = &cascadeDelete
 	if ctx == nil {
 		impl.Logger.Errorw("err in delete ACD for AppStore, ctx is NULL", "acdAppName", acdAppName)
 		return fmt.Errorf("context is null")
@@ -536,14 +537,10 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) updateValuesYaml(environment *cl
 	return installAppVersionRequest, nil
 }
 
-func (impl AppStoreDeploymentArgoCdServiceImpl) DeleteDeploymentApp(ctx context.Context, appName string, environmentName string, clusterErrorInConnecting string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error {
+func (impl AppStoreDeploymentArgoCdServiceImpl) DeleteDeploymentApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error {
 	acdAppName := appName + "-" + environmentName
 	var err error
-	if len(clusterErrorInConnecting) > 0 {
-		err = impl.deleteACD(acdAppName, ctx, false)
-	} else {
-		err = impl.deleteACD(acdAppName, ctx, true)
-	}
+	err = impl.deleteACD(acdAppName, ctx, installAppVersionRequest.NonCascadeDelete)
 	if err != nil {
 		impl.Logger.Errorw("error in deleting ACD ", "name", acdAppName, "err", err)
 		if installAppVersionRequest.ForceDelete {

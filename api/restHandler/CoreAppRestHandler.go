@@ -1146,11 +1146,12 @@ func (handler CoreAppRestHandlerImpl) deleteApp(ctx context.Context, appId int, 
 
 		for _, cdPipeline := range cdPipelines.Pipelines {
 			cdPipelineDeleteRequest := &bean.CDPatchRequest{
-				AppId:       appId,
-				UserId:      userId,
-				Action:      bean.CD_DELETE,
-				ForceDelete: true,
-				Pipeline:    cdPipeline,
+				AppId:            appId,
+				UserId:           userId,
+				Action:           bean.CD_DELETE,
+				ForceDelete:      true,
+				NonCascadeDelete: false,
+				Pipeline:         cdPipeline,
 			}
 			_, err = handler.pipelineBuilder.PatchCdPipelines(cdPipelineDeleteRequest, ctx)
 			if err != nil {

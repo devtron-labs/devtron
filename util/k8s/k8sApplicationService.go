@@ -23,7 +23,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"log"
 	"strconv"
 	"strings"
 	"sync"
@@ -54,6 +56,7 @@ type K8sApplicationService interface {
 	GetAllApiResources(ctx context.Context, clusterId int, isSuperAdmin bool, userId int32) (*application.GetAllApiResourcesResponse, error)
 	GetResourceList(ctx context.Context, token string, request *ResourceRequestBean, validateResourceAccess func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) (*util.ClusterResourceListMap, error)
 	ApplyResources(ctx context.Context, token string, request *application.ApplyResourcesRequest, resourceRbacHandler func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) ([]*application.ApplyResourcesResponse, error)
+	FetchConnectionStatusForCluster(k8sClientSet *kubernetes.Clientset, clusterId int) error
 }
 type K8sApplicationServiceImpl struct {
 	logger                      *zap.SugaredLogger
@@ -810,4 +813,15 @@ func (impl *K8sApplicationServiceImpl) applyResourceFromManifest(ctx context.Con
 	}
 
 	return isUpdateResource, nil
+}
+
+func (impl *K8sApplicationServiceImpl) FetchConnectionStatusForCluster(k8sClientSet *kubernetes.Clientset, clusterId int) error {
+	//using livez path as healthz path is deprecated
+	path := "/livez"
+	response, err := k8sClientSet.Discovery().RESTClient().Get().AbsPath(path).DoRaw(context.Background())
+	log.Println("received response for cluster livez status", "response", string(response), "err", err, "clusterId", clusterId)
+	if err == nil && string(response) != "ok" {
+		err = fmt.Errorf("ErrorNotOk : response != 'ok' : %s", string(response))
+	}
+	return err
 }

@@ -582,9 +582,9 @@ func (impl AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context
 
 	if installAppVersionRequest.AcdPartialDelete == true {
 		if util2.IsBaseStack() || util2.IsHelmApp(app.AppOfferingMode) || util.IsHelmApp(model.DeploymentAppType) {
-			err = impl.appStoreDeploymentHelmService.DeleteDeploymentApp(ctx, app.AppName, environment.Name, environment.Cluster.ErrorInConnecting, installAppVersionRequest)
+			err = impl.appStoreDeploymentHelmService.DeleteDeploymentApp(ctx, app.AppName, environment.Name, installAppVersionRequest)
 		} else {
-			err = impl.appStoreDeploymentArgoCdService.DeleteDeploymentApp(ctx, app.AppName, environment.Name, environment.Cluster.ErrorInConnecting, installAppVersionRequest)
+			err = impl.appStoreDeploymentArgoCdService.DeleteDeploymentApp(ctx, app.AppName, environment.Name, installAppVersionRequest)
 		}
 		if err != nil {
 			impl.logger.Errorw("error on delete installed app", "err", err)

@@ -10,7 +10,6 @@ import (
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
 	"k8s.io/client-go/kubernetes"
-	"log"
 	"sync"
 )
 
@@ -90,38 +89,18 @@ func (impl *ClusterCronServiceImpl) GetAndUpdateClusterConnectionStatus() {
 			mutex.Unlock()
 			continue
 		}
-		go GetAndUpdateConnectionStatusForOneCluster(k8sClientSet, cluster.Id, respMap, wg, mutex)
+		go impl.GetAndUpdateConnectionStatusForOneCluster(k8sClientSet, cluster.Id, respMap, wg, mutex)
 	}
 	wg.Wait()
-	impl.HandleErrorInClusterConnections(respMap)
+	_ = impl.clusterService.HandleErrorInClusterConnections(respMap)
 	return
 }
 
-func GetAndUpdateConnectionStatusForOneCluster(k8sClientSet *kubernetes.Clientset, clusterId int, respMap map[int]error, wg *sync.WaitGroup, mutex *sync.Mutex) {
+func (impl *ClusterCronServiceImpl) GetAndUpdateConnectionStatusForOneCluster(k8sClientSet *kubernetes.Clientset, clusterId int, respMap map[int]error, wg *sync.WaitGroup, mutex *sync.Mutex) {
 	defer wg.Done()
-	//using livez path as healthz path is deprecated
-	path := "/livez"
-	response, err := k8sClientSet.Discovery().RESTClient().Get().AbsPath(path).DoRaw(context.Background())
-	log.Println("received response for cluster livez status", "response", string(response), "err", err, "clusterId", clusterId)
-	if err == nil && string(response) != "ok" {
-		err = fmt.Errorf("ErrorNotOk : response != 'ok' : %s", string(response))
-	}
+	err := impl.k8sApplicationService.FetchConnectionStatusForCluster(k8sClientSet, clusterId)
 	mutex.Lock()
 	respMap[clusterId] = err
 	mutex.Unlock()
 	return
-}
-
-func (impl *ClusterCronServiceImpl) HandleErrorInClusterConnections(respMap map[int]error) {
-	for clusterId, err := range respMap {
-		errorInConnecting := ""
-		if err != nil {
-			errorInConnecting = err.Error()
-		}
-		//updating cluster connection status
-		errInUpdating := impl.clusterRepository.UpdateClusterConnectionStatus(clusterId, errorInConnecting)
-		if errInUpdating != nil {
-			impl.logger.Errorw("error in updating cluster connection status", "err", err, "clusterId", clusterId, "errorInConnecting", errorInConnecting)
-		}
-	}
 }

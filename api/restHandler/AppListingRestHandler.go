@@ -120,12 +120,6 @@ type AppAutocomplete struct {
 	Clusters     []cluster.ClusterBean
 }
 
-type DeleteErrorConditionType struct {
-	LastTransitionTime string `json:"lastTransitionTimetype"`
-	Message            string `json:"message"`
-	ErrorType          string `json:"type"`
-}
-
 func NewAppListingRestHandlerImpl(application application.ServiceClient,
 	appListingService app.AppListingService,
 	teamService team.TeamService,
@@ -1047,17 +1041,6 @@ func (handler AppListingRestHandlerImpl) FetchResourceTree(w http.ResponseWriter
 				} else {
 					common.WriteJsonResp(w, fmt.Errorf("app deleted"), nil, http.StatusNotFound)
 					return
-				}
-			}
-		} else {
-			byteCondition, err := json.Marshal(resourceTree["conditions"])
-			if err == nil {
-				var DeleteErrorConditionType []DeleteErrorConditionType
-				if json.Unmarshal(byteCondition, &DeleteErrorConditionType) == nil {
-					if len(DeleteErrorConditionType) == 1 && DeleteErrorConditionType[0].ErrorType == "DeletionError" && cdPipeline.DeploymentAppDeleteRequest == true {
-						ctx := context.WithValue(r.Context(), "token", acdToken)
-						handler.pipeline.DeleteACDAppCdPipelineWithCascadeOption(cdPipeline, ctx, false)
-					}
 				}
 			}
 		}

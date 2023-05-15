@@ -110,6 +110,7 @@ type ClusterService interface {
 	FindAllNamespacesByUserIdAndClusterId(userId int32, clusterId int, isActionUserSuperAdmin bool) ([]string, error)
 	FindAllForClusterByUserId(userId int32, isActionUserSuperAdmin bool) ([]ClusterBean, error)
 	FetchRolesFromGroup(userId int32) ([]*repository2.RoleModel, error)
+	HandleErrorInClusterConnections(respMap map[int]error) error
 }
 
 type ClusterServiceImpl struct {
@@ -815,4 +816,19 @@ func (impl *ClusterServiceImpl) FetchRolesFromGroup(userId int32) ([]*repository
 		roles = append(roles, rolesFromGroup...)
 	}
 	return roles, nil
+}
+func (impl *ClusterServiceImpl) HandleErrorInClusterConnections(respMap map[int]error) error {
+	for clusterId, err := range respMap {
+		errorInConnecting := ""
+		if err != nil {
+			errorInConnecting = err.Error()
+		}
+		//updating cluster connection status
+		errInUpdating := impl.clusterRepository.UpdateClusterConnectionStatus(clusterId, errorInConnecting)
+		if errInUpdating != nil {
+			impl.logger.Errorw("error in updating cluster connection status", "err", err, "clusterId", clusterId, "errorInConnecting", errorInConnecting)
+			return err
+		}
+	}
+	return nil
 }

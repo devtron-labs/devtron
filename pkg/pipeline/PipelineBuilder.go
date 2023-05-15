@@ -106,8 +106,8 @@ type PipelineBuilder interface {
 	CreateCdPipelines(cdPipelines *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error)
 	GetApp(appId int) (application *bean.CreateAppDTO, err error)
 	PatchCdPipelines(cdPipelines *bean.CDPatchRequest, ctx context.Context) (*bean.CdPipelines, error)
-	DeleteCdPipeline(pipeline *pipelineConfig.Pipeline, ctx context.Context, forceDelete bool, acdDelete bool, userId int32) (err error)
-	DeleteACDAppCdPipelineWithCascadeOption(pipeline *pipelineConfig.Pipeline, ctx context.Context, cascadeDelete bool)
+	DeleteCdPipeline(pipeline *pipelineConfig.Pipeline, ctx context.Context, deleteAction int, acdDelete bool, userId int32) (err error)
+	DeleteACDAppCdPipelineWithNonCascade(pipeline *pipelineConfig.Pipeline, ctx context.Context, forceDelete bool, userId int32) (err error)
 	ChangeDeploymentType(ctx context.Context, request *bean.DeploymentAppTypeChangeRequest) (*bean.DeploymentAppTypeChangeResponse, error)
 	DeleteDeploymentAppsForEnvironment(ctx context.Context, environmentId int, currentDeploymentAppType bean.DeploymentType, exclusionList []int, includeApps []int, userId int32) (*bean.DeploymentAppTypeChangeResponse, error)
 	DeleteDeploymentApps(ctx context.Context, pipelines []*pipelineConfig.Pipeline, userId int32) *bean.DeploymentAppTypeChangeResponse
@@ -1792,6 +1792,12 @@ func (impl PipelineBuilderImpl) PatchCdPipelines(cdPipelines *bean.CDPatchReques
 		AppId:     cdPipelines.AppId,
 		Pipelines: []*bean.CDPipelineConfigObject{cdPipelines.Pipeline},
 	}
+	deleteAction := bean.CASCADE_DELETE
+	if cdPipelines.ForceDelete {
+		deleteAction = bean.FORCE_DELETE
+	} else if cdPipelines.NonCascadeDelete {
+		deleteAction = bean.NON_CASCADE_DELETE
+	}
 	switch cdPipelines.Action {
 	case bean.CD_CREATE:
 		return impl.CreateCdPipelines(pipelineRequest, ctx)
@@ -1804,7 +1810,7 @@ func (impl PipelineBuilderImpl) PatchCdPipelines(cdPipelines *bean.CDPatchReques
 			impl.logger.Errorw("error in getting cd pipeline by id", "err", err, "id", cdPipelines.Pipeline.Id)
 			return pipelineRequest, err
 		}
-		err = impl.DeleteCdPipeline(pipeline, ctx, cdPipelines.ForceDelete, false, cdPipelines.UserId)
+		err = impl.DeleteCdPipeline(pipeline, ctx, deleteAction, false, cdPipelines.UserId)
 		return pipelineRequest, err
 	case bean.CD_DELETE_PARTIAL:
 		pipeline, err := impl.pipelineRepository.FindById(cdPipelines.Pipeline.Id)
@@ -1812,14 +1818,21 @@ func (impl PipelineBuilderImpl) PatchCdPipelines(cdPipelines *bean.CDPatchReques
 			impl.logger.Errorw("error in getting cd pipeline by id", "err", err, "id", cdPipelines.Pipeline.Id)
 			return pipelineRequest, err
 		}
-		err = impl.DeleteCdPipelinePartial(pipeline, ctx, cdPipelines.ForceDelete)
+		err = impl.DeleteCdPipelinePartial(pipeline, ctx, deleteAction)
 		return pipelineRequest, err
 	default:
 		return nil, &util.ApiError{Code: "404", HttpStatusCode: 404, UserMessage: "operation not supported"}
 	}
 }
 
-func (impl PipelineBuilderImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipeline, ctx context.Context, forceDelete, deleteFromAcd bool, userId int32) (err error) {
+func (impl PipelineBuilderImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipeline, ctx context.Context, deleteAction int, deleteFromAcd bool, userId int32) (err error) {
+	cascadeDelete := true
+	forceDelete := false
+	if deleteAction == bean.FORCE_DELETE {
+		forceDelete = true
+	} else if deleteAction == bean.NON_CASCADE_DELETE {
+		cascadeDelete = false
+	}
 	//getting children CD pipeline details
 	childNodes, err := impl.appWorkflowRepository.FindWFCDMappingByParentCDPipelineId(pipeline.Id)
 	if err != nil && err != pg.ErrNoRows {
@@ -1931,13 +1944,6 @@ func (impl PipelineBuilderImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipeli
 			//todo: provide option for cascading to user
 			impl.logger.Debugw("acd app is already deleted for this pipeline", "pipeline", pipeline)
 			if deleteFromAcd {
-				cascadeDelete := true
-				environmentBean, err := impl.environmentRepository.FindById(pipeline.EnvironmentId)
-				if err == nil && environmentBean.Cluster != nil {
-					if len(environmentBean.Cluster.ErrorInConnecting) > 0 {
-						cascadeDelete = false
-					}
-				}
 				req := &application2.ApplicationDeleteRequest{
 					Name:    &deploymentAppName,
 					Cascade: &cascadeDelete,
@@ -1994,7 +2000,14 @@ func (impl PipelineBuilderImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipeli
 	return nil
 }
 
-func (impl PipelineBuilderImpl) DeleteCdPipelinePartial(pipeline *pipelineConfig.Pipeline, ctx context.Context, forceDelete bool) (err error) {
+func (impl PipelineBuilderImpl) DeleteCdPipelinePartial(pipeline *pipelineConfig.Pipeline, ctx context.Context, deleteAction int) (err error) {
+	cascadeDelete := true
+	forceDelete := false
+	if deleteAction == bean.FORCE_DELETE {
+		forceDelete = true
+	} else if deleteAction == bean.NON_CASCADE_DELETE {
+		cascadeDelete = false
+	}
 	//getting children CD pipeline details
 	childNodes, err := impl.appWorkflowRepository.FindWFCDMappingByParentCDPipelineId(pipeline.Id)
 	if err != nil && err != pg.ErrNoRows {
@@ -2029,15 +2042,7 @@ func (impl PipelineBuilderImpl) DeleteCdPipelinePartial(pipeline *pipelineConfig
 	if pipeline.DeploymentAppCreated == true && pipeline.DeploymentAppDeleteRequest == false {
 		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
 		if util.IsAcdApp(pipeline.DeploymentAppType) {
-			//todo: provide option for cascading to user
 			impl.logger.Debugw("acd app is already deleted for this pipeline", "pipeline", pipeline)
-			cascadeDelete := true
-			environmentBean, err := impl.environmentRepository.FindById(pipeline.EnvironmentId)
-			if err == nil && environmentBean.Cluster != nil {
-				if len(environmentBean.Cluster.ErrorInConnecting) > 0 {
-					cascadeDelete = false
-				}
-			}
 			req := &application2.ApplicationDeleteRequest{
 				Name:    &deploymentAppName,
 				Cascade: &cascadeDelete,
@@ -2080,22 +2085,39 @@ func (impl PipelineBuilderImpl) DeleteCdPipelinePartial(pipeline *pipelineConfig
 	return nil
 }
 
-func (impl PipelineBuilderImpl) DeleteACDAppCdPipelineWithCascadeOption(pipeline *pipelineConfig.Pipeline, ctx context.Context, cascadeDelete bool) {
-	go func() {
-		//delete app from argo cd, if created
-		if pipeline.DeploymentAppCreated && pipeline.DeploymentAppDeleteRequest && util.IsAcdApp(pipeline.DeploymentAppType) {
-			appDetails, err := impl.appRepo.FindById(pipeline.AppId)
-			deploymentAppName := fmt.Sprintf("%s-%s", appDetails.AppName, pipeline.Environment.Name)
-			impl.logger.Debugw("acd app is already deleted for this pipeline", "pipeline", pipeline)
-			req := &application2.ApplicationDeleteRequest{
-				Name:    &deploymentAppName,
-				Cascade: &cascadeDelete,
-			}
-			if _, err = impl.application.Delete(ctx, req); err != nil {
-				impl.logger.Errorw("err in deleting pipeline on argocd", "id", pipeline, "err", err)
-			}
+func (impl PipelineBuilderImpl) DeleteACDAppCdPipelineWithNonCascade(pipeline *pipelineConfig.Pipeline, ctx context.Context, forceDelete bool, userId int32) error {
+	if forceDelete {
+		return impl.DeleteCdPipeline(pipeline, ctx, bean.FORCE_DELETE, false, userId)
+	}
+	//delete app from argo cd with non-cascade, if created
+	if pipeline.DeploymentAppCreated && pipeline.DeploymentAppDeleteRequest && util.IsAcdApp(pipeline.DeploymentAppType) {
+		appDetails, err := impl.appRepo.FindById(pipeline.AppId)
+		deploymentAppName := fmt.Sprintf("%s-%s", appDetails.AppName, pipeline.Environment.Name)
+		impl.logger.Debugw("acd app is already deleted for this pipeline", "pipeline", pipeline)
+		cascadeDelete := false
+		req := &application2.ApplicationDeleteRequest{
+			Name:    &deploymentAppName,
+			Cascade: &cascadeDelete,
 		}
-	}()
+		if _, err = impl.application.Delete(ctx, req); err != nil {
+			impl.logger.Errorw("err in deleting pipeline on argocd", "id", pipeline, "err", err)
+			//statusError, _ := err.(*errors2.StatusError)
+			if strings.Contains(err.Error(), "code = NotFound") {
+				err = &util.ApiError{
+					UserMessage:     "Could not delete as application not found in argocd",
+					InternalMessage: err.Error(),
+				}
+			} else {
+				err = &util.ApiError{
+					UserMessage:     "Could not delete application",
+					InternalMessage: err.Error(),
+				}
+			}
+			return err
+		}
+
+	}
+	return nil
 }
 
 // ChangeDeploymentType takes in DeploymentAppTypeChangeRequest struct and
@@ -3671,14 +3693,20 @@ func (impl PipelineBuilderImpl) updateGitRepoUrlInCharts(appId int, chartGitAttr
 func (impl PipelineBuilderImpl) PerformBulkActionOnCdPipelines(dto *bean.CdBulkActionRequestDto, impactedPipelines []*pipelineConfig.Pipeline, ctx context.Context, dryRun bool, userId int32) ([]*bean.CdBulkActionResponseDto, error) {
 	switch dto.Action {
 	case bean.CD_BULK_DELETE:
-		bulkDeleteResp := impl.BulkDeleteCdPipelines(impactedPipelines, ctx, dryRun, dto.ForceDelete, userId)
+		deleteAction := bean.CASCADE_DELETE
+		if dto.ForceDelete {
+			deleteAction = bean.FORCE_DELETE
+		} else if !dto.CascadeDelete {
+			deleteAction = bean.NON_CASCADE_DELETE
+		}
+		bulkDeleteResp := impl.BulkDeleteCdPipelines(impactedPipelines, ctx, dryRun, deleteAction, userId)
 		return bulkDeleteResp, nil
 	default:
 		return nil, &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "this action is not supported"}
 	}
 }
 
-func (impl PipelineBuilderImpl) BulkDeleteCdPipelines(impactedPipelines []*pipelineConfig.Pipeline, ctx context.Context, dryRun, forceDelete bool, userId int32) []*bean.CdBulkActionResponseDto {
+func (impl PipelineBuilderImpl) BulkDeleteCdPipelines(impactedPipelines []*pipelineConfig.Pipeline, ctx context.Context, dryRun bool, deleteAction int, userId int32) []*bean.CdBulkActionResponseDto {
 	var respDtos []*bean.CdBulkActionResponseDto
 	for _, pipeline := range impactedPipelines {
 		respDto := &bean.CdBulkActionResponseDto{
@@ -3687,7 +3715,7 @@ func (impl PipelineBuilderImpl) BulkDeleteCdPipelines(impactedPipelines []*pipel
 			EnvironmentName: pipeline.Environment.Name,
 		}
 		if !dryRun {
-			err := impl.DeleteCdPipeline(pipeline, ctx, forceDelete, true, userId)
+			err := impl.DeleteCdPipeline(pipeline, ctx, deleteAction, true, userId)
 			if err != nil {
 				impl.logger.Errorw("error in deleting cd pipeline", "err", err, "pipelineId", pipeline.Id)
 				respDto.DeletionResult = fmt.Sprintf("Not able to delete pipeline, %v", err)
@@ -3868,7 +3896,7 @@ func (impl PipelineBuilderImpl) MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDelete
 	}
 	impl.logger.Warnw("app not found in argo, deleting from db ", "err", err)
 	//make call to delete it from pipeline DB because it's ACD counterpart is deleted
-	err = impl.DeleteCdPipeline(pipeline, context.Background(), true, false, 0)
+	err = impl.DeleteCdPipeline(pipeline, context.Background(), bean.FORCE_DELETE, false, 0)
 	if err != nil {
 		impl.logger.Errorw("error in deleting cd pipeline", "err", err)
 		return acdAppFound, err

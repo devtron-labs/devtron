@@ -424,7 +424,16 @@ func (handler BulkUpdateRestHandlerImpl) HandleCdPipelineBulkAction(w http.Respo
 
 	v := r.URL.Query()
 	forceDelete := false
+	cascadeDelete := true
 	forceDeleteParam := v.Get("forceDelete")
+	cascadeDeleteParam := v.Get("cascadeDelete")
+	if len(forceDeleteParam) > 0 && len(cascadeDeleteParam) > 0 {
+		if err != nil {
+			handler.logger.Errorw("request err, HandleCdPipelineBulkAction", "err", fmt.Errorf("cannot perform force and cascade delete together"), "payload", cdPipelineBulkActionReq)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+	}
 	if len(forceDeleteParam) > 0 {
 		forceDelete, err = strconv.ParseBool(forceDeleteParam)
 		if err != nil {
@@ -432,8 +441,16 @@ func (handler BulkUpdateRestHandlerImpl) HandleCdPipelineBulkAction(w http.Respo
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
+	} else if len(cascadeDeleteParam) > 0 {
+		cascadeDelete, err = strconv.ParseBool(cascadeDeleteParam)
+		if err != nil {
+			handler.logger.Errorw("request err, HandleCdPipelineBulkAction", "err", err, "payload", cdPipelineBulkActionReq)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
 	}
 	cdPipelineBulkActionReq.ForceDelete = forceDelete
+	cdPipelineBulkActionReq.CascadeDelete = cascadeDelete
 
 	dryRun := false
 	dryRunParam := v.Get("dryRun")

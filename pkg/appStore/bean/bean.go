@@ -86,6 +86,7 @@ type InstallAppVersionDTO struct {
 	AppStoreName                 string                     `json:"appStoreName"`
 	Deprecated                   bool                       `json:"deprecated"`
 	ForceDelete                  bool                       `json:"-"`
+	NonCascadeDelete             bool                       `json:"-"`
 	ClusterId                    int                        `json:"clusterId"` // needed for hyperion mode
 	Namespace                    string                     `json:"namespace"` // needed for hyperion mode
 	AppOfferingMode              string                     `json:"appOfferingMode"`
