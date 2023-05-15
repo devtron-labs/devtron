@@ -1104,7 +1104,7 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 
 	for _, clusterBeanObject := range clusterBeanObjects {
 		if _, ok := clusterListMap[clusterBeanObject.ClusterName]; ok && clusterBeanObject.ErrorInConnecting == "" {
-			clusterBeanObject.ErrorInConnecting = "cluster name already exists"
+			clusterBeanObject.ErrorInConnecting = "cluster-already-exists"
 			clusterBeanObject.Id = clusterListMapWithId[clusterBeanObject.ClusterName]
 		}
 		if clusterBeanObject.ErrorInConnecting != "" {
