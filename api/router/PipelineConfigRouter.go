@@ -98,6 +98,7 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 
 	configRouter.Path("/{appId}/ci-pipeline/min").HandlerFunc(router.restHandler.GetCiPipelineMin).Methods("GET")
 	configRouter.Path("/ci-pipeline/{pipelineId}/material").HandlerFunc(router.restHandler.FetchMaterials).Methods("GET")
+	configRouter.Path("/ci-pipeline/{pipelineId}/material/{gitMaterialId}").HandlerFunc(router.restHandler.FetchMaterialsByMaterialId).Methods("GET")
 	configRouter.Path("/ci-pipeline/refresh-material/{gitMaterialId}").HandlerFunc(router.restHandler.RefreshMaterials).Methods("GET")
 
 	configRouter.Path("/{appId}/ci-pipeline/{pipelineId}/workflow/{workflowId}").HandlerFunc(router.restHandler.FetchWorkflowDetails).Methods("GET")
