@@ -221,7 +221,6 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 	//		installedAppModel.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
 	//	}
 	//}
-	installAppVersionRequest.DeploymentAppType = installedAppModel.DeploymentAppType
 
 	if installAppVersionRequest.DeploymentAppType == "" {
 		if isGitOpsConfigured {
