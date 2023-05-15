@@ -963,6 +963,7 @@ type ValuesOverrideResponse struct {
 	PipelineStrategy    *chartConfig.PipelineStrategy
 	PipelineOverride    *chartConfig.PipelineOverride
 	Artifact            *repository.CiArtifact
+	Pipeline            *pipelineConfig.Pipeline
 	AppMetrics          bool
 }
 
@@ -1330,7 +1331,11 @@ func (impl *AppServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.Va
 	}
 	valuesOverrideResponse := ValuesOverrideResponse{}
 
-	//pipeline := overrideRequest.Pipeline
+	pipeline, err := impl.pipelineRepository.FindById(overrideRequest.PipelineId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching pipeline by pipeline id", "err", err, "pipeline-id-", overrideRequest.PipelineId)
+		return valuesOverrideResponse, err
+	}
 
 	envOverride, err := impl.getEnvOverrideByTriggerType(overrideRequest, triggeredAt, ctx)
 	if err != nil {
@@ -1412,6 +1417,7 @@ func (impl *AppServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.Va
 	valuesOverrideResponse.PipelineStrategy = strategy
 	valuesOverrideResponse.ReleaseOverrideJSON = releaseOverrideJson
 	valuesOverrideResponse.Artifact = artifact
+	valuesOverrideResponse.Pipeline = pipeline
 	return valuesOverrideResponse, err
 }
 
@@ -1833,6 +1839,10 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 			return releaseNo, manifest, err
 		}
 	}
+
+	_, span := otel.Tracer("orchestrator").Start(ctx, "CreateHistoriesForDeploymentTrigger")
+	err = impl.CreateHistoriesForDeploymentTrigger(valuesOverrideResponse.Pipeline, valuesOverrideResponse.PipelineStrategy, valuesOverrideResponse.EnvOverride, triggerEvent.TriggerdAt, triggerEvent.TriggeredBy)
+	span.End()
 
 	go impl.WriteCDTriggerEvent(overrideRequest, valuesOverrideResponse.Artifact, valuesOverrideResponse.PipelineOverride.PipelineReleaseCounter, valuesOverrideResponse.PipelineOverride.Id)
 
