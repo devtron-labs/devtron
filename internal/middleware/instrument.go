@@ -113,6 +113,10 @@ var CiTriggerCounter = promauto.NewCounterVec(prometheus.CounterOpts{
 	Name: "ci_trigger_counter",
 }, []string{"appName", "pipelineName"})
 
+var DeploymentStatusCronDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
+	Name: "deployment_status_cron_process_time",
+}, []string{"cronName"})
+
 // prometheusMiddleware implements mux.MiddlewareFunc.
 func PrometheusMiddleware(next http.Handler) http.Handler {
 	//	prometheus.MustRegister(requestCounter)

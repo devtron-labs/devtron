@@ -62,6 +62,10 @@ func (impl ClusterRouterImpl) InitClusterRouter(clusterRouter *mux.Router) {
 		Methods("PUT").
 		HandlerFunc(impl.clusterRestHandler.Update)
 
+	clusterRouter.Path("/description/note").
+		Methods("PUT").
+		HandlerFunc(impl.clusterRestHandler.UpdateClusterNote)
+
 	clusterRouter.Path("/virtual").
 		Methods("PUT").
 		HandlerFunc(impl.clusterRestHandler.UpdateVirtualCluster)

@@ -356,22 +356,25 @@ func (impl *AppStoreDeploymentHelmServiceImpl) updateApplicationWithChartInfo(ct
 
 	chartRepo := appStoreApplicationVersion.AppStore.ChartRepo
 
-	updateReleaseRequest := &client.InstallReleaseRequest{
-		ValuesYaml: valuesOverrideYaml,
-		ReleaseIdentifier: &client.ReleaseIdentifier{
-			ReleaseNamespace: installedApp.Environment.Namespace,
-			ReleaseName:      installedApp.App.AppName,
+	updateReleaseRequest := &client.UpdateApplicationWithChartInfoRequestDto{
+		InstallReleaseRequest: &client.InstallReleaseRequest{
+			ValuesYaml: valuesOverrideYaml,
+			ReleaseIdentifier: &client.ReleaseIdentifier{
+				ReleaseNamespace: installedApp.Environment.Namespace,
+				ReleaseName:      installedApp.App.AppName,
+			},
+			ChartName:    appStoreApplicationVersion.Name,
+			ChartVersion: appStoreApplicationVersion.Version,
+			ChartRepository: &client.ChartRepository{
+				Name:     chartRepo.Name,
+				Url:      chartRepo.Url,
+				Username: chartRepo.UserName,
+				Password: chartRepo.Password,
+			},
 		},
-		ChartName:    appStoreApplicationVersion.Name,
-		ChartVersion: appStoreApplicationVersion.Version,
-		ChartRepository: &client.ChartRepository{
-			Name:     chartRepo.Name,
-			Url:      chartRepo.Url,
-			Username: chartRepo.UserName,
-			Password: chartRepo.Password,
-		},
+		SourceAppType: client.SOURCE_HELM_APP,
 	}
-	res, err := impl.helmAppService.UpdateApplicationWithChartInfo(ctx, installedApp.Environment.ClusterId, updateReleaseRequest, client.API_CALLER_HELM_APP)
+	res, err := impl.helmAppService.UpdateApplicationWithChartInfo(ctx, installedApp.Environment.ClusterId, updateReleaseRequest)
 	if err != nil {
 		impl.Logger.Errorw("error in updating helm application", "err", err)
 		return err
@@ -385,10 +388,10 @@ func (impl *AppStoreDeploymentHelmServiceImpl) DeleteDeploymentApp(ctx context.C
 	return nil
 }
 
-func (impl *AppStoreDeploymentHelmServiceImpl) UpdateInstalledAppAndPipelineStatusForFailedDeploymentStatus(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, triggeredAt time.Time, err error) error {
+func (impl *AppStoreDeploymentHelmServiceImpl) SaveTimelineForACDHelmApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status string, statusDetail string, tx *pg.Tx) error {
 	return nil
 }
 
-func (impl *AppStoreDeploymentHelmServiceImpl) SaveTimelineForACDHelmApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status string, statusDetail string, tx *pg.Tx) error {
+func (impl *AppStoreDeploymentHelmServiceImpl) UpdateInstalledAppAndPipelineStatusForFailedDeploymentStatus(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, triggeredAt time.Time, err error) error {
 	return nil
 }

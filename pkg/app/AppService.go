@@ -2334,7 +2334,7 @@ func (impl *AppServiceImpl) saveTimelineForError(overrideRequest *bean.ValuesOve
 			UpdatedOn: time.Now(),
 		},
 	}
-	_, span := otel.Tracer("orchestrator").Start(ctx, "cdPipelineStatusTimelineRepo.SaveTimelineForACDHelmApps")
+	_, span := otel.Tracer("orchestrator").Start(ctx, "cdPipelineStatusTimelineRepo.SaveTimeline")
 	timelineErr := impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
 	span.End()
 	if timelineErr != nil {
@@ -3469,7 +3469,7 @@ func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Val
 			req := &client2.UpgradeReleaseRequest{
 				ReleaseIdentifier: releaseIdentifier,
 				ValuesYaml:        mergeAndSave,
-				HistoryMax:        impl.helmAppService.GetRevisionHistoryMaxValue(client2.API_CALLER_DEVTRON_APP),
+				HistoryMax:        impl.helmAppService.GetRevisionHistoryMaxValue(client2.SOURCE_DEVTRON_APP),
 			}
 
 			updateApplicationResponse, err := impl.helmAppClient.UpdateApplication(ctx, req)

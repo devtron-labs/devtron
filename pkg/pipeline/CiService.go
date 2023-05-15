@@ -418,6 +418,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		dockerRepository = ciTemplate.DockerRepository
 		ciBuildConfigEntity := ciTemplate.CiBuildConfig
 		ciBuildConfigBean, err = bean2.ConvertDbBuildConfigToBean(ciBuildConfigEntity)
+		ciBuildConfigBean.BuildContextGitMaterialId = ciTemplate.BuildContextGitMaterialId
 		if err != nil {
 			impl.Logger.Errorw("error occurred while converting buildconfig dbEntity to configBean", "ciBuildConfigEntity", ciBuildConfigEntity, "err", err)
 			return nil, errors.New("error while parsing ci build config")
@@ -433,7 +434,13 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		impl.Logger.Errorw("error occurred while overriding ci build config", "oldArgs", oldArgs, "ciLevelArgs", ciLevelArgs, "error", err)
 		return nil, errors.New("error while parsing ci build config")
 	}
+	buildContextCheckoutPath, err := impl.ciPipelineMaterialRepository.GetCheckoutPath(ciBuildConfigBean.BuildContextGitMaterialId)
+	if err != nil {
+		impl.Logger.Errorw("error occurred while getting checkout path from git material", "gitMaterialId", ciBuildConfigBean.BuildContextGitMaterialId, "error", err)
+		return nil, err
+	}
 	if ciBuildConfigBean.CiBuildType == bean2.SELF_DOCKERFILE_BUILD_TYPE || ciBuildConfigBean.CiBuildType == bean2.MANAGED_DOCKERFILE_BUILD_TYPE {
+		ciBuildConfigBean.DockerBuildConfig.BuildContext = filepath.Join(buildContextCheckoutPath, ciBuildConfigBean.DockerBuildConfig.BuildContext)
 		dockerBuildConfig := ciBuildConfigBean.DockerBuildConfig
 		dockerfilePath = filepath.Join(checkoutPath, dockerBuildConfig.DockerfilePath)
 		dockerBuildConfig.DockerfilePath = dockerfilePath
