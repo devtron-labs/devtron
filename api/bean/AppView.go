@@ -154,6 +154,7 @@ type DeploymentDetailContainer struct {
 	DeploymentAppDeleteRequest    bool            `json:"deploymentAppDeleteRequest"`
 	Description                   string          `json:"description" validate:"max=40"`
 	UserApprovalConfig            string          `json:"userApprovalConfig"`
+	IsVirtualEnvironment          bool            `sql:"is_virtual_environment"`
 }
 
 type AppDetailContainer struct {
@@ -183,6 +184,7 @@ type Environment struct {
 	LastDeployed               string `json:"lastDeployed"`
 	DeploymentAppDeleteRequest bool   `json:"deploymentAppDeleteRequest"`
 	Description                string `json:"description" validate:"max=40"`
+	IsVirtualEnvironment       bool   `json:"isVirtualEnvironment"`
 }
 
 type InstanceDetail struct {
