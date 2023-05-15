@@ -1027,12 +1027,10 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 		clusterObj := kubeConfigObject.Clusters[clusterName]
 		userInfoObj := kubeConfigObject.AuthInfos[userName]
 
-		if clusterName == "" {
-			clusterBeanObject.ErrorInConnecting = "cluster name missing in kubeconfig"
-			clusterBeanObject.ClusterName = "null"
-			clusterBeanObject.isClusterNameEmpty = true
-		} else {
+		if clusterName != "" {
 			clusterBeanObject.ClusterName = clusterName
+		} else {
+			clusterBeanObject.ErrorInConnecting = "cluster name missing from kubeconfig"
 		}
 
 		if (clusterObj == nil || clusterObj.Server == "") && (clusterBeanObject.ErrorInConnecting == "") {
@@ -1116,9 +1114,6 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 	for _, clusterBeanObject := range clusterBeanObjects {
 		clusterBeanObject.Config = nil
 		clusterBeanObject.ErrorInConnecting = ""
-		if clusterBeanObject.isClusterNameEmpty {
-			clusterBeanObject.ClusterName = ""
-		}
 	}
 	return ValidateObjects, nil
 
