@@ -70,12 +70,11 @@ func (impl ArgoK8sClientImpl) CreateAcdApp(appRequest *AppTemplate, cluster *rep
 		return "", err
 	}
 
-	//config, err := rest.InClusterConfig()
-	//if err != nil {
-	//	impl.logger.Errorw("error in config", "err", err)
-	//	return "", err
-	//}
-	config := &rest.Config{Host: "https://52.188.213.210:16443", BearerToken: "TldCTFNCSk51cElaZWRSMkpMRmhaNUNFUU1CVkdEbG1TWXYyUk9iUUtvWT0K", TLSClientConfig: rest.TLSClientConfig{Insecure: true}}
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		impl.logger.Errorw("error in config", "err", err)
+		return "", err
+	}
 	config.GroupVersion = &schema.GroupVersion{Group: "argoproj.io", Version: "v1alpha1"}
 	config.NegotiatedSerializer = serializer.NewCodecFactory(runtime.NewScheme())
 	config.APIPath = "/apis"
