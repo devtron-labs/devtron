@@ -221,6 +221,8 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 	//		installedAppModel.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
 	//	}
 	//}
+	installAppVersionRequest.DeploymentAppType = installedAppModel.DeploymentAppType
+
 	if installAppVersionRequest.DeploymentAppType == "" {
 		if isGitOpsConfigured {
 			installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
@@ -229,7 +231,6 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 		}
 	}
 
-	installAppVersionRequest.DeploymentAppType = installedAppModel.DeploymentAppType
 	installedAppModel.CreatedBy = installAppVersionRequest.UserId
 	installedAppModel.UpdatedBy = installAppVersionRequest.UserId
 	installedAppModel.CreatedOn = time.Now()
@@ -410,6 +411,9 @@ func (impl AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *a
 	if util2.IsBaseStack() || util2.IsHelmApp(installAppVersionRequest.AppOfferingMode) || util.IsHelmApp(installAppVersionRequest.DeploymentAppType) {
 		installAppVersionRequest, err = impl.appStoreDeploymentHelmService.InstallApp(installAppVersionRequest, nil, ctx, tx)
 	} else {
+		if gitOpsResponse == nil {
+			return nil, errors.New("service err, Error in git operations")
+		}
 		installAppVersionRequest, err = impl.appStoreDeploymentArgoCdService.InstallApp(installAppVersionRequest, gitOpsResponse.ChartGitAttribute, ctx, tx)
 	}
 	err = tx.Commit()

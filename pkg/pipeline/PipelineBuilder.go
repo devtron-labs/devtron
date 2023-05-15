@@ -1782,10 +1782,12 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 			return nil, err
 		}
 	}
-	err = impl.updateGitRepoUrlInCharts(pipelineCreateRequest.AppId, chartGitAttr, pipelineCreateRequest.UserId)
-	if err != nil {
-		impl.logger.Errorw("error in updating git repo url in charts", "err", err)
-		return nil, err
+	if isGitOpsRequiredForCD {
+		err = impl.updateGitRepoUrlInCharts(pipelineCreateRequest.AppId, chartGitAttr, pipelineCreateRequest.UserId)
+		if err != nil {
+			impl.logger.Errorw("error in updating git repo url in charts", "err", err)
+			return nil, err
+		}
 	}
 
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
