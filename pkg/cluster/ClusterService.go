@@ -175,6 +175,10 @@ func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.
 
 const DefaultClusterName = "default_cluster"
 const TokenFilePath = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+const BearerToken = "bearer_token"
+const CertificateAuthorityData = "cert_auth_data"
+const CertData = "cert_data"
+const TlsKey = "tls_key"
 
 func (impl *ClusterServiceImpl) GetK8sClient() (*v12.CoreV1Client, error) {
 	return impl.K8sUtil.GetK8sClient()
@@ -1050,7 +1054,7 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 		if (userInfoObj == nil || userInfoObj.Token == "" && clusterObj.InsecureSkipTLSVerify) && (clusterBeanObject.ErrorInConnecting == "") {
 			clusterBeanObject.ErrorInConnecting = "token missing from the kubeconfig"
 		}
-		Config["bearer_token"] = userInfoObj.Token
+		Config[BearerToken] = userInfoObj.Token
 
 		if clusterObj != nil {
 			clusterBeanObject.InsecureSkipTLSVerify = clusterObj.InsecureSkipTLSVerify
@@ -1059,20 +1063,20 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 		if !clusterObj.InsecureSkipTLSVerify && (clusterBeanObject.ErrorInConnecting == "") {
 			missingFieldsStr := ""
 			if string(userInfoObj.ClientKeyData) == "" {
-				missingFieldsStr += "clientKeyData "
+				missingFieldsStr += TlsKey + " "
 			}
 			if string(clusterObj.CertificateAuthorityData) == "" {
-				missingFieldsStr += "certificateAuthorityData "
+				missingFieldsStr += CertificateAuthorityData + " "
 			}
 			if string(userInfoObj.ClientCertificateData) == "" {
-				missingFieldsStr += "clientCertificateData"
+				missingFieldsStr += CertData + " "
 			}
 			if len(missingFieldsStr) > 0 {
 				clusterBeanObject.ErrorInConnecting = fmt.Sprintf("InsecureSkipTLSVerify is false but the data required corresponding to it is missing from the kubeconfig. Missing fields: %s", missingFieldsStr)
 			} else {
-				Config["tls_key"] = string(userInfoObj.ClientKeyData)
-				Config["cert_data"] = string(userInfoObj.ClientCertificateData)
-				Config["cert_auth_data"] = string(clusterObj.CertificateAuthorityData)
+				Config[TlsKey] = string(userInfoObj.ClientKeyData)
+				Config[CertData] = string(userInfoObj.ClientCertificateData)
+				Config[CertificateAuthorityData] = string(clusterObj.CertificateAuthorityData)
 			}
 		}
 
