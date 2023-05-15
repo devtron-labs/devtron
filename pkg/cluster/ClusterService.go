@@ -204,9 +204,9 @@ func (impl *ClusterServiceImpl) GetClusterConfig(cluster *ClusterBean) (*util.Cl
 	clusterCfg := &util.ClusterConfig{Host: host, BearerToken: bearerToken}
 	clusterCfg.InsecureSkipTLSVerify = cluster.InsecureSkipTLSVerify
 	if cluster.InsecureSkipTLSVerify == false {
-		clusterCfg.KeyData = configMap["tls_key"]
-		clusterCfg.CertData = configMap["cert_data"]
-		clusterCfg.CAData = configMap["cert_auth_data"]
+		clusterCfg.KeyData = configMap[TlsKey]
+		clusterCfg.CertData = configMap[CertData]
+		clusterCfg.CAData = configMap[CertificateAuthorityData]
 	}
 
 	return clusterCfg, nil
@@ -485,28 +485,28 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 	}
 
 	// check whether config modified or not, if yes create informer with updated config
-	dbConfigBearerToken := model.Config["bearer_token"]
-	requestConfigBearerToken := bean.Config["bearer_token"]
+	dbConfigBearerToken := model.Config[BearerToken]
+	requestConfigBearerToken := bean.Config[BearerToken]
 	if len(requestConfigBearerToken) == 0 {
-		bean.Config["bearer_token"] = model.Config["bearer_token"]
+		bean.Config[BearerToken] = model.Config[BearerToken]
 	}
 
-	dbConfigTlsKey := model.Config["tls_key"]
-	requestConfigTlsKey := bean.Config["tls_key"]
+	dbConfigTlsKey := model.Config[TlsKey]
+	requestConfigTlsKey := bean.Config[TlsKey]
 	if len(requestConfigTlsKey) == 0 {
-		bean.Config["tls_key"] = model.Config["tls_key"]
+		bean.Config[TlsKey] = model.Config[TlsKey]
 	}
 
-	dbConfigCertData := model.Config["cert_data"]
-	requestConfigCertData := bean.Config["cert_data"]
+	dbConfigCertData := model.Config[CertData]
+	requestConfigCertData := bean.Config[CertData]
 	if len(requestConfigCertData) == 0 {
-		bean.Config["cert_data"] = model.Config["cert_data"]
+		bean.Config[CertData] = model.Config[CertData]
 	}
 
-	dbConfigCAData := model.Config["cert_auth_data"]
-	requestConfigCAData := bean.Config["cert_auth_data"]
+	dbConfigCAData := model.Config[CertificateAuthorityData]
+	requestConfigCAData := bean.Config[CertificateAuthorityData]
 	if len(requestConfigCAData) == 0 {
-		bean.Config["cert_auth_data"] = model.Config["cert_auth_data"]
+		bean.Config[CertificateAuthorityData] = model.Config[CertificateAuthorityData]
 	}
 
 	if bean.ServerUrl != model.ServerUrl || bean.InsecureSkipTLSVerify != model.InsecureSkipTlsVerify || dbConfigBearerToken != requestConfigBearerToken || dbConfigTlsKey != requestConfigTlsKey || dbConfigCertData != requestConfigCertData || dbConfigCAData != requestConfigCAData {

@@ -40,6 +40,7 @@ import (
 	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
 	app_status "github.com/devtron-labs/devtron/pkg/appStatus"
 	repository3 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
+	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -560,9 +561,9 @@ func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int, userId int32) (int,
 		InsecureSkipTLSVerify: env.Cluster.InsecureSkipTlsVerify,
 	}
 	if env.Cluster.InsecureSkipTlsVerify == false {
-		clusterConfig.KeyData = configMap["tls_key"]
-		clusterConfig.CertData = configMap["cert_data"]
-		clusterConfig.CAData = configMap["cert_auth_data"]
+		clusterConfig.KeyData = configMap[cluster.TlsKey]
+		clusterConfig.CertData = configMap[cluster.CertData]
+		clusterConfig.CAData = configMap[cluster.CertificateAuthorityData]
 	}
 
 	var isExtCluster bool
@@ -748,13 +749,13 @@ func (impl *CdHandlerImpl) GetRunningWorkflowLogs(environmentId int, pipelineId 
 	configMap := env.Cluster.Config
 	clusterConfig := util.ClusterConfig{
 		Host:                  env.Cluster.ServerUrl,
-		BearerToken:           configMap["bearer_token"],
+		BearerToken:           configMap[cluster.BearerToken],
 		InsecureSkipTLSVerify: env.Cluster.InsecureSkipTlsVerify,
 	}
 	if env.Cluster.InsecureSkipTlsVerify == false {
-		clusterConfig.KeyData = configMap["tls_key"]
-		clusterConfig.CertData = configMap["cert_data"]
-		clusterConfig.CAData = configMap["cert_auth_data"]
+		clusterConfig.KeyData = configMap[cluster.TlsKey]
+		clusterConfig.CertData = configMap[cluster.CertData]
+		clusterConfig.CAData = configMap[cluster.CertificateAuthorityData]
 	}
 
 	var isExtCluster bool

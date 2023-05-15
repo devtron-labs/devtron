@@ -24,6 +24,7 @@ import (
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	util2 "github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"net/url"
@@ -654,13 +655,13 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		configMap := env.Cluster.Config
 		clusterConfig := util2.ClusterConfig{
 			Host:                  env.Cluster.ServerUrl,
-			BearerToken:           configMap["bearer_token"],
+			BearerToken:           configMap[cluster.BearerToken],
 			InsecureSkipTLSVerify: env.Cluster.InsecureSkipTlsVerify,
 		}
 		if env.Cluster.InsecureSkipTlsVerify == false {
-			clusterConfig.KeyData = configMap["tls_key"]
-			clusterConfig.CertData = configMap["cert_data"]
-			clusterConfig.CAData = configMap["cert_auth_data"]
+			clusterConfig.KeyData = configMap[cluster.TlsKey]
+			clusterConfig.CertData = configMap[cluster.CertData]
+			clusterConfig.CAData = configMap[cluster.CertificateAuthorityData]
 		}
 		wfClient, err = impl.getRuntimeEnvClientInstance(workflowRequest.Namespace, clusterConfig)
 	}
