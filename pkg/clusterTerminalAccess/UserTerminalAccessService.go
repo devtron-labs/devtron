@@ -1151,11 +1151,20 @@ func (impl *UserTerminalAccessServiceImpl) StartNodeDebug(userTerminalRequest *m
 	if userTerminalRequest.NodeName == "" || userTerminalRequest.ShellName == "" {
 		return nil, errors.New("node-name or shell cannot be empty, node-name : " + userTerminalRequest.NodeName + ", shell : " + userTerminalRequest.ShellName)
 	}
-	_, err := impl.K8sCapacityService.GetNode(context.Background(), userTerminalRequest.ClusterId, userTerminalRequest.NodeName)
+	nodeInfo, err := impl.K8sCapacityService.GetNode(context.Background(), userTerminalRequest.ClusterId, userTerminalRequest.NodeName)
 	if err != nil {
 		impl.Logger.Errorw("failed to get node details for requested node", "err", err, "userId", userTerminalRequest.UserId, "nodeName", userTerminalRequest.NodeName, "clusterId", userTerminalRequest.ClusterId)
 		return nil, err
 	}
+	taints := make([]models.NodeTaints, 0)
+	for _, taint := range nodeInfo.Spec.Taints {
+		taints = append(taints, models.NodeTaints{
+			Key:    taint.Key,
+			Value:  taint.Value,
+			Effect: string(taint.Effect),
+		})
+	}
+	userTerminalRequest.NodeTaints = taints
 	podObject, err := impl.GenerateNodeDebugPod(userTerminalRequest)
 	if err != nil {
 		impl.Logger.Errorw("failed to create node-debug pod", "err", err, "userId", userTerminalRequest.UserId, "userTerminalRequest", userTerminalRequest)
