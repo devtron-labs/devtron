@@ -1322,14 +1322,14 @@ func (impl *AppServiceImpl) getEnvOverrideByTriggerType(overrideRequest *bean.Va
 	return envOverride, nil
 }
 
-func (impl *AppServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (ValuesOverrideResponse, error) {
+func (impl *AppServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*ValuesOverrideResponse, error) {
 	if overrideRequest.DeploymentType == models.DEPLOYMENTTYPE_UNKNOWN {
 		overrideRequest.DeploymentType = models.DEPLOYMENTTYPE_DEPLOY
 	}
 	if len(overrideRequest.DeploymentWithConfig) == 0 {
 		overrideRequest.DeploymentWithConfig = bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED
 	}
-	valuesOverrideResponse := ValuesOverrideResponse{}
+	valuesOverrideResponse := &ValuesOverrideResponse{}
 
 	pipeline, err := impl.pipelineRepository.FindById(overrideRequest.PipelineId)
 	if err != nil {
@@ -1421,9 +1421,9 @@ func (impl *AppServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.Va
 	return valuesOverrideResponse, err
 }
 
-func (impl *AppServiceImpl) BuildManifestForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (valuesOverrideResponse ValuesOverrideResponse, builtChartPath string, err error) {
+func (impl *AppServiceImpl) BuildManifestForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (valuesOverrideResponse *ValuesOverrideResponse, builtChartPath string, err error) {
 
-	valuesOverrideResponse = ValuesOverrideResponse{}
+	valuesOverrideResponse = &ValuesOverrideResponse{}
 	valuesOverrideResponse, err = impl.GetValuesOverrideForTrigger(overrideRequest, triggeredAt, ctx)
 	if err != nil {
 		impl.logger.Errorw("error in fetching values for trigger", "err", err)
@@ -1644,7 +1644,7 @@ func (impl *AppServiceImpl) PushChartToGitRepoIfNotExistAndUpdateTimelineStatus(
 	return nil
 }
 
-func (impl *AppServiceImpl) CommitValuesToGit(valuesOverrideRequest *bean.ValuesOverrideRequest, valuesOverrideResponse ValuesOverrideResponse, triggeredAt time.Time, ctx context.Context) (commitHash string, commitTime time.Time, err error) {
+func (impl *AppServiceImpl) CommitValuesToGit(valuesOverrideRequest *bean.ValuesOverrideRequest, valuesOverrideResponse *ValuesOverrideResponse, triggeredAt time.Time, ctx context.Context) (commitHash string, commitTime time.Time, err error) {
 	commitHash = ""
 	commitTime = time.Time{}
 	chartRepoName := impl.chartTemplateService.GetGitOpsRepoNameFromUrl(valuesOverrideResponse.EnvOverride.Chart.GitRepoUrl)
@@ -1688,16 +1688,11 @@ func (impl *AppServiceImpl) CommitValuesToGit(valuesOverrideRequest *bean.Values
 	return commitHash, commitTime, nil
 }
 
-func (impl *AppServiceImpl) DeployArgocdApp(overrideRequest *bean.ValuesOverrideRequest, envOverride *chartConfig.EnvConfigOverride, ctx context.Context) error {
+func (impl *AppServiceImpl) DeployArgocdApp(overrideRequest *bean.ValuesOverrideRequest, valuesOverrideResponse *ValuesOverrideResponse, ctx context.Context) error {
 
-	pipeline, err := impl.pipelineRepository.FindById(overrideRequest.PipelineId)
-	if err != nil {
-		impl.logger.Errorw("error in fetching pipeline", "err", err)
-		return err
-	}
-	impl.logger.Debugw("new pipeline found", "pipeline", pipeline)
+	impl.logger.Debugw("new pipeline found", "pipeline", valuesOverrideResponse.Pipeline)
 	_, span := otel.Tracer("orchestrator").Start(ctx, "createArgoApplicationIfRequired")
-	name, err := impl.createArgoApplicationIfRequired(overrideRequest.AppId, envOverride, pipeline, overrideRequest.UserId)
+	name, err := impl.createArgoApplicationIfRequired(overrideRequest.AppId, valuesOverrideResponse.EnvOverride, valuesOverrideResponse.Pipeline, overrideRequest.UserId)
 	span.End()
 	if err != nil {
 		impl.logger.Errorw("acd application create error on cd trigger", "err", err, "req", overrideRequest)
@@ -1706,7 +1701,7 @@ func (impl *AppServiceImpl) DeployArgocdApp(overrideRequest *bean.ValuesOverride
 	impl.logger.Debugw("argocd application created", "name", name)
 
 	_, span = otel.Tracer("orchestrator").Start(ctx, "updateArgoPipeline")
-	updateAppInArgocd, err := impl.updateArgoPipeline(overrideRequest.AppId, pipeline.Name, envOverride, ctx)
+	updateAppInArgocd, err := impl.updateArgoPipeline(overrideRequest.AppId, valuesOverrideResponse.Pipeline.Name, valuesOverrideResponse.EnvOverride, ctx)
 	span.End()
 	if err != nil {
 		impl.logger.Errorw("error in updating argocd app ", "err", err)
@@ -1720,16 +1715,16 @@ func (impl *AppServiceImpl) DeployArgocdApp(overrideRequest *bean.ValuesOverride
 	return nil
 }
 
-func (impl *AppServiceImpl) DeployApp(overrideRequest *bean.ValuesOverrideRequest, valuesOverrideResponse ValuesOverrideResponse, triggeredAt time.Time, ctx context.Context) error {
+func (impl *AppServiceImpl) DeployApp(overrideRequest *bean.ValuesOverrideRequest, valuesOverrideResponse *ValuesOverrideResponse, triggeredAt time.Time, ctx context.Context) error {
 
 	if IsAcdApp(overrideRequest.DeploymentAppType) {
-		err := impl.DeployArgocdApp(overrideRequest, valuesOverrideResponse.EnvOverride, ctx)
+		err := impl.DeployArgocdApp(overrideRequest, valuesOverrideResponse, ctx)
 		if err != nil {
 			impl.logger.Errorw("error in deploying app on argocd", "err", err)
 			return err
 		}
 	} else if IsHelmApp(overrideRequest.DeploymentAppType) {
-		_, err := impl.createHelmAppForCdPipeline(overrideRequest, valuesOverrideResponse.EnvOverride, triggeredAt, valuesOverrideResponse.MergedValues, ctx)
+		_, err := impl.createHelmAppForCdPipeline(overrideRequest, nil, triggeredAt, ctx)
 		if err != nil {
 			impl.logger.Errorw("error in creating or updating helm application for cd pipeline", "err", err)
 			return err
@@ -3425,15 +3420,11 @@ func (impl *AppServiceImpl) updatePipeline(pipeline *pipelineConfig.Pipeline, us
 	return true, nil
 }
 
-func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.ValuesOverrideRequest,
-	envOverride *chartConfig.EnvConfigOverride,
-	triggeredAt time.Time, mergeAndSave string, ctx context.Context) (bool, error) {
+func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.ValuesOverrideRequest, valuesOverrideResponse *ValuesOverrideResponse, triggeredAt time.Time, ctx context.Context) (bool, error) {
 
-	pipeline, err := impl.pipelineRepository.FindById(overrideRequest.PipelineId)
-	if err != nil {
-		impl.logger.Errorw("error in fetching pipeline", "err", err)
-		return false, err
-	}
+	pipeline := valuesOverrideResponse.Pipeline
+	envOverride := valuesOverrideResponse.EnvOverride
+	mergeAndSave := valuesOverrideResponse.MergedValues
 
 	chartMetaData := &chart2.Metadata{
 		Name:    pipeline.App.AppName,
