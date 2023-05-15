@@ -1,0 +1,1 @@
+ALTER TABLE "public"."roles" ALTER COLUMN "role" TYPE character varying(100);

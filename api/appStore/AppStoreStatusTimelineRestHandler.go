@@ -1,7 +1,6 @@
 package appStore
 
 import (
-	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
@@ -56,13 +55,7 @@ func (handler AppStoreStatusTimelineRestHandlerImpl) FetchTimelinesForAppStore(w
 			return
 		}
 	}
-	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(installedAppId)
-	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-		return
-	}
-
+	//rbac will already be handled at app level
 	timelines, err := handler.pipelineStatusTimelineService.FetchTimelinesForAppStore(installedAppId, envId, installedAppVersionHistoryId)
 	if err != nil {
 		handler.logger.Errorw("error in getting pipeline status timelines by installedAppVersionHistoryId", "err", err, "installedAppVersionHistoryId", installedAppVersionHistoryId, "installedAppId", installedAppId, "envId", envId)
