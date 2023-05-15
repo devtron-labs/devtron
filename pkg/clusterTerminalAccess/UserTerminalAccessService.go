@@ -55,6 +55,7 @@ type UserTerminalAccessServiceImpl struct {
 	k8sApplicationService        k8s.K8sApplicationService
 	k8sClientService             application.K8sClientService
 	terminalSessionHandler       terminal.TerminalSessionHandler
+	K8sCapacityService           k8s.K8sCapacityService
 }
 
 type UserTerminalAccessSessionData struct {
@@ -79,7 +80,8 @@ func GetTerminalAccessConfig() (*models.UserTerminalSessionConfig, error) {
 }
 
 func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessRepository repository.TerminalAccessRepository, config *models.UserTerminalSessionConfig,
-	k8sApplicationService k8s.K8sApplicationService, k8sClientService application.K8sClientService, terminalSessionHandler terminal.TerminalSessionHandler) (*UserTerminalAccessServiceImpl, error) {
+	k8sApplicationService k8s.K8sApplicationService, k8sClientService application.K8sClientService, terminalSessionHandler terminal.TerminalSessionHandler,
+	K8sCapacityService k8s.K8sCapacityService) (*UserTerminalAccessServiceImpl, error) {
 	//fetches all running and starting entities from db and start SyncStatus
 	podStatusSyncCron := cron.New(cron.WithChain())
 	terminalAccessDataArrayMutex := &sync.RWMutex{}
@@ -94,6 +96,7 @@ func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessR
 		k8sClientService:             k8sClientService,
 		TerminalAccessSessionDataMap: &map1,
 		terminalSessionHandler:       terminalSessionHandler,
+		K8sCapacityService:           K8sCapacityService,
 	}
 	podStatusSyncCron.Start()
 	_, err := podStatusSyncCron.AddFunc(fmt.Sprintf("@every %ds", config.TerminalPodStatusSyncTimeInSecs), accessServiceImpl.SyncPodStatus)
@@ -1147,6 +1150,11 @@ func (impl *UserTerminalAccessServiceImpl) StartNodeDebug(userTerminalRequest *m
 	}
 	if userTerminalRequest.NodeName == "" || userTerminalRequest.ShellName == "" {
 		return nil, errors.New("node-name or shell cannot be empty, node-name : " + userTerminalRequest.NodeName + ", shell : " + userTerminalRequest.ShellName)
+	}
+	_, err := impl.K8sCapacityService.GetNode(context.Background(), userTerminalRequest.ClusterId, userTerminalRequest.NodeName)
+	if err != nil {
+		impl.Logger.Errorw("failed to get node details for requested node", "err", err, "userId", userTerminalRequest.UserId, "nodeName", userTerminalRequest.NodeName, "clusterId", userTerminalRequest.ClusterId)
+		return nil, err
 	}
 	podObject, err := impl.GenerateNodeDebugPod(userTerminalRequest)
 	if err != nil {

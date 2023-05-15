@@ -85,6 +85,7 @@ type K8sCapacityService interface {
 	CordonOrUnCordonNode(ctx context.Context, request *NodeUpdateRequestDto) (string, error)
 	DrainNode(ctx context.Context, request *NodeUpdateRequestDto) (string, error)
 	EditNodeTaints(ctx context.Context, request *NodeUpdateRequestDto) (string, error)
+	GetNode(ctx context.Context, clusterId int, nodeName string) (*corev1.Node, error)
 }
 type K8sCapacityServiceImpl struct {
 	logger                *zap.SugaredLogger
