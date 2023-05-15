@@ -1,9 +1,10 @@
-package app
+package status
 
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -11,8 +12,9 @@ import (
 )
 
 type PipelineStatusTimelineService interface {
-	SaveTimeline(timeline *pipelineConfig.PipelineStatusTimeline, tx *pg.Tx) error
+	SaveTimeline(timeline *pipelineConfig.PipelineStatusTimeline, tx *pg.Tx, isAppStore bool) error
 	FetchTimelines(appId, envId, wfrId int) (*PipelineTimelineDetailDto, error)
+	FetchTimelinesForAppStore(installedAppId, envId, installedAppVersionHistoryId int) (*PipelineTimelineDetailDto, error)
 }
 
 type PipelineStatusTimelineServiceImpl struct {
@@ -22,6 +24,8 @@ type PipelineStatusTimelineServiceImpl struct {
 	userService                            user.UserService
 	pipelineStatusTimelineResourcesService PipelineStatusTimelineResourcesService
 	pipelineStatusSyncDetailService        PipelineStatusSyncDetailService
+	installedAppRepository                 repository.InstalledAppRepository
+	installedAppVersionHistory             repository.InstalledAppVersionHistoryRepository
 }
 
 func NewPipelineStatusTimelineServiceImpl(logger *zap.SugaredLogger,
@@ -30,6 +34,8 @@ func NewPipelineStatusTimelineServiceImpl(logger *zap.SugaredLogger,
 	userService user.UserService,
 	pipelineStatusTimelineResourcesService PipelineStatusTimelineResourcesService,
 	pipelineStatusSyncDetailService PipelineStatusSyncDetailService,
+	installedAppRepository repository.InstalledAppRepository,
+	installedAppVersionHistory repository.InstalledAppVersionHistoryRepository,
 ) *PipelineStatusTimelineServiceImpl {
 	return &PipelineStatusTimelineServiceImpl{
 		logger:                                 logger,
@@ -38,6 +44,8 @@ func NewPipelineStatusTimelineServiceImpl(logger *zap.SugaredLogger,
 		userService:                            userService,
 		pipelineStatusTimelineResourcesService: pipelineStatusTimelineResourcesService,
 		pipelineStatusSyncDetailService:        pipelineStatusSyncDetailService,
+		installedAppRepository:                 installedAppRepository,
+		installedAppVersionHistory:             installedAppVersionHistory,
 	}
 }
 
@@ -62,12 +70,22 @@ type PipelineStatusTimelineDto struct {
 	ResourceDetails              []*SyncStageResourceDetailDto `json:"resourceDetails,omitempty"`
 }
 
-func (impl *PipelineStatusTimelineServiceImpl) SaveTimeline(timeline *pipelineConfig.PipelineStatusTimeline, tx *pg.Tx) error {
-	//get unableToFetch or timedOut timeline
-	redundantTimelines, err := impl.pipelineStatusTimelineRepository.FetchTimelineByWfrIdAndStatuses(timeline.CdWorkflowRunnerId, []pipelineConfig.TimelineStatus{pipelineConfig.TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS, pipelineConfig.TIMELINE_STATUS_FETCH_TIMED_OUT})
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in getting unableToFetch/timedOut timelines", "err", err, "cdWfrId", timeline.CdWorkflowRunnerId)
-		return err
+func (impl *PipelineStatusTimelineServiceImpl) SaveTimeline(timeline *pipelineConfig.PipelineStatusTimeline, tx *pg.Tx, isAppStore bool) error {
+	var err error
+	var redundantTimelines []*pipelineConfig.PipelineStatusTimeline
+	if isAppStore {
+		//get unableToFetch or timedOut timeline
+		redundantTimelines, err = impl.pipelineStatusTimelineRepository.FetchTimelineByInstalledAppVersionHistoryIdAndPipelineStatuses(timeline.InstalledAppVersionHistoryId, []pipelineConfig.TimelineStatus{pipelineConfig.TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS, pipelineConfig.TIMELINE_STATUS_FETCH_TIMED_OUT})
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in getting unableToFetch/timedOut timelines", "err", err, "installedAppVersionHistoryId", timeline.InstalledAppVersionHistoryId)
+			return err
+		}
+	} else {
+		redundantTimelines, err = impl.pipelineStatusTimelineRepository.FetchTimelineByWfrIdAndStatuses(timeline.CdWorkflowRunnerId, []pipelineConfig.TimelineStatus{pipelineConfig.TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS, pipelineConfig.TIMELINE_STATUS_FETCH_TIMED_OUT})
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in getting unableToFetch/timedOut timelines", "err", err, "cdWfrId", timeline.CdWorkflowRunnerId)
+			return err
+		}
 	}
 	if len(redundantTimelines) > 1 {
 		return fmt.Errorf("multiple unableToFetch/timedOut timelines found")
@@ -203,6 +221,94 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelines(appId, envId, wfrI
 		StatusFetchCount:           statusFetchCount,
 		WfrStatus:                  wfrStatus,
 		DeploymentAppDeleteRequest: wfr.CdWorkflow.Pipeline.DeploymentAppDeleteRequest,
+	}
+	return timelineDetail, nil
+}
+
+func (impl *PipelineStatusTimelineServiceImpl) FetchTimelinesForAppStore(installedAppId, envId, installedAppVersionHistoryId int) (*PipelineTimelineDetailDto, error) {
+	var deploymentStartedOn time.Time
+	var deploymentFinishedOn time.Time
+	var installedAppVersionHistoryStatus string
+	var deploymentAppType string
+	var err error
+	installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdAndEnvId(installedAppId, envId)
+	if err != nil {
+		impl.logger.Errorw("error in getting installed_app_version by appId and envId", "err", err, "appId", installedAppId, "envId", envId)
+		return nil, err
+	}
+	installedAppVersionHistory := &repository.InstalledAppVersionHistory{}
+	if installedAppVersionHistoryId == 0 {
+		//fetching latest installed_app_version_history from installed_app_version_id
+		installedAppVersionHistory, err = impl.installedAppVersionHistory.GetLatestInstalledAppVersionHistory(installedAppVersion.Id)
+		if err != nil {
+			impl.logger.Errorw("error in getting installed_app_version_history by installAppVersionId", "err", err, "appId", installedAppVersionHistoryId, "envId", envId)
+			return nil, err
+		}
+		installedAppVersionHistoryId = installedAppVersionHistory.Id
+	} else {
+		//fetching installed_app_version_history directly from installedAppVersionHistoryId
+		installedAppVersionHistory, err = impl.installedAppVersionHistory.GetInstalledAppVersionHistory(installedAppVersionHistoryId)
+		if err != nil {
+			impl.logger.Errorw("error in getting installed_app_version_history by installAppVersionHistoryId", "err", err, "appId", installedAppVersionHistoryId, "envId", envId)
+			return nil, err
+		}
+	}
+	if installedAppVersionHistory.StartedOn.IsZero() && installedAppVersionHistory.FinishedOn.IsZero() {
+		deploymentStartedOn = installedAppVersionHistory.CreatedOn
+		deploymentFinishedOn = installedAppVersionHistory.UpdatedOn
+	} else {
+		deploymentStartedOn = installedAppVersionHistory.StartedOn
+		deploymentFinishedOn = installedAppVersionHistory.FinishedOn
+	}
+	installedAppVersionHistoryStatus = installedAppVersionHistory.Status
+	deploymentAppType = installedAppVersion.InstalledApp.DeploymentAppType
+	triggeredByUser, err := impl.userService.GetById(installedAppVersionHistory.CreatedBy)
+	if err != nil {
+		impl.logger.Errorw("error in getting user detail by id", "err", err, "userId", installedAppVersionHistory.CreatedBy)
+		return nil, err
+	}
+	var timelineDtos []*PipelineStatusTimelineDto
+	var statusLastFetchedAt time.Time
+	var statusFetchCount int
+	if util.IsAcdApp(deploymentAppType) {
+		timelines, err := impl.pipelineStatusTimelineRepository.FetchTimelinesByInstalledAppVersionHistoryId(installedAppVersionHistoryId)
+		if err != nil {
+			impl.logger.Errorw("error in getting timelines by installedAppVersionHistoryId", "err", err, "wfrId", installedAppVersionHistoryId)
+			return nil, err
+		}
+		for _, timeline := range timelines {
+			var timelineResourceDetails []*SyncStageResourceDetailDto
+			if timeline.Status == pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_STARTED {
+				timelineResourceDetails, err = impl.pipelineStatusTimelineResourcesService.GetTimelineResourcesForATimelineForAppStore(timeline.InstalledAppVersionHistoryId)
+				if err != nil && err != pg.ErrNoRows {
+					impl.logger.Errorw("error in getting timeline resources details", "err", err, "installedAppVersionHistoryId", timeline.InstalledAppVersionHistoryId)
+					return nil, err
+				}
+			}
+			timelineDto := &PipelineStatusTimelineDto{
+				Id:                           timeline.Id,
+				InstalledAppVersionHistoryId: timeline.InstalledAppVersionHistoryId,
+				Status:                       timeline.Status,
+				StatusTime:                   timeline.StatusTime,
+				StatusDetail:                 timeline.StatusDetail,
+				ResourceDetails:              timelineResourceDetails,
+			}
+			timelineDtos = append(timelineDtos, timelineDto)
+		}
+		statusLastFetchedAt, statusFetchCount, err = impl.pipelineStatusSyncDetailService.GetSyncTimeAndCountByInstalledAppVersionHistoryId(installedAppVersionHistoryId)
+		if err != nil {
+			impl.logger.Errorw("error in getting pipeline status fetchTime and fetchCount by installedAppVersionHistoryId", "err", err, "installedAppVersionHistoryId", installedAppVersionHistoryId)
+		}
+	}
+	timelineDetail := &PipelineTimelineDetailDto{
+		TriggeredBy:                triggeredByUser.EmailId,
+		DeploymentStartedOn:        deploymentStartedOn,
+		DeploymentFinishedOn:       deploymentFinishedOn,
+		Timelines:                  timelineDtos,
+		StatusLastFetchedAt:        statusLastFetchedAt,
+		StatusFetchCount:           statusFetchCount,
+		WfrStatus:                  installedAppVersionHistoryStatus,
+		DeploymentAppDeleteRequest: false,
 	}
 	return timelineDetail, nil
 }

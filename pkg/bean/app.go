@@ -71,6 +71,7 @@ type GitMaterial struct {
 	CheckoutPath     string `json:"checkoutPath" validate:"checkout-path-component"`
 	FetchSubmodules  bool   `json:"fetchSubmodules"`
 	IsUsedInCiConfig bool   `json:"isUsedInCiConfig"`
+	FilterPattern    []string `json:"filterPattern"`
 }
 
 type CiMaterial struct {

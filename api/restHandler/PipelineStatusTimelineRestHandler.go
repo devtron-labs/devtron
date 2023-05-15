@@ -3,7 +3,7 @@ package restHandler
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/pkg/app"
+	"github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
@@ -18,13 +18,13 @@ type PipelineStatusTimelineRestHandler interface {
 
 type PipelineStatusTimelineRestHandlerImpl struct {
 	logger                        *zap.SugaredLogger
-	pipelineStatusTimelineService app.PipelineStatusTimelineService
+	pipelineStatusTimelineService status.PipelineStatusTimelineService
 	enforcerUtil                  rbac.EnforcerUtil
 	enforcer                      casbin.Enforcer
 }
 
 func NewPipelineStatusTimelineRestHandlerImpl(logger *zap.SugaredLogger,
-	pipelineStatusTimelineService app.PipelineStatusTimelineService, enforcerUtil rbac.EnforcerUtil,
+	pipelineStatusTimelineService status.PipelineStatusTimelineService, enforcerUtil rbac.EnforcerUtil,
 	enforcer casbin.Enforcer) *PipelineStatusTimelineRestHandlerImpl {
 	return &PipelineStatusTimelineRestHandlerImpl{
 		logger:                        logger,

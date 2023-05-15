@@ -1272,6 +1272,7 @@ func (handler CoreAppRestHandlerImpl) createDockerConfig(appId int, dockerConfig
 				DockerBuildOptions: dockerBuildConfig.DockerBuildOptions,
 				Args:               dockerBuildConfig.Args,
 				TargetPlatform:     dockerBuildConfig.TargetPlatform,
+				BuildContext:       dockerBuildConfig.BuildContext,
 			},
 		}
 	}

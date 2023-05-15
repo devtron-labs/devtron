@@ -29,20 +29,23 @@ type AppStoreRouter interface {
 }
 
 type AppStoreRouterImpl struct {
-	deployRestHandler        InstalledAppRestHandler
-	appStoreValuesRouter     appStoreValues.AppStoreValuesRouter
-	appStoreDiscoverRouter   appStoreDiscover.AppStoreDiscoverRouter
-	appStoreDeploymentRouter appStoreDeployment.AppStoreDeploymentRouter
+	deployRestHandler                 InstalledAppRestHandler
+	appStoreValuesRouter              appStoreValues.AppStoreValuesRouter
+	appStoreDiscoverRouter            appStoreDiscover.AppStoreDiscoverRouter
+	appStoreDeploymentRouter          appStoreDeployment.AppStoreDeploymentRouter
+	appStoreStatusTimelineRestHandler AppStoreStatusTimelineRestHandler
 }
 
 func NewAppStoreRouterImpl(restHandler InstalledAppRestHandler,
 	appStoreValuesRouter appStoreValues.AppStoreValuesRouter, appStoreDiscoverRouter appStoreDiscover.AppStoreDiscoverRouter,
-	appStoreDeploymentRouter appStoreDeployment.AppStoreDeploymentRouter) *AppStoreRouterImpl {
+	appStoreDeploymentRouter appStoreDeployment.AppStoreDeploymentRouter,
+	appStoreStatusTimelineRestHandler AppStoreStatusTimelineRestHandler) *AppStoreRouterImpl {
 	return &AppStoreRouterImpl{
-		deployRestHandler:        restHandler,
-		appStoreValuesRouter:     appStoreValuesRouter,
-		appStoreDiscoverRouter:   appStoreDiscoverRouter,
-		appStoreDeploymentRouter: appStoreDeploymentRouter,
+		deployRestHandler:                 restHandler,
+		appStoreValuesRouter:              appStoreValuesRouter,
+		appStoreDiscoverRouter:            appStoreDiscoverRouter,
+		appStoreDeploymentRouter:          appStoreDeploymentRouter,
+		appStoreStatusTimelineRestHandler: appStoreStatusTimelineRestHandler,
 	}
 }
 
@@ -50,6 +53,10 @@ func (router AppStoreRouterImpl) Init(configRouter *mux.Router) {
 	// deployment router starts
 	appStoreDeploymentSubRouter := configRouter.PathPrefix("/deployment").Subrouter()
 	router.appStoreDeploymentRouter.Init(appStoreDeploymentSubRouter)
+
+	configRouter.Path("/deployment-status/timeline/{installedAppId}/{envId}").
+		HandlerFunc(router.appStoreStatusTimelineRestHandler.FetchTimelinesForAppStore).Methods("GET")
+
 	// deployment router ends
 
 	// values router starts

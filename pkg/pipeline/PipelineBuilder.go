@@ -415,18 +415,21 @@ func (impl PipelineBuilderImpl) GetApp(appId int) (application *bean.CreateAppDT
 		impl.logger.Errorw("error in fetching app", "id", appId, "err", err)
 		return nil, err
 	}
-
+	application = &bean.CreateAppDTO{
+		Id:      app.Id,
+		AppName: app.AppName,
+		TeamId:  app.TeamId,
+		AppType: app.AppType,
+	}
+	if app.AppType == helper.ChartStoreApp {
+		return application, nil
+	}
 	gitMaterials := impl.GetMaterialsForAppId(appId)
+	application.Material = gitMaterials
 	if app.AppType == helper.Job {
 		app.AppName = app.DisplayName
 	}
-	application = &bean.CreateAppDTO{
-		Id:       app.Id,
-		AppName:  app.AppName,
-		Material: gitMaterials,
-		TeamId:   app.TeamId,
-		AppType:  app.AppType,
-	}
+	application.AppType = app.AppType
 	return application, nil
 }
 
@@ -450,6 +453,7 @@ func (impl PipelineBuilderImpl) GetMaterialsForAppId(appId int) []*bean.GitMater
 			GitProviderId:   material.GitProviderId,
 			CheckoutPath:    material.CheckoutPath,
 			FetchSubmodules: material.FetchSubmodules,
+			FilterPattern:   material.FilterPattern,
 		}
 		//check if git material is deletable or not
 		if ciTemplateBean != nil {
@@ -1146,7 +1150,8 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 	originalCiBuildConfig := originalCiConf.CiBuildConfig
 	ciTemplate := &pipelineConfig.CiTemplate{
 		//DockerfilePath:    originalCiConf.DockerBuildConfig.DockerfilePath,
-		GitMaterialId: ciBuildConfig.GitMaterialId,
+		GitMaterialId:             ciBuildConfig.GitMaterialId,
+		BuildContextGitMaterialId: ciBuildConfig.BuildContextGitMaterialId,
 		//Args:              string(argByte),
 		//TargetPlatform:    originalCiConf.DockerBuildConfig.TargetPlatform,
 		AppId:             originalCiConf.AppId,
@@ -1248,7 +1253,8 @@ func (impl PipelineBuilderImpl) CreateCiPipeline(createRequest *bean.CiConfigReq
 	ciTemplate := &pipelineConfig.CiTemplate{
 		//DockerRegistryId: createRequest.DockerRegistry,
 		//DockerRepository: createRequest.DockerRepository,
-		GitMaterialId: buildConfig.GitMaterialId,
+		GitMaterialId:             buildConfig.GitMaterialId,
+		BuildContextGitMaterialId: buildConfig.BuildContextGitMaterialId,
 		//DockerfilePath:    createRequest.DockerBuildConfig.DockerfilePath,
 		//Args:              string(argByte),
 		//TargetPlatform:    createRequest.DockerBuildConfig.TargetPlatform,

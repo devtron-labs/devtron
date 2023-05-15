@@ -185,7 +185,7 @@ func (impl EnvironmentRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Req
 	token := r.Header.Get("token")
 	emailId, err := impl.userService.GetEmailFromToken(token)
 	if err != nil {
-		impl.logger.Errorw("error in getting emailId from token", "err", err, "token", token)
+		impl.logger.Errorw("error in getting emailId from token", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -348,7 +348,7 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocomplete(w http.
 	}
 	elapsedTime := time.Since(start)
 	impl.logger.Infow("Env elapsed Time for enforcer", "dbElapsedTime", dbElapsedTime, "elapsedTime",
-		elapsedTime, "token", token, "envSize", len(grantedEnvironment))
+		elapsedTime, "envSize", len(grantedEnvironment))
 
 	common.WriteJsonResp(w, err, grantedEnvironment, http.StatusOK)
 }
@@ -367,7 +367,7 @@ func (impl EnvironmentRestHandlerImpl) GetCombinedEnvironmentListForDropDown(w h
 	token := r.Header.Get("token")
 	userEmailId, err := impl.userService.GetEmailFromToken(token)
 	if err != nil {
-		impl.logger.Errorw("error in getting user emailId from token", "userId", userId, "token", token)
+		impl.logger.Errorw("error in getting user emailId from token", "userId", userId, "err", err)
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}

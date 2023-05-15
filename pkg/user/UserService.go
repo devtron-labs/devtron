@@ -1118,7 +1118,7 @@ func (impl UserServiceImpl) GetUserByToken(context context.Context, token string
 
 func (impl UserServiceImpl) GetEmailFromToken(token string) (string, error) {
 	if token == "" {
-		impl.logger.Infow("no token provided", "token", token)
+		impl.logger.Infow("no token provided")
 		err := &util.ApiError{
 			Code:            constants.UserNoTokenProvided,
 			InternalMessage: "no token provided",

@@ -45,7 +45,7 @@ func NewTokenCache(logger *zap.SugaredLogger, aCDAuthConfig *ACDAuthConfig, user
 }
 func (impl *TokenCache) BuildACDSynchContext() (acdContext context.Context, err error) {
 	token, found := impl.cache.Get("token")
-	impl.logger.Debugw("building acd context", "token", token, "found", found)
+	impl.logger.Debugw("building acd context", "found", found)
 	if !found {
 		token, err := impl.userAuthService.HandleLogin(impl.aCDAuthConfig.ACDUsername, impl.aCDAuthConfig.ACDPassword)
 		if err != nil {
