@@ -1644,6 +1644,13 @@ func (impl PipelineBuilderImpl) updateCiPipelineSourceValue(baseCiConfig *bean.C
 			impl.logger.Errorw("error in committing transaction", "err", err)
 			return nil, err
 		}
+		if !modifiedCiPipeline.IsExternal {
+			err = impl.ciCdPipelineOrchestrator.AddPipelineMaterialInGitSensor(materialsUpdate)
+			if err != nil {
+				impl.logger.Errorw("error in saving pipelineMaterials in git sensor", "materials", materialsUpdate, "err", err)
+				return nil, err
+			}
+		}
 		modifiedCiPipeline.ScanEnabled = baseCiConfig.ScanEnabled
 		baseCiConfig.CiPipelines = append(baseCiConfig.CiPipelines, modifiedCiPipeline)
 		return baseCiConfig, nil
