@@ -1195,5 +1195,28 @@
       "description": "Wait for given period of time before scaling down the container",
       "title": "Wait For Seconds Before Scaling Down"
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kedaAutoscaling": {
+            "properties": {
+              "enabled": true
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "autoscaling": {
+            "properties": {
+              "enabled": false
+            }
+          }
+        }
+      },
+      "errorMessage": "Please, make sure that the HPA autoscaling is not enable, when kedaAutoscaling is enabled."
+    }
+  ]
 }
