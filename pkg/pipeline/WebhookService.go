@@ -46,12 +46,14 @@ type CiArtifactWebhookRequest struct {
 	WorkflowId         *int            `json:"workflowId"`
 	UserId             int32           `json:"userId"`
 	IsArtifactUploaded bool            `json:"isArtifactUploaded"`
+	FailureReason      string          `json:"failureReason"`
 }
 
 type WebhookService interface {
 	AuthenticateExternalCiWebhook(apiKey string) (int, error)
 	HandleCiSuccessEvent(ciPipelineId int, request *CiArtifactWebhookRequest) (id int, err error)
 	HandleExternalCiWebhook(externalCiId int, request *CiArtifactWebhookRequest, auth func(token string, projectObject string, envObject string) bool) (id int, err error)
+	HandleCiStepFailedEvent(ciPipelineId int, request *CiArtifactWebhookRequest) (err error)
 }
 
 type WebhookServiceImpl struct {
@@ -113,6 +115,24 @@ func (impl WebhookServiceImpl) AuthenticateExternalCiWebhook(apiKey string) (int
 		return 0, fmt.Errorf("invalid key, auth failed")
 	}
 	return id, nil
+}
+
+func (impl WebhookServiceImpl) HandleCiStepFailedEvent(ciPipelineId int, request *CiArtifactWebhookRequest) (err error) {
+
+	savedWorkflow, err := impl.ciWorkflowRepository.FindById(*request.WorkflowId)
+	if err != nil {
+		impl.logger.Errorw("cannot get saved wf", "wf ID: ", *request.WorkflowId, "err", err)
+		return err
+	}
+
+	pipeline, err := impl.ciPipelineRepository.FindByCiAndAppDetailsById(ciPipelineId)
+	if err != nil {
+		impl.logger.Errorw("unable to find pipeline", "ID", ciPipelineId, "err", err)
+		return err
+	}
+
+	go impl.WriteCIStepFailedEvent(pipeline, request, savedWorkflow)
+	return nil
 }
 
 func (impl WebhookServiceImpl) HandleCiSuccessEvent(ciPipelineId int, request *CiArtifactWebhookRequest) (id int, err error) {
@@ -210,6 +230,7 @@ func (impl WebhookServiceImpl) HandleCiSuccessEvent(ciPipelineId int, request *C
 	}
 	ciArtifactArr = append(ciArtifactArr, artifact)
 	go impl.WriteCISuccessEvent(request, pipeline, artifact)
+
 	isCiManual := true
 	if request.UserId == 1 {
 		impl.logger.Debugw("Trigger (auto) by system user", "userId", request.UserId)
@@ -284,6 +305,21 @@ func (impl WebhookServiceImpl) HandleExternalCiWebhook(externalCiId int, request
 		}
 	}
 	return artifact.Id, err
+}
+
+func (impl *WebhookServiceImpl) WriteCIStepFailedEvent(pipeline *pipelineConfig.CiPipeline, request *CiArtifactWebhookRequest, ciWorkflow *pipelineConfig.CiWorkflow) {
+	event := impl.eventFactory.Build(util.Fail, &pipeline.Id, pipeline.AppId, nil, util.CI)
+	material := &client.MaterialTriggerInfo{}
+	material.GitTriggers = ciWorkflow.GitTriggers
+	event.CiWorkflowRunnerId = ciWorkflow.Id
+	event.UserId = int(ciWorkflow.TriggeredBy)
+	event = impl.eventFactory.BuildExtraCIData(event, material, request.Image)
+	event.CiArtifactId = 0
+	event.Payload.FailureReason = request.FailureReason
+	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
+	if evtErr != nil {
+		impl.logger.Errorw("error in writing event: ", event, "error: ", evtErr)
+	}
 }
 
 func (impl *WebhookServiceImpl) WriteCISuccessEvent(request *CiArtifactWebhookRequest, pipeline *pipelineConfig.CiPipeline, artifact *repository.CiArtifact) {
