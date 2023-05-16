@@ -1196,27 +1196,28 @@
       "title": "Wait For Seconds Before Scaling Down"
     }
   },
-  "allOf": [
-    {
-      "if": {
-        "properties": {
-          "kedaAutoscaling": {
-            "properties": {
-              "enabled": true
-            }
-          }
+  "dependencies": {
+    "kedaAutoscaling": {
+      "properties": {
+        "enabled": {
+          "enum": [
+            true
+          ]
         }
-      },
-      "then": {
-        "properties": {
-          "autoscaling": {
-            "properties": {
-              "enabled": false
-            }
-          }
+      }
+    },
+    "autoscaling": {
+      "properties": {
+        "enabled": {
+          "enum": [
+            false
+          ]
         }
-      },
-      "errorMessage": "Please, make sure that the HPA autoscaling is not enable, when kedaAutoscaling is enabled."
+      }
     }
-  ]
+  },
+  "additionalProperties": false,
+  "errorMessage": {
+    "dependencies.A.properties.enabled.enum": "If A is enabled, B must be disabled (enabled=false)."
+  }
 }
