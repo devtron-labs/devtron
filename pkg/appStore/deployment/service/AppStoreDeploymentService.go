@@ -230,6 +230,7 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 		}
 	}
 
+	installedAppModel.DeploymentAppType = installAppVersionRequest.DeploymentAppType
 	installedAppModel.CreatedBy = installAppVersionRequest.UserId
 	installedAppModel.UpdatedBy = installAppVersionRequest.UserId
 	installedAppModel.CreatedOn = time.Now()
