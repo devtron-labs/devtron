@@ -2071,7 +2071,7 @@ func (impl PipelineBuilderImpl) DeleteCdPipelinePartial(pipeline *pipelineConfig
 	defer tx.Rollback()
 
 	//delete app from argo cd, if created
-	if pipeline.DeploymentAppCreated == true && pipeline.DeploymentAppDeleteRequest == false {
+	if pipeline.DeploymentAppCreated && !pipeline.DeploymentAppDeleteRequest {
 		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
 		if util.IsAcdApp(pipeline.DeploymentAppType) {
 			clusterBean, err := impl.clusterRepository.FindById(pipeline.Environment.ClusterId)
@@ -2135,7 +2135,7 @@ func (impl PipelineBuilderImpl) DeleteACDAppCdPipelineWithNonCascade(pipeline *p
 		return err
 	}
 	//delete app from argo cd with non-cascade, if created
-	if pipeline.DeploymentAppCreated && pipeline.DeploymentAppDeleteRequest && util.IsAcdApp(pipeline.DeploymentAppType) {
+	if pipeline.DeploymentAppCreated && util.IsAcdApp(pipeline.DeploymentAppType) {
 		appDetails, err := impl.appRepo.FindById(pipeline.AppId)
 		deploymentAppName := fmt.Sprintf("%s-%s", appDetails.AppName, pipeline.Environment.Name)
 		impl.logger.Debugw("acd app is already deleted for this pipeline", "pipeline", pipeline)
