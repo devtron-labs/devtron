@@ -605,6 +605,10 @@ func (impl AppStoreDeploymentServiceImpl) GetAllInstalledAppsByAppStoreId(w http
 }
 
 func (impl AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error) {
+	installAppVersionRequest.InstslledAppDeleteResponse = &appStoreBean.InstslledAppDeleteResponseDTO{
+		DeleteInitiated:  false,
+		ClusterReachable: true,
+	}
 	dbConnection := impl.installedAppRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -618,6 +622,7 @@ func (impl AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context
 		impl.logger.Errorw("fetching error", "err", err)
 		return nil, err
 	}
+
 	app, err := impl.appRepository.FindById(installAppVersionRequest.AppId)
 	if err != nil {
 		return nil, err
@@ -632,6 +637,13 @@ func (impl AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context
 		if util2.IsBaseStack() || util2.IsHelmApp(app.AppOfferingMode) || util.IsHelmApp(model.DeploymentAppType) {
 			err = impl.appStoreDeploymentHelmService.DeleteDeploymentApp(ctx, app.AppName, environment.Name, installAppVersionRequest)
 		} else {
+			if len(environment.Cluster.ErrorInConnecting) > 0 {
+				impl.logger.Errorw("cluster connection error", "err", environment.Cluster.ErrorInConnecting)
+				installAppVersionRequest.InstslledAppDeleteResponse.ClusterReachable = false
+				if !installAppVersionRequest.NonCascadeDelete {
+					return installAppVersionRequest, nil
+				}
+			}
 			err = impl.appStoreDeploymentArgoCdService.DeleteDeploymentApp(ctx, app.AppName, environment.Name, installAppVersionRequest)
 		}
 		if err != nil {
@@ -646,7 +658,7 @@ func (impl AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context
 			impl.logger.Errorw("error while creating install app", "error", err)
 			return nil, err
 		}
-
+		installAppVersionRequest.InstslledAppDeleteResponse.DeleteInitiated = true
 	} else {
 		//soft delete app
 		app.Active = false
@@ -697,13 +709,13 @@ func (impl AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context
 			impl.logger.Errorw("error on delete installed app", "err", err)
 			return nil, err
 		}
+		installAppVersionRequest.InstslledAppDeleteResponse.DeleteInitiated = true
 	}
 	err = tx.Commit()
 	if err != nil {
 		impl.logger.Errorw("error in commit db transaction on delete", "err", err)
 		return nil, err
 	}
-
 	return installAppVersionRequest, nil
 }
 

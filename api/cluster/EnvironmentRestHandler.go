@@ -70,7 +70,7 @@ type EnvironmentRestHandlerImpl struct {
 }
 
 type ClusterReachableResponse struct {
-	clusterReachable bool
+	ClusterReachable bool `json:"clusterReachable"`
 }
 
 func NewEnvironmentRestHandlerImpl(svc request.EnvironmentService, k8sApplicationService k8s.K8sApplicationService, logger *zap.SugaredLogger, userService user.UserService,
@@ -527,11 +527,11 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentConnection(w http.ResponseW
 		return
 	}
 	responseObj := &ClusterReachableResponse{
-		clusterReachable: true,
+		ClusterReachable: true,
 	}
 	err = impl.k8sApplicationService.FetchConnectionStatusForCluster(k8sClientSet, clusterBean.Id)
 	if err != nil {
-		responseObj.clusterReachable = false
+		responseObj.ClusterReachable = false
 	}
 	//updating the cluster connection error to db
 	mapObj := map[int]error{

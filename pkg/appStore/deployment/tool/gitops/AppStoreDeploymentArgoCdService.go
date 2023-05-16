@@ -685,7 +685,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) DeleteDeploymentApp(ctx context.
 			impl.Logger.Warnw("error while deletion of app in acd, continue to delete in db as this operation is force delete", "error", err)
 		} else {
 			//statusError, _ := err.(*errors2.StatusError)
-			if strings.Contains(err.Error(), "code = NotFound") {
+			if !installAppVersionRequest.NonCascadeDelete && strings.Contains(err.Error(), "code = NotFound") {
 				err = &util.ApiError{
 					UserMessage:     "Could not delete as application not found in argocd",
 					InternalMessage: err.Error(),

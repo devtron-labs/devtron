@@ -1552,21 +1552,13 @@ func (impl BulkUpdateServiceImpl) PerformBulkDeleteActionOnCdPipelines(impactedP
 			EnvironmentName: pipeline.Environment.Name,
 		}
 		if !dryRun {
-			if deleteAction == bean2.CASCADE_DELETE {
-				// Return Connection Error for ACD app in case of cluster unreachable
-				environmentBean, err := impl.environmentRepository.FindById(pipeline.EnvironmentId)
-				if err == nil && environmentBean.Cluster != nil && len(environmentBean.Cluster.ErrorInConnecting) > 0 {
-					impl.logger.Errorw("error in deleting cd pipeline", "err", fmt.Errorf("cluster connection error"), "pipelineId", pipeline.Id)
-					respDto.DeletionResult = fmt.Sprintf("Not able to delete pipeline, %v", err)
-					cdPipelineRespDtos = append(cdPipelineRespDtos, respDto)
-					continue
-				}
-			}
 			// Delete Cd pipeline
-			err := impl.pipelineBuilder.DeleteCdPipeline(pipeline, ctx, deleteAction, true, userId)
+			deleteResponse, err := impl.pipelineBuilder.DeleteCdPipeline(pipeline, ctx, deleteAction, true, userId)
 			if err != nil {
 				impl.logger.Errorw("error in deleting cd pipeline", "err", err, "pipelineId", pipeline.Id)
 				respDto.DeletionResult = fmt.Sprintf("Not able to delete pipeline, %v", err)
+			} else if !(deleteResponse.DeleteInitiated || deleteResponse.ClusterReachable) {
+				respDto.DeletionResult = fmt.Sprintf("Not able to delete pipeline, %s, piplineId, %v", "cluster connection error", pipeline.Id)
 			} else {
 				respDto.DeletionResult = "Pipeline deleted successfully."
 			}

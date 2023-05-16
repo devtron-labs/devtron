@@ -69,7 +69,7 @@ type InstalledAppRestHandlerImpl struct {
 	userAuthService                  user.UserService
 	enforcer                         casbin.Enforcer
 	enforcerUtil                     rbac.EnforcerUtil
-	enforcerUtilHelm          rbac.EnforcerUtilHelm
+	enforcerUtilHelm                 rbac.EnforcerUtilHelm
 	installedAppService              service.InstalledAppService
 	validator                        *validator.Validate
 	clusterService                   cluster.ClusterService
@@ -95,7 +95,7 @@ func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService u
 		userAuthService:                  userAuthService,
 		enforcer:                         enforcer,
 		enforcerUtil:                     enforcerUtil,
-		enforcerUtilHelm:          enforcerUtilHelm,
+		enforcerUtilHelm:                 enforcerUtilHelm,
 		installedAppService:              installedAppService,
 		validator:                        validator,
 		clusterService:                   clusterService,
@@ -500,13 +500,13 @@ func (handler *InstalledAppRestHandlerImpl) DeleteArgoInstalledAppWithNonCascade
 	request.Namespace = installedApp.Namespace
 	request.AcdPartialDelete = true
 
-	_, err = handler.appStoreDeploymentService.DeleteInstalledApp(ctx, request)
+	request, err = handler.appStoreDeploymentService.DeleteInstalledApp(ctx, request)
 	if err != nil {
 		handler.Logger.Errorw("service err, DeleteInstalledApp", "err", err, "installAppId", installedAppId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, nil, nil, http.StatusOK)
+	common.WriteJsonResp(w, nil, request.InstslledAppDeleteResponse, http.StatusOK)
 
 }
 
