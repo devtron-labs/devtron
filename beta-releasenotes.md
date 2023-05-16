@@ -1,4 +1,5 @@
 ## Bugs
+- fix: ci pipeline trigger bad gateway (#3386)
 - fix: GRPC fetch material excluded flag (#3385)
 - fix: job trigger fail (#3383)
 - fix: deployment triggered time handling for pre deployed apps (#3378)
