@@ -1221,5 +1221,8 @@
         }
       }
     }
-  ]
+  ],
+  "errorMessage": {
+    "allOf.[0].then.properties.autoscaling.properties.enabled.const": "If kedaAutoscaling is enabled, then autoscaling must be disabled (enabled=false)."
+  }
 }
