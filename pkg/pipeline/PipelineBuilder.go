@@ -1849,6 +1849,14 @@ func (impl PipelineBuilderImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipeli
 	} else if deleteAction == bean.NON_CASCADE_DELETE {
 		cascadeDelete = false
 	}
+	// updating cluster reachable flag
+	clusterBean, err := impl.clusterRepository.FindById(pipeline.Environment.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting cluster details", "err", err, "clusterId", pipeline.Environment.ClusterId)
+	}
+	if len(clusterBean.ErrorInConnecting) > 0 {
+		deleteResponse.ClusterReachable = false
+	}
 	//getting children CD pipeline details
 	childNodes, err := impl.appWorkflowRepository.FindWFCDMappingByParentCDPipelineId(pipeline.Id)
 	if err != nil && err != pg.ErrNoRows {
@@ -1957,13 +1965,8 @@ func (impl PipelineBuilderImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipeli
 	if pipeline.DeploymentAppCreated == true {
 		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
 		if util.IsAcdApp(pipeline.DeploymentAppType) {
-			clusterBean, err := impl.clusterRepository.FindById(pipeline.Environment.ClusterId)
-			if err != nil {
-				impl.logger.Errorw("error in getting cluster details", "err", err, "clusterId", pipeline.Environment.ClusterId)
-			}
-			if len(clusterBean.ErrorInConnecting) > 0 {
+			if !deleteResponse.ClusterReachable {
 				impl.logger.Errorw("cluster connection error", "err", clusterBean.ErrorInConnecting)
-				deleteResponse.ClusterReachable = false
 				if cascadeDelete {
 					return deleteResponse, nil
 				}
@@ -2040,6 +2043,14 @@ func (impl PipelineBuilderImpl) DeleteCdPipelinePartial(pipeline *pipelineConfig
 	} else if deleteAction == bean.NON_CASCADE_DELETE {
 		cascadeDelete = false
 	}
+	//Updating clusterReachable flag
+	clusterBean, err := impl.clusterRepository.FindById(pipeline.Environment.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting cluster details", "err", err, "clusterId", pipeline.Environment.ClusterId)
+	}
+	if len(clusterBean.ErrorInConnecting) > 0 {
+		deleteResponse.ClusterReachable = false
+	}
 	//getting children CD pipeline details
 	childNodes, err := impl.appWorkflowRepository.FindWFCDMappingByParentCDPipelineId(pipeline.Id)
 	if err != nil && err != pg.ErrNoRows {
@@ -2074,13 +2085,8 @@ func (impl PipelineBuilderImpl) DeleteCdPipelinePartial(pipeline *pipelineConfig
 	if pipeline.DeploymentAppCreated && !pipeline.DeploymentAppDeleteRequest {
 		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
 		if util.IsAcdApp(pipeline.DeploymentAppType) {
-			clusterBean, err := impl.clusterRepository.FindById(pipeline.Environment.ClusterId)
-			if err != nil {
-				impl.logger.Errorw("error in getting cluster details", "err", err, "clusterId", pipeline.Environment.ClusterId)
-			}
-			if len(clusterBean.ErrorInConnecting) > 0 {
+			if !deleteResponse.ClusterReachable {
 				impl.logger.Errorw("cluster connection error", "err", clusterBean.ErrorInConnecting)
-				deleteResponse.ClusterReachable = false
 				if cascadeDelete {
 					return deleteResponse, nil
 				}
