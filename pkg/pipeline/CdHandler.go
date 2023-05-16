@@ -31,11 +31,15 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	client2 "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
+	"github.com/devtron-labs/devtron/pkg/app/status"
+	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
 	app_status "github.com/devtron-labs/devtron/pkg/appStatus"
+	repository3 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -43,12 +47,19 @@ import (
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+)
+
+const (
+	DEVTRON_APP_HELM_PIPELINE_STATUS_UPDATE_CRON = "DTAppHelmPipelineStatusUpdateCron"
+	DEVTRON_APP_ARGO_PIPELINE_STATUS_UPDATE_CRON = "DTAppArgoPipelineStatusUpdateCron"
+	HELM_APP_ARGO_PIPELINE_STATUS_UPDATE_CRON    = "HelmAppArgoPipelineStatusUpdateCron"
 )
 
 type CdHandler interface {
@@ -63,10 +74,10 @@ type CdHandler interface {
 	CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipelineStatusCheckEligibleTime int) error
 	CheckArgoAppStatusPeriodicallyAndUpdateInDb(getPipelineDeployedBeforeMinutes int, getPipelineDeployedWithinHours int) error
 	CheckArgoPipelineTimelineStatusPeriodicallyAndUpdateInDb(pendingSinceSeconds int, timeForDegradation int) error
-	UpdatePipelineTimelineAndStatusByLiveApplicationFetch(pipeline *pipelineConfig.Pipeline, userId int32) (err error, isTimelineUpdated bool)
-	CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipelineId int, userId int32)
-	FetchAppWorkflowStatusForTriggerViewForEnvironment(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*pipelineConfig.CdWorkflowStatus, error)
-	FetchAppDeploymentStatusForEnvironments(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*pipelineConfig.AppDeploymentStatus, error)
+	UpdatePipelineTimelineAndStatusByLiveApplicationFetch(pipeline *pipelineConfig.Pipeline, installedApp repository3.InstalledApps, userId int32) (err error, isTimelineUpdated bool)
+	CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipelineId int, userId int32, isAppStoreApplication bool)
+	FetchAppWorkflowStatusForTriggerViewForEnvironment(request appGroup2.AppGroupingRequest) ([]*pipelineConfig.CdWorkflowStatus, error)
+	FetchAppDeploymentStatusForEnvironments(request appGroup2.AppGroupingRequest) ([]*pipelineConfig.AppDeploymentStatus, error)
 }
 
 type CdHandlerImpl struct {
@@ -92,12 +103,16 @@ type CdHandlerImpl struct {
 	argoUserService                        argo.ArgoUserService
 	deploymentEventHandler                 app.DeploymentEventHandler
 	eventClient                            client2.EventClient
-	pipelineStatusTimelineResourcesService app.PipelineStatusTimelineResourcesService
-	pipelineStatusSyncDetailService        app.PipelineStatusSyncDetailService
-	pipelineStatusTimelineService          app.PipelineStatusTimelineService
+	pipelineStatusTimelineResourcesService status.PipelineStatusTimelineResourcesService
+	pipelineStatusSyncDetailService        status.PipelineStatusSyncDetailService
+	pipelineStatusTimelineService          status.PipelineStatusTimelineService
 	appService                             app.AppService
 	appStatusService                       app_status.AppStatusService
 	enforcerUtil                           rbac.EnforcerUtil
+	installedAppRepository                 repository3.InstalledAppRepository
+	installedAppVersionHistoryRepository   repository3.InstalledAppVersionHistoryRepository
+	appRepository                          app2.AppRepository
+	appGroupService                        appGroup2.AppGroupService
 }
 
 func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService user.UserService,
@@ -116,11 +131,14 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 	application application.ServiceClient, argoUserService argo.ArgoUserService,
 	deploymentEventHandler app.DeploymentEventHandler,
 	eventClient client2.EventClient,
-	pipelineStatusTimelineResourcesService app.PipelineStatusTimelineResourcesService,
-	pipelineStatusSyncDetailService app.PipelineStatusSyncDetailService,
-	pipelineStatusTimelineService app.PipelineStatusTimelineService,
+	pipelineStatusTimelineResourcesService status.PipelineStatusTimelineResourcesService,
+	pipelineStatusSyncDetailService status.PipelineStatusSyncDetailService,
+	pipelineStatusTimelineService status.PipelineStatusTimelineService,
 	appService app.AppService,
-	appStatusService app_status.AppStatusService, enforcerUtil rbac.EnforcerUtil) *CdHandlerImpl {
+	appStatusService app_status.AppStatusService, enforcerUtil rbac.EnforcerUtil,
+	installedAppRepository repository3.InstalledAppRepository,
+	installedAppVersionHistoryRepository repository3.InstalledAppVersionHistoryRepository, appRepository app2.AppRepository,
+	appGroupService appGroup2.AppGroupService) *CdHandlerImpl {
 	return &CdHandlerImpl{
 		Logger:                                 Logger,
 		cdConfig:                               cdConfig,
@@ -150,12 +168,17 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 		appService:                             appService,
 		appStatusService:                       appStatusService,
 		enforcerUtil:                           enforcerUtil,
+		installedAppRepository:                 installedAppRepository,
+		installedAppVersionHistoryRepository:   installedAppVersionHistoryRepository,
+		appRepository:                          appRepository,
+		appGroupService:                        appGroupService,
 	}
 }
 
 type ArgoPipelineStatusSyncEvent struct {
-	PipelineId int   `json:"pipelineId"`
-	UserId     int32 `json:"userId"`
+	PipelineId            int   `json:"pipelineId"`
+	UserId                int32 `json:"userId"`
+	IsAppStoreApplication bool  `json:"isAppStoreApplication"`
 }
 
 const NotTriggered string = "Not Triggered"
@@ -170,9 +193,21 @@ func (impl *CdHandlerImpl) CheckArgoAppStatusPeriodicallyAndUpdateInDb(getPipeli
 		impl.Logger.Errorw("error in getting pipelines having latest trigger stuck in non terminal statuses", "err", err)
 		return err
 	}
-	impl.Logger.Debugw("received stuck argo cd pipelines", "pipelines", pipelines)
+	impl.Logger.Debugw("received stuck argo cd pipelines", "pipelines", pipelines, "number of pipelines", len(pipelines))
+
 	for _, pipeline := range pipelines {
-		impl.CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipeline.Id, 1)
+		impl.CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipeline.Id, 1, false)
+	}
+
+	installedAppVersions, err := impl.installedAppRepository.GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatusesForAppStore(getPipelineDeployedBeforeMinutes, getPipelineDeployedWithinHours)
+	if err != nil {
+		impl.Logger.Errorw("error in getting installedAppVersions having latest trigger stuck in non terminal statuses", "err", err)
+		return err
+	}
+	impl.Logger.Debugw("received stuck argo installed appStore app", "installedAppVersions", installedAppVersions, "number of triggers", len(installedAppVersions))
+
+	for _, installedAppVersion := range installedAppVersions {
+		impl.CheckAndSendArgoPipelineStatusSyncEventIfNeeded(installedAppVersion.Id, 1, true)
 	}
 	return nil
 }
@@ -186,23 +221,43 @@ func (impl *CdHandlerImpl) CheckArgoPipelineTimelineStatusPeriodicallyAndUpdateI
 		return err
 	}
 	impl.Logger.Debugw("received argo cd pipelines stuck at kubectl apply synced stage", "pipelines", pipelines)
+
+	installedAppVersions, err := impl.installedAppRepository.GetArgoPipelinesHavingTriggersStuckInLastPossibleNonTerminalTimelinesForAppStore(pendingSinceSeconds, timeForDegradation)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("err in GetArgoPipelinesHavingTriggersStuckInLastPossibleNonTerminalTimelinesForAppStore", "err", err)
+		return err
+	}
+
+	impl.Logger.Debugw("received argo appStore application stuck at kubectl apply synced stage", "pipelines", installedAppVersions)
 	for _, pipeline := range pipelines {
-		impl.CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipeline.Id, 1)
+		impl.CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipeline.Id, 1, false)
+	}
+
+	for _, installedAppVersion := range installedAppVersions {
+		impl.CheckAndSendArgoPipelineStatusSyncEventIfNeeded(installedAppVersion.Id, 1, true)
 	}
 	return nil
 }
 
-func (impl *CdHandlerImpl) CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipelineId int, userId int32) {
-	lastSyncTime, err := impl.pipelineStatusSyncDetailService.GetLastSyncTimeForLatestCdWfrByCdPipelineId(pipelineId)
+func (impl *CdHandlerImpl) CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipelineId int, userId int32, isAppStoreApplication bool) {
+	var lastSyncTime time.Time
+	var err error
+	if isAppStoreApplication {
+		lastSyncTime, err = impl.pipelineStatusSyncDetailService.GetLastSyncTimeForLatestInstalledAppVersionHistoryByInstalledAppVersionId(pipelineId)
+	} else {
+		lastSyncTime, err = impl.pipelineStatusSyncDetailService.GetLastSyncTimeForLatestCdWfrByCdPipelineId(pipelineId)
+	}
 	if err != nil {
 		impl.Logger.Errorw("error in getting last sync time by pipelineId", "err", err, "pipelineId", pipelineId)
 		return
 	}
 	//TODO: remove hard coding
+	//pipelineId can be cdPipelineId or installedAppVersionId, using isAppStoreApplication flag to identify between them
 	if lastSyncTime.IsZero() || (!lastSyncTime.IsZero() && time.Since(lastSyncTime) > 5*time.Second) { //create new nats event
 		statusUpdateEvent := ArgoPipelineStatusSyncEvent{
-			PipelineId: pipelineId,
-			UserId:     userId,
+			PipelineId:            pipelineId,
+			UserId:                userId,
+			IsAppStoreApplication: isAppStoreApplication,
 		}
 		//write event
 		err = impl.eventClient.WriteNatsEvent(pubub.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, statusUpdateEvent)
@@ -212,88 +267,195 @@ func (impl *CdHandlerImpl) CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipel
 	}
 }
 
-func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch(pipeline *pipelineConfig.Pipeline, userId int32) (error, bool) {
+func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch(pipeline *pipelineConfig.Pipeline, installedApp repository3.InstalledApps, userId int32) (error, bool) {
 	isTimelineUpdated := false
 	isSucceeded := false
-	cdWfr, err := impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(pipeline.Id, bean.CD_WORKFLOW_TYPE_DEPLOY)
-	if err != nil {
-		impl.Logger.Errorw("error in getting latest cdWfr by cdPipelineId", "err", err, "pipelineId", pipeline.Id)
-		return nil, isTimelineUpdated
-	}
-	impl.Logger.Debugw("ARGO_PIPELINE_STATUS_UPDATE_REQ", "stage", "checkingDeploymentStatus", "argoAppName", pipeline, "cdWfr", cdWfr)
-	if util3.IsTerminalStatus(cdWfr.Status) {
-		//drop event
-		return nil, isTimelineUpdated
-	}
-	//this should only be called when we have git-ops configured
-	//try fetching status from argo cd
-	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		impl.Logger.Errorw("error in getting acd token", "err", err)
-	}
-	ctx := context.WithValue(context.Background(), "token", acdToken)
-	query := &application2.ApplicationQuery{
-		Name: &pipeline.DeploymentAppName,
-	}
-	app, err := impl.application.Get(ctx, query)
-	if err != nil {
-		impl.Logger.Errorw("error in getting acd application", "err", err, "argoAppName", pipeline)
-		//updating cdWfr status
-		cdWfr.Status = pipelineConfig.WorkflowUnableToFetchState
-		cdWfr.UpdatedOn = time.Now()
-		cdWfr.UpdatedBy = 1
-		err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(&cdWfr)
+	if pipeline != nil {
+		isAppStore := false
+		cdWfr, err := impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(pipeline.Id, bean.CD_WORKFLOW_TYPE_DEPLOY)
 		if err != nil {
-			impl.Logger.Errorw("error on update cd workflow runner", "cdWfr", cdWfr, "err", err)
-			return err, isTimelineUpdated
+			impl.Logger.Errorw("error in getting latest cdWfr by cdPipelineId", "err", err, "pipelineId", pipeline.Id)
+			return nil, isTimelineUpdated
 		}
-		// creating cd pipeline status timeline
-		timeline := &pipelineConfig.PipelineStatusTimeline{
-			CdWorkflowRunnerId: cdWfr.Id,
-			Status:             pipelineConfig.TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS,
-			StatusDetail:       "Failed to connect to Argo CD to fetch deployment status.",
-			StatusTime:         time.Now(),
-			AuditLog: sql.AuditLog{
-				CreatedBy: userId,
-				CreatedOn: time.Now(),
-				UpdatedBy: userId,
-				UpdatedOn: time.Now(),
-			},
+		impl.Logger.Debugw("ARGO_PIPELINE_STATUS_UPDATE_REQ", "stage", "checkingDeploymentStatus", "argoAppName", pipeline, "cdWfr", cdWfr)
+		if util3.IsTerminalStatus(cdWfr.Status) {
+			//drop event
+			return nil, isTimelineUpdated
 		}
-		err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
+		//this should only be called when we have git-ops configured
+		//try fetching status from argo cd
+		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 		if err != nil {
-			impl.Logger.Errorw("error in creating timeline status for app", "err", err, "timeline", timeline)
-			return err, isTimelineUpdated
+			impl.Logger.Errorw("error in getting acd token", "err", err)
+		}
+		ctx := context.WithValue(context.Background(), "token", acdToken)
+		query := &application2.ApplicationQuery{
+			Name: &pipeline.DeploymentAppName,
+		}
+		app, err := impl.application.Get(ctx, query)
+		if err != nil {
+			impl.Logger.Errorw("error in getting acd application", "err", err, "argoAppName", pipeline)
+			//updating cdWfr status
+			cdWfr.Status = pipelineConfig.WorkflowUnableToFetchState
+			cdWfr.UpdatedOn = time.Now()
+			cdWfr.UpdatedBy = 1
+			err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(&cdWfr)
+			if err != nil {
+				impl.Logger.Errorw("error on update cd workflow runner", "cdWfr", cdWfr, "err", err)
+				return err, isTimelineUpdated
+			}
+			// creating cd pipeline status timeline
+			timeline := &pipelineConfig.PipelineStatusTimeline{
+				CdWorkflowRunnerId: cdWfr.Id,
+				Status:             pipelineConfig.TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS,
+				StatusDetail:       "Failed to connect to Argo CD to fetch deployment status.",
+				StatusTime:         time.Now(),
+				AuditLog: sql.AuditLog{
+					CreatedBy: userId,
+					CreatedOn: time.Now(),
+					UpdatedBy: userId,
+					UpdatedOn: time.Now(),
+				},
+			}
+			err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, isAppStore)
+			if err != nil {
+				impl.Logger.Errorw("error in creating timeline status for app", "err", err, "timeline", timeline)
+				return err, isTimelineUpdated
+			}
+		} else {
+			if app == nil {
+				impl.Logger.Errorw("found empty argo application object", "appName", pipeline.DeploymentAppName)
+				return fmt.Errorf("found empty argo application object"), isTimelineUpdated
+			}
+			isSucceeded, isTimelineUpdated, err = impl.appService.UpdateDeploymentStatusForGitOpsPipelines(app, time.Now(), isAppStore)
+			if err != nil {
+				impl.Logger.Errorw("error in updating deployment status for gitOps cd pipelines", "app", app)
+				return err, isTimelineUpdated
+			}
+			appStatus := app.Status.Health.Status
+			err = impl.appStatusService.UpdateStatusWithAppIdEnvId(pipeline.AppId, pipeline.EnvironmentId, string(appStatus))
+			if err != nil {
+				impl.Logger.Errorw("error occurred while updating app-status for cd pipeline", "err", err, "appId", pipeline.AppId, "envId", pipeline.EnvironmentId)
+				impl.Logger.Debugw("ignoring the error, UpdateStatusWithAppIdEnvId", "err", err, "appId", pipeline.AppId, "envId", pipeline.EnvironmentId)
+			}
+		}
+		if isSucceeded {
+			//handling deployment success event
+			gitHash := ""
+			if app != nil {
+				gitHash = app.Status.Sync.Revision
+			}
+			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(gitHash, 0)
+			if err != nil {
+				impl.Logger.Errorw("error in handling deployment success event", "err", err)
+				return err, isTimelineUpdated
+			}
 		}
 	} else {
-		if app == nil {
-			impl.Logger.Errorw("found empty argo application object", "appName", pipeline.DeploymentAppName)
-			return fmt.Errorf("found empty argo application object"), isTimelineUpdated
-		}
-		isSucceeded, isTimelineUpdated, err = impl.appService.UpdateDeploymentStatusForGitOpsCdPipelines(app, time.Now())
+		isAppStore := true
+		installedAppVersionHistory, err := impl.installedAppVersionHistoryRepository.GetLatestInstalledAppVersionHistoryByInstalledAppId(installedApp.Id)
 		if err != nil {
-			impl.Logger.Errorw("error in updating deployment status for gitOps cd pipelines", "app", app)
-			return err, isTimelineUpdated
+			impl.Logger.Errorw("error in getting latest installedAppVersionHistory by installedAppId", "err", err, "installedAppId", installedApp.Id)
+			return nil, isTimelineUpdated
 		}
-		appStatus := app.Status.Health.Status
-		err = impl.appStatusService.UpdateStatusWithAppIdEnvId(pipeline.AppId, pipeline.EnvironmentId, string(appStatus))
+		impl.Logger.Debugw("ARGO_PIPELINE_STATUS_UPDATE_REQ", "stage", "checkingDeploymentStatus", "argoAppName", installedApp, "installedAppVersionHistory", installedAppVersionHistory)
+		if util3.IsTerminalStatus(installedAppVersionHistory.Status) {
+			//drop event
+			return nil, isTimelineUpdated
+		}
+		appDetails, err := impl.appRepository.FindActiveById(installedApp.AppId)
 		if err != nil {
-			impl.Logger.Errorw("error occurred while updating app-status", "err", err, "appId", pipeline.AppId, "envId", pipeline.EnvironmentId)
-			impl.Logger.Debugw("ignoring the error, UpdateStatusWithAppIdEnvId", "err", err, "appId", pipeline.AppId, "envId", pipeline.EnvironmentId)
+			impl.Logger.Errorw("error in getting appDetails from appId", "err", err)
+			return nil, isTimelineUpdated
+		}
+
+		//TODO if Environment object in installedApp is nil then fetch envDetails also from envRepository
+		envDetail, err := impl.envRepository.FindById(installedApp.EnvironmentId)
+		if err != nil {
+			impl.Logger.Errorw("error in getting envDetails from environment id", "err", err)
+			return nil, isTimelineUpdated
+		}
+		var acdAppName string
+		if len(installedApp.Environment.Name) != 0 {
+			acdAppName = appDetails.AppName + installedApp.Environment.Name
+		} else {
+			acdAppName = appDetails.AppName + "-" + envDetail.Name
+		}
+
+		//this should only be called when we have git-ops configured
+		//try fetching status from argo cd
+		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+		if err != nil {
+			impl.Logger.Errorw("error in getting acd token", "err", err)
+		}
+
+		ctx := context.WithValue(context.Background(), "token", acdToken)
+		query := &application2.ApplicationQuery{
+			Name: &acdAppName,
+		}
+		app, err := impl.application.Get(ctx, query)
+		if err != nil {
+			impl.Logger.Errorw("error in getting acd application", "err", err, "argoAppName", installedApp)
+			//updating cdWfr status
+			installedAppVersionHistory.Status = pipelineConfig.WorkflowUnableToFetchState
+			installedAppVersionHistory.UpdatedOn = time.Now()
+			installedAppVersionHistory.UpdatedBy = 1
+			installedAppVersionHistory, err = impl.installedAppVersionHistoryRepository.UpdateInstalledAppVersionHistory(installedAppVersionHistory, nil)
+			if err != nil {
+				impl.Logger.Errorw("error on update installedAppVersionHistory", "installedAppVersionHistory", installedAppVersionHistory, "err", err)
+				return err, isTimelineUpdated
+			}
+			// creating installedApp pipeline status timeline
+			timeline := &pipelineConfig.PipelineStatusTimeline{
+				InstalledAppVersionHistoryId: installedAppVersionHistory.Id,
+				Status:                       pipelineConfig.TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS,
+				StatusDetail:                 "Failed to connect to Argo CD to fetch deployment status.",
+				StatusTime:                   time.Now(),
+				AuditLog: sql.AuditLog{
+					CreatedBy: userId,
+					CreatedOn: time.Now(),
+					UpdatedBy: userId,
+					UpdatedOn: time.Now(),
+				},
+			}
+			err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, isAppStore)
+			if err != nil {
+				impl.Logger.Errorw("error in creating timeline status for app", "err", err, "timeline", timeline)
+				return err, isTimelineUpdated
+			}
+		} else {
+			if app == nil {
+				impl.Logger.Errorw("found empty argo application object", "appName", acdAppName)
+				return fmt.Errorf("found empty argo application object"), isTimelineUpdated
+			}
+			isSucceeded, isTimelineUpdated, err = impl.appService.UpdateDeploymentStatusForGitOpsPipelines(app, time.Now(), isAppStore)
+			if err != nil {
+				impl.Logger.Errorw("error in updating deployment status for gitOps cd pipelines", "app", app)
+				return err, isTimelineUpdated
+			}
+			appStatus := app.Status.Health.Status
+			err = impl.appStatusService.UpdateStatusWithAppIdEnvId(installedApp.AppId, installedApp.EnvironmentId, string(appStatus))
+			if err != nil {
+				impl.Logger.Errorw("error occurred while updating app-status for installed app", "err", err, "appId", installedApp.AppId, "envId", installedApp.EnvironmentId)
+				impl.Logger.Debugw("ignoring the error, UpdateStatusWithAppIdEnvId", "err", err, "appId", installedApp.AppId, "envId", installedApp.EnvironmentId)
+			}
+		}
+		if isSucceeded {
+			//handling deployment success event
+			//updating cdWfr status
+			installedAppVersionHistory.Status = pipelineConfig.WorkflowSucceeded
+			installedAppVersionHistory.FinishedOn = time.Now()
+			installedAppVersionHistory.UpdatedOn = time.Now()
+			installedAppVersionHistory.UpdatedBy = 1
+			installedAppVersionHistory, err = impl.installedAppVersionHistoryRepository.UpdateInstalledAppVersionHistory(installedAppVersionHistory, nil)
+			if err != nil {
+				impl.Logger.Errorw("error on update installedAppVersionHistory", "installedAppVersionHistory", installedAppVersionHistory, "err", err)
+				return err, isTimelineUpdated
+			}
+
 		}
 	}
-	if isSucceeded {
-		//handling deployment success event
-		gitHash := ""
-		if app != nil {
-			gitHash = app.Status.Sync.Revision
-		}
-		err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(gitHash, 0)
-		if err != nil {
-			impl.Logger.Errorw("error in handling deployment success event", "err", err)
-			return err, isTimelineUpdated
-		}
-	}
+
 	return nil, isTimelineUpdated
 }
 
@@ -303,7 +465,7 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipel
 		impl.Logger.Errorw("error in getting latest triggers of helm pipelines which are stuck in non terminal statuses", "err", err)
 		return err
 	}
-	impl.Logger.Infow("checking helm app status for non terminal deployment triggers", "wfrList", wfrList)
+	impl.Logger.Debugw("checking helm app status for non terminal deployment triggers", "wfrList", wfrList, "number of wfr", len(wfrList))
 	for _, wfr := range wfrList {
 		if time.Now().Sub(wfr.UpdatedOn) <= time.Duration(helmPipelineStatusCheckEligibleTime)*time.Second {
 			//if wfr is updated within configured time then do not include for this cron cycle
@@ -998,11 +1160,25 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerView(appId int) ([]*p
 	return cdWorkflowStatus, err
 }
 
-func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*pipelineConfig.CdWorkflowStatus, error) {
+func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(request appGroup2.AppGroupingRequest) ([]*pipelineConfig.CdWorkflowStatus, error) {
 	cdWorkflowStatus := make([]*pipelineConfig.CdWorkflowStatus, 0)
-	pipelines, err := impl.pipelineRepository.FindActiveByEnvId(envId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.Logger.Errorw("error fetching pipelines for env id", "err", err)
+	var pipelines []*pipelineConfig.Pipeline
+	var err error
+	if request.AppGroupId > 0 {
+		appIds, err := impl.appGroupService.GetAppIdsByAppGroupId(request.AppGroupId)
+		if err != nil {
+			return nil, err
+		}
+		//override appIds if already provided app group id in request.
+		request.AppIds = appIds
+	}
+	if len(request.AppIds) > 0 {
+		pipelines, err = impl.pipelineRepository.FindActiveByInFilter(request.EnvId, request.AppIds)
+	} else {
+		pipelines, err = impl.pipelineRepository.FindActiveByEnvId(request.EnvId)
+	}
+	if err != nil {
+		impl.Logger.Errorw("error in fetching pipelines", "request", request, "err", err)
 		return nil, err
 	}
 
@@ -1011,7 +1187,7 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(en
 		appIds = append(appIds, pipeline.AppId)
 	}
 	if len(appIds) == 0 {
-		impl.Logger.Warnw("there is no app id found for fetching cd pipelines", "envId", envId)
+		impl.Logger.Warnw("there is no app id found for fetching cd pipelines", "request", request)
 		return cdWorkflowStatus, nil
 	}
 	pipelines, err = impl.pipelineRepository.FindActiveByAppIds(appIds)
@@ -1034,7 +1210,7 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(en
 		appObjectArr = append(appObjectArr, object[0])
 		envObjectArr = append(envObjectArr, object[1])
 	}
-	appResults, envResults := checkAuthBatch(emailId, appObjectArr, envObjectArr)
+	appResults, envResults := request.CheckAuthBatch(request.EmailId, appObjectArr, envObjectArr)
 	for _, pipeline := range pipelines {
 		appObject := objects[pipeline.Id][0]
 		envObject := objects[pipeline.Id][1]
@@ -1126,7 +1302,7 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(en
 				cdWs.PipelineId = item
 				cdWs.PreStatus = NotTriggered
 				cdWs.DeployStatus = NotDeployed
-				cdWs.PostStatus = WorklowTypeDeploy
+				cdWs.PostStatus = NotTriggered
 				cdWorkflowStatus = append(cdWorkflowStatus, cdWs)
 			}
 		}
@@ -1135,50 +1311,68 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(en
 	return cdWorkflowStatus, err
 }
 
-func (impl *CdHandlerImpl) FetchAppDeploymentStatusForEnvironments(envId int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) ([]*pipelineConfig.AppDeploymentStatus, error) {
+func (impl *CdHandlerImpl) FetchAppDeploymentStatusForEnvironments(request appGroup2.AppGroupingRequest) ([]*pipelineConfig.AppDeploymentStatus, error) {
+	_, span := otel.Tracer("orchestrator").Start(request.Ctx, "pipelineBuilder.authorizationDeploymentStatusForAppGrouping")
 	deploymentStatuses := make([]*pipelineConfig.AppDeploymentStatus, 0)
 	deploymentStatusesMap := make(map[int]*pipelineConfig.AppDeploymentStatus)
 	pipelineAppMap := make(map[int]int)
 	statusMap := make(map[int]string)
-
-	pipelines, err := impl.pipelineRepository.FindActiveByEnvId(envId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.Logger.Errorw("error fetching pipelines for env id", "err", err)
+	var cdPipelines []*pipelineConfig.Pipeline
+	var err error
+	if request.AppGroupId > 0 {
+		appIds, err := impl.appGroupService.GetAppIdsByAppGroupId(request.AppGroupId)
+		if err != nil {
+			return nil, err
+		}
+		//override appIds if already provided app group id in request.
+		request.AppIds = appIds
+	}
+	if len(request.AppIds) > 0 {
+		cdPipelines, err = impl.pipelineRepository.FindActiveByInFilter(request.EnvId, request.AppIds)
+	} else {
+		cdPipelines, err = impl.pipelineRepository.FindActiveByEnvId(request.EnvId)
+	}
+	if err != nil {
+		impl.Logger.Errorw("error in fetching pipelines", "request", request, "err", err)
 		return nil, err
 	}
-	for _, pipeline := range pipelines {
-		pipelineAppMap[pipeline.Id] = pipeline.AppId
-	}
 	pipelineIds := make([]int, 0)
-
-	//authorization block starts here
-	var envObjectArr []string
-	var appObjectArr []string
-	rbacObjectMap := make(map[int][]string)
-	for _, pipeline := range pipelines {
-		appObject := impl.enforcerUtil.GetAppRBACName(pipeline.App.AppName)
-		envObject := impl.enforcerUtil.GetEnvRBACNameByCdPipelineIdAndEnvId(pipeline.Id)
-		appObjectArr = append(appObjectArr, appObject)
-		envObjectArr = append(envObjectArr, envObject)
-		rbacObjectMap[pipeline.Id] = []string{appObject, envObject}
+	for _, pipeline := range cdPipelines {
+		pipelineIds = append(pipelineIds, pipeline.Id)
 	}
-	appResults, envResults := checkAuthBatch(emailId, appObjectArr, envObjectArr)
-	for _, pipeline := range pipelines {
-		appObject := rbacObjectMap[pipeline.Id][0]
-		envObject := rbacObjectMap[pipeline.Id][1]
+	if len(pipelineIds) == 0 {
+		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no matching pipeline found"}
+		return nil, err
+	}
+	//authorization block starts here
+	var appObjectArr []string
+	var envObjectArr []string
+	objects := impl.enforcerUtil.GetAppAndEnvObjectByPipelineIds(pipelineIds)
+	pipelineIds = []int{}
+	for _, object := range objects {
+		appObjectArr = append(appObjectArr, object[0])
+		envObjectArr = append(envObjectArr, object[1])
+	}
+	appResults, envResults := request.CheckAuthBatch(request.EmailId, appObjectArr, envObjectArr)
+	for _, pipeline := range cdPipelines {
+		appObject := objects[pipeline.Id][0]
+		envObject := objects[pipeline.Id][1]
 		if !(appResults[appObject] && envResults[envObject]) {
 			//if user unauthorized, skip items
 			continue
 		}
-
 		pipelineIds = append(pipelineIds, pipeline.Id)
+		pipelineAppMap[pipeline.Id] = pipeline.AppId
 	}
+	span.End()
 	//authorization block ends here
 
 	if len(pipelineIds) == 0 {
 		return deploymentStatuses, nil
 	}
+	_, span = otel.Tracer("orchestrator").Start(request.Ctx, "pipelineBuilder.FetchAllCdStagesLatestEntity")
 	result, err := impl.cdWorkflowRepository.FetchAllCdStagesLatestEntity(pipelineIds)
+	span.End()
 	if err != nil {
 		return deploymentStatuses, err
 	}
@@ -1187,7 +1381,9 @@ func (impl *CdHandlerImpl) FetchAppDeploymentStatusForEnvironments(envId int, em
 		wfrIds = append(wfrIds, item.WfrId)
 	}
 	if len(wfrIds) > 0 {
+		_, span = otel.Tracer("orchestrator").Start(request.Ctx, "pipelineBuilder.FetchAllCdStagesLatestEntityStatus")
 		wfrList, err := impl.cdWorkflowRepository.FetchAllCdStagesLatestEntityStatus(wfrIds)
+		span.End()
 		if err != nil && !util.IsErrNoRows(err) {
 			return deploymentStatuses, err
 		}

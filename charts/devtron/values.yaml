@@ -1,9 +1,18 @@
+global:
+  podSecurityContext:
+    fsGroup: 1000
+    runAsGroup: 1000
+    runAsUser: 1000
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    runAsUser: 1000
+    runAsNonRoot: true
 installer:
   repo: "devtron-labs/devtron"
 #  For Kubernetes version < 1.16, set release: legacy. You won't be able to upgrade Devtron unless you upgrade the K8s version to 1.16 or above.
-  release: "v0.6.13" #You can use a branch name or a release tag name as a release, for gitee as source only "main" is supported as of now
+  release: "v0.6.15" #You can use a branch name or a release tag name as a release, for gitee as source only "main" is supported as of now
   image: quay.io/devtron/inception
-  tag: 1d2b87e5-185-11095
+  tag: 44b30917-185-13275
   source: "github" # Available options are github and gitee
 #  mode: "dashboard" # Available options are dashboard, full and hyperion (deprecated) NOT USING THIS
   modules: [] # Available options are cicd
@@ -43,12 +52,12 @@ components:
       sentry: "false"
       sentryEnv: "PRODUCTION"
       applicationMetrics: "true"
-    image: "quay.io/devtron/dashboard:de186b14-325-12876"
+    image: "quay.io/devtron/dashboard:28017af9-325-13418"
     imagePullPolicy: IfNotPresent
 
   devtron:
-    image: "quay.io/devtron/hyperion:e3c5a3a2-280-12878"
-    cicdImage: "quay.io/devtron/devtron:e3c5a3a2-434-12877"
+    image: "quay.io/devtron/hyperion:9f3934ee-280-13407"
+    cicdImage: "quay.io/devtron/devtron:9f3934ee-434-13409"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
     serviceMonitor:
@@ -74,13 +83,13 @@ components:
       #      - devtron.example.com
 
   argocdDexServer:
-    image: "ghcr.io/dexidp/dex:v2.35.3"
+    image: "ghcr.io/dexidp/dex:v2.30.2"
     imagePullPolicy: IfNotPresent
     initContainer:
-      authenticator: "quay.io/devtron/authenticator:6e466830-393-11943"
+      authenticator: "quay.io/devtron/authenticator:e414faff-393-13273"
 
   kubelink:
-    image: "quay.io/devtron/kubelink:a5e179d4-318-12564"
+    image: "quay.io/devtron/kubelink:18bf720b-318-13404"
     imagePullPolicy: IfNotPresent
 
   postgres:
@@ -91,20 +100,20 @@ components:
       volumeSize: "20Gi"
 
   migrator:
-    image: "quay.io/devtron/migrator:71748de9-149-11112"
+    image: "quay.io/devtron/migrator:ec1dcab8-149-13278"
     envVars:
       devtron:
         GIT_BRANCH: "main"
         SCRIPT_LOCATION: "scripts/sql/"
         GIT_REPO_URL: "https://github.com/devtron-labs/devtron.git"
         DB_NAME: "orchestrator"
-        GIT_HASH: "e3c5a3a2893f7e00b9cb482abe2ac76f5038de13"
+        GIT_HASH: "9f3934ee51a1cfa1631f90bc6cc55a240aa98b07"
       casbin:
         GIT_BRANCH: "main"
         SCRIPT_LOCATION: "scripts/casbin/"
         GIT_REPO_URL: "https://github.com/devtron-labs/devtron.git"
         DB_NAME: "casbin"
-        GIT_HASH: "e3c5a3a2893f7e00b9cb482abe2ac76f5038de13"
+        GIT_HASH: "9f3934ee51a1cfa1631f90bc6cc55a240aa98b07"
 
 # values for argocd integration
 argo-cd:
@@ -261,6 +270,7 @@ argo-cd:
 # Values for security integration
 security:
   enabled: false
+  image: "quay.io/devtron/image-scanner:b7873c95-334-13266"
   # Values for clair
   clair:
     enabled: false

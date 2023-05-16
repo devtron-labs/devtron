@@ -33,7 +33,7 @@ type AppMetadata struct {
 
 type AppLabel struct {
 	Key       string `json:"key,notnull" validate:"required"`
-	Value     string `json:"value,notnull" validate:"required"`
+	Value     string `json:"value,notnull"` // intentionally not added required tag as tag can be added without value
 	Propagate bool   `json:"propagate"`
 }
 
@@ -58,6 +58,7 @@ type DockerBuildConfig struct {
 	Args                   map[string]string `json:"args,omitempty"`
 	TargetPlatform         string            `json:"targetPlatform"`
 	DockerBuildOptions     map[string]string `json:"dockerBuildOptions,omitempty"`
+	BuildContext           string            `json:"buildContext"`
 }
 
 type DeploymentTemplate struct {

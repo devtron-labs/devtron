@@ -71,6 +71,7 @@ type GitMaterial struct {
 	CheckoutPath     string `json:"checkoutPath" validate:"checkout-path-component"`
 	FetchSubmodules  bool   `json:"fetchSubmodules"`
 	IsUsedInCiConfig bool   `json:"isUsedInCiConfig"`
+	FilterPattern    []string `json:"filterPattern"`
 }
 
 type CiMaterial struct {
@@ -271,6 +272,12 @@ type Material struct {
 	MaterialName  string `json:"materialName"`
 }
 
+type TriggerViewCiConfig struct {
+	CiGitMaterialId int           `json:"ciGitConfiguredId"`
+	CiPipelines     []*CiPipeline `json:"ciPipelines,omitempty" validate:"dive"` //a pipeline will be built for each ciMaterial
+	Materials       []Material    `json:"materials"`
+}
+
 type CiConfigRequest struct {
 	Id                int                     `json:"id,omitempty" validate:"number"` //ciTemplateId
 	AppId             int                     `json:"appId,omitempty" validate:"required,number"`
@@ -293,6 +300,15 @@ type CiConfigRequest struct {
 	UpdatedOn         time.Time               `sql:"updated_on,type:timestamptz"`
 	UpdatedBy         int32                   `sql:"updated_by,type:integer"`
 	IsJob             bool                    `json:"-"`
+	CiGitMaterialId   int                     `json:"ciGitConfiguredId"`
+}
+
+type CiPipelineMinResponse struct {
+	Id               int    `json:"id,omitempty" validate:"number"` //ciTemplateId
+	AppId            int    `json:"appId,omitempty" validate:"required,number"`
+	AppName          string `json:"appName,omitempty"`
+	ParentCiPipeline int    `json:"parentCiPipeline"`
+	ParentAppId      int    `json:"parentAppId"`
 }
 
 type TestExecutorImageProperties struct {
@@ -460,6 +476,7 @@ type CDPipelineConfigObject struct {
 	Id                            int                                    `json:"id,omitempty"  validate:"number" `
 	EnvironmentId                 int                                    `json:"environmentId,omitempty"  validate:"number,required" `
 	EnvironmentName               string                                 `json:"environmentName,omitempty" `
+	Description                   string                                 `json:"description" validate:"max=40"`
 	CiPipelineId                  int                                    `json:"ciPipelineId,omitempty" validate:"number"`
 	TriggerType                   pipelineConfig.TriggerType             `json:"triggerType,omitempty" validate:"oneof=AUTOMATIC MANUAL"`
 	Name                          string                                 `json:"name,omitempty" validate:"name-component,max=50"` //pipelineName
@@ -467,12 +484,12 @@ type CDPipelineConfigObject struct {
 	Namespace                     string                                 `json:"namespace,omitempty" validate:"name-space-component,max=50"` //namespace
 	AppWorkflowId                 int                                    `json:"appWorkflowId,omitempty" `
 	DeploymentTemplate            chartRepoRepository.DeploymentStrategy `json:"deploymentTemplate,omitempty"` //
-	PreStage                      CdStage                                `json:"preStage"`
-	PostStage                     CdStage                                `json:"postStage"`
-	PreStageConfigMapSecretNames  PreStageConfigMapSecretNames           `json:"preStageConfigMapSecretNames"`
-	PostStageConfigMapSecretNames PostStageConfigMapSecretNames          `json:"postStageConfigMapSecretNames"`
-	RunPreStageInEnv              bool                                   `json:"runPreStageInEnv"`
-	RunPostStageInEnv             bool                                   `json:"runPostStageInEnv"`
+	PreStage                      CdStage                                `json:"preStage,omitempty"`
+	PostStage                     CdStage                                `json:"postStage,omitempty"`
+	PreStageConfigMapSecretNames  PreStageConfigMapSecretNames           `json:"preStageConfigMapSecretNames,omitempty"`
+	PostStageConfigMapSecretNames PostStageConfigMapSecretNames          `json:"postStageConfigMapSecretNames,omitempty"`
+	RunPreStageInEnv              bool                                   `json:"runPreStageInEnv,omitempty"`
+	RunPostStageInEnv             bool                                   `json:"runPostStageInEnv,omitempty"`
 	CdArgoSetup                   bool                                   `json:"isClusterCdActive"`
 	ParentPipelineId              int                                    `json:"parentPipelineId"`
 	ParentPipelineType            string                                 `json:"parentPipelineType"`
@@ -481,7 +498,8 @@ type CDPipelineConfigObject struct {
 	DeploymentAppDeleteRequest    bool                                   `json:"deploymentAppDeleteRequest"`
 	DeploymentAppCreated          bool                                   `json:"deploymentAppCreated"`
 	AppId                         int                                    `json:"appId"`
-	//Downstream         []int                             `json:"downstream"` //PipelineCounter of downstream	(for future reference only)
+	TeamId                        int                                    `json:"-"`
+	EnvironmentIdentifier         string                                 `json:"-" `
 }
 
 type PreStageConfigMapSecretNames struct {
@@ -649,7 +667,7 @@ type AppLabelDto struct {
 
 type Label struct {
 	Key       string `json:"key" validate:"required"`
-	Value     string `json:"value" validate:"required"`
+	Value     string `json:"value"` // intentionally not added required tag as tag can be added without value
 	Propagate bool   `json:"propagate"`
 }
 

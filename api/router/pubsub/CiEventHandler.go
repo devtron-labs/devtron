@@ -65,6 +65,7 @@ type CiCompleteEvent struct {
 	Metrics            util.CIMetrics              `json:"metrics"`
 	AppName            string                      `json:"appName"`
 	IsArtifactUploaded bool                        `json:"isArtifactUploaded"`
+	FailureReason      string                      `json:"failureReason"`
 }
 
 func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClientServiceImpl, webhookService pipeline.WebhookService, ciEventConfig *CiEventConfig) *CiEventHandlerImpl {
@@ -98,12 +99,25 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 			return
 		}
 
-		resp, err := impl.webhookService.HandleCiSuccessEvent(ciCompleteEvent.PipelineId, req)
-		if err != nil {
-			impl.logger.Error(err)
-			return
+		if ciCompleteEvent.FailureReason != "" {
+			req.FailureReason = ciCompleteEvent.FailureReason
+			err := impl.webhookService.HandleCiStepFailedEvent(ciCompleteEvent.PipelineId, req)
+			if err != nil {
+				impl.logger.Error("Error while sending event for CI failure for pipelineID: ",
+					ciCompleteEvent.PipelineId, "request: ", req, "error: ", err)
+				return
+			}
+		} else {
+			util.TriggerCIMetrics(ciCompleteEvent.Metrics, impl.ciEventConfig.ExposeCiMetrics, ciCompleteEvent.PipelineName, ciCompleteEvent.AppName)
+
+			resp, err := impl.webhookService.HandleCiSuccessEvent(ciCompleteEvent.PipelineId, req)
+			if err != nil {
+				impl.logger.Error("Error while sending event for CI success for pipelineID: ",
+					ciCompleteEvent.PipelineId, "request: ", req, "error: ", err)
+				return
+			}
+			impl.logger.Debug(resp)
 		}
-		impl.logger.Debug(resp)
 	}
 	err := impl.pubsubClient.Subscribe(pubsub.CI_COMPLETE_TOPIC, callback)
 	if err != nil {

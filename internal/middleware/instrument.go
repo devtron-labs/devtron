@@ -84,6 +84,11 @@ var CacheUploadDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 	Buckets: prometheus.LinearBuckets(20, 20, 5),
 }, []string{"pipelineName", "appName"})
 
+var AppListingDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
+	Name: "app_listing_duration_seconds",
+	Help: "Duration of App Listing process",
+}, []string{"MethodName", "AppType"})
+
 var requestCounter = promauto.NewCounterVec(
 	prometheus.CounterOpts{
 		Name: "orchestrator_http_requests_total",
@@ -107,6 +112,10 @@ var CdTriggerCounter = promauto.NewCounterVec(prometheus.CounterOpts{
 var CiTriggerCounter = promauto.NewCounterVec(prometheus.CounterOpts{
 	Name: "ci_trigger_counter",
 }, []string{"appName", "pipelineName"})
+
+var DeploymentStatusCronDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
+	Name: "deployment_status_cron_process_time",
+}, []string{"cronName"})
 
 // prometheusMiddleware implements mux.MiddlewareFunc.
 func PrometheusMiddleware(next http.Handler) http.Handler {

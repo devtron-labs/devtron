@@ -120,6 +120,9 @@ func (impl PipelineConfigRepositoryImpl) Delete(pipelineStrategy *PipelineStrate
 }
 
 func (impl PipelineConfigRepositoryImpl) GetAllStrategyByPipelineIds(pipelineIds []int) ([]*PipelineStrategy, error) {
+	if len(pipelineIds) == 0 {
+		return nil, errors.NotFoundf("pipeline strategies")
+	}
 	var pipelineStrategies []*PipelineStrategy
 	err := impl.dbConnection.
 		Model(&pipelineStrategies).
