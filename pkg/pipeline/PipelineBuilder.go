@@ -2160,8 +2160,8 @@ func (impl PipelineBuilderImpl) DeleteACDAppCdPipelineWithNonCascade(pipeline *p
 					UserMessage:     "Could not delete application",
 					InternalMessage: err.Error(),
 				}
+				return err
 			}
-			return err
 		}
 
 	}
