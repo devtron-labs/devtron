@@ -244,10 +244,10 @@ func (impl ModuleServiceImpl) handleModuleNotFoundStatus(moduleName string) (Mod
 func (impl ModuleServiceImpl) HandleModuleAction(userId int32, moduleName string, moduleActionRequest *ModuleActionRequestDto) (*ActionResponse, error) {
 	impl.logger.Debugw("handling module action request", "moduleName", moduleName, "userId", userId, "payload", moduleActionRequest)
 
-	// check if can update server
-	//if impl.serverEnvConfig.DevtronInstallationType != serverBean.DevtronInstallationTypeOssHelm {
-	//	return nil, errors.New("module installation is not allowed")
-	//}
+	//check if can update server
+	if impl.serverEnvConfig.DevtronInstallationType != serverBean.DevtronInstallationTypeOssHelm {
+		return nil, errors.New("module installation is not allowed")
+	}
 
 	// insert into audit table
 	moduleActionAuditLog := &ModuleActionAuditLog{
