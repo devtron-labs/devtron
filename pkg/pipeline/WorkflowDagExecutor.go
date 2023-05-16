@@ -1483,7 +1483,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 				CdWorkflowId: overrideRequest.CdWorkflowId,
 				AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
 			}
-			_, updateErr := impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
+			updateErr := impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
 			if updateErr != nil {
 				impl.logger.Errorw("error in updating runner for manifest_download type", "err", err)
 				return 0, manifest, updateErr

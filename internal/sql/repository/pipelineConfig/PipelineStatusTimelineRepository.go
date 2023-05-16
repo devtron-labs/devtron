@@ -28,7 +28,7 @@ const (
 const (
 	TIMELINE_DESCRIPTION_DEPLOYMENT_INITIATED string = "Deployment initiated successfully."
 	TIMELINE_DESCRIPTION_VULNERABLE_IMAGE     string = "Deployment failed: Vulnerability policy violated."
-	TIMELINE_DESCRIPTION_MANIFEST_GENERATED   string = "HELM PACKAGE SUCCESSFULLY GENERATED"
+	TIMELINE_DESCRIPTION_MANIFEST_GENERATED   string = "Generate helm chart package"
 )
 
 type PipelineStatusTimelineRepository interface {

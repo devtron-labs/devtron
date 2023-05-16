@@ -384,7 +384,7 @@ func (impl AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *a
 	}
 	impl.updateDeploymentParametersInRequest(installAppVersionRequest, installAppVersionRequest.DeploymentAppType)
 
-	if util.IsAcdApp(installAppVersionRequest.DeploymentAppType) {
+	if util.IsAcdApp(installAppVersionRequest.DeploymentAppType) || util.IsManifestDownload(installAppVersionRequest.DeploymentAppType) {
 		_ = impl.appStoreDeploymentArgoCdService.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED, "Deployment initiated successfully.", tx)
 	}
 
@@ -403,14 +403,18 @@ func (impl AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *a
 		gitOpsResponse, err = impl.appStoreDeploymentCommonService.GitOpsOperations(manifest, installAppVersionRequest)
 		if err != nil {
 			impl.logger.Errorw("error in doing gitops operation", "err", err)
-			_ = impl.appStoreDeploymentArgoCdService.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED, fmt.Sprintf("Git commit failed - %v", err), tx)
+			if util.IsAcdApp(installAppVersionRequest.DeploymentAppType) {
+				_ = impl.appStoreDeploymentArgoCdService.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED, fmt.Sprintf("Git commit failed - %v", err), tx)
+			}
 		}
-		_ = impl.appStoreDeploymentArgoCdService.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_APP_HEALTHY, "Git commit done successfully.", tx)
+		if util.IsAcdApp(installAppVersionRequest.DeploymentAppType) {
+			_ = impl.appStoreDeploymentArgoCdService.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_APP_HEALTHY, "Git commit done successfully.", tx)
+		}
 	}
 
 	if util2.IsBaseStack() || util2.IsHelmApp(installAppVersionRequest.AppOfferingMode) || util.IsHelmApp(installAppVersionRequest.DeploymentAppType) {
 		installAppVersionRequest, err = impl.appStoreDeploymentHelmService.InstallApp(installAppVersionRequest, nil, ctx, tx)
-	} else {
+	} else if util.IsAcdApp(installAppVersionRequest.DeploymentAppType) {
 		if gitOpsResponse == nil {
 			return nil, errors.New("service err, Error in git operations")
 		}
@@ -1388,7 +1392,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledAppV2(ctx context.Cont
 	installAppVersionRequest.Environment = &installedApp.Environment
 
 	installAppVersionHistoryStatus := "Unknown"
-	if util.IsAcdApp(installedApp.DeploymentAppType) {
+	if util.IsAcdApp(installedApp.DeploymentAppType) || util.IsManifestDownload(installedApp.DeploymentAppType) {
 		installAppVersionHistoryStatus = pipelineConfig.WorkflowInProgress
 		installedAppVersionHistory := &repository.InstalledAppVersionHistory{
 			InstalledAppVersionId: installedAppVersion.Id,
