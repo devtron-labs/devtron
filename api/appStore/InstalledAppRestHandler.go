@@ -506,7 +506,7 @@ func (handler *InstalledAppRestHandlerImpl) DeleteArgoInstalledAppWithNonCascade
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, nil, request.InstslledAppDeleteResponse, http.StatusOK)
+	common.WriteJsonResp(w, nil, nil, http.StatusOK)
 
 }
 
