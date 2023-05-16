@@ -1056,6 +1056,13 @@ func (impl *UserTerminalAccessServiceImpl) EditTerminalPodManifest(ctx context.C
 
 	}
 
+	if podObject.Spec.NodeName != "" {
+		_, err := impl.K8sCapacityService.GetNode(context.Background(), editManifestRequest.ClusterId, podObject.Spec.NodeName)
+		if err != nil {
+			impl.Logger.Errorw("failed to get node details for requested node", "err", err, "userId", editManifestRequest.UserId, "nodeName", podObject.Spec.NodeName, "clusterId", editManifestRequest.ClusterId)
+			return result, err
+		}
+	}
 	if len(podObject.Namespace) == 0 {
 		podObject.Namespace = utils1.DefaultNamespace
 	}
