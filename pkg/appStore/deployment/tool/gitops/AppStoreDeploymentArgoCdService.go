@@ -114,7 +114,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) UpdateChartInfo(installAppVersio
 
 func (impl AppStoreDeploymentArgoCdServiceImpl) SaveTimelineForACDHelmApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status string, statusDetail string, tx *pg.Tx) error {
 
-	if !util.IsAcdApp(installAppVersionRequest.DeploymentAppType) {
+	if !util.IsAcdApp(installAppVersionRequest.DeploymentAppType) && !util.IsManifestDownload(installAppVersionRequest.DeploymentAppType) {
 		return nil
 	}
 	timeline := &pipelineConfig.PipelineStatusTimeline{

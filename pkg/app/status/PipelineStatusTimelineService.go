@@ -228,6 +228,23 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelines(appId, envId, wfrI
 		if err != nil {
 			impl.logger.Errorw("error in getting pipeline status fetchTime and fetchCount by cdWfrId", "err", err, "cdWfrId", wfrId)
 		}
+	} else if util.IsManifestDownload(deploymentAppType) {
+		timelines, err := impl.pipelineStatusTimelineRepository.FetchTimelinesByWfrId(wfrId)
+		if err != nil {
+			impl.logger.Errorw("error in getting timelines by wfrId", "err", err, "wfrId", wfrId)
+			return nil, err
+		}
+		for _, timeline := range timelines {
+			timelineDto := &PipelineStatusTimelineDto{
+				Id:                 timeline.Id,
+				CdWorkflowRunnerId: timeline.CdWorkflowRunnerId,
+				Status:             timeline.Status,
+				StatusTime:         timeline.StatusTime,
+				StatusDetail:       timeline.StatusDetail,
+				ResourceDetails:    nil,
+			}
+			timelineDtos = append(timelineDtos, timelineDto)
+		}
 	}
 	timelineDetail := &PipelineTimelineDetailDto{
 		TriggeredBy:                triggeredByUser.EmailId,
@@ -316,7 +333,25 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelinesForAppStore(install
 		if err != nil {
 			impl.logger.Errorw("error in getting pipeline status fetchTime and fetchCount by installedAppVersionHistoryId", "err", err, "installedAppVersionHistoryId", installedAppVersionHistoryId)
 		}
+	} else if util.IsManifestDownload(deploymentAppType) {
+		timelines, err := impl.pipelineStatusTimelineRepository.FetchTimelinesByInstalledAppVersionHistoryId(installedAppVersionHistoryId)
+		if err != nil {
+			impl.logger.Errorw("error in getting timelines by installedAppVersionHistoryId", "err", err, "wfrId", installedAppVersionHistoryId)
+			return nil, err
+		}
+		for _, timeline := range timelines {
+			timelineDto := &PipelineStatusTimelineDto{
+				Id:                           timeline.Id,
+				InstalledAppVersionHistoryId: timeline.InstalledAppVersionHistoryId,
+				Status:                       timeline.Status,
+				StatusTime:                   timeline.StatusTime,
+				StatusDetail:                 timeline.StatusDetail,
+				ResourceDetails:              nil,
+			}
+			timelineDtos = append(timelineDtos, timelineDto)
+		}
 	}
+
 	timelineDetail := &PipelineTimelineDetailDto{
 		TriggeredBy:                triggeredByUser.EmailId,
 		DeploymentStartedOn:        deploymentStartedOn,

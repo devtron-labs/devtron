@@ -1825,21 +1825,21 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 		return nil, err
 	}
 
-	// create git repo
 	// TODO: creating git repo for all apps irrespective of acd or helm
-	gitopsRepoName, chartGitAttr, err := impl.appService.CreateGitopsRepo(app, pipelineCreateRequest.UserId)
-	if err != nil {
-		impl.logger.Errorw("error in creating git repo", "err", err)
-		return nil, err
-	}
 	if isGitOpsConfigured && isGitOpsRequiredForCD {
+
+		gitopsRepoName, chartGitAttr, err := impl.appService.CreateGitopsRepo(app, pipelineCreateRequest.UserId)
+		if err != nil {
+			impl.logger.Errorw("error in creating git repo", "err", err)
+			return nil, err
+		}
+
 		err = impl.RegisterInACD(gitopsRepoName, chartGitAttr, pipelineCreateRequest.UserId, ctx)
 		if err != nil {
 			impl.logger.Errorw("error in registering app in acd", "err", err)
 			return nil, err
 		}
-	}
-	if isGitOpsRequiredForCD {
+
 		err = impl.updateGitRepoUrlInCharts(pipelineCreateRequest.AppId, chartGitAttr, pipelineCreateRequest.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in updating git repo url in charts", "err", err)

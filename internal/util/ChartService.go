@@ -778,3 +778,7 @@ func IsHelmApp(deploymentAppType string) bool {
 func IsAcdApp(deploymentAppType string) bool {
 	return deploymentAppType == PIPELINE_DEPLOYMENT_TYPE_ACD
 }
+
+func IsManifestDownload(deploymentAppType string) bool {
+	return deploymentAppType == PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD
+}

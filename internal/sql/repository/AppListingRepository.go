@@ -372,7 +372,7 @@ func (impl AppListingRepositoryImpl) deploymentDetailsByAppIdAndEnvId(ctx contex
 		" cia.id as ci_artifact_id," +
 		" cl.k8s_version," +
 		" env.cluster_id," +
-		" env.is_virtual_environment" +
+		" env.is_virtual_environment," +
 		" cl.cluster_name" +
 		" FROM pipeline p" +
 		" INNER JOIN pipeline_config_override pco on pco.pipeline_id=p.id" +
