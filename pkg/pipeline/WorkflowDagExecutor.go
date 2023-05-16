@@ -1552,6 +1552,26 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 		releaseId, manifest, err = impl.appService.TriggerRelease(overrideRequest, ctx, triggeredAt, overrideRequest.UserId)
 		span.End()
 
+		if overrideRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD {
+			runner := &pipelineConfig.CdWorkflowRunner{
+				Id:           runner.Id,
+				Name:         cdPipeline.Name,
+				WorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
+				ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
+				TriggeredBy:  overrideRequest.UserId,
+				StartedOn:    triggeredAt,
+				Status:       pipelineConfig.WorkflowSucceeded,
+				Namespace:    impl.cdConfig.DefaultNamespace,
+				CdWorkflowId: overrideRequest.CdWorkflowId,
+				AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
+			}
+			_, updateErr := impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
+			if updateErr != nil {
+				impl.logger.Errorw("error in updating runner for manifest_download type", "err", err)
+				return 0, manifest, updateErr
+			}
+		}
+
 		_, span = otel.Tracer("orchestrator").Start(ctx, "updatePreviousDeploymentStatus")
 		err1 := impl.updatePreviousDeploymentStatus(runner, cdPipeline.Id, err, triggeredAt, overrideRequest.UserId)
 		span.End()

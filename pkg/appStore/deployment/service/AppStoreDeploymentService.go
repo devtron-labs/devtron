@@ -399,7 +399,7 @@ func (impl AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *a
 	}
 
 	var gitOpsResponse *appStoreDeploymentCommon.AppStoreGitOpsResponse
-	if util.IsAcdApp(installAppVersionRequest.DeploymentAppType) {
+	if installAppVersionRequest.PerformGitOps {
 		gitOpsResponse, err = impl.appStoreDeploymentCommonService.GitOpsOperations(manifest, installAppVersionRequest)
 		if err != nil {
 			impl.logger.Errorw("error in doing gitops operation", "err", err)
@@ -430,47 +430,69 @@ func (impl AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *a
 
 }
 
-//func (impl AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error) {
+// func (impl AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error) {
 //
-//	dbConnection := impl.installedAppRepository.GetConnection()
-//	tx, err := dbConnection.Begin()
-//	if err != nil {
-//		return nil, err
+//		dbConnection := impl.installedAppRepository.GetConnection()
+//		tx, err := dbConnection.Begin()
+//		if err != nil {
+//			return nil, err
+//		}
+//		// Rollback tx on error.
+//		defer tx.Rollback()
+//
+//		//step 1 db operation initiated
+//		installAppVersionRequest, err = impl.AppStoreDeployOperationDB(installAppVersionRequest, tx, false)
+//		if err != nil {
+//			impl.logger.Errorw(" error", "err", err)
+//			return nil, err
+//		}
+//
+//		if util2.IsBaseStack() || util2.IsHelmApp(installAppVersionRequest.AppOfferingMode) || util.IsHelmApp(installAppVersionRequest.DeploymentAppType) {
+//			installAppVersionRequest, err = impl.appStoreDeploymentHelmService.InstallApp(installAppVersionRequest, ctx)
+//		} else {
+//			installAppVersionRequest, err = impl.appStoreDeploymentArgoCdService.InstallApp(installAppVersionRequest, ctx)
+//		}
+//
+//		if err != nil {
+//			return nil, err
+//		}
+//
+//		// tx commit here because next operation will be process after this commit.
+//		err = tx.Commit()
+//		if err != nil {
+//			return nil, err
+//		}
+//
+//		err = impl.installAppPostDbOperation(installAppVersionRequest)
+//		if err != nil {
+//			return nil, err
+//		}
+//
+//		return installAppVersionRequest, nil
 //	}
-//	// Rollback tx on error.
-//	defer tx.Rollback()
-//
-//	//step 1 db operation initiated
-//	installAppVersionRequest, err = impl.AppStoreDeployOperationDB(installAppVersionRequest, tx, false)
-//	if err != nil {
-//		impl.logger.Errorw(" error", "err", err)
-//		return nil, err
-//	}
-//
-//	if util2.IsBaseStack() || util2.IsHelmApp(installAppVersionRequest.AppOfferingMode) || util.IsHelmApp(installAppVersionRequest.DeploymentAppType) {
-//		installAppVersionRequest, err = impl.appStoreDeploymentHelmService.InstallApp(installAppVersionRequest, ctx)
-//	} else {
-//		installAppVersionRequest, err = impl.appStoreDeploymentArgoCdService.InstallApp(installAppVersionRequest, ctx)
-//	}
-//
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	// tx commit here because next operation will be process after this commit.
-//	err = tx.Commit()
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	err = impl.installAppPostDbOperation(installAppVersionRequest)
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	return installAppVersionRequest, nil
-//}
+func (impl AppStoreDeploymentServiceImpl) UpdateInstalledAppVersionHistoryStatus(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status string) error {
+	dbConnection := impl.installedAppRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+	savedInstalledAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(installAppVersionRequest.InstalledAppVersionHistoryId)
+	savedInstalledAppVersionHistory.Status = status
 
+	_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(savedInstalledAppVersionHistory, tx)
+	if err != nil {
+		impl.logger.Errorw("error while fetching from db", "error", err)
+		return err
+	}
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error while committing transaction to db", "error", err)
+		return err
+	}
+	return nil
+}
 func (impl AppStoreDeploymentServiceImpl) UpdateInstallAppVersionHistory(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error {
 	dbConnection := impl.installedAppRepository.GetConnection()
 	tx, err := dbConnection.Begin()
@@ -1011,6 +1033,14 @@ func (impl AppStoreDeploymentServiceImpl) installAppPostDbOperation(installAppVe
 		err = impl.UpdateInstalledAppVersionHistoryWithGitHash(installAppVersionRequest)
 		if err != nil {
 			impl.logger.Errorw("error in installAppPostDbOperation", "err", err)
+			return err
+		}
+	}
+
+	if installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD {
+		err = impl.UpdateInstalledAppVersionHistoryStatus(installAppVersionRequest, pipelineConfig.WorkflowSucceeded)
+		if err != nil {
+			impl.logger.Errorw("error on creating history for chart deployment", "error", err)
 			return err
 		}
 	}
