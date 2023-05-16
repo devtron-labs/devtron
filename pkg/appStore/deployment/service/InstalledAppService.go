@@ -518,7 +518,7 @@ func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int
 			return nil, err
 		}
 	} else if util.IsHelmApp(installedAppVersion.DeploymentAppType) {
-
+		// TODO: need to perform gitops operation
 		_, err = impl.appStoreDeploymentService.InstallAppByHelm(installedAppVersion, ctx)
 		if err != nil {
 			impl.logger.Errorw("error", "err", err)
