@@ -167,6 +167,7 @@ type PipelineBuilderImpl struct {
 	ecrConfig                        *EcrConfig
 	envConfigOverrideRepository      chartConfig.EnvConfigOverrideRepository
 	environmentRepository            repository2.EnvironmentRepository
+	clusterRepository                repository2.ClusterRepository
 	pipelineConfigRepository         chartConfig.PipelineConfigRepository
 	mergeUtil                        util.MergeUtil
 	appWorkflowRepository            appWorkflow.AppWorkflowRepository
@@ -225,6 +226,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	ecrConfig *EcrConfig,
 	envConfigOverrideRepository chartConfig.EnvConfigOverrideRepository,
 	environmentRepository repository2.EnvironmentRepository,
+	clusterRepository repository2.ClusterRepository,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
 	mergeUtil util.MergeUtil,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
@@ -275,6 +277,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		ecrConfig:                        ecrConfig,
 		envConfigOverrideRepository:      envConfigOverrideRepository,
 		environmentRepository:            environmentRepository,
+		clusterRepository:                clusterRepository,
 		pipelineConfigRepository:         pipelineConfigRepository,
 		mergeUtil:                        mergeUtil,
 		appWorkflowRepository:            appWorkflowRepository,
@@ -1954,8 +1957,12 @@ func (impl PipelineBuilderImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipeli
 	if pipeline.DeploymentAppCreated == true {
 		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
 		if util.IsAcdApp(pipeline.DeploymentAppType) {
-			if len(pipeline.Environment.Cluster.ErrorInConnecting) > 0 {
-				impl.logger.Errorw("cluster connection error", "err", pipeline.Environment.Cluster.ErrorInConnecting)
+			clusterBean, err := impl.clusterRepository.FindById(pipeline.Environment.ClusterId)
+			if err != nil {
+				impl.logger.Errorw("error in getting cluster details", "err", err, "clusterId", pipeline.Environment.ClusterId)
+			}
+			if len(clusterBean.ErrorInConnecting) > 0 {
+				impl.logger.Errorw("cluster connection error", "err", clusterBean.ErrorInConnecting)
 				deleteResponse.ClusterReachable = false
 				if cascadeDelete {
 					return deleteResponse, nil
@@ -2067,8 +2074,12 @@ func (impl PipelineBuilderImpl) DeleteCdPipelinePartial(pipeline *pipelineConfig
 	if pipeline.DeploymentAppCreated == true && pipeline.DeploymentAppDeleteRequest == false {
 		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
 		if util.IsAcdApp(pipeline.DeploymentAppType) {
-			if len(pipeline.Environment.Cluster.ErrorInConnecting) > 0 {
-				impl.logger.Errorw("cluster connection error", "err", pipeline.Environment.Cluster.ErrorInConnecting)
+			clusterBean, err := impl.clusterRepository.FindById(pipeline.Environment.ClusterId)
+			if err != nil {
+				impl.logger.Errorw("error in getting cluster details", "err", err, "clusterId", pipeline.Environment.ClusterId)
+			}
+			if len(clusterBean.ErrorInConnecting) > 0 {
+				impl.logger.Errorw("cluster connection error", "err", clusterBean.ErrorInConnecting)
 				deleteResponse.ClusterReachable = false
 				if cascadeDelete {
 					return deleteResponse, nil
