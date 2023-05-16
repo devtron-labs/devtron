@@ -41,6 +41,7 @@
 - docs: devtron terminal connection timeout issue on gke cluster (#3260)
 - docs: cluster and environment url fix (#3284)
 ## Others
+- chore: Updated Github ISSUE-TEMPLATE (#3390)
 - task: changes for kubelink update application requests (#3359)
 - Fix for source type be (#3259)
 - Deployment pipeline strategies configurable (#3311)
