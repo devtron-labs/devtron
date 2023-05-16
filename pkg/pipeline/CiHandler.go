@@ -34,6 +34,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -841,6 +842,8 @@ func (impl *CiHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.Workflow
 	return workflowName, status, podStatus, message, logLocation, podName
 }
 
+const CiStageFailErrorCode = 2
+
 func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus) (int, error) {
 	workflowName, status, podStatus, message, logLocation, podName := impl.extractWorkfowStatus(workflowStatus)
 	if workflowName == "" {
@@ -891,7 +894,12 @@ func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 		}
 		if string(v1alpha1.NodeError) == savedWorkflow.Status || string(v1alpha1.NodeFailed) == savedWorkflow.Status {
 			impl.Logger.Warnw("ci failed for workflow: ", "wfId", savedWorkflow.Id)
-			go impl.WriteCIFailEvent(savedWorkflow, ciWorkflowConfig.CiImage)
+
+			if extractErrorCode(savedWorkflow.Message) != CiStageFailErrorCode {
+				go impl.WriteCIFailEvent(savedWorkflow, ciWorkflowConfig.CiImage)
+			} else {
+				impl.Logger.Infof("Step failed notification received for wfID %d with message %s", savedWorkflow.Id, savedWorkflow.Message)
+			}
 
 			impl.WriteToCreateTestSuites(savedWorkflow.CiPipelineId, workflowId, int(savedWorkflow.TriggeredBy))
 		}
@@ -899,14 +907,26 @@ func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 	return savedWorkflow.Id, nil
 }
 
+func extractErrorCode(msg string) int {
+	re := regexp.MustCompile(`\d+`)
+	matches := re.FindAllString(msg, -1)
+	if len(matches) > 0 {
+		code, err := strconv.Atoi(matches[0])
+		if err == nil {
+			return code
+		}
+	}
+	return -1
+}
+
 func (impl *CiHandlerImpl) WriteCIFailEvent(ciWorkflow *pipelineConfig.CiWorkflow, ciImage string) {
 	event := impl.eventFactory.Build(util2.Fail, &ciWorkflow.CiPipelineId, ciWorkflow.CiPipeline.AppId, nil, util2.CI)
 	material := &client.MaterialTriggerInfo{}
 	material.GitTriggers = ciWorkflow.GitTriggers
 	event.CiWorkflowRunnerId = ciWorkflow.Id
+	event.UserId = int(ciWorkflow.TriggeredBy)
 	event = impl.eventFactory.BuildExtraCIData(event, material, ciImage)
 	event.CiArtifactId = 0
-	event.UserId = int(ciWorkflow.TriggeredBy)
 	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
 	if evtErr != nil {
 		impl.Logger.Errorw("error in writing event", "err", evtErr)
