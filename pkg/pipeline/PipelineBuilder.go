@@ -1854,6 +1854,7 @@ func (impl PipelineBuilderImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipeli
 	if err != nil {
 		impl.logger.Errorw("error in getting cluster details", "err", err, "clusterId", pipeline.Environment.ClusterId)
 	}
+	deleteResponse.ClusterName = clusterBean.ClusterName
 	if len(clusterBean.ErrorInConnecting) > 0 {
 		deleteResponse.ClusterReachable = false
 	}
@@ -2048,6 +2049,7 @@ func (impl PipelineBuilderImpl) DeleteCdPipelinePartial(pipeline *pipelineConfig
 	if err != nil {
 		impl.logger.Errorw("error in getting cluster details", "err", err, "clusterId", pipeline.Environment.ClusterId)
 	}
+	deleteResponse.ClusterName = clusterBean.ClusterName
 	if len(clusterBean.ErrorInConnecting) > 0 {
 		deleteResponse.ClusterReachable = false
 	}

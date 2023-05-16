@@ -622,6 +622,10 @@ func (impl AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context
 		impl.logger.Errorw("fetching error", "err", err)
 		return nil, err
 	}
+	if len(environment.Cluster.ErrorInConnecting) > 0 {
+		installAppVersionRequest.InstslledAppDeleteResponse.ClusterReachable = false
+		installAppVersionRequest.InstslledAppDeleteResponse.ClusterName = environment.Cluster.ClusterName
+	}
 
 	app, err := impl.appRepository.FindById(installAppVersionRequest.AppId)
 	if err != nil {
@@ -637,9 +641,8 @@ func (impl AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context
 		if util2.IsBaseStack() || util2.IsHelmApp(app.AppOfferingMode) || util.IsHelmApp(model.DeploymentAppType) {
 			err = impl.appStoreDeploymentHelmService.DeleteDeploymentApp(ctx, app.AppName, environment.Name, installAppVersionRequest)
 		} else {
-			if len(environment.Cluster.ErrorInConnecting) > 0 {
+			if installAppVersionRequest.InstslledAppDeleteResponse.ClusterReachable {
 				impl.logger.Errorw("cluster connection error", "err", environment.Cluster.ErrorInConnecting)
-				installAppVersionRequest.InstslledAppDeleteResponse.ClusterReachable = false
 				if !installAppVersionRequest.NonCascadeDelete {
 					return installAppVersionRequest, nil
 				}

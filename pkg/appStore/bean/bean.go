@@ -103,8 +103,9 @@ type InstallAppVersionDTO struct {
 }
 
 type InstslledAppDeleteResponseDTO struct {
-	DeleteInitiated  bool `json:"deleteInitiated"`
-	ClusterReachable bool `json:"clusterReachable"`
+	DeleteInitiated  bool   `json:"deleteInitiated"`
+	ClusterReachable bool   `json:"clusterReachable"`
+	ClusterName      string `json:"clusterName"`
 }
 
 type InstallAppVersionChartDTO struct {
