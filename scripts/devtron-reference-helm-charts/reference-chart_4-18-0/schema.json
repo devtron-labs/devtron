@@ -1196,28 +1196,30 @@
       "title": "Wait For Seconds Before Scaling Down"
     }
   },
-  "dependencies": {
-    "kedaAutoscaling": {
-      "properties": {
-        "enabled": {
-          "enum": [
-            true
-          ]
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kedaAutoscaling": {
+            "properties": {
+              "enabled": {
+                "const": true
+              }
+            }
+          }
         }
-      }
-    },
-    "autoscaling": {
-      "properties": {
-        "enabled": {
-          "enum": [
-            false
-          ]
+      },
+      "then": {
+        "properties": {
+          "autoscaling": {
+            "properties": {
+              "enabled": {
+                "const": false
+              }
+            }
+          }
         }
       }
     }
-  },
-  "additionalProperties": false,
-  "errorMessage": {
-    "dependencies.A.properties.enabled.enum": "If A is enabled, B must be disabled (enabled=false)."
-  }
+  ]
 }
