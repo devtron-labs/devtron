@@ -38,6 +38,7 @@ type AppStoreValuesRestHandler interface {
 	FindValuesByAppStoreIdAndReferenceType(w http.ResponseWriter, r *http.Request)
 	FetchTemplateValuesByAppStoreId(w http.ResponseWriter, r *http.Request)
 	GetSelectedChartMetadata(w http.ResponseWriter, r *http.Request)
+	GetChartForLatestDeployment(w http.ResponseWriter, r *http.Request)
 }
 
 type AppStoreValuesRestHandlerImpl struct {
@@ -240,4 +241,27 @@ func (handler AppStoreValuesRestHandlerImpl) GetSelectedChartMetadata(w http.Res
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler AppStoreValuesRestHandlerImpl) GetChartForLatestDeployment(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	installedAppId, err := strconv.Atoi(vars["installed-app-id"])
+	if err != nil {
+		handler.Logger.Errorw("request err, FetchAppDetailsForInstalledAppV2", "err", err, "installedAppId", installedAppId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	envId, err := strconv.Atoi(vars["env-id"])
+	if err != nil {
+		handler.Logger.Errorw("request err, FetchAppDetailsForInstalledAppV2", "err", err, "installedAppId", installedAppId, "envId", envId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	//token := r.Header.Get("token")
+
 }
