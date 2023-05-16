@@ -238,11 +238,9 @@ func (handler PipelineConfigRestHandlerImpl) PatchCdPipeline(w http.ResponseWrit
 	force := v.Get("force")
 	cascade := v.Get("cascade")
 	if len(force) > 0 && len(cascade) > 0 {
-		if err != nil {
-			handler.Logger.Errorw("request err, PatchCdPipeline", "err", fmt.Errorf("cannot perform both cascade and force delete"), "payload", cdPipeline)
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			return
-		}
+		handler.Logger.Errorw("request err, PatchCdPipeline", "err", fmt.Errorf("cannot perform both cascade and force delete"), "payload", cdPipeline)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
 	}
 	if len(force) > 0 {
 		forceDelete, err = strconv.ParseBool(force)

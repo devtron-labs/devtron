@@ -259,6 +259,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) DeleteInstalledApp(w http.Respo
 	cascadeDelete := true
 	cascade := v.Get("cascade")
 	if len(force) > 0 && len(cascade) > 0 {
+		handler.Logger.Errorw("request err, PatchCdPipeline", "err", fmt.Errorf("cannot perform both cascade and force delete"), "installAppId", installAppId)
 		common.WriteJsonResp(w, fmt.Errorf("invalid query params! cannot perform both force and cascade together"), nil, http.StatusBadRequest)
 		return
 	}
