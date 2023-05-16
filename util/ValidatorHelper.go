@@ -249,7 +249,7 @@ func AutoScale(dat map[string]interface{}) (bool, error) {
 				return false, errors.New("autoscaling.MinReplicas can not be greater than autoscaling.MaxReplicas")
 			}
 			if kedaAutoScaleEnabled {
-				return false, errors.New("both autoscaling.enable and kedaAutoscaling.enable can not become true at same time.")
+				return false, errors.New("autoscaling and kedaAutoscaling can not be enabled at the same time. Use additional scalers in kedaAutoscaling instead.")
 			}
 		}
 	}
