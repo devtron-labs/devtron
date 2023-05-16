@@ -1417,6 +1417,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledAppV2(ctx context.Cont
 	manifest, err := impl.appStoreDeploymentCommonService.GenerateManifest(installAppVersionRequest)
 	if err != nil {
 		impl.logger.Errorw("error in generating manifest for helm apps", "err", err)
+		_ = impl.UpdateInstalledAppVersionHistoryStatus(installAppVersionRequest, pipelineConfig.WorkflowFailed)
 		return nil, err
 	}
 	if installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD {
@@ -1529,10 +1530,16 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledAppV2(ctx context.Cont
 		return nil, err
 	}
 
-	if installAppVersionRequest.PerformGitOps {
+	if util.IsAcdApp(installAppVersionRequest.DeploymentAppType) {
 		err = impl.UpdateInstalledAppVersionHistoryWithGitHash(installAppVersionRequest)
 		if err != nil {
 			impl.logger.Errorw("error on updating history for chart deployment", "error", err, "installedAppVersion", installedAppVersion)
+			return nil, err
+		}
+	} else if util.IsManifestDownload(installAppVersionRequest.DeploymentAppType) {
+		err = impl.UpdateInstalledAppVersionHistoryStatus(installAppVersionRequest, pipelineConfig.WorkflowSucceeded)
+		if err != nil {
+			impl.logger.Errorw("error on creating history for chart deployment", "error", err)
 			return nil, err
 		}
 	} else {
