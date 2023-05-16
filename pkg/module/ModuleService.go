@@ -22,6 +22,7 @@ import (
 	"errors"
 	"github.com/caarlos0/env/v6"
 	client "github.com/devtron-labs/devtron/api/helm-app"
+	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	moduleUtil "github.com/devtron-labs/devtron/pkg/module/util"
 	"github.com/devtron-labs/devtron/pkg/server"
@@ -41,6 +42,7 @@ type ModuleService interface {
 	GetModuleConfig(name string) (*ModuleConfigDto, error)
 	HandleModuleAction(userId int32, moduleName string, moduleActionRequest *ModuleActionRequestDto) (*ActionResponse, error)
 	GetAllModuleInfo() ([]ModuleInfoDto, error)
+	EnableModule(moduleName string) (*ActionResponse, error)
 }
 
 type ModuleServiceImpl struct {
@@ -57,11 +59,12 @@ type ModuleServiceImpl struct {
 	moduleCronService              ModuleCronService
 	moduleServiceHelper            ModuleServiceHelper
 	moduleResourceStatusRepository moduleRepo.ModuleResourceStatusRepository
+	scanToolMetaDataRepository     security.ScanToolMetadataRepository
 }
 
 func NewModuleServiceImpl(logger *zap.SugaredLogger, serverEnvConfig *serverEnvConfig.ServerEnvConfig, moduleRepository moduleRepo.ModuleRepository,
 	moduleActionAuditLogRepository ModuleActionAuditLogRepository, helmAppService client.HelmAppService, serverDataStore *serverDataStore.ServerDataStore, serverCacheService server.ServerCacheService, moduleCacheService ModuleCacheService, moduleCronService ModuleCronService,
-	moduleServiceHelper ModuleServiceHelper, moduleResourceStatusRepository moduleRepo.ModuleResourceStatusRepository) *ModuleServiceImpl {
+	moduleServiceHelper ModuleServiceHelper, moduleResourceStatusRepository moduleRepo.ModuleResourceStatusRepository, scantoolMetaDataRepository security.ScanToolMetadataRepository) *ModuleServiceImpl {
 	return &ModuleServiceImpl{
 		logger:                         logger,
 		serverEnvConfig:                serverEnvConfig,
@@ -74,6 +77,7 @@ func NewModuleServiceImpl(logger *zap.SugaredLogger, serverEnvConfig *serverEnvC
 		moduleCronService:              moduleCronService,
 		moduleServiceHelper:            moduleServiceHelper,
 		moduleResourceStatusRepository: moduleResourceStatusRepository,
+		scanToolMetaDataRepository:     scantoolMetaDataRepository,
 	}
 }
 
@@ -114,7 +118,9 @@ func (impl ModuleServiceImpl) GetModuleInfo(name string) (*ModuleInfoDto, error)
 
 	// send DB status
 	moduleInfoDto.Status = module.Status
-
+	// Enabled State Assignment
+	moduleInfoDto.Enabled = module.Enabled
+	moduleInfoDto.Moduletype = module.ModuleType
 	// handle module resources status data
 	moduleId := module.Id
 	moduleResourcesStatusFromDb, err := impl.moduleResourceStatusRepository.FindAllActiveByModuleId(moduleId)
@@ -239,9 +245,9 @@ func (impl ModuleServiceImpl) HandleModuleAction(userId int32, moduleName string
 	impl.logger.Debugw("handling module action request", "moduleName", moduleName, "userId", userId, "payload", moduleActionRequest)
 
 	// check if can update server
-	if impl.serverEnvConfig.DevtronInstallationType != serverBean.DevtronInstallationTypeOssHelm {
-		return nil, errors.New("module installation is not allowed")
-	}
+	//if impl.serverEnvConfig.DevtronInstallationType != serverBean.DevtronInstallationTypeOssHelm {
+	//	return nil, errors.New("module installation is not allowed")
+	//}
 
 	// insert into audit table
 	moduleActionAuditLog := &ModuleActionAuditLog{
@@ -291,13 +297,39 @@ func (impl ModuleServiceImpl) HandleModuleAction(userId int32, moduleName string
 	module.Status = ModuleStatusInstalling
 	module.Version = moduleActionRequest.Version
 	module.UpdatedOn = time.Now()
+	tx, err := impl.moduleRepository.GetConnection().Begin()
+	if err != nil {
+		impl.logger.Errorw("error in  opening an transaction", "err", err)
+		return nil, err
+	}
+	defer tx.Rollback()
+	// Finding the Module by type, if no module exists of current type marking current module as active and enabled by default.
+	err = impl.moduleRepository.FindByModuleType(moduleActionRequest.ModuleType)
+	if err != nil {
+		if err == pg.ErrNoRows {
+			err2 := impl.scanToolMetaDataRepository.MarkToolAsActive(moduleName, moduleActionRequest.Version, tx)
+			if err2 != nil {
+				impl.logger.Errorw("error in marking tool as active ", "err", err)
+				return nil, err
+			}
+			module.Enabled = true
+		} else {
+			impl.logger.Errorw("error in getting module by type", "moduleName", moduleName, "err", err)
+			return nil, err
+		}
+	}
+	module.ModuleType = moduleActionRequest.ModuleType
 	if moduleFound {
-		err = impl.moduleRepository.Update(module)
+		err = impl.moduleRepository.UpdateWithTransaction(module, tx)
 	} else {
-		err = impl.moduleRepository.Save(module)
+		err = impl.moduleRepository.SaveWithTransaction(module, tx)
 	}
 	if err != nil {
 		impl.logger.Errorw("error in saving/updating module ", "moduleName", moduleName, "err", err)
+		return nil, err
+	}
+	err = tx.Commit()
+	if err != nil {
 		return nil, err
 	}
 
@@ -348,6 +380,53 @@ func (impl ModuleServiceImpl) HandleModuleAction(userId int32, moduleName string
 		Success: true,
 	}, nil
 }
+func (impl ModuleServiceImpl) EnableModule(moduleName string) (*ActionResponse, error) {
+	if impl.serverEnvConfig.DevtronInstallationType != serverBean.DevtronInstallationTypeOssHelm {
+		return nil, errors.New("module installation is not allowed")
+	}
+
+	// get module by name
+	// if error, throw error
+	module, err := impl.moduleRepository.FindOne(moduleName)
+	//moduleFound := true
+	if err != nil {
+		impl.logger.Errorw("error in getting module ", "moduleName", moduleName, "err", err)
+		return nil, err
+	}
+	dbConnection := impl.moduleRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	err = impl.moduleRepository.MarkModuleAsEnabled(moduleName, tx)
+	if err != nil {
+		impl.logger.Errorw("error in updating module as active ", "moduleName", moduleName, "err", err)
+		return nil, err
+	}
+	err = impl.scanToolMetaDataRepository.MarkToolAsActive(moduleName, module.Version, tx)
+	if err != nil {
+		impl.logger.Errorw("error in marking tool as active ", "err", err)
+		return nil, err
+	}
+	err = impl.scanToolMetaDataRepository.MarkOtherToolsInActive(moduleName, tx, module.Version)
+	if err != nil {
+		impl.logger.Errorw("error in marking other tools inactive ", "err", err)
+		return nil, err
+	}
+	err = impl.moduleRepository.MarkOtherModulesDisabled(moduleName, module.ModuleType, tx)
+	if err != nil {
+		impl.logger.Errorw("error in marking other modules of same module type inactive ", "err", err)
+		return nil, err
+	}
+	err = tx.Commit()
+	if err != nil {
+		return nil, err
+	}
+	return &ActionResponse{
+		Success: true,
+	}, nil
+}
 
 func (impl ModuleServiceImpl) saveModuleAsInstalled(moduleName string) (ModuleStatus, error) {
 	return impl.saveModule(moduleName, ModuleStatusInstalled)
@@ -384,8 +463,9 @@ func (impl ModuleServiceImpl) GetAllModuleInfo() ([]ModuleInfoDto, error) {
 	// now this is the case when data found in DB
 	for _, module := range modules {
 		moduleInfoDto := ModuleInfoDto{
-			Name:   module.Name,
-			Status: module.Status,
+			Name:       module.Name,
+			Status:     module.Status,
+			Moduletype: module.ModuleType,
 		}
 		moduleId := module.Id
 		moduleResourcesStatusFromDb, err := impl.moduleResourceStatusRepository.FindAllActiveByModuleId(moduleId)

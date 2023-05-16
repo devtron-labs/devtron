@@ -27,6 +27,8 @@ type ModuleInfoDto struct {
 	Name                  string                     `json:"name,notnull"`
 	Status                string                     `json:"status,notnull" validate:"oneof=notInstalled installed installing installFailed timeout"`
 	ModuleResourcesStatus []*ModuleResourceStatusDto `json:"moduleResourcesStatus"`
+	Enabled               bool                       `json:"enabled"`
+	Moduletype            string                     `json:"moduleType"`
 }
 
 type ModuleConfigDto struct {
@@ -38,8 +40,9 @@ type BlobStorageConfig struct {
 }
 
 type ModuleActionRequestDto struct {
-	Action  string `json:"action,notnull" validate:"oneof=install"`
-	Version string `json:"version,notnull"`
+	Action     string `json:"action,notnull" validate:"oneof=install"`
+	Version    string `json:"version,notnull"`
+	ModuleType string `json:"moduleType"`
 }
 
 type ActionResponse struct {

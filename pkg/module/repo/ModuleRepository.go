@@ -23,12 +23,14 @@ import (
 )
 
 type Module struct {
-	tableName struct{}  `sql:"module"`
-	Id        int       `sql:"id,pk"`
-	Name      string    `sql:"name, notnull"`
-	Version   string    `sql:"version, notnull"`
-	Status    string    `sql:"status,notnull"`
-	UpdatedOn time.Time `sql:"updated_on"`
+	tableName  struct{}  `sql:"module"`
+	Id         int       `sql:"id,pk"`
+	Name       string    `sql:"name, notnull"`
+	Version    string    `sql:"version, notnull"`
+	Status     string    `sql:"status,notnull"`
+	UpdatedOn  time.Time `sql:"updated_on"`
+	Enabled    bool      `sql:"enabled"`
+	ModuleType string    `sql:"module_type"`
 }
 
 type ModuleRepository interface {
@@ -38,10 +40,20 @@ type ModuleRepository interface {
 	FindAll() ([]Module, error)
 	ModuleExists() (bool, error)
 	GetInstalledModuleNames() ([]string, error)
+	FindByModuleType(moduleType string) error
+	MarkModuleAsEnabled(moduleName string, tx *pg.Tx) error
+	GetConnection() (dbConnection *pg.DB)
+	MarkOtherModulesDisabled(moduleName, moduleType string, tx *pg.Tx) error
+	UpdateWithTransaction(module *Module, tx *pg.Tx) error
+	SaveWithTransaction(module *Module, tx *pg.Tx) error
 }
 
 type ModuleRepositoryImpl struct {
 	dbConnection *pg.DB
+}
+
+func (impl ModuleRepositoryImpl) GetConnection() (dbConnection *pg.DB) {
+	return impl.dbConnection
 }
 
 func NewModuleRepositoryImpl(dbConnection *pg.DB) *ModuleRepositoryImpl {
@@ -50,6 +62,10 @@ func NewModuleRepositoryImpl(dbConnection *pg.DB) *ModuleRepositoryImpl {
 
 func (impl ModuleRepositoryImpl) Save(module *Module) error {
 	return impl.dbConnection.Insert(module)
+}
+
+func (impl ModuleRepositoryImpl) SaveWithTransaction(module *Module, tx *pg.Tx) error {
+	return tx.Insert(module)
 }
 
 func (impl ModuleRepositoryImpl) FindOne(name string) (*Module, error) {
@@ -63,6 +79,9 @@ func (impl ModuleRepositoryImpl) Update(module *Module) error {
 	return impl.dbConnection.Update(module)
 }
 
+func (impl ModuleRepositoryImpl) UpdateWithTransaction(module *Module, tx *pg.Tx) error {
+	return tx.Update(module)
+}
 func (impl ModuleRepositoryImpl) FindAllByStatus(status string) ([]Module, error) {
 	var modules []Module
 	err := impl.dbConnection.Model(&modules).
@@ -96,4 +115,24 @@ func (impl ModuleRepositoryImpl) GetInstalledModuleNames() ([]string, error) {
 		moduleNames = append(moduleNames, module.Name)
 	}
 	return moduleNames, nil
+}
+
+func (impl ModuleRepositoryImpl) FindByModuleType(moduleType string) error {
+	module := &Module{}
+	err := impl.dbConnection.Model(module).
+		Where("module_type = ?", moduleType).
+		Select()
+	return err
+}
+
+func (impl ModuleRepositoryImpl) MarkModuleAsEnabled(moduleName string, tx *pg.Tx) error {
+	module := Module{}
+	_, err := tx.Model(module).Set("enabled = ?", true).Where("name = ?", moduleName).Update()
+	return err
+}
+
+func (impl ModuleRepositoryImpl) MarkOtherModulesDisabled(moduleName, moduleType string, tx *pg.Tx) error {
+	module := Module{}
+	_, err := tx.Model(module).Set("enabled = ?", false).Where("name != ?", moduleName).Where("module_type = ?", moduleType).Update()
+	return err
 }

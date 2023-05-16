@@ -583,6 +583,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(security2.CveStoreRepository), new(*security2.CveStoreRepositoryImpl)),
 		security2.NewImageScanDeployInfoRepositoryImpl,
 		wire.Bind(new(security2.ImageScanDeployInfoRepository), new(*security2.ImageScanDeployInfoRepositoryImpl)),
+		security2.NewScanToolMetadataRepositoryImpl,
+		wire.Bind(new(security2.ScanToolMetadataRepository), new(*security2.ScanToolMetadataRepositoryImpl)),
 		router.NewPolicyRouterImpl,
 		wire.Bind(new(router.PolicyRouter), new(*router.PolicyRouterImpl)),
 		restHandler.NewPolicyRestHandlerImpl,
