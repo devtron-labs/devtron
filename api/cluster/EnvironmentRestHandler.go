@@ -70,7 +70,8 @@ type EnvironmentRestHandlerImpl struct {
 }
 
 type ClusterReachableResponse struct {
-	ClusterReachable bool `json:"clusterReachable"`
+	ClusterReachable bool   `json:"clusterReachable"`
+	ClusterName      string `json:"clusterName"`
 }
 
 func NewEnvironmentRestHandlerImpl(svc request.EnvironmentService, k8sApplicationService k8s.K8sApplicationService, logger *zap.SugaredLogger, userService user.UserService,
@@ -528,6 +529,7 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentConnection(w http.ResponseW
 	}
 	responseObj := &ClusterReachableResponse{
 		ClusterReachable: true,
+		ClusterName:      clusterBean.ClusterName,
 	}
 	err = impl.k8sApplicationService.FetchConnectionStatusForCluster(k8sClientSet, clusterBean.Id)
 	if err != nil {

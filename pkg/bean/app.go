@@ -536,7 +536,7 @@ type CdPipelines struct {
 	Pipelines         []*CDPipelineConfigObject `json:"pipelines,omitempty" validate:"dive"`
 	AppId             int                       `json:"appId,omitempty"  validate:"number,required" `
 	UserId            int32                     `json:"-"`
-	AppDeleteResponse *AppDeleteResponseDTO     `json:"appDeleteResponse,omitempty"`
+	AppDeleteResponse *AppDeleteResponseDTO     `json:"deleteResponse,omitempty"`
 }
 
 type AppDeleteResponseDTO struct {
