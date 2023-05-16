@@ -399,7 +399,7 @@ func (impl AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *a
 	}
 
 	var gitOpsResponse *appStoreDeploymentCommon.AppStoreGitOpsResponse
-	if util.IsAcdApp(installAppVersionRequest.DeploymentAppType) {
+	if installAppVersionRequest.PerformGitOps {
 		gitOpsResponse, err = impl.appStoreDeploymentCommonService.GitOpsOperations(manifest, installAppVersionRequest)
 		if err != nil {
 			impl.logger.Errorw("error in doing gitops operation", "err", err)
@@ -470,6 +470,30 @@ func (impl AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *a
 //
 //	return installAppVersionRequest, nil
 //}
+
+func (impl AppStoreDeploymentServiceImpl) UpdateInstalledAppVersionHistoryStatus(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status string) error {
+	dbConnection := impl.installedAppRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+	savedInstalledAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(installAppVersionRequest.InstalledAppVersionHistoryId)
+	savedInstalledAppVersionHistory.Status = status
+
+	_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(savedInstalledAppVersionHistory, tx)
+	if err != nil {
+		impl.logger.Errorw("error while fetching from db", "error", err)
+		return err
+	}
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error while committing transaction to db", "error", err)
+		return err
+	}
+	return nil
+}
 
 func (impl AppStoreDeploymentServiceImpl) UpdateInstallAppVersionHistory(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error {
 	dbConnection := impl.installedAppRepository.GetConnection()
@@ -1011,6 +1035,14 @@ func (impl AppStoreDeploymentServiceImpl) installAppPostDbOperation(installAppVe
 		err = impl.UpdateInstalledAppVersionHistoryWithGitHash(installAppVersionRequest)
 		if err != nil {
 			impl.logger.Errorw("error in installAppPostDbOperation", "err", err)
+			return err
+		}
+	}
+
+	if installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD {
+		err = impl.UpdateInstalledAppVersionHistoryStatus(installAppVersionRequest, pipelineConfig.WorkflowSucceeded)
+		if err != nil {
+			impl.logger.Errorw("error on creating history for chart deployment", "error", err)
 			return err
 		}
 	}
