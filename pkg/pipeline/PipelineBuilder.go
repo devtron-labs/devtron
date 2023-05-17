@@ -2238,7 +2238,10 @@ func (impl PipelineBuilderImpl) ChangePipelineDeploymentType(ctx context.Context
 
 		return response, nil
 	}
-	response = impl.DeleteDeploymentApps(ctx, pipelines, request.UserId)
+	deleteResponse := impl.DeleteDeploymentApps(ctx, pipelines, request.UserId)
+
+	response.SuccessfulPipelines = deleteResponse.SuccessfulPipelines
+	response.FailedPipelines = deleteResponse.FailedPipelines
 
 	var cdPipelineIds []int
 	for _, item := range response.FailedPipelines {
