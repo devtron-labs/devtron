@@ -20,7 +20,6 @@ package cluster
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/user/bean"
-	"github.com/google/uuid"
 	"strconv"
 	"strings"
 	"time"
@@ -114,7 +113,7 @@ type EnvironmentServiceImpl struct {
 func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepository,
 	clusterService ClusterService, logger *zap.SugaredLogger,
 	K8sUtil *util.K8sUtil, k8sInformerFactory informer.K8sInformerFactory,
-	//  propertiesConfigService pipeline.PropertiesConfigService,
+//  propertiesConfigService pipeline.PropertiesConfigService,
 	userAuthService user.UserAuthService) *EnvironmentServiceImpl {
 	return &EnvironmentServiceImpl{
 		environmentRepository: environmentRepository,
@@ -207,12 +206,7 @@ func (impl EnvironmentServiceImpl) CreateVirtualEnvironment(mappings *VirtualEnv
 		return mappings, fmt.Errorf("environment already exists")
 	}
 
-	environmentIdentifier := ""
-	if len(mappings.Namespace) == 0 {
-		environmentIdentifier = fmt.Sprintf("%s__%s", mappings.Environment, uuid.New().String())
-	} else {
-		environmentIdentifier = fmt.Sprintf("%s__%s", mappings.Environment, mappings.Namespace)
-	}
+	environmentIdentifier := mappings.Environment
 
 	model = &repository.Environment{
 		Name:                  mappings.Environment,

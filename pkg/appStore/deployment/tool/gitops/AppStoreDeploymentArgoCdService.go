@@ -57,22 +57,23 @@ type AppStoreDeploymentArgoCdService interface {
 }
 
 type AppStoreDeploymentArgoCdServiceImpl struct {
-	Logger                            *zap.SugaredLogger
-	appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService
-	acdClient                         application2.ServiceClient
-	chartGroupDeploymentRepository    repository.ChartGroupDeploymentRepository
-	installedAppRepository            repository.InstalledAppRepository
-	installedAppRepositoryHistory     repository.InstalledAppVersionHistoryRepository
-	chartTemplateService              util.ChartTemplateService
-	gitFactory                        *util.GitFactory
-	argoUserService                   argo.ArgoUserService
-	appStoreDeploymentCommonService   appStoreDeploymentCommon.AppStoreDeploymentCommonService
-	helmAppService                    client.HelmAppService
-	gitOpsConfigRepository            repository3.GitOpsConfigRepository
-	appStatusService                  appStatus.AppStatusService
-	pipelineStatusTimelineService     status.PipelineStatusTimelineService
-	userService                       user.UserService
-	pipelineStatusTimelineRepository  pipelineConfig.PipelineStatusTimelineRepository
+	Logger                               *zap.SugaredLogger
+	appStoreDeploymentFullModeService    appStoreDeploymentFullMode.AppStoreDeploymentFullModeService
+	acdClient                            application2.ServiceClient
+	chartGroupDeploymentRepository       repository.ChartGroupDeploymentRepository
+	installedAppRepository               repository.InstalledAppRepository
+	installedAppRepositoryHistory        repository.InstalledAppVersionHistoryRepository
+	chartTemplateService                 util.ChartTemplateService
+	gitFactory                           *util.GitFactory
+	argoUserService                      argo.ArgoUserService
+	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
+	helmAppService                       client.HelmAppService
+	gitOpsConfigRepository               repository3.GitOpsConfigRepository
+	appStatusService                     appStatus.AppStatusService
+	pipelineStatusTimelineService        status.PipelineStatusTimelineService
+	userService                          user.UserService
+	pipelineStatusTimelineRepository     pipelineConfig.PipelineStatusTimelineRepository
+	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
 }
 
 func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
@@ -82,24 +83,26 @@ func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreD
 	helmAppService client.HelmAppService, gitOpsConfigRepository repository3.GitOpsConfigRepository, appStatusService appStatus.AppStatusService,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService, userService user.UserService,
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository,
+	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
 ) *AppStoreDeploymentArgoCdServiceImpl {
 	return &AppStoreDeploymentArgoCdServiceImpl{
-		Logger:                            logger,
-		appStoreDeploymentFullModeService: appStoreDeploymentFullModeService,
-		acdClient:                         acdClient,
-		chartGroupDeploymentRepository:    chartGroupDeploymentRepository,
-		installedAppRepository:            installedAppRepository,
-		installedAppRepositoryHistory:     installedAppRepositoryHistory,
-		chartTemplateService:              chartTemplateService,
-		gitFactory:                        gitFactory,
-		argoUserService:                   argoUserService,
-		appStoreDeploymentCommonService:   appStoreDeploymentCommonService,
-		helmAppService:                    helmAppService,
-		gitOpsConfigRepository:            gitOpsConfigRepository,
-		appStatusService:                  appStatusService,
-		pipelineStatusTimelineService:     pipelineStatusTimelineService,
-		userService:                       userService,
-		pipelineStatusTimelineRepository:  pipelineStatusTimelineRepository,
+		Logger:                               logger,
+		appStoreDeploymentFullModeService:    appStoreDeploymentFullModeService,
+		acdClient:                            acdClient,
+		chartGroupDeploymentRepository:       chartGroupDeploymentRepository,
+		installedAppRepository:               installedAppRepository,
+		installedAppRepositoryHistory:        installedAppRepositoryHistory,
+		chartTemplateService:                 chartTemplateService,
+		gitFactory:                           gitFactory,
+		argoUserService:                      argoUserService,
+		appStoreDeploymentCommonService:      appStoreDeploymentCommonService,
+		helmAppService:                       helmAppService,
+		gitOpsConfigRepository:               gitOpsConfigRepository,
+		appStatusService:                     appStatusService,
+		pipelineStatusTimelineService:        pipelineStatusTimelineService,
+		userService:                          userService,
+		pipelineStatusTimelineRepository:     pipelineStatusTimelineRepository,
+		appStoreApplicationVersionRepository: appStoreApplicationVersionRepository,
 	}
 }
 
@@ -571,7 +574,7 @@ func (impl *AppStoreDeploymentArgoCdServiceImpl) OnUpdateRepoInInstalledApp(ctx 
 }
 
 func (impl *AppStoreDeploymentArgoCdServiceImpl) UpdateRequirementDependencies(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error {
-	RequirementsString, err := impl.appStoreDeploymentCommonService.GetRequirementsString(installAppVersionRequest)
+	RequirementsString, err := impl.appStoreDeploymentCommonService.GetRequirementsString(installAppVersionRequest.AppStoreVersion)
 	if err != nil {
 		impl.Logger.Errorw("error in building requirements config for helm app", "err", err)
 		return err
@@ -660,7 +663,12 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) patchAcdApp(ctx context.Context,
 func (impl AppStoreDeploymentArgoCdServiceImpl) updateValuesYaml(environment *clusterRepository.Environment, installedAppVersion *repository.InstalledAppVersions,
 	installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error) {
 
-	valuesString, err := impl.appStoreDeploymentCommonService.GetValuesString(installAppVersionRequest)
+	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
+	if err != nil {
+		impl.Logger.Errorw("fetching error", "err", err)
+		return nil, err
+	}
+	valuesString, err := impl.appStoreDeploymentCommonService.GetValuesString(appStoreAppVersion.Name, installAppVersionRequest.ValuesOverrideYaml)
 	if err != nil {
 		impl.Logger.Errorw("error in building requirements config for helm app", "err", err)
 		return nil, err
