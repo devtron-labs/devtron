@@ -706,12 +706,6 @@ func (impl AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context
 			// so in helm, we need to check first if the release exists or not, if exists then only delete
 			err = impl.appStoreDeploymentHelmService.DeleteInstalledApp(ctx, app.AppName, environment.Name, installAppVersionRequest, model, tx)
 		} else {
-			if !installAppVersionRequest.InstslledAppDeleteResponse.ClusterReachable {
-				impl.logger.Errorw("cluster connection error", "err", environment.Cluster.ErrorInConnecting)
-				if !installAppVersionRequest.NonCascadeDelete {
-					return installAppVersionRequest, nil
-				}
-			}
 			err = impl.appStoreDeploymentArgoCdService.DeleteInstalledApp(ctx, app.AppName, environment.Name, installAppVersionRequest, model, tx)
 		}
 		if err != nil {
