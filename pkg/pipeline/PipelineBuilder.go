@@ -2297,7 +2297,10 @@ func (impl PipelineBuilderImpl) TriggerDeploymentAfterTypeChange(ctx context.Con
 		return response, nil
 	}
 
-	response = impl.FetchDeletedApp(ctx, cdPipelines)
+	deleteResponse := impl.FetchDeletedApp(ctx, cdPipelines)
+
+	response.SuccessfulPipelines = deleteResponse.SuccessfulPipelines
+	response.FailedPipelines = deleteResponse.FailedPipelines
 
 	var successPipelines []int
 	for _, item := range response.SuccessfulPipelines {
