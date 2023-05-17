@@ -64,7 +64,7 @@ const (
 )
 
 type ClusterBean struct {
-	Id                      int                        `json:"id,omitempty" validate:"number"`
+	Id                      int                        `json:"id" validate:"number"`
 	ClusterName             string                     `json:"cluster_name,omitempty" validate:"required"`
 	ServerUrl               string                     `json:"server_url,omitempty" validate:"url,required"`
 	PrometheusUrl           string                     `json:"prometheus_url,omitempty" validate:"validate-non-empty-url"`
@@ -80,6 +80,7 @@ type ClusterBean struct {
 	ErrorInConnecting       string                     `json:"errorInConnecting"`
 	IsCdArgoSetup           bool                       `json:"isCdArgoSetup"`
 	isClusterNameEmpty      bool                       `json:"-"`
+	ClusterUpdated          bool                       `json:"clusterUpdated"`
 }
 
 type UserInfo struct {

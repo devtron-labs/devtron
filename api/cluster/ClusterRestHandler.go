@@ -154,6 +154,8 @@ func (impl ClusterRestHandlerImpl) SaveClusters(w http.ResponseWriter, r *http.R
 			_, err1 := impl.clusterService.Update(ctx, bean, userId)
 			if err1 != nil {
 				bean.ErrorInConnecting = err1.Error()
+			} else {
+				bean.ClusterUpdated = true
 			}
 		} else {
 			_, err1 := impl.clusterService.Save(ctx, bean, userId)
