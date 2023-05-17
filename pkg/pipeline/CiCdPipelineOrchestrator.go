@@ -1353,6 +1353,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 			PostStageConfigMapSecretNames: postStageConfigmapSecrets,
 			DeploymentAppType:             dbPipeline.DeploymentAppType,
 			DeploymentAppDeleteRequest:    dbPipeline.DeploymentAppDeleteRequest,
+			IsVirtualEnvironment:          dbPipeline.Environment.IsVirtualEnvironment,
 		}
 		pipelines = append(pipelines, pipeline)
 	}
