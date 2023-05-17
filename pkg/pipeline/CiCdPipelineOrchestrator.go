@@ -1175,9 +1175,6 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCDPipelines(pipelineRequest *bean
 		impl.logger.Error(err)
 		return 0, err
 	}
-
-
-
 	env, err := impl.envRepository.FindById(pipelineRequest.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in getting environment by id", "err", err)
@@ -1385,6 +1382,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 			DeploymentAppType:             dbPipeline.DeploymentAppType,
 			DeploymentAppDeleteRequest:    dbPipeline.DeploymentAppDeleteRequest,
 			UserApprovalConf:              approvalConfig,
+			IsVirtualEnvironment:          dbPipeline.Environment.IsVirtualEnvironment,
 		}
 		pipelines = append(pipelines, pipeline)
 	}
