@@ -271,7 +271,7 @@ func (impl *AppStoreDeploymentHelmServiceImpl) OnUpdateRepoInInstalledApp(ctx co
 }
 
 func (impl *AppStoreDeploymentHelmServiceImpl) UpdateRequirementDependencies(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error {
-	RequirementsString, err := impl.appStoreDeploymentCommonService.GetRequirementsString(installAppVersionRequest)
+	RequirementsString, err := impl.appStoreDeploymentCommonService.GetRequirementsString(installAppVersionRequest.AppStoreVersion)
 	if err != nil {
 		impl.Logger.Errorw("error in building requirements config for helm app", "err", err)
 		return err
@@ -291,7 +291,13 @@ func (impl *AppStoreDeploymentHelmServiceImpl) UpdateRequirementDependencies(ins
 }
 
 func (impl *AppStoreDeploymentHelmServiceImpl) UpdateValuesDependencies(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error {
-	valuesString, err := impl.appStoreDeploymentCommonService.GetValuesString(installAppVersionRequest)
+
+	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
+	if err != nil {
+		impl.Logger.Errorw("fetching error", "err", err)
+		return err
+	}
+	valuesString, err := impl.appStoreDeploymentCommonService.GetValuesString(appStoreAppVersion.Name, installAppVersionRequest.ValuesOverrideYaml)
 	if err != nil {
 		impl.Logger.Errorw("error in building requirements config for helm app", "err", err)
 		return err

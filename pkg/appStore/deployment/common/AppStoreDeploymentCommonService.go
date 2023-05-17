@@ -52,11 +52,12 @@ type AppStoreDeploymentCommonService interface {
 	CreateGitOpsRepoAndPushChart(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, builtChartPath string) (*util.ChartGitAttribute, error)
 	CommitConfigToGit(chartConfig *util.ChartConfig) (gitHash string, err error)
 	GetGitCommitConfig(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, fileString string, filename string) (*util.ChartConfig, error)
-	GetValuesString(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (string, error)
-	GetRequirementsString(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (string, error)
+	GetValuesString(chartName, valuesOverrideYaml string) (string, error)
+	GetRequirementsString(appStoreVersionId int) (string, error)
 	GenerateManifest(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (manifestResponse *AppStoreManifestResponse, err error)
 	GitOpsOperations(manifestResponse *AppStoreManifestResponse, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*AppStoreGitOpsResponse, error)
 	GenerateManifestAndPerformGitOperations(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*AppStoreGitOpsResponse, error)
+	BuildChartWithValuesAndRequirementsConfig(installedAppId, installedAppVersionId int) (chartPath string, err error)
 }
 
 type AppStoreDeploymentCommonServiceImpl struct {
@@ -216,23 +217,19 @@ func (impl AppStoreDeploymentCommonServiceImpl) ParseGitRepoErrorResponse(err er
 	return noTargetFound, err
 }
 
-func (impl AppStoreDeploymentCommonServiceImpl) GetValuesString(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (string, error) {
-	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
-	if err != nil {
-		impl.logger.Errorw("fetching error", "err", err)
-		return "", err
-	}
-	ValuesOverrideByte, err := yaml.YAMLToJSON([]byte(installAppVersionRequest.ValuesOverrideYaml))
-	if err != nil {
-		impl.logger.Errorw("error in json patch", "err", err)
-		return "", err
-	}
+func (impl AppStoreDeploymentCommonServiceImpl) GetValuesString(chartName, valuesOverrideYaml string) (string, error) {
+
+	ValuesOverrideByte := []byte(valuesOverrideYaml)
 
 	var dat map[string]interface{}
-	err = json.Unmarshal(ValuesOverrideByte, &dat)
+	err := json.Unmarshal(ValuesOverrideByte, &dat)
+	if err != nil {
+		impl.logger.Errorw("error in unmarshalling values override byte", "err", err)
+		return "", err
+	}
 
 	valuesMap := make(map[string]map[string]interface{})
-	valuesMap[appStoreAppVersion.AppStore.Name] = dat
+	valuesMap[chartName] = dat
 	valuesByte, err := json.Marshal(valuesMap)
 	if err != nil {
 		impl.logger.Errorw("error in marshaling", "err", err)
@@ -241,8 +238,8 @@ func (impl AppStoreDeploymentCommonServiceImpl) GetValuesString(installAppVersio
 	return string(valuesByte), nil
 }
 
-func (impl AppStoreDeploymentCommonServiceImpl) GetRequirementsString(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (string, error) {
-	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
+func (impl AppStoreDeploymentCommonServiceImpl) GetRequirementsString(appStoreVersionId int) (string, error) {
+	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(appStoreVersionId)
 	if err != nil {
 		impl.logger.Errorw("fetching error", "err", err)
 		return "", err
@@ -297,12 +294,18 @@ func (impl AppStoreDeploymentCommonServiceImpl) GetGitCommitConfig(installAppVer
 }
 
 func (impl AppStoreDeploymentCommonServiceImpl) GetValuesAndRequirementGitConfig(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*util.ChartConfig, *util.ChartConfig, error) {
-	values, err := impl.GetValuesString(installAppVersionRequest)
+
+	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
+	if err != nil {
+		impl.logger.Errorw("fetching error", "err", err)
+		return nil, nil, err
+	}
+	values, err := impl.GetValuesString(appStoreAppVersion.Name, installAppVersionRequest.ValuesOverrideYaml)
 	if err != nil {
 		impl.logger.Errorw("error in getting values fot installedAppVersionRequest", "err", err)
 		return nil, nil, err
 	}
-	dependency, err := impl.GetRequirementsString(installAppVersionRequest)
+	dependency, err := impl.GetRequirementsString(installAppVersionRequest.AppStoreVersion)
 	if err != nil {
 		impl.logger.Errorw("error in getting dependency array fot installedAppVersionRequest", "err", err)
 		return nil, nil, err
@@ -552,4 +555,14 @@ func (impl AppStoreDeploymentCommonServiceImpl) GenerateManifestAndPerformGitOpe
 	installAppVersionRequest.GitHash = gitOpsResponse.GitHash
 	appStoreGitOpsResponse.ChartGitAttribute = gitOpsResponse.ChartGitAttribute
 	return appStoreGitOpsResponse, nil
+}
+
+func (impl AppStoreDeploymentCommonServiceImpl) BuildChartWithValuesAndRequirementsConfig(installedAppId, installedAppVersionId int) (chartPath string, err error) {
+
+	//installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersion(installedAppVersionId)
+	//if err != nil {
+	//	impl.logger.Errorw("Service err, BuildChartWithValuesAndRequirementsConfig", err, "installed_app_version_id", installedAppVersionId)
+	//	return chartPath, err
+	//}
+	return "", nil
 }

@@ -576,7 +576,7 @@ func InitializeApp() (*App, error) {
 	configMapRestHandlerImpl := restHandler.NewConfigMapRestHandlerImpl(pipelineBuilderImpl, sugaredLogger, chartServiceImpl, userServiceImpl, teamServiceImpl, enterpriseEnforcerImpl, pipelineRepositoryImpl, enforcerUtilImpl, configMapServiceImpl)
 	configMapRouterImpl := router.NewConfigMapRouterImpl(configMapRestHandlerImpl)
 	installedAppRestHandlerImpl := appStore.NewInstalledAppRestHandlerImpl(sugaredLogger, userServiceImpl, enterpriseEnforcerImpl, enforcerUtilImpl, installedAppServiceImpl, validate, clusterServiceImplExtended, applicationServiceClientImpl, appStoreDeploymentServiceImpl, helmAppClientImpl, helmAppServiceImpl, argoUserServiceImpl, cdApplicationStatusUpdateHandlerImpl, installedAppRepositoryImpl)
-	appStoreValuesRestHandlerImpl := appStoreValues.NewAppStoreValuesRestHandlerImpl(sugaredLogger, userServiceImpl, appStoreValuesServiceImpl)
+	appStoreValuesRestHandlerImpl := appStoreValues.NewAppStoreValuesRestHandlerImpl(sugaredLogger, userServiceImpl, appStoreValuesServiceImpl, installedAppServiceImpl, enforcerUtilImpl, enterpriseEnforcerImpl)
 	appStoreValuesRouterImpl := appStoreValues.NewAppStoreValuesRouterImpl(appStoreValuesRestHandlerImpl)
 	appStoreServiceImpl := service3.NewAppStoreServiceImpl(sugaredLogger, appStoreApplicationVersionRepositoryImpl)
 	appStoreRestHandlerImpl := appStoreDiscover.NewAppStoreRestHandlerImpl(sugaredLogger, userServiceImpl, appStoreServiceImpl, enterpriseEnforcerImpl)

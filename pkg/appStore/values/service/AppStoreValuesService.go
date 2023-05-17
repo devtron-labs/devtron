@@ -38,6 +38,7 @@ type AppStoreValuesService interface {
 	FindValuesByAppStoreId(appStoreId int, installedAppVersionId int) (*appStoreBean.AppSotoreVersionDTOWrapper, error)
 	FindValuesByAppStoreIdAndReferenceType(appStoreVersionId int, referenceType string) ([]*appStoreBean.AppStoreVersionValuesDTO, error)
 	GetSelectedChartMetaData(req *ChartMetaDataRequestWrapper) ([]*ChartMetaDataResponse, error)
+	GetChartBytes(installedAppId int, installedAppVersion int) ([]byte, error)
 }
 
 type AppStoreValuesServiceImpl struct {
@@ -288,7 +289,7 @@ func (impl AppStoreValuesServiceImpl) FindValuesByAppStoreIdAndReferenceType(app
 	return appStoreVersionValuesDTO, err
 }
 
-//converts db object to bean
+// converts db object to bean
 func (impl AppStoreValuesServiceImpl) adapter(values *appStoreValuesRepository.AppStoreVersionValues) (*appStoreBean.AppStoreVersionValuesDTO, error) {
 
 	version := ""
@@ -307,24 +308,25 @@ func (impl AppStoreValuesServiceImpl) adapter(values *appStoreValuesRepository.A
 	}, nil
 }
 
-/*func (impl AppStoreValuesServiceImpl) adaptorForValuesCategoryWise(values *appStore.AppStoreVersionValues) (val *AppStoreVersionValuesCategoryWiseDTO) {
-	version := ""
-	if values.AppStoreApplicationVersion != nil {
-		version = values.AppStoreApplicationVersion.Version
-	}
+/*
+	func (impl AppStoreValuesServiceImpl) adaptorForValuesCategoryWise(values *appStore.AppStoreVersionValues) (val *AppStoreVersionValuesCategoryWiseDTO) {
+		version := ""
+		if values.AppStoreApplicationVersion != nil {
+			version = values.AppStoreApplicationVersion.Version
+		}
 
-	valDto:= &AppStoreVersionValuesDTO{
-		Name:              values.Name,
-		Id:                values.Id,
-		Values:            values.ValuesYaml,
-		ChartVersion:      version,
-		AppStoreVersionId: values.AppStoreApplicationVersionId,
+		valDto:= &AppStoreVersionValuesDTO{
+			Name:              values.Name,
+			Id:                values.Id,
+			Values:            values.ValuesYaml,
+			ChartVersion:      version,
+			AppStoreVersionId: values.AppStoreApplicationVersionId,
+		}
+		val = &AppStoreVersionValuesCategoryWiseDTO{
+			Values:valDto
+		}
+		return val
 	}
-	val = &AppStoreVersionValuesCategoryWiseDTO{
-		Values:valDto
-	}
-	return val
-}
 */
 type ChartMetaDataRequest struct {
 	Kind  string `json:"kind"`
@@ -414,4 +416,9 @@ func (impl AppStoreValuesServiceImpl) setUpdatedByUserEmail(appStoreVersionValue
 	}
 
 	return nil
+}
+
+func (impl AppStoreValuesServiceImpl) GetChartBytes(installedAppId int, installedAppVersion int) ([]byte, error) {
+	//manifest := make([]byte, 0)
+	return nil, nil
 }
