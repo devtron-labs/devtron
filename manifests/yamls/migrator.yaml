@@ -190,7 +190,7 @@ spec:
         - name: DB_NAME
           value: lens
         - name: MIGRATE_TO_VERSION
-          value: "0"
+          value: 25bfd796a89992d3dbe739913fd46556440248ff
         - name: GIT_BRANCH
           value: main
         - name: GIT_HASH
