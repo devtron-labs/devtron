@@ -54,8 +54,9 @@ const PIPELINE_DEPLOYMENT_TYPE_HELM string = "helm"
 const PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD string = "manifest_download"
 
 type ChartCreateRequest struct {
-	ChartMetaData *chart.Metadata
-	ChartPath     string
+	ChartMetaData       *chart.Metadata
+	ChartPath           string
+	IncludePackageChart bool
 }
 
 type ChartCreateResponse struct {
@@ -232,12 +233,26 @@ func (impl ChartTemplateServiceImpl) BuildChartProxyForHelmApps(chartCreateReque
 		impl.logger.Errorw("error in copying chart for app", "app", chartMetaData.Name, "error", err)
 		return chartCreateResponse, err
 	}
-	_, valuesYaml, err := impl.packageChart(chartDir, chartMetaData)
-	if err != nil {
-		impl.logger.Errorw("error in creating archive", "err", err)
-		return chartCreateResponse, err
+	if chartCreateRequest.IncludePackageChart {
+		_, valuesYaml, err := impl.packageChart(chartDir, chartMetaData)
+		if err != nil {
+			impl.logger.Errorw("error in creating archive", "err", err)
+			return chartCreateResponse, err
+		}
+		chartCreateResponse.valuesYaml = valuesYaml
+	} else {
+		b, err := yaml.Marshal(chartMetaData)
+		if err != nil {
+			impl.logger.Errorw("error in marshaling chartMetadata", "err", err)
+			return chartCreateResponse, err
+		}
+		err = ioutil.WriteFile(filepath.Join(chartDir, "Chart.yaml"), b, 0600)
+		if err != nil {
+			impl.logger.Errorw("err in writing Chart.yaml", "err", err)
+			return chartCreateResponse, err
+		}
 	}
-	chartCreateResponse.valuesYaml = valuesYaml
+
 	chartCreateResponse.BuiltChartPath = chartDir
 	return chartCreateResponse, nil
 }

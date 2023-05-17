@@ -92,6 +92,7 @@ type InstalledAppService interface {
 	FetchChartNotes(installedAppId int, envId int, token string, checkNotesAuth func(token string, appName string, envId int) bool) (string, error)
 	FetchResourceTreeWithHibernateForACD(rctx context.Context, cn http.CloseNotifier, appDetail *bean2.AppDetailContainer) bean2.AppDetailContainer
 	fetchResourceTreeForACD(rctx context.Context, cn http.CloseNotifier, appId int, envId int, deploymentAppName string) (map[string]interface{}, error)
+	GetChartBytes(installedAppId int, installedAppVersionId int) ([]byte, error)
 }
 
 type InstalledAppServiceImpl struct {
@@ -1279,4 +1280,22 @@ func (impl InstalledAppServiceImpl) fetchResourceTreeForACD(rctx context.Context
 	}()
 	impl.logger.Debugf("application %s in environment %s had status %+v\n", appId, envId, resp)
 	return resourceTree, err
+}
+
+func (impl InstalledAppServiceImpl) GetChartBytes(installedAppId int, installedAppVersionId int) ([]byte, error) {
+
+	chartBytes := make([]byte, 0)
+
+	installedApp, err := impl.installedAppRepository.GetInstalledApp(installedAppId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching installed app", "err", err, "installed_app_id", installedAppId)
+		return chartBytes, err
+	}
+
+	chartBytes, err = impl.appStoreDeploymentCommonService.BuildChartWithValuesAndRequirementsConfig(installedApp, installedAppVersionId)
+	if err != nil {
+		return chartBytes, err
+	}
+	return chartBytes, nil
+
 }

@@ -33,6 +33,7 @@ import (
 	dirCopy "github.com/otiai10/copy"
 	"github.com/xanzy/go-gitlab"
 	"go.uber.org/zap"
+	"io/ioutil"
 	"k8s.io/helm/pkg/chartutil"
 	"k8s.io/helm/pkg/proto/hapi/chart"
 	"net/http"
@@ -48,7 +49,7 @@ type AppStoreDeploymentCommonService interface {
 	GetInstalledAppByInstalledAppId(installedAppId int) (*appStoreBean.InstallAppVersionDTO, error)
 	ParseGitRepoErrorResponse(err error) (bool, error)
 	GetValuesAndRequirementGitConfig(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*util.ChartConfig, *util.ChartConfig, error)
-	CreateChartProxyAndGetPath(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*util.ChartCreateResponse, error)
+	CreateChartProxyAndGetPath(appName string, includePackageChart bool) (*util.ChartCreateResponse, error)
 	CreateGitOpsRepoAndPushChart(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, builtChartPath string) (*util.ChartGitAttribute, error)
 	CommitConfigToGit(chartConfig *util.ChartConfig) (gitHash string, err error)
 	GetGitCommitConfig(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, fileString string, filename string) (*util.ChartConfig, error)
@@ -57,7 +58,7 @@ type AppStoreDeploymentCommonService interface {
 	GenerateManifest(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (manifestResponse *AppStoreManifestResponse, err error)
 	GitOpsOperations(manifestResponse *AppStoreManifestResponse, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*AppStoreGitOpsResponse, error)
 	GenerateManifestAndPerformGitOperations(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*AppStoreGitOpsResponse, error)
-	BuildChartWithValuesAndRequirementsConfig(installedAppId, installedAppVersionId int) (chartPath string, err error)
+	BuildChartWithValuesAndRequirementsConfig(installedApp *repository.InstalledApps, installedAppVersionId int) (chartBytesArr []byte, err error)
 }
 
 type AppStoreDeploymentCommonServiceImpl struct {
@@ -95,11 +96,12 @@ func NewAppStoreDeploymentCommonServiceImpl(
 
 // TODO: move this from here
 
-func ParseChartCreateRequest(installAppRequestDTO *appStoreBean.InstallAppVersionDTO, chartPath string) *util.ChartCreateRequest {
+func ParseChartCreateRequest(appName string, chartPath string, includePackageChart bool) *util.ChartCreateRequest {
 	return &util.ChartCreateRequest{ChartMetaData: &chart.Metadata{
-		Name:    installAppRequestDTO.AppName,
+		Name:    appName,
 		Version: "1.0.1",
-	}, ChartPath: chartPath}
+	}, ChartPath: chartPath,
+		IncludePackageChart: includePackageChart}
 }
 
 func ParseChartGitPushRequest(installAppRequestDTO *appStoreBean.InstallAppVersionDTO, repoURl string, tempRefChart string) *appStoreBean.PushChartToGitRequestDTO {
@@ -219,10 +221,13 @@ func (impl AppStoreDeploymentCommonServiceImpl) ParseGitRepoErrorResponse(err er
 
 func (impl AppStoreDeploymentCommonServiceImpl) GetValuesString(chartName, valuesOverrideYaml string) (string, error) {
 
-	ValuesOverrideByte := []byte(valuesOverrideYaml)
+	ValuesOverrideByte, err := yaml.YAMLToJSON([]byte(valuesOverrideYaml))
+	if err != nil {
+		impl.logger.Errorw("")
+	}
 
 	var dat map[string]interface{}
-	err := json.Unmarshal(ValuesOverrideByte, &dat)
+	err = json.Unmarshal(ValuesOverrideByte, &dat)
 	if err != nil {
 		impl.logger.Errorw("error in unmarshalling values override byte", "err", err)
 		return "", err
@@ -300,7 +305,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) GetValuesAndRequirementGitConfig
 		impl.logger.Errorw("fetching error", "err", err)
 		return nil, nil, err
 	}
-	values, err := impl.GetValuesString(appStoreAppVersion.Name, installAppVersionRequest.ValuesOverrideYaml)
+	values, err := impl.GetValuesString(appStoreAppVersion.AppStore.Name, installAppVersionRequest.ValuesOverrideYaml)
 	if err != nil {
 		impl.logger.Errorw("error in getting values fot installedAppVersionRequest", "err", err)
 		return nil, nil, err
@@ -324,7 +329,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) GetValuesAndRequirementGitConfig
 }
 
 // CreateChartProxyAndGetPath parse chart in local directory and returns path of local dir and values.yaml
-func (impl AppStoreDeploymentCommonServiceImpl) CreateChartProxyAndGetPath(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*util.ChartCreateResponse, error) {
+func (impl AppStoreDeploymentCommonServiceImpl) CreateChartProxyAndGetPath(appName string, includePackageChart bool) (*util.ChartCreateResponse, error) {
 
 	ChartCreateResponse := &util.ChartCreateResponse{}
 	template := appStoreBean.CHART_PROXY_TEMPLATE
@@ -334,7 +339,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) CreateChartProxyAndGetPath(insta
 		impl.logger.Errorw("invalid base chart", "dir", chartPath, "err", err)
 		return ChartCreateResponse, err
 	}
-	chartCreateRequest := ParseChartCreateRequest(installAppVersionRequest, chartPath)
+	chartCreateRequest := ParseChartCreateRequest(appName, chartPath, includePackageChart)
 	chartCreateResponse, err := impl.chartTemplateService.BuildChartProxyForHelmApps(chartCreateRequest)
 	if err != nil {
 		impl.logger.Errorw("Error in building chart proxy", "err", err)
@@ -348,7 +353,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) GenerateManifest(installAppVersi
 
 	manifestResponse = &AppStoreManifestResponse{}
 
-	ChartCreateResponse, err := impl.CreateChartProxyAndGetPath(installAppVersionRequest)
+	ChartCreateResponse, err := impl.CreateChartProxyAndGetPath(installAppVersionRequest.AppName, true)
 	if err != nil {
 		impl.logger.Errorw("Error in building chart while generating manifest", "err", err)
 		return manifestResponse, err
@@ -557,12 +562,47 @@ func (impl AppStoreDeploymentCommonServiceImpl) GenerateManifestAndPerformGitOpe
 	return appStoreGitOpsResponse, nil
 }
 
-func (impl AppStoreDeploymentCommonServiceImpl) BuildChartWithValuesAndRequirementsConfig(installedAppId, installedAppVersionId int) (chartPath string, err error) {
+func (impl AppStoreDeploymentCommonServiceImpl) BuildChartWithValuesAndRequirementsConfig(installedApp *repository.InstalledApps, installedAppVersionId int) (chartBytesArr []byte, err error) {
 
-	//installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersion(installedAppVersionId)
-	//if err != nil {
-	//	impl.logger.Errorw("Service err, BuildChartWithValuesAndRequirementsConfig", err, "installed_app_version_id", installedAppVersionId)
-	//	return chartPath, err
-	//}
-	return "", nil
+	chartBytesArr = make([]byte, 0)
+
+	installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersion(installedAppVersionId)
+	if err != nil {
+		impl.logger.Errorw("Service err, BuildChartWithValuesAndRequirementsConfig", err, "installed_app_version_id", installedAppVersionId)
+		return chartBytesArr, err
+	}
+
+	valuesString, err := impl.GetValuesString(installedAppVersion.AppStoreApplicationVersion.AppStore.Name, installedAppVersion.ValuesYaml)
+	if err != nil {
+		return chartBytesArr, err
+	}
+	requirementsString, err := impl.GetRequirementsString(installedAppVersion.AppStoreApplicationVersionId)
+	if err != nil {
+		return chartBytesArr, err
+	}
+
+	chartCreateResponse, err := impl.CreateChartProxyAndGetPath(installedApp.App.AppName, false)
+	if err != nil {
+		impl.logger.Errorw("error in building chart", "err", err)
+	}
+
+	valuesFilePath := path.Join(chartCreateResponse.BuiltChartPath, "values.yaml")
+	err = ioutil.WriteFile(valuesFilePath, []byte(valuesString), 0600)
+	if err != nil {
+		return chartBytesArr, nil
+	}
+
+	requirementsFilePath := path.Join(chartCreateResponse.BuiltChartPath, "requirements.yaml")
+	err = ioutil.WriteFile(requirementsFilePath, []byte(requirementsString), 0600)
+	if err != nil {
+		return chartBytesArr, nil
+	}
+
+	chartBytesArr, err = impl.chartTemplateService.LoadChartInBytes(chartCreateResponse.BuiltChartPath, true)
+	if err != nil {
+		impl.logger.Errorw("error in loading chart in bytes", "err", err)
+		return chartBytesArr, nil
+	}
+
+	return chartBytesArr, nil
 }

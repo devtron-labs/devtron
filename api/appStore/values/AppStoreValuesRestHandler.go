@@ -19,14 +19,10 @@ package appStoreValues
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
-	service2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	"github.com/devtron-labs/devtron/pkg/appStore/values/service"
 	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
-	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"net/http"
@@ -42,27 +38,20 @@ type AppStoreValuesRestHandler interface {
 	FindValuesByAppStoreIdAndReferenceType(w http.ResponseWriter, r *http.Request)
 	FetchTemplateValuesByAppStoreId(w http.ResponseWriter, r *http.Request)
 	GetSelectedChartMetadata(w http.ResponseWriter, r *http.Request)
-	GetChartForLatestDeployment(w http.ResponseWriter, r *http.Request)
 }
 
 type AppStoreValuesRestHandlerImpl struct {
 	Logger                *zap.SugaredLogger
 	userAuthService       user.UserService
 	appStoreValuesService service.AppStoreValuesService
-	installedAppService   service2.InstalledAppService
-	enforcerUtil          rbac.EnforcerUtil
-	enforcer              casbin.Enforcer
 }
 
 func NewAppStoreValuesRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
-	appStoreValuesService service.AppStoreValuesService, installedAppService service2.InstalledAppService, enforcerUtil rbac.EnforcerUtil, enforcer casbin.Enforcer) *AppStoreValuesRestHandlerImpl {
+	appStoreValuesService service.AppStoreValuesService) *AppStoreValuesRestHandlerImpl {
 	return &AppStoreValuesRestHandlerImpl{
 		Logger:                Logger,
 		userAuthService:       userAuthService,
 		appStoreValuesService: appStoreValuesService,
-		installedAppService:   installedAppService,
-		enforcerUtil:          enforcerUtil,
-		enforcer:              enforcer,
 	}
 }
 
@@ -251,41 +240,4 @@ func (handler AppStoreValuesRestHandlerImpl) GetSelectedChartMetadata(w http.Res
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
-}
-
-func (handler AppStoreValuesRestHandlerImpl) GetChartForLatestDeployment(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userAuthService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	vars := mux.Vars(r)
-	installedAppId, err := strconv.Atoi(vars["installed-app-id"])
-	if err != nil {
-		handler.Logger.Errorw("request err, GetChartForLatestDeployment", "err", err, "installedAppId", installedAppId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	envId, err := strconv.Atoi(vars["env-id"])
-
-	appDetail, err := handler.installedAppService.FindAppDetailsForAppstoreApplication(installedAppId, envId)
-	if err != nil {
-		handler.Logger.Errorw("request err, GetChartForLatestDeployment", "err", err, "installedAppId", installedAppId, "envId", envId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	token := r.Header.Get("token")
-	object, object2 := handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(appDetail.AppName, appDetail.EnvironmentId)
-	var ok bool
-	if object2 == "" {
-		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object)
-	} else {
-		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object2)
-	}
-	if !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
-		return
-	}
-
 }

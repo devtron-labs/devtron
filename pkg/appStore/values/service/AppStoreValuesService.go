@@ -38,7 +38,6 @@ type AppStoreValuesService interface {
 	FindValuesByAppStoreId(appStoreId int, installedAppVersionId int) (*appStoreBean.AppSotoreVersionDTOWrapper, error)
 	FindValuesByAppStoreIdAndReferenceType(appStoreVersionId int, referenceType string) ([]*appStoreBean.AppStoreVersionValuesDTO, error)
 	GetSelectedChartMetaData(req *ChartMetaDataRequestWrapper) ([]*ChartMetaDataResponse, error)
-	GetChartBytes(installedAppId int, installedAppVersion int) ([]byte, error)
 }
 
 type AppStoreValuesServiceImpl struct {
@@ -416,9 +415,4 @@ func (impl AppStoreValuesServiceImpl) setUpdatedByUserEmail(appStoreVersionValue
 	}
 
 	return nil
-}
-
-func (impl AppStoreValuesServiceImpl) GetChartBytes(installedAppId int, installedAppVersion int) ([]byte, error) {
-	//manifest := make([]byte, 0)
-	return nil, nil
 }
