@@ -41,6 +41,7 @@
 - docs: devtron terminal connection timeout issue on gke cluster (#3260)
 - docs: cluster and environment url fix (#3284)
 ## Others
+- task: updated status code for role fetch api (#3395)
 - chore: Updated Github ISSUE-TEMPLATE (#3390)
 - task: changes for kubelink update application requests (#3359)
 - Fix for source type be (#3259)
