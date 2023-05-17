@@ -144,7 +144,7 @@ spec:
         - name: DB_NAME
           value: git_sensor
         - name: MIGRATE_TO_VERSION
-          value: "0"
+          value: 960bbf717bfb52c7df503e170b4e510f902a96a4
         - name: GIT_BRANCH
           value: main
         - name: GIT_HASH
