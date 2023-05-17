@@ -1,4 +1,5 @@
 ## Bugs
+- fix:  Search option should not be case sensitive in case of clusters, preset values, chart store (#3396)
 - fix: preset values update fix (#3361)
 - fix: ci pipeline trigger bad gateway (#3386)
 - fix: GRPC fetch material excluded flag (#3385)
