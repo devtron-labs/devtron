@@ -83,7 +83,7 @@ func (handler *AppStoreRestHandlerImpl) FindAllApps(w http.ResponseWriter, r *ht
 			}
 		}
 	}
-	appStoreName := v.Get("appStoreName")
+	appStoreName := strings.ToLower(v.Get("appStoreName"))
 
 	offset := 0
 	offsetStr := v.Get("offset")
