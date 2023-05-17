@@ -279,7 +279,7 @@ func (impl *ClusterServiceImpl) SaveVirtualCluster(bean *VirtualClusterBean, use
 	model := &repository.Cluster{
 		ClusterName:      bean.ClusterName,
 		Active:           true,
-		IsVirtualCluster: bean.IsVirtualCluster,
+		IsVirtualCluster: true,
 	}
 	model.CreatedBy = userId
 	model.UpdatedBy = userId
