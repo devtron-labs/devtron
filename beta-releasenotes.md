@@ -1,4 +1,5 @@
 ## Bugs
+- fix: preset values update fix (#3361)
 - fix: ci pipeline trigger bad gateway (#3386)
 - fix: GRPC fetch material excluded flag (#3385)
 - fix: job trigger fail (#3383)
