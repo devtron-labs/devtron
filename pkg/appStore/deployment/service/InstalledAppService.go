@@ -92,7 +92,8 @@ type InstalledAppService interface {
 	FetchChartNotes(installedAppId int, envId int, token string, checkNotesAuth func(token string, appName string, envId int) bool) (string, error)
 	FetchResourceTreeWithHibernateForACD(rctx context.Context, cn http.CloseNotifier, appDetail *bean2.AppDetailContainer) bean2.AppDetailContainer
 	fetchResourceTreeForACD(rctx context.Context, cn http.CloseNotifier, appId int, envId int, deploymentAppName string) (map[string]interface{}, error)
-	GetChartBytes(installedAppId int, installedAppVersionId int) ([]byte, error)
+	GetChartBytesForLatestDeployment(installedAppId int, installedAppVersionId int) ([]byte, error)
+	GetChartBytesForParticularDeployment(installedAppId int, installedAppVersionId int, installedAppVersionHistoryId int) ([]byte, error)
 }
 
 type InstalledAppServiceImpl struct {
@@ -1282,7 +1283,7 @@ func (impl InstalledAppServiceImpl) fetchResourceTreeForACD(rctx context.Context
 	return resourceTree, err
 }
 
-func (impl InstalledAppServiceImpl) GetChartBytes(installedAppId int, installedAppVersionId int) ([]byte, error) {
+func (impl InstalledAppServiceImpl) GetChartBytesForLatestDeployment(installedAppId int, installedAppVersionId int) ([]byte, error) {
 
 	chartBytes := make([]byte, 0)
 
@@ -1291,11 +1292,60 @@ func (impl InstalledAppServiceImpl) GetChartBytes(installedAppId int, installedA
 		impl.logger.Errorw("error in fetching installed app", "err", err, "installed_app_id", installedAppId)
 		return chartBytes, err
 	}
+	installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersion(installedAppVersionId)
+	if err != nil {
+		impl.logger.Errorw("Service err, BuildChartWithValuesAndRequirementsConfig", err, "installed_app_version_id", installedAppVersionId)
+		return chartBytes, err
+	}
 
-	chartBytes, err = impl.appStoreDeploymentCommonService.BuildChartWithValuesAndRequirementsConfig(installedApp, installedAppVersionId)
+	valuesString, err := impl.appStoreDeploymentCommonService.GetValuesString(installedAppVersion.AppStoreApplicationVersion.AppStore.Name, installedAppVersion.ValuesYaml)
 	if err != nil {
 		return chartBytes, err
 	}
+	requirementsString, err := impl.appStoreDeploymentCommonService.GetRequirementsString(installedAppVersion.AppStoreApplicationVersionId)
+	if err != nil {
+		return chartBytes, err
+	}
+
+	chartBytes, err = impl.appStoreDeploymentCommonService.BuildChartWithValuesAndRequirementsConfig(installedApp.App.AppName, valuesString, requirementsString)
+	if err != nil {
+		return chartBytes, err
+	}
+
+	return chartBytes, nil
+
+}
+
+func (impl InstalledAppServiceImpl) GetChartBytesForParticularDeployment(installedAppId int, installedAppVersionId int, installedAppVersionHistoryId int) ([]byte, error) {
+
+	chartBytes := make([]byte, 0)
+
+	installedApp, err := impl.installedAppRepository.GetInstalledApp(installedAppId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching installed app", "err", err, "installed_app_id", installedAppId)
+		return chartBytes, err
+	}
+	installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersionAny(installedAppVersionId)
+	if err != nil {
+		impl.logger.Errorw("Service err, BuildChartWithValuesAndRequirementsConfig", err, "installed_app_version_id", installedAppVersionId)
+		return chartBytes, err
+	}
+	installedAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(installedAppVersionHistoryId)
+
+	valuesString, err := impl.appStoreDeploymentCommonService.GetValuesString(installedAppVersion.AppStoreApplicationVersion.AppStore.Name, installedAppVersionHistory.ValuesYamlRaw)
+	if err != nil {
+		return chartBytes, err
+	}
+	requirementsString, err := impl.appStoreDeploymentCommonService.GetRequirementsString(installedAppVersion.AppStoreApplicationVersionId)
+	if err != nil {
+		return chartBytes, err
+	}
+
+	chartBytes, err = impl.appStoreDeploymentCommonService.BuildChartWithValuesAndRequirementsConfig(installedApp.App.AppName, valuesString, requirementsString)
+	if err != nil {
+		return chartBytes, err
+	}
+
 	return chartBytes, nil
 
 }

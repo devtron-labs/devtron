@@ -58,7 +58,7 @@ type AppStoreDeploymentCommonService interface {
 	GenerateManifest(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (manifestResponse *AppStoreManifestResponse, err error)
 	GitOpsOperations(manifestResponse *AppStoreManifestResponse, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*AppStoreGitOpsResponse, error)
 	GenerateManifestAndPerformGitOperations(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*AppStoreGitOpsResponse, error)
-	BuildChartWithValuesAndRequirementsConfig(installedApp *repository.InstalledApps, installedAppVersionId int) (chartBytesArr []byte, err error)
+	BuildChartWithValuesAndRequirementsConfig(appName string, valuesString string, requirementsString string) (chartBytesArr []byte, err error)
 }
 
 type AppStoreDeploymentCommonServiceImpl struct {
@@ -562,26 +562,11 @@ func (impl AppStoreDeploymentCommonServiceImpl) GenerateManifestAndPerformGitOpe
 	return appStoreGitOpsResponse, nil
 }
 
-func (impl AppStoreDeploymentCommonServiceImpl) BuildChartWithValuesAndRequirementsConfig(installedApp *repository.InstalledApps, installedAppVersionId int) (chartBytesArr []byte, err error) {
+func (impl AppStoreDeploymentCommonServiceImpl) BuildChartWithValuesAndRequirementsConfig(appName string, valuesString string, requirementsString string) (chartBytesArr []byte, err error) {
 
 	chartBytesArr = make([]byte, 0)
 
-	installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersion(installedAppVersionId)
-	if err != nil {
-		impl.logger.Errorw("Service err, BuildChartWithValuesAndRequirementsConfig", err, "installed_app_version_id", installedAppVersionId)
-		return chartBytesArr, err
-	}
-
-	valuesString, err := impl.GetValuesString(installedAppVersion.AppStoreApplicationVersion.AppStore.Name, installedAppVersion.ValuesYaml)
-	if err != nil {
-		return chartBytesArr, err
-	}
-	requirementsString, err := impl.GetRequirementsString(installedAppVersion.AppStoreApplicationVersionId)
-	if err != nil {
-		return chartBytesArr, err
-	}
-
-	chartCreateResponse, err := impl.CreateChartProxyAndGetPath(installedApp.App.AppName, false)
+	chartCreateResponse, err := impl.CreateChartProxyAndGetPath(appName, false)
 	if err != nil {
 		impl.logger.Errorw("error in building chart", "err", err)
 	}
