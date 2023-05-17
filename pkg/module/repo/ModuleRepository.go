@@ -29,7 +29,7 @@ type Module struct {
 	Version    string    `sql:"version, notnull"`
 	Status     string    `sql:"status,notnull"`
 	UpdatedOn  time.Time `sql:"updated_on"`
-	Enabled    bool      `sql:"enabled"`
+	Enabled    *bool     `sql:"enabled"`
 	ModuleType string    `sql:"module_type"`
 }
 

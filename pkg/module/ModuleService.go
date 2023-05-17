@@ -312,7 +312,9 @@ func (impl ModuleServiceImpl) HandleModuleAction(userId int32, moduleName string
 				impl.logger.Errorw("error in marking tool as active ", "err", err)
 				return nil, err
 			}
-			module.Enabled = true
+			t := new(bool)
+			*t = true
+			module.Enabled = t
 		} else {
 			impl.logger.Errorw("error in getting module by type", "moduleName", moduleName, "err", err)
 			return nil, err
