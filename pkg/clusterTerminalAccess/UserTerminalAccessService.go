@@ -1208,6 +1208,18 @@ func (impl *UserTerminalAccessServiceImpl) GenerateNodeDebugPod(o *models.UserTe
 		impl.Logger.Errorw("error in fetching debugNodePodTemplate by name from terminal_access_templates table ", "template_name", utils1.TerminalNodeDebugPodName, "err", err)
 		return nil, err
 	}
+
+	serviceAccountTemplate, err := impl.TerminalAccessRepository.FetchTerminalAccessTemplate(utils1.TerminalAccessServiceAccount)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching debugNodePodTemplate by name from terminal_access_templates table ", "template_name", utils1.TerminalNodeDebugPodName, "err", err)
+		return nil, err
+	}
+
+	clusterRoleBindingTemplate, err := impl.TerminalAccessRepository.FetchTerminalAccessTemplate(utils1.TerminalAccessRoleBinding)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching debugNodePodTemplate by name from terminal_access_templates table ", "template_name", utils1.TerminalNodeDebugPodName, "err", err)
+		return nil, err
+	}
 	debugNodePodTemplateData := debugNodePodTemplate.TemplateData
 
 	debugPod := &v1.Pod{}
@@ -1225,6 +1237,25 @@ func (impl *UserTerminalAccessServiceImpl) GenerateNodeDebugPod(o *models.UserTe
 	podTemplateBytes, err := json.Marshal(&debugPod)
 	if err != nil {
 		impl.Logger.Errorw("error in converting pod object into pod yaml", "err", err, "pod", debugPod)
+		return debugPod, err
+	}
+
+	SATemplate, err := utils1.ReplaceTemplateData(serviceAccountTemplate.TemplateData, pn, o.Namespace, "", "", false, nil)
+	if err != nil {
+		impl.Logger.Errorw("error in converting pod object into pod yaml", "err", err, "pod", debugPod)
+		return debugPod, err
+	}
+	err = impl.applyTemplate(context.Background(), o.ClusterId, SATemplate, SATemplate, false, o.Namespace)
+	if err != nil {
+		return debugPod, err
+	}
+	RoleBindingTemplate, err := utils1.ReplaceTemplateData(clusterRoleBindingTemplate.TemplateData, pn, o.Namespace, "", "", false, nil)
+	if err != nil {
+		impl.Logger.Errorw("error in converting pod object into pod yaml", "err", err, "pod", debugPod)
+		return debugPod, err
+	}
+	err = impl.applyTemplate(context.Background(), o.ClusterId, RoleBindingTemplate, RoleBindingTemplate, false, o.Namespace)
+	if err != nil {
 		return debugPod, err
 	}
 	podTemplate := string(podTemplateBytes)
