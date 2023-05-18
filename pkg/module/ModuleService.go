@@ -488,6 +488,7 @@ func (impl ModuleServiceImpl) GetAllModuleInfo() ([]ModuleInfoDto, error) {
 			Name:       module.Name,
 			Status:     module.Status,
 			Moduletype: module.ModuleType,
+			Enabled:    module.Enabled,
 		}
 		moduleId := module.Id
 		moduleResourcesStatusFromDb, err := impl.moduleResourceStatusRepository.FindAllActiveByModuleId(moduleId)
