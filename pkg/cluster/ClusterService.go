@@ -279,7 +279,7 @@ func (impl *ClusterServiceImpl) SaveVirtualCluster(bean *VirtualClusterBean, use
 	model := &repository.Cluster{
 		ClusterName:      bean.ClusterName,
 		Active:           true,
-		IsVirtualCluster: bean.IsVirtualCluster,
+		IsVirtualCluster: true,
 	}
 	model.CreatedBy = userId
 	model.UpdatedBy = userId
@@ -649,13 +649,15 @@ func (impl *ClusterServiceImpl) buildInformer() {
 	}
 	var clusterInfo []*bean2.ClusterInfo
 	for _, model := range models {
-		bearerToken := model.Config["bearer_token"]
-		clusterInfo = append(clusterInfo, &bean2.ClusterInfo{
-			ClusterId:   model.Id,
-			ClusterName: model.ClusterName,
-			BearerToken: bearerToken,
-			ServerUrl:   model.ServerUrl,
-		})
+		if !model.IsVirtualCluster {
+			bearerToken := model.Config["bearer_token"]
+			clusterInfo = append(clusterInfo, &bean2.ClusterInfo{
+				ClusterId:   model.Id,
+				ClusterName: model.ClusterName,
+				BearerToken: bearerToken,
+				ServerUrl:   model.ServerUrl,
+			})
+		}
 	}
 	impl.K8sInformerFactory.BuildInformer(clusterInfo)
 }

@@ -1724,7 +1724,7 @@ func (impl *AppServiceImpl) DeployApp(overrideRequest *bean.ValuesOverrideReques
 			return err
 		}
 	} else if IsHelmApp(overrideRequest.DeploymentAppType) {
-		_, err := impl.createHelmAppForCdPipeline(overrideRequest, nil, triggeredAt, ctx)
+		_, err := impl.createHelmAppForCdPipeline(overrideRequest, valuesOverrideResponse, triggeredAt, ctx)
 		if err != nil {
 			impl.logger.Errorw("error in creating or updating helm application for cd pipeline", "err", err)
 			return err
@@ -1758,6 +1758,7 @@ func (impl *AppServiceImpl) ValidateTriggerEvent(triggerEvent bean.TriggerEvent)
 
 }
 
+//write integration/unit test for each function
 func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverrideRequest, triggerEvent bean.TriggerEvent, ctx context.Context) (releaseNo int, manifest []byte, err error) {
 
 	isRequestValid, err := impl.ValidateTriggerEvent(triggerEvent)
@@ -1771,6 +1772,7 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 	}
 
 	if triggerEvent.GetManifestInResponse {
+		//get stream and directly redirect the stram to response
 		manifest, err = impl.GetHelmManifestInByte(valuesOverrideResponse.MergedValues, builtChartPath)
 		if err != nil {
 			impl.logger.Errorw("error in converting manifest to bytes", "err", err)
