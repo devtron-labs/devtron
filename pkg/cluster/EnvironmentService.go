@@ -66,12 +66,14 @@ type EnvDto struct {
 	Namespace             string `json:"namespace,omitempty" validate:"name-space-component,max=50"`
 	EnvironmentIdentifier string `json:"environmentIdentifier,omitempty"`
 	Description           string `json:"description" validate:"max=40"`
+	IsVirtualEnvironment  bool   `json:"isVirtualEnvironment"`
 }
 
 type ClusterEnvDto struct {
-	ClusterId    int       `json:"clusterId"`
-	ClusterName  string    `json:"clusterName,omitempty"`
-	Environments []*EnvDto `json:"environments,omitempty"`
+	ClusterId        int       `json:"clusterId"`
+	ClusterName      string    `json:"clusterName,omitempty"`
+	Environments     []*EnvDto `json:"environments,omitempty"`
+	IsVirtualCluster bool      `json:"isVirtualCluster"`
 }
 
 type AppGroupingResponse struct {
@@ -113,7 +115,7 @@ type EnvironmentServiceImpl struct {
 func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepository,
 	clusterService ClusterService, logger *zap.SugaredLogger,
 	K8sUtil *util.K8sUtil, k8sInformerFactory informer.K8sInformerFactory,
-//  propertiesConfigService pipeline.PropertiesConfigService,
+	//  propertiesConfigService pipeline.PropertiesConfigService,
 	userAuthService user.UserAuthService) *EnvironmentServiceImpl {
 	return &EnvironmentServiceImpl{
 		environmentRepository: environmentRepository,
@@ -549,6 +551,12 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(emailId
 		impl.logger.Errorw("error in fetching clusters", "err", err)
 		return namespaceGroupByClusterResponse, err
 	}
+
+	isVirtualClusterMap := make(map[string]bool)
+	for _, item := range clusterModels {
+		isVirtualClusterMap[item.ClusterName] = item.IsVirtualCluster
+	}
+
 	clusterMap := make(map[string]int)
 	for _, item := range clusterModels {
 		clusterMap[item.ClusterName] = item.Id
@@ -585,12 +593,16 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(emailId
 			Namespace:             model.Namespace,
 			EnvironmentIdentifier: model.EnvironmentIdentifier,
 			Description:           model.Description,
+			IsVirtualEnvironment:  model.IsVirtualEnvironment,
 		})
 	}
 
 	namespaceListGroupByClusters := impl.k8sInformerFactory.GetLatestNamespaceListGroupByCLuster()
 	rbacObject2 := make([]string, 0)
 	for clusterName, namespaces := range namespaceListGroupByClusters {
+		if isVirtualClusterMap[clusterName] { // skipping if virtual cluster because virtual cluster is only devtron specific concept and virtual cluster exists only in our database
+			continue
+		}
 		for namespace := range namespaces {
 			environmentIdentifier := fmt.Sprintf("%s__%s", clusterName, namespace)
 			rbacObject2 = append(rbacObject2, environmentIdentifier)
@@ -600,6 +612,9 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(emailId
 	rbacObjectResult2 := auth(emailId, rbacObject)
 
 	for clusterName, namespaces := range namespaceListGroupByClusters {
+		if isVirtualClusterMap[clusterName] {
+			continue
+		}
 		clusterId := clusterMap[clusterName]
 		for namespace := range namespaces {
 			//deduplication for cluster and namespace combination
@@ -632,9 +647,10 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(emailId
 			clusterId = 0
 		}
 		namespaceGroupByClusterResponse = append(namespaceGroupByClusterResponse, &ClusterEnvDto{
-			ClusterName:  clusterInfo[0],
-			ClusterId:    clusterId,
-			Environments: v,
+			ClusterName:      clusterInfo[0],
+			ClusterId:        clusterId,
+			Environments:     v,
+			IsVirtualCluster: isVirtualClusterMap[clusterInfo[0]],
 		})
 	}
 	return namespaceGroupByClusterResponse, nil
