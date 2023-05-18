@@ -182,6 +182,15 @@ func (impl ModuleRestHandlerImpl) EnableModule(w http.ResponseWriter, r *http.Re
 		common.WriteJsonResp(w, errors.New("module name is not supplied"), nil, http.StatusBadRequest)
 		return
 	}
+	// decode request
+	decoder := json.NewDecoder(r.Body)
+	var moduleEnableRequestDto *module.ModuleEnableRequestDto
+	err = decoder.Decode(&moduleEnableRequestDto)
+	if err != nil {
+		impl.logger.Errorw("error in decoding request in ModuleEnableRequestDto", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 
 	// handle super-admin RBAC
 	token := r.Header.Get("token")
@@ -191,7 +200,7 @@ func (impl ModuleRestHandlerImpl) EnableModule(w http.ResponseWriter, r *http.Re
 	}
 
 	// service call
-	res, err := impl.moduleService.EnableModule(moduleName)
+	res, err := impl.moduleService.EnableModule(moduleName, moduleEnableRequestDto.Version)
 	if err != nil {
 		impl.logger.Errorw("service err, HandleModuleAction", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

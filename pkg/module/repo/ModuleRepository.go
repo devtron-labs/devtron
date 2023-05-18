@@ -29,7 +29,7 @@ type Module struct {
 	Version    string    `sql:"version, notnull"`
 	Status     string    `sql:"status,notnull"`
 	UpdatedOn  time.Time `sql:"updated_on"`
-	Enabled    *bool     `sql:"enabled"`
+	Enabled    bool      `sql:"enabled"`
 	ModuleType string    `sql:"module_type"`
 }
 
@@ -126,13 +126,13 @@ func (impl ModuleRepositoryImpl) FindByModuleType(moduleType string) error {
 }
 
 func (impl ModuleRepositoryImpl) MarkModuleAsEnabled(moduleName string, tx *pg.Tx) error {
-	module := Module{}
+	module := &Module{}
 	_, err := tx.Model(module).Set("enabled = ?", true).Where("name = ?", moduleName).Update()
 	return err
 }
 
 func (impl ModuleRepositoryImpl) MarkOtherModulesDisabled(moduleName, moduleType string, tx *pg.Tx) error {
-	module := Module{}
+	module := &Module{}
 	_, err := tx.Model(module).Set("enabled = ?", false).Where("name != ?", moduleName).Where("module_type = ?", moduleType).Update()
 	return err
 }

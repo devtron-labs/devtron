@@ -21,3 +21,5 @@ ALTER TABLE public.module
     ADD "enabled" bool;
 
 UPDATE public.module SET module_type = 'image-scanning',enabled=true where name='clair';
+UPDATE public.module SET enabled=true where status='installed';
+UPDATE public.module SET enabled=false where status!='installed';

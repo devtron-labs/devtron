@@ -42,7 +42,7 @@ type ModuleService interface {
 	GetModuleConfig(name string) (*ModuleConfigDto, error)
 	HandleModuleAction(userId int32, moduleName string, moduleActionRequest *ModuleActionRequestDto) (*ActionResponse, error)
 	GetAllModuleInfo() ([]ModuleInfoDto, error)
-	EnableModule(moduleName string) (*ActionResponse, error)
+	EnableModule(moduleName, version string) (*ActionResponse, error)
 }
 
 type ModuleServiceImpl struct {
@@ -92,11 +92,12 @@ func (impl ModuleServiceImpl) GetModuleInfo(name string) (*ModuleInfoDto, error)
 	module, err := impl.moduleRepository.FindOne(name)
 	if err != nil {
 		if err == pg.ErrNoRows {
-			status, err := impl.handleModuleNotFoundStatus(name)
+			status, moduleType, err := impl.handleModuleNotFoundStatus(name)
 			if err != nil {
 				impl.logger.Errorw("error in handling module not found status ", "name", name, "err", err)
 			}
 			moduleInfoDto.Status = status
+			moduleInfoDto.Moduletype = moduleType
 			return moduleInfoDto, err
 		}
 		// otherwise some error case
@@ -156,7 +157,7 @@ func (impl ModuleServiceImpl) GetModuleConfig(name string) (*ModuleConfigDto, er
 	return moduleConfig, nil
 }
 
-func (impl ModuleServiceImpl) handleModuleNotFoundStatus(moduleName string) (ModuleStatus, error) {
+func (impl ModuleServiceImpl) handleModuleNotFoundStatus(moduleName string) (ModuleStatus, string, error) {
 	// if entry is not found in database, then check if that module is legacy or not
 	// if enterprise user -> if legacy -> then mark as installed in db and return as installed, if not legacy -> return as not installed
 	// if non-enterprise user->  fetch helm release enable Key. if true -> then mark as installed in db and return as installed. if false ->
@@ -166,18 +167,20 @@ func (impl ModuleServiceImpl) handleModuleNotFoundStatus(moduleName string) (Mod
 	moduleMetaData, err := impl.moduleServiceHelper.GetModuleMetadata(moduleName)
 	if err != nil {
 		impl.logger.Errorw("Error in getting module metadata", "moduleName", moduleName, "err", err)
-		return ModuleStatusNotInstalled, err
+		return ModuleStatusNotInstalled, "", err
 	}
 	moduleMetaDataStr := string(moduleMetaData)
 	isLegacyModule := gjson.Get(moduleMetaDataStr, "result.isIncludedInLegacyFullPackage").Bool()
 	baseMinVersionSupported := gjson.Get(moduleMetaDataStr, "result.baseMinVersionSupported").String()
+	moduleType := gjson.Get(moduleMetaDataStr, "result.moduleType").String()
 
 	// for enterprise user
 	if impl.serverEnvConfig.DevtronInstallationType == serverBean.DevtronInstallationTypeEnterprise {
 		if isLegacyModule {
-			return impl.saveModuleAsInstalled(moduleName)
+			status, err := impl.saveModuleAsInstalled(moduleName, moduleType)
+			return status, moduleType, err
 		}
-		return ModuleStatusNotInstalled, nil
+		return ModuleStatusNotInstalled, moduleType, nil
 	}
 
 	// for non-enterprise user
@@ -185,7 +188,7 @@ func (impl ModuleServiceImpl) handleModuleNotFoundStatus(moduleName string) (Mod
 	releaseInfo, err := impl.helmAppService.GetValuesYaml(context.Background(), devtronHelmAppIdentifier)
 	if err != nil {
 		impl.logger.Errorw("Error in getting values yaml for devtron operator helm release", "moduleName", moduleName, "err", err)
-		return ModuleStatusNotInstalled, err
+		return ModuleStatusNotInstalled, moduleType, err
 	}
 	releaseValues := releaseInfo.MergedValues
 
@@ -193,7 +196,8 @@ func (impl ModuleServiceImpl) handleModuleNotFoundStatus(moduleName string) (Mod
 	if moduleName != ModuleNameCicd {
 		isEnabled := gjson.Get(releaseValues, moduleUtil.BuildModuleEnableKey(moduleName)).Bool()
 		if isEnabled {
-			return impl.saveModuleAsInstalled(moduleName)
+			status, err := impl.saveModuleAsInstalled(moduleName, moduleType)
+			return status, moduleType, err
 		}
 	} else if util2.IsBaseStack() {
 		// check if cicd is in installing state
@@ -205,7 +209,8 @@ func (impl ModuleServiceImpl) handleModuleNotFoundStatus(moduleName string) (Mod
 				installerModules := installerModulesIface.([]interface{})
 				for _, installerModule := range installerModules {
 					if installerModule == moduleName {
-						return impl.saveModule(moduleName, ModuleStatusInstalling)
+						status, err := impl.saveModule(moduleName, ModuleStatusInstalling, moduleType)
+						return status, moduleType, err
 					}
 				}
 			} else {
@@ -221,23 +226,24 @@ func (impl ModuleServiceImpl) handleModuleNotFoundStatus(moduleName string) (Mod
 				cicdModule, err := impl.moduleRepository.FindOne(ModuleNameCicd)
 				if err != nil {
 					if err == pg.ErrNoRows {
-						return ModuleStatusNotInstalled, nil
+						return ModuleStatusNotInstalled, moduleType, nil
 					} else {
 						impl.logger.Errorw("Error in getting cicd module from DB", "err", err)
-						return ModuleStatusNotInstalled, err
+						return ModuleStatusNotInstalled, moduleType, err
 					}
 				}
 				cicdVersion := cicdModule.Version
 				// if cicd was installed and any module/integration comes after that then mark that module installed only if cicd was installed before that module introduction
 				if len(baseMinVersionSupported) > 0 && cicdVersion < baseMinVersionSupported {
-					return impl.saveModuleAsInstalled(moduleName)
+					status, err := impl.saveModuleAsInstalled(moduleName, moduleType)
+					return status, moduleType, err
 				}
 				break
 			}
 		}
 	}
 
-	return ModuleStatusNotInstalled, nil
+	return ModuleStatusNotInstalled, moduleType, nil
 
 }
 
@@ -303,6 +309,7 @@ func (impl ModuleServiceImpl) HandleModuleAction(userId int32, moduleName string
 		return nil, err
 	}
 	defer tx.Rollback()
+	flagForEnablingState := false
 	// Finding the Module by type, if no module exists of current type marking current module as active and enabled by default.
 	err = impl.moduleRepository.FindByModuleType(moduleActionRequest.ModuleType)
 	if err != nil {
@@ -312,9 +319,7 @@ func (impl ModuleServiceImpl) HandleModuleAction(userId int32, moduleName string
 				impl.logger.Errorw("error in marking tool as active ", "err", err)
 				return nil, err
 			}
-			t := new(bool)
-			*t = true
-			module.Enabled = t
+			flagForEnablingState = true
 		} else {
 			impl.logger.Errorw("error in getting module by type", "moduleName", moduleName, "err", err)
 			return nil, err
@@ -376,21 +381,35 @@ func (impl ModuleServiceImpl) HandleModuleAction(userId int32, moduleName string
 		impl.moduleRepository.Update(module)
 		return nil, errors.New("success is false from helm")
 	}
+	tx1, err := impl.moduleRepository.GetConnection().Begin()
+	if err != nil {
+		impl.logger.Errorw("error in opening a transaction", "err", err)
+		return nil, err
+	}
+	defer tx1.Rollback()
 	// HELM_OPERATION Ends
-
+	if len(moduleActionRequest.ModuleType) == 0 || flagForEnablingState {
+		err = impl.moduleRepository.MarkModuleAsEnabled(moduleName, tx1)
+		if err != nil {
+			impl.logger.Errorw("error in updating module as active ", "moduleName", moduleName, "err", err)
+			return nil, err
+		}
+	}
+	err = tx1.Commit()
+	if err != nil {
+		return nil, err
+	}
 	return &ActionResponse{
 		Success: true,
 	}, nil
 }
-func (impl ModuleServiceImpl) EnableModule(moduleName string) (*ActionResponse, error) {
+func (impl ModuleServiceImpl) EnableModule(moduleName, version string) (*ActionResponse, error) {
 	if impl.serverEnvConfig.DevtronInstallationType != serverBean.DevtronInstallationTypeOssHelm {
 		return nil, errors.New("module installation is not allowed")
 	}
 
 	// get module by name
-	// if error, throw error
 	module, err := impl.moduleRepository.FindOne(moduleName)
-	//moduleFound := true
 	if err != nil {
 		impl.logger.Errorw("error in getting module ", "moduleName", moduleName, "err", err)
 		return nil, err
@@ -406,12 +425,12 @@ func (impl ModuleServiceImpl) EnableModule(moduleName string) (*ActionResponse, 
 		impl.logger.Errorw("error in updating module as active ", "moduleName", moduleName, "err", err)
 		return nil, err
 	}
-	err = impl.scanToolMetaDataRepository.MarkToolAsActive(moduleName, module.Version, tx)
+	err = impl.scanToolMetaDataRepository.MarkToolAsActive(moduleName, version, tx)
 	if err != nil {
 		impl.logger.Errorw("error in marking tool as active ", "err", err)
 		return nil, err
 	}
-	err = impl.scanToolMetaDataRepository.MarkOtherToolsInActive(moduleName, tx, module.Version)
+	err = impl.scanToolMetaDataRepository.MarkOtherToolsInActive(moduleName, tx, version)
 	if err != nil {
 		impl.logger.Errorw("error in marking other tools inactive ", "err", err)
 		return nil, err
@@ -430,16 +449,17 @@ func (impl ModuleServiceImpl) EnableModule(moduleName string) (*ActionResponse, 
 	}, nil
 }
 
-func (impl ModuleServiceImpl) saveModuleAsInstalled(moduleName string) (ModuleStatus, error) {
-	return impl.saveModule(moduleName, ModuleStatusInstalled)
+func (impl ModuleServiceImpl) saveModuleAsInstalled(moduleName string, moduleType string) (ModuleStatus, error) {
+	return impl.saveModule(moduleName, ModuleStatusInstalled, moduleType)
 }
 
-func (impl ModuleServiceImpl) saveModule(moduleName string, moduleStatus ModuleStatus) (ModuleStatus, error) {
+func (impl ModuleServiceImpl) saveModule(moduleName string, moduleStatus ModuleStatus, moduleType string) (ModuleStatus, error) {
 	module := &moduleRepo.Module{
-		Name:      moduleName,
-		Version:   impl.serverDataStore.CurrentVersion,
-		Status:    moduleStatus,
-		UpdatedOn: time.Now(),
+		Name:       moduleName,
+		Version:    impl.serverDataStore.CurrentVersion,
+		Status:     moduleStatus,
+		UpdatedOn:  time.Now(),
+		ModuleType: moduleType,
 	}
 	err := impl.moduleRepository.Save(module)
 	if err != nil {
