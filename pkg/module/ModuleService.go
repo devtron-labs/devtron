@@ -314,7 +314,13 @@ func (impl ModuleServiceImpl) HandleModuleAction(userId int32, moduleName string
 	err = impl.moduleRepository.FindByModuleType(moduleActionRequest.ModuleType)
 	if err != nil {
 		if err == pg.ErrNoRows {
-			err2 := impl.scanToolMetaDataRepository.MarkToolAsActive(moduleName, moduleActionRequest.Version, tx)
+			var toolversion string
+			if moduleName == ModuleNameSecurityClair {
+				toolversion = CLAIR_V4
+			} else if moduleName == ModuleNameSecurityTrivy {
+				toolversion = TRIVY_V1
+			}
+			err2 := impl.scanToolMetaDataRepository.MarkToolAsActive(moduleName, toolversion, tx)
 			if err2 != nil {
 				impl.logger.Errorw("error in marking tool as active ", "err", err)
 				return nil, err

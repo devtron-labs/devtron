@@ -81,6 +81,11 @@ type ModuleName = string
 
 const BlobStorage = "blob-storage"
 const INSTALLER_MODULES_HELM_KEY = "installer.modules"
+const (
+	CLAIR_V4 = "V4"
+	CLAIR_V2 = "V2"
+	TRIVY_V1 = "V1"
+)
 
 const (
 	ModuleStatusNotInstalled  ModuleStatus = "notInstalled"
@@ -96,6 +101,7 @@ const (
 	ModuleNameSecurityClair     ModuleName = "security.clair"
 	ModuleNameNotification      ModuleName = "notifier"
 	ModuleNameMonitoringGrafana ModuleName = "monitoring.grafana"
+	ModuleNameSecurityTrivy     ModuleName = "security.trivy"
 )
 
 var SupportedModuleNamesListFirstReleaseExcludingCicd = []string{ModuleNameArgoCd, ModuleNameSecurityClair, ModuleNameNotification, ModuleNameMonitoringGrafana}
