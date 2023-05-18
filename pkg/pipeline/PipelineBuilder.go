@@ -461,7 +461,7 @@ func (impl PipelineBuilderImpl) GetMaterialsForAppId(appId int) []*bean.GitMater
 		//check if git material is deletable or not
 		if ciTemplateBean != nil {
 			ciTemplate := ciTemplateBean.CiTemplate
-			if ciTemplate != nil && ciTemplate.GitMaterialId == material.Id {
+			if ciTemplate != nil && (ciTemplate.GitMaterialId == material.Id || ciTemplate.BuildContextGitMaterialId == material.Id) {
 				gitMaterial.IsUsedInCiConfig = true
 			}
 		}
