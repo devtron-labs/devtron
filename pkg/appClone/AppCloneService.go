@@ -278,10 +278,13 @@ func (impl *AppCloneServiceImpl) CreateCiTemplate(oldAppId, newAppId int, userId
 		return nil, fmt.Errorf("no git for %d", newAppId)
 	}
 	dockerfileGitMaterial := 0
+	buildContextGitMaterial := 0
 	if len(gitMaterials) == 1 {
 		dockerfileGitMaterial = gitMaterials[0].Id
+		buildContextGitMaterial = gitMaterials[0].Id
 	} else {
 		refGitmaterial, err := impl.materialRepository.FindById(refCiConf.CiBuildConfig.GitMaterialId)
+		refBuildContextGitMaterial, err := impl.materialRepository.FindById(refCiConf.CiBuildConfig.BuildContextGitMaterialId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching ref git material", "id", refCiConf.CiBuildConfig.GitMaterialId, "err", err)
 			return nil, err
@@ -295,6 +298,14 @@ func (impl *AppCloneServiceImpl) CreateCiTemplate(oldAppId, newAppId int, userId
 				}
 			}
 		}
+		if buildContextGitMaterial == 0 {
+			for _, gitMaterial := range gitMaterials {
+				if gitMaterial.CheckoutPath == refBuildContextGitMaterial.CheckoutPath {
+					buildContextGitMaterial = gitMaterial.Id
+					break
+				}
+			}
+		}
 		// first repo with same url
 		if dockerfileGitMaterial == 0 {
 			for _, gitMaterial := range gitMaterials {
@@ -304,14 +315,26 @@ func (impl *AppCloneServiceImpl) CreateCiTemplate(oldAppId, newAppId int, userId
 				}
 			}
 		}
+		if buildContextGitMaterial == 0 {
+			for _, gitMaterial := range gitMaterials {
+				if gitMaterial.Url == refBuildContextGitMaterial.Url {
+					buildContextGitMaterial = gitMaterial.Id
+					break
+				}
+			}
+		}
 		//take first
 		if dockerfileGitMaterial == 0 {
 			dockerfileGitMaterial = gitMaterials[0].Id
+		}
+		if buildContextGitMaterial == 0 {
+			buildContextGitMaterial = dockerfileGitMaterial
 		}
 	}
 
 	ciBuildConfig := refCiConf.CiBuildConfig
 	ciBuildConfig.GitMaterialId = dockerfileGitMaterial
+	ciBuildConfig.BuildContextGitMaterialId = buildContextGitMaterial
 	ciConfRequest := &bean.CiConfigRequest{
 		Id:                0,
 		AppId:             newAppId,
