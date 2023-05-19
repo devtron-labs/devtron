@@ -34,6 +34,7 @@ import (
 	"github.com/tidwall/gjson"
 	"go.uber.org/zap"
 	"reflect"
+	"strings"
 	"time"
 )
 
@@ -309,6 +310,8 @@ func (impl ModuleServiceImpl) HandleModuleAction(userId int32, moduleName string
 		return nil, err
 	}
 	defer tx.Rollback()
+	res := strings.Split(moduleName, ".")
+	toolName := strings.ToUpper(res[1])
 	flagForEnablingState := false
 	// Finding the Module by type, if no module exists of current type marking current module as active and enabled by default.
 	err = impl.moduleRepository.FindByModuleType(moduleActionRequest.ModuleType)
@@ -320,7 +323,7 @@ func (impl ModuleServiceImpl) HandleModuleAction(userId int32, moduleName string
 			} else if moduleName == ModuleNameSecurityTrivy {
 				toolversion = TRIVY_V1
 			}
-			err2 := impl.scanToolMetaDataRepository.MarkToolAsActive(moduleName, toolversion, tx)
+			err2 := impl.scanToolMetaDataRepository.MarkToolAsActive(toolName, toolversion, tx)
 			if err2 != nil {
 				impl.logger.Errorw("error in marking tool as active ", "err", err)
 				return nil, err
@@ -426,17 +429,19 @@ func (impl ModuleServiceImpl) EnableModule(moduleName, version string) (*ActionR
 		return nil, err
 	}
 	defer tx.Rollback()
+	res := strings.Split(moduleName, ".")
+	toolName := strings.ToUpper(res[1])
 	err = impl.moduleRepository.MarkModuleAsEnabled(moduleName, tx)
 	if err != nil {
 		impl.logger.Errorw("error in updating module as active ", "moduleName", moduleName, "err", err)
 		return nil, err
 	}
-	err = impl.scanToolMetaDataRepository.MarkToolAsActive(moduleName, version, tx)
+	err = impl.scanToolMetaDataRepository.MarkToolAsActive(toolName, version, tx)
 	if err != nil {
 		impl.logger.Errorw("error in marking tool as active ", "err", err)
 		return nil, err
 	}
-	err = impl.scanToolMetaDataRepository.MarkOtherToolsInActive(moduleName, tx, version)
+	err = impl.scanToolMetaDataRepository.MarkOtherToolsInActive(toolName, tx, version)
 	if err != nil {
 		impl.logger.Errorw("error in marking other tools inactive ", "err", err)
 		return nil, err
