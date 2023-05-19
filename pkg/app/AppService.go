@@ -1758,7 +1758,7 @@ func (impl *AppServiceImpl) ValidateTriggerEvent(triggerEvent bean.TriggerEvent)
 
 }
 
-//write integration/unit test for each function
+// write integration/unit test for each function
 func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverrideRequest, triggerEvent bean.TriggerEvent, ctx context.Context) (releaseNo int, manifest []byte, err error) {
 
 	isRequestValid, err := impl.ValidateTriggerEvent(triggerEvent)
@@ -1780,7 +1780,7 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 		}
 		timeline := &pipelineConfig.PipelineStatusTimeline{
 			CdWorkflowRunnerId: overrideRequest.WfrId,
-			Status:             "Helm package generated successfully.",
+			Status:             "HELM_PACKAGE_GENERATED",
 			StatusDetail:       "Helm package generated successfully.",
 			StatusTime:         time.Now(),
 			AuditLog: sql.AuditLog{
