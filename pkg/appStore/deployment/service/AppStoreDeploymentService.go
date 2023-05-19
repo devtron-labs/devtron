@@ -561,26 +561,12 @@ func (impl AppStoreDeploymentServiceImpl) GetAllInstalledAppsByAppStoreId(w http
 	}
 	var installedAppsEnvResponse []appStoreBean.InstalledAppsResponse
 	for _, a := range installedApps {
-		var status string
-		if util2.IsBaseStack() || util2.IsHelmApp(a.AppOfferingMode) || util.IsHelmApp(a.DeploymentAppType) {
-			status, err = impl.appStoreDeploymentHelmService.GetAppStatus(a, w, r, token)
-		} else {
-			status = a.AppStatus
-		}
-		if apiErr, ok := err.(*util.ApiError); ok {
-			if apiErr.Code == constants.AppDetailResourceTreeNotFound {
-				status = "Not Found"
-			}
-		} else if err != nil {
-			impl.logger.Error(err)
-			return nil, err
-		}
 		installedAppRes := appStoreBean.InstalledAppsResponse{
 			EnvironmentName:              a.EnvironmentName,
 			AppName:                      a.AppName,
 			DeployedAt:                   a.UpdatedOn,
 			DeployedBy:                   a.EmailId,
-			Status:                       status,
+			Status:                       a.AppStatus,
 			AppStoreApplicationVersionId: a.AppStoreApplicationVersionId,
 			InstalledAppVersionId:        a.InstalledAppVersionId,
 			InstalledAppsId:              a.InstalledAppId,
