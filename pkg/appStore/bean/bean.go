@@ -161,6 +161,7 @@ type InstalledAppsResponse struct {
 	EnvironmentName              string    `json:"environmentName"`
 	DeployedAt                   time.Time `json:"deployedAt"`
 	DeployedBy                   string    `json:"deployedBy"`
+	DeploymentAppType            string    `json:"deploymentAppType,omitempty"`
 	InstalledAppsId              int       `json:"installedAppId"`
 	Readme                       string    `json:"readme"`
 	EnvironmentId                int       `json:"environmentId"`

@@ -565,7 +565,7 @@ func (impl AppStoreDeploymentServiceImpl) GetAllInstalledAppsByAppStoreId(w http
 		if util2.IsBaseStack() || util2.IsHelmApp(a.AppOfferingMode) || util.IsHelmApp(a.DeploymentAppType) {
 			status, err = impl.appStoreDeploymentHelmService.GetAppStatus(a, w, r, token)
 		} else {
-			status, err = impl.appStoreDeploymentArgoCdService.GetAppStatus(a, w, r, token)
+			status = a.AppStatus
 		}
 		if apiErr, ok := err.(*util.ApiError); ok {
 			if apiErr.Code == constants.AppDetailResourceTreeNotFound {
@@ -586,6 +586,7 @@ func (impl AppStoreDeploymentServiceImpl) GetAllInstalledAppsByAppStoreId(w http
 			InstalledAppsId:              a.InstalledAppId,
 			EnvironmentId:                a.EnvironmentId,
 			AppOfferingMode:              a.AppOfferingMode,
+			DeploymentAppType:            a.DeploymentAppType,
 		}
 
 		// if hyperion mode app, then fill clusterId and namespace
