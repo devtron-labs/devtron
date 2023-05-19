@@ -715,17 +715,19 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 			return cdWorkflowArtifact, err
 		}
 		cdWorkflowArtifact = impl.converterWFRList(wfrList)
-		var newCdWorkflowArtifact []pipelineConfig.CdWorkflowWithArtifact
-
+		if err == pg.ErrNoRows {
+			return cdWorkflowArtifact, nil
+		}
 		var ciArtifactIds []int
 		for _, cdWfA := range cdWorkflowArtifact {
 			ciArtifactIds = append(ciArtifactIds, cdWfA.CiArtifactId)
 		}
 		ciWfs, err := impl.ciWorkflowRepository.FindAllLastTriggeredWorkflowByArtifactId(ciArtifactIds)
-		if err != nil && err != pg.ErrNoRows {
+		if err != nil {
 			impl.Logger.Errorw("error in fetching ci wfs", "artifactIds", ciArtifactIds, "err", err)
 			return cdWorkflowArtifact, err
 		}
+
 		wfGitTriggers := make(map[int]map[int]pipelineConfig.GitCommit)
 		var ciPipelineId int
 		for _, ciWf := range ciWfs {
@@ -734,7 +736,7 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 		}
 		ciMaterials, err := impl.ciPipelineMaterialRepository.GetByPipelineIdForRegexAndFixed(ciPipelineId)
 		if err != nil {
-			impl.Logger.Errorw("err", "err", err)
+			impl.Logger.Errorw("err in fetching ci materials", "ciMaterials", ciMaterials, "err", err)
 			ciMaterials = []*pipelineConfig.CiPipelineMaterial{}
 		}
 
@@ -751,6 +753,7 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 			}
 			ciMaterialsArr = append(ciMaterialsArr, res)
 		}
+		var newCdWorkflowArtifact []pipelineConfig.CdWorkflowWithArtifact
 		for _, cdWfA := range cdWorkflowArtifact {
 
 			gitTriggers := make(map[int]pipelineConfig.GitCommit)
