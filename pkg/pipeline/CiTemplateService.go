@@ -84,6 +84,7 @@ func (impl CiTemplateServiceImpl) FindByAppId(appId int) (ciTemplateBean *bean.C
 		}
 	}
 	ciBuildConfigBean.GitMaterialId = ciTemplate.GitMaterialId
+	ciBuildConfigBean.BuildContextGitMaterialId = ciTemplate.BuildContextGitMaterialId
 	return &bean.CiTemplateBean{
 		CiTemplate:    ciTemplate,
 		CiBuildConfig: ciBuildConfigBean,
@@ -146,6 +147,7 @@ func (impl CiTemplateServiceImpl) extractBuildConfigBean(templateOverride *pipel
 		}
 	}
 	ciBuildConfigBean.GitMaterialId = templateOverride.GitMaterialId
+	ciBuildConfigBean.BuildContextGitMaterialId = templateOverride.BuildContextGitMaterialId
 	return ciBuildConfigBean, nil
 }
 

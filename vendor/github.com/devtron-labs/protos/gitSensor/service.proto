@@ -32,6 +32,7 @@ message GitMaterial {
   bool checkoutStatus = 7;
   string checkoutMsgAny = 8;
   bool deleted = 9;
+  repeated string filterPattern = 10;
 }
 
 message SavePipelineMaterialRequest {
@@ -57,6 +58,7 @@ message FetchScmChangesRequest {
   string from = 2;
   string to = 3;
   int64 count = 4;
+  bool showAll = 5;
 }
 
 message MaterialChangeResponse {
@@ -76,6 +78,7 @@ message GitCommit {
   repeated string Changes = 5;
   repeated FileStat FileStats = 6;
   WebhookData WebhookData = 7;
+  bool Excluded = 8;
 }
 
 message FileStat {

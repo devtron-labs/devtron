@@ -6,6 +6,7 @@ import (
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/bean"
 	client2 "github.com/devtron-labs/devtron/client/events"
+	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/app"
@@ -16,6 +17,7 @@ import (
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
 	"strconv"
+	"time"
 )
 
 type CdApplicationStatusUpdateHandler interface {
@@ -46,6 +48,19 @@ type CdApplicationStatusUpdateHandlerImpl struct {
 	installedAppVersionRepository        repository2.InstalledAppRepository
 }
 
+type CronLoggerImpl struct {
+	logger *zap.SugaredLogger
+}
+
+func (impl *CronLoggerImpl) Info(msg string, keysAndValues ...interface{}) {
+	impl.logger.Infow(msg, keysAndValues...)
+}
+
+func (impl *CronLoggerImpl) Error(err error, msg string, keysAndValues ...interface{}) {
+	keysAndValues = append([]interface{}{"err", err}, keysAndValues...)
+	impl.logger.Errorw(msg, keysAndValues...)
+}
+
 func NewCdApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, appService app.AppService,
 	workflowDagExecutor pipeline.WorkflowDagExecutor, installedAppService service.InstalledAppService,
 	CdHandler pipeline.CdHandler, AppStatusConfig *app.AppServiceConfig, pubsubClient *pubsub.PubSubClientServiceImpl,
@@ -54,8 +69,9 @@ func NewCdApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, appServi
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	pipelineRepository pipelineConfig.PipelineRepository, installedAppVersionHistoryRepository repository2.InstalledAppVersionHistoryRepository,
 	installedAppVersionRepository repository2.InstalledAppRepository) *CdApplicationStatusUpdateHandlerImpl {
+	cronLogger := &CronLoggerImpl{logger: logger}
 	cron := cron.New(
-		cron.WithChain())
+		cron.WithChain(cron.SkipIfStillRunning(cronLogger)))
 	cron.Start()
 	impl := &CdApplicationStatusUpdateHandlerImpl{
 		logger:                               logger,
@@ -141,6 +157,10 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) Subscribe() error {
 }
 
 func (impl *CdApplicationStatusUpdateHandlerImpl) HelmApplicationStatusUpdate() {
+	cronProcessStartTime := time.Now()
+	defer func() {
+		middleware.DeploymentStatusCronDuration.WithLabelValues(pipeline.DEVTRON_APP_HELM_PIPELINE_STATUS_UPDATE_CRON).Observe(time.Since(cronProcessStartTime).Seconds())
+	}()
 	HelmPipelineStatusCheckEligibleTime, err := strconv.Atoi(impl.AppStatusConfig.HelmPipelineStatusCheckEligibleTime)
 	if err != nil {
 		impl.logger.Errorw("error in converting string to int", "err", err)
@@ -155,6 +175,14 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) HelmApplicationStatusUpdate() 
 }
 
 func (impl *CdApplicationStatusUpdateHandlerImpl) ArgoApplicationStatusUpdate() {
+	cronProcessStartTime := time.Now()
+	defer func() {
+		middleware.DeploymentStatusCronDuration.WithLabelValues(pipeline.DEVTRON_APP_ARGO_PIPELINE_STATUS_UPDATE_CRON).Observe(time.Since(cronProcessStartTime).Seconds())
+	}()
+	//TODO: remove below cron with division of cron for argo pipelines of devtron-apps and helm-apps
+	defer func() {
+		middleware.DeploymentStatusCronDuration.WithLabelValues(pipeline.HELM_APP_ARGO_PIPELINE_STATUS_UPDATE_CRON).Observe(time.Since(cronProcessStartTime).Seconds())
+	}()
 	getPipelineDeployedBeforeMinutes, err := strconv.Atoi(impl.AppStatusConfig.PipelineDegradedTime)
 	if err != nil {
 		impl.logger.Errorw("error in converting string to int", "err", err)

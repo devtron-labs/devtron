@@ -8,15 +8,16 @@ import (
 )
 
 type CiTemplateOverride struct {
-	tableName        struct{} `sql:"ci_template_override" pg:",discard_unknown_columns"`
-	Id               int      `sql:"id"`
-	CiPipelineId     int      `sql:"ci_pipeline_id"`
-	DockerRegistryId string   `sql:"docker_registry_id"`
-	DockerRepository string   `sql:"docker_repository"`
-	DockerfilePath   string   `sql:"dockerfile_path"`
-	GitMaterialId    int      `sql:"git_material_id"`
-	Active           bool     `sql:"active,notnull"`
-	CiBuildConfigId  int      `sql:"ci_build_config_id"`
+	tableName                 struct{} `sql:"ci_template_override" pg:",discard_unknown_columns"`
+	Id                        int      `sql:"id"`
+	CiPipelineId              int      `sql:"ci_pipeline_id"`
+	DockerRegistryId          string   `sql:"docker_registry_id"`
+	DockerRepository          string   `sql:"docker_repository"`
+	DockerfilePath            string   `sql:"dockerfile_path"`
+	GitMaterialId             int      `sql:"git_material_id"`
+	BuildContextGitMaterialId int      `sql:"build_context_git_material_id"`
+	Active                    bool     `sql:"active,notnull"`
+	CiBuildConfigId           int      `sql:"ci_build_config_id"`
 	sql.AuditLog
 	GitMaterial    *GitMaterial
 	DockerRegistry *repository.DockerArtifactStore

@@ -2,7 +2,7 @@ name: 🚀 Feature
 description: "Submit a proposal for a new feature"
 title: "Feature: "
 labels: ["enhancement"]
-assignees: ["prakarsh-dt","nishant-d","anupdhiran"]
+assignees: ["prakarsh-dt","nishant-d"]
 body:
   - type: markdown
     attributes:
