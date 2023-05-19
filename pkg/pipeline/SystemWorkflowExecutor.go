@@ -10,6 +10,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/pointer"
 )
 
 type SystemWorkflowExecutor interface {
@@ -58,20 +59,25 @@ func (impl *SystemWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.Wo
 
 func (impl *SystemWorkflowExecutorImpl) getJobTemplate(workflowTemplate bean.WorkflowTemplate) *v1.Job {
 
+	workflowLabels := map[string]string{"devtron.ai/workflow-purpose": "cd", "devtron.ai/purpose": "workflow"}
 	workflowJob := v1.Job{
 		ObjectMeta: v12.ObjectMeta{
 			GenerateName: workflowTemplate.WorkflowNamePrefix + "-",
 			//Annotations:  map[string]string{"workflows.argoproj.io/controller-instanceid": workflowTemplate.WfControllerInstanceID},
-			Labels:     map[string]string{"devtron.ai/workflow-purpose": "cd"},
+			Labels:     workflowLabels,
 			Finalizers: []string{"foregroundDeletion"},
 		},
 		Spec: v1.JobSpec{
+			BackoffLimit:            pointer.Int32Ptr(0),
 			ActiveDeadlineSeconds:   workflowTemplate.ActiveDeadlineSeconds,
 			TTLSecondsAfterFinished: workflowTemplate.TTLValue,
 			Template: corev1.PodTemplateSpec{
+				ObjectMeta: v12.ObjectMeta{
+					Labels: workflowLabels,
+				},
 				Spec: workflowTemplate.PodSpec,
 			},
-			Suspend: &[]bool{true}[0],
+			Suspend: pointer.BoolPtr(true),
 		},
 	}
 	return &workflowJob
@@ -106,7 +112,7 @@ func (impl *SystemWorkflowExecutorImpl) getCmAndSecrets(workflowTemplate bean.Wo
 }
 
 func (impl *SystemWorkflowExecutorImpl) createJobOwnerRefVal(createdJob *v1.Job) v12.OwnerReference {
-	return v12.OwnerReference{UID: createdJob.UID, Name: createdJob.Name, Kind: kube.JobKind, APIVersion: "batch/v1", BlockOwnerDeletion: &[]bool{true}[0], Controller: &[]bool{true}[0]}
+	return v12.OwnerReference{UID: createdJob.UID, Name: createdJob.Name, Kind: kube.JobKind, APIVersion: "batch/v1", BlockOwnerDeletion: pointer.BoolPtr(true), Controller: pointer.BoolPtr(true)}
 }
 
 func (impl *SystemWorkflowExecutorImpl) createCmAndSecrets(template bean.WorkflowTemplate, createdJob *v1.Job) error {
