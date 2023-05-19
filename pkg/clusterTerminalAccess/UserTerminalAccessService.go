@@ -1220,26 +1220,31 @@ func (impl *UserTerminalAccessServiceImpl) GenerateNodeDebugPod(o *models.UserTe
 		impl.Logger.Errorw("error in fetching debugNodePodTemplate by name from terminal_access_templates table ", "template_name", utils1.TerminalNodeDebugPodName, "err", err)
 		return nil, err
 	}
-	debugNodePodTemplateData := debugNodePodTemplate.TemplateData
+	//debugNodePodTemplateData := debugNodePodTemplate.TemplateData
 
 	debugPod := &v1.Pod{}
-	err = json.Unmarshal([]byte(debugNodePodTemplateData), &debugPod)
-	if err != nil {
-		impl.Logger.Errorw("error occurred while unmarshaling template data into coreV1 Pod Object", "template_name", utils1.TerminalNodeDebugPodName, "err", err)
-		return nil, errors.New("internal server error occurred while creating node debug pod")
-	}
 
-	debugPod.Spec.NodeName = nodeName
-	debugPod.Name = pn
-	debugPod.Namespace = o.Namespace
-	debugPod.Spec.Containers[0].Image = o.BaseImage
+	//debugPod.Spec.NodeName = nodeName
+	//debugPod.Name = pn
+	//debugPod.Namespace = o.Namespace
+	//debugPod.Spec.Containers[0].Image = o.BaseImage
+	//
+	//podTemplateBytes, err := json.Marshal(&debugPod)
+	//if err != nil {
+	//	impl.Logger.Errorw("error in converting pod object into pod yaml", "err", err, "pod", debugPod)
+	//	return debugPod, err
+	//}
 
-	podTemplateBytes, err := json.Marshal(&debugPod)
+	podTemplate, err := utils1.ReplaceTemplateData(debugNodePodTemplate.TemplateData, pn, o.Namespace, nodeName, o.BaseImage, false, o.NodeTaints)
 	if err != nil {
 		impl.Logger.Errorw("error in converting pod object into pod yaml", "err", err, "pod", debugPod)
 		return debugPod, err
 	}
-
+	err = json.Unmarshal([]byte(podTemplate), &debugPod)
+	if err != nil {
+		impl.Logger.Errorw("error occurred while unmarshaling template data into coreV1 Pod Object", "template_name", utils1.TerminalNodeDebugPodName, "err", err)
+		return nil, errors.New("internal server error occurred while creating node debug pod")
+	}
 	SATemplate, err := utils1.ReplaceTemplateData(serviceAccountTemplate.TemplateData, pn, o.Namespace, "", "", false, nil)
 	if err != nil {
 		impl.Logger.Errorw("error in converting pod object into pod yaml", "err", err, "pod", debugPod)
@@ -1258,7 +1263,7 @@ func (impl *UserTerminalAccessServiceImpl) GenerateNodeDebugPod(o *models.UserTe
 	if err != nil {
 		return debugPod, err
 	}
-	podTemplate := string(podTemplateBytes)
+
 	err = impl.applyTemplate(context.Background(), o.ClusterId, podTemplate, podTemplate, false, o.Namespace)
 	return debugPod, err
 }
