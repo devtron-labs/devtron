@@ -60,6 +60,7 @@ type InstalledAppRestHandler interface {
 	FetchResourceTreeForACDApp(w http.ResponseWriter, r *http.Request)
 	FetchNotesForArgoInstalledApp(w http.ResponseWriter, r *http.Request)
 	GetChartForLatestDeployment(w http.ResponseWriter, r *http.Request)
+	GetChartForParticularTrigger(w http.ResponseWriter, r *http.Request)
 }
 
 type InstalledAppRestHandlerImpl struct {
@@ -784,7 +785,7 @@ func (handler *InstalledAppRestHandlerImpl) GetChartForParticularTrigger(w http.
 		return
 	}
 
-	installedAppVersionHistoryId, err := strconv.Atoi(vars["envId"])
+	installedAppVersionHistoryId, err := strconv.Atoi(vars["installedAppVersionHistoryId"])
 	if err != nil {
 		handler.Logger.Errorw("request err, GetChartForLatestDeployment", "err", err, "installedAppVersionHistoryId", installedAppVersionHistoryId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)

@@ -96,6 +96,6 @@ func (router AppStoreRouterImpl) Init(configRouter *mux.Router) {
 	configRouter.Path("/helm/manifest/download/{installedAppId}/{envId}").
 		HandlerFunc(router.deployRestHandler.GetChartForLatestDeployment).Methods("GET")
 
-	configRouter.Path("/helm/manifest/download/{installedAppId}/{envId}").
-		HandlerFunc(router.deployRestHandler.GetChartForLatestDeployment).Methods("GET")
+	configRouter.Path("/helm/manifest/download/{installedAppId}/{envId}/{installedAppVersionHistoryId}").
+		HandlerFunc(router.deployRestHandler.GetChartForParticularTrigger).Methods("GET")
 }

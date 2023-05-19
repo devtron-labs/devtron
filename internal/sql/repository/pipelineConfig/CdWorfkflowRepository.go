@@ -460,7 +460,7 @@ func (impl *CdWorkflowRepositoryImpl) FindWorkflowRunnerByCdWorkflowId(wfIds []i
 
 func (impl *CdWorkflowRepositoryImpl) FindWorkflowRunnerById(wfrId int) (*CdWorkflowRunner, error) {
 	wfr := &CdWorkflowRunner{}
-	err := impl.dbConnection.Model(wfr).Column("cd_workflow_runner.*", "CdWorkflow", "DeploymentApprovalRequest", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact").
+	err := impl.dbConnection.Model(wfr).Column("cd_workflow_runner.*", "CdWorkflow", "DeploymentApprovalRequest", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact","CdWorkflow.Pipeline.Environment").
 		Where("cd_workflow_runner.id = ?", wfrId).Select()
 	return wfr, err
 }
