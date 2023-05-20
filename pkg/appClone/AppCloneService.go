@@ -781,9 +781,9 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 				ciBuildConfig := templateOverrideBean.CiBuildConfig
 				//getting new git material for this app
 				//gitMaterial, err := impl.materialRepository.FindByAppIdAndCheckoutPath(req.appId, templateOverride.GitMaterial.CheckoutPath)
-				if req.gitMaterialMapping == nil || len(req.gitMaterialMapping) == 0 {
-					impl.logger.Errorw("no git materials found for the app", "appid", req.appId)
-					return nil, fmt.Errorf("no git for %d", req.appId)
+				if len(req.gitMaterialMapping) == 0 {
+					impl.logger.Errorw("no git materials found for the app", "appId", req.appId)
+					return nil, fmt.Errorf("no git materials found for the app, %d", req.appId)
 				}
 				gitMaterialId := req.gitMaterialMapping[ciBuildConfig.GitMaterialId]
 				buildContextGitMaterialId := req.gitMaterialMapping[ciBuildConfig.BuildContextGitMaterialId]
