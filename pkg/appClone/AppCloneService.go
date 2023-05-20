@@ -780,13 +780,25 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 				templateOverride := templateOverrideBean.CiTemplateOverride
 				ciBuildConfig := templateOverrideBean.CiBuildConfig
 				//getting new git material for this app
-				gitMaterial, err := impl.materialRepository.FindByAppIdAndCheckoutPath(req.appId, templateOverride.GitMaterial.CheckoutPath)
-				if err != nil {
-					impl.logger.Errorw("error in getting git material by appId and checkoutPath", "err", err, "appid", req.refAppId, "checkoutPath", templateOverride.GitMaterial.CheckoutPath)
-					return nil, err
+				//gitMaterial, err := impl.materialRepository.FindByAppIdAndCheckoutPath(req.appId, templateOverride.GitMaterial.CheckoutPath)
+				if len(req.gitMaterialMapping) == 0 {
+					impl.logger.Errorw("no git materials found for the app", "appId", req.appId)
+					return nil, fmt.Errorf("no git materials found for the app, %d", req.appId)
 				}
-				ciBuildConfig.GitMaterialId = gitMaterial.Id
-				templateOverride.GitMaterialId = gitMaterial.Id
+				gitMaterialId := req.gitMaterialMapping[ciBuildConfig.GitMaterialId]
+				buildContextGitMaterialId := req.gitMaterialMapping[ciBuildConfig.BuildContextGitMaterialId]
+				if gitMaterialId == 0 {
+					for _, id := range req.gitMaterialMapping {
+						gitMaterialId = id
+						break
+					}
+				}
+				if buildContextGitMaterialId == 0 {
+					buildContextGitMaterialId = gitMaterialId
+				}
+				ciBuildConfig.GitMaterialId = gitMaterialId
+				ciBuildConfig.BuildContextGitMaterialId = buildContextGitMaterialId
+				templateOverride.GitMaterialId = gitMaterialId
 				ciBuildConfig.Id = 0
 				ciPatchReq.CiPipeline.DockerConfigOverride = bean.DockerConfigOverride{
 					DockerRegistry:   templateOverride.DockerRegistryId,
