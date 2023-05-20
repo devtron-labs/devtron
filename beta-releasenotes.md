@@ -1,4 +1,5 @@
 ## Bugs
+- fix: Build context disable (#3405)
 - fix: build-context-git-material is not being set for cloned apps (#3397)
 - fix:  Search option should not be case sensitive in case of clusters, preset values, chart store (#3396)
 - fix: preset values update fix (#3361)
