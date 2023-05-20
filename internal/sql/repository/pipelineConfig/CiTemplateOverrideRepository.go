@@ -16,6 +16,7 @@ type CiTemplateOverride struct {
 	DockerfilePath            string   `sql:"dockerfile_path"`
 	GitMaterialId             int      `sql:"git_material_id"`
 	BuildContextGitMaterialId int      `sql:"build_context_git_material_id"`
+	UseRootBuildContext       bool     `sql:"use_root_build_context"`
 	Active                    bool     `sql:"active,notnull"`
 	CiBuildConfigId           int      `sql:"ci_build_config_id"`
 	sql.AuditLog
