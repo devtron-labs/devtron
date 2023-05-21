@@ -725,7 +725,7 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 		ciWfs, err := impl.ciWorkflowRepository.FindAllLastTriggeredWorkflowByArtifactId(ciArtifactIds)
 		if err != nil {
 			impl.Logger.Errorw("error in fetching ci wfs", "artifactIds", ciArtifactIds, "err", err)
-			return cdWorkflowArtifact, err
+			return cdWorkflowArtifact, nil
 		}
 
 		wfGitTriggers := make(map[int]map[int]pipelineConfig.GitCommit)
