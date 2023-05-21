@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/argoproj/argo-workflows/v3/workflow/common"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
@@ -237,6 +238,10 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	workflowTemplate.ArchiveLogs = storageConfigured
 	workflowTemplate.RestartPolicy = v12.RestartPolicyNever
 
+	if len(impl.cdConfig.NodeLabel) > 0 {
+		workflowTemplate.NodeSelector = impl.cdConfig.NodeLabel
+	}
+
 	limitCpu := impl.cdConfig.LimitCpu
 	limitMem := impl.cdConfig.LimitMem
 	reqCpu := impl.cdConfig.ReqCpu
@@ -244,7 +249,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 
 	workflowMainContainer := v12.Container{
 		Env:   containerEnvVariables,
-		Name:  "main",
+		Name:  common.MainContainerName,
 		Image: workflowRequest.CdImage,
 		Args:  []string{string(workflowJson)},
 		SecurityContext: &v12.SecurityContext{
