@@ -266,7 +266,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 			},
 		},
 	}
-	UpdateContainerEnvsFromCmCs(workflowMainContainer, workflowConfigMaps, workflowSecrets)
+	UpdateContainerEnvsFromCmCs(&workflowMainContainer, workflowConfigMaps, workflowSecrets)
 
 	workflowTemplate.Containers = []v12.Container{workflowMainContainer}
 	workflowTemplate.WorkflowNamePrefix = workflowRequest.WorkflowNamePrefix
