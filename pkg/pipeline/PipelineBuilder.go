@@ -4407,6 +4407,7 @@ func (impl PipelineBuilderImpl) GetCdPipelinesByEnvironment(request appGroup2.Ap
 			AppName:                       dbPipeline.AppName,
 			AppId:                         dbPipeline.AppId,
 			UserApprovalConf:              dbPipeline.UserApprovalConf,
+			IsVirtualEnvironment:          dbPipeline.IsVirtualEnvironment,
 		}
 		pipelines = append(pipelines, pipeline)
 	}
@@ -4453,11 +4454,12 @@ func (impl PipelineBuilderImpl) GetCdPipelinesByEnvironmentMin(request appGroup2
 			continue
 		}
 		pcObject := &bean.CDPipelineConfigObject{
-			AppId:             dbPipeline.AppId,
-			AppName:           dbPipeline.App.AppName,
-			EnvironmentId:     dbPipeline.EnvironmentId,
-			Id:                dbPipeline.Id,
-			DeploymentAppType: dbPipeline.DeploymentAppType,
+			AppId:                dbPipeline.AppId,
+			AppName:              dbPipeline.App.AppName,
+			EnvironmentId:        dbPipeline.EnvironmentId,
+			Id:                   dbPipeline.Id,
+			DeploymentAppType:    dbPipeline.DeploymentAppType,
+			IsVirtualEnvironment: dbPipeline.Environment.IsVirtualEnvironment,
 		}
 		cdPipelines = append(cdPipelines, pcObject)
 	}
@@ -4706,6 +4708,7 @@ func (impl PipelineBuilderImpl) GetEnvironmentListForAutocompleteFilter(envName 
 			CdArgoSetup:           model.Cluster.CdArgoSetup,
 			EnvironmentIdentifier: model.EnvironmentIdentifier,
 			ClusterName:           model.Cluster.ClusterName,
+			IsVirtualEnvironment:  model.IsVirtualEnvironment,
 		}
 
 		//authorization block starts here

@@ -1442,6 +1442,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int, request
 			AppId:                 dbPipeline.AppId,
 			TeamId:                dbPipeline.App.TeamId,
 			EnvironmentIdentifier: dbPipeline.Environment.EnvironmentIdentifier,
+			IsVirtualEnvironment:  dbPipeline.Environment.IsVirtualEnvironment,
 		}
 		if len(dbPipeline.PreStageConfig) > 0 {
 			preStage := bean.CdStage{}
