@@ -292,7 +292,7 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, e
 		appMetricsRequest := chartService.AppMetricEnableDisableRequest{UserId: environmentProperties.UserId, AppId: appId, EnvironmentId: environmentProperties.EnvironmentId, IsAppMetricsEnabled: false}
 		_, err = impl.EnvMetricsEnableDisable(&appMetricsRequest)
 		if err != nil {
-			impl.logger.Errorw("err while disable app metrics for lower versions", "err", err, "appId", appId, "chartVersion", chart.ChartVersion)
+			impl.logger.Errorw("err while disable app metrics", "err", err, "appId", appId, "chartVersion", chart.ChartVersion)
 			return nil, err
 		}
 	}
