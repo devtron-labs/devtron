@@ -14,7 +14,8 @@ metadata:
   labels:
     release: devtron
 data:
-  GIT_SENSOR_URL: http://git-sensor-service.devtroncd:80
+  GIT_SENSOR_PROTOCOL: GRPC
+  GIT_SENSOR_URL: git-sensor-service.devtroncd:90
   NATS_SERVER_HOST: nats://devtron-nats.devtroncd:4222
   PG_ADDR: postgresql-postgresql.devtroncd
   PG_PORT: "5432"
