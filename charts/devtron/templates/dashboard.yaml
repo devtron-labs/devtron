@@ -26,7 +26,7 @@ data:
   APPLICATION_METRICS_ENABLED: {{ .config.applicationMetrics | default "true" | quote }}
   HIDE_APPLICATION_GROUPS: {{ .config.hideApplicationGroups | default "false" | quote }}
   {{- if .config.extraConfigs }}
-  {{ toYaml .config.extraConfigs }}
+  {{ toYaml .config.extraConfigs | indent 2 }}
   {{- end }}
 {{- end }} 
 ---
