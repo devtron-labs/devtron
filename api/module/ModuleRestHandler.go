@@ -202,7 +202,7 @@ func (impl ModuleRestHandlerImpl) EnableModule(w http.ResponseWriter, r *http.Re
 	// service call
 	res, err := impl.moduleService.EnableModule(moduleName, moduleEnableRequestDto.Version)
 	if err != nil {
-		impl.logger.Errorw("service err, HandleModuleAction", "err", err)
+		impl.logger.Errorw("service err, Enabling Module", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

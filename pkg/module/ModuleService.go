@@ -414,7 +414,7 @@ func (impl ModuleServiceImpl) HandleModuleAction(userId int32, moduleName string
 }
 func (impl ModuleServiceImpl) EnableModule(moduleName, version string) (*ActionResponse, error) {
 	if impl.serverEnvConfig.DevtronInstallationType != serverBean.DevtronInstallationTypeOssHelm {
-		return nil, errors.New("module installation is not allowed")
+		return nil, errors.New("module Enabling is not allowed")
 	}
 
 	// get module by name

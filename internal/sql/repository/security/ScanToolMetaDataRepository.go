@@ -134,7 +134,7 @@ func (repo *ScanToolMetadataRepositoryImpl) MarkToolAsActive(toolName, version s
 }
 func (repo *ScanToolMetadataRepositoryImpl) MarkOtherToolsInActive(toolName string, tx *pg.Tx, version string) error {
 	model := &ScanToolMetadata{}
-	_, err := tx.Model(model).Set("active = ?", false).Where("name != ?", toolName).Where("version = ?", version).Update()
+	_, err := tx.Model(model).Set("active = ?", false).Where("name != ?", toolName).Where("version != ?", version).Update()
 
 	if err != nil {
 		repo.logger.Errorw("error in marking tool active for scan target", "err", err)
