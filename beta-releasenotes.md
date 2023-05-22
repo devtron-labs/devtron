@@ -1,4 +1,5 @@
 ## Bugs
+- fix: Clicking on commit info shows incorrect data (#3371)
 - fix: Build context disable (#3405)
 - fix: build-context-git-material is not being set for cloned apps (#3397)
 - fix:  Search option should not be case sensitive in case of clusters, preset values, chart store (#3396)
