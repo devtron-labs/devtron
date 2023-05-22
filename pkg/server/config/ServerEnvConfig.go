@@ -21,7 +21,7 @@ type ServerEnvConfig struct {
 	DevtronBomUrl                        string `env:"DEVTRON_BOM_URL" envDefault:"https://raw.githubusercontent.com/devtron-labs/devtron/%s/charts/devtron/devtron-bom.yaml"`
 	AppSyncImage                         string `env:"APP_SYNC_IMAGE" envDefault:"quay.io/devtron/chart-sync:1227622d-132-3775"`
 	AppSyncJobResourcesObj               string `env:"APP_SYNC_JOB_RESOURCES_OBJ"`
-	ModuleMetaDataApiUrl                 string `env:"MODULE_METADATA_API_URL" envDefault:"https://api-stage.devtron.info/module?name=%s"` // TODO: Will revert after testing
+	ModuleMetaDataApiUrl                 string `env:"MODULE_METADATA_API_URL" envDefault:"https://api.devtron.ai/module?name=%s"`
 }
 
 func ParseServerEnvConfig() (*ServerEnvConfig, error) {
