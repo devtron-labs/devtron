@@ -217,30 +217,41 @@ func (impl ArgoApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, r *
 	if err != nil {
 		tailLines = 0
 	}
-	query := application2.ApplicationPodLogsQuery{
-		Name:         &name,
-		PodName:      &podName,
-		Container:    &containerName,
-		Namespace:    &namespace,
-		TailLines:    &tailLines,
-		Follow:       &follow,
-		SinceSeconds: &sinceSeconds,
+	previousContainer, err := strconv.ParseBool(v.Get("previousContainer"))
+	if err != nil {
+		previousContainer = false
 	}
-	lastEventId := r.Header.Get("Last-Event-ID")
+	noTimeLimit := v.Get("noTimeLimit") == "true"
+
+	query := application2.ApplicationPodLogsQuery{
+		Name:      &name,
+		PodName:   &podName,
+		Container: &containerName,
+		Namespace: &namespace,
+		Follow:    &follow,
+		Previous:  &previousContainer,
+	}
 	isReconnect := false
-	if len(lastEventId) > 0 {
-		lastSeenMsgId, err := strconv.ParseInt(lastEventId, 10, 64)
-		if err != nil {
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			return
+	if !noTimeLimit {
+		query.TailLines = &tailLines
+		query.SinceSeconds = &sinceSeconds
+
+		lastEventId := r.Header.Get("Last-Event-ID")
+
+		if len(lastEventId) > 0 {
+			lastSeenMsgId, err := strconv.ParseInt(lastEventId, 10, 64)
+			if err != nil {
+				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+				return
+			}
+			lastSeenMsgId = lastSeenMsgId + 1 //increased by one ns to avoid duplicate //FIXME still not fixed
+			t := v1.Unix(0, lastSeenMsgId)
+			query.SinceTime = &t
+			//set this ti zero since its reconnect request
+			var sinceSecondsForReconnectRequest int64 = 0
+			query.SinceSeconds = &sinceSecondsForReconnectRequest
+			isReconnect = true
 		}
-		lastSeenMsgId = lastSeenMsgId + 1 //increased by one ns to avoid duplicate //FIXME still not fixed
-		t := v1.Unix(0, lastSeenMsgId)
-		query.SinceTime = &t
-		//set this ti zero since its reconnect request
-		var sinceSecondsForReconnectRequest int64 = 0
-		query.SinceSeconds = &sinceSecondsForReconnectRequest
-		isReconnect = true
 	}
 	ctx, cancel := context.WithCancel(r.Context())
 	if cn, ok := w.(http.CloseNotifier); ok {
