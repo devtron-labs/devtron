@@ -62,7 +62,7 @@ spec:
           - /bin/sh
           - -c
           - chown -R devtron:devtron /git-base
-          image: "quay.io/devtron/git-sensor:960bbf71-200-13707"
+          image: "quay.io/devtron/git-sensor:254e927e-200-13792"
           imagePullPolicy: IfNotPresent
           name: chown-git-base
           resources: {}
@@ -75,7 +75,7 @@ spec:
             name: git-volume
       containers:
         - name: git-sensor
-          image: "quay.io/devtron/git-sensor:960bbf71-200-13707"
+          image: "quay.io/devtron/git-sensor:254e927e-200-13792"
           securityContext:
             allowPrivilegeEscalation: false
             runAsUser: 1000
