@@ -1,4 +1,5 @@
 global:
+  image_repository: quay.io/devtron
   podSecurityContext:
     fsGroup: 1000
     runAsGroup: 1000
@@ -52,12 +53,14 @@ components:
       sentry: "false"
       sentryEnv: "PRODUCTION"
       applicationMetrics: "true"
-    image: "quay.io/devtron/dashboard:28017af9-325-13418"
+    image: "dashboard:28017af9-325-13418"
     imagePullPolicy: IfNotPresent
 
   devtron:
-    image: "quay.io/devtron/hyperion:9f3934ee-280-13407"
-    cicdImage: "quay.io/devtron/devtron:9f3934ee-434-13409"
+    configmap:
+      app_sync_image: "chart-sync:07ac8fd7-150-11120"
+    image: "hyperion:9f3934ee-280-13407"
+    cicdImage: "devtron:9f3934ee-434-13409"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
     serviceMonitor:
@@ -86,21 +89,21 @@ components:
     image: "ghcr.io/dexidp/dex:v2.30.2"
     imagePullPolicy: IfNotPresent
     initContainer:
-      authenticator: "quay.io/devtron/authenticator:e414faff-393-13273"
+      authenticator: "authenticator:e414faff-393-13273"
 
   kubelink:
-    image: "quay.io/devtron/kubelink:18bf720b-318-13404"
+    image: "kubelink:18bf720b-318-13404"
     imagePullPolicy: IfNotPresent
 
   postgres:
-    image: "quay.io/devtron/postgres:11.9.0-debian-10-r26"
-    armImage: "quay.io/devtron/postgres:11.9"
+    image: "postgres:11.9.0-debian-10-r26"
+    armImage: "postgres:11.9"
     imagePullPolicy: "IfNotPresent"
     persistence:
       volumeSize: "20Gi"
 
   migrator:
-    image: "quay.io/devtron/migrator:ec1dcab8-149-13278"
+    image: "migrator:ec1dcab8-149-13278"
     envVars:
       devtron:
         GIT_BRANCH: "main"
@@ -279,7 +282,7 @@ security:
 notifier:
   enabled: false
   imagePullPolicy: IfNotPresent
-  image: "quay.io/devtron/notifier:6c7a356a-372-11107"
+  image: "notifier:6c7a356a-372-11107"
   configs:
     CD_ENVIRONMENT: PROD
     DB: orchestrator
@@ -295,9 +298,9 @@ notifier:
 minio:
   enabled: false
   replicaCount: 1
-  image: "quay.io/devtron/minio:RELEASE.2021-02-14T04-01-33Z"
+  image: "minio:RELEASE.2021-02-14T04-01-33Z"
   imagePullPolicy: IfNotPresent
-  mbImage: "quay.io/devtron/minio-mc:RELEASE.2021-02-14T04-28-06Z"
+  mbImage: "minio-mc:RELEASE.2021-02-14T04-28-06Z"
   mbImagePullPolicy: IfNotPresent
   persistence:
     storage: "50Gi"
@@ -309,7 +312,7 @@ workflowController:
 monitoring:
   grafana:
     enabled: false
-    image: "quay.io/devtron/grafana:7.3.1"
+    image: "grafana:7.3.1"
     imagePullPolicy: IfNotPresent
     resources: {}
     grafanaDashboards:

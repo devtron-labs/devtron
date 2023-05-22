@@ -20,7 +20,7 @@ spec:
       {{- end }}
       containers:
       - name: postgresql-migrate-devtron
-        image: {{ .image }}
+        image: {{ $.Values.global.image_repository }}/{{ .image }}
         {{- if and $.Values.global $.Values.global.containerSecurityContext }}
         securityContext:
 {{- toYaml $.Values.global.containerSecurityContext | nindent 10 }}
@@ -78,7 +78,7 @@ spec:
       {{- end }}
       containers:
       - name: devtron-rollout
-        image: "quay.io/devtron/kubectl:latest"
+        image: {{ $.Values.global.image_repository }}/kubectl:latest
         command: ['sh', '-c', 'kubectl rollout restart deployment/devtron -n devtroncd']
         {{- if .casbin }}
         {{- if .casbin.resources }}        
@@ -88,7 +88,7 @@ spec:
         {{- end }} 
       initContainers:
       - name: postgresql-migrate-casbin
-        image: {{ .image }}
+        image: {{ $.Values.global.image_repository }}{{ .image }}
         {{- if and $.Values.global $.Values.global.containerSecurityContext }}
         securityContext:
 {{- toYaml $.Values.global.containerSecurityContext | nindent 10 }}

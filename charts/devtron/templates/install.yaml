@@ -87,9 +87,9 @@ spec:
       containers:
         -
         {{- if $.Values.installer.tag }}
-          image: {{ $.Values.installer.image }}:{{ $.Values.installer.tag }}
+          image: {{ $.Values.global.image_repository }}/{{ $.Values.installer.image }}:{{ $.Values.installer.tag }}
         {{- else }}
-          image: {{ $.Values.installer.image }}
+          image: {{ $.Values.global.image_repository }}/{{ $.Values.installer.image }}
         {{- end }}
           imagePullPolicy: IfNotPresent
           name: inception

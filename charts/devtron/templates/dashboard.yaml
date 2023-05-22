@@ -76,7 +76,8 @@ spec:
       {{- end }}
       containers:
         - name: dashboard
-          image: {{ .image }}
+          
+          image: {{ $.Values.global.image_repository }}/{{ .image }}
           imagePullPolicy: {{ .imagePullPolicy }}
           {{- if and $.Values.global $.Values.global.containerSecurityContext }}
           securityContext:
