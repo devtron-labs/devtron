@@ -52,6 +52,9 @@ components:
       sentry: "false"
       sentryEnv: "PRODUCTION"
       applicationMetrics: "true"
+      extraConfigs:
+        USE_V2: "true"
+        ENABLE_BUILD_CONTEXT: "false"
     image: "quay.io/devtron/dashboard:fffcb21c-325-13770"
     imagePullPolicy: IfNotPresent
 
