@@ -20,7 +20,7 @@ type CiBuildConfigBean struct {
 	Id                        int                `json:"id"`
 	GitMaterialId             int                `json:"gitMaterialId,omitempty" validate:"required"`
 	BuildContextGitMaterialId int                `json:"buildContextGitMaterialId,omitempty" validate:"required"`
-	UseRootBuildContext       bool               `json:"useRootBuildContext" validate:"required"`
+	UseRootBuildContext       bool               `json:"useRootBuildContext"`
 	CiBuildType               CiBuildType        `json:"ciBuildType"`
 	DockerBuildConfig         *DockerBuildConfig `json:"dockerBuildConfig,omitempty"`
 	BuildPackConfig           *BuildPackConfig   `json:"buildPackConfig"`
