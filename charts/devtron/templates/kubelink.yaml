@@ -25,9 +25,9 @@ metadata:
     release: devtron
   annotations:
     "helm.sh/resource-policy": keep
-{{- if .config }}
+{{- if .configs }}
 data:
-{{ toYaml .config | indent 2 }}
+{{ toYaml .configs | indent 2 }}
 {{- end }}
 ---
 apiVersion: apps/v1
