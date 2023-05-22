@@ -21,7 +21,6 @@ data:
   CD_PORT: "80" 
   CD_NAMESPACE: "devtroncd"
   EVENT_URL: "http://notifier-service.devtroncd:80/notify"
-  GIT_SENSOR_URL: "http://git-sensor-service.devtroncd:80"
   GIT_SENSOR_TIMEOUT: "300"
   GRAFANA_ORG_ID: "2"
   LENS_URL: "http://lens-service.devtroncd:80"
@@ -92,7 +91,8 @@ data:
   ENFORCER_MAX_BATCH_SIZE: "1"
   APP_SYNC_IMAGE: "quay.io/devtron/chart-sync:6bdaa674-150-13276"
   DEVTRON_SECRET_NAME: "devtron-secret"
-  
+  GIT_SENSOR_PROTOCOL: GRPC
+  GIT_SENSOR_URL: git-sensor-service.devtroncd:90
 
 ---
 apiVersion: v1
