@@ -91,6 +91,13 @@ components:
   kubelink:
     image: "quay.io/devtron/kubelink:451a1a1a-318-13790"
     imagePullPolicy: IfNotPresent
+    configs:
+      ENABLE_HELM_RELEASE_CACHE: "true"
+      PG_ADDR: postgresql-postgresql.devtroncd
+      PG_DATABASE: orchestrator
+      PG_LOG_QUERY: "true"
+      PG_PORT: "5432"
+      PG_USER: postgres
 
   postgres:
     image: "quay.io/devtron/postgres:11.9.0-debian-10-r26"
