@@ -79,7 +79,7 @@ func (impl CiTemplateRepositoryImpl) Save(material *CiTemplate) error {
 }
 
 func (impl CiTemplateRepositoryImpl) Update(material *CiTemplate) error {
-	r, err := impl.dbConnection.Model(material).WherePK().UpdateNotNull()
+	r, err := impl.dbConnection.Model(material).WherePK().Update()
 	impl.logger.Infof("total rows saved %d", r.RowsAffected())
 	return err
 }
