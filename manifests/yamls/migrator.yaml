@@ -144,11 +144,11 @@ spec:
         - name: DB_NAME
           value: git_sensor
         - name: MIGRATE_TO_VERSION
-          value: 0ed0198c972d46694f3cead49d6c8e8ebd8e84d5
+          value: "0"
         - name: GIT_BRANCH
           value: main
         - name: GIT_HASH
-          value: e5e66474064b6ffb7f8210004b59dd9316ea1e0d
+          value: 0ed0198c972d46694f3cead49d6c8e8ebd8e84d5
         envFrom:
           - secretRef:
               name: postgresql-migrator
@@ -190,11 +190,11 @@ spec:
         - name: DB_NAME
           value: lens
         - name: MIGRATE_TO_VERSION
-          value: 25bfd796a89992d3dbe739913fd46556440248ff
+          value: "0"
         - name: GIT_BRANCH
           value: main
         - name: GIT_HASH
-          value: f71dba2a1da52949b5fdc68c32b090366089d47c
+          value: 25bfd796a89992d3dbe739913fd46556440248ff
         envFrom:
           - secretRef:
               name: postgresql-migrator
