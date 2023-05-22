@@ -27,9 +27,14 @@ metadata:
     release: devtron
 spec:
   ports:
-    - port: 80
-      name: sensor
+    - name: sensor
+      port: 80
+      protocol: TCP
       targetPort: 8080
+    - name: grpc
+      port: 90
+      protocol: TCP
+      targetPort: 8081
   selector:
     app: git-sensor
 ---
@@ -83,6 +88,8 @@ spec:
           ports:
             - containerPort: 8080
               name: sensor
+            - containerPort: 8081
+              name: grpc
           volumeMounts:
             - name: git-volume
               mountPath: /git-base/
