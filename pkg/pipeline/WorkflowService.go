@@ -275,6 +275,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		Steps: steps,
 	})
 
+	containerEnvVariables = append(containerEnvVariables, []v12.EnvVar{{Name: "CI_CD_EVENT", Value: string(workflowJson)}}...)
 	ciTemplate := v1alpha1.Template{
 		Name: CI_WORKFLOW_NAME,
 		Container: &v12.Container{
