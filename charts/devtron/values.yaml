@@ -98,6 +98,9 @@ components:
       PG_LOG_QUERY: "true"
       PG_PORT: "5432"
       PG_USER: postgres
+    dbconfig:
+      secretName: postgresql-postgresql
+      keyName: postgresql-password
 
   postgres:
     image: "quay.io/devtron/postgres:11.9.0-debian-10-r26"
