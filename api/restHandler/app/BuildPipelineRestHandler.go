@@ -903,8 +903,13 @@ func (handler PipelineConfigRestHandlerImpl) FetchMaterialInfo(w http.ResponseWr
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	envId, err := strconv.Atoi(vars["envId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 	handler.Logger.Infow("request payload, FetchMaterialInfo", "err", err, "ciArtifactId", ciArtifactId)
-	resp, err := handler.ciHandler.FetchMaterialInfoByArtifactId(ciArtifactId)
+	resp, err := handler.ciHandler.FetchMaterialInfoByArtifactId(ciArtifactId, envId)
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchMaterialInfo", "err", err, "ciArtifactId", ciArtifactId)
 		if util.IsErrNoRows(err) {
