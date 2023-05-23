@@ -715,7 +715,7 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 			return cdWorkflowArtifact, err
 		}
 		cdWorkflowArtifact = impl.converterWFRList(wfrList)
-		if err == pg.ErrNoRows {
+		if err == pg.ErrNoRows || wfrList == nil {
 			return cdWorkflowArtifact, nil
 		}
 		var ciArtifactIds []int
@@ -726,7 +726,7 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 		if err != nil && err != pg.ErrNoRows {
 			impl.Logger.Errorw("error in fetching ci wfs", "artifactIds", ciArtifactIds, "err", err)
 			return cdWorkflowArtifact, err
-		} else if err == pg.ErrNoRows {
+		} else if err == pg.ErrNoRows && ciWfs == nil {
 			return cdWorkflowArtifact, nil
 		}
 
