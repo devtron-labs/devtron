@@ -222,6 +222,7 @@ func (impl *ClusterServiceImpl) ConvertClusterBeanToCluster(clusterBean *Cluster
 	model.ServerUrl = clusterBean.ServerUrl
 	model.Config = clusterBean.Config
 	model.PrometheusEndpoint = clusterBean.PrometheusUrl
+	model.InsecureSkipTlsVerify = clusterBean.InsecureSkipTLSVerify
 
 	if clusterBean.PrometheusAuth != nil {
 		model.PUserName = clusterBean.PrometheusAuth.UserName
