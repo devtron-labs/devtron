@@ -24,6 +24,7 @@
 - fix: bulk cd trigger argo app unauthorized err (#3290)
 - fix: api optimize fixes (#3275)
 ## Enhancements
+- feat: Change cd deployment type (#3332)
 - feat: added Statefulset reference chart (#3338)
 - feat: added handling for failed step name in CI messages (#3356)
 - feat: git material include exclude feature and partial commit search (#3343)
