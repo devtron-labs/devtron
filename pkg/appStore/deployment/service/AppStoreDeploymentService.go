@@ -410,6 +410,7 @@ func (impl AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *a
 		if util.IsAcdApp(installAppVersionRequest.DeploymentAppType) {
 			_ = impl.appStoreDeploymentArgoCdService.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_APP_HEALTHY, "Git commit done successfully.", tx)
 		}
+		installAppVersionRequest.GitHash = gitOpsResponse.GitHash
 	}
 
 	if util2.IsBaseStack() || util2.IsHelmApp(installAppVersionRequest.AppOfferingMode) || util.IsHelmApp(installAppVersionRequest.DeploymentAppType) {
@@ -430,7 +431,7 @@ func (impl AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *a
 		return nil, err
 	}
 
-	return nil, nil
+	return installAppVersionRequest, nil
 
 }
 
@@ -1412,6 +1413,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledAppV2(ctx context.Cont
 			return nil, err
 		}
 		installAppVersionRequest.InstalledAppVersionHistoryId = installedAppVersionHistory.Id
+		_ = impl.appStoreDeploymentArgoCdService.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED, "Deployment initiated successfully.", tx)
 	}
 
 	manifest, err := impl.appStoreDeploymentCommonService.GenerateManifest(installAppVersionRequest)

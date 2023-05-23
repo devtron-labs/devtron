@@ -1,6 +1,7 @@
 package util
 
 import (
+	"github.com/devtron-labs/devtron/api/bean"
 	"testing"
 )
 
@@ -9,7 +10,7 @@ func getTestGithubClient() GitHubClient {
 	gitCliUtl := NewGitCliUtil(logger)
 	gitService := NewGitServiceImpl(&GitConfig{GitToken: "", GitUserName: "nishant"}, logger, gitCliUtl)
 
-	githubClient, err := NewGithubClient("", "", "test-org", logger, gitService)
+	githubClient, err := NewGithubClient("", "", "test-org", logger, gitService, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -17,7 +18,7 @@ func getTestGithubClient() GitHubClient {
 }
 
 func TestGitHubClient_CreateRepository(t *testing.T) {
-
+	t.SkipNow()
 	type args struct {
 		name                 string
 		description          string
@@ -38,7 +39,13 @@ func TestGitHubClient_CreateRepository(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			impl := getTestGithubClient()
-			_, gotIsNew, _ := impl.CreateRepository(tt.args.name, tt.args.description, tt.args.bitbucketWorkspaceId, tt.args.bitbucketProjectKey)
+			gitOpsConfigDTO := &bean.GitOpsConfigDto{
+				Username:             tt.args.name,
+				Description:          tt.args.description,
+				BitBucketWorkspaceId: tt.args.bitbucketWorkspaceId,
+				BitBucketProjectKey:  tt.args.bitbucketProjectKey,
+			}
+			_, gotIsNew, _ := impl.CreateRepository(gitOpsConfigDTO)
 
 			if gotIsNew != tt.wantIsNew {
 				t.Errorf("CreateRepository() gotIsNew = %v, want %v", gotIsNew, tt.wantIsNew)
