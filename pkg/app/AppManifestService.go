@@ -321,7 +321,7 @@ package app
 //	return merged, nil
 //}
 //
-//func (impl *AppManifestServiceImpl) getEnvOverrideByTriggerType(overrideRequest *bean.ValuesOverrideRequest, envId int, triggeredAt time.Time, ctx context.Context) (*chartConfig.EnvConfigOverride, error) {
+//func (impl *AppManifestServiceImpl) GetEnvOverrideByTriggerType(overrideRequest *bean.ValuesOverrideRequest, envId int, triggeredAt time.Time, ctx context.Context) (*chartConfig.EnvConfigOverride, error) {
 //
 //	envOverride := &chartConfig.EnvConfigOverride{}
 //	var err error
@@ -817,7 +817,7 @@ package app
 //		impl.logger.Errorw("error in fetching pipeline by pipelineId", "err", err)
 //		return valuesOverrideResponse, err
 //	}
-//	envOverride, err := impl.getEnvOverrideByTriggerType(overrideRequest, pipeline.EnvironmentId, triggeredAt, ctx)
+//	envOverride, err := impl.GetEnvOverrideByTriggerType(overrideRequest, pipeline.EnvironmentId, triggeredAt, ctx)
 //	if err != nil {
 //		impl.logger.Errorw("error in getting env override by trigger type", "err", err)
 //		return valuesOverrideResponse, err

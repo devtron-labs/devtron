@@ -181,6 +181,7 @@ type AppService interface {
 	WriteCDSuccessEvent(appId int, envId int, override *chartConfig.PipelineOverride)
 	GetGitOpsRepoPrefix() string
 	GetValuesOverrideForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*ValuesOverrideResponse, error)
+	GetEnvOverrideByTriggerType(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*chartConfig.EnvConfigOverride, error)
 	CreateGitopsRepo(app *app.App, userId int32) (gitopsRepoName string, chartGitAttr *ChartGitAttribute, err error)
 	GetLatestDeployedManifestByPipelineId(appId int, envId int, ctx context.Context) ([]byte, error)
 	GetDeployedManifestByPipelineIdAndCDWorkflowId(appId int, envId int, cdWorkflowId int, ctx context.Context) ([]byte, error)
@@ -1208,7 +1209,7 @@ func (impl *AppServiceImpl) getDeploymentStrategyByTriggerType(overrideRequest *
 	return strategy, nil
 }
 
-func (impl *AppServiceImpl) getEnvOverrideByTriggerType(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*chartConfig.EnvConfigOverride, error) {
+func (impl *AppServiceImpl) GetEnvOverrideByTriggerType(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*chartConfig.EnvConfigOverride, error) {
 
 	envOverride := &chartConfig.EnvConfigOverride{}
 	var err error
@@ -1337,7 +1338,7 @@ func (impl *AppServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.Va
 		return valuesOverrideResponse, err
 	}
 
-	envOverride, err := impl.getEnvOverrideByTriggerType(overrideRequest, triggeredAt, ctx)
+	envOverride, err := impl.GetEnvOverrideByTriggerType(overrideRequest, triggeredAt, ctx)
 	if err != nil {
 		impl.logger.Errorw("error in getting env override by trigger type", "err", err)
 		return valuesOverrideResponse, err
@@ -1768,6 +1769,24 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 
 	valuesOverrideResponse, builtChartPath, err := impl.BuildManifestForTrigger(overrideRequest, triggerEvent.TriggerdAt, ctx)
 	if err != nil {
+		if triggerEvent.GetManifestInResponse {
+			timeline := &pipelineConfig.PipelineStatusTimeline{
+				CdWorkflowRunnerId: overrideRequest.WfrId,
+				Status:             "HELM_PACKAGE_GENERATION_FAILED",
+				StatusDetail:       fmt.Sprintf("Helm package generation failed. - %v", err),
+				StatusTime:         time.Now(),
+				AuditLog: sql.AuditLog{
+					CreatedBy: overrideRequest.UserId,
+					CreatedOn: time.Now(),
+					UpdatedBy: overrideRequest.UserId,
+					UpdatedOn: time.Now(),
+				},
+			}
+			err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
+			if err != nil {
+				impl.logger.Errorw("error in saving timeline for manifest_download type")
+			}
+		}
 		return releaseNo, manifest, err
 	}
 

@@ -113,7 +113,9 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetailList(ctx context.Con
 	for _, cluster := range clusters {
 		clusterCapacityDetail := &ClusterCapacityDetail{}
 		var err error
-		if len(cluster.ErrorInConnecting) > 0 {
+		if cluster.IsVirtualCluster {
+			clusterCapacityDetail.IsVirtualCluster = cluster.IsVirtualCluster
+		} else if len(cluster.ErrorInConnecting) > 0 {
 			clusterCapacityDetail.ErrorInConnection = cluster.ErrorInConnecting
 		} else {
 			clusterCapacityDetail, err = impl.GetClusterCapacityDetail(ctx, cluster, true)
