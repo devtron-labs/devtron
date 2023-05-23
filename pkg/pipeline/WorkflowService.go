@@ -103,6 +103,7 @@ type WorkflowRequest struct {
 	BlobStorageS3Config        *blob_storage.BlobStorageS3Config `json:"blobStorageS3Config"`
 	AzureBlobConfig            *blob_storage.AzureBlobConfig     `json:"azureBlobConfig"`
 	GcpBlobConfig              *blob_storage.GcpBlobConfig       `json:"gcpBlobConfig"`
+	BlobStorageLogsKey         string                            `json:"blobStorageLogsKey"`
 	DefaultAddressPoolBaseCidr string                            `json:"defaultAddressPoolBaseCidr"`
 	DefaultAddressPoolSize     int                               `json:"defaultAddressPoolSize"`
 	PreCiSteps                 []*bean2.StepObject               `json:"preCiSteps"`
@@ -216,6 +217,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		CiRequest: workflowRequest,
 	}
 
+	ciCdTriggerEvent.CiRequest.BlobStorageLogsKey = impl.ciConfig.DefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowNamePrefix
 	workflowJson, err := json.Marshal(&ciCdTriggerEvent)
 	if err != nil {
 		impl.Logger.Errorw("err", err)
@@ -276,6 +278,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		Steps: steps,
 	})
 
+	containerEnvVariables = append(containerEnvVariables, []v12.EnvVar{{Name: "CI_CD_EVENT", Value: string(workflowJson)}}...)
 	ciTemplate := v1alpha1.Template{
 		Name: CI_WORKFLOW_NAME,
 		Container: &v12.Container{

@@ -107,6 +107,7 @@ type CdWorkflowRequest struct {
 	CloudProvider              blob_storage.BlobStorageType      `json:"cloudProvider"`
 	AzureBlobConfig            *blob_storage.AzureBlobConfig     `json:"azureBlobConfig"`
 	GcpBlobConfig              *blob_storage.GcpBlobConfig       `json:"gcpBlobConfig"`
+	BlobStorageLogsKey         string                            `json:"blobStorageLogsKey"`
 	DefaultAddressPoolBaseCidr string                            `json:"defaultAddressPoolBaseCidr"`
 	DefaultAddressPoolSize     int                               `json:"defaultAddressPoolSize"`
 	DeploymentTriggeredBy      string                            `json:"deploymentTriggeredBy,omitempty"`
@@ -142,6 +143,9 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	ciCdTriggerEvent := CiCdTriggerEvent{
 		CdRequest: workflowRequest,
 	}
+	//cloudStorageKey := impl.cdConfig.DefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowNamePrefix
+
+	ciCdTriggerEvent.CdRequest.BlobStorageLogsKey = impl.cdConfig.DefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowNamePrefix
 	workflowJson, err := json.Marshal(&ciCdTriggerEvent)
 	if err != nil {
 		impl.Logger.Errorw("err", err)
@@ -409,6 +413,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		Steps: steps,
 	})
 
+	containerEnvVariables = append(containerEnvVariables, []v12.EnvVar{{Name: "CI_CD_EVENT", Value: string(workflowJson)}}...)
 	cdTemplate := v1alpha1.Template{
 		Name: "cd",
 		Container: &v12.Container{
