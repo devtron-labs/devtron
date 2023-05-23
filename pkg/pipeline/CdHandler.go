@@ -740,8 +740,6 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 		if err != nil && err != pg.ErrNoRows {
 			impl.Logger.Errorw("err in fetching ci materials", "ciMaterials", ciMaterials, "err", err)
 			return cdWorkflowArtifact, err
-		} else if err == pg.ErrNoRows {
-			return cdWorkflowArtifact, nil
 		}
 
 		var ciMaterialsArr []pipelineConfig.CiPipelineMaterialResponse
