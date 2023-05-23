@@ -406,9 +406,10 @@ func (impl AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *a
 			if util.IsAcdApp(installAppVersionRequest.DeploymentAppType) {
 				_ = impl.appStoreDeploymentArgoCdService.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED, fmt.Sprintf("Git commit failed - %v", err), tx)
 			}
+			return nil, err
 		}
 		if util.IsAcdApp(installAppVersionRequest.DeploymentAppType) {
-			_ = impl.appStoreDeploymentArgoCdService.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_APP_HEALTHY, "Git commit done successfully.", tx)
+			_ = impl.appStoreDeploymentArgoCdService.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT, "Git commit done successfully.", tx)
 		}
 		installAppVersionRequest.GitHash = gitOpsResponse.GitHash
 	}
@@ -416,15 +417,15 @@ func (impl AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *a
 	if util2.IsBaseStack() || util2.IsHelmApp(installAppVersionRequest.AppOfferingMode) || util.IsHelmApp(installAppVersionRequest.DeploymentAppType) {
 		installAppVersionRequest, err = impl.appStoreDeploymentHelmService.InstallApp(installAppVersionRequest, nil, ctx, tx)
 	} else if util.IsAcdApp(installAppVersionRequest.DeploymentAppType) {
-		if gitOpsResponse == nil {
+		if gitOpsResponse == nil && gitOpsResponse.ChartGitAttribute != nil {
 			return nil, errors.New("service err, Error in git operations")
 		}
 		installAppVersionRequest, err = impl.appStoreDeploymentArgoCdService.InstallApp(installAppVersionRequest, gitOpsResponse.ChartGitAttribute, ctx, tx)
 	}
-	err = tx.Commit()
 	if err != nil {
 		return nil, err
 	}
+	err = tx.Commit()
 
 	err = impl.installAppPostDbOperation(installAppVersionRequest)
 	if err != nil {
@@ -432,7 +433,6 @@ func (impl AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *a
 	}
 
 	return installAppVersionRequest, nil
-
 }
 
 //func (impl AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error) {

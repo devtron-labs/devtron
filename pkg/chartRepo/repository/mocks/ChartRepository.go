@@ -127,6 +127,27 @@ func (_m *ChartRepository) FindChartByGitRepoUrl(gitRepoUrl string) (*chartRepoR
 	return r0, r1
 }
 
+// FindChartRefIdForLatestChartForAppByAppId provides a mock function with given fields: appId
+func (_m *ChartRepository) FindChartRefIdForLatestChartForAppByAppId(appId int) (int, error) {
+	ret := _m.Called(appId)
+
+	var r0 int
+	if rf, ok := ret.Get(0).(func(int) int); ok {
+		r0 = rf(appId)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(int) error); ok {
+		r1 = rf(appId)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // FindCurrentChartVersion provides a mock function with given fields: chartRepo, chartName, chartVersionPattern
 func (_m *ChartRepository) FindCurrentChartVersion(chartRepo string, chartName string, chartVersionPattern string) (string, error) {
 	ret := _m.Called(chartRepo, chartName, chartVersionPattern)
