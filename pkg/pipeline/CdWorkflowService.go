@@ -147,6 +147,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		workflowRequest.IsExtRun = true
 	}
 	ciCdTriggerEvent := CiCdTriggerEvent{
+		Type:      cdStage,
 		CdRequest: workflowRequest,
 	}
 	//cloudStorageKey := impl.cdConfig.DefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowNamePrefix
