@@ -435,7 +435,7 @@ package app
 //	return envOverride, nil
 //}
 //
-//func (impl *AppManifestServiceImpl) getAppMetricsByTriggerType(overrideRequest *bean.ValuesOverrideRequest, envId int, ctx context.Context) (bool, error) {
+//func (impl *AppManifestServiceImpl) GetAppMetricsByTriggerType(overrideRequest *bean.ValuesOverrideRequest, envId int, ctx context.Context) (bool, error) {
 //
 //	var appMetrics bool
 //	if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER {
@@ -822,7 +822,7 @@ package app
 //		impl.logger.Errorw("error in getting env override by trigger type", "err", err)
 //		return valuesOverrideResponse, err
 //	}
-//	appMetrics, err := impl.getAppMetricsByTriggerType(overrideRequest, pipeline.EnvironmentId, ctx)
+//	appMetrics, err := impl.GetAppMetricsByTriggerType(overrideRequest, pipeline.EnvironmentId, ctx)
 //	if err != nil {
 //		impl.logger.Errorw("error in getting app metrics by trigger type", "err", err)
 //		return valuesOverrideResponse, err

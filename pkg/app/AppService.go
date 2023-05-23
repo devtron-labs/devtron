@@ -182,6 +182,7 @@ type AppService interface {
 	GetGitOpsRepoPrefix() string
 	GetValuesOverrideForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*ValuesOverrideResponse, error)
 	GetEnvOverrideByTriggerType(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*chartConfig.EnvConfigOverride, error)
+	GetAppMetricsByTriggerType(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (bool, error)
 	CreateGitopsRepo(app *app.App, userId int32) (gitopsRepoName string, chartGitAttr *ChartGitAttribute, err error)
 	GetLatestDeployedManifestByPipelineId(appId int, envId int, ctx context.Context) ([]byte, error)
 	GetDeployedManifestByPipelineIdAndCDWorkflowId(appId int, envId int, cdWorkflowId int, ctx context.Context) ([]byte, error)
@@ -1122,7 +1123,7 @@ func (impl *AppServiceImpl) getDbMigrationOverride(overrideRequest *bean.ValuesO
 	return confByte, nil
 }
 
-func (impl *AppServiceImpl) getAppMetricsByTriggerType(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (bool, error) {
+func (impl *AppServiceImpl) GetAppMetricsByTriggerType(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (bool, error) {
 
 	var appMetrics bool
 	if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER {
@@ -1343,7 +1344,7 @@ func (impl *AppServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.Va
 		impl.logger.Errorw("error in getting env override by trigger type", "err", err)
 		return valuesOverrideResponse, err
 	}
-	appMetrics, err := impl.getAppMetricsByTriggerType(overrideRequest, ctx)
+	appMetrics, err := impl.GetAppMetricsByTriggerType(overrideRequest, ctx)
 	if err != nil {
 		impl.logger.Errorw("error in getting app metrics by trigger type", "err", err)
 		return valuesOverrideResponse, err
