@@ -40,12 +40,13 @@ type ModuleRepository interface {
 	FindAll() ([]Module, error)
 	ModuleExists() (bool, error)
 	GetInstalledModuleNames() ([]string, error)
-	FindByModuleType(moduleType string) error
-	MarkModuleAsEnabled(moduleName string, tx *pg.Tx) error
+	FindByModuleTypeAndStatus(moduleType string, status string) error
+	MarkModuleAsEnabledWithTransaction(moduleName string, tx *pg.Tx) error
 	GetConnection() (dbConnection *pg.DB)
 	MarkOtherModulesDisabled(moduleName, moduleType string, tx *pg.Tx) error
 	UpdateWithTransaction(module *Module, tx *pg.Tx) error
 	SaveWithTransaction(module *Module, tx *pg.Tx) error
+	MarkModuleAsEnabled(moduleName string) error
 }
 
 type ModuleRepositoryImpl struct {
@@ -117,17 +118,23 @@ func (impl ModuleRepositoryImpl) GetInstalledModuleNames() ([]string, error) {
 	return moduleNames, nil
 }
 
-func (impl ModuleRepositoryImpl) FindByModuleType(moduleType string) error {
+func (impl ModuleRepositoryImpl) FindByModuleTypeAndStatus(moduleType string, status string) error {
 	module := &Module{}
 	err := impl.dbConnection.Model(module).
 		Where("module_type = ?", moduleType).
+		Where("status = ?", status).
 		Select()
 	return err
 }
 
-func (impl ModuleRepositoryImpl) MarkModuleAsEnabled(moduleName string, tx *pg.Tx) error {
+func (impl ModuleRepositoryImpl) MarkModuleAsEnabledWithTransaction(moduleName string, tx *pg.Tx) error {
 	module := &Module{}
 	_, err := tx.Model(module).Set("enabled = ?", true).Where("name = ?", moduleName).Update()
+	return err
+}
+func (impl ModuleRepositoryImpl) MarkModuleAsEnabled(moduleName string) error {
+	module := &Module{}
+	_, err := impl.dbConnection.Model(module).Set("enabled = ?", true).Where("name = ?", moduleName).Update()
 	return err
 }
 

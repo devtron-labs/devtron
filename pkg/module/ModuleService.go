@@ -175,15 +175,29 @@ func (impl ModuleServiceImpl) handleModuleNotFoundStatus(moduleName string) (Mod
 	baseMinVersionSupported := gjson.Get(moduleMetaDataStr, "result.baseMinVersionSupported").String()
 	moduleType := gjson.Get(moduleMetaDataStr, "result.moduleType").String()
 
+	flagForEnablingState := false
+	if len(moduleType) == 0 {
+		flagForEnablingState = true
+	} else {
+		err = impl.moduleRepository.FindByModuleTypeAndStatus(moduleType, ModuleStatusInstalled)
+		if err != nil {
+			if err == pg.ErrNoRows {
+				flagForEnablingState = true
+			} else {
+				impl.logger.Errorw("error in getting module by type", "moduleName", moduleName, "err", err)
+				return ModuleStatusNotInstalled, moduleType, err
+			}
+		}
+	}
+
 	// for enterprise user
 	if impl.serverEnvConfig.DevtronInstallationType == serverBean.DevtronInstallationTypeEnterprise {
 		if isLegacyModule {
-			status, err := impl.saveModuleAsInstalled(moduleName, moduleType)
+			status, err := impl.saveModuleAsInstalled(moduleName, moduleType, flagForEnablingState)
 			return status, moduleType, err
 		}
 		return ModuleStatusNotInstalled, moduleType, nil
 	}
-
 	// for non-enterprise user
 	devtronHelmAppIdentifier := impl.helmAppService.GetDevtronHelmAppIdentifier()
 	releaseInfo, err := impl.helmAppService.GetValuesYaml(context.Background(), devtronHelmAppIdentifier)
@@ -197,7 +211,7 @@ func (impl ModuleServiceImpl) handleModuleNotFoundStatus(moduleName string) (Mod
 	if moduleName != ModuleNameCicd {
 		isEnabled := gjson.Get(releaseValues, moduleUtil.BuildModuleEnableKey(moduleName)).Bool()
 		if isEnabled {
-			status, err := impl.saveModuleAsInstalled(moduleName, moduleType)
+			status, err := impl.saveModuleAsInstalled(moduleName, moduleType, flagForEnablingState)
 			return status, moduleType, err
 		}
 	} else if util2.IsBaseStack() {
@@ -210,7 +224,7 @@ func (impl ModuleServiceImpl) handleModuleNotFoundStatus(moduleName string) (Mod
 				installerModules := installerModulesIface.([]interface{})
 				for _, installerModule := range installerModules {
 					if installerModule == moduleName {
-						status, err := impl.saveModule(moduleName, ModuleStatusInstalling, moduleType)
+						status, err := impl.saveModule(moduleName, ModuleStatusInstalling, moduleType, flagForEnablingState)
 						return status, moduleType, err
 					}
 				}
@@ -236,7 +250,7 @@ func (impl ModuleServiceImpl) handleModuleNotFoundStatus(moduleName string) (Mod
 				cicdVersion := cicdModule.Version
 				// if cicd was installed and any module/integration comes after that then mark that module installed only if cicd was installed before that module introduction
 				if len(baseMinVersionSupported) > 0 && cicdVersion < baseMinVersionSupported {
-					status, err := impl.saveModuleAsInstalled(moduleName, moduleType)
+					status, err := impl.saveModuleAsInstalled(moduleName, moduleType, flagForEnablingState)
 					return status, moduleType, err
 				}
 				break
@@ -313,25 +327,29 @@ func (impl ModuleServiceImpl) HandleModuleAction(userId int32, moduleName string
 	res := strings.Split(moduleName, ".")
 	toolName := strings.ToUpper(res[1])
 	flagForEnablingState := false
-	// Finding the Module by type, if no module exists of current type marking current module as active and enabled by default.
-	err = impl.moduleRepository.FindByModuleType(moduleActionRequest.ModuleType)
-	if err != nil {
-		if err == pg.ErrNoRows {
-			var toolversion string
-			if moduleName == ModuleNameSecurityClair {
-				toolversion = CLAIR_V4
-			} else if moduleName == ModuleNameSecurityTrivy {
-				toolversion = TRIVY_V1
-			}
-			err2 := impl.scanToolMetaDataRepository.MarkToolAsActive(toolName, toolversion, tx)
-			if err2 != nil {
-				impl.logger.Errorw("error in marking tool as active ", "err", err)
+	if len(moduleActionRequest.ModuleType) == 0 {
+		flagForEnablingState = true
+	} else {
+		// Finding the Module by type and status, if no module exists of current type marking current module as active and enabled by default.
+		err = impl.moduleRepository.FindByModuleTypeAndStatus(moduleActionRequest.ModuleType, ModuleStatusInstalled)
+		if err != nil {
+			if err == pg.ErrNoRows {
+				var toolversion string
+				if moduleName == ModuleNameSecurityClair {
+					toolversion = CLAIR_V4
+				} else if moduleName == ModuleNameSecurityTrivy {
+					toolversion = TRIVY_V1
+				}
+				err2 := impl.scanToolMetaDataRepository.MarkToolAsActive(toolName, toolversion, tx)
+				if err2 != nil {
+					impl.logger.Errorw("error in marking tool as active ", "err", err)
+					return nil, err
+				}
+				flagForEnablingState = true
+			} else {
+				impl.logger.Errorw("error in getting module by type", "moduleName", moduleName, "err", err)
 				return nil, err
 			}
-			flagForEnablingState = true
-		} else {
-			impl.logger.Errorw("error in getting module by type", "moduleName", moduleName, "err", err)
-			return nil, err
 		}
 	}
 	module.ModuleType = moduleActionRequest.ModuleType
@@ -390,23 +408,13 @@ func (impl ModuleServiceImpl) HandleModuleAction(userId int32, moduleName string
 		impl.moduleRepository.Update(module)
 		return nil, errors.New("success is false from helm")
 	}
-	tx1, err := impl.moduleRepository.GetConnection().Begin()
-	if err != nil {
-		impl.logger.Errorw("error in opening a transaction", "err", err)
-		return nil, err
-	}
-	defer tx1.Rollback()
 	// HELM_OPERATION Ends
-	if len(moduleActionRequest.ModuleType) == 0 || flagForEnablingState {
-		err = impl.moduleRepository.MarkModuleAsEnabled(moduleName, tx1)
+	if flagForEnablingState {
+		err = impl.moduleRepository.MarkModuleAsEnabled(moduleName)
 		if err != nil {
 			impl.logger.Errorw("error in updating module as active ", "moduleName", moduleName, "err", err)
 			return nil, err
 		}
-	}
-	err = tx1.Commit()
-	if err != nil {
-		return nil, err
 	}
 	return &ActionResponse{
 		Success: true,
@@ -431,7 +439,7 @@ func (impl ModuleServiceImpl) EnableModule(moduleName, version string) (*ActionR
 	defer tx.Rollback()
 	res := strings.Split(moduleName, ".")
 	toolName := strings.ToUpper(res[1])
-	err = impl.moduleRepository.MarkModuleAsEnabled(moduleName, tx)
+	err = impl.moduleRepository.MarkModuleAsEnabledWithTransaction(moduleName, tx)
 	if err != nil {
 		impl.logger.Errorw("error in updating module as active ", "moduleName", moduleName, "err", err)
 		return nil, err
@@ -460,17 +468,18 @@ func (impl ModuleServiceImpl) EnableModule(moduleName, version string) (*ActionR
 	}, nil
 }
 
-func (impl ModuleServiceImpl) saveModuleAsInstalled(moduleName string, moduleType string) (ModuleStatus, error) {
-	return impl.saveModule(moduleName, ModuleStatusInstalled, moduleType)
+func (impl ModuleServiceImpl) saveModuleAsInstalled(moduleName string, moduleType string, moduleEnabled bool) (ModuleStatus, error) {
+	return impl.saveModule(moduleName, ModuleStatusInstalled, moduleType, moduleEnabled)
 }
 
-func (impl ModuleServiceImpl) saveModule(moduleName string, moduleStatus ModuleStatus, moduleType string) (ModuleStatus, error) {
+func (impl ModuleServiceImpl) saveModule(moduleName string, moduleStatus ModuleStatus, moduleType string, moduleEnabled bool) (ModuleStatus, error) {
 	module := &moduleRepo.Module{
 		Name:       moduleName,
 		Version:    impl.serverDataStore.CurrentVersion,
 		Status:     moduleStatus,
 		UpdatedOn:  time.Now(),
 		ModuleType: moduleType,
+		Enabled:    moduleEnabled,
 	}
 	err := impl.moduleRepository.Save(module)
 	if err != nil {
