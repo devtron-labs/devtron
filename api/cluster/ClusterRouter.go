@@ -92,7 +92,7 @@ func (impl ClusterRouterImpl) InitClusterRouter(clusterRouter *mux.Router) {
 
 	clusterRouter.Path("/virtual").
 		Methods("DELETE").
-		HandlerFunc(impl.clusterRestHandler.DeleteCluster)
+		HandlerFunc(impl.clusterRestHandler.DeleteVirtualCluster)
 
 	clusterRouter.Path("/auth-list").
 		Methods("GET").
