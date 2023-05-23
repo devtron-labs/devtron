@@ -67,7 +67,7 @@ spec:
         - command:
           - /bin/sh
           - -c
-          - chown -R devtron:devtron /git-base
+          - chown -R devtron:devtron /git-base && chmod 777 /git-base
           image: "quay.io/devtron/git-sensor:0ed0198c-200-13796"
           imagePullPolicy: IfNotPresent
           name: chown-git-base
