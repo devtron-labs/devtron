@@ -1032,6 +1032,10 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 		clusterObj := kubeConfigObject.Clusters[clusterName]
 		userInfoObj := kubeConfigObject.AuthInfos[userName]
 
+		if clusterObj == nil {
+			continue
+		}
+
 		if clusterName != "" {
 			clusterBeanObject.ClusterName = clusterName
 		} else {
