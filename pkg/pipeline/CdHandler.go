@@ -723,8 +723,10 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 			ciArtifactIds = append(ciArtifactIds, cdWfA.CiArtifactId)
 		}
 		ciWfs, err := impl.ciWorkflowRepository.FindAllLastTriggeredWorkflowByArtifactId(ciArtifactIds)
-		if err != nil {
+		if err != nil && err != pg.ErrNoRows {
 			impl.Logger.Errorw("error in fetching ci wfs", "artifactIds", ciArtifactIds, "err", err)
+			return cdWorkflowArtifact, err
+		} else if err == pg.ErrNoRows {
 			return cdWorkflowArtifact, nil
 		}
 
@@ -735,9 +737,11 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 			wfGitTriggers[ciWf.Id] = ciWf.GitTriggers
 		}
 		ciMaterials, err := impl.ciPipelineMaterialRepository.GetByPipelineIdForRegexAndFixed(ciPipelineId)
-		if err != nil {
+		if err != nil && err != pg.ErrNoRows {
 			impl.Logger.Errorw("err in fetching ci materials", "ciMaterials", ciMaterials, "err", err)
-			ciMaterials = []*pipelineConfig.CiPipelineMaterial{}
+			return cdWorkflowArtifact, err
+		} else if err == pg.ErrNoRows {
+			return cdWorkflowArtifact, nil
 		}
 
 		var ciMaterialsArr []pipelineConfig.CiPipelineMaterialResponse
