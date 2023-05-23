@@ -1077,7 +1077,7 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 				missingFieldsStr += CertData + " "
 			}
 			if len(missingFieldsStr) > 0 {
-				clusterBeanObject.ErrorInConnecting = fmt.Sprintf("InsecureSkipTLSVerify is false but the data required corresponding to it is missing from the kubeconfig. Missing fields: %s", missingFieldsStr)
+				clusterBeanObject.ErrorInConnecting = fmt.Sprintf("Missing fields: %s", missingFieldsStr)
 			} else {
 				Config[TlsKey] = string(userInfoObj.ClientKeyData)
 				Config[CertData] = string(userInfoObj.ClientCertificateData)
