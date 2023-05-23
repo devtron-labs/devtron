@@ -70,7 +70,7 @@ func (handler *RbacRoleRestHandlerImpl) GetAllDefaultRoles(w http.ResponseWriter
 			}
 		}
 		if !isAuthorized {
-			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusUnauthorized)
+			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
 	}
