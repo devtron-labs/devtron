@@ -2392,7 +2392,7 @@ func (impl PipelineBuilderImpl) TriggerDeploymentAfterTypeChange(ctx context.Con
 
 	for _, pipeline := range pipelines {
 
-		artifactDetails, err := impl.RetrieveArtifactsByCDPipeline(pipeline, "DEPLOY")
+		artifactDetails, err := impl.RetrieveArtifactsByCDPipeline(pipeline, "DEPLOY", false)
 
 		if err != nil {
 			impl.logger.Errorw("failed to fetch artifact details for cd pipeline",
