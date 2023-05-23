@@ -1,3 +1,5 @@
+## v0.6.16
+
 ## Bugs
 - fix: Clicking on commit info shows incorrect data (#3371)
 - fix: Build context disable (#3405)
@@ -57,3 +59,5 @@
 - Custom app grouping  (#3295)
 - chore: added workflow for notification on discord forum ENV_NAME changes (#3301)
 - chore: added workflow for notification on discord forum (#3300)
+
+
