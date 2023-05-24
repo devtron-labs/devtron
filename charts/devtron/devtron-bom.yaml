@@ -9,7 +9,7 @@ global:
     runAsNonRoot: true
 
 installer:
-  release: "v0.6.15"
+  release: "v0.6.16"
   image: "quay.io/devtron/inception"
   tag: "44b30917-185-13275"
   
@@ -48,10 +48,10 @@ components:
     envVars:
       devtron:
         GIT_BRANCH: "main"
-        GIT_HASH: "d8f2a5dc1179afeb125f51b3d0c4a5c799dfe5c9"
+        GIT_HASH: "bc35eb7ecb5b604f4fc55cc1fa21f6fbbd59a180"
       casbin:
         GIT_BRANCH: "main"
-        GIT_HASH: "d8f2a5dc1179afeb125f51b3d0c4a5c799dfe5c9"
+        GIT_HASH: "bc35eb7ecb5b604f4fc55cc1fa21f6fbbd59a180"
         
 argo-cd:
   global:
