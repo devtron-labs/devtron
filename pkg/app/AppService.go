@@ -1794,11 +1794,6 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 
 	if triggerEvent.GetManifestInResponse {
 		//get stream and directly redirect the stram to response
-		manifest, err = impl.GetHelmManifestInByte(valuesOverrideResponse.MergedValues, builtChartPath)
-		if err != nil {
-			impl.logger.Errorw("error in converting manifest to bytes", "err", err)
-			return releaseNo, manifest, err
-		}
 		timeline := &pipelineConfig.PipelineStatusTimeline{
 			CdWorkflowRunnerId: overrideRequest.WfrId,
 			Status:             "HELM_PACKAGE_GENERATED",
