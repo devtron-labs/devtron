@@ -716,18 +716,18 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 }
 
 type RotatePodRequest struct {
-	ClusterId int
-	Resources []application.ResourceIdentifier
+	ClusterId int                              `json:"clusterId"`
+	Resources []application.ResourceIdentifier `json:"resources"`
 }
 
 type RotatePodResponse struct {
-	Responses     []*RotatePodResourceResponse
-	ContainsError bool
+	Responses     []*RotatePodResourceResponse `json:"responses"`
+	ContainsError bool                         `json:"containsError"`
 }
 
 type RotatePodResourceResponse struct {
 	application.ResourceIdentifier
-	ErrorResponse string
+	ErrorResponse string `json:"errorResponse"`
 }
 
 func (impl *K8sApplicationServiceImpl) RotatePods(ctx context.Context, request *RotatePodRequest) (*RotatePodResponse, error) {

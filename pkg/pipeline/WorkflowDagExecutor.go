@@ -1281,16 +1281,6 @@ type PodRotateRequest struct {
 	ResourceIdentifiers []application.ResourceIdentifier `json:"resources" validate:"required"`
 }
 
-//type PodRotateResponse struct {
-//	Responses     []*PodRotateResourceResponse
-//	ContainsError bool
-//}
-//
-//type PodRotateResourceResponse struct {
-//	application.ResourceIdentifier
-//	ErrorResponse string
-//}
-
 func (impl *WorkflowDagExecutorImpl) RotatePods(ctx context.Context, podRotateRequest *PodRotateRequest) (*k8s.RotatePodResponse, error) {
 	//extract cluster id and namespace from env id
 	environmentId := podRotateRequest.EnvironmentId
