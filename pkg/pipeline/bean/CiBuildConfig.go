@@ -69,6 +69,7 @@ func ConvertBuildConfigBeanToDbEntity(templateId int, overrideTemplateId int, ci
 		CiTemplateOverrideId: overrideTemplateId,
 		BuildMetadata:        buildMetadata,
 		AuditLog:             sql.AuditLog{UpdatedOn: time.Now(), UpdatedBy: userId},
+		UseRootBuildContext:  ciBuildConfigBean.UseRootBuildContext,
 	}
 	return ciBuildConfigEntity, nil
 }
