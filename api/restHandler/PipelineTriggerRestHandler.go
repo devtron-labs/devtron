@@ -146,8 +146,8 @@ func (handler PipelineTriggerRestHandlerImpl) RotatePods(w http.ResponseWriter, 
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var podRotateRequest *pipeline.PodRotateRequest
-	err = decoder.Decode(podRotateRequest)
+	var podRotateRequest pipeline.PodRotateRequest
+	err = decoder.Decode(&podRotateRequest)
 	if err != nil {
 		handler.logger.Errorw("request err, RotatePods", "err", err, "payload", podRotateRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -172,7 +172,7 @@ func (handler PipelineTriggerRestHandlerImpl) RotatePods(w http.ResponseWriter, 
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	err = handler.workflowDagExecutor.RotatePods(r.Context(), podRotateRequest)
+	err = handler.workflowDagExecutor.RotatePods(r.Context(), &podRotateRequest)
 	if err != nil {
 		handler.logger.Errorw("service err, RotatePods", "err", err, "payload", podRotateRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

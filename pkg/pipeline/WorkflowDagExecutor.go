@@ -1277,7 +1277,7 @@ type StopDeploymentGroupRequest struct {
 type PodRotateRequest struct {
 	AppId              int                            `json:"appId" validate:"required"`
 	EnvironmentId      int                            `json:"environmentId" validate:"required"`
-	UserId             int32                          `json:"userId" validate:"required"`
+	UserId             int32                          `json:"userId"`
 	ResourceIdentifier application.ResourceIdentifier `json:"resource" validate:"required"`
 }
 

@@ -25,6 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 	"strconv"
 	"strings"
@@ -738,9 +739,16 @@ func (impl *K8sApplicationServiceImpl) RotatePods(ctx context.Context, request *
 		impl.logger.Errorw("error in getting rest config by cluster", "clusterId", clusterId, "err", err)
 		return err
 	}
-	data := fmt.Sprintf(`{"spec": {"template": {"metadata": {"annotations": {"devtron.ai/restartedAt": "%s"}}}}}`, time.Now().Format(time.RFC3339))
-	// make sure to add annotation to pod template as well in case of Argo rollout otherwise it would not initiate rotation
-	_, err = impl.k8sClientService.ApplyResource(ctx, restConfig, k8sRequest, data)
+	activitySnapshot := time.Now().Format(time.RFC3339)
+	data := fmt.Sprintf(`{"metadata": {"annotations": {"devtron.ai/restartedAt": "%s"}},"spec": {"template": {"metadata": {"annotations": {"devtron.ai/activity": "%s"}}}}}`, activitySnapshot, activitySnapshot)
+	var patchType types.PatchType
+	if resourceKind != util.K8sClusterResourceRolloutKind {
+		patchType = types.StrategicMergePatchType
+	} else {
+		// rollout does not support strategic merge type
+		patchType = types.MergePatchType
+	}
+	_, err = impl.k8sClientService.PatchResource(ctx, restConfig, patchType, k8sRequest, data)
 	return err
 }
 
