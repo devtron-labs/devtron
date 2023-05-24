@@ -62,3 +62,5 @@ build-all: build
 
 build-ea:
 	make --directory ./cmd/external-app build
+
+
