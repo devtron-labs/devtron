@@ -1,0 +1,17 @@
+data:
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: config-autoscaler
+      namespace: knative-serving
+    data:
+      enable-scale-to-zero: "false"
+kn:
+  service:
+    name: service-name
+    image: abc/p2pcore-dev
+    image_tag: exec
+    pullPolicy: Always
+    annotations:
+      autoscaling.knative.dev/target: "1000"
+      autoscaling.knative.dev/targetUtilizationPercentage: "70"

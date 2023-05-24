@@ -1,0 +1,152 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Helm Chart Repo Validation
+servers:
+  - url: http://localhost:3000/orchestrator/app-store
+paths:
+  /repo/validate:
+    post:
+      description: Validate helm repo by checking index file
+      operationId: ChartRepoValidate
+      requestBody:
+        description: A JSON object containing the chart repo configuration
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChartRepoDto'
+      responses:
+        '200':
+          description: Successfully return the validation results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '400':
+          description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /repo/create:
+    post:
+      description: Validate chart repo config and save if successfully validated
+      operationId: ValidateAndCreateChartRepo
+      requestBody:
+        description: A JSON object containing the chart repo configuration
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref:  '#/components/schemas/ChartRepoDto'
+      responses:
+        '200':
+          description: Successfully return validation results and if validation is correct then save the configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '400':
+          description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /repo/update:
+    post:
+      description: Validate configuration and update them if validation is successful
+      operationId: ValidateAndUpdateChartRepo
+      requestBody:
+        description: A JSON object containing the chart repo configuration
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChartRepoDto'
+      responses:
+        '200':
+          description: Successfully return validation results and if validation is correct then update the configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '400':
+          description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    ChartRepoDto:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        url:
+          type: string
+        userName:
+          type: string
+        password:
+          type: string
+        sshKey:
+          type: string
+        accessToken:
+          type: string
+        active:
+          type: boolean
+        default:
+          type: boolean
+        userId:
+          type: integer
+    Error:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message

@@ -1,0 +1,30 @@
+{{- range  $topping := .Values.server.deployment }}
+ {{- if $.Values.autoscaling.enabled }}
+     {{if $topping.enabled }} 
+---
+apiVersion: autoscaling/v2beta1
+kind: HorizontalPodAutoscaler
+metadata:
+ name: {{ template ".Chart.Name .fullname" $ }}-{{ $topping.slot }}-hpa
+ namespace: {{ $.Values.NameSpace }}
+spec:
+ scaleTargetRef:
+   apiVersion: extensions/v1beta1
+   kind: Deployment
+   name: {{ include ".Chart.Name .fullname" $ }}-{{ $topping.slot }}
+ minReplicas: {{ $.Values.autoscaling.MinReplicas  }}
+ maxReplicas: {{ $.Values.autoscaling.MaxReplicas }}
+{{/* targetCPUUtilizationPercentage: {{ $.Values.autoscaling.TargetCPUUtilizationPercentage}} */}}
+ metrics:
+   - type: Resource
+     resource:
+       name: cpu
+       targetAverageUtilization: {{ $.Values.autoscaling.TargetCPUUtilizationPercentage }}
+   - type: Resource
+     resource:
+       name: memory
+       targetAverageUtilization: {{ $.Values.autoscaling.TargetMemoryUtilizationPercentage }}
+---
+   {{- end }}
+ {{- end }}
+{{- end }}

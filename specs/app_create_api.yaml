@@ -1,0 +1,728 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Create App Api
+paths:
+  /orchestrator/core/v1beta1/application/{appId}:
+    get:
+      description: Get all details of an app by appId. These details include - metadata(appName, projectNamr, labels), gitMaterials, docker config, templates, workflows, configMaps, secrets, environment override configurations.
+      operationId: GetAppAllDetail
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully return all details of the app.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppDetail'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/core/v1beta1/application/workflow/{appId}:
+    get:
+      description: fetch all the workflows and env overrides for an app.
+      operationId: GetAppWorkflowsAndOverrides
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully return all details of the app.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppWorkflowDto'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/core/v1beta1/application/workflow/{appId}/sample:
+    get:
+      description:  get sample workflow and env overrides config of any app id for creating new workflow.
+      operationId: GetAppWorkflowsAndOverridesSample
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully return all details of the app.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppWorkflowDto'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/core/v1beta1/application:
+    post:
+      description: Creates a new app for the configurations provided. The input json object is the same we get in response of GET method for fetching all details of an app
+      operationId: CreateApp
+      requestBody:
+        description: A JSON object containing the app configuration
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppDetail'
+      responses:
+        '200':
+          description: Successfully return a message stating the operation is successful.
+          content:
+            application/json:
+              schema:
+                type: string
+        '400':
+          description: Bad Request. Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/core/v1beta1/application/workflow:
+    post:
+      description: Creates a new app for the configurations provided. The input json object is the same we get in response of GET method for fetching all details of an app
+      operationId: CreateAppWorkflow
+      requestBody:
+        description: A JSON object containing the app configuration
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppWorkflowDto'
+      responses:
+        '200':
+          description: Successfully return a message stating the operation is successful.
+          content:
+            application/json:
+              schema:
+                type: string
+        '400':
+          description: Bad Request. Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    AppDetail:
+      type: object
+      properties:
+        metadata:
+          $ref : '#/components/schemas/AppMetadata'
+        gitMaterials:
+          type: array
+          items:
+            $ref: '#/components/schemas/GitMaterial'
+        dockerConfig:
+          $ref: '#/components/schemas/DockerConfig'
+        globalDeploymentTemplate:
+          $ref: '#/components/schemas/DeploymentTemplate'
+        appWorkflows:
+          type: array
+          items:
+            $ref: '#/components/schemas/AppWorkflow'
+        globalConfigMaps:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConfigMap'
+        globalSecrets:
+          type: array
+          items:
+            $ref: '#/components/schemas/Secret'
+        environmentOverrides:
+          type: array
+          items:
+            type: object
+            properties:
+              Name:
+                type: string
+                description: Name of environment
+              Values:
+                $ref: '#/components/schemas/EnvironmentOverride'
+      example:
+        appMetadata:
+          appName: example-app-2
+          projectName: devtron-demo
+          labels: ["key1":"value1", "key2":"value2"]
+        gitMaterials:
+          - gitProviderUrl: "https://github.com"
+            gitRepoUrl: "https://github.com/user1/example-repo"
+            checkoutPath: "./"
+            fetchSubmodules: true
+          - gitProviderUrl: "https://gitlab.com"
+            gitRepoUrl: "https://gitlab.com/user2/new-repo"
+            checkoutPath: "./a"
+            fetchSubmodules: false
+        dockerConfig:
+          dockerRegistry: "my-dockerhub"
+          dockerRepository: "user/test"
+          dockerBuildConfig:
+            gitCheckoutPath: "./a"
+            dockerfileRelativePath: "Dockerfile"
+            args: ["File":"*"]
+        globalDeploymentTemplate:
+          chartRefId: 13
+          showAppMetrics: true
+          isOverride: false
+          template:
+            ContainerPort:
+              envoyPort: 8799
+              idleTimeout: 1800s
+              name: app
+              port: 8080
+              servicePort: 80
+              supportStreaming: true
+              useHTTP2: true
+            EnvVariables: []
+            GracePeriod: 30
+            LivenessProbe:
+              Path: ""
+              command: []
+              failureThreshold: 3
+              httpHeader:
+                name: ""
+                value: ""
+              initialDelaySeconds: 20
+              periodSeconds: 10
+              port: 8080
+              scheme: ""
+              successThreshold: 1
+              tcp: false
+              timeoutSeconds: 5
+        appWorkflows:
+          - name: "workflow-1"
+            ciPipeline:
+              name: "ci-pipeline-1"
+              isManual: true
+              vulnerabilityScanEnabled: false
+              isExternal: fale
+              ciPipelineMaterialsConfig:
+                - type: "SOURCE_TYPE_BRANCH_FIXED"
+                  value: "master"
+                  checkoutPath: "./"
+                - type: "SOURCE_TYPE_BRANCH_FIXED"
+                  value: "main"
+                  checkoutPath: "./a"
+              dockerBuildArgs: ["File":"*"]
+            cdPipelines:
+              - name: "cd-pipeline-1"
+                environmentName: "devtron-demo"
+                triggerType: "AUTOMATIC"
+                deploymentStrategies:
+                  - name: "BLUE-GREEN"
+                    config:
+                      deployment:
+                        strategy:
+                          blueGreen:
+                            autoPromotionSeconds: 30
+                            "scaleDownDelaySeconds": 30
+                            "previewReplicaCount": 1
+                            "autoPromotionEnabled": false
+                    isDefault: false
+                  - name: "ROLLING"
+                    config:
+                      deployment:
+                        strategy:
+                          blueGreen:
+                            autoPromotionSeconds: 30
+                            "maxSurge": "25%"
+                            "maxUnavailable": 1
+                    isDefault: true
+                preStage:
+                  name: "cd-1-pre"
+                  triggerType: "MANUAL"
+                  config: "version: 0.0.1\ncdPipelineConf:\n- beforeStages:\n- name: test-1\n script: |\n date > test.report\necho 'hello'\noutputLocation: ./test.report\n - name: test-2\nscript: |\n date > test2.report\n outputLocation: ./test2.report;"
+                postStage:
+                  name: "cd-1-post"
+                  triggerType: "AUTO"
+                  config: "version: 0.0.1\ncdPipelineConf:\n- afterStages:\n- name: test-1\n script: |\n date > test.report\necho 'hello'\noutputLocation: ./test.report\n - name: test-2\nscript: |\n date > test2.report\n outputLocation: ./test2.report;"
+                preStageConfigMapSecretNames:
+                  - configMaps: ["cm-1"]
+                  - secrets: ["secret-env-1"]
+                postStageConfigMapSecretNames:
+                  - configMaps: ["cm-env-1"]
+                  - secrets: ["secret-1"]
+                runPreStageInEnv: true
+                runPostStageInEnv: true
+                isClusterCdActive: true
+        globalConfigMaps:
+          - name: "cm-1"
+            isExternal: false
+            usageType: "volume"
+            data: ["abc":"xyz"]
+            dataVolumeUsageConfig:
+              mountPath: "/cm"
+              filePermission: "600"
+              subPath: true
+        globalSecrets:
+          - name: "secret-1"
+            isExternal: false
+            usageType: "environment"
+            data: ["user1":"password1"]
+        environmentOverrides:
+          - name: "devtron-demo"
+            values:
+              deploymentTemplate:
+                chartRefId: 13
+                showAppMetrics: false
+                isOverride: true
+                template:
+                  ContainerPort:
+                    envoyPort: 8799
+                    idleTimeout: 1800s
+                    name: app
+                    port: 8080
+                    servicePort: 80
+                    supportStreaming: true
+                    useHTTP2: true
+                  EnvVariables: []
+                  GracePeriod: 35
+                  LivenessProbe:
+                    Path: ""
+                    command: []
+                    failureThreshold: 4
+                    httpHeader:
+                      name: ""
+                      value: ""
+                    initialDelaySeconds: 21
+                    periodSeconds: 11
+                    port: 8080
+                    scheme: ""
+                    successThreshold: 1
+                    tcp: false
+                    timeoutSeconds: 10
+              configMaps:
+                - name: "cm-env-1"
+                  isExternal: false
+                  usageType: "environment"
+                  data: ["userName":"new-user"]
+              secrets:
+                - name: "secret-env-1"
+                  isExternal: false
+                  usageType: "volume"
+                  data: ["new-user":"devtron123"]
+                  dataVolumeUsageConfig:
+                    mountPath: "/secret"
+                    filePermission: "400"
+                    subPath: false
+    AppMetadata:
+      type: object
+      properties:
+        appName:
+          type: string
+        projectName:
+          type: string
+        labels:
+          type: array
+          items:
+            $ref: '#/components/schemas/AppLabel'
+    AppLabel:
+      type: object
+      properties:
+        Key:
+          type: string
+        Value:
+          type: string
+        propagate:
+          type: boolean
+          description: Whether to propagate to kubernetes resources
+    GitMaterial:
+      type: object
+      properties:
+        gitProviderUrl:
+          type: string
+        gitRepoUrl:
+          type: string
+        checkoutPath:
+          type: string
+        fetchSubmodules:
+          type: boolean
+    DockerConfig:
+      type: object
+      properties:
+        dockerRegistry:
+          type: string
+        dockerRepository:
+          type: string
+        dockerBuildConfig:
+          $ref: '#/components/schemas/DockerBuildConfig'
+    DockerBuildConfig:
+      type: object
+      properties:
+        gitCheckoutPath:
+          type: string
+        dockerfileRelativePath:
+          type: string
+        targetPlatform:
+          type: string
+        args:
+          type: array
+          items:
+            type: object
+            properties:
+              Key:
+                type: string
+              Value:
+                type: string
+          description: map of docker arguments, i.e. key-value pairs
+    DeploymentTemplate:
+      type: object
+      properties:
+        chartRefId:
+          type: integer
+        showAppMetrics:
+          type: boolean
+        isOverride:
+          type: boolean
+        template:
+          type: array
+          items:
+            type: object
+            properties:
+              Fields:
+                type: string
+              Values:
+                type: object
+                description: interface{}
+            description: map of template fields and values
+        isBasicViewLocked:
+          type: boolean
+        currentViewEditor:
+          type: string
+          enum:
+            - "BASIC"
+            - "ADVANCED"
+    AppWorkflow:
+      type: object
+      properties:
+        name:
+          type: string
+        ciPipeline:
+          $ref: '#/components/schemas/CiPipelineDetails'
+        cdPipelines:
+          type: array
+          items:
+            $ref: '#/components/schemas/CdPipelineDetails'
+    CiPipelineDetails:
+      type: object
+      properties:
+        name:
+          type: string
+        isManual:
+          type: boolean
+        vulnerabilityScanEnabled:
+          type: boolean
+        isExternal:
+          type: boolean
+        ciPipelineMaterialsConfig:
+          type: array
+          items:
+            $ref: '#/components/schemas/CiPipelineMaterialConfig'
+        dockerBuildArgs:
+          type: array
+          items:
+            type: object
+            properties:
+              Key:
+                type: string
+              Value:
+                type: string
+          description: map of docker arguments, i.e. key-value pairs
+        beforeDockerBuildScripts:
+          type: array
+          items:
+            $ref: '#/components/schemas/BuildScript'
+        afterDockerbuildScripts:
+          type: array
+          items:
+            $ref: '#/components/schemas/BuildScript'
+    CiPipelineMaterialConfig:
+      type: object
+      properties:
+        type:
+          type: string
+        value:
+          type: string
+        checkoutPath:
+          type: string
+    BuildScript:
+      type: object
+      properties:
+        index:
+          type: integer
+        name:
+          type: string
+        script:
+          type: string
+        reportDirectoryPath:
+          type: string
+    CdPipelineDetails:
+      type: object
+      properties:
+        name:
+          type: string
+        environmentName:
+          type: string
+        triggerType:
+          type: string
+        deploymentAppType:
+          type: string
+          oneOf:
+            - 'argo_cd'
+            - 'helm'
+        deploymentType:
+          type: string
+        deploymentStrategies:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeploymentStrategy'
+        preStage:
+          $ref: '#/components/schemas/CdStage'
+        postStage:
+          $ref: '#/components/schemas/CdStage'
+        preStageConfigMapSecretNames:
+          $ref: '#/components/schemas/CdStageConfigMapSecretNames'
+        postStageConfigMapSecretNames:
+          $ref: '#/components/schemas/CdStageConfigMapSecretNames'
+        runPreStageInEnv:
+          type: boolean
+        runPostStageInEnv:
+          type: boolean
+        isClusterCdActive:
+          type: boolean
+    DeploymentStrategy:
+      type: object
+      properties:
+        deploymentType:
+          type: string
+        isDefault:
+          type: boolean
+        config:
+          type: array
+          items:
+            type: object
+            properties:
+              Key:
+                type: string
+              Values:
+                type: object
+                description: interface{}
+    CdStage:
+      type: object
+      properties:
+        name:
+          type: string
+        triggerType:
+          type: string
+        config:
+          type: string
+    CdStageConfigMapSecretNames:
+      type: object
+      properties:
+        configMaps:
+          type: array
+          items:
+            properties:
+              ConfigMap:
+                type: string
+        secrets:
+          type: array
+          items:
+            properties:
+              Secret:
+                type: string
+    ConfigMap:
+      type: object
+      properties:
+        name:
+          type: string
+        isExtetrnal:
+          type: boolean
+        usageType:
+          type: string
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              Key:
+                type: string
+              Values:
+                type: object
+                description: interface{}
+        dataVolumeUsageConfig:
+          $ref: '#/components/schemas/ConfigMapSecretDataVolumeUsageConfig'
+    Secret:
+      type: object
+      properties:
+        name:
+          type: string
+        isExternal:
+          type: boolean
+        externalType:
+          type: string
+        roleArn:
+          type: string
+        usageType:
+          type: string
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              Key:
+                type: string
+              Values:
+                type: object
+                description: interface{}
+        dataVolumeUsageConfig:
+          $ref: '#/components/schemas/ConfigMapSecretDataVolumeUsageConfig'
+        externalSecretData:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExternalSecret'
+    ConfigMapSecretDataVolumeUsageConfig:
+      type: object
+      properties:
+        mountPath:
+          type: string
+        subPath:
+          type: boolean
+        filePermission:
+          type: string
+    ExternalSecret:
+      type: object
+      properties:
+        key:
+          type: string
+        name:
+          type: string
+        property:
+          type: string
+        isBinary:
+          type: boolean
+    EnvironmentOverride:
+      type: object
+      properties:
+        deploymentTemplate:
+          $ref: '#/components/schemas/DeploymentTemplate'
+        configMaps:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConfigMap'
+        secrets:
+          type: array
+          items:
+            $ref: '#/components/schemas/Secret'
+    Error:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message
+
+    AppWorkflowDto:
+      type: object
+      properties:
+        appId:
+          type: integer
+        appName:
+          type: string
+        workflows:
+          type: array
+          items:
+            $ref: '#/components/schemas/AppWorkflow'
+        environmentOverrides:
+          type: array
+          items:
+            type: object
+            properties:
+              Name:
+                type: string
+                description: Name of environment
+              Values:
+                $ref: '#/components/schemas/EnvironmentOverride'

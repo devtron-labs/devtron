@@ -1,0 +1,113 @@
+{{/* {{- range  .Values.server.deployment := .Values.server.deployment }}
+  {{if .Values.server.deployment.enabled }} */}}
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: {{ include ".Chart.Name .fullname" $ }}
+  labels:
+    app: {{ template ".Chart.Name .name" $ }}
+    chart: {{ template ".Chart.Name .chart" $ }}
+    release: {{ $.Release.Name }}
+    releaseVersion: {{ $.Values.releaseVersion | quote }}
+    pipelineName: {{ .Values.pipelineName }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ template ".Chart.Name .name" $ }}
+      release: {{ $.Release.Name }}
+  replicas: {{ $.Values.replicaCount }}
+  minReadySeconds: {{ $.Values.MinReadySeconds }}
+  template:
+    metadata:
+      labels:
+        app: {{ template ".Chart.Name .name" $ }}
+        release: {{ $.Release.Name }}
+    spec:
+      terminationGracePeriodSeconds: {{ $.Values.GracePeriod }}
+      restartPolicy: Always
+{{- if $.Values.Spec.Affinity.Key }}
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: {{ $.Values.Spec.Affinity.Key  }}
+                operator: In
+                values:
+                - {{ $.Values.Spec.Affinity.Values | default "nodes"  }}
+{{- end }}
+      containers:
+        - name: {{ $.Chart.Name }}
+          image: "{{ .Values.server.deployment.image }}:{{ .Values.server.deployment.image_tag }}"
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+{{- if $.Values.privileged }}
+          securityContext:
+            privileged: true
+{{- end}}
+          ports:
+          {{- range $.Values.ContainerPort }}
+            - name: {{ .name}}
+              containerPort: {{ .port  }}
+              protocol: TCP
+          {{- end}}
+{{- if $.Values.args.enabled }}
+          args: {{ $.Values.args.value }}
+{{- end}}
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          {{- range $.Values.EnvVariables }}
+            - name: {{ .name}}
+              value: {{ .value | quote }}
+          {{- end}}
+{{- if $.Values.LivenessProbe.Path }}
+          livenessProbe:
+            httpGet:
+              path: {{ $.Values.LivenessProbe.Path  }}
+              port: {{ $.Values.LivenessProbe.port }}
+            initialDelaySeconds: {{ $.Values.LivenessProbe.initialDelaySeconds  }}
+            periodSeconds: {{ $.Values.LivenessProbe.periodSeconds  }}
+            successThreshold: {{ $.Values.LivenessProbe.successThreshold  }}
+            timeoutSeconds: {{ $.Values.LivenessProbe.timeoutSeconds  }}
+            failureThreshold: {{ $.Values.LivenessProbe.failureThreshold  }}
+{{- end }}
+{{- if $.Values.ReadinessProbe.Path }}
+          readinessProbe:
+            httpGet:
+              path: {{ $.Values.ReadinessProbe.Path  }}
+              port: {{ $.Values.ReadinessProbe.port }}
+            initialDelaySeconds: {{ $.Values.ReadinessProbe.initialDelaySeconds  }}
+            periodSeconds: {{ $.Values.ReadinessProbe.periodSeconds  }}
+            successThreshold: {{ $.Values.ReadinessProbe.successThreshold  }}
+            timeoutSeconds: {{ $.Values.ReadinessProbe.timeoutSeconds  }}
+            failureThreshold: {{ $.Values.ReadinessProbe.failureThreshold  }}
+{{- end }}
+          resources:
+{{ toYaml $.Values.resources | indent 12 }}
+        {{- with $.Values.volumeMounts }}
+          volumeMounts:
+{{ toYaml . | indent 10 }}
+    {{- end }}
+    {{- with $.Values.volumes }}
+      volumes:
+{{ toYaml . | indent 10 }}
+    {{- end }}
+  revisionHistoryLimit: 3
+##  pauseForSecondsBeforeSwitchActive: {{ $.Values.pauseForSecondsBeforeSwitchActive }}
+#  waitForSecondsBeforeScalingDown: {{ $.Values.waitForSecondsBeforeScalingDown }}
+  strategy:
+    {{- if eq .Values.deploymentType "BLUE-GREEN" }}
+    blueGreen: # A new field that used to provide configurable options for a BlueGreenUpdate strategy
+      previewService: {{ template ".Chart.Name .fullname" . }}-preview-service # Reference to a service that can serve traffic to a new image before it receives the active traffic
+      activeService: {{ template ".Chart.Name .fullname" . }}-service # Reference to a service that serves end-user traffic to the replica set
+      autoPromotionSeconds: {{ $.Values.deployment.strategy.blueGreen.autoPromotionSeconds  }}
+      scaleDownDelaySeconds: {{ $.Values.deployment.strategy.blueGreen.scaleDownDelaySeconds }}
+      previewReplicaCount: {{ $.Values.deployment.strategy.blueGreen.previewReplicaCount  }}
+      autoPromotionEnabled: {{ $.Values.deployment.strategy.blueGreen.autoPromotionEnabled  }}
+    {{- else if eq .Values.deploymentType "ROLLING" }}
+    canary:
+      maxSurge: {{ $.Values.deployment.strategy.rolling.maxSurge }}
+      maxUnavailable: {{ $.Values.deployment.strategy.rolling.maxUnavailable }}
+    {{- end }}

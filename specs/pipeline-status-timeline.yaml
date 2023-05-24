@@ -1,0 +1,77 @@
+openapi: "3.0.0"
+info:
+  title: Pipeline deployment status timeline
+  version: "1.0"
+paths:
+  /orchestrator/app/deployment-status/timeline/{appId}/{envId}:
+    get:
+      description: get all timelines of a delpoyment trigger
+      operationId: GetPipelineStatusTimelines
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: envId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: wfrId
+          in: path
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully return deployment timeline status of a pipeline
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PipelineStatusTimelineDto'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    PipelineStatusTimelineDto:
+      type: object
+      properties:
+        id:
+          type: integer
+        status:
+          type: string
+        status_detail:
+          type: integer
+        status_time:
+          type: timestampz
+    Error:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        message:
+          type: string
+          description: Error message

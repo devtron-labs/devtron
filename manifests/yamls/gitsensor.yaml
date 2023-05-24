@@ -1,0 +1,127 @@
+# Source: gitsensor/templates/generic.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: git-sensor-secret
+  labels:
+    app: git-sensor
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: git-sensor-cm
+  labels:
+    app: git-sensor
+data:
+  PG_ADDR: postgresql-postgresql.devtroncd
+  PG_USER: postgres
+  COMMIT_STATS_TIMEOUT_IN_SEC: "2"
+  ENABLE_FILE_STATS: "false"
+---
+# Source: gitsensor/templates/generic.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: git-sensor-service
+  labels:
+    app: git-sensor
+    release: devtron
+spec:
+  ports:
+    - name: sensor
+      port: 80
+      protocol: TCP
+      targetPort: 8080
+    - name: grpc
+      port: 90
+      protocol: TCP
+      targetPort: 8081
+  selector:
+    app: git-sensor
+---
+# Source: gitsensor/templates/generic.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: git-sensor
+  labels:
+    release: devtron
+    app: git-sensor
+spec:
+  selector:
+    matchLabels:
+      app: git-sensor # has to match .spec.template.metadata.labels
+  serviceName: git-sensor
+  replicas: 1 # by default is 1
+  template:
+    metadata:
+      labels:
+        app: git-sensor
+    spec:
+      terminationGracePeriodSeconds: 10
+      securityContext:
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsUser: 1000
+      initContainers:
+        - command:
+          - /bin/sh
+          - -c
+          - mkdir -p /git-base/ssh-keys && chown -R devtron:devtron /git-base && chmod 777 /git-base/ssh-keys
+          image: "quay.io/devtron/git-sensor:0ed0198c-200-13796"
+          imagePullPolicy: IfNotPresent
+          name: chown-git-base
+          resources: {}
+          securityContext:
+            runAsUser: 0
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /git-base/
+            name: git-volume
+      containers:
+        - name: git-sensor
+          image: "quay.io/devtron/git-sensor:0ed0198c-200-13796"
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsUser: 1000
+            runAsNonRoot: true
+          ports:
+            - containerPort: 8080
+              name: sensor
+            - containerPort: 8081
+              name: grpc
+          volumeMounts:
+            - name: git-volume
+              mountPath: /git-base/
+          envFrom:
+          - secretRef:
+              name: git-sensor-secret
+          - configMapRef: 
+              name: git-sensor-cm
+  volumeClaimTemplates:
+    - metadata:
+        name: git-volume
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 2Gi
+---
+# Source: gitsensor/templates/servicemonitor.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: git-sensor-sm
+  labels:
+    chart: gitsensor-0.11.0
+    app: git-sensor
+    kind: Prometheus
+    release: devtron
+spec:
+  endpoints:
+    - port: app
+      path: /metrics
+  selector:
+    matchLabels:
+      app: git-sensor

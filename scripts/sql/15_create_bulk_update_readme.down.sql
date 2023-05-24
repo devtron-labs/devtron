@@ -1,0 +1,1 @@
+DROP TABLE "public"."bulk_update_readme" CASCADE;

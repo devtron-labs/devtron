@@ -1,0 +1,649 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Delete Option support for various components
+paths:
+  /orchestrator/cluster/delete:
+    post:
+      description: Delete Cluster
+      operationId: DeleteFromDb
+      requestBody:
+        description: A JSON object containing the cluster config
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClusterBean'
+      responses:
+        '200':
+          description: Successfully delete the cluster
+          content:
+            application/json:
+              schema:
+                type: string
+                example: "Cluster deleted successfully."
+        '400':
+          description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/env/delete:
+    post:
+      description: Delete Environment
+      operationId: Delete
+      requestBody:
+        description: A JSON object containing the env config
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnvironmentBean'
+      responses:
+        '200':
+          description: Successfully delete the environment
+          content:
+            application/json:
+              schema:
+                type: string
+                example: "Environment deleted successfully."
+        '400':
+          description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/team/delete:
+    post:
+      description: Delete Project
+      operationId: DeleteTeam
+      requestBody:
+        description: A JSON object containing the project config
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeamRequest'
+      responses:
+        '200':
+          description: Successfully delete the project
+          content:
+            application/json:
+              schema:
+                type: string
+                example: "Project deleted successfully."
+        '400':
+          description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/git/provider/delete:
+    post:
+      description: Delete Git Provider
+      operationId: DeleteGitRepoConfig
+      requestBody:
+        description: A JSON object containing the provider config
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GitRegistry'
+      responses:
+        '200':
+          description: Successfully delete the git provider
+          content:
+            application/json:
+              schema:
+                type: string
+                example: "Git Account deleted successfully."
+        '400':
+          description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/docker/registry/delete:
+    post:
+      description: Delete Docker Registry
+      operationId: DeleteDockerRegistryConfig
+      requestBody:
+        description: A JSON object containing the registry config
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DockerArtifactStoreBean'
+      responses:
+        '200':
+          description: Successfully delete the registry
+          content:
+            application/json:
+              schema:
+                type: string
+                example: "Container Registry deleted successfully."
+        '400':
+          description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/app-store/repo/delete:
+    post:
+      description: Delete Chart Repo
+      operationId: DeleteChartRepo
+      requestBody:
+        description: A JSON object containing the registry config
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChartRepoDto'
+      responses:
+        '200':
+          description: Successfully delete the chart repo
+          content:
+            application/json:
+              schema:
+                type: string
+                example: "Chart repo deleted successfully."
+        '400':
+          description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/app/material/delete:
+    post:
+      description: Delete Git Material
+      operationId: DeleteMaterial
+      requestBody:
+        description: A JSON object containing the material config
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMaterialDTO'
+      responses:
+        '200':
+          description: Successfully delete the git material
+          content:
+            application/json:
+              schema:
+                type: string
+                example: "Git material deleted successfully."
+        '400':
+          description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/chart-group/delete:
+    post:
+      description: Delete Chart Group
+      operationId: DeleteChartgroup
+      requestBody:
+        description: A JSON object containing the chart group
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChartGroupBean'
+      responses:
+        '200':
+          description: Successfully delete the chart group
+          content:
+            application/json:
+              schema:
+                type: string
+                example: "Chart group deleted successfully."
+        '400':
+          description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/notification/channel/delete:
+    post:
+      description: Delete Notification Channel
+      operationId: DeleteNotificationChannelConfig
+      requestBody:
+        description: A JSON object containing the channel config
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/ChannelDto'
+                - $ref: '#/components/schemas/SlackConfigDto'
+                - $ref: '#/components/schemas/SESConfigDto'
+      responses:
+        '200':
+          description: Successfully delete the channel
+          content:
+            application/json:
+              schema:
+                type: string
+                example: "Slack config deleted successfully."
+        '400':
+          description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    ClusterBean:
+      type: object
+      properties:
+        id:
+          type: integer
+        cluster_name:
+          type: string
+        server_url:
+          type: string
+        prometheus_url:
+          type: string
+        active:
+          type: boolean
+        config:
+          type: object
+          properties:
+            stage:
+              type: string
+            error:
+              type: string
+        k8sversion:
+          type: string
+        prometheusAuth:
+          $ref: '#/components/schemas/PrometheusAuth'
+        defaultClusterComponent:
+          type: array
+          items:
+            $ref: '#/components/schemas/DefaultClusterComponent'
+    EnvironmentBean:
+      type: object
+      properties:
+        id:
+          type: integer
+        cluster_name:
+          type: string
+        cluster_id:
+          type: integer
+        environment_name:
+          type: string
+        active:
+          type: boolean
+        default:
+          type: boolean
+        prometheus_endpoint:
+          $ref: '#/components/schemas/PrometheusAuth'
+        namespace:
+          type: string
+        isClusterCdActive:
+          type: boolean
+    TeamRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        active:
+          type: boolean
+    GitRegistry:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        url:
+          type: string
+        userName:
+          type: string
+        password:
+          type: string
+        sshPrivateKey:
+          type: string
+        accessToken:
+          type: string
+        authMode:
+          type: string
+        active:
+          type: boolean
+        gitHostId:
+          type: integer
+    DockerArtifactStoreBean:
+      type: object
+      properties:
+        id:
+          type: integer
+        pluginId:
+          type: string
+        registryUrl:
+          type: string
+        registryType:
+          type: string
+        awsAccessKeyId:
+          type: string
+        awsSecretAccessKey:
+          type: string
+        awsRegion:
+          type: string
+        username:
+          type: string
+        password:
+          type: string
+        isDefault:
+          type: boolean
+        active:
+          type: boolean
+        connection:
+          type: string
+        cert:
+          type: string
+    ChartRepoDto:
+      type: object
+      properties:
+        id:
+          type: integer
+        url:
+          type: string
+        name:
+          type: string
+        accessToken:
+          type: string
+        sshKey:
+          type: string
+        userName:
+          type: string
+        password:
+          type: string
+        default:
+          type: boolean
+        active:
+          type: boolean
+        authMode:
+          type: string
+    UpdateMaterialDTO:
+      type: object
+      properties:
+        appId:
+          type: integer
+        material:
+          $ref: '#/components/schemas/GitMaterial'
+    ChartGroupBean:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        id:
+          type: integer
+        chartGroupEntries:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChartGroupEntryBean'
+        installedChartData:
+          type: array
+          items:
+            $ref: '#/components/schemas/InstalledChartData'
+    ChartGroupEntryBean:
+      type: object
+      properties:
+        id:
+          type: integer
+        appStoreValuesVersionId:
+          type: integer
+        appStoreApplicationVersionId:
+          type: integer
+        appStoreValuesVersionName:
+          type: string
+        appStoreValuesChartVersion:
+          type: string
+        referenceType:
+          type: string
+        chartMetaData:
+          $ref: '#/components/schemas/ChartMetaData'
+    ChartMetaData:
+      type: object
+      properties:
+        appStoreId:
+          type: integer
+        environmentId:
+          type: integer
+        isChartRepoActive:
+          type: boolean
+        chartName:
+          type: string
+        chartRepoName:
+          type: string
+        icon:
+          type: string
+        environmentName:
+          type: string
+        appStoreApplicationVersion:
+          type: string
+    InstalledChartData:
+      type: object
+      properties:
+        installationTime:
+          type: string
+          description: time type
+        installedCharts:
+          $ref: '#/components/schemas/InstalledChart'
+    InstalledChart:
+      type: string
+      properties:
+        installedAppId:
+          type: integer
+    ChannelDto:
+      type: object
+      properties:
+        channel:
+          type: string
+          description: type of channel, i.e. slack or SES
+    SlackConfigDto:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        teamId:
+          type: integer
+        webhookUrl:
+          type: string
+        configName:
+          type: string
+        description:
+          type: string
+    SESConfigDto:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        teamId:
+          type: integer
+        region:
+          type: string
+        accessKey:
+          type: string
+        secretKey:
+          type: string
+        fromEmail:
+          type: string
+        toEmail:
+          type: string
+        sessionToken:
+          type: string
+        configName:
+          type: string
+        description:
+          type: string
+        default:
+          type: boolean
+    PrometheusAuth:
+      type: object
+      properties:
+        userName:
+          type: string
+        password:
+          type: string
+        tlsClientCert:
+          type: string
+        tlsClientKey:
+          type: string
+    DefaultClusterComponent:
+        type: object
+        properties:
+          name:
+            type: string
+          appId:
+            type: integer
+          installedAppId:
+            type: integer
+          envId:
+            type: integer
+          envname:
+            type: string
+          status:
+            type: string
+    GitMaterial:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        url:
+          type: string
+        gitProviderId:
+          type: integer
+        checkoutPath:
+          type: string
+        fetchSubmodules:
+          type: boolean
+    Error:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message

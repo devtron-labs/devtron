@@ -1,0 +1,1 @@
+ALTER TABLE "public"."environment" DROP COLUMN "environment_identifier";
