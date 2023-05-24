@@ -1,1 +1,0 @@
-DROP TABLE "public"."attributes" CASCADE;

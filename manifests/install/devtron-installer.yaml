@@ -1,7 +1,0 @@
-apiVersion: installer.devtron.ai/v1alpha1
-kind: Installer
-metadata:
-  name: installer-devtron
-  namespace: devtroncd
-spec:
-  url: https://raw.githubusercontent.com/devtron-labs/devtron/v0.6.16/manifests/installation-script

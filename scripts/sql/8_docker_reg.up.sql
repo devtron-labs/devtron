@@ -1,1 +1,0 @@
-ALTER TABLE docker_artifact_store ALTER COLUMN  registry_url DROP NOT NULL;
