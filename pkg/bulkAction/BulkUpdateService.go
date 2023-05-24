@@ -1518,7 +1518,7 @@ func (impl BulkUpdateServiceImpl) PerformBulkActionOnCdPipelines(dto *CdBulkActi
 		deleteAction := bean2.CASCADE_DELETE
 		if dto.ForceDelete {
 			deleteAction = bean2.FORCE_DELETE
-		} else if dto.CascadeDelete {
+		} else if !dto.CascadeDelete {
 			deleteAction = bean2.NON_CASCADE_DELETE
 		}
 		bulkDeleteResp, err := impl.PerformBulkDeleteActionOnCdPipelines(impactedPipelines, ctx, dryRun, deleteAction, dto.DeleteWfAndCiPipeline, impactedAppWfIds, impactedCiPipelineIds, dto.UserId)
