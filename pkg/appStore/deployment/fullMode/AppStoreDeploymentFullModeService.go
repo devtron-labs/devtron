@@ -84,7 +84,7 @@ type AppStoreDeploymentFullModeServiceImpl struct {
 	argoUserService                      argo.ArgoUserService
 	gitOpsConfigRepository               repository3.GitOpsConfigRepository
 	pipelineStatusTimelineService        status.PipelineStatusTimelineService
-	appStoreDeploymenCommonService       appStoreDeploymentCommon.AppStoreDeploymentCommonService
+	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
 }
 
 func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
@@ -99,6 +99,7 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 	installedAppRepository repository4.InstalledAppRepository, tokenCache *util2.TokenCache,
 	argoUserService argo.ArgoUserService, gitOpsConfigRepository repository3.GitOpsConfigRepository,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
+	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
 ) *AppStoreDeploymentFullModeServiceImpl {
 	return &AppStoreDeploymentFullModeServiceImpl{
 		logger:                               logger,
@@ -117,6 +118,7 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 		argoUserService:                      argoUserService,
 		gitOpsConfigRepository:               gitOpsConfigRepository,
 		pipelineStatusTimelineService:        pipelineStatusTimelineService,
+		appStoreDeploymentCommonService:      appStoreDeploymentCommonService,
 	}
 }
 
@@ -391,18 +393,18 @@ func (impl AppStoreDeploymentFullModeServiceImpl) GetGitOpsRepoName(appName stri
 
 func (impl AppStoreDeploymentFullModeServiceImpl) UpdateValuesYaml(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error) {
 
-	valuesString, err := impl.appStoreDeploymenCommonService.GetValuesString(installAppVersionRequest.AppStoreName, installAppVersionRequest.ValuesOverrideYaml)
+	valuesString, err := impl.appStoreDeploymentCommonService.GetValuesString(installAppVersionRequest.AppStoreName, installAppVersionRequest.ValuesOverrideYaml)
 	if err != nil {
 		impl.logger.Errorw("error in getting values string", "err", err)
 		return nil, err
 	}
 
-	valuesGitConfig, err := impl.appStoreDeploymenCommonService.GetGitCommitConfig(installAppVersionRequest, valuesString, appStoreBean.VALUES_YAML_FILE)
+	valuesGitConfig, err := impl.appStoreDeploymentCommonService.GetGitCommitConfig(installAppVersionRequest, valuesString, appStoreBean.VALUES_YAML_FILE)
 	if err != nil {
 		impl.logger.Errorw("error in getting git commit config", "err", err)
 	}
 
-	commitHash, err := impl.appStoreDeploymenCommonService.CommitConfigToGit(valuesGitConfig)
+	commitHash, err := impl.appStoreDeploymentCommonService.CommitConfigToGit(valuesGitConfig)
 	if err != nil {
 		impl.logger.Errorw("error in values commit", "err", err)
 	}
@@ -454,19 +456,19 @@ func (impl AppStoreDeploymentFullModeServiceImpl) UpdateValuesYaml(installAppVer
 
 func (impl AppStoreDeploymentFullModeServiceImpl) UpdateRequirementYaml(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error {
 
-	requirementsString, err := impl.appStoreDeploymenCommonService.GetValuesString(installAppVersionRequest.AppStoreName, installAppVersionRequest.ValuesOverrideYaml)
+	requirementsString, err := impl.appStoreDeploymentCommonService.GetRequirementsString(appStoreAppVersion.Id)
 	if err != nil {
 		impl.logger.Errorw("error in getting requirements string", "err", err)
 		return err
 	}
 
-	requirementsGitConfig, err := impl.appStoreDeploymenCommonService.GetGitCommitConfig(installAppVersionRequest, requirementsString, appStoreBean.REQUIREMENTS_YAML_FILE)
+	requirementsGitConfig, err := impl.appStoreDeploymentCommonService.GetGitCommitConfig(installAppVersionRequest, requirementsString, appStoreBean.REQUIREMENTS_YAML_FILE)
 	if err != nil {
 		impl.logger.Errorw("error in getting git commit config", "err", err)
 		return err
 	}
 
-	_, err = impl.appStoreDeploymenCommonService.CommitConfigToGit(requirementsGitConfig)
+	_, err = impl.appStoreDeploymentCommonService.CommitConfigToGit(requirementsGitConfig)
 	if err != nil {
 		impl.logger.Errorw("error in values commit", "err", err)
 		return err
