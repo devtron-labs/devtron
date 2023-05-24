@@ -472,7 +472,7 @@ package app
 //	return appMetrics, nil
 //}
 //
-//func (impl *AppManifestServiceImpl) getDeploymentStrategyByTriggerType(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (*chartConfig.PipelineStrategy, error) {
+//func (impl *AppManifestServiceImpl) GetDeploymentStrategyByTriggerType(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (*chartConfig.PipelineStrategy, error) {
 //
 //	strategy := &chartConfig.PipelineStrategy{}
 //	var err error
@@ -827,7 +827,7 @@ package app
 //		impl.logger.Errorw("error in getting app metrics by trigger type", "err", err)
 //		return valuesOverrideResponse, err
 //	}
-//	strategy, err := impl.getDeploymentStrategyByTriggerType(overrideRequest, ctx)
+//	strategy, err := impl.GetDeploymentStrategyByTriggerType(overrideRequest, ctx)
 //	if err != nil {
 //		impl.logger.Errorw("error in getting strategy by trigger type", "err", err)
 //		return valuesOverrideResponse, err
