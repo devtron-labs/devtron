@@ -1034,7 +1034,8 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 		userInfoObj := kubeConfigObject.AuthInfos[userName]
 
 		if clusterObj == nil {
-			continue
+			impl.logger.Errorw("user cluster mapping not done correctly", "context", kubeConfig)
+			return nil, errors1.New("user-cluster mapping not done correctly")
 		}
 
 		if clusterName != "" {
