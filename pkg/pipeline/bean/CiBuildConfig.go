@@ -69,7 +69,7 @@ func ConvertBuildConfigBeanToDbEntity(templateId int, overrideTemplateId int, ci
 		CiTemplateOverrideId: overrideTemplateId,
 		BuildMetadata:        buildMetadata,
 		AuditLog:             sql.AuditLog{UpdatedOn: time.Now(), UpdatedBy: userId},
-		UseRootBuildContext:  ciBuildConfigBean.UseRootBuildContext,
+		UseRootBuildContext:  &ciBuildConfigBean.UseRootBuildContext,
 	}
 	return ciBuildConfigEntity, nil
 }
@@ -93,12 +93,16 @@ func ConvertDbBuildConfigToBean(dbBuildConfig *pipelineConfig.CiBuildConfig) (*C
 			return nil, err
 		}
 	}
+	useRootBuildContext := false
+	if dbBuildConfig.UseRootBuildContext == nil || *dbBuildConfig.UseRootBuildContext {
+		useRootBuildContext = true
+	}
 	ciBuildConfigBean := &CiBuildConfigBean{
 		Id:                  dbBuildConfig.Id,
 		CiBuildType:         ciBuildType,
 		BuildPackConfig:     buildPackConfig,
 		DockerBuildConfig:   dockerBuildConfig,
-		UseRootBuildContext: dbBuildConfig.UseRootBuildContext,
+		UseRootBuildContext: useRootBuildContext,
 	}
 	return ciBuildConfigBean, nil
 }
