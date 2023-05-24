@@ -56,5 +56,6 @@ func (impl RepositoryServiceImpl) CreateRepository(repositoryRequest *Repository
 	if err != nil {
 		return nil, err
 	}
+	impl.logger.Errorw("failed to register on Argo", "err", err)
 	return res, nil
 }
