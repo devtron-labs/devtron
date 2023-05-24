@@ -1,1 +1,0 @@
-DROP TABLE "public"."global_cm_cs" CASCADE;

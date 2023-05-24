@@ -1,1 +1,0 @@
-ALTER TABLE environment DROP COLUMN description;
