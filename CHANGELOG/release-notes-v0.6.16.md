@@ -25,6 +25,7 @@
 - fix: Api optimization fixes (#3292)
 - fix: bulk cd trigger argo app unauthorized err (#3290)
 - fix: api optimize fixes (#3275)
+- fix: installAppVersionRequest id was being set at wrong place (#3411)
 ## Enhancements
 - feat: Change cd deployment type (#3332)
 - feat: added Statefulset reference chart (#3338)
