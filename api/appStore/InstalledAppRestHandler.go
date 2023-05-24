@@ -23,7 +23,6 @@ import (
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
-	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/cron"
@@ -212,7 +211,7 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 		return
 	}
 
-	appIdToAppMap := make(map[string]openapi.HelmApp)
+	appIdToAppMap := make(map[string]service.HelmAppDetails)
 
 	//the value of this map is array of strings because the GetHelmObjectByAppNameAndEnvId method may return "//" for error cases
 	//so different apps may contain same object, to handle that we are using (map[string] []string)
@@ -268,7 +267,7 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 		}
 	}
 
-	authorizedApps := make([]openapi.HelmApp, 0)
+	authorizedApps := make([]service.HelmAppDetails, 0)
 	for appId, _ := range authorizedAppIdSet {
 		authorizedApp := appIdToAppMap[appId]
 		authorizedApps = append(authorizedApps, authorizedApp)

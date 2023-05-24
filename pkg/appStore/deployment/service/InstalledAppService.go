@@ -78,7 +78,7 @@ const (
 )
 
 type InstalledAppService interface {
-	GetAll(filter *appStoreBean.AppStoreFilter) (openapi.AppList, error)
+	GetAll(filter *appStoreBean.AppStoreFilter) (AppListDetail, error)
 	DeployBulk(chartGroupInstallRequest *appStoreBean.ChartGroupInstallRequest) (*appStoreBean.ChartGroupInstallAppRes, error)
 	performDeployStage(appId int, installedAppVersionHistoryId int, userId int32) (*appStoreBean.InstallAppVersionDTO, error)
 	CheckAppExists(appNames []*appStoreBean.AppNames) ([]*appStoreBean.AppNames, error)
@@ -193,13 +193,63 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	return impl, nil
 }
 
-func (impl InstalledAppServiceImpl) GetAll(filter *appStoreBean.AppStoreFilter) (openapi.AppList, error) {
+type EnvironmentDetails struct {
+	EnvironmentName *string `json:"environmentName,omitempty"`
+	// id in which app is deployed
+	EnvironmentId *int32 `json:"environmentId,omitempty"`
+	// namespace corresponding to the environemnt
+	Namespace *string `json:"namespace,omitempty"`
+	// if given environemnt is marked as production or not, nullable
+	IsPrduction *bool `json:"isPrduction,omitempty"`
+	// cluster corresponding to the environemt where application is deployed
+	ClusterName *string `json:"clusterName,omitempty"`
+	// clusterId corresponding to the environemt where application is deployed
+	ClusterId *int32 `json:"clusterId,omitempty"`
+
+	IsVirtualEnvironment *bool `json:"isVirtualEnvironment"`
+}
+
+type HelmAppDetails struct {
+	// time when this application was last deployed/updated
+	LastDeployedAt *time.Time `json:"lastDeployedAt,omitempty"`
+	// name of the helm application/helm release name
+	AppName *string `json:"appName,omitempty"`
+	// unique identifier for app
+	AppId *string `json:"appId,omitempty"`
+	// name of the chart
+	ChartName *string `json:"chartName,omitempty"`
+	// url/location of the chart icon
+	ChartAvatar *string `json:"chartAvatar,omitempty"`
+	// unique identifier for the project, APP with no project will have id `0`
+	ProjectId *int32 `json:"projectId,omitempty"`
+	// chart version
+	ChartVersion      *string             `json:"chartVersion,omitempty"`
+	EnvironmentDetail *EnvironmentDetails `json:"environmentDetail,omitempty"`
+	AppStatus         *string             `json:"appStatus,omitempty"`
+}
+
+type AppListDetail struct {
+	// clusters to which result corresponds
+	ClusterIds *[]int32 `json:"clusterIds,omitempty"`
+	// application type inside the array
+	ApplicationType *string `json:"applicationType,omitempty"`
+	// if data fetch for that cluster produced error
+	Errored *bool `json:"errored,omitempty"`
+	// error msg if client failed to fetch
+	ErrorMsg *string `json:"errorMsg,omitempty"`
+	// all helm app list, EA+ devtronapp
+	HelmApps *[]HelmAppDetails `json:"helmApps,omitempty"`
+	// all helm app list, EA+ devtronapp
+	DevtronApps *[]openapi.DevtronApp `json:"devtronApps,omitempty"`
+}
+
+func (impl InstalledAppServiceImpl) GetAll(filter *appStoreBean.AppStoreFilter) (AppListDetail, error) {
 	applicationType := "DEVTRON-CHART-STORE"
 	var clusterIdsConverted []int32
 	for _, clusterId := range filter.ClusterIds {
 		clusterIdsConverted = append(clusterIdsConverted, int32(clusterId))
 	}
-	installedAppsResponse := openapi.AppList{
+	installedAppsResponse := AppListDetail{
 		ApplicationType: &applicationType,
 		ClusterIds:      &clusterIdsConverted,
 	}
@@ -210,7 +260,7 @@ func (impl InstalledAppServiceImpl) GetAll(filter *appStoreBean.AppStoreFilter) 
 		impl.logger.Error(err)
 		return installedAppsResponse, err
 	}
-	var helmAppsResponse []openapi.HelmApp
+	var helmAppsResponse []HelmAppDetails
 	for _, a := range installedApps {
 		appLocal := a // copied data from here because value is passed as reference
 		if appLocal.TeamId == 0 && appLocal.AppOfferingMode != util3.SERVER_MODE_HYPERION {
@@ -221,14 +271,15 @@ func (impl InstalledAppServiceImpl) GetAll(filter *appStoreBean.AppStoreFilter) 
 		projectId := int32(appLocal.TeamId)
 		envId := int32(appLocal.EnvironmentId)
 		clusterId := int32(appLocal.ClusterId)
-		environmentDetails := openapi.AppEnvironmentDetail{
-			EnvironmentName: &appLocal.EnvironmentName,
-			EnvironmentId:   &envId,
-			Namespace:       &appLocal.Namespace,
-			ClusterName:     &appLocal.ClusterName,
-			ClusterId:       &clusterId,
+		environmentDetails := EnvironmentDetails{
+			EnvironmentName:      &appLocal.EnvironmentName,
+			EnvironmentId:        &envId,
+			Namespace:            &appLocal.Namespace,
+			ClusterName:          &appLocal.ClusterName,
+			ClusterId:            &clusterId,
+			IsVirtualEnvironment: &appLocal.IsVirtualEnvironment,
 		}
-		helmAppResp := openapi.HelmApp{
+		helmAppResp := HelmAppDetails{
 			AppName:           &appLocal.AppName,
 			ChartName:         &appLocal.AppStoreApplicationName,
 			AppId:             &appId,
