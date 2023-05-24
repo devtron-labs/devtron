@@ -43,13 +43,14 @@ type JobContainerResponse struct {
 }
 
 type DeploymentGroupDTO struct {
-	Id             int             `json:"id"`
-	Name           string          `json:"name"`
-	AppCount       int             `json:"appCount"`
-	NoOfApps       string          `json:"noOfApps"`
-	EnvironmentId  int             `json:"environmentId"`
-	CiPipelineId   int             `json:"ciPipelineId"`
-	CiMaterialDTOs []CiMaterialDTO `json:"ciMaterialDTOs"`
+	Id                   int             `json:"id"`
+	Name                 string          `json:"name"`
+	AppCount             int             `json:"appCount"`
+	NoOfApps             string          `json:"noOfApps"`
+	EnvironmentId        int             `json:"environmentId"`
+	CiPipelineId         int             `json:"ciPipelineId"`
+	CiMaterialDTOs       []CiMaterialDTO `json:"ciMaterialDTOs"`
+	IsVirtualEnvironment bool            `json:"isVirtualEnvironment"`
 }
 
 type CiMaterialDTO struct {

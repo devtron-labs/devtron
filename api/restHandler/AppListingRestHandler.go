@@ -656,13 +656,14 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV1(w http.Respons
 			})
 		}
 		appContainerResponse.DeploymentGroupDTO = bean.DeploymentGroupDTO{
-			Id:             dg.Id,
-			Name:           dg.Name,
-			AppCount:       dg.AppCount,
-			NoOfApps:       dg.NoOfApps,
-			EnvironmentId:  dg.EnvironmentId,
-			CiPipelineId:   dg.CiPipelineId,
-			CiMaterialDTOs: ciMaterialDTOs,
+			Id:                   dg.Id,
+			Name:                 dg.Name,
+			AppCount:             dg.AppCount,
+			NoOfApps:             dg.NoOfApps,
+			EnvironmentId:        dg.EnvironmentId,
+			CiPipelineId:         dg.CiPipelineId,
+			CiMaterialDTOs:       ciMaterialDTOs,
+			IsVirtualEnvironment: dg.IsVirtualEnvironment,
 		}
 	}
 	t2 = time.Now()
@@ -794,13 +795,14 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV2(w http.Respons
 			})
 		}
 		appContainerResponse.DeploymentGroupDTO = bean.DeploymentGroupDTO{
-			Id:             dg.Id,
-			Name:           dg.Name,
-			AppCount:       dg.AppCount,
-			NoOfApps:       dg.NoOfApps,
-			EnvironmentId:  dg.EnvironmentId,
-			CiPipelineId:   dg.CiPipelineId,
-			CiMaterialDTOs: ciMaterialDTOs,
+			Id:                   dg.Id,
+			Name:                 dg.Name,
+			AppCount:             dg.AppCount,
+			NoOfApps:             dg.NoOfApps,
+			EnvironmentId:        dg.EnvironmentId,
+			CiPipelineId:         dg.CiPipelineId,
+			CiMaterialDTOs:       ciMaterialDTOs,
+			IsVirtualEnvironment: dg.IsVirtualEnvironment,
 		}
 	}
 	t2 = time.Now()
