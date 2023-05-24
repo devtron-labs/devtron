@@ -42,7 +42,6 @@ type CiTemplate struct {
 	Active                    bool     `sql:"active,notnull"`
 	GitMaterialId             int      `sql:"git_material_id"`
 	BuildContextGitMaterialId int      `sql:"build_context_git_material_id"`
-	UseRootBuildContext       bool     `sql:"use_root_build_context"`
 	DockerBuildOptions        string   `sql:"docker_build_options"` //json string format of map[string]string
 	CiBuildConfigId           int      `sql:"ci_build_config_id"`
 	//BuildContext              string   `sql:"build_context,notnull"`

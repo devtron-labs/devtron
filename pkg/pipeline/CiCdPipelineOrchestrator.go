@@ -322,8 +322,8 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 			//DockerfilePath:   createRequest.DockerConfigOverride.DockerBuildConfig.DockerfilePath,
 			GitMaterialId:             ciBuildConfigBean.GitMaterialId,
 			BuildContextGitMaterialId: ciBuildConfigBean.BuildContextGitMaterialId,
-			UseRootBuildContext:       ciBuildConfigBean.UseRootBuildContext,
-			Active:                    true,
+			//UseRootBuildContext:       ciBuildConfigBean.UseRootBuildContext,
+			Active: true,
 			AuditLog: sql.AuditLog{
 				CreatedOn: time.Now(),
 				CreatedBy: userId,
@@ -631,8 +631,8 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 				//DockerfilePath:   ciPipeline.DockerConfigOverride.DockerBuildConfig.DockerfilePath,
 				GitMaterialId:             ciPipeline.DockerConfigOverride.CiBuildConfig.GitMaterialId,
 				BuildContextGitMaterialId: ciPipeline.DockerConfigOverride.CiBuildConfig.BuildContextGitMaterialId,
-				UseRootBuildContext:       ciPipeline.DockerConfigOverride.CiBuildConfig.UseRootBuildContext,
-				Active:                    true,
+				//UseRootBuildContext:       ciPipeline.DockerConfigOverride.CiBuildConfig.UseRootBuildContext,
+				Active: true,
 				AuditLog: sql.AuditLog{
 					CreatedBy: createRequest.UserId,
 					CreatedOn: time.Now(),

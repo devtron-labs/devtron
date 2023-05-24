@@ -93,10 +93,11 @@ func ConvertDbBuildConfigToBean(dbBuildConfig *pipelineConfig.CiBuildConfig) (*C
 		}
 	}
 	ciBuildConfigBean := &CiBuildConfigBean{
-		Id:                dbBuildConfig.Id,
-		CiBuildType:       ciBuildType,
-		BuildPackConfig:   buildPackConfig,
-		DockerBuildConfig: dockerBuildConfig,
+		Id:                  dbBuildConfig.Id,
+		CiBuildType:         ciBuildType,
+		BuildPackConfig:     buildPackConfig,
+		DockerBuildConfig:   dockerBuildConfig,
+		UseRootBuildContext: dbBuildConfig.UseRootBuildContext,
 	}
 	return ciBuildConfigBean, nil
 }
@@ -143,6 +144,7 @@ func OverrideCiBuildConfig(dockerfilePath string, oldArgs string, ciLevelArgs st
 				DockerBuildOptions: dockerBuildOptionsMap,
 				BuildContext:       "",
 			},
+			UseRootBuildContext: true,
 		}
 	} else if ciBuildConfigBean.CiBuildType == SELF_DOCKERFILE_BUILD_TYPE || ciBuildConfigBean.CiBuildType == MANAGED_DOCKERFILE_BUILD_TYPE {
 		dockerBuildConfig := ciBuildConfigBean.DockerBuildConfig

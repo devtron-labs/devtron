@@ -399,7 +399,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	var dockerfilePath string
 	var dockerRepository string
 	var checkoutPath string
-	useRootBuildContext := true
+	//useRootBuildContext := true
 	var ciBuildConfigBean *bean2.CiBuildConfigBean
 	dockerRegistry := &repository3.DockerArtifactStore{}
 	if !pipeline.IsExternal && pipeline.IsDockerConfigOverridden {
@@ -413,13 +413,13 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		dockerfilePath = templateOverride.DockerfilePath
 		dockerRepository = templateOverride.DockerRepository
 		dockerRegistry = templateOverride.DockerRegistry
-		useRootBuildContext = templateOverride.UseRootBuildContext
+		//useRootBuildContext = templateOverride.UseRootBuildContext
 	} else {
 		checkoutPath = ciTemplate.GitMaterial.CheckoutPath
 		dockerfilePath = ciTemplate.DockerfilePath
 		dockerRegistry = ciTemplate.DockerRegistry
 		dockerRepository = ciTemplate.DockerRepository
-		useRootBuildContext = ciTemplate.UseRootBuildContext
+		//useRootBuildContext = ciTemplate.UseRootBuildContext
 		ciBuildConfigEntity := ciTemplate.CiBuildConfig
 		ciBuildConfigBean, err = bean2.ConvertDbBuildConfigToBean(ciBuildConfigEntity)
 		if ciBuildConfigBean != nil {
@@ -448,7 +448,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	if buildContextCheckoutPath == "" {
 		buildContextCheckoutPath = checkoutPath
 	}
-	if useRootBuildContext {
+	if ciBuildConfigBean.UseRootBuildContext {
 		//use root build context i.e '.'
 		buildContextCheckoutPath = "."
 	}
