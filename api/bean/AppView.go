@@ -118,6 +118,7 @@ type AppEnvironmentContainer struct {
 	TeamName                    string                    `json:"teamName"`
 	Description                 string                    `json:"description" validate:"max=40"`
 	TotalCount                  int                       `json:"-"`
+	IsVirtualEnvironment        bool                      `json:"isVirtualEnvironment"`
 }
 
 type DeploymentDetailContainer struct {
