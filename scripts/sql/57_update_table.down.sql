@@ -1,0 +1,1 @@
+ALTER TABLE "public"."installed_apps" DROP COLUMN "deployment_app_type";

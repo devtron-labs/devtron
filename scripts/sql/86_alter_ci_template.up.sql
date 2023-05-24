@@ -1,0 +1,1 @@
+ALTER TABLE ci_template ADD COLUMN docker_build_options text;
