@@ -1,1 +1,0 @@
-alter table installed_app_version_history drop column started_on, drop column finished_on;

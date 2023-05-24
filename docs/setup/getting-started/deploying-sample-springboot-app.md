@@ -1,2 +1,0 @@
-# Deploying sample springboot app
-

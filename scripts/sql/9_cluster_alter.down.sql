@@ -1,1 +1,0 @@
-ALTER TABLE "public"."cluster" DROP COLUMN "k8s_version";
