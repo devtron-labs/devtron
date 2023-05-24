@@ -73,7 +73,7 @@ type WorkflowDagExecutor interface {
 	TriggerBulkDeploymentAsync(requests []*BulkTriggerRequest, UserId int32) (interface{}, error)
 	StopStartApp(stopRequest *StopAppRequest, ctx context.Context) (int, error)
 	TriggerBulkHibernateAsync(request StopDeploymentGroupRequest, ctx context.Context) (interface{}, error)
-	RotatePods(ctx context.Context, podRotateRequest *PodRotateRequest) error
+	RotatePods(ctx context.Context, podRotateRequest *PodRotateRequest) (*k8s.RotatePodResponse, error)
 }
 
 type WorkflowDagExecutorImpl struct {
@@ -1275,30 +1275,45 @@ type StopDeploymentGroupRequest struct {
 }
 
 type PodRotateRequest struct {
-	AppId              int                            `json:"appId" validate:"required"`
-	EnvironmentId      int                            `json:"environmentId" validate:"required"`
-	UserId             int32                          `json:"userId"`
-	ResourceIdentifier application.ResourceIdentifier `json:"resource" validate:"required"`
+	AppId               int                              `json:"appId" validate:"required"`
+	EnvironmentId       int                              `json:"environmentId" validate:"required"`
+	UserId              int32                            `json:"-"`
+	ResourceIdentifiers []application.ResourceIdentifier `json:"resources" validate:"required"`
 }
 
-func (impl *WorkflowDagExecutorImpl) RotatePods(ctx context.Context, podRotateRequest *PodRotateRequest) error {
+//type PodRotateResponse struct {
+//	Responses     []*PodRotateResourceResponse
+//	ContainsError bool
+//}
+//
+//type PodRotateResourceResponse struct {
+//	application.ResourceIdentifier
+//	ErrorResponse string
+//}
+
+func (impl *WorkflowDagExecutorImpl) RotatePods(ctx context.Context, podRotateRequest *PodRotateRequest) (*k8s.RotatePodResponse, error) {
 	//extract cluster id and namespace from env id
 	environmentId := podRotateRequest.EnvironmentId
 	environment, err := impl.envRepository.FindById(environmentId)
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching env details", "envId", environmentId, "err", err)
-		return err
+		return nil, err
 	}
-	resourceIdentifier := podRotateRequest.ResourceIdentifier
-	resourceIdentifier.Namespace = environment.Namespace
-	request := &k8s.ResourceRequestBean{
-		AppId:     strconv.Itoa(podRotateRequest.AppId),
+	var resourceIdentifiers []application.ResourceIdentifier
+	for _, resourceIdentifier := range podRotateRequest.ResourceIdentifiers {
+		resourceIdentifier.Namespace = environment.Namespace
+		resourceIdentifiers = append(resourceIdentifiers, resourceIdentifier)
+	}
+	rotatePodRequest := &k8s.RotatePodRequest{
 		ClusterId: environment.ClusterId,
-		K8sRequest: &application.K8sRequestBean{
-			ResourceIdentifier: resourceIdentifier,
-		},
+		Resources: resourceIdentifiers,
 	}
-	return impl.k8sApplicationService.RotatePods(ctx, request)
+	response, err := impl.k8sApplicationService.RotatePods(ctx, rotatePodRequest)
+	if err != nil {
+		return nil, err
+	}
+	//TODO KB: make entry in cd workflow runner
+	return response, nil
 }
 
 func (impl *WorkflowDagExecutorImpl) StopStartApp(stopRequest *StopAppRequest, ctx context.Context) (int, error) {
