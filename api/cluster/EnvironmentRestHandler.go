@@ -42,12 +42,10 @@ const ENV_DELETE_SUCCESS_RESP = "Environment deleted successfully."
 
 type EnvironmentRestHandler interface {
 	Create(w http.ResponseWriter, r *http.Request)
-	CreateVirtualEnvironment(w http.ResponseWriter, r *http.Request)
 	Get(w http.ResponseWriter, r *http.Request)
 	GetAll(w http.ResponseWriter, r *http.Request)
 	GetAllActive(w http.ResponseWriter, r *http.Request)
 	Update(w http.ResponseWriter, r *http.Request)
-	UpdateVirtualEnvironment(w http.ResponseWriter, r *http.Request)
 	FindById(w http.ResponseWriter, r *http.Request)
 	GetEnvironmentListForAutocomplete(w http.ResponseWriter, r *http.Request)
 	GetCombinedEnvironmentListForDropDown(w http.ResponseWriter, r *http.Request)
@@ -119,46 +117,6 @@ func (impl EnvironmentRestHandlerImpl) Create(w http.ResponseWriter, r *http.Req
 	//RBAC enforcer Ends
 
 	res, err := impl.environmentClusterMappingsService.Create(&bean, userId)
-	if err != nil {
-		impl.logger.Errorw("service err, Create", "err", err, "payload", bean)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	common.WriteJsonResp(w, err, res, http.StatusOK)
-}
-
-func (impl EnvironmentRestHandlerImpl) CreateVirtualEnvironment(w http.ResponseWriter, r *http.Request) {
-	decoder := json.NewDecoder(r.Body)
-	userId, err := impl.userService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	var bean request.VirtualEnvironmentBean
-	err = decoder.Decode(&bean)
-	if err != nil {
-		impl.logger.Errorw("request err, Create", "err", err, "payload", bean)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	impl.logger.Errorw("request payload, Create", "payload", bean)
-
-	err = impl.validator.Struct(bean)
-	if err != nil {
-		impl.logger.Errorw("validation err, Create", "err", err, "payload", bean)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	// RBAC enforcer applying
-	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionCreate, "*"); !ok {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
-	//RBAC enforcer Ends
-
-	res, err := impl.environmentClusterMappingsService.CreateVirtualEnvironment(&bean, userId)
 	if err != nil {
 		impl.logger.Errorw("service err, Create", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -300,51 +258,6 @@ func (impl EnvironmentRestHandlerImpl) Update(w http.ResponseWriter, r *http.Req
 	//RBAC enforcer Ends
 
 	res, err := impl.environmentClusterMappingsService.Update(&bean, userId)
-	if err != nil {
-		impl.logger.Errorw("service err, Update", "err", err, "payload", bean)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	common.WriteJsonResp(w, err, res, http.StatusOK)
-}
-
-func (impl EnvironmentRestHandlerImpl) UpdateVirtualEnvironment(w http.ResponseWriter, r *http.Request) {
-	decoder := json.NewDecoder(r.Body)
-	userId, err := impl.userService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-
-	var bean request.VirtualEnvironmentBean
-	err = decoder.Decode(&bean)
-	if err != nil {
-		impl.logger.Errorw("service err, Update", "err", err, "payload", bean)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	impl.logger.Infow("request payload, Update", "payload", bean)
-	err = impl.validator.Struct(bean)
-	if err != nil {
-		impl.logger.Errorw("validation err, Update", "err", err, "payload", bean)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	// RBAC enforcer applying
-	token := r.Header.Get("token")
-	modifiedEnvironment, err := impl.environmentClusterMappingsService.FindById(bean.Id)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionUpdate, strings.ToLower(modifiedEnvironment.EnvironmentIdentifier)); !ok {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
-	//RBAC enforcer Ends
-
-	res, err := impl.environmentClusterMappingsService.UpdateVirtualEnvironment(&bean, userId)
 	if err != nil {
 		impl.logger.Errorw("service err, Update", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

@@ -36,15 +36,6 @@ import (
 	"time"
 )
 
-const (
-	API_CALLER_DEVTRON_APP       ApiCallerAppType = "devtron-app"
-	API_CALLER_HELM_APP          ApiCallerAppType = "helm-app"
-	API_CALLER_EXTERNAL_HELM_APP ApiCallerAppType = "external-helm-app"
-	API_CALLER_UNKNOWN           ApiCallerAppType = "unknown"
-)
-
-type ApiCallerAppType string
-
 type HelmAppService interface {
 	ListHelmApplications(ctx context.Context, clusterIds []int, w http.ResponseWriter, token string, helmAuth func(token string, object string) bool)
 	GetApplicationDetail(ctx context.Context, app *AppIdentifier) (*AppDetail, error)

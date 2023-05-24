@@ -54,6 +54,7 @@ func (impl EnforcerUtilHelmImpl) GetHelmObjectByClusterId(clusterId int, namespa
 func (impl EnforcerUtilHelmImpl) GetHelmObjectByTeamIdAndClusterId(teamId int, clusterId int, namespace string, appName string) string {
 
 	cluster, err := impl.clusterRepository.FindById(clusterId)
+
 	teamObj, err := impl.teamRepository.FindOne(teamId)
 
 	if err != nil {

@@ -55,15 +55,10 @@ func (impl EnvironmentRouterImpl) InitEnvironmentClusterMappingsRouter(environme
 	environmentClusterMappingsRouter.Path("").
 		Methods("POST").
 		HandlerFunc(impl.environmentClusterMappingsRestHandler.Create)
-	environmentClusterMappingsRouter.Path("/virtual").
-		Methods("POST").
-		HandlerFunc(impl.environmentClusterMappingsRestHandler.CreateVirtualEnvironment)
+
 	environmentClusterMappingsRouter.Path("").
 		Methods("PUT").
 		HandlerFunc(impl.environmentClusterMappingsRestHandler.Update)
-	environmentClusterMappingsRouter.Path("/virtual").
-		Methods("PUT").
-		HandlerFunc(impl.environmentClusterMappingsRestHandler.UpdateVirtualEnvironment)
 	environmentClusterMappingsRouter.Path("/autocomplete").
 		Methods("GET").
 		HandlerFunc(impl.environmentClusterMappingsRestHandler.GetEnvironmentListForAutocomplete)

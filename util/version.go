@@ -19,7 +19,7 @@ package util
 var (
 	GitCommit            = ""
 	BuildTime            = ""
-	ServerMode           = "FULL"
+	ServerMode           = ""
 	SERVER_MODE_FULL     = "FULL"
 	SERVER_MODE_HYPERION = "EA_ONLY"
 )
