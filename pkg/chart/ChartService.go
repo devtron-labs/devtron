@@ -490,27 +490,6 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 		impl.logger.Errorw("chart version parsing", "err", err)
 		return nil, err
 	}
-	//var appLevelMetrics *repository3.AppLevelMetrics
-	//isAppMetricsSupported, err := impl.CheckIsAppMetricsSupported(templateRequest.ChartRefId)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//if appMetrics && !(isAppMetricsSupported) {
-	//	impl.logger.Error("cannot enable app metrics for older chart versions < 3.7.0")
-	//	appMetricsRequest := AppMetricEnableDisableRequest{UserId: templateRequest.UserId, AppId: templateRequest.AppId, IsAppMetricsEnabled: false}
-	//	appLevelMetrics, err = impl.updateAppLevelMetrics(&appMetricsRequest)
-	//	if err != nil {
-	//		impl.logger.Errorw("err while updating app metrics", "err", err)
-	//		return nil, err
-	//	}
-	//} else {
-	//	appMetricsRequest := AppMetricEnableDisableRequest{UserId: templateRequest.UserId, AppId: templateRequest.AppId, IsAppMetricsEnabled: templateRequest.IsAppMetricsEnabled}
-	//	appLevelMetrics, err = impl.updateAppLevelMetrics(&appMetricsRequest)
-	//	if err != nil {
-	//		impl.logger.Errorw("err while updating app metrics", "err", err)
-	//		return nil, err
-	//	}
-	//}
 
 	impl.logger.Debug("now finally create new chart and make it latest entry in db and previous flag = true")
 	version, err := impl.getNewVersion(chartRepo.Name, chartMeta.Name, refChart)
