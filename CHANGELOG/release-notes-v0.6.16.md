@@ -1,9 +1,5 @@
 ## v0.6.16
 
-
-
-## v0.6.16
-
 ## Bugs
 - fix: Clicking on commit info shows incorrect data (#3371)
 - fix: Build context disable (#3405)
