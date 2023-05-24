@@ -20,6 +20,6 @@ ALTER TABLE public.module
     ADD "module_type" varchar(30),
     ADD "enabled" bool;
 
-UPDATE public.module SET module_type = 'security',enabled=true where name='clair';
+UPDATE public.module SET module_type = 'security',enabled=true where name='security.clair';
 UPDATE public.module SET enabled=true where status='installed';
 UPDATE public.module SET enabled=false where status!='installed';
