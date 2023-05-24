@@ -1,0 +1,39 @@
+templates:
+  - name: diamond
+    type: dag
+    tasks:
+      - name: A
+        template: echo
+        parameters:
+          - name: message
+            value: A
+      - name: B
+        dependencies:
+          - A
+        template: echo
+        parameters:
+          - name: message
+            value: B
+      - name: C
+        dependencies:
+          - B
+        template: echo
+        parameters:
+          - name: message
+            value: C
+  - name: echo
+    type: container
+    outputs: []
+    inputs:
+      parameters:
+        - name: message
+    container:
+      image: alpine:3.7
+      name: test
+      command:
+        - echo
+        - '"\{\{inputs.parameters.message\}\}"'
+      args: []
+      resources: {}
+      env: []
+

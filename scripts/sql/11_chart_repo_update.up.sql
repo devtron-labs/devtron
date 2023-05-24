@@ -1,0 +1,1 @@
+UPDATE "public"."chart_repo" SET "auth_mode" = 'ANONYMOUS' WHERE "id" in (1,2,3,4);

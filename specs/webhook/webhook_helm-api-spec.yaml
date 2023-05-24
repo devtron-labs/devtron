@@ -1,0 +1,146 @@
+openapi: "3.0.3"
+info:
+  version: 1.0.0
+  title: Devtron Labs
+paths:
+  /orchestrator/webhook/helm/app:
+    post:
+      description: Create or Update helm application
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HelmAppCreateUpdateRequest"
+      responses:
+        "200":
+          description: Create or Update helm application response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HelmAppCreateUpdateResponse"
+        "401":
+          description: If the user is not authenicated, then this error is thrown
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HelmAppCreateUpdateResponse"
+        "403":
+          description: If the user is not authorized, then this error is thrown
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HelmAppCreateUpdateResponse"
+        "400":
+          description: If request is not correct, then this error is thrown
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HelmAppCreateUpdateResponse"
+        "500":
+          description: This error is thrown in case of some internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HelmAppCreateUpdateResponse"
+components:
+  schemas:
+    HelmAppCreateUpdateRequest:
+      type: object
+      properties:
+        clusterName:
+          type: string
+          description: Name of the cluster configured on devtron UI
+          example: "default_cluster"
+          nullable: false
+        namespace:
+          type: string
+          description: namespace in that cluster, if it is not provided - will be assumed as default
+          example: "ns"
+          nullable: true
+        releaseName:
+          type: string
+          description: Helm Release name
+          example: "mySampleApp"
+          nullable: false
+        valuesOverrideYaml:
+          type: string
+          description: Values override yaml for this helm release create/update request
+          nullable: true
+        chart:
+          $ref: "#/components/schemas/ChartSpec"
+          nullable: false
+    ChartSpec:
+      type: object
+      properties:
+        chartName:
+          type: string
+          description: chart name
+          example: "minio"
+          nullable: false
+        chartVersion:
+          type: string
+          description: chart version, if it is not supplied, will be assumed as latest
+          example: 1.2.3
+          nullable: true
+        repo:
+          $ref: "#/components/schemas/ChartRepoSpec"
+          nullable: false
+    ChartRepoSpec:
+      type: object
+      properties:
+        name:
+          type: string
+          description: chart repo name
+          example: "bitnami"
+          nullable: false
+        identifier:
+          $ref: "#/components/schemas/ChartRepoIdentifierSpec"
+          nullable: true
+    ChartRepoIdentifierSpec:
+      type: object
+      properties:
+        url:
+          type: string
+          description: chart repo url
+          example: "https://charts.bitnami.com/bitnami"
+          nullable: false
+        username:
+          type: string
+          description: username of chart repo for authenticaion
+          example: "some username"
+          nullable: true
+        password:
+          type: string
+          description: password of chart repo for authenticaion
+          example: "some password"
+          nullable: true
+    HelmAppCreateUpdateResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: if the operation is sucessfull
+          example: true/false
+          nullable: false
+        error:
+          $ref: "#/components/schemas/ErrorResponse"
+          nullable: true
+        result:
+          type: string
+          description: Url of app detail of this particular application, if this operation is successful
+          example: "app detail url"
+          nullable: true
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+          description: error code
+          example: "E100"
+          nullable: false
+        message:
+          type: string
+          description: error message
+          example: "some error occurred"
+          nullable: false

@@ -1,0 +1,94 @@
+# Source: clair/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: clair
+  labels:
+    release: "devtron"
+    chart: "clair-0.1.2"
+    app: clair
+type: Opaque
+data:
+  config.yaml: |-
+    aW50cm9zcGVjdGlvbl9hZGRyOiA6NjA2MQpodHRwX2xpc3Rlbl9hZGRyOiA6NjA2MApsb2dfbGV2ZWw6IGRlYnVnCmluZGV4ZXI6CiAgY29ubnN0cmluZzogImhvc3Q9Y2xhaXItcGctcG9zdGdyZXNxbCBwb3J0PTU0MzIgZGJuYW1lPWNsYWlydjQgdXNlcj1jbGFpciBwYXNzd29yZD1jbGFpciBzc2xtb2RlPWRpc2FibGUiCiAgc2NhbmxvY2tfcmV0cnk6IDEwCiAgbGF5ZXJfc2Nhbl9jb25jdXJyZW5jeTogNQogIG1pZ3JhdGlvbnM6IHRydWUKbWF0Y2hlcjoKICBpbmRleGVyX2FkZHI6ICI6NjA2MCIKICBjb25uc3RyaW5nOiAiaG9zdD1jbGFpci1wZy1wb3N0Z3Jlc3FsIHBvcnQ9NTQzMiBkYm5hbWU9Y2xhaXJ2NCB1c2VyPWNsYWlyIHBhc3N3b3JkPWNsYWlyIHNzbG1vZGU9ZGlzYWJsZSIKICBtYXhfY29ubl9wb29sOiAxMDAKICBydW46ICIiCiAgbWlncmF0aW9uczogdHJ1ZQogIHVwZGF0ZXJfc2V0czoKICAgIC0gImFscGluZSIKICAgIC0gImF3cyIKICAgIC0gImRlYmlhbiIKICAgIC0gIm9yYWNsZSIKICAgIC0gInBob3RvbiIKICAgIC0gInB5dXBpbyIKICAgIC0gInJoZWwiCiAgICAtICJzdXNlIgogICAgLSAidWJ1bnR1Igpub3RpZmllcjoKICBjb25uc3RyaW5nOiAiaG9zdD1jbGFpci1wZy1wb3N0Z3Jlc3FsIHBvcnQ9NTQzMiBkYm5hbWU9Y2xhaXJ2NCB1c2VyPWNsYWlyIHBhc3N3b3JkPWNsYWlyIHNzbG1vZGU9ZGlzYWJsZSIKICBkZWxpdmVyeV9pbnRlcnZhbDogMW0KICBwb2xsX2ludGVydmFsOiA1bQogIG1pZ3JhdGlvbnM6IHRydWU=
+---
+# Source: clair/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: clair
+  labels:
+    release: "devtron"
+    chart: "clair-0.1.2"
+    app: clair
+spec:
+  type: ClusterIP
+  ports:
+  - name: "clair-api"
+    port: 6060
+    targetPort: 6060
+    protocol: TCP
+  - name: "clair-health"
+    port: 6061
+    targetPort: 6061
+    protocol: TCP
+  selector:
+    app: clair
+---
+# Source: clair/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: clair
+  labels:
+    release: "devtron"
+    chart: "clair-0.1.2"
+    app: clair
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: clair
+  template:
+    metadata:
+      labels:
+        app: clair
+    spec:
+      volumes:
+      - name: "clair-config"
+        secret:
+          secretName: clair
+      initContainers:
+      - name: pg-ready-wait
+        image: "quay.io/devtron/postgres:11.3"
+        command: [ "sh", "-c",
+          "until pg_isready -h postgresql-postgresql.devtroncd -p 5432;
+          do echo waiting for database; sleep 1; done;"]
+      containers:
+      - env:
+        - name: CLAIR_CONF
+          value: /etc/clair/config.yaml
+        - name: CLAIR_MODE
+          value: combo
+        name: clair
+        image: "quay.io/coreos/clair:v4.3.6"
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: "clair-api"
+          containerPort: 6060
+          protocol: TCP
+        - name: "clair-health"
+          containerPort: 6061
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 6061
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 6061
+        volumeMounts:
+        - name: "clair-config"
+          mountPath: /etc/clair
+          readOnly: true

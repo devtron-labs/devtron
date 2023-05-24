@@ -1,0 +1,35 @@
+openapi: "3.0.2"
+info:
+  title: version api
+  version: "1.0"
+paths:
+  /orchestrator/k8s/resource/inception/info:
+    get:
+      responses:
+        "200":
+          description: this api give you inception pod info, such as pod name
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: object
+                    description: string
+                    $ref: '#/components/schemas/ResourceInfo'
+
+components:
+  schemas:
+    ResourceInfo:
+      type: object
+      required:
+        - podName
+      properties:
+        podName:
+          type: string
+          description: pod name

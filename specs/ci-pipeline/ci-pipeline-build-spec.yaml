@@ -1,0 +1,58 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Modularisation v1 APIs
+paths:
+  /orchestrator/app/commit-info/{ciPipelineMaterialId}/{gitHash}:
+    get:
+      description: Get commit info for a particular commit hash for a ci-pipeline-material
+      parameters:
+        - name: ciPipelineMaterialId
+          description: ci-pipeline-material id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: gitHash
+          description: git hash for that commit
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successfully fetched commit info. if CommitInfo is null, then commit is not found.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CommitInfo"
+
+# Components
+components:
+  schemas:
+    CommitInfo:
+      type: object
+      properties:
+        Commit:
+          type: string
+          description: Commit hash
+          example: "somehash"
+        Author:
+          type: string
+          description: Author of that commit
+          example: "manish"
+        Date:
+          type: string
+          description: Date that commit
+          example: "2021-08-10T16:28:26+05:30"
+        Message:
+          type: string
+          description: Commit message
+          example: "some message"
+        Changes:
+          type: array
+          description: file names which were changed in this commit
+          items:
+            type: string
