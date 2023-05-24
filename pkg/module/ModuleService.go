@@ -117,11 +117,19 @@ func (impl ModuleServiceImpl) GetModuleInfo(name string) (*ModuleInfoDto, error)
 			return nil, err
 		}
 	}
-
+	flagForEnablingState := false
+	if len(module.ModuleType) == 0 {
+		flagForEnablingState = true
+		err = impl.moduleRepository.MarkModuleAsEnabled(name)
+		if err != nil {
+			impl.logger.Errorw("error in updating module as active ", "moduleName", name, "err", err)
+			return nil, err
+		}
+	}
 	// send DB status
 	moduleInfoDto.Status = module.Status
 	// Enabled State Assignment
-	moduleInfoDto.Enabled = module.Enabled
+	moduleInfoDto.Enabled = module.Enabled || flagForEnablingState
 	moduleInfoDto.Moduletype = module.ModuleType
 	// handle module resources status data
 	moduleId := module.Id
