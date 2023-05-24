@@ -3,7 +3,9 @@ package k8s
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/connector"
@@ -54,6 +56,7 @@ type K8sApplicationService interface {
 	GetAllApiResources(ctx context.Context, clusterId int, isSuperAdmin bool, userId int32) (*application.GetAllApiResourcesResponse, error)
 	GetResourceList(ctx context.Context, token string, request *ResourceRequestBean, validateResourceAccess func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) (*util.ClusterResourceListMap, error)
 	ApplyResources(ctx context.Context, token string, request *application.ApplyResourcesRequest, resourceRbacHandler func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) ([]*application.ApplyResourcesResponse, error)
+	RotatePods(ctx context.Context, request *ResourceRequestBean) error
 }
 type K8sApplicationServiceImpl struct {
 	logger                      *zap.SugaredLogger
@@ -710,6 +713,35 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 		return resourceList, err
 	}
 	return resourceList, nil
+}
+
+func (impl *K8sApplicationServiceImpl) RotatePods(ctx context.Context, request *ResourceRequestBean) error {
+
+	// validate one of deployment, statefulset, daemonSet, Rollout
+	k8sRequest := request.K8sRequest
+	resourceIdentifier := k8sRequest.ResourceIdentifier
+	groupVersionKind := resourceIdentifier.GroupVersionKind
+	resourceKind := groupVersionKind.Kind
+	if resourceKind != kube.DeploymentKind && resourceKind != kube.StatefulSetKind && resourceKind != kube.DaemonSetKind && resourceKind != util.K8sClusterResourceRolloutKind {
+		impl.logger.Errorf("restarting not supported for kind %s name %s", resourceKind, resourceIdentifier.Name)
+		return errors.New("restarting not supported")
+	}
+
+	clusterId := request.ClusterId
+	clusterBean, err := impl.clusterService.FindById(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting clusterBean by cluster Id", "clusterId", clusterId, "err", err)
+		return err
+	}
+	restConfig, err := impl.GetRestConfigByCluster(ctx, clusterBean)
+	if err != nil {
+		impl.logger.Errorw("error in getting rest config by cluster", "clusterId", clusterId, "err", err)
+		return err
+	}
+	data := fmt.Sprintf(`{"spec": {"template": {"metadata": {"annotations": {"devtron.ai/restartedAt": "%s"}}}}}`, time.Now().Format(time.RFC3339))
+	// make sure to add annotation to pod template as well in case of Argo rollout otherwise it would not initiate rotation
+	_, err = impl.k8sClientService.ApplyResource(ctx, restConfig, k8sRequest, data)
+	return err
 }
 
 func (impl *K8sApplicationServiceImpl) ApplyResources(ctx context.Context, token string, request *application.ApplyResourcesRequest, validateResourceAccess func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) ([]*application.ApplyResourcesResponse, error) {

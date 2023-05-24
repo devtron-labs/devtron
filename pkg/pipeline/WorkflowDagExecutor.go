@@ -24,9 +24,11 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	gitSensorClient "github.com/devtron-labs/devtron/client/gitSensor"
+	"github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	util4 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"go.opentelemetry.io/otel"
 	"strconv"
 	"strings"
@@ -71,6 +73,7 @@ type WorkflowDagExecutor interface {
 	TriggerBulkDeploymentAsync(requests []*BulkTriggerRequest, UserId int32) (interface{}, error)
 	StopStartApp(stopRequest *StopAppRequest, ctx context.Context) (int, error)
 	TriggerBulkHibernateAsync(request StopDeploymentGroupRequest, ctx context.Context) (interface{}, error)
+	RotatePods(ctx context.Context, podRotateRequest *PodRotateRequest) error
 }
 
 type WorkflowDagExecutorImpl struct {
@@ -105,6 +108,7 @@ type WorkflowDagExecutorImpl struct {
 	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
 	appLabelRepository            pipelineConfig.AppLabelRepository
 	gitSensorGrpcClient           gitSensorClient.Client
+	k8sApplicationService         k8s.K8sApplicationService
 }
 
 const (
@@ -169,7 +173,8 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
 	CiTemplateRepository pipelineConfig.CiTemplateRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
-	appLabelRepository pipelineConfig.AppLabelRepository, gitSensorGrpcClient gitSensorClient.Client) *WorkflowDagExecutorImpl {
+	appLabelRepository pipelineConfig.AppLabelRepository, gitSensorGrpcClient gitSensorClient.Client,
+	k8sApplicationService k8s.K8sApplicationService) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
 		cdWorkflowRepository:          cdWorkflowRepository,
@@ -201,6 +206,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		ciWorkflowRepository:          ciWorkflowRepository,
 		appLabelRepository:            appLabelRepository,
 		gitSensorGrpcClient:           gitSensorGrpcClient,
+		k8sApplicationService:         k8sApplicationService,
 	}
 	err := wde.Subscribe()
 	if err != nil {
@@ -1266,6 +1272,33 @@ type StopDeploymentGroupRequest struct {
 	DeploymentGroupId int         `json:"deploymentGroupId" validate:"required"`
 	UserId            int32       `json:"userId"`
 	RequestType       RequestType `json:"requestType" validate:"oneof=START STOP"`
+}
+
+type PodRotateRequest struct {
+	AppId              int                            `json:"appId" validate:"required"`
+	EnvironmentId      int                            `json:"environmentId" validate:"required"`
+	UserId             int32                          `json:"userId" validate:"required"`
+	ResourceIdentifier application.ResourceIdentifier `json:"resource" validate:"required"`
+}
+
+func (impl *WorkflowDagExecutorImpl) RotatePods(ctx context.Context, podRotateRequest *PodRotateRequest) error {
+	//extract cluster id and namespace from env id
+	environmentId := podRotateRequest.EnvironmentId
+	environment, err := impl.envRepository.FindById(environmentId)
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching env details", "envId", environmentId, "err", err)
+		return err
+	}
+	resourceIdentifier := podRotateRequest.ResourceIdentifier
+	resourceIdentifier.Namespace = environment.Namespace
+	request := &k8s.ResourceRequestBean{
+		AppId:     strconv.Itoa(podRotateRequest.AppId),
+		ClusterId: environment.ClusterId,
+		K8sRequest: &application.K8sRequestBean{
+			ResourceIdentifier: resourceIdentifier,
+		},
+	}
+	return impl.k8sApplicationService.RotatePods(ctx, request)
 }
 
 func (impl *WorkflowDagExecutorImpl) StopStartApp(stopRequest *StopAppRequest, ctx context.Context) (int, error) {
