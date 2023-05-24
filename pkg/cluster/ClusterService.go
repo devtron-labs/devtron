@@ -76,7 +76,7 @@ type VirtualClusterBean struct {
 	Id               int    `json:"id,omitempty" validate:"number"`
 	ClusterName      string `json:"clusterName,omitempty" validate:"required"`
 	Active           bool   `json:"active"`
-	IsVirtualCluster bool   `json:"isVirtualCluster" validate:"required"`
+	IsVirtualCluster bool   `json:"isVirtualCluster" default:"true"`
 }
 
 type PrometheusAuth struct {
