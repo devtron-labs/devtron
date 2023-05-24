@@ -118,7 +118,7 @@ func (impl ModuleServiceImpl) GetModuleInfo(name string) (*ModuleInfoDto, error)
 		}
 	}
 	flagForEnablingState := false
-	if len(module.ModuleType) == 0 {
+	if len(module.ModuleType) == 0 && module.Status == ModuleStatusInstalled {
 		flagForEnablingState = true
 		err = impl.moduleRepository.MarkModuleAsEnabled(name)
 		if err != nil {
