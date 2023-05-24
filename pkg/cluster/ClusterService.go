@@ -1034,8 +1034,7 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 		userInfoObj := kubeConfigObject.AuthInfos[userName]
 
 		if clusterObj == nil {
-			impl.logger.Errorw("user cluster mapping not done correctly", "context", kubeConfig)
-			return nil, errors1.New("user-cluster mapping not done correctly")
+			continue
 		}
 
 		if clusterName != "" {
@@ -1127,7 +1126,13 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 		clusterBeanObject.Config = nil
 		clusterBeanObject.ErrorInConnecting = ""
 	}
-	return ValidateObjects, nil
+
+	if len(ValidateObjects) == 0 {
+		impl.logger.Errorw("No valid cluster object provided in kubeconfig for context", "context", kubeConfig)
+		return nil, errors1.New("No valid cluster object provided in kubeconfig for context")
+	} else {
+		return ValidateObjects, nil
+	}
 
 }
 
