@@ -1,0 +1,1 @@
+DROP TABLE "public"."app_store_charts_history" CASCADE;

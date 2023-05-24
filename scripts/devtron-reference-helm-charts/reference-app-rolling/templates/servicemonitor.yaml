@@ -1,0 +1,22 @@
+{{- if $.Values.servicemonitor.enabled -}}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ template ".Chart.Name .fullname" . }}
+  labels:
+    kind: Prometheus
+    app: {{ template ".Chart.Name .name" . }}
+    chart: {{ template ".Chart.Name .chart" . }}
+    release: {{ .Values.prometheus.release }}
+spec:
+  endpoints:
+    {{- range .Values.ContainerPort }}
+      {{- if .servicePort }}
+    - port: {{ .name }}
+       {{- end }}
+    {{- end }}
+  selector:
+    matchLabels:
+      app: {{ template ".Chart.Name .name" $ }}
+{{- end }}

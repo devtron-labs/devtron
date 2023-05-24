@@ -1,0 +1,295 @@
+  {{- $hasCMEnvExists := false -}}
+  {{- $hasCMVolumeExists := false -}}
+  {{- if .Values.ConfigMaps.enabled }}
+  {{- range .Values.ConfigMaps.maps }}
+  {{- if eq .type "volume"}}
+  {{- $hasCMVolumeExists = true}}
+  {{- end }}
+  {{- if eq .type "environment"}}
+  {{- $hasCMEnvExists = true}}
+  {{- end }}
+  {{- end }}
+  {{- end }}
+
+  {{- $hasSecretEnvExists := false -}}
+  {{- $hasSecretVolumeExists := false -}}
+  {{- if .Values.ConfigSecrets.enabled }}
+  {{- range .Values.ConfigSecrets.secrets }}
+  {{- if eq .type "volume"}}
+  {{- $hasSecretVolumeExists = true}}
+  {{- end }}
+  {{- if eq .type "environment"}}
+  {{- $hasSecretEnvExists = true}}
+  {{- end }}
+  {{- end }}
+  {{- end }}
+
+
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: {{ include ".Chart.Name .fullname" $ }}
+  labels:
+    app: {{ template ".Chart.Name .name" $ }}
+    chart: {{ template ".Chart.Name .chart" $ }}
+    release: {{ $.Release.Name }}
+    releaseVersion: {{ $.Values.releaseVersion | quote }}
+    pipelineName: {{ .Values.pipelineName }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ template ".Chart.Name .name" $ }}
+      release: {{ $.Release.Name }}
+  replicas: {{ $.Values.replicaCount }}
+  minReadySeconds: {{ $.Values.MinReadySeconds }}
+  template:
+    metadata:
+      labels:
+        app: {{ template ".Chart.Name .name" $ }}
+        appId: {{ $.Values.app | quote }}
+        envId: {{ $.Values.env | quote }}
+        release: {{ $.Release.Name }}
+    spec:
+      terminationGracePeriodSeconds: {{ $.Values.GracePeriod }}
+      restartPolicy: Always
+{{- if and $.Values.Spec.Affinity.Key $.Values.Spec.Affinity.Values }}
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: {{ $.Values.Spec.Affinity.Key  }}
+                operator: In
+                values:
+                - {{ $.Values.Spec.Affinity.Values | default "nodes"  }}
+{{- end }}
+
+{{- if $.Values.serviceAccountName }}
+      serviceAccountName: {{ $.Values.serviceAccountName }}
+{{- end }}
+{{- if $.Values.initContainers}}
+      initContainers:
+{{ toYaml $.Values.initContainers | indent 8 -}}
+{{- end}}
+      containers:
+{{- if $.Values.appMetrics }}
+        - name: envoy
+          image: {{ $.Values.envoyproxy.image | default "envoyproxy/envoy:v1.14.1"}}
+          ports:
+            - containerPort: 9901
+              protocol: TCP
+              name: envoy-admin
+              {{- range .Values.ContainerPort }}
+            - name: {{ .name}}
+              containerPort: 8790
+              protocol: TCP
+              {{- end }}
+          command: ["/usr/local/bin/envoy"]
+          args: ["-c", "/etc/envoy-config/envoy-config.json", "-l", "info", "--log-format", "[METADATA][%Y-%m-%d %T.%e][%t][%l][%n] %v"]
+          volumeMounts:
+            - name: {{ $.Values.envoyproxy.configMapName | default "envoy-config-volume" }}
+              mountPath: /etc/envoy-config/
+{{- end}}
+{{- if $.Values.containers }}
+{{ toYaml $.Values.containers | indent 8 -}}
+{{- end}}
+        - name: {{ $.Chart.Name }}
+          image: "{{ .Values.server.deployment.image }}:{{ .Values.server.deployment.image_tag }}"
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+{{- if $.Values.privileged }}
+          securityContext:
+            privileged: true
+{{- end}}
+          ports:
+          {{- range $.Values.ContainerPort }}
+            - name: {{ .name}}
+              containerPort: {{ .port  }}
+              protocol: TCP
+          {{- end}}
+{{- if and $.Values.command.value $.Values.command.enabled}}
+          command:
+{{ toYaml $.Values.command.value | indent 12 -}}
+{{- end}}
+{{- if and $.Values.args.value $.Values.args.enabled}}
+          args:
+{{ toYaml $.Values.args.value | indent 12 -}}
+{{- end }}
+          env:
+            - name: CONFIG_HASH
+              value: {{ include (print $.Chart.Name "/templates/configmap.yaml") . | sha256sum }}
+            - name: SECRET_HASH
+              value: {{ include (print $.Chart.Name "/templates/secret.yaml") . | sha256sum }}
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          {{- range $.Values.EnvVariables }}
+            - name: {{ .name}}
+              value: {{ .value | quote }}
+          {{- end}}
+          {{- if or (and ($hasCMEnvExists) (.Values.ConfigMaps.enabled)) (and ($hasSecretEnvExists) (.Values.ConfigSecrets.enabled)) }}
+          envFrom:
+          {{- if .Values.ConfigMaps.enabled }}
+          {{- range .Values.ConfigMaps.maps }}
+          {{- if eq .type "environment" }}
+          - configMapRef:
+              {{- if eq .external true }}
+              name: {{ .name }}
+              {{- else if eq .external false }}
+              name: {{ .name}}-{{ $.Values.app }}
+              {{- end }}
+          {{- end }}
+          {{- end }}
+          {{- end }}
+          {{- if .Values.ConfigSecrets.enabled }}
+          {{- range .Values.ConfigSecrets.secrets }}
+          {{- if eq .type "environment" }}
+          - secretRef:
+              {{if eq .external true}}
+              name: {{ .name }}
+              {{else if eq .external false}}
+              name: {{ .name}}-{{ $.Values.app }}
+              {{- end }}
+          {{- end }}
+          {{- end }}
+          {{- end }}
+          {{- end }}
+
+{{- if or $.Values.LivenessProbe.Path $.Values.LivenessProbe.command $.Values.LivenessProbe.tcp }}
+          livenessProbe:
+{{- if $.Values.LivenessProbe.Path }}
+            httpGet:
+              path: {{ $.Values.LivenessProbe.Path  }}
+              port: {{ $.Values.LivenessProbe.port }}
+{{- end }}
+{{- if $.Values.LivenessProbe.command }}
+            exec:
+              command:
+{{ toYaml .Values.LivenessProbe.command | indent 16 }}
+{{- end}}
+{{- if and $.Values.LivenessProbe.tcp }}
+            tcpSocket:
+              port: {{ $.Values.LivenessProbe.port }}
+{{- end}}
+            initialDelaySeconds: {{ $.Values.LivenessProbe.initialDelaySeconds  }}
+            periodSeconds: {{ $.Values.LivenessProbe.periodSeconds  }}
+            successThreshold: {{ $.Values.LivenessProbe.successThreshold  }}
+            timeoutSeconds: {{ $.Values.LivenessProbe.timeoutSeconds  }}
+            failureThreshold: {{ $.Values.LivenessProbe.failureThreshold  }}
+{{- end }}
+{{- if or $.Values.ReadinessProbe.Path  $.Values.ReadinessProbe.command $.Values.ReadinessProbe.tcp }}
+          readinessProbe:
+{{- if $.Values.ReadinessProbe.Path }}
+            httpGet:
+              path: {{ $.Values.ReadinessProbe.Path  }}
+              port: {{ $.Values.ReadinessProbe.port }}
+{{- end }}
+{{- if $.Values.ReadinessProbe.command }}
+            exec:
+              command:
+{{ toYaml .Values.ReadinessProbe.command | indent 16 }}
+{{- end}}
+{{- if and $.Values.ReadinessProbe.tcp }}
+            tcpSocket:
+              port: {{ $.Values.ReadinessProbe.port }}
+{{- end}}
+            initialDelaySeconds: {{ $.Values.ReadinessProbe.initialDelaySeconds  }}
+            periodSeconds: {{ $.Values.ReadinessProbe.periodSeconds  }}
+            successThreshold: {{ $.Values.ReadinessProbe.successThreshold  }}
+            timeoutSeconds: {{ $.Values.ReadinessProbe.timeoutSeconds  }}
+            failureThreshold: {{ $.Values.ReadinessProbe.failureThreshold  }}
+{{- end }}
+          resources:
+{{ toYaml $.Values.resources | trim | indent 12 }}
+
+          volumeMounts:
+{{- with .Values.volumeMounts }}
+{{ toYaml . | trim | indent 12 }}
+{{- end }}
+          {{- if .Values.ConfigMaps.enabled }}
+          {{- range .Values.ConfigMaps.maps }}
+          {{- if eq .type "volume"}}
+            - name: {{ .name}}-vol
+              mountPath: {{ .mountPath}}
+          {{- end }}
+          {{- end }}
+          {{- end }}
+
+          {{- if .Values.ConfigSecrets.enabled }}
+          {{- range .Values.ConfigSecrets.secrets }}
+          {{- if eq .type "volume"}}
+            - name: {{ .name}}-vol
+              mountPath: {{ .mountPath}}
+          {{- end }}
+          {{- end }}
+          {{- end }}
+          {{- if and (eq (len .Values.volumes) 0) (or (eq (.Values.ConfigSecrets.enabled) true) (eq (.Values.ConfigMaps.enabled) true)) (eq ($hasCMVolumeExists) false) (eq ($hasSecretVolumeExists) false) }} []{{- end }}
+          {{- if and (eq (len .Values.volumeMounts) 0) (eq (.Values.ConfigSecrets.enabled) false) (eq (.Values.ConfigMaps.enabled) false) }} []{{- end }}
+
+      volumes:
+  {{- if $.Values.appMetrics }}
+        - name: envoy-config-volume
+          configMap:
+            name: sidecar-config-{{ template ".Chart.Name .name" $ }}
+  {{- end }}
+{{- with .Values.volumes }}
+{{ toYaml . | trim | indent 8 }}
+{{- end }}
+      {{- if .Values.ConfigMaps.enabled }}
+      {{- range .Values.ConfigMaps.maps }}
+      {{- if eq .type "volume"}}
+        - name: {{ .name}}-vol
+          configMap:
+            {{- if eq .external true }}
+            name: {{ .name }}
+            {{- else if eq .external false }}
+            name: {{ .name}}-{{ $.Values.app }}
+            {{- end }}
+      {{- end }}
+      {{- end }}
+      {{- end }}
+
+      {{- if .Values.ConfigSecrets.enabled }}
+      {{- range .Values.ConfigSecrets.secrets }}
+      {{- if eq .type "volume"}}
+        - name: {{ .name}}-vol
+          secret:
+            {{- if eq .external true }}
+            secretName: {{ .name }}
+            {{- else if eq .external false }}
+            secretName: {{ .name}}-{{ $.Values.app }}
+            {{- end }}
+      {{- end }}
+      {{- end }}
+      {{- end }}
+      {{- if and (eq (len .Values.volumes) 0) (or (eq (.Values.ConfigSecrets.enabled) true) (eq (.Values.ConfigMaps.enabled) true)) (eq ($hasCMVolumeExists) false) (eq ($hasSecretVolumeExists) false) (eq (.Values.appMetrics) false) }} []{{- end }}
+      {{- if and (eq (len .Values.volumes) 0) (eq (.Values.ConfigSecrets.enabled) false) (eq (.Values.ConfigMaps.enabled) false) (eq (.Values.appMetrics) false) }} []{{- end }}
+
+  revisionHistoryLimit: 3
+##  pauseForSecondsBeforeSwitchActive: {{ $.Values.pauseForSecondsBeforeSwitchActive }}
+#  waitForSecondsBeforeScalingDown: {{ $.Values.waitForSecondsBeforeScalingDown }}
+  strategy:
+    {{- if eq .Values.deploymentType "BLUE-GREEN" }}
+    blueGreen: # A new field that used to provide configurable options for a BlueGreenUpdate strategy
+      previewService: {{ template ".previewservicename" . }} # Reference to a service that can serve traffic to a new image before it receives the active traffic
+      activeService: {{ template ".servicename" . }} # Reference to a service that serves end-user traffic to the replica set
+      autoPromotionSeconds: {{ $.Values.deployment.strategy.blueGreen.autoPromotionSeconds  }}
+      scaleDownDelaySeconds: {{ $.Values.deployment.strategy.blueGreen.scaleDownDelaySeconds }}
+      previewReplicaCount: {{ $.Values.deployment.strategy.blueGreen.previewReplicaCount  }}
+      autoPromotionEnabled: {{ $.Values.deployment.strategy.blueGreen.autoPromotionEnabled  }}
+    {{- else if eq .Values.deploymentType "ROLLING" }}
+    canary:
+      stableService: {{ template ".servicename" . }} # Reference to a service that serves end-user traffic to the replica set
+      maxSurge: {{ $.Values.deployment.strategy.rolling.maxSurge }}
+      maxUnavailable: {{ $.Values.deployment.strategy.rolling.maxUnavailable }}
+    {{- else if eq .Values.deploymentType "RECREATE" }}
+    recreate:
+      activeService: {{ template ".servicename" . }} # Reference to a service that serves end-user traffic to the replica set
+    {{- else if eq .Values.deploymentType "CANARY" }}
+    canary:
+      stableService: {{ template ".servicename" . }} # Reference to a service that serves end-user traffic to the replica set
+      maxSurge: {{ $.Values.deployment.strategy.canary.maxSurge }}
+      maxUnavailable: {{ $.Values.deployment.strategy.canary.maxUnavailable }}
+      steps:
+{{ toYaml .Values.deployment.strategy.canary.steps | indent 8 }}
+    {{- end }}

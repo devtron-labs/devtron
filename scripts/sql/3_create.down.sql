@@ -1,0 +1,1 @@
+DROP TABLE "public"."sso_login_config" CASCADE;

@@ -1,0 +1,128 @@
+  {{- $hasCMEnvExists := false -}}
+  {{- $hasCMVolumeExists := false -}}
+  {{- if .Values.ConfigMaps.enabled }}
+  {{- range .Values.ConfigMaps.maps }}
+  {{- if eq .type "volume"}}
+  {{- $hasCMVolumeExists = true}}
+  {{- end }}
+  {{- if eq .type "environment"}}
+  {{- $hasCMEnvExists = true}}
+  {{- end }}
+  {{- end }}
+  {{- end }}
+
+  {{- $hasSecretEnvExists := false -}}
+  {{- $hasSecretVolumeExists := false -}}
+  {{- if .Values.ConfigSecrets.enabled }}
+  {{- range .Values.ConfigSecrets.secrets }}
+  {{- if eq .type "volume"}}
+  {{- $hasSecretVolumeExists = true}}
+  {{- end }}
+  {{- if eq .type "environment"}}
+  {{- $hasSecretEnvExists = true}}
+  {{- end }}
+  {{- end }}
+  {{- end }}
+  
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  name: {{ include ".Chart.Name .fullname" $ }}-{{ randAlphaNum 5 | lower }}
+  labels:
+    app: {{ template ".Chart.Name .name" $ }}
+    chart: {{ template ".Chart.Name .chart" $ }}
+    release: {{ $.Release.Name }}
+    releaseVersion: {{ $.Values.releaseVersion | quote }}
+    pipelineName: {{ .Values.pipelineName }}
+spec:
+  {{- if $.Values.arguments }}
+  arguments:
+{{ toYaml $.Values.arguments | indent 4 -}}
+  {{- end }}
+  {{- if $.Values.imagePullSecrets }}
+  imagePullSecrets:
+    {{- range .Values.imagePullSecrets }}
+    - name: {{ . }}
+    {{- end }}
+  {{- end }}
+  entrypoint: {{ $.Values.entrypoint }}
+  {{- if $.Values.nodeSelector }}
+  nodeSelector:
+{{ toYaml $.Values.nodeSelector | indent 4 -}}
+  {{- end }}
+  {{- if $.Values.serviceAccountName }}
+  serviceAccountName: {{ $.Values.serviceAccountName }}
+  {{- end }}
+  {{- if $.Values.tolerations }}
+  tolerations:
+{{ toYaml $.Values.tolerations | indent 4 -}}
+  {{- end }}
+  templates:
+  {{- range .Values.templates }}
+   {{- if eq .type "dag"}}
+  - name: {{ .name }}
+    dag:
+      tasks:
+      {{- range .tasks }}
+      - name: {{ .name }}
+        {{- if .dependencies }}
+        dependencies:
+{{ toYaml .dependencies | indent 10 -}}
+        {{- end }}
+        template: {{ .template }}
+        arguments:
+          parameters:
+          {{- range .parameters }}
+          - name: {{ .name }}
+            value: {{ .value }}
+          {{- end }}
+      {{- end }}
+   {{- end }}
+   {{- if eq .type "container"}}
+  - name: {{ .name }}
+    {{- if .inputs }}
+    inputs:
+      parameters:
+{{ toYaml .inputs.parameters | indent 6 -}}
+    {{- end }}
+    {{- if .outputs }}
+    outputs:
+{{ toYaml .outputs | indent 6 -}}
+    {{- end }}
+    container:
+      name: {{ .container.name }}
+      image: {{ .container.image }}
+      {{- if .container.command }}
+      command:
+{{ toYaml .container.command | indent 8 -}}
+      {{- end }}
+      {{- if .container.containerPorts }}
+      ports:
+      {{- range .container.containerPorts }}
+      - containerPort: {{ .port | default 80  }}
+        name: {{ .name | default "wf"  }}
+      {{- end }}
+      {{- end }}
+      {{- if .container.args }}
+      args:
+{{ toYaml .container.args | indent 8 -}}
+      {{- end }}
+      {{- if .container.env }}
+      env:
+{{ toYaml .container.env | indent 8 -}}
+      {{- end }}
+      {{- if .container.podSecurityContext }}
+      securityContext:
+{{ toYaml .container.podSecurityContext | indent 8 }}
+      {{- end }}
+      {{- if .container.resources }}
+      resources:
+        limits:
+          cpu: {{ .container.resources.limits.cpu }}
+          memory: {{ .container.resources.limits.memory }}
+        requests:
+          cpu: {{ .container.resources.requests.cpu }}
+          memory: {{ .container.resources.requests.memory }}
+      {{- end }}
+   {{- end }}
+  {{- end }}
