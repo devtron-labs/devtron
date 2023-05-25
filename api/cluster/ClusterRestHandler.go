@@ -43,6 +43,8 @@ const CLUSTER_DELETE_SUCCESS_RESP = "Cluster deleted successfully."
 
 type ClusterRestHandler interface {
 	Save(w http.ResponseWriter, r *http.Request)
+	SaveClusters(w http.ResponseWriter, r *http.Request)
+	ValidateKubeconfig(w http.ResponseWriter, r *http.Request)
 	FindAll(w http.ResponseWriter, r *http.Request)
 	FindById(w http.ResponseWriter, r *http.Request)
 	FindNoteByClusterId(w http.ResponseWriter, r *http.Request)
@@ -90,6 +92,82 @@ func NewClusterRestHandlerImpl(clusterService cluster.ClusterService,
 		argoUserService:           argoUserService,
 		environmentService:        environmentService,
 	}
+}
+
+func (impl ClusterRestHandlerImpl) SaveClusters(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	decoder := json.NewDecoder(r.Body)
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	beans := []*cluster.ClusterBean{}
+	err = decoder.Decode(&beans)
+	if err != nil {
+		impl.logger.Errorw("request err, Save", "error", err, "payload", beans)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	impl.logger.Infow("request payload, Save", "payload", beans)
+	//err = impl.validator.Struct(beans)
+	//if err != nil {
+	//	impl.logger.Errorw("validation err, Save", "err", err, "payload", beans)
+	//	common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	//	return
+	//}
+
+	// RBAC enforcer applying
+	isSuperAdmin, err := impl.userService.IsSuperAdmin(int(userId))
+	if !isSuperAdmin || err != nil {
+		if err != nil {
+			impl.logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
+		}
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+	ctx, cancel := context.WithCancel(r.Context())
+	if cn, ok := w.(http.CloseNotifier); ok {
+		go func(done <-chan struct{}, closed <-chan bool) {
+			select {
+			case <-done:
+			case <-closed:
+				cancel()
+			}
+		}(ctx.Done(), cn.CloseNotify())
+	}
+	if util2.IsBaseStack() {
+		ctx = context.WithValue(ctx, "token", token)
+	} else {
+		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+		if err != nil {
+			impl.logger.Errorw("error in getting acd token", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		ctx = context.WithValue(ctx, "token", acdToken)
+	}
+
+	for _, bean := range beans {
+		if bean.Id != 0 {
+			_, err1 := impl.clusterService.Update(ctx, bean, userId)
+			if err1 != nil {
+				bean.ErrorInConnecting = err1.Error()
+			} else {
+				bean.ClusterUpdated = true
+			}
+		} else {
+			_, err1 := impl.clusterService.Save(ctx, bean, userId)
+			if err1 != nil {
+				bean.ErrorInConnecting = err1.Error()
+			}
+		}
+	}
+
+	res := beans
+
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (impl ClusterRestHandlerImpl) Save(w http.ResponseWriter, r *http.Request) {
@@ -159,6 +237,67 @@ func (impl ClusterRestHandlerImpl) Save(w http.ResponseWriter, r *http.Request) 
 			bean.AgentInstallationStage = 0
 		}*/
 	common.WriteJsonResp(w, err, bean, http.StatusOK)
+}
+
+func (impl ClusterRestHandlerImpl) ValidateKubeconfig(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	decoder := json.NewDecoder(r.Body)
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	bean := &cluster.Kubeconfig{}
+	err = decoder.Decode(bean)
+	if err != nil {
+		impl.logger.Errorw("request err, Validate", "error", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	impl.logger.Infow("request payload, Validate", "payload", bean)
+	err = impl.validator.Struct(bean)
+	if err != nil {
+		impl.logger.Errorw("validation err, Validate", "err", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	// RBAC enforcer applying
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionCreate, "*"); !ok {
+		impl.logger.Errorw("unauthorized user", "unauthorized", userId)
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+	ctx, cancel := context.WithCancel(r.Context())
+	if cn, ok := w.(http.CloseNotifier); ok {
+		go func(done <-chan struct{}, closed <-chan bool) {
+			select {
+			case <-done:
+			case <-closed:
+				cancel()
+			}
+		}(ctx.Done(), cn.CloseNotify())
+	}
+	if util2.IsBaseStack() {
+		ctx = context.WithValue(ctx, "token", token)
+	} else {
+		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+		if err != nil {
+			impl.logger.Errorw("error in getting acd token", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		ctx = context.WithValue(ctx, "token", acdToken)
+	}
+	res, err := impl.clusterService.ValidateKubeconfig(bean.Config)
+	if err != nil {
+		impl.logger.Errorw("service err, Save", "err", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (impl ClusterRestHandlerImpl) FindAll(w http.ResponseWriter, r *http.Request) {

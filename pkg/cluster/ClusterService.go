@@ -19,18 +19,26 @@ package cluster
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	casbin2 "github.com/devtron-labs/devtron/pkg/user/casbin"
 	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
+	errors1 "github.com/juju/errors"
 	"io/ioutil"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
 	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd/api"
+	"k8s.io/client-go/tools/clientcmd/api/latest"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
+	"sync"
 	"time"
 
 	bean2 "github.com/devtron-labs/devtron/api/bean"
@@ -56,7 +64,7 @@ const (
 )
 
 type ClusterBean struct {
-	Id                      int                        `json:"id,omitempty" validate:"number"`
+	Id                      int                        `json:"id" validate:"number"`
 	ClusterName             string                     `json:"cluster_name,omitempty" validate:"required"`
 	ServerUrl               string                     `json:"server_url,omitempty" validate:"url,required"`
 	PrometheusUrl           string                     `json:"prometheus_url,omitempty" validate:"validate-non-empty-url"`
@@ -67,8 +75,31 @@ type ClusterBean struct {
 	AgentInstallationStage  int                        `json:"agentInstallationStage,notnull"` // -1=external, 0=not triggered, 1=progressing, 2=success, 3=fails
 	K8sVersion              string                     `json:"k8sVersion"`
 	HasConfigOrUrlChanged   bool                       `json:"-"`
-	ErrorInConnecting       string                     `json:"errorInConnecting,omitempty"`
+	UserName                string                     `json:"userName,omitempty"`
+	InsecureSkipTLSVerify   bool                       `json:"insecureSkipTlsVerify"`
+	ErrorInConnecting       string                     `json:"errorInConnecting"`
 	IsCdArgoSetup           bool                       `json:"isCdArgoSetup"`
+	isClusterNameEmpty      bool                       `json:"-"`
+	ClusterUpdated          bool                       `json:"clusterUpdated"`
+}
+
+type UserInfo struct {
+	UserName          string            `json:"userName,omitempty"`
+	Config            map[string]string `json:"config,omitempty"`
+	ErrorInConnecting string            `json:"errorInConnecting"`
+}
+
+type ValidateClusterBean struct {
+	UserInfos map[string]*UserInfo `json:"userInfos,omitempty""`
+	*ClusterBean
+}
+
+type UserClusterBeanMapping struct {
+	Mapping map[string]*ClusterBean `json:"mapping"`
+}
+
+type Kubeconfig struct {
+	Config string `json:"config"`
 }
 
 type PrometheusAuth struct {
@@ -89,6 +120,7 @@ type DefaultClusterComponent struct {
 
 type ClusterService interface {
 	Save(parent context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error)
+	ValidateKubeconfig(kubeConfig string) (map[string]*ValidateClusterBean, error)
 	FindOne(clusterName string) (*ClusterBean, error)
 	FindOneActive(clusterName string) (*ClusterBean, error)
 	FindAll() ([]*ClusterBean, error)
@@ -110,6 +142,9 @@ type ClusterService interface {
 	FindAllNamespacesByUserIdAndClusterId(userId int32, clusterId int, isActionUserSuperAdmin bool) ([]string, error)
 	FindAllForClusterByUserId(userId int32, isActionUserSuperAdmin bool) ([]ClusterBean, error)
 	FetchRolesFromGroup(userId int32) ([]*repository2.RoleModel, error)
+	ConnectClustersInBatch(clusters []*ClusterBean, clusterExistInDb bool)
+	ConvertClusterBeanToCluster(clusterBean *ClusterBean, userId int32) *repository.Cluster
+	ConvertClusterBeanObjectToCluster(bean *ClusterBean) *v1alpha1.Cluster
 }
 
 type ClusterServiceImpl struct {
@@ -141,6 +176,10 @@ func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.
 
 const DefaultClusterName = "default_cluster"
 const TokenFilePath = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+const BearerToken = "bearer_token"
+const CertificateAuthorityData = "cert_auth_data"
+const CertData = "cert_data"
+const TlsKey = "tls_key"
 
 func (impl *ClusterServiceImpl) GetK8sClient() (*v12.CoreV1Client, error) {
 	return impl.K8sUtil.GetK8sClient()
@@ -164,15 +203,50 @@ func (impl *ClusterServiceImpl) GetClusterConfig(cluster *ClusterBean) (*util.Cl
 		}
 	}
 	clusterCfg := &util.ClusterConfig{Host: host, BearerToken: bearerToken}
+	clusterCfg.InsecureSkipTLSVerify = cluster.InsecureSkipTLSVerify
+	if cluster.InsecureSkipTLSVerify == false {
+		clusterCfg.KeyData = configMap[TlsKey]
+		clusterCfg.CertData = configMap[CertData]
+		clusterCfg.CAData = configMap[CertificateAuthorityData]
+	}
+
 	return clusterCfg, nil
+}
+
+func (impl *ClusterServiceImpl) ConvertClusterBeanToCluster(clusterBean *ClusterBean, userId int32) *repository.Cluster {
+
+	model := &repository.Cluster{}
+
+	model.ClusterName = clusterBean.ClusterName
+	model.Active = true
+	model.ServerUrl = clusterBean.ServerUrl
+	model.Config = clusterBean.Config
+	model.PrometheusEndpoint = clusterBean.PrometheusUrl
+	model.InsecureSkipTlsVerify = clusterBean.InsecureSkipTLSVerify
+
+	if clusterBean.PrometheusAuth != nil {
+		model.PUserName = clusterBean.PrometheusAuth.UserName
+		model.PPassword = clusterBean.PrometheusAuth.Password
+		model.PTlsClientCert = clusterBean.PrometheusAuth.TlsClientCert
+		model.PTlsClientKey = clusterBean.PrometheusAuth.TlsClientKey
+	}
+
+	model.CreatedBy = userId
+	model.UpdatedBy = userId
+	model.CreatedOn = time.Now()
+	model.UpdatedOn = time.Now()
+
+	return model
 }
 
 func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
 	//validating config
+
 	err := impl.CheckIfConfigIsValid(bean)
 	if err != nil {
 		return nil, err
 	}
+
 	existingModel, err := impl.clusterRepository.FindOne(bean.ClusterName)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Error(err)
@@ -183,25 +257,7 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, 
 		return nil, fmt.Errorf("cluster already exists")
 	}
 
-	model := &repository.Cluster{
-		ClusterName:        bean.ClusterName,
-		Active:             bean.Active,
-		ServerUrl:          bean.ServerUrl,
-		Config:             bean.Config,
-		PrometheusEndpoint: bean.PrometheusUrl,
-	}
-
-	if bean.PrometheusAuth != nil {
-		model.PUserName = bean.PrometheusAuth.UserName
-		model.PPassword = bean.PrometheusAuth.Password
-		model.PTlsClientCert = bean.PrometheusAuth.TlsClientCert
-		model.PTlsClientKey = bean.PrometheusAuth.TlsClientKey
-	}
-
-	model.CreatedBy = userId
-	model.UpdatedBy = userId
-	model.CreatedOn = time.Now()
-	model.UpdatedOn = time.Now()
+	model := impl.ConvertClusterBeanToCluster(bean, userId)
 
 	cfg, err := impl.GetClusterConfig(bean)
 	if err != nil {
@@ -270,16 +326,16 @@ func (impl *ClusterServiceImpl) FindOne(clusterName string) (*ClusterBean, error
 	if err != nil {
 		return nil, err
 	}
-	bean := &ClusterBean{
-		Id:                     model.Id,
-		ClusterName:            model.ClusterName,
-		ServerUrl:              model.ServerUrl,
-		PrometheusUrl:          model.PrometheusEndpoint,
-		AgentInstallationStage: model.AgentInstallationStage,
-		Active:                 model.Active,
-		Config:                 model.Config,
-		K8sVersion:             model.K8sVersion,
-	}
+	bean := &ClusterBean{}
+	bean.Id = model.Id
+	bean.ClusterName = model.ClusterName
+	bean.ServerUrl = model.ServerUrl
+	bean.PrometheusUrl = model.PrometheusEndpoint
+	bean.AgentInstallationStage = model.AgentInstallationStage
+	bean.Active = model.Active
+	bean.Config = model.Config
+	bean.K8sVersion = model.K8sVersion
+	bean.InsecureSkipTLSVerify = model.InsecureSkipTlsVerify
 	return bean, nil
 }
 
@@ -288,16 +344,16 @@ func (impl *ClusterServiceImpl) FindOneActive(clusterName string) (*ClusterBean,
 	if err != nil {
 		return nil, err
 	}
-	bean := &ClusterBean{
-		Id:                     model.Id,
-		ClusterName:            model.ClusterName,
-		ServerUrl:              model.ServerUrl,
-		PrometheusUrl:          model.PrometheusEndpoint,
-		AgentInstallationStage: model.AgentInstallationStage,
-		Active:                 model.Active,
-		Config:                 model.Config,
-		K8sVersion:             model.K8sVersion,
-	}
+	bean := &ClusterBean{}
+	bean.Id = model.Id
+	bean.ClusterName = model.ClusterName
+	bean.ServerUrl = model.ServerUrl
+	bean.PrometheusUrl = model.PrometheusEndpoint
+	bean.AgentInstallationStage = model.AgentInstallationStage
+	bean.Active = model.Active
+	bean.Config = model.Config
+	bean.K8sVersion = model.K8sVersion
+	bean.InsecureSkipTLSVerify = model.InsecureSkipTlsVerify
 	return bean, nil
 }
 
@@ -313,45 +369,45 @@ func (impl *ClusterServiceImpl) FindAllWithoutConfig() ([]*ClusterBean, error) {
 }
 
 func (impl *ClusterServiceImpl) FindAll() ([]*ClusterBean, error) {
-	model, err := impl.clusterRepository.FindAllActive()
+	models, err := impl.clusterRepository.FindAllActive()
 	if err != nil {
 		return nil, err
 	}
 	var beans []*ClusterBean
-	for _, m := range model {
-		beans = append(beans, &ClusterBean{
-			Id:                     m.Id,
-			ClusterName:            m.ClusterName,
-			PrometheusUrl:          m.PrometheusEndpoint,
-			AgentInstallationStage: m.AgentInstallationStage,
-			ServerUrl:              m.ServerUrl,
-			Active:                 m.Active,
-			K8sVersion:             m.K8sVersion,
-			ErrorInConnecting:      m.ErrorInConnecting,
-			Config:                 m.Config,
-		})
+	for _, model := range models {
+		bean := ClusterBean{}
+		bean.Id = model.Id
+		bean.ClusterName = model.ClusterName
+		bean.ServerUrl = model.ServerUrl
+		bean.PrometheusUrl = model.PrometheusEndpoint
+		bean.AgentInstallationStage = model.AgentInstallationStage
+		bean.Active = model.Active
+		bean.Config = model.Config
+		bean.K8sVersion = model.K8sVersion
+		bean.InsecureSkipTLSVerify = model.InsecureSkipTlsVerify
+		beans = append(beans, &bean)
 	}
 	return beans, nil
 }
 
 func (impl *ClusterServiceImpl) FindAllActive() ([]ClusterBean, error) {
-	model, err := impl.clusterRepository.FindAllActive()
+	models, err := impl.clusterRepository.FindAllActive()
 	if err != nil {
 		return nil, err
 	}
 	var beans []ClusterBean
-	for _, m := range model {
-		beans = append(beans, ClusterBean{
-			Id:                     m.Id,
-			ClusterName:            m.ClusterName,
-			ServerUrl:              m.ServerUrl,
-			Active:                 m.Active,
-			PrometheusUrl:          m.PrometheusEndpoint,
-			AgentInstallationStage: m.AgentInstallationStage,
-			Config:                 m.Config,
-			K8sVersion:             m.K8sVersion,
-			ErrorInConnecting:      m.ErrorInConnecting,
-		})
+	for _, model := range models {
+		bean := ClusterBean{}
+		bean.Id = model.Id
+		bean.ClusterName = model.ClusterName
+		bean.ServerUrl = model.ServerUrl
+		bean.PrometheusUrl = model.PrometheusEndpoint
+		bean.AgentInstallationStage = model.AgentInstallationStage
+		bean.Active = model.Active
+		bean.Config = model.Config
+		bean.K8sVersion = model.K8sVersion
+		bean.InsecureSkipTLSVerify = model.InsecureSkipTlsVerify
+		beans = append(beans, bean)
 	}
 	return beans, nil
 }
@@ -361,16 +417,16 @@ func (impl *ClusterServiceImpl) FindById(id int) (*ClusterBean, error) {
 	if err != nil {
 		return nil, err
 	}
-	bean := &ClusterBean{
-		Id:                     model.Id,
-		ClusterName:            model.ClusterName,
-		ServerUrl:              model.ServerUrl,
-		PrometheusUrl:          model.PrometheusEndpoint,
-		AgentInstallationStage: model.AgentInstallationStage,
-		Active:                 model.Active,
-		Config:                 model.Config,
-		K8sVersion:             model.K8sVersion,
-	}
+	bean := &ClusterBean{}
+	bean.Id = model.Id
+	bean.ClusterName = model.ClusterName
+	bean.ServerUrl = model.ServerUrl
+	bean.PrometheusUrl = model.PrometheusEndpoint
+	bean.AgentInstallationStage = model.AgentInstallationStage
+	bean.Active = model.Active
+	bean.Config = model.Config
+	bean.K8sVersion = model.K8sVersion
+	bean.InsecureSkipTLSVerify = model.InsecureSkipTlsVerify
 	prometheusAuth := &PrometheusAuth{
 		UserName:      model.PUserName,
 		Password:      model.PPassword,
@@ -399,16 +455,17 @@ func (impl *ClusterServiceImpl) FindByIds(ids []int) ([]ClusterBean, error) {
 	var beans []ClusterBean
 
 	for _, model := range models {
-		beans = append(beans, ClusterBean{
-			Id:                     model.Id,
-			ClusterName:            model.ClusterName,
-			ServerUrl:              model.ServerUrl,
-			PrometheusUrl:          model.PrometheusEndpoint,
-			AgentInstallationStage: model.AgentInstallationStage,
-			Active:                 model.Active,
-			Config:                 model.Config,
-			K8sVersion:             model.K8sVersion,
-		})
+		bean := ClusterBean{}
+		bean.Id = model.Id
+		bean.ClusterName = model.ClusterName
+		bean.ServerUrl = model.ServerUrl
+		bean.PrometheusUrl = model.PrometheusEndpoint
+		bean.AgentInstallationStage = model.AgentInstallationStage
+		bean.Active = model.Active
+		bean.Config = model.Config
+		bean.K8sVersion = model.K8sVersion
+		bean.InsecureSkipTLSVerify = model.InsecureSkipTlsVerify
+		beans = append(beans, bean)
 	}
 	return beans, nil
 }
@@ -430,12 +487,31 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 	}
 
 	// check whether config modified or not, if yes create informer with updated config
-	dbConfig := model.Config["bearer_token"]
-	requestConfig := bean.Config["bearer_token"]
-	if len(requestConfig) == 0 {
-		bean.Config = model.Config
+	dbConfigBearerToken := model.Config[BearerToken]
+	requestConfigBearerToken := bean.Config[BearerToken]
+	if len(requestConfigBearerToken) == 0 {
+		bean.Config[BearerToken] = model.Config[BearerToken]
 	}
-	if bean.ServerUrl != model.ServerUrl || dbConfig != requestConfig {
+
+	dbConfigTlsKey := model.Config[TlsKey]
+	requestConfigTlsKey := bean.Config[TlsKey]
+	if len(requestConfigTlsKey) == 0 {
+		bean.Config[TlsKey] = model.Config[TlsKey]
+	}
+
+	dbConfigCertData := model.Config[CertData]
+	requestConfigCertData := bean.Config[CertData]
+	if len(requestConfigCertData) == 0 {
+		bean.Config[CertData] = model.Config[CertData]
+	}
+
+	dbConfigCAData := model.Config[CertificateAuthorityData]
+	requestConfigCAData := bean.Config[CertificateAuthorityData]
+	if len(requestConfigCAData) == 0 {
+		bean.Config[CertificateAuthorityData] = model.Config[CertificateAuthorityData]
+	}
+
+	if bean.ServerUrl != model.ServerUrl || bean.InsecureSkipTLSVerify != model.InsecureSkipTlsVerify || dbConfigBearerToken != requestConfigBearerToken || dbConfigTlsKey != requestConfigTlsKey || dbConfigCertData != requestConfigCertData || dbConfigCAData != requestConfigCAData {
 		bean.HasConfigOrUrlChanged = true
 		//validating config
 		err := impl.CheckIfConfigIsValid(bean)
@@ -445,6 +521,7 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 	}
 	model.ClusterName = bean.ClusterName
 	model.ServerUrl = bean.ServerUrl
+	model.InsecureSkipTlsVerify = bean.InsecureSkipTLSVerify
 	model.PrometheusEndpoint = bean.PrometheusUrl
 
 	if bean.PrometheusAuth != nil {
@@ -551,10 +628,16 @@ func (impl *ClusterServiceImpl) SyncNsInformer(bean *ClusterBean) {
 	impl.K8sInformerFactory.CleanNamespaceInformer(bean.ClusterName)
 	//create new informer for cluster with new config
 	clusterInfo := &bean2.ClusterInfo{
-		ClusterId:   bean.Id,
-		ClusterName: bean.ClusterName,
-		BearerToken: requestConfig,
-		ServerUrl:   bean.ServerUrl,
+		ClusterId:             bean.Id,
+		ClusterName:           bean.ClusterName,
+		BearerToken:           requestConfig,
+		ServerUrl:             bean.ServerUrl,
+		InsecureSkipTLSVerify: bean.InsecureSkipTLSVerify,
+	}
+	if !bean.InsecureSkipTLSVerify {
+		clusterInfo.KeyData = bean.Config["tls_key"]
+		clusterInfo.CertData = bean.Config["cert_data"]
+		clusterInfo.CAData = bean.Config["cert_auth_data"]
 	}
 	impl.K8sInformerFactory.BuildInformer([]*bean2.ClusterInfo{clusterInfo})
 }
@@ -574,12 +657,12 @@ func (impl *ClusterServiceImpl) FindAllForAutoComplete() ([]ClusterBean, error) 
 	}
 	var beans []ClusterBean
 	for _, m := range model {
-		beans = append(beans, ClusterBean{
-			Id:                m.Id,
-			ClusterName:       m.ClusterName,
-			ErrorInConnecting: m.ErrorInConnecting,
-			IsCdArgoSetup:     m.CdArgoSetup,
-		})
+		bean := ClusterBean{}
+		bean.Id = m.Id
+		bean.ClusterName = m.ClusterName
+		bean.ErrorInConnecting = m.ErrorInConnecting
+		bean.IsCdArgoSetup = m.CdArgoSetup
+		beans = append(beans, bean)
 	}
 	return beans, nil
 }
@@ -599,10 +682,14 @@ func (impl *ClusterServiceImpl) buildInformer() {
 	for _, model := range models {
 		bearerToken := model.Config["bearer_token"]
 		clusterInfo = append(clusterInfo, &bean2.ClusterInfo{
-			ClusterId:   model.Id,
-			ClusterName: model.ClusterName,
-			BearerToken: bearerToken,
-			ServerUrl:   model.ServerUrl,
+			ClusterId:             model.Id,
+			ClusterName:           model.ClusterName,
+			BearerToken:           bearerToken,
+			ServerUrl:             model.ServerUrl,
+			InsecureSkipTLSVerify: model.InsecureSkipTlsVerify,
+			KeyData:               model.Config["tls_key"],
+			CertData:              model.Config["cert_data"],
+			CAData:                model.Config["cert_auth_data"],
 		})
 	}
 	impl.K8sInformerFactory.BuildInformer(clusterInfo)
@@ -647,18 +734,18 @@ func (impl ClusterServiceImpl) DeleteFromDb(bean *ClusterBean, userId int32) err
 }
 
 func (impl ClusterServiceImpl) CheckIfConfigIsValid(cluster *ClusterBean) error {
-	configMap := cluster.Config
-	bearerToken := configMap["bearer_token"]
-	var restConfig *rest.Config
-	var err error
-	if cluster.ClusterName == DEFAULT_CLUSTER && len(bearerToken) == 0 {
-		restConfig, err = rest.InClusterConfig()
-		if err != nil {
-			impl.logger.Errorw("error in getting rest config for default cluster", "err", err)
-			return err
-		}
-	} else {
-		restConfig = &rest.Config{Host: cluster.ServerUrl, BearerToken: bearerToken, TLSClientConfig: rest.TLSClientConfig{Insecure: true}}
+
+	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(&util.ClusterConfig{
+		ClusterName:           cluster.ClusterName,
+		Host:                  cluster.ServerUrl,
+		BearerToken:           cluster.Config["bearer_token"],
+		InsecureSkipTLSVerify: cluster.InsecureSkipTLSVerify,
+		KeyData:               cluster.Config["tls_key"],
+		CertData:              cluster.Config["cert_data"],
+		CAData:                cluster.Config["cert_auth_data"],
+	})
+	if err != nil {
+		return err
 	}
 	k8sHttpClient, err := util.OverrideK8sHttpClientWithTracer(restConfig)
 	if err != nil {
@@ -779,11 +866,10 @@ func (impl *ClusterServiceImpl) FindAllForClusterByUserId(userId int32, isAction
 	var beans []ClusterBean
 	for _, model := range models {
 		if _, ok := allowedClustersMap[model.ClusterName]; ok {
-			beans = append(beans, ClusterBean{
-				Id:                model.Id,
-				ClusterName:       model.ClusterName,
-				ErrorInConnecting: model.ErrorInConnecting,
-			})
+			bean := ClusterBean{}
+			bean.Id = model.Id
+			bean.ClusterName = model.ClusterName
+			beans = append(beans, bean)
 		}
 	}
 	return beans, nil
@@ -815,4 +901,281 @@ func (impl *ClusterServiceImpl) FetchRolesFromGroup(userId int32) ([]*repository
 		roles = append(roles, rolesFromGroup...)
 	}
 	return roles, nil
+}
+
+func (impl *ClusterServiceImpl) ConnectClustersInBatch(clusters []*ClusterBean, clusterExistInDb bool) {
+	wg := &sync.WaitGroup{}
+	wg.Add(len(clusters))
+	mutex := &sync.Mutex{}
+	//map of clusterId and error in its connection check process
+	respMap := make(map[int]error)
+	for idx, cluster := range clusters {
+		// getting restConfig and clientSet outside the goroutine because we don't want to call goroutine func with receiver function
+		restConfig, err := impl.K8sUtil.GetRestConfigByCluster(&util.ClusterConfig{
+			ClusterName:           cluster.ClusterName,
+			Host:                  cluster.ServerUrl,
+			BearerToken:           cluster.Config["bearer_token"],
+			InsecureSkipTLSVerify: cluster.InsecureSkipTLSVerify,
+			KeyData:               cluster.Config["tls_key"],
+			CertData:              cluster.Config["cert_data"],
+			CAData:                cluster.Config["cert_auth_data"],
+		})
+		if err != nil {
+			impl.logger.Errorw("error in getting restConfig by cluster", "err", err, "clusterId", cluster.Id)
+			mutex.Lock()
+			respMap[cluster.Id] = err
+			mutex.Unlock()
+			continue
+		}
+		k8sHttpClient, err := util.OverrideK8sHttpClientWithTracer(restConfig)
+		if err != nil {
+			continue
+		}
+		k8sClientSet, err := kubernetes.NewForConfigAndClient(restConfig, k8sHttpClient)
+		if err != nil {
+			impl.logger.Errorw("error in getting client set by rest config", "err", err, "restConfig", restConfig)
+			mutex.Lock()
+			respMap[cluster.Id] = err
+			mutex.Unlock()
+			continue
+		}
+		id := cluster.Id
+		if !clusterExistInDb {
+			id = idx
+		}
+		go GetAndUpdateConnectionStatusForOneCluster(k8sClientSet, id, respMap, wg, mutex)
+	}
+	wg.Wait()
+	impl.HandleErrorInClusterConnections(clusters, respMap, clusterExistInDb)
+}
+
+func (impl *ClusterServiceImpl) HandleErrorInClusterConnections(clusters []*ClusterBean, respMap map[int]error, clusterExistInDb bool) {
+	for id, err := range respMap {
+		errorInConnecting := ""
+		if err != nil {
+			errorInConnecting = err.Error()
+			if len(errorInConnecting) > 5000 {
+				errorInConnecting = "invalid server url"
+			}
+		}
+		//updating cluster connection status
+		if clusterExistInDb {
+			//id is clusterId if clusterExistInDb
+			errInUpdating := impl.clusterRepository.UpdateClusterConnectionStatus(id, errorInConnecting)
+			if errInUpdating != nil {
+				impl.logger.Errorw("error in updating cluster connection status", "err", err, "clusterId", id, "errorInConnecting", errorInConnecting)
+			}
+		} else {
+			//id is index of the cluster in clusters array
+			clusters[id].ErrorInConnecting = errorInConnecting
+		}
+	}
+}
+
+func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[string]*ValidateClusterBean, error) {
+
+	kubeConfigObject := api.Config{}
+
+	gvk := &schema.GroupVersionKind{}
+
+	var kubeConfigDataMap map[string]interface{}
+	err := json.Unmarshal([]byte(kubeConfig), &kubeConfigDataMap)
+	if err != nil {
+		impl.logger.Errorw("error in unmarshalling kubeConfig", "kubeConfig", kubeConfig)
+		return nil, errors1.New("invalid kubeConfig found , " + err.Error())
+	}
+
+	if kubeConfigDataMap["apiVersion"] == nil {
+		impl.logger.Errorw("api version missing from kubeConfig", "api version", kubeConfig)
+		return nil, errors1.New("api version missing from kubeConfig")
+	}
+	if kubeConfigDataMap["kind"] == nil {
+		impl.logger.Errorw("kind missing from kubeConfig", "kind", kubeConfig)
+		return nil, errors1.New("kind missing from kubeConfig")
+	}
+
+	gvk.Version = kubeConfigDataMap["apiVersion"].(string)
+	gvk.Kind = kubeConfigDataMap["kind"].(string)
+
+	_, _, err = latest.Codec.Decode([]byte(kubeConfig), gvk, &kubeConfigObject)
+	if err != nil {
+		impl.logger.Errorw("error in decoding kubeConfig", err, "kubeConfigObject", kubeConfigObject)
+		return nil, err
+	}
+
+	//var clusterBeanObjects []*ClusterBean
+	ValidateObjects := make(map[string]*ValidateClusterBean)
+
+	var clusterBeansWithNoValidationErrors []*ClusterBean
+	var clusterBeanObjects []*ClusterBean
+	if err != nil {
+		impl.logger.Errorw("service err, FindAll", "err", err)
+		return ValidateObjects, err
+	}
+
+	clusterList, err := impl.clusterRepository.FindActiveClusters()
+	clusterListMap := make(map[string]bool)
+	clusterListMapWithId := make(map[string]int)
+	for _, c := range clusterList {
+		clusterListMap[c.ClusterName] = c.Active
+		clusterListMapWithId[c.ClusterName] = c.Id
+	}
+	if err != nil {
+		impl.logger.Errorw("service err, FindAll", "err", err)
+		return nil, err
+	}
+
+	userInfosMap := map[string]*UserInfo{}
+	for _, ctx := range kubeConfigObject.Contexts {
+		clusterBeanObject := &ClusterBean{}
+		clusterName := ctx.Cluster
+		userName := ctx.AuthInfo
+		clusterObj := kubeConfigObject.Clusters[clusterName]
+		userInfoObj := kubeConfigObject.AuthInfos[userName]
+
+		if clusterObj == nil {
+			continue
+		}
+
+		if clusterName != "" {
+			clusterBeanObject.ClusterName = clusterName
+		} else {
+			clusterBeanObject.ErrorInConnecting = "cluster name missing from kubeconfig"
+		}
+
+		if (clusterObj == nil || clusterObj.Server == "") && (clusterBeanObject.ErrorInConnecting == "") {
+			clusterBeanObject.ErrorInConnecting = "server url missing from the kubeconfig"
+		} else {
+			clusterBeanObject.ServerUrl = clusterObj.Server
+		}
+
+		if gvk.Version == "" {
+			clusterBeanObject.ErrorInConnecting = "api version missing from the contexts in kubeconfig"
+		} else {
+			clusterBeanObject.K8sVersion = gvk.Version
+		}
+
+		Config := make(map[string]string)
+
+		if (userInfoObj == nil || userInfoObj.Token == "" && clusterObj.InsecureSkipTLSVerify) && (clusterBeanObject.ErrorInConnecting == "") {
+			clusterBeanObject.ErrorInConnecting = "token missing from the kubeconfig"
+		}
+		Config[BearerToken] = userInfoObj.Token
+
+		if clusterObj != nil {
+			clusterBeanObject.InsecureSkipTLSVerify = clusterObj.InsecureSkipTLSVerify
+		}
+
+		if (clusterObj != nil) && !clusterObj.InsecureSkipTLSVerify && (clusterBeanObject.ErrorInConnecting == "") {
+			missingFieldsStr := ""
+			if string(userInfoObj.ClientKeyData) == "" {
+				missingFieldsStr += TlsKey + " "
+			}
+			if string(clusterObj.CertificateAuthorityData) == "" {
+				missingFieldsStr += CertificateAuthorityData + " "
+			}
+			if string(userInfoObj.ClientCertificateData) == "" {
+				missingFieldsStr += CertData + " "
+			}
+			if len(missingFieldsStr) > 0 {
+				clusterBeanObject.ErrorInConnecting = fmt.Sprintf("Missing fields: %s", missingFieldsStr)
+			} else {
+				Config[TlsKey] = string(userInfoObj.ClientKeyData)
+				Config[CertData] = string(userInfoObj.ClientCertificateData)
+				Config[CertificateAuthorityData] = string(clusterObj.CertificateAuthorityData)
+			}
+		}
+
+		userInfo := UserInfo{
+			UserName:          userName,
+			Config:            Config,
+			ErrorInConnecting: clusterBeanObject.ErrorInConnecting,
+		}
+
+		userInfosMap[userInfo.UserName] = &userInfo
+		validateObject := &ValidateClusterBean{}
+		if _, ok := ValidateObjects[clusterBeanObject.ClusterName]; !ok {
+			validateObject.UserInfos = make(map[string]*UserInfo)
+			validateObject.ClusterBean = clusterBeanObject
+			ValidateObjects[clusterBeanObject.ClusterName] = validateObject
+		}
+		clusterBeanObject.UserName = userName
+		ValidateObjects[clusterBeanObject.ClusterName].UserInfos[userName] = &userInfo
+		if clusterBeanObject.ErrorInConnecting == "" || clusterBeanObject.ErrorInConnecting == "cluster already exists" {
+			clusterBeanObject.Config = Config
+			clusterBeansWithNoValidationErrors = append(clusterBeansWithNoValidationErrors, clusterBeanObject)
+		}
+		clusterBeanObjects = append(clusterBeanObjects, clusterBeanObject)
+	}
+
+	if clusterBeansWithNoValidationErrors != nil {
+		impl.ConnectClustersInBatch(clusterBeansWithNoValidationErrors, false)
+	}
+
+	for _, clusterBeanObject := range clusterBeanObjects {
+		if _, ok := clusterListMap[clusterBeanObject.ClusterName]; ok && clusterBeanObject.ErrorInConnecting == "" {
+			clusterBeanObject.ErrorInConnecting = "cluster-already-exists"
+			clusterBeanObject.Id = clusterListMapWithId[clusterBeanObject.ClusterName]
+			ValidateObjects[clusterBeanObject.ClusterName].Id = clusterBeanObject.Id
+		}
+		if clusterBeanObject.ErrorInConnecting != "" {
+			ValidateObjects[clusterBeanObject.ClusterName].UserInfos[clusterBeanObject.UserName].ErrorInConnecting = clusterBeanObject.ErrorInConnecting
+		}
+	}
+	for _, clusterBeanObject := range clusterBeanObjects {
+		clusterBeanObject.Config = nil
+		clusterBeanObject.ErrorInConnecting = ""
+	}
+
+	if len(ValidateObjects) == 0 {
+		impl.logger.Errorw("No valid cluster object provided in kubeconfig for context", "context", kubeConfig)
+		return nil, errors1.New("No valid cluster object provided in kubeconfig for context")
+	} else {
+		return ValidateObjects, nil
+	}
+
+}
+
+func GetAndUpdateConnectionStatusForOneCluster(k8sClientSet *kubernetes.Clientset, clusterId int, respMap map[int]error, wg *sync.WaitGroup, mutex *sync.Mutex) {
+	defer wg.Done()
+	//using livez path as healthz path is deprecated
+	path := "/livez"
+	response, err := k8sClientSet.Discovery().RESTClient().Get().AbsPath(path).DoRaw(context.Background())
+	log.Println("received response for cluster livez status", "response", string(response), "err", err, "clusterId", clusterId)
+	if err == nil && string(response) != "ok" {
+		err = fmt.Errorf("ErrorNotOk : response != 'ok' : %s", string(response))
+	}
+	mutex.Lock()
+	respMap[clusterId] = err
+	mutex.Unlock()
+	return
+}
+
+func (impl ClusterServiceImpl) ConvertClusterBeanObjectToCluster(bean *ClusterBean) *v1alpha1.Cluster {
+	configMap := bean.Config
+	serverUrl := bean.ServerUrl
+	bearerToken := ""
+	if configMap["bearer_token"] != "" {
+		bearerToken = configMap["bearer_token"]
+	}
+	tlsConfig := v1alpha1.TLSClientConfig{
+		Insecure: bean.InsecureSkipTLSVerify,
+	}
+
+	if !bean.InsecureSkipTLSVerify {
+		tlsConfig.KeyData = []byte(bean.Config["tls_key"])
+		tlsConfig.CertData = []byte(bean.Config["cert_data"])
+		tlsConfig.CAData = []byte(bean.Config["cert_auth_data"])
+	}
+	cdClusterConfig := v1alpha1.ClusterConfig{
+		BearerToken:     bearerToken,
+		TLSClientConfig: tlsConfig,
+	}
+
+	cl := &v1alpha1.Cluster{
+		Name:   bean.ClusterName,
+		Server: serverUrl,
+		Config: cdClusterConfig,
+	}
+	return cl
 }

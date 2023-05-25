@@ -40,6 +40,7 @@ import (
 	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
 	app_status "github.com/devtron-labs/devtron/pkg/appStatus"
 	repository3 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
+	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -553,10 +554,17 @@ func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int, userId int32) (int,
 		impl.Logger.Errorw("could not fetch stage env", "err", err)
 		return 0, err
 	}
-
-	serverUrl := env.Cluster.ServerUrl
 	configMap := env.Cluster.Config
-	bearerToken := configMap["bearer_token"]
+	clusterConfig := util.ClusterConfig{
+		Host:                  env.Cluster.ServerUrl,
+		BearerToken:           configMap["bearer_token"],
+		InsecureSkipTLSVerify: env.Cluster.InsecureSkipTlsVerify,
+	}
+	if env.Cluster.InsecureSkipTlsVerify == false {
+		clusterConfig.KeyData = configMap[cluster.TlsKey]
+		clusterConfig.CertData = configMap[cluster.CertData]
+		clusterConfig.CAData = configMap[cluster.CertificateAuthorityData]
+	}
 
 	var isExtCluster bool
 	if workflowRunner.WorkflowType == PRE {
@@ -565,14 +573,14 @@ func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int, userId int32) (int,
 		isExtCluster = pipeline.RunPostStageInEnv
 	}
 
-	runningWf, err := impl.cdService.GetWorkflow(workflowRunner.Name, workflowRunner.Namespace, serverUrl, bearerToken, isExtCluster)
+	runningWf, err := impl.cdService.GetWorkflow(workflowRunner.Name, workflowRunner.Namespace, clusterConfig, isExtCluster)
 	if err != nil {
 		impl.Logger.Errorw("cannot find workflow ", "name", workflowRunner.Name)
 		return 0, errors.New("cannot find workflow " + workflowRunner.Name)
 	}
 
 	// Terminate workflow
-	err = impl.cdService.TerminateWorkflow(runningWf.Name, runningWf.Namespace, serverUrl, bearerToken, isExtCluster)
+	err = impl.cdService.TerminateWorkflow(runningWf.Name, runningWf.Namespace, clusterConfig, isExtCluster)
 	if err != nil {
 		impl.Logger.Error("cannot terminate wf runner", "err", err)
 		return 0, err
@@ -738,10 +746,17 @@ func (impl *CdHandlerImpl) GetRunningWorkflowLogs(environmentId int, pipelineId 
 		impl.Logger.Errorw("error while fetching cd pipeline", "err", err)
 		return nil, nil, err
 	}
-
-	serverUrl := env.Cluster.ServerUrl
 	configMap := env.Cluster.Config
-	bearerToken := configMap["bearer_token"]
+	clusterConfig := util.ClusterConfig{
+		Host:                  env.Cluster.ServerUrl,
+		BearerToken:           configMap[cluster.BearerToken],
+		InsecureSkipTLSVerify: env.Cluster.InsecureSkipTlsVerify,
+	}
+	if env.Cluster.InsecureSkipTlsVerify == false {
+		clusterConfig.KeyData = configMap[cluster.TlsKey]
+		clusterConfig.CertData = configMap[cluster.CertData]
+		clusterConfig.CAData = configMap[cluster.CertificateAuthorityData]
+	}
 
 	var isExtCluster bool
 	if cdWorkflow.WorkflowType == PRE {
@@ -749,16 +764,16 @@ func (impl *CdHandlerImpl) GetRunningWorkflowLogs(environmentId int, pipelineId 
 	} else if cdWorkflow.WorkflowType == POST {
 		isExtCluster = pipeline.RunPostStageInEnv
 	}
-	return impl.getWorkflowLogs(pipelineId, cdWorkflow, bearerToken, serverUrl, isExtCluster)
+	return impl.getWorkflowLogs(pipelineId, cdWorkflow, clusterConfig, isExtCluster)
 }
 
-func (impl *CdHandlerImpl) getWorkflowLogs(pipelineId int, cdWorkflow *pipelineConfig.CdWorkflowRunner, token string, host string, runStageInEnv bool) (*bufio.Reader, func() error, error) {
+func (impl *CdHandlerImpl) getWorkflowLogs(pipelineId int, cdWorkflow *pipelineConfig.CdWorkflowRunner, clusterConfig util.ClusterConfig, runStageInEnv bool) (*bufio.Reader, func() error, error) {
 	cdLogRequest := BuildLogRequest{
 		PodName:   cdWorkflow.PodName,
 		Namespace: cdWorkflow.Namespace,
 	}
 
-	logStream, cleanUp, err := impl.ciLogService.FetchRunningWorkflowLogs(cdLogRequest, token, host, runStageInEnv)
+	logStream, cleanUp, err := impl.ciLogService.FetchRunningWorkflowLogs(cdLogRequest, clusterConfig, runStageInEnv)
 	if logStream == nil || err != nil {
 		if !cdWorkflow.BlobStorageEnabled {
 			return nil, nil, errors.New("logs-not-stored-in-repository")

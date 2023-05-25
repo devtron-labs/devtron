@@ -227,12 +227,15 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *Cluste
 		configMap := bean.Config
 		serverUrl := bean.ServerUrl
 		bearerToken := ""
-		if configMap["bearer_token"] != "" {
-			bearerToken = configMap["bearer_token"]
+		if configMap[BearerToken] != "" {
+			bearerToken = configMap[BearerToken]
 		}
 
 		tlsConfig := v1alpha1.TLSClientConfig{
-			Insecure: true,
+			Insecure: bean.InsecureSkipTLSVerify,
+			KeyData:  []byte(configMap[TlsKey]),
+			CertData: []byte(configMap[CertData]),
+			CAData:   []byte(configMap[CertificateAuthorityData]),
 		}
 		cdClusterConfig := v1alpha1.ClusterConfig{
 			BearerToken:     bearerToken,
@@ -332,25 +335,7 @@ func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterB
 	// if git-ops configured, then only add cluster in ACD, otherwise ignore
 	if isGitOpsConfigured {
 		//create it into argo cd as well
-		configMap := bean.Config
-		serverUrl := bean.ServerUrl
-		bearerToken := ""
-		if configMap["bearer_token"] != "" {
-			bearerToken = configMap["bearer_token"]
-		}
-		tlsConfig := v1alpha1.TLSClientConfig{
-			Insecure: true,
-		}
-		cdClusterConfig := v1alpha1.ClusterConfig{
-			BearerToken:     bearerToken,
-			TLSClientConfig: tlsConfig,
-		}
-
-		cl := &v1alpha1.Cluster{
-			Name:   bean.ClusterName,
-			Server: serverUrl,
-			Config: cdClusterConfig,
-		}
+		cl := impl.ConvertClusterBeanObjectToCluster(bean)
 
 		_, err = impl.clusterServiceCD.Create(ctx, &cluster3.ClusterCreateRequest{Upsert: true, Cluster: cl})
 		if err != nil {

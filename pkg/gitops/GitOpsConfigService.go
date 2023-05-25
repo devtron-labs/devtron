@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"fmt"
 	cluster3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
@@ -332,16 +331,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(ctx context.Context, req
 			return nil, err
 		}
 		for _, cluster := range clusters {
-			cl := &v1alpha1.Cluster{
-				Name:   cluster.ClusterName,
-				Server: cluster.ServerUrl,
-				Config: v1alpha1.ClusterConfig{
-					BearerToken: cluster.Config["bearer_token"],
-					TLSClientConfig: v1alpha1.TLSClientConfig{
-						Insecure: true,
-					},
-				},
-			}
+			cl := impl.clusterService.ConvertClusterBeanObjectToCluster(&cluster)
 			_, err = impl.clusterServiceCD.Create(ctx, &cluster3.ClusterCreateRequest{Upsert: true, Cluster: cl})
 			if err != nil {
 				impl.logger.Errorw("Error while upserting cluster in acd", "clusterName", cluster.ClusterName, "err", err)
