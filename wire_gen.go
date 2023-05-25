@@ -412,7 +412,7 @@ func InitializeApp() (*App, error) {
 	ciBuildConfigServiceImpl := pipeline.NewCiBuildConfigServiceImpl(sugaredLogger, ciBuildConfigRepositoryImpl)
 	ciTemplateServiceImpl := pipeline.NewCiTemplateServiceImpl(sugaredLogger, ciBuildConfigServiceImpl, ciTemplateRepositoryImpl, ciTemplateOverrideRepositoryImpl)
 	ciCdPipelineOrchestratorImpl := pipeline.NewCiCdPipelineOrchestrator(appRepositoryImpl, sugaredLogger, materialRepositoryImpl, pipelineRepositoryImpl, ciPipelineRepositoryImpl, ciPipelineMaterialRepositoryImpl, clientImpl, ciConfig, appWorkflowRepositoryImpl, environmentRepositoryImpl, attributesServiceImpl, appListingRepositoryImpl, appCrudOperationServiceImpl, userAuthServiceImpl, prePostCdScriptHistoryServiceImpl, prePostCiScriptHistoryServiceImpl, pipelineStageServiceImpl, ciTemplateOverrideRepositoryImpl, gitMaterialHistoryServiceImpl, ciPipelineHistoryServiceImpl, ciTemplateServiceImpl, dockerArtifactStoreRepositoryImpl)
-	propertiesConfigServiceImpl := pipeline.NewPropertiesConfigServiceImpl(sugaredLogger, envConfigOverrideRepositoryImpl, chartRepositoryImpl, utilMergeUtil, environmentRepositoryImpl, ciCdPipelineOrchestratorImpl, applicationServiceClientImpl, envLevelAppMetricsRepositoryImpl, appLevelMetricsRepositoryImpl, deploymentTemplateHistoryServiceImpl)
+	propertiesConfigServiceImpl := pipeline.NewPropertiesConfigServiceImpl(sugaredLogger, envConfigOverrideRepositoryImpl, chartRepositoryImpl, chartRefRepositoryImpl, utilMergeUtil, environmentRepositoryImpl, ciCdPipelineOrchestratorImpl, applicationServiceClientImpl, envLevelAppMetricsRepositoryImpl, appLevelMetricsRepositoryImpl, deploymentTemplateHistoryServiceImpl)
 	ecrConfig, err := pipeline.GetEcrConfig()
 	if err != nil {
 		return nil, err
