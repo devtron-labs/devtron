@@ -1768,6 +1768,7 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 		return releaseNo, manifest, err
 	}
 
+	_, span := otel.Tracer("orchestrator").Start(ctx, "AppService.BuildManifestForTrigger")
 	valuesOverrideResponse, builtChartPath, err := impl.BuildManifestForTrigger(overrideRequest, triggerEvent.TriggerdAt, ctx)
 	if err != nil {
 		if triggerEvent.GetManifestInResponse {
@@ -1790,14 +1791,10 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 		}
 		return releaseNo, manifest, err
 	}
+	span.End()
 
 	if triggerEvent.GetManifestInResponse {
 		//get stream and directly redirect the stram to response
-		manifest, err = impl.GetHelmManifestInByte(valuesOverrideResponse.MergedValues, builtChartPath)
-		if err != nil {
-			impl.logger.Errorw("error in converting manifest to bytes", "err", err)
-			return releaseNo, manifest, err
-		}
 		timeline := &pipelineConfig.PipelineStatusTimeline{
 			CdWorkflowRunnerId: overrideRequest.WfrId,
 			Status:             "HELM_PACKAGE_GENERATED",
@@ -1820,17 +1817,21 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 
 	if triggerEvent.PerformGitOps {
 		//TODO: clean chart from local after pushing
+		_, span := otel.Tracer("orchestrator").Start(ctx, "AppService.PushChartToGitRepoIfNotExistAndUpdateTimelineStatus")
 		err = impl.PushChartToGitRepoIfNotExistAndUpdateTimelineStatus(overrideRequest, builtChartPath, valuesOverrideResponse.EnvOverride, ctx)
 		if err != nil {
 			impl.logger.Errorw("error in pushing chart to git", "err", err)
 			return releaseNo, manifest, err
 		}
+		span.End()
 
+		_, span = otel.Tracer("orchestrator").Start(ctx, "AppService.CommitValuesToGit")
 		commitHash, commitTime, err := impl.CommitValuesToGit(overrideRequest, valuesOverrideResponse, triggerEvent.TriggerdAt, ctx)
 		if err != nil {
 			impl.logger.Errorw("error in commiting values to git", "err", err)
 			return releaseNo, manifest, err
 		}
+		span.End()
 
 		pipelineOverrideUpdateRequest := &chartConfig.PipelineOverride{
 			Id:                     valuesOverrideResponse.PipelineOverride.Id,
@@ -1843,7 +1844,7 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 			PipelineMergedValues:   valuesOverrideResponse.MergedValues,
 			AuditLog:               sql.AuditLog{UpdatedOn: triggerEvent.TriggerdAt, UpdatedBy: overrideRequest.UserId},
 		}
-		_, span := otel.Tracer("orchestrator").Start(ctx, "pipelineOverrideRepository.Update")
+		_, span = otel.Tracer("orchestrator").Start(ctx, "pipelineOverrideRepository.Update")
 		err = impl.pipelineOverrideRepository.Update(pipelineOverrideUpdateRequest)
 		span.End()
 
@@ -1857,7 +1858,7 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 		}
 	}
 
-	_, span := otel.Tracer("orchestrator").Start(ctx, "CreateHistoriesForDeploymentTrigger")
+	_, span = otel.Tracer("orchestrator").Start(ctx, "CreateHistoriesForDeploymentTrigger")
 	err = impl.CreateHistoriesForDeploymentTrigger(valuesOverrideResponse.Pipeline, valuesOverrideResponse.PipelineStrategy, valuesOverrideResponse.EnvOverride, triggerEvent.TriggerdAt, triggerEvent.TriggeredBy)
 	span.End()
 

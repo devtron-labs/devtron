@@ -1717,7 +1717,7 @@ func (handler AppListingRestHandlerImpl) GetClusterTeamAndEnvListForAutocomplete
 
 			var hasAccess bool
 			EnvironmentIdentifier := item.ClusterName + "__" + item.Namespace
-			if item.EnvironmentIdentifier != EnvironmentIdentifier {
+			if item.EnvironmentIdentifier != EnvironmentIdentifier && !item.IsVirtualEnvironment {
 				// fix for futuristic case
 				hasAccess = result[strings.ToLower(EnvironmentIdentifier)] || result[strings.ToLower(item.EnvironmentIdentifier)]
 			} else {
