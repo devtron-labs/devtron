@@ -845,7 +845,7 @@ func (impl *CiHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.Workflow
 const CiStageFailErrorCode = 2
 
 func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus) (int, error) {
-	workflowName, status, podStatus, message, logLocation, podName := impl.extractWorkfowStatus(workflowStatus)
+	workflowName, status, podStatus, message, _, podName := impl.extractWorkfowStatus(workflowStatus)
 	if workflowName == "" {
 		impl.Logger.Errorw("extract workflow status, invalid wf name", "workflowName", workflowName, "status", status, "podStatus", podStatus, "message", message)
 		return 0, errors.New("invalid wf name")
@@ -883,7 +883,7 @@ func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 		savedWorkflow.FinishedOn = workflowStatus.FinishedAt.Time
 		savedWorkflow.Name = workflowName
 		//savedWorkflow.LogLocation = "/ci-pipeline/" + strconv.Itoa(savedWorkflow.CiPipelineId) + "/workflow/" + strconv.Itoa(savedWorkflow.Id) + "/logs" //TODO need to fetch from workflow object
-		savedWorkflow.LogLocation = logLocation
+		//savedWorkflow.LogLocation = logLocation
 		savedWorkflow.CiArtifactLocation = ciArtifactLocation
 		savedWorkflow.PodName = podName
 		impl.Logger.Debugw("updating workflow ", "workflow", savedWorkflow)

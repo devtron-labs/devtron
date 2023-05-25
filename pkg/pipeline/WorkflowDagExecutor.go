@@ -433,6 +433,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 		Namespace:          impl.cdConfig.DefaultNamespace,
 		BlobStorageEnabled: impl.cdConfig.BlobStorageEnabled,
 		CdWorkflowId:       cdWf.Id,
+		LogLocation:        impl.cdConfig.DefaultBuildLogsKeyPrefix + "/" + strconv.Itoa(cdWf.Id) + "-" + pipeline.Name + "/main.log",
 		AuditLog:           sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: 1, UpdatedOn: triggeredAt, UpdatedBy: 1},
 	}
 	var env *repository2.Environment

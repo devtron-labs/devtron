@@ -55,6 +55,8 @@ func (impl *ArgoWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.Work
 	}
 
 	wfContainer := workflowTemplate.Containers[0]
+	//archiveLogs := workflowTemplate.ArchiveLogs
+	archiveLogs := false
 	cdTemplate := v1alpha1.Template{
 		Name:      CD_WORKFLOW_NAME,
 		Container: &wfContainer,
