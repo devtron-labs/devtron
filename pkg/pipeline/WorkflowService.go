@@ -239,7 +239,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		serverUrl := env.Cluster.ServerUrl
 		configMap := env.Cluster.Config
 		bearerToken := configMap["bearer_token"]
-		//workflowRequest.Namespace = env.Namespace
+		workflowRequest.Namespace = env.Namespace
 		wfClient, err = impl.getRuntimeEnvClientInstance(workflowRequest.Namespace, bearerToken, serverUrl)
 		if err != nil {
 			impl.Logger.Errorw("cannot build wf client", "err", err)
