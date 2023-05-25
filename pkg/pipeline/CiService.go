@@ -20,8 +20,11 @@ package pipeline
 import (
 	"errors"
 	"fmt"
+	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/app"
+	repository1 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
@@ -64,6 +67,8 @@ type CiServiceImpl struct {
 	userService                   user.UserService
 	ciTemplateService             CiTemplateService
 	appCrudOperationService       app.AppCrudOperationService
+	envRepository                 repository1.EnvironmentRepository
+	appRepository                 appRepository.AppRepository
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
@@ -73,7 +78,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService,
 	pipelineStageService PipelineStageService,
 	userService user.UserService,
-	ciTemplateService CiTemplateService, appCrudOperationService app.AppCrudOperationService) *CiServiceImpl {
+	ciTemplateService CiTemplateService, appCrudOperationService app.AppCrudOperationService, envRepository repository1.EnvironmentRepository, appRepository appRepository.AppRepository) *CiServiceImpl {
 	return &CiServiceImpl{
 		Logger:                        Logger,
 		workflowService:               workflowService,
@@ -89,6 +94,8 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 		userService:                   userService,
 		ciTemplateService:             ciTemplateService,
 		appCrudOperationService:       appCrudOperationService,
+		envRepository:                 envRepository,
+		appRepository:                 appRepository,
 	}
 }
 
@@ -137,7 +144,15 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 		impl.Logger.Errorw("could not save new workflow", "err", err)
 		return 0, err
 	}
-
+	app, err := impl.appRepository.FindById(pipeline.AppId)
+	//error
+	var env *repository1.Environment
+	isJob := false
+	if app.AppType == helper.Job {
+		isJob = true
+		env, err = impl.envRepository.FindById(pipeline.EnvironmentId)
+		//error
+	}
 	workflowRequest, err := impl.buildWfRequestForCiPipeline(pipeline, trigger, ciMaterials, savedCiWf, ciWorkflowConfig, ciPipelineScripts)
 	if err != nil {
 		impl.Logger.Errorw("make workflow req", "err", err)
@@ -150,8 +165,8 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-
-	createdWf, err := impl.executeCiPipeline(workflowRequest, appLabels)
+	workflowRequest.AppId = pipeline.AppId
+	createdWf, err := impl.executeCiPipeline(workflowRequest, appLabels, env, isJob)
 	if err != nil {
 		impl.Logger.Errorw("workflow error", "err", err)
 		return 0, err
@@ -258,8 +273,9 @@ func (impl *CiServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, 
 	return ciWorkflow, nil
 }
 
-func (impl *CiServiceImpl) executeCiPipeline(workflowRequest *WorkflowRequest, appLabels map[string]string) (*v1alpha1.Workflow, error) {
-	createdWorkFlow, err := impl.workflowService.SubmitWorkflow(workflowRequest, appLabels)
+func (impl *CiServiceImpl) executeCiPipeline(workflowRequest *WorkflowRequest, appLabels map[string]string, env *repository1.Environment, isJob bool) (*v1alpha1.Workflow, error) {
+
+	createdWorkFlow, err := impl.workflowService.SubmitWorkflow(workflowRequest, appLabels, env, isJob)
 	if err != nil {
 		impl.Logger.Errorw("workflow error", "err", err)
 		return nil, err

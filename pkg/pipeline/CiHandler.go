@@ -186,6 +186,7 @@ type Trigger struct {
 	TriggeredBy               int32
 	InvalidateCache           bool
 	ExtraEnvironmentVariables map[string]string // extra env variables which will be used for CI
+
 }
 
 const WorkflowCancel = "CANCELLED"

@@ -542,8 +542,10 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 			Deleted:                  false,
 			ScanEnabled:              createRequest.ScanEnabled,
 			IsDockerConfigOverridden: ciPipeline.IsDockerConfigOverridden,
+			EnvironmentId:            ciPipeline.EnvironmentId,
 			AuditLog:                 sql.AuditLog{UpdatedBy: createRequest.UserId, CreatedBy: createRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 		}
+
 		err = impl.ciPipelineRepository.Save(ciPipelineObject, tx)
 		ciPipeline.Id = ciPipelineObject.Id
 		if err != nil {

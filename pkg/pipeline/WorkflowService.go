@@ -26,9 +26,13 @@ import (
 	v1alpha12 "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
 	"github.com/argoproj/argo-workflows/v3/workflow/util"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
+	bean3 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"go.uber.org/zap"
 	v12 "k8s.io/api/core/v1"
@@ -42,7 +46,7 @@ import (
 )
 
 type WorkflowService interface {
-	SubmitWorkflow(workflowRequest *WorkflowRequest, appLabels map[string]string) (*v1alpha1.Workflow, error)
+	SubmitWorkflow(workflowRequest *WorkflowRequest, appLabels map[string]string, env *repository2.Environment, isJob bool) (*v1alpha1.Workflow, error)
 	DeleteWorkflow(wfName string, namespace string) error
 	GetWorkflow(name string, namespace string) (*v1alpha1.Workflow, error)
 	ListAllWorkflows(namespace string) (*v1alpha1.WorkflowList, error)
@@ -57,14 +61,19 @@ type CiCdTriggerEvent struct {
 }
 
 type WorkflowServiceImpl struct {
-	Logger            *zap.SugaredLogger
-	config            *rest.Config
-	ciConfig          *CiConfig
-	globalCMCSService GlobalCMCSService
+	Logger              *zap.SugaredLogger
+	config              *rest.Config
+	ciConfig            *CiConfig
+	globalCMCSService   GlobalCMCSService
+	appService          app.AppService
+	configMapRepository chartConfig.ConfigMapRepository
 }
 
 type WorkflowRequest struct {
-	WorkflowNamePrefix         string                            `json:"workflowNamePrefix"`
+	WorkflowNamePrefix string `json:"workflowNamePrefix"`
+	AppId              int    `json:"appId"`
+	EnvironmentId      int    `json:"environmentId"`
+
 	PipelineName               string                            `json:"pipelineName"`
 	PipelineId                 int                               `json:"pipelineId"`
 	DockerImageTag             string                            `json:"dockerImageTag"`
@@ -184,19 +193,21 @@ type GitOptions struct {
 }
 
 func NewWorkflowServiceImpl(Logger *zap.SugaredLogger, ciConfig *CiConfig,
-	globalCMCSService GlobalCMCSService) *WorkflowServiceImpl {
+	globalCMCSService GlobalCMCSService, appService app.AppService, configMapRepository chartConfig.ConfigMapRepository) *WorkflowServiceImpl {
 	return &WorkflowServiceImpl{
-		Logger:            Logger,
-		config:            ciConfig.ClusterConfig,
-		ciConfig:          ciConfig,
-		globalCMCSService: globalCMCSService,
+		Logger:              Logger,
+		config:              ciConfig.ClusterConfig,
+		ciConfig:            ciConfig,
+		globalCMCSService:   globalCMCSService,
+		appService:          appService,
+		configMapRepository: configMapRepository,
 	}
 }
 
 const ciEvent = "CI"
 const cdStage = "CD"
 
-func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest, appLabels map[string]string) (*v1alpha1.Workflow, error) {
+func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest, appLabels map[string]string, env *repository2.Environment, isJob bool) (*v1alpha1.Workflow, error) {
 	containerEnvVariables := []v12.EnvVar{{Name: "IMAGE_SCANNER_ENDPOINT", Value: impl.ciConfig.ImageScannerEndpoint}}
 	if impl.ciConfig.CloudProvider == BLOB_STORAGE_S3 && impl.ciConfig.BlobStorageS3AccessKey != "" {
 		miniCred := []v12.EnvVar{{Name: "AWS_ACCESS_KEY_ID", Value: impl.ciConfig.BlobStorageS3AccessKey}, {Name: "AWS_SECRET_ACCESS_KEY", Value: impl.ciConfig.BlobStorageS3SecretKey}}
@@ -222,11 +233,25 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		return nil, err
 	}
 	impl.Logger.Debugw("workflowRequest ---->", "workflowJson", string(workflowJson))
+	var wfClient v1alpha12.WorkflowInterface
+	workflowRequest.EnvironmentId = env.Id
+	if isJob && workflowRequest.EnvironmentId != 0 {
+		serverUrl := env.Cluster.ServerUrl
+		configMap := env.Cluster.Config
+		bearerToken := configMap["bearer_token"]
+		workflowRequest.Namespace = env.Namespace
+		wfClient, err = impl.getRuntimeEnvClientInstance(workflowRequest.Namespace, bearerToken, serverUrl)
+		if err != nil {
+			impl.Logger.Errorw("cannot build wf client", "err", err)
+			return nil, err
+		}
+	} else {
+		wfClient, err = impl.getClientInstance(workflowRequest.Namespace)
+		if err != nil {
+			impl.Logger.Errorw("cannot build wf client", "err", err)
+			return nil, err
+		}
 
-	wfClient, err := impl.getClientInstance(workflowRequest.Namespace)
-	if err != nil {
-		impl.Logger.Errorw("cannot build wf client", "err", err)
-		return nil, err
 	}
 
 	privileged := true
@@ -263,18 +288,199 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		impl.Logger.Errorw("error in creating templates for global secrets", "err", err)
 	}
 
-	steps = append(steps, v1alpha1.ParallelSteps{
-		Steps: []v1alpha1.WorkflowStep{
-			{
-				Name:     "run-wf",
-				Template: CI_WORKFLOW_NAME,
+	//steps = append(steps, v1alpha1.ParallelSteps{
+	//	Steps: []v1alpha1.WorkflowStep{
+	//		{
+	//			Name:     "run-wf",
+	//			Template: CI_WORKFLOW_NAME,
+	//		},
+	//	},
+	//})
+	//templates = append(templates, v1alpha1.Template{
+	//	Name:  CI_WORKFLOW_WITH_STAGES,
+	//	Steps: steps,
+	//})
+	configMaps := bean3.ConfigMapJson{}
+	secrets := bean3.ConfigSecretJson{}
+	var existingConfigMap *bean3.ConfigMapJson
+	var existingSecrets *bean3.ConfigSecretJson
+	if isJob {
+		existingConfigMap, existingSecrets, err = impl.appService.GetCmSecretNew(workflowRequest.AppId, workflowRequest.EnvironmentId, isJob)
+		if err != nil {
+			impl.Logger.Errorw("failed to get configmap data", "err", err)
+			return nil, err
+		}
+		impl.Logger.Debugw("existing cm sec", "cm", existingConfigMap, "sec", existingSecrets)
+		//configMaps := bean3.ConfigMapJson{}
+		for _, cm := range existingConfigMap.Maps {
+			if cm.External {
+				continue
+			}
+			configMaps.Maps = append(configMaps.Maps, cm)
+		}
+		for i := range configMaps.Maps {
+			configMaps.Maps[i].Name = configMaps.Maps[i].Name + "-" + strconv.Itoa(workflowRequest.WorkflowId) + "-" + CI_WORKFLOW_NAME
+		}
+
+		//secrets := bean3.ConfigSecretJson{}
+		for _, s := range existingSecrets.Secrets {
+			if s.External {
+				continue
+			}
+			secrets.Secrets = append(secrets.Secrets, s)
+		}
+		for i := range secrets.Secrets {
+			secrets.Secrets[i].Name = secrets.Secrets[i].Name + "-" + strconv.Itoa(workflowRequest.WorkflowId) + "-" + CI_WORKFLOW_NAME
+		}
+		configsMapping := make(map[string]string)
+		secretsMapping := make(map[string]string)
+
+		if len(configMaps.Maps) > 0 {
+			entryPoint = CI_WORKFLOW_WITH_STAGES
+			for i, cm := range configMaps.Maps {
+				var datamap map[string]string
+				if err := json.Unmarshal(cm.Data, &datamap); err != nil {
+					impl.Logger.Errorw("error while unmarshal data", "err", err)
+					return nil, err
+				}
+				ownerDelete := true
+				cmBody := v12.ConfigMap{
+					TypeMeta: v1.TypeMeta{
+						Kind:       "ConfigMap",
+						APIVersion: "v1",
+					},
+					ObjectMeta: v1.ObjectMeta{
+						Name: cm.Name,
+						OwnerReferences: []v1.OwnerReference{{
+							APIVersion:         "argoproj.io/v1alpha1",
+							Kind:               "Workflow",
+							Name:               "{{workflow.name}}",
+							UID:                "{{workflow.uid}}",
+							BlockOwnerDeletion: &ownerDelete,
+						}},
+					},
+					Data: datamap,
+				}
+				cmJson, err := json.Marshal(cmBody)
+				if err != nil {
+					impl.Logger.Errorw("error in building json", "err", err)
+					return nil, err
+				}
+				configsMapping[cm.Name] = string(cmJson)
+
+				if cm.Type == "volume" {
+					volumes = append(volumes, v12.Volume{
+						Name: cm.Name + "-vol",
+						VolumeSource: v12.VolumeSource{
+							ConfigMap: &v12.ConfigMapVolumeSource{
+								LocalObjectReference: v12.LocalObjectReference{
+									Name: cm.Name,
+								},
+							},
+						},
+					})
+				}
+				steps = append(steps, v1alpha1.ParallelSteps{
+					Steps: []v1alpha1.WorkflowStep{
+						{
+							Name:     "create-env-cm-" + strconv.Itoa(i),
+							Template: "cm-" + strconv.Itoa(i),
+						},
+					},
+				})
+			}
+		}
+		if len(secrets.Secrets) > 0 {
+			entryPoint = CI_WORKFLOW_WITH_STAGES
+			for i, s := range secrets.Secrets {
+				var datamap map[string][]byte
+				if err := json.Unmarshal(s.Data, &datamap); err != nil {
+					impl.Logger.Errorw("error while unmarshal data", "err", err)
+					return nil, err
+				}
+				ownerDelete := true
+				secretObject := v12.Secret{
+					TypeMeta: v1.TypeMeta{
+						Kind:       "Secret",
+						APIVersion: "v1",
+					},
+					ObjectMeta: v1.ObjectMeta{
+						Name: s.Name,
+						OwnerReferences: []v1.OwnerReference{{
+							APIVersion:         "argoproj.io/v1alpha1",
+							Kind:               "Workflow",
+							Name:               "{{workflow.name}}",
+							UID:                "{{workflow.uid}}",
+							BlockOwnerDeletion: &ownerDelete,
+						}},
+					},
+					Data: datamap,
+					Type: "Opaque",
+				}
+				secretJson, err := json.Marshal(secretObject)
+				if err != nil {
+					impl.Logger.Errorw("error in building json", "err", err)
+					return nil, err
+				}
+				secretsMapping[s.Name] = string(secretJson)
+				if s.Type == "volume" {
+					volumes = append(volumes, v12.Volume{
+						Name: s.Name + "-vol",
+						VolumeSource: v12.VolumeSource{
+							Secret: &v12.SecretVolumeSource{
+								SecretName: s.Name,
+							},
+						},
+					})
+				}
+				steps = append(steps, v1alpha1.ParallelSteps{
+					Steps: []v1alpha1.WorkflowStep{
+						{
+							Name:     "create-env-sec-" + strconv.Itoa(i),
+							Template: "sec-" + strconv.Itoa(i),
+						},
+					},
+				})
+			}
+		}
+		if len(configsMapping) > 0 {
+			for i, cm := range configMaps.Maps {
+				templates = append(templates, v1alpha1.Template{
+					Name: "cm-" + strconv.Itoa(i),
+					Resource: &v1alpha1.ResourceTemplate{
+						Action:            "create",
+						SetOwnerReference: true,
+						Manifest:          configsMapping[cm.Name],
+					},
+				})
+			}
+		}
+		if len(secretsMapping) > 0 {
+			for i, s := range secrets.Secrets {
+				templates = append(templates, v1alpha1.Template{
+					Name: "sec-" + strconv.Itoa(i),
+					Resource: &v1alpha1.ResourceTemplate{
+						Action:            "create",
+						SetOwnerReference: true,
+						Manifest:          secretsMapping[s.Name],
+					},
+				})
+			}
+		}
+		steps = append(steps, v1alpha1.ParallelSteps{
+			Steps: []v1alpha1.WorkflowStep{
+				{
+					Name:     "run-wf",
+					Template: CI_WORKFLOW_NAME,
+				},
 			},
-		},
-	})
-	templates = append(templates, v1alpha1.Template{
-		Name:  CI_WORKFLOW_WITH_STAGES,
-		Steps: steps,
-	})
+		})
+		templates = append(templates, v1alpha1.Template{
+			Name:  CI_WORKFLOW_WITH_STAGES,
+			Steps: steps,
+		})
+
+	}
 
 	ciTemplate := v1alpha1.Template{
 		Name: CI_WORKFLOW_NAME,
@@ -307,6 +513,87 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		ArchiveLocation: &v1alpha1.ArtifactLocation{
 			ArchiveLogs: &archiveLogs,
 		},
+	}
+	if isJob {
+		for _, cm := range configMaps.Maps {
+			if cm.Type == "environment" {
+				ciTemplate.Container.EnvFrom = append(ciTemplate.Container.EnvFrom, v12.EnvFromSource{
+					ConfigMapRef: &v12.ConfigMapEnvSource{
+						LocalObjectReference: v12.LocalObjectReference{
+							Name: cm.Name,
+						},
+					},
+				})
+			} else if cm.Type == "volume" {
+				ciTemplate.Container.VolumeMounts = append(ciTemplate.Container.VolumeMounts, v12.VolumeMount{
+					Name:      cm.Name + "-vol",
+					MountPath: cm.MountPath,
+				})
+			}
+		}
+
+		// Adding external config map reference in workflow template
+		for _, cm := range existingConfigMap.Maps {
+			//if _, ok := cdPipelineLevelConfigMaps[cm.Name]; ok {
+			if cm.External {
+				if cm.Type == "environment" {
+					ciTemplate.Container.EnvFrom = append(ciTemplate.Container.EnvFrom, v12.EnvFromSource{
+						ConfigMapRef: &v12.ConfigMapEnvSource{
+							LocalObjectReference: v12.LocalObjectReference{
+								Name: cm.Name,
+							},
+						},
+					})
+				} else if cm.Type == "volume" {
+					ciTemplate.Container.VolumeMounts = append(ciTemplate.Container.VolumeMounts, v12.VolumeMount{
+						Name:      cm.Name,
+						MountPath: cm.MountPath,
+					})
+				}
+			}
+			//}
+		}
+
+		for _, s := range secrets.Secrets {
+			if s.Type == "environment" {
+				ciTemplate.Container.EnvFrom = append(ciTemplate.Container.EnvFrom, v12.EnvFromSource{
+					SecretRef: &v12.SecretEnvSource{
+						LocalObjectReference: v12.LocalObjectReference{
+							Name: s.Name,
+						},
+					},
+				})
+			} else if s.Type == "volume" {
+				ciTemplate.Container.VolumeMounts = append(ciTemplate.Container.VolumeMounts, v12.VolumeMount{
+					Name:      s.Name + "-vol",
+					MountPath: s.MountPath,
+				})
+			}
+		}
+
+		// Adding external secret reference in workflow template
+		for _, s := range existingSecrets.Secrets {
+			//if _, ok := cdPipelineLevelSecrets[s.Name]; ok {
+			if s.External {
+				if s.Type == "environment" {
+					ciTemplate.Container.EnvFrom = append(ciTemplate.Container.EnvFrom, v12.EnvFromSource{
+						SecretRef: &v12.SecretEnvSource{
+							LocalObjectReference: v12.LocalObjectReference{
+								Name: s.Name,
+							},
+						},
+					})
+				} else if s.Type == "volume" {
+					ciTemplate.Container.VolumeMounts = append(ciTemplate.Container.VolumeMounts, v12.VolumeMount{
+						Name:      s.Name,
+						MountPath: s.MountPath,
+					})
+				}
+			}
+			//}
+		}
+
+		//	templates = append(templates, ciTemplate)
 	}
 
 	if impl.ciConfig.UseBlobStorageConfigInCiWorkflow {
@@ -512,7 +799,22 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	impl.checkErr(err)
 	return createdWf, err
 }
-
+func (impl *WorkflowServiceImpl) getRuntimeEnvClientInstance(namespace string, token string, host string) (v1alpha12.WorkflowInterface, error) {
+	config := &rest.Config{
+		Host:        host,
+		BearerToken: token,
+		TLSClientConfig: rest.TLSClientConfig{
+			Insecure: true,
+		},
+	}
+	clientSet, err := versioned.NewForConfig(config)
+	if err != nil {
+		impl.Logger.Errorw("err", "err", err)
+		return nil, err
+	}
+	wfClient := clientSet.ArgoprojV1alpha1().Workflows(namespace) // create the workflow client
+	return wfClient, nil
+}
 func (impl *WorkflowServiceImpl) getClientInstance(namespace string) (v1alpha12.WorkflowInterface, error) {
 	clientSet, err := versioned.NewForConfig(impl.config)
 	if err != nil {

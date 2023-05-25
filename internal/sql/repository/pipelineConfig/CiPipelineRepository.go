@@ -19,6 +19,7 @@ package pipelineConfig
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
@@ -43,11 +44,24 @@ type CiPipeline struct {
 	ParentCiPipeline         int    `sql:"parent_ci_pipeline"`
 	ScanEnabled              bool   `sql:"scan_enabled,notnull"`
 	IsDockerConfigOverridden bool   `sql:"is_docker_config_overridden, notnull"`
+	EnvironmentId            int    `sql:"environment_id"`
+	ConfigMapNames           string `sql:"config_map_names"`
+	SecretNames              string `sql:"secret_names"`
 	sql.AuditLog
 	CiPipelineMaterials []*CiPipelineMaterial
 	CiTemplate          *CiTemplate
+	Environment         repository.Environment
 }
 
+//	type CiEnvConfig struct {
+//		tableName      struct{} `sql:"job_config" pg:",discard_unknown_columns"`
+//		EnvironmentId  int      `sql:"environment_id"`
+//		CiId           int      `sql:"ci_id"`
+//		ConfigMapNames string   `sql:"config_map_names"`
+//		SecretNames    string   `sql:"secret_names"`
+//		Environment    repository.Environment
+//		sql.AuditLog
+//	}
 type ExternalCiPipeline struct {
 	tableName   struct{} `sql:"external_ci_pipeline" pg:",discard_unknown_columns"`
 	Id          int      `sql:"id,pk"`
