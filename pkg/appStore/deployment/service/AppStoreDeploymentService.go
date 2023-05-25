@@ -1106,6 +1106,25 @@ func (impl AppStoreDeploymentServiceImpl) updateInstalledAppVersion(installedApp
 			}
 			installedAppVersion.AppStoreApplicationVersion = *appStoreAppVersion
 		} else {
+			//if there are previously deployed chart with active set as true, set all of them false
+			installedAppVersions, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppId(installAppVersionRequest.InstalledAppId)
+			if err != nil {
+				impl.logger.Errorw("error while fetching installed version", "error", err)
+				return installedAppVersion, installAppVersionRequest, err
+			}
+			for _, iav := range installedAppVersions {
+				if iav.Id == installedAppVersionModel.Id {
+					continue
+				}
+				iav.Active = false
+				iav.UpdatedOn = time.Now()
+				iav.UpdatedBy = installAppVersionRequest.UserId
+				_, err = impl.installedAppRepository.UpdateInstalledAppVersion(iav, tx)
+				if err != nil {
+					impl.logger.Errorw("error while update installed chart", "error", err)
+					return installedAppVersion, installAppVersionRequest, err
+				}
+			}
 			installedAppVersion = installedAppVersionModel
 		}
 
