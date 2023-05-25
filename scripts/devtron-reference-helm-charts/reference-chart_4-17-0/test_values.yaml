@@ -118,6 +118,7 @@ secret:
   enabled: false
 
 service:
+  enabled: true
   type: ClusterIP
   #  name: "1234567890123456789012345678901234567890123456789012345678901234567890"
   annotations: {}
@@ -142,6 +143,16 @@ EnvVariables:
   - name: FLASK_ENV
     value: qa
 
+EnvVariablesFromSecretKeys: []
+  # - name: ENV_NAME
+  #   secretName: SECRET_NAME
+  #   keyName: SECRET_KEY
+
+EnvVariablesFromCongigMapKeys: []
+  # - name: ENV_NAME
+  #   configMapName: CONFIG_MAP_NAME
+  #   keyName: CONFIG_MAP_KEY
+
 LivenessProbe:
   Path: /
   port: 8080
@@ -156,6 +167,33 @@ LivenessProbe:
     - name: Custom-Header2
       value: xyz
 
+
+winterSoldier:
+  apiVersion: pincher.devtron.ai/v1alpha1 
+  enabled: true
+  annotations: {}
+  labels: {}
+  timeRangesWithZone:
+    timeZone: "Asia/Kolkata"
+    timeRanges: 
+      - timeFrom: 00:00
+        timeTo: 23:59:59
+        weekdayFrom: Sat
+        weekdayTo: Sun
+      - timeFrom: 00:00
+        timeTo: 08:00
+        weekdayFrom: Mon
+        weekdayTo: Fri
+      - timeFrom: 20:00
+        timeTo: 23:59:59
+        weekdayFrom: Mon
+        weekdayTo: Fri
+  action: scale
+  targetReplicas: [1,1,1]
+  fieldSelector: 
+    - AfterTime(AddTime(ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '5m'), Now())
+
+
 ReadinessProbe:
   Path: /
   port: 8080
@@ -167,6 +205,19 @@ ReadinessProbe:
   httpHeaders:
     - name: Custom-Header
       value: abc
+
+StartupProbe:
+  Path: "/"
+  port: 8080
+  initialDelaySeconds: 20
+  periodSeconds: 10
+  successThreshold: 1
+  timeoutSeconds: 5
+  failureThreshold: 3
+  httpHeaders: []
+  command: []
+  tcp: false
+
 
 prometheus:
   release: monitoring
@@ -486,7 +537,7 @@ containerExtraSpecs: {}
 podExtraSpecs: {}
 
 envoyproxy:
-  image: envoyproxy/envoy:v1.14.1
+  image: docker.io/envoyproxy/envoy:v1.16.1
   configMapName: ""
   lifecycle: {}
   resources:
@@ -532,3 +583,27 @@ hostAliases: []
 #    hostnames:
 #    - "foo.local"
 
+deployment:
+  strategy:
+    blueGreen:
+      autoPromotionSeconds: 30
+      scaleDownDelaySeconds: 30
+      previewReplicaCount: 1
+      autoPromotionEnabled: false
+    rolling:
+      maxSurge: "25%"
+      maxUnavailable: 1
+    canary:
+      maxSurge: "25%"
+      maxUnavailable: 1
+      steps:
+        - setWeight: 25
+        - pause:
+            duration: 15 # 1 min
+        - setWeight: 50
+        - pause:
+            duration: 15 # 1 min
+        - setWeight: 75
+        - pause:
+            duration: 15 # 1 min
+    recreate: {}

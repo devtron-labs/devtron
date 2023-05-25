@@ -285,6 +285,18 @@ ReadinessProbe:
   httpHeaders:
     - name: Custom-Header
       value: abc
+    
+StartupProbe:
+  Path: "/"
+  port: 8080
+  initialDelaySeconds: 20
+  periodSeconds: 10
+  successThreshold: 1
+  timeoutSeconds: 5
+  failureThreshold: 3
+  httpHeaders: []
+  command: []
+  tcp: false
 
 prometheus:
   release: monitoring
@@ -372,6 +384,33 @@ ingressInternal:
   #  - secretName: chart-example-tls
   #    hosts:
   #      - chart-example.local
+
+winterSoldier:
+  apiVersion: pincher.devtron.ai/v1alpha1 
+  enabled: true
+  annotations: {}
+  labels: {}
+  type: Deployment
+  timeRangesWithZone:
+    timeZone: "Asia/Kolkata"
+    timeRanges: 
+      - timeFrom: 00:00
+        timeTo: 23:59:59
+        weekdayFrom: Sat
+        weekdayTo: Sun
+      - timeFrom: 00:00
+        timeTo: 08:00
+        weekdayFrom: Mon
+        weekdayTo: Fri
+      - timeFrom: 20:00
+        timeTo: 23:59:59
+        weekdayFrom: Mon
+        weekdayTo: Fri
+  action: scale
+  targetReplicas: [1,1,1]
+  fieldSelector: 
+    - AfterTime(AddTime(ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '5m'), Now())
+
 
 dbMigrationConfig:
   enabled: false
@@ -604,7 +643,7 @@ containerExtraSpecs: {}
 podExtraSpecs: {}
 
 envoyproxy:
-  image: envoyproxy/envoy:v1.14.1
+  image: docker.io/envoyproxy/envoy:v1.16.1
   configMapName: ""
   lifecycle: {}
   resources:
