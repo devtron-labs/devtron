@@ -1,0 +1,737 @@
+openapi: "3.0.2"
+info:
+  title: "Plugin System Integration - CI stages"
+  description: >-
+    Provide functionality to user to use plugins in pre/post ci steps.
+  version: "1.0.0"
+
+paths:
+  /orchestrator/plugin/global/list:
+    get:
+      description: Get list of all global plugins
+      operationId: GetAllPluginsAtGlobalLevel
+      parameters:
+        - name: appId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully return all plugins
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PluginMetaDataDto'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      description: Get list of all global plugins by filters
+      operationId: GetAllPluginsAtGlobalLevelByFilters
+      requestBody:
+        description: A JSON object containing the filter details
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PluginListFilters'
+      responses:
+        '200':
+          description: Successfully return all filtered plugins
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PluginMetaDataDto'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/plugin/global/{pluginId}:
+    get:
+      description: Get plugin by Id
+      operationId: GetPluginById
+      parameters:
+        - name: pluginId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: appId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully return detail of the plugin
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    $ref: '#/components/schemas/PluginDetailDto'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/plugin/global/list/filter/options:
+    get:
+      description: Get list of all filter options for plugins, i.e. tags and types
+      operationId: GetAllPluginFilterOptions
+      responses:
+        '200':
+          description: Successfully return all filter options
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PluginFilterOptions'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/plugin/global/list/global-variable:
+    get:
+      description: Get list of all global variables
+      operationId: GetAllGlobalVaariables
+      parameters:
+        - name: appId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully return all operators
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/GlobalVariable'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/app/ci-pipeline/patch:
+    post:
+      description: Create CI pipeline
+      operationId: CreateCiPipeline
+      requestBody:
+        description: A JSON object containing the pipelinconfig
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CiPipelineDto'
+      responses:
+        '200':
+          description: Successfully save the pipeline config
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CiPipelineDto'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/app/ci-pipeline/{appId}/{ciPipelineId}:
+    get:
+      description: get CI pipeline details
+      operationId: GetCiPipeline
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: ciPipelineId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully get the pipeline config
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CiPipelineDto'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    PluginDetailDto:
+      type: object
+      properties:
+        metadata:
+          $ref: '#/components/schemas/PluginMetaDataDto'
+        inputVariables:
+          type: array
+          items:
+            $ref: '#/components/schemas/PluginVariableDto'
+        outputVariables:
+          type: array
+          items:
+            $ref: '#/components/schemas/PluginVariableDto'
+    PluginMetaDataDto:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        type:
+          type: string
+          example:
+            - "PRESET"
+        description:
+          type: string
+        icon:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+            example:
+              - "GIT"
+              - "DATABASE"
+    PluginVariableDto:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        value:
+          type: integer
+        format:
+          type: string
+          example:
+            - "STRING"
+            - "NUMBER"
+            - "BOOL"
+            - "DATE"
+        description:
+          type: string
+        defaultValue:
+          type: string
+        RefVariableUsed:
+          type: boolean
+        variableType:
+          type: string
+          example:
+            - "GLOBAL"
+            - "FROM_PREVIOUS_STEP"
+        RefVariableStepIndex:
+          type: integer
+        RefVariableName:
+          type: string
+    PluginListFilters:
+      type: object
+      properties:
+        pluginNameContains:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+            example:
+              - "GIT"
+        sortBy:
+          type: string
+        sortOrder:
+          type: string
+        pluginType:
+          type: string
+          example:
+            - "PRESET"
+            - "SHARED"
+    PluginFilterOptions:
+      type: object
+      properties:
+        tags:
+          type: array
+          items:
+            type: string
+        types:
+          type: array
+          items:
+            type: string
+    GlobalVariable:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        value:
+          type: string
+        format:
+          type: string
+        description:
+          type: string
+    CiPipelineDto:
+      type: object
+      properties:
+        appId:
+          type: integer
+        action:
+          type: integer
+        appWorkflowId:
+          type: integer
+        ciPipeline:
+          $ref: '#/components/schemas/CiPipelineDetails'
+    CiPipelineDetails:
+      type: object
+      properties:
+        id:
+          type: integer
+        active:
+          type: boolean
+        isExternal:
+          type: boolean
+        isManual:
+          type: boolean
+        linkedCount:
+          type: integer
+        name:
+          type: string
+        scanEnabled:
+          type: boolean
+        dockerArgs:
+          type: array
+          items:
+            $ref: '#/components/schemas/DockerArg'
+        externalCiConfig:
+          $ref: '#/components/schemas/ExternalCiConfig'
+        ciMaterial:
+          $ref: '#/components/schemas/CiMaterial'
+        beforeDockerBuildScripts:
+          type: array
+          items:
+            $ref: '#/components/schemas/DockerBuildScript'
+        afterDockerBuildScripts:
+          type: array
+          items:
+            $ref: '#/components/schemas/DockerBuildScript'
+        preBuildStage:
+          $ref: '#/components/schemas/BuildStageDto'
+        postBuildStage:
+          $ref: '#/components/schemas/BuildStageDto'
+    DockerArg:
+      type: object
+      description: map of key value pairs
+      properties:
+        key:
+          type: string
+        value:
+          type: string
+    ExternalCiConfig:
+      type: object
+      properties:
+        id:
+          type: integer
+        accessKey:
+          type: string
+        webhookUrl:
+          type: string
+        payload:
+          type: string
+    CiMaterial:
+      type: array
+      items:
+        $ref: '#/components/schemas/CiMaterialDetail'
+    CiMaterialDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        gitMaterialId:
+          type: integer
+        source:
+          type: object
+          properties:
+            type:
+              type: string
+              example: "SOURCE_TYPE_BRANCH_FIXED"
+            value:
+              type: string
+              example: "master"
+    DockerBuildScript:
+      type: object
+      properties:
+        id:
+          type: integer
+        index:
+          type: integer
+        name:
+          type: string
+        outputLocation:
+          type: string
+        script:
+          type: string
+    BuildStageDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: pipelineStageId(every stage is given a Id)
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/stageStepDetails'
+    stageStepDetails:
+      type: object
+      properties:
+        id:
+          type: integer
+        index:
+          type: integer
+          description: sequence of step in all steps
+        name:
+          type: string
+        description:
+          type: string
+        stepType:
+          type: string
+          example:
+            - "INLINE"
+            - "REF_PLUGIN"
+        outputDirectoryPath:
+          type: array
+          items:
+            type: string
+        inlineStepDetail:
+          $ref: '#/components/schemas/InlineStepDetail'
+        pluginRefStepDetail:
+          $ref: '#/components/schemas/PluginRefStepDetail'
+    InlineStepDetail:
+      type: object
+      properties:
+        scriptType:
+          type: string
+          example:
+            - "SHELL"
+            - "DOCKERFILE"
+            - "CONTAINER_IMAGE"
+        script:
+          type: string
+        storeScriptAt:
+          type: string
+        dockerFileExists:
+          type: boolean
+        mountPath:
+          type: string
+        mountCodeToContainer:
+          type: boolean
+        mountCodeToContainerPath:
+          type: string
+        mountDirectoryFromHost:
+          type: boolean
+        containerImagePath:
+          type: string
+        imagePullSecretType:
+          type: string
+          example:
+            - "CONTAINER_REGISTRY"
+            - "SECRET_PATH"
+        imagePullSecret:
+          type: string
+        mountPathMap:
+          type: array
+          items:
+            $ref: '#/components/schemas/MountPathMap'
+        commandArgsMap:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommandArgMap'
+        portMap:
+          type: array
+          items:
+            $ref: '#/components/schemas/PortMap'
+        inputVariables:
+          type: array
+          items:
+            $ref: '#/components/schemas/PipelineStepsVariableDto'
+        outputVariables:
+          type: array
+          items:
+            $ref: '#/components/schemas/PipelineStepsVariableDto'
+        conditionDetails:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConditionDetail'
+    PluginRefStepDetail:
+      type: object
+      properties:
+        pluginId:
+          type: integer
+          description: id of the plugin used in the step
+        inputVariables:
+          type: array
+          items:
+            $ref: '#/components/schemas/PluginVariableDto'
+        outputVariables:
+          type: array
+          items:
+            $ref: '#/components/schemas/PluginVariableDto'
+        conditionDetails:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConditionDetail'
+    PipelineStepsVariableDto:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        value:
+          type: integer
+        format:
+          type: string
+          example:
+            - "STRING"
+            - "NUMBER"
+            - "BOOL"
+            - "DATE"
+        description:
+          type: string
+        defaultValue:
+          type: string
+        refVariableUsed:
+          type: boolean
+        refVariableType:
+          type: string
+          example:
+            - "GLOBAL"
+            - "FROM_PREVIOUS_STEP"
+            - "NEW"
+        refVariableStepIndex:
+          type: integer
+        refVariableName:
+          type: string
+        refVariableStage:
+          type: string
+          example:
+            - "PRE_CI"
+            - "POST_CI"
+    ConditionDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        conditionOnVariable:
+          type: string
+          description: name of the variable on which condition is applied
+        conditionOperator:
+          type: string
+        conditionType:
+          type: string
+          example:
+            - "SKIP"
+            - "TRIGGER"
+            - "SUCCESS"
+            - "FAIL"
+        conditionalValue:
+          type: string
+    MountPathMap:
+      type: object
+      properties:
+        filePathOnDisk:
+          type: string
+        filePathOnContainer:
+          type: string
+    CommandArgMap:
+      type: object
+      properties:
+        command:
+          type: string
+        args:
+          type: array
+          items:
+            type: string
+    PortMap:
+      type: object
+      properties:
+        portOnLocal:
+          type: integer
+        portOnContainer:
+          type: integer
+    Error:
+      title: Error
+      type: object
+      description: "A general error schema returned when status is not 200 OK"
+      properties:
+        code:
+          type: string
+          description: "a code for this particular error"
+        message:
+          type: string
+          description: "a message with further detail"

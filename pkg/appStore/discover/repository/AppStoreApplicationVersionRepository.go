@@ -1,0 +1,199 @@
+/*
+ * Copyright (c) 2020 Devtron Labs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+package appStoreDiscoverRepository
+
+import (
+	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
+	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/go-pg/pg"
+	"go.uber.org/zap"
+	"strconv"
+	"time"
+)
+
+type AppStoreApplicationVersionRepository interface {
+	FindAll() ([]appStoreBean.AppStoreWithVersion, error)
+	FindWithFilter(filter *appStoreBean.AppStoreFilter) ([]appStoreBean.AppStoreWithVersion, error)
+	FindById(id int) (*AppStoreApplicationVersion, error)
+	FindVersionsByAppStoreId(id int) ([]*AppStoreApplicationVersion, error)
+	FindChartVersionByAppStoreId(id int) ([]*AppStoreApplicationVersion, error)
+	FindByIds(ids []int) ([]*AppStoreApplicationVersion, error)
+	GetChartInfoById(id int) (*AppStoreApplicationVersion, error)
+	FindByAppStoreName(name string) (*appStoreBean.AppStoreWithVersion, error)
+	SearchAppStoreChartByName(chartName string) ([]*appStoreBean.ChartRepoSearch, error)
+}
+
+type AppStoreApplicationVersionRepositoryImpl struct {
+	dbConnection *pg.DB
+	Logger       *zap.SugaredLogger
+}
+
+func NewAppStoreApplicationVersionRepositoryImpl(Logger *zap.SugaredLogger, dbConnection *pg.DB) *AppStoreApplicationVersionRepositoryImpl {
+	return &AppStoreApplicationVersionRepositoryImpl{dbConnection: dbConnection, Logger: Logger}
+}
+
+type AppStoreApplicationVersion struct {
+	TableName   struct{}  `sql:"app_store_application_version" pg:",discard_unknown_columns"`
+	Id          int       `sql:"id,pk"`
+	Version     string    `sql:"version"`
+	AppVersion  string    `sql:"app_version"`
+	Created     time.Time `sql:"created"`
+	Deprecated  bool      `sql:"deprecated"`
+	Description string    `sql:"description"`
+	Digest      string    `sql:"digest"`
+	Icon        string    `sql:"icon"`
+	Name        string    `sql:"name"`
+	Source      string    `sql:"source"`
+	Home        string    `sql:"home"`
+	ValuesYaml  string    `sql:"values_yaml"`
+	ChartYaml   string    `sql:"chart_yaml"`
+	Latest      bool      `sql:"latest"`
+	AppStoreId  int       `sql:"app_store_id"`
+	sql.AuditLog
+	RawValues        string `sql:"raw_values"`
+	Readme           string `sql:"readme"`
+	ValuesSchemaJson string `sql:"values_schema_json"`
+	Notes            string `sql:"notes"`
+	AppStore         *AppStore
+}
+
+func (impl AppStoreApplicationVersionRepositoryImpl) GetChartInfoById(id int) (*AppStoreApplicationVersion, error) {
+	var appStoreWithVersion AppStoreApplicationVersion
+	err := impl.dbConnection.Model(&appStoreWithVersion).Column("readme", "values_schema_json", "notes", "id").
+		Where("id= ?", id).Select()
+	return &appStoreWithVersion, err
+}
+
+func (impl *AppStoreApplicationVersionRepositoryImpl) FindAll() ([]appStoreBean.AppStoreWithVersion, error) {
+	var appStoreWithVersion []appStoreBean.AppStoreWithVersion
+	queryTemp := "select asv.version, asv.icon,asv.deprecated ,asv.id as app_store_application_version_id, aps.*, ch.name as chart_name" +
+		" from app_store_application_version asv inner join app_store aps on asv.app_store_id = aps.id" +
+		" inner join chart_repo ch on aps.chart_repo_id = ch.id" +
+		" where asv.latest is TRUE and ch.active = ? order by aps.name asc;"
+	_, err := impl.dbConnection.Query(&appStoreWithVersion, queryTemp, true)
+	if err != nil {
+		return nil, err
+	}
+	return appStoreWithVersion, err
+}
+
+func (impl *AppStoreApplicationVersionRepositoryImpl) FindWithFilter(filter *appStoreBean.AppStoreFilter) ([]appStoreBean.AppStoreWithVersion, error) {
+	var appStoreWithVersion []appStoreBean.AppStoreWithVersion
+	query := "SELECT asv.version, asv.icon,asv.deprecated,asv.id as app_store_application_version_id," +
+		" asv.description, aps.*, ch.name as chart_name" +
+		" FROM app_store_application_version asv" +
+		" INNER JOIN app_store aps ON asv.app_store_id = aps.id" +
+		" INNER JOIN chart_repo ch ON aps.chart_repo_id = ch.id" +
+		" WHERE asv.latest IS TRUE AND ch.active = TRUE"
+	if !filter.IncludeDeprecated {
+		query = query + " AND asv.deprecated = FALSE"
+	}
+	if len(filter.AppStoreName) > 0 {
+		query = query + " AND aps.name LIKE '%" + filter.AppStoreName + "%'"
+	}
+	if len(filter.ChartRepoId) > 0 {
+		query = query + " AND ch.id IN (?)"
+	}
+	query = query + " ORDER BY aps.name ASC"
+	if filter.Size > 0 {
+		query = query + " OFFSET " + strconv.Itoa(filter.Offset) + " LIMIT " + strconv.Itoa(filter.Size) + ""
+	}
+	query = query + ";"
+
+	var err error
+	if len(filter.ChartRepoId) > 0 {
+		_, err = impl.dbConnection.Query(&appStoreWithVersion, query, pg.In(filter.ChartRepoId))
+	} else {
+		_, err = impl.dbConnection.Query(&appStoreWithVersion, query)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return appStoreWithVersion, err
+}
+
+func (impl AppStoreApplicationVersionRepositoryImpl) FindById(id int) (*AppStoreApplicationVersion, error) {
+	appStoreWithVersion := &AppStoreApplicationVersion{}
+	err := impl.dbConnection.
+		Model(appStoreWithVersion).
+		Column("app_store_application_version.*", "AppStore", "AppStore.ChartRepo").
+		Where("app_store_application_version.id = ?", id).
+		Limit(1).
+		Select()
+	return appStoreWithVersion, err
+}
+
+func (impl AppStoreApplicationVersionRepositoryImpl) FindByIds(ids []int) ([]*AppStoreApplicationVersion, error) {
+	var appStoreApplicationVersions []*AppStoreApplicationVersion
+	if len(ids) == 0 {
+		return appStoreApplicationVersions, nil
+	}
+	err := impl.dbConnection.
+		Model(&appStoreApplicationVersions).
+		Column("app_store_application_version.*", "AppStore", "AppStore.ChartRepo").
+		Where("app_store_application_version.id in (?)", pg.In(ids)).
+		Select()
+	return appStoreApplicationVersions, err
+}
+
+func (impl AppStoreApplicationVersionRepositoryImpl) FindChartVersionByAppStoreId(appStoreId int) ([]*AppStoreApplicationVersion, error) {
+	var appStoreWithVersion []*AppStoreApplicationVersion
+	err := impl.dbConnection.
+		Model(&appStoreWithVersion).
+		Column("app_store_application_version.version", "app_store_application_version.id").
+		Where("app_store_application_version.app_store_id = ?", appStoreId).
+		Select()
+	return appStoreWithVersion, err
+}
+
+func (impl AppStoreApplicationVersionRepositoryImpl) FindVersionsByAppStoreId(id int) ([]*AppStoreApplicationVersion, error) {
+	var appStoreApplicationVersions []*AppStoreApplicationVersion
+	err := impl.dbConnection.
+		Model(&appStoreApplicationVersions).
+		Column("app_store_application_version.id", "app_store_application_version.version").
+		Where("app_store_id = ?", id).
+		Order("created DESC").
+		Select()
+	return appStoreApplicationVersions, err
+}
+
+func (impl *AppStoreApplicationVersionRepositoryImpl) FindByAppStoreName(name string) (*appStoreBean.AppStoreWithVersion, error) {
+	var appStoreWithVersion appStoreBean.AppStoreWithVersion
+	queryTemp := "SELECT asv.version, asv.icon,asv.id as app_store_application_version_id, aps.*, ch.name as chart_name FROM app_store_application_version asv INNER JOIN app_store aps ON asv.app_store_id = aps.id INNER JOIN chart_repo ch ON aps.chart_repo_id = ch.id WHERE asv.latest IS TRUE AND aps.name LIKE ?;"
+	_, err := impl.dbConnection.Query(&appStoreWithVersion, queryTemp, name)
+	if err != nil {
+		return nil, err
+	}
+	return &appStoreWithVersion, err
+}
+
+func (impl *AppStoreApplicationVersionRepositoryImpl) SearchAppStoreChartByName(chartName string) ([]*appStoreBean.ChartRepoSearch, error) {
+	var chartRepos []*appStoreBean.ChartRepoSearch
+	//eryTemp := "select asv.version, asv.icon,asv.deprecated ,asv.id as app_store_application_version_id, aps.*, ch.name as chart_name from app_store_application_version asv inner join app_store aps on asv.app_store_id = aps.id inner join chart_repo ch on aps.chart_repo_id = ch.id where asv.latest is TRUE order by aps.name asc;"
+	queryTemp := "select asv.id as app_store_application_version_id, asv.version, asv.deprecated, aps.id as chart_id," +
+		" aps.name as chart_name, chr.id as chart_repo_id, chr.name as chart_repo_name" +
+		" from app_store_application_version asv" +
+		" inner join app_store aps on asv.app_store_id = aps.id" +
+		" inner join chart_repo chr on aps.chart_repo_id = chr.id" +
+		" where aps.name like '%" + chartName + "%' and asv.latest is TRUE order by aps.name asc;"
+	_, err := impl.dbConnection.Query(&chartRepos, queryTemp)
+	if err != nil {
+		return nil, err
+	}
+	return chartRepos, err
+}

@@ -1,0 +1,99 @@
+# Source: lens/templates/configmap.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: lens-secret
+  labels:
+    release: devtron
+---
+# Source: lens/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lens-cm
+  labels:
+    release: devtron
+data:
+  GIT_SENSOR_PROTOCOL: GRPC
+  GIT_SENSOR_URL: git-sensor-service.devtroncd:90
+  NATS_SERVER_HOST: nats://devtron-nats.devtroncd:4222
+  PG_ADDR: postgresql-postgresql.devtroncd
+  PG_PORT: "5432"
+  PG_USER: postgres
+  PG_DATABASE: lens
+---
+# Source: lens/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: lens-service
+  labels:
+    app: lens
+    chart: lens-3.7.1
+    release: devtron
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: app
+      protocol: TCP
+      name: app
+  selector:
+    app: lens
+---
+# Source: lens/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lens
+  labels:
+    app: lens
+    chart: lens-3.7.1
+    release: devtron
+spec:
+  selector:
+    matchLabels:
+      app: lens
+      release: devtron
+  replicas: 1
+  minReadySeconds: 60
+  template:
+    metadata:
+      labels:
+        app: lens
+        release: devtron
+    spec:
+      terminationGracePeriodSeconds: 30
+      restartPolicy: Always
+      securityContext:
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsUser: 1000
+      containers:
+        - name: lens
+          image: "quay.io/devtron/lens:25bfd796-333-13708"
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsUser: 1000
+            runAsNonRoot: true
+          ports:
+            - name: app
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: CONFIG_HASH
+              value: 1b9a3decafa1e6653dbe094dc6214c1caff4f2185f1a533d5dc566cd5bdebc2a
+            - name: SECRET_HASH
+              value: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          envFrom:
+          - configMapRef:
+              name: lens-cm
+          - secretRef:
+              name: lens-secret
+          volumeMounts: []
+  revisionHistoryLimit: 3

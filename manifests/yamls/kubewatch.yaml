@@ -1,0 +1,194 @@
+# Source: kubewatch/templates/generic.yaml
+# Source: kubewatch/templates/servieaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app: kubewatch
+    chart: kubewatch-0.6.1
+    release: devtron
+  name: kubewatch
+  namespace: devtroncd
+---
+# Source: kubewatch/templates/generic.yaml
+# Source: kubewatch/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app: kubewatch
+    chart: kubewatch-0.6.1
+    release: "devtron"
+  name: kubewatch-config
+  namespace: devtroncd
+data:
+  .kubewatch.yaml: |
+    handler:
+      webhook:
+        enabled: true
+        url: http://devtroncd-event-handler-service-prod.devtroncd/event
+
+    resource:
+      daemonset: false
+      deployment: false
+      events: true
+      job: false
+      persistentvolume: false
+      pod: false
+      replicaset: false
+      replicationcontroller: false
+      services: false
+---
+# Source: kubewatch/templates/generic.yaml
+# Source: kubewatch/templates/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app: kubewatch
+    chart: kubewatch-0.6.1
+    release: devtron
+  name: kubewatch
+  namespace: devtroncd
+rules:
+  - apiGroups:
+      - ""
+    resources:
+    - pods
+    - namespaces
+    - services
+    - deployments
+    - replicationcontrollers
+    - replicasets
+    - daemonsets
+    - persistentvolumes
+    - events
+    - workflows
+    verbs:
+    - list
+    - watch
+    - get
+  - apiGroups:
+    - apps
+    resources:
+    - daemonsets
+    - deployments
+    - deployments/scale
+    - replicasets
+    - replicasets/scale
+    - statefulsets
+    verbs:
+    - get
+    - list
+    - watch
+  - apiGroups:
+    - extensions
+    resources:
+    - daemonsets
+    - deployments
+    - deployments/scale
+    - replicasets
+    - replicasets/scale
+    - replicationcontrollers/scale
+    verbs:
+    - get
+    - list
+    - watch
+  - apiGroups:
+    - batch
+    resources:
+    - cronjobs
+    - jobs
+    verbs:
+    - get
+    - list
+    - watch
+  - apiGroups:
+    - argoproj.io
+    resources:
+    - workflows
+    - applications
+    verbs:
+    - get
+    - list
+    - watch
+---
+# Source: kubewatch/templates/generic.yaml
+# Source: kubewatch/templates/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app: devtron
+    chart: kubewatch-0.6.1
+    release: devtron
+  name: kubewatch
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kubewatch
+subjects:
+  - kind: ServiceAccount
+    name: kubewatch
+    namespace: devtroncd
+---
+# Source: kubewatch/templates/generic.yaml
+# Source: kubewatch/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: kubewatch
+    chart: kubewatch-0.6.1
+    release: "devtron"
+  name: kubewatch
+  namespace: devtroncd
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kubewatch
+      release: devtron
+  template:
+    metadata:
+      annotations:
+        checksum/config-map: ae58540f4f666750bf92d3af7f94dbccd3bbea95fe76308c7572469c36d55bdc
+      labels:
+        app: kubewatch
+        release: "devtron"
+        chart: kubewatch-0.6.1
+    spec:
+      securityContext:
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsUser: 1000
+      containers:
+      - name: kubewatch
+        image: "quay.io/devtron/kubewatch:fb2c1579-419-13257"
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsUser: 1000
+          runAsNonRoot: true
+        env:
+        - name: devtroncd_NAMESPACE
+          value: "devtron-ci"
+        - name: CI_INFORMER
+          value: "true"
+        - name: ACD_NAMESPACE
+          value: devtroncd
+        - name: ACD_INFORMER
+          value: "true"
+        - name: NATS_STREAM_MAX_AGE
+          value: "10800"
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - name: kubewatch-config-map
+          mountPath: /root/.kubewatch.yaml
+          subPath: .kubewatch.yaml
+      serviceAccountName: kubewatch
+      tolerations: []
+      restartPolicy: Always
+      volumes:
+      - name: kubewatch-config-map
+        configMap:
+          name: kubewatch-config

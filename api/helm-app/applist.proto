@@ -1,0 +1,311 @@
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/devtron-labs/kubelink/bean/grpc/client";
+
+message ClusterConfig {
+  string apiServerUrl = 1;
+  string token = 2;
+  int32 clusterId = 3;
+  string clusterName = 4;
+}
+
+message AppListRequest {
+  repeated ClusterConfig clusters = 1;
+}
+
+service ApplicationService {
+  rpc ListApplications(AppListRequest) returns (stream DeployedAppList){}
+  rpc GetAppDetail(AppDetailRequest) returns (AppDetail){}
+  rpc GetAppStatus(AppDetailRequest) returns (AppStatus){}
+  rpc Hibernate(HibernateRequest) returns (HibernateResponse){}
+  rpc UnHibernate(HibernateRequest) returns (HibernateResponse){}
+  rpc GetDeploymentHistory(AppDetailRequest) returns (HelmAppDeploymentHistory){}
+  rpc GetValuesYaml(AppDetailRequest) returns (ReleaseInfo){}
+  rpc GetDesiredManifest(ObjectRequest) returns (DesiredManifestResponse){}
+  rpc UninstallRelease(ReleaseIdentifier) returns (UninstallReleaseResponse){}
+  rpc UpgradeRelease(UpgradeReleaseRequest) returns (UpgradeReleaseResponse){}
+  rpc GetDeploymentDetail(DeploymentDetailRequest) returns (DeploymentDetailResponse){}
+  rpc InstallRelease(InstallReleaseRequest) returns (InstallReleaseResponse){}
+  rpc UpgradeReleaseWithChartInfo(InstallReleaseRequest) returns (UpgradeReleaseResponse){}
+  rpc IsReleaseInstalled(ReleaseIdentifier) returns (BooleanResponse){}
+  rpc RollbackRelease(RollbackReleaseRequest) returns (BooleanResponse){}
+  rpc TemplateChart(InstallReleaseRequest) returns (TemplateChartResponse){}
+  rpc InstallReleaseWithCustomChart(HelmInstallCustomRequest) returns (HelmInstallCustomResponse) {}
+  rpc GetNotes(InstallReleaseRequest) returns (ChartNotesResponse) {}
+}
+
+message DeployedAppList {
+  repeated DeployedAppDetail DeployedAppDetail = 1;
+  int32 clusterId = 2;
+  string errorMsg = 3;
+  bool errored = 4;
+}
+
+message DeployedAppDetail {
+  string appId = 1;
+  string appName = 2;
+  string chartName = 3;
+  string chartAvatar = 4;
+  EnvironmentDetails environmentDetail = 5;
+  google.protobuf.Timestamp LastDeployed = 6;
+  string chartVersion = 7;
+}
+message EnvironmentDetails{
+  string clusterName = 1;
+  int32 clusterId = 2;
+  string namespace = 3;
+}
+
+//---------------app detail-------
+
+message AppDetailRequest {
+  ClusterConfig clusterConfig = 1;
+  string namespace = 2;
+  string ReleaseName = 3;
+  // Map key cannot be float, double, bytes, message, or enum types (map<Gvk, Labels> could be a better option)
+  ResourceTreeFilter resourceTreeFilter = 4;
+}
+
+message AppDetail{
+  string applicationStatus = 1;
+  ReleaseStatus releaseStatus = 2;
+  google.protobuf.Timestamp lastDeployed = 6;
+  ChartMetadata chartMetadata = 7;
+  ResourceTreeResponse resourceTreeResponse = 8;
+  EnvironmentDetails environmentDetails = 9;
+}
+
+message AppStatus{
+  string applicationStatus = 1;
+}
+
+message ReleaseStatus {
+  string status = 1;
+  string message = 2;
+  string description = 3;
+}
+
+message ChartMetadata {
+  string chartName = 1;
+  string chartVersion = 2;
+  string home = 3;
+  repeated string sources = 4;
+  string description = 5;
+  // Contains the rendered templates/NOTES.txt
+  string notes = 6;
+}
+
+message ResourceTreeResponse {
+  repeated ResourceNode nodes = 1;
+  repeated .PodMetadata podMetadata = 2;
+}
+
+message ResourceNode {
+  string group = 1;
+  string version = 2;
+  string kind = 3;
+  string namespace = 4;
+  string name = 5;
+  string uid = 6;
+  repeated ResourceRef parentRefs = 7;
+  ResourceNetworkingInfo networkingInfo = 8;
+  string resourceVersion = 9;
+  HealthStatus health = 10;
+  bool isHibernated = 11;
+  bool canBeHibernated = 12;
+  repeated InfoItem info = 13;
+  string createdAt = 14;
+}
+
+message InfoItem {
+  string name = 1;
+  string value = 2;
+}
+
+message HealthStatus {
+  string status = 1;
+  string message = 2;
+}
+message ResourceNetworkingInfo {
+  map<string, string> labels = 1;
+}
+
+message ResourceRef {
+  string group = 1;
+  string version = 2;
+  string kind = 3;
+  string namespace = 4;
+  string name = 5;
+  string uid = 6 ;
+}
+
+message PodMetadata {
+  string name = 1;
+  string uid = 2 ;
+  repeated string containers = 3;
+  repeated string initContainers = 4;
+  bool isNew = 5;
+  repeated string ephemeralContainers = 6;
+}
+
+//--------hibernate
+
+message HibernateRequest {
+  ClusterConfig clusterConfig = 1;
+  repeated ObjectIdentifier objectIdentifier = 2;
+}
+
+message ObjectIdentifier {
+  string group = 1;
+  string kind = 2;
+  string version = 3;
+  string name = 4;
+  string namespace = 5;
+}
+
+message HibernateStatus{
+  ObjectIdentifier targetObject = 1;
+  bool success = 2;
+  string errorMsg = 3;
+}
+
+message HibernateResponse{
+  repeated HibernateStatus  status = 1;
+}
+//------------------- deployment history
+
+message  HelmAppDeploymentDetail {
+  ChartMetadata chartMetadata = 1;
+  repeated string dockerImages = 2;
+  int32 version = 3;
+  google.protobuf.Timestamp deployedAt = 4;
+  string deployedBy = 5;
+  string status = 6;
+}
+
+message HelmAppDeploymentHistory {
+  repeated HelmAppDeploymentDetail deploymentHistory = 1;
+}
+
+message ReleaseInfo{
+  DeployedAppDetail deployedAppDetail = 1;
+  string defaultValues = 2;
+  string overrideValues = 3;
+  string mergedValues = 4;
+  string readme = 5;
+  string valuesSchemaJson = 6;
+}
+
+message ObjectRequest {
+  ClusterConfig clusterConfig = 1;
+  ObjectIdentifier objectIdentifier = 2;
+  string releaseName = 3;
+  string releaseNamespace = 4;
+}
+
+message DesiredManifestResponse {
+  string manifest = 1;
+}
+
+message UninstallReleaseResponse {
+  bool success = 1;
+}
+
+message ReleaseIdentifier {
+  ClusterConfig clusterConfig = 1;
+  string releaseName = 2;
+  string releaseNamespace = 3;
+}
+
+message UpgradeReleaseRequest {
+  ReleaseIdentifier releaseIdentifier = 1;
+  string valuesYaml = 2;
+  int32 historyMax = 3;
+}
+
+message UpgradeReleaseResponse {
+  bool success = 1;
+}
+
+message DeploymentDetailRequest {
+  ReleaseIdentifier releaseIdentifier = 1;
+  int32 deploymentVersion = 2;
+}
+
+message DeploymentDetailResponse {
+  string manifest = 1;
+  string valuesYaml = 2;
+}
+
+message ChartRepository {
+  string name = 1;
+  string url = 2;
+  string username = 3;
+  string password = 4;
+}
+
+message InstallReleaseRequest {
+  ReleaseIdentifier releaseIdentifier = 1;
+  string chartName = 2;
+  string chartVersion = 3;
+  string valuesYaml = 4;
+  ChartRepository chartRepository = 5;
+  string K8sVersion = 6;
+  int32 historyMax = 7;
+}
+
+message InstallReleaseResponse {
+  bool success = 1;
+}
+
+message BooleanResponse {
+  bool result = 1;
+}
+
+message RollbackReleaseRequest {
+  ReleaseIdentifier releaseIdentifier = 1;
+  int32 version = 2;
+}
+
+message TemplateChartResponse {
+  string generatedManifest = 1;
+}
+
+message HelmInstallCustomRequest {
+  string valuesYaml = 1;
+  ChartContent chartContent = 2;
+  ReleaseIdentifier releaseIdentifier = 3;
+}
+
+message HelmInstallCustomResponse {
+  bool success = 1;
+}
+
+message ChartContent {
+  bytes Content = 1;
+}
+
+message Gvk {
+  string Group = 1;
+  string Version = 2;
+  string Kind = 3;
+}
+
+message ResourceFilter {
+  Gvk gvk = 1;
+  ResourceIdentifier resourceIdentifier = 2;
+}
+
+message ResourceIdentifier {
+  map<string, string> labels = 1;
+}
+
+message ResourceTreeFilter {
+  ResourceIdentifier globalFilter = 1;
+  repeated ResourceFilter resourceFilters = 2;
+}
+message ChartNotesResponse{
+  string notes = 1;
+}
