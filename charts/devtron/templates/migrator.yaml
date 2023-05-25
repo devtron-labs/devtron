@@ -46,17 +46,17 @@ spec:
           value: "0"
         - name: GIT_HASH
           value: {{ .envVars.devtron.GIT_HASH }}
-        {{- if $.Values.components.migrator.envVars.devtron.ENABLE_VALIDATE_COUNTER }}
-        - name: ENABLE_VALIDATE_COUNTER
-          value: {{ $.Values.components.migrator.envVars.devtron.ENABLE_VALIDATE_COUNTER }}
+        {{- if $.Values.components.migrator.envVars.devtron.ENABLE_DB_CONNECTION_VALIDATE_COUNTER }}
+        - name: ENABLE_DB_CONNECTION_VALIDATE_COUNTER
+          value: {{ $.Values.components.migrator.envVars.devtron.ENABLE_DB_CONNECTION_VALIDATE_COUNTER }}
         {{- end }}
-        {{- if $.Values.components.migrator.envVars.devtron.RETRY_DELAY }}
-        - name: RETRY_DELAY
-          value: {{ $.Values.components.migrator.envVars.devtron.RETRY_DELAY }}
+        {{- if $.Values.components.migrator.envVars.devtron.DB_CONNECTION_RETRY_DELAY }}
+        - name: DB_CONNECTION_RETRY_DELAY
+          value: {{ $.Values.components.migrator.envVars.devtron.DB_CONNECTION_RETRY_DELAY }}
         {{- end }}
-        {{- if $.Values.components.migrator.envVars.devtron.RETRY_COUNTER }}
-        - name: RETRY_COUNTER
-          value: {{ $.Values.components.migrator.envVars.devtron.RETRY_COUNTER }}
+        {{- if $.Values.components.migrator.envVars.devtron.DB_CONNECTION_RETRY_COUNTER }}
+        - name: DB_CONNECTION_RETRY_COUNTER
+          value: {{ $.Values.components.migrator.envVars.devtron.DB_CONNECTION_RETRY_COUNTER }}
         {{- end }}
         envFrom:
           - secretRef:
@@ -126,17 +126,17 @@ spec:
           value: {{ .envVars.casbin.GIT_HASH }}
         - name: GIT_BRANCH
           value: {{ .envVars.casbin.GIT_BRANCH }}
-        {{- if $.Values.components.migrator.envVars.casbin.ENABLE_VALIDATE_COUNTER }}
-        - name: ENABLE_VALIDATE_COUNTER
-          value: {{ $.Values.components.migrator.envVars.casbin.ENABLE_VALIDATE_COUNTER }}
+        {{- if $.Values.components.migrator.envVars.casbin.ENABLE_DB_CONNECTION_VALIDATE_COUNTER }}
+        - name: ENABLE_DB_CONNECTION_VALIDATE_COUNTER
+          value: {{ $.Values.components.migrator.envVars.casbin.ENABLE_DB_CONNECTION_VALIDATE_COUNTER }}
         {{- end }}
-        {{- if $.Values.components.migrator.envVars.casbin.RETRY_DELAY }}
-        - name: RETRY_DELAY
-          value: {{ $.Values.components.migrator.envVars.casbin.RETRY_DELAY }}
+        {{- if $.Values.components.migrator.envVars.casbin.DB_CONNECTION_RETRY_DELAY }}
+        - name: DB_CONNECTION_RETRY_DELAY
+          value: {{ $.Values.components.migrator.envVars.casbin.DB_CONNECTION_RETRY_DELAY }}
         {{- end }}
-        {{- if $.Values.components.migrator.envVars.casbin.RETRY_COUNTER }}
-        - name: RETRY_COUNTER
-          value: {{ $.Values.components.migrator.envVars.casbin.RETRY_COUNTER }}
+        {{- if $.Values.components.migrator.envVars.casbin.DB_CONNECTION_RETRY_COUNTER }}
+        - name: DB_CONNECTION_RETRY_COUNTER
+          value: {{ $.Values.components.migrator.envVars.casbin.DB_CONNECTION_RETRY_COUNTER }}
         {{- end }}
         envFrom:
           - secretRef:
