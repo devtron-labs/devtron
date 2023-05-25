@@ -483,6 +483,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		IgnoreDockerCachePull:      impl.ciConfig.IgnoreDockerCacheForCI,
 		CacheInvalidate:            trigger.InvalidateCache,
 		ExtraEnvironmentVariables:  trigger.ExtraEnvironmentVariables,
+		EnableBuildContext:         impl.ciConfig.EnableBuildContext,
 	}
 	if dockerRegistry != nil {
 
