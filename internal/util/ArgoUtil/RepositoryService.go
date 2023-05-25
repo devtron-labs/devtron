@@ -17,10 +17,17 @@
 
 package ArgoUtil
 
-import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+import (
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+)
+
+type Repository struct {
+	Repo string `json:"repo"`
+}
 
 type RepositoryService interface {
 	Create(repositoryRequest *v1alpha1.Repository) (repository *v1alpha1.Repository, err error)
+	CreateRepository(repositoryRequest *Repository, acdToken string) (repository *Repository, err error)
 }
 
 type RepositoryServiceImpl struct {
@@ -31,7 +38,7 @@ type RepositoryServiceImpl struct {
 func NewRepositoryService(session *ArgoSession) *RepositoryServiceImpl {
 	return &RepositoryServiceImpl{
 		ArgoSession: session,
-		location:    "/api/v1/repositories",
+		location:    "/api/v1/repositories?upsert=true",
 	}
 }
 
@@ -41,5 +48,14 @@ func (impl RepositoryServiceImpl) Create(repositoryRequest *v1alpha1.Repository)
 	if err != nil {
 		return nil, err
 	}
+	return res, nil
+}
+func (impl RepositoryServiceImpl) CreateRepository(repositoryRequest *Repository, acdToken string) (repository *Repository, err error) {
+	res := &Repository{}
+	_, _, err = impl.DoRequestForArgo(&ClientRequest{ResponseBody: res, Path: impl.location, Method: "POST", RequestBody: repositoryRequest}, acdToken)
+	if err != nil {
+		return nil, err
+	}
+	impl.logger.Errorw("failed to register on Argo", "err", err)
 	return res, nil
 }
