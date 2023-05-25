@@ -1,1 +1,0 @@
-ALTER TABLE ONLY public.app DROP CONSTRAINT app_app_name_key;

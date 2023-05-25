@@ -1,1 +1,0 @@
-ALTER TABLE "public"."installed_apps" DROP COLUMN "git_ops_repo_name";

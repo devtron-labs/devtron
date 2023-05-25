@@ -1,1 +1,0 @@
-ALTER TABLE "public"."external_link" ALTER COLUMN "url" SET DATA TYPE varchar(255);

@@ -1,1 +1,0 @@
-ALTER TABLE global_cm_cs DROP COLUMN type;

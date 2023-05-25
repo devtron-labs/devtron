@@ -1,1 +1,0 @@
-DROP TABLE "public"."gitops_config" CASCADE;

@@ -1,1 +1,0 @@
-DROP TABLE "public"."app_label" CASCADE;

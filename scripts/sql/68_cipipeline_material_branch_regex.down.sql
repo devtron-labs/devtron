@@ -1,1 +1,0 @@
-ALTER TABLE ci_pipeline_material DROP COLUMN regex;

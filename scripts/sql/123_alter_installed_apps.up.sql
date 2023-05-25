@@ -1,1 +1,0 @@
-ALTER table installed_apps ADD COLUMN notes text;
