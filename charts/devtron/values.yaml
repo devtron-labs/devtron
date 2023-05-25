@@ -108,18 +108,18 @@ components:
         GIT_REPO_URL: "https://github.com/devtron-labs/devtron.git"
         DB_NAME: "orchestrator"
         GIT_HASH: "85c4a6d76492f9a1cc45360dd910f03fabac1b13"
-        ENABLE_VALIDATE_COUNTER: "true"
-        RETRY_DELAY: "5"
-        RETRY_COUNTER: "5"
+        ENABLE_DB_CONNECTION_VALIDATE_COUNTER: "true"
+        DB_CONNECTION_RETRY_DELAY: "20"
+        DB_CONNECTION_RETRY_COUNTER: "10"
       casbin:
         GIT_BRANCH: "main"
         SCRIPT_LOCATION: "scripts/casbin/"
         GIT_REPO_URL: "https://github.com/devtron-labs/devtron.git"
         DB_NAME: "casbin"
         GIT_HASH: "85c4a6d76492f9a1cc45360dd910f03fabac1b13"
-        ENABLE_VALIDATE_COUNTER: "true"
-        RETRY_DELAY: "5"
-        RETRY_COUNTER: "5"
+        ENABLE_DB_CONNECTION_VALIDATE_COUNTER: "true"
+        DB_CONNECTION_RETRY_DELAY: "20"
+        DB_CONNECTION_RETRY_COUNTER: "10"
 
 # values for argocd integration
 argo-cd:
