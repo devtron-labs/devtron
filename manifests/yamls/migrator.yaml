@@ -48,12 +48,12 @@ spec:
           value: "0"
         - name: GIT_HASH
           value: 85c4a6d76492f9a1cc45360dd910f03fabac1b13
-        - name: ENABLE_VALIDATE_COUNTER
+        - name: ENABLE_DB_CONNECTION_VALIDATE_COUNTER
           value: "true"
-        - name: RETRY_DELAY
-          value: "5"
-        - name: RETRY_COUNTER
-          value: "5"
+        - name: DB_CONNECTION_RETRY_DELAY
+          value: "20"
+        - name: DB_CONNECTION_RETRY_COUNTER
+          value: "10"
         envFrom:
           - secretRef:
               name: postgresql-migrator
@@ -105,12 +105,12 @@ spec:
           value: 85c4a6d76492f9a1cc45360dd910f03fabac1b13
         - name: GIT_BRANCH
           value: main
-        - name: ENABLE_VALIDATE_COUNTER
+        - name: ENABLE_DB_CONNECTION_VALIDATE_COUNTER
           value: "true"
-        - name: RETRY_DELAY
-          value: "5"
-        - name: RETRY_COUNTER
-          value: "5"
+        - name: DB_CONNECTION_RETRY_DELAY
+          value: "20"
+        - name: DB_CONNECTION_RETRY_COUNTER
+          value: "10"
         envFrom:
           - secretRef:
               name: postgresql-migrator
@@ -161,12 +161,12 @@ spec:
           value: main
         - name: GIT_HASH
           value: e5e66474064b6ffb7f8210004b59dd9316ea1e0d
-        - name: ENABLE_VALIDATE_COUNTER
+        - name: ENABLE_DB_CONNECTION_VALIDATE_COUNTER
           value: "true"
-        - name: RETRY_DELAY
-          value: "5"
-        - name: RETRY_COUNTER
-          value: "5"
+        - name: DB_CONNECTION_RETRY_DELAY
+          value: "20"
+        - name: DB_CONNECTION_RETRY_COUNTER
+          value: "10"
         envFrom:
           - secretRef:
               name: postgresql-migrator
@@ -213,12 +213,12 @@ spec:
           value: main
         - name: GIT_HASH
           value: f71dba2a1da52949b5fdc68c32b090366089d47c
-        - name: ENABLE_VALIDATE_COUNTER
+        - name: ENABLE_DB_CONNECTION_VALIDATE_COUNTER
           value: "true"
-        - name: RETRY_DELAY
-          value: "5"
-        - name: RETRY_COUNTER
-          value: "5"
+        - name: DB_CONNECTION_RETRY_DELAY
+          value: "20"
+        - name: DB_CONNECTION_RETRY_COUNTER
+          value: "10"
         envFrom:
           - secretRef:
               name: postgresql-migrator
