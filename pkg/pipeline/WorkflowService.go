@@ -34,6 +34,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"go.uber.org/zap"
 	v12 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -61,12 +62,13 @@ type CiCdTriggerEvent struct {
 }
 
 type WorkflowServiceImpl struct {
-	Logger              *zap.SugaredLogger
-	config              *rest.Config
-	ciConfig            *CiConfig
-	globalCMCSService   GlobalCMCSService
-	appService          app.AppService
-	configMapRepository chartConfig.ConfigMapRepository
+	Logger                *zap.SugaredLogger
+	config                *rest.Config
+	ciConfig              *CiConfig
+	globalCMCSService     GlobalCMCSService
+	appService            app.AppService
+	configMapRepository   chartConfig.ConfigMapRepository
+	k8sApplicationService k8s.K8sApplicationService
 }
 
 type WorkflowRequest struct {
@@ -193,14 +195,17 @@ type GitOptions struct {
 }
 
 func NewWorkflowServiceImpl(Logger *zap.SugaredLogger, ciConfig *CiConfig,
-	globalCMCSService GlobalCMCSService, appService app.AppService, configMapRepository chartConfig.ConfigMapRepository) *WorkflowServiceImpl {
+	globalCMCSService GlobalCMCSService, appService app.AppService,
+	configMapRepository chartConfig.ConfigMapRepository,
+	k8sApplicationService k8s.K8sApplicationService) *WorkflowServiceImpl {
 	return &WorkflowServiceImpl{
-		Logger:              Logger,
-		config:              ciConfig.ClusterConfig,
-		ciConfig:            ciConfig,
-		globalCMCSService:   globalCMCSService,
-		appService:          appService,
-		configMapRepository: configMapRepository,
+		Logger:                Logger,
+		config:                ciConfig.ClusterConfig,
+		ciConfig:              ciConfig,
+		globalCMCSService:     globalCMCSService,
+		appService:            appService,
+		configMapRepository:   configMapRepository,
+		k8sApplicationService: k8sApplicationService,
 	}
 }
 
@@ -236,11 +241,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	var wfClient v1alpha12.WorkflowInterface
 	workflowRequest.EnvironmentId = env.Id
 	if isJob && workflowRequest.EnvironmentId != 0 {
-		serverUrl := env.Cluster.ServerUrl
-		configMap := env.Cluster.Config
-		bearerToken := configMap["bearer_token"]
-		workflowRequest.Namespace = env.Namespace
-		wfClient, err = impl.getRuntimeEnvClientInstance(workflowRequest.Namespace, bearerToken, serverUrl)
+		wfClient, err = impl.getRuntimeEnvClientInstance(env)
 		if err != nil {
 			impl.Logger.Errorw("cannot build wf client", "err", err)
 			return nil, err
@@ -799,20 +800,18 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	impl.checkErr(err)
 	return createdWf, err
 }
-func (impl *WorkflowServiceImpl) getRuntimeEnvClientInstance(namespace string, token string, host string) (v1alpha12.WorkflowInterface, error) {
-	config := &rest.Config{
-		Host:        host,
-		BearerToken: token,
-		TLSClientConfig: rest.TLSClientConfig{
-			Insecure: true,
-		},
+func (impl *WorkflowServiceImpl) getRuntimeEnvClientInstance(environment *repository2.Environment) (v1alpha12.WorkflowInterface, error) {
+	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(context.Background(), environment.ClusterId)
+	if err != nil {
+		impl.Logger.Errorw("error in getting rest config buy cluster id", "err", err)
+		return nil, err
 	}
-	clientSet, err := versioned.NewForConfig(config)
+	clientSet, err := versioned.NewForConfig(restConfig)
 	if err != nil {
 		impl.Logger.Errorw("err", "err", err)
 		return nil, err
 	}
-	wfClient := clientSet.ArgoprojV1alpha1().Workflows(namespace) // create the workflow client
+	wfClient := clientSet.ArgoprojV1alpha1().Workflows(environment.Namespace) // create the workflow client
 	return wfClient, nil
 }
 func (impl *WorkflowServiceImpl) getClientInstance(namespace string) (v1alpha12.WorkflowInterface, error) {

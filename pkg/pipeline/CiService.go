@@ -145,13 +145,13 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 		return 0, err
 	}
 	app, err := impl.appRepository.FindById(pipeline.AppId)
-	//error
+	//TODO: error
 	var env *repository1.Environment
 	isJob := false
 	if app.AppType == helper.Job {
 		isJob = true
 		env, err = impl.envRepository.FindById(pipeline.EnvironmentId)
-		//error
+		//TODO: error
 	}
 	workflowRequest, err := impl.buildWfRequestForCiPipeline(pipeline, trigger, ciMaterials, savedCiWf, ciWorkflowConfig, ciPipelineScripts)
 	if err != nil {
