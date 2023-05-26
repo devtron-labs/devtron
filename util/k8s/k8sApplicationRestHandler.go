@@ -103,6 +103,7 @@ func (handler *K8sApplicationRestHandlerImpl) RotatePod(w http.ResponseWriter, r
 		return
 	}
 	//RBAC enforcer Ends
+	handler.logger.Infow("rotate pod request", "payload", podRotateRequest)
 	rotatePodRequest := &RotatePodRequest{
 		ClusterId: appIdentifier.ClusterId,
 		Resources: podRotateRequest.Resources,

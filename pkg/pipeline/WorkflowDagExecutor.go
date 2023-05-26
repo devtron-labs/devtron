@@ -1282,6 +1282,7 @@ type PodRotateRequest struct {
 }
 
 func (impl *WorkflowDagExecutorImpl) RotatePods(ctx context.Context, podRotateRequest *PodRotateRequest) (*k8s.RotatePodResponse, error) {
+	impl.logger.Infow("rotate pod request", "payload", podRotateRequest)
 	//extract cluster id and namespace from env id
 	environmentId := podRotateRequest.EnvironmentId
 	environment, err := impl.envRepository.FindById(environmentId)
