@@ -756,7 +756,7 @@ func (impl *K8sApplicationServiceImpl) RotatePods(ctx context.Context, request *
 		if resourceKind != kube.DeploymentKind && resourceKind != kube.StatefulSetKind && resourceKind != kube.DaemonSetKind && resourceKind != util.K8sClusterResourceRolloutKind {
 			impl.logger.Errorf("restarting not supported for kind %s name %s", resourceKind, resourceIdentifier.Name)
 			containsError = true
-			resourceResponse.ErrorResponse = "restarting not supported"
+			resourceResponse.ErrorResponse = util.RestartingNotSupported
 		} else {
 			activitySnapshot := time.Now().Format(time.RFC3339)
 			data := fmt.Sprintf(`{"metadata": {"annotations": {"devtron.ai/restartedAt": "%s"}},"spec": {"template": {"metadata": {"annotations": {"devtron.ai/activity": "%s"}}}}}`, activitySnapshot, activitySnapshot)
