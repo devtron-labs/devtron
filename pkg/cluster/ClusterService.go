@@ -907,49 +907,48 @@ func (impl *ClusterServiceImpl) ConnectClustersInBatch(clusters []*ClusterBean, 
 	mutex := &sync.Mutex{}
 	//map of clusterId and error in its connection check process
 	respMap := make(map[int]error)
+	var wg sync.WaitGroup
 	for idx, cluster := range clusters {
-		// getting restConfig and clientSet outside the goroutine because we don't want to call goroutine func with receiver function
-		restConfig, err := impl.K8sUtil.GetRestConfigByCluster(&util.ClusterConfig{
-			ClusterName:           cluster.ClusterName,
-			Host:                  cluster.ServerUrl,
-			BearerToken:           cluster.Config["bearer_token"],
-			InsecureSkipTLSVerify: cluster.InsecureSkipTLSVerify,
-			KeyData:               cluster.Config["tls_key"],
-			CertData:              cluster.Config["cert_data"],
-			CAData:                cluster.Config["cert_auth_data"],
-		})
-		if err != nil {
-			impl.logger.Errorw("error in getting restConfig by cluster", "err", err, "clusterId", cluster.Id)
-			mutex.Lock()
-			respMap[cluster.Id] = err
-			mutex.Unlock()
-			continue
-		}
-		k8sHttpClient, err := util.OverrideK8sHttpClientWithTracer(restConfig)
-		if err != nil {
-			impl.logger.Errorw("error in getting restConfig by cluster", "err", err, "clusterId", cluster.Id)
-			mutex.Lock()
-			respMap[cluster.Id] = err
-			mutex.Unlock()
-			continue
-		}
-		k8sClientSet, err := kubernetes.NewForConfigAndClient(restConfig, k8sHttpClient)
-		if err != nil {
-			impl.logger.Errorw("error in getting client set by rest config", "err", err, "restConfig", restConfig)
-			mutex.Lock()
-			respMap[cluster.Id] = err
-			mutex.Unlock()
-			continue
-		}
-		id := cluster.Id
-		if !clusterExistInDb {
-			id = idx
-		}
-		wg := &sync.WaitGroup{}
-		wg.Add(len(clusters))
-		go GetAndUpdateConnectionStatusForOneCluster(k8sClientSet, id, respMap, wg, mutex)
-		wg.Wait()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			restConfig, err := impl.K8sUtil.GetRestConfigByCluster(&util.ClusterConfig{
+				ClusterName:           cluster.ClusterName,
+				Host:                  cluster.ServerUrl,
+				BearerToken:           cluster.Config["bearer_token"],
+				InsecureSkipTLSVerify: cluster.InsecureSkipTLSVerify,
+				KeyData:               cluster.Config["tls_key"],
+				CertData:              cluster.Config["cert_data"],
+				CAData:                cluster.Config["cert_auth_data"],
+			})
+			if err != nil {
+				mutex.Lock()
+				respMap[cluster.Id] = err
+				mutex.Unlock()
+				return
+			}
+			k8sHttpClient, err := util.OverrideK8sHttpClientWithTracer(restConfig)
+			if err != nil {
+				mutex.Lock()
+				respMap[cluster.Id] = err
+				mutex.Unlock()
+				return
+			}
+			k8sClientSet, err := kubernetes.NewForConfigAndClient(restConfig, k8sHttpClient)
+			if err != nil {
+				mutex.Lock()
+				respMap[cluster.Id] = err
+				mutex.Unlock()
+				return
+			}
+			id := cluster.Id
+			if !clusterExistInDb {
+				id = idx
+			}
+			GetAndUpdateConnectionStatusForOneCluster(k8sClientSet, id, respMap, mutex)
+		}()
 	}
+	wg.Wait()
 	impl.HandleErrorInClusterConnections(clusters, respMap, clusterExistInDb)
 }
 
@@ -1140,8 +1139,7 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 
 }
 
-func GetAndUpdateConnectionStatusForOneCluster(k8sClientSet *kubernetes.Clientset, clusterId int, respMap map[int]error, wg *sync.WaitGroup, mutex *sync.Mutex) {
-	defer wg.Done()
+func GetAndUpdateConnectionStatusForOneCluster(k8sClientSet *kubernetes.Clientset, clusterId int, respMap map[int]error, mutex *sync.Mutex) {
 	//using livez path as healthz path is deprecated
 	path := "/livez"
 	response, err := k8sClientSet.Discovery().RESTClient().Get().AbsPath(path).DoRaw(context.Background())
