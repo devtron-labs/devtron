@@ -47,7 +47,7 @@ components:
     ImageTaggingResponseDTO:
       type: object
       properties:
-        releaseTags:
+        imageReleaseTags:
           type: array
           items:
             $ref: '#/components/schemas/ReleaseTag'
@@ -55,6 +55,11 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ImageComment'
+        appReleaseTags:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReleaseTag'
+
 
 
     ImageComment:
