@@ -73,7 +73,7 @@ type CiHandler interface {
 	FetchCiStatusForTriggerView(appId int) ([]*pipelineConfig.CiWorkflowStatus, error)
 	FetchCiStatusForTriggerViewV1(appId int) ([]*pipelineConfig.CiWorkflowStatus, error)
 	RefreshMaterialByCiPipelineMaterialId(gitMaterialId int) (refreshRes *gitSensor.RefreshGitMaterialResponse, err error)
-	FetchMaterialInfoByArtifactId(ciArtifactId int) (*GitTriggerInfoResponse, error)
+	FetchMaterialInfoByArtifactId(ciArtifactId int, envId int) (*GitTriggerInfoResponse, error)
 	WriteToCreateTestSuites(pipelineId int, buildId int, triggeredBy int)
 	UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuild int) error
 	FetchCiStatusForTriggerViewForEnvironment(request appGroup2.AppGroupingRequest) ([]*pipelineConfig.CiWorkflowStatus, error)
@@ -1176,7 +1176,7 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerView(appId int) ([]*pipelineCo
 	return ciWorkflowStatuses, nil
 }
 
-func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int) (*GitTriggerInfoResponse, error) {
+func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId int) (*GitTriggerInfoResponse, error) {
 
 	ciArtifact, err := impl.ciArtifactRepository.Get(ciArtifactId)
 	if err != nil {
@@ -1196,7 +1196,7 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int) (*Git
 		return &GitTriggerInfoResponse{}, err
 	}
 
-	deployDetail, err := impl.appListingRepository.DeploymentDetailByArtifactId(ciArtifactId)
+	deployDetail, err := impl.appListingRepository.DeploymentDetailByArtifactId(ciArtifactId, envId)
 	if err != nil {
 		impl.Logger.Errorw("err", "err", err)
 		return &GitTriggerInfoResponse{}, err

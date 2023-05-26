@@ -1167,7 +1167,6 @@ func (impl AppStoreDeploymentServiceImpl) updateInstalledAppVersion(installedApp
 		installedAppVersion.AppStoreApplicationVersion = *appStoreAppVersion
 		installedAppVersion.InstalledApp = *installedApp
 		installAppVersionRequest.InstalledAppVersionId = installedAppVersion.Id
-		installAppVersionRequest.Id = installedAppVersion.Id
 	} else {
 		installedAppVersionModel, err := impl.installedAppRepository.GetInstalledAppVersion(installAppVersionRequest.Id)
 		if err != nil {
@@ -1369,6 +1368,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledAppV2(ctx context.Cont
 		if err != nil {
 			return nil, err
 		}
+		installAppVersionRequest.Id = installedAppVersion.Id
 	} else {
 		installedAppVersion.ValuesYaml = installAppVersionRequest.ValuesOverrideYaml
 		installedAppVersion.UpdatedOn = time.Now()

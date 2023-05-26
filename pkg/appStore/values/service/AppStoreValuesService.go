@@ -96,6 +96,10 @@ func (impl AppStoreValuesServiceImpl) UpdateAppStoreVersionValues(request *appSt
 	model.Description = request.Description
 	model.UpdatedBy = request.UserId
 	model.UpdatedOn = time.Now()
+	model.AppStoreApplicationVersionId = request.AppStoreVersionId
+	model.AppStoreApplicationVersion.Version = request.ChartVersion
+	model.AppStoreApplicationVersion.Id = request.AppStoreVersionId
+
 	app, err := impl.appStoreVersionValuesRepository.UpdateAppStoreVersionValues(model)
 	if err != nil {
 		impl.logger.Errorw("error while updating", "error", err)
