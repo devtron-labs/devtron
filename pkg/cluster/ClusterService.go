@@ -904,8 +904,6 @@ func (impl *ClusterServiceImpl) FetchRolesFromGroup(userId int32) ([]*repository
 }
 
 func (impl *ClusterServiceImpl) ConnectClustersInBatch(clusters []*ClusterBean, clusterExistInDb bool) {
-	wg := &sync.WaitGroup{}
-	wg.Add(len(clusters))
 	mutex := &sync.Mutex{}
 	//map of clusterId and error in its connection check process
 	respMap := make(map[int]error)
@@ -929,6 +927,10 @@ func (impl *ClusterServiceImpl) ConnectClustersInBatch(clusters []*ClusterBean, 
 		}
 		k8sHttpClient, err := util.OverrideK8sHttpClientWithTracer(restConfig)
 		if err != nil {
+			impl.logger.Errorw("error in getting restConfig by cluster", "err", err, "clusterId", cluster.Id)
+			mutex.Lock()
+			respMap[cluster.Id] = err
+			mutex.Unlock()
 			continue
 		}
 		k8sClientSet, err := kubernetes.NewForConfigAndClient(restConfig, k8sHttpClient)
@@ -943,9 +945,11 @@ func (impl *ClusterServiceImpl) ConnectClustersInBatch(clusters []*ClusterBean, 
 		if !clusterExistInDb {
 			id = idx
 		}
+		wg := &sync.WaitGroup{}
+		wg.Add(len(clusters))
 		go GetAndUpdateConnectionStatusForOneCluster(k8sClientSet, id, respMap, wg, mutex)
+		wg.Wait()
 	}
-	wg.Wait()
 	impl.HandleErrorInClusterConnections(clusters, respMap, clusterExistInDb)
 }
 
