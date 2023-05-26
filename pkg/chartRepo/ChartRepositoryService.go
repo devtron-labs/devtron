@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
@@ -76,25 +77,28 @@ type ChartRepositoryService interface {
 }
 
 type ChartRepositoryServiceImpl struct {
-	logger          *zap.SugaredLogger
-	repoRepository  chartRepoRepository.ChartRepoRepository
-	K8sUtil         *util.K8sUtil
-	clusterService  cluster.ClusterService
-	aCDAuthConfig   *util2.ACDAuthConfig
-	client          *http.Client
-	serverEnvConfig *serverEnvConfig.ServerEnvConfig
+	logger           *zap.SugaredLogger
+	repoRepository   chartRepoRepository.ChartRepoRepository
+	K8sUtil          *util.K8sUtil
+	clusterService   cluster.ClusterService
+	aCDAuthConfig    *util2.ACDAuthConfig
+	client           *http.Client
+	serverEnvConfig  *serverEnvConfig.ServerEnvConfig
+	moduleRepository moduleRepo.ModuleRepository
 }
 
 func NewChartRepositoryServiceImpl(logger *zap.SugaredLogger, repoRepository chartRepoRepository.ChartRepoRepository, K8sUtil *util.K8sUtil, clusterService cluster.ClusterService,
-	aCDAuthConfig *util2.ACDAuthConfig, client *http.Client, serverEnvConfig *serverEnvConfig.ServerEnvConfig) *ChartRepositoryServiceImpl {
+	aCDAuthConfig *util2.ACDAuthConfig, client *http.Client, serverEnvConfig *serverEnvConfig.ServerEnvConfig,
+	moduleRepository moduleRepo.ModuleRepository) *ChartRepositoryServiceImpl {
 	return &ChartRepositoryServiceImpl{
-		logger:          logger,
-		repoRepository:  repoRepository,
-		K8sUtil:         K8sUtil,
-		clusterService:  clusterService,
-		aCDAuthConfig:   aCDAuthConfig,
-		client:          client,
-		serverEnvConfig: serverEnvConfig,
+		logger:           logger,
+		repoRepository:   repoRepository,
+		K8sUtil:          K8sUtil,
+		clusterService:   clusterService,
+		aCDAuthConfig:    aCDAuthConfig,
+		client:           client,
+		serverEnvConfig:  serverEnvConfig,
+		moduleRepository: moduleRepository,
 	}
 }
 
@@ -142,59 +146,66 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 		return nil, err
 	}
 
-	clusterBean, err := impl.clusterService.FindOne(cluster.DefaultClusterName)
+	module, err := impl.moduleRepository.FindOne("argo-cd")
 	if err != nil {
 		return nil, err
 	}
-	cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
-	if err != nil {
-		return nil, err
-	}
+	if module.Status == "installed" {
+		clusterBean, err := impl.clusterService.FindOne(cluster.DefaultClusterName)
+		if err != nil {
+			return nil, err
+		}
+		cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
+		if err != nil {
+			return nil, err
+		}
 
-	client, err := impl.K8sUtil.GetClient(cfg)
-	if err != nil {
-		return nil, err
-	}
+		client, err := impl.K8sUtil.GetClient(cfg)
+		if err != nil {
+			return nil, err
+		}
 
-	updateSuccess := false
-	retryCount := 0
+		updateSuccess := false
+		retryCount := 0
 
-	isPrivateChart := false
-	if len(chartRepo.UserName) > 0 && len(chartRepo.Password) > 0 {
-		isPrivateChart = true
-	}
+		isPrivateChart := false
+		if len(chartRepo.UserName) > 0 && len(chartRepo.Password) > 0 {
+			isPrivateChart = true
+		}
 
-	for !updateSuccess && retryCount < 3 {
-		retryCount = retryCount + 1
+		for !updateSuccess && retryCount < 3 {
+			retryCount = retryCount + 1
 
-		if !isPrivateChart {
-			cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
-			if err != nil {
-				return nil, err
+			if !isPrivateChart {
+				cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
+				if err != nil {
+					return nil, err
+				}
+				data, err := impl.updateRepoData(cm.Data, request)
+				if err != nil {
+					impl.logger.Warnw(" config map update failed", "err", err)
+					continue
+				}
+				cm.Data = data
+				_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+			} else {
+				secretLabel := make(map[string]string)
+				secretLabel[LABEL] = REPOSITORY
+				secretData := impl.CreateSecretDataForPrivateHelmChart(request)
+				_, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, nil, chartRepo.Name, "", client, secretLabel, secretData)
 			}
-			data, err := impl.updateRepoData(cm.Data, request)
 			if err != nil {
-				impl.logger.Warnw(" config map update failed", "err", err)
 				continue
 			}
-			cm.Data = data
-			_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
-		} else {
-			secretLabel := make(map[string]string)
-			secretLabel[LABEL] = REPOSITORY
-			secretData := impl.CreateSecretDataForPrivateHelmChart(request)
-			_, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, nil, chartRepo.Name, "", client, secretLabel, secretData)
+			if err == nil {
+				updateSuccess = true
+			}
 		}
-		if err != nil {
-			continue
-		}
-		if err == nil {
-			updateSuccess = true
+		if !updateSuccess {
+			return nil, fmt.Errorf("resouce version not matched with config map attempted 3 times")
 		}
 	}
-	if !updateSuccess {
-		return nil, fmt.Errorf("resouce version not matched with config map attempted 3 times")
-	}
+
 	err = tx.Commit()
 	if err != nil {
 		return nil, err
