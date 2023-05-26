@@ -94,6 +94,7 @@ func ConvertDbBuildConfigToBean(dbBuildConfig *pipelineConfig.CiBuildConfig) (*C
 		}
 	}
 	useRootBuildContext := false
+	//dbBuildConfig.UseRootContext will be nil if the entry in db never updated before
 	if dbBuildConfig.UseRootContext == nil || *(dbBuildConfig.UseRootContext) {
 		useRootBuildContext = true
 	}
@@ -138,6 +139,7 @@ func OverrideCiBuildConfig(dockerfilePath string, oldArgs string, ciLevelArgs st
 			return nil, err
 		}
 	}
+	//no entry found in ci_build_config table, construct with requested data
 	if ciBuildConfigBean == nil {
 		dockerArgs := mergeMap(oldDockerArgs, ciLevelDockerArgs)
 		ciBuildConfigBean = &CiBuildConfigBean{
@@ -149,6 +151,7 @@ func OverrideCiBuildConfig(dockerfilePath string, oldArgs string, ciLevelArgs st
 				DockerBuildOptions: dockerBuildOptionsMap,
 				BuildContext:       "",
 			},
+			//setting true as default
 			UseRootBuildContext: true,
 		}
 	} else if ciBuildConfigBean.CiBuildType == SELF_DOCKERFILE_BUILD_TYPE || ciBuildConfigBean.CiBuildType == MANAGED_DOCKERFILE_BUILD_TYPE {
