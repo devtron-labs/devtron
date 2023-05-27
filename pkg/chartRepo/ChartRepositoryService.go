@@ -30,6 +30,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/ghodss/yaml"
+	"github.com/go-pg/pg"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"io"
@@ -147,63 +148,64 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 	}
 
 	module, err := impl.moduleRepository.FindOne("argo-cd")
+	if err != nil && err != pg.ErrNoRows {
+		return nil, err
+	} else if err == pg.ErrNoRows || module.Status != "installed" {
+		//argo-cd module is not installed
+		return chartRepo, nil
+	}
+	clusterBean, err := impl.clusterService.FindOne(cluster.DefaultClusterName)
 	if err != nil {
 		return nil, err
 	}
-	if module.Status == "installed" {
-		clusterBean, err := impl.clusterService.FindOne(cluster.DefaultClusterName)
-		if err != nil {
-			return nil, err
-		}
-		cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
-		if err != nil {
-			return nil, err
-		}
+	cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
+	if err != nil {
+		return nil, err
+	}
 
-		client, err := impl.K8sUtil.GetClient(cfg)
-		if err != nil {
-			return nil, err
-		}
+	client, err := impl.K8sUtil.GetClient(cfg)
+	if err != nil {
+		return nil, err
+	}
 
-		updateSuccess := false
-		retryCount := 0
+	updateSuccess := false
+	retryCount := 0
 
-		isPrivateChart := false
-		if len(chartRepo.UserName) > 0 && len(chartRepo.Password) > 0 {
-			isPrivateChart = true
-		}
+	isPrivateChart := false
+	if len(chartRepo.UserName) > 0 && len(chartRepo.Password) > 0 {
+		isPrivateChart = true
+	}
 
-		for !updateSuccess && retryCount < 3 {
-			retryCount = retryCount + 1
+	for !updateSuccess && retryCount < 3 {
+		retryCount = retryCount + 1
 
-			if !isPrivateChart {
-				cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
-				if err != nil {
-					return nil, err
-				}
-				data, err := impl.updateRepoData(cm.Data, request)
-				if err != nil {
-					impl.logger.Warnw(" config map update failed", "err", err)
-					continue
-				}
-				cm.Data = data
-				_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
-			} else {
-				secretLabel := make(map[string]string)
-				secretLabel[LABEL] = REPOSITORY
-				secretData := impl.CreateSecretDataForPrivateHelmChart(request)
-				_, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, nil, chartRepo.Name, "", client, secretLabel, secretData)
-			}
+		if !isPrivateChart {
+			cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
 			if err != nil {
+				return nil, err
+			}
+			data, err := impl.updateRepoData(cm.Data, request)
+			if err != nil {
+				impl.logger.Warnw(" config map update failed", "err", err)
 				continue
 			}
-			if err == nil {
-				updateSuccess = true
-			}
+			cm.Data = data
+			_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+		} else {
+			secretLabel := make(map[string]string)
+			secretLabel[LABEL] = REPOSITORY
+			secretData := impl.CreateSecretDataForPrivateHelmChart(request)
+			_, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, nil, chartRepo.Name, "", client, secretLabel, secretData)
 		}
-		if !updateSuccess {
-			return nil, fmt.Errorf("resouce version not matched with config map attempted 3 times")
+		if err != nil {
+			continue
 		}
+		if err == nil {
+			updateSuccess = true
+		}
+	}
+	if !updateSuccess {
+		return nil, fmt.Errorf("resouce version not matched with config map attempted 3 times")
 	}
 
 	err = tx.Commit()
