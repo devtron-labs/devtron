@@ -103,6 +103,7 @@ type ImageScanExecutionDetail struct {
 	ScanEnabled           bool               `json:"scanEnabled,notnull"`
 	Scanned               bool               `json:"scanned,notnull"`
 	ObjectType            string             `json:"objectType,notnull"`
+	ScanToolId            int                `json:"scanToolId,omitempty""`
 }
 
 type Vulnerabilities struct {
@@ -373,6 +374,9 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *ImageScanRe
 			}
 			executionTime = item.ImageScanExecutionHistory.ExecutionTime
 		}
+		if len(imageScanResult) > 0 {
+			imageScanResponse.ScanToolId = imageScanResult[0].ScanToolId
+		}
 	}
 	severityCount := &SeverityCount{
 		High:     highCount,
@@ -462,7 +466,7 @@ func (impl ImageScanServiceImpl) FetchMinScanResultByAppIdAndEnvId(request *Imag
 	}
 	scanExecutionIds = append(scanExecutionIds, scanDeployInfo.ImageScanExecutionHistoryId...)
 
-	var highCount, moderateCount, lowCount int
+	var highCount, moderateCount, lowCount, scantoolId int
 	if len(scanExecutionIds) > 0 {
 		imageScanResult, err := impl.scanResultRepository.FetchByScanExecutionIds(scanExecutionIds)
 		if err != nil {
@@ -479,6 +483,9 @@ func (impl ImageScanServiceImpl) FetchMinScanResultByAppIdAndEnvId(request *Imag
 				lowCount = lowCount + 1
 			}
 		}
+		if len(imageScanResult) > 0 {
+			scantoolId = imageScanResult[0].ScanToolId
+		}
 	}
 	severityCount := &SeverityCount{
 		High:     highCount,
@@ -492,6 +499,7 @@ func (impl ImageScanServiceImpl) FetchMinScanResultByAppIdAndEnvId(request *Imag
 		ObjectType:            scanDeployInfo.ObjectType,
 		ScanEnabled:           true,
 		Scanned:               true,
+		ScanToolId:            scantoolId,
 	}
 	return imageScanResponse, nil
 }
