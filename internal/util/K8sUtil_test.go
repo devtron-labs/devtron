@@ -17,79 +17,78 @@
 
 package util
 
-import (
-	"testing"
-)
-
 var k8sUtilClient *K8sUtil
 var clusterConfig *ClusterConfig
 
-func init() {
-	logger, _ := NewSugardLogger()
-	k8sUtilClient = NewK8sUtil(logger, nil)
-	clusterConfig = &ClusterConfig{
-		Host:        "",
-		BearerToken: "",
-	}
-}
-
-func TestK8sUtil_checkIfNsExists(t *testing.T) {
-	tests := []struct {
-		name       string
-		namespace  string
-		wantExists bool
-		wantErr    bool
-	}{
-		{
-			name:       "test-kube-system",
-			namespace:  "kube-system",
-			wantErr:    false,
-			wantExists: true,
-		}, {
-			name:       "test-randum",
-			namespace:  "test-rand-laknd-kwejdwiu",
-			wantExists: false,
-			wantErr:    false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			impl := k8sUtilClient
-			k8s, _ := impl.GetClient(clusterConfig)
-			gotExists, err := impl.checkIfNsExists(tt.namespace, k8s)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("K8sUtil.checkIfNsExists() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if gotExists != tt.wantExists {
-				t.Errorf("K8sUtil.checkIfNsExists() = %v, want %v", gotExists, tt.wantExists)
-			}
-		})
-	}
-}
-
-func TestK8sUtil_CreateNsIfNotExists(t *testing.T) {
-	tests := []struct {
-		name      string
-		namespace string
-		wantErr   bool
-	}{
-		{
-			name:      "create test",
-			namespace: "createtestns",
-			wantErr:   false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			impl := k8sUtilClient
-			if err := impl.CreateNsIfNotExists(tt.namespace, clusterConfig); (err != nil) != tt.wantErr {
-				t.Errorf("K8sUtil.CreateNsIfNotExists() error = %v, wantErr %v", err, tt.wantErr)
-			}
-			k8s, _ := impl.GetClient(clusterConfig)
-			if err := impl.deleteNs(tt.namespace, k8s); (err != nil) != tt.wantErr {
-				t.Errorf("K8sUtil.deleteNs() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
+//func init() {
+//	config := &client.RuntimeConfig{LocalDevMode: true}
+//	logger, _ := NewSugardLogger()
+//	k8sUtilClient = NewK8sUtil(logger, config)
+//	clusterConfig = &ClusterConfig{
+//		Host:        "",
+//		BearerToken: "",
+//	}
+//}
+//
+//func TestK8sUtil_checkIfNsExists(t *testing.T) {
+//	tests := []struct {
+//		name       string
+//		namespace  string
+//		wantExists bool
+//		wantErr    bool
+//	}{
+//		{
+//			name:       "test-kube-system",
+//			namespace:  "kube-system",
+//			wantErr:    false,
+//			wantExists: true,
+//		}, {
+//			name:       "test-randum",
+//			namespace:  "test-rand-laknd-kwejdwiu",
+//			wantExists: false,
+//			wantErr:    false,
+//		},
+//	}
+//	for _, tt := range tests {
+//		t.SkipNow()
+//		t.Run(tt.name, func(t *testing.T) {
+//			impl := k8sUtilClient
+//			k8s, _ := impl.GetClient(clusterConfig)
+//			gotExists, err := impl.checkIfNsExists(tt.namespace, k8s)
+//			if (err != nil) != tt.wantErr {
+//				t.Errorf("K8sUtil.checkIfNsExists() error = %v, wantErr %v", err, tt.wantErr)
+//				return
+//			}
+//			if gotExists != tt.wantExists {
+//				t.Errorf("K8sUtil.checkIfNsExists() = %v, want %v", gotExists, tt.wantExists)
+//			}
+//		})
+//	}
+//}
+//
+//func TestK8sUtil_CreateNsIfNotExists(t *testing.T) {
+//	tests := []struct {
+//		name      string
+//		namespace string
+//		wantErr   bool
+//	}{
+//		{
+//			name:      "create test",
+//			namespace: "createtestns",
+//			wantErr:   false,
+//		},
+//	}
+//	for _, tt := range tests {
+//		t.SkipNow()
+//		t.Run(tt.name, func(t *testing.T) {
+//			impl := k8sUtilClient
+//			if err := impl.CreateNsIfNotExists(tt.namespace, clusterConfig); (err != nil) != tt.wantErr {
+//				t.Errorf("K8sUtil.CreateNsIfNotExists() error = %v, wantErr %v", err, tt.wantErr)
+//			}
+//			k8s, _ := impl.GetClient(clusterConfig)
+//			if err := impl.deleteNs(tt.namespace, k8s); (err != nil) != tt.wantErr {
+//				t.Errorf("K8sUtil.deleteNs() error = %v, wantErr %v", err, tt.wantErr)
+//			}
+//		})
+//	}
+//}

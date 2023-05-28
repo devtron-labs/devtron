@@ -7,7 +7,9 @@ import (
 	"time"
 )
 
-type TimelineStatus string
+type TimelineStatus = string
+
+var TimelineStatusDescription string
 
 const (
 	TIMELINE_STATUS_DEPLOYMENT_INITIATED   TimelineStatus = "DEPLOYMENT_INITIATED"
@@ -20,6 +22,14 @@ const (
 	TIMELINE_STATUS_FETCH_TIMED_OUT        TimelineStatus = "TIMED_OUT"
 	TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS TimelineStatus = "UNABLE_TO_FETCH_STATUS"
 	TIMELINE_STATUS_DEPLOYMENT_SUPERSEDED  TimelineStatus = "DEPLOYMENT_SUPERSEDED"
+	TIMELINE_STATUS_MANIFEST_GENERATED     TimelineStatus = "MANIFEST_GENERATED"
+)
+
+const (
+	TIMELINE_DESCRIPTION_DEPLOYMENT_INITIATED       string = "Deployment initiated successfully."
+	TIMELINE_DESCRIPTION_VULNERABLE_IMAGE           string = "Deployment failed: Vulnerability policy violated."
+	TIMELINE_DESCRIPTION_MANIFEST_GENERATED         string = "HELM_PACKAGE_GENERATED"
+	TIMELINE_DESCRIPTION_MANIFEST_GENERATION_FAILED string = "HELM_PACKAGE_GENERATION_FAILED"
 )
 
 type PipelineStatusTimelineRepository interface {

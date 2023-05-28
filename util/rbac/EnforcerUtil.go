@@ -348,9 +348,10 @@ func (impl EnforcerUtilImpl) GetHelmObject(appId int, envId int) (string, string
 	//otherwise it will return an empty string object
 
 	environmentIdentifier2 := ""
-
-	if environmentIdentifier != clusterName+"__"+namespace { // for futuristic permission cluster name is not present in environment identifier
-		environmentIdentifier2 = clusterName + "__" + namespace
+	if !env.IsVirtualEnvironment { //because for virtual_environment environment identifier is equal to environment name (As namespace is optional)
+		if environmentIdentifier != clusterName+"__"+namespace { // for futuristic permission cluster name is not present in environment identifier
+			environmentIdentifier2 = clusterName + "__" + namespace
+		}
 	}
 	//TODO - FIX required for futuristic permission for cluster__* all environment for migrated environment identifier only
 	/*//here cluster, env, namespace must not have double underscore in names, as we are using that for separator.
@@ -359,7 +360,6 @@ func (impl EnforcerUtilImpl) GetHelmObject(appId int, envId int) (string, string
 	}*/
 
 	if environmentIdentifier2 == "" {
-
 		return fmt.Sprintf("%s/%s/%s", strings.ToLower(application.Team.Name), environmentIdentifier, strings.ToLower(application.AppName)), ""
 	}
 
@@ -385,8 +385,10 @@ func (impl EnforcerUtilImpl) GetHelmObjectByAppNameAndEnvId(appName string, envI
 	// Fix for futuristic permissions, environmentIdentifier2 will return a string object with cluster name if futuristic permissions are given,
 	//otherwise it will return an empty string object
 	environmentIdentifier2 := ""
-	if environmentIdentifier != clusterName+"__"+namespace { // for futuristic permission cluster name is not present in environment identifier
-		environmentIdentifier2 = clusterName + "__" + namespace
+	if !env.IsVirtualEnvironment {
+		if environmentIdentifier != clusterName+"__"+namespace { // for futuristic permission cluster name is not present in environment identifier
+			environmentIdentifier2 = clusterName + "__" + namespace
+		}
 	}
 	if environmentIdentifier2 == "" {
 		return fmt.Sprintf("%s/%s/%s", strings.ToLower(application.Team.Name), environmentIdentifier, strings.ToLower(application.AppName)), ""
@@ -413,18 +415,18 @@ func (impl EnforcerUtilImpl) GetHelmObjectByProjectIdAndEnvId(teamId int, envId 
 		return fmt.Sprintf("%s/%s/%s", "", "", ""), fmt.Sprintf("%s/%s/%s", "", "", "")
 	}
 
-	clusterName := env.Cluster.ClusterName
-	namespace := env.Namespace
-
 	environmentIdentifier := env.EnvironmentIdentifier
 
 	// Fix for futuristic permissions, environmentIdentifier2 will return a string object with cluster name if futuristic permissions are given,
 	//otherwise it will return an empty string object
 
 	environmentIdentifier2 := ""
-
-	if environmentIdentifier != clusterName+"__"+namespace { // for futuristic permission cluster name is not present in environment identifier
-		environmentIdentifier2 = clusterName + "__" + namespace
+	if !env.IsVirtualEnvironment {
+		clusterName := env.Cluster.ClusterName
+		namespace := env.Namespace
+		if environmentIdentifier != clusterName+"__"+namespace { // for futuristic permission cluster name is not present in environment identifier
+			environmentIdentifier2 = clusterName + "__" + namespace
+		}
 	}
 
 	if environmentIdentifier2 == "" {

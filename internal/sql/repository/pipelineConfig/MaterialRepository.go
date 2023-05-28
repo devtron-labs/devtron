@@ -44,6 +44,7 @@ type GitMaterial struct {
 	Name            string   `sql:"name, omitempty"`
 	CheckoutPath    string   `sql:"checkout_path, omitempty"`
 	FetchSubmodules bool     `sql:"fetch_submodules,notnull"`
+	FilterPattern   []string `sql:"filter_pattern"`
 	sql.AuditLog
 	App         *app.App
 	GitProvider *repository.GitProvider

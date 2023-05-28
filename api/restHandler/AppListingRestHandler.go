@@ -656,13 +656,14 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV1(w http.Respons
 			})
 		}
 		appContainerResponse.DeploymentGroupDTO = bean.DeploymentGroupDTO{
-			Id:             dg.Id,
-			Name:           dg.Name,
-			AppCount:       dg.AppCount,
-			NoOfApps:       dg.NoOfApps,
-			EnvironmentId:  dg.EnvironmentId,
-			CiPipelineId:   dg.CiPipelineId,
-			CiMaterialDTOs: ciMaterialDTOs,
+			Id:                   dg.Id,
+			Name:                 dg.Name,
+			AppCount:             dg.AppCount,
+			NoOfApps:             dg.NoOfApps,
+			EnvironmentId:        dg.EnvironmentId,
+			CiPipelineId:         dg.CiPipelineId,
+			CiMaterialDTOs:       ciMaterialDTOs,
+			IsVirtualEnvironment: dg.IsVirtualEnvironment,
 		}
 	}
 	t2 = time.Now()
@@ -794,13 +795,14 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV2(w http.Respons
 			})
 		}
 		appContainerResponse.DeploymentGroupDTO = bean.DeploymentGroupDTO{
-			Id:             dg.Id,
-			Name:           dg.Name,
-			AppCount:       dg.AppCount,
-			NoOfApps:       dg.NoOfApps,
-			EnvironmentId:  dg.EnvironmentId,
-			CiPipelineId:   dg.CiPipelineId,
-			CiMaterialDTOs: ciMaterialDTOs,
+			Id:                   dg.Id,
+			Name:                 dg.Name,
+			AppCount:             dg.AppCount,
+			NoOfApps:             dg.NoOfApps,
+			EnvironmentId:        dg.EnvironmentId,
+			CiPipelineId:         dg.CiPipelineId,
+			CiMaterialDTOs:       ciMaterialDTOs,
+			IsVirtualEnvironment: dg.IsVirtualEnvironment,
 		}
 	}
 	t2 = time.Now()
@@ -1035,7 +1037,7 @@ func (handler AppListingRestHandlerImpl) FetchResourceTree(w http.ResponseWriter
 	if cdPipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
 		apiError, ok := err.(*util.ApiError)
 		if ok && apiError != nil {
-			if apiError.Code == constants.AppDetailResourceTreeNotFound && cdPipeline.DeploymentAppDeleteRequest == true {
+			if apiError.Code == constants.AppDetailResourceTreeNotFound && cdPipeline.DeploymentAppDeleteRequest == true && cdPipeline.DeploymentAppCreated == true {
 				acdAppFound, _ := handler.pipeline.MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(appId, envId, acdToken, cdPipeline)
 				if acdAppFound {
 					common.WriteJsonResp(w, fmt.Errorf("unable to fetch resource tree"), nil, http.StatusInternalServerError)
@@ -1715,7 +1717,7 @@ func (handler AppListingRestHandlerImpl) GetClusterTeamAndEnvListForAutocomplete
 
 			var hasAccess bool
 			EnvironmentIdentifier := item.ClusterName + "__" + item.Namespace
-			if item.EnvironmentIdentifier != EnvironmentIdentifier {
+			if item.EnvironmentIdentifier != EnvironmentIdentifier && !item.IsVirtualEnvironment {
 				// fix for futuristic case
 				hasAccess = result[strings.ToLower(EnvironmentIdentifier)] || result[strings.ToLower(item.EnvironmentIdentifier)]
 			} else {

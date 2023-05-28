@@ -17,11 +17,12 @@ const (
 )
 
 type CiBuildConfigBean struct {
-	Id                int                `json:"id"`
-	GitMaterialId     int                `json:"gitMaterialId,omitempty" validate:"required"`
-	CiBuildType       CiBuildType        `json:"ciBuildType"`
-	DockerBuildConfig *DockerBuildConfig `json:"dockerBuildConfig,omitempty"`
-	BuildPackConfig   *BuildPackConfig   `json:"buildPackConfig"`
+	Id                        int                `json:"id"`
+	GitMaterialId             int                `json:"gitMaterialId,omitempty" validate:"required"`
+	BuildContextGitMaterialId int                `json:"buildContextGitMaterialId,omitempty" validate:"required"`
+	CiBuildType               CiBuildType        `json:"ciBuildType"`
+	DockerBuildConfig         *DockerBuildConfig `json:"dockerBuildConfig,omitempty"`
+	BuildPackConfig           *BuildPackConfig   `json:"buildPackConfig"`
 }
 
 type DockerBuildConfig struct {
@@ -32,6 +33,7 @@ type DockerBuildConfig struct {
 	Language           string            `json:"language,omitempty"`
 	LanguageFramework  string            `json:"languageFramework,omitempty"`
 	DockerBuildOptions map[string]string `json:"dockerBuildOptions,omitempty"`
+	BuildContext       string            `json:"buildContext,omitempty"`
 }
 
 type BuildPackConfig struct {
@@ -138,6 +140,7 @@ func OverrideCiBuildConfig(dockerfilePath string, oldArgs string, ciLevelArgs st
 				Args:               dockerArgs,
 				TargetPlatform:     targetPlatform,
 				DockerBuildOptions: dockerBuildOptionsMap,
+				BuildContext:       "",
 			},
 		}
 	} else if ciBuildConfigBean.CiBuildType == SELF_DOCKERFILE_BUILD_TYPE || ciBuildConfigBean.CiBuildType == MANAGED_DOCKERFILE_BUILD_TYPE {

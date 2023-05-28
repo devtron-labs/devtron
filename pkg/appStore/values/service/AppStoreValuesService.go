@@ -96,6 +96,10 @@ func (impl AppStoreValuesServiceImpl) UpdateAppStoreVersionValues(request *appSt
 	model.Description = request.Description
 	model.UpdatedBy = request.UserId
 	model.UpdatedOn = time.Now()
+	model.AppStoreApplicationVersionId = request.AppStoreVersionId
+	model.AppStoreApplicationVersion.Version = request.ChartVersion
+	model.AppStoreApplicationVersion.Id = request.AppStoreVersionId
+
 	app, err := impl.appStoreVersionValuesRepository.UpdateAppStoreVersionValues(model)
 	if err != nil {
 		impl.logger.Errorw("error while updating", "error", err)
@@ -288,7 +292,7 @@ func (impl AppStoreValuesServiceImpl) FindValuesByAppStoreIdAndReferenceType(app
 	return appStoreVersionValuesDTO, err
 }
 
-//converts db object to bean
+// converts db object to bean
 func (impl AppStoreValuesServiceImpl) adapter(values *appStoreValuesRepository.AppStoreVersionValues) (*appStoreBean.AppStoreVersionValuesDTO, error) {
 
 	version := ""
@@ -307,24 +311,25 @@ func (impl AppStoreValuesServiceImpl) adapter(values *appStoreValuesRepository.A
 	}, nil
 }
 
-/*func (impl AppStoreValuesServiceImpl) adaptorForValuesCategoryWise(values *appStore.AppStoreVersionValues) (val *AppStoreVersionValuesCategoryWiseDTO) {
-	version := ""
-	if values.AppStoreApplicationVersion != nil {
-		version = values.AppStoreApplicationVersion.Version
-	}
+/*
+	func (impl AppStoreValuesServiceImpl) adaptorForValuesCategoryWise(values *appStore.AppStoreVersionValues) (val *AppStoreVersionValuesCategoryWiseDTO) {
+		version := ""
+		if values.AppStoreApplicationVersion != nil {
+			version = values.AppStoreApplicationVersion.Version
+		}
 
-	valDto:= &AppStoreVersionValuesDTO{
-		Name:              values.Name,
-		Id:                values.Id,
-		Values:            values.ValuesYaml,
-		ChartVersion:      version,
-		AppStoreVersionId: values.AppStoreApplicationVersionId,
+		valDto:= &AppStoreVersionValuesDTO{
+			Name:              values.Name,
+			Id:                values.Id,
+			Values:            values.ValuesYaml,
+			ChartVersion:      version,
+			AppStoreVersionId: values.AppStoreApplicationVersionId,
+		}
+		val = &AppStoreVersionValuesCategoryWiseDTO{
+			Values:valDto
+		}
+		return val
 	}
-	val = &AppStoreVersionValuesCategoryWiseDTO{
-		Values:valDto
-	}
-	return val
-}
 */
 type ChartMetaDataRequest struct {
 	Kind  string `json:"kind"`

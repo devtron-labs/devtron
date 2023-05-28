@@ -47,6 +47,8 @@ type PipelineTriggerRestHandler interface {
 	StartStopApp(w http.ResponseWriter, r *http.Request)
 	StartStopDeploymentGroup(w http.ResponseWriter, r *http.Request)
 	GetAllLatestDeploymentConfiguration(w http.ResponseWriter, r *http.Request)
+	DownloadManifest(w http.ResponseWriter, r *http.Request)
+	DownloadManifestForSpecificTrigger(w http.ResponseWriter, r *http.Request)
 }
 
 type PipelineTriggerRestHandlerImpl struct {
@@ -127,14 +129,14 @@ func (handler PipelineTriggerRestHandlerImpl) OverrideConfig(w http.ResponseWrit
 	}
 	ctx := context.WithValue(r.Context(), "token", acdToken)
 	_, span := otel.Tracer("orchestrator").Start(ctx, "workflowDagExecutor.ManualCdTrigger")
-	mergeResp, err := handler.workflowDagExecutor.ManualCdTrigger(&overrideRequest, ctx)
+	mergeResp, manifest, err := handler.workflowDagExecutor.ManualCdTrigger(&overrideRequest, ctx)
 	span.End()
 	if err != nil {
 		handler.logger.Errorw("request err, OverrideConfig", "err", err, "payload", overrideRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	res := map[string]interface{}{"releaseId": mergeResp}
+	res := map[string]interface{}{"releaseId": mergeResp, "manifest": manifest}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
@@ -318,4 +320,57 @@ func (handler PipelineTriggerRestHandlerImpl) GetAllLatestDeploymentConfiguratio
 		return
 	}
 	common.WriteJsonResp(w, nil, allDeploymentconfig, http.StatusOK)
+}
+
+func (handler PipelineTriggerRestHandlerImpl) DownloadManifest(w http.ResponseWriter, r *http.Request) {
+
+	vars := mux.Vars(r)
+	appId, err := strconv.Atoi(vars["appId"])
+	if err != nil {
+		handler.logger.Errorw("request err, DownloadManifest", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	envId, err := strconv.Atoi(vars["envId"])
+	if err != nil {
+		handler.logger.Errorw("request err, DownloadManifest", "err", err, "envId", envId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	manifestByteArr, err := handler.appService.GetLatestDeployedManifestByPipelineId(appId, envId, context.Background())
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Write(manifestByteArr)
+	return
+}
+
+func (handler PipelineTriggerRestHandlerImpl) DownloadManifestForSpecificTrigger(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	appId, err := strconv.Atoi(vars["appId"])
+	if err != nil {
+		handler.logger.Errorw("request err, DownloadManifest", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	envId, err := strconv.Atoi(vars["envId"])
+	if err != nil {
+		handler.logger.Errorw("request err, DownloadManifest", "err", err, "envId", envId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	cdWorkflowId, err := strconv.Atoi(vars["cd_workflow_id"])
+	if err != nil {
+		handler.logger.Errorw("request err, DownloadManifest", "err", err, "envId", envId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	manifestByteArr, err := handler.appService.GetDeployedManifestByPipelineIdAndCDWorkflowId(appId, envId, cdWorkflowId, context.Background())
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Write(manifestByteArr)
 }
