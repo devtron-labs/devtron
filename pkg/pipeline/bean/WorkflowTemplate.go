@@ -20,3 +20,9 @@ type WorkflowTemplate struct {
 	Namespace              string
 	ArchiveLogs            bool
 }
+
+type JobManifestTemplate struct {
+	Container     v1.Container           `json:"Container"`
+	ConfigMaps    []bean.ConfigSecretMap `json:"ConfigMaps"`
+	ConfigSecrets []bean.ConfigSecretMap `json:"ConfigSecrets"`
+}

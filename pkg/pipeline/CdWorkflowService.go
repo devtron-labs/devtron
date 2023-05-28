@@ -25,9 +25,11 @@ import (
 	"github.com/argoproj/argo-workflows/v3/workflow/common"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/pkg/app"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/ghodss/yaml"
 	"strconv"
 	"strings"
 	"time"
@@ -38,7 +40,6 @@ import (
 	"github.com/argoproj/argo-workflows/v3/workflow/util"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/pkg/app"
 	"go.uber.org/zap"
 	v12 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -116,6 +117,7 @@ type CdWorkflowRequest struct {
 	DeploymentTriggerTime      time.Time                           `json:"deploymentTriggerTime,omitempty"`
 	DeploymentReleaseCounter   int                                 `json:"deploymentReleaseCounter,omitempty"`
 	WorkflowExecutor           pipelineConfig.WorkflowExecutorType `json:"workflowExecutor"`
+	IsDryRun                   bool                                `json:"isDryRun"`
 }
 
 const PRE = "PRE"
@@ -278,12 +280,21 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	} else {
 		workflowTemplate.ClusterConfig = impl.config
 	}
-	workflowExecutor := impl.getWorkflowExecutor(workflowRequest.WorkflowExecutor)
-	if workflowExecutor == nil {
-		return errors.New("workflow executor not found")
+	if workflowRequest.IsDryRun {
+		jobManifestTemplate := &bean3.JobManifestTemplate{
+			Container:     workflowMainContainer,
+			ConfigSecrets: workflowSecrets,
+			ConfigMaps:    workflowConfigMaps,
+		}
+		err = impl.TriggerDryRun(jobManifestTemplate, pipeline, env)
+	} else {
+		workflowExecutor := impl.getWorkflowExecutor(workflowRequest.WorkflowExecutor)
+		if workflowExecutor == nil {
+			return errors.New("workflow executor not found")
+		}
+		err = workflowExecutor.ExecuteWorkflow(workflowTemplate)
 	}
-	return workflowExecutor.ExecuteWorkflow(workflowTemplate)
-
+	return err
 	//configMaps := bean.ConfigMapJson{}
 	//for _, cm := range existingConfigMap.Maps {
 	//	if cm.External {
@@ -838,4 +849,17 @@ func (impl *CdWorkflowServiceImpl) checkErr(err error) {
 	if err != nil {
 		impl.Logger.Errorw("error", "error:", err)
 	}
+}
+
+func (impl *CdWorkflowServiceImpl) TriggerDryRun(jobManifestTemplate *bean3.JobManifestTemplate, pipeline *pipelineConfig.Pipeline, env *repository.Environment) error {
+
+	jobManifestJson, err := json.Marshal(jobManifestTemplate)
+	if err != nil {
+		impl.Logger.Errorw("error in converting to json", "err", err)
+		return err
+	}
+	jobManifestYaml, err := yaml.JSONToYAML(jobManifestJson)
+	impl.Logger.Info(jobManifestYaml)
+
+	return nil
 }

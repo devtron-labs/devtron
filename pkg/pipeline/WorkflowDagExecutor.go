@@ -469,6 +469,11 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 		return err
 	}
 	cdStageWorkflowRequest.StageType = PRE
+
+	if util.IsManifestDownload(pipeline.DeploymentAppType) {
+		cdStageWorkflowRequest.IsDryRun = true
+	}
+
 	_, span = otel.Tracer("orchestrator").Start(ctx, "cdWorkflowService.SubmitWorkflow")
 	err = impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest, pipeline, env)
 	span.End()
