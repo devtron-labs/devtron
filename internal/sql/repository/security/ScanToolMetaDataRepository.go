@@ -32,6 +32,7 @@ type ScanToolMetadataRepository interface {
 	FindAllActiveTools() ([]*ScanToolMetadata, error)
 	MarkToolAsActive(toolName, version string, tx *pg.Tx) error
 	MarkOtherToolsInActive(toolName string, tx *pg.Tx, version string) error
+	FindActiveTool() (*ScanToolMetadata, error)
 }
 
 type ScanToolMetadataRepositoryImpl struct {
@@ -141,4 +142,15 @@ func (repo *ScanToolMetadataRepositoryImpl) MarkOtherToolsInActive(toolName stri
 		return err
 	}
 	return nil
+}
+func (repo *ScanToolMetadataRepositoryImpl) FindActiveTool() (*ScanToolMetadata, error) {
+	var model *ScanToolMetadata
+	err := repo.dbConnection.Model(&model).Where("active = ?", true).
+		Where("deleted = ?", false).Select()
+	if err != nil {
+		repo.logger.Errorw("error in getting active tool for scan target", "err", err)
+		return nil, err
+	}
+	return model, nil
+
 }

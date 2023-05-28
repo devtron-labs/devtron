@@ -55,6 +55,7 @@ type ImageScanServiceImpl struct {
 	policyService                 PolicyService
 	pipelineRepository            pipelineConfig.PipelineRepository
 	ciPipelineRepository          pipelineConfig.CiPipelineRepository
+	scanToolMetaDataRepository    security.ScanToolMetadataRepository
 }
 
 type ImageScanRequest struct {
@@ -127,7 +128,7 @@ func NewImageScanServiceImpl(Logger *zap.SugaredLogger, scanHistoryRepository se
 	userService user.UserService, teamRepository repository2.TeamRepository,
 	appRepository repository1.AppRepository,
 	envService cluster.EnvironmentService, ciArtifactRepository repository.CiArtifactRepository, policyService PolicyService,
-	pipelineRepository pipelineConfig.PipelineRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository) *ImageScanServiceImpl {
+	pipelineRepository pipelineConfig.PipelineRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository, scanToolMetaDataRepository security.ScanToolMetadataRepository) *ImageScanServiceImpl {
 	return &ImageScanServiceImpl{Logger: Logger, scanHistoryRepository: scanHistoryRepository, scanResultRepository: scanResultRepository,
 		scanObjectMetaRepository: scanObjectMetaRepository, cveStoreRepository: cveStoreRepository,
 		imageScanDeployInfoRepository: imageScanDeployInfoRepository,
@@ -139,6 +140,7 @@ func NewImageScanServiceImpl(Logger *zap.SugaredLogger, scanHistoryRepository se
 		policyService:                 policyService,
 		pipelineRepository:            pipelineRepository,
 		ciPipelineRepository:          ciPipelineRepository,
+		scanToolMetaDataRepository:    scanToolMetaDataRepository,
 	}
 }
 
@@ -376,6 +378,12 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *ImageScanRe
 		}
 		if len(imageScanResult) > 0 {
 			imageScanResponse.ScanToolId = imageScanResult[0].ScanToolId
+		} else {
+			activeTool, err := impl.scanToolMetaDataRepository.FindActiveTool()
+			if err != nil {
+				impl.Logger.Errorw("error in getting active tool for fetching execution details result", "err", err)
+			}
+			imageScanResponse.ScanToolId = activeTool.Id
 		}
 	}
 	severityCount := &SeverityCount{
@@ -485,6 +493,12 @@ func (impl ImageScanServiceImpl) FetchMinScanResultByAppIdAndEnvId(request *Imag
 		}
 		if len(imageScanResult) > 0 {
 			scantoolId = imageScanResult[0].ScanToolId
+		} else {
+			activeTool, err := impl.scanToolMetaDataRepository.FindActiveTool()
+			if err != nil {
+				impl.Logger.Errorw("error in getting active tool for fetching execution details result", "err", err)
+			}
+			scantoolId = activeTool.Id
 		}
 	}
 	severityCount := &SeverityCount{
