@@ -2425,10 +2425,7 @@ func (impl *AppServiceImpl) CreateHistoriesForDeploymentTrigger(pipeline *pipeli
 }
 
 func (impl *AppServiceImpl) updatePipeline(pipeline *pipelineConfig.Pipeline, userId int32) (bool, error) {
-	pipeline.DeploymentAppCreated = true
-	pipeline.UpdatedOn = time.Now()
-	pipeline.UpdatedBy = userId
-	err := impl.pipelineRepository.UpdateCdPipeline(pipeline)
+	err := impl.pipelineRepository.SetDeploymentAppCreatedInPipeline(true, pipeline.Id, userId)
 	if err != nil {
 		impl.logger.Errorw("error on updating cd pipeline for setting deployment app created", "err", err)
 		return false, err

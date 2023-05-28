@@ -64,13 +64,13 @@ type UpdateMaterialDTO struct {
 }
 
 type GitMaterial struct {
-	Name             string `json:"name,omitempty" ` //not null, //default format pipelineGroup.AppName + "-" + inputMaterial.Name,
-	Url              string `json:"url,omitempty"`   //url of git repo
-	Id               int    `json:"id,omitempty" validate:"number"`
-	GitProviderId    int    `json:"gitProviderId,omitempty" validate:"gt=0"`
-	CheckoutPath     string `json:"checkoutPath" validate:"checkout-path-component"`
-	FetchSubmodules  bool   `json:"fetchSubmodules"`
-	IsUsedInCiConfig bool   `json:"isUsedInCiConfig"`
+	Name             string   `json:"name,omitempty" ` //not null, //default format pipelineGroup.AppName + "-" + inputMaterial.Name,
+	Url              string   `json:"url,omitempty"`   //url of git repo
+	Id               int      `json:"id,omitempty" validate:"number"`
+	GitProviderId    int      `json:"gitProviderId,omitempty" validate:"gt=0"`
+	CheckoutPath     string   `json:"checkoutPath" validate:"checkout-path-component"`
+	FetchSubmodules  bool     `json:"fetchSubmodules"`
+	IsUsedInCiConfig bool     `json:"isUsedInCiConfig"`
 	FilterPattern    []string `json:"filterPattern"`
 }
 
@@ -592,8 +592,10 @@ const (
 type Status string
 
 const (
-	Success Status = "Success"
-	Failed  Status = "Failed"
+	Success         Status = "Success"
+	Failed          Status = "Failed"
+	INITIATED       Status = "Migration initiated"
+	NOT_YET_DELETED Status = "Not yet deleted"
 )
 
 func (a CdPatchAction) String() string {
