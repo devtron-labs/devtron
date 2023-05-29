@@ -87,6 +87,7 @@ type PipelineConfigRestHandler interface {
 	DevtronAppDeploymentHistoryRestHandler
 	DevtronAppPrePostDeploymentRestHandler
 	DevtronAppDeploymentConfigRestHandler
+	ImageTaggingRestHandler
 	PipelineNameSuggestion(w http.ResponseWriter, r *http.Request)
 }
 
@@ -101,6 +102,7 @@ type PipelineConfigRestHandlerImpl struct {
 	dbMigrationService           pipeline.DbMigrationService
 	application                  application.ServiceClient
 	userAuthService              user.UserService
+	userService                  user.UserService
 	validator                    *validator.Validate
 	teamService                  team.TeamService
 	enforcer                     casbin.Enforcer
@@ -118,6 +120,7 @@ type PipelineConfigRestHandlerImpl struct {
 	scanResultRepository         security.ImageScanResultRepository
 	gitProviderRepo              repository.GitProviderRepository
 	argoUserService              argo.ArgoUserService
+	imageTaggingService          pipeline.ImageTaggingService
 }
 
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
@@ -126,6 +129,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	dbMigrationService pipeline.DbMigrationService,
 	application application.ServiceClient,
 	userAuthService user.UserService,
+	userService user.UserService,
 	teamService team.TeamService,
 	enforcer casbin.Enforcer,
 	ciHandler pipeline.CiHandler,
@@ -139,7 +143,8 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	appWorkflowService appWorkflow.AppWorkflowService,
 	materialRepository pipelineConfig.MaterialRepository, policyService security2.PolicyService,
 	scanResultRepository security.ImageScanResultRepository, gitProviderRepo repository.GitProviderRepository,
-	argoUserService argo.ArgoUserService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository) *PipelineConfigRestHandlerImpl {
+	argoUserService argo.ArgoUserService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
+	imageTaggingService pipeline.ImageTaggingService) *PipelineConfigRestHandlerImpl {
 	return &PipelineConfigRestHandlerImpl{
 		pipelineBuilder:              pipelineBuilder,
 		Logger:                       Logger,
@@ -148,6 +153,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		dbMigrationService:           dbMigrationService,
 		application:                  application,
 		userAuthService:              userAuthService,
+		userService:                  userService,
 		validator:                    validator,
 		teamService:                  teamService,
 		enforcer:                     enforcer,
@@ -168,6 +174,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		gitProviderRepo:              gitProviderRepo,
 		argoUserService:              argoUserService,
 		ciPipelineMaterialRepository: ciPipelineMaterialRepository,
+		imageTaggingService:          imageTaggingService,
 	}
 }
 

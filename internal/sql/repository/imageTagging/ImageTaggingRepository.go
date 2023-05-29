@@ -16,18 +16,18 @@ const ActionSoftDelete = 2
 
 type ImageTag struct {
 	TableName  struct{} `sql:"release_tags" json:",omitempty"  pg:",discard_unknown_columns"`
-	Id         int      `sql:"id"`
-	AppId      int      `sql:"app_id"`
-	ArtifactId int      `sql:"artifact_id"`
-	Active     bool     `sql:"active"`
+	Id         int      `sql:"id" json:"id"`
+	AppId      int      `sql:"app_id" json:"appId"`
+	ArtifactId int      `sql:"artifact_id" json:"artifactId"`
+	Active     bool     `sql:"active" json:"active"`
 }
 
 type ImageComment struct {
 	TableName  struct{} `sql:"image_comments" json:",omitempty"  pg:",discard_unknown_columns"`
-	Id         int      `sql:"id"`
-	Comment    int      `sql:"app_id"`
-	ArtifactId int      `sql:"artifact_id"`
-	UserId     int      `sql:"user_id"`
+	Id         int      `sql:"id" json:"id"`
+	Comment    int      `sql:"app_id" json:"comment"`
+	ArtifactId int      `sql:"artifact_id" json:"artifactId"`
+	UserId     int      `sql:"user_id" json:"-"` //currently not sending userId in json response
 }
 
 type ImageTaggingAudit struct {
@@ -46,7 +46,7 @@ type ImageTaggingRepository interface {
 	SaveImageComment(tx *pg.Tx, imageComment *ImageComment) error
 	GetTagsByAppId(appId int) ([]ImageTag, error)
 	GetTagsByArtifactId(artifactId int) ([]ImageTag, error)
-	GetImageComment(artifactId int) ([]ImageComment, error)
+	GetImageComment(artifactId int) (ImageComment, error)
 	UpdateReleaseTag(tx *pg.Tx, imageTag *ImageTag) error
 	UpdateImageComment(tx *pg.Tx, imageComment *ImageComment) error
 	DeleteReleaseTag(tx *pg.Tx, imageTag *ImageTag) error
@@ -96,8 +96,8 @@ func (impl *ImageTaggingRepositoryImpl) GetTagsByArtifactId(artifactId int) ([]I
 	return res, err
 }
 
-func (impl *ImageTaggingRepositoryImpl) GetImageComment(artifactId int) ([]ImageComment, error) {
-	res := make([]ImageComment, 0)
+func (impl *ImageTaggingRepositoryImpl) GetImageComment(artifactId int) (ImageComment, error) {
+	res := ImageComment{}
 	err := impl.dbConnection.Model(&res).
 		Where("artifact_id=?", artifactId).
 		Select()
