@@ -10,9 +10,11 @@ import (
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"go.uber.org/zap"
+	v12 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/rest"
+	"net/url"
 )
 
 const (
@@ -50,17 +52,14 @@ func (impl *ArgoWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.Work
 	}
 
 	wfContainer := workflowTemplate.Containers[0]
-	archiveLogs := true
 	cdTemplate := v1alpha1.Template{
 		Name:      CD_WORKFLOW_NAME,
 		Container: &wfContainer,
 		ActiveDeadlineSeconds: &intstr.IntOrString{
 			IntVal: int32(*workflowTemplate.ActiveDeadlineSeconds),
 		},
-		ArchiveLocation: &v1alpha1.ArtifactLocation{
-			ArchiveLogs: &archiveLogs,
-		},
 	}
+	impl.updateBlobStorageConfig(workflowTemplate, &cdTemplate)
 	templates = append(templates, cdTemplate)
 
 	var (
@@ -76,7 +75,7 @@ func (impl *ArgoWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.Work
 				Tolerations:        workflowTemplate.Tolerations,
 				Entrypoint:         entryPoint,
 				TTLStrategy: &v1alpha1.TTLStrategy{
-					SecondsAfterCompletion: &workflowTemplate.TTLValue,
+					SecondsAfterCompletion: workflowTemplate.TTLValue,
 				},
 				Templates: templates,
 				Volumes:   workflowTemplate.Volumes,
@@ -103,6 +102,80 @@ func (impl *ArgoWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.Work
 	}
 	impl.logger.Debugw("workflow submitted: ", "name", createdWf.Name)
 	return nil
+}
+
+func (impl *ArgoWorkflowExecutorImpl) updateBlobStorageConfig(workflowTemplate bean.WorkflowTemplate, cdTemplate *v1alpha1.Template) {
+	cdTemplate.ArchiveLocation = &v1alpha1.ArtifactLocation{
+		ArchiveLogs: &workflowTemplate.BlobStorageConfigured,
+	}
+	if workflowTemplate.BlobStorageConfigured {
+		var s3Artifact *v1alpha1.S3Artifact
+		var gcsArtifact *v1alpha1.GCSArtifact
+		blobStorageS3Config := workflowTemplate.BlobStorageS3Config
+		gcpBlobConfig := workflowTemplate.GcpBlobConfig
+		cloudStorageKey := workflowTemplate.CloudStorageKey
+		if blobStorageS3Config != nil {
+			s3CompatibleEndpointUrl := blobStorageS3Config.EndpointUrl
+			if s3CompatibleEndpointUrl == "" {
+				s3CompatibleEndpointUrl = "s3.amazonaws.com"
+			} else {
+				parsedUrl, err := url.Parse(s3CompatibleEndpointUrl)
+				if err != nil {
+					impl.logger.Errorw("error occurred while parsing s3CompatibleEndpointUrl, ", "s3CompatibleEndpointUrl", s3CompatibleEndpointUrl, "err", err)
+				} else {
+					s3CompatibleEndpointUrl = parsedUrl.Host
+				}
+			}
+			isInsecure := blobStorageS3Config.IsInSecure
+			var accessKeySelector *v12.SecretKeySelector
+			var secretKeySelector *v12.SecretKeySelector
+			if blobStorageS3Config.AccessKey != "" {
+				accessKeySelector = &v12.SecretKeySelector{
+					Key: "accessKey",
+					LocalObjectReference: v12.LocalObjectReference{
+						Name: "workflow-minio-cred",
+					},
+				}
+				secretKeySelector = &v12.SecretKeySelector{
+					Key: "secretKey",
+					LocalObjectReference: v12.LocalObjectReference{
+						Name: "workflow-minio-cred",
+					},
+				}
+			}
+			s3Artifact = &v1alpha1.S3Artifact{
+				Key: cloudStorageKey,
+				S3Bucket: v1alpha1.S3Bucket{
+					Endpoint:        s3CompatibleEndpointUrl,
+					AccessKeySecret: accessKeySelector,
+					SecretKeySecret: secretKeySelector,
+					Bucket:          blobStorageS3Config.CiLogBucketName,
+					Insecure:        &isInsecure,
+				},
+			}
+			if blobStorageS3Config.CiLogRegion != "" {
+				//TODO checking for Azure
+				s3Artifact.Region = blobStorageS3Config.CiLogRegion
+			}
+		} else if gcpBlobConfig != nil {
+			gcsArtifact = &v1alpha1.GCSArtifact{
+				Key: cloudStorageKey,
+				GCSBucket: v1alpha1.GCSBucket{
+					Bucket: gcpBlobConfig.LogBucketName,
+					ServiceAccountKeySecret: &v12.SecretKeySelector{
+						Key: "secretKey",
+						LocalObjectReference: v12.LocalObjectReference{
+							Name: "workflow-minio-cred",
+						},
+					},
+				},
+			}
+		}
+
+		// set in ArchiveLocation
+		cdTemplate.ArchiveLocation.S3 = s3Artifact
+		cdTemplate.ArchiveLocation.GCS = gcsArtifact
+	}
 }
 
 func (impl *ArgoWorkflowExecutorImpl) getArgoTemplates(configMaps []bean2.ConfigSecretMap, secrets []bean2.ConfigSecretMap) ([]v1alpha1.Template, error) {

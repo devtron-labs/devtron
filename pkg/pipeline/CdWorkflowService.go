@@ -266,6 +266,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	}
 	UpdateContainerEnvsFromCmCs(&workflowMainContainer, workflowConfigMaps, workflowSecrets)
 
+	impl.updateBlobStorageConfig(workflowRequest, &workflowTemplate, storageConfigured)
 	workflowTemplate.Containers = []v12.Container{workflowMainContainer}
 	workflowTemplate.WorkflowNamePrefix = workflowRequest.WorkflowNamePrefix
 	workflowTemplate.WfControllerInstanceID = impl.cdConfig.WfControllerInstanceID
@@ -687,6 +688,14 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	//impl.Logger.Debugw("workflow submitted: ", "name", createdWf.Name)
 	//impl.checkErr(err)
 	//return createdWf, err
+}
+
+func (impl *CdWorkflowServiceImpl) updateBlobStorageConfig(workflowRequest *CdWorkflowRequest, workflowTemplate *bean3.WorkflowTemplate, storageConfigured bool) {
+	workflowTemplate.BlobStorageConfigured = storageConfigured && (impl.cdConfig.UseBlobStorageConfigInCdWorkflow || !workflowRequest.IsExtRun)
+	workflowTemplate.BlobStorageS3Config = workflowRequest.BlobStorageS3Config
+	workflowTemplate.AzureBlobConfig = workflowRequest.AzureBlobConfig
+	workflowTemplate.GcpBlobConfig = workflowRequest.GcpBlobConfig
+	workflowTemplate.CloudStorageKey = impl.cdConfig.DefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowNamePrefix
 }
 
 func (impl *CdWorkflowServiceImpl) getWorkflowExecutor(executorType pipelineConfig.WorkflowExecutorType) WorkflowExecutor {
