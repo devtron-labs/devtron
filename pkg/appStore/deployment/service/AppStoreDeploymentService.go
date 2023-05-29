@@ -1066,7 +1066,6 @@ func (impl AppStoreDeploymentServiceImpl) updateInstalledAppVersion(installedApp
 		installedAppVersion.AppStoreApplicationVersion = *appStoreAppVersion
 		installedAppVersion.InstalledApp = *installedApp
 		installAppVersionRequest.InstalledAppVersionId = installedAppVersion.Id
-		installAppVersionRequest.Id = installedAppVersion.Id
 	} else {
 		installedAppVersionModel, err := impl.installedAppRepository.GetInstalledAppVersion(installAppVersionRequest.Id)
 		if err != nil {
@@ -1204,6 +1203,7 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 			impl.logger.Errorw("error while upgrade the chart", "error", err)
 			return nil, err
 		}
+		installAppVersionRequest.Id = installedAppVersion.Id
 	} else {
 		// update same chart or upgrade its version only
 		installedAppVersionModel, err := impl.installedAppRepository.GetInstalledAppVersion(installAppVersionRequest.Id)
