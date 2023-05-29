@@ -47,6 +47,9 @@ components:
     ImageTaggingResponseDTO:
       type: object
       properties:
+        prodEnvExists:
+          type: boolean
+          description: true/false
         imageReleaseTags:
           type: array
           items:
