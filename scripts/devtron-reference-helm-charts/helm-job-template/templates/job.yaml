@@ -1,0 +1,74 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{.Release.Name}}-{{ randAlphaNum 5 | lower }}
+  labels:
+    {{- include "helm-job.labels" . | nindent 4 }}
+spec:
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "helm-job.selectorLabels" . | nindent 8 }}
+    spec:
+      restartPolicy: Never
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "helm-job.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.Container.securityContext | nindent 8 }}
+      containers:
+        - name: {{ .Values.Container.name }}
+          securityContext:
+            {{- toYaml .Values.Container.securityContext | nindent 12 }}
+          args: {{ .Values.Container.args }}
+          image: {{ .Values.Container.image }}
+          imagePullPolicy: {{ .Values.Container.imagePullPolicy }}
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          envFrom:
+          {{- range .Values.ConfigMaps }}
+          {{- if eq .type "environment" }}
+          - configMapRef:
+              {{- if eq .external false }}
+              name: {{ .name }}
+              {{- end }}
+          {{- end }}
+          {{- end }}
+          {{- range .Values.ConfigSecrets }}
+          {{- if eq .type "environment" }}
+          - secretRef:
+              {{- if eq .external false}}
+              name: {{ .name }}
+              {{- end }}
+          {{- end }}
+          {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.Toleration }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

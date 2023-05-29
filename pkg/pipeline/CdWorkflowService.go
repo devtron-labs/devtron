@@ -52,7 +52,7 @@ import (
 )
 
 type CdWorkflowService interface {
-	SubmitWorkflow(workflowRequest *CdWorkflowRequest, pipeline *pipelineConfig.Pipeline, env *repository.Environment) error
+	SubmitWorkflow(workflowRequest *CdWorkflowRequest, pipeline *pipelineConfig.Pipeline, env *repository.Environment) (string, error)
 	DeleteWorkflow(wfName string, namespace string) error
 	GetWorkflow(name string, namespace string, url string, token string, isExtRun bool) (*v1alpha1.Workflow, error)
 	ListAllWorkflows(namespace string) (*v1alpha1.WorkflowList, error)
@@ -148,7 +148,7 @@ func NewCdWorkflowServiceImpl(Logger *zap.SugaredLogger,
 	}
 }
 
-func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowRequest, pipeline *pipelineConfig.Pipeline, env *repository.Environment) error {
+func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowRequest, pipeline *pipelineConfig.Pipeline, env *repository.Environment) (string, error) {
 
 	containerEnvVariables := []v12.EnvVar{}
 	if impl.cdConfig.CloudProvider == BLOB_STORAGE_S3 && impl.cdConfig.BlobStorageS3AccessKey != "" {
@@ -164,7 +164,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	workflowJson, err := json.Marshal(&ciCdTriggerEvent)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while marshalling ciCdTriggerEvent", "error", err)
-		return err
+		return "", err
 	}
 
 	privileged := true
@@ -191,7 +191,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		globalCmCsConfigs, err = impl.globalCMCSService.FindAllActiveByPipelineType(repository2.PIPELINE_TYPE_CD)
 		if err != nil {
 			impl.Logger.Errorw("error in getting all global cm/cs config", "err", err)
-			return err
+			return "", err
 		}
 		//if len(globalCmCsConfigs) > 0 {
 		//	entryPoint = CD_WORKFLOW_WITH_STAGES
@@ -211,13 +211,13 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	cdPipelineLevelConfigMaps, cdPipelineLevelSecrets, err := impl.getConfiguredCmCs(pipeline, workflowRequest.StageType)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while fetching pipeline configured cm and cs", "pipelineId", pipeline.Id, "err", err)
-		return err
+		return "", err
 	}
 
 	existingConfigMap, existingSecrets, err := impl.appService.GetCmSecretNew(workflowRequest.AppId, workflowRequest.EnvironmentId)
 	if err != nil {
 		impl.Logger.Errorw("failed to get configmap data", "err", err)
-		return err
+		return "", err
 	}
 	impl.Logger.Debugw("existing cm", "pipelineId", pipeline.Id, "cm", existingConfigMap)
 
@@ -289,24 +289,25 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	} else {
 		workflowTemplate.ClusterConfig = impl.config
 	}
+
+	jobHelmChartPath := ""
 	if workflowRequest.IsDryRun {
 		jobManifestTemplate := &bean3.JobManifestTemplate{
 			NameSpace:     workflowRequest.Namespace,
 			Container:     workflowMainContainer,
 			ConfigSecrets: workflowSecrets,
 			ConfigMaps:    workflowConfigMaps,
-			Toleration:    workflowTemplate.Tolerations,
 			NodeSelector:  workflowTemplate.NodeSelector,
 		}
-		err = impl.TriggerDryRun(jobManifestTemplate, pipeline, env)
+		jobHelmChartPath, err = impl.TriggerDryRun(jobManifestTemplate, pipeline, env)
 	} else {
 		workflowExecutor := impl.getWorkflowExecutor(workflowRequest.WorkflowExecutor)
 		if workflowExecutor == nil {
-			return errors.New("workflow executor not found")
+			return "", errors.New("workflow executor not found")
 		}
 		err = workflowExecutor.ExecuteWorkflow(workflowTemplate)
 	}
-	return err
+	return jobHelmChartPath, err
 	//configMaps := bean.ConfigMapJson{}
 	//for _, cm := range existingConfigMap.Maps {
 	//	if cm.External {
@@ -863,35 +864,27 @@ func (impl *CdWorkflowServiceImpl) checkErr(err error) {
 	}
 }
 
-func (impl *CdWorkflowServiceImpl) TriggerDryRun(jobManifestTemplate *bean3.JobManifestTemplate, pipeline *pipelineConfig.Pipeline, env *repository.Environment) error {
+func (impl *CdWorkflowServiceImpl) TriggerDryRun(jobManifestTemplate *bean3.JobManifestTemplate, pipeline *pipelineConfig.Pipeline, env *repository.Environment) (builtChartPath string, err error) {
 
 	jobManifestJson, err := json.Marshal(jobManifestTemplate)
 	if err != nil {
 		impl.Logger.Errorw("error in converting to json", "err", err)
-		return err
+		return builtChartPath, err
 	}
+
 	jobValues := string(jobManifestJson)
 	impl.Logger.Info(jobValues)
 
 	jobHelmChartPath := path.Join(string(impl.refChartDir), "helm-job-template")
-
-	builtChartPath, err := impl.chartTemplateService.BuildChart(context.Background(),
+	builtChartPath, err = impl.chartTemplateService.BuildChart(context.Background(),
 		&chart.Metadata{ApiVersion: "v2", Name: "helm-job", Version: "0.1.0"},
 		jobHelmChartPath)
 
 	valuesFilePath := path.Join(builtChartPath, "valuesOverride.json")
 	err = ioutil.WriteFile(valuesFilePath, jobManifestJson, 0600)
 	if err != nil {
-		return nil
+		return builtChartPath, nil
 	}
-
-	impl.Logger.Info(builtChartPath)
-
-	//requirementsFilePath := path.Join(chartCreateResponse.BuiltChartPath, "requirements.yaml")
-	//err = ioutil.WriteFile(requirementsFilePath, []byte(requirementsString), 0600)
-	//if err != nil {
-	//	return chartBytesArr, nil
-	//}
-
-	return nil
+	impl.Logger.Debugw(builtChartPath)
+	return builtChartPath, nil
 }

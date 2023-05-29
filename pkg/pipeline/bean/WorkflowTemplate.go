@@ -22,8 +22,7 @@ type WorkflowTemplate struct {
 }
 
 type JobManifestTemplate struct {
-	App                     string                 `json:"app"`
-	NameSpace               string                 `json:"NameSpace"`
+	NameSpace               string                 `json:"Namespace"`
 	Container               v1.Container           `json:"Container"`
 	ConfigMaps              []bean.ConfigSecretMap `json:"ConfigMaps"`
 	ConfigSecrets           []bean.ConfigSecretMap `json:"ConfigSecrets"`

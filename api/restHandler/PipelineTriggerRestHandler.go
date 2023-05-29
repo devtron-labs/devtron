@@ -337,7 +337,8 @@ func (handler PipelineTriggerRestHandlerImpl) DownloadManifest(w http.ResponseWr
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	manifestByteArr, err := handler.appService.GetLatestDeployedManifestByPipelineId(appId, envId, context.Background())
+	runner := vars["runner"]
+	manifestByteArr, err := handler.appService.GetLatestDeployedManifestByPipelineId(appId, envId, runner, context.Background())
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return

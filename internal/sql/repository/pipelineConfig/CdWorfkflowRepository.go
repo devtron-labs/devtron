@@ -146,18 +146,19 @@ type CdWorkflowRunner struct {
 	Name                        string               `sql:"name"`
 	WorkflowType                bean.WorkflowType    `sql:"workflow_type"` //pre,post,deploy
 	ExecutorType                WorkflowExecutorType `sql:"executor_type"` //awf, system
-	Status                      string    `sql:"status"`
-	PodStatus                   string    `sql:"pod_status"`
-	Message                     string    `sql:"message"`
-	StartedOn                   time.Time `sql:"started_on"`
-	FinishedOn                  time.Time `sql:"finished_on"`
-	Namespace                   string    `sql:"namespace"`
-	LogLocation                 string    `sql:"log_file_path"`
-	TriggeredBy                 int32     `sql:"triggered_by"`
-	CdWorkflowId                int       `sql:"cd_workflow_id"`
-	PodName                     string    `sql:"pod_name"`
-	BlobStorageEnabled          bool      `sql:"blob_storage_enabled,notnull"`
-	DeploymentApprovalRequestId int       `sql:"deployment_approval_request_id"`
+	Status                      string               `sql:"status"`
+	PodStatus                   string               `sql:"pod_status"`
+	Message                     string               `sql:"message"`
+	StartedOn                   time.Time            `sql:"started_on"`
+	FinishedOn                  time.Time            `sql:"finished_on"`
+	Namespace                   string               `sql:"namespace"`
+	LogLocation                 string               `sql:"log_file_path"`
+	TriggeredBy                 int32                `sql:"triggered_by"`
+	CdWorkflowId                int                  `sql:"cd_workflow_id"`
+	PodName                     string               `sql:"pod_name"`
+	BlobStorageEnabled          bool                 `sql:"blob_storage_enabled,notnull"`
+	DeploymentApprovalRequestId int                  `sql:"deployment_approval_request_id"`
+	HelmReferenceChart          []byte               `sql:""`
 	CdWorkflow                  *CdWorkflow
 	DeploymentApprovalRequest   *DeploymentApprovalRequest
 	sql.AuditLog
@@ -460,7 +461,7 @@ func (impl *CdWorkflowRepositoryImpl) FindWorkflowRunnerByCdWorkflowId(wfIds []i
 
 func (impl *CdWorkflowRepositoryImpl) FindWorkflowRunnerById(wfrId int) (*CdWorkflowRunner, error) {
 	wfr := &CdWorkflowRunner{}
-	err := impl.dbConnection.Model(wfr).Column("cd_workflow_runner.*", "CdWorkflow", "DeploymentApprovalRequest", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact","CdWorkflow.Pipeline.Environment").
+	err := impl.dbConnection.Model(wfr).Column("cd_workflow_runner.*", "CdWorkflow", "DeploymentApprovalRequest", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact", "CdWorkflow.Pipeline.Environment").
 		Where("cd_workflow_runner.id = ?", wfrId).Select()
 	return wfr, err
 }

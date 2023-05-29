@@ -108,6 +108,7 @@ type WorkflowDagExecutorImpl struct {
 	appLabelRepository            pipelineConfig.AppLabelRepository
 	gitSensorGrpcClient           gitSensorClient.Client
 	deploymentApprovalRepository  pipelineConfig.DeploymentApprovalRepository
+	chartTemplateService          util.ChartTemplateService
 }
 
 const (
@@ -173,7 +174,8 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	CiTemplateRepository pipelineConfig.CiTemplateRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	appLabelRepository pipelineConfig.AppLabelRepository, gitSensorGrpcClient gitSensorClient.Client,
-	deploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository) *WorkflowDagExecutorImpl {
+	deploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository,
+	chartTemplateService util.ChartTemplateService) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
 		cdWorkflowRepository:          cdWorkflowRepository,
@@ -206,6 +208,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		appLabelRepository:            appLabelRepository,
 		gitSensorGrpcClient:           gitSensorGrpcClient,
 		deploymentApprovalRepository:  deploymentApprovalRepository,
+		chartTemplateService:          chartTemplateService,
 	}
 	err := wde.Subscribe()
 	if err != nil {
@@ -475,8 +478,25 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 	}
 
 	_, span = otel.Tracer("orchestrator").Start(ctx, "cdWorkflowService.SubmitWorkflow")
-	err = impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest, pipeline, env)
+	jobHelmPackagePath, err := impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest, pipeline, env)
 	span.End()
+
+	chartBytes, err := impl.chartTemplateService.LoadChartInBytes(jobHelmPackagePath, false)
+	if err != nil && util.IsManifestDownload(pipeline.DeploymentAppType) {
+		return err
+	}
+
+	if util.IsManifestDownload(pipeline.DeploymentAppType) {
+		runner.Status = pipelineConfig.WorkflowSucceeded
+		runner.UpdatedBy = triggeredBy
+		runner.UpdatedOn = triggeredAt
+		runner.HelmReferenceChart = chartBytes
+		err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
+		if err != nil {
+			impl.logger.Errorw("error in updating helm chart in DB", "err", err)
+			return err
+		}
+	}
 
 	err = impl.sendPreStageNotification(ctx, cdWf, pipeline)
 	if err != nil {
@@ -557,10 +577,36 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		return err
 	}
 	cdStageWorkflowRequest.StageType = POST
-	err = impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest, pipeline, env)
+
+	jobHelmPackagePath, err := impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest, pipeline, env)
 	if err != nil {
 		impl.logger.Errorw("error in submitting workflow", "err", err, "cdStageWorkflowRequest", cdStageWorkflowRequest, "pipeline", pipeline, "env", env)
 		return err
+	}
+	chartBytes, err := impl.chartTemplateService.LoadChartInBytes(jobHelmPackagePath, false)
+	if err != nil && util.IsManifestDownload(pipeline.DeploymentAppType) {
+		return err
+	}
+
+	if util.IsManifestDownload(pipeline.DeploymentAppType) {
+		runner := &pipelineConfig.CdWorkflowRunner{
+			Name:               pipeline.Name,
+			WorkflowType:       bean.CD_WORKFLOW_TYPE_POST,
+			ExecutorType:       impl.cdConfig.CdWorkflowExecutorType,
+			Status:             pipelineConfig.WorkflowSucceeded,
+			TriggeredBy:        triggeredBy,
+			StartedOn:          triggeredAt,
+			Namespace:          impl.cdConfig.DefaultNamespace,
+			BlobStorageEnabled: impl.cdConfig.BlobStorageEnabled,
+			CdWorkflowId:       cdWf.Id,
+			AuditLog:           sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: triggeredBy, UpdatedOn: triggeredAt, UpdatedBy: triggeredBy},
+			HelmReferenceChart: chartBytes,
+		}
+		err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
+		if err != nil {
+			impl.logger.Errorw("error in updating helm chart in DB", "err", err)
+			return err
+		}
 	}
 
 	wfr, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(context.Background(), cdWf.Id, bean.CD_WORKFLOW_TYPE_POST)
@@ -1164,24 +1210,22 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 	}
 
 	err = impl.appService.TriggerCD(artifact, cdWf.Id, savedWfr.Id, pipeline, triggeredAt)
-	if err != nil {
-		if util.IsManifestDownload(pipeline.DeploymentAppType) {
-			runner := &pipelineConfig.CdWorkflowRunner{
-				Id:           runner.Id,
-				Name:         pipeline.Name,
-				WorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
-				ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
-				TriggeredBy:  1,
-				StartedOn:    triggeredAt,
-				Status:       pipelineConfig.WorkflowSucceeded,
-				Namespace:    impl.cdConfig.DefaultNamespace,
-				CdWorkflowId: cdWf.Id,
-				AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: 1, UpdatedOn: triggeredAt, UpdatedBy: 1},
-			}
-			updateErr := impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
-			if updateErr != nil {
-				impl.logger.Errorw("error in updating runner for manifest_download type", "err", err)
-			}
+	if util.IsManifestDownload(pipeline.DeploymentAppType) {
+		runner := &pipelineConfig.CdWorkflowRunner{
+			Id:           runner.Id,
+			Name:         pipeline.Name,
+			WorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
+			ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
+			TriggeredBy:  1,
+			StartedOn:    triggeredAt,
+			Status:       pipelineConfig.WorkflowSucceeded,
+			Namespace:    impl.cdConfig.DefaultNamespace,
+			CdWorkflowId: cdWf.Id,
+			AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: 1, UpdatedOn: triggeredAt, UpdatedBy: 1},
+		}
+		updateErr := impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
+		if updateErr != nil {
+			impl.logger.Errorw("error in updating runner for manifest_download type", "err", err)
 		}
 	}
 	err1 := impl.updatePreviousDeploymentStatus(runner, pipelineId, err, triggeredAt, triggeredBy)
