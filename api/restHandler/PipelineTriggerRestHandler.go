@@ -370,6 +370,10 @@ func (handler PipelineTriggerRestHandlerImpl) DownloadManifestForSpecificTrigger
 	}
 
 	manifestByteArr, err := handler.appService.GetDeployedManifestByPipelineIdAndCDWorkflowId(appId, envId, cdWorkflowId, context.Background())
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Write(manifestByteArr)

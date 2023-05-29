@@ -147,14 +147,14 @@ type CiPipelineMaterialResponse struct {
 }
 
 type WorkflowResponse struct {
-	Id                   int                                 `json:"id"`
-	Name                 string                              `json:"name"`
-	Status               string                              `json:"status"`
-	PodStatus            string                              `json:"podStatus"`
-	Message              string                              `json:"message"`
-	StartedOn            time.Time                           `json:"startedOn"`
-	FinishedOn           time.Time                           `json:"finishedOn"`
-	CiPipelineId         int                                 `json:"ciPipelineId"`
+	Id                   int                                  `json:"id"`
+	Name                 string                               `json:"name"`
+	Status               string                               `json:"status"`
+	PodStatus            string                               `json:"podStatus"`
+	Message              string                               `json:"message"`
+	StartedOn            time.Time                            `json:"startedOn"`
+	FinishedOn           time.Time                            `json:"finishedOn"`
+	CiPipelineId         int                                  `json:"ciPipelineId"`
 	Namespace            string                               `json:"namespace"`
 	LogLocation          string                               `json:"logLocation"`
 	BlobStorageEnabled   bool                                 `json:"blobStorageEnabled"`
@@ -167,7 +167,8 @@ type WorkflowResponse struct {
 	ArtifactId           int                                  `json:"artifactId"`
 	IsArtifactUploaded   bool                                 `json:"isArtifactUploaded"`
 	UserApprovalMetadata *pipelineConfig.UserApprovalMetadata `json:"userApprovalMetadata"`
-	IsVirtualEnvironment bool
+	IsVirtualEnvironment bool                                 `json:"IsVirtualEnvironment"`
+	CdWorkflowId         int                                  `json:"cdWorkflowId"`
 }
 
 type GitTriggerInfoResponse struct {

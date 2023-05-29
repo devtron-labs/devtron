@@ -935,6 +935,7 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		BlobStorageEnabled:   workflow.BlobStorageEnabled,
 		UserApprovalMetadata: workflow.UserApprovalMetadata,
 		IsVirtualEnvironment: workflowR.CdWorkflow.Pipeline.Environment.IsVirtualEnvironment,
+		CdWorkflowId:         workflowR.CdWorkflowId,
 	}
 	return workflowResponse, nil
 
@@ -1557,4 +1558,3 @@ func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(userId int32, approva
 	}
 	return nil
 }
-
