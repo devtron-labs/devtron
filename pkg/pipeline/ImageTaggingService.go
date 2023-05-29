@@ -15,11 +15,15 @@ type ImageTaggingResponseDTO struct {
 }
 
 type ImageTaggingRequestDTO struct {
+	CreateTags     []repository.ImageTag
+	SoftDeleteTags []repository.ImageTag
+	ImageComment   []repository.ImageComment
+	HardDeleteTags []repository.ImageTag
 }
 
 type ImageTaggingService interface {
 	GetTagsData(ciPipelineId, appId, artifactId int) (*ImageTaggingResponseDTO, error)
-	CreateUpdateImageTagging()
+	CreateUpdateImageTagging(ciPipelineId, appId, artifactId int, iamgeTaggingRequest *ImageTaggingRequestDTO) (*ImageTaggingResponseDTO, error)
 	GetEnvFromParentAndLinkedWorkflow(ciPipelineId int) (bool, error)
 }
 
@@ -68,8 +72,8 @@ func (impl ImageTaggingServiceImpl) GetTagsData(ciPipelineId, appId, artifactId 
 	return resp, err
 }
 
-func (impl ImageTaggingServiceImpl) CreateUpdateImageTagging() {
-
+func (impl ImageTaggingServiceImpl) CreateUpdateImageTagging(ciPipelineId, appId, artifactId int, iamgeTaggingRequest *ImageTaggingRequestDTO) (*ImageTaggingResponseDTO, error) {
+	return impl.GetTagsData(ciPipelineId, appId, artifactId)
 }
 func (impl ImageTaggingServiceImpl) GetEnvFromParentAndLinkedWorkflow(ciPipelineId int) (bool, error) {
 	prodEnvExists := false

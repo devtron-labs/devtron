@@ -13,6 +13,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
 	bean1 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
@@ -1601,11 +1602,76 @@ func (handler PipelineConfigRestHandlerImpl) CreateUpdateImageTagging(w http.Res
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	isSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
+	isSuperAdmin, err := handler.userService.IsSuperAdmin(int(user.Id))
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
+
+	artifactId, err := strconv.Atoi(vars["artifactId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	pipelineId, err := strconv.Atoi(vars["ciPipelineId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	ciPipeline, err := handler.ciPipelineRepository.FindById(pipelineId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	decoder := json.NewDecoder(r.Body)
+	req := &pipeline.ImageTaggingRequestDTO{}
+	err = decoder.Decode(&req)
+	if err != nil {
+		handler.Logger.Errorw("request err, CreateUpdateImageTagging", "err", err, "payload", req)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	//RBAC
+	if !!isSuperAdmin {
+		object := handler.enforcerUtil.GetAppRBACNameByAppId(ciPipeline.AppId)
+		if ok := handler.enforcer.EnforceByEmail(strings.ToLower(user.EmailId), casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+			return
+		}
+	}
+	//RBAC
+	//check prod env exists
+	prodEnvExists, err := handler.imageTaggingService.GetEnvFromParentAndLinkedWorkflow(ciPipeline.Id)
+	if err != nil {
+		handler.Logger.Errorw("error occured in checking existance prod prod environment ", "err", err, "ciPipelineId", ciPipeline.Id)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	//not allowed to perform edit/save if no cd exists in prod env in the app_workflow
+	if !prodEnvExists {
+		handler.Logger.Errorw("save or edit operation not possible for this artifact", "err", nil, "artifactId", artifactId, "ciPipelineId", ciPipeline.Id)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	}
+	hardDeleteTags := req.HardDeleteTags
+	if !isSuperAdmin && len(hardDeleteTags) > 0 {
+		errMsg := errors.New("user dont have permission to delete the tags")
+		handler.Logger.Errorw("request err, CreateUpdateImageTagging", "err", errMsg, "payload", req)
+		common.WriteJsonResp(w, errMsg, nil, http.StatusBadRequest)
+		return
+	}
+
+	//pass it to service layer
+	resp, err := handler.imageTaggingService.CreateUpdateImageTagging(ciPipeline.Id, ciPipeline.AppId, artifactId, req)
+	if err != nil {
+		handler.Logger.Errorw("error occured in creating/updating image tagging data", "err", err, "ciPipelineId", ciPipeline.Id)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, err, resp, http.StatusOK)
 }
 
 func (handler PipelineConfigRestHandlerImpl) GetImageTaggingData(w http.ResponseWriter, r *http.Request) {
