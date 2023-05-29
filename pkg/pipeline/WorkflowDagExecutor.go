@@ -1164,6 +1164,26 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 	}
 
 	err = impl.appService.TriggerCD(artifact, cdWf.Id, savedWfr.Id, pipeline, triggeredAt)
+	if err != nil {
+		if util.IsManifestDownload(pipeline.DeploymentAppType) {
+			runner := &pipelineConfig.CdWorkflowRunner{
+				Id:           runner.Id,
+				Name:         pipeline.Name,
+				WorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
+				ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
+				TriggeredBy:  1,
+				StartedOn:    triggeredAt,
+				Status:       pipelineConfig.WorkflowSucceeded,
+				Namespace:    impl.cdConfig.DefaultNamespace,
+				CdWorkflowId: cdWf.Id,
+				AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: 1, UpdatedOn: triggeredAt, UpdatedBy: 1},
+			}
+			updateErr := impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
+			if updateErr != nil {
+				impl.logger.Errorw("error in updating runner for manifest_download type", "err", err)
+			}
+		}
+	}
 	err1 := impl.updatePreviousDeploymentStatus(runner, pipelineId, err, triggeredAt, triggeredBy)
 	if err1 != nil || err != nil {
 		impl.logger.Errorw("error while update previous cd workflow runners", "err", err, "runner", runner, "pipelineId", pipelineId)

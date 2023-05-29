@@ -190,7 +190,9 @@ func (impl ChartTemplateServiceImpl) FetchValuesFromReferenceChart(chartMetaData
 
 // TODO: convert BuildChart and BuildChartProxyForHelmApps into one function
 func (impl ChartTemplateServiceImpl) BuildChart(ctx context.Context, chartMetaData *chart.Metadata, referenceTemplatePath string) (string, error) {
-	chartMetaData.ApiVersion = "v1" // ensure always v1
+	if chartMetaData.ApiVersion == "" {
+		chartMetaData.ApiVersion = "v1" // ensure always v1
+	}
 	dir := impl.GetDir()
 	tempReferenceTemplateDir := filepath.Join(string(impl.chartWorkingDir), dir)
 	impl.logger.Debugw("chart dir ", "chart", chartMetaData.Name, "dir", tempReferenceTemplateDir)

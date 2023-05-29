@@ -34,7 +34,6 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/k8s"
@@ -167,7 +166,6 @@ type AppServiceImpl struct {
 	k8sApplicationService                  k8s.K8sApplicationService
 	installedAppVersionHistoryRepository   repository4.InstalledAppVersionHistoryRepository
 	globalEnvVariables                     *util2.GlobalEnvVariables
-	cdConfig                               *pipeline.CdConfig
 }
 
 type AppService interface {
@@ -243,7 +241,7 @@ func NewAppService(
 	AppStoreDeploymentService service.AppStoreDeploymentService,
 	k8sApplicationService k8s.K8sApplicationService,
 	installedAppVersionHistoryRepository repository4.InstalledAppVersionHistoryRepository,
-	globalEnvVariables *util2.GlobalEnvVariables, helmAppService client2.HelmAppService, cdConfig *pipeline.CdConfig) *AppServiceImpl {
+	globalEnvVariables *util2.GlobalEnvVariables, helmAppService client2.HelmAppService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:            environmentConfigRepository,
 		mergeUtil:                              mergeUtil,
@@ -302,7 +300,6 @@ func NewAppService(
 		installedAppVersionHistoryRepository:   installedAppVersionHistoryRepository,
 		globalEnvVariables:                     globalEnvVariables,
 		helmAppService:                         helmAppService,
-		cdConfig:                               cdConfig,
 	}
 	return appServiceImpl
 }
@@ -1045,24 +1042,6 @@ func (impl *AppServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipeline, a
 		impl.logger.Errorw("error in auto  cd pipeline trigger", "pipelineId", pipeline.Id, "artifactId", artifact.Id, "err", err)
 	} else {
 		impl.logger.Infow("pipeline successfully triggered ", "cdPipelineId", pipeline.Id, "artifactId", artifact.Id, "releaseId", id)
-		if pipeline.DeploymentAppType == PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD {
-			runner := &pipelineConfig.CdWorkflowRunner{
-				Id:           wfrId,
-				Name:         pipeline.Name,
-				WorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
-				ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
-				TriggeredBy:  request.UserId,
-				StartedOn:    triggeredAt,
-				Status:       pipelineConfig.WorkflowSucceeded,
-				Namespace:    impl.cdConfig.DefaultNamespace,
-				CdWorkflowId: request.CdWorkflowId,
-				AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: request.UserId, UpdatedOn: triggeredAt, UpdatedBy: request.UserId},
-			}
-			updateErr := impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
-			if updateErr != nil {
-				impl.logger.Errorw("error in updating runner for manifest_download type", "err", err)
-			}
-		}
 	}
 	return err
 

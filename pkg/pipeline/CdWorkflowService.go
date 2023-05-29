@@ -25,11 +25,15 @@ import (
 	"github.com/argoproj/argo-workflows/v3/workflow/common"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
+	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	"github.com/ghodss/yaml"
+	"io/ioutil"
+	"k8s.io/helm/pkg/proto/hapi/chart"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -70,6 +74,8 @@ type CdWorkflowServiceImpl struct {
 	globalCMCSService      GlobalCMCSService
 	argoWorkflowExecutor   ArgoWorkflowExecutor
 	systemWorkflowExecutor SystemWorkflowExecutor
+	refChartDir            chartRepoRepository.RefChartDir
+	chartTemplateService   util2.ChartTemplateService
 }
 
 type CdWorkflowRequest struct {
@@ -128,7 +134,7 @@ func NewCdWorkflowServiceImpl(Logger *zap.SugaredLogger,
 	cdConfig *CdConfig,
 	appService app.AppService,
 	globalCMCSService GlobalCMCSService,
-	argoWorkflowExecutor ArgoWorkflowExecutor, systemWorkflowExecutor SystemWorkflowExecutor) *CdWorkflowServiceImpl {
+	argoWorkflowExecutor ArgoWorkflowExecutor, systemWorkflowExecutor SystemWorkflowExecutor, refChartDir chartRepoRepository.RefChartDir, chartTemplateService util2.ChartTemplateService) *CdWorkflowServiceImpl {
 	return &CdWorkflowServiceImpl{Logger: Logger,
 		config:                 cdConfig.ClusterConfig,
 		cdConfig:               cdConfig,
@@ -136,7 +142,10 @@ func NewCdWorkflowServiceImpl(Logger *zap.SugaredLogger,
 		envRepository:          envRepository,
 		globalCMCSService:      globalCMCSService,
 		argoWorkflowExecutor:   argoWorkflowExecutor,
-		systemWorkflowExecutor: systemWorkflowExecutor}
+		systemWorkflowExecutor: systemWorkflowExecutor,
+		refChartDir:            refChartDir,
+		chartTemplateService:   chartTemplateService,
+	}
 }
 
 func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowRequest, pipeline *pipelineConfig.Pipeline, env *repository.Environment) error {
@@ -282,9 +291,12 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	}
 	if workflowRequest.IsDryRun {
 		jobManifestTemplate := &bean3.JobManifestTemplate{
+			NameSpace:     workflowRequest.Namespace,
 			Container:     workflowMainContainer,
 			ConfigSecrets: workflowSecrets,
 			ConfigMaps:    workflowConfigMaps,
+			Toleration:    workflowTemplate.Tolerations,
+			NodeSelector:  workflowTemplate.NodeSelector,
 		}
 		err = impl.TriggerDryRun(jobManifestTemplate, pipeline, env)
 	} else {
@@ -858,8 +870,28 @@ func (impl *CdWorkflowServiceImpl) TriggerDryRun(jobManifestTemplate *bean3.JobM
 		impl.Logger.Errorw("error in converting to json", "err", err)
 		return err
 	}
-	jobManifestYaml, err := yaml.JSONToYAML(jobManifestJson)
-	impl.Logger.Info(jobManifestYaml)
+	jobValues := string(jobManifestJson)
+	impl.Logger.Info(jobValues)
+
+	jobHelmChartPath := path.Join(string(impl.refChartDir), "helm-job-template")
+
+	builtChartPath, err := impl.chartTemplateService.BuildChart(context.Background(),
+		&chart.Metadata{ApiVersion: "v2", Name: "helm-job", Version: "0.1.0"},
+		jobHelmChartPath)
+
+	valuesFilePath := path.Join(builtChartPath, "valuesOverride.json")
+	err = ioutil.WriteFile(valuesFilePath, jobManifestJson, 0600)
+	if err != nil {
+		return nil
+	}
+
+	impl.Logger.Info(builtChartPath)
+
+	//requirementsFilePath := path.Join(chartCreateResponse.BuiltChartPath, "requirements.yaml")
+	//err = ioutil.WriteFile(requirementsFilePath, []byte(requirementsString), 0600)
+	//if err != nil {
+	//	return chartBytesArr, nil
+	//}
 
 	return nil
 }
