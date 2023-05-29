@@ -65,7 +65,7 @@ func extractVolumesFromConfigSecretMaps(isCm bool, configSecretMaps []bean2.Conf
 	return volumes
 }
 
-func UpdateContainerEnvsFromCmCs(workflowMainContainer v12.Container, configMaps []bean2.ConfigSecretMap, secrets []bean2.ConfigSecretMap) {
+func UpdateContainerEnvsFromCmCs(workflowMainContainer *v12.Container, configMaps []bean2.ConfigSecretMap, secrets []bean2.ConfigSecretMap) {
 	for _, configMap := range configMaps {
 		updateContainerEnvs(true, workflowMainContainer, configMap)
 	}
@@ -75,7 +75,7 @@ func UpdateContainerEnvsFromCmCs(workflowMainContainer v12.Container, configMaps
 	}
 }
 
-func updateContainerEnvs(isCM bool, workflowMainContainer v12.Container, configSecretMap bean2.ConfigSecretMap) {
+func updateContainerEnvs(isCM bool, workflowMainContainer *v12.Container, configSecretMap bean2.ConfigSecretMap) {
 	if configSecretMap.Type == repository.VOLUME_CONFIG {
 		workflowMainContainer.VolumeMounts = append(workflowMainContainer.VolumeMounts, v12.VolumeMount{
 			Name:      configSecretMap.Name + "-vol",

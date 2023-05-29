@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/argoproj/argo-workflows/v3/workflow/common"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
@@ -157,7 +158,9 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	storageConfigured := workflowRequest.BlobStorageConfigured
 	ttl := int32(impl.cdConfig.BuildLogTTLValue)
 	workflowTemplate := bean3.WorkflowTemplate{}
-	workflowTemplate.TTLValue = ttl
+	workflowTemplate.TTLValue = &ttl
+	workflowTemplate.WorkflowId = workflowRequest.WorkflowId
+	workflowTemplate.WorkflowRunnerId = workflowRequest.WorkflowRunnerId
 	workflowTemplate.WorkflowRequestJson = string(workflowJson)
 
 	//entryPoint := CD_WORKFLOW_NAME
@@ -229,8 +232,13 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	workflowTemplate.ServiceAccountName = impl.cdConfig.WorkflowServiceAccount
 	workflowTemplate.NodeSelector = map[string]string{impl.cdConfig.TaintKey: impl.cdConfig.TaintValue}
 	workflowTemplate.Tolerations = []v12.Toleration{{Key: impl.cdConfig.TaintKey, Value: impl.cdConfig.TaintValue, Operator: v12.TolerationOpEqual, Effect: v12.TaintEffectNoSchedule}}
-	workflowTemplate.Volumes = ExtractVolumesFromCmCs(workflowConfigMaps, workflowSecrets) //TODO KB: make sure values are set properly
+	workflowTemplate.Volumes = ExtractVolumesFromCmCs(workflowConfigMaps, workflowSecrets)
 	workflowTemplate.ArchiveLogs = storageConfigured
+	workflowTemplate.RestartPolicy = v12.RestartPolicyNever
+
+	if len(impl.cdConfig.NodeLabel) > 0 {
+		workflowTemplate.NodeSelector = impl.cdConfig.NodeLabel
+	}
 
 	limitCpu := impl.cdConfig.LimitCpu
 	limitMem := impl.cdConfig.LimitMem
@@ -239,6 +247,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 
 	workflowMainContainer := v12.Container{
 		Env:   containerEnvVariables,
+		Name:  common.MainContainerName,
 		Image: workflowRequest.CdImage,
 		Args:  []string{string(workflowJson)},
 		SecurityContext: &v12.SecurityContext{
@@ -255,7 +264,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 			},
 		},
 	}
-	UpdateContainerEnvsFromCmCs(workflowMainContainer, workflowConfigMaps, workflowSecrets)
+	UpdateContainerEnvsFromCmCs(&workflowMainContainer, workflowConfigMaps, workflowSecrets)
 
 	workflowTemplate.Containers = []v12.Container{workflowMainContainer}
 	workflowTemplate.WorkflowNamePrefix = workflowRequest.WorkflowNamePrefix

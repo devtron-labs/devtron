@@ -7,10 +7,12 @@ import (
 )
 
 type WorkflowTemplate struct {
+	WorkflowId       int
+	WorkflowRunnerId int
 	v1.PodSpec
 	ConfigMaps             []bean.ConfigSecretMap
 	Secrets                []bean.ConfigSecretMap
-	TTLValue               int32
+	TTLValue               *int32
 	WorkflowRequestJson    string
 	WorkflowNamePrefix     string
 	WfControllerInstanceID string
