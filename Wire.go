@@ -593,6 +593,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(security.PolicyService), new(*security.PolicyServiceImpl)),
 		security2.NewPolicyRepositoryImpl,
 		wire.Bind(new(security2.CvePolicyRepository), new(*security2.CvePolicyRepositoryImpl)),
+		security2.NewScanToolExecutionHistoryMappingRepositoryImpl,
+		wire.Bind(new(security2.ScanToolExecutionHistoryMappingRepository), new(*security2.ScanToolExecutionHistoryMappingRepositoryImpl)),
 
 		argocdServer.NewArgoK8sClientImpl,
 		wire.Bind(new(argocdServer.ArgoK8sClient), new(*argocdServer.ArgoK8sClientImpl)),
