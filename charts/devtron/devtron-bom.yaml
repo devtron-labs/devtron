@@ -22,7 +22,7 @@ components:
         ENABLE_BUILD_CONTEXT: "false"
   devtron:
     image: "quay.io/devtron/hyperion:fa18fd09-280-13905"
-    cicdImage: "quay.io/devtron/devtron:260f871f-434-13897"
+    cicdImage: "quay.io/devtron/devtron:fa18fd09-434-13906"
   argocdDexServer:
     image: "ghcr.io/dexidp/dex:v2.30.2"
     initContainer:
