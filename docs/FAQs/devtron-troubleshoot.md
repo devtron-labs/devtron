@@ -479,3 +479,40 @@ metadata:
 4. Save the changes to the Devtron service configuration.
 
 With these configuration changes, the Devtron dashboard connection should no longer timeout after 30 seconds, allowing for a more stable and consistent connection.
+
+
+#### 25. Refreshing ArgoCD Certificates When Expired
+
+1. **Edit ArgoCD Secret**
+
+Use kubectl edit to edit the ArgoCD secret in the appropriate namespace (devtroncd in this case). Find the data section and delete the lines for tls.crt and tls.key:
+
+```bash
+kubectl edit secret argocd-secret -n devtroncd
+```
+
+2. **Delete Lines for `tls.crt` and `tls.key`**
+
+Once you've opened the ArgoCD secret for editing, find the data section and delete the lines for `tls.crt` and `tls.key`. Save your changes and exit the editor.
+
+3. **Delete ArgoCD Server Pod**
+
+Use `kubectl delete pod` to delete the ArgoCD server pod. This will cause a new pod to be created with the updated certificate.
+
+```bash
+kubectl delete pod -n devtroncd <argocd-server-pod-name>
+```
+Replace `<argocd-server-pod-name>` with the name of the ArgoCD server pod.
+
+4. **Delete Devtron Pod**
+
+Wait for two minutes and then delete the Devtron pod using `kubectl delete pod`. This will force the Devtron pod to use the new certificate.
+
+
+```bash
+kubectl delete pod -n devtroncd -l app=devtron
+```
+
+This command deletes the Devtron pod in the `devtroncd` namespace with the label `app=devtron`.
+
+Following these steps should allow you to refresh the ArgoCD certificates when they have expired.
