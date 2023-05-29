@@ -95,7 +95,7 @@ type PipelineRepository interface {
 	Save(pipeline []*Pipeline, tx *pg.Tx) error
 	Update(pipeline *Pipeline, tx *pg.Tx) error
 	FindActiveByAppId(appId int) (pipelines []*Pipeline, err error)
-	Delete(id int, tx *pg.Tx) error
+	Delete(id int, userId int32, tx *pg.Tx) error
 	FindByName(pipelineName string) (pipeline *Pipeline, err error)
 	PipelineExists(pipelineName string) (bool, error)
 	FindById(id int) (pipeline *Pipeline, err error)
@@ -277,9 +277,10 @@ func (impl PipelineRepositoryImpl) FindActiveByAppIdAndEnvironmentIdV2() (pipeli
 	return pipelines, err
 }
 
-func (impl PipelineRepositoryImpl) Delete(id int, tx *pg.Tx) error {
+func (impl PipelineRepositoryImpl) Delete(id int, userId int32, tx *pg.Tx) error {
 	pipeline := &Pipeline{}
-	r, err := tx.Model(pipeline).Set("deleted =?", true).Set("deployment_app_created =?", false).Where("id =?", id).Update()
+	r, err := tx.Model(pipeline).Set("deleted =?", true).Set("deployment_app_created =?", false).
+		Set("updated_on = ?", time.Now()).Set("updated_by = ?", userId).Where("id =?", id).Update()
 	impl.logger.Debugw("update result", "r-affected", r.RowsAffected(), "r-return", r.RowsReturned(), "model", r.Model())
 	return err
 }

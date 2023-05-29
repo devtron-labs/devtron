@@ -67,7 +67,7 @@ type CiCdPipelineOrchestrator interface {
 	CreateCDPipelines(pipelineRequest *bean.CDPipelineConfigObject, appId int, userId int32, tx *pg.Tx, appName string) (pipelineId int, err error)
 	UpdateCDPipeline(pipelineRequest *bean.CDPipelineConfigObject, userId int32, tx *pg.Tx) (err error)
 	DeleteCiPipeline(pipeline *pipelineConfig.CiPipeline, request *bean.CiPatchRequest, tx *pg.Tx) error
-	DeleteCdPipeline(pipelineId int, tx *pg.Tx) error
+	DeleteCdPipeline(pipelineId int, userId int32, tx *pg.Tx) error
 	PatchMaterialValue(createRequest *bean.CiPipeline, userId int32, oldPipeline *pipelineConfig.CiPipeline) (*bean.CiPipeline, error)
 	PipelineExists(name string) (bool, error)
 	GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error)
@@ -1311,8 +1311,8 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateCDPipeline(pipelineRequest *bean.
 	return err
 }
 
-func (impl CiCdPipelineOrchestratorImpl) DeleteCdPipeline(pipelineId int, tx *pg.Tx) error {
-	return impl.pipelineRepository.Delete(pipelineId, tx)
+func (impl CiCdPipelineOrchestratorImpl) DeleteCdPipeline(pipelineId int, userId int32, tx *pg.Tx) error {
+	return impl.pipelineRepository.Delete(pipelineId, userId, tx)
 }
 
 func (impl CiCdPipelineOrchestratorImpl) PipelineExists(name string) (bool, error) {
