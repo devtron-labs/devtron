@@ -129,14 +129,14 @@ func (handler PipelineTriggerRestHandlerImpl) OverrideConfig(w http.ResponseWrit
 	}
 	ctx := context.WithValue(r.Context(), "token", acdToken)
 	_, span := otel.Tracer("orchestrator").Start(ctx, "workflowDagExecutor.ManualCdTrigger")
-	mergeResp, manifest, err := handler.workflowDagExecutor.ManualCdTrigger(&overrideRequest, ctx)
+	mergeResp, err := handler.workflowDagExecutor.ManualCdTrigger(&overrideRequest, ctx)
 	span.End()
 	if err != nil {
 		handler.logger.Errorw("request err, OverrideConfig", "err", err, "payload", overrideRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	res := map[string]interface{}{"releaseId": mergeResp, "manifest": manifest}
+	res := map[string]interface{}{"releaseId": mergeResp}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
@@ -324,6 +324,13 @@ func (handler PipelineTriggerRestHandlerImpl) GetAllLatestDeploymentConfiguratio
 
 func (handler PipelineTriggerRestHandlerImpl) DownloadManifest(w http.ResponseWriter, r *http.Request) {
 
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	token := r.Header.Get("token")
+
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
@@ -338,6 +345,13 @@ func (handler PipelineTriggerRestHandlerImpl) DownloadManifest(w http.ResponseWr
 		return
 	}
 	runner := vars["runner"]
+
+	object := handler.enforcerUtil.GetEnvRBACNameByAppId(appId, envId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionTrigger, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+
 	manifestByteArr, err := handler.appService.GetLatestDeployedManifestByPipelineId(appId, envId, runner, context.Background())
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -350,6 +364,14 @@ func (handler PipelineTriggerRestHandlerImpl) DownloadManifest(w http.ResponseWr
 }
 
 func (handler PipelineTriggerRestHandlerImpl) DownloadManifestForSpecificTrigger(w http.ResponseWriter, r *http.Request) {
+
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	token := r.Header.Get("token")
+
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
@@ -369,8 +391,12 @@ func (handler PipelineTriggerRestHandlerImpl) DownloadManifestForSpecificTrigger
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
-	manifestByteArr, err := handler.appService.GetDeployedManifestByPipelineIdAndCDWorkflowId(appId, envId, cdWorkflowId, context.Background())
+	object := handler.enforcerUtil.GetEnvRBACNameByAppId(appId, envId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionTrigger, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	manifestByteArr, err := handler.appService.GetDeployedManifestByPipelineIdAndCDWorkflowId(cdWorkflowId, context.Background())
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Write(manifestByteArr)

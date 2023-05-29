@@ -185,7 +185,7 @@ type AppService interface {
 	GetAppMetricsByTriggerType(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (bool, error)
 	CreateGitopsRepo(app *app.App, userId int32) (gitopsRepoName string, chartGitAttr *ChartGitAttribute, err error)
 	GetLatestDeployedManifestByPipelineId(appId int, envId int, runner string, ctx context.Context) ([]byte, error)
-	GetDeployedManifestByPipelineIdAndCDWorkflowId(appId int, envId int, cdWorkflowId int, ctx context.Context) ([]byte, error)
+	GetDeployedManifestByPipelineIdAndCDWorkflowId(cdWorkflowRunnerId int, ctx context.Context) ([]byte, error)
 	SetPipelineFieldsInOverrideRequest(overrideRequest *bean.ValuesOverrideRequest, pipeline *pipelineConfig.Pipeline)
 }
 
@@ -1453,105 +1453,95 @@ func (impl *AppServiceImpl) GetLatestDeployedManifestByPipelineId(appId int, env
 		runner = "DEPLOY"
 	}
 
-	if runner == "PRE" || runner == "POST" {
-		cdWorkflowRunner, err := impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(pipeline[0].Id, bean.WorkflowType(runner))
-		if err != nil {
-			impl.logger.Errorw("error in fetching cd_workflow runner by pipeline id and runner type", "err", err)
-			return manifestByteArray, err
-		}
-		return cdWorkflowRunner.HelmReferenceChart, nil
-	} else {
-
-		pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByAppIdAndEnvId(appId, envId, pipeline[0].DeploymentAppType)
-		if err != nil {
-			impl.logger.Errorw("error in fetching latest release by appId and envId", "appId", appId, "envId", envId, "err", err)
-			return manifestByteArray, err
-		}
-
-		envConfigOverride, err := impl.environmentConfigRepository.Get(pipelineOverride.EnvConfigOverrideId)
-		if err != nil {
-			impl.logger.Errorw("error in fetching env config repository by appId and envId", "appId", appId, "envId", envId, "err", err)
-			return manifestByteArray, err
-		}
-
-		appName := pipeline[0].App.AppName
-		builtChartPath, err := impl.BuildChartAndGetPath(appName, envConfigOverride, ctx)
-		if err != nil {
-			impl.logger.Errorw("error in parsing reference chart", "err", err)
-			return manifestByteArray, err
-		}
-
-		// create values file in built chart path
-		valuesFilePath := path.Join(builtChartPath, "valuesOverride.yaml")
-		err = ioutil.WriteFile(valuesFilePath, []byte(pipelineOverride.PipelineMergedValues), 0600)
-		if err != nil {
-			return manifestByteArray, nil
-		}
-
-		manifestByteArray, err = impl.chartTemplateService.LoadChartInBytes(builtChartPath, true)
-		if err != nil {
-			impl.logger.Errorw("error in converting chart to bytes", "err", err)
-			return manifestByteArray, err
-		}
-
-	}
-
-	return manifestByteArray, nil
-}
-
-func (impl *AppServiceImpl) GetDeployedManifestByPipelineIdAndCDWorkflowId(appId int, envId int, cdWorkflowId int, ctx context.Context) ([]byte, error) {
-
-	manifestByteArray := make([]byte, 0)
-
-	pipeline, err := impl.pipelineRepository.FindActiveByAppIdAndEnvironmentId(appId, envId)
+	cdWorkflowRunner, err := impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(pipeline[0].Id, bean.WorkflowType(runner))
 	if err != nil {
-		impl.logger.Errorw("error in fetching pipeline by appId and envId", "appId", appId, "envId", envId, "err", err)
+		impl.logger.Errorw("error in fetching cd_workflow runner by pipeline id and runner type", "err", err)
 		return manifestByteArray, err
 	}
 
-	cdWorkflowRunners, err := impl.cdWorkflowRepository.FindWorkflowRunnerByCdWorkflowId([]int{cdWorkflowId})
+	return cdWorkflowRunner.HelmReferenceChart, nil
+	//pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByAppIdAndEnvId(appId, envId, pipeline[0].DeploymentAppType)
+	//if err != nil {
+	//	impl.logger.Errorw("error in fetching latest release by appId and envId", "appId", appId, "envId", envId, "err", err)
+	//	return manifestByteArray, err
+	//}
+	//
+	//envConfigOverride, err := impl.environmentConfigRepository.Get(pipelineOverride.EnvConfigOverrideId)
+	//if err != nil {
+	//	impl.logger.Errorw("error in fetching env config repository by appId and envId", "appId", appId, "envId", envId, "err", err)
+	//	return manifestByteArray, err
+	//}
+	//
+	//appName := pipeline[0].App.AppName
+	//builtChartPath, err := impl.BuildChartAndGetPath(appName, envConfigOverride, ctx)
+	//if err != nil {
+	//	impl.logger.Errorw("error in parsing reference chart", "err", err)
+	//	return manifestByteArray, err
+	//}
+	//
+	//// create values file in built chart path
+	//valuesFilePath := path.Join(builtChartPath, "valuesOverride.yaml")
+	//err = ioutil.WriteFile(valuesFilePath, []byte(pipelineOverride.PipelineMergedValues), 0600)
+	//if err != nil {
+	//	return manifestByteArray, nil
+	//}
+	//
+	//manifestByteArray, err = impl.chartTemplateService.LoadChartInBytes(builtChartPath, true)
+	//if err != nil {
+	//	impl.logger.Errorw("error in converting chart to bytes", "err", err)
+	//	return manifestByteArray, err
+	//}
+	//
+	//return manifestByteArray, nil
+}
+
+func (impl *AppServiceImpl) GetDeployedManifestByPipelineIdAndCDWorkflowId(cdWorkflowRunnerId int, ctx context.Context) ([]byte, error) {
+
+	manifestByteArray := make([]byte, 0)
+
+	cdWorkflowRunner, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(cdWorkflowRunnerId)
 	if err != nil {
 		impl.logger.Errorw("error in getting runners by cdWorkflowId", "err", err)
 		return manifestByteArray, err
 	}
 
-	cdWorkflowRunner := cdWorkflowRunners[0] // at time of it's implementation only one runner is there for every workflow
+	return cdWorkflowRunner.HelmReferenceChart, nil
 
-	if string(cdWorkflowRunner.WorkflowType) == "PRE" || string(cdWorkflowRunner.WorkflowType) == "POST" {
-		manifestByteArray = cdWorkflowRunner.HelmReferenceChart
-	} else {
-		pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByCdWorkflowId(cdWorkflowId)
-		if err != nil {
-			impl.logger.Errorw("error in fetching latest release by appId and envId", "appId", appId, "envId", envId, "err", err)
-			return manifestByteArray, err
-		}
-
-		envConfigOverride, err := impl.environmentConfigRepository.Get(pipelineOverride.EnvConfigOverrideId)
-		if err != nil {
-			impl.logger.Errorw("error in fetching env config repository by appId and envId", "appId", appId, "envId", envId, "err", err)
-		}
-
-		appName := pipeline[0].App.AppName
-		builtChartPath, err := impl.BuildChartAndGetPath(appName, envConfigOverride, ctx)
-		if err != nil {
-			impl.logger.Errorw("error in parsing reference chart", "err", err)
-			return manifestByteArray, err
-		}
-
-		// create values file in built chart path
-		valuesFilePath := path.Join(builtChartPath, "valuesOverride.yaml")
-		err = ioutil.WriteFile(valuesFilePath, []byte(pipelineOverride.PipelineMergedValues), 0600)
-		if err != nil {
-			return manifestByteArray, nil
-		}
-
-		manifestByteArray, err = impl.chartTemplateService.LoadChartInBytes(builtChartPath, true)
-		if err != nil {
-			impl.logger.Errorw("error in converting chart to bytes", "err", err)
-			return manifestByteArray, err
-		}
-	}
-	return manifestByteArray, nil
+	//if string(cdWorkflowRunner.WorkflowType) == "PRE" || string(cdWorkflowRunner.WorkflowType) == "POST" {
+	//	manifestByteArray = cdWorkflowRunner.HelmReferenceChart
+	//} else {
+	//	pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByCdWorkflowId(cdWorkflowId)
+	//	if err != nil {
+	//		impl.logger.Errorw("error in fetching latest release by appId and envId", "appId", appId, "envId", envId, "err", err)
+	//		return manifestByteArray, err
+	//	}
+	//
+	//	envConfigOverride, err := impl.environmentConfigRepository.Get(pipelineOverride.EnvConfigOverrideId)
+	//	if err != nil {
+	//		impl.logger.Errorw("error in fetching env config repository by appId and envId", "appId", appId, "envId", envId, "err", err)
+	//	}
+	//
+	//	appName := pipeline[0].App.AppName
+	//	builtChartPath, err := impl.BuildChartAndGetPath(appName, envConfigOverride, ctx)
+	//	if err != nil {
+	//		impl.logger.Errorw("error in parsing reference chart", "err", err)
+	//		return manifestByteArray, err
+	//	}
+	//
+	//	// create values file in built chart path
+	//	valuesFilePath := path.Join(builtChartPath, "valuesOverride.yaml")
+	//	err = ioutil.WriteFile(valuesFilePath, []byte(pipelineOverride.PipelineMergedValues), 0600)
+	//	if err != nil {
+	//		return manifestByteArray, nil
+	//	}
+	//
+	//	manifestByteArray, err = impl.chartTemplateService.LoadChartInBytes(builtChartPath, true)
+	//	if err != nil {
+	//		impl.logger.Errorw("error in converting chart to bytes", "err", err)
+	//		return manifestByteArray, err
+	//	}
+	//}
+	//return manifestByteArray, nil
 }
 
 func (impl *AppServiceImpl) BuildChartAndGetPath(appName string, envOverride *chartConfig.EnvConfigOverride, ctx context.Context) (string, error) {
@@ -1838,6 +1828,13 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 			impl.logger.Errorw("error in saving timeline for manifest_download type")
 		}
 		span.End()
+
+		manifest, err = impl.GetHelmManifestInByte(valuesOverrideResponse.MergedValues, builtChartPath)
+		if err != nil {
+			impl.logger.Errorw("error in converting built chart to bytes", "err", err)
+			return releaseNo, manifest, err
+		}
+		return releaseNo, manifest, nil
 	}
 
 	if triggerEvent.PerformGitOps {

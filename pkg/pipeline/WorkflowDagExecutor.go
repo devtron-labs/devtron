@@ -68,7 +68,7 @@ type WorkflowDagExecutor interface {
 	Subscribe() error
 	TriggerPostStage(cdWf *pipelineConfig.CdWorkflow, cdPipeline *pipelineConfig.Pipeline, triggeredBy int32) error
 	TriggerDeployment(cdWf *pipelineConfig.CdWorkflow, artifact *repository.CiArtifact, pipeline *pipelineConfig.Pipeline, applyAuth bool, triggeredBy int32) error
-	ManualCdTrigger(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (int, []byte, error)
+	ManualCdTrigger(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (int, error)
 	TriggerBulkDeploymentAsync(requests []*BulkTriggerRequest, UserId int32) (interface{}, error)
 	StopStartApp(stopRequest *StopAppRequest, ctx context.Context) (int, error)
 	TriggerBulkHibernateAsync(request StopDeploymentGroupRequest, ctx context.Context) (interface{}, error)
@@ -1447,7 +1447,7 @@ func (impl *WorkflowDagExecutorImpl) StopStartApp(stopRequest *StopAppRequest, c
 	} else {
 		return 0, fmt.Errorf("unsupported operation %s", stopRequest.RequestType)
 	}
-	id, _, err := impl.ManualCdTrigger(overrideRequest, ctx)
+	id, err := impl.ManualCdTrigger(overrideRequest, ctx)
 	if err != nil {
 		impl.logger.Errorw("error in stopping app", "err", err, "appId", stopRequest.AppId, "envId", stopRequest.EnvironmentId)
 		return 0, err
@@ -1483,7 +1483,7 @@ func (impl *WorkflowDagExecutorImpl) GetArtifactVulnerabilityStatus(artifact *re
 	return isVulnerable, nil
 }
 
-func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (int, []byte, error) {
+func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (int, error) {
 	//setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
 	triggeredAt := time.Now()
 	releaseId := 0
@@ -1495,7 +1495,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 	span.End()
 	if err != nil {
 		impl.logger.Errorf("invalid req", "err", err, "req", overrideRequest)
-		return 0, manifest, err
+		return 0, err
 	}
 	impl.appService.SetPipelineFieldsInOverrideRequest(overrideRequest, cdPipeline)
 
@@ -1506,14 +1506,14 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 		span.End()
 		if err != nil {
 			impl.logger.Errorw("err", "err", err)
-			return 0, manifest, err
+			return 0, err
 		}
 		_, span = otel.Tracer("orchestrator").Start(ctx, "TriggerPreStage")
 		err = impl.TriggerPreStage(ctx, nil, artifact, cdPipeline, overrideRequest.UserId, false)
 		span.End()
 		if err != nil {
 			impl.logger.Errorw("err", "err", err)
-			return 0, manifest, err
+			return 0, err
 		}
 	} else if overrideRequest.CdWorkflowType == bean.CD_WORKFLOW_TYPE_DEPLOY {
 		if overrideRequest.DeploymentType == models.DEPLOYMENTTYPE_UNKNOWN {
@@ -1521,12 +1521,12 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 		}
 		approvalRequestId, err := impl.checkApprovalNodeForDeployment(overrideRequest.UserId, cdPipeline, ciArtifactId)
 		if err != nil {
-			return 0, manifest, err
+			return 0, err
 		}
 		cdWf, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(ctx, overrideRequest.CdWorkflowId, bean.CD_WORKFLOW_TYPE_PRE)
 		if err != nil && !util.IsErrNoRows(err) {
 			impl.logger.Errorw("err", "err", err)
-			return 0, manifest, err
+			return 0, err
 		}
 
 		cdWorkflowId := cdWf.CdWorkflowId
@@ -1539,7 +1539,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			err := impl.cdWorkflowRepository.SaveWorkFlow(ctx, cdWf)
 			if err != nil {
 				impl.logger.Errorw("err", "err", err)
-				return 0, manifest, err
+				return 0, err
 			}
 			cdWorkflowId = cdWf.Id
 		}
@@ -1562,12 +1562,12 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 		overrideRequest.WfrId = savedWfr.Id
 		if err != nil {
 			impl.logger.Errorw("err", "err", err)
-			return 0, manifest, err
+			return 0, err
 		}
 		if approvalRequestId > 0 {
 			err = impl.deploymentApprovalRepository.ConsumeApprovalRequest(approvalRequestId)
 			if err != nil {
-				return 0, manifest, err
+				return 0, err
 			}
 		}
 
@@ -1591,11 +1591,11 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 		span.End()
 		if err != nil {
 			impl.logger.Errorw("err", "err", err)
-			return 0, manifest, err
+			return 0, err
 		}
 		isVulnerable, err := impl.GetArtifactVulnerabilityStatus(artifact, cdPipeline, ctx)
 		if err != nil {
-			return 0, manifest, err
+			return 0, err
 		}
 		if isVulnerable == true {
 			// if image vulnerable, update timeline status and return
@@ -1619,7 +1619,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			if err != nil {
 				impl.logger.Errorw("error in creating timeline status for deployment fail - cve policy violation", "err", err, "timeline", timeline)
 			}
-			return 0, manifest, fmt.Errorf("found vulnerability for image digest %s", artifact.ImageDigest)
+			return 0, fmt.Errorf("found vulnerability for image digest %s", artifact.ImageDigest)
 		}
 		_, span = otel.Tracer("orchestrator").Start(ctx, "appService.TriggerRelease")
 		releaseId, manifest, err = impl.appService.TriggerRelease(overrideRequest, ctx, triggeredAt, overrideRequest.UserId)
@@ -1627,16 +1627,17 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 
 		if overrideRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD {
 			runner := &pipelineConfig.CdWorkflowRunner{
-				Id:           runner.Id,
-				Name:         cdPipeline.Name,
-				WorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
-				ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
-				TriggeredBy:  overrideRequest.UserId,
-				StartedOn:    triggeredAt,
-				Status:       pipelineConfig.WorkflowSucceeded,
-				Namespace:    impl.cdConfig.DefaultNamespace,
-				CdWorkflowId: overrideRequest.CdWorkflowId,
-				AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
+				Id:                 runner.Id,
+				Name:               cdPipeline.Name,
+				WorkflowType:       bean.CD_WORKFLOW_TYPE_DEPLOY,
+				ExecutorType:       pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
+				TriggeredBy:        overrideRequest.UserId,
+				StartedOn:          triggeredAt,
+				Status:             pipelineConfig.WorkflowSucceeded,
+				Namespace:          impl.cdConfig.DefaultNamespace,
+				CdWorkflowId:       overrideRequest.CdWorkflowId,
+				AuditLog:           sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
+				HelmReferenceChart: manifest,
 			}
 			updateErr := impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
 			if updateErr != nil {
@@ -1649,13 +1650,13 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 		span.End()
 		if err1 != nil || err != nil {
 			impl.logger.Errorw("error while update previous cd workflow runners", "err", err, "runner", runner, "pipelineId", cdPipeline.Id)
-			return 0, manifest, err
+			return 0, err
 		}
 	} else if overrideRequest.CdWorkflowType == bean.CD_WORKFLOW_TYPE_POST {
 		cdWfRunner, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(ctx, overrideRequest.CdWorkflowId, bean.CD_WORKFLOW_TYPE_DEPLOY)
 		if err != nil && !util.IsErrNoRows(err) {
 			impl.logger.Errorw("err", "err", err)
-			return 0, manifest, err
+			return 0, err
 		}
 
 		var cdWf *pipelineConfig.CdWorkflow
@@ -1668,7 +1669,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			err := impl.cdWorkflowRepository.SaveWorkFlow(ctx, cdWf)
 			if err != nil {
 				impl.logger.Errorw("err", "err", err)
-				return 0, manifest, err
+				return 0, err
 			}
 		} else {
 			_, span = otel.Tracer("orchestrator").Start(ctx, "cdWorkflowRepository.FindById")
@@ -1676,14 +1677,14 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			span.End()
 			if err != nil && !util.IsErrNoRows(err) {
 				impl.logger.Errorw("err", "err", err)
-				return 0, manifest, err
+				return 0, err
 			}
 		}
 		_, span = otel.Tracer("orchestrator").Start(ctx, "TriggerPostStage")
 		err = impl.TriggerPostStage(cdWf, cdPipeline, overrideRequest.UserId)
 		span.End()
 	}
-	return releaseId, manifest, err
+	return releaseId, err
 }
 
 type BulkTriggerRequest struct {
