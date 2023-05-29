@@ -172,13 +172,15 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 			if err != nil {
 				return nil, err
 			}
-			data, err := impl.updateRepoData(cm.Data, request)
-			if err != nil {
-				impl.logger.Warnw(" config map update failed", "err", err)
-				continue
+			if cm.Data != nil {
+				data, err := impl.updateRepoData(cm.Data, request)
+				if err != nil {
+					impl.logger.Warnw(" config map update failed", "err", err)
+					continue
+				}
+				cm.Data = data
+				_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
 			}
-			cm.Data = data
-			_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
 		} else {
 			secretLabel := make(map[string]string)
 			secretLabel[LABEL] = REPOSITORY
