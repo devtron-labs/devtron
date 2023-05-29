@@ -904,14 +904,15 @@ func (impl *ClusterServiceImpl) FetchRolesFromGroup(userId int32) ([]*repository
 }
 
 func (impl *ClusterServiceImpl) ConnectClustersInBatch(clusters []*ClusterBean, clusterExistInDb bool) {
-	mutex := &sync.Mutex{}
-	//map of clusterId and error in its connection check process
-	respMap := make(map[int]error)
 	var wg sync.WaitGroup
+	respMap := make(map[int]error)
+	mutex := &sync.Mutex{}
+
 	for idx, cluster := range clusters {
 		wg.Add(1)
-		go func() {
+		go func(idx int, cluster *ClusterBean) {
 			defer wg.Done()
+
 			restConfig, err := impl.K8sUtil.GetRestConfigByCluster(&util.ClusterConfig{
 				ClusterName:           cluster.ClusterName,
 				Host:                  cluster.ServerUrl,
@@ -941,13 +942,15 @@ func (impl *ClusterServiceImpl) ConnectClustersInBatch(clusters []*ClusterBean, 
 				mutex.Unlock()
 				return
 			}
+
 			id := cluster.Id
 			if !clusterExistInDb {
 				id = idx
 			}
 			GetAndUpdateConnectionStatusForOneCluster(k8sClientSet, id, respMap, mutex)
-		}()
+		}(idx, cluster)
 	}
+
 	wg.Wait()
 	impl.HandleErrorInClusterConnections(clusters, respMap, clusterExistInDb)
 }
@@ -1140,7 +1143,6 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 }
 
 func GetAndUpdateConnectionStatusForOneCluster(k8sClientSet *kubernetes.Clientset, clusterId int, respMap map[int]error, mutex *sync.Mutex) {
-	//using livez path as healthz path is deprecated
 	path := "/livez"
 	response, err := k8sClientSet.Discovery().RESTClient().Get().AbsPath(path).DoRaw(context.Background())
 	log.Println("received response for cluster livez status", "response", string(response), "err", err, "clusterId", clusterId)
@@ -1150,7 +1152,6 @@ func GetAndUpdateConnectionStatusForOneCluster(k8sClientSet *kubernetes.Clientse
 	mutex.Lock()
 	respMap[clusterId] = err
 	mutex.Unlock()
-	return
 }
 
 func (impl ClusterServiceImpl) ConvertClusterBeanObjectToCluster(bean *ClusterBean) *v1alpha1.Cluster {
