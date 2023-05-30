@@ -172,7 +172,7 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 			if err != nil {
 				return nil, err
 			}
-			if cm.Data != nil {
+			if cm != nil && cm.Data != nil {
 				data, err := impl.updateRepoData(cm.Data, request)
 				if err != nil {
 					impl.logger.Warnw(" config map update failed", "err", err)
