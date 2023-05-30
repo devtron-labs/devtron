@@ -68,7 +68,7 @@ type DevtronAppBuildHistoryRestHandler interface {
 }
 
 type ImageTaggingRestHandler interface {
-	CreateImageTagging(w http.ResponseWriter, r *http.Request)
+	CreateUpdateImageTagging(w http.ResponseWriter, r *http.Request)
 	GetImageTaggingData(w http.ResponseWriter, r *http.Request)
 }
 
