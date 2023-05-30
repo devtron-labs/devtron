@@ -98,11 +98,11 @@ type InstallAppVersionDTO struct {
 	InstallAppVersionChartDTO    *InstallAppVersionChartDTO     `json:"-"`
 	DeploymentAppType            string                         `json:"deploymentAppType"`
 	AcdPartialDelete             bool                           `json:"acdPartialDelete"`
-	InstslledAppDeleteResponse   *InstslledAppDeleteResponseDTO `json:"deleteResponse,omitempty"`
+	InstalledAppDeleteResponse   *InstalledAppDeleteResponseDTO `json:"deleteResponse,omitempty"`
 	AppStoreApplicationVersionId int
 }
 
-type InstslledAppDeleteResponseDTO struct {
+type InstalledAppDeleteResponseDTO struct {
 	DeleteInitiated  bool   `json:"deleteInitiated"`
 	ClusterReachable bool   `json:"clusterReachable"`
 	ClusterName      string `json:"clusterName"`

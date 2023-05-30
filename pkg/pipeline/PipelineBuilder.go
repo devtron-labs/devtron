@@ -2002,7 +2002,6 @@ func (impl PipelineBuilderImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipeli
 						return deleteResponse, err
 					}
 				}
-				deleteResponse.DeleteInitiated = true
 				impl.logger.Infow("app deleted from argocd", "id", pipeline.Id, "pipelineName", pipeline.Name, "app", deploymentAppName)
 			}
 		} else if util.IsHelmApp(pipeline.DeploymentAppType) {
@@ -2023,7 +2022,6 @@ func (impl PipelineBuilderImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipeli
 					return deleteResponse, errors.New("delete application response unsuccessful")
 				}
 			}
-			deleteResponse.DeleteInitiated = true
 		}
 	}
 	err = tx.Commit()
@@ -2031,6 +2029,7 @@ func (impl PipelineBuilderImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipeli
 		impl.logger.Errorw("error in committing db transaction", "err", err)
 		return deleteResponse, err
 	}
+	deleteResponse.DeleteInitiated = true
 	return deleteResponse, nil
 }
 
@@ -2129,8 +2128,8 @@ func (impl PipelineBuilderImpl) DeleteCdPipelinePartial(pipeline *pipelineConfig
 				impl.logger.Errorw("error in partially delete cd pipeline", "err", err)
 				return deleteResponse, err
 			}
-			deleteResponse.DeleteInitiated = true
 		}
+		deleteResponse.DeleteInitiated = true
 	}
 	err = tx.Commit()
 	if err != nil {
