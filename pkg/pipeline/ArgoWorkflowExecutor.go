@@ -184,6 +184,9 @@ func (impl *ArgoWorkflowExecutorImpl) getArgoTemplates(configMaps []bean2.Config
 	cmIndex := 0
 	csIndex := 0
 	for _, configMap := range configMaps {
+		if configMap.External {
+			continue
+		}
 		parallelStep, argoTemplate, err := impl.appendCMCSToStepAndTemplate(false, configMap, cmIndex)
 		if err != nil {
 			return templates, err
@@ -193,6 +196,9 @@ func (impl *ArgoWorkflowExecutorImpl) getArgoTemplates(configMaps []bean2.Config
 		cmIndex++
 	}
 	for _, secret := range secrets {
+		if secret.External {
+			continue
+		}
 		parallelStep, argoTemplate, err := impl.appendCMCSToStepAndTemplate(true, secret, csIndex)
 		if err != nil {
 			return templates, err
