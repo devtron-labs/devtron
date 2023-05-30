@@ -1662,9 +1662,14 @@ func (handler PipelineConfigRestHandlerImpl) CreateUpdateImageTagging(w http.Res
 		common.WriteJsonResp(w, errMsg, nil, http.StatusBadRequest)
 		return
 	}
-
+	//validate request
+	isValidRequest, err := handler.imageTaggingService.ValidateImageTaggingRequest(req)
+	if err != nil || !isValidRequest {
+		handler.Logger.Errorw("request validation failed", "error", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	}
 	//pass it to service layer
-	resp, err := handler.imageTaggingService.CreateUpdateImageTagging(ciPipeline.Id, ciPipeline.AppId, artifactId, req)
+	resp, err := handler.imageTaggingService.CreateUpdateImageTagging(ciPipeline.Id, ciPipeline.AppId, artifactId, int(user.Id), req)
 	if err != nil {
 		handler.Logger.Errorw("error occured in creating/updating image tagging data", "err", err, "ciPipelineId", ciPipeline.Id)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

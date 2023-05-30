@@ -14,18 +14,24 @@ const ActionSave ImageTaggingAction = 0
 const ActionHardDelete ImageTaggingAction = 3
 const ActionSoftDelete = 2
 
+type AuditType int
+
+const TagType AuditType = 0
+const CommentType AuditType = 1
+
 type ImageTag struct {
 	TableName  struct{} `sql:"release_tags" json:",omitempty"  pg:",discard_unknown_columns"`
 	Id         int      `sql:"id" json:"id"`
+	TagName    string   `sql:"tag_name" json:"tagName"`
 	AppId      int      `sql:"app_id" json:"appId"`
 	ArtifactId int      `sql:"artifact_id" json:"artifactId"`
-	Active     bool     `sql:"active" json:"active"`
+	Active     bool     `sql:"active" json:"active"` //this flag is to check soft delete
 }
 
 type ImageComment struct {
 	TableName  struct{} `sql:"image_comments" json:",omitempty"  pg:",discard_unknown_columns"`
 	Id         int      `sql:"id" json:"id"`
-	Comment    int      `sql:"app_id" json:"comment"`
+	Comment    string   `sql:"comment" json:"comment"`
 	ArtifactId int      `sql:"artifact_id" json:"artifactId"`
 	UserId     int      `sql:"user_id" json:"-"` //currently not sending userId in json response
 }
@@ -34,14 +40,15 @@ type ImageTaggingAudit struct {
 	TableName  struct{}           `sql:"release_tags" json:",omitempty"  pg:",discard_unknown_columns"`
 	Id         int                `sql:"id"`
 	Data       string             `sql:"data"`
-	DataType   int                `sql:"data_type"`
+	DataType   AuditType          `sql:"data_type"`
 	ArtifactId int                `sql:"artifact_id"`
 	UpdatedOn  time.Time          `sql:"updated_on"`
-	UpdatedBy  time.Time          `sql:"updated_by"`
+	UpdatedBy  int                `sql:"updated_by"`
 	Action     ImageTaggingAction `sql:"action"`
 }
 
 type ImageTaggingRepository interface {
+	SaveAuditLog(tx *pg.Tx, imageTaggingAudit *ImageTaggingAudit) error
 	SaveReleaseTag(tx *pg.Tx, imageTag *ImageTag) error
 	SaveImageComment(tx *pg.Tx, imageComment *ImageComment) error
 	GetTagsByAppId(appId int) ([]ImageTag, error)
@@ -50,6 +57,7 @@ type ImageTaggingRepository interface {
 	UpdateReleaseTag(tx *pg.Tx, imageTag *ImageTag) error
 	UpdateImageComment(tx *pg.Tx, imageComment *ImageComment) error
 	DeleteReleaseTag(tx *pg.Tx, imageTag *ImageTag) error
+	GetDbConnection() *pg.DB
 }
 
 type ImageTaggingRepositoryImpl struct {
@@ -62,21 +70,20 @@ func NewImageTaggingRepositoryImpl(db *pg.DB) *ImageTaggingRepositoryImpl {
 	}
 }
 
+func (impl *ImageTaggingRepositoryImpl) GetDbConnection() *pg.DB {
+	return impl.dbConnection
+}
+func (impl *ImageTaggingRepositoryImpl) SaveAuditLog(tx *pg.Tx, imageTaggingAudit *ImageTaggingAudit) error {
+	err := tx.Insert(tx, imageTaggingAudit)
+	return err
+}
 func (impl *ImageTaggingRepositoryImpl) SaveReleaseTag(tx *pg.Tx, imageTag *ImageTag) error {
 	err := tx.Insert(imageTag)
-	if err != nil {
-		err = tx.Insert(tx, &ImageTaggingAudit{
-			Action: ActionSave,
-		})
-	}
 	return err
 }
 
 func (impl *ImageTaggingRepositoryImpl) SaveImageComment(tx *pg.Tx, imageComment *ImageComment) error {
 	err := tx.Insert(imageComment)
-	if err != nil {
-		err = tx.Insert(tx, &ImageTaggingAudit{})
-	}
 	return err
 }
 
@@ -108,29 +115,14 @@ func (impl *ImageTaggingRepositoryImpl) GetImageComment(artifactId int) (ImageCo
 func (impl *ImageTaggingRepositoryImpl) UpdateReleaseTag(tx *pg.Tx, imageTag *ImageTag) error {
 	//currently tags are not editable, can only be soft deleted or hard delete
 	err := tx.Update(imageTag)
-	if err != nil {
-		err = tx.Insert(tx, &ImageTaggingAudit{
-			Action: ActionSoftDelete,
-		})
-	}
 	return err
 }
 func (impl *ImageTaggingRepositoryImpl) UpdateImageComment(tx *pg.Tx, imageComment *ImageComment) error {
 	err := tx.Update(imageComment)
-	if err != nil {
-		err = tx.Insert(tx, &ImageTaggingAudit{
-			Action: ActionEdit,
-		})
-	}
 	return err
 }
 
 func (impl *ImageTaggingRepositoryImpl) DeleteReleaseTag(tx *pg.Tx, imageTag *ImageTag) error {
 	err := tx.Delete(imageTag)
-	if err != nil {
-		err = tx.Insert(tx, &ImageTaggingAudit{
-			Action: ActionHardDelete,
-		})
-	}
 	return err
 }
