@@ -32,6 +32,7 @@ type K8sClientService interface {
 	GetApiResources(restConfig *rest.Config, includeOnlyVerb string) ([]*K8sApiResource, error)
 	GetResourceList(ctx context.Context, restConfig *rest.Config, request *K8sRequestBean) (*ResourceListResponse, bool, error)
 	ApplyResource(ctx context.Context, restConfig *rest.Config, request *K8sRequestBean, manifest string) (*ManifestResponse, error)
+	PatchResource(ctx context.Context, restConfig *rest.Config, pt types.PatchType, request *K8sRequestBean, manifest string) (*ManifestResponse, error)
 }
 
 type K8sClientServiceImpl struct {
@@ -416,7 +417,7 @@ func (impl K8sClientServiceImpl) GetResourceList(ctx context.Context, restConfig
 	return &ResourceListResponse{*resp}, namespaced, nil
 }
 
-func (impl K8sClientServiceImpl) ApplyResource(ctx context.Context, restConfig *rest.Config, request *K8sRequestBean, manifest string) (*ManifestResponse, error) {
+func (impl K8sClientServiceImpl) PatchResource(ctx context.Context, restConfig *rest.Config, pt types.PatchType, request *K8sRequestBean, manifest string) (*ManifestResponse, error) {
 	resourceIf, namespaced, err := impl.GetResourceIf(restConfig, request)
 	if err != nil {
 		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err)
@@ -425,13 +426,17 @@ func (impl K8sClientServiceImpl) ApplyResource(ctx context.Context, restConfig *
 	resourceIdentifier := request.ResourceIdentifier
 	var resp *unstructured.Unstructured
 	if len(resourceIdentifier.Namespace) > 0 && namespaced {
-		resp, err = resourceIf.Namespace(resourceIdentifier.Namespace).Patch(ctx, resourceIdentifier.Name, types.StrategicMergePatchType, []byte(manifest), metav1.PatchOptions{FieldManager: "patch"})
+		resp, err = resourceIf.Namespace(resourceIdentifier.Namespace).Patch(ctx, resourceIdentifier.Name, pt, []byte(manifest), metav1.PatchOptions{FieldManager: "patch"})
 	} else {
-		resp, err = resourceIf.Patch(ctx, resourceIdentifier.Name, types.StrategicMergePatchType, []byte(manifest), metav1.PatchOptions{FieldManager: "patch"})
+		resp, err = resourceIf.Patch(ctx, resourceIdentifier.Name, pt, []byte(manifest), metav1.PatchOptions{FieldManager: "patch"})
 	}
 	if err != nil {
 		impl.logger.Errorw("error in applying resource", "err", err)
 		return nil, err
 	}
 	return &ManifestResponse{*resp}, nil
+}
+
+func (impl K8sClientServiceImpl) ApplyResource(ctx context.Context, restConfig *rest.Config, request *K8sRequestBean, manifest string) (*ManifestResponse, error) {
+	return impl.PatchResource(ctx, restConfig, types.StrategicMergePatchType, request, manifest)
 }
