@@ -473,20 +473,15 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 	}
 	cdStageWorkflowRequest.StageType = PRE
 
-	if util.IsManifestDownload(pipeline.DeploymentAppType) {
-		cdStageWorkflowRequest.IsDryRun = true
-	}
-
 	_, span = otel.Tracer("orchestrator").Start(ctx, "cdWorkflowService.SubmitWorkflow")
 	jobHelmPackagePath, err := impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest, pipeline, env)
 	span.End()
 
-	chartBytes, err := impl.chartTemplateService.LoadChartInBytes(jobHelmPackagePath, false)
-	if err != nil && util.IsManifestDownload(pipeline.DeploymentAppType) {
-		return err
-	}
-
 	if util.IsManifestDownload(pipeline.DeploymentAppType) {
+		chartBytes, err := impl.chartTemplateService.LoadChartInBytes(jobHelmPackagePath, true)
+		if err != nil && util.IsManifestDownload(pipeline.DeploymentAppType) {
+			return err
+		}
 		runner.Status = pipelineConfig.WorkflowSucceeded
 		runner.UpdatedBy = triggeredBy
 		runner.UpdatedOn = triggeredAt
@@ -589,19 +584,10 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 	}
 
 	if util.IsManifestDownload(pipeline.DeploymentAppType) {
-		runner := &pipelineConfig.CdWorkflowRunner{
-			Name:               pipeline.Name,
-			WorkflowType:       bean.CD_WORKFLOW_TYPE_POST,
-			ExecutorType:       impl.cdConfig.CdWorkflowExecutorType,
-			Status:             pipelineConfig.WorkflowSucceeded,
-			TriggeredBy:        triggeredBy,
-			StartedOn:          triggeredAt,
-			Namespace:          impl.cdConfig.DefaultNamespace,
-			BlobStorageEnabled: impl.cdConfig.BlobStorageEnabled,
-			CdWorkflowId:       cdWf.Id,
-			AuditLog:           sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: triggeredBy, UpdatedOn: triggeredAt, UpdatedBy: triggeredBy},
-			HelmReferenceChart: chartBytes,
-		}
+		runner.Status = pipelineConfig.WorkflowSucceeded
+		runner.UpdatedBy = triggeredBy
+		runner.UpdatedOn = triggeredAt
+		runner.HelmReferenceChart = chartBytes
 		err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
 		if err != nil {
 			impl.logger.Errorw("error in updating helm chart in DB", "err", err)

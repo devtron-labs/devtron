@@ -41,7 +41,7 @@ type EnvironmentBean struct {
 	Active                bool   `json:"active"`
 	Default               bool   `json:"default"`
 	PrometheusEndpoint    string `json:"prometheus_endpoint,omitempty"`
-	Namespace             string `json:"namespace,omitempty" validate:"name-space-component,max=50"`
+	Namespace             string `json:"namespace,omitempty" validate:"max=50"`
 	CdArgoSetup           bool   `json:"isClusterCdActive"`
 	EnvironmentIdentifier string `json:"environmentIdentifier"`
 	Description           string `json:"description" validate:"max=40"`

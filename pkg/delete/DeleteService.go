@@ -15,6 +15,7 @@ type DeleteService interface {
 	DeleteEnvironment(deleteRequest *cluster.EnvironmentBean, userId int32) error
 	DeleteTeam(deleteRequest *team.TeamRequest) error
 	DeleteChartRepo(deleteRequest *chartRepo.ChartRepoDto) error
+	DeleteVirtualCluster(bean *cluster.VirtualClusterBean, userId int32) error
 }
 
 type DeleteServiceImpl struct {
@@ -86,5 +87,14 @@ func (impl DeleteServiceImpl) DeleteChartRepo(deleteRequest *chartRepo.ChartRepo
 		return err
 	}
 
+	return nil
+}
+
+func (impl DeleteServiceImpl) DeleteVirtualCluster(bean *cluster.VirtualClusterBean, userId int32) error {
+	err := impl.clusterService.DeleteFromDbVirtualCluster(bean, userId)
+	if err != nil {
+		impl.logger.Errorw("error im deleting cluster", "err", err, "deleteRequest", bean)
+		return err
+	}
 	return nil
 }

@@ -678,6 +678,7 @@ func (impl *ClusterRestHandlerImpl) DeleteVirtualCluster(w http.ResponseWriter, 
 	if err != nil {
 		impl.logger.Errorw("validate err, Delete", "error", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
@@ -688,7 +689,7 @@ func (impl *ClusterRestHandlerImpl) DeleteVirtualCluster(w http.ResponseWriter, 
 		return
 	}
 	//RBAC enforcer Ends
-	err = impl.clusterService.DeleteFromDbVirtualCluster(&bean, userId)
+	err = impl.deleteService.DeleteVirtualCluster(&bean, userId)
 	if err != nil {
 		impl.logger.Errorw("error in deleting cluster", "err", err, "id", bean.Id, "name", bean.ClusterName)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

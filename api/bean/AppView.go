@@ -157,6 +157,8 @@ type DeploymentDetailContainer struct {
 	Description                   string          `json:"description" validate:"max=40"`
 	UserApprovalConfig            string          `json:"userApprovalConfig"`
 	IsVirtualEnvironment          bool            `json:"isVirtualEnvironment"`
+	Image                         string          `json:"image"`
+	ImageTag                      string          `json:"imageTag"`
 }
 
 type AppDetailContainer struct {

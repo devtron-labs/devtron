@@ -373,7 +373,8 @@ func (impl AppListingRepositoryImpl) deploymentDetailsByAppIdAndEnvId(ctx contex
 		" cl.k8s_version," +
 		" env.cluster_id," +
 		" env.is_virtual_environment," +
-		" cl.cluster_name" +
+		" cl.cluster_name," +
+		" cia.image" +
 		" FROM pipeline p" +
 		" INNER JOIN pipeline_config_override pco on pco.pipeline_id=p.id" +
 		" INNER JOIN environment env ON env.id=p.environment_id" +
@@ -456,6 +457,8 @@ func (impl AppListingRepositoryImpl) FetchAppDetail(ctx context.Context, appId i
 	if err != nil {
 		impl.Logger.Warn("unable to fetch deployment detail for app")
 	}
+	imageTag := strings.Split(deploymentDetail.Image, ":")[1]
+	deploymentDetail.ImageTag = imageTag
 	appDetailContainer.DeploymentDetailContainer = deploymentDetail
 	return appDetailContainer, nil
 }
