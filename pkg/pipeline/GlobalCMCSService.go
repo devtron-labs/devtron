@@ -33,19 +33,6 @@ func NewGlobalCMCSServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
-//type GlobalCMCSDto struct {
-//	Id         int    `json:"id"`
-//	ConfigType string `json:"configType" validate:"oneof=CONFIGMAP SECRET"`
-//	Name       string `json:"name"  validate:"required"`
-//	Type       string `json:"type" validate:"oneof=environment volume"`
-//	//map of key:value, example: '{ "a" : "b", "c" : "d"}'
-//	Data               map[string]string `json:"data"  validate:"required"`
-//	MountPath          string            `json:"mountPath"`
-//	Deleted            bool              `json:"deleted"`
-//	UserId             int32             `json:"-"`
-//	SecretIngestionFor string            `json:"SecretIngestionFor"` // value can be one of [ci, cd, ci/cd]
-//}
-
 type GlobalCMCSDataUpdateDto struct {
 	Id                 int               `json:"id"`
 	Data               map[string]string `json:"data"  validate:"required"`
