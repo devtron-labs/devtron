@@ -479,26 +479,28 @@ func (impl *CiHandlerImpl) GetBuildHistory(pipelineId int, appId int, offset int
 	var ciWorkLowResponses []WorkflowResponse
 	for _, w := range workFlows {
 		wfResponse := WorkflowResponse{
-			Id:                  w.Id,
-			Name:                w.Name,
-			Status:              w.Status,
-			PodStatus:           w.PodStatus,
-			Message:             w.Message,
-			StartedOn:           w.StartedOn,
-			FinishedOn:          w.FinishedOn,
-			CiPipelineId:        w.CiPipelineId,
-			Namespace:           w.Namespace,
-			LogLocation:         w.LogFilePath,
-			GitTriggers:         w.GitTriggers,
-			CiMaterials:         ciPipelineMaterialResponses,
-			Artifact:            w.Image,
-			TriggeredBy:         w.TriggeredBy,
-			TriggeredByEmail:    w.EmailId,
-			ArtifactId:          w.CiArtifactId,
-			BlobStorageEnabled:  w.BlobStorageEnabled,
-			IsArtifactUploaded:  w.IsArtifactUploaded,
-			ArtifactReleaseTags: imageTaggingDataMap[w.CiArtifactId].ImageReleaseTags, //if artifact is not yet created,empty list will be sent
-			ArtifactComment:     imageTaggingDataMap[w.CiArtifactId].ImageComment,
+			Id:                 w.Id,
+			Name:               w.Name,
+			Status:             w.Status,
+			PodStatus:          w.PodStatus,
+			Message:            w.Message,
+			StartedOn:          w.StartedOn,
+			FinishedOn:         w.FinishedOn,
+			CiPipelineId:       w.CiPipelineId,
+			Namespace:          w.Namespace,
+			LogLocation:        w.LogFilePath,
+			GitTriggers:        w.GitTriggers,
+			CiMaterials:        ciPipelineMaterialResponses,
+			Artifact:           w.Image,
+			TriggeredBy:        w.TriggeredBy,
+			TriggeredByEmail:   w.EmailId,
+			ArtifactId:         w.CiArtifactId,
+			BlobStorageEnabled: w.BlobStorageEnabled,
+			IsArtifactUploaded: w.IsArtifactUploaded,
+		}
+		if imageTaggingDataMap[w.CiArtifactId] != nil {
+			wfResponse.ArtifactReleaseTags = imageTaggingDataMap[w.CiArtifactId].ImageReleaseTags //if artifact is not yet created,empty list will be sent
+			wfResponse.ArtifactComment = imageTaggingDataMap[w.CiArtifactId].ImageComment
 		}
 		ciWorkLowResponses = append(ciWorkLowResponses, wfResponse)
 	}

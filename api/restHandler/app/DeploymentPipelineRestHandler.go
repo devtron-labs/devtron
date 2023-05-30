@@ -8,6 +8,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
 	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
@@ -24,6 +25,11 @@ import (
 	"strings"
 )
 
+type DeploymentHistoryResp struct {
+	cdWorkflows        []pipelineConfig.CdWorkflowWithArtifact
+	ProdEnvExists      bool
+	AppReleaseTagNames []string //unique list of tags exists in the app
+}
 type DevtronAppDeploymentRestHandler interface {
 	CreateCdPipeline(w http.ResponseWriter, r *http.Request)
 	GetCdPipelineById(w http.ResponseWriter, r *http.Request)
@@ -1478,14 +1484,34 @@ func (handler *PipelineConfigRestHandlerImpl) ListDeploymentHistory(w http.Respo
 		return
 	}
 	//RBAC CHECK
-
-	resp, err := handler.cdHandler.GetCdBuildHistory(appId, environmentId, pipelineId, offset, limit)
+	resp := DeploymentHistoryResp{}
+	wfs, err := handler.cdHandler.GetCdBuildHistory(appId, environmentId, pipelineId, offset, limit)
+	resp.cdWorkflows = wfs
 	if err != nil {
 		handler.Logger.Errorw("service err, List", "err", err, "appId", appId, "environmentId", environmentId, "pipelineId", pipelineId, "offset", offset)
 		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
 		return
 	}
 
+	appTags, err := handler.imageTaggingService.GetTagsByAppId(appId)
+	if err != nil {
+		handler.Logger.Errorw("service err, GetTagsByAppId", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
+		return
+	}
+	uniqueTags := make([]string, len(appTags))
+	for i, tag := range appTags {
+		uniqueTags[i] = tag.TagName
+	}
+	resp.AppReleaseTagNames = uniqueTags
+
+	prodEnvExists, err := handler.imageTaggingService.GetProdEnvByCdPipelineId(pipelineId)
+	resp.ProdEnvExists = prodEnvExists
+	if err != nil {
+		handler.Logger.Errorw("service err, GetProdEnvFromParentAndLinkedWorkflow", "err", err, "cdPipelineId", pipelineId)
+		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
+		return
+	}
 	common.WriteJsonResp(w, err, resp, http.StatusOK)
 }
 

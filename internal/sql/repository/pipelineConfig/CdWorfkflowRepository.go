@@ -23,6 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -162,26 +163,28 @@ type CdWorkflowRunner struct {
 }
 
 type CdWorkflowWithArtifact struct {
-	Id                 int       `json:"id"`
-	CdWorkflowId       int       `json:"cd_workflow_id"`
-	Name               string    `json:"name"`
-	Status             string    `json:"status"`
-	PodStatus          string    `json:"pod_status"`
-	Message            string    `json:"message"`
-	StartedOn          time.Time `json:"started_on"`
-	FinishedOn         time.Time `json:"finished_on"`
-	PipelineId         int       `json:"pipeline_id"`
-	Namespace          string    `json:"namespace"`
-	LogFilePath        string    `json:"log_file_path"`
-	TriggeredBy        int32     `json:"triggered_by"`
-	EmailId            string    `json:"email_id"`
-	Image              string    `json:"image"`
-	MaterialInfo       string    `json:"material_info,omitempty"`
-	DataSource         string    `json:"data_source,omitempty"`
-	CiArtifactId       int       `json:"ci_artifact_id,omitempty"`
-	WorkflowType       string    `json:"workflow_type,omitempty"`
-	ExecutorType       string    `json:"executor_type,omitempty"`
-	BlobStorageEnabled bool      `json:"blobStorageEnabled"`
+	Id                  int                      `json:"id"`
+	CdWorkflowId        int                      `json:"cd_workflow_id"`
+	Name                string                   `json:"name"`
+	Status              string                   `json:"status"`
+	PodStatus           string                   `json:"pod_status"`
+	Message             string                   `json:"message"`
+	StartedOn           time.Time                `json:"started_on"`
+	FinishedOn          time.Time                `json:"finished_on"`
+	PipelineId          int                      `json:"pipeline_id"`
+	Namespace           string                   `json:"namespace"`
+	LogFilePath         string                   `json:"log_file_path"`
+	TriggeredBy         int32                    `json:"triggered_by"`
+	EmailId             string                   `json:"email_id"`
+	Image               string                   `json:"image"`
+	MaterialInfo        string                   `json:"material_info,omitempty"`
+	DataSource          string                   `json:"data_source,omitempty"`
+	CiArtifactId        int                      `json:"ci_artifact_id,omitempty"`
+	WorkflowType        string                   `json:"workflow_type,omitempty"`
+	ExecutorType        string                   `json:"executor_type,omitempty"`
+	BlobStorageEnabled  bool                     `json:"blobStorageEnabled"`
+	ArtifactReleaseTags []repository2.ImageTag   `json:"artifactReleaseTags"`
+	ArtifactComment     repository2.ImageComment `json:"artifactComment"`
 }
 
 type TriggerWorkflowStatus struct {

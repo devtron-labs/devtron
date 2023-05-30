@@ -32,6 +32,7 @@ type ImageTaggingService interface {
 	GetTagsData(ciPipelineId, appId, artifactId int) (*ImageTaggingResponseDTO, error)
 	CreateUpdateImageTagging(ciPipelineId, appId, artifactId, userId int, imageTaggingRequest *ImageTaggingRequestDTO) (*ImageTaggingResponseDTO, error)
 	GetProdEnvFromParentAndLinkedWorkflow(ciPipelineId int) (bool, error)
+	GetProdEnvByCdPipelineId(pipelineId int) (bool, error)
 	ValidateImageTaggingRequest(imageTaggingRequest *ImageTaggingRequestDTO) (bool, error)
 	GetTagsByArtifactId(artifactId int) ([]repository.ImageTag, error)
 	GetTagsByAppId(appId int) ([]repository.ImageTag, error)
@@ -41,17 +42,20 @@ type ImageTaggingService interface {
 type ImageTaggingServiceImpl struct {
 	imageTaggingRepo      repository.ImageTaggingRepository
 	ciPipelineRepository  pipelineConfig.CiPipelineRepository
+	cdPipelineRepository  pipelineConfig.PipelineRepository
 	environmentRepository repository2.EnvironmentRepository
 	logger                *zap.SugaredLogger
 }
 
 func NewImageTaggingServiceImpl(imageTaggingRepo repository.ImageTaggingRepository,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
+	cdPipelineRepository pipelineConfig.PipelineRepository,
 	environmentRepository repository2.EnvironmentRepository,
 	logger *zap.SugaredLogger) *ImageTaggingServiceImpl {
 	return &ImageTaggingServiceImpl{
 		imageTaggingRepo:      imageTaggingRepo,
 		ciPipelineRepository:  ciPipelineRepository,
+		cdPipelineRepository:  cdPipelineRepository,
 		environmentRepository: environmentRepository,
 		logger:                logger,
 	}
@@ -386,5 +390,23 @@ func (impl ImageTaggingServiceImpl) GetProdEnvFromParentAndLinkedWorkflow(ciPipe
 	}
 
 	return prodEnvExists, nil
+
+}
+
+func (impl ImageTaggingServiceImpl) GetProdEnvByCdPipelineId(pipelineId int) (bool, error) {
+	pipeline, err := impl.cdPipelineRepository.FindById(pipelineId)
+	if err != nil {
+		return false, err
+	}
+	if pipeline.Environment.Default {
+		return true, nil
+	}
+
+	//CiPipelineId will be zero for external webhook ci
+	if pipeline.CiPipelineId > 0 {
+		return impl.GetProdEnvFromParentAndLinkedWorkflow(pipeline.CiPipelineId)
+	}
+
+	return false, nil
 
 }
