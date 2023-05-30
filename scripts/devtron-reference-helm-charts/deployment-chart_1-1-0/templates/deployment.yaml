@@ -305,7 +305,7 @@ spec:
                   key: {{ .keyName }}
           {{- end }}
           {{- end }}
-          {{- range $.Values.EnvVariablesFromCongigMapKeys }}
+          {{- range $.Values.EnvVariablesFromConfigMapKeys }}
           {{- if and .name .configMapName .keyName }}
             - name: {{ .name }}
               valueFrom:
