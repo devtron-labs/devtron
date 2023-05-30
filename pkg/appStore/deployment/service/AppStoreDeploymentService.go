@@ -185,6 +185,19 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 		impl.logger.Errorw("fetching error", "err", err)
 		return nil, err
 	}
+
+	if environment.IsVirtualEnvironment {
+		if util.IsAcdApp(installAppVersionRequest.DeploymentAppType) || util.IsHelmApp(installAppVersionRequest.DeploymentAppType) {
+			impl.logger.Errorw("deployment app type manifest-download not supported on virtual cluster")
+			err := &util.ApiError{
+				HttpStatusCode:  http.StatusBadRequest,
+				InternalMessage: "deployment app type manifest-download not supported on virtual cluster",
+				UserMessage:     "deployment app type manifest-download not supported on virtual cluster",
+			}
+			return nil, err
+		}
+	}
+
 	installAppVersionRequest.Environment = environment
 	installAppVersionRequest.ACDAppName = fmt.Sprintf("%s-%s", installAppVersionRequest.AppName, installAppVersionRequest.Environment.Name)
 	installAppVersionRequest.ClusterId = environment.ClusterId
