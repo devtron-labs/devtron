@@ -27,9 +27,9 @@ import (
 const GIT_MATERIAL_DELETE_SUCCESS_RESP = "Git material deleted successfully."
 
 type BuildHistoryResponse struct {
-	ProdEnvExists      bool
-	AppReleaseTagNames []string //unique list of tags exists in the app
-	Workflows          []pipeline.WorkflowResponse
+	ProdEnvExists      bool                        `json:"prodEnvExists"`
+	AppReleaseTagNames []string                    `json:"appReleaseTagNames"` //unique list of tags exists in the app
+	CiWorkflows        []pipeline.WorkflowResponse `json:"ciWorkflows"`
 }
 type DevtronAppBuildRestHandler interface {
 	CreateCiConfig(w http.ResponseWriter, r *http.Request)
@@ -783,7 +783,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetBuildHistory(w http.ResponseWri
 	//RBAC
 	resp := BuildHistoryResponse{}
 	workflowsResp, err := handler.ciHandler.GetBuildHistory(pipelineId, ciPipeline.AppId, offset, limit)
-	resp.Workflows = workflowsResp
+	resp.CiWorkflows = workflowsResp
 	if err != nil {
 		handler.Logger.Errorw("service err, GetBuildHistory", "err", err, "pipelineId", pipelineId, "offset", offset)
 		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)

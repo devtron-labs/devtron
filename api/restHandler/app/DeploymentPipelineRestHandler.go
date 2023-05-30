@@ -26,9 +26,9 @@ import (
 )
 
 type DeploymentHistoryResp struct {
-	cdWorkflows        []pipelineConfig.CdWorkflowWithArtifact
-	ProdEnvExists      bool
-	AppReleaseTagNames []string //unique list of tags exists in the app
+	CdWorkflows        []pipelineConfig.CdWorkflowWithArtifact `json:"cdWorkflows"`
+	ProdEnvExists      bool                                    `json:"prodEnvExists"`
+	AppReleaseTagNames []string                                `json:"appReleaseTagNames"` //unique list of tags exists in the app
 }
 type DevtronAppDeploymentRestHandler interface {
 	CreateCdPipeline(w http.ResponseWriter, r *http.Request)
@@ -1486,7 +1486,7 @@ func (handler *PipelineConfigRestHandlerImpl) ListDeploymentHistory(w http.Respo
 	//RBAC CHECK
 	resp := DeploymentHistoryResp{}
 	wfs, err := handler.cdHandler.GetCdBuildHistory(appId, environmentId, pipelineId, offset, limit)
-	resp.cdWorkflows = wfs
+	resp.CdWorkflows = wfs
 	if err != nil {
 		handler.Logger.Errorw("service err, List", "err", err, "appId", appId, "environmentId", environmentId, "pipelineId", pipelineId, "offset", offset)
 		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
