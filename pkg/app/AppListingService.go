@@ -799,7 +799,8 @@ func (impl AppListingServiceImpl) FetchAppDetails(ctx context.Context, appId int
 		return bean.AppDetailContainer{}, err
 	}
 	appDetailContainer.AppId = appId
-
+	imageTag := strings.Split(appDetailContainer.DeploymentDetailContainer.Image, ":")[1]
+	appDetailContainer.DeploymentDetailContainer.ImageTag = imageTag
 	// set ifIpsAccess provided and relevant data
 	appDetailContainer.IsExternalCi = true
 	appDetailContainer, err = impl.setIpAccessProvidedData(ctx, appDetailContainer, appDetailContainer.ClusterId)

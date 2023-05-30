@@ -457,8 +457,6 @@ func (impl AppListingRepositoryImpl) FetchAppDetail(ctx context.Context, appId i
 	if err != nil {
 		impl.Logger.Warn("unable to fetch deployment detail for app")
 	}
-	imageTag := strings.Split(deploymentDetail.Image, ":")[1]
-	deploymentDetail.ImageTag = imageTag
 	appDetailContainer.DeploymentDetailContainer = deploymentDetail
 	return appDetailContainer, nil
 }
