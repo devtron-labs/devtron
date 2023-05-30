@@ -11,6 +11,9 @@ import (
 	"time"
 )
 
+const TagsKey = "tags"
+const CommentKey = "comments"
+
 type ImageTaggingResponseDTO struct {
 	ImageReleaseTags []repository.ImageTag   `json:"imageReleaseTags"`
 	AppReleaseTags   []repository.ImageTag   `json:"appReleaseTags"`
@@ -210,7 +213,7 @@ func (impl ImageTaggingServiceImpl) saveImageTagAudit(tx *pg.Tx, softDeleteTags,
 
 	if len(softDeleteTags) > 0 {
 		dataMap := make(map[string]interface{})
-		dataMap["tags"] = softDeleteTags
+		dataMap[TagsKey] = softDeleteTags
 		dataBytes, err := json.Marshal(&dataMap)
 		if err != nil {
 			return err
@@ -231,7 +234,7 @@ func (impl ImageTaggingServiceImpl) saveImageTagAudit(tx *pg.Tx, softDeleteTags,
 
 	if len(hardDeleteTags) > 0 {
 		dataMap := make(map[string]interface{})
-		dataMap["tags"] = hardDeleteTags
+		dataMap[TagsKey] = hardDeleteTags
 		dataBytes, err := json.Marshal(&dataMap)
 		if err != nil {
 			return err
@@ -252,7 +255,7 @@ func (impl ImageTaggingServiceImpl) saveImageTagAudit(tx *pg.Tx, softDeleteTags,
 
 	if len(createTags) > 0 {
 		dataMap := make(map[string]interface{})
-		dataMap["tags"] = createTags
+		dataMap[TagsKey] = createTags
 		dataBytes, err := json.Marshal(&dataMap)
 		if err != nil {
 			return err
@@ -278,7 +281,7 @@ func (impl ImageTaggingServiceImpl) saveImageTagAudit(tx *pg.Tx, softDeleteTags,
 func (impl ImageTaggingServiceImpl) saveImageCommentAudit(tx *pg.Tx, imageComment string, userId, artifactId int, action repository.ImageTaggingAction) error {
 
 	dataMap := make(map[string]string)
-	dataMap["comment"] = imageComment
+	dataMap[CommentKey] = imageComment
 	dataBytes, err := json.Marshal(&dataMap)
 	if err != nil {
 		return err
