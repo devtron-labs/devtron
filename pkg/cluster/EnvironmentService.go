@@ -217,7 +217,7 @@ func (impl EnvironmentServiceImpl) CreateVirtualEnvironment(mappings *VirtualEnv
 		Namespace:             mappings.Namespace,
 		Description:           mappings.Description,
 		EnvironmentIdentifier: environmentIdentifier,
-		IsVirtualEnvironment:  mappings.IsVirtualEnvironment,
+		IsVirtualEnvironment:  true,
 	}
 
 	model.CreatedBy = userId
@@ -415,6 +415,7 @@ func (impl EnvironmentServiceImpl) UpdateVirtualEnvironment(mappings *VirtualEnv
 	model.UpdatedBy = userId
 	model.UpdatedOn = time.Now()
 	model.Description = mappings.Description
+	model.IsVirtualEnvironment = true
 
 	err = impl.environmentRepository.Update(model)
 	if err != nil {

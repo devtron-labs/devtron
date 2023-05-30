@@ -678,7 +678,6 @@ func (impl *ClusterRestHandlerImpl) DeleteVirtualCluster(w http.ResponseWriter, 
 	if err != nil {
 		impl.logger.Errorw("validate err, Delete", "error", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 

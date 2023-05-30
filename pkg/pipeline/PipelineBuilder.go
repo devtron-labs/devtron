@@ -143,7 +143,7 @@ type PipelineBuilder interface {
 	PerformBulkActionOnCdPipelines(dto *bean.CdBulkActionRequestDto, impactedPipelines []*pipelineConfig.Pipeline, ctx context.Context, dryRun bool, userId int32) ([]*bean.CdBulkActionResponseDto, error)
 	DeleteCiPipeline(request *bean.CiPatchRequest) (*bean.CiPipeline, error)
 	IsGitOpsRequiredForCD(pipelineCreateRequest *bean.CdPipelines) bool
-	SetPipelineDeploymentAppType(pipelineCreateRequest *bean.CdPipelines, isGitOpsConfigured bool)
+	SetPipelineDeploymentAppType(pipelineCreateRequest *bean.CdPipelines, isGitOpsConfigured bool) error
 	MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(appId int, envId int, acdToken string, pipeline *pipelineConfig.Pipeline) (bool, error)
 	GetCiPipelineByEnvironment(request appGroup2.AppGroupingRequest) ([]*bean.CiConfigRequest, error)
 	GetCiPipelineByEnvironmentMin(request appGroup2.AppGroupingRequest) ([]*bean.CiPipelineMinResponse, error)
@@ -1781,7 +1781,7 @@ func (impl PipelineBuilderImpl) IsGitOpsRequiredForCD(pipelineCreateRequest *bea
 	return haveAtLeastOneGitOps
 }
 
-func (impl PipelineBuilderImpl) SetPipelineDeploymentAppType(pipelineCreateRequest *bean.CdPipelines, isGitOpsConfigured bool) {
+func (impl PipelineBuilderImpl) SetPipelineDeploymentAppType(pipelineCreateRequest *bean.CdPipelines, isGitOpsConfigured bool) error {
 	//isInternalUse := impl.deploymentConfig.IsInternalUse
 	//var globalDeploymentAppType string
 	//if !isInternalUse {
@@ -1807,10 +1807,32 @@ func (impl PipelineBuilderImpl) SetPipelineDeploymentAppType(pipelineCreateReque
 	//		pipeline.DeploymentAppType = globalDeploymentAppType
 	//	}
 	//}
+	var envIds []*int
+	virtualEnvironmentMap := make(map[int]bool)
+
+	for _, pipeline := range pipelineCreateRequest.Pipelines {
+		envIds = append(envIds, &pipeline.EnvironmentId)
+	}
+
+	var envs []*repository2.Environment
+	var err error
+
+	if len(envIds) > 0 {
+		envs, err = impl.environmentRepository.FindByIds(envIds)
+		if err != nil {
+			impl.logger.Errorw("error in fetching environment by ids", "err", err)
+			return err
+		}
+	}
+	for _, environment := range envs {
+		virtualEnvironmentMap[environment.Id] = environment.IsVirtualEnvironment
+	}
 
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
 		if pipeline.DeploymentAppType == "" {
-			if isGitOpsConfigured {
+			if isVirtualEnv, _ := virtualEnvironmentMap[pipeline.EnvironmentId]; isVirtualEnv {
+				pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD
+			} else if isGitOpsConfigured {
 				pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
 			} else {
 				pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
@@ -1818,12 +1840,21 @@ func (impl PipelineBuilderImpl) SetPipelineDeploymentAppType(pipelineCreateReque
 		}
 	}
 
+	return nil
 }
 
 func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error) {
 
 	isGitOpsConfigured, err := impl.IsGitopsConfigured()
-	impl.SetPipelineDeploymentAppType(pipelineCreateRequest, isGitOpsConfigured)
+	if err != nil {
+		impl.logger.Errorw("error in checking gitOps configuration status", "err", err)
+		return nil, err
+	}
+	err = impl.SetPipelineDeploymentAppType(pipelineCreateRequest, isGitOpsConfigured)
+	if err != nil {
+		impl.logger.Errorw("error in setting pipeline deployment app type", "err", err)
+		return nil, err
+	}
 	isGitOpsRequiredForCD := impl.IsGitOpsRequiredForCD(pipelineCreateRequest)
 	app, err := impl.appRepo.FindById(pipelineCreateRequest.AppId)
 	if err != nil {
