@@ -210,6 +210,7 @@ type PipelineBuilderImpl struct {
 	workflowDagExecutor                             WorkflowDagExecutor
 	enforcerUtil                                    rbac.EnforcerUtil
 	appGroupService                                 appGroup2.AppGroupService
+	imageTaggingService                             ImageTaggingService
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -259,7 +260,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	workflowDagExecutor WorkflowDagExecutor,
 	enforcerUtil rbac.EnforcerUtil, ArgoUserService argo.ArgoUserService,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
-	appGroupService appGroup2.AppGroupService) *PipelineBuilderImpl {
+	appGroupService appGroup2.AppGroupService,
+	imageTaggingService ImageTaggingService) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                        logger,
 		ciCdPipelineOrchestrator:      ciCdPipelineOrchestrator,
@@ -317,6 +319,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		enforcerUtil:                                    enforcerUtil,
 		ciWorkflowRepository:                            ciWorkflowRepository,
 		appGroupService:                                 appGroupService,
+		imageTaggingService:                             imageTaggingService,
 	}
 }
 
@@ -3267,8 +3270,17 @@ func (impl PipelineBuilderImpl) RetrieveArtifactsByCDPipeline(pipeline *pipeline
 	if err != nil {
 		return ciArtifactsResponse, err
 	}
-
+	imageTaggingMap, err := impl.imageTaggingService.GetTaggingDataMapByAppId(pipeline.AppId)
+	if err != nil {
+		impl.logger.Errorw("error in getting image tagging data with appId", "err", err, "appId", pipeline.AppId)
+		return ciArtifactsResponse, err
+	}
 	for i, artifact := range artifacts {
+		imageTaggingResp := imageTaggingMap[artifact.Id]
+		if imageTaggingResp != nil {
+			ciArtifacts[i].ArtifactComment = imageTaggingResp.ImageComment
+			ciArtifacts[i].ArtifactReleaseTags = imageTaggingResp.ImageReleaseTags
+		}
 		if artifact.ExternalCiPipelineId != 0 {
 			// if external webhook continue
 			continue

@@ -947,6 +947,26 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 		return
 	}
 
+	appTags, err := handler.imageTaggingService.GetTagsByAppId(pipeline.AppId)
+	if err != nil {
+		handler.Logger.Errorw("service err, GetTagsByAppId", "err", err, "appId", pipeline.AppId)
+		common.WriteJsonResp(w, err, ciArtifactResponse, http.StatusInternalServerError)
+		return
+	}
+	uniqueTags := make([]string, len(appTags))
+	for i, tag := range appTags {
+		uniqueTags[i] = tag.TagName
+	}
+	ciArtifactResponse.AppReleaseTagNames = uniqueTags
+
+	prodEnvExists, err := handler.imageTaggingService.GetProdEnvByCdPipelineId(pipeline.Id)
+	ciArtifactResponse.ProdEnvExists = prodEnvExists
+	if err != nil {
+		handler.Logger.Errorw("service err, GetProdEnvByCdPipelineId", "err", err, "cdPipelineId", pipeline.Id)
+		common.WriteJsonResp(w, err, ciArtifactResponse, http.StatusInternalServerError)
+		return
+	}
+
 	var digests []string
 	for _, item := range ciArtifactResponse.CiArtifacts {
 		if len(item.ImageDigest) > 0 {
