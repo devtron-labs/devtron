@@ -1195,6 +1195,20 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 			},
 		}
 		err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, isAppStore)
+		if util.IsManifestDownload(pipeline.DeploymentAppType) {
+			runner := &pipelineConfig.CdWorkflowRunner{
+				Name:         pipeline.Name,
+				WorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
+				ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM,
+				Status:       pipelineConfig.WorkflowSucceeded, //starting
+				TriggeredBy:  1,
+				StartedOn:    triggeredAt,
+				Namespace:    impl.cdConfig.DefaultNamespace,
+				CdWorkflowId: cdWf.Id,
+				AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: triggeredBy, UpdatedOn: triggeredAt, UpdatedBy: triggeredBy},
+			}
+			_ = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
+		}
 		if err != nil {
 			impl.logger.Errorw("error in creating timeline status for deployment fail - cve policy violation", "err", err, "timeline", timeline)
 		}
