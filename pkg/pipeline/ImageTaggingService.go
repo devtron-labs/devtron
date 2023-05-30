@@ -33,6 +33,8 @@ type ImageTaggingService interface {
 	CreateUpdateImageTagging(ciPipelineId, appId, artifactId, userId int, imageTaggingRequest *ImageTaggingRequestDTO) (*ImageTaggingResponseDTO, error)
 	GetProdEnvFromParentAndLinkedWorkflow(ciPipelineId int) (bool, error)
 	ValidateImageTaggingRequest(imageTaggingRequest *ImageTaggingRequestDTO) (bool, error)
+	GetTagsByArtifactId(artifactId int) ([]repository.ImageTag, error)
+	GetTagsByAppId(appId int) ([]repository.ImageTag, error)
 }
 
 type ImageTaggingServiceImpl struct {
@@ -61,13 +63,13 @@ func (impl ImageTaggingServiceImpl) GetTagsData(ciPipelineId, appId, artifactId 
 		//log error
 		return resp, err
 	}
-	appReleaseTags, err := impl.imageTaggingRepo.GetTagsByAppId(appId)
-	if err != nil && err != pg.ErrNoRows {
+	appReleaseTags, err := impl.GetTagsByAppId(appId)
+	if err != nil {
 		//log error
 		return resp, err
 	}
-	imageReleaseTags, err := impl.imageTaggingRepo.GetTagsByArtifactId(artifactId)
-	if err != nil && err != pg.ErrNoRows {
+	imageReleaseTags, err := impl.GetTagsByArtifactId(artifactId)
+	if err != nil {
 		//log error
 		return resp, err
 	}
@@ -81,6 +83,24 @@ func (impl ImageTaggingServiceImpl) GetTagsData(ciPipelineId, appId, artifactId 
 	resp.ImageComment = imageComment
 	resp.ProdEnvExists = prodEnvExists
 	return resp, err
+}
+
+func (impl ImageTaggingServiceImpl) GetTagsByArtifactId(artifactId int) ([]repository.ImageTag, error) {
+	imageReleaseTags, err := impl.imageTaggingRepo.GetTagsByArtifactId(artifactId)
+	if err != nil && err != pg.ErrNoRows {
+		//log error
+		return imageReleaseTags, err
+	}
+	return imageReleaseTags, nil
+}
+
+func (impl ImageTaggingServiceImpl) GetTagsByAppId(appId int) ([]repository.ImageTag, error) {
+	appReleaseTags, err := impl.imageTaggingRepo.GetTagsByAppId(appId)
+	if err != nil && err != pg.ErrNoRows {
+		//log error
+		return appReleaseTags, err
+	}
+	return appReleaseTags, nil
 }
 
 func (impl ImageTaggingServiceImpl) ValidateImageTaggingRequest(imageTaggingRequest *ImageTaggingRequestDTO) (bool, error) {
