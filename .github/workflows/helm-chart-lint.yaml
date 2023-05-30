@@ -20,22 +20,45 @@ jobs:
           charts:
             - added|modified: 'scripts/devtron-reference-helm-charts/**/templates/**'
             - added|modified: 'charts/devtron/**/templates/**'
+          files: 
+            - added|modified: 'charts/devtron/**'
+          ref_chart:
+            - added|modified: 'scripts/devtron-reference-helm-charts/**/**'
     - run: echo ${{ steps.filter.outputs.charts }}
+    - run: echo ${{ steps.filter.outputs.files }}
     - uses: actions/setup-python@v2
     - uses: jannekem/run-python-script-action@v1
       id: python
       with:
         script: |
             string='${{ steps.filter.outputs.charts_files }}'
-            location=string.split("templates",1)[0]
-            print(location)
-            set_output("chart_path",location)
+            devtron_chart='${{ steps.filter.outputs.files_files }}'
+            ref_chart='${{ steps.filter.outputs.ref_chart_files }}'
+            print(string)
+            print(devtron_chart)
+            print(ref_chart)
+            split_ref_chart=ref_chart.split("/")
+            print(split_ref_chart)
+            if (string) :
+              location=string.split("templates",1)[0]
+              print(location)
+              set_output("chart_path",location)
+            elif (devtron_chart):
+              set_output("chart_path","charts/devtron/")
+            else :
+              split_ref_chart=split_ref_chart[:-1]
+              print("/".join(split_ref_chart))
+              split_ref_chart="/".join(split_ref_chart)
+              split_ref_chart+="/"
+              set_output("chart_path",split_ref_chart)
     - run: echo ${{ steps.python.outputs.chart_path }}
     - name: Print errors
       if: steps.script.outputs.error == 'true'
       run: |
         printenv "SCRIPT_STDOUT"
         printenv "SCRIPT_STDERR"
+    - name: helm build
+      run: cd  ./${{ steps.python.outputs.chart_path }} && helm dependency build
     - name: helm-check
       uses: igabaydulin/helm-check-action@0.1.4
       env:
