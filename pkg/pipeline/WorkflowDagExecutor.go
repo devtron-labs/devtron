@@ -210,8 +210,8 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		ciWorkflowRepository:          ciWorkflowRepository,
 		appLabelRepository:            appLabelRepository,
 		gitSensorGrpcClient:           gitSensorGrpcClient,
-		deploymentApprovalRepository:  deploymentApprovalRepository,
 		k8sApplicationService:         k8sApplicationService,
+		deploymentApprovalRepository:  deploymentApprovalRepository,
 	}
 	err := wde.Subscribe()
 	if err != nil {

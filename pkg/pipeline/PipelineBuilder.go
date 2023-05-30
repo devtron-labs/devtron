@@ -1647,6 +1647,13 @@ func (impl PipelineBuilderImpl) updateCiPipelineSourceValue(baseCiConfig *bean.C
 			impl.logger.Errorw("error in committing transaction", "err", err)
 			return nil, err
 		}
+		if !modifiedCiPipeline.IsExternal {
+			err = impl.ciCdPipelineOrchestrator.AddPipelineMaterialInGitSensor(materialsUpdate)
+			if err != nil {
+				impl.logger.Errorw("error in saving pipelineMaterials in git sensor", "materials", materialsUpdate, "err", err)
+				return nil, err
+			}
+		}
 		modifiedCiPipeline.ScanEnabled = baseCiConfig.ScanEnabled
 		baseCiConfig.CiPipelines = append(baseCiConfig.CiPipelines, modifiedCiPipeline)
 		return baseCiConfig, nil
@@ -2386,7 +2393,7 @@ func (impl PipelineBuilderImpl) TriggerDeploymentAfterTypeChange(ctx context.Con
 
 	for _, pipeline := range pipelines {
 
-		artifactDetails, err := impl.RetrieveArtifactsByCDPipeline(pipeline, "DEPLOY")
+		artifactDetails, err := impl.RetrieveArtifactsByCDPipeline(pipeline, "DEPLOY", false)
 
 		if err != nil {
 			impl.logger.Errorw("failed to fetch artifact details for cd pipeline",
