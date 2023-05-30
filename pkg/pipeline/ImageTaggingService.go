@@ -35,6 +35,7 @@ type ImageTaggingService interface {
 	ValidateImageTaggingRequest(imageTaggingRequest *ImageTaggingRequestDTO) (bool, error)
 	GetTagsByArtifactId(artifactId int) ([]repository.ImageTag, error)
 	GetTagsByAppId(appId int) ([]repository.ImageTag, error)
+	GetTaggingDataMapByAppId(appId int) (map[int]*ImageTaggingResponseDTO, error)
 }
 
 type ImageTaggingServiceImpl struct {
@@ -102,6 +103,37 @@ func (impl ImageTaggingServiceImpl) GetTagsByAppId(appId int) ([]repository.Imag
 	}
 	return appReleaseTags, nil
 }
+func (impl ImageTaggingServiceImpl) GetTaggingDataMapByAppId(appId int) (map[int]*ImageTaggingResponseDTO, error) {
+	tags, err := impl.GetTagsByAppId(appId)
+	if err != nil {
+		impl.logger.Errorw("error occurred in getting image tags by appId", "appId", appId, "err", err)
+		return nil, err
+	}
+	result := make(map[int]*ImageTaggingResponseDTO)
+	for _, tag := range tags {
+		if _, ok := result[tag.ArtifactId]; !ok {
+			result[tag.ArtifactId] = &ImageTaggingResponseDTO{
+				ImageReleaseTags: make([]repository.ImageTag, 0),
+			}
+		}
+		result[tag.ArtifactId].ImageReleaseTags = append(result[tag.ArtifactId].ImageReleaseTags, tag)
+	}
+
+	imageComments, err := impl.imageTaggingRepo.GetImageCommentsByAppId(appId)
+	if err != nil && err != pg.ErrNoRows {
+		//log error
+		return nil, err
+	}
+
+	//it may be possible that there are no tags for a artifact,but comment exists
+	for _, comment := range imageComments {
+		if _, ok := result[comment.ArtifactId]; !ok {
+			result[comment.ArtifactId] = &ImageTaggingResponseDTO{}
+		}
+		result[comment.ArtifactId].ImageComment = comment
+	}
+	return result, nil
+}
 
 func (impl ImageTaggingServiceImpl) ValidateImageTaggingRequest(imageTaggingRequest *ImageTaggingRequestDTO) (bool, error) {
 	//validate create tags
@@ -122,6 +154,8 @@ func (impl ImageTaggingServiceImpl) ValidateImageTaggingRequest(imageTaggingRequ
 			return false, errors.New("bad request,tags requested to delete should contain id")
 		}
 	}
+
+	//validate comment, validation:should be
 	return true, nil
 }
 func (impl ImageTaggingServiceImpl) CreateUpdateImageTagging(ciPipelineId, appId, artifactId, userId int, imageTaggingRequest *ImageTaggingRequestDTO) (*ImageTaggingResponseDTO, error) {

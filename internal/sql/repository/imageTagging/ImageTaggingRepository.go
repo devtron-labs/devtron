@@ -12,7 +12,7 @@ const ActionEdit ImageTaggingAction = 1
 
 const ActionSave ImageTaggingAction = 0
 const ActionHardDelete ImageTaggingAction = 3
-const ActionSoftDelete = 2
+const ActionSoftDelete ImageTaggingAction = 2
 
 type AuditType int
 
@@ -54,6 +54,7 @@ type ImageTaggingRepository interface {
 	GetTagsByAppId(appId int) ([]ImageTag, error)
 	GetTagsByArtifactId(artifactId int) ([]ImageTag, error)
 	GetImageComment(artifactId int) (ImageComment, error)
+	GetImageCommentsByAppId(appId int) ([]ImageComment, error)
 	UpdateReleaseTag(tx *pg.Tx, imageTag *ImageTag) error
 	UpdateImageComment(tx *pg.Tx, imageComment *ImageComment) error
 	DeleteReleaseTag(tx *pg.Tx, imageTag *ImageTag) error
@@ -107,6 +108,14 @@ func (impl *ImageTaggingRepositoryImpl) GetImageComment(artifactId int) (ImageCo
 	res := ImageComment{}
 	err := impl.dbConnection.Model(&res).
 		Where("artifact_id=?", artifactId).
+		Select()
+	return res, err
+}
+
+func (impl *ImageTaggingRepositoryImpl) GetImageCommentsByAppId(appId int) ([]ImageComment, error) {
+	res := make([]ImageComment, 0)
+	err := impl.dbConnection.Model(&res).
+		Where("app_id=?", appId).
 		Select()
 	return res, err
 }
