@@ -1838,7 +1838,6 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 			impl.logger.Errorw("error in converting built chart to bytes", "err", err)
 			return releaseNo, manifest, err
 		}
-		return releaseNo, manifest, nil
 	}
 
 	if triggerEvent.PerformGitOps {
