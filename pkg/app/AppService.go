@@ -1449,8 +1449,12 @@ func (impl *AppServiceImpl) GetLatestDeployedManifestByPipelineId(appId int, env
 		return manifestByteArray, err
 	}
 
-	if runner == "" {
+	if runner == "CD" {
 		runner = "DEPLOY"
+	} else if runner == "PRECD" {
+		runner = "PRE"
+	} else if runner == "POSTCD" {
+		runner = "POST"
 	}
 
 	cdWorkflowRunner, err := impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(pipeline[0].Id, bean.WorkflowType(runner))
