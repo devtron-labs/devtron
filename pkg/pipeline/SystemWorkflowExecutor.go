@@ -88,6 +88,9 @@ func (impl *SystemWorkflowExecutorImpl) getCmAndSecrets(workflowTemplate bean.Wo
 	var secrets []corev1.Secret
 	configMapDataArray := workflowTemplate.ConfigMaps
 	for _, configSecretMap := range configMapDataArray {
+		if configSecretMap.External {
+			continue
+		}
 		configDataMap, err := configSecretMap.GetDataMap()
 		if err != nil {
 			impl.logger.Errorw("error occurred while extracting data map", "Data", configSecretMap.Data, "err", err)
@@ -99,6 +102,9 @@ func (impl *SystemWorkflowExecutorImpl) getCmAndSecrets(workflowTemplate bean.Wo
 	}
 	secretMaps := workflowTemplate.Secrets
 	for _, secretMapData := range secretMaps {
+		if secretMapData.External {
+			continue
+		}
 		dataMap, err := secretMapData.GetDataMap()
 		if err != nil {
 			impl.logger.Errorw("error occurred while extracting data map", "Data", secretMapData.Data, "err", err)
