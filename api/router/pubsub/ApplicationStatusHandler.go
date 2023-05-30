@@ -240,7 +240,7 @@ func (impl *ApplicationStatusHandlerImpl) updateArgoAppDeleteStatus(app *v1alpha
 		}
 	} else {
 		// devtron app
-		err = impl.pipelineBuilder.DeleteCdPipeline(&pipeline, context.Background(), true, false, 0)
+		err = impl.pipelineBuilder.DeleteCdPipeline(&pipeline, context.Background(), true, false, 1)
 		if err != nil {
 			impl.logger.Errorw("error in deleting cd pipeline", "err", err)
 			return err

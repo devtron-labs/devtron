@@ -419,7 +419,9 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		dockerRepository = ciTemplate.DockerRepository
 		ciBuildConfigEntity := ciTemplate.CiBuildConfig
 		ciBuildConfigBean, err = bean2.ConvertDbBuildConfigToBean(ciBuildConfigEntity)
-		ciBuildConfigBean.BuildContextGitMaterialId = ciTemplate.BuildContextGitMaterialId
+		if ciBuildConfigBean != nil {
+			ciBuildConfigBean.BuildContextGitMaterialId = ciTemplate.BuildContextGitMaterialId
+		}
 		if err != nil {
 			impl.Logger.Errorw("error occurred while converting buildconfig dbEntity to configBean", "ciBuildConfigEntity", ciBuildConfigEntity, "err", err)
 			return nil, errors.New("error while parsing ci build config")
@@ -442,6 +444,10 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	}
 	if buildContextCheckoutPath == "" {
 		buildContextCheckoutPath = checkoutPath
+	}
+	if ciBuildConfigBean.UseRootBuildContext {
+		//use root build context i.e '.'
+		buildContextCheckoutPath = "."
 	}
 	if ciBuildConfigBean.CiBuildType == bean2.SELF_DOCKERFILE_BUILD_TYPE || ciBuildConfigBean.CiBuildType == bean2.MANAGED_DOCKERFILE_BUILD_TYPE {
 		ciBuildConfigBean.DockerBuildConfig.BuildContext = filepath.Join(buildContextCheckoutPath, ciBuildConfigBean.DockerBuildConfig.BuildContext)
@@ -481,6 +487,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		IgnoreDockerCachePull:      impl.ciConfig.IgnoreDockerCacheForCI,
 		CacheInvalidate:            trigger.InvalidateCache,
 		ExtraEnvironmentVariables:  trigger.ExtraEnvironmentVariables,
+		EnableBuildContext:         impl.ciConfig.EnableBuildContext,
 	}
 	if dockerRegistry != nil {
 

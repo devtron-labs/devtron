@@ -1167,7 +1167,6 @@ func (impl AppStoreDeploymentServiceImpl) updateInstalledAppVersion(installedApp
 		installedAppVersion.AppStoreApplicationVersion = *appStoreAppVersion
 		installedAppVersion.InstalledApp = *installedApp
 		installAppVersionRequest.InstalledAppVersionId = installedAppVersion.Id
-		installAppVersionRequest.Id = installedAppVersion.Id
 	} else {
 		installedAppVersionModel, err := impl.installedAppRepository.GetInstalledAppVersion(installAppVersionRequest.Id)
 		if err != nil {
