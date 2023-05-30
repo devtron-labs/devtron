@@ -102,7 +102,6 @@ type PipelineConfigRestHandlerImpl struct {
 	dbMigrationService           pipeline.DbMigrationService
 	application                  application.ServiceClient
 	userAuthService              user.UserService
-	userService                  user.UserService
 	validator                    *validator.Validate
 	teamService                  team.TeamService
 	enforcer                     casbin.Enforcer
@@ -129,7 +128,6 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	dbMigrationService pipeline.DbMigrationService,
 	application application.ServiceClient,
 	userAuthService user.UserService,
-	userService user.UserService,
 	teamService team.TeamService,
 	enforcer casbin.Enforcer,
 	ciHandler pipeline.CiHandler,
@@ -153,7 +151,6 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		dbMigrationService:           dbMigrationService,
 		application:                  application,
 		userAuthService:              userAuthService,
-		userService:                  userService,
 		validator:                    validator,
 		teamService:                  teamService,
 		enforcer:                     enforcer,
