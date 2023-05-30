@@ -27,6 +27,7 @@ import (
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/gitSensor"
+	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"io/ioutil"
@@ -66,7 +67,7 @@ type CiHandler interface {
 	GetHistoricBuildLogs(pipelineId int, workflowId int, ciWorkflow *pipelineConfig.CiWorkflow) (map[string]string, error)
 	//SyncWorkflows() error
 
-	GetBuildHistory(pipelineId int, offset int, size int) ([]WorkflowResponse, error)
+	GetBuildHistory(pipelineId int, appId int, offset int, size int) ([]WorkflowResponse, error)
 	DownloadCiWorkflowArtifacts(pipelineId int, buildId int) (*os.File, error)
 	UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus) (int, error)
 
@@ -98,6 +99,7 @@ type CiHandlerImpl struct {
 	cdPipelineRepository         pipelineConfig.PipelineRepository
 	enforcerUtil                 rbac.EnforcerUtil
 	appGroupService              appGroup2.AppGroupService
+	imageTaggingService          ImageTaggingService
 }
 
 func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
@@ -105,7 +107,8 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 	ciLogService CiLogService, ciConfig *CiConfig, ciArtifactRepository repository.CiArtifactRepository, userService user.UserService, eventClient client.EventClient,
 	eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository, appListingRepository repository.AppListingRepository,
 	K8sUtil *util.K8sUtil, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil,
-	appGroupService appGroup2.AppGroupService) *CiHandlerImpl {
+	appGroupService appGroup2.AppGroupService,
+	imageTaggingService ImageTaggingService) *CiHandlerImpl {
 	return &CiHandlerImpl{
 		Logger:                       Logger,
 		ciService:                    ciService,
@@ -125,6 +128,7 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 		cdPipelineRepository:         cdPipelineRepository,
 		enforcerUtil:                 enforcerUtil,
 		appGroupService:              appGroupService,
+		imageTaggingService:          imageTaggingService,
 	}
 }
 
@@ -147,25 +151,27 @@ type CiPipelineMaterialResponse struct {
 }
 
 type WorkflowResponse struct {
-	Id                 int                              `json:"id"`
-	Name               string                           `json:"name"`
-	Status             string                           `json:"status"`
-	PodStatus          string                           `json:"podStatus"`
-	Message            string                           `json:"message"`
-	StartedOn          time.Time                        `json:"startedOn"`
-	FinishedOn         time.Time                        `json:"finishedOn"`
-	CiPipelineId       int                              `json:"ciPipelineId"`
-	Namespace          string                           `json:"namespace"`
-	LogLocation        string                           `json:"logLocation"`
-	BlobStorageEnabled bool                             `json:"blobStorageEnabled"`
-	GitTriggers        map[int]pipelineConfig.GitCommit `json:"gitTriggers"`
-	CiMaterials        []CiPipelineMaterialResponse     `json:"ciMaterials"`
-	TriggeredBy        int32                            `json:"triggeredBy"`
-	Artifact           string                           `json:"artifact"`
-	TriggeredByEmail   string                           `json:"triggeredByEmail"`
-	Stage              string                           `json:"stage"`
-	ArtifactId         int                              `json:"artifactId"`
-	IsArtifactUploaded bool                             `json:"isArtifactUploaded"`
+	Id                  int                              `json:"id"`
+	Name                string                           `json:"name"`
+	Status              string                           `json:"status"`
+	PodStatus           string                           `json:"podStatus"`
+	Message             string                           `json:"message"`
+	StartedOn           time.Time                        `json:"startedOn"`
+	FinishedOn          time.Time                        `json:"finishedOn"`
+	CiPipelineId        int                              `json:"ciPipelineId"`
+	Namespace           string                           `json:"namespace"`
+	LogLocation         string                           `json:"logLocation"`
+	BlobStorageEnabled  bool                             `json:"blobStorageEnabled"`
+	GitTriggers         map[int]pipelineConfig.GitCommit `json:"gitTriggers"`
+	CiMaterials         []CiPipelineMaterialResponse     `json:"ciMaterials"`
+	TriggeredBy         int32                            `json:"triggeredBy"`
+	Artifact            string                           `json:"artifact"`
+	TriggeredByEmail    string                           `json:"triggeredByEmail"`
+	Stage               string                           `json:"stage"`
+	ArtifactId          int                              `json:"artifactId"`
+	IsArtifactUploaded  bool                             `json:"isArtifactUploaded"`
+	ArtifactReleaseTags []repository2.ImageTag           `json:"artifactReleaseTags"`
+	ArtifactComment     repository2.ImageComment         `json:"artifactComment"`
 }
 
 type GitTriggerInfoResponse struct {
@@ -441,7 +447,7 @@ func (impl *CiHandlerImpl) FetchMaterialsByPipelineId(pipelineId int, showAll bo
 	return ciPipelineMaterialResponses, nil
 }
 
-func (impl *CiHandlerImpl) GetBuildHistory(pipelineId int, offset int, size int) ([]WorkflowResponse, error) {
+func (impl *CiHandlerImpl) GetBuildHistory(pipelineId int, appId int, offset int, size int) ([]WorkflowResponse, error) {
 	ciMaterials, err := impl.ciPipelineMaterialRepository.GetByPipelineIdForRegexAndFixed(pipelineId)
 	if err != nil {
 		impl.Logger.Errorw("ciMaterials fetch failed", "err", err)
@@ -459,7 +465,12 @@ func (impl *CiHandlerImpl) GetBuildHistory(pipelineId int, offset int, size int)
 		}
 		ciPipelineMaterialResponses = append(ciPipelineMaterialResponses, r)
 	}
-
+	//this map contains artifactId -> array of tags of that artifact
+	imageTaggingDataMap, err := impl.imageTaggingService.GetTaggingDataMapByAppId(appId)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching image tags with appId", "err", err, "appId", appId)
+		return nil, err
+	}
 	workFlows, err := impl.ciWorkflowRepository.FindByPipelineId(pipelineId, offset, size)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.Logger.Errorw("err", "err", err)
@@ -468,24 +479,26 @@ func (impl *CiHandlerImpl) GetBuildHistory(pipelineId int, offset int, size int)
 	var ciWorkLowResponses []WorkflowResponse
 	for _, w := range workFlows {
 		wfResponse := WorkflowResponse{
-			Id:                 w.Id,
-			Name:               w.Name,
-			Status:             w.Status,
-			PodStatus:          w.PodStatus,
-			Message:            w.Message,
-			StartedOn:          w.StartedOn,
-			FinishedOn:         w.FinishedOn,
-			CiPipelineId:       w.CiPipelineId,
-			Namespace:          w.Namespace,
-			LogLocation:        w.LogFilePath,
-			GitTriggers:        w.GitTriggers,
-			CiMaterials:        ciPipelineMaterialResponses,
-			Artifact:           w.Image,
-			TriggeredBy:        w.TriggeredBy,
-			TriggeredByEmail:   w.EmailId,
-			ArtifactId:         w.CiArtifactId,
-			BlobStorageEnabled: w.BlobStorageEnabled,
-			IsArtifactUploaded: w.IsArtifactUploaded,
+			Id:                  w.Id,
+			Name:                w.Name,
+			Status:              w.Status,
+			PodStatus:           w.PodStatus,
+			Message:             w.Message,
+			StartedOn:           w.StartedOn,
+			FinishedOn:          w.FinishedOn,
+			CiPipelineId:        w.CiPipelineId,
+			Namespace:           w.Namespace,
+			LogLocation:         w.LogFilePath,
+			GitTriggers:         w.GitTriggers,
+			CiMaterials:         ciPipelineMaterialResponses,
+			Artifact:            w.Image,
+			TriggeredBy:         w.TriggeredBy,
+			TriggeredByEmail:    w.EmailId,
+			ArtifactId:          w.CiArtifactId,
+			BlobStorageEnabled:  w.BlobStorageEnabled,
+			IsArtifactUploaded:  w.IsArtifactUploaded,
+			ArtifactReleaseTags: imageTaggingDataMap[w.CiArtifactId].ImageReleaseTags, //if artifact is not yet created,empty list will be sent
+			ArtifactComment:     imageTaggingDataMap[w.CiArtifactId].ImageComment,
 		}
 		ciWorkLowResponses = append(ciWorkLowResponses, wfResponse)
 	}

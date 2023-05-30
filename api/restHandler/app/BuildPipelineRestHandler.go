@@ -26,6 +26,11 @@ import (
 
 const GIT_MATERIAL_DELETE_SUCCESS_RESP = "Git material deleted successfully."
 
+type BuildHistoryResponse struct {
+	ProdEnvExists      bool
+	AppReleaseTagNames []string //unique list of tags exists in the app
+	Workflows          []pipeline.WorkflowResponse
+}
 type DevtronAppBuildRestHandler interface {
 	CreateCiConfig(w http.ResponseWriter, r *http.Request)
 	UpdateCiTemplate(w http.ResponseWriter, r *http.Request)
@@ -776,10 +781,30 @@ func (handler *PipelineConfigRestHandlerImpl) GetBuildHistory(w http.ResponseWri
 		return
 	}
 	//RBAC
-
-	resp, err := handler.ciHandler.GetBuildHistory(pipelineId, offset, limit)
+	resp := BuildHistoryResponse{}
+	workflowsResp, err := handler.ciHandler.GetBuildHistory(pipelineId, ciPipeline.AppId, offset, limit)
+	resp.Workflows = workflowsResp
 	if err != nil {
 		handler.Logger.Errorw("service err, GetBuildHistory", "err", err, "pipelineId", pipelineId, "offset", offset)
+		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
+		return
+	}
+	appTags, err := handler.imageTaggingService.GetTagsByAppId(ciPipeline.AppId)
+	if err != nil {
+		handler.Logger.Errorw("service err, GetTagsByAppId", "err", err, "appId", ciPipeline.AppId)
+		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
+		return
+	}
+	uniqueTags := make([]string, len(appTags))
+	for i, tag := range appTags {
+		uniqueTags[i] = tag.TagName
+	}
+	resp.AppReleaseTagNames = uniqueTags
+
+	prodEnvExists, err := handler.imageTaggingService.GetProdEnvFromParentAndLinkedWorkflow(ciPipeline.Id)
+	resp.ProdEnvExists = prodEnvExists
+	if err != nil {
+		handler.Logger.Errorw("service err, GetProdEnvFromParentAndLinkedWorkflow", "err", err, "ciPipelineId", ciPipeline.Id)
 		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
 		return
 	}
