@@ -1644,7 +1644,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateUpdateImageTagging(w http.Res
 	}
 	//RBAC
 	//check prod env exists
-	prodEnvExists, err := handler.imageTaggingService.GetEnvFromParentAndLinkedWorkflow(ciPipeline.Id)
+	prodEnvExists, err := handler.imageTaggingService.GetProdEnvFromParentAndLinkedWorkflow(ciPipeline.Id)
 	if err != nil {
 		handler.Logger.Errorw("error occured in checking existance prod prod environment ", "err", err, "ciPipelineId", ciPipeline.Id)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
