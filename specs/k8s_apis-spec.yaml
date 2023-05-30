@@ -264,6 +264,30 @@ paths:
                     description: app list
                     items:
                       $ref: '#/components/schemas/ClusterResourceListResponse'
+  /orchestrator/k8s/resources/rotate:
+    post:
+      description: this api will be used to rotate pods for provided resources
+      parameters:
+        - in: query
+          name: appId
+          description: app id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RotatePodRequest'
+      responses:
+        '200':
+          description: response in array of each resource
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RotatePodResponse"
   /orchestrator/k8s/resources/apply:
     post:
       description: this api will be used to apply the resources in cluster
@@ -544,6 +568,61 @@ components:
               header-name:
                 type: string
                 description: each object from data key contains the objects keys length is equal to headers length
+    RotatePodRequest:
+      type: object
+      properties:
+        clusterId:
+          type: number
+          description: cluster Id
+          example: 1
+          nullable: false
+        resources:
+          type: array
+          items:
+            type: object
+            properties:
+              groupVersionKind:
+                type: object
+                properties:
+                  Group:
+                    type: string
+                  Version:
+                    type: string
+                  Kind:
+                    type: string
+              namespace:
+                type: string
+              name:
+                type: string
+            required:
+              - name
+    RotatePodResponse:
+      type: object
+      properties:
+        containsError:
+          type: boolean
+          description: contains error
+          example: true
+        responses:
+          type: array
+          items:
+            type: object
+            properties:
+              groupVersionKind:
+                type: object
+                properties:
+                  Group:
+                    type: string
+                  Version:
+                    type: string
+                  Kind:
+                    type: string
+              namespace:
+                type: string
+              name:
+                type: string
+              errorResponse:
+                type: string
     ApplyResourcesRequest:
       type: object
       properties:

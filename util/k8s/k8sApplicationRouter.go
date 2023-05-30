@@ -20,6 +20,9 @@ func NewK8sApplicationRouterImpl(k8sApplicationRestHandler K8sApplicationRestHan
 
 func (impl *K8sApplicationRouterImpl) InitK8sApplicationRouter(k8sAppRouter *mux.Router) {
 
+	k8sAppRouter.Path("/resource/rotate").Queries("appId", "{appId}").
+		HandlerFunc(impl.k8sApplicationRestHandler.RotatePod).Methods("POST")
+
 	k8sAppRouter.Path("/resource/urls").Queries("appId", "{appId}").
 		HandlerFunc(impl.k8sApplicationRestHandler.GetHostUrlsByBatch).Methods("GET")
 

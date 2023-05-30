@@ -25,9 +25,11 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	gitSensorClient "github.com/devtron-labs/devtron/client/gitSensor"
+	"github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	util4 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"go.opentelemetry.io/otel"
 	"strconv"
 	"strings"
@@ -73,6 +75,7 @@ type WorkflowDagExecutor interface {
 	StopStartApp(stopRequest *StopAppRequest, ctx context.Context) (int, error)
 	TriggerBulkHibernateAsync(request StopDeploymentGroupRequest, ctx context.Context) (interface{}, error)
 	FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int, requiredApprovals int) (map[int]*pipelineConfig.UserApprovalMetadata, error)
+	RotatePods(ctx context.Context, podRotateRequest *PodRotateRequest) (*k8s.RotatePodResponse, error)
 }
 
 type WorkflowDagExecutorImpl struct {
@@ -109,6 +112,7 @@ type WorkflowDagExecutorImpl struct {
 	gitSensorGrpcClient           gitSensorClient.Client
 	deploymentApprovalRepository  pipelineConfig.DeploymentApprovalRepository
 	chartTemplateService          util.ChartTemplateService
+	k8sApplicationService         k8s.K8sApplicationService
 }
 
 const (
@@ -175,7 +179,8 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	appLabelRepository pipelineConfig.AppLabelRepository, gitSensorGrpcClient gitSensorClient.Client,
 	deploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository,
-	chartTemplateService util.ChartTemplateService) *WorkflowDagExecutorImpl {
+	chartTemplateService util.ChartTemplateService,
+	k8sApplicationService k8s.K8sApplicationService) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
 		cdWorkflowRepository:          cdWorkflowRepository,
@@ -207,6 +212,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		ciWorkflowRepository:          ciWorkflowRepository,
 		appLabelRepository:            appLabelRepository,
 		gitSensorGrpcClient:           gitSensorGrpcClient,
+		k8sApplicationService:         k8sApplicationService,
 		deploymentApprovalRepository:  deploymentApprovalRepository,
 		chartTemplateService:          chartTemplateService,
 	}
@@ -1387,6 +1393,39 @@ type StopDeploymentGroupRequest struct {
 	DeploymentGroupId int         `json:"deploymentGroupId" validate:"required"`
 	UserId            int32       `json:"userId"`
 	RequestType       RequestType `json:"requestType" validate:"oneof=START STOP"`
+}
+
+type PodRotateRequest struct {
+	AppId               int                              `json:"appId" validate:"required"`
+	EnvironmentId       int                              `json:"environmentId" validate:"required"`
+	UserId              int32                            `json:"-"`
+	ResourceIdentifiers []application.ResourceIdentifier `json:"resources" validate:"required"`
+}
+
+func (impl *WorkflowDagExecutorImpl) RotatePods(ctx context.Context, podRotateRequest *PodRotateRequest) (*k8s.RotatePodResponse, error) {
+	impl.logger.Infow("rotate pod request", "payload", podRotateRequest)
+	//extract cluster id and namespace from env id
+	environmentId := podRotateRequest.EnvironmentId
+	environment, err := impl.envRepository.FindById(environmentId)
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching env details", "envId", environmentId, "err", err)
+		return nil, err
+	}
+	var resourceIdentifiers []application.ResourceIdentifier
+	for _, resourceIdentifier := range podRotateRequest.ResourceIdentifiers {
+		resourceIdentifier.Namespace = environment.Namespace
+		resourceIdentifiers = append(resourceIdentifiers, resourceIdentifier)
+	}
+	rotatePodRequest := &k8s.RotatePodRequest{
+		ClusterId: environment.ClusterId,
+		Resources: resourceIdentifiers,
+	}
+	response, err := impl.k8sApplicationService.RotatePods(ctx, rotatePodRequest)
+	if err != nil {
+		return nil, err
+	}
+	//TODO KB: make entry in cd workflow runner
+	return response, nil
 }
 
 func (impl *WorkflowDagExecutorImpl) StopStartApp(stopRequest *StopAppRequest, ctx context.Context) (int, error) {
