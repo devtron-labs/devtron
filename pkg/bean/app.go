@@ -71,6 +71,7 @@ type GitMaterial struct {
 	CheckoutPath     string `json:"checkoutPath" validate:"checkout-path-component"`
 	FetchSubmodules  bool   `json:"fetchSubmodules"`
 	IsUsedInCiConfig bool   `json:"isUsedInCiConfig"`
+	FilterPattern    []string `json:"filterPattern"`
 }
 
 type CiMaterial struct {
@@ -609,8 +610,10 @@ const (
 type Status string
 
 const (
-	Success Status = "Success"
-	Failed  Status = "Failed"
+	Success         Status = "Success"
+	Failed          Status = "Failed"
+	INITIATED       Status = "Migration initiated"
+	NOT_YET_DELETED Status = "Not yet deleted"
 )
 
 func (a CdPatchAction) String() string {

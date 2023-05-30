@@ -86,6 +86,7 @@ type CiConfig struct {
 	BaseLogLocationPath              string                       `env:"BASE_LOG_LOCATION_PATH" envDefault:"/home/devtron/"`
 	ClusterConfig                    *rest.Config
 	NodeLabel                        map[string]string
+	EnableBuildContext               bool `env:"ENABLE_BUILD_CONTEXT" envDefault:"false"`
 }
 
 type CiVolumeMount struct {

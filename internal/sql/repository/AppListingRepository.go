@@ -51,7 +51,7 @@ type AppListingRepository interface {
 
 	FetchOtherEnvironment(appId int) ([]*bean.Environment, error)
 	FetchMinDetailOtherEnvironment(appId int) ([]*bean.Environment, error)
-	DeploymentDetailByArtifactId(ciArtifactId int) (bean.DeploymentDetailContainer, error)
+	DeploymentDetailByArtifactId(ciArtifactId int, envId int) (bean.DeploymentDetailContainer, error)
 	FindAppCount(isProd bool) (int, error)
 	FetchAppsByEnvironmentV2(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, int, error)
 	FetchOverviewAppsByEnvironment(envId, limit, offset int) ([]*bean.AppEnvironmentContainer, error)
@@ -662,7 +662,7 @@ func (impl AppListingRepositoryImpl) FetchMinDetailOtherEnvironment(appId int) (
 	return otherEnvironments, nil
 }
 
-func (impl AppListingRepositoryImpl) DeploymentDetailByArtifactId(ciArtifactId int) (bean.DeploymentDetailContainer, error) {
+func (impl AppListingRepositoryImpl) DeploymentDetailByArtifactId(ciArtifactId int, envId int) (bean.DeploymentDetailContainer, error) {
 	impl.Logger.Debug("reached at AppListingRepository:")
 	var deploymentDetail bean.DeploymentDetailContainer
 	query := "SELECT env.id AS environment_id, env.environment_name, env.default, pco.created_on as last_deployed_time, a.app_name" +
@@ -670,11 +670,11 @@ func (impl AppListingRepositoryImpl) DeploymentDetailByArtifactId(ciArtifactId i
 		" INNER JOIN pipeline p on p.id = pco.pipeline_id" +
 		" INNER JOIN environment env ON env.id=p.environment_id" +
 		" INNER JOIN app a on a.id = p.app_id" +
-		" WHERE pco.ci_artifact_id = ? and p.deleted=false AND env.active = TRUE" +
+		" WHERE pco.ci_artifact_id = ? and p.deleted=false AND env.active = TRUE AND env.id = ?" +
 		" ORDER BY pco.pipeline_release_counter desc LIMIT 1;"
 	impl.Logger.Debugw("last success full deployed artifact query:", query)
 
-	_, err := impl.dbConnection.Query(&deploymentDetail, query, ciArtifactId)
+	_, err := impl.dbConnection.Query(&deploymentDetail, query, ciArtifactId, envId)
 	if err != nil {
 		impl.Logger.Errorw("Exception caught:", err)
 		return deploymentDetail, err
