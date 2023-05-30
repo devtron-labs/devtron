@@ -315,7 +315,7 @@ EnvVariablesFromSecretKeys: []
   #   secretName: SECRET_NAME
   #   keyName: SECRET_KEY
 
-EnvVariablesFromCongigMapKeys: []
+EnvVariablesFromConfigMapKeys: []
   # - name: ENV_NAME
   #   configMapName: CONFIG_MAP_NAME
   #   keyName: CONFIG_MAP_KEY

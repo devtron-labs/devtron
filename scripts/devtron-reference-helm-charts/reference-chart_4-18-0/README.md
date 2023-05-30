@@ -46,9 +46,9 @@ EnvVariablesFromSecretKeys:
 ```
  It is use to get the name of Environment Variable name, Secret name and the Key name from which we are using the value in that corresponding Environment Variable.
 
- ### EnvVariablesFromCongigMapKeys
+ ### EnvVariablesFromConfigMapKeys
 ```yaml
-EnvVariablesFromCongigMapKeys: 
+EnvVariablesFromConfigMapKeys: 
   - name: ENV_NAME
     configMapName: CONFIG_MAP_NAME
     keyName: CONFIG_MAP_KEY
