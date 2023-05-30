@@ -584,12 +584,12 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		impl.logger.Errorw("error in submitting workflow", "err", err, "cdStageWorkflowRequest", cdStageWorkflowRequest, "pipeline", pipeline, "env", env)
 		return err
 	}
-	chartBytes, err := impl.chartTemplateService.LoadChartInBytes(jobHelmPackagePath, false)
-	if err != nil && util.IsManifestDownload(pipeline.DeploymentAppType) {
-		return err
-	}
 
 	if util.IsManifestDownload(pipeline.DeploymentAppType) {
+		chartBytes, err := impl.chartTemplateService.LoadChartInBytes(jobHelmPackagePath, false)
+		if err != nil && util.IsManifestDownload(pipeline.DeploymentAppType) {
+			return err
+		}
 		runner.Status = pipelineConfig.WorkflowSucceeded
 		runner.UpdatedBy = triggeredBy
 		runner.UpdatedOn = triggeredAt
