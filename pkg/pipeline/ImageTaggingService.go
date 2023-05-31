@@ -93,25 +93,21 @@ func (impl ImageTaggingServiceImpl) GetTagsData(ciPipelineId, appId, artifactId 
 	resp := &ImageTaggingResponseDTO{}
 	imageComment, err := impl.imageTaggingRepo.GetImageComment(artifactId)
 	if err != nil && err != pg.ErrNoRows {
-		//log error
 		impl.logger.Errorw("error in fetching image comment using artifactId", "err", err, "artifactId", artifactId)
 		return resp, err
 	}
 	appReleaseTags, err := impl.GetTagsByAppId(appId)
 	if err != nil {
-		//log error
 		impl.logger.Errorw("error in fetching image tags using appId", "err", err, "appId", appId)
 		return resp, err
 	}
 	imageReleaseTags, err := impl.GetTagsByArtifactId(artifactId)
 	if err != nil {
-		//log error
 		impl.logger.Errorw("error in fetching image tags using artifactId", "err", err, "artifactId", artifactId)
 		return resp, err
 	}
 	prodEnvExists, err := impl.GetProdEnvFromParentAndLinkedWorkflow(ciPipelineId)
 	if err != nil {
-		//log error
 		impl.logger.Errorw("error in GetProdEnvFromParentAndLinkedWorkflow", "err", err, "ciPipelineId", ciPipelineId)
 		return resp, err
 	}
