@@ -22,8 +22,6 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ include "helm-job.serviceAccountName" . }}
-      securityContext:
-        {{- toYaml .Values.Container.securityContext | nindent 8 }}
       containers:
         - name: {{ .Values.Container.name }}
           securityContext:
