@@ -243,7 +243,11 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, 
 	//validating config
 
 	err := impl.CheckIfConfigIsValid(bean)
+
 	if err != nil {
+		if len(err.Error()) > 5000 {
+			err = errors.NewBadRequest("invalid server url")
+		}
 		return nil, err
 	}
 
