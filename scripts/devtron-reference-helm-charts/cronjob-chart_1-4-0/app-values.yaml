@@ -1,13 +1,13 @@
 # Mandatory configs
 kind: Job
 
-jobConfigs:
-  backoffLimit: 5
-  activeDeadlineSeconds: 100
-  parallelism: 1
-  completions: 2
-  suspend: false
-  ttlSecondsAfterFinished: 100
+jobConfigs: {}
+#   backoffLimit: 5
+#   activeDeadlineSeconds: 100
+#   parallelism: 1
+#   completions: 2
+#   suspend: false
+#   ttlSecondsAfterFinished: 100
 
 cronjobConfigs:
   schedule: "* * * * *"
