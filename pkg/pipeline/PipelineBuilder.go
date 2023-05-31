@@ -210,6 +210,7 @@ type PipelineBuilderImpl struct {
 	workflowDagExecutor                             WorkflowDagExecutor
 	enforcerUtil                                    rbac.EnforcerUtil
 	appGroupService                                 appGroup2.AppGroupService
+	chartDeploymentService                          util.ChartDeploymentService
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -259,7 +260,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	workflowDagExecutor WorkflowDagExecutor,
 	enforcerUtil rbac.EnforcerUtil, ArgoUserService argo.ArgoUserService,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
-	appGroupService appGroup2.AppGroupService) *PipelineBuilderImpl {
+	appGroupService appGroup2.AppGroupService,
+	chartDeploymentService util.ChartDeploymentService) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                        logger,
 		ciCdPipelineOrchestrator:      ciCdPipelineOrchestrator,
@@ -317,6 +319,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		enforcerUtil:                                    enforcerUtil,
 		ciWorkflowRepository:                            ciWorkflowRepository,
 		appGroupService:                                 appGroupService,
+		chartDeploymentService:                          chartDeploymentService,
 	}
 }
 
@@ -1738,32 +1741,21 @@ func (impl PipelineBuilderImpl) ValidateCDPipelineRequest(pipelineCreateRequest 
 
 }
 
-func (impl PipelineBuilderImpl) RegisterInACD(app *app2.App, pipelineCreateRequest *bean.CdPipelines, ctx context.Context) error {
+func (impl PipelineBuilderImpl) RegisterInACD(gitOpsRepoName string, chartGitAttr *util.ChartGitAttribute, userId int32, ctx context.Context) error {
 
-	//if gitops configured create GIT repository and register into ACD
-	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
-	if err != nil && pg.ErrNoRows != err {
-		return err
-	}
-	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(app.AppName)
-	chartGitAttr, err := impl.chartTemplateService.CreateGitRepositoryForApp(gitOpsRepoName, chart.ReferenceTemplate, chart.ChartVersion, pipelineCreateRequest.UserId)
-	if err != nil {
-		impl.logger.Errorw("error in pushing chart to git ", "path", chartGitAttr.ChartLocation, "err", err)
-		return err
-	}
-	err = impl.chartTemplateService.RegisterInArgo(chartGitAttr, ctx)
+	err := impl.chartDeploymentService.RegisterInArgo(chartGitAttr, ctx)
 	if err != nil {
 		impl.logger.Errorw("error while register git repo in argo", "err", err)
 		emptyRepoErrorMessage := []string{"failed to get index: 404 Not Found", "remote repository is empty"}
 		if strings.Contains(err.Error(), emptyRepoErrorMessage[0]) || strings.Contains(err.Error(), emptyRepoErrorMessage[1]) {
 			// - found empty repository, create some file in repository
-			err := impl.chartTemplateService.CreateReadmeInGitRepo(gitOpsRepoName, pipelineCreateRequest.UserId)
+			err := impl.chartTemplateService.CreateReadmeInGitRepo(gitOpsRepoName, userId)
 			if err != nil {
 				impl.logger.Errorw("error in creating file in git repo", "err", err)
 				return err
 			}
 			// - retry register in argo
-			err = impl.chartTemplateService.RegisterInArgo(chartGitAttr, ctx)
+			err = impl.chartDeploymentService.RegisterInArgo(chartGitAttr, ctx)
 			if err != nil {
 				impl.logger.Errorw("error in re-try register in argo", "err", err)
 				return err
@@ -1773,13 +1765,6 @@ func (impl PipelineBuilderImpl) RegisterInACD(app *app2.App, pipelineCreateReque
 		}
 	}
 
-	// here updating all the chart version git repo url, as per current implementation all are same git repo url but we have to update each row
-	err = impl.updateGitRepoUrlInCharts(app.Id, chartGitAttr, pipelineCreateRequest.UserId)
-	if err != nil {
-		impl.logger.Errorw("error in updating git repo urls in charts", "appId", app.Id, "chartGitAttr", chartGitAttr, "err", err)
-		return err
-
-	}
 	return nil
 }
 
@@ -1797,31 +1782,42 @@ func (impl PipelineBuilderImpl) IsGitOpsRequiredForCD(pipelineCreateRequest *bea
 }
 
 func (impl PipelineBuilderImpl) SetPipelineDeploymentAppType(pipelineCreateRequest *bean.CdPipelines, isGitOpsConfigured bool) {
-	isInternalUse := impl.deploymentConfig.IsInternalUse
-	var globalDeploymentAppType string
-	if !isInternalUse {
-		if isGitOpsConfigured {
-			globalDeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
-		} else {
-			globalDeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
-		}
-	} else {
-		// if gitops or helm is option available, and deployment app type is not present in pipeline request/
-		for _, pipeline := range pipelineCreateRequest.Pipelines {
-			if pipeline.DeploymentAppType == "" {
-				if isGitOpsConfigured {
-					pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
-				} else {
-					pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
-				}
+	//isInternalUse := impl.deploymentConfig.IsInternalUse
+	//var globalDeploymentAppType string
+	//if !isInternalUse {
+	//	if isGitOpsConfigured {
+	//		globalDeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
+	//	} else {
+	//		globalDeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
+	//	}
+	//} else {
+	//	// if gitops or helm is option available, and deployment app type is not present in pipeline request/
+	//	for _, pipeline := range pipelineCreateRequest.Pipelines {
+	//		if pipeline.DeploymentAppType == "" {
+	//			if isGitOpsConfigured {
+	//				pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
+	//			} else {
+	//				pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
+	//			}
+	//		}
+	//	}
+	//}
+	//for _, pipeline := range pipelineCreateRequest.Pipelines {
+	//	if !isInternalUse {
+	//		pipeline.DeploymentAppType = globalDeploymentAppType
+	//	}
+	//}
+
+	for _, pipeline := range pipelineCreateRequest.Pipelines {
+		if pipeline.DeploymentAppType == "" {
+			if isGitOpsConfigured {
+				pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
+			} else {
+				pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
 			}
 		}
 	}
-	for _, pipeline := range pipelineCreateRequest.Pipelines {
-		if !isInternalUse {
-			pipeline.DeploymentAppType = globalDeploymentAppType
-		}
-	}
+
 }
 
 func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error) {
@@ -1838,9 +1834,25 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 	if err != nil {
 		return nil, err
 	}
+
+	// TODO: creating git repo for all apps irrespective of acd or helm
 	if isGitOpsConfigured && isGitOpsRequiredForCD {
-		err = impl.RegisterInACD(app, pipelineCreateRequest, ctx)
+
+		gitopsRepoName, chartGitAttr, err := impl.appService.CreateGitopsRepo(app, pipelineCreateRequest.UserId)
 		if err != nil {
+			impl.logger.Errorw("error in creating git repo", "err", err)
+			return nil, err
+		}
+
+		err = impl.RegisterInACD(gitopsRepoName, chartGitAttr, pipelineCreateRequest.UserId, ctx)
+		if err != nil {
+			impl.logger.Errorw("error in registering app in acd", "err", err)
+			return nil, err
+		}
+
+		err = impl.updateGitRepoUrlInCharts(pipelineCreateRequest.AppId, chartGitAttr, pipelineCreateRequest.UserId)
+		if err != nil {
+			impl.logger.Errorw("error in updating git repo url in charts", "err", err)
 			return nil, err
 		}
 	}
@@ -2499,7 +2511,7 @@ func (impl PipelineBuilderImpl) DeleteDeploymentApps(ctx context.Context,
 		var err error
 
 		// delete request
-		if pipeline.DeploymentAppType == string(bean.ArgoCd) {
+		if pipeline.DeploymentAppType == bean.ArgoCd {
 			err = impl.deleteArgoCdApp(ctx, pipeline, deploymentAppName, true)
 
 		} else {
@@ -2510,10 +2522,33 @@ func (impl PipelineBuilderImpl) DeleteDeploymentApps(ctx context.Context,
 
 			} else {
 				// Register app in ACD
-				err = impl.RegisterInACD(
-					&app2.App{Id: pipeline.AppId, AppName: pipeline.App.AppName},
-					&bean.CdPipelines{UserId: userId},
-					ctx)
+				var AcdRegisterErr, RepoURLUpdateErr error
+				gitopsRepoName, chartGitAttr, createGitRepoErr := impl.appService.CreateGitopsRepo(&app2.App{Id: pipeline.AppId, AppName: pipeline.App.AppName}, userId)
+				if createGitRepoErr != nil {
+					impl.logger.Errorw("error increating git repo", "err", err)
+				}
+				if createGitRepoErr == nil {
+					AcdRegisterErr = impl.RegisterInACD(gitopsRepoName,
+						chartGitAttr,
+						userId,
+						ctx)
+					if AcdRegisterErr != nil {
+						impl.logger.Errorw("error in registering acd app", "err", err)
+					}
+					if AcdRegisterErr == nil {
+						RepoURLUpdateErr = impl.chartTemplateService.UpdateGitRepoUrlInCharts(pipeline.AppId, chartGitAttr, userId)
+						if RepoURLUpdateErr != nil {
+							impl.logger.Errorw("error in updating git repo url in charts", "err", err)
+						}
+					}
+				}
+				if createGitRepoErr != nil {
+					err = createGitRepoErr
+				} else if AcdRegisterErr != nil {
+					err = AcdRegisterErr
+				} else if RepoURLUpdateErr != nil {
+					err = RepoURLUpdateErr
+				}
 			}
 			if err != nil {
 				impl.logger.Errorw("error registering app on ACD with error: "+err.Error(),
@@ -2597,7 +2632,7 @@ func (impl PipelineBuilderImpl) handleFailedDeploymentAppChange(pipeline *pipeli
 func (impl PipelineBuilderImpl) handleNotHealthyAppsIfArgoDeploymentType(pipeline *pipelineConfig.Pipeline,
 	failedPipelines []*bean.DeploymentChangeStatus) ([]*bean.DeploymentChangeStatus, error) {
 
-	if pipeline.DeploymentAppType == string(bean.ArgoCd) {
+	if pipeline.DeploymentAppType == bean.ArgoCd {
 		// check if app status is Healthy
 		status, err := impl.appStatusRepository.Get(pipeline.AppId, pipeline.EnvironmentId)
 
@@ -3202,6 +3237,7 @@ func (impl PipelineBuilderImpl) GetCdPipelinesForApp(appId int) (cdPipelines *be
 			ParentPipelineId:              appToWorkflowMapping.ParentId,
 			DeploymentAppDeleteRequest:    dbPipeline.DeploymentAppDeleteRequest,
 			UserApprovalConf:              dbPipeline.UserApprovalConf,
+			IsVirtualEnvironment:          dbPipeline.IsVirtualEnvironment,
 		}
 		pipelines = append(pipelines, pipeline)
 	}
@@ -3877,6 +3913,7 @@ func (impl PipelineBuilderImpl) GetCdPipelineById(pipelineId int) (cdPipeline *b
 		DeploymentAppType:             dbPipeline.DeploymentAppType,
 		DeploymentAppCreated:          dbPipeline.DeploymentAppCreated,
 		UserApprovalConf:              approvalConfig,
+		IsVirtualEnvironment:          dbPipeline.Environment.IsVirtualEnvironment,
 	}
 
 	return cdPipeline, err
@@ -4657,6 +4694,7 @@ func (impl PipelineBuilderImpl) GetCdPipelinesByEnvironment(request appGroup2.Ap
 			AppName:                       dbPipeline.AppName,
 			AppId:                         dbPipeline.AppId,
 			UserApprovalConf:              dbPipeline.UserApprovalConf,
+			IsVirtualEnvironment:          dbPipeline.IsVirtualEnvironment,
 		}
 		pipelines = append(pipelines, pipeline)
 	}
@@ -4703,11 +4741,12 @@ func (impl PipelineBuilderImpl) GetCdPipelinesByEnvironmentMin(request appGroup2
 			continue
 		}
 		pcObject := &bean.CDPipelineConfigObject{
-			AppId:             dbPipeline.AppId,
-			AppName:           dbPipeline.App.AppName,
-			EnvironmentId:     dbPipeline.EnvironmentId,
-			Id:                dbPipeline.Id,
-			DeploymentAppType: dbPipeline.DeploymentAppType,
+			AppId:                dbPipeline.AppId,
+			AppName:              dbPipeline.App.AppName,
+			EnvironmentId:        dbPipeline.EnvironmentId,
+			Id:                   dbPipeline.Id,
+			DeploymentAppType:    dbPipeline.DeploymentAppType,
+			IsVirtualEnvironment: dbPipeline.Environment.IsVirtualEnvironment,
 		}
 		cdPipelines = append(cdPipelines, pcObject)
 	}
@@ -4956,6 +4995,7 @@ func (impl PipelineBuilderImpl) GetEnvironmentListForAutocompleteFilter(envName 
 			CdArgoSetup:           model.Cluster.CdArgoSetup,
 			EnvironmentIdentifier: model.EnvironmentIdentifier,
 			ClusterName:           model.Cluster.ClusterName,
+			IsVirtualEnvironment:  model.IsVirtualEnvironment,
 		}
 
 		//authorization block starts here
