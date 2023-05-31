@@ -3250,8 +3250,8 @@ func (impl PipelineBuilderImpl) GetCdPipelinesForAppAndEnv(appId int, envId int)
 }
 
 type ConfigMapSecretsResponse struct {
-	Maps    []bean2.Map `json:"maps"`
-	Secrets []bean2.Map `json:"secrets"`
+	Maps    []bean2.ConfigSecretMap `json:"maps"`
+	Secrets []bean2.ConfigSecretMap `json:"secrets"`
 }
 
 func (impl PipelineBuilderImpl) FetchConfigmapSecretsForCdStages(appId, envId, cdPipelineId int) (ConfigMapSecretsResponse, error) {

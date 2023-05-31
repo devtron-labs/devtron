@@ -258,7 +258,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	volumes := make([]v12.Volume, 0)
 	templates := make([]v1alpha1.Template, 0)
 
-	err = impl.globalCMCSService.AddTemplatesForGlobalSecretsInWorkflowTemplate(globalCmCsConfigs, &steps, &volumes, &templates)
+	err = AddTemplatesForGlobalSecretsInWorkflowTemplate(globalCmCsConfigs, &steps, &volumes, &templates)
 	if err != nil {
 		impl.Logger.Errorw("error in creating templates for global secrets", "err", err)
 	}

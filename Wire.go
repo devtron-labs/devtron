@@ -850,6 +850,8 @@ func InitializeApp() (*App, error) {
 
 		pipelineConfig.NewDeploymentApprovalRepositoryImpl,
 		wire.Bind(new(pipelineConfig.DeploymentApprovalRepository), new(*pipelineConfig.DeploymentApprovalRepositoryImpl)),
+		pipeline.NewArgoWorkflowExecutorImpl,
+		wire.Bind(new(pipeline.ArgoWorkflowExecutor), new(*pipeline.ArgoWorkflowExecutorImpl)),
 	)
 	return &App{}, nil
 }
