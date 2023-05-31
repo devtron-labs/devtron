@@ -24,8 +24,12 @@
 {{- end }}
 {{- end }}
 {{- end }}
+{{- if $.Values.shareProcessNamespace }}
 shareProcessNamespace: {{ $.Values.shareProcessNamespace }}
+{{- end }}
+{{- if $.Values.GracePeriod }}
 terminationGracePeriodSeconds: {{ $.Values.GracePeriod }}
+{{- end }}
 {{- if $.Values.topologySpreadConstraints }}
 topologySpreadConstraints:
 {{- range $.Values.topologySpreadConstraints }}
@@ -96,13 +100,13 @@ tolerations:
 securityContext:
 {{ toYaml .Values.podSecurityContext | indent 2 }}
 {{- end }}  
-{{- if $.Values.imagePullSecrets}}
+{{- if $.Values.imagePullSecrets }}
 imagePullSecrets:
 {{- range .Values.imagePullSecrets }}
   - name: {{ . }}
 {{- end }}
 {{- end}}
-{{- if $.Values.initContainers}}
+{{- if $.Values.initContainers }}
 initContainers:
 {{- range $i, $c := .Values.initContainers }}
 {{- if .reuseContainerImage }}

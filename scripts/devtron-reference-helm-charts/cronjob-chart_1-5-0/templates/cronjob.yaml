@@ -13,14 +13,28 @@ metadata:
     release: {{ $.Release.Name }}
     releaseVersion: {{ $.Values.releaseVersion | quote }}
 spec:
+  {{- if $.Values.cronjobConfigs }}
+  {{- if $.Values.cronjobConfigs.schedule }}
   schedule: {{ $.Values.cronjobConfigs.schedule | quote }}
+  {{- end }}
+  {{- if $.Values.cronjobConfigs.startingDeadlineSeconds }}
   startingDeadlineSeconds: {{ $.Values.cronjobConfigs.startingDeadlineSeconds }}
+  {{- end }}
+  {{- if $.Values.cronjobConfigs.concurrencyPolicy }}
   concurrencyPolicy: {{ $.Values.cronjobConfigs.concurrencyPolicy }}
+  {{- end }}
   {{- if semverCompare ">1.20" .Capabilities.KubeVersion.GitVersion }}
+  {{- if $.Values.cronjobConfigs.suspend }}
   suspend: {{ $.Values.cronjobConfigs.suspend }}
   {{- end }}
+  {{- end }}
+  {{- if $.Values.cronjobConfigs.successfulJobsHistoryLimit }}
   successfulJobsHistoryLimit: {{ $.Values.cronjobConfigs.successfulJobsHistoryLimit }}
+  {{- end }}
+  {{- if $.Values.cronjobConfigs.failedJobsHistoryLimit }}
   failedJobsHistoryLimit: {{ $.Values.cronjobConfigs.failedJobsHistoryLimit }}
+  {{- end }}
+  {{- end }}
   jobTemplate:
     spec:
       {{- include "job-template-spec" . | indent 6 }}

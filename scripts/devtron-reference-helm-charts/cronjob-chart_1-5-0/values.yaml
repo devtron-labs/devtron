@@ -233,30 +233,30 @@ containers: []
   #    - mountPath: /usr/local/airflow/logs
   #      name: logs-data
 
-kedaAutoscaling:
-  envSourceContainerName: "" 
-  minReplicaCount: 1 
-  maxReplicaCount: 2
-  pollingInterval: 30                         
-  successfulJobsHistoryLimit: 5              
-  failedJobsHistoryLimit: 5
-  rolloutStrategy: default
-  scalingStrategy:
-    strategy: "custom"                        
-    customScalingQueueLengthDeduction: 1      
-    customScalingRunningJobPercentage: "0.5"  
-    pendingPodConditions:                     
-      - "Ready"
-      - "PodScheduled"
-      - "AnyOtherCustomPodCondition"
-    multipleScalersCalculation : "max"
-  triggers: 
-  - type: rabbitmq
-    metadata:
-      queueName: hello
-      host: RabbitMqHost
-      queueLength  : '5'
-    authenticationRef: {}
+kedaAutoscaling: {}
+  # envSourceContainerName: "" 
+  # minReplicaCount: 1 
+  # maxReplicaCount: 2
+  # pollingInterval: 30                         
+  # successfulJobsHistoryLimit: 5              
+  # failedJobsHistoryLimit: 5
+  # rolloutStrategy: default
+  # scalingStrategy:
+  #   strategy: "custom"                        
+  #   customScalingQueueLengthDeduction: 1      
+  #   customScalingRunningJobPercentage: "0.5"  
+  #   pendingPodConditions:                     
+  #     - "Ready"
+  #     - "PodScheduled"
+  #     - "AnyOtherCustomPodCondition"
+  #   multipleScalersCalculation : "max"
+  # triggers: 
+  # - type: rabbitmq
+  #   metadata:
+  #     queueName: hello
+  #     host: RabbitMqHost
+  #     queueLength  : '5'
+  #   authenticationRef: {}
 
 rawYaml: []
 # - apiVersion: v1

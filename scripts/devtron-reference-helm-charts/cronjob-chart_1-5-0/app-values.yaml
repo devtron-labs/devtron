@@ -7,7 +7,7 @@ jobConfigs:
   parallelism: 1
   completions: 2
   suspend: false
-  ttlSecondsAfterFinished: 100
+ # ttlSecondsAfterFinished: 100
 
 cronjobConfigs:
   schedule: "* * * * *"

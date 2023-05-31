@@ -2,7 +2,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ include ".Chart.Name .fullname" $ }}-{{ randAlphaNum 5 | lower }}
+  name: {{ include ".Chart.Name .fullname" $ }}-{{ $.Values.releaseVersion }}
   labels:
     app: {{ template ".Chart.Name .name" $ }}
     chart: {{ template ".Chart.Name .chart" $ }}
