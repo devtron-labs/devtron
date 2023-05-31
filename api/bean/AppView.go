@@ -159,6 +159,7 @@ type DeploymentDetailContainer struct {
 	IsVirtualEnvironment          bool            `json:"isVirtualEnvironment"`
 	Image                         string          `json:"image"`
 	ImageTag                      string          `json:"imageTag"`
+	HelmPackageName               string          `json:"helmPackageName"`
 }
 
 type AppDetailContainer struct {

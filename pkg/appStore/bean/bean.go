@@ -98,10 +98,11 @@ type InstallAppVersionDTO struct {
 	DeploymentAppType            string                     `json:"deploymentAppType"`
 	AcdPartialDelete             bool                       `json:"acdPartialDelete"`
 	AppStoreApplicationVersionId int
-	PerformGitOpsForHelmApp      bool `json:"performGitOpsForHelmApp"`
-	PerformGitOps                bool `json:"performGitOps"`
-	PerformACDDeployment         bool `json:"performACDDeployment"`
-	PerformHelmDeployment        bool `json:"performHelmDeployment"`
+	PerformGitOpsForHelmApp      bool      `json:"performGitOpsForHelmApp"`
+	PerformGitOps                bool      `json:"performGitOps"`
+	PerformACDDeployment         bool      `json:"performACDDeployment"`
+	PerformHelmDeployment        bool      `json:"performHelmDeployment"`
+	UpdatedOn                    time.Time `json:"updatedOn"`
 }
 
 type InstallAppVersionChartDTO struct {

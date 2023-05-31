@@ -188,11 +188,11 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 
 	if environment.IsVirtualEnvironment {
 		if util.IsAcdApp(installAppVersionRequest.DeploymentAppType) || util.IsHelmApp(installAppVersionRequest.DeploymentAppType) {
-			impl.logger.Errorw("deployment app type manifest-download not supported on virtual cluster")
+			impl.logger.Errorw("deployment type type helm/argocd not supported on virtual cluster")
 			err := &util.ApiError{
 				HttpStatusCode:  http.StatusBadRequest,
-				InternalMessage: "deployment app type manifest-download not supported on virtual cluster",
-				UserMessage:     "deployment app type manifest-download not supported on virtual cluster",
+				InternalMessage: "deployment type type helm/argocd not supported on virtual cluster",
+				UserMessage:     "deployment type type helm/argocd not supported on virtual cluster",
 			}
 			return nil, err
 		}
@@ -1096,6 +1096,10 @@ func (impl AppStoreDeploymentServiceImpl) GetDeploymentHistory(ctx context.Conte
 		}
 		result.DeploymentHistory = deploymentHistory.GetDeploymentHistory()
 	}
+	updateTime := installedApp.UpdatedOn
+
+	dateTag := fmt.Sprintf("%v %v,%v", updateTime.Day(), updateTime.Month(), updateTime.Year())
+	timeTag := fmt.Sprintf("%v:%v", updateTime.Hour(), updateTime.Minute())
 
 	if installedApp.InstalledAppId > 0 {
 		result.InstalledAppInfo = &client.InstalledAppInfo{
@@ -1108,6 +1112,7 @@ func (impl AppStoreDeploymentServiceImpl) GetDeploymentHistory(ctx context.Conte
 			ClusterId:             installedApp.ClusterId,
 			EnvironmentId:         installedApp.EnvironmentId,
 			DeploymentType:        installedApp.DeploymentAppType,
+			HelmPackageName:       fmt.Sprintf("%s-%s-%s %s", installedApp.AppName, installedApp.EnvironmentName, dateTag, timeTag),
 		}
 	}
 
