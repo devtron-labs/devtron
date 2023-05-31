@@ -149,8 +149,12 @@ func (impl ImageTaggingServiceImpl) GetTaggingDataMapByAppId(appId int) (map[int
 func (impl ImageTaggingServiceImpl) ValidateImageTaggingRequest(imageTaggingRequest *ImageTaggingRequestDTO) (bool, error) {
 	//validate create tags
 	for _, tags := range imageTaggingRequest.CreateTags {
-		if tags.Id != 0 {
-			return false, errors.New("bad request,create tags cannot contain id")
+		if tags.Id != 0 || tags.AppId == 0 || tags.ArtifactId == 0 {
+			return false, errors.New("bad request,create tags cannot contain id, missing artifactId or appId")
+		}
+		err := tagNameValidation(tags.TagName)
+		if err != nil {
+			return false, err
 		}
 	}
 	//validate update tags
@@ -158,16 +162,32 @@ func (impl ImageTaggingServiceImpl) ValidateImageTaggingRequest(imageTaggingRequ
 		if tags.Id == 0 {
 			return false, errors.New("bad request,tags requested to delete should contain id")
 		}
+		err := tagNameValidation(tags.TagName)
+		if err != nil {
+			return false, err
+		}
 	}
 
 	for _, tags := range imageTaggingRequest.HardDeleteTags {
 		if tags.Id == 0 {
 			return false, errors.New("bad request,tags requested to delete should contain id")
 		}
+		err := tagNameValidation(tags.TagName)
+		if err != nil {
+			return false, err
+		}
 	}
 
-	//TODO: validate comment
+	//TODO: validate comment, currently no validation on comment
 	return true, nil
+}
+
+func tagNameValidation(tag string) error {
+	err := errors.New("tag name should be max of 128 characters long,tag name should not start with '.' and '-'")
+	if len(tag) > 128 || len(tag) == 0 || tag[0] == '.' || tag[1] == '-' {
+		return err
+	}
+	return nil
 }
 func (impl ImageTaggingServiceImpl) CreateUpdateImageTagging(ciPipelineId, appId, artifactId, userId int, imageTaggingRequest *ImageTaggingRequestDTO) (*ImageTaggingResponseDTO, error) {
 
