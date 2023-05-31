@@ -36,6 +36,7 @@ type ImageTaggingService interface {
 	ValidateImageTaggingRequest(imageTaggingRequest *ImageTaggingRequestDTO) (bool, error)
 	GetTagsByArtifactId(artifactId int) ([]repository.ImageTag, error)
 	GetTagsByAppId(appId int) ([]repository.ImageTag, error)
+	// GetTaggingDataMapByAppId this will fetch a map of artifact vs []tags for given appId
 	GetTaggingDataMapByAppId(appId int) (map[int]*ImageTaggingResponseDTO, error)
 }
 
