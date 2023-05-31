@@ -445,7 +445,7 @@ func (impl *K8sApplicationServiceImpl) ValidateClusterResourceRequest(ctx contex
 		return false, err
 	}
 	clusterName := clusterBean.ClusterName
-	clusterConfig := clusterBean.ConvertClusterBeanToClusterConfig()
+	clusterConfig := clusterBean.GetClusterConfig()
 	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(&clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster", "clusterId", clusterId, "err", err)
@@ -664,7 +664,7 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 		impl.logger.Errorw("error in getting cluster by cluster Id", "err", err, "clusterId", clusterId)
 		return resourceList, err
 	}
-	clusterConfig := clusterBean.ConvertClusterBeanToClusterConfig()
+	clusterConfig := clusterBean.GetClusterConfig()
 	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(&clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.ClusterId)
@@ -719,7 +719,7 @@ func (impl *K8sApplicationServiceImpl) RotatePods(ctx context.Context, request *
 		impl.logger.Errorw("error in getting clusterBean by cluster Id", "clusterId", clusterId, "err", err)
 		return nil, err
 	}
-	clusterConfig := clusterBean.ConvertClusterBeanToClusterConfig()
+	clusterConfig := clusterBean.GetClusterConfig()
 	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(&clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster", "clusterId", clusterId, "err", err)
@@ -778,7 +778,7 @@ func (impl *K8sApplicationServiceImpl) ApplyResources(ctx context.Context, token
 		impl.logger.Errorw("error in getting clusterBean by cluster Id", "clusterId", clusterId, "err", err)
 		return nil, err
 	}
-	clusterConfig := clusterBean.ConvertClusterBeanToClusterConfig()
+	clusterConfig := clusterBean.GetClusterConfig()
 	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(&clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster", "clusterId", clusterId, "err", err)

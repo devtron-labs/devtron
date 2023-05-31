@@ -83,7 +83,7 @@ type ClusterBean struct {
 	ClusterUpdated          bool                       `json:"clusterUpdated"`
 }
 
-func (impl ClusterBean) ConvertClusterBeanToClusterConfig() util.ClusterConfig {
+func (impl ClusterBean) GetClusterConfig() util.ClusterConfig {
 	return util.ClusterConfig{
 		ClusterName:           impl.ClusterName,
 		Host:                  impl.ServerUrl,
@@ -754,7 +754,7 @@ func (impl ClusterServiceImpl) DeleteFromDb(bean *ClusterBean, userId int32) err
 }
 
 func (impl ClusterServiceImpl) CheckIfConfigIsValid(cluster *ClusterBean) error {
-	clusterConfig := cluster.ConvertClusterBeanToClusterConfig()
+	clusterConfig := cluster.GetClusterConfig()
 	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(&clusterConfig)
 	if err != nil {
 		return err
@@ -924,7 +924,7 @@ func (impl *ClusterServiceImpl) ConnectClustersInBatch(clusters []*ClusterBean, 
 		wg.Add(1)
 		go func(idx int, cluster *ClusterBean) {
 			defer wg.Done()
-			clusterConfig := cluster.ConvertClusterBeanToClusterConfig()
+			clusterConfig := cluster.GetClusterConfig()
 			restConfig, err := impl.K8sUtil.GetRestConfigByCluster(&clusterConfig)
 			if err != nil {
 				mutex.Lock()
