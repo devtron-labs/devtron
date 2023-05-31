@@ -113,6 +113,8 @@ func (impl ImageTaggingServiceImpl) GetTagsByAppId(appId int) ([]repository.Imag
 	}
 	return appReleaseTags, nil
 }
+
+// GetTaggingDataMapByAppId this will fetch a map of artifact vs []tags for given appId
 func (impl ImageTaggingServiceImpl) GetTaggingDataMapByAppId(appId int) (map[int]*ImageTaggingResponseDTO, error) {
 	tags, err := impl.GetTagsByAppId(appId)
 	if err != nil {
