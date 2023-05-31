@@ -65,17 +65,19 @@ type ImageTaggingAudit struct {
 }
 
 type ImageTaggingRepository interface {
-	SaveAuditLog(tx *pg.Tx, imageTaggingAudit *ImageTaggingAudit) error
-	SaveReleaseTag(tx *pg.Tx, imageTag *ImageTag) error
+	SaveAuditLogsInBulk(tx *pg.Tx, imageTaggingAudit []*ImageTaggingAudit) error
+	SaveReleaseTagsInBulk(tx *pg.Tx, imageTags []*ImageTag) error
 	SaveImageComment(tx *pg.Tx, imageComment *ImageComment) error
 	GetTagsByAppId(appId int) ([]ImageTag, error)
 	GetTagsByArtifactId(artifactId int) ([]ImageTag, error)
 	GetImageComment(artifactId int) (ImageComment, error)
 	GetImageCommentsByAppId(appId int) ([]ImageComment, error)
-	UpdateReleaseTag(tx *pg.Tx, imageTag *ImageTag) error
+	UpdateReleaseTagInBulk(tx *pg.Tx, imageTags []*ImageTag) error
 	UpdateImageComment(tx *pg.Tx, imageComment *ImageComment) error
-	DeleteReleaseTag(tx *pg.Tx, imageTag *ImageTag) error
-	GetDbConnection() *pg.DB
+	DeleteReleaseTagInBulk(tx *pg.Tx, imageTags []*ImageTag) error
+	StartTx() (*pg.Tx, error)
+	RollbackTx(tx *pg.Tx) error
+	CommitTx(tx *pg.Tx) error
 }
 
 type ImageTaggingRepositoryImpl struct {
@@ -88,15 +90,21 @@ func NewImageTaggingRepositoryImpl(db *pg.DB) *ImageTaggingRepositoryImpl {
 	}
 }
 
-func (impl *ImageTaggingRepositoryImpl) GetDbConnection() *pg.DB {
-	return impl.dbConnection
+func (impl *ImageTaggingRepositoryImpl) RollbackTx(tx *pg.Tx) error {
+	return tx.Rollback()
 }
-func (impl *ImageTaggingRepositoryImpl) SaveAuditLog(tx *pg.Tx, imageTaggingAudit *ImageTaggingAudit) error {
+func (impl *ImageTaggingRepositoryImpl) CommitTx(tx *pg.Tx) error {
+	return tx.Commit()
+}
+func (impl *ImageTaggingRepositoryImpl) StartTx() (*pg.Tx, error) {
+	return impl.dbConnection.Begin()
+}
+func (impl *ImageTaggingRepositoryImpl) SaveAuditLogsInBulk(tx *pg.Tx, imageTaggingAudit []*ImageTaggingAudit) error {
 	err := tx.Insert(tx, imageTaggingAudit)
 	return err
 }
-func (impl *ImageTaggingRepositoryImpl) SaveReleaseTag(tx *pg.Tx, imageTag *ImageTag) error {
-	err := tx.Insert(imageTag)
+func (impl *ImageTaggingRepositoryImpl) SaveReleaseTagsInBulk(tx *pg.Tx, imageTags []*ImageTag) error {
+	err := tx.Insert(imageTags)
 	return err
 }
 
@@ -138,9 +146,9 @@ func (impl *ImageTaggingRepositoryImpl) GetImageCommentsByAppId(appId int) ([]Im
 }
 
 //this will update the provided release tag
-func (impl *ImageTaggingRepositoryImpl) UpdateReleaseTag(tx *pg.Tx, imageTag *ImageTag) error {
+func (impl *ImageTaggingRepositoryImpl) UpdateReleaseTagInBulk(tx *pg.Tx, imageTags []*ImageTag) error {
 	//currently tags are not editable, can only be soft deleted or hard delete
-	err := tx.Update(imageTag)
+	err := tx.Update(imageTags)
 	return err
 }
 func (impl *ImageTaggingRepositoryImpl) UpdateImageComment(tx *pg.Tx, imageComment *ImageComment) error {
@@ -148,7 +156,7 @@ func (impl *ImageTaggingRepositoryImpl) UpdateImageComment(tx *pg.Tx, imageComme
 	return err
 }
 
-func (impl *ImageTaggingRepositoryImpl) DeleteReleaseTag(tx *pg.Tx, imageTag *ImageTag) error {
-	err := tx.Delete(imageTag)
+func (impl *ImageTaggingRepositoryImpl) DeleteReleaseTagInBulk(tx *pg.Tx, imageTags []*ImageTag) error {
+	err := tx.Delete(imageTags)
 	return err
 }

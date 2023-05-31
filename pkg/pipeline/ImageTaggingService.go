@@ -39,10 +39,10 @@ type ImageTaggingResponseDTO struct {
 }
 
 type ImageTaggingRequestDTO struct {
-	CreateTags     []repository.ImageTag
-	SoftDeleteTags []repository.ImageTag
+	CreateTags     []*repository.ImageTag
+	SoftDeleteTags []*repository.ImageTag
 	ImageComment   repository.ImageComment
-	HardDeleteTags []repository.ImageTag
+	HardDeleteTags []*repository.ImageTag
 }
 
 type ImageTaggingService interface {
@@ -221,11 +221,14 @@ func tagNameValidation(tag string) error {
 }
 func (impl ImageTaggingServiceImpl) CreateOrUpdateImageTagging(ciPipelineId, appId, artifactId, userId int, imageTaggingRequest *ImageTaggingRequestDTO) (*ImageTaggingResponseDTO, error) {
 
-	db := impl.imageTaggingRepo.GetDbConnection()
-	tx, err := db.Begin()
-	defer tx.Rollback()
+	tx, err := impl.imageTaggingRepo.StartTx()
+	defer func() {
+		err = impl.imageTaggingRepo.RollbackTx(tx)
+		if err != nil {
+			impl.logger.Errorw("error in rolling back transaction", "err", err, "ciPipelineId", ciPipelineId, "appId", appId, "artifactId", artifactId, "userId", userId, "imageTaggingRequest", imageTaggingRequest)
+		}
+	}()
 	if err != nil {
-		//add logs
 		impl.logger.Errorw("error in creating transaction", "err", err)
 		return nil, err
 	}
@@ -235,53 +238,52 @@ func (impl ImageTaggingServiceImpl) CreateOrUpdateImageTagging(ciPipelineId, app
 
 	//soft delete tags
 	softDeleteAuditTags := make([]string, len(imageTaggingRequest.SoftDeleteTags))
-	//do the db op in bulk
 	for i, tag := range imageTaggingRequest.SoftDeleteTags {
 		tag.AppId = appId
 		tag.Active = true
 		tag.ArtifactId = artifactId
-		err := impl.imageTaggingRepo.UpdateReleaseTag(tx, &tag)
-		if err != nil {
-			//log
-			impl.logger.Errorw("error in updating releaseTag", "err", err, "payLoad", tag)
-			return nil, err
-		}
 		softDeleteAuditTags[i] = tag.TagName
 	}
-
 	//hard delete tags
 	hardDeleteAuditTags := make([]string, len(imageTaggingRequest.HardDeleteTags))
-	//do the db op in bulk
 	for i, tag := range imageTaggingRequest.HardDeleteTags {
 		tag.AppId = appId
 		tag.ArtifactId = artifactId
-		err := impl.imageTaggingRepo.DeleteReleaseTag(tx, &tag)
-		if err != nil {
-			//log
-			impl.logger.Errorw("error in deleting releaseTag", "err", err, "payLoad", tag)
-			return nil, err
-		}
 		hardDeleteAuditTags[i] = tag.TagName
 	}
-
 	//save release tags
 	createAuditTags := make([]string, len(imageTaggingRequest.HardDeleteTags))
-	//do the db op in bulk
 	for i, tag := range imageTaggingRequest.CreateTags {
 		tag.AppId = appId
 		tag.ArtifactId = artifactId
-		err := impl.imageTaggingRepo.SaveReleaseTag(tx, &tag)
-		if err != nil {
-			//log
-			impl.logger.Errorw("error in saving releaseTag", "err", err, "releaseTag", tag)
-			return nil, err
-		}
 		createAuditTags[i] = tag.TagName
 	}
 
+	err = impl.imageTaggingRepo.UpdateReleaseTagInBulk(tx, imageTaggingRequest.SoftDeleteTags)
+	if err != nil {
+		impl.logger.Errorw("error in updating releaseTags in bulk", "err", err, "payLoad", imageTaggingRequest.SoftDeleteTags)
+		return nil, err
+	}
+
+	err = impl.imageTaggingRepo.DeleteReleaseTagInBulk(tx, imageTaggingRequest.HardDeleteTags)
+	if err != nil {
+		impl.logger.Errorw("error in deleting releaseTag in bulk", "err", err, "releaseTags", imageTaggingRequest.HardDeleteTags)
+		return nil, err
+	}
+
+	err = impl.imageTaggingRepo.SaveReleaseTagsInBulk(tx, imageTaggingRequest.CreateTags)
+	if err != nil {
+		impl.logger.Errorw("error in saving releaseTag", "err", err, "releaseTags", imageTaggingRequest.CreateTags)
+		return nil, err
+	}
+
+	//save or update comment
 	imageTaggingRequest.ImageComment.ArtifactId = artifactId
 	imageTaggingRequest.ImageComment.UserId = userId
-	//save or update comment
+	imageCommentAudit, err := impl.getImageCommentAudit(imageTaggingRequest.ImageComment.Comment, userId, artifactId)
+	if err != nil {
+		return nil, err
+	}
 	if imageTaggingRequest.ImageComment.Id > 0 {
 		savedComment, err := impl.imageTaggingRepo.GetImageComment(artifactId)
 		if err != nil {
@@ -292,75 +294,65 @@ func (impl ImageTaggingServiceImpl) CreateOrUpdateImageTagging(ciPipelineId, app
 		if savedComment.Comment != imageTaggingRequest.ImageComment.Comment {
 			err = impl.imageTaggingRepo.UpdateImageComment(tx, &imageTaggingRequest.ImageComment)
 			if err != nil {
-				//log
 				impl.logger.Errorw("error in updating imageComment ", "err", err, "ImageComment", imageTaggingRequest.ImageComment)
 				return nil, err
 			}
-			//save comment audit
-			err = impl.saveImageCommentAudit(tx, imageTaggingRequest.ImageComment.Comment, userId, artifactId, repository.ActionEdit)
-			if err != nil {
-				//log
-				impl.logger.Errorw("error in saving image tagging audit", "err", err, "comment", imageTaggingRequest.ImageComment.Comment, "action", "editAction")
-				return nil, err
-			}
+			//set comment audit
+			imageCommentAudit.Action = repository.ActionEdit
 		}
 	} else {
 		err := impl.imageTaggingRepo.SaveImageComment(tx, &imageTaggingRequest.ImageComment)
 		if err != nil {
-			//log
 			impl.logger.Errorw("error in saving imageComment ", "err", err, "ImageComment", imageTaggingRequest.ImageComment)
 			return nil, err
 		}
-		//save comment audit
-		err = impl.saveImageCommentAudit(tx, imageTaggingRequest.ImageComment.Comment, userId, artifactId, repository.ActionSave)
-		if err != nil {
-			//log
-			impl.logger.Errorw("error in saving image tagging audit", "err", err, "comment", imageTaggingRequest.ImageComment.Comment, "action", "editAction")
-			return nil, err
-		}
+		//set comment audit
+		imageCommentAudit.Action = repository.ActionSave
 	}
 
 	//save tags audit
-	err = impl.saveImageTagAudit(tx, softDeleteAuditTags, hardDeleteAuditTags, createAuditTags, userId, artifactId)
+	auditLogsList, err := impl.getImageTagAudits(softDeleteAuditTags, hardDeleteAuditTags, createAuditTags, userId, artifactId)
 	if err != nil {
-		//log
-		impl.logger.Errorw("error in saving image tagging audit", "err", err)
+		impl.logger.Errorw("error in getImageTagAudits", "err", err)
 		return nil, err
 	}
 
-	//commit transaction
-	err = tx.Commit()
+	//add imageCommentAudit into the auditLogs list before saving audit
+	auditLogsList = append(auditLogsList, imageCommentAudit)
+	err = impl.imageTaggingRepo.SaveAuditLogsInBulk(tx, auditLogsList)
 	if err != nil {
-		//log
-		impl.logger.Errorw("error in committing transaction", "err", err)
+		impl.logger.Errorw("error in SaveAuditLogInBulk", "err", err, "auditLogsList", auditLogsList)
+		return nil, err
+	}
+	//commit transaction
+	err = impl.imageTaggingRepo.CommitTx(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing transaction", "err", err, "ciPipelineId", ciPipelineId, "appId", appId, "artifactId", artifactId, "userId", userId, "imageTaggingRequest", imageTaggingRequest)
 		return nil, err
 	}
 	return impl.GetTagsData(ciPipelineId, appId, artifactId)
 }
 
-func (impl ImageTaggingServiceImpl) saveImageTagAudit(tx *pg.Tx, softDeleteTags, hardDeleteTags, createTags []string, userId, artifactId int) error {
-
+func (impl ImageTaggingServiceImpl) getImageTagAudits(softDeleteTags, hardDeleteTags, createTags []string, userId, artifactId int) ([]*repository.ImageTaggingAudit, error) {
+	auditLogsList := make([]*repository.ImageTaggingAudit, 0)
+	currentTime := time.Now()
 	if len(softDeleteTags) > 0 {
 		dataMap := make(map[string]interface{})
 		dataMap[TagsKey] = softDeleteTags
 		dataBytes, err := json.Marshal(&dataMap)
 		if err != nil {
 			impl.logger.Errorw("error in marshaling imageTagging data", "error", err, "data", dataMap)
-			return err
+			return auditLogsList, err
 		}
 		auditLog := &repository.ImageTaggingAudit{
 			Data:       string(dataBytes),
 			DataType:   repository.TagType,
 			UpdatedBy:  userId,
-			UpdatedOn:  time.Now(),
+			UpdatedOn:  currentTime,
 			ArtifactId: artifactId,
 			Action:     repository.ActionSoftDelete,
 		}
-		err = impl.imageTaggingRepo.SaveAuditLog(tx, auditLog)
-		if err != nil {
-			impl.logger.Errorw("error occured in saving image tagging audit", "err", err, "auditLog", auditLog)
-			return err
-		}
+		auditLogsList = append(auditLogsList, auditLog)
 	}
 
 	if len(hardDeleteTags) > 0 {
@@ -369,21 +361,17 @@ func (impl ImageTaggingServiceImpl) saveImageTagAudit(tx *pg.Tx, softDeleteTags,
 		dataBytes, err := json.Marshal(&dataMap)
 		if err != nil {
 			impl.logger.Errorw("error in marshaling imageTagging data", "error", err, "data", dataMap)
-			return err
+			return auditLogsList, err
 		}
 		auditLog := &repository.ImageTaggingAudit{
 			Data:       string(dataBytes),
 			DataType:   repository.TagType,
 			UpdatedBy:  userId,
-			UpdatedOn:  time.Now(),
+			UpdatedOn:  currentTime,
 			ArtifactId: artifactId,
 			Action:     repository.ActionHardDelete,
 		}
-		err = impl.imageTaggingRepo.SaveAuditLog(tx, auditLog)
-		if err != nil {
-			impl.logger.Errorw("error occurred in saving image tagging audit", "err", err, "auditLog", auditLog)
-			return err
-		}
+		auditLogsList = append(auditLogsList, auditLog)
 	}
 
 	if len(createTags) > 0 {
@@ -392,35 +380,31 @@ func (impl ImageTaggingServiceImpl) saveImageTagAudit(tx *pg.Tx, softDeleteTags,
 		dataBytes, err := json.Marshal(&dataMap)
 		if err != nil {
 			impl.logger.Errorw("error in marshaling imageTagging data", "error", err, "data", dataMap)
-			return err
+			return auditLogsList, err
 		}
 		auditLog := &repository.ImageTaggingAudit{
 			Data:       string(dataBytes),
 			DataType:   repository.TagType,
 			UpdatedBy:  userId,
-			UpdatedOn:  time.Now(),
+			UpdatedOn:  currentTime,
 			ArtifactId: artifactId,
 			Action:     repository.ActionSave,
 		}
-		err = impl.imageTaggingRepo.SaveAuditLog(tx, auditLog)
-		if err != nil {
-			impl.logger.Errorw("error occurred in saving image tagging audit", "err", err, "auditLog", auditLog)
-			return err
-		}
+		auditLogsList = append(auditLogsList, auditLog)
 	}
 
-	return nil
+	return auditLogsList, nil
 
 }
 
-func (impl ImageTaggingServiceImpl) saveImageCommentAudit(tx *pg.Tx, imageComment string, userId, artifactId int, action repository.ImageTaggingAction) error {
+func (impl ImageTaggingServiceImpl) getImageCommentAudit(imageComment string, userId, artifactId int) (*repository.ImageTaggingAudit, error) {
 
 	dataMap := make(map[string]string)
 	dataMap[CommentKey] = imageComment
 	dataBytes, err := json.Marshal(&dataMap)
 	if err != nil {
 		impl.logger.Errorw("error in marshaling imageTagging data", "error", err, "data", dataMap)
-		return err
+		return nil, err
 	}
 	auditLog := &repository.ImageTaggingAudit{
 		Data:       string(dataBytes),
@@ -428,15 +412,10 @@ func (impl ImageTaggingServiceImpl) saveImageCommentAudit(tx *pg.Tx, imageCommen
 		UpdatedBy:  userId,
 		UpdatedOn:  time.Now(),
 		ArtifactId: artifactId,
-		Action:     action,
-	}
-	err = impl.imageTaggingRepo.SaveAuditLog(tx, auditLog)
-	if err != nil {
-		impl.logger.Errorw("error occurred in saving image tagging audit", "err", err, "auditLog", auditLog)
-		return err
+		//Action:     action,
 	}
 
-	return nil
+	return auditLog, nil
 }
 
 func (impl ImageTaggingServiceImpl) GetProdEnvFromParentAndLinkedWorkflow(ciPipelineId int) (bool, error) {
