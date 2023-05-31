@@ -243,7 +243,7 @@ func (impl *ApplicationStatusHandlerImpl) updateArgoAppDeleteStatus(app *v1alpha
 		}
 	} else {
 		// devtron app
-		_, err = impl.pipelineBuilder.DeleteCdPipeline(&pipeline, context.Background(), bean.FORCE_DELETE, false, 0)
+		_, err = impl.pipelineBuilder.DeleteCdPipeline(&pipeline, context.Background(), bean.FORCE_DELETE, false, 1)
 		if err != nil {
 			impl.logger.Errorw("error in deleting cd pipeline", "err", err)
 			return err
