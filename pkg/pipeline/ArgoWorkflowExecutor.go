@@ -3,10 +3,12 @@ package pipeline
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned"
 	v1alpha12 "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
+	"github.com/argoproj/argo-workflows/v3/workflow/util"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"go.uber.org/zap"
@@ -27,6 +29,7 @@ const (
 
 type WorkflowExecutor interface {
 	ExecuteWorkflow(workflowTemplate bean.WorkflowTemplate) error
+	TerminateWorkflow(workflowName string, namespace string, clusterConfig *rest.Config) error
 }
 
 type ArgoWorkflowExecutor interface {
@@ -39,6 +42,22 @@ type ArgoWorkflowExecutorImpl struct {
 
 func NewArgoWorkflowExecutorImpl(logger *zap.SugaredLogger) *ArgoWorkflowExecutorImpl {
 	return &ArgoWorkflowExecutorImpl{logger: logger}
+}
+
+func (impl *ArgoWorkflowExecutorImpl) TerminateWorkflow(workflowName string, namespace string, clusterConfig *rest.Config) error {
+	impl.logger.Debugw("terminating wf", "name", workflowName)
+	wfClient, err := impl.getClientInstance(namespace, clusterConfig)
+	if err != nil {
+		impl.logger.Errorw("cannot build wf client", "wfName", workflowName, "err", err)
+		return err
+	}
+	_, err = wfClient.Get(context.Background(), workflowName, v1.GetOptions{})
+	if err != nil {
+		impl.logger.Errorw("cannot find workflow", "name", workflowName, "err", err)
+		return errors.New("cannot find workflow " + workflowName)
+	}
+	err = util.TerminateWorkflow(context.Background(), wfClient, workflowName)
+	return err
 }
 
 func (impl *ArgoWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.WorkflowTemplate) error {
