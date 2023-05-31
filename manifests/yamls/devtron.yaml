@@ -21,7 +21,6 @@ data:
   CD_PORT: "80" 
   CD_NAMESPACE: "devtroncd"
   EVENT_URL: "http://notifier-service.devtroncd:80/notify"
-  GIT_SENSOR_URL: "http://git-sensor-service.devtroncd:80"
   GIT_SENSOR_TIMEOUT: "300"
   GRAFANA_ORG_ID: "2"
   LENS_URL: "http://lens-service.devtroncd:80"
@@ -54,7 +53,7 @@ data:
   CD_NODE_TAINTS_VALUE: "ci"
   CD_ARTIFACT_LOCATION_FORMAT: "%d/%d.zip"
   DEFAULT_CD_NAMESPACE: "devtron-cd"
-  DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:23b66096-138-13413"
+  DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:beb32e4c-138-13775"
   DEFAULT_CD_TIMEOUT: "3600"
   WF_CONTROLLER_INSTANCE_ID: "devtron-runner"
   CI_LOGS_KEY_PREFIX: "ci-artifacts"
@@ -90,10 +89,11 @@ data:
   ENFORCER_CACHE: "true"
   ENFORCER_CACHE_EXPIRATION_IN_SEC: "345600"
   ENFORCER_MAX_BATCH_SIZE: "1"
-  APP_SYNC_IMAGE: "quay.io/devtron/chart-sync:6bdaa674-150-13276"
+  APP_SYNC_IMAGE: "quay.io/devtron/chart-sync:04a03402-373-13820"
   DEVTRON_SECRET_NAME: "devtron-secret"
-  
-
+  GIT_SENSOR_PROTOCOL: GRPC
+  GIT_SENSOR_URL: git-sensor-service.devtroncd:90
+  ENABLE_BUILD_CONTEXT: "false"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -162,7 +162,7 @@ spec:
         runAsUser: 1000
       containers:
         - name: devtron
-          image: "quay.io/devtron/devtron:9f3934ee-434-13409"
+          image: "quay.io/devtron/devtron:bc35eb7e-434-13812"
           securityContext:
             allowPrivilegeEscalation: false
             runAsUser: 1000
