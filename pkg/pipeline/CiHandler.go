@@ -151,27 +151,27 @@ type CiPipelineMaterialResponse struct {
 }
 
 type WorkflowResponse struct {
-	Id                  int                              `json:"id"`
-	Name                string                           `json:"name"`
-	Status              string                           `json:"status"`
-	PodStatus           string                           `json:"podStatus"`
-	Message             string                           `json:"message"`
-	StartedOn           time.Time                        `json:"startedOn"`
-	FinishedOn          time.Time                        `json:"finishedOn"`
-	CiPipelineId        int                              `json:"ciPipelineId"`
-	Namespace           string                           `json:"namespace"`
-	LogLocation         string                           `json:"logLocation"`
-	BlobStorageEnabled  bool                             `json:"blobStorageEnabled"`
-	GitTriggers         map[int]pipelineConfig.GitCommit `json:"gitTriggers"`
-	CiMaterials         []CiPipelineMaterialResponse     `json:"ciMaterials"`
-	TriggeredBy         int32                            `json:"triggeredBy"`
-	Artifact            string                           `json:"artifact"`
-	TriggeredByEmail    string                           `json:"triggeredByEmail"`
-	Stage               string                           `json:"stage"`
-	ArtifactId          int                              `json:"artifactId"`
-	IsArtifactUploaded  bool                             `json:"isArtifactUploaded"`
-	ArtifactReleaseTags []repository2.ImageTag           `json:"artifactReleaseTags"`
-	ArtifactComment     repository2.ImageComment         `json:"artifactComment"`
+	Id                 int                              `json:"id"`
+	Name               string                           `json:"name"`
+	Status             string                           `json:"status"`
+	PodStatus          string                           `json:"podStatus"`
+	Message            string                           `json:"message"`
+	StartedOn          time.Time                        `json:"startedOn"`
+	FinishedOn         time.Time                        `json:"finishedOn"`
+	CiPipelineId       int                              `json:"ciPipelineId"`
+	Namespace          string                           `json:"namespace"`
+	LogLocation        string                           `json:"logLocation"`
+	BlobStorageEnabled bool                             `json:"blobStorageEnabled"`
+	GitTriggers        map[int]pipelineConfig.GitCommit `json:"gitTriggers"`
+	CiMaterials        []CiPipelineMaterialResponse     `json:"ciMaterials"`
+	TriggeredBy        int32                            `json:"triggeredBy"`
+	Artifact           string                           `json:"artifact"`
+	TriggeredByEmail   string                           `json:"triggeredByEmail"`
+	Stage              string                           `json:"stage"`
+	ArtifactId         int                              `json:"artifactId"`
+	IsArtifactUploaded bool                             `json:"isArtifactUploaded"`
+	ImageReleaseTags   []repository2.ImageTag           `json:"imageReleaseTags"`
+	ImageComment       repository2.ImageComment         `json:"imageComment"`
 }
 
 type GitTriggerInfoResponse struct {
@@ -183,6 +183,7 @@ type GitTriggerInfoResponse struct {
 	EnvironmentId    int                          `json:"environmentId"`
 	EnvironmentName  string                       `json:"environmentName"`
 	Default          bool                         `json:"default,omitempty"`
+	ImageTaggingData ImageTaggingResponseDTO      `json:"imageTaggingData"`
 }
 
 type Trigger struct {
@@ -499,8 +500,8 @@ func (impl *CiHandlerImpl) GetBuildHistory(pipelineId int, appId int, offset int
 			IsArtifactUploaded: w.IsArtifactUploaded,
 		}
 		if imageTaggingDataMap[w.CiArtifactId] != nil {
-			wfResponse.ArtifactReleaseTags = imageTaggingDataMap[w.CiArtifactId].ImageReleaseTags //if artifact is not yet created,empty list will be sent
-			wfResponse.ArtifactComment = imageTaggingDataMap[w.CiArtifactId].ImageComment
+			wfResponse.ImageReleaseTags = imageTaggingDataMap[w.CiArtifactId].ImageReleaseTags //if artifact is not yet created,empty list will be sent
+			wfResponse.ImageComment = imageTaggingDataMap[w.CiArtifactId].ImageComment
 		}
 		ciWorkLowResponses = append(ciWorkLowResponses, wfResponse)
 	}
@@ -1282,6 +1283,11 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 			ciMaterialsArr = append(ciMaterialsArr, res)
 		}
 	}
+	imageTaggingData, err := impl.imageTaggingService.GetTagsData(ciPipeline.Id, ciPipeline.AppId, ciArtifactId)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching imageTaggingData", "err", err, "ciPipelineId", ciPipeline.Id, "appId", ciPipeline.AppId, "ciArtifactId", ciArtifactId)
+		return &GitTriggerInfoResponse{}, err
+	}
 	gitTriggerInfoResponse := &GitTriggerInfoResponse{
 		//GitTriggers:      workflow.GitTriggers,
 		CiMaterials:      ciMaterialsArr,
@@ -1292,6 +1298,7 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 		EnvironmentName:  deployDetail.EnvironmentName,
 		LastDeployedTime: deployDetail.LastDeployedTime,
 		Default:          deployDetail.Default,
+		ImageTaggingData: *imageTaggingData,
 	}
 	return gitTriggerInfoResponse, nil
 }

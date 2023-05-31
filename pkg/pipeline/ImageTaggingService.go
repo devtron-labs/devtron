@@ -33,8 +33,8 @@ const CommentKey = "comments"
 
 type ImageTaggingResponseDTO struct {
 	ImageReleaseTags []repository.ImageTag   `json:"imageReleaseTags"`
-	AppReleaseTags   []repository.ImageTag   `json:"appReleaseTags"`
-	ImageComment     repository.ImageComment `json:"imageComments"`
+	AppReleaseTags   []string                `json:"appReleaseTags"`
+	ImageComment     repository.ImageComment `json:"imageComment"`
 	ProdEnvExists    bool                    `json:"prodEnvExists"`
 }
 
@@ -46,6 +46,11 @@ type ImageTaggingRequestDTO struct {
 }
 
 type ImageTaggingService interface {
+	// GetTagsData returns the following fields
+	//ImageReleaseTags -> this will get the tags of the artifact,
+	//AppReleaseTags -> all the tags of the given appId,
+	//imageComment -> comment of the given artifactId,
+	// ProdEnvExists -> implies the existence of prod environment in any workflow of given ciPipelineId or its child ciPipeline's
 	GetTagsData(ciPipelineId, appId, artifactId int) (*ImageTaggingResponseDTO, error)
 	CreateUpdateImageTagging(ciPipelineId, appId, artifactId, userId int, imageTaggingRequest *ImageTaggingRequestDTO) (*ImageTaggingResponseDTO, error)
 	GetProdEnvFromParentAndLinkedWorkflow(ciPipelineId int) (bool, error)
@@ -79,6 +84,11 @@ func NewImageTaggingServiceImpl(imageTaggingRepo repository.ImageTaggingReposito
 	}
 }
 
+// GetTagsData returns the following fields
+//ImageReleaseTags -> this will get the tags of the artifact,
+//AppReleaseTags -> all the tags of the given appId,
+//imageComment -> comment of the given artifactId,
+// ProdEnvExists -> implies the existence of prod environment in any workflow of given ciPipelineId or its child ciPipeline's
 func (impl ImageTaggingServiceImpl) GetTagsData(ciPipelineId, appId, artifactId int) (*ImageTaggingResponseDTO, error) {
 	resp := &ImageTaggingResponseDTO{}
 	imageComment, err := impl.imageTaggingRepo.GetImageComment(artifactId)
@@ -105,7 +115,7 @@ func (impl ImageTaggingServiceImpl) GetTagsData(ciPipelineId, appId, artifactId 
 		impl.logger.Errorw("error in GetProdEnvFromParentAndLinkedWorkflow", "err", err, "ciPipelineId", ciPipelineId)
 		return resp, err
 	}
-	resp.AppReleaseTags = appReleaseTags
+	resp.AppReleaseTags = GetUniqueTagsFromImageTags(appReleaseTags)
 	resp.ImageReleaseTags = imageReleaseTags
 	resp.ImageComment = imageComment
 	resp.ProdEnvExists = prodEnvExists
@@ -481,4 +491,12 @@ func (impl ImageTaggingServiceImpl) GetProdEnvByCdPipelineId(pipelineId int) (bo
 
 	return false, nil
 
+}
+
+func GetUniqueTagsFromImageTags(imageTags []repository.ImageTag) []string {
+	uniqueTags := make([]string, len(imageTags))
+	for i, tag := range imageTags {
+		uniqueTags[i] = tag.TagName
+	}
+	return uniqueTags
 }

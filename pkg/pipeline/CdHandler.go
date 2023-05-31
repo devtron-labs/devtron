@@ -1019,8 +1019,8 @@ func (impl *CdHandlerImpl) converterWFRList(imageTaggingDataMap map[int]*ImageTa
 		ids = append(ids, item.TriggeredBy)
 		convertedWFR := impl.converterWFR(item)
 		if imageTaggingDataMap[convertedWFR.CiArtifactId] != nil {
-			convertedWFR.ArtifactReleaseTags = imageTaggingDataMap[convertedWFR.CiArtifactId].ImageReleaseTags
-			convertedWFR.ArtifactComment = imageTaggingDataMap[convertedWFR.CiArtifactId].ImageComment
+			convertedWFR.ImageReleaseTags = imageTaggingDataMap[convertedWFR.CiArtifactId].ImageReleaseTags
+			convertedWFR.ImageComment = imageTaggingDataMap[convertedWFR.CiArtifactId].ImageComment
 		}
 		workflowList = append(workflowList, convertedWFR)
 	}
