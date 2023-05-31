@@ -512,6 +512,10 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 	}
 
 	if bean.ServerUrl != model.ServerUrl || bean.InsecureSkipTLSVerify != model.InsecureSkipTlsVerify || dbConfigBearerToken != requestConfigBearerToken || dbConfigTlsKey != requestConfigTlsKey || dbConfigCertData != requestConfigCertData || dbConfigCAData != requestConfigCAData {
+		if bean.ClusterName == "default_cluster" {
+			impl.logger.Errorw("default_cluster is reserved by the system and cannot be updated, default_cluster", "name", bean.ClusterName)
+			return nil, fmt.Errorf("default_cluster is reserved by the system and cannot be updated")
+		}
 		bean.HasConfigOrUrlChanged = true
 		//validating config
 		err := impl.CheckIfConfigIsValid(bean)
