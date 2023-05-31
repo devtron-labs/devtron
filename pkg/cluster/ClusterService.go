@@ -83,6 +83,18 @@ type ClusterBean struct {
 	ClusterUpdated          bool                       `json:"clusterUpdated"`
 }
 
+func (impl ClusterBean) ConvertClusterBeanToClusterConfig() util.ClusterConfig {
+	return util.ClusterConfig{
+		ClusterName:           impl.ClusterName,
+		Host:                  impl.ServerUrl,
+		BearerToken:           impl.Config["bearer_token"],
+		InsecureSkipTLSVerify: impl.InsecureSkipTLSVerify,
+		KeyData:               impl.Config["tls_key"],
+		CertData:              impl.Config["cert_data"],
+		CAData:                impl.Config["cert_auth_data"],
+	}
+}
+
 type UserInfo struct {
 	UserName          string            `json:"userName,omitempty"`
 	Config            map[string]string `json:"config,omitempty"`
@@ -742,16 +754,8 @@ func (impl ClusterServiceImpl) DeleteFromDb(bean *ClusterBean, userId int32) err
 }
 
 func (impl ClusterServiceImpl) CheckIfConfigIsValid(cluster *ClusterBean) error {
-
-	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(&util.ClusterConfig{
-		ClusterName:           cluster.ClusterName,
-		Host:                  cluster.ServerUrl,
-		BearerToken:           cluster.Config["bearer_token"],
-		InsecureSkipTLSVerify: cluster.InsecureSkipTLSVerify,
-		KeyData:               cluster.Config["tls_key"],
-		CertData:              cluster.Config["cert_data"],
-		CAData:                cluster.Config["cert_auth_data"],
-	})
+	clusterConfig := cluster.ConvertClusterBeanToClusterConfig()
+	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(&clusterConfig)
 	if err != nil {
 		return err
 	}
@@ -920,16 +924,8 @@ func (impl *ClusterServiceImpl) ConnectClustersInBatch(clusters []*ClusterBean, 
 		wg.Add(1)
 		go func(idx int, cluster *ClusterBean) {
 			defer wg.Done()
-
-			restConfig, err := impl.K8sUtil.GetRestConfigByCluster(&util.ClusterConfig{
-				ClusterName:           cluster.ClusterName,
-				Host:                  cluster.ServerUrl,
-				BearerToken:           cluster.Config["bearer_token"],
-				InsecureSkipTLSVerify: cluster.InsecureSkipTLSVerify,
-				KeyData:               cluster.Config["tls_key"],
-				CertData:              cluster.Config["cert_data"],
-				CAData:                cluster.Config["cert_auth_data"],
-			})
+			clusterConfig := cluster.ConvertClusterBeanToClusterConfig()
+			restConfig, err := impl.K8sUtil.GetRestConfigByCluster(&clusterConfig)
 			if err != nil {
 				mutex.Lock()
 				respMap[cluster.Id] = err
