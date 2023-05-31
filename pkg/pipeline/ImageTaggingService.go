@@ -208,6 +208,7 @@ func (impl ImageTaggingServiceImpl) CreateUpdateImageTagging(ciPipelineId, appId
 
 	//soft delete tags
 	softDeleteAuditTags := make([]string, len(imageTaggingRequest.SoftDeleteTags))
+	//do the db op in bulk
 	for i, tag := range imageTaggingRequest.SoftDeleteTags {
 		tag.AppId = appId
 		tag.Active = true
@@ -223,6 +224,7 @@ func (impl ImageTaggingServiceImpl) CreateUpdateImageTagging(ciPipelineId, appId
 
 	//hard delete tags
 	hardDeleteAuditTags := make([]string, len(imageTaggingRequest.HardDeleteTags))
+	//do the db op in bulk
 	for i, tag := range imageTaggingRequest.HardDeleteTags {
 		tag.AppId = appId
 		tag.ArtifactId = artifactId
@@ -237,6 +239,7 @@ func (impl ImageTaggingServiceImpl) CreateUpdateImageTagging(ciPipelineId, appId
 
 	//save release tags
 	createAuditTags := make([]string, len(imageTaggingRequest.HardDeleteTags))
+	//do the db op in bulk
 	for i, tag := range imageTaggingRequest.CreateTags {
 		tag.AppId = appId
 		tag.ArtifactId = artifactId
@@ -433,7 +436,7 @@ func (impl ImageTaggingServiceImpl) GetProdEnvFromParentAndLinkedWorkflow(ciPipe
 	}
 
 	for _, env := range envs {
-		//env id prod ,return true
+		//env is prod ,return true
 		if env.Default {
 			prodEnvExists = true
 			break
