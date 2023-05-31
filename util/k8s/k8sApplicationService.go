@@ -733,7 +733,15 @@ func (impl *K8sApplicationServiceImpl) RotatePods(ctx context.Context, request *
 		impl.logger.Errorw("error in getting clusterBean by cluster Id", "clusterId", clusterId, "err", err)
 		return nil, err
 	}
-	restConfig, err := impl.GetRestConfigByCluster(ctx, clusterBean)
+	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(&util.ClusterConfig{
+		ClusterName:           clusterBean.ClusterName,
+		Host:                  clusterBean.ServerUrl,
+		BearerToken:           clusterBean.Config["bearer_token"],
+		InsecureSkipTLSVerify: clusterBean.InsecureSkipTLSVerify,
+		KeyData:               clusterBean.Config["tls_key"],
+		CertData:              clusterBean.Config["cert_data"],
+		CAData:                clusterBean.Config["cert_auth_data"],
+	})
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster", "clusterId", clusterId, "err", err)
 		return nil, err
