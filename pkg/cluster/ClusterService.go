@@ -69,6 +69,7 @@ type ClusterBean struct {
 	HasConfigOrUrlChanged   bool                       `json:"-"`
 	ErrorInConnecting       string                     `json:"errorInConnecting,omitempty"`
 	IsCdArgoSetup           bool                       `json:"isCdArgoSetup"`
+	IsVirtualCluster        bool                       `json:"isVirtualCluster"`
 }
 
 type PrometheusAuth struct {
@@ -279,6 +280,7 @@ func (impl *ClusterServiceImpl) FindOne(clusterName string) (*ClusterBean, error
 		Active:                 model.Active,
 		Config:                 model.Config,
 		K8sVersion:             model.K8sVersion,
+		IsVirtualCluster:       model.IsVirtualCluster,
 	}
 	return bean, nil
 }
@@ -297,6 +299,7 @@ func (impl *ClusterServiceImpl) FindOneActive(clusterName string) (*ClusterBean,
 		Active:                 model.Active,
 		Config:                 model.Config,
 		K8sVersion:             model.K8sVersion,
+		IsVirtualCluster:       model.IsVirtualCluster,
 	}
 	return bean, nil
 }
@@ -329,6 +332,7 @@ func (impl *ClusterServiceImpl) FindAll() ([]*ClusterBean, error) {
 			K8sVersion:             m.K8sVersion,
 			ErrorInConnecting:      m.ErrorInConnecting,
 			Config:                 m.Config,
+			IsVirtualCluster:       m.IsVirtualCluster,
 		})
 	}
 	return beans, nil
@@ -351,6 +355,7 @@ func (impl *ClusterServiceImpl) FindAllActive() ([]ClusterBean, error) {
 			Config:                 m.Config,
 			K8sVersion:             m.K8sVersion,
 			ErrorInConnecting:      m.ErrorInConnecting,
+			IsVirtualCluster:       m.IsVirtualCluster,
 		})
 	}
 	return beans, nil
@@ -370,6 +375,7 @@ func (impl *ClusterServiceImpl) FindById(id int) (*ClusterBean, error) {
 		Active:                 model.Active,
 		Config:                 model.Config,
 		K8sVersion:             model.K8sVersion,
+		IsVirtualCluster:       model.IsVirtualCluster,
 	}
 	prometheusAuth := &PrometheusAuth{
 		UserName:      model.PUserName,
@@ -408,6 +414,7 @@ func (impl *ClusterServiceImpl) FindByIds(ids []int) ([]ClusterBean, error) {
 			Active:                 model.Active,
 			Config:                 model.Config,
 			K8sVersion:             model.K8sVersion,
+			IsVirtualCluster:       model.IsVirtualCluster,
 		})
 	}
 	return beans, nil
@@ -579,6 +586,7 @@ func (impl *ClusterServiceImpl) FindAllForAutoComplete() ([]ClusterBean, error) 
 			ClusterName:       m.ClusterName,
 			ErrorInConnecting: m.ErrorInConnecting,
 			IsCdArgoSetup:     m.CdArgoSetup,
+			IsVirtualCluster:  m.IsVirtualCluster,
 		})
 	}
 	return beans, nil
@@ -597,13 +605,15 @@ func (impl *ClusterServiceImpl) buildInformer() {
 	}
 	var clusterInfo []*bean2.ClusterInfo
 	for _, model := range models {
-		bearerToken := model.Config["bearer_token"]
-		clusterInfo = append(clusterInfo, &bean2.ClusterInfo{
-			ClusterId:   model.Id,
-			ClusterName: model.ClusterName,
-			BearerToken: bearerToken,
-			ServerUrl:   model.ServerUrl,
-		})
+		if !model.IsVirtualCluster {
+			bearerToken := model.Config["bearer_token"]
+			clusterInfo = append(clusterInfo, &bean2.ClusterInfo{
+				ClusterId:   model.Id,
+				ClusterName: model.ClusterName,
+				BearerToken: bearerToken,
+				ServerUrl:   model.ServerUrl,
+			})
+		}
 	}
 	impl.K8sInformerFactory.BuildInformer(clusterInfo)
 }
