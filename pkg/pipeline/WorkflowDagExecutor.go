@@ -422,10 +422,11 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 			return err
 		}
 	}
+	cdWorkflowExecutorType := impl.cdConfig.CdWorkflowExecutorType
 	runner := &pipelineConfig.CdWorkflowRunner{
 		Name:               pipeline.Name,
 		WorkflowType:       bean.CD_WORKFLOW_TYPE_PRE,
-		ExecutorType:       pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
+		ExecutorType:       cdWorkflowExecutorType,
 		Status:             pipelineConfig.WorkflowStarting, //starting
 		TriggeredBy:        triggeredBy,
 		StartedOn:          triggeredAt,
@@ -462,7 +463,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 	}
 	cdStageWorkflowRequest.StageType = PRE
 	_, span = otel.Tracer("orchestrator").Start(ctx, "cdWorkflowService.SubmitWorkflow")
-	_, err = impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest, pipeline, env)
+	err = impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest, pipeline, env)
 	span.End()
 
 	err = impl.sendPreStageNotification(ctx, cdWf, pipeline)
@@ -514,7 +515,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 	runner := &pipelineConfig.CdWorkflowRunner{
 		Name:               pipeline.Name,
 		WorkflowType:       bean.CD_WORKFLOW_TYPE_POST,
-		ExecutorType:       pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
+		ExecutorType:       impl.cdConfig.CdWorkflowExecutorType,
 		Status:             pipelineConfig.WorkflowStarting,
 		TriggeredBy:        triggeredBy,
 		StartedOn:          triggeredAt,
@@ -544,7 +545,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		return err
 	}
 	cdStageWorkflowRequest.StageType = POST
-	_, err = impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest, pipeline, env)
+	err = impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest, pipeline, env)
 	if err != nil {
 		impl.logger.Errorw("error in submitting workflow", "err", err, "cdStageWorkflowRequest", cdStageWorkflowRequest, "pipeline", pipeline, "env", env)
 		return err
@@ -589,6 +590,8 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
 	}
+
+	workflowExecutor := runner.ExecutorType
 
 	artifact, err := impl.ciArtifactRepository.Get(cdWf.CiArtifactId)
 	if err != nil {
@@ -728,6 +731,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		OrchestratorHost:  impl.cdConfig.OrchestratorHost,
 		OrchestratorToken: impl.cdConfig.OrchestratorToken,
 		CloudProvider:     impl.cdConfig.CloudProvider,
+		WorkflowExecutor:  workflowExecutor,
 	}
 	extraEnvVariables := make(map[string]string)
 	env, err := impl.envRepository.FindById(cdPipeline.EnvironmentId)
