@@ -910,6 +910,7 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		Stage:              workflow.WorkflowType,
 		GitTriggers:        gitTriggers,
 		BlobStorageEnabled: workflow.BlobStorageEnabled,
+		ArtifactId:         workflow.CiArtifactId,
 	}
 	return workflowResponse, nil
 
