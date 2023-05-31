@@ -33,9 +33,10 @@ type JobManifestTemplate struct {
 	Container               v1.Container           `json:"Container"`
 	ConfigMaps              []bean.ConfigSecretMap `json:"ConfigMaps"`
 	ConfigSecrets           []bean.ConfigSecretMap `json:"ConfigSecrets"`
+	Volumes                 []v1.Volume            `json:"Volumes"`
 	Toleration              []v1.Toleration        `json:"Toleration"`
 	Affinity                v1.Affinity            `json:"Affinity"`
 	NodeSelector            map[string]string      `json:"NodeSelector"`
-	ActiveDeadlineSeconds   *int32                 `json:"ActiveDeadlineSeconds"`
+	ActiveDeadlineSeconds   *int64                 `json:"ActiveDeadlineSeconds"`
 	TTLSecondsAfterFinished *int32                 `json:"TTLSecondsAfterFinished"`
 }

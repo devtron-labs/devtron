@@ -5,6 +5,8 @@ metadata:
   labels:
     {{- include "helm-job.labels" . | nindent 4 }}
 spec:
+  ttlSecondsAfterFinished: {{ .Values.TTLSecondsAfterFinished }}
+  activeDeadlineSeconds: {{ .Values.ActiveDeadlineSeconds }}
   template:
     metadata:
       {{- with .Values.podAnnotations }}
@@ -26,7 +28,8 @@ spec:
         - name: {{ .Values.Container.name }}
           securityContext:
             {{- toYaml .Values.Container.securityContext | nindent 12 }}
-          args: {{ .Values.Container.args }}
+          args:
+            {{- toYaml .Values.Container.args | nindent 12 }}
           image: {{ .Values.Container.image }}
           imagePullPolicy: {{ .Values.Container.imagePullPolicy }}
           ports:
@@ -47,19 +50,48 @@ spec:
           {{- range .Values.ConfigMaps }}
           {{- if eq .type "environment" }}
           - configMapRef:
-              {{- if eq .external false }}
               name: {{ .name }}
-              {{- end }}
           {{- end }}
           {{- end }}
           {{- range .Values.ConfigSecrets }}
           {{- if eq .type "environment" }}
           - secretRef:
-              {{- if eq .external false}}
               name: {{ .name }}
-              {{- end }}
           {{- end }}
           {{- end }}
+
+          volumeMounts:
+          {{- range .Values.ConfigMaps }}
+          {{- if eq .type "volume" }}
+          - name: {{ .name }}-vol
+            mountPath: {{ .mountPath }}
+          {{- end }}
+          {{- end }}
+
+          {{- range .Values.ConfigSecrets }}
+          {{- if eq .type "volume" }}
+          - name: {{ .name }}-vol
+            mountPath: {{ .mountPath }}
+          {{- end }}
+          {{- end }}
+
+      volumes:
+      {{- range .Values.ConfigMaps }}
+      {{- if eq .type "volume"}}
+        - name: {{ .name}}-vol
+          configMap:
+            name: {{ .name}}
+      {{- end }}
+      {{- end }}
+
+      {{- range .Values.ConfigSecrets }}
+      {{- if eq .type "volume"}}
+        - name: {{ .name}}-vol
+          secret:
+            secretName: {{ .name}}
+      {{- end }}
+      {{- end }}
+
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

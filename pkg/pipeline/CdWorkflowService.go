@@ -283,11 +283,14 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	jobHelmChartPath := ""
 	if util2.IsManifestDownload(pipeline.DeploymentAppType) {
 		jobManifestTemplate := &bean3.JobManifestTemplate{
-			NameSpace:     workflowRequest.Namespace,
-			Container:     workflowMainContainer,
-			ConfigSecrets: workflowSecrets,
-			ConfigMaps:    workflowConfigMaps,
-			NodeSelector:  workflowTemplate.NodeSelector,
+			NameSpace:               workflowRequest.Namespace,
+			Container:               workflowMainContainer,
+			ConfigSecrets:           workflowSecrets,
+			ConfigMaps:              workflowConfigMaps,
+			NodeSelector:            workflowTemplate.NodeSelector,
+			Toleration:              workflowTemplate.Tolerations,
+			TTLSecondsAfterFinished: workflowTemplate.TTLValue,
+			ActiveDeadlineSeconds:   workflowTemplate.ActiveDeadlineSeconds,
 		}
 		jobHelmChartPath, err = impl.TriggerDryRun(jobManifestTemplate, pipeline, env)
 	} else {
@@ -465,19 +468,21 @@ func (impl *CdWorkflowServiceImpl) TriggerDryRun(jobManifestTemplate *bean3.JobM
 		return builtChartPath, err
 	}
 
-	jobValues := string(jobManifestJson)
-	impl.Logger.Info(jobValues)
+	//jobValues := string(jobManifestJson)
+	//impl.Logger.Info(jobValues)
 
 	jobHelmChartPath := path.Join(string(impl.refChartDir), "helm-job-template")
 	builtChartPath, err = impl.chartTemplateService.BuildChart(context.Background(),
 		&chart.Metadata{ApiVersion: "v2", Name: "helm-job", Version: "0.1.0"},
 		jobHelmChartPath)
 
+	impl.Logger.Debugw(builtChartPath)
+
 	valuesFilePath := path.Join(builtChartPath, "valuesOverride.json")
 	err = ioutil.WriteFile(valuesFilePath, jobManifestJson, 0600)
 	if err != nil {
 		return builtChartPath, nil
 	}
-	impl.Logger.Debugw(builtChartPath)
+
 	return builtChartPath, nil
 }
