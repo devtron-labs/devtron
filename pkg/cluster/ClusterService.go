@@ -1049,10 +1049,12 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 
 		if clusterName != "" {
 			clusterBeanObject.ClusterName = clusterName
-		} else if clusterBeanObject.ClusterName == "default_cluster" {
-			clusterBeanObject.ErrorInConnecting = "default_cluster is reserved by the system and cannot be updated"
 		} else {
 			clusterBeanObject.ErrorInConnecting = "cluster name missing from kubeconfig"
+		}
+
+		if clusterBeanObject.ClusterName == "default_cluster" {
+			clusterBeanObject.ErrorInConnecting = "default_cluster is reserved by the system and cannot be updated"
 		}
 
 		if (clusterObj == nil || clusterObj.Server == "") && (clusterBeanObject.ErrorInConnecting == "") {
