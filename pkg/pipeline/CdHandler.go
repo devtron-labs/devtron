@@ -724,27 +724,24 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 		}
 		parentCiArtifact := make(map[int]int)
 		isLinked := false
-		if len(ciArtifactIds) > 0 {
-			ciArtifacts, err := impl.ciArtifactRepository.GetArtifactParentCiAndWorkflowDetailsByIds(ciArtifactIds)
-			if err != nil || len(ciArtifacts) == 0 {
-				impl.Logger.Errorw("error fetching artifact data", "err", err)
-				return cdWorkflowArtifact, err
+		ciArtifacts, err := impl.ciArtifactRepository.GetArtifactParentCiAndWorkflowDetailsByIds(ciArtifactIds)
+		if err != nil || len(ciArtifacts) == 0 {
+			impl.Logger.Errorw("error fetching artifact data", "err", err)
+			return cdWorkflowArtifact, err
+		}
+		var newCiArtifactIds []int
+		for _, ciArtifact := range ciArtifacts {
+			if ciArtifact.ParentCiArtifact > 0 && ciArtifact.WorkflowId == nil {
+				isLinked = true
+				newCiArtifactIds = append(newCiArtifactIds, ciArtifact.ParentCiArtifact)
+				parentCiArtifact[ciArtifact.Id] = ciArtifact.ParentCiArtifact
+			} else {
+				newCiArtifactIds = append(newCiArtifactIds, ciArtifact.Id)
 			}
-			var newCiArtifactIds []int
-			for _, ciArtifact := range ciArtifacts {
-				if ciArtifact.ParentCiArtifact > 0 && ciArtifact.WorkflowId == nil {
-					isLinked = true
-					newCiArtifactIds = append(newCiArtifactIds, ciArtifact.ParentCiArtifact)
-					parentCiArtifact[ciArtifact.Id] = ciArtifact.ParentCiArtifact
-				} else {
-					newCiArtifactIds = append(newCiArtifactIds, ciArtifact.Id)
-				}
-			}
-			// handling linked ci pipeline
-			if isLinked {
-				ciArtifactIds = newCiArtifactIds
-			}
-
+		}
+		// handling linked ci pipeline
+		if isLinked {
+			ciArtifactIds = newCiArtifactIds
 		}
 
 		ciWfs, err := impl.ciWorkflowRepository.FindAllLastTriggeredWorkflowByArtifactId(ciArtifactIds)
@@ -768,15 +765,15 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 		}
 
 		var ciMaterialsArr []pipelineConfig.CiPipelineMaterialResponse
-		for _, m := range ciMaterials {
+		for _, ciMaterial := range ciMaterials {
 			res := pipelineConfig.CiPipelineMaterialResponse{
-				Id:              m.Id,
-				GitMaterialId:   m.GitMaterialId,
-				GitMaterialName: m.GitMaterial.Name[strings.Index(m.GitMaterial.Name, "-")+1:],
-				Type:            string(m.Type),
-				Value:           m.Value,
-				Active:          m.Active,
-				Url:             m.GitMaterial.Url,
+				Id:              ciMaterial.Id,
+				GitMaterialId:   ciMaterial.GitMaterialId,
+				GitMaterialName: ciMaterial.GitMaterial.Name[strings.Index(ciMaterial.GitMaterial.Name, "-")+1:],
+				Type:            string(ciMaterial.Type),
+				Value:           ciMaterial.Value,
+				Active:          ciMaterial.Active,
+				Url:             ciMaterial.GitMaterial.Url,
 			}
 			ciMaterialsArr = append(ciMaterialsArr, res)
 		}
