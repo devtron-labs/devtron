@@ -41,6 +41,7 @@ type K8sApplicationRestHandler interface {
 	GetAllApiResources(w http.ResponseWriter, r *http.Request)
 	GetResourceList(w http.ResponseWriter, r *http.Request)
 	ApplyResources(w http.ResponseWriter, r *http.Request)
+	RotatePod(w http.ResponseWriter, r *http.Request)
 }
 
 type K8sApplicationRestHandlerImpl struct {
@@ -71,6 +72,48 @@ func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger,
 		helmAppService:         helmAppService,
 		userService:            userService,
 	}
+}
+
+func (handler *K8sApplicationRestHandlerImpl) RotatePod(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	appIdString := vars["appId"]
+	if appIdString == "" {
+		common.WriteJsonResp(w, fmt.Errorf("empty appid in request"), nil, http.StatusBadRequest)
+		return
+	}
+	decoder := json.NewDecoder(r.Body)
+	podRotateRequest := &RotatePodRequest{}
+	err := decoder.Decode(podRotateRequest)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	appIdentifier, err := handler.helmAppService.DecodeAppId(appIdString)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	// RBAC enforcer applying
+	rbacObject, rbacObject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+	token := r.Header.Get("token")
+	ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject2)
+	if !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+	handler.logger.Infow("rotate pod request", "payload", podRotateRequest)
+	rotatePodRequest := &RotatePodRequest{
+		ClusterId: appIdentifier.ClusterId,
+		Resources: podRotateRequest.Resources,
+	}
+	response, err := handler.k8sApplicationService.RotatePods(r.Context(), rotatePodRequest)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, response, http.StatusOK)
 }
 
 func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter, r *http.Request) {
