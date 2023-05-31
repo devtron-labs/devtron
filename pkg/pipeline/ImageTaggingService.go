@@ -66,21 +66,25 @@ func (impl ImageTaggingServiceImpl) GetTagsData(ciPipelineId, appId, artifactId 
 	imageComment, err := impl.imageTaggingRepo.GetImageComment(artifactId)
 	if err != nil && err != pg.ErrNoRows {
 		//log error
+		impl.logger.Errorw("error in fetching image comment using artifactId", "err", err, "artifactId", artifactId)
 		return resp, err
 	}
 	appReleaseTags, err := impl.GetTagsByAppId(appId)
 	if err != nil {
 		//log error
+		impl.logger.Errorw("error in fetching image tags using appId", "err", err, "appId", appId)
 		return resp, err
 	}
 	imageReleaseTags, err := impl.GetTagsByArtifactId(artifactId)
 	if err != nil {
 		//log error
+		impl.logger.Errorw("error in fetching image tags using artifactId", "err", err, "artifactId", artifactId)
 		return resp, err
 	}
 	prodEnvExists, err := impl.GetProdEnvFromParentAndLinkedWorkflow(ciPipelineId)
 	if err != nil {
 		//log error
+		impl.logger.Errorw("error in GetProdEnvFromParentAndLinkedWorkflow", "err", err, "ciPipelineId", ciPipelineId)
 		return resp, err
 	}
 	resp.AppReleaseTags = appReleaseTags
@@ -94,6 +98,7 @@ func (impl ImageTaggingServiceImpl) GetTagsByArtifactId(artifactId int) ([]repos
 	imageReleaseTags, err := impl.imageTaggingRepo.GetTagsByArtifactId(artifactId)
 	if err != nil && err != pg.ErrNoRows {
 		//log error
+		impl.logger.Errorw("error in fetching image tags using artifactId", "err", err, "artifactId", artifactId)
 		return imageReleaseTags, err
 	}
 	return imageReleaseTags, nil
@@ -103,6 +108,7 @@ func (impl ImageTaggingServiceImpl) GetTagsByAppId(appId int) ([]repository.Imag
 	appReleaseTags, err := impl.imageTaggingRepo.GetTagsByAppId(appId)
 	if err != nil && err != pg.ErrNoRows {
 		//log error
+		impl.logger.Errorw("error in fetching image tags using appId", "err", err, "appId", appId)
 		return appReleaseTags, err
 	}
 	return appReleaseTags, nil
@@ -126,6 +132,7 @@ func (impl ImageTaggingServiceImpl) GetTaggingDataMapByAppId(appId int) (map[int
 	imageComments, err := impl.imageTaggingRepo.GetImageCommentsByAppId(appId)
 	if err != nil && err != pg.ErrNoRows {
 		//log error
+		impl.logger.Errorw("error in fetching imageComments using appId", "appId", appId)
 		return nil, err
 	}
 
@@ -159,7 +166,7 @@ func (impl ImageTaggingServiceImpl) ValidateImageTaggingRequest(imageTaggingRequ
 		}
 	}
 
-	//validate comment, validation:should be
+	//TODO: validate comment
 	return true, nil
 }
 func (impl ImageTaggingServiceImpl) CreateUpdateImageTagging(ciPipelineId, appId, artifactId, userId int, imageTaggingRequest *ImageTaggingRequestDTO) (*ImageTaggingResponseDTO, error) {
@@ -169,6 +176,7 @@ func (impl ImageTaggingServiceImpl) CreateUpdateImageTagging(ciPipelineId, appId
 	defer tx.Rollback()
 	if err != nil {
 		//add logs
+		impl.logger.Errorw("error in creating transaction", "err", err)
 		return nil, err
 	}
 
@@ -184,6 +192,7 @@ func (impl ImageTaggingServiceImpl) CreateUpdateImageTagging(ciPipelineId, appId
 		err := impl.imageTaggingRepo.UpdateReleaseTag(tx, &tag)
 		if err != nil {
 			//log
+			impl.logger.Errorw("error in updating releaseTag", "err", err, "payLoad", tag)
 			return nil, err
 		}
 		softDeleteAuditTags[i] = tag.TagName
@@ -197,6 +206,7 @@ func (impl ImageTaggingServiceImpl) CreateUpdateImageTagging(ciPipelineId, appId
 		err := impl.imageTaggingRepo.DeleteReleaseTag(tx, &tag)
 		if err != nil {
 			//log
+			impl.logger.Errorw("error in deleting releaseTag", "err", err, "payLoad", tag)
 			return nil, err
 		}
 		hardDeleteAuditTags[i] = tag.TagName
@@ -210,6 +220,7 @@ func (impl ImageTaggingServiceImpl) CreateUpdateImageTagging(ciPipelineId, appId
 		err := impl.imageTaggingRepo.SaveReleaseTag(tx, &tag)
 		if err != nil {
 			//log
+			impl.logger.Errorw("error in saving releaseTag", "err", err, "releaseTag", tag)
 			return nil, err
 		}
 		createAuditTags[i] = tag.TagName
@@ -221,6 +232,7 @@ func (impl ImageTaggingServiceImpl) CreateUpdateImageTagging(ciPipelineId, appId
 	if imageTaggingRequest.ImageComment.Id > 0 {
 		savedComment, err := impl.imageTaggingRepo.GetImageComment(artifactId)
 		if err != nil {
+			impl.logger.Errorw("error in getting imageComment by artifactId", "err", err, "artifactId", artifactId)
 			return nil, err
 		}
 		//update only if the comment is different from saved comment
@@ -228,12 +240,14 @@ func (impl ImageTaggingServiceImpl) CreateUpdateImageTagging(ciPipelineId, appId
 			err = impl.imageTaggingRepo.UpdateImageComment(tx, &imageTaggingRequest.ImageComment)
 			if err != nil {
 				//log
+				impl.logger.Errorw("error in updating imageComment ", "err", err, "ImageComment", imageTaggingRequest.ImageComment)
 				return nil, err
 			}
 			//save comment audit
 			err = impl.saveImageCommentAudit(tx, imageTaggingRequest.ImageComment.Comment, userId, artifactId, repository.ActionEdit)
 			if err != nil {
 				//log
+				impl.logger.Errorw("error in saving image tagging audit", "err", err, "comment", imageTaggingRequest.ImageComment.Comment, "action", "editAction")
 				return nil, err
 			}
 		}
@@ -241,12 +255,14 @@ func (impl ImageTaggingServiceImpl) CreateUpdateImageTagging(ciPipelineId, appId
 		err := impl.imageTaggingRepo.SaveImageComment(tx, &imageTaggingRequest.ImageComment)
 		if err != nil {
 			//log
+			impl.logger.Errorw("error in saving imageComment ", "err", err, "ImageComment", imageTaggingRequest.ImageComment)
 			return nil, err
 		}
 		//save comment audit
 		err = impl.saveImageCommentAudit(tx, imageTaggingRequest.ImageComment.Comment, userId, artifactId, repository.ActionSave)
 		if err != nil {
 			//log
+			impl.logger.Errorw("error in saving image tagging audit", "err", err, "comment", imageTaggingRequest.ImageComment.Comment, "action", "editAction")
 			return nil, err
 		}
 	}
@@ -255,6 +271,7 @@ func (impl ImageTaggingServiceImpl) CreateUpdateImageTagging(ciPipelineId, appId
 	err = impl.saveImageTagAudit(tx, softDeleteAuditTags, hardDeleteAuditTags, createAuditTags, userId, artifactId)
 	if err != nil {
 		//log
+		impl.logger.Errorw("error in saving image tagging audit", "err", err)
 		return nil, err
 	}
 
@@ -262,6 +279,7 @@ func (impl ImageTaggingServiceImpl) CreateUpdateImageTagging(ciPipelineId, appId
 	err = tx.Commit()
 	if err != nil {
 		//log
+		impl.logger.Errorw("error in committing transaction", "err", err)
 		return nil, err
 	}
 	return impl.GetTagsData(ciPipelineId, appId, artifactId)
@@ -274,6 +292,7 @@ func (impl ImageTaggingServiceImpl) saveImageTagAudit(tx *pg.Tx, softDeleteTags,
 		dataMap[TagsKey] = softDeleteTags
 		dataBytes, err := json.Marshal(&dataMap)
 		if err != nil {
+			impl.logger.Errorw("error in marshaling imageTagging data", "error", err, "data", dataMap)
 			return err
 		}
 		auditLog := &repository.ImageTaggingAudit{
@@ -286,6 +305,7 @@ func (impl ImageTaggingServiceImpl) saveImageTagAudit(tx *pg.Tx, softDeleteTags,
 		}
 		err = impl.imageTaggingRepo.SaveAuditLog(tx, auditLog)
 		if err != nil {
+			impl.logger.Errorw("error occured in saving image tagging audit", "err", err, "auditLog", auditLog)
 			return err
 		}
 	}
@@ -295,6 +315,7 @@ func (impl ImageTaggingServiceImpl) saveImageTagAudit(tx *pg.Tx, softDeleteTags,
 		dataMap[TagsKey] = hardDeleteTags
 		dataBytes, err := json.Marshal(&dataMap)
 		if err != nil {
+			impl.logger.Errorw("error in marshaling imageTagging data", "error", err, "data", dataMap)
 			return err
 		}
 		auditLog := &repository.ImageTaggingAudit{
@@ -307,6 +328,7 @@ func (impl ImageTaggingServiceImpl) saveImageTagAudit(tx *pg.Tx, softDeleteTags,
 		}
 		err = impl.imageTaggingRepo.SaveAuditLog(tx, auditLog)
 		if err != nil {
+			impl.logger.Errorw("error occurred in saving image tagging audit", "err", err, "auditLog", auditLog)
 			return err
 		}
 	}
@@ -316,6 +338,7 @@ func (impl ImageTaggingServiceImpl) saveImageTagAudit(tx *pg.Tx, softDeleteTags,
 		dataMap[TagsKey] = createTags
 		dataBytes, err := json.Marshal(&dataMap)
 		if err != nil {
+			impl.logger.Errorw("error in marshaling imageTagging data", "error", err, "data", dataMap)
 			return err
 		}
 		auditLog := &repository.ImageTaggingAudit{
@@ -328,6 +351,7 @@ func (impl ImageTaggingServiceImpl) saveImageTagAudit(tx *pg.Tx, softDeleteTags,
 		}
 		err = impl.imageTaggingRepo.SaveAuditLog(tx, auditLog)
 		if err != nil {
+			impl.logger.Errorw("error occurred in saving image tagging audit", "err", err, "auditLog", auditLog)
 			return err
 		}
 	}
@@ -342,6 +366,7 @@ func (impl ImageTaggingServiceImpl) saveImageCommentAudit(tx *pg.Tx, imageCommen
 	dataMap[CommentKey] = imageComment
 	dataBytes, err := json.Marshal(&dataMap)
 	if err != nil {
+		impl.logger.Errorw("error in marshaling imageTagging data", "error", err, "data", dataMap)
 		return err
 	}
 	auditLog := &repository.ImageTaggingAudit{
@@ -354,6 +379,7 @@ func (impl ImageTaggingServiceImpl) saveImageCommentAudit(tx *pg.Tx, imageCommen
 	}
 	err = impl.imageTaggingRepo.SaveAuditLog(tx, auditLog)
 	if err != nil {
+		impl.logger.Errorw("error occurred in saving image tagging audit", "err", err, "auditLog", auditLog)
 		return err
 	}
 
@@ -365,6 +391,7 @@ func (impl ImageTaggingServiceImpl) GetProdEnvFromParentAndLinkedWorkflow(ciPipe
 	pipelines, err := impl.ciPipelineRepository.FindByParentCiPipelineId(ciPipelineId)
 	if err != nil {
 		//add log
+		impl.logger.Errorw("error in getting all linked ciPipelineIds", "err", err, "ciPipelineId", ciPipelineId)
 		return prodEnvExists, err
 	}
 
@@ -378,6 +405,7 @@ func (impl ImageTaggingServiceImpl) GetProdEnvFromParentAndLinkedWorkflow(ciPipe
 	envs, err := impl.environmentRepository.FindEnvLinkedWithCiPipelines(pipelineIds)
 	if err != nil {
 		//add log
+		impl.logger.Errorw("error in getting envs using ciPipelineIds", "err", err, "ciPipelineIds", pipelineIds)
 		return prodEnvExists, err
 	}
 
@@ -396,6 +424,7 @@ func (impl ImageTaggingServiceImpl) GetProdEnvFromParentAndLinkedWorkflow(ciPipe
 func (impl ImageTaggingServiceImpl) GetProdEnvByCdPipelineId(pipelineId int) (bool, error) {
 	pipeline, err := impl.cdPipelineRepository.FindById(pipelineId)
 	if err != nil {
+		impl.logger.Errorw("error occurred in fetching cdPipeline with pipelineId", "err", err, "pipelineId", pipelineId)
 		return false, err
 	}
 	if pipeline.Environment.Default {
