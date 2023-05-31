@@ -1694,7 +1694,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateUpdateImageTagging(w http.Res
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 	}
 	//pass it to service layer
-	resp, err := handler.imageTaggingService.CreateUpdateImageTagging(ciPipeline.Id, ciPipeline.AppId, artifactId, int(user.Id), req)
+	resp, err := handler.imageTaggingService.CreateOrUpdateImageTagging(ciPipeline.Id, ciPipeline.AppId, artifactId, int(user.Id), req)
 	if err != nil {
 		handler.Logger.Errorw("error occured in creating/updating image tagging data", "err", err, "ciPipelineId", ciPipeline.Id)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
