@@ -570,7 +570,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateProjectHelmApp(w http.Res
 			handler.Logger.Errorw("service err, InstalledAppId", "err", err, "InstalledAppId", request.InstalledAppId)
 			common.WriteJsonResp(w, fmt.Errorf("Unable to fetch installed app details"), nil, http.StatusBadRequest)
 		}
-		if installedApp.Environment.IsVirtualEnvironment {
+		if installedApp.IsVirtualEnvironment {
 			rbacObjectForCurrentProject, _ := handler.enforcerUtilHelm.GetAppRBACNameByInstalledAppId(request.InstalledAppId)
 			ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForCurrentProject)
 			rbacObjectForRequestedProject := handler.enforcerUtilHelm.GetAppRBACNameByInstalledAppIdAndTeamId(request.InstalledAppId, request.TeamId)

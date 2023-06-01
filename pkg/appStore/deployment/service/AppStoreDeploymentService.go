@@ -649,14 +649,15 @@ func (impl AppStoreDeploymentServiceImpl) GetInstalledApp(id int) (*appStoreBean
 // converts db object to bean
 func (impl AppStoreDeploymentServiceImpl) chartAdaptor2(chart *repository.InstalledApps) *appStoreBean.InstallAppVersionDTO {
 	return &appStoreBean.InstallAppVersionDTO{
-		EnvironmentId:   chart.EnvironmentId,
-		InstalledAppId:  chart.Id,
-		AppId:           chart.AppId,
-		AppOfferingMode: chart.App.AppOfferingMode,
-		ClusterId:       chart.Environment.ClusterId,
-		Namespace:       chart.Environment.Namespace,
-		AppName:         chart.App.AppName,
-		EnvironmentName: chart.Environment.Name,
+		EnvironmentId:        chart.EnvironmentId,
+		InstalledAppId:       chart.Id,
+		AppId:                chart.AppId,
+		AppOfferingMode:      chart.App.AppOfferingMode,
+		ClusterId:            chart.Environment.ClusterId,
+		Namespace:            chart.Environment.Namespace,
+		AppName:              chart.App.AppName,
+		EnvironmentName:      chart.Environment.Name,
+		IsVirtualEnvironment: chart.Environment.IsVirtualEnvironment,
 	}
 }
 

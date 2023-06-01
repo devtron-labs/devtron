@@ -103,6 +103,7 @@ type InstallAppVersionDTO struct {
 	PerformACDDeployment         bool      `json:"performACDDeployment"`
 	PerformHelmDeployment        bool      `json:"performHelmDeployment"`
 	UpdatedOn                    time.Time `json:"updatedOn"`
+	IsVirtualEnvironment         bool      `json:"isVirtualEnvironment"`
 }
 
 type InstallAppVersionChartDTO struct {
