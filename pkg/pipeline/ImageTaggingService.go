@@ -228,51 +228,11 @@ func (impl ImageTaggingServiceImpl) CreateOrUpdateImageTagging(ciPipelineId, app
 		impl.logger.Errorw("error in creating transaction", "err", err)
 		return nil, err
 	}
-
-	//first perform delete and then perform create operation.
-	//case : user can delete existing tag and then create a new tag with same name, this is a valid request
-
-	//soft delete tags
-	softDeleteAuditTags := make([]string, len(imageTaggingRequest.SoftDeleteTags))
-	for i, tag := range imageTaggingRequest.SoftDeleteTags {
-		tag.AppId = appId
-		tag.Active = true
-		tag.ArtifactId = artifactId
-		softDeleteAuditTags[i] = tag.TagName
-	}
-	//hard delete tags
-	hardDeleteAuditTags := make([]string, len(imageTaggingRequest.HardDeleteTags))
-	for i, tag := range imageTaggingRequest.HardDeleteTags {
-		tag.AppId = appId
-		tag.ArtifactId = artifactId
-		hardDeleteAuditTags[i] = tag.TagName
-	}
-	//save release tags
-	createAuditTags := make([]string, len(imageTaggingRequest.HardDeleteTags))
-	for i, tag := range imageTaggingRequest.CreateTags {
-		tag.AppId = appId
-		tag.ArtifactId = artifactId
-		createAuditTags[i] = tag.TagName
-	}
-
-	err = impl.imageTaggingRepo.UpdateReleaseTagInBulk(tx, imageTaggingRequest.SoftDeleteTags)
+	auditLogsList, err := impl.performTagOperationsAndGetAuditList(tx, appId, artifactId, userId, imageTaggingRequest)
 	if err != nil {
-		impl.logger.Errorw("error in updating releaseTags in bulk", "err", err, "payLoad", imageTaggingRequest.SoftDeleteTags)
+		impl.logger.Errorw("error in performTagOperationsAndGetAuditList", "err", err, "appId", appId, "artifactId", artifactId, "userId", userId, "imageTaggingRequest", imageTaggingRequest)
 		return nil, err
 	}
-
-	err = impl.imageTaggingRepo.DeleteReleaseTagInBulk(tx, imageTaggingRequest.HardDeleteTags)
-	if err != nil {
-		impl.logger.Errorw("error in deleting releaseTag in bulk", "err", err, "releaseTags", imageTaggingRequest.HardDeleteTags)
-		return nil, err
-	}
-
-	err = impl.imageTaggingRepo.SaveReleaseTagsInBulk(tx, imageTaggingRequest.CreateTags)
-	if err != nil {
-		impl.logger.Errorw("error in saving releaseTag", "err", err, "releaseTags", imageTaggingRequest.CreateTags)
-		return nil, err
-	}
-
 	//save or update comment
 	imageTaggingRequest.ImageComment.ArtifactId = artifactId
 	imageTaggingRequest.ImageComment.UserId = userId
@@ -306,15 +266,9 @@ func (impl ImageTaggingServiceImpl) CreateOrUpdateImageTagging(ciPipelineId, app
 		imageCommentAudit.Action = repository.ActionSave
 	}
 
-	//save tags audit
-	auditLogsList, err := impl.getImageTagAudits(softDeleteAuditTags, hardDeleteAuditTags, createAuditTags, userId, artifactId)
-	if err != nil {
-		impl.logger.Errorw("error in getImageTagAudits", "err", err)
-		return nil, err
-	}
-
 	//add imageCommentAudit into the auditLogs list before saving audit
 	auditLogsList = append(auditLogsList, imageCommentAudit)
+	//save all the audts
 	err = impl.imageTaggingRepo.SaveAuditLogsInBulk(tx, auditLogsList)
 	if err != nil {
 		impl.logger.Errorw("error in SaveAuditLogInBulk", "err", err, "auditLogsList", auditLogsList)
@@ -329,6 +283,58 @@ func (impl ImageTaggingServiceImpl) CreateOrUpdateImageTagging(ciPipelineId, app
 	return impl.GetTagsData(ciPipelineId, appId, artifactId)
 }
 
+func (impl ImageTaggingServiceImpl) performTagOperationsAndGetAuditList(tx *pg.Tx, appId, artifactId, userId int, imageTaggingRequest *ImageTaggingRequestDTO) ([]*repository.ImageTaggingAudit, error) {
+	//first perform delete and then perform create operation.
+	//case : user can delete existing tag and then create a new tag with same name, this is a valid request
+
+	//soft delete tags
+	softDeleteAuditTags := make([]string, len(imageTaggingRequest.SoftDeleteTags))
+	for i, tag := range imageTaggingRequest.SoftDeleteTags {
+		tag.AppId = appId
+		tag.Active = true
+		tag.ArtifactId = artifactId
+		softDeleteAuditTags[i] = tag.TagName
+	}
+	//hard delete tags
+	hardDeleteAuditTags := make([]string, len(imageTaggingRequest.HardDeleteTags))
+	for i, tag := range imageTaggingRequest.HardDeleteTags {
+		tag.AppId = appId
+		tag.ArtifactId = artifactId
+		hardDeleteAuditTags[i] = tag.TagName
+	}
+	//save release tags
+	createAuditTags := make([]string, len(imageTaggingRequest.HardDeleteTags))
+	for i, tag := range imageTaggingRequest.CreateTags {
+		tag.AppId = appId
+		tag.ArtifactId = artifactId
+		createAuditTags[i] = tag.TagName
+	}
+
+	err := impl.imageTaggingRepo.UpdateReleaseTagInBulk(tx, imageTaggingRequest.SoftDeleteTags)
+	if err != nil {
+		impl.logger.Errorw("error in updating releaseTags in bulk", "err", err, "payLoad", imageTaggingRequest.SoftDeleteTags)
+		return nil, err
+	}
+
+	err = impl.imageTaggingRepo.DeleteReleaseTagInBulk(tx, imageTaggingRequest.HardDeleteTags)
+	if err != nil {
+		impl.logger.Errorw("error in deleting releaseTag in bulk", "err", err, "releaseTags", imageTaggingRequest.HardDeleteTags)
+		return nil, err
+	}
+
+	err = impl.imageTaggingRepo.SaveReleaseTagsInBulk(tx, imageTaggingRequest.CreateTags)
+	if err != nil {
+		impl.logger.Errorw("error in saving releaseTag", "err", err, "releaseTags", imageTaggingRequest.CreateTags)
+		return nil, err
+	}
+	//get tags audit list
+	auditLogsList, err := impl.getImageTagAudits(softDeleteAuditTags, hardDeleteAuditTags, createAuditTags, userId, artifactId)
+	if err != nil {
+		impl.logger.Errorw("error in getImageTagAudits", "err", err)
+		return nil, err
+	}
+	return auditLogsList, err
+}
 func (impl ImageTaggingServiceImpl) getImageTagAudits(softDeleteTags, hardDeleteTags, createTags []string, userId, artifactId int) ([]*repository.ImageTaggingAudit, error) {
 	auditLogsList := make([]*repository.ImageTaggingAudit, 0)
 	currentTime := time.Now()
