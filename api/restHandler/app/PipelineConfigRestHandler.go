@@ -299,12 +299,10 @@ func (handler PipelineConfigRestHandlerImpl) DeleteACDAppWithNonCascade(w http.R
 		handler.Logger.Errorw("error in fetching pipelines from db", "appId", appId, "envId", envId)
 		common.WriteJsonResp(w, err, "error in fetching pipelines from db", http.StatusInternalServerError)
 		return
-	}
-	if len(pipelines) == 0 {
+	} else if len(pipelines) == 0 {
 		common.WriteJsonResp(w, err, "deployment not found, unable to fetch resource tree", http.StatusNotFound)
 		return
-	}
-	if len(pipelines) > 1 {
+	} else if len(pipelines) > 1 {
 		common.WriteJsonResp(w, err, "multiple pipelines found for an envId", http.StatusBadRequest)
 		return
 	}

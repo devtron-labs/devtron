@@ -463,7 +463,7 @@ func (handler *InstalledAppRestHandlerImpl) DeleteArgoInstalledAppWithNonCascade
 	}
 	installedApp, err := handler.appStoreDeploymentService.GetInstalledApp(installedAppId)
 	if err != nil {
-		handler.Logger.Error(err)
+		handler.Logger.Error("request err, NonCascadeDeleteCdPipeline", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
