@@ -110,7 +110,7 @@ type CdBulkActionRequestDto struct {
 	ProjectNames          []string     `json:"projectNames"`
 	DeleteWfAndCiPipeline bool         `json:"deleteWfAndCiPipeline"`
 	ForceDelete           bool         `json:"forceDelete"`
-	CascadeDelete         bool         `json:"cascadeDelete"`
+	NonCascadeDelete      bool         `json:"nonCascadeDelete"`
 	UserId                int32        `json:"-"`
 }
 
