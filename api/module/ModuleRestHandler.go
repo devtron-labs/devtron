@@ -184,7 +184,7 @@ func (impl ModuleRestHandlerImpl) EnableModule(w http.ResponseWriter, r *http.Re
 	}
 	// decode request
 	decoder := json.NewDecoder(r.Body)
-	var moduleEnableRequestDto *module.ModuleEnableRequestDto
+	var moduleEnableRequestDto module.ModuleEnableRequestDto
 	err = decoder.Decode(&moduleEnableRequestDto)
 	if err != nil {
 		impl.logger.Errorw("error in decoding request in ModuleEnableRequestDto", "err", err)
@@ -202,7 +202,7 @@ func (impl ModuleRestHandlerImpl) EnableModule(w http.ResponseWriter, r *http.Re
 	// service call
 	res, err := impl.moduleService.EnableModule(moduleName, moduleEnableRequestDto.Version)
 	if err != nil {
-		impl.logger.Errorw("service err, Enabling Module", "err", err)
+		impl.logger.Errorw("service err, Enabling Module", "err", err, "moduleName", moduleName, "toolVersion", moduleEnableRequestDto.Version)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

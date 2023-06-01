@@ -66,6 +66,8 @@ func (repo *ScanToolExecutionHistoryMappingRepositoryImpl) UpdateStateByToolAndE
 	model := &ScanToolExecutionHistoryMapping{}
 	_, err := repo.dbConnection.Model(model).Set("state = ?", state).
 		Set("execution_finish_time  = ?", executionFinishTime).
+		Set("updated_on = ?", time.Now()).
+		Set("updated_by =?", time.Now()).
 		Where("image_scan_execution_history_id = ?", executionHistoryId).
 		Where("scan_tool_id = ?", toolId).Update()
 	if err != nil {
@@ -79,6 +81,8 @@ func (repo *ScanToolExecutionHistoryMappingRepositoryImpl) MarkAllRunningStateAs
 	var models []*ScanToolExecutionHistoryMapping
 	_, err := repo.dbConnection.Model(&models).
 		Set("state = ?", serverBean.ScanExecutionProcessStateFailed).
+		Set("updated_on = ?", time.Now()).
+		Set("updated_by =?", time.Now()).
 		Where("state = ?", serverBean.ScanExecutionProcessStateRunning).
 		Where("try_count > ?", tryCount).Update()
 	if err != nil {

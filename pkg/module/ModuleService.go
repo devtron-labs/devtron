@@ -446,25 +446,30 @@ func (impl ModuleServiceImpl) EnableModule(moduleName, version string) (*ActionR
 	}
 	defer tx.Rollback()
 	res := strings.Split(moduleName, ".")
+	// Handling for future tools if integrated
+	if len(res) < 2 {
+		impl.logger.Errorw("error in getting toolName from modulename as module Length is smaller than 2")
+		return nil, err
+	}
 	toolName := strings.ToUpper(res[1])
 	err = impl.moduleRepository.MarkModuleAsEnabledWithTransaction(moduleName, tx)
 	if err != nil {
-		impl.logger.Errorw("error in updating module as active ", "moduleName", moduleName, "err", err)
+		impl.logger.Errorw("error in updating module as active ", "moduleName", moduleName, "err", err, "moduleName", module.Name)
 		return nil, err
 	}
 	err = impl.scanToolMetaDataRepository.MarkToolAsActive(toolName, version, tx)
 	if err != nil {
-		impl.logger.Errorw("error in marking tool as active ", "err", err)
+		impl.logger.Errorw("error in marking tool as active ", "err", err, "moduleName", module.Name)
 		return nil, err
 	}
 	err = impl.scanToolMetaDataRepository.MarkOtherToolsInActive(toolName, tx, version)
 	if err != nil {
-		impl.logger.Errorw("error in marking other tools inactive ", "err", err)
+		impl.logger.Errorw("error in marking other tools inactive ", "err", err, "moduleName", module.Name)
 		return nil, err
 	}
 	err = impl.moduleRepository.MarkOtherModulesDisabled(moduleName, module.ModuleType, tx)
 	if err != nil {
-		impl.logger.Errorw("error in marking other modules of same module type inactive ", "err", err)
+		impl.logger.Errorw("error in marking other modules of same module type inactive ", "err", err, "moduleName", module.Name)
 		return nil, err
 	}
 	err = tx.Commit()
@@ -524,7 +529,7 @@ func (impl ModuleServiceImpl) GetAllModuleInfo() ([]ModuleInfoDto, error) {
 			enabled = true
 			err := impl.moduleRepository.Update(&module)
 			if err != nil {
-				impl.logger.Errorw("error in updating installed module to rnabled for previous modules")
+				impl.logger.Errorw("error in updating installed module to enabled for previous modules", "err", err, "module", module.Name)
 			}
 		}
 		moduleInfoDto.Enabled = enabled

@@ -3,11 +3,11 @@ CREATE SEQUENCE IF NOT EXISTS id_seq_scan_tool_metadata;
 CREATE TABLE public.scan_tool_metadata
 (
     "id"                                  integer NOT NULL DEFAULT nextval('id_seq_scan_tool_metadata'::regclass),
-    "name"                                text,
+    "name"                                VARCHAR(100),
     "version"                             VARCHAR(50),
     "server_base_url"                     text,
     "result_descriptor_template"            text,
-    "scan_target"                          text,
+    "scan_target"                          VARCHAR(10),
     "active"                              bool,
     "deleted"                               bool,
     "created_on"                          timestamptz,
@@ -43,7 +43,7 @@ CREATE SEQUENCE IF NOT EXISTS id_seq_scan_step_condition;
 CREATE TABLE public.scan_step_condition
 (
     "id"                   integer NOT NULL DEFAULT nextval('id_seq_scan_step_condition'::regclass),
-    "condition_variable_format" text,
+    "condition_variable_format" VARCHAR(10),
     "conditional_operator" VARCHAR(5),
     "conditional_value"    VARCHAR(100),
     "condition_on"         text,

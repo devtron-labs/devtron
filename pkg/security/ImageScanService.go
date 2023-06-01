@@ -381,13 +381,12 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *ImageScanRe
 		if len(imageScanResult) > 0 {
 			imageScanResponse.ScanToolId = imageScanResult[0].ScanToolId
 		} else {
-			scanToolHistoryMappings, err := impl.scanToolExecutionHistoryRepository.GetAllScanHistoriesByExecutionHistoryIds(scanExecutionIds)
-			if err != nil {
-				impl.Logger.Errorw("error in getting scanToolHistoryMappings", "err", err)
+			toolIdFromExecutionHistory, err := impl.getScanToolIdFromExecutionHistory(scanExecutionIds)
+			if err != nil || toolIdFromExecutionHistory == -1 {
+				impl.Logger.Errorw("error in getting scan tool id from exection history", "err", err, "")
+				return nil, err
 			}
-			if len(scanToolHistoryMappings) > 0 {
-				imageScanResponse.ScanToolId = scanToolHistoryMappings[0].ScanToolId
-			}
+			imageScanResponse.ScanToolId = toolIdFromExecutionHistory
 		}
 	}
 	severityCount := &SeverityCount{
@@ -498,13 +497,12 @@ func (impl ImageScanServiceImpl) FetchMinScanResultByAppIdAndEnvId(request *Imag
 		if len(imageScanResult) > 0 {
 			scantoolId = imageScanResult[0].ScanToolId
 		} else {
-			scanToolHistoryMappings, err := impl.scanToolExecutionHistoryRepository.GetAllScanHistoriesByExecutionHistoryIds(scanExecutionIds)
-			if err != nil {
-				impl.Logger.Errorw("error in getting scanToolHistoryMappings", "err", err)
+			toolIdFromExecutionHistory, err := impl.getScanToolIdFromExecutionHistory(scanExecutionIds)
+			if err != nil || toolIdFromExecutionHistory == -1 {
+				impl.Logger.Errorw("error in getting scan tool id from exection history", "err", err, "")
+				return nil, err
 			}
-			if len(scanToolHistoryMappings) > 0 {
-				scantoolId = scanToolHistoryMappings[0].ScanToolId
-			}
+			scantoolId = toolIdFromExecutionHistory
 		}
 	}
 	severityCount := &SeverityCount{
@@ -522,6 +520,21 @@ func (impl ImageScanServiceImpl) FetchMinScanResultByAppIdAndEnvId(request *Imag
 		ScanToolId:            scantoolId,
 	}
 	return imageScanResponse, nil
+}
+func (impl ImageScanServiceImpl) getScanToolIdFromExecutionHistory(scanExecutionIds []int) (int, error) {
+	scanToolHistoryMappings, err := impl.scanToolExecutionHistoryRepository.GetAllScanHistoriesByExecutionHistoryIds(scanExecutionIds)
+	if err != nil {
+		if err == pg.ErrNoRows {
+			impl.Logger.Errorw("got no rows for scanToolHistoryMappings", "err", err)
+		} else {
+			impl.Logger.Errorw("error in getting scanToolHistoryMappings", "err", err)
+			return -1, err
+		}
+	}
+	if len(scanToolHistoryMappings) > 0 {
+		return scanToolHistoryMappings[0].ScanToolId, nil
+	}
+	return -1, err
 }
 
 func (impl ImageScanServiceImpl) VulnerabilityExposure(request *security.VulnerabilityRequest) (*security.VulnerabilityExposureListingResponse, error) {
