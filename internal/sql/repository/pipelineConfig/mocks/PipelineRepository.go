@@ -15,7 +15,7 @@ type PipelineRepository struct {
 }
 
 // Delete provides a mock function with given fields: id, tx
-func (_m *PipelineRepository) Delete(id int, tx *pg.Tx) error {
+func (_m *PipelineRepository) Delete(id int, userId int32, tx *pg.Tx) error {
 	ret := _m.Called(id, tx)
 
 	var r0 error

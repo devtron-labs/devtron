@@ -119,6 +119,7 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/{appId}/autocomplete/docker").HandlerFunc(router.restHandler.DockerListAutocomplete).Methods("GET")
 	configRouter.Path("/{appId}/autocomplete/team").HandlerFunc(router.restHandler.TeamListAutocomplete).Methods("GET")
 
+	configRouter.Path("/cd-pipeline/defaultStrategy/{appId}/{envId}").HandlerFunc(router.restHandler.GetDefaultDeploymentPipelineStrategy).Methods("GET")
 	configRouter.Path("/cd-pipeline/{appId}/{envId}/{pipelineId}").HandlerFunc(router.restHandler.IsReadyToTrigger).Methods("GET")
 	configRouter.Path("/cd-pipeline/strategies/{appId}").HandlerFunc(router.restHandler.GetDeploymentPipelineStrategy).Methods("GET")
 

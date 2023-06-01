@@ -228,6 +228,13 @@ func AutoScale(dat map[string]interface{}) (bool, error) {
 	if dat == nil {
 		return true, nil
 	}
+	kedaAutoScaleEnabled := false
+	if dat["kedaAutoscaling"] != nil {
+		kedaAutoScale, ok := dat["kedaAutoscaling"].(map[string]interface{})["enabled"]
+		if ok {
+			kedaAutoScaleEnabled=kedaAutoScale.(bool)
+		}
+	}
 	if dat["autoscaling"] != nil {
 		autoScaleEnabled, ok := dat["autoscaling"].(map[string]interface{})["enabled"]
 		if !ok {
@@ -243,6 +250,9 @@ func AutoScale(dat map[string]interface{}) (bool, error) {
 			// Bug fix PR https://github.com/devtron-labs/devtron/pull/884
 			if minReplicas.(float64) > maxReplicas.(float64) {
 				return false, errors.New("autoscaling.MinReplicas can not be greater than autoscaling.MaxReplicas")
+			}
+			if kedaAutoScaleEnabled {
+				return false, errors.New("autoscaling and kedaAutoscaling can not be enabled at the same time. Use additional scalers in kedaAutoscaling instead.")
 			}
 		}
 	}
