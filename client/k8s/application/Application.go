@@ -58,7 +58,7 @@ type PodLogsRequest struct {
 	TailLines         int          `json:"tailLines"`
 	Follow            bool         `json:"follow"`
 	ContainerName     string       `json:"containerName"`
-	PrevContainerLogs bool         `json:"prevContainerLogs"`
+	PrevContainerLogs bool         `json:"previous"`
 }
 
 type ResourceIdentifier struct {
