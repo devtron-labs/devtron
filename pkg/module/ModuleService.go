@@ -518,6 +518,16 @@ func (impl ModuleServiceImpl) GetAllModuleInfo() ([]ModuleInfoDto, error) {
 			Moduletype: module.ModuleType,
 			Enabled:    module.Enabled,
 		}
+		enabled := false
+		if len(module.ModuleType) == 0 {
+			module.Enabled = true
+			enabled = true
+			err := impl.moduleRepository.Update(&module)
+			if err != nil {
+				impl.logger.Errorw("error in updating installed module to rnabled for previous modules")
+			}
+		}
+		moduleInfoDto.Enabled = enabled
 		moduleId := module.Id
 		moduleResourcesStatusFromDb, err := impl.moduleResourceStatusRepository.FindAllActiveByModuleId(moduleId)
 		if err != nil && err != pg.ErrNoRows {
