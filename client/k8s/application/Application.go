@@ -53,10 +53,11 @@ type K8sRequestBean struct {
 }
 
 type PodLogsRequest struct {
-	SinceTime     *metav1.Time `json:"sinceTime,omitempty"`
-	TailLines     int          `json:"tailLines"`
-	Follow        bool         `json:"follow"`
-	ContainerName string       `json:"containerName"`
+	SinceTime         *metav1.Time `json:"sinceTime,omitempty"`
+	TailLines         int          `json:"tailLines"`
+	Follow            bool         `json:"follow"`
+	ContainerName     string       `json:"containerName"`
+	PrevContainerLogs bool         `json:"previous"`
 }
 
 type ResourceIdentifier struct {
@@ -235,6 +236,7 @@ func (impl K8sClientServiceImpl) GetPodLogs(ctx context.Context, restConfig *res
 		TailLines:  &tailLines,
 		Container:  podLogsRequest.ContainerName,
 		Timestamps: true,
+		Previous:   podLogsRequest.PrevContainerLogs,
 	}
 	if podLogsRequest.SinceTime != nil {
 		podLogOptions.SinceTime = podLogsRequest.SinceTime
