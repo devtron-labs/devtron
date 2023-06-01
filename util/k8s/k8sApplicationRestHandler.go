@@ -484,15 +484,11 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 	appId := v.Get("appId")
 	clusterIdString := v.Get("clusterId")
 	namespace := v.Get("namespace")
-	prevContainerLogs := v.Get("prevContainerLogs")
+	prevContainerLogs := v.Get("previous")
 	isPrevLogs, err := strconv.ParseBool(prevContainerLogs)
 	if err != nil {
 		isPrevLogs = false
 	}
-	/*sinceSeconds, err := strconv.Atoi(v.Get("sinceSeconds"))
-	if err != nil {
-		sinceSeconds = 0
-	}*/
 	token := r.Header.Get("token")
 	follow, err := strconv.ParseBool(v.Get("follow"))
 	if err != nil {
