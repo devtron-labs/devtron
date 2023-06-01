@@ -1083,16 +1083,17 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 		if (clusterObj != nil) && !clusterObj.InsecureSkipTLSVerify && (clusterBeanObject.ErrorInConnecting == "") {
 			missingFieldsStr := ""
 			if string(userInfoObj.ClientKeyData) == "" {
-				missingFieldsStr += TlsKey + " "
+				missingFieldsStr += "client-key-data" + ", "
 			}
 			if string(clusterObj.CertificateAuthorityData) == "" {
-				missingFieldsStr += CertificateAuthorityData + " "
+				missingFieldsStr += "certificate-authority-data" + ", "
 			}
 			if string(userInfoObj.ClientCertificateData) == "" {
-				missingFieldsStr += CertData + " "
+				missingFieldsStr += "client-certificate-data" + ", "
 			}
 			if len(missingFieldsStr) > 0 {
-				clusterBeanObject.ErrorInConnecting = fmt.Sprintf("Missing fields: %s", missingFieldsStr)
+				missingFieldsStr = missingFieldsStr[:len(missingFieldsStr)-2]
+				clusterBeanObject.ErrorInConnecting = fmt.Sprintf("Missing fields against user: %s", missingFieldsStr)
 			} else {
 				Config[TlsKey] = string(userInfoObj.ClientKeyData)
 				Config[CertData] = string(userInfoObj.ClientCertificateData)
@@ -1154,8 +1155,32 @@ func GetAndUpdateConnectionStatusForOneCluster(k8sClientSet *kubernetes.Clientse
 	path := "/livez"
 	response, err := k8sClientSet.Discovery().RESTClient().Get().AbsPath(path).DoRaw(context.Background())
 	log.Println("received response for cluster livez status", "response", string(response), "err", err, "clusterId", clusterId)
-	if err == nil && string(response) != "ok" {
-		err = fmt.Errorf("ErrorNotOk : response != 'ok' : %s", string(response))
+	//if err != nil && string(response) != "ok" {
+	//	err = fmt.Errorf("Incorrect server url : %v", err)
+	//	//err = fmt.Errorf("ErrorNotOk : response != 'ok' : %s", string(response))
+	//}
+
+	if err != nil {
+		if _, ok := err.(*url.Error); ok {
+			err = fmt.Errorf("Incorrect server url : %v", err)
+		} else if statusError, ok := err.(*errors.StatusError); ok {
+			if statusError != nil {
+				errReason := statusError.ErrStatus.Reason
+				var errMsg string
+				if errReason == v1.StatusReasonUnauthorized {
+					errMsg = "token seems invalid or does not have sufficient permissions"
+				} else {
+					errMsg = statusError.ErrStatus.Message
+				}
+				err = fmt.Errorf("%s : %s", errReason, errMsg)
+			} else {
+				err = fmt.Errorf("Validation failed : %v", err)
+			}
+		} else {
+			err = fmt.Errorf("Validation failed : %v", err)
+		}
+	} else if err == nil && string(response) != "ok" {
+		err = fmt.Errorf("Validation failed with response : %s", string(response))
 	}
 	mutex.Lock()
 	respMap[clusterId] = err
