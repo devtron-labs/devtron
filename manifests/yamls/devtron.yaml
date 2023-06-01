@@ -93,7 +93,7 @@ data:
   DEVTRON_SECRET_NAME: "devtron-secret"
   GIT_SENSOR_PROTOCOL: GRPC
   GIT_SENSOR_URL: git-sensor-service.devtroncd:90
-  ENABLE_BUILD_CONTEXT: "false"
+  ENABLE_BUILD_CONTEXT: "true"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -162,7 +162,7 @@ spec:
         runAsUser: 1000
       containers:
         - name: devtron
-          image: "quay.io/devtron/devtron:bc35eb7e-434-13812"
+          image: "quay.io/devtron/devtron:f45916a0-434-13929"
           securityContext:
             allowPrivilegeEscalation: false
             runAsUser: 1000
