@@ -397,16 +397,16 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowMappingForEnv(appIds []int) (m
 			}
 		}
 		workflow := AppWorkflowMappingDto{
-			Id:              w.Id,
-			ParentId:        w.ParentId,
-			ComponentId:     w.ComponentId,
-			Type:            w.Type,
-			AppWorkflowId:   w.AppWorkflowId,
-			ParentType:      w.ParentType,
-			EnvironmentName: pipelineMap[w.ComponentId].Environment.Name,
+			Id:            w.Id,
+			ParentId:      w.ParentId,
+			ComponentId:   w.ComponentId,
+			Type:          w.Type,
+			AppWorkflowId: w.AppWorkflowId,
+			ParentType:    w.ParentType,
 		}
 		if w.Type == "CD_PIPELINE" {
 			workflow.DeploymentAppDeleteRequest = pipelineMap[w.ComponentId].DeploymentAppDeleteRequest
+			workflow.EnvironmentName = pipelineMap[w.ComponentId].Environment.Name
 		}
 		workflowMappings[w.AppWorkflowId] = append(workflowMappings[w.AppWorkflowId], workflow)
 		workflows[w.AppWorkflowId].AppWorkflowMappingDto = workflowMappings[w.AppWorkflowId]
