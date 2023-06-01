@@ -109,19 +109,14 @@ func (impl ClusterRestHandlerImpl) SaveClusters(w http.ResponseWriter, r *http.R
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	impl.logger.Infow("request payload, Save", "payload", beans)
-	//err = impl.validator.Struct(beans)
-	//if err != nil {
-	//	impl.logger.Errorw("validation err, Save", "err", err, "payload", beans)
-	//	common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-	//	return
-	//}
+	// not logging bean object as it contains sensitive data
+	impl.logger.Infow("request payload received for save clusters")
 
 	// RBAC enforcer applying
 	isSuperAdmin, err := impl.userService.IsSuperAdmin(int(userId))
 	if !isSuperAdmin || err != nil {
 		if err != nil {
-			impl.logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
+			impl.logger.Errorw("request err, CheckSuperAdmin", "err", err, "isSuperAdmin", isSuperAdmin)
 		}
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
@@ -254,7 +249,7 @@ func (impl ClusterRestHandlerImpl) ValidateKubeconfig(w http.ResponseWriter, r *
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	impl.logger.Infow("request payload, Validate", "payload", bean)
+
 	err = impl.validator.Struct(bean)
 	if err != nil {
 		impl.logger.Errorw("validation err, Validate", "err", err, "payload", bean)
@@ -292,7 +287,7 @@ func (impl ClusterRestHandlerImpl) ValidateKubeconfig(w http.ResponseWriter, r *
 	}
 	res, err := impl.clusterService.ValidateKubeconfig(bean.Config)
 	if err != nil {
-		impl.logger.Errorw("service err, Save", "err", err, "payload", bean)
+		impl.logger.Errorw("error in validating kubeconfig")
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

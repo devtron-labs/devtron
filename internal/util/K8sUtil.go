@@ -82,7 +82,6 @@ func NewK8sUtil(logger *zap.SugaredLogger, runTimeConfig *client.RuntimeConfig) 
 }
 
 func (impl K8sUtil) GetRestConfigByCluster(configMap *ClusterConfig) (*rest.Config, error) {
-	//configMap := cluster.Config
 	bearerToken := configMap.BearerToken
 	var restConfig *rest.Config
 	var err error

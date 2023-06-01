@@ -18,10 +18,18 @@
 package repository
 
 import (
+	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
+
+type PrometheusAuth struct {
+	UserName      string `json:"userName,omitempty"`
+	Password      string `json:"password,omitempty"`
+	TlsClientCert string `json:"tlsClientCert,omitempty"`
+	TlsClientKey  string `json:"tlsClientKey,omitempty"`
+}
 
 type Cluster struct {
 	tableName              struct{}          `sql:"cluster" pg:",discard_unknown_columns"`
@@ -41,6 +49,26 @@ type Cluster struct {
 	ErrorInConnecting      string            `sql:"error_in_connecting"`
 	InsecureSkipTlsVerify  bool              `sql:"insecure_skip_tls_verify"`
 	sql.AuditLog
+}
+
+func (model *Cluster) GetClusterBean() cluster.ClusterBean {
+	bean := cluster.ClusterBean{}
+	bean.Id = model.Id
+	bean.ClusterName = model.ClusterName
+	bean.ServerUrl = model.ServerUrl
+	bean.PrometheusUrl = model.PrometheusEndpoint
+	bean.AgentInstallationStage = model.AgentInstallationStage
+	bean.Active = model.Active
+	bean.Config = model.Config
+	bean.K8sVersion = model.K8sVersion
+	bean.InsecureSkipTLSVerify = model.InsecureSkipTlsVerify
+	bean.PrometheusAuth = &PrometheusAuth{
+		UserName:      model.PUserName,
+		Password:      model.PPassword,
+		TlsClientCert: model.PTlsClientCert,
+		TlsClientKey:  model.PTlsClientKey,
+	}
+	return bean
 }
 
 type ClusterRepository interface {
