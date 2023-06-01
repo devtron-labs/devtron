@@ -147,25 +147,26 @@ type CiPipelineMaterialResponse struct {
 }
 
 type WorkflowResponse struct {
-	Id                 int                              `json:"id"`
-	Name               string                           `json:"name"`
-	Status             string                           `json:"status"`
-	PodStatus          string                           `json:"podStatus"`
-	Message            string                           `json:"message"`
-	StartedOn          time.Time                        `json:"startedOn"`
-	FinishedOn         time.Time                        `json:"finishedOn"`
-	CiPipelineId       int                              `json:"ciPipelineId"`
-	Namespace          string                           `json:"namespace"`
-	LogLocation        string                           `json:"logLocation"`
-	BlobStorageEnabled bool                             `json:"blobStorageEnabled"`
-	GitTriggers        map[int]pipelineConfig.GitCommit `json:"gitTriggers"`
-	CiMaterials        []CiPipelineMaterialResponse     `json:"ciMaterials"`
-	TriggeredBy        int32                            `json:"triggeredBy"`
-	Artifact           string                           `json:"artifact"`
-	TriggeredByEmail   string                           `json:"triggeredByEmail"`
-	Stage              string                           `json:"stage"`
-	ArtifactId         int                              `json:"artifactId"`
-	IsArtifactUploaded bool                             `json:"isArtifactUploaded"`
+	Id                   int                              `json:"id"`
+	Name                 string                           `json:"name"`
+	Status               string                           `json:"status"`
+	PodStatus            string                           `json:"podStatus"`
+	Message              string                           `json:"message"`
+	StartedOn            time.Time                        `json:"startedOn"`
+	FinishedOn           time.Time                        `json:"finishedOn"`
+	CiPipelineId         int                              `json:"ciPipelineId"`
+	Namespace            string                           `json:"namespace"`
+	LogLocation          string                           `json:"logLocation"`
+	BlobStorageEnabled   bool                             `json:"blobStorageEnabled"`
+	GitTriggers          map[int]pipelineConfig.GitCommit `json:"gitTriggers"`
+	CiMaterials          []CiPipelineMaterialResponse     `json:"ciMaterials"`
+	TriggeredBy          int32                            `json:"triggeredBy"`
+	Artifact             string                           `json:"artifact"`
+	TriggeredByEmail     string                           `json:"triggeredByEmail"`
+	Stage                string                           `json:"stage"`
+	ArtifactId           int                              `json:"artifactId"`
+	IsArtifactUploaded   bool                             `json:"isArtifactUploaded"`
+	IsVirtualEnvironment bool                             `json:"isVirtualEnvironment"`
 }
 
 type GitTriggerInfoResponse struct {

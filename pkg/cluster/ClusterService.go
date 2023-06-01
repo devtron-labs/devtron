@@ -86,6 +86,7 @@ type ClusterBean struct {
 	InsecureSkipTLSVerify   bool                       `json:"insecureSkipTlsVerify"`
 	ErrorInConnecting       string                     `json:"errorInConnecting"`
 	IsCdArgoSetup           bool                       `json:"isCdArgoSetup"`
+	IsVirtualCluster        bool                       `json:"isVirtualCluster"`
 	isClusterNameEmpty      bool                       `json:"-"`
 	ClusterUpdated          bool                       `json:"clusterUpdated"`
 }
@@ -101,6 +102,7 @@ func GetClusterBean(model repository.Cluster) ClusterBean {
 	bean.Config = model.Config
 	bean.K8sVersion = model.K8sVersion
 	bean.InsecureSkipTLSVerify = model.InsecureSkipTlsVerify
+	bean.IsVirtualCluster = model.IsVirtualCluster
 	bean.PrometheusAuth = &PrometheusAuth{
 		UserName:      model.PUserName,
 		Password:      model.PPassword,
@@ -637,12 +639,13 @@ func (impl *ClusterServiceImpl) FindAllForAutoComplete() ([]ClusterBean, error) 
 	}
 	var beans []ClusterBean
 	for _, m := range model {
-		bean := ClusterBean{}
-		bean.Id = m.Id
-		bean.ClusterName = m.ClusterName
-		bean.ErrorInConnecting = m.ErrorInConnecting
-		bean.IsCdArgoSetup = m.CdArgoSetup
-		beans = append(beans, bean)
+		beans = append(beans, ClusterBean{
+			Id:                m.Id,
+			ClusterName:       m.ClusterName,
+			ErrorInConnecting: m.ErrorInConnecting,
+			IsCdArgoSetup:     m.CdArgoSetup,
+			IsVirtualCluster:  m.IsVirtualCluster,
+		})
 	}
 	return beans, nil
 }
@@ -660,17 +663,19 @@ func (impl *ClusterServiceImpl) buildInformer() {
 	}
 	var clusterInfo []*bean2.ClusterInfo
 	for _, model := range models {
-		bearerToken := model.Config["bearer_token"]
-		clusterInfo = append(clusterInfo, &bean2.ClusterInfo{
-			ClusterId:             model.Id,
-			ClusterName:           model.ClusterName,
-			BearerToken:           bearerToken,
-			ServerUrl:             model.ServerUrl,
-			InsecureSkipTLSVerify: model.InsecureSkipTlsVerify,
-			KeyData:               model.Config["tls_key"],
-			CertData:              model.Config["cert_data"],
-			CAData:                model.Config["cert_auth_data"],
-		})
+		if !model.IsVirtualCluster {
+			bearerToken := model.Config["bearer_token"]
+			clusterInfo = append(clusterInfo, &bean2.ClusterInfo{
+				ClusterId:             model.Id,
+				ClusterName:           model.ClusterName,
+				BearerToken:           bearerToken,
+				ServerUrl:             model.ServerUrl,
+				InsecureSkipTLSVerify: model.InsecureSkipTlsVerify,
+				KeyData:               model.Config["tls_key"],
+				CertData:              model.Config["cert_data"],
+				CAData:                model.Config["cert_auth_data"],
+			})
+		}
 	}
 	impl.K8sInformerFactory.BuildInformer(clusterInfo)
 }
