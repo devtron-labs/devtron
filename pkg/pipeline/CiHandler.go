@@ -169,6 +169,7 @@ type WorkflowResponse struct {
 	UserApprovalMetadata *pipelineConfig.UserApprovalMetadata `json:"userApprovalMetadata"`
 	IsVirtualEnvironment bool                                 `json:"IsVirtualEnvironment"`
 	CdWorkflowId         int                                  `json:"cdWorkflowId"`
+	HelmPackageName      string                               `json:"helmPackageName"`
 }
 
 type GitTriggerInfoResponse struct {

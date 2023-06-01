@@ -45,6 +45,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
 	"net/url"
+	"os"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -1572,17 +1573,61 @@ func (impl *AppServiceImpl) BuildChartAndGetPath(appName string, envOverride *ch
 	return tempReferenceTemplateDir, nil
 }
 
-func (impl *AppServiceImpl) GetHelmManifestInByte(overrideValues string, refChartPath string) ([]byte, error) {
+func (impl *AppServiceImpl) CopyFile(source, destination string) error {
+	input, err := ioutil.ReadFile(source)
+	if err != nil {
+		impl.logger.Errorw("error in reading file input", "err", err)
+		return err
+	}
+	err = ioutil.WriteFile(destination, input, 0644)
+	if err != nil {
+		impl.logger.Errorw("error in writing file output", "err", err)
+		return err
+	}
+	return nil
+}
+
+func (impl *AppServiceImpl) GetHelmManifestInByte(appName string, chartVersion string, overrideValues string, builtChartPath string) ([]byte, error) {
 
 	var manifestByteArr []byte
 
-	valuesFilePath := path.Join(refChartPath, "valuesOverride.yaml")
-	err := ioutil.WriteFile(valuesFilePath, []byte(overrideValues), 0600)
+	// parsed ref-chart has many files and helm chart in form <appName-chartVersion.tgz>, copying this helm chart and values to new dir so that other unnecessary files are removed
+	tempHelmPackageDir := path.Join("/tmp/helmManifest", impl.chartTemplateService.GetDir())
+	err := os.MkdirAll(tempHelmPackageDir, os.ModePerm)
 	if err != nil {
-		return manifestByteArr, nil
+		impl.logger.Errorw("error in making dir for helm manifest", "err", err)
+		return manifestByteArr, err
 	}
 
-	manifestByteArr, err = impl.chartTemplateService.LoadChartInBytes(refChartPath, false)
+	packageChartName := fmt.Sprintf("%s-%s.tgz", appName, chartVersion)
+	packageChartOldPath := path.Join(builtChartPath, packageChartName) // helm chart
+	packageChartNewPath := path.Join(tempHelmPackageDir, packageChartName)
+	err = impl.CopyFile(packageChartOldPath, packageChartNewPath)
+	if err != nil {
+		return manifestByteArr, err
+	}
+
+	valuesFileOldPath := path.Join(builtChartPath, "values.yaml") //default values of helm chart
+	valuesFileNewPath := path.Join(tempHelmPackageDir, "values.yaml")
+	err = impl.CopyFile(valuesFileOldPath, valuesFileNewPath)
+	if err != nil {
+		return manifestByteArr, err
+	}
+
+	valuesOverrideFilePath := path.Join(tempHelmPackageDir, "valuesOverride.json") //values override json
+	err = ioutil.WriteFile(valuesOverrideFilePath, []byte(overrideValues), 0600)
+	if err != nil {
+		return manifestByteArr, err
+	}
+
+	chartsFileOldPath := path.Join(builtChartPath, "Chart.yaml") //default values of helm chart
+	chartsFileNewPath := path.Join(tempHelmPackageDir, "Chart.yaml")
+	err = impl.CopyFile(chartsFileOldPath, chartsFileNewPath)
+	if err != nil {
+		return manifestByteArr, err
+	}
+
+	manifestByteArr, err = impl.chartTemplateService.LoadChartInBytes(tempHelmPackageDir, true)
 	if err != nil {
 		impl.logger.Errorw("error in converting chart to bytes", "err", err)
 		return manifestByteArr, err
@@ -1812,6 +1857,10 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 	}
 	span.End()
 
+	_, span = otel.Tracer("orchestrator").Start(ctx, "CreateHistoriesForDeploymentTrigger")
+	err = impl.CreateHistoriesForDeploymentTrigger(valuesOverrideResponse.Pipeline, valuesOverrideResponse.PipelineStrategy, valuesOverrideResponse.EnvOverride, triggerEvent.TriggerdAt, triggerEvent.TriggeredBy)
+	span.End()
+
 	if triggerEvent.GetManifestInResponse {
 		//get stream and directly redirect the stram to response
 		timeline := &pipelineConfig.PipelineStatusTimeline{
@@ -1833,7 +1882,10 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 		}
 		span.End()
 
-		manifest, err = impl.GetHelmManifestInByte(valuesOverrideResponse.MergedValues, builtChartPath)
+		manifest, err = impl.GetHelmManifestInByte(overrideRequest.AppName,
+			valuesOverrideResponse.EnvOverride.Chart.ChartVersion,
+			valuesOverrideResponse.MergedValues,
+			builtChartPath)
 		if err != nil {
 			impl.logger.Errorw("error in converting built chart to bytes", "err", err)
 			return releaseNo, manifest, err
@@ -1882,10 +1934,6 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 			return releaseNo, manifest, err
 		}
 	}
-
-	_, span = otel.Tracer("orchestrator").Start(ctx, "CreateHistoriesForDeploymentTrigger")
-	err = impl.CreateHistoriesForDeploymentTrigger(valuesOverrideResponse.Pipeline, valuesOverrideResponse.PipelineStrategy, valuesOverrideResponse.EnvOverride, triggerEvent.TriggerdAt, triggerEvent.TriggeredBy)
-	span.End()
 
 	go impl.WriteCDTriggerEvent(overrideRequest, valuesOverrideResponse.Artifact, valuesOverrideResponse.PipelineOverride.PipelineReleaseCounter, valuesOverrideResponse.PipelineOverride.Id)
 

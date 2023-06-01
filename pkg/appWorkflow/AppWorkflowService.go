@@ -88,6 +88,7 @@ type AppWorkflowMappingDto struct {
 	ParentType                 string `json:"parentType"`
 	DeploymentAppDeleteRequest bool   `json:"deploymentAppDeleteRequest"`
 	UserId                     int32  `json:"-"`
+	EnvironmentName            string `json:"environmentName"`
 }
 
 type AllAppWorkflowComponentDetails struct {
@@ -396,12 +397,13 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowMappingForEnv(appIds []int) (m
 			}
 		}
 		workflow := AppWorkflowMappingDto{
-			Id:            w.Id,
-			ParentId:      w.ParentId,
-			ComponentId:   w.ComponentId,
-			Type:          w.Type,
-			AppWorkflowId: w.AppWorkflowId,
-			ParentType:    w.ParentType,
+			Id:              w.Id,
+			ParentId:        w.ParentId,
+			ComponentId:     w.ComponentId,
+			Type:            w.Type,
+			AppWorkflowId:   w.AppWorkflowId,
+			ParentType:      w.ParentType,
+			EnvironmentName: pipelineMap[w.ComponentId].Environment.Name,
 		}
 		if w.Type == "CD_PIPELINE" {
 			workflow.DeploymentAppDeleteRequest = pipelineMap[w.ComponentId].DeploymentAppDeleteRequest
