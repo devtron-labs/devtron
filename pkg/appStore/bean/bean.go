@@ -100,6 +100,10 @@ type InstallAppVersionDTO struct {
 	AcdPartialDelete             bool                           `json:"acdPartialDelete"`
 	InstalledAppDeleteResponse   *InstalledAppDeleteResponseDTO `json:"deleteResponse,omitempty"`
 	AppStoreApplicationVersionId int
+	PerformGitOpsForHelmApp      bool `json:"performGitOpsForHelmApp"`
+	PerformGitOps                bool `json:"performGitOps"`
+	PerformACDDeployment         bool `json:"performACDDeployment"`
+	PerformHelmDeployment        bool `json:"performHelmDeployment"`
 }
 
 type InstalledAppDeleteResponseDTO struct {
@@ -356,4 +360,13 @@ const (
 func (a AppstoreDeploymentStatus) String() string {
 	return [...]string{"WF_UNKNOWN", "REQUEST_ACCEPTED", "ENQUEUED", "QUE_ERROR", "DEQUE_ERROR", "TRIGGER_ERROR", "DEPLOY_SUCCESS", "DEPLOY_INIT", "GIT_ERROR", "GIT_SUCCESS", "ACD_ERROR", "ACD_SUCCESS", "HELM_ERROR",
 		"HELM_SUCCESS"}[a]
+}
+
+type PushChartToGitRequestDTO struct {
+	AppName           string
+	EnvName           string
+	ChartAppStoreName string
+	RepoURL           string
+	TempChartRefDir   string
+	UserId            int32
 }

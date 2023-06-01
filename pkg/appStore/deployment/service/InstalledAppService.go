@@ -31,8 +31,10 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/appStatus"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
+	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
+	appStoreDeploymentGitopsTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/gitops"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/values/service"
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -123,6 +125,7 @@ type InstalledAppServiceImpl struct {
 	appStatusService                     appStatus.AppStatusService
 	K8sUtil                              *util.K8sUtil
 	pipelineStatusTimelineService        status.PipelineStatusTimelineService
+	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
 }
 
 func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
@@ -146,7 +149,8 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	attributesRepository repository3.AttributesRepository,
 	appStatusService appStatus.AppStatusService, K8sUtil *util.K8sUtil,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
-) (*InstalledAppServiceImpl, error) {
+	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
+	appStoreDeploymentArgoCdService appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -178,6 +182,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		appStatusService:                     appStatusService,
 		K8sUtil:                              K8sUtil,
 		pipelineStatusTimelineService:        pipelineStatusTimelineService,
+		appStoreDeploymentCommonService:      appStoreDeploymentCommonService,
 	}
 	err := impl.Subscribe()
 	if err != nil {
@@ -371,7 +376,8 @@ func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion 
 		installedAppVersion.Status == appStoreBean.QUE_ERROR ||
 		installedAppVersion.Status == appStoreBean.GIT_ERROR {
 		//step 2 git operation pull push
-		installedAppVersion, chartGitAttrDB, err := impl.appStoreDeploymentFullModeService.AppStoreDeployOperationGIT(installedAppVersion, nil)
+		//TODO: save git Timeline here
+		appStoreGitOpsResponse, err := impl.appStoreDeploymentCommonService.GenerateManifestAndPerformGitOperations(installedAppVersion)
 		if err != nil {
 			impl.logger.Errorw(" error", "err", err)
 			_, err = impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(installedAppVersion.InstalledAppId, appStoreBean.GIT_ERROR)
@@ -379,16 +385,42 @@ func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion 
 				impl.logger.Errorw(" error", "err", err)
 				return nil, err
 			}
+			timeline := &pipelineConfig.PipelineStatusTimeline{
+				InstalledAppVersionHistoryId: installedAppVersion.InstalledAppVersionHistoryId,
+				Status:                       pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED,
+				StatusDetail:                 fmt.Sprintf("Git commit failed - %v", err),
+				StatusTime:                   time.Now(),
+				AuditLog: sql.AuditLog{
+					CreatedBy: installedAppVersion.UserId,
+					CreatedOn: time.Now(),
+					UpdatedBy: installedAppVersion.UserId,
+					UpdatedOn: time.Now(),
+				},
+			}
+			_ = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, true)
 			return nil, err
 		}
-		impl.logger.Infow("GIT SUCCESSFUL", "chartGitAttrDB", chartGitAttrDB)
+		timeline := &pipelineConfig.PipelineStatusTimeline{
+			InstalledAppVersionHistoryId: installedAppVersion.InstalledAppVersionHistoryId,
+			Status:                       pipelineConfig.TIMELINE_STATUS_GIT_COMMIT,
+			StatusDetail:                 "Git commit done successfully.",
+			StatusTime:                   time.Now(),
+			AuditLog: sql.AuditLog{
+				CreatedBy: installedAppVersion.UserId,
+				CreatedOn: time.Now(),
+				UpdatedBy: installedAppVersion.UserId,
+				UpdatedOn: time.Now(),
+			},
+		}
+		_ = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, true)
+		impl.logger.Infow("GIT SUCCESSFUL", "chartGitAttrDB", appStoreGitOpsResponse)
 		_, err = impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(installedAppVersion.InstalledAppId, appStoreBean.GIT_SUCCESS)
 		if err != nil {
 			impl.logger.Errorw(" error", "err", err)
 			return nil, err
 		}
-		chartGitAttr.RepoUrl = chartGitAttrDB.RepoUrl
-		chartGitAttr.ChartLocation = chartGitAttrDB.ChartLocation
+		chartGitAttr.RepoUrl = appStoreGitOpsResponse.ChartGitAttribute.RepoUrl
+		chartGitAttr.ChartLocation = appStoreGitOpsResponse.ChartGitAttribute.ChartLocation
 	} else {
 		impl.logger.Infow("DB and GIT operation already done for this app and env, proceed for further step", "installedAppId", installedAppVersion.InstalledAppId, "existing status", installedAppVersion.Status)
 		environment, err := impl.environmentRepository.FindById(installedAppVersion.EnvironmentId)
@@ -486,6 +518,7 @@ func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int
 			return nil, err
 		}
 	} else if util.IsHelmApp(installedAppVersion.DeploymentAppType) {
+
 		_, err = impl.appStoreDeploymentService.InstallAppByHelm(installedAppVersion, ctx)
 		if err != nil {
 			impl.logger.Errorw("error", "err", err)
@@ -812,6 +845,7 @@ func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(instal
 		ClusterId:                     installedAppVerison.InstalledApp.Environment.ClusterId,
 		DeploymentAppType:             installedAppVerison.InstalledApp.DeploymentAppType,
 		DeploymentAppDeleteRequest:    installedAppVerison.InstalledApp.DeploymentAppDeleteRequest,
+		IsVirtualEnvironment:          installedAppVerison.InstalledApp.Environment.IsVirtualEnvironment,
 	}
 	userInfo, err := impl.userService.GetByIdIncludeDeleted(installedAppVerison.AuditLog.UpdatedBy)
 	if err != nil {
