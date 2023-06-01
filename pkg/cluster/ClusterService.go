@@ -63,6 +63,13 @@ const (
 	SECRET_FIELD_ACTION              = "action"
 )
 
+type PrometheusAuth struct {
+	UserName      string `json:"userName,omitempty"`
+	Password      string `json:"password,omitempty"`
+	TlsClientCert string `json:"tlsClientCert,omitempty"`
+	TlsClientKey  string `json:"tlsClientKey,omitempty"`
+}
+
 type ClusterBean struct {
 	Id                      int                        `json:"id" validate:"number"`
 	ClusterName             string                     `json:"cluster_name,omitempty" validate:"required"`
@@ -70,7 +77,7 @@ type ClusterBean struct {
 	PrometheusUrl           string                     `json:"prometheus_url,omitempty" validate:"validate-non-empty-url"`
 	Active                  bool                       `json:"active"`
 	Config                  map[string]string          `json:"config,omitempty"`
-	PrometheusAuth          *repository.PrometheusAuth `json:"prometheusAuth,omitempty"`
+	PrometheusAuth          *PrometheusAuth            `json:"prometheusAuth,omitempty"`
 	DefaultClusterComponent []*DefaultClusterComponent `json:"defaultClusterComponent"`
 	AgentInstallationStage  int                        `json:"agentInstallationStage,notnull"` // -1=external, 0=not triggered, 1=progressing, 2=success, 3=fails
 	K8sVersion              string                     `json:"k8sVersion"`
@@ -81,6 +88,26 @@ type ClusterBean struct {
 	IsCdArgoSetup           bool                       `json:"isCdArgoSetup"`
 	isClusterNameEmpty      bool                       `json:"-"`
 	ClusterUpdated          bool                       `json:"clusterUpdated"`
+}
+
+func GetClusterBean(model repository.Cluster) ClusterBean {
+	bean := ClusterBean{}
+	bean.Id = model.Id
+	bean.ClusterName = model.ClusterName
+	bean.ServerUrl = model.ServerUrl
+	bean.PrometheusUrl = model.PrometheusEndpoint
+	bean.AgentInstallationStage = model.AgentInstallationStage
+	bean.Active = model.Active
+	bean.Config = model.Config
+	bean.K8sVersion = model.K8sVersion
+	bean.InsecureSkipTLSVerify = model.InsecureSkipTlsVerify
+	bean.PrometheusAuth = &PrometheusAuth{
+		UserName:      model.PUserName,
+		Password:      model.PPassword,
+		TlsClientCert: model.PTlsClientCert,
+		TlsClientKey:  model.PTlsClientKey,
+	}
+	return bean
 }
 
 func (bean ClusterBean) GetClusterConfig() util.ClusterConfig {
@@ -335,7 +362,7 @@ func (impl *ClusterServiceImpl) FindOne(clusterName string) (*ClusterBean, error
 	if err != nil {
 		return nil, err
 	}
-	bean := model.GetClusterBean()
+	bean := GetClusterBean(*model)
 	return &bean, nil
 }
 
@@ -344,7 +371,7 @@ func (impl *ClusterServiceImpl) FindOneActive(clusterName string) (*ClusterBean,
 	if err != nil {
 		return nil, err
 	}
-	bean := model.GetClusterBean()
+	bean := GetClusterBean(*model)
 	return &bean, nil
 
 }
@@ -367,7 +394,7 @@ func (impl *ClusterServiceImpl) FindAll() ([]*ClusterBean, error) {
 	}
 	var beans []*ClusterBean
 	for _, model := range models {
-		bean := model.GetClusterBean()
+		bean := GetClusterBean(model)
 		beans = append(beans, &bean)
 	}
 	return beans, nil
@@ -380,7 +407,7 @@ func (impl *ClusterServiceImpl) FindAllActive() ([]ClusterBean, error) {
 	}
 	var beans []ClusterBean
 	for _, model := range models {
-		bean := model.GetClusterBean()
+		bean := GetClusterBean(model)
 		beans = append(beans, bean)
 	}
 	return beans, nil
@@ -391,7 +418,7 @@ func (impl *ClusterServiceImpl) FindById(id int) (*ClusterBean, error) {
 	if err != nil {
 		return nil, err
 	}
-	bean := model.GetClusterBean()
+	bean := GetClusterBean(*model)
 	return &bean, nil
 }
 
@@ -413,7 +440,7 @@ func (impl *ClusterServiceImpl) FindByIds(ids []int) ([]ClusterBean, error) {
 	var beans []ClusterBean
 
 	for _, model := range models {
-		bean := model.GetClusterBean()
+		bean := GetClusterBean(model)
 		beans = append(beans, bean)
 	}
 	return beans, nil
