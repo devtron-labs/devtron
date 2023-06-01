@@ -491,6 +491,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 		runner.Status = pipelineConfig.WorkflowSucceeded
 		runner.UpdatedBy = triggeredBy
 		runner.UpdatedOn = triggeredAt
+		runner.FinishedOn = time.Now()
 		runner.HelmReferenceChart = chartBytes
 		err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
 		if err != nil {
@@ -593,6 +594,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		runner.Status = pipelineConfig.WorkflowSucceeded
 		runner.UpdatedBy = triggeredBy
 		runner.UpdatedOn = triggeredAt
+		runner.FinishedOn = time.Now()
 		runner.HelmReferenceChart = chartBytes
 		err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
 		if err != nil {
@@ -1228,6 +1230,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 			Namespace:    impl.cdConfig.DefaultNamespace,
 			CdWorkflowId: cdWf.Id,
 			AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: 1, UpdatedOn: triggeredAt, UpdatedBy: 1},
+			FinishedOn:   time.Now(),
 		}
 		updateErr := impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
 		if updateErr != nil {
@@ -1677,6 +1680,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 				CdWorkflowId:       overrideRequest.CdWorkflowId,
 				AuditLog:           sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
 				HelmReferenceChart: manifest,
+				FinishedOn:         time.Now(),
 			}
 			updateErr := impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
 			if updateErr != nil {
