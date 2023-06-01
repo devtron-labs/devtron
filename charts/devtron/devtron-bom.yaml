@@ -19,7 +19,7 @@ components:
     config:
       extraConfigs:
         USE_V2: "true"
-        ENABLE_BUILD_CONTEXT: "false"
+        ENABLE_BUILD_CONTEXT: "true"
   devtron:
     image: "quay.io/devtron/hyperion:f45916a0-280-13927"
     cicdImage: "quay.io/devtron/devtron:f45916a0-434-13929"
