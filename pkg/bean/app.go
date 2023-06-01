@@ -654,7 +654,7 @@ type CiArtifactResponse struct {
 	LatestWfArtifactId     int              `json:"latest_wf_artifact_id"`
 	LatestWfArtifactStatus string           `json:"latest_wf_artifact_status"`
 	CiArtifacts            []CiArtifactBean `json:"ci_artifacts,notnull"`
-	ProdEnvExists          bool             `json:"prodEnvExists"`
+	TagsEditable           bool             `json:"tagsEditable"`
 	AppReleaseTagNames     []string         `json:"appReleaseTagNames"` //unique list of tags exists in the app
 }
 

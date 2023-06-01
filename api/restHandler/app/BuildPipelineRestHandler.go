@@ -27,7 +27,7 @@ import (
 const GIT_MATERIAL_DELETE_SUCCESS_RESP = "Git material deleted successfully."
 
 type BuildHistoryResponse struct {
-	ProdEnvExists      bool                        `json:"prodEnvExists"`
+	TagsEditable       bool                        `json:"tagsEditable"`
 	AppReleaseTagNames []string                    `json:"appReleaseTagNames"` //unique list of tags exists in the app
 	CiWorkflows        []pipeline.WorkflowResponse `json:"ciWorkflows"`
 }
@@ -789,20 +789,16 @@ func (handler *PipelineConfigRestHandlerImpl) GetBuildHistory(w http.ResponseWri
 		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
 		return
 	}
-	appTags, err := handler.imageTaggingService.GetTagsByAppId(ciPipeline.AppId)
+	appTags, err := handler.imageTaggingService.GetUniqueTagsByAppId(ciPipeline.AppId)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetTagsByAppId", "err", err, "appId", ciPipeline.AppId)
 		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
 		return
 	}
-	uniqueTags := make([]string, len(appTags))
-	for i, tag := range appTags {
-		uniqueTags[i] = tag.TagName
-	}
-	resp.AppReleaseTagNames = uniqueTags
+	resp.AppReleaseTagNames = appTags
 
 	prodEnvExists, err := handler.imageTaggingService.GetProdEnvFromParentAndLinkedWorkflow(ciPipeline.Id)
-	resp.ProdEnvExists = prodEnvExists
+	resp.TagsEditable = prodEnvExists
 	if err != nil {
 		handler.Logger.Errorw("service err, GetProdEnvFromParentAndLinkedWorkflow", "err", err, "ciPipelineId", ciPipeline.Id)
 		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)

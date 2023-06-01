@@ -27,7 +27,7 @@ import (
 
 type DeploymentHistoryResp struct {
 	CdWorkflows        []pipelineConfig.CdWorkflowWithArtifact `json:"cdWorkflows"`
-	ProdEnvExists      bool                                    `json:"prodEnvExists"`
+	TagsEdiatable      bool                                    `json:"tagsEditable"`
 	AppReleaseTagNames []string                                `json:"appReleaseTagNames"` //unique list of tags exists in the app
 }
 type DevtronAppDeploymentRestHandler interface {
@@ -947,20 +947,17 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 		return
 	}
 
-	appTags, err := handler.imageTaggingService.GetTagsByAppId(pipeline.AppId)
+	appTags, err := handler.imageTaggingService.GetUniqueTagsByAppId(pipeline.AppId)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetTagsByAppId", "err", err, "appId", pipeline.AppId)
 		common.WriteJsonResp(w, err, ciArtifactResponse, http.StatusInternalServerError)
 		return
 	}
-	uniqueTags := make([]string, len(appTags))
-	for i, tag := range appTags {
-		uniqueTags[i] = tag.TagName
-	}
-	ciArtifactResponse.AppReleaseTagNames = uniqueTags
+
+	ciArtifactResponse.AppReleaseTagNames = appTags
 
 	prodEnvExists, err := handler.imageTaggingService.GetProdEnvByCdPipelineId(pipeline.Id)
-	ciArtifactResponse.ProdEnvExists = prodEnvExists
+	ciArtifactResponse.TagsEditable = prodEnvExists
 	if err != nil {
 		handler.Logger.Errorw("service err, GetProdEnvByCdPipelineId", "err", err, "cdPipelineId", pipeline.Id)
 		common.WriteJsonResp(w, err, ciArtifactResponse, http.StatusInternalServerError)
@@ -1513,20 +1510,16 @@ func (handler *PipelineConfigRestHandlerImpl) ListDeploymentHistory(w http.Respo
 		return
 	}
 
-	appTags, err := handler.imageTaggingService.GetTagsByAppId(appId)
+	appTags, err := handler.imageTaggingService.GetUniqueTagsByAppId(appId)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetTagsByAppId", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
 		return
 	}
-	uniqueTags := make([]string, len(appTags))
-	for i, tag := range appTags {
-		uniqueTags[i] = tag.TagName
-	}
-	resp.AppReleaseTagNames = uniqueTags
+	resp.AppReleaseTagNames = appTags
 
 	prodEnvExists, err := handler.imageTaggingService.GetProdEnvByCdPipelineId(pipelineId)
-	resp.ProdEnvExists = prodEnvExists
+	resp.TagsEdiatable = prodEnvExists
 	if err != nil {
 		handler.Logger.Errorw("service err, GetProdEnvFromParentAndLinkedWorkflow", "err", err, "cdPipelineId", pipelineId)
 		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)

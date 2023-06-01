@@ -46,7 +46,7 @@ type ImageTaggingRequestDTO struct {
 }
 
 type ImageTaggingService interface {
-	// GetTagsData returns the following fields
+	// GetTagsData returns the following fields in reponse Object
 	//ImageReleaseTags -> this will get the tags of the artifact,
 	//AppReleaseTags -> all the tags of the given appId,
 	//imageComment -> comment of the given artifactId,
@@ -57,9 +57,9 @@ type ImageTaggingService interface {
 	GetProdEnvByCdPipelineId(pipelineId int) (bool, error)
 	ValidateImageTaggingRequest(imageTaggingRequest *ImageTaggingRequestDTO) (bool, error)
 	GetTagsByArtifactId(artifactId int) ([]repository.ImageTag, error)
-	GetTagsByAppId(appId int) ([]repository.ImageTag, error)
 	// GetTaggingDataMapByAppId this will fetch a map of artifact vs []tags for given appId
 	GetTaggingDataMapByAppId(appId int) (map[int]*ImageTaggingResponseDTO, error)
+	GetUniqueTagsByAppId(appId int) ([]string, error)
 }
 
 type ImageTaggingServiceImpl struct {
@@ -84,7 +84,7 @@ func NewImageTaggingServiceImpl(imageTaggingRepo repository.ImageTaggingReposito
 	}
 }
 
-// GetTagsData returns the following fields
+// GetTagsData returns the following fields in reponse Object
 //ImageReleaseTags -> this will get the tags of the artifact,
 //AppReleaseTags -> all the tags of the given appId,
 //imageComment -> comment of the given artifactId,
@@ -96,7 +96,7 @@ func (impl ImageTaggingServiceImpl) GetTagsData(ciPipelineId, appId, artifactId 
 		impl.logger.Errorw("error in fetching image comment using artifactId", "err", err, "artifactId", artifactId)
 		return resp, err
 	}
-	appReleaseTags, err := impl.GetTagsByAppId(appId)
+	appReleaseTags, err := impl.GetUniqueTagsByAppId(appId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching image tags using appId", "err", err, "appId", appId)
 		return resp, err
@@ -111,7 +111,7 @@ func (impl ImageTaggingServiceImpl) GetTagsData(ciPipelineId, appId, artifactId 
 		impl.logger.Errorw("error in GetProdEnvFromParentAndLinkedWorkflow", "err", err, "ciPipelineId", ciPipelineId)
 		return resp, err
 	}
-	resp.AppReleaseTags = GetUniqueTagsFromImageTags(appReleaseTags)
+	resp.AppReleaseTags = appReleaseTags
 	resp.ImageReleaseTags = imageReleaseTags
 	resp.ImageComment = imageComment
 	resp.ProdEnvExists = prodEnvExists
@@ -468,10 +468,15 @@ func (impl ImageTaggingServiceImpl) GetProdEnvByCdPipelineId(pipelineId int) (bo
 
 }
 
-func GetUniqueTagsFromImageTags(imageTags []repository.ImageTag) []string {
+func (impl ImageTaggingServiceImpl) GetUniqueTagsByAppId(appId int) ([]string, error) {
+	imageTags, err := impl.GetTagsByAppId(appId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching image tags using appId", "err", err, "appId", appId)
+		return nil, err
+	}
 	uniqueTags := make([]string, len(imageTags))
 	for i, tag := range imageTags {
 		uniqueTags[i] = tag.TagName
 	}
-	return uniqueTags
+	return uniqueTags, nil
 }
