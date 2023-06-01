@@ -174,14 +174,14 @@ func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Reque
 	if appId != "" {
 		// Validate App Type
 		appType, err := strconv.Atoi(v.Get("appType"))
-		if err != nil || appType != DevtronAppType || appType != HelmAppType {
+		if err != nil || !(appType == DevtronAppType || appType == HelmAppType) {
 			impl.logger.Errorw("Invalid appType", "err", err, "appType", appType)
 			return nil, err
 		}
 		request.AppType = appType
 		// Validate Deployment Type
 		deploymentType, err := strconv.Atoi(v.Get("deploymentType"))
-		if err != nil || deploymentType != HelmInstalledType || deploymentType != ArgoInstalledType {
+		if err != nil || !(deploymentType == HelmInstalledType || deploymentType == ArgoInstalledType) {
 			impl.logger.Errorw("Invalid deploymentType", "err", err, "deploymentType", deploymentType)
 			return nil, err
 		}
