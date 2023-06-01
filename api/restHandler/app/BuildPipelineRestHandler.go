@@ -773,13 +773,16 @@ func (handler *PipelineConfigRestHandlerImpl) GetBuildHistory(w http.ResponseWri
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	//RBAC
+	//RBAC for build history
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(ciPipeline.AppId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
+	//RBAC
+	//RBAC for edit tag access , user should have build permission in current ci-pipeline
+	triggerAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object)
 	//RBAC
 	resp := BuildHistoryResponse{}
 	workflowsResp, err := handler.ciHandler.GetBuildHistory(pipelineId, ciPipeline.AppId, offset, limit)
@@ -798,7 +801,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetBuildHistory(w http.ResponseWri
 	resp.AppReleaseTagNames = appTags
 
 	prodEnvExists, err := handler.imageTaggingService.GetProdEnvFromParentAndLinkedWorkflow(ciPipeline.Id)
-	resp.TagsEditable = prodEnvExists
+	resp.TagsEditable = prodEnvExists && triggerAccess
 	if err != nil {
 		handler.Logger.Errorw("service err, GetProdEnvFromParentAndLinkedWorkflow", "err", err, "ciPipelineId", ciPipeline.Id)
 		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
@@ -1676,8 +1679,8 @@ func (handler PipelineConfigRestHandlerImpl) CreateUpdateImageTagging(w http.Res
 		handler.Logger.Errorw("save or edit operation not possible for this artifact", "err", nil, "artifactId", artifactId, "ciPipelineId", ciPipeline.Id)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 	}
-	hardDeleteTags := req.HardDeleteTags
-	if !isSuperAdmin && len(hardDeleteTags) > 0 {
+
+	if !isSuperAdmin && len(req.HardDeleteTags) > 0 {
 		errMsg := errors.New("user dont have permission to delete the tags")
 		handler.Logger.Errorw("request err, CreateUpdateImageTagging", "err", errMsg, "payload", req)
 		common.WriteJsonResp(w, errMsg, nil, http.StatusBadRequest)
