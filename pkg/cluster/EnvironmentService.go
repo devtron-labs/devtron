@@ -46,6 +46,7 @@ type EnvironmentBean struct {
 	EnvironmentIdentifier string `json:"environmentIdentifier"`
 	Description           string `json:"description" validate:"max=40"`
 	AppCount              int    `json:"appCount"`
+	IsVirtualEnvironment  bool   `json:"isVirtualEnvironment"`
 }
 
 type EnvDto struct {
@@ -54,12 +55,14 @@ type EnvDto struct {
 	Namespace             string `json:"namespace,omitempty" validate:"name-space-component,max=50"`
 	EnvironmentIdentifier string `json:"environmentIdentifier,omitempty"`
 	Description           string `json:"description" validate:"max=40"`
+	IsVirtualEnvironment  bool   `json:"isVirtualEnvironment"`
 }
 
 type ClusterEnvDto struct {
-	ClusterId    int       `json:"clusterId"`
-	ClusterName  string    `json:"clusterName,omitempty"`
-	Environments []*EnvDto `json:"environments,omitempty"`
+	ClusterId        int       `json:"clusterId"`
+	ClusterName      string    `json:"clusterName,omitempty"`
+	Environments     []*EnvDto `json:"environments,omitempty"`
+	IsVirtualCluster bool      `json:"isVirtualCluster"`
 }
 
 type AppGroupingResponse struct {
@@ -219,6 +222,7 @@ func (impl EnvironmentServiceImpl) GetAll() ([]EnvironmentBean, error) {
 			CdArgoSetup:           model.Cluster.CdArgoSetup,
 			EnvironmentIdentifier: model.EnvironmentIdentifier,
 			Description:           model.Description,
+			IsVirtualEnvironment:  model.IsVirtualEnvironment,
 		})
 	}
 	return beans, nil
@@ -242,6 +246,7 @@ func (impl EnvironmentServiceImpl) GetAllActive() ([]EnvironmentBean, error) {
 			Default:               model.Default,
 			EnvironmentIdentifier: model.EnvironmentIdentifier,
 			Description:           model.Description,
+			IsVirtualEnvironment:  model.IsVirtualEnvironment,
 		})
 	}
 	return beans, nil
@@ -263,6 +268,7 @@ func (impl EnvironmentServiceImpl) FindById(id int) (*EnvironmentBean, error) {
 		Default:               model.Default,
 		EnvironmentIdentifier: model.EnvironmentIdentifier,
 		Description:           model.Description,
+		IsVirtualEnvironment:  model.IsVirtualEnvironment,
 	}
 
 	/*clusterBean := &ClusterBean{
@@ -376,6 +382,7 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete() ([]Enviro
 			EnvironmentIdentifier: model.EnvironmentIdentifier,
 			ClusterName:           model.Cluster.ClusterName,
 			Description:           model.Description,
+			IsVirtualEnvironment:  model.IsVirtualEnvironment,
 		})
 	}
 	return beans, nil
@@ -394,6 +401,7 @@ func (impl EnvironmentServiceImpl) GetEnvironmentOnlyListForAutocomplete() ([]En
 			Namespace:             model.Namespace,
 			EnvironmentIdentifier: model.EnvironmentIdentifier,
 			ClusterId:             model.ClusterId,
+			IsVirtualEnvironment:  model.IsVirtualEnvironment,
 		})
 	}
 	return beans, nil
@@ -431,6 +439,7 @@ func (impl EnvironmentServiceImpl) FindByIds(ids []*int) ([]*EnvironmentBean, er
 			EnvironmentIdentifier: model.EnvironmentIdentifier,
 			ClusterId:             model.ClusterId,
 			Description:           model.Description,
+			IsVirtualEnvironment:  model.IsVirtualEnvironment,
 		})
 	}
 	return beans, nil

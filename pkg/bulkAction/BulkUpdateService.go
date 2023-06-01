@@ -1294,7 +1294,7 @@ func (impl BulkUpdateServiceImpl) SubscribeToCdBulkTriggerTopic() error {
 			return
 		}
 
-		_, err = impl.workflowDagExecutor.ManualCdTrigger(event.ValuesOverrideRequest, ctx)
+		_, _, err = impl.workflowDagExecutor.ManualCdTrigger(event.ValuesOverrideRequest, ctx)
 		if err != nil {
 			impl.logger.Errorw("Error triggering CD",
 				"topic", pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC,
@@ -1357,7 +1357,9 @@ func (impl BulkUpdateServiceImpl) BulkBuildTrigger(request *BulkApplicationForEn
 				}
 				ciPipelineId = ciPipeline.ParentCiPipeline
 			}
-			materialResponse, err := impl.ciHandler.FetchMaterialsByPipelineId(ciPipelineId)
+
+			//if include/exclude configured showAll will include excluded materials also in list, if not configured it will ignore this flag
+			materialResponse, err := impl.ciHandler.FetchMaterialsByPipelineId(ciPipelineId, false)
 			if err != nil {
 				impl.logger.Errorw("error in fetching ci pipeline materials", "CiPipelineId", ciPipelineId, "err", err)
 				return nil, err

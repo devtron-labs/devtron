@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/connector"
@@ -31,6 +32,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 )
 
@@ -61,6 +63,7 @@ type K8sApplicationService interface {
 	GetAllApiResources(ctx context.Context, clusterId int, isSuperAdmin bool, userId int32) (*application.GetAllApiResourcesResponse, error)
 	GetResourceList(ctx context.Context, token string, request *ResourceRequestBean, validateResourceAccess func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) (*util.ClusterResourceListMap, error)
 	ApplyResources(ctx context.Context, token string, request *application.ApplyResourcesRequest, resourceRbacHandler func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) ([]*application.ApplyResourcesResponse, error)
+	RotatePods(ctx context.Context, request *RotatePodRequest) (*RotatePodResponse, error)
 }
 type K8sApplicationServiceImpl struct {
 	logger                      *zap.SugaredLogger
@@ -923,6 +926,73 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 		return resourceList, err
 	}
 	return resourceList, nil
+}
+
+type RotatePodRequest struct {
+	ClusterId int                              `json:"clusterId"`
+	Resources []application.ResourceIdentifier `json:"resources"`
+}
+
+type RotatePodResponse struct {
+	Responses     []*RotatePodResourceResponse `json:"responses"`
+	ContainsError bool                         `json:"containsError"`
+}
+
+type RotatePodResourceResponse struct {
+	application.ResourceIdentifier
+	ErrorResponse string `json:"errorResponse"`
+}
+
+func (impl *K8sApplicationServiceImpl) RotatePods(ctx context.Context, request *RotatePodRequest) (*RotatePodResponse, error) {
+
+	clusterId := request.ClusterId
+	clusterBean, err := impl.clusterService.FindById(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting clusterBean by cluster Id", "clusterId", clusterId, "err", err)
+		return nil, err
+	}
+	restConfig, err := impl.GetRestConfigByCluster(ctx, clusterBean)
+	if err != nil {
+		impl.logger.Errorw("error in getting rest config by cluster", "clusterId", clusterId, "err", err)
+		return nil, err
+	}
+	response := &RotatePodResponse{}
+	var resourceResponses []*RotatePodResourceResponse
+	var containsError bool
+	for _, resourceIdentifier := range request.Resources {
+		resourceResponse := &RotatePodResourceResponse{
+			ResourceIdentifier: resourceIdentifier,
+		}
+		groupVersionKind := resourceIdentifier.GroupVersionKind
+		resourceKind := groupVersionKind.Kind
+		// validate one of deployment, statefulset, daemonSet, Rollout
+		if resourceKind != kube.DeploymentKind && resourceKind != kube.StatefulSetKind && resourceKind != kube.DaemonSetKind && resourceKind != util.K8sClusterResourceRolloutKind {
+			impl.logger.Errorf("restarting not supported for kind %s name %s", resourceKind, resourceIdentifier.Name)
+			containsError = true
+			resourceResponse.ErrorResponse = util.RestartingNotSupported
+		} else {
+			activitySnapshot := time.Now().Format(time.RFC3339)
+			data := fmt.Sprintf(`{"metadata": {"annotations": {"devtron.ai/restartedAt": "%s"}},"spec": {"template": {"metadata": {"annotations": {"devtron.ai/activity": "%s"}}}}}`, activitySnapshot, activitySnapshot)
+			var patchType types.PatchType
+			if resourceKind != util.K8sClusterResourceRolloutKind {
+				patchType = types.StrategicMergePatchType
+			} else {
+				// rollout does not support strategic merge type
+				patchType = types.MergePatchType
+			}
+			k8sRequest := &application.K8sRequestBean{ResourceIdentifier: resourceIdentifier}
+			_, err = impl.k8sClientService.PatchResource(ctx, restConfig, patchType, k8sRequest, data)
+			if err != nil {
+				containsError = true
+				resourceResponse.ErrorResponse = err.Error()
+			}
+		}
+		resourceResponses = append(resourceResponses, resourceResponse)
+	}
+
+	response.Responses = resourceResponses
+	response.ContainsError = containsError
+	return response, nil
 }
 
 func (impl *K8sApplicationServiceImpl) ApplyResources(ctx context.Context, token string, request *application.ApplyResourcesRequest, validateResourceAccess func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) ([]*application.ApplyResourcesResponse, error) {
