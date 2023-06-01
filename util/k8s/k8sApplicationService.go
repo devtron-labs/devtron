@@ -424,15 +424,8 @@ func (impl *K8sApplicationServiceImpl) GetRestConfigByClusterId(ctx context.Cont
 		impl.logger.Errorw("error in getting cluster by ID", "err", err, "clusterId")
 		return nil, err
 	}
-	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(&util.ClusterConfig{
-		ClusterName:           cluster.ClusterName,
-		Host:                  cluster.ServerUrl,
-		BearerToken:           cluster.Config["bearer_token"],
-		InsecureSkipTLSVerify: cluster.InsecureSkipTLSVerify,
-		KeyData:               cluster.Config["tls_key"],
-		CertData:              cluster.Config["cert_data"],
-		CAData:                cluster.Config["cert_auth_data"],
-	})
+	clusterConfig := cluster.GetClusterConfig()
+	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(&clusterConfig)
 	return restConfig, nil
 }
 
