@@ -93,7 +93,7 @@ data:
   DEVTRON_SECRET_NAME: "devtron-secret"
   GIT_SENSOR_PROTOCOL: GRPC
   GIT_SENSOR_URL: git-sensor-service.devtroncd:90
-  ENABLE_BUILD_CONTEXT: "false"
+  ENABLE_BUILD_CONTEXT: "true"
 ---
 apiVersion: v1
 kind: ConfigMap
