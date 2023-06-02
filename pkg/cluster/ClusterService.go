@@ -496,6 +496,7 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 		}
 		bean.HasConfigOrUrlChanged = true
 		//validating config
+		//add here
 		err := impl.CheckIfConfigIsValid(bean)
 		if err != nil {
 			return nil, err
@@ -719,8 +720,12 @@ func (impl ClusterServiceImpl) DeleteFromDb(bean *ClusterBean, userId int32) err
 }
 
 func (impl ClusterServiceImpl) CheckIfConfigIsValid(cluster *ClusterBean) error {
-	clusterConfig := cluster.GetClusterConfig()
-	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(&clusterConfig)
+	clusterConfig, err := impl.GetClusterConfig(cluster)
+	if err != nil {
+		impl.logger.Errorw("error in getting cluster config ", "err", "err", "clusterId", cluster.Id)
+		return err
+	}
+	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting client set by rest config", "err", err, "restConfig", restConfig)
 		return err
