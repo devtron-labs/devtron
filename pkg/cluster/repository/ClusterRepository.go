@@ -18,7 +18,6 @@
 package repository
 
 import (
-	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -76,7 +75,7 @@ type ClusterRepositoryImpl struct {
 
 func (cluster Cluster) GetClusterConfig() *rest.Config {
 	configMap := cluster.Config
-	bearerToken := configMap[util.BearerToken]
+	bearerToken := configMap["bearer_token"]
 	config := &rest.Config{
 		Host:        cluster.ServerUrl,
 		BearerToken: bearerToken,
