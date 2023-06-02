@@ -219,6 +219,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	}
 
 	ciCdTriggerEvent.CiRequest.BlobStorageLogsKey = impl.ciConfig.DefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowNamePrefix
+	ciCdTriggerEvent.CiRequest.InAppLoggingEnabled = impl.ciConfig.InAppLoggingEnabled
 	workflowJson, err := json.Marshal(&ciCdTriggerEvent)
 	if err != nil {
 		impl.Logger.Errorw("err", err)
