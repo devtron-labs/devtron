@@ -2448,11 +2448,10 @@ func (impl *AppServiceImpl) MarkImageScanDeployed(appId int, envId int, imageDig
 	} else {
 		// Updating Execution history for Latest Deployment to fetch out security Vulnerabilities for latest deployed info
 		ot.ImageScanExecutionHistoryId = ids
-		err := impl.imageScanDeployInfoRepository.Update(ot)
+		err = impl.imageScanDeployInfoRepository.Update(ot)
 		if err != nil {
 			impl.logger.Errorw("error in updating deploy info for latest deployed image", "err", err)
 		}
-		impl.logger.Debugw("pt", "ot", ot)
 	}
 	return err
 }

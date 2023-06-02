@@ -27,7 +27,7 @@ type ModuleInfoDto struct {
 	Name                  string                     `json:"name,notnull"`
 	Status                string                     `json:"status,notnull" validate:"oneof=notInstalled installed installing installFailed timeout"`
 	ModuleResourcesStatus []*ModuleResourceStatusDto `json:"moduleResourcesStatus"`
-	Enabled               bool                       `json:"enabled""`
+	Enabled               bool                       `json:"enabled"`
 	Moduletype            string                     `json:"moduleType,omitempty"`
 }
 
