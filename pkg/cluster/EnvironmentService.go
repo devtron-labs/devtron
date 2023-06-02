@@ -433,14 +433,12 @@ func (impl EnvironmentServiceImpl) FindClusterByEnvId(id int) (*ClusterBean, err
 		impl.logger.Errorw("fetch cluster by environment id", "err", err)
 		return nil, err
 	}
-
-	clusterBean := &ClusterBean{
-		Id:          model.Cluster.Id,
-		ClusterName: model.Cluster.ClusterName,
-		Active:      model.Cluster.Active,
-		ServerUrl:   model.Cluster.ServerUrl,
-		Config:      model.Cluster.Config,
-	}
+	clusterBean := &ClusterBean{}
+	clusterBean.Id = model.Cluster.Id
+	clusterBean.ClusterName = model.Cluster.ClusterName
+	clusterBean.Active = model.Cluster.Active
+	clusterBean.ServerUrl = model.Cluster.ServerUrl
+	clusterBean.Config = model.Cluster.Config
 	return clusterBean, nil
 }
 
