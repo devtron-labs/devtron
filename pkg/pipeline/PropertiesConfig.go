@@ -33,7 +33,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/util"
-	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
@@ -89,6 +88,7 @@ type PropertiesConfigServiceImpl struct {
 	logger                           *zap.SugaredLogger
 	envConfigRepo                    chartConfig.EnvConfigOverrideRepository
 	chartRepo                        chartRepoRepository.ChartRepository
+	chartRefRepository               chartRepoRepository.ChartRefRepository
 	mergeUtil                        util.MergeUtil
 	environmentRepository            repository2.EnvironmentRepository
 	ciCdPipelineOrchestrator         CiCdPipelineOrchestrator
@@ -101,6 +101,7 @@ type PropertiesConfigServiceImpl struct {
 func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
 	envConfigRepo chartConfig.EnvConfigOverrideRepository,
 	chartRepo chartRepoRepository.ChartRepository,
+	chartRefRepository chartRepoRepository.ChartRefRepository,
 	mergeUtil util.MergeUtil,
 	environmentRepository repository2.EnvironmentRepository,
 	ciCdPipelineOrchestrator CiCdPipelineOrchestrator,
@@ -112,6 +113,7 @@ func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
 		logger:                           logger,
 		envConfigRepo:                    envConfigRepo,
 		chartRepo:                        chartRepo,
+		chartRefRepository:               chartRefRepository,
 		mergeUtil:                        mergeUtil,
 		environmentRepository:            environmentRepository,
 		ciCdPipelineOrchestrator:         ciCdPipelineOrchestrator,
@@ -277,17 +279,27 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, e
 		IsOverride:        envOverride.IsOverride,
 	}
 
-	chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(chart.ChartVersion)
 	if err != nil {
 		impl.logger.Errorw("chart version parsing", "err", err, "chartVersion", chart.ChartVersion)
 		return nil, err
 	}
-
-	if !(chartMajorVersion >= 3 && chartMinorVersion >= 1) {
+	chartRefValue, err := impl.chartRefRepository.FindById(environmentProperties.ChartRefId)
+	if err != nil {
+		impl.logger.Errorw("error in finding ref chart by id", "err", err)
+		return nil, err
+	}
+	if !(chartRefValue.IsAppMetricsSupported) {
 		appMetricsRequest := chartService.AppMetricEnableDisableRequest{UserId: environmentProperties.UserId, AppId: appId, EnvironmentId: environmentProperties.EnvironmentId, IsAppMetricsEnabled: false}
 		_, err = impl.EnvMetricsEnableDisable(&appMetricsRequest)
 		if err != nil {
-			impl.logger.Errorw("err while disable app metrics for lower versions", "err", err, "appId", appId, "chartMajorVersion", chartMajorVersion, "chartMinorVersion", chartMinorVersion)
+			impl.logger.Errorw("err while disable app metrics", "err", err, "appId", appId, "chartVersion", chart.ChartVersion)
+			return nil, err
+		}
+	} else {
+		appMetricsRequest := chartService.AppMetricEnableDisableRequest{UserId: environmentProperties.UserId, AppId: appId, EnvironmentId: environmentProperties.EnvironmentId, IsAppMetricsEnabled: appMetrics}
+		_, err = impl.EnvMetricsEnableDisable(&appMetricsRequest)
+		if err != nil {
+			impl.logger.Errorw("err while updating app metrics", "err", err)
 			return nil, err
 		}
 	}
@@ -354,7 +366,6 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 		return nil, fmt.Errorf("namespace name update not supported")
 	}
 
-	chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(oldEnvOverride.Chart.ChartVersion)
 	if err != nil {
 		impl.logger.Errorw("chart version parsing", "err", err)
 		return nil, err
@@ -364,7 +375,12 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 	if propertiesRequest.AppMetrics != nil {
 		isAppMetricsEnabled = *propertiesRequest.AppMetrics
 	}
-	if !(chartMajorVersion >= 3 && chartMinorVersion >= 1) {
+	chartRefValue, err := impl.chartRefRepository.FindById(oldEnvOverride.Chart.ChartRefId)
+	if err != nil {
+		impl.logger.Errorw("error in finding ref chart by id", "err", err)
+		return nil, err
+	}
+	if !(chartRefValue.IsAppMetricsSupported) {
 		appMetricsRequest := chartService.AppMetricEnableDisableRequest{UserId: propertiesRequest.UserId, AppId: appId, EnvironmentId: oldEnvOverride.TargetEnvironment, IsAppMetricsEnabled: false}
 		_, err = impl.EnvMetricsEnableDisable(&appMetricsRequest)
 		if err != nil {
@@ -663,12 +679,12 @@ func (impl PropertiesConfigServiceImpl) EnvMetricsEnableDisable(appMetricRequest
 		return nil, err
 	}
 	if appMetricRequest.IsAppMetricsEnabled == true {
-		chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(currentChart.Chart.ChartVersion)
+		chartRefValue, err := impl.chartRefRepository.FindById(currentChart.Chart.ChartRefId)
 		if err != nil {
-			impl.logger.Errorw("chart version parsing", "err", err)
+			impl.logger.Errorw("error in finding ref chart by id", "err", err)
 			return nil, err
 		}
-		if !(chartMajorVersion >= 3 && chartMinorVersion >= 1) {
+		if !(chartRefValue.IsAppMetricsSupported) {
 			err = &util.ApiError{
 				InternalMessage: "chart version in not compatible for app metrics",
 				UserMessage:     "chart version in not compatible for app metrics",
