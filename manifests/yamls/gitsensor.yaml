@@ -60,7 +60,6 @@ spec:
     spec:
       terminationGracePeriodSeconds: 10
       securityContext:
-        fsGroup: 1000
         runAsGroup: 1000
         runAsUser: 1000
       initContainers:
@@ -68,7 +67,7 @@ spec:
           - /bin/sh
           - -c
           - mkdir -p /git-base/ssh-keys && chown -R devtron:devtron /git-base && chmod 777 /git-base/ssh-keys
-          image: "quay.io/devtron/git-sensor:0ed0198c-200-13796"
+          image: "quay.io/devtron/git-sensor:654cd702-200-13925"
           imagePullPolicy: IfNotPresent
           name: chown-git-base
           resources: {}
@@ -81,7 +80,7 @@ spec:
             name: git-volume
       containers:
         - name: git-sensor
-          image: "quay.io/devtron/git-sensor:0ed0198c-200-13796"
+          image: "quay.io/devtron/git-sensor:654cd702-200-13925"
           securityContext:
             allowPrivilegeEscalation: false
             runAsUser: 1000

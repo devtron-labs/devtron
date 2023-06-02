@@ -1,17 +1,12 @@
 package k8s
 
 import (
-	"context"
 	"fmt"
 	"github.com/caarlos0/env/v6"
-	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
-	"k8s.io/client-go/kubernetes"
-	"log"
-	"sync"
 )
 
 type ClusterCronService interface {
@@ -63,65 +58,5 @@ func (impl *ClusterCronServiceImpl) GetAndUpdateClusterConnectionStatus() {
 		impl.logger.Errorw("error in getting all clusters", "err", err)
 		return
 	}
-	wg := &sync.WaitGroup{}
-	wg.Add(len(clusters))
-	mutex := &sync.Mutex{}
-	//map of clusterId and error in its connection check process
-	respMap := make(map[int]error)
-	for _, cluster := range clusters {
-		// getting restConfig and clientSet outside the goroutine because we don't want to call goroutine func with receiver function
-		restConfig, err := impl.k8sApplicationService.GetRestConfigByCluster(context.Background(), cluster)
-		if err != nil {
-			impl.logger.Errorw("error in getting restConfig by cluster", "err", err, "clusterId", cluster.Id)
-			mutex.Lock()
-			respMap[cluster.Id] = err
-			mutex.Unlock()
-			continue
-		}
-		k8sHttpClient, err := util.OverrideK8sHttpClientWithTracer(restConfig)
-		if err != nil {
-			continue
-		}
-		k8sClientSet, err := kubernetes.NewForConfigAndClient(restConfig, k8sHttpClient)
-		if err != nil {
-			impl.logger.Errorw("error in getting client set by rest config", "err", err, "restConfig", restConfig)
-			mutex.Lock()
-			respMap[cluster.Id] = err
-			mutex.Unlock()
-			continue
-		}
-		go GetAndUpdateConnectionStatusForOneCluster(k8sClientSet, cluster.Id, respMap, wg, mutex)
-	}
-	wg.Wait()
-	impl.HandleErrorInClusterConnections(respMap)
-	return
-}
-
-func GetAndUpdateConnectionStatusForOneCluster(k8sClientSet *kubernetes.Clientset, clusterId int, respMap map[int]error, wg *sync.WaitGroup, mutex *sync.Mutex) {
-	defer wg.Done()
-	//using livez path as healthz path is deprecated
-	path := "/livez"
-	response, err := k8sClientSet.Discovery().RESTClient().Get().AbsPath(path).DoRaw(context.Background())
-	log.Println("received response for cluster livez status", "response", string(response), "err", err, "clusterId", clusterId)
-	if err == nil && string(response) != "ok" {
-		err = fmt.Errorf("ErrorNotOk : response != 'ok' : %s", string(response))
-	}
-	mutex.Lock()
-	respMap[clusterId] = err
-	mutex.Unlock()
-	return
-}
-
-func (impl *ClusterCronServiceImpl) HandleErrorInClusterConnections(respMap map[int]error) {
-	for clusterId, err := range respMap {
-		errorInConnecting := ""
-		if err != nil {
-			errorInConnecting = err.Error()
-		}
-		//updating cluster connection status
-		errInUpdating := impl.clusterRepository.UpdateClusterConnectionStatus(clusterId, errorInConnecting)
-		if errInUpdating != nil {
-			impl.logger.Errorw("error in updating cluster connection status", "err", err, "clusterId", clusterId, "errorInConnecting", errorInConnecting)
-		}
-	}
+	impl.clusterService.ConnectClustersInBatch(clusters, true)
 }
