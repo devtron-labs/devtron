@@ -229,6 +229,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	workflowTemplate.Tolerations = []v12.Toleration{{Key: impl.cdConfig.TaintKey, Value: impl.cdConfig.TaintValue, Operator: v12.TolerationOpEqual, Effect: v12.TaintEffectNoSchedule}}
 	workflowTemplate.Volumes = ExtractVolumesFromCmCs(workflowConfigMaps, workflowSecrets)
 	workflowTemplate.ArchiveLogs = storageConfigured
+	workflowTemplate.ArchiveLogs = workflowTemplate.ArchiveLogs && !impl.cdConfig.InAppLoggingEnabled
 	workflowTemplate.RestartPolicy = v12.RestartPolicyNever
 
 	if len(impl.cdConfig.NodeLabel) > 0 {
@@ -268,7 +269,6 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	workflowTemplate.WfControllerInstanceID = impl.cdConfig.WfControllerInstanceID
 	workflowTemplate.ActiveDeadlineSeconds = &workflowRequest.ActiveDeadlineSeconds
 	workflowTemplate.Namespace = workflowRequest.Namespace
-	workflowTemplate.ArchiveLogs = workflowTemplate.BlobStorageConfigured && !impl.cdConfig.InAppLoggingEnabled
 	if workflowRequest.IsExtRun {
 		workflowTemplate.ClusterConfig = env.Cluster.GetClusterConfig()
 	} else {
