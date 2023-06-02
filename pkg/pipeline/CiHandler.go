@@ -147,14 +147,14 @@ type CiPipelineMaterialResponse struct {
 }
 
 type WorkflowResponse struct {
-	Id                   int                                 `json:"id"`
-	Name                 string                              `json:"name"`
-	Status               string                              `json:"status"`
-	PodStatus            string                              `json:"podStatus"`
-	Message              string                              `json:"message"`
-	StartedOn            time.Time                           `json:"startedOn"`
-	FinishedOn           time.Time                           `json:"finishedOn"`
-	CiPipelineId         int                                 `json:"ciPipelineId"`
+	Id                   int                                  `json:"id"`
+	Name                 string                               `json:"name"`
+	Status               string                               `json:"status"`
+	PodStatus            string                               `json:"podStatus"`
+	Message              string                               `json:"message"`
+	StartedOn            time.Time                            `json:"startedOn"`
+	FinishedOn           time.Time                            `json:"finishedOn"`
+	CiPipelineId         int                                  `json:"ciPipelineId"`
 	Namespace            string                               `json:"namespace"`
 	LogLocation          string                               `json:"logLocation"`
 	BlobStorageEnabled   bool                                 `json:"blobStorageEnabled"`
@@ -167,7 +167,7 @@ type WorkflowResponse struct {
 	ArtifactId           int                                  `json:"artifactId"`
 	IsArtifactUploaded   bool                                 `json:"isArtifactUploaded"`
 	UserApprovalMetadata *pipelineConfig.UserApprovalMetadata `json:"userApprovalMetadata"`
-	IsVirtualEnvironment bool                             `json:"isVirtualEnvironment"`
+	IsVirtualEnvironment bool                                 `json:"isVirtualEnvironment"`
 }
 
 type GitTriggerInfoResponse struct {
@@ -608,7 +608,8 @@ func (impl *CiHandlerImpl) getWorkflowLogs(pipelineId int, ciWorkflow *pipelineC
 		PodName:   ciWorkflow.PodName,
 		Namespace: ciWorkflow.Namespace,
 	}
-	logStream, cleanUp, err := impl.ciLogService.FetchRunningWorkflowLogs(ciLogRequest, "", "", false)
+	var clusterConfig util.ClusterConfig
+	logStream, cleanUp, err := impl.ciLogService.FetchRunningWorkflowLogs(ciLogRequest, clusterConfig, false)
 	if logStream == nil || err != nil {
 		if !ciWorkflow.BlobStorageEnabled {
 			return nil, nil, errors.New("logs-not-stored-in-repository")

@@ -25,6 +25,7 @@ import (
 	"github.com/argoproj/argo-workflows/v3/workflow/common"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
+	util2 "github.com/devtron-labs/devtron/internal/util"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
@@ -49,10 +50,10 @@ import (
 type CdWorkflowService interface {
 	SubmitWorkflow(workflowRequest *CdWorkflowRequest, pipeline *pipelineConfig.Pipeline, env *repository.Environment) error
 	DeleteWorkflow(wfName string, namespace string) error
-	GetWorkflow(name string, namespace string, url string, token string, isExtRun bool) (*v1alpha1.Workflow, error)
+	GetWorkflow(name string, namespace string, clusterConfig util2.ClusterConfig, isExtRun bool) (*v1alpha1.Workflow, error)
 	ListAllWorkflows(namespace string) (*v1alpha1.WorkflowList, error)
 	UpdateWorkflow(wf *v1alpha1.Workflow) (*v1alpha1.Workflow, error)
-	TerminateWorkflow(name string, namespace string, url string, token string, isExtRun bool) error
+	TerminateWorkflow(name string, namespace string, clusterConfig util2.ClusterConfig, isExtRun bool) error
 }
 
 const (
@@ -328,12 +329,12 @@ func (impl *CdWorkflowServiceImpl) getConfiguredCmCs(pipeline *pipelineConfig.Pi
 	return cdPipelineLevelConfigMaps, cdPipelineLevelSecrets, nil
 }
 
-func (impl *CdWorkflowServiceImpl) GetWorkflow(name string, namespace string, url string, token string, isExtRun bool) (*v1alpha1.Workflow, error) {
+func (impl *CdWorkflowServiceImpl) GetWorkflow(name string, namespace string, clusterConfig util2.ClusterConfig, isExtRun bool) (*v1alpha1.Workflow, error) {
 	impl.Logger.Debugw("getting wf", "name", name)
 	var wfClient v1alpha12.WorkflowInterface
 	var err error
 	if isExtRun {
-		wfClient, err = impl.getRuntimeEnvClientInstance(namespace, token, url)
+		wfClient, err = impl.getRuntimeEnvClientInstance(namespace, clusterConfig)
 
 	} else {
 		wfClient, err = impl.getClientInstance(namespace)
@@ -346,12 +347,12 @@ func (impl *CdWorkflowServiceImpl) GetWorkflow(name string, namespace string, ur
 	return workflow, err
 }
 
-func (impl *CdWorkflowServiceImpl) TerminateWorkflow(name string, namespace string, url string, token string, isExtRun bool) error {
+func (impl *CdWorkflowServiceImpl) TerminateWorkflow(name string, namespace string, clusterConfig util2.ClusterConfig, isExtRun bool) error {
 	impl.Logger.Debugw("terminating wf", "name", name)
 	var wfClient v1alpha12.WorkflowInterface
 	var err error
 	if isExtRun {
-		wfClient, err = impl.getRuntimeEnvClientInstance(namespace, token, url)
+		wfClient, err = impl.getRuntimeEnvClientInstance(namespace, clusterConfig)
 
 	} else {
 		wfClient, err = impl.getClientInstance(namespace)
@@ -409,12 +410,15 @@ func (impl *CdWorkflowServiceImpl) getClientInstance(namespace string) (v1alpha1
 	return wfClient, nil
 }
 
-func (impl *CdWorkflowServiceImpl) getRuntimeEnvClientInstance(namespace string, token string, host string) (v1alpha12.WorkflowInterface, error) {
+func (impl *CdWorkflowServiceImpl) getRuntimeEnvClientInstance(namespace string, clusterConfig util2.ClusterConfig) (v1alpha12.WorkflowInterface, error) {
 	config := &rest.Config{
-		Host:        host,
-		BearerToken: token,
+		Host:        clusterConfig.Host,
+		BearerToken: clusterConfig.BearerToken,
 		TLSClientConfig: rest.TLSClientConfig{
-			Insecure: true,
+			Insecure: clusterConfig.InsecureSkipTLSVerify,
+			KeyData:  []byte(clusterConfig.KeyData),
+			CAData:   []byte(clusterConfig.CAData),
+			CertData: []byte(clusterConfig.CertData),
 		},
 	}
 	clientSet, err := versioned.NewForConfig(config)
