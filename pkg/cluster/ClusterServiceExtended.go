@@ -233,10 +233,13 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *Cluste
 
 		tlsConfig := v1alpha1.TLSClientConfig{
 			Insecure: bean.InsecureSkipTLSVerify,
-			KeyData:  []byte(configMap[TlsKey]),
-			CertData: []byte(configMap[CertData]),
-			CAData:   []byte(configMap[CertificateAuthorityData]),
 		}
+		if !bean.InsecureSkipTLSVerify {
+			tlsConfig.KeyData = []byte(configMap[TlsKey])
+			tlsConfig.CertData = []byte(configMap[CertData])
+			tlsConfig.CAData = []byte(configMap[CertificateAuthorityData])
+		}
+
 		cdClusterConfig := v1alpha1.ClusterConfig{
 			BearerToken:     bearerToken,
 			TLSClientConfig: tlsConfig,
