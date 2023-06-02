@@ -841,6 +841,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(appGroup2.AppGroupRepository), new(*appGroup2.AppGroupRepositoryImpl)),
 		appGroup2.NewAppGroupMappingRepositoryImpl,
 		wire.Bind(new(appGroup2.AppGroupMappingRepository), new(*appGroup2.AppGroupMappingRepositoryImpl)),
+		pipeline.NewArgoWorkflowExecutorImpl,
+		wire.Bind(new(pipeline.ArgoWorkflowExecutor), new(*pipeline.ArgoWorkflowExecutorImpl)),
 	)
 	return &App{}, nil
 }
