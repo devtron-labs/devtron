@@ -89,6 +89,7 @@ type AppWorkflowMappingDto struct {
 	DeploymentAppDeleteRequest bool   `json:"deploymentAppDeleteRequest"`
 	UserId                     int32  `json:"-"`
 	EnvironmentName            string `json:"environmentName"`
+	HelmPackageName            string `json:"helmPackageName"`
 }
 
 type AllAppWorkflowComponentDetails struct {

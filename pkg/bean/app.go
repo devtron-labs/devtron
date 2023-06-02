@@ -503,6 +503,7 @@ type CDPipelineConfigObject struct {
 	TeamId                        int                                    `json:"-"`
 	EnvironmentIdentifier         string                                 `json:"-" `
 	IsVirtualEnvironment          bool                                   `json:"isVirtualEnvironment"`
+	HelmPackageName               string                                 `json:"helmPackageName"`
 }
 
 type PreStageConfigMapSecretNames struct {

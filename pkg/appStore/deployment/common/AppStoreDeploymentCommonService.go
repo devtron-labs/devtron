@@ -189,6 +189,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) convert(chart *repository.Instal
 		DeploymentAppType:            chart.DeploymentAppType,
 		AppStoreApplicationVersionId: installedAppVersion.AppStoreApplicationVersionId,
 		UpdatedOn:                    installedAppVersion.UpdatedOn,
+		IsVirtualEnvironment:         chart.Environment.IsVirtualEnvironment,
 	}
 }
 

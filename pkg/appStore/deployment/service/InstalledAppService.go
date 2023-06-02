@@ -884,7 +884,7 @@ func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(instal
 	updateTime := installedAppVerison.InstalledApp.UpdatedOn
 
 	dateTag := fmt.Sprintf("%v %v,%v", updateTime.Day(), updateTime.Month(), updateTime.Year())
-	timeTag := fmt.Sprintf("%v:%v", updateTime.Hour(), updateTime.Minute())
+	timeTag := fmt.Sprintf("%v.%v", updateTime.Hour(), updateTime.Minute())
 
 	deploymentContainer := bean2.DeploymentDetailContainer{
 		InstalledAppId:                installedAppVerison.InstalledApp.Id,

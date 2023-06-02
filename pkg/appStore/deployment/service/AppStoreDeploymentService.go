@@ -1100,7 +1100,7 @@ func (impl AppStoreDeploymentServiceImpl) GetDeploymentHistory(ctx context.Conte
 	updateTime := installedApp.UpdatedOn
 
 	dateTag := fmt.Sprintf("%v %v,%v", updateTime.Day(), updateTime.Month(), updateTime.Year())
-	timeTag := fmt.Sprintf("%v:%v", updateTime.Hour(), updateTime.Minute())
+	timeTag := fmt.Sprintf("%v.%v", updateTime.Hour(), updateTime.Minute())
 
 	if installedApp.InstalledAppId > 0 {
 		result.InstalledAppInfo = &client.InstalledAppInfo{

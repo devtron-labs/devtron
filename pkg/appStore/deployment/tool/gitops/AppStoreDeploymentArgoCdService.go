@@ -38,6 +38,11 @@ import (
 
 // creating duplicates because cannot use
 
+const (
+	DEFAULT_CLUSTER_ID = 1
+	DEFAULT_NAMESPACE  = "default"
+)
+
 type AppStoreDeploymentArgoCdService interface {
 	//InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error)
 	InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *util.ChartGitAttribute, ctx context.Context, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error)
@@ -508,6 +513,12 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetDeploymentHistoryInfo(ctx con
 	envId := int32(installedApp.EnvironmentId)
 	clusterId := int32(installedApp.ClusterId)
 	appStoreVersionId := int32(installedApp.AppStoreApplicationVersionId)
+
+	// as virtual environment doesn't exist on actual cluster, we will use default cluster for running helm template command
+	if installedApp.IsVirtualEnvironment {
+		clusterId = DEFAULT_CLUSTER_ID
+		installedApp.Namespace = DEFAULT_NAMESPACE
+	}
 
 	manifestRequest := openapi2.TemplateChartRequest{
 		EnvironmentId:                &envId,
