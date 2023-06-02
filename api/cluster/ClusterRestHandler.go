@@ -145,6 +145,10 @@ func (impl ClusterRestHandlerImpl) SaveClusters(w http.ResponseWriter, r *http.R
 	}
 
 	for _, bean := range beans {
+		l := len(bean.ServerUrl)
+		if l > 1 && bean.ServerUrl[l-1:] == "/" {
+			bean.ServerUrl = bean.ServerUrl[0 : l-1]
+		}
 		if bean.Id != 0 {
 			_, err1 := impl.clusterService.Update(ctx, bean, userId)
 			if err1 != nil {
