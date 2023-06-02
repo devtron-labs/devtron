@@ -41,22 +41,22 @@ type ImageScanService interface {
 }
 
 type ImageScanServiceImpl struct {
-	Logger                             *zap.SugaredLogger
-	scanHistoryRepository              security.ImageScanHistoryRepository
-	scanResultRepository               security.ImageScanResultRepository
-	scanObjectMetaRepository           security.ImageScanObjectMetaRepository
-	cveStoreRepository                 security.CveStoreRepository
-	imageScanDeployInfoRepository      security.ImageScanDeployInfoRepository
-	userService                        user.UserService
-	teamRepository                     repository2.TeamRepository
-	appRepository                      repository1.AppRepository
-	envService                         cluster.EnvironmentService
-	ciArtifactRepository               repository.CiArtifactRepository
-	policyService                      PolicyService
-	pipelineRepository                 pipelineConfig.PipelineRepository
-	ciPipelineRepository               pipelineConfig.CiPipelineRepository
-	scanToolMetaDataRepository         security.ScanToolMetadataRepository
-	scanToolExecutionHistoryRepository security.ScanToolExecutionHistoryMappingRepository
+	Logger                                    *zap.SugaredLogger
+	scanHistoryRepository                     security.ImageScanHistoryRepository
+	scanResultRepository                      security.ImageScanResultRepository
+	scanObjectMetaRepository                  security.ImageScanObjectMetaRepository
+	cveStoreRepository                        security.CveStoreRepository
+	imageScanDeployInfoRepository             security.ImageScanDeployInfoRepository
+	userService                               user.UserService
+	teamRepository                            repository2.TeamRepository
+	appRepository                             repository1.AppRepository
+	envService                                cluster.EnvironmentService
+	ciArtifactRepository                      repository.CiArtifactRepository
+	policyService                             PolicyService
+	pipelineRepository                        pipelineConfig.PipelineRepository
+	ciPipelineRepository                      pipelineConfig.CiPipelineRepository
+	scanToolMetaDataRepository                security.ScanToolMetadataRepository
+	scanToolExecutionHistoryMappingRepository security.ScanToolExecutionHistoryMappingRepository
 }
 
 type ImageScanRequest struct {
@@ -129,20 +129,20 @@ func NewImageScanServiceImpl(Logger *zap.SugaredLogger, scanHistoryRepository se
 	userService user.UserService, teamRepository repository2.TeamRepository,
 	appRepository repository1.AppRepository,
 	envService cluster.EnvironmentService, ciArtifactRepository repository.CiArtifactRepository, policyService PolicyService,
-	pipelineRepository pipelineConfig.PipelineRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository, scanToolMetaDataRepository security.ScanToolMetadataRepository, scanToolExecutionHistoryRepository security.ScanToolExecutionHistoryMappingRepository) *ImageScanServiceImpl {
+	pipelineRepository pipelineConfig.PipelineRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository, scanToolMetaDataRepository security.ScanToolMetadataRepository, scanToolExecutionHistoryMappingRepository security.ScanToolExecutionHistoryMappingRepository) *ImageScanServiceImpl {
 	return &ImageScanServiceImpl{Logger: Logger, scanHistoryRepository: scanHistoryRepository, scanResultRepository: scanResultRepository,
 		scanObjectMetaRepository: scanObjectMetaRepository, cveStoreRepository: cveStoreRepository,
-		imageScanDeployInfoRepository:      imageScanDeployInfoRepository,
-		userService:                        userService,
-		teamRepository:                     teamRepository,
-		appRepository:                      appRepository,
-		envService:                         envService,
-		ciArtifactRepository:               ciArtifactRepository,
-		policyService:                      policyService,
-		pipelineRepository:                 pipelineRepository,
-		ciPipelineRepository:               ciPipelineRepository,
-		scanToolMetaDataRepository:         scanToolMetaDataRepository,
-		scanToolExecutionHistoryRepository: scanToolExecutionHistoryRepository,
+		imageScanDeployInfoRepository:             imageScanDeployInfoRepository,
+		userService:                               userService,
+		teamRepository:                            teamRepository,
+		appRepository:                             appRepository,
+		envService:                                envService,
+		ciArtifactRepository:                      ciArtifactRepository,
+		policyService:                             policyService,
+		pipelineRepository:                        pipelineRepository,
+		ciPipelineRepository:                      ciPipelineRepository,
+		scanToolMetaDataRepository:                scanToolMetaDataRepository,
+		scanToolExecutionHistoryMappingRepository: scanToolExecutionHistoryMappingRepository,
 	}
 }
 
@@ -522,7 +522,7 @@ func (impl ImageScanServiceImpl) FetchMinScanResultByAppIdAndEnvId(request *Imag
 	return imageScanResponse, nil
 }
 func (impl ImageScanServiceImpl) getScanToolIdFromExecutionHistory(scanExecutionIds []int) (int, error) {
-	scanToolHistoryMappings, err := impl.scanToolExecutionHistoryRepository.GetAllScanHistoriesByExecutionHistoryIds(scanExecutionIds)
+	scanToolHistoryMappings, err := impl.scanToolExecutionHistoryMappingRepository.GetAllScanHistoriesByExecutionHistoryIds(scanExecutionIds)
 	if err != nil {
 		if err == pg.ErrNoRows {
 			impl.Logger.Errorw("got no rows for scanToolHistoryMappings", "err", err)
