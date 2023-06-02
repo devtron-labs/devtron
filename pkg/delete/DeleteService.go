@@ -91,7 +91,7 @@ func (impl DeleteServiceImpl) DeleteChartRepo(deleteRequest *chartRepo.ChartRepo
 }
 
 func (impl DeleteServiceImpl) DeleteVirtualCluster(bean *cluster.VirtualClusterBean, userId int32) error {
-	err := impl.clusterService.DeleteFromDbVirtualCluster(bean, userId)
+	err := impl.clusterService.DeleteVirtualClusterFromDb(bean, userId)
 	if err != nil {
 		impl.logger.Errorw("error im deleting cluster", "err", err, "deleteRequest", bean)
 		return err

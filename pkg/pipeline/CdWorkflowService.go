@@ -61,8 +61,12 @@ type CdWorkflowService interface {
 }
 
 const (
-	CD_WORKFLOW_NAME        = "cd"
-	CD_WORKFLOW_WITH_STAGES = "cd-stages-with-env"
+	CD_WORKFLOW_NAME           = "cd"
+	CD_WORKFLOW_WITH_STAGES    = "cd-stages-with-env"
+	HELM_JOB_REF_TEMPLATE_NAME = "helm-job-template"
+	JOB_CHART_API_VERSION      = "v2"
+	JOB_CHART_NAME             = "helm-job"
+	JOB_CHART_VERSION          = "0.1.0"
 )
 
 type CdWorkflowServiceImpl struct {
@@ -471,12 +475,9 @@ func (impl *CdWorkflowServiceImpl) TriggerDryRun(jobManifestTemplate *bean3.JobM
 		return builtChartPath, err
 	}
 
-	//jobValues := string(jobManifestJson)
-	//impl.Logger.Info(jobValues)
-
-	jobHelmChartPath := path.Join(string(impl.refChartDir), "helm-job-template")
+	jobHelmChartPath := path.Join(string(impl.refChartDir), HELM_JOB_REF_TEMPLATE_NAME)
 	builtChartPath, err = impl.chartTemplateService.BuildChart(context.Background(),
-		&chart.Metadata{ApiVersion: "v2", Name: "helm-job", Version: "0.1.0"},
+		&chart.Metadata{ApiVersion: JOB_CHART_API_VERSION, Name: JOB_CHART_NAME, Version: JOB_CHART_VERSION},
 		jobHelmChartPath)
 
 	impl.Logger.Debugw(builtChartPath)

@@ -115,7 +115,7 @@ type EnvironmentServiceImpl struct {
 func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepository,
 	clusterService ClusterService, logger *zap.SugaredLogger,
 	K8sUtil *util.K8sUtil, k8sInformerFactory informer.K8sInformerFactory,
-	//  propertiesConfigService pipeline.PropertiesConfigService,
+//  propertiesConfigService pipeline.PropertiesConfigService,
 	userAuthService user.UserAuthService) *EnvironmentServiceImpl {
 	return &EnvironmentServiceImpl{
 		environmentRepository: environmentRepository,
@@ -405,10 +405,6 @@ func (impl EnvironmentServiceImpl) UpdateVirtualEnvironment(mappings *VirtualEnv
 		impl.logger.Errorw("error in finding environment for update", "err", err)
 		return mappings, err
 	}
-	/*isNamespaceChange := false
-	if model.Namespace != mappings.Namespace {
-		isNamespaceChange = true
-	}*/
 
 	model.Name = mappings.Environment
 	model.Namespace = mappings.Namespace

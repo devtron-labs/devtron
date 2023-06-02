@@ -146,7 +146,7 @@ func (impl DeleteServiceExtendedImpl) DeleteVirtualCluster(deleteRequest *cluste
 		impl.logger.Errorw("err in deleting cluster, found env in this cluster", "clusterName", deleteRequest.ClusterName, "err", err)
 		return fmt.Errorf(" Please delete all related environments before deleting this cluster")
 	}
-	err = impl.clusterService.DeleteFromDbVirtualCluster(deleteRequest, userId)
+	err = impl.clusterService.DeleteVirtualClusterFromDb(deleteRequest, userId)
 	if err != nil {
 		impl.logger.Errorw("error im deleting cluster", "err", err, "deleteRequest", deleteRequest)
 		return err

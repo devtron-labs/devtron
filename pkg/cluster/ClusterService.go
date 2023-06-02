@@ -169,7 +169,7 @@ type ClusterService interface {
 	FindAllWithoutConfig() ([]*ClusterBean, error)
 	FindAllActive() ([]ClusterBean, error)
 	DeleteFromDb(bean *ClusterBean, userId int32) error
-	DeleteFromDbVirtualCluster(bean *VirtualClusterBean, userId int32) error
+	DeleteVirtualClusterFromDb(bean *VirtualClusterBean, userId int32) error
 	FindById(id int) (*ClusterBean, error)
 	FindByIdWithoutConfig(id int) (*ClusterBean, error)
 	FindByIds(id []int) ([]ClusterBean, error)
@@ -758,7 +758,7 @@ func (impl ClusterServiceImpl) DeleteFromDb(bean *ClusterBean, userId int32) err
 	return nil
 }
 
-func (impl ClusterServiceImpl) DeleteFromDbVirtualCluster(bean *VirtualClusterBean, userId int32) error {
+func (impl ClusterServiceImpl) DeleteVirtualClusterFromDb(bean *VirtualClusterBean, userId int32) error {
 	existingCluster, err := impl.clusterRepository.FindById(bean.Id)
 	if err != nil {
 		impl.logger.Errorw("No matching entry found for delete.", "id", bean.Id)

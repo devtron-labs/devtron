@@ -591,5 +591,5 @@ func (impl AppStoreDeploymentCommonServiceImpl) BuildChartWithValuesAndRequireme
 		return chartBytesArr, nil
 	}
 
-	return chartBytesArr, nil
+	return chartBytesArr, err
 }
