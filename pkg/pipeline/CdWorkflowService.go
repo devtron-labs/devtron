@@ -110,6 +110,7 @@ type CdWorkflowRequest struct {
 	AzureBlobConfig            *blob_storage.AzureBlobConfig       `json:"azureBlobConfig"`
 	GcpBlobConfig              *blob_storage.GcpBlobConfig         `json:"gcpBlobConfig"`
 	BlobStorageLogsKey         string                              `json:"blobStorageLogsKey"`
+	InAppLoggingEnabled        bool                                `json:"inAppLoggingEnabled"`
 	DefaultAddressPoolBaseCidr string                              `json:"defaultAddressPoolBaseCidr"`
 	DefaultAddressPoolSize     int                                 `json:"defaultAddressPoolSize"`
 	DeploymentTriggeredBy      string                              `json:"deploymentTriggeredBy,omitempty"`
@@ -150,9 +151,9 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		Type:      cdStage,
 		CdRequest: workflowRequest,
 	}
-	//cloudStorageKey := impl.cdConfig.DefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowNamePrefix
 
 	ciCdTriggerEvent.CdRequest.BlobStorageLogsKey = impl.cdConfig.DefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowNamePrefix
+	ciCdTriggerEvent.CdRequest.InAppLoggingEnabled = impl.cdConfig.InAppLoggingEnabled
 	workflowJson, err := json.Marshal(&ciCdTriggerEvent)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while marshalling ciCdTriggerEvent", "error", err)
@@ -267,6 +268,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	workflowTemplate.WfControllerInstanceID = impl.cdConfig.WfControllerInstanceID
 	workflowTemplate.ActiveDeadlineSeconds = &workflowRequest.ActiveDeadlineSeconds
 	workflowTemplate.Namespace = workflowRequest.Namespace
+	workflowTemplate.ArchiveLogs = workflowTemplate.BlobStorageConfigured && !impl.cdConfig.InAppLoggingEnabled
 	if workflowRequest.IsExtRun {
 		workflowTemplate.ClusterConfig = env.Cluster.GetClusterConfig()
 	} else {

@@ -104,6 +104,7 @@ type WorkflowRequest struct {
 	AzureBlobConfig            *blob_storage.AzureBlobConfig     `json:"azureBlobConfig"`
 	GcpBlobConfig              *blob_storage.GcpBlobConfig       `json:"gcpBlobConfig"`
 	BlobStorageLogsKey         string                            `json:"blobStorageLogsKey"`
+	InAppLoggingEnabled        bool                              `json:"inAppLoggingEnabled"`
 	DefaultAddressPoolBaseCidr string                            `json:"defaultAddressPoolBaseCidr"`
 	DefaultAddressPoolSize     int                               `json:"defaultAddressPoolSize"`
 	PreCiSteps                 []*bean2.StepObject               `json:"preCiSteps"`
@@ -233,7 +234,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 
 	privileged := true
 	blobStorageConfigured := workflowRequest.BlobStorageConfigured
-	archiveLogs := blobStorageConfigured
+	archiveLogs := blobStorageConfigured && !impl.ciConfig.InAppLoggingEnabled
 
 	limitCpu := impl.ciConfig.LimitCpu
 	limitMem := impl.ciConfig.LimitMem
