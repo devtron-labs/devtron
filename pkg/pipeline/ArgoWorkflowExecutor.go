@@ -20,6 +20,9 @@ import (
 const (
 	STEP_NAME_REGEX     = "create-env-%s-gb-%d"
 	TEMPLATE_NAME_REGEX = "%s-gb-%d"
+	WORKFLOW_MINIO_CRED = "workflow-minio-cred"
+	CRED_ACCESS_KEY     = "accessKey"
+	CRED_SECRET_KEY     = "secretKey"
 )
 
 type WorkflowExecutor interface {
@@ -86,6 +89,7 @@ func (impl *ArgoWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.Work
 	wfTemplate, err := json.Marshal(cdWorkflow)
 	if err != nil {
 		impl.logger.Errorw("error occurred while marshalling json", "err", err)
+		return err
 	}
 	impl.logger.Debugw("workflow request to submit", "wf", string(wfTemplate))
 
@@ -131,15 +135,15 @@ func (impl *ArgoWorkflowExecutorImpl) updateBlobStorageConfig(workflowTemplate b
 			var secretKeySelector *v12.SecretKeySelector
 			if blobStorageS3Config.AccessKey != "" {
 				accessKeySelector = &v12.SecretKeySelector{
-					Key: "accessKey",
+					Key: CRED_ACCESS_KEY,
 					LocalObjectReference: v12.LocalObjectReference{
-						Name: "workflow-minio-cred",
+						Name: WORKFLOW_MINIO_CRED,
 					},
 				}
 				secretKeySelector = &v12.SecretKeySelector{
-					Key: "secretKey",
+					Key: CRED_SECRET_KEY,
 					LocalObjectReference: v12.LocalObjectReference{
-						Name: "workflow-minio-cred",
+						Name: WORKFLOW_MINIO_CRED,
 					},
 				}
 			}
@@ -163,9 +167,9 @@ func (impl *ArgoWorkflowExecutorImpl) updateBlobStorageConfig(workflowTemplate b
 				GCSBucket: v1alpha1.GCSBucket{
 					Bucket: gcpBlobConfig.LogBucketName,
 					ServiceAccountKeySecret: &v12.SecretKeySelector{
-						Key: "secretKey",
+						Key: CRED_SECRET_KEY,
 						LocalObjectReference: v12.LocalObjectReference{
-							Name: "workflow-minio-cred",
+							Name: WORKFLOW_MINIO_CRED,
 						},
 					},
 				},

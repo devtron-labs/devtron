@@ -18,7 +18,7 @@ func TestChartTemplateService(t *testing.T) {
 		impl := ChartTemplateServiceImpl{
 			logger: logger,
 		}
-		directory := "/Users/ayushmaheshwari/go/src/github.com/devtron-labs/devtron/scripts/devtron-reference-helm-charts/reference-chart_3-11-0"
+		directory := "/scripts/devtron-reference-helm-charts/reference-chart_3-11-0"
 		pipelineStrategyPath := "pipeline-values.yaml"
 		values, err := impl.getValues(directory, pipelineStrategyPath)
 		assert.Nil(t, err)
@@ -37,7 +37,7 @@ func TestChartTemplateService(t *testing.T) {
 			Name:    "sample-app",
 			Version: "1.0.0",
 		}
-		refChartDir := "/Users/ayushmaheshwari/go/src/github.com/devtron-labs/devtron/scripts/devtron-reference-helm-charts/reference-chart_3-11-0"
+		refChartDir := "/scripts/devtron-reference-helm-charts/reference-chart_3-11-0"
 
 		builtChartPath, err := impl.BuildChart(context.Background(), chartMetaData, refChartDir)
 		assert.Nil(t, err)
@@ -60,7 +60,7 @@ func TestChartTemplateService(t *testing.T) {
 			Name:    "sample-app",
 			Version: "1.0.0",
 		}
-		refChartDir := "/Users/ayushmaheshwari/go/src/github.com/devtron-labs/devtron/scripts/devtron-reference-helm-charts/reference-chart_3-11-0"
+		refChartDir := "/scripts/devtron-reference-helm-charts/reference-chart_3-11-0"
 
 		builtChartPath, err := impl.BuildChart(context.Background(), chartMetaData, refChartDir)
 
@@ -84,7 +84,7 @@ func TestChartTemplateService(t *testing.T) {
 			Name:    "sample-app",
 			Version: "1.0.0",
 		}
-		refChartDir := "/Users/ayushmaheshwari/go/src/github.com/devtron-labs/devtron/scripts/devtron-reference-helm-charts/reference-chart_3-11-0"
+		refChartDir := "/scripts/devtron-reference-helm-charts/reference-chart_3-11-0"
 
 		builtChartPath, err := impl.BuildChart(context.Background(), chartMetaData, refChartDir)
 

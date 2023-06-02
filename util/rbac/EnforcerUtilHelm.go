@@ -115,7 +115,6 @@ func (impl EnforcerUtilHelmImpl) GetHelmObjectByClusterIdNamespaceAndAppName(clu
 		}
 		return rbacOne, rbacTwo
 	}
-
 }
 
 func (impl EnforcerUtilHelmImpl) GetAppRBACNameByInstalledAppId(InstalledAppId int) (string, string) {
@@ -125,11 +124,12 @@ func (impl EnforcerUtilHelmImpl) GetAppRBACNameByInstalledAppId(InstalledAppId i
 		impl.logger.Errorw("error in fetching installed app version data", "err", err)
 		return fmt.Sprintf("%s/%s/%s", "", "", ""), fmt.Sprintf("%s/%s/%s", "", "", "")
 	}
-
 	rbacOne := fmt.Sprintf("%s/%s/%s", InstalledApp.App.Team.Name, InstalledApp.Environment.EnvironmentIdentifier, strings.ToLower(InstalledApp.App.AppName))
+
 	if InstalledApp.Environment.IsVirtualEnvironment {
 		return rbacOne, ""
 	}
+
 	var rbacTwo string
 	if !InstalledApp.Environment.IsVirtualEnvironment {
 		if InstalledApp.Environment.EnvironmentIdentifier != InstalledApp.Environment.Cluster.ClusterName+"__"+InstalledApp.Environment.Namespace {

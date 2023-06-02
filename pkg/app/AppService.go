@@ -184,6 +184,7 @@ type AppService interface {
 	GetValuesOverrideForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*ValuesOverrideResponse, error)
 	GetEnvOverrideByTriggerType(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*chartConfig.EnvConfigOverride, error)
 	GetAppMetricsByTriggerType(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (bool, error)
+	GetDeploymentStrategyByTriggerType(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (*chartConfig.PipelineStrategy, error)
 	CreateGitopsRepo(app *app.App, userId int32) (gitopsRepoName string, chartGitAttr *ChartGitAttribute, err error)
 	GetLatestDeployedManifestByPipelineId(appId int, envId int, runner string, ctx context.Context) ([]byte, error)
 	GetDeployedManifestByPipelineIdAndCDWorkflowId(cdWorkflowRunnerId int, ctx context.Context) ([]byte, error)
@@ -1161,7 +1162,7 @@ func (impl *AppServiceImpl) GetAppMetricsByTriggerType(overrideRequest *bean.Val
 	return appMetrics, nil
 }
 
-func (impl *AppServiceImpl) getDeploymentStrategyByTriggerType(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (*chartConfig.PipelineStrategy, error) {
+func (impl *AppServiceImpl) GetDeploymentStrategyByTriggerType(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (*chartConfig.PipelineStrategy, error) {
 
 	strategy := &chartConfig.PipelineStrategy{}
 	var err error
@@ -1350,7 +1351,7 @@ func (impl *AppServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.Va
 		impl.logger.Errorw("error in getting app metrics by trigger type", "err", err)
 		return valuesOverrideResponse, err
 	}
-	strategy, err := impl.getDeploymentStrategyByTriggerType(overrideRequest, ctx)
+	strategy, err := impl.GetDeploymentStrategyByTriggerType(overrideRequest, ctx)
 	if err != nil {
 		impl.logger.Errorw("error in getting strategy by trigger type", "err", err)
 		return valuesOverrideResponse, err
@@ -1512,41 +1513,6 @@ func (impl *AppServiceImpl) GetDeployedManifestByPipelineIdAndCDWorkflowId(cdWor
 
 	return cdWorkflowRunner.HelmReferenceChart, nil
 
-	//if string(cdWorkflowRunner.WorkflowType) == "PRE" || string(cdWorkflowRunner.WorkflowType) == "POST" {
-	//	manifestByteArray = cdWorkflowRunner.HelmReferenceChart
-	//} else {
-	//	pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByCdWorkflowId(cdWorkflowId)
-	//	if err != nil {
-	//		impl.logger.Errorw("error in fetching latest release by appId and envId", "appId", appId, "envId", envId, "err", err)
-	//		return manifestByteArray, err
-	//	}
-	//
-	//	envConfigOverride, err := impl.environmentConfigRepository.Get(pipelineOverride.EnvConfigOverrideId)
-	//	if err != nil {
-	//		impl.logger.Errorw("error in fetching env config repository by appId and envId", "appId", appId, "envId", envId, "err", err)
-	//	}
-	//
-	//	appName := pipeline[0].App.AppName
-	//	builtChartPath, err := impl.BuildChartAndGetPath(appName, envConfigOverride, ctx)
-	//	if err != nil {
-	//		impl.logger.Errorw("error in parsing reference chart", "err", err)
-	//		return manifestByteArray, err
-	//	}
-	//
-	//	// create values file in built chart path
-	//	valuesFilePath := path.Join(builtChartPath, "valuesOverride.yaml")
-	//	err = ioutil.WriteFile(valuesFilePath, []byte(pipelineOverride.PipelineMergedValues), 0600)
-	//	if err != nil {
-	//		return manifestByteArray, nil
-	//	}
-	//
-	//	manifestByteArray, err = impl.chartTemplateService.LoadChartInBytes(builtChartPath, true)
-	//	if err != nil {
-	//		impl.logger.Errorw("error in converting chart to bytes", "err", err)
-	//		return manifestByteArray, err
-	//	}
-	//}
-	//return manifestByteArray, nil
 }
 
 func (impl *AppServiceImpl) BuildChartAndGetPath(appName string, envOverride *chartConfig.EnvConfigOverride, ctx context.Context) (string, error) {

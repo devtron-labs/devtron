@@ -348,9 +348,10 @@ func (impl EnforcerUtilImpl) GetHelmObject(appId int, envId int) (string, string
 	//otherwise it will return an empty string object
 
 	environmentIdentifier2 := ""
+	envIdentifierByClusterAndNamespace := clusterName + "__" + namespace
 	if !env.IsVirtualEnvironment { //because for virtual_environment environment identifier is equal to environment name (As namespace is optional)
-		if environmentIdentifier != clusterName+"__"+namespace { // for futuristic permission cluster name is not present in environment identifier
-			environmentIdentifier2 = clusterName + "__" + namespace
+		if environmentIdentifier != envIdentifierByClusterAndNamespace { // for futuristic permission cluster name is not present in environment identifier
+			environmentIdentifier2 = envIdentifierByClusterAndNamespace
 		}
 	}
 	//TODO - FIX required for futuristic permission for cluster__* all environment for migrated environment identifier only
