@@ -167,6 +167,7 @@ type WorkflowResponse struct {
 	ArtifactId           int                              `json:"artifactId"`
 	IsArtifactUploaded   bool                             `json:"isArtifactUploaded"`
 	IsVirtualEnvironment bool                             `json:"isVirtualEnvironment"`
+	PodName              string                           `json:"podName"`
 }
 
 type GitTriggerInfoResponse struct {
