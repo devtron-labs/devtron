@@ -171,7 +171,7 @@ type WorkflowResponse struct {
 	ArtifactId           int                              `json:"artifactId"`
 	IsArtifactUploaded   bool                             `json:"isArtifactUploaded"`
 	IsVirtualEnvironment bool                             `json:"isVirtualEnvironment"`
-	ImageReleaseTags     []repository2.ImageTag           `json:"imageReleaseTags"`
+	ImageReleaseTags     []*repository2.ImageTag          `json:"imageReleaseTags"`
 	ImageComment         repository2.ImageComment         `json:"imageComment"`
 }
 

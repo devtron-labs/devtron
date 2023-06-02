@@ -183,7 +183,7 @@ type CdWorkflowWithArtifact struct {
 	WorkflowType       string                   `json:"workflow_type,omitempty"`
 	ExecutorType       string                   `json:"executor_type,omitempty"`
 	BlobStorageEnabled bool                     `json:"blobStorageEnabled"`
-	ImageReleaseTags   []repository2.ImageTag   `json:"imageReleaseTags"`
+	ImageReleaseTags   []*repository2.ImageTag  `json:"imageReleaseTags"`
 	ImageComment       repository2.ImageComment `json:"imageComment"`
 }
 

@@ -87,15 +87,15 @@ func (_m *ImageTaggingRepository) GetImageCommentsByAppId(appId int) ([]reposito
 }
 
 // GetTagsByAppId provides a mock function with given fields: appId
-func (_m *ImageTaggingRepository) GetTagsByAppId(appId int) ([]repository.ImageTag, error) {
+func (_m *ImageTaggingRepository) GetTagsByAppId(appId int) ([]*repository.ImageTag, error) {
 	ret := _m.Called(appId)
 
-	var r0 []repository.ImageTag
-	if rf, ok := ret.Get(0).(func(int) []repository.ImageTag); ok {
+	var r0 []*repository.ImageTag
+	if rf, ok := ret.Get(0).(func(int) []*repository.ImageTag); ok {
 		r0 = rf(appId)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]repository.ImageTag)
+			r0 = ret.Get(0).([]*repository.ImageTag)
 		}
 	}
 
@@ -110,15 +110,15 @@ func (_m *ImageTaggingRepository) GetTagsByAppId(appId int) ([]repository.ImageT
 }
 
 // GetTagsByArtifactId provides a mock function with given fields: artifactId
-func (_m *ImageTaggingRepository) GetTagsByArtifactId(artifactId int) ([]repository.ImageTag, error) {
+func (_m *ImageTaggingRepository) GetTagsByArtifactId(artifactId int) ([]*repository.ImageTag, error) {
 	ret := _m.Called(artifactId)
 
-	var r0 []repository.ImageTag
-	if rf, ok := ret.Get(0).(func(int) []repository.ImageTag); ok {
+	var r0 []*repository.ImageTag
+	if rf, ok := ret.Get(0).(func(int) []*repository.ImageTag); ok {
 		r0 = rf(artifactId)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]repository.ImageTag)
+			r0 = ret.Get(0).([]*repository.ImageTag)
 		}
 	}
 

@@ -18,6 +18,7 @@
 package repository
 
 import (
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"time"
 )
@@ -65,40 +66,32 @@ type ImageTaggingAudit struct {
 }
 
 type ImageTaggingRepository interface {
+	//transaction util funcs
+	sql.TransactionUtil
 	SaveAuditLogsInBulk(tx *pg.Tx, imageTaggingAudit []*ImageTaggingAudit) error
 	SaveReleaseTagsInBulk(tx *pg.Tx, imageTags []*ImageTag) error
 	SaveImageComment(tx *pg.Tx, imageComment *ImageComment) error
-	GetTagsByAppId(appId int) ([]ImageTag, error)
-	GetTagsByArtifactId(artifactId int) ([]ImageTag, error)
+	GetTagsByAppId(appId int) ([]*ImageTag, error)
+	GetTagsByArtifactId(artifactId int) ([]*ImageTag, error)
 	GetImageComment(artifactId int) (ImageComment, error)
 	GetImageCommentsByAppId(appId int) ([]ImageComment, error)
 	UpdateReleaseTagInBulk(tx *pg.Tx, imageTags []*ImageTag) error
 	UpdateImageComment(tx *pg.Tx, imageComment *ImageComment) error
 	DeleteReleaseTagInBulk(tx *pg.Tx, imageTags []*ImageTag) error
-	StartTx() (*pg.Tx, error)
-	RollbackTx(tx *pg.Tx) error
-	CommitTx(tx *pg.Tx) error
 }
 
 type ImageTaggingRepositoryImpl struct {
 	dbConnection *pg.DB
+	*sql.TransactionUtilImpl
 }
 
 func NewImageTaggingRepositoryImpl(db *pg.DB) *ImageTaggingRepositoryImpl {
 	return &ImageTaggingRepositoryImpl{
-		dbConnection: db,
+		dbConnection:        db,
+		TransactionUtilImpl: sql.NewTransactionUtilImpl(db),
 	}
 }
 
-func (impl *ImageTaggingRepositoryImpl) RollbackTx(tx *pg.Tx) error {
-	return tx.Rollback()
-}
-func (impl *ImageTaggingRepositoryImpl) CommitTx(tx *pg.Tx) error {
-	return tx.Commit()
-}
-func (impl *ImageTaggingRepositoryImpl) StartTx() (*pg.Tx, error) {
-	return impl.dbConnection.Begin()
-}
 func (impl *ImageTaggingRepositoryImpl) SaveAuditLogsInBulk(tx *pg.Tx, imageTaggingAudit []*ImageTaggingAudit) error {
 	err := tx.Insert(tx, imageTaggingAudit)
 	return err
@@ -113,16 +106,16 @@ func (impl *ImageTaggingRepositoryImpl) SaveImageComment(tx *pg.Tx, imageComment
 	return err
 }
 
-func (impl *ImageTaggingRepositoryImpl) GetTagsByAppId(appId int) ([]ImageTag, error) {
-	res := make([]ImageTag, 0)
+func (impl *ImageTaggingRepositoryImpl) GetTagsByAppId(appId int) ([]*ImageTag, error) {
+	res := make([]*ImageTag, 0)
 	err := impl.dbConnection.Model(&res).
 		Where("app_id=?", appId).
 		Select()
 	return res, err
 }
 
-func (impl *ImageTaggingRepositoryImpl) GetTagsByArtifactId(artifactId int) ([]ImageTag, error) {
-	res := make([]ImageTag, 0)
+func (impl *ImageTaggingRepositoryImpl) GetTagsByArtifactId(artifactId int) ([]*ImageTag, error) {
+	res := make([]*ImageTag, 0)
 	err := impl.dbConnection.Model(&res).
 		Where("artifact_id=?", artifactId).
 		Select()
