@@ -484,10 +484,11 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 	appId := v.Get("appId")
 	clusterIdString := v.Get("clusterId")
 	namespace := v.Get("namespace")
-	/*sinceSeconds, err := strconv.Atoi(v.Get("sinceSeconds"))
+	prevContainerLogs := v.Get("previous")
+	isPrevLogs, err := strconv.ParseBool(prevContainerLogs)
 	if err != nil {
-		sinceSeconds = 0
-	}*/
+		isPrevLogs = false
+	}
 	token := r.Header.Get("token")
 	follow, err := strconv.ParseBool(v.Get("follow"))
 	if err != nil {
@@ -516,9 +517,10 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 				},
 				PodLogsRequest: application.PodLogsRequest{
 					//SinceTime:     sinceSeconds,
-					TailLines:     tailLines,
-					Follow:        follow,
-					ContainerName: containerName,
+					TailLines:         tailLines,
+					Follow:            follow,
+					ContainerName:     containerName,
+					PrevContainerLogs: isPrevLogs,
 				},
 			},
 		}
@@ -570,9 +572,10 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 				},
 				PodLogsRequest: application.PodLogsRequest{
 					//SinceTime:     sinceSeconds,
-					TailLines:     tailLines,
-					Follow:        follow,
-					ContainerName: containerName,
+					TailLines:         tailLines,
+					Follow:            follow,
+					ContainerName:     containerName,
+					PrevContainerLogs: isPrevLogs,
 				},
 			},
 		}
