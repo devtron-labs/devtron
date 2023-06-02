@@ -332,12 +332,16 @@ func (impl ModuleServiceImpl) HandleModuleAction(userId int32, moduleName string
 		return nil, err
 	}
 	defer tx.Rollback()
-	res := strings.Split(moduleName, ".")
-	toolName := strings.ToUpper(res[1])
 	flagForEnablingState := false
 	if len(moduleActionRequest.ModuleType) == 0 {
 		flagForEnablingState = true
 	} else {
+		res := strings.Split(moduleName, ".")
+		if len(res) < 2 {
+			impl.logger.Errorw("error in getting toolname from module name as len is less than 2", "err", err, "moduleName", moduleName)
+			return nil, err
+		}
+		toolName := strings.ToUpper(res[1])
 		// Finding the Module by type and status, if no module exists of current type marking current module as active and enabled by default.
 		err = impl.moduleRepository.FindByModuleTypeAndStatus(moduleActionRequest.ModuleType, ModuleStatusInstalled)
 		if err != nil {
