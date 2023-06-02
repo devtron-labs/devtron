@@ -66,6 +66,10 @@ type ClusterConfig struct {
 }
 
 const DEFAULT_CLUSTER = "default_cluster"
+const BearerToken = "bearer_token"
+const CertificateAuthorityData = "cert_auth_data"
+const CertData = "cert_data"
+const TlsKey = "tls_key"
 
 func NewK8sUtil(logger *zap.SugaredLogger, runTimeConfig *client.RuntimeConfig) *K8sUtil {
 	usr, err := user.Current()
@@ -536,7 +540,7 @@ func (impl K8sUtil) ListNamespaces(client *v12.CoreV1Client) (*v1.NamespaceList,
 }
 
 func (impl K8sUtil) GetClientByToken(serverUrl string, token map[string]string) (*v12.CoreV1Client, error) {
-	bearerToken := token["bearer_token"]
+	bearerToken := token[BearerToken]
 	clusterCfg := &ClusterConfig{Host: serverUrl, BearerToken: bearerToken}
 	client, err := impl.GetClient(clusterCfg)
 	if err != nil {

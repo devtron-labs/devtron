@@ -67,7 +67,7 @@ func (impl *ClusterServiceImplExtended) FindAllWithoutConfig() ([]*ClusterBean, 
 		return nil, err
 	}
 	for _, bean := range beans {
-		bean.Config = map[string]string{"bearer_token": ""}
+		bean.Config = map[string]string{util.BearerToken: ""}
 	}
 	return beans, nil
 }
@@ -227,17 +227,17 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *Cluste
 		configMap := bean.Config
 		serverUrl := bean.ServerUrl
 		bearerToken := ""
-		if configMap[BearerToken] != "" {
-			bearerToken = configMap[BearerToken]
+		if configMap[util.BearerToken] != "" {
+			bearerToken = configMap[util.BearerToken]
 		}
 
 		tlsConfig := v1alpha1.TLSClientConfig{
 			Insecure: bean.InsecureSkipTLSVerify,
 		}
 		if !bean.InsecureSkipTLSVerify {
-			tlsConfig.KeyData = []byte(configMap[TlsKey])
-			tlsConfig.CertData = []byte(configMap[CertData])
-			tlsConfig.CAData = []byte(configMap[CertificateAuthorityData])
+			tlsConfig.KeyData = []byte(configMap[util.TlsKey])
+			tlsConfig.CertData = []byte(configMap[util.CertData])
+			tlsConfig.CAData = []byte(configMap[util.CertificateAuthorityData])
 		}
 
 		cdClusterConfig := v1alpha1.ClusterConfig{

@@ -216,7 +216,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(ctx context.Context, req
 		return nil, err
 	}
 
-	clusterBean, err := impl.clusterService.FindOne(cluster.DefaultClusterName)
+	clusterBean, err := impl.clusterService.FindOne(cluster.DEFAULT_CLUSTER)
 	if err != nil {
 		return nil, err
 	}
@@ -416,7 +416,7 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *bean2.GitOpsCon
 	}
 	request.Id = model.Id
 
-	clusterBean, err := impl.clusterService.FindOne(cluster.DefaultClusterName)
+	clusterBean, err := impl.clusterService.FindOne(cluster.DEFAULT_CLUSTER)
 	if err != nil {
 		return err
 	}
