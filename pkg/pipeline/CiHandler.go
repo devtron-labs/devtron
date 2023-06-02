@@ -623,7 +623,8 @@ func (impl *CiHandlerImpl) getWorkflowLogs(pipelineId int, ciWorkflow *pipelineC
 		PodName:   ciWorkflow.PodName,
 		Namespace: ciWorkflow.Namespace,
 	}
-	logStream, cleanUp, err := impl.ciLogService.FetchRunningWorkflowLogs(ciLogRequest, "", "", false)
+	var clusterConfig util.ClusterConfig
+	logStream, cleanUp, err := impl.ciLogService.FetchRunningWorkflowLogs(ciLogRequest, clusterConfig, false)
 	if logStream == nil || err != nil {
 		if !ciWorkflow.BlobStorageEnabled {
 			return nil, nil, errors.New("logs-not-stored-in-repository")

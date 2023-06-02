@@ -3469,7 +3469,7 @@ func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Val
 		}
 
 		releaseName := pipeline.DeploymentAppName
-		bearerToken := envOverride.Environment.Cluster.Config["bearer_token"]
+		bearerToken := envOverride.Environment.Cluster.Config[BearerToken]
 
 		releaseIdentifier := &client2.ReleaseIdentifier{
 			ReleaseName:      releaseName,
