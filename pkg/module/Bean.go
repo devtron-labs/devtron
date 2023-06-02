@@ -104,6 +104,10 @@ const (
 	ModuleNameSecurityTrivy     ModuleName = "security.trivy"
 )
 
+const (
+	MODULE_TYPE_SECURITY string = "security"
+)
+
 var SupportedModuleNamesListFirstReleaseExcludingCicd = []string{ModuleNameArgoCd, ModuleNameSecurityClair, ModuleNameNotification, ModuleNameMonitoringGrafana}
 
 type ResourceFilter struct {

@@ -117,8 +117,9 @@ func (impl ModuleServiceImpl) GetModuleInfo(name string) (*ModuleInfoDto, error)
 			return nil, err
 		}
 	}
+	// Handling for previous Modules
 	flagForEnablingState := false
-	if len(module.ModuleType) == 0 && module.Status == ModuleStatusInstalled {
+	if module.ModuleType != MODULE_TYPE_SECURITY && module.Status == ModuleStatusInstalled {
 		flagForEnablingState = true
 		err = impl.moduleRepository.MarkModuleAsEnabled(name)
 		if err != nil {
@@ -184,9 +185,7 @@ func (impl ModuleServiceImpl) handleModuleNotFoundStatus(moduleName string) (Mod
 	moduleType := gjson.Get(moduleMetaDataStr, "result.moduleType").String()
 
 	flagForEnablingState := false
-	if len(moduleType) == 0 {
-		flagForEnablingState = true
-	} else {
+	if moduleType == MODULE_TYPE_SECURITY {
 		err = impl.moduleRepository.FindByModuleTypeAndStatus(moduleType, ModuleStatusInstalled)
 		if err != nil {
 			if err == pg.ErrNoRows {
@@ -196,6 +195,8 @@ func (impl ModuleServiceImpl) handleModuleNotFoundStatus(moduleName string) (Mod
 				return ModuleStatusNotInstalled, moduleType, err
 			}
 		}
+	} else {
+		flagForEnablingState = true
 	}
 
 	// for enterprise user
@@ -333,9 +334,7 @@ func (impl ModuleServiceImpl) HandleModuleAction(userId int32, moduleName string
 	}
 	defer tx.Rollback()
 	flagForEnablingState := false
-	if len(moduleActionRequest.ModuleType) == 0 {
-		flagForEnablingState = true
-	} else {
+	if moduleActionRequest.ModuleType == MODULE_TYPE_SECURITY {
 		res := strings.Split(moduleName, ".")
 		if len(res) < 2 {
 			impl.logger.Errorw("error in getting toolname from module name as len is less than 2", "err", err, "moduleName", moduleName)
@@ -348,6 +347,7 @@ func (impl ModuleServiceImpl) HandleModuleAction(userId int32, moduleName string
 			if err == pg.ErrNoRows {
 				var toolversion string
 				if moduleName == ModuleNameSecurityClair {
+					// Handled for V4 for CLAIR as we are not using CLAIR V2 anymore.
 					toolversion = CLAIR_V4
 				} else if moduleName == ModuleNameSecurityTrivy {
 					toolversion = TRIVY_V1
@@ -363,6 +363,8 @@ func (impl ModuleServiceImpl) HandleModuleAction(userId int32, moduleName string
 				return nil, err
 			}
 		}
+	} else {
+		flagForEnablingState = true
 	}
 	module.ModuleType = moduleActionRequest.ModuleType
 	if moduleFound {
@@ -455,6 +457,7 @@ func (impl ModuleServiceImpl) EnableModule(moduleName, version string) (*ActionR
 		impl.logger.Errorw("error in getting toolName from modulename as module Length is smaller than 2")
 		return nil, err
 	}
+	// Extracting out toolName for security module for now
 	toolName := strings.ToUpper(res[1])
 	err = impl.moduleRepository.MarkModuleAsEnabledWithTransaction(moduleName, tx)
 	if err != nil {
@@ -471,7 +474,8 @@ func (impl ModuleServiceImpl) EnableModule(moduleName, version string) (*ActionR
 		impl.logger.Errorw("error in marking other tools inactive ", "err", err, "moduleName", module.Name)
 		return nil, err
 	}
-	err = impl.moduleRepository.MarkOtherModulesDisabled(moduleName, module.ModuleType, tx)
+	// Currently Supporting one tool at a time
+	err = impl.moduleRepository.MarkOtherModulesDisabledOfSameType(moduleName, module.ModuleType, tx)
 	if err != nil {
 		impl.logger.Errorw("error in marking other modules of same module type inactive ", "err", err, "moduleName", module.Name)
 		return nil, err
@@ -528,7 +532,7 @@ func (impl ModuleServiceImpl) GetAllModuleInfo() ([]ModuleInfoDto, error) {
 			Enabled:    module.Enabled,
 		}
 		enabled := false
-		if len(module.ModuleType) == 0 {
+		if module.ModuleType != MODULE_TYPE_SECURITY && module.Status == ModuleStatusInstalled {
 			module.Enabled = true
 			enabled = true
 			err := impl.moduleRepository.Update(&module)
@@ -536,7 +540,7 @@ func (impl ModuleServiceImpl) GetAllModuleInfo() ([]ModuleInfoDto, error) {
 				impl.logger.Errorw("error in updating installed module to enabled for previous modules", "err", err, "module", module.Name)
 			}
 		}
-		moduleInfoDto.Enabled = enabled
+		moduleInfoDto.Enabled = enabled || module.Enabled
 		moduleId := module.Id
 		moduleResourcesStatusFromDb, err := impl.moduleResourceStatusRepository.FindAllActiveByModuleId(moduleId)
 		if err != nil && err != pg.ErrNoRows {

@@ -43,7 +43,7 @@ type ModuleRepository interface {
 	FindByModuleTypeAndStatus(moduleType string, status string) error
 	MarkModuleAsEnabledWithTransaction(moduleName string, tx *pg.Tx) error
 	GetConnection() (dbConnection *pg.DB)
-	MarkOtherModulesDisabled(moduleName, moduleType string, tx *pg.Tx) error
+	MarkOtherModulesDisabledOfSameType(moduleName, moduleType string, tx *pg.Tx) error
 	UpdateWithTransaction(module *Module, tx *pg.Tx) error
 	SaveWithTransaction(module *Module, tx *pg.Tx) error
 	MarkModuleAsEnabled(moduleName string) error
@@ -138,7 +138,7 @@ func (impl ModuleRepositoryImpl) MarkModuleAsEnabled(moduleName string) error {
 	return err
 }
 
-func (impl ModuleRepositoryImpl) MarkOtherModulesDisabled(moduleName, moduleType string, tx *pg.Tx) error {
+func (impl ModuleRepositoryImpl) MarkOtherModulesDisabledOfSameType(moduleName, moduleType string, tx *pg.Tx) error {
 	module := &Module{}
 	_, err := tx.Model(module).Set("enabled = ?", false).Where("name != ?", moduleName).Where("module_type = ?", moduleType).Update()
 	return err
