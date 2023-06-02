@@ -627,7 +627,6 @@ func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 		savedWorkflow.Message = message
 		savedWorkflow.FinishedOn = workflowStatus.FinishedAt.Time
 		savedWorkflow.Name = workflowName
-		//savedWorkflow.LogLocation = wfStatusRs.LogLocation
 		savedWorkflow.PodName = podName
 		savedWorkflow.UpdatedOn = time.Now()
 		savedWorkflow.UpdatedBy = 1
@@ -789,18 +788,11 @@ func (impl *CdHandlerImpl) getLogsFromRepository(pipelineId int, cdWorkflow *pip
 		cdConfig.CdCacheRegion = impl.cdConfig.DefaultCdLogsBucketRegion
 	}
 
-	logsFilePath := impl.ciConfig.DefaultBuildLogsKeyPrefix + "/" + cdWorkflow.Name + "/main.log"
-	// to maintain backward compatibility for logs stored through argo workflow
-	if strings.Contains(cdWorkflow.LogLocation, "main.log") {
-		logsFilePath = cdWorkflow.LogLocation
-	}
-
 	cdLogRequest := BuildLogRequest{
-		PipelineId: cdWorkflow.CdWorkflow.PipelineId,
-		WorkflowId: cdWorkflow.Id,
-		PodName:    cdWorkflow.PodName,
-		//LogsFilePath:  cdWorkflow.LogLocation, // impl.cdConfig.DefaultBuildLogsKeyPrefix + "/" + cdWorkflow.Name + "/main.log", //TODO - fixme
-		LogsFilePath:  logsFilePath,
+		PipelineId:    cdWorkflow.CdWorkflow.PipelineId,
+		WorkflowId:    cdWorkflow.Id,
+		PodName:       cdWorkflow.PodName,
+		LogsFilePath:  cdWorkflow.LogLocation, // impl.cdConfig.DefaultBuildLogsKeyPrefix + "/" + cdWorkflow.Name + "/main.log", //TODO - fixme
 		CloudProvider: impl.ciConfig.CloudProvider,
 		AzureBlobConfig: &blob_storage.AzureBlobBaseConfig{
 			Enabled:           impl.ciConfig.CloudProvider == BLOB_STORAGE_AZURE,
