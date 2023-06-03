@@ -104,6 +104,7 @@ type InstallAppVersionDTO struct {
 	PerformHelmDeployment        bool      `json:"performHelmDeployment"`
 	UpdatedOn                    time.Time `json:"updatedOn"`
 	IsVirtualEnvironment         bool      `json:"isVirtualEnvironment"`
+	HelmPackageName              string    `json:"helmPackageName"`
 }
 
 type InstallAppVersionChartDTO struct {

@@ -1758,6 +1758,10 @@ func (impl AppStoreDeploymentServiceImpl) GetInstalledAppVersion(id int, userId 
 		impl.logger.Errorw("error while fetching from db", "error", err)
 		return nil, err
 	}
+	updateTime := app.InstalledApp.UpdatedOn
+	dateTag := fmt.Sprintf("%v %v,%v", updateTime.Day(), updateTime.Month(), updateTime.Year())
+	timeTag := fmt.Sprintf("%v.%v", updateTime.Hour(), updateTime.Minute())
+	helmPackageName := fmt.Sprintf("%s-%s-%s %s", app.InstalledApp.App.AppName, app.InstalledApp.Environment.Name, dateTag, timeTag)
 	installAppVersion := &appStoreBean.InstallAppVersionDTO{
 		InstalledAppId:     app.InstalledAppId,
 		AppName:            app.InstalledApp.App.AppName,
@@ -1781,6 +1785,7 @@ func (impl AppStoreDeploymentServiceImpl) GetInstalledAppVersion(id int, userId 
 		Namespace:          app.InstalledApp.Environment.Namespace,
 		DeploymentAppType:  app.InstalledApp.DeploymentAppType,
 		Environment:        &app.InstalledApp.Environment,
+		HelmPackageName:    helmPackageName,
 	}
 	return installAppVersion, err
 }
