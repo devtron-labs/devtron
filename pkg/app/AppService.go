@@ -1718,13 +1718,17 @@ func (impl *AppServiceImpl) DeployArgocdApp(overrideRequest *bean.ValuesOverride
 func (impl *AppServiceImpl) DeployApp(overrideRequest *bean.ValuesOverrideRequest, valuesOverrideResponse *ValuesOverrideResponse, triggeredAt time.Time, ctx context.Context) error {
 
 	if IsAcdApp(overrideRequest.DeploymentAppType) {
+		_, span := otel.Tracer("orchestrator").Start(ctx, "DeployArgocdApp")
 		err := impl.DeployArgocdApp(overrideRequest, valuesOverrideResponse, ctx)
+		span.End()
 		if err != nil {
 			impl.logger.Errorw("error in deploying app on argocd", "err", err)
 			return err
 		}
 	} else if IsHelmApp(overrideRequest.DeploymentAppType) {
+		_, span := otel.Tracer("orchestrator").Start(ctx, "createHelmAppForCdPipeline")
 		_, err := impl.createHelmAppForCdPipeline(overrideRequest, valuesOverrideResponse, triggeredAt, ctx)
+		span.End()
 		if err != nil {
 			impl.logger.Errorw("error in creating or updating helm application for cd pipeline", "err", err)
 			return err
@@ -1792,6 +1796,10 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 	span.End()
 
 	_, span = otel.Tracer("orchestrator").Start(ctx, "CreateHistoriesForDeploymentTrigger")
+	err = impl.CreateHistoriesForDeploymentTrigger(valuesOverrideResponse.Pipeline, valuesOverrideResponse.PipelineStrategy, valuesOverrideResponse.EnvOverride, triggerEvent.TriggerdAt, triggerEvent.TriggeredBy)
+	span.End()
+
+	_, span := otel.Tracer("orchestrator").Start(ctx, "CreateHistoriesForDeploymentTrigger")
 	err = impl.CreateHistoriesForDeploymentTrigger(valuesOverrideResponse.Pipeline, valuesOverrideResponse.PipelineStrategy, valuesOverrideResponse.EnvOverride, triggerEvent.TriggerdAt, triggerEvent.TriggeredBy)
 	span.End()
 
