@@ -14,21 +14,30 @@ import (
 	"go.uber.org/zap"
 	v12 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/rest"
 	"net/url"
 )
 
 const (
-	STEP_NAME_REGEX     = "create-env-%s-gb-%d"
-	TEMPLATE_NAME_REGEX = "%s-gb-%d"
-	WORKFLOW_MINIO_CRED = "workflow-minio-cred"
-	CRED_ACCESS_KEY     = "accessKey"
-	CRED_SECRET_KEY     = "secretKey"
+	STEP_NAME_REGEX              = "create-env-%s-gb-%d"
+	TEMPLATE_NAME_REGEX          = "%s-gb-%d"
+	WORKFLOW_MINIO_CRED          = "workflow-minio-cred"
+	CRED_ACCESS_KEY              = "accessKey"
+	CRED_SECRET_KEY              = "secretKey"
+	S3_ENDPOINT_URL              = "s3.amazonaws.com"
+	WORKFLOW_GENERATE_NAME_REGEX = "%s-"
+	DEVTRON_WORKFLOW_LABEL_KEY   = "devtron.ai/workflow-purpose"
+	DEVTRON_WORKFLOW_LABEL_VALUE = "cd"
 )
 
+var ACCESS_KEY_SELECTOR = &v12.SecretKeySelector{Key: CRED_ACCESS_KEY, LocalObjectReference: v12.LocalObjectReference{Name: WORKFLOW_MINIO_CRED}}
+var SECRET_KEY_SELECTOR = &v12.SecretKeySelector{Key: CRED_SECRET_KEY, LocalObjectReference: v12.LocalObjectReference{Name: WORKFLOW_MINIO_CRED}}
+
 type WorkflowExecutor interface {
-	ExecuteWorkflow(workflowTemplate bean.WorkflowTemplate) error
+	ExecuteWorkflow(workflowTemplate bean.WorkflowTemplate) (*unstructured.UnstructuredList, error)
 	TerminateWorkflow(workflowName string, namespace string, clusterConfig *rest.Config) error
 }
 
@@ -60,14 +69,14 @@ func (impl *ArgoWorkflowExecutorImpl) TerminateWorkflow(workflowName string, nam
 	return err
 }
 
-func (impl *ArgoWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.WorkflowTemplate) error {
+func (impl *ArgoWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.WorkflowTemplate) (*unstructured.UnstructuredList, error) {
 
 	entryPoint := CD_WORKFLOW_NAME
 	// get cm and cs argo step templates
 	templates, err := impl.getArgoTemplates(workflowTemplate.ConfigMaps, workflowTemplate.Secrets)
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching argo templates and steps", "err", err)
-		return err
+		return nil, err
 	}
 	if len(templates) > 0 {
 		entryPoint = CD_WORKFLOW_WITH_STAGES
@@ -87,9 +96,9 @@ func (impl *ArgoWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.Work
 	var (
 		cdWorkflow = v1alpha1.Workflow{
 			ObjectMeta: v1.ObjectMeta{
-				GenerateName: workflowTemplate.WorkflowNamePrefix + "-",
+				GenerateName: fmt.Sprintf(WORKFLOW_GENERATE_NAME_REGEX, workflowTemplate.WorkflowNamePrefix),
 				Annotations:  map[string]string{"workflows.argoproj.io/controller-instanceid": workflowTemplate.WfControllerInstanceID},
-				Labels:       map[string]string{"devtron.ai/workflow-purpose": "cd"},
+				Labels:       map[string]string{DEVTRON_WORKFLOW_LABEL_KEY: DEVTRON_WORKFLOW_LABEL_VALUE},
 			},
 			Spec: v1alpha1.WorkflowSpec{
 				ServiceAccountName: workflowTemplate.ServiceAccountName,
@@ -108,23 +117,33 @@ func (impl *ArgoWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.Work
 	wfTemplate, err := json.Marshal(cdWorkflow)
 	if err != nil {
 		impl.logger.Errorw("error occurred while marshalling json", "err", err)
-		return err
+		return nil, err
 	}
 	impl.logger.Debugw("workflow request to submit", "wf", string(wfTemplate))
 
 	wfClient, err := impl.getClientInstance(workflowTemplate.Namespace, workflowTemplate.ClusterConfig)
 	if err != nil {
 		impl.logger.Errorw("cannot build wf client", "err", err)
-		return err
+		return nil, err
 	}
 
 	createdWf, err := wfClient.Create(context.Background(), &cdWorkflow, v1.CreateOptions{})
 	if err != nil {
 		impl.logger.Errorw("error in wf trigger", "err", err)
-		return err
+		return nil, err
 	}
 	impl.logger.Debugw("workflow submitted: ", "name", createdWf.Name)
-	return nil
+	return impl.convertToUnstructured(cdWorkflow), nil
+}
+
+func (impl *ArgoWorkflowExecutorImpl) convertToUnstructured(cdWorkflow interface{}) *unstructured.UnstructuredList {
+	unstructedObjMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(cdWorkflow)
+	if err != nil {
+		return nil
+	}
+	unstructuredObj := unstructured.Unstructured{Object: unstructedObjMap}
+	unstructuredList := &unstructured.UnstructuredList{Items: []unstructured.Unstructured{unstructuredObj}}
+	return unstructuredList
 }
 
 func (impl *ArgoWorkflowExecutorImpl) updateBlobStorageConfig(workflowTemplate bean.WorkflowTemplate, cdTemplate *v1alpha1.Template) {
@@ -140,7 +159,7 @@ func (impl *ArgoWorkflowExecutorImpl) updateBlobStorageConfig(workflowTemplate b
 		if blobStorageS3Config != nil {
 			s3CompatibleEndpointUrl := blobStorageS3Config.EndpointUrl
 			if s3CompatibleEndpointUrl == "" {
-				s3CompatibleEndpointUrl = "s3.amazonaws.com"
+				s3CompatibleEndpointUrl = S3_ENDPOINT_URL
 			} else {
 				parsedUrl, err := url.Parse(s3CompatibleEndpointUrl)
 				if err != nil {
@@ -153,18 +172,8 @@ func (impl *ArgoWorkflowExecutorImpl) updateBlobStorageConfig(workflowTemplate b
 			var accessKeySelector *v12.SecretKeySelector
 			var secretKeySelector *v12.SecretKeySelector
 			if blobStorageS3Config.AccessKey != "" {
-				accessKeySelector = &v12.SecretKeySelector{
-					Key: CRED_ACCESS_KEY,
-					LocalObjectReference: v12.LocalObjectReference{
-						Name: WORKFLOW_MINIO_CRED,
-					},
-				}
-				secretKeySelector = &v12.SecretKeySelector{
-					Key: CRED_SECRET_KEY,
-					LocalObjectReference: v12.LocalObjectReference{
-						Name: WORKFLOW_MINIO_CRED,
-					},
-				}
+				accessKeySelector = ACCESS_KEY_SELECTOR
+				secretKeySelector = SECRET_KEY_SELECTOR
 			}
 			s3Artifact = &v1alpha1.S3Artifact{
 				Key: cloudStorageKey,
@@ -184,13 +193,8 @@ func (impl *ArgoWorkflowExecutorImpl) updateBlobStorageConfig(workflowTemplate b
 			gcsArtifact = &v1alpha1.GCSArtifact{
 				Key: cloudStorageKey,
 				GCSBucket: v1alpha1.GCSBucket{
-					Bucket: gcpBlobConfig.LogBucketName,
-					ServiceAccountKeySecret: &v12.SecretKeySelector{
-						Key: CRED_SECRET_KEY,
-						LocalObjectReference: v12.LocalObjectReference{
-							Name: WORKFLOW_MINIO_CRED,
-						},
-					},
+					Bucket:                  gcpBlobConfig.LogBucketName,
+					ServiceAccountKeySecret: SECRET_KEY_SELECTOR,
 				},
 			}
 		}

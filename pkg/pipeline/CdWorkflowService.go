@@ -269,7 +269,8 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	if workflowExecutor == nil {
 		return errors.New("workflow executor not found")
 	}
-	return workflowExecutor.ExecuteWorkflow(workflowTemplate)
+	_, err = workflowExecutor.ExecuteWorkflow(workflowTemplate)
+	return err
 }
 
 func (impl *CdWorkflowServiceImpl) updateBlobStorageConfig(workflowRequest *CdWorkflowRequest, workflowTemplate *bean3.WorkflowTemplate, storageConfigured bool) {
