@@ -291,6 +291,7 @@ func (impl *AppStoreDeploymentHelmServiceImpl) UpdateRequirementDependencies(ins
 }
 
 func (impl *AppStoreDeploymentHelmServiceImpl) UpdateValuesDependencies(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error {
+
 	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
 	if err != nil {
 		impl.Logger.Errorw("fetching error", "err", err)
@@ -312,6 +313,7 @@ func (impl *AppStoreDeploymentHelmServiceImpl) UpdateValuesDependencies(installA
 		return err
 	}
 	return nil
+	//return errors.New("method UpdateRequirementDependencies not implemented")
 }
 
 func (impl *AppStoreDeploymentHelmServiceImpl) UpdateInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, environment *clusterRepository.Environment, installedAppVersion *repository.InstalledAppVersions, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error) {

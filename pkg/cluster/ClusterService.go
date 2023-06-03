@@ -61,15 +61,7 @@ const (
 	SECRET_FIELD_CLUSTER_ID          = "cluster_id"
 	SECRET_FIELD_UPDATED_ON          = "updated_on"
 	SECRET_FIELD_ACTION              = "action"
-	TokenFilePath                    = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 )
-
-type PrometheusAuth struct {
-	UserName      string `json:"userName,omitempty"`
-	Password      string `json:"password,omitempty"`
-	TlsClientCert string `json:"tlsClientCert,omitempty"`
-	TlsClientKey  string `json:"tlsClientKey,omitempty"`
-}
 
 type ClusterBean struct {
 	Id                      int                        `json:"id" validate:"number"`
@@ -111,6 +103,20 @@ func GetClusterBean(model repository.Cluster) ClusterBean {
 		TlsClientKey:  model.PTlsClientKey,
 	}
 	return bean
+}
+
+type VirtualClusterBean struct {
+	Id               int    `json:"id,omitempty" validate:"number"`
+	ClusterName      string `json:"clusterName,omitempty" validate:"required"`
+	Active           bool   `json:"active"`
+	IsVirtualCluster bool   `json:"isVirtualCluster" default:"true"`
+}
+
+type PrometheusAuth struct {
+	UserName      string `json:"userName,omitempty"`
+	Password      string `json:"password,omitempty"`
+	TlsClientCert string `json:"tlsClientCert,omitempty"`
+	TlsClientKey  string `json:"tlsClientKey,omitempty"`
 }
 
 func (bean ClusterBean) GetClusterConfig() util.ClusterConfig {
@@ -155,6 +161,7 @@ type DefaultClusterComponent struct {
 
 type ClusterService interface {
 	Save(parent context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error)
+	SaveVirtualCluster(bean *VirtualClusterBean, userId int32) (*VirtualClusterBean, error)
 	ValidateKubeconfig(kubeConfig string) (map[string]*ValidateClusterBean, error)
 	FindOne(clusterName string) (*ClusterBean, error)
 	FindOneActive(clusterName string) (*ClusterBean, error)
@@ -162,11 +169,12 @@ type ClusterService interface {
 	FindAllWithoutConfig() ([]*ClusterBean, error)
 	FindAllActive() ([]ClusterBean, error)
 	DeleteFromDb(bean *ClusterBean, userId int32) error
-
+	DeleteVirtualClusterFromDb(bean *VirtualClusterBean, userId int32) error
 	FindById(id int) (*ClusterBean, error)
 	FindByIdWithoutConfig(id int) (*ClusterBean, error)
 	FindByIds(id []int) ([]ClusterBean, error)
 	Update(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error)
+	UpdateVirtualCluster(bean *VirtualClusterBean, userId int32) (*VirtualClusterBean, error)
 	Delete(bean *ClusterBean, userId int32) error
 
 	FindAllForAutoComplete() ([]ClusterBean, error)
@@ -208,6 +216,9 @@ func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.
 	go clusterService.buildInformer()
 	return clusterService
 }
+
+const DefaultClusterName = "default_cluster"
+const TokenFilePath = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 
 func (impl *ClusterServiceImpl) GetK8sClient() (*v12.CoreV1Client, error) {
 	return impl.K8sUtil.GetK8sClient()
@@ -350,6 +361,24 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, 
 		return bean, nil
 	}
 
+	return bean, err
+}
+
+func (impl *ClusterServiceImpl) SaveVirtualCluster(bean *VirtualClusterBean, userId int32) (*VirtualClusterBean, error) {
+	model := &repository.Cluster{
+		ClusterName:      bean.ClusterName,
+		Active:           true,
+		IsVirtualCluster: true,
+	}
+	model.CreatedBy = userId
+	model.UpdatedBy = userId
+	model.CreatedOn = time.Now()
+	model.UpdatedOn = time.Now()
+	err := impl.clusterRepository.Save(model)
+	if err != nil {
+		impl.logger.Errorw("error in saving cluster in db")
+		return nil, err
+	}
 	return bean, err
 }
 
@@ -598,6 +627,23 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 	return bean, nil
 }
 
+func (impl *ClusterServiceImpl) UpdateVirtualCluster(bean *VirtualClusterBean, userId int32) (*VirtualClusterBean, error) {
+	model, err := impl.clusterRepository.FindById(bean.Id)
+	if err != nil {
+		impl.logger.Error(err)
+		return nil, err
+	}
+	model.ClusterName = bean.ClusterName
+	err = impl.clusterRepository.Update(model)
+	model.UpdatedBy = userId
+	model.UpdatedOn = time.Now()
+	if err != nil {
+		impl.logger.Errorw("error in updating cluster", "err", err)
+		return bean, err
+	}
+	return nil, err
+}
+
 func (impl *ClusterServiceImpl) SyncNsInformer(bean *ClusterBean) {
 	requestConfig := bean.Config[util.BearerToken]
 	//before creating new informer for cluster, close existing one
@@ -709,6 +755,22 @@ func (impl ClusterServiceImpl) DeleteFromDb(bean *ClusterBean, userId int32) err
 	secretName := fmt.Sprintf("%s-%v", SECRET_NAME, bean.Id)
 	err = impl.K8sUtil.DeleteSecret(DEFAULT_NAMESPACE, secretName, k8sClient)
 	impl.logger.Errorw("error in deleting secret", "error", err)
+	return nil
+}
+
+func (impl ClusterServiceImpl) DeleteVirtualClusterFromDb(bean *VirtualClusterBean, userId int32) error {
+	existingCluster, err := impl.clusterRepository.FindById(bean.Id)
+	if err != nil {
+		impl.logger.Errorw("No matching entry found for delete.", "id", bean.Id)
+		return err
+	}
+	existingCluster.UpdatedBy = userId
+	existingCluster.UpdatedOn = time.Now()
+	err = impl.clusterRepository.MarkClusterDeleted(existingCluster)
+	if err != nil {
+		impl.logger.Errorw("error in deleting virtual cluster", "err", err)
+		return err
+	}
 	return nil
 }
 

@@ -45,6 +45,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
 	"net/url"
+	"os"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -185,8 +186,8 @@ type AppService interface {
 	GetAppMetricsByTriggerType(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (bool, error)
 	GetDeploymentStrategyByTriggerType(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (*chartConfig.PipelineStrategy, error)
 	CreateGitopsRepo(app *app.App, userId int32) (gitopsRepoName string, chartGitAttr *ChartGitAttribute, err error)
-	GetLatestDeployedManifestByPipelineId(appId int, envId int, ctx context.Context) ([]byte, error)
-	GetDeployedManifestByPipelineIdAndCDWorkflowId(appId int, envId int, cdWorkflowId int, ctx context.Context) ([]byte, error)
+	GetLatestDeployedManifestByPipelineId(appId int, envId int, runner string, ctx context.Context) ([]byte, error)
+	GetDeployedManifestByPipelineIdAndCDWorkflowId(cdWorkflowRunnerId int, ctx context.Context) ([]byte, error)
 	SetPipelineFieldsInOverrideRequest(overrideRequest *bean.ValuesOverrideRequest, pipeline *pipelineConfig.Pipeline)
 }
 
@@ -1440,7 +1441,7 @@ func (impl *AppServiceImpl) BuildManifestForTrigger(overrideRequest *bean.Values
 	return valuesOverrideResponse, builtChartPath, err
 }
 
-func (impl *AppServiceImpl) GetLatestDeployedManifestByPipelineId(appId int, envId int, ctx context.Context) ([]byte, error) {
+func (impl *AppServiceImpl) GetLatestDeployedManifestByPipelineId(appId int, envId int, runner string, ctx context.Context) ([]byte, error) {
 
 	manifestByteArray := make([]byte, 0)
 
@@ -1450,83 +1451,35 @@ func (impl *AppServiceImpl) GetLatestDeployedManifestByPipelineId(appId int, env
 		return manifestByteArray, err
 	}
 
-	pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByAppIdAndEnvId(appId, envId, pipeline[0].DeploymentAppType)
+	if runner == "CD" {
+		runner = "DEPLOY"
+	} else if runner == "PRECD" {
+		runner = "PRE"
+	} else if runner == "POSTCD" {
+		runner = "POST"
+	}
+
+	cdWorkflowRunner, err := impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(pipeline[0].Id, bean.WorkflowType(runner))
 	if err != nil {
-		impl.logger.Errorw("error in fetching latest release by appId and envId", "appId", appId, "envId", envId, "err", err)
+		impl.logger.Errorw("error in fetching cd_workflow runner by pipeline id and runner type", "err", err)
 		return manifestByteArray, err
 	}
 
-	envConfigOverride, err := impl.environmentConfigRepository.Get(pipelineOverride.EnvConfigOverrideId)
-	if err != nil {
-		impl.logger.Errorw("error in fetching env config repository by appId and envId", "appId", appId, "envId", envId, "err", err)
-		return manifestByteArray, err
-	}
+	return cdWorkflowRunner.HelmReferenceChart, nil
 
-	appName := pipeline[0].App.AppName
-	builtChartPath, err := impl.BuildChartAndGetPath(appName, envConfigOverride, ctx)
-	if err != nil {
-		impl.logger.Errorw("error in parsing reference chart", "err", err)
-		return manifestByteArray, err
-	}
-
-	// create values file in built chart path
-	valuesFilePath := path.Join(builtChartPath, "valuesOverride.yaml")
-	err = ioutil.WriteFile(valuesFilePath, []byte(pipelineOverride.PipelineMergedValues), 0600)
-	if err != nil {
-		return manifestByteArray, nil
-	}
-
-	manifestByteArray, err = impl.chartTemplateService.LoadChartInBytes(builtChartPath, true)
-	if err != nil {
-		impl.logger.Errorw("error in converting chart to bytes", "err", err)
-		return manifestByteArray, err
-	}
-
-	return manifestByteArray, nil
 }
 
-func (impl *AppServiceImpl) GetDeployedManifestByPipelineIdAndCDWorkflowId(appId int, envId int, cdWorkflowId int, ctx context.Context) ([]byte, error) {
+func (impl *AppServiceImpl) GetDeployedManifestByPipelineIdAndCDWorkflowId(cdWorkflowRunnerId int, ctx context.Context) ([]byte, error) {
 
 	manifestByteArray := make([]byte, 0)
 
-	pipeline, err := impl.pipelineRepository.FindActiveByAppIdAndEnvironmentId(appId, envId)
+	cdWorkflowRunner, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(cdWorkflowRunnerId)
 	if err != nil {
-		impl.logger.Errorw("error in fetching pipeline by appId and envId", "appId", appId, "envId", envId, "err", err)
+		impl.logger.Errorw("error in getting runners by cdWorkflowId", "err", err)
 		return manifestByteArray, err
 	}
 
-	pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByCdWorkflowId(cdWorkflowId)
-	if err != nil {
-		impl.logger.Errorw("error in fetching latest release by appId and envId", "appId", appId, "envId", envId, "err", err)
-		return manifestByteArray, err
-	}
-
-	envConfigOverride, err := impl.environmentConfigRepository.Get(pipelineOverride.EnvConfigOverrideId)
-	if err != nil {
-		impl.logger.Errorw("error in fetching env config repository by appId and envId", "appId", appId, "envId", envId, "err", err)
-	}
-
-	appName := pipeline[0].App.AppName
-	builtChartPath, err := impl.BuildChartAndGetPath(appName, envConfigOverride, ctx)
-	if err != nil {
-		impl.logger.Errorw("error in parsing reference chart", "err", err)
-		return manifestByteArray, err
-	}
-
-	// create values file in built chart path
-	valuesFilePath := path.Join(builtChartPath, "valuesOverride.yaml")
-	err = ioutil.WriteFile(valuesFilePath, []byte(pipelineOverride.PipelineMergedValues), 0600)
-	if err != nil {
-		return manifestByteArray, nil
-	}
-
-	manifestByteArray, err = impl.chartTemplateService.LoadChartInBytes(builtChartPath, true)
-	if err != nil {
-		impl.logger.Errorw("error in converting chart to bytes", "err", err)
-		return manifestByteArray, err
-	}
-
-	return manifestByteArray, nil
+	return cdWorkflowRunner.HelmReferenceChart, nil
 
 }
 
@@ -1554,17 +1507,61 @@ func (impl *AppServiceImpl) BuildChartAndGetPath(appName string, envOverride *ch
 	return tempReferenceTemplateDir, nil
 }
 
-func (impl *AppServiceImpl) GetHelmManifestInByte(overrideValues string, refChartPath string) ([]byte, error) {
+func (impl *AppServiceImpl) CopyFile(source, destination string) error {
+	input, err := ioutil.ReadFile(source)
+	if err != nil {
+		impl.logger.Errorw("error in reading file input", "err", err)
+		return err
+	}
+	err = ioutil.WriteFile(destination, input, 0644)
+	if err != nil {
+		impl.logger.Errorw("error in writing file output", "err", err)
+		return err
+	}
+	return nil
+}
+
+func (impl *AppServiceImpl) GetHelmManifestInByte(appName string, chartVersion string, overrideValues string, builtChartPath string) ([]byte, error) {
 
 	var manifestByteArr []byte
 
-	valuesFilePath := path.Join(refChartPath, "valuesOverride.yaml")
-	err := ioutil.WriteFile(valuesFilePath, []byte(overrideValues), 0600)
+	// parsed ref-chart has many files and helm chart in form <appName-chartVersion.tgz>, copying this helm chart and values to new dir so that other unnecessary files are removed
+	tempHelmPackageDir := path.Join("/tmp/helmManifest", impl.chartTemplateService.GetDir())
+	err := os.MkdirAll(tempHelmPackageDir, os.ModePerm)
 	if err != nil {
-		return manifestByteArr, nil
+		impl.logger.Errorw("error in making dir for helm manifest", "err", err)
+		return manifestByteArr, err
 	}
 
-	manifestByteArr, err = impl.chartTemplateService.LoadChartInBytes(refChartPath, false)
+	packageChartName := fmt.Sprintf("%s-%s.tgz", appName, chartVersion)
+	packageChartOldPath := path.Join(builtChartPath, packageChartName) // helm chart
+	packageChartNewPath := path.Join(tempHelmPackageDir, packageChartName)
+	err = impl.CopyFile(packageChartOldPath, packageChartNewPath)
+	if err != nil {
+		return manifestByteArr, err
+	}
+
+	valuesFileOldPath := path.Join(builtChartPath, "values.yaml") //default values of helm chart
+	valuesFileNewPath := path.Join(tempHelmPackageDir, "values.yaml")
+	err = impl.CopyFile(valuesFileOldPath, valuesFileNewPath)
+	if err != nil {
+		return manifestByteArr, err
+	}
+
+	valuesOverrideFilePath := path.Join(tempHelmPackageDir, "valuesOverride.json") //values override json
+	err = ioutil.WriteFile(valuesOverrideFilePath, []byte(overrideValues), 0600)
+	if err != nil {
+		return manifestByteArr, err
+	}
+
+	chartsFileOldPath := path.Join(builtChartPath, "Chart.yaml") //default values of helm chart
+	chartsFileNewPath := path.Join(tempHelmPackageDir, "Chart.yaml")
+	err = impl.CopyFile(chartsFileOldPath, chartsFileNewPath)
+	if err != nil {
+		return manifestByteArr, err
+	}
+
+	manifestByteArr, err = impl.chartTemplateService.LoadChartInBytes(tempHelmPackageDir, true)
 	if err != nil {
 		impl.logger.Errorw("error in converting chart to bytes", "err", err)
 		return manifestByteArr, err
@@ -1721,13 +1718,17 @@ func (impl *AppServiceImpl) DeployArgocdApp(overrideRequest *bean.ValuesOverride
 func (impl *AppServiceImpl) DeployApp(overrideRequest *bean.ValuesOverrideRequest, valuesOverrideResponse *ValuesOverrideResponse, triggeredAt time.Time, ctx context.Context) error {
 
 	if IsAcdApp(overrideRequest.DeploymentAppType) {
+		_, span := otel.Tracer("orchestrator").Start(ctx, "DeployArgocdApp")
 		err := impl.DeployArgocdApp(overrideRequest, valuesOverrideResponse, ctx)
+		span.End()
 		if err != nil {
 			impl.logger.Errorw("error in deploying app on argocd", "err", err)
 			return err
 		}
 	} else if IsHelmApp(overrideRequest.DeploymentAppType) {
+		_, span := otel.Tracer("orchestrator").Start(ctx, "createHelmAppForCdPipeline")
 		_, err := impl.createHelmAppForCdPipeline(overrideRequest, valuesOverrideResponse, triggeredAt, ctx)
+		span.End()
 		if err != nil {
 			impl.logger.Errorw("error in creating or updating helm application for cd pipeline", "err", err)
 			return err
@@ -1769,7 +1770,9 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 		return releaseNo, manifest, err
 	}
 
+	_, span := otel.Tracer("orchestrator").Start(ctx, "AppService.BuildManifestForTrigger")
 	valuesOverrideResponse, builtChartPath, err := impl.BuildManifestForTrigger(overrideRequest, triggerEvent.TriggerdAt, ctx)
+	span.End()
 	if err != nil {
 		if triggerEvent.GetManifestInResponse {
 			timeline := &pipelineConfig.PipelineStatusTimeline{
@@ -1792,7 +1795,7 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 		return releaseNo, manifest, err
 	}
 
-	_, span := otel.Tracer("orchestrator").Start(ctx, "CreateHistoriesForDeploymentTrigger")
+	_, span = otel.Tracer("orchestrator").Start(ctx, "CreateHistoriesForDeploymentTrigger")
 	err = impl.CreateHistoriesForDeploymentTrigger(valuesOverrideResponse.Pipeline, valuesOverrideResponse.PipelineStrategy, valuesOverrideResponse.EnvOverride, triggerEvent.TriggerdAt, triggerEvent.TriggeredBy)
 	span.End()
 
@@ -1816,21 +1819,34 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 			impl.logger.Errorw("error in saving timeline for manifest_download type")
 		}
 		span.End()
+
+		manifest, err = impl.GetHelmManifestInByte(overrideRequest.AppName,
+			valuesOverrideResponse.EnvOverride.Chart.ChartVersion,
+			valuesOverrideResponse.MergedValues,
+			builtChartPath)
+		if err != nil {
+			impl.logger.Errorw("error in converting built chart to bytes", "err", err)
+			return releaseNo, manifest, err
+		}
 	}
 
 	if triggerEvent.PerformGitOps {
 		//TODO: clean chart from local after pushing
+		_, span := otel.Tracer("orchestrator").Start(ctx, "AppService.PushChartToGitRepoIfNotExistAndUpdateTimelineStatus")
 		err = impl.PushChartToGitRepoIfNotExistAndUpdateTimelineStatus(overrideRequest, builtChartPath, valuesOverrideResponse.EnvOverride, ctx)
 		if err != nil {
 			impl.logger.Errorw("error in pushing chart to git", "err", err)
 			return releaseNo, manifest, err
 		}
+		span.End()
 
+		_, span = otel.Tracer("orchestrator").Start(ctx, "AppService.CommitValuesToGit")
 		commitHash, commitTime, err := impl.CommitValuesToGit(overrideRequest, valuesOverrideResponse, triggerEvent.TriggerdAt, ctx)
 		if err != nil {
 			impl.logger.Errorw("error in commiting values to git", "err", err)
 			return releaseNo, manifest, err
 		}
+		span.End()
 
 		pipelineOverrideUpdateRequest := &chartConfig.PipelineOverride{
 			Id:                     valuesOverrideResponse.PipelineOverride.Id,
@@ -1843,7 +1859,7 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 			PipelineMergedValues:   valuesOverrideResponse.MergedValues,
 			AuditLog:               sql.AuditLog{UpdatedOn: triggerEvent.TriggerdAt, UpdatedBy: overrideRequest.UserId},
 		}
-		_, span := otel.Tracer("orchestrator").Start(ctx, "pipelineOverrideRepository.Update")
+		_, span = otel.Tracer("orchestrator").Start(ctx, "pipelineOverrideRepository.Update")
 		err = impl.pipelineOverrideRepository.Update(pipelineOverrideUpdateRequest)
 		span.End()
 

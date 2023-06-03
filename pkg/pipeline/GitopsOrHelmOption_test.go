@@ -54,8 +54,9 @@ func TestGitopsOrHelmOption(t *testing.T) {
 			AppId:  1,
 			UserId: 0,
 		}
+		isVirtualEnvironmentMap := make(map[int]bool)
 		isGitOpsConfigured := true
-		pipelineBuilderService.SetPipelineDeploymentAppType(pipelineCreateRequest, isGitOpsConfigured)
+		pipelineBuilderService.SetPipelineDeploymentAppType(pipelineCreateRequest, isGitOpsConfigured, isVirtualEnvironmentMap)
 
 		for _, pipeline := range pipelineCreateRequest.Pipelines {
 			assert.Equal(t, pipeline.DeploymentAppType, "argo_cd")
@@ -108,7 +109,8 @@ func TestGitopsOrHelmOption(t *testing.T) {
 			UserId: 0,
 		}
 		isGitOpsConfigured := false
-		pipelineBuilderService.SetPipelineDeploymentAppType(pipelineCreateRequest, isGitOpsConfigured)
+		isVirtualEnvironmentMap := make(map[int]bool)
+		pipelineBuilderService.SetPipelineDeploymentAppType(pipelineCreateRequest, isGitOpsConfigured, isVirtualEnvironmentMap)
 
 		for _, pipeline := range pipelineCreateRequest.Pipelines {
 			assert.Equal(t, pipeline.DeploymentAppType, "helm")
@@ -161,7 +163,8 @@ func TestGitopsOrHelmOption(t *testing.T) {
 			UserId: 0,
 		}
 		isGitOpsConfigured := true
-		pipelineBuilderService.SetPipelineDeploymentAppType(pipelineCreateRequestHelm, isGitOpsConfigured)
+		isVirtualEnvironmentMap := make(map[int]bool)
+		pipelineBuilderService.SetPipelineDeploymentAppType(pipelineCreateRequestHelm, isGitOpsConfigured, isVirtualEnvironmentMap)
 
 		for _, pipeline := range pipelineCreateRequestHelm.Pipelines {
 			assert.Equal(t, pipeline.DeploymentAppType, "helm")
@@ -195,7 +198,7 @@ func TestGitopsOrHelmOption(t *testing.T) {
 			AppId:  1,
 			UserId: 0,
 		}
-		pipelineBuilderService.SetPipelineDeploymentAppType(pipelineCreateRequestGitOps, isGitOpsConfigured)
+		pipelineBuilderService.SetPipelineDeploymentAppType(pipelineCreateRequestGitOps, isGitOpsConfigured, isVirtualEnvironmentMap)
 
 		for _, pipeline := range pipelineCreateRequestGitOps.Pipelines {
 			assert.Equal(t, pipeline.DeploymentAppType, "argo_cd")
@@ -253,8 +256,9 @@ func TestGitopsOrHelmOption(t *testing.T) {
 		}
 		isGitOpsConfigured := false
 		isGitOpsRequired := pipelineBuilderService.IsGitOpsRequiredForCD(pipelineCreateRequest)
+		isVirtualEnvironmentMap := make(map[int]bool)
 
-		_, err = pipelineBuilderService.ValidateCDPipelineRequest(pipelineCreateRequest, isGitOpsConfigured, isGitOpsRequired)
+		_, err = pipelineBuilderService.ValidateCDPipelineRequest(pipelineCreateRequest, isGitOpsConfigured, isGitOpsRequired, isVirtualEnvironmentMap)
 
 		assert.Nil(t, err)
 
@@ -310,8 +314,9 @@ func TestGitopsOrHelmOption(t *testing.T) {
 		}
 		isGitOpsConfigured := false
 		isGitOpsRequired := pipelineBuilderService.IsGitOpsRequiredForCD(pipelineCreateRequest)
+		isVirtualEnvironmentMap := make(map[int]bool)
 
-		InvalidRequest, err := pipelineBuilderService.ValidateCDPipelineRequest(pipelineCreateRequest, isGitOpsConfigured, isGitOpsRequired)
+		InvalidRequest, err := pipelineBuilderService.ValidateCDPipelineRequest(pipelineCreateRequest, isGitOpsConfigured, isGitOpsRequired, isVirtualEnvironmentMap)
 
 		if err != nil {
 			assert.Equal(t, InvalidRequest, false)

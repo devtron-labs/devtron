@@ -1013,6 +1013,16 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		gitTriggers = ciWf.GitTriggers
 	}
 
+	var imageTag string
+	if len(workflow.Image) > 0 {
+		imageTag = strings.Split(workflow.Image, ":")[1]
+	}
+
+	helmPackageName := fmt.Sprintf("%s-%s-%s",
+		workflowR.CdWorkflow.Pipeline.App.AppName,
+		workflowR.CdWorkflow.Pipeline.Environment.Name,
+		imageTag)
+
 	workflowResponse := WorkflowResponse{
 		Id:                   workflow.Id,
 		Name:                 workflow.Name,
@@ -1031,6 +1041,8 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		BlobStorageEnabled:   workflow.BlobStorageEnabled,
 		UserApprovalMetadata: workflow.UserApprovalMetadata,
 		IsVirtualEnvironment: workflowR.CdWorkflow.Pipeline.Environment.IsVirtualEnvironment,
+		CdWorkflowId:         workflowR.CdWorkflowId,
+		HelmPackageName:      helmPackageName,
 	}
 	return workflowResponse, nil
 

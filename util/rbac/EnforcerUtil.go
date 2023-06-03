@@ -416,9 +416,6 @@ func (impl EnforcerUtilImpl) GetHelmObjectByProjectIdAndEnvId(teamId int, envId 
 		return fmt.Sprintf("%s/%s/%s", "", "", ""), fmt.Sprintf("%s/%s/%s", "", "", "")
 	}
 
-	clusterName := env.Cluster.ClusterName
-	namespace := env.Namespace
-
 	environmentIdentifier := env.EnvironmentIdentifier
 
 	// Fix for futuristic permissions, environmentIdentifier2 will return a string object with cluster name if futuristic permissions are given,
@@ -426,6 +423,8 @@ func (impl EnforcerUtilImpl) GetHelmObjectByProjectIdAndEnvId(teamId int, envId 
 
 	environmentIdentifier2 := ""
 	if !env.IsVirtualEnvironment {
+		clusterName := env.Cluster.ClusterName
+		namespace := env.Namespace
 		if environmentIdentifier != clusterName+"__"+namespace { // for futuristic permission cluster name is not present in environment identifier
 			environmentIdentifier2 = clusterName + "__" + namespace
 		}

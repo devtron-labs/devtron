@@ -159,6 +159,7 @@ type CdWorkflowRunner struct {
 	PodName                     string               `sql:"pod_name"`
 	BlobStorageEnabled          bool                 `sql:"blob_storage_enabled,notnull"`
 	DeploymentApprovalRequestId int                  `sql:"deployment_approval_request_id"`
+	HelmReferenceChart          []byte               `sql:""`
 	CdWorkflow                  *CdWorkflow
 	DeploymentApprovalRequest   *DeploymentApprovalRequest
 	sql.AuditLog
@@ -481,7 +482,7 @@ func (impl *CdWorkflowRepositoryImpl) FindWorkflowRunnerByCdWorkflowId(wfIds []i
 
 func (impl *CdWorkflowRepositoryImpl) FindWorkflowRunnerById(wfrId int) (*CdWorkflowRunner, error) {
 	wfr := &CdWorkflowRunner{}
-	err := impl.dbConnection.Model(wfr).Column("cd_workflow_runner.*", "CdWorkflow", "DeploymentApprovalRequest", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact", "CdWorkflow.Pipeline.Environment").
+	err := impl.dbConnection.Model(wfr).Column("cd_workflow_runner.*", "CdWorkflow", "DeploymentApprovalRequest", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact", "CdWorkflow.Pipeline.Environment", "CdWorkflow.Pipeline.App").
 		Where("cd_workflow_runner.id = ?", wfrId).Select()
 	return wfr, err
 }

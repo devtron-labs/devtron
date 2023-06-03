@@ -28,6 +28,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -104,6 +105,8 @@ type CiCdPipelineOrchestratorImpl struct {
 	gitMaterialHistoryService     history3.GitMaterialHistoryService
 	ciPipelineHistoryService      history3.CiPipelineHistoryService
 	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository
+	PipelineOverrideRepository    chartConfig.PipelineOverrideRepository
+	CiArtifactRepository          repository.CiArtifactRepository
 }
 
 func NewCiCdPipelineOrchestrator(
@@ -127,7 +130,9 @@ func NewCiCdPipelineOrchestrator(
 	gitMaterialHistoryService history3.GitMaterialHistoryService,
 	ciPipelineHistoryService history3.CiPipelineHistoryService,
 	ciTemplateService CiTemplateService,
-	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository) *CiCdPipelineOrchestratorImpl {
+	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository,
+	PipelineOverrideRepository chartConfig.PipelineOverrideRepository,
+	CiArtifactRepository repository.CiArtifactRepository) *CiCdPipelineOrchestratorImpl {
 	return &CiCdPipelineOrchestratorImpl{
 		appRepository:                 pipelineGroupRepository,
 		logger:                        logger,
@@ -151,6 +156,8 @@ func NewCiCdPipelineOrchestrator(
 		ciPipelineHistoryService:      ciPipelineHistoryService,
 		ciTemplateService:             ciTemplateService,
 		dockerArtifactStoreRepository: dockerArtifactStoreRepository,
+		PipelineOverrideRepository:    PipelineOverrideRepository,
+		CiArtifactRepository:          CiArtifactRepository,
 	}
 }
 
@@ -1175,7 +1182,6 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCDPipelines(pipelineRequest *bean
 		impl.logger.Error(err)
 		return 0, err
 	}
-
 	env, err := impl.envRepository.FindById(pipelineRequest.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in getting environment by id", "err", err)
@@ -1366,6 +1372,21 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 			}
 		}
 
+		pco, err := impl.PipelineOverrideRepository.GetLatestRelease(appId, dbPipeline.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching pipeline config override by pipeline id", "err", err)
+		}
+		artifact, err := impl.CiArtifactRepository.Get(pco.CiArtifactId)
+		if err != nil {
+			impl.logger.Errorw("error in getting ci artifact by id", "err", err)
+		}
+
+		var helmPackageName string
+		if len(artifact.Image) > 0 {
+			imageTag := strings.Split(artifact.Image, ":")[1]
+			helmPackageName = fmt.Sprintf("%s-%s-%s", dbPipeline.App.AppName, dbPipeline.Environment.Name, imageTag)
+		}
+
 		pipeline := &bean.CDPipelineConfigObject{
 			Id:                            dbPipeline.Id,
 			Name:                          dbPipeline.Name,
@@ -1384,6 +1405,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 			DeploymentAppDeleteRequest:    dbPipeline.DeploymentAppDeleteRequest,
 			UserApprovalConf:              approvalConfig,
 			IsVirtualEnvironment:          dbPipeline.Environment.IsVirtualEnvironment,
+			HelmPackageName:               helmPackageName,
 		}
 		pipelines = append(pipelines, pipeline)
 	}

@@ -413,6 +413,7 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingReques
 			container.Namespace = info.Namespace
 			container.ClusterName = info.ClusterName
 			container.EnvironmentName = info.Name
+			container.IsVirtualEnvironment = info.IsVirtualEnvironment
 		}
 	}
 	return envContainers, appSize, nil
@@ -799,6 +800,10 @@ func (impl AppListingServiceImpl) FetchAppDetails(ctx context.Context, appId int
 	}
 	appDetailContainer.AppId = appId
 
+	if len(appDetailContainer.DeploymentDetailContainer.Image) > 0 {
+		imageTag := strings.Split(appDetailContainer.DeploymentDetailContainer.Image, ":")[1]
+		appDetailContainer.DeploymentDetailContainer.ImageTag = imageTag
+	}
 	// set ifIpsAccess provided and relevant data
 	appDetailContainer.IsExternalCi = true
 	appDetailContainer, err = impl.setIpAccessProvidedData(ctx, appDetailContainer, appDetailContainer.ClusterId)

@@ -143,16 +143,18 @@ type AppResponse struct {
 }
 
 type EnvResponse struct {
-	Id   *int   `json:"id"`
-	Name string `json:"name"`
+	Id                   *int   `json:"id"`
+	Name                 string `json:"name"`
+	IsVirtualEnvironment bool   `json:"isVirtualEnvironment"`
 }
 
 type PipelineResponse struct {
-	Id              *int     `json:"id"`
-	Name            string   `json:"name"`
-	EnvironmentName string   `json:"environmentName,omitempty"`
-	AppName         string   `json:"appName,omitempty"`
-	Branches        []string `json:"branches,omitempty"`
+	Id                   *int     `json:"id"`
+	Name                 string   `json:"name"`
+	EnvironmentName      string   `json:"environmentName,omitempty"`
+	AppName              string   `json:"appName,omitempty"`
+	Branches             []string `json:"branches,omitempty"`
+	IsVirtualEnvironment bool     `json:"isVirtualEnvironment"`
 }
 
 type ProvidersConfig struct {
@@ -345,7 +347,7 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 			}
 			var envResponse []*EnvResponse
 			for _, item := range environments {
-				envResponse = append(envResponse, &EnvResponse{Id: &item.Id, Name: item.Name})
+				envResponse = append(envResponse, &EnvResponse{Id: &item.Id, Name: item.Name, IsVirtualEnvironment: item.IsVirtualEnvironment})
 			}
 			notificationSettingsResponse.EnvResponse = envResponse
 		}
@@ -434,6 +436,7 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 				if pipeline.App.Id > 0 {
 					pipelineResponse.AppName = pipeline.App.AppName
 				}
+				pipelineResponse.IsVirtualEnvironment = pipeline.Environment.IsVirtualEnvironment
 			} else if config.PipelineType == util.CI {
 				pipeline, err := impl.ciPipelineRepository.FindById(*config.PipelineId)
 				if err != nil && err != pg.ErrNoRows {

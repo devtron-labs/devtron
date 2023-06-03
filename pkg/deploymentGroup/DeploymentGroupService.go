@@ -83,15 +83,16 @@ type DeploymentGroupService interface {
 }
 
 type DeploymentGroupDTO struct {
-	Id              int             `json:"id"`
-	Name            string          `json:"name"`
-	AppCount        int             `json:"appCount"`
-	NoOfApps        string          `json:"noOfApps"`
-	EnvironmentId   int             `json:"environmentId"`
-	CiPipelineId    int             `json:"ciPipelineId"`
-	CiPipelineName  string          `json:"ciPipelineName"`
-	CiMaterialDTOs  []CiMaterialDTO `json:"ciMaterialDTOs"`
-	EnvironmentName string          `json:"environmentName"`
+	Id                   int             `json:"id"`
+	Name                 string          `json:"name"`
+	AppCount             int             `json:"appCount"`
+	NoOfApps             string          `json:"noOfApps"`
+	EnvironmentId        int             `json:"environmentId"`
+	CiPipelineId         int             `json:"ciPipelineId"`
+	CiPipelineName       string          `json:"ciPipelineName"`
+	CiMaterialDTOs       []CiMaterialDTO `json:"ciMaterialDTOs"`
+	EnvironmentName      string          `json:"environmentName"`
+	IsVirtualEnvironment bool            `json:"isVirtualEnvironment"`
 }
 
 type CiMaterialDTO struct {
@@ -149,13 +150,14 @@ func (impl *DeploymentGroupServiceImpl) FindById(id int) (*DeploymentGroupDTO, e
 	}
 
 	dgResp := &DeploymentGroupDTO{
-		Id:              dg.Id,
-		Name:            dg.Name,
-		AppCount:        dg.AppCount,
-		NoOfApps:        dg.NoOfApps,
-		EnvironmentId:   dg.EnvironmentId,
-		EnvironmentName: environment.Name,
-		CiPipelineId:    dg.CiPipelineId,
+		Id:                   dg.Id,
+		Name:                 dg.Name,
+		AppCount:             dg.AppCount,
+		NoOfApps:             dg.NoOfApps,
+		EnvironmentId:        dg.EnvironmentId,
+		EnvironmentName:      environment.Name,
+		CiPipelineId:         dg.CiPipelineId,
+		IsVirtualEnvironment: environment.IsVirtualEnvironment,
 	}
 	ciPipeline, err := impl.ciPipelineRepository.FindById(dg.CiPipelineId)
 	if err != nil && !util.IsErrNoRows(err) {

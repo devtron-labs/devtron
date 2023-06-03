@@ -134,3 +134,22 @@ func (impl DeleteServiceExtendedImpl) DeleteChartRepo(deleteRequest *chartRepo.C
 	}
 	return nil
 }
+
+func (impl DeleteServiceExtendedImpl) DeleteVirtualCluster(deleteRequest *cluster.VirtualClusterBean, userId int32) error {
+	//finding if there are env in this cluster or not, if yes then will not delete
+	env, err := impl.environmentRepository.FindByClusterId(deleteRequest.Id)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("err in deleting cluster", "clusterName", deleteRequest.ClusterName, "err", err)
+		return err
+	}
+	if len(env) > 0 {
+		impl.logger.Errorw("err in deleting cluster, found env in this cluster", "clusterName", deleteRequest.ClusterName, "err", err)
+		return fmt.Errorf(" Please delete all related environments before deleting this cluster")
+	}
+	err = impl.clusterService.DeleteVirtualClusterFromDb(deleteRequest, userId)
+	if err != nil {
+		impl.logger.Errorw("error im deleting cluster", "err", err, "deleteRequest", deleteRequest)
+		return err
+	}
+	return nil
+}
