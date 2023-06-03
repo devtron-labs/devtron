@@ -75,6 +75,8 @@ import (
 const (
 	DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT = "devtron"
 	CLUSTER_COMPONENT_DIR_PATH                  = "/cluster/component"
+	DEFAULT_CLUSTER_ID                          = 1
+	DEFAULT_CLUSTER_NAMESPACE                   = "default"
 )
 
 type InstalledAppService interface {
@@ -88,7 +90,7 @@ type InstalledAppService interface {
 	FetchResourceTree(rctx context.Context, cn http.CloseNotifier, resourceTreeAndNotesContainer *bean2.ResourceTreeAndNotesContainer, installedApp repository2.InstalledApps) error
 	MarkGitOpsInstalledAppsDeletedIfArgoAppIsDeleted(installedAppId int, envId int) error
 	CheckAppExistsByInstalledAppId(installedAppId int) (*repository2.InstalledApps, error)
-	FindNotesForArgoApplication(installedAppId, envId int) (string, string, error)
+	FindNotesForNonHelmApplication(installedAppId, envId int) (string, string, error)
 	FetchChartNotes(installedAppId int, envId int, token string, checkNotesAuth func(token string, appName string, envId int) bool) (string, error)
 	FetchResourceTreeWithHibernateForACD(rctx context.Context, cn http.CloseNotifier, appDetail *bean2.AppDetailContainer) bean2.AppDetailContainer
 	fetchResourceTreeForACD(rctx context.Context, cn http.CloseNotifier, appId int, envId int, deploymentAppName string) (map[string]interface{}, error)
@@ -945,7 +947,7 @@ func (impl *InstalledAppServiceImpl) FetchChartNotes(installedAppId int, envId i
 	}
 	//if notes is not present in db then below call will happen
 	if installedApp.Notes == "" {
-		notes, _, err := impl.FindNotesForArgoApplication(installedAppId, envId)
+		notes, _, err := impl.FindNotesForNonHelmApplication(installedAppId, envId)
 		if err != nil {
 			impl.logger.Errorw("error fetching notes", "err", err)
 			return "", err
@@ -958,7 +960,7 @@ func (impl *InstalledAppServiceImpl) FetchChartNotes(installedAppId int, envId i
 
 	return installedApp.Notes, nil
 }
-func (impl *InstalledAppServiceImpl) FindNotesForArgoApplication(installedAppId, envId int) (string, string, error) {
+func (impl *InstalledAppServiceImpl) FindNotesForNonHelmApplication(installedAppId, envId int) (string, string, error) {
 	installedAppVerison, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdAndEnvId(installedAppId, envId)
 	if err != nil {
 		impl.logger.Errorw("error fetching installed  app version in installed app service", "err", err)
@@ -967,7 +969,7 @@ func (impl *InstalledAppServiceImpl) FindNotesForArgoApplication(installedAppId,
 	var notes string
 	appName := installedAppVerison.InstalledApp.App.AppName
 
-	if util.IsAcdApp(installedAppVerison.InstalledApp.DeploymentAppType) {
+	if util.IsAcdApp(installedAppVerison.InstalledApp.DeploymentAppType) || util.IsManifestDownload(installedAppVerison.InstalledApp.DeploymentAppType) {
 		appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installedAppVerison.AppStoreApplicationVersion.Id)
 		if err != nil {
 			impl.logger.Errorw("error fetching app store app version in installed app service", "err", err)
@@ -978,7 +980,12 @@ func (impl *InstalledAppServiceImpl) FindNotesForArgoApplication(installedAppId,
 			impl.logger.Errorw("exception caught in getting k8sServerVersion", "err", err)
 			return notes, appName, err
 		}
-
+		clusterId := int32(installedAppVerison.InstalledApp.Environment.ClusterId)
+		namespace := installedAppVerison.InstalledApp.Environment.Namespace
+		if installedAppVerison.InstalledApp.Environment.IsVirtualEnvironment {
+			clusterId = int32(DEFAULT_CLUSTER_ID)
+			namespace = DEFAULT_CLUSTER_NAMESPACE
+		}
 		installReleaseRequest := &client.InstallReleaseRequest{
 			ChartName:    appStoreAppVersion.Name,
 			ChartVersion: appStoreAppVersion.Version,
@@ -991,10 +998,10 @@ func (impl *InstalledAppServiceImpl) FindNotesForArgoApplication(installedAppId,
 				Password: appStoreAppVersion.AppStore.ChartRepo.Password,
 			},
 			ReleaseIdentifier: &client.ReleaseIdentifier{
-				ReleaseNamespace: installedAppVerison.InstalledApp.Environment.Namespace,
+				ReleaseNamespace: namespace,
 				ReleaseName:      installedAppVerison.InstalledApp.App.AppName,
 				ClusterConfig: &client.ClusterConfig{
-					ClusterId: int32(installedAppVerison.InstalledApp.Environment.ClusterId),
+					ClusterId: clusterId,
 				},
 			},
 		}
