@@ -14,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/rest"
 	"k8s.io/utils/pointer"
 	"math/rand"
 	"reflect"
@@ -27,10 +28,9 @@ func TestExecuteWorkflow(t *testing.T) {
 	cdConfig, err := GetCdConfig()
 	assert.Nil(t, err)
 	workflowExecutorImpl := NewArgoWorkflowExecutorImpl(logger)
-	baseWorkflowTemplate := getBaseWorkflowTemplate(cdConfig)
 
 	t.Run("validate not configured blob storage", func(t *testing.T) {
-		workflowTemplate := deepCopyWfTemplate(baseWorkflowTemplate)
+		workflowTemplate := getBaseWorkflowTemplate(cdConfig)
 		workflowTemplate.BlobStorageConfigured = false
 		cdTemplate := executeWorkflowAndGetCdTemplate(t, workflowExecutorImpl, workflowTemplate)
 		archiveLocation := cdTemplate.ArchiveLocation
@@ -38,7 +38,7 @@ func TestExecuteWorkflow(t *testing.T) {
 	})
 
 	t.Run("validate S3 blob storage", func(t *testing.T) {
-		workflowTemplate := deepCopyWfTemplate(baseWorkflowTemplate)
+		workflowTemplate := getBaseWorkflowTemplate(cdConfig)
 		workflowTemplate.BlobStorageConfigured = true
 		workflowTemplate.CloudStorageKey = "cloud-storage-key"
 		s3BlobStorage := getS3BlobStorage()
@@ -60,7 +60,7 @@ func TestExecuteWorkflow(t *testing.T) {
 	})
 
 	t.Run("validate gcp blob storage", func(t *testing.T) {
-		workflowTemplate := deepCopyWfTemplate(baseWorkflowTemplate)
+		workflowTemplate := getBaseWorkflowTemplate(cdConfig)
 		workflowTemplate.BlobStorageConfigured = true
 		workflowTemplate.CloudStorageKey = "cloud-storage-key"
 		gcpBlobStorage := getGcpBlobStorage()
@@ -76,14 +76,44 @@ func TestExecuteWorkflow(t *testing.T) {
 		assert.True(t, reflect.DeepEqual(secretKeySecret, SECRET_KEY_SELECTOR))
 	})
 	t.Run("validate env specific cm and secret", func(t *testing.T) {
-		workflowTemplate := deepCopyWfTemplate(baseWorkflowTemplate)
+		workflowTemplate := getBaseWorkflowTemplate(cdConfig)
 		workflowTemplate.BlobStorageConfigured = false
 		cms, secrets := getEnvSpecificCmCs(t)
 		workflowTemplate.ConfigMaps = cms
 		workflowTemplate.Secrets = secrets
 		workflow := executeAndGetWorkflow(t, workflowExecutorImpl, workflowTemplate)
 		verifyCmCsTemplates(t, workflow, workflowTemplate)
+	})
 
+	t.Run("invalid config map", func(t *testing.T) {
+		workflowTemplate := getBaseWorkflowTemplate(cdConfig)
+		workflowTemplate.BlobStorageConfigured = false
+		var configMaps []bean2.ConfigSecretMap
+		cm := bean2.ConfigSecretMap{}
+		cm.Name = "env-specific-cm"
+		cm.Type = "environment"
+		cm.Data = []byte("")
+		configMaps = append(configMaps, cm)
+		workflowTemplate.ConfigMaps = configMaps
+		_, err := workflowExecutorImpl.ExecuteWorkflow(workflowTemplate)
+		assert.NotNil(t, err)
+	})
+
+	t.Run("invalid cluster host", func(t *testing.T) {
+		workflowTemplate := getBaseWorkflowTemplate(cdConfig)
+		workflowTemplate.BlobStorageConfigured = false
+		clusterConfig := workflowTemplate.ClusterConfig
+		clusterConfig.Host = ""
+		_, err := workflowExecutorImpl.ExecuteWorkflow(workflowTemplate)
+		assert.NotNil(t, err)
+	})
+
+	t.Run("terminate workflow", func(t *testing.T) {
+		workflowTemplate := getBaseWorkflowTemplate(cdConfig)
+		workflowTemplate.BlobStorageConfigured = false
+		cdWorkflow := executeAndGetWorkflow(t, workflowExecutorImpl, workflowTemplate)
+		err := workflowExecutorImpl.TerminateWorkflow(cdWorkflow.Name, cdWorkflow.Namespace, workflowTemplate.ClusterConfig)
+		assert.Nil(t, err)
 	})
 }
 
@@ -131,7 +161,7 @@ func executeAndGetWorkflow(t *testing.T, workflowExecutorImpl *ArgoWorkflowExecu
 }
 
 func validateCdWorkflowSpec(t *testing.T, cdWorkflow v1alpha1.Workflow, workflowTemplate bean.WorkflowTemplate) {
-	assert.Equal(t, "", cdWorkflow.Namespace)
+	assert.Equal(t, "default", cdWorkflow.Namespace)
 	objectMeta := cdWorkflow.ObjectMeta
 	assert.Equal(t, fmt.Sprintf(WORKFLOW_GENERATE_NAME_REGEX, workflowTemplate.WorkflowNamePrefix), objectMeta.GenerateName)
 	wfLabels := objectMeta.Labels
@@ -174,27 +204,24 @@ func getGcpBlobStorage() *blob_storage.GcpBlobConfig {
 	}
 }
 
-func deepCopyWfTemplate(baseWorkflowTemplate bean.WorkflowTemplate) bean.WorkflowTemplate {
-	//origJSON, err := json.Marshal(baseWorkflowTemplate)
-	//clone := bean.WorkflowTemplate{}
-	//if err = json.Unmarshal(origJSON, &clone); err != nil {
-	//	return clone
-	//}
-	return baseWorkflowTemplate
-}
-
 func getBaseWorkflowTemplate(cdConfig *CdConfig) bean.WorkflowTemplate {
+
 	workflowTemplate := bean.WorkflowTemplate{}
 	workflowTemplate.WfControllerInstanceID = "random-controller-id"
 	workflowTemplate.Namespace = "default"
 	workflowTemplate.ActiveDeadlineSeconds = pointer.Int64Ptr(3600)
-	workflowTemplate.ClusterConfig = cdConfig.ClusterConfig
+	clusterConfig := deepCopyClusterConfig(*cdConfig.ClusterConfig)
+	workflowTemplate.ClusterConfig = &clusterConfig
 	workflowTemplate.WorkflowNamePrefix = "workflow-mock-prefix-" + strconv.Itoa(rand.Intn(1000))
 	workflowTemplate.TTLValue = pointer.Int32Ptr(3600)
 	var containers []v12.Container
 	containers = append(containers, getMainContainer())
 	workflowTemplate.Containers = containers
 	return workflowTemplate
+}
+
+func deepCopyClusterConfig(clusterConfig rest.Config) rest.Config {
+	return clusterConfig
 }
 
 func getMainContainer() v12.Container {

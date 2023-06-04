@@ -134,7 +134,7 @@ func (impl *ArgoWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.Work
 		return nil, err
 	}
 	impl.logger.Debugw("workflow submitted: ", "name", createdWf.Name)
-	return impl.convertToUnstructured(cdWorkflow), nil
+	return impl.convertToUnstructured(createdWf), nil
 }
 
 func (impl *ArgoWorkflowExecutorImpl) convertToUnstructured(cdWorkflow interface{}) *unstructured.UnstructuredList {
@@ -306,7 +306,6 @@ func (impl *ArgoWorkflowExecutorImpl) createStepAndTemplate(isSecret bool, cmSec
 func (impl *ArgoWorkflowExecutorImpl) getClientInstance(namespace string, clusterConfig *rest.Config) (v1alpha12.WorkflowInterface, error) {
 	clientSet, err := versioned.NewForConfig(clusterConfig)
 	if err != nil {
-		impl.logger.Errorw("error occurred while creating client from config", "err", err)
 		return nil, err
 	}
 	wfClient := clientSet.ArgoprojV1alpha1().Workflows(namespace) // create the workflow client
