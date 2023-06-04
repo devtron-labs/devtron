@@ -19,6 +19,7 @@ import (
 	"math/rand"
 	"reflect"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -59,6 +60,18 @@ func TestExecuteWorkflow(t *testing.T) {
 		assert.True(t, reflect.DeepEqual(secretKeySecret, SECRET_KEY_SELECTOR))
 	})
 
+	t.Run("validate s3 blob storage with endpoint", func(t *testing.T) {
+		workflowTemplate := getBaseWorkflowTemplate(cdConfig)
+		workflowTemplate.BlobStorageConfigured = true
+		s3BlobStorageWithEndpoint := getS3BlobStorageWithEndpoint()
+		workflowTemplate.BlobStorageS3Config = s3BlobStorageWithEndpoint
+		cdTemplate := executeWorkflowAndGetCdTemplate(t, workflowExecutorImpl, workflowTemplate)
+		archiveLocation := cdTemplate.ArchiveLocation
+		assert.Equal(t, workflowTemplate.BlobStorageConfigured, *archiveLocation.ArchiveLogs)
+		s3Artifact := archiveLocation.S3
+		assert.True(t, strings.Contains(s3BlobStorageWithEndpoint.EndpointUrl, s3Artifact.Endpoint))
+	})
+
 	t.Run("validate gcp blob storage", func(t *testing.T) {
 		workflowTemplate := getBaseWorkflowTemplate(cdConfig)
 		workflowTemplate.BlobStorageConfigured = true
@@ -79,6 +92,16 @@ func TestExecuteWorkflow(t *testing.T) {
 		workflowTemplate := getBaseWorkflowTemplate(cdConfig)
 		workflowTemplate.BlobStorageConfigured = false
 		cms, secrets := getEnvSpecificCmCs(t)
+		workflowTemplate.ConfigMaps = cms
+		workflowTemplate.Secrets = secrets
+		workflow := executeAndGetWorkflow(t, workflowExecutorImpl, workflowTemplate)
+		verifyCmCsTemplates(t, workflow, workflowTemplate)
+	})
+
+	t.Run("validate external cm and cs", func(t *testing.T) {
+		workflowTemplate := getBaseWorkflowTemplate(cdConfig)
+		workflowTemplate.BlobStorageConfigured = false
+		cms, secrets := getEnvSpecificExternalCmCs(t)
 		workflowTemplate.ConfigMaps = cms
 		workflowTemplate.Secrets = secrets
 		workflow := executeAndGetWorkflow(t, workflowExecutorImpl, workflowTemplate)
@@ -115,6 +138,14 @@ func TestExecuteWorkflow(t *testing.T) {
 		err := workflowExecutorImpl.TerminateWorkflow(cdWorkflow.Name, cdWorkflow.Namespace, workflowTemplate.ClusterConfig)
 		assert.Nil(t, err)
 	})
+
+	t.Run("terminate with invalid name", func(t *testing.T) {
+		workflowTemplate := getBaseWorkflowTemplate(cdConfig)
+		workflowTemplate.BlobStorageConfigured = false
+		cdWorkflow := executeAndGetWorkflow(t, workflowExecutorImpl, workflowTemplate)
+		err := workflowExecutorImpl.TerminateWorkflow("invalid-name", cdWorkflow.Namespace, workflowTemplate.ClusterConfig)
+		assert.NotNil(t, err)
+	})
 }
 
 func getEnvSpecificCmCs(t *testing.T) ([]bean2.ConfigSecretMap, []bean2.ConfigSecretMap) {
@@ -140,6 +171,23 @@ func getEnvSpecificCmCs(t *testing.T) ([]bean2.ConfigSecretMap, []bean2.ConfigSe
 	secret.Type = "environment"
 	secret.Data = secretDataJson
 	secret.SecretData = secretDataJson
+	secrets = append(secrets, secret)
+
+	return configMaps, secrets
+}
+
+func getEnvSpecificExternalCmCs(t *testing.T) ([]bean2.ConfigSecretMap, []bean2.ConfigSecretMap) {
+	var configMaps, secrets []bean2.ConfigSecretMap
+	cm := bean2.ConfigSecretMap{}
+	cm.Name = "env-specific-cm-external"
+	cm.Type = "environment"
+	cm.External = true
+	configMaps = append(configMaps, cm)
+
+	secret := bean2.ConfigSecretMap{}
+	secret.Name = "env-specific-secret-external"
+	secret.Type = "environment"
+	secret.External = true
 	secrets = append(secrets, secret)
 
 	return configMaps, secrets
@@ -196,6 +244,12 @@ func getS3BlobStorage() *blob_storage.BlobStorageS3Config {
 		CiLogBucketName: "bucketName",
 		CiLogRegion:     "ciLogRegion",
 	}
+}
+
+func getS3BlobStorageWithEndpoint() *blob_storage.BlobStorageS3Config {
+	s3BlobStorage := getS3BlobStorage()
+	s3BlobStorage.EndpointUrl = "https://minio.url:9090"
+	return s3BlobStorage
 }
 
 func getGcpBlobStorage() *blob_storage.GcpBlobConfig {
