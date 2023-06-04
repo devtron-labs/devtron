@@ -338,7 +338,7 @@ func (impl ModuleServiceImpl) HandleModuleAction(userId int32, moduleName string
 		res := strings.Split(moduleName, ".")
 		if len(res) < 2 {
 			impl.logger.Errorw("error in getting toolname from module name as len is less than 2", "err", err, "moduleName", moduleName)
-			return nil, err
+			return nil, errors.New("error in getting tool name from module name as len is less than 2")
 		}
 		toolName := strings.ToUpper(res[1])
 		// Finding the Module by type and status, if no module exists of current type marking current module as active and enabled by default.
@@ -354,8 +354,8 @@ func (impl ModuleServiceImpl) HandleModuleAction(userId int32, moduleName string
 				}
 				err2 := impl.scanToolMetaDataRepository.MarkToolAsActive(toolName, toolversion, tx)
 				if err2 != nil {
-					impl.logger.Errorw("error in marking tool as active ", "err", err)
-					return nil, err
+					impl.logger.Errorw("error in marking tool as active ", "err", err2)
+					return nil, err2
 				}
 				flagForEnablingState = true
 			} else {
@@ -455,7 +455,7 @@ func (impl ModuleServiceImpl) EnableModule(moduleName, version string) (*ActionR
 	// Handling for future tools if integrated
 	if len(res) < 2 {
 		impl.logger.Errorw("error in getting toolName from modulename as module Length is smaller than 2")
-		return nil, err
+		return nil, errors.New("error in getting tool name from module name as len is less than 2")
 	}
 	// Extracting out toolName for security module for now
 	toolName := strings.ToUpper(res[1])
