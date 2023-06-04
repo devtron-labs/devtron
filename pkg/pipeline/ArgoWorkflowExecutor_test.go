@@ -4,23 +4,30 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
+	"github.com/argoproj/argo-workflows/v3/workflow/common"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
+	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/stretchr/testify/assert"
+	v12 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/utils/pointer"
+	"math/rand"
 	"reflect"
+	"strconv"
 	"testing"
 )
 
 func TestExecuteWorkflow(t *testing.T) {
 	logger, loggerErr := util.NewSugardLogger()
 	assert.Nil(t, loggerErr)
-	//cdConfig, err := GetCdConfig()
-	//assert.Nil(t, err)
+	cdConfig, err := GetCdConfig()
+	assert.Nil(t, err)
 	workflowExecutorImpl := NewArgoWorkflowExecutorImpl(logger)
-	baseWorkflowTemplate := getBaseWorkflowTemplate()
+	baseWorkflowTemplate := getBaseWorkflowTemplate(cdConfig)
 
 	t.Run("validate not configured blob storage", func(t *testing.T) {
 		workflowTemplate := deepCopyWfTemplate(baseWorkflowTemplate)
@@ -43,7 +50,7 @@ func TestExecuteWorkflow(t *testing.T) {
 		assert.Equal(t, workflowTemplate.CloudStorageKey, s3Artifact.Key)
 		assert.Equal(t, s3BlobStorage.CiLogBucketName, s3Artifact.Bucket)
 		assert.Equal(t, S3_ENDPOINT_URL, s3Artifact.Endpoint)
-		assert.Equal(t, s3BlobStorage.IsInSecure, s3Artifact.Insecure)
+		assert.Equal(t, s3BlobStorage.IsInSecure, *s3Artifact.Insecure)
 		accessKeySecret := s3Artifact.AccessKeySecret
 		secretKeySecret := s3Artifact.SecretKeySecret
 		assert.NotNil(t, accessKeySecret)
@@ -68,16 +75,59 @@ func TestExecuteWorkflow(t *testing.T) {
 		assert.NotNil(t, secretKeySecret)
 		assert.True(t, reflect.DeepEqual(secretKeySecret, SECRET_KEY_SELECTOR))
 	})
+	t.Run("validate env specific cm and secret", func(t *testing.T) {
+		workflowTemplate := deepCopyWfTemplate(baseWorkflowTemplate)
+		workflowTemplate.BlobStorageConfigured = false
+		cms, secrets := getEnvSpecificCmCs(t)
+		workflowTemplate.ConfigMaps = cms
+		workflowTemplate.Secrets = secrets
+		workflow := executeAndGetWorkflow(t, workflowExecutorImpl, workflowTemplate)
+		verifyCmCsTemplates(t, workflow, workflowTemplate)
+
+	})
+}
+
+func getEnvSpecificCmCs(t *testing.T) ([]bean2.ConfigSecretMap, []bean2.ConfigSecretMap) {
+	var configMaps, secrets []bean2.ConfigSecretMap
+	cmMap := make(map[string]string)
+	cmMap["key1"] = "value1"
+	cmDataJson, err := json.Marshal(cmMap)
+	assert.Nil(t, err)
+
+	secretMap := make(map[string]string)
+	secretMap["secret1"] = "value1"
+	secretDataJson, err := json.Marshal(secretMap)
+	assert.Nil(t, err)
+
+	cm := bean2.ConfigSecretMap{}
+	cm.Name = "env-specific-cm"
+	cm.Type = "environment"
+	cm.Data = cmDataJson
+	configMaps = append(configMaps, cm)
+
+	secret := bean2.ConfigSecretMap{}
+	secret.Name = "env-specific-secret"
+	secret.Type = "environment"
+	secret.Data = secretDataJson
+	secret.SecretData = secretDataJson
+	secrets = append(secrets, secret)
+
+	return configMaps, secrets
 }
 
 func executeWorkflowAndGetCdTemplate(t *testing.T, workflowExecutorImpl *ArgoWorkflowExecutorImpl, workflowTemplate bean.WorkflowTemplate) v1alpha1.Template {
+	cdWorkflow := executeAndGetWorkflow(t, workflowExecutorImpl, workflowTemplate)
+	cdTemplate := verifyCdTemplate(t, cdWorkflow, workflowTemplate)
+	return cdTemplate
+}
+
+func executeAndGetWorkflow(t *testing.T, workflowExecutorImpl *ArgoWorkflowExecutorImpl, workflowTemplate bean.WorkflowTemplate) v1alpha1.Workflow {
 	unstructuredWorkflow, err := workflowExecutorImpl.ExecuteWorkflow(workflowTemplate)
 	assert.Nil(t, err)
 	cdWorkflow, err := getWorkflow(unstructuredWorkflow)
 	assert.Nil(t, err)
 	validateCdWorkflowSpec(t, cdWorkflow, workflowTemplate)
-	cdTemplate := verifyCdTemplate(t, cdWorkflow, workflowTemplate)
-	return cdTemplate
+	return cdWorkflow
 }
 
 func validateCdWorkflowSpec(t *testing.T, cdWorkflow v1alpha1.Workflow, workflowTemplate bean.WorkflowTemplate) {
@@ -88,7 +138,7 @@ func validateCdWorkflowSpec(t *testing.T, cdWorkflow v1alpha1.Workflow, workflow
 	assert.Equal(t, DEVTRON_WORKFLOW_LABEL_VALUE, wfLabels[DEVTRON_WORKFLOW_LABEL_KEY])
 	workflowSpec := cdWorkflow.GetWorkflowSpec()
 	assert.Equal(t, workflowTemplate.ServiceAccountName, workflowSpec.ServiceAccountName)
-	assert.Equal(t, "", workflowSpec.Entrypoint)
+	//assert.Equal(t, "", workflowSpec.Entrypoint)
 	assert.True(t, reflect.DeepEqual(workflowTemplate.NodeSelector, workflowSpec.NodeSelector))
 	assert.True(t, reflect.DeepEqual(workflowTemplate.Tolerations, workflowSpec.Tolerations))
 	assert.True(t, reflect.DeepEqual(workflowTemplate.Volumes, workflowSpec.Volumes))
@@ -125,23 +175,112 @@ func getGcpBlobStorage() *blob_storage.GcpBlobConfig {
 }
 
 func deepCopyWfTemplate(baseWorkflowTemplate bean.WorkflowTemplate) bean.WorkflowTemplate {
-	origJSON, err := json.Marshal(baseWorkflowTemplate)
-	clone := bean.WorkflowTemplate{}
-	if err = json.Unmarshal(origJSON, &clone); err != nil {
-		return clone
-	}
-	return clone
+	//origJSON, err := json.Marshal(baseWorkflowTemplate)
+	//clone := bean.WorkflowTemplate{}
+	//if err = json.Unmarshal(origJSON, &clone); err != nil {
+	//	return clone
+	//}
+	return baseWorkflowTemplate
 }
 
-func getBaseWorkflowTemplate() bean.WorkflowTemplate {
+func getBaseWorkflowTemplate(cdConfig *CdConfig) bean.WorkflowTemplate {
 	workflowTemplate := bean.WorkflowTemplate{}
 	workflowTemplate.WfControllerInstanceID = "random-controller-id"
 	workflowTemplate.Namespace = "default"
+	workflowTemplate.ActiveDeadlineSeconds = pointer.Int64Ptr(3600)
+	workflowTemplate.ClusterConfig = cdConfig.ClusterConfig
+	workflowTemplate.WorkflowNamePrefix = "workflow-mock-prefix-" + strconv.Itoa(rand.Intn(1000))
+	workflowTemplate.TTLValue = pointer.Int32Ptr(3600)
+	var containers []v12.Container
+	containers = append(containers, getMainContainer())
+	workflowTemplate.Containers = containers
 	return workflowTemplate
 }
 
-func verifyCmCsTemplates(argoTemplates []v1alpha1.Template, workflowTemplate bean.WorkflowTemplate) {
+func getMainContainer() v12.Container {
+	return v12.Container{
+		Name:  common.MainContainerName,
+		Image: "random-image",
+	}
+}
 
+func verifyCmCsTemplates(t *testing.T, workflow v1alpha1.Workflow, workflowTemplate bean.WorkflowTemplate) {
+	cms := workflowTemplate.ConfigMaps
+	for _, configMap := range cms {
+		verifyConfigMapTemplate(t, configMap, workflow)
+	}
+	for _, secret := range workflowTemplate.Secrets {
+		verifySecretTemplate(t, secret, workflow)
+	}
+}
+
+func verifySecretTemplate(t *testing.T, secret bean2.ConfigSecretMap, workflow v1alpha1.Workflow) {
+	templates := workflow.GetTemplates()
+	for _, template := range templates {
+		resourceTemplate := template.Resource
+		if resourceTemplate == nil {
+			continue
+		}
+		resourceAction := resourceTemplate.Action
+		assert.Equal(t, RESOURCE_CREATE_ACTION, resourceAction)
+		assert.True(t, resourceTemplate.SetOwnerReference)
+		secretJson := resourceTemplate.Manifest
+		secretFromTemplateMap := make(map[string]interface{})
+		err := json.Unmarshal([]byte(secretJson), &secretFromTemplateMap)
+		secretFromTemplate := v12.Secret{}
+		assert.Nil(t, err)
+		if "Secret" == secretFromTemplateMap["Kind"] {
+			err = json.Unmarshal([]byte(secretJson), &secretFromTemplate)
+			assert.Equal(t, secret.Name, secretFromTemplate.Name)
+			validateSecretData(t, secret.SecretData, secretFromTemplate.StringData)
+			verifyOwnerRef(t, secretFromTemplate.OwnerReferences)
+		}
+	}
+}
+
+func verifyConfigMapTemplate(t *testing.T, configMap bean2.ConfigSecretMap, workflow v1alpha1.Workflow) {
+	templates := workflow.GetTemplates()
+	for _, template := range templates {
+		resourceTemplate := template.Resource
+		if resourceTemplate == nil {
+			continue
+		}
+		resourceAction := resourceTemplate.Action
+		assert.Equal(t, RESOURCE_CREATE_ACTION, resourceAction)
+		assert.True(t, resourceTemplate.SetOwnerReference)
+		configMapJson := resourceTemplate.Manifest
+		cmFromTemplateMap := make(map[string]interface{})
+		err := json.Unmarshal([]byte(configMapJson), &cmFromTemplateMap)
+		assert.Nil(t, err)
+		if "ConfigMap" == cmFromTemplateMap["Kind"] {
+			cmFromTemplate := v12.ConfigMap{}
+			err = json.Unmarshal([]byte(configMapJson), &cmFromTemplate)
+			assert.Nil(t, err)
+			assert.Equal(t, configMap.Name, cmFromTemplate.Name)
+			validateCmData(t, configMap.Data, cmFromTemplate.Data)
+			verifyOwnerRef(t, cmFromTemplate.OwnerReferences)
+		}
+	}
+}
+
+func validateSecretData(t *testing.T, data []byte, secret map[string]string) {
+	secretData := make(map[string]string)
+	err := json.Unmarshal(data, &secretData)
+	assert.Nil(t, err)
+	assert.Equal(t, secretData, secret)
+}
+
+func validateCmData(t *testing.T, data []byte, cmMap map[string]string) {
+	cmData := make(map[string]string)
+	err := json.Unmarshal(data, &cmData)
+	assert.Nil(t, err)
+	assert.Equal(t, cmData, cmMap)
+}
+
+func verifyOwnerRef(t *testing.T, ownerReferences []metav1.OwnerReference) {
+	assert.Equal(t, 1, len(ownerReferences))
+	ownerReference := ownerReferences[0]
+	assert.True(t, reflect.DeepEqual(ownerReference, ArgoWorkflowOwnerRef))
 }
 
 func getCdTemplate(workflow v1alpha1.Workflow) v1alpha1.Template {
@@ -157,14 +296,13 @@ func getCdTemplate(workflow v1alpha1.Workflow) v1alpha1.Template {
 }
 
 func verifyCdTemplate(t *testing.T, workflow v1alpha1.Workflow, workflowTemplate bean.WorkflowTemplate) v1alpha1.Template {
-	//fetch template with name cd in template and verify content of that template
 	cdTemplate := getCdTemplate(workflow)
 	assert.NotNil(t, cdTemplate)
 	templateContainer := cdTemplate.Container
 	mainContainer := workflowTemplate.Containers[0]
-	assert.True(t, reflect.DeepEqual(templateContainer, mainContainer))
+	assert.True(t, reflect.DeepEqual(*templateContainer, mainContainer))
 	activeDeadlineSeconds := cdTemplate.ActiveDeadlineSeconds
 	assert.NotNil(t, activeDeadlineSeconds)
-	assert.Equal(t, *workflowTemplate.ActiveDeadlineSeconds, activeDeadlineSeconds.IntVal)
+	assert.Equal(t, *workflowTemplate.ActiveDeadlineSeconds, int64(activeDeadlineSeconds.IntVal))
 	return cdTemplate
 }

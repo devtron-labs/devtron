@@ -31,6 +31,7 @@ const (
 	WORKFLOW_GENERATE_NAME_REGEX = "%s-"
 	DEVTRON_WORKFLOW_LABEL_KEY   = "devtron.ai/workflow-purpose"
 	DEVTRON_WORKFLOW_LABEL_VALUE = "cd"
+	RESOURCE_CREATE_ACTION       = "create"
 )
 
 var ACCESS_KEY_SELECTOR = &v12.SecretKeySelector{Key: CRED_ACCESS_KEY, LocalObjectReference: v12.LocalObjectReference{Name: WORKFLOW_MINIO_CRED}}
@@ -137,7 +138,7 @@ func (impl *ArgoWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.Work
 }
 
 func (impl *ArgoWorkflowExecutorImpl) convertToUnstructured(cdWorkflow interface{}) *unstructured.UnstructuredList {
-	unstructedObjMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(cdWorkflow)
+	unstructedObjMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&cdWorkflow)
 	if err != nil {
 		return nil
 	}
@@ -294,7 +295,7 @@ func (impl *ArgoWorkflowExecutorImpl) createStepAndTemplate(isSecret bool, cmSec
 	argoTemplate := v1alpha1.Template{
 		Name: templateName,
 		Resource: &v1alpha1.ResourceTemplate{
-			Action:            "create",
+			Action:            RESOURCE_CREATE_ACTION,
 			SetOwnerReference: true,
 			Manifest:          string(cmSecretJson),
 		},
