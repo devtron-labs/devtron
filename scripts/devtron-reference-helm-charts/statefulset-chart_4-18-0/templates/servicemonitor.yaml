@@ -12,6 +12,8 @@ metadata:
     envId: {{ $.Values.env | quote }}
     chart: {{ template ".Chart.Name .chart" . }}
     release: {{ .Values.prometheus.release }}
+    releaseVersion: {{ $.Values.releaseVersion | quote }}
+    pipelineName: {{ $.Values.pipelineName }}
     {{- if .Values.servicemonitor.additionalLabels }}
 {{ toYaml .Values.servicemonitor.additionalLabels | indent 4 }}
     {{- end }}
