@@ -135,7 +135,7 @@ func InitAppService() *app2.AppServiceImpl {
 	}
 	helmAppClient := client.NewHelmAppClientImpl(logger, helmClientConfig)
 	helmAppService := client.NewHelmAppServiceImpl(logger, clusterService, helmAppClient, nil, nil, nil, serverEnvConfig, nil, nil, nil, nil, nil, nil, nil, nil)
-	moduleService := module.NewModuleServiceImpl(logger, serverEnvConfig, moduleRepositoryImpl, moduleActionAuditLogRepository, helmAppService, nil, nil, nil, nil, nil, nil)
+	moduleService := module.NewModuleServiceImpl(logger, serverEnvConfig, moduleRepositoryImpl, moduleActionAuditLogRepository, helmAppService, nil, nil, nil, nil, nil, nil, nil)
 	eventClient := client1.NewEventRESTClientImpl(logger, httpClient, eventClientConfig, pubSubClient, ciPipelineRepositoryImpl,
 		pipelineRepository, attributesRepositoryImpl, moduleService)
 	cdWorkflowRepository := pipelineConfig.NewCdWorkflowRepositoryImpl(dbConnection, logger)
