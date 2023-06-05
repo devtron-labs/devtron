@@ -9,9 +9,7 @@ metadata:
   labels:
     app: {{ template ".Chart.Name .name" $ }}
     chart: {{ template ".Chart.Name .chart" $ }}
-    release: {{ $.Release.Name }}
-    releaseVersion: {{ $.Values.releaseVersion | quote }}
-    pipelineName: {{ $.Values.pipelineName }}
+    {{ template "mychart.labels" }}
     {{- if .labels }}
 {{ toYaml .labels | nindent 4 }}
     {{- end }}
@@ -59,9 +57,7 @@ metadata:
   labels:
     app: {{ template ".Chart.Name .name" $ }}
     chart: {{ template ".Chart.Name .chart" $ }}
-    release: {{ $.Release.Name }}
-    releaseVersion: {{ $.Values.releaseVersion | quote }}
-    pipelineName: {{ $.Values.pipelineName }}
+    {{ template "mychart.labels" }}
     {{- if .tls.labels }}
 {{ toYaml .tls.labels | nindent 4 }}
     {{- end }}

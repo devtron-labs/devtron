@@ -8,9 +8,7 @@ metadata:
     appId: {{ $.Values.app | quote }}
     envId: {{ $.Values.env | quote }}
     chart: {{ template ".Chart.Name .chart" . }}
-    release: {{ .Values.prometheus.release }}
-    releaseVersion: {{ $.Values.releaseVersion | quote }}
-    pipelineName: {{ $.Values.pipelineName }}
+    {{ template "mychart.labels" }}
 spec:
   jobLabel: {{ template ".Chart.Name .name" $ }}
   endpoints:

@@ -6,9 +6,7 @@ metadata:
   labels:
     app: {{ template ".Chart.Name .name" $ }}
     chart: {{ template ".Chart.Name .chart" $ }}
-    release: {{ $.Release.Name }}
-    releaseVersion: {{ $.Values.releaseVersion | quote }}
-    pipelineName: {{ $.Values.pipelineName }}
+    {{ template "mychart.labels" }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
@@ -48,6 +46,10 @@ apiVersion: keda.sh/v1alpha1
 kind: TriggerAuthentication
 metadata:
   name: {{ $.Values.kedaAutoscaling.triggerAuthentication.name }}
+  labels:
+    app: {{ template ".Chart.Name .name" $ }}
+    chart: {{ template ".Chart.Name .chart" $ }}
+    {{ template "mychart.labels" }}
 spec:
 {{ toYaml $.Values.kedaAutoscaling.triggerAuthentication.spec | indent 2 }}
 {{- end }}

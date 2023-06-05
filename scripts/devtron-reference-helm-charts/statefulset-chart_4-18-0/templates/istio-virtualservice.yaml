@@ -9,9 +9,7 @@ metadata:
     appId: {{ $.Values.app | quote }}
     envId: {{ $.Values.env | quote }}
     chart: {{ template ".Chart.Name .chart" $ }}
-    release: {{ $.Release.Name }}
-    releaseVersion: {{ $.Values.releaseVersion | quote }}
-    pipelineName: {{ $.Values.pipelineName }}
+    {{ template "mychart.labels" }}
 {{- if $.Values.appLabels }}
 {{ toYaml $.Values.appLabels | indent 4 }}
 {{- end }}

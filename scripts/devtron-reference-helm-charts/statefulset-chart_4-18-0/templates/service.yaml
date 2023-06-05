@@ -8,11 +8,9 @@ metadata:
   name: {{ template ".servicename" . }}
   {{- end }}
   labels:
-    app: {{ template ".Chart.Name .name" . }}
-    appId: {{ $.Values.app | quote }}
-    envId: {{ $.Values.env | quote }}
-    chart: {{ template ".Chart.Name .chart" . }}
-    release: {{ .Release.Name }}
+    app: {{ template ".Chart.Name .name" $ }}
+    chart: {{ template ".Chart.Name .chart" $ }}
+    {{ template "mychart.labels" }}
 {{- if .Values.appLabels }}
 {{ toYaml .Values.appLabels | indent 4 }}
 {{- end }}
@@ -63,11 +61,9 @@ metadata:
   name: {{ template ".servicename" . }}-headless
   {{- end }}
   labels:
-    app: {{ template ".Chart.Name .name" . }}
-    appId: {{ $.Values.app | quote }}
-    envId: {{ $.Values.env | quote }}
-    chart: {{ template ".Chart.Name .chart" . }}
-    release: {{ .Release.Name }}
+    app: {{ template ".Chart.Name .name" $ }}
+    chart: {{ template ".Chart.Name .chart" $ }}
+    {{ template "mychart.labels" }}
 {{- if .Values.appLabels }}
 {{ toYaml .Values.appLabels | indent 4 }}
 {{- end }}

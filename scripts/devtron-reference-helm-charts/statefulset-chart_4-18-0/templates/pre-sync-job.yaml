@@ -4,6 +4,10 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: {{ template ".Chart.Name .fullname" $ }}-migrator
+  labels:
+    app: {{ template ".Chart.Name .name" $ }}
+    chart: {{ template ".Chart.Name .chart" $ }}
+    {{ template "mychart.labels" }}
   annotations:
     argocd.argoproj.io/hook: PreSync
 #    argocd.argoproj.io/hook-delete-policy: HookSucceeded

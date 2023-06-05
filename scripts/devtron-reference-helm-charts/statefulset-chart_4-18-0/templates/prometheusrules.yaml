@@ -8,8 +8,9 @@ metadata:
   {{- end }}
   labels:
     kind: Prometheus
-    chart: {{ template ".Chart.Name .chart" . }}
-    release: {{ .Values.prometheus.release }}
+    app: {{ template ".Chart.Name .name" $ }}
+    chart: {{ template ".Chart.Name .chart" $ }}
+    {{ template "mychart.labels" }}
   {{- if .Values.prometheusRule.additionalLabels }}
 {{ toYaml .Values.prometheusRule.additionalLabels | indent 4 }}
   {{- end }}
