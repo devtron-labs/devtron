@@ -63,13 +63,13 @@ func (_m *ImageTaggingRepository) GetImageComment(artifactId int) (repository.Im
 	return r0, r1
 }
 
-// GetImageCommentsByAppId provides a mock function with given fields: appId
-func (_m *ImageTaggingRepository) GetImageCommentsByAppId(appId int) ([]repository.ImageComment, error) {
-	ret := _m.Called(appId)
+// GetImageCommentsByArtifactIds provides a mock function with given fields: artifactIds
+func (_m *ImageTaggingRepository) GetImageCommentsByArtifactIds(artifactIds []int) ([]repository.ImageComment, error) {
+	ret := _m.Called(artifactIds)
 
 	var r0 []repository.ImageComment
-	if rf, ok := ret.Get(0).(func(int) []repository.ImageComment); ok {
-		r0 = rf(appId)
+	if rf, ok := ret.Get(0).(func([]int) []repository.ImageComment); ok {
+		r0 = rf(artifactIds)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]repository.ImageComment)
@@ -77,8 +77,8 @@ func (_m *ImageTaggingRepository) GetImageCommentsByAppId(appId int) ([]reposito
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(int) error); ok {
-		r1 = rf(appId)
+	if rf, ok := ret.Get(1).(func([]int) error); ok {
+		r1 = rf(artifactIds)
 	} else {
 		r1 = ret.Error(1)
 	}
