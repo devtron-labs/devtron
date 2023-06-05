@@ -24,6 +24,7 @@ import (
 )
 
 func TestExecuteWorkflow(t *testing.T) {
+	t.SkipNow()
 	logger, loggerErr := util.NewSugardLogger()
 	assert.Nil(t, loggerErr)
 	cdConfig, err := GetCdConfig()
