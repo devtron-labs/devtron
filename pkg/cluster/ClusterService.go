@@ -365,6 +365,16 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, 
 }
 
 func (impl *ClusterServiceImpl) SaveVirtualCluster(bean *VirtualClusterBean, userId int32) (*VirtualClusterBean, error) {
+
+	existingModel, err := impl.clusterRepository.FindOne(bean.ClusterName)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Error(err)
+		return nil, err
+	}
+	if existingModel.Id > 0 {
+		impl.logger.Errorw("error on fetching cluster, duplicate", "name", bean.ClusterName)
+		return nil, fmt.Errorf("cluster already exists")
+	}
 	model := &repository.Cluster{
 		ClusterName:      bean.ClusterName,
 		Active:           true,
@@ -374,7 +384,7 @@ func (impl *ClusterServiceImpl) SaveVirtualCluster(bean *VirtualClusterBean, use
 	model.UpdatedBy = userId
 	model.CreatedOn = time.Now()
 	model.UpdatedOn = time.Now()
-	err := impl.clusterRepository.Save(model)
+	err = impl.clusterRepository.Save(model)
 	if err != nil {
 		impl.logger.Errorw("error in saving cluster in db")
 		return nil, err
@@ -628,6 +638,15 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 }
 
 func (impl *ClusterServiceImpl) UpdateVirtualCluster(bean *VirtualClusterBean, userId int32) (*VirtualClusterBean, error) {
+	existingModel, err := impl.clusterRepository.FindOne(bean.ClusterName)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Error(err)
+		return nil, err
+	}
+	if existingModel.Id > 0 && bean.Id != existingModel.Id {
+		impl.logger.Errorw("error on fetching cluster, duplicate", "name", bean.ClusterName)
+		return nil, fmt.Errorf("cluster already exists")
+	}
 	model, err := impl.clusterRepository.FindById(bean.Id)
 	if err != nil {
 		impl.logger.Error(err)
