@@ -74,6 +74,12 @@ type EcrConfig struct {
 	EcrPrefix string `env:"ECR_REPO_NAME_PREFIX" envDefault:"test/"`
 }
 
+func getSecurityScanConfig() (*bean.ForceSecurityScan, error) {
+	cfg := &bean.ForceSecurityScan{}
+	err := env.Parse(cfg)
+	return cfg, err
+}
+
 func GetEcrConfig() (*EcrConfig, error) {
 	cfg := &EcrConfig{}
 	err := env.Parse(cfg)
@@ -1413,6 +1419,13 @@ func (impl PipelineBuilderImpl) PatchCiPipeline(request *bean.CiPatchRequest) (c
 	ciConfig.AppWorkflowId = request.AppWorkflowId
 	ciConfig.UserId = request.UserId
 	if request.CiPipeline != nil {
+		forceScanConfig, err := getSecurityScanConfig()
+		if err != nil {
+			forceScanConfig.ForceSecurityScanning = false
+		}
+		if forceScanConfig.ForceSecurityScanning {
+			request.CiPipeline.ScanEnabled = forceScanConfig.ForceSecurityScanning
+		}
 		ciConfig.ScanEnabled = request.CiPipeline.ScanEnabled
 	}
 	switch request.Action {

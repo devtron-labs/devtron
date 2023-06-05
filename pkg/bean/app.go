@@ -116,6 +116,10 @@ type CiPipeline struct {
 	DockerConfigOverride     DockerConfigOverride   `json:"dockerConfigOverride,omitempty"`
 }
 
+type ForceSecurityScan struct {
+	ForceSecurityScanning bool `env:"FORCE_SECURITY_SCANNING" envDefault:"false"`
+}
+
 type DockerConfigOverride struct {
 	DockerRegistry   string                  `json:"dockerRegistry,omitempty"`
 	DockerRepository string                  `json:"dockerRepository,omitempty"`
