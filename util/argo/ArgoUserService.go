@@ -347,7 +347,12 @@ func getClient(clusterConfig *util.ClusterConfig) (*v1.CoreV1Client, error) {
 	cfg := &rest.Config{}
 	cfg.Host = clusterConfig.Host
 	cfg.BearerToken = clusterConfig.BearerToken
-	cfg.Insecure = true
+	cfg.Insecure = clusterConfig.InsecureSkipTLSVerify
+	if clusterConfig.InsecureSkipTLSVerify == false {
+		cfg.KeyData = []byte(clusterConfig.KeyData)
+		cfg.CertData = []byte(clusterConfig.CertData)
+		cfg.CAData = []byte(clusterConfig.CAData)
+	}
 	httpClient, err := util.OverrideK8sHttpClientWithTracer(cfg)
 	if err != nil {
 		return nil, err

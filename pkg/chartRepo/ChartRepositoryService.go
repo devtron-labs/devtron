@@ -136,13 +136,12 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 	chartRepo.Default = false
 	chartRepo.External = true
 	chartRepo.AllowInsecureConnection = request.AllowInsecureConnection
-
 	err = impl.repoRepository.Save(chartRepo, tx)
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
 	}
 
-	clusterBean, err := impl.clusterService.FindOne(cluster.DefaultClusterName)
+	clusterBean, err := impl.clusterService.FindOne(cluster.DEFAULT_CLUSTER)
 	if err != nil {
 		return nil, err
 	}
@@ -235,7 +234,7 @@ func (impl *ChartRepositoryServiceImpl) UpdateData(request *ChartRepoDto) (*char
 	}
 
 	// modify configmap
-	clusterBean, err := impl.clusterService.FindOne(cluster.DefaultClusterName)
+	clusterBean, err := impl.clusterService.FindOne(cluster.DEFAULT_CLUSTER)
 	if err != nil {
 		return nil, err
 	}
@@ -365,7 +364,7 @@ func (impl *ChartRepositoryServiceImpl) DeleteChartRepo(request *ChartRepoDto) e
 	}
 
 	// modify configmap
-	clusterBean, err := impl.clusterService.FindOne(cluster.DefaultClusterName)
+	clusterBean, err := impl.clusterService.FindOne(cluster.DEFAULT_CLUSTER)
 	if err != nil {
 		return err
 	}
@@ -603,7 +602,7 @@ func (impl *ChartRepositoryServiceImpl) ValidateAndUpdateChartRepo(request *Char
 }
 
 func (impl *ChartRepositoryServiceImpl) TriggerChartSyncManual() error {
-	defaultClusterBean, err := impl.clusterService.FindOne(cluster.DefaultClusterName)
+	defaultClusterBean, err := impl.clusterService.FindOne(cluster.DEFAULT_CLUSTER)
 	if err != nil {
 		impl.logger.Errorw("defaultClusterBean err, TriggerChartSyncManual", "err", err)
 		return err
@@ -865,7 +864,7 @@ func (impl *ChartRepositoryServiceImpl) removeRepoData(data map[string]string, n
 }
 
 func (impl *ChartRepositoryServiceImpl) DeleteChartSecret(secretName string) error {
-	clusterBean, err := impl.clusterService.FindOne(cluster.DefaultClusterName)
+	clusterBean, err := impl.clusterService.FindOne(cluster.DEFAULT_CLUSTER)
 	if err != nil {
 		return err
 	}

@@ -22,6 +22,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
+	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -161,27 +162,47 @@ type CdWorkflowRunner struct {
 	sql.AuditLog
 }
 
+type CiPipelineMaterialResponse struct {
+	Id              int                    `json:"id"`
+	GitMaterialId   int                    `json:"gitMaterialId"`
+	GitMaterialUrl  string                 `json:"gitMaterialUrl"`
+	GitMaterialName string                 `json:"gitMaterialName"`
+	Type            string                 `json:"type"`
+	Value           string                 `json:"value"`
+	Active          bool                   `json:"active"`
+	History         []*gitSensor.GitCommit `json:"history,omitempty"`
+	LastFetchTime   time.Time              `json:"lastFetchTime"`
+	IsRepoError     bool                   `json:"isRepoError"`
+	RepoErrorMsg    string                 `json:"repoErrorMsg"`
+	IsBranchError   bool                   `json:"isBranchError"`
+	BranchErrorMsg  string                 `json:"branchErrorMsg"`
+	Url             string                 `json:"url"`
+	Regex           string                 `json:"regex"`
+}
+
 type CdWorkflowWithArtifact struct {
-	Id                 int       `json:"id"`
-	CdWorkflowId       int       `json:"cd_workflow_id"`
-	Name               string    `json:"name"`
-	Status             string    `json:"status"`
-	PodStatus          string    `json:"pod_status"`
-	Message            string    `json:"message"`
-	StartedOn          time.Time `json:"started_on"`
-	FinishedOn         time.Time `json:"finished_on"`
-	PipelineId         int       `json:"pipeline_id"`
-	Namespace          string    `json:"namespace"`
-	LogFilePath        string    `json:"log_file_path"`
-	TriggeredBy        int32     `json:"triggered_by"`
-	EmailId            string    `json:"email_id"`
-	Image              string    `json:"image"`
-	MaterialInfo       string    `json:"material_info,omitempty"`
-	DataSource         string    `json:"data_source,omitempty"`
-	CiArtifactId       int       `json:"ci_artifact_id,omitempty"`
-	WorkflowType       string    `json:"workflow_type,omitempty"`
-	ExecutorType       string    `json:"executor_type,omitempty"`
-	BlobStorageEnabled bool      `json:"blobStorageEnabled"`
+	Id                 int                          `json:"id"`
+	CdWorkflowId       int                          `json:"cd_workflow_id"`
+	Name               string                       `json:"name"`
+	Status             string                       `json:"status"`
+	PodStatus          string                       `json:"pod_status"`
+	Message            string                       `json:"message"`
+	StartedOn          time.Time                    `json:"started_on"`
+	FinishedOn         time.Time                    `json:"finished_on"`
+	PipelineId         int                          `json:"pipeline_id"`
+	Namespace          string                       `json:"namespace"`
+	LogFilePath        string                       `json:"log_file_path"`
+	TriggeredBy        int32                        `json:"triggered_by"`
+	EmailId            string                       `json:"email_id"`
+	Image              string                       `json:"image"`
+	MaterialInfo       string                       `json:"material_info,omitempty"`
+	DataSource         string                       `json:"data_source,omitempty"`
+	CiArtifactId       int                          `json:"ci_artifact_id,omitempty"`
+	WorkflowType       string                       `json:"workflow_type,omitempty"`
+	ExecutorType       string                       `json:"executor_type,omitempty"`
+	BlobStorageEnabled bool                         `json:"blobStorageEnabled"`
+	GitTriggers        map[int]GitCommit            `json:"gitTriggers"`
+	CiMaterials        []CiPipelineMaterialResponse `json:"ciMaterials"`
 }
 
 type TriggerWorkflowStatus struct {

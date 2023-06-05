@@ -265,7 +265,7 @@ func (impl InstalledAppRepositoryImpl) GetLatestInstalledAppVersionByGitHash(git
 func (impl InstalledAppRepositoryImpl) GetInstalledAppVersion(id int) (*InstalledAppVersions, error) {
 	model := &InstalledAppVersions{}
 	err := impl.dbConnection.Model(model).
-		Column("installed_app_versions.*", "InstalledApp", "InstalledApp.App", "InstalledApp.Environment", "AppStoreApplicationVersion", "AppStoreApplicationVersion.AppStore", "InstalledApp.App.Team").
+		Column("installed_app_versions.*", "InstalledApp", "InstalledApp.App", "InstalledApp.Environment", "InstalledApp.Environment.Cluster", "AppStoreApplicationVersion", "AppStoreApplicationVersion.AppStore", "InstalledApp.App.Team").
 		Column("AppStoreApplicationVersion.AppStore.ChartRepo").
 		Where("installed_app_versions.id = ?", id).Where("installed_app_versions.active = true").Select()
 	return model, err
