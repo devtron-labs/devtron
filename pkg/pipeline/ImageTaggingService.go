@@ -145,19 +145,23 @@ func (impl ImageTaggingServiceImpl) GetTaggingDataMapByAppId(appId int) (map[int
 		result[tag.ArtifactId].ImageReleaseTags = append(result[tag.ArtifactId].ImageReleaseTags, tag)
 	}
 
-	imageComments, err := impl.imageTaggingRepo.GetImageCommentsByAppId(appId)
-	if err != nil && err != pg.ErrNoRows {
-		//log error
-		impl.logger.Errorw("error in fetching imageComments using appId", "appId", appId)
-		return nil, err
-	}
-
-	//it may be possible that there are no tags for a artifact,but comment exists
-	for _, comment := range imageComments {
-		if _, ok := result[comment.ArtifactId]; !ok {
-			result[comment.ArtifactId] = &ImageTaggingResponseDTO{}
+	if len(result) > 0 {
+		artifactIds := make([]int, 0)
+		for artifactId, _ := range result {
+			artifactIds = append(artifactIds, artifactId)
 		}
-		result[comment.ArtifactId].ImageComment = comment
+
+		imageComments, err := impl.imageTaggingRepo.GetImageCommentsByArtifactIds(artifactIds)
+		if err != nil && err != pg.ErrNoRows {
+			//log error
+			impl.logger.Errorw("error in fetching imageComments using appId", "appId", appId)
+			return nil, err
+		}
+
+		//it may be possible that there are no tags for a artifact,but comment exists
+		for _, comment := range imageComments {
+			result[comment.ArtifactId].ImageComment = comment
+		}
 	}
 	return result, nil
 }
@@ -200,7 +204,7 @@ func (impl ImageTaggingServiceImpl) ValidateImageTaggingRequest(imageTaggingRequ
 
 func tagNameValidation(tag string) error {
 	err := errors.New("tag name should be max of 128 characters long,tag name should not start with '.' and '-'")
-	if len(tag) > 128 || len(tag) == 0 || tag[0] == '.' || tag[1] == '-' {
+	if len(tag) > 128 || len(tag) == 0 || tag[0] == '.' || tag[0] == '-' {
 		return err
 	}
 	return nil
