@@ -113,7 +113,7 @@ func TestExecuteWorkflow(t *testing.T) {
 		workflowTemplate.BlobStorageConfigured = false
 		var configMaps []bean2.ConfigSecretMap
 		cm := bean2.ConfigSecretMap{}
-		cm.Name = "env-specific-cm"
+		cm.Name = "env-specific-cm-" + strconv.Itoa(rand.Intn(10000)) + "-" + strconv.Itoa(rand.Intn(10000))
 		cm.Type = "environment"
 		cm.Data = []byte("")
 		configMaps = append(configMaps, cm)
@@ -161,13 +161,13 @@ func getEnvSpecificCmCs(t *testing.T) ([]bean2.ConfigSecretMap, []bean2.ConfigSe
 	assert.Nil(t, err)
 
 	cm := bean2.ConfigSecretMap{}
-	cm.Name = "env-specific-cm"
+	cm.Name = "env-specific-cm-" + strconv.Itoa(rand.Intn(10000)) + "-" + strconv.Itoa(rand.Intn(10000))
 	cm.Type = "environment"
 	cm.Data = cmDataJson
 	configMaps = append(configMaps, cm)
 
 	secret := bean2.ConfigSecretMap{}
-	secret.Name = "env-specific-secret"
+	secret.Name = "env-specific-secret-" + strconv.Itoa(rand.Intn(10000)) + "-" + strconv.Itoa(rand.Intn(10000))
 	secret.Type = "environment"
 	secret.Data = secretDataJson
 	secret.SecretData = secretDataJson
@@ -264,6 +264,7 @@ func getBaseWorkflowTemplate(cdConfig *CdConfig) bean.WorkflowTemplate {
 	workflowTemplate.WfControllerInstanceID = "random-controller-id"
 	workflowTemplate.Namespace = "default"
 	workflowTemplate.ActiveDeadlineSeconds = pointer.Int64Ptr(3600)
+	workflowTemplate.RestartPolicy = v12.RestartPolicyNever
 	clusterConfig := deepCopyClusterConfig(*cdConfig.ClusterConfig)
 	workflowTemplate.ClusterConfig = &clusterConfig
 	workflowTemplate.WorkflowNamePrefix = "workflow-mock-prefix-" + strconv.Itoa(rand.Intn(1000))
@@ -313,7 +314,7 @@ func verifySecretTemplate(t *testing.T, secret bean2.ConfigSecretMap, workflow v
 		if "Secret" == secretFromTemplateMap["Kind"] {
 			err = json.Unmarshal([]byte(secretJson), &secretFromTemplate)
 			assert.Equal(t, secret.Name, secretFromTemplate.Name)
-			validateSecretData(t, secret.SecretData, secretFromTemplate.StringData)
+			validateSecretData(t, secret.SecretData, secretFromTemplate.Data)
 			verifyOwnerRef(t, secretFromTemplate.OwnerReferences)
 		}
 	}
@@ -344,11 +345,12 @@ func verifyConfigMapTemplate(t *testing.T, configMap bean2.ConfigSecretMap, work
 	}
 }
 
-func validateSecretData(t *testing.T, data []byte, secret map[string]string) {
-	secretData := make(map[string]string)
-	err := json.Unmarshal(data, &secretData)
-	assert.Nil(t, err)
-	assert.Equal(t, secretData, secret)
+func validateSecretData(t *testing.T, data []byte, secret map[string][]byte) {
+	secretMap := make(map[string]string)
+	for key, secretValueBytes := range secret {
+		secretMap[key] = string(secretValueBytes)
+	}
+	validateCmData(t, data, secretMap)
 }
 
 func validateCmData(t *testing.T, data []byte, cmMap map[string]string) {
