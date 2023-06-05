@@ -67,6 +67,7 @@ type CiWorkflow struct {
 	CiArtifactLocation string            `sql:"ci_artifact_location"`
 	PodName            string            `sql:"pod_name"`
 	CiBuildType        string            `sql:"ci_build_type"`
+	EnvironmentId      int               `json:"environmentId"`
 	CiPipeline         *CiPipeline
 }
 
@@ -90,6 +91,7 @@ type WorkflowWithArtifact struct {
 	CiArtifactId       int               `json:"ci_artifact_d"`
 	BlobStorageEnabled bool              `json:"blobStorageEnabled"`
 	CiBuildType        string            `json:"ci_build_type"`
+	EnvironmentId      int               `json:"environment_id"`
 	IsArtifactUploaded bool              `json:"is_artifact_uploaded"`
 }
 

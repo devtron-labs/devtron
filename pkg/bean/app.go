@@ -115,8 +115,6 @@ type CiPipeline struct {
 	IsDockerConfigOverridden bool                   `json:"isDockerConfigOverridden"`
 	DockerConfigOverride     DockerConfigOverride   `json:"dockerConfigOverride,omitempty"`
 	EnvironmentId            int                    `json:"environmentId,omitempty"`
-	ConfigMaps               []string               `json:"configMaps,omitempty"`
-	Secrets                  []string               `json:"secrets,omitempty"`
 }
 
 type DockerConfigOverride struct {
@@ -263,6 +261,7 @@ type CiTriggerRequest struct {
 	CiPipelineMaterial []CiPipelineMaterial `json:"ciPipelineMaterials" validate:"required"`
 	TriggeredBy        int32                `json:"triggeredBy"`
 	InvalidateCache    bool                 `json:"invalidateCache"`
+	EnvironmentId      int                  `json:"environmentId"`
 }
 
 type CiTrigger struct {

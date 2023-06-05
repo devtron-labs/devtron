@@ -165,6 +165,7 @@ type WorkflowResponse struct {
 	TriggeredByEmail   string                           `json:"triggeredByEmail"`
 	Stage              string                           `json:"stage"`
 	ArtifactId         int                              `json:"artifactId"`
+	EnvironmentId      int                              `json:"environmentId"`
 	IsArtifactUploaded bool                             `json:"isArtifactUploaded"`
 }
 
@@ -486,6 +487,7 @@ func (impl *CiHandlerImpl) GetBuildHistory(pipelineId int, offset int, size int)
 			TriggeredByEmail:   w.EmailId,
 			ArtifactId:         w.CiArtifactId,
 			BlobStorageEnabled: w.BlobStorageEnabled,
+			EnvironmentId:      w.EnvironmentId,
 			IsArtifactUploaded: w.IsArtifactUploaded,
 		}
 		ciWorkLowResponses = append(ciWorkLowResponses, wfResponse)

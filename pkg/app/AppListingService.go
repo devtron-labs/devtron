@@ -263,6 +263,7 @@ func (impl AppListingServiceImpl) FetchJobs(fetchJobListingRequest FetchAppListi
 
 	jobListingFilter := helper.AppListingFilter{
 		Teams:         fetchJobListingRequest.Teams,
+		Environments:  fetchJobListingRequest.Environments,
 		AppNameSearch: fetchJobListingRequest.AppNameSearch,
 		SortOrder:     fetchJobListingRequest.SortOrder,
 		SortBy:        fetchJobListingRequest.SortBy,

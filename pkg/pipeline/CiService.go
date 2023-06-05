@@ -136,23 +136,34 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 		impl.Logger.Errorw("could not fetch ci config", "pipeline", trigger.PipelineId)
 		return 0, err
 	}
+	app, err := impl.appRepository.FindById(pipeline.AppId)
+	if err != nil {
+		impl.Logger.Errorw("could not find app", "err", err)
+		return 0, err
+	}
+	var env *repository1.Environment
+	isJob := false
+	if app.AppType == helper.Job {
+		isJob = true
+		env, err = impl.envRepository.FindById(pipeline.CiEnvMapping.EnvironmentId)
+		if err != nil {
+			impl.Logger.Errorw("could not find environment", "err", err)
+			return 0, err
+		}
+	}
+	if app.AppType == helper.Job {
+		ciWorkflowConfig.Namespace = env.Namespace
+	}
 	if ciWorkflowConfig.Namespace == "" {
 		ciWorkflowConfig.Namespace = impl.ciConfig.DefaultNamespace
 	}
+
 	savedCiWf, err := impl.saveNewWorkflow(pipeline, ciWorkflowConfig, trigger.CommitHashes, trigger.TriggeredBy)
 	if err != nil {
 		impl.Logger.Errorw("could not save new workflow", "err", err)
 		return 0, err
 	}
-	app, err := impl.appRepository.FindById(pipeline.AppId)
-	//TODO: error
-	var env *repository1.Environment
-	isJob := false
-	if app.AppType == helper.Job {
-		isJob = true
-		env, err = impl.envRepository.FindById(pipeline.EnvironmentId)
-		//TODO: error
-	}
+
 	workflowRequest, err := impl.buildWfRequestForCiPipeline(pipeline, trigger, ciMaterials, savedCiWf, ciWorkflowConfig, ciPipelineScripts)
 	if err != nil {
 		impl.Logger.Errorw("make workflow req", "err", err)
@@ -263,6 +274,7 @@ func (impl *CiServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, 
 		GitTriggers:        gitTriggers,
 		LogLocation:        "",
 		TriggeredBy:        userId,
+		EnvironmentId:      pipeline.CiEnvMapping.EnvironmentId,
 	}
 	err := impl.ciWorkflowRepository.SaveWorkFlow(ciWorkflow)
 	if err != nil {

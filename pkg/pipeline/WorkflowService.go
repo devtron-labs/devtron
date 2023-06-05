@@ -72,10 +72,9 @@ type WorkflowServiceImpl struct {
 }
 
 type WorkflowRequest struct {
-	WorkflowNamePrefix string `json:"workflowNamePrefix"`
-	AppId              int    `json:"appId"`
-	EnvironmentId      int    `json:"environmentId"`
-
+	WorkflowNamePrefix         string                            `json:"workflowNamePrefix"`
+	AppId                      int                               `json:"appId,omitempty"`
+	EnvironmentId              int                               `json:"environmentId,omitempty"`
 	PipelineName               string                            `json:"pipelineName"`
 	PipelineId                 int                               `json:"pipelineId"`
 	DockerImageTag             string                            `json:"dockerImageTag"`

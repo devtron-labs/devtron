@@ -795,6 +795,7 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 			AfterDockerBuildScripts:  afterDockerBuildScripts,
 			ScanEnabled:              pipeline.ScanEnabled,
 			IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
+			EnvironmentId:            pipeline.CiEnvMapping.EnvironmentId,
 		}
 		if ciTemplateBean, ok := ciOverrideTemplateMap[pipeline.Id]; ok {
 			templateOverride := ciTemplateBean.CiTemplateOverride

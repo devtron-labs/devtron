@@ -74,13 +74,15 @@ type JobCIPipeline struct {
 }
 
 type JobListingContainer struct {
-	JobId          int       `json:"job_id"`
-	JobName        string    `json:"job_name"`
-	Description    string    `json:"description"`
-	CiPipelineID   int       `json:"ci_pipeline_id"`
-	CiPipelineName string    `json:"ci_pipeline_name"`
-	Status         string    `json:"status"`
-	StartedOn      time.Time `json:"started_on"`
+	JobId           int       `json:"job_id"`
+	JobName         string    `json:"job_name"`
+	Description     string    `json:"description"`
+	CiPipelineID    int       `json:"ci_pipeline_id"`
+	CiPipelineName  string    `json:"ci_pipeline_name"`
+	EnvironmentId   int       `json:"environmentId"`
+	EnvironmentName string    `json:"environmentName"`
+	Status          string    `json:"status"`
+	StartedOn       time.Time `json:"started_on"`
 }
 
 type CiPipelineLastSucceededTime struct {
