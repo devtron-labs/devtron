@@ -129,9 +129,7 @@ To enable the "Execute in application environment" option, follow these steps:
 1. Go to the chart store and search for the devtron-in-clustercd chart.
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/devtron-incluster-chart.jpg)
 2. Configure the chart according to your requirements and deploy it in the target cluster.
-3. After the deployment, edit the devtron-cm config map and add the following key-value pair. `ORCH_HOST` value should be same as of `CD_EXTERNAL_LISTENER_URL` value which is passed in values.yaml.
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/incluster-configuration.jpg)
+3. After the deployment, edit the devtron-cm configmap and add the following key-value pair:
 
 ```bash
 ORCH_HOST: <host_url>/orchestrator/webhook/msg/nats
@@ -139,7 +137,13 @@ ORCH_HOST: <host_url>/orchestrator/webhook/msg/nats
 Example:
 
 ORCH_HOST: http://xyz.devtron.com/orchestrator/webhook/msg/nats
+
 ```
+`ORCH_HOST` value should be same as of `CD_EXTERNAL_LISTENER_URL` value which is passed in values.yaml.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/incluster-configuration.jpg)
+
+
 
 4. Delete the Devtron pod using the following command:
 
