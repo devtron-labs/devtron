@@ -153,6 +153,7 @@ type DeploymentDetailContainer struct {
 	IpsAccessProvided             bool            `json:"ipsAccessProvided"`
 	DeploymentAppDeleteRequest    bool            `json:"deploymentAppDeleteRequest"`
 	Description                   string          `json:"description" validate:"max=40"`
+	IsVirtualEnvironment          bool            `json:"isVirtualEnvironment"`
 }
 
 type AppDetailContainer struct {
@@ -182,6 +183,7 @@ type Environment struct {
 	LastDeployed               string `json:"lastDeployed"`
 	DeploymentAppDeleteRequest bool   `json:"deploymentAppDeleteRequest"`
 	Description                string `json:"description" validate:"max=40"`
+	IsVirtualEnvironment       bool   `json:"isVirtualEnvironment"`
 }
 
 type InstanceDetail struct {
