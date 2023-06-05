@@ -509,7 +509,7 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentConnection(w http.ResponseW
 	}
 	//RBAC enforcer Ends
 	// getting restConfig and clientSet outside the goroutine because we don't want to call goroutine func with receiver function
-	restConfig, err := impl.k8sApplicationService.GetRestConfigByCluster(context.Background(), clusterBean)
+	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(context.Background(), clusterBean.Id)
 	if err != nil {
 		impl.logger.Errorw("error in getting restConfig by cluster", "err", err, "clusterId", clusterBean.Id)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -539,6 +539,6 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentConnection(w http.ResponseW
 	mapObj := map[int]error{
 		clusterBean.Id: err,
 	}
-	_ = impl.environmentClusterMappingsService.HandleErrorInClusterConnections(mapObj)
+	impl.environmentClusterMappingsService.HandleErrorInClusterConnections([]*request.ClusterBean{clusterBean}, mapObj, true)
 	common.WriteJsonResp(w, nil, responseObj, http.StatusOK)
 }

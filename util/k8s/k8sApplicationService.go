@@ -28,6 +28,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"log"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -866,8 +867,27 @@ func (impl *K8sApplicationServiceImpl) FetchConnectionStatusForCluster(k8sClient
 	path := "/livez"
 	response, err := k8sClientSet.Discovery().RESTClient().Get().AbsPath(path).DoRaw(context.Background())
 	log.Println("received response for cluster livez status", "response", string(response), "err", err, "clusterId", clusterId)
-	if err == nil && string(response) != "ok" {
-		err = fmt.Errorf("ErrorNotOk : response != 'ok' : %s", string(response))
+	if err != nil {
+		if _, ok := err.(*url.Error); ok {
+			err = fmt.Errorf("Incorrect server url : %v", err)
+		} else if statusError, ok := err.(*errors2.StatusError); ok {
+			if statusError != nil {
+				errReason := statusError.ErrStatus.Reason
+				var errMsg string
+				if errReason == metav1.StatusReasonUnauthorized {
+					errMsg = "token seems invalid or does not have sufficient permissions"
+				} else {
+					errMsg = statusError.ErrStatus.Message
+				}
+				err = fmt.Errorf("%s : %s", errReason, errMsg)
+			} else {
+				err = fmt.Errorf("Validation failed : %v", err)
+			}
+		} else {
+			err = fmt.Errorf("Validation failed : %v", err)
+		}
+	} else if err == nil && string(response) != "ok" {
+		err = fmt.Errorf("Validation failed with response : %s", string(response))
 	}
 	return err
 }

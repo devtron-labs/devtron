@@ -87,7 +87,7 @@ type EnvironmentService interface {
 	GetByClusterId(id int) ([]*EnvironmentBean, error)
 	GetCombinedEnvironmentListForDropDown(emailId string, isActionUserSuperAdmin bool, auth func(email string, object []string) map[string]bool) ([]*ClusterEnvDto, error)
 	GetCombinedEnvironmentListForDropDownByClusterIds(token string, clusterIds []int, auth func(token string, object string) bool) ([]*ClusterEnvDto, error)
-	HandleErrorInClusterConnections(respMap map[int]error) error
+	HandleErrorInClusterConnections(clusters []*ClusterBean, respMap map[int]error, clusterExistInDb bool)
 }
 
 type EnvironmentServiceImpl struct {
@@ -680,6 +680,6 @@ func (impl EnvironmentServiceImpl) Delete(deleteReq *EnvironmentBean, userId int
 	return nil
 }
 
-func (impl EnvironmentServiceImpl) HandleErrorInClusterConnections(respMap map[int]error) error {
-	return impl.clusterService.HandleErrorInClusterConnections(respMap)
+func (impl EnvironmentServiceImpl) HandleErrorInClusterConnections(clusters []*ClusterBean, respMap map[int]error, clusterExistInDb bool) {
+	impl.clusterService.HandleErrorInClusterConnections(clusters, respMap, clusterExistInDb)
 }
