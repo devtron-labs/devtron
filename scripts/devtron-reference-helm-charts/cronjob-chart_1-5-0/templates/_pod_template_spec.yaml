@@ -133,7 +133,7 @@ initContainers:
 {{- end }}
 containers:
 {{- if $.Values.containers }}
-{{ toYaml $.Values.containers | indent 4 -}}
+{{ toYaml $.Values.containers | indent 2 -}}
 {{- end }}
   - name: {{ $.Chart.Name }}
     image: "{{ .Values.server.deployment.image }}:{{ .Values.server.deployment.image_tag }}"
