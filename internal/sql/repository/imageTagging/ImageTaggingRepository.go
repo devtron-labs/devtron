@@ -74,7 +74,7 @@ type ImageTaggingRepository interface {
 	GetTagsByAppId(appId int) ([]*ImageTag, error)
 	GetTagsByArtifactId(artifactId int) ([]*ImageTag, error)
 	GetImageComment(artifactId int) (ImageComment, error)
-	GetImageCommentsByAppId(appId int) ([]ImageComment, error)
+	GetImageCommentsByArtifactIds(artifactIds []int) ([]ImageComment, error)
 	UpdateReleaseTagInBulk(tx *pg.Tx, imageTags []*ImageTag) error
 	UpdateImageComment(tx *pg.Tx, imageComment *ImageComment) error
 	DeleteReleaseTagInBulk(tx *pg.Tx, imageTags []*ImageTag) error
@@ -130,10 +130,10 @@ func (impl *ImageTaggingRepositoryImpl) GetImageComment(artifactId int) (ImageCo
 	return res, err
 }
 
-func (impl *ImageTaggingRepositoryImpl) GetImageCommentsByAppId(appId int) ([]ImageComment, error) {
+func (impl *ImageTaggingRepositoryImpl) GetImageCommentsByArtifactIds(artifactIds []int) ([]ImageComment, error) {
 	res := make([]ImageComment, 0)
 	err := impl.dbConnection.Model(&res).
-		Where("app_id=?", appId).
+		Where("artifact_id=?", pg.In(artifactIds)).
 		Select()
 	return res, err
 }
