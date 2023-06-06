@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS public.release_tags (
     "app_id"                                     integer,
     CONSTRAINT "image_tag_app_id_fkey" FOREIGN KEY ("app_id") REFERENCES "public"."app" ("id"),
     CONSTRAINT "image_tag_artifact_id_fkey" FOREIGN KEY ("artifact_id") REFERENCES "public"."ci_artifact" ("id"),
+    UNIQUE ("app_id","tag_name")
     PRIMARY KEY ("id")
     );
 
