@@ -26,6 +26,7 @@ import (
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	gitSensorClient "github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/client/k8s/application"
+	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	util4 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
@@ -113,6 +114,7 @@ type WorkflowDagExecutorImpl struct {
 	deploymentApprovalRepository  pipelineConfig.DeploymentApprovalRepository
 	chartTemplateService          util.ChartTemplateService
 	k8sApplicationService         k8s.K8sApplicationService
+	appRepository                 appRepository.AppRepository
 }
 
 const (
@@ -180,7 +182,8 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	appLabelRepository pipelineConfig.AppLabelRepository, gitSensorGrpcClient gitSensorClient.Client,
 	deploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository,
 	chartTemplateService util.ChartTemplateService,
-	k8sApplicationService k8s.K8sApplicationService) *WorkflowDagExecutorImpl {
+	k8sApplicationService k8s.K8sApplicationService,
+	appRepository appRepository.AppRepository) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
 		cdWorkflowRepository:          cdWorkflowRepository,
@@ -215,6 +218,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		k8sApplicationService:         k8sApplicationService,
 		deploymentApprovalRepository:  deploymentApprovalRepository,
 		chartTemplateService:          chartTemplateService,
+		appRepository:                 appRepository,
 	}
 	err := wde.Subscribe()
 	if err != nil {
@@ -484,7 +488,25 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 	span.End()
 
 	if util.IsManifestDownload(pipeline.DeploymentAppType) {
-		chartBytes, err := impl.chartTemplateService.LoadChartInBytes(jobHelmPackagePath, true)
+		if pipeline.App.Id == 0 {
+			appDbObject, err := impl.appRepository.FindById(pipeline.AppId)
+			if err != nil {
+				impl.logger.Errorw("error in getting app by appId", "err", err)
+				return err
+			}
+			pipeline.App = *appDbObject
+		}
+		if pipeline.Environment.Id == 0 {
+			envDbObject, err := impl.envRepository.FindById(pipeline.EnvironmentId)
+			if err != nil {
+				impl.logger.Errorw("error in getting env by envId", "err", err)
+				return err
+			}
+			pipeline.Environment = *envDbObject
+		}
+		imageTag := strings.Split(artifact.Image, ":")[1]
+		chartName := fmt.Sprintf("%s-%s-%s-%s", "pre", pipeline.App.AppName, pipeline.Environment.Name, imageTag)
+		chartBytes, err := impl.chartTemplateService.LoadChartInBytes(jobHelmPackagePath, true, chartName, fmt.Sprint(cdWf.Id))
 		if err != nil && util.IsManifestDownload(pipeline.DeploymentAppType) {
 			return err
 		}
@@ -568,7 +590,6 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		}
 		runner.Namespace = env.Namespace
 	}
-
 	_, err = impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
 	if err != nil {
 		return err
@@ -585,9 +606,27 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		impl.logger.Errorw("error in submitting workflow", "err", err, "cdStageWorkflowRequest", cdStageWorkflowRequest, "pipeline", pipeline, "env", env)
 		return err
 	}
+	if pipeline.App.Id == 0 {
+		appDbObject, err := impl.appRepository.FindById(pipeline.AppId)
+		if err != nil {
+			impl.logger.Errorw("error in getting app by appId", "err", err)
+			return err
+		}
+		pipeline.App = *appDbObject
+	}
+	if pipeline.Environment.Id == 0 {
+		envDbObject, err := impl.envRepository.FindById(pipeline.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("error in getting env by envId", "err", err)
+			return err
+		}
+		pipeline.Environment = *envDbObject
+	}
+	imageTag := strings.Split(cdStageWorkflowRequest.CiArtifactDTO.Image, ":")[1]
+	chartName := fmt.Sprintf("%s-%s-%s-%s", "post", pipeline.App.AppName, pipeline.Environment.Name, imageTag)
 
 	if util.IsManifestDownload(pipeline.DeploymentAppType) {
-		chartBytes, err := impl.chartTemplateService.LoadChartInBytes(jobHelmPackagePath, false)
+		chartBytes, err := impl.chartTemplateService.LoadChartInBytes(jobHelmPackagePath, false, chartName, fmt.Sprint(cdWf.Id))
 		if err != nil && util.IsManifestDownload(pipeline.DeploymentAppType) {
 			return err
 		}

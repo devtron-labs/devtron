@@ -82,7 +82,7 @@ type ChartTemplateService interface {
 	CreateReadmeInGitRepo(gitOpsRepoName string, userId int32) error
 	UpdateGitRepoUrlInCharts(appId int, chartGitAttribute *ChartGitAttribute, userId int32) error
 	CreateAndPushToGitChartProxy(appStoreName, tmpChartLocation string, envName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (chartGitAttribute *ChartGitAttribute, err error)
-	LoadChartInBytes(ChartPath string, deleteChart bool) ([]byte, error)
+	LoadChartInBytes(ChartPath string, deleteChart bool, chartName string, chartVersion string) ([]byte, error)
 }
 type ChartTemplateServiceImpl struct {
 	randSource             rand.Source
@@ -753,7 +753,7 @@ func (impl ChartTemplateServiceImpl) UpdateGitRepoUrlInCharts(appId int, chartGi
 	return nil
 }
 
-func (impl ChartTemplateServiceImpl) LoadChartInBytes(ChartPath string, deleteChart bool) ([]byte, error) {
+func (impl ChartTemplateServiceImpl) LoadChartInBytes(ChartPath string, deleteChart bool, chartName string, chartVersion string) ([]byte, error) {
 
 	var chartBytesArr []byte
 	//this function is removed in latest helm release and is replaced by Loader in loader package
@@ -761,6 +761,11 @@ func (impl ChartTemplateServiceImpl) LoadChartInBytes(ChartPath string, deleteCh
 	if err != nil {
 		impl.logger.Errorw("error in loading chart dir", "err", err, "dir")
 		return chartBytesArr, err
+	}
+
+	if len(chartName) > 0 && len(chartVersion) > 0 {
+		chart.Metadata.Name = chartName
+		chart.Metadata.Version = chartVersion
 	}
 
 	chartZipPath, err := chartutil.Save(chart, ChartPath)

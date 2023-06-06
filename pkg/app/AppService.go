@@ -1446,7 +1446,7 @@ func (impl *AppServiceImpl) GetLatestDeployedManifestByPipelineId(appId int, env
 	manifestByteArray := make([]byte, 0)
 
 	pipeline, err := impl.pipelineRepository.FindActiveByAppIdAndEnvironmentId(appId, envId)
-	if err != nil {
+	if err != nil || pipeline == nil {
 		impl.logger.Errorw("error in fetching pipeline by appId and envId", "appId", appId, "envId", envId, "err", err)
 		return manifestByteArray, err
 	}
@@ -1521,7 +1521,7 @@ func (impl *AppServiceImpl) CopyFile(source, destination string) error {
 	return nil
 }
 
-func (impl *AppServiceImpl) GetHelmManifestInByte(appName string, chartVersion string, overrideValues string, builtChartPath string) ([]byte, error) {
+func (impl *AppServiceImpl) GetHelmManifestInByte(appName string, envName string, image string, chartVersion string, overrideValues string, builtChartPath string) ([]byte, error) {
 
 	var manifestByteArr []byte
 
@@ -1561,7 +1561,12 @@ func (impl *AppServiceImpl) GetHelmManifestInByte(appName string, chartVersion s
 		return manifestByteArr, err
 	}
 
-	manifestByteArr, err = impl.chartTemplateService.LoadChartInBytes(tempHelmPackageDir, true)
+	var imageTag string
+	if len(image) > 0 {
+		imageTag = strings.Split(image, ":")[1]
+	}
+	chartName := fmt.Sprintf("%s-%s-%s", appName, envName, imageTag)
+	manifestByteArr, err = impl.chartTemplateService.LoadChartInBytes(tempHelmPackageDir, true, chartName, chartVersion)
 	if err != nil {
 		impl.logger.Errorw("error in converting chart to bytes", "err", err)
 		return manifestByteArr, err
@@ -1820,10 +1825,7 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 		}
 		span.End()
 
-		manifest, err = impl.GetHelmManifestInByte(overrideRequest.AppName,
-			valuesOverrideResponse.EnvOverride.Chart.ChartVersion,
-			valuesOverrideResponse.MergedValues,
-			builtChartPath)
+		manifest, err = impl.GetHelmManifestInByte(overrideRequest.AppName, overrideRequest.EnvName, valuesOverrideResponse.Artifact.Image, valuesOverrideResponse.EnvOverride.Chart.ChartVersion, valuesOverrideResponse.MergedValues, builtChartPath)
 		if err != nil {
 			impl.logger.Errorw("error in converting built chart to bytes", "err", err)
 			return releaseNo, manifest, err
@@ -2462,7 +2464,12 @@ func (impl *AppServiceImpl) MarkImageScanDeployed(appId int, envId int, imageDig
 			impl.logger.Errorw("error in creating deploy info", "err", err)
 		}
 	} else {
-		impl.logger.Debugw("pt", "ot", ot)
+		// Updating Execution history for Latest Deployment to fetch out security Vulnerabilities for latest deployed info
+		ot.ImageScanExecutionHistoryId = ids
+		err = impl.imageScanDeployInfoRepository.Update(ot)
+		if err != nil {
+			impl.logger.Errorw("error in updating deploy info for latest deployed image", "err", err)
+		}
 	}
 	return err
 }

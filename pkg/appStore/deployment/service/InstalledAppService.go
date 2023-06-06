@@ -425,6 +425,7 @@ func (impl InstalledAppServiceImpl) createChartGroupEntryObject(installAppVersio
 	}
 }
 func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion *appStoreBean.InstallAppVersionDTO, ctx context.Context, userId int32) (*appStoreBean.InstallAppVersionDTO, error) {
+	installedAppVersion.ACDAppName = fmt.Sprintf("%s-%s", installedAppVersion.AppName, installedAppVersion.Environment.Name)
 	chartGitAttr := &util.ChartGitAttribute{}
 	if installedAppVersion.Status == appStoreBean.DEPLOY_INIT ||
 		installedAppVersion.Status == appStoreBean.ENQUEUED ||
@@ -474,6 +475,7 @@ func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion 
 			impl.logger.Errorw(" error", "err", err)
 			return nil, err
 		}
+		installedAppVersion.GitHash = appStoreGitOpsResponse.GitHash
 		chartGitAttr.RepoUrl = appStoreGitOpsResponse.ChartGitAttribute.RepoUrl
 		chartGitAttr.ChartLocation = appStoreGitOpsResponse.ChartGitAttribute.ChartLocation
 	} else {
@@ -1371,7 +1373,12 @@ func (impl InstalledAppServiceImpl) GetChartBytesForLatestDeployment(installedAp
 		return chartBytes, err
 	}
 
-	chartBytes, err = impl.appStoreDeploymentCommonService.BuildChartWithValuesAndRequirementsConfig(installedApp.App.AppName, valuesString, requirementsString)
+	updateTime := installedApp.UpdatedOn
+	dateTag := fmt.Sprintf("%v %v,%v", updateTime.Day(), updateTime.Month(), updateTime.Year())
+	timeTag := fmt.Sprintf("%v.%v", updateTime.Hour(), updateTime.Minute())
+	chartName := fmt.Sprintf("%s-%s-%s %s", installedApp.App.AppName, installedApp.Environment.Name, dateTag, timeTag)
+	chartBytes, err = impl.appStoreDeploymentCommonService.BuildChartWithValuesAndRequirementsConfig(installedApp.App.AppName, valuesString, requirementsString, chartName, fmt.Sprint(installedApp.Id))
+
 	if err != nil {
 		return chartBytes, err
 	}
@@ -1405,7 +1412,12 @@ func (impl InstalledAppServiceImpl) GetChartBytesForParticularDeployment(install
 		return chartBytes, err
 	}
 
-	chartBytes, err = impl.appStoreDeploymentCommonService.BuildChartWithValuesAndRequirementsConfig(installedApp.App.AppName, valuesString, requirementsString)
+	updateTime := installedApp.UpdatedOn
+	dateTag := fmt.Sprintf("%v %v,%v", updateTime.Day(), updateTime.Month(), updateTime.Year())
+	timeTag := fmt.Sprintf("%v.%v", updateTime.Hour(), updateTime.Minute())
+	chartName := fmt.Sprintf("%s-%s-%s %s", installedApp.App.AppName, installedApp.Environment.Name, dateTag, timeTag)
+
+	chartBytes, err = impl.appStoreDeploymentCommonService.BuildChartWithValuesAndRequirementsConfig(installedApp.App.AppName, valuesString, requirementsString, chartName, fmt.Sprint(installedApp.Id))
 	if err != nil {
 		return chartBytes, err
 	}

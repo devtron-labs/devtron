@@ -58,7 +58,7 @@ type AppStoreDeploymentCommonService interface {
 	GenerateManifest(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (manifestResponse *AppStoreManifestResponse, err error)
 	GitOpsOperations(manifestResponse *AppStoreManifestResponse, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*AppStoreGitOpsResponse, error)
 	GenerateManifestAndPerformGitOperations(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*AppStoreGitOpsResponse, error)
-	BuildChartWithValuesAndRequirementsConfig(appName string, valuesString string, requirementsString string) (chartBytesArr []byte, err error)
+	BuildChartWithValuesAndRequirementsConfig(appName string, valuesString string, requirementsString string, chartName string, chartVersion string) (chartBytesArr []byte, err error)
 }
 
 type AppStoreDeploymentCommonServiceImpl struct {
@@ -564,7 +564,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) GenerateManifestAndPerformGitOpe
 	return appStoreGitOpsResponse, nil
 }
 
-func (impl AppStoreDeploymentCommonServiceImpl) BuildChartWithValuesAndRequirementsConfig(appName string, valuesString string, requirementsString string) (chartBytesArr []byte, err error) {
+func (impl AppStoreDeploymentCommonServiceImpl) BuildChartWithValuesAndRequirementsConfig(appName string, valuesString string, requirementsString string, chartName string, chartVersion string) (chartBytesArr []byte, err error) {
 
 	chartBytesArr = make([]byte, 0)
 
@@ -585,7 +585,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) BuildChartWithValuesAndRequireme
 		return chartBytesArr, nil
 	}
 
-	chartBytesArr, err = impl.chartTemplateService.LoadChartInBytes(chartCreateResponse.BuiltChartPath, true)
+	chartBytesArr, err = impl.chartTemplateService.LoadChartInBytes(chartCreateResponse.BuiltChartPath, true, chartName, chartVersion)
 	if err != nil {
 		impl.logger.Errorw("error in loading chart in bytes", "err", err)
 		return chartBytesArr, nil
