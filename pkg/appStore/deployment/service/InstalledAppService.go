@@ -1373,7 +1373,12 @@ func (impl InstalledAppServiceImpl) GetChartBytesForLatestDeployment(installedAp
 		return chartBytes, err
 	}
 
-	chartBytes, err = impl.appStoreDeploymentCommonService.BuildChartWithValuesAndRequirementsConfig(installedApp.App.AppName, valuesString, requirementsString)
+	updateTime := installedApp.UpdatedOn
+	dateTag := fmt.Sprintf("%v %v,%v", updateTime.Day(), updateTime.Month(), updateTime.Year())
+	timeTag := fmt.Sprintf("%v.%v", updateTime.Hour(), updateTime.Minute())
+	chartName := fmt.Sprintf("%s-%s-%s %s", installedApp.App.AppName, installedApp.Environment.Name, dateTag, timeTag)
+	chartBytes, err = impl.appStoreDeploymentCommonService.BuildChartWithValuesAndRequirementsConfig(installedApp.App.AppName, valuesString, requirementsString, chartName, string(installedApp.Id))
+
 	if err != nil {
 		return chartBytes, err
 	}
@@ -1407,7 +1412,12 @@ func (impl InstalledAppServiceImpl) GetChartBytesForParticularDeployment(install
 		return chartBytes, err
 	}
 
-	chartBytes, err = impl.appStoreDeploymentCommonService.BuildChartWithValuesAndRequirementsConfig(installedApp.App.AppName, valuesString, requirementsString)
+	updateTime := installedApp.UpdatedOn
+	dateTag := fmt.Sprintf("%v %v,%v", updateTime.Day(), updateTime.Month(), updateTime.Year())
+	timeTag := fmt.Sprintf("%v.%v", updateTime.Hour(), updateTime.Minute())
+	chartName := fmt.Sprintf("%s-%s-%s %s", installedApp.App.AppName, installedApp.Environment.Name, dateTag, timeTag)
+
+	chartBytes, err = impl.appStoreDeploymentCommonService.BuildChartWithValuesAndRequirementsConfig(installedApp.App.AppName, valuesString, requirementsString, chartName, string(installedApp.Id))
 	if err != nil {
 		return chartBytes, err
 	}

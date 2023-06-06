@@ -484,7 +484,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 	span.End()
 
 	if util.IsManifestDownload(pipeline.DeploymentAppType) {
-		chartBytes, err := impl.chartTemplateService.LoadChartInBytes(jobHelmPackagePath, true)
+		chartBytes, err := impl.chartTemplateService.LoadChartInBytes(jobHelmPackagePath, true, "", "")
 		if err != nil && util.IsManifestDownload(pipeline.DeploymentAppType) {
 			return err
 		}
@@ -587,7 +587,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 	}
 
 	if util.IsManifestDownload(pipeline.DeploymentAppType) {
-		chartBytes, err := impl.chartTemplateService.LoadChartInBytes(jobHelmPackagePath, false)
+		chartBytes, err := impl.chartTemplateService.LoadChartInBytes(jobHelmPackagePath, false, "", "")
 		if err != nil && util.IsManifestDownload(pipeline.DeploymentAppType) {
 			return err
 		}
