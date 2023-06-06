@@ -111,6 +111,7 @@ type CdWorkflowRequest struct {
 	GcpBlobConfig              *blob_storage.GcpBlobConfig         `json:"gcpBlobConfig"`
 	BlobStorageLogsKey         string                              `json:"blobStorageLogsKey"`
 	InAppLoggingEnabled        bool                                `json:"inAppLoggingEnabled"`
+	WorkflowPrefixForLog       string                              `json:"workflowPrefixForLog"`
 	DefaultAddressPoolBaseCidr string                              `json:"defaultAddressPoolBaseCidr"`
 	DefaultAddressPoolSize     int                                 `json:"defaultAddressPoolSize"`
 	DeploymentTriggeredBy      string                              `json:"deploymentTriggeredBy,omitempty"`
@@ -152,7 +153,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		CdRequest: workflowRequest,
 	}
 
-	ciCdTriggerEvent.CdRequest.BlobStorageLogsKey = impl.cdConfig.DefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowNamePrefix
+	ciCdTriggerEvent.CdRequest.BlobStorageLogsKey = impl.cdConfig.DefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowPrefixForLog
 	ciCdTriggerEvent.CdRequest.InAppLoggingEnabled = impl.cdConfig.InAppLoggingEnabled
 	workflowJson, err := json.Marshal(&ciCdTriggerEvent)
 	if err != nil {
@@ -286,7 +287,7 @@ func (impl *CdWorkflowServiceImpl) updateBlobStorageConfig(workflowRequest *CdWo
 	workflowTemplate.BlobStorageS3Config = workflowRequest.BlobStorageS3Config
 	workflowTemplate.AzureBlobConfig = workflowRequest.AzureBlobConfig
 	workflowTemplate.GcpBlobConfig = workflowRequest.GcpBlobConfig
-	workflowTemplate.CloudStorageKey = impl.cdConfig.DefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowNamePrefix
+	workflowTemplate.CloudStorageKey = impl.cdConfig.DefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowPrefixForLog
 }
 
 func (impl *CdWorkflowServiceImpl) getWorkflowExecutor(executorType pipelineConfig.WorkflowExecutorType) WorkflowExecutor {
