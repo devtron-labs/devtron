@@ -60,22 +60,24 @@ const (
 	Moderate
 	Critical
 	High
+	Safe
 )
 
+// Handling for future use
 func (d Severity) ValuesOf(severity string) Severity {
-	if severity == "critical" {
+	if severity == "critical" || severity == "high" {
 		return Critical
-	} else if severity == "moderate" {
+	} else if severity == "moderate" || severity == "medium" {
 		return Moderate
-	} else if severity == "low" {
+	} else if severity == "low" || severity == "safe" {
 		return Low
-	} else if severity == "high" {
-		return High
 	}
 	return Low
 }
+
+// Updating it for future use(not in use for standard severity)
 func (d Severity) String() string {
-	return [...]string{"low", "moderate", "critical", "high"}[d]
+	return [...]string{"low", "moderate", "critical", "high", "safe"}[d]
 }
 
 // ----------------
