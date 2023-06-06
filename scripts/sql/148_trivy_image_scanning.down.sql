@@ -1,3 +1,6 @@
+ALTER TABLE public.cve_store
+DROP COLUMN "standard_severity";
+
 ALTER TABLE public.module
     DROP COLUMN "enabled" ,
     DROP COLUMN "module_type";
