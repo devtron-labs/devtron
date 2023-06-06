@@ -523,6 +523,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		Namespace:          impl.cdConfig.DefaultNamespace,
 		BlobStorageEnabled: impl.cdConfig.BlobStorageEnabled,
 		CdWorkflowId:       cdWf.Id,
+		LogLocation:        impl.cdConfig.DefaultBuildLogsKeyPrefix + "/" + strconv.Itoa(cdWf.Id) + "-" + pipeline.Name + "/main.log",
 		AuditLog:           sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: triggeredBy, UpdatedOn: triggeredAt, UpdatedBy: triggeredBy},
 	}
 	var env *repository2.Environment
@@ -712,7 +713,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		AppId:                 cdPipeline.AppId,
 		WorkflowId:            cdWf.Id,
 		WorkflowRunnerId:      runner.Id,
-		WorkflowNamePrefix:    strconv.Itoa(runner.Id) + "-" + runner.Name,
+		WorkflowNamePrefix:    strconv.Itoa(cdWf.Id) + "-" + runner.Name,
 		CdImage:               impl.cdConfig.DefaultImage,
 		CdPipelineId:          cdWf.PipelineId,
 		TriggeredBy:           triggeredBy,
