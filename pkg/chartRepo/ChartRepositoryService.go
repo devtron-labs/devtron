@@ -394,23 +394,45 @@ func (impl *ChartRepositoryServiceImpl) DeleteChartRepo(request *ChartRepoDto) e
 	retryCount := 0
 	//request.Url = ""
 
-	isPrivateChart := false
-	if len(chartRepo.UserName) > 0 && len(chartRepo.Password) > 0 {
-		isPrivateChart = true
-	}
-
 	for !updateSuccess && retryCount < 3 {
 		retryCount = retryCount + 1
 
-		if !isPrivateChart {
-			cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
+		var isFoundInArgoCdCm bool
+		cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
+		if err != nil {
+			return err
+		}
+		var repositories []*AcdConfigMapRepositoriesDto
+		if cm != nil && cm.Data != nil {
+			repoStr := cm.Data["repositories"]
+			repoByte, err := yaml.YAMLToJSON([]byte(repoStr))
 			if err != nil {
+				impl.logger.Errorw("error in json patch", "err", err)
 				return err
 			}
-			data, err := impl.removeRepoData(cm.Data, request.Name)
+			err = json.Unmarshal(repoByte, &repositories)
 			if err != nil {
-				impl.logger.Warnw(" config map update failed", "err", err)
-				continue
+				impl.logger.Errorw("error in unmarshal", "err", err)
+				return err
+			}
+			for _, repo := range repositories {
+				if repo.Name == request.Name && repo.Url == request.Url {
+					//chart repo is present in argocd-cm
+					isFoundInArgoCdCm = true
+					break
+				}
+			}
+		}
+
+		if isFoundInArgoCdCm {
+			var data map[string]string
+
+			if cm != nil && cm.Data != nil {
+				data, err = impl.removeRepoData(cm.Data, request.Name)
+				if err != nil {
+					impl.logger.Warnw(" config map update failed", "err", err)
+					continue
+				}
 			}
 			cm.Data = data
 			_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
