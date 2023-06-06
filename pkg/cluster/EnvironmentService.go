@@ -115,7 +115,7 @@ type EnvironmentServiceImpl struct {
 func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepository,
 	clusterService ClusterService, logger *zap.SugaredLogger,
 	K8sUtil *util.K8sUtil, k8sInformerFactory informer.K8sInformerFactory,
-//  propertiesConfigService pipeline.PropertiesConfigService,
+	//  propertiesConfigService pipeline.PropertiesConfigService,
 	userAuthService user.UserAuthService) *EnvironmentServiceImpl {
 	return &EnvironmentServiceImpl{
 		environmentRepository: environmentRepository,
@@ -435,6 +435,7 @@ func (impl EnvironmentServiceImpl) FindClusterByEnvId(id int) (*ClusterBean, err
 	clusterBean.Active = model.Cluster.Active
 	clusterBean.ServerUrl = model.Cluster.ServerUrl
 	clusterBean.Config = model.Cluster.Config
+	clusterBean.InsecureSkipTLSVerify = model.Cluster.InsecureSkipTlsVerify
 	return clusterBean, nil
 }
 
