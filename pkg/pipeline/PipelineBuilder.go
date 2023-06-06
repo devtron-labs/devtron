@@ -1429,7 +1429,9 @@ func (impl PipelineBuilderImpl) PatchCiPipeline(request *bean.CiPatchRequest) (c
 		if err != nil {
 			forceScanConfig = false
 		}
-		request.CiPipeline.ScanEnabled = forceScanConfig
+		if forceScanConfig {
+			request.CiPipeline.ScanEnabled = true
+		}
 		ciConfig.ScanEnabled = request.CiPipeline.ScanEnabled
 	}
 	switch request.Action {
