@@ -25,12 +25,12 @@ import (
 
 type ImageTaggingAction int
 
+const ActionSave ImageTaggingAction = 0
+
 //this action is only allowed for imageComments
 const ActionEdit ImageTaggingAction = 1
-
-const ActionSave ImageTaggingAction = 0
-const ActionHardDelete ImageTaggingAction = 3
 const ActionSoftDelete ImageTaggingAction = 2
+const ActionHardDelete ImageTaggingAction = 3
 
 type AuditType int
 
@@ -55,7 +55,7 @@ type ImageComment struct {
 }
 
 type ImageTaggingAudit struct {
-	TableName  struct{}           `sql:"release_tags" json:",omitempty"  pg:",discard_unknown_columns"`
+	TableName  struct{}           `sql:"image_tagging_audit" json:",omitempty"  pg:",discard_unknown_columns"`
 	Id         int                `sql:"id"`
 	Data       string             `sql:"data"`
 	DataType   AuditType          `sql:"data_type"`
