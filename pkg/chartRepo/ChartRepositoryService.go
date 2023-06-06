@@ -20,6 +20,7 @@ package chartRepo
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -101,7 +102,7 @@ func NewChartRepositoryServiceImpl(logger *zap.SugaredLogger, repoRepository cha
 // Private helm charts credentials are saved as secrets
 func (impl *ChartRepositoryServiceImpl) CreateSecretDataForHelmChart(request *ChartRepoDto, isPrivateChart bool) (secretData map[string]string) {
 	secretData = make(map[string]string)
-	secretData[NAME] = fmt.Sprintf("%s-%s", request.Name, uuid.New().String()) // making repo name unique so that "helm repp add" command in argo-repo-server doesn't give error
+	secretData[NAME] = fmt.Sprintf("%s-%s", request.Name, uuid.New().String()) // making repo name unique so that "helm repo add" command in argo-repo-server doesn't give error
 	secretData[TYPE] = HELM
 	secretData[URL] = request.Url
 	if isPrivateChart {
@@ -118,6 +119,19 @@ func (impl *ChartRepositoryServiceImpl) CreateSecretDataForHelmChart(request *Ch
 }
 
 func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error) {
+	allChartsRepos, err := impl.repoRepository.FindAll()
+	if err != nil {
+		impl.logger.Errorw("error in getting list of all chart repos", "err", err)
+		return nil, err
+	}
+	if len(allChartsRepos) == 0 {
+		return nil, errors.New("no chart repo found in db")
+	}
+	for _, chart := range allChartsRepos {
+		if chart.Name == request.Name {
+			return nil, errors.New("repo with chart name already exists")
+		}
+	}
 	dbConnection := impl.repoRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
