@@ -505,7 +505,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 			pipeline.Environment = *envDbObject
 		}
 		imageTag := strings.Split(artifact.Image, ":")[1]
-		chartName := fmt.Sprintf("%s-%s-%s-%s", "pre-", pipeline.App.AppName, pipeline.Environment.Name, imageTag)
+		chartName := fmt.Sprintf("%s-%s-%s-%s", "pre", pipeline.App.AppName, pipeline.Environment.Name, imageTag)
 		chartBytes, err := impl.chartTemplateService.LoadChartInBytes(jobHelmPackagePath, true, chartName, fmt.Sprint(cdWf.Id))
 		if err != nil && util.IsManifestDownload(pipeline.DeploymentAppType) {
 			return err
@@ -623,7 +623,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		pipeline.Environment = *envDbObject
 	}
 	imageTag := strings.Split(cdStageWorkflowRequest.CiArtifactDTO.Image, ":")[1]
-	chartName := fmt.Sprintf("%s-%s-%s-%s", "pre-", pipeline.App.AppName, pipeline.Environment.Name, imageTag)
+	chartName := fmt.Sprintf("%s-%s-%s-%s", "post", pipeline.App.AppName, pipeline.Environment.Name, imageTag)
 
 	if util.IsManifestDownload(pipeline.DeploymentAppType) {
 		chartBytes, err := impl.chartTemplateService.LoadChartInBytes(jobHelmPackagePath, false, chartName, fmt.Sprint(cdWf.Id))
