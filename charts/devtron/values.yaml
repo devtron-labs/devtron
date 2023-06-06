@@ -55,7 +55,7 @@ components:
       extraConfigs:
         USE_V2: "true"
         ENABLE_BUILD_CONTEXT: "true"
-    image: "quay.io/devtron/dashboard:f37e7bef-325-13981"
+    image: "quay.io/devtron/dashboard:ef05715f-325-13982"
     imagePullPolicy: IfNotPresent
 
   devtron:
