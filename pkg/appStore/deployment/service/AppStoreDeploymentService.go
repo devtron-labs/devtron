@@ -1584,6 +1584,7 @@ func (impl AppStoreDeploymentServiceImpl) GetInstalledAppVersion(id int, userId 
 		Namespace:          app.InstalledApp.Environment.Namespace,
 		DeploymentAppType:  app.InstalledApp.DeploymentAppType,
 		Environment:        &app.InstalledApp.Environment,
+		ACDAppName:         fmt.Sprintf("%s-%s", app.InstalledApp.App.AppName, app.InstalledApp.Environment.Name),
 	}
 	return installAppVersion, err
 }
