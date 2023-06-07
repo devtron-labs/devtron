@@ -223,7 +223,7 @@ func (impl *ChartRepositoryServiceImpl) UpdateData(request *ChartRepoDto) (*char
 	}
 	previousName := chartRepo.Name
 	previousUrl := chartRepo.Url
-	//metadata.name label in Secret doesn't support uppercase hence returning if user enters uppercase letters
+	//metadata.name label in Secret doesn't support uppercase hence returning if user enters uppercase letters in repo name
 	if request.Name != previousName && strings.ToLower(request.Name) != request.Name {
 		return nil, errors.New("invalid repo name: please use lowercase")
 	}
