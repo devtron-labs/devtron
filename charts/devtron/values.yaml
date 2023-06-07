@@ -284,7 +284,7 @@ argo-cd:
 security:
   enabled: false
   imageScanner:
-    image: "quay.io/devtron/image-scanner:b7873c95-334-13266"
+    image: "quay.io/devtron/image-scanner:d554c0f8-334-14015"
   # Values for clair
   clair:
     enabled: false

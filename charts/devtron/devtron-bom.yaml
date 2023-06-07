@@ -62,7 +62,7 @@ argo-cd:
 
 security:
   imageScanner:
-    image: "quay.io/devtron/image-scanner:b7873c95-334-13266"
+    image: "quay.io/devtron/image-scanner:d554c0f8-334-14015"
 
 notifier:
   image: "quay.io/devtron/notifier:6c7a356a-372-11107"
