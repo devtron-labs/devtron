@@ -299,7 +299,7 @@ servicemonitor:
   additionalLabels: {}
 
 envoyproxy:
-  image: docker.io/envoyproxy/envoy:v1.16.1
+  image: docker.io/envoyproxy/envoy:v1.16.0
   configMapName: ""
   lifecycle: {}
   resources:
