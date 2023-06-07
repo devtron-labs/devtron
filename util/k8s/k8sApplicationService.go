@@ -170,10 +170,10 @@ func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Reque
 		},
 		PodLogsRequest: application.PodLogsRequest{
 			//SinceTime:     sinceSeconds,
-			TailLines:         tailLines,
-			Follow:            follow,
-			ContainerName:     containerName,
-			PrevContainerLogs: isPrevLogs,
+			TailLines:                  tailLines,
+			Follow:                     follow,
+			ContainerName:              containerName,
+			IsPrevContainerLogsEnabled: isPrevLogs,
 		},
 	}
 	request.K8sRequest = k8sRequest
