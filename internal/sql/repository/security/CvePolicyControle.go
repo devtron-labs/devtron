@@ -57,7 +57,7 @@ type Severity int
 
 const (
 	Low Severity = iota
-	Moderate
+	Medium
 	Critical
 	High
 	Safe
@@ -76,7 +76,7 @@ func (d Severity) ValuesOf(severity string) Severity {
 	if severity == CRITICAL || severity == HIGH {
 		return Critical
 	} else if severity == MODERATE || severity == MEDIUM {
-		return Moderate
+		return Medium
 	} else if severity == LOW || severity == SAFE {
 		return Low
 	}
