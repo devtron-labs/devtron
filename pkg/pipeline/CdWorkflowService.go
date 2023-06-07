@@ -244,7 +244,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	reqMem := impl.cdConfig.ReqMem
 
 	eventEnv := v12.EnvVar{Name: "CI_CD_EVENT", Value: string(workflowJson)}
-	inAppLoggingEnv := v12.EnvVar{Name: "IN_APP_LOGGING", Value: strconv.FormatBool(impl.cdConfig.InAppLoggingEnabled)}
+	inAppLoggingEnv := v12.EnvVar{Name: "IN_APP_LOGGING", Value: strconv.FormatBool(ciCdTriggerEvent.CdRequest.InAppLoggingEnabled)}
 	containerEnvVariables = append(containerEnvVariables, eventEnv, inAppLoggingEnv)
 	workflowMainContainer := v12.Container{
 		Env:   containerEnvVariables,
