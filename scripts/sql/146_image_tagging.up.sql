@@ -25,13 +25,13 @@ CREATE TABLE IF NOT EXISTS public.image_comments (
     );
 
 CREATE SEQUENCE IF NOT EXISTS id_seq_image_tagging_audit;
-CREATE TYPE data_type AS ENUM ('TAG','COMMENT');
-CREATE TYPE action_type AS ENUM ('SAVE','EDIT','SOFT_DELETE','HARD_DELETE');
+CREATE TYPE IF NOT EXISTS image_tagging_data_type AS ENUM ('TAG','COMMENT');
+CREATE TYPE IF NOT EXISTS action_type AS ENUM ('SAVE','EDIT','SOFT_DELETE','HARD_DELETE');
 
 CREATE TABLE IF NOT EXISTS public.image_tagging_audit (
     "id"                                      integer NOT NULL DEFAULT nextval('id_seq_image_tagging_audit'::regclass),
     "data"                                    text,
-    "data_type"                               data_type,
+    "data_type"                               image_tagging_data_type,
     "artifact_id"                             integer,
     "action"                                  action_type,
     "updated_on"                              timestamptz,
