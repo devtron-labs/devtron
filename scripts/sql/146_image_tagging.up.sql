@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS public.release_tags (
     "id"                                         integer NOT NULL DEFAULT nextval('id_seq_image_tag'::regclass),
     "tag_name"                                   varchar(128),
     "artifact_id"                                integer,
-    "active"                                        BOOL,
+    "deleted"                                        BOOL,
     "app_id"                                     integer,
     CONSTRAINT "image_tag_app_id_fkey" FOREIGN KEY ("app_id") REFERENCES "public"."app" ("id"),
     CONSTRAINT "image_tag_artifact_id_fkey" FOREIGN KEY ("artifact_id") REFERENCES "public"."ci_artifact" ("id"),
