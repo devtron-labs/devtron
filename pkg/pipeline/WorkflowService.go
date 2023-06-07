@@ -218,7 +218,8 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		CiRequest: workflowRequest,
 	}
 
-	ciCdTriggerEvent.CiRequest.BlobStorageLogsKey = impl.ciConfig.DefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowNamePrefix
+	//ciCdTriggerEvent.CiRequest.BlobStorageLogsKey = impl.ciConfig.DefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowNamePrefix
+	ciCdTriggerEvent.CiRequest.BlobStorageLogsKey = fmt.Sprintf("%s/%s", impl.ciConfig.DefaultBuildLogsKeyPrefix, workflowRequest.WorkflowNamePrefix)
 	ciCdTriggerEvent.CiRequest.InAppLoggingEnabled = impl.ciConfig.InAppLoggingEnabled
 	workflowJson, err := json.Marshal(&ciCdTriggerEvent)
 	if err != nil {
@@ -280,8 +281,6 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		Steps: steps,
 	})
 
-	//containerEnvVariables = append(containerEnvVariables, []v12.EnvVar{{Name: "CI_CD_EVENT", Value: string(workflowJson)}}...)
-
 	eventEnv := v12.EnvVar{Name: "CI_CD_EVENT", Value: string(workflowJson)}
 	inAppLoggingEnv := v12.EnvVar{Name: "IN_APP_LOGGING", Value: strconv.FormatBool(impl.ciConfig.InAppLoggingEnabled)}
 	containerEnvVariables = append(containerEnvVariables, eventEnv, inAppLoggingEnv)
@@ -290,7 +289,6 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		Container: &v12.Container{
 			Env:   containerEnvVariables,
 			Image: workflowRequest.CiImage, //TODO need to check whether trigger buildx image or normal image
-			//Args:  []string{string(workflowJson)},
 			SecurityContext: &v12.SecurityContext{
 				Privileged: &privileged,
 			},
