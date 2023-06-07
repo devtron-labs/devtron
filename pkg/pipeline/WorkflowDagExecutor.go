@@ -433,9 +433,8 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 		Namespace:          impl.cdConfig.DefaultNamespace,
 		BlobStorageEnabled: impl.cdConfig.BlobStorageEnabled,
 		CdWorkflowId:       cdWf.Id,
-		//LogLocation:        impl.cdConfig.DefaultBuildLogsKeyPrefix + "/" + strconv.Itoa(cdWf.Id) + string(bean.CD_WORKFLOW_TYPE_PRE) + "-" + pipeline.Name + "/main.log",
-		LogLocation: fmt.Sprintf("%s/%s%s-%s/main.log", impl.cdConfig.DefaultBuildLogsKeyPrefix, strconv.Itoa(cdWf.Id), string(bean.CD_WORKFLOW_TYPE_PRE), pipeline.Name),
-		AuditLog:    sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: 1, UpdatedOn: triggeredAt, UpdatedBy: 1},
+		LogLocation:        fmt.Sprintf("%s/%s%s-%s/main.log", impl.cdConfig.DefaultBuildLogsKeyPrefix, strconv.Itoa(cdWf.Id), string(bean.CD_WORKFLOW_TYPE_PRE), pipeline.Name),
+		AuditLog:           sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: 1, UpdatedOn: triggeredAt, UpdatedBy: 1},
 	}
 	var env *repository2.Environment
 	var err error
@@ -524,7 +523,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		Namespace:          impl.cdConfig.DefaultNamespace,
 		BlobStorageEnabled: impl.cdConfig.BlobStorageEnabled,
 		CdWorkflowId:       cdWf.Id,
-		LogLocation:        impl.cdConfig.DefaultBuildLogsKeyPrefix + "/" + strconv.Itoa(cdWf.Id) + string(bean.CD_WORKFLOW_TYPE_POST) + "-" + pipeline.Name + "/main.log",
+		LogLocation:        fmt.Sprintf("%s/%s%s-%s/main.log", impl.cdConfig.DefaultBuildLogsKeyPrefix, strconv.Itoa(cdWf.Id), string(bean.CD_WORKFLOW_TYPE_POST), pipeline.Name),
 		AuditLog:           sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: triggeredBy, UpdatedOn: triggeredAt, UpdatedBy: triggeredBy},
 	}
 	var env *repository2.Environment

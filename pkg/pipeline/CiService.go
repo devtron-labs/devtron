@@ -144,7 +144,8 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 		return 0, err
 	}
 
-	savedCiWf.LogLocation = impl.ciConfig.DefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowNamePrefix + "/main.log"
+	//savedCiWf.LogLocation = impl.ciConfig.DefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowNamePrefix + "/main.log"
+	savedCiWf.LogLocation = fmt.Sprintf("%s/%s/main.log", impl.ciConfig.DefaultBuildLogsKeyPrefix, workflowRequest.WorkflowNamePrefix)
 	err = impl.updateCiWorkflow(workflowRequest, savedCiWf)
 
 	appLabels, err := impl.appCrudOperationService.GetLabelsByAppId(pipeline.AppId)
