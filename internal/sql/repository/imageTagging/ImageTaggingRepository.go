@@ -93,11 +93,11 @@ func NewImageTaggingRepositoryImpl(db *pg.DB) *ImageTaggingRepositoryImpl {
 }
 
 func (impl *ImageTaggingRepositoryImpl) SaveAuditLogsInBulk(tx *pg.Tx, imageTaggingAudit []*ImageTaggingAudit) error {
-	err := tx.Insert(tx, imageTaggingAudit)
+	err := tx.Insert(tx, &imageTaggingAudit)
 	return err
 }
 func (impl *ImageTaggingRepositoryImpl) SaveReleaseTagsInBulk(tx *pg.Tx, imageTags []*ImageTag) error {
-	err := tx.Insert(imageTags)
+	err := tx.Insert(&imageTags)
 	return err
 }
 
@@ -141,7 +141,7 @@ func (impl *ImageTaggingRepositoryImpl) GetImageCommentsByArtifactIds(artifactId
 //this will update the provided release tag
 func (impl *ImageTaggingRepositoryImpl) UpdateReleaseTagInBulk(tx *pg.Tx, imageTags []*ImageTag) error {
 	//currently tags are not editable, can only be soft deleted or hard delete
-	err := tx.Update(imageTags)
+	err := tx.Update(&imageTags)
 	return err
 }
 func (impl *ImageTaggingRepositoryImpl) UpdateImageComment(tx *pg.Tx, imageComment *ImageComment) error {
@@ -150,6 +150,6 @@ func (impl *ImageTaggingRepositoryImpl) UpdateImageComment(tx *pg.Tx, imageComme
 }
 
 func (impl *ImageTaggingRepositoryImpl) DeleteReleaseTagInBulk(tx *pg.Tx, imageTags []*ImageTag) error {
-	err := tx.Delete(imageTags)
+	err := tx.Delete(&imageTags)
 	return err
 }

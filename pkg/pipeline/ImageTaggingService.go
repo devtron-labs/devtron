@@ -29,7 +29,7 @@ import (
 )
 
 const TagsKey = "tags"
-const CommentKey = "comments"
+const CommentKey = "comment"
 
 type ImageTaggingResponseDTO struct {
 	ImageReleaseTags []*repository.ImageTag   `json:"imageReleaseTags"`
@@ -174,7 +174,7 @@ func (impl ImageTaggingServiceImpl) ValidateImageTaggingRequest(imageTaggingRequ
 		if tags.Id != 0 {
 			return false, errors.New("bad request,create tags cannot contain id")
 		}
-		if tags.AppId != appId || tags.ArtifactId != artifactId {
+		if (tags.AppId != 0 && tags.AppId != appId) || (tags.ArtifactId != 0 && tags.ArtifactId != artifactId) {
 			return false, errors.New("bad request,appId or artifactId mismatch in one of the tag with the request")
 		}
 		err := tagNameValidation(tags.TagName)
@@ -187,7 +187,7 @@ func (impl ImageTaggingServiceImpl) ValidateImageTaggingRequest(imageTaggingRequ
 		if tags.Id == 0 {
 			return false, errors.New("bad request,tags requested to delete should contain id")
 		}
-		if tags.AppId != appId || tags.ArtifactId != artifactId {
+		if (tags.AppId != 0 && tags.AppId != appId) || (tags.ArtifactId != 0 && tags.ArtifactId != artifactId) {
 			return false, errors.New("bad request,appId or artifactId mismatch in one of the tag with the request")
 		}
 		err := tagNameValidation(tags.TagName)
@@ -200,7 +200,7 @@ func (impl ImageTaggingServiceImpl) ValidateImageTaggingRequest(imageTaggingRequ
 		if tags.Id == 0 {
 			return false, errors.New("bad request,tags requested to delete should contain id")
 		}
-		if tags.AppId != appId || tags.ArtifactId != artifactId {
+		if (tags.AppId != 0 && tags.AppId != appId) || (tags.ArtifactId != 0 && tags.ArtifactId != artifactId) {
 			return false, errors.New("bad request,appId or artifactId mismatch in one of the tag with the request")
 		}
 		err := tagNameValidation(tags.TagName)
@@ -308,29 +308,36 @@ func (impl ImageTaggingServiceImpl) performTagOperationsAndGetAuditList(tx *pg.T
 		hardDeleteAuditTags[i] = tag.TagName
 	}
 	//save release tags
-	createAuditTags := make([]string, len(imageTaggingRequest.HardDeleteTags))
+	createAuditTags := make([]string, len(imageTaggingRequest.CreateTags))
 	for i, tag := range imageTaggingRequest.CreateTags {
 		tag.AppId = appId
 		tag.ArtifactId = artifactId
 		createAuditTags[i] = tag.TagName
 	}
 
-	err := impl.imageTaggingRepo.UpdateReleaseTagInBulk(tx, imageTaggingRequest.SoftDeleteTags)
-	if err != nil {
-		impl.logger.Errorw("error in updating releaseTags in bulk", "err", err, "payLoad", imageTaggingRequest.SoftDeleteTags)
-		return nil, err
+	var err error
+	if len(imageTaggingRequest.SoftDeleteTags) > 0 {
+		err := impl.imageTaggingRepo.UpdateReleaseTagInBulk(tx, imageTaggingRequest.SoftDeleteTags)
+		if err != nil {
+			impl.logger.Errorw("error in updating releaseTags in bulk", "err", err, "payLoad", imageTaggingRequest.SoftDeleteTags)
+			return nil, err
+		}
 	}
 
-	err = impl.imageTaggingRepo.DeleteReleaseTagInBulk(tx, imageTaggingRequest.HardDeleteTags)
-	if err != nil {
-		impl.logger.Errorw("error in deleting releaseTag in bulk", "err", err, "releaseTags", imageTaggingRequest.HardDeleteTags)
-		return nil, err
+	if len(imageTaggingRequest.HardDeleteTags) > 0 {
+		err = impl.imageTaggingRepo.DeleteReleaseTagInBulk(tx, imageTaggingRequest.HardDeleteTags)
+		if err != nil {
+			impl.logger.Errorw("error in deleting releaseTag in bulk", "err", err, "releaseTags", imageTaggingRequest.HardDeleteTags)
+			return nil, err
+		}
 	}
 
-	err = impl.imageTaggingRepo.SaveReleaseTagsInBulk(tx, imageTaggingRequest.CreateTags)
-	if err != nil {
-		impl.logger.Errorw("error in saving releaseTag", "err", err, "releaseTags", imageTaggingRequest.CreateTags)
-		return nil, err
+	if len(imageTaggingRequest.CreateTags) > 0 {
+		err = impl.imageTaggingRepo.SaveReleaseTagsInBulk(tx, imageTaggingRequest.CreateTags)
+		if err != nil {
+			impl.logger.Errorw("error in saving releaseTag", "err", err, "releaseTags", imageTaggingRequest.CreateTags)
+			return nil, err
+		}
 	}
 	//get tags audit list
 	auditLogsList, err := impl.getImageTagAudits(softDeleteAuditTags, hardDeleteAuditTags, createAuditTags, userId, artifactId)
