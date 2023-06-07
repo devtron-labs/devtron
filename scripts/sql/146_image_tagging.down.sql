@@ -4,7 +4,7 @@ DROP TABLE IF EXISTS public.image_comments;
 DROP TABLE IF EXISTS public.image_tagging_audit;
 
 ---- DROP types
-DROP TYPE IF EXISTS data_type;
+DROP TYPE IF EXISTS image_tagging_data_type;
 DROP TYPE IF EXISTS action_type;
 
 ---- DROP sequence
