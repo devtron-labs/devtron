@@ -39,7 +39,7 @@ const CommentType AuditType = 1
 
 type ImageTag struct {
 	TableName  struct{} `sql:"release_tags" json:",omitempty"  pg:",discard_unknown_columns"`
-	Id         int      `sql:"id" json:"id"`
+	Id         int      `sql:"id,pk" json:"id"`
 	TagName    string   `sql:"tag_name" json:"tagName"`
 	AppId      int      `sql:"app_id" json:"appId"`
 	ArtifactId int      `sql:"artifact_id" json:"artifactId"`
@@ -48,7 +48,7 @@ type ImageTag struct {
 
 type ImageComment struct {
 	TableName  struct{} `sql:"image_comments" json:",omitempty"  pg:",discard_unknown_columns"`
-	Id         int      `sql:"id" json:"id"`
+	Id         int      `sql:"id,pk" json:"id"`
 	Comment    string   `sql:"comment" json:"comment"`
 	ArtifactId int      `sql:"artifact_id" json:"artifactId"`
 	UserId     int      `sql:"user_id" json:"-"` //currently not sending userId in json response
@@ -56,7 +56,7 @@ type ImageComment struct {
 
 type ImageTaggingAudit struct {
 	TableName  struct{}           `sql:"image_tagging_audit" json:",omitempty"  pg:",discard_unknown_columns"`
-	Id         int                `sql:"id"`
+	Id         int                `sql:"id,pk"`
 	Data       string             `sql:"data"`
 	DataType   AuditType          `sql:"data_type"`
 	ArtifactId int                `sql:"artifact_id"`
@@ -93,7 +93,7 @@ func NewImageTaggingRepositoryImpl(db *pg.DB) *ImageTaggingRepositoryImpl {
 }
 
 func (impl *ImageTaggingRepositoryImpl) SaveAuditLogsInBulk(tx *pg.Tx, imageTaggingAudit []*ImageTaggingAudit) error {
-	err := tx.Insert(tx, &imageTaggingAudit)
+	err := tx.Insert(&imageTaggingAudit)
 	return err
 }
 func (impl *ImageTaggingRepositoryImpl) SaveReleaseTagsInBulk(tx *pg.Tx, imageTags []*ImageTag) error {

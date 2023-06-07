@@ -39,10 +39,10 @@ type ImageTaggingResponseDTO struct {
 }
 
 type ImageTaggingRequestDTO struct {
-	CreateTags     []*repository.ImageTag
-	SoftDeleteTags []*repository.ImageTag
-	ImageComment   repository.ImageComment
-	HardDeleteTags []*repository.ImageTag
+	CreateTags     []*repository.ImageTag  `json:"createTags"`
+	SoftDeleteTags []*repository.ImageTag  `json:"softDeleteTags"`
+	ImageComment   repository.ImageComment `json:"imageComment"`
+	HardDeleteTags []*repository.ImageTag  `json:"hardDeleteTags"`
 }
 
 type ImageTaggingService interface {
@@ -226,7 +226,7 @@ func (impl ImageTaggingServiceImpl) CreateOrUpdateImageTagging(ciPipelineId, app
 	defer func() {
 		err = impl.imageTaggingRepo.RollbackTx(tx)
 		if err != nil {
-			impl.logger.Errorw("error in rolling back transaction", "err", err, "ciPipelineId", ciPipelineId, "appId", appId, "artifactId", artifactId, "userId", userId, "imageTaggingRequest", imageTaggingRequest)
+			impl.logger.Infow("error in rolling back transaction", "err", err, "ciPipelineId", ciPipelineId, "appId", appId, "artifactId", artifactId, "userId", userId, "imageTaggingRequest", imageTaggingRequest)
 		}
 	}()
 	if err != nil {
