@@ -1319,7 +1319,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 		updateTime := installedApp.UpdatedOn
 		dateTag := fmt.Sprintf("%v %v,%v", updateTime.Day(), updateTime.Month(), updateTime.Year())
 		timeTag := fmt.Sprintf("%v.%v", updateTime.Hour(), updateTime.Minute())
-		installAppVersionRequest.HelmPackageName = fmt.Sprintf("%s-%s-%s %s", installAppVersionRequest.AppName, installAppVersionRequest.Environment.Name, dateTag, timeTag)
+		installAppVersionRequest.HelmPackageName = fmt.Sprintf("%s-%s-%s %s", installedApp.App.AppName, installedApp.Environment.Name, dateTag, timeTag)
 	}
 
 	var installedAppVersion *repository.InstalledAppVersions
