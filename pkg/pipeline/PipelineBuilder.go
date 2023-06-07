@@ -1423,7 +1423,7 @@ func (impl PipelineBuilderImpl) PatchCiPipeline(request *bean.CiPatchRequest) (c
 			impl.logger.Errorw("exception while getting unique client id", "error", err)
 			return nil, err
 		}
-		cm, err := impl.K8sUtil.GetConfigMap("devtroncd", DashboardConfigMap, client)
+		cm, err := impl.K8sUtil.GetConfigMap(argo.DEVTRONCD_NAMESPACE, DashboardConfigMap, client)
 		if err != nil {
 			impl.logger.Errorw("error while getting dashboard-cm", "error", err)
 			return nil, err
