@@ -43,7 +43,7 @@ type ImageTag struct {
 	TagName    string   `sql:"tag_name" json:"tagName"`
 	AppId      int      `sql:"app_id" json:"appId"`
 	ArtifactId int      `sql:"artifact_id" json:"artifactId"`
-	Active     bool     `sql:"active" json:"active"` //this flag is to check soft delete
+	Deleted    bool     `sql:"deleted" json:"deleted"` //this flag is to check soft delete
 }
 
 type ImageComment struct {

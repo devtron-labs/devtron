@@ -296,7 +296,7 @@ func (impl ImageTaggingServiceImpl) performTagOperationsAndGetAuditList(tx *pg.T
 	softDeleteAuditTags := make([]string, len(imageTaggingRequest.SoftDeleteTags))
 	for i, tag := range imageTaggingRequest.SoftDeleteTags {
 		tag.AppId = appId
-		tag.Active = true
+		tag.Deleted = true
 		tag.ArtifactId = artifactId
 		softDeleteAuditTags[i] = tag.TagName
 	}
