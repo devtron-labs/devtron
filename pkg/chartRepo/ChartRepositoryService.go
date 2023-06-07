@@ -129,7 +129,7 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 		return nil, err
 	}
 	if len(allChartsRepos) == 0 {
-		return nil, errors.New("no chart repo found in db")
+		return nil, nil
 	}
 	for _, chart := range allChartsRepos {
 		if chart.Name == request.Name {
@@ -628,6 +628,10 @@ func (impl *ChartRepositoryServiceImpl) ValidateAndCreateChartRepo(request *Char
 	chartRepo, err := impl.CreateChartRepo(request)
 	if err != nil {
 		return nil, err, validationResult
+	}
+	if chartRepo == nil && err == nil {
+		//case when no entry for chart in chart_repo table and no need to trigger chart sync
+		return nil, nil, validationResult
 	}
 
 	// Trigger chart sync job, ignore error
