@@ -3314,8 +3314,8 @@ func (impl PipelineBuilderImpl) RetrieveArtifactsByCDPipeline(pipeline *pipeline
 	for i, artifact := range artifacts {
 		imageTaggingResp := imageTaggingMap[artifact.Id]
 		if imageTaggingResp != nil {
-			ciArtifacts[i].ArtifactComment = imageTaggingResp.ImageComment
-			ciArtifacts[i].ArtifactReleaseTags = imageTaggingResp.ImageReleaseTags
+			ciArtifacts[i].ImageComment = imageTaggingResp.ImageComment
+			ciArtifacts[i].ImageReleaseTags = imageTaggingResp.ImageReleaseTags
 		}
 		if artifact.ExternalCiPipelineId != 0 {
 			// if external webhook continue

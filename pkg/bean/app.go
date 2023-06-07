@@ -663,8 +663,8 @@ type CiArtifactBean struct {
 	DeployedBy                    string                    `json:"deployedBy"`
 	CiConfigureSourceType         pipelineConfig.SourceType `json:"ciConfigureSourceType"`
 	CiConfigureSourceValue        string                    `json:"ciConfigureSourceValue"`
-	ArtifactReleaseTags           []*repository2.ImageTag   `json:"artifactReleaseTags"`
-	ArtifactComment               repository2.ImageComment  `json:"artifactComment"`
+	ImageReleaseTags              []*repository2.ImageTag   `json:"artifactReleaseTags"`
+	ImageComment                  *repository2.ImageComment `json:"artifactComment"`
 }
 
 type CiArtifactResponse struct {

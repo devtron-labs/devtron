@@ -172,7 +172,7 @@ type WorkflowResponse struct {
 	IsArtifactUploaded   bool                             `json:"isArtifactUploaded"`
 	IsVirtualEnvironment bool                             `json:"isVirtualEnvironment"`
 	ImageReleaseTags     []*repository2.ImageTag          `json:"imageReleaseTags"`
-	ImageComment         repository2.ImageComment         `json:"imageComment"`
+	ImageComment         *repository2.ImageComment        `json:"imageComment"`
 }
 
 type GitTriggerInfoResponse struct {

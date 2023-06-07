@@ -346,10 +346,10 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindAllActiveWithFilter() ([]*En
 func (repositoryImpl EnvironmentRepositoryImpl) FindEnvLinkedWithCiPipelines(ciPipelineIds []int) ([]*Environment, error) {
 	var mappings []*Environment
 	query := "SELECT env.* " +
-		"FROM environment env " +
-		"INNER JOIN pipeline ON pipeline.environment_id=env.id and env.active = true" +
-		"INNER JOIN app_workflow_mapping apf ON component_id=pipeline.id AND type='CD_PIPELINE' AND apf.active=true" +
-		"where apf.id IN (SELECT apf2.id FROM app_workflow_mapping apf2 WHERE component_id IN (?) AND type='CI_PIPELINE');"
+		" FROM environment env " +
+		" INNER JOIN pipeline ON pipeline.environment_id=env.id and env.active = true " +
+		" INNER JOIN app_workflow_mapping apf ON component_id=pipeline.id AND type='CD_PIPELINE' AND apf.active=true " +
+		" WHERE apf.id IN (SELECT apf2.id FROM app_workflow_mapping apf2 WHERE component_id IN (?) AND type='CI_PIPELINE');"
 	_, err := repositoryImpl.dbConnection.Query(&mappings, query, pg.In(ciPipelineIds))
 	return mappings, err
 }

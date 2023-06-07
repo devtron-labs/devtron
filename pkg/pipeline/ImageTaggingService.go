@@ -32,10 +32,10 @@ const TagsKey = "tags"
 const CommentKey = "comments"
 
 type ImageTaggingResponseDTO struct {
-	ImageReleaseTags []*repository.ImageTag  `json:"imageReleaseTags"`
-	AppReleaseTags   []string                `json:"appReleaseTags"`
-	ImageComment     repository.ImageComment `json:"imageComment"`
-	ProdEnvExists    bool                    `json:"prodEnvExists"`
+	ImageReleaseTags []*repository.ImageTag   `json:"imageReleaseTags"`
+	AppReleaseTags   []string                 `json:"appReleaseTags"`
+	ImageComment     *repository.ImageComment `json:"imageComment"`
+	ProdEnvExists    bool                     `json:"prodEnvExists"`
 }
 
 type ImageTaggingRequestDTO struct {
@@ -113,7 +113,7 @@ func (impl ImageTaggingServiceImpl) GetTagsData(ciPipelineId, appId, artifactId 
 	}
 	resp.AppReleaseTags = appReleaseTags
 	resp.ImageReleaseTags = imageReleaseTags
-	resp.ImageComment = imageComment
+	resp.ImageComment = &imageComment
 	resp.ProdEnvExists = prodEnvExists
 	return resp, err
 }
@@ -160,7 +160,7 @@ func (impl ImageTaggingServiceImpl) GetTaggingDataMapByAppId(appId int) (map[int
 
 		//it may be possible that there are no tags for a artifact,but comment exists
 		for _, comment := range imageComments {
-			result[comment.ArtifactId].ImageComment = comment
+			result[comment.ArtifactId].ImageComment = &comment
 		}
 	}
 	return result, nil
