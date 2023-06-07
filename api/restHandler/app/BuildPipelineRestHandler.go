@@ -1678,6 +1678,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateUpdateImageTagging(w http.Res
 	if !prodEnvExists {
 		handler.Logger.Errorw("save or edit operation not possible for this artifact", "err", nil, "artifactId", artifactId, "ciPipelineId", ciPipeline.Id)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
 	}
 
 	if !isSuperAdmin && len(req.HardDeleteTags) > 0 {
