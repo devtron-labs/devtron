@@ -34,6 +34,7 @@ type ModuleRestHandler interface {
 	GetModuleInfo(w http.ResponseWriter, r *http.Request)
 	GetModuleConfig(w http.ResponseWriter, r *http.Request)
 	HandleModuleAction(w http.ResponseWriter, r *http.Request)
+	EnableModule(w http.ResponseWriter, r *http.Request)
 }
 
 type ModuleRestHandlerImpl struct {
@@ -159,6 +160,49 @@ func (impl ModuleRestHandlerImpl) HandleModuleAction(w http.ResponseWriter, r *h
 	res, err := impl.moduleService.HandleModuleAction(userId, moduleName, moduleActionRequestDto)
 	if err != nil {
 		impl.logger.Errorw("service err, HandleModuleAction", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (impl ModuleRestHandlerImpl) EnableModule(w http.ResponseWriter, r *http.Request) {
+	// check if user is logged in or not
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	// check query param
+	params := mux.Vars(r)
+	moduleName := params["name"]
+	if len(moduleName) == 0 {
+		impl.logger.Error("module name is not supplied")
+		common.WriteJsonResp(w, errors.New("module name is not supplied"), nil, http.StatusBadRequest)
+		return
+	}
+	// decode request
+	decoder := json.NewDecoder(r.Body)
+	var moduleEnableRequestDto module.ModuleEnableRequestDto
+	err = decoder.Decode(&moduleEnableRequestDto)
+	if err != nil {
+		impl.logger.Errorw("error in decoding request in ModuleEnableRequestDto", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	// handle super-admin RBAC
+	token := r.Header.Get("token")
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
+	// service call
+	res, err := impl.moduleService.EnableModule(moduleName, moduleEnableRequestDto.Version)
+	if err != nil {
+		impl.logger.Errorw("service err, Enabling Module", "err", err, "moduleName", moduleName, "toolVersion", moduleEnableRequestDto.Version)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
