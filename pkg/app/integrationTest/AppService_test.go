@@ -86,7 +86,7 @@ func TestAppServiceImpl_UpdateDeploymentStatusAndCheckIsSucceeded(t *testing.T) 
 			wantErr:     wantErr,
 		}
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := appService.UpdateDeploymentStatusAndCheckIsSucceeded(tt.args.app, tt.args.statusTime)
+			got, err := appService.UpdateDeploymentStatusAndCheckIsSucceeded(tt.args.app, tt.args.statusTime, false)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("UpdateDeploymentStatusAndCheckIsSucceeded() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -134,8 +134,8 @@ func InitAppService() *app2.AppServiceImpl {
 		log.Fatal("error in getting server helm client config, AppService_test", "err", err)
 	}
 	helmAppClient := client.NewHelmAppClientImpl(logger, helmClientConfig)
-	helmAppService := client.NewHelmAppServiceImpl(logger, clusterService, helmAppClient, nil, nil, nil, serverEnvConfig, nil, nil, nil, nil, nil, nil)
-	moduleService := module.NewModuleServiceImpl(logger, serverEnvConfig, moduleRepositoryImpl, moduleActionAuditLogRepository, helmAppService, nil, nil, nil, nil, nil, nil)
+	helmAppService := client.NewHelmAppServiceImpl(logger, clusterService, helmAppClient, nil, nil, nil, serverEnvConfig, nil, nil, nil, nil, nil, nil, nil, nil)
+	moduleService := module.NewModuleServiceImpl(logger, serverEnvConfig, moduleRepositoryImpl, moduleActionAuditLogRepository, helmAppService, nil, nil, nil, nil, nil, nil, nil)
 	eventClient := client1.NewEventRESTClientImpl(logger, httpClient, eventClientConfig, pubSubClient, ciPipelineRepositoryImpl,
 		pipelineRepository, attributesRepositoryImpl, moduleService)
 	cdWorkflowRepository := pipelineConfig.NewCdWorkflowRepositoryImpl(dbConnection, logger)
@@ -153,7 +153,7 @@ func InitAppService() *app2.AppServiceImpl {
 	pipelineStatusTimelineRepository := pipelineConfig.NewPipelineStatusTimelineRepositoryImpl(dbConnection, logger)
 	pipelineStatusSyncDetailRepository := pipelineConfig.NewPipelineStatusSyncDetailRepositoryImpl(dbConnection, logger)
 	pipelineStatusSyncDetailService := status.NewPipelineStatusSyncDetailServiceImpl(logger, pipelineStatusSyncDetailRepository)
-	pipelineStatusTimelineService := status.NewPipelineStatusTimelineServiceImpl(logger, pipelineStatusTimelineRepository, cdWorkflowRepository, nil, pipelineStatusTimelineResourcesService, pipelineStatusSyncDetailService)
+	pipelineStatusTimelineService := status.NewPipelineStatusTimelineServiceImpl(logger, pipelineStatusTimelineRepository, cdWorkflowRepository, nil, pipelineStatusTimelineResourcesService, pipelineStatusSyncDetailService, nil, nil)
 	refChartDir := chartRepoRepository.RefChartDir("scripts/devtron-reference-helm-charts")
 	appService := app2.NewAppService(nil, pipelineOverrideRepository, nil, logger, nil,
 		pipelineRepository, nil, eventClient, eventFactory, nil, nil, nil, nil, nil, nil,
@@ -162,6 +162,6 @@ func InitAppService() *app2.AppServiceImpl {
 		nil, nil, nil, nil, nil, refChartDir, nil,
 		nil, nil, nil, pipelineStatusTimelineRepository, nil, nil, nil,
 		nil, nil, pipelineStatusTimelineResourcesService, pipelineStatusSyncDetailService, pipelineStatusTimelineService,
-		nil, nil, nil, nil, nil, nil, nil)
+		nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	return appService
 }
