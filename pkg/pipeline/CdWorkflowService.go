@@ -153,8 +153,9 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		CdRequest: workflowRequest,
 	}
 
-	ciCdTriggerEvent.CdRequest.BlobStorageLogsKey = impl.cdConfig.DefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowPrefixForLog
-	ciCdTriggerEvent.CdRequest.InAppLoggingEnabled = impl.cdConfig.InAppLoggingEnabled
+	// key will be used for log archival through in-app logging
+	ciCdTriggerEvent.CdRequest.BlobStorageLogsKey = fmt.Sprintf("%s/%s", impl.cdConfig.DefaultBuildLogsKeyPrefix, workflowRequest.WorkflowPrefixForLog)
+	ciCdTriggerEvent.CdRequest.InAppLoggingEnabled = impl.cdConfig.InAppLoggingEnabled || (workflowRequest.WorkflowExecutor == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM)
 	workflowJson, err := json.Marshal(&ciCdTriggerEvent)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while marshalling ciCdTriggerEvent", "error", err)
@@ -242,12 +243,14 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	reqCpu := impl.cdConfig.ReqCpu
 	reqMem := impl.cdConfig.ReqMem
 
-	containerEnvVariables = append(containerEnvVariables, []v12.EnvVar{{Name: "CI_CD_EVENT", Value: string(workflowJson)}}...)
+	eventEnv := v12.EnvVar{Name: "CI_CD_EVENT", Value: string(workflowJson)}
+	inAppLoggingEnv := v12.EnvVar{Name: "IN_APP_LOGGING", Value: strconv.FormatBool(impl.cdConfig.InAppLoggingEnabled)}
+	containerEnvVariables = append(containerEnvVariables, eventEnv, inAppLoggingEnv)
 	workflowMainContainer := v12.Container{
 		Env:   containerEnvVariables,
 		Name:  common.MainContainerName,
 		Image: workflowRequest.CdImage,
-		Args:  []string{string(workflowJson)},
+		//Args:  []string{string(workflowJson)},
 		SecurityContext: &v12.SecurityContext{
 			Privileged: &privileged,
 		},
@@ -264,7 +267,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	}
 	UpdateContainerEnvsFromCmCs(&workflowMainContainer, workflowConfigMaps, workflowSecrets)
 
-	impl.updateBlobStorageConfig(workflowRequest, &workflowTemplate, storageConfigured)
+	impl.updateBlobStorageConfig(workflowRequest, &workflowTemplate, storageConfigured, ciCdTriggerEvent.CdRequest.BlobStorageLogsKey)
 	workflowTemplate.Containers = []v12.Container{workflowMainContainer}
 	workflowTemplate.WorkflowNamePrefix = workflowRequest.WorkflowNamePrefix
 	workflowTemplate.WfControllerInstanceID = impl.cdConfig.WfControllerInstanceID
@@ -282,12 +285,14 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	return workflowExecutor.ExecuteWorkflow(workflowTemplate)
 }
 
-func (impl *CdWorkflowServiceImpl) updateBlobStorageConfig(workflowRequest *CdWorkflowRequest, workflowTemplate *bean3.WorkflowTemplate, storageConfigured bool) {
+func (impl *CdWorkflowServiceImpl) updateBlobStorageConfig(workflowRequest *CdWorkflowRequest, workflowTemplate *bean3.WorkflowTemplate, storageConfigured bool, blobStorageKey string) {
 	workflowTemplate.BlobStorageConfigured = storageConfigured && (impl.cdConfig.UseBlobStorageConfigInCdWorkflow || !workflowRequest.IsExtRun)
 	workflowTemplate.BlobStorageS3Config = workflowRequest.BlobStorageS3Config
 	workflowTemplate.AzureBlobConfig = workflowRequest.AzureBlobConfig
 	workflowTemplate.GcpBlobConfig = workflowRequest.GcpBlobConfig
-	workflowTemplate.CloudStorageKey = impl.cdConfig.DefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowPrefixForLog
+	//workflowTemplate.CloudStorageKey = impl.cdConfig.DefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowPrefixForLog
+	workflowTemplate.CloudStorageKey = blobStorageKey
+	//	ciCdTriggerEvent.CdRequest.BlobStorageLogsKey = fmt.Sprintf("%s/%s", impl.cdConfig.DefaultBuildLogsKeyPrefix, workflowRequest.WorkflowPrefixForLog)
 }
 
 func (impl *CdWorkflowServiceImpl) getWorkflowExecutor(executorType pipelineConfig.WorkflowExecutorType) WorkflowExecutor {
