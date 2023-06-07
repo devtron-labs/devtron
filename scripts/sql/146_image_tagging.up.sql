@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS public.release_tags (
     "app_id"                                     integer,
     CONSTRAINT "image_tag_app_id_fkey" FOREIGN KEY ("app_id") REFERENCES "public"."app" ("id"),
     CONSTRAINT "image_tag_artifact_id_fkey" FOREIGN KEY ("artifact_id") REFERENCES "public"."ci_artifact" ("id"),
-    UNIQUE ("app_id","tag_name")
+    UNIQUE ("app_id","tag_name"),
     PRIMARY KEY ("id")
     );
 
@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS public.image_tagging_audit (
     "artifact_id"                             integer,
     "action"                                  action_type,
     "updated_on"                              timestamptz,
-    "updated_by"
+    "updated_by"                              integer,
     CONSTRAINT "image_tagging_audit_updated_by_fkey" FOREIGN KEY ("updated_by") REFERENCES "public"."users" ("id"),
     CONSTRAINT "image_tagging_audit_artifact_id_fkey" FOREIGN KEY ("artifact_id") REFERENCES "public"."ci_artifact" ("id"),
     PRIMARY KEY ("id")
