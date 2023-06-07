@@ -283,6 +283,11 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 	installAppVersionRequest.InstalledAppVersionId = installedAppVersions.Id
 	installAppVersionRequest.Id = installedAppVersions.Id
 
+	updateTime := installedApp.UpdatedOn
+	dateTag := fmt.Sprintf("%v %v,%v", updateTime.Day(), updateTime.Month(), updateTime.Year())
+	timeTag := fmt.Sprintf("%v.%v", updateTime.Hour(), updateTime.Minute())
+	installAppVersionRequest.HelmPackageName = fmt.Sprintf("%s-%s-%s %s", installAppVersionRequest.AppName, installAppVersionRequest.Environment.Name, dateTag, timeTag)
+
 	if installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD || installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD {
 		installedAppVersionHistory := &repository.InstalledAppVersionHistory{}
 		installedAppVersionHistory.InstalledAppVersionId = installedAppVersions.Id
@@ -1309,6 +1314,13 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 	}
 
 	impl.updateDeploymentParametersInRequest(installAppVersionRequest, installedApp.DeploymentAppType)
+
+	if util.IsManifestDownload(installedApp.DeploymentAppType) {
+		updateTime := installedApp.UpdatedOn
+		dateTag := fmt.Sprintf("%v %v,%v", updateTime.Day(), updateTime.Month(), updateTime.Year())
+		timeTag := fmt.Sprintf("%v.%v", updateTime.Hour(), updateTime.Minute())
+		installAppVersionRequest.HelmPackageName = fmt.Sprintf("%s-%s-%s %s", installedApp.App.AppName, installedApp.Environment.Name, dateTag, timeTag)
+	}
 
 	var installedAppVersion *repository.InstalledAppVersions
 
