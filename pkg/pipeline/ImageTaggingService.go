@@ -55,7 +55,7 @@ type ImageTaggingService interface {
 	CreateOrUpdateImageTagging(ciPipelineId, appId, artifactId, userId int, imageTaggingRequest *ImageTaggingRequestDTO) (*ImageTaggingResponseDTO, error)
 	GetProdEnvFromParentAndLinkedWorkflow(ciPipelineId int) (bool, error)
 	GetProdEnvByCdPipelineId(pipelineId int) (bool, error)
-	ValidateImageTaggingRequest(imageTaggingRequest *ImageTaggingRequestDTO) (bool, error)
+	ValidateImageTaggingRequest(imageTaggingRequest *ImageTaggingRequestDTO, appId, artifactId int) (bool, error)
 	GetTagsByArtifactId(artifactId int) ([]*repository.ImageTag, error)
 	// GetTaggingDataMapByAppId this will fetch a map of artifact vs []tags for given appId
 	GetTaggingDataMapByAppId(appId int) (map[int]*ImageTaggingResponseDTO, error)
@@ -166,11 +166,14 @@ func (impl ImageTaggingServiceImpl) GetTaggingDataMapByAppId(appId int) (map[int
 	return result, nil
 }
 
-func (impl ImageTaggingServiceImpl) ValidateImageTaggingRequest(imageTaggingRequest *ImageTaggingRequestDTO) (bool, error) {
+func (impl ImageTaggingServiceImpl) ValidateImageTaggingRequest(imageTaggingRequest *ImageTaggingRequestDTO, appId, artifactId int) (bool, error) {
 	//validate create tags
 	for _, tags := range imageTaggingRequest.CreateTags {
-		if tags.Id != 0 || tags.AppId == 0 || tags.ArtifactId == 0 {
-			return false, errors.New("bad request,create tags cannot contain id, missing artifactId or appId")
+		if tags.Id != 0 {
+			return false, errors.New("bad request,create tags cannot contain id")
+		}
+		if tags.AppId != appId || tags.ArtifactId != artifactId {
+			return false, errors.New("bad request,appId or artifactId mismatch in one of the tag with the request")
 		}
 		err := tagNameValidation(tags.TagName)
 		if err != nil {
@@ -182,6 +185,9 @@ func (impl ImageTaggingServiceImpl) ValidateImageTaggingRequest(imageTaggingRequ
 		if tags.Id == 0 {
 			return false, errors.New("bad request,tags requested to delete should contain id")
 		}
+		if tags.AppId != appId || tags.ArtifactId != artifactId {
+			return false, errors.New("bad request,appId or artifactId mismatch in one of the tag with the request")
+		}
 		err := tagNameValidation(tags.TagName)
 		if err != nil {
 			return false, err
@@ -191,6 +197,9 @@ func (impl ImageTaggingServiceImpl) ValidateImageTaggingRequest(imageTaggingRequ
 	for _, tags := range imageTaggingRequest.HardDeleteTags {
 		if tags.Id == 0 {
 			return false, errors.New("bad request,tags requested to delete should contain id")
+		}
+		if tags.AppId != appId || tags.ArtifactId != artifactId {
+			return false, errors.New("bad request,appId or artifactId mismatch in one of the tag with the request")
 		}
 		err := tagNameValidation(tags.TagName)
 		if err != nil {

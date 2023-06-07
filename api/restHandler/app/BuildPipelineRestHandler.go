@@ -1687,7 +1687,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateUpdateImageTagging(w http.Res
 		return
 	}
 	//validate request
-	isValidRequest, err := handler.imageTaggingService.ValidateImageTaggingRequest(req)
+	isValidRequest, err := handler.imageTaggingService.ValidateImageTaggingRequest(req, ciPipeline.AppId, artifactId)
 	if err != nil || !isValidRequest {
 		handler.Logger.Errorw("request validation failed", "error", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
