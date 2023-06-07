@@ -62,14 +62,22 @@ const (
 	High
 	Safe
 )
+const (
+	HIGH     string = "high"
+	CRITICAL string = "critical"
+	SAFE     string = "safe"
+	LOW      string = "low"
+	MEDIUM   string = "medium"
+	MODERATE string = "moderate"
+)
 
 // Handling for future use
 func (d Severity) ValuesOf(severity string) Severity {
-	if severity == "critical" || severity == "high" {
+	if severity == CRITICAL || severity == HIGH {
 		return Critical
-	} else if severity == "moderate" || severity == "medium" {
+	} else if severity == MODERATE || severity == MEDIUM {
 		return Moderate
-	} else if severity == "low" || severity == "safe" {
+	} else if severity == LOW || severity == SAFE {
 		return Low
 	}
 	return Low
