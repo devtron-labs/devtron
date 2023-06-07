@@ -119,6 +119,10 @@ func (impl *ChartRepositoryServiceImpl) CreateSecretDataForHelmChart(request *Ch
 }
 
 func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error) {
+	//metadata.name label in Secret doesn't support uppercase hence returning if user enters uppercase letters
+	if strings.ToLower(request.Name) != request.Name {
+		return nil, errors.New("invalid repo name: please use lowercase")
+	}
 	allChartsRepos, err := impl.repoRepository.FindAll()
 	if err != nil {
 		impl.logger.Errorw("error in getting list of all chart repos", "err", err)
@@ -219,7 +223,10 @@ func (impl *ChartRepositoryServiceImpl) UpdateData(request *ChartRepoDto) (*char
 	}
 	previousName := chartRepo.Name
 	previousUrl := chartRepo.Url
-
+	//metadata.name label in Secret doesn't support uppercase hence returning if user enters uppercase letters
+	if request.Name != previousName && strings.ToLower(request.Name) != request.Name {
+		return nil, errors.New("invalid repo name: please use lowercase")
+	}
 	chartRepo.Url = request.Url
 	chartRepo.Name = request.Name
 	chartRepo.AuthMode = request.AuthMode
