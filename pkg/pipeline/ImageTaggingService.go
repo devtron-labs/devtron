@@ -246,6 +246,8 @@ func (impl ImageTaggingServiceImpl) CreateOrUpdateImageTagging(ciPipelineId, app
 		return nil, err
 	}
 
+	//max one comment exists against an artifact currently,
+	//fetch savedComment for this artifactId, then update or save accordingly
 	savedComment, err := impl.imageTaggingRepo.GetImageComment(artifactId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting imageComment by artifactId", "err", err, "artifactId", artifactId)
