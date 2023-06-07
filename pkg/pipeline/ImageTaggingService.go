@@ -55,10 +55,12 @@ type ImageTaggingService interface {
 	CreateOrUpdateImageTagging(ciPipelineId, appId, artifactId, userId int, imageTaggingRequest *ImageTaggingRequestDTO) (*ImageTaggingResponseDTO, error)
 	GetProdEnvFromParentAndLinkedWorkflow(ciPipelineId int) (bool, error)
 	GetProdEnvByCdPipelineId(pipelineId int) (bool, error)
+	// ValidateImageTaggingRequest validates the requested payload
 	ValidateImageTaggingRequest(imageTaggingRequest *ImageTaggingRequestDTO, appId, artifactId int) (bool, error)
 	GetTagsByArtifactId(artifactId int) ([]*repository.ImageTag, error)
 	// GetTaggingDataMapByAppId this will fetch a map of artifact vs []tags for given appId
 	GetTaggingDataMapByAppId(appId int) (map[int]*ImageTaggingResponseDTO, error)
+	// GetUniqueTagsByAppId gets all the unique tag names for the given appId
 	GetUniqueTagsByAppId(appId int) ([]string, error)
 }
 
