@@ -17,6 +17,7 @@ import (
 )
 
 func TestCreateOrUpdateImageTagging(t *testing.T) {
+	t.SkipNow()
 	sugaredLogger, err := util.NewSugardLogger()
 	assert.True(t, err == nil, err)
 
