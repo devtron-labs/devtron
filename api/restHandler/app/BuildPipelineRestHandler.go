@@ -1671,7 +1671,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateUpdateImageTagging(w http.Res
 	prodEnvExists, err := handler.imageTaggingService.GetProdEnvFromParentAndLinkedWorkflow(ciPipeline.Id)
 	if err != nil {
 		handler.Logger.Errorw("error occured in checking existance prod prod environment ", "err", err, "ciPipelineId", ciPipeline.Id)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, errors.New("cannot add tags/comments for this image"), nil, http.StatusInternalServerError)
 		return
 	}
 	//not allowed to perform edit/save if no cd exists in prod env in the app_workflow
