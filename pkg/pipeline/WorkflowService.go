@@ -218,7 +218,6 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		CiRequest: workflowRequest,
 	}
 
-	//ciCdTriggerEvent.CiRequest.BlobStorageLogsKey = impl.ciConfig.DefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowNamePrefix
 	ciCdTriggerEvent.CiRequest.BlobStorageLogsKey = fmt.Sprintf("%s/%s", impl.ciConfig.DefaultBuildLogsKeyPrefix, workflowRequest.WorkflowNamePrefix)
 	ciCdTriggerEvent.CiRequest.InAppLoggingEnabled = impl.ciConfig.InAppLoggingEnabled
 	workflowJson, err := json.Marshal(&ciCdTriggerEvent)
