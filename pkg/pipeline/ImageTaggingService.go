@@ -245,14 +245,16 @@ func (impl ImageTaggingServiceImpl) CreateOrUpdateImageTagging(ciPipelineId, app
 	if err != nil {
 		return nil, err
 	}
-	if imageTaggingRequest.ImageComment.Id > 0 {
-		savedComment, err := impl.imageTaggingRepo.GetImageComment(artifactId)
-		if err != nil {
-			impl.logger.Errorw("error in getting imageComment by artifactId", "err", err, "artifactId", artifactId)
-			return nil, err
-		}
+
+	savedComment, err := impl.imageTaggingRepo.GetImageComment(artifactId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting imageComment by artifactId", "err", err, "artifactId", artifactId)
+		return nil, err
+	}
+	if savedComment.Id > 0 {
 		//update only if the comment is different from saved comment
 		if savedComment.Comment != imageTaggingRequest.ImageComment.Comment {
+			imageTaggingRequest.ImageComment.Id = savedComment.Id
 			err = impl.imageTaggingRepo.UpdateImageComment(tx, &imageTaggingRequest.ImageComment)
 			if err != nil {
 				impl.logger.Errorw("error in updating imageComment ", "err", err, "ImageComment", imageTaggingRequest.ImageComment)
