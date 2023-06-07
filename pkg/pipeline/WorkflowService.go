@@ -280,13 +280,17 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		Steps: steps,
 	})
 
-	containerEnvVariables = append(containerEnvVariables, []v12.EnvVar{{Name: "CI_CD_EVENT", Value: string(workflowJson)}}...)
+	//containerEnvVariables = append(containerEnvVariables, []v12.EnvVar{{Name: "CI_CD_EVENT", Value: string(workflowJson)}}...)
+
+	eventEnv := v12.EnvVar{Name: "CI_CD_EVENT", Value: string(workflowJson)}
+	inAppLoggingEnv := v12.EnvVar{Name: "IN_APP_LOGGING", Value: strconv.FormatBool(impl.ciConfig.InAppLoggingEnabled)}
+	containerEnvVariables = append(containerEnvVariables, eventEnv, inAppLoggingEnv)
 	ciTemplate := v1alpha1.Template{
 		Name: CI_WORKFLOW_NAME,
 		Container: &v12.Container{
 			Env:   containerEnvVariables,
 			Image: workflowRequest.CiImage, //TODO need to check whether trigger buildx image or normal image
-			Args:  []string{string(workflowJson)},
+			//Args:  []string{string(workflowJson)},
 			SecurityContext: &v12.SecurityContext{
 				Privileged: &privileged,
 			},
