@@ -1425,6 +1425,10 @@ func (impl PipelineBuilderImpl) PatchCiPipeline(request *bean.CiPatchRequest) (c
 			return nil, err
 		}
 		cm, err := impl.K8sUtil.GetConfigMap(ConfigMapNamespace, DashboardConfigMap, client)
+		if err != nil {
+			impl.logger.Errorw("error while getting dashboard-cm", "error", err)
+			return nil, err
+		}
 		datamap := cm.Data
 		forceScanConfig, err := strconv.ParseBool(datamap["FORCE_SECURITY_SCANNING"])
 		if err != nil {
