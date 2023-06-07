@@ -27,6 +27,7 @@ type ImageScanExecutionResult struct {
 	Id                          int      `sql:"id,pk"`
 	CveStoreName                string   `sql:"cve_store_name,notnull"`
 	ImageScanExecutionHistoryId int      `sql:"image_scan_execution_history_id"`
+	ScanToolId                  int      `sql:"scan_tool_id"`
 	CveStore                    CveStore
 	ImageScanExecutionHistory   ImageScanExecutionHistory
 }
@@ -93,7 +94,7 @@ func (impl ImageScanResultRepositoryImpl) FetchByScanExecutionId(scanExecutionId
 	Where("image_scan_execution_result.scan_execution_id = ?", id).Select()
 	*/
 
-	err := impl.dbConnection.Model(&models).Column("image_scan_execution_result.*", "CveStore").
+	err := impl.dbConnection.Model(&models).ColumnExpr("DISTINCT cve_store_name").Column("image_scan_execution_result.*", "CveStore").
 		Where("image_scan_execution_result.image_scan_execution_history_id = ?", scanExecutionId).
 		Select()
 	return models, err
@@ -101,7 +102,7 @@ func (impl ImageScanResultRepositoryImpl) FetchByScanExecutionId(scanExecutionId
 
 func (impl ImageScanResultRepositoryImpl) FetchByScanExecutionIds(ids []int) ([]*ImageScanExecutionResult, error) {
 	var models []*ImageScanExecutionResult
-	err := impl.dbConnection.Model(&models).Column("image_scan_execution_result.*", "ImageScanExecutionHistory", "CveStore").
+	err := impl.dbConnection.Model(&models).ColumnExpr("DISTINCT cve_store_name").Column("image_scan_execution_result.*", "ImageScanExecutionHistory", "CveStore").
 		Where("image_scan_execution_result.image_scan_execution_history_id in(?)", pg.In(ids)).
 		Select()
 	return models, err
@@ -109,14 +110,14 @@ func (impl ImageScanResultRepositoryImpl) FetchByScanExecutionIds(ids []int) ([]
 
 func (impl ImageScanResultRepositoryImpl) FindByImageDigest(imageDigest string) ([]*ImageScanExecutionResult, error) {
 	var model []*ImageScanExecutionResult
-	err := impl.dbConnection.Model(&model).Column("image_scan_execution_result.*", "ImageScanExecutionHistory", "CveStore").
+	err := impl.dbConnection.Model(&model).ColumnExpr("DISTINCT cve_store_name").Column("image_scan_execution_result.*", "ImageScanExecutionHistory", "CveStore").
 		Where("image_scan_execution_history.image_hash = ?", imageDigest).Order("image_scan_execution_history.execution_time desc").Select()
 	return model, err
 }
 
 func (impl ImageScanResultRepositoryImpl) FindByImageDigests(digest []string) ([]*ImageScanExecutionResult, error) {
 	var models []*ImageScanExecutionResult
-	err := impl.dbConnection.Model(&models).Column("image_scan_execution_result.*", "ImageScanExecutionHistory", "CveStore").
+	err := impl.dbConnection.Model(&models).ColumnExpr("DISTINCT cve_store_name").Column("image_scan_execution_result.*", "ImageScanExecutionHistory", "CveStore").
 		Where("image_hash in (?)", pg.In(digest)).Order("execution_time desc").Select()
 	return models, err
 }
