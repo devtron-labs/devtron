@@ -17,7 +17,9 @@ completions: {{ $.Values.jobConfigs.completions }}
 suspend: {{ $.Values.jobConfigs.suspend }}
 {{- end }}
 {{- end }}
+{{- if $.Values.jobConfigs.ttlSecondsAfterFinished }}
 ttlSecondsAfterFinished: {{ $.Values.jobConfigs.ttlSecondsAfterFinished }}
+{{- end }}
 {{- end }}
 template:
   metadata:
