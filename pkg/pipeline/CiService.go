@@ -445,6 +445,10 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	if buildContextCheckoutPath == "" {
 		buildContextCheckoutPath = checkoutPath
 	}
+	if ciBuildConfigBean.UseRootBuildContext {
+		//use root build context i.e '.'
+		buildContextCheckoutPath = "."
+	}
 	if ciBuildConfigBean.CiBuildType == bean2.SELF_DOCKERFILE_BUILD_TYPE || ciBuildConfigBean.CiBuildType == bean2.MANAGED_DOCKERFILE_BUILD_TYPE {
 		ciBuildConfigBean.DockerBuildConfig.BuildContext = filepath.Join(buildContextCheckoutPath, ciBuildConfigBean.DockerBuildConfig.BuildContext)
 		dockerBuildConfig := ciBuildConfigBean.DockerBuildConfig
