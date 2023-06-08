@@ -640,7 +640,7 @@ func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 		savedWorkflow.Message = message
 		savedWorkflow.FinishedOn = workflowStatus.FinishedAt.Time
 		savedWorkflow.Name = workflowName
-		savedWorkflow.LogLocation = wfStatusRs.LogLocation
+		// removed log location from here since we are saving it at trigger
 		savedWorkflow.PodName = podName
 		savedWorkflow.UpdatedOn = time.Now()
 		savedWorkflow.UpdatedBy = 1
@@ -1041,6 +1041,7 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		BlobStorageEnabled:   workflow.BlobStorageEnabled,
 		UserApprovalMetadata: workflow.UserApprovalMetadata,
 		IsVirtualEnvironment: workflowR.CdWorkflow.Pipeline.Environment.IsVirtualEnvironment,
+		PodName:              workflowR.PodName,
 		CdWorkflowId:         workflowR.CdWorkflowId,
 		HelmPackageName:      helmPackageName,
 	}
