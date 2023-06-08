@@ -1677,7 +1677,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateUpdateImageTagging(w http.Res
 	//not allowed to perform edit/save if no cd exists in prod env in the app_workflow
 	if !prodEnvExists {
 		handler.Logger.Errorw("save or edit operation not possible for this artifact", "err", nil, "artifactId", artifactId, "ciPipelineId", ciPipeline.Id)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, errors.New("save or edit operation not possible for this artifact"), nil, http.StatusBadRequest)
 		return
 	}
 
