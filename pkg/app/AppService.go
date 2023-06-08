@@ -2236,38 +2236,44 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Appl
 	return nil
 }
 
+const kedaAutoscaling = "kedaAutoscaling"
+const HorizontalPodAutoscaler = "HorizontalPodAutoscaler"
+const fullnameOverride = "fullnameOverride"
+const enabled = "enabled"
+const replicaCount = "replicaCount"
+
 func (impl *AppServiceImpl) getAutoScalingReplicaCount(templateMap map[string]interface{}, appName string) *util2.HpaResourceRequest {
-	const kedaAutoscaling = "kedaAutoscaling"
-	if _, ok := templateMap["fullnameOverride"]; ok {
-		appName = templateMap["fullnameOverride"].(string)
+	if _, ok := templateMap[fullnameOverride]; ok {
+		appName = templateMap[fullnameOverride].(string)
 	}
 	hpaResourceRequest := &util2.HpaResourceRequest{}
 	hpaResourceRequest.Version = ""
 	hpaResourceRequest.Group = autoscaling.ServiceName
-	hpaResourceRequest.Kind = "HorizontalPodAutoscaler"
-
-	if _, ok := templateMap[autoscaling.ServiceName]; ok {
-		as := templateMap[autoscaling.ServiceName]
-		asd := as.(map[string]interface{})
-		if _, ok := asd["enabled"]; ok {
-			hpaResourceRequest.IsEnable = asd["enabled"].(bool)
-			hpaResourceRequest.ReqReplicaCount = templateMap["replicaCount"].(float64)
-			hpaResourceRequest.ReqMaxReplicas = asd["MaxReplicas"].(float64)
-			hpaResourceRequest.ReqMinReplicas = asd["MinReplicas"].(float64)
-			hpaResourceRequest.ResourceName = fmt.Sprintf("%s-%s", appName, "hpa")
-			return hpaResourceRequest
-		}
-	}
+	hpaResourceRequest.Kind = HorizontalPodAutoscaler
 
 	if _, ok := templateMap[kedaAutoscaling]; ok {
 		as := templateMap[kedaAutoscaling]
 		asd := as.(map[string]interface{})
-		if _, ok := asd["enabled"]; ok {
-			hpaResourceRequest.IsEnable = asd["enabled"].(bool)
-			hpaResourceRequest.ReqReplicaCount = templateMap["replicaCount"].(float64)
+		if _, ok := asd[enabled]; ok {
+			hpaResourceRequest.IsEnable = asd[enabled].(bool)
+			hpaResourceRequest.ReqReplicaCount = templateMap[replicaCount].(float64)
 			hpaResourceRequest.ReqMaxReplicas = asd["maxReplicaCount"].(float64)
 			hpaResourceRequest.ReqMinReplicas = asd["minReplicaCount"].(float64)
 			hpaResourceRequest.ResourceName = fmt.Sprintf("%s-%s", appName, "hpa-keda")
+			return hpaResourceRequest
+		}
+	}
+
+	if _, ok := templateMap[autoscaling.ServiceName]; ok {
+		as := templateMap[autoscaling.ServiceName]
+		asd := as.(map[string]interface{})
+		if _, ok := asd[enabled]; ok {
+			hpaResourceRequest.IsEnable = asd[enabled].(bool)
+			hpaResourceRequest.ReqReplicaCount = templateMap[replicaCount].(float64)
+			hpaResourceRequest.ReqMaxReplicas = asd["MaxReplicas"].(float64)
+			hpaResourceRequest.ReqMinReplicas = asd["MinReplicas"].(float64)
+			hpaResourceRequest.ResourceName = fmt.Sprintf("%s-%s", appName, "hpa")
+			return hpaResourceRequest
 		}
 	}
 	return hpaResourceRequest
