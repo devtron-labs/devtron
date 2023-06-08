@@ -156,7 +156,7 @@ func (impl *ImageTaggingRepositoryImpl) UpdateImageComment(tx *pg.Tx, imageComme
 
 func (impl *ImageTaggingRepositoryImpl) DeleteReleaseTagInBulk(tx *pg.Tx, imageTags []*ImageTag) error {
 	for _, imageTag := range imageTags {
-		err := tx.Delete(&imageTag)
+		err := tx.Delete(imageTag)
 		if err != nil {
 			return err
 		}
