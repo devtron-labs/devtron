@@ -141,8 +141,13 @@ func (impl *ImageTaggingRepositoryImpl) GetImageCommentsByArtifactIds(artifactId
 //this will update the provided release tag
 func (impl *ImageTaggingRepositoryImpl) UpdateReleaseTagInBulk(tx *pg.Tx, imageTags []*ImageTag) error {
 	//currently tags are not editable, can only be soft deleted or hard delete
-	err := tx.Update(&imageTags)
-	return err
+	for _, imageTag := range imageTags {
+		err := tx.Update(imageTag)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 func (impl *ImageTaggingRepositoryImpl) UpdateImageComment(tx *pg.Tx, imageComment *ImageComment) error {
 	err := tx.Update(imageComment)
@@ -150,6 +155,11 @@ func (impl *ImageTaggingRepositoryImpl) UpdateImageComment(tx *pg.Tx, imageComme
 }
 
 func (impl *ImageTaggingRepositoryImpl) DeleteReleaseTagInBulk(tx *pg.Tx, imageTags []*ImageTag) error {
-	err := tx.Delete(&imageTags)
-	return err
+	for _, imageTag := range imageTags {
+		err := tx.Delete(&imageTag)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
