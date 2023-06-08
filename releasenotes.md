@@ -1,9 +1,5 @@
 ## v0.6.18-rc.0
 
-
-
-## v0.6.18-rc.0
-
 ## Bugs
 - fix: shows commit details only on currently deployed image on deployment history (#3382)
 - fix: sql script fix (#3474)
