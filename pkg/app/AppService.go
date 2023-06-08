@@ -2236,6 +2236,40 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Appl
 	return nil
 }
 
+func (impl *AppServiceImpl) getAutoScalingReplicaCount(templateMap map[string]interface{}, appName string) *util2.HpaResourceRequest {
+	const kedaAutoscaling = "kedaAutoscaling"
+	if _, ok := templateMap["fullNameOverride"]; ok {
+		appName = templateMap["fullNameOverride"].(string)
+	}
+	hpaResourceRequest := &util2.HpaResourceRequest{}
+	if _, ok := templateMap[autoscaling.ServiceName]; ok {
+		as := templateMap[autoscaling.ServiceName]
+		asd := as.(map[string]interface{})
+		if _, ok := asd["enabled"]; ok {
+			hpaResourceRequest.IsEnable = asd["enabled"].(bool)
+		}
+		hpaResourceRequest.ReqReplicaCount = templateMap["replicaCount"].(float64)
+		hpaResourceRequest.ReqMaxReplicas = asd["MaxReplicas"].(float64)
+		hpaResourceRequest.ReqMinReplicas = asd["MinReplicas"].(float64)
+		hpaResourceRequest.ResourceName = fmt.Sprintf("%s-%s", appName, "hpa")
+	} else if _, ok := templateMap[kedaAutoscaling]; ok {
+		as := templateMap[kedaAutoscaling]
+		asd := as.(map[string]interface{})
+		if _, ok := asd["enabled"]; ok {
+			hpaResourceRequest.IsEnable = asd["enabled"].(bool)
+		}
+		hpaResourceRequest.ReqReplicaCount = templateMap["replicaCount"].(float64)
+		hpaResourceRequest.ReqMaxReplicas = asd["maxReplicaCount"].(float64)
+		hpaResourceRequest.ReqMinReplicas = asd["minReplicaCount"].(float64)
+		hpaResourceRequest.ResourceName = fmt.Sprintf("%s-%s", appName, "hpa-keda")
+	}
+	hpaResourceRequest.Version = ""
+	hpaResourceRequest.Group = autoscaling.ServiceName
+	hpaResourceRequest.Kind = "HorizontalPodAutoscaler"
+	return hpaResourceRequest
+
+}
+
 func (impl *AppServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, appName string, namespace string, merged []byte, pipeline *pipelineConfig.Pipeline, overrideRequest *bean.ValuesOverrideRequest) []byte {
 	var appId = pipeline.AppId
 	pipelineId := pipeline.Id
@@ -2247,77 +2281,64 @@ func (impl *AppServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, a
 	if err != nil {
 		return merged
 	}
-	if _, ok := templateMap[autoscaling.ServiceName]; ok {
-		as := templateMap[autoscaling.ServiceName]
-		asd := as.(map[string]interface{})
-		isEnable := false
-		if _, ok := asd["enabled"]; ok {
-			isEnable = asd["enabled"].(bool)
-		}
-		if isEnable {
-			reqReplicaCount := templateMap["replicaCount"].(float64)
-			reqMaxReplicas := asd["MaxReplicas"].(float64)
-			reqMinReplicas := asd["MinReplicas"].(float64)
-			version := ""
-			group := autoscaling.ServiceName
-			kind := "HorizontalPodAutoscaler"
-			resourceName := fmt.Sprintf("%s-%s", appName, "hpa")
-			resourceManifest := make(map[string]interface{})
-			if IsAcdApp(appDeploymentType) {
-				query := &application2.ApplicationResourceRequest{
-					Name:         &appName,
-					Version:      &version,
-					Group:        &group,
-					Kind:         &kind,
-					ResourceName: &resourceName,
-					Namespace:    &namespace,
-				}
-				recv, err := impl.acdClient.GetResource(ctx, query)
-				impl.logger.Debugw("resource manifest get replica count", "response", recv)
-				if err != nil {
-					impl.logger.Errorw("ACD Get Resource API Failed", "err", err)
-					middleware.AcdGetResourceCounter.WithLabelValues(strconv.Itoa(appId), namespace, appName).Inc()
-					return merged
-				}
-				if recv != nil && len(*recv.Manifest) > 0 {
-					err := json.Unmarshal([]byte(*recv.Manifest), &resourceManifest)
-					if err != nil {
-						impl.logger.Errorw("unmarshal failed for hpa check", "err", err)
-						return merged
-					}
-				}
-			} else {
-				version = "v2beta2"
-				k8sResource, err := impl.k8sApplicationService.GetResource(ctx, &k8s.ResourceRequestBean{ClusterId: clusterId,
-					K8sRequest: &application3.K8sRequestBean{ResourceIdentifier: application3.ResourceIdentifier{Name: resourceName,
-						Namespace: namespace, GroupVersionKind: schema.GroupVersionKind{Group: group, Kind: kind, Version: version}}}})
-				if err != nil {
-					impl.logger.Errorw("error occurred while fetching resource for app", "resourceName", resourceName, "err", err)
-					return merged
-				}
-				resourceManifest = k8sResource.Manifest.Object
+	hpaResourceRequest := impl.getAutoScalingReplicaCount(templateMap, appName)
+	if hpaResourceRequest.IsEnable {
+		resourceManifest := make(map[string]interface{})
+		if IsAcdApp(appDeploymentType) {
+			query := &application2.ApplicationResourceRequest{
+				Name:         &appName,
+				Version:      &hpaResourceRequest.Version,
+				Group:        &hpaResourceRequest.Group,
+				Kind:         &hpaResourceRequest.Kind,
+				ResourceName: &hpaResourceRequest.ResourceName,
+				Namespace:    &namespace,
 			}
-			if len(resourceManifest) > 0 {
-				statusMap := resourceManifest["status"].(map[string]interface{})
-				currentReplicaVal := statusMap["currentReplicas"]
-				currentReplicaCount, err := util2.ParseFloatNumber(currentReplicaVal)
+			recv, err := impl.acdClient.GetResource(ctx, query)
+			impl.logger.Debugw("resource manifest get replica count", "response", recv)
+			if err != nil {
+				impl.logger.Errorw("ACD Get Resource API Failed", "err", err)
+				middleware.AcdGetResourceCounter.WithLabelValues(strconv.Itoa(appId), namespace, appName).Inc()
+				return merged
+			}
+			if recv != nil && len(*recv.Manifest) > 0 {
+				err := json.Unmarshal([]byte(*recv.Manifest), &resourceManifest)
 				if err != nil {
-					impl.logger.Errorw("error occurred while parsing replica count", "currentReplicas", currentReplicaVal, "err", err)
-					return merged
-				}
-
-				reqReplicaCount = impl.fetchRequiredReplicaCount(currentReplicaCount, reqMaxReplicas, reqMinReplicas)
-				templateMap["replicaCount"] = reqReplicaCount
-				merged, err = json.Marshal(&templateMap)
-				if err != nil {
-					impl.logger.Errorw("marshaling failed for hpa check", "err", err)
+					impl.logger.Errorw("unmarshal failed for hpa check", "err", err)
 					return merged
 				}
 			}
 		} else {
-			impl.logger.Errorw("autoscaling is not enabled", "pipelineId", pipelineId)
+			version := "v2beta2"
+			k8sResource, err := impl.k8sApplicationService.GetResource(ctx, &k8s.ResourceRequestBean{ClusterId: clusterId,
+				K8sRequest: &application3.K8sRequestBean{ResourceIdentifier: application3.ResourceIdentifier{Name: hpaResourceRequest.ResourceName,
+					Namespace: namespace, GroupVersionKind: schema.GroupVersionKind{Group: hpaResourceRequest.Group, Kind: hpaResourceRequest.Kind, Version: version}}}})
+			if err != nil {
+				impl.logger.Errorw("error occurred while fetching resource for app", "resourceName", hpaResourceRequest.ResourceName, "err", err)
+				return merged
+			}
+			resourceManifest = k8sResource.Manifest.Object
 		}
+		if len(resourceManifest) > 0 {
+			statusMap := resourceManifest["status"].(map[string]interface{})
+			currentReplicaVal := statusMap["currentReplicas"]
+			currentReplicaCount, err := util2.ParseFloatNumber(currentReplicaVal)
+			if err != nil {
+				impl.logger.Errorw("error occurred while parsing replica count", "currentReplicas", currentReplicaVal, "err", err)
+				return merged
+			}
+
+			reqReplicaCount := impl.fetchRequiredReplicaCount(currentReplicaCount, hpaResourceRequest.ReqMaxReplicas, hpaResourceRequest.ReqMinReplicas)
+			templateMap["replicaCount"] = reqReplicaCount
+			merged, err = json.Marshal(&templateMap)
+			if err != nil {
+				impl.logger.Errorw("marshaling failed for hpa check", "err", err)
+				return merged
+			}
+		}
+	} else {
+		impl.logger.Errorw("autoscaling is not enabled", "pipelineId", pipelineId)
 	}
+
 	//check for custom chart support
 	if autoscalingEnabledPath, ok := templateMap[bean2.CustomAutoScalingEnabledPathKey]; ok {
 		if deploymentType == models.DEPLOYMENTTYPE_STOP {
