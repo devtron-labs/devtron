@@ -1644,9 +1644,14 @@ func (handler PipelineConfigRestHandlerImpl) CreateUpdateImageTagging(w http.Res
 		return
 	}
 
-	ciPipeline, err := handler.ciPipelineRepository.FindById(pipelineId)
+	wf, err := handler.ciWorkflowRepository.FindLastTriggeredWorkflowByArtifactId(artifactId)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	if wf.CiPipelineId != pipelineId {
+		common.WriteJsonResp(w, errors.New("ciPipelineId and artifactId sent in the request are not related"), nil, http.StatusBadRequest)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
@@ -1660,7 +1665,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateUpdateImageTagging(w http.Res
 
 	//RBAC
 	if !isSuperAdmin {
-		object := handler.enforcerUtil.GetAppRBACNameByAppId(ciPipeline.AppId)
+		object := handler.enforcerUtil.GetAppRBACNameByAppId(wf.CiPipeline.AppId)
 		if ok := handler.enforcer.EnforceByEmail(strings.ToLower(user.EmailId), casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
 			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 			return
@@ -1668,15 +1673,15 @@ func (handler PipelineConfigRestHandlerImpl) CreateUpdateImageTagging(w http.Res
 	}
 	//RBAC
 	//check prod env exists
-	prodEnvExists, err := handler.imageTaggingService.GetProdEnvFromParentAndLinkedWorkflow(ciPipeline.Id)
+	prodEnvExists, err := handler.imageTaggingService.GetProdEnvFromParentAndLinkedWorkflow(wf.CiPipeline.Id)
 	if err != nil {
-		handler.Logger.Errorw("error occured in checking existance prod prod environment ", "err", err, "ciPipelineId", ciPipeline.Id)
+		handler.Logger.Errorw("error occurred in checking existence of prod environment ", "err", err, "ciPipelineId", wf.CiPipeline.Id)
 		common.WriteJsonResp(w, errors.New("cannot add tags/comments for this image"), nil, http.StatusInternalServerError)
 		return
 	}
 	//not allowed to perform edit/save if no cd exists in prod env in the app_workflow
 	if !prodEnvExists {
-		handler.Logger.Errorw("save or edit operation not possible for this artifact", "err", nil, "artifactId", artifactId, "ciPipelineId", ciPipeline.Id)
+		handler.Logger.Errorw("save or edit operation not possible for this artifact", "err", nil, "artifactId", artifactId, "ciPipelineId", wf.CiPipeline.Id)
 		common.WriteJsonResp(w, errors.New("save or edit operation not possible for this artifact"), nil, http.StatusBadRequest)
 		return
 	}
@@ -1688,16 +1693,16 @@ func (handler PipelineConfigRestHandlerImpl) CreateUpdateImageTagging(w http.Res
 		return
 	}
 	//validate request
-	isValidRequest, err := handler.imageTaggingService.ValidateImageTaggingRequest(req, ciPipeline.AppId, artifactId)
+	isValidRequest, err := handler.imageTaggingService.ValidateImageTaggingRequest(req, wf.CiPipeline.AppId, artifactId)
 	if err != nil || !isValidRequest {
 		handler.Logger.Errorw("request validation failed", "error", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	//pass it to service layer
-	resp, err := handler.imageTaggingService.CreateOrUpdateImageTagging(ciPipeline.Id, ciPipeline.AppId, artifactId, int(user.Id), req)
+	resp, err := handler.imageTaggingService.CreateOrUpdateImageTagging(wf.CiPipeline.Id, wf.CiPipeline.AppId, artifactId, int(user.Id), req)
 	if err != nil {
-		handler.Logger.Errorw("error occured in creating/updating image tagging data", "err", err, "ciPipelineId", ciPipeline.Id)
+		handler.Logger.Errorw("error occured in creating/updating image tagging data", "err", err, "ciPipelineId", wf.CiPipeline.Id)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -1728,21 +1733,26 @@ func (handler PipelineConfigRestHandlerImpl) GetImageTaggingData(w http.Response
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	ciPipeline, err := handler.ciPipelineRepository.FindById(pipelineId)
+
+	wf, err := handler.ciWorkflowRepository.FindLastTriggeredWorkflowByArtifactId(artifactId)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
+	if wf.CiPipelineId != pipelineId {
+		common.WriteJsonResp(w, errors.New("ciPipelineId and artifactId sent in the request are not related"), nil, http.StatusBadRequest)
+		return
+	}
 	//RBAC
-	object := handler.enforcerUtil.GetAppRBACNameByAppId(ciPipeline.AppId)
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(wf.CiPipeline.AppId)
 	if ok := handler.enforcer.EnforceByEmail(userEmailId, casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//RBAC
 
-	resp, err := handler.imageTaggingService.GetTagsData(ciPipeline.Id, ciPipeline.AppId, artifactId)
+	resp, err := handler.imageTaggingService.GetTagsData(wf.CiPipelineId, wf.CiPipeline.AppId, artifactId)
 	if err != nil {
 		//logg
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusInternalServerError)

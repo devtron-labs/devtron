@@ -38,7 +38,7 @@ const TagType AuditType = 0
 const CommentType AuditType = 1
 
 type ImageTag struct {
-	TableName  struct{} `sql:"release_tags" json:",omitempty"  pg:",discard_unknown_columns"`
+	TableName  struct{} `sql:"release_tags" json:"-"  pg:",discard_unknown_columns"`
 	Id         int      `sql:"id,pk" json:"id"`
 	TagName    string   `sql:"tag_name" json:"tagName"`
 	AppId      int      `sql:"app_id" json:"appId"`
@@ -47,7 +47,7 @@ type ImageTag struct {
 }
 
 type ImageComment struct {
-	TableName  struct{} `sql:"image_comments" json:",omitempty"  pg:",discard_unknown_columns"`
+	TableName  struct{} `sql:"image_comments" json:"-"  pg:",discard_unknown_columns"`
 	Id         int      `sql:"id,pk" json:"id"`
 	Comment    string   `sql:"comment" json:"comment"`
 	ArtifactId int      `sql:"artifact_id" json:"artifactId"`
@@ -55,7 +55,7 @@ type ImageComment struct {
 }
 
 type ImageTaggingAudit struct {
-	TableName  struct{}           `sql:"image_tagging_audit" json:",omitempty"  pg:",discard_unknown_columns"`
+	TableName  struct{}           `sql:"image_tagging_audit" json:"-"  pg:",discard_unknown_columns"`
 	Id         int                `sql:"id,pk"`
 	Data       string             `sql:"data"`
 	DataType   AuditType          `sql:"data_type"`
