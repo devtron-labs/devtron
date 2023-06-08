@@ -27,6 +27,7 @@ func (dto GlobalCMCSDto) ConvertToConfigSecretMap() (bean.ConfigSecretMap, error
 	configSecretMap.Type = dto.Type
 	configSecretMap.MountPath = dto.MountPath
 
+	// adding handling to get base64 encoded value in map value in case of secrets
 	if dto.ConfigType == repository.CS_TYPE_CONFIG {
 		var csDataMap = make(map[string][]byte)
 		for key, value := range dto.Data {
