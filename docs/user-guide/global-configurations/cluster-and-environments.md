@@ -13,7 +13,7 @@ To add cluster, go to the `Clusters & Environments` section of `Global Configura
 ### Add Clusters Using Server URL & Bearer Token
 
 
-Provide the information in the following fields to add your kubernetes cluster:
+To add a Kubernetes cluster on Devtron using `server url` and the `bearer token`, provide the information in the following fields:
 
 | Field | Description |
 | :--- | :--- |
