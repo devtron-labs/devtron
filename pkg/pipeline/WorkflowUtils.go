@@ -129,6 +129,7 @@ func GetConfigMapBody(configMapSecretDto ConfigMapSecretDto) v12.ConfigMap {
 
 func GetSecretJson(configMapSecretDto ConfigMapSecretDto) (string, error) {
 	secretBody := GetSecretBody(configMapSecretDto)
+
 	secretJson, err := json.Marshal(secretBody)
 	if err != nil {
 		return "", err
@@ -138,9 +139,15 @@ func GetSecretJson(configMapSecretDto ConfigMapSecretDto) (string, error) {
 
 func GetSecretBody(configMapSecretDto ConfigMapSecretDto) v12.Secret {
 	secretDataMap := make(map[string][]byte)
-	for key, value := range configMapSecretDto.Data {
-		secretDataMap[key] = []byte(value)
-	}
+	//for key, value := range configMapSecretDto.Data {
+	//	secretDataMap[key] = []byte(value)
+	//}
+	//
+	//
+
+	output, _ := json.Marshal(configMapSecretDto.Data)
+	json.Unmarshal(output, &secretDataMap)
+
 	return v12.Secret{
 		TypeMeta: v1.TypeMeta{
 			Kind:       "Secret",
