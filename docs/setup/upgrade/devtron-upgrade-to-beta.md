@@ -16,3 +16,5 @@ $ #modify values in values.yaml
 $ helm upgrade devtron . --reuse-values --namespace devtroncd \
 -f devtron-bom.yaml
 ```
+
+Note: There is no option to upgrade to beta on stack manager UI as of now and you may always see upgrade available for latest stable version using which you'll be moved to latest stable version available.
