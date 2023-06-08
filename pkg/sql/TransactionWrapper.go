@@ -2,7 +2,7 @@ package sql
 
 import "github.com/go-pg/pg"
 
-type TransactionUtil interface {
+type TransactionWrapper interface {
 	StartTx() (*pg.Tx, error)
 	RollbackTx(tx *pg.Tx) error
 	CommitTx(tx *pg.Tx) error

@@ -67,7 +67,7 @@ type ImageTaggingAudit struct {
 
 type ImageTaggingRepository interface {
 	//transaction util funcs
-	sql.TransactionUtil
+	sql.TransactionWrapper
 	SaveAuditLogsInBulk(tx *pg.Tx, imageTaggingAudit []*ImageTaggingAudit) error
 	SaveReleaseTagsInBulk(tx *pg.Tx, imageTags []*ImageTag) error
 	SaveImageComment(tx *pg.Tx, imageComment *ImageComment) error
