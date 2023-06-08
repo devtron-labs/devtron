@@ -61,6 +61,8 @@ For more details about configuration see the [helm chart configuration](#configu
 
 [Link to](https://docs.devtron.ai/install) more installation options for Devtron.
 
+Note: There is no option to upgrade to beta on stack manager UI as of now and you may always see upgrade available for latest stable version using which you'll be moved to latest stable version available.
+
 ### Access Devtron dashboard
 
 Devtron dashboard in now available at the `BASE_URL/dashboard`, where `BASE_URL` is same as provided in `values.yaml` in case of installation via Helm chart.
