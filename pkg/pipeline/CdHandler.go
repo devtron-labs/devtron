@@ -926,6 +926,7 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		BlobStorageEnabled:   workflow.BlobStorageEnabled,
 		IsVirtualEnvironment: workflowR.CdWorkflow.Pipeline.Environment.IsVirtualEnvironment,
 		ArtifactId:           workflow.CiArtifactId,
+		CiPipelineId:         ciWf.CiPipelineId,
 	}
 	return workflowResponse, nil
 
