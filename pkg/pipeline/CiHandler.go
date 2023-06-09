@@ -469,7 +469,7 @@ func (impl *CiHandlerImpl) GetBuildHistory(pipelineId int, appId int, offset int
 		ciPipelineMaterialResponses = append(ciPipelineMaterialResponses, r)
 	}
 	//this map contains artifactId -> array of tags of that artifact
-	imageTaggingDataMap, err := impl.imageTaggingService.GetTaggingDataMapByAppId(appId)
+	imageTagsDataMap, err := impl.imageTaggingService.GetTagsDataMapByAppId(appId)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching image tags with appId", "err", err, "appId", appId)
 		return nil, err
@@ -479,6 +479,17 @@ func (impl *CiHandlerImpl) GetBuildHistory(pipelineId int, appId int, offset int
 		impl.Logger.Errorw("err", "err", err)
 		return nil, err
 	}
+	var artifactIds []int
+	for _, w := range workFlows {
+		artifactIds = append(artifactIds, w.CiArtifactId)
+	}
+	//this map contains artifactId -> imageComment of that artifact
+	imageCommetnsDataMap, err := impl.imageTaggingService.GetImageCommentsDataMapByArtifactIds(artifactIds)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching imageCommetnsDataMap", "err", err, "appId", appId, "artifactIds", artifactIds)
+		return nil, err
+	}
+
 	var ciWorkLowResponses []WorkflowResponse
 	for _, w := range workFlows {
 		wfResponse := WorkflowResponse{
@@ -501,9 +512,11 @@ func (impl *CiHandlerImpl) GetBuildHistory(pipelineId int, appId int, offset int
 			BlobStorageEnabled: w.BlobStorageEnabled,
 			IsArtifactUploaded: w.IsArtifactUploaded,
 		}
-		if imageTaggingDataMap[w.CiArtifactId] != nil {
-			wfResponse.ImageReleaseTags = imageTaggingDataMap[w.CiArtifactId].ImageReleaseTags //if artifact is not yet created,empty list will be sent
-			wfResponse.ImageComment = imageTaggingDataMap[w.CiArtifactId].ImageComment
+		if imageTagsDataMap[w.CiArtifactId] != nil {
+			wfResponse.ImageReleaseTags = imageTagsDataMap[w.CiArtifactId] //if artifact is not yet created,empty list will be sent
+		}
+		if imageCommetnsDataMap[w.CiArtifactId] != nil {
+			wfResponse.ImageComment = imageCommetnsDataMap[w.CiArtifactId]
 		}
 		ciWorkLowResponses = append(ciWorkLowResponses, wfResponse)
 	}

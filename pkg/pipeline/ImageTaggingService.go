@@ -59,7 +59,9 @@ type ImageTaggingService interface {
 	ValidateImageTaggingRequest(imageTaggingRequest *ImageTaggingRequestDTO, appId, artifactId int) (bool, error)
 	GetTagsByArtifactId(artifactId int) ([]*repository.ImageTag, error)
 	// GetTaggingDataMapByAppId this will fetch a map of artifact vs []tags for given appId
-	GetTaggingDataMapByAppId(appId int) (map[int]*ImageTaggingResponseDTO, error)
+	GetTagsDataMapByAppId(appId int) (map[int][]*repository.ImageTag, error)
+	// GetTaggingDataMapByAppId this will fetch a map of artifact vs imageComment for given artifactIds
+	GetImageCommentsDataMapByArtifactIds(artifactIds []int) (map[int]*repository.ImageComment, error)
 	// GetUniqueTagsByAppId gets all the unique tag names for the given appId
 	GetUniqueTagsByAppId(appId int) ([]string, error)
 }
@@ -131,40 +133,40 @@ func (impl ImageTaggingServiceImpl) GetTagsByArtifactId(artifactId int) ([]*repo
 }
 
 // GetTaggingDataMapByAppId this will fetch a map of artifact vs []tags for given appId
-func (impl ImageTaggingServiceImpl) GetTaggingDataMapByAppId(appId int) (map[int]*ImageTaggingResponseDTO, error) {
+func (impl ImageTaggingServiceImpl) GetTagsDataMapByAppId(appId int) (map[int][]*repository.ImageTag, error) {
 	tags, err := impl.imageTaggingRepo.GetTagsByAppId(appId)
 	if err != nil {
 		impl.logger.Errorw("error occurred in getting image tags by appId", "appId", appId, "err", err)
 		return nil, err
 	}
-	result := make(map[int]*ImageTaggingResponseDTO)
+	result := make(map[int][]*repository.ImageTag)
 	for _, tag := range tags {
 		if _, ok := result[tag.ArtifactId]; !ok {
-			result[tag.ArtifactId] = &ImageTaggingResponseDTO{
-				ImageReleaseTags: make([]*repository.ImageTag, 0),
-			}
+			result[tag.ArtifactId] = make([]*repository.ImageTag, 0)
+
 		}
-		result[tag.ArtifactId].ImageReleaseTags = append(result[tag.ArtifactId].ImageReleaseTags, tag)
+		result[tag.ArtifactId] = append(result[tag.ArtifactId], tag)
 	}
 
-	if len(result) > 0 {
-		artifactIds := make([]int, 0)
-		for artifactId, _ := range result {
-			artifactIds = append(artifactIds, artifactId)
-		}
+	return result, nil
 
-		imageComments, err := impl.imageTaggingRepo.GetImageCommentsByArtifactIds(artifactIds)
-		if err != nil && err != pg.ErrNoRows {
-			//log error
-			impl.logger.Errorw("error in fetching imageComments using appId", "appId", appId)
-			return nil, err
-		}
+}
 
-		//it may be possible that there are no tags for a artifact,but comment exists
-		for _, comment := range imageComments {
-			result[comment.ArtifactId].ImageComment = &comment
-		}
+func (impl ImageTaggingServiceImpl) GetImageCommentsDataMapByArtifactIds(artifactIds []int) (map[int]*repository.ImageComment, error) {
+	result := make(map[int]*repository.ImageComment)
+
+	imageComments, err := impl.imageTaggingRepo.GetImageCommentsByArtifactIds(artifactIds)
+	if err != nil && err != pg.ErrNoRows {
+		//log error
+		impl.logger.Errorw("error in fetching imageComments using appId", "artifactIds", artifactIds)
+		return nil, err
 	}
+
+	//it may be possible that there are no tags for a artifact,but comment exists
+	for _, comment := range imageComments {
+		result[comment.ArtifactId] = &comment
+	}
+
 	return result, nil
 }
 

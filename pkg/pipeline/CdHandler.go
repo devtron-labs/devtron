@@ -33,6 +33,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
+	repository4 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
@@ -714,24 +715,34 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 
 	var cdWorkflowArtifact []pipelineConfig.CdWorkflowWithArtifact
 	//this map contains artifactId -> array of tags of that artifact
-	imageTaggingDataMap, err := impl.imageTaggingService.GetTaggingDataMapByAppId(appId)
+	imageTagsDataMap, err := impl.imageTaggingService.GetTagsDataMapByAppId(appId)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching image tags with appId", "err", err, "appId", appId)
 		return cdWorkflowArtifact, err
 	}
+	var wfrList []pipelineConfig.CdWorkflowRunner
 	if pipelineId == 0 {
-		wfrList, err := impl.cdWorkflowRepository.FindCdWorkflowMetaByEnvironmentId(appId, environmentId, offset, size)
+		wfrList, err = impl.cdWorkflowRepository.FindCdWorkflowMetaByEnvironmentId(appId, environmentId, offset, size)
 		if err != nil && err != pg.ErrNoRows {
 			return cdWorkflowArtifact, err
 		}
-		cdWorkflowArtifact = impl.converterWFRList(imageTaggingDataMap, wfrList)
 	} else {
-		wfrList, err := impl.cdWorkflowRepository.FindCdWorkflowMetaByPipelineId(pipelineId, offset, size)
+		wfrList, err = impl.cdWorkflowRepository.FindCdWorkflowMetaByPipelineId(pipelineId, offset, size)
 		if err != nil && err != pg.ErrNoRows {
 			return cdWorkflowArtifact, err
 		}
-		cdWorkflowArtifact = impl.converterWFRList(imageTaggingDataMap, wfrList)
 	}
+
+	var artifactIds []int
+	for _, item := range wfrList {
+		artifactIds = append(artifactIds, item.CdWorkflow.CiArtifactId)
+	}
+	imageCommentsDataMap, err := impl.imageTaggingService.GetImageCommentsDataMapByArtifactIds(artifactIds)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching imageCommentsDataMap", "err", err, "artifactIds", artifactIds, "appId", appId)
+		return cdWorkflowArtifact, err
+	}
+	cdWorkflowArtifact = impl.converterWFRList(imageTagsDataMap, imageCommentsDataMap, wfrList)
 
 	return cdWorkflowArtifact, nil
 }
@@ -1027,16 +1038,20 @@ func (impl *CdHandlerImpl) converterWFR(wfr pipelineConfig.CdWorkflowRunner) pip
 	return workflow
 }
 
-func (impl *CdHandlerImpl) converterWFRList(imageTaggingDataMap map[int]*ImageTaggingResponseDTO, wfrList []pipelineConfig.CdWorkflowRunner) []pipelineConfig.CdWorkflowWithArtifact {
+func (impl *CdHandlerImpl) converterWFRList(imageTaggingDataMap map[int][]*repository4.ImageTag, imageCommentsDataMap map[int]*repository4.ImageComment, wfrList []pipelineConfig.CdWorkflowRunner) []pipelineConfig.CdWorkflowWithArtifact {
 	var workflowList []pipelineConfig.CdWorkflowWithArtifact
 	var results []pipelineConfig.CdWorkflowWithArtifact
 	var ids []int32
+
 	for _, item := range wfrList {
 		ids = append(ids, item.TriggeredBy)
 		convertedWFR := impl.converterWFR(item)
+
 		if imageTaggingDataMap[convertedWFR.CiArtifactId] != nil {
-			convertedWFR.ImageReleaseTags = imageTaggingDataMap[convertedWFR.CiArtifactId].ImageReleaseTags
-			convertedWFR.ImageComment = imageTaggingDataMap[convertedWFR.CiArtifactId].ImageComment
+			convertedWFR.ImageReleaseTags = imageTaggingDataMap[convertedWFR.CiArtifactId]
+		}
+		if imageCommentsDataMap[convertedWFR.CiArtifactId] != nil {
+			convertedWFR.ImageComment = imageCommentsDataMap[convertedWFR.CiArtifactId]
 		}
 		workflowList = append(workflowList, convertedWFR)
 	}

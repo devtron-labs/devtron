@@ -3306,17 +3306,26 @@ func (impl PipelineBuilderImpl) RetrieveArtifactsByCDPipeline(pipeline *pipeline
 	if err != nil {
 		return ciArtifactsResponse, err
 	}
-	imageTaggingMap, err := impl.imageTaggingService.GetTaggingDataMapByAppId(pipeline.AppId)
+	imageTagsDataMap, err := impl.imageTaggingService.GetTagsDataMapByAppId(pipeline.AppId)
 	if err != nil {
 		impl.logger.Errorw("error in getting image tagging data with appId", "err", err, "appId", pipeline.AppId)
 		return ciArtifactsResponse, err
 	}
+
+	imageCommentsDataMap, err := impl.imageTaggingService.GetImageCommentsDataMapByArtifactIds(artifactIds)
+	if err != nil {
+		impl.logger.Errorw("error in getting GetImageCommentsDataMapByArtifactIds", "err", err, "appId", pipeline.AppId, "artifactIds", artifactIds)
+		return ciArtifactsResponse, err
+	}
+
 	for i, artifact := range artifacts {
-		imageTaggingResp := imageTaggingMap[ciArtifacts[i].Id]
-		if imageTaggingResp != nil {
-			ciArtifacts[i].ImageComment = imageTaggingResp.ImageComment
-			ciArtifacts[i].ImageReleaseTags = imageTaggingResp.ImageReleaseTags
+		if imageTaggingResp := imageTagsDataMap[ciArtifacts[i].Id]; imageTaggingResp != nil {
+			ciArtifacts[i].ImageReleaseTags = imageTaggingResp
 		}
+		if imageCommentResp := imageCommentsDataMap[ciArtifacts[i].Id]; imageCommentResp != nil {
+			ciArtifacts[i].ImageComment = imageCommentResp
+		}
+
 		if artifact.ExternalCiPipelineId != 0 {
 			// if external webhook continue
 			continue
