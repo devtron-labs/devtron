@@ -36,9 +36,8 @@ Devtron supports the following levels of access:
 | User Roles       | View        | Deploy         | Edit        | Delete        |
 | :---:            |  :---:      |    :---:       |   :---:     |   :---:       |
 | View Only        | Yes         | No             | No          | No            |
-| Build and Deploy | Yes         | No             | No          | No            |
+| View and Edit    | Yes         | Yes            | Yes         | No            |
 | Admin            | Yes         | Yes            | Yes         | Yes           |
-| Manager          | Yes         | Yes            | Yes         | Yes           |
 | Super Admin      | Yes         | Yes            | Yes         | Yes           |
 
 ### 3. User Access
