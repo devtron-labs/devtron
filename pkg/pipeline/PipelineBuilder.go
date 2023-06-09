@@ -3312,7 +3312,7 @@ func (impl PipelineBuilderImpl) RetrieveArtifactsByCDPipeline(pipeline *pipeline
 		return ciArtifactsResponse, err
 	}
 	for i, artifact := range artifacts {
-		imageTaggingResp := imageTaggingMap[artifact.Id]
+		imageTaggingResp := imageTaggingMap[ciArtifacts[i].Id]
 		if imageTaggingResp != nil {
 			ciArtifacts[i].ImageComment = imageTaggingResp.ImageComment
 			ciArtifacts[i].ImageReleaseTags = imageTaggingResp.ImageReleaseTags
