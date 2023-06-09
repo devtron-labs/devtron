@@ -10,7 +10,7 @@ global:
 installer:
   repo: "devtron-labs/devtron"
 #  For Kubernetes version < 1.16, set release: legacy. You won't be able to upgrade Devtron unless you upgrade the K8s version to 1.16 or above.
-  release: "v0.6.16" #You can use a branch name or a release tag name as a release, for gitee as source only "main" is supported as of now
+  release: "v0.6.18-rc.0" #You can use a branch name or a release tag name as a release, for gitee as source only "main" is supported as of now
   image: quay.io/devtron/inception
   tag: 44b30917-185-13275
   source: "github" # Available options are github and gitee
@@ -54,13 +54,13 @@ components:
       applicationMetrics: "true"
       extraConfigs:
         USE_V2: "true"
-        ENABLE_BUILD_CONTEXT: "false"
-    image: "quay.io/devtron/dashboard:91c24b99-325-13846"
+        ENABLE_BUILD_CONTEXT: "true"
+    image: "quay.io/devtron/dashboard:85c476cb-325-14023"
     imagePullPolicy: IfNotPresent
 
   devtron:
-    image: "quay.io/devtron/hyperion:bc35eb7e-280-13811"
-    cicdImage: "quay.io/devtron/devtron:bc35eb7e-434-13812"
+    image: "quay.io/devtron/hyperion:2d790aa2-280-14032"
+    cicdImage: "quay.io/devtron/devtron:2d790aa2-434-14033"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
     serviceMonitor:
@@ -120,13 +120,13 @@ components:
         SCRIPT_LOCATION: "scripts/sql/"
         GIT_REPO_URL: "https://github.com/devtron-labs/devtron.git"
         DB_NAME: "orchestrator"
-        GIT_HASH: "bc35eb7ecb5b604f4fc55cc1fa21f6fbbd59a180"
+        GIT_HASH: "526ab899abef7d28038522c13e0bb59df17c404e"
       casbin:
         GIT_BRANCH: "main"
         SCRIPT_LOCATION: "scripts/casbin/"
         GIT_REPO_URL: "https://github.com/devtron-labs/devtron.git"
         DB_NAME: "casbin"
-        GIT_HASH: "bc35eb7ecb5b604f4fc55cc1fa21f6fbbd59a180"
+        GIT_HASH: "526ab899abef7d28038522c13e0bb59df17c404e"
 
 # values for argocd integration
 argo-cd:
@@ -284,7 +284,7 @@ argo-cd:
 security:
   enabled: false
   imageScanner:
-    image: "quay.io/devtron/image-scanner:b7873c95-334-13266"
+    image: "quay.io/devtron/image-scanner:d554c0f8-334-14015"
   # Values for clair
   clair:
     enabled: false
