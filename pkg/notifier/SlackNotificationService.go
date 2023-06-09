@@ -47,6 +47,7 @@ type SlackNotificationServiceImpl struct {
 	logger                         *zap.SugaredLogger
 	teamService                    team.TeamService
 	slackRepository                repository.SlackNotificationRepository
+	webhookRepository              repository.WebhookNotificationRepository
 	userRepository                 repository2.UserRepository
 	notificationSettingsRepository repository.NotificationSettingsRepository
 }
@@ -65,12 +66,13 @@ type SlackConfigDto struct {
 	Id          int    `json:"id" validate:"number"`
 }
 
-func NewSlackNotificationServiceImpl(logger *zap.SugaredLogger, slackRepository repository.SlackNotificationRepository, teamService team.TeamService,
+func NewSlackNotificationServiceImpl(logger *zap.SugaredLogger, slackRepository repository.SlackNotificationRepository, webhookRepository repository.WebhookNotificationRepository, teamService team.TeamService,
 	userRepository repository2.UserRepository, notificationSettingsRepository repository.NotificationSettingsRepository) *SlackNotificationServiceImpl {
 	return &SlackNotificationServiceImpl{
 		logger:                         logger,
 		teamService:                    teamService,
 		slackRepository:                slackRepository,
+		webhookRepository:              webhookRepository,
 		userRepository:                 userRepository,
 		notificationSettingsRepository: notificationSettingsRepository,
 	}
@@ -202,19 +204,31 @@ func (impl *SlackNotificationServiceImpl) buildConfigUpdateModel(slackConfig *re
 func (impl *SlackNotificationServiceImpl) RecipientListingSuggestion(value string) ([]*NotificationRecipientListingResponse, error) {
 	var results []*NotificationRecipientListingResponse
 
-	sesConfigs, err := impl.slackRepository.FindByName(value)
+	slackConfigs, err := impl.slackRepository.FindByName(value)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("cannot find all slack config", "err", err)
 		return []*NotificationRecipientListingResponse{}, err
 	}
-	for _, sesConfig := range sesConfigs {
+	for _, slackConfig := range slackConfigs {
 		result := &NotificationRecipientListingResponse{
-			ConfigId:  sesConfig.Id,
-			Recipient: sesConfig.ConfigName,
+			ConfigId:  slackConfig.Id,
+			Recipient: slackConfig.ConfigName,
 			Dest:      util2.Slack}
 		results = append(results, result)
 	}
+	webhookConfigs, err := impl.webhookRepository.FindByName(value)
 
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.logger.Errorw("cannot find all webhook config", "err", err)
+		return []*NotificationRecipientListingResponse{}, err
+	}
+	for _, webhookConfig := range webhookConfigs {
+		result := &NotificationRecipientListingResponse{
+			ConfigId:  webhookConfig.Id,
+			Recipient: webhookConfig.ConfigName,
+			Dest:      util2.Webhook}
+		results = append(results, result)
+	}
 	userList, err := impl.userRepository.FetchUserMatchesByEmailIdExcludingApiTokenUser(value)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("cannot find all slack config", "err", err)
@@ -250,8 +264,10 @@ func (impl *SlackNotificationServiceImpl) RecipientListingSuggestion(value strin
 								result := &NotificationRecipientListingResponse{
 									Recipient: v.(string),
 								}
-								if strings.Contains(v.(string), "https://") {
+								if strings.Contains(v.(string), "https://hooks.slack.com/") {
 									result.Dest = util2.Slack
+								} else if strings.Contains(v.(string), "https://") {
+									result.Dest = util2.Webhook
 								} else {
 									result.Dest = util2.SES
 								}
