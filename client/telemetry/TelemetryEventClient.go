@@ -221,7 +221,7 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cl
 		req := &client.AppListRequest{}
 		config := &client.ClusterConfig{
 			ApiServerUrl: clusterDetail.ServerUrl,
-			Token:        clusterDetail.Config["bearer_token"],
+			Token:        clusterDetail.Config[util2.BearerToken],
 			ClusterId:    int32(clusterDetail.Id),
 			ClusterName:  clusterDetail.ClusterName,
 		}

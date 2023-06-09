@@ -139,6 +139,7 @@ type ChartService interface {
 	GetSchemaAndReadmeForTemplateByChartRefId(chartRefId int) (schema []byte, readme []byte, err error)
 	ExtractChartIfMissing(chartData []byte, refChartDir string, location string) (*ChartDataInfo, error)
 	CheckChartExists(chartRefId int) error
+	CheckIsAppMetricsSupported(chartRefId int) (bool, error)
 	GetLocationFromChartNameAndVersion(chartName string, chartVersion string) string
 	ValidateUploadedFileFormat(fileName string) error
 	ReadChartMetaDataForLocation(chartDir string, fileName string) (*ChartYamlStruct, error)
@@ -312,12 +313,11 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		return nil, err
 	}
 
-	refChart, templateName, err, chartversion, pipelineStrategyPath := impl.getRefChart(templateRequest)
+	refChart, templateName, err, _, pipelineStrategyPath := impl.getRefChart(templateRequest)
 	if err != nil {
 		return nil, err
 	}
 
-	chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(chartversion)
 	if err != nil {
 		impl.logger.Errorw("chart version parsing", "err", err)
 		return nil, err
@@ -435,7 +435,11 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		return nil, err
 	}
 	var appLevelMetrics *repository3.AppLevelMetrics
-	if !(chartMajorVersion >= 3 && chartMinorVersion >= 7) {
+	isAppMetricsSupported, err := impl.CheckIsAppMetricsSupported(templateRequest.ChartRefId)
+	if err != nil {
+		return nil, err
+	}
+	if !(isAppMetricsSupported) {
 		appMetricsRequest := AppMetricEnableDisableRequest{UserId: templateRequest.UserId, AppId: templateRequest.AppId, IsAppMetricsEnabled: false}
 		appLevelMetrics, err = impl.updateAppLevelMetrics(&appMetricsRequest)
 		if err != nil {
@@ -477,32 +481,14 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 		return nil, err
 	}
 
-	refChart, templateName, err, chartversion, pipelineStrategyPath := impl.getRefChart(templateRequest)
+	refChart, templateName, err, _, pipelineStrategyPath := impl.getRefChart(templateRequest)
 	if err != nil {
 		return nil, err
 	}
 
-	chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(chartversion)
 	if err != nil {
 		impl.logger.Errorw("chart version parsing", "err", err)
 		return nil, err
-	}
-	var appLevelMetrics *repository3.AppLevelMetrics
-	if appMetrics && !(chartMajorVersion >= 3 && chartMinorVersion >= 7) {
-		impl.logger.Error("cannot enable app metrics for older chart versions < 3.7.0")
-		appMetricsRequest := AppMetricEnableDisableRequest{UserId: templateRequest.UserId, AppId: templateRequest.AppId, IsAppMetricsEnabled: false}
-		appLevelMetrics, err = impl.updateAppLevelMetrics(&appMetricsRequest)
-		if err != nil {
-			impl.logger.Errorw("err while updating app metrics", "err", err)
-			return nil, err
-		}
-	} else {
-		appMetricsRequest := AppMetricEnableDisableRequest{UserId: templateRequest.UserId, AppId: templateRequest.AppId, IsAppMetricsEnabled: templateRequest.IsAppMetricsEnabled}
-		appLevelMetrics, err = impl.updateAppLevelMetrics(&appMetricsRequest)
-		if err != nil {
-			impl.logger.Errorw("err while updating app metrics", "err", err)
-			return nil, err
-		}
 	}
 
 	impl.logger.Debug("now finally create new chart and make it latest entry in db and previous flag = true")
@@ -579,7 +565,7 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 		impl.logger.Errorw("error in creating entry for deployment template history", "err", err, "chart", chart)
 		return nil, err
 	}
-	chartVal, err := impl.chartAdaptor(chart, appLevelMetrics)
+	chartVal, err := impl.chartAdaptor(chart, nil)
 	return chartVal, err
 }
 
@@ -792,7 +778,6 @@ func (impl ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateRequ
 		return nil, err
 	}
 
-	chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(template.ChartVersion)
 	if err != nil {
 		impl.logger.Errorw("chart version parsing", "err", err)
 		return nil, err
@@ -867,7 +852,12 @@ func (impl ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateRequ
 		return nil, err
 	}
 
-	if !(chartMajorVersion >= 3 && chartMinorVersion >= 7) {
+	appMetrics := templateRequest.IsAppMetricsEnabled
+	isAppMetricsSupported, err := impl.CheckIsAppMetricsSupported(templateRequest.ChartRefId)
+	if err != nil {
+		return nil, err
+	}
+	if appMetrics && !(isAppMetricsSupported) {
 		appMetricRequest := AppMetricEnableDisableRequest{UserId: templateRequest.UserId, AppId: templateRequest.AppId, IsAppMetricsEnabled: false}
 		_, span = otel.Tracer("orchestrator").Start(ctx, "updateAppLevelMetrics")
 		_, err = impl.updateAppLevelMetrics(&appMetricRequest)
@@ -1385,6 +1375,15 @@ func (impl ChartServiceImpl) CheckChartExists(chartRefId int) error {
 		return err
 	}
 	return nil
+}
+
+func (impl ChartServiceImpl) CheckIsAppMetricsSupported(chartRefId int) (bool, error) {
+	chartRefValue, err := impl.chartRefRepository.FindById(chartRefId)
+	if err != nil {
+		impl.logger.Errorw("error in finding ref chart by id", "err", err)
+		return false, nil
+	}
+	return chartRefValue.IsAppMetricsSupported, nil
 }
 
 func (impl *ChartServiceImpl) GetLocationFromChartNameAndVersion(chartName string, chartVersion string) string {

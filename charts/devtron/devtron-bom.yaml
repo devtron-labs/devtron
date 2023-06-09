@@ -9,22 +9,36 @@ global:
     runAsNonRoot: true
 
 installer:
-  release: "v0.6.15"
+  release: "v0.6.18-rc.0"
   image: "quay.io/devtron/inception"
   tag: "44b30917-185-13275"
   
 components:
   dashboard:
-    image: "quay.io/devtron/dashboard:28017af9-325-13418"
+    image: "quay.io/devtron/dashboard:85c476cb-325-14023"
+    config:
+      extraConfigs:
+        USE_V2: "true"
+        ENABLE_BUILD_CONTEXT: "true"
   devtron:
-    image: "quay.io/devtron/hyperion:9f3934ee-280-13407"
-    cicdImage: "quay.io/devtron/devtron:9f3934ee-434-13409"
+    image: "quay.io/devtron/hyperion:2d790aa2-280-14032"
+    cicdImage: "quay.io/devtron/devtron:2d790aa2-434-14033"
   argocdDexServer:
     image: "ghcr.io/dexidp/dex:v2.30.2"
     initContainer:
       authenticator: "quay.io/devtron/authenticator:e414faff-393-13273"
   kubelink:
-    image: "quay.io/devtron/kubelink:18bf720b-318-13404"
+    image: "quay.io/devtron/kubelink:451a1a1a-318-13790"
+    configs:
+      ENABLE_HELM_RELEASE_CACHE: "true"
+      PG_ADDR: postgresql-postgresql.devtroncd
+      PG_DATABASE: orchestrator
+      PG_LOG_QUERY: "true"
+      PG_PORT: "5432"
+      PG_USER: postgres
+    dbconfig:
+      secretName: postgresql-postgresql
+      keyName: postgresql-password
   postgres:
     image: "quay.io/devtron/postgres:11.9.0-debian-10-r26"
     armImage: "quay.io/devtron/postgres:11.9"
@@ -34,10 +48,10 @@ components:
     envVars:
       devtron:
         GIT_BRANCH: "main"
-        GIT_HASH: "9f3934ee51a1cfa1631f90bc6cc55a240aa98b07"
+        GIT_HASH: "526ab899abef7d28038522c13e0bb59df17c404e"
       casbin:
         GIT_BRANCH: "main"
-        GIT_HASH: "9f3934ee51a1cfa1631f90bc6cc55a240aa98b07"
+        GIT_HASH: "526ab899abef7d28038522c13e0bb59df17c404e"
         
 argo-cd:
   global:
@@ -47,7 +61,8 @@ argo-cd:
       imagePullPolicy: IfNotPresent
 
 security:
-  image: "quay.io/devtron/image-scanner:b7873c95-334-13266"
+  imageScanner:
+    image: "quay.io/devtron/image-scanner:d554c0f8-334-14015"
 
 notifier:
   image: "quay.io/devtron/notifier:6c7a356a-372-11107"
