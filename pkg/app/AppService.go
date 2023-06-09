@@ -2251,19 +2251,6 @@ func (impl *AppServiceImpl) getAutoScalingReplicaCount(templateMap map[string]in
 	hpaResourceRequest.Group = autoscaling.ServiceName
 	hpaResourceRequest.Kind = HorizontalPodAutoscaler
 
-	if _, ok := templateMap[kedaAutoscaling]; ok {
-		as := templateMap[kedaAutoscaling]
-		asd := as.(map[string]interface{})
-		if _, ok := asd[enabled]; ok {
-			hpaResourceRequest.IsEnable = asd[enabled].(bool)
-			hpaResourceRequest.ReqReplicaCount = templateMap[replicaCount].(float64)
-			hpaResourceRequest.ReqMaxReplicas = asd["maxReplicaCount"].(float64)
-			hpaResourceRequest.ReqMinReplicas = asd["minReplicaCount"].(float64)
-			hpaResourceRequest.ResourceName = fmt.Sprintf("%s-%s", appName, "hpa-keda")
-			return hpaResourceRequest
-		}
-	}
-
 	if _, ok := templateMap[autoscaling.ServiceName]; ok {
 		as := templateMap[autoscaling.ServiceName]
 		asd := as.(map[string]interface{})
@@ -2277,7 +2264,6 @@ func (impl *AppServiceImpl) getAutoScalingReplicaCount(templateMap map[string]in
 		}
 	}
 	return hpaResourceRequest
-
 }
 
 func (impl *AppServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, appName string, namespace string, merged []byte, pipeline *pipelineConfig.Pipeline, overrideRequest *bean.ValuesOverrideRequest) []byte {
@@ -2296,7 +2282,7 @@ func (impl *AppServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, a
 		resourceManifest := make(map[string]interface{})
 		if IsAcdApp(appDeploymentType) {
 			query := &application2.ApplicationResourceRequest{
-				Name:         &appName,
+				Name:         &hpaResourceRequest.ResourceName,
 				Version:      &hpaResourceRequest.Version,
 				Group:        &hpaResourceRequest.Group,
 				Kind:         &hpaResourceRequest.Kind,
@@ -2304,7 +2290,7 @@ func (impl *AppServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, a
 				Namespace:    &namespace,
 			}
 			recv, err := impl.acdClient.GetResource(ctx, query)
-			impl.logger.Debugw("resource manifest get replica count", "response", recv)
+			impl.logger.Infow("resource manifest get replica count", "response", recv)
 			if err != nil {
 				impl.logger.Errorw("ACD Get Resource API Failed", "err", err)
 				middleware.AcdGetResourceCounter.WithLabelValues(strconv.Itoa(appId), namespace, appName).Inc()
