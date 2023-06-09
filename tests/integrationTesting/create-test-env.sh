@@ -13,11 +13,11 @@ yq '(select(.metadata.name == "postgresql-migrate-devtron") | .spec.template.spe
 yq '(select(.metadata.name == "postgresql-migrate-devtron") | .spec.template.spec.containers[0].env[9].value) = env(LATEST_HASH)' migrator.yaml -i
 kubectl apply -f migrator.yaml
 # shellcheck disable=SC2046
-while [ ! $(kubectl -n devtroncd get $(kubectl -n devtroncd get job -l job=postgresql-migrate-devtron -o name) -o jsonpath="{.status.succeeded}")  ]; do sleep 10; done
+while [ ! $(kubectl -n devtroncd get job postgresql-migrate-devtron -o jsonpath="{.status.succeeded}")  ]; do sleep 10; done
 # shellcheck disable=SC2046
-while [ ! $(kubectl -n devtroncd get $(kubectl -n devtroncd get job -l job=postgresql-migrate-casbin -o name) -o jsonpath="{.status.succeeded}")  ]; do sleep 10; done
+while [ ! $(kubectl -n devtroncd get job postgresql-migrate-casbin -o jsonpath="{.status.succeeded}")  ]; do sleep 10; done
 # shellcheck disable=SC2046
-while [ ! $(kubectl -n devtroncd get $(kubectl -n devtroncd get job -l job=postgresql-migrate-lens -o name) -o jsonpath="{.status.succeeded}")  ]; do sleep 10; done
+while [ ! $(kubectl -n devtroncd get job postgresql-migrate-lens -o jsonpath="{.status.succeeded}")  ]; do sleep 10; done
 # shellcheck disable=SC2046
-while [ ! $(kubectl -n devtroncd get $(kubectl -n devtroncd get job -l job=postgresql-migrate-gitsensor -o name) -o jsonpath="{.status.succeeded}")  ]; do sleep 10; done
+while [ ! $(kubectl -n devtroncd get job postgresql-migrate-gitsensor -o jsonpath="{.status.succeeded}")  ]; do sleep 10; done
 exit #to get out of container
