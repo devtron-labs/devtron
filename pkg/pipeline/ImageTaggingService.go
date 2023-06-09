@@ -35,7 +35,7 @@ type ImageTaggingResponseDTO struct {
 	ImageReleaseTags []*repository.ImageTag   `json:"imageReleaseTags"`
 	AppReleaseTags   []string                 `json:"appReleaseTags"`
 	ImageComment     *repository.ImageComment `json:"imageComment"`
-	ProdEnvExists    bool                     `json:"prodEnvExists"`
+	ProdEnvExists    bool                     `json:"tagsEditable"`
 }
 
 type ImageTaggingRequestDTO struct {

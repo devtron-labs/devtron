@@ -185,6 +185,7 @@ type GitTriggerInfoResponse struct {
 	EnvironmentName  string                       `json:"environmentName"`
 	Default          bool                         `json:"default,omitempty"`
 	ImageTaggingData ImageTaggingResponseDTO      `json:"imageTaggingData"`
+	Image            string                       `json:"image"`
 }
 
 type Trigger struct {
@@ -1301,6 +1302,7 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 		LastDeployedTime: deployDetail.LastDeployedTime,
 		Default:          deployDetail.Default,
 		ImageTaggingData: *imageTaggingData,
+		Image:            ciArtifact.Image,
 	}
 	return gitTriggerInfoResponse, nil
 }
