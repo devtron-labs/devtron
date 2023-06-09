@@ -10,13 +10,18 @@ To add cluster, go to the `Clusters & Environments` section of `Global Configura
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/cluster-and-environments/add-clusters.png)
 
-Provide the information in the following fields to add your kubernetes cluster:
+### Add Clusters Using Server URL & Bearer Token
+
+
+To add a Kubernetes cluster on Devtron using `server url` and the `bearer token`, provide the information in the following fields:
 
 | Field | Description |
 | :--- | :--- |
 | `Name` | Enter a name of your cluster. |
 | `Server URL` |  Server URL of a cluster.<br>Note: We recommended to use a [self-hosted URL](#benefits-of-self-hosted-url) instead of cloud hosted URL.</br>  |
 | `Bearer Token` | Bearer token of a cluster. |
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/cluster-and-environments/add-cluster-cred.jpg)
 
 ### Get Cluster Credentials
 
@@ -30,7 +35,7 @@ You can get the **`Server URL`** & **`Bearer Token`** by running the following c
 {% tab title="k8s Cluster Providers" %}
 If you are using EKS, AKS, GKE, Kops, Digital Ocean managed Kubernetes, run the following command to generate the server URL and bearer token:
 ```bash
-curl -o https://raw.githubusercontent.com/devtron-labs/utilities/main/kubeconfig-exporter/kubernetes_export_sa.sh \ 
+curl -O https://raw.githubusercontent.com/devtron-labs/utilities/main/kubeconfig-exporter/kubernetes_export_sa.sh \ 
 && bash kubernetes_export_sa.sh cd-user  devtroncd
 ```
 {% endtab %}
@@ -38,7 +43,7 @@ curl -o https://raw.githubusercontent.com/devtron-labs/utilities/main/kubeconfig
 If you are using a **`microk8s cluster`**, run the following command to generate the server URL and bearer token:
 
 ```bash
-curl -o https://raw.githubusercontent.com/devtron-labs/utilities/main/kubeconfig-exporter/kubernetes_export_sa.sh && sed -i 's/kubectl/microk8s kubectl/g' \
+curl -O https://raw.githubusercontent.com/devtron-labs/utilities/main/kubeconfig-exporter/kubernetes_export_sa.sh && sed -i 's/kubectl/microk8s kubectl/g' \
 kubernetes_export_sa.sh && bash kubernetes_export_sa.sh cd-user \
 devtroncd
 ```
@@ -46,6 +51,8 @@ devtroncd
 {% endtabs %}
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/cluster-and-environments/generate-cluster-credentials.png)
+
+
 
 ### Benefits of Self-hosted URL
 
@@ -57,6 +64,27 @@ devtroncd
   * In case of managed Kubernetes clusters (like EKS, AKS, GKE etc) which is a cloud provider specific, migrating your cluster from one provider to another will result in waste of time and effort. 
   * On the other hand, migration for a  self-hosted URL is easy as the URL is of single hosted domain independent of the cloud provider.
 
+
+### Add Clusters Using Kubeconfig
+
+To add clusters using kubeconfig, follow these steps: 
+
+1. First, navigate to the global configurations menu, and then go to "clusters and environment" section.
+
+2. Click on the `Add cluster` button. In the options provided, choose the `From kubeconfig` option. 
+
+3. Next, either paste the kubeconfig file or browse for it and select the appropriate file. 
+
+4. Afterward, click on the `Get cluster` button. This action will display the cluster details alongside the kubeconfig. 
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/cluster-and-environments/add-cluster-kubeconfig.jpg)
+
+5. Select the desired cluster and click on `Save` to successfully add the cluster to Devtron.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/cluster-and-environments/kubeconfig-save-cluster.jpg)
+
+
+**Note:** Please ensure that the kubeconfig file you use has `admin permissions`. It is crucial for Devtron to have the necessary administrative privileges; otherwise, it may encounter failures or disruptions during deployments and other operations. Admin permission is essential to ensure the smooth functioning of Devtron and to prevent any potential issues that may arise due to insufficient privileges.
 
 ### Configure Prometheus (Enable Applications Metrics)
 
