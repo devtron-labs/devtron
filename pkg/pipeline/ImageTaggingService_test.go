@@ -522,37 +522,44 @@ func TestImageTaggingService(t *testing.T) {
 			},
 		}
 
-		tt.Run("valid test", func(ttt *testing.T) {
+		tt.Run("GetTagsDataMapByAppId, no error case", func(ttt *testing.T) {
 			mockedImageTaggingRepo := mocks.NewImageTaggingRepository(tt)
 			mockedImageTaggingRepo.On("GetTagsByAppId", appId).Return(testTags, nil)
-			mockedImageTaggingRepo.On("GetImageCommentsByArtifactIds", []int{testArtifactId1}).Return(testComments, nil)
 			imageTaggingService := NewImageTaggingServiceImpl(mockedImageTaggingRepo, nil, nil, nil, sugaredLogger)
-			resMap, err := imageTaggingService.GetTaggingDataMapByAppId(appId)
+			resMap, err := imageTaggingService.GetTagsDataMapByAppId(appId)
 			assert.NotNil(ttt, resMap)
 			assert.Nil(ttt, err)
 			assert.NotNil(ttt, resMap[testArtifactId1])
 		})
 
-		tt.Run("inValid test,GetTagsByAppId throws error", func(ttt *testing.T) {
+		tt.Run("GetTagsDataMapByAppId,GetTagsByAppId repo func throws error, return same error", func(ttt *testing.T) {
 			testErr := "error in GetTagsByAppId"
 			mockedImageTaggingRepo := mocks.NewImageTaggingRepository(tt)
 			mockedImageTaggingRepo.On("GetTagsByAppId", appId).Return(nil, errors.New(testErr))
-			//mockedImageTaggingRepo.On("GetImageCommentsByArtifactIds", []int{testArtifactId1, testArtifactId2}).Return(testComments, nil)
 			imageTaggingService := NewImageTaggingServiceImpl(mockedImageTaggingRepo, nil, nil, nil, sugaredLogger)
-			resMap, err := imageTaggingService.GetTaggingDataMapByAppId(appId)
+			resMap, err := imageTaggingService.GetTagsDataMapByAppId(appId)
 			assert.Nil(ttt, resMap)
 			assert.NotNil(ttt, err)
 			assert.Equal(ttt, testErr, err.Error())
 			assert.Nil(ttt, resMap[testArtifactId1])
 		})
 
-		tt.Run("inValid test,GetImageCommentsByAppId throws error", func(ttt *testing.T) {
+		tt.Run("GetImageCommentsDataMapByArtifactIds,no error case", func(ttt *testing.T) {
+			mockedImageTaggingRepo := mocks.NewImageTaggingRepository(tt)
+			mockedImageTaggingRepo.On("GetImageCommentsByArtifactIds", []int{testArtifactId1}).Return(testComments, nil)
+			imageTaggingService := NewImageTaggingServiceImpl(mockedImageTaggingRepo, nil, nil, nil, sugaredLogger)
+			resMap, err := imageTaggingService.GetImageCommentsDataMapByArtifactIds([]int{testArtifactId1})
+			assert.NotNil(ttt, resMap)
+			assert.Nil(ttt, err)
+			assert.NotNil(ttt, resMap[testArtifactId1])
+		})
+
+		tt.Run("GetImageCommentsDataMapByArtifactIds,GetImageCommentsByAppId repo func throws error,return same error", func(ttt *testing.T) {
 			testErr := "error in GetImageCommentsByAppId"
 			mockedImageTaggingRepo := mocks.NewImageTaggingRepository(tt)
-			mockedImageTaggingRepo.On("GetTagsByAppId", appId).Return(testTags, nil)
 			mockedImageTaggingRepo.On("GetImageCommentsByArtifactIds", []int{testArtifactId1}).Return(nil, errors.New(testErr))
 			imageTaggingService := NewImageTaggingServiceImpl(mockedImageTaggingRepo, nil, nil, nil, sugaredLogger)
-			resMap, err := imageTaggingService.GetTaggingDataMapByAppId(appId)
+			resMap, err := imageTaggingService.GetImageCommentsDataMapByArtifactIds([]int{testArtifactId1})
 			assert.Nil(ttt, resMap)
 			assert.NotNil(ttt, err)
 			assert.Equal(ttt, testErr, err.Error())
@@ -611,7 +618,4 @@ func TestImageTaggingService(t *testing.T) {
 
 	})
 
-	t.Run("GetTagsData", func(tt *testing.T) {
-
-	})
 }
