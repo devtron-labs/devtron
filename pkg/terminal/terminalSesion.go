@@ -357,6 +357,7 @@ type TerminalSessionHandler interface {
 	ValidateSession(sessionId string) bool
 	ValidateShell(req *TerminalSessionRequest) (bool, error)
 	AutoSelectShell(req *TerminalSessionRequest) (string, error)
+	RunCmdInRemotePod(req *TerminalSessionRequest, cmds []string) (*bytes.Buffer, *bytes.Buffer, error)
 }
 
 type TerminalSessionHandlerImpl struct {
@@ -479,26 +480,11 @@ func (impl *TerminalSessionHandlerImpl) AutoSelectShell(req *TerminalSessionRequ
 }
 func (impl *TerminalSessionHandlerImpl) ValidateShell(req *TerminalSessionRequest) (bool, error) {
 	impl.logger.Infow("Inside ValidateShell method in TerminalSessionHandlerImpl", "shellName", req.Shell, "podName", req.PodName, "nameSpace", req.Namespace)
-	config, client, err := impl.getClientConfig(req)
-	if err != nil {
-		impl.logger.Errorw("error in fetching config", "err", err, "clusterId", req.ClusterId)
-		return false, err
-	}
+
 	cmd := fmt.Sprintf("/bin/%s", req.Shell)
 	cmdArray := []string{cmd}
-	impl.logger.Infow("reached getExecutor method call")
-	exec, err := getExecutor(client, config, req.PodName, req.Namespace, req.ContainerName, cmdArray, false, false)
-	if err != nil {
-		impl.logger.Errorw("error occurred in getting remoteCommand executor", "err", err, "config", config, "request", req)
-		return false, err
-	}
-	buf := &bytes.Buffer{}
-	errBuf := &bytes.Buffer{}
 
-	err = execWithStreamOptions(exec, remotecommand.StreamOptions{
-		Stdout: buf,
-		Stderr: errBuf,
-	})
+	buf, errBuf, err := impl.RunCmdInRemotePod(req, cmdArray)
 	if err != nil {
 		impl.logger.Errorw("failed to execute commands ", "err", err, "commands", cmdArray, "podName", req.PodName, "namespace", req.Namespace)
 		return false, getErrorMsg(err.Error())
@@ -517,4 +503,26 @@ func getErrorMsg(err string) error {
 		return errors1.New(PodNotFound)
 	}
 	return errors1.New(CommandExecutionFailed)
+}
+
+func (impl *TerminalSessionHandlerImpl) RunCmdInRemotePod(req *TerminalSessionRequest, cmds []string) (*bytes.Buffer, *bytes.Buffer, error) {
+	config, client, err := impl.getClientConfig(req)
+	if err != nil {
+		impl.logger.Errorw("error in fetching config", "err", err)
+		return nil, nil, err
+	}
+	impl.logger.Infow("reached getExecutor method call")
+	exec, err := getExecutor(client, config, req.PodName, req.Namespace, req.ContainerName, cmds, false, false)
+	if err != nil {
+		impl.logger.Errorw("error occurred in getting remoteCommand executor", "err", err)
+		return nil, nil, err
+	}
+	buf := &bytes.Buffer{}
+	errBuf := &bytes.Buffer{}
+	impl.logger.Infow("reached execWithStreamOptions method call")
+	err = execWithStreamOptions(exec, remotecommand.StreamOptions{
+		Stdout: buf,
+		Stderr: errBuf,
+	})
+	return buf, errBuf, err
 }

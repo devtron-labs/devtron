@@ -26,9 +26,10 @@ import (
 )
 
 func TestNewUserTerminalAccessServiceIT(t *testing.T) {
-	t.SkipNow()
+	//t.SkipNow()
 	terminalAccessServiceImpl := initTerminalAccessService(t)
 	t.Run("wrongImage", func(t *testing.T) {
+		t.SkipNow()
 		baseImage := "devtron/randomimage"
 		//baseImage = "trstringer/internal-kubectl"
 		clusterId := 1
@@ -60,6 +61,7 @@ func TestNewUserTerminalAccessServiceIT(t *testing.T) {
 	})
 
 	t.Run("ClusterTerminalJourneyForSingleUserSingleSession", func(t *testing.T) {
+		t.SkipNow()
 		baseImage := "trstringer/internal-kubectl:latest"
 		updateTerminalSession := createAndUpdateSessionForUser(t, terminalAccessServiceImpl, 1, 2, baseImage)
 
@@ -73,6 +75,7 @@ func TestNewUserTerminalAccessServiceIT(t *testing.T) {
 	})
 
 	t.Run("ClusterTerminalJourneyForSingleUserMultiSession", func(t *testing.T) {
+		t.SkipNow()
 		clusterId := 1
 		userId := int32(2)
 		baseImage := "trstringer/internal-kubectl:latest"
@@ -104,6 +107,7 @@ func TestNewUserTerminalAccessServiceIT(t *testing.T) {
 	})
 
 	t.Run("convert to k8s structure", func(t *testing.T) {
+		t.SkipNow()
 		podJson := "{\"apiVersion\":\"rbac.authorization.k8s.io/v1\",\"kind\":\"ClusterRoleBinding\",\"metadata\":{\"name\":\"${pod_name}-crb\"},\"subjects\":[{\"kind\":\"ServiceAccount\",\"name\":\"${pod_name}-sa\",\"namespace\":\"${default_namespace}\"}],\"roleRef\":{\"kind\":\"ClusterRole\",\"name\":\"cluster-admin\",\"apiGroup\":\"rbac.authorization.k8s.io\"}}"
 		_, groupVersionKind, err := legacyscheme.Codecs.UniversalDeserializer().Decode([]byte(podJson), nil, nil)
 		assert.Nil(t, err)
@@ -117,6 +121,38 @@ func TestNewUserTerminalAccessServiceIT(t *testing.T) {
 		assert.Equal(t, groupVersionKind.Group, "")
 		assert.Equal(t, groupVersionKind.Version, "v1")
 		assert.Equal(t, groupVersionKind.Kind, "Pod")
+	})
+
+	t.Run("Pod Manifest : invalid manifest structure Test", func(t *testing.T) {
+		editedManifest := "{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"metadata\":{\"name\":1},:{\"serviceAccountName\":\"hello\"}}"
+		request := &models.UserTerminalSessionRequest{
+			UserId:    int32(2),
+			ClusterId: 1,
+			BaseImage: "ubuntu",
+			ShellName: "sh",
+			NodeName:  "demo-new",
+			Manifest:  editedManifest,
+		}
+		res, err := terminalAccessServiceImpl.EditTerminalPodManifest(context.Background(), request, false)
+		assert.NotNil(t, err)
+		assert.NotNil(t, res)
+		assert.Equal(t, len(res.ErrorComments), 0, res.ErrorComments)
+
+		editedManifest = "{\"apiVersion\":\"v1\",\"kind\":\"Random\",\"metadata\":{\"name\":1},\"spec\":{\"serviceAccountName\":\"hello\"}}"
+		request.Manifest = editedManifest
+		res, err = terminalAccessServiceImpl.EditTerminalPodManifest(context.Background(), request, false)
+		assert.NotNil(t, err)
+		assert.Equal(t, err.Error(), "manifest should be of kind \"Pod\"")
+		assert.NotNil(t, res)
+		assert.Equal(t, len(res.ErrorComments), 0, res.ErrorComments)
+	})
+
+	t.Run("Pod Manifest : valid manifest structure with invalid fields Test", func(t *testing.T) {
+
+	})
+
+	t.Run("Pod Manifest : valid manifest structure with invalid fields Test", func(t *testing.T) {
+
 	})
 }
 
@@ -140,7 +176,7 @@ func initTerminalAccessService(t *testing.T) *UserTerminalAccessServiceImpl {
 	//clusterServiceImpl := cluster2.NewClusterServiceImplExtended(clusterRepositoryImpl, nil, nil, sugaredLogger, nil, nil, nil, nil, nil)
 	k8sResourceHistoryRepositoryImpl := repository10.NewK8sResourceHistoryRepositoryImpl(db, sugaredLogger)
 	appRepositoryImpl := app.NewAppRepositoryImpl(db, sugaredLogger)
-	environmentRepositoryImpl := repository2.NewEnvironmentRepositoryImpl(db)
+	environmentRepositoryImpl := repository2.NewEnvironmentRepositoryImpl(db, sugaredLogger, nil)
 	k8sResourceHistoryServiceImpl := kubernetesResourceAuditLogs.Newk8sResourceHistoryServiceImpl(k8sResourceHistoryRepositoryImpl, sugaredLogger, appRepositoryImpl, environmentRepositoryImpl)
 	k8sApplicationService := k8s.NewK8sApplicationServiceImpl(sugaredLogger, clusterServiceImpl, nil, k8sClientServiceImpl, nil, nil, nil, k8sResourceHistoryServiceImpl)
 	terminalSessionHandlerImpl := terminal.NewTerminalSessionHandlerImpl(nil, clusterServiceImpl, sugaredLogger)
@@ -196,7 +232,7 @@ func createAndUpdateSessionForUser(t *testing.T, terminalAccessServiceImpl *User
 func fetchSessionId(terminalAccessServiceImpl *UserTerminalAccessServiceImpl, terminalAccessId int) (string, error) {
 	sessionId := ""
 	for sessionId == "" {
-		fetchTerminalStatus, err := terminalAccessServiceImpl.FetchTerminalStatus(context.Background(), terminalAccessId)
+		fetchTerminalStatus, err := terminalAccessServiceImpl.FetchTerminalStatus(context.Background(), terminalAccessId, "default", "internal-kubectl", "sh")
 		if err != nil {
 			return sessionId, err
 		}

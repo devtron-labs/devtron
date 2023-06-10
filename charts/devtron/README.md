@@ -22,9 +22,9 @@ It packages third party components like
 
 ## How to use it
 
-### Install with Helm
+### Install with Helm (Stable)
 
-Run the following command to install the latest version of Devtron along with the CI/CD integration:
+Follow the given steps to install devtron stable release on your kubernetes cluster
 
 ```bash
 helm repo add devtron https://helm.devtron.ai 
@@ -34,9 +34,34 @@ helm install devtron devtron/devtron-operator \
 --set installer.modules={cicd}
 ```
 
+### Install with Helm (Beta)
+
+We also release beta versions of devtron every few days before the stable release for people who would like to explore and test beta features before everyone else. If you want to install a fresh devtron from beta release channel, use the chart in our official devtron repository.
+
+This chart is currently not available on the official helm repository therefore you need to download it to install it.
+
+```bash
+$ git clone [https://github.com/devtron-labs/devtron.git](https://github.com/devtron-labs/devtron.git)
+$ cd devtron/charts/devtron
+$ helm dependency up
+$ #modify values in values.yaml
+$ helm install devtron . --create-namespace --namespace devtroncd -f values.yaml
+```
+
+To upgrade your existing devtron installation to beta, use helm upgrade.
+
+```bash
+$ git clone [https://github.com/devtron-labs/devtron.git](https://github.com/devtron-labs/devtron.git)
+$ cd devtron/charts/devtron
+$ helm dependency up
+$ #modify values in values.yaml
+$ helm upgrade devtron . --reuse-values --namespace devtroncd -f devtron-bom.yaml
+```
+For more details about configuration see the [helm chart configuration](#configuration)
+
 [Link to](https://docs.devtron.ai/install) more installation options for Devtron.
 
-For more details on configuration, see the [Helm chart configuration](#configuration)
+> Note: There is no option to upgrade to beta on stack manager UI as of now and you may always see upgrade available for latest stable version using which you'll be moved to latest stable version available.
 
 ### Access Devtron dashboard
 

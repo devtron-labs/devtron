@@ -1,6 +1,7 @@
 package clusterTerminalAccess
 
 import (
+	"context"
 	"errors"
 	"github.com/devtron-labs/devtron/client/k8s/application"
 	mocks4 "github.com/devtron-labs/devtron/client/k8s/application/mocks"
@@ -37,7 +38,7 @@ func TestNewUserTerminalAccessService(t *testing.T) {
 		mockedUserId := int32(1)
 		mockedNodeName := "random1"
 		request := &models.UserTerminalSessionRequest{UserId: mockedUserId, ClusterId: mockedClusterId, NodeName: mockedNodeName, BaseImage: "random2", ShellName: mockedShellName}
-		terminalSessionResponse1, err := terminalAccessServiceImpl.StartTerminalSession(request)
+		terminalSessionResponse1, err := terminalAccessServiceImpl.StartTerminalSession(context.Background(), request)
 		assert.Nil(tt, err)
 		terminalAccessId1 := terminalSessionResponse1.TerminalAccessId
 		assert.NotZero(tt, terminalAccessId1)
@@ -63,11 +64,11 @@ func TestNewUserTerminalAccessService(t *testing.T) {
 				terminalMsg := &terminal.TerminalMessage{SessionID: randomSessionId}
 				return terminalMsg
 			}, nil)
-		terminalSessionStatus, err := terminalAccessServiceImpl.FetchTerminalStatus(terminalAccessId1)
+		terminalSessionStatus, err := terminalAccessServiceImpl.FetchTerminalStatus(context.Background(), terminalAccessId1, "default", "", "sh")
 		assert.Nil(tt, err)
 		assert.Equal(tt, podStatus, string(terminalSessionStatus.Status))
 		assert.Equal(tt, randomSessionId, terminalSessionStatus.UserTerminalSessionId)
-		terminalSessionResponse2, err := terminalAccessServiceImpl.StartTerminalSession(request)
+		terminalSessionResponse2, err := terminalAccessServiceImpl.StartTerminalSession(context.Background(), request)
 		assert.Equal(tt, errors.New(models.MaxSessionLimitReachedMsg), err)
 		assert.Nil(tt, terminalSessionResponse2)
 	})
@@ -89,7 +90,7 @@ func TestNewUserTerminalAccessService(t *testing.T) {
 		terminalAccessRepository.On("FetchTerminalAccessTemplate", models.TerminalAccessPodTemplateName).Return(podTemplate, nil)
 		failedMsg := &k8sErrors.StatusError{ErrStatus: metav1.Status{Reason: metav1.StatusReasonForbidden}}
 		k8sApplicationService.On("GetResource", mock.AnythingOfType("*k8s.ResourceRequestBean")).Return(nil, failedMsg)
-		terminalSessionStatus, err := terminalAccessServiceImpl.FetchTerminalStatus(terminalAccessId)
+		terminalSessionStatus, err := terminalAccessServiceImpl.FetchTerminalStatus(context.Background(), terminalAccessId, "default", "", "sh")
 		assert.Nil(tt, terminalSessionStatus)
 		assert.NotNil(tt, err)
 		assert.Equal(tt, failedMsg, err)
@@ -112,7 +113,7 @@ func TestNewUserTerminalAccessService(t *testing.T) {
 			})
 
 		request := &models.UserTerminalSessionRequest{UserId: mockedUserId, ClusterId: mockedClusterId, NodeName: mockedNodeName, BaseImage: "random2", ShellName: mockedShellName}
-		terminalSessionResponse, err := terminalAccessServiceImpl.StartTerminalSession(request)
+		terminalSessionResponse, err := terminalAccessServiceImpl.StartTerminalSession(context.Background(), request)
 		assert.Nil(tt, terminalSessionResponse)
 		assert.Equal(tt, queryExecutionErr, err)
 	})
@@ -132,7 +133,7 @@ func TestNewUserTerminalAccessService(t *testing.T) {
 		terminalAccessRepository.On("GetUserTerminalAccessData", terminalAccessId).Return(terminalAccessData, nil)
 		podTemplate := &models.TerminalAccessTemplates{TemplateData: "wrong-pod-json"}
 		terminalAccessRepository.On("FetchTerminalAccessTemplate", models.TerminalAccessPodTemplateName).Return(podTemplate, nil)
-		terminalSessionStatus, err := terminalAccessServiceImpl.FetchTerminalStatus(terminalAccessId)
+		terminalSessionStatus, err := terminalAccessServiceImpl.FetchTerminalStatus(context.Background(), terminalAccessId, "default", "", "sh")
 		assert.Nil(tt, terminalSessionStatus)
 		assert.NotNil(tt, err)
 	})

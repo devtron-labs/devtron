@@ -138,9 +138,11 @@ func GetSecretJson(configMapSecretDto ConfigMapSecretDto) (string, error) {
 
 func GetSecretBody(configMapSecretDto ConfigMapSecretDto) v12.Secret {
 	secretDataMap := make(map[string][]byte)
-	for key, value := range configMapSecretDto.Data {
-		secretDataMap[key] = []byte(value)
-	}
+
+	// adding handling to get base64 decoded value in map value
+	cmsDataMarshaled, _ := json.Marshal(configMapSecretDto.Data)
+	json.Unmarshal(cmsDataMarshaled, &secretDataMap)
+
 	return v12.Secret{
 		TypeMeta: v1.TypeMeta{
 			Kind:       "Secret",

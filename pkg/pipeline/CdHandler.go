@@ -638,7 +638,7 @@ func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 		savedWorkflow.Message = message
 		savedWorkflow.FinishedOn = workflowStatus.FinishedAt.Time
 		savedWorkflow.Name = workflowName
-		savedWorkflow.LogLocation = wfStatusRs.LogLocation
+		// removed log location from here since we are saving it at trigger
 		savedWorkflow.PodName = podName
 		savedWorkflow.UpdatedOn = time.Now()
 		savedWorkflow.UpdatedBy = 1
@@ -901,9 +901,9 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		return WorkflowResponse{}, err
 	}
 
-	var ciMaterialsArr []CiPipelineMaterialResponse
+	var ciMaterialsArr []pipelineConfig.CiPipelineMaterialResponse
 	for _, m := range ciMaterials {
-		res := CiPipelineMaterialResponse{
+		res := pipelineConfig.CiPipelineMaterialResponse{
 			Id:              m.Id,
 			GitMaterialId:   m.GitMaterialId,
 			GitMaterialName: m.GitMaterial.Name[strings.Index(m.GitMaterial.Name, "-")+1:],
@@ -936,6 +936,7 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		GitTriggers:          gitTriggers,
 		BlobStorageEnabled:   workflow.BlobStorageEnabled,
 		IsVirtualEnvironment: workflowR.CdWorkflow.Pipeline.Environment.IsVirtualEnvironment,
+		PodName:              workflowR.PodName,
 		ArtifactId:           workflow.CiArtifactId,
 		CiPipelineId:         ciWf.CiPipelineId,
 	}

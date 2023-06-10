@@ -37,3 +37,31 @@ After creating the generic secret, navigate to `Secrets` section of the applicat
 
 
 **4. Save secret.**
+
+
+## ESO AWS secrets Manager Setup with Devtron using ClusterSecretsStore
+
+ClusterSecretStore provides a secure and centralized storage solution for managing and accessing sensitive information, such as passwords, API keys, certificates, and other credentials, within a cluster or application environment.
+
+**Requirement:** Devtron deployment template chart version should be 4.17 and above.
+
+To setup ESO AWS secrets manager with Devtron using ClusterSecretsStore, follow the mentined steps:
+
+**1. Create a secret for AWS authentication:**
+
+Create a Kubernetes secret in any namespace using base64 encoded AWS access-key and secret-access-key. You can use the devtron generic chart for this.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/secrets/aws-secret-generic-chart.jpg)
+
+**2. create a `ClusterSecretStore`**
+
+Create a `ClusterSecretStore` using the secret created for AWS authentication in step 1.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/secrets/clustersecretstore-yaml.jpg)
+
+**3. Create a secret in the application using ESO AWS Secrets Manager:**
+
+Go to the application where you want to create an external secret. Navigate to secrets section under application configuration and create a secret using ESO AWS Secrets Manager.
+
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/secrets/app-secret-clustersecretstore.jpg)
