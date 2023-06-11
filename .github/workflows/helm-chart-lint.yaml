@@ -21,7 +21,7 @@ jobs:
             - added|modified: 'scripts/devtron-reference-helm-charts/**/templates/**'
             - added|modified: 'charts/devtron/**/templates/**'
           files: 
-            - added|modified: 'charts/devtron/'
+            - added|modified: 'charts/devtron/**'
           ref_chart:
             - added|modified: 'scripts/devtron-reference-helm-charts/**'
     - run: echo ${{ steps.filter.outputs.charts }}
@@ -58,7 +58,7 @@ jobs:
         printenv "SCRIPT_STDOUT"
         printenv "SCRIPT_STDERR"
     - name: helm build
-      run: cd  .${{ steps.python.outputs.chart_path }} && helm dependency build
+      run: cd  ./${{ steps.python.outputs.chart_path }} && helm dependency build
     - name: helm-check
       uses: igabaydulin/helm-check-action@0.1.4 
       env:
