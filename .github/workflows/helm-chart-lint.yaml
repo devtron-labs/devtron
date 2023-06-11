@@ -58,7 +58,7 @@ jobs:
         printenv "SCRIPT_STDOUT"
         printenv "SCRIPT_STDERR"
     - name: helm build
-      run: cd  ./${{ steps.python.outputs.chart_path }} && helm dependency build
+      run: cd  .${{ steps.python.outputs.chart_path }} && helm dependency build
     - name: helm-check
       uses: igabaydulin/helm-check-action@0.1.4 
       env:
