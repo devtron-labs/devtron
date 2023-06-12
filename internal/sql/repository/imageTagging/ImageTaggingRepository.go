@@ -74,7 +74,7 @@ type ImageTaggingRepository interface {
 	GetTagsByAppId(appId int) ([]*ImageTag, error)
 	GetTagsByArtifactId(artifactId int) ([]*ImageTag, error)
 	GetImageComment(artifactId int) (ImageComment, error)
-	GetImageCommentsByArtifactIds(artifactIds []int) ([]ImageComment, error)
+	GetImageCommentsByArtifactIds(artifactIds []int) ([]*ImageComment, error)
 	UpdateReleaseTagInBulk(tx *pg.Tx, imageTags []*ImageTag) error
 	UpdateImageComment(tx *pg.Tx, imageComment *ImageComment) error
 	DeleteReleaseTagInBulk(tx *pg.Tx, imageTags []*ImageTag) error
@@ -130,8 +130,8 @@ func (impl *ImageTaggingRepositoryImpl) GetImageComment(artifactId int) (ImageCo
 	return res, err
 }
 
-func (impl *ImageTaggingRepositoryImpl) GetImageCommentsByArtifactIds(artifactIds []int) ([]ImageComment, error) {
-	res := make([]ImageComment, 0)
+func (impl *ImageTaggingRepositoryImpl) GetImageCommentsByArtifactIds(artifactIds []int) ([]*ImageComment, error) {
+	res := make([]*ImageComment, 0)
 	if len(artifactIds) == 0 {
 		return res, nil
 	}

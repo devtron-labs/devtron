@@ -165,7 +165,7 @@ func (impl ImageTaggingServiceImpl) GetImageCommentsDataMapByArtifactIds(artifac
 
 	//it may be possible that there are no tags for a artifact,but comment exists
 	for _, comment := range imageComments {
-		result[comment.ArtifactId] = &comment
+		result[comment.ArtifactId] = comment
 	}
 
 	return result, nil
