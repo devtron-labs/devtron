@@ -514,7 +514,7 @@ func TestImageTaggingService(t *testing.T) {
 			},
 		}
 
-		testComments := []repository.ImageComment{
+		testComments := []*repository.ImageComment{
 			{
 				Id:         2,
 				ArtifactId: testArtifactId1,
