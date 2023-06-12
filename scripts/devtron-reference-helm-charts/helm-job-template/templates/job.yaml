@@ -28,6 +28,8 @@ spec:
             {{- toYaml .Values.Container.securityContext | nindent 12 }}
           args:
             {{- toYaml .Values.Container.args | nindent 12 }}
+          env:
+            {{- toYaml .Values.Container.env | nindent 12}}
           image: {{ .Values.Container.image }}
           imagePullPolicy: {{ .Values.Container.imagePullPolicy }}
           ports:
