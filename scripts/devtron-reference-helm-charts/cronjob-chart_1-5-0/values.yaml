@@ -26,10 +26,10 @@ ContainerPort:
 #          replacement: myapp
 #          targetLabel: target_namespace
 
-  - name: app1
-    port: 8090
-    servicePort: 8080
-    useGRPC: true
+  # - name: app1
+  #   port: 8090
+  #   servicePort: 8080
+  #   useGRPC: true
 
 pauseForSecondsBeforeSwitchActive: 30
 waitForSecondsBeforeScalingDown: 30
@@ -83,13 +83,13 @@ server:
    image: ""
 
 
-EnvVariables:
-  - name: FLASK_ENV
-    value: qa
+EnvVariables: []
+  # - name: FLASK_ENV
+  #   value: qa
 
-EnvVariablesFromFieldPath:
-- name: POD_NAME
-  fieldPath: metadata.name
+EnvVariablesFromFieldPath: []
+# - name: POD_NAME
+#   fieldPath: metadata.name
 
 prometheus:
   release: monitoring
