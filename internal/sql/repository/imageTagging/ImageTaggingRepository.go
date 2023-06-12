@@ -132,6 +132,9 @@ func (impl *ImageTaggingRepositoryImpl) GetImageComment(artifactId int) (ImageCo
 
 func (impl *ImageTaggingRepositoryImpl) GetImageCommentsByArtifactIds(artifactIds []int) ([]ImageComment, error) {
 	res := make([]ImageComment, 0)
+	if len(artifactIds) == 0 {
+		return res, nil
+	}
 	err := impl.dbConnection.Model(&res).
 		Where("artifact_id IN (?)", pg.In(artifactIds)).
 		Select()
