@@ -25,6 +25,7 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"strings"
 	"time"
 )
 
@@ -183,6 +184,7 @@ func (impl ImageTaggingServiceImpl) ValidateImageTaggingRequest(imageTaggingRequ
 		if err != nil {
 			return false, err
 		}
+		tags.TagName = strings.ToLower(tags.TagName)
 	}
 	//validate update tags
 	for _, tags := range imageTaggingRequest.SoftDeleteTags {
@@ -196,6 +198,7 @@ func (impl ImageTaggingServiceImpl) ValidateImageTaggingRequest(imageTaggingRequ
 		if err != nil {
 			return false, err
 		}
+		tags.TagName = strings.ToLower(tags.TagName)
 	}
 
 	for _, tags := range imageTaggingRequest.HardDeleteTags {
@@ -209,6 +212,7 @@ func (impl ImageTaggingServiceImpl) ValidateImageTaggingRequest(imageTaggingRequ
 		if err != nil {
 			return false, err
 		}
+		tags.TagName = strings.ToLower(tags.TagName)
 	}
 
 	//TODO: validate comment, currently no validation on comment
