@@ -1,7 +1,11 @@
 # shellcheck disable=SC2155
 export TEST_BRANCH=$(echo $TEST_BRANCH | awk -F '/' '{print $NF}')
+#export TEST_BRANCH="argo-workflow-manager-refactoring-it"
+#export LATEST_HASH="8e5602f559974103907242e10943c211ca37be2a"
 apk update && apk add wget && apk add curl && apk add vim  && apk add bash && apk add git && apk add yq && apk add gcc && apk add musl-dev && apk add make
 wget -q -O - https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+###### check docker is running or not ?? ####
+
 k3d cluster create it-cluster
 export MACHINE_OS='linux'
 #export MACHINE_OS='darwin'
@@ -22,10 +26,29 @@ yq '(select(.metadata.name == "postgresql-migrate-devtron") | .spec.template.spe
 kubectl -ndevtroncd apply -f migrator.yaml
 # shellcheck disable=SC2046
 while [ ! $(kubectl -n devtroncd get job postgresql-migrate-devtron -o jsonpath="{.status.succeeded}")  ]; do sleep 10; done
+echo "devtron postgres migration completed"
 # shellcheck disable=SC2046
 while [ ! $(kubectl -n devtroncd get job postgresql-migrate-casbin -o jsonpath="{.status.succeeded}")  ]; do sleep 10; done
+echo "casbin postgres migration completed"
 # shellcheck disable=SC2046
 while [ ! $(kubectl -n devtroncd get job postgresql-migrate-lens -o jsonpath="{.status.succeeded}")  ]; do sleep 10; done
+echo "lens postgres migration completed"
 # shellcheck disable=SC2046
 while [ ! $(kubectl -n devtroncd get job postgresql-migrate-gitsensor -o jsonpath="{.status.succeeded}")  ]; do sleep 10; done
-exit #to get out of container
+echo "git-sensor postgres migration completed"
+#exit #to get out of container
+
+###### Installing Helm #####
+curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 > get_helm.sh
+chmod 700 get_helm.sh
+./get_helm.sh
+
+
+###### Installing Argo Dependencies #####
+kubectl create ns argo
+cd ./charts/devtron
+helm dependency up
+helm template devtron . --set installer.modules={cicd} -s templates/workflow.yaml >./argo_wf.yaml
+kubectl apply -f ./argo_wf.yaml
+while [ ! $(kubectl -n argo get deployment workflow-controller -o jsonpath="{.status.readyReplicas}")  ]; do sleep 10; done
+cd -
