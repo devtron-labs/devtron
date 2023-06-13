@@ -128,6 +128,7 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 		cdPipelineRepository:         cdPipelineRepository,
 		enforcerUtil:                 enforcerUtil,
 		appGroupService:              appGroupService,
+		imageTaggingService:          imageTaggingService,
 	}
 }
 
