@@ -7,20 +7,17 @@ wget -q -O - https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
 ###### check docker is running or not ?? ####
 
 k3d cluster create it-cluster
-export MACHINE_OS='linux'
+MACHINE_OS='linux'
+MACHINE_ARCH='amd64'
 #export MACHINE_OS='darwin'
-export MACHINE_ARCH='amd64'
 #export MACHINE_ARCH='arm64'
 curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/$MACHINE_OS/$MACHINE_ARCH/kubectl"
 install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
 kubectl create ns devtroncd
 kubectl create ns devtron-cd
 kubectl create ns devtron-ci
-#wget https://raw.githubusercontent.com/devtron-labs/devtron/main/tests/integrationTesting/postgresql-secret.yaml -O postgresql-secret.yaml
 kubectl -n devtroncd apply -f $PWD/tests/integrationTesting/postgresql-secret.yaml
-#wget https://raw.githubusercontent.com/devtron-labs/devtron/main/tests/integrationTesting/postgresql.yaml -O postgresql.yaml
 kubectl -ndevtroncd apply -f $PWD/tests/integrationTesting/postgresql.yaml
-#wget https://raw.githubusercontent.com/devtron-labs/devtron/main/tests/integrationTesting/migrator.yaml -O migrator.yaml
 yq '(select(.metadata.name == "postgresql-migrate-devtron") | .spec.template.spec.containers[0].env[0].value) = env(TEST_BRANCH)' $PWD/tests/integrationTesting/migrator.yaml -i
 yq '(select(.metadata.name == "postgresql-migrate-devtron") | .spec.template.spec.containers[0].env[9].value) = env(LATEST_HASH)' $PWD/tests/integrationTesting/migrator.yaml -i
 kubectl -ndevtroncd apply -f $PWD/tests/integrationTesting/migrator.yaml
@@ -39,12 +36,14 @@ echo "git-sensor postgres migration completed"
 #exit #to get out of container
 
 ###### Installing Helm #####
+echo "Installing Helm"
 curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 > get_helm.sh
 chmod 700 get_helm.sh
 ./get_helm.sh
 
 
 ###### Installing Argo Dependencies #####
+echo "Installing Argo Workflow CRDS"
 kubectl create ns argo
 cd $PWD/charts/devtron # Make sure path is set correctly
 helm dependency up

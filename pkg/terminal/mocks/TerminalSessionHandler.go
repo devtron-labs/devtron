@@ -12,6 +12,27 @@ type TerminalSessionHandler struct {
 	mock.Mock
 }
 
+// AutoSelectShell provides a mock function with given fields: req
+func (_m *TerminalSessionHandler) AutoSelectShell(req *terminal.TerminalSessionRequest) (string, error) {
+	ret := _m.Called(req)
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func(*terminal.TerminalSessionRequest) string); ok {
+		r0 = rf(req)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(*terminal.TerminalSessionRequest) error); ok {
+		r1 = rf(req)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // Close provides a mock function with given fields: sessionId, statusCode, msg
 func (_m *TerminalSessionHandler) Close(sessionId string, statusCode uint32, msg string) {
 	_m.Called(sessionId, statusCode, msg)
@@ -59,6 +80,27 @@ func (_m *TerminalSessionHandler) ValidateSession(sessionId string) bool {
 	}
 
 	return r0
+}
+
+// ValidateShell provides a mock function with given fields: req
+func (_m *TerminalSessionHandler) ValidateShell(req *terminal.TerminalSessionRequest) (bool, error) {
+	ret := _m.Called(req)
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(*terminal.TerminalSessionRequest) bool); ok {
+		r0 = rf(req)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(*terminal.TerminalSessionRequest) error); ok {
+		r1 = rf(req)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 type mockConstructorTestingTNewTerminalSessionHandler interface {
