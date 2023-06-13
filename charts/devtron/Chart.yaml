@@ -1,6 +1,6 @@
 apiVersion: v2
 name: devtron-operator
-appVersion: 
+appVersion: 0.6.18-rc.1
 description: Chart to configure and install Devtron. Devtron is a Kubernetes Orchestration system.
 keywords:
   - Devtron
