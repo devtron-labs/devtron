@@ -1,8 +1,8 @@
 # shellcheck disable=SC2155
-export TEST_BRANCH=$(echo $TEST_BRANCH | awk -F '/' '{print $NF}')
-#export TEST_BRANCH="abc/argo-workflow-manager-refactoring-it"
-#export LATEST_HASH="8e5602f559974103907242e10943c211ca37be2a"
-apt update && apt add wget && apt add curl && apt add vim  && apt add bash && apt add git && apt add yq && apt add gcc && apt add musl-dev && apt add make
+#export TEST_BRANCH=$(echo $TEST_BRANCH | awk -F '/' '{print $NF}')
+export LATEST_HASH=`git log --pretty=format:'%H' -n 1`
+export TEST_BRANCH=`git name-rev --name-only "$LATEST_HASH" | awk -F '/' '{print $NF}'`
+apk update && apk add wget && apk add curl && apk add vim  && apk add bash && apk add git && apk add yq && apk add gcc && apk add musl-dev && apk add make
 wget -q -O - https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
 ###### check docker is running or not ?? ####
 
