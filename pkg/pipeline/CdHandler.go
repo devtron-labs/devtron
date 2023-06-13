@@ -33,7 +33,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	repository4 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
@@ -828,7 +827,7 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 	for _, item := range cdWorkflowArtifact {
 
 		if imageTagsDataMap[item.CiArtifactId] != nil {
-			item.ImageReleaseTags = imageTaggingDataMap[item.CiArtifactId]
+			item.ImageReleaseTags = imageTagsDataMap[item.CiArtifactId]
 		}
 		if imageCommentsDataMap[item.CiArtifactId] != nil {
 			item.ImageComment = imageCommentsDataMap[item.CiArtifactId]
