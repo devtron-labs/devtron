@@ -138,9 +138,11 @@ func GetSecretJson(configMapSecretDto ConfigMapSecretDto) (string, error) {
 
 func GetSecretBody(configMapSecretDto ConfigMapSecretDto) v12.Secret {
 	secretDataMap := make(map[string][]byte)
-	for key, value := range configMapSecretDto.Data {
-		secretDataMap[key] = []byte(value)
-	}
+
+	// adding handling to get base64 decoded value in map value
+	cmsDataMarshaled, _ := json.Marshal(configMapSecretDto.Data)
+	json.Unmarshal(cmsDataMarshaled, &secretDataMap)
+
 	return v12.Secret{
 		TypeMeta: v1.TypeMeta{
 			Kind:       "Secret",
@@ -213,7 +215,19 @@ func AddTemplatesForGlobalSecretsInWorkflowTemplate(globalCmCsConfigs []*bean.Gl
 			})
 			cmIndex++
 		} else if config.ConfigType == repository.CS_TYPE_CONFIG {
-			secretJson, err := GetSecretJson(ConfigMapSecretDto{Name: config.Name, Data: config.Data, OwnerRef: ArgoWorkflowOwnerRef})
+
+			// special handling for secret data since GetSecretJson expects encoded values in data map
+			encodedSecretData, err := bean.ConvertToEncodedForm(config.Data)
+			if err != nil {
+				return err
+			}
+			var encodedSecretDataMap = make(map[string]string)
+			err = json.Unmarshal(encodedSecretData, &encodedSecretDataMap)
+			if err != nil {
+				return err
+			}
+
+			secretJson, err := GetSecretJson(ConfigMapSecretDto{Name: config.Name, Data: encodedSecretDataMap, OwnerRef: ArgoWorkflowOwnerRef})
 			if err != nil {
 				return err
 			}
