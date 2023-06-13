@@ -76,5 +76,7 @@ func (impl EnvironmentRouterImpl) InitEnvironmentClusterMappingsRouter(environme
 	environmentClusterMappingsRouter.Path("/namespace/autocomplete").
 		Methods("GET").
 		HandlerFunc(impl.environmentClusterMappingsRestHandler.GetCombinedEnvironmentListForDropDownByClusterIds)
-
+	environmentClusterMappingsRouter.Path("/{envId}/connection").
+		Methods("GET").
+		HandlerFunc(impl.environmentClusterMappingsRestHandler.GetEnvironmentConnection)
 }

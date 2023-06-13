@@ -633,31 +633,18 @@ func (impl AppStoreDeploymentServiceImpl) GetAllInstalledAppsByAppStoreId(w http
 	}
 	var installedAppsEnvResponse []appStoreBean.InstalledAppsResponse
 	for _, a := range installedApps {
-		var status string
-		if util2.IsBaseStack() || util2.IsHelmApp(a.AppOfferingMode) || util.IsHelmApp(a.DeploymentAppType) {
-			status, err = impl.appStoreDeploymentHelmService.GetAppStatus(a, w, r, token)
-		} else {
-			status, err = impl.appStoreDeploymentArgoCdService.GetAppStatus(a, w, r, token)
-		}
-		if apiErr, ok := err.(*util.ApiError); ok {
-			if apiErr.Code == constants.AppDetailResourceTreeNotFound {
-				status = "Not Found"
-			}
-		} else if err != nil {
-			impl.logger.Error(err)
-			return nil, err
-		}
 		installedAppRes := appStoreBean.InstalledAppsResponse{
 			EnvironmentName:              a.EnvironmentName,
 			AppName:                      a.AppName,
 			DeployedAt:                   a.UpdatedOn,
 			DeployedBy:                   a.EmailId,
-			Status:                       status,
+			Status:                       a.AppStatus,
 			AppStoreApplicationVersionId: a.AppStoreApplicationVersionId,
 			InstalledAppVersionId:        a.InstalledAppVersionId,
 			InstalledAppsId:              a.InstalledAppId,
 			EnvironmentId:                a.EnvironmentId,
 			AppOfferingMode:              a.AppOfferingMode,
+			DeploymentAppType:            a.DeploymentAppType,
 		}
 
 		// if hyperion mode app, then fill clusterId and namespace
@@ -677,6 +664,10 @@ func (impl AppStoreDeploymentServiceImpl) GetAllInstalledAppsByAppStoreId(w http
 }
 
 func (impl AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error) {
+	installAppVersionRequest.InstalledAppDeleteResponse = &appStoreBean.InstalledAppDeleteResponseDTO{
+		DeleteInitiated:  false,
+		ClusterReachable: true,
+	}
 	dbConnection := impl.installedAppRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -690,6 +681,11 @@ func (impl AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context
 		impl.logger.Errorw("fetching error", "err", err)
 		return nil, err
 	}
+	if len(environment.Cluster.ErrorInConnecting) > 0 {
+		installAppVersionRequest.InstalledAppDeleteResponse.ClusterReachable = false
+		installAppVersionRequest.InstalledAppDeleteResponse.ClusterName = environment.Cluster.ClusterName
+	}
+
 	app, err := impl.appRepository.FindById(installAppVersionRequest.AppId)
 	if err != nil {
 		return nil, err
@@ -704,6 +700,12 @@ func (impl AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context
 		if util2.IsBaseStack() || util2.IsHelmApp(app.AppOfferingMode) || util.IsHelmApp(model.DeploymentAppType) {
 			err = impl.appStoreDeploymentHelmService.DeleteDeploymentApp(ctx, app.AppName, environment.Name, installAppVersionRequest)
 		} else {
+			if !installAppVersionRequest.InstalledAppDeleteResponse.ClusterReachable {
+				impl.logger.Errorw("cluster connection error", "err", environment.Cluster.ErrorInConnecting)
+				if !installAppVersionRequest.NonCascadeDelete {
+					return installAppVersionRequest, nil
+				}
+			}
 			err = impl.appStoreDeploymentArgoCdService.DeleteDeploymentApp(ctx, app.AppName, environment.Name, installAppVersionRequest)
 		}
 		if err != nil {
@@ -718,7 +720,6 @@ func (impl AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context
 			impl.logger.Errorw("error while creating install app", "error", err)
 			return nil, err
 		}
-
 	} else {
 		//soft delete app
 		app.Active = false
@@ -775,7 +776,7 @@ func (impl AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context
 		impl.logger.Errorw("error in commit db transaction on delete", "err", err)
 		return nil, err
 	}
-
+	installAppVersionRequest.InstalledAppDeleteResponse.DeleteInitiated = true
 	return installAppVersionRequest, nil
 }
 
