@@ -353,3 +353,11 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindEnvLinkedWithCiPipelines(ciP
 	_, err := repositoryImpl.dbConnection.Query(&mappings, query, pg.In(ciPipelineIds))
 	return mappings, err
 }
+
+//query := "SELECT env.* " +
+//" FROM environment env " +
+//" INNER JOIN pipeline ON pipeline.environment_id=env.id and env.active = true " +
+//" INNER JOIN app_workflow_mapping apf ON component_id=pipeline.id AND type='CD_PIPELINE' AND apf.active=true " +
+//" INNER JOIN " +
+//" (SELECT apf2.app_workflow_id FROM app_workflow_mapping apf2 WHERE component_id IN (?) AND type='CI_PIPELINE') sqt " +
+//" ON apf.app_workflow_id = sqt.app_workflow_id;"
