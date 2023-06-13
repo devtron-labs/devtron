@@ -43,7 +43,7 @@ test-unit:
 	go test ./pkg/pipeline
 
 setup-test-integration:
-	export TEST_BRANCH=$GIT_REMOTE_BRANCH; export LATEST_HASH=$GIT_COMMIT_COMPLETE_HASH; sh $PWD/tests/integrationTesting/create-test-env.sh
+	export TEST_BRANCH=$GIT_REMOTE_BRANCH; export LATEST_HASH=$GIT_COMMIT_COMPLETE_HASH; sh tests/integrationTesting/create-test-env.sh
 	#export INTEGRATION_TEST_ENV_ID=$(docker run --env TEST_BRANCH=$GIT_REMOTE_BRANCH --env LATEST_HASH=$GIT_COMMIT_COMPLETE_HASH --privileged -d --name dind-test -v $PWD/tests/integrationTesting/:/tmp/ docker:dind)
 	#docker exec ${INTEGRATION_TEST_ENV_ID} sh /tmp/create-test-env.sh
 	#docker exec ${INTEGRATION_TEST_ENV_ID} sh /tests/integrationTesting/run-integration-test.sh
