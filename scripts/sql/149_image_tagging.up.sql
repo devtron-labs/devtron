@@ -16,7 +16,7 @@ CREATE SEQUENCE IF NOT EXISTS id_seq_image_comment;
 
 CREATE TABLE IF NOT EXISTS public.image_comments (
     "id"                                         integer NOT NULL DEFAULT nextval('id_seq_image_comment'::regclass),
-    "comment"                                    text,
+    "comment"                                    varchar(500),
     "artifact_id"                                integer,
     "user_id"                                    integer,
     CONSTRAINT "image_comment_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."users" ("id"),
