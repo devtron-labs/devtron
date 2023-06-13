@@ -172,6 +172,9 @@ func (impl ImageTaggingServiceImpl) GetImageCommentsDataMapByArtifactIds(artifac
 }
 
 func (impl ImageTaggingServiceImpl) ValidateImageTaggingRequest(imageTaggingRequest *ImageTaggingRequestDTO, appId, artifactId int) (bool, error) {
+	if imageTaggingRequest == nil {
+		return false, errors.New("inValid payload")
+	}
 	//validate create tags
 	for _, tags := range imageTaggingRequest.CreateTags {
 		if tags.Id != 0 {
@@ -214,8 +217,9 @@ func (impl ImageTaggingServiceImpl) ValidateImageTaggingRequest(imageTaggingRequ
 		}
 		tags.TagName = strings.ToLower(tags.TagName)
 	}
-
-	//TODO: validate comment, currently no validation on comment
+	if len(imageTaggingRequest.ImageComment.Comment) > 500 {
+		return false, errors.New("bad request,comment has more than 500 characters")
+	}
 	return true, nil
 }
 
