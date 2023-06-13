@@ -43,7 +43,6 @@ metadata:
 spec:
   template:
     spec:
-      serviceAccountName: devtron
       containers:
         - name: postgresql-migrate-casbin
           image: quay.io/devtron/migrator:71748de9-149-11112
@@ -71,10 +70,6 @@ spec:
           envFrom:
             - secretRef:
                 name: postgresql-migrator
-          resources:
-            requests:
-              cpu: 0.5
-              memory: 500Mi
       restartPolicy: OnFailure
   backoffLimit: 20
   activeDeadlineSeconds: 1500
@@ -191,29 +186,3 @@ spec:
       restartPolicy: OnFailure
   backoffLimit: 20
   activeDeadlineSeconds: 1500
----
-apiVersion: batch/v1
-kind: CronJob
-metadata:
-  name: app-sync-cronjob
-spec:
-  schedule: "0 19 * * *"
-  jobTemplate:
-    spec:
-      template:
-        spec:
-          containers:
-            - name: chart-sync
-              image: quay.io/devtron/chart-sync:07ac8fd7-150-11120
-              env:
-                - name: PG_ADDR
-                  value: postgresql-postgresql
-                - name: PG_DATABASE
-                  value: orchestrator
-                - name: PG_USER
-                  value: postgres
-              envFrom:
-                - secretRef:
-                    name: devtron-secret
-          restartPolicy: Never
-      backoffLimit: 4
