@@ -22,7 +22,7 @@ SERVER_MODE_EA_ONLY=EA_ONLY
 include $(ENV_FILE)
 export
 
-build: clean wire test-integration
+build: clean wire test-all
 	$(ENVVAR) GOOS=$(GOOS) go build -o devtron \
 			-ldflags="-X 'github.com/devtron-labs/devtron/util.GitCommit=${GIT_COMMIT}' \
 			-X 'github.com/devtron-labs/devtron/util.BuildTime=${BUILD_TIME}' \
@@ -34,7 +34,7 @@ wire:
 clean:
 	rm -f devtron
 
-test-all: test-unit test-integration
+test-all: setup-test-integration test-unit
 	echo 'test cases ran successfully'
 
 test-unit:
@@ -42,9 +42,10 @@ test-unit:
 	echo '${GIT_REMOTE_BRANCH}'
 	go test ./pkg/pipeline
 
-test-integration:
-	export INTEGRATION_TEST_ENV_ID=$(docker run --env TEST_BRANCH=$GIT_REMOTE_BRANCH --env LATEST_HASH=$GIT_COMMIT_COMPLETE_HASH --privileged -d --name dind-test -v $PWD/tests/integrationTesting/:/tmp/ docker:dind)
-	docker exec ${INTEGRATION_TEST_ENV_ID} sh /tmp/create-test-env.sh
+setup-test-integration:
+	export TEST_BRANCH=$GIT_REMOTE_BRANCH; export LATEST_HASH=$GIT_COMMIT_COMPLETE_HASH; sh $PWD/tests/integrationTesting/create-test-env.sh
+	#export INTEGRATION_TEST_ENV_ID=$(docker run --env TEST_BRANCH=$GIT_REMOTE_BRANCH --env LATEST_HASH=$GIT_COMMIT_COMPLETE_HASH --privileged -d --name dind-test -v $PWD/tests/integrationTesting/:/tmp/ docker:dind)
+	#docker exec ${INTEGRATION_TEST_ENV_ID} sh /tmp/create-test-env.sh
 	#docker exec ${INTEGRATION_TEST_ENV_ID} sh /tests/integrationTesting/run-integration-test.sh
 
 run: build
