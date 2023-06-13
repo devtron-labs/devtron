@@ -1,6 +1,6 @@
 # shellcheck disable=SC2155
 export TEST_BRANCH=$(echo $TEST_BRANCH | awk -F '/' '{print $NF}')
-#export TEST_BRANCH="argo-workflow-manager-refactoring-it"
+#export TEST_BRANCH="abc/argo-workflow-manager-refactoring-it"
 #export LATEST_HASH="8e5602f559974103907242e10943c211ca37be2a"
 apk update && apk add wget && apk add curl && apk add vim  && apk add bash && apk add git && apk add yq && apk add gcc && apk add musl-dev && apk add make
 wget -q -O - https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
@@ -17,13 +17,13 @@ kubectl create ns devtroncd
 kubectl create ns devtron-cd
 kubectl create ns devtron-ci
 #wget https://raw.githubusercontent.com/devtron-labs/devtron/main/tests/integrationTesting/postgresql-secret.yaml -O postgresql-secret.yaml
-kubectl -n devtroncd apply -f postgresql-secret.yaml
+kubectl -n devtroncd apply -f $PWD/tests/integrationTesting/postgresql-secret.yaml
 #wget https://raw.githubusercontent.com/devtron-labs/devtron/main/tests/integrationTesting/postgresql.yaml -O postgresql.yaml
-kubectl -ndevtroncd apply -f postgresql.yaml
+kubectl -ndevtroncd apply -f $PWD/tests/integrationTesting/postgresql.yaml
 #wget https://raw.githubusercontent.com/devtron-labs/devtron/main/tests/integrationTesting/migrator.yaml -O migrator.yaml
 yq '(select(.metadata.name == "postgresql-migrate-devtron") | .spec.template.spec.containers[0].env[0].value) = env(TEST_BRANCH)' migrator.yaml -i
 yq '(select(.metadata.name == "postgresql-migrate-devtron") | .spec.template.spec.containers[0].env[9].value) = env(LATEST_HASH)' migrator.yaml -i
-kubectl -ndevtroncd apply -f migrator.yaml
+kubectl -ndevtroncd apply -f $PWD/tests/integrationTesting/migrator.yaml
 # shellcheck disable=SC2046
 while [ ! $(kubectl -n devtroncd get job postgresql-migrate-devtron -o jsonpath="{.status.succeeded}")  ]; do sleep 10; done
 echo "devtron postgres migration completed"
@@ -46,9 +46,9 @@ chmod 700 get_helm.sh
 
 ###### Installing Argo Dependencies #####
 kubectl create ns argo
-cd ./charts/devtron
+cd $PWD/charts/devtron # Make sure path is set correctly
 helm dependency up
 helm template devtron . --set installer.modules={cicd} -s templates/workflow.yaml >./argo_wf.yaml
 kubectl apply -f ./argo_wf.yaml
 while [ ! $(kubectl -n argo get deployment workflow-controller -o jsonpath="{.status.readyReplicas}")  ]; do sleep 10; done
-cd -
+cd $PWD
