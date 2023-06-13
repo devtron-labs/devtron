@@ -824,7 +824,7 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 		impl.Logger.Errorw("error in fetching imageCommentsDataMap", "err", err, "artifactIds", artifactIds, "appId", appId)
 		return cdWorkflowArtifact, err
 	}
-	for _, item := range cdWorkflowArtifact {
+	for i, item := range cdWorkflowArtifact {
 
 		if imageTagsDataMap[item.CiArtifactId] != nil {
 			item.ImageReleaseTags = imageTagsDataMap[item.CiArtifactId]
@@ -832,6 +832,7 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 		if imageCommentsDataMap[item.CiArtifactId] != nil {
 			item.ImageComment = imageCommentsDataMap[item.CiArtifactId]
 		}
+		cdWorkflowArtifact[i] = item
 	}
 	return cdWorkflowArtifact, nil
 }
