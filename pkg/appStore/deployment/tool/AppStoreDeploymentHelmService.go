@@ -134,6 +134,9 @@ func (impl AppStoreDeploymentHelmServiceImpl) GetAppStatus(installedAppAndEnvDet
 }
 
 func (impl AppStoreDeploymentHelmServiceImpl) DeleteInstalledApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *repository.InstalledApps, dbTransaction *pg.Tx) error {
+	if installAppVersionRequest.ForceDelete {
+		return nil
+	}
 	appIdentifier := &client.AppIdentifier{
 		ClusterId:   installAppVersionRequest.ClusterId,
 		ReleaseName: installAppVersionRequest.AppName,
