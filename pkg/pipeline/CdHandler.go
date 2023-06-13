@@ -638,7 +638,7 @@ func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 		savedWorkflow.Message = message
 		savedWorkflow.FinishedOn = workflowStatus.FinishedAt.Time
 		savedWorkflow.Name = workflowName
-		savedWorkflow.LogLocation = wfStatusRs.LogLocation
+		// removed log location from here since we are saving it at trigger
 		savedWorkflow.PodName = podName
 		savedWorkflow.UpdatedOn = time.Now()
 		savedWorkflow.UpdatedBy = 1
@@ -720,30 +720,120 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 		impl.Logger.Errorw("error in fetching image tags with appId", "err", err, "appId", appId)
 		return cdWorkflowArtifact, err
 	}
-	var wfrList []pipelineConfig.CdWorkflowRunner
 	if pipelineId == 0 {
-		wfrList, err = impl.cdWorkflowRepository.FindCdWorkflowMetaByEnvironmentId(appId, environmentId, offset, size)
+		wfrList, err := impl.cdWorkflowRepository.FindCdWorkflowMetaByEnvironmentId(appId, environmentId, offset, size)
 		if err != nil && err != pg.ErrNoRows {
 			return cdWorkflowArtifact, err
 		}
+		cdWorkflowArtifact = impl.converterWFRList(wfrList)
 	} else {
-		wfrList, err = impl.cdWorkflowRepository.FindCdWorkflowMetaByPipelineId(pipelineId, offset, size)
+		wfrList, err := impl.cdWorkflowRepository.FindCdWorkflowMetaByPipelineId(pipelineId, offset, size)
 		if err != nil && err != pg.ErrNoRows {
 			return cdWorkflowArtifact, err
 		}
+		cdWorkflowArtifact = impl.converterWFRList(wfrList)
+		if err == pg.ErrNoRows || wfrList == nil {
+			return cdWorkflowArtifact, nil
+		}
+		var ciArtifactIds []int
+		for _, cdWfA := range cdWorkflowArtifact {
+			ciArtifactIds = append(ciArtifactIds, cdWfA.CiArtifactId)
+		}
+		parentCiArtifact := make(map[int]int)
+		isLinked := false
+		ciArtifacts, err := impl.ciArtifactRepository.GetArtifactParentCiAndWorkflowDetailsByIds(ciArtifactIds)
+		if err != nil || len(ciArtifacts) == 0 {
+			impl.Logger.Errorw("error fetching artifact data", "err", err)
+			return cdWorkflowArtifact, err
+		}
+		var newCiArtifactIds []int
+		for _, ciArtifact := range ciArtifacts {
+			if ciArtifact.ParentCiArtifact > 0 && ciArtifact.WorkflowId == nil {
+				isLinked = true
+				newCiArtifactIds = append(newCiArtifactIds, ciArtifact.ParentCiArtifact)
+				parentCiArtifact[ciArtifact.Id] = ciArtifact.ParentCiArtifact
+			} else {
+				newCiArtifactIds = append(newCiArtifactIds, ciArtifact.Id)
+			}
+		}
+		// handling linked ci pipeline
+		if isLinked {
+			ciArtifactIds = newCiArtifactIds
+		}
+
+		ciWfs, err := impl.ciWorkflowRepository.FindAllLastTriggeredWorkflowByArtifactId(ciArtifactIds)
+		if err != nil && err != pg.ErrNoRows {
+			impl.Logger.Errorw("error in fetching ci wfs", "artifactIds", ciArtifactIds, "err", err)
+			return cdWorkflowArtifact, err
+		} else if len(ciWfs) == 0 {
+			return cdWorkflowArtifact, nil
+		}
+
+		wfGitTriggers := make(map[int]map[int]pipelineConfig.GitCommit)
+		var ciPipelineId int
+		for _, ciWf := range ciWfs {
+			ciPipelineId = ciWf.CiPipelineId
+			wfGitTriggers[ciWf.Id] = ciWf.GitTriggers
+		}
+		ciMaterials, err := impl.ciPipelineMaterialRepository.GetByPipelineIdForRegexAndFixed(ciPipelineId)
+		if err != nil && err != pg.ErrNoRows {
+			impl.Logger.Errorw("err in fetching ci materials", "ciMaterials", ciMaterials, "err", err)
+			return cdWorkflowArtifact, err
+		}
+
+		var ciMaterialsArr []pipelineConfig.CiPipelineMaterialResponse
+		for _, ciMaterial := range ciMaterials {
+			res := pipelineConfig.CiPipelineMaterialResponse{
+				Id:              ciMaterial.Id,
+				GitMaterialId:   ciMaterial.GitMaterialId,
+				GitMaterialName: ciMaterial.GitMaterial.Name[strings.Index(ciMaterial.GitMaterial.Name, "-")+1:],
+				Type:            string(ciMaterial.Type),
+				Value:           ciMaterial.Value,
+				Active:          ciMaterial.Active,
+				Url:             ciMaterial.GitMaterial.Url,
+			}
+			ciMaterialsArr = append(ciMaterialsArr, res)
+		}
+		var newCdWorkflowArtifact []pipelineConfig.CdWorkflowWithArtifact
+		for _, cdWfA := range cdWorkflowArtifact {
+
+			gitTriggers := make(map[int]pipelineConfig.GitCommit)
+			if isLinked {
+				if gitTriggerVal, ok := wfGitTriggers[parentCiArtifact[cdWfA.CiArtifactId]]; ok {
+					gitTriggers = gitTriggerVal
+				}
+			} else {
+				if gitTriggerVal, ok := wfGitTriggers[cdWfA.CiArtifactId]; ok {
+					gitTriggers = gitTriggerVal
+				}
+			}
+
+			cdWfA.GitTriggers = gitTriggers
+			cdWfA.CiMaterials = ciMaterialsArr
+			newCdWorkflowArtifact = append(newCdWorkflowArtifact, cdWfA)
+
+		}
+		cdWorkflowArtifact = newCdWorkflowArtifact
 	}
 
 	var artifactIds []int
-	for _, item := range wfrList {
-		artifactIds = append(artifactIds, item.CdWorkflow.CiArtifactId)
+	for _, item := range cdWorkflowArtifact {
+		artifactIds = append(artifactIds, item.CiArtifactId)
 	}
 	imageCommentsDataMap, err := impl.imageTaggingService.GetImageCommentsDataMapByArtifactIds(artifactIds)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching imageCommentsDataMap", "err", err, "artifactIds", artifactIds, "appId", appId)
 		return cdWorkflowArtifact, err
 	}
-	cdWorkflowArtifact = impl.converterWFRList(imageTagsDataMap, imageCommentsDataMap, wfrList)
+	for _, item := range cdWorkflowArtifact {
 
+		if imageTagsDataMap[item.CiArtifactId] != nil {
+			item.ImageReleaseTags = imageTaggingDataMap[item.CiArtifactId]
+		}
+		if imageCommentsDataMap[item.CiArtifactId] != nil {
+			item.ImageComment = imageCommentsDataMap[item.CiArtifactId]
+		}
+	}
 	return cdWorkflowArtifact, nil
 }
 
@@ -901,9 +991,9 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		return WorkflowResponse{}, err
 	}
 
-	var ciMaterialsArr []CiPipelineMaterialResponse
+	var ciMaterialsArr []pipelineConfig.CiPipelineMaterialResponse
 	for _, m := range ciMaterials {
-		res := CiPipelineMaterialResponse{
+		res := pipelineConfig.CiPipelineMaterialResponse{
 			Id:              m.Id,
 			GitMaterialId:   m.GitMaterialId,
 			GitMaterialName: m.GitMaterial.Name[strings.Index(m.GitMaterial.Name, "-")+1:],
@@ -936,6 +1026,7 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		GitTriggers:          gitTriggers,
 		BlobStorageEnabled:   workflow.BlobStorageEnabled,
 		IsVirtualEnvironment: workflowR.CdWorkflow.Pipeline.Environment.IsVirtualEnvironment,
+		PodName:              workflowR.PodName,
 		ArtifactId:           workflow.CiArtifactId,
 		CiPipelineId:         ciWf.CiPipelineId,
 	}
@@ -1038,22 +1129,13 @@ func (impl *CdHandlerImpl) converterWFR(wfr pipelineConfig.CdWorkflowRunner) pip
 	return workflow
 }
 
-func (impl *CdHandlerImpl) converterWFRList(imageTaggingDataMap map[int][]*repository4.ImageTag, imageCommentsDataMap map[int]*repository4.ImageComment, wfrList []pipelineConfig.CdWorkflowRunner) []pipelineConfig.CdWorkflowWithArtifact {
+func (impl *CdHandlerImpl) converterWFRList(wfrList []pipelineConfig.CdWorkflowRunner) []pipelineConfig.CdWorkflowWithArtifact {
 	var workflowList []pipelineConfig.CdWorkflowWithArtifact
 	var results []pipelineConfig.CdWorkflowWithArtifact
 	var ids []int32
-
 	for _, item := range wfrList {
 		ids = append(ids, item.TriggeredBy)
-		convertedWFR := impl.converterWFR(item)
-
-		if imageTaggingDataMap[convertedWFR.CiArtifactId] != nil {
-			convertedWFR.ImageReleaseTags = imageTaggingDataMap[convertedWFR.CiArtifactId]
-		}
-		if imageCommentsDataMap[convertedWFR.CiArtifactId] != nil {
-			convertedWFR.ImageComment = imageCommentsDataMap[convertedWFR.CiArtifactId]
-		}
-		workflowList = append(workflowList, convertedWFR)
+		workflowList = append(workflowList, impl.converterWFR(item))
 	}
 	userEmails := make(map[int32]string)
 	users, err := impl.userService.GetByIds(ids)

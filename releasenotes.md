@@ -1,14 +1,21 @@
-## v0.6.17
+## v0.6.18-rc.0
+
+
+
+## v0.6.18-rc.0
 
 ## Bugs
-- fix: app metrics dynamically enabled based on support (#3369)
-- fix: 404 not found in devtron without cicd app list page (#3439)
-- fix: Build context backward compatability (#3408)
-- fix: updated audit info for cd pipeline delete req (#3404)
+- fix: shows commit details only on currently deployed image on deployment history (#3382)
+- fix: sql script fix (#3474)
+- fix: bulk-chart-deploy-fix (#3478)
+- fix: image pull secret (#3488)
+- fix: minor trivy fix (#3483)
+- fix: argocd-cm empty data label nil pointer fix (#3443)
 ## Enhancements
-- feat: Rotate pods feature (#3420)
+- feat: validate kubeconfig and save clusters (#3148)
+- feat: Cd refactoring migration (#3470)
+- feat: Trivy Image Scanning (#3373)
+- feat: added support for in app logging archival from CI runner (#3467)
 ## Documentation
-- docs: how to refresh the argocd certificate (#3364)
-
-
-
+- docs: updated doc for incluster (#3473)
+- docs: ESO AWS secrets manager using clustersecretstore (#3453)

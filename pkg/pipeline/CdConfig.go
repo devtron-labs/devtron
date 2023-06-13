@@ -75,6 +75,7 @@ type CdConfig struct {
 	UseBlobStorageConfigInCdWorkflow bool                                `env:"USE_BLOB_STORAGE_CONFIG_IN_CD_WORKFLOW" envDefault:"true"`
 	BaseLogLocationPath              string                              `env:"BASE_LOG_LOCATION_PATH" envDefault:"/home/devtron/"`
 	CdWorkflowExecutorType           pipelineConfig.WorkflowExecutorType `env:"CD_WORKFLOW_EXECUTOR_TYPE" envDefault:"AWF"`
+	InAppLoggingEnabled              bool                                `env:"IN_APP_LOGGING_ENABLED" envDefault:"false"`
 }
 
 func GetCdConfig() (*CdConfig, error) {

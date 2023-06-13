@@ -37,6 +37,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/apiToken"
 	app2 "github.com/devtron-labs/devtron/pkg/app"
@@ -295,7 +296,8 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	moduleServiceImpl := module.NewModuleServiceImpl(sugaredLogger, serverEnvConfigServerEnvConfig, moduleRepositoryImpl, moduleActionAuditLogRepositoryImpl, helmAppServiceImpl, serverDataStoreServerDataStore, serverCacheServiceImpl, moduleCacheServiceImpl, moduleCronServiceImpl, moduleServiceHelperImpl, moduleResourceStatusRepositoryImpl)
+	scanToolMetadataRepositoryImpl := security.NewScanToolMetadataRepositoryImpl(db, sugaredLogger)
+	moduleServiceImpl := module.NewModuleServiceImpl(sugaredLogger, serverEnvConfigServerEnvConfig, moduleRepositoryImpl, moduleActionAuditLogRepositoryImpl, helmAppServiceImpl, serverDataStoreServerDataStore, serverCacheServiceImpl, moduleCacheServiceImpl, moduleCronServiceImpl, moduleServiceHelperImpl, moduleResourceStatusRepositoryImpl, scanToolMetadataRepositoryImpl)
 	moduleRestHandlerImpl := module2.NewModuleRestHandlerImpl(sugaredLogger, moduleServiceImpl, userServiceImpl, enforcerImpl, validate)
 	moduleRouterImpl := module2.NewModuleRouterImpl(moduleRestHandlerImpl)
 	serverActionAuditLogRepositoryImpl := server.NewServerActionAuditLogRepositoryImpl(db)
