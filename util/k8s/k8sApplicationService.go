@@ -148,6 +148,11 @@ func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Reque
 		sinceSeconds = 0
 	}*/
 	containerName, clusterIdString := v.Get("containerName"), v.Get("clusterId")
+	prevContainerLogs := v.Get("previous")
+	isPrevLogs, err := strconv.ParseBool(prevContainerLogs)
+	if err != nil {
+		isPrevLogs = false
+	}
 	appId := v.Get("appId")
 	follow, err := strconv.ParseBool(v.Get("follow"))
 	if err != nil {
@@ -164,9 +169,10 @@ func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Reque
 		},
 		PodLogsRequest: application.PodLogsRequest{
 			//SinceTime:     sinceSeconds,
-			TailLines:     tailLines,
-			Follow:        follow,
-			ContainerName: containerName,
+			TailLines:                  tailLines,
+			Follow:                     follow,
+			ContainerName:              containerName,
+			IsPrevContainerLogsEnabled: isPrevLogs,
 		},
 	}
 	request.K8sRequest = k8sRequest
