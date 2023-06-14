@@ -1001,6 +1001,9 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	}
 	cdStageWorkflowRequest.DefaultAddressPoolBaseCidr = impl.cdConfig.DefaultAddressPoolBaseCidr
 	cdStageWorkflowRequest.DefaultAddressPoolSize = impl.cdConfig.DefaultAddressPoolSize
+	if util.IsManifestDownload(cdPipeline.DeploymentAppType) {
+		cdStageWorkflowRequest.IsDryRun = true
+	}
 	return cdStageWorkflowRequest, nil
 }
 
@@ -1769,7 +1772,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 		err = impl.TriggerPostStage(cdWf, cdPipeline, overrideRequest.UserId)
 		span.End()
 	}
-	if util.IsManifestDownload(cdPipeline.DeploymentAppType) && (overrideRequest.CdWorkflowType == bean.CD_WORKFLOW_TYPE_DEPLOY || overrideRequest.CdWorkflowType == bean.CD_WORKFLOW_TYPE_POST) {
+	if util.IsManifestDownload(cdPipeline.DeploymentAppType) && cdPipeline.PostTriggerType == "" && (overrideRequest.CdWorkflowType == bean.CD_WORKFLOW_TYPE_DEPLOY || overrideRequest.CdWorkflowType == bean.CD_WORKFLOW_TYPE_POST) {
 		err = impl.HandlePostStageSuccessEvent(overrideRequest.CdWorkflowId, overrideRequest.PipelineId, overrideRequest.UserId)
 		if err != nil {
 			impl.logger.Errorw("deployment success event error", "err", err)
