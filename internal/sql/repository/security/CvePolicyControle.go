@@ -52,30 +52,43 @@ func (d PolicyAction) String() string {
 	return [...]string{"inherit", "allow", "block"}[d]
 }
 
-//------------------
+// ------------------
 type Severity int
 
 const (
 	Low Severity = iota
-	Moderate
+	Medium
 	Critical
+	High
+	Safe
+)
+const (
+	HIGH     string = "high"
+	CRITICAL string = "critical"
+	SAFE     string = "safe"
+	LOW      string = "low"
+	MEDIUM   string = "medium"
+	MODERATE string = "moderate"
 )
 
+// Handling for future use
 func (d Severity) ValuesOf(severity string) Severity {
-	if severity == "critical" {
+	if severity == CRITICAL || severity == HIGH {
 		return Critical
-	} else if severity == "moderate" {
-		return Moderate
-	} else if severity == "low" {
+	} else if severity == MODERATE || severity == MEDIUM {
+		return Medium
+	} else if severity == LOW || severity == SAFE {
 		return Low
 	}
 	return Low
 }
+
+// Updating it for future use(not in use for standard severity)
 func (d Severity) String() string {
-	return [...]string{"low", "moderate", "critical"}[d]
+	return [...]string{"low", "moderate", "critical", "high", "safe"}[d]
 }
 
-//----------------
+// ----------------
 type PolicyLevel int
 
 const (

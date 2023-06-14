@@ -213,7 +213,7 @@ func (impl ImageScanServiceImpl) FetchScanExecutionListing(request *ImageScanReq
 				lastChecked = item.ImageScanExecutionHistory.ExecutionTime
 				if item.CveStore.Severity == security.Critical {
 					highCount = highCount + 1
-				} else if item.CveStore.Severity == security.Moderate {
+				} else if item.CveStore.Severity == security.Medium {
 					moderateCount = moderateCount + 1
 				} else if item.CveStore.Severity == security.Low {
 					lowCount = lowCount + 1
@@ -366,7 +366,7 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *ImageScanRe
 			}
 			if item.CveStore.Severity == security.Critical {
 				highCount = highCount + 1
-			} else if item.CveStore.Severity == security.Moderate {
+			} else if item.CveStore.Severity == security.Medium {
 				moderateCount = moderateCount + 1
 			} else if item.CveStore.Severity == security.Low {
 				lowCount = lowCount + 1
@@ -488,7 +488,7 @@ func (impl ImageScanServiceImpl) FetchMinScanResultByAppIdAndEnvId(request *Imag
 			executionTime = item.ImageScanExecutionHistory.ExecutionTime
 			if item.CveStore.Severity == security.Critical {
 				highCount = highCount + 1
-			} else if item.CveStore.Severity == security.Moderate {
+			} else if item.CveStore.Severity == security.Medium {
 				moderateCount = moderateCount + 1
 			} else if item.CveStore.Severity == security.Low {
 				lowCount = lowCount + 1
