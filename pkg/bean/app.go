@@ -699,6 +699,7 @@ type CiArtifactResponse struct {
 	UserApprovalConfig     *pipelineConfig.UserApprovalConfig `json:"userApprovalConfig"`
 	ApprovalUsers          []string                           `json:"approvalUsers"`
 	RequestedUserId        int32                              `json:"requestedUserId"`
+	IsVirtualCluster       bool                               `json:"isVirtualCluster"`
 }
 
 type AppLabelsDto struct {
