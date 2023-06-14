@@ -3,3 +3,4 @@
 ## Enhancements
 ## Documentation
 ## Others
+- task: added global policy db scripts (#3486)
