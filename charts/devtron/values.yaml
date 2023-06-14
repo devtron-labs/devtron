@@ -60,7 +60,7 @@ components:
 
   devtron:
     image: "quay.io/devtron/hyperion:596629d5-280-14129"
-    cicdImage: "quay.io/devtron/devtron:0e97f1a3-434-14124"
+    cicdImage: "quay.io/devtron/devtron:596629d5-434-14130"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
     serviceMonitor:
