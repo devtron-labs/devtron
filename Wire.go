@@ -34,6 +34,7 @@ import (
 	"github.com/devtron-labs/devtron/api/dashboardEvent"
 	"github.com/devtron-labs/devtron/api/deployment"
 	"github.com/devtron-labs/devtron/api/externalLink"
+	"github.com/devtron-labs/devtron/api/globalPolicy"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/module"
 	"github.com/devtron-labs/devtron/api/restHandler"
@@ -95,6 +96,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
+	"github.com/devtron-labs/devtron/pkg/devtronResource"
+	repository8 "github.com/devtron-labs/devtron/pkg/devtronResource/repository"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/git"
 	"github.com/devtron-labs/devtron/pkg/gitops"
@@ -146,6 +149,7 @@ func InitializeApp() (*App, error) {
 		terminal.TerminalWireSet,
 		client2.CasbinWireSet,
 		globalTag.GlobalTagWireSet,
+		globalPolicy.GlobalPolicyWireSet,
 		// -------wireset end ----------
 		//-------
 		gitSensor.GetConfig,
@@ -857,6 +861,12 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipeline.ArgoWorkflowExecutor), new(*pipeline.ArgoWorkflowExecutorImpl)),
 		pipeline.NewSystemWorkflowExecutorImpl,
 		wire.Bind(new(pipeline.SystemWorkflowExecutor), new(*pipeline.SystemWorkflowExecutorImpl)),
+
+		repository8.NewDevtronResourceSearchableKeyRepositoryImpl,
+		wire.Bind(new(repository8.DevtronResourceSearchableKeyRepository), new(*repository8.DevtronResourceSearchableKeyRepositoryImpl)),
+
+		devtronResource.NewDevtronResourceSearchableKeyServiceImpl,
+		wire.Bind(new(devtronResource.DevtronResourceService), new(*devtronResource.DevtronResourceSearchableKeyServiceImpl)),
 	)
 	return &App{}, nil
 }

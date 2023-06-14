@@ -46,7 +46,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/user"
-	util2 "github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -883,7 +882,7 @@ func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 			impl.Logger.Warnw("ci failed for workflow: ", "wfId", savedWorkflow.Id)
 
 			if extractErrorCode(savedWorkflow.Message) != CiStageFailErrorCode {
-				go impl.WriteCIFailEvent(savedWorkflow, ciWorkflowConfig.CiImage)
+				impl.ciService.WriteCIFailEvent(savedWorkflow, ciWorkflowConfig.CiImage)
 			} else {
 				impl.Logger.Infof("Step failed notification received for wfID %d with message %s", savedWorkflow.Id, savedWorkflow.Message)
 			}
@@ -904,20 +903,6 @@ func extractErrorCode(msg string) int {
 		}
 	}
 	return -1
-}
-
-func (impl *CiHandlerImpl) WriteCIFailEvent(ciWorkflow *pipelineConfig.CiWorkflow, ciImage string) {
-	event := impl.eventFactory.Build(util2.Fail, &ciWorkflow.CiPipelineId, ciWorkflow.CiPipeline.AppId, nil, util2.CI)
-	material := &client.MaterialTriggerInfo{}
-	material.GitTriggers = ciWorkflow.GitTriggers
-	event.CiWorkflowRunnerId = ciWorkflow.Id
-	event.UserId = int(ciWorkflow.TriggeredBy)
-	event = impl.eventFactory.BuildExtraCIData(event, material, ciImage)
-	event.CiArtifactId = 0
-	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
-	if evtErr != nil {
-		impl.Logger.Errorw("error in writing event", "err", evtErr)
-	}
 }
 
 func (impl *CiHandlerImpl) BuildPayload(ciWorkflow *pipelineConfig.CiWorkflow) *client.Payload {
