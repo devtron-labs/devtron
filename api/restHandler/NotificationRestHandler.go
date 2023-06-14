@@ -59,7 +59,7 @@ type NotificationRestHandler interface {
 	FindSlackConfig(w http.ResponseWriter, r *http.Request)
 	FindSMTPConfig(w http.ResponseWriter, r *http.Request)
 	FindWebhookConfig(w http.ResponseWriter, r *http.Request)
-	GetWebhookAttributes(w http.ResponseWriter, r *http.Request)
+	GetWebhookVariables(w http.ResponseWriter, r *http.Request)
 	FindAllNotificationConfig(w http.ResponseWriter, r *http.Request)
 	GetAllNotificationSettings(w http.ResponseWriter, r *http.Request)
 	DeleteNotificationSettings(w http.ResponseWriter, r *http.Request)
@@ -579,7 +579,7 @@ func (impl NotificationRestHandlerImpl) SaveNotificationChannelConfig(w http.Res
 		}
 		//RBAC enforcer Ends
 
-		res, cErr := impl.webhookService.SaveOrEditNotificationConfig(webhookReq.WebhookConfigDtos, userId)
+		res, cErr := impl.webhookService.SaveOrEditNotificationConfig(*webhookReq.WebhookConfigDtos, userId)
 		if cErr != nil {
 			impl.logger.Errorw("service err, SaveNotificationChannelConfig", "err", err, "webhookReq", webhookReq)
 			common.WriteJsonResp(w, cErr, nil, http.StatusInternalServerError)
@@ -790,22 +790,22 @@ func (impl NotificationRestHandlerImpl) FindWebhookConfig(w http.ResponseWriter,
 	w.Header().Set("Content-Type", "application/json")
 	common.WriteJsonResp(w, fErr, webhookConfig, http.StatusOK)
 }
-func (impl NotificationRestHandlerImpl) GetWebhookAttributes(w http.ResponseWriter, r *http.Request) {
+func (impl NotificationRestHandlerImpl) GetWebhookVariables(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 
-	webhookAttributes, fErr := impl.webhookService.GetWebhookAttributes()
+	webhookVariables, fErr := impl.webhookService.GetWebhookVariables()
 	if fErr != nil && fErr != pg.ErrNoRows {
-		impl.logger.Errorw("service err, GetWebhookAttributes, cannot find webhook attributes", "err", fErr)
+		impl.logger.Errorw("service err, GetWebhookVariables, cannot find webhook Variables", "err", fErr)
 		common.WriteJsonResp(w, fErr, nil, http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	common.WriteJsonResp(w, fErr, webhookAttributes, http.StatusOK)
+	common.WriteJsonResp(w, fErr, webhookVariables, http.StatusOK)
 }
 
 func (impl NotificationRestHandlerImpl) RecipientListingSuggestion(w http.ResponseWriter, r *http.Request) {

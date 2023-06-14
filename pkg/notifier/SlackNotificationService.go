@@ -33,6 +33,8 @@ import (
 )
 
 const SLACK_CONFIG_TYPE = "slack"
+const SLACK_URL = "https://hooks.slack.com/"
+const WEBHOOK_URL = "https://"
 
 type SlackNotificationService interface {
 	SaveOrEditNotificationConfig(channelReq []SlackConfigDto, userId int32) ([]int, error)
@@ -264,9 +266,9 @@ func (impl *SlackNotificationServiceImpl) RecipientListingSuggestion(value strin
 								result := &NotificationRecipientListingResponse{
 									Recipient: v.(string),
 								}
-								if strings.Contains(v.(string), "https://hooks.slack.com/") {
+								if strings.Contains(v.(string), SLACK_URL) {
 									result.Dest = util2.Slack
-								} else if strings.Contains(v.(string), "https://") {
+								} else if strings.Contains(v.(string), WEBHOOK_URL) {
 									result.Dest = util2.Webhook
 								} else {
 									result.Dest = util2.SES

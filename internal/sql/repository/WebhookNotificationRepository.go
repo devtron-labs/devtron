@@ -10,11 +10,9 @@ type WebhookNotificationRepository interface {
 	UpdateWebhookConfig(webhookConfig *WebhookConfig) (*WebhookConfig, error)
 	SaveWebhookConfig(webhookConfig *WebhookConfig) (*WebhookConfig, error)
 	FindAll() ([]WebhookConfig, error)
-	FindByIdsIn(ids []int) ([]*WebhookConfig, error)
-	FindByTeamIdOrOwnerId(ownerId int32, teamIds []int) ([]WebhookConfig, error)
 	FindByName(value string) ([]WebhookConfig, error)
 	FindByIds(ids []*int) ([]*WebhookConfig, error)
-	MarkSlackConfigDeleted(webhookConfig *WebhookConfig) error
+	MarkWebhookConfigDeleted(webhookConfig *WebhookConfig) error
 }
 
 type WebhookNotificationRepositoryImpl struct {
@@ -39,15 +37,6 @@ type WebhookConfig struct {
 	sql.AuditLog
 }
 
-func (impl *WebhookNotificationRepositoryImpl) FindByIdsIn(ids []int) ([]*WebhookConfig, error) {
-	var configs []*WebhookConfig
-	err := impl.dbConnection.Model(&configs).
-		Where("id in (?)", pg.In(ids)).
-		Where("deleted = ?", false).
-		Select()
-	return configs, err
-}
-
 func (impl *WebhookNotificationRepositoryImpl) FindOne(id int) (*WebhookConfig, error) {
 	details := &WebhookConfig{}
 	err := impl.dbConnection.Model(details).Where("id = ?", id).
@@ -61,21 +50,6 @@ func (impl *WebhookNotificationRepositoryImpl) FindAll() ([]WebhookConfig, error
 	err := impl.dbConnection.Model(&webhookConfigs).
 		Where("deleted = ?", false).Select()
 	return webhookConfigs, err
-}
-
-func (impl *WebhookNotificationRepositoryImpl) FindByTeamIdOrOwnerId(ownerId int32, teamIds []int) ([]WebhookConfig, error) {
-	var webhookConfigs []WebhookConfig
-	if len(teamIds) == 0 {
-
-		err := impl.dbConnection.Model(&webhookConfigs).Where(`owner_id = ?`, ownerId).
-			Where("deleted = ?", false).Select()
-		return webhookConfigs, err
-	} else {
-		err := impl.dbConnection.Model(&webhookConfigs).
-			Where(`team_id in (?)`, pg.In(teamIds)).
-			Where("deleted = ?", false).Select()
-		return webhookConfigs, err
-	}
 }
 
 func (impl *WebhookNotificationRepositoryImpl) UpdateWebhookConfig(webhookConfig *WebhookConfig) (*WebhookConfig, error) {
@@ -101,7 +75,7 @@ func (repo *WebhookNotificationRepositoryImpl) FindByIds(ids []*int) ([]*Webhook
 	return objects, err
 }
 
-func (impl *WebhookNotificationRepositoryImpl) MarkSlackConfigDeleted(webhookConfig *WebhookConfig) error {
+func (impl *WebhookNotificationRepositoryImpl) MarkWebhookConfigDeleted(webhookConfig *WebhookConfig) error {
 	webhookConfig.Deleted = true
 	return impl.dbConnection.Update(webhookConfig)
 }

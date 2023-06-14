@@ -66,8 +66,8 @@ func (impl NotificationRouterImpl) InitNotificationRegRouter(configRouter *mux.R
 	configRouter.Path("/channel/webhook/{id}").
 		HandlerFunc(impl.notificationRestHandler.FindWebhookConfig).
 		Methods("GET")
-	configRouter.Path("/attribute").
-		HandlerFunc(impl.notificationRestHandler.GetWebhookAttributes).
+	configRouter.Path("/variables").
+		HandlerFunc(impl.notificationRestHandler.GetWebhookVariables).
 		Methods("GET")
 
 	configRouter.Path("/channel").

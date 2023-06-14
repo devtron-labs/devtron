@@ -15,25 +15,26 @@ import (
 
 const WEBHOOK_CONFIG_TYPE = "webhook"
 
-type WebhookAttribute string
+type WebhookVariable string
 
 const (
-	DevtronContainerImageTag WebhookAttribute = "{{devtronContainerImageTag}}"
-	DevtronAppName           WebhookAttribute = "{{devtronAppName}}"
-	DevtronAppId             WebhookAttribute = "{{devtronAppId}}"
-	DevtronEnvName           WebhookAttribute = "{{devtronEnvName}}"
-	DevtronEnvId             WebhookAttribute = "{{devtronEnvId}}"
-	DevtronCiPipelineId      WebhookAttribute = "{{devtronCiPipelineId}}"
-	DevtronCdPipelineId      WebhookAttribute = "{{devtronCdPipelineId}}"
-	DevtronTriggeredByEmail  WebhookAttribute = "{{devtronTriggeredByEmail}}"
-	DevtronApprovedByEmail   WebhookAttribute = "{{devtronApprovedByEmail}}"
-	EventType                WebhookAttribute = "{{eventType}}"
+	// these fields will be configurable in future
+	DevtronContainerImageTag WebhookVariable = "{{devtronContainerImageTag}}"
+	DevtronAppName           WebhookVariable = "{{devtronAppName}}"
+	DevtronAppId             WebhookVariable = "{{devtronAppId}}"
+	DevtronEnvName           WebhookVariable = "{{devtronEnvName}}"
+	DevtronEnvId             WebhookVariable = "{{devtronEnvId}}"
+	DevtronCiPipelineId      WebhookVariable = "{{devtronCiPipelineId}}"
+	DevtronCdPipelineId      WebhookVariable = "{{devtronCdPipelineId}}"
+	DevtronTriggeredByEmail  WebhookVariable = "{{devtronTriggeredByEmail}}"
+	DevtronApprovedByEmail   WebhookVariable = "{{devtronApprovedByEmail}}"
+	EventType                WebhookVariable = "{{eventType}}"
 )
 
 type WebhookNotificationService interface {
 	SaveOrEditNotificationConfig(channelReq []WebhookConfigDto, userId int32) ([]int, error)
 	FetchWebhookNotificationConfigById(id int) (*WebhookConfigDto, error)
-	GetWebhookAttributes() (map[string]WebhookAttribute, error)
+	GetWebhookVariables() (map[string]WebhookVariable, error)
 	FetchAllWebhookNotificationConfig() ([]*WebhookConfigDto, error)
 	FetchAllWebhookNotificationConfigAutocomplete() ([]*NotificationChannelAutoResponse, error)
 	DeleteNotificationConfig(deleteReq *WebhookConfigDto, userId int32) error
@@ -47,8 +48,8 @@ type WebhookNotificationServiceImpl struct {
 	notificationSettingsRepository repository.NotificationSettingsRepository
 }
 type WebhookChannelConfig struct {
-	Channel           util2.Channel      `json:"channel" validate:"required"`
-	WebhookConfigDtos []WebhookConfigDto `json:"configs"`
+	Channel           util2.Channel       `json:"channel" validate:"required"`
+	WebhookConfigDtos *[]WebhookConfigDto `json:"configs"`
 }
 
 type WebhookConfigDto struct {
@@ -111,8 +112,8 @@ func (impl *WebhookNotificationServiceImpl) FetchWebhookNotificationConfigById(i
 	return &webhoookConfigDto, nil
 }
 
-func (impl *WebhookNotificationServiceImpl) GetWebhookAttributes() (map[string]WebhookAttribute, error) {
-	attributes := map[string]WebhookAttribute{
+func (impl *WebhookNotificationServiceImpl) GetWebhookVariables() (map[string]WebhookVariable, error) {
+	variables := map[string]WebhookVariable{
 		"devtronContainerImageTag": DevtronContainerImageTag,
 		"devtronAppName":           DevtronAppName,
 		"devtronAppId":             DevtronAppId,
@@ -125,7 +126,7 @@ func (impl *WebhookNotificationServiceImpl) GetWebhookAttributes() (map[string]W
 		"eventType":                EventType,
 	}
 
-	return attributes, nil
+	return variables, nil
 }
 
 func (impl *WebhookNotificationServiceImpl) FetchAllWebhookNotificationConfig() ([]*WebhookConfigDto, error) {
@@ -228,7 +229,7 @@ func (impl *WebhookNotificationServiceImpl) DeleteNotificationConfig(deleteReq *
 	existingConfig.UpdatedOn = time.Now()
 	existingConfig.UpdatedBy = userId
 	//deleting webhook config
-	err = impl.webhookRepository.MarkSlackConfigDeleted(existingConfig)
+	err = impl.webhookRepository.MarkWebhookConfigDeleted(existingConfig)
 	if err != nil {
 		impl.logger.Errorw("error in deleting webhook config", "err", err, "id", existingConfig.Id)
 		return err
