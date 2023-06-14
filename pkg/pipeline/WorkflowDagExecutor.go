@@ -1772,7 +1772,8 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 		err = impl.TriggerPostStage(cdWf, cdPipeline, overrideRequest.UserId)
 		span.End()
 	}
-	if util.IsManifestDownload(cdPipeline.DeploymentAppType) && cdPipeline.PostTriggerType == "" && (overrideRequest.CdWorkflowType == bean.CD_WORKFLOW_TYPE_DEPLOY || overrideRequest.CdWorkflowType == bean.CD_WORKFLOW_TYPE_POST) {
+	//Auto trigger feature for virtual CdPipeline
+	if util.IsManifestDownload(cdPipeline.DeploymentAppType) && cdPipeline.PostTriggerType == pipelineConfig.TRIGGER_TYPE_AUTOMATIC && (overrideRequest.CdWorkflowType == bean.CD_WORKFLOW_TYPE_DEPLOY || overrideRequest.CdWorkflowType == bean.CD_WORKFLOW_TYPE_POST) {
 		err = impl.HandlePostStageSuccessEvent(overrideRequest.CdWorkflowId, overrideRequest.PipelineId, overrideRequest.UserId)
 		if err != nil {
 			impl.logger.Errorw("deployment success event error", "err", err)
