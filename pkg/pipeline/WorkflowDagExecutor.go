@@ -629,7 +629,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 
 	if util.IsManifestDownload(pipeline.DeploymentAppType) {
 		chartBytes, err := impl.chartTemplateService.LoadChartInBytes(jobHelmPackagePath, false, chartName, fmt.Sprint(cdWf.Id))
-		if err != nil && util.IsManifestDownload(pipeline.DeploymentAppType) {
+		if err != nil {
 			return err
 		}
 		runner.Status = pipelineConfig.WorkflowSucceeded
@@ -1768,6 +1768,13 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 		_, span = otel.Tracer("orchestrator").Start(ctx, "TriggerPostStage")
 		err = impl.TriggerPostStage(cdWf, cdPipeline, overrideRequest.UserId)
 		span.End()
+	}
+	if util.IsManifestDownload(cdPipeline.DeploymentAppType) && (overrideRequest.CdWorkflowType == bean.CD_WORKFLOW_TYPE_DEPLOY || overrideRequest.CdWorkflowType == bean.CD_WORKFLOW_TYPE_POST) {
+		err = impl.HandlePostStageSuccessEvent(overrideRequest.CdWorkflowId, overrideRequest.PipelineId, overrideRequest.UserId)
+		if err != nil {
+			impl.logger.Errorw("deployment success event error", "err", err)
+			return 0, "", err
+		}
 	}
 	return releaseId, helmPackageName, err
 }
