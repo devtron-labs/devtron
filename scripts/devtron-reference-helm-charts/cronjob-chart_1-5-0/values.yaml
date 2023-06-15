@@ -257,6 +257,10 @@ kedaAutoscaling: {}
   #     host: RabbitMqHost
   #     queueLength  : '5'
   #   authenticationRef: {}
+  # triggerAuthentication:
+  #   enabled: false
+  #   name: ""
+  #   spec: {}
 
 rawYaml: []
 # - apiVersion: v1

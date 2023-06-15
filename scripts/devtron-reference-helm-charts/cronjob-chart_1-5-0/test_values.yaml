@@ -1,7 +1,7 @@
 # Default values for myapp.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
-kind: Job
+kind: ScaledJob
 
 jobConfigs:
   backoffLimit: 5
@@ -123,6 +123,10 @@ kedaAutoscaling:
       host: RabbitMqHost
       queueLength  : '5'
   authenticationRef: {}
+  triggerAuthentication:
+    enabled: true
+    name: ""
+    spec: {}
 
 prometheusRule:
   enabled: true

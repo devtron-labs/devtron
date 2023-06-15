@@ -33,4 +33,13 @@ spec:
 {{ toYaml $.Values.kedaAutoscaling.triggers | indent 4 }}
   jobTargetRef:
 {{- include "job-template-spec" . | indent 4 }}
+---
+{{- if $.Values.kedaAutoscaling.triggerAuthentication.enabled }}
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: {{ $.Values.kedaAutoscaling.triggerAuthentication.name }}
+spec:
+{{ toYaml $.Values.kedaAutoscaling.triggerAuthentication.spec | indent 2 }}
+{{- end }}
 {{- end }}
