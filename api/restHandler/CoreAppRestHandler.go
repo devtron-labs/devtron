@@ -2094,7 +2094,6 @@ func (handler CoreAppRestHandlerImpl) CreateAppWorkflow(w http.ResponseWriter, r
 	//rbac ends
 
 	handler.logger.Infow("creating app workflow created ", "createAppRequest", createAppRequest)
-	//	var errResp *multierror.Error
 	var statusCode int
 
 	//creating workflow starts
