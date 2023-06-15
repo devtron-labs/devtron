@@ -97,7 +97,24 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 		payload.Stage = string(stage)
 		event.Payload = payload
 	}
+	var emailIDs []string
 	if wfr != nil {
+		if wfr.DeploymentApprovalRequest != nil {
+			userIDs := []int32{}
+			for _, userData := range wfr.DeploymentApprovalRequest.DeploymentApprovalUserData {
+				userIDs = append(userIDs, userData.UserId)
+			}
+			users, err := impl.userRepository.GetByIds(userIDs)
+			if err != nil {
+				impl.logger.Errorw("UserModel not found for users", err)
+			}
+			emailIDs = []string{}
+			for _, user := range users {
+				emailIDs = append(emailIDs, user.EmailId)
+			}
+
+		}
+
 		material, err := impl.getCiMaterialInfo(wfr.CdWorkflow.Pipeline.CiPipelineId, wfr.CdWorkflow.CiArtifactId)
 		if err != nil {
 			impl.logger.Errorw("found error on payload build for cd stages, skipping this error ", "event", event, "stage", stage, "workflow runner", wfr, "pipelineOverrideId", pipelineOverrideId)
@@ -106,6 +123,7 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 		payload.DockerImageUrl = wfr.CdWorkflow.CiArtifact.Image
 		event.UserId = int(wfr.TriggeredBy)
 		event.Payload = payload
+		payload.ApprovedByEmail = emailIDs
 		event.CdWorkflowRunnerId = wfr.Id
 		event.CiArtifactId = wfr.CdWorkflow.CiArtifactId
 	} else if pipelineOverrideId > 0 {
@@ -153,6 +171,7 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 
 	if event.UserId > 0 {
 		user, err := impl.userRepository.GetById(int32(event.UserId))
+
 		if err != nil {
 			impl.logger.Errorw("found error on payload build for cd stages, skipping this error ", "user", user)
 		}
