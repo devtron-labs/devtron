@@ -1,6 +1,10 @@
 # StatefulSet
 
-The StatefulSet chart in Devtron allows you to deploy and manage stateful applications. StatefulSet is a Kubernetes resource that provides guarantees about the ordering and uniqueness of Pods during deployment and scaling. It supports only `ONDELETE` and `ROLLINGUPDATE` deployment strategy.
+The StatefulSet chart in Devtron allows you to deploy and manage stateful applications. StatefulSet is a Kubernetes resource that provides guarantees about the ordering and uniqueness of Pods during deployment and scaling. 
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/sts-chart.jpg)
+
+It supports only `ONDELETE` and `ROLLINGUPDATE` deployment strategy.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/sts-strategy.jpg)
 
@@ -22,8 +26,6 @@ You can select `SatefulSet` chart when you want to use only basic use cases whic
 * **Status Monitoring:** StatefulSets offer status information that can be used to monitor the deployment, including the current version, number of replicas, and the readiness of each Pod. This helps in tracking the health and progress of the StatefulSet deployment.
 
 * **Resource Cleanup:** StatefulSets allow for easy cleanup of older versions by deleting StatefulSets and their associated Pods and persistent volumes that are no longer needed, ensuring efficient resource utilization.
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/sts-chart.jpg)
 
 
 You can define application behavior by providing information in the following sections:
