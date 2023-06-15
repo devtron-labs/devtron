@@ -41,7 +41,6 @@ import (
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned"
 	v1alpha12 "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
-	"github.com/argoproj/argo-workflows/v3/workflow/util"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"go.uber.org/zap"
@@ -57,7 +56,7 @@ type CdWorkflowService interface {
 	GetWorkflow(name string, namespace string, clusterConfig util2.ClusterConfig, isExtRun bool) (*v1alpha1.Workflow, error)
 	ListAllWorkflows(namespace string) (*v1alpha1.WorkflowList, error)
 	UpdateWorkflow(wf *v1alpha1.Workflow) (*v1alpha1.Workflow, error)
-	TerminateWorkflow(name string, namespace string, clusterConfig util2.ClusterConfig, isExtRun bool) error
+	TerminateWorkflow(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, clusterConfig *rest.Config) error
 }
 
 const (
@@ -313,7 +312,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		if workflowExecutor == nil {
 			return "", errors.New("workflow executor not found")
 		}
-		err = workflowExecutor.ExecuteWorkflow(workflowTemplate)
+		_, err = workflowExecutor.ExecuteWorkflow(workflowTemplate)
 	}
 	return jobHelmChartPath, err
 }
@@ -389,21 +388,15 @@ func (impl *CdWorkflowServiceImpl) GetWorkflow(name string, namespace string, cl
 	return workflow, err
 }
 
-func (impl *CdWorkflowServiceImpl) TerminateWorkflow(name string, namespace string, clusterConfig util2.ClusterConfig, isExtRun bool) error {
-	impl.Logger.Debugw("terminating wf", "name", name)
-	var wfClient v1alpha12.WorkflowInterface
-	var err error
-	if isExtRun {
-		wfClient, err = impl.getRuntimeEnvClientInstance(namespace, clusterConfig)
+func (impl *CdWorkflowServiceImpl) TerminateWorkflow(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, clusterConfig *rest.Config) error {
 
-	} else {
-		wfClient, err = impl.getClientInstance(namespace)
+	impl.Logger.Debugw("terminating wf", "name", name)
+	if clusterConfig == nil {
+		// taking default config
+		clusterConfig = impl.config
 	}
-	if err != nil {
-		impl.Logger.Errorw("cannot build wf client", "err", err)
-		return err
-	}
-	err = util.TerminateWorkflow(context.Background(), wfClient, name)
+	workflowExecutor := impl.getWorkflowExecutor(executorType)
+	err := workflowExecutor.TerminateWorkflow(name, namespace, clusterConfig)
 	return err
 }
 

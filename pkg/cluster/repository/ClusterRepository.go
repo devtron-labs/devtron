@@ -24,6 +24,13 @@ import (
 	"k8s.io/client-go/rest"
 )
 
+const (
+	BearerToken              = "bearer_token"
+	CertificateAuthorityData = "cert_auth_data"
+	CertData                 = "cert_data"
+	TlsKey                   = "tls_key"
+)
+
 type Cluster struct {
 	tableName              struct{}          `sql:"cluster" pg:",discard_unknown_columns"`
 	Id                     int               `sql:"id,pk"`
@@ -75,14 +82,21 @@ type ClusterRepositoryImpl struct {
 
 func (cluster Cluster) GetClusterConfig() *rest.Config {
 	configMap := cluster.Config
-	bearerToken := configMap["bearer_token"]
+	bearerToken := configMap[BearerToken]
 	config := &rest.Config{
 		Host:        cluster.ServerUrl,
 		BearerToken: bearerToken,
 		TLSClientConfig: rest.TLSClientConfig{
-			Insecure: true,
+			Insecure: cluster.InsecureSkipTlsVerify,
 		},
 	}
+
+	if cluster.InsecureSkipTlsVerify == false {
+		config.KeyData = []byte(configMap[TlsKey])
+		config.CertData = []byte(configMap[CertData])
+		config.CAData = []byte(configMap[CertificateAuthorityData])
+	}
+
 	return config
 }
 
