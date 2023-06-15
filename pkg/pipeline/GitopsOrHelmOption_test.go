@@ -24,7 +24,7 @@ func TestGitopsOrHelmOption(t *testing.T) {
 			nil, nil, nil,
 			nil, nil, nil, nil,
 			nil, nil, nil, nil,
-			nil, nil, nil, nil, nil, nil, nil, nil, &DeploymentServiceTypeConfig{IsInternalUse: false}, nil, nil, nil, nil, nil, nil, nil,nil)
+			nil, nil, nil, nil, nil, nil, nil, nil, &DeploymentServiceTypeConfig{IsInternalUse: false}, nil, nil, nil, nil, nil, nil, nil, nil)
 
 		pipelineCreateRequest := &bean.CdPipelines{
 			Pipelines: []*bean.CDPipelineConfigObject{
@@ -55,6 +55,7 @@ func TestGitopsOrHelmOption(t *testing.T) {
 			UserId: 0,
 		}
 		isVirtualEnvironmentMap := make(map[int]bool)
+		isVirtualEnvironmentMap[1] = false
 		isGitOpsConfigured := true
 		pipelineBuilderService.SetPipelineDeploymentAppType(pipelineCreateRequest, isGitOpsConfigured, isVirtualEnvironmentMap)
 
@@ -80,7 +81,7 @@ func TestGitopsOrHelmOption(t *testing.T) {
 			nil, nil, nil, nil,
 			nil, nil, nil, nil, nil, nil, nil,
 			nil, &DeploymentServiceTypeConfig{IsInternalUse: false},
-			nil, nil, nil, nil, nil, nil, nil,nil)
+			nil, nil, nil, nil, nil, nil, nil, nil)
 
 		pipelineCreateRequest := &bean.CdPipelines{
 			Pipelines: []*bean.CDPipelineConfigObject{
@@ -112,6 +113,7 @@ func TestGitopsOrHelmOption(t *testing.T) {
 		}
 		isGitOpsConfigured := false
 		isVirtualEnvironmentMap := make(map[int]bool)
+		isVirtualEnvironmentMap[1] = false
 		pipelineBuilderService.SetPipelineDeploymentAppType(pipelineCreateRequest, isGitOpsConfigured, isVirtualEnvironmentMap)
 
 		for _, pipeline := range pipelineCreateRequest.Pipelines {
@@ -137,7 +139,7 @@ func TestGitopsOrHelmOption(t *testing.T) {
 			nil, nil, nil, nil, nil, nil,
 			nil, nil,
 			&DeploymentServiceTypeConfig{IsInternalUse: true}, nil, nil, nil, nil,
-			nil, nil, nil,nil)
+			nil, nil, nil, nil)
 
 		pipelineCreateRequestHelm := &bean.CdPipelines{
 			Pipelines: []*bean.CDPipelineConfigObject{
@@ -229,8 +231,8 @@ func TestGitopsOrHelmOption(t *testing.T) {
 			nil, nil, nil,
 			nil, nil, nil, nil,
 			nil, nil, nil, nil,
-			nil, nil, nil,nil, nil, nil, nil,
-			nil, &DeploymentServiceTypeConfig{IsInternalUse: false}, nil,nil, nil,nil, nil, nil, nil, nil)
+			nil, nil, nil, nil, nil, nil, nil,
+			nil, &DeploymentServiceTypeConfig{IsInternalUse: false}, nil, nil, nil, nil, nil, nil, nil, nil)
 
 		pipelineCreateRequest := &bean.CdPipelines{
 			Pipelines: []*bean.CDPipelineConfigObject{
@@ -288,7 +290,7 @@ func TestGitopsOrHelmOption(t *testing.T) {
 			nil, nil, nil,
 			nil, nil, nil, nil,
 			nil, nil, nil, nil,
-			nil, nil, nil, nil, nil, nil, nil, nil, &DeploymentServiceTypeConfig{IsInternalUse: true}, nil, nil, nil, nil, nil, nil, nil,nil)
+			nil, nil, nil, nil, nil, nil, nil, nil, &DeploymentServiceTypeConfig{IsInternalUse: true}, nil, nil, nil, nil, nil, nil, nil, nil)
 
 		pipelineCreateRequest := &bean.CdPipelines{
 			Pipelines: []*bean.CDPipelineConfigObject{

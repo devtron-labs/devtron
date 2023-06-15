@@ -1852,11 +1852,11 @@ func (impl PipelineBuilderImpl) SetPipelineDeploymentAppType(pipelineCreateReque
 			if isVirtualEnv, ok := virtualEnvironmentMap[pipeline.EnvironmentId]; ok {
 				if isVirtualEnv {
 					pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD
+				} else if isGitOpsConfigured {
+					pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
+				} else {
+					pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
 				}
-			} else if isGitOpsConfigured {
-				pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
-			} else {
-				pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
 			}
 		}
 	}

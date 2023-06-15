@@ -1026,6 +1026,7 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 	}
 
 	ciArtifactResponse.RequestedUserId = userId
+	ciArtifactResponse.IsVirtualCluster = pipeline.Environment.IsVirtualEnvironment
 
 	if len(digests) > 0 {
 		//vulnerableMap := make(map[string]bool)

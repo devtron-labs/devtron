@@ -629,7 +629,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 
 	if util.IsManifestDownload(pipeline.DeploymentAppType) {
 		chartBytes, err := impl.chartTemplateService.LoadChartInBytes(jobHelmPackagePath, false, chartName, fmt.Sprint(cdWf.Id))
-		if err != nil && util.IsManifestDownload(pipeline.DeploymentAppType) {
+		if err != nil {
 			return err
 		}
 		runner.Status = pipelineConfig.WorkflowSucceeded
@@ -1001,6 +1001,9 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	}
 	cdStageWorkflowRequest.DefaultAddressPoolBaseCidr = impl.cdConfig.DefaultAddressPoolBaseCidr
 	cdStageWorkflowRequest.DefaultAddressPoolSize = impl.cdConfig.DefaultAddressPoolSize
+	if util.IsManifestDownload(cdPipeline.DeploymentAppType) {
+		cdStageWorkflowRequest.IsDryRun = true
+	}
 	return cdStageWorkflowRequest, nil
 }
 
@@ -1756,6 +1759,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 				impl.logger.Errorw("err", "err", err)
 				return 0, "", err
 			}
+			overrideRequest.CdWorkflowId = cdWf.Id
 		} else {
 			_, span = otel.Tracer("orchestrator").Start(ctx, "cdWorkflowRepository.FindById")
 			cdWf, err = impl.cdWorkflowRepository.FindById(overrideRequest.CdWorkflowId)
@@ -1768,6 +1772,14 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 		_, span = otel.Tracer("orchestrator").Start(ctx, "TriggerPostStage")
 		err = impl.TriggerPostStage(cdWf, cdPipeline, overrideRequest.UserId)
 		span.End()
+	}
+	//Auto trigger feature for virtual CdPipeline if Virtual CDPipeline and No Post CD configured || Virtual Post CD
+	if util.IsManifestDownload(cdPipeline.DeploymentAppType) && (overrideRequest.CdWorkflowType == bean.CD_WORKFLOW_TYPE_DEPLOY && cdPipeline.PostTriggerType == "" || overrideRequest.CdWorkflowType == bean.CD_WORKFLOW_TYPE_POST) {
+		err = impl.HandlePostStageSuccessEvent(overrideRequest.CdWorkflowId, overrideRequest.PipelineId, overrideRequest.UserId)
+		if err != nil {
+			impl.logger.Errorw("auto trigger virtual deployment error", "err", err)
+			return 0, "", err
+		}
 	}
 	return releaseId, helmPackageName, err
 }
