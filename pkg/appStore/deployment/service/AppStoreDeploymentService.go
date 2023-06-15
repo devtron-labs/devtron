@@ -284,9 +284,8 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 	installAppVersionRequest.Id = installedAppVersions.Id
 
 	updateTime := installedApp.UpdatedOn
-	dateTag := fmt.Sprintf("%v %v,%v", updateTime.Day(), updateTime.Month(), updateTime.Year())
-	timeTag := fmt.Sprintf("%v.%v", updateTime.Hour(), updateTime.Minute())
-	installAppVersionRequest.HelmPackageName = fmt.Sprintf("%s-%s-%s %s", installAppVersionRequest.AppName, installAppVersionRequest.Environment.Name, dateTag, timeTag)
+	timeStampTag := updateTime.Format(bean.LayoutDDMMYY_HHMM12hr)
+	installAppVersionRequest.HelmPackageName = fmt.Sprintf("%s-%s-%s (GMT)", installAppVersionRequest.AppName, installAppVersionRequest.Environment.Name, timeStampTag)
 
 	if installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD || installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD {
 		installedAppVersionHistory := &repository.InstalledAppVersionHistory{}
@@ -1062,9 +1061,7 @@ func (impl AppStoreDeploymentServiceImpl) GetDeploymentHistory(ctx context.Conte
 		result.DeploymentHistory = deploymentHistory.GetDeploymentHistory()
 	}
 	updateTime := installedApp.UpdatedOn
-
-	dateTag := fmt.Sprintf("%v %v,%v", updateTime.Day(), updateTime.Month(), updateTime.Year())
-	timeTag := fmt.Sprintf("%v.%v", updateTime.Hour(), updateTime.Minute())
+	timeStampTag := updateTime.Format(bean.LayoutDDMMYY_HHMM12hr)
 
 	if installedApp.InstalledAppId > 0 {
 		result.InstalledAppInfo = &client.InstalledAppInfo{
@@ -1077,7 +1074,7 @@ func (impl AppStoreDeploymentServiceImpl) GetDeploymentHistory(ctx context.Conte
 			ClusterId:             installedApp.ClusterId,
 			EnvironmentId:         installedApp.EnvironmentId,
 			DeploymentType:        installedApp.DeploymentAppType,
-			HelmPackageName:       fmt.Sprintf("%s-%s-%s %s", installedApp.AppName, installedApp.EnvironmentName, dateTag, timeTag),
+			HelmPackageName:       fmt.Sprintf("%s-%s-%s (GMT)", installedApp.AppName, installedApp.EnvironmentName, timeStampTag),
 		}
 	}
 
@@ -1317,9 +1314,8 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 
 	if util.IsManifestDownload(installedApp.DeploymentAppType) {
 		updateTime := installedApp.UpdatedOn
-		dateTag := fmt.Sprintf("%v %v,%v", updateTime.Day(), updateTime.Month(), updateTime.Year())
-		timeTag := fmt.Sprintf("%v.%v", updateTime.Hour(), updateTime.Minute())
-		installAppVersionRequest.HelmPackageName = fmt.Sprintf("%s-%s-%s %s", installedApp.App.AppName, installedApp.Environment.Name, dateTag, timeTag)
+		timeStampTag := updateTime.Format(bean.LayoutDDMMYY_HHMM12hr)
+		installAppVersionRequest.HelmPackageName = fmt.Sprintf("%s-%s-%s (GMT)", installedApp.App.AppName, installedApp.Environment.Name, timeStampTag)
 	}
 
 	var installedAppVersion *repository.InstalledAppVersions
@@ -1771,9 +1767,8 @@ func (impl AppStoreDeploymentServiceImpl) GetInstalledAppVersion(id int, userId 
 		return nil, err
 	}
 	updateTime := app.InstalledApp.UpdatedOn
-	dateTag := fmt.Sprintf("%v %v,%v", updateTime.Day(), updateTime.Month(), updateTime.Year())
-	timeTag := fmt.Sprintf("%v.%v", updateTime.Hour(), updateTime.Minute())
-	helmPackageName := fmt.Sprintf("%s-%s-%s %s", app.InstalledApp.App.AppName, app.InstalledApp.Environment.Name, dateTag, timeTag)
+	timeStampTag := updateTime.Format(bean.LayoutDDMMYY_HHMM12hr)
+	helmPackageName := fmt.Sprintf("%s-%s-%s (GMT)", app.InstalledApp.App.AppName, app.InstalledApp.Environment.Name, timeStampTag)
 	installAppVersion := &appStoreBean.InstallAppVersionDTO{
 		InstalledAppId:     app.InstalledAppId,
 		AppName:            app.InstalledApp.App.AppName,
