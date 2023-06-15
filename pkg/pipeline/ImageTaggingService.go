@@ -349,6 +349,9 @@ func (impl ImageTaggingServiceImpl) performTagOperationsAndGetAuditList(tx *pg.T
 	if len(imageTaggingRequest.CreateTags) > 0 {
 		err = impl.imageTaggingRepo.SaveReleaseTagsInBulk(tx, imageTaggingRequest.CreateTags)
 		if err != nil {
+			if strings.Contains(err.Error(), "release_tags_app_id_tag_name_key") {
+				err = errors.New("cannot create duplicate tags in the same app")
+			}
 			impl.logger.Errorw("error in saving releaseTag", "err", err, "releaseTags", imageTaggingRequest.CreateTags)
 			return nil, err
 		}
