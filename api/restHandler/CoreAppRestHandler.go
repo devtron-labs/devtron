@@ -1762,7 +1762,7 @@ func (handler CoreAppRestHandlerImpl) createEnvDeploymentTemplate(appId int, use
 	}
 
 	// if chart not found for chart_ref then create
-	_, err = handler.chartRepo.FindChartByAppIdAndRefId(appId, chartRefId)
+	chartEntry, err := handler.chartRepo.FindChartByAppIdAndRefId(appId, chartRefId)
 	if err != nil {
 		if pg.ErrNoRows == err {
 			templateRequest := chart.TemplateRequest{
@@ -1784,9 +1784,15 @@ func (handler CoreAppRestHandlerImpl) createEnvDeploymentTemplate(appId int, use
 	}
 
 	// create if required
-	_, err = handler.propertiesConfigService.CreateEnvironmentProperties(appId, envConfigProperties)
+	appMetrics := false
+	if envConfigProperties.AppMetrics != nil {
+		appMetrics = *envConfigProperties.AppMetrics
+	}
+	chartEntry.GlobalOverride = string(envConfigProperties.EnvOverrideValues)
+	_, err = handler.propertiesConfigService.CreateIfRequired(chartEntry, envId, userId, envConfigProperties.ManualReviewed, models.CHARTSTATUS_SUCCESS,
+		true, appMetrics, envConfigProperties.Namespace, envConfigProperties.IsBasicViewLocked, envConfigProperties.CurrentViewEditor, nil)
 	if err != nil {
-		handler.logger.Errorw("service err, CreateEnvironmentProperties", "err", err, "appId", appId, "envId", envId, "chartRefId", chartRefId)
+		handler.logger.Errorw("service err, CreateIfRequired", "err", err, "appId", appId, "envId", envId, "chartRefId", chartRefId)
 		return err
 	}
 
