@@ -9,20 +9,20 @@ global:
     runAsNonRoot: true
 
 installer:
-  release: "v0.6.18-rc.0"
+  release: "v0.6.18-rc.1"
   image: "quay.io/devtron/inception"
   tag: "44b30917-185-13275"
   
 components:
   dashboard:
-    image: "quay.io/devtron/dashboard:85c476cb-325-14023"
+    image: "quay.io/devtron/dashboard:b1ae0175-325-14079"
     config:
       extraConfigs:
         USE_V2: "true"
         ENABLE_BUILD_CONTEXT: "true"
   devtron:
-    image: "quay.io/devtron/hyperion:2d790aa2-280-14032"
-    cicdImage: "quay.io/devtron/devtron:2d790aa2-434-14033"
+    image: "quay.io/devtron/hyperion:2c6ed701-280-14059"
+    cicdImage: "quay.io/devtron/devtron:2c6ed701-434-14060"
   argocdDexServer:
     image: "ghcr.io/dexidp/dex:v2.30.2"
     initContainer:
@@ -48,10 +48,10 @@ components:
     envVars:
       devtron:
         GIT_BRANCH: "main"
-        GIT_HASH: "526ab899abef7d28038522c13e0bb59df17c404e"
+        GIT_HASH: "2c6ed701f1c9b357eee0c07587c426033bd4c4f4"
       casbin:
         GIT_BRANCH: "main"
-        GIT_HASH: "526ab899abef7d28038522c13e0bb59df17c404e"
+        GIT_HASH: "2c6ed701f1c9b357eee0c07587c426033bd4c4f4"
         
 argo-cd:
   global:
