@@ -40,6 +40,7 @@ type TeamRepository interface {
 	GetConnection() *pg.DB
 	FindByIds(ids []*int) ([]*Team, error)
 	FindAllActiveTeamNames() ([]string, error)
+	FindAllActiveTeamIds() ([]int, error)
 }
 type TeamRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -67,6 +68,13 @@ func (impl TeamRepositoryImpl) FindAllActiveTeamNames() ([]string, error) {
 	err := impl.dbConnection.Model((*Team)(nil)).
 		Where("active = ?", true).Select(&teamNames)
 	return teamNames, err
+}
+
+func (impl TeamRepositoryImpl) FindAllActiveTeamIds() ([]int, error) {
+	var teamIds []int
+	err := impl.dbConnection.Model((*Team)(nil)).Column("id").
+		Where("active = ?", true).Select(&teamIds)
+	return teamIds, err
 }
 
 func (impl TeamRepositoryImpl) FindOne(id int) (Team, error) {

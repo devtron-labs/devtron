@@ -285,8 +285,9 @@ func (handler AppRestHandlerImpl) GetAppListByTeamIds(w http.ResponseWriter, r *
 	//vars := mux.Vars(r)
 	v := r.URL.Query()
 	params := v.Get("teamIds")
-	if len(params) == 0 {
-		common.WriteJsonResp(w, err, "StatusBadRequest", http.StatusBadRequest)
+	teamIds, err := getTeamIdsForAppListApi(params)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
@@ -298,16 +299,7 @@ func (handler AppRestHandlerImpl) GetAppListByTeamIds(w http.ResponseWriter, r *
 
 	appType := v.Get("appType")
 	handler.logger.Infow("request payload, GetAppListByTeamIds", "payload", params)
-	var teamIds []int
-	teamIdList := strings.Split(params, ",")
-	for _, item := range teamIdList {
-		teamId, err := strconv.Atoi(item)
-		if err != nil {
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			return
-		}
-		teamIds = append(teamIds, teamId)
-	}
+
 	projectWiseApps, err := handler.appService.GetAppListByTeamIds(teamIds, appType)
 	if err != nil {
 		handler.logger.Errorw("service err, GetAppListByTeamIds", "err", err, "payload", params)
@@ -336,4 +328,23 @@ func (handler AppRestHandlerImpl) GetAppListByTeamIds(w http.ResponseWriter, r *
 	}
 	// RBAC
 	common.WriteJsonResp(w, err, projectWiseApps, http.StatusOK)
+}
+
+func getTeamIdsForAppListApi(teamIdsStr string) ([]int, error) {
+	if len(teamIdsStr) != 0 {
+		teamIdList := strings.Split(teamIdsStr, ",")
+		teamIds := make([]int, 0, len(teamIdList))
+		for _, item := range teamIdList {
+			teamId, err := strconv.Atoi(item)
+			if err != nil {
+				return nil, err
+			}
+			teamIds = append(teamIds, teamId)
+		}
+		return teamIds, nil
+	} else {
+		//no teamIds found, will send for all active teams(handled in service)
+	}
+	return nil, nil
+
 }

@@ -18,6 +18,7 @@
 package pipelineConfig
 
 import (
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -30,17 +31,18 @@ type CiPipelineMaterial struct {
 	CiPipelineId  int      `sql:"ci_pipeline_id"`
 	Path          string   `sql:"path"` // defaults to root of git repo
 	//depricated was used in gocd remove this
-	CheckoutPath string     `sql:"checkout_path"` //path where code will be checked out for single source `./` default for multiSource configured by user
-	Type         SourceType `sql:"type"`
-	Value        string     `sql:"value"`
-	ScmId        string     `sql:"scm_id"`      //id of gocd object
-	ScmName      string     `sql:"scm_name"`    //gocd scm name
-	ScmVersion   string     `sql:"scm_version"` //gocd scm version
-	Active       bool       `sql:"active,notnull"`
-	Regex        string     `json:"regex"`
-	GitTag       string     `sql:"-"`
-	CiPipeline   *CiPipeline
-	GitMaterial  *GitMaterial
+	CheckoutPath     string     `sql:"checkout_path"` //path where code will be checked out for single source `./` default for multiSource configured by user
+	Type             SourceType `sql:"type"`
+	Value            string     `sql:"value"`
+	ScmId            string     `sql:"scm_id"`      //id of gocd object
+	ScmName          string     `sql:"scm_name"`    //gocd scm name
+	ScmVersion       string     `sql:"scm_version"` //gocd scm version
+	Active           bool       `sql:"active,notnull"`
+	Regex            string     `json:"regex"`
+	GitTag           string     `sql:"-"`
+	ParentCiPipeline int        `sql:"-"`
+	CiPipeline       *CiPipeline
+	GitMaterial      *GitMaterial
 	sql.AuditLog
 }
 
@@ -56,6 +58,8 @@ type CiPipelineMaterialRepository interface {
 	GetByPipelineIdForRegexAndFixed(id int) ([]*CiPipelineMaterial, error)
 	GetCheckoutPath(gitMaterialId int) (string, error)
 	GetByPipelineIdAndGitMaterialId(id int, gitMaterialId int) ([]*CiPipelineMaterial, error)
+	GetByCiPipelineIdsExceptUnsetRegexBranch(ids []int) ([]*CiPipelineMaterial, error)
+	GetAllExceptUnsetRegexBranch() ([]*CiPipelineMaterial, error)
 }
 
 type CiPipelineMaterialRepositoryImpl struct {
@@ -187,4 +191,24 @@ func (impl CiPipelineMaterialRepositoryImpl) GetCheckoutPath(gitMaterialId int) 
 		Where("id=?", gitMaterialId).
 		Select(&checkoutPath)
 	return checkoutPath, err
+}
+
+func (impl CiPipelineMaterialRepositoryImpl) GetByCiPipelineIdsExceptUnsetRegexBranch(ids []int) ([]*CiPipelineMaterial, error) {
+	query := `select cpm.*, cp.parent_ci_pipeline  from ci_pipeline_material cpm 
+    			inner join ci_pipeline cp on cp.id=cpm.ci_pipeline_id 
+				inner join app a on a.id=cp.app_id 
+         			where cp.id in (?) and cpm.active=? and cp.deleted=? and a.active=? and a.app_type=? and not (cpm.type=? and cpm.value is null);`
+	var ciPipelineMaterials []*CiPipelineMaterial
+	_, err := impl.dbConnection.Query(&ciPipelineMaterials, query, pg.In(ids), true, false, true, helper.CustomApp, SOURCE_TYPE_BRANCH_REGEX)
+	return ciPipelineMaterials, err
+}
+
+func (impl CiPipelineMaterialRepositoryImpl) GetAllExceptUnsetRegexBranch() ([]*CiPipelineMaterial, error) {
+	query := `select cpm.*, cp.parent_ci_pipeline from ci_pipeline_material cpm 
+    			inner join ci_pipeline cp on cp.id=cpm.ci_pipeline_id 
+				inner join app a on a.id=cp.app_id 
+         			where cpm.active=? and cp.deleted=? and a.active=? and a.app_type=? and not (cpm.type=? and cpm.value is null);`
+	var ciPipelineMaterials []*CiPipelineMaterial
+	_, err := impl.dbConnection.Query(&ciPipelineMaterials, query, true, false, true, helper.CustomApp, SOURCE_TYPE_BRANCH_REGEX)
+	return ciPipelineMaterials, err
 }

@@ -60,6 +60,7 @@ type EnforcerUtil interface {
 	GetAppAndEnvObjectByDbPipeline(cdPipelines []*pipelineConfig.Pipeline) map[int][]string
 	GetRbacObjectsByAppIds(appIds []int) map[int]string
 	GetAllActiveTeamNames() ([]string, error)
+	GetTeamNoEnvRBACNameByAppName(appName string) string
 }
 
 type EnforcerUtilImpl struct {
@@ -208,6 +209,15 @@ func (impl EnforcerUtilImpl) GetTeamEnvRBACNameByAppId(appId int, envId int) str
 		return fmt.Sprintf("%s/%s/%s", strings.ToLower(teamName), "", strings.ToLower(appName))
 	}
 	return fmt.Sprintf("%s/%s/%s", strings.ToLower(teamName), strings.ToLower(env.EnvironmentIdentifier), strings.ToLower(appName))
+}
+
+func (impl EnforcerUtilImpl) GetTeamNoEnvRBACNameByAppName(appName string) string {
+	app, err := impl.appRepo.FindAppAndProjectByAppName(appName)
+	if err != nil {
+		return fmt.Sprintf("%s/%s", "", strings.ToLower(appName))
+	}
+	var teamName = app.Team.Name
+	return fmt.Sprintf("%s/%s/%s", strings.ToLower(teamName), strings.ToLower(casbin.ResourceObjectIgnorePlaceholder), strings.ToLower(appName))
 }
 
 func (impl EnforcerUtilImpl) GetTeamRBACByCiPipelineId(pipelineId int) string {
@@ -406,9 +416,6 @@ func (impl EnforcerUtilImpl) GetHelmObjectByProjectIdAndEnvId(teamId int, envId 
 		return fmt.Sprintf("%s/%s/%s", "", "", ""), fmt.Sprintf("%s/%s/%s", "", "", "")
 	}
 
-	clusterName := env.Cluster.ClusterName
-	namespace := env.Namespace
-
 	environmentIdentifier := env.EnvironmentIdentifier
 
 	// Fix for futuristic permissions, environmentIdentifier2 will return a string object with cluster name if futuristic permissions are given,
@@ -416,6 +423,8 @@ func (impl EnforcerUtilImpl) GetHelmObjectByProjectIdAndEnvId(teamId int, envId 
 
 	environmentIdentifier2 := ""
 	if !env.IsVirtualEnvironment {
+		clusterName := env.Cluster.ClusterName
+		namespace := env.Namespace
 		if environmentIdentifier != clusterName+"__"+namespace { // for futuristic permission cluster name is not present in environment identifier
 			environmentIdentifier2 = clusterName + "__" + namespace
 		}

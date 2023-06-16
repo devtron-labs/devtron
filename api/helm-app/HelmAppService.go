@@ -36,6 +36,15 @@ import (
 	"time"
 )
 
+const (
+	API_CALLER_DEVTRON_APP       ApiCallerAppType = "devtron-app"
+	API_CALLER_HELM_APP          ApiCallerAppType = "helm-app"
+	API_CALLER_EXTERNAL_HELM_APP ApiCallerAppType = "external-helm-app"
+	API_CALLER_UNKNOWN           ApiCallerAppType = "unknown"
+)
+
+type ApiCallerAppType string
+
 type HelmAppService interface {
 	ListHelmApplications(ctx context.Context, clusterIds []int, w http.ResponseWriter, token string, helmAuth func(token string, object string) bool)
 	GetApplicationDetail(ctx context.Context, app *AppIdentifier) (*AppDetail, error)
@@ -263,13 +272,24 @@ func (impl *HelmAppServiceImpl) GetClusterConf(clusterId int) (*ClusterConfig, e
 		impl.logger.Errorw("error in fetching cluster detail", "err", err)
 		return nil, err
 	}
-	config := &ClusterConfig{
-		ApiServerUrl: cluster.ServerUrl,
-		Token:        cluster.Config[util.BearerToken],
-		ClusterId:    int32(cluster.Id),
-		ClusterName:  cluster.ClusterName,
+
+	var config ClusterConfig
+	// if virtual cluster run helm template command in default cluster as no real cluster is available in this case
+	if cluster.IsVirtualCluster {
+		config = ClusterConfig{
+			ClusterName: DEFAULT_CLUSTER,
+			Token:       "",
+		}
+	} else {
+		config = ClusterConfig{
+			ApiServerUrl: cluster.ServerUrl,
+			Token:        cluster.Config[util.BearerToken],
+			ClusterId:    int32(cluster.Id),
+			ClusterName:  cluster.ClusterName,
+		}
 	}
-	return config, nil
+
+	return &config, nil
 }
 
 func (impl *HelmAppServiceImpl) GetApplicationDetail(ctx context.Context, app *AppIdentifier) (*AppDetail, error) {
@@ -712,7 +732,7 @@ func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChart
 
 	clusterDetail, _ := impl.clusterRepository.FindById(clusterId)
 
-	if len(clusterDetail.ErrorInConnecting) > 0 || clusterDetail.Active == false {
+	if !clusterDetail.IsVirtualCluster && (len(clusterDetail.ErrorInConnecting) > 0 || clusterDetail.Active == false) {
 		clusterNotFoundErr := &util.ApiError{
 			HttpStatusCode:    http.StatusInternalServerError,
 			Code:              "",

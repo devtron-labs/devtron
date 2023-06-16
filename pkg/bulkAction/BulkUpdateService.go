@@ -1138,6 +1138,7 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 			pipelineResponse := response[appKey]
 			pipelineResponse[pipelineKey] = false
 			response[appKey] = pipelineResponse
+			continue
 			//return nil, err
 		}
 		pipelineResponse := response[appKey]
@@ -1203,7 +1204,8 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 			continue
 		}
 
-		artifactResponse, err := impl.pipelineBuilder.RetrieveArtifactsByCDPipeline(pipeline, bean.CD_WORKFLOW_TYPE_DEPLOY)
+		//artifactResponse, err := impl.pipelineBuilder.GetArtifactsByCDPipeline(pipeline.Id, bean.CD_WORKFLOW_TYPE_DEPLOY)
+		artifactResponse, err := impl.pipelineBuilder.RetrieveArtifactsByCDPipeline(pipeline, bean.CD_WORKFLOW_TYPE_DEPLOY, false)
 		if err != nil {
 			impl.logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", pipeline.Id)
 			//return nil, err
@@ -1220,7 +1222,7 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 			response[appKey] = pipelineResponse
 			continue
 		}
-		artifact := artifacts[0]
+		artifact := artifacts[0] // fetch latest approved artifact in case of approval node configured
 		overrideRequest := &bean.ValuesOverrideRequest{
 			PipelineId:     pipeline.Id,
 			AppId:          pipeline.AppId,
@@ -1294,7 +1296,7 @@ func (impl BulkUpdateServiceImpl) SubscribeToCdBulkTriggerTopic() error {
 			return
 		}
 
-		_, err = impl.workflowDagExecutor.ManualCdTrigger(event.ValuesOverrideRequest, ctx)
+		_, _, err = impl.workflowDagExecutor.ManualCdTrigger(event.ValuesOverrideRequest, ctx)
 		if err != nil {
 			impl.logger.Errorw("Error triggering CD",
 				"topic", pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC,

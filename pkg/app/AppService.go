@@ -45,6 +45,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
 	"net/url"
+	"os"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -185,8 +186,8 @@ type AppService interface {
 	GetAppMetricsByTriggerType(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (bool, error)
 	GetDeploymentStrategyByTriggerType(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (*chartConfig.PipelineStrategy, error)
 	CreateGitopsRepo(app *app.App, userId int32) (gitopsRepoName string, chartGitAttr *ChartGitAttribute, err error)
-	GetLatestDeployedManifestByPipelineId(appId int, envId int, ctx context.Context) ([]byte, error)
-	GetDeployedManifestByPipelineIdAndCDWorkflowId(appId int, envId int, cdWorkflowId int, ctx context.Context) ([]byte, error)
+	GetLatestDeployedManifestByPipelineId(appId int, envId int, runner string, ctx context.Context) ([]byte, error)
+	GetDeployedManifestByPipelineIdAndCDWorkflowId(cdWorkflowRunnerId int, ctx context.Context) ([]byte, error)
 	SetPipelineFieldsInOverrideRequest(overrideRequest *bean.ValuesOverrideRequest, pipeline *pipelineConfig.Pipeline)
 }
 
@@ -1440,93 +1441,45 @@ func (impl *AppServiceImpl) BuildManifestForTrigger(overrideRequest *bean.Values
 	return valuesOverrideResponse, builtChartPath, err
 }
 
-func (impl *AppServiceImpl) GetLatestDeployedManifestByPipelineId(appId int, envId int, ctx context.Context) ([]byte, error) {
+func (impl *AppServiceImpl) GetLatestDeployedManifestByPipelineId(appId int, envId int, runner string, ctx context.Context) ([]byte, error) {
 
 	manifestByteArray := make([]byte, 0)
 
 	pipeline, err := impl.pipelineRepository.FindActiveByAppIdAndEnvironmentId(appId, envId)
-	if err != nil {
+	if err != nil || pipeline == nil {
 		impl.logger.Errorw("error in fetching pipeline by appId and envId", "appId", appId, "envId", envId, "err", err)
 		return manifestByteArray, err
 	}
 
-	pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByAppIdAndEnvId(appId, envId, pipeline[0].DeploymentAppType)
+	if runner == "CD" {
+		runner = "DEPLOY"
+	} else if runner == "PRECD" {
+		runner = "PRE"
+	} else if runner == "POSTCD" {
+		runner = "POST"
+	}
+
+	cdWorkflowRunner, err := impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(pipeline[0].Id, bean.WorkflowType(runner))
 	if err != nil {
-		impl.logger.Errorw("error in fetching latest release by appId and envId", "appId", appId, "envId", envId, "err", err)
+		impl.logger.Errorw("error in fetching cd_workflow runner by pipeline id and runner type", "err", err)
 		return manifestByteArray, err
 	}
 
-	envConfigOverride, err := impl.environmentConfigRepository.Get(pipelineOverride.EnvConfigOverrideId)
-	if err != nil {
-		impl.logger.Errorw("error in fetching env config repository by appId and envId", "appId", appId, "envId", envId, "err", err)
-		return manifestByteArray, err
-	}
+	return cdWorkflowRunner.HelmReferenceChart, nil
 
-	appName := pipeline[0].App.AppName
-	builtChartPath, err := impl.BuildChartAndGetPath(appName, envConfigOverride, ctx)
-	if err != nil {
-		impl.logger.Errorw("error in parsing reference chart", "err", err)
-		return manifestByteArray, err
-	}
-
-	// create values file in built chart path
-	valuesFilePath := path.Join(builtChartPath, "valuesOverride.yaml")
-	err = ioutil.WriteFile(valuesFilePath, []byte(pipelineOverride.PipelineMergedValues), 0600)
-	if err != nil {
-		return manifestByteArray, nil
-	}
-
-	manifestByteArray, err = impl.chartTemplateService.LoadChartInBytes(builtChartPath, true)
-	if err != nil {
-		impl.logger.Errorw("error in converting chart to bytes", "err", err)
-		return manifestByteArray, err
-	}
-
-	return manifestByteArray, nil
 }
 
-func (impl *AppServiceImpl) GetDeployedManifestByPipelineIdAndCDWorkflowId(appId int, envId int, cdWorkflowId int, ctx context.Context) ([]byte, error) {
+func (impl *AppServiceImpl) GetDeployedManifestByPipelineIdAndCDWorkflowId(cdWorkflowRunnerId int, ctx context.Context) ([]byte, error) {
 
 	manifestByteArray := make([]byte, 0)
 
-	pipeline, err := impl.pipelineRepository.FindActiveByAppIdAndEnvironmentId(appId, envId)
+	cdWorkflowRunner, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(cdWorkflowRunnerId)
 	if err != nil {
-		impl.logger.Errorw("error in fetching pipeline by appId and envId", "appId", appId, "envId", envId, "err", err)
+		impl.logger.Errorw("error in getting runners by cdWorkflowId", "err", err)
 		return manifestByteArray, err
 	}
 
-	pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByCdWorkflowId(cdWorkflowId)
-	if err != nil {
-		impl.logger.Errorw("error in fetching latest release by appId and envId", "appId", appId, "envId", envId, "err", err)
-		return manifestByteArray, err
-	}
-
-	envConfigOverride, err := impl.environmentConfigRepository.Get(pipelineOverride.EnvConfigOverrideId)
-	if err != nil {
-		impl.logger.Errorw("error in fetching env config repository by appId and envId", "appId", appId, "envId", envId, "err", err)
-	}
-
-	appName := pipeline[0].App.AppName
-	builtChartPath, err := impl.BuildChartAndGetPath(appName, envConfigOverride, ctx)
-	if err != nil {
-		impl.logger.Errorw("error in parsing reference chart", "err", err)
-		return manifestByteArray, err
-	}
-
-	// create values file in built chart path
-	valuesFilePath := path.Join(builtChartPath, "valuesOverride.yaml")
-	err = ioutil.WriteFile(valuesFilePath, []byte(pipelineOverride.PipelineMergedValues), 0600)
-	if err != nil {
-		return manifestByteArray, nil
-	}
-
-	manifestByteArray, err = impl.chartTemplateService.LoadChartInBytes(builtChartPath, true)
-	if err != nil {
-		impl.logger.Errorw("error in converting chart to bytes", "err", err)
-		return manifestByteArray, err
-	}
-
-	return manifestByteArray, nil
+	return cdWorkflowRunner.HelmReferenceChart, nil
 
 }
 
@@ -1554,17 +1507,66 @@ func (impl *AppServiceImpl) BuildChartAndGetPath(appName string, envOverride *ch
 	return tempReferenceTemplateDir, nil
 }
 
-func (impl *AppServiceImpl) GetHelmManifestInByte(overrideValues string, refChartPath string) ([]byte, error) {
+func (impl *AppServiceImpl) CopyFile(source, destination string) error {
+	input, err := ioutil.ReadFile(source)
+	if err != nil {
+		impl.logger.Errorw("error in reading file input", "err", err)
+		return err
+	}
+	err = ioutil.WriteFile(destination, input, 0644)
+	if err != nil {
+		impl.logger.Errorw("error in writing file output", "err", err)
+		return err
+	}
+	return nil
+}
+
+func (impl *AppServiceImpl) GetHelmManifestInByte(appName string, envName string, image string, chartVersion string, overrideValues string, builtChartPath string) ([]byte, error) {
 
 	var manifestByteArr []byte
 
-	valuesFilePath := path.Join(refChartPath, "valuesOverride.yaml")
-	err := ioutil.WriteFile(valuesFilePath, []byte(overrideValues), 0600)
+	// parsed ref-chart has many files and helm chart in form <appName-chartVersion.tgz>, copying this helm chart and values to new dir so that other unnecessary files are removed
+	tempHelmPackageDir := path.Join("/tmp/helmManifest", impl.chartTemplateService.GetDir())
+	err := os.MkdirAll(tempHelmPackageDir, os.ModePerm)
 	if err != nil {
-		return manifestByteArr, nil
+		impl.logger.Errorw("error in making dir for helm manifest", "err", err)
+		return manifestByteArr, err
 	}
 
-	manifestByteArr, err = impl.chartTemplateService.LoadChartInBytes(refChartPath, false)
+	packageChartName := fmt.Sprintf("%s-%s.tgz", appName, chartVersion)
+	packageChartOldPath := path.Join(builtChartPath, packageChartName) // helm chart
+	packageChartNewPath := path.Join(tempHelmPackageDir, packageChartName)
+	err = impl.CopyFile(packageChartOldPath, packageChartNewPath)
+	if err != nil {
+		return manifestByteArr, err
+	}
+
+	valuesFileOldPath := path.Join(builtChartPath, "values.yaml") //default values of helm chart
+	valuesFileNewPath := path.Join(tempHelmPackageDir, "values.yaml")
+	err = impl.CopyFile(valuesFileOldPath, valuesFileNewPath)
+	if err != nil {
+		return manifestByteArr, err
+	}
+
+	valuesOverrideFilePath := path.Join(tempHelmPackageDir, "valuesOverride.json") //values override json
+	err = ioutil.WriteFile(valuesOverrideFilePath, []byte(overrideValues), 0600)
+	if err != nil {
+		return manifestByteArr, err
+	}
+
+	chartsFileOldPath := path.Join(builtChartPath, "Chart.yaml") //default values of helm chart
+	chartsFileNewPath := path.Join(tempHelmPackageDir, "Chart.yaml")
+	err = impl.CopyFile(chartsFileOldPath, chartsFileNewPath)
+	if err != nil {
+		return manifestByteArr, err
+	}
+
+	var imageTag string
+	if len(image) > 0 {
+		imageTag = strings.Split(image, ":")[1]
+	}
+	chartName := fmt.Sprintf("%s-%s-%s", appName, envName, imageTag)
+	manifestByteArr, err = impl.chartTemplateService.LoadChartInBytes(tempHelmPackageDir, true, chartName, chartVersion)
 	if err != nil {
 		impl.logger.Errorw("error in converting chart to bytes", "err", err)
 		return manifestByteArr, err
@@ -1773,7 +1775,9 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 		return releaseNo, manifest, err
 	}
 
+	_, span := otel.Tracer("orchestrator").Start(ctx, "AppService.BuildManifestForTrigger")
 	valuesOverrideResponse, builtChartPath, err := impl.BuildManifestForTrigger(overrideRequest, triggerEvent.TriggerdAt, ctx)
+	span.End()
 	if err != nil {
 		if triggerEvent.GetManifestInResponse {
 			timeline := &pipelineConfig.PipelineStatusTimeline{
@@ -1796,7 +1800,7 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 		return releaseNo, manifest, err
 	}
 
-	_, span := otel.Tracer("orchestrator").Start(ctx, "CreateHistoriesForDeploymentTrigger")
+	_, span = otel.Tracer("orchestrator").Start(ctx, "CreateHistoriesForDeploymentTrigger")
 	err = impl.CreateHistoriesForDeploymentTrigger(valuesOverrideResponse.Pipeline, valuesOverrideResponse.PipelineStrategy, valuesOverrideResponse.EnvOverride, triggerEvent.TriggerdAt, triggerEvent.TriggeredBy)
 	span.End()
 
@@ -1820,21 +1824,31 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 			impl.logger.Errorw("error in saving timeline for manifest_download type")
 		}
 		span.End()
+
+		manifest, err = impl.GetHelmManifestInByte(overrideRequest.AppName, overrideRequest.EnvName, valuesOverrideResponse.Artifact.Image, valuesOverrideResponse.EnvOverride.Chart.ChartVersion, valuesOverrideResponse.MergedValues, builtChartPath)
+		if err != nil {
+			impl.logger.Errorw("error in converting built chart to bytes", "err", err)
+			return releaseNo, manifest, err
+		}
 	}
 
 	if triggerEvent.PerformGitOps {
 		//TODO: clean chart from local after pushing
+		_, span := otel.Tracer("orchestrator").Start(ctx, "AppService.PushChartToGitRepoIfNotExistAndUpdateTimelineStatus")
 		err = impl.PushChartToGitRepoIfNotExistAndUpdateTimelineStatus(overrideRequest, builtChartPath, valuesOverrideResponse.EnvOverride, ctx)
 		if err != nil {
 			impl.logger.Errorw("error in pushing chart to git", "err", err)
 			return releaseNo, manifest, err
 		}
+		span.End()
 
+		_, span = otel.Tracer("orchestrator").Start(ctx, "AppService.CommitValuesToGit")
 		commitHash, commitTime, err := impl.CommitValuesToGit(overrideRequest, valuesOverrideResponse, triggerEvent.TriggerdAt, ctx)
 		if err != nil {
 			impl.logger.Errorw("error in commiting values to git", "err", err)
 			return releaseNo, manifest, err
 		}
+		span.End()
 
 		pipelineOverrideUpdateRequest := &chartConfig.PipelineOverride{
 			Id:                     valuesOverrideResponse.PipelineOverride.Id,
@@ -1847,7 +1861,7 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 			PipelineMergedValues:   valuesOverrideResponse.MergedValues,
 			AuditLog:               sql.AuditLog{UpdatedOn: triggerEvent.TriggerdAt, UpdatedBy: overrideRequest.UserId},
 		}
-		_, span := otel.Tracer("orchestrator").Start(ctx, "pipelineOverrideRepository.Update")
+		_, span = otel.Tracer("orchestrator").Start(ctx, "pipelineOverrideRepository.Update")
 		err = impl.pipelineOverrideRepository.Update(pipelineOverrideUpdateRequest)
 		span.End()
 
@@ -3246,8 +3260,73 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Appl
 	return nil
 }
 
+const kedaAutoscaling = "kedaAutoscaling"
+const HorizontalPodAutoscaler = "HorizontalPodAutoscaler"
+const fullnameOverride = "fullnameOverride"
+const nameOverride = "nameOverride"
+const enabled = "enabled"
+const replicaCount = "replicaCount"
+
+func (impl *AppServiceImpl) getAutoScalingReplicaCount(templateMap map[string]interface{}, appName string) *util2.HpaResourceRequest {
+	hasOverride := false
+	if _, ok := templateMap[fullnameOverride]; ok {
+		appNameOverride := templateMap[fullnameOverride].(string)
+		if len(appNameOverride) > 0 {
+			appName = appNameOverride
+			hasOverride = true
+		}
+	}
+	if !hasOverride {
+		if _, ok := templateMap[nameOverride]; ok {
+			nameOverride := templateMap[nameOverride].(string)
+			if len(nameOverride) > 0 {
+				appName = fmt.Sprintf("%s-%s", appName, nameOverride)
+			}
+		}
+	}
+	hpaResourceRequest := &util2.HpaResourceRequest{}
+	hpaResourceRequest.Version = ""
+	hpaResourceRequest.Group = autoscaling.ServiceName
+	hpaResourceRequest.Kind = HorizontalPodAutoscaler
+	impl.logger.Infow("getAutoScalingReplicaCount", "hpaResourceRequest", hpaResourceRequest)
+	if _, ok := templateMap[kedaAutoscaling]; ok {
+		as := templateMap[kedaAutoscaling]
+		asd := as.(map[string]interface{})
+		if _, ok := asd[enabled]; ok {
+			impl.logger.Infow("getAutoScalingReplicaCount", "hpaResourceRequest", hpaResourceRequest)
+			enable := asd[enabled].(bool)
+			if enable {
+				hpaResourceRequest.IsEnable = enable
+				hpaResourceRequest.ReqReplicaCount = templateMap[replicaCount].(float64)
+				hpaResourceRequest.ReqMaxReplicas = asd["maxReplicaCount"].(float64)
+				hpaResourceRequest.ReqMinReplicas = asd["minReplicaCount"].(float64)
+				hpaResourceRequest.ResourceName = fmt.Sprintf("%s-%s-%s", "keda-hpa", appName, "keda")
+				impl.logger.Infow("getAutoScalingReplicaCount", "hpaResourceRequest", hpaResourceRequest)
+				return hpaResourceRequest
+			}
+		}
+	}
+
+	if _, ok := templateMap[autoscaling.ServiceName]; ok {
+		as := templateMap[autoscaling.ServiceName]
+		asd := as.(map[string]interface{})
+		if _, ok := asd[enabled]; ok {
+			enable := asd[enabled].(bool)
+			if enable {
+				hpaResourceRequest.IsEnable = asd[enabled].(bool)
+				hpaResourceRequest.ReqReplicaCount = templateMap[replicaCount].(float64)
+				hpaResourceRequest.ReqMaxReplicas = asd["MaxReplicas"].(float64)
+				hpaResourceRequest.ReqMinReplicas = asd["MinReplicas"].(float64)
+				hpaResourceRequest.ResourceName = fmt.Sprintf("%s-%s", appName, "hpa")
+				return hpaResourceRequest
+			}
+		}
+	}
+	return hpaResourceRequest
+
+}
+
 func (impl *AppServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, appName string, namespace string, merged []byte, overrideRequest *bean.ValuesOverrideRequest) []byte {
-	//pipeline := overrideRequest.Pipeline
 	var appId = overrideRequest.AppId
 	pipelineId := overrideRequest.PipelineId
 	var appDeploymentType = overrideRequest.DeploymentAppType
@@ -3258,77 +3337,67 @@ func (impl *AppServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, a
 	if err != nil {
 		return merged
 	}
-	if _, ok := templateMap[autoscaling.ServiceName]; ok {
-		as := templateMap[autoscaling.ServiceName]
-		asd := as.(map[string]interface{})
-		isEnable := false
-		if _, ok := asd["enabled"]; ok {
-			isEnable = asd["enabled"].(bool)
-		}
-		if isEnable {
-			reqReplicaCount := templateMap["replicaCount"].(float64)
-			reqMaxReplicas := asd["MaxReplicas"].(float64)
-			reqMinReplicas := asd["MinReplicas"].(float64)
-			version := ""
-			group := autoscaling.ServiceName
-			kind := "HorizontalPodAutoscaler"
-			resourceName := fmt.Sprintf("%s-%s", appName, "hpa")
-			resourceManifest := make(map[string]interface{})
-			if IsAcdApp(appDeploymentType) {
-				query := &application2.ApplicationResourceRequest{
-					Name:         &appName,
-					Version:      &version,
-					Group:        &group,
-					Kind:         &kind,
-					ResourceName: &resourceName,
-					Namespace:    &namespace,
-				}
-				recv, err := impl.acdClient.GetResource(ctx, query)
-				impl.logger.Debugw("resource manifest get replica count", "response", recv)
-				if err != nil {
-					impl.logger.Errorw("ACD Get Resource API Failed", "err", err)
-					middleware.AcdGetResourceCounter.WithLabelValues(strconv.Itoa(appId), namespace, appName).Inc()
-					return merged
-				}
-				if recv != nil && len(*recv.Manifest) > 0 {
-					err := json.Unmarshal([]byte(*recv.Manifest), &resourceManifest)
-					if err != nil {
-						impl.logger.Errorw("unmarshal failed for hpa check", "err", err)
-						return merged
-					}
-				}
-			} else {
-				version = "v2beta2"
-				k8sResource, err := impl.k8sApplicationService.GetResource(ctx, &k8s.ResourceRequestBean{ClusterId: clusterId,
-					K8sRequest: &application3.K8sRequestBean{ResourceIdentifier: application3.ResourceIdentifier{Name: resourceName,
-						Namespace: namespace, GroupVersionKind: schema.GroupVersionKind{Group: group, Kind: kind, Version: version}}}})
-				if err != nil {
-					impl.logger.Errorw("error occurred while fetching resource for app", "resourceName", resourceName, "err", err)
-					return merged
-				}
-				resourceManifest = k8sResource.Manifest.Object
-			}
-			if len(resourceManifest) > 0 {
-				statusMap := resourceManifest["status"].(map[string]interface{})
-				currentReplicaVal := statusMap["currentReplicas"]
-				currentReplicaCount, err := util2.ParseFloatNumber(currentReplicaVal)
-				if err != nil {
-					impl.logger.Errorw("error occurred while parsing replica count", "currentReplicas", currentReplicaVal, "err", err)
-					return merged
-				}
 
-				reqReplicaCount = impl.fetchRequiredReplicaCount(currentReplicaCount, reqMaxReplicas, reqMinReplicas)
-				templateMap["replicaCount"] = reqReplicaCount
-				merged, err = json.Marshal(&templateMap)
+	hpaResourceRequest := impl.getAutoScalingReplicaCount(templateMap, appName)
+	impl.logger.Debugw("autoscalingCheckBeforeTrigger", "hpaResourceRequest", hpaResourceRequest)
+	if hpaResourceRequest.IsEnable {
+
+		resourceManifest := make(map[string]interface{})
+		if IsAcdApp(appDeploymentType) {
+			query := &application2.ApplicationResourceRequest{
+				Name:         &appName,
+				Version:      &hpaResourceRequest.Version,
+				Group:        &hpaResourceRequest.Group,
+				Kind:         &hpaResourceRequest.Kind,
+				ResourceName: &hpaResourceRequest.ResourceName,
+				Namespace:    &namespace,
+			}
+			recv, err := impl.acdClient.GetResource(ctx, query)
+			impl.logger.Debugw("resource manifest get replica count", "response", recv)
+			if err != nil {
+				impl.logger.Errorw("ACD Get Resource API Failed", "err", err)
+				middleware.AcdGetResourceCounter.WithLabelValues(strconv.Itoa(appId), namespace, appName).Inc()
+				return merged
+			}
+			if recv != nil && len(*recv.Manifest) > 0 {
+				err := json.Unmarshal([]byte(*recv.Manifest), &resourceManifest)
 				if err != nil {
-					impl.logger.Errorw("marshaling failed for hpa check", "err", err)
+					impl.logger.Errorw("unmarshal failed for hpa check", "err", err)
 					return merged
 				}
 			}
 		} else {
-			impl.logger.Errorw("autoscaling is not enabled", "pipelineId", pipelineId)
+			version := "v2beta2"
+			k8sResource, err := impl.k8sApplicationService.GetResource(ctx, &k8s.ResourceRequestBean{ClusterId: clusterId,
+				K8sRequest: &application3.K8sRequestBean{ResourceIdentifier: application3.ResourceIdentifier{Name: hpaResourceRequest.ResourceName,
+					Namespace: namespace, GroupVersionKind: schema.GroupVersionKind{Group: hpaResourceRequest.Group, Kind: hpaResourceRequest.Kind, Version: version}}}})
+			if err != nil {
+				impl.logger.Errorw("error occurred while fetching resource for app", "resourceName", hpaResourceRequest.ResourceName, "err", err)
+				return merged
+			}
+			resourceManifest = k8sResource.Manifest.Object
 		}
+		if len(resourceManifest) > 0 {
+			statusMap := resourceManifest["status"].(map[string]interface{})
+			currentReplicaVal := statusMap["currentReplicas"]
+			currentReplicaCount, err := util2.ParseFloatNumber(currentReplicaVal)
+			if err != nil {
+				impl.logger.Errorw("error occurred while parsing replica count", "currentReplicas", currentReplicaVal, "err", err)
+				return merged
+			}
+
+			reqReplicaCount := impl.fetchRequiredReplicaCount(currentReplicaCount, hpaResourceRequest.ReqMaxReplicas, hpaResourceRequest.ReqMinReplicas)
+			templateMap["replicaCount"] = reqReplicaCount
+			merged, err = json.Marshal(&templateMap)
+			if err != nil {
+				impl.logger.Errorw("marshaling failed for hpa check", "err", err)
+				return merged
+			}
+		}
+	} else {
+		impl.logger.Errorw("autoscaling is not enabled", "pipelineId", pipelineId)
 	}
+
 	//check for custom chart support
 	if autoscalingEnabledPath, ok := templateMap[bean2.CustomAutoScalingEnabledPathKey]; ok {
 		if deploymentType == models.DEPLOYMENTTYPE_STOP {

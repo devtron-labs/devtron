@@ -43,13 +43,14 @@ type JobContainerResponse struct {
 }
 
 type DeploymentGroupDTO struct {
-	Id             int             `json:"id"`
-	Name           string          `json:"name"`
-	AppCount       int             `json:"appCount"`
-	NoOfApps       string          `json:"noOfApps"`
-	EnvironmentId  int             `json:"environmentId"`
-	CiPipelineId   int             `json:"ciPipelineId"`
-	CiMaterialDTOs []CiMaterialDTO `json:"ciMaterialDTOs"`
+	Id                   int             `json:"id"`
+	Name                 string          `json:"name"`
+	AppCount             int             `json:"appCount"`
+	NoOfApps             string          `json:"noOfApps"`
+	EnvironmentId        int             `json:"environmentId"`
+	CiPipelineId         int             `json:"ciPipelineId"`
+	CiMaterialDTOs       []CiMaterialDTO `json:"ciMaterialDTOs"`
+	IsVirtualEnvironment bool            `json:"isVirtualEnvironment"`
 }
 
 type CiMaterialDTO struct {
@@ -117,6 +118,7 @@ type AppEnvironmentContainer struct {
 	TeamName                    string                    `json:"teamName"`
 	Description                 string                    `json:"description" validate:"max=40"`
 	TotalCount                  int                       `json:"-"`
+	IsVirtualEnvironment        bool                      `json:"isVirtualEnvironment"`
 }
 
 type DeploymentDetailContainer struct {
@@ -153,7 +155,11 @@ type DeploymentDetailContainer struct {
 	IpsAccessProvided             bool            `json:"ipsAccessProvided"`
 	DeploymentAppDeleteRequest    bool            `json:"deploymentAppDeleteRequest"`
 	Description                   string          `json:"description" validate:"max=40"`
+	UserApprovalConfig            string          `json:"userApprovalConfig"`
 	IsVirtualEnvironment          bool            `json:"isVirtualEnvironment"`
+	Image                         string          `json:"image"`
+	ImageTag                      string          `json:"imageTag"`
+	HelmPackageName               string          `json:"helmPackageName"`
 }
 
 type AppDetailContainer struct {

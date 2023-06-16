@@ -34,6 +34,7 @@ import (
 	"github.com/devtron-labs/devtron/api/dashboardEvent"
 	"github.com/devtron-labs/devtron/api/deployment"
 	"github.com/devtron-labs/devtron/api/externalLink"
+	"github.com/devtron-labs/devtron/api/globalPolicy"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/module"
 	"github.com/devtron-labs/devtron/api/restHandler"
@@ -60,6 +61,9 @@ import (
 	jClient "github.com/devtron-labs/devtron/client/jira"
 	"github.com/devtron-labs/devtron/client/lens"
 	"github.com/devtron-labs/devtron/client/telemetry"
+	"github.com/devtron-labs/devtron/enterprise/api/globalTag"
+	app3 "github.com/devtron-labs/devtron/enterprise/pkg/app"
+	pipeline3 "github.com/devtron-labs/devtron/enterprise/pkg/pipeline"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	appGroup2 "github.com/devtron-labs/devtron/internal/sql/repository/appGroup"
@@ -69,7 +73,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
-	repository8 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
+	repository9 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -93,6 +97,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
+	"github.com/devtron-labs/devtron/pkg/devtronResource"
+	repository8 "github.com/devtron-labs/devtron/pkg/devtronResource/repository"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/git"
 	"github.com/devtron-labs/devtron/pkg/gitops"
@@ -109,6 +115,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/projectManagementService/jira"
 	"github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	client2 "github.com/devtron-labs/devtron/pkg/user/casbin"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
@@ -141,6 +148,9 @@ func InitializeApp() (*App, error) {
 		apiToken.ApiTokenWireSet,
 		webhookHelm.WebhookHelmWireSet,
 		terminal.TerminalWireSet,
+		client2.CasbinWireSet,
+		globalTag.GlobalTagWireSet,
+		globalPolicy.GlobalPolicyWireSet,
 		// -------wireset end ----------
 		//-------
 		gitSensor.GetConfig,
@@ -215,8 +225,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipeline2.PipelineConfigRestHandler), new(*pipeline2.PipelineConfigRestHandlerImpl)),
 		router.NewPipelineRouterImpl,
 		wire.Bind(new(router.PipelineConfigRouter), new(*router.PipelineConfigRouterImpl)),
-		pipeline.NewCiCdPipelineOrchestrator,
-		wire.Bind(new(pipeline.CiCdPipelineOrchestrator), new(*pipeline.CiCdPipelineOrchestratorImpl)),
+		pipeline3.NewCiCdPipelineOrchestratorEnterpriseImpl,
+		wire.Bind(new(pipeline.CiCdPipelineOrchestrator), new(*pipeline3.CiCdPipelineOrchestratorEnterpriseImpl)),
 		pipelineConfig.NewMaterialRepositoryImpl,
 		wire.Bind(new(pipelineConfig.MaterialRepository), new(*pipelineConfig.MaterialRepositoryImpl)),
 
@@ -352,8 +362,8 @@ func InitializeApp() (*App, error) {
 		//wire.Bind(new(otel.OtelTracingService), new(*otel.OtelTracingServiceImpl)),
 		NewApp,
 		//session.NewK8sClient,
-		repository8.NewImageTaggingRepositoryImpl,
-		wire.Bind(new(repository8.ImageTaggingRepository), new(*repository8.ImageTaggingRepositoryImpl)),
+		repository9.NewImageTaggingRepositoryImpl,
+		wire.Bind(new(repository9.ImageTaggingRepository), new(*repository9.ImageTaggingRepositoryImpl)),
 		pipeline.NewImageTaggingServiceImpl,
 		wire.Bind(new(pipeline.ImageTaggingService), new(*pipeline.ImageTaggingServiceImpl)),
 		util.NewK8sUtil,
@@ -680,8 +690,8 @@ func InitializeApp() (*App, error) {
 		restHandler.NewAppRestHandlerImpl,
 		wire.Bind(new(restHandler.AppRestHandler), new(*restHandler.AppRestHandlerImpl)),
 
-		app.NewAppCrudOperationServiceImpl,
-		wire.Bind(new(app.AppCrudOperationService), new(*app.AppCrudOperationServiceImpl)),
+		app3.NewAppCrudOperationServiceEnterpriseImpl,
+		wire.Bind(new(app.AppCrudOperationService), new(*app3.AppCrudOperationServiceEnterpriseImpl)),
 		pipelineConfig.NewAppLabelRepositoryImpl,
 		wire.Bind(new(pipelineConfig.AppLabelRepository), new(*pipelineConfig.AppLabelRepositoryImpl)),
 
@@ -849,8 +859,18 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(appGroup2.AppGroupRepository), new(*appGroup2.AppGroupRepositoryImpl)),
 		appGroup2.NewAppGroupMappingRepositoryImpl,
 		wire.Bind(new(appGroup2.AppGroupMappingRepository), new(*appGroup2.AppGroupMappingRepositoryImpl)),
+		pipelineConfig.NewDeploymentApprovalRepositoryImpl,
+		wire.Bind(new(pipelineConfig.DeploymentApprovalRepository), new(*pipelineConfig.DeploymentApprovalRepositoryImpl)),
 		pipeline.NewArgoWorkflowExecutorImpl,
 		wire.Bind(new(pipeline.ArgoWorkflowExecutor), new(*pipeline.ArgoWorkflowExecutorImpl)),
+		pipeline.NewSystemWorkflowExecutorImpl,
+		wire.Bind(new(pipeline.SystemWorkflowExecutor), new(*pipeline.SystemWorkflowExecutorImpl)),
+
+		repository8.NewDevtronResourceSearchableKeyRepositoryImpl,
+		wire.Bind(new(repository8.DevtronResourceSearchableKeyRepository), new(*repository8.DevtronResourceSearchableKeyRepositoryImpl)),
+
+		devtronResource.NewDevtronResourceSearchableKeyServiceImpl,
+		wire.Bind(new(devtronResource.DevtronResourceService), new(*devtronResource.DevtronResourceSearchableKeyServiceImpl)),
 	)
 	return &App{}, nil
 }

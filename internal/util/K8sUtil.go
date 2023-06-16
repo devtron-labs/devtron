@@ -127,12 +127,16 @@ func (impl K8sUtil) GetClientSet(clusterConfig *ClusterConfig) (*kubernetes.Clie
 		impl.logger.Errorw("error in getting rest config for default cluster", "err", err)
 		return nil, err
 	}
+	clientset, err := impl.GetClientSetForConfig(cfg)
+	return clientset, err
+}
+
+func (impl K8sUtil) GetClientSetForConfig(cfg *rest.Config) (*kubernetes.Clientset, error) {
 	httpClient, err := OverrideK8sHttpClientWithTracer(cfg)
 	if err != nil {
 		return nil, err
 	}
-	client, err := kubernetes.NewForConfigAndClient(cfg, httpClient)
-	return client, err
+	return kubernetes.NewForConfigAndClient(cfg, httpClient)
 }
 
 func (impl K8sUtil) getKubeConfig(devMode client.LocalDevMode) (*rest.Config, error) {
@@ -155,6 +159,11 @@ func (impl K8sUtil) GetClientForInCluster() (*v12.CoreV1Client, error) {
 	// creates the in-cluster config
 	config, err := impl.getKubeConfig(impl.runTimeConfig.LocalDevMode)
 	// creates the clientset
+	clientset, err := impl.GetK8sClientForConfig(config)
+	return clientset, err
+}
+
+func (impl K8sUtil) GetK8sClientForConfig(config *rest.Config) (*v12.CoreV1Client, error) {
 	httpClient, err := OverrideK8sHttpClientWithTracer(config)
 	if err != nil {
 		return nil, err
@@ -164,7 +173,7 @@ func (impl K8sUtil) GetClientForInCluster() (*v12.CoreV1Client, error) {
 		impl.logger.Errorw("error", "error", err)
 		return nil, err
 	}
-	return clientset, err
+	return clientset, nil
 }
 
 func (impl K8sUtil) GetK8sClient() (*v12.CoreV1Client, error) {
@@ -386,12 +395,12 @@ func (impl K8sUtil) CreateSecret(namespace string, data map[string][]byte, secre
 	if len(secretType) > 0 {
 		secret.Type = secretType
 	}
+	return impl.CreateSecretData(namespace, secret, client)
+}
+
+func (impl K8sUtil) CreateSecretData(namespace string, secret *v1.Secret, client *v12.CoreV1Client) (*v1.Secret, error) {
 	secret, err := client.Secrets(namespace).Create(context.Background(), secret, metav1.CreateOptions{})
-	if err != nil {
-		return nil, err
-	} else {
-		return secret, nil
-	}
+	return secret, err
 }
 
 func (impl K8sUtil) UpdateSecret(namespace string, secret *v1.Secret, client *v12.CoreV1Client) (*v1.Secret, error) {

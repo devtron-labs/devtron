@@ -54,8 +54,9 @@ const PIPELINE_DEPLOYMENT_TYPE_HELM string = "helm"
 const PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD string = "manifest_download"
 
 type ChartCreateRequest struct {
-	ChartMetaData *chart.Metadata
-	ChartPath     string
+	ChartMetaData       *chart.Metadata
+	ChartPath           string
+	IncludePackageChart bool
 }
 
 type ChartCreateResponse struct {
@@ -81,7 +82,7 @@ type ChartTemplateService interface {
 	CreateReadmeInGitRepo(gitOpsRepoName string, userId int32) error
 	UpdateGitRepoUrlInCharts(appId int, chartGitAttribute *ChartGitAttribute, userId int32) error
 	CreateAndPushToGitChartProxy(appStoreName, tmpChartLocation string, envName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (chartGitAttribute *ChartGitAttribute, err error)
-	LoadChartInBytes(ChartPath string, deleteChart bool) ([]byte, error)
+	LoadChartInBytes(ChartPath string, deleteChart bool, chartName string, chartVersion string) ([]byte, error)
 }
 type ChartTemplateServiceImpl struct {
 	randSource             rand.Source
@@ -189,7 +190,9 @@ func (impl ChartTemplateServiceImpl) FetchValuesFromReferenceChart(chartMetaData
 
 // TODO: convert BuildChart and BuildChartProxyForHelmApps into one function
 func (impl ChartTemplateServiceImpl) BuildChart(ctx context.Context, chartMetaData *chart.Metadata, referenceTemplatePath string) (string, error) {
-	chartMetaData.ApiVersion = "v1" // ensure always v1
+	if chartMetaData.ApiVersion == "" {
+		chartMetaData.ApiVersion = "v1" // ensure always v1
+	}
 	dir := impl.GetDir()
 	tempReferenceTemplateDir := filepath.Join(string(impl.chartWorkingDir), dir)
 	impl.logger.Debugw("chart dir ", "chart", chartMetaData.Name, "dir", tempReferenceTemplateDir)
@@ -232,12 +235,26 @@ func (impl ChartTemplateServiceImpl) BuildChartProxyForHelmApps(chartCreateReque
 		impl.logger.Errorw("error in copying chart for app", "app", chartMetaData.Name, "error", err)
 		return chartCreateResponse, err
 	}
-	_, valuesYaml, err := impl.packageChart(chartDir, chartMetaData)
-	if err != nil {
-		impl.logger.Errorw("error in creating archive", "err", err)
-		return chartCreateResponse, err
+	if chartCreateRequest.IncludePackageChart {
+		_, valuesYaml, err := impl.packageChart(chartDir, chartMetaData)
+		if err != nil {
+			impl.logger.Errorw("error in creating archive", "err", err)
+			return chartCreateResponse, err
+		}
+		chartCreateResponse.valuesYaml = valuesYaml
+	} else {
+		b, err := yaml.Marshal(chartMetaData)
+		if err != nil {
+			impl.logger.Errorw("error in marshaling chartMetadata", "err", err)
+			return chartCreateResponse, err
+		}
+		err = ioutil.WriteFile(filepath.Join(chartDir, "Chart.yaml"), b, 0600)
+		if err != nil {
+			impl.logger.Errorw("err in writing Chart.yaml", "err", err)
+			return chartCreateResponse, err
+		}
 	}
-	chartCreateResponse.valuesYaml = valuesYaml
+
 	chartCreateResponse.BuiltChartPath = chartDir
 	return chartCreateResponse, nil
 }
@@ -736,7 +753,7 @@ func (impl ChartTemplateServiceImpl) UpdateGitRepoUrlInCharts(appId int, chartGi
 	return nil
 }
 
-func (impl ChartTemplateServiceImpl) LoadChartInBytes(ChartPath string, deleteChart bool) ([]byte, error) {
+func (impl ChartTemplateServiceImpl) LoadChartInBytes(ChartPath string, deleteChart bool, chartName string, chartVersion string) ([]byte, error) {
 
 	var chartBytesArr []byte
 	//this function is removed in latest helm release and is replaced by Loader in loader package
@@ -744,6 +761,11 @@ func (impl ChartTemplateServiceImpl) LoadChartInBytes(ChartPath string, deleteCh
 	if err != nil {
 		impl.logger.Errorw("error in loading chart dir", "err", err, "dir")
 		return chartBytesArr, err
+	}
+
+	if len(chartName) > 0 && len(chartVersion) > 0 {
+		chart.Metadata.Name = chartName
+		chart.Metadata.Version = chartVersion
 	}
 
 	chartZipPath, err := chartutil.Save(chart, ChartPath)

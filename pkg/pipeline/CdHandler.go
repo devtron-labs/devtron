@@ -40,6 +40,7 @@ import (
 	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
 	app_status "github.com/devtron-labs/devtron/pkg/appStatus"
 	repository3 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
+	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -49,6 +50,7 @@ import (
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
+	"k8s.io/client-go/rest"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -78,6 +80,7 @@ type CdHandler interface {
 	CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipelineId int, userId int32, isAppStoreApplication bool)
 	FetchAppWorkflowStatusForTriggerViewForEnvironment(request appGroup2.AppGroupingRequest) ([]*pipelineConfig.CdWorkflowStatus, error)
 	FetchAppDeploymentStatusForEnvironments(request appGroup2.AppGroupingRequest) ([]*pipelineConfig.AppDeploymentStatus, error)
+	PerformDeploymentApprovalAction(userId int32, approvalActionRequest bean2.UserApprovalActionRequest) error
 }
 
 type CdHandlerImpl struct {
@@ -113,6 +116,7 @@ type CdHandlerImpl struct {
 	installedAppVersionHistoryRepository   repository3.InstalledAppVersionHistoryRepository
 	appRepository                          app2.AppRepository
 	appGroupService                        appGroup2.AppGroupService
+	deploymentApprovalRepository           pipelineConfig.DeploymentApprovalRepository
 	imageTaggingService                    ImageTaggingService
 }
 
@@ -140,6 +144,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 	installedAppRepository repository3.InstalledAppRepository,
 	installedAppVersionHistoryRepository repository3.InstalledAppVersionHistoryRepository, appRepository app2.AppRepository,
 	appGroupService appGroup2.AppGroupService,
+	deploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository,
 	imageTaggingService ImageTaggingService) *CdHandlerImpl {
 	return &CdHandlerImpl{
 		Logger:                                 Logger,
@@ -174,6 +179,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 		installedAppVersionHistoryRepository:   installedAppVersionHistoryRepository,
 		appRepository:                          appRepository,
 		appGroupService:                        appGroupService,
+		deploymentApprovalRepository:           deploymentApprovalRepository,
 		imageTaggingService:                    imageTaggingService,
 	}
 }
@@ -189,6 +195,7 @@ const NotDeployed = "Not Deployed"
 const WorklowTypeDeploy = "DEPLOY"
 const WorklowTypePre = "PRE"
 const WorklowTypePost = "POST"
+const WorkflowApprovalNode = "APPROVAL"
 
 func (impl *CdHandlerImpl) CheckArgoAppStatusPeriodicallyAndUpdateInDb(getPipelineDeployedBeforeMinutes int, getPipelineDeployedWithinHours int) error {
 	pipelines, err := impl.pipelineRepository.GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatuses(getPipelineDeployedBeforeMinutes, getPipelineDeployedWithinHours)
@@ -556,17 +563,6 @@ func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int, userId int32) (int,
 		impl.Logger.Errorw("could not fetch stage env", "err", err)
 		return 0, err
 	}
-	configMap := env.Cluster.Config
-	clusterConfig := util.ClusterConfig{
-		Host:                  env.Cluster.ServerUrl,
-		BearerToken:           configMap[util.BearerToken],
-		InsecureSkipTLSVerify: env.Cluster.InsecureSkipTlsVerify,
-	}
-	if env.Cluster.InsecureSkipTlsVerify == false {
-		clusterConfig.KeyData = configMap[util.TlsKey]
-		clusterConfig.CertData = configMap[util.CertData]
-		clusterConfig.CAData = configMap[util.CertificateAuthorityData]
-	}
 
 	var isExtCluster bool
 	if workflowRunner.WorkflowType == PRE {
@@ -574,15 +570,12 @@ func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int, userId int32) (int,
 	} else if workflowRunner.WorkflowType == POST {
 		isExtCluster = pipeline.RunPostStageInEnv
 	}
-
-	runningWf, err := impl.cdService.GetWorkflow(workflowRunner.Name, workflowRunner.Namespace, clusterConfig, isExtCluster)
-	if err != nil {
-		impl.Logger.Errorw("cannot find workflow ", "name", workflowRunner.Name)
-		return 0, errors.New("cannot find workflow " + workflowRunner.Name)
-	}
-
 	// Terminate workflow
-	err = impl.cdService.TerminateWorkflow(runningWf.Name, runningWf.Namespace, clusterConfig, isExtCluster)
+	var clusterConfig *rest.Config
+	if isExtCluster {
+		clusterConfig = env.Cluster.GetClusterConfig()
+	}
+	err = impl.cdService.TerminateWorkflow(workflowRunner.ExecutorType, workflowRunner.Name, workflowRunner.Namespace, clusterConfig)
 	if err != nil {
 		impl.Logger.Error("cannot terminate wf runner", "err", err)
 		return 0, err
@@ -740,7 +733,7 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 		}
 		parentCiArtifact := make(map[int]int)
 		isLinked := false
-		ciArtifacts, err := impl.ciArtifactRepository.GetArtifactParentCiAndWorkflowDetailsByIds(ciArtifactIds)
+		ciArtifacts, err := impl.ciArtifactRepository.GetArtifactParentCiAndWorkflowDetailsByIdsInDesc(ciArtifactIds)
 		if err != nil || len(ciArtifacts) == 0 {
 			impl.Logger.Errorw("error fetching artifact data", "err", err)
 			return cdWorkflowArtifact, err
@@ -957,16 +950,42 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 	} else if err == pg.ErrNoRows {
 		return WorkflowResponse{}, nil
 	}
-	workflow := impl.converterWFR(*workflowR)
 
-	triggeredByUser, err := impl.userService.GetById(workflow.TriggeredBy)
+	var userIds []int32
+	var approvalRequestedUserId int32
+	approvalRequest := workflowR.DeploymentApprovalRequest
+	if approvalRequest != nil {
+		approvalReqId := workflowR.DeploymentApprovalRequestId
+		approvalUserData, err := impl.deploymentApprovalRepository.FetchApprovalDataForRequests([]int{approvalReqId})
+		if err != nil {
+			return WorkflowResponse{}, err
+		}
+		approvalRequest.DeploymentApprovalUserData = approvalUserData
+		approvalRequestedUserId = approvalRequest.CreatedBy
+		userIds = append(userIds, approvalRequestedUserId)
+	}
+
+	triggeredBy := workflowR.TriggeredBy
+
+	triggeredByUser := bean.UserInfo{EmailId: "anonymous"}
+
+	userIds = append(userIds, triggeredBy)
+	userInfos, err := impl.userService.GetByIds(userIds)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.Logger.Errorw("err", "err", err)
 		return WorkflowResponse{}, err
 	}
-	if triggeredByUser == nil {
-		triggeredByUser = &bean.UserInfo{EmailId: "anonymous"}
+	for _, userInfo := range userInfos {
+		if userInfo.Id == triggeredBy {
+			triggeredByUser = userInfo
+		}
+		if userInfo.Id == approvalRequestedUserId {
+			approvalRequest.UserEmail = userInfo.EmailId
+		}
 	}
+
+	workflow := impl.converterWFR(*workflowR)
+
 	ciArtifactId := workflow.CiArtifactId
 	if ciArtifactId > 0 {
 		ciArtifact, err := impl.ciArtifactRepository.Get(ciArtifactId)
@@ -1009,6 +1028,16 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		gitTriggers = ciWf.GitTriggers
 	}
 
+	var imageTag string
+	if len(workflow.Image) > 0 {
+		imageTag = strings.Split(workflow.Image, ":")[1]
+	}
+
+	helmPackageName := fmt.Sprintf("%s-%s-%s",
+		workflowR.CdWorkflow.Pipeline.App.AppName,
+		workflowR.CdWorkflow.Pipeline.Environment.Name,
+		imageTag)
+
 	workflowResponse := WorkflowResponse{
 		Id:                   workflow.Id,
 		Name:                 workflow.Name,
@@ -1025,8 +1054,11 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		Stage:                workflow.WorkflowType,
 		GitTriggers:          gitTriggers,
 		BlobStorageEnabled:   workflow.BlobStorageEnabled,
+		UserApprovalMetadata: workflow.UserApprovalMetadata,
 		IsVirtualEnvironment: workflowR.CdWorkflow.Pipeline.Environment.IsVirtualEnvironment,
 		PodName:              workflowR.PodName,
+		CdWorkflowId:         workflowR.CdWorkflowId,
+		HelmPackageName:      helmPackageName,
 		ArtifactId:           workflow.CiArtifactId,
 		CiPipelineId:         ciWf.CiPipelineId,
 	}
@@ -1124,7 +1156,9 @@ func (impl *CdHandlerImpl) converterWFR(wfr pipelineConfig.CdWorkflowRunner) pip
 		workflow.PipelineId = wfr.CdWorkflow.PipelineId
 		workflow.CiArtifactId = wfr.CdWorkflow.CiArtifactId
 		workflow.BlobStorageEnabled = wfr.BlobStorageEnabled
-
+		if wfr.DeploymentApprovalRequest != nil {
+			workflow.UserApprovalMetadata = wfr.DeploymentApprovalRequest.ConvertToApprovalMetadata()
+		}
 	}
 	return workflow
 }
@@ -1550,4 +1584,102 @@ func (impl *CdHandlerImpl) FetchAppDeploymentStatusForEnvironments(request appGr
 	}
 
 	return deploymentStatuses, err
+}
+
+func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(userId int32, approvalActionRequest bean2.UserApprovalActionRequest) error {
+	approvalActionType := approvalActionRequest.ActionType
+	artifactId := approvalActionRequest.ArtifactId
+	approvalRequestId := approvalActionRequest.ApprovalRequestId
+	if approvalActionType == bean2.APPROVAL_APPROVE_ACTION {
+		//fetch approval request data, same user should not be Approval requester
+		approvalRequest, err := impl.deploymentApprovalRepository.FetchWithPipelineAndArtifactDetails(approvalRequestId)
+		if err != nil {
+			return errors.New("failed to fetch approval request data")
+		}
+		if approvalRequest.ArtifactDeploymentTriggered == true {
+			return errors.New("deployment has already been triggered for this request")
+		}
+		if approvalRequest.CreatedBy == userId {
+			return errors.New("requester cannot be an approver")
+		}
+
+		//fetch artifact metadata, who triggered this build
+		ciArtifact, err := impl.ciArtifactRepository.Get(artifactId)
+		if err != nil {
+			impl.Logger.Errorw("error occurred while fetching workflow data for artifact", "artifactId", artifactId, "userId", userId, "err", err)
+			return errors.New("failed to fetch workflow for artifact data")
+		}
+		if ciArtifact.CreatedBy == userId {
+			return errors.New("user who triggered the build cannot be an approver")
+		}
+		deploymentApprovalData := &pipelineConfig.DeploymentApprovalUserData{
+			ApprovalRequestId: approvalRequestId,
+			UserId:            userId,
+			UserResponse:      pipelineConfig.APPROVED,
+		}
+		deploymentApprovalData.CreatedBy = userId
+		deploymentApprovalData.UpdatedBy = userId
+		err = impl.deploymentApprovalRepository.SaveDeploymentUserData(deploymentApprovalData)
+		if err != nil {
+			impl.Logger.Errorw("error occurred while saving user approval data", "approvalRequestId", approvalRequestId, "err", err)
+			return err
+		}
+		// trigger deployment if approved and pipeline type is automatic
+		pipeline := approvalRequest.Pipeline
+		if pipeline.TriggerType == pipelineConfig.TRIGGER_TYPE_AUTOMATIC {
+			pipelineId := approvalRequest.PipelineId
+			approvalConfig, err := pipeline.GetApprovalConfig()
+			if err != nil {
+				impl.Logger.Errorw("error occurred while fetching approval config", "pipelineId", pipelineId, "config", pipeline.UserApprovalConfig, "err", err)
+				return nil
+			}
+			approvalDataForArtifacts, err := impl.workflowDagExecutor.FetchApprovalDataForArtifacts([]int{artifactId}, pipelineId, approvalConfig.RequiredCount)
+			if err != nil {
+				impl.Logger.Errorw("error occurred while fetching approval data for artifacts", "artifactId", artifactId, "pipelineId", pipelineId, "config", pipeline.UserApprovalConfig, "err", err)
+				return nil
+			}
+			if approvedData, ok := approvalDataForArtifacts[artifactId]; ok && approvedData.ApprovalRuntimeState == pipelineConfig.ApprovedApprovalState {
+				// trigger deployment
+				err = impl.workflowDagExecutor.TriggerDeployment(nil, approvalRequest.CiArtifact, pipeline, false, 1)
+				if err != nil {
+					impl.Logger.Errorw("error occurred while triggering deployment", "pipelineId", pipelineId, "artifactId", artifactId, "err", err)
+					return errors.New("auto deployment failed, please try manually")
+				}
+			}
+		}
+
+	} else if approvalActionType == bean2.APPROVAL_REQUEST_ACTION {
+		pipelineId := approvalActionRequest.PipelineId
+		deploymentApprovalRequest := &pipelineConfig.DeploymentApprovalRequest{
+			PipelineId: pipelineId,
+			ArtifactId: artifactId,
+			Active:     true,
+		}
+		deploymentApprovalRequest.CreatedBy = userId
+		deploymentApprovalRequest.UpdatedBy = userId
+		err := impl.deploymentApprovalRepository.Save(deploymentApprovalRequest)
+		if err != nil {
+			impl.Logger.Errorw("error occurred while submitting approval request", "pipelineId", pipelineId, "artifactId", artifactId, "err", err)
+			return err
+		}
+	} else {
+		// fetch if cd wf runner is present then user cannot cancel the request, as deployment has been triggered already
+		approvalRequest, err := impl.deploymentApprovalRepository.FetchById(approvalRequestId)
+		if err != nil {
+			return errors.New("failed to fetch approval request data")
+		}
+		if approvalRequest.CreatedBy != userId {
+			return errors.New("request cannot be cancelled as not initiated by the same")
+		}
+		if approvalRequest.ArtifactDeploymentTriggered {
+			return errors.New("request cannot be cancelled as deployment is already been made for this request")
+		}
+		approvalRequest.Active = false
+		err = impl.deploymentApprovalRepository.Update(approvalRequest)
+		if err != nil {
+			impl.Logger.Errorw("error occurred while updating approval request", "pipelineId", approvalRequest.PipelineId, "artifactId", artifactId, "err", err)
+			return err
+		}
+	}
+	return nil
 }

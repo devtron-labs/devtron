@@ -26,9 +26,14 @@ import (
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	util2 "github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/app"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"io/ioutil"
+	"k8s.io/helm/pkg/proto/hapi/chart"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -36,10 +41,8 @@ import (
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned"
 	v1alpha12 "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
-	"github.com/argoproj/argo-workflows/v3/workflow/util"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/pkg/app"
 	"go.uber.org/zap"
 	v12 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -48,27 +51,34 @@ import (
 )
 
 type CdWorkflowService interface {
-	SubmitWorkflow(workflowRequest *CdWorkflowRequest, pipeline *pipelineConfig.Pipeline, env *repository.Environment) error
+	SubmitWorkflow(workflowRequest *CdWorkflowRequest, pipeline *pipelineConfig.Pipeline, env *repository.Environment) (string, error)
 	DeleteWorkflow(wfName string, namespace string) error
 	GetWorkflow(name string, namespace string, clusterConfig util2.ClusterConfig, isExtRun bool) (*v1alpha1.Workflow, error)
 	ListAllWorkflows(namespace string) (*v1alpha1.WorkflowList, error)
 	UpdateWorkflow(wf *v1alpha1.Workflow) (*v1alpha1.Workflow, error)
-	TerminateWorkflow(name string, namespace string, clusterConfig util2.ClusterConfig, isExtRun bool) error
+	TerminateWorkflow(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, clusterConfig *rest.Config) error
 }
 
 const (
-	CD_WORKFLOW_NAME        = "cd"
-	CD_WORKFLOW_WITH_STAGES = "cd-stages-with-env"
+	CD_WORKFLOW_NAME           = "cd"
+	CD_WORKFLOW_WITH_STAGES    = "cd-stages-with-env"
+	HELM_JOB_REF_TEMPLATE_NAME = "helm-job-template"
+	JOB_CHART_API_VERSION      = "v2"
+	JOB_CHART_NAME             = "helm-job"
+	JOB_CHART_VERSION          = "0.1.0"
 )
 
 type CdWorkflowServiceImpl struct {
-	Logger               *zap.SugaredLogger
-	config               *rest.Config
-	cdConfig             *CdConfig
-	appService           app.AppService
-	envRepository        repository.EnvironmentRepository
-	globalCMCSService    GlobalCMCSService
-	argoWorkflowExecutor ArgoWorkflowExecutor
+	Logger                 *zap.SugaredLogger
+	config                 *rest.Config
+	cdConfig               *CdConfig
+	appService             app.AppService
+	envRepository          repository.EnvironmentRepository
+	globalCMCSService      GlobalCMCSService
+	argoWorkflowExecutor   ArgoWorkflowExecutor
+	systemWorkflowExecutor SystemWorkflowExecutor
+	refChartDir            chartRepoRepository.RefChartDir
+	chartTemplateService   util2.ChartTemplateService
 }
 
 type CdWorkflowRequest struct {
@@ -119,6 +129,7 @@ type CdWorkflowRequest struct {
 	DeploymentTriggerTime      time.Time                           `json:"deploymentTriggerTime,omitempty"`
 	DeploymentReleaseCounter   int                                 `json:"deploymentReleaseCounter,omitempty"`
 	WorkflowExecutor           pipelineConfig.WorkflowExecutorType `json:"workflowExecutor"`
+	IsDryRun                   bool                                `json:"isDryRun"`
 }
 
 const PRE = "PRE"
@@ -129,17 +140,21 @@ func NewCdWorkflowServiceImpl(Logger *zap.SugaredLogger,
 	cdConfig *CdConfig,
 	appService app.AppService,
 	globalCMCSService GlobalCMCSService,
-	argoWorkflowExecutor ArgoWorkflowExecutor) *CdWorkflowServiceImpl {
+	argoWorkflowExecutor ArgoWorkflowExecutor, systemWorkflowExecutor SystemWorkflowExecutor, refChartDir chartRepoRepository.RefChartDir, chartTemplateService util2.ChartTemplateService) *CdWorkflowServiceImpl {
 	return &CdWorkflowServiceImpl{Logger: Logger,
-		config:               cdConfig.ClusterConfig,
-		cdConfig:             cdConfig,
-		appService:           appService,
-		envRepository:        envRepository,
-		globalCMCSService:    globalCMCSService,
-		argoWorkflowExecutor: argoWorkflowExecutor}
+		config:                 cdConfig.ClusterConfig,
+		cdConfig:               cdConfig,
+		appService:             appService,
+		envRepository:          envRepository,
+		globalCMCSService:      globalCMCSService,
+		argoWorkflowExecutor:   argoWorkflowExecutor,
+		systemWorkflowExecutor: systemWorkflowExecutor,
+		refChartDir:            refChartDir,
+		chartTemplateService:   chartTemplateService,
+	}
 }
 
-func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowRequest, pipeline *pipelineConfig.Pipeline, env *repository.Environment) error {
+func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowRequest, pipeline *pipelineConfig.Pipeline, env *repository.Environment) (string, error) {
 
 	containerEnvVariables := []v12.EnvVar{}
 	if impl.cdConfig.CloudProvider == BLOB_STORAGE_S3 && impl.cdConfig.BlobStorageS3AccessKey != "" {
@@ -160,7 +175,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	workflowJson, err := json.Marshal(&ciCdTriggerEvent)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while marshalling ciCdTriggerEvent", "error", err)
-		return err
+		return "", err
 	}
 
 	privileged := true
@@ -181,7 +196,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		globalCmCsConfigs, err = impl.globalCMCSService.FindAllActiveByPipelineType(repository2.PIPELINE_TYPE_CD)
 		if err != nil {
 			impl.Logger.Errorw("error in getting all global cm/cs config", "err", err)
-			return err
+			return "", err
 		}
 		for i := range globalCmCsConfigs {
 			globalCmCsConfigs[i].Name = fmt.Sprintf("%s-%s-%s", strings.ToLower(globalCmCsConfigs[i].Name), strconv.Itoa(workflowRequest.WorkflowRunnerId), CD_WORKFLOW_NAME)
@@ -196,13 +211,13 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	cdPipelineLevelConfigMaps, cdPipelineLevelSecrets, err := impl.getConfiguredCmCs(pipeline, workflowRequest.StageType)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while fetching pipeline configured cm and cs", "pipelineId", pipeline.Id, "err", err)
-		return err
+		return "", err
 	}
 
 	existingConfigMap, existingSecrets, err := impl.appService.GetCmSecretNew(workflowRequest.AppId, workflowRequest.EnvironmentId)
 	if err != nil {
 		impl.Logger.Errorw("failed to get configmap data", "err", err)
-		return err
+		return "", err
 	}
 	impl.Logger.Debugw("existing cm", "pipelineId", pipeline.Id, "cm", existingConfigMap)
 
@@ -278,11 +293,28 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	} else {
 		workflowTemplate.ClusterConfig = impl.config
 	}
-	workflowExecutor := impl.getWorkflowExecutor(workflowRequest.WorkflowExecutor)
-	if workflowExecutor == nil {
-		return errors.New("workflow executor not found")
+
+	jobHelmChartPath := ""
+	if util2.IsManifestDownload(pipeline.DeploymentAppType) {
+		jobManifestTemplate := &bean3.JobManifestTemplate{
+			NameSpace:               workflowRequest.Namespace,
+			Container:               workflowMainContainer,
+			ConfigSecrets:           workflowSecrets,
+			ConfigMaps:              workflowConfigMaps,
+			NodeSelector:            workflowTemplate.NodeSelector,
+			Toleration:              workflowTemplate.Tolerations,
+			TTLSecondsAfterFinished: workflowTemplate.TTLValue,
+			ActiveDeadlineSeconds:   workflowTemplate.ActiveDeadlineSeconds,
+		}
+		jobHelmChartPath, err = impl.TriggerDryRun(jobManifestTemplate, pipeline, env)
+	} else {
+		workflowExecutor := impl.getWorkflowExecutor(workflowRequest.WorkflowExecutor)
+		if workflowExecutor == nil {
+			return "", errors.New("workflow executor not found")
+		}
+		_, err = workflowExecutor.ExecuteWorkflow(workflowTemplate)
 	}
-	return workflowExecutor.ExecuteWorkflow(workflowTemplate)
+	return jobHelmChartPath, err
 }
 
 func (impl *CdWorkflowServiceImpl) updateBlobStorageConfig(workflowRequest *CdWorkflowRequest, workflowTemplate *bean3.WorkflowTemplate, storageConfigured bool, blobStorageKey string) {
@@ -296,6 +328,8 @@ func (impl *CdWorkflowServiceImpl) updateBlobStorageConfig(workflowRequest *CdWo
 func (impl *CdWorkflowServiceImpl) getWorkflowExecutor(executorType pipelineConfig.WorkflowExecutorType) WorkflowExecutor {
 	if executorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF {
 		return impl.argoWorkflowExecutor
+	} else if executorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM {
+		return impl.systemWorkflowExecutor
 	}
 	impl.Logger.Warnw("workflow executor not found", "type", executorType)
 	return nil
@@ -354,21 +388,15 @@ func (impl *CdWorkflowServiceImpl) GetWorkflow(name string, namespace string, cl
 	return workflow, err
 }
 
-func (impl *CdWorkflowServiceImpl) TerminateWorkflow(name string, namespace string, clusterConfig util2.ClusterConfig, isExtRun bool) error {
-	impl.Logger.Debugw("terminating wf", "name", name)
-	var wfClient v1alpha12.WorkflowInterface
-	var err error
-	if isExtRun {
-		wfClient, err = impl.getRuntimeEnvClientInstance(namespace, clusterConfig)
+func (impl *CdWorkflowServiceImpl) TerminateWorkflow(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, clusterConfig *rest.Config) error {
 
-	} else {
-		wfClient, err = impl.getClientInstance(namespace)
+	impl.Logger.Debugw("terminating wf", "name", name)
+	if clusterConfig == nil {
+		// taking default config
+		clusterConfig = impl.config
 	}
-	if err != nil {
-		impl.Logger.Errorw("cannot build wf client", "err", err)
-		return err
-	}
-	err = util.TerminateWorkflow(context.Background(), wfClient, name)
+	workflowExecutor := impl.getWorkflowExecutor(executorType)
+	err := workflowExecutor.TerminateWorkflow(name, namespace, clusterConfig)
 	return err
 }
 
@@ -441,4 +469,28 @@ func (impl *CdWorkflowServiceImpl) checkErr(err error) {
 	if err != nil {
 		impl.Logger.Errorw("error", "error:", err)
 	}
+}
+
+func (impl *CdWorkflowServiceImpl) TriggerDryRun(jobManifestTemplate *bean3.JobManifestTemplate, pipeline *pipelineConfig.Pipeline, env *repository.Environment) (builtChartPath string, err error) {
+
+	jobManifestJson, err := json.Marshal(jobManifestTemplate)
+	if err != nil {
+		impl.Logger.Errorw("error in converting to json", "err", err)
+		return builtChartPath, err
+	}
+
+	jobHelmChartPath := path.Join(string(impl.refChartDir), HELM_JOB_REF_TEMPLATE_NAME)
+	builtChartPath, err = impl.chartTemplateService.BuildChart(context.Background(),
+		&chart.Metadata{ApiVersion: JOB_CHART_API_VERSION, Name: JOB_CHART_NAME, Version: JOB_CHART_VERSION},
+		jobHelmChartPath)
+
+	impl.Logger.Debugw(builtChartPath)
+
+	valuesFilePath := path.Join(builtChartPath, "valuesOverride.json")
+	err = ioutil.WriteFile(valuesFilePath, jobManifestJson, 0600)
+	if err != nil {
+		return builtChartPath, nil
+	}
+
+	return builtChartPath, nil
 }

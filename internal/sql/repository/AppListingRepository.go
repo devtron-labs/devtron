@@ -367,12 +367,14 @@ func (impl AppListingRepositoryImpl) deploymentDetailsByAppIdAndEnvId(ctx contex
 		" p.deployment_app_type," +
 		" p.ci_pipeline_id," +
 		" p.deployment_app_delete_request," +
+		" p.user_approval_config," +
 		" cia.data_source," +
 		" cia.id as ci_artifact_id," +
 		" cl.k8s_version," +
 		" env.cluster_id," +
 		" env.is_virtual_environment," +
-		" cl.cluster_name" +
+		" cl.cluster_name," +
+		" cia.image" +
 		" FROM pipeline p" +
 		" INNER JOIN pipeline_config_override pco on pco.pipeline_id=p.id" +
 		" INNER JOIN environment env ON env.id=p.environment_id" +
@@ -635,7 +637,7 @@ func (impl AppListingRepositoryImpl) FetchOtherEnvironment(appId int) ([]*bean.E
 	var otherEnvironments []*bean.Environment
 	query := "select OE.*,B.status as app_status " +
 		"FROM " +
-		"(SELECT p.environment_id,env.environment_name,env.description, p.last_deployed,  env_app_m.app_metrics, env.default as prod, env_app_m.infra_metrics, p.deployment_app_delete_request from ( SELECT pl.id,pl.app_id,pl.environment_id,pl.deleted, pl.deployment_app_delete_request,MAX(pco.created_on) as last_deployed from pipeline pl LEFT JOIN pipeline_config_override pco on pco.pipeline_id = pl.id WHERE pl.app_id = ? and pl.deleted = FALSE GROUP BY pl.id) p INNER JOIN environment env on env.id=p.environment_id LEFT JOIN env_level_app_metrics env_app_m on env.id=env_app_m.env_id and p.app_id = env_app_m.app_id where p.app_id=? and p.deleted = FALSE AND env.active = TRUE GROUP BY 1,2,3,4,5,6,7,8) OE " +
+		"(SELECT p.environment_id,env.environment_name,env.description,env.is_virtual_environment, p.last_deployed,  env_app_m.app_metrics, env.default as prod, env_app_m.infra_metrics, p.deployment_app_delete_request from ( SELECT pl.id,pl.app_id,pl.environment_id,pl.deleted, pl.deployment_app_delete_request,MAX(pco.created_on) as last_deployed from pipeline pl LEFT JOIN pipeline_config_override pco on pco.pipeline_id = pl.id WHERE pl.app_id = ? and pl.deleted = FALSE GROUP BY pl.id) p INNER JOIN environment env on env.id=p.environment_id LEFT JOIN env_level_app_metrics env_app_m on env.id=env_app_m.env_id and p.app_id = env_app_m.app_id where p.app_id=? and p.deleted = FALSE AND env.active = TRUE GROUP BY 1,2,3,4,5,6,7,8,9) OE " +
 		" LEFT JOIN app_status B ON OE.environment_id = B.env_id AND B.app_id = ? ;"
 	impl.Logger.Debugw("other env query:", query)
 	_, err := impl.dbConnection.Query(&otherEnvironments, query, appId, appId, appId)

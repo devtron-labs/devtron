@@ -38,6 +38,11 @@ import (
 
 // creating duplicates because cannot use
 
+const (
+	DEFAULT_CLUSTER_ID = 1
+	DEFAULT_NAMESPACE  = "default"
+)
+
 type AppStoreDeploymentArgoCdService interface {
 	//InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error)
 	InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *util.ChartGitAttribute, ctx context.Context, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error)
@@ -140,6 +145,77 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) SaveTimelineForACDHelmApps(insta
 }
 
 func (impl AppStoreDeploymentArgoCdServiceImpl) InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *util.ChartGitAttribute, ctx context.Context, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error) {
+
+	//timeline := &pipelineConfig.PipelineStatusTimeline{
+	//	InstalledAppVersionHistoryId: installAppVersionRequest.InstalledAppVersionHistoryId,
+	//	Status:                       pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED,
+	//	StatusDetail:                 "Deployment initiated successfully.",
+	//	StatusTime:                   time.Now(),
+	//	AuditLog: sql.AuditLog{
+	//		CreatedBy: installAppVersionRequest.UserId,
+	//		CreatedOn: time.Now(),
+	//		UpdatedBy: installAppVersionRequest.UserId,
+	//		UpdatedOn: time.Now(),
+	//	},
+	//}
+	//err := impl.pipelineStatusTimelineService.SaveTimelineForACDHelmApps(timeline, tx, true)
+	//if err != nil {
+	//	impl.Logger.Errorw("error in creating timeline status for deployment initiation for this app store application", "err", err, "timeline", timeline)
+	//}
+	//step 2 git operation pull push
+	//installAppVersionRequest, chartGitAttr, err := impl.appStoreDeploymentFullModeService.AppStoreDeployOperationGIT(installAppVersionRequest)
+	//if err != nil {
+	//	impl.Logger.Errorw(" error", "err", err)
+	//	return installAppVersionRequest, err
+	//}
+	//step 3 acd operation register, sync
+
+	//gitOpsResponse, err := impl.appStoreDeploymentCommonService.GenerateManifestAndPerformGitOperations(installAppVersionRequest)
+	//if err != nil {
+	//	impl.Logger.Errorw("error in doing gitops operation", "err", err)
+	//}
+
+	//if err != nil {
+	//	impl.Logger.Errorw("error in git commit", "err", err)
+	//	//update timeline status for git commit failed state
+	//	gitCommitStatus := pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED
+	//	gitCommitStatusDetail := fmt.Sprintf("Git commit failed - %v", err)
+	//	timeline := &pipelineConfig.PipelineStatusTimeline{
+	//		InstalledAppVersionHistoryId: installAppVersionRequest.InstalledAppVersionHistoryId,
+	//		Status:                       gitCommitStatus,
+	//		StatusDetail:                 gitCommitStatusDetail,
+	//		StatusTime:                   time.Now(),
+	//		AuditLog: sql.AuditLog{
+	//			CreatedBy: installAppVersionRequest.UserId,
+	//			CreatedOn: time.Now(),
+	//			UpdatedBy: installAppVersionRequest.UserId,
+	//			UpdatedOn: time.Now(),
+	//		},
+	//	}
+	//	timelineErr := impl.pipelineStatusTimelineService.SaveTimelineForACDHelmApps(timeline, tx, true)
+	//	if timelineErr != nil {
+	//		impl.Logger.Errorw("error in creating timeline status for git commit", "err", timelineErr, "timeline", timeline)
+	//	}
+	//	return installAppVersionRequest, err
+	//}
+	//creating timeline for Git Commit stage
+	//timeline = &pipelineConfig.PipelineStatusTimeline{
+	//	InstalledAppVersionHistoryId: installAppVersionRequest.InstalledAppVersionHistoryId,
+	//	Status:                       pipelineConfig.TIMELINE_STATUS_GIT_COMMIT,
+	//	StatusDetail:                 "Git commit done successfully.",
+	//	StatusTime:                   time.Now(),
+	//	AuditLog: sql.AuditLog{
+	//		CreatedBy: installAppVersionRequest.UserId,
+	//		CreatedOn: time.Now(),
+	//		UpdatedBy: installAppVersionRequest.UserId,
+	//		UpdatedOn: time.Now(),
+	//	},
+	//}
+	//
+	//err = impl.pipelineStatusTimelineService.SaveTimelineForACDHelmApps(timeline, tx, true)
+	//if err != nil {
+	//	impl.Logger.Errorw("error in creating timeline status for git commit", "err", err, "timeline", timeline)
+	//}
 
 	installAppVersionRequest, err := impl.appStoreDeploymentFullModeService.AppStoreDeployOperationACD(installAppVersionRequest, chartGitAttr, ctx)
 	if err != nil {
@@ -437,6 +513,12 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetDeploymentHistoryInfo(ctx con
 	envId := int32(installedApp.EnvironmentId)
 	clusterId := int32(installedApp.ClusterId)
 	appStoreVersionId := int32(installedApp.AppStoreApplicationVersionId)
+
+	// as virtual environment doesn't exist on actual cluster, we will use default cluster for running helm template command
+	if installedApp.IsVirtualEnvironment {
+		clusterId = DEFAULT_CLUSTER_ID
+		installedApp.Namespace = DEFAULT_NAMESPACE
+	}
 
 	manifestRequest := openapi2.TemplateChartRequest{
 		EnvironmentId:                &envId,

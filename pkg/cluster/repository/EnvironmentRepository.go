@@ -28,10 +28,11 @@ import (
 )
 
 type EnvCluserInfo struct {
-	Id          int    `sql:"id"`
-	ClusterName string `sql:"cluster_name"`
-	Namespace   string `sql:"namespace"`
-	Name        string `sql:"name"`
+	Id                   int    `sql:"id"`
+	ClusterName          string `sql:"cluster_name"`
+	Namespace            string `sql:"namespace"`
+	Name                 string `sql:"name"`
+	IsVirtualEnvironment bool   `sql:"is_virtual_environment"`
 }
 type Environment struct {
 	tableName             struct{} `sql:"environment" pg:",discard_unknown_columns"`
@@ -108,7 +109,7 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindOne(environment string) (*En
 }
 
 func (repositoryImpl EnvironmentRepositoryImpl) FindEnvClusterInfosByIds(envIds []int) ([]*EnvCluserInfo, error) {
-	query := "SELECT env.id as id,cluster.cluster_name,env.environment_name as name,env.namespace " +
+	query := "SELECT env.id as id,cluster.cluster_name,env.environment_name as name,env.namespace, env.is_virtual_environment" +
 		" FROM environment env INNER JOIN  cluster ON env.cluster_id = cluster.id "
 	if len(envIds) > 0 {
 		query += fmt.Sprintf(" WHERE env.id IN (%s)", helper.GetCommaSepratedString(envIds))

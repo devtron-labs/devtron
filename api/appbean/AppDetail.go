@@ -120,6 +120,7 @@ type CdPipelineDetails struct {
 	RunPreStageInEnv              bool                                   `json:"runPreStageInEnv"`
 	RunPostStageInEnv             bool                                   `json:"runPostStageInEnv"`
 	IsClusterCdActive             bool                                   `json:"isClusterCdActive"`
+	UserApprovalConf              *pipelineConfig.UserApprovalConfig     `json:"userApprovalConfig"`
 }
 
 type DeploymentStrategy struct {

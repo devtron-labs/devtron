@@ -18,6 +18,7 @@
 package pipelineConfig
 
 import (
+	"encoding/json"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -59,8 +60,35 @@ type Pipeline struct {
 	DeploymentAppType             string      `sql:"deployment_app_type,notnull"` //helm, acd
 	DeploymentAppName             string      `sql:"deployment_app_name"`
 	DeploymentAppDeleteRequest    bool        `sql:"deployment_app_delete_request,notnull"`
+	UserApprovalConfig            string      `sql:"user_approval_config"`
 	Environment                   repository.Environment
 	sql.AuditLog
+}
+
+type UserApprovalConfig struct {
+	RequiredCount int    `json:"requiredCount" validate:"number,required"`
+	Description   string `json:"description,omitempty"`
+}
+
+func (pipeline Pipeline) ApprovalNodeConfigured() bool {
+	if len(pipeline.UserApprovalConfig) > 0 {
+		approvalConfig, err := pipeline.GetApprovalConfig()
+		if err != nil {
+			return false
+		}
+		return approvalConfig.RequiredCount > 0
+	}
+	return false
+}
+
+func (pipeline Pipeline) GetApprovalConfig() (UserApprovalConfig, error) {
+	approvalConfig := UserApprovalConfig{}
+	err := json.Unmarshal([]byte(pipeline.UserApprovalConfig), &approvalConfig)
+	return approvalConfig, err
+}
+
+func (pipeline Pipeline) IsManualTrigger() bool {
+	return pipeline.TriggerType == TRIGGER_TYPE_MANUAL
 }
 
 type PipelineRepository interface {
@@ -225,7 +253,7 @@ func (impl PipelineRepositoryImpl) FindByParentCiPipelineId(ciPipelineId int) (p
 
 func (impl PipelineRepositoryImpl) FindActiveByAppId(appId int) (pipelines []*Pipeline, err error) {
 	err = impl.dbConnection.Model(&pipelines).
-		Column("pipeline.*", "Environment").
+		Column("pipeline.*", "Environment", "App").
 		Where("app_id = ?", appId).
 		Where("deleted = ?", false).
 		Select()

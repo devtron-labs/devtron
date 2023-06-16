@@ -496,7 +496,7 @@ func (impl UserAuthServiceImpl) DeleteRoles(entityType string, entityName string
 	// deleting policies in casbin and roles
 	var casbinDeleteFailed []bool
 	for _, roleModel := range roleModels {
-		success := casbin2.RemovePoliciesByRoles(roleModel.Role)
+		success := casbin2.RemovePoliciesByRole(roleModel.Role)
 		if !success {
 			impl.logger.Warnw("error in deleting casbin policy for role", "role", roleModel.Role)
 			casbinDeleteFailed = append(casbinDeleteFailed, success)

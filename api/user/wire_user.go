@@ -2,6 +2,7 @@ package user
 
 import (
 	"github.com/devtron-labs/devtron/pkg/auth"
+	casbin2 "github.com/devtron-labs/devtron/pkg/enterprise/user/casbin"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/pkg/user/repository"
@@ -30,6 +31,10 @@ var UserWireSet = wire.NewSet(
 	wire.Bind(new(UserRouter), new(*UserRouterImpl)),
 	NewUserRestHandlerImpl,
 	wire.Bind(new(UserRestHandler), new(*UserRestHandlerImpl)),
+	user.NewCleanUpPoliciesServiceImpl,
+	wire.Bind(new(user.CleanUpPoliciesService), new(*user.CleanUpPoliciesServiceImpl)),
+	repository.NewPoliciesCleanUpRepositoryImpl,
+	wire.Bind(new(repository.PoliciesCleanUpRepository), new(*repository.PoliciesCleanUpRepositoryImpl)),
 	user.NewUserServiceImpl,
 	wire.Bind(new(user.UserService), new(*user.UserServiceImpl)),
 	repository.NewUserRepositoryImpl,
@@ -39,8 +44,9 @@ var UserWireSet = wire.NewSet(
 	repository.NewRoleGroupRepositoryImpl,
 	wire.Bind(new(repository.RoleGroupRepository), new(*repository.RoleGroupRepositoryImpl)),
 
-	casbin.NewEnforcerImpl,
-	wire.Bind(new(casbin.Enforcer), new(*casbin.EnforcerImpl)),
+	//casbin.NewEnforcerImpl,
+	casbin2.NewEnterpriseEnforcerImpl,
+	wire.Bind(new(casbin.Enforcer), new(*casbin2.EnterpriseEnforcerImpl)),
 	casbin.Create,
 
 	user.NewUserCommonServiceImpl,
@@ -49,6 +55,10 @@ var UserWireSet = wire.NewSet(
 	auth.NewUserAuthOidcHelperImpl,
 	wire.Bind(new(auth.UserAuthOidcHelper), new(*auth.UserAuthOidcHelperImpl)),
 
+	repository.NewRbacPolicyResourceDetailRepositoryImpl,
+	wire.Bind(new(repository.RbacPolicyResourceDetailRepository), new(*repository.RbacPolicyResourceDetailRepositoryImpl)),
+	repository.NewRbacRoleResourceDetailRepositoryImpl,
+	wire.Bind(new(repository.RbacRoleResourceDetailRepository), new(*repository.RbacRoleResourceDetailRepositoryImpl)),
 	repository.NewRbacPolicyDataRepositoryImpl,
 	wire.Bind(new(repository.RbacPolicyDataRepository), new(*repository.RbacPolicyDataRepositoryImpl)),
 	repository.NewRbacRoleDataRepositoryImpl,

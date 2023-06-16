@@ -20,11 +20,13 @@ package pipeline
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	gitSensorClient "github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/client/k8s/application"
+	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	util4 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
@@ -69,10 +71,11 @@ type WorkflowDagExecutor interface {
 	Subscribe() error
 	TriggerPostStage(cdWf *pipelineConfig.CdWorkflow, cdPipeline *pipelineConfig.Pipeline, triggeredBy int32) error
 	TriggerDeployment(cdWf *pipelineConfig.CdWorkflow, artifact *repository.CiArtifact, pipeline *pipelineConfig.Pipeline, applyAuth bool, triggeredBy int32) error
-	ManualCdTrigger(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (int, error)
+	ManualCdTrigger(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (int, string, error)
 	TriggerBulkDeploymentAsync(requests []*BulkTriggerRequest, UserId int32) (interface{}, error)
 	StopStartApp(stopRequest *StopAppRequest, ctx context.Context) (int, error)
 	TriggerBulkHibernateAsync(request StopDeploymentGroupRequest, ctx context.Context) (interface{}, error)
+	FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int, requiredApprovals int) (map[int]*pipelineConfig.UserApprovalMetadata, error)
 	RotatePods(ctx context.Context, podRotateRequest *PodRotateRequest) (*k8s.RotatePodResponse, error)
 }
 
@@ -108,7 +111,10 @@ type WorkflowDagExecutorImpl struct {
 	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
 	appLabelRepository            pipelineConfig.AppLabelRepository
 	gitSensorGrpcClient           gitSensorClient.Client
+	deploymentApprovalRepository  pipelineConfig.DeploymentApprovalRepository
+	chartTemplateService          util.ChartTemplateService
 	k8sApplicationService         k8s.K8sApplicationService
+	appRepository                 appRepository.AppRepository
 }
 
 const (
@@ -174,7 +180,10 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	CiTemplateRepository pipelineConfig.CiTemplateRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	appLabelRepository pipelineConfig.AppLabelRepository, gitSensorGrpcClient gitSensorClient.Client,
-	k8sApplicationService k8s.K8sApplicationService) *WorkflowDagExecutorImpl {
+	deploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository,
+	chartTemplateService util.ChartTemplateService,
+	k8sApplicationService k8s.K8sApplicationService,
+	appRepository appRepository.AppRepository) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
 		cdWorkflowRepository:          cdWorkflowRepository,
@@ -207,6 +216,9 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		appLabelRepository:            appLabelRepository,
 		gitSensorGrpcClient:           gitSensorGrpcClient,
 		k8sApplicationService:         k8sApplicationService,
+		deploymentApprovalRepository:  deploymentApprovalRepository,
+		chartTemplateService:          chartTemplateService,
+		appRepository:                 appRepository,
 	}
 	err := wde.Subscribe()
 	if err != nil {
@@ -306,7 +318,11 @@ func (impl *WorkflowDagExecutorImpl) HandleWebhookExternalCiEvent(artifact *repo
 			err = &util.ApiError{Code: "401", HttpStatusCode: 401, UserMessage: "Unauthorized"}
 			return hasAnyTriggered, err
 		}
-		if pipeline.TriggerType == pipelineConfig.TRIGGER_TYPE_MANUAL {
+		if pipeline.ApprovalNodeConfigured() {
+			impl.logger.Warnw("approval node configured, so skipping pipeline for approval", "pipeline", pipeline)
+			continue
+		}
+		if pipeline.IsManualTrigger() {
 			impl.logger.Warnw("skipping deployment for manual trigger for webhook", "pipeline", pipeline)
 			continue
 		}
@@ -337,6 +353,10 @@ func (impl *WorkflowDagExecutorImpl) triggerStage(cdWf *pipelineConfig.CdWorkflo
 		}
 	} else if pipeline.TriggerType == pipelineConfig.TRIGGER_TYPE_AUTOMATIC {
 		// trigger deployment
+		if pipeline.ApprovalNodeConfigured() {
+			impl.logger.Warnw("approval node configured, so skipping pipeline for approval", "pipeline", pipeline)
+			return nil
+		}
 		impl.logger.Debugw("trigger cd for pipeline", "artifactId", artifact.Id, "pipelineId", pipeline.Id)
 		err = impl.TriggerDeployment(cdWf, artifact, pipeline, applyAuth, triggeredBy)
 		return err
@@ -463,9 +483,45 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 		return err
 	}
 	cdStageWorkflowRequest.StageType = PRE
+
 	_, span = otel.Tracer("orchestrator").Start(ctx, "cdWorkflowService.SubmitWorkflow")
-	err = impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest, pipeline, env)
+	jobHelmPackagePath, err := impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest, pipeline, env)
 	span.End()
+
+	if util.IsManifestDownload(pipeline.DeploymentAppType) {
+		if pipeline.App.Id == 0 {
+			appDbObject, err := impl.appRepository.FindById(pipeline.AppId)
+			if err != nil {
+				impl.logger.Errorw("error in getting app by appId", "err", err)
+				return err
+			}
+			pipeline.App = *appDbObject
+		}
+		if pipeline.Environment.Id == 0 {
+			envDbObject, err := impl.envRepository.FindById(pipeline.EnvironmentId)
+			if err != nil {
+				impl.logger.Errorw("error in getting env by envId", "err", err)
+				return err
+			}
+			pipeline.Environment = *envDbObject
+		}
+		imageTag := strings.Split(artifact.Image, ":")[1]
+		chartName := fmt.Sprintf("%s-%s-%s-%s", "pre", pipeline.App.AppName, pipeline.Environment.Name, imageTag)
+		chartBytes, err := impl.chartTemplateService.LoadChartInBytes(jobHelmPackagePath, true, chartName, fmt.Sprint(cdWf.Id))
+		if err != nil && util.IsManifestDownload(pipeline.DeploymentAppType) {
+			return err
+		}
+		runner.Status = pipelineConfig.WorkflowSucceeded
+		runner.UpdatedBy = triggeredBy
+		runner.UpdatedOn = triggeredAt
+		runner.FinishedOn = time.Now()
+		runner.HelmReferenceChart = chartBytes
+		err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
+		if err != nil {
+			impl.logger.Errorw("error in updating helm chart in DB", "err", err)
+			return err
+		}
+	}
 
 	err = impl.sendPreStageNotification(ctx, cdWf, pipeline)
 	if err != nil {
@@ -536,7 +592,6 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		}
 		runner.Namespace = env.Namespace
 	}
-
 	_, err = impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
 	if err != nil {
 		return err
@@ -547,10 +602,46 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		return err
 	}
 	cdStageWorkflowRequest.StageType = POST
-	err = impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest, pipeline, env)
+
+	jobHelmPackagePath, err := impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest, pipeline, env)
 	if err != nil {
 		impl.logger.Errorw("error in submitting workflow", "err", err, "cdStageWorkflowRequest", cdStageWorkflowRequest, "pipeline", pipeline, "env", env)
 		return err
+	}
+	if pipeline.App.Id == 0 {
+		appDbObject, err := impl.appRepository.FindById(pipeline.AppId)
+		if err != nil {
+			impl.logger.Errorw("error in getting app by appId", "err", err)
+			return err
+		}
+		pipeline.App = *appDbObject
+	}
+	if pipeline.Environment.Id == 0 {
+		envDbObject, err := impl.envRepository.FindById(pipeline.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("error in getting env by envId", "err", err)
+			return err
+		}
+		pipeline.Environment = *envDbObject
+	}
+	imageTag := strings.Split(cdStageWorkflowRequest.CiArtifactDTO.Image, ":")[1]
+	chartName := fmt.Sprintf("%s-%s-%s-%s", "post", pipeline.App.AppName, pipeline.Environment.Name, imageTag)
+
+	if util.IsManifestDownload(pipeline.DeploymentAppType) {
+		chartBytes, err := impl.chartTemplateService.LoadChartInBytes(jobHelmPackagePath, false, chartName, fmt.Sprint(cdWf.Id))
+		if err != nil {
+			return err
+		}
+		runner.Status = pipelineConfig.WorkflowSucceeded
+		runner.UpdatedBy = triggeredBy
+		runner.UpdatedOn = triggeredAt
+		runner.FinishedOn = time.Now()
+		runner.HelmReferenceChart = chartBytes
+		err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
+		if err != nil {
+			impl.logger.Errorw("error in updating helm chart in DB", "err", err)
+			return err
+		}
 	}
 
 	wfr, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(context.Background(), cdWf.Id, bean.CD_WORKFLOW_TYPE_POST)
@@ -910,6 +1001,9 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	}
 	cdStageWorkflowRequest.DefaultAddressPoolBaseCidr = impl.cdConfig.DefaultAddressPoolBaseCidr
 	cdStageWorkflowRequest.DefaultAddressPoolSize = impl.cdConfig.DefaultAddressPoolSize
+	if util.IsManifestDownload(cdPipeline.DeploymentAppType) {
+		cdStageWorkflowRequest.IsDryRun = true
+	}
 	return cdStageWorkflowRequest, nil
 }
 
@@ -1006,6 +1100,7 @@ func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(cdWorkflowId in
 // Only used for auto trigger
 func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWorkflow, artifact *repository.CiArtifact, pipeline *pipelineConfig.Pipeline, applyAuth bool, triggeredBy int32) error {
 	//in case of manual ci RBAC need to apply, this method used for auto cd deployment
+	pipelineId := pipeline.Id
 	if applyAuth {
 		user, err := impl.user.GetById(triggeredBy)
 		if err != nil {
@@ -1016,9 +1111,16 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		object := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
 		impl.logger.Debugw("Triggered Request (App Permission Checking):", "object", object)
 		if ok := impl.enforcer.EnforceByEmail(strings.ToLower(token), casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
-			err = &util.ApiError{Code: "401", HttpStatusCode: 401, UserMessage: "unauthorized for pipeline " + strconv.Itoa(pipeline.Id)}
+			err = &util.ApiError{Code: "401", HttpStatusCode: 401, UserMessage: "unauthorized for pipeline " + strconv.Itoa(pipelineId)}
 			return err
 		}
+	}
+
+	artifactId := artifact.Id
+	// need to check for approved artifact only in case configured
+	approvalRequestId, err := impl.checkApprovalNodeForDeployment(triggeredBy, pipeline, artifactId)
+	if err != nil {
+		return err
 	}
 
 	//setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
@@ -1026,8 +1128,8 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 
 	if cdWf == nil {
 		cdWf = &pipelineConfig.CdWorkflow{
-			CiArtifactId: artifact.Id,
-			PipelineId:   pipeline.Id,
+			CiArtifactId: artifactId,
+			PipelineId:   pipelineId,
 			AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: 1, UpdatedOn: triggeredAt, UpdatedBy: 1},
 		}
 		err := impl.cdWorkflowRepository.SaveWorkFlow(context.Background(), cdWf)
@@ -1047,9 +1149,18 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		CdWorkflowId: cdWf.Id,
 		AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: triggeredBy, UpdatedOn: triggeredAt, UpdatedBy: triggeredBy},
 	}
+	if approvalRequestId > 0 {
+		runner.DeploymentApprovalRequestId = approvalRequestId
+	}
 	savedWfr, err := impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
 	if err != nil {
 		return err
+	}
+	if approvalRequestId > 0 {
+		err = impl.deploymentApprovalRepository.ConsumeApprovalRequest(approvalRequestId)
+		if err != nil {
+			return err
+		}
 	}
 	runner.CdWorkflow = &pipelineConfig.CdWorkflow{
 		Pipeline: pipeline,
@@ -1131,6 +1242,20 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 			},
 		}
 		err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, isAppStore)
+		if util.IsManifestDownload(pipeline.DeploymentAppType) {
+			runner := &pipelineConfig.CdWorkflowRunner{
+				Name:         pipeline.Name,
+				WorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
+				ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM,
+				Status:       pipelineConfig.WorkflowSucceeded, //starting
+				TriggeredBy:  1,
+				StartedOn:    triggeredAt,
+				Namespace:    impl.cdConfig.DefaultNamespace,
+				CdWorkflowId: cdWf.Id,
+				AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: triggeredBy, UpdatedOn: triggeredAt, UpdatedBy: triggeredBy},
+			}
+			_ = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
+		}
 		if err != nil {
 			impl.logger.Errorw("error in creating timeline status for deployment fail - cve policy violation", "err", err, "timeline", timeline)
 		}
@@ -1138,12 +1263,63 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 	}
 
 	err = impl.appService.TriggerCD(artifact, cdWf.Id, savedWfr.Id, pipeline, triggeredAt)
-	err1 := impl.updatePreviousDeploymentStatus(runner, pipeline.Id, err, triggeredAt, triggeredBy)
+	if util.IsManifestDownload(pipeline.DeploymentAppType) {
+		runner := &pipelineConfig.CdWorkflowRunner{
+			Id:           runner.Id,
+			Name:         pipeline.Name,
+			WorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
+			ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
+			TriggeredBy:  1,
+			StartedOn:    triggeredAt,
+			Status:       pipelineConfig.WorkflowSucceeded,
+			Namespace:    impl.cdConfig.DefaultNamespace,
+			CdWorkflowId: cdWf.Id,
+			AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: 1, UpdatedOn: triggeredAt, UpdatedBy: 1},
+			FinishedOn:   time.Now(),
+		}
+		updateErr := impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
+		if updateErr != nil {
+			impl.logger.Errorw("error in updating runner for manifest_download type", "err", err)
+		}
+	}
+	err1 := impl.updatePreviousDeploymentStatus(runner, pipelineId, err, triggeredAt, triggeredBy)
 	if err1 != nil || err != nil {
-		impl.logger.Errorw("error while update previous cd workflow runners", "err", err, "runner", runner, "pipelineId", pipeline.Id)
+		impl.logger.Errorw("error while update previous cd workflow runners", "err", err, "runner", runner, "pipelineId", pipelineId)
 		return err
 	}
 	return nil
+}
+
+func (impl *WorkflowDagExecutorImpl) checkApprovalNodeForDeployment(requestedUserId int32, pipeline *pipelineConfig.Pipeline, artifactId int) (int, error) {
+	if pipeline.ApprovalNodeConfigured() {
+		pipelineId := pipeline.Id
+		approvalConfig, err := pipeline.GetApprovalConfig()
+		if err != nil {
+			impl.logger.Errorw("error occurred while fetching approval node config", "approvalConfig", pipeline.UserApprovalConfig, "err", err)
+			return 0, err
+		}
+		userApprovalMetadata, err := impl.FetchApprovalDataForArtifacts([]int{artifactId}, pipelineId, approvalConfig.RequiredCount)
+		if err != nil {
+			return 0, err
+		}
+		approvalMetadata, ok := userApprovalMetadata[artifactId]
+		if ok && approvalMetadata.ApprovalRuntimeState != pipelineConfig.ApprovedApprovalState {
+			impl.logger.Errorw("not triggering deployment since artifact is not approved", "pipelineId", pipelineId, "artifactId", artifactId)
+			return 0, errors.New("not triggering deployment since artifact is not approved")
+		} else if ok {
+			approvalUsersData := approvalMetadata.ApprovalUsersData
+			for _, approvalData := range approvalUsersData {
+				if approvalData.UserId == requestedUserId {
+					return 0, errors.New("image cannot be deployed by its approver")
+				}
+			}
+			return approvalMetadata.ApprovalRequestId, nil
+		} else {
+			return 0, errors.New("request not raised for artifact")
+		}
+	}
+	return 0, nil
+
 }
 
 func (impl *WorkflowDagExecutorImpl) updatePreviousDeploymentStatus(currentRunner *pipelineConfig.CdWorkflowRunner, pipelineId int, err error, triggeredAt time.Time, triggeredBy int32) error {
@@ -1338,10 +1514,15 @@ func (impl *WorkflowDagExecutorImpl) StopStartApp(stopRequest *StopAppRequest, c
 		return 0, err
 	}
 	stopTemplate := `{"replicaCount":0,"autoscaling":{"MinReplicas":0,"MaxReplicas":0 ,"enabled": false} }`
+	latestArtifactId := wf.CiArtifactId
+	cdPipelineId := pipeline.Id
+	if pipeline.ApprovalNodeConfigured() {
+		return 0, errors.New("application deployment requiring approval cannot be hibernated")
+	}
 	overrideRequest := &bean.ValuesOverrideRequest{
-		PipelineId:     pipeline.Id,
+		PipelineId:     cdPipelineId,
 		AppId:          stopRequest.AppId,
-		CiArtifactId:   wf.CiArtifactId,
+		CiArtifactId:   latestArtifactId,
 		UserId:         stopRequest.UserId,
 		CdWorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
 	}
@@ -1353,7 +1534,7 @@ func (impl *WorkflowDagExecutorImpl) StopStartApp(stopRequest *StopAppRequest, c
 	} else {
 		return 0, fmt.Errorf("unsupported operation %s", stopRequest.RequestType)
 	}
-	id, err := impl.ManualCdTrigger(overrideRequest, ctx)
+	id, _, err := impl.ManualCdTrigger(overrideRequest, ctx)
 	if err != nil {
 		impl.logger.Errorw("error in stopping app", "err", err, "appId", stopRequest.AppId, "envId", stopRequest.EnvironmentId)
 		return 0, err
@@ -1389,57 +1570,70 @@ func (impl *WorkflowDagExecutorImpl) GetArtifactVulnerabilityStatus(artifact *re
 	return isVulnerable, nil
 }
 
-func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (int, error) {
+func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (int, string, error) {
 	//setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
 	triggeredAt := time.Now()
 	releaseId := 0
-
+	var manifest []byte
 	var err error
+
 	_, span := otel.Tracer("orchestrator").Start(ctx, "pipelineRepository.FindById")
 	cdPipeline, err := impl.pipelineRepository.FindById(overrideRequest.PipelineId)
 	span.End()
 	if err != nil {
 		impl.logger.Errorf("invalid req", "err", err, "req", overrideRequest)
-		return 0, err
+		return 0, "", err
 	}
 	impl.appService.SetPipelineFieldsInOverrideRequest(overrideRequest, cdPipeline)
 
+	ciArtifactId := overrideRequest.CiArtifactId
+	_, span = otel.Tracer("orchestrator").Start(ctx, "ciArtifactRepository.Get")
+	artifact, err := impl.ciArtifactRepository.Get(ciArtifactId)
+	span.End()
+	if err != nil {
+		impl.logger.Errorw("err", "err", err)
+		return 0, "", err
+	}
+	var imageTag string
+	if len(artifact.Image) > 0 {
+		imageTag = strings.Split(artifact.Image, ":")[1]
+	}
+	helmPackageName := fmt.Sprintf("%s-%s-%s", cdPipeline.App.AppName, cdPipeline.Environment.Name, imageTag)
+
 	if overrideRequest.CdWorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
-		_, span = otel.Tracer("orchestrator").Start(ctx, "ciArtifactRepository.Get")
-		artifact, err := impl.ciArtifactRepository.Get(overrideRequest.CiArtifactId)
-		span.End()
-		if err != nil {
-			impl.logger.Errorw("err", "err", err)
-			return 0, err
-		}
+
 		_, span = otel.Tracer("orchestrator").Start(ctx, "TriggerPreStage")
 		err = impl.TriggerPreStage(ctx, nil, artifact, cdPipeline, overrideRequest.UserId, false)
 		span.End()
 		if err != nil {
 			impl.logger.Errorw("err", "err", err)
-			return 0, err
+			return 0, "", err
 		}
 	} else if overrideRequest.CdWorkflowType == bean.CD_WORKFLOW_TYPE_DEPLOY {
 		if overrideRequest.DeploymentType == models.DEPLOYMENTTYPE_UNKNOWN {
 			overrideRequest.DeploymentType = models.DEPLOYMENTTYPE_DEPLOY
 		}
+		approvalRequestId, err := impl.checkApprovalNodeForDeployment(overrideRequest.UserId, cdPipeline, ciArtifactId)
+		if err != nil {
+			return 0, "", err
+		}
 		cdWf, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(ctx, overrideRequest.CdWorkflowId, bean.CD_WORKFLOW_TYPE_PRE)
 		if err != nil && !util.IsErrNoRows(err) {
 			impl.logger.Errorw("err", "err", err)
-			return 0, err
+			return 0, "", err
 		}
 
 		cdWorkflowId := cdWf.CdWorkflowId
 		if cdWf.CdWorkflowId == 0 {
 			cdWf := &pipelineConfig.CdWorkflow{
-				CiArtifactId: overrideRequest.CiArtifactId,
+				CiArtifactId: ciArtifactId,
 				PipelineId:   overrideRequest.PipelineId,
 				AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
 			}
 			err := impl.cdWorkflowRepository.SaveWorkFlow(ctx, cdWf)
 			if err != nil {
 				impl.logger.Errorw("err", "err", err)
-				return 0, err
+				return 0, "", err
 			}
 			cdWorkflowId = cdWf.Id
 		}
@@ -1455,12 +1649,22 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			CdWorkflowId: cdWorkflowId,
 			AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
 		}
+		if approvalRequestId > 0 {
+			runner.DeploymentApprovalRequestId = approvalRequestId
+		}
 		savedWfr, err := impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
 		overrideRequest.WfrId = savedWfr.Id
 		if err != nil {
 			impl.logger.Errorw("err", "err", err)
-			return 0, err
+			return 0, "", err
 		}
+		if approvalRequestId > 0 {
+			err = impl.deploymentApprovalRepository.ConsumeApprovalRequest(approvalRequestId)
+			if err != nil {
+				return 0, "", err
+			}
+		}
+
 		runner.CdWorkflow = &pipelineConfig.CdWorkflow{
 			Pipeline: cdPipeline,
 		}
@@ -1476,16 +1680,9 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 		}
 
 		//checking vulnerability for deploying image
-		_, span = otel.Tracer("orchestrator").Start(ctx, "ciArtifactRepository.Get")
-		artifact, err := impl.ciArtifactRepository.Get(overrideRequest.CiArtifactId)
-		span.End()
-		if err != nil {
-			impl.logger.Errorw("err", "err", err)
-			return 0, err
-		}
 		isVulnerable, err := impl.GetArtifactVulnerabilityStatus(artifact, cdPipeline, ctx)
 		if err != nil {
-			return 0, err
+			return 0, "", err
 		}
 		if isVulnerable == true {
 			// if image vulnerable, update timeline status and return
@@ -1509,29 +1706,30 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			if err != nil {
 				impl.logger.Errorw("error in creating timeline status for deployment fail - cve policy violation", "err", err, "timeline", timeline)
 			}
-			return 0, fmt.Errorf("found vulnerability for image digest %s", artifact.ImageDigest)
+			return 0, "", fmt.Errorf("found vulnerability for image digest %s", artifact.ImageDigest)
 		}
 		_, span = otel.Tracer("orchestrator").Start(ctx, "appService.TriggerRelease")
-		releaseId, _, err = impl.appService.TriggerRelease(overrideRequest, ctx, triggeredAt, overrideRequest.UserId)
+		releaseId, manifest, err = impl.appService.TriggerRelease(overrideRequest, ctx, triggeredAt, overrideRequest.UserId)
 		span.End()
 
 		if overrideRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD {
 			runner := &pipelineConfig.CdWorkflowRunner{
-				Id:           runner.Id,
-				Name:         cdPipeline.Name,
-				WorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
-				ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
-				TriggeredBy:  overrideRequest.UserId,
-				StartedOn:    triggeredAt,
-				Status:       pipelineConfig.WorkflowSucceeded,
-				Namespace:    impl.cdConfig.DefaultNamespace,
-				CdWorkflowId: overrideRequest.CdWorkflowId,
-				AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
+				Id:                 runner.Id,
+				Name:               cdPipeline.Name,
+				WorkflowType:       bean.CD_WORKFLOW_TYPE_DEPLOY,
+				ExecutorType:       pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
+				TriggeredBy:        overrideRequest.UserId,
+				StartedOn:          triggeredAt,
+				Status:             pipelineConfig.WorkflowSucceeded,
+				Namespace:          impl.cdConfig.DefaultNamespace,
+				CdWorkflowId:       overrideRequest.CdWorkflowId,
+				AuditLog:           sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
+				HelmReferenceChart: manifest,
+				FinishedOn:         time.Now(),
 			}
 			updateErr := impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
 			if updateErr != nil {
 				impl.logger.Errorw("error in updating runner for manifest_download type", "err", err)
-				return 0, updateErr
 			}
 		}
 
@@ -1540,41 +1738,50 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 		span.End()
 		if err1 != nil || err != nil {
 			impl.logger.Errorw("error while update previous cd workflow runners", "err", err, "runner", runner, "pipelineId", cdPipeline.Id)
-			return 0, err
+			return 0, "", err
 		}
 	} else if overrideRequest.CdWorkflowType == bean.CD_WORKFLOW_TYPE_POST {
 		cdWfRunner, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(ctx, overrideRequest.CdWorkflowId, bean.CD_WORKFLOW_TYPE_DEPLOY)
 		if err != nil && !util.IsErrNoRows(err) {
 			impl.logger.Errorw("err", "err", err)
-			return 0, err
+			return 0, "", err
 		}
 
 		var cdWf *pipelineConfig.CdWorkflow
 		if cdWfRunner.CdWorkflowId == 0 {
 			cdWf = &pipelineConfig.CdWorkflow{
-				CiArtifactId: overrideRequest.CiArtifactId,
+				CiArtifactId: ciArtifactId,
 				PipelineId:   overrideRequest.PipelineId,
 				AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
 			}
 			err := impl.cdWorkflowRepository.SaveWorkFlow(ctx, cdWf)
 			if err != nil {
 				impl.logger.Errorw("err", "err", err)
-				return 0, err
+				return 0, "", err
 			}
+			overrideRequest.CdWorkflowId = cdWf.Id
 		} else {
 			_, span = otel.Tracer("orchestrator").Start(ctx, "cdWorkflowRepository.FindById")
 			cdWf, err = impl.cdWorkflowRepository.FindById(overrideRequest.CdWorkflowId)
 			span.End()
 			if err != nil && !util.IsErrNoRows(err) {
 				impl.logger.Errorw("err", "err", err)
-				return 0, err
+				return 0, "", err
 			}
 		}
 		_, span = otel.Tracer("orchestrator").Start(ctx, "TriggerPostStage")
 		err = impl.TriggerPostStage(cdWf, cdPipeline, overrideRequest.UserId)
 		span.End()
 	}
-	return releaseId, err
+	//Auto trigger feature for virtual CdPipeline if Virtual CDPipeline and No Post CD configured || Virtual Post CD
+	if util.IsManifestDownload(cdPipeline.DeploymentAppType) && (overrideRequest.CdWorkflowType == bean.CD_WORKFLOW_TYPE_DEPLOY && cdPipeline.PostTriggerType == "" || overrideRequest.CdWorkflowType == bean.CD_WORKFLOW_TYPE_POST) {
+		err = impl.HandlePostStageSuccessEvent(overrideRequest.CdWorkflowId, overrideRequest.PipelineId, overrideRequest.UserId)
+		if err != nil {
+			impl.logger.Errorw("auto trigger virtual deployment error", "err", err)
+			return 0, "", err
+		}
+	}
+	return releaseId, helmPackageName, err
 }
 
 type BulkTriggerRequest struct {
@@ -1643,6 +1850,47 @@ func (impl *WorkflowDagExecutorImpl) TriggerBulkHibernateAsync(request StopDeplo
 		}
 	}
 	return nil, nil
+}
+
+func (impl *WorkflowDagExecutorImpl) FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int, requiredApprovals int) (map[int]*pipelineConfig.UserApprovalMetadata, error) {
+	artifactIdVsApprovalMetadata := make(map[int]*pipelineConfig.UserApprovalMetadata)
+	deploymentApprovalRequests, err := impl.deploymentApprovalRepository.FetchApprovalDataForArtifacts(artifactIds, pipelineId)
+	if err != nil {
+		return artifactIdVsApprovalMetadata, err
+	}
+
+	var requestedUserIds []int32
+	for _, approvalRequest := range deploymentApprovalRequests {
+		requestedUserIds = append(requestedUserIds, approvalRequest.CreatedBy)
+	}
+
+	userInfos, err := impl.user.GetByIds(requestedUserIds)
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching users", "requestedUserIds", requestedUserIds, "err", err)
+		return artifactIdVsApprovalMetadata, err
+	}
+	userInfoMap := make(map[int32]bean.UserInfo)
+	for _, userInfo := range userInfos {
+		userId := userInfo.Id
+		userInfoMap[userId] = userInfo
+	}
+
+	for _, approvalRequest := range deploymentApprovalRequests {
+		artifactId := approvalRequest.ArtifactId
+		requestedUserId := approvalRequest.CreatedBy
+		if userInfo, ok := userInfoMap[requestedUserId]; ok {
+			approvalRequest.UserEmail = userInfo.EmailId
+		}
+		approvalMetadata := approvalRequest.ConvertToApprovalMetadata()
+		if approvalRequest.GetApprovedCount() >= requiredApprovals {
+			approvalMetadata.ApprovalRuntimeState = pipelineConfig.ApprovedApprovalState
+		} else {
+			approvalMetadata.ApprovalRuntimeState = pipelineConfig.RequestedApprovalState
+		}
+		artifactIdVsApprovalMetadata[artifactId] = approvalMetadata
+	}
+	return artifactIdVsApprovalMetadata, nil
+
 }
 
 func (impl *WorkflowDagExecutorImpl) triggerNatsEventForBulkAction(cdWorkflows []*pipelineConfig.CdWorkflow) {

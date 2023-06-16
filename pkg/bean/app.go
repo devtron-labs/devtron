@@ -23,6 +23,7 @@ import (
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	bean2 "github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"time"
 )
@@ -89,32 +90,35 @@ type CiMaterial struct {
 }
 
 type CiPipeline struct {
-	IsManual                 bool                   `json:"isManual"`
-	DockerArgs               map[string]string      `json:"dockerArgs"`
-	IsExternal               bool                   `json:"isExternal"`
-	ParentCiPipeline         int                    `json:"parentCiPipeline"`
-	ParentAppId              int                    `json:"parentAppId"`
-	AppId                    int                    `json:"appId"`
-	ExternalCiConfig         ExternalCiConfig       `json:"externalCiConfig"`
-	CiMaterial               []*CiMaterial          `json:"ciMaterial,omitempty" validate:"dive,min=1"`
-	Name                     string                 `json:"name,omitempty" validate:"name-component,max=100"` //name suffix of corresponding pipeline. required, unique, validation corresponding to gocd pipelineName will be applicable
-	Id                       int                    `json:"id,omitempty" `
-	Version                  string                 `json:"version,omitempty"` //matchIf token version in gocd . used for update request
-	Active                   bool                   `json:"active,omitempty"`  //pipeline is active or not
-	Deleted                  bool                   `json:"deleted,omitempty"`
-	BeforeDockerBuild        []*Task                `json:"beforeDockerBuild,omitempty" validate:"dive"`
-	AfterDockerBuild         []*Task                `json:"afterDockerBuild,omitempty" validate:"dive"`
-	BeforeDockerBuildScripts []*CiScript            `json:"beforeDockerBuildScripts,omitempty" validate:"dive"`
-	AfterDockerBuildScripts  []*CiScript            `json:"afterDockerBuildScripts,omitempty" validate:"dive"`
-	LinkedCount              int                    `json:"linkedCount"`
-	PipelineType             PipelineType           `json:"pipelineType,omitempty"`
-	ScanEnabled              bool                   `json:"scanEnabled,notnull"`
-	AppWorkflowId            int                    `json:"appWorkflowId,omitempty"`
-	PreBuildStage            *bean.PipelineStageDto `json:"preBuildStage,omitempty"`
-	PostBuildStage           *bean.PipelineStageDto `json:"postBuildStage,omitempty"`
-	TargetPlatform           string                 `json:"targetPlatform,omitempty"`
-	IsDockerConfigOverridden bool                   `json:"isDockerConfigOverridden"`
-	DockerConfigOverride     DockerConfigOverride   `json:"dockerConfigOverride,omitempty"`
+	IsManual                   bool                   `json:"isManual"`
+	DockerArgs                 map[string]string      `json:"dockerArgs"`
+	IsExternal                 bool                   `json:"isExternal"`
+	ParentCiPipeline           int                    `json:"parentCiPipeline"`
+	ParentAppId                int                    `json:"parentAppId"`
+	AppId                      int                    `json:"appId"`
+	ExternalCiConfig           ExternalCiConfig       `json:"externalCiConfig"`
+	CiMaterial                 []*CiMaterial          `json:"ciMaterial,omitempty" validate:"dive,min=1"`
+	Name                       string                 `json:"name,omitempty" validate:"name-component,max=100"` //name suffix of corresponding pipeline. required, unique, validation corresponding to gocd pipelineName will be applicable
+	Id                         int                    `json:"id,omitempty" `
+	Version                    string                 `json:"version,omitempty"` //matchIf token version in gocd . used for update request
+	Active                     bool                   `json:"active,omitempty"`  //pipeline is active or not
+	Deleted                    bool                   `json:"deleted,omitempty"`
+	BeforeDockerBuild          []*Task                `json:"beforeDockerBuild,omitempty" validate:"dive"`
+	AfterDockerBuild           []*Task                `json:"afterDockerBuild,omitempty" validate:"dive"`
+	BeforeDockerBuildScripts   []*CiScript            `json:"beforeDockerBuildScripts,omitempty" validate:"dive"`
+	AfterDockerBuildScripts    []*CiScript            `json:"afterDockerBuildScripts,omitempty" validate:"dive"`
+	LinkedCount                int                    `json:"linkedCount"`
+	PipelineType               PipelineType           `json:"pipelineType,omitempty"`
+	ScanEnabled                bool                   `json:"scanEnabled,notnull"`
+	AppWorkflowId              int                    `json:"appWorkflowId,omitempty"`
+	PreBuildStage              *bean.PipelineStageDto `json:"preBuildStage,omitempty"`
+	PostBuildStage             *bean.PipelineStageDto `json:"postBuildStage,omitempty"`
+	TargetPlatform             string                 `json:"targetPlatform,omitempty"`
+	IsDockerConfigOverridden   bool                   `json:"isDockerConfigOverridden"`
+	DockerConfigOverride       DockerConfigOverride   `json:"dockerConfigOverride,omitempty"`
+	IsOffendingMandatoryPlugin *bool                  `json:"isOffendingMandatoryPlugin,omitempty"`
+	IsCITriggerBlocked         *bool                  `json:"isCITriggerBlocked,omitempty"`
+	CiBlockState               *bean2.ConsequenceDto  `json:"ciBlockState,omitempty"`
 }
 
 type DockerConfigOverride struct {
@@ -170,9 +174,10 @@ type PatchAction int
 type PipelineType string
 
 const (
-	CREATE        PatchAction = iota
-	UPDATE_SOURCE             //update value of SourceTypeConfig
-	DELETE                    //delete this pipeline
+	CREATE          PatchAction = iota
+	UPDATE_PIPELINE             //update pipeline
+	DELETE                      //delete this pipeline
+	UPDATE_SOURCE               //update source value
 	//DEACTIVATE     //pause/deactivate this pipeline
 )
 
@@ -199,7 +204,7 @@ const (
 )
 
 func (a PatchAction) String() string {
-	return [...]string{"CREATE", "UPDATE_SOURCE", "DELETE", "DEACTIVATE"}[a]
+	return [...]string{"CREATE", "UPDATE_PIPELINE", "DELETE", "DEACTIVATE"}[a]
 
 }
 
@@ -495,6 +500,7 @@ type CDPipelineConfigObject struct {
 	ParentPipelineId              int                                    `json:"parentPipelineId"`
 	ParentPipelineType            string                                 `json:"parentPipelineType"`
 	DeploymentAppType             string                                 `json:"deploymentAppType"`
+	UserApprovalConf              *pipelineConfig.UserApprovalConfig     `json:"userApprovalConfig"`
 	AppName                       string                                 `json:"appName"`
 	DeploymentAppDeleteRequest    bool                                   `json:"deploymentAppDeleteRequest"`
 	DeploymentAppCreated          bool                                   `json:"deploymentAppCreated"`
@@ -502,6 +508,7 @@ type CDPipelineConfigObject struct {
 	TeamId                        int                                    `json:"-"`
 	EnvironmentIdentifier         string                                 `json:"-" `
 	IsVirtualEnvironment          bool                                   `json:"isVirtualEnvironment"`
+	HelmPackageName               string                                 `json:"helmPackageName"`
 }
 
 type PreStageConfigMapSecretNames struct {
@@ -551,6 +558,22 @@ const (
 	CD_UPDATE
 	CD_DELETE_PARTIAL // Partially delete means it will only delete ACD app
 )
+
+type UserApprovalActionType int
+
+const (
+	APPROVAL_REQUEST_ACTION UserApprovalActionType = iota
+	APPROVAL_APPROVE_ACTION
+	APPROVAL_REQUEST_CANCEL_ACTION
+)
+
+type UserApprovalActionRequest struct {
+	AppId             int                    `json:"appId"` // would be required for RBAC
+	ActionType        UserApprovalActionType `json:"actionType" validate:"required"`
+	ApprovalRequestId int                    `json:"approvalRequestId"`
+	PipelineId        int                    `json:"pipelineId" validate:"required,number"` // would be required while raising approval request
+	ArtifactId        int                    `json:"artifactId"`                            // would be required while raising approval request
+}
 
 type DeploymentAppTypeChangeRequest struct {
 	EnvId                 int            `json:"envId,omitempty" validate:"required"`
@@ -646,35 +669,42 @@ type Rollback struct {
 }
 
 type CiArtifactBean struct {
-	Id                            int                       `json:"id"`
-	Image                         string                    `json:"image,notnull"`
-	ImageDigest                   string                    `json:"image_digest,notnull"`
-	MaterialInfo                  json.RawMessage           `json:"material_info"` //git material metadata json array string
-	DataSource                    string                    `json:"data_source,notnull"`
-	DeployedTime                  string                    `json:"deployed_time"`
-	Deployed                      bool                      `json:"deployed,notnull"`
-	Latest                        bool                      `json:"latest,notnull"`
-	LastSuccessfulTriggerOnParent bool                      `json:"lastSuccessfulTriggerOnParent,notnull"`
-	RunningOnParentCd             bool                      `json:"runningOnParentCd,omitempty"`
-	IsVulnerable                  bool                      `json:"vulnerable,notnull"`
-	ScanEnabled                   bool                      `json:"scanEnabled,notnull"`
-	Scanned                       bool                      `json:"scanned,notnull"`
-	WfrId                         int                       `json:"wfrId"`
-	DeployedBy                    string                    `json:"deployedBy"`
-	CiConfigureSourceType         pipelineConfig.SourceType `json:"ciConfigureSourceType"`
-	CiConfigureSourceValue        string                    `json:"ciConfigureSourceValue"`
-	ImageReleaseTags              []*repository2.ImageTag   `json:"imageReleaseTags"`
-	ImageComment                  *repository2.ImageComment `json:"imageComment"`
+	Id                            int             `json:"id"`
+	Image                         string          `json:"image,notnull"`
+	ImageDigest                   string          `json:"image_digest,notnull"`
+	MaterialInfo                  json.RawMessage `json:"material_info"` //git material metadata json array string
+	DataSource                    string          `json:"data_source,notnull"`
+	DeployedTime                  string          `json:"deployed_time"`
+	Deployed                      bool            `json:"deployed,notnull"`
+	Latest                        bool            `json:"latest,notnull"`
+	LastSuccessfulTriggerOnParent bool            `json:"lastSuccessfulTriggerOnParent,notnull"`
+	RunningOnParentCd             bool            `json:"runningOnParentCd,omitempty"`
+	IsVulnerable                  bool            `json:"vulnerable,notnull"`
+	ScanEnabled                   bool            `json:"scanEnabled,notnull"`
+	Scanned                       bool            `json:"scanned,notnull"`
+	WfrId                         int             `json:"wfrId"`
+	DeployedBy                    string          `json:"deployedBy"`
+	//TriggeredByEmail              string                               `json:"triggeredByEmail"`
+	TriggeredBy            int32                                `json:"triggeredBy"`
+	CiConfigureSourceType  pipelineConfig.SourceType            `json:"ciConfigureSourceType"`
+	CiConfigureSourceValue string                               `json:"ciConfigureSourceValue"`
+	UserApprovalMetadata   *pipelineConfig.UserApprovalMetadata `json:"userApprovalMetadata"`
+	ImageReleaseTags       []*repository2.ImageTag              `json:"imageReleaseTags"`
+	ImageComment           *repository2.ImageComment            `json:"imageComment"`
 }
 
 type CiArtifactResponse struct {
 	//AppId           int      `json:"app_id"`
-	CdPipelineId           int              `json:"cd_pipeline_id,notnull"`
-	LatestWfArtifactId     int              `json:"latest_wf_artifact_id"`
-	LatestWfArtifactStatus string           `json:"latest_wf_artifact_status"`
-	CiArtifacts            []CiArtifactBean `json:"ci_artifacts,notnull"`
-	TagsEditable           bool             `json:"tagsEditable"`
-	AppReleaseTagNames     []string         `json:"appReleaseTagNames"` //unique list of tags exists in the app
+	CdPipelineId           int                                `json:"cd_pipeline_id,notnull"`
+	LatestWfArtifactId     int                                `json:"latest_wf_artifact_id"`
+	LatestWfArtifactStatus string                             `json:"latest_wf_artifact_status"`
+	CiArtifacts            []CiArtifactBean                   `json:"ci_artifacts,notnull"`
+	UserApprovalConfig     *pipelineConfig.UserApprovalConfig `json:"userApprovalConfig"`
+	ApprovalUsers          []string                           `json:"approvalUsers"`
+	RequestedUserId        int32                              `json:"requestedUserId"`
+	IsVirtualCluster       bool                               `json:"isVirtualCluster"`
+	TagsEditable           bool                               `json:"tagsEditable"`
+	AppReleaseTagNames     []string                           `json:"appReleaseTagNames"` //unique list of tags exists in the app
 }
 
 type AppLabelsDto struct {

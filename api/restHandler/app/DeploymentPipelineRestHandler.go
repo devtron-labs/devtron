@@ -49,6 +49,7 @@ type DevtronAppDeploymentRestHandler interface {
 	FetchCdWorkflowDetails(w http.ResponseWriter, r *http.Request)
 	GetCdPipelinesByEnvironment(w http.ResponseWriter, r *http.Request)
 	GetCdPipelinesByEnvironmentMin(w http.ResponseWriter, r *http.Request)
+	PerformDeploymentApprovalAction(w http.ResponseWriter, r *http.Request)
 }
 
 type DevtronAppDeploymentConfigRestHandler interface {
@@ -899,8 +900,65 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelinesForAppAndEnv(w http.R
 	common.WriteJsonResp(w, err, cdPipelines, http.StatusOK)
 }
 
+func (handler PipelineConfigRestHandlerImpl) PerformDeploymentApprovalAction(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	var approvalActionRequest bean.UserApprovalActionRequest
+	err = decoder.Decode(&approvalActionRequest)
+
+	appId := approvalActionRequest.AppId
+	pipelineId := approvalActionRequest.PipelineId
+
+	approvalActionType := approvalActionRequest.ActionType
+
+	if approvalActionType == bean.APPROVAL_APPROVE_ACTION {
+		pipelineInfo, err := handler.pipelineBuilder.FindPipelineById(pipelineId)
+		if err != nil {
+			handler.Logger.Errorw("error occurred while fetching pipeline details", "pipelineId", pipelineId, "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		allowed := handler.userAuthService.CheckForApproverAccess(pipelineInfo.App.AppName, pipelineInfo.Environment.EnvironmentIdentifier, userId)
+		if !allowed {
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			return
+		}
+	} else {
+		//rbac block starts from here
+		token := r.Header.Get("token")
+		object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			return
+		}
+		object = handler.enforcerUtil.GetAppRBACByAppIdAndPipelineId(appId, pipelineId)
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionTrigger, object); !ok {
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			return
+		}
+		//rback block ends here
+	}
+
+	err = handler.cdHandler.PerformDeploymentApprovalAction(userId, approvalActionRequest)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, nil, http.StatusOK)
+
+}
+
 func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
 	vars := mux.Vars(r)
 	cdPipelineId, err := strconv.Atoi(vars["cd_pipeline_id"])
 	if err != nil {
@@ -910,8 +968,16 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 	}
 	stage := r.URL.Query().Get("stage")
 	if len(stage) == 0 {
-		stage = "PRE"
+		stage = pipeline.WorklowTypePre
 	}
+
+	isApprovalNode := false
+
+	if stage == pipeline.WorkflowApprovalNode {
+		isApprovalNode = true
+		stage = pipeline.WorklowTypeDeploy
+	}
+
 	handler.Logger.Infow("request payload, GetArtifactsByCDPipeline", "cdPipelineId", cdPipelineId, "stage", stage)
 
 	pipeline, err := handler.pipelineBuilder.FindPipelineById(cdPipelineId)
@@ -942,11 +1008,22 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 	}
 	//rbac block ends here
 
-	ciArtifactResponse, err := handler.pipelineBuilder.RetrieveArtifactsByCDPipeline(pipeline, bean2.WorkflowType(stage))
+	ciArtifactResponse, err := handler.pipelineBuilder.RetrieveArtifactsByCDPipeline(pipeline, bean2.WorkflowType(stage), isApprovalNode)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
+	}
+
+	if isApprovalNode {
+		// fetch users with approval access to this app and Env
+		approvalUsersByEnv, err := handler.userAuthService.GetApprovalUsersByEnv(pipeline.App.AppName, pipeline.Environment.EnvironmentIdentifier)
+		if err != nil {
+			handler.Logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		ciArtifactResponse.ApprovalUsers = approvalUsersByEnv
 	}
 
 	appTags, err := handler.imageTaggingService.GetUniqueTagsByAppId(pipeline.AppId)
@@ -972,6 +1049,9 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 			digests = append(digests, item.ImageDigest)
 		}
 	}
+
+	ciArtifactResponse.RequestedUserId = userId
+	ciArtifactResponse.IsVirtualCluster = pipeline.Environment.IsVirtualEnvironment
 
 	if len(digests) > 0 {
 		//vulnerableMap := make(map[string]bool)
@@ -1125,6 +1205,11 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 
 }
 func (handler PipelineConfigRestHandlerImpl) GetArtifactsForRollback(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
 	vars := mux.Vars(r)
 	cdPipelineId, err := strconv.Atoi(vars["cd_pipeline_id"])
 	if err != nil {
@@ -1179,6 +1264,7 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsForRollback(w http.Resp
 		common.WriteJsonResp(w, err, "unable to fetch artifacts", http.StatusInternalServerError)
 		return
 	}
+	ciArtifactResponse.RequestedUserId = userId
 	common.WriteJsonResp(w, err, ciArtifactResponse, http.StatusOK)
 }
 

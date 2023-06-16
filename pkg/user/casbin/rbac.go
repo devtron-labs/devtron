@@ -50,13 +50,14 @@ type Enforcer interface {
 func NewEnforcerImpl(
 	enforcer *casbin.SyncedEnforcer,
 	sessionManager *middleware.SessionManager,
-	logger *zap.SugaredLogger) *EnforcerImpl {
+	logger *zap.SugaredLogger, casbinService CasbinService) *EnforcerImpl {
 	lock := make(map[string]*CacheData)
 	batchRequestLock := make(map[string]*sync.Mutex)
 	enforcerConfig := getConfig()
 	enf := &EnforcerImpl{lockCacheData: lock, enforcerRWLock: &sync.RWMutex{}, batchRequestLock: batchRequestLock, enforcerConfig: enforcerConfig,
-		Cache: getEnforcerCache(logger, enforcerConfig), SyncedEnforcer: enforcer, logger: logger, SessionManager: sessionManager}
+		Cache: getEnforcerCache(logger, enforcerConfig), SyncedEnforcer: enforcer, Logger: logger, SessionManager: sessionManager}
 	setEnforcerImpl(enf)
+	setCasbinService(casbinService)
 	return enf
 }
 
@@ -103,7 +104,7 @@ type EnforcerImpl struct {
 	*cache.Cache
 	*casbin.SyncedEnforcer
 	*middleware.SessionManager
-	logger         *zap.SugaredLogger
+	Logger         *zap.SugaredLogger
 	enforcerConfig *EnforcerConfig
 	enforcerRWLock *sync.RWMutex
 }
@@ -216,7 +217,7 @@ func (e *EnforcerImpl) EnforceByEmailInBatch(emailId string, resource string, ac
 	if batchSize > 0 {
 		avgTimegap = float64(totalTimeGap / int64(batchSize))
 	}
-	e.logger.Infow("enforce request for batch with data", "emailId", emailId, "resource", resource,
+	e.Logger.Infow("enforce request for batch with data", "emailId", emailId, "resource", resource,
 		"action", action, "totalElapsedTime", totalTimeGap, "maxTimegap", maxTimegap, "minTimegap",
 		minTimegap, "avgTimegap", avgTimegap, "size", len(vals), "batchSize", batchSize, "cached", e.Cache != nil && dataCached)
 
@@ -328,7 +329,7 @@ func (e *EnforcerImpl) InvalidateCache(emailId string) bool {
 	cacheLock := e.getEnforcerCacheLock(emailId)
 	cacheLock.lock.Lock()
 	defer cacheLock.lock.Unlock()
-	e.logger.Debugw("invalidating cache & setting flag ", "emailId", emailId)
+	e.Logger.Debugw("invalidating cache & setting flag ", "emailId", emailId)
 	cacheLock.cacheCleaningFlag = true
 	if e.Cache != nil {
 		e.Cache.Delete(emailId)
@@ -353,7 +354,7 @@ func (e *EnforcerImpl) GetCacheDump() string {
 	items := e.Cache.Items()
 	cacheData, err := json.Marshal(items)
 	if err != nil {
-		e.logger.Infow("error occurred while taking cache dump", "reason", err)
+		e.Logger.Infow("error occurred while taking cache dump", "reason", err)
 		return ""
 	}
 	return string(cacheData)
@@ -379,7 +380,7 @@ func (e *EnforcerImpl) enforceAndUpdateCache(email string, resource string, acti
 		if returnVal == 0 {
 			cacheData.cacheCleaningFlag = false
 		}
-		e.logger.Debugw("not updating enforcer status for cache", "email", email, "resource", resource,
+		e.Logger.Debugw("not updating enforcer status for cache", "email", email, "resource", resource,
 			"action", action, "resourceItem", resourceItem, "enforceReqCounter", cacheData.enforceReqCounter, "err", err == nil)
 		return enforcedStatus
 	}
@@ -394,7 +395,7 @@ func (e *EnforcerImpl) enforcerEnforce(email string, resource string, action str
 	//defer e.enforcerRWLock.RUnlock()
 	response, err := e.SyncedEnforcer.EnforceSafe(email, resource, action, resourceItem)
 	if err != nil {
-		e.logger.Errorw("error occurred while enforcing safe", "email", email,
+		e.Logger.Errorw("error occurred while enforcing safe", "email", email,
 			"resource", resource, "action", action, "resourceItem", resourceItem, "reason", err)
 	}
 	return response, err
@@ -419,7 +420,7 @@ func (e *EnforcerImpl) VerifyTokenAndGetEmail(tokenString string) (string, bool)
 
 // enforce is a helper to additionally check a default role and invoke a custom claims enforcement function
 func (e *EnforcerImpl) enforceByEmail(emailId string, resource string, action string, resourceItem string) bool {
-	defer handlePanic()
+	defer HandlePanic()
 	response, found := e.enforceFromCache(emailId, resource, action, resourceItem)
 	if found {
 		cacheData := e.getEnforcerCacheLock(emailId)
@@ -467,6 +468,9 @@ func MatchKeyByPart(key1 string, key2 string) bool {
 		if key2Val == "" || key1Val == "" {
 			//empty values are not allowed in any key
 			return false
+		} else if key1Val == ResourceObjectIgnorePlaceholder {
+			//request contains ignore placeholder, ignoring this check and continuing on other
+			continue
 		} else {
 			// getting index of "*" in key2, will check values of key1 accordingly
 			//for example - key2Val = a/bc*/d & key1Val = a/bcd/d, in this case "bc" will be checked in key1Val(upto index of "*")

@@ -44,7 +44,7 @@ type EnvironmentProperties struct {
 	Status            models.ChartStatus          `json:"status" validate:"number,required"` //default new, when its ready for deployment CHARTSTATUS_SUCCESS
 	ManualReviewed    bool                        `json:"manualReviewed" validate:"required"`
 	Active            bool                        `json:"active" validate:"required"`
-	Namespace         string                      `json:"namespace" validate:"name-space-component,required"`
+	Namespace         string                      `json:"namespace"`
 	EnvironmentId     int                         `json:"environmentId"`
 	EnvironmentName   string                      `json:"environmentName"`
 	Latest            bool                        `json:"latest"`

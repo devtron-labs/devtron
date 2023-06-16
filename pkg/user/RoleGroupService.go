@@ -131,19 +131,19 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 					for _, entityName := range entityNames {
 						entityName = impl.userCommonService.RemovePlaceHolderInRoleFilterField(entityName)
 						environment = impl.userCommonService.RemovePlaceHolderInRoleFilterField(environment)
-						roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "", false)
+						roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, roleFilter.Approver, accessType, "", "", "", "", "", "", false)
 						if err != nil {
 							impl.logger.Errorw("error in getting new role model")
 							return nil, err
 						}
 						if roleModel.Id == 0 {
 							if roleFilter.Entity == bean2.ENTITY_APPS || roleFilter.Entity == bean.CHART_GROUP_ENTITY {
-								flag, err, policiesAdded := impl.userCommonService.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType, request.UserId)
+								flag, err, policiesAdded := impl.userCommonService.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType, roleFilter.Approver, request.UserId)
 								if err != nil || flag == false {
 									return nil, err
 								}
 								policies = append(policies, policiesAdded...)
-								roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "", false)
+								roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, roleFilter.Approver, accessType, "", "", "", "", "", "", false)
 								if err != nil {
 									return nil, err
 								}
@@ -173,8 +173,11 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 		}
 
 		if len(policies) > 0 {
-			pRes := casbin2.AddPolicy(policies)
-			println(pRes)
+			err = casbin2.AddPolicy(policies)
+			if err != nil {
+				impl.logger.Errorw("casbin policy addition failed", "err", err)
+				return nil, err
+			}
 			//loading policy for syncing orchestrator to casbin with newly added policies
 			casbin2.LoadPolicy()
 		}
@@ -211,18 +214,18 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForClusterEntity(roleFil
 							continue
 						}
 					}
-					roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, "", "", "", "", accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType, false)
+					roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, "", "", "", "", false, accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType, false)
 					if err != nil {
 						impl.logger.Errorw("error in getting new role model by filter")
 						return policiesToBeAdded, err
 					}
 					if roleModel.Id == 0 {
-						flag, err, policiesAdded := impl.userCommonService.CreateDefaultPoliciesForAllTypes("", "", "", entity, roleFilter.Cluster, namespace, group, kind, resource, actionType, accessType, userId)
+						flag, err, policiesAdded := impl.userCommonService.CreateDefaultPoliciesForAllTypes("", "", "", entity, roleFilter.Cluster, namespace, group, kind, resource, actionType, accessType, roleFilter.Approver, userId)
 						if err != nil || flag == false {
 							return policiesToBeAdded, err
 						}
 						policiesToBeAdded = append(policiesToBeAdded, policiesAdded...)
-						roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, "", "", "", "", accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType, false)
+						roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, "", "", "", "", false, accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType, false)
 						if err != nil {
 							return policiesToBeAdded, err
 						}
@@ -339,19 +342,19 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 				for _, entityName := range entityNames {
 					entityName = impl.userCommonService.RemovePlaceHolderInRoleFilterField(entityName)
 					environment = impl.userCommonService.RemovePlaceHolderInRoleFilterField(environment)
-					roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "", false)
+					roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, roleFilter.Approver, accessType, "", "", "", "", "", "", false)
 					if err != nil {
 						return nil, err
 					}
 					if roleModel.Id == 0 {
 						request.Status = bean2.RoleNotFoundStatusPrefix + roleFilter.Team + "," + environment + "," + entityName + "," + actionType
 						if roleFilter.Entity == bean2.ENTITY_APPS || roleFilter.Entity == bean.CHART_GROUP_ENTITY {
-							flag, err, policiesAdded := impl.userCommonService.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType, request.UserId)
+							flag, err, policiesAdded := impl.userCommonService.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType, roleFilter.Approver, request.UserId)
 							policies = append(policies, policiesAdded...)
 							if err != nil || flag == false {
 								return nil, err
 							}
-							roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "", false)
+							roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, roleFilter.Approver, accessType, "", "", "", "", "", "", false)
 							if err != nil {
 								return nil, err
 							}
@@ -388,7 +391,11 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 
 	//updating in casbin
 	if len(policies) > 0 {
-		casbin2.AddPolicy(policies)
+		err = casbin2.AddPolicy(policies)
+		if err != nil {
+			impl.logger.Errorw("casbin policy addition failed", "err", err)
+			return nil, err
+		}
 	}
 	//loading policy for syncing orchestrator to casbin with newly added policies
 	//(not calling this method in above if condition because we are also removing policies in this update service)
@@ -436,7 +443,7 @@ func (impl RoleGroupServiceImpl) getRoleGroupMetadata(roleGroup *repository2.Rol
 	for _, role := range roles {
 		key := ""
 		if len(role.Team) > 0 {
-			key = fmt.Sprintf("%s_%s_%s", role.Team, role.Action, role.AccessType)
+			key = fmt.Sprintf("%s_%s_%s_%t", role.Team, role.Action, role.AccessType, role.Approver)
 		} else if len(role.Entity) > 0 {
 			if role.Entity == bean.CLUSTER_ENTITIY {
 				key = fmt.Sprintf("%s_%s_%s_%s_%s_%s", role.Entity, role.Action, role.Cluster,
@@ -496,6 +503,7 @@ func (impl RoleGroupServiceImpl) getRoleGroupMetadata(roleGroup *repository2.Rol
 				Group:       role.Group,
 				Kind:        role.Kind,
 				Resource:    role.Resource,
+				Approver:    role.Approver,
 			}
 		}
 	}

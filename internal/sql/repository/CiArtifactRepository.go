@@ -55,7 +55,7 @@ type CiArtifactRepository interface {
 	Save(artifact *CiArtifact) error
 	Delete(artifact *CiArtifact) error
 	Get(id int) (artifact *CiArtifact, err error)
-	GetArtifactParentCiAndWorkflowDetailsByIds(ids []int) ([]*CiArtifact, error)
+	GetArtifactParentCiAndWorkflowDetailsByIdsInDesc(ids []int) ([]*CiArtifact, error)
 	GetByWfId(wfId int) (artifact *CiArtifact, err error)
 	GetArtifactsByCDPipeline(cdPipelineId, limit int, parentId int, parentType bean.WorkflowType) ([]*CiArtifact, error)
 
@@ -106,15 +106,16 @@ func (impl CiArtifactRepositoryImpl) Get(id int) (artifact *CiArtifact, err erro
 	return artifact, err
 }
 
-func (impl CiArtifactRepositoryImpl) GetArtifactParentCiAndWorkflowDetailsByIds(ids []int) ([]*CiArtifact, error) {
+func (impl CiArtifactRepositoryImpl) GetArtifactParentCiAndWorkflowDetailsByIdsInDesc(ids []int) ([]*CiArtifact, error) {
 	artifacts := make([]*CiArtifact, 0)
 	if len(ids) == 0 {
 		return artifacts, nil
 	}
 
 	err := impl.dbConnection.Model(&artifacts).
-		Column("ci_artifact.ci_workflow_id", "ci_artifact.parent_ci_artifact", "ci_artifact.external_ci_pipeline_id", "ci_artifact.id").
+		Column("ci_artifact.id", "ci_artifact.ci_workflow_id", "ci_artifact.parent_ci_artifact", "ci_artifact.external_ci_pipeline_id").
 		Where("ci_artifact.id in (?)", pg.In(ids)).
+		Order("ci_artifact.id DESC").
 		Select()
 
 	if err != nil {
