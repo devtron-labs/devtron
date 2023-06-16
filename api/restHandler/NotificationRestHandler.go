@@ -55,6 +55,7 @@ type NotificationRestHandler interface {
 	SaveNotificationSettings(w http.ResponseWriter, r *http.Request)
 	UpdateNotificationSettings(w http.ResponseWriter, r *http.Request)
 	SaveNotificationChannelConfig(w http.ResponseWriter, r *http.Request)
+	SaveNotificationChannelConfigs(w http.ResponseWriter, r *http.Request)
 	FindSESConfig(w http.ResponseWriter, r *http.Request)
 	FindSlackConfig(w http.ResponseWriter, r *http.Request)
 	FindSMTPConfig(w http.ResponseWriter, r *http.Request)
@@ -430,6 +431,13 @@ func (impl NotificationRestHandlerImpl) GetAllNotificationSettings(w http.Respon
 	}
 
 	common.WriteJsonResp(w, err, nsvResponse, http.StatusOK)
+}
+func (impl NotificationRestHandlerImpl) SaveNotificationChannelConfigs(w http.ResponseWriter, r *http.Request) {
+	data, _ := ioutil.ReadAll(r.Body)
+	var channelReq any
+	_ = json.NewDecoder(ioutil.NopCloser(bytes.NewBuffer(data))).Decode(&channelReq)
+	fmt.Println(channelReq)
+
 }
 
 func (impl NotificationRestHandlerImpl) SaveNotificationChannelConfig(w http.ResponseWriter, r *http.Request) {

@@ -51,6 +51,9 @@ func (impl NotificationRouterImpl) InitNotificationRegRouter(configRouter *mux.R
 	configRouter.Path("/channel").
 		HandlerFunc(impl.notificationRestHandler.SaveNotificationChannelConfig).
 		Methods("POST")
+	configRouter.Path("/channel/test").
+		HandlerFunc(impl.notificationRestHandler.SaveNotificationChannelConfigs).
+		Methods("POST")
 	configRouter.Path("/channel").
 		HandlerFunc(impl.notificationRestHandler.FindAllNotificationConfig).
 		Methods("GET")
