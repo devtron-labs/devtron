@@ -110,7 +110,7 @@ func (impl *ArgoWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.Work
 
 func (impl *ArgoWorkflowExecutorImpl) updateBlobStorageConfig(workflowTemplate bean.WorkflowTemplate, cdTemplate *v1alpha1.Template) {
 	cdTemplate.ArchiveLocation = &v1alpha1.ArtifactLocation{
-		ArchiveLogs: &workflowTemplate.BlobStorageConfigured,
+		ArchiveLogs: &workflowTemplate.ArchiveLogs,
 	}
 	if workflowTemplate.BlobStorageConfigured {
 		var s3Artifact *v1alpha1.S3Artifact

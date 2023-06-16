@@ -24,3 +24,5 @@ UPDATE public.module SET module_type = 'security',enabled=true where name='secur
 UPDATE public.module SET enabled=true where status='installed';
 UPDATE public.module SET enabled=false where status!='installed';
 UPDATE scan_tool_metadata SET active='true' where id in (SELECT stmd.id FROM module m, scan_tool_metadata stmd where m.name ='security.clair' and m.enabled =true and stmd.name ='CLAIR' and stmd.version='V4');
+ALTER TABLE public.cve_store
+    ADD "standard_severity" integer;
