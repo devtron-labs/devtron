@@ -4,11 +4,13 @@ kind: ServiceMonitor
 metadata:
   name: {{ template ".Chart.Name .fullname" $ }}
   labels:
-    app: {{ template ".Chart.Name .name" . }}
     appId: {{ $.Values.app | quote }}
     envId: {{ $.Values.env | quote }}
-    chart: {{ template ".Chart.Name .chart" . }}
-    release: {{ .Values.prometheus.release }}
+    app: {{ template ".Chart.Name .name" $ }}
+    chart: {{ template ".Chart.Name .chart" $ }}
+    release: {{ $.Release.Name }}
+    releaseVersion: {{ $.Values.releaseVersion | quote }}
+    pipelineName: {{ .Values.pipelineName }}
 spec:
   jobLabel: {{ template ".Chart.Name .name" $ }}
   endpoints:
