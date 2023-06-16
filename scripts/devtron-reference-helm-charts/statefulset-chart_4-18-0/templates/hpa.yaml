@@ -17,7 +17,9 @@ metadata:
   labels:
     app: {{ template ".Chart.Name .name" $ }}
     chart: {{ template ".Chart.Name .chart" $ }}
-    {{ template "mychart.labels" }}
+    release: {{ $.Release.Name }}
+    releaseVersion: {{ $.Values.releaseVersion | quote }}
+    pipelineName: {{ .Values.pipelineName }}
 {{ toYaml .Values.autoscaling.labels | indent 4 }}
   {{- end }}
 spec:
