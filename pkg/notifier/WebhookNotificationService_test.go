@@ -29,7 +29,7 @@ func Test_buildWebhookNewConfigs(t *testing.T) {
 			args: args{
 				webhookReq: []WebhookConfigDto{
 					{
-						WebhookUrl: "https://hooks.slack.com/services/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",
+						WebhookUrl: "dfcd nmc dc",
 						ConfigName: "aditya",
 						Payload:    map[string]string{"text": "final"},
 						Header:     map[string]string{"Content-type": "application/json"},
@@ -39,7 +39,7 @@ func Test_buildWebhookNewConfigs(t *testing.T) {
 			},
 			want: []*repository.WebhookConfig{
 				{
-					WebHookUrl: "https://hooks.slack.com/services/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",
+					WebHookUrl: "sdsfj,ndskf cc",
 					ConfigName: "aditya",
 					Payload:    map[string]string{"text": "final"},
 					Header:     map[string]string{"Content-type": "application/json"},
@@ -89,7 +89,7 @@ func TestWebhookNotificationServiceImpl_SaveOrEditNotificationConfig(t *testing.
 			args: args{
 				channelReq: []WebhookConfigDto{
 					{
-						WebhookUrl: "https://hooks.slack.com/services/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",
+						WebhookUrl: "djfndgfbd,gds",
 						ConfigName: "aditya",
 						Payload:    map[string]string{"text": "final"},
 						Header:     map[string]string{"Content-type": "application/json"},
@@ -105,7 +105,7 @@ func TestWebhookNotificationServiceImpl_SaveOrEditNotificationConfig(t *testing.
 			args: args{
 				channelReq: []WebhookConfigDto{
 					{
-						WebhookUrl: "https://hooks.slack.com/services/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",
+						WebhookUrl: "d,fm sdfd",
 						ConfigName: "aditya",
 						Payload:    map[string]string{"text": "final"},
 						Header:     map[string]string{"Content-type": "application/json"},
