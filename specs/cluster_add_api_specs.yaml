@@ -1,0 +1,167 @@
+openapi: 3.0.0
+info:
+  title: Cluster API
+  version: 1.0.0
+  description: API for managing clusters
+
+paths:
+  /orchestrator/cluster/validate:
+    post:
+      description: Validate a cluster
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                kubeconfig:
+                  $ref: '#/components/schemas/Kubeconfig'
+              required:
+                - kubeconfig
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidateClusterBean'
+        '400':
+          description: Bad request
+        '500':
+          description: Internal server error
+  /orchestrator/cluster/saveClusters:
+    post:
+      description: Save clusters
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/ValidateClusterBean'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidateClusterBean'
+        '400':
+          description: Bad request
+        '500':
+          description: Internal server error
+components:
+  schemas:
+    Kubeconfig:
+      type: object
+      properties:
+        config:
+          type: string
+    ValidateClusterBean:
+      type: object
+      properties:
+        userInfos:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/UserInfos'
+        id:
+          type: integer
+        cluster_name:
+          type: string
+        server_url:
+          type: string
+        prometheus_url:
+          type: string
+        active:
+          type: boolean
+        config:
+          type: object
+          properties:
+            bearer_token:
+              type: string
+              description: it will be empty while fetching, and if no change while updating
+            tls_key:
+              type: string
+              description: it will be empty while fetching, and if no change while updating
+            cert_data:
+              type: string
+              description: it will be empty while fetching, and if no change while updating
+            cert_auth_data:
+              type: string
+              description: it will be empty while fetching, and if no change while updating
+        prometheusAuth:
+          $ref: '#/components/schemas/PrometheusAuth'
+        defaultClusterComponent:
+          type: array
+          items:
+            $ref: '#/components/schemas/DefaultClusterComponent'
+        agentInstallationStage:
+          type: integer
+        k8sVersion:
+          type: string
+        userName:
+          type: string
+        insecure-skip-tls-verify:
+          type: boolean
+      required:
+        - cluster_name
+        - server_url
+    UserInfos:
+      type: object
+      properties:
+        userName:
+          type: string
+        config:
+          type: object
+          additionalProperties:
+            type: string
+        errorInConnecting:
+          type: string
+    PrometheusAuth:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+            - basic
+            - bearer
+        basic:
+          type: object
+          properties:
+            username:
+              type: string
+            password:
+              type: string
+        bearer:
+          type: object
+          properties:
+            token:
+              type: string
+    DefaultClusterComponent:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        version:
+          type: string
+        status:
+          type: string
+        configuration:
+          $ref: '#/components/schemas/Configuration'
+    Configuration:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+            - yaml
+            - json
+
+
+
+
+

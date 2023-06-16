@@ -553,10 +553,17 @@ func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int, userId int32) (int,
 		impl.Logger.Errorw("could not fetch stage env", "err", err)
 		return 0, err
 	}
-
-	serverUrl := env.Cluster.ServerUrl
 	configMap := env.Cluster.Config
-	bearerToken := configMap["bearer_token"]
+	clusterConfig := util.ClusterConfig{
+		Host:                  env.Cluster.ServerUrl,
+		BearerToken:           configMap[util.BearerToken],
+		InsecureSkipTLSVerify: env.Cluster.InsecureSkipTlsVerify,
+	}
+	if env.Cluster.InsecureSkipTlsVerify == false {
+		clusterConfig.KeyData = configMap[util.TlsKey]
+		clusterConfig.CertData = configMap[util.CertData]
+		clusterConfig.CAData = configMap[util.CertificateAuthorityData]
+	}
 
 	var isExtCluster bool
 	if workflowRunner.WorkflowType == PRE {
@@ -565,14 +572,14 @@ func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int, userId int32) (int,
 		isExtCluster = pipeline.RunPostStageInEnv
 	}
 
-	runningWf, err := impl.cdService.GetWorkflow(workflowRunner.Name, workflowRunner.Namespace, serverUrl, bearerToken, isExtCluster)
+	runningWf, err := impl.cdService.GetWorkflow(workflowRunner.Name, workflowRunner.Namespace, clusterConfig, isExtCluster)
 	if err != nil {
 		impl.Logger.Errorw("cannot find workflow ", "name", workflowRunner.Name)
 		return 0, errors.New("cannot find workflow " + workflowRunner.Name)
 	}
 
 	// Terminate workflow
-	err = impl.cdService.TerminateWorkflow(runningWf.Name, runningWf.Namespace, serverUrl, bearerToken, isExtCluster)
+	err = impl.cdService.TerminateWorkflow(runningWf.Name, runningWf.Namespace, clusterConfig, isExtCluster)
 	if err != nil {
 		impl.Logger.Error("cannot terminate wf runner", "err", err)
 		return 0, err
@@ -627,7 +634,7 @@ func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 		savedWorkflow.Message = message
 		savedWorkflow.FinishedOn = workflowStatus.FinishedAt.Time
 		savedWorkflow.Name = workflowName
-		savedWorkflow.LogLocation = wfStatusRs.LogLocation
+		// removed log location from here since we are saving it at trigger
 		savedWorkflow.PodName = podName
 		savedWorkflow.UpdatedOn = time.Now()
 		savedWorkflow.UpdatedBy = 1
@@ -715,6 +722,88 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 			return cdWorkflowArtifact, err
 		}
 		cdWorkflowArtifact = impl.converterWFRList(wfrList)
+		if err == pg.ErrNoRows || wfrList == nil {
+			return cdWorkflowArtifact, nil
+		}
+		var ciArtifactIds []int
+		for _, cdWfA := range cdWorkflowArtifact {
+			ciArtifactIds = append(ciArtifactIds, cdWfA.CiArtifactId)
+		}
+		parentCiArtifact := make(map[int]int)
+		isLinked := false
+		ciArtifacts, err := impl.ciArtifactRepository.GetArtifactParentCiAndWorkflowDetailsByIds(ciArtifactIds)
+		if err != nil || len(ciArtifacts) == 0 {
+			impl.Logger.Errorw("error fetching artifact data", "err", err)
+			return cdWorkflowArtifact, err
+		}
+		var newCiArtifactIds []int
+		for _, ciArtifact := range ciArtifacts {
+			if ciArtifact.ParentCiArtifact > 0 && ciArtifact.WorkflowId == nil {
+				isLinked = true
+				newCiArtifactIds = append(newCiArtifactIds, ciArtifact.ParentCiArtifact)
+				parentCiArtifact[ciArtifact.Id] = ciArtifact.ParentCiArtifact
+			} else {
+				newCiArtifactIds = append(newCiArtifactIds, ciArtifact.Id)
+			}
+		}
+		// handling linked ci pipeline
+		if isLinked {
+			ciArtifactIds = newCiArtifactIds
+		}
+
+		ciWfs, err := impl.ciWorkflowRepository.FindAllLastTriggeredWorkflowByArtifactId(ciArtifactIds)
+		if err != nil && err != pg.ErrNoRows {
+			impl.Logger.Errorw("error in fetching ci wfs", "artifactIds", ciArtifactIds, "err", err)
+			return cdWorkflowArtifact, err
+		} else if len(ciWfs) == 0 {
+			return cdWorkflowArtifact, nil
+		}
+
+		wfGitTriggers := make(map[int]map[int]pipelineConfig.GitCommit)
+		var ciPipelineId int
+		for _, ciWf := range ciWfs {
+			ciPipelineId = ciWf.CiPipelineId
+			wfGitTriggers[ciWf.Id] = ciWf.GitTriggers
+		}
+		ciMaterials, err := impl.ciPipelineMaterialRepository.GetByPipelineIdForRegexAndFixed(ciPipelineId)
+		if err != nil && err != pg.ErrNoRows {
+			impl.Logger.Errorw("err in fetching ci materials", "ciMaterials", ciMaterials, "err", err)
+			return cdWorkflowArtifact, err
+		}
+
+		var ciMaterialsArr []pipelineConfig.CiPipelineMaterialResponse
+		for _, ciMaterial := range ciMaterials {
+			res := pipelineConfig.CiPipelineMaterialResponse{
+				Id:              ciMaterial.Id,
+				GitMaterialId:   ciMaterial.GitMaterialId,
+				GitMaterialName: ciMaterial.GitMaterial.Name[strings.Index(ciMaterial.GitMaterial.Name, "-")+1:],
+				Type:            string(ciMaterial.Type),
+				Value:           ciMaterial.Value,
+				Active:          ciMaterial.Active,
+				Url:             ciMaterial.GitMaterial.Url,
+			}
+			ciMaterialsArr = append(ciMaterialsArr, res)
+		}
+		var newCdWorkflowArtifact []pipelineConfig.CdWorkflowWithArtifact
+		for _, cdWfA := range cdWorkflowArtifact {
+
+			gitTriggers := make(map[int]pipelineConfig.GitCommit)
+			if isLinked {
+				if gitTriggerVal, ok := wfGitTriggers[parentCiArtifact[cdWfA.CiArtifactId]]; ok {
+					gitTriggers = gitTriggerVal
+				}
+			} else {
+				if gitTriggerVal, ok := wfGitTriggers[cdWfA.CiArtifactId]; ok {
+					gitTriggers = gitTriggerVal
+				}
+			}
+
+			cdWfA.GitTriggers = gitTriggers
+			cdWfA.CiMaterials = ciMaterialsArr
+			newCdWorkflowArtifact = append(newCdWorkflowArtifact, cdWfA)
+
+		}
+		cdWorkflowArtifact = newCdWorkflowArtifact
 	}
 
 	return cdWorkflowArtifact, nil
@@ -738,10 +827,17 @@ func (impl *CdHandlerImpl) GetRunningWorkflowLogs(environmentId int, pipelineId 
 		impl.Logger.Errorw("error while fetching cd pipeline", "err", err)
 		return nil, nil, err
 	}
-
-	serverUrl := env.Cluster.ServerUrl
 	configMap := env.Cluster.Config
-	bearerToken := configMap["bearer_token"]
+	clusterConfig := util.ClusterConfig{
+		Host:                  env.Cluster.ServerUrl,
+		BearerToken:           configMap[util.BearerToken],
+		InsecureSkipTLSVerify: env.Cluster.InsecureSkipTlsVerify,
+	}
+	if env.Cluster.InsecureSkipTlsVerify == false {
+		clusterConfig.KeyData = configMap[util.TlsKey]
+		clusterConfig.CertData = configMap[util.CertData]
+		clusterConfig.CAData = configMap[util.CertificateAuthorityData]
+	}
 
 	var isExtCluster bool
 	if cdWorkflow.WorkflowType == PRE {
@@ -749,16 +845,16 @@ func (impl *CdHandlerImpl) GetRunningWorkflowLogs(environmentId int, pipelineId 
 	} else if cdWorkflow.WorkflowType == POST {
 		isExtCluster = pipeline.RunPostStageInEnv
 	}
-	return impl.getWorkflowLogs(pipelineId, cdWorkflow, bearerToken, serverUrl, isExtCluster)
+	return impl.getWorkflowLogs(pipelineId, cdWorkflow, clusterConfig, isExtCluster)
 }
 
-func (impl *CdHandlerImpl) getWorkflowLogs(pipelineId int, cdWorkflow *pipelineConfig.CdWorkflowRunner, token string, host string, runStageInEnv bool) (*bufio.Reader, func() error, error) {
+func (impl *CdHandlerImpl) getWorkflowLogs(pipelineId int, cdWorkflow *pipelineConfig.CdWorkflowRunner, clusterConfig util.ClusterConfig, runStageInEnv bool) (*bufio.Reader, func() error, error) {
 	cdLogRequest := BuildLogRequest{
 		PodName:   cdWorkflow.PodName,
 		Namespace: cdWorkflow.Namespace,
 	}
 
-	logStream, cleanUp, err := impl.ciLogService.FetchRunningWorkflowLogs(cdLogRequest, token, host, runStageInEnv)
+	logStream, cleanUp, err := impl.ciLogService.FetchRunningWorkflowLogs(cdLogRequest, clusterConfig, runStageInEnv)
 	if logStream == nil || err != nil {
 		if !cdWorkflow.BlobStorageEnabled {
 			return nil, nil, errors.New("logs-not-stored-in-repository")
@@ -867,9 +963,9 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		return WorkflowResponse{}, err
 	}
 
-	var ciMaterialsArr []CiPipelineMaterialResponse
+	var ciMaterialsArr []pipelineConfig.CiPipelineMaterialResponse
 	for _, m := range ciMaterials {
-		res := CiPipelineMaterialResponse{
+		res := pipelineConfig.CiPipelineMaterialResponse{
 			Id:              m.Id,
 			GitMaterialId:   m.GitMaterialId,
 			GitMaterialName: m.GitMaterial.Name[strings.Index(m.GitMaterial.Name, "-")+1:],
@@ -886,21 +982,23 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 	}
 
 	workflowResponse := WorkflowResponse{
-		Id:                 workflow.Id,
-		Name:               workflow.Name,
-		Status:             workflow.Status,
-		PodStatus:          workflow.PodStatus,
-		Message:            workflow.Message,
-		StartedOn:          workflow.StartedOn,
-		FinishedOn:         workflow.FinishedOn,
-		Namespace:          workflow.Namespace,
-		CiMaterials:        ciMaterialsArr,
-		TriggeredBy:        workflow.TriggeredBy,
-		TriggeredByEmail:   triggeredByUser.EmailId,
-		Artifact:           workflow.Image,
-		Stage:              workflow.WorkflowType,
-		GitTriggers:        gitTriggers,
-		BlobStorageEnabled: workflow.BlobStorageEnabled,
+		Id:                   workflow.Id,
+		Name:                 workflow.Name,
+		Status:               workflow.Status,
+		PodStatus:            workflow.PodStatus,
+		Message:              workflow.Message,
+		StartedOn:            workflow.StartedOn,
+		FinishedOn:           workflow.FinishedOn,
+		Namespace:            workflow.Namespace,
+		CiMaterials:          ciMaterialsArr,
+		TriggeredBy:          workflow.TriggeredBy,
+		TriggeredByEmail:     triggeredByUser.EmailId,
+		Artifact:             workflow.Image,
+		Stage:                workflow.WorkflowType,
+		GitTriggers:          gitTriggers,
+		BlobStorageEnabled:   workflow.BlobStorageEnabled,
+		IsVirtualEnvironment: workflowR.CdWorkflow.Pipeline.Environment.IsVirtualEnvironment,
+		PodName:              workflowR.PodName,
 	}
 	return workflowResponse, nil
 
