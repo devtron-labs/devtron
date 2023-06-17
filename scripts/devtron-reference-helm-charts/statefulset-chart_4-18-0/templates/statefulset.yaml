@@ -512,8 +512,14 @@ spec:
           {{- if and .metadata .metadata.annotations }}
           annotations: {{ toYaml .metadata.annotations | nindent 14 }}
           {{- end}}
-          {{- if and .metadata .metadata.labels }}
-          labels: {{ toYaml .metadata.labels | nindent 14 }}
+          labels:
+              app: {{ template ".Chart.Name .name" $ }}
+              chart: {{ template ".Chart.Name .chart" $ }}
+              release: {{ $.Release.Name }}
+              releaseVersion: {{ $.Values.releaseVersion | quote }}
+              pipelineName: {{ $.Values.pipelineName }}           
+          {{- if and .metadata .metadata.labels -}}
+          {{ toYaml .metadata.labels | nindent 14 }}
           {{- end}}
           {{- if and .metadata .metadata.name }}
           name: {{ .metadata.name }}
