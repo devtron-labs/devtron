@@ -19,7 +19,21 @@ metadata:
 {{ toYaml .Values.servicemonitor.additionalLabels | indent 4 }}
     {{- end }}
 spec:
+  podTargetLabels:
+     - devtron_app_hash
   endpoints:
+    - relabelings:
+        - action: replace
+          regex: (.*)(\S{10})
+          replacement: ${2}
+          sourceLabels:
+            - __meta_kubernetes_pod_label_controller_revision_hash
+          targetLabel: statefulset_hash
+        - action: replace
+          sourceLabels:
+            - statefulset_hash
+          targetLabel: devtron_app_hash
+
     {{- range .Values.ContainerPort }}
       {{- if  .servicemonitor }}
         {{- if .servicemonitor.enabled}}
