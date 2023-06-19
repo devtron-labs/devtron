@@ -31,6 +31,7 @@ import (
 
 const TagsKey = "tags"
 const CommentKey = "comment"
+const DuplicateTagsInAppError = "cannot create duplicate tags in the same app"
 
 type ImageTaggingResponseDTO struct {
 	ImageReleaseTags []*repository.ImageTag   `json:"imageReleaseTags"`
@@ -350,7 +351,7 @@ func (impl ImageTaggingServiceImpl) performTagOperationsAndGetAuditList(tx *pg.T
 		err = impl.imageTaggingRepo.SaveReleaseTagsInBulk(tx, imageTaggingRequest.CreateTags)
 		if err != nil {
 			if strings.Contains(err.Error(), "release_tags_app_id_tag_name_key") {
-				err = errors.New("cannot create duplicate tags in the same app")
+				err = errors.New(DuplicateTagsInAppError)
 			}
 			impl.logger.Errorw("error in saving releaseTag", "err", err, "releaseTags", imageTaggingRequest.CreateTags)
 			return nil, err

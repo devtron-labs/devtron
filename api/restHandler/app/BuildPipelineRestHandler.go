@@ -1702,11 +1702,19 @@ func (handler PipelineConfigRestHandlerImpl) CreateUpdateImageTagging(w http.Res
 	//pass it to service layer
 	resp, err := handler.imageTaggingService.CreateOrUpdateImageTagging(wf.CiPipeline.Id, wf.CiPipeline.AppId, artifactId, int(user.Id), req)
 	if err != nil {
-		handler.Logger.Errorw("error occured in creating/updating image tagging data", "err", err, "ciPipelineId", wf.CiPipeline.Id)
+		if err.Error() == pipeline.DuplicateTagsInAppError {
+			appReleaseTags, err1 := handler.imageTaggingService.GetUniqueTagsByAppId(wf.CiPipeline.AppId)
+			if err1 != nil {
+				handler.Logger.Errorw("error occurred in getting unique tags in app", "err", err1, "appId", wf.CiPipeline.AppId)
+				err = err1
+			}
+			resp = &pipeline.ImageTaggingResponseDTO{}
+			resp.AppReleaseTags = appReleaseTags
+		}
+		handler.Logger.Errorw("error occurred in creating/updating image tagging data", "err", err, "ciPipelineId", wf.CiPipeline.Id)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-
 	common.WriteJsonResp(w, err, resp, http.StatusOK)
 }
 
