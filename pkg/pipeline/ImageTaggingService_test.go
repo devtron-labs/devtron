@@ -469,6 +469,10 @@ func TestImageTaggingService(t *testing.T) {
 				TagName: "v1",
 			}},
 		}
+		testTagValidationResp := func(ttt *testing.T, err error, valid bool) {
+			assert.NotNil(ttt, err)
+			assert.Equal(ttt, false, valid)
+		}
 		imageTaggingService := NewImageTaggingServiceImpl(nil, nil, nil, nil, sugaredLogger)
 		tt.Run("valid payload", func(ttt *testing.T) {
 
@@ -482,24 +486,21 @@ func TestImageTaggingService(t *testing.T) {
 			testImageTaggingRequest.CreateTags[0].Id = 1
 			valid, err := imageTaggingService.ValidateImageTaggingRequest(&testImageTaggingRequest, appId, artifactId)
 			testImageTaggingRequest.CreateTags[0].Id = 0
-			assert.NotNil(tt, err)
-			assert.Equal(tt, false, valid)
+			testTagValidationResp(ttt, err, valid)
 		})
 
 		tt.Run("inValid payload,SoftDeleteTags", func(ttt *testing.T) {
 			testImageTaggingRequest.SoftDeleteTags[0].Id = 0
 			valid, err := imageTaggingService.ValidateImageTaggingRequest(&testImageTaggingRequest, appId, artifactId)
 			testImageTaggingRequest.SoftDeleteTags[0].Id = 1
-			assert.NotNil(tt, err)
-			assert.Equal(tt, false, valid)
+			testTagValidationResp(ttt, err, valid)
 		})
 
 		tt.Run("inValid payload,HardDeleteTags", func(ttt *testing.T) {
 			testImageTaggingRequest.HardDeleteTags[0].Id = 0
 			valid, err := imageTaggingService.ValidateImageTaggingRequest(&testImageTaggingRequest, appId, artifactId)
 			testImageTaggingRequest.HardDeleteTags[0].Id = 1
-			assert.NotNil(tt, err)
-			assert.Equal(tt, false, valid)
+			testTagValidationResp(ttt, err, valid)
 		})
 
 	})
