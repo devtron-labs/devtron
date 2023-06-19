@@ -140,7 +140,7 @@ func (impl *HelmAppServiceImpl) listApplications(ctx context.Context, clusterIds
 	for _, clusterDetail := range clusters {
 		config := &ClusterConfig{
 			ApiServerUrl: clusterDetail.ServerUrl,
-			Token:        clusterDetail.Config["bearer_token"],
+			Token:        clusterDetail.Config[util.BearerToken],
 			ClusterId:    int32(clusterDetail.Id),
 			ClusterName:  clusterDetail.ClusterName,
 		}
@@ -265,7 +265,7 @@ func (impl *HelmAppServiceImpl) GetClusterConf(clusterId int) (*ClusterConfig, e
 	}
 	config := &ClusterConfig{
 		ApiServerUrl: cluster.ServerUrl,
-		Token:        cluster.Config["bearer_token"],
+		Token:        cluster.Config[util.BearerToken],
 		ClusterId:    int32(cluster.Id),
 		ClusterName:  cluster.ClusterName,
 	}

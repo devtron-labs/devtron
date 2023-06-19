@@ -41,20 +41,22 @@ type ImageScanService interface {
 }
 
 type ImageScanServiceImpl struct {
-	Logger                        *zap.SugaredLogger
-	scanHistoryRepository         security.ImageScanHistoryRepository
-	scanResultRepository          security.ImageScanResultRepository
-	scanObjectMetaRepository      security.ImageScanObjectMetaRepository
-	cveStoreRepository            security.CveStoreRepository
-	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository
-	userService                   user.UserService
-	teamRepository                repository2.TeamRepository
-	appRepository                 repository1.AppRepository
-	envService                    cluster.EnvironmentService
-	ciArtifactRepository          repository.CiArtifactRepository
-	policyService                 PolicyService
-	pipelineRepository            pipelineConfig.PipelineRepository
-	ciPipelineRepository          pipelineConfig.CiPipelineRepository
+	Logger                                    *zap.SugaredLogger
+	scanHistoryRepository                     security.ImageScanHistoryRepository
+	scanResultRepository                      security.ImageScanResultRepository
+	scanObjectMetaRepository                  security.ImageScanObjectMetaRepository
+	cveStoreRepository                        security.CveStoreRepository
+	imageScanDeployInfoRepository             security.ImageScanDeployInfoRepository
+	userService                               user.UserService
+	teamRepository                            repository2.TeamRepository
+	appRepository                             repository1.AppRepository
+	envService                                cluster.EnvironmentService
+	ciArtifactRepository                      repository.CiArtifactRepository
+	policyService                             PolicyService
+	pipelineRepository                        pipelineConfig.PipelineRepository
+	ciPipelineRepository                      pipelineConfig.CiPipelineRepository
+	scanToolMetaDataRepository                security.ScanToolMetadataRepository
+	scanToolExecutionHistoryMappingRepository security.ScanToolExecutionHistoryMappingRepository
 }
 
 type ImageScanRequest struct {
@@ -103,6 +105,7 @@ type ImageScanExecutionDetail struct {
 	ScanEnabled           bool               `json:"scanEnabled,notnull"`
 	Scanned               bool               `json:"scanned,notnull"`
 	ObjectType            string             `json:"objectType,notnull"`
+	ScanToolId            int                `json:"scanToolId,omitempty""`
 }
 
 type Vulnerabilities struct {
@@ -126,18 +129,20 @@ func NewImageScanServiceImpl(Logger *zap.SugaredLogger, scanHistoryRepository se
 	userService user.UserService, teamRepository repository2.TeamRepository,
 	appRepository repository1.AppRepository,
 	envService cluster.EnvironmentService, ciArtifactRepository repository.CiArtifactRepository, policyService PolicyService,
-	pipelineRepository pipelineConfig.PipelineRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository) *ImageScanServiceImpl {
+	pipelineRepository pipelineConfig.PipelineRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository, scanToolMetaDataRepository security.ScanToolMetadataRepository, scanToolExecutionHistoryMappingRepository security.ScanToolExecutionHistoryMappingRepository) *ImageScanServiceImpl {
 	return &ImageScanServiceImpl{Logger: Logger, scanHistoryRepository: scanHistoryRepository, scanResultRepository: scanResultRepository,
 		scanObjectMetaRepository: scanObjectMetaRepository, cveStoreRepository: cveStoreRepository,
-		imageScanDeployInfoRepository: imageScanDeployInfoRepository,
-		userService:                   userService,
-		teamRepository:                teamRepository,
-		appRepository:                 appRepository,
-		envService:                    envService,
-		ciArtifactRepository:          ciArtifactRepository,
-		policyService:                 policyService,
-		pipelineRepository:            pipelineRepository,
-		ciPipelineRepository:          ciPipelineRepository,
+		imageScanDeployInfoRepository:             imageScanDeployInfoRepository,
+		userService:                               userService,
+		teamRepository:                            teamRepository,
+		appRepository:                             appRepository,
+		envService:                                envService,
+		ciArtifactRepository:                      ciArtifactRepository,
+		policyService:                             policyService,
+		pipelineRepository:                        pipelineRepository,
+		ciPipelineRepository:                      ciPipelineRepository,
+		scanToolMetaDataRepository:                scanToolMetaDataRepository,
+		scanToolExecutionHistoryMappingRepository: scanToolExecutionHistoryMappingRepository,
 	}
 }
 
@@ -208,7 +213,7 @@ func (impl ImageScanServiceImpl) FetchScanExecutionListing(request *ImageScanReq
 				lastChecked = item.ImageScanExecutionHistory.ExecutionTime
 				if item.CveStore.Severity == security.Critical {
 					highCount = highCount + 1
-				} else if item.CveStore.Severity == security.Moderate {
+				} else if item.CveStore.Severity == security.Medium {
 					moderateCount = moderateCount + 1
 				} else if item.CveStore.Severity == security.Low {
 					lowCount = lowCount + 1
@@ -361,7 +366,7 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *ImageScanRe
 			}
 			if item.CveStore.Severity == security.Critical {
 				highCount = highCount + 1
-			} else if item.CveStore.Severity == security.Moderate {
+			} else if item.CveStore.Severity == security.Medium {
 				moderateCount = moderateCount + 1
 			} else if item.CveStore.Severity == security.Low {
 				lowCount = lowCount + 1
@@ -372,6 +377,16 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *ImageScanRe
 				imageDigests[item.ImageScanExecutionHistory.ImageHash] = item.ImageScanExecutionHistory.ImageHash
 			}
 			executionTime = item.ImageScanExecutionHistory.ExecutionTime
+		}
+		if len(imageScanResult) > 0 {
+			imageScanResponse.ScanToolId = imageScanResult[0].ScanToolId
+		} else {
+			toolIdFromExecutionHistory, err := impl.getScanToolIdFromExecutionHistory(scanExecutionIds)
+			if err != nil || toolIdFromExecutionHistory == -1 {
+				impl.Logger.Errorw("error in getting scan tool id from exection history", "err", err, "")
+				return nil, err
+			}
+			imageScanResponse.ScanToolId = toolIdFromExecutionHistory
 		}
 	}
 	severityCount := &SeverityCount{
@@ -462,7 +477,7 @@ func (impl ImageScanServiceImpl) FetchMinScanResultByAppIdAndEnvId(request *Imag
 	}
 	scanExecutionIds = append(scanExecutionIds, scanDeployInfo.ImageScanExecutionHistoryId...)
 
-	var highCount, moderateCount, lowCount int
+	var highCount, moderateCount, lowCount, scantoolId int
 	if len(scanExecutionIds) > 0 {
 		imageScanResult, err := impl.scanResultRepository.FetchByScanExecutionIds(scanExecutionIds)
 		if err != nil {
@@ -473,11 +488,21 @@ func (impl ImageScanServiceImpl) FetchMinScanResultByAppIdAndEnvId(request *Imag
 			executionTime = item.ImageScanExecutionHistory.ExecutionTime
 			if item.CveStore.Severity == security.Critical {
 				highCount = highCount + 1
-			} else if item.CveStore.Severity == security.Moderate {
+			} else if item.CveStore.Severity == security.Medium {
 				moderateCount = moderateCount + 1
 			} else if item.CveStore.Severity == security.Low {
 				lowCount = lowCount + 1
 			}
+		}
+		if len(imageScanResult) > 0 {
+			scantoolId = imageScanResult[0].ScanToolId
+		} else {
+			toolIdFromExecutionHistory, err := impl.getScanToolIdFromExecutionHistory(scanExecutionIds)
+			if err != nil || toolIdFromExecutionHistory == -1 {
+				impl.Logger.Errorw("error in getting scan tool id from exection history", "err", err, "")
+				return nil, err
+			}
+			scantoolId = toolIdFromExecutionHistory
 		}
 	}
 	severityCount := &SeverityCount{
@@ -492,8 +517,24 @@ func (impl ImageScanServiceImpl) FetchMinScanResultByAppIdAndEnvId(request *Imag
 		ObjectType:            scanDeployInfo.ObjectType,
 		ScanEnabled:           true,
 		Scanned:               true,
+		ScanToolId:            scantoolId,
 	}
 	return imageScanResponse, nil
+}
+func (impl ImageScanServiceImpl) getScanToolIdFromExecutionHistory(scanExecutionIds []int) (int, error) {
+	scanToolHistoryMappings, err := impl.scanToolExecutionHistoryMappingRepository.GetAllScanHistoriesByExecutionHistoryIds(scanExecutionIds)
+	if err != nil {
+		if err == pg.ErrNoRows {
+			impl.Logger.Errorw("got no rows for scanToolHistoryMappings", "err", err)
+		} else {
+			impl.Logger.Errorw("error in getting scanToolHistoryMappings", "err", err)
+			return -1, err
+		}
+	}
+	if len(scanToolHistoryMappings) > 0 {
+		return scanToolHistoryMappings[0].ScanToolId, nil
+	}
+	return -1, err
 }
 
 func (impl ImageScanServiceImpl) VulnerabilityExposure(request *security.VulnerabilityRequest) (*security.VulnerabilityExposureListingResponse, error) {

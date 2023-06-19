@@ -16,3 +16,4 @@ Devtron can be upgraded in one of the following ways:
 ## Upgrade Devtron from the UI
 
 - [Update Devtron from Devtron UI](upgrade-devtron-ui.md)
+- [Update Devtron to beta version](devtron-upgrade-to-beta.md)
