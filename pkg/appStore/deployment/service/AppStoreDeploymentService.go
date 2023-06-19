@@ -235,10 +235,17 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 	//	}
 	//}
 
+	if !isInternalUse {
+		if isGitOpsConfigured && appInstallationMode == util2.SERVER_MODE_FULL {
+			installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
+		} else {
+			installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
+		}
+	}
 	if installAppVersionRequest.DeploymentAppType == "" {
 		if environment.IsVirtualEnvironment {
 			installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD
-		} else if isGitOpsConfigured {
+		} else if isGitOpsConfigured && appInstallationMode == util2.SERVER_MODE_FULL {
 			installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
 		} else {
 			installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
