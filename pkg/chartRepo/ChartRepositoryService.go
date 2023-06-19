@@ -576,6 +576,7 @@ func (impl *ChartRepositoryServiceImpl) ValidateChartRepo(request *ChartRepoDto)
 		impl.logger.Errorw("name should not contain white spaces and should contain min 3 chars")
 		detailedErrorHelmRepoValidation.CustomErrMsg = fmt.Sprintf("name should not contain white spaces and should have min 3 chars")
 		detailedErrorHelmRepoValidation.ActualErrMsg = fmt.Sprintf("name should not contain white spaces and should have min 3 chars")
+		return &detailedErrorHelmRepoValidation
 	}
 	helmRepoConfig := &repo.Entry{
 		Name:     request.Name,
