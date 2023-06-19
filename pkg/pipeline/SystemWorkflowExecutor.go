@@ -2,15 +2,25 @@ package pipeline
 
 import (
 	"context"
+	"fmt"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/rest"
 	"k8s.io/utils/pointer"
+)
+
+const (
+	WORKFLOW_JOB_BACKOFF_LIMIT = 0
+	WORKFLOW_JOB_FINALIZER     = "foregroundDeletion"
 )
 
 type SystemWorkflowExecutor interface {
@@ -26,49 +36,89 @@ func NewSystemWorkflowExecutorImpl(logger *zap.SugaredLogger, k8sUtil *util.K8sU
 	return &SystemWorkflowExecutorImpl{logger: logger, k8sUtil: k8sUtil}
 }
 
-func (impl *SystemWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.WorkflowTemplate) error {
+func (impl *SystemWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.WorkflowTemplate) (*unstructured.UnstructuredList, error) {
+	templatesList := &unstructured.UnstructuredList{}
 	//create job template with suspended state
 	jobTemplate := impl.getJobTemplate(workflowTemplate)
 	clientset, err := impl.k8sUtil.GetClientSetForConfig(workflowTemplate.ClusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error occurred while creating k8s client", "WorkflowRunnerId", workflowTemplate.WorkflowRunnerId, "err", err)
-		return err
+		return nil, err
 	}
 	ctx := context.Background()
 	createdJob, err := clientset.BatchV1().Jobs(workflowTemplate.Namespace).Create(ctx, jobTemplate, v12.CreateOptions{})
 	if err != nil {
 		impl.logger.Errorw("error occurred while creating k8s job", "WorkflowRunnerId", workflowTemplate.WorkflowRunnerId, "err", err)
-		return err
+		return nil, err
 	}
 
 	//create cm and secrets with owner reference
-	err = impl.createCmAndSecrets(workflowTemplate, createdJob)
+	err = impl.createCmAndSecrets(workflowTemplate, createdJob, templatesList)
 	if err != nil {
 		impl.logger.Errorw("error occurred while creating cm and secret", "WorkflowRunnerId", workflowTemplate.WorkflowRunnerId, "err", err)
-		return err
+		return nil, err
 	}
 
 	//change job state to running
 	_, err = clientset.BatchV1().Jobs(workflowTemplate.Namespace).Patch(ctx, createdJob.Name, types.StrategicMergePatchType, []byte(`{"spec":{"suspend": false}}`), v12.PatchOptions{})
 	if err != nil {
 		impl.logger.Errorw("error occurred while updating job suspended status", "WorkflowRunnerId", workflowTemplate.WorkflowRunnerId, "err", err)
+		return nil, err
+	}
+	createdJob.Kind = jobTemplate.Kind
+	createdJob.APIVersion = jobTemplate.APIVersion
+	createdJob.Spec.Suspend = pointer.BoolPtr(false)
+	impl.addToUnstructuredList(createdJob, templatesList)
+	return templatesList, nil
+}
+
+func (impl *SystemWorkflowExecutorImpl) addToUnstructuredList(template interface{}, templateList *unstructured.UnstructuredList) {
+	unstructuredObjMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&template)
+	if err != nil {
+		return
+	}
+	templateList.Items = append(templateList.Items, unstructured.Unstructured{Object: unstructuredObjMap})
+}
+
+func (impl *SystemWorkflowExecutorImpl) TerminateWorkflow(workflowName string, namespace string, clusterConfig *rest.Config) error {
+	clientset, err := impl.k8sUtil.GetClientSetForConfig(clusterConfig)
+	if err != nil {
+		impl.logger.Errorw("error occurred while creating k8s client", "workflowName", workflowName, "namespace", namespace, "err", err)
 		return err
 	}
-	return nil
+	err = clientset.BatchV1().Jobs(namespace).Delete(context.Background(), workflowName, v12.DeleteOptions{})
+
+	if err != nil {
+		if errors.IsNotFound(err) {
+			err = fmt.Errorf("cannot find workflow %s", workflowName)
+		}
+		impl.logger.Errorw("error occurred while deleting workflow", "workflowName", workflowName, "namespace", namespace, "err", err)
+	}
+	return err
 }
 
 func (impl *SystemWorkflowExecutorImpl) getJobTemplate(workflowTemplate bean.WorkflowTemplate) *v1.Job {
 
-	workflowLabels := map[string]string{"devtron.ai/workflow-purpose": "cd", "devtron.ai/purpose": "workflow"}
+	workflowLabels := map[string]string{DEVTRON_WORKFLOW_LABEL_KEY: DEVTRON_WORKFLOW_LABEL_VALUE, "devtron.ai/purpose": "workflow"}
+
+	//setting TerminationGracePeriodSeconds in PodSpec to TTL Value
+	//which ensures Pod has enough time to execute cleanup on SIGTERM event
+	gracePeriodSeconds := int64(0) //int64(*workflowTemplate.TTLValue) TODO revert this change after handling SIGTERM in CI runner
+
+	workflowTemplate.PodSpec.TerminationGracePeriodSeconds = &gracePeriodSeconds
 	workflowJob := v1.Job{
+		TypeMeta: v12.TypeMeta{
+			Kind:       kube.JobKind,
+			APIVersion: "batch/v1",
+		},
 		ObjectMeta: v12.ObjectMeta{
-			GenerateName: workflowTemplate.WorkflowNamePrefix + "-",
+			GenerateName: fmt.Sprintf(WORKFLOW_GENERATE_NAME_REGEX, workflowTemplate.WorkflowNamePrefix),
 			//Annotations:  map[string]string{"workflows.argoproj.io/controller-instanceid": workflowTemplate.WfControllerInstanceID},
 			Labels:     workflowLabels,
-			Finalizers: []string{"foregroundDeletion"},
+			Finalizers: []string{WORKFLOW_JOB_FINALIZER},
 		},
 		Spec: v1.JobSpec{
-			BackoffLimit:            pointer.Int32Ptr(0),
+			BackoffLimit:            pointer.Int32Ptr(WORKFLOW_JOB_BACKOFF_LIMIT),
 			ActiveDeadlineSeconds:   workflowTemplate.ActiveDeadlineSeconds,
 			TTLSecondsAfterFinished: workflowTemplate.TTLValue,
 			Template: corev1.PodTemplateSpec{
@@ -121,7 +171,7 @@ func (impl *SystemWorkflowExecutorImpl) createJobOwnerRefVal(createdJob *v1.Job)
 	return v12.OwnerReference{UID: createdJob.UID, Name: createdJob.Name, Kind: kube.JobKind, APIVersion: "batch/v1", BlockOwnerDeletion: pointer.BoolPtr(true), Controller: pointer.BoolPtr(true)}
 }
 
-func (impl *SystemWorkflowExecutorImpl) createCmAndSecrets(template bean.WorkflowTemplate, createdJob *v1.Job) error {
+func (impl *SystemWorkflowExecutorImpl) createCmAndSecrets(template bean.WorkflowTemplate, createdJob *v1.Job, templateList *unstructured.UnstructuredList) error {
 	client, err := impl.k8sUtil.GetK8sClientForConfig(template.ClusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error occurred while creating k8s client", "WorkflowRunnerId", template.WorkflowRunnerId, "err", err)
@@ -132,12 +182,14 @@ func (impl *SystemWorkflowExecutorImpl) createCmAndSecrets(template bean.Workflo
 		return err
 	}
 	for _, configMap := range configMaps {
+		impl.addToUnstructuredList(configMap, templateList)
 		_, err = impl.k8sUtil.CreateConfigMap(createdJob.Namespace, &configMap, client)
 		if err != nil {
 			impl.logger.Errorw("error occurred while creating cm, but ignoring", "err", err)
 		}
 	}
 	for _, secret := range secrets {
+		impl.addToUnstructuredList(secret, templateList)
 		_, err = impl.k8sUtil.CreateSecretData(createdJob.Namespace, &secret, client)
 		if err != nil {
 			impl.logger.Errorw("error occurred while creating secret, but ignoring", "err", err)

@@ -24,6 +24,7 @@ import (
 	app2 "github.com/devtron-labs/devtron/pkg/app"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user/repository"
 	"go.uber.org/zap"
 )
@@ -37,9 +38,9 @@ type AppCrudOperationServiceEnterpriseImpl struct {
 
 func NewAppCrudOperationServiceEnterpriseImpl(appLabelRepository pipelineConfig.AppLabelRepository,
 	logger *zap.SugaredLogger, appRepository app.AppRepository, userRepository repository.UserRepository, installedAppRepository repository2.InstalledAppRepository,
-	globalTagService globalTag.GlobalTagService) *AppCrudOperationServiceEnterpriseImpl {
+	globalTagService globalTag.GlobalTagService, teamRepository team.TeamRepository) *AppCrudOperationServiceEnterpriseImpl {
 	return &AppCrudOperationServiceEnterpriseImpl{
-		AppCrudOperationServiceImpl: app2.NewAppCrudOperationServiceImpl(appLabelRepository, logger, appRepository, userRepository, installedAppRepository),
+		AppCrudOperationServiceImpl: app2.NewAppCrudOperationServiceImpl(appLabelRepository, logger, appRepository, userRepository, installedAppRepository, teamRepository),
 		logger:                      logger,
 		globalTagService:            globalTagService,
 		appRepository:               appRepository,

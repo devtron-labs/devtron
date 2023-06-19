@@ -32,6 +32,7 @@ import (
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/globalPolicy"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
@@ -212,6 +213,7 @@ type PipelineBuilderImpl struct {
 	workflowDagExecutor                             WorkflowDagExecutor
 	enforcerUtil                                    rbac.EnforcerUtil
 	appGroupService                                 appGroup2.AppGroupService
+	globalPolicyService                             globalPolicy.GlobalPolicyService
 	chartDeploymentService                          util.ChartDeploymentService
 }
 
@@ -264,7 +266,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	enforcerUtil rbac.EnforcerUtil, ArgoUserService argo.ArgoUserService,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	appGroupService appGroup2.AppGroupService,
-	chartDeploymentService util.ChartDeploymentService) *PipelineBuilderImpl {
+	chartDeploymentService util.ChartDeploymentService,
+	globalPolicyService globalPolicy.GlobalPolicyService) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                        logger,
 		ciCdPipelineOrchestrator:      ciCdPipelineOrchestrator,
@@ -323,6 +326,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		enforcerUtil:                                    enforcerUtil,
 		ciWorkflowRepository:                            ciWorkflowRepository,
 		appGroupService:                                 appGroupService,
+		globalPolicyService:                             globalPolicyService,
 		chartDeploymentService:                          chartDeploymentService,
 	}
 }
@@ -680,10 +684,16 @@ func (impl PipelineBuilderImpl) GetTriggerViewCiPipeline(appId int) (*bean.Trigg
 				CiBuildConfig:    ciTemplateBean.CiBuildConfig,
 			}
 		}
+
+		branchesForCheckingBlockageState := make([]string, 0, len(pipeline.CiPipelineMaterials))
 		for _, material := range pipeline.CiPipelineMaterials {
 			// ignore those materials which have inactive git material
 			if material == nil || material.GitMaterial == nil || !material.GitMaterial.Active {
 				continue
+			}
+			isRegex := material.Regex != ""
+			if !(isRegex && len(material.Value) == 0) { //add branches for all cases except if type regex and branch is not set
+				branchesForCheckingBlockageState = append(branchesForCheckingBlockageState, material.Value)
 			}
 			ciMaterial := &bean.CiMaterial{
 				Id:              material.Id,
@@ -694,7 +704,7 @@ func (impl PipelineBuilderImpl) GetTriggerViewCiPipeline(appId int) (*bean.Trigg
 				GitMaterialName: material.GitMaterial.Name[strings.Index(material.GitMaterial.Name, "-")+1:],
 				ScmName:         material.ScmName,
 				ScmVersion:      material.ScmVersion,
-				IsRegex:         material.Regex != "",
+				IsRegex:         isRegex,
 				Source:          &bean.SourceTypeConfig{Type: material.Type, Value: material.Value, Regex: material.Regex},
 			}
 			ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, ciMaterial)
@@ -704,6 +714,11 @@ func (impl PipelineBuilderImpl) GetTriggerViewCiPipeline(appId int) (*bean.Trigg
 			return nil, err
 		}
 		ciPipeline.LinkedCount = len(linkedCis)
+		err = impl.setCiPipelineBlockageState(ciPipeline, branchesForCheckingBlockageState, true)
+		if err != nil {
+			impl.logger.Errorw("error in getting blockage state for ci pipeline", "err", err, "ciPipelineId", ciPipeline.Id)
+			return nil, err
+		}
 		ciPipelineResp = append(ciPipelineResp, ciPipeline)
 	}
 	triggerViewCiConfig.CiPipelines = ciPipelineResp
@@ -718,6 +733,13 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 		impl.logger.Debugw("error in fetching ci pipeline", "appId", appId, "err", err)
 		return nil, err
 	}
+	app, err := impl.appRepo.FindActiveById(appId)
+	if err != nil {
+		impl.logger.Debugw("error in fetching app details", "appId", appId, "err", err)
+		return nil, err
+	}
+	isJob := app.AppType == helper.Job
+
 	//TODO fill these variables
 	//ciConfig.CiPipeline=
 	//--------pipeline population start
@@ -812,10 +834,15 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 				CiBuildConfig:    ciTemplateBean.CiBuildConfig,
 			}
 		}
+		branchesForCheckingBlockageState := make([]string, 0, len(pipeline.CiPipelineMaterials))
 		for _, material := range pipeline.CiPipelineMaterials {
 			// ignore those materials which have inactive git material
 			if material == nil || material.GitMaterial == nil || !material.GitMaterial.Active {
 				continue
+			}
+			isRegex := material.Regex != ""
+			if !(isRegex && len(material.Value) == 0) { //add branches for all cases except if type regex and branch is not set
+				branchesForCheckingBlockageState = append(branchesForCheckingBlockageState, material.Value)
 			}
 			ciMaterial := &bean.CiMaterial{
 				Id:              material.Id,
@@ -829,6 +856,13 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 				IsRegex:         material.Regex != "",
 				Source:          &bean.SourceTypeConfig{Type: material.Type, Value: material.Value, Regex: material.Regex},
 			}
+			if !isJob {
+				err = impl.setCiPipelineBlockageState(ciPipeline, branchesForCheckingBlockageState, false)
+				if err != nil {
+					impl.logger.Errorw("error in getting blockage state for ci pipeline", "err", err, "ciPipelineId", ciPipeline.Id)
+					return nil, err
+				}
+			}
 			ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, ciMaterial)
 		}
 		linkedCis, err := impl.ciPipelineRepository.FindByParentCiPipelineId(ciPipeline.Id)
@@ -841,6 +875,22 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 	ciConfig.CiPipelines = ciPipelineResp
 	//--------pipeline population end
 	return ciConfig, err
+}
+
+func (impl PipelineBuilderImpl) setCiPipelineBlockageState(ciPipeline *bean.CiPipeline, branchesForCheckingBlockageState []string, toOnlyGetBlockedStatePolicies bool) error {
+	isOffendingMandatoryPlugin, isCiTriggerBlocked, blockageState, err :=
+		impl.globalPolicyService.GetBlockageStateForACIPipelineTrigger(ciPipeline.Id, ciPipeline.ParentCiPipeline, branchesForCheckingBlockageState, toOnlyGetBlockedStatePolicies)
+	if err != nil {
+		impl.logger.Errorw("error in getting blockage state for ci pipeline", "err", err, "ciPipelineId", ciPipeline.Id)
+		return err
+	}
+	if toOnlyGetBlockedStatePolicies {
+		ciPipeline.IsCITriggerBlocked = &isCiTriggerBlocked
+	} else {
+		ciPipeline.IsOffendingMandatoryPlugin = &isOffendingMandatoryPlugin
+	}
+	ciPipeline.CiBlockState = blockageState
+	return nil
 }
 
 func (impl PipelineBuilderImpl) GetExternalCi(appId int) (ciConfig []*bean.ExternalCiConfig, err error) {
@@ -1802,15 +1852,23 @@ func (impl PipelineBuilderImpl) IsGitOpsRequiredForCD(pipelineCreateRequest *bea
 func (impl PipelineBuilderImpl) SetPipelineDeploymentAppType(pipelineCreateRequest *bean.CdPipelines, isGitOpsConfigured bool, virtualEnvironmentMap map[int]bool) error {
 
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
+		if !impl.deploymentConfig.IsInternalUse {
+			if isGitOpsConfigured {
+				pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
+			} else {
+				pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
+			}
+		}
+		// if in case deployment app type is empty (not send from FE and isInternalUse=true
 		if pipeline.DeploymentAppType == "" {
 			if isVirtualEnv, ok := virtualEnvironmentMap[pipeline.EnvironmentId]; ok {
 				if isVirtualEnv {
 					pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD
+				} else if isGitOpsConfigured {
+					pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
+				} else {
+					pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
 				}
-			} else if isGitOpsConfigured {
-				pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
-			} else {
-				pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
 			}
 		}
 	}
@@ -4148,9 +4206,14 @@ func (impl PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *b
 			//},
 		}
 	}
+	branchesForCheckingBlockageState := make([]string, 0, len(pipeline.CiPipelineMaterials))
 	for _, material := range pipeline.CiPipelineMaterials {
 		if material == nil || material.GitMaterial == nil || !material.GitMaterial.Active {
 			continue
+		}
+		isRegex := material.Regex != ""
+		if !(isRegex && len(material.Value) == 0) { //add branches for all cases except if type regex and branch is not set
+			branchesForCheckingBlockageState = append(branchesForCheckingBlockageState, material.Value)
 		}
 		ciMaterial := &bean.CiMaterial{
 			Id:              material.Id,
@@ -4167,6 +4230,15 @@ func (impl PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *b
 		ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, ciMaterial)
 	}
 
+	appDetails := pipeline.App
+	isJob := appDetails != nil && appDetails.AppType == helper.Job
+	if !isJob {
+		err = impl.setCiPipelineBlockageState(ciPipeline, branchesForCheckingBlockageState, false)
+		if err != nil {
+			impl.logger.Errorw("error in getting blockage state for ci pipeline", "err", err, "ciPipelineId", ciPipeline.Id)
+			return nil, err
+		}
+	}
 	linkedCis, err := impl.ciPipelineRepository.FindByParentCiPipelineId(ciPipeline.Id)
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
@@ -4610,12 +4682,17 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(request appGroup2.App
 					CiBuildConfig:    ciTemplateBean.CiBuildConfig,
 				}
 			}
+			branchesForCheckingBlockageState := make([]string, 0, len(pipeline.CiPipelineMaterials))
 
 			//this will build ci materials for each ci pipeline
 			for _, material := range pipeline.CiPipelineMaterials {
 				// ignore those materials which have inactive git material
 				if material == nil || material.GitMaterial == nil || !material.GitMaterial.Active {
 					continue
+				}
+				isRegex := material.Regex != ""
+				if !(isRegex && len(material.Value) == 0) { //add branches for all cases except if type regex and branch is not set
+					branchesForCheckingBlockageState = append(branchesForCheckingBlockageState, material.Value)
 				}
 				ciMaterial := &bean.CiMaterial{
 					Id:              material.Id,
@@ -4630,6 +4707,12 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironment(request appGroup2.App
 					Source:          &bean.SourceTypeConfig{Type: material.Type, Value: material.Value, Regex: material.Regex},
 				}
 				ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, ciMaterial)
+			}
+
+			err = impl.setCiPipelineBlockageState(ciPipeline, branchesForCheckingBlockageState, true)
+			if err != nil {
+				impl.logger.Errorw("error in getting blockage state for ci pipeline", "err", err, "ciPipelineId", ciPipeline.Id)
+				return nil, err
 			}
 
 			//this will count the length of child ci pipelines, of each ci pipeline

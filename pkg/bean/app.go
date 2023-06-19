@@ -22,14 +22,16 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	bean2 "github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"time"
 )
 
 const (
-	LayoutISO     = "2006-01-02 15:04:05"
-	LayoutUS      = "January 2, 2006 15:04:05"
-	LayoutRFC3339 = "2006-01-02T15:04:05Z07:00"
+	LayoutISO             = "2006-01-02 15:04:05"
+	LayoutUS              = "January 2, 2006 15:04:05"
+	LayoutRFC3339         = "2006-01-02T15:04:05Z07:00"
+	LayoutDDMMYY_HHMM12hr = "2 January,2006 15.04PM"
 )
 
 type SourceTypeConfig struct {
@@ -88,32 +90,35 @@ type CiMaterial struct {
 }
 
 type CiPipeline struct {
-	IsManual                 bool                   `json:"isManual"`
-	DockerArgs               map[string]string      `json:"dockerArgs"`
-	IsExternal               bool                   `json:"isExternal"`
-	ParentCiPipeline         int                    `json:"parentCiPipeline"`
-	ParentAppId              int                    `json:"parentAppId"`
-	AppId                    int                    `json:"appId"`
-	ExternalCiConfig         ExternalCiConfig       `json:"externalCiConfig"`
-	CiMaterial               []*CiMaterial          `json:"ciMaterial,omitempty" validate:"dive,min=1"`
-	Name                     string                 `json:"name,omitempty" validate:"name-component,max=100"` //name suffix of corresponding pipeline. required, unique, validation corresponding to gocd pipelineName will be applicable
-	Id                       int                    `json:"id,omitempty" `
-	Version                  string                 `json:"version,omitempty"` //matchIf token version in gocd . used for update request
-	Active                   bool                   `json:"active,omitempty"`  //pipeline is active or not
-	Deleted                  bool                   `json:"deleted,omitempty"`
-	BeforeDockerBuild        []*Task                `json:"beforeDockerBuild,omitempty" validate:"dive"`
-	AfterDockerBuild         []*Task                `json:"afterDockerBuild,omitempty" validate:"dive"`
-	BeforeDockerBuildScripts []*CiScript            `json:"beforeDockerBuildScripts,omitempty" validate:"dive"`
-	AfterDockerBuildScripts  []*CiScript            `json:"afterDockerBuildScripts,omitempty" validate:"dive"`
-	LinkedCount              int                    `json:"linkedCount"`
-	PipelineType             PipelineType           `json:"pipelineType,omitempty"`
-	ScanEnabled              bool                   `json:"scanEnabled,notnull"`
-	AppWorkflowId            int                    `json:"appWorkflowId,omitempty"`
-	PreBuildStage            *bean.PipelineStageDto `json:"preBuildStage,omitempty"`
-	PostBuildStage           *bean.PipelineStageDto `json:"postBuildStage,omitempty"`
-	TargetPlatform           string                 `json:"targetPlatform,omitempty"`
-	IsDockerConfigOverridden bool                   `json:"isDockerConfigOverridden"`
-	DockerConfigOverride     DockerConfigOverride   `json:"dockerConfigOverride,omitempty"`
+	IsManual                   bool                   `json:"isManual"`
+	DockerArgs                 map[string]string      `json:"dockerArgs"`
+	IsExternal                 bool                   `json:"isExternal"`
+	ParentCiPipeline           int                    `json:"parentCiPipeline"`
+	ParentAppId                int                    `json:"parentAppId"`
+	AppId                      int                    `json:"appId"`
+	ExternalCiConfig           ExternalCiConfig       `json:"externalCiConfig"`
+	CiMaterial                 []*CiMaterial          `json:"ciMaterial,omitempty" validate:"dive,min=1"`
+	Name                       string                 `json:"name,omitempty" validate:"name-component,max=100"` //name suffix of corresponding pipeline. required, unique, validation corresponding to gocd pipelineName will be applicable
+	Id                         int                    `json:"id,omitempty" `
+	Version                    string                 `json:"version,omitempty"` //matchIf token version in gocd . used for update request
+	Active                     bool                   `json:"active,omitempty"`  //pipeline is active or not
+	Deleted                    bool                   `json:"deleted,omitempty"`
+	BeforeDockerBuild          []*Task                `json:"beforeDockerBuild,omitempty" validate:"dive"`
+	AfterDockerBuild           []*Task                `json:"afterDockerBuild,omitempty" validate:"dive"`
+	BeforeDockerBuildScripts   []*CiScript            `json:"beforeDockerBuildScripts,omitempty" validate:"dive"`
+	AfterDockerBuildScripts    []*CiScript            `json:"afterDockerBuildScripts,omitempty" validate:"dive"`
+	LinkedCount                int                    `json:"linkedCount"`
+	PipelineType               PipelineType           `json:"pipelineType,omitempty"`
+	ScanEnabled                bool                   `json:"scanEnabled,notnull"`
+	AppWorkflowId              int                    `json:"appWorkflowId,omitempty"`
+	PreBuildStage              *bean.PipelineStageDto `json:"preBuildStage,omitempty"`
+	PostBuildStage             *bean.PipelineStageDto `json:"postBuildStage,omitempty"`
+	TargetPlatform             string                 `json:"targetPlatform,omitempty"`
+	IsDockerConfigOverridden   bool                   `json:"isDockerConfigOverridden"`
+	DockerConfigOverride       DockerConfigOverride   `json:"dockerConfigOverride,omitempty"`
+	IsOffendingMandatoryPlugin *bool                  `json:"isOffendingMandatoryPlugin,omitempty"`
+	IsCITriggerBlocked         *bool                  `json:"isCITriggerBlocked,omitempty"`
+	CiBlockState               *bean2.ConsequenceDto  `json:"ciBlockState,omitempty"`
 }
 
 type DockerConfigOverride struct {
@@ -708,6 +713,7 @@ type CiArtifactResponse struct {
 	UserApprovalConfig     *pipelineConfig.UserApprovalConfig `json:"userApprovalConfig"`
 	ApprovalUsers          []string                           `json:"approvalUsers"`
 	RequestedUserId        int32                              `json:"requestedUserId"`
+	IsVirtualCluster       bool                               `json:"isVirtualCluster"`
 }
 
 type AppLabelsDto struct {

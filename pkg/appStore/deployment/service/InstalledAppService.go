@@ -886,9 +886,7 @@ func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(instal
 		return bean2.AppDetailContainer{}, err
 	}
 	updateTime := installedAppVerison.InstalledApp.UpdatedOn
-
-	dateTag := fmt.Sprintf("%v %v,%v", updateTime.Day(), updateTime.Month(), updateTime.Year())
-	timeTag := fmt.Sprintf("%v.%v", updateTime.Hour(), updateTime.Minute())
+	timeStampTag := updateTime.Format(bean.LayoutDDMMYY_HHMM12hr)
 
 	deploymentContainer := bean2.DeploymentDetailContainer{
 		InstalledAppId:                installedAppVerison.InstalledApp.Id,
@@ -908,7 +906,7 @@ func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(instal
 		DeploymentAppType:             installedAppVerison.InstalledApp.DeploymentAppType,
 		DeploymentAppDeleteRequest:    installedAppVerison.InstalledApp.DeploymentAppDeleteRequest,
 		IsVirtualEnvironment:          installedAppVerison.InstalledApp.Environment.IsVirtualEnvironment,
-		HelmPackageName:               fmt.Sprintf("%s-%s-%s %s", installedAppVerison.InstalledApp.App.AppName, installedAppVerison.InstalledApp.Environment.Name, dateTag, timeTag),
+		HelmPackageName:               fmt.Sprintf("%s-%s-%s (GMT)", installedAppVerison.InstalledApp.App.AppName, installedAppVerison.InstalledApp.Environment.Name, timeStampTag),
 	}
 	userInfo, err := impl.userService.GetByIdIncludeDeleted(installedAppVerison.AuditLog.UpdatedBy)
 	if err != nil {
@@ -1375,9 +1373,8 @@ func (impl InstalledAppServiceImpl) GetChartBytesForLatestDeployment(installedAp
 	}
 
 	updateTime := installedApp.UpdatedOn
-	dateTag := fmt.Sprintf("%v %v,%v", updateTime.Day(), updateTime.Month(), updateTime.Year())
-	timeTag := fmt.Sprintf("%v.%v", updateTime.Hour(), updateTime.Minute())
-	chartName := fmt.Sprintf("%s-%s-%s %s", installedApp.App.AppName, installedApp.Environment.Name, dateTag, timeTag)
+	timeStampTag := updateTime.Format(bean.LayoutDDMMYY_HHMM12hr)
+	chartName := fmt.Sprintf("%s-%s-%s (GMT)", installedApp.App.AppName, installedApp.Environment.Name, timeStampTag)
 	chartBytes, err = impl.appStoreDeploymentCommonService.BuildChartWithValuesAndRequirementsConfig(installedApp.App.AppName, valuesString, requirementsString, chartName, fmt.Sprint(installedApp.Id))
 
 	if err != nil {
@@ -1414,9 +1411,8 @@ func (impl InstalledAppServiceImpl) GetChartBytesForParticularDeployment(install
 	}
 
 	updateTime := installedApp.UpdatedOn
-	dateTag := fmt.Sprintf("%v %v,%v", updateTime.Day(), updateTime.Month(), updateTime.Year())
-	timeTag := fmt.Sprintf("%v.%v", updateTime.Hour(), updateTime.Minute())
-	chartName := fmt.Sprintf("%s-%s-%s %s", installedApp.App.AppName, installedApp.Environment.Name, dateTag, timeTag)
+	timeStampTag := updateTime.Format(bean.LayoutDDMMYY_HHMM12hr)
+	chartName := fmt.Sprintf("%s-%s-%s (GMT)", installedApp.App.AppName, installedApp.Environment.Name, timeStampTag)
 
 	chartBytes, err = impl.appStoreDeploymentCommonService.BuildChartWithValuesAndRequirementsConfig(installedApp.App.AppName, valuesString, requirementsString, chartName, fmt.Sprint(installedApp.Id))
 	if err != nil {

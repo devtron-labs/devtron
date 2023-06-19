@@ -50,6 +50,7 @@ import (
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
+	"k8s.io/client-go/rest"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -559,17 +560,6 @@ func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int, userId int32) (int,
 		impl.Logger.Errorw("could not fetch stage env", "err", err)
 		return 0, err
 	}
-	configMap := env.Cluster.Config
-	clusterConfig := util.ClusterConfig{
-		Host:                  env.Cluster.ServerUrl,
-		BearerToken:           configMap[util.BearerToken],
-		InsecureSkipTLSVerify: env.Cluster.InsecureSkipTlsVerify,
-	}
-	if env.Cluster.InsecureSkipTlsVerify == false {
-		clusterConfig.KeyData = configMap[util.TlsKey]
-		clusterConfig.CertData = configMap[util.CertData]
-		clusterConfig.CAData = configMap[util.CertificateAuthorityData]
-	}
 
 	var isExtCluster bool
 	if workflowRunner.WorkflowType == PRE {
@@ -577,15 +567,12 @@ func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int, userId int32) (int,
 	} else if workflowRunner.WorkflowType == POST {
 		isExtCluster = pipeline.RunPostStageInEnv
 	}
-
-	runningWf, err := impl.cdService.GetWorkflow(workflowRunner.Name, workflowRunner.Namespace, clusterConfig, isExtCluster)
-	if err != nil {
-		impl.Logger.Errorw("cannot find workflow ", "name", workflowRunner.Name)
-		return 0, errors.New("cannot find workflow " + workflowRunner.Name)
-	}
-
 	// Terminate workflow
-	err = impl.cdService.TerminateWorkflow(runningWf.Name, runningWf.Namespace, clusterConfig, isExtCluster)
+	var clusterConfig *rest.Config
+	if isExtCluster {
+		clusterConfig = env.Cluster.GetClusterConfig()
+	}
+	err = impl.cdService.TerminateWorkflow(workflowRunner.ExecutorType, workflowRunner.Name, workflowRunner.Namespace, clusterConfig)
 	if err != nil {
 		impl.Logger.Error("cannot terminate wf runner", "err", err)
 		return 0, err
@@ -1017,9 +1004,14 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 	if len(workflow.Image) > 0 {
 		imageTag = strings.Split(workflow.Image, ":")[1]
 	}
-
+	appName := workflowR.CdWorkflow.Pipeline.App.AppName
+	if workflowR.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
+		appName = fmt.Sprintf("%s-%s", bean.CD_WORKFLOW_TYPE_PRE, appName)
+	} else if workflowR.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
+		appName = fmt.Sprintf("%s-%s", bean.CD_WORKFLOW_TYPE_POST, appName)
+	}
 	helmPackageName := fmt.Sprintf("%s-%s-%s",
-		workflowR.CdWorkflow.Pipeline.App.AppName,
+		appName,
 		workflowR.CdWorkflow.Pipeline.Environment.Name,
 		imageTag)
 

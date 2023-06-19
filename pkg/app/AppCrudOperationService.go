@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user/repository"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
@@ -53,16 +54,20 @@ type AppCrudOperationServiceImpl struct {
 	appRepository          appRepository.AppRepository
 	userRepository         repository.UserRepository
 	installedAppRepository repository2.InstalledAppRepository
+	teamRepository         team.TeamRepository
 }
 
 func NewAppCrudOperationServiceImpl(appLabelRepository pipelineConfig.AppLabelRepository,
-	logger *zap.SugaredLogger, appRepository appRepository.AppRepository, userRepository repository.UserRepository, installedAppRepository repository2.InstalledAppRepository) *AppCrudOperationServiceImpl {
+	logger *zap.SugaredLogger, appRepository appRepository.AppRepository,
+	userRepository repository.UserRepository, installedAppRepository repository2.InstalledAppRepository,
+	teamRepository team.TeamRepository) *AppCrudOperationServiceImpl {
 	return &AppCrudOperationServiceImpl{
 		appLabelRepository:     appLabelRepository,
 		logger:                 logger,
 		appRepository:          appRepository,
 		userRepository:         userRepository,
 		installedAppRepository: installedAppRepository,
+		teamRepository:         teamRepository,
 	}
 }
 
@@ -478,8 +483,14 @@ func (impl AppCrudOperationServiceImpl) GetAppMetaInfoByAppName(appName string) 
 func (impl AppCrudOperationServiceImpl) GetAppListByTeamIds(teamIds []int, appType string) ([]*TeamAppBean, error) {
 	var appsRes []*TeamAppBean
 	teamMap := make(map[int]*TeamAppBean)
+	var err error
 	if len(teamIds) == 0 {
-		return appsRes, nil
+		//no teamIds, getting all active teamIds
+		teamIds, err = impl.teamRepository.FindAllActiveTeamIds()
+		if err != nil {
+			impl.logger.Errorw("error in getting all active team ids", "err", err)
+			return nil, err
+		}
 	}
 	apps, err := impl.appRepository.FindAppsByTeamIds(teamIds, appType)
 	if err != nil {
