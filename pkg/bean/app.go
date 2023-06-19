@@ -28,9 +28,10 @@ import (
 )
 
 const (
-	LayoutISO     = "2006-01-02 15:04:05"
-	LayoutUS      = "January 2, 2006 15:04:05"
-	LayoutRFC3339 = "2006-01-02T15:04:05Z07:00"
+	LayoutISO             = "2006-01-02 15:04:05"
+	LayoutUS              = "January 2, 2006 15:04:05"
+	LayoutRFC3339         = "2006-01-02T15:04:05Z07:00"
+	LayoutDDMMYY_HHMM12hr = "2 January,2006 15.04PM"
 )
 
 type SourceTypeConfig struct {

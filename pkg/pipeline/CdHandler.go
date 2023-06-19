@@ -1004,9 +1004,14 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 	if len(workflow.Image) > 0 {
 		imageTag = strings.Split(workflow.Image, ":")[1]
 	}
-
+	appName := workflowR.CdWorkflow.Pipeline.App.AppName
+	if workflowR.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
+		appName = fmt.Sprintf("%s-%s", bean.CD_WORKFLOW_TYPE_PRE, appName)
+	} else if workflowR.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
+		appName = fmt.Sprintf("%s-%s", bean.CD_WORKFLOW_TYPE_POST, appName)
+	}
 	helmPackageName := fmt.Sprintf("%s-%s-%s",
-		workflowR.CdWorkflow.Pipeline.App.AppName,
+		appName,
 		workflowR.CdWorkflow.Pipeline.Environment.Name,
 		imageTag)
 
