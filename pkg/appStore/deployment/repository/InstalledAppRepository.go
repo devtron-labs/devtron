@@ -162,6 +162,7 @@ type InstalledAppAndEnvDetails struct {
 	AppId                        int       `json:"app_id"`
 	InstalledAppId               int       `json:"installed_app_id"`
 	AppStoreApplicationVersionId int       `json:"app_store_application_version_id"`
+	AppStatus                    string    `json:"app_status"`
 	DeploymentAppType            string    `json:"-"`
 }
 
@@ -336,13 +337,14 @@ func (impl InstalledAppRepositoryImpl) GetAllInstalledApps(filter *appStoreBean.
 func (impl InstalledAppRepositoryImpl) GetAllIntalledAppsByAppStoreId(appStoreId int) ([]InstalledAppAndEnvDetails, error) {
 	var installedAppAndEnvDetails []InstalledAppAndEnvDetails
 	var queryTemp = "select env.environment_name, env.id as environment_id, a.app_name, a.app_offering_mode, ia.updated_on, u.email_id," +
-		" asav.id as app_store_application_version_id, iav.id as installed_app_version_id, ia.id as installed_app_id, ia.app_id, ia.deployment_app_type" +
+		" asav.id as app_store_application_version_id, iav.id as installed_app_version_id, ia.id as installed_app_id, ia.app_id, ia.deployment_app_type, app_status.status as app_status" +
 		" from installed_app_versions iav inner join installed_apps ia on iav.installed_app_id = ia.id" +
 		" inner join app a on a.id = ia.app_id " +
 		" inner join app_store_application_version asav on iav.app_store_application_version_id = asav.id " +
 		" inner join app_store aps on asav.app_store_id = aps.id " +
 		" inner join environment env on ia.environment_id = env.id " +
 		" left join users u on u.id = ia.updated_by " +
+		" left join app_status on app_status.app_id = ia.app_id and ia.environment_id = app_status.env_id\n" +
 		" where aps.id = " + strconv.Itoa(appStoreId) + " and ia.active=true and iav.active=true and env.active=true"
 	_, err := impl.dbConnection.Query(&installedAppAndEnvDetails, queryTemp)
 	if err != nil {
