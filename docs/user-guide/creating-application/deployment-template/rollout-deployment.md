@@ -794,7 +794,8 @@ envoyproxy.resources.limits.memory >= envoyproxy.resources.requests.memory
 ### KEDA Autoscaling
 [KEDA](https://keda.sh) is a Kubernetes-based Event Driven Autoscaler. With KEDA, you can drive the scaling of any container in Kubernetes based on the number of events needing to be processed. KEDA can be installed into any Kubernetes cluster and can work alongside standard Kubernetes components like the Horizontal Pod Autoscaler(HPA).
 
-Example for autosccaling with KEDA using Prometheus metrics is given below:
+
+Example for autoscaling with KEDA using Prometheus metrics is given below:
 ```yaml
 kedaAutoscaling:
   enabled: true
