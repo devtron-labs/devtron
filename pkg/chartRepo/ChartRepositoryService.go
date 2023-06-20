@@ -572,6 +572,12 @@ func (impl *ChartRepositoryServiceImpl) GetChartRepoListMin() ([]*ChartRepoDto, 
 
 func (impl *ChartRepositoryServiceImpl) ValidateChartRepo(request *ChartRepoDto) *DetailedErrorHelmRepoValidation {
 	var detailedErrorHelmRepoValidation DetailedErrorHelmRepoValidation
+	if len(request.Name) < 3 || strings.Contains(request.Name, " ") {
+		impl.logger.Errorw("name should not contain white spaces and should contain min 3 chars")
+		detailedErrorHelmRepoValidation.CustomErrMsg = fmt.Sprintf("name should not contain white spaces and should have min 3 chars")
+		detailedErrorHelmRepoValidation.ActualErrMsg = fmt.Sprintf("name should not contain white spaces and should have min 3 chars")
+		return &detailedErrorHelmRepoValidation
+	}
 	helmRepoConfig := &repo.Entry{
 		Name:     request.Name,
 		URL:      request.Url,
