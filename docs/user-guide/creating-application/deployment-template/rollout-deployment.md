@@ -793,7 +793,7 @@ envoyproxy.resources.limits.memory >= envoyproxy.resources.requests.memory
 
 ### KEDA Autoscaling
 
-**Prerequisite:** KEDA contoller should be installed in the cluster. To install KEDA controller using Helm, navigate to chart store and search for `keda` chart and deploy it. You can follow this [doc](../../deploy-chart/deployment-of-charts.md) for deploying a Helm chart on Devtron.
+**Prerequisite:** KEDA contoller should be installed in the cluster. To install KEDA controller using Helm, navigate to chart store and search for `keda` chart and deploy it. You can follow this [documentation](../../deploy-chart/deployment-of-charts.md) for deploying a Helm chart on Devtron.
 
 KEDA Helm repo : https://kedacore.github.io/charts
 
