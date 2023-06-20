@@ -114,13 +114,13 @@ secret:
 
 statefulSetConfig:
   mountPath: "/tmp"
-  volumeClaimTemplates:
-  - spec:
-      accessModes:
-        - ReadWriteOnce
-      resources: 
-        requests:
-          storage: "2Gi"
+  volumeClaimTemplates: []
+  # - spec:
+  #     accessModes:
+  #       - ReadWriteOnce
+  #     resources: 
+  #       requests:
+  #         storage: "2Gi"
 
 #service_headless: {}
   #name: "test-service_headless"

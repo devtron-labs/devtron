@@ -398,6 +398,7 @@ spec:
           resources:
 {{ toYaml $.Values.resources | trim | indent 12 }} 
           volumeMounts:
+            {{- if $.Values.statefulSetConfig.volumeClaimTemplates }}
             {{- with (index $.Values.statefulSetConfig.volumeClaimTemplates 0) }}
             {{- if and .metadata .metadata.name }}
             - name: {{ .metadata.name }}
@@ -409,6 +410,7 @@ spec:
               mountPath: {{ $.Values.statefulSetConfig.mountPath  }}
             {{- else}}
               mountPath: "/tmp"
+            {{- end}}
             {{- end}}
 {{- with .Values.volumeMounts }}
 {{ toYaml . | trim | indent 12 }}
