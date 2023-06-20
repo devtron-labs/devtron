@@ -18,6 +18,7 @@
 package appStore
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -36,6 +37,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/devtron-labs/devtron/util/response"
@@ -55,6 +57,7 @@ type InstalledAppRestHandler interface {
 	CheckAppExists(w http.ResponseWriter, r *http.Request)
 	DefaultComponentInstallation(w http.ResponseWriter, r *http.Request)
 	FetchAppDetailsForInstalledApp(w http.ResponseWriter, r *http.Request)
+	DeleteArgoInstalledAppWithNonCascade(w http.ResponseWriter, r *http.Request)
 	FetchAppDetailsForInstalledAppV2(w http.ResponseWriter, r *http.Request)
 	FetchResourceTree(w http.ResponseWriter, r *http.Request)
 	FetchResourceTreeForACDApp(w http.ResponseWriter, r *http.Request)
@@ -66,6 +69,7 @@ type InstalledAppRestHandlerImpl struct {
 	userAuthService                  user.UserService
 	enforcer                         casbin.Enforcer
 	enforcerUtil                     rbac.EnforcerUtil
+	enforcerUtilHelm                 rbac.EnforcerUtilHelm
 	installedAppService              service.InstalledAppService
 	validator                        *validator.Validate
 	clusterService                   cluster.ClusterService
@@ -79,7 +83,7 @@ type InstalledAppRestHandlerImpl struct {
 }
 
 func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
-	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, installedAppService service.InstalledAppService,
+	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, enforcerUtilHelm rbac.EnforcerUtilHelm, installedAppService service.InstalledAppService,
 	validator *validator.Validate, clusterService cluster.ClusterService, acdServiceClient application.ServiceClient,
 	appStoreDeploymentService service.AppStoreDeploymentService, helmAppClient client.HelmAppClient, helmAppService client.HelmAppService,
 	argoUserService argo.ArgoUserService,
@@ -91,6 +95,7 @@ func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService u
 		userAuthService:                  userAuthService,
 		enforcer:                         enforcer,
 		enforcerUtil:                     enforcerUtil,
+		enforcerUtilHelm:                 enforcerUtilHelm,
 		installedAppService:              installedAppService,
 		validator:                        validator,
 		clusterService:                   clusterService,
@@ -429,6 +434,82 @@ func (handler *InstalledAppRestHandlerImpl) FetchNotesForArgoInstalledApp(w http
 	common.WriteJsonResp(w, err, &bean2.Notes{Notes: notes}, http.StatusOK)
 
 }
+
+func (handler *InstalledAppRestHandlerImpl) DeleteArgoInstalledAppWithNonCascade(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	installedAppId, err := strconv.Atoi(vars["installedAppId"])
+	if err != nil {
+		handler.Logger.Errorw("request err, DeleteArgoInstalledAppWithNonCascade", "err", err, "installedAppId", installedAppId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	handler.Logger.Infow("request payload, delete app", "appId", installedAppId)
+	v := r.URL.Query()
+	forceDelete := false
+	force := v.Get("force")
+	if len(force) > 0 {
+		forceDelete, err = strconv.ParseBool(force)
+		if err != nil {
+			handler.Logger.Errorw("request err, NonCascadeDeleteCdPipeline", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+	}
+	installedApp, err := handler.appStoreDeploymentService.GetInstalledApp(installedAppId)
+	if err != nil {
+		handler.Logger.Error("request err, NonCascadeDeleteCdPipeline", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	if util.IsBaseStack() || util.IsHelmApp(installedApp.AppOfferingMode) || util2.IsHelmApp(installedApp.DeploymentAppType) {
+		handler.Logger.Errorw("request err, NonCascadeDeleteCdPipeline", "err", fmt.Errorf("nocascade delete is not supported for %s", installedApp.AppName))
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	//rbac block starts from here
+	rbacObject, rbacObject2 := handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(installedApp.AppName, installedApp.EnvironmentId)
+	ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionDelete, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionDelete, rbacObject2)
+	if !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		return
+	}
+	//rback block ends here
+	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		handler.Logger.Errorw("error in getting acd token", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	ctx := context.WithValue(r.Context(), "token", acdToken)
+	request := &appStoreBean.InstallAppVersionDTO{}
+	request.InstalledAppId = installedAppId
+	request.AppName = installedApp.AppName
+	request.AppId = installedApp.AppId
+	request.EnvironmentId = installedApp.EnvironmentId
+	request.UserId = userId
+	request.ForceDelete = forceDelete
+	request.NonCascadeDelete = true
+	request.AppOfferingMode = installedApp.AppOfferingMode
+	request.ClusterId = installedApp.ClusterId
+	request.Namespace = installedApp.Namespace
+	request.AcdPartialDelete = true
+
+	request, err = handler.appStoreDeploymentService.DeleteInstalledApp(ctx, request)
+	if err != nil {
+		handler.Logger.Errorw("service err, DeleteInstalledApp", "err", err, "installAppId", installedAppId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, nil, http.StatusOK)
+
+}
+
 func (handler *InstalledAppRestHandlerImpl) checkNotesAuth(token string, appName string, envId int) bool {
 
 	object, object2 := handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(appName, envId)
