@@ -183,6 +183,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	ttl := int32(impl.cdConfig.BuildLogTTLValue)
 	workflowTemplate := bean3.WorkflowTemplate{}
 	workflowTemplate.TTLValue = &ttl
+	workflowTemplate.TerminationGracePeriod = impl.cdConfig.TerminationGracePeriod
 	workflowTemplate.WorkflowId = workflowRequest.WorkflowId
 	workflowTemplate.WorkflowRunnerId = workflowRequest.WorkflowRunnerId
 	workflowTemplate.WorkflowRequestJson = string(workflowJson)

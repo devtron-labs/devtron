@@ -101,11 +101,9 @@ func (impl *SystemWorkflowExecutorImpl) getJobTemplate(workflowTemplate bean.Wor
 
 	workflowLabels := map[string]string{DEVTRON_WORKFLOW_LABEL_KEY: DEVTRON_WORKFLOW_LABEL_VALUE, "devtron.ai/purpose": "workflow"}
 
-	//setting TerminationGracePeriodSeconds in PodSpec to TTL Value
+	//setting TerminationGracePeriodSeconds in PodSpec
 	//which ensures Pod has enough time to execute cleanup on SIGTERM event
-	gracePeriodSeconds := int64(0) //int64(*workflowTemplate.TTLValue) TODO revert this change after handling SIGTERM in CI runner
-
-	workflowTemplate.PodSpec.TerminationGracePeriodSeconds = &gracePeriodSeconds
+	workflowTemplate.PodSpec.TerminationGracePeriodSeconds = pointer.Int64(int64(workflowTemplate.TerminationGracePeriod))
 	workflowJob := v1.Job{
 		TypeMeta: v12.TypeMeta{
 			Kind:       kube.JobKind,

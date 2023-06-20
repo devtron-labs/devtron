@@ -26,6 +26,7 @@ type WorkflowTemplate struct {
 	AzureBlobConfig        *blob_storage.AzureBlobConfig
 	GcpBlobConfig          *blob_storage.GcpBlobConfig
 	CloudStorageKey        string
+	TerminationGracePeriod int
 }
 
 type JobManifestTemplate struct {

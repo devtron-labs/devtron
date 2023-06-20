@@ -76,6 +76,7 @@ type CdConfig struct {
 	BaseLogLocationPath              string                              `env:"BASE_LOG_LOCATION_PATH" envDefault:"/home/devtron/"`
 	CdWorkflowExecutorType           pipelineConfig.WorkflowExecutorType `env:"CD_WORKFLOW_EXECUTOR_TYPE" envDefault:"AWF"`
 	InAppLoggingEnabled              bool                                `env:"IN_APP_LOGGING_ENABLED" envDefault:"false"`
+	TerminationGracePeriod           int                                 `env:"TERMINATION_GRACE_PERIOD_SECS" envDefault:"180"`
 }
 
 func GetCdConfig() (*CdConfig, error) {
