@@ -20,6 +20,7 @@ package pipeline
 import (
 	"encoding/json"
 	"errors"
+	"github.com/caarlos0/env"
 	repository "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -33,11 +34,16 @@ const TagsKey = "tags"
 const CommentKey = "comment"
 const DuplicateTagsInAppError = "cannot create duplicate tags in the same app"
 
+type ImageTaggingServiceConfig struct {
+	HideImageTaggingHardDelete bool `env:"HIDE_IMAGE_TAGGING_HARD_DELETE" envDefault:"false"`
+}
+
 type ImageTaggingResponseDTO struct {
-	ImageReleaseTags []*repository.ImageTag   `json:"imageReleaseTags"`
-	AppReleaseTags   []string                 `json:"appReleaseTags"`
-	ImageComment     *repository.ImageComment `json:"imageComment"`
-	ProdEnvExists    bool                     `json:"tagsEditable"`
+	ImageReleaseTags           []*repository.ImageTag   `json:"imageReleaseTags"`
+	AppReleaseTags             []string                 `json:"appReleaseTags"`
+	ImageComment               *repository.ImageComment `json:"imageComment"`
+	ProdEnvExists              bool                     `json:"tagsEditable"`
+	HideImageTaggingHardDelete bool                     `json:"hideImageTaggingHardDelete"`
 }
 
 type ImageTaggingRequestDTO struct {
@@ -66,14 +72,16 @@ type ImageTaggingService interface {
 	GetImageCommentsDataMapByArtifactIds(artifactIds []int) (map[int]*repository.ImageComment, error)
 	// GetUniqueTagsByAppId gets all the unique tag names for the given appId
 	GetUniqueTagsByAppId(appId int) ([]string, error)
+	GetImageTaggingServiceConfig() ImageTaggingServiceConfig
 }
 
 type ImageTaggingServiceImpl struct {
-	imageTaggingRepo      repository.ImageTaggingRepository
-	ciPipelineRepository  pipelineConfig.CiPipelineRepository
-	cdPipelineRepository  pipelineConfig.PipelineRepository
-	environmentRepository repository2.EnvironmentRepository
-	logger                *zap.SugaredLogger
+	imageTaggingRepo          repository.ImageTaggingRepository
+	ciPipelineRepository      pipelineConfig.CiPipelineRepository
+	cdPipelineRepository      pipelineConfig.PipelineRepository
+	environmentRepository     repository2.EnvironmentRepository
+	logger                    *zap.SugaredLogger
+	imageTaggingServiceConfig *ImageTaggingServiceConfig
 }
 
 func NewImageTaggingServiceImpl(imageTaggingRepo repository.ImageTaggingRepository,
@@ -81,13 +89,23 @@ func NewImageTaggingServiceImpl(imageTaggingRepo repository.ImageTaggingReposito
 	cdPipelineRepository pipelineConfig.PipelineRepository,
 	environmentRepository repository2.EnvironmentRepository,
 	logger *zap.SugaredLogger) *ImageTaggingServiceImpl {
-	return &ImageTaggingServiceImpl{
-		imageTaggingRepo:      imageTaggingRepo,
-		ciPipelineRepository:  ciPipelineRepository,
-		cdPipelineRepository:  cdPipelineRepository,
-		environmentRepository: environmentRepository,
-		logger:                logger,
+	imageTaggingServiceConfig := &ImageTaggingServiceConfig{}
+	err := env.Parse(imageTaggingServiceConfig)
+	if err != nil {
+		logger.Infow("error occurred while parsing ImageTaggingServiceConfig,so setting HIDE_IMAGE_TAGGING_HARD_DELETE to default value", "err", err)
 	}
+	return &ImageTaggingServiceImpl{
+		imageTaggingRepo:          imageTaggingRepo,
+		ciPipelineRepository:      ciPipelineRepository,
+		cdPipelineRepository:      cdPipelineRepository,
+		environmentRepository:     environmentRepository,
+		logger:                    logger,
+		imageTaggingServiceConfig: imageTaggingServiceConfig,
+	}
+}
+
+func (impl ImageTaggingServiceImpl) GetImageTaggingServiceConfig() ImageTaggingServiceConfig {
+	return *impl.imageTaggingServiceConfig
 }
 
 // GetTagsData returns the following fields in reponse Object
@@ -121,6 +139,7 @@ func (impl ImageTaggingServiceImpl) GetTagsData(ciPipelineId, appId, artifactId 
 	resp.ImageReleaseTags = imageReleaseTags
 	resp.ImageComment = &imageComment
 	resp.ProdEnvExists = prodEnvExists
+	resp.HideImageTaggingHardDelete = impl.imageTaggingServiceConfig.HideImageTaggingHardDelete
 	return resp, err
 }
 

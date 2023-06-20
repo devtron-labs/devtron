@@ -26,9 +26,10 @@ import (
 )
 
 type DeploymentHistoryResp struct {
-	CdWorkflows        []pipelineConfig.CdWorkflowWithArtifact `json:"cdWorkflows"`
-	TagsEdiatable      bool                                    `json:"tagsEditable"`
-	AppReleaseTagNames []string                                `json:"appReleaseTagNames"` //unique list of tags exists in the app
+	CdWorkflows                []pipelineConfig.CdWorkflowWithArtifact `json:"cdWorkflows"`
+	TagsEdiatable              bool                                    `json:"tagsEditable"`
+	AppReleaseTagNames         []string                                `json:"appReleaseTagNames"` //unique list of tags exists in the app
+	HideImageTaggingHardDelete bool                                    `json:"hideImageTaggingHardDelete"`
 }
 type DevtronAppDeploymentRestHandler interface {
 	CreateCdPipeline(w http.ResponseWriter, r *http.Request)
@@ -960,6 +961,7 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 
 	prodEnvExists, err := handler.imageTaggingService.GetProdEnvByCdPipelineId(pipeline.Id)
 	ciArtifactResponse.TagsEditable = prodEnvExists && triggerAccess
+	ciArtifactResponse.HideImageTaggingHardDelete = handler.imageTaggingService.GetImageTaggingServiceConfig().HideImageTaggingHardDelete
 	if err != nil {
 		handler.Logger.Errorw("service err, GetProdEnvByCdPipelineId", "err", err, "cdPipelineId", pipeline.Id)
 		common.WriteJsonResp(w, err, ciArtifactResponse, http.StatusInternalServerError)
@@ -1522,6 +1524,7 @@ func (handler *PipelineConfigRestHandlerImpl) ListDeploymentHistory(w http.Respo
 
 	prodEnvExists, err := handler.imageTaggingService.GetProdEnvByCdPipelineId(pipelineId)
 	resp.TagsEdiatable = prodEnvExists
+	resp.HideImageTaggingHardDelete = handler.imageTaggingService.GetImageTaggingServiceConfig().HideImageTaggingHardDelete
 	if err != nil {
 		handler.Logger.Errorw("service err, GetProdEnvFromParentAndLinkedWorkflow", "err", err, "cdPipelineId", pipelineId)
 		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)

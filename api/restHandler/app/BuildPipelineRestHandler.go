@@ -27,9 +27,10 @@ import (
 const GIT_MATERIAL_DELETE_SUCCESS_RESP = "Git material deleted successfully."
 
 type BuildHistoryResponse struct {
-	TagsEditable       bool                        `json:"tagsEditable"`
-	AppReleaseTagNames []string                    `json:"appReleaseTagNames"` //unique list of tags exists in the app
-	CiWorkflows        []pipeline.WorkflowResponse `json:"ciWorkflows"`
+	HideImageTaggingHardDelete bool                        `json:"hideImageTaggingHardDelete"`
+	TagsEditable               bool                        `json:"tagsEditable"`
+	AppReleaseTagNames         []string                    `json:"appReleaseTagNames"` //unique list of tags exists in the app
+	CiWorkflows                []pipeline.WorkflowResponse `json:"ciWorkflows"`
 }
 type DevtronAppBuildRestHandler interface {
 	CreateCiConfig(w http.ResponseWriter, r *http.Request)
@@ -802,6 +803,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetBuildHistory(w http.ResponseWri
 
 	prodEnvExists, err := handler.imageTaggingService.GetProdEnvFromParentAndLinkedWorkflow(ciPipeline.Id)
 	resp.TagsEditable = prodEnvExists && triggerAccess
+	resp.HideImageTaggingHardDelete = handler.imageTaggingService.GetImageTaggingServiceConfig().HideImageTaggingHardDelete
 	if err != nil {
 		handler.Logger.Errorw("service err, GetProdEnvFromParentAndLinkedWorkflow", "err", err, "ciPipelineId", ciPipeline.Id)
 		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
