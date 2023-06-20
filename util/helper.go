@@ -295,6 +295,17 @@ func InterfaceToFloat(resp interface{}) float64 {
 	return dat
 }
 
+type HpaResourceRequest struct {
+	ResourceName    string
+	ReqReplicaCount float64
+	ReqMaxReplicas  float64
+	ReqMinReplicas  float64
+	IsEnable        bool
+	Group           string
+	Version         string
+	Kind            string
+}
+
 func IsSubset(subset, superset []string) bool {
 	supersetMap := make(map[string]bool, len(superset))
 	for _, element := range superset {
@@ -306,15 +317,4 @@ func IsSubset(subset, superset []string) bool {
 		}
 	}
 	return true
-}
-
-type HpaResourceRequest struct {
-	ResourceName    string
-	ReqReplicaCount float64
-	ReqMaxReplicas  float64
-	ReqMinReplicas  float64
-	IsEnable        bool
-	Group           string
-	Version         string
-	Kind            string
 }
