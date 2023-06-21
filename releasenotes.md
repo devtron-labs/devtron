@@ -1,3 +1,7 @@
+## v0.6.18-rc.2
+
+
+
 
 ## Bugs
 - fix: Global secret data bug in CI workflow (#3504)
