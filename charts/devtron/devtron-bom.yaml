@@ -21,7 +21,7 @@ components:
         USE_V2: "true"
         ENABLE_BUILD_CONTEXT: "true"
   devtron:
-    image: "quay.io/devtron/hyperion:0c4a87c6-280-14250"
+    image: "quay.io/devtron/hyperion:7753c93e-280-14252"
     cicdImage: "quay.io/devtron/devtron:0c4a87c6-434-14251"
   argocdDexServer:
     image: "ghcr.io/dexidp/dex:v2.30.2"
