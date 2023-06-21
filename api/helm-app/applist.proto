@@ -35,6 +35,7 @@ service ApplicationService {
   rpc InstallReleaseWithCustomChart(HelmInstallCustomRequest) returns (HelmInstallCustomResponse) {}
   rpc GetNotes(InstallReleaseRequest) returns (ChartNotesResponse) {}
   rpc ValidateOCIRegistry(OCIRegistryRequest) returns(OCIRegistryResponse) {}
+  rpc PushHelmChartToOCIRegistry(OCIRegistryRequest) returns(OCIRegistryResponse) {}
 }
 
 message DeployedAppList {
@@ -329,11 +330,9 @@ message OCIRegistryRequest {
 message OCIRegistryResponse {
   bool isLoggedIn = 1;
   OCIRegistryPushResponse result = 2;
-  string errorMsg = 3;
 }
 
 message OCIRegistryPushResponse {
   string digest = 1;
   string pushedURL = 2;
-  string errorMsg = 3;
 }
