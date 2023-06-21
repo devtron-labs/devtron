@@ -260,13 +260,17 @@ func (impl *CiServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, 
 		Message:            "",
 		StartedOn:          time.Now(),
 		CiPipelineId:       pipeline.Id,
-		Namespace:          wfConfig.Namespace,
+		Namespace:          impl.ciConfig.DefaultNamespace,
 		BlobStorageEnabled: impl.ciConfig.BlobStorageEnabled,
 		GitTriggers:        gitTriggers,
 		LogLocation:        "",
 		TriggeredBy:        userId,
 	}
-	err := impl.ciWorkflowRepository.SaveWorkFlow(ciWorkflow)
+	env, err := impl.envRepository.FindById(pipeline.EnvironmentId)
+	if err == nil {
+		ciWorkflow.Namespace = env.Namespace
+	}
+	err = impl.ciWorkflowRepository.SaveWorkFlow(ciWorkflow)
 	if err != nil {
 		impl.Logger.Errorw("saving workflow error", "err", err)
 		return &pipelineConfig.CiWorkflow{}, err
