@@ -28,6 +28,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"io/ioutil"
 	errors2 "k8s.io/apimachinery/pkg/api/errors"
@@ -98,6 +99,7 @@ type CiHandlerImpl struct {
 	cdPipelineRepository         pipelineConfig.PipelineRepository
 	enforcerUtil                 rbac.EnforcerUtil
 	appGroupService              appGroup2.AppGroupService
+	envRepository                repository2.EnvironmentRepository
 }
 
 func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
@@ -105,7 +107,7 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 	ciLogService CiLogService, ciConfig *CiConfig, ciArtifactRepository repository.CiArtifactRepository, userService user.UserService, eventClient client.EventClient,
 	eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository, appListingRepository repository.AppListingRepository,
 	K8sUtil *util.K8sUtil, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil,
-	appGroupService appGroup2.AppGroupService) *CiHandlerImpl {
+	appGroupService appGroup2.AppGroupService, envRepository repository2.EnvironmentRepository) *CiHandlerImpl {
 	return &CiHandlerImpl{
 		Logger:                       Logger,
 		ciService:                    ciService,
@@ -125,6 +127,7 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 		cdPipelineRepository:         cdPipelineRepository,
 		enforcerUtil:                 enforcerUtil,
 		appGroupService:              appGroupService,
+		envRepository:                envRepository,
 	}
 }
 
@@ -149,7 +152,7 @@ type WorkflowResponse struct {
 	ArtifactId           int                                         `json:"artifactId"`
 	IsArtifactUploaded   bool                                        `json:"isArtifactUploaded"`
 	IsVirtualEnvironment bool                                        `json:"isVirtualEnvironment"`
-  	PodName              string                                      `json:"podName"`
+	PodName              string                                      `json:"podName"`
 }
 
 type GitTriggerInfoResponse struct {
@@ -591,8 +594,14 @@ func (impl *CiHandlerImpl) getWorkflowLogs(pipelineId int, ciWorkflow *pipelineC
 		PodName:   ciWorkflow.PodName,
 		Namespace: ciWorkflow.Namespace,
 	}
-	var clusterConfig util.ClusterConfig
-	logStream, cleanUp, err := impl.ciLogService.FetchRunningWorkflowLogs(ciLogRequest, clusterConfig, false)
+	env, err := impl.envRepository.FindById(ciWorkflow.CiPipeline.EnvironmentId)
+	configMap := env.Cluster.Config
+	clusterConfig := util.ClusterConfig{
+		Host:                  env.Cluster.ServerUrl,
+		BearerToken:           configMap[util.BearerToken],
+		InsecureSkipTLSVerify: env.Cluster.InsecureSkipTlsVerify,
+	}
+	logStream, cleanUp, err := impl.ciLogService.FetchRunningWorkflowLogs(ciLogRequest, clusterConfig, true)
 	if logStream == nil || err != nil {
 		if !ciWorkflow.BlobStorageEnabled {
 			return nil, nil, errors.New("logs-not-stored-in-repository")
