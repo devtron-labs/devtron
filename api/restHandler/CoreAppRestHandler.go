@@ -61,6 +61,7 @@ const (
 	APP_DELETE_FAILED_RESP              = "App deletion failed, please try deleting from Devtron UI"
 	APP_CREATE_SUCCESSFUL_RESP          = "App created successfully."
 	APP_WORKFLOW_CREATE_SUCCESSFUL_RESP = "App workflow created successfully."
+	WORKFLOW_NAME_EMPTY                 = ""
 )
 
 type CoreAppRestHandler interface {
@@ -194,7 +195,8 @@ func (handler CoreAppRestHandlerImpl) GetAppAllDetail(w http.ResponseWriter, r *
 	//get/build global deployment template ends
 
 	//get/build app workflows starts
-	appWorkflows, err, statusCode := handler.buildAppWorkflows(appId, "")
+	//using empty workflow name because it is optional, if not provided then workflows will be fetched on the basis of app
+	appWorkflows, err, statusCode := handler.buildAppWorkflows(appId, WORKFLOW_NAME_EMPTY)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, statusCode)
 		return
@@ -2160,7 +2162,8 @@ func (handler CoreAppRestHandlerImpl) GetAppWorkflow(w http.ResponseWriter, r *h
 	}
 
 	//get/build app workflows starts
-	appWorkflows, err, statusCode := handler.buildAppWorkflows(appId, "")
+	//using empty workflow name because it is optional, if not provided then workflows will be fetched on the basis of app
+	appWorkflows, err, statusCode := handler.buildAppWorkflows(appId, WORKFLOW_NAME_EMPTY)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, statusCode)
 		return
