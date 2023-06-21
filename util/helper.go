@@ -294,3 +294,14 @@ func InterfaceToFloat(resp interface{}) float64 {
 	}
 	return dat
 }
+
+type HpaResourceRequest struct {
+	ResourceName    string
+	ReqReplicaCount float64
+	ReqMaxReplicas  float64
+	ReqMinReplicas  float64
+	IsEnable        bool
+	Group           string
+	Version         string
+	Kind            string
+}

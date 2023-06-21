@@ -48,6 +48,14 @@ const (
 	InstallerCrdObjectStatusApplied    InstallerCrdObjectStatus = "Applied"
 )
 
+type ScanExecutionProcessState int
+
+const (
+	ScanExecutionProcessStateFailed    ScanExecutionProcessState = iota - 1 //resolved value = -1
+	ScanExecutionProcessStateRunning                                        //resolved value =  0
+	ScanExecutionProcessStateCompleted                                      //resolved value =  1
+)
+
 type HelmReleaseStatus = string
 
 // Describe the status of a release

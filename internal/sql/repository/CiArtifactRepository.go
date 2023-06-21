@@ -113,7 +113,7 @@ func (impl CiArtifactRepositoryImpl) GetArtifactParentCiAndWorkflowDetailsByIds(
 	}
 
 	err := impl.dbConnection.Model(&artifacts).
-		Column("ci_artifact.ci_workflow_id", "ci_artifact.parent_ci_artifact", "ci_artifact.external_ci_pipeline_id").
+		Column("ci_artifact.ci_workflow_id", "ci_artifact.parent_ci_artifact", "ci_artifact.external_ci_pipeline_id", "ci_artifact.id").
 		Where("ci_artifact.id in (?)", pg.In(ids)).
 		Select()
 

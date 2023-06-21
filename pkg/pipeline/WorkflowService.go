@@ -114,6 +114,8 @@ type WorkflowRequest struct {
 	BlobStorageS3Config        *blob_storage.BlobStorageS3Config `json:"blobStorageS3Config"`
 	AzureBlobConfig            *blob_storage.AzureBlobConfig     `json:"azureBlobConfig"`
 	GcpBlobConfig              *blob_storage.GcpBlobConfig       `json:"gcpBlobConfig"`
+	BlobStorageLogsKey         string                            `json:"blobStorageLogsKey"`
+	InAppLoggingEnabled        bool                              `json:"inAppLoggingEnabled"`
 	DefaultAddressPoolBaseCidr string                            `json:"defaultAddressPoolBaseCidr"`
 	DefaultAddressPoolSize     int                               `json:"defaultAddressPoolSize"`
 	PreCiSteps                 []*bean2.StepObject               `json:"preCiSteps"`
@@ -232,6 +234,8 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		CiRequest: workflowRequest,
 	}
 
+	ciCdTriggerEvent.CiRequest.BlobStorageLogsKey = fmt.Sprintf("%s/%s", impl.ciConfig.DefaultBuildLogsKeyPrefix, workflowRequest.WorkflowNamePrefix)
+	ciCdTriggerEvent.CiRequest.InAppLoggingEnabled = impl.ciConfig.InAppLoggingEnabled
 	workflowJson, err := json.Marshal(&ciCdTriggerEvent)
 	if err != nil {
 		impl.Logger.Errorw("err", err)
@@ -257,7 +261,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 
 	privileged := true
 	blobStorageConfigured := workflowRequest.BlobStorageConfigured
-	archiveLogs := blobStorageConfigured
+	archiveLogs := blobStorageConfigured && !impl.ciConfig.InAppLoggingEnabled
 
 	limitCpu := impl.ciConfig.LimitCpu
 	limitMem := impl.ciConfig.LimitMem
@@ -284,7 +288,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	volumes := make([]v12.Volume, 0)
 	templates := make([]v1alpha1.Template, 0)
 
-	err = impl.globalCMCSService.AddTemplatesForGlobalSecretsInWorkflowTemplate(globalCmCsConfigs, &steps, &volumes, &templates)
+	err = AddTemplatesForGlobalSecretsInWorkflowTemplate(globalCmCsConfigs, &steps, &volumes, &templates)
 	if err != nil {
 		impl.Logger.Errorw("error in creating templates for global secrets", "err", err)
 	}
@@ -483,12 +487,14 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 
 	}
 
+	eventEnv := v12.EnvVar{Name: "CI_CD_EVENT", Value: string(workflowJson)}
+	inAppLoggingEnv := v12.EnvVar{Name: "IN_APP_LOGGING", Value: strconv.FormatBool(impl.ciConfig.InAppLoggingEnabled)}
+	containerEnvVariables = append(containerEnvVariables, eventEnv, inAppLoggingEnv)
 	ciTemplate := v1alpha1.Template{
 		Name: CI_WORKFLOW_NAME,
 		Container: &v12.Container{
 			Env:   containerEnvVariables,
 			Image: workflowRequest.CiImage, //TODO need to check whether trigger buildx image or normal image
-			Args:  []string{string(workflowJson)},
 			SecurityContext: &v12.SecurityContext{
 				Privileged: &privileged,
 			},

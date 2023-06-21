@@ -185,6 +185,11 @@ const (
 )
 
 const (
+	CASCADE_DELETE int = iota
+	NON_CASCADE_DELETE
+	FORCE_DELETE
+)
+const (
 	WEBHOOK_SELECTOR_UNIQUE_ID_NAME          string = "unique id"
 	WEBHOOK_SELECTOR_REPOSITORY_URL_NAME     string = "repository url"
 	WEBHOOK_SELECTOR_HEADER_NAME             string = "header"
@@ -484,7 +489,7 @@ type CDPipelineConfigObject struct {
 	TriggerType                   pipelineConfig.TriggerType             `json:"triggerType,omitempty" validate:"oneof=AUTOMATIC MANUAL"`
 	Name                          string                                 `json:"name,omitempty" validate:"name-component,max=50"` //pipelineName
 	Strategies                    []Strategy                             `json:"strategies,omitempty"`
-	Namespace                     string                                 `json:"namespace,omitempty" validate:"name-space-component,max=50"` //namespace
+	Namespace                     string                                 `json:"namespace,omitempty"` //namespace
 	AppWorkflowId                 int                                    `json:"appWorkflowId,omitempty" `
 	DeploymentTemplate            chartRepoRepository.DeploymentStrategy `json:"deploymentTemplate,omitempty"` //
 	PreStage                      CdStage                                `json:"preStage,omitempty"`
@@ -503,6 +508,7 @@ type CDPipelineConfigObject struct {
 	AppId                         int                                    `json:"appId"`
 	TeamId                        int                                    `json:"-"`
 	EnvironmentIdentifier         string                                 `json:"-" `
+	IsVirtualEnvironment          bool                                   `json:"isVirtualEnvironment"`
 }
 
 type PreStageConfigMapSecretNames struct {
@@ -531,17 +537,25 @@ type Strategy struct {
 }
 
 type CdPipelines struct {
-	Pipelines []*CDPipelineConfigObject `json:"pipelines,omitempty" validate:"dive"`
-	AppId     int                       `json:"appId,omitempty"  validate:"number,required" `
-	UserId    int32                     `json:"-"`
+	Pipelines         []*CDPipelineConfigObject `json:"pipelines,omitempty" validate:"dive"`
+	AppId             int                       `json:"appId,omitempty"  validate:"number,required" `
+	UserId            int32                     `json:"-"`
+	AppDeleteResponse *AppDeleteResponseDTO     `json:"deleteResponse,omitempty"`
+}
+
+type AppDeleteResponseDTO struct {
+	DeleteInitiated  bool   `json:"deleteInitiated"`
+	ClusterReachable bool   `json:"clusterReachable"`
+	ClusterName      string `json:"clusterName"`
 }
 
 type CDPatchRequest struct {
-	Pipeline    *CDPipelineConfigObject `json:"pipeline,omitempty"`
-	AppId       int                     `json:"appId,omitempty"`
-	Action      CdPatchAction           `json:"action,omitempty"`
-	UserId      int32                   `json:"-"`
-	ForceDelete bool                    `json:"-"`
+	Pipeline         *CDPipelineConfigObject `json:"pipeline,omitempty"`
+	AppId            int                     `json:"appId,omitempty"`
+	Action           CdPatchAction           `json:"action,omitempty"`
+	UserId           int32                   `json:"-"`
+	ForceDelete      bool                    `json:"-"`
+	NonCascadeDelete bool                    `json:"-"`
 }
 
 type CdPatchAction int
@@ -585,12 +599,30 @@ type CdPipelineTrigger struct {
 	PipelineId   int `json:"pipelineId"`
 }
 
-type DeploymentType string
+type DeploymentType = string
 
 const (
-	Helm   DeploymentType = "helm"
-	ArgoCd DeploymentType = "argo_cd"
+	Helm                    DeploymentType = "helm"
+	ArgoCd                  DeploymentType = "argo_cd"
+	ManifestDownload        DeploymentType = "manifest_download"
+	GitOpsWithoutDeployment DeploymentType = "git_ops_without_deployment"
 )
+
+func IsAcdApp(deploymentType string) bool {
+	return deploymentType == ArgoCd
+}
+
+func IsHelmApp(deploymentType string) bool {
+	return deploymentType == Helm
+}
+
+func IsManifestDownload(deploymentType string) bool {
+	return deploymentType == ManifestDownload
+}
+
+func IsGitOpsWithoutDeployment(deploymentType string) bool {
+	return deploymentType == GitOpsWithoutDeployment
+}
 
 type Status string
 
@@ -706,12 +738,13 @@ const (
 )
 
 type CdBulkActionRequestDto struct {
-	Action      CdBulkAction `json:"action"`
-	EnvIds      []int        `json:"envIds"`
-	AppIds      []int        `json:"appIds"`
-	ProjectIds  []int        `json:"projectIds"`
-	ForceDelete bool         `json:"forceDelete"`
-	UserId      int32        `json:"-"`
+	Action        CdBulkAction `json:"action"`
+	EnvIds        []int        `json:"envIds"`
+	AppIds        []int        `json:"appIds"`
+	ProjectIds    []int        `json:"projectIds"`
+	ForceDelete   bool         `json:"forceDelete"`
+	CascadeDelete bool         `json:"cascadeDelete"`
+	UserId        int32        `json:"-"`
 }
 
 type CdBulkActionResponseDto struct {

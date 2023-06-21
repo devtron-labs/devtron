@@ -1,23 +1,29 @@
-## v0.6.15
+## v0.6.18-rc.1
+
+
 
 ## Bugs
-- fix: updated condition for handling linked ci creation with parent ci docker config overriden (#3243)
-- fix: updated condition for getting role filters  (#3261)
-- fix: bulk cd deployment trigger failing (#3233)
-- fix: Pipeline strategy empty check (#3256)
-- fix: SSO Login credentials are sent null to secret if we save after obfuscation (#3248)
-- fix: helm pipeline force delete check update (#3245)
-- fix: git sensor initContainer indentation fix (#3229)
-- fix: updated rbac for devtron apps/helm pipeline (#3227)
-- fix: updated query for getting workflow runner by appId and envId for active pipelines only (#3222)
-- Fix: App grouping optimisation on ci pipelines (#3219)
-- fix: label key can be saved without value if saved without propagation (#3190)
-- fix: rbac optimisation for creation of policies for devtron app, helm app and cluster (#2948)
-- fix: handled case for failed type assertion (#3208)
+- Fix: argo workflow double encoding of secret value in template (#3496)
+- fix: enable api for all users for module (#3495)
+## Documentation
+- docs: adding clusters on devtron using kubeconfig (#3494)
+- docs: helm-charts permissions correction (#3484)
+
+
+## v0.6.18-rc.0
+
+## Bugs
+- fix: shows commit details only on currently deployed image on deployment history (#3382)
+- fix: sql script fix (#3474)
+- fix: bulk-chart-deploy-fix (#3478)
+- fix: image pull secret (#3488)
+- fix: minor trivy fix (#3483)
+- fix: argocd-cm empty data label nil pointer fix (#3443)
 ## Enhancements
-- Feat: Added observability for logged in user (#3204)
-## Others
-- chore: Discord notification for pager duty label issues  (#3265)
-- fix  - handled nil pointer access, fixed not null constraint for git material deletion (#3199)
-
-
+- feat: validate kubeconfig and save clusters (#3148)
+- feat: Cd refactoring migration (#3470)
+- feat: Trivy Image Scanning (#3373)
+- feat: added support for in app logging archival from CI runner (#3467)
+## Documentation
+- docs: updated doc for incluster (#3473)
+- docs: ESO AWS secrets manager using clustersecretstore (#3453)

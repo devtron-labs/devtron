@@ -22,11 +22,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
+	"github.com/devtron-labs/devtron/pkg/bean"
 	"k8s.io/utils/strings/slices"
-	"time"
 
 	v1alpha12 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
@@ -224,6 +226,7 @@ func (impl *ApplicationStatusHandlerImpl) updateArgoAppDeleteStatus(app *v1alpha
 		}
 		deleteRequest := &appStoreBean.InstallAppVersionDTO{}
 		deleteRequest.ForceDelete = false
+		deleteRequest.NonCascadeDelete = false
 		deleteRequest.AcdPartialDelete = false
 		deleteRequest.InstalledAppId = model.InstalledAppId
 		deleteRequest.AppId = model.AppId
@@ -240,7 +243,7 @@ func (impl *ApplicationStatusHandlerImpl) updateArgoAppDeleteStatus(app *v1alpha
 		}
 	} else {
 		// devtron app
-		err = impl.pipelineBuilder.DeleteCdPipeline(&pipeline, context.Background(), true, false, 0)
+		_, err = impl.pipelineBuilder.DeleteCdPipeline(&pipeline, context.Background(), bean.FORCE_DELETE, false, 1)
 		if err != nil {
 			impl.logger.Errorw("error in deleting cd pipeline", "err", err)
 			return err

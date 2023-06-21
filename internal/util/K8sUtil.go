@@ -23,19 +23,19 @@ import (
 	error2 "errors"
 	"flag"
 	"fmt"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/version"
 	"net/http"
 	"os/user"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/version"
+
 	"github.com/devtron-labs/authenticator/client"
-	"github.com/ghodss/yaml"
 	"go.uber.org/zap"
 	batchV1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
@@ -47,6 +47,7 @@ import (
 	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"sigs.k8s.io/yaml"
 )
 
 type K8sUtil struct {
@@ -56,9 +57,20 @@ type K8sUtil struct {
 }
 
 type ClusterConfig struct {
-	Host        string
-	BearerToken string
+	ClusterName           string
+	Host                  string
+	BearerToken           string
+	InsecureSkipTLSVerify bool
+	KeyData               string
+	CertData              string
+	CAData                string
 }
+
+const DEFAULT_CLUSTER = "default_cluster"
+const BearerToken = "bearer_token"
+const CertificateAuthorityData = "cert_auth_data"
+const CertData = "cert_data"
+const TlsKey = "tls_key"
 
 func NewK8sUtil(logger *zap.SugaredLogger, runTimeConfig *client.RuntimeConfig) *K8sUtil {
 	usr, err := user.Current()
@@ -74,11 +86,34 @@ func NewK8sUtil(logger *zap.SugaredLogger, runTimeConfig *client.RuntimeConfig) 
 	return &K8sUtil{logger: logger, runTimeConfig: runTimeConfig, kubeconfig: kubeconfig}
 }
 
+func (impl K8sUtil) GetRestConfigByCluster(configMap *ClusterConfig) (*rest.Config, error) {
+	bearerToken := configMap.BearerToken
+	var restConfig *rest.Config
+	var err error
+	if configMap.ClusterName == DEFAULT_CLUSTER && len(bearerToken) == 0 {
+		restConfig, err = impl.GetK8sClusterRestConfig()
+		if err != nil {
+			impl.logger.Errorw("error in getting rest config for default cluster", "err", err)
+			return nil, err
+		}
+	} else {
+		restConfig = &rest.Config{Host: configMap.Host, BearerToken: bearerToken, TLSClientConfig: rest.TLSClientConfig{Insecure: configMap.InsecureSkipTLSVerify}}
+		if configMap.InsecureSkipTLSVerify == false {
+			restConfig.TLSClientConfig.ServerName = restConfig.ServerName
+			restConfig.TLSClientConfig.KeyData = []byte(configMap.KeyData)
+			restConfig.TLSClientConfig.CertData = []byte(configMap.CertData)
+			restConfig.TLSClientConfig.CAData = []byte(configMap.CAData)
+		}
+	}
+	return restConfig, nil
+}
+
 func (impl K8sUtil) GetClient(clusterConfig *ClusterConfig) (*v12.CoreV1Client, error) {
-	cfg := &rest.Config{}
-	cfg.Host = clusterConfig.Host
-	cfg.BearerToken = clusterConfig.BearerToken
-	cfg.Insecure = true
+	cfg, err := impl.GetRestConfigByCluster(clusterConfig)
+	if err != nil {
+		impl.logger.Errorw("error in getting rest config for default cluster", "err", err)
+		return nil, err
+	}
 	httpClient, err := OverrideK8sHttpClientWithTracer(cfg)
 	if err != nil {
 		return nil, err
@@ -88,10 +123,11 @@ func (impl K8sUtil) GetClient(clusterConfig *ClusterConfig) (*v12.CoreV1Client, 
 }
 
 func (impl K8sUtil) GetClientSet(clusterConfig *ClusterConfig) (*kubernetes.Clientset, error) {
-	cfg := &rest.Config{}
-	cfg.Host = clusterConfig.Host
-	cfg.BearerToken = clusterConfig.BearerToken
-	cfg.Insecure = true
+	cfg, err := impl.GetRestConfigByCluster(clusterConfig)
+	if err != nil {
+		impl.logger.Errorw("error in getting rest config for default cluster", "err", err)
+		return nil, err
+	}
 	httpClient, err := OverrideK8sHttpClientWithTracer(cfg)
 	if err != nil {
 		return nil, err
@@ -157,10 +193,11 @@ func (impl K8sUtil) GetK8sClient() (*v12.CoreV1Client, error) {
 }
 
 func (impl K8sUtil) GetK8sDiscoveryClient(clusterConfig *ClusterConfig) (*discovery.DiscoveryClient, error) {
-	cfg := &rest.Config{}
-	cfg.Host = clusterConfig.Host
-	cfg.BearerToken = clusterConfig.BearerToken
-	cfg.Insecure = true
+	cfg, err := impl.GetRestConfigByCluster(clusterConfig)
+	if err != nil {
+		impl.logger.Errorw("error in getting rest config for default cluster", "err", err)
+		return nil, err
+	}
 	httpClient, err := OverrideK8sHttpClientWithTracer(cfg)
 	if err != nil {
 		return nil, err
@@ -504,7 +541,7 @@ func (impl K8sUtil) ListNamespaces(client *v12.CoreV1Client) (*v1.NamespaceList,
 }
 
 func (impl K8sUtil) GetClientByToken(serverUrl string, token map[string]string) (*v12.CoreV1Client, error) {
-	bearerToken := token["bearer_token"]
+	bearerToken := token[BearerToken]
 	clusterCfg := &ClusterConfig{Host: serverUrl, BearerToken: bearerToken}
 	client, err := impl.GetClient(clusterCfg)
 	if err != nil {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/connector"
@@ -23,7 +24,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"log"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -47,13 +52,14 @@ type K8sApplicationService interface {
 	ValidateClusterResourceBean(ctx context.Context, clusterId int, manifest unstructured.Unstructured, gvk schema.GroupVersionKind, rbacCallback func(clusterName string, resourceIdentifier application.ResourceIdentifier) bool) bool
 	GetResourceInfo(ctx context.Context) (*ResourceInfo, error)
 	GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error)
-	GetRestConfigByCluster(ctx context.Context, cluster *cluster.ClusterBean) (*rest.Config, error)
 	GetManifestsByBatch(ctx context.Context, request []ResourceRequestBean) ([]BatchResourceResponse, error)
 	FilterServiceAndIngress(ctx context.Context, resourceTreeInf map[string]interface{}, validRequests []ResourceRequestBean, appDetail bean.AppDetailContainer, appId string) []ResourceRequestBean
 	GetUrlsByBatch(ctx context.Context, resp []BatchResourceResponse) []interface{}
 	GetAllApiResources(ctx context.Context, clusterId int, isSuperAdmin bool, userId int32) (*application.GetAllApiResourcesResponse, error)
 	GetResourceList(ctx context.Context, token string, request *ResourceRequestBean, validateResourceAccess func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) (*util.ClusterResourceListMap, error)
 	ApplyResources(ctx context.Context, token string, request *application.ApplyResourcesRequest, resourceRbacHandler func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) ([]*application.ApplyResourcesResponse, error)
+	FetchConnectionStatusForCluster(k8sClientSet *kubernetes.Clientset, clusterId int) error
+	RotatePods(ctx context.Context, request *RotatePodRequest) (*RotatePodResponse, error)
 }
 type K8sApplicationServiceImpl struct {
 	logger                      *zap.SugaredLogger
@@ -422,35 +428,8 @@ func (impl *K8sApplicationServiceImpl) GetRestConfigByClusterId(ctx context.Cont
 		impl.logger.Errorw("error in getting cluster by ID", "err", err, "clusterId")
 		return nil, err
 	}
-	configMap := cluster.Config
-	bearerToken := configMap["bearer_token"]
-	var restConfig *rest.Config
-	if cluster.ClusterName == DEFAULT_CLUSTER && len(bearerToken) == 0 {
-		restConfig, err = impl.K8sUtil.GetK8sClusterRestConfig()
-		if err != nil {
-			impl.logger.Errorw("error in getting rest config for default cluster", "err", err)
-			return nil, err
-		}
-	} else {
-		restConfig = &rest.Config{Host: cluster.ServerUrl, BearerToken: bearerToken, TLSClientConfig: rest.TLSClientConfig{Insecure: true}}
-	}
-	return restConfig, nil
-}
-
-func (impl *K8sApplicationServiceImpl) GetRestConfigByCluster(ctx context.Context, cluster *cluster.ClusterBean) (*rest.Config, error) {
-	configMap := cluster.Config
-	bearerToken := configMap["bearer_token"]
-	var restConfig *rest.Config
-	var err error
-	if cluster.ClusterName == DEFAULT_CLUSTER && len(bearerToken) == 0 {
-		restConfig, err = impl.K8sUtil.GetK8sClusterRestConfig()
-		if err != nil {
-			impl.logger.Errorw("error in getting rest config for default cluster", "err", err)
-			return nil, err
-		}
-	} else {
-		restConfig = &rest.Config{Host: cluster.ServerUrl, BearerToken: bearerToken, TLSClientConfig: rest.TLSClientConfig{Insecure: true}}
-	}
+	clusterConfig := cluster.GetClusterConfig()
+	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(&clusterConfig)
 	return restConfig, nil
 }
 
@@ -463,7 +442,8 @@ func (impl *K8sApplicationServiceImpl) ValidateClusterResourceRequest(ctx contex
 		return false, err
 	}
 	clusterName := clusterBean.ClusterName
-	restConfig, err := impl.GetRestConfigByCluster(ctx, clusterBean)
+	clusterConfig := clusterBean.GetClusterConfig()
+	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(&clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster", "clusterId", clusterId, "err", err)
 		return false, err
@@ -681,7 +661,8 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 		impl.logger.Errorw("error in getting cluster by cluster Id", "err", err, "clusterId", clusterId)
 		return resourceList, err
 	}
-	restConfig, err := impl.GetRestConfigByCluster(ctx, clusterBean)
+	clusterConfig := clusterBean.GetClusterConfig()
+	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(&clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.ClusterId)
 		return resourceList, err
@@ -712,6 +693,74 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 	return resourceList, nil
 }
 
+type RotatePodRequest struct {
+	ClusterId int                              `json:"clusterId"`
+	Resources []application.ResourceIdentifier `json:"resources"`
+}
+
+type RotatePodResponse struct {
+	Responses     []*RotatePodResourceResponse `json:"responses"`
+	ContainsError bool                         `json:"containsError"`
+}
+
+type RotatePodResourceResponse struct {
+	application.ResourceIdentifier
+	ErrorResponse string `json:"errorResponse"`
+}
+
+func (impl *K8sApplicationServiceImpl) RotatePods(ctx context.Context, request *RotatePodRequest) (*RotatePodResponse, error) {
+
+	clusterId := request.ClusterId
+	clusterBean, err := impl.clusterService.FindById(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting clusterBean by cluster Id", "clusterId", clusterId, "err", err)
+		return nil, err
+	}
+	clusterConfig := clusterBean.GetClusterConfig()
+	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(&clusterConfig)
+	if err != nil {
+		impl.logger.Errorw("error in getting rest config by cluster", "clusterId", clusterId, "err", err)
+		return nil, err
+	}
+	response := &RotatePodResponse{}
+	var resourceResponses []*RotatePodResourceResponse
+	var containsError bool
+	for _, resourceIdentifier := range request.Resources {
+		resourceResponse := &RotatePodResourceResponse{
+			ResourceIdentifier: resourceIdentifier,
+		}
+		groupVersionKind := resourceIdentifier.GroupVersionKind
+		resourceKind := groupVersionKind.Kind
+		// validate one of deployment, statefulset, daemonSet, Rollout
+		if resourceKind != kube.DeploymentKind && resourceKind != kube.StatefulSetKind && resourceKind != kube.DaemonSetKind && resourceKind != util.K8sClusterResourceRolloutKind {
+			impl.logger.Errorf("restarting not supported for kind %s name %s", resourceKind, resourceIdentifier.Name)
+			containsError = true
+			resourceResponse.ErrorResponse = util.RestartingNotSupported
+		} else {
+			activitySnapshot := time.Now().Format(time.RFC3339)
+			data := fmt.Sprintf(`{"metadata": {"annotations": {"devtron.ai/restartedAt": "%s"}},"spec": {"template": {"metadata": {"annotations": {"devtron.ai/activity": "%s"}}}}}`, activitySnapshot, activitySnapshot)
+			var patchType types.PatchType
+			if resourceKind != util.K8sClusterResourceRolloutKind {
+				patchType = types.StrategicMergePatchType
+			} else {
+				// rollout does not support strategic merge type
+				patchType = types.MergePatchType
+			}
+			k8sRequest := &application.K8sRequestBean{ResourceIdentifier: resourceIdentifier}
+			_, err = impl.k8sClientService.PatchResource(ctx, restConfig, patchType, k8sRequest, data)
+			if err != nil {
+				containsError = true
+				resourceResponse.ErrorResponse = err.Error()
+			}
+		}
+		resourceResponses = append(resourceResponses, resourceResponse)
+	}
+
+	response.Responses = resourceResponses
+	response.ContainsError = containsError
+	return response, nil
+}
+
 func (impl *K8sApplicationServiceImpl) ApplyResources(ctx context.Context, token string, request *application.ApplyResourcesRequest, validateResourceAccess func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) ([]*application.ApplyResourcesResponse, error) {
 	manifests, err := yamlUtil.SplitYAMLs([]byte(request.Manifest))
 	if err != nil {
@@ -726,7 +775,8 @@ func (impl *K8sApplicationServiceImpl) ApplyResources(ctx context.Context, token
 		impl.logger.Errorw("error in getting clusterBean by cluster Id", "clusterId", clusterId, "err", err)
 		return nil, err
 	}
-	restConfig, err := impl.GetRestConfigByCluster(ctx, clusterBean)
+	clusterConfig := clusterBean.GetClusterConfig()
+	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(&clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster", "clusterId", clusterId, "err", err)
 		return nil, err
@@ -810,4 +860,34 @@ func (impl *K8sApplicationServiceImpl) applyResourceFromManifest(ctx context.Con
 	}
 
 	return isUpdateResource, nil
+}
+
+func (impl *K8sApplicationServiceImpl) FetchConnectionStatusForCluster(k8sClientSet *kubernetes.Clientset, clusterId int) error {
+	//using livez path as healthz path is deprecated
+	path := "/livez"
+	response, err := k8sClientSet.Discovery().RESTClient().Get().AbsPath(path).DoRaw(context.Background())
+	log.Println("received response for cluster livez status", "response", string(response), "err", err, "clusterId", clusterId)
+	if err != nil {
+		if _, ok := err.(*url.Error); ok {
+			err = fmt.Errorf("Incorrect server url : %v", err)
+		} else if statusError, ok := err.(*errors2.StatusError); ok {
+			if statusError != nil {
+				errReason := statusError.ErrStatus.Reason
+				var errMsg string
+				if errReason == metav1.StatusReasonUnauthorized {
+					errMsg = "token seems invalid or does not have sufficient permissions"
+				} else {
+					errMsg = statusError.ErrStatus.Message
+				}
+				err = fmt.Errorf("%s : %s", errReason, errMsg)
+			} else {
+				err = fmt.Errorf("Validation failed : %v", err)
+			}
+		} else {
+			err = fmt.Errorf("Validation failed : %v", err)
+		}
+	} else if err == nil && string(response) != "ok" {
+		err = fmt.Errorf("Validation failed with response : %s", string(response))
+	}
+	return err
 }

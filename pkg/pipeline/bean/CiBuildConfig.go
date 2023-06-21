@@ -20,6 +20,7 @@ type CiBuildConfigBean struct {
 	Id                        int                `json:"id"`
 	GitMaterialId             int                `json:"gitMaterialId,omitempty" validate:"required"`
 	BuildContextGitMaterialId int                `json:"buildContextGitMaterialId,omitempty" validate:"required"`
+	UseRootBuildContext       bool               `json:"useRootBuildContext"`
 	CiBuildType               CiBuildType        `json:"ciBuildType"`
 	DockerBuildConfig         *DockerBuildConfig `json:"dockerBuildConfig,omitempty"`
 	BuildPackConfig           *BuildPackConfig   `json:"buildPackConfig"`
@@ -68,6 +69,7 @@ func ConvertBuildConfigBeanToDbEntity(templateId int, overrideTemplateId int, ci
 		CiTemplateOverrideId: overrideTemplateId,
 		BuildMetadata:        buildMetadata,
 		AuditLog:             sql.AuditLog{UpdatedOn: time.Now(), UpdatedBy: userId},
+		UseRootContext:       &ciBuildConfigBean.UseRootBuildContext,
 	}
 	return ciBuildConfigEntity, nil
 }
@@ -91,11 +93,17 @@ func ConvertDbBuildConfigToBean(dbBuildConfig *pipelineConfig.CiBuildConfig) (*C
 			return nil, err
 		}
 	}
+	useRootBuildContext := false
+	//dbBuildConfig.UseRootContext will be nil if the entry in db never updated before
+	if dbBuildConfig.UseRootContext == nil || *(dbBuildConfig.UseRootContext) {
+		useRootBuildContext = true
+	}
 	ciBuildConfigBean := &CiBuildConfigBean{
-		Id:                dbBuildConfig.Id,
-		CiBuildType:       ciBuildType,
-		BuildPackConfig:   buildPackConfig,
-		DockerBuildConfig: dockerBuildConfig,
+		Id:                  dbBuildConfig.Id,
+		CiBuildType:         ciBuildType,
+		BuildPackConfig:     buildPackConfig,
+		DockerBuildConfig:   dockerBuildConfig,
+		UseRootBuildContext: useRootBuildContext,
 	}
 	return ciBuildConfigBean, nil
 }
@@ -131,6 +139,7 @@ func OverrideCiBuildConfig(dockerfilePath string, oldArgs string, ciLevelArgs st
 			return nil, err
 		}
 	}
+	//no entry found in ci_build_config table, construct with requested data
 	if ciBuildConfigBean == nil {
 		dockerArgs := mergeMap(oldDockerArgs, ciLevelDockerArgs)
 		ciBuildConfigBean = &CiBuildConfigBean{
@@ -142,6 +151,8 @@ func OverrideCiBuildConfig(dockerfilePath string, oldArgs string, ciLevelArgs st
 				DockerBuildOptions: dockerBuildOptionsMap,
 				BuildContext:       "",
 			},
+			//setting true as default
+			UseRootBuildContext: true,
 		}
 	} else if ciBuildConfigBean.CiBuildType == SELF_DOCKERFILE_BUILD_TYPE || ciBuildConfigBean.CiBuildType == MANAGED_DOCKERFILE_BUILD_TYPE {
 		dockerBuildConfig := ciBuildConfigBean.DockerBuildConfig
