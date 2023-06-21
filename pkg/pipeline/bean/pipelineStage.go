@@ -1,6 +1,7 @@
 package bean
 
 import (
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 )
@@ -11,6 +12,7 @@ type PipelineStageDto struct {
 	Description string                       `json:"description,omitempty"`
 	Type        repository.PipelineStageType `json:"type,omitempty" validate:"omitempty,oneof=PRE_CI POST_CI PRE_CD POST_CD"`
 	Steps       []*PipelineStageStepDto      `json:"steps"`
+	TriggerType pipelineConfig.TriggerType   `json:"triggerType,omitempty"`
 }
 
 type PipelineStageStepDto struct {

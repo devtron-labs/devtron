@@ -1150,18 +1150,14 @@ func (impl CiCdPipelineOrchestratorImpl) createMaterial(inputMaterial *bean.GitM
 }
 
 func (impl CiCdPipelineOrchestratorImpl) CreateCDPipelines(pipelineRequest *bean.CDPipelineConfigObject, appId int, userId int32, tx *pg.Tx, appName string) (pipelineId int, err error) {
-	preStageConfig := ""
 	preTriggerType := pipelineConfig.TriggerType("")
-	if len(pipelineRequest.PreStage.Config) > 0 {
-		preStageConfig = pipelineRequest.PreStage.Config
-		preTriggerType = pipelineRequest.PreStage.TriggerType
+	if pipelineRequest.PreDeployStage != nil {
+		preTriggerType = pipelineRequest.PreDeployStage.TriggerType
 	}
 
-	postStageConfig := ""
 	postTriggerType := pipelineConfig.TriggerType("")
-	if len(pipelineRequest.PostStage.Config) > 0 {
-		postStageConfig = pipelineRequest.PostStage.Config
-		postTriggerType = pipelineRequest.PostStage.TriggerType
+	if pipelineRequest.PostDeployStage != nil {
+		postTriggerType = pipelineRequest.PostDeployStage.TriggerType
 	}
 
 	preStageConfigMapSecretNames, err := json.Marshal(&pipelineRequest.PreStageConfigMapSecretNames)
@@ -1188,8 +1184,6 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCDPipelines(pipelineRequest *bean
 		Deleted:                       false,
 		CiPipelineId:                  pipelineRequest.CiPipelineId,
 		TriggerType:                   pipelineRequest.TriggerType,
-		PreStageConfig:                preStageConfig,
-		PostStageConfig:               postStageConfig,
 		PreTriggerType:                preTriggerType,
 		PostTriggerType:               postTriggerType,
 		PreStageConfigMapSecretNames:  string(preStageConfigMapSecretNames),
@@ -1232,18 +1226,14 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateCDPipeline(pipelineRequest *bean.
 	} else if pipeline.Id == 0 {
 		return fmt.Errorf("no cd pipeline found")
 	}
-	preStageConfig := ""
 	preTriggerType := pipelineConfig.TriggerType("")
-	if len(pipelineRequest.PreStage.Config) > 0 {
-		preStageConfig = pipelineRequest.PreStage.Config
-		preTriggerType = pipelineRequest.PreStage.TriggerType
+	if pipelineRequest.PreDeployStage != nil {
+		preTriggerType = pipelineRequest.PreDeployStage.TriggerType
 	}
 
-	postStageConfig := ""
 	postTriggerType := pipelineConfig.TriggerType("")
-	if len(pipelineRequest.PostStage.Config) > 0 {
-		postStageConfig = pipelineRequest.PostStage.Config
-		postTriggerType = pipelineRequest.PostStage.TriggerType
+	if pipelineRequest.PostDeployStage != nil {
+		postTriggerType = pipelineRequest.PostDeployStage.TriggerType
 	}
 
 	preStageConfigMapSecretNames, err := json.Marshal(&pipelineRequest.PreStageConfigMapSecretNames)
@@ -1259,8 +1249,6 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateCDPipeline(pipelineRequest *bean.
 	}
 
 	pipeline.TriggerType = pipelineRequest.TriggerType
-	pipeline.PreStageConfig = preStageConfig
-	pipeline.PostStageConfig = postStageConfig
 	pipeline.PreTriggerType = preTriggerType
 	pipeline.PostTriggerType = postTriggerType
 	pipeline.PreStageConfigMapSecretNames = string(preStageConfigMapSecretNames)

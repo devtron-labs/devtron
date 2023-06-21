@@ -72,6 +72,8 @@ func (impl *PipelineStageServiceImpl) GetCdPipelineStageDataDeepCopy(cdPipelineI
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting all cdStages by cdPipelineId", "err", err, "cdPipelineStages", cdStages)
 		return nil, nil, err
+	} else if err == pg.ErrNoRows {
+		return nil, nil, nil
 	}
 	var preDeployStage *bean.PipelineStageDto
 	var postDeployStage *bean.PipelineStageDto
@@ -859,7 +861,7 @@ func (impl *PipelineStageServiceImpl) UpdatePipelineStage(stageReq *bean.Pipelin
 		stageReq.Id = 0
 		err = impl.CreatePipelineStage(stageReq, stageType, pipelineId, userId)
 		if err != nil {
-			impl.logger.Errorw("error in creating new ci stage", "err", err, "ciStageReq", stageReq)
+			impl.logger.Errorw("error in creating new pipeline stage", "err", err, "pipelineStageReq", stageReq)
 			return err
 		}
 	} else {

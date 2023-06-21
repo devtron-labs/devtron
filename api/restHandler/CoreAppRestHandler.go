@@ -779,20 +779,33 @@ func (handler CoreAppRestHandlerImpl) buildCdPipelineResp(appId int, cdPipeline 
 	}
 	cdPipelineResp.DeploymentStrategies = deploymentTemplateStrategiesResp
 
-	//set pre stage
-	preStage := cdPipeline.PreStage
-	cdPipelineResp.PreStage = &appBean.CdStage{
-		TriggerType: preStage.TriggerType,
-		Name:        preStage.Name,
-		Config:      preStage.Config,
-	}
+	//set pre-deploy stage for plugin support
+	if cdPipeline.PreDeployStage != nil {
+		cdPipelineResp.PreDeployStage = cdPipeline.PreDeployStage
+	} else if cdPipeline.PreDeployStage == nil && len(cdPipeline.PreStage.Config) > 0 {
+		//this means that it's pre-existing pipeline, without migration from preStageYaml to pipelineStageSteps
+		//so, we need to convert all preStageYaml to pipelineStageSteps and assign it to cdPipelineResp
+		cdRespMigrated, err := handler.pipelineBuilder.InitiateMigrationOfStageScriptsToPipelineStageSteps(cdPipeline)
+		if err != nil {
+			handler.logger.Errorw("service err, InitiateMigrationOfStageScriptsToPipelineStageSteps", "err", err, "appId", appId, "pipelineId", cdPipeline.Id)
+			return nil, err
+		}
+		cdPipelineResp.PreDeployStage = cdRespMigrated.PreDeployStage
 
-	//set post stage
-	postStage := cdPipeline.PostStage
-	cdPipelineResp.PostStage = &appBean.CdStage{
-		TriggerType: postStage.TriggerType,
-		Name:        postStage.Name,
-		Config:      postStage.Config,
+	} else {
+		//pipelineStageStep as well as stageYaml not present in this case, which means pre/post deploy stage not configured
+	}
+	//set post-deploy stage for plugin support
+	if cdPipeline.PostDeployStage != nil {
+		cdPipelineResp.PostDeployStage = cdPipeline.PostDeployStage
+	} else if cdPipeline.PostDeployStage == nil && len(cdPipeline.PostStage.Config) > 0 {
+		cdRespMigrated, err := handler.pipelineBuilder.InitiateMigrationOfStageScriptsToPipelineStageSteps(cdPipeline)
+		if err != nil {
+			handler.logger.Errorw("service err, InitiateMigrationOfStageScriptsToPipelineStageSteps", "err", err, "appId", appId, "pipelineId", cdPipeline.Id)
+			return nil, err
+		}
+		cdPipelineResp.PostDeployStage = cdRespMigrated.PostDeployStage
+	} else {
 	}
 
 	//set pre stage config maps secret names
@@ -808,15 +821,6 @@ func (handler CoreAppRestHandlerImpl) buildCdPipelineResp(appId int, cdPipeline 
 		ConfigMaps: postStageConfigMapSecretNames.ConfigMaps,
 		Secrets:    postStageConfigMapSecretNames.Secrets,
 	}
-
-	//getting pre stage and post stage details
-	preDeployStageDetail, postDeployStageDetail, err := handler.pipelineStageService.GetCdPipelineStageDataDeepCopy(cdPipeline.Id)
-	if err != nil {
-		handler.logger.Errorw("error in getting pre & post stage detail by cdPipelineId", "err", err, "cdPipelineId", cdPipeline.Id)
-		return nil, err
-	}
-	cdPipelineResp.PreDeployStage = preDeployStageDetail
-	cdPipelineResp.PostDeployStage = postDeployStageDetail
 
 	return cdPipelineResp, nil
 }

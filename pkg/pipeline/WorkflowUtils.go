@@ -6,7 +6,10 @@ import (
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
+	repository3 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/util"
+	"gopkg.in/yaml.v2"
 	v12 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strconv"
@@ -18,6 +21,23 @@ type ConfigMapSecretDto struct {
 	Name     string
 	Data     map[string]string
 	OwnerRef v1.OwnerReference
+}
+
+type TaskYaml struct {
+	Version          string             `yaml:"version"`
+	CdPipelineConfig []CdPipelineConfig `yaml:"cdPipelineConf"`
+}
+type CdPipelineConfig struct {
+	BeforeTasks []*Task `yaml:"beforeStages"`
+	AfterTasks  []*Task `yaml:"afterStages"`
+}
+type Task struct {
+	Id             int    `json:"id"`
+	Index          int    `json:"index"`
+	Name           string `json:"name" yaml:"name"`
+	Script         string `json:"script" yaml:"script"`
+	OutputLocation string `json:"outputLocation" yaml:"outputLocation"` // file/dir
+	RunStatus      bool   `json:"-"`                                    // task run was attempted or not
 }
 
 func ExtractVolumesFromCmCs(configMaps []bean2.ConfigSecretMap, secrets []bean2.ConfigSecretMap) []v12.Volume {
@@ -264,6 +284,72 @@ func AddTemplatesForGlobalSecretsInWorkflowTemplate(globalCmCsConfigs []*bean.Gl
 	return nil
 }
 
-func PrePostStageYamlToPrePostTaskConversionAdapter(preStageConfig string, postStageConfig string) {
+func StageYamlToPipelineStageAdapter(stageConfig string, stageType repository2.PipelineStageType) (*bean.PipelineStageDto, error) {
+	//sample stageConfig:= "version: 0.0.1\ncdPipelineConf:\n  - afterStages:\n      - name: test-1\n        script: |\n          date > test.report\n          echo 'hello'\n        outputLocation: ./test.report\n      - name: test-2\n        script: |\n          date > test2.report\n        outputLocation: ./test2.report"
 
+	var pipelineStageDto *bean.PipelineStageDto
+	var err error
+	taskYamlObject, err := ToTaskYaml([]byte(stageConfig))
+	if err != nil {
+		return nil, err
+	}
+	for _, task := range taskYamlObject.CdPipelineConfig {
+		if len(task.BeforeTasks) > 0 {
+			beforeStepId := 0
+			for _, beforeTask := range task.BeforeTasks {
+
+				inlineStepDetail := &bean.InlineStepDetailDto{
+					ScriptType: repository3.SCRIPT_TYPE_SHELL,
+					Script:     beforeTask.Script,
+				}
+				//index really matters as the task order on the UI is decided by the index field
+				stepData := &bean.PipelineStageStepDto{
+					Id:                  beforeStepId,
+					Name:                beforeTask.Name,
+					Description:         "",
+					Index:               beforeStepId,
+					StepType:            repository2.PIPELINE_STEP_TYPE_INLINE,
+					OutputDirectoryPath: nil,
+					InlineStepDetail:    inlineStepDetail,
+					RefPluginStepDetail: nil,
+				}
+				pipelineStageDto.Steps = append(pipelineStageDto.Steps, stepData)
+				beforeStepId++
+			}
+			pipelineStageDto.Type = stageType
+			pipelineStageDto.Id = 0
+		}
+
+		if len(task.AfterTasks) > 0 {
+			afterStepId := 0
+			for _, afterTask := range task.AfterTasks {
+				inlineStepDetail := &bean.InlineStepDetailDto{
+					ScriptType: repository3.SCRIPT_TYPE_SHELL,
+					Script:     afterTask.Script,
+				}
+				stepData := &bean.PipelineStageStepDto{
+					Id:                  afterStepId,
+					Name:                afterTask.Name,
+					Description:         "",
+					Index:               afterStepId,
+					StepType:            repository2.PIPELINE_STEP_TYPE_INLINE,
+					OutputDirectoryPath: nil,
+					InlineStepDetail:    inlineStepDetail,
+					RefPluginStepDetail: nil,
+				}
+				pipelineStageDto.Steps = append(pipelineStageDto.Steps, stepData)
+				afterStepId++
+			}
+			pipelineStageDto.Type = stageType
+			pipelineStageDto.Id = 0
+		}
+	}
+
+	return pipelineStageDto, nil
+}
+
+func ToTaskYaml(yamlFile []byte) (*TaskYaml, error) {
+	taskYaml := &TaskYaml{}
+	err := yaml.Unmarshal(yamlFile, taskYaml)
+	return taskYaml, err
 }
