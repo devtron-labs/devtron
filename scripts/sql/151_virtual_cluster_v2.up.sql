@@ -5,9 +5,9 @@ CREATE TABLE IF NOT EXISTS manifest_push_config
     "id"         integer     NOT NULL DEFAULT nextval('id_seq_push_config'::regclass),
     "cd_pipeline_id"      integer,
     "container_registry_id" integer,
-    "repo_url" varchar(200)
+    "repo_url" varchar(200),
     "chart_name" varchar(200),
-    "base_version" varchar(100),
+    "chart_base_version" varchar(100),
     "storage_type" varchar(100),
     "created_on" timestamptz NOT NULL,
     "created_by" int4        NOT NULL,
