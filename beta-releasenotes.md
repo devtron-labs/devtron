@@ -1,4 +1,5 @@
 ## Bugs
+- fix: disable api update if disabled from UI (#3487)
 ## Enhancements
 ## Documentation
 ## Others
