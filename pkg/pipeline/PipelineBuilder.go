@@ -1429,6 +1429,10 @@ func (impl PipelineBuilderImpl) PatchCiPipeline(request *bean.CiPatchRequest) (c
 			impl.logger.Errorw("error while getting dashboard-cm", "error", err)
 			return nil, err
 		}
+		if cm == nil {
+			impl.logger.Errorw("error while getting dashboard-cm", "error", err)
+			return nil, err
+		}
 		datamap := cm.Data
 		forceScanConfig, err := strconv.ParseBool(datamap[SECURITY_SCANNING])
 		if err != nil {
