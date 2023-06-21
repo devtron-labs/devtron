@@ -1749,6 +1749,13 @@ func (impl PipelineBuilderImpl) SetPipelineDeploymentAppType(pipelineCreateReque
 	//}
 
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
+		if !impl.deploymentConfig.IsInternalUse {
+			if isGitOpsConfigured {
+				pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
+			} else {
+				pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
+			}
+		}
 		if pipeline.DeploymentAppType == "" {
 			if isGitOpsConfigured {
 				pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
