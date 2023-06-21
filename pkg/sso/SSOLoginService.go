@@ -48,19 +48,11 @@ type SSOLoginServiceImpl struct {
 	userAuthOidcHelper  auth.UserAuthOidcHelper
 }
 
-type Configs struct {
-	Issuer        string   `json:"issuer"`
-	ClientID      string   `json:"clientID"`
-	ClientSecret  string   `json:"clientSecret"`
-	RedirectURI   string   `json:"redirectURI"`
-	HostedDomains []string `json:"hostedDomains"`
-}
-
 type Config struct {
-	Id     string  `json:"id"`
-	Type   string  `json:"type"`
-	Name   string  `json:"name"`
-	Config Configs `json:"config"`
+	Id     string                 `json:"id"`
+	Type   string                 `json:"type"`
+	Name   string                 `json:"name"`
+	Config map[string]interface{} `json:"config"`
 }
 
 func NewSSOLoginServiceImpl(
@@ -181,11 +173,11 @@ func (impl SSOLoginServiceImpl) UpdateSSOLogin(request *bean.SSOLoginDto) (*bean
 	err = json.Unmarshal([]byte(configString), &configData)
 	var modelConfigData Config
 	err = json.Unmarshal([]byte(model.Config), &modelConfigData)
-	if configData.Config.ClientID == "" {
-		configData.Config.ClientID = modelConfigData.Config.ClientID
+	if configData.Config["clientID"] == "" && modelConfigData.Config["clientID"] != "" {
+		configData.Config["clientID"] = modelConfigData.Config["clientID"]
 	}
-	if configData.Config.ClientSecret == "" {
-		configData.Config.ClientSecret = modelConfigData.Config.ClientSecret
+	if configData.Config["clientSecret"] == "" && modelConfigData.Config["clientSecret"] != "" {
+		configData.Config["clientSecret"] = modelConfigData.Config["clientSecret"]
 	}
 	newConfigString, _ := json.Marshal(configData)
 	updatedConfig := string(newConfigString)
@@ -353,8 +345,13 @@ func (impl SSOLoginServiceImpl) GetByName(name string) (*bean.SSOLoginDto, error
 	}
 	var configData Config
 	err = json.Unmarshal([]byte(model.Config), &configData)
-	configData.Config.ClientID = ""
-	configData.Config.ClientSecret = ""
+	if configData.Config["clientID"] != "" {
+
+		configData.Config["clientID"] = ""
+	}
+	if configData.Config["clientSecret"] != "" {
+		configData.Config["clientSecret"] = ""
+	}
 	configString, _ := json.Marshal(configData)
 	var config json.RawMessage
 	err = json.Unmarshal(configString, &config)
