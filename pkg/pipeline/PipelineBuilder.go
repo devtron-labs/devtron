@@ -35,6 +35,7 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
+	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
@@ -106,7 +107,7 @@ type PipelineBuilder interface {
 	CreateCdPipelines(cdPipelines *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error)
 	GetApp(appId int) (application *bean.CreateAppDTO, err error)
 	PatchCdPipelines(cdPipelines *bean.CDPatchRequest, ctx context.Context) (*bean.CdPipelines, error)
-	DeleteCdPipeline(pipeline *pipelineConfig.Pipeline, ctx context.Context, forceDelete bool, acdDelete bool, userId int32) (err error)
+	DeleteCdPipeline(pipeline *pipelineConfig.Pipeline, ctx context.Context, forceDelete bool, acdDelete bool, userId int32, cdPipelinePluginDeleteReq *bean.CDPipelineConfigObject) (err error)
 	ChangeDeploymentType(ctx context.Context, request *bean.DeploymentAppTypeChangeRequest) (*bean.DeploymentAppTypeChangeResponse, error)
 	ChangePipelineDeploymentType(ctx context.Context, request *bean.DeploymentAppTypeChangeRequest) (*bean.DeploymentAppTypeChangeResponse, error)
 	TriggerDeploymentAfterTypeChange(ctx context.Context, request *bean.DeploymentAppTypeChangeRequest) (*bean.DeploymentAppTypeChangeResponse, error)
@@ -211,6 +212,7 @@ type PipelineBuilderImpl struct {
 	enforcerUtil                                    rbac.EnforcerUtil
 	appGroupService                                 appGroup2.AppGroupService
 	chartDeploymentService                          util.ChartDeploymentService
+	pipelineStageRepository                         repository5.PipelineStageRepository
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -261,7 +263,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	enforcerUtil rbac.EnforcerUtil, ArgoUserService argo.ArgoUserService,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	appGroupService appGroup2.AppGroupService,
-	chartDeploymentService util.ChartDeploymentService) *PipelineBuilderImpl {
+	chartDeploymentService util.ChartDeploymentService,
+	pipelineStageRepository repository5.PipelineStageRepository) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                        logger,
 		ciCdPipelineOrchestrator:      ciCdPipelineOrchestrator,
@@ -320,6 +323,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		ciWorkflowRepository:                            ciWorkflowRepository,
 		appGroupService:                                 appGroupService,
 		chartDeploymentService:                          chartDeploymentService,
+		pipelineStageRepository:                         pipelineStageRepository,
 	}
 }
 
@@ -1543,7 +1547,7 @@ func (impl PipelineBuilderImpl) DeleteCiPipeline(request *bean.CiPatchRequest) (
 	}
 	if request.CiPipeline.PreBuildStage != nil && request.CiPipeline.PreBuildStage.Id > 0 {
 		//deleting pre stage
-		err = impl.pipelineStageService.DeleteCiStage(request.CiPipeline.PreBuildStage, request.UserId, tx)
+		err = impl.pipelineStageService.DeletePipelineStage(request.CiPipeline.PreBuildStage, request.UserId, tx)
 		if err != nil {
 			impl.logger.Errorw("error in deleting pre stage", "err", err, "preBuildStage", request.CiPipeline.PreBuildStage)
 			return nil, err
@@ -1551,7 +1555,7 @@ func (impl PipelineBuilderImpl) DeleteCiPipeline(request *bean.CiPatchRequest) (
 	}
 	if request.CiPipeline.PostBuildStage != nil && request.CiPipeline.PostBuildStage.Id > 0 {
 		//deleting post stage
-		err = impl.pipelineStageService.DeleteCiStage(request.CiPipeline.PostBuildStage, request.UserId, tx)
+		err = impl.pipelineStageService.DeletePipelineStage(request.CiPipeline.PostBuildStage, request.UserId, tx)
 		if err != nil {
 			impl.logger.Errorw("error in deleting post stage", "err", err, "postBuildStage", request.CiPipeline.PostBuildStage)
 			return nil, err
@@ -1801,6 +1805,23 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 			return nil, err
 		}
 		pipeline.Id = id
+
+		//creating pipeline_stage entry here after tx commit due to FK issue
+		if pipeline.PreDeployStage != nil && len(pipeline.PreDeployStage.Steps) > 0 {
+			err = impl.pipelineStageService.CreatePipelineStage(pipeline.PreDeployStage, repository5.PIPELINE_STAGE_TYPE_PRE_CD, id, pipelineCreateRequest.UserId)
+			if err != nil {
+				impl.logger.Errorw("error in creating pre-cd stage", "err", err, "preCdStage", pipeline.PreDeployStage, "pipelineId", id)
+				return nil, err
+			}
+		}
+		if pipeline.PostDeployStage != nil && len(pipeline.PostDeployStage.Steps) > 0 {
+			err = impl.pipelineStageService.CreatePipelineStage(pipeline.PreDeployStage, repository5.PIPELINE_STAGE_TYPE_POST_CD, id, pipelineCreateRequest.UserId)
+			if err != nil {
+				impl.logger.Errorw("error in creating post-cd stage", "err", err, "postCdStage", pipeline.PostDeployStage, "pipelineId", id)
+				return nil, err
+			}
+		}
+
 	}
 
 	return pipelineCreateRequest, nil
@@ -1824,7 +1845,7 @@ func (impl PipelineBuilderImpl) PatchCdPipelines(cdPipelines *bean.CDPatchReques
 			impl.logger.Errorw("error in getting cd pipeline by id", "err", err, "id", cdPipelines.Pipeline.Id)
 			return pipelineRequest, err
 		}
-		err = impl.DeleteCdPipeline(pipeline, ctx, cdPipelines.ForceDelete, false, cdPipelines.UserId)
+		err = impl.DeleteCdPipeline(pipeline, ctx, cdPipelines.ForceDelete, false, cdPipelines.UserId, cdPipelines.Pipeline)
 		return pipelineRequest, err
 	case bean.CD_DELETE_PARTIAL:
 		pipeline, err := impl.pipelineRepository.FindById(cdPipelines.Pipeline.Id)
@@ -1839,7 +1860,7 @@ func (impl PipelineBuilderImpl) PatchCdPipelines(cdPipelines *bean.CDPatchReques
 	}
 }
 
-func (impl PipelineBuilderImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipeline, ctx context.Context, forceDelete, deleteFromAcd bool, userId int32) (err error) {
+func (impl PipelineBuilderImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipeline, ctx context.Context, forceDelete, deleteFromAcd bool, userId int32, cdPipelinePluginDeleteReq *bean.CDPipelineConfigObject) (err error) {
 	//getting children CD pipeline details
 	childNodes, err := impl.appWorkflowRepository.FindWFCDMappingByParentCDPipelineId(pipeline.Id)
 	if err != nil && err != pg.ErrNoRows {
@@ -1944,6 +1965,38 @@ func (impl PipelineBuilderImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipeli
 			return err
 		}
 	}
+	if cdPipelinePluginDeleteReq.PreDeployStage != nil && cdPipelinePluginDeleteReq.PreDeployStage.Id > 0 {
+		//deleting pre-stage
+		err = impl.pipelineStageService.DeletePipelineStage(cdPipelinePluginDeleteReq.PreDeployStage, userId, tx)
+		if err != nil {
+			impl.logger.Errorw("error in deleting pre-CD stage", "err", err, "preDeployStage", cdPipelinePluginDeleteReq.PreDeployStage)
+			return err
+		}
+	}
+	if cdPipelinePluginDeleteReq.PostDeployStage != nil && cdPipelinePluginDeleteReq.PostDeployStage.Id > 0 {
+		//deleting post-stage
+		err = impl.pipelineStageService.DeletePipelineStage(cdPipelinePluginDeleteReq.PostDeployStage, userId, tx)
+		if err != nil {
+			impl.logger.Errorw("error in deleting post-CD stage", "err", err, "postDeployStage", cdPipelinePluginDeleteReq.PostDeployStage)
+			return err
+		}
+	}
+	//if pipeline.P != nil && request.CiPipeline.PreBuildStage.Id > 0 {
+	//	//deleting pre stage
+	//	err = impl.pipelineStageService.DeleteCiStage(request.CiPipeline.PreBuildStage, request.UserId, tx)
+	//	if err != nil {
+	//		impl.logger.Errorw("error in deleting pre stage", "err", err, "preBuildStage", request.CiPipeline.PreBuildStage)
+	//		return nil, err
+	//	}
+	//}
+	//if request.CiPipeline.PostBuildStage != nil && request.CiPipeline.PostBuildStage.Id > 0 {
+	//	//deleting post stage
+	//	err = impl.pipelineStageService.DeleteCiStage(request.CiPipeline.PostBuildStage, request.UserId, tx)
+	//	if err != nil {
+	//		impl.logger.Errorw("error in deleting post stage", "err", err, "postBuildStage", request.CiPipeline.PostBuildStage)
+	//		return nil, err
+	//	}
+	//}
 	//delete app from argo cd, if created
 	if pipeline.DeploymentAppCreated == true {
 		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
@@ -3769,6 +3822,15 @@ func (impl PipelineBuilderImpl) GetCdPipelineById(pipelineId int) (cdPipeline *b
 		DeploymentAppCreated:          dbPipeline.DeploymentAppCreated,
 		IsVirtualEnvironment:          dbPipeline.Environment.IsVirtualEnvironment,
 	}
+	var preDeployStage *bean3.PipelineStageDto
+	var postDeployStage *bean3.PipelineStageDto
+	preDeployStage, postDeployStage, err = impl.pipelineStageService.GetCdPipelineStageDataDeepCopy(dbPipeline.Id)
+	if err != nil {
+		impl.logger.Errorw("error in getting pre/post-CD stage data", "err", err, "cdPipelineId", dbPipeline.Id)
+		return nil, err
+	}
+	cdPipeline.PreDeployStage = preDeployStage
+	cdPipeline.PostDeployStage = postDeployStage
 
 	return cdPipeline, err
 }
@@ -3979,7 +4041,7 @@ func (impl PipelineBuilderImpl) BulkDeleteCdPipelines(impactedPipelines []*pipel
 			EnvironmentName: pipeline.Environment.Name,
 		}
 		if !dryRun {
-			err := impl.DeleteCdPipeline(pipeline, ctx, forceDelete, true, userId)
+			err := impl.DeleteCdPipeline(pipeline, ctx, forceDelete, true, userId, nil)
 			if err != nil {
 				impl.logger.Errorw("error in deleting cd pipeline", "err", err, "pipelineId", pipeline.Id)
 				respDto.DeletionResult = fmt.Sprintf("Not able to delete pipeline, %v", err)
@@ -4160,7 +4222,14 @@ func (impl PipelineBuilderImpl) MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDelete
 	}
 	impl.logger.Warnw("app not found in argo, deleting from db ", "err", err)
 	//make call to delete it from pipeline DB because it's ACD counterpart is deleted
-	err = impl.DeleteCdPipeline(pipeline, context.Background(), true, false, 1)
+
+	cdPipeline, err := impl.GetCdPipelineById(pipeline.Id)
+	if err != nil {
+		impl.logger.Errorw("error in getting cdPipeline by id", "err", err, "id", pipeline.Id)
+		return acdAppFound, err
+	}
+
+	err = impl.DeleteCdPipeline(pipeline, context.Background(), true, false, 1, cdPipeline)
 	if err != nil {
 		impl.logger.Errorw("error in deleting cd pipeline", "err", err)
 		return acdAppFound, err

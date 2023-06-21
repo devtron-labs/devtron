@@ -809,6 +809,15 @@ func (handler CoreAppRestHandlerImpl) buildCdPipelineResp(appId int, cdPipeline 
 		Secrets:    postStageConfigMapSecretNames.Secrets,
 	}
 
+	//getting pre stage and post stage details
+	preDeployStageDetail, postDeployStageDetail, err := handler.pipelineStageService.GetCdPipelineStageDataDeepCopy(cdPipeline.Id)
+	if err != nil {
+		handler.logger.Errorw("error in getting pre & post stage detail by cdPipelineId", "err", err, "cdPipelineId", cdPipeline.Id)
+		return nil, err
+	}
+	cdPipelineResp.PreDeployStage = preDeployStageDetail
+	cdPipelineResp.PostDeployStage = postDeployStageDetail
+
 	return cdPipelineResp, nil
 }
 
@@ -1657,6 +1666,8 @@ func (handler CoreAppRestHandlerImpl) createCdPipelines(ctx context.Context, app
 			PostStage:                     convertCdStages(cdPipeline.PostStage),
 			PreStageConfigMapSecretNames:  convertCdPreStageCMorCSNames(cdPipeline.PreStageConfigMapSecretNames),
 			PostStageConfigMapSecretNames: convertCdPostStageCMorCSNames(cdPipeline.PostStageConfigMapSecretNames),
+			PreDeployStage:                cdPipeline.PreDeployStage,
+			PostDeployStage:               cdPipeline.PostDeployStage,
 		}
 		convertedDeploymentStrategies, err := convertCdDeploymentStrategies(cdPipeline.DeploymentStrategies)
 		if err != nil {

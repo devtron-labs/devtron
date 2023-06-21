@@ -9,7 +9,7 @@ type PipelineStageDto struct {
 	Id          int                          `json:"id"`
 	Name        string                       `json:"name,omitempty"`
 	Description string                       `json:"description,omitempty"`
-	Type        repository.PipelineStageType `json:"type,omitempty" validate:"omitempty,oneof=PRE_CI POST_CI"`
+	Type        repository.PipelineStageType `json:"type,omitempty" validate:"omitempty,oneof=PRE_CI POST_CI PRE_CD POST_CD"`
 	Steps       []*PipelineStageStepDto      `json:"steps"`
 }
 

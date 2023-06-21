@@ -501,6 +501,8 @@ type CDPipelineConfigObject struct {
 	TeamId                        int                                    `json:"-"`
 	EnvironmentIdentifier         string                                 `json:"-" `
 	IsVirtualEnvironment          bool                                   `json:"isVirtualEnvironment"`
+	PreDeployStage                *bean.PipelineStageDto                 `json:"preBuildStage,omitempty"`
+	PostDeployStage               *bean.PipelineStageDto                 `json:"postBuildStage,omitempty"`
 }
 
 type PreStageConfigMapSecretNames struct {

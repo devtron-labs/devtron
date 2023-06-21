@@ -120,6 +120,8 @@ type CdPipelineDetails struct {
 	RunPreStageInEnv              bool                                   `json:"runPreStageInEnv"`
 	RunPostStageInEnv             bool                                   `json:"runPostStageInEnv"`
 	IsClusterCdActive             bool                                   `json:"isClusterCdActive"`
+	PreDeployStage                *bean.PipelineStageDto                 `json:"preBuildStage,omitempty"`
+	PostDeployStage               *bean.PipelineStageDto                 `json:"postBuildStage,omitempty"`
 }
 
 type DeploymentStrategy struct {

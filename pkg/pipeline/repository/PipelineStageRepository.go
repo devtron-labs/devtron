@@ -137,16 +137,20 @@ type PipelineStageStepCondition struct {
 type PipelineStageRepository interface {
 	GetConnection() *pg.DB
 
-	CreateCiStage(ciStage *PipelineStage) (*PipelineStage, error)
-	UpdateCiStage(ciStage *PipelineStage) (*PipelineStage, error)
-	MarkCiStageDeletedById(ciStageId int, updatedBy int32, tx *pg.Tx) error
+	CreatePipelineStage(pipelineStage *PipelineStage) (*PipelineStage, error)
+	UpdatePipelineStage(pipelineStage *PipelineStage) (*PipelineStage, error)
+	MarkPipelineStageDeletedById(ciStageId int, updatedBy int32, tx *pg.Tx) error
+
 	GetAllCiStagesByCiPipelineId(ciPipelineId int) ([]*PipelineStage, error)
+	GetAllCdStagesByCdPipelineId(cdPipelineId int) ([]*PipelineStage, error)
+
 	GetCiStageByCiPipelineIdAndStageType(ciPipelineId int, stageType PipelineStageType) (*PipelineStage, error)
+	GetCdStageByCdPipelineIdAndStageType(cdPipelineId int, stageType PipelineStageType) (*PipelineStage, error)
 
 	GetStepIdsByStageId(stageId int) ([]int, error)
 	CreatePipelineStageStep(step *PipelineStageStep) (*PipelineStageStep, error)
 	UpdatePipelineStageStep(step *PipelineStageStep) (*PipelineStageStep, error)
-	MarkCiStageStepsDeletedByStageId(ciStageId int, updatedBy int32, tx *pg.Tx) error
+	MarkPipelineStageStepsDeletedByStageId(ciStageId int, updatedBy int32, tx *pg.Tx) error
 	GetAllStepsByStageId(stageId int) ([]*PipelineStageStep, error)
 	GetStepById(stepId int) (*PipelineStageStep, error)
 	MarkStepsDeletedByStageId(stageId int) error
@@ -217,6 +221,18 @@ func (impl *PipelineStageRepositoryImpl) GetAllCiStagesByCiPipelineId(ciPipeline
 	return pipelineStages, nil
 }
 
+func (impl *PipelineStageRepositoryImpl) GetAllCdStagesByCdPipelineId(cdPipelineId int) ([]*PipelineStage, error) {
+	var pipelineStages []*PipelineStage
+	err := impl.dbConnection.Model(&pipelineStages).
+		Where("cd_pipeline_id = ?", cdPipelineId).
+		Where("deleted = ?", false).Select()
+	if err != nil {
+		impl.logger.Errorw("err in getting all cd stages by cdPipelineId", "err", err, "cdPipelineId", cdPipelineId)
+		return nil, err
+	}
+	return pipelineStages, nil
+}
+
 func (impl *PipelineStageRepositoryImpl) GetCiStageByCiPipelineIdAndStageType(ciPipelineId int, stageType PipelineStageType) (*PipelineStage, error) {
 	var pipelineStage PipelineStage
 	err := impl.dbConnection.Model(&pipelineStage).
@@ -230,25 +246,38 @@ func (impl *PipelineStageRepositoryImpl) GetCiStageByCiPipelineIdAndStageType(ci
 	return &pipelineStage, nil
 }
 
-func (impl *PipelineStageRepositoryImpl) CreateCiStage(ciStage *PipelineStage) (*PipelineStage, error) {
-	err := impl.dbConnection.Insert(ciStage)
+func (impl *PipelineStageRepositoryImpl) GetCdStageByCdPipelineIdAndStageType(cdPipelineId int, stageType PipelineStageType) (*PipelineStage, error) {
+	var pipelineStage PipelineStage
+	err := impl.dbConnection.Model(&pipelineStage).
+		Where("cd_pipeline_id = ?", cdPipelineId).
+		Where("type = ?", stageType).
+		Where("deleted = ?", false).Select()
 	if err != nil {
-		impl.logger.Errorw("error in creating pre stage entry", "err", err, "ciStage", ciStage)
+		impl.logger.Errorw("err in getting cd stage by cdPipelineId", "err", err, "cdPipelineId", cdPipelineId)
 		return nil, err
 	}
-	return ciStage, nil
+	return &pipelineStage, nil
 }
 
-func (impl *PipelineStageRepositoryImpl) UpdateCiStage(ciStage *PipelineStage) (*PipelineStage, error) {
-	err := impl.dbConnection.Update(ciStage)
+func (impl *PipelineStageRepositoryImpl) CreatePipelineStage(pipelineStage *PipelineStage) (*PipelineStage, error) {
+	err := impl.dbConnection.Insert(pipelineStage)
 	if err != nil {
-		impl.logger.Errorw("error in updating pre stage entry", "err", err, "ciStage", ciStage)
+		impl.logger.Errorw("error in creating pre stage entry", "err", err, "pipelineStage", pipelineStage)
 		return nil, err
 	}
-	return ciStage, nil
+	return pipelineStage, nil
 }
 
-func (impl *PipelineStageRepositoryImpl) MarkCiStageDeletedById(ciStageId int, updatedBy int32, tx *pg.Tx) error {
+func (impl *PipelineStageRepositoryImpl) UpdatePipelineStage(pipelineStage *PipelineStage) (*PipelineStage, error) {
+	err := impl.dbConnection.Update(pipelineStage)
+	if err != nil {
+		impl.logger.Errorw("error in updating pre stage entry", "err", err, "pipelineStage", pipelineStage)
+		return nil, err
+	}
+	return pipelineStage, nil
+}
+
+func (impl *PipelineStageRepositoryImpl) MarkPipelineStageDeletedById(ciStageId int, updatedBy int32, tx *pg.Tx) error {
 	var stage PipelineStage
 	_, err := tx.Model(&stage).Set("deleted = ?", true).Set("updated_on = ?", time.Now()).
 		Set("updated_by = ?", updatedBy).Where("id = ?", ciStageId).Update()
@@ -288,7 +317,7 @@ func (impl *PipelineStageRepositoryImpl) UpdatePipelineStageStep(step *PipelineS
 	return step, nil
 }
 
-func (impl *PipelineStageRepositoryImpl) MarkCiStageStepsDeletedByStageId(ciStageId int, updatedBy int32, tx *pg.Tx) error {
+func (impl *PipelineStageRepositoryImpl) MarkPipelineStageStepsDeletedByStageId(ciStageId int, updatedBy int32, tx *pg.Tx) error {
 	var step PipelineStageStep
 	_, err := tx.Model(&step).Set("deleted = ?", true).Set("updated_on = ?", time.Now()).
 		Set("updated_by = ?", updatedBy).Where("pipeline_stage_id = ?", ciStageId).Update()

@@ -263,3 +263,7 @@ func AddTemplatesForGlobalSecretsInWorkflowTemplate(globalCmCsConfigs []*bean.Gl
 
 	return nil
 }
+
+func PrePostStageYamlToPrePostTaskConversionAdapter(preStageConfig string, postStageConfig string) {
+
+}

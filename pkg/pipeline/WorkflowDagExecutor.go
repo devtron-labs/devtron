@@ -26,6 +26,8 @@ import (
 	gitSensorClient "github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/app/status"
+	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	util4 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/k8s"
@@ -109,6 +111,8 @@ type WorkflowDagExecutorImpl struct {
 	appLabelRepository            pipelineConfig.AppLabelRepository
 	gitSensorGrpcClient           gitSensorClient.Client
 	k8sApplicationService         k8s.K8sApplicationService
+	pipelineStageRepository       repository4.PipelineStageRepository
+	pipelineStageService          PipelineStageService
 }
 
 const (
@@ -174,7 +178,9 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	CiTemplateRepository pipelineConfig.CiTemplateRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	appLabelRepository pipelineConfig.AppLabelRepository, gitSensorGrpcClient gitSensorClient.Client,
-	k8sApplicationService k8s.K8sApplicationService) *WorkflowDagExecutorImpl {
+	k8sApplicationService k8s.K8sApplicationService,
+	pipelineStageRepository repository4.PipelineStageRepository,
+	pipelineStageService PipelineStageService) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
 		cdWorkflowRepository:          cdWorkflowRepository,
@@ -207,6 +213,8 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		appLabelRepository:            appLabelRepository,
 		gitSensorGrpcClient:           gitSensorGrpcClient,
 		k8sApplicationService:         k8sApplicationService,
+		pipelineStageRepository:       pipelineStageRepository,
+		pipelineStageService:          pipelineStageService,
 	}
 	err := wde.Subscribe()
 	if err != nil {
@@ -682,30 +690,60 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	var deployStageWfr pipelineConfig.CdWorkflowRunner
 	deployStageTriggeredByUser := &bean.UserInfo{}
 	var pipelineReleaseCounter int
-	if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
-		stageYaml = cdPipeline.PreStageConfig
-	} else if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
-		stageYaml = cdPipeline.PostStageConfig
-		//getting deployment pipeline latest wfr by pipelineId
-		pipelineId := cdPipeline.Id
-		deployStageWfr, err = impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(pipelineId, bean.CD_WORKFLOW_TYPE_DEPLOY)
-		if err != nil {
-			impl.logger.Errorw("error in getting latest status of deploy type wfr by pipelineId", "err", err, "pipelineId", pipelineId)
-			return nil, err
-		}
-		deployStageTriggeredByUser, err = impl.user.GetById(deployStageWfr.TriggeredBy)
-		if err != nil {
-			impl.logger.Errorw("error in getting userDetails by id", "err", err, "userId", deployStageWfr.TriggeredBy)
-			return nil, err
-		}
-		pipelineReleaseCounter, err = impl.pipelineOverrideRepository.GetCurrentPipelineReleaseCounter(pipelineId)
-		if err != nil {
-			impl.logger.Errorw("error occurred while fetching latest release counter for pipeline", "pipelineId", pipelineId, "err", err)
-			return nil, err
+	var preDeploySteps []*bean3.StepObject
+	var postDeploySteps []*bean3.StepObject
+	var refPluginsData []*bean3.RefPluginObject
+	//if pipeline_stage present for pre-CD or post-CD then no need to add stageYaml to cdWorkflowRequest in that
+	//case add PreDeploySteps and PostDeploySteps to cdWorkflowRequest, this is done for backward compatibility
+	pipelineStage, err := impl.pipelineStageRepository.GetAllCdStagesByCdPipelineId(cdPipeline.Id)
+	if err != nil {
+		impl.logger.Errorw("error in getting pipelineStages by cdPipelineId", "err", err, "cdPipelineId", cdPipeline.Id)
+		return nil, err
+	}
+	if len(pipelineStage) > 0 {
+		if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
+			preDeploySteps, _, refPluginsData, err = impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(cdPipeline.Id, cdStage)
+			if err != nil {
+				impl.logger.Errorw("error in getting pre, post & refPlugin steps data for wf request", "err", err, "cdPipelineId", cdPipeline.Id)
+				return nil, err
+			}
+		} else if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
+			_, postDeploySteps, refPluginsData, err = impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(cdPipeline.Id, cdStage)
+			if err != nil {
+				impl.logger.Errorw("error in getting pre, post & refPlugin steps data for wf request", "err", err, "cdPipelineId", cdPipeline.Id)
+				return nil, err
+			}
+		} else {
+			return nil, fmt.Errorf("unsupported workflow triggerd")
 		}
 
 	} else {
-		return nil, fmt.Errorf("unsupported workflow triggerd")
+		//in this case no plugin script is not present for this cdPipeline hence going with attaching preStage or postStage config
+		if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
+			stageYaml = cdPipeline.PreStageConfig
+		} else if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
+			stageYaml = cdPipeline.PostStageConfig
+			//getting deployment pipeline latest wfr by pipelineId
+			pipelineId := cdPipeline.Id
+			deployStageWfr, err = impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(pipelineId, bean.CD_WORKFLOW_TYPE_DEPLOY)
+			if err != nil {
+				impl.logger.Errorw("error in getting latest status of deploy type wfr by pipelineId", "err", err, "pipelineId", pipelineId)
+				return nil, err
+			}
+			deployStageTriggeredByUser, err = impl.user.GetById(deployStageWfr.TriggeredBy)
+			if err != nil {
+				impl.logger.Errorw("error in getting userDetails by id", "err", err, "userId", deployStageWfr.TriggeredBy)
+				return nil, err
+			}
+			pipelineReleaseCounter, err = impl.pipelineOverrideRepository.GetCurrentPipelineReleaseCounter(pipelineId)
+			if err != nil {
+				impl.logger.Errorw("error occurred while fetching latest release counter for pipeline", "pipelineId", pipelineId, "err", err)
+				return nil, err
+			}
+
+		} else {
+			return nil, fmt.Errorf("unsupported workflow triggerd")
+		}
 	}
 
 	cdStageWorkflowRequest := &CdWorkflowRequest{
@@ -735,6 +773,9 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		OrchestratorToken: impl.cdConfig.OrchestratorToken,
 		CloudProvider:     impl.cdConfig.CloudProvider,
 		WorkflowExecutor:  workflowExecutor,
+		PreDeploySteps:    preDeploySteps,
+		PostDeploySteps:   postDeploySteps,
+		RefPlugins:        refPluginsData,
 	}
 	extraEnvVariables := make(map[string]string)
 	env, err := impl.envRepository.FindById(cdPipeline.EnvironmentId)
