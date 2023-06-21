@@ -336,10 +336,12 @@ func (impl ImageTaggingServiceImpl) performTagOperationsAndGetAuditList(tx *pg.T
 	}
 	//hard delete tags
 	hardDeleteAuditTags := make([]string, len(imageTaggingRequest.HardDeleteTags))
-	for i, tag := range imageTaggingRequest.HardDeleteTags {
-		tag.AppId = appId
-		tag.ArtifactId = artifactId
-		hardDeleteAuditTags[i] = tag.TagName
+	if !impl.imageTaggingServiceConfig.HideImageTaggingHardDelete {
+		for i, tag := range imageTaggingRequest.HardDeleteTags {
+			tag.AppId = appId
+			tag.ArtifactId = artifactId
+			hardDeleteAuditTags[i] = tag.TagName
+		}
 	}
 	//save release tags
 	createAuditTags := make([]string, len(imageTaggingRequest.CreateTags))
@@ -358,7 +360,7 @@ func (impl ImageTaggingServiceImpl) performTagOperationsAndGetAuditList(tx *pg.T
 		}
 	}
 
-	if len(imageTaggingRequest.HardDeleteTags) > 0 {
+	if len(imageTaggingRequest.HardDeleteTags) > 0 && !impl.imageTaggingServiceConfig.HideImageTaggingHardDelete {
 		err = impl.imageTaggingRepo.DeleteReleaseTagInBulk(tx, imageTaggingRequest.HardDeleteTags)
 		if err != nil {
 			impl.logger.Errorw("error in deleting releaseTag in bulk", "err", err, "releaseTags", imageTaggingRequest.HardDeleteTags)
