@@ -24,16 +24,16 @@ func NewWebhookNotificationRepositoryImpl(dbConnection *pg.DB) *WebhookNotificat
 }
 
 type WebhookConfig struct {
-	tableName   struct{}          `sql:"webhook_config" pg:",discard_unknown_columns"`
-	Id          int               `sql:"id,pk"`
-	WebHookUrl  string            `sql:"web_hook_url"`
-	ConfigName  string            `sql:"config_name"`
-	Header      map[string]string `sql:"header"`
-	Payload     map[string]string `sql:"payload"`
-	Description string            `sql:"description"`
-	OwnerId     int32             `sql:"owner_id"`
-	Active      bool              `sql:"active"`
-	Deleted     bool              `sql:"deleted,notnull"`
+	tableName   struct{}               `sql:"webhook_config" pg:",discard_unknown_columns"`
+	Id          int                    `sql:"id,pk"`
+	WebHookUrl  string                 `sql:"web_hook_url"`
+	ConfigName  string                 `sql:"config_name"`
+	Header      map[string]interface{} `sql:"header"`
+	Payload     map[string]interface{} `sql:"payload"`
+	Description string                 `sql:"description"`
+	OwnerId     int32                  `sql:"owner_id"`
+	Active      bool                   `sql:"active"`
+	Deleted     bool                   `sql:"deleted,notnull"`
 	sql.AuditLog
 }
 

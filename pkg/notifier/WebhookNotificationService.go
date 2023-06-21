@@ -53,13 +53,13 @@ type WebhookChannelConfig struct {
 }
 
 type WebhookConfigDto struct {
-	OwnerId     int32             `json:"userId" validate:"number"`
-	WebhookUrl  string            `json:"webhookUrl" validate:"required"`
-	ConfigName  string            `json:"configName" validate:"required"`
-	Header      map[string]string `json:"header"`
-	Payload     map[string]string `json:"payload"`
-	Description string            `json:"description"`
-	Id          int               `json:"id" validate:"number"`
+	OwnerId     int32                  `json:"userId" validate:"number"`
+	WebhookUrl  string                 `json:"webhookUrl" validate:"required"`
+	ConfigName  string                 `json:"configName" validate:"required"`
+	Header      map[string]interface{} `json:"header"`
+	Payload     map[string]interface{} `json:"payload"`
+	Description string                 `json:"description"`
+	Id          int                    `json:"id" validate:"number"`
 }
 
 func NewWebhookNotificationServiceImpl(logger *zap.SugaredLogger, webhookRepository repository.WebhookNotificationRepository, teamService team.TeamService,
