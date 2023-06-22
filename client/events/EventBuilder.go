@@ -104,9 +104,12 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 	if err != nil {
 		impl.logger.Errorw("error in getting wfr by appId and envId", "err", err, "appId", wfrForApprovalData, "envId", event.EnvId)
 	}
-	deploymentUserData, err := impl.DeploymentApprovalRepository.FetchApprovedDataByAppIdEnvId(wfrForApprovalData.DeploymentApprovalRequest.Id)
-	if err != nil {
-		impl.logger.Errorw("error in getting deploymentUserData", "err", err, "wfrForApprovalData.DeploymentApprovalRequest.Id", wfrForApprovalData.DeploymentApprovalRequest.Id)
+	var deploymentUserData []*pipelineConfig.DeploymentApprovalUserData
+	if wfrForApprovalData != nil && wfrForApprovalData.DeploymentApprovalRequest != nil {
+		deploymentUserData, err = impl.DeploymentApprovalRepository.FetchApprovedDataByApprovalId(wfrForApprovalData.DeploymentApprovalRequest.Id)
+		if err != nil {
+			impl.logger.Errorw("error in getting deploymentUserData", "err", err, "wfrForApprovalData.DeploymentApprovalRequest.Id", wfrForApprovalData.DeploymentApprovalRequest.Id)
+		}
 	}
 	if wfrForApprovalData != nil {
 		if deploymentUserData != nil {

@@ -19,7 +19,7 @@ type DeploymentApprovalRepository interface {
 	Update(deploymentApprovalRequest *DeploymentApprovalRequest) error
 	SaveDeploymentUserData(userData *DeploymentApprovalUserData) error
 	ConsumeApprovalRequest(requestId int) error
-	FetchApprovedDataByAppIdEnvId(approvalRequestId int) ([]*DeploymentApprovalUserData, error)
+	FetchApprovedDataByApprovalId(approvalRequestId int) ([]*DeploymentApprovalUserData, error)
 }
 
 type DeploymentApprovalRepositoryImpl struct {
@@ -56,7 +56,7 @@ type DeploymentApprovalUserData struct {
 	sql.AuditLog
 }
 
-func (impl *DeploymentApprovalRepositoryImpl) FetchApprovedDataByAppIdEnvId(approvalRequestId int) ([]*DeploymentApprovalUserData, error) {
+func (impl *DeploymentApprovalRepositoryImpl) FetchApprovedDataByApprovalId(approvalRequestId int) ([]*DeploymentApprovalUserData, error) {
 	var results []*DeploymentApprovalUserData
 	err := impl.dbConnection.
 		Model(&results).
