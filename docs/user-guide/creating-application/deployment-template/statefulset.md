@@ -30,7 +30,7 @@ You can select `SatefulSet` chart when you want to use only basic use cases whic
 
 
 
-## 1. Yaml File -
+## 1. Yaml File
 
 ### Container Ports
 
