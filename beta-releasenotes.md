@@ -1,4 +1,5 @@
 ## Bugs
+- fix: ACD helm app release not found when deleting resource (#3552)
 - fix: Remove argocd server calls for Application resources (Manifest, Event, Logs, Terminal) (#3200)
 - fix: disable api update if disabled from UI (#3487)
 ## Enhancements
