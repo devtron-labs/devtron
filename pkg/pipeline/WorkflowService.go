@@ -120,6 +120,8 @@ type WorkflowRequest struct {
 	IsPvcMounted               bool                              `json:"IsPvcMounted"`
 	ExtraEnvironmentVariables  map[string]string                 `json:"extraEnvironmentVariables"`
 	EnableBuildContext         bool                              `json:"enableBuildContext"`
+	ImageRetryCount            int                               `json:"imageRetryCount"`
+	ImageRetryInterval         int                               `json:"imageRetryInterval"`
 }
 
 const (
@@ -204,6 +206,8 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		miniCred := []v12.EnvVar{{Name: "AWS_ACCESS_KEY_ID", Value: impl.ciConfig.BlobStorageS3AccessKey}, {Name: "AWS_SECRET_ACCESS_KEY", Value: impl.ciConfig.BlobStorageS3SecretKey}}
 		containerEnvVariables = append(containerEnvVariables, miniCred...)
 	}
+	workflowRequest.ImageRetryCount = impl.ciConfig.ImageRetryCount
+	workflowRequest.ImageRetryInterval = impl.ciConfig.ImageRetryInterval
 	pvc := appLabels[strings.ToLower(fmt.Sprintf("%s-%s", CI_NODE_PVC_PIPELINE_PREFIX, workflowRequest.PipelineName))]
 	if len(pvc) == 0 {
 		pvc = appLabels[CI_NODE_PVC_ALL_ENV]
