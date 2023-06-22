@@ -78,6 +78,8 @@ type CiCdPipelineOrchestrator interface {
 	CheckStringMatchRegex(regex string, value string) bool
 	CreateEcrRepo(dockerRepository, AWSRegion, AWSAccessKeyId, AWSSecretAccessKey string) error
 	GetCdPipelinesForEnv(envId int, requestedAppIds []int) (cdPipelines *bean.CdPipelines, err error)
+
+	InitiateMigrationOfStageScriptsToPipelineStageSteps(cdPipeline *bean.CDPipelineConfigObject) (*bean.CDPipelineConfigObject, error)
 }
 
 type CiCdPipelineOrchestratorImpl struct {
@@ -1312,6 +1314,12 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 
 	var pipelines []*bean.CDPipelineConfigObject
 	for _, dbPipeline := range dbPipelines {
+		preDeployStage, postDeployStage, err := impl.pipelineStageService.GetCdPipelineStageDataDeepCopy(dbPipeline.Id)
+		if err != nil {
+			impl.logger.Errorw("error in getting pre/post-CD stage data", "err", err, "cdPipelineId", dbPipeline.Id)
+			return nil, err
+		}
+
 		preStage := bean.CdStage{}
 		if len(dbPipeline.PreStageConfig) > 0 {
 			preStage.Name = "Pre-Deployment"
@@ -1360,8 +1368,18 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 			DeploymentAppType:             dbPipeline.DeploymentAppType,
 			DeploymentAppDeleteRequest:    dbPipeline.DeploymentAppDeleteRequest,
 			IsVirtualEnvironment:          dbPipeline.Environment.IsVirtualEnvironment,
+			PreDeployStage:                preDeployStage,
+			PostDeployStage:               postDeployStage,
 		}
-		pipelines = append(pipelines, pipeline)
+		cdPipelineMigrated, err := impl.InitiateMigrationOfStageScriptsToPipelineStageSteps(pipeline)
+		if err != nil {
+			impl.logger.Errorw("error in getting migrated cdPipeline", "err", err, "pipelineId", pipeline.Id)
+			return nil, err
+		}
+
+		pipeline.PreStage = bean.CdStage{}
+		pipeline.PostStage = bean.CdStage{}
+		pipelines = append(pipelines, cdPipelineMigrated)
 	}
 	cdPipelines = &bean.CdPipelines{
 		AppId:     appId,
@@ -1487,6 +1505,13 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForAppAndEnv(appId int, e
 			postStage.TriggerType = dbPipeline.PostTriggerType
 		}
 
+		//fetching pre/post deploy plugin details
+		preDeployStage, postDeployStage, err := impl.pipelineStageService.GetCdPipelineStageDataDeepCopy(dbPipeline.Id)
+		if err != nil {
+			impl.logger.Errorw("error in getting pre/post-CD stage data", "err", err, "cdPipelineId", dbPipeline.Id)
+			return nil, err
+		}
+
 		preStageConfigmapSecrets := bean.PreStageConfigMapSecretNames{}
 		postStageConfigmapSecrets := bean.PostStageConfigMapSecretNames{}
 
@@ -1522,8 +1547,17 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForAppAndEnv(appId int, e
 			RunPreStageInEnv:              dbPipeline.RunPreStageInEnv,
 			RunPostStageInEnv:             dbPipeline.RunPostStageInEnv,
 			CdArgoSetup:                   env.Cluster.CdArgoSetup,
+			PreDeployStage:                preDeployStage,
+			PostDeployStage:               postDeployStage,
 		}
-		pipelines = append(pipelines, pipeline)
+		cdPipelineMigrated, err := impl.InitiateMigrationOfStageScriptsToPipelineStageSteps(pipeline)
+		if err != nil {
+			impl.logger.Errorw("error in getting migrated cdPipeline", "err", err, "pipelineId", pipeline.Id)
+			return nil, err
+		}
+		pipeline.PreStage = bean.CdStage{}
+		pipeline.PostStage = bean.CdStage{}
+		pipelines = append(pipelines, cdPipelineMigrated)
 	}
 	cdPipelines = &bean.CdPipelines{
 		AppId:     appId,
@@ -1583,4 +1617,27 @@ func (impl CiCdPipelineOrchestratorImpl) CreateEcrRepo(dockerRepository, AWSRegi
 		}
 	}
 	return nil
+}
+
+func (impl CiCdPipelineOrchestratorImpl) InitiateMigrationOfStageScriptsToPipelineStageSteps(cdPipeline *bean.CDPipelineConfigObject) (*bean.CDPipelineConfigObject, error) {
+	//below implementation means that preStageConfig or postStageConfig is not yet migrated to pipeline_stage_steps
+	//so convert the preStageConfig or postStageConfig into pipeline_stage_steps via adapter
+	if cdPipeline.PreDeployStage == nil && len(cdPipeline.PreStage.Config) > 0 {
+		preDeployStageConverted, err := StageYamlToPipelineStageAdapter(cdPipeline.PreStage.Config, repository5.PIPELINE_STAGE_TYPE_PRE_CD)
+		if err != nil {
+			impl.logger.Errorw("error in converting pre-stage data into pipeline stage steps", "err", err, "cdPipelineId", cdPipeline.Id)
+			return nil, err
+		}
+		cdPipeline.PreDeployStage = preDeployStageConverted
+	}
+	if cdPipeline.PostDeployStage == nil && len(cdPipeline.PostStage.Config) > 0 {
+		postDeployStageConverted, err := StageYamlToPipelineStageAdapter(cdPipeline.PostStage.Config, repository5.PIPELINE_STAGE_TYPE_POST_CD)
+		if err != nil {
+			impl.logger.Errorw("error in converting post-stage data into pipeline stage steps", "err", err, "cdPipelineId", cdPipeline.Id)
+			return nil, err
+		}
+		cdPipeline.PostDeployStage = postDeployStageConverted
+	}
+	return cdPipeline, nil
+
 }

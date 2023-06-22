@@ -295,7 +295,7 @@ func StageYamlToPipelineStageAdapter(stageConfig string, stageType repository2.P
 	}
 	for _, task := range taskYamlObject.CdPipelineConfig {
 		if len(task.BeforeTasks) > 0 {
-			beforeStepId := 0
+			beforeStepIndex := 0
 			for _, beforeTask := range task.BeforeTasks {
 
 				inlineStepDetail := &bean.InlineStepDetailDto{
@@ -304,41 +304,41 @@ func StageYamlToPipelineStageAdapter(stageConfig string, stageType repository2.P
 				}
 				//index really matters as the task order on the UI is decided by the index field
 				stepData := &bean.PipelineStageStepDto{
-					Id:                  beforeStepId,
+					Id:                  0,
 					Name:                beforeTask.Name,
 					Description:         "",
-					Index:               beforeStepId,
+					Index:               beforeStepIndex,
 					StepType:            repository2.PIPELINE_STEP_TYPE_INLINE,
-					OutputDirectoryPath: nil,
+					OutputDirectoryPath: []string{beforeTask.OutputLocation},
 					InlineStepDetail:    inlineStepDetail,
 					RefPluginStepDetail: nil,
 				}
 				pipelineStageDto.Steps = append(pipelineStageDto.Steps, stepData)
-				beforeStepId++
+				beforeStepIndex++
 			}
 			pipelineStageDto.Type = stageType
 			pipelineStageDto.Id = 0
 		}
 
 		if len(task.AfterTasks) > 0 {
-			afterStepId := 0
+			afterStepIndex := 0
 			for _, afterTask := range task.AfterTasks {
 				inlineStepDetail := &bean.InlineStepDetailDto{
 					ScriptType: repository3.SCRIPT_TYPE_SHELL,
 					Script:     afterTask.Script,
 				}
 				stepData := &bean.PipelineStageStepDto{
-					Id:                  afterStepId,
+					Id:                  0,
 					Name:                afterTask.Name,
 					Description:         "",
-					Index:               afterStepId,
+					Index:               afterStepIndex,
 					StepType:            repository2.PIPELINE_STEP_TYPE_INLINE,
-					OutputDirectoryPath: nil,
+					OutputDirectoryPath: []string{afterTask.OutputLocation},
 					InlineStepDetail:    inlineStepDetail,
 					RefPluginStepDetail: nil,
 				}
 				pipelineStageDto.Steps = append(pipelineStageDto.Steps, stepData)
-				afterStepId++
+				afterStepIndex++
 			}
 			pipelineStageDto.Type = stageType
 			pipelineStageDto.Id = 0

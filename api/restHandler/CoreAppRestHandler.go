@@ -72,29 +72,30 @@ type CoreAppRestHandler interface {
 }
 
 type CoreAppRestHandlerImpl struct {
-	logger                  *zap.SugaredLogger
-	userAuthService         user.UserService
-	validator               *validator.Validate
-	enforcerUtil            rbac.EnforcerUtil
-	enforcer                casbin.Enforcer
-	appCrudOperationService app.AppCrudOperationService
-	pipelineBuilder         pipeline.PipelineBuilder
-	gitRegistryService      pipeline.GitRegistryConfig
-	chartService            chart.ChartService
-	configMapService        pipeline.ConfigMapService
-	appListingService       app.AppListingService
-	propertiesConfigService pipeline.PropertiesConfigService
-	appWorkflowService      appWorkflow.AppWorkflowService
-	materialRepository      pipelineConfig.MaterialRepository
-	gitProviderRepo         repository.GitProviderRepository
-	appWorkflowRepository   appWorkflow2.AppWorkflowRepository
-	environmentRepository   repository2.EnvironmentRepository
-	configMapRepository     chartConfig.ConfigMapRepository
-	envConfigRepo           chartConfig.EnvConfigOverrideRepository
-	chartRepo               chartRepoRepository.ChartRepository
-	teamService             team.TeamService
-	argoUserService         argo.ArgoUserService
-	pipelineStageService    pipeline.PipelineStageService
+	logger                   *zap.SugaredLogger
+	userAuthService          user.UserService
+	validator                *validator.Validate
+	enforcerUtil             rbac.EnforcerUtil
+	enforcer                 casbin.Enforcer
+	appCrudOperationService  app.AppCrudOperationService
+	pipelineBuilder          pipeline.PipelineBuilder
+	gitRegistryService       pipeline.GitRegistryConfig
+	chartService             chart.ChartService
+	configMapService         pipeline.ConfigMapService
+	appListingService        app.AppListingService
+	propertiesConfigService  pipeline.PropertiesConfigService
+	appWorkflowService       appWorkflow.AppWorkflowService
+	materialRepository       pipelineConfig.MaterialRepository
+	gitProviderRepo          repository.GitProviderRepository
+	appWorkflowRepository    appWorkflow2.AppWorkflowRepository
+	environmentRepository    repository2.EnvironmentRepository
+	configMapRepository      chartConfig.ConfigMapRepository
+	envConfigRepo            chartConfig.EnvConfigOverrideRepository
+	chartRepo                chartRepoRepository.ChartRepository
+	teamService              team.TeamService
+	argoUserService          argo.ArgoUserService
+	pipelineStageService     pipeline.PipelineStageService
+	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator
 }
 
 func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserService, validator *validator.Validate, enforcerUtil rbac.EnforcerUtil,
@@ -104,31 +105,33 @@ func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.U
 	materialRepository pipelineConfig.MaterialRepository, gitProviderRepo repository.GitProviderRepository,
 	appWorkflowRepository appWorkflow2.AppWorkflowRepository, environmentRepository repository2.EnvironmentRepository, configMapRepository chartConfig.ConfigMapRepository,
 	envConfigRepo chartConfig.EnvConfigOverrideRepository, chartRepo chartRepoRepository.ChartRepository, teamService team.TeamService,
-	argoUserService argo.ArgoUserService, pipelineStageService pipeline.PipelineStageService) *CoreAppRestHandlerImpl {
+	argoUserService argo.ArgoUserService, pipelineStageService pipeline.PipelineStageService,
+	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator) *CoreAppRestHandlerImpl {
 	handler := &CoreAppRestHandlerImpl{
-		logger:                  logger,
-		userAuthService:         userAuthService,
-		validator:               validator,
-		enforcerUtil:            enforcerUtil,
-		enforcer:                enforcer,
-		appCrudOperationService: appCrudOperationService,
-		pipelineBuilder:         pipelineBuilder,
-		gitRegistryService:      gitRegistryService,
-		chartService:            chartService,
-		configMapService:        configMapService,
-		appListingService:       appListingService,
-		propertiesConfigService: propertiesConfigService,
-		appWorkflowService:      appWorkflowService,
-		materialRepository:      materialRepository,
-		gitProviderRepo:         gitProviderRepo,
-		appWorkflowRepository:   appWorkflowRepository,
-		environmentRepository:   environmentRepository,
-		configMapRepository:     configMapRepository,
-		envConfigRepo:           envConfigRepo,
-		chartRepo:               chartRepo,
-		teamService:             teamService,
-		argoUserService:         argoUserService,
-		pipelineStageService:    pipelineStageService,
+		logger:                   logger,
+		userAuthService:          userAuthService,
+		validator:                validator,
+		enforcerUtil:             enforcerUtil,
+		enforcer:                 enforcer,
+		appCrudOperationService:  appCrudOperationService,
+		pipelineBuilder:          pipelineBuilder,
+		gitRegistryService:       gitRegistryService,
+		chartService:             chartService,
+		configMapService:         configMapService,
+		appListingService:        appListingService,
+		propertiesConfigService:  propertiesConfigService,
+		appWorkflowService:       appWorkflowService,
+		materialRepository:       materialRepository,
+		gitProviderRepo:          gitProviderRepo,
+		appWorkflowRepository:    appWorkflowRepository,
+		environmentRepository:    environmentRepository,
+		configMapRepository:      configMapRepository,
+		envConfigRepo:            envConfigRepo,
+		chartRepo:                chartRepo,
+		teamService:              teamService,
+		argoUserService:          argoUserService,
+		pipelineStageService:     pipelineStageService,
+		ciCdPipelineOrchestrator: ciCdPipelineOrchestrator,
 	}
 	return handler
 }
@@ -785,7 +788,7 @@ func (handler CoreAppRestHandlerImpl) buildCdPipelineResp(appId int, cdPipeline 
 	} else if cdPipeline.PreDeployStage == nil && len(cdPipeline.PreStage.Config) > 0 {
 		//this means that it's pre-existing pipeline, without migration from preStageYaml to pipelineStageSteps
 		//so, we need to convert all preStageYaml to pipelineStageSteps and assign it to cdPipelineResp
-		cdRespMigrated, err := handler.pipelineBuilder.InitiateMigrationOfStageScriptsToPipelineStageSteps(cdPipeline)
+		cdRespMigrated, err := handler.ciCdPipelineOrchestrator.InitiateMigrationOfStageScriptsToPipelineStageSteps(cdPipeline)
 		if err != nil {
 			handler.logger.Errorw("service err, InitiateMigrationOfStageScriptsToPipelineStageSteps", "err", err, "appId", appId, "pipelineId", cdPipeline.Id)
 			return nil, err
@@ -799,7 +802,7 @@ func (handler CoreAppRestHandlerImpl) buildCdPipelineResp(appId int, cdPipeline 
 	if cdPipeline.PostDeployStage != nil {
 		cdPipelineResp.PostDeployStage = cdPipeline.PostDeployStage
 	} else if cdPipeline.PostDeployStage == nil && len(cdPipeline.PostStage.Config) > 0 {
-		cdRespMigrated, err := handler.pipelineBuilder.InitiateMigrationOfStageScriptsToPipelineStageSteps(cdPipeline)
+		cdRespMigrated, err := handler.ciCdPipelineOrchestrator.InitiateMigrationOfStageScriptsToPipelineStageSteps(cdPipeline)
 		if err != nil {
 			handler.logger.Errorw("service err, InitiateMigrationOfStageScriptsToPipelineStageSteps", "err", err, "appId", appId, "pipelineId", cdPipeline.Id)
 			return nil, err

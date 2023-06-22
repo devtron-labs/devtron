@@ -842,11 +842,6 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 	if strings.HasPrefix(pipelineName, req.refAppName) {
 		pipelineName = strings.Replace(pipelineName, req.refAppName+"-", "", 1)
 	}
-	preDeployStageDetail, postDeployStageDetail, err := impl.pipelineStageService.GetCdPipelineStageDataDeepCopy(refCdPipeline.Id)
-	if err != nil {
-		impl.logger.Errorw("error in getting pre-CD & post-CD stage detail by pipelineId", "err", err, "cdPipelineId", refCdPipeline.Id)
-		return nil, err
-	}
 	cdPipeline := &bean.CDPipelineConfigObject{
 		Id:                            0,
 		EnvironmentId:                 refCdPipeline.EnvironmentId,
@@ -864,8 +859,8 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 		RunPostStageInEnv:             refCdPipeline.RunPostStageInEnv,
 		RunPreStageInEnv:              refCdPipeline.RunPreStageInEnv,
 		DeploymentAppType:             refCdPipeline.DeploymentAppType,
-		PreDeployStage:                preDeployStageDetail,
-		PostDeployStage:               postDeployStageDetail,
+		PreDeployStage:                refCdPipeline.PreDeployStage,
+		PostDeployStage:               refCdPipeline.PostDeployStage,
 	}
 	cdPipelineReq := &bean.CdPipelines{
 		Pipelines: []*bean.CDPipelineConfigObject{cdPipeline},

@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
@@ -22,11 +23,13 @@ type PipelineStageService interface {
 
 func NewPipelineStageService(logger *zap.SugaredLogger,
 	pipelineStageRepository repository.PipelineStageRepository,
-	globalPluginRepository repository2.GlobalPluginRepository) *PipelineStageServiceImpl {
+	globalPluginRepository repository2.GlobalPluginRepository,
+	pipelineRepository pipelineConfig.PipelineRepository) *PipelineStageServiceImpl {
 	return &PipelineStageServiceImpl{
 		logger:                  logger,
 		pipelineStageRepository: pipelineStageRepository,
 		globalPluginRepository:  globalPluginRepository,
+		pipelineRepository:      pipelineRepository,
 	}
 }
 
@@ -34,6 +37,7 @@ type PipelineStageServiceImpl struct {
 	logger                  *zap.SugaredLogger
 	pipelineStageRepository repository.PipelineStageRepository
 	globalPluginRepository  repository2.GlobalPluginRepository
+	pipelineRepository      pipelineConfig.PipelineRepository
 }
 
 func (impl *PipelineStageServiceImpl) GetCiPipelineStageDataDeepCopy(ciPipelineId int) (*bean.PipelineStageDto, *bean.PipelineStageDto, error) {
@@ -94,6 +98,13 @@ func (impl *PipelineStageServiceImpl) GetCdPipelineStageDataDeepCopy(cdPipelineI
 			impl.logger.Errorw("found improper stage mapped with cdPipeline", "cdPipelineId", cdPipelineId, "stage", cdStage)
 		}
 	}
+	pipeline, err := impl.pipelineRepository.FindById(cdPipelineId)
+	if err != nil {
+		impl.logger.Errorw("error in getting pipeline from cdPipelineId", "err", err, "cdPipelineId", cdPipelineId)
+		return nil, nil, err
+	}
+	preDeployStage.TriggerType = pipeline.PreTriggerType
+	postDeployStage.TriggerType = pipeline.PostTriggerType
 	return preDeployStage, postDeployStage, nil
 }
 
