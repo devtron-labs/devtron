@@ -51,13 +51,14 @@ type EventSimpleFactoryImpl struct {
 	pipelineRepository           pipelineConfig.PipelineRepository
 	userRepository               repository.UserRepository
 	ciArtifactRepository         repository2.CiArtifactRepository
+	DeploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository
 }
 
 func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
-	userRepository repository.UserRepository, ciArtifactRepository repository2.CiArtifactRepository) *EventSimpleFactoryImpl {
+	userRepository repository.UserRepository, ciArtifactRepository repository2.CiArtifactRepository, DeploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository) *EventSimpleFactoryImpl {
 	return &EventSimpleFactoryImpl{
 		logger:                       logger,
 		cdWorkflowRepository:         cdWorkflowRepository,
@@ -68,6 +69,7 @@ func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository p
 		pipelineRepository:           pipelineRepository,
 		userRepository:               userRepository,
 		ciArtifactRepository:         ciArtifactRepository,
+		DeploymentApprovalRepository: DeploymentApprovalRepository,
 	}
 }
 
@@ -97,6 +99,33 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 		payload.Stage = string(stage)
 		event.Payload = payload
 	}
+	var emailIDs []string
+	wfrForApprovalData, err := impl.cdWorkflowRepository.FindLatestWfrByAppIdAndEnvironmentId(event.AppId, event.EnvId)
+	if err != nil {
+		impl.logger.Errorw("error in getting wfr by appId and envId", "err", err, "appId", wfrForApprovalData, "envId", event.EnvId)
+	}
+	deploymentUserData, err := impl.DeploymentApprovalRepository.FetchApprovedDataByAppIdEnvId(wfrForApprovalData.DeploymentApprovalRequest.Id)
+	if err != nil {
+		impl.logger.Errorw("error in getting deploymentUserData", "err", err, "wfrForApprovalData.DeploymentApprovalRequest.Id", wfrForApprovalData.DeploymentApprovalRequest.Id)
+	}
+	if wfrForApprovalData != nil {
+		if deploymentUserData != nil {
+			userIDs := []int32{}
+			for _, userData := range deploymentUserData {
+				userIDs = append(userIDs, userData.UserId)
+			}
+			users, err := impl.userRepository.GetByIds(userIDs)
+			if err != nil {
+				impl.logger.Errorw("UserModel not found for users", err)
+			}
+			emailIDs = []string{}
+			for _, user := range users {
+				emailIDs = append(emailIDs, user.EmailId)
+			}
+
+		}
+	}
+	payload.ApprovedByEmail = emailIDs
 	if wfr != nil {
 		material, err := impl.getCiMaterialInfo(wfr.CdWorkflow.Pipeline.CiPipelineId, wfr.CdWorkflow.CiArtifactId)
 		if err != nil {
@@ -106,6 +135,7 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 		payload.DockerImageUrl = wfr.CdWorkflow.CiArtifact.Image
 		event.UserId = int(wfr.TriggeredBy)
 		event.Payload = payload
+		payload.ApprovedByEmail = emailIDs
 		event.CdWorkflowRunnerId = wfr.Id
 		event.CiArtifactId = wfr.CdWorkflow.CiArtifactId
 	} else if pipelineOverrideId > 0 {
@@ -153,6 +183,7 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 
 	if event.UserId > 0 {
 		user, err := impl.userRepository.GetById(int32(event.UserId))
+
 		if err != nil {
 			impl.logger.Errorw("found error on payload build for cd stages, skipping this error ", "user", user)
 		}

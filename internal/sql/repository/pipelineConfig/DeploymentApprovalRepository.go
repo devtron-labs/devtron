@@ -19,6 +19,7 @@ type DeploymentApprovalRepository interface {
 	Update(deploymentApprovalRequest *DeploymentApprovalRequest) error
 	SaveDeploymentUserData(userData *DeploymentApprovalUserData) error
 	ConsumeApprovalRequest(requestId int) error
+	FetchApprovedDataByAppIdEnvId(approvalRequestId int) ([]*DeploymentApprovalUserData, error)
 }
 
 type DeploymentApprovalRepositoryImpl struct {
@@ -53,6 +54,20 @@ type DeploymentApprovalUserData struct {
 	Comments          string                     `sql:"comments"`
 	User              *repository.UserModel
 	sql.AuditLog
+}
+
+func (impl *DeploymentApprovalRepositoryImpl) FetchApprovedDataByAppIdEnvId(approvalRequestId int) ([]*DeploymentApprovalUserData, error) {
+	var results []*DeploymentApprovalUserData
+	err := impl.dbConnection.
+		Model(&results).
+		Column("deployment_approval_user_data.*", "User").
+		Where("deployment_approval_user_data.approval_request_id = ? ", approvalRequestId).Select()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error occurred while fetching artifacts", "results", results, "err", err)
+		return nil, err
+	}
+	return results, nil
+
 }
 
 func (impl *DeploymentApprovalRepositoryImpl) FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int) ([]*DeploymentApprovalRequest, error) {

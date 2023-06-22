@@ -89,6 +89,7 @@ type Payload struct {
 	DownloadLink          string               `json:"downloadLink"`
 	BuildHistoryLink      string               `json:"buildHistoryLink"`
 	MaterialTriggerInfo   *MaterialTriggerInfo `json:"material"`
+	ApprovedByEmail       []string             `json:"approvedByEmail"`
 	FailureReason         string               `json:"failureReason"`
 }
 
