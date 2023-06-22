@@ -444,7 +444,7 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 		//setting appIdentifier value in request
 		request.AppIdentifier = appIdentifier
 		request.ClusterId = appIdentifier.ClusterId
-		if request.DeploymentType == HelmAppType {
+		if request.DeploymentType == HelmInstalledType {
 			valid, err := handler.k8sApplicationService.ValidateResourceRequest(r.Context(), request.AppIdentifier, request.K8sRequest)
 			if err != nil || !valid {
 				handler.logger.Errorw("error in validating resource request", "err", err)
