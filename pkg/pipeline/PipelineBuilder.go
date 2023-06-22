@@ -70,6 +70,9 @@ import (
 	"go.uber.org/zap"
 )
 
+const DashboardConfigMap = "dashboard-cm"
+const SECURITY_SCANNING = "FORCE_SECURITY_SCANNING"
+
 var DefaultPipelineValue = []byte(`{"ConfigMaps":{"enabled":false},"ConfigSecrets":{"enabled":false},"ContainerPort":[],"EnvVariables":[],"GracePeriod":30,"LivenessProbe":{},"MaxSurge":1,"MaxUnavailable":0,"MinReadySeconds":60,"ReadinessProbe":{},"Spec":{"Affinity":{"Values":"nodes","key":""}},"app":"13","appMetrics":false,"args":{},"autoscaling":{},"command":{"enabled":false,"value":[]},"containers":[],"dbMigrationConfig":{"enabled":false},"deployment":{"strategy":{"rolling":{"maxSurge":"25%","maxUnavailable":1}}},"deploymentType":"ROLLING","env":"1","envoyproxy":{"configMapName":"","image":"","resources":{"limits":{"cpu":"50m","memory":"50Mi"},"requests":{"cpu":"50m","memory":"50Mi"}}},"image":{"pullPolicy":"IfNotPresent"},"ingress":{},"ingressInternal":{"annotations":{},"enabled":false,"host":"","path":"","tls":[]},"initContainers":[],"pauseForSecondsBeforeSwitchActive":30,"pipelineName":"","prometheus":{"release":"monitoring"},"rawYaml":[],"releaseVersion":"1","replicaCount":1,"resources":{"limits":{"cpu":"0.05","memory":"50Mi"},"requests":{"cpu":"0.01","memory":"10Mi"}},"secret":{"data":{},"enabled":false},"server":{"deployment":{"image":"","image_tag":""}},"service":{"annotations":{},"type":"ClusterIP"},"servicemonitor":{"additionalLabels":{}},"tolerations":[],"volumeMounts":[],"volumes":[],"waitForSecondsBeforeScalingDown":30}`)
 
 type EcrConfig struct {
@@ -216,6 +219,7 @@ type PipelineBuilderImpl struct {
 	appGroupService                                 appGroup2.AppGroupService
 	globalPolicyService                             globalPolicy.GlobalPolicyService
 	chartDeploymentService                          util.ChartDeploymentService
+	K8sUtil                                         *util.K8sUtil
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -268,7 +272,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	appGroupService appGroup2.AppGroupService,
 	chartDeploymentService util.ChartDeploymentService,
-	globalPolicyService globalPolicy.GlobalPolicyService) *PipelineBuilderImpl {
+	globalPolicyService globalPolicy.GlobalPolicyService,
+	K8sUtil *util.K8sUtil) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                        logger,
 		ciCdPipelineOrchestrator:      ciCdPipelineOrchestrator,
@@ -329,6 +334,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		appGroupService:                                 appGroupService,
 		globalPolicyService:                             globalPolicyService,
 		chartDeploymentService:                          chartDeploymentService,
+		K8sUtil:                                         K8sUtil,
 	}
 }
 
@@ -1468,6 +1474,28 @@ func (impl PipelineBuilderImpl) PatchCiPipeline(request *bean.CiPatchRequest) (c
 	ciConfig.AppWorkflowId = request.AppWorkflowId
 	ciConfig.UserId = request.UserId
 	if request.CiPipeline != nil {
+		client, err := impl.K8sUtil.GetClientForInCluster()
+		if err != nil {
+			impl.logger.Errorw("exception while getting unique client id", "error", err)
+			return nil, err
+		}
+		cm, err := impl.K8sUtil.GetConfigMap(argo.DEVTRONCD_NAMESPACE, DashboardConfigMap, client)
+		if err != nil {
+			impl.logger.Errorw("error while getting dashboard-cm", "error", err)
+			return nil, err
+		}
+		if cm == nil {
+			impl.logger.Errorw("error while getting dashboard-cm", "error", err)
+			return nil, err
+		}
+		datamap := cm.Data
+		forceScanConfig, err := strconv.ParseBool(datamap[SECURITY_SCANNING])
+		if err != nil {
+			forceScanConfig = false
+		}
+		if forceScanConfig {
+			request.CiPipeline.ScanEnabled = true
+		}
 		ciConfig.ScanEnabled = request.CiPipeline.ScanEnabled
 	}
 	switch request.Action {
