@@ -18,12 +18,14 @@
 package team
 
 import (
+	"errors"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/bean"
 	"go.uber.org/zap"
+	"strings"
 	"time"
 )
 
@@ -62,6 +64,11 @@ func NewTeamServiceImpl(logger *zap.SugaredLogger, teamRepository TeamRepository
 
 func (impl TeamServiceImpl) Create(request *TeamRequest) (*TeamRequest, error) {
 	impl.logger.Debugw("team create request", "req", request)
+	if len(request.Name) < 3 || strings.Contains(request.Name, " ") {
+		impl.logger.Errorw("name should not contain white spaces and should have min 3 chars ")
+		err := errors.New("name should not contain white spaces and should have min 3 chars")
+		return nil, err
+	}
 	t := &Team{
 		Name:     request.Name,
 		Id:       request.Id,
