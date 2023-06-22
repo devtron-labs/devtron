@@ -1967,22 +1967,6 @@ func (impl PipelineBuilderImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipeli
 			return err
 		}
 	}
-	//if pipeline.P != nil && request.CiPipeline.PreBuildStage.Id > 0 {
-	//	//deleting pre stage
-	//	err = impl.pipelineStageService.DeleteCiStage(request.CiPipeline.PreBuildStage, request.UserId, tx)
-	//	if err != nil {
-	//		impl.logger.Errorw("error in deleting pre stage", "err", err, "preBuildStage", request.CiPipeline.PreBuildStage)
-	//		return nil, err
-	//	}
-	//}
-	//if request.CiPipeline.PostBuildStage != nil && request.CiPipeline.PostBuildStage.Id > 0 {
-	//	//deleting post stage
-	//	err = impl.pipelineStageService.DeleteCiStage(request.CiPipeline.PostBuildStage, request.UserId, tx)
-	//	if err != nil {
-	//		impl.logger.Errorw("error in deleting post stage", "err", err, "postBuildStage", request.CiPipeline.PostBuildStage)
-	//		return nil, err
-	//	}
-	//}
 	//delete app from argo cd, if created
 	if pipeline.DeploymentAppCreated == true {
 		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
