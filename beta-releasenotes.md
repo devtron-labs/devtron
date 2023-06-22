@@ -2,6 +2,7 @@
 - fix: Remove argocd server calls for Application resources (Manifest, Event, Logs, Terminal) (#3200)
 - fix: disable api update if disabled from UI (#3487)
 ## Enhancements
+- feat: Added custom webhook support for sending notification (#3524)
 ## Documentation
 ## Others
 - task: updated workflow name provision in app workflow api (#3526)
