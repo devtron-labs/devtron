@@ -27,7 +27,6 @@ const (
 	DevtronCiPipelineId      WebhookVariable = "{{devtronCiPipelineId}}"
 	DevtronCdPipelineId      WebhookVariable = "{{devtronCdPipelineId}}"
 	DevtronTriggeredByEmail  WebhookVariable = "{{devtronTriggeredByEmail}}"
-	DevtronApprovedByEmail   WebhookVariable = "{{devtronApprovedByEmail}}"
 	EventType                WebhookVariable = "{{eventType}}"
 )
 
@@ -122,7 +121,6 @@ func (impl *WebhookNotificationServiceImpl) GetWebhookVariables() (map[string]We
 		"devtronCiPipelineId":      DevtronCiPipelineId,
 		"devtronCdPipelineId":      DevtronCdPipelineId,
 		"devtronTriggeredByEmail":  DevtronTriggeredByEmail,
-		"devtronApprovedByEmail":   DevtronApprovedByEmail,
 		"eventType":                EventType,
 	}
 
