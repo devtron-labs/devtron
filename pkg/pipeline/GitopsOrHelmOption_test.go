@@ -18,13 +18,13 @@ func TestGitopsOrHelmOption(t *testing.T) {
 		pipelineBuilderService := NewPipelineBuilderImpl(sugaredLogger, nil, nil, nil, nil,
 			nil, nil, nil,
 			nil, nil, nil, nil, nil,
-			nil, nil, nil, util.MergeUtil{Logger: sugaredLogger}, nil,
+			nil, nil, nil, nil, util.MergeUtil{Logger: sugaredLogger}, nil,
 			nil, nil, nil, nil, nil,
 			nil, nil, nil, nil, nil,
 			nil, nil, nil,
 			nil, nil, nil, nil,
 			nil, nil, nil, nil,
-			nil, nil, nil, nil, nil, nil, nil, nil, &DeploymentServiceTypeConfig{IsInternalUse: false}, nil, nil, nil, nil, nil, nil, nil, nil)
+			nil, nil, nil, nil, nil, nil, nil, nil, &DeploymentServiceTypeConfig{IsInternalUse: false}, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 
 		pipelineCreateRequest := &bean.CdPipelines{
 			Pipelines: []*bean.CDPipelineConfigObject{
@@ -71,15 +71,13 @@ func TestGitopsOrHelmOption(t *testing.T) {
 		pipelineBuilderService := NewPipelineBuilderImpl(sugaredLogger, nil, nil, nil, nil,
 			nil, nil, nil,
 			nil, nil, nil, nil, nil,
-			nil, nil, nil, util.MergeUtil{Logger: sugaredLogger}, nil,
+			nil, nil, nil, nil, util.MergeUtil{Logger: sugaredLogger}, nil,
 			nil, nil, nil, nil, nil,
 			nil, nil, nil, nil, nil,
 			nil, nil, nil,
 			nil, nil, nil, nil,
 			nil, nil, nil, nil,
-			nil, nil, nil, nil, nil, nil, nil,
-			nil, &DeploymentServiceTypeConfig{IsInternalUse: false},
-			nil, nil, nil, nil, nil, nil, nil, nil)
+			nil, nil, nil, nil, nil, nil, nil, nil, &DeploymentServiceTypeConfig{IsInternalUse: false}, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 
 		pipelineCreateRequest := &bean.CdPipelines{
 			Pipelines: []*bean.CDPipelineConfigObject{
@@ -126,16 +124,13 @@ func TestGitopsOrHelmOption(t *testing.T) {
 		pipelineBuilderService := NewPipelineBuilderImpl(sugaredLogger, nil, nil, nil, nil,
 			nil, nil, nil,
 			nil, nil, nil, nil, nil,
-			nil, nil, nil, util.MergeUtil{Logger: sugaredLogger}, nil,
+			nil, nil, nil, nil, util.MergeUtil{Logger: sugaredLogger}, nil,
 			nil, nil, nil, nil, nil,
 			nil, nil, nil, nil, nil,
 			nil, nil, nil,
 			nil, nil, nil, nil,
 			nil, nil, nil, nil,
-			nil, nil, nil, nil, nil, nil,
-			nil, nil,
-			&DeploymentServiceTypeConfig{IsInternalUse: true}, nil, nil, nil,
-			nil, nil, nil, nil, nil)
+			nil, nil, nil, nil, nil, nil, nil, nil, &DeploymentServiceTypeConfig{IsInternalUse: true}, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 
 		pipelineCreateRequestHelm := &bean.CdPipelines{
 			Pipelines: []*bean.CDPipelineConfigObject{
@@ -220,14 +215,13 @@ func TestGitopsOrHelmOption(t *testing.T) {
 		pipelineBuilderService := NewPipelineBuilderImpl(sugaredLogger, nil, nil, nil, nil,
 			mockedPipelineRepository, nil, nil,
 			nil, nil, nil, nil, nil,
-			nil, nil, nil, util.MergeUtil{Logger: sugaredLogger}, nil,
+			nil, nil, nil, nil, util.MergeUtil{Logger: sugaredLogger}, nil,
 			nil, nil, nil, nil, nil,
 			nil, nil, nil, nil, nil,
 			nil, nil, nil,
 			nil, nil, nil, nil,
 			nil, nil, nil, nil,
-			nil, nil, nil, nil, nil, nil, nil,
-			nil, &DeploymentServiceTypeConfig{IsInternalUse: false}, nil, nil, nil, nil, nil, nil, nil, nil)
+			nil, nil, nil, nil, nil, nil, nil, nil, &DeploymentServiceTypeConfig{IsInternalUse: false}, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 
 		pipelineCreateRequest := &bean.CdPipelines{
 			Pipelines: []*bean.CDPipelineConfigObject{
@@ -278,13 +272,13 @@ func TestGitopsOrHelmOption(t *testing.T) {
 		pipelineBuilderService := NewPipelineBuilderImpl(sugaredLogger, nil, nil, nil, nil,
 			mockedPipelineRepository, nil, nil,
 			nil, nil, nil, nil, nil,
-			nil, nil, nil, util.MergeUtil{Logger: sugaredLogger}, nil,
+			nil, nil, nil, nil, util.MergeUtil{Logger: sugaredLogger}, nil,
 			nil, nil, nil, nil, nil,
 			nil, nil, nil, nil, nil,
 			nil, nil, nil,
 			nil, nil, nil, nil,
 			nil, nil, nil, nil,
-			nil, nil, nil, nil, nil, nil, nil, nil, &DeploymentServiceTypeConfig{IsInternalUse: true}, nil, nil, nil, nil, nil, nil, nil, nil)
+			nil, nil, nil, nil, nil, nil, nil, nil, &DeploymentServiceTypeConfig{IsInternalUse: true}, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 
 		pipelineCreateRequest := &bean.CdPipelines{
 			Pipelines: []*bean.CDPipelineConfigObject{
