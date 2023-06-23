@@ -23,10 +23,8 @@
   {{- end }}
   {{- end }}
   {{- end }}
-
-
-apiVersion: argoproj.io/v1alpha1
-kind: Rollout
+apiVersion: apps/v1
+kind: StatefulSet
 metadata:
   name: {{ include ".Chart.Name .fullname" $ }}
   labels:
@@ -35,18 +33,16 @@ metadata:
     release: {{ $.Release.Name }}
     releaseVersion: {{ $.Values.releaseVersion | quote }}
     pipelineName: {{ .Values.pipelineName }}
-{{- if .Values.rolloutLabels }}
-{{ toYaml .Values.rolloutLabels | indent 4 }}
-{{- end }}
-{{- if .Values.appLabels }}
-{{ toYaml .Values.appLabels | indent 4 }}
-{{- end }}
-
-{{- if .Values.rolloutAnnotations }}
+    {{- if .Values.statefulSetConfig.labels }}
+{{ toYaml .Values.statefulSetConfig.labels | indent 4 }}
+    {{- end }}
+    {{- if .Values.appLabels }}
+{{ toYaml .Values.appLabels  | indent 4}}
+    {{- end }}
+  {{- if .Values.statefulSetConfig.annotations }}
   annotations:
-{{ toYaml .Values.rolloutAnnotations | indent 4 }}
+{{ toYaml .Values.statefulSetConfig.annotations | indent 4 }}
 {{- end }}
-
 spec:
   selector:
     matchLabels:
@@ -54,6 +50,14 @@ spec:
       release: {{ $.Release.Name }}
   replicas: {{ $.Values.replicaCount }}
   minReadySeconds: {{ $.Values.MinReadySeconds }}
+  {{- if .Values.statefulSetConfig.serviceName  }}
+  serviceName: {{ .Values.statefulSetConfig.serviceName }}
+  {{- else }}
+  serviceName: {{ template ".servicename" . }}-headless
+  {{- end}}
+  {{- if $.Values.statefulSetConfig.podManagementPolicy }}
+  podManagementPolicy: {{ $.Values.statefulSetConfig.podManagementPolicy }}
+  {{- end }}
   template:
     metadata:
     {{- if .Values.podAnnotations }}
@@ -67,29 +71,25 @@ spec:
         appId: {{ $.Values.app | quote }}
         envId: {{ $.Values.env | quote }}
         release: {{ $.Release.Name }}
-{{- if .Values.appLabels }}
+        {{- if .Values.appLabels }}
 {{ toYaml .Values.appLabels | indent 8 }}
-{{- end }}
-{{- if .Values.podLabels }}
-{{ toYaml .Values.podLabels | indent 8 }}
-{{- end }}
+        {{- end }}
+        {{- if .Values.podLabels }}
+        {{ toYaml .Values.podLabels | indent 8 }}
+        {{- end }}
     spec:
 {{- if $.Values.podExtraSpecs }}	
 {{ toYaml .Values.podExtraSpecs | indent 6 }}	
 {{- end }}
       terminationGracePeriodSeconds: {{ $.Values.GracePeriod }}
       restartPolicy: Always
-{{- if $.Values.hostAliases }}
-      hostAliases:
-{{ toYaml .Values.hostAliases | indent 8 }}
-{{- end }}
 {{- if and $.Values.Spec.Affinity.Key $.Values.Spec.Affinity.Values }}
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
             - matchExpressions:
-              - key: {{ $.Values.Spec.Affinity.Key  }}
+              - key: {{ $.Values.Spec.Affinity.Key | indent 14 }}
                 operator: In
                 values:
                 - {{ $.Values.Spec.Affinity.Values | default "nodes"  }}
@@ -378,12 +378,17 @@ spec:
             failureThreshold: {{ $.Values.ReadinessProbe.failureThreshold  }}
 {{- end }}
           resources:
-{{ toYaml $.Values.resources | trim | indent 12 }}
-
+{{ toYaml $.Values.resources | trim | indent 12 }} 
           volumeMounts:
+          {{- if .Values.statefulSetConfig.volumeMounts }}
+          {{- with (index  .Values.statefulSetConfig.volumeClaimTemplates 0) }}
+            - name: {{ .metadata.name | default  $.Release.Name }}
+           {{- end }} 
+              mountPath: {{ .Values.statefulSetConfig.volumeMounts.mountPath }}
+          {{- end }}
 {{- with .Values.volumeMounts }}
 {{ toYaml . | trim | indent 12 }}
-{{- end }}
+{{- end }}  
           {{- if .Values.ConfigMaps.enabled }}
           {{- range .Values.ConfigMaps.maps }}
           {{- if eq .type "volume"}}
@@ -392,7 +397,7 @@ spec:
           {{- if eq .subPath false }}
             - name: {{ $cmName | replace "." "-"}}-vol
               mountPath: {{ $cmMountPath }}
-	  
+
           {{- else }}
           {{- range $k, $v := .data }}
             - name: {{ $cmName | replace "." "-"}}-vol
@@ -424,8 +429,7 @@ spec:
           {{- end }}
           {{- end }}
           {{- if and (eq (len .Values.volumes) 0) (or (eq (.Values.ConfigSecrets.enabled) true) (eq (.Values.ConfigMaps.enabled) true)) (eq ($hasCMVolumeExists) false) (eq ($hasSecretVolumeExists) false) }} []{{- end }}
-          {{- if and (eq (len .Values.volumeMounts) 0) (eq (.Values.ConfigSecrets.enabled) false) (eq (.Values.ConfigMaps.enabled) false) }} []{{- end }}
-
+          {{- if and (eq (len .Values.volumeMounts) 0) (eq (.Values.ConfigSecrets.enabled) false) (eq (.Values.ConfigMaps.enabled) false) (eq (len .Values.statefulSetConfig.volumeMounts) 0) }} [] {{- end }}
       volumes:
   {{- if $.Values.appMetrics }}
         - name: envoy-config-volume
@@ -452,7 +456,6 @@ spec:
       {{- end }}
       {{- end }}
       {{- end }}
-
       {{- if .Values.ConfigSecrets.enabled }}
       {{- range .Values.ConfigSecrets.secrets }}
       {{- if eq .type "volume"}}
@@ -472,32 +475,78 @@ spec:
       {{- end }}
       {{- if and (eq (len .Values.volumes) 0) (or (eq (.Values.ConfigSecrets.enabled) true) (eq (.Values.ConfigMaps.enabled) true)) (eq ($hasCMVolumeExists) false) (eq ($hasSecretVolumeExists) false) (eq (.Values.appMetrics) false) }} []{{- end }}
       {{- if and (eq (len .Values.volumes) 0) (eq (.Values.ConfigSecrets.enabled) false) (eq (.Values.ConfigMaps.enabled) false) (eq (.Values.appMetrics) false) }} []{{- end }}
-
-  revisionHistoryLimit: 3
-##  pauseForSecondsBeforeSwitchActive: {{ $.Values.pauseForSecondsBeforeSwitchActive }}
-#  waitForSecondsBeforeScalingDown: {{ $.Values.waitForSecondsBeforeScalingDown }}
-  strategy:
-    {{- if eq .Values.deploymentType "BLUE-GREEN" }}
-    blueGreen: # A new field that used to provide configurable options for a BlueGreenUpdate strategy
-      previewService: {{ template ".previewservicename" . }} # Reference to a service that can serve traffic to a new image before it receives the active traffic
-      activeService: {{ template ".servicename" . }} # Reference to a service that serves end-user traffic to the replica set
-      autoPromotionSeconds: {{ $.Values.deployment.strategy.blueGreen.autoPromotionSeconds  }}
-      scaleDownDelaySeconds: {{ $.Values.deployment.strategy.blueGreen.scaleDownDelaySeconds }}
-      previewReplicaCount: {{ $.Values.deployment.strategy.blueGreen.previewReplicaCount  }}
-      autoPromotionEnabled: {{ $.Values.deployment.strategy.blueGreen.autoPromotionEnabled  }}
-    {{- else if eq .Values.deploymentType "ROLLING" }}
-    canary:
-      stableService: {{ template ".servicename" . }} # Reference to a service that serves end-user traffic to the replica set
-      maxSurge: {{ $.Values.deployment.strategy.rolling.maxSurge }}
-      maxUnavailable: {{ $.Values.deployment.strategy.rolling.maxUnavailable }}
-    {{- else if eq .Values.deploymentType "RECREATE" }}
-    recreate:
-      activeService: {{ template ".servicename" . }} # Reference to a service that serves end-user traffic to the replica set
-    {{- else if eq .Values.deploymentType "CANARY" }}
-    canary:
-      stableService: {{ template ".servicename" . }} # Reference to a service that serves end-user traffic to the replica set
-      maxSurge: {{ $.Values.deployment.strategy.canary.maxSurge }}
-      maxUnavailable: {{ $.Values.deployment.strategy.canary.maxUnavailable }}
-      steps:
-{{ toYaml .Values.deployment.strategy.canary.steps | indent 8 }}
+  {{- if $.Values.statefulSetConfig.volumeClaimTemplates }}
+  volumeClaimTemplates: 
+    {{- range $.Values.statefulSetConfig.volumeClaimTemplates }}
+    - apiVersion: {{ .apiVersion | default "v1" }}
+      {{- if .kind }}
+      kind: {{.kind}}
+      {{- end}}
+      metadata:
+          {{- if .metadata.annotations }}
+          annotations: {{ toYaml .metadata.annotations | nindent 14 }}
+          {{- end}}
+          {{- if .metadata.labels }}
+          labels: {{ toYaml .metadata.labels | nindent 14 }}
+          {{- end}}
+          {{- if .metadata.name }}
+          name: {{ .metadata.name }}
+          {{- else }}
+          name: {{ $.Release.Name }}
+          {{- end}}
+          {{- if .metadata.namespace }}
+          namespace: {{  .metadata.namespace  }}
+          {{- end}}
+      spec:
+        accessModes: 
+        {{- range .spec.accessModes }}
+            - {{ . }}
+        {{- end }}
+         {{- if .spec.dataSource }}
+        dataSource:
+            apiGroup: {{ .spec.dataSource.apiGroup}}
+            kind:  {{ .spec.dataSource.kind}}
+            name:  {{ .spec.dataSource.name}}
+          {{- end }}
+         {{- if .spec.dataSourceRef }}
+        dataSourceRef:
+            apiGroup: {{ .spec.dataSourceRef.apiGroup}}
+            kind: {{ .spec.dataSourceRef.kind}}
+            name:  {{ .spec.dataSourceRef.name}}
+          {{- end }}
+        {{- if .spec.selector }}
+        selector: {{ toYaml .spec.selector | nindent 10 }}
+        {{- end}}
+        {{- if .spec.storageClassName }}
+        storageClassName: {{ .spec.storageClassName }}
+        {{- end}}
+        resources:
+         {{- if .spec.resources.claim }}
+            claims:
+                name: {{ .spec.resources.claim.name}}
+            {{- end}}
+            {{- if .spec.resources.limits }}
+            limits: {{ toYaml .spec.resources.limits | nindent 14 }}
+            {{- end}}
+            requests:
+              storage: {{ .spec.resources.requests.storage }}
+        {{- if .volumeMode }}
+        volumeMode: {{ .volumeMode}}
+        {{- end}}
+        {{- if .volumeName }}
+        volumeName: {{ .volumeName}}
+        {{- end}}
+    {{- end }}   
     {{- end }}
+    {{- if eq .Values.deploymentType "ROLLINGUPDATE" }}  
+  updateStrategy: 
+      type: RollingUpdate
+    {{- if $.Values.deployment.strategy.rollingupdate.partition }}
+      rollingUpdate:
+          partition: {{ .Values.deployment.strategy.rollingupdate.partition }}
+    {{- end }} 
+      {{- else if eq .Values.deploymentType "ONDELETE" }}
+  updateStrategy:
+      type: OnDelete
+      {{- end }}
+  revisionHistoryLimit: {{ .Values.statefulSetConfig.revisionHistoryLimit }}

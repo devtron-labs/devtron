@@ -1,0 +1,6 @@
+deployment:
+  strategy:
+    rollingupdate:
+        partition: 0
+    ondelete: {}
+    

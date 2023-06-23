@@ -12,6 +12,8 @@ rolloutAnnotations:
   Company: Devtron
   Job: DevOps
 
+appLabels: 
+      test: thyjhgfv
 containerSpec:
   lifecycle: 
     enabled: true
@@ -114,11 +116,75 @@ autoscaling:
 #      type: External
 #
 
+statefulSetConfig:
+  labels: 
+    app: example
+  annotations:
+     example.com/version: "1.0"
+  serviceName: "test-service-headless-statefulset"
+  podManagementPolicy: "Parallel"
+  updateStrategy:
+    type: RollingUpdate
+    partition: 2
+  volumeMounts: 
+        mountPath: /
+  volumeClaimTemplates:
+  - apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      labels:
+        app: myapp
+      name: testing1
+    spec:
+      accessModes:
+        - ReadWriteOnce
+        - ReadWriteOnce
+        - ReadWriteOnce
+      dataSource:
+        kind: Snapshot
+        apiGroup: snapshot.storage.k8s.io
+        name: my-snapshot
+      resources:
+        requests:
+          storage: 10Gi
+        limits:
+          storage: 20Gi
+      storageClassName: my-storage-class
+      selector:
+        matchLabels:
+          app: myapp
+      volumeMode: Filesystem
+      volumeName: my-pv
+  - apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      name: pvc-logs
+      labels:
+        app: myapp
+    spec:
+      accessModes:
+        - ReadWriteMany
+      dataSourceRef:
+        kind: Secret
+        apiGroup: v1
+        name: my-secret
+      resources:
+        requests:
+          storage: 5Gi
+      storageClassName: my-storage-class
+      selector:
+        matchExpressions:
+          - {key: environment, operator: In, values: [production]}
+      volumeMode: Block
+      volumeName: my-pv
+
+
 secret:
   enabled: false
 
 service:
   type: ClusterIP
+  enabled: true
   #  name: "1234567890123456789012345678901234567890123456789012345678901234567890"
   annotations: {}
     # test1: test2
@@ -283,6 +349,8 @@ resources:
 volumeMounts: 
      - name: log-volume
        mountPath: /var/log
+     - name: pvc-logs
+       mountPath: /tmp
 
 volumes: 
      - name: log-volume
