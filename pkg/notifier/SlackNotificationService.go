@@ -33,8 +33,6 @@ import (
 )
 
 const SLACK_CONFIG_TYPE = "slack"
-const SLACK_URL = "https://hooks.slack.com/"
-const WEBHOOK_URL = "https://"
 
 type SlackNotificationService interface {
 	SaveOrEditNotificationConfig(channelReq []SlackConfigDto, userId int32) ([]int, error)
@@ -49,7 +47,6 @@ type SlackNotificationServiceImpl struct {
 	logger                         *zap.SugaredLogger
 	teamService                    team.TeamService
 	slackRepository                repository.SlackNotificationRepository
-	webhookRepository              repository.WebhookNotificationRepository
 	userRepository                 repository2.UserRepository
 	notificationSettingsRepository repository.NotificationSettingsRepository
 }
@@ -68,13 +65,12 @@ type SlackConfigDto struct {
 	Id          int    `json:"id" validate:"number"`
 }
 
-func NewSlackNotificationServiceImpl(logger *zap.SugaredLogger, slackRepository repository.SlackNotificationRepository, webhookRepository repository.WebhookNotificationRepository, teamService team.TeamService,
+func NewSlackNotificationServiceImpl(logger *zap.SugaredLogger, slackRepository repository.SlackNotificationRepository, teamService team.TeamService,
 	userRepository repository2.UserRepository, notificationSettingsRepository repository.NotificationSettingsRepository) *SlackNotificationServiceImpl {
 	return &SlackNotificationServiceImpl{
 		logger:                         logger,
 		teamService:                    teamService,
 		slackRepository:                slackRepository,
-		webhookRepository:              webhookRepository,
 		userRepository:                 userRepository,
 		notificationSettingsRepository: notificationSettingsRepository,
 	}
@@ -206,31 +202,19 @@ func (impl *SlackNotificationServiceImpl) buildConfigUpdateModel(slackConfig *re
 func (impl *SlackNotificationServiceImpl) RecipientListingSuggestion(value string) ([]*NotificationRecipientListingResponse, error) {
 	var results []*NotificationRecipientListingResponse
 
-	slackConfigs, err := impl.slackRepository.FindByName(value)
+	sesConfigs, err := impl.slackRepository.FindByName(value)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("cannot find all slack config", "err", err)
 		return []*NotificationRecipientListingResponse{}, err
 	}
-	for _, slackConfig := range slackConfigs {
+	for _, sesConfig := range sesConfigs {
 		result := &NotificationRecipientListingResponse{
-			ConfigId:  slackConfig.Id,
-			Recipient: slackConfig.ConfigName,
+			ConfigId:  sesConfig.Id,
+			Recipient: sesConfig.ConfigName,
 			Dest:      util2.Slack}
 		results = append(results, result)
 	}
-	webhookConfigs, err := impl.webhookRepository.FindByName(value)
 
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.logger.Errorw("cannot find all webhook config", "err", err)
-		return []*NotificationRecipientListingResponse{}, err
-	}
-	for _, webhookConfig := range webhookConfigs {
-		result := &NotificationRecipientListingResponse{
-			ConfigId:  webhookConfig.Id,
-			Recipient: webhookConfig.ConfigName,
-			Dest:      util2.Webhook}
-		results = append(results, result)
-	}
 	userList, err := impl.userRepository.FetchUserMatchesByEmailIdExcludingApiTokenUser(value)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("cannot find all slack config", "err", err)
@@ -266,10 +250,8 @@ func (impl *SlackNotificationServiceImpl) RecipientListingSuggestion(value strin
 								result := &NotificationRecipientListingResponse{
 									Recipient: v.(string),
 								}
-								if strings.Contains(v.(string), SLACK_URL) {
+								if strings.Contains(v.(string), "https://") {
 									result.Dest = util2.Slack
-								} else if strings.Contains(v.(string), WEBHOOK_URL) {
-									result.Dest = util2.Webhook
 								} else {
 									result.Dest = util2.SES
 								}

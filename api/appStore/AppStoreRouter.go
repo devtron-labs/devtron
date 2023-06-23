@@ -76,9 +76,6 @@ func (router AppStoreRouterImpl) Init(configRouter *mux.Router) {
 	configRouter.Path("/installed-app/detail").Queries("installed-app-id", "{installed-app-id}").Queries("env-id", "{env-id}").
 		HandlerFunc(router.deployRestHandler.FetchAppDetailsForInstalledApp).
 		Methods("GET")
-	configRouter.Path("/installed-app/delete/{installedAppId}/non-cascade").
-		HandlerFunc(router.deployRestHandler.DeleteArgoInstalledAppWithNonCascade).
-		Methods("DELETE")
 	configRouter.Path("/installed-app/detail/v2").Queries("installed-app-id", "{installed-app-id}").Queries("env-id", "{env-id}").
 		HandlerFunc(router.deployRestHandler.FetchAppDetailsForInstalledAppV2).
 		Methods("GET")

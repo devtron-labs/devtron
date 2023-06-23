@@ -1515,13 +1515,7 @@ func (impl BulkUpdateServiceImpl) PerformBulkActionOnCdPipelines(dto *CdBulkActi
 	ctx context.Context, dryRun bool, impactedAppWfIds []int, impactedCiPipelineIds []int) (*PipelineAndWfBulkActionResponseDto, error) {
 	switch dto.Action {
 	case CD_BULK_DELETE:
-		deleteAction := bean2.CASCADE_DELETE
-		if dto.ForceDelete {
-			deleteAction = bean2.FORCE_DELETE
-		} else if dto.NonCascadeDelete {
-			deleteAction = bean2.NON_CASCADE_DELETE
-		}
-		bulkDeleteResp, err := impl.PerformBulkDeleteActionOnCdPipelines(impactedPipelines, ctx, dryRun, deleteAction, dto.DeleteWfAndCiPipeline, impactedAppWfIds, impactedCiPipelineIds, dto.UserId)
+		bulkDeleteResp, err := impl.PerformBulkDeleteActionOnCdPipelines(impactedPipelines, ctx, dryRun, dto.ForceDelete, dto.DeleteWfAndCiPipeline, impactedAppWfIds, impactedCiPipelineIds, dto.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in cd pipelines bulk deletion")
 		}
@@ -1531,7 +1525,8 @@ func (impl BulkUpdateServiceImpl) PerformBulkActionOnCdPipelines(dto *CdBulkActi
 	}
 }
 
-func (impl BulkUpdateServiceImpl) PerformBulkDeleteActionOnCdPipelines(impactedPipelines []*pipelineConfig.Pipeline, ctx context.Context, dryRun bool, deleteAction int, deleteWfAndCiPipeline bool, impactedAppWfIds, impactedCiPipelineIds []int, userId int32) (*PipelineAndWfBulkActionResponseDto, error) {
+func (impl BulkUpdateServiceImpl) PerformBulkDeleteActionOnCdPipelines(impactedPipelines []*pipelineConfig.Pipeline, ctx context.Context,
+	dryRun, forceDelete, deleteWfAndCiPipeline bool, impactedAppWfIds, impactedCiPipelineIds []int, userId int32) (*PipelineAndWfBulkActionResponseDto, error) {
 	var cdPipelineRespDtos []*CdBulkActionResponseDto
 	var wfRespDtos []*WfBulkActionResponseDto
 	var ciPipelineRespDtos []*CiBulkActionResponseDto
@@ -1546,23 +1541,24 @@ func (impl BulkUpdateServiceImpl) PerformBulkDeleteActionOnCdPipelines(impactedP
 		})
 	}
 	for _, pipeline := range impactedPipelines {
+		cdPipeline, err := impl.pipelineBuilder.GetCdPipelineById(pipeline.Id)
+		if err != nil {
+			impl.logger.Errorw("error in getting cdPipeline by id", "err", err, "id", pipeline.Id)
+			return nil, err
+		}
 		respDto := &CdBulkActionResponseDto{
 			PipelineName:    pipeline.Name,
 			AppName:         pipeline.App.AppName,
 			EnvironmentName: pipeline.Environment.Name,
 		}
 		if !dryRun {
-			// Delete Cd pipeline
-			deleteResponse, err := impl.pipelineBuilder.DeleteCdPipeline(pipeline, ctx, deleteAction, true, userId)
+			err = impl.pipelineBuilder.DeleteCdPipeline(pipeline, ctx, forceDelete, true, userId, cdPipeline)
 			if err != nil {
 				impl.logger.Errorw("error in deleting cd pipeline", "err", err, "pipelineId", pipeline.Id)
 				respDto.DeletionResult = fmt.Sprintf("Not able to delete pipeline, %v", err)
-			} else if !(deleteResponse.DeleteInitiated || deleteResponse.ClusterReachable) {
-				respDto.DeletionResult = fmt.Sprintf("Not able to delete pipeline, %s, piplineId, %v", "cluster connection error", pipeline.Id)
 			} else {
 				respDto.DeletionResult = "Pipeline deleted successfully."
 			}
-
 		}
 		cdPipelineRespDtos = append(cdPipelineRespDtos, respDto)
 	}

@@ -33,10 +33,9 @@ type Level string
 type Channel string
 
 const (
-	Slack   Channel = "slack"
-	SES     Channel = "ses"
-	SMTP    Channel = "smtp"
-	Webhook Channel = "webhook"
+	Slack Channel = "slack"
+	SES   Channel = "ses"
+	SMTP  Channel = "smtp"
 )
 
 type UpdateType string

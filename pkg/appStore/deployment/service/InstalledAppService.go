@@ -1129,7 +1129,6 @@ func (impl InstalledAppServiceImpl) MarkGitOpsInstalledAppsDeletedIfArgoAppIsDel
 	//make call to delete it from pipeline DB
 	deleteRequest := &appStoreBean.InstallAppVersionDTO{}
 	deleteRequest.ForceDelete = false
-	deleteRequest.NonCascadeDelete = false
 	deleteRequest.AcdPartialDelete = false
 	deleteRequest.InstalledAppId = installedApp.Id
 	deleteRequest.AppId = installedApp.AppId

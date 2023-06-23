@@ -232,7 +232,7 @@ func AutoScale(dat map[string]interface{}) (bool, error) {
 	if dat["kedaAutoscaling"] != nil {
 		kedaAutoScale, ok := dat["kedaAutoscaling"].(map[string]interface{})["enabled"]
 		if ok {
-			kedaAutoScaleEnabled = kedaAutoScale.(bool)
+			kedaAutoScaleEnabled=kedaAutoScale.(bool)
 		}
 	}
 	if dat["autoscaling"] != nil {

@@ -63,53 +63,45 @@ type InstalledAppDto struct {
 }
 
 type InstallAppVersionDTO struct {
-	Id                           int                            `json:"id,omitempty"`
-	AppId                        int                            `json:"appId,omitempty"`
-	AppName                      string                         `json:"appName,omitempty"`
-	TeamId                       int                            `json:"teamId,omitempty"`
-	TeamName                     string                         `json:"teamName,omitempty"`
-	EnvironmentId                int                            `json:"environmentId,omitempty"`
-	InstalledAppId               int                            `json:"installedAppId,omitempty,notnull"`
-	InstalledAppVersionId        int                            `json:"installedAppVersionId,omitempty,notnull"`
-	InstalledAppVersionHistoryId int                            `json:"installedAppVersionHistoryId,omitempty"`
-	AppStoreVersion              int                            `json:"appStoreVersion,omitempty,notnull"`
-	ValuesOverrideYaml           string                         `json:"valuesOverrideYaml,omitempty"`
-	Readme                       string                         `json:"readme,omitempty"`
-	UserId                       int32                          `json:"-"`
-	ReferenceValueId             int                            `json:"referenceValueId, omitempty" validate:"required,number"`
-	ReferenceValueKind           string                         `json:"referenceValueKind, omitempty" validate:"oneof=DEFAULT TEMPLATE DEPLOYED EXISTING"`
-	ACDAppName                   string                         `json:"-"`
-	Environment                  *repository2.Environment       `json:"-"`
-	ChartGroupEntryId            int                            `json:"-"`
-	DefaultClusterComponent      bool                           `json:"-"`
-	Status                       AppstoreDeploymentStatus       `json:"-"`
-	AppStoreId                   int                            `json:"appStoreId"`
-	AppStoreName                 string                         `json:"appStoreName"`
-	Deprecated                   bool                           `json:"deprecated"`
-	ForceDelete                  bool                           `json:"-"`
-	NonCascadeDelete             bool                           `json:"-"`
-	ClusterId                    int                            `json:"clusterId"` // needed for hyperion mode
-	Namespace                    string                         `json:"namespace"` // needed for hyperion mode
-	AppOfferingMode              string                         `json:"appOfferingMode"`
-	GitOpsRepoName               string                         `json:"gitOpsRepoName"`
-	GitOpsPath                   string                         `json:"gitOpsPath"`
-	GitHash                      string                         `json:"gitHash"`
-	EnvironmentName              string                         `json:"-"`
-	InstallAppVersionChartDTO    *InstallAppVersionChartDTO     `json:"-"`
-	DeploymentAppType            string                         `json:"deploymentAppType"`
-	AcdPartialDelete             bool                           `json:"acdPartialDelete"`
-	InstalledAppDeleteResponse   *InstalledAppDeleteResponseDTO `json:"deleteResponse,omitempty"`
+	Id                           int                        `json:"id,omitempty"`
+	AppId                        int                        `json:"appId,omitempty"`
+	AppName                      string                     `json:"appName,omitempty"`
+	TeamId                       int                        `json:"teamId,omitempty"`
+	TeamName                     string                     `json:"teamName,omitempty"`
+	EnvironmentId                int                        `json:"environmentId,omitempty"`
+	InstalledAppId               int                        `json:"installedAppId,omitempty,notnull"`
+	InstalledAppVersionId        int                        `json:"installedAppVersionId,omitempty,notnull"`
+	InstalledAppVersionHistoryId int                        `json:"installedAppVersionHistoryId,omitempty"`
+	AppStoreVersion              int                        `json:"appStoreVersion,omitempty,notnull"`
+	ValuesOverrideYaml           string                     `json:"valuesOverrideYaml,omitempty"`
+	Readme                       string                     `json:"readme,omitempty"`
+	UserId                       int32                      `json:"-"`
+	ReferenceValueId             int                        `json:"referenceValueId, omitempty" validate:"required,number"`
+	ReferenceValueKind           string                     `json:"referenceValueKind, omitempty" validate:"oneof=DEFAULT TEMPLATE DEPLOYED EXISTING"`
+	ACDAppName                   string                     `json:"-"`
+	Environment                  *repository2.Environment   `json:"-"`
+	ChartGroupEntryId            int                        `json:"-"`
+	DefaultClusterComponent      bool                       `json:"-"`
+	Status                       AppstoreDeploymentStatus   `json:"-"`
+	AppStoreId                   int                        `json:"appStoreId"`
+	AppStoreName                 string                     `json:"appStoreName"`
+	Deprecated                   bool                       `json:"deprecated"`
+	ForceDelete                  bool                       `json:"-"`
+	ClusterId                    int                        `json:"clusterId"` // needed for hyperion mode
+	Namespace                    string                     `json:"namespace"` // needed for hyperion mode
+	AppOfferingMode              string                     `json:"appOfferingMode"`
+	GitOpsRepoName               string                     `json:"gitOpsRepoName"`
+	GitOpsPath                   string                     `json:"gitOpsPath"`
+	GitHash                      string                     `json:"gitHash"`
+	EnvironmentName              string                     `json:"-"`
+	InstallAppVersionChartDTO    *InstallAppVersionChartDTO `json:"-"`
+	DeploymentAppType            string                     `json:"deploymentAppType"`
+	AcdPartialDelete             bool                       `json:"acdPartialDelete"`
 	AppStoreApplicationVersionId int
 	PerformGitOpsForHelmApp      bool `json:"performGitOpsForHelmApp"`
 	PerformGitOps                bool `json:"performGitOps"`
 	PerformACDDeployment         bool `json:"performACDDeployment"`
 	PerformHelmDeployment        bool `json:"performHelmDeployment"`
-}
-
-type InstalledAppDeleteResponseDTO struct {
-	DeleteInitiated  bool   `json:"deleteInitiated"`
-	ClusterReachable bool   `json:"clusterReachable"`
-	ClusterName      string `json:"clusterName"`
 }
 
 type InstallAppVersionChartDTO struct {
@@ -165,7 +157,6 @@ type InstalledAppsResponse struct {
 	EnvironmentName              string    `json:"environmentName"`
 	DeployedAt                   time.Time `json:"deployedAt"`
 	DeployedBy                   string    `json:"deployedBy"`
-	DeploymentAppType            string    `json:"deploymentAppType,omitempty"`
 	InstalledAppsId              int       `json:"installedAppId"`
 	Readme                       string    `json:"readme"`
 	EnvironmentId                int       `json:"environmentId"`

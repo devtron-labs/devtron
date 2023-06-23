@@ -119,6 +119,9 @@ type CdWorkflowRequest struct {
 	DeploymentTriggerTime      time.Time                           `json:"deploymentTriggerTime,omitempty"`
 	DeploymentReleaseCounter   int                                 `json:"deploymentReleaseCounter,omitempty"`
 	WorkflowExecutor           pipelineConfig.WorkflowExecutorType `json:"workflowExecutor"`
+	PreDeploySteps             []*bean3.StepObject                 `json:"preDeploySteps"`
+	PostDeploySteps            []*bean3.StepObject                 `json:"postDeploySteps"`
+	RefPlugins                 []*bean3.RefPluginObject            `json:"refPlugins"`
 }
 
 const PRE = "PRE"
@@ -278,6 +281,13 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	} else {
 		workflowTemplate.ClusterConfig = impl.config
 	}
+	if len(workflowRequest.PreDeploySteps) > 0 {
+		workflowTemplate.PrePostDeploySteps = workflowRequest.PreDeploySteps
+	} else if len(workflowRequest.PostDeploySteps) > 0 {
+		workflowTemplate.PrePostDeploySteps = workflowRequest.PostDeploySteps
+	}
+	workflowTemplate.RefPlugins = workflowRequest.RefPlugins
+
 	workflowExecutor := impl.getWorkflowExecutor(workflowRequest.WorkflowExecutor)
 	if workflowExecutor == nil {
 		return errors.New("workflow executor not found")

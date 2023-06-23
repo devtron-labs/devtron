@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
@@ -12,21 +13,23 @@ import (
 
 type PipelineStageService interface {
 	GetCiPipelineStageData(ciPipelineId int) (preCiStage *bean.PipelineStageDto, postCiStage *bean.PipelineStageDto, err error)
-	CreateCiStage(stageReq *bean.PipelineStageDto, stageType repository.PipelineStageType, ciPipelineId int, userId int32) error
-	UpdateCiStage(stageReq *bean.PipelineStageDto, stageType repository.PipelineStageType, ciPipelineId int, userId int32) error
-	DeleteCiStage(stageReq *bean.PipelineStageDto, userId int32, tx *pg.Tx) error
-	BuildPrePostAndRefPluginStepsDataForWfRequest(ciPipelineId int) ([]*bean.StepObject, []*bean.StepObject, []*bean.RefPluginObject, error)
-
+	CreatePipelineStage(stageReq *bean.PipelineStageDto, stageType repository.PipelineStageType, pipelineId int, userId int32) error
+	UpdatePipelineStage(stageReq *bean.PipelineStageDto, stageType repository.PipelineStageType, pipelineId int, userId int32) error
+	DeletePipelineStage(stageReq *bean.PipelineStageDto, userId int32, tx *pg.Tx) error
+	BuildPrePostAndRefPluginStepsDataForWfRequest(pipelineId int, stageType string) ([]*bean.StepObject, []*bean.StepObject, []*bean.RefPluginObject, error)
 	GetCiPipelineStageDataDeepCopy(ciPipelineId int) (preCiStage *bean.PipelineStageDto, postCiStage *bean.PipelineStageDto, err error)
+	GetCdPipelineStageDataDeepCopy(cdPipelineId int) (*bean.PipelineStageDto, *bean.PipelineStageDto, error)
 }
 
 func NewPipelineStageService(logger *zap.SugaredLogger,
 	pipelineStageRepository repository.PipelineStageRepository,
-	globalPluginRepository repository2.GlobalPluginRepository) *PipelineStageServiceImpl {
+	globalPluginRepository repository2.GlobalPluginRepository,
+	pipelineRepository pipelineConfig.PipelineRepository) *PipelineStageServiceImpl {
 	return &PipelineStageServiceImpl{
 		logger:                  logger,
 		pipelineStageRepository: pipelineStageRepository,
 		globalPluginRepository:  globalPluginRepository,
+		pipelineRepository:      pipelineRepository,
 	}
 }
 
@@ -34,6 +37,7 @@ type PipelineStageServiceImpl struct {
 	logger                  *zap.SugaredLogger
 	pipelineStageRepository repository.PipelineStageRepository
 	globalPluginRepository  repository2.GlobalPluginRepository
+	pipelineRepository      pipelineConfig.PipelineRepository
 }
 
 func (impl *PipelineStageServiceImpl) GetCiPipelineStageDataDeepCopy(ciPipelineId int) (*bean.PipelineStageDto, *bean.PipelineStageDto, error) {
@@ -48,13 +52,13 @@ func (impl *PipelineStageServiceImpl) GetCiPipelineStageDataDeepCopy(ciPipelineI
 	var postCiStage *bean.PipelineStageDto
 	for _, ciStage := range ciStages {
 		if ciStage.Type == repository.PIPELINE_STAGE_TYPE_PRE_CI {
-			preCiStage, err = impl.BuildCiStageDataDeepCopy(ciStage)
+			preCiStage, err = impl.BuildPipelineStageDataDeepCopy(ciStage)
 			if err != nil {
 				impl.logger.Errorw("error in getting ci stage data", "err", err, "ciStage", ciStage)
 				return nil, nil, err
 			}
 		} else if ciStage.Type == repository.PIPELINE_STAGE_TYPE_POST_CI {
-			postCiStage, err = impl.BuildCiStageDataDeepCopy(ciStage)
+			postCiStage, err = impl.BuildPipelineStageDataDeepCopy(ciStage)
 			if err != nil {
 				impl.logger.Errorw("error in getting ci stage data", "err", err, "ciStage", ciStage)
 				return nil, nil, err
@@ -65,16 +69,55 @@ func (impl *PipelineStageServiceImpl) GetCiPipelineStageDataDeepCopy(ciPipelineI
 	}
 	return preCiStage, postCiStage, nil
 }
-func (impl *PipelineStageServiceImpl) BuildCiStageDataDeepCopy(ciStage *repository.PipelineStage) (*bean.PipelineStageDto, error) {
+
+func (impl *PipelineStageServiceImpl) GetCdPipelineStageDataDeepCopy(cdPipelineId int) (*bean.PipelineStageDto, *bean.PipelineStageDto, error) {
+	//getting all stages by cd pipeline id
+	cdStages, err := impl.pipelineStageRepository.GetAllCdStagesByCdPipelineId(cdPipelineId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting all cdStages by cdPipelineId", "err", err, "cdPipelineStages", cdStages)
+		return nil, nil, err
+	} else if err == pg.ErrNoRows {
+		return nil, nil, nil
+	}
+	var preDeployStage *bean.PipelineStageDto
+	var postDeployStage *bean.PipelineStageDto
+	for _, cdStage := range cdStages {
+		if cdStage.Type == repository.PIPELINE_STAGE_TYPE_PRE_CD {
+			preDeployStage, err = impl.BuildPipelineStageDataDeepCopy(cdStage)
+			if err != nil {
+				impl.logger.Errorw("error in getting cd stage data", "err", err, "cdStage", cdStage)
+				return nil, nil, err
+			}
+		} else if cdStage.Type == repository.PIPELINE_STAGE_TYPE_POST_CD {
+			postDeployStage, err = impl.BuildPipelineStageDataDeepCopy(cdStage)
+			if err != nil {
+				impl.logger.Errorw("error in getting cd stage data", "err", err, "cdStage", cdStage)
+				return nil, nil, err
+			}
+		} else {
+			impl.logger.Errorw("found improper stage mapped with cdPipeline", "cdPipelineId", cdPipelineId, "stage", cdStage)
+		}
+	}
+	pipeline, err := impl.pipelineRepository.FindById(cdPipelineId)
+	if err != nil {
+		impl.logger.Errorw("error in getting pipeline from cdPipelineId", "err", err, "cdPipelineId", cdPipelineId)
+		return nil, nil, err
+	}
+	preDeployStage.TriggerType = pipeline.PreTriggerType
+	postDeployStage.TriggerType = pipeline.PostTriggerType
+	return preDeployStage, postDeployStage, nil
+}
+
+func (impl *PipelineStageServiceImpl) BuildPipelineStageDataDeepCopy(pipelineStage *repository.PipelineStage) (*bean.PipelineStageDto, error) {
 	stageData := &bean.PipelineStageDto{
-		Name:        ciStage.Name,
-		Description: ciStage.Description,
-		Type:        ciStage.Type,
+		Name:        pipelineStage.Name,
+		Description: pipelineStage.Description,
+		Type:        pipelineStage.Type,
 	}
 	//getting all steps in this stage
-	steps, err := impl.pipelineStageRepository.GetAllStepsByStageId(ciStage.Id)
+	steps, err := impl.pipelineStageRepository.GetAllStepsByStageId(pipelineStage.Id)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in getting ci steps by stage id", "err", err, "ciStageId", ciStage.Id)
+		impl.logger.Errorw("error in getting pipeline steps by stage id", "err", err, "pipelineStage", pipelineStage)
 		return nil, err
 	}
 	var stepsDto []*bean.PipelineStageStepDto
@@ -452,14 +495,13 @@ func (impl *PipelineStageServiceImpl) BuildVariableAndConditionDataByStepId(step
 
 //GetCiPipelineStageData and related methods ends
 
-// CreateCiStage and related methods starts
-func (impl *PipelineStageServiceImpl) CreateCiStage(stageReq *bean.PipelineStageDto, stageType repository.PipelineStageType, ciPipelineId int, userId int32) error {
+// CreatePipelineStage and related methods starts
+func (impl *PipelineStageServiceImpl) CreatePipelineStage(stageReq *bean.PipelineStageDto, stageType repository.PipelineStageType, pipelineId int, userId int32) error {
 	stage := &repository.PipelineStage{
-		Name:         stageReq.Name,
-		Description:  stageReq.Description,
-		Type:         stageType,
-		Deleted:      false,
-		CiPipelineId: ciPipelineId,
+		Name:        stageReq.Name,
+		Description: stageReq.Description,
+		Type:        stageType,
+		Deleted:     false,
 		AuditLog: sql.AuditLog{
 			CreatedOn: time.Now(),
 			CreatedBy: userId,
@@ -467,9 +509,16 @@ func (impl *PipelineStageServiceImpl) CreateCiStage(stageReq *bean.PipelineStage
 			UpdatedBy: userId,
 		},
 	}
-	stage, err := impl.pipelineStageRepository.CreateCiStage(stage)
+	if stageType == repository.PIPELINE_STAGE_TYPE_PRE_CI || stageType == repository.PIPELINE_STAGE_TYPE_POST_CI {
+		stage.CiPipelineId = pipelineId
+	} else if stageType == repository.PIPELINE_STAGE_TYPE_PRE_CD || stageType == repository.PIPELINE_STAGE_TYPE_POST_CD {
+		stage.CdPipelineId = pipelineId
+	} else {
+
+	}
+	stage, err := impl.pipelineStageRepository.CreatePipelineStage(stage)
 	if err != nil {
-		impl.logger.Errorw("error in creating entry for ciStage", "err", err, "ciStage", stage)
+		impl.logger.Errorw("error in creating entry for pipeline Stage", "err", err, "pipelineStage", stage)
 		return err
 	}
 	indexNameString := make(map[int]string)
@@ -805,19 +854,25 @@ func (impl *PipelineStageServiceImpl) CreateConditionsEntryInDb(stepId int, cond
 
 //CreateCiStage and related methods ends
 
-// UpdateCiStage and related methods starts
-func (impl *PipelineStageServiceImpl) UpdateCiStage(stageReq *bean.PipelineStageDto, stageType repository.PipelineStageType, ciPipelineId int, userId int32) error {
-	//getting stage by stageType and ciPipelineId
-	stageOld, err := impl.pipelineStageRepository.GetCiStageByCiPipelineIdAndStageType(ciPipelineId, stageType)
+// UpdatePipelineStage and related methods starts
+func (impl *PipelineStageServiceImpl) UpdatePipelineStage(stageReq *bean.PipelineStageDto, stageType repository.PipelineStageType, pipelineId int, userId int32) error {
+	var stageOld *repository.PipelineStage
+	var err error
+	if stageType == repository.PIPELINE_STAGE_TYPE_PRE_CI || stageType == repository.PIPELINE_STAGE_TYPE_POST_CI {
+		//getting stage by stageType and ciPipelineId
+		stageOld, err = impl.pipelineStageRepository.GetCiStageByCiPipelineIdAndStageType(pipelineId, stageType)
+	} else if stageType == repository.PIPELINE_STAGE_TYPE_PRE_CD || stageType == repository.PIPELINE_STAGE_TYPE_POST_CD {
+		stageOld, err = impl.pipelineStageRepository.GetCdStageByCdPipelineIdAndStageType(pipelineId, stageType)
+	}
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in getting stageId by ciPipelineId and stageType", "err", err, "ciPipelineId", ciPipelineId, "stageType", stageType)
+		impl.logger.Errorw("error in getting stageId by pipelineId and stageType", "err", err, "pipelineId", pipelineId, "stageType", stageType)
 		return err
 	} else if err == pg.ErrNoRows {
 		//no stage found, creating new stage
 		stageReq.Id = 0
-		err = impl.CreateCiStage(stageReq, stageType, ciPipelineId, userId)
+		err = impl.CreatePipelineStage(stageReq, stageType, pipelineId, userId)
 		if err != nil {
-			impl.logger.Errorw("error in creating new ci stage", "err", err, "ciStageReq", stageReq)
+			impl.logger.Errorw("error in creating new pipeline stage", "err", err, "pipelineStageReq", stageReq)
 			return err
 		}
 	} else {
@@ -828,22 +883,22 @@ func (impl *PipelineStageServiceImpl) UpdateCiStage(stageReq *bean.PipelineStage
 		stageUpdateReq.Description = stageReq.Description
 		stageUpdateReq.UpdatedBy = userId
 		stageUpdateReq.UpdatedOn = time.Now()
-		_, err = impl.pipelineStageRepository.UpdateCiStage(stageUpdateReq)
+		_, err = impl.pipelineStageRepository.UpdatePipelineStage(stageUpdateReq)
 		if err != nil {
-			impl.logger.Errorw("error in updating entry for ciStage", "err", err, "ciStage", stageUpdateReq)
+			impl.logger.Errorw("error in updating entry for pipelineStage", "err", err, "pipelineStage", stageUpdateReq)
 			return err
 		}
 		// filtering(if steps/variables/conditions are updated or newly added) and performing relevant actions on update request
-		err = impl.FilterAndActOnStepsInCiStageUpdateRequest(stageReq, userId)
+		err = impl.FilterAndActOnStepsInPipelineStageUpdateRequest(stageReq, userId)
 		if err != nil {
-			impl.logger.Errorw("error in filtering and performing actions on steps in ci stage update request", "err", err, "stageReq", stageReq)
+			impl.logger.Errorw("error in filtering and performing actions on steps in pipelineStage update request", "err", err, "stageReq", stageReq)
 			return err
 		}
 	}
 	return nil
 }
 
-func (impl *PipelineStageServiceImpl) FilterAndActOnStepsInCiStageUpdateRequest(stageReq *bean.PipelineStageDto, userId int32) error {
+func (impl *PipelineStageServiceImpl) FilterAndActOnStepsInPipelineStageUpdateRequest(stageReq *bean.PipelineStageDto, userId int32) error {
 	//getting all stepIds for current active (steps not deleted) steps
 	activeStepIds, err := impl.pipelineStageRepository.GetStepIdsByStageId(stageReq.Id)
 	if err != nil {
@@ -1341,18 +1396,18 @@ func (impl *PipelineStageServiceImpl) UpdatePipelineStageStepConditions(stepId i
 
 //UpdateCiStage and related methods ends
 
-// DeleteCiStage and related methods starts
-func (impl *PipelineStageServiceImpl) DeleteCiStage(stageReq *bean.PipelineStageDto, userId int32, tx *pg.Tx) error {
+// DeletePipelineStage and related methods starts
+func (impl *PipelineStageServiceImpl) DeletePipelineStage(stageReq *bean.PipelineStageDto, userId int32, tx *pg.Tx) error {
 	//marking stage deleted
-	err := impl.pipelineStageRepository.MarkCiStageDeletedById(stageReq.Id, userId, tx)
+	err := impl.pipelineStageRepository.MarkPipelineStageDeletedById(stageReq.Id, userId, tx)
 	if err != nil {
-		impl.logger.Errorw("error in marking ci stage deleted", "err", err, "ciStageId", stageReq.Id)
+		impl.logger.Errorw("error in marking pipeline stage deleted", "err", err, "pipelineStageId", stageReq.Id)
 		return err
 	}
 	//marking all steps deleted
-	err = impl.pipelineStageRepository.MarkCiStageStepsDeletedByStageId(stageReq.Id, userId, tx)
+	err = impl.pipelineStageRepository.MarkPipelineStageStepsDeletedByStageId(stageReq.Id, userId, tx)
 	if err != nil {
-		impl.logger.Errorw("error in marking ci stage steps deleted by stageId", "err", err, "ciStageId", stageReq.Id)
+		impl.logger.Errorw("error in marking pipeline stage steps deleted by stageId", "err", err, "pipelineStageId", stageReq.Id)
 		return err
 	}
 	//getting scriptIds by stageId
@@ -1393,7 +1448,7 @@ func (impl *PipelineStageServiceImpl) DeleteCiStage(stageReq *bean.PipelineStage
 		//marking all variables deleted
 		err = impl.pipelineStageRepository.MarkPipelineStageStepVariablesDeletedByIds(variableIds, userId, tx)
 		if err != nil {
-			impl.logger.Errorw("error in marking ci stage step variables deleted by variableIds", "err", err, "variableIds", variableIds)
+			impl.logger.Errorw("error in marking pipeline stage step variables deleted by variableIds", "err", err, "variableIds", variableIds)
 			return err
 		}
 	}
@@ -1407,7 +1462,7 @@ func (impl *PipelineStageServiceImpl) DeleteCiStage(stageReq *bean.PipelineStage
 		//marking all conditions deleted
 		err = impl.pipelineStageRepository.MarkPipelineStageStepConditionDeletedByIds(conditionIds, userId, tx)
 		if err != nil {
-			impl.logger.Errorw("error in marking ci stage step conditions deleted by conditionIds", "err", err, "conditionIds", conditionIds)
+			impl.logger.Errorw("error in marking pipeline stage step conditions deleted by conditionIds", "err", err, "conditionIds", conditionIds)
 			return err
 		}
 	}
@@ -1417,29 +1472,50 @@ func (impl *PipelineStageServiceImpl) DeleteCiStage(stageReq *bean.PipelineStage
 //DeleteCiStage and related methods starts
 
 // BuildPrePostAndRefPluginStepsDataForWfRequest and related methods starts
-func (impl *PipelineStageServiceImpl) BuildPrePostAndRefPluginStepsDataForWfRequest(ciPipelineId int) ([]*bean.StepObject, []*bean.StepObject, []*bean.RefPluginObject, error) {
-	//get all stages By ciPipelineId
-	ciStages, err := impl.pipelineStageRepository.GetAllCiStagesByCiPipelineId(ciPipelineId)
+func (impl *PipelineStageServiceImpl) BuildPrePostAndRefPluginStepsDataForWfRequest(pipelineId int, stageType string) ([]*bean.StepObject, []*bean.StepObject, []*bean.RefPluginObject, error) {
+	//get all stages By pipelineId (it can be ciPipelineId or cdPipelineId)
+	var pipelineStages []*repository.PipelineStage
+	var err error
+	if stageType == ciEvent {
+		pipelineStages, err = impl.pipelineStageRepository.GetAllCiStagesByCiPipelineId(pipelineId)
+	} else {
+		//cdEvent
+		pipelineStages, err = impl.pipelineStageRepository.GetAllCdStagesByCdPipelineId(pipelineId)
+	}
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in getting all ci stages by ciPipelineId", "err", err, "ciPipelineId", ciStages)
+		impl.logger.Errorw("error in getting all ci stages by pipelineId", "err", err, "pipelineId", pipelineId, "stageType", stageType)
 		return nil, nil, nil, err
 	}
 	var preCiSteps []*bean.StepObject
 	var postCiSteps []*bean.StepObject
+	var preCdSteps []*bean.StepObject
+	var postCdSteps []*bean.StepObject
 	var refPluginsData []*bean.RefPluginObject
 	var refPluginIds []int
-	for _, ciStage := range ciStages {
+	for _, pipelineStage := range pipelineStages {
 		var refIds []int
-		if ciStage.Type == repository.PIPELINE_STAGE_TYPE_PRE_CI {
-			preCiSteps, refIds, err = impl.BuildCiStageDataForWfRequest(ciStage)
+		if pipelineStage.Type == repository.PIPELINE_STAGE_TYPE_PRE_CI {
+			preCiSteps, refIds, err = impl.BuildPipelineStageDataForWfRequest(pipelineStage)
 			if err != nil {
-				impl.logger.Errorw("error in getting pre ci steps data for wf request", "err", err, "ciStage", ciStage)
+				impl.logger.Errorw("error in getting pre ci steps data for wf request", "err", err, "ciStage", pipelineStage)
 				return nil, nil, nil, err
 			}
-		} else if ciStage.Type == repository.PIPELINE_STAGE_TYPE_POST_CI {
-			postCiSteps, refIds, err = impl.BuildCiStageDataForWfRequest(ciStage)
+		} else if pipelineStage.Type == repository.PIPELINE_STAGE_TYPE_POST_CI {
+			postCiSteps, refIds, err = impl.BuildPipelineStageDataForWfRequest(pipelineStage)
 			if err != nil {
-				impl.logger.Errorw("error in getting post ci steps data for wf request", "err", err, "ciStage", ciStage)
+				impl.logger.Errorw("error in getting post ci steps data for wf request", "err", err, "ciStage", pipelineStage)
+				return nil, nil, nil, err
+			}
+		} else if pipelineStage.Type == repository.PIPELINE_STAGE_TYPE_PRE_CD {
+			preCdSteps, refIds, err = impl.BuildPipelineStageDataForWfRequest(pipelineStage)
+			if err != nil {
+				impl.logger.Errorw("error in getting post cd steps data for wf request", "err", err, "cdStage", pipelineStage)
+				return nil, nil, nil, err
+			}
+		} else if pipelineStage.Type == repository.PIPELINE_STAGE_TYPE_POST_CD {
+			postCdSteps, refIds, err = impl.BuildPipelineStageDataForWfRequest(pipelineStage)
+			if err != nil {
+				impl.logger.Errorw("error in getting post cd steps data for wf request", "err", err, "cdStage", pipelineStage)
 				return nil, nil, nil, err
 			}
 		}
@@ -1452,22 +1528,26 @@ func (impl *PipelineStageServiceImpl) BuildPrePostAndRefPluginStepsDataForWfRequ
 			return nil, nil, nil, err
 		}
 	}
-	return preCiSteps, postCiSteps, refPluginsData, nil
+	if stageType == ciEvent {
+		return preCiSteps, postCiSteps, refPluginsData, nil
+	} else {
+		return preCdSteps, postCdSteps, refPluginsData, nil
+	}
 }
 
-func (impl *PipelineStageServiceImpl) BuildCiStageDataForWfRequest(ciStage *repository.PipelineStage) ([]*bean.StepObject, []int, error) {
+func (impl *PipelineStageServiceImpl) BuildPipelineStageDataForWfRequest(pipelineStage *repository.PipelineStage) ([]*bean.StepObject, []int, error) {
 	//getting all steps for this stage
-	steps, err := impl.pipelineStageRepository.GetAllStepsByStageId(ciStage.Id)
+	steps, err := impl.pipelineStageRepository.GetAllStepsByStageId(pipelineStage.Id)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in getting all steps by stageId", "err", err, "stageId", ciStage.Id)
+		impl.logger.Errorw("error in getting all steps by stageId", "err", err, "stageId", pipelineStage.Id)
 		return nil, nil, err
 	}
 	var stepsData []*bean.StepObject
 	var refPluginIds []int
 	for _, step := range steps {
-		stepData, err := impl.BuildCiStepDataForWfRequest(step)
+		stepData, err := impl.BuildPipelineStepDataForWfRequest(step)
 		if err != nil {
-			impl.logger.Errorw("error in getting ci step data for WF request", "err", err)
+			impl.logger.Errorw("error in getting pipeline step data for WF request", "err", err)
 			return nil, nil, err
 		}
 		if step.StepType == repository.PIPELINE_STEP_TYPE_REF_PLUGIN {
@@ -1549,7 +1629,7 @@ func (impl *PipelineStageServiceImpl) GetRefPluginStepsByIds(refPluginIds []int,
 	return pluginIdStepsMap, nil
 }
 
-func (impl *PipelineStageServiceImpl) BuildCiStepDataForWfRequest(step *repository.PipelineStageStep) (*bean.StepObject, error) {
+func (impl *PipelineStageServiceImpl) BuildPipelineStepDataForWfRequest(step *repository.PipelineStageStep) (*bean.StepObject, error) {
 	stepData := &bean.StepObject{
 		Name:                     step.Name,
 		Index:                    step.Index,

@@ -22,13 +22,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"io/ioutil"
-	"net/http"
-	"net/url"
-	"strings"
-	"time"
-
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
@@ -36,13 +29,19 @@ import (
 	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
+	"github.com/ghodss/yaml"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
+	"io"
+	"io/ioutil"
 	"k8s.io/helm/pkg/getter"
 	"k8s.io/helm/pkg/helm/environment"
 	"k8s.io/helm/pkg/repo"
 	"k8s.io/helm/pkg/version"
-	"sigs.k8s.io/yaml"
+	"net/http"
+	"net/url"
+	"strings"
+	"time"
 )
 
 // secret keys
@@ -573,12 +572,6 @@ func (impl *ChartRepositoryServiceImpl) GetChartRepoListMin() ([]*ChartRepoDto, 
 
 func (impl *ChartRepositoryServiceImpl) ValidateChartRepo(request *ChartRepoDto) *DetailedErrorHelmRepoValidation {
 	var detailedErrorHelmRepoValidation DetailedErrorHelmRepoValidation
-	if len(request.Name) < 3 || strings.Contains(request.Name, " ") {
-		impl.logger.Errorw("name should not contain white spaces and should contain min 3 chars")
-		detailedErrorHelmRepoValidation.CustomErrMsg = fmt.Sprintf("name should not contain white spaces and should have min 3 chars")
-		detailedErrorHelmRepoValidation.ActualErrMsg = fmt.Sprintf("name should not contain white spaces and should have min 3 chars")
-		return &detailedErrorHelmRepoValidation
-	}
 	helmRepoConfig := &repo.Entry{
 		Name:     request.Name,
 		URL:      request.Url,

@@ -78,6 +78,8 @@ type CiCdPipelineOrchestrator interface {
 	CheckStringMatchRegex(regex string, value string) bool
 	CreateEcrRepo(dockerRepository, AWSRegion, AWSAccessKeyId, AWSSecretAccessKey string) error
 	GetCdPipelinesForEnv(envId int, requestedAppIds []int) (cdPipelines *bean.CdPipelines, err error)
+
+	InitiateMigrationOfStageScriptsToPipelineStageSteps(cdPipeline *bean.CDPipelineConfigObject) (*bean.CDPipelineConfigObject, error)
 }
 
 type CiCdPipelineOrchestratorImpl struct {
@@ -204,7 +206,7 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 	}
 	if createRequest.PreBuildStage != nil {
 		//updating pre stage
-		err = impl.pipelineStageService.UpdateCiStage(createRequest.PreBuildStage, repository5.PIPELINE_STAGE_TYPE_PRE_CI, createRequest.Id, userId)
+		err = impl.pipelineStageService.UpdatePipelineStage(createRequest.PreBuildStage, repository5.PIPELINE_STAGE_TYPE_PRE_CI, createRequest.Id, userId)
 		if err != nil {
 			impl.logger.Errorw("error in updating pre stage", "err", err, "preBuildStage", createRequest.PreBuildStage, "ciPipelineId", createRequest.Id)
 			return nil, err
@@ -212,7 +214,7 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 	}
 	if createRequest.PostBuildStage != nil {
 		//updating post stage
-		err = impl.pipelineStageService.UpdateCiStage(createRequest.PostBuildStage, repository5.PIPELINE_STAGE_TYPE_POST_CI, createRequest.Id, userId)
+		err = impl.pipelineStageService.UpdatePipelineStage(createRequest.PostBuildStage, repository5.PIPELINE_STAGE_TYPE_POST_CI, createRequest.Id, userId)
 		if err != nil {
 			impl.logger.Errorw("error in updating post stage", "err", err, "postBuildStage", createRequest.PostBuildStage, "ciPipelineId", createRequest.Id)
 			return nil, err
@@ -663,7 +665,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 		//creating ci stages after tx commit due to FK constraints
 		if ciPipeline.PreBuildStage != nil && len(ciPipeline.PreBuildStage.Steps) > 0 {
 			//creating pre stage
-			err = impl.pipelineStageService.CreateCiStage(ciPipeline.PreBuildStage, repository5.PIPELINE_STAGE_TYPE_PRE_CI, ciPipeline.Id, createRequest.UserId)
+			err = impl.pipelineStageService.CreatePipelineStage(ciPipeline.PreBuildStage, repository5.PIPELINE_STAGE_TYPE_PRE_CI, ciPipeline.Id, createRequest.UserId)
 			if err != nil {
 				impl.logger.Errorw("error in creating pre stage", "err", err, "preBuildStage", ciPipeline.PreBuildStage, "ciPipelineId", ciPipeline.Id)
 				return nil, err
@@ -671,7 +673,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 		}
 		if ciPipeline.PostBuildStage != nil && len(ciPipeline.PostBuildStage.Steps) > 0 {
 			//creating post stage
-			err = impl.pipelineStageService.CreateCiStage(ciPipeline.PostBuildStage, repository5.PIPELINE_STAGE_TYPE_POST_CI, ciPipeline.Id, createRequest.UserId)
+			err = impl.pipelineStageService.CreatePipelineStage(ciPipeline.PostBuildStage, repository5.PIPELINE_STAGE_TYPE_POST_CI, ciPipeline.Id, createRequest.UserId)
 			if err != nil {
 				impl.logger.Errorw("error in creating post stage", "err", err, "postBuildStage", ciPipeline.PostBuildStage, "ciPipelineId", ciPipeline.Id)
 				return nil, err
@@ -1157,11 +1159,18 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCDPipelines(pipelineRequest *bean
 		preTriggerType = pipelineRequest.PreStage.TriggerType
 	}
 
+	if pipelineRequest.PreDeployStage != nil {
+		preTriggerType = pipelineRequest.PreDeployStage.TriggerType
+	}
 	postStageConfig := ""
 	postTriggerType := pipelineConfig.TriggerType("")
 	if len(pipelineRequest.PostStage.Config) > 0 {
 		postStageConfig = pipelineRequest.PostStage.Config
 		postTriggerType = pipelineRequest.PostStage.TriggerType
+	}
+
+	if pipelineRequest.PostDeployStage != nil {
+		postTriggerType = pipelineRequest.PostDeployStage.TriggerType
 	}
 
 	preStageConfigMapSecretNames, err := json.Marshal(&pipelineRequest.PreStageConfigMapSecretNames)
@@ -1232,18 +1241,24 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateCDPipeline(pipelineRequest *bean.
 	} else if pipeline.Id == 0 {
 		return fmt.Errorf("no cd pipeline found")
 	}
+
 	preStageConfig := ""
 	preTriggerType := pipelineConfig.TriggerType("")
 	if len(pipelineRequest.PreStage.Config) > 0 {
 		preStageConfig = pipelineRequest.PreStage.Config
 		preTriggerType = pipelineRequest.PreStage.TriggerType
 	}
-
+	if pipelineRequest.PreDeployStage != nil {
+		preTriggerType = pipelineRequest.PreDeployStage.TriggerType
+	}
 	postStageConfig := ""
 	postTriggerType := pipelineConfig.TriggerType("")
 	if len(pipelineRequest.PostStage.Config) > 0 {
 		postStageConfig = pipelineRequest.PostStage.Config
 		postTriggerType = pipelineRequest.PostStage.TriggerType
+	}
+	if pipelineRequest.PostDeployStage != nil {
+		postTriggerType = pipelineRequest.PostDeployStage.TriggerType
 	}
 
 	preStageConfigMapSecretNames, err := json.Marshal(&pipelineRequest.PreStageConfigMapSecretNames)
@@ -1259,10 +1274,10 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateCDPipeline(pipelineRequest *bean.
 	}
 
 	pipeline.TriggerType = pipelineRequest.TriggerType
-	pipeline.PreStageConfig = preStageConfig
-	pipeline.PostStageConfig = postStageConfig
 	pipeline.PreTriggerType = preTriggerType
 	pipeline.PostTriggerType = postTriggerType
+	pipeline.PreStageConfig = preStageConfig
+	pipeline.PostStageConfig = postStageConfig
 	pipeline.PreStageConfigMapSecretNames = string(preStageConfigMapSecretNames)
 	pipeline.PostStageConfigMapSecretNames = string(postStageConfigMapSecretNames)
 	pipeline.RunPreStageInEnv = pipelineRequest.RunPreStageInEnv
@@ -1288,6 +1303,23 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateCDPipeline(pipelineRequest *bean.
 			return err
 		}
 	}
+
+	if pipelineRequest.PreDeployStage != nil {
+		//updating pre stage
+		err = impl.pipelineStageService.UpdatePipelineStage(pipelineRequest.PreDeployStage, repository5.PIPELINE_STAGE_TYPE_PRE_CD, pipelineRequest.Id, userId)
+		if err != nil {
+			impl.logger.Errorw("error in updating pre stage", "err", err, "preDeployStage", pipelineRequest.PreDeployStage, "cdPipelineId", pipelineRequest.Id)
+			return err
+		}
+	}
+	if pipelineRequest.PostDeployStage != nil {
+		//updating post stage
+		err = impl.pipelineStageService.UpdatePipelineStage(pipelineRequest.PostDeployStage, repository5.PIPELINE_STAGE_TYPE_POST_CD, pipelineRequest.Id, userId)
+		if err != nil {
+			impl.logger.Errorw("error in updating post stage", "err", err, "postDeployStage", pipelineRequest.PostDeployStage, "cdPipelineId", pipelineRequest.Id)
+			return err
+		}
+	}
 	return err
 }
 
@@ -1307,6 +1339,12 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 
 	var pipelines []*bean.CDPipelineConfigObject
 	for _, dbPipeline := range dbPipelines {
+		preDeployStage, postDeployStage, err := impl.pipelineStageService.GetCdPipelineStageDataDeepCopy(dbPipeline.Id)
+		if err != nil {
+			impl.logger.Errorw("error in getting pre/post-CD stage data", "err", err, "cdPipelineId", dbPipeline.Id)
+			return nil, err
+		}
+
 		preStage := bean.CdStage{}
 		if len(dbPipeline.PreStageConfig) > 0 {
 			preStage.Name = "Pre-Deployment"
@@ -1355,8 +1393,15 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 			DeploymentAppType:             dbPipeline.DeploymentAppType,
 			DeploymentAppDeleteRequest:    dbPipeline.DeploymentAppDeleteRequest,
 			IsVirtualEnvironment:          dbPipeline.Environment.IsVirtualEnvironment,
+			PreDeployStage:                preDeployStage,
+			PostDeployStage:               postDeployStage,
 		}
-		pipelines = append(pipelines, pipeline)
+		cdPipelineMigrated, err := impl.InitiateMigrationOfStageScriptsToPipelineStageSteps(pipeline)
+		if err != nil {
+			impl.logger.Errorw("error in getting migrated cdPipeline", "err", err, "pipelineId", pipeline.Id)
+			return nil, err
+		}
+		pipelines = append(pipelines, cdPipelineMigrated)
 	}
 	cdPipelines = &bean.CdPipelines{
 		AppId:     appId,
@@ -1430,6 +1475,19 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int, request
 			postStage.TriggerType = dbPipeline.PostTriggerType
 			pipeline.PostStage = postStage
 		}
+		preDeployStage, postDeployStage, err := impl.pipelineStageService.GetCdPipelineStageDataDeepCopy(dbPipeline.Id)
+		if err != nil {
+			impl.logger.Errorw("error fetching pre and post deploy stage by cd pipeline Id", "err", err, "cdPipelineId", dbPipeline.Id)
+			return nil, err
+		}
+		pipeline.PreDeployStage = preDeployStage
+		pipeline.PostDeployStage = postDeployStage
+		pipeline, err = impl.InitiateMigrationOfStageScriptsToPipelineStageSteps(pipeline)
+		if err != nil {
+			impl.logger.Errorw("error in conversion of pre/post stage script into pipeline stages", "err", err, "pipeline", pipeline)
+			return nil, err
+		}
+
 		if dbPipeline.PreStageConfigMapSecretNames != "" {
 			preStageConfigmapSecrets := bean.PreStageConfigMapSecretNames{}
 			err = json.Unmarshal([]byte(dbPipeline.PreStageConfigMapSecretNames), &preStageConfigmapSecrets)
@@ -1482,6 +1540,13 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForAppAndEnv(appId int, e
 			postStage.TriggerType = dbPipeline.PostTriggerType
 		}
 
+		//fetching pre/post deploy plugin details
+		preDeployStage, postDeployStage, err := impl.pipelineStageService.GetCdPipelineStageDataDeepCopy(dbPipeline.Id)
+		if err != nil {
+			impl.logger.Errorw("error in getting pre/post-CD stage data", "err", err, "cdPipelineId", dbPipeline.Id)
+			return nil, err
+		}
+
 		preStageConfigmapSecrets := bean.PreStageConfigMapSecretNames{}
 		postStageConfigmapSecrets := bean.PostStageConfigMapSecretNames{}
 
@@ -1517,8 +1582,15 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForAppAndEnv(appId int, e
 			RunPreStageInEnv:              dbPipeline.RunPreStageInEnv,
 			RunPostStageInEnv:             dbPipeline.RunPostStageInEnv,
 			CdArgoSetup:                   env.Cluster.CdArgoSetup,
+			PreDeployStage:                preDeployStage,
+			PostDeployStage:               postDeployStage,
 		}
-		pipelines = append(pipelines, pipeline)
+		cdPipelineMigrated, err := impl.InitiateMigrationOfStageScriptsToPipelineStageSteps(pipeline)
+		if err != nil {
+			impl.logger.Errorw("error in getting migrated cdPipeline", "err", err, "pipelineId", pipeline.Id)
+			return nil, err
+		}
+		pipelines = append(pipelines, cdPipelineMigrated)
 	}
 	cdPipelines = &bean.CdPipelines{
 		AppId:     appId,
@@ -1578,4 +1650,27 @@ func (impl CiCdPipelineOrchestratorImpl) CreateEcrRepo(dockerRepository, AWSRegi
 		}
 	}
 	return nil
+}
+
+func (impl CiCdPipelineOrchestratorImpl) InitiateMigrationOfStageScriptsToPipelineStageSteps(cdPipeline *bean.CDPipelineConfigObject) (*bean.CDPipelineConfigObject, error) {
+	//below implementation means that preStageConfig or postStageConfig is not yet migrated to pipeline_stage_steps
+	//so convert the preStageConfig or postStageConfig into pipeline_stage_steps via adapter
+	if cdPipeline.PreDeployStage == nil && len(cdPipeline.PreStage.Config) > 0 {
+		preDeployStageConverted, err := StageYamlToPipelineStageAdapter(cdPipeline.PreStage.Config, repository5.PIPELINE_STAGE_TYPE_PRE_CD)
+		if err != nil {
+			impl.logger.Errorw("error in converting pre-stage data into pipeline stage steps", "err", err, "cdPipelineId", cdPipeline.Id)
+			return nil, err
+		}
+		cdPipeline.PreDeployStage = preDeployStageConverted
+	}
+	if cdPipeline.PostDeployStage == nil && len(cdPipeline.PostStage.Config) > 0 {
+		postDeployStageConverted, err := StageYamlToPipelineStageAdapter(cdPipeline.PostStage.Config, repository5.PIPELINE_STAGE_TYPE_POST_CD)
+		if err != nil {
+			impl.logger.Errorw("error in converting post-stage data into pipeline stage steps", "err", err, "cdPipelineId", cdPipeline.Id)
+			return nil, err
+		}
+		cdPipeline.PostDeployStage = postDeployStageConverted
+	}
+	return cdPipeline, nil
+
 }

@@ -51,7 +51,6 @@ type NotificationConfigServiceImpl struct {
 	ciPipelineRepository           pipelineConfig.CiPipelineRepository
 	pipelineRepository             pipelineConfig.PipelineRepository
 	slackRepository                repository.SlackNotificationRepository
-	webhookRepository              repository.WebhookNotificationRepository
 	sesRepository                  repository.SESNotificationRepository
 	smtpRepository                 repository.SMTPNotificationRepository
 	teamRepository                 repository2.TeamRepository
@@ -164,7 +163,7 @@ type ProvidersConfig struct {
 }
 
 func NewNotificationConfigServiceImpl(logger *zap.SugaredLogger, notificationSettingsRepository repository.NotificationSettingsRepository, notificationConfigBuilder NotificationConfigBuilder, ciPipelineRepository pipelineConfig.CiPipelineRepository,
-	pipelineRepository pipelineConfig.PipelineRepository, slackRepository repository.SlackNotificationRepository, webhookRepository repository.WebhookNotificationRepository,
+	pipelineRepository pipelineConfig.PipelineRepository, slackRepository repository.SlackNotificationRepository,
 	sesRepository repository.SESNotificationRepository, smtpRepository repository.SMTPNotificationRepository,
 	teamRepository repository2.TeamRepository,
 	environmentRepository repository3.EnvironmentRepository, appRepository app.AppRepository,
@@ -177,7 +176,6 @@ func NewNotificationConfigServiceImpl(logger *zap.SugaredLogger, notificationSet
 		ciPipelineRepository:           ciPipelineRepository,
 		sesRepository:                  sesRepository,
 		slackRepository:                slackRepository,
-		webhookRepository:              webhookRepository,
 		smtpRepository:                 smtpRepository,
 		teamRepository:                 teamRepository,
 		environmentRepository:          environmentRepository,
@@ -367,7 +365,6 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 
 		if config.Providers != nil && len(config.Providers) > 0 {
 			var slackIds []*int
-			var webhookIds []*int
 			var sesUserIds []int32
 			var smtpUserIds []int32
 			var providerConfigs []*ProvidersConfig
@@ -380,8 +377,6 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 						sesUserIds = append(sesUserIds, int32(item.ConfigId))
 					} else if item.Destination == util.SMTP {
 						smtpUserIds = append(smtpUserIds, int32(item.ConfigId))
-					} else if item.Destination == util.Webhook {
-						webhookIds = append(webhookIds, &item.ConfigId)
 					}
 				} else {
 					providerConfigs = append(providerConfigs, &ProvidersConfig{Dest: string(item.Destination), Recipient: item.Recipient})
@@ -395,16 +390,6 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 				}
 				for _, item := range slackConfigs {
 					providerConfigs = append(providerConfigs, &ProvidersConfig{Id: item.Id, ConfigName: item.ConfigName, Dest: string(util.Slack)})
-				}
-			}
-			if len(webhookIds) > 0 {
-				webhookConfigs, err := impl.webhookRepository.FindByIds(webhookIds)
-				if err != nil && err != pg.ErrNoRows {
-					impl.logger.Errorw("error in fetching webhook config", "err", err)
-					return notificationSettingsResponses, deletedItemCount, err
-				}
-				for _, item := range webhookConfigs {
-					providerConfigs = append(providerConfigs, &ProvidersConfig{Id: item.Id, ConfigName: item.ConfigName, Dest: string(util.Webhook)})
 				}
 			}
 

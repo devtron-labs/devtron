@@ -61,7 +61,6 @@ const (
 	APP_DELETE_FAILED_RESP              = "App deletion failed, please try deleting from Devtron UI"
 	APP_CREATE_SUCCESSFUL_RESP          = "App created successfully."
 	APP_WORKFLOW_CREATE_SUCCESSFUL_RESP = "App workflow created successfully."
-	WORKFLOW_NAME_EMPTY                 = ""
 )
 
 type CoreAppRestHandler interface {
@@ -73,29 +72,30 @@ type CoreAppRestHandler interface {
 }
 
 type CoreAppRestHandlerImpl struct {
-	logger                  *zap.SugaredLogger
-	userAuthService         user.UserService
-	validator               *validator.Validate
-	enforcerUtil            rbac.EnforcerUtil
-	enforcer                casbin.Enforcer
-	appCrudOperationService app.AppCrudOperationService
-	pipelineBuilder         pipeline.PipelineBuilder
-	gitRegistryService      pipeline.GitRegistryConfig
-	chartService            chart.ChartService
-	configMapService        pipeline.ConfigMapService
-	appListingService       app.AppListingService
-	propertiesConfigService pipeline.PropertiesConfigService
-	appWorkflowService      appWorkflow.AppWorkflowService
-	materialRepository      pipelineConfig.MaterialRepository
-	gitProviderRepo         repository.GitProviderRepository
-	appWorkflowRepository   appWorkflow2.AppWorkflowRepository
-	environmentRepository   repository2.EnvironmentRepository
-	configMapRepository     chartConfig.ConfigMapRepository
-	envConfigRepo           chartConfig.EnvConfigOverrideRepository
-	chartRepo               chartRepoRepository.ChartRepository
-	teamService             team.TeamService
-	argoUserService         argo.ArgoUserService
-	pipelineStageService    pipeline.PipelineStageService
+	logger                   *zap.SugaredLogger
+	userAuthService          user.UserService
+	validator                *validator.Validate
+	enforcerUtil             rbac.EnforcerUtil
+	enforcer                 casbin.Enforcer
+	appCrudOperationService  app.AppCrudOperationService
+	pipelineBuilder          pipeline.PipelineBuilder
+	gitRegistryService       pipeline.GitRegistryConfig
+	chartService             chart.ChartService
+	configMapService         pipeline.ConfigMapService
+	appListingService        app.AppListingService
+	propertiesConfigService  pipeline.PropertiesConfigService
+	appWorkflowService       appWorkflow.AppWorkflowService
+	materialRepository       pipelineConfig.MaterialRepository
+	gitProviderRepo          repository.GitProviderRepository
+	appWorkflowRepository    appWorkflow2.AppWorkflowRepository
+	environmentRepository    repository2.EnvironmentRepository
+	configMapRepository      chartConfig.ConfigMapRepository
+	envConfigRepo            chartConfig.EnvConfigOverrideRepository
+	chartRepo                chartRepoRepository.ChartRepository
+	teamService              team.TeamService
+	argoUserService          argo.ArgoUserService
+	pipelineStageService     pipeline.PipelineStageService
+	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator
 }
 
 func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserService, validator *validator.Validate, enforcerUtil rbac.EnforcerUtil,
@@ -105,31 +105,33 @@ func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.U
 	materialRepository pipelineConfig.MaterialRepository, gitProviderRepo repository.GitProviderRepository,
 	appWorkflowRepository appWorkflow2.AppWorkflowRepository, environmentRepository repository2.EnvironmentRepository, configMapRepository chartConfig.ConfigMapRepository,
 	envConfigRepo chartConfig.EnvConfigOverrideRepository, chartRepo chartRepoRepository.ChartRepository, teamService team.TeamService,
-	argoUserService argo.ArgoUserService, pipelineStageService pipeline.PipelineStageService) *CoreAppRestHandlerImpl {
+	argoUserService argo.ArgoUserService, pipelineStageService pipeline.PipelineStageService,
+	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator) *CoreAppRestHandlerImpl {
 	handler := &CoreAppRestHandlerImpl{
-		logger:                  logger,
-		userAuthService:         userAuthService,
-		validator:               validator,
-		enforcerUtil:            enforcerUtil,
-		enforcer:                enforcer,
-		appCrudOperationService: appCrudOperationService,
-		pipelineBuilder:         pipelineBuilder,
-		gitRegistryService:      gitRegistryService,
-		chartService:            chartService,
-		configMapService:        configMapService,
-		appListingService:       appListingService,
-		propertiesConfigService: propertiesConfigService,
-		appWorkflowService:      appWorkflowService,
-		materialRepository:      materialRepository,
-		gitProviderRepo:         gitProviderRepo,
-		appWorkflowRepository:   appWorkflowRepository,
-		environmentRepository:   environmentRepository,
-		configMapRepository:     configMapRepository,
-		envConfigRepo:           envConfigRepo,
-		chartRepo:               chartRepo,
-		teamService:             teamService,
-		argoUserService:         argoUserService,
-		pipelineStageService:    pipelineStageService,
+		logger:                   logger,
+		userAuthService:          userAuthService,
+		validator:                validator,
+		enforcerUtil:             enforcerUtil,
+		enforcer:                 enforcer,
+		appCrudOperationService:  appCrudOperationService,
+		pipelineBuilder:          pipelineBuilder,
+		gitRegistryService:       gitRegistryService,
+		chartService:             chartService,
+		configMapService:         configMapService,
+		appListingService:        appListingService,
+		propertiesConfigService:  propertiesConfigService,
+		appWorkflowService:       appWorkflowService,
+		materialRepository:       materialRepository,
+		gitProviderRepo:          gitProviderRepo,
+		appWorkflowRepository:    appWorkflowRepository,
+		environmentRepository:    environmentRepository,
+		configMapRepository:      configMapRepository,
+		envConfigRepo:            envConfigRepo,
+		chartRepo:                chartRepo,
+		teamService:              teamService,
+		argoUserService:          argoUserService,
+		pipelineStageService:     pipelineStageService,
+		ciCdPipelineOrchestrator: ciCdPipelineOrchestrator,
 	}
 	return handler
 }
@@ -195,8 +197,7 @@ func (handler CoreAppRestHandlerImpl) GetAppAllDetail(w http.ResponseWriter, r *
 	//get/build global deployment template ends
 
 	//get/build app workflows starts
-	//using empty workflow name because it is optional, if not provided then workflows will be fetched on the basis of app
-	appWorkflows, err, statusCode := handler.buildAppWorkflows(appId, WORKFLOW_NAME_EMPTY)
+	appWorkflows, err, statusCode := handler.buildAppWorkflows(appId)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, statusCode)
 		return
@@ -611,23 +612,13 @@ func (handler CoreAppRestHandlerImpl) buildAppEnvironmentDeploymentTemplate(appI
 }
 
 // validate and build workflows
-func (handler CoreAppRestHandlerImpl) buildAppWorkflows(appId int, workflowName string) ([]*appBean.AppWorkflow, error, int) {
+func (handler CoreAppRestHandlerImpl) buildAppWorkflows(appId int) ([]*appBean.AppWorkflow, error, int) {
 	handler.logger.Debugw("Getting app detail - workflows", "appId", appId)
-	var workflowsList []appWorkflow.AppWorkflowDto
-	var err error
-	if len(workflowName) != 0 {
-		workflow, err := handler.appWorkflowService.FindAppWorkflowByName(workflowName, appId)
-		if err != nil {
-			handler.logger.Errorw("error in fetching workflow by name", "err", err, "workflowName", workflowName, "appId", appId)
-			return nil, err, http.StatusInternalServerError
-		}
-		workflowsList = []appWorkflow.AppWorkflowDto{workflow}
-	} else {
-		workflowsList, err = handler.appWorkflowService.FindAppWorkflows(appId)
-		if err != nil {
-			handler.logger.Errorw("error in fetching workflows for app in GetAppAllDetail", "err", err)
-			return nil, err, http.StatusInternalServerError
-		}
+
+	workflowsList, err := handler.appWorkflowService.FindAppWorkflows(appId)
+	if err != nil {
+		handler.logger.Errorw("error in fetching workflows for app in GetAppAllDetail", "err", err)
+		return nil, err, http.StatusInternalServerError
 	}
 
 	var appWorkflowsResp []*appBean.AppWorkflow
@@ -790,7 +781,6 @@ func (handler CoreAppRestHandlerImpl) buildCdPipelineResp(appId int, cdPipeline 
 		deploymentTemplateStrategiesResp = append(deploymentTemplateStrategiesResp, deploymentTemplateStrategyResp)
 	}
 	cdPipelineResp.DeploymentStrategies = deploymentTemplateStrategiesResp
-
 	//set pre stage
 	preStage := cdPipeline.PreStage
 	cdPipelineResp.PreStage = &appBean.CdStage{
@@ -798,13 +788,40 @@ func (handler CoreAppRestHandlerImpl) buildCdPipelineResp(appId int, cdPipeline 
 		Name:        preStage.Name,
 		Config:      preStage.Config,
 	}
-
 	//set post stage
 	postStage := cdPipeline.PostStage
 	cdPipelineResp.PostStage = &appBean.CdStage{
 		TriggerType: postStage.TriggerType,
 		Name:        postStage.Name,
 		Config:      postStage.Config,
+	}
+	//set pre-deploy stage for plugin support
+	if cdPipeline.PreDeployStage != nil {
+		cdPipelineResp.PreDeployStage = cdPipeline.PreDeployStage
+	} else if cdPipeline.PreDeployStage == nil && len(cdPipeline.PreStage.Config) > 0 {
+		//this means that it's pre-existing pipeline, without migration from preStageYaml to pipelineStageSteps
+		//so, we need to convert all preStageYaml to pipelineStageSteps and assign it to cdPipelineResp
+		cdRespMigrated, err := handler.ciCdPipelineOrchestrator.InitiateMigrationOfStageScriptsToPipelineStageSteps(cdPipeline)
+		if err != nil {
+			handler.logger.Errorw("service err, InitiateMigrationOfStageScriptsToPipelineStageSteps", "err", err, "appId", appId, "pipelineId", cdPipeline.Id)
+			return nil, err
+		}
+		cdPipelineResp.PreDeployStage = cdRespMigrated.PreDeployStage
+
+	} else {
+		//pipelineStageStep as well as stageYaml not present in this case, which means pre/post deploy stage not configured
+	}
+	//set post-deploy stage for plugin support
+	if cdPipeline.PostDeployStage != nil {
+		cdPipelineResp.PostDeployStage = cdPipeline.PostDeployStage
+	} else if cdPipeline.PostDeployStage == nil && len(cdPipeline.PostStage.Config) > 0 {
+		cdRespMigrated, err := handler.ciCdPipelineOrchestrator.InitiateMigrationOfStageScriptsToPipelineStageSteps(cdPipeline)
+		if err != nil {
+			handler.logger.Errorw("service err, InitiateMigrationOfStageScriptsToPipelineStageSteps", "err", err, "appId", appId, "pipelineId", cdPipeline.Id)
+			return nil, err
+		}
+		cdPipelineResp.PostDeployStage = cdRespMigrated.PostDeployStage
+	} else {
 	}
 
 	//set pre stage config maps secret names
@@ -1158,12 +1175,11 @@ func (handler CoreAppRestHandlerImpl) deleteApp(ctx context.Context, appId int, 
 
 		for _, cdPipeline := range cdPipelines.Pipelines {
 			cdPipelineDeleteRequest := &bean.CDPatchRequest{
-				AppId:            appId,
-				UserId:           userId,
-				Action:           bean.CD_DELETE,
-				ForceDelete:      true,
-				NonCascadeDelete: false,
-				Pipeline:         cdPipeline,
+				AppId:       appId,
+				UserId:      userId,
+				Action:      bean.CD_DELETE,
+				ForceDelete: true,
+				Pipeline:    cdPipeline,
 			}
 			_, err = handler.pipelineBuilder.PatchCdPipelines(cdPipelineDeleteRequest, ctx)
 			if err != nil {
@@ -1670,6 +1686,8 @@ func (handler CoreAppRestHandlerImpl) createCdPipelines(ctx context.Context, app
 			PostStage:                     convertCdStages(cdPipeline.PostStage),
 			PreStageConfigMapSecretNames:  convertCdPreStageCMorCSNames(cdPipeline.PreStageConfigMapSecretNames),
 			PostStageConfigMapSecretNames: convertCdPostStageCMorCSNames(cdPipeline.PostStageConfigMapSecretNames),
+			PreDeployStage:                cdPipeline.PreDeployStage,
+			PostDeployStage:               cdPipeline.PostDeployStage,
 		}
 		convertedDeploymentStrategies, err := convertCdDeploymentStrategies(cdPipeline.DeploymentStrategies)
 		if err != nil {
@@ -2163,8 +2181,7 @@ func (handler CoreAppRestHandlerImpl) GetAppWorkflow(w http.ResponseWriter, r *h
 	}
 
 	//get/build app workflows starts
-	//using empty workflow name because it is optional, if not provided then workflows will be fetched on the basis of app
-	appWorkflows, err, statusCode := handler.buildAppWorkflows(appId, WORKFLOW_NAME_EMPTY)
+	appWorkflows, err, statusCode := handler.buildAppWorkflows(appId)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, statusCode)
 		return
@@ -2212,10 +2229,9 @@ func (handler CoreAppRestHandlerImpl) GetAppWorkflowAndOverridesSample(w http.Re
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	workflowName := r.URL.Query().Get("workflowName")
 	token := r.Header.Get("token")
 	//get/build app workflows starts
-	appWorkflows, err, statusCode := handler.buildAppWorkflows(appId, workflowName)
+	appWorkflows, err, statusCode := handler.buildAppWorkflows(appId)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, statusCode)
 		return
