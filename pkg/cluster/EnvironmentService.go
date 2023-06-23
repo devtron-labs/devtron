@@ -18,7 +18,9 @@
 package cluster
 
 import (
+	"encoding/json"
 	"fmt"
+	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/user/bean"
 	"strconv"
 	"strings"
@@ -47,6 +49,13 @@ type EnvironmentBean struct {
 	Description           string `json:"description" validate:"max=40"`
 	AppCount              int    `json:"appCount"`
 	IsVirtualEnvironment  bool   `json:"isVirtualEnvironment"`
+	IsArgoCd              bool   `json:"isArgoCd"`
+	IsHelm                bool   `json:"isHelm"`
+}
+
+type EnvironmentDeploymentType struct {
+	IsArgoCd bool `json:"isArgoCd"`
+	IsHelm   bool `json:"isHelm"`
 }
 
 type EnvDto struct {
@@ -80,7 +89,7 @@ type EnvironmentService interface {
 	FindById(id int) (*EnvironmentBean, error)
 	Update(mappings *EnvironmentBean, userId int32) (*EnvironmentBean, error)
 	FindClusterByEnvId(id int) (*ClusterBean, error)
-	GetEnvironmentListForAutocomplete() ([]EnvironmentBean, error)
+	GetEnvironmentListForAutocomplete(isDeploymentTypeParam bool) ([]EnvironmentBean, error)
 	GetEnvironmentOnlyListForAutocomplete() ([]EnvironmentBean, error)
 	FindByIds(ids []*int) ([]*EnvironmentBean, error)
 	FindByNamespaceAndClusterName(namespaces string, clusterName string) (*repository.Environment, error)
@@ -97,14 +106,15 @@ type EnvironmentServiceImpl struct {
 	K8sUtil               *util.K8sUtil
 	k8sInformerFactory    informer.K8sInformerFactory
 	//propertiesConfigService pipeline.PropertiesConfigService
-	userAuthService user.UserAuthService
+	userAuthService      user.UserAuthService
+	attributesRepository repository2.AttributesRepository
 }
 
 func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepository,
 	clusterService ClusterService, logger *zap.SugaredLogger,
 	K8sUtil *util.K8sUtil, k8sInformerFactory informer.K8sInformerFactory,
 	//  propertiesConfigService pipeline.PropertiesConfigService,
-	userAuthService user.UserAuthService) *EnvironmentServiceImpl {
+	userAuthService user.UserAuthService, attributesRepository repository2.AttributesRepository) *EnvironmentServiceImpl {
 	return &EnvironmentServiceImpl{
 		environmentRepository: environmentRepository,
 		logger:                logger,
@@ -112,7 +122,8 @@ func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepos
 		K8sUtil:               K8sUtil,
 		k8sInformerFactory:    k8sInformerFactory,
 		//propertiesConfigService: propertiesConfigService,
-		userAuthService: userAuthService,
+		userAuthService:      userAuthService,
+		attributesRepository: attributesRepository,
 	}
 }
 
@@ -366,23 +377,44 @@ func (impl EnvironmentServiceImpl) FindClusterByEnvId(id int) (*ClusterBean, err
 	return clusterBean, nil
 }
 
-func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete() ([]EnvironmentBean, error) {
+func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete(isDeploymentTypeParam bool) ([]EnvironmentBean, error) {
 	models, err := impl.environmentRepository.FindAllActive()
 	if err != nil {
 		impl.logger.Errorw("error in fetching environment", "err", err)
 	}
 	var beans []EnvironmentBean
-	for _, model := range models {
-		beans = append(beans, EnvironmentBean{
-			Id:                    model.Id,
-			Environment:           model.Name,
-			Namespace:             model.Namespace,
-			CdArgoSetup:           model.Cluster.CdArgoSetup,
-			EnvironmentIdentifier: model.EnvironmentIdentifier,
-			ClusterName:           model.Cluster.ClusterName,
-			Description:           model.Description,
-			IsVirtualEnvironment:  model.IsVirtualEnvironment,
-		})
+	//Fetching deployment app type config values along with autocomplete api while creating CD pipeline
+	if isDeploymentTypeParam {
+		for _, model := range models {
+			var deploymentConfig EnvironmentDeploymentType
+			deploymentConfigValues, _ := impl.attributesRepository.FindByKey(fmt.Sprintf("%d", model.Id))
+			_ = json.Unmarshal([]byte(deploymentConfigValues.Value), &deploymentConfig)
+			beans = append(beans, EnvironmentBean{
+				Id:                    model.Id,
+				Environment:           model.Name,
+				Namespace:             model.Namespace,
+				CdArgoSetup:           model.Cluster.CdArgoSetup,
+				EnvironmentIdentifier: model.EnvironmentIdentifier,
+				ClusterName:           model.Cluster.ClusterName,
+				Description:           model.Description,
+				IsVirtualEnvironment:  model.IsVirtualEnvironment,
+				IsArgoCd:              deploymentConfig.IsArgoCd,
+				IsHelm:                deploymentConfig.IsHelm,
+			})
+		}
+	} else {
+		for _, model := range models {
+			beans = append(beans, EnvironmentBean{
+				Id:                    model.Id,
+				Environment:           model.Name,
+				Namespace:             model.Namespace,
+				CdArgoSetup:           model.Cluster.CdArgoSetup,
+				EnvironmentIdentifier: model.EnvironmentIdentifier,
+				ClusterName:           model.Cluster.ClusterName,
+				Description:           model.Description,
+				IsVirtualEnvironment:  model.IsVirtualEnvironment,
+			})
+		}
 	}
 	return beans, nil
 }

@@ -310,7 +310,12 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocomplete(w http.
 		return
 	}
 	start := time.Now()
-	environments, err := impl.environmentClusterMappingsService.GetEnvironmentListForAutocomplete()
+	isDeploymentTypeParam := false
+	param := r.URL.Query().Get("isDeploymentType")
+	if param != "" {
+		isDeploymentTypeParam, _ = strconv.ParseBool(param)
+	}
+	environments, err := impl.environmentClusterMappingsService.GetEnvironmentListForAutocomplete(isDeploymentTypeParam)
 	if err != nil {
 		impl.logger.Errorw("service err, GetEnvironmentListForAutocomplete", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
