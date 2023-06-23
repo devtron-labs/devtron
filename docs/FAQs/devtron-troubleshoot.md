@@ -105,6 +105,7 @@ curl "${grafanaUrl}/api/datasources/2" -X PUT \
 EOF
 ```
 and run in the pod that we created above in step 2.
+
 4. Now visit <devtron-url>/grafana?orgId=2 again and you'll see grafana login page. Login using username `admin` and password from step 1 and check if prometheus url is updated in datasources. If not, update it in the default datasource.
 5. Now from devtron UI, update any of the environment again and it's datasource will be created automatically.
 6. In Grafana UI you need to be logged in and Go to Dashboards > Manage then click `Import` and Import the given dashboards one by one.
