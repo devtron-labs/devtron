@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/Pallinder/go-randomdata v1.2.0
-	github.com/argoproj/argo-cd/v2 v2.5.2
+	github.com/argoproj/argo-cd/v2 v2.5.16
 	github.com/argoproj/argo-workflows/v3 v3.4.3
 	github.com/argoproj/gitops-engine v0.7.1-0.20221004132320-98ccd3d43fd9
 	github.com/aws/aws-sdk-go v1.44.105
@@ -231,11 +231,11 @@ require (
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	golang.org/x/exp v0.0.0-20220602145555-4a0574d9293f // indirect
-	golang.org/x/net v0.0.0-20221012135044-0b7e1fb9d458 // indirect
+	golang.org/x/net v0.7.0 // indirect
 	golang.org/x/sync v0.1.0 // indirect
-	golang.org/x/sys v0.0.0-20220919091848-fb04ddd9f9c8 // indirect
-	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
-	golang.org/x/text v0.4.0 // indirect
+	golang.org/x/sys v0.5.0 // indirect
+	golang.org/x/term v0.5.0 // indirect
+	golang.org/x/text v0.7.0 // indirect
 	golang.org/x/time v0.0.0-20220922220347-f3bd1da661af // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/api v0.101.0 // indirect
