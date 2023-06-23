@@ -1857,32 +1857,47 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 }
 
 func (impl PipelineBuilderImpl) validateDeploymentAppType(pipeline *bean.CDPipelineConfigObject) error {
-	var deploymentConfig EnvironmentDeploymentType
+	var deploymentConfig map[string]bool
 	deploymentConfigValues, _ := impl.attributesRepository.FindByKey(fmt.Sprintf("%d", pipeline.EnvironmentId))
 	_ = json.Unmarshal([]byte(deploymentConfigValues.Value), &deploymentConfig)
 
 	// Config value doesn't exist in attribute table
-	if !deploymentConfig.IsArgoCd && !deploymentConfig.IsHelm {
+	if deploymentConfig == nil {
 		return nil
 	}
 	//Config value found to be true for ArgoCD and Helm both
-	if deploymentConfig.IsArgoCd && deploymentConfig.IsHelm {
+	if allDeploymentConfigTrue(deploymentConfig) {
 		return nil
 	}
-	//{ArgoCD : false, Helm: true}
-	if deploymentConfig.IsHelm && pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
+	//Case : {ArgoCD : false, Helm: true, HGF : true}
+	if validDeploymentConfigReceived(deploymentConfig, pipeline.DeploymentAppType) {
 		return nil
 	}
 	//{ArgoCD : true, Helm: false}
-	if deploymentConfig.IsArgoCd && pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
-		return nil
-	}
 	err := &util.ApiError{
 		HttpStatusCode:  http.StatusBadRequest,
 		InternalMessage: "Received deployment app type doesn't match with the allowed deployment app type for this environment.",
 		UserMessage:     "Received deployment app type doesn't match with the allowed deployment app type for this environment.",
 	}
 	return err
+}
+
+func allDeploymentConfigTrue(deploymentConfig map[string]bool) bool {
+	for _, value := range deploymentConfig {
+		if !value {
+			return false
+		}
+	}
+	return true
+}
+
+func validDeploymentConfigReceived(deploymentConfig map[string]bool, deploymentTypeSent string) bool {
+	for key, value := range deploymentConfig {
+		if value && key == deploymentTypeSent {
+			return true
+		}
+	}
+	return false
 }
 
 func (impl PipelineBuilderImpl) PatchCdPipelines(cdPipelines *bean.CDPatchRequest, ctx context.Context) (*bean.CdPipelines, error) {
