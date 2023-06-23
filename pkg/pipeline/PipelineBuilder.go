@@ -1658,6 +1658,22 @@ func (impl PipelineBuilderImpl) ValidateCDPipelineRequest(pipelineCreateRequest 
 			}
 			return false, err
 		}
+		if len(pipeline.PreStage.Config) > 0 && !strings.Contains(pipeline.PreStage.Config, "beforeStages") {
+			err := &util.ApiError{
+				HttpStatusCode:  http.StatusBadRequest,
+				InternalMessage: "invalid yaml config, must include - beforeStages",
+				UserMessage:     "invalid yaml config, must include - beforeStages",
+			}
+			return false, err
+		}
+		if len(pipeline.PostStage.Config) > 0 && !strings.Contains(pipeline.PostStage.Config, "afterStages") {
+			err := &util.ApiError{
+				HttpStatusCode:  http.StatusBadRequest,
+				InternalMessage: "invalid yaml config, must include - afterStages",
+				UserMessage:     "invalid yaml config, must include - afterStages",
+			}
+			return false, err
+		}
 
 	}
 
@@ -2919,7 +2935,22 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 }
 
 func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, pipeline *bean.CDPipelineConfigObject, userID int32) (err error) {
-
+	if len(pipeline.PreStage.Config) > 0 && !strings.Contains(pipeline.PreStage.Config, "beforeStages") {
+		err = &util.ApiError{
+			HttpStatusCode:  http.StatusBadRequest,
+			InternalMessage: "invalid yaml config, must include - beforeStages",
+			UserMessage:     "invalid yaml config, must include - beforeStages",
+		}
+		return err
+	}
+	if len(pipeline.PostStage.Config) > 0 && !strings.Contains(pipeline.PostStage.Config, "afterStages") {
+		err = &util.ApiError{
+			HttpStatusCode:  http.StatusBadRequest,
+			InternalMessage: "invalid yaml config, must include - afterStages",
+			UserMessage:     "invalid yaml config, must include - afterStages",
+		}
+		return err
+	}
 	dbConnection := impl.pipelineRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -3187,24 +3218,8 @@ func (impl PipelineBuilderImpl) GetCdPipelinesForApp(appId int) (cdPipelines *be
 }
 
 func (impl PipelineBuilderImpl) GetCdPipelinesForAppAndEnv(appId int, envId int) (cdPipelines *bean.CdPipelines, err error) {
-	cdPipelineResp, err := impl.ciCdPipelineOrchestrator.GetCdPipelinesForAppAndEnv(appId, envId)
-	if err != nil {
-		impl.logger.Errorw("error in getting cdPipelineResp", "err", err, "appId", appId, "envIdId", envId)
-		return nil, err
-	}
-	for index, pipeline := range cdPipelineResp.Pipelines {
-		//set pre-deploy stage for plugin support
-		cdRespMigrated, err := impl.ciCdPipelineOrchestrator.InitiateMigrationOfStageScriptsToPipelineStageSteps(pipeline)
-		if err != nil {
-			impl.logger.Errorw("service err, InitiateMigrationOfStageScriptsToPipelineStageSteps", "err", err, "appId", appId, "pipelineId", pipeline.Id)
-			return nil, err
-		}
-		cdPipelineResp.Pipelines[index].PreDeployStage = cdRespMigrated.PreDeployStage
-		cdPipelineResp.Pipelines[index].PostDeployStage = cdRespMigrated.PostDeployStage
-		cdPipelineResp.Pipelines[index].PreStage = bean.CdStage{}
-		cdPipelineResp.Pipelines[index].PostStage = bean.CdStage{}
-	}
-	return cdPipelineResp, nil
+	return impl.ciCdPipelineOrchestrator.GetCdPipelinesForAppAndEnv(appId, envId)
+
 }
 
 type ConfigMapSecretsResponse struct {
@@ -3802,10 +3817,6 @@ func (impl PipelineBuilderImpl) GetCdPipelineById(pipelineId int) (cdPipeline *b
 	}
 	cdPipeline.PreDeployStage = preDeployStage
 	cdPipeline.PostDeployStage = postDeployStage
-	if preDeployStage != nil || postDeployStage != nil {
-		cdPipeline.PreDeployStage.TriggerType = dbPipeline.PreTriggerType
-		cdPipeline.PostDeployStage.TriggerType = dbPipeline.PostTriggerType
-	}
 
 	return cdPipeline, err
 }
