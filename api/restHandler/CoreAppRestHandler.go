@@ -781,7 +781,20 @@ func (handler CoreAppRestHandlerImpl) buildCdPipelineResp(appId int, cdPipeline 
 		deploymentTemplateStrategiesResp = append(deploymentTemplateStrategiesResp, deploymentTemplateStrategyResp)
 	}
 	cdPipelineResp.DeploymentStrategies = deploymentTemplateStrategiesResp
-
+	//set pre stage
+	preStage := cdPipeline.PreStage
+	cdPipelineResp.PreStage = &appBean.CdStage{
+		TriggerType: preStage.TriggerType,
+		Name:        preStage.Name,
+		Config:      preStage.Config,
+	}
+	//set post stage
+	postStage := cdPipeline.PostStage
+	cdPipelineResp.PostStage = &appBean.CdStage{
+		TriggerType: postStage.TriggerType,
+		Name:        postStage.Name,
+		Config:      postStage.Config,
+	}
 	//set pre-deploy stage for plugin support
 	if cdPipeline.PreDeployStage != nil {
 		cdPipelineResp.PreDeployStage = cdPipeline.PreDeployStage
