@@ -594,14 +594,23 @@ func (impl *CiHandlerImpl) getWorkflowLogs(pipelineId int, ciWorkflow *pipelineC
 		PodName:   ciWorkflow.PodName,
 		Namespace: ciWorkflow.Namespace,
 	}
-	env, err := impl.envRepository.FindById(ciWorkflow.CiPipeline.EnvironmentId)
-	configMap := env.Cluster.Config
-	clusterConfig := util.ClusterConfig{
-		Host:                  env.Cluster.ServerUrl,
-		BearerToken:           configMap[util.BearerToken],
-		InsecureSkipTLSVerify: env.Cluster.InsecureSkipTlsVerify,
+	isExt := false
+	clusterConfig := util.ClusterConfig{}
+	if ciWorkflow.CiPipeline.EnvironmentId != 0 {
+		env, err := impl.envRepository.FindById(ciWorkflow.CiPipeline.EnvironmentId)
+		if err != nil {
+			return nil, nil, err
+		}
+		configMap := env.Cluster.Config
+		clusterConfig = util.ClusterConfig{
+			Host:                  env.Cluster.ServerUrl,
+			BearerToken:           configMap[util.BearerToken],
+			InsecureSkipTLSVerify: env.Cluster.InsecureSkipTlsVerify,
+		}
+		isExt = true
 	}
-	logStream, cleanUp, err := impl.ciLogService.FetchRunningWorkflowLogs(ciLogRequest, clusterConfig, true)
+
+	logStream, cleanUp, err := impl.ciLogService.FetchRunningWorkflowLogs(ciLogRequest, clusterConfig, isExt)
 	if logStream == nil || err != nil {
 		if !ciWorkflow.BlobStorageEnabled {
 			return nil, nil, errors.New("logs-not-stored-in-repository")
