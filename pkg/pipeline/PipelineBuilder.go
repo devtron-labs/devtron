@@ -347,11 +347,6 @@ const (
 	environmentIdentifierKey string = "environmentIdentifier"
 )
 
-type EnvironmentDeploymentType struct {
-	IsArgoCd bool `json:"isArgoCd"`
-	IsHelm   bool `json:"isHelm"`
-}
-
 func formatDate(t time.Time, layout string) string {
 	if t.IsZero() {
 		return ""
