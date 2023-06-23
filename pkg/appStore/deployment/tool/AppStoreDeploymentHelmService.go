@@ -3,9 +3,6 @@ package appStoreDeploymentTool
 import (
 	"context"
 	"errors"
-	"net/http"
-	"time"
-
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/internal/constants"
@@ -15,10 +12,12 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
-	"sigs.k8s.io/yaml"
+	"net/http"
+	"time"
 )
 
 type AppStoreDeploymentHelmService interface {

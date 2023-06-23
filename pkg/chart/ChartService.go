@@ -22,7 +22,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
 	"go.opentelemetry.io/otel"
 
 	"github.com/devtron-labs/devtron/internal/constants"
@@ -55,13 +54,13 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
 	"github.com/xeipuuv/gojsonschema"
 	"go.uber.org/zap"
 	"k8s.io/helm/pkg/chartutil"
 	"k8s.io/helm/pkg/proto/hapi/chart"
-	"sigs.k8s.io/yaml"
 )
 
 type TemplateRequest struct {
