@@ -5,6 +5,7 @@ import (
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	repository3 "github.com/devtron-labs/devtron/pkg/plugin/repository"
@@ -284,10 +285,10 @@ func AddTemplatesForGlobalSecretsInWorkflowTemplate(globalCmCsConfigs []*bean.Gl
 	return nil
 }
 
-func StageYamlToPipelineStageAdapter(stageConfig string, stageType repository2.PipelineStageType) (*bean.PipelineStageDto, error) {
+func StageYamlToPipelineStageAdapter(stageConfig string, stageType repository2.PipelineStageType, triggerType pipelineConfig.TriggerType) (*bean.PipelineStageDto, error) {
 	//sample stageConfig:= "version: 0.0.1\ncdPipelineConf:\n  - afterStages:\n      - name: test-1\n        script: |\n          date > test.report\n          echo 'hello'\n        outputLocation: ./test.report\n      - name: test-2\n        script: |\n          date > test2.report\n        outputLocation: ./test2.report"
 
-	var pipelineStageDto *bean.PipelineStageDto
+	pipelineStageDto := &bean.PipelineStageDto{}
 	var err error
 	taskYamlObject, err := ToTaskYaml([]byte(stageConfig))
 	if err != nil {
@@ -295,9 +296,9 @@ func StageYamlToPipelineStageAdapter(stageConfig string, stageType repository2.P
 	}
 	for _, task := range taskYamlObject.CdPipelineConfig {
 		if len(task.BeforeTasks) > 0 {
-			beforeStepIndex := 0
+			beforeStepIndex := 1
+			var beforeStepDtos []*bean.PipelineStageStepDto
 			for _, beforeTask := range task.BeforeTasks {
-
 				inlineStepDetail := &bean.InlineStepDetailDto{
 					ScriptType: repository3.SCRIPT_TYPE_SHELL,
 					Script:     beforeTask.Script,
@@ -313,15 +314,23 @@ func StageYamlToPipelineStageAdapter(stageConfig string, stageType repository2.P
 					InlineStepDetail:    inlineStepDetail,
 					RefPluginStepDetail: nil,
 				}
-				pipelineStageDto.Steps = append(pipelineStageDto.Steps, stepData)
+				beforeStepDtos = append(beforeStepDtos, stepData)
 				beforeStepIndex++
 			}
+			pipelineStageDto.Steps = beforeStepDtos
 			pipelineStageDto.Type = stageType
 			pipelineStageDto.Id = 0
+			if triggerType != pipelineConfig.TRIGGER_TYPE_AUTOMATIC && triggerType != pipelineConfig.TRIGGER_TYPE_MANUAL {
+				pipelineStageDto.TriggerType = pipelineConfig.TRIGGER_TYPE_MANUAL
+			} else {
+				pipelineStageDto.TriggerType = triggerType
+			}
+
 		}
 
 		if len(task.AfterTasks) > 0 {
-			afterStepIndex := 0
+			afterStepIndex := 1
+			var afterStepDtos []*bean.PipelineStageStepDto
 			for _, afterTask := range task.AfterTasks {
 				inlineStepDetail := &bean.InlineStepDetailDto{
 					ScriptType: repository3.SCRIPT_TYPE_SHELL,
@@ -337,11 +346,17 @@ func StageYamlToPipelineStageAdapter(stageConfig string, stageType repository2.P
 					InlineStepDetail:    inlineStepDetail,
 					RefPluginStepDetail: nil,
 				}
-				pipelineStageDto.Steps = append(pipelineStageDto.Steps, stepData)
+				afterStepDtos = append(afterStepDtos, stepData)
 				afterStepIndex++
 			}
+			pipelineStageDto.Steps = afterStepDtos
 			pipelineStageDto.Type = stageType
 			pipelineStageDto.Id = 0
+			if triggerType != pipelineConfig.TRIGGER_TYPE_AUTOMATIC && triggerType != pipelineConfig.TRIGGER_TYPE_MANUAL {
+				pipelineStageDto.TriggerType = pipelineConfig.TRIGGER_TYPE_MANUAL
+			} else {
+				pipelineStageDto.TriggerType = triggerType
+			}
 		}
 	}
 

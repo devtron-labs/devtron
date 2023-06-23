@@ -1658,7 +1658,7 @@ func (impl CiCdPipelineOrchestratorImpl) InitiateMigrationOfStageScriptsToPipeli
 	//below implementation means that preStageConfig or postStageConfig is not yet migrated to pipeline_stage_steps
 	//so convert the preStageConfig or postStageConfig into pipeline_stage_steps via adapter
 	if cdPipeline.PreDeployStage == nil && len(cdPipeline.PreStage.Config) > 0 {
-		preDeployStageConverted, err := StageYamlToPipelineStageAdapter(cdPipeline.PreStage.Config, repository5.PIPELINE_STAGE_TYPE_PRE_CD)
+		preDeployStageConverted, err := StageYamlToPipelineStageAdapter(cdPipeline.PreStage.Config, repository5.PIPELINE_STAGE_TYPE_PRE_CD, cdPipeline.PreStage.TriggerType)
 		if err != nil {
 			impl.logger.Errorw("error in converting pre-stage data into pipeline stage steps", "err", err, "cdPipelineId", cdPipeline.Id)
 			return nil, err
@@ -1666,7 +1666,7 @@ func (impl CiCdPipelineOrchestratorImpl) InitiateMigrationOfStageScriptsToPipeli
 		cdPipeline.PreDeployStage = preDeployStageConverted
 	}
 	if cdPipeline.PostDeployStage == nil && len(cdPipeline.PostStage.Config) > 0 {
-		postDeployStageConverted, err := StageYamlToPipelineStageAdapter(cdPipeline.PostStage.Config, repository5.PIPELINE_STAGE_TYPE_POST_CD)
+		postDeployStageConverted, err := StageYamlToPipelineStageAdapter(cdPipeline.PostStage.Config, repository5.PIPELINE_STAGE_TYPE_POST_CD, cdPipeline.PostStage.TriggerType)
 		if err != nil {
 			impl.logger.Errorw("error in converting post-stage data into pipeline stage steps", "err", err, "cdPipelineId", cdPipeline.Id)
 			return nil, err

@@ -73,10 +73,12 @@ func (impl *PipelineStageServiceImpl) GetCiPipelineStageDataDeepCopy(ciPipelineI
 func (impl *PipelineStageServiceImpl) GetCdPipelineStageDataDeepCopy(cdPipelineId int) (*bean.PipelineStageDto, *bean.PipelineStageDto, error) {
 	//getting all stages by cd pipeline id
 	cdStages, err := impl.pipelineStageRepository.GetAllCdStagesByCdPipelineId(cdPipelineId)
-	if err != nil && err != pg.ErrNoRows {
+	if err != nil {
 		impl.logger.Errorw("error in getting all cdStages by cdPipelineId", "err", err, "cdPipelineStages", cdStages)
 		return nil, nil, err
-	} else if err == pg.ErrNoRows {
+	}
+	if len(cdStages) == 0 {
+		//no entry for cdStages in db
 		return nil, nil, nil
 	}
 	var preDeployStage *bean.PipelineStageDto
