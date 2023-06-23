@@ -1438,7 +1438,7 @@ func (impl PipelineBuilderImpl) PatchCiPipeline(request *bean.CiPatchRequest) (c
 	ciConfig.UserId = request.UserId
 	if request.CiPipeline != nil {
 		//setting ScanEnabled value from env variable,
-		request.CiPipeline.ScanEnabled = impl.securityConfig.ForceSecurityScanning
+		request.CiPipeline.ScanEnabled = request.CiPipeline.ScanEnabled || impl.securityConfig.ForceSecurityScanning
 		ciConfig.ScanEnabled = request.CiPipeline.ScanEnabled
 	}
 	switch request.Action {
