@@ -9,7 +9,7 @@ global:
     runAsNonRoot: true
 
 installer:
-  release: "v0.6.17"
+  release: "v0.6.18"
   image: "quay.io/devtron/inception"
   tag: "44b30917-185-13275"
   
@@ -65,4 +65,4 @@ security:
     image: "quay.io/devtron/image-scanner:d554c0f8-334-14015"
 
 notifier:
-  image: "quay.io/devtron/notifier:6c7a356a-372-11107"
+  image: "quay.io/devtron/notifier:d9c72180-372-14306"
