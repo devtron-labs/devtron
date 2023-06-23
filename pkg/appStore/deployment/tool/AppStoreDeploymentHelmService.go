@@ -3,6 +3,9 @@ package appStoreDeploymentTool
 import (
 	"context"
 	"errors"
+	"net/http"
+	"time"
+
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/internal/constants"
@@ -12,12 +15,10 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
-	"net/http"
-	"time"
+	"sigs.k8s.io/yaml"
 )
 
 type AppStoreDeploymentHelmService interface {
@@ -134,6 +135,9 @@ func (impl AppStoreDeploymentHelmServiceImpl) GetAppStatus(installedAppAndEnvDet
 }
 
 func (impl AppStoreDeploymentHelmServiceImpl) DeleteInstalledApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *repository.InstalledApps, dbTransaction *pg.Tx) error {
+	if installAppVersionRequest.ForceDelete {
+		return nil
+	}
 	appIdentifier := &client.AppIdentifier{
 		ClusterId:   installAppVersionRequest.ClusterId,
 		ReleaseName: installAppVersionRequest.AppName,

@@ -1,3 +1,21 @@
+## v0.6.18-rc.2
+
+
+
+
+## Bugs
+- fix: Global secret data bug in CI workflow (#3504)
+- fix: app workflow creation api panic and app metrics update issue (#3511)
+- fix: HPA support for keda autoscaling and fixes for nameOverrides (#3522)
+- fix : field validation and projects and chart repo fields (#3528)
+- fix: acd app delete non cascade (#3506)
+## Enhancements
+- feat: releaseVersion in job of cron-job template 1.5.0 (#3358)
+## Others
+- task: added global policy db scripts (#3486)
+- chore: replace `github.com/ghodss/yaml` with `sigs.k8s.io/yaml` (#3355)
+
+
 ## v0.6.18-rc.1
 
 
