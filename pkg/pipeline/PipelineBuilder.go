@@ -89,6 +89,12 @@ type DeploymentServiceTypeConfig struct {
 	IsInternalUse bool `env:"IS_INTERNAL_USE" envDefault:"false"`
 }
 
+type SecurityConfig struct {
+	//FORCE_SECURITY_SCANNING flag is being maintained in both dashboard and orchestrator CM's
+	//TODO: rishabh will remove FORCE_SECURITY_SCANNING from dashboard's CM.
+	ForceSecurityScanning bool `env:"FORCE_SECURITY_SCANNING" envDefault:"false"`
+}
+
 func GetDeploymentServiceTypeConfig() (*DeploymentServiceTypeConfig, error) {
 	cfg := &DeploymentServiceTypeConfig{}
 	err := env.Parse(cfg)
@@ -220,6 +226,7 @@ type PipelineBuilderImpl struct {
 	globalPolicyService                             globalPolicy.GlobalPolicyService
 	chartDeploymentService                          util.ChartDeploymentService
 	K8sUtil                                         *util.K8sUtil
+	securityConfig                                  *SecurityConfig
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -274,6 +281,12 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	chartDeploymentService util.ChartDeploymentService,
 	globalPolicyService globalPolicy.GlobalPolicyService,
 	K8sUtil *util.K8sUtil) *PipelineBuilderImpl {
+
+	securityConfig := &SecurityConfig{}
+	err := env.Parse(securityConfig)
+	if err != nil {
+		logger.Errorw("error in parsing securityConfig,setting  ForceSecurityScanning to default value", "defaultValue", securityConfig.ForceSecurityScanning, "err", err)
+	}
 	return &PipelineBuilderImpl{
 		logger:                        logger,
 		ciCdPipelineOrchestrator:      ciCdPipelineOrchestrator,
@@ -335,6 +348,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		globalPolicyService:                             globalPolicyService,
 		chartDeploymentService:                          chartDeploymentService,
 		K8sUtil:                                         K8sUtil,
+		securityConfig:                                  securityConfig,
 	}
 }
 
@@ -1474,28 +1488,8 @@ func (impl PipelineBuilderImpl) PatchCiPipeline(request *bean.CiPatchRequest) (c
 	ciConfig.AppWorkflowId = request.AppWorkflowId
 	ciConfig.UserId = request.UserId
 	if request.CiPipeline != nil {
-		client, err := impl.K8sUtil.GetClientForInCluster()
-		if err != nil {
-			impl.logger.Errorw("exception while getting unique client id", "error", err)
-			return nil, err
-		}
-		cm, err := impl.K8sUtil.GetConfigMap(argo.DEVTRONCD_NAMESPACE, DashboardConfigMap, client)
-		if err != nil {
-			impl.logger.Errorw("error while getting dashboard-cm", "error", err)
-			return nil, err
-		}
-		if cm == nil {
-			impl.logger.Errorw("error while getting dashboard-cm", "error", err)
-			return nil, err
-		}
-		datamap := cm.Data
-		forceScanConfig, err := strconv.ParseBool(datamap[SECURITY_SCANNING])
-		if err != nil {
-			forceScanConfig = false
-		}
-		if forceScanConfig {
-			request.CiPipeline.ScanEnabled = true
-		}
+		//setting ScanEnabled value from env variable,
+		request.CiPipeline.ScanEnabled = request.CiPipeline.ScanEnabled || impl.securityConfig.ForceSecurityScanning
 		ciConfig.ScanEnabled = request.CiPipeline.ScanEnabled
 	}
 	switch request.Action {
