@@ -510,9 +510,10 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		CacheInvalidate:            trigger.InvalidateCache,
 		ExtraEnvironmentVariables:  trigger.ExtraEnvironmentVariables,
 		EnableBuildContext:         impl.ciConfig.EnableBuildContext,
+		OrchestratorHost:           impl.ciConfig.OrchestratorHost,
+		OrchestratorToken:          impl.ciConfig.OrchestratorToken,
 	}
 	if dockerRegistry != nil {
-
 		workflowRequest.DockerRegistryId = dockerRegistry.Id
 		workflowRequest.DockerRegistryType = string(dockerRegistry.RegistryType)
 		workflowRequest.DockerImageTag = dockerImageTag
@@ -526,7 +527,6 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		workflowRequest.SecretKey = dockerRegistry.AWSSecretAccessKey
 		workflowRequest.DockerConnection = dockerRegistry.Connection
 		workflowRequest.DockerCert = dockerRegistry.Cert
-
 	}
 	if ciWorkflowConfig.LogsBucket == "" {
 		ciWorkflowConfig.LogsBucket = impl.ciConfig.DefaultBuildLogsBucket

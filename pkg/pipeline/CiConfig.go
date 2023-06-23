@@ -85,6 +85,8 @@ type CiConfig struct {
 	UseBlobStorageConfigInCiWorkflow bool                         `env:"USE_BLOB_STORAGE_CONFIG_IN_CI_WORKFLOW" envDefault:"true"`
 	BaseLogLocationPath              string                       `env:"BASE_LOG_LOCATION_PATH" envDefault:"/home/devtron/"`
 	InAppLoggingEnabled              bool                         `env:"IN_APP_LOGGING_ENABLED" envDefault:"false"`
+	OrchestratorHost                 string                       `env:"ORCH_HOST" envDefault:"http://devtroncd-orchestrator-service-prod.devtroncd/webhook/msg/nats"`
+	OrchestratorToken                string                       `env:"ORCH_TOKEN" envDefault:""`
 	ClusterConfig                    *rest.Config
 	NodeLabel                        map[string]string
 	EnableBuildContext               bool `env:"ENABLE_BUILD_CONTEXT" envDefault:"false"`
