@@ -26,6 +26,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/api/appbean"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
@@ -39,6 +40,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	bean3 "github.com/devtron-labs/devtron/pkg/user/bean"
 	util2 "github.com/devtron-labs/devtron/util"
+	"gopkg.in/yaml.v2"
 	"path"
 	"regexp"
 	"strconv"
@@ -80,6 +82,7 @@ type CiCdPipelineOrchestrator interface {
 	GetCdPipelinesForEnv(envId int, requestedAppIds []int) (cdPipelines *bean.CdPipelines, err error)
 
 	InitiateMigrationOfStageScriptsToPipelineStageSteps(cdPipeline *bean.CDPipelineConfigObject) (*bean.CDPipelineConfigObject, error)
+	StageStepsToCdStageAdapter(deployStage *bean2.PipelineStageDto) (*appbean.CdStage, error)
 }
 
 type CiCdPipelineOrchestratorImpl struct {
@@ -1675,4 +1678,66 @@ func (impl CiCdPipelineOrchestratorImpl) InitiateMigrationOfStageScriptsToPipeli
 	}
 	return cdPipeline, nil
 
+}
+
+func (impl CiCdPipelineOrchestratorImpl) StageStepsToCdStageAdapter(deployStage *bean2.PipelineStageDto) (*appbean.CdStage, error) {
+	cdStage := &appbean.CdStage{
+		Name:        deployStage.Name,
+		TriggerType: deployStage.TriggerType,
+	}
+	cdPipelineConfig := make([]CdPipelineConfig, 0)
+	beforeTasks := make([]*Task, 0)
+	afterTasks := make([]*Task, 0)
+	for _, step := range deployStage.Steps {
+		if step.InlineStepDetail != nil {
+			//version
+			//cdPipelineConf
+			//if beforeStage then key is beforeStages
+			//step.Name will be my script name
+			//step.InlineStepDetail.Script will be the corresponding script
+			//step.OutputDirectoryPath will be my output location
+			if deployStage.Type == repository5.PIPELINE_STAGE_TYPE_PRE_CD {
+				beforeTask := &Task{
+					Id:             0,
+					Index:          0,
+					Name:           step.Name,
+					Script:         step.InlineStepDetail.Script,
+					OutputLocation: strings.Join(step.OutputDirectoryPath, ","),
+					RunStatus:      false,
+				}
+				beforeTasks = append(beforeTasks, beforeTask)
+
+			}
+			if deployStage.Type == repository5.PIPELINE_STAGE_TYPE_POST_CD {
+				afterTask := &Task{
+					Id:             0,
+					Index:          0,
+					Name:           step.Name,
+					Script:         step.InlineStepDetail.Script,
+					OutputLocation: strings.Join(step.OutputDirectoryPath, ","),
+					RunStatus:      false,
+				}
+				afterTasks = append(afterTasks, afterTask)
+			}
+
+		} else {
+			return nil, nil
+		}
+
+	}
+	cdPipelineConfig = append(cdPipelineConfig, CdPipelineConfig{
+		BeforeTasks: beforeTasks,
+		AfterTasks:  afterTasks,
+	})
+	taskYaml := TaskYaml{
+		Version:          "",
+		CdPipelineConfig: cdPipelineConfig,
+	}
+	stageConfig, err := yaml.Marshal(taskYaml)
+	if err != nil {
+		impl.logger.Errorw("error in converting post-stage step data into pipeline stage yaml", "err", err, "pipelineStage", deployStage)
+		return nil, err
+	}
+	cdStage.Config = string(stageConfig)
+	return cdStage, nil
 }
