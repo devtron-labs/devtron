@@ -847,13 +847,17 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelines(w http.ResponseWrite
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	version := "v1"
+	if strings.Contains(r.URL.Path, "v2") {
+		version = "v2"
+	}
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 
-	ciConf, err := handler.pipelineBuilder.GetCdPipelinesForApp(appId)
+	ciConf, err := handler.pipelineBuilder.GetCdPipelinesForApp(appId, version)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetCdPipelines", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -870,6 +874,10 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelinesForAppAndEnv(w http.R
 		handler.Logger.Errorw("request err, GetCdPipelinesForAppAndEnv", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
+	}
+	version := "v1"
+	if strings.Contains(r.URL.Path, "v2") {
+		version = "v2"
 	}
 
 	envId, err := strconv.Atoi(vars["envId"])
@@ -899,7 +907,7 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelinesForAppAndEnv(w http.R
 	}
 	//rbac
 
-	cdPipelines, err := handler.pipelineBuilder.GetCdPipelinesForAppAndEnv(appId, envId)
+	cdPipelines, err := handler.pipelineBuilder.GetCdPipelinesForAppAndEnv(appId, envId, version)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetCdPipelinesForAppAndEnv", "err", err, "appId", appId, "envId", envId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -1774,6 +1782,10 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelineById(w http.ResponseWr
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	version := "v1"
+	if strings.Contains(r.URL.Path, "v2") {
+		version = "v2"
+	}
 	handler.Logger.Infow("request payload, GetCdPipelineById", "err", err, "appId", appId, "pipelineId", pipelineId)
 	app, err := handler.pipelineBuilder.GetApp(appId)
 	if err != nil {
@@ -1798,9 +1810,9 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelineById(w http.ResponseWr
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	cdResp, err := handler.ciCdPipelineOrchestrator.InitiateMigrationOfStageScriptsToPipelineStageSteps(ciConf)
+	cdResp, err := handler.ciCdPipelineOrchestrator.CheckForVersionAndCreatePreAndPostStagePayload(ciConf, version, appId)
 	if err != nil {
-		handler.Logger.Errorw("service err, InitiateMigrationOfStageScriptsToPipelineStageSteps", "err", err, "appId", appId, "pipelineId", pipelineId)
+		handler.Logger.Errorw("service err, CheckForVersionAndCreatePreAndPostStagePayload", "err", err, "appId", appId, "pipelineId", pipelineId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -2121,6 +2133,10 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelinesByEnvironment(w http.
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
+	version := "v1"
+	if strings.Contains(r.URL.Path, "v2") {
+		version = "v2"
+	}
 	user, err := handler.userAuthService.GetById(userId)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -2166,7 +2182,7 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelinesByEnvironment(w http.
 		Ctx:            r.Context(),
 	}
 	_, span := otel.Tracer("orchestrator").Start(r.Context(), "cdHandler.FetchCdPipelinesForAppGrouping")
-	results, err := handler.pipelineBuilder.GetCdPipelinesByEnvironment(request)
+	results, err := handler.pipelineBuilder.GetCdPipelinesByEnvironment(request, version)
 	span.End()
 	if err != nil {
 		handler.Logger.Errorw("service err, GetCdPipelines", "err", err, "envId", envId)

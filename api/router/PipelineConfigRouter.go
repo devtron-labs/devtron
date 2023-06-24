@@ -73,7 +73,10 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/cd-pipeline/patch/deployment/type").HandlerFunc(router.restHandler.HandleChangeDeploymentTypeRequest).Methods("POST")
 	configRouter.Path("/cd-pipeline/patch/deployment/trigger").HandlerFunc(router.restHandler.HandleTriggerDeploymentAfterTypeChange).Methods("POST")
 	configRouter.Path("/cd-pipeline/{appId}").HandlerFunc(router.restHandler.GetCdPipelines).Methods("GET")
+	configRouter.Path("/cd-pipeline/{appId}/v2").HandlerFunc(router.restHandler.GetCdPipelines).Methods("GET")
 	configRouter.Path("/cd-pipeline/{appId}/env/{envId}").HandlerFunc(router.restHandler.GetCdPipelinesForAppAndEnv).Methods("GET")
+	configRouter.Path("/cd-pipeline/{appId}/env/{envId}/v2").HandlerFunc(router.restHandler.GetCdPipelinesForAppAndEnv).Methods("GET")
+
 	//save environment specific override
 	configRouter.Path("/env/{appId}/{environmentId}").HandlerFunc(router.restHandler.EnvConfigOverrideCreate).Methods("POST")
 	configRouter.Path("/env").HandlerFunc(router.restHandler.EnvConfigOverrideUpdate).Methods("PUT")
@@ -140,6 +143,8 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 
 	configRouter.Path("/app-wf/view/{app-id}").
 		HandlerFunc(router.appWorkflowRestHandler.GetWorkflowsViewData).Methods("GET")
+	configRouter.Path("/app-wf/view/{app-id}/v2").
+		HandlerFunc(router.appWorkflowRestHandler.GetWorkflowsViewData).Methods("GET")
 
 	configRouter.Path("/app-wf/{app-id}/{app-wf-id}").
 		HandlerFunc(router.appWorkflowRestHandler.DeleteAppWorkflow).Methods("DELETE")
@@ -154,6 +159,8 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/cd-pipeline/workflow/status/{appId}/{environmentId}/{pipelineId}").HandlerFunc(router.restHandler.GetStageStatus).Methods("GET")
 
 	configRouter.Path("/cd-pipeline/{appId}/{pipelineId}").HandlerFunc(router.restHandler.GetCdPipelineById).Methods("GET")
+	configRouter.Path("/cd-pipeline/{appId}/{pipelineId}/v2").HandlerFunc(router.restHandler.GetCdPipelineById).Methods("GET")
+
 	configRouter.Path("/cd/configmap-secrets/{pipelineId}").HandlerFunc(router.restHandler.GetConfigmapSecretsForDeploymentStages).Methods("GET")
 
 	configRouter.Path("/workflow/status/{appId}").HandlerFunc(router.restHandler.FetchAppWorkflowStatusForTriggerView).Methods("GET")

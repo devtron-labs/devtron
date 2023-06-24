@@ -123,9 +123,9 @@ type PipelineBuilder interface {
 	TriggerDeploymentAfterTypeChange(ctx context.Context, request *bean.DeploymentAppTypeChangeRequest) (*bean.DeploymentAppTypeChangeResponse, error)
 	DeleteDeploymentAppsForEnvironment(ctx context.Context, environmentId int, currentDeploymentAppType bean.DeploymentType, exclusionList []int, includeApps []int, userId int32) (*bean.DeploymentAppTypeChangeResponse, error)
 	DeleteDeploymentApps(ctx context.Context, pipelines []*pipelineConfig.Pipeline, userId int32) *bean.DeploymentAppTypeChangeResponse
-	GetTriggerViewCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error)
-	GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error)
-	GetCdPipelinesForAppAndEnv(appId int, envId int) (cdPipelines *bean.CdPipelines, err error)
+	GetTriggerViewCdPipelinesForApp(appId int, version string) (cdPipelines *bean.CdPipelines, err error)
+	GetCdPipelinesForApp(appId int, version string) (cdPipelines *bean.CdPipelines, err error)
+	GetCdPipelinesForAppAndEnv(appId int, envId int, version string) (cdPipelines *bean.CdPipelines, err error)
 	/*	CreateCdPipelines(cdPipelines bean.CdPipelines) (*bean.CdPipelines, error)*/
 	RetrieveArtifactsByCDPipeline(pipeline *pipelineConfig.Pipeline, stage bean2.WorkflowType) (*bean.CiArtifactResponse, error)
 	RetrieveParentDetails(pipelineId int) (parentId int, parentType bean2.WorkflowType, err error)
@@ -158,7 +158,7 @@ type PipelineBuilder interface {
 	MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(appId int, envId int, acdToken string, pipeline *pipelineConfig.Pipeline) (bool, error)
 	GetCiPipelineByEnvironment(request appGroup2.AppGroupingRequest) ([]*bean.CiConfigRequest, error)
 	GetCiPipelineByEnvironmentMin(request appGroup2.AppGroupingRequest) ([]*bean.CiPipelineMinResponse, error)
-	GetCdPipelinesByEnvironment(request appGroup2.AppGroupingRequest) (cdPipelines *bean.CdPipelines, err error)
+	GetCdPipelinesByEnvironment(request appGroup2.AppGroupingRequest, version string) (cdPipelines *bean.CdPipelines, err error)
 	GetCdPipelinesByEnvironmentMin(request appGroup2.AppGroupingRequest) (cdPipelines []*bean.CDPipelineConfigObject, err error)
 	GetExternalCiByEnvironment(request appGroup2.AppGroupingRequest) (ciConfig []*bean.ExternalCiConfig, err error)
 	GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) (*cluster.AppGroupingResponse, error)
@@ -3215,8 +3215,8 @@ func (impl PipelineBuilderImpl) getStrategiesMapping(dbPipelineIds []int) (map[i
 	return strategiesMapping, nil
 }
 
-func (impl PipelineBuilderImpl) GetTriggerViewCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error) {
-	triggerViewCdPipelinesResp, err := impl.ciCdPipelineOrchestrator.GetCdPipelinesForApp(appId)
+func (impl PipelineBuilderImpl) GetTriggerViewCdPipelinesForApp(appId int, version string) (cdPipelines *bean.CdPipelines, err error) {
+	triggerViewCdPipelinesResp, err := impl.ciCdPipelineOrchestrator.GetCdPipelinesForApp(appId, version)
 	if err != nil {
 		impl.logger.Errorw("error in fetching triggerViewCdPipelinesResp by appId", "err", err, "appId", appId)
 		return triggerViewCdPipelinesResp, err
@@ -3248,8 +3248,8 @@ func (impl PipelineBuilderImpl) GetTriggerViewCdPipelinesForApp(appId int) (cdPi
 	return triggerViewCdPipelinesResp, err
 }
 
-func (impl PipelineBuilderImpl) GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error) {
-	cdPipelines, err = impl.ciCdPipelineOrchestrator.GetCdPipelinesForApp(appId)
+func (impl PipelineBuilderImpl) GetCdPipelinesForApp(appId int, version string) (cdPipelines *bean.CdPipelines, err error) {
+	cdPipelines, err = impl.ciCdPipelineOrchestrator.GetCdPipelinesForApp(appId, version)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cd Pipelines for appId", "err", err, "appId", appId)
 		return nil, err
@@ -3346,8 +3346,8 @@ func (impl PipelineBuilderImpl) GetCdPipelinesForApp(appId int) (cdPipelines *be
 	return cdPipelines, err
 }
 
-func (impl PipelineBuilderImpl) GetCdPipelinesForAppAndEnv(appId int, envId int) (cdPipelines *bean.CdPipelines, err error) {
-	return impl.ciCdPipelineOrchestrator.GetCdPipelinesForAppAndEnv(appId, envId)
+func (impl PipelineBuilderImpl) GetCdPipelinesForAppAndEnv(appId int, envId int, version string) (cdPipelines *bean.CdPipelines, err error) {
+	return impl.ciCdPipelineOrchestrator.GetCdPipelinesForAppAndEnv(appId, envId, version)
 }
 
 type ConfigMapSecretsResponse struct {
@@ -3817,7 +3817,7 @@ func (impl PipelineBuilderImpl) FetchCDPipelineStrategy(appId int) (PipelineStra
 
 func (impl PipelineBuilderImpl) FetchDefaultCDPipelineStrategy(appId int, envId int) (PipelineStrategy, error) {
 	pipelineStrategy := PipelineStrategy{}
-	cdPipelines, err := impl.ciCdPipelineOrchestrator.GetCdPipelinesForAppAndEnv(appId, envId)
+	cdPipelines, err := impl.ciCdPipelineOrchestrator.GetCdPipelinesForAppAndEnv(appId, envId, "")
 	if err != nil || (cdPipelines.Pipelines) == nil || len(cdPipelines.Pipelines) == 0 {
 		return pipelineStrategy, err
 	}
@@ -4640,7 +4640,7 @@ func (impl PipelineBuilderImpl) GetCiPipelineByEnvironmentMin(request appGroup2.
 	return results, err
 }
 
-func (impl PipelineBuilderImpl) GetCdPipelinesByEnvironment(request appGroup2.AppGroupingRequest) (cdPipelines *bean.CdPipelines, err error) {
+func (impl PipelineBuilderImpl) GetCdPipelinesByEnvironment(request appGroup2.AppGroupingRequest, version string) (cdPipelines *bean.CdPipelines, err error) {
 	_, span := otel.Tracer("orchestrator").Start(request.Ctx, "cdHandler.authorizationCdPipelinesForAppGrouping")
 	if request.AppGroupId > 0 {
 		appIds, err := impl.appGroupService.GetAppIdsByAppGroupId(request.AppGroupId)
@@ -4650,7 +4650,7 @@ func (impl PipelineBuilderImpl) GetCdPipelinesByEnvironment(request appGroup2.Ap
 		//override appIds if already provided app group id in request.
 		request.AppIds = appIds
 	}
-	cdPipelines, err = impl.ciCdPipelineOrchestrator.GetCdPipelinesForEnv(request.EnvId, request.AppIds)
+	cdPipelines, err = impl.ciCdPipelineOrchestrator.GetCdPipelinesForEnv(request.EnvId, request.AppIds, version)
 	if err != nil {
 		impl.logger.Errorw("error in fetching pipeline", "err", err)
 		return cdPipelines, err

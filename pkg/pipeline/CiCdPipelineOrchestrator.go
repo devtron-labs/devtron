@@ -26,7 +26,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/devtron-labs/devtron/api/appbean"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
@@ -72,17 +71,18 @@ type CiCdPipelineOrchestrator interface {
 	DeleteCdPipeline(pipelineId int, userId int32, tx *pg.Tx) error
 	PatchMaterialValue(createRequest *bean.CiPipeline, userId int32, oldPipeline *pipelineConfig.CiPipeline) (*bean.CiPipeline, error)
 	PipelineExists(name string) (bool, error)
-	GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error)
-	GetCdPipelinesForAppAndEnv(appId int, envId int) (cdPipelines *bean.CdPipelines, err error)
+	GetCdPipelinesForApp(appId int, version string) (cdPipelines *bean.CdPipelines, err error)
+	GetCdPipelinesForAppAndEnv(appId int, envId int, version string) (cdPipelines *bean.CdPipelines, err error)
 	GetByEnvOverrideId(envOverrideId int) (*bean.CdPipelines, error)
 	BuildCiPipelineScript(userId int32, ciScript *bean.CiScript, scriptStage string, ciPipeline *bean.CiPipeline) *pipelineConfig.CiPipelineScript
 	AddPipelineMaterialInGitSensor(pipelineMaterials []*pipelineConfig.CiPipelineMaterial) error
 	CheckStringMatchRegex(regex string, value string) bool
 	CreateEcrRepo(dockerRepository, AWSRegion, AWSAccessKeyId, AWSSecretAccessKey string) error
-	GetCdPipelinesForEnv(envId int, requestedAppIds []int) (cdPipelines *bean.CdPipelines, err error)
+	GetCdPipelinesForEnv(envId int, requestedAppIds []int, version string) (cdPipelines *bean.CdPipelines, err error)
 
 	InitiateMigrationOfStageScriptsToPipelineStageSteps(cdPipeline *bean.CDPipelineConfigObject) (*bean.CDPipelineConfigObject, error)
-	StageStepsToCdStageAdapter(deployStage *bean2.PipelineStageDto) (*appbean.CdStage, error)
+	StageStepsToCdStageAdapter(deployStage *bean2.PipelineStageDto) (*bean.CdStage, error)
+	CheckForVersionAndCreatePreAndPostStagePayload(cdPipeline *bean.CDPipelineConfigObject, version string, appId int) (*bean.CDPipelineConfigObject, error)
 }
 
 type CiCdPipelineOrchestratorImpl struct {
@@ -1335,7 +1335,7 @@ func (impl CiCdPipelineOrchestratorImpl) PipelineExists(name string) (bool, erro
 	return impl.pipelineRepository.PipelineExists(name)
 }
 
-func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error) {
+func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int, version string) (cdPipelines *bean.CdPipelines, err error) {
 	dbPipelines, err := impl.pipelineRepository.FindActiveByAppId(appId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cdPipeline", "appId", appId, "err", err)
@@ -1400,12 +1400,12 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 			PreDeployStage:                preDeployStage,
 			PostDeployStage:               postDeployStage,
 		}
-		cdPipelineMigrated, err := impl.InitiateMigrationOfStageScriptsToPipelineStageSteps(pipeline)
+		cdPipelineResp, err := impl.CheckForVersionAndCreatePreAndPostStagePayload(pipeline, version, appId)
 		if err != nil {
-			impl.logger.Errorw("error in getting migrated cdPipeline", "err", err, "pipelineId", pipeline.Id)
+			impl.logger.Errorw("error in creating pre-stage and post-stage cdStage dto, CheckForVersionAndCreatePreAndPostStagePayload", "err", err, "appId", appId, "cdPipelineId", pipeline.Id)
 			return nil, err
 		}
-		pipelines = append(pipelines, cdPipelineMigrated)
+		pipelines = append(pipelines, cdPipelineResp)
 	}
 	cdPipelines = &bean.CdPipelines{
 		AppId:     appId,
@@ -1419,7 +1419,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 	return cdPipelines, err
 }
 
-func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int, requestedAppIds []int) (cdPipelines *bean.CdPipelines, err error) {
+func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int, requestedAppIds []int, version string) (cdPipelines *bean.CdPipelines, err error) {
 	var dbPipelines []*pipelineConfig.Pipeline
 	if len(requestedAppIds) > 0 {
 		dbPipelines, err = impl.pipelineRepository.FindActiveByInFilter(envId, requestedAppIds)
@@ -1487,7 +1487,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int, request
 		}
 		pipeline.PreDeployStage = preDeployStage
 		pipeline.PostDeployStage = postDeployStage
-		pipeline, err = impl.InitiateMigrationOfStageScriptsToPipelineStageSteps(pipeline)
+		pipeline, err = impl.CheckForVersionAndCreatePreAndPostStagePayload(pipeline, version, dbPipeline.AppId)
 		if err != nil {
 			impl.logger.Errorw("error in conversion of pre/post stage script into pipeline stages", "err", err, "pipeline", pipeline)
 			return nil, err
@@ -1525,7 +1525,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int, request
 	return cdPipelines, err
 }
 
-func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForAppAndEnv(appId int, envId int) (cdPipelines *bean.CdPipelines, err error) {
+func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForAppAndEnv(appId int, envId int, version string) (cdPipelines *bean.CdPipelines, err error) {
 	dbPipelines, err := impl.pipelineRepository.FindActiveByAppIdAndEnvironmentId(appId, envId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cdPipeline", "appId", appId, "err", err)
@@ -1590,12 +1590,12 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForAppAndEnv(appId int, e
 			PreDeployStage:                preDeployStage,
 			PostDeployStage:               postDeployStage,
 		}
-		cdPipelineMigrated, err := impl.InitiateMigrationOfStageScriptsToPipelineStageSteps(pipeline)
+		cdPipelineMigratedResp, err := impl.CheckForVersionAndCreatePreAndPostStagePayload(pipeline, version, appId)
 		if err != nil {
-			impl.logger.Errorw("error in getting migrated cdPipeline", "err", err, "pipelineId", pipeline.Id)
+			impl.logger.Errorw("error in CheckForVersionAndCreatePreAndPostStagePayload", "err", err, "appId", appId, "pipelineId", pipeline.Id)
 			return nil, err
 		}
-		pipelines = append(pipelines, cdPipelineMigrated)
+		pipelines = append(pipelines, cdPipelineMigratedResp)
 	}
 	cdPipelines = &bean.CdPipelines{
 		AppId:     appId,
@@ -1680,8 +1680,8 @@ func (impl CiCdPipelineOrchestratorImpl) InitiateMigrationOfStageScriptsToPipeli
 
 }
 
-func (impl CiCdPipelineOrchestratorImpl) StageStepsToCdStageAdapter(deployStage *bean2.PipelineStageDto) (*appbean.CdStage, error) {
-	cdStage := &appbean.CdStage{
+func (impl CiCdPipelineOrchestratorImpl) StageStepsToCdStageAdapter(deployStage *bean2.PipelineStageDto) (*bean.CdStage, error) {
+	cdStage := &bean.CdStage{
 		Name:        deployStage.Name,
 		TriggerType: deployStage.TriggerType,
 	}
@@ -1740,4 +1740,66 @@ func (impl CiCdPipelineOrchestratorImpl) StageStepsToCdStageAdapter(deployStage 
 	}
 	cdStage.Config = string(stageConfig)
 	return cdStage, nil
+}
+
+func (impl CiCdPipelineOrchestratorImpl) CheckForVersionAndCreatePreAndPostStagePayload(cdPipeline *bean.CDPipelineConfigObject, version string, appId int) (*bean.CDPipelineConfigObject, error) {
+	var err error
+	cdRespMigrated := cdPipeline
+	if version == "v2" {
+		//in v2, users will be expecting the pre-stage and post-stage in step format
+		cdRespMigrated, err = impl.InitiateMigrationOfStageScriptsToPipelineStageSteps(cdPipeline)
+		if err != nil {
+			impl.logger.Errorw("service err, InitiateMigrationOfStageScriptsToPipelineStageSteps", "err", err, "appId", appId, "pipelineId", cdPipeline.Id)
+			return nil, err
+		}
+		cdRespMigrated.PreStage = bean.CdStage{}
+		cdRespMigrated.PostStage = bean.CdStage{}
+
+	} else if version == "v1" {
+		//in v1, users will be expecting pre-stage and post-stage in yaml format
+		if len(cdPipeline.PreStage.Config) > 0 {
+			//set pre stage
+			preStage := cdPipeline.PreStage
+			cdRespMigrated.PreStage = bean.CdStage{
+				TriggerType: preStage.TriggerType,
+				Name:        preStage.Name,
+				Config:      preStage.Config,
+			}
+		} else if cdPipeline.PreDeployStage != nil {
+			//it means that user is trying to access migrated pre-stage stage steps in v1,
+			//in that case convert the stage steps into yaml form and send response
+			convertedPreCdStage, err := impl.StageStepsToCdStageAdapter(cdPipeline.PreDeployStage)
+			if err != nil {
+				impl.logger.Errorw("error in converting pre stage steps into cdStage, StageStepsToCdStageAdapter", "err", err, "cdPipelineId", cdPipeline.Id)
+				return nil, err
+			}
+			cdRespMigrated.PreStage = *convertedPreCdStage
+			cdRespMigrated.PreDeployStage = nil
+		} else {
+			//users haven't configured pre-cd stage or post-cd stage
+		}
+
+		if len(cdPipeline.PostStage.Config) > 0 {
+			//set post stage
+			postStage := cdPipeline.PostStage
+			cdRespMigrated.PostStage = bean.CdStage{
+				TriggerType: postStage.TriggerType,
+				Name:        postStage.Name,
+				Config:      postStage.Config,
+			}
+		} else if cdPipeline.PostDeployStage != nil {
+			//it means that user is trying to access migrated post-stage stage steps in v1,
+			//in that case convert the stage steps into yaml form and send response
+			convertedPostCdStage, err := impl.StageStepsToCdStageAdapter(cdPipeline.PostDeployStage)
+			if err != nil {
+				impl.logger.Errorw("error in converting post stage steps into cdStage, StageStepsToCdStageAdapter", "err", err, "cdPipelineId", cdPipeline.Id)
+				return nil, err
+			}
+			cdRespMigrated.PostStage = *convertedPostCdStage
+			cdRespMigrated.PostDeployStage = nil
+		} else {
+			//users haven't configured post-cd stage
+		}
+	}
+	return cdRespMigrated, nil
 }

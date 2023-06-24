@@ -309,6 +309,10 @@ func (handler *AppWorkflowRestHandlerImpl) GetWorkflowsViewData(w http.ResponseW
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	version := "v1"
+	if strings.Contains(r.URL.Path, "v2") {
+		version = "v2"
+	}
 
 	// RBAC enforcer applying
 	object := handler.enforcerUtil.GetAppRBACName(app.AppName)
@@ -337,7 +341,7 @@ func (handler *AppWorkflowRestHandlerImpl) GetWorkflowsViewData(w http.ResponseW
 		}
 	}
 
-	cdPipelinesForApp, err := handler.pipelineBuilder.GetTriggerViewCdPipelinesForApp(appId)
+	cdPipelinesForApp, err := handler.pipelineBuilder.GetTriggerViewCdPipelinesForApp(appId, version)
 	if err != nil {
 		if _, ok := err.(*util.ApiError); !ok {
 			handler.Logger.Errorw("error in fetching trigger view cd pipeline data for app", "appId", appId, "err", err)
