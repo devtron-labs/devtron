@@ -391,7 +391,7 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete(isDeploymen
 				deploymentConfig              map[string]bool
 				allowedDeploymentConfigString []string
 			)
-			deploymentConfigValues, _ := impl.attributesRepository.FindByKey(model.Name)
+			deploymentConfigValues, _ := impl.attributesRepository.FindByKey(fmt.Sprintf("%d", model.Id))
 			_ = json.Unmarshal([]byte(deploymentConfigValues.Value), &deploymentConfig)
 			if deploymentConfig == nil || !impl.isReceivedDeploymentTypeValid(deploymentConfig) {
 				allowedDeploymentConfigString = permittedDeploymentConfigString

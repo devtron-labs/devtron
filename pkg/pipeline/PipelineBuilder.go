@@ -1853,7 +1853,7 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 
 func (impl PipelineBuilderImpl) validateDeploymentAppType(pipeline *bean.CDPipelineConfigObject) error {
 	var deploymentConfig map[string]bool
-	deploymentConfigValues, _ := impl.attributesRepository.FindByKey(pipeline.EnvironmentName)
+	deploymentConfigValues, _ := impl.attributesRepository.FindByKey(fmt.Sprintf("%d", pipeline.EnvironmentId))
 	_ = json.Unmarshal([]byte(deploymentConfigValues.Value), &deploymentConfig)
 
 	// Config value doesn't exist in attribute table
