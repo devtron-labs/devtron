@@ -371,6 +371,13 @@ func (impl EnvironmentServiceImpl) FindClusterByEnvId(id int) (*ClusterBean, err
 	return clusterBean, nil
 }
 
+const (
+	PIPELINE_DEPLOYMENT_TYPE_HELM = "helm"
+	PIPELINE_DEPLOYMENT_TYPE_ACD  = "argo_cd"
+)
+
+var permittedDeploymentConfigString = []string{PIPELINE_DEPLOYMENT_TYPE_HELM, PIPELINE_DEPLOYMENT_TYPE_ACD}
+
 func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete(isDeploymentTypeParam bool) ([]EnvironmentBean, error) {
 	models, err := impl.environmentRepository.FindAllActive()
 	if err != nil {
@@ -384,11 +391,15 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete(isDeploymen
 				deploymentConfig              map[string]bool
 				allowedDeploymentConfigString []string
 			)
-			deploymentConfigValues, _ := impl.attributesRepository.FindByKey(fmt.Sprintf("%d", model.Id))
+			deploymentConfigValues, _ := impl.attributesRepository.FindByKey(model.Name)
 			_ = json.Unmarshal([]byte(deploymentConfigValues.Value), &deploymentConfig)
-			for key, value := range deploymentConfig {
-				if value {
-					allowedDeploymentConfigString = append(allowedDeploymentConfigString, key)
+			if deploymentConfig == nil || !impl.isReceivedDeploymentTypeValid(deploymentConfig) {
+				allowedDeploymentConfigString = permittedDeploymentConfigString
+			} else {
+				for key, value := range deploymentConfig {
+					if value {
+						allowedDeploymentConfigString = append(allowedDeploymentConfigString, key)
+					}
 				}
 			}
 			beans = append(beans, EnvironmentBean{
@@ -418,6 +429,22 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete(isDeploymen
 		}
 	}
 	return beans, nil
+}
+
+func (impl EnvironmentServiceImpl) isReceivedDeploymentTypeValid(deploymentConfig map[string]bool) bool {
+	for key := range deploymentConfig {
+		found := false
+		for _, permitted := range permittedDeploymentConfigString {
+			if key == permitted {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
 }
 
 func (impl EnvironmentServiceImpl) GetEnvironmentOnlyListForAutocomplete() ([]EnvironmentBean, error) {
