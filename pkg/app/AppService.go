@@ -175,7 +175,7 @@ type AppService interface {
 	TriggerCD(artifact *repository.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, triggeredAt time.Time) error
 	GetConfigMapAndSecretJson(appId int, envId int, pipelineId int) ([]byte, error)
 	UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Application, cdWfrId int, updateTimedOutStatus bool) error
-	GetCmSecretNew(appId int, envId int) (*bean.ConfigMapJson, *bean.ConfigSecretJson, error)
+	GetCmSecretNew(appId int, envId int, isJob bool) (*bean.ConfigMapJson, *bean.ConfigSecretJson, error)
 	MarkImageScanDeployed(appId int, envId int, imageDigest string, clusterId int) error
 	UpdateDeploymentStatusForGitOpsPipelines(app *v1alpha1.Application, statusTime time.Time, isAppStore bool) (bool, bool, error)
 	WriteCDSuccessEvent(appId int, envId int, override *chartConfig.PipelineOverride)
@@ -2461,7 +2461,7 @@ func (impl *AppServiceImpl) MarkImageScanDeployed(appId int, envId int, imageDig
 }
 
 // FIXME tmp workaround
-func (impl *AppServiceImpl) GetCmSecretNew(appId int, envId int) (*bean.ConfigMapJson, *bean.ConfigSecretJson, error) {
+func (impl *AppServiceImpl) GetCmSecretNew(appId int, envId int, isJob bool) (*bean.ConfigMapJson, *bean.ConfigSecretJson, error) {
 	var configMapJson string
 	var secretDataJson string
 	var configMapJsonApp string
@@ -2493,18 +2493,22 @@ func (impl *AppServiceImpl) GetCmSecretNew(appId int, envId int) (*bean.ConfigMa
 	if err != nil {
 		return nil, nil, err
 	}
+	var chartMajorVersion int
+	var chartMinorVersion int
+	if !isJob {
+		chart, err := impl.commonService.FetchLatestChart(appId, envId)
+		if err != nil {
+			return nil, nil, err
+		}
 
-	chart, err := impl.commonService.FetchLatestChart(appId, envId)
-	if err != nil {
-		return nil, nil, err
+		chartVersion := chart.ChartVersion
+		chartMajorVersion, chartMinorVersion, err = util2.ExtractChartVersion(chartVersion)
+		if err != nil {
+			impl.logger.Errorw("chart version parsing", "err", err)
+			return nil, nil, err
+		}
 	}
-	chartVersion := chart.ChartVersion
-	chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(chartVersion)
-	if err != nil {
-		impl.logger.Errorw("chart version parsing", "err", err)
-		return nil, nil, err
-	}
-	secretDataJson, err = impl.mergeUtil.ConfigSecretMerge(secretDataJsonApp, secretDataJsonEnv, chartMajorVersion, chartMinorVersion)
+	secretDataJson, err = impl.mergeUtil.ConfigSecretMerge(secretDataJsonApp, secretDataJsonEnv, chartMajorVersion, chartMinorVersion, isJob)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -2634,7 +2638,7 @@ func (impl *AppServiceImpl) getConfigMapAndSecretJsonV2(appId int, envId int, pi
 		impl.logger.Errorw("chart version parsing", "err", err)
 		return []byte("{}"), err
 	}
-	secretDataJson, err = impl.mergeUtil.ConfigSecretMerge(secretDataJsonApp, secretDataJsonEnv, chartMajorVersion, chartMinorVersion)
+	secretDataJson, err = impl.mergeUtil.ConfigSecretMerge(secretDataJsonApp, secretDataJsonEnv, chartMajorVersion, chartMinorVersion, false)
 	if err != nil {
 		return []byte("{}"), err
 	}

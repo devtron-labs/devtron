@@ -114,6 +114,7 @@ type CiPipeline struct {
 	TargetPlatform           string                 `json:"targetPlatform,omitempty"`
 	IsDockerConfigOverridden bool                   `json:"isDockerConfigOverridden"`
 	DockerConfigOverride     DockerConfigOverride   `json:"dockerConfigOverride,omitempty"`
+	EnvironmentId            int                    `json:"environmentId,omitempty"`
 }
 
 type DockerConfigOverride struct {
@@ -214,6 +215,7 @@ type CiPatchRequest struct {
 	Action        PatchAction `json:"action"`
 	AppWorkflowId int         `json:"appWorkflowId,omitempty"`
 	UserId        int32       `json:"-"`
+	IsJob         bool        `json:"-"`
 }
 
 type CiRegexPatchRequest struct {
@@ -265,6 +267,7 @@ type CiTriggerRequest struct {
 	CiPipelineMaterial []CiPipelineMaterial `json:"ciPipelineMaterials" validate:"required"`
 	TriggeredBy        int32                `json:"triggeredBy"`
 	InvalidateCache    bool                 `json:"invalidateCache"`
+	EnvironmentId      int                  `json:"environmentId,omitempty"`
 }
 
 type CiTrigger struct {

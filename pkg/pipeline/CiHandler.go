@@ -28,6 +28,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"io/ioutil"
 	errors2 "k8s.io/apimachinery/pkg/api/errors"
@@ -98,6 +99,7 @@ type CiHandlerImpl struct {
 	cdPipelineRepository         pipelineConfig.PipelineRepository
 	enforcerUtil                 rbac.EnforcerUtil
 	appGroupService              appGroup2.AppGroupService
+	envRepository                repository2.EnvironmentRepository
 }
 
 func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
@@ -105,7 +107,7 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 	ciLogService CiLogService, ciConfig *CiConfig, ciArtifactRepository repository.CiArtifactRepository, userService user.UserService, eventClient client.EventClient,
 	eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository, appListingRepository repository.AppListingRepository,
 	K8sUtil *util.K8sUtil, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil,
-	appGroupService appGroup2.AppGroupService) *CiHandlerImpl {
+	appGroupService appGroup2.AppGroupService, envRepository repository2.EnvironmentRepository) *CiHandlerImpl {
 	return &CiHandlerImpl{
 		Logger:                       Logger,
 		ciService:                    ciService,
@@ -125,6 +127,7 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 		cdPipelineRepository:         cdPipelineRepository,
 		enforcerUtil:                 enforcerUtil,
 		appGroupService:              appGroupService,
+		envRepository:                envRepository,
 	}
 }
 
@@ -149,7 +152,8 @@ type WorkflowResponse struct {
 	ArtifactId           int                                         `json:"artifactId"`
 	IsArtifactUploaded   bool                                        `json:"isArtifactUploaded"`
 	IsVirtualEnvironment bool                                        `json:"isVirtualEnvironment"`
-  	PodName              string                                      `json:"podName"`
+	PodName              string                                      `json:"podName"`
+	EnvironmentId        int                                         `json:"environmentId"`
 }
 
 type GitTriggerInfoResponse struct {
@@ -170,6 +174,7 @@ type Trigger struct {
 	TriggeredBy               int32
 	InvalidateCache           bool
 	ExtraEnvironmentVariables map[string]string // extra env variables which will be used for CI
+	EnvironmentId             int
 }
 
 const WorkflowCancel = "CANCELLED"
@@ -190,6 +195,7 @@ func (impl *CiHandlerImpl) HandleCIManual(ciTriggerRequest bean.CiTriggerRequest
 		TriggeredBy:               ciTriggerRequest.TriggeredBy,
 		InvalidateCache:           ciTriggerRequest.InvalidateCache,
 		ExtraEnvironmentVariables: extraEnvironmentVariables,
+		EnvironmentId:             ciTriggerRequest.EnvironmentId,
 	}
 	id, err := impl.ciService.TriggerCiPipeline(trigger)
 	if err != nil {
@@ -470,6 +476,7 @@ func (impl *CiHandlerImpl) GetBuildHistory(pipelineId int, offset int, size int)
 			ArtifactId:         w.CiArtifactId,
 			BlobStorageEnabled: w.BlobStorageEnabled,
 			IsArtifactUploaded: w.IsArtifactUploaded,
+			EnvironmentId:      w.EnvironmentId,
 		}
 		ciWorkLowResponses = append(ciWorkLowResponses, wfResponse)
 	}
@@ -486,14 +493,23 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int) (int, error) {
 		impl.Logger.Warn("cannot cancel build, build not in progress")
 		return 0, errors.New("cannot cancel build, build not in progress")
 	}
-	runningWf, err := impl.workflowService.GetWorkflow(workflow.Name, workflow.Namespace)
+	var isExt bool
+	if workflow.Namespace != DefaultCiWorkflowNamespace {
+		isExt = true
+	}
+	env, err := impl.envRepository.FindById(workflow.EnvironmentId)
+	if err != nil {
+		impl.Logger.Errorw("could not fetch stage env", "err", err)
+		return 0, err
+	}
+	runningWf, err := impl.workflowService.GetWorkflow(workflow.Name, workflow.Namespace, isExt, env)
 	if err != nil {
 		impl.Logger.Errorw("cannot find workflow ", "err", err)
 		return 0, errors.New("cannot find workflow " + workflow.Name)
 	}
 
 	// Terminate workflow
-	err = impl.workflowService.TerminateWorkflow(runningWf.Name, runningWf.Namespace)
+	err = impl.workflowService.TerminateWorkflow(runningWf.Name, runningWf.Namespace, isExt, env)
 	if err != nil {
 		impl.Logger.Errorw("cannot terminate wf", "err", err)
 		return 0, err
@@ -1347,11 +1363,21 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 		impl.Logger.Errorw("error while fetching k8s client", "error", err)
 		return err
 	}
+
 	for _, ciWorkflow := range ciWorkflows {
+		var isExt bool
+		if ciWorkflow.Namespace != DefaultCiWorkflowNamespace {
+			isExt = true
+		}
+		env, err := impl.envRepository.FindById(ciWorkflow.EnvironmentId)
+		if err != nil {
+			impl.Logger.Errorw("could not fetch stage env", "err", err)
+			return err
+		}
 		isEligibleToMarkFailed := false
 		if time.Since(ciWorkflow.StartedOn) > (time.Minute * time.Duration(timeoutForFailureCiBuild)) {
 			//check weather pod is exists or not, if exits check its status
-			_, err := impl.workflowService.GetWorkflow(ciWorkflow.Name, DefaultCiWorkflowNamespace)
+			_, err := impl.workflowService.GetWorkflow(ciWorkflow.Name, ciWorkflow.Namespace, isExt, env)
 			if err != nil {
 				impl.Logger.Warnw("unable to fetch ci workflow", "err", err)
 				statusError, ok := err.(*errors2.StatusError)

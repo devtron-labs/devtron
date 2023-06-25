@@ -68,6 +68,7 @@ type CiWorkflow struct {
 	CiArtifactLocation string            `sql:"ci_artifact_location"`
 	PodName            string            `sql:"pod_name"`
 	CiBuildType        string            `sql:"ci_build_type"`
+	EnvironmentId      int               `sql:"environment_id"`
 	CiPipeline         *CiPipeline
 }
 
@@ -92,6 +93,7 @@ type WorkflowWithArtifact struct {
 	BlobStorageEnabled bool              `json:"blobStorageEnabled"`
 	CiBuildType        string            `json:"ci_build_type"`
 	IsArtifactUploaded bool              `json:"is_artifact_uploaded"`
+	EnvironmentId      int               `json:"environmentId"`
 }
 
 type GitCommit struct {

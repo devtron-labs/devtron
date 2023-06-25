@@ -19,6 +19,7 @@ package pipelineConfig
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
@@ -48,6 +49,17 @@ type CiPipeline struct {
 	CiTemplate          *CiTemplate
 }
 
+type CiEnvMapping struct {
+	tableName     struct{} `sql:"ci_env_mapping" pg:",discard_unknown_columns"`
+	Id            int      `sql:"id,pk"`
+	EnvironmentId int      `sql:"environment_id"`
+	CiPipelineId  int      `sql:"ci_pipeline_id"`
+	Deleted       bool     `sql:"deleted,notnull"`
+	CiPipeline    CiPipeline
+	Environment   repository.Environment
+	sql.AuditLog
+}
+
 type ExternalCiPipeline struct {
 	tableName   struct{} `sql:"external_ci_pipeline" pg:",discard_unknown_columns"`
 	Id          int      `sql:"id,pk"`
@@ -72,6 +84,7 @@ type CiPipelineScript struct {
 
 type CiPipelineRepository interface {
 	Save(pipeline *CiPipeline, tx *pg.Tx) error
+	SaveCiEnvMapping(cienvmapping *CiEnvMapping, tx *pg.Tx) error
 	SaveExternalCi(pipeline *ExternalCiPipeline, tx *pg.Tx) (*ExternalCiPipeline, error)
 	UpdateExternalCi(pipeline *ExternalCiPipeline, tx *pg.Tx) (*ExternalCiPipeline, error)
 	FindExternalCiByCiPipelineId(ciPipelineId int) (*ExternalCiPipeline, error)
@@ -87,10 +100,12 @@ type CiPipelineRepository interface {
 	FindByAppIds(appIds []int) (pipelines []*CiPipeline, err error)
 	//find non deleted pipeline
 	FindById(id int) (pipeline *CiPipeline, err error)
+	FindCiEnvMappingByCiPipelineId(ciPipelineId int) (*CiEnvMapping, error)
 	FindParentCiPipelineMapByAppId(appId int) ([]*CiPipeline, []int, error)
 	FindByCiAndAppDetailsById(pipelineId int) (pipeline *CiPipeline, err error)
 	FindByIdsIn(ids []int) ([]*CiPipeline, error)
 	Update(pipeline *CiPipeline, tx *pg.Tx) error
+	UpdateCiEnvMapping(cienvmapping *CiEnvMapping, tx *pg.Tx) error
 	PipelineExistsByName(names []string) (found []string, err error)
 	FindByName(pipelineName string) (pipeline *CiPipeline, err error)
 	FindByParentCiPipelineId(parentCiPipelineId int) ([]*CiPipeline, error)
@@ -148,6 +163,13 @@ func (impl CiPipelineRepositoryImpl) UpdateExternalCi(pipeline *ExternalCiPipeli
 func (impl CiPipelineRepositoryImpl) Save(pipeline *CiPipeline, tx *pg.Tx) error {
 	return tx.Insert(pipeline)
 }
+func (impl CiPipelineRepositoryImpl) SaveCiEnvMapping(cienvmapping *CiEnvMapping, tx *pg.Tx) error {
+	return tx.Insert(cienvmapping)
+}
+func (impl CiPipelineRepositoryImpl) UpdateCiEnvMapping(cienvmapping *CiEnvMapping, tx *pg.Tx) error {
+	return tx.Update(cienvmapping)
+}
+
 func (impl CiPipelineRepositoryImpl) Update(pipeline *CiPipeline, tx *pg.Tx) error {
 	r, err := tx.Model(pipeline).WherePK().UpdateNotNull()
 	impl.logger.Debugf("total rows saved %d", r.RowsAffected())
@@ -264,6 +286,15 @@ func (impl CiPipelineRepositoryImpl) FindById(id int) (pipeline *CiPipeline, err
 		Select()
 
 	return pipeline, err
+}
+func (impl CiPipelineRepositoryImpl) FindCiEnvMappingByCiPipelineId(ciPipelineId int) (*CiEnvMapping, error) {
+	ciEnvMapping := &CiEnvMapping{}
+	err := impl.dbConnection.Model(ciEnvMapping).
+		Where("ci_pipeline_id= ?", ciPipelineId).
+		Where("deleted =? ", false).
+		Select()
+
+	return ciEnvMapping, err
 }
 
 func (impl CiPipelineRepositoryImpl) FindWithMinDataByCiPipelineId(id int) (pipeline *CiPipeline, err error) {

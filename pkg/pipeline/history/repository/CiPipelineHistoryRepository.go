@@ -66,6 +66,15 @@ type CiPipelineHistory struct {
 	Manual                    bool     `sql:"manual,notnull"`
 }
 
+//type CiEnvMappingHistory struct {
+//	tableName     struct{} `sql:"ci_env_mapping" pg:",discard_unknown_columns"`
+//	Id            int      `sql:"id,pk"`
+//	EnvironmentId int      `sql:"environment_id"`
+//	CiPipelineHistory    CiPipelineHistory
+//	Environment   repository.Environment
+//	sql.AuditLog
+//}
+
 const (
 	TRIGGER_ADD    = "add"
 	TRIGGER_UPDATE = "update"
