@@ -130,6 +130,9 @@ type WorkflowRequest struct {
 	EnableBuildContext         bool                              `json:"enableBuildContext"`
 	AppId                      int                               `json:"appId,omitempty"`
 	EnvironmentId              int                               `json:"environmentId,omitempty"`
+	OrchestratorHost           string                            `json:"orchestratorHost"`
+	OrchestratorToken          string                            `json:"orchestratorToken"`
+	IsExtRun                   bool                              `json:"isExtRun"`
 }
 
 const (
@@ -218,6 +221,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		miniCred := []v12.EnvVar{{Name: "AWS_ACCESS_KEY_ID", Value: impl.ciConfig.BlobStorageS3AccessKey}, {Name: "AWS_SECRET_ACCESS_KEY", Value: impl.ciConfig.BlobStorageS3SecretKey}}
 		containerEnvVariables = append(containerEnvVariables, miniCred...)
 	}
+
 	pvc := appLabels[strings.ToLower(fmt.Sprintf("%s-%s", CI_NODE_PVC_PIPELINE_PREFIX, workflowRequest.PipelineName))]
 	if len(pvc) == 0 {
 		pvc = appLabels[CI_NODE_PVC_ALL_ENV]
@@ -231,7 +235,9 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		Type:      ciEvent,
 		CiRequest: workflowRequest,
 	}
-
+	if env.Id != 0 {
+		workflowRequest.IsExtRun = true
+	}
 	ciCdTriggerEvent.CiRequest.BlobStorageLogsKey = fmt.Sprintf("%s/%s", impl.ciConfig.DefaultBuildLogsKeyPrefix, workflowRequest.WorkflowNamePrefix)
 	ciCdTriggerEvent.CiRequest.InAppLoggingEnabled = impl.ciConfig.InAppLoggingEnabled
 	workflowJson, err := json.Marshal(&ciCdTriggerEvent)

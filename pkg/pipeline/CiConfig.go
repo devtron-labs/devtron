@@ -87,7 +87,9 @@ type CiConfig struct {
 	InAppLoggingEnabled              bool                         `env:"IN_APP_LOGGING_ENABLED" envDefault:"false"`
 	ClusterConfig                    *rest.Config
 	NodeLabel                        map[string]string
-	EnableBuildContext               bool `env:"ENABLE_BUILD_CONTEXT" envDefault:"false"`
+	EnableBuildContext               bool   `env:"ENABLE_BUILD_CONTEXT" envDefault:"false"`
+	OrchestratorHost                 string `env:"ORCH_HOST" envDefault:"http://devtroncd-orchestrator-service-prod.devtroncd/webhook/msg/nats"`
+	OrchestratorToken                string `env:"ORCH_TOKEN" envDefault:""`
 }
 
 type CiVolumeMount struct {

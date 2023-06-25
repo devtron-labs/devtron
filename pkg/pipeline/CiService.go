@@ -522,6 +522,8 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		CacheInvalidate:            trigger.InvalidateCache,
 		ExtraEnvironmentVariables:  trigger.ExtraEnvironmentVariables,
 		EnableBuildContext:         impl.ciConfig.EnableBuildContext,
+		OrchestratorHost:           impl.ciConfig.OrchestratorHost,
+		OrchestratorToken:          impl.ciConfig.OrchestratorToken,
 	}
 	if dockerRegistry != nil {
 
