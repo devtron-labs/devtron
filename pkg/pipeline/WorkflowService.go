@@ -457,19 +457,6 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 				})
 			}
 		}
-		//steps = append(steps, v1alpha1.ParallelSteps{
-		//	Steps: []v1alpha1.WorkflowStep{
-		//		{
-		//			Name:     "run-wf",
-		//			Template: CI_WORKFLOW_NAME,
-		//		},
-		//	},
-		//})
-		//templates = append(templates, v1alpha1.Template{
-		//	Name:  CI_WORKFLOW_WITH_STAGES,
-		//	Steps: steps,
-		//})
-
 	}
 	steps = append(steps, v1alpha1.ParallelSteps{
 		Steps: []v1alpha1.WorkflowStep{
