@@ -494,14 +494,16 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int) (int, error) {
 		return 0, errors.New("cannot cancel build, build not in progress")
 	}
 	var isExt bool
+	var env *repository2.Environment
 	if workflow.Namespace != DefaultCiWorkflowNamespace {
 		isExt = true
+		env, err = impl.envRepository.FindById(workflow.EnvironmentId)
+		if err != nil {
+			impl.Logger.Errorw("could not fetch stage env", "err", err)
+			return 0, err
+		}
 	}
-	env, err := impl.envRepository.FindById(workflow.EnvironmentId)
-	if err != nil {
-		impl.Logger.Errorw("could not fetch stage env", "err", err)
-		return 0, err
-	}
+
 	runningWf, err := impl.workflowService.GetWorkflow(workflow.Name, workflow.Namespace, isExt, env)
 	if err != nil {
 		impl.Logger.Errorw("cannot find workflow ", "err", err)
@@ -1366,14 +1368,16 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 
 	for _, ciWorkflow := range ciWorkflows {
 		var isExt bool
+		var env *repository2.Environment
 		if ciWorkflow.Namespace != DefaultCiWorkflowNamespace {
 			isExt = true
+			env, err = impl.envRepository.FindById(ciWorkflow.EnvironmentId)
+			if err != nil {
+				impl.Logger.Errorw("could not fetch stage env", "err", err)
+				return err
+			}
 		}
-		env, err := impl.envRepository.FindById(ciWorkflow.EnvironmentId)
-		if err != nil {
-			impl.Logger.Errorw("could not fetch stage env", "err", err)
-			return err
-		}
+
 		isEligibleToMarkFailed := false
 		if time.Since(ciWorkflow.StartedOn) > (time.Minute * time.Duration(timeoutForFailureCiBuild)) {
 			//check weather pod is exists or not, if exits check its status

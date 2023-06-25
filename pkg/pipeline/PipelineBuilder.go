@@ -809,11 +809,16 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 			AfterDockerBuildScripts:  afterDockerBuildScripts,
 			ScanEnabled:              pipeline.ScanEnabled,
 			IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
-			//EnvironmentId:            pipeline.CiEnvMapping.EnvironmentId,
 		}
-		//if ciConfig.IsJob{
-		//	CiEnvMapping :=
-		//}
+		if ciConfig.IsJob {
+			ciEnvMapping, err := impl.ciPipelineRepository.FindCiEnvMappingByCiPipelineId(pipeline.Id)
+			if err != nil {
+				impl.logger.Errorw("error in fetching ciEnvMapping", "ciPipelineId ", pipeline.Id, "err", err)
+				return nil, err
+			}
+			ciPipeline.EnvironmentId = ciEnvMapping.EnvironmentId
+
+		}
 		if ciTemplateBean, ok := ciOverrideTemplateMap[pipeline.Id]; ok {
 			templateOverride := ciTemplateBean.CiTemplateOverride
 			ciPipeline.DockerConfigOverride = bean.DockerConfigOverride{
