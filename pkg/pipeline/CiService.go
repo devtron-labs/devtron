@@ -141,11 +141,6 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 		impl.Logger.Errorw("could not find app", "err", err)
 		return 0, err
 	}
-	//ciEnvMapping, err := impl.ciPipelineRepository.FindCiEnvMappingByCiPipelineId(pipeline.Id)
-	//if err != nil {
-	//	impl.Logger.Errorw("could not find cienvmapping", "err", err)
-	//	return 0, err
-	//}
 	var env *repository1.Environment
 	isJob := false
 	if app.AppType == helper.Job {
