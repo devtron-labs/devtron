@@ -824,7 +824,7 @@ type cloneCdPipelineRequest struct {
 }
 
 func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, ctx context.Context) (*bean.CdPipelines, error) {
-	refPipelines, err := impl.pipelineBuilder.GetCdPipelinesForApp(req.refAppId, "v2")
+	refPipelines, err := impl.pipelineBuilder.GetCdPipelinesForApp(req.refAppId)
 	if err != nil {
 		return nil, err
 	}

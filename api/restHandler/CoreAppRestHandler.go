@@ -152,10 +152,6 @@ func (handler CoreAppRestHandlerImpl) GetAppAllDetail(w http.ResponseWriter, r *
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	version := "v1"
-	if strings.Contains(r.URL.Path, "v2") {
-		version = "v2"
-	}
 
 	//rbac implementation for app (user should be admin)
 	token := r.Header.Get("token")
@@ -203,7 +199,7 @@ func (handler CoreAppRestHandlerImpl) GetAppAllDetail(w http.ResponseWriter, r *
 
 	//get/build app workflows starts
 	//using empty workflow name because it is optional, if not provided then workflows will be fetched on the basis of app
-	appWorkflows, err, statusCode := handler.buildAppWorkflows(appId, WORKFLOW_NAME_EMPTY, version)
+	appWorkflows, err, statusCode := handler.buildAppWorkflows(appId, WORKFLOW_NAME_EMPTY)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, statusCode)
 		return
@@ -618,7 +614,7 @@ func (handler CoreAppRestHandlerImpl) buildAppEnvironmentDeploymentTemplate(appI
 }
 
 // validate and build workflows
-func (handler CoreAppRestHandlerImpl) buildAppWorkflows(appId int, workflowName string, version string) ([]*appBean.AppWorkflow, error, int) {
+func (handler CoreAppRestHandlerImpl) buildAppWorkflows(appId int, workflowName string) ([]*appBean.AppWorkflow, error, int) {
 	handler.logger.Debugw("Getting app detail - workflows", "appId", appId)
 	var workflowsList []appWorkflow.AppWorkflowDto
 	var err error
@@ -668,7 +664,7 @@ func (handler CoreAppRestHandlerImpl) buildAppWorkflows(appId int, workflowName 
 					return nil, err, http.StatusInternalServerError
 				}
 
-				cdPipelineResp, err := handler.buildCdPipelineResp(appId, cdPipeline, version)
+				cdPipelineResp, err := handler.buildCdPipelineResp(appId, cdPipeline)
 				if err != nil {
 					handler.logger.Errorw("service err, buildCdPipelineResp in GetAppAllDetail", "err", err, "appId", appId)
 					return nil, err, http.StatusInternalServerError
@@ -761,7 +757,7 @@ func (handler CoreAppRestHandlerImpl) buildCiPipelineResp(appId int, ciPipeline 
 }
 
 // build cd pipeline resp
-func (handler CoreAppRestHandlerImpl) buildCdPipelineResp(appId int, cdPipeline *bean.CDPipelineConfigObject, version string) (*appBean.CdPipelineDetails, error) {
+func (handler CoreAppRestHandlerImpl) buildCdPipelineResp(appId int, cdPipeline *bean.CDPipelineConfigObject) (*appBean.CdPipelineDetails, error) {
 	handler.logger.Debugw("Getting app detail - build cd pipeline resp", "appId", appId)
 
 	if cdPipeline == nil {
@@ -798,23 +794,14 @@ func (handler CoreAppRestHandlerImpl) buildCdPipelineResp(appId int, cdPipeline 
 	}
 	cdPipelineResp.DeploymentStrategies = deploymentTemplateStrategiesResp
 
-	cdPipelineMigratedResp, err := handler.ciCdPipelineOrchestrator.CheckForVersionAndCreatePreAndPostStagePayload(cdPipeline, version, appId)
+	//set pre-deploy and post-deploy stage steps for plugin support
+	cdPipelineMigrated, err := handler.ciCdPipelineOrchestrator.InitiateMigrationOfStageScriptsToPipelineStageSteps(cdPipeline)
 	if err != nil {
-		handler.logger.Errorw("error in creating pre-stage and post-stage cdStage dto, CheckForVersionAndCreatePreAndPostStagePayload", "err", err, "cdPipelineId", cdPipeline.Id)
+		handler.logger.Errorw("service err, InitiateMigrationOfStageScriptsToPipelineStageSteps", "err", err, "appId", appId, "pipelineId", cdPipeline.Id)
 		return nil, err
 	}
-	cdPipelineResp.PreDeployStage = cdPipelineMigratedResp.PreDeployStage
-	cdPipelineResp.PostDeployStage = cdPipelineMigratedResp.PostDeployStage
-	cdPipelineResp.PreStage = &appBean.CdStage{
-		Name:        cdPipelineMigratedResp.PreStage.Name,
-		TriggerType: cdPipelineMigratedResp.PreStage.TriggerType,
-		Config:      cdPipelineMigratedResp.PreStage.Config,
-	}
-	cdPipelineResp.PostStage = &appBean.CdStage{
-		Name:        cdPipelineMigratedResp.PostStage.Name,
-		TriggerType: cdPipelineMigratedResp.PostStage.TriggerType,
-		Config:      cdPipelineMigratedResp.PostStage.Config,
-	}
+	cdPipelineResp.PreDeployStage = cdPipelineMigrated.PreDeployStage
+	cdPipelineResp.PostDeployStage = cdPipelineMigrated.PostDeployStage
 	//set pre stage config maps secret names
 	preStageConfigMapSecretNames := cdPipeline.PreStageConfigMapSecretNames
 	cdPipelineResp.PreStageConfigMapSecretNames = &appBean.CdStageConfigMapSecretNames{
@@ -1158,7 +1145,7 @@ func (handler CoreAppRestHandlerImpl) deleteApp(ctx context.Context, appId int, 
 	if len(workflowsList) > 0 {
 
 		// delete all CD pipelines for app starts
-		cdPipelines, err := handler.pipelineBuilder.GetCdPipelinesForApp(appId, "")
+		cdPipelines, err := handler.pipelineBuilder.GetCdPipelinesForApp(appId)
 		if err != nil {
 			handler.logger.Errorw("service err, GetCdPipelines in DeleteApp", "err", err, "appId", appId)
 			return err
@@ -2161,10 +2148,6 @@ func (handler CoreAppRestHandlerImpl) GetAppWorkflow(w http.ResponseWriter, r *h
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	version := "v1"
-	if strings.Contains(r.URL.Path, "v2") {
-		version = "v2"
-	}
 
 	token := r.Header.Get("token")
 
@@ -2178,7 +2161,7 @@ func (handler CoreAppRestHandlerImpl) GetAppWorkflow(w http.ResponseWriter, r *h
 
 	//get/build app workflows starts
 	//using empty workflow name because it is optional, if not provided then workflows will be fetched on the basis of app
-	appWorkflows, err, statusCode := handler.buildAppWorkflows(appId, WORKFLOW_NAME_EMPTY, version)
+	appWorkflows, err, statusCode := handler.buildAppWorkflows(appId, WORKFLOW_NAME_EMPTY)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, statusCode)
 		return
@@ -2212,11 +2195,6 @@ func (handler CoreAppRestHandlerImpl) GetAppWorkflowAndOverridesSample(w http.Re
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	version := "v1"
-	if strings.Contains(r.URL.Path, "v2") {
-		version = "v2"
-	}
-
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
@@ -2233,7 +2211,7 @@ func (handler CoreAppRestHandlerImpl) GetAppWorkflowAndOverridesSample(w http.Re
 	workflowName := r.URL.Query().Get("workflowName")
 	token := r.Header.Get("token")
 	//get/build app workflows starts
-	appWorkflows, err, statusCode := handler.buildAppWorkflows(appId, workflowName, version)
+	appWorkflows, err, statusCode := handler.buildAppWorkflows(appId, workflowName)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, statusCode)
 		return

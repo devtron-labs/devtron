@@ -847,17 +847,13 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelines(w http.ResponseWrite
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	version := "v1"
-	if strings.Contains(r.URL.Path, "v2") {
-		version = "v2"
-	}
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 
-	ciConf, err := handler.pipelineBuilder.GetCdPipelinesForApp(appId, version)
+	ciConf, err := handler.pipelineBuilder.GetCdPipelinesForApp(appId)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetCdPipelines", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

@@ -71,7 +71,7 @@ type CiCdPipelineOrchestrator interface {
 	DeleteCdPipeline(pipelineId int, userId int32, tx *pg.Tx) error
 	PatchMaterialValue(createRequest *bean.CiPipeline, userId int32, oldPipeline *pipelineConfig.CiPipeline) (*bean.CiPipeline, error)
 	PipelineExists(name string) (bool, error)
-	GetCdPipelinesForApp(appId int, version string) (cdPipelines *bean.CdPipelines, err error)
+	GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error)
 	GetCdPipelinesForAppAndEnv(appId int, envId int, version string) (cdPipelines *bean.CdPipelines, err error)
 	GetByEnvOverrideId(envOverrideId int) (*bean.CdPipelines, error)
 	BuildCiPipelineScript(userId int32, ciScript *bean.CiScript, scriptStage string, ciPipeline *bean.CiPipeline) *pipelineConfig.CiPipelineScript
@@ -1335,7 +1335,7 @@ func (impl CiCdPipelineOrchestratorImpl) PipelineExists(name string) (bool, erro
 	return impl.pipelineRepository.PipelineExists(name)
 }
 
-func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int, version string) (cdPipelines *bean.CdPipelines, err error) {
+func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error) {
 	dbPipelines, err := impl.pipelineRepository.FindActiveByAppId(appId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cdPipeline", "appId", appId, "err", err)
@@ -1400,12 +1400,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int, version
 			PreDeployStage:                preDeployStage,
 			PostDeployStage:               postDeployStage,
 		}
-		cdPipelineResp, err := impl.CheckForVersionAndCreatePreAndPostStagePayload(pipeline, version, appId)
-		if err != nil {
-			impl.logger.Errorw("error in creating pre-stage and post-stage cdStage dto, CheckForVersionAndCreatePreAndPostStagePayload", "err", err, "appId", appId, "cdPipelineId", pipeline.Id)
-			return nil, err
-		}
-		pipelines = append(pipelines, cdPipelineResp)
+		pipelines = append(pipelines, pipeline)
 	}
 	cdPipelines = &bean.CdPipelines{
 		AppId:     appId,
@@ -1698,24 +1693,18 @@ func (impl CiCdPipelineOrchestratorImpl) StageStepsToCdStageAdapter(deployStage 
 			//step.OutputDirectoryPath will be my output location
 			if deployStage.Type == repository5.PIPELINE_STAGE_TYPE_PRE_CD {
 				beforeTask := &Task{
-					Id:             0,
-					Index:          0,
 					Name:           step.Name,
 					Script:         step.InlineStepDetail.Script,
 					OutputLocation: strings.Join(step.OutputDirectoryPath, ","),
-					RunStatus:      false,
 				}
 				beforeTasks = append(beforeTasks, beforeTask)
 
 			}
 			if deployStage.Type == repository5.PIPELINE_STAGE_TYPE_POST_CD {
 				afterTask := &Task{
-					Id:             0,
-					Index:          0,
 					Name:           step.Name,
 					Script:         step.InlineStepDetail.Script,
 					OutputLocation: strings.Join(step.OutputDirectoryPath, ","),
-					RunStatus:      false,
 				}
 				afterTasks = append(afterTasks, afterTask)
 			}

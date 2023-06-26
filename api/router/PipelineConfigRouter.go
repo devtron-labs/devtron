@@ -73,8 +73,6 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/cd-pipeline/patch/deployment/type").HandlerFunc(router.restHandler.HandleChangeDeploymentTypeRequest).Methods("POST")
 	configRouter.Path("/cd-pipeline/patch/deployment/trigger").HandlerFunc(router.restHandler.HandleTriggerDeploymentAfterTypeChange).Methods("POST")
 	configRouter.Path("/cd-pipeline/{appId}").HandlerFunc(router.restHandler.GetCdPipelines).Methods("GET")
-	// eliminate this also
-	configRouter.Path("/cd-pipeline/{appId}/v2").HandlerFunc(router.restHandler.GetCdPipelines).Methods("GET")
 	configRouter.Path("/cd-pipeline/{appId}/env/{envId}").HandlerFunc(router.restHandler.GetCdPipelinesForAppAndEnv).Methods("GET")
 	configRouter.Path("/cd-pipeline/{appId}/env/{envId}/v2").HandlerFunc(router.restHandler.GetCdPipelinesForAppAndEnv).Methods("GET")
 
@@ -143,9 +141,6 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 		HandlerFunc(router.appWorkflowRestHandler.FindAppWorkflow).Methods("GET")
 
 	configRouter.Path("/app-wf/view/{app-id}").
-		HandlerFunc(router.appWorkflowRestHandler.GetWorkflowsViewData).Methods("GET")
-	//eliminate these
-	configRouter.Path("/app-wf/view/{app-id}/v2").
 		HandlerFunc(router.appWorkflowRestHandler.GetWorkflowsViewData).Methods("GET")
 
 	configRouter.Path("/app-wf/{app-id}/{app-wf-id}").

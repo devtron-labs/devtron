@@ -123,8 +123,8 @@ type PipelineBuilder interface {
 	TriggerDeploymentAfterTypeChange(ctx context.Context, request *bean.DeploymentAppTypeChangeRequest) (*bean.DeploymentAppTypeChangeResponse, error)
 	DeleteDeploymentAppsForEnvironment(ctx context.Context, environmentId int, currentDeploymentAppType bean.DeploymentType, exclusionList []int, includeApps []int, userId int32) (*bean.DeploymentAppTypeChangeResponse, error)
 	DeleteDeploymentApps(ctx context.Context, pipelines []*pipelineConfig.Pipeline, userId int32) *bean.DeploymentAppTypeChangeResponse
-	GetTriggerViewCdPipelinesForApp(appId int, version string) (cdPipelines *bean.CdPipelines, err error)
-	GetCdPipelinesForApp(appId int, version string) (cdPipelines *bean.CdPipelines, err error)
+	GetTriggerViewCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error)
+	GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error)
 	GetCdPipelinesForAppAndEnv(appId int, envId int, version string) (cdPipelines *bean.CdPipelines, err error)
 	/*	CreateCdPipelines(cdPipelines bean.CdPipelines) (*bean.CdPipelines, error)*/
 	RetrieveArtifactsByCDPipeline(pipeline *pipelineConfig.Pipeline, stage bean2.WorkflowType) (*bean.CiArtifactResponse, error)
@@ -3215,8 +3215,8 @@ func (impl PipelineBuilderImpl) getStrategiesMapping(dbPipelineIds []int) (map[i
 	return strategiesMapping, nil
 }
 
-func (impl PipelineBuilderImpl) GetTriggerViewCdPipelinesForApp(appId int, version string) (cdPipelines *bean.CdPipelines, err error) {
-	triggerViewCdPipelinesResp, err := impl.ciCdPipelineOrchestrator.GetCdPipelinesForApp(appId, version)
+func (impl PipelineBuilderImpl) GetTriggerViewCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error) {
+	triggerViewCdPipelinesResp, err := impl.ciCdPipelineOrchestrator.GetCdPipelinesForApp(appId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching triggerViewCdPipelinesResp by appId", "err", err, "appId", appId)
 		return triggerViewCdPipelinesResp, err
@@ -3248,8 +3248,8 @@ func (impl PipelineBuilderImpl) GetTriggerViewCdPipelinesForApp(appId int, versi
 	return triggerViewCdPipelinesResp, err
 }
 
-func (impl PipelineBuilderImpl) GetCdPipelinesForApp(appId int, version string) (cdPipelines *bean.CdPipelines, err error) {
-	cdPipelines, err = impl.ciCdPipelineOrchestrator.GetCdPipelinesForApp(appId, version)
+func (impl PipelineBuilderImpl) GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error) {
+	cdPipelines, err = impl.ciCdPipelineOrchestrator.GetCdPipelinesForApp(appId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cd Pipelines for appId", "err", err, "appId", appId)
 		return nil, err
