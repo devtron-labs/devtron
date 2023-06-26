@@ -78,7 +78,7 @@ type CiCdPipelineOrchestrator interface {
 	AddPipelineMaterialInGitSensor(pipelineMaterials []*pipelineConfig.CiPipelineMaterial) error
 	CheckStringMatchRegex(regex string, value string) bool
 	CreateEcrRepo(dockerRepository, AWSRegion, AWSAccessKeyId, AWSSecretAccessKey string) error
-	GetCdPipelinesForEnv(envId int, requestedAppIds []int, version string) (cdPipelines *bean.CdPipelines, err error)
+	GetCdPipelinesForEnv(envId int, requestedAppIds []int) (cdPipelines *bean.CdPipelines, err error)
 
 	InitiateMigrationOfStageScriptsToPipelineStageSteps(cdPipeline *bean.CDPipelineConfigObject) (*bean.CDPipelineConfigObject, error)
 	StageStepsToCdStageAdapter(deployStage *bean2.PipelineStageDto) (*bean.CdStage, error)
@@ -1414,7 +1414,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 	return cdPipelines, err
 }
 
-func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int, requestedAppIds []int, version string) (cdPipelines *bean.CdPipelines, err error) {
+func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int, requestedAppIds []int) (cdPipelines *bean.CdPipelines, err error) {
 	var dbPipelines []*pipelineConfig.Pipeline
 	if len(requestedAppIds) > 0 {
 		dbPipelines, err = impl.pipelineRepository.FindActiveByInFilter(envId, requestedAppIds)
@@ -1482,11 +1482,6 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int, request
 		}
 		pipeline.PreDeployStage = preDeployStage
 		pipeline.PostDeployStage = postDeployStage
-		pipeline, err = impl.CheckForVersionAndCreatePreAndPostStagePayload(pipeline, version, dbPipeline.AppId)
-		if err != nil {
-			impl.logger.Errorw("error in conversion of pre/post stage script into pipeline stages", "err", err, "pipeline", pipeline)
-			return nil, err
-		}
 
 		if dbPipeline.PreStageConfigMapSecretNames != "" {
 			preStageConfigmapSecrets := bean.PreStageConfigMapSecretNames{}

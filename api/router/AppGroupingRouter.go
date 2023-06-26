@@ -30,7 +30,6 @@ func (router AppGroupingRouterImpl) InitAppGroupingRouter(appGroupingRouter *mux
 		HandlerFunc(router.appWorkflowRestHandler.FindAppWorkflowByEnvironment).Methods("GET")
 	appGroupingRouter.Path("/{envId}/ci-pipeline").HandlerFunc(router.restHandler.GetCiPipelineByEnvironment).Methods("GET")
 	appGroupingRouter.Path("/{envId}/cd-pipeline").HandlerFunc(router.restHandler.GetCdPipelinesByEnvironment).Methods("GET")
-	appGroupingRouter.Path("/{envId}/cd-pipeline/v2").HandlerFunc(router.restHandler.GetCdPipelinesByEnvironment).Methods("GET")
 	appGroupingRouter.Path("/{envId}/external-ci").HandlerFunc(router.restHandler.GetExternalCiByEnvironment).Methods("GET")
 	appGroupingRouter.Path("/{envId}/workflow/status").HandlerFunc(router.restHandler.FetchAppWorkflowStatusForTriggerViewByEnvironment).Methods("GET")
 	appGroupingRouter.Path("/app-grouping").HandlerFunc(router.restHandler.GetEnvironmentListWithAppData).Methods("GET")
