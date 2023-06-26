@@ -128,8 +128,8 @@ type WorkflowRequest struct {
 	IsPvcMounted               bool                              `json:"IsPvcMounted"`
 	ExtraEnvironmentVariables  map[string]string                 `json:"extraEnvironmentVariables"`
 	EnableBuildContext         bool                              `json:"enableBuildContext"`
-	AppId                      int                               `json:"appId,omitempty"`
-	EnvironmentId              int                               `json:"environmentId,omitempty"`
+	AppId                      int                               `json:"appId"`
+	EnvironmentId              int                               `json:"environmentId"`
 }
 
 const (
