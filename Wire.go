@@ -849,6 +849,10 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(appGroup2.AppGroupMappingRepository), new(*appGroup2.AppGroupMappingRepositoryImpl)),
 		pipeline.NewArgoWorkflowExecutorImpl,
 		wire.Bind(new(pipeline.ArgoWorkflowExecutor), new(*pipeline.ArgoWorkflowExecutorImpl)),
+		repository5.NewManifestPushConfigRepository,
+		wire.Bind(new(repository5.ManifestPushConfigRepository), new(*repository5.ManifestPushConfigRepositoryImpl)),
+		app.NewGitOpsManifestPushServiceImpl,
+		wire.Bind(new(app.GitOpsManifestPushService), new(*app.GitOpsManifestPushServiceImpl)),
 	)
 	return &App{}, nil
 }
