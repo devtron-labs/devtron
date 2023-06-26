@@ -47,7 +47,7 @@ spec:
       {{- end }}
   selector:
     app: {{ template ".Chart.Name .name" . }}
-{{- if eq .Values.deploymentType "BLUE-GREEN" }}
+{{- if or (eq .Values.deploymentType "BLUE-GREEN")  (eq .Values.deploymentType "CANARY") }}
 ---
 apiVersion: v1
 kind: Service
