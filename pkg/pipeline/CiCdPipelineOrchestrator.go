@@ -72,7 +72,7 @@ type CiCdPipelineOrchestrator interface {
 	PatchMaterialValue(createRequest *bean.CiPipeline, userId int32, oldPipeline *pipelineConfig.CiPipeline) (*bean.CiPipeline, error)
 	PipelineExists(name string) (bool, error)
 	GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error)
-	GetCdPipelinesForAppAndEnv(appId int, envId int, version string) (cdPipelines *bean.CdPipelines, err error)
+	GetCdPipelinesForAppAndEnv(appId int, envId int) (cdPipelines *bean.CdPipelines, err error)
 	GetByEnvOverrideId(envOverrideId int) (*bean.CdPipelines, error)
 	BuildCiPipelineScript(userId int32, ciScript *bean.CiScript, scriptStage string, ciPipeline *bean.CiPipeline) *pipelineConfig.CiPipelineScript
 	AddPipelineMaterialInGitSensor(pipelineMaterials []*pipelineConfig.CiPipelineMaterial) error
@@ -1520,7 +1520,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int, request
 	return cdPipelines, err
 }
 
-func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForAppAndEnv(appId int, envId int, version string) (cdPipelines *bean.CdPipelines, err error) {
+func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForAppAndEnv(appId int, envId int) (cdPipelines *bean.CdPipelines, err error) {
 	dbPipelines, err := impl.pipelineRepository.FindActiveByAppIdAndEnvironmentId(appId, envId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cdPipeline", "appId", appId, "err", err)
@@ -1585,12 +1585,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForAppAndEnv(appId int, e
 			PreDeployStage:                preDeployStage,
 			PostDeployStage:               postDeployStage,
 		}
-		cdPipelineMigratedResp, err := impl.CheckForVersionAndCreatePreAndPostStagePayload(pipeline, version, appId)
-		if err != nil {
-			impl.logger.Errorw("error in CheckForVersionAndCreatePreAndPostStagePayload", "err", err, "appId", appId, "pipelineId", pipeline.Id)
-			return nil, err
-		}
-		pipelines = append(pipelines, cdPipelineMigratedResp)
+		pipelines = append(pipelines, pipeline)
 	}
 	cdPipelines = &bean.CdPipelines{
 		AppId:     appId,
