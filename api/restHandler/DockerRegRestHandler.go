@@ -82,6 +82,16 @@ func NewDockerRegRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistryCon
 	}
 }
 
+func ValidateDockerArtifactStoreRequestBean(bean pipeline.DockerArtifactStoreBean) bool {
+	containerStorageActionType, containerStorageActionExists := bean.OCIRegistryConfig[repository.OCI_REGISRTY_REPO_TYPE_CONTAINER]
+	if (bean.Connection == secureWithCert && bean.Cert == "") ||
+		(bean.Connection != secureWithCert && bean.Cert != "") ||
+		(bean.IsOCICompliantRegistry && containerStorageActionExists && containerStorageActionType != repository.STORAGE_ACTION_TYPE_PULL_AND_PUSH) {
+		return false
+	}
+	return true
+}
+
 func (impl DockerRegRestHandlerImpl) SaveDockerRegistryConfig(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
@@ -97,7 +107,9 @@ func (impl DockerRegRestHandlerImpl) SaveDockerRegistryConfig(w http.ResponseWri
 		return
 	}
 	bean.User = userId
-	if (bean.Connection == secureWithCert && bean.Cert == "") || (bean.Connection != secureWithCert && bean.Cert != "") {
+	if ValidateDockerArtifactStoreRequestBean(bean) {
+		err = fmt.Errorf("invalid payload, missing or incorrect values for required fields")
+		impl.logger.Errorw("validation err, SaveDockerRegistryConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	} else {
@@ -225,7 +237,9 @@ func (impl DockerRegRestHandlerImpl) UpdateDockerRegistryConfig(w http.ResponseW
 		return
 	}
 	bean.User = userId
-	if (bean.Connection == secureWithCert && bean.Cert == "") || (bean.Connection != secureWithCert && bean.Cert != "") {
+	if ValidateDockerArtifactStoreRequestBean(bean) {
+		err = fmt.Errorf("invalid payload, missing or incorrect values for required fields")
+		impl.logger.Errorw("validation err, SaveDockerRegistryConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	} else {
