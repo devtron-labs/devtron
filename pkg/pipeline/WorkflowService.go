@@ -249,7 +249,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 
 	var wfClient v1alpha12.WorkflowInterface
 	workflowRequest.EnvironmentId = env.Id
-	if isJob && workflowRequest.EnvironmentId != 0 { //todo if not default namespace
+	if isJob && workflowRequest.EnvironmentId != 0 {
 		wfClient, err = impl.getRuntimeEnvClientInstance(env)
 		if err != nil {
 			impl.Logger.Errorw("cannot build wf client", "err", err)
@@ -463,19 +463,6 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 				})
 			}
 		}
-		//steps = append(steps, v1alpha1.ParallelSteps{
-		//	Steps: []v1alpha1.WorkflowStep{
-		//		{
-		//			Name:     "run-wf",
-		//			Template: CI_WORKFLOW_NAME,
-		//		},
-		//	},
-		//})
-		//templates = append(templates, v1alpha1.Template{
-		//	Name:  CI_WORKFLOW_WITH_STAGES,
-		//	Steps: steps,
-		//})
-
 	}
 	steps = append(steps, v1alpha1.ParallelSteps{
 		Steps: []v1alpha1.WorkflowStep{

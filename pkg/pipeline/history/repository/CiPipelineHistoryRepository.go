@@ -66,14 +66,11 @@ type CiPipelineHistory struct {
 	Manual                    bool     `sql:"manual,notnull"`
 }
 
-//type CiEnvMappingHistory struct {
-//	tableName     struct{} `sql:"ci_env_mapping" pg:",discard_unknown_columns"`
-//	Id            int      `sql:"id,pk"`
-//	EnvironmentId int      `sql:"environment_id"`
-//	CiPipelineHistory    CiPipelineHistory
-//	Environment   repository.Environment
-//	sql.AuditLog
-//}
+type CiEnvMappingHistory struct {
+	tableName     struct{} `sql:"ci_env_mapping_history" pg:",discard_unknown_columns"`
+	Id            int      `sql:"id,pk"`
+	EnvironmentId int      `sql:"environment_id"`
+}
 
 const (
 	TRIGGER_ADD    = "add"
@@ -83,6 +80,7 @@ const (
 
 type CiPipelineHistoryRepository interface {
 	Save(ciPipelineHistory *CiPipelineHistory) error
+	SaveCiEnvMapping(CiEnvMappingHistory *CiEnvMappingHistory) error
 }
 
 type CiPipelineHistoryRepositoryImpl struct {
@@ -101,6 +99,16 @@ func NewCiPipelineHistoryRepositoryImpl(dbConnection *pg.DB, logger *zap.Sugared
 func (impl *CiPipelineHistoryRepositoryImpl) Save(CiPipelineHistory *CiPipelineHistory) error {
 
 	err := impl.dbConnection.Insert(CiPipelineHistory)
+
+	if err != nil {
+		impl.logger.Errorw("error in saving history for ci pipeline")
+		return err
+	}
+
+	return nil
+}
+func (impl *CiPipelineHistoryRepositoryImpl) SaveCiEnvMapping(CiEnvMappingHistory *CiEnvMappingHistory) error {
+	err := impl.dbConnection.Insert(CiEnvMappingHistory)
 
 	if err != nil {
 		impl.logger.Errorw("error in saving history for ci pipeline")

@@ -6,6 +6,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
 )
@@ -17,13 +18,15 @@ type CiPipelineHistoryService interface {
 type CiPipelineHistoryServiceImpl struct {
 	CiPipelineHistoryRepository repository.CiPipelineHistoryRepository
 	logger                      *zap.SugaredLogger
+	ciPipelineRepository        pipelineConfig.CiPipelineRepository
 }
 
 func NewCiPipelineHistoryServiceImpl(CiPipelineHistoryRepository repository.CiPipelineHistoryRepository,
-	logger *zap.SugaredLogger) *CiPipelineHistoryServiceImpl {
+	logger *zap.SugaredLogger, ciPipelineRepository pipelineConfig.CiPipelineRepository) *CiPipelineHistoryServiceImpl {
 	return &CiPipelineHistoryServiceImpl{
 		CiPipelineHistoryRepository: CiPipelineHistoryRepository,
 		logger:                      logger,
+		ciPipelineRepository:        ciPipelineRepository,
 	}
 }
 
@@ -88,6 +91,23 @@ func (impl *CiPipelineHistoryServiceImpl) SaveHistory(pipeline *pipelineConfig.C
 	if err != nil {
 		impl.logger.Errorw("error in saving history of ci pipeline")
 		return err
+	}
+	ciEnvMapping, err := impl.ciPipelineRepository.FindCiEnvMappingByCiPipelineId(pipeline.Id)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching ciEnvMapping", "ciPipelineId ", pipeline.Id, "err", err)
+		return err
+	}
+
+	if ciEnvMapping.Id > 0 {
+		CiEnvMappingHistory := &repository.CiEnvMappingHistory{
+			Id:            ciEnvMapping.Id,
+			EnvironmentId: ciEnvMapping.EnvironmentId,
+		}
+		err := impl.CiPipelineHistoryRepository.SaveCiEnvMapping(CiEnvMappingHistory)
+		if err != nil {
+			impl.logger.Errorw("error in saving history of ci Env Mapping")
+			return err
+		}
 	}
 
 	return nil

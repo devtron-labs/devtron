@@ -267,7 +267,7 @@ type CiTriggerRequest struct {
 	CiPipelineMaterial []CiPipelineMaterial `json:"ciPipelineMaterials" validate:"required"`
 	TriggeredBy        int32                `json:"triggeredBy"`
 	InvalidateCache    bool                 `json:"invalidateCache"`
-	EnvironmentId      int                  `json:"environmentId,omitempty"`
+	EnvironmentId      int                  `json:"environmentId"`
 }
 
 type CiTrigger struct {
