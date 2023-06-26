@@ -174,6 +174,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	workflowTemplate.WorkflowRunnerId = workflowRequest.WorkflowRunnerId
 	workflowTemplate.WorkflowRequestJson = string(workflowJson)
 	workflowTemplate.PrePostDeploySteps = workflowRequest.PrePostDeploySteps
+	workflowTemplate.RefPlugins = workflowRequest.RefPlugins
 
 	var globalCmCsConfigs []*bean3.GlobalCMCSDto
 	var workflowConfigMaps []bean.ConfigSecretMap
@@ -281,7 +282,6 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	} else {
 		workflowTemplate.ClusterConfig = impl.config
 	}
-	workflowTemplate.RefPlugins = workflowRequest.RefPlugins
 
 	workflowExecutor := impl.getWorkflowExecutor(workflowRequest.WorkflowExecutor)
 	if workflowExecutor == nil {

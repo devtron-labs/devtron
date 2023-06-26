@@ -44,12 +44,11 @@ const (
 	PLUGIN_VARIABLE_FORMAT_TYPE_DATE    PluginStepVariableFormatType = "DATE"
 )
 
-type StageType int
-
 const (
-	CI StageType = iota
-	CD
-	CI_CD
+	CI            = 0
+	CD            = 1
+	CI_CD         = 2
+	CD_STAGE_TYPE = "cd"
 )
 
 type PluginMetadata struct {
@@ -163,15 +162,15 @@ type PluginStepCondition struct {
 }
 
 type PluginStageMapping struct {
-	tableName struct{}  `sql:"plugin_stage_mapping" pg:",discard_unknown_columns"`
-	Id        int       `sql:"id,pk"`
-	PluginId  int       `sql:"plugin_id"`
-	StageType StageType `sql:"stage_type"`
+	tableName struct{} `sql:"plugin_stage_mapping" pg:",discard_unknown_columns"`
+	Id        int      `sql:"id,pk"`
+	PluginId  int      `sql:"plugin_id"`
+	StageType int      `sql:"stage_type"`
 	sql.AuditLog
 }
 
 type GlobalPluginRepository interface {
-	GetMetaDataForAllPlugins(stageType StageType) ([]*PluginMetadata, error)
+	GetMetaDataForAllPlugins(stageType int) ([]*PluginMetadata, error)
 	GetMetaDataByPluginId(pluginId int) (*PluginMetadata, error)
 	GetAllPluginTags() ([]*PluginTag, error)
 	GetAllPluginTagRelations() ([]*PluginTagRelation, error)
@@ -197,7 +196,7 @@ type GlobalPluginRepositoryImpl struct {
 	dbConnection *pg.DB
 }
 
-func (impl *GlobalPluginRepositoryImpl) GetMetaDataForAllPlugins(stageType StageType) ([]*PluginMetadata, error) {
+func (impl *GlobalPluginRepositoryImpl) GetMetaDataForAllPlugins(stageType int) ([]*PluginMetadata, error) {
 	var plugins []*PluginMetadata
 	err := impl.dbConnection.Model(&plugins).
 		Join("INNER JOIN plugin_stage_mapping psm on psm.plugin_id=plugin_metadata.id").

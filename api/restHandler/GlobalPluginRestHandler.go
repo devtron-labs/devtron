@@ -94,7 +94,7 @@ func (handler *GlobalPluginRestHandlerImpl) ListAllPlugins(w http.ResponseWriter
 		return
 	}
 	var plugins []*plugin.PluginMetadataDto
-	if stageType == "cd" {
+	if stageType == repository.CD_STAGE_TYPE {
 		plugins, err = handler.globalPluginService.ListAllPlugins(repository.CD)
 		if err != nil {
 			handler.logger.Errorw("error in getting cd plugin list", "err", err)

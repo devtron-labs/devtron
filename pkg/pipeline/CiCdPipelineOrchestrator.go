@@ -39,7 +39,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	bean3 "github.com/devtron-labs/devtron/pkg/user/bean"
 	util2 "github.com/devtron-labs/devtron/util"
-	"gopkg.in/yaml.v2"
 	"path"
 	"regexp"
 	"strconv"
@@ -79,10 +78,6 @@ type CiCdPipelineOrchestrator interface {
 	CheckStringMatchRegex(regex string, value string) bool
 	CreateEcrRepo(dockerRepository, AWSRegion, AWSAccessKeyId, AWSSecretAccessKey string) error
 	GetCdPipelinesForEnv(envId int, requestedAppIds []int) (cdPipelines *bean.CdPipelines, err error)
-
-	InitiateMigrationOfStageScriptsToPipelineStageSteps(cdPipeline *bean.CDPipelineConfigObject) (*bean.CDPipelineConfigObject, error)
-	StageStepsToCdStageAdapter(deployStage *bean2.PipelineStageDto) (*bean.CdStage, error)
-	CheckForVersionAndCreatePreAndPostStagePayload(cdPipeline *bean.CDPipelineConfigObject, version string, appId int) (*bean.CDPipelineConfigObject, error)
 }
 
 type CiCdPipelineOrchestratorImpl struct {
@@ -1640,139 +1635,4 @@ func (impl CiCdPipelineOrchestratorImpl) CreateEcrRepo(dockerRepository, AWSRegi
 		}
 	}
 	return nil
-}
-
-func (impl CiCdPipelineOrchestratorImpl) InitiateMigrationOfStageScriptsToPipelineStageSteps(cdPipeline *bean.CDPipelineConfigObject) (*bean.CDPipelineConfigObject, error) {
-	//below implementation means that preStageConfig or postStageConfig is not yet migrated to pipeline_stage_steps
-	//so convert the preStageConfig or postStageConfig into pipeline_stage_steps via adapter
-	if cdPipeline.PreDeployStage == nil && len(cdPipeline.PreStage.Config) > 0 {
-		preDeployStageConverted, err := StageYamlToPipelineStageAdapter(cdPipeline.PreStage.Config, repository5.PIPELINE_STAGE_TYPE_PRE_CD, cdPipeline.PreStage.TriggerType)
-		if err != nil {
-			impl.logger.Errorw("error in converting pre-stage data into pipeline stage steps", "err", err, "cdPipelineId", cdPipeline.Id)
-			return nil, err
-		}
-		cdPipeline.PreDeployStage = preDeployStageConverted
-	}
-	if cdPipeline.PostDeployStage == nil && len(cdPipeline.PostStage.Config) > 0 {
-		postDeployStageConverted, err := StageYamlToPipelineStageAdapter(cdPipeline.PostStage.Config, repository5.PIPELINE_STAGE_TYPE_POST_CD, cdPipeline.PostStage.TriggerType)
-		if err != nil {
-			impl.logger.Errorw("error in converting post-stage data into pipeline stage steps", "err", err, "cdPipelineId", cdPipeline.Id)
-			return nil, err
-		}
-		cdPipeline.PostDeployStage = postDeployStageConverted
-	}
-	return cdPipeline, nil
-
-}
-
-func (impl CiCdPipelineOrchestratorImpl) StageStepsToCdStageAdapter(deployStage *bean2.PipelineStageDto) (*bean.CdStage, error) {
-	cdStage := &bean.CdStage{
-		Name:        deployStage.Name,
-		TriggerType: deployStage.TriggerType,
-	}
-	cdPipelineConfig := make([]CdPipelineConfig, 0)
-	beforeTasks := make([]*Task, 0)
-	afterTasks := make([]*Task, 0)
-	for _, step := range deployStage.Steps {
-		if step.InlineStepDetail != nil {
-			if deployStage.Type == repository5.PIPELINE_STAGE_TYPE_PRE_CD {
-				beforeTask := &Task{
-					Name:           step.Name,
-					Script:         step.InlineStepDetail.Script,
-					OutputLocation: strings.Join(step.OutputDirectoryPath, ","),
-				}
-				beforeTasks = append(beforeTasks, beforeTask)
-
-			}
-			if deployStage.Type == repository5.PIPELINE_STAGE_TYPE_POST_CD {
-				afterTask := &Task{
-					Name:           step.Name,
-					Script:         step.InlineStepDetail.Script,
-					OutputLocation: strings.Join(step.OutputDirectoryPath, ","),
-				}
-				afterTasks = append(afterTasks, afterTask)
-			}
-
-		} else {
-			return nil, nil
-		}
-
-	}
-	cdPipelineConfig = append(cdPipelineConfig, CdPipelineConfig{
-		BeforeTasks: beforeTasks,
-		AfterTasks:  afterTasks,
-	})
-	taskYaml := TaskYaml{
-		Version:          "",
-		CdPipelineConfig: cdPipelineConfig,
-	}
-	stageConfig, err := yaml.Marshal(taskYaml)
-	if err != nil {
-		impl.logger.Errorw("error in converting post-stage step data into pipeline stage yaml", "err", err, "pipelineStage", deployStage)
-		return nil, err
-	}
-	cdStage.Config = string(stageConfig)
-	return cdStage, nil
-}
-
-func (impl CiCdPipelineOrchestratorImpl) CheckForVersionAndCreatePreAndPostStagePayload(cdPipeline *bean.CDPipelineConfigObject, version string, appId int) (*bean.CDPipelineConfigObject, error) {
-	var err error
-	cdRespMigrated := cdPipeline
-	if version == "v2" {
-		//in v2, users will be expecting the pre-stage and post-stage in step format
-		cdRespMigrated, err = impl.InitiateMigrationOfStageScriptsToPipelineStageSteps(cdPipeline)
-		if err != nil {
-			impl.logger.Errorw("service err, InitiateMigrationOfStageScriptsToPipelineStageSteps", "err", err, "appId", appId, "pipelineId", cdPipeline.Id)
-			return nil, err
-		}
-		cdRespMigrated.PreStage = bean.CdStage{}
-		cdRespMigrated.PostStage = bean.CdStage{}
-
-	} else if version == "v1" {
-		//in v1, users will be expecting pre-stage and post-stage in yaml format
-		if len(cdPipeline.PreStage.Config) > 0 {
-			//set pre stage
-			preStage := cdPipeline.PreStage
-			cdRespMigrated.PreStage = bean.CdStage{
-				TriggerType: preStage.TriggerType,
-				Name:        preStage.Name,
-				Config:      preStage.Config,
-			}
-		} else if cdPipeline.PreDeployStage != nil {
-			//it means that user is trying to access migrated pre-stage stage steps in v1,
-			//in that case convert the stage steps into yaml form and send response
-			convertedPreCdStage, err := impl.StageStepsToCdStageAdapter(cdPipeline.PreDeployStage)
-			if err != nil {
-				impl.logger.Errorw("error in converting pre stage steps into cdStage, StageStepsToCdStageAdapter", "err", err, "cdPipelineId", cdPipeline.Id)
-				return nil, err
-			}
-			cdRespMigrated.PreStage = *convertedPreCdStage
-			cdRespMigrated.PreDeployStage = nil
-		} else {
-			//users haven't configured pre-cd stage or post-cd stage
-		}
-
-		if len(cdPipeline.PostStage.Config) > 0 {
-			//set post stage
-			postStage := cdPipeline.PostStage
-			cdRespMigrated.PostStage = bean.CdStage{
-				TriggerType: postStage.TriggerType,
-				Name:        postStage.Name,
-				Config:      postStage.Config,
-			}
-		} else if cdPipeline.PostDeployStage != nil {
-			//it means that user is trying to access migrated post-stage stage steps in v1,
-			//in that case convert the stage steps into yaml form and send response
-			convertedPostCdStage, err := impl.StageStepsToCdStageAdapter(cdPipeline.PostDeployStage)
-			if err != nil {
-				impl.logger.Errorw("error in converting post stage steps into cdStage, StageStepsToCdStageAdapter", "err", err, "cdPipelineId", cdPipeline.Id)
-				return nil, err
-			}
-			cdRespMigrated.PostStage = *convertedPostCdStage
-			cdRespMigrated.PostDeployStage = nil
-		} else {
-			//users haven't configured post-cd stage
-		}
-	}
-	return cdRespMigrated, nil
 }

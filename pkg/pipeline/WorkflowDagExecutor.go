@@ -713,6 +713,23 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 				impl.logger.Errorw("error in getting pre, post & refPlugin steps data for wf request", "err", err, "cdPipelineId", cdPipeline.Id)
 				return nil, err
 			}
+			//getting deployment pipeline latest wfr by pipelineId
+			pipelineId := cdPipeline.Id
+			deployStageWfr, err = impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(pipelineId, bean.CD_WORKFLOW_TYPE_DEPLOY)
+			if err != nil {
+				impl.logger.Errorw("error in getting latest status of deploy type wfr by pipelineId", "err", err, "pipelineId", pipelineId)
+				return nil, err
+			}
+			deployStageTriggeredByUser, err = impl.user.GetById(deployStageWfr.TriggeredBy)
+			if err != nil {
+				impl.logger.Errorw("error in getting userDetails by id", "err", err, "userId", deployStageWfr.TriggeredBy)
+				return nil, err
+			}
+			pipelineReleaseCounter, err = impl.pipelineOverrideRepository.GetCurrentPipelineReleaseCounter(pipelineId)
+			if err != nil {
+				impl.logger.Errorw("error occurred while fetching latest release counter for pipeline", "pipelineId", pipelineId, "err", err)
+				return nil, err
+			}
 		} else {
 			return nil, fmt.Errorf("unsupported workflow triggerd")
 		}

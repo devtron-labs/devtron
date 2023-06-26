@@ -120,7 +120,6 @@ type PipelineConfigRestHandlerImpl struct {
 	scanResultRepository         security.ImageScanResultRepository
 	gitProviderRepo              repository.GitProviderRepository
 	argoUserService              argo.ArgoUserService
-	ciCdPipelineOrchestrator     pipeline.CiCdPipelineOrchestrator
 }
 
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
@@ -142,8 +141,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	appWorkflowService appWorkflow.AppWorkflowService,
 	materialRepository pipelineConfig.MaterialRepository, policyService security2.PolicyService,
 	scanResultRepository security.ImageScanResultRepository, gitProviderRepo repository.GitProviderRepository,
-	argoUserService argo.ArgoUserService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
-	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator) *PipelineConfigRestHandlerImpl {
+	argoUserService argo.ArgoUserService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository) *PipelineConfigRestHandlerImpl {
 	return &PipelineConfigRestHandlerImpl{
 		pipelineBuilder:              pipelineBuilder,
 		Logger:                       Logger,
@@ -172,7 +170,6 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		gitProviderRepo:              gitProviderRepo,
 		argoUserService:              argoUserService,
 		ciPipelineMaterialRepository: ciPipelineMaterialRepository,
-		ciCdPipelineOrchestrator:     ciCdPipelineOrchestrator,
 	}
 }
 

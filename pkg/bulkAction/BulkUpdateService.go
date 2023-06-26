@@ -1546,11 +1546,6 @@ func (impl BulkUpdateServiceImpl) PerformBulkDeleteActionOnCdPipelines(impactedP
 		})
 	}
 	for _, pipeline := range impactedPipelines {
-		cdPipeline, err := impl.pipelineBuilder.GetCdPipelineById(pipeline.Id)
-		if err != nil {
-			impl.logger.Errorw("error in getting cdPipeline by id", "err", err, "id", pipeline.Id)
-			return nil, err
-		}
 		respDto := &CdBulkActionResponseDto{
 			PipelineName:    pipeline.Name,
 			AppName:         pipeline.App.AppName,
@@ -1558,7 +1553,7 @@ func (impl BulkUpdateServiceImpl) PerformBulkDeleteActionOnCdPipelines(impactedP
 		}
 		if !dryRun {
 			// Delete Cd pipeline
-			deleteResponse, err := impl.pipelineBuilder.DeleteCdPipeline(pipeline, ctx, deleteAction, true, userId, cdPipeline)
+			deleteResponse, err := impl.pipelineBuilder.DeleteCdPipeline(pipeline, ctx, deleteAction, true, userId)
 			if err != nil {
 				impl.logger.Errorw("error in deleting cd pipeline", "err", err, "pipelineId", pipeline.Id)
 				respDto.DeletionResult = fmt.Sprintf("Not able to delete pipeline, %v", err)

@@ -137,7 +137,7 @@ type PipelineStageStepCondition struct {
 type PipelineStageRepository interface {
 	GetConnection() *pg.DB
 
-	CreatePipelineStage(pipelineStage *PipelineStage) (*PipelineStage, error)
+	CreatePipelineStage(pipelineStage *PipelineStage, tx *pg.Tx) (*PipelineStage, error)
 	UpdatePipelineStage(pipelineStage *PipelineStage) (*PipelineStage, error)
 	MarkPipelineStageDeletedById(ciStageId int, updatedBy int32, tx *pg.Tx) error
 
@@ -148,7 +148,7 @@ type PipelineStageRepository interface {
 	GetCdStageByCdPipelineIdAndStageType(cdPipelineId int, stageType PipelineStageType) (*PipelineStage, error)
 
 	GetStepIdsByStageId(stageId int) ([]int, error)
-	CreatePipelineStageStep(step *PipelineStageStep) (*PipelineStageStep, error)
+	CreatePipelineStageStep(step *PipelineStageStep, tx *pg.Tx) (*PipelineStageStep, error)
 	UpdatePipelineStageStep(step *PipelineStageStep) (*PipelineStageStep, error)
 	MarkPipelineStageStepsDeletedByStageId(ciStageId int, updatedBy int32, tx *pg.Tx) error
 	GetAllStepsByStageId(stageId int) ([]*PipelineStageStep, error)
@@ -156,7 +156,7 @@ type PipelineStageRepository interface {
 	MarkStepsDeletedByStageId(stageId int) error
 	MarkStepsDeletedExcludingActiveStepsInUpdateReq(activeStepIdsPresentInReq []int, stageId int) error
 
-	CreatePipelineScript(pipelineScript *PluginPipelineScript) (*PluginPipelineScript, error)
+	CreatePipelineScript(pipelineScript *PluginPipelineScript, tx *pg.Tx) (*PluginPipelineScript, error)
 	UpdatePipelineScript(pipelineScript *PluginPipelineScript) (*PluginPipelineScript, error)
 	GetScriptIdsByStageId(stageId int) ([]int, error)
 	MarkPipelineScriptsDeletedByIds(ids []int, updatedBy int32, tx *pg.Tx) error
@@ -164,7 +164,7 @@ type PipelineStageRepository interface {
 	MarkScriptDeletedById(scriptId int) error
 
 	MarkScriptMappingDeletedByScriptId(scriptId int) error
-	CreateScriptMapping(mappings []ScriptPathArgPortMapping) error
+	CreateScriptMapping(mappings []ScriptPathArgPortMapping, tx *pg.Tx) error
 	GetScriptMappingIdsByStageId(stageId int) ([]int, error)
 	MarkPipelineScriptMappingsDeletedByIds(ids []int, updatedBy int32, tx *pg.Tx) error
 	GetScriptMappingDetailByScriptId(scriptId int) ([]*ScriptPathArgPortMapping, error)
@@ -259,12 +259,21 @@ func (impl *PipelineStageRepositoryImpl) GetCdStageByCdPipelineIdAndStageType(cd
 	return &pipelineStage, nil
 }
 
-func (impl *PipelineStageRepositoryImpl) CreatePipelineStage(pipelineStage *PipelineStage) (*PipelineStage, error) {
-	err := impl.dbConnection.Insert(pipelineStage)
-	if err != nil {
-		impl.logger.Errorw("error in creating pre stage entry", "err", err, "pipelineStage", pipelineStage)
-		return nil, err
+func (impl *PipelineStageRepositoryImpl) CreatePipelineStage(pipelineStage *PipelineStage, tx *pg.Tx) (*PipelineStage, error) {
+	if tx != nil {
+		err := tx.Insert(pipelineStage)
+		if err != nil {
+			impl.logger.Errorw("err at CreatePipelineStage in inserting pipelineStage", err, "pipelineStage", pipelineStage)
+			return nil, err
+		}
+	} else {
+		err := impl.dbConnection.Insert(pipelineStage)
+		if err != nil {
+			impl.logger.Errorw("error in creating pre stage entry", "err", err, "pipelineStage", pipelineStage)
+			return nil, err
+		}
 	}
+
 	return pipelineStage, nil
 }
 
@@ -299,12 +308,21 @@ func (impl *PipelineStageRepositoryImpl) GetStepIdsByStageId(stageId int) ([]int
 	return ids, nil
 }
 
-func (impl *PipelineStageRepositoryImpl) CreatePipelineStageStep(step *PipelineStageStep) (*PipelineStageStep, error) {
-	err := impl.dbConnection.Insert(step)
-	if err != nil {
-		impl.logger.Errorw("error in creating pipeline stage step", "err", err, "step", step)
-		return nil, err
+func (impl *PipelineStageRepositoryImpl) CreatePipelineStageStep(step *PipelineStageStep, tx *pg.Tx) (*PipelineStageStep, error) {
+	if tx != nil {
+		err := tx.Insert(step)
+		if err != nil {
+			impl.logger.Errorw("err at CreatePipelineStage in inserting pipelineStage", err)
+			return nil, err
+		}
+	} else {
+		err := impl.dbConnection.Insert(step)
+		if err != nil {
+			impl.logger.Errorw("error in creating pipeline stage step", "err", err, "step", step)
+			return nil, err
+		}
 	}
+
 	return step, nil
 }
 
@@ -376,12 +394,21 @@ func (impl *PipelineStageRepositoryImpl) MarkStepsDeletedExcludingActiveStepsInU
 	return nil
 }
 
-func (impl *PipelineStageRepositoryImpl) CreatePipelineScript(pipelineScript *PluginPipelineScript) (*PluginPipelineScript, error) {
-	err := impl.dbConnection.Insert(pipelineScript)
-	if err != nil {
-		impl.logger.Errorw("error in creating pipeline script", "err", err, "scriptEntry", pipelineScript)
-		return nil, err
+func (impl *PipelineStageRepositoryImpl) CreatePipelineScript(pipelineScript *PluginPipelineScript, tx *pg.Tx) (*PluginPipelineScript, error) {
+	if tx != nil {
+		err := tx.Insert(pipelineScript)
+		if err != nil {
+			impl.logger.Errorw("err at CreatePipelineScript in inserting pipelineScript", err, "pipelineScript", pipelineScript)
+			return nil, err
+		}
+	} else {
+		err := impl.dbConnection.Insert(pipelineScript)
+		if err != nil {
+			impl.logger.Errorw("error in creating pipeline script", "err", err, "scriptEntry", pipelineScript)
+			return nil, err
+		}
 	}
+
 	return pipelineScript, nil
 }
 
@@ -455,11 +482,19 @@ func (impl *PipelineStageRepositoryImpl) MarkScriptMappingDeletedByScriptId(scri
 	return nil
 }
 
-func (impl *PipelineStageRepositoryImpl) CreateScriptMapping(mappings []ScriptPathArgPortMapping) error {
-	err := impl.dbConnection.Insert(&mappings)
-	if err != nil {
-		impl.logger.Errorw("error in creating pipeline script mappings", "err", err, "mappings", mappings)
-		return err
+func (impl *PipelineStageRepositoryImpl) CreateScriptMapping(mappings []ScriptPathArgPortMapping, tx *pg.Tx) error {
+	if tx != nil {
+		err := tx.Insert(&mappings)
+		if err != nil {
+			impl.logger.Errorw("err at CreateScriptMapping in inserting scriptPathArgPortMapping", err)
+			return err
+		}
+	} else {
+		err := impl.dbConnection.Insert(&mappings)
+		if err != nil {
+			impl.logger.Errorw("error in creating pipeline script mappings", "err", err, "mappings", mappings)
+			return err
+		}
 	}
 	return nil
 }

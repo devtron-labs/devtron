@@ -1802,7 +1802,7 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelineById(w http.ResponseWr
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	cdResp, err := handler.ciCdPipelineOrchestrator.CheckForVersionAndCreatePreAndPostStagePayload(ciConf, version, appId)
+	cdResp, err := pipeline.CreatePreAndPostStageResponse(ciConf, version)
 	if err != nil {
 		handler.Logger.Errorw("service err, CheckForVersionAndCreatePreAndPostStagePayload", "err", err, "appId", appId, "pipelineId", pipelineId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

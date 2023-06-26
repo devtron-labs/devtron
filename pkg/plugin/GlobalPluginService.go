@@ -15,7 +15,7 @@ type GlobalVariable struct {
 
 type GlobalPluginService interface {
 	GetAllGlobalVariables() ([]*GlobalVariable, error)
-	ListAllPlugins(stageType repository.StageType) ([]*PluginMetadataDto, error)
+	ListAllPlugins(stageType int) ([]*PluginMetadataDto, error)
 	GetPluginDetailById(pluginId int) (*PluginDetailDto, error)
 }
 
@@ -72,7 +72,7 @@ func (impl *GlobalPluginServiceImpl) GetAllGlobalVariables() ([]*GlobalVariable,
 	return globalVariables, nil
 }
 
-func (impl *GlobalPluginServiceImpl) ListAllPlugins(stageType repository.StageType) ([]*PluginMetadataDto, error) {
+func (impl *GlobalPluginServiceImpl) ListAllPlugins(stageType int) ([]*PluginMetadataDto, error) {
 	impl.logger.Infow("request received, ListAllPlugins")
 
 	var plugins []*PluginMetadataDto
