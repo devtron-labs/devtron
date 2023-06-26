@@ -206,6 +206,7 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 	}
 	if err != pg.ErrNoRows {
 		if CiEnvMappingObject.EnvironmentId != createRequest.EnvironmentId {
+			CiEnvMappingObject.EnvironmentId = createRequest.EnvironmentId
 			CiEnvMappingObject.AuditLog = sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()}
 			err = impl.ciPipelineRepository.UpdateCiEnvMapping(CiEnvMappingObject, tx)
 			if err != nil {
