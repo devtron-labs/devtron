@@ -79,10 +79,6 @@ func (handler *GlobalPluginRestHandlerImpl) ListAllPlugins(w http.ResponseWriter
 		return
 	}
 	stageType := r.URL.Query().Get("stage")
-	if stageType != "cd" {
-		common.WriteJsonResp(w, err, "invalid stageType", http.StatusBadRequest)
-		return
-	}
 	app, err := handler.pipelineBuilder.GetApp(appId)
 	if err != nil {
 		handler.logger.Infow("service error, ListAllPlugins", "err", err, "appId", appId)

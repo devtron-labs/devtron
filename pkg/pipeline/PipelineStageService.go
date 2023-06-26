@@ -523,6 +523,7 @@ func (impl *PipelineStageServiceImpl) CreatePipelineStage(stageReq *bean.Pipelin
 		impl.logger.Errorw("error in creating entry for pipeline Stage", "err", err, "pipelineStage", stage)
 		return err
 	}
+	stageReq.Id = stage.Id
 	indexNameString := make(map[int]string)
 	for _, step := range stageReq.Steps {
 		indexNameString[step.Index] = step.Name
