@@ -248,8 +248,9 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	impl.Logger.Debugw("workflowRequest ---->", "workflowJson", string(workflowJson))
 
 	var wfClient v1alpha12.WorkflowInterface
-	workflowRequest.EnvironmentId = env.Id
-	if isJob && workflowRequest.EnvironmentId != 0 {
+
+	if isJob && env != nil && env.Id != 0 {
+		workflowRequest.EnvironmentId = env.Id
 		wfClient, err = impl.getRuntimeEnvClientInstance(env)
 		if err != nil {
 			impl.Logger.Errorw("cannot build wf client", "err", err)
