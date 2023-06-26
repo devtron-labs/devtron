@@ -117,15 +117,7 @@ func CreatePreAndPostStageResponse(cdPipeline *bean2.CDPipelineConfigObject, ver
 
 	} else if version == "v1" {
 		//in v1, users will be expecting pre-stage and post-stage in yaml format
-		if len(cdPipeline.PreStage.Config) > 0 {
-			//set pre stage
-			preStage := cdPipeline.PreStage
-			cdRespMigrated.PreStage = bean2.CdStage{
-				TriggerType: preStage.TriggerType,
-				Name:        preStage.Name,
-				Config:      preStage.Config,
-			}
-		} else if cdPipeline.PreDeployStage != nil {
+		if cdPipeline.PreDeployStage != nil {
 			//it means that user is trying to access migrated pre-stage stage steps in v1,
 			//in that case convert the stage steps into yaml form and send response
 			convertedPreCdStage, err := StageStepsToCdStageAdapter(cdPipeline.PreDeployStage)
@@ -134,6 +126,14 @@ func CreatePreAndPostStageResponse(cdPipeline *bean2.CDPipelineConfigObject, ver
 			}
 			cdRespMigrated.PreStage = *convertedPreCdStage
 			cdRespMigrated.PreDeployStage = nil
+		} else if len(cdPipeline.PreStage.Config) > 0 {
+			//set pre stage
+			preStage := cdPipeline.PreStage
+			cdRespMigrated.PreStage = bean2.CdStage{
+				TriggerType: preStage.TriggerType,
+				Name:        preStage.Name,
+				Config:      preStage.Config,
+			}
 		} else {
 			//users haven't configured pre-cd stage or post-cd stage
 		}
