@@ -7,16 +7,15 @@ import (
 )
 
 type ManifestPushConfig struct {
-	tableName           struct{} `sql:"manifest_push_config" pg:",discard_unknown_columns"`
-	Id                  int      `sql:"id,pk"`
-	AppId               int      `sql:"appId"`
-	EnvId               int      `sql:"envId"`
-	ContainerRegistryId int      `sql:"container_registry_id"`
-	RepoUrl             string   `sql:"repo_url"`
-	ChartName           string   `sql:"chart_name"`
-	ChartBaseVersion    string   `sql:"chart_base_version"`
-	StorageType         string   `sql:"storage_type"`
-	Deleted             bool     `sql:"deleted, notnull"`
+	tableName         struct{} `sql:"manifest_push_config" pg:",discard_unknown_columns"`
+	Id                int      `sql:"id,pk"`
+	AppId             int      `sql:"appId"`
+	EnvId             int      `sql:"envId"`
+	credentialsConfig string   `sql:"credentials_config"`
+	ChartName         string   `sql:"chart_name"`
+	ChartBaseVersion  string   `sql:"chart_base_version"`
+	StorageType       string   `sql:"storage_type"`
+	Deleted           bool     `sql:"deleted, notnull"`
 	sql.AuditLog
 }
 
