@@ -587,6 +587,7 @@ func (impl *CiHandlerImpl) FetchWorkflowDetails(appId int, pipelineId int, build
 		Artifact:           ciArtifact.Image,
 		ArtifactId:         ciArtifact.Id,
 		IsArtifactUploaded: ciArtifact.IsArtifactUploaded,
+		EnvironmentId:      workflow.EnvironmentId,
 	}
 	return workflowResponse, nil
 }
