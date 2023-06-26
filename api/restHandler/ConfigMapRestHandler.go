@@ -743,14 +743,14 @@ func (handler ConfigMapRestHandlerImpl) CreateJobEnvironmentOverride(w http.Resp
 	}
 	bulkPatchRequest.UserId = userId
 	handler.Logger.Infow("request payload, CreateJobEnvironmentOverride", "payload", bulkPatchRequest)
-	_, err = handler.configMapService.ConfigSecretEnvironmentCreate(&bulkPatchRequest)
+	resp, err := handler.configMapService.ConfigSecretEnvironmentCreate(&bulkPatchRequest)
 	if err != nil {
 		handler.Logger.Errorw("service err, CreateJobEnvironmentOverride", "err", err, "payload", bulkPatchRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
-	common.WriteJsonResp(w, err, true, http.StatusOK)
+	common.WriteJsonResp(w, err, resp, http.StatusOK)
 }
 
 func (handler ConfigMapRestHandlerImpl) DeleteJobEnvironmentOverride(w http.ResponseWriter, r *http.Request) {
@@ -788,10 +788,10 @@ func (handler ConfigMapRestHandlerImpl) DeleteJobEnvironmentOverride(w http.Resp
 	}
 	bulkPatchRequest.UserId = userId
 	handler.Logger.Infow("request payload, DeleteJobEnvironmentOverride", "payload", bulkPatchRequest)
-	_, err = handler.configMapService.ConfigSecretEnvironmentDelete(&bulkPatchRequest)
+	resp, err := handler.configMapService.ConfigSecretEnvironmentDelete(&bulkPatchRequest)
 	if err != nil {
 		handler.Logger.Errorw("service err, DeleteJobEnvironmentOverride", "err", err, "payload", bulkPatchRequest)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
 		return
 	}
 
@@ -833,12 +833,12 @@ func (handler ConfigMapRestHandlerImpl) GetJobEnvironmentOverrides(w http.Respon
 		return
 	}
 	handler.Logger.Infow("request payload, DeleteJobEnvironmentOverride", "appId", appId)
-	_, err = handler.configMapService.ConfigSecretEnvironmentGet(appId)
+	resp, err := handler.configMapService.ConfigSecretEnvironmentGet(appId)
 	if err != nil {
 		handler.Logger.Errorw("service err, DeleteJobEnvironmentOverride", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
-	common.WriteJsonResp(w, err, true, http.StatusOK)
+	common.WriteJsonResp(w, err, resp, http.StatusOK)
 }
