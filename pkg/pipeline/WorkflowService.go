@@ -235,7 +235,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		Type:      ciEvent,
 		CiRequest: workflowRequest,
 	}
-	if env.Id != 0 {
+	if env != nil && env.Id != 0 {
 		workflowRequest.IsExtRun = true
 	}
 	ciCdTriggerEvent.CiRequest.BlobStorageLogsKey = fmt.Sprintf("%s/%s", impl.ciConfig.DefaultBuildLogsKeyPrefix, workflowRequest.WorkflowNamePrefix)
