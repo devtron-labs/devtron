@@ -162,7 +162,7 @@ type ConfigMapService interface {
 
 	ConfigSecretEnvironmentCreate(createJobEnvOverrideRequest *CreateJobEnvOverridePayload) (*chartConfig.ConfigMapEnvModel, error)
 	ConfigSecretEnvironmentDelete(createJobEnvOverrideRequest *CreateJobEnvOverridePayload) (*chartConfig.ConfigMapEnvModel, error)
-	ConfigSecretEnvironmentGet(appId int) (*chartConfig.ConfigMapEnvModel, error)
+	ConfigSecretEnvironmentGet(appId int) ([]*chartConfig.ConfigMapEnvModel, error)
 }
 
 type ConfigMapServiceImpl struct {

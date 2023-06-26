@@ -788,7 +788,7 @@ func (handler ConfigMapRestHandlerImpl) DeleteJobEnvironmentOverride(w http.Resp
 	}
 	bulkPatchRequest.UserId = userId
 	handler.Logger.Infow("request payload, DeleteJobEnvironmentOverride", "payload", bulkPatchRequest)
-	_, err = handler.configMapService.ConfigSecretEnvironmentCreate(&bulkPatchRequest)
+	_, err = handler.configMapService.ConfigSecretEnvironmentDelete(&bulkPatchRequest)
 	if err != nil {
 		handler.Logger.Errorw("service err, DeleteJobEnvironmentOverride", "err", err, "payload", bulkPatchRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
