@@ -3993,6 +3993,14 @@ func (impl PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *b
 		ScanEnabled:              pipeline.ScanEnabled,
 		IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
 	}
+	ciEnvMapping, err := impl.ciPipelineRepository.FindCiEnvMappingByCiPipelineId(pipelineId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching ci env mapping", "pipelineId", pipelineId, "err", err)
+		return nil, err
+	}
+	if ciEnvMapping.Id > 0 {
+		ciPipeline.EnvironmentId = ciEnvMapping.EnvironmentId
+	}
 	if !ciPipeline.IsExternal && ciPipeline.IsDockerConfigOverridden {
 		ciTemplateBean, err := impl.ciTemplateService.FindTemplateOverrideByCiPipelineId(ciPipeline.Id)
 		if err != nil {
