@@ -792,9 +792,16 @@ envoyproxy.resources.limits.memory >= envoyproxy.resources.requests.memory
 ## Addon features in Deployment Template Chart version 4.11.0
 
 ### KEDA Autoscaling
+
+**Prerequisite:** KEDA contoller should be installed in the cluster. To install KEDA controller using Helm, navigate to chart store and search for `keda` chart and deploy it. You can follow this [documentation](../../deploy-chart/deployment-of-charts.md) for deploying a Helm chart on Devtron.
+
+KEDA Helm repo : https://kedacore.github.io/charts
+
+
 [KEDA](https://keda.sh) is a Kubernetes-based Event Driven Autoscaler. With KEDA, you can drive the scaling of any container in Kubernetes based on the number of events needing to be processed. KEDA can be installed into any Kubernetes cluster and can work alongside standard Kubernetes components like the Horizontal Pod Autoscaler(HPA).
 
-Example for autosccaling with KEDA using Prometheus metrics is given below:
+
+Example for autoscaling with KEDA using Prometheus metrics is given below:
 ```yaml
 kedaAutoscaling:
   enabled: true
@@ -825,7 +832,9 @@ kedaAutoscaling:
     spec: {}
   authenticationRef: {}
 ```
+
 Example for autosccaling with KEDA based on kafka is given below :
+
 ```yaml
 kedaAutoscaling:
   enabled: true

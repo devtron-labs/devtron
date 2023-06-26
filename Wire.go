@@ -374,6 +374,10 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(notifier.SlackNotificationService), new(*notifier.SlackNotificationServiceImpl)),
 		repository.NewSlackNotificationRepositoryImpl,
 		wire.Bind(new(repository.SlackNotificationRepository), new(*repository.SlackNotificationRepositoryImpl)),
+		notifier.NewWebhookNotificationServiceImpl,
+		wire.Bind(new(notifier.WebhookNotificationService), new(*notifier.WebhookNotificationServiceImpl)),
+		repository.NewWebhookNotificationRepositoryImpl,
+		wire.Bind(new(repository.WebhookNotificationRepository), new(*repository.WebhookNotificationRepositoryImpl)),
 
 		notifier.NewNotificationConfigServiceImpl,
 		wire.Bind(new(notifier.NotificationConfigService), new(*notifier.NotificationConfigServiceImpl)),
