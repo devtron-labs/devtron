@@ -279,7 +279,6 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	chartDeploymentService util.ChartDeploymentService,
 	K8sUtil *util.K8sUtil,
 	attributesRepository repository.AttributesRepository) *PipelineBuilderImpl {
-	K8sUtil *util.K8sUtil) *PipelineBuilderImpl {
 	securityConfig := &SecurityConfig{}
 	err := env.Parse(securityConfig)
 	if err != nil {
