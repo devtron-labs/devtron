@@ -69,6 +69,7 @@ type CiPipelineHistory struct {
 type CiEnvMappingHistory struct {
 	tableName     struct{} `sql:"ci_env_mapping_history" pg:",discard_unknown_columns"`
 	Id            int      `sql:"id,pk"`
+	CiPipelineId  int      `sql:"ci_pipeline_id"`
 	EnvironmentId int      `sql:"environment_id"`
 }
 
