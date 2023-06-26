@@ -773,9 +773,12 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		OrchestratorToken: impl.cdConfig.OrchestratorToken,
 		CloudProvider:     impl.cdConfig.CloudProvider,
 		WorkflowExecutor:  workflowExecutor,
-		PreDeploySteps:    preDeploySteps,
-		PostDeploySteps:   postDeploySteps,
 		RefPlugins:        refPluginsData,
+	}
+	if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
+		cdStageWorkflowRequest.PrePostDeploySteps = preDeploySteps
+	} else if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
+		cdStageWorkflowRequest.PrePostDeploySteps = postDeploySteps
 	}
 	extraEnvVariables := make(map[string]string)
 	env, err := impl.envRepository.FindById(cdPipeline.EnvironmentId)

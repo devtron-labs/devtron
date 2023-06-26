@@ -264,10 +264,6 @@ func (handler CoreAppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.R
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	version := "v1"
-	if strings.Contains(r.URL.Path, "v2") {
-		version = "v2"
-	}
 	ctx := context.WithValue(r.Context(), "token", acdToken)
 	var createAppRequest appBean.AppDetail
 	err = decoder.Decode(&createAppRequest)
@@ -397,7 +393,7 @@ func (handler CoreAppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.R
 
 	//creating workflow starts
 	if createAppRequest.AppWorkflows != nil {
-		err, statusCode = handler.createWorkflows(ctx, appId, userId, createAppRequest.AppWorkflows, token, createAppRequest.Metadata.AppName, version)
+		err, statusCode = handler.createWorkflows(ctx, appId, userId, createAppRequest.AppWorkflows, token, createAppRequest.Metadata.AppName)
 		if err != nil {
 			errResp = multierror.Append(errResp, err)
 			errInAppDelete := handler.deleteApp(ctx, appId, userId)
@@ -1510,7 +1506,7 @@ func (handler CoreAppRestHandlerImpl) createGlobalSecrets(appId int, userId int3
 }
 
 // create app workflows
-func (handler CoreAppRestHandlerImpl) createWorkflows(ctx context.Context, appId int, userId int32, workflows []*appBean.AppWorkflow, token string, appName string, version string) (error, int) {
+func (handler CoreAppRestHandlerImpl) createWorkflows(ctx context.Context, appId int, userId int32, workflows []*appBean.AppWorkflow, token string, appName string) (error, int) {
 	handler.logger.Infow("Create App - creating workflows", "appId", appId, "workflows size", len(workflows))
 	for _, workflow := range workflows {
 		//Create workflow starts (we need to create workflow with given name)
@@ -1530,7 +1526,7 @@ func (handler CoreAppRestHandlerImpl) createWorkflows(ctx context.Context, appId
 		//Creating CI pipeline ends
 
 		//Creating CD pipeline starts
-		err = handler.createCdPipelines(ctx, appId, userId, workflowId, ciPipelineId, workflow.CdPipelines, token, appName, version)
+		err = handler.createCdPipelines(ctx, appId, userId, workflowId, ciPipelineId, workflow.CdPipelines, token, appName)
 		if err != nil {
 			handler.logger.Errorw("err in saving cd pipelines", err, "appId", appId)
 			return err, http.StatusInternalServerError
@@ -1640,7 +1636,7 @@ func (handler CoreAppRestHandlerImpl) createCiPipeline(appId int, userId int32, 
 	return res.CiPipelines[0].Id, nil
 }
 
-func (handler CoreAppRestHandlerImpl) createCdPipelines(ctx context.Context, appId int, userId int32, workflowId int, ciPipelineId int, cdPipelines []*appBean.CdPipelineDetails, token string, appName string, version string) error {
+func (handler CoreAppRestHandlerImpl) createCdPipelines(ctx context.Context, appId int, userId int32, workflowId int, ciPipelineId int, cdPipelines []*appBean.CdPipelineDetails, token string, appName string) error {
 
 	var cdPipelineRequestConfigs []*bean.CDPipelineConfigObject
 	for _, cdPipeline := range cdPipelines {
@@ -1667,18 +1663,21 @@ func (handler CoreAppRestHandlerImpl) createCdPipelines(ctx context.Context, app
 
 		// build model
 		cdPipelineRequestConfig := &bean.CDPipelineConfigObject{
-			Name:               cdPipeline.Name,
-			EnvironmentId:      envModel.Id,
-			Namespace:          envModel.Namespace,
-			AppWorkflowId:      workflowId,
-			CiPipelineId:       ciPipelineId,
-			DeploymentAppType:  cdPipeline.DeploymentAppType,
-			DeploymentTemplate: cdPipeline.DeploymentStrategyType,
-			TriggerType:        cdPipeline.TriggerType,
-			CdArgoSetup:        cdPipeline.IsClusterCdActive,
-			RunPreStageInEnv:   cdPipeline.RunPreStageInEnv,
-			RunPostStageInEnv:  cdPipeline.RunPostStageInEnv,
-
+			Name:                          cdPipeline.Name,
+			EnvironmentId:                 envModel.Id,
+			Namespace:                     envModel.Namespace,
+			AppWorkflowId:                 workflowId,
+			CiPipelineId:                  ciPipelineId,
+			DeploymentAppType:             cdPipeline.DeploymentAppType,
+			PreStage:                      convertCdStages(cdPipeline.PreStage),
+			PostStage:                     convertCdStages(cdPipeline.PostStage),
+			DeploymentTemplate:            cdPipeline.DeploymentStrategyType,
+			TriggerType:                   cdPipeline.TriggerType,
+			CdArgoSetup:                   cdPipeline.IsClusterCdActive,
+			RunPreStageInEnv:              cdPipeline.RunPreStageInEnv,
+			RunPostStageInEnv:             cdPipeline.RunPostStageInEnv,
+			PreDeployStage:                cdPipeline.PreDeployStage,
+			PostDeployStage:               cdPipeline.PostDeployStage,
 			PreStageConfigMapSecretNames:  convertCdPreStageCMorCSNames(cdPipeline.PreStageConfigMapSecretNames),
 			PostStageConfigMapSecretNames: convertCdPostStageCMorCSNames(cdPipeline.PostStageConfigMapSecretNames),
 		}
@@ -1688,13 +1687,6 @@ func (handler CoreAppRestHandlerImpl) createCdPipelines(ctx context.Context, app
 			return err
 		}
 		cdPipelineRequestConfig.Strategies = convertedDeploymentStrategies
-		if version == "v2" {
-			cdPipelineRequestConfig.PreDeployStage = cdPipeline.PreDeployStage
-			cdPipelineRequestConfig.PostDeployStage = cdPipeline.PostDeployStage
-		} else if version == "v1" {
-			cdPipelineRequestConfig.PreStage = convertCdStages(cdPipeline.PreStage)
-			cdPipelineRequestConfig.PostStage = convertCdStages(cdPipeline.PostStage)
-		}
 
 		cdPipelineRequestConfigs = append(cdPipelineRequestConfigs, cdPipelineRequestConfig)
 	}
@@ -2092,10 +2084,6 @@ func (handler CoreAppRestHandlerImpl) CreateAppWorkflow(w http.ResponseWriter, r
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	version := "v1"
-	if strings.Contains(r.URL.Path, "v2") {
-		version = "v2"
-	}
 	ctx := context.WithValue(r.Context(), "token", acdToken)
 	var createAppRequest appBean.AppWorkflowCloneDto
 	err = decoder.Decode(&createAppRequest)
@@ -2137,7 +2125,7 @@ func (handler CoreAppRestHandlerImpl) CreateAppWorkflow(w http.ResponseWriter, r
 			common.WriteJsonResp(w, err, "please provide only one workflow at one time", http.StatusBadRequest)
 			return
 		}
-		err, statusCode = handler.createWorkflows(ctx, createAppRequest.AppId, userId, createAppRequest.AppWorkflows, token, app.AppName, version)
+		err, statusCode = handler.createWorkflows(ctx, createAppRequest.AppId, userId, createAppRequest.AppWorkflows, token, app.AppName)
 		if err != nil {
 			common.WriteJsonResp(w, err, nil, statusCode)
 			return

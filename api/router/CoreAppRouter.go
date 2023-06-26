@@ -42,9 +42,8 @@ func (router CoreAppRouterImpl) initCoreAppRouter(configRouter *mux.Router) {
 	configRouter.Path("/v1beta1/application/workflow/{appId}").HandlerFunc(router.restHandler.GetAppWorkflow).Methods("GET")
 	configRouter.Path("/v1beta1/application/workflow/{appId}/sample").HandlerFunc(router.restHandler.GetAppWorkflowAndOverridesSample).Methods("GET")
 
-	configRouter.Path("/v2/application").HandlerFunc(router.restHandler.CreateApp).Methods("POST")
+	// reverse this v2 check in v1 only
 	configRouter.Path("/v2/application/{appId}").HandlerFunc(router.restHandler.GetAppAllDetail).Methods("GET")
-	configRouter.Path("/v2/application/workflow").HandlerFunc(router.restHandler.CreateAppWorkflow).Methods("POST")
 	configRouter.Path("/v2/application/workflow/{appId}").HandlerFunc(router.restHandler.GetAppWorkflow).Methods("GET")
 	configRouter.Path("/v2/application/workflow/{appId}/sample").HandlerFunc(router.restHandler.GetAppWorkflowAndOverridesSample).Methods("GET")
 
