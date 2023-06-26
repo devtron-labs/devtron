@@ -1675,12 +1675,6 @@ func (impl CiCdPipelineOrchestratorImpl) StageStepsToCdStageAdapter(deployStage 
 	afterTasks := make([]*Task, 0)
 	for _, step := range deployStage.Steps {
 		if step.InlineStepDetail != nil {
-			//version
-			//cdPipelineConf
-			//if beforeStage then key is beforeStages
-			//step.Name will be my script name
-			//step.InlineStepDetail.Script will be the corresponding script
-			//step.OutputDirectoryPath will be my output location
 			if deployStage.Type == repository5.PIPELINE_STAGE_TYPE_PRE_CD {
 				beforeTask := &Task{
 					Name:           step.Name,
