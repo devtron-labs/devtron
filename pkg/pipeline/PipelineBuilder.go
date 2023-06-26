@@ -1795,10 +1795,12 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 
 	//Validation for checking deployment App type
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
-		err := impl.validateDeploymentAppType(pipeline)
-		if err != nil {
-			impl.logger.Errorw("validation error in creating pipeline", "name", pipeline.Name, "err", err)
-			return nil, err
+		// if no deployment app type sent from user then we'll not validate
+		if pipeline.DeploymentAppType != "" {
+			if err := impl.validateDeploymentAppType(pipeline); err != nil {
+				impl.logger.Errorw("validation error in creating pipeline", "name", pipeline.Name, "err", err)
+				return nil, err
+			}
 		}
 		continue
 	}
@@ -1868,6 +1870,7 @@ func (impl PipelineBuilderImpl) validateDeploymentAppType(pipeline *bean.CDPipel
 	if validDeploymentConfigReceived(deploymentConfig, pipeline.DeploymentAppType) {
 		return nil
 	}
+
 	//{ArgoCD : true, Helm: false}
 	err := &util.ApiError{
 		HttpStatusCode:  http.StatusBadRequest,
