@@ -128,8 +128,8 @@ type WorkflowRequest struct {
 	IsPvcMounted               bool                              `json:"IsPvcMounted"`
 	ExtraEnvironmentVariables  map[string]string                 `json:"extraEnvironmentVariables"`
 	EnableBuildContext         bool                              `json:"enableBuildContext"`
-	AppId                      int                               `json:"appId,omitempty"`
-	EnvironmentId              int                               `json:"environmentId,omitempty"`
+	AppId                      int                               `json:"appId"`
+	EnvironmentId              int                               `json:"environmentId"`
 	OrchestratorHost           string                            `json:"orchestratorHost"`
 	OrchestratorToken          string                            `json:"orchestratorToken"`
 	IsExtRun                   bool                              `json:"isExtRun"`
@@ -307,7 +307,6 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 			return nil, err
 		}
 		impl.Logger.Debugw("existing cm sec", "cm", existingConfigMap, "sec", existingSecrets)
-		//configMaps := bean3.ConfigMapJson{}
 		for _, cm := range existingConfigMap.Maps {
 			if cm.External {
 				continue
@@ -318,7 +317,6 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 			configMaps.Maps[i].Name = configMaps.Maps[i].Name + "-" + strconv.Itoa(workflowRequest.WorkflowId) + "-" + CI_WORKFLOW_NAME
 		}
 
-		//secrets := bean3.ConfigSecretJson{}
 		for _, s := range existingSecrets.Secrets {
 			if s.External {
 				continue
@@ -570,7 +568,6 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 
 		// Adding external secret reference in workflow template
 		for _, s := range existingSecrets.Secrets {
-			//if _, ok := cdPipelineLevelSecrets[s.Name]; ok {
 			if s.External {
 				if s.Type == "environment" {
 					ciTemplate.Container.EnvFrom = append(ciTemplate.Container.EnvFrom, v12.EnvFromSource{
@@ -587,10 +584,8 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 					})
 				}
 			}
-			//}
-		}
 
-		//	templates = append(templates, ciTemplate)
+		}
 	}
 	if impl.ciConfig.UseBlobStorageConfigInCiWorkflow {
 		gcpBlobConfig := workflowRequest.GcpBlobConfig
