@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS manifest_push_config
     "app_id"     integer,
     "env_id"     integer,
     "credentials_config" text,
+    "chart_name"  varchar(100),
     "chart_base_version" varchar(100),
     "storage_type" varchar(100),
     "created_on" timestamptz NOT NULL,
