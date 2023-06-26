@@ -105,6 +105,7 @@ type CiPipelineRepository interface {
 	FindByParentCiPipelineIds(parentCiPipelineIds []int) ([]*CiPipeline, error)
 	FindWithMinDataByCiPipelineId(id int) (pipeline *CiPipeline, err error)
 	FindAppIdsForCiPipelineIds(pipelineIds []int) (map[int]int, error)
+	GetCiPipelineByArtifactId(artifactId int) (*CiPipeline, error)
 }
 type CiPipelineRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -472,4 +473,15 @@ func (impl CiPipelineRepositoryImpl) FindAppIdsForCiPipelineIds(pipelineIds []in
 	}
 
 	return ciPipelineIdVsAppId, nil
+}
+
+func (impl CiPipelineRepositoryImpl) GetCiPipelineByArtifactId(artifactId int) (*CiPipeline, error) {
+	ciPipeline := &CiPipeline{}
+	err := impl.dbConnection.Model(ciPipeline).
+		Column("ci_pipeline.*").
+		Join("INNER JOIN ci_artifact cia on cia.pipeline_id = ci_pipeline.id").
+		Where("ci_pipeline.deleted=?", false).
+		Where("cia.id = ?", artifactId).
+		Select()
+	return ciPipeline, err
 }
