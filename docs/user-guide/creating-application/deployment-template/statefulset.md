@@ -1,69 +1,49 @@
+# StatefulSet
 
-# Rollout Deployment
+The StatefulSet chart in Devtron allows you to deploy and manage stateful applications. StatefulSet is a Kubernetes resource that provides guarantees about the ordering and uniqueness of Pods during deployment and scaling. 
 
-The `Rollout Deployment` chart deploys an advanced version of deployment that supports Blue/Green and Canary deployments. For functioning, it requires a rollout controller to run inside the cluster.
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/sts-chart.jpg)
 
-You can define application behavior by providing information in the following sections:
+It supports only `ONDELETE` and `ROLLINGUPDATE` deployment strategy.
 
-* [Chart version](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/rollout-deployment#1.-chart-version)
-* [Basic Configuration](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/rollout-deployment#2.-basic-configuration)
-* [Advanced (YAML)](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/rollout-deployment#3.-advanced-yaml)
-* [Show Application Metrics](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/rollout-deployment#4.-show-application-metrics)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/sts-strategy.jpg)
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/deployment-template.gif)
 
-## 1. Chart version
+You can select `SatefulSet` chart when you want to use only basic use cases which contain the following:
 
-| Key | Descriptions |
-| :--- | :--- |
-| `Chart Version` | Select the Chart Version using which you want to deploy the application. |
+* **Managing Stateful Applications:** StatefulSets are ideal for managing stateful applications, such as databases or distributed systems, that require stable network identities and persistent storage for each Pod.
 
-Devtron uses helm charts for the deployments. And we are having multiple chart versions based on features it is supporting with every chart version.
+* **Ordered Pod Management:** StatefulSets ensure ordered and predictable management of Pods by providing each Pod with a unique and stable hostname based on a defined naming convention and ordinal index.
 
-One can see multiple chart version options available in the drop-down. you can select any chart version as per your requirements. By default, the latest version of the helm chart is selected in the chart version option.
+* **Updating and Scaling Stateful Applications:** StatefulSets support updating and scaling stateful applications by creating new versions of the StatefulSet and performing rolling updates or scaling operations in a controlled manner, ensuring minimal disruption to the application.
 
-Every chart version has its own YAML file. Helm charts are used to provide specifications for your application. To make it easy to use, we have created templates for the YAML file and have added some variables inside the YAML. You can provide or change the values of these variables as per your requirement.
+* **Persistent Storage:** StatefulSets have built-in mechanisms for handling persistent volumes, allowing each Pod to have its own unique volume claim and storage. This ensures data persistence even when Pods are rescheduled or restarted.
 
-If you want to see [Application Metrics](rollout-deployment.md#3.-Show-application-metrics) (as an example, Status codes 2xx, 3xx, 5xx; throughput, and latency etc.) for your application, then you need to select the latest chart version.
+* **Maintaining Pod Identity:** StatefulSets guarantee consistent identity for each Pod throughout its lifecycle. This stability is maintained even if the Pods are rescheduled, allowing applications to rely on stable network identities.
 
-**Note**: Application Metrics are not supported for the Chart version older than 3.7 version.
+* **Rollback Capability:** StatefulSets provide the ability to rollback to a previous version in case the current state of the application is unstable or encounters issues, ensuring a known working state for the application.
 
-## 2. Basic Configuration
+* **Status Monitoring:** StatefulSets offer status information that can be used to monitor the deployment, including the current version, number of replicas, and the readiness of each Pod. This helps in tracking the health and progress of the StatefulSet deployment.
 
-Some of the use-cases which are defined on the Deployment Template (YAML file) may not be applicable to configure for your application. In such cases, you can do the basic deployment configuration for your application on the **Basic** GUI section instead of configuring the YAML file.
+* **Resource Cleanup:** StatefulSets allow for easy cleanup of older versions by deleting StatefulSets and their associated Pods and persistent volumes that are no longer needed, ensuring efficient resource utilization.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/basic-config-deployment-template.jpg)
 
-The following fields are provided on the **Basic** GUI section:
 
-| Fields | Description |
-| :---    |     :---       |
-| **Port**  | The internal HTTP port. |
-| **HTTP Request Routes** | Enable the `HTTP Request Routes` to define `Host` and `Path`. By default, it is in `disabled` state.<ul><li> **Host**: Domain name of the server. </li></ul> <ul><li>**Path**: Path of the specific component in the host that the HTTP wants to access.</li></ul> You can define multiple paths as required by clicking **Add path**.|
-| **CPU**  | The CPU resource as per the application. |
-| **RAM**   | The RAM resource as per the application. |
-| **Environment Variables** (**Key/Value**)  | Define `key/value` by clicking **Add variable**. <ul><li> **Key**: Define the key of the environment.</li></ul> <ul><li>**Value**: Define the value of the environment.</li></ul> You can define multiple env variables by clicking **Add variable**.  |
 
-Click **Save Changes**.
-
-If you want to do additional configurations, then click **Advanced (YAML)** for modifications.
-
-**Note**: If you change any values in the `Basic` GUI, then the corresponding values will be changed in `YAML` file also.
-
-## 3. Advanced (YAML)
+## 1. Yaml File
 
 ### Container Ports
 
-This defines the ports on which application services will be exposed to other services.
+This defines ports on which application services will be exposed to other services
 
 ```yaml
 ContainerPort:
   - envoyPort: 8799
-    envoyTimeout: 15s
     idleTimeout:
     name: app
     port: 8080
     servicePort: 80
+    nodePort: 32056
     supportStreaming: true
     useHTTP2: true
 ```
@@ -71,11 +51,11 @@ ContainerPort:
 | Key | Description |
 | :--- | :--- |
 | `envoyPort` | envoy port for the container. |
-| `envoyTimeout` | envoy Timeout for the container,envoy supports a wide range of timeouts that may need to be configured depending on the deployment.By default the envoytimeout is 15s. |
 | `idleTimeout` | the duration of time that a connection is idle before the connection is terminated. |
 | `name` | name of the port. |
 | `port` | port for the container. |
 | `servicePort` | port of the corresponding kubernetes service. |
+| `nodePort` | nodeport of the corresponding kubernetes service. |
 | `supportStreaming` | Used for high performance protocols like grpc where timeout needs to be disabled. |
 | `useHTTP2` | Envoy container can accept HTTP2 requests. |
 
@@ -83,40 +63,144 @@ ContainerPort:
 ```yaml
 EnvVariables: []
 ```
-`EnvVariables` provide run-time information to containers and allow to customize how the application works and the behavior of the applications on the system.
 
-Here we can pass the list of env variables , every record is an object which contain the `name` of variable along with `value`.
+### EnvVariablesFromSecretKeys
+```yaml
+EnvVariablesFromSecretKeys: 
+  - name: ENV_NAME
+    secretName: SECRET_NAME
+    keyName: SECRET_KEY
+
+```
+ It is use to get the name of Environment Variable name, Secret name and the Key name from which we are using the value in that corresponding Environment Variable.
+
+ ### EnvVariablesFromCongigMapKeys
+```yaml
+EnvVariablesFromCongigMapKeys: 
+  - name: ENV_NAME
+    configMapName: CONFIG_MAP_NAME
+    keyName: CONFIG_MAP_KEY
+
+```
+ It is use to get the name of Environment Variable name, Config Map name and the Key name from which we are using the value in that corresponding Environment Variable.
 
 To set environment variables for the containers that run in the Pod.
-
-### Example of EnvVariables
-
-`IMP` Docker image should have env variables, whatever we want to set.
+### StatefulSetConfig
+These are  all the configuration settings for the StatefulSet.
 ```yaml
-EnvVariables: 
-  - name: HOSTNAME
-    value: www.xyz.com
-  - name: DB_NAME
-    value: mydb
-  - name: USER_NAME
-    value: xyz
+statefulSetConfig:
+  labels:
+    app: my-statefulset
+    environment: production
+  annotations:
+    example.com/version: "1.0"
+  serviceName: "my-statefulset-service"
+  podManagementPolicy: "Parallel"
+  revisionHistoryLimit: 5
+  mountPath: "/data"
+  volumeClaimTemplates:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        labels:
+          app: my-statefulset
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        dataSource:
+          kind: Snapshot
+          apiGroup: snapshot.storage.k8s.io
+          name: my-snapshot
+        resources:
+          requests:
+            storage: 5Gi
+          limits:
+            storage: 10Gi
+        storageClassName: my-storage-class
+        selector:
+          matchLabels:
+            app: my-statefulset
+        volumeMode: Filesystem
+        volumeName: my-pv
+  - apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      name: pvc-logs
+      labels:
+        app: myapp
+    spec:
+      accessModes:
+        - ReadWriteMany
+      dataSourceRef:
+        kind: Secret
+        apiGroup: v1
+        name: my-secret
+      resources:
+        requests:
+          storage: 5Gi
+      storageClassName: my-storage-class
+      selector:
+        matchExpressions:
+          - {key: environment, operator: In, values: [production]}
+      volumeMode: Block
+      volumeName: my-pv
+
 ```
+Mandatoryfields in statefulSetConfig is 
+```
+statefulSetConfig:
+  mountPath: /tmp
+  volumeClaimTemplates:
+  - spec:
+      accessModes: 
+        - ReadWriteOnce
+      resources: 
+        requests:
+            storage: 2Gi
+```
+Here is an explanation of each field in the statefulSetConfig :
 
-But `ConfigMap` and `Secret` are the prefered way to inject env variables. You can create this in `App Configuration` Section.
 
-### ConfigMap
+| Key | Description |
+| :--- | :--- |
+| `labels` |  set of key-value pairs used to identify the StatefulSet . |
+| `annotations` | A map of key-value pairs that are attached to the stateful set as metadata. |
+| `serviceName` | The name of the Kubernetes Service that the StatefulSet should create. |
+| `podManagementPolicy` | A policy that determines how Pods are created and deleted by the StatefulSet. In this case, the policy is set to "Parallel", which means that all Pods are created at once. |
+| `revisionHistoryLimit` | The number of revisions that should be stored for each replica of the StatefulSet. |
+| `updateStrategy` | The update strategy used by the StatefulSet when rolling out changes. |
+| `mountPath` | The path where the volume should be mounted in the container. |
 
-It is a centralized storage, specific to k8s namespace where key-value pairs are stored in plain text.
+volumeClaimTemplates: An array of volume claim templates that are used to create persistent volumes for the StatefulSet. Each volume claim template specifies the storage class, access mode, storage size, and other details of the persistent volume.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/config-maps/configure-configmap.jpg)
 
-### Secret
+| Key | Description |
+| :--- | :--- |
+| `apiVersion` |  The API version of the PVC . |
+| `kind` | The type of object that the PVC is. |
+| `metadata` | Metadata that is attached to the resource being created. |
+| `labels` | A set of key-value pairs used to label the object for identification and selection. |
+| `spec` | The specification of the object, which defines its desired state and behavior.|
+| `accessModes` | A list of access modes for the PersistentVolumeClaim, such as "ReadWriteOnce" or "ReadWriteMany". |
+| `dataSource` | A data source used to populate the PersistentVolumeClaim, such as a Snapshot or a StorageClass. |
+| `kind`| specifies the kind of the snapshot, in this case Snapshot.|
+| `apiGroup`| specifies the API group of the snapshot API, in this case snapshot.storage.k8s.io.|
+| `name`| specifies the name of the snapshot, in this case my-snapshot.|
+| `dataSourceRef` | A  reference to a data source used to create the persistent volume. In this case, it's a secret. |
+| `updateStrategy` | The update strategy used by the StatefulSet when rolling out changes. |
+| `resources` | The resource requests and limits for the PersistentVolumeClaim, which define the minimum and maximum amount of storage it can use. |
+| `requests` | The amount of storage requested by the PersistentVolumeClaim. |
+| `limits` | The maximum amount of storage that the PersistentVolumeClaim can use. |
+| `storageClassName` | The name of the storage class to use for the persistent volume. |
+| `selector` | The selector used to match a persistent volume to a persistent volume claim. |
+| `matchLabels` | a map of key-value pairs to match the labels of the corresponding PersistentVolume.|
+| `matchExpressions` |A set of requirements that the selected object must meet to be considered a match. |
+| `key` | The key of the label or annotation to match.|
+| `operator` | The operator used to compare the key-value pairs (in this case, "In" specifies a set membership test).|
+| `values` | A list of values that the selected object's label or annotation must match.|
+| `volumeMode` | The mode of the volume, either "Filesystem" or "Block". |
+| `volumeName` | The name of the PersistentVolume that is created for the PersistentVolumeClaim. |
 
-It is a centralized storage, specific to k8s namespace where we can store the key-value pairs in plain text as well as in encrypted(`Base64`) form.
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/secrets/created-secret.gif)
-
-`IMP` All key-values of `Secret` and `CofigMap` will reflect to your application.
 
 ### Liveness Probe
 
@@ -131,9 +215,6 @@ LivenessProbe:
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
-  command:
-    - python
-    - /etc/app/healthcheck.py
   httpHeaders:
     - name: Custom-Header
       value: abc
@@ -149,7 +230,6 @@ LivenessProbe:
 | `successThreshold` | It defines the number of successes required before a given container is said to fulfil the liveness probe. |
 | `timeoutSeconds` | It defines the time for checking timeout. |
 | `failureThreshold` | It defines the maximum number of failures that are acceptable before a given container is not considered as live. |
-| `command` | The mentioned command is executed to perform the livenessProbe. If the command returns a non-zero value, it's equivalent to a failed probe. |
 | `httpHeaders` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
 | `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
 | `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
@@ -190,9 +270,6 @@ ReadinessProbe:
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
-  command:
-    - python
-    - /etc/app/healthcheck.py
   httpHeaders:
     - name: Custom-Header
       value: abc
@@ -208,10 +285,45 @@ ReadinessProbe:
 | `successThreshold` | It defines the number of successes required before a given container is said to fulfill the readiness probe. |
 | `timeoutSeconds` | It defines the time for checking timeout. |
 | `failureThreshold` | It defines the maximum number of failures that are acceptable before a given container is not considered as ready. |
-| `command` | The mentioned command is executed to perform the readinessProbe. If the command returns a non-zero value, it's equivalent to a failed probe. |
 | `httpHeaders` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
 | `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
 | `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
+
+### Ambassador Mappings
+
+You can create ambassador mappings to access your applications from outside the cluster. At its core a Mapping resource maps a resource to a service.
+
+```yaml
+ambassadorMapping:
+  ambassadorId: "prod-emissary"
+  cors: {}
+  enabled: true
+  hostname: devtron.example.com
+  labels: {}
+  prefix: /
+  retryPolicy: {}
+  rewrite: ""
+  tls:
+    context: "devtron-tls-context"
+    create: false
+    hosts: []
+    secretName: ""
+```
+
+| Key | Description |
+| :--- | :--- |
+| `enabled` | Set true to enable ambassador mapping else set false.|
+| `ambassadorId` | used to specify id for specific ambassador mappings controller. |
+| `cors` | used to specify cors policy to access host for this mapping. |
+| `weight` | used to specify weight for canary ambassador mappings. |
+| `hostname` | used to specify hostname for ambassador mapping. |
+| `prefix` | used to specify path for ambassador mapping. |
+| `labels` | used to provide custom labels for ambassador mapping. |
+| `retryPolicy` | used to specify retry policy for ambassador mapping. |
+| `corsPolicy` | Provide cors headers on flagger resource. |
+| `rewrite` | used to specify whether to redirect the path of this mapping and where. |
+| `tls` | used to create or define ambassador TLSContext resource. |
+| `extraSpec` | used to provide extra spec values which not present in deployment template for ambassador resource. |
 
 ### Autoscaling
 
@@ -254,7 +366,7 @@ Image is used to access images in kubernetes, pullpolicy is used to define the i
 
 ### imagePullSecrets
 
-`imagePullSecrets` contains the docker credentials that are used for accessing a registry. 
+`imagePullSecrets` contains the docker credentials that are used for accessing a registry.
 
 ```yaml
 imagePullSecrets:
@@ -264,8 +376,7 @@ regcred is the secret that contains the docker credentials that are used for acc
 
 ### Ingress
 
-This allows public access to the url. Please ensure you are using the right nginx annotation for nginx class. 
-The default value is `nginx`.
+This allows public access to the url, please ensure you are using right nginx annotation for nginx class, its default value is nginx
 
 ```yaml
 ingress:
@@ -275,11 +386,9 @@ ingress:
   annotations: {}
   hosts:
       - host: example1.com
-        pathType: "ImplementationSpecific"
         paths:
             - /example
       - host: example2.com
-        pathType: "ImplementationSpecific"
         paths:
             - /example2
             - /example2/healthz
@@ -302,9 +411,8 @@ ingress:
 | :--- | :--- |
 | `enabled` | Enable or disable ingress |
 | `annotations` | To configure some options depending on the Ingress controller |
-| `host` | Host name |
-| `pathType` | Path in an Ingress is required to have a corresponding path type. Supported path types are `ImplementationSpecific`, `Exact` and `Prefix`. |
 | `path` | Path name |
+| `host` | Host name |
 | `tls` | It contains security details |
 
 ### Ingress Internal
@@ -319,11 +427,9 @@ ingressInternal:
   annotations: {}
   hosts:
       - host: example1.com
-        pathType: "ImplementationSpecific"
         paths:
             - /example
       - host: example2.com
-        pathType: "ImplementationSpecific"
         paths:
             - /example2
             - /example2/healthz
@@ -334,10 +440,8 @@ ingressInternal:
 | :--- | :--- |
 | `enabled` | Enable or disable ingress |
 | `annotations` | To configure some options depending on the Ingress controller |
-| `host` | Host name |
-| `pathType` | Path in an Ingress is required to have a corresponding path type. Supported path types are `ImplementationSpecific`, `Exact` and `Prefix`. |
 | `path` | Path name |
-| `pathType` | Supported path types are `ImplementationSpecific`, `Exact` and `Prefix`.|
+| `host` | Host name |
 | `tls` | It contains security details |
 
 ### Init Containers
@@ -366,6 +470,60 @@ initContainers:
     args: ["-g", "daemon off;"]
 ```
 Specialized containers that run before app containers in a Pod. Init containers can contain utilities or setup scripts not present in an app image. One can use base image inside initContainer by setting the reuseContainerImage flag to `true`.
+
+### Istio
+
+Istio is a service mesh which simplifies observability, traffic management, security and much more with it's virtual services and gateways.
+
+```yaml
+istio:
+  enable: true
+  gateway:
+    annotations: {}
+    enabled: false
+    host: example.com
+    labels: {}
+    tls:
+      enabled: false
+      secretName: example-tls-secret
+  virtualService:
+    annotations: {}
+    enabled: false
+    gateways: []
+    hosts: []
+    http:
+      - corsPolicy:
+          allowCredentials: false
+          allowHeaders:
+            - x-some-header
+          allowMethods:
+            - GET
+          allowOrigin:
+            - example.com
+          maxAge: 24h
+        headers:
+          request:
+            add:
+              x-some-header: value
+        match:
+          - uri:
+              prefix: /v1
+          - uri:
+              prefix: /v2
+        retries:
+          attempts: 2
+          perTryTimeout: 3s
+        rewriteUri: /
+        route:
+          - destination:
+              host: service1
+              port: 80
+        timeout: 12s
+      - route:
+          - destination:
+              host: service2
+    labels: {}
+```
 
 ### Pause For Seconds Before Switch Active
 ```yaml
@@ -406,15 +564,6 @@ This defines annotations and the type of service, optionally can define name als
     type: ClusterIP
     annotations: {}
 ```
-| Key | Description |
-| :--- | :--- |
-| `type` | Select the type of service, default `ClusterIP` |
-| `annotations` | Annotations are widely used to attach metadata and configs in Kubernetes. |
-| `name` | Optional field to assign name to service  |
-| `loadBalancerSourceRanges` | If service type is `LoadBalancer`, Provide a list of whitelisted IPs CIDR that will be allowed to use the Load Balancer. |
-
-Note - If `loadBalancerSourceRanges` is not set, Kubernetes allows traffic from 0.0.0.0/0 to the LoadBalancer / Node Security Group(s). 
-
 
 ### Volumes
 
@@ -497,16 +646,15 @@ This is used to give arguments to command.
 command:
   enabled: false
   value: []
-  workingDir: {}
 ```
 
-It contains the commands to run inside the container.
+It contains the commands for the server.
 
 | Key | Description |
 | :--- | :--- |
 | `enabled` | To enable or disable the command. |
 | `value` | It contains the commands. |
-| `workingDir` | It is used to specify the working directory where commands will be executed. |
+
 
 ### Containers
 Containers section can be used to run side-car containers along with your main container within same pod. Containers running within same pod can share volumes and IP Address and can address each other @localhost. We can use base image inside container by setting the reuseContainerImage flag to `true`.
@@ -531,7 +679,6 @@ Containers section can be used to run side-car containers along with your main c
           - flyway
           - -configFiles=/etc/ls-oms/flyway.conf
           - migrate
-
 ```
 
 ### Prometheus
@@ -621,187 +768,11 @@ dbMigrationConfig:
 
 It is used to configure database migration.
 
-### Application Metrics
-
-Application metrics can be enabled to see your application's metrics-CPU Service Monitor usage, Memory Usage, Status, Throughput and Latency.
-
-### Deployment Metrics
-
-It gives the realtime metrics of the deployed applications
-
-| Key | Description |
-| :--- | :--- |
-| `Deployment Frequency` | It shows how often this app is deployed to production |
-| `Change Failure Rate` | It shows how often the respective pipeline fails. |
-| `Mean Lead Time` | It shows the average time taken to deliver a change to production. |
-| `Mean Time to Recovery` | It shows the average time taken to fix a failed pipeline. |
-
-
-## Addon features in Deployment Template Chart version 3.9.0
-
-### Service Account
-
-```yaml
-serviceAccountName: orchestrator
-```
-
-A service account provides an identity for the processes that run in a Pod.
-
-When you access the cluster, you are authenticated by the API server as a particular User Account. Processes in containers inside pod can also contact the API server. When you are authenticated as a particular Service Account.
-
-When you create a pod, if you do not create a service account, it is automatically assigned the default service account in the namespace.
-
-### Pod Disruption Budget
-
-```yaml
-podDisruptionBudget: {}
-     minAvailable: 1
-     maxUnavailable: 1
-```
-
-You can create `PodDisruptionBudget` for each application. A PDB limits the number of pods of a replicated application that are down simultaneously from voluntary disruptions. For example, an application would like to ensure the number of replicas running is never brought below the certain number.
-
-You can specify `maxUnavailable` and `minAvailable` in a `PodDisruptionBudget`.
-
-With `minAvailable` of 1, evictions are allowed as long as they leave behind 1 or more healthy pods of the total number of desired replicas.
-
-With `maxAvailable` of 1, evictions are allowed as long as at most 1 unhealthy replica among the total number of desired replicas.
-
-### Application metrics Envoy Configurations
-
-```yaml
-envoyproxy:
-  image: envoyproxy/envoy:v1.14.1
-  configMapName: ""
-  resources:
-    limits:
-      cpu: "50m"
-      memory: "50Mi"
-    requests:
-      cpu: "50m"
-      memory: "50Mi"
-```
-
-Envoy is attached as a sidecar to the application container to collect metrics like 4XX, 5XX, Throughput and latency. You can now configure the envoy settings such as idleTimeout, resources etc.
-
-### Prometheus Rule
-
-```yaml
-prometheusRule:
-  enabled: true
-  additionalLabels: {}
-  namespace: ""
-  rules:
-    - alert: TooMany500s
-      expr: 100 * ( sum( nginx_ingress_controller_requests{status=~"5.+"} ) / sum(nginx_ingress_controller_requests) ) > 5
-      for: 1m
-      labels:
-        severity: critical
-      annotations:
-        description: Too many 5XXs
-        summary: More than 5% of the all requests did return 5XX, this require your attention
-```
-
-Alerting rules allow you to define alert conditions based on Prometheus expressions and to send notifications about firing alerts to an external service.
-
-In this case, Prometheus will check that the alert continues to be active during each evaluation for 1 minute before firing the alert. Elements that are active, but not firing yet, are in the pending state.
-
-### Pod Labels
-Labels are key/value pairs that are attached to pods. Labels are intended to be used to specify identifying attributes of objects that are meaningful and relevant to users, but do not directly imply semantics to the core system. Labels can be used to organize and to select subsets of objects.
-```yaml
-podLabels:
-  severity: critical
-```
-
-### Pod Annotations
-Pod Annotations are widely used to attach metadata and configs in Kubernetes.
-
-```yaml
-podAnnotations:
-  fluentbit.io/exclude: "true"
-```
-
-### Custom Metrics in HPA
-
-```yaml
-autoscaling:
-  enabled: true
-  MinReplicas: 1
-  MaxReplicas: 2
-  TargetCPUUtilizationPercentage: 90
-  TargetMemoryUtilizationPercentage: 80
-  behavior:
-    scaleDown:
-      stabilizationWindowSeconds: 300
-      policies:
-      - type: Percent
-        value: 100
-        periodSeconds: 15
-    scaleUp:
-      stabilizationWindowSeconds: 0
-      policies:
-      - type: Percent
-        value: 100
-        periodSeconds: 15
-      - type: Pods
-        value: 4
-        periodSeconds: 15
-      selectPolicy: Max
-```
-
-HPA, by default is configured to work with CPU and Memory metrics. These metrics are useful for internal cluster sizing, but you might want to configure wider set of metrics like service latency, I/O load etc. The custom metrics in HPA can help you to achieve this.
-
-### Wait For Seconds Before Scaling Down
-```yaml
-waitForSecondsBeforeScalingDown: 30
-```
-Wait for given period of time before scaling down the container.
-
-
-
-## 4. Show Application Metrics
-
-If you want to see application metrics like different HTTP status codes metrics, application throughput, latency, response time. Enable the Application metrics from below the deployment template Save button. After enabling it, you should be able to see all metrics on App detail page. By default it remains disabled.
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/application-metrics.jpg)
-
-Once all the Deployment template configurations are done, click on `Save` to save your deployment configuration. Now you are ready to create [Workflow](../workflow/README.md) to do CI/CD.
-
-### Helm Chart Json Schema Table
-
-Helm Chart json schema is used to validate the deployment template values.
-
-| Chart Version | Link |
-| :--- | :--- |
-| `reference-chart_3-12-0` | [Json Schema](https://github.com/devtron-labs/devtron/blob/main/scripts/devtron-reference-helm-charts/reference-chart_3-12-0/schema.json) |
-| `reference-chart_3-11-0` | [Json Schema](https://github.com/devtron-labs/devtron/blob/main/scripts/devtron-reference-helm-charts/reference-chart_3-11-0/schema.json) |
-| `reference-chart_3-10-0` | [Json Schema](https://github.com/devtron-labs/devtron/blob/main/scripts/devtron-reference-helm-charts/reference-chart_3-10-0/schema.json) |
-| `reference-chart_3-9-0` | [Json Schema](https://github.com/devtron-labs/devtron/blob/main/scripts/devtron-reference-helm-charts/reference-chart_3-9-0/schema.json) |
-
-
-### Other Validations in Json Schema
-
-The values of CPU and Memory in limits must be greater than or equal to in requests respectively. Similarly, In case of envoyproxy, the values of limits are greater than or equal to requests as mentioned below.
-```
-resources.limits.cpu >= resources.requests.cpu
-resources.limits.memory >= resources.requests.memory
-envoyproxy.resources.limits.cpu >= envoyproxy.resources.requests.cpu
-envoyproxy.resources.limits.memory >= envoyproxy.resources.requests.memory
-```
-
-## Addon features in Deployment Template Chart version 4.11.0
 
 ### KEDA Autoscaling
-
-**Prerequisite:** KEDA contoller should be installed in the cluster. To install KEDA controller using Helm, navigate to chart store and search for `keda` chart and deploy it. You can follow this [documentation](../../deploy-chart/deployment-of-charts.md) for deploying a Helm chart on Devtron.
-
-KEDA Helm repo : https://kedacore.github.io/charts
-
-
 [KEDA](https://keda.sh) is a Kubernetes-based Event Driven Autoscaler. With KEDA, you can drive the scaling of any container in Kubernetes based on the number of events needing to be processed. KEDA can be installed into any Kubernetes cluster and can work alongside standard Kubernetes components like the Horizontal Pod Autoscaler(HPA).
 
-
-Example for autoscaling with KEDA using Prometheus metrics is given below:
+Example for autosccaling with KEDA using Prometheus metrics is given below:
 ```yaml
 kedaAutoscaling:
   enabled: true
@@ -832,9 +803,7 @@ kedaAutoscaling:
     spec: {}
   authenticationRef: {}
 ```
-
 Example for autosccaling with KEDA based on kafka is given below :
-
 ```yaml
 kedaAutoscaling:
   enabled: true
@@ -865,9 +834,77 @@ kedaAutoscaling:
   authenticationRef: 
     name: keda-trigger-auth-kafka-credential
 ```
+### Winter-Soldier
+Winter Soldier can be used to
+- cleans up (delete) Kubernetes resources
+- reduce workload pods to 0
+
+**_NOTE:_** After deploying this we can create the Hibernator object and provide the custom configuration by which workloads going to delete, sleep and many more.   for more information check [the main repo](https://github.com/devtron-labs/winter-soldier)
+
+Given below is template values you can give in winter-soldier:
+```yaml
+winterSoilder:
+  enable: false
+  apiVersion: pincher.devtron.ai/v1alpha1
+  action: sleep
+  timeRangesWithZone:
+    timeZone: "Asia/Kolkata"
+    timeRanges: []
+  targetReplicas: []
+  fieldSelector: []
+```
+Here, 
+| Key | values | Description |
+| :--- | :--- | :--- |
+| `enable` | `fasle`,`true` | decide the enabling factor  |
+| `apiVersion` | `pincher.devtron.ai/v1beta1`, `pincher.devtron.ai/v1alpha1` | specific api version  |
+| `action` | `sleep`,`delete`, `scale` | This specify  the action need to perform.  |
+| `timeRangesWithZone`:`timeZone` | eg:- `"Asia/Kolkata"`,`"US/Pacific"` |  It use to specify the timeZone used. (It uses standard format. please refer [this](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones))  |
+| `timeRangesWithZone`:`timeRanges` | array of [ `timeFrom`, `timeTo`, `weekdayFrom`, `weekdayTo`] |  It use to define time period/range on which the user need to perform the specified action. you can have multiple timeRanges. <br /> These settings will take `action` on Sat and Sun from 00:00 to 23:59:59, |
+| `targetReplicas` | `[n]` : n - number of replicas to scale. | These is mandatory field when the `action` is `scale` <br /> Defalut value is `[]`.  |
+| `fieldSelector` | `- AfterTime(AddTime( ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '5m'), Now()) `  | These value will take a list of methods to select the resources on which we perform specified `action` .  |
+
+
+here is an example,
+```yaml
+winterSoilder:
+  apiVersion: pincher.devtron.ai/v1alpha1 
+  enable: true
+  annotations: {}
+  labels: {}
+  timeRangesWithZone:
+    timeZone: "Asia/Kolkata"
+    timeRanges: 
+      - timeFrom: 00:00
+        timeTo: 23:59:59
+        weekdayFrom: Sat
+        weekdayTo: Sun
+      - timeFrom: 00:00
+        timeTo: 08:00
+        weekdayFrom: Mon
+        weekdayTo: Fri
+      - timeFrom: 20:00
+        timeTo: 23:59:59
+        weekdayFrom: Mon
+        weekdayTo: Fri
+  action: scale
+  targetReplicas: [1,1,1]
+  fieldSelector: 
+    - AfterTime(AddTime( ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '10h'), Now())
+```
+Above settings will take action on `Sat` and `Sun` from 00:00 to 23:59:59, and on `Mon`-`Fri` from 00:00 to 08:00 and 20:00 to 23:59:59. If `action:sleep` then runs hibernate at timeFrom and unhibernate at `timeTo`. If `action: delete` then it will delete workloads at `timeFrom` and `timeTo`. Here the `action:scale` thus it scale the number of resource replicas to  `targetReplicas: [1,1,1]`. Here each element of `targetReplicas` array is mapped with the corresponding elments of array `timeRangesWithZone/timeRanges`. Thus make sure the length of both array is equal, otherwise the cnages cannot be observed.
+
+The above example will select the application objects which have been created 10 hours ago across all namespaces excluding application's namespace. Winter soldier exposes following functions to handle time, cpu and memory.
+
+- ParseTime - This function can be used to parse time. For eg to parse creationTimestamp use ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z')
+- AddTime - This can be used to add time. For eg AddTime(ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '-10h') ll add 10h to the time. Use d for day, h for hour, m for minutes and s for seconds. Use negative number to get earlier time.
+- Now - This can be used to get current time.
+- CpuToNumber - This can be used to compare CPU. For eg any({{spec.containers.#.resources.requests}}, { MemoryToNumber(.memory) < MemoryToNumber('60Mi')}) will check if any resource.requests is less than 60Mi.
+
+
 
 ### Security Context
-A security context defines privilege and access control settings for a Pod or Container.  
+A security context defines privilege and access control settings for a Pod or Container.
 
 To add a security context for main container:
 ```yaml
@@ -893,4 +930,36 @@ topologySpreadConstraints:
     whenUnsatisfiable: DoNotSchedule
     autoLabelSelector: true
     customLabelSelector: {}
+```
+
+### Deployment Metrics
+
+It gives the realtime metrics of the deployed applications
+
+| Key | Description |
+| :--- | :--- |
+| `Deployment Frequency` | It shows how often this app is deployed to production |
+| `Change Failure Rate` | It shows how often the respective pipeline fails. |
+| `Mean Lead Time` | It shows the average time taken to deliver a change to production. |
+| `Mean Time to Recovery` | It shows the average time taken to fix a failed pipeline. |
+
+## 2. Show application metrics
+
+If you want to see application metrics like different HTTP status codes metrics, application throughput, latency, response time. Enable the Application metrics from below the deployment template Save button. After enabling it, you should be able to see all metrics on App detail page. By default it remains disabled.
+![](../../../.gitbook/assets/deployment_application_metrics%20%282%29.png)
+
+Once all the Deployment template configurations are done, click on `Save` to save your deployment configuration. Now you are ready to create [Workflow](workflow/) to do CI/CD.
+
+### Helm Chart Json Schema 
+
+Helm Chart [json schema](../../../scripts/devtron-reference-helm-charts/reference-chart_4-11-0/schema.json) is used to validate the deployment template values.
+
+### Other Validations in Json Schema
+
+The values of CPU and Memory in limits must be greater than or equal to in requests respectively. Similarly, In case of envoyproxy, the values of limits are greater than or equal to requests as mentioned below.
+```
+resources.limits.cpu >= resources.requests.cpu
+resources.limits.memory >= resources.requests.memory
+envoyproxy.resources.limits.cpu >= envoyproxy.resources.requests.cpu
+envoyproxy.resources.limits.memory >= envoyproxy.resources.requests.memory
 ```
