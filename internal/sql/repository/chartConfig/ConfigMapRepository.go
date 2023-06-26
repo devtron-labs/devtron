@@ -33,6 +33,7 @@ type ConfigMapRepository interface {
 	GetByIdEnvLevel(id int) (*ConfigMapEnvModel, error)
 	GetAllEnvLevel() ([]ConfigMapEnvModel, error)
 	UpdateEnvLevel(model *ConfigMapEnvModel) (*ConfigMapEnvModel, error)
+	DeleteEnvLevel(model *ConfigMapEnvModel) (*ConfigMapEnvModel, error)
 
 	GetByAppIdAppLevel(appId int) (*ConfigMapAppModel, error)
 	GetByAppIdAndEnvIdEnvLevel(appId int, envId int) (*ConfigMapEnvModel, error)
@@ -126,6 +127,15 @@ func (impl ConfigMapRepositoryImpl) GetAllEnvLevel() ([]ConfigMapEnvModel, error
 
 func (impl ConfigMapRepositoryImpl) UpdateEnvLevel(model *ConfigMapEnvModel) (*ConfigMapEnvModel, error) {
 	err := impl.dbConnection.Update(model)
+	if err != nil {
+		impl.Logger.Errorw("err on config map ", "err;", err)
+		return model, err
+	}
+	return model, nil
+}
+
+func (impl ConfigMapRepositoryImpl) DeleteEnvLevel(model *ConfigMapEnvModel) (*ConfigMapEnvModel, error) {
+	err := impl.dbConnection.Delete(model)
 	if err != nil {
 		impl.Logger.Errorw("err on config map ", "err;", err)
 		return model, err

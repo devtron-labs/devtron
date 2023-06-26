@@ -54,6 +54,10 @@ type ConfigMapRestHandler interface {
 	CSGlobalFetchForEdit(w http.ResponseWriter, r *http.Request)
 	CSEnvironmentFetchForEdit(w http.ResponseWriter, r *http.Request)
 	ConfigSecretBulkPatch(w http.ResponseWriter, r *http.Request)
+
+	CreateJobEnvironmentOverride(w http.ResponseWriter, r *http.Request)
+	DeleteJobEnvironmentOverride(w http.ResponseWriter, r *http.Request)
+	GetJobEnvironmentOverrides(w http.ResponseWriter, r *http.Request)
 }
 
 type ConfigMapRestHandlerImpl struct {
@@ -701,5 +705,140 @@ func (handler ConfigMapRestHandlerImpl) ConfigSecretBulkPatch(w http.ResponseWri
 			return
 		}
 	}
+	common.WriteJsonResp(w, err, true, http.StatusOK)
+}
+
+func (handler ConfigMapRestHandlerImpl) CreateJobEnvironmentOverride(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	//AUTH - check from casbin db
+	roles, err := handler.userAuthService.CheckUserRoles(userId)
+	if err != nil {
+		common.WriteJsonResp(w, err, []byte("Failed to get user by id"), http.StatusInternalServerError)
+		return
+	}
+	superAdmin := false
+	for _, item := range roles {
+		if item == bean.SUPERADMIN {
+			superAdmin = true
+		}
+	}
+	if superAdmin == false {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		return
+	}
+	//AUTH
+
+	var bulkPatchRequest pipeline.CreateJobEnvOverridePayload
+	err = decoder.Decode(&bulkPatchRequest)
+	if err != nil {
+		handler.Logger.Errorw("request err, CreateJobEnvironmentOverride", "err", err, "payload", bulkPatchRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	bulkPatchRequest.UserId = userId
+	handler.Logger.Infow("request payload, CreateJobEnvironmentOverride", "payload", bulkPatchRequest)
+	_, err = handler.configMapService.ConfigSecretEnvironmentCreate(&bulkPatchRequest)
+	if err != nil {
+		handler.Logger.Errorw("service err, CreateJobEnvironmentOverride", "err", err, "payload", bulkPatchRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, err, true, http.StatusOK)
+}
+
+func (handler ConfigMapRestHandlerImpl) DeleteJobEnvironmentOverride(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	//AUTH - check from casbin db
+	roles, err := handler.userAuthService.CheckUserRoles(userId)
+	if err != nil {
+		common.WriteJsonResp(w, err, []byte("Failed to get user by id"), http.StatusInternalServerError)
+		return
+	}
+	superAdmin := false
+	for _, item := range roles {
+		if item == bean.SUPERADMIN {
+			superAdmin = true
+		}
+	}
+	if superAdmin == false {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		return
+	}
+	//AUTH
+
+	var bulkPatchRequest pipeline.CreateJobEnvOverridePayload
+	err = decoder.Decode(&bulkPatchRequest)
+	if err != nil {
+		handler.Logger.Errorw("request err, DeleteJobEnvironmentOverride", "err", err, "payload", bulkPatchRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	bulkPatchRequest.UserId = userId
+	handler.Logger.Infow("request payload, DeleteJobEnvironmentOverride", "payload", bulkPatchRequest)
+	_, err = handler.configMapService.ConfigSecretEnvironmentCreate(&bulkPatchRequest)
+	if err != nil {
+		handler.Logger.Errorw("service err, DeleteJobEnvironmentOverride", "err", err, "payload", bulkPatchRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, err, true, http.StatusOK)
+}
+func (handler ConfigMapRestHandlerImpl) GetJobEnvironmentOverrides(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	appId, err := strconv.Atoi(vars["appId"])
+	if err != nil {
+		handler.Logger.Errorw("request err, CSEnvironmentFetchForEdit", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	//AUTH - check from casbin db
+	roles, err := handler.userAuthService.CheckUserRoles(userId)
+	if err != nil {
+		common.WriteJsonResp(w, err, []byte("Failed to get user by id"), http.StatusInternalServerError)
+		return
+	}
+	superAdmin := false
+	for _, item := range roles {
+		if item == bean.SUPERADMIN {
+			superAdmin = true
+		}
+	}
+	if superAdmin == false {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		return
+	}
+	//AUTH
+	if err != nil {
+		handler.Logger.Errorw("request err, DeleteJobEnvironmentOverride", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	handler.Logger.Infow("request payload, DeleteJobEnvironmentOverride", "appId", appId)
+	_, err = handler.configMapService.ConfigSecretEnvironmentGet(appId)
+	if err != nil {
+		handler.Logger.Errorw("service err, DeleteJobEnvironmentOverride", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
 	common.WriteJsonResp(w, err, true, http.StatusOK)
 }

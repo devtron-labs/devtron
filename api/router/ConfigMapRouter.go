@@ -35,6 +35,7 @@ func NewConfigMapRouterImpl(restHandler restHandler.ConfigMapRestHandler) *Confi
 }
 
 func (router ConfigMapRouterImpl) initConfigMapRouter(configRouter *mux.Router) {
+
 	configRouter.Path("/global/cm").
 		HandlerFunc(router.restHandler.CMGlobalAddUpdate).Methods("POST")
 	configRouter.Path("/environment/cm").
@@ -76,5 +77,11 @@ func (router ConfigMapRouterImpl) initConfigMapRouter(configRouter *mux.Router) 
 		HandlerFunc(router.restHandler.CSEnvironmentFetchForEdit).Methods("GET")
 
 	configRouter.Path("/bulk/patch").HandlerFunc(router.restHandler.ConfigSecretBulkPatch).Methods("POST")
+	configRouter.Path("/environment").
+		HandlerFunc(router.restHandler.CreateJobEnvironmentOverride).Methods("POST")
+	configRouter.Path("/environment").
+		HandlerFunc(router.restHandler.DeleteJobEnvironmentOverride).Methods("DELETE")
+	configRouter.Path("/environment/{appId}").
+		HandlerFunc(router.restHandler.GetJobEnvironmentOverrides).Methods("GET")
 
 }
