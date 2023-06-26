@@ -76,7 +76,7 @@ type EnvironmentRepository interface {
 	FindByClusterIdsWithFilter(clusterIds []int) ([]*Environment, error)
 	FindAllActiveWithFilter() ([]*Environment, error)
 	FindEnvClusterInfosByIds([]int) ([]*EnvCluserInfo, error)
-	FindEnvLinkedWithCiPipelines(ciPipelineIds []int) ([]*Environment, error)
+	FindEnvLinkedWithCiPipelines(externalCi bool, ciPipelineIds []int) ([]*Environment, error)
 }
 
 func NewEnvironmentRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger, appStatusRepository appStatus.AppStatusRepository) *EnvironmentRepositoryImpl {
@@ -343,13 +343,18 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindAllActiveWithFilter() ([]*En
 	return mappings, err
 }
 
-func (repositoryImpl EnvironmentRepositoryImpl) FindEnvLinkedWithCiPipelines(ciPipelineIds []int) ([]*Environment, error) {
+func (repositoryImpl EnvironmentRepositoryImpl) FindEnvLinkedWithCiPipelines(externalCi bool, ciPipelineIds []int) ([]*Environment, error) {
 	var mappings []*Environment
+	componentType := "CI_PIPELINE"
+	if externalCi {
+		componentType = "WEBHOOK"
+	}
 	query := "SELECT env.* " +
 		" FROM environment env " +
 		" INNER JOIN pipeline ON pipeline.environment_id=env.id and env.active = true " +
 		" INNER JOIN app_workflow_mapping apf ON component_id=pipeline.id AND type='CD_PIPELINE' AND apf.active=true " +
-		" WHERE apf.app_workflow_id IN (SELECT apf2.app_workflow_id FROM app_workflow_mapping apf2 WHERE component_id IN (?) AND type='CI_PIPELINE');"
+		" WHERE apf.app_workflow_id IN (SELECT apf2.app_workflow_id FROM app_workflow_mapping apf2 WHERE component_id IN (?) AND type='%s');"
+	query = fmt.Sprintf(query, componentType)
 	_, err := repositoryImpl.dbConnection.Query(&mappings, query, pg.In(ciPipelineIds))
 	return mappings, err
 }

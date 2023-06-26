@@ -45,6 +45,7 @@ func TestImageTaggingService(t *testing.T) {
 			Comment:    "hello devtron!",
 			ArtifactId: artifactId,
 		},
+		ExternalCi: false,
 	}
 
 	initRepos := func() (ImageTaggingService, *mocks.ImageTaggingRepository, *mocks2.CiPipelineRepository, *mocks2.PipelineRepository, *mocks3.EnvironmentRepository) {
@@ -71,7 +72,7 @@ func TestImageTaggingService(t *testing.T) {
 		mockedImageTaggingRepo.On("GetTagsByAppId", appId).Return(append(testPayload.SoftDeleteTags, testPayload.CreateTags...), nil)
 		mockedImageTaggingRepo.On("GetTagsByArtifactId", artifactId).Return(append(testPayload.SoftDeleteTags, testPayload.CreateTags...), nil)
 		mockedCiPipelineRepo.On("FindByParentCiPipelineId", ciPipelineId).Return([]*pipelineConfig.CiPipeline{}, nil)
-		mockedEnvironmentRepo.On("FindEnvLinkedWithCiPipelines", []int{ciPipelineId}).Return(nil, nil)
+		mockedEnvironmentRepo.On("FindEnvLinkedWithCiPipelines", testPayload.ExternalCi, []int{ciPipelineId}).Return(nil, nil)
 		mockedImageTaggingRepo.On("StartTx").Return(&pg.Tx{}, nil)
 		mockedImageTaggingRepo.On("RollbackTx", &pg.Tx{}).Return(nil)
 		mockedImageTaggingRepo.On("CommitTx", &pg.Tx{}).Return(nil)
@@ -287,7 +288,7 @@ func TestImageTaggingService(t *testing.T) {
 		//testCiPipelinesResponse := []bean.CiPipeline
 		mockedCdPipelineRepo.On("FindById", testPipelineId).Return(testPipeline, nil)
 		mockedCiPipelineRepo.On("FindByParentCiPipelineId", testCiPipelineId).Return(testCipipelinesResp, nil)
-		mockedEnvRepo.On("FindEnvLinkedWithCiPipelines", testCipipelineIds).Return(nil, errors.New(testError))
+		mockedEnvRepo.On("FindEnvLinkedWithCiPipelines", false, testCipipelineIds).Return(nil, errors.New(testError))
 
 		imageTaggingService := NewImageTaggingServiceImpl(nil, mockedCiPipelineRepo, mockedCdPipelineRepo, mockedEnvRepo, sugaredLogger)
 		res, err := imageTaggingService.GetProdEnvByCdPipelineId(testPipelineId)
@@ -340,7 +341,7 @@ func TestImageTaggingService(t *testing.T) {
 		//mock functions
 		mockedCdPipelineRepo.On("FindById", testPipelineId).Return(testPipeline, nil)
 		mockedCiPipelineRepo.On("FindByParentCiPipelineId", testCiPipelineId).Return(testCipipelinesResp, nil)
-		mockedEnvRepo.On("FindEnvLinkedWithCiPipelines", testCipipelineIds).Return(testEnvs, nil)
+		mockedEnvRepo.On("FindEnvLinkedWithCiPipelines", false, testCipipelineIds).Return(testEnvs, nil)
 
 		//test the service
 		imageTaggingService := NewImageTaggingServiceImpl(nil, mockedCiPipelineRepo, mockedCdPipelineRepo, mockedEnvRepo, sugaredLogger)
@@ -395,7 +396,7 @@ func TestImageTaggingService(t *testing.T) {
 		}
 		mockedCdPipelineRepo.On("FindById", testPipelineId).Return(testPipeline, nil)
 		mockedCiPipelineRepo.On("FindByParentCiPipelineId", testCiPipelineId).Return(testCipipelinesResp, nil)
-		mockedEnvRepo.On("FindEnvLinkedWithCiPipelines", testCipipelineIds).Return(testEnvs, nil)
+		mockedEnvRepo.On("FindEnvLinkedWithCiPipelines", false, testCipipelineIds).Return(testEnvs, nil)
 		imageTaggingService := NewImageTaggingServiceImpl(nil, mockedCiPipelineRepo, mockedCdPipelineRepo, mockedEnvRepo, sugaredLogger)
 		res, err := imageTaggingService.GetProdEnvByCdPipelineId(testPipelineId)
 		assert.Equal(tt, true, res)

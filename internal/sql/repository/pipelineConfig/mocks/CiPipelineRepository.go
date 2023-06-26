@@ -580,6 +580,52 @@ func (_m *CiPipelineRepository) FindWithMinDataByCiPipelineId(id int) (*pipeline
 	return r0, r1
 }
 
+// GetCiPipelineByArtifactId provides a mock function with given fields: artifactId
+func (_m *CiPipelineRepository) GetCiPipelineByArtifactId(artifactId int) (*pipelineConfig.CiPipeline, error) {
+	ret := _m.Called(artifactId)
+
+	var r0 *pipelineConfig.CiPipeline
+	if rf, ok := ret.Get(0).(func(int) *pipelineConfig.CiPipeline); ok {
+		r0 = rf(artifactId)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*pipelineConfig.CiPipeline)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(int) error); ok {
+		r1 = rf(artifactId)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetExternalCiPipelineByArtifactId provides a mock function with given fields: artifactId
+func (_m *CiPipelineRepository) GetExternalCiPipelineByArtifactId(artifactId int) (*pipelineConfig.ExternalCiPipeline, error) {
+	ret := _m.Called(artifactId)
+
+	var r0 *pipelineConfig.ExternalCiPipeline
+	if rf, ok := ret.Get(0).(func(int) *pipelineConfig.ExternalCiPipeline); ok {
+		r0 = rf(artifactId)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*pipelineConfig.ExternalCiPipeline)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(int) error); ok {
+		r1 = rf(artifactId)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // MarkCiPipelineScriptsInactiveByCiPipelineId provides a mock function with given fields: ciPipelineId, tx
 func (_m *CiPipelineRepository) MarkCiPipelineScriptsInactiveByCiPipelineId(ciPipelineId int, tx *pg.Tx) error {
 	ret := _m.Called(ciPipelineId, tx)

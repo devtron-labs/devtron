@@ -419,13 +419,13 @@ func (_m *EnvironmentRepository) FindEnvClusterInfosByIds(_a0 []int) ([]*reposit
 	return r0, r1
 }
 
-// FindEnvLinkedWithCiPipelines provides a mock function with given fields: ciPipelineIds
-func (_m *EnvironmentRepository) FindEnvLinkedWithCiPipelines(ciPipelineIds []int) ([]*repository.Environment, error) {
-	ret := _m.Called(ciPipelineIds)
+// FindEnvLinkedWithCiPipelines provides a mock function with given fields: externalCi, ciPipelineIds
+func (_m *EnvironmentRepository) FindEnvLinkedWithCiPipelines(externalCi bool, ciPipelineIds []int) ([]*repository.Environment, error) {
+	ret := _m.Called(externalCi, ciPipelineIds)
 
 	var r0 []*repository.Environment
-	if rf, ok := ret.Get(0).(func([]int) []*repository.Environment); ok {
-		r0 = rf(ciPipelineIds)
+	if rf, ok := ret.Get(0).(func(bool, []int) []*repository.Environment); ok {
+		r0 = rf(externalCi, ciPipelineIds)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*repository.Environment)
@@ -433,8 +433,8 @@ func (_m *EnvironmentRepository) FindEnvLinkedWithCiPipelines(ciPipelineIds []in
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func([]int) error); ok {
-		r1 = rf(ciPipelineIds)
+	if rf, ok := ret.Get(1).(func(bool, []int) error); ok {
+		r1 = rf(externalCi, ciPipelineIds)
 	} else {
 		r1 = ret.Error(1)
 	}

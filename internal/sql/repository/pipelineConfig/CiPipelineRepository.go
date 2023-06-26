@@ -106,6 +106,7 @@ type CiPipelineRepository interface {
 	FindWithMinDataByCiPipelineId(id int) (pipeline *CiPipeline, err error)
 	FindAppIdsForCiPipelineIds(pipelineIds []int) (map[int]int, error)
 	GetCiPipelineByArtifactId(artifactId int) (*CiPipeline, error)
+	GetExternalCiPipelineByArtifactId(artifactId int) (*ExternalCiPipeline, error)
 }
 type CiPipelineRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -483,5 +484,14 @@ func (impl CiPipelineRepositoryImpl) GetCiPipelineByArtifactId(artifactId int) (
 		Where("ci_pipeline.deleted=?", false).
 		Where("cia.id = ?", artifactId).
 		Select()
+	return ciPipeline, err
+}
+func (impl CiPipelineRepositoryImpl) GetExternalCiPipelineByArtifactId(artifactId int) (*ExternalCiPipeline, error) {
+	ciPipeline := &ExternalCiPipeline{}
+	query := "SELECT ecp.* " +
+		" FROM external_ci_pipeline ecp " +
+		" INNER JOIN ci_artifact cia ON cia.external_ci_pipeline_id=ecp.id " +
+		" WHERE ecp.active=true AND cia.id=?"
+	_, err := impl.dbConnection.Query(ciPipeline, query, artifactId)
 	return ciPipeline, err
 }

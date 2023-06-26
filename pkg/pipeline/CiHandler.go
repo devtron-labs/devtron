@@ -1282,7 +1282,7 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 			ciMaterialsArr = append(ciMaterialsArr, res)
 		}
 	}
-	imageTaggingData, err := impl.imageTaggingService.GetTagsData(ciPipeline.Id, ciPipeline.AppId, ciArtifactId)
+	imageTaggingData, err := impl.imageTaggingService.GetTagsData(ciPipeline.Id, ciPipeline.AppId, ciArtifactId, false)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching imageTaggingData", "err", err, "ciPipelineId", ciPipeline.Id, "appId", ciPipeline.AppId, "ciArtifactId", ciArtifactId)
 		return &GitTriggerInfoResponse{}, err
