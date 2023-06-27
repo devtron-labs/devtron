@@ -21,6 +21,7 @@ type ManifestPushConfig struct {
 
 type ManifestPushConfigRepository interface {
 	SaveConfig(manifestPushConfig *ManifestPushConfig) (*ManifestPushConfig, error)
+	GetConfigByAppIdAndEnvId(appId, envId int) (*ManifestPushConfig, error)
 }
 
 type ManifestPushConfigRepositoryImpl struct {
@@ -43,4 +44,16 @@ func (impl ManifestPushConfigRepositoryImpl) SaveConfig(manifestPushConfig *Mani
 		return manifestPushConfig, err
 	}
 	return manifestPushConfig, err
+}
+
+func (impl ManifestPushConfigRepositoryImpl) GetManifestPushConfigByAppIdAndEnvId(appId, envId int) (*ManifestPushConfig, error) {
+	var manifestPushConfig *ManifestPushConfig
+	err := impl.dbConnection.Model(manifestPushConfig).
+		Where("app_id = ? ", appId).
+		Where("env_id = ? ", envId).
+		Select()
+	if err != nil {
+		return manifestPushConfig, err
+	}
+	return manifestPushConfig, nil
 }
