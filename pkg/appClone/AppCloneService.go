@@ -250,6 +250,7 @@ func (impl *AppCloneServiceImpl) CloneGitRepo(oldAppId, newAppId int, userId int
 			Id:            0,
 			GitProviderId: material.GitProviderId,
 			CheckoutPath:  material.CheckoutPath,
+			FilterPattern: material.FilterPattern,
 		}
 		createMaterial.Material = []*bean.GitMaterial{gitMaterial} // append(createMaterial.Material, gitMaterial)
 		createMaterialres, err := impl.pipelineBuilder.CreateMaterialsForApp(createMaterial)
