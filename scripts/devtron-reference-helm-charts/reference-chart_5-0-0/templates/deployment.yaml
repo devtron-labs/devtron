@@ -495,6 +495,10 @@ spec:
       activeService: {{ template ".servicename" . }} # Reference to a service that serves end-user traffic to the replica set
     {{- else if eq .Values.deploymentType "CANARY" }}
     canary:
+      {{- if .Values.deployment.strategy.canary.analysis }}
+      analysis:
+{{ toYaml .Values.deployment.strategy.canary.analysis | indent 8 }}
+      {{- end }}
       stableService: {{ template ".servicename" . }} # Reference to a service that serves end-user traffic to the replica set
       {{- if .Values.deployment.strategy.canary.canaryService }}
       canaryService: {{ $.Values.deployment.strategy.canary.canaryService }}

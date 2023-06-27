@@ -153,6 +153,13 @@ deployment:
       maxSurge: "25%"
       maxUnavailable: 1
     canary:
+      analysis:
+        templates:
+        - templateName: success-rate
+        startingStep: 2 # delay starting analysis run until setWeight: 40%
+        args:
+        - name: service-name
+          value: guestbook-svc.default.svc.cluster.local
       maxSurge: "25%"
       maxUnavailable: 1
       # stableService: pro-rollout-manual-service
@@ -182,7 +189,8 @@ analysisTemplate:
     annotations: {}
     labels: {}
     args:
-    - service-name
+    - name: service-name
+      value: example-svc.default.svc.cluster.local
     measurementRetention: 
     - limit: 34
       metricName: test
