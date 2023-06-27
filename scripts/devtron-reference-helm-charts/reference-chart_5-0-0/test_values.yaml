@@ -176,7 +176,7 @@ deployment:
             duration: 15 # 1 min
     recreate: {}
 
-pipelineName: ci-axhbc5
+pipelineName: ci-axhbc
 
 appLabels:
   hello: hii
