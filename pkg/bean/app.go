@@ -823,7 +823,6 @@ const (
 	ManifestStorageGit         ManifestStorage = "git"
 	ManifestStorageOCIHelmRepo ManifestStorage = "helm_repo"
 )
-
 func IsGitStorage(storageType string) bool {
 	return storageType == ManifestStorageGit
 }

@@ -9,8 +9,8 @@ import (
 type ManifestPushConfig struct {
 	tableName         struct{} `sql:"manifest_push_config" pg:",discard_unknown_columns"`
 	Id                int      `sql:"id,pk"`
-	AppId             int      `sql:"appId"`
-	EnvId             int      `sql:"envId"`
+	AppId             int      `sql:"app_id"`
+	EnvId             int      `sql:"env_id"`
 	CredentialsConfig string   `sql:"credentials_config"`
 	ChartName         string   `sql:"chart_name"`
 	ChartBaseVersion  string   `sql:"chart_base_version"`

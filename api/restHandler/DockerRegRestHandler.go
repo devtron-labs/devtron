@@ -19,9 +19,12 @@ package restHandler
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	repository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"k8s.io/utils/strings/slices"
 	"net/http"
 	"strings"
 
@@ -79,6 +82,16 @@ func NewDockerRegRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistryCon
 	}
 }
 
+func ValidateDockerArtifactStoreRequestBean(bean pipeline.DockerArtifactStoreBean) bool {
+	containerStorageActionType, containerStorageActionExists := bean.OCIRegistryConfig[repository.OCI_REGISRTY_REPO_TYPE_CONTAINER]
+	if (bean.Connection == secureWithCert && bean.Cert == "") ||
+		(bean.Connection != secureWithCert && bean.Cert != "") ||
+		(bean.IsOCICompliantRegistry && containerStorageActionExists && containerStorageActionType != repository.STORAGE_ACTION_TYPE_PULL_AND_PUSH) {
+		return false
+	}
+	return true
+}
+
 func (impl DockerRegRestHandlerImpl) SaveDockerRegistryConfig(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
@@ -94,7 +107,9 @@ func (impl DockerRegRestHandlerImpl) SaveDockerRegistryConfig(w http.ResponseWri
 		return
 	}
 	bean.User = userId
-	if (bean.Connection == secureWithCert && bean.Cert == "") || (bean.Connection != secureWithCert && bean.Cert != "") {
+	if ValidateDockerArtifactStoreRequestBean(bean) {
+		err = fmt.Errorf("invalid payload, missing or incorrect values for required fields")
+		impl.logger.Errorw("validation err, SaveDockerRegistryConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	} else {
@@ -222,7 +237,9 @@ func (impl DockerRegRestHandlerImpl) UpdateDockerRegistryConfig(w http.ResponseW
 		return
 	}
 	bean.User = userId
-	if (bean.Connection == secureWithCert && bean.Cert == "") || (bean.Connection != secureWithCert && bean.Cert != "") {
+	if ValidateDockerArtifactStoreRequestBean(bean) {
+		err = fmt.Errorf("invalid payload, missing or incorrect values for required fields")
+		impl.logger.Errorw("validation err, SaveDockerRegistryConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	} else {
@@ -267,15 +284,36 @@ func (impl DockerRegRestHandlerImpl) FetchAllDockerRegistryForAutocomplete(w htt
 }
 
 func (impl DockerRegRestHandlerImpl) IsDockerRegConfigured(w http.ResponseWriter, r *http.Request) {
+	v := r.URL.Query()
+	storageType := v.Get("storageType")
+	if storageType == "" {
+		storageType = repository.OCI_REGISRTY_REPO_TYPE_CONTAINER
+	}
+	if !slices.Contains(repository.OCI_REGISRTY_REPO_TYPE_LIST, storageType) {
+		common.WriteJsonResp(w, fmt.Errorf("invalid query parameters"), nil, http.StatusBadRequest)
+		return
+	}
+	storageAction := v.Get("storageAction")
+	if storageAction == "" {
+		storageAction = repository.STORAGE_ACTION_TYPE_PUSH
+	}
+	if !(storageAction == repository.STORAGE_ACTION_TYPE_PULL || storageAction == repository.STORAGE_ACTION_TYPE_PUSH) {
+		common.WriteJsonResp(w, fmt.Errorf("invalid query parameters"), nil, http.StatusBadRequest)
+		return
+	}
 	isConfigured := false
-	res, err := impl.dockerRegistryConfig.ListAllActive()
+	registryConfigs, err := impl.dockerRegistryConfig.ListAllActive()
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("service err, IsDockerRegConfigured", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	if len(res) > 0 {
-		isConfigured = true
+	if len(registryConfigs) > 0 {
+		// Filter out all registries with CONTAINER push or pull/push access
+		res := impl.dockerRegistryConfig.FilterRegistryBeanListBasedOnStorageTypeAndAction(registryConfigs, storageType, storageAction, repository.STORAGE_ACTION_TYPE_PULL_AND_PUSH)
+		if len(res) > 0 {
+			isConfigured = true
+		}
 	}
 
 	common.WriteJsonResp(w, err, isConfigured, http.StatusOK)

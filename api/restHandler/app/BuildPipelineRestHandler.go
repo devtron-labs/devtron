@@ -9,6 +9,7 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/util"
 	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
@@ -85,6 +86,14 @@ func (handler PipelineConfigRestHandlerImpl) CreateCiConfig(w http.ResponseWrite
 	handler.Logger.Infow("request payload, create ci config", "create request", createRequest)
 	err = handler.validator.Struct(createRequest)
 	if err != nil {
+		handler.Logger.Errorw("validation err, create ci config", "err", err, "create request", createRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	// validates if the dockerRegistry can store CONTAINER
+	isValid := handler.dockerRegistryConfig.ValidateRegistryStorageType(createRequest.DockerRegistry, dockerRegistryRepository.OCI_REGISRTY_REPO_TYPE_CONTAINER, dockerRegistryRepository.STORAGE_ACTION_TYPE_PUSH, dockerRegistryRepository.STORAGE_ACTION_TYPE_PULL_AND_PUSH)
+	if !isValid {
+		err = fmt.Errorf("invalid registry type")
 		handler.Logger.Errorw("validation err, create ci config", "err", err, "create request", createRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
