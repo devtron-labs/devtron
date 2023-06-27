@@ -19,6 +19,7 @@ package repository
 
 import (
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/go-pg/pg/orm"
 	"net/url"
 
 	"github.com/go-pg/pg"
@@ -127,6 +128,9 @@ func (impl DockerArtifactStoreRepositoryImpl) FindAllActiveForAutocomplete() ([]
 	err := impl.dbConnection.Model(&providers).
 		Column("docker_artifact_store.id", "registry_url", "registry_type", "is_default", "is_oci_compliant_registry", "OCIRegistryConfig").
 		Where("active = ?", true).
+		Relation("OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
+			return q.Where("deleted IS FALSE"), nil
+		}).
 		Select()
 
 	return providers, err
@@ -137,6 +141,9 @@ func (impl DockerArtifactStoreRepositoryImpl) FindAll() ([]DockerArtifactStore, 
 	err := impl.dbConnection.Model(&providers).
 		Column("docker_artifact_store.*", "IpsConfig", "OCIRegistryConfig").
 		Where("active = ?", true).
+		Relation("OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
+			return q.Where("deleted IS FALSE"), nil
+		}).
 		Select()
 	return providers, err
 }
@@ -147,6 +154,9 @@ func (impl DockerArtifactStoreRepositoryImpl) FindOne(storeId string) (*DockerAr
 		Column("docker_artifact_store.*", "IpsConfig", "OCIRegistryConfig").
 		Where("docker_artifact_store.id = ?", storeId).
 		Where("active = ?", true).
+		Relation("OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
+			return q.Where("deleted IS FALSE"), nil
+		}).
 		Select()
 	return &provider, err
 }
@@ -157,6 +167,9 @@ func (impl DockerArtifactStoreRepositoryImpl) FindOneInactive(storeId string) (*
 		Column("docker_artifact_store.*", "IpsConfig", "OCIRegistryConfig").
 		Where("docker_artifact_store.id = ?", storeId).
 		Where("active = ?", false).
+		Relation("OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
+			return q.Where("deleted IS FALSE"), nil
+		}).
 		Select()
 	return &provider, err
 }
