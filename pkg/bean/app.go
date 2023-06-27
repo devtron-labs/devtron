@@ -516,9 +516,9 @@ type CDPipelineConfigObject struct {
 	HelmPackageName               string                                 `json:"helmPackageName"`
 	ChartName                     string                                 `json:"chartName"`
 	ChartBaseVersion              string                                 `json:"chartBaseVersion"`
-	ContainerRegistryId           int                                    `json:"containerRegistryId"`
-	RepoUrl                       string                                 `json:"repoUrl"`
-	ManifestStorageType           []string
+	ContainerRegistryName         string                                 `json:"containerRegistryName"`
+	RepoName                      string                                 `json:"repoName"`
+	ManifestStorageType           string                                 `json:"manifestStorageType"`
 }
 
 type PreStageConfigMapSecretNames struct {
@@ -820,7 +820,8 @@ type ExampleValueDto struct {
 type ManifestStorage = string
 
 const (
-	ManifestStorageGit ManifestStorage = "git"
+	ManifestStorageGit         ManifestStorage = "git"
+	ManifestStorageOCIHelmRepo ManifestStorage = "helm_repo"
 )
 
 func IsGitStorage(storageType string) bool {

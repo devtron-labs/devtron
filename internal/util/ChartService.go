@@ -52,6 +52,7 @@ type ChartWorkingDir string
 const PIPELINE_DEPLOYMENT_TYPE_ACD string = "argo_cd"
 const PIPELINE_DEPLOYMENT_TYPE_HELM string = "helm"
 const PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD string = "manifest_download"
+const PIPELINE_DEPLOYMENT_TYPE_MANIFEST_PUSH string = "manifest_push"
 
 type ChartCreateRequest struct {
 	ChartMetaData       *chart.Metadata
@@ -803,4 +804,8 @@ func IsAcdApp(deploymentAppType string) bool {
 
 func IsManifestDownload(deploymentAppType string) bool {
 	return deploymentAppType == PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD
+}
+
+func IsManifestPush(deploymentAppType string) bool {
+	return deploymentAppType == PIPELINE_DEPLOYMENT_TYPE_MANIFEST_PUSH
 }

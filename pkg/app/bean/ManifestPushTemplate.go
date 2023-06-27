@@ -28,8 +28,8 @@ type ManifestPushResponse struct {
 }
 
 type HelmRepositoryConfig struct {
-	repositoryName        string
-	containerRegistryName string
+	RepositoryName        string
+	ContainerRegistryName string
 }
 
 type GitRepositoryConfig struct {

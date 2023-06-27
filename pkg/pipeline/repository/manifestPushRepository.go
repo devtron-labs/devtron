@@ -11,7 +11,7 @@ type ManifestPushConfig struct {
 	Id                int      `sql:"id,pk"`
 	AppId             int      `sql:"appId"`
 	EnvId             int      `sql:"envId"`
-	credentialsConfig string   `sql:"credentials_config"`
+	CredentialsConfig string   `sql:"credentials_config"`
 	ChartName         string   `sql:"chart_name"`
 	ChartBaseVersion  string   `sql:"chart_base_version"`
 	StorageType       string   `sql:"storage_type"`

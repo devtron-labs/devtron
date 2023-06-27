@@ -27,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
+	bean4 "github.com/devtron-labs/devtron/pkg/app/bean"
 	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
@@ -36,6 +37,7 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
+	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
@@ -215,6 +217,7 @@ type PipelineBuilderImpl struct {
 	appGroupService                                 appGroup2.AppGroupService
 	globalPolicyService                             globalPolicy.GlobalPolicyService
 	chartDeploymentService                          util.ChartDeploymentService
+	manifestPushConfigRepository                    repository3.ManifestPushConfigRepository
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -267,7 +270,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	appGroupService appGroup2.AppGroupService,
 	chartDeploymentService util.ChartDeploymentService,
-	globalPolicyService globalPolicy.GlobalPolicyService) *PipelineBuilderImpl {
+	globalPolicyService globalPolicy.GlobalPolicyService,
+	manifestPushConfigRepository repository3.ManifestPushConfigRepository) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                        logger,
 		ciCdPipelineOrchestrator:      ciCdPipelineOrchestrator,
@@ -328,6 +332,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		appGroupService:                                 appGroupService,
 		globalPolicyService:                             globalPolicyService,
 		chartDeploymentService:                          chartDeploymentService,
+		manifestPushConfigRepository:                    manifestPushConfigRepository,
 	}
 }
 
@@ -3135,6 +3140,38 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 			return 0, err
 		}
 
+	}
+	if util.IsManifestPush(pipeline.DeploymentAppType) {
+		if pipeline.ManifestStorageType == bean.ManifestStorageGit {
+			//implement
+		} else if pipeline.ManifestStorageType == bean.ManifestStorageOCIHelmRepo {
+
+			helmRepositoryConfig := bean4.HelmRepositoryConfig{
+				RepositoryName:        pipeline.RepoName,
+				ContainerRegistryName: pipeline.ContainerRegistryName,
+			}
+			helmRepositoryConfigBytes, err := json.Marshal(helmRepositoryConfig)
+			if err != nil {
+				impl.logger.Errorw("error in marshaling helm registry config", "err", err)
+				return 0, err
+			}
+			manifestPushConfig := &repository3.ManifestPushConfig{
+				AppId:             app.Id,
+				EnvId:             pipeline.EnvironmentId,
+				CredentialsConfig: string(helmRepositoryConfigBytes),
+				ChartName:         pipeline.ChartName,
+				ChartBaseVersion:  pipeline.ChartBaseVersion,
+				StorageType:       bean.ManifestStorageOCIHelmRepo,
+				Deleted:           false,
+
+				AuditLog: sql.AuditLog{},
+			}
+			manifestPushConfig, err = impl.manifestPushConfigRepository.SaveConfig(manifestPushConfig)
+			if err != nil {
+				impl.logger.Errorw("error in saving config for oci helm repo", "err", err)
+				return 0, err
+			}
+		}
 	}
 
 	err = tx.Commit()
