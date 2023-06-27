@@ -36,7 +36,8 @@ func TestPipelineBuilderImpl_validateDeploymentAppType(t *testing.T) {
 		attributesRepoMock.On("FindByKey", mock.Anything).Return(mockDeploymentConfigConfig, mockError)
 
 		err := impl.validateDeploymentAppType(pipeline)
-		assert.Nil(t, err)
+		apiErr, _ := err.(*util.ApiError)
+		assert.Equal(t, http.StatusInternalServerError, apiErr.HttpStatusCode)
 	})
 
 	t.Run("AllDeploymentConfigTrue", func(t *testing.T) {
