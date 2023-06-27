@@ -41,6 +41,7 @@ type ApplicationServiceClient interface {
 	InstallReleaseWithCustomChart(ctx context.Context, in *HelmInstallCustomRequest, opts ...grpc.CallOption) (*HelmInstallCustomResponse, error)
 	GetNotes(ctx context.Context, in *InstallReleaseRequest, opts ...grpc.CallOption) (*ChartNotesResponse, error)
 	ValidateOCIRegistry(ctx context.Context, in *OCIRegistryRequest, opts ...grpc.CallOption) (*OCIRegistryResponse, error)
+	PushHelmChartToOCIRegistry(ctx context.Context, in *OCIRegistryRequest, opts ...grpc.CallOption) (*OCIRegistryResponse, error)
 }
 
 type applicationServiceClient struct {
@@ -245,6 +246,15 @@ func (c *applicationServiceClient) ValidateOCIRegistry(ctx context.Context, in *
 	return out, nil
 }
 
+func (c *applicationServiceClient) PushHelmChartToOCIRegistry(ctx context.Context, in *OCIRegistryRequest, opts ...grpc.CallOption) (*OCIRegistryResponse, error) {
+	out := new(OCIRegistryResponse)
+	err := c.cc.Invoke(ctx, "/ApplicationService/PushHelmChartToOCIRegistry", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ApplicationServiceServer is the server API for ApplicationService service.
 // All implementations must embed UnimplementedApplicationServiceServer
 // for forward compatibility
@@ -268,6 +278,7 @@ type ApplicationServiceServer interface {
 	InstallReleaseWithCustomChart(context.Context, *HelmInstallCustomRequest) (*HelmInstallCustomResponse, error)
 	GetNotes(context.Context, *InstallReleaseRequest) (*ChartNotesResponse, error)
 	ValidateOCIRegistry(context.Context, *OCIRegistryRequest) (*OCIRegistryResponse, error)
+	PushHelmChartToOCIRegistry(context.Context, *OCIRegistryRequest) (*OCIRegistryResponse, error)
 	mustEmbedUnimplementedApplicationServiceServer()
 }
 
@@ -331,6 +342,9 @@ func (UnimplementedApplicationServiceServer) GetNotes(context.Context, *InstallR
 }
 func (UnimplementedApplicationServiceServer) ValidateOCIRegistry(context.Context, *OCIRegistryRequest) (*OCIRegistryResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ValidateOCIRegistry not implemented")
+}
+func (UnimplementedApplicationServiceServer) PushHelmChartToOCIRegistry(context.Context, *OCIRegistryRequest) (*OCIRegistryResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PushHelmChartToOCIRegistry not implemented")
 }
 func (UnimplementedApplicationServiceServer) mustEmbedUnimplementedApplicationServiceServer() {}
 
@@ -690,6 +704,24 @@ func _ApplicationService_ValidateOCIRegistry_Handler(srv interface{}, ctx contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ApplicationService_PushHelmChartToOCIRegistry_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(OCIRegistryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ApplicationServiceServer).PushHelmChartToOCIRegistry(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/ApplicationService/PushHelmChartToOCIRegistry",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ApplicationServiceServer).PushHelmChartToOCIRegistry(ctx, req.(*OCIRegistryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ApplicationService_ServiceDesc is the grpc.ServiceDesc for ApplicationService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -768,6 +800,10 @@ var ApplicationService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ValidateOCIRegistry",
 			Handler:    _ApplicationService_ValidateOCIRegistry_Handler,
+		},
+		{
+			MethodName: "PushHelmChartToOCIRegistry",
+			Handler:    _ApplicationService_PushHelmChartToOCIRegistry_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
