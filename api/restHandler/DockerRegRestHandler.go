@@ -83,10 +83,21 @@ func NewDockerRegRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistryCon
 }
 
 func ValidateDockerArtifactStoreRequestBean(bean pipeline.DockerArtifactStoreBean) bool {
-	containerStorageActionType, containerStorageActionExists := bean.OCIRegistryConfig[repository.OCI_REGISRTY_REPO_TYPE_CONTAINER]
+	// validating secure connection configs
 	if (bean.Connection == secureWithCert && bean.Cert == "") ||
-		(bean.Connection != secureWithCert && bean.Cert != "") ||
-		(bean.IsOCICompliantRegistry && containerStorageActionExists && containerStorageActionType != repository.STORAGE_ACTION_TYPE_PULL_AND_PUSH) {
+		(bean.Connection != secureWithCert && bean.Cert != "") {
+		return false
+	}
+	// validating OCI Registry configs
+	if bean.IsOCICompliantRegistry {
+		if bean.OCIRegistryConfig == nil {
+			return false
+		}
+		containerStorageActionType, containerStorageActionExists := bean.OCIRegistryConfig[repository.OCI_REGISRTY_REPO_TYPE_CONTAINER]
+		if containerStorageActionExists && containerStorageActionType != repository.STORAGE_ACTION_TYPE_PULL_AND_PUSH {
+			return false
+		}
+	} else if bean.OCIRegistryConfig != nil {
 		return false
 	}
 	return true

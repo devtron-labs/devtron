@@ -47,12 +47,6 @@ type DockerRegistryConfig interface {
 	ValidateRegistryStorageType(registryId string, storageType string, storageActions ...string) bool
 }
 
-const (
-	DOCKER_STORE ArtifactStoreType = iota
-	OCI_STORE
-	DOCKER_AND_OCI_STORE
-)
-
 type ArtifactStoreType int
 
 type DockerArtifactStoreBean struct {
@@ -280,6 +274,7 @@ func (impl DockerRegistryConfigImpl) ConfigureOCIRegistry(dockerRegistryId strin
 			if err != nil {
 				return err
 			}
+			delete(ociRegistryConfigBean, repositoryType)
 		default:
 			return fmt.Errorf("invalid repository action type for OCI registry configuration")
 		}
@@ -411,10 +406,7 @@ func (impl DockerRegistryConfigImpl) ListAllActiveContainers() ([]DockerArtifact
 	return storeBeans, err
 }
 
-/*
-*
-this method used for getting all the docker account details
-*/
+// FetchAllDockerAccounts method used for getting all registry accounts with complete details
 func (impl DockerRegistryConfigImpl) FetchAllDockerAccounts() ([]DockerArtifactStoreBean, error) {
 	impl.logger.Debug("list docker repo request")
 	stores, err := impl.dockerArtifactStoreRepository.FindAll()
@@ -509,10 +501,10 @@ func (impl DockerRegistryConfigImpl) Update(bean *DockerArtifactStoreBean) (*Doc
 	impl.logger.Debugw("docker registry update request", "request", bean)
 
 	// 1- find by id, if err - return error
-	existingStore, err0 := impl.dockerArtifactStoreRepository.FindOne(bean.Id)
-	if err0 != nil {
-		impl.logger.Errorw("no matching entry found of update ..", "err", err0)
-		return nil, err0
+	existingStore, err := impl.dockerArtifactStoreRepository.FindOne(bean.Id)
+	if err != nil {
+		impl.logger.Errorw("no matching entry found of update ..", "err", err)
+		return nil, err
 	}
 
 	// 2- initiate DB transaction

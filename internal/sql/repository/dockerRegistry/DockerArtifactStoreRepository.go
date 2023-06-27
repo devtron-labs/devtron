@@ -132,26 +132,6 @@ func (impl DockerArtifactStoreRepositoryImpl) FindAllActiveForAutocomplete() ([]
 	return providers, err
 }
 
-func (impl DockerArtifactStoreRepositoryImpl) FindAllActiveContainersForAutocomplete() ([]DockerArtifactStore, error) {
-	var providers []DockerArtifactStore
-	err := impl.dbConnection.Model(&providers).
-		Column("docker_artifact_store.id", "registry_url", "registry_type", "is_default", "OCIRegistryConfig").
-		Where("active = ?", true).
-		Where("is_oci_compliant_registry = ? or (oci_registry_config.repository_type = ? and (oci_registry_config.repository_action = ? or oci_registry_config.repository_action = ? ))", false, OCI_REGISRTY_REPO_TYPE_CONTAINER, STORAGE_ACTION_TYPE_PUSH, STORAGE_ACTION_TYPE_PULL_AND_PUSH).
-		Select()
-	return providers, err
-}
-
-func (impl DockerArtifactStoreRepositoryImpl) FindAllActiveChartsForAutocomplete() ([]DockerArtifactStore, error) {
-	var providers []DockerArtifactStore
-	err := impl.dbConnection.Model(&providers).
-		Column("docker_artifact_store.id", "registry_url", "registry_type", "is_default", "OCIRegistryConfig").
-		Where("active = ?", true).
-		Where("is_oci_compliant_registry = ? and (oci_registry_config.repository_type = ? and (oci_registry_config.repository_action = ? or oci_registry_config.repository_action = ? ))", true, OCI_REGISRTY_REPO_TYPE_CHART, STORAGE_ACTION_TYPE_PUSH, STORAGE_ACTION_TYPE_PULL_AND_PUSH).
-		Select()
-	return providers, err
-}
-
 func (impl DockerArtifactStoreRepositoryImpl) FindAll() ([]DockerArtifactStore, error) {
 	var providers []DockerArtifactStore
 	err := impl.dbConnection.Model(&providers).
