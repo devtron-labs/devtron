@@ -225,6 +225,7 @@ type PipelineBuilderImpl struct {
 	chartDeploymentService                          util.ChartDeploymentService
 	pipelineStageRepository                         repository5.PipelineStageRepository
 	K8sUtil                                         *util.K8sUtil
+	attributesRepository                            repository.AttributesRepository
 	securityConfig                                  *SecurityConfig
 }
 
@@ -279,7 +280,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	appGroupService appGroup2.AppGroupService,
 	chartDeploymentService util.ChartDeploymentService,
 	K8sUtil *util.K8sUtil,
-	pipelineStageRepository repository5.PipelineStageRepository) *PipelineBuilderImpl {
+	pipelineStageRepository repository5.PipelineStageRepository,
+	attributesRepository repository.AttributesRepository) *PipelineBuilderImpl {
 
 	securityConfig := &SecurityConfig{}
 	err := env.Parse(securityConfig)
@@ -347,6 +349,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		chartDeploymentService:                          chartDeploymentService,
 		pipelineStageRepository:                         pipelineStageRepository,
 		K8sUtil:                                         K8sUtil,
+		attributesRepository:                            attributesRepository,
 		securityConfig:                                  securityConfig,
 	}
 }
@@ -1795,6 +1798,18 @@ func (impl PipelineBuilderImpl) SetPipelineDeploymentAppType(pipelineCreateReque
 
 func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error) {
 
+	//Validation for checking deployment App type
+	for _, pipeline := range pipelineCreateRequest.Pipelines {
+		// if no deployment app type sent from user then we'll not validate
+		if pipeline.DeploymentAppType != "" {
+			if err := impl.validateDeploymentAppType(pipeline); err != nil {
+				impl.logger.Errorw("validation error in creating pipeline", "name", pipeline.Name, "err", err)
+				return nil, err
+			}
+		}
+		continue
+	}
+
 	isGitOpsConfigured, err := impl.IsGitopsConfigured()
 	impl.SetPipelineDeploymentAppType(pipelineCreateRequest, isGitOpsConfigured)
 	isGitOpsRequiredForCD := impl.IsGitOpsRequiredForCD(pipelineCreateRequest)
@@ -1858,6 +1873,57 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 	}
 
 	return pipelineCreateRequest, nil
+}
+
+func (impl PipelineBuilderImpl) validateDeploymentAppType(pipeline *bean.CDPipelineConfigObject) error {
+	var deploymentConfig map[string]bool
+	deploymentConfigValues, _ := impl.attributesRepository.FindByKey(fmt.Sprintf("%d", pipeline.EnvironmentId))
+	if err := json.Unmarshal([]byte(deploymentConfigValues.Value), &deploymentConfig); err != nil {
+		rerr := &util.ApiError{
+			HttpStatusCode:  http.StatusInternalServerError,
+			InternalMessage: err.Error(),
+			UserMessage:     "Failed to fetch deployment config values from the attributes table",
+		}
+		return rerr
+	}
+
+	// Config value doesn't exist in attribute table
+	if deploymentConfig == nil {
+		return nil
+	}
+	//Config value found to be true for ArgoCD and Helm both
+	if allDeploymentConfigTrue(deploymentConfig) {
+		return nil
+	}
+	//Case : {ArgoCD : false, Helm: true, HGF : true}
+	if validDeploymentConfigReceived(deploymentConfig, pipeline.DeploymentAppType) {
+		return nil
+	}
+
+	err := &util.ApiError{
+		HttpStatusCode:  http.StatusBadRequest,
+		InternalMessage: "Received deployment app type doesn't match with the allowed deployment app type for this environment.",
+		UserMessage:     "Received deployment app type doesn't match with the allowed deployment app type for this environment.",
+	}
+	return err
+}
+
+func allDeploymentConfigTrue(deploymentConfig map[string]bool) bool {
+	for _, value := range deploymentConfig {
+		if !value {
+			return false
+		}
+	}
+	return true
+}
+
+func validDeploymentConfigReceived(deploymentConfig map[string]bool, deploymentTypeSent string) bool {
+	for key, value := range deploymentConfig {
+		if value && key == deploymentTypeSent {
+			return true
+		}
+	}
+	return false
 }
 
 func (impl PipelineBuilderImpl) PatchCdPipelines(cdPipelines *bean.CDPatchRequest, ctx context.Context) (*bean.CdPipelines, error) {

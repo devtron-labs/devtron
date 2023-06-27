@@ -18,7 +18,9 @@
 package cluster
 
 import (
+	"encoding/json"
 	"fmt"
+	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/user/bean"
 	"strconv"
 	"strings"
@@ -34,19 +36,20 @@ import (
 )
 
 type EnvironmentBean struct {
-	Id                    int    `json:"id,omitempty" validate:"number"`
-	Environment           string `json:"environment_name,omitempty" validate:"required,max=50"`
-	ClusterId             int    `json:"cluster_id,omitempty" validate:"number,required"`
-	ClusterName           string `json:"cluster_name,omitempty"`
-	Active                bool   `json:"active"`
-	Default               bool   `json:"default"`
-	PrometheusEndpoint    string `json:"prometheus_endpoint,omitempty"`
-	Namespace             string `json:"namespace,omitempty" validate:"name-space-component,max=50"`
-	CdArgoSetup           bool   `json:"isClusterCdActive"`
-	EnvironmentIdentifier string `json:"environmentIdentifier"`
-	Description           string `json:"description" validate:"max=40"`
-	AppCount              int    `json:"appCount"`
-	IsVirtualEnvironment  bool   `json:"isVirtualEnvironment"`
+	Id                     int      `json:"id,omitempty" validate:"number"`
+	Environment            string   `json:"environment_name,omitempty" validate:"required,max=50"`
+	ClusterId              int      `json:"cluster_id,omitempty" validate:"number,required"`
+	ClusterName            string   `json:"cluster_name,omitempty"`
+	Active                 bool     `json:"active"`
+	Default                bool     `json:"default"`
+	PrometheusEndpoint     string   `json:"prometheus_endpoint,omitempty"`
+	Namespace              string   `json:"namespace,omitempty" validate:"name-space-component,max=50"`
+	CdArgoSetup            bool     `json:"isClusterCdActive"`
+	EnvironmentIdentifier  string   `json:"environmentIdentifier"`
+	Description            string   `json:"description" validate:"max=40"`
+	AppCount               int      `json:"appCount"`
+	IsVirtualEnvironment   bool     `json:"isVirtualEnvironment"`
+	AllowedDeploymentTypes []string `json:"allowedDeploymentTypes"`
 }
 
 type EnvDto struct {
@@ -80,7 +83,7 @@ type EnvironmentService interface {
 	FindById(id int) (*EnvironmentBean, error)
 	Update(mappings *EnvironmentBean, userId int32) (*EnvironmentBean, error)
 	FindClusterByEnvId(id int) (*ClusterBean, error)
-	GetEnvironmentListForAutocomplete() ([]EnvironmentBean, error)
+	GetEnvironmentListForAutocomplete(isDeploymentTypeParam bool) ([]EnvironmentBean, error)
 	GetEnvironmentOnlyListForAutocomplete() ([]EnvironmentBean, error)
 	FindByIds(ids []*int) ([]*EnvironmentBean, error)
 	FindByNamespaceAndClusterName(namespaces string, clusterName string) (*repository.Environment, error)
@@ -97,14 +100,15 @@ type EnvironmentServiceImpl struct {
 	K8sUtil               *util.K8sUtil
 	k8sInformerFactory    informer.K8sInformerFactory
 	//propertiesConfigService pipeline.PropertiesConfigService
-	userAuthService user.UserAuthService
+	userAuthService      user.UserAuthService
+	attributesRepository repository2.AttributesRepository
 }
 
 func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepository,
 	clusterService ClusterService, logger *zap.SugaredLogger,
 	K8sUtil *util.K8sUtil, k8sInformerFactory informer.K8sInformerFactory,
 	//  propertiesConfigService pipeline.PropertiesConfigService,
-	userAuthService user.UserAuthService) *EnvironmentServiceImpl {
+	userAuthService user.UserAuthService, attributesRepository repository2.AttributesRepository) *EnvironmentServiceImpl {
 	return &EnvironmentServiceImpl{
 		environmentRepository: environmentRepository,
 		logger:                logger,
@@ -112,7 +116,8 @@ func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepos
 		K8sUtil:               K8sUtil,
 		k8sInformerFactory:    k8sInformerFactory,
 		//propertiesConfigService: propertiesConfigService,
-		userAuthService: userAuthService,
+		userAuthService:      userAuthService,
+		attributesRepository: attributesRepository,
 	}
 }
 
@@ -366,25 +371,88 @@ func (impl EnvironmentServiceImpl) FindClusterByEnvId(id int) (*ClusterBean, err
 	return clusterBean, nil
 }
 
-func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete() ([]EnvironmentBean, error) {
+const (
+	PIPELINE_DEPLOYMENT_TYPE_HELM = "helm"
+	PIPELINE_DEPLOYMENT_TYPE_ACD  = "argo_cd"
+)
+
+var permittedDeploymentConfigString = []string{PIPELINE_DEPLOYMENT_TYPE_HELM, PIPELINE_DEPLOYMENT_TYPE_ACD}
+
+func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete(isDeploymentTypeParam bool) ([]EnvironmentBean, error) {
 	models, err := impl.environmentRepository.FindAllActive()
 	if err != nil {
 		impl.logger.Errorw("error in fetching environment", "err", err)
 	}
 	var beans []EnvironmentBean
-	for _, model := range models {
-		beans = append(beans, EnvironmentBean{
-			Id:                    model.Id,
-			Environment:           model.Name,
-			Namespace:             model.Namespace,
-			CdArgoSetup:           model.Cluster.CdArgoSetup,
-			EnvironmentIdentifier: model.EnvironmentIdentifier,
-			ClusterName:           model.Cluster.ClusterName,
-			Description:           model.Description,
-			IsVirtualEnvironment:  model.IsVirtualEnvironment,
-		})
+	//Fetching deployment app type config values along with autocomplete api while creating CD pipeline
+	if isDeploymentTypeParam {
+		for _, model := range models {
+			var (
+				deploymentConfig              map[string]bool
+				allowedDeploymentConfigString []string
+			)
+			deploymentConfigValues, _ := impl.attributesRepository.FindByKey(fmt.Sprintf("%d", model.Id))
+			if err = json.Unmarshal([]byte(deploymentConfigValues.Value), &deploymentConfig); err != nil {
+				return nil, err
+			}
+
+			// if real config along with absurd values exist in table {"argo_cd": true, "helm": false, "absurd": false}",
+			if ok, filteredDeploymentConfig := impl.IsReceivedDeploymentTypeValid(deploymentConfig); ok {
+				allowedDeploymentConfigString = filteredDeploymentConfig
+			} else {
+				allowedDeploymentConfigString = permittedDeploymentConfigString
+			}
+			beans = append(beans, EnvironmentBean{
+				Id:                     model.Id,
+				Environment:            model.Name,
+				Namespace:              model.Namespace,
+				CdArgoSetup:            model.Cluster.CdArgoSetup,
+				EnvironmentIdentifier:  model.EnvironmentIdentifier,
+				ClusterName:            model.Cluster.ClusterName,
+				Description:            model.Description,
+				IsVirtualEnvironment:   model.IsVirtualEnvironment,
+				AllowedDeploymentTypes: allowedDeploymentConfigString,
+			})
+		}
+	} else {
+		for _, model := range models {
+			beans = append(beans, EnvironmentBean{
+				Id:                    model.Id,
+				Environment:           model.Name,
+				Namespace:             model.Namespace,
+				CdArgoSetup:           model.Cluster.CdArgoSetup,
+				EnvironmentIdentifier: model.EnvironmentIdentifier,
+				ClusterName:           model.Cluster.ClusterName,
+				Description:           model.Description,
+				IsVirtualEnvironment:  model.IsVirtualEnvironment,
+			})
+		}
 	}
 	return beans, nil
+}
+
+func (impl EnvironmentServiceImpl) IsReceivedDeploymentTypeValid(deploymentConfig map[string]bool) (bool, []string) {
+	var (
+		filteredDeploymentConfig []string
+		flag                     bool
+	)
+
+	for key, value := range deploymentConfig {
+		for _, permitted := range permittedDeploymentConfigString {
+			if key == permitted {
+				//filtering only those deployment app types which are in permitted zone and are marked true
+				if value {
+					flag = true
+					filteredDeploymentConfig = append(filteredDeploymentConfig, key)
+				}
+				break
+			}
+		}
+	}
+	if !flag {
+		return false, nil
+	}
+	return true, filteredDeploymentConfig
 }
 
 func (impl EnvironmentServiceImpl) GetEnvironmentOnlyListForAutocomplete() ([]EnvironmentBean, error) {
