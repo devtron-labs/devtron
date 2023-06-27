@@ -3163,8 +3163,12 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 				ChartBaseVersion:  pipeline.ChartBaseVersion,
 				StorageType:       bean.ManifestStorageOCIHelmRepo,
 				Deleted:           false,
-
-				AuditLog: sql.AuditLog{},
+				AuditLog: sql.AuditLog{
+					CreatedOn: time.Now(),
+					CreatedBy: userId,
+					UpdatedOn: time.Now(),
+					UpdatedBy: userId,
+				},
 			}
 			manifestPushConfig, err = impl.manifestPushConfigRepository.SaveConfig(manifestPushConfig)
 			if err != nil {
