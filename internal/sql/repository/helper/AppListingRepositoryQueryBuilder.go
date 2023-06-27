@@ -77,7 +77,7 @@ func (impl AppListingRepositoryQueryBuilder) BuildJobListingQuery(appIDs []int, 
 		"  from ci_workflow cw inner join (select ci_pipeline_id, MAX(started_on) max_started_on from ci_workflow group by ci_pipeline_id ) " +
 		"cws on cw.ci_pipeline_id = cws.ci_pipeline_id " +
 		"and cw.started_on = cws.max_started_on order by cw.ci_pipeline_id) cwr on cwr.ci_pipeline_id = ci_pipeline.id " +
-		"INNER JOIN ci_env_mapping cem on cem.ci_pipeline_id = ci_pipeline.id INNER JOIN environment env on env.id = cem.environment_id" +
+		"LEFT JOIN ci_env_mapping cem on cem.ci_pipeline_id = ci_pipeline.id LEFT JOIN environment env on env.id = cem.environment_id" +
 		" where app.active = true and app.app_type = 2 "
 	if len(appIDs) > 0 {
 		query += "and app.id IN (" + GetCommaSepratedString(appIDs) + ") "
@@ -98,7 +98,7 @@ func (impl AppListingRepositoryQueryBuilder) OverviewCiPipelineQuery() string {
 		" inner join (SELECT  ci_pipeline_id, MAX(started_on) max_started_on FROM ci_workflow GROUP BY ci_pipeline_id)" +
 		" cws on cw.ci_pipeline_id = cws.ci_pipeline_id and cw.started_on = cws.max_started_on order by cw.ci_pipeline_id)" +
 		" cwr on cwr.ci_pipeline_id = ci_pipeline.id" +
-		" INNER JOIN ci_env_mapping cem on cem.ci_pipeline_id = ci_pipeline.id INNER JOIN environment env on env.id = cem.environment_id " +
+		" LEFT JOIN ci_env_mapping cem on cem.ci_pipeline_id = ci_pipeline.id LEFT JOIN environment env on env.id = cem.environment_id " +
 		"where ci_pipeline.active = true and ci_pipeline.app_id = ? ;"
 	return query
 }
