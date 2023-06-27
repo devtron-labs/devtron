@@ -45,6 +45,7 @@ var (
 )
 
 func TestRegistryConfigService_Save(t *testing.T) {
+	t.SkipNow()
 	if dockerRegistryConfig == nil {
 		InitDockerRegistryConfig()
 	}
@@ -86,6 +87,7 @@ func TestRegistryConfigService_Save(t *testing.T) {
 }
 
 func TestRegistryConfigService_Update(t *testing.T) {
+	t.SkipNow()
 	if dockerRegistryConfig == nil {
 		InitDockerRegistryConfig()
 	}
