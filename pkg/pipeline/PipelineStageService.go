@@ -19,6 +19,7 @@ type PipelineStageService interface {
 	BuildPrePostAndRefPluginStepsDataForWfRequest(pipelineId int, stageType string) ([]*bean.StepObject, []*bean.StepObject, []*bean.RefPluginObject, error)
 	GetCiPipelineStageDataDeepCopy(ciPipelineId int) (preCiStage *bean.PipelineStageDto, postCiStage *bean.PipelineStageDto, err error)
 	GetCdPipelineStageDataDeepCopy(cdPipelineId int) (*bean.PipelineStageDto, *bean.PipelineStageDto, error)
+	GetCdPipelineStageDataDeepCopyForPipelineIds(cdPipelineIds []int) (map[int][]*bean.PipelineStageDto, error)
 }
 
 func NewPipelineStageService(logger *zap.SugaredLogger,
@@ -114,8 +115,52 @@ func (impl *PipelineStageServiceImpl) GetCdPipelineStageDataDeepCopy(cdPipelineI
 	return preDeployStage, postDeployStage, nil
 }
 
+func (impl *PipelineStageServiceImpl) GetCdPipelineStageDataDeepCopyForPipelineIds(cdPipelineIds []int) (map[int][]*bean.PipelineStageDto, error) {
+	pipelinePrePostStageMappingResp := make(map[int][]*bean.PipelineStageDto)
+	pipelineStageMapping := make(map[int][]*repository.PipelineStage)
+	pipelineStages, err := impl.pipelineStageRepository.GetAllCdStagesByCdPipelineIds(cdPipelineIds)
+	if err != nil {
+		impl.logger.Errorw("error in getting pipelineStages from cdPipelineIds", "err", err, "cdPipelineIds", cdPipelineIds)
+		return pipelinePrePostStageMappingResp, err
+	}
+	if len(pipelineStages) == 0 {
+		return pipelinePrePostStageMappingResp, nil
+	}
+	for _, pipelineStage := range pipelineStages {
+		pipelineStageMapping[pipelineStage.CdPipelineId] = append(pipelineStageMapping[pipelineStage.CdPipelineId], pipelineStage)
+	}
+
+	for pipelineId, pipelineStages := range pipelineStageMapping {
+		var preDeployStage *bean.PipelineStageDto
+		var postDeployStage *bean.PipelineStageDto
+		for _, pipelineStage := range pipelineStages {
+			if pipelineStage.Type == repository.PIPELINE_STAGE_TYPE_PRE_CD {
+				preDeployStage, err = impl.BuildPipelineStageDataDeepCopy(pipelineStage)
+				if err != nil {
+					impl.logger.Errorw("error in getting cd stage data", "err", err, "cdStage", cdStage)
+					return pipelinePrePostStageMappingResp, err
+				}
+			} else if pipelineStage.Type == repository.PIPELINE_STAGE_TYPE_POST_CD {
+				postDeployStage, err = impl.BuildPipelineStageDataDeepCopy(pipelineStage)
+				if err != nil {
+					impl.logger.Errorw("error in getting cd stage data", "err", err, "cdStage", cdStage)
+					return pipelinePrePostStageMappingResp, err
+				}
+
+			} else {
+				impl.logger.Errorw("found improper stage mapped with cdPipeline", "cdPipelineId", pipelineId, "stage", cdStage)
+			}
+		}
+		pipelinePrePostStageMappingResp[pipelineId] = append(pipelinePrePostStageMappingResp[pipelineId], preDeployStage)
+		pipelinePrePostStageMappingResp[pipelineId] = append(pipelinePrePostStageMappingResp[pipelineId], postDeployStage)
+
+	}
+	return pipelinePrePostStageMappingResp, nil
+}
+
 func (impl *PipelineStageServiceImpl) BuildPipelineStageDataDeepCopy(pipelineStage *repository.PipelineStage) (*bean.PipelineStageDto, error) {
 	stageData := &bean.PipelineStageDto{
+		Id:          pipelineStage.Id,
 		Name:        pipelineStage.Name,
 		Description: pipelineStage.Description,
 		Type:        pipelineStage.Type,
@@ -129,6 +174,7 @@ func (impl *PipelineStageServiceImpl) BuildPipelineStageDataDeepCopy(pipelineSta
 	var stepsDto []*bean.PipelineStageStepDto
 	for _, step := range steps {
 		stepDto := &bean.PipelineStageStepDto{
+			Id:                       step.Id,
 			Name:                     step.Name,
 			Index:                    step.Index,
 			Description:              step.Description,

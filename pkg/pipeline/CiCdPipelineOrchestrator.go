@@ -1335,15 +1335,20 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 	if err != nil {
 		impl.logger.Errorw("error in fetching cdPipeline", "appId", appId, "err", err)
 	}
-
-	var pipelines []*bean.CDPipelineConfigObject
-	for _, dbPipeline := range dbPipelines {
-		preDeployStage, postDeployStage, err := impl.pipelineStageService.GetCdPipelineStageDataDeepCopy(dbPipeline.Id)
+	pipelineIdAndPrePostStageMapping := make(map[int][]*bean2.PipelineStageDto)
+	var dbPipelineIds []int
+	for _, pipeline := range dbPipelines {
+		dbPipelineIds = append(dbPipelineIds, pipeline.Id)
+	}
+	if len(dbPipelineIds) > 0 {
+		pipelineIdAndPrePostStageMapping, err = impl.pipelineStageService.GetCdPipelineStageDataDeepCopyForPipelineIds(dbPipelineIds)
 		if err != nil {
-			impl.logger.Errorw("error in getting pre/post-CD stage data", "err", err, "cdPipelineId", dbPipeline.Id)
+			impl.logger.Errorw("error fetching pipelinePrePostStageMapping", "err", err, "cdPipelineIds", dbPipelineIds)
 			return nil, err
 		}
-
+	}
+	var pipelines []*bean.CDPipelineConfigObject
+	for _, dbPipeline := range dbPipelines {
 		preStage := bean.CdStage{}
 		if len(dbPipeline.PreStageConfig) > 0 {
 			preStage.Name = "Pre-Deployment"
@@ -1392,8 +1397,10 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 			DeploymentAppType:             dbPipeline.DeploymentAppType,
 			DeploymentAppDeleteRequest:    dbPipeline.DeploymentAppDeleteRequest,
 			IsVirtualEnvironment:          dbPipeline.Environment.IsVirtualEnvironment,
-			PreDeployStage:                preDeployStage,
-			PostDeployStage:               postDeployStage,
+		}
+		if pipelineStages, ok := pipelineIdAndPrePostStageMapping[dbPipeline.Id]; ok {
+			pipeline.PreDeployStage = pipelineStages[0]
+			pipeline.PostDeployStage = pipelineStages[1]
 		}
 		pipelines = append(pipelines, pipeline)
 	}
@@ -1436,6 +1443,18 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int, request
 		impl.logger.Errorw("error fetching pipelines for env id", "err", err)
 		return nil, err
 	}
+	pipelineIdAndPrePostStageMapping := make(map[int][]*bean2.PipelineStageDto)
+	var dbPipelineIds []int
+	for _, pipeline := range dbPipelines {
+		dbPipelineIds = append(dbPipelineIds, pipeline.Id)
+	}
+	if len(dbPipelineIds) > 0 {
+		pipelineIdAndPrePostStageMapping, err = impl.pipelineStageService.GetCdPipelineStageDataDeepCopyForPipelineIds(dbPipelineIds)
+		if err != nil {
+			impl.logger.Errorw("error fetching pipelinePrePostStageMapping", "err", err, "cdPipelineIds", dbPipelineIds)
+			return nil, err
+		}
+	}
 
 	var pipelines []*bean.CDPipelineConfigObject
 	for _, dbPipeline := range dbPipelines {
@@ -1469,14 +1488,10 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int, request
 			postStage.TriggerType = dbPipeline.PostTriggerType
 			pipeline.PostStage = postStage
 		}
-
-		preDeployStage, postDeployStage, err := impl.pipelineStageService.GetCdPipelineStageDataDeepCopy(dbPipeline.Id)
-		if err != nil {
-			impl.logger.Errorw("error fetching pre and post deploy stage by cd pipeline Id", "err", err, "cdPipelineId", dbPipeline.Id)
-			return nil, err
+		if pipelineStages, ok := pipelineIdAndPrePostStageMapping[dbPipeline.Id]; ok {
+			pipeline.PreDeployStage = pipelineStages[0]
+			pipeline.PostDeployStage = pipelineStages[1]
 		}
-		pipeline.PreDeployStage = preDeployStage
-		pipeline.PostDeployStage = postDeployStage
 
 		if dbPipeline.PreStageConfigMapSecretNames != "" {
 			preStageConfigmapSecrets := bean.PreStageConfigMapSecretNames{}
@@ -1515,6 +1530,18 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForAppAndEnv(appId int, e
 	if err != nil {
 		impl.logger.Errorw("error in fetching cdPipeline", "appId", appId, "err", err)
 	}
+	pipelineIdAndPrePostStageMapping := make(map[int][]*bean2.PipelineStageDto)
+	var dbPipelineIds []int
+	for _, pipeline := range dbPipelines {
+		dbPipelineIds = append(dbPipelineIds, pipeline.Id)
+	}
+	if len(dbPipelineIds) > 0 {
+		pipelineIdAndPrePostStageMapping, err = impl.pipelineStageService.GetCdPipelineStageDataDeepCopyForPipelineIds(dbPipelineIds)
+		if err != nil {
+			impl.logger.Errorw("error fetching pipelinePrePostStageMapping", "err", err, "cdPipelineIds", dbPipelineIds)
+			return nil, err
+		}
+	}
 	var pipelines []*bean.CDPipelineConfigObject
 	for _, dbPipeline := range dbPipelines {
 		preStage := bean.CdStage{}
@@ -1528,13 +1555,6 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForAppAndEnv(appId int, e
 			postStage.Name = "Post-Deployment"
 			postStage.Config = dbPipeline.PostStageConfig
 			postStage.TriggerType = dbPipeline.PostTriggerType
-		}
-
-		//fetching pre/post deploy plugin details
-		preDeployStage, postDeployStage, err := impl.pipelineStageService.GetCdPipelineStageDataDeepCopy(dbPipeline.Id)
-		if err != nil {
-			impl.logger.Errorw("error in getting pre/post-CD stage data", "err", err, "cdPipelineId", dbPipeline.Id)
-			return nil, err
 		}
 
 		preStageConfigmapSecrets := bean.PreStageConfigMapSecretNames{}
@@ -1572,8 +1592,10 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForAppAndEnv(appId int, e
 			RunPreStageInEnv:              dbPipeline.RunPreStageInEnv,
 			RunPostStageInEnv:             dbPipeline.RunPostStageInEnv,
 			CdArgoSetup:                   env.Cluster.CdArgoSetup,
-			PreDeployStage:                preDeployStage,
-			PostDeployStage:               postDeployStage,
+		}
+		if pipelineStages, ok := pipelineIdAndPrePostStageMapping[dbPipeline.Id]; ok {
+			pipeline.PreDeployStage = pipelineStages[0]
+			pipeline.PostDeployStage = pipelineStages[1]
 		}
 		pipelines = append(pipelines, pipeline)
 	}

@@ -143,6 +143,7 @@ type PipelineStageRepository interface {
 
 	GetAllCiStagesByCiPipelineId(ciPipelineId int) ([]*PipelineStage, error)
 	GetAllCdStagesByCdPipelineId(cdPipelineId int) ([]*PipelineStage, error)
+	GetAllCdStagesByCdPipelineIds(cdPipelineIds []int) ([]*PipelineStage, error)
 
 	GetCiStageByCiPipelineIdAndStageType(ciPipelineId int, stageType PipelineStageType) (*PipelineStage, error)
 	GetCdStageByCdPipelineIdAndStageType(cdPipelineId int, stageType PipelineStageType) (*PipelineStage, error)
@@ -228,6 +229,20 @@ func (impl *PipelineStageRepositoryImpl) GetAllCdStagesByCdPipelineId(cdPipeline
 		Where("deleted = ?", false).Select()
 	if err != nil {
 		impl.logger.Errorw("err in getting all cd stages by cdPipelineId", "err", err, "cdPipelineId", cdPipelineId)
+		return nil, err
+	}
+	return pipelineStages, nil
+}
+
+func (impl *PipelineStageRepositoryImpl) GetAllCdStagesByCdPipelineIds(cdPipelineIds []int) ([]*PipelineStage, error) {
+	var pipelineStages []*PipelineStage
+	err := impl.dbConnection.Model(&pipelineStages).
+		Where("cd_pipeline_id in (?)", pg.In(cdPipelineIds)).
+		Where("deleted = ?", false).
+		Select()
+
+	if err != nil {
+		impl.logger.Errorw("err in getting all cd stages by cdPipelineIds", "err", err, "cdPipelineIds", cdPipelineIds)
 		return nil, err
 	}
 	return pipelineStages, nil
