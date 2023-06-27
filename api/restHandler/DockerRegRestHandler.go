@@ -118,7 +118,7 @@ func (impl DockerRegRestHandlerImpl) SaveDockerRegistryConfig(w http.ResponseWri
 		return
 	}
 	bean.User = userId
-	if ValidateDockerArtifactStoreRequestBean(bean) {
+	if !ValidateDockerArtifactStoreRequestBean(bean) {
 		err = fmt.Errorf("invalid payload, missing or incorrect values for required fields")
 		impl.logger.Errorw("validation err, SaveDockerRegistryConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -248,7 +248,7 @@ func (impl DockerRegRestHandlerImpl) UpdateDockerRegistryConfig(w http.ResponseW
 		return
 	}
 	bean.User = userId
-	if ValidateDockerArtifactStoreRequestBean(bean) {
+	if !ValidateDockerArtifactStoreRequestBean(bean) {
 		err = fmt.Errorf("invalid payload, missing or incorrect values for required fields")
 		impl.logger.Errorw("validation err, SaveDockerRegistryConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
