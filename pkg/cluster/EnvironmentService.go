@@ -395,7 +395,7 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete(isDeploymen
 			_ = json.Unmarshal([]byte(deploymentConfigValues.Value), &deploymentConfig)
 
 			// if real config along with absurd values exist in table {"argo_cd": true, "helm": false, "absurd": false}",
-			if ok, filteredDeploymentConfig := impl.isReceivedDeploymentTypeValid(deploymentConfig); ok {
+			if ok, filteredDeploymentConfig := impl.IsReceivedDeploymentTypeValid(deploymentConfig); ok {
 				allowedDeploymentConfigString = filteredDeploymentConfig
 			} else {
 				allowedDeploymentConfigString = permittedDeploymentConfigString
@@ -429,7 +429,7 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete(isDeploymen
 	return beans, nil
 }
 
-func (impl EnvironmentServiceImpl) isReceivedDeploymentTypeValid(deploymentConfig map[string]bool) (bool, []string) {
+func (impl EnvironmentServiceImpl) IsReceivedDeploymentTypeValid(deploymentConfig map[string]bool) (bool, []string) {
 	var (
 		filteredDeploymentConfig []string
 		flag                     bool
