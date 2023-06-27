@@ -115,6 +115,7 @@ type CiPipeline struct {
 	IsDockerConfigOverridden bool                   `json:"isDockerConfigOverridden"`
 	DockerConfigOverride     DockerConfigOverride   `json:"dockerConfigOverride,omitempty"`
 	EnvironmentId            int                    `json:"environmentId,omitempty"`
+	LastTriggeredEnvId       int                    `json:"lastTriggeredEnvId"`
 }
 
 type DockerConfigOverride struct {
