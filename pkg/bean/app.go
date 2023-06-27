@@ -628,10 +628,10 @@ type CdPipelineTrigger struct {
 type DeploymentType = string
 
 const (
-	Helm                    DeploymentType = "helm"
-	ArgoCd                  DeploymentType = "argo_cd"
-	ManifestDownload        DeploymentType = "manifest_download"
-	GitOpsWithoutDeployment DeploymentType = "git_ops_without_deployment"
+	Helm             DeploymentType = "helm"
+	ArgoCd           DeploymentType = "argo_cd"
+	ManifestDownload DeploymentType = "manifest_download"
+	ManifestPush     DeploymentType = "manifest_push"
 )
 
 func IsAcdApp(deploymentType string) bool {
@@ -823,8 +823,13 @@ const (
 	ManifestStorageGit         ManifestStorage = "git"
 	ManifestStorageOCIHelmRepo ManifestStorage = "helm_repo"
 )
+
 func IsGitStorage(storageType string) bool {
 	return storageType == ManifestStorageGit
+}
+
+func IsHelmStorage(storageType string) bool {
+	return storageType == ManifestStorageOCIHelmRepo
 }
 
 const CustomAutoScalingEnabledPathKey = "CUSTOM_AUTOSCALING_ENABLED_PATH"

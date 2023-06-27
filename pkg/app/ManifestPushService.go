@@ -19,7 +19,7 @@ type ManifestPushService interface {
 	PushChart(manifestPushConfig *bean.ManifestPushTemplate, ctx context.Context) bean.ManifestPushResponse
 }
 
-type GitOpsManifestPushService interface {
+type GitOpsPushService interface {
 	ManifestPushService
 }
 

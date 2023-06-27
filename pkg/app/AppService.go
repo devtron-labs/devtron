@@ -170,7 +170,7 @@ type AppServiceImpl struct {
 	installedAppVersionHistoryRepository   repository4.InstalledAppVersionHistoryRepository
 	globalEnvVariables                     *util2.GlobalEnvVariables
 	manifestPushConfigRepository           repository5.ManifestPushConfigRepository
-	GitOpsManifestPushService              GitOpsManifestPushService
+	GitOpsManifestPushService              GitOpsPushService
 }
 
 type AppService interface {
@@ -249,7 +249,7 @@ func NewAppService(
 	installedAppVersionHistoryRepository repository4.InstalledAppVersionHistoryRepository,
 	globalEnvVariables *util2.GlobalEnvVariables, helmAppService client2.HelmAppService,
 	manifestPushConfigRepository repository5.ManifestPushConfigRepository,
-	GitOpsManifestPushService GitOpsManifestPushService) *AppServiceImpl {
+	GitOpsManifestPushService GitOpsPushService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:            environmentConfigRepository,
 		mergeUtil:                              mergeUtil,
@@ -1745,7 +1745,7 @@ func (impl *AppServiceImpl) ValidateTriggerEvent(triggerEvent bean.TriggerEvent)
 		}
 	case bean2.Helm:
 		return true, nil
-	case bean2.GitOpsWithoutDeployment:
+	case bean2.ManifestPush:
 		if triggerEvent.PerformDeploymentOnCluster {
 			return false, errors2.New("For deployment type GitOpsWithoutDeployment, PerformDeploymentOnCluster flag expected value = false, got value = true")
 		}
@@ -1903,12 +1903,12 @@ func (impl *AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideR
 		triggerEvent.PerformDeploymentOnCluster = false
 		triggerEvent.GetManifestInResponse = true
 		triggerEvent.DeploymentAppType = bean2.ManifestDownload
-	case bean2.GitOpsWithoutDeployment:
+	case bean2.ManifestPush:
 		triggerEvent.PerformChartPush = true
 		triggerEvent.PerformDeploymentOnCluster = false
-		triggerEvent.GetManifestInResponse = false
-		triggerEvent.DeploymentAppType = bean2.GitOpsWithoutDeployment
-
+		triggerEvent.GetManifestInResponse = true
+		triggerEvent.DeploymentAppType = bean2.ManifestPush
+		triggerEvent.ManifestStorageType = bean2.ManifestStorageOCIHelmRepo
 	}
 
 	releaseNo, manifest, err = impl.TriggerPipeline(overrideRequest, triggerEvent, ctx)
