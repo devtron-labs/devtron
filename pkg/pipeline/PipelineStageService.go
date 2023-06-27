@@ -105,8 +105,12 @@ func (impl *PipelineStageServiceImpl) GetCdPipelineStageDataDeepCopy(cdPipelineI
 		impl.logger.Errorw("error in getting pipeline from cdPipelineId", "err", err, "cdPipelineId", cdPipelineId)
 		return nil, nil, err
 	}
-	preDeployStage.TriggerType = pipeline.PreTriggerType
-	postDeployStage.TriggerType = pipeline.PostTriggerType
+	if preDeployStage != nil {
+		preDeployStage.TriggerType = pipeline.PreTriggerType
+	}
+	if postDeployStage != nil {
+		postDeployStage.TriggerType = pipeline.PostTriggerType
+	}
 	return preDeployStage, postDeployStage, nil
 }
 
