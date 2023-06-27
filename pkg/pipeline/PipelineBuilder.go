@@ -223,7 +223,6 @@ type PipelineBuilderImpl struct {
 	enforcerUtil                                    rbac.EnforcerUtil
 	appGroupService                                 appGroup2.AppGroupService
 	chartDeploymentService                          util.ChartDeploymentService
-	pipelineStageRepository                         repository5.PipelineStageRepository
 	K8sUtil                                         *util.K8sUtil
 	attributesRepository                            repository.AttributesRepository
 	securityConfig                                  *SecurityConfig
@@ -280,7 +279,6 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	appGroupService appGroup2.AppGroupService,
 	chartDeploymentService util.ChartDeploymentService,
 	K8sUtil *util.K8sUtil,
-	pipelineStageRepository repository5.PipelineStageRepository,
 	attributesRepository repository.AttributesRepository) *PipelineBuilderImpl {
 
 	securityConfig := &SecurityConfig{}
@@ -347,7 +345,6 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		ciWorkflowRepository:                            ciWorkflowRepository,
 		appGroupService:                                 appGroupService,
 		chartDeploymentService:                          chartDeploymentService,
-		pipelineStageRepository:                         pipelineStageRepository,
 		K8sUtil:                                         K8sUtil,
 		attributesRepository:                            attributesRepository,
 		securityConfig:                                  securityConfig,

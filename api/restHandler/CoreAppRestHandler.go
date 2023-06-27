@@ -73,30 +73,29 @@ type CoreAppRestHandler interface {
 }
 
 type CoreAppRestHandlerImpl struct {
-	logger                   *zap.SugaredLogger
-	userAuthService          user.UserService
-	validator                *validator.Validate
-	enforcerUtil             rbac.EnforcerUtil
-	enforcer                 casbin.Enforcer
-	appCrudOperationService  app.AppCrudOperationService
-	pipelineBuilder          pipeline.PipelineBuilder
-	gitRegistryService       pipeline.GitRegistryConfig
-	chartService             chart.ChartService
-	configMapService         pipeline.ConfigMapService
-	appListingService        app.AppListingService
-	propertiesConfigService  pipeline.PropertiesConfigService
-	appWorkflowService       appWorkflow.AppWorkflowService
-	materialRepository       pipelineConfig.MaterialRepository
-	gitProviderRepo          repository.GitProviderRepository
-	appWorkflowRepository    appWorkflow2.AppWorkflowRepository
-	environmentRepository    repository2.EnvironmentRepository
-	configMapRepository      chartConfig.ConfigMapRepository
-	envConfigRepo            chartConfig.EnvConfigOverrideRepository
-	chartRepo                chartRepoRepository.ChartRepository
-	teamService              team.TeamService
-	argoUserService          argo.ArgoUserService
-	pipelineStageService     pipeline.PipelineStageService
-	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator
+	logger                  *zap.SugaredLogger
+	userAuthService         user.UserService
+	validator               *validator.Validate
+	enforcerUtil            rbac.EnforcerUtil
+	enforcer                casbin.Enforcer
+	appCrudOperationService app.AppCrudOperationService
+	pipelineBuilder         pipeline.PipelineBuilder
+	gitRegistryService      pipeline.GitRegistryConfig
+	chartService            chart.ChartService
+	configMapService        pipeline.ConfigMapService
+	appListingService       app.AppListingService
+	propertiesConfigService pipeline.PropertiesConfigService
+	appWorkflowService      appWorkflow.AppWorkflowService
+	materialRepository      pipelineConfig.MaterialRepository
+	gitProviderRepo         repository.GitProviderRepository
+	appWorkflowRepository   appWorkflow2.AppWorkflowRepository
+	environmentRepository   repository2.EnvironmentRepository
+	configMapRepository     chartConfig.ConfigMapRepository
+	envConfigRepo           chartConfig.EnvConfigOverrideRepository
+	chartRepo               chartRepoRepository.ChartRepository
+	teamService             team.TeamService
+	argoUserService         argo.ArgoUserService
+	pipelineStageService    pipeline.PipelineStageService
 }
 
 func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserService, validator *validator.Validate, enforcerUtil rbac.EnforcerUtil,
@@ -106,33 +105,31 @@ func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.U
 	materialRepository pipelineConfig.MaterialRepository, gitProviderRepo repository.GitProviderRepository,
 	appWorkflowRepository appWorkflow2.AppWorkflowRepository, environmentRepository repository2.EnvironmentRepository, configMapRepository chartConfig.ConfigMapRepository,
 	envConfigRepo chartConfig.EnvConfigOverrideRepository, chartRepo chartRepoRepository.ChartRepository, teamService team.TeamService,
-	argoUserService argo.ArgoUserService, pipelineStageService pipeline.PipelineStageService,
-	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator) *CoreAppRestHandlerImpl {
+	argoUserService argo.ArgoUserService, pipelineStageService pipeline.PipelineStageService) *CoreAppRestHandlerImpl {
 	handler := &CoreAppRestHandlerImpl{
-		logger:                   logger,
-		userAuthService:          userAuthService,
-		validator:                validator,
-		enforcerUtil:             enforcerUtil,
-		enforcer:                 enforcer,
-		appCrudOperationService:  appCrudOperationService,
-		pipelineBuilder:          pipelineBuilder,
-		gitRegistryService:       gitRegistryService,
-		chartService:             chartService,
-		configMapService:         configMapService,
-		appListingService:        appListingService,
-		propertiesConfigService:  propertiesConfigService,
-		appWorkflowService:       appWorkflowService,
-		materialRepository:       materialRepository,
-		gitProviderRepo:          gitProviderRepo,
-		appWorkflowRepository:    appWorkflowRepository,
-		environmentRepository:    environmentRepository,
-		configMapRepository:      configMapRepository,
-		envConfigRepo:            envConfigRepo,
-		chartRepo:                chartRepo,
-		teamService:              teamService,
-		argoUserService:          argoUserService,
-		pipelineStageService:     pipelineStageService,
-		ciCdPipelineOrchestrator: ciCdPipelineOrchestrator,
+		logger:                  logger,
+		userAuthService:         userAuthService,
+		validator:               validator,
+		enforcerUtil:            enforcerUtil,
+		enforcer:                enforcer,
+		appCrudOperationService: appCrudOperationService,
+		pipelineBuilder:         pipelineBuilder,
+		gitRegistryService:      gitRegistryService,
+		chartService:            chartService,
+		configMapService:        configMapService,
+		appListingService:       appListingService,
+		propertiesConfigService: propertiesConfigService,
+		appWorkflowService:      appWorkflowService,
+		materialRepository:      materialRepository,
+		gitProviderRepo:         gitProviderRepo,
+		appWorkflowRepository:   appWorkflowRepository,
+		environmentRepository:   environmentRepository,
+		configMapRepository:     configMapRepository,
+		envConfigRepo:           envConfigRepo,
+		chartRepo:               chartRepo,
+		teamService:             teamService,
+		argoUserService:         argoUserService,
+		pipelineStageService:    pipelineStageService,
 	}
 	return handler
 }
