@@ -1830,6 +1830,20 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 		gitCommitStatus := pipelineConfig.TIMELINE_STATUS_GIT_COMMIT
 		gitCommitStatusDetail := "Git commit done successfully."
 		impl.saveTimeline(overrideRequest, gitCommitStatus, gitCommitStatusDetail, ctx)
+		pipelineOverrideUpdateRequest := &chartConfig.PipelineOverride{
+			Id:                     valuesOverrideResponse.PipelineOverride.Id,
+			GitHash:                manifestPushResponse.CommitHash,
+			CommitTime:             manifestPushResponse.CommitTime,
+			EnvConfigOverrideId:    valuesOverrideResponse.EnvOverride.Id,
+			PipelineOverrideValues: valuesOverrideResponse.ReleaseOverrideJSON,
+			PipelineId:             overrideRequest.PipelineId,
+			CiArtifactId:           overrideRequest.CiArtifactId,
+			PipelineMergedValues:   valuesOverrideResponse.MergedValues,
+			AuditLog:               sql.AuditLog{UpdatedOn: triggerEvent.TriggerdAt, UpdatedBy: overrideRequest.UserId},
+		}
+		_, span := otel.Tracer("orchestrator").Start(ctx, "pipelineOverrideRepository.Update")
+		err = impl.pipelineOverrideRepository.Update(pipelineOverrideUpdateRequest)
+		span.End()
 	}
 
 	if triggerEvent.PerformDeploymentOnCluster {
