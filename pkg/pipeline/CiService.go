@@ -145,12 +145,15 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 	isJob := false
 	if app.AppType == helper.Job {
 		isJob = true
-		env, err = impl.envRepository.FindById(trigger.EnvironmentId)
-		if err != nil {
-			impl.Logger.Errorw("could not find environment", "err", err)
-			return 0, err
+		if trigger.EnvironmentId != 0 {
+			env, err = impl.envRepository.FindById(trigger.EnvironmentId)
+			if err != nil {
+				impl.Logger.Errorw("could not find environment", "err", err)
+				return 0, err
+			}
+			ciWorkflowConfig.Namespace = env.Namespace
 		}
-		ciWorkflowConfig.Namespace = env.Namespace
+
 	}
 	if ciWorkflowConfig.Namespace == "" {
 		ciWorkflowConfig.Namespace = impl.ciConfig.DefaultNamespace

@@ -524,10 +524,12 @@ func BuildJobListingResponse(jobContainers []*bean.JobListingContainer, JobsLast
 
 		if jobContainer.CiPipelineID != 0 {
 			ciPipelineObj := bean.JobCIPipeline{
-				CiPipelineId:   jobContainer.CiPipelineID,
-				CiPipelineName: jobContainer.CiPipelineName,
-				Status:         jobContainer.Status,
-				LastRunAt:      jobContainer.StartedOn,
+				CiPipelineId:    jobContainer.CiPipelineID,
+				CiPipelineName:  jobContainer.CiPipelineName,
+				Status:          jobContainer.Status,
+				LastRunAt:       jobContainer.StartedOn,
+				EnvironmentName: jobContainer.EnvironmentName,
+				EnvironmentId:   jobContainer.EnvironmentId,
 				//LastSuccessAt: jobContainer.LastSuccessAt,
 			}
 			if lastSuccessAt, ok := lastSucceededTimeMapping[jobContainer.CiPipelineID]; ok {
