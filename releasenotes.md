@@ -1,3 +1,12 @@
+## v0.6.18-rc.4
+
+## Bugs
+## Enhancements
+## Documentation
+## Others
+- fix/unit-test-failing-issue (#3569)
+
+
 ## Bugs
 - fix: ACD helm app release not found when deleting resource (#3552)
 - fix: Remove argocd server calls for Application resources (Manifest, Event, Logs, Terminal) (#3200)
