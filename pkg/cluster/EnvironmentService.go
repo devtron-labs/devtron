@@ -392,7 +392,9 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete(isDeploymen
 				allowedDeploymentConfigString []string
 			)
 			deploymentConfigValues, _ := impl.attributesRepository.FindByKey(fmt.Sprintf("%d", model.Id))
-			_ = json.Unmarshal([]byte(deploymentConfigValues.Value), &deploymentConfig)
+			if err = json.Unmarshal([]byte(deploymentConfigValues.Value), &deploymentConfig); err != nil {
+				return nil, err
+			}
 
 			// if real config along with absurd values exist in table {"argo_cd": true, "helm": false, "absurd": false}",
 			if ok, filteredDeploymentConfig := impl.IsReceivedDeploymentTypeValid(deploymentConfig); ok {
@@ -434,10 +436,11 @@ func (impl EnvironmentServiceImpl) IsReceivedDeploymentTypeValid(deploymentConfi
 		filteredDeploymentConfig []string
 		flag                     bool
 	)
-	//{"argo_cd": true, "helm": false, "absurd": false}
+
 	for key, value := range deploymentConfig {
 		for _, permitted := range permittedDeploymentConfigString {
 			if key == permitted {
+				//filtering only those deployment app types which are in permitted zone and are marked true
 				if value {
 					flag = true
 					filteredDeploymentConfig = append(filteredDeploymentConfig, key)

@@ -1856,7 +1856,14 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 func (impl PipelineBuilderImpl) validateDeploymentAppType(pipeline *bean.CDPipelineConfigObject) error {
 	var deploymentConfig map[string]bool
 	deploymentConfigValues, _ := impl.attributesRepository.FindByKey(fmt.Sprintf("%d", pipeline.EnvironmentId))
-	_ = json.Unmarshal([]byte(deploymentConfigValues.Value), &deploymentConfig)
+	if err := json.Unmarshal([]byte(deploymentConfigValues.Value), &deploymentConfig); err != nil {
+		rerr := &util.ApiError{
+			HttpStatusCode:  http.StatusInternalServerError,
+			InternalMessage: err.Error(),
+			UserMessage:     "Failed to fetch deployment config values from the attributes table",
+		}
+		return rerr
+	}
 
 	// Config value doesn't exist in attribute table
 	if deploymentConfig == nil {
@@ -1871,7 +1878,6 @@ func (impl PipelineBuilderImpl) validateDeploymentAppType(pipeline *bean.CDPipel
 		return nil
 	}
 
-	//{ArgoCD : true, Helm: false}
 	err := &util.ApiError{
 		HttpStatusCode:  http.StatusBadRequest,
 		InternalMessage: "Received deployment app type doesn't match with the allowed deployment app type for this environment.",
