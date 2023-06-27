@@ -4,6 +4,7 @@ CREATE TABLE "public"."ci_env_mapping" (
 "environment_id" integer,
 "ci_pipeline_id" integer,
 "deleted"     bool NOT NULL DEFAULT FALSE,
+"last_triggered_env_id" integer,
 "created_on" timestamptz,
 "created_by" int4,
 "updated_on" timestamptz,
@@ -19,3 +20,4 @@ CREATE TABLE "public"."ci_env_mapping_history" (
 "environment_id" integer,
 PRIMARY KEY (id)
 );
+ALTER TABLE config_map_env_level ADD COLUMN deleted bool;

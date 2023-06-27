@@ -831,6 +831,7 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 		}
 		if ciEnvMapping.Id > 0 {
 			ciPipeline.EnvironmentId = ciEnvMapping.EnvironmentId
+			ciPipeline.LastTriggeredEnvId = ciEnvMapping.LastTriggeredEnvId
 		}
 		if ciTemplateBean, ok := ciOverrideTemplateMap[pipeline.Id]; ok {
 			templateOverride := ciTemplateBean.CiTemplateOverride

@@ -50,13 +50,14 @@ type CiPipeline struct {
 }
 
 type CiEnvMapping struct {
-	tableName     struct{} `sql:"ci_env_mapping" pg:",discard_unknown_columns"`
-	Id            int      `sql:"id,pk"`
-	EnvironmentId int      `sql:"environment_id"`
-	CiPipelineId  int      `sql:"ci_pipeline_id"`
-	Deleted       bool     `sql:"deleted,notnull"`
-	CiPipeline    CiPipeline
-	Environment   repository.Environment
+	tableName          struct{} `sql:"ci_env_mapping" pg:",discard_unknown_columns"`
+	Id                 int      `sql:"id,pk"`
+	EnvironmentId      int      `sql:"environment_id"`
+	CiPipelineId       int      `sql:"ci_pipeline_id"`
+	Deleted            bool     `sql:"deleted,notnull"`
+	LastTriggeredEnvId int      `sql:"last_triggered_env_id"`
+	CiPipeline         CiPipeline
+	Environment        repository.Environment
 	sql.AuditLog
 }
 

@@ -198,8 +198,32 @@ func (impl *CiHandlerImpl) HandleCIManual(ciTriggerRequest bean.CiTriggerRequest
 		EnvironmentId:             ciTriggerRequest.EnvironmentId,
 	}
 	id, err := impl.ciService.TriggerCiPipeline(trigger)
+
 	if err != nil {
 		return 0, err
+	}
+
+	if ciTriggerRequest.EnvironmentId != 0 {
+		dbConnection := impl.cdPipelineRepository.GetConnection()
+		tx, err := dbConnection.Begin()
+		if err != nil {
+			return 0, err
+		}
+		// Rollback tx on error.
+		defer tx.Rollback()
+		ciEnvMapping, err := impl.ciPipelineRepository.FindCiEnvMappingByCiPipelineId(ciTriggerRequest.PipelineId)
+		if err != nil && err != pg.ErrNoRows {
+			return 0, err
+		}
+		ciEnvMapping.LastTriggeredEnvId = ciTriggerRequest.EnvironmentId
+		err = impl.ciPipelineRepository.UpdateCiEnvMapping(ciEnvMapping, tx)
+		if err != nil {
+			return 0, err
+		}
+		err = tx.Commit()
+		if err != nil {
+			return 0, err
+		}
 	}
 	return id, nil
 }
