@@ -33,7 +33,6 @@ type ConfigMapRepository interface {
 	GetByIdEnvLevel(id int) (*ConfigMapEnvModel, error)
 	GetAllEnvLevel() ([]ConfigMapEnvModel, error)
 	UpdateEnvLevel(model *ConfigMapEnvModel) (*ConfigMapEnvModel, error)
-	DeleteEnvLevel(model *ConfigMapEnvModel) (*ConfigMapEnvModel, error)
 
 	GetByAppIdAppLevel(appId int) (*ConfigMapAppModel, error)
 	GetByAppIdAndEnvIdEnvLevel(appId int, envId int) (*ConfigMapEnvModel, error)
@@ -102,6 +101,7 @@ type ConfigMapEnvModel struct {
 	EnvironmentId int      `sql:"environment_id,notnull"`
 	ConfigMapData string   `sql:"config_map_data"`
 	SecretData    string   `sql:"secret_data"`
+	Deleted       bool     `sql:"deleted"`
 	sql.AuditLog
 }
 
@@ -134,15 +134,6 @@ func (impl ConfigMapRepositoryImpl) UpdateEnvLevel(model *ConfigMapEnvModel) (*C
 	return model, nil
 }
 
-func (impl ConfigMapRepositoryImpl) DeleteEnvLevel(model *ConfigMapEnvModel) (*ConfigMapEnvModel, error) {
-	err := impl.dbConnection.Delete(model)
-	if err != nil {
-		impl.Logger.Errorw("err on config map ", "err;", err)
-		return model, err
-	}
-	return model, nil
-}
-
 func (impl ConfigMapRepositoryImpl) GetByAppIdAndEnvIdEnvLevel(appId int, envId int) (*ConfigMapEnvModel, error) {
 	var model ConfigMapEnvModel
 	err := impl.dbConnection.Model(&model).Where("app_id = ?", appId).Where("environment_id = ?", envId).Select()
@@ -151,7 +142,7 @@ func (impl ConfigMapRepositoryImpl) GetByAppIdAndEnvIdEnvLevel(appId int, envId 
 
 func (impl ConfigMapRepositoryImpl) GetEnvLevelByAppId(appId int) ([]*ConfigMapEnvModel, error) {
 	var models []*ConfigMapEnvModel
-	err := impl.dbConnection.Model(&models).Where("app_id = ?", appId).Select()
+	err := impl.dbConnection.Model(&models).Where("app_id = ?", appId).Where("deleted = ?", false).Select()
 	if err != nil {
 		impl.Logger.Errorw("err in getting cm/cs env level", "err", err)
 		return models, err

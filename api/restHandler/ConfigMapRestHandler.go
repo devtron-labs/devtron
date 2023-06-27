@@ -734,18 +734,18 @@ func (handler ConfigMapRestHandlerImpl) CreateJobEnvironmentOverride(w http.Resp
 	}
 	//AUTH
 
-	var bulkPatchRequest pipeline.CreateJobEnvOverridePayload
-	err = decoder.Decode(&bulkPatchRequest)
+	var envOverrideRequest pipeline.CreateJobEnvOverridePayload
+	err = decoder.Decode(&envOverrideRequest)
 	if err != nil {
-		handler.Logger.Errorw("request err, CreateJobEnvironmentOverride", "err", err, "payload", bulkPatchRequest)
+		handler.Logger.Errorw("request err, CreateJobEnvironmentOverride", "err", err, "payload", envOverrideRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	bulkPatchRequest.UserId = userId
-	handler.Logger.Infow("request payload, CreateJobEnvironmentOverride", "payload", bulkPatchRequest)
-	resp, err := handler.configMapService.ConfigSecretEnvironmentCreate(&bulkPatchRequest)
+	envOverrideRequest.UserId = userId
+	handler.Logger.Infow("request payload, CreateJobEnvironmentOverride", "payload", envOverrideRequest)
+	resp, err := handler.configMapService.ConfigSecretEnvironmentCreate(&envOverrideRequest)
 	if err != nil {
-		handler.Logger.Errorw("service err, CreateJobEnvironmentOverride", "err", err, "payload", bulkPatchRequest)
+		handler.Logger.Errorw("service err, CreateJobEnvironmentOverride", "err", err, "payload", envOverrideRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -779,18 +779,18 @@ func (handler ConfigMapRestHandlerImpl) DeleteJobEnvironmentOverride(w http.Resp
 	}
 	//AUTH
 
-	var bulkPatchRequest pipeline.CreateJobEnvOverridePayload
-	err = decoder.Decode(&bulkPatchRequest)
+	var envOverrideRequest pipeline.CreateJobEnvOverridePayload
+	err = decoder.Decode(&envOverrideRequest)
 	if err != nil {
-		handler.Logger.Errorw("request err, DeleteJobEnvironmentOverride", "err", err, "payload", bulkPatchRequest)
+		handler.Logger.Errorw("request err, DeleteJobEnvironmentOverride", "err", err, "payload", envOverrideRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	bulkPatchRequest.UserId = userId
-	handler.Logger.Infow("request payload, DeleteJobEnvironmentOverride", "payload", bulkPatchRequest)
-	resp, err := handler.configMapService.ConfigSecretEnvironmentDelete(&bulkPatchRequest)
+	envOverrideRequest.UserId = userId
+	handler.Logger.Infow("request payload, DeleteJobEnvironmentOverride", "payload", envOverrideRequest)
+	resp, err := handler.configMapService.ConfigSecretEnvironmentDelete(&envOverrideRequest)
 	if err != nil {
-		handler.Logger.Errorw("service err, DeleteJobEnvironmentOverride", "err", err, "payload", bulkPatchRequest)
+		handler.Logger.Errorw("service err, DeleteJobEnvironmentOverride", "err", err, "payload", envOverrideRequest)
 		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
 		return
 	}

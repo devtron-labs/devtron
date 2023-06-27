@@ -1796,21 +1796,31 @@ func (impl ConfigMapServiceImpl) buildBulkPayload(bulkPatchRequest *BulkPatchReq
 }
 
 func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentCreate(createJobEnvOverrideRequest *CreateJobEnvOverridePayload) (*chartConfig.ConfigMapEnvModel, error) {
-	_, err := impl.configMapRepository.GetByAppIdAndEnvIdEnvLevel(createJobEnvOverrideRequest.AppId, createJobEnvOverrideRequest.EnvId)
+	configMap, err := impl.configMapRepository.GetByAppIdAndEnvIdEnvLevel(createJobEnvOverrideRequest.AppId, createJobEnvOverrideRequest.EnvId)
 	if pg.ErrNoRows != err {
+		if configMap.Deleted {
+			configMap.Deleted = false
+			_, err = impl.configMapRepository.UpdateEnvLevel(configMap)
+			if err != nil {
+				impl.logger.Errorw("error while creating env level", "error", err)
+				return nil, err
+			}
+			return configMap, nil
+		}
 		impl.logger.Warnw("Environment override in this environment already exits", "appId", createJobEnvOverrideRequest.AppId, "envId", createJobEnvOverrideRequest.EnvId)
 		return nil, err
 	}
 	model := &chartConfig.ConfigMapEnvModel{
 		AppId:         createJobEnvOverrideRequest.AppId,
 		EnvironmentId: createJobEnvOverrideRequest.EnvId,
+		Deleted:       false,
 	}
 	model.CreatedBy = createJobEnvOverrideRequest.UserId
 	model.UpdatedBy = createJobEnvOverrideRequest.UserId
 	model.CreatedOn = time.Now()
 	model.UpdatedOn = time.Now()
 
-	configMap, err := impl.configMapRepository.CreateEnvLevel(model)
+	configMap, err = impl.configMapRepository.CreateEnvLevel(model)
 	if err != nil {
 		impl.logger.Errorw("error while creating app level", "error", err)
 		return nil, err
@@ -1828,8 +1838,8 @@ func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentDelete(createJobEnvOverr
 		impl.logger.Errorw("error while fetching from db", "error", err)
 		return nil, err
 	}
-
-	_, err = impl.configMapRepository.DeleteEnvLevel(configMap)
+	configMap.Deleted = true
+	_, err = impl.configMapRepository.UpdateEnvLevel(configMap)
 	if err != nil {
 		impl.logger.Errorw("error while creating app level", "error", err)
 		return nil, err
