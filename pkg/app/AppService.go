@@ -1769,52 +1769,12 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 
 	valuesOverrideResponse, builtChartPath, err := impl.BuildManifestForTrigger(overrideRequest, triggerEvent.TriggerdAt, ctx)
 	if err != nil {
-		if triggerEvent.GetManifestInResponse {
-			timeline := &pipelineConfig.PipelineStatusTimeline{
-				CdWorkflowRunnerId: overrideRequest.WfrId,
-				Status:             "HELM_PACKAGE_GENERATION_FAILED",
-				StatusDetail:       fmt.Sprintf("Helm package generation failed. - %v", err),
-				StatusTime:         time.Now(),
-				AuditLog: sql.AuditLog{
-					CreatedBy: overrideRequest.UserId,
-					CreatedOn: time.Now(),
-					UpdatedBy: overrideRequest.UserId,
-					UpdatedOn: time.Now(),
-				},
-			}
-			err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
-			if err != nil {
-				impl.logger.Errorw("error in saving timeline for manifest_download type")
-			}
-		}
 		return releaseNo, manifest, err
 	}
 
 	_, span := otel.Tracer("orchestrator").Start(ctx, "CreateHistoriesForDeploymentTrigger")
 	err = impl.CreateHistoriesForDeploymentTrigger(valuesOverrideResponse.Pipeline, valuesOverrideResponse.PipelineStrategy, valuesOverrideResponse.EnvOverride, triggerEvent.TriggerdAt, triggerEvent.TriggeredBy)
 	span.End()
-
-	if triggerEvent.GetManifestInResponse {
-		//get stream and directly redirect the stram to response
-		timeline := &pipelineConfig.PipelineStatusTimeline{
-			CdWorkflowRunnerId: overrideRequest.WfrId,
-			Status:             "HELM_PACKAGE_GENERATED",
-			StatusDetail:       "Helm package generated successfully.",
-			StatusTime:         time.Now(),
-			AuditLog: sql.AuditLog{
-				CreatedBy: overrideRequest.UserId,
-				CreatedOn: time.Now(),
-				UpdatedBy: overrideRequest.UserId,
-				UpdatedOn: time.Now(),
-			},
-		}
-		_, span := otel.Tracer("orchestrator").Start(ctx, "cdPipelineStatusTimelineRepo.SaveTimelineForACDHelmApps")
-		err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
-		if err != nil {
-			impl.logger.Errorw("error in saving timeline for manifest_download type")
-		}
-		span.End()
-	}
 
 	if triggerEvent.PerformChartPush {
 		manifestPushTemplate := impl.BuildManifestPushTemplate(overrideRequest, valuesOverrideResponse, builtChartPath, &manifest)
@@ -1888,17 +1848,6 @@ func (impl *AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideR
 		triggerEvent.PerformDeploymentOnCluster = true
 		triggerEvent.GetManifestInResponse = false
 		triggerEvent.DeploymentAppType = bean2.Helm
-	case bean2.ManifestDownload:
-		triggerEvent.PerformChartPush = false
-		triggerEvent.PerformDeploymentOnCluster = false
-		triggerEvent.GetManifestInResponse = true
-		triggerEvent.DeploymentAppType = bean2.ManifestDownload
-	case bean2.GitOpsWithoutDeployment:
-		triggerEvent.PerformChartPush = true
-		triggerEvent.PerformDeploymentOnCluster = false
-		triggerEvent.GetManifestInResponse = false
-		triggerEvent.DeploymentAppType = bean2.GitOpsWithoutDeployment
-
 	}
 
 	releaseNo, manifest, err = impl.TriggerPipeline(overrideRequest, triggerEvent, ctx)
