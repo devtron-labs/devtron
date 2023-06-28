@@ -28,7 +28,33 @@ func TestPipelineBuilderImpl_validateDeploymentAppType(t *testing.T) {
 		mockDeploymentConfigConfig := &repository.Attributes{
 			Id:       1,
 			Key:      "2",
-			Value:    "",
+			Value:    "{\"argo_cd\": true, \"helm\": true}",
+			Active:   false,
+			AuditLog: sql.AuditLog{},
+		}
+		mockError := error(nil)
+		attributesRepoMock.On("FindByKey", mock.Anything).Return(mockDeploymentConfigConfig, mockError)
+
+		err := impl.validateDeploymentAppType(pipeline)
+		apiErr, _ := err.(*util.ApiError)
+		assert.Equal(t, http.StatusInternalServerError, apiErr.HttpStatusCode)
+	})
+
+	t.Run("JsonUnmarshalThrowsErrorParsingDeploymentConfigValue", func(t *testing.T) {
+		attributesRepoMock := mocks.NewAttributesRepository(t)
+
+		impl := PipelineBuilderImpl{
+			attributesRepository: attributesRepoMock, // Provide a mock implementation of attributesRepository
+		}
+		pipeline := &bean.CDPipelineConfigObject{
+			EnvironmentId:     123,
+			DeploymentAppType: "SomeAppType",
+		}
+
+		mockDeploymentConfigConfig := &repository.Attributes{
+			Id:       1,
+			Key:      "2",
+			Value:    "absurd_value",
 			Active:   false,
 			AuditLog: sql.AuditLog{},
 		}
