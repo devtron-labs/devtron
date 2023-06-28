@@ -169,7 +169,7 @@ type AppServiceImpl struct {
 	installedAppVersionHistoryRepository   repository4.InstalledAppVersionHistoryRepository
 	globalEnvVariables                     *util2.GlobalEnvVariables
 	manifestPushConfigRepository           repository5.ManifestPushConfigRepository
-	GitOpsManifestPushService              GitOpsManifestPushService
+	GitOpsManifestPushService              GitOpsPushService
 }
 
 type AppService interface {
@@ -248,7 +248,7 @@ func NewAppService(
 	installedAppVersionHistoryRepository repository4.InstalledAppVersionHistoryRepository,
 	globalEnvVariables *util2.GlobalEnvVariables, helmAppService client2.HelmAppService,
 	manifestPushConfigRepository repository5.ManifestPushConfigRepository,
-	GitOpsManifestPushService GitOpsManifestPushService) *AppServiceImpl {
+	GitOpsManifestPushService GitOpsPushService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:            environmentConfigRepository,
 		mergeUtil:                              mergeUtil,
@@ -1777,19 +1777,17 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 	span.End()
 
 	if triggerEvent.PerformChartPush {
-		manifestPushTemplate := impl.BuildManifestPushTemplate(overrideRequest, valuesOverrideResponse, builtChartPath, &manifest)
+		manifestPushTemplate, err := impl.BuildManifestPushTemplate(overrideRequest, valuesOverrideResponse, builtChartPath, &manifest)
+		if err != nil {
+			impl.logger.Errorw("error in building manifest push template", "err", err)
+			return releaseNo, manifest, err
+		}
 		manifestPushService := impl.GetManifestPushService(triggerEvent)
 		manifestPushResponse := manifestPushService.PushChart(manifestPushTemplate, ctx)
 		if manifestPushResponse.Error != nil {
 			impl.logger.Errorw("Error in pushing manifest to git", "err", err, "git_repo_url", manifestPushTemplate.RepoUrl)
-			gitCommitStatus := pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED
-			gitCommitStatusDetail := fmt.Sprintf("Git commit failed - %v", err)
-			impl.saveTimeline(overrideRequest, gitCommitStatus, gitCommitStatusDetail, ctx)
 			return releaseNo, manifest, err
 		}
-		gitCommitStatus := pipelineConfig.TIMELINE_STATUS_GIT_COMMIT
-		gitCommitStatusDetail := "Git commit done successfully."
-		impl.saveTimeline(overrideRequest, gitCommitStatus, gitCommitStatusDetail, ctx)
 		pipelineOverrideUpdateRequest := &chartConfig.PipelineOverride{
 			Id:                     valuesOverrideResponse.PipelineOverride.Id,
 			GitHash:                manifestPushResponse.CommitHash,
@@ -1865,25 +1863,41 @@ func (impl *AppServiceImpl) GetManifestPushService(triggerEvent bean.TriggerEven
 	return manifestPushService
 }
 
-func (impl *AppServiceImpl) BuildManifestPushTemplate(overrideRequest *bean.ValuesOverrideRequest, valuesOverrideResponse *ValuesOverrideResponse, builtChartPath string, manifest *[]byte) *bean3.ManifestPushTemplate {
-	return &bean3.ManifestPushTemplate{
-		WorkflowRunnerId:       overrideRequest.WfrId,
-		AppId:                  overrideRequest.AppId,
-		ChartRefId:             valuesOverrideResponse.EnvOverride.Chart.ChartRefId,
-		EnvironmentId:          valuesOverrideResponse.EnvOverride.Environment.Id,
-		UserId:                 overrideRequest.UserId,
-		PipelineOverrideId:     valuesOverrideResponse.PipelineOverride.Id,
-		AppName:                overrideRequest.AppName,
-		TargetEnvironmentName:  valuesOverrideResponse.EnvOverride.TargetEnvironment,
-		ChartReferenceTemplate: valuesOverrideResponse.EnvOverride.Chart.ReferenceTemplate,
-		ChartName:              valuesOverrideResponse.EnvOverride.Chart.ChartName,
-		ChartVersion:           valuesOverrideResponse.EnvOverride.Chart.ChartVersion,
-		ChartLocation:          valuesOverrideResponse.EnvOverride.Chart.ChartLocation,
-		RepoUrl:                valuesOverrideResponse.EnvOverride.Chart.GitRepoUrl,
-		BuiltChartPath:         builtChartPath,
-		BuiltChartBytes:        manifest,
-		MergedValues:           valuesOverrideResponse.MergedValues,
+func (impl *AppServiceImpl) BuildManifestPushTemplate(overrideRequest *bean.ValuesOverrideRequest, valuesOverrideResponse *ValuesOverrideResponse, builtChartPath string, manifest *[]byte) (*bean3.ManifestPushTemplate, error) {
+
+	manifestPushTemplate := &bean3.ManifestPushTemplate{
+		WorkflowRunnerId:      overrideRequest.WfrId,
+		AppId:                 overrideRequest.AppId,
+		ChartRefId:            valuesOverrideResponse.EnvOverride.Chart.ChartRefId,
+		EnvironmentId:         valuesOverrideResponse.EnvOverride.Environment.Id,
+		UserId:                overrideRequest.UserId,
+		PipelineOverrideId:    valuesOverrideResponse.PipelineOverride.Id,
+		AppName:               overrideRequest.AppName,
+		TargetEnvironmentName: valuesOverrideResponse.EnvOverride.TargetEnvironment,
+		BuiltChartPath:        builtChartPath,
+		BuiltChartBytes:       manifest,
+		MergedValues:          valuesOverrideResponse.MergedValues,
 	}
+
+	manifestPushConfig, err := impl.manifestPushConfigRepository.GetManifestPushConfigByAppIdAndEnvId(overrideRequest.AppId, overrideRequest.EnvId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching manifest push config from db", "err", err)
+		return manifestPushTemplate, err
+	}
+
+	if manifestPushConfig != nil {
+		if manifestPushConfig.StorageType == bean2.ManifestStorageGit {
+			// need to implement for git repo push
+			// currently manifest push config doesn't have git push config. Gitops config is derived from charts, chart_env_config_override and chart_ref table
+		}
+	} else {
+		manifestPushTemplate.ChartReferenceTemplate = valuesOverrideResponse.EnvOverride.Chart.ReferenceTemplate
+		manifestPushTemplate.ChartName = valuesOverrideResponse.EnvOverride.Chart.ChartName
+		manifestPushTemplate.ChartVersion = valuesOverrideResponse.EnvOverride.Chart.ChartVersion
+		manifestPushTemplate.ChartLocation = valuesOverrideResponse.EnvOverride.Chart.ChartLocation
+		manifestPushTemplate.RepoUrl = valuesOverrideResponse.EnvOverride.Chart.GitRepoUrl
+	}
+	return manifestPushTemplate, err
 }
 
 func (impl *AppServiceImpl) buildChartAndPushToGitRepo(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, chartMetaData *chart2.Metadata, referenceTemplatePath string, gitOpsRepoName string, envOverride *chartConfig.EnvConfigOverride) error {

@@ -852,7 +852,7 @@ func InitializeApp() (*App, error) {
 		repository5.NewManifestPushConfigRepository,
 		wire.Bind(new(repository5.ManifestPushConfigRepository), new(*repository5.ManifestPushConfigRepositoryImpl)),
 		app.NewGitOpsManifestPushServiceImpl,
-		wire.Bind(new(app.GitOpsManifestPushService), new(*app.GitOpsManifestPushServiceImpl)),
+		wire.Bind(new(app.GitOpsPushService), new(*app.GitOpsManifestPushServiceImpl)),
 	)
 	return &App{}, nil
 }

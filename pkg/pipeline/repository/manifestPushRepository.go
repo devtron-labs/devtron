@@ -21,7 +21,7 @@ type ManifestPushConfig struct {
 
 type ManifestPushConfigRepository interface {
 	SaveConfig(manifestPushConfig *ManifestPushConfig) (*ManifestPushConfig, error)
-	GetConfigByAppIdAndEnvId(appId, envId int) (*ManifestPushConfig, error)
+	GetManifestPushConfigByAppIdAndEnvId(appId, envId int) (*ManifestPushConfig, error)
 }
 
 type ManifestPushConfigRepositoryImpl struct {

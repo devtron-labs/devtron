@@ -5,10 +5,13 @@ import (
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	. "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app/bean"
+	status2 "github.com/devtron-labs/devtron/pkg/app/status"
 	chartService "github.com/devtron-labs/devtron/pkg/chart"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
@@ -19,16 +22,17 @@ type ManifestPushService interface {
 	PushChart(manifestPushConfig *bean.ManifestPushTemplate, ctx context.Context) bean.ManifestPushResponse
 }
 
-type GitOpsManifestPushService interface {
+type GitOpsPushService interface {
 	ManifestPushService
 }
 
 type GitOpsManifestPushServiceImpl struct {
-	logger                 *zap.SugaredLogger
-	chartTemplateService   util.ChartTemplateService
-	chartService           chartService.ChartService
-	gitOpsConfigRepository repository.GitOpsConfigRepository
-	gitFactory             *GitFactory
+	logger                        *zap.SugaredLogger
+	chartTemplateService          util.ChartTemplateService
+	chartService                  chartService.ChartService
+	gitOpsConfigRepository        repository.GitOpsConfigRepository
+	gitFactory                    *GitFactory
+	pipelineStatusTimelineService status2.PipelineStatusTimelineService
 }
 
 func NewGitOpsManifestPushServiceImpl(
@@ -37,13 +41,15 @@ func NewGitOpsManifestPushServiceImpl(
 	chartService chartService.ChartService,
 	gitOpsConfigRepository repository.GitOpsConfigRepository,
 	gitFactory *GitFactory,
+	pipelineStatusTimelineService status2.PipelineStatusTimelineService,
 ) *GitOpsManifestPushServiceImpl {
 	return &GitOpsManifestPushServiceImpl{
-		logger:                 logger,
-		chartTemplateService:   chartTemplateService,
-		chartService:           chartService,
-		gitOpsConfigRepository: gitOpsConfigRepository,
-		gitFactory:             gitFactory,
+		logger:                        logger,
+		chartTemplateService:          chartTemplateService,
+		chartService:                  chartService,
+		gitOpsConfigRepository:        gitOpsConfigRepository,
+		gitFactory:                    gitFactory,
+		pipelineStatusTimelineService: pipelineStatusTimelineService,
 	}
 }
 
@@ -53,16 +59,23 @@ func (impl *GitOpsManifestPushServiceImpl) PushChart(manifestPushTemplate *bean.
 	if err != nil {
 		impl.logger.Errorw("error in pushing chart to git", "err", err)
 		manifestPushResponse.Error = err
+		impl.SaveTimelineForError(manifestPushTemplate, err)
 		return manifestPushResponse
 	}
 	commitHash, commitTime, err := impl.CommitValuesToGit(manifestPushTemplate, ctx)
 	if err != nil {
 		impl.logger.Errorw("error in commiting values to git", "err", err)
 		manifestPushResponse.Error = err
+		impl.SaveTimelineForError(manifestPushTemplate, err)
 		return manifestPushResponse
 	}
 	manifestPushResponse.CommitHash = commitHash
 	manifestPushResponse.CommitTime = commitTime
+
+	timeline := getTimelineObject(manifestPushTemplate, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT, "Git commit done successfully.")
+	timelineErr := impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
+	impl.logger.Errorw("Error in saving git commit success timeline", err, timelineErr)
+
 	return manifestPushResponse
 }
 
@@ -129,4 +142,27 @@ func (impl *GitOpsManifestPushServiceImpl) CommitValuesToGit(manifestPushTemplat
 		return commitHash, commitTime, err
 	}
 	return commitHash, commitTime, nil
+}
+
+func (impl *GitOpsManifestPushServiceImpl) SaveTimelineForError(manifestPushTemplate *bean.ManifestPushTemplate, gitCommitErr error) {
+	timeline := getTimelineObject(manifestPushTemplate, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED, fmt.Sprintf("Git commit failed - %v", gitCommitErr))
+	timelineErr := impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
+	if timelineErr != nil {
+		impl.logger.Errorw("error in creating timeline status for git commit", "err", timelineErr, "timeline", timeline)
+	}
+}
+
+func getTimelineObject(manifestPushTemplate *bean.ManifestPushTemplate, status string, statusDetail string) *pipelineConfig.PipelineStatusTimeline {
+	return &pipelineConfig.PipelineStatusTimeline{
+		CdWorkflowRunnerId: manifestPushTemplate.WorkflowRunnerId,
+		Status:             status,
+		StatusDetail:       statusDetail,
+		StatusTime:         time.Now(),
+		AuditLog: sql.AuditLog{
+			CreatedBy: manifestPushTemplate.UserId,
+			CreatedOn: time.Now(),
+			UpdatedBy: manifestPushTemplate.UserId,
+			UpdatedOn: time.Now(),
+		},
+	}
 }
