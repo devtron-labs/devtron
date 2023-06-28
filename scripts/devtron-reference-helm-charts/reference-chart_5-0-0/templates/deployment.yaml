@@ -48,6 +48,10 @@ metadata:
 {{- end }}
 
 spec:
+  {{- if .Values.analysis }}
+  analysis:
+{{ toYaml .Values.analysis | indent 4 }}
+  {{- end }}
   selector:
     matchLabels:
       app: {{ template ".Chart.Name .name" $ }}

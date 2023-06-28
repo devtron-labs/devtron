@@ -43,6 +43,8 @@ Spec:
 #  Key: kops.k8s.io/instancegroup 
   Values:
 
+analysis: {}
+
 analysisTemplate:
   enabled: false
   templates: []

@@ -178,6 +178,10 @@ deployment:
 
 pipelineName: ci-axhbc
 
+analysis:
+  successfulRunHistoryLimit: 4
+  unsuccessfulRunHistoryLimit: 3
+  
 appLabels:
   hello: hii
   hey: hello
