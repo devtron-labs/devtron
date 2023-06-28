@@ -37,8 +37,6 @@ func TestPipelineBuilderImpl_validateDeploymentAppType(t *testing.T) {
 
 		err := impl.validateDeploymentAppType(pipeline)
 		assert.Nil(t, err)
-		apiErr, _ := err.(*util.ApiError)
-		assert.Equal(t, http.StatusInternalServerError, apiErr.HttpStatusCode)
 	})
 
 	t.Run("JsonUnmarshalThrowsErrorParsingDeploymentConfigValue", func(t *testing.T) {
