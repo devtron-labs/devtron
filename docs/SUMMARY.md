@@ -52,6 +52,7 @@
       * [Deployment](user-guide/creating-application/deployment-template/deployment.md)
       * [Rollout Deployment](user-guide/creating-application/deployment-template/rollout-deployment.md)
       * [Job and Cronjob](user-guide/creating-application/deployment-template/job-and-cronjob.md)
+      * [StatefulSets](user-guide/creating-application/deployment-template/statefulset.md)
     * [Workflow Overview](user-guide/creating-application/workflow/README.md)
     * [CI Pipeline](user-guide/creating-application/workflow/ci-pipeline.md)
       * [Pre-Build/Post-Build Stages](user-guide/creating-application/workflow/ci-build-pre-post-plugins.md)

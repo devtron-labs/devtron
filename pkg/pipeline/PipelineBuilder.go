@@ -87,6 +87,12 @@ type DeploymentServiceTypeConfig struct {
 	IsInternalUse bool `env:"IS_INTERNAL_USE" envDefault:"false"`
 }
 
+type SecurityConfig struct {
+	//FORCE_SECURITY_SCANNING flag is being maintained in both dashboard and orchestrator CM's
+	//TODO: rishabh will remove FORCE_SECURITY_SCANNING from dashboard's CM.
+	ForceSecurityScanning bool `env:"FORCE_SECURITY_SCANNING" envDefault:"false"`
+}
+
 func GetDeploymentServiceTypeConfig() (*DeploymentServiceTypeConfig, error) {
 	cfg := &DeploymentServiceTypeConfig{}
 	err := env.Parse(cfg)
@@ -217,6 +223,8 @@ type PipelineBuilderImpl struct {
 	appGroupService                                 appGroup2.AppGroupService
 	chartDeploymentService                          util.ChartDeploymentService
 	K8sUtil                                         *util.K8sUtil
+	attributesRepository                            repository.AttributesRepository
+	securityConfig                                  *SecurityConfig
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -269,7 +277,13 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	appGroupService appGroup2.AppGroupService,
 	chartDeploymentService util.ChartDeploymentService,
-	K8sUtil *util.K8sUtil) *PipelineBuilderImpl {
+	K8sUtil *util.K8sUtil,
+	attributesRepository repository.AttributesRepository) *PipelineBuilderImpl {
+	securityConfig := &SecurityConfig{}
+	err := env.Parse(securityConfig)
+	if err != nil {
+		logger.Errorw("error in parsing securityConfig,setting  ForceSecurityScanning to default value", "defaultValue", securityConfig.ForceSecurityScanning, "err", err)
+	}
 	return &PipelineBuilderImpl{
 		logger:                        logger,
 		ciCdPipelineOrchestrator:      ciCdPipelineOrchestrator,
@@ -330,6 +344,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		appGroupService:                                 appGroupService,
 		chartDeploymentService:                          chartDeploymentService,
 		K8sUtil:                                         K8sUtil,
+		attributesRepository:                            attributesRepository,
+		securityConfig:                                  securityConfig,
 	}
 }
 
@@ -1423,28 +1439,8 @@ func (impl PipelineBuilderImpl) PatchCiPipeline(request *bean.CiPatchRequest) (c
 	ciConfig.AppWorkflowId = request.AppWorkflowId
 	ciConfig.UserId = request.UserId
 	if request.CiPipeline != nil {
-		client, err := impl.K8sUtil.GetClientForInCluster()
-		if err != nil {
-			impl.logger.Errorw("exception while getting unique client id", "error", err)
-			return nil, err
-		}
-		cm, err := impl.K8sUtil.GetConfigMap(argo.DEVTRONCD_NAMESPACE, DashboardConfigMap, client)
-		if err != nil {
-			impl.logger.Errorw("error while getting dashboard-cm", "error", err)
-			return nil, err
-		}
-		if cm == nil {
-			impl.logger.Errorw("error while getting dashboard-cm", "error", err)
-			return nil, err
-		}
-		datamap := cm.Data
-		forceScanConfig, err := strconv.ParseBool(datamap[SECURITY_SCANNING])
-		if err != nil {
-			forceScanConfig = false
-		}
-		if forceScanConfig {
-			request.CiPipeline.ScanEnabled = true
-		}
+		//setting ScanEnabled value from env variable,
+		request.CiPipeline.ScanEnabled = request.CiPipeline.ScanEnabled || impl.securityConfig.ForceSecurityScanning
 		ciConfig.ScanEnabled = request.CiPipeline.ScanEnabled
 	}
 	switch request.Action {
@@ -1777,6 +1773,13 @@ func (impl PipelineBuilderImpl) SetPipelineDeploymentAppType(pipelineCreateReque
 	//}
 
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
+		if !impl.deploymentConfig.IsInternalUse {
+			if isGitOpsConfigured {
+				pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
+			} else {
+				pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
+			}
+		}
 		if pipeline.DeploymentAppType == "" {
 			if isGitOpsConfigured {
 				pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
@@ -1789,6 +1792,18 @@ func (impl PipelineBuilderImpl) SetPipelineDeploymentAppType(pipelineCreateReque
 }
 
 func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error) {
+
+	//Validation for checking deployment App type
+	for _, pipeline := range pipelineCreateRequest.Pipelines {
+		// if no deployment app type sent from user then we'll not validate
+		if pipeline.DeploymentAppType != "" {
+			if err := impl.validateDeploymentAppType(pipeline); err != nil {
+				impl.logger.Errorw("validation error in creating pipeline", "name", pipeline.Name, "err", err)
+				return nil, err
+			}
+		}
+		continue
+	}
 
 	isGitOpsConfigured, err := impl.IsGitopsConfigured()
 	impl.SetPipelineDeploymentAppType(pipelineCreateRequest, isGitOpsConfigured)
@@ -1836,6 +1851,60 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 	}
 
 	return pipelineCreateRequest, nil
+}
+
+func (impl PipelineBuilderImpl) validateDeploymentAppType(pipeline *bean.CDPipelineConfigObject) error {
+	var deploymentConfig map[string]bool
+	deploymentConfigValues, _ := impl.attributesRepository.FindByKey(fmt.Sprintf("%d", pipeline.EnvironmentId))
+	//if empty config received(doesn't exist in table) which can't be parsed
+	if deploymentConfigValues.Value != "" {
+		if err := json.Unmarshal([]byte(deploymentConfigValues.Value), &deploymentConfig); err != nil {
+			rerr := &util.ApiError{
+				HttpStatusCode:  http.StatusInternalServerError,
+				InternalMessage: err.Error(),
+				UserMessage:     "Failed to fetch deployment config values from the attributes table",
+			}
+			return rerr
+		}
+	}
+
+	// Config value doesn't exist in attribute table
+	if deploymentConfig == nil {
+		return nil
+	}
+	//Config value found to be true for ArgoCD and Helm both
+	if allDeploymentConfigTrue(deploymentConfig) {
+		return nil
+	}
+	//Case : {ArgoCD : false, Helm: true, HGF : true}
+	if validDeploymentConfigReceived(deploymentConfig, pipeline.DeploymentAppType) {
+		return nil
+	}
+
+	err := &util.ApiError{
+		HttpStatusCode:  http.StatusBadRequest,
+		InternalMessage: "Received deployment app type doesn't match with the allowed deployment app type for this environment.",
+		UserMessage:     "Received deployment app type doesn't match with the allowed deployment app type for this environment.",
+	}
+	return err
+}
+
+func allDeploymentConfigTrue(deploymentConfig map[string]bool) bool {
+	for _, value := range deploymentConfig {
+		if !value {
+			return false
+		}
+	}
+	return true
+}
+
+func validDeploymentConfigReceived(deploymentConfig map[string]bool, deploymentTypeSent string) bool {
+	for key, value := range deploymentConfig {
+		if value && key == deploymentTypeSent {
+			return true
+		}
+	}
+	return false
 }
 
 func (impl PipelineBuilderImpl) PatchCdPipelines(cdPipelines *bean.CDPatchRequest, ctx context.Context) (*bean.CdPipelines, error) {

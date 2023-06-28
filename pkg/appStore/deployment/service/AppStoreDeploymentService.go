@@ -221,7 +221,13 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 	//		installedAppModel.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
 	//	}
 	//}
-
+	if !isInternalUse {
+		if isGitOpsConfigured && appInstallationMode == util2.SERVER_MODE_FULL {
+			installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
+		} else {
+			installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
+		}
+	}
 	if installAppVersionRequest.DeploymentAppType == "" {
 		if isGitOpsConfigured {
 			installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
