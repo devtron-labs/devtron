@@ -595,6 +595,27 @@ func (impl *WorkflowDagExecutorImpl) buildArtifactLocationForS3(cdWorkflowConfig
 	return ArtifactLocation, cdWorkflowConfig.LogsBucket, artifactFileName
 }
 
+func (impl *WorkflowDagExecutorImpl) getDeployStageDetails(pipelineId int) (pipelineConfig.CdWorkflowRunner, *bean.UserInfo, int, error) {
+	deployStageWfr := pipelineConfig.CdWorkflowRunner{}
+	//getting deployment pipeline latest wfr by pipelineId
+	deployStageWfr, err := impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(pipelineId, bean.CD_WORKFLOW_TYPE_DEPLOY)
+	if err != nil {
+		impl.logger.Errorw("error in getting latest status of deploy type wfr by pipelineId", "err", err, "pipelineId", pipelineId)
+		return deployStageWfr, nil, 0, err
+	}
+	deployStageTriggeredByUser, err := impl.user.GetById(deployStageWfr.TriggeredBy)
+	if err != nil {
+		impl.logger.Errorw("error in getting userDetails by id", "err", err, "userId", deployStageWfr.TriggeredBy)
+		return deployStageWfr, nil, 0, err
+	}
+	pipelineReleaseCounter, err := impl.pipelineOverrideRepository.GetCurrentPipelineReleaseCounter(pipelineId)
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching latest release counter for pipeline", "pipelineId", pipelineId, "err", err)
+		return deployStageWfr, nil, 0, err
+	}
+	return deployStageWfr, deployStageTriggeredByUser, pipelineReleaseCounter, nil
+}
+
 func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWorkflowRunner, cdWf *pipelineConfig.CdWorkflow, cdPipeline *pipelineConfig.Pipeline, triggeredBy int32) (*CdWorkflowRequest, error) {
 	cdWorkflowConfig, err := impl.cdWorkflowRepository.FindConfigByPipelineId(cdPipeline.Id)
 	if err != nil && !util.IsErrNoRows(err) {
@@ -713,21 +734,9 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 				impl.logger.Errorw("error in getting pre, post & refPlugin steps data for wf request", "err", err, "cdPipelineId", cdPipeline.Id)
 				return nil, err
 			}
-			//getting deployment pipeline latest wfr by pipelineId
-			pipelineId := cdPipeline.Id
-			deployStageWfr, err = impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(pipelineId, bean.CD_WORKFLOW_TYPE_DEPLOY)
+			deployStageWfr, deployStageTriggeredByUser, pipelineReleaseCounter, err = impl.getDeployStageDetails(cdPipeline.Id)
 			if err != nil {
-				impl.logger.Errorw("error in getting latest status of deploy type wfr by pipelineId", "err", err, "pipelineId", pipelineId)
-				return nil, err
-			}
-			deployStageTriggeredByUser, err = impl.user.GetById(deployStageWfr.TriggeredBy)
-			if err != nil {
-				impl.logger.Errorw("error in getting userDetails by id", "err", err, "userId", deployStageWfr.TriggeredBy)
-				return nil, err
-			}
-			pipelineReleaseCounter, err = impl.pipelineOverrideRepository.GetCurrentPipelineReleaseCounter(pipelineId)
-			if err != nil {
-				impl.logger.Errorw("error occurred while fetching latest release counter for pipeline", "pipelineId", pipelineId, "err", err)
+				impl.logger.Errorw("error in getting deployStageWfr, deployStageTriggeredByUser and pipelineReleaseCounter wf request", "err", err, "cdPipelineId", cdPipeline.Id)
 				return nil, err
 			}
 		} else {
@@ -740,21 +749,9 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			stageYaml = cdPipeline.PreStageConfig
 		} else if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
 			stageYaml = cdPipeline.PostStageConfig
-			//getting deployment pipeline latest wfr by pipelineId
-			pipelineId := cdPipeline.Id
-			deployStageWfr, err = impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(pipelineId, bean.CD_WORKFLOW_TYPE_DEPLOY)
+			deployStageWfr, deployStageTriggeredByUser, pipelineReleaseCounter, err = impl.getDeployStageDetails(cdPipeline.Id)
 			if err != nil {
-				impl.logger.Errorw("error in getting latest status of deploy type wfr by pipelineId", "err", err, "pipelineId", pipelineId)
-				return nil, err
-			}
-			deployStageTriggeredByUser, err = impl.user.GetById(deployStageWfr.TriggeredBy)
-			if err != nil {
-				impl.logger.Errorw("error in getting userDetails by id", "err", err, "userId", deployStageWfr.TriggeredBy)
-				return nil, err
-			}
-			pipelineReleaseCounter, err = impl.pipelineOverrideRepository.GetCurrentPipelineReleaseCounter(pipelineId)
-			if err != nil {
-				impl.logger.Errorw("error occurred while fetching latest release counter for pipeline", "pipelineId", pipelineId, "err", err)
+				impl.logger.Errorw("error in getting deployStageWfr, deployStageTriggeredByUser and pipelineReleaseCounter wf request", "err", err, "cdPipelineId", cdPipeline.Id)
 				return nil, err
 			}
 

@@ -1325,6 +1325,22 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateCDPipeline(pipelineRequest *bean.
 func (impl CiCdPipelineOrchestratorImpl) DeleteCdPipeline(pipelineId int, userId int32, tx *pg.Tx) error {
 	return impl.pipelineRepository.Delete(pipelineId, userId, tx)
 }
+func (impl CiCdPipelineOrchestratorImpl) GetPipelineIdAndPrePostStageMapping(dbPipelines []*pipelineConfig.Pipeline) (map[int][]*bean2.PipelineStageDto, error) {
+	var err error
+	pipelineIdAndPrePostStageMapping := make(map[int][]*bean2.PipelineStageDto)
+	var dbPipelineIds []int
+	for _, pipeline := range dbPipelines {
+		dbPipelineIds = append(dbPipelineIds, pipeline.Id)
+	}
+	if len(dbPipelineIds) > 0 {
+		pipelineIdAndPrePostStageMapping, err = impl.pipelineStageService.GetCdPipelineStageDataDeepCopyForPipelineIds(dbPipelineIds)
+		if err != nil {
+			impl.logger.Errorw("error in fetching pipelinePrePostStageMapping", "err", err, "cdPipelineIds", dbPipelineIds)
+			return pipelineIdAndPrePostStageMapping, err
+		}
+	}
+	return pipelineIdAndPrePostStageMapping, nil
+}
 
 func (impl CiCdPipelineOrchestratorImpl) PipelineExists(name string) (bool, error) {
 	return impl.pipelineRepository.PipelineExists(name)
@@ -1335,17 +1351,10 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 	if err != nil {
 		impl.logger.Errorw("error in fetching cdPipeline", "appId", appId, "err", err)
 	}
-	pipelineIdAndPrePostStageMapping := make(map[int][]*bean2.PipelineStageDto)
-	var dbPipelineIds []int
-	for _, pipeline := range dbPipelines {
-		dbPipelineIds = append(dbPipelineIds, pipeline.Id)
-	}
-	if len(dbPipelineIds) > 0 {
-		pipelineIdAndPrePostStageMapping, err = impl.pipelineStageService.GetCdPipelineStageDataDeepCopyForPipelineIds(dbPipelineIds)
-		if err != nil {
-			impl.logger.Errorw("error fetching pipelinePrePostStageMapping", "err", err, "cdPipelineIds", dbPipelineIds)
-			return nil, err
-		}
+	pipelineIdAndPrePostStageMapping, err := impl.GetPipelineIdAndPrePostStageMapping(dbPipelines)
+	if err != nil {
+		impl.logger.Errorw("error in fetching pipelineIdAndPrePostStageMapping", "err", err)
+		return nil, err
 	}
 	var pipelines []*bean.CDPipelineConfigObject
 	for _, dbPipeline := range dbPipelines {
@@ -1443,17 +1452,10 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int, request
 		impl.logger.Errorw("error fetching pipelines for env id", "err", err)
 		return nil, err
 	}
-	pipelineIdAndPrePostStageMapping := make(map[int][]*bean2.PipelineStageDto)
-	var dbPipelineIds []int
-	for _, pipeline := range dbPipelines {
-		dbPipelineIds = append(dbPipelineIds, pipeline.Id)
-	}
-	if len(dbPipelineIds) > 0 {
-		pipelineIdAndPrePostStageMapping, err = impl.pipelineStageService.GetCdPipelineStageDataDeepCopyForPipelineIds(dbPipelineIds)
-		if err != nil {
-			impl.logger.Errorw("error fetching pipelinePrePostStageMapping", "err", err, "cdPipelineIds", dbPipelineIds)
-			return nil, err
-		}
+	pipelineIdAndPrePostStageMapping, err := impl.GetPipelineIdAndPrePostStageMapping(dbPipelines)
+	if err != nil {
+		impl.logger.Errorw("error in fetching pipelineIdAndPrePostStageMapping", "err", err)
+		return nil, err
 	}
 
 	var pipelines []*bean.CDPipelineConfigObject
@@ -1530,17 +1532,10 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForAppAndEnv(appId int, e
 	if err != nil {
 		impl.logger.Errorw("error in fetching cdPipeline", "appId", appId, "err", err)
 	}
-	pipelineIdAndPrePostStageMapping := make(map[int][]*bean2.PipelineStageDto)
-	var dbPipelineIds []int
-	for _, pipeline := range dbPipelines {
-		dbPipelineIds = append(dbPipelineIds, pipeline.Id)
-	}
-	if len(dbPipelineIds) > 0 {
-		pipelineIdAndPrePostStageMapping, err = impl.pipelineStageService.GetCdPipelineStageDataDeepCopyForPipelineIds(dbPipelineIds)
-		if err != nil {
-			impl.logger.Errorw("error fetching pipelinePrePostStageMapping", "err", err, "cdPipelineIds", dbPipelineIds)
-			return nil, err
-		}
+	pipelineIdAndPrePostStageMapping, err := impl.GetPipelineIdAndPrePostStageMapping(dbPipelines)
+	if err != nil {
+		impl.logger.Errorw("error in fetching pipelineIdAndPrePostStageMapping", "err", err)
+		return nil, err
 	}
 	var pipelines []*bean.CDPipelineConfigObject
 	for _, dbPipeline := range dbPipelines {
