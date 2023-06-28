@@ -689,12 +689,13 @@ func (handler *K8sApplicationRestHandlerImpl) GetTerminalSession(w http.Response
 		// RBAC enforcer applying For Helm App
 		rbacObject, rbacObject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(resourceRequestBean.AppIdentifier.ClusterId, resourceRequestBean.AppIdentifier.Namespace, resourceRequestBean.AppIdentifier.ReleaseName)
 		// Validating for custom exec role in build and deploy
-		ok := handler.enforcer.Enforce(token, casbin.ResourceTerminal, casbin.ActionExec, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceTerminal, casbin.ActionExec, rbacObject2)
-		if !ok {
-			ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject2)
+		isAuthorised := false
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceTerminal, casbin.ActionExec, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceTerminal, casbin.ActionExec, rbacObject2); ok {
+			isAuthorised = true
+		} else {
+			isAuthorised = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject2)
 		}
-
-		if !ok {
+		if !isAuthorised {
 			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
