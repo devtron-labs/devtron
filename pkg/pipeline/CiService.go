@@ -143,6 +143,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 	}
 	var env *repository1.Environment
 	isJob := false
+	var environmentName string
 	if app.AppType == helper.Job {
 		isJob = true
 		if trigger.EnvironmentId != 0 {
@@ -152,13 +153,14 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 				return 0, err
 			}
 			ciWorkflowConfig.Namespace = env.Namespace
+			environmentName = env.Name
 		}
 
 	}
 	if ciWorkflowConfig.Namespace == "" {
 		ciWorkflowConfig.Namespace = impl.ciConfig.DefaultNamespace
 	}
-	savedCiWf, err := impl.saveNewWorkflow(pipeline, ciWorkflowConfig, trigger.CommitHashes, trigger.TriggeredBy, trigger.EnvironmentId, isJob)
+	savedCiWf, err := impl.saveNewWorkflow(pipeline, ciWorkflowConfig, trigger.CommitHashes, trigger.TriggeredBy, trigger.EnvironmentId, environmentName, isJob)
 	if err != nil {
 		impl.Logger.Errorw("could not save new workflow", "err", err)
 		return 0, err
@@ -239,7 +241,7 @@ func (impl *CiServiceImpl) BuildPayload(trigger Trigger, pipeline *pipelineConfi
 }
 
 func (impl *CiServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, wfConfig *pipelineConfig.CiWorkflowConfig,
-	commitHashes map[int]bean.GitCommit, userId int32, EnvironmentId int, isJob bool) (wf *pipelineConfig.CiWorkflow, error error) {
+	commitHashes map[int]bean.GitCommit, userId int32, EnvironmentId int, EnvironmentName string, isJob bool) (wf *pipelineConfig.CiWorkflow, error error) {
 	gitTriggers := make(map[int]pipelineConfig.GitCommit)
 	for k, v := range commitHashes {
 		gitCommit := pipelineConfig.GitCommit{
@@ -280,6 +282,7 @@ func (impl *CiServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, 
 	if isJob {
 		ciWorkflow.Namespace = wfConfig.Namespace
 		ciWorkflow.EnvironmentId = EnvironmentId
+		ciWorkflow.EnvironmentName = EnvironmentName
 	}
 	err := impl.ciWorkflowRepository.SaveWorkFlow(ciWorkflow)
 	if err != nil {

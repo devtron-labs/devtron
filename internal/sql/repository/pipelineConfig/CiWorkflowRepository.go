@@ -69,6 +69,7 @@ type CiWorkflow struct {
 	PodName            string            `sql:"pod_name"`
 	CiBuildType        string            `sql:"ci_build_type"`
 	EnvironmentId      int               `sql:"environment_id"`
+	EnvironmentName    string            `sql:"environment_name"`
 	CiPipeline         *CiPipeline
 }
 

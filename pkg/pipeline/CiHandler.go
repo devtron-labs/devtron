@@ -613,6 +613,7 @@ func (impl *CiHandlerImpl) FetchWorkflowDetails(appId int, pipelineId int, build
 		ArtifactId:         ciArtifact.Id,
 		IsArtifactUploaded: ciArtifact.IsArtifactUploaded,
 		EnvironmentId:      workflow.EnvironmentId,
+		EnvironmentName:    workflow.EnvironmentName,
 	}
 	return workflowResponse, nil
 }
