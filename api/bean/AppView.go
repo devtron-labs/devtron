@@ -66,25 +66,27 @@ type JobContainer struct {
 }
 
 type JobCIPipeline struct {
-	CiPipelineId    int       `json:"ciPipelineId"`
-	CiPipelineName  string    `json:"ciPipelineName"`
-	Status          string    `json:"status"`
-	LastRunAt       time.Time `json:"lastRunAt"`
-	LastSuccessAt   time.Time `json:"lastSuccessAt"`
-	EnvironmentId   int       `json:"environment_id"`
-	EnvironmentName string    `json:"environment_name"`
+	CiPipelineId                 int       `json:"ciPipelineId"`
+	CiPipelineName               string    `json:"ciPipelineName"`
+	Status                       string    `json:"status"`
+	LastRunAt                    time.Time `json:"lastRunAt"`
+	LastSuccessAt                time.Time `json:"lastSuccessAt"`
+	EnvironmentId                int       `json:"environment_id"`
+	EnvironmentName              string    `json:"environment_name"`
+	LastTriggeredEnvironmentName string    `json:"last_triggered_environment_name"`
 }
 
 type JobListingContainer struct {
-	JobId           int       `json:"job_id"`
-	JobName         string    `json:"job_name"`
-	Description     string    `json:"description"`
-	CiPipelineID    int       `json:"ci_pipeline_id"`
-	CiPipelineName  string    `json:"ci_pipeline_name"`
-	Status          string    `json:"status"`
-	StartedOn       time.Time `json:"started_on"`
-	EnvironmentId   int       `json:"environment_id"`
-	EnvironmentName string    `json:"environment_name"`
+	JobId                        int       `json:"job_id"`
+	JobName                      string    `json:"job_name"`
+	Description                  string    `json:"description"`
+	CiPipelineID                 int       `json:"ci_pipeline_id"`
+	CiPipelineName               string    `json:"ci_pipeline_name"`
+	Status                       string    `json:"status"`
+	StartedOn                    time.Time `json:"started_on"`
+	EnvironmentId                int       `json:"environment_id"`
+	EnvironmentName              string    `json:"environment_name"`
+	LastTriggeredEnvironmentName string    `json:"last_triggered_environment_name"`
 }
 
 type CiPipelineLastSucceededTime struct {
