@@ -1857,13 +1857,15 @@ func (impl PipelineBuilderImpl) validateDeploymentAppType(pipeline *bean.CDPipel
 	var deploymentConfig map[string]bool
 	deploymentConfigValues, _ := impl.attributesRepository.FindByKey(fmt.Sprintf("%d", pipeline.EnvironmentId))
 	//if empty config received(doesn't exist in table) which can't be parsed
-	if err := json.Unmarshal([]byte(deploymentConfigValues.Value), &deploymentConfig); err != nil && deploymentConfigValues.Value != "" {
-		rerr := &util.ApiError{
-			HttpStatusCode:  http.StatusInternalServerError,
-			InternalMessage: err.Error(),
-			UserMessage:     "Failed to fetch deployment config values from the attributes table",
+	if deploymentConfigValues.Value != "" {
+		if err := json.Unmarshal([]byte(deploymentConfigValues.Value), &deploymentConfig); err != nil {
+			rerr := &util.ApiError{
+				HttpStatusCode:  http.StatusInternalServerError,
+				InternalMessage: err.Error(),
+				UserMessage:     "Failed to fetch deployment config values from the attributes table",
+			}
+			return rerr
 		}
-		return rerr
 	}
 
 	// Config value doesn't exist in attribute table
