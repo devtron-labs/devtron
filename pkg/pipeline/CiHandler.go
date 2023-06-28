@@ -502,6 +502,7 @@ func (impl *CiHandlerImpl) GetBuildHistory(pipelineId int, offset int, size int)
 			BlobStorageEnabled: w.BlobStorageEnabled,
 			IsArtifactUploaded: w.IsArtifactUploaded,
 			EnvironmentId:      w.EnvironmentId,
+			EnvironmentName:    w.EnvironmentName,
 		}
 		ciWorkLowResponses = append(ciWorkLowResponses, wfResponse)
 	}
