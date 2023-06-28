@@ -1856,7 +1856,7 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 func (impl PipelineBuilderImpl) validateDeploymentAppType(pipeline *bean.CDPipelineConfigObject) error {
 	var deploymentConfig map[string]bool
 	deploymentConfigValues, _ := impl.attributesRepository.FindByKey(fmt.Sprintf("%d", pipeline.EnvironmentId))
-	if err := json.Unmarshal([]byte(deploymentConfigValues.Value), &deploymentConfig); err != nil {
+	if err := json.Unmarshal([]byte(deploymentConfigValues.Value), &deploymentConfig); err != nil && deploymentConfigValues.Value != "" {
 		rerr := &util.ApiError{
 			HttpStatusCode:  http.StatusInternalServerError,
 			InternalMessage: err.Error(),

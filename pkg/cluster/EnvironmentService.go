@@ -392,7 +392,7 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete(isDeploymen
 				allowedDeploymentConfigString []string
 			)
 			deploymentConfigValues, _ := impl.attributesRepository.FindByKey(fmt.Sprintf("%d", model.Id))
-			if err = json.Unmarshal([]byte(deploymentConfigValues.Value), &deploymentConfig); err != nil {
+			if err = json.Unmarshal([]byte(deploymentConfigValues.Value), &deploymentConfig); err != nil && deploymentConfigValues.Value != "" {
 				return nil, err
 			}
 
