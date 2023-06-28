@@ -312,17 +312,19 @@ func (impl DockerRegistryConfigImpl) Create(bean *DockerArtifactStoreBean) (*Doc
 	bean.Id = store.Id
 
 	// 3- insert OCIRegistryConfig for this docker registry
-	err = impl.ConfigureOCIRegistry(bean.Id, bean.OCIRegistryConfig, false, bean.User, tx)
-	if err != nil {
-		impl.logger.Errorw("error in saving OCI registry config", "OCIRegistryConfig", bean.OCIRegistryConfig, "err", err)
-		err = &util.ApiError{
-			Code:            constants.DockerRegCreateFailedInDb,
-			InternalMessage: err.Error(),
-			UserMessage:     "Error in creating OCI registry config in db",
+	if store.IsOCICompliantRegistry {
+		err = impl.ConfigureOCIRegistry(bean.Id, bean.OCIRegistryConfig, false, bean.User, tx)
+		if err != nil {
+			impl.logger.Errorw("error in saving OCI registry config", "OCIRegistryConfig", bean.OCIRegistryConfig, "err", err)
+			err = &util.ApiError{
+				Code:            constants.DockerRegCreateFailedInDb,
+				InternalMessage: err.Error(),
+				UserMessage:     "Error in creating OCI registry config in db",
+			}
+			return nil, err
 		}
-		return nil, err
+		impl.logger.Infow("created OCI registry config successfully")
 	}
-	impl.logger.Infow("created OCI registry config successfully")
 
 	// 4- insert imagePullSecretConfig for this docker registry
 	dockerRegistryIpsConfig := bean.DockerRegistryIpsConfig
@@ -527,17 +529,19 @@ func (impl DockerRegistryConfigImpl) Update(bean *DockerArtifactStoreBean) (*Doc
 	bean.Id = store.Id
 
 	// 4- update OCIRegistryConfig for this docker registry
-	err = impl.ConfigureOCIRegistry(bean.Id, bean.OCIRegistryConfig, true, bean.User, tx)
-	if err != nil {
-		impl.logger.Errorw("error in updating OCI registry config", "OCIRegistryConfig", bean.OCIRegistryConfig, "err", err)
-		err = &util.ApiError{
-			Code:            constants.DockerRegCreateFailedInDb,
-			InternalMessage: err.Error(),
-			UserMessage:     "Error in updating OCI registry config in db",
+	if store.IsOCICompliantRegistry {
+		err = impl.ConfigureOCIRegistry(bean.Id, bean.OCIRegistryConfig, true, bean.User, tx)
+		if err != nil {
+			impl.logger.Errorw("error in updating OCI registry config", "OCIRegistryConfig", bean.OCIRegistryConfig, "err", err)
+			err = &util.ApiError{
+				Code:            constants.DockerRegCreateFailedInDb,
+				InternalMessage: err.Error(),
+				UserMessage:     "Error in updating OCI registry config in db",
+			}
+			return nil, err
 		}
-		return nil, err
+		impl.logger.Infow("updated OCI registry config successfully")
 	}
-	impl.logger.Infow("updated OCI registry config successfully")
 
 	// 5- update imagePullSecretConfig for this docker registry
 	dockerRegistryIpsConfig := bean.DockerRegistryIpsConfig
@@ -612,17 +616,19 @@ func (impl DockerRegistryConfigImpl) UpdateInactive(bean *DockerArtifactStoreBea
 	bean.Id = store.Id
 
 	// 4- update OCIRegistryConfig for this docker registry
-	err = impl.ConfigureOCIRegistry(bean.Id, bean.OCIRegistryConfig, true, bean.User, tx)
-	if err != nil {
-		impl.logger.Errorw("error in updating OCI registry config", "OCIRegistryConfig", bean.OCIRegistryConfig, "err", err)
-		err = &util.ApiError{
-			Code:            constants.DockerRegCreateFailedInDb,
-			InternalMessage: err.Error(),
-			UserMessage:     "Error in updating OCI registry config in db",
+	if store.IsOCICompliantRegistry {
+		err = impl.ConfigureOCIRegistry(bean.Id, bean.OCIRegistryConfig, true, bean.User, tx)
+		if err != nil {
+			impl.logger.Errorw("error in updating OCI registry config", "OCIRegistryConfig", bean.OCIRegistryConfig, "err", err)
+			err = &util.ApiError{
+				Code:            constants.DockerRegCreateFailedInDb,
+				InternalMessage: err.Error(),
+				UserMessage:     "Error in updating OCI registry config in db",
+			}
+			return nil, err
 		}
-		return nil, err
+		impl.logger.Infow("updated OCI registry config successfully")
 	}
-	impl.logger.Infow("updated OCI registry config successfully")
 
 	// 5- update imagePullSecretConfig for this docker registry
 	dockerRegistryIpsConfig := bean.DockerRegistryIpsConfig
