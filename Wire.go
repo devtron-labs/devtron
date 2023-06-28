@@ -873,6 +873,8 @@ func InitializeApp() (*App, error) {
 
 		devtronResource.NewDevtronResourceSearchableKeyServiceImpl,
 		wire.Bind(new(devtronResource.DevtronResourceService), new(*devtronResource.DevtronResourceSearchableKeyServiceImpl)),
+		app.NewHelmRepoPushServiceImpl,
+		wire.Bind(new(app.HelmRepoPushService), new(*app.HelmRepoPushServiceImpl)),
 	)
 	return &App{}, nil
 }

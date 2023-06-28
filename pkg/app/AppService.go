@@ -28,6 +28,7 @@ import (
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	client2 "github.com/devtron-labs/devtron/api/helm-app"
 	application3 "github.com/devtron-labs/devtron/client/k8s/application"
+	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	bean3 "github.com/devtron-labs/devtron/pkg/app/bean"
 	status2 "github.com/devtron-labs/devtron/pkg/app/status"
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
@@ -171,6 +172,8 @@ type AppServiceImpl struct {
 	globalEnvVariables                     *util2.GlobalEnvVariables
 	manifestPushConfigRepository           repository5.ManifestPushConfigRepository
 	GitOpsManifestPushService              GitOpsPushService
+	helmRepoPushService                    HelmRepoPushService
+	DockerArtifactStoreRepository          dockerRegistryRepository.DockerArtifactStoreRepository
 }
 
 type AppService interface {
@@ -249,7 +252,9 @@ func NewAppService(
 	installedAppVersionHistoryRepository repository4.InstalledAppVersionHistoryRepository,
 	globalEnvVariables *util2.GlobalEnvVariables, helmAppService client2.HelmAppService,
 	manifestPushConfigRepository repository5.ManifestPushConfigRepository,
-	GitOpsManifestPushService GitOpsPushService) *AppServiceImpl {
+	GitOpsManifestPushService GitOpsPushService,
+	helmRepoPushService HelmRepoPushService,
+	DockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:            environmentConfigRepository,
 		mergeUtil:                              mergeUtil,
@@ -310,6 +315,8 @@ func NewAppService(
 		helmAppService:                         helmAppService,
 		manifestPushConfigRepository:           manifestPushConfigRepository,
 		GitOpsManifestPushService:              GitOpsManifestPushService,
+		helmRepoPushService:                    helmRepoPushService,
+		DockerArtifactStoreRepository:          DockerArtifactStoreRepository,
 	}
 	return appServiceImpl
 }
@@ -1562,19 +1569,12 @@ func (impl *AppServiceImpl) GetHelmManifestInByte(appName string, envName string
 		return manifestByteArr, err
 	}
 
-	chartsFileOldPath := path.Join(builtChartPath, "Chart.yaml") //default values of helm chart
-	chartsFileNewPath := path.Join(tempHelmPackageDir, "Chart.yaml")
-	err = impl.CopyFile(chartsFileOldPath, chartsFileNewPath)
-	if err != nil {
-		return manifestByteArr, err
-	}
-
 	var imageTag string
 	if len(image) > 0 {
 		imageTag = strings.Split(image, ":")[1]
 	}
 	chartName := fmt.Sprintf("%s-%s-%s", appName, envName, imageTag)
-	manifestByteArr, err = impl.chartTemplateService.LoadChartInBytes(tempHelmPackageDir, true, chartName, chartVersion)
+	manifestByteArr, err = impl.chartTemplateService.LoadChartInBytes(tempHelmPackageDir, false, chartName, chartVersion)
 	if err != nil {
 		impl.logger.Errorw("error in converting chart to bytes", "err", err)
 		return manifestByteArr, err
@@ -1786,8 +1786,8 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 					UpdatedOn: time.Now(),
 				},
 			}
-			err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
-			if err != nil {
+			err1 := impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
+			if err1 != nil {
 				impl.logger.Errorw("error in saving timeline for manifest_download type")
 			}
 		}
@@ -1799,7 +1799,6 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 	span.End()
 
 	if triggerEvent.GetManifestInResponse {
-		//get stream and directly redirect the stram to response
 		timeline := &pipelineConfig.PipelineStatusTimeline{
 			CdWorkflowRunnerId: overrideRequest.WfrId,
 			Status:             "HELM_PACKAGE_GENERATED",
@@ -1827,7 +1826,11 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 	}
 
 	if triggerEvent.PerformChartPush {
-		manifestPushTemplate := impl.BuildManifestPushTemplate(overrideRequest, valuesOverrideResponse, builtChartPath, &manifest)
+		manifestPushTemplate, err := impl.BuildManifestPushTemplate(overrideRequest, valuesOverrideResponse, builtChartPath, &manifest)
+		if err != nil {
+			impl.logger.Errorw("error in building manifest push template", "err", err)
+			return releaseNo, manifest, err
+		}
 		manifestPushService := impl.GetManifestPushService(triggerEvent)
 		manifestPushResponse := manifestPushService.PushChart(manifestPushTemplate, ctx)
 		if manifestPushResponse.Error != nil {
@@ -1835,7 +1838,7 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 			gitCommitStatus := pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED
 			gitCommitStatusDetail := fmt.Sprintf("Git commit failed - %v", err)
 			impl.saveTimeline(overrideRequest, gitCommitStatus, gitCommitStatusDetail, ctx)
-			return releaseNo, manifest, err
+			return releaseNo, manifest, manifestPushResponse.Error
 		}
 		gitCommitStatus := pipelineConfig.TIMELINE_STATUS_GIT_COMMIT
 		gitCommitStatusDetail := "Git commit done successfully."
@@ -1922,29 +1925,86 @@ func (impl *AppServiceImpl) GetManifestPushService(triggerEvent bean.TriggerEven
 	var manifestPushService ManifestPushService
 	if triggerEvent.ManifestStorageType == bean2.ManifestStorageGit {
 		manifestPushService = impl.GitOpsManifestPushService
+	} else if triggerEvent.ManifestStorageType == bean2.ManifestStorageOCIHelmRepo {
+		manifestPushService = impl.helmRepoPushService
 	}
 	return manifestPushService
 }
 
-func (impl *AppServiceImpl) BuildManifestPushTemplate(overrideRequest *bean.ValuesOverrideRequest, valuesOverrideResponse *ValuesOverrideResponse, builtChartPath string, manifest *[]byte) *bean3.ManifestPushTemplate {
-	return &bean3.ManifestPushTemplate{
-		WorkflowRunnerId:       overrideRequest.WfrId,
-		AppId:                  overrideRequest.AppId,
-		ChartRefId:             valuesOverrideResponse.EnvOverride.Chart.ChartRefId,
-		EnvironmentId:          valuesOverrideResponse.EnvOverride.Environment.Id,
-		UserId:                 overrideRequest.UserId,
-		PipelineOverrideId:     valuesOverrideResponse.PipelineOverride.Id,
-		AppName:                overrideRequest.AppName,
-		TargetEnvironmentName:  valuesOverrideResponse.EnvOverride.TargetEnvironment,
-		ChartReferenceTemplate: valuesOverrideResponse.EnvOverride.Chart.ReferenceTemplate,
-		ChartName:              valuesOverrideResponse.EnvOverride.Chart.ChartName,
-		ChartVersion:           valuesOverrideResponse.EnvOverride.Chart.ChartVersion,
-		ChartLocation:          valuesOverrideResponse.EnvOverride.Chart.ChartLocation,
-		RepoUrl:                valuesOverrideResponse.EnvOverride.Chart.GitRepoUrl,
-		BuiltChartPath:         builtChartPath,
-		BuiltChartBytes:        manifest,
-		MergedValues:           valuesOverrideResponse.MergedValues,
+func GetRepoPathAndChartNameFromRepoName(repoName string) (repoPath, chartName string) {
+	// for helm repo push base path of repo name is assumed to be chart name
+	repositoryNameSplit := strings.Split(repoName, "/")
+	if len(repositoryNameSplit) == 1 {
+		chartName = repositoryNameSplit[0]
+		repoPath = ""
+	} else {
+		chartName = repositoryNameSplit[len(repositoryNameSplit)-1]
+		repoPath = strings.TrimSuffix(repoName, chartName)
 	}
+	return repoPath, chartName
+}
+
+func (impl *AppServiceImpl) BuildManifestPushTemplate(overrideRequest *bean.ValuesOverrideRequest, valuesOverrideResponse *ValuesOverrideResponse, builtChartPath string, manifest *[]byte) (*bean3.ManifestPushTemplate, error) {
+
+	manifestPushTemplate := &bean3.ManifestPushTemplate{
+		WorkflowRunnerId:      overrideRequest.WfrId,
+		AppId:                 overrideRequest.AppId,
+		ChartRefId:            valuesOverrideResponse.EnvOverride.Chart.ChartRefId,
+		EnvironmentId:         valuesOverrideResponse.EnvOverride.Environment.Id,
+		UserId:                overrideRequest.UserId,
+		PipelineOverrideId:    valuesOverrideResponse.PipelineOverride.Id,
+		AppName:               overrideRequest.AppName,
+		TargetEnvironmentName: valuesOverrideResponse.EnvOverride.TargetEnvironment,
+		BuiltChartPath:        builtChartPath,
+		BuiltChartBytes:       manifest,
+		MergedValues:          valuesOverrideResponse.MergedValues,
+	}
+
+	manifestPushConfig, err := impl.manifestPushConfigRepository.GetManifestPushConfigByAppIdAndEnvId(overrideRequest.AppId, overrideRequest.EnvId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching manifest push config from db", "err", err)
+		return manifestPushTemplate, err
+	}
+
+	if manifestPushConfig != nil {
+		if manifestPushConfig.StorageType == bean2.ManifestStorageOCIHelmRepo {
+
+			var credentialsConfig bean3.HelmRepositoryConfig
+			err = json.Unmarshal([]byte(manifestPushConfig.CredentialsConfig), &credentialsConfig)
+			if err != nil {
+				impl.logger.Errorw("error in json unmarshal", "err", err)
+				return manifestPushTemplate, err
+			}
+			dockerArtifactStore, err := impl.DockerArtifactStoreRepository.FindOne(credentialsConfig.ContainerRegistryName)
+			if err != nil {
+				impl.logger.Errorw("error in fetching artifact info", "err", err)
+				return manifestPushTemplate, err
+			}
+			repoPath, chartName := GetRepoPathAndChartNameFromRepoName(credentialsConfig.RepositoryName)
+			manifestPushTemplate.RepoUrl = path.Join(dockerArtifactStore.RegistryURL, repoPath)
+			manifestPushTemplate.ChartName = chartName
+			containerRegistryConfig := &bean3.ContainerRegistryConfig{
+				RegistryUrl: dockerArtifactStore.RegistryURL,
+				Username:    dockerArtifactStore.Username,
+				Password:    dockerArtifactStore.Password,
+				Insecure:    true,
+				AccessKey:   dockerArtifactStore.AWSAccessKeyId,
+				SecretKey:   dockerArtifactStore.AWSSecretAccessKey,
+				AwsRegion:   dockerArtifactStore.AWSRegion,
+			}
+			manifestPushTemplate.ContainerRegistryConfig = containerRegistryConfig
+
+		} else if manifestPushConfig.StorageType == bean2.ManifestStorageGit {
+			// need to implement for git repo push
+		}
+	} else {
+		manifestPushTemplate.ChartReferenceTemplate = valuesOverrideResponse.EnvOverride.Chart.ReferenceTemplate
+		manifestPushTemplate.ChartName = valuesOverrideResponse.EnvOverride.Chart.ChartName
+		manifestPushTemplate.ChartVersion = valuesOverrideResponse.EnvOverride.Chart.ChartVersion
+		manifestPushTemplate.ChartLocation = valuesOverrideResponse.EnvOverride.Chart.ChartLocation
+		manifestPushTemplate.RepoUrl = valuesOverrideResponse.EnvOverride.Chart.GitRepoUrl
+	}
+	return manifestPushTemplate, err
 }
 
 func (impl *AppServiceImpl) buildChartAndPushToGitRepo(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, chartMetaData *chart2.Metadata, referenceTemplatePath string, gitOpsRepoName string, envOverride *chartConfig.EnvConfigOverride) error {
