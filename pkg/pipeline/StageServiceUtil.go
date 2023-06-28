@@ -19,12 +19,12 @@ type CdPipelineConfig struct {
 	AfterTasks  []*Task `yaml:"afterStages"`
 }
 type Task struct {
-	Id             int    `json:"id"`
-	Index          int    `json:"index"`
+	Id             int    `json:"id,omitempty"`
+	Index          int    `json:"index,omitempty"`
 	Name           string `json:"name" yaml:"name"`
 	Script         string `json:"script" yaml:"script"`
 	OutputLocation string `json:"outputLocation" yaml:"outputLocation"` // file/dir
-	RunStatus      bool   `json:"-"`                                    // task run was attempted or not
+	RunStatus      bool   `json:"-,omitempty"`                          // task run was attempted or not
 }
 
 func ConvertStageYamlScriptsToPipelineStageSteps(cdPipeline *bean2.CDPipelineConfigObject) (*bean2.CDPipelineConfigObject, error) {
