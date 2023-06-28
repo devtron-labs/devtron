@@ -83,10 +83,21 @@ func NewDockerRegRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistryCon
 }
 
 func ValidateDockerArtifactStoreRequestBean(bean pipeline.DockerArtifactStoreBean) bool {
-	containerStorageActionType, containerStorageActionExists := bean.OCIRegistryConfig[repository.OCI_REGISRTY_REPO_TYPE_CONTAINER]
+	// validating secure connection configs
 	if (bean.Connection == secureWithCert && bean.Cert == "") ||
-		(bean.Connection != secureWithCert && bean.Cert != "") ||
-		(bean.IsOCICompliantRegistry && containerStorageActionExists && containerStorageActionType != repository.STORAGE_ACTION_TYPE_PULL_AND_PUSH) {
+		(bean.Connection != secureWithCert && bean.Cert != "") {
+		return false
+	}
+	// validating OCI Registry configs
+	if bean.IsOCICompliantRegistry {
+		if bean.OCIRegistryConfig == nil {
+			return false
+		}
+		containerStorageActionType, containerStorageActionExists := bean.OCIRegistryConfig[repository.OCI_REGISRTY_REPO_TYPE_CONTAINER]
+		if containerStorageActionExists && containerStorageActionType != repository.STORAGE_ACTION_TYPE_PULL_AND_PUSH {
+			return false
+		}
+	} else if bean.OCIRegistryConfig != nil {
 		return false
 	}
 	return true
@@ -107,7 +118,7 @@ func (impl DockerRegRestHandlerImpl) SaveDockerRegistryConfig(w http.ResponseWri
 		return
 	}
 	bean.User = userId
-	if ValidateDockerArtifactStoreRequestBean(bean) {
+	if !ValidateDockerArtifactStoreRequestBean(bean) {
 		err = fmt.Errorf("invalid payload, missing or incorrect values for required fields")
 		impl.logger.Errorw("validation err, SaveDockerRegistryConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -237,7 +248,7 @@ func (impl DockerRegRestHandlerImpl) UpdateDockerRegistryConfig(w http.ResponseW
 		return
 	}
 	bean.User = userId
-	if ValidateDockerArtifactStoreRequestBean(bean) {
+	if !ValidateDockerArtifactStoreRequestBean(bean) {
 		err = fmt.Errorf("invalid payload, missing or incorrect values for required fields")
 		impl.logger.Errorw("validation err, SaveDockerRegistryConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
