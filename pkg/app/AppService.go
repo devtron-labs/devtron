@@ -1835,14 +1835,8 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 		manifestPushResponse := manifestPushService.PushChart(manifestPushTemplate, ctx)
 		if manifestPushResponse.Error != nil {
 			impl.logger.Errorw("Error in pushing manifest to git", "err", err, "git_repo_url", manifestPushTemplate.RepoUrl)
-			gitCommitStatus := pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED
-			gitCommitStatusDetail := fmt.Sprintf("Git commit failed - %v", err)
-			impl.saveTimeline(overrideRequest, gitCommitStatus, gitCommitStatusDetail, ctx)
-			return releaseNo, manifest, manifestPushResponse.Error
+			return releaseNo, manifest, err
 		}
-		gitCommitStatus := pipelineConfig.TIMELINE_STATUS_GIT_COMMIT
-		gitCommitStatusDetail := "Git commit done successfully."
-		impl.saveTimeline(overrideRequest, gitCommitStatus, gitCommitStatusDetail, ctx)
 		pipelineOverrideUpdateRequest := &chartConfig.PipelineOverride{
 			Id:                     valuesOverrideResponse.PipelineOverride.Id,
 			GitHash:                manifestPushResponse.CommitHash,
