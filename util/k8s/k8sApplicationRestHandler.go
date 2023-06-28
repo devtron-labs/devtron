@@ -688,17 +688,28 @@ func (handler *K8sApplicationRestHandlerImpl) GetTerminalSession(w http.Response
 	if resourceRequestBean.AppIdentifier != nil {
 		// RBAC enforcer applying For Helm App
 		rbacObject, rbacObject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(resourceRequestBean.AppIdentifier.ClusterId, resourceRequestBean.AppIdentifier.Namespace, resourceRequestBean.AppIdentifier.ReleaseName)
-		ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject2)
-
-		if !ok {
+		// Validating for custom exec role in build and deploy
+		isAuthorised := false
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceTerminal, casbin.ActionExec, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceTerminal, casbin.ActionExec, rbacObject2); ok {
+			isAuthorised = true
+		} else {
+			isAuthorised = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject2)
+		}
+		if !isAuthorised {
 			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
 		//RBAC enforcer Ends
 	} else if resourceRequestBean.DevtronAppIdentifier != nil {
 		// RBAC enforcer applying For Devtron App
+		teamEnvRbacObject := handler.enforcerUtil.GetTeamEnvRBACNameByAppId(resourceRequestBean.DevtronAppIdentifier.AppId, resourceRequestBean.DevtronAppIdentifier.EnvId)
 		envObject := handler.enforcerUtil.GetEnvRBACNameByAppId(resourceRequestBean.DevtronAppIdentifier.AppId, resourceRequestBean.DevtronAppIdentifier.EnvId)
-		if !handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, envObject) {
+		if teamEnvRbacObject == "" && envObject == "" {
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			return
+		}
+		// Validating for custom exec role in build and deploy OR edit access
+		if !(handler.enforcer.Enforce(token, casbin.ResourceTerminal, casbin.ActionExec, teamEnvRbacObject) || handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, envObject)) {
 			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
