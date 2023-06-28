@@ -100,11 +100,10 @@ func (impl *CiPipelineHistoryServiceImpl) SaveHistory(pipeline *pipelineConfig.C
 
 	if ciEnvMapping.Id > 0 {
 		CiEnvMappingHistory := &repository.CiEnvMappingHistory{
-			Id:            ciEnvMapping.Id,
 			EnvironmentId: ciEnvMapping.EnvironmentId,
 			CiPipelineId:  ciEnvMapping.CiPipelineId,
 		}
-		err := impl.CiPipelineHistoryRepository.SaveCiEnvMapping(CiEnvMappingHistory)
+		err := impl.CiPipelineHistoryRepository.SaveCiEnvMappingHistory(CiEnvMappingHistory)
 		if err != nil {
 			impl.logger.Errorw("error in saving history of ci Env Mapping")
 			return err

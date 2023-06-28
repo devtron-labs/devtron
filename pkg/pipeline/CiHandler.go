@@ -154,6 +154,7 @@ type WorkflowResponse struct {
 	IsVirtualEnvironment bool                                        `json:"isVirtualEnvironment"`
 	PodName              string                                      `json:"podName"`
 	EnvironmentId        int                                         `json:"environmentId"`
+	EnvironmentName      string                                      `json:"environmentName"`
 }
 
 type GitTriggerInfoResponse struct {

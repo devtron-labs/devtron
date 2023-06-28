@@ -81,7 +81,7 @@ const (
 
 type CiPipelineHistoryRepository interface {
 	Save(ciPipelineHistory *CiPipelineHistory) error
-	SaveCiEnvMapping(CiEnvMappingHistory *CiEnvMappingHistory) error
+	SaveCiEnvMappingHistory(CiEnvMappingHistory *CiEnvMappingHistory) error
 }
 
 type CiPipelineHistoryRepositoryImpl struct {
@@ -108,7 +108,7 @@ func (impl *CiPipelineHistoryRepositoryImpl) Save(CiPipelineHistory *CiPipelineH
 
 	return nil
 }
-func (impl *CiPipelineHistoryRepositoryImpl) SaveCiEnvMapping(CiEnvMappingHistory *CiEnvMappingHistory) error {
+func (impl *CiPipelineHistoryRepositoryImpl) SaveCiEnvMappingHistory(CiEnvMappingHistory *CiEnvMappingHistory) error {
 	err := impl.dbConnection.Insert(CiEnvMappingHistory)
 
 	if err != nil {
