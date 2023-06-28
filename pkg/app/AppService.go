@@ -196,6 +196,7 @@ type AppService interface {
 	GetLatestDeployedManifestByPipelineId(appId int, envId int, runner string, ctx context.Context) ([]byte, error)
 	GetDeployedManifestByPipelineIdAndCDWorkflowId(cdWorkflowRunnerId int, ctx context.Context) ([]byte, error)
 	SetPipelineFieldsInOverrideRequest(overrideRequest *bean.ValuesOverrideRequest, pipeline *pipelineConfig.Pipeline)
+	PushPrePostCDManifest(pipeline *pipelineConfig.Pipeline, cdWorklowRunnerId int, triggeredBy int32, manifest *[]byte, deployType string, ctx context.Context) error
 }
 
 func NewAppService(
@@ -1569,6 +1570,13 @@ func (impl *AppServiceImpl) GetHelmManifestInByte(appName string, envName string
 		return manifestByteArr, err
 	}
 
+	chartsFileOldPath := path.Join(builtChartPath, "Chart.yaml") //default values of helm chart
+	chartsFileNewPath := path.Join(tempHelmPackageDir, "Chart.yaml")
+	err = impl.CopyFile(chartsFileOldPath, chartsFileNewPath)
+	if err != nil {
+		return manifestByteArr, err
+	}
+
 	var imageTag string
 	if len(image) > 0 {
 		imageTag = strings.Split(image, ":")[1]
@@ -1831,7 +1839,7 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 			impl.logger.Errorw("error in building manifest push template", "err", err)
 			return releaseNo, manifest, err
 		}
-		manifestPushService := impl.GetManifestPushService(triggerEvent)
+		manifestPushService := impl.GetManifestPushService(triggerEvent.ManifestStorageType)
 		manifestPushResponse := manifestPushService.PushChart(manifestPushTemplate, ctx)
 		if manifestPushResponse.Error != nil {
 			impl.logger.Errorw("Error in pushing manifest to git", "err", err, "git_repo_url", manifestPushTemplate.RepoUrl)
@@ -1915,11 +1923,11 @@ func (impl *AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideR
 	return releaseNo, manifest, nil
 }
 
-func (impl *AppServiceImpl) GetManifestPushService(triggerEvent bean.TriggerEvent) ManifestPushService {
+func (impl *AppServiceImpl) GetManifestPushService(storageType string) ManifestPushService {
 	var manifestPushService ManifestPushService
-	if triggerEvent.ManifestStorageType == bean2.ManifestStorageGit {
+	if storageType == bean2.ManifestStorageGit {
 		manifestPushService = impl.GitOpsManifestPushService
-	} else if triggerEvent.ManifestStorageType == bean2.ManifestStorageOCIHelmRepo {
+	} else if storageType == bean2.ManifestStorageOCIHelmRepo {
 		manifestPushService = impl.helmRepoPushService
 	}
 	return manifestPushService
@@ -1977,6 +1985,7 @@ func (impl *AppServiceImpl) BuildManifestPushTemplate(overrideRequest *bean.Valu
 			repoPath, chartName := GetRepoPathAndChartNameFromRepoName(credentialsConfig.RepositoryName)
 			manifestPushTemplate.RepoUrl = path.Join(dockerArtifactStore.RegistryURL, repoPath)
 			manifestPushTemplate.ChartName = chartName
+			manifestPushTemplate.ChartVersion = fmt.Sprintf("%d.%d.%d", 1, 0, overrideRequest.WfrId)
 			containerRegistryConfig := &bean3.ContainerRegistryConfig{
 				RegistryUrl: dockerArtifactStore.RegistryURL,
 				Username:    dockerArtifactStore.Username,
@@ -2494,65 +2503,6 @@ func (impl *AppServiceImpl) getReleaseOverride(envOverride *chartConfig.EnvConfi
 	}
 	return override, nil
 }
-
-//func (impl *AppServiceImpl) commitMergedValuesToGit() {
-//
-//	commitHash := ""
-//	commitTime := time.Time{}
-//
-//	chartRepoName := impl.GetChartRepoName(envOverride.Chart.GitRepoUrl)
-//	_, span := otel.Tracer("orchestrator").Start(ctx, "chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit")
-//	//getting username & emailId for commit author data
-//	userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(overrideRequest.UserId)
-//	span.End()
-//	chartGitAttr := &ChartConfig{
-//		FileName:       fmt.Sprintf("_%d-values.yaml", envOverride.TargetEnvironment),
-//		FileContent:    string(merged),
-//		ChartName:      envOverride.Chart.ChartName,
-//		ChartLocation:  envOverride.Chart.ChartLocation,
-//		ChartRepoName:  chartRepoName,
-//		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", override.Id, envOverride.TargetEnvironment),
-//		UserName:       userName,
-//		UserEmailId:    userEmailId,
-//	}
-//	gitOpsConfigBitbucket, err := impl.gitOpsConfigRepository.GetGitOpsConfigByProvider(BITBUCKET_PROVIDER)
-//	if err != nil {
-//		if err == pg.ErrNoRows {
-//			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
-//		} else {
-//			return 0, 0, "", err
-//		}
-//	}
-//	gitOpsConfig := &bean.GitOpsConfigDto{BitBucketWorkspaceId: gitOpsConfigBitbucket.BitBucketWorkspaceId}
-//	_, span = otel.Tracer("orchestrator").Start(ctx, "gitFactory.Client.CommitValues")
-//	commitHash, commitTime, err = impl.gitFactory.Client.CommitValues(chartGitAttr, gitOpsConfig)
-//	span.End()
-//	if err != nil {
-//		impl.logger.Errorw("error in git commit", "err", err)
-//		return 0, 0, "", err
-//	}
-//
-//	if commitTime.IsZero() {
-//		commitTime = time.Now()
-//	}
-//	pipelineOverride := &chartConfig.PipelineOverride{
-//		Id:                     override.Id,
-//		GitHash:                commitHash,
-//		CommitTime:             commitTime,
-//		EnvConfigOverrideId:    envOverride.Id,
-//		PipelineOverrideValues: overrideJson,
-//		PipelineId:             overrideRequest.PipelineId,
-//		CiArtifactId:           overrideRequest.CiArtifactId,
-//		PipelineMergedValues:   string(merged),
-//		AuditLog:               sql.AuditLog{UpdatedOn: triggeredAt, UpdatedBy: deployedBy},
-//	}
-//	_, span = otel.Tracer("orchestrator").Start(ctx, "pipelineOverrideRepository.Update")
-//	err = impl.pipelineOverrideRepository.Update(pipelineOverride)
-//	span.End()
-//	if err != nil {
-//		return 0, 0, "", err
-//	}
-//}
 
 func (impl *AppServiceImpl) mergeOverrideValues(envOverride *chartConfig.EnvConfigOverride,
 	dbMigrationOverride []byte,
@@ -3337,4 +3287,73 @@ func (impl *AppServiceImpl) helmInstallReleaseWithCustomChart(ctx context.Contex
 
 func (impl *AppServiceImpl) GetGitOpsRepoPrefix() string {
 	return impl.globalEnvVariables.GitOpsRepoPrefix
+}
+
+func (impl *AppServiceImpl) PushPrePostCDManifest(pipeline *pipelineConfig.Pipeline, cdWorklowRunnerId int, triggeredBy int32, manifest *[]byte, deployType string, ctx context.Context) error {
+
+	manifestPushTemplate, err := impl.BuildManifestPushTemplateForPrePostCd(pipeline, cdWorklowRunnerId, triggeredBy, manifest, deployType)
+	if err != nil {
+		impl.logger.Errorw("error in building manifest push template for pre post cd")
+	}
+	manifestPushService := impl.GetManifestPushService(manifestPushTemplate.StorageType)
+
+	manifestPushResponse := manifestPushService.PushChart(manifestPushTemplate, ctx)
+	if manifestPushResponse.Error != nil {
+		impl.logger.Errorw("error in pushing chart to helm repo", "err", err)
+		return manifestPushResponse.Error
+	}
+	return nil
+}
+
+func (impl *AppServiceImpl) BuildManifestPushTemplateForPrePostCd(pipeline *pipelineConfig.Pipeline, cdWorklowRunnerId int, triggeredBy int32, manifest *[]byte, deployType string) (*bean3.ManifestPushTemplate, error) {
+
+	manifestPushTemplate := &bean3.ManifestPushTemplate{
+		WorkflowRunnerId:      cdWorklowRunnerId,
+		AppId:                 pipeline.AppId,
+		EnvironmentId:         pipeline.EnvironmentId,
+		UserId:                triggeredBy,
+		AppName:               pipeline.App.AppName,
+		TargetEnvironmentName: pipeline.Environment.Id,
+		ChartVersion:          fmt.Sprintf("%d.%d.%d+%s", 1, 1, cdWorklowRunnerId, deployType),
+		BuiltChartBytes:       manifest,
+	}
+
+	manifestPushConfig, err := impl.manifestPushConfigRepository.GetManifestPushConfigByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching manifest push config for pre/post cd", "err", err)
+		return manifestPushTemplate, err
+	}
+	manifestPushTemplate.StorageType = manifestPushConfig.StorageType
+
+	if manifestPushConfig != nil && manifestPushConfig.StorageType == bean2.ManifestStorageOCIHelmRepo {
+
+		var credentialsConfig bean3.HelmRepositoryConfig
+		err = json.Unmarshal([]byte(manifestPushConfig.CredentialsConfig), &credentialsConfig)
+		if err != nil {
+			impl.logger.Errorw("error in json unmarshal", "err", err)
+			return manifestPushTemplate, err
+		}
+		dockerArtifactStore, err := impl.DockerArtifactStoreRepository.FindOne(credentialsConfig.ContainerRegistryName)
+		if err != nil {
+			impl.logger.Errorw("error in fetching artifact info", "err", err)
+			return manifestPushTemplate, err
+		}
+		repoPath, chartName := GetRepoPathAndChartNameFromRepoName(credentialsConfig.RepositoryName)
+		manifestPushTemplate.RepoUrl = path.Join(dockerArtifactStore.RegistryURL, repoPath)
+		manifestPushTemplate.ChartName = chartName
+		containerRegistryConfig := &bean3.ContainerRegistryConfig{
+			RegistryUrl: dockerArtifactStore.RegistryURL,
+			Username:    dockerArtifactStore.Username,
+			Password:    dockerArtifactStore.Password,
+			Insecure:    true,
+			AccessKey:   dockerArtifactStore.AWSAccessKeyId,
+			SecretKey:   dockerArtifactStore.AWSSecretAccessKey,
+			AwsRegion:   dockerArtifactStore.AWSRegion,
+		}
+		manifestPushTemplate.ContainerRegistryConfig = containerRegistryConfig
+	} else if manifestPushConfig.StorageType == bean2.ManifestStorageGit {
+		// need to implement for git repo push
+	}
+
+	return manifestPushTemplate, nil
 }

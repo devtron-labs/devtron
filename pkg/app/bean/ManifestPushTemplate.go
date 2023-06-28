@@ -21,6 +21,7 @@ type ManifestPushTemplate struct {
 	BuiltChartBytes         *[]byte
 	MergedValues            string
 	ContainerRegistryConfig *ContainerRegistryConfig
+	StorageType             string
 }
 
 type ManifestPushResponse struct {

@@ -296,7 +296,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	}
 
 	jobHelmChartPath := ""
-	if util2.IsManifestDownload(pipeline.DeploymentAppType) {
+	if workflowRequest.IsDryRun {
 		jobManifestTemplate := &bean3.JobManifestTemplate{
 			NameSpace:               workflowRequest.Namespace,
 			Container:               workflowMainContainer,

@@ -71,7 +71,7 @@ func getOciPushTemplate(manifestPushTemplate *bean.ManifestPushTemplate) *client
 	return &client.OCIRegistryRequest{
 		Chart:        *manifestPushTemplate.BuiltChartBytes,
 		ChartName:    manifestPushTemplate.ChartName,
-		ChartVersion: fmt.Sprintf("%d.%d.%d", 1, 0, manifestPushTemplate.WorkflowRunnerId), //version logic to be modified later
+		ChartVersion: manifestPushTemplate.ChartVersion,
 		IsInsecure:   true,
 		Username:     manifestPushTemplate.ContainerRegistryConfig.Username,
 		Password:     manifestPushTemplate.ContainerRegistryConfig.Password,

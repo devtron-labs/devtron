@@ -228,7 +228,7 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelines(appId, envId, wfrI
 		if err != nil {
 			impl.logger.Errorw("error in getting pipeline status fetchTime and fetchCount by cdWfrId", "err", err, "cdWfrId", wfrId)
 		}
-	} else if util.IsManifestDownload(deploymentAppType) {
+	} else if util.IsManifestDownload(deploymentAppType) || util.IsManifestPush(deploymentAppType) {
 		timelines, err := impl.pipelineStatusTimelineRepository.FetchTimelinesByWfrId(wfrId)
 		if err != nil {
 			impl.logger.Errorw("error in getting timelines by wfrId", "err", err, "wfrId", wfrId)

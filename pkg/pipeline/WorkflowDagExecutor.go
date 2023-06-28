@@ -115,6 +115,7 @@ type WorkflowDagExecutorImpl struct {
 	chartTemplateService          util.ChartTemplateService
 	k8sApplicationService         k8s.K8sApplicationService
 	appRepository                 appRepository.AppRepository
+	helmRepoPushService           app.HelmRepoPushService
 }
 
 const (
@@ -183,7 +184,8 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	deploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository,
 	chartTemplateService util.ChartTemplateService,
 	k8sApplicationService k8s.K8sApplicationService,
-	appRepository appRepository.AppRepository) *WorkflowDagExecutorImpl {
+	appRepository appRepository.AppRepository,
+	helmRepoPushService app.HelmRepoPushService) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
 		cdWorkflowRepository:          cdWorkflowRepository,
@@ -219,6 +221,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		deploymentApprovalRepository:  deploymentApprovalRepository,
 		chartTemplateService:          chartTemplateService,
 		appRepository:                 appRepository,
+		helmRepoPushService:           helmRepoPushService,
 	}
 	err := wde.Subscribe()
 	if err != nil {
@@ -488,7 +491,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 	jobHelmPackagePath, err := impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest, pipeline, env)
 	span.End()
 
-	if util.IsManifestDownload(pipeline.DeploymentAppType) {
+	if util.IsManifestDownload(pipeline.DeploymentAppType) || util.IsManifestPush(pipeline.DeploymentAppType) {
 		if pipeline.App.Id == 0 {
 			appDbObject, err := impl.appRepository.FindById(pipeline.AppId)
 			if err != nil {
@@ -510,6 +513,13 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 		chartBytes, err := impl.chartTemplateService.LoadChartInBytes(jobHelmPackagePath, true, chartName, fmt.Sprint(cdWf.Id))
 		if err != nil && util.IsManifestDownload(pipeline.DeploymentAppType) {
 			return err
+		}
+		if util.IsManifestPush(pipeline.DeploymentAppType) {
+			err = impl.appService.PushPrePostCDManifest(pipeline, runner.Id, triggeredBy, &chartBytes, PRE, ctx)
+			if err != nil {
+				impl.logger.Errorw("error in pushing manifest to helm repo", "err", err)
+				return err
+			}
 		}
 		runner.Status = pipelineConfig.WorkflowSucceeded
 		runner.UpdatedBy = triggeredBy
@@ -627,10 +637,17 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 	imageTag := strings.Split(cdStageWorkflowRequest.CiArtifactDTO.Image, ":")[1]
 	chartName := fmt.Sprintf("%s-%s-%s-%s", "post", pipeline.App.AppName, pipeline.Environment.Name, imageTag)
 
-	if util.IsManifestDownload(pipeline.DeploymentAppType) {
+	if util.IsManifestDownload(pipeline.DeploymentAppType) || util.IsManifestPush(pipeline.DeploymentAppType) {
 		chartBytes, err := impl.chartTemplateService.LoadChartInBytes(jobHelmPackagePath, false, chartName, fmt.Sprint(cdWf.Id))
 		if err != nil {
 			return err
+		}
+		if util.IsManifestPush(pipeline.DeploymentAppType) {
+			err = impl.appService.PushPrePostCDManifest(pipeline, runner.Id, triggeredBy, &chartBytes, POST, context.Background())
+			if err != nil {
+				impl.logger.Errorw("error in pushing manifest to helm repo", "err", err)
+				return err
+			}
 		}
 		runner.Status = pipelineConfig.WorkflowSucceeded
 		runner.UpdatedBy = triggeredBy
@@ -1001,7 +1018,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	}
 	cdStageWorkflowRequest.DefaultAddressPoolBaseCidr = impl.cdConfig.DefaultAddressPoolBaseCidr
 	cdStageWorkflowRequest.DefaultAddressPoolSize = impl.cdConfig.DefaultAddressPoolSize
-	if util.IsManifestDownload(cdPipeline.DeploymentAppType) {
+	if util.IsManifestDownload(cdPipeline.DeploymentAppType) || util.IsManifestPush(cdPipeline.DeploymentAppType) {
 		cdStageWorkflowRequest.IsDryRun = true
 	}
 	return cdStageWorkflowRequest, nil
@@ -1263,7 +1280,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 	}
 
 	err = impl.appService.TriggerCD(artifact, cdWf.Id, savedWfr.Id, pipeline, triggeredAt)
-	if util.IsManifestDownload(pipeline.DeploymentAppType) {
+	if util.IsManifestDownload(pipeline.DeploymentAppType) || util.IsManifestPush(pipeline.DeploymentAppType) {
 		runner := &pipelineConfig.CdWorkflowRunner{
 			Id:           runner.Id,
 			Name:         pipeline.Name,
@@ -1712,7 +1729,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 		releaseId, manifest, err = impl.appService.TriggerRelease(overrideRequest, ctx, triggeredAt, overrideRequest.UserId)
 		span.End()
 
-		if overrideRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD {
+		if overrideRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD || overrideRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_MANIFEST_PUSH {
 			runner := &pipelineConfig.CdWorkflowRunner{
 				Id:                 runner.Id,
 				Name:               cdPipeline.Name,
