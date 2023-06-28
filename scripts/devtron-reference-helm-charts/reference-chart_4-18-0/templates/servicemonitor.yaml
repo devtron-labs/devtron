@@ -17,11 +17,6 @@ metadata:
     {{- end }}
 spec:
   endpoints:
-    - relabelings:
-        - action: replace
-          sourceLabels:
-            - __meta_kubernetes_pod_label_pod_template_hash
-          targetLabel: devtron_app_hash
     {{- range .Values.ContainerPort }}
       {{- if  .servicemonitor }}
         {{- if .servicemonitor.enabled}}
@@ -47,8 +42,6 @@ spec:
         {{- end }}
       {{- end }}
     {{- end }}
-  podTargetLabels:
-    - devtron_app_hash
   selector:
     matchLabels:
       app: {{ template ".Chart.Name .name" $ }}
