@@ -1,7 +1,6 @@
 package pipeline
 
 import (
-	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/mocks"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -37,7 +36,6 @@ func TestPipelineBuilderImpl_validateDeploymentAppType(t *testing.T) {
 		attributesRepoMock.On("FindByKey", mock.Anything).Return(mockDeploymentConfigConfig, mockError)
 
 		err := impl.validateDeploymentAppType(pipeline)
-		fmt.Print(err)
 		apiErr, _ := err.(*util.ApiError)
 		assert.Equal(t, http.StatusInternalServerError, apiErr.HttpStatusCode)
 	})
