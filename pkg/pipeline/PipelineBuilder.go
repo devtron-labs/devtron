@@ -3295,6 +3295,33 @@ func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, pipeline *
 			}
 		}
 	}
+	if util.IsManifestPush(pipeline.DeploymentAppType) {
+		if pipeline.ManifestStorageType == bean.ManifestStorageGit {
+			//implement
+		} else if pipeline.ManifestStorageType == bean.ManifestStorageOCIHelmRepo {
+
+			helmRepositoryConfig := bean4.HelmRepositoryConfig{
+				RepositoryName:        pipeline.RepoName,
+				ContainerRegistryName: pipeline.ContainerRegistryName,
+			}
+			helmRepositoryConfigBytes, err := json.Marshal(helmRepositoryConfig)
+			if err != nil {
+				impl.logger.Errorw("error in marshaling helm registry config", "err", err)
+				return err
+			}
+			manifestPushConfig, err := impl.manifestPushConfigRepository.GetManifestPushConfigByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId)
+			if err != nil {
+				impl.logger.Errorw("error in getting manifest push config by appId and envId", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
+				return err
+			}
+			manifestPushConfig.CredentialsConfig = string(helmRepositoryConfigBytes)
+			err = impl.manifestPushConfigRepository.UpdateConfig(manifestPushConfig)
+			if err != nil {
+				impl.logger.Errorw("error in updating config for oci helm repo", "err", err)
+				return err
+			}
+		}
+	}
 	err = tx.Commit()
 	if err != nil {
 		return err
