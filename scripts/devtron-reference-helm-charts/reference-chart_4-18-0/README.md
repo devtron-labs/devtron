@@ -1,5 +1,5 @@
 
-# Rollout Deployment Chart - v4.17
+# Rollout Deployment Chart - v4.18
 
 ## 1. Yaml File -
 
