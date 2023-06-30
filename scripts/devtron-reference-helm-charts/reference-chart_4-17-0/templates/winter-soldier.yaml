@@ -1,4 +1,4 @@
-{{- if .Values.winterSoldier.enabled  }}
+{{- if .Values.winterSoldier.enabled }}
 apiVersion: {{ $.Values.winterSoldier.apiVersion }}
 kind: Hibernator
 metadata:
@@ -28,7 +28,7 @@ spec:
             name: {{ include ".Chart.Name .fullname" $ }}
             type: {{ .Values.winterSoldier.type | quote }}
             fieldSelector:
-{{toYaml $.Values.winterSoldier.fieldSelector | indent 14 }} 
+{{toYaml $.Values.winterSoldier.fieldSelector | indent 14}} 
           namespaceSelector:
             name: {{ $.Release.Namespace }}
       exclusions: []

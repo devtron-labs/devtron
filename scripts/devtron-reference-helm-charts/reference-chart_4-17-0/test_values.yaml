@@ -2,18 +2,18 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-deploymentLabels:
-  name: kunalverma
+rolloutLabels:
+  name: abhinav
   Company: Devtron
-  Job: DevRel
+  Job: DevOps
 
-deploymentAnnotations:
-  name: kunalverma
+rolloutAnnotations:
+  name: abhinav
   Company: Devtron
-  Job: DevRel
+  Job: DevOps
 
 containerSpec:
-  lifecycle:
+  lifecycle: 
     enabled: true
     preStop:
       exec:
@@ -118,129 +118,12 @@ secret:
   enabled: false
 
 service:
+  enabled: true
   type: ClusterIP
   #  name: "1234567890123456789012345678901234567890123456789012345678901234567890"
   annotations: {}
     # test1: test2
   # test3: test4
-
-istio:
-  enable: false
-  gateway:
-    enabled: false
-    labels: {}
-    annotations: {}
-    host: example.com
-    tls:
-      enabled: false
-      secretName: example-tls-secret
-  virtualService:
-    enabled: false
-    labels: {}
-    annotations: {}
-    gateways: []
-    hosts: []
-    http: 
-      # - match:
-      #   - uri:
-      #       prefix: /v1
-      #   - uri:
-      #       prefix: /v2
-      #   rewriteUri: /
-      #   timeout: 12
-      #   headers:
-      #     request:
-      #       add:
-      #         x-some-header: "value"
-      #   retries:
-      #     attempts: 2 
-      #     perTryTimeout: 3s 
-      #   route:
-      #   - destination:
-      #       host: service1
-      #       port: 80
-      # - route:
-      #   - destination:
-      #       host: service2
-
-flaggerCanary:
-  enabled: false
-  labels: {}
-  annotations: {}
-  createIstioGateway:
-    enabled: false
-    labels: {}
-    annotations: {}
-    host: example.com
-    tls:
-      enabled: false
-      secretName: example-tls-secret
-  # Istio gateways (optional)
-  addOtherGateways: []
-  # Istio virtual service host names (optional)
-  addOtherHosts: []
-  # Istio gateway refs (optional)
-  gatewayRefs:
-    # - name: istio-gateway
-    #   namespace: istio-system
-  #service port
-  port: 80
-  #containerPort
-  targetPort: 8080
-  # discover all port open in container
-  portDiscovery: false
-  # application protocol (optional)
-  appProtocol: 
-  # Istio retry policy (optional)
-  retries: 
-    # attempts: 3
-    # perTryTimeout: 1s
-    # retryOn: "gateway-error,connect-failure,refused-stream"
-  # HTTP match conditions (optional)
-  match:
-    - uri:
-        prefix: /
-  # HTTP rewrite (optional)
-  rewriteUri: 
-  # timeout (optional)
-  timeout:
-  # Add headers (optional)
-  headers:
-    # request:
-    #   add:
-    #     x-some-header: "value"
-  # cross-origin resource sharing policy (optional)
-  corsPolicy:
-    # allowOrigin:
-    #   - example.com
-    # allowMethods:
-    #   - GET
-    # allowCredentials: false
-    # allowHeaders:
-    #   - x-some-header
-    # maxAge: 24h
-  analysis:
-    # schedule interval (default 60s)
-    interval: 5s
-    # max number of failed metric checks before rollback
-    threshold: 10
-    # max traffic percentage routed to canary
-    # percentage (0-100)
-    maxWeight: 50
-    # canary increment step
-    # percentage (0-100)
-    stepWeight: 5
-  thresholds:
-    # minimum req success rate (non 5xx responses)
-    # percentage (0-100)
-    successRate: 90
-    # maximum req duration P99
-    # milliseconds
-    latency: 500
-  loadtest:
-    enabled: true
-    # load tester address 
-    url: http://flagger-loadtester.test/
 
 server:
   deployment:
@@ -260,6 +143,16 @@ EnvVariables:
   - name: FLASK_ENV
     value: qa
 
+EnvVariablesFromSecretKeys: []
+  # - name: ENV_NAME
+  #   secretName: SECRET_NAME
+  #   keyName: SECRET_KEY
+
+EnvVariablesFromCongigMapKeys: []
+  # - name: ENV_NAME
+  #   configMapName: CONFIG_MAP_NAME
+  #   keyName: CONFIG_MAP_KEY
+
 LivenessProbe:
   Path: /
   port: 8080
@@ -274,6 +167,33 @@ LivenessProbe:
     - name: Custom-Header2
       value: xyz
 
+
+winterSoldier:
+  apiVersion: pincher.devtron.ai/v1alpha1 
+  enabled: true
+  annotations: {}
+  labels: {}
+  timeRangesWithZone:
+    timeZone: "Asia/Kolkata"
+    timeRanges: 
+      - timeFrom: 00:00
+        timeTo: 23:59:59
+        weekdayFrom: Sat
+        weekdayTo: Sun
+      - timeFrom: 00:00
+        timeTo: 08:00
+        weekdayFrom: Mon
+        weekdayTo: Fri
+      - timeFrom: 20:00
+        timeTo: 23:59:59
+        weekdayFrom: Mon
+        weekdayTo: Fri
+  action: scale
+  targetReplicas: [1,1,1]
+  fieldSelector: 
+    - AfterTime(AddTime(ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '5m'), Now())
+
+
 ReadinessProbe:
   Path: /
   port: 8080
@@ -285,7 +205,7 @@ ReadinessProbe:
   httpHeaders:
     - name: Custom-Header
       value: abc
-    
+
 StartupProbe:
   Path: "/"
   port: 8080
@@ -298,11 +218,13 @@ StartupProbe:
   command: []
   tcp: false
 
+
 prometheus:
   release: monitoring
 
 servicemonitor:
   additionalLabels: {}
+
 
 prometheusRule:
   enabled: true
@@ -363,7 +285,7 @@ ingress:
   #      - chart-example.local
 
 ingressInternal:
-  enabled: true
+  enabled: false
   className: nginx-internal
   annotations: {}
  #    kubernetes.io/ingress.class: nginx
@@ -384,33 +306,6 @@ ingressInternal:
   #  - secretName: chart-example-tls
   #    hosts:
   #      - chart-example.local
-
-winterSoldier:
-  apiVersion: pincher.devtron.ai/v1alpha1 
-  enabled: true
-  annotations: {}
-  labels: {}
-  type: Deployment
-  timeRangesWithZone:
-    timeZone: "Asia/Kolkata"
-    timeRanges: 
-      - timeFrom: 00:00
-        timeTo: 23:59:59
-        weekdayFrom: Sat
-        weekdayTo: Sun
-      - timeFrom: 00:00
-        timeTo: 08:00
-        weekdayFrom: Mon
-        weekdayTo: Fri
-      - timeFrom: 20:00
-        timeTo: 23:59:59
-        weekdayFrom: Mon
-        weekdayTo: Fri
-  action: scale
-  targetReplicas: [1,1,1]
-  fieldSelector: 
-    - AfterTime(AddTime(ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '5m'), Now())
-
 
 dbMigrationConfig:
   enabled: false
@@ -465,7 +360,6 @@ ConfigMaps:
 #    type: volume
 #    external: false
 #    mountPath: /etc/config/2
-#    filePermission: 0400
 #    data:
 #     key1: |
 #      club : manchester utd
@@ -485,7 +379,7 @@ ConfigMaps:
 
 
 ConfigSecrets:
-  enabled: true
+  enabled: false
   secrets:
   - name: config-secret-1
     type: environment
@@ -585,54 +479,54 @@ initContainers:
         drop:
           - ALL
 
-containers:
-  # Additional init containers to run before the Scheduler pods.
-  # for example, be used to run a sidecar that chown Logs storage .
-  - name: volume-mount-hack
-    image: busybox
-    command: ["sh", "-c", "chown -R 1000:1000 logs"]
-    volumeMounts:
-      - mountPath: /usr/local/airflow/logs
-        name: logs-data
+containers: []
+  ## Additional init containers to run before the Scheduler pods.
+  ## for example, be used to run a sidecar that chown Logs storage .
+  #- name: volume-mount-hack
+  #  image: busybox
+  #  command: ["sh", "-c", "chown -R 1000:1000 logs"]
+  #  volumeMounts:
+  #    - mountPath: /usr/local/airflow/logs
+#      name: logs-data
 
 
-rawYaml:
- - apiVersion: v1
-   kind: Service
-   metadata:
-    annotations:
-    labels:
-     app: sample-metrics-app
-    name: sample-metrics-app
-    namespace: default
-   spec:
-    ports:
-     - name: web
-       port: 80
-       protocol: TCP
-       targetPort: 8080
-    selector:
-     app: sample-metrics-app
-    sessionAffinity: None
-    type: ClusterIP
- - apiVersion: v1
-   kind: Service
-   metadata:
-    annotations:
-    labels:
-     app: sample-metrics-app
-    name: sample-metrics-app
-    namespace: default
-   spec:
-    ports:
-     - name: web
-       port: 80
-       protocol: TCP
-       targetPort: 8080
-    selector:
-     app: sample-metrics-app
-    sessionAffinity: None
-    type: ClusterIP
+rawYaml: []
+# - apiVersion: v1
+#   kind: Service
+#   metadata:
+#    annotations:
+#    labels:
+#     app: sample-metrics-app
+#    name: sample-metrics-app
+#    namespace: default
+#   spec:
+#    ports:
+#     - name: web
+#       port: 80
+#       protocol: TCP
+#       targetPort: 8080
+#    selector:
+#     app: sample-metrics-app
+#    sessionAffinity: None
+#    type: ClusterIP
+# - apiVersion: v1
+#   kind: Service
+#   metadata:
+#    annotations:
+#    labels:
+#     app: sample-metrics-app
+#    name: sample-metrics-app
+#    namespace: default
+#   spec:
+#    ports:
+#     - name: web
+#       port: 80
+#       protocol: TCP
+#       targetPort: 8080
+#    selector:
+#     app: sample-metrics-app
+#    sessionAffinity: None
+#    type: ClusterIP
 
 # If you need to provide some extra specs for main container which are not included by default in deployment template
 # then provide them here
@@ -654,21 +548,21 @@ envoyproxy:
       cpu: 50m
       memory: 50Mi
 
-podDisruptionBudget:
-    minAvailable: 1
-    maxUnavailable: 1
+podDisruptionBudget: {}
+  #  minAvailable: 1
+  #  maxUnavailable: 1
 
-  # Node tolerations for server scheduling to nodes with taints
-  # Ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
-#
+  ## Node tolerations for server scheduling to nodes with taints
+  ## Ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
+##
 
-tolerations:
-    - key: "key"
-      operator: "Equal|Exists"
-      value: "value"
-      effect: "NoSchedule|PreferNoSchedule|NoExecute(1.6 only)"
+tolerations: []
+  #  - key: "key"
+  #    operator: "Equal|Exists"
+  #    value: "value"
+#    effect: "NoSchedule|PreferNoSchedule|NoExecute(1.6 only)"
 
-appMetrics: true
+appMetrics: false
 serviceAccount:
   ## @param serviceAccount.create Enable creation of ServiceAccount for pods
   ##
@@ -681,7 +575,7 @@ serviceAccount:
   ##
   annotations:
      kubernetes.io/service-account.name: build-robot
-containerSecurityContext:
+containerSecurityContext: 
   allowPrivilegeEscalation: false
 privileged: true
 hostAliases: []
@@ -689,3 +583,27 @@ hostAliases: []
 #    hostnames:
 #    - "foo.local"
 
+deployment:
+  strategy:
+    blueGreen:
+      autoPromotionSeconds: 30
+      scaleDownDelaySeconds: 30
+      previewReplicaCount: 1
+      autoPromotionEnabled: false
+    rolling:
+      maxSurge: "25%"
+      maxUnavailable: 1
+    canary:
+      maxSurge: "25%"
+      maxUnavailable: 1
+      steps:
+        - setWeight: 25
+        - pause:
+            duration: 15 # 1 min
+        - setWeight: 50
+        - pause:
+            duration: 15 # 1 min
+        - setWeight: 75
+        - pause:
+            duration: 15 # 1 min
+    recreate: {}

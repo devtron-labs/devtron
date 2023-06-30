@@ -65,6 +65,9 @@ metadata:
     {{- if .tls.labels }}
 {{ toYaml .tls.labels | nindent 4 }}
     {{- end }}
+{{- if $.Values.appLabels }}
+{{ toYaml $.Values.appLabels | indent 4 }}
+{{- end }}
 spec:
   {{- if .tls.secretName }}
   secret: {{ .tls.secretName }}

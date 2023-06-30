@@ -25,8 +25,8 @@
   {{- end }}
 
 
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
 metadata:
   name: {{ include ".Chart.Name .fullname" $ }}
   labels:
@@ -35,16 +35,16 @@ metadata:
     release: {{ $.Release.Name }}
     releaseVersion: {{ $.Values.releaseVersion | quote }}
     pipelineName: {{ .Values.pipelineName }}
-{{- if .Values.deploymentLabels }}
-{{ toYaml .Values.deploymentLabels | indent 4 }}
+{{- if .Values.rolloutLabels }}
+{{ toYaml .Values.rolloutLabels | indent 4 }}
 {{- end }}
 {{- if .Values.appLabels }}
 {{ toYaml .Values.appLabels | indent 4 }}
 {{- end }}
 
-{{- if .Values.deploymentAnnotations }}
+{{- if .Values.rolloutAnnotations }}
   annotations:
-{{ toYaml .Values.deploymentAnnotations | indent 4 }}
+{{ toYaml .Values.rolloutAnnotations | indent 4 }}
 {{- end }}
 
 spec:
@@ -285,11 +285,13 @@ spec:
             - name: DEVTRON_CONTAINER_TAG
               value: "{{ .Values.server.deployment.image_tag }}"
           {{- range $.Values.EnvVariablesFromFieldPath }}
+          {{- if and .name .fieldPath }}
             - name: {{ .name }}
               valueFrom:
                 fieldRef:
                  fieldPath: {{ .fieldPath }}
-          {{- end}}
+          {{- end }}
+          {{- end }}
           {{- range $.Values.EnvVariables }}
           {{- if and .name .value }}
             - name: {{ .name }}
@@ -532,12 +534,27 @@ spec:
 ##  pauseForSecondsBeforeSwitchActive: {{ $.Values.pauseForSecondsBeforeSwitchActive }}
 #  waitForSecondsBeforeScalingDown: {{ $.Values.waitForSecondsBeforeScalingDown }}
   strategy:
-    {{- if eq .Values.deploymentType "ROLLING" }}
-    type: "RollingUpdate"
-    rollingUpdate:
+    {{- if eq .Values.deploymentType "BLUE-GREEN" }}
+    blueGreen: # A new field that used to provide configurable options for a BlueGreenUpdate strategy
+      previewService: {{ template ".previewservicename" . }} # Reference to a service that can serve traffic to a new image before it receives the active traffic
+      activeService: {{ template ".servicename" . }} # Reference to a service that serves end-user traffic to the replica set
+      autoPromotionSeconds: {{ $.Values.deployment.strategy.blueGreen.autoPromotionSeconds  }}
+      scaleDownDelaySeconds: {{ $.Values.deployment.strategy.blueGreen.scaleDownDelaySeconds }}
+      previewReplicaCount: {{ $.Values.deployment.strategy.blueGreen.previewReplicaCount  }}
+      autoPromotionEnabled: {{ $.Values.deployment.strategy.blueGreen.autoPromotionEnabled  }}
+    {{- else if eq .Values.deploymentType "ROLLING" }}
+    canary:
+      stableService: {{ template ".servicename" . }} # Reference to a service that serves end-user traffic to the replica set
       maxSurge: {{ $.Values.deployment.strategy.rolling.maxSurge }}
       maxUnavailable: {{ $.Values.deployment.strategy.rolling.maxUnavailable }}
-    {{- end }}
-    {{- if eq .Values.deploymentType "RECREATE" }}
-    type: "Recreate"
+    {{- else if eq .Values.deploymentType "RECREATE" }}
+    recreate:
+      activeService: {{ template ".servicename" . }} # Reference to a service that serves end-user traffic to the replica set
+    {{- else if eq .Values.deploymentType "CANARY" }}
+    canary:
+      stableService: {{ template ".servicename" . }} # Reference to a service that serves end-user traffic to the replica set
+      maxSurge: {{ $.Values.deployment.strategy.canary.maxSurge }}
+      maxUnavailable: {{ $.Values.deployment.strategy.canary.maxUnavailable }}
+      steps:
+{{ toYaml .Values.deployment.strategy.canary.steps | indent 8 }}
     {{- end }}
