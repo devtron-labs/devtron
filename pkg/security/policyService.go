@@ -461,7 +461,7 @@ func (impl *PolicyServiceImpl) SavePolicy(request bean.CreateVulnerabilityPolicy
 		if request.Severity == "critical" {
 			severity = security.Critical
 		} else if request.Severity == "moderate" {
-			severity = security.Moderate
+			severity = security.Medium
 		} else if request.Severity == "low" {
 			severity = security.Low
 		} else {

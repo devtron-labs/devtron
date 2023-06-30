@@ -126,7 +126,12 @@ func (handler PipelineConfigRestHandlerImpl) EnvironmentListAutocomplete(w http.
 		return
 	}
 	//RBAC
-	result, err := handler.envService.GetEnvironmentListForAutocomplete()
+	showDeploymentOptionsParam := false
+	param := r.URL.Query().Get("showDeploymentOptions")
+	if param != "" {
+		showDeploymentOptionsParam, _ = strconv.ParseBool(param)
+	}
+	result, err := handler.envService.GetEnvironmentListForAutocomplete(showDeploymentOptionsParam)
 	if err != nil {
 		handler.Logger.Errorw("service err, EnvironmentListAutocomplete", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

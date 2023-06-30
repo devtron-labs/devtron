@@ -427,10 +427,16 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowByName(name string, appId int)
 		impl.Logger.Errorw("err", err)
 		return AppWorkflowDto{}, err
 	}
+	wfrIdVsMappings, err := impl.FindAllAppWorkflowMapping([]int{appWorkflow.Id})
+	if err != nil {
+		return AppWorkflowDto{}, err
+	}
+
 	appWorkflowDto := &AppWorkflowDto{
-		AppId: appWorkflow.AppId,
-		Id:    appWorkflow.Id,
-		Name:  appWorkflow.Name,
+		AppId:                 appWorkflow.AppId,
+		Id:                    appWorkflow.Id,
+		Name:                  appWorkflow.Name,
+		AppWorkflowMappingDto: wfrIdVsMappings[appWorkflow.Id],
 	}
 	return *appWorkflowDto, err
 }

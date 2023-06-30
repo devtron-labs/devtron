@@ -10,7 +10,7 @@ global:
 installer:
   repo: "devtron-labs/devtron"
 #  For Kubernetes version < 1.16, set release: legacy. You won't be able to upgrade Devtron unless you upgrade the K8s version to 1.16 or above.
-  release: "v0.6.17" #You can use a branch name or a release tag name as a release, for gitee as source only "main" is supported as of now
+  release: "v0.6.18-rc.3" #You can use a branch name or a release tag name as a release, for gitee as source only "main" is supported as of now
   image: quay.io/devtron/inception
   tag: 44b30917-185-13275
   source: "github" # Available options are github and gitee
@@ -55,12 +55,12 @@ components:
       extraConfigs:
         USE_V2: "true"
         ENABLE_BUILD_CONTEXT: "true"
-    image: "quay.io/devtron/dashboard:a43e715d-325-13908"
+    image: "quay.io/devtron/dashboard:b03e3a2c-325-14294"
     imagePullPolicy: IfNotPresent
 
   devtron:
-    image: "quay.io/devtron/hyperion:f45916a0-280-13927"
-    cicdImage: "quay.io/devtron/devtron:f45916a0-434-13929"
+    image: "quay.io/devtron/hyperion:b3411eff-280-14312"
+    cicdImage: "quay.io/devtron/devtron:b3411eff-434-14313"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
     serviceMonitor:
@@ -92,7 +92,7 @@ components:
       authenticator: "quay.io/devtron/authenticator:e414faff-393-13273"
 
   kubelink:
-    image: "quay.io/devtron/kubelink:451a1a1a-318-13790"
+    image: "quay.io/devtron/kubelink:bf9bd316-318-14325"
     imagePullPolicy: IfNotPresent
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
@@ -120,13 +120,13 @@ components:
         SCRIPT_LOCATION: "scripts/sql/"
         GIT_REPO_URL: "https://github.com/devtron-labs/devtron.git"
         DB_NAME: "orchestrator"
-        GIT_HASH: "bc35eb7ecb5b604f4fc55cc1fa21f6fbbd59a180"
+        GIT_HASH: "b3411effd8d4b4e17eae837d6edbed3e7739c322"
       casbin:
         GIT_BRANCH: "main"
         SCRIPT_LOCATION: "scripts/casbin/"
         GIT_REPO_URL: "https://github.com/devtron-labs/devtron.git"
         DB_NAME: "casbin"
-        GIT_HASH: "bc35eb7ecb5b604f4fc55cc1fa21f6fbbd59a180"
+        GIT_HASH: "b3411effd8d4b4e17eae837d6edbed3e7739c322"
 
 # values for argocd integration
 argo-cd:
@@ -284,7 +284,7 @@ argo-cd:
 security:
   enabled: false
   imageScanner:
-    image: "quay.io/devtron/image-scanner:b7873c95-334-13266"
+    image: "quay.io/devtron/image-scanner:d554c0f8-334-14015"
   # Values for clair
   clair:
     enabled: false
@@ -293,7 +293,7 @@ security:
 notifier:
   enabled: false
   imagePullPolicy: IfNotPresent
-  image: "quay.io/devtron/notifier:6c7a356a-372-11107"
+  image: "quay.io/devtron/notifier:d9c72180-372-14306"
   configs:
     CD_ENVIRONMENT: PROD
     DB: orchestrator

@@ -20,7 +20,15 @@ package chartRepo
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"net/http"
+	"net/url"
+	"strings"
+	"time"
+
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
@@ -28,19 +36,13 @@ import (
 	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
-	"github.com/ghodss/yaml"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
-	"io"
-	"io/ioutil"
 	"k8s.io/helm/pkg/getter"
 	"k8s.io/helm/pkg/helm/environment"
 	"k8s.io/helm/pkg/repo"
 	"k8s.io/helm/pkg/version"
-	"net/http"
-	"net/url"
-	"strings"
-	"time"
+	"sigs.k8s.io/yaml"
 )
 
 // secret keys
@@ -99,22 +101,42 @@ func NewChartRepositoryServiceImpl(logger *zap.SugaredLogger, repoRepository cha
 }
 
 // Private helm charts credentials are saved as secrets
-func (impl *ChartRepositoryServiceImpl) CreateSecretDataForPrivateHelmChart(request *ChartRepoDto) (secretData map[string]string) {
+func (impl *ChartRepositoryServiceImpl) CreateSecretDataForHelmChart(request *ChartRepoDto, isPrivateChart bool) (secretData map[string]string) {
 	secretData = make(map[string]string)
-	secretData[NAME] = fmt.Sprintf("%s-%s", request.Name, uuid.New().String()) // making repo name unique so that "helm repp add" command in argo-repo-server doesn't give error
-	secretData[USERNAME] = request.UserName
-	secretData[PASSWORD] = request.Password
+	secretData[NAME] = fmt.Sprintf("%s-%s", request.Name, uuid.New().String()) // making repo name unique so that "helm repo add" command in argo-repo-server doesn't give error
 	secretData[TYPE] = HELM
 	secretData[URL] = request.Url
-	isInsecureConnection := "true"
-	if !request.AllowInsecureConnection {
-		isInsecureConnection = "false"
+	if isPrivateChart {
+		secretData[USERNAME] = request.UserName
+		secretData[PASSWORD] = request.Password
+		isInsecureConnection := "true"
+		if !request.AllowInsecureConnection {
+			isInsecureConnection = "false"
+		}
+		secretData[INSECRUE] = isInsecureConnection
 	}
-	secretData[INSECRUE] = isInsecureConnection
+
 	return secretData
 }
 
 func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error) {
+	//metadata.name label in Secret doesn't support uppercase hence returning if user enters uppercase letters
+	if strings.ToLower(request.Name) != request.Name {
+		return nil, errors.New("invalid repo name: please use lowercase")
+	}
+	allChartsRepos, err := impl.repoRepository.FindAll()
+	if err != nil {
+		impl.logger.Errorw("error in getting list of all chart repos", "err", err)
+		return nil, err
+	}
+	if len(allChartsRepos) == 0 {
+		return nil, nil
+	}
+	for _, chart := range allChartsRepos {
+		if chart.Name == request.Name {
+			return nil, errors.New("repo with chart name already exists")
+		}
+	}
 	dbConnection := impl.repoRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -166,24 +188,10 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 	for !updateSuccess && retryCount < 3 {
 		retryCount = retryCount + 1
 
-		if !isPrivateChart {
-			cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
-			if err != nil {
-				return nil, err
-			}
-			data, err := impl.updateRepoData(cm.Data, request)
-			if err != nil {
-				impl.logger.Warnw(" config map update failed", "err", err)
-				continue
-			}
-			cm.Data = data
-			_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
-		} else {
-			secretLabel := make(map[string]string)
-			secretLabel[LABEL] = REPOSITORY
-			secretData := impl.CreateSecretDataForPrivateHelmChart(request)
-			_, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, nil, chartRepo.Name, "", client, secretLabel, secretData)
-		}
+		secretLabel := make(map[string]string)
+		secretLabel[LABEL] = REPOSITORY
+		secretData := impl.CreateSecretDataForHelmChart(request, isPrivateChart)
+		_, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, nil, chartRepo.Name, "", client, secretLabel, secretData)
 		if err != nil {
 			continue
 		}
@@ -215,7 +223,11 @@ func (impl *ChartRepositoryServiceImpl) UpdateData(request *ChartRepoDto) (*char
 		return nil, err
 	}
 	previousName := chartRepo.Name
-
+	previousUrl := chartRepo.Url
+	//metadata.name label in Secret doesn't support uppercase hence returning if user enters uppercase letters in repo name
+	if request.Name != previousName && strings.ToLower(request.Name) != request.Name {
+		return nil, errors.New("invalid repo name: please use lowercase")
+	}
 	chartRepo.Url = request.Url
 	chartRepo.Name = request.Name
 	chartRepo.AuthMode = request.AuthMode
@@ -257,31 +269,55 @@ func (impl *ChartRepositoryServiceImpl) UpdateData(request *ChartRepoDto) (*char
 	for !updateSuccess && retryCount < 3 {
 		retryCount = retryCount + 1
 
-		if !isPrivateChart {
-			cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
+		var isFoundInArgoCdCm bool
+		cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
+		if err != nil {
+			return nil, err
+		}
+		var repositories []*AcdConfigMapRepositoriesDto
+		if cm != nil && cm.Data != nil {
+			repoStr := cm.Data["repositories"]
+			repoByte, err := yaml.YAMLToJSON([]byte(repoStr))
 			if err != nil {
+				impl.logger.Errorw("error in json patch", "err", err)
 				return nil, err
 			}
+			err = json.Unmarshal(repoByte, &repositories)
+			if err != nil {
+				impl.logger.Errorw("error in unmarshal", "err", err)
+				return nil, err
+			}
+			for _, repo := range repositories {
+				if repo.Name == previousName && repo.Url == previousUrl {
+					//chart repo is present in argocd-cm
+					isFoundInArgoCdCm = true
+					break
+				}
+			}
+		}
+
+		if isFoundInArgoCdCm {
 			var data map[string]string
 			// if the repo name has been updated then, create a new repo
-			data, err = impl.updateRepoData(cm.Data, request)
-			// if the repo name has been updated then, delete the previous repo
-			if err != nil {
-				impl.logger.Warnw(" config map update failed", "err", err)
-				continue
+			if cm != nil && cm.Data != nil {
+				data, err = impl.updateRepoData(cm.Data, request)
+				// if the repo name has been updated then, delete the previous repo
+				if err != nil {
+					impl.logger.Warnw(" config map update failed", "err", err)
+					continue
+				}
+				if previousName != request.Name {
+					data, err = impl.removeRepoData(cm.Data, previousName)
+				}
+				if err != nil {
+					impl.logger.Warnw(" config map update failed", "err", err)
+					continue
+				}
 			}
-			if previousName != request.Name {
-				data, err = impl.removeRepoData(cm.Data, previousName)
-			}
-			if err != nil {
-				impl.logger.Warnw(" config map update failed", "err", err)
-				continue
-			}
-
 			cm.Data = data
 			_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
 		} else {
-			secretData := impl.CreateSecretDataForPrivateHelmChart(request)
+			secretData := impl.CreateSecretDataForHelmChart(request, isPrivateChart)
 			secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, previousName, client)
 			if err != nil {
 				impl.logger.Errorw("error in fetching secret", "err", err)
@@ -380,23 +416,45 @@ func (impl *ChartRepositoryServiceImpl) DeleteChartRepo(request *ChartRepoDto) e
 	retryCount := 0
 	//request.Url = ""
 
-	isPrivateChart := false
-	if len(chartRepo.UserName) > 0 && len(chartRepo.Password) > 0 {
-		isPrivateChart = true
-	}
-
 	for !updateSuccess && retryCount < 3 {
 		retryCount = retryCount + 1
 
-		if !isPrivateChart {
-			cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
+		var isFoundInArgoCdCm bool
+		cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
+		if err != nil {
+			return err
+		}
+		var repositories []*AcdConfigMapRepositoriesDto
+		if cm != nil && cm.Data != nil {
+			repoStr := cm.Data["repositories"]
+			repoByte, err := yaml.YAMLToJSON([]byte(repoStr))
 			if err != nil {
+				impl.logger.Errorw("error in json patch", "err", err)
 				return err
 			}
-			data, err := impl.removeRepoData(cm.Data, request.Name)
+			err = json.Unmarshal(repoByte, &repositories)
 			if err != nil {
-				impl.logger.Warnw(" config map update failed", "err", err)
-				continue
+				impl.logger.Errorw("error in unmarshal", "err", err)
+				return err
+			}
+			for _, repo := range repositories {
+				if repo.Name == request.Name && repo.Url == request.Url {
+					//chart repo is present in argocd-cm
+					isFoundInArgoCdCm = true
+					break
+				}
+			}
+		}
+
+		if isFoundInArgoCdCm {
+			var data map[string]string
+
+			if cm != nil && cm.Data != nil {
+				data, err = impl.removeRepoData(cm.Data, request.Name)
+				if err != nil {
+					impl.logger.Warnw(" config map update failed", "err", err)
+					continue
+				}
 			}
 			cm.Data = data
 			_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
@@ -515,6 +573,12 @@ func (impl *ChartRepositoryServiceImpl) GetChartRepoListMin() ([]*ChartRepoDto, 
 
 func (impl *ChartRepositoryServiceImpl) ValidateChartRepo(request *ChartRepoDto) *DetailedErrorHelmRepoValidation {
 	var detailedErrorHelmRepoValidation DetailedErrorHelmRepoValidation
+	if len(request.Name) < 3 || strings.Contains(request.Name, " ") {
+		impl.logger.Errorw("name should not contain white spaces and should contain min 3 chars")
+		detailedErrorHelmRepoValidation.CustomErrMsg = fmt.Sprintf("name should not contain white spaces and should have min 3 chars")
+		detailedErrorHelmRepoValidation.ActualErrMsg = fmt.Sprintf("name should not contain white spaces and should have min 3 chars")
+		return &detailedErrorHelmRepoValidation
+	}
 	helmRepoConfig := &repo.Entry{
 		Name:     request.Name,
 		URL:      request.Url,
@@ -571,6 +635,10 @@ func (impl *ChartRepositoryServiceImpl) ValidateAndCreateChartRepo(request *Char
 	chartRepo, err := impl.CreateChartRepo(request)
 	if err != nil {
 		return nil, err, validationResult
+	}
+	if chartRepo == nil && err == nil {
+		//case when no entry for chart in chart_repo table and no need to trigger chart sync
+		return nil, nil, validationResult
 	}
 
 	// Trigger chart sync job, ignore error
