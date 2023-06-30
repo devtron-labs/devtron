@@ -150,8 +150,8 @@ kedaHttpScaledObject:
   enabled: false
   minReplicaCount: 1
   maxReplicaCount: 2
-  targetPendingRequests: 
-  scaledownPeriod:
+  # targetPendingRequests: 
+  # scaledownPeriod:
   servicePort: 80 # port of the service (required)
 
 secret:
