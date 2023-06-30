@@ -4237,6 +4237,28 @@ func (impl PipelineBuilderImpl) GetCdPipelineById(pipelineId int) (cdPipeline *b
 	if err != nil {
 		return nil, err
 	}
+
+	manifestPushConfig, err := impl.manifestPushConfigRepository.GetManifestPushConfigByAppIdAndEnvId(dbPipeline.AppId, dbPipeline.EnvironmentId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching manifest push config by appId and envId", "appId", dbPipeline.AppId, "envId", dbPipeline.EnvironmentId)
+		return nil, err
+	}
+
+	var containerRegistryName, repoName, manifestStorageType string
+	if manifestPushConfig != nil {
+		manifestStorageType = manifestPushConfig.StorageType
+		if manifestStorageType == bean.ManifestStorageOCIHelmRepo {
+			var credentialsConfig bean4.HelmRepositoryConfig
+			err = json.Unmarshal([]byte(manifestPushConfig.CredentialsConfig), &credentialsConfig)
+			if err != nil {
+				impl.logger.Errorw("error in json unmarshal", "err", err)
+				return nil, err
+			}
+			repoName = credentialsConfig.RepositoryName
+			containerRegistryName = credentialsConfig.ContainerRegistryName
+		}
+	}
+
 	cdPipeline = &bean.CDPipelineConfigObject{
 		Id:                            dbPipeline.Id,
 		Name:                          dbPipeline.Name,
@@ -4259,6 +4281,9 @@ func (impl PipelineBuilderImpl) GetCdPipelineById(pipelineId int) (cdPipeline *b
 		DeploymentAppCreated:          dbPipeline.DeploymentAppCreated,
 		UserApprovalConf:              approvalConfig,
 		IsVirtualEnvironment:          dbPipeline.Environment.IsVirtualEnvironment,
+		ContainerRegistryName:         containerRegistryName,
+		RepoName:                      repoName,
+		ManifestStorageType:           manifestStorageType,
 	}
 
 	return cdPipeline, err

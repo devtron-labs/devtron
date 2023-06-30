@@ -31,7 +31,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
-	bean4 "github.com/devtron-labs/devtron/pkg/app/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	history3 "github.com/devtron-labs/devtron/pkg/pipeline/history"
@@ -1579,26 +1578,6 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForAppAndEnv(appId int, e
 			impl.logger.Error(err)
 			return nil, err
 		}
-		manifestPushConfig, err := impl.manifestPushConfigRepository.GetManifestPushConfigByAppIdAndEnvId(appId, envId)
-		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error in fetching manifest push config by appId and envId", "appId", appId, "envId", envId)
-			return nil, err
-		}
-
-		var containerRegistryName, repoName, manifestStorageType string
-		if manifestPushConfig != nil {
-			manifestStorageType = manifestPushConfig.StorageType
-			if manifestStorageType == bean.ManifestStorageOCIHelmRepo {
-				var credentialsConfig bean4.HelmRepositoryConfig
-				err = json.Unmarshal([]byte(manifestPushConfig.CredentialsConfig), &credentialsConfig)
-				if err != nil {
-					impl.logger.Errorw("error in json unmarshal", "err", err)
-					return nil, err
-				}
-				repoName = credentialsConfig.RepositoryName
-				containerRegistryName = credentialsConfig.ContainerRegistryName
-			}
-		}
 
 		pipeline := &bean.CDPipelineConfigObject{
 			Id:                            dbPipeline.Id,
@@ -1614,9 +1593,6 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForAppAndEnv(appId int, e
 			RunPostStageInEnv:             dbPipeline.RunPostStageInEnv,
 			CdArgoSetup:                   env.Cluster.CdArgoSetup,
 			UserApprovalConf:              approvalConfig,
-			ContainerRegistryName:         containerRegistryName,
-			RepoName:                      repoName,
-			ManifestStorageType:           manifestStorageType,
 		}
 		pipelines = append(pipelines, pipeline)
 	}
