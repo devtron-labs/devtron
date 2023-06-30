@@ -1,4 +1,6 @@
 # Mandatory configs
+global:
+   restartPolicy: Always
 
 rolloutLabels: {}
 rolloutAnnotations: {}

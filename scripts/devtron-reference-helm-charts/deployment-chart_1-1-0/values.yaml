@@ -1,6 +1,8 @@
 # Default values for myapp.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
+global:
+   restartPolicy: Always
 
 replicaCount: 1
 MinReadySeconds: 5
@@ -46,7 +48,6 @@ Spec:
 
 image:
   pullPolicy: IfNotPresent
-  restartPolicy: Always
 
 ambassadorMapping:
   enabled: false
