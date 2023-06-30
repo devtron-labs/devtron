@@ -20,9 +20,9 @@ MinReadySeconds: 60
 GracePeriod: 30
 image:
   pullPolicy: IfNotPresent
-  restartPolicy: Always
+restartPolicy: Always
 service:
-  enabled: true
+  # enabled: true
   type: ClusterIP
   #name: "service-1234567890"
   loadBalancerSourceRanges: []

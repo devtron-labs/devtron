@@ -23,7 +23,7 @@ image:
 restartPolicy: Always
 service:
   type: ClusterIP
-  enabled: true
+  # enabled: true
   #name: "service-1234567890"
   loadBalancerSourceRanges: []
   # loadBalancerSourceRanges: 
