@@ -15,7 +15,7 @@ spec:
     - port: envoy-admin
       interval: 30s
       path: /stats/prometheus
-    - relabelings:
+      relabelings:
         - action: replace
           sourceLabels:
             - __meta_kubernetes_pod_label_pod_template_hash
