@@ -20,6 +20,7 @@ package pipeline
 import (
 	"errors"
 	"fmt"
+	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/app"
@@ -117,7 +118,7 @@ func (impl *CiServiceImpl) GetCiMaterials(pipelineId int, ciMaterials []*pipelin
 
 func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 
-	impl.Logger.Debug("ci pipeline manual trigger")
+	impl.Logger.Debug("ci pipeline manual trigger", "request", trigger)
 	ciMaterials, err := impl.GetCiMaterials(trigger.PipelineId, trigger.CiMaterials)
 	if err != nil {
 		return 0, err
@@ -257,7 +258,10 @@ func (impl *CiServiceImpl) saveNewWorkflowForCITrigger(pipeline *pipelineConfig.
 		gitTriggers[k] = gitCommit
 	}
 	var err error
-	appDetails := pipeline.App
+	var appDetails *app2.App
+	if pipeline != nil {
+		appDetails = pipeline.App
+	}
 	isJob := appDetails != nil && appDetails.AppType == helper.Job
 	isCiTriggerBlocked := false
 	if !isJob {
