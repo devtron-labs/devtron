@@ -628,18 +628,18 @@
             "IfNotPresent",
             "Always"
           ]
-        },
-        "restartPolicy": {
-          "type": "string",
-          "description": "It restarts the docker container based on defined conditions.",
-          "title": "Restart Policy",
-          "enum": [
-            "Always",
-            "OnFailure", 
-            "Never"
-          ]
         }
       }
+    },
+    "restartPolicy": {
+      "type": "string",
+      "description": "It restarts the docker container based on defined conditions.",
+      "title": "Restart Policy",
+      "enum": [
+        "Always",
+        "OnFailure",
+        "Never"
+      ]
     },
     "imagePullSecrets": {
       "type": "array",

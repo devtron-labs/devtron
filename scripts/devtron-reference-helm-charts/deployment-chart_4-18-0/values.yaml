@@ -46,7 +46,8 @@ Spec:
 
 image:
   pullPolicy: IfNotPresent
-  restartPolicy: Always
+
+restartPolicy: Always
 
 ambassadorMapping:
   enabled: false
@@ -310,13 +311,13 @@ server:
    image_tag: 1-95af053
    image: ""
 
-EnvVariablesFromFieldPath:
-- name: POD_NAME
-  fieldPath: metadata.name
+EnvVariablesFromFieldPath: []
+# - name: POD_NAME
+#   fieldPath: metadata.name
 
-EnvVariables:
-  - name: FLASK_ENV
-    value: qa
+EnvVariables: []
+  # - name: FLASK_ENV
+  #   value: qa
 
 EnvVariablesFromSecretKeys: []
   # - name: ENV_NAME

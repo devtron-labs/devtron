@@ -672,28 +672,28 @@
       ]
     },
     "image": {
-      "type": "object",
-      "description": "used to access images in kubernetes",
-      "title": "Image",
-      "properties": {
-        "pullPolicy": {
-          "type": "string",
-          "description": "used to define the instances calling the image",
-          "title": "Pull Policy",
+        "type": "object",
+        "description": "used to access images in kubernetes",
+        "title": "Image",
+        "properties": {
+          "pullPolicy": {
+            "type": "string",
+            "description": "used to define the instances calling the image",
+            "title": "Pull Policy",
             "enum": ["IfNotPresent", "Always"]
-        },
-        "restartPolicy": {
-          "type": "string",
-          "description": "It restarts the docker container based on defined conditions.",
-          "title": "Restart Policy",
-          "enum": [
-            "Always",
-            "OnFailure",
-            "Never"
-          ]
+          }
         }
-      }
-    },
+      },
+      "restartPolicy": {
+        "type": "string",
+        "description": "It restarts the docker container based on defined conditions.",
+        "title": "Restart Policy",
+        "enum": [
+          "Always",
+          "OnFailure",
+          "Never"
+        ]
+      },
     "imagePullSecrets": {
       "type": "array",
       "items": {},
