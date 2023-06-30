@@ -1968,7 +1968,7 @@ func (impl *AppServiceImpl) BuildManifestPushTemplate(overrideRequest *bean.Valu
 		return manifestPushTemplate, err
 	}
 
-	if manifestPushConfig != nil {
+	if manifestPushConfig.Id != 0 {
 		if manifestPushConfig.StorageType == bean2.ManifestStorageOCIHelmRepo {
 
 			var credentialsConfig bean3.HelmRepositoryConfig
