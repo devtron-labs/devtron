@@ -1,6 +1,4 @@
 # Mandatory configs
-global:
-   restartPolicy: Always
 
 rolloutLabels: {}
 rolloutAnnotations: {}
@@ -22,7 +20,7 @@ MinReadySeconds: 60
 GracePeriod: 30
 image:
   pullPolicy: IfNotPresent
-  restartPolicy: Always
+restartPolicy: Always
 service:
   type: ClusterIP
   enabled: true
