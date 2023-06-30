@@ -146,13 +146,13 @@ kedaAutoscaling:
     spec: {}
   authenticationRef: {}
 
-kedaHttpScaledObject:
-  enabled: false
-  minReplicaCount: 1
-  maxReplicaCount: 2
-  # targetPendingRequests: 
-  # scaledownPeriod:
-  servicePort: 80 # port of the service (required)
+# kedaHttpScaledObject:
+#   enabled: false
+#   minReplicaCount: 1
+#   maxReplicaCount: 2
+#   targetPendingRequests: 
+#   scaledownPeriod:
+#   servicePort: 80 # port of the service (required)
 
 secret:
   enabled: false
