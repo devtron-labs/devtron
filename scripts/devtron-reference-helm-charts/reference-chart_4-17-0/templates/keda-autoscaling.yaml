@@ -3,10 +3,26 @@ apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
   name: {{ template ".Chart.Name .fullname" $ }}-keda
+  labels:
+    app: { { template ".Chart.Name .name" . } }
+    appId: { { $.Values.app | quote } }
+    envId: { { $.Values.env | quote } }
+    chart: { { template ".Chart.Name .chart" . } }
+    release: { { .Release.Name } }
+  {{- if .Values.appLabels }}
+  {{ toYaml .Values.appLabels | indent 4 }}
+  {{- end }}
+  {{- if .Values.kedaAutoscaling.labels }}
+  {{ toYaml .Values.kedaAutoscaling.labels | indent 4 }}
+  {{- end }}
+  {{- if .Values.kedaAutoscaling.annotations }}
+  annotations:
+  {{ toYaml .Values.kedaAutoscaling.annotations | indent 4 }}
+  {{- end }}
 spec:
   scaleTargetRef:
-    apiVersion: argoproj.io/v1alpha1
-    kind: Rollout
+    apiVersion: apps/v1
+    kind: Deployment
     name: {{ include ".Chart.Name .fullname" $ }}
 {{- if $.Values.kedaAutoscaling.envSourceContainerName }}
     envSourceContainerName: {{ $.Values.kedaAutoscaling.envSourceContainerName }}

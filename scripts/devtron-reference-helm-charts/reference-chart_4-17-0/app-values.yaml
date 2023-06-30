@@ -4,7 +4,7 @@ rolloutLabels: {}
 rolloutAnnotations: {}
 
 containerSpec:
-  lifecycle: 
+  lifecycle:
     enabled: false
     preStop:
       exec:
@@ -22,8 +22,8 @@ image:
   pullPolicy: IfNotPresent
   restartPolicy: Always
 service:
-  enabled: true
   type: ClusterIP
+  enabled: true
   #name: "service-1234567890"
   loadBalancerSourceRanges: []
   # loadBalancerSourceRanges: 
@@ -132,6 +132,170 @@ ingress:
   #  - secretName: chart-example-tls
   #    hosts:
   #      - chart-example.local
+
+istio:
+  enable: false
+  gateway:
+    enabled: false
+    labels: {}
+    annotations: {}
+    host: example.com
+    tls:
+      enabled: false
+      secretName: example-secret
+  virtualService:
+    enabled: false
+    labels: {}
+    annotations: {}
+    gateways: []
+    hosts: []
+    http: []
+      # - match:
+      #   - uri:
+      #       prefix: /v1
+      #   - uri:
+      #       prefix: /v2
+      #   timeout: 12
+      #   headers:
+      #     request:
+      #       add:
+      #         x-some-header: "value"
+      #   retries:
+      #     attempts: 2 
+      #     perTryTimeout: 3s 
+  destinationRule:
+    enabled: false
+    labels: {}
+    annotations: {}
+    subsets: []
+    trafficPolicy: {}
+  peerAuthentication:
+    enabled: false
+    labels: {}
+    annotations: {}
+    selector:
+      enabled: false
+    mtls:
+      mode:
+    portLevelMtls: {}
+  requestAuthentication:
+    enabled: false
+    labels: {}
+    annotations: {}
+    selector:
+      enabled: false
+    jwtRules: []
+  authorizationPolicy:
+    enabled: false
+    labels: {}
+    annotations: {}
+    action:
+    provider: {}
+    rules: []
+
+winterSoldier:
+  enabled: false
+  apiVersion: pincher.devtron.ai/v1alpha1
+  annotation: {}
+  labels: {}
+  type: Deployment
+  timeRangesWithZone:
+    timeZone: "Asia/Kolkata"
+    timeRanges: []
+  action: sleep
+  targetReplicas: []
+  fieldSelector: 
+    - AfterTime(AddTime(ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '5m'), Now())
+
+networkPolicy:
+  enabled: false
+  annotations: {}
+  labels: {}
+  podSelector: 
+    matchExpressions: []
+    matchLabels: {}
+  policyTypes: []
+  ingress: []
+  egress: []
+
+flaggerCanary:
+  enabled: false
+  labels: {}
+  annotations: {}
+  createIstioGateway:
+    enabled: false
+    labels: {}
+    annotations: {}
+    host:
+    tls:
+      enabled: false
+      secretName: 
+  # Istio gateways (optional)
+  addOtherGateways: []
+  # Istio virtual service host names (optional)
+  addOtherHosts: []
+  # Istio gateway refs (optional)
+  gatewayRefs: 
+    # - name: istio-gateway
+    #   namespace: istio-system
+  #service port
+  serviceport: 8080
+  #containerPort
+  targetPort: 8080
+  # discover all port open in container
+  portDiscovery: true
+  # application protocol (optional)
+  appProtocol: http
+  # Istio retry policy (optional)
+  retries: 
+    # attempts: 3
+    # perTryTimeout: 1s
+    # retryOn: "gateway-error,connect-failure,refused-stream"
+  # HTTP match conditions (optional)
+  match:
+    - uri:
+        prefix: /
+  # HTTP rewrite (optional)
+  rewriteUri: /
+  # timeout (optional)
+  timeout:
+  # Add headers (optional)
+  headers:
+    # request:
+    #   add:
+    #     x-some-header: "value"
+  # cross-origin resource sharing policy (optional)
+  corsPolicy:
+    # allowOrigin:
+    #   - example.com
+    # allowMethods:
+    #   - GET
+    # allowCredentials: false
+    # allowHeaders:
+    #   - x-some-header
+    # maxAge: 24h
+  analysis:
+    # schedule interval (default 60s)
+    interval: 15s
+    # max number of failed metric checks before rollback
+    threshold: 5
+    # max traffic percentage routed to canary
+    # percentage (0-100)
+    maxWeight: 50
+    # canary increment step
+    # percentage (0-100)
+    stepWeight: 5
+  thresholds:
+    # minimum req success rate (non 5xx responses)
+    # percentage (0-100)
+    successRate: 90
+    # maximum req duration P99
+    # milliseconds
+    latency: 500
+  loadtest:
+    enabled: true
+    # load tester address 
+    url: http://flagger-loadtester.istio-system/
 
 ingressInternal:
   enabled: false
@@ -287,6 +451,14 @@ kedaAutoscaling:
     spec: {}
   authenticationRef: {}
 
+kedaHttpScaledObject:
+  enabled: false
+  minReplicaCount: 1
+  maxReplicaCount: 2
+  targetPendingRequests: 
+  scaledownPeriod: 
+  servicePort: 80 # port of the service (required)
+
 prometheus:
   release: monitoring
 
@@ -309,94 +481,6 @@ envoyproxy:
     requests:
       cpu: 50m
       memory: 50Mi
-
-istio:
-  enable: false
-  gateway:
-    enabled: false
-    labels: {}
-    annotations: {}
-    host: "example.com"
-    tls:
-      enabled: false
-      secretName: secret-name
-  virtualService:
-    enabled: false
-    labels: {}
-    annotations: {}
-    gateways: []
-    hosts: []
-    http: []
-      # - match:
-      #   - uri:
-      #       prefix: /v1
-      #   - uri:
-      #       prefix: /v2
-      #   timeout: 12
-      #   headers:
-      #     request:
-      #       add:
-      #         x-some-header: "value"
-      #   retries:
-      #     attempts: 2 
-      #     perTryTimeout: 3s 
-  destinationRule:
-    enabled: false
-    labels: {}
-    annotations: {}
-    subsets: []
-    trafficPolicy: {}
-  peerAuthentication:
-    enabled: false
-    labels: {}
-    annotations: {}
-    selector:
-      enabled: false
-    mtls:
-      mode:
-    portLevelMtls: {}
-  requestAuthentication:
-    enabled: false
-    labels: {}
-    annotations: {}
-    selector:
-      enabled: false
-    jwtRules: []
-  authorizationPolicy:
-    enabled: false
-    labels: {}
-    annotations: {}
-    action:
-    provider: {}
-    rules: []
-
-networkPolicy:
-  enabled: false
-  annotations: {}
-  labels: {}
-  podSelector: 
-    matchExpressions: []
-    matchLabels: {}
-  policyTypes: []
-  ingress: []
-  egress: []
-
-winterSoldier:
-  enabled: false
-  apiVersion: pincher.devtron.ai/v1alpha1
-  annotation: {}
-  labels: {}
-  type: Rollout
-  timeRangesWithZone:
-    timeZone: "Asia/Kolkata"
-    timeRanges: []
-  action: sleep
-  targetReplicas: []
-  fieldSelector: 
-    - AfterTime(AddTime(ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '5m'), Now())
-
-  
-  
 
 ## Pods Service Account
 ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/

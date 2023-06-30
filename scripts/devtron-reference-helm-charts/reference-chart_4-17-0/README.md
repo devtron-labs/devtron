@@ -1,5 +1,5 @@
 
-# Rollout Deployment Chart - v4.17
+# Deployment Chart - v1.1.0
 
 ## 1. Yaml File -
 
@@ -35,7 +35,6 @@ ContainerPort:
 EnvVariables: []
 ```
 To set environment variables for the containers that run in the Pod.
-
 ### EnvVariablesFromSecretKeys
 ```yaml
 EnvVariablesFromSecretKeys: 
@@ -55,7 +54,7 @@ EnvVariablesFromConfigMapKeys:
 
 ```
  It is use to get the name of Environment Variable name, Config Map name and the Key name from which we are using the value in that corresponding Environment Variable.
-
+ 
 ### Liveness Probe
 
 If this check fails, kubernetes restarts the pod. This should return error code in case of non-recoverable error.
@@ -201,6 +200,78 @@ autoscaling:
 | `TargetCPUUtilizationPercentage` | The target CPU utilization that is expected for a container. |
 | `TargetMemoryUtilizationPercentage` | The target memory utilization that is expected for a container. |
 | `extraMetrics` | Used to give external metrics for autoscaling. |
+
+### Flagger
+
+You can use flagger for canary releases with deployment objects. It supports flexible traffic routing with istio service mesh as well.
+
+```yaml
+flaggerCanary:
+  addOtherGateways: []
+  addOtherHosts: []
+  analysis:
+    interval: 15s
+    maxWeight: 50
+    stepWeight: 5
+    threshold: 5
+  annotations: {}
+  appProtocol: http
+  corsPolicy:
+    allowCredentials: false
+    allowHeaders:
+      - x-some-header
+    allowMethods:
+      - GET
+    allowOrigin:
+      - example.com
+    maxAge: 24h
+  createIstioGateway:
+    annotations: {}
+    enabled: false
+    host: example.com
+    labels: {}
+    tls:
+      enabled: false
+      secretName: example-tls-secret
+  enabled: false
+  gatewayRefs: null
+  headers:
+    request:
+      add:
+        x-some-header: value
+  labels: {}
+  loadtest:
+    enabled: true
+    url: http://flagger-loadtester.istio-system/
+  match:
+    - uri:
+        prefix: /
+  port: 8080
+  portDiscovery: true
+  retries: null
+  rewriteUri: /
+  targetPort: 8080
+  thresholds:
+    latency: 500
+    successRate: 90
+  timeout: null
+```
+
+| Key | Description |
+| :--- | :--- |
+| `enabled` | Set true to enable canary releases using flagger else set false.|
+| `addOtherGateways` | To provide multiple istio gateways for flagger. |
+| `addOtherHosts` | Add multiple hosts for istio service mesh with flagger. |
+| `analysis` | Define how the canary release should progresss and at what interval. |
+| `annotations` | Annotation to add on flagger resource. |
+| `labels` | Labels to add on flagger resource. |
+| `appProtocol` | Protocol to use for canary. |
+| `corsPolicy` | Provide cors headers on flagger resource. |
+| `createIstioGateway` | Set to true if you want to create istio gateway as well with flagger. |
+| `headers` | Add headers if any. |
+| `loadtest` | Enable load testing for your canary release. |
+
+
 
 ### Fullname Override
 
@@ -384,76 +455,6 @@ istio:
 pauseForSecondsBeforeSwitchActive: 30
 ```
 To wait for given period of time before switch active the container.
-
-
-### Winter-Soldier
-Winter Soldier can be used to
-- cleans up (delete) Kubernetes resources
-- reduce workload pods to 0
-
-**_NOTE:_** After deploying this we can create the Hibernator object and provide the custom configuration by which workloads going to delete, sleep and many more.   for more information check [the main repo](https://github.com/devtron-labs/winter-soldier)
-
-Given below is template values you can give in winter-soldier:
-```yaml
-winterSoilder:
-  enable: false
-  apiVersion: pincher.devtron.ai/v1alpha1
-  action: sleep
-  timeRangesWithZone:
-    timeZone: "Asia/Kolkata"
-    timeRanges: []
-  targetReplicas: []
-  fieldSelector: []
-```
-Here, 
-| Key | values | Description |
-| :--- | :--- | :--- |
-| `enable` | `fasle`,`true` | decide the enabling factor  |
-| `apiVersion` | `pincher.devtron.ai/v1beta1`, `pincher.devtron.ai/v1alpha1` | specific api version  |
-| `action` | `sleep`,`delete`, `scale` | This specify  the action need to perform.  |
-| `timeRangesWithZone`:`timeZone` | eg:- `"Asia/Kolkata"`,`"US/Pacific"` |  It use to specify the timeZone used. (It uses standard format. please refer [this](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones))  |
-| `timeRangesWithZone`:`timeRanges` | array of [ `timeFrom`, `timeTo`, `weekdayFrom`, `weekdayTo`] |  It use to define time period/range on which the user need to perform the specified action. you can have multiple timeRanges. <br /> These settings will take `action` on Sat and Sun from 00:00 to 23:59:59, |
-| `targetReplicas` | `[n]` : n - number of replicas to scale. | These is mandatory field when the `action` is `scale` <br /> Defalut value is `[]`.  |
-| `fieldSelector` | `- AfterTime(AddTime( ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '5m'), Now()) `  | These value will take a list of methods to select the resources on which we perform specified `action` .  |
-
-
-here is an example,
-```yaml
-winterSoilder:
-  apiVersion: pincher.devtron.ai/v1alpha1 
-  enable: true
-  annotations: {}
-  labels: {}
-  timeRangesWithZone:
-    timeZone: "Asia/Kolkata"
-    timeRanges: 
-      - timeFrom: 00:00
-        timeTo: 23:59:59
-        weekdayFrom: Sat
-        weekdayTo: Sun
-      - timeFrom: 00:00
-        timeTo: 08:00
-        weekdayFrom: Mon
-        weekdayTo: Fri
-      - timeFrom: 20:00
-        timeTo: 23:59:59
-        weekdayFrom: Mon
-        weekdayTo: Fri
-  action: scale
-  targetReplicas: [1,1,1]
-  fieldSelector: 
-    - AfterTime(AddTime( ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '10h'), Now())
-```
-Above settings will take action on `Sat` and `Sun` from 00:00 to 23:59:59, and on `Mon`-`Fri` from 00:00 to 08:00 and 20:00 to 23:59:59. If `action:sleep` then runs hibernate at timeFrom and unhibernate at `timeTo`. If `action: delete` then it will delete workloads at `timeFrom` and `timeTo`. Here the `action:scale` thus it scale the number of resource replicas to  `targetReplicas: [1,1,1]`. Here each element of `targetReplicas` array is mapped with the corresponding elments of array `timeRangesWithZone/timeRanges`. Thus make sure the length of both array is equal, otherwise the cnages cannot be observed.
-
-The above example will select the application objects which have been created 10 hours ago across all namespaces excluding application's namespace. Winter soldier exposes following functions to handle time, cpu and memory.
-
-- ParseTime - This function can be used to parse time. For eg to parse creationTimestamp use ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z')
-- AddTime - This can be used to add time. For eg AddTime(ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '-10h') ll add 10h to the time. Use d for day, h for hour, m for minutes and s for seconds. Use negative number to get earlier time.
-- Now - This can be used to get current time.
-- CpuToNumber - This can be used to compare CPU. For eg any({{spec.containers.#.resources.requests}}, { MemoryToNumber(.memory) < MemoryToNumber('60Mi')}) will check if any resource.requests is less than 60Mi.
-
-
 
 ### Resources
 
@@ -758,6 +759,74 @@ kedaAutoscaling:
   authenticationRef: 
     name: keda-trigger-auth-kafka-credential
 ```
+
+### Winter-Soldier
+Winter Soldier can be used to
+- cleans up (delete) Kubernetes resources
+- reduce workload pods to 0
+
+**_NOTE:_** After deploying this we can create the Hibernator object and provide the custom configuration by which workloads going to delete, sleep and many more.   for more information check [the main repo](https://github.com/devtron-labs/winter-soldier)
+
+Given below is template values you can give in winter-soldier:
+```yaml
+winterSoilder:
+  enable: false
+  apiVersion: pincher.devtron.ai/v1alpha1
+  action: sleep
+  timeRangesWithZone:
+    timeZone: "Asia/Kolkata"
+    timeRanges: []
+  targetReplicas: []
+  fieldSelector: []
+```
+Here, 
+| Key | values | Description |
+| :--- | :--- | :--- |
+| `enable` | `fasle`,`true` | decide the enabling factor  |
+| `apiVersion` | `pincher.devtron.ai/v1beta1`, `pincher.devtron.ai/v1alpha1` | specific api version  |
+| `action` | `sleep`,`delete`, `scale` | This specify  the action need to perform.  |
+| `timeRangesWithZone`:`timeZone` | eg:- `"Asia/Kolkata"`,`"US/Pacific"` |  It use to specify the timeZone used. (It uses standard format. please refer [this](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones))  |
+| `timeRangesWithZone`:`timeRanges` | array of [ `timeFrom`, `timeTo`, `weekdayFrom`, `weekdayTo`] |  It use to define time period/range on which the user need to perform the specified action. you can have multiple timeRanges. <br /> These settings will take `action` on Sat and Sun from 00:00 to 23:59:59, |
+| `targetReplicas` | `[n]` : n - number of replicas to scale. | These is mandatory field when the `action` is `scale` <br /> Defalut value is `[]`.  |
+| `fieldSelector` | `- AfterTime(AddTime( ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '5m'), Now()) `  | These value will take a list of methods to select the resources on which we perform specified `action` .  |
+
+
+here is an example,
+```yaml
+winterSoilder:
+  apiVersion: pincher.devtron.ai/v1alpha1 
+  enable: true
+  annotations: {}
+  labels: {}
+  timeRangesWithZone:
+    timeZone: "Asia/Kolkata"
+    timeRanges: 
+      - timeFrom: 00:00
+        timeTo: 23:59:59
+        weekdayFrom: Sat
+        weekdayTo: Sun
+      - timeFrom: 00:00
+        timeTo: 08:00
+        weekdayFrom: Mon
+        weekdayTo: Fri
+      - timeFrom: 20:00
+        timeTo: 23:59:59
+        weekdayFrom: Mon
+        weekdayTo: Fri
+  action: scale
+  targetReplicas: [1,1,1]
+  fieldSelector: 
+    - AfterTime(AddTime( ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '10h'), Now())
+```
+Above settings will take action on `Sat` and `Sun` from 00:00 to 23:59:59, and on `Mon`-`Fri` from 00:00 to 08:00 and 20:00 to 23:59:59. If `action:sleep` then runs hibernate at timeFrom and unhibernate at `timeTo`. If `action: delete` then it will delete workloads at `timeFrom` and `timeTo`. Here the `action:scale` thus it scale the number of resource replicas to  `targetReplicas: [1,1,1]`. Here each element of `targetReplicas` array is mapped with the corresponding elments of array `timeRangesWithZone/timeRanges`. Thus make sure the length of both array is equal, otherwise the cnages cannot be observed.
+
+The above example will select the application objects which have been created 10 hours ago across all namespaces excluding application's namespace. Winter soldier exposes following functions to handle time, cpu and memory.
+
+- ParseTime - This function can be used to parse time. For eg to parse creationTimestamp use ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z')
+- AddTime - This can be used to add time. For eg AddTime(ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '-10h') ll add 10h to the time. Use d for day, h for hour, m for minutes and s for seconds. Use negative number to get earlier time.
+- Now - This can be used to get current time.
+- CpuToNumber - This can be used to compare CPU. For eg any({{spec.containers.#.resources.requests}}, { MemoryToNumber(.memory) < MemoryToNumber('60Mi')}) will check if any resource.requests is less than 60Mi.
+
 
 ### Security Context
 A security context defines privilege and access control settings for a Pod or Container.

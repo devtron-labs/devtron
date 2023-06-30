@@ -15,6 +15,11 @@ spec:
     - port: envoy-admin
       interval: 30s
       path: /stats/prometheus
+    - relabelings:
+        - action: replace
+          sourceLabels:
+            - __meta_kubernetes_pod_label_pod_template_hash
+          targetLabel: devtron_app_hash
   selector:
     matchLabels:
       app: {{ template ".Chart.Name .name" $ }}
@@ -26,5 +31,6 @@ spec:
   podTargetLabels:
     - appId
     - envId
-    - rollouts-pod-template-hash
+    - pod-template-hash
+    - devtron_app_hash
 {{- end }}

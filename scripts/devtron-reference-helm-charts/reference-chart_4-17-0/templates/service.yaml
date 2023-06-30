@@ -1,4 +1,4 @@
-{{- if .Values.service.enabled  }}
+{{- if .Values.service.enabled }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -36,10 +36,10 @@ spec:
       {{- else }}
       targetPort: {{ .name }}
       {{- end }}
-      {{- if (and (eq $.Values.service.type "NodePort") .nodePort )}}
+      protocol: TCP
+      {{- if (and (eq $.Values.service.type "NodePort") .nodePort ) }}
       nodePort: {{ .nodePort }}
       {{- end }}
-      protocol: TCP
       name: {{ .name }}
     {{- end }}
       {{- if $.Values.appMetrics }}

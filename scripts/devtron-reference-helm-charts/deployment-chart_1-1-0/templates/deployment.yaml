@@ -533,7 +533,11 @@ spec:
 #  waitForSecondsBeforeScalingDown: {{ $.Values.waitForSecondsBeforeScalingDown }}
   strategy:
     {{- if eq .Values.deploymentType "ROLLING" }}
+    type: "RollingUpdate"
     rollingUpdate:
       maxSurge: {{ $.Values.deployment.strategy.rolling.maxSurge }}
       maxUnavailable: {{ $.Values.deployment.strategy.rolling.maxUnavailable }}
+    {{- end }}
+    {{- if eq .Values.deploymentType "RECREATE" }}
+    type: "Recreate"
     {{- end }}

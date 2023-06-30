@@ -1,1199 +1,1198 @@
+
 {
-  "$schema": "http://json-schema.org/draft-04/schema#",
-  "type": "object",
-  "properties": {
-    "containerExtraSpecs": {
-      "type": "object",
-      "title": "containerExtraSpecs",
-      "description": "Define container extra specs here"
-    },
-    "ContainerPort": {
-      "type": "array",
-      "description": "defines ports on which application services will be exposed to other services",
-      "title": "Container Port",
-      "items": {
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "properties": {
+      "containerExtraSpecs":{
         "type": "object",
+        "title": "containerExtraSpecs",
+        "description": "Define container extra specs here"
+      },
+      "ContainerPort": {
+        "type": "array",
+        "description": "defines ports on which application services will be exposed to other services",
+        "title": "Container Port",
+        "items": {
+          "type": "object",
+          "properties": {
+            "envoyPort": {
+              "type": "integer",
+              "description": "envoy port for the container",
+              "title": "Envoy Port"
+            },
+            "idleTimeout": {
+              "type": "string",
+              "description": "duration of time for which a connection is idle before the connection is terminated",
+              "title": "Idle Timeout"
+            },
+            "name": {
+              "type": "string",
+              "description": "name of the port",
+              "title": "Name"
+            },
+            "port": {
+              "type": "integer",
+              "description": "Port",
+              "title": "port for the container"
+            },
+            "servicePort": {
+              "type": "integer",
+              "description": "port of the corresponding kubernetes service",
+              "title": "Service Port"
+            },
+            "nodePort": {
+              "type": "integer",
+              "description": "nodeport of the corresponding kubernetes service",
+              "title": "Node Port"
+            },
+            "supportStreaming": {
+              "type": "boolean",
+              "description": "field to enable/disable timeout for high performance protocols like grpc",
+              "title": "Support Streaming"
+            },
+            "useHTTP2": {
+              "type": "boolean",
+              "description": " field for setting if envoy container can accept(or not) HTTP2 requests",
+              "title": "Use HTTP2"
+            }
+          }
+        }
+      },
+      "EnvVariables": {
+        "type": "array",
+        "items": {},
+        "description": "contains environment variables needed by the containers",
+        "title": "Environment Variables"
+      },
+      "EnvVariablesFromFieldPath":{
+        "type": "array",
+        "description": "Selects a field of the pod: supports metadata.name, metadata.namespace, `metadata.labels['<KEY>']`, `metadata.annotations['<KEY>']`, spec.nodeName, spec.serviceAccountName, status.hostIP, status.podIP, status.podIPs",
+        "title": "EnvVariablesFromFieldPath",
+        "items": [
+          {
+            "type": "object",
+            "properties": {
+              "name":{
+                "type": "string",
+                "title": "name",
+                "description": "Env variable name to be"
+              },
+              "fieldPath":{
+                "type": "string",
+                "title": "fieldPath",
+                "description": "Path of the field to select in the specified API version"
+              }
+            }
+          }
+        ]
+      },
+      "EnvVariablesFromSecretKeys": {
+        "type": "array",
+        "description": "Selects a field of the deployment: It is use to get the name of Environment Variable name, Secret name and the Key name from which we are using the value in that corresponding Environment Variable.",
+        "title": "EnvVariablesFromSecretKeys",
+        "items": [
+          {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "title": "name",
+                "description": "Env variable name to be used."
+              },
+              "secretName": {
+                "type": "string",
+                "title": "secretName",
+                "description": "Name of Secret from which we are taking the value."
+              },
+              "keyName": {
+                "type": "string",
+                "title": "keyName",
+                "description": "Name of The Key Where the value is mapped with."
+              }
+            }
+          }
+        ]
+      },
+      "EnvVariablesFromConfigMapKeys": {
+        "type": "array",
+        "description": "Selects a field of the deployment: It is use to get the name of Environment Variable name, Config Map name and the Key name from which we are using the value in that corresponding Environment Variable.",
+        "title": "EnvVariablesFromConfigMapKeys",
+        "items": [
+          {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "title": "name",
+                "description": "Env variable name to be used."
+              },
+              "configMapName": {
+                "type": "string",
+                "title": "configMapName",
+                "description": "Name of configMap from which we are taking the value."
+              },
+              "keyName": {
+                "type": "string",
+                "title": "keyName",
+                "description": "Name of The Key Where the value is mapped with."
+              }
+            }
+          }
+        ]
+      },
+      "GracePeriod": {
+        "type": "integer",
+        "description": "time for which Kubernetes waits before terminating the pods",
+        "title": "Grace Period"
+      },
+      "LivenessProbe": {
+        "type": "object",
+        "description": "used by the kubelet to know when to restart a container",
+        "title": "Liveness Probe",
         "properties": {
-          "envoyPort": {
+          "Path": {
+            "type": "string",
+            "description": "defines the path where the liveness needs to be checked",
+            "title": "Path"
+          },
+          "command": {
+            "type": "array",
+            "items": {},
+            "description": "commands executed to perform a probe",
+            "title": "Command"
+          },
+          "failureThreshold": {
             "type": "integer",
-            "description": "envoy port for the container",
-            "title": "Envoy Port"
+            "description": "defines the maximum number of failures that are acceptable before a given container is not considered as live",
+            "title": "Failure Threshold"
           },
-          "idleTimeout": {
-            "type": "string",
-            "description": "duration of time for which a connection is idle before the connection is terminated",
-            "title": "Idle Timeout"
+          "httpHeaders": {
+            "type": "array",
+            "items": {},
+            "description": "used to override the default headers by defining .httpHeaders for the probe",
+            "title": "HTTP headers"
           },
-          "name": {
-            "type": "string",
-            "description": "name of the port",
-            "title": "Name"
+          "initialDelaySeconds": {
+            "type": "integer",
+            "description": "defines the time to wait before a given container is checked for liveness",
+            "title": "Initial Delay Seconds"
+          },
+          "periodSeconds": {
+            "type": "integer",
+            "description": "defines the time to check a given container for liveness",
+            "title": "Period Seconds"
           },
           "port": {
             "type": "integer",
-            "description": "Port",
-            "title": "port for the container"
+            "description": "port to access on the container",
+            "title": "Port"
           },
-          "servicePort": {
-            "type": "integer",
-            "description": "port of the corresponding kubernetes service",
-            "title": "Service Port"
-          },
-          "nodePort": {
-            "type": "integer",
-            "description": "nodeport of the corresponding kubernetes service",
-            "title": "Node Port"
-          },
-          "supportStreaming": {
-            "type": "boolean",
-            "description": "field to enable/disable timeout for high performance protocols like grpc",
-            "title": "Support Streaming"
-          },
-          "useHTTP2": {
-            "type": "boolean",
-            "description": " field for setting if envoy container can accept(or not) HTTP2 requests",
-            "title": "Use HTTP2"
-          }
-        }
-      }
-    },
-    "EnvVariables": {
-      "type": "array",
-      "items": {},
-      "description": "contains environment variables needed by the containers",
-      "title": "Environment Variables"
-    },
-    "EnvVariablesFromFieldPath": {
-      "type": "array",
-      "description": "Selects a field of the pod: supports metadata.name, metadata.namespace, `metadata.labels['<KEY>']`, `metadata.annotations['<KEY>']`, spec.nodeName, spec.serviceAccountName, status.hostIP, status.podIP, status.podIPs",
-      "title": "EnvVariablesFromFieldPath",
-      "items": [
-        {
-          "type": "object",
-          "properties": {
-            "name": {
-              "type": "string",
-              "title": "name",
-              "description": "Env variable name to be"
-            },
-            "fieldPath": {
-              "type": "string",
-              "title": "fieldPath",
-              "description": "Path of the field to select in the specified API version"
-            }
-          }
-        }
-      ]
-    },
-    "EnvVariablesFromSecretKeys": {
-      "type": "array",
-      "description": "Selects a field of the deployment: It is use to get the name of Environment Variable name, Secret name and the Key name from which we are using the value in that corresponding Environment Variable.",
-      "title": "EnvVariablesFromSecretKeys",
-      "items": [
-        {
-          "type": "object",
-          "properties": {
-            "name": {
-              "type": "string",
-              "title": "name",
-              "description": "Env variable name to be used."
-            },
-            "secretName": {
-              "type": "string",
-              "title": "secretName",
-              "description": "Name of Secret from which we are taking the value."
-            },
-            "keyName": {
-              "type": "string",
-              "title": "keyName",
-              "description": "Name of The Key Where the value is mapped with."
-            }
-          }
-        }
-      ]
-    },
-    "EnvVariablesFromConfigMapKeys": {
-      "type": "array",
-      "description": "Selects a field of the deployment: It is use to get the name of Environment Variable name, Config Map name and the Key name from which we are using the value in that corresponding Environment Variable.",
-      "title": "EnvVariablesFromConfigMapKeys",
-      "items": [
-        {
-          "type": "object",
-          "properties": {
-            "name": {
-              "type": "string",
-              "title": "name",
-              "description": "Env variable name to be used."
-            },
-            "configMapName": {
-              "type": "string",
-              "title": "configMapName",
-              "description": "Name of configMap from which we are taking the value."
-            },
-            "keyName": {
-              "type": "string",
-              "title": "keyName",
-              "description": "Name of The Key Where the value is mapped with."
-            }
-          }
-        }
-      ]
-    },
-    "GracePeriod": {
-      "type": "integer",
-      "description": "time for which Kubernetes waits before terminating the pods",
-      "title": "Grace Period"
-    },
-    "LivenessProbe": {
-      "type": "object",
-      "description": "used by the kubelet to know when to restart a container",
-      "title": "Liveness Probe",
-      "properties": {
-        "Path": {
-          "type": "string",
-          "description": "defines the path where the liveness needs to be checked",
-          "title": "Path"
-        },
-        "command": {
-          "type": "array",
-          "items": {},
-          "description": "commands executed to perform a probe",
-          "title": "Command"
-        },
-        "failureThreshold": {
-          "type": "integer",
-          "description": "defines the maximum number of failures that are acceptable before a given container is not considered as live",
-          "title": "Failure Threshold"
-        },
-        "httpHeaders": {
-          "type": "array",
-          "items": {},
-          "description": "used to override the default headers by defining .httpHeaders for the probe",
-          "title": "HTTP headers"
-        },
-        "initialDelaySeconds": {
-          "type": "integer",
-          "description": "defines the time to wait before a given container is checked for liveness",
-          "title": "Initial Delay Seconds"
-        },
-        "periodSeconds": {
-          "type": "integer",
-          "description": "defines the time to check a given container for liveness",
-          "title": "Period Seconds"
-        },
-        "port": {
-          "type": "integer",
-          "description": "port to access on the container",
-          "title": "Port"
-        },
-        "scheme": {
-          "type": "string",
-          "description": "Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.",
-          "title": "Scheme"
-        },
-        "successThreshold": {
-          "type": "integer",
-          "description": "defines the number of successes required before a given container is said to fulfil the liveness probe",
-          "title": "Success Threshold"
-        },
-        "tcp": {
-          "type": "boolean",
-          "description": "If enabled, the kubelet will attempt to open a socket to container. If connection is established, the container is considered healthy",
-          "title": "TCP"
-        },
-        "timeoutSeconds": {
-          "type": "integer",
-          "description": "defines the time for checking timeout",
-          "title": "Timeout Seconds"
-        }
-      }
-    },
-    "MaxSurge": {
-      "type": "integer",
-      "description": "maximum number of pods that can be created over the desired number of pods",
-      "title": "Maximum Surge"
-    },
-    "MaxUnavailable": {
-      "type": "integer",
-      "description": "maximum number of pods that can be unavailable during the update process",
-      "title": "Maximum Unavailable"
-    },
-    "MinReadySeconds": {
-      "type": "integer",
-      "description": "minimum number of seconds for which a newly created Pod should be ready without any of its containers crashing, for it to be considered available",
-      "title": "Minimum Ready Seconds"
-    },
-    "ReadinessProbe": {
-      "type": "object",
-      "description": "kubelet uses readiness probes to know when a container is ready to start accepting traffic",
-      "title": "Readiness Probe",
-      "properties": {
-        "Path": {
-          "type": "string",
-          "description": "defines the path where the readiness needs to be checked",
-          "title": "Path"
-        },
-        "command": {
-          "type": "array",
-          "items": {},
-          "description": "commands executed to perform a probe",
-          "title": "Command"
-        },
-        "failureThreshold": {
-          "type": "integer",
-          "description": "defines the maximum number of failures that are acceptable before a given container is not considered as ready",
-          "title": "Failure Threshold"
-        },
-        "httpHeader": {
-          "type": "array",
-          "items": {},
-          "description": "used to override the default headers by defining .httpHeaders for the probe",
-          "title": "HTTP headers"
-        },
-        "initialDelaySeconds": {
-          "type": "integer",
-          "description": "defines the time to wait before a given container is checked for readiness",
-          "title": "Initial Delay Seconds"
-        },
-        "periodSeconds": {
-          "type": "integer",
-          "description": "defines the time to check a given container for readiness",
-          "title": "Period Seconds"
-        },
-        "port": {
-          "type": "integer",
-          "description": "port to access on the container",
-          "title": "Port"
-        },
-        "scheme": {
-          "type": "string",
-          "description": "Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.",
-          "title": "Scheme"
-        },
-        "successThreshold": {
-          "type": "integer",
-          "description": "defines the number of successes required before a given container is said to fulfil the readiness probe",
-          "title": "Success Threshold"
-        },
-        "tcp": {
-          "type": "boolean",
-          "description": "If enabled, the kubelet will attempt to open a socket to container. If connection is established, the container is considered healthy",
-          "title": "TCP"
-        },
-        "timeoutSeconds": {
-          "type": "integer",
-          "description": "defines the time for checking timeout",
-          "title": "Timeout Seconds"
-        }
-      }
-    },
-    "Spec": {
-      "type": "object",
-      "description": "used to define the desire state of the given container",
-      "title": "Spec",
-      "properties": {
-        "Affinity": {
-          "type": "object",
-          "description": "Node/Inter-pod Affinity allows you to constrain which nodes your pod is eligible to schedule on, based on labels of the node/pods",
-          "title": "Affinity",
-          "properties": {
-            "Key": {
-              "anyOf": [
-                {
-                  "type": "null"
-                },
-                {
-                  "type": "string",
-                  "description": "Key part of the label for node/pod selection",
-                  "title": "Key"
-                }
-              ]
-            },
-            "Values": {
-              "type": "string",
-              "description": "Value part of the label for node/pod selection",
-              "title": "Values"
-            },
-            "key": {
-              "type": "string"
-            }
-          }
-        }
-      }
-    },
-    "ambassadorMapping": {
-      "type": "object",
-      "description": "used to create ambassador mapping resource",
-      "title": "Mapping",
-      "properties": {
-        "ambassadorId": {
-          "type": "string",
-          "description": "used to specify id for specific ambassador mappings controller",
-          "title": "Ambassador ID"
-        },
-        "cors": {
-          "type": "object",
-          "description": "used to specify cors policy to access host for this mapping",
-          "title": "CORS"
-        },
-        "enabled": {
-          "type": "boolean",
-          "description": "used to specify whether to create an ambassador mapping or not",
-          "title": "Enabled"
-        },
-        "weight": {
-          "type": "integer",
-          "description": "used to specify weight for canary ambassador mappings"
-        },
-        "hostname": {
-          "type": "string",
-          "description": "used to specify hostname for ambassador mapping",
-          "title": "Hostname"
-        },
-        "labels": {
-          "type": "object",
-          "description": "used to provide custom labels for ambassador mapping",
-          "title": "Labels"
-        },
-        "prefix": {
-          "type": "string",
-          "description": "used to specify path for ambassador mapping",
-          "title": "Prefix"
-        },
-        "retryPolicy": {
-          "type": "object",
-          "description": "used to specify retry policy for ambassador mapping",
-          "title": "Retry Policy"
-        },
-        "rewrite": {
-          "type": "string",
-          "description": "used to specify whether to redirect the path of this mapping and where",
-          "title": "Rewrite"
-        },
-        "tls": {
-          "type": "object",
-          "description": "used to create or define ambassador TLSContext resource",
-          "title": "TLS Context"
-        },
-        "extraSpec": {
-          "type": "object",
-          "description": "used to provide extra spec values which not present in deployment template for ambassador resource",
-          "title": "Extra Spec"
-        }
-      }
-    },
-    "args": {
-      "type": "object",
-      "description": " used to give arguments to command",
-      "title": "Arguments",
-      "properties": {
-        "enabled": {
-          "type": "boolean",
-          "description": "used for enabling/disabling aruguments",
-          "title": "Enabled"
-        },
-        "value": {
-          "type": "array",
-          "description": "values of the arguments",
-          "title": "Value",
-          "items": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "string"
-            },
-            {
-              "type": "string"
-            }
-          ]
-        }
-      }
-    },
-    "autoscaling": {
-      "type": "object",
-      "description": "connected to HPA and controls scaling up and down in response to request load",
-      "title": "Autoscaling",
-      "properties": {
-        "MaxReplicas": {
-          "type": "integer",
-          "description": "Maximum number of replicas allowed for scaling",
-          "title": "Maximum Replicas"
-        },
-        "MinReplicas": {
-          "type": "integer",
-          "description": "Minimum number of replicas allowed for scaling",
-          "title": "Minimum Replicas"
-        },
-        "TargetCPUUtilizationPercentage": {
-          "type": "integer",
-          "description": "The target CPU utilization that is expected for a container",
-          "title": "TargetCPUUtilizationPercentage"
-        },
-        "TargetMemoryUtilizationPercentage": {
-          "type": "integer",
-          "description": "The target memory utilization that is expected for a container",
-          "title": "TargetMemoryUtilizationPercentage"
-        },
-        "behavior": {
-          "type": "object",
-          "description": "describes behavior and scaling policies for that behavior",
-          "title": "Behavior"
-        },
-        "enabled": {
-          "type": "boolean",
-          "description": "used for enabling/disabling autoscaling",
-          "title": "Enabled"
-        },
-        "labels": {
-          "type": "object",
-          "description": "labels for HPA",
-          "title": "labels"
-        },
-        "annotations": {
-          "type": "object",
-          "description": "used to configure some options for HPA",
-          "title": "annotations"
-        },
-        "extraMetrics": {
-          "type": "array",
-          "items": {},
-          "description": "used to give external metrics for autoscaling",
-          "title": "Extra Metrics"
-        }
-      }
-    },
-    "command": {
-      "type": "object",
-      "description": "contains the commands for the server",
-      "title": "Command",
-      "properties": {
-        "enabled": {
-          "type": "boolean",
-          "description": "used for enabling/disabling commands"
-        },
-        "value": {
-          "type": "array",
-          "items": {},
-          "description": "contains the commands",
-          "title": "Value"
-        },
-        "workingDir": {
-          "type": "object",
-          "items": {},
-          "description": "contains the working directory",
-          "title": "Working directory"
-        }
-      }
-    },
-    "containerSecurityContext": {
-      "type": "object",
-      "description": " defines privilege and access control settings for a Container",
-      "title": "Container Security Context"
-    },
-    "containers": {
-      "type": "array",
-      "items": {},
-      "description": " used to run side-car containers along with the main container within same pod"
-    },
-    "dbMigrationConfig": {
-      "type": "object",
-      "description": "used to configure database migration",
-      "title": "Db Migration Config",
-      "properties": {
-        "enabled": {
-          "type": "boolean",
-          "description": "used for enabling/disabling the config",
-          "title": "Enabled"
-        }
-      }
-    },
-    "envoyproxy": {
-      "type": "object",
-      "description": "envoy is attached as a sidecar to the application container to collect metrics like 4XX, 5XX, throughput and latency",
-      "title": "Envoy Proxy",
-      "properties": {
-        "configMapName": {
-          "type": "string",
-          "description": "configMap containing configuration for Envoy",
-          "title": "ConfigMap"
-        },
-        "lifecycle": {
-          "type": "object",
-          "description": "Actions that the management system should take in response to container lifecycle events",
-          "title": "lifecycle",
-          "properties": {
-            "enabled": {
-              "type": "boolean"
-            },
-            "postStart": {
-              "type": "object",
-              "title": "postStart",
-              "description": "PostStart is called immediately after a container is created"
-            },
-            "preStop": {
-              "type": "object",
-              "title": "preStop",
-              "description": "PreStop is called immediately before a container is terminated"
-            }
-          }
-        },
-        "image": {
-          "type": "string",
-          "description": "image of envoy to be used"
-        },
-        "resources": {
-          "type": "object",
-          "description": "minimum and maximum RAM and CPU available to the application",
-          "title": "Resources",
-          "properties": {
-            "limits": {
-              "type": "object",
-              "description": "the maximum values a container can reach",
-              "title": "Limits",
-              "properties": {
-                "cpu": {
-                  "type": "string",
-                  "format": "cpu",
-                  "description": "limit of CPU",
-                  "title": "CPU"
-                },
-                "memory": {
-                  "type": "string",
-                  "format": "memory",
-                  "description": "limit of memory",
-                  "title": "Memory"
-                }
-              }
-            },
-            "requests": {
-              "type": "object",
-              "description": "request is what the container is guaranteed to get",
-              "title": "Requests",
-              "properties": {
-                "cpu": {
-                  "type": "string",
-                  "format": "cpu",
-                  "description": "request value of CPU",
-                  "title": "CPU"
-                },
-                "memory": {
-                  "type": "string",
-                  "format": "memory",
-                  "description": "request value of memory",
-                  "title": "Memory"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "hostAliases": {
-      "type": "array",
-      "title": "hostAliases",
-      "description": "HostAlias holds the mapping between IP and hostnames that will be injected as an entry in the pod's hosts file",
-      "items": [
-        {
-          "type": "object",
-          "properties": {
-            "ip": {
-              "type": "string",
-              "title": "IP",
-              "description": "IP address of the host file entry"
-            },
-            "hostnames": {
-              "type": "array",
-              "description": "Hostnames for the above IP address",
-              "items": [
-                {
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    "image": {
-      "type": "object",
-      "description": "used to access images in kubernetes",
-      "title": "Image",
-      "properties": {
-        "pullPolicy": {
-          "type": "string",
-          "description": "used to define the instances calling the image",
-          "title": "Pull Policy",
-          "enum": [
-            "IfNotPresent",
-            "Always"
-          ]
-        },
-        "restartPolicy": {
-          "type": "string",
-          "description": "It restarts the docker container based on defined conditions.",
-          "title": "Restart Policy",
-          "enum": [
-            "Always",
-            "OnFailure", 
-            "Never"
-          ]
-        }
-      }
-    },
-    "imagePullSecrets": {
-      "type": "array",
-      "items": {},
-      "description": "contains the docker credentials that are used for accessing a registry",
-      "title": "Image PullSecrets"
-    },
-    "winterSoldier": {
-      "type": "object",
-      "description": "allows to scale, sleep or delete the resource based on time.",
-      "title": "winterSoldier",
-      "properties": {
-        "annotations": {
-          "type": "object",
-          "description": "used to configure some options depending on the winterSoldier controller",
-          "title": "Annotations"
-        },
-        "labels": {
-          "type": "object",
-          "description": "labels for winterSoldier",
-          "title": "winterSoldier labels",
-          "default": ""
-        },
-        "enabled": {
-          "type": "boolean",
-          "description": "used to enable or disable ingress",
-          "title": "Enabled"
-        },
-        "apiVersion": {
-          "type": "string",
-          "description": "Api version for winterSoldier",
-          "title": "winterSoldier apiVersion",
-          "default": "pincher.devtron.ai/v1alpha1"
-        },
-        "timeRangesWithZone": {
-          "type": "object",
-          "description": "describe time zone and time ranges to input in the winterSoldier",
-          "title": "Time Ranges With Zone",
-          "timeZone": {
+          "scheme": {
             "type": "string",
-            "description": "describe time zone, and follow standard format",
-            "title": "Time Zone"
+            "description": "Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.",
+            "title": "Scheme"
           },
-          "timeRanges": {
+          "successThreshold": {
+            "type": "integer",
+            "description": "defines the number of successes required before a given container is said to fulfil the liveness probe",
+            "title": "Success Threshold"
+          },
+          "tcp": {
+            "type": "boolean",
+            "description": "If enabled, the kubelet will attempt to open a socket to container. If connection is established, the container is considered healthy",
+            "title": "TCP"
+          },
+          "timeoutSeconds": {
+            "type": "integer",
+            "description": "defines the time for checking timeout",
+            "title": "Timeout Seconds"
+          }
+        }
+      },
+      "MaxSurge": {
+        "type": "integer",
+        "description": "maximum number of pods that can be created over the desired number of pods",
+        "title": "Maximum Surge"
+      },
+      "MaxUnavailable": {
+        "type": "integer",
+        "description": "maximum number of pods that can be unavailable during the update process",
+        "title": "Maximum Unavailable"
+      },
+      "MinReadySeconds": {
+        "type": "integer",
+        "description": "minimum number of seconds for which a newly created Pod should be ready without any of its containers crashing, for it to be considered available",
+        "title": "Minimum Ready Seconds"
+      },
+      "ReadinessProbe": {
+        "type": "object",
+        "description": "kubelet uses readiness probes to know when a container is ready to start accepting traffic",
+        "title": "Readiness Probe",
+        "properties": {
+          "Path": {
+            "type": "string",
+            "description": "defines the path where the readiness needs to be checked",
+            "title": "Path"
+          },
+          "command": {
             "type": "array",
             "items": {},
-            "description": "used to take array of time ranges in which each element contains timeFrom, timeTo, weekdayFrom and weekdayTo.",
-            "title": "Time Ranges"
+            "description": "commands executed to perform a probe",
+            "title": "Command"
+          },
+          "failureThreshold": {
+            "type": "integer",
+            "description": "defines the maximum number of failures that are acceptable before a given container is not considered as ready",
+            "title": "Failure Threshold"
+          },
+          "httpHeader": {
+            "type": "array",
+            "items": {},
+            "description": "used to override the default headers by defining .httpHeaders for the probe",
+            "title": "HTTP headers"
+          },
+          "initialDelaySeconds": {
+            "type": "integer",
+            "description": "defines the time to wait before a given container is checked for readiness",
+            "title": "Initial Delay Seconds"
+          },
+          "periodSeconds": {
+            "type": "integer",
+            "description": "defines the time to check a given container for readiness",
+            "title": "Period Seconds"
+          },
+          "port": {
+            "type": "integer",
+            "description": "port to access on the container",
+            "title": "Port"
+          },
+          "scheme": {
+            "type": "string",
+            "description": "Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.",
+            "title": "Scheme"
+          },
+          "successThreshold": {
+            "type": "integer",
+            "description": "defines the number of successes required before a given container is said to fulfil the readiness probe",
+            "title": "Success Threshold"
+          },
+          "tcp": {
+            "type": "boolean",
+            "description": "If enabled, the kubelet will attempt to open a socket to container. If connection is established, the container is considered healthy",
+            "title": "TCP"
+          },
+          "timeoutSeconds": {
+            "type": "integer",
+            "description": "defines the time for checking timeout",
+            "title": "Timeout Seconds"
           }
-        },
-        "type": {
-          "type": "string",
-          "description": "describe the type of application Rollout/deployment.",
-          "title": "Type"
-        },
-        "action": {
-          "type": "string",
-          "description": "describe the action to be performed by winterSoldier.",
-          "title": "Action"
-        },
-        "targetReplicas": {
-          "type": "array",
-          "description": "describe the number of replicas to which the resource should scale up or down.",
-          "title": "Target Replicas"
-        },
-        "fieldSelector": {
-          "type": "array",
-          "description": "it takes arrays of methods to select specific fields.",
-          "title": "Field Selector"
         }
-      }
-    },
-    "ingress": {
-      "type": "object",
-      "description": "allows public access to URLs",
-      "title": "Ingress",
-      "properties": {
-        "annotations": {
-          "type": "object",
-          "description": "used to configure some options depending on the Ingress controller",
-          "title": "Annotations"
-        },
-        "className": {
-          "type": "string",
-          "description": "name of ingress class, a reference to an IngressClass resource that contains additional configuration including the name of the controller",
-          "title": "Ingress class name",
-          "default": "nginx"
-        },
-        "labels": {
-          "type": "object",
-          "description": "labels for ingress",
-          "title": "Ingress labels",
-          "default": ""
-        },
-        "enabled": {
-          "type": "boolean",
-          "description": "used to enable or disable ingress",
-          "title": "Enabled"
-        },
-        "hosts": {
-          "type": "array",
-          "description": "list of hosts in ingress",
-          "title": "Hosts",
-          "items": [
-            {
-              "type": "object",
-              "properties": {
-                "host": {
-                  "type": "string",
-                  "description": "host URL",
-                  "title": "Host"
-                },
-                "pathType": {
-                  "type": "string",
-                  "description": "type of path",
-                  "title": "PathType"
-                },
-                "paths": {
-                  "type": "array",
-                  "description": "list of paths for a given host",
-                  "title": "Paths",
-                  "items": [
-                    {
-                      "type": "string"
-                    }
-                  ]
+      },   
+      "networkPolicy": {
+        "type": "object",
+        "description": "NetworkPolicy describes what network traffic is allowed for a set of Pods",
+        "title": "Network Policy",
+        "properties": {
+          "enabled":{
+            "type":"boolean",
+            "description": "used to enable or disable NetworkPolicy"
+          },
+          "annotations":{
+            "type": "object",
+            "description": "Annotations for NetworkPolicy"
+          },
+          "labels":{
+            "type":"object",
+            "description": "Labels for NetworkPolicy"
+          },
+          "podSelector":{
+            "type": "object",
+            "description": "Selects the pods to which this NetworkPolicy object applies",
+            "properties": {
+              "matchExpressions":{
+                "type":"array",
+                "description": "list of label selector"
+              },
+              "matchLabels":{
+                "type":"object",
+                "description": "map of {key,value} pairs"
+              }
+            }
+          },
+          "policyTypes":{
+            "type":"array",
+            "description": "List of rule types that the NetworkPolicy relates to. Valid options are Ingress,Egress."
+          },
+          "ingress":{
+            "type":"array",
+            "description": "List of ingress rules to be applied to the selected pods"
+          },
+          "egress":{
+            "type":"array",
+            "description": "List of egress rules to be applied to the selected pods"
+          }
+        }
+      },
+      "istio": {
+        "type": "object",
+        "description": "Istio Service mesh",
+        "title": "Istio"
+      },
+      "flaggerCanary":{
+        "type": "object",
+        "description": "Flagger for canary release with istio service mesh",
+        "title": "Flagger Canary Release"      
+      },
+      "Spec": {
+        "type": "object",
+        "description": "used to define the desire state of the given container",
+        "title": "Spec",
+        "properties": {
+          "Affinity": {
+            "type": "object",
+            "description": "Node/Inter-pod Affinity allows you to constrain which nodes your pod is eligible to schedule on, based on labels of the node/pods",
+            "title": "Affinity",
+            "properties": {
+              "Key": {
+                "anyOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "type": "string",
+                    "description": "Key part of the label for node/pod selection",
+                    "title": "Key"
+                  }
+                ]
+              },
+              "Values": {
+                "type": "string",
+                "description": "Value part of the label for node/pod selection",
+                "title": "Values"
+              },
+              "key": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "ambassadorMapping": {
+        "type": "object",
+        "description": "used to create ambassador mapping resource",
+        "title": "Mapping",
+        "properties": {
+          "ambassadorId": {
+            "type": "string",
+            "description": "used to specify id for specific ambassador mappings controller",
+            "title": "Ambassador ID"
+          },
+          "cors": {
+            "type": "object",
+            "description": "used to specify cors policy to access host for this mapping",
+            "title": "CORS"
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "used to specify whether to create an ambassador mapping or not",
+            "title": "Enabled"
+          },
+          "weight": {
+            "type": "integer",
+            "description": "used to specify weight for canary ambassador mappings"
+          },
+          "hostname": {
+            "type": "string",
+            "description": "used to specify hostname for ambassador mapping",
+            "title": "Hostname"
+          },
+          "labels": {
+            "type": "object",
+            "description": "used to provide custom labels for ambassador mapping",
+            "title": "Labels"
+          },
+          "prefix": {
+            "type": "string",
+            "description": "used to specify path for ambassador mapping",
+            "title": "Prefix"
+          },
+          "retryPolicy": {
+            "type": "object",
+            "description": "used to specify retry policy for ambassador mapping",
+            "title": "Retry Policy"
+          },
+          "rewrite": {
+            "type": "string",
+            "description": "used to specify whether to redirect the path of this mapping and where",
+            "title": "Rewrite"
+          },
+          "tls": {
+            "type": "object",
+            "description": "used to create or define ambassador TLSContext resource",
+            "title": "TLS Context"
+          },
+          "extraSpec": {
+            "type": "object",
+            "description": "used to provide extra spec values which not present in deployment template for ambassador resource",
+            "title": "Extra Spec"
+          }
+        }
+      },
+      "args": {
+        "type": "object",
+        "description": " used to give arguments to command",
+        "title": "Arguments",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "used for enabling/disabling aruguments",
+            "title": "Enabled"
+          },
+          "value": {
+            "type": "array",
+            "description": "values of the arguments",
+            "title": "Value",
+            "items": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          }
+        }
+      },
+      "autoscaling": {
+        "type": "object",
+        "description": "connected to HPA and controls scaling up and down in response to request load",
+        "title": "Autoscaling",
+        "properties": {
+          "MaxReplicas": {
+            "type": "integer",
+            "description": "Maximum number of replicas allowed for scaling",
+            "title": "Maximum Replicas"
+          },
+          "MinReplicas": {
+            "type": "integer",
+            "description": "Minimum number of replicas allowed for scaling",
+            "title": "Minimum Replicas"
+          },
+          "TargetCPUUtilizationPercentage": {
+            "type": "integer",
+            "description": "The target CPU utilization that is expected for a container",
+            "title": "TargetCPUUtilizationPercentage"
+          },
+          "TargetMemoryUtilizationPercentage": {
+            "type": "integer",
+            "description": "The target memory utilization that is expected for a container",
+            "title": "TargetMemoryUtilizationPercentage"
+          },
+          "behavior": {
+            "type": "object",
+            "description": "describes behavior and scaling policies for that behavior",
+            "title": "Behavior"
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "used for enabling/disabling autoscaling",
+            "title": "Enabled"
+          },
+          "labels": {
+            "type": "object",
+            "description": "labels for HPA",
+            "title": "labels"
+          },
+          "annotations": {
+            "type": "object",
+            "description": "used to configure some options for HPA",
+            "title": "annotations"
+          },
+          "extraMetrics": {
+            "type": "array",
+            "items": {},
+            "description": "used to give external metrics for autoscaling",
+            "title": "Extra Metrics"
+          }
+        }
+      },
+      "command": {
+        "type": "object",
+        "description": "contains the commands for the server",
+        "title": "Command",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "used for enabling/disabling commands"
+          },
+          "value": {
+            "type": "array",
+            "items": {},
+            "description": "contains the commands",
+            "title": "Value"
+          },
+          "workingDir": {
+            "type": "object",
+            "items": {},
+            "description": "contains the working directory",
+            "title": "Working directory"
+          }
+        }
+      },
+      "containerSecurityContext": {
+        "type": "object",
+        "description": " defines privilege and access control settings for a Container",
+        "title": "Container Security Context"
+      },
+      "containers": {
+        "type": "array",
+        "items": {},
+        "description": " used to run side-car containers along with the main container within same pod"
+      },
+      "dbMigrationConfig": {
+        "type": "object",
+        "description": "used to configure database migration",
+        "title": "Db Migration Config",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "used for enabling/disabling the config",
+            "title": "Enabled"
+          }
+        }
+      },
+      "envoyproxy": {
+        "type": "object",
+        "description": "envoy is attached as a sidecar to the application container to collect metrics like 4XX, 5XX, throughput and latency",
+        "title": "Envoy Proxy",
+        "properties": {
+          "configMapName": {
+            "type": "string",
+            "description": "configMap containing configuration for Envoy",
+            "title": "ConfigMap"
+          },
+          "lifecycle":{
+            "type": "object",
+            "description": "Actions that the management system should take in response to container lifecycle events",
+            "title": "lifecycle",
+            "properties": {
+              "enabled":{
+                "type": "boolean"
+              },
+              "postStart":{
+                "type": "object",
+                "title": "postStart",
+                "description": "PostStart is called immediately after a container is created"
+              },
+              "preStop":{
+                "type": "object",
+                "title": "preStop",
+                "description": "PreStop is called immediately before a container is terminated"
+              }
+            }
+          },
+          "image": {
+            "type": "string",
+            "description": "image of envoy to be used"
+          },
+          "resources": {
+            "type": "object",
+            "description": "minimum and maximum RAM and CPU available to the application",
+            "title": "Resources",
+            "properties": {
+              "limits": {
+                "type": "object",
+                "description": "the maximum values a container can reach",
+                "title": "Limits",
+                "properties": {
+                  "cpu": {
+                    "type": "string",
+                    "format": "cpu",
+                    "description": "limit of CPU",
+                    "title": "CPU"
+                  },
+                  "memory": {
+                    "type": "string",
+                    "format": "memory",
+                    "description": "limit of memory",
+                    "title": "Memory"
+                  }
+                }
+              },
+              "requests": {
+                "type": "object",
+                "description": "request is what the container is guaranteed to get",
+                "title": "Requests",
+                "properties": {
+                  "cpu": {
+                    "type": "string",
+                    "format": "cpu",
+                    "description": "request value of CPU",
+                    "title": "CPU"
+                  },
+                  "memory": {
+                    "type": "string",
+                    "format": "memory",
+                    "description": "request value of memory",
+                    "title": "Memory"
+                  }
                 }
               }
             }
-          ]
-        },
-        "tls": {
-          "type": "array",
-          "items": {},
-          "description": "contains security details - private key and certificate",
-          "title": "TLS"
+          }
         }
-      }
-    },
-    "ingressInternal": {
-      "type": "object",
-      "description": "allows private access to the URLs",
-      "properties": {
-        "annotations": {
-          "type": "object",
-          "description": "used to configure some options depending on the Ingress controller",
-          "title": "Annotations"
-        },
-        "className": {
-          "type": "string",
-          "description": "name of ingress class, a reference to an IngressClass resource that contains additional configuration including the name of the controller",
-          "title": "Ingress class name",
-          "default": "nginx-internal"
-        },
-        "enabled": {
-          "type": "boolean",
-          "description": "used to enable or disable ingress",
-          "title": "Enabled"
-        },
-        "hosts": {
-          "type": "array",
-          "description": "list of hosts in ingress",
-          "title": "Hosts",
-          "items": [
-            {
-              "type": "object",
-              "properties": {
-                "host": {
-                  "type": "string",
-                  "description": "host URL",
-                  "title": "Host"
-                },
-                "pathType": {
-                  "type": "string",
-                  "description": "type of path",
-                  "title": "PathType"
-                },
-                "paths": {
-                  "type": "array",
-                  "description": "list of paths for a given host",
-                  "title": "Paths",
-                  "items": [
-                    {
-                      "type": "string"
-                    }
-                  ]
-                }
+      },
+      "hostAliases":{
+        "type": "array",
+        "title": "hostAliases",
+        "description": "HostAlias holds the mapping between IP and hostnames that will be injected as an entry in the pod's hosts file",
+        "items": [
+          {
+            "type": "object",
+            "properties": {
+              "ip":{
+                "type": "string",
+                "title": "IP",
+                "description": "IP address of the host file entry"
+              },
+              "hostnames":{
+                "type": "array",
+                "description": "Hostnames for the above IP address",
+                "items": [
+                  {
+                    "type": "string"
+                  }
+                ]
               }
             }
-          ]
-        },
-        "tls": {
-          "type": "array",
-          "items": {},
-          "description": "contains security details - private key and certificate",
-          "title": "TLS"
-        }
-      }
-    },
-    "networkPolicy":{
-      "type": "object",
-      "description": "NetworkPolicy describes what network traffic is allowed for a set of Pods",
-      "title": "Network Policy",
-      "properties": {
-        "enabled":{
-          "type":"boolean",
-          "description": "used to enable or disable NetworkPolicy"
-        },
-        "annotations":{
-          "type": "object",
-          "description": "Annotations for NetworkPolicy"
-        },
-        "labels":{
-          "type":"object",
-          "description": "Labels for NetworkPolicy"
-        },
-        "podSelector":{
-          "type": "object",
-          "description": "Selects the pods to which this NetworkPolicy object applies",
-          "properties": {
-            "matchExpressions":{
-              "type":"array",
-              "description": "list of label selector"
-            },
-            "matchLabels":{
-              "type":"object",
-              "description": "map of {key,value} pairs"
-            }
           }
-        },
-        "policyTypes":{
-          "type":"array",
-          "description": "List of rule types that the NetworkPolicy relates to. Valid options are Ingress,Egress."
-        },
-        "ingress":{
-          "type":"array",
-          "description": "List of ingress rules to be applied to the selected pods"
-        },
-        "egress":{
-          "type":"array",
-          "description": "List of egress rules to be applied to the selected pods"
+        ]
+      },
+      "image": {
+        "type": "object",
+        "description": "used to access images in kubernetes",
+        "title": "Image",
+        "properties": {
+          "pullPolicy": {
+            "type": "string",
+            "description": "used to define the instances calling the image",
+            "title": "Pull Policy",
+            "enum": ["IfNotPresent", "Always"]
+          },
+          "restartPolicy": {
+            "type": "string",
+            "description": "It restarts the docker container based on defined conditions.",
+            "title": "Restart Policy",
+            "enum": [
+              "Always",
+              "OnFailure", 
+              "Never"
+            ]
+          }	
         }
-      }
-    },
-    "istio":{
-      "type": "object",
-      "description": "Istio Service mesh",
-      "title": "Istio"
-    },
-    "initContainers": {
-      "type": "array",
-      "items": {},
-      "description": "specialized containers that run before app containers in a Pod, can contain utilities or setup scripts not present in an app image",
-      "title": "Init Containers"
-    },
-    "kedaAutoscaling": {
-      "type": "object",
-      "description": "Kubernetes-based event driven autoscaler. With KEDA, one can drive the scaling of any container in Kubernetes based on the no. of events needing to be processed",
-      "title": "KEDA Autoscaling",
-      "properties": {
-        "advanced": {
-          "type": "object"
-        },
-        "authenticationRef": {
-          "type": "object"
-        },
-        "enabled": {
-          "type": "boolean"
-        },
-        "envSourceContainerName": {
-          "type": "string"
-        },
-        "maxReplicaCount": {
-          "type": "integer"
-        },
-        "minReplicaCount": {
-          "type": "integer"
-        },
-        "triggerAuthentication": {
+      },
+      "imagePullSecrets": {
+        "type": "array",
+        "items": {},
+        "description": "contains the docker credentials that are used for accessing a registry",
+        "title": "Image PullSecrets"
+      },
+      "winterSoldier": {
           "type": "object",
+          "description": "allows to scale, sleep or delete the resource based on time.",
+          "title": "winterSoldier",
           "properties": {
-            "enabled": {
-              "type": "boolean"
-            },
-            "name": {
-              "type": "string"
-            },
-            "spec": {
-              "type": "object"
-            }
-          }
-        },
-        "triggers": {
-          "type": "array",
-          "items": {}
-        }
-      }
-    },
-    "containerSpec": {
-      "type": "object",
-      "description": "define the container specic configuration",
-      "title": "containerSpec",
-      "properties": {
-        "lifecycle": {
-          "type": "object",
-          "description": "Actions that the management system should take in response to container lifecycle events",
-          "title": "lifecycle",
-          "properties": {
-            "enabled": {
-              "type": "boolean"
-            },
-            "postStart": {
+            "annotations": {
               "type": "object",
-              "title": "postStart",
-              "description": "PostStart is called immediately after a container is created.You could use this event to check that a required API is available before the container’s main work begins"
+              "description": "used to configure some options depending on the winterSoldier controller",
+              "title": "Annotations"
             },
-            "preStop": {
+            "labels": {
               "type": "object",
-              "title": "preStop",
-              "description": "PreStop is called immediately before a container is terminated"
-            }
-          }
-        }
-      }
-    },
-    "pauseForSecondsBeforeSwitchActive": {
-      "type": "integer",
-      "description": "tell how much to wait for given period of time before switch active the container",
-      "title": "Pause For Seconds Before SwitchActive"
-    },
-    "podAnnotations": {
-      "type": "object",
-      "description": "used to attach metadata and configs in Kubernetes",
-      "title": "Pod Annotations"
-    },
-    "podDisruptionBudget": {
-      "type": "object",
-      "description": "PodDisruptionBudget is an object to define the max disruption that can be caused to a collection of pods",
-      "properties": {
-        "minAvailable": {
-          "type": "string",
-          "title": "minAvailable",
-          "description": "An eviction is allowed if at least \"minAvailable\" pods selected by \"selector\" will still be available after the eviction, i.e. even in the absence of the evicted pod"
-        },
-        "maxUnavailable": {
-          "type": "string",
-          "title": "maxUnavailable",
-          "description": "An eviction is allowed if at most \"maxUnavailable\" pods selected by \"selector\" are unavailable after the eviction, i.e. even in absence of the evicted pod."
-        }
-      }
-    },
-    "podExtraSpecs": {
-      "type": "object",
-      "description": "ExtraSpec for the pods to be configured",
-      "title": "podExtraSpecs"
-    },
-    "podLabels": {
-      "type": "object",
-      "description": "key/value pairs that are attached to pods, are intended to be used to specify identifying attributes of objects that are meaningful and relevant to users, but do not directly imply semantics to the core system",
-      "title": "Pod Labels"
-    },
-    "podSecurityContext": {
-      "type": "object",
-      "description": "defines privilege and access control settings for a Pod or Container",
-      "title": "Pod Security Context"
-    },
-    "prometheus": {
-      "type": "object",
-      "description": "a kubernetes monitoring tool",
-      "title": "Prometheus",
-      "properties": {
-        "release": {
-          "type": "string",
-          "description": "name of the file to be monitored, describes the state of prometheus"
-        }
-      }
-    },
-    "rawYaml": {
-      "type": "array",
-      "items": {},
-      "description": "Accepts an array of Kubernetes objects. One can specify any kubernetes yaml here & it will be applied when a app gets deployed.",
-      "title": "Raw YAML"
-    },
-    "replicaCount": {
-      "type": "integer",
-      "description": "count of Replicas of pod",
-      "title": "REplica Count"
-    },
-    "resources": {
-      "type": "object",
-      "description": "minimum and maximum RAM and CPU available to the application",
-      "title": "Resources",
-      "properties": {
-        "limits": {
-          "type": "object",
-          "description": "the maximum values a container can reach",
-          "title": "Limits",
-          "properties": {
-            "cpu": {
-              "type": "string",
-              "format": "cpu",
-              "description": "limit of CPU",
-              "title": "CPU"
+              "description": "labels for winterSoldier",
+              "title": "winterSoldier labels",
+              "default": ""
             },
-            "memory": {
-              "type": "string",
-              "format": "memory",
-              "description": "limit of memory",
-              "title": "Memory"
-            }
-          }
-        },
-        "requests": {
-          "type": "object",
-          "description": "request is what the container is guaranteed to get",
-          "title": "Requests",
-          "properties": {
-            "cpu": {
-              "type": "string",
-              "format": "cpu",
-              "description": "request value of CPU",
-              "title": "CPU"
+            "enabled": {
+              "type": "boolean",
+              "description": "used to enable or disable ingress",
+              "title": "Enabled"
             },
-            "memory": {
+            "apiVersion": {
               "type": "string",
-              "format": "memory",
-              "description": "request value of memory",
-              "title": "Memory"
-            }
-          }
-        }
-      }
-    },
-    "secret": {
-      "type": "object",
-      "properties": {
-        "data": {
-          "type": "object"
-        },
-        "enabled": {
-          "type": "boolean"
-        }
-      }
-    },
-    "server": {
-      "type": "object",
-      "description": "used for providing server configurations.",
-      "title": "Server",
-      "properties": {
-        "deployment": {
-          "type": "object",
-          "description": "gives the details for deployment",
-          "title": "Deployment",
-          "properties": {
-            "image": {
-              "type": "string",
-              "description": "URL of the image",
-              "title": "Image"
+              "description": "Api version for winterSoldier",
+              "title": "winterSoldier apiVersion",
+              "default": "pincher.devtron.ai/v1alpha1"
             },
-            "image_tag": {
+            "timeRangesWithZone": {
+              "type": "object",
+              "description": "describe time zone and time ranges to input in the winterSoldier",
+              "title": "Time Ranges With Zone",
+              "timeZone": {
+                "type": "string",
+                "description": "describe time zone, and follow standard format",
+                "title": "Time Zone"
+              },
+              "timeRanges": {
+                "type": "array",
+                "items": {},
+                "description": "used to take array of time ranges in which each element contains timeFrom, timeTo, weekdayFrom and weekdayTo.",
+                "title": "Time Ranges"
+              }
+            },
+            "type": {
               "type": "string",
-              "description": "tag of the image",
-              "title": "Image Tag"
+              "description": "describe the type of application Rollout/deployment.",
+              "title": "Type"
+            },
+            "action": {
+              "type": "string",
+              "description": "describe the action to be performed by winterSoldier.",
+              "title": "Action"
+            },
+            "targetReplicas": {
+              "type": "array",
+              "description": "describe the number of replicas to which the resource should scale up or down.",
+              "title": "Target Replicas"
+            },
+            "fieldSelector": {
+              "type": "array",
+              "description": "it takes arrays of methods to select specific fields.",
+              "title": "Field Selector"
+            }
+          }
+       },
+      "ingress": {
+        "type": "object",
+        "description": "allows public access to URLs",
+        "title": "Ingress",
+        "properties": {
+          "annotations": {
+            "type": "object",
+            "description": "used to configure some options depending on the Ingress controller",
+            "title": "Annotations"
+          },
+          "className": {
+            "type": "string",
+            "description": "name of ingress class, a reference to an IngressClass resource that contains additional configuration including the name of the controller",
+            "title": "Ingress class name",
+            "default": "nginx"
+          },
+          "labels": {
+            "type": "object",
+            "description": "labels for ingress",
+            "title": "Ingress labels",
+            "default": ""
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "used to enable or disable ingress",
+            "title": "Enabled"
+          },
+          "hosts": {
+            "type": "array",
+            "description": "list of hosts in ingress",
+            "title": "Hosts",
+            "items": [
+              {
+                "type": "object",
+                "properties": {
+                  "host": {
+                    "type": "string",
+                    "description": "host URL",
+                    "title": "Host"
+                  },
+                  "pathType": {
+                    "type": "string",
+                    "description": "type of path",
+                    "title": "PathType"
+                  },
+                  "paths": {
+                    "type": "array",
+                    "description": "list of paths for a given host",
+                    "title": "Paths",
+                    "items": [
+                      {
+                        "type": "string"
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          "tls": {
+            "type": "array",
+            "items": {},
+            "description": "contains security details - private key and certificate",
+            "title": "TLS"
+          }
+        }
+      },
+      "ingressInternal": {
+        "type": "object",
+        "description": "allows private access to the URLs",
+        "properties": {
+          "annotations": {
+            "type": "object",
+            "description": "used to configure some options depending on the Ingress controller",
+            "title": "Annotations"
+          },
+          "className": {
+            "type": "string",
+            "description": "name of ingress class, a reference to an IngressClass resource that contains additional configuration including the name of the controller",
+            "title": "Ingress class name",
+            "default": "nginx-internal"
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "used to enable or disable ingress",
+            "title": "Enabled"
+          },
+          "hosts": {
+            "type": "array",
+            "description": "list of hosts in ingress",
+            "title": "Hosts",
+            "items": [
+              {
+                "type": "object",
+                "properties": {
+                  "host": {
+                    "type": "string",
+                    "description": "host URL",
+                    "title": "Host"
+                  },
+                  "pathType": {
+                    "type": "string",
+                    "description": "type of path",
+                    "title": "PathType"
+                  },
+                  "paths": {
+                    "type": "array",
+                    "description": "list of paths for a given host",
+                    "title": "Paths",
+                    "items": [
+                      {
+                        "type": "string"
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          "tls": {
+            "type": "array",
+            "items": {},
+            "description": "contains security details - private key and certificate",
+            "title": "TLS"
+          }
+        }
+      },
+      "initContainers": {
+        "type": "array",
+        "items": {},
+        "description": "specialized containers that run before app containers in a Pod, can contain utilities or setup scripts not present in an app image",
+        "title": "Init Containers"
+      },
+      "kedaAutoscaling": {
+        "type": "object",
+        "description": "Kubernetes-based event driven autoscaler. With KEDA, one can drive the scaling of any container in Kubernetes based on the no. of events needing to be processed",
+        "title": "KEDA Autoscaling",
+        "properties": {
+          "advanced": {
+            "type": "object"
+          },
+          "authenticationRef": {
+            "type": "object"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "envSourceContainerName": {
+            "type": "string"
+          },
+          "maxReplicaCount": {
+            "type": "integer"
+          },
+          "minReplicaCount": {
+            "type": "integer"
+          },
+          "triggerAuthentication": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "name": {
+                "type": "string"
+              },
+              "spec": {
+                "type": "object"
+              }
+            }
+          },
+          "triggers": {
+            "type": "array",
+            "items": {}
+          }
+        }
+      },
+      "containerSpec": {
+        "type":"object",
+        "description": "define the container specic configuration",
+        "title": "containerSpec",
+        "properties": {
+          "lifecycle": {
+            "type": "object",
+            "description": "Actions that the management system should take in response to container lifecycle events",
+            "title": "lifecycle",
+            "properties": {
+              "enabled":{
+                "type": "boolean"
+              },
+              "postStart":{
+                "type": "object",
+                "title": "postStart",
+                "description": "PostStart is called immediately after a container is created.You could use this event to check that a required API is available before the container’s main work begins"
+              },
+              "preStop":{
+                "type": "object",
+                "title": "preStop",
+                "description": "PreStop is called immediately before a container is terminated"
+              }
             }
           }
         }
-      }
-    },
-    "service": {
-      "type": "object",
-      "description": "defines annotations and the type of service",
-      "title": "Service",
-      "properties": {
-        "annotations": {
-          "type": "object",
-          "title": "Annotations",
-          "description": "annotations of service"
-        },
-        "type": {
-          "type": "string",
-          "description": "type of service",
-          "title": "Type",
-          "enum": [
-            "ClusterIP",
-            "LoadBalancer",
-            "NodePort",
-            "ExternalName"
-          ]
-        },
-        "enabled": {
-          "type": "boolean",
-          "description": "used to enable or disable service",
-          "title": "Enabled"
+      },
+      "pauseForSecondsBeforeSwitchActive": {
+        "type": "integer",
+        "description": "tell how much to wait for given period of time before switch active the container",
+        "title": "Pause For Seconds Before SwitchActive"
+      },
+      "podAnnotations": {
+        "type":"object",
+        "description": "used to attach metadata and configs in Kubernetes",
+        "title": "Pod Annotations"
+      },
+      "podDisruptionBudget": {
+        "type": "object",
+        "description": "PodDisruptionBudget is an object to define the max disruption that can be caused to a collection of pods",
+        "properties": {
+          "minAvailable":{
+            "type": "string",
+            "title": "minAvailable",
+            "description": "An eviction is allowed if at least \"minAvailable\" pods selected by \"selector\" will still be available after the eviction, i.e. even in the absence of the evicted pod"
+          },
+          "maxUnavailable":{
+            "type": "string",
+            "title": "maxUnavailable",
+            "description": "An eviction is allowed if at most \"maxUnavailable\" pods selected by \"selector\" are unavailable after the eviction, i.e. even in absence of the evicted pod."
+          }
         }
-      }
-    },
-    "serviceAccount": {
-      "type": "object",
-      "description": "defines service account for pods",
-      "title": "Service Account",
-      "properties": {
-        "annotations": {
-          "type": "object",
-          "title": "Annotations",
-          "description": "annotations of service account"
-        },
-        "name": {
-          "type": "string",
-          "description": "name of service account",
-          "title": "Name"
-        },
-        "create": {
-          "type": "boolean"
+      },
+      "podExtraSpecs":{
+        "type": "object",
+        "description": "ExtraSpec for the pods to be configured",
+        "title": "podExtraSpecs"
+      },
+      "podLabels": {
+        "type":"object",
+        "description": "key/value pairs that are attached to pods, are intended to be used to specify identifying attributes of objects that are meaningful and relevant to users, but do not directly imply semantics to the core system",
+        "title": "Pod Labels"
+      },
+      "podSecurityContext": {
+        "type":"object",
+        "description": "defines privilege and access control settings for a Pod or Container",
+        "title": "Pod Security Context"
+      },
+      "prometheus": {
+        "type": "object",
+        "description": "a kubernetes monitoring tool",
+        "title": "Prometheus",
+        "properties": {
+          "release": {
+            "type": "string",
+            "description": "name of the file to be monitored, describes the state of prometheus"
+          }
         }
-      }
-    },
-    "servicemonitor": {
-      "type": "object",
-      "description": "gives the set of targets to be monitored",
-      "title": "Service Monitor",
-      "properties": {
-        "additionalLabels": {
-          "type": "object"
+      },
+      "rawYaml": {
+        "type": "array",
+        "items": {},
+        "description": "Accepts an array of Kubernetes objects. One can specify any kubernetes yaml here & it will be applied when a app gets deployed.",
+        "title": "Raw YAML"
+      },
+      "replicaCount": {
+        "type": "integer",
+        "description": "count of Replicas of pod",
+        "title": "REplica Count"
+      },
+      "resources": {
+        "type": "object",
+        "description": "minimum and maximum RAM and CPU available to the application",
+        "title": "Resources",
+        "properties": {
+          "limits": {
+            "type": "object",
+            "description": "the maximum values a container can reach",
+            "title": "Limits",
+            "properties": {
+              "cpu": {
+                "type": "string",
+                "format": "cpu",
+                "description": "limit of CPU",
+                "title": "CPU"
+              },
+              "memory": {
+                "type": "string",
+                "format": "memory",
+                "description": "limit of memory",
+                "title": "Memory"
+              }
+            }
+          },
+          "requests": {
+            "type": "object",
+            "description": "request is what the container is guaranteed to get",
+            "title": "Requests",
+            "properties": {
+              "cpu": {
+                "type": "string",
+                "format": "cpu",
+                "description": "request value of CPU",
+                "title": "CPU"
+              },
+              "memory": {
+                "type": "string",
+                "format": "memory",
+                "description": "request value of memory",
+                "title": "Memory"
+              }
+            }
+          }
         }
+      },
+      "secret": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object"
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "server": {
+        "type": "object",
+        "description": "used for providing server configurations.",
+        "title": "Server",
+        "properties": {
+          "deployment": {
+            "type": "object",
+            "description": "gives the details for deployment",
+            "title": "Deployment",
+            "properties": {
+              "image": {
+                "type": "string",
+                "description": "URL of the image",
+                "title": "Image"
+              },
+              "image_tag": {
+                "type": "string",
+                "description": "tag of the image",
+                "title": "Image Tag"
+              }
+            }
+          }
+        }
+      },
+      "service": {
+        "type": "object",
+        "description": "defines annotations and the type of service",
+        "title": "Service",
+        "properties": {
+          "annotations": {
+            "type": "object",
+            "title": "Annotations",
+            "description": "annotations of service"
+          },
+          "type": {
+            "type": "string",
+            "description": "type of service",
+            "title": "Type",
+            "enum": [
+              "ClusterIP",
+              "LoadBalancer",
+              "NodePort",
+              "ExternalName"
+            ]
+          }
+        }
+      },
+      "serviceAccount": {
+        "type": "object",
+        "description": "defines service account for pods",
+        "title": "Service Account",
+        "properties": {
+          "annotations": {
+            "type": "object",
+            "title": "Annotations",
+            "description": "annotations of service account"
+          },
+          "name": {
+            "type": "string",
+            "description": "name of service account",
+            "title": "Name"
+          },
+          "create": {
+            "type": "boolean"
+          }
+        }
+      },
+      "servicemonitor": {
+        "type": "object",
+        "description": "gives the set of targets to be monitored",
+        "title": "Service Monitor",
+        "properties": {
+          "additionalLabels": {
+            "type": "object"
+          }
+        }
+      },
+      "tolerations": {
+        "type": "array",
+        "items": {},
+        "description": "a mechanism which work together with Taints which ensures that pods are not placed on inappropriate nodes",
+        "title": "Tolerations"
+      },
+      "topologySpreadConstraints": {
+        "type": "array",
+        "items": {},
+        "description": "used to control how Pods are spread across a cluster among failure-domains such as regions, zones, nodes, and other user-defined topology domains",
+        "title": "Topology Spread Constraints"
+      },
+      "volumeMounts": {
+        "type": "array",
+        "items": {},
+        "description": "used to provide mounts to the volume",
+        "title": "Volume Mounts"
+      },
+      "volumes": {
+        "type": "array",
+        "items": {},
+        "description": "required when some values need to be read from or written to an external disk",
+        "title": "Volumes"
+      },
+      "waitForSecondsBeforeScalingDown": {
+        "type": "integer",
+        "description": "Wait for given period of time before scaling down the container",
+        "title": "Wait For Seconds Before Scaling Down"
       }
-    },
-    "tolerations": {
-      "type": "array",
-      "items": {},
-      "description": "a mechanism which work together with Taints which ensures that pods are not placed on inappropriate nodes",
-      "title": "Tolerations"
-    },
-    "topologySpreadConstraints": {
-      "type": "array",
-      "items": {},
-      "description": "used to control how Pods are spread across a cluster among failure-domains such as regions, zones, nodes, and other user-defined topology domains",
-      "title": "Topology Spread Constraints"
-    },
-    "volumeMounts": {
-      "type": "array",
-      "items": {},
-      "description": "used to provide mounts to the volume",
-      "title": "Volume Mounts"
-    },
-    "volumes": {
-      "type": "array",
-      "items": {},
-      "description": "required when some values need to be read from or written to an external disk",
-      "title": "Volumes"
-    },
-    "waitForSecondsBeforeScalingDown": {
-      "type": "integer",
-      "description": "Wait for given period of time before scaling down the container",
-      "title": "Wait For Seconds Before Scaling Down"
     }
   }
-}
+
