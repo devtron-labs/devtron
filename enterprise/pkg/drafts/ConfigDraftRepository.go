@@ -2,92 +2,22 @@ package drafts
 
 import (
 	"errors"
-	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
 )
-
-type DraftMetadataDto struct {
-	tableName    struct{}          `sql:"draft_metadata" pg:",discard_unknown_columns"`
-	Id           int               `sql:"id,pk"`
-	AppId        int               `sql:"app_id,notnull"`
-	EnvId        int               `sql:"env_id"`
-	Resource     DraftResourceType `sql:"resource"`
-	ResourceName string            `sql:"resource_name,notnull"`
-	DraftState   DraftState        `sql:"draft_state"`
-	sql.AuditLog
-}
-
-type DraftVersionDto struct {
-	tableName struct{}       `sql:"draft_versions" pg:",discard_unknown_columns"`
-	Id        int            `sql:"id,pk"`
-	DraftId   int            `sql:"draft_id"`
-	Data      string         `sql:"data"`
-	Action    ResourceAction `sql:"action"`
-	UserId    int32          `sql:"user_id"`
-	CreatedOn time.Time      `sql:"created_on,type:timestamptz"`
-}
-
-type DraftVersionCommentDto struct {
-	tableName      struct{}  `sql:"draft_version_comments" pg:",discard_unknown_columns"`
-	Id             int       `sql:"id,pk"`
-	DraftId        int       `sql:"draft_id,notnull"`
-	DraftVersionId int       `sql:"draft_version_id"`
-	Comment        string    `sql:"comment"`
-	UserId         int32     `sql:"user_id"`
-	CreatedOn      time.Time `sql:"created_on,type:timestamptz"`
-}
-
-func (dto DraftMetadataDto) ConvertToAppConfigDraft() AppConfigDraft {
-	appConfigDraft := AppConfigDraft{
-		DraftId:      dto.Id,
-		Resource:     dto.Resource,
-		ResourceName: dto.ResourceName,
-		DraftState:   dto.DraftState,
-	}
-	return appConfigDraft
-}
-
-func (dto DraftVersionDto) ConvertToDraftVersionMetadata() DraftVersionMetadata {
-	draftVersionMetadata := DraftVersionMetadata{
-		DraftVersionId: dto.Id,
-		UserId:         dto.UserId,
-		ActivityTime:   dto.CreatedOn,
-	}
-	return draftVersionMetadata
-}
-
-func (dto DraftVersionDto) ConvertToConfigDraft() ConfigDraftResponse {
-	configDraftResponse := ConfigDraftResponse{
-		DraftId:        dto.DraftId,
-		DraftVersionId: dto.Id,
-	}
-	configDraftResponse.Data = dto.Data
-	configDraftResponse.Action = dto.Action
-	configDraftResponse.UserId = dto.UserId
-	return configDraftResponse
-}
-
-func (dto DraftVersionCommentDto) ConvertToDraftVersionComment() UserCommentMetadata {
-	userComment := UserCommentMetadata{
-		UserId:      dto.UserId,
-		CommentedAt: dto.CreatedOn,
-	}
-	return userComment
-}
 
 type ConfigDraftRepository interface {
 	CreateConfigDraft(request ConfigDraftRequest) (*ConfigDraftResponse, error)
 	GetLatestDraftVersionId(draftId int) (int, error)
 	SaveDraftVersionComment(draftVersionComment DraftVersionCommentDto) error
 	SaveDraftVersion(draftVersionDto DraftVersionDto) (int, error)
-	GetDraftMetadataById(draftId int) (*DraftMetadataDto, error)
+	GetDraftMetadataById(draftId int) (*DraftsDto, error)
 	UpdateDraftState(draftId int, draftState DraftState, userId int32) error
 	GetDraftVersionsMetadata(draftId int) ([]*DraftVersionDto, error)
 	GetDraftVersionComments(draftId int) ([]*DraftVersionCommentDto, error)
 	GetLatestConfigDraft(draftId int) (*DraftVersionDto, error)
-	GetDraftMetadata(appId int, envId int, resourceType DraftResourceType) ([]*DraftMetadataDto, error)
+	GetDraftMetadata(appId int, envId int, resourceType DraftResourceType) ([]*DraftsDto, error)
 }
 
 type ConfigDraftRepositoryImpl struct {
@@ -103,12 +33,13 @@ func NewConfigDraftRepositoryImpl(logger *zap.SugaredLogger, dbConnection *pg.DB
 }
 
 func (repo *ConfigDraftRepositoryImpl) CreateConfigDraft(request ConfigDraftRequest) (*ConfigDraftResponse, error) {
-	metadataDto := &DraftMetadataDto{
+	draftState := InitDraftState
+	metadataDto := &DraftsDto{
 		AppId:        request.AppId,
 		EnvId:        request.EnvId,
 		Resource:     request.Resource,
 		ResourceName: request.ResourceName,
-		DraftState:   InitDraftState,
+		DraftState:   draftState,
 	}
 	currentTime := time.Now()
 	metadataDto.CreatedOn = currentTime
@@ -145,7 +76,7 @@ func (repo *ConfigDraftRepositoryImpl) CreateConfigDraft(request ConfigDraftRequ
 		}
 	}
 
-	return &ConfigDraftResponse{DraftId: draftMetadataId, DraftVersionId: draftVersionId}, nil
+	return &ConfigDraftResponse{DraftId: draftMetadataId, DraftVersionId: draftVersionId, DraftState: draftState}, nil
 }
 
 func (repo *ConfigDraftRepositoryImpl) GetLatestDraftVersionId(draftId int) (int, error) {
@@ -183,8 +114,8 @@ func (repo *ConfigDraftRepositoryImpl) SaveDraftVersion(draftVersionDto DraftVer
 
 }
 
-func (repo *ConfigDraftRepositoryImpl) GetDraftMetadataById(draftId int) (*DraftMetadataDto, error) {
-	draftMetadataDto := &DraftMetadataDto{}
+func (repo *ConfigDraftRepositoryImpl) GetDraftMetadataById(draftId int) (*DraftsDto, error) {
+	draftMetadataDto := &DraftsDto{}
 	err := repo.dbConnection.Model(draftMetadataDto).Where("id = ?", draftId).Select()
 	if err != nil {
 		repo.logger.Errorw("error occurred while fetching draft metadata", "draftId", draftId, "err", err)
@@ -194,7 +125,7 @@ func (repo *ConfigDraftRepositoryImpl) GetDraftMetadataById(draftId int) (*Draft
 }
 
 func (repo *ConfigDraftRepositoryImpl) UpdateDraftState(draftId int, draftState DraftState, userId int32) error {
-	draftMetadataDto := &DraftMetadataDto{}
+	draftMetadataDto := &DraftsDto{}
 	result, err := repo.dbConnection.Model(draftMetadataDto).Set("draft_state", draftState).Set("updated_on", time.Now()).
 		Set("updated_by", userId).Where("id = ?", draftId).Update()
 	if err != nil {
@@ -232,7 +163,7 @@ func (repo *ConfigDraftRepositoryImpl) GetDraftVersionComments(draftId int) ([]*
 
 func (repo *ConfigDraftRepositoryImpl) GetLatestConfigDraft(draftId int) (*DraftVersionDto, error) {
 	var draftVersion *DraftVersionDto
-	err := repo.dbConnection.Model(draftVersion).Where("draft_id = ?", draftId).
+	err := repo.dbConnection.Model(draftVersion).Column("draft_versions.*, DraftsDto").Where("draft_id = ?", draftId).
 		Order("id desc").Limit(1).Select()
 	if err != nil {
 		repo.logger.Errorw("error occurred while fetching latest draft version", "draftId", draftId, "err", err)
@@ -241,8 +172,8 @@ func (repo *ConfigDraftRepositoryImpl) GetLatestConfigDraft(draftId int) (*Draft
 	return draftVersion, nil
 }
 
-func (repo *ConfigDraftRepositoryImpl) GetDraftMetadata(appId int, envId int, resourceType DraftResourceType) ([]*DraftMetadataDto, error) {
-	var draftMetadataDtos []*DraftMetadataDto
+func (repo *ConfigDraftRepositoryImpl) GetDraftMetadata(appId int, envId int, resourceType DraftResourceType) ([]*DraftsDto, error) {
+	var draftMetadataDtos []*DraftsDto
 	err := repo.dbConnection.Model(&draftMetadataDtos).Where("app_id = ?", appId).Where("env_id = ?", envId).
 		Where("resource = ?", resourceType).Select()
 	if err != nil && err != pg.ErrNoRows {

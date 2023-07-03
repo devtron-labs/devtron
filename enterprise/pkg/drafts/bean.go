@@ -44,8 +44,9 @@ type ConfigDraftRequest struct {
 
 type ConfigDraftResponse struct {
 	ConfigDraftRequest
-	DraftId        int `json:"draftId"`
-	DraftVersionId int `json:"draftVersionId"`
+	DraftId        int        `json:"draftId"`
+	DraftVersionId int        `json:"draftVersionId"`
+	DraftState     DraftState `json:"draftState"`
 }
 
 type ConfigDraftVersionRequest struct {
