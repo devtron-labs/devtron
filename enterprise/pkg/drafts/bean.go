@@ -1,5 +1,7 @@
 package drafts
 
+import "time"
+
 type DraftResourceType uint8
 
 var (
@@ -53,4 +55,39 @@ type ConfigDraftVersionRequest struct {
 	Data               string         `json:"data"`
 	UserComment        string         `json:"userComment"`
 	UserId             int32          `json:"-"`
+}
+
+type DraftVersionMetadataResponse struct {
+	DraftId       int                    `json:"draftId"`
+	DraftVersions []DraftVersionMetadata `json:"versionMetadata"`
+}
+
+type DraftVersionMetadata struct {
+	DraftVersionId int       `json:"draftVersionId"`
+	UserId         int32     `json:"userId"`
+	UserEmail      string    `json:"userEmail"`
+	ActivityTime   time.Time `json:"activityTime"`
+}
+
+type DraftVersionCommentResponse struct {
+	DraftId              int                   `json:"draftId"`
+	DraftVersionComments []DraftVersionComment `json:"versionComments"`
+}
+
+type DraftVersionComment struct {
+	DraftVersionId int                   `json:"draftVersionId"`
+	UserComments   []UserCommentMetadata `json:"userComments"`
+}
+
+type UserCommentMetadata struct {
+	UserId      int32     `json:"userId"`
+	UserEmail   string    `json:"userEmail"`
+	CommentedAt time.Time `json:"commentedAt"`
+}
+
+type AppConfigDraft struct {
+	DraftId      int               `json:"draftId"`
+	Resource     DraftResourceType `json:"resourceType"`
+	ResourceName string            `json:"resourceName"`
+	DraftState   DraftState        `json:"draftState"`
 }

@@ -20,32 +20,74 @@ type DraftMetadataDto struct {
 }
 
 type DraftVersionDto struct {
-	tableName       struct{}       `sql:"draft_versions" pg:",discard_unknown_columns"`
-	Id              int            `sql:"id,pk"`
-	DraftMetadataId int            `sql:"draft_metadata_id"`
-	Data            string         `sql:"data"`
-	Action          ResourceAction `sql:"action"`
-	UserId          int32          `sql:"user_id"`
-	CreatedOn       time.Time      `sql:"created_on,type:timestamptz"`
+	tableName struct{}       `sql:"draft_versions" pg:",discard_unknown_columns"`
+	Id        int            `sql:"id,pk"`
+	DraftId   int            `sql:"draft_id"`
+	Data      string         `sql:"data"`
+	Action    ResourceAction `sql:"action"`
+	UserId    int32          `sql:"user_id"`
+	CreatedOn time.Time      `sql:"created_on,type:timestamptz"`
 }
 
 type DraftVersionCommentDto struct {
-	tableName       struct{}  `sql:"draft_version_comments" pg:",discard_unknown_columns"`
-	Id              int       `sql:"id,pk"`
-	DraftMetadataId int       `sql:"draft_metadata_id,notnull"`
-	DraftVersionId  int       `sql:"draft_version_id"`
-	Comment         string    `sql:"comment"`
-	UserId          int32     `sql:"user_id"`
-	CreatedOn       time.Time `sql:"created_on,type:timestamptz"`
+	tableName      struct{}  `sql:"draft_version_comments" pg:",discard_unknown_columns"`
+	Id             int       `sql:"id,pk"`
+	DraftId        int       `sql:"draft_id,notnull"`
+	DraftVersionId int       `sql:"draft_version_id"`
+	Comment        string    `sql:"comment"`
+	UserId         int32     `sql:"user_id"`
+	CreatedOn      time.Time `sql:"created_on,type:timestamptz"`
+}
+
+func (dto DraftMetadataDto) ConvertToAppConfigDraft() AppConfigDraft {
+	appConfigDraft := AppConfigDraft{
+		DraftId:      dto.Id,
+		Resource:     dto.Resource,
+		ResourceName: dto.ResourceName,
+		DraftState:   dto.DraftState,
+	}
+	return appConfigDraft
+}
+
+func (dto DraftVersionDto) ConvertToDraftVersionMetadata() DraftVersionMetadata {
+	draftVersionMetadata := DraftVersionMetadata{
+		DraftVersionId: dto.Id,
+		UserId:         dto.UserId,
+		ActivityTime:   dto.CreatedOn,
+	}
+	return draftVersionMetadata
+}
+
+func (dto DraftVersionDto) ConvertToConfigDraft() ConfigDraftResponse {
+	configDraftResponse := ConfigDraftResponse{
+		DraftId:        dto.DraftId,
+		DraftVersionId: dto.Id,
+	}
+	configDraftResponse.Data = dto.Data
+	configDraftResponse.Action = dto.Action
+	configDraftResponse.UserId = dto.UserId
+	return configDraftResponse
+}
+
+func (dto DraftVersionCommentDto) ConvertToDraftVersionComment() UserCommentMetadata {
+	userComment := UserCommentMetadata{
+		UserId:      dto.UserId,
+		CommentedAt: dto.CreatedOn,
+	}
+	return userComment
 }
 
 type ConfigDraftRepository interface {
 	CreateConfigDraft(request ConfigDraftRequest) (*ConfigDraftResponse, error)
-	GetLatestDraftVersion(draftId int) (int, error)
+	GetLatestDraftVersionId(draftId int) (int, error)
 	SaveDraftVersionComment(draftVersionComment DraftVersionCommentDto) error
 	SaveDraftVersion(draftVersionDto DraftVersionDto) (int, error)
 	GetDraftMetadataById(draftId int) (*DraftMetadataDto, error)
 	UpdateDraftState(draftId int, draftState DraftState, userId int32) error
+	GetDraftVersionsMetadata(draftId int) ([]*DraftVersionDto, error)
+	GetDraftVersionComments(draftId int) ([]*DraftVersionCommentDto, error)
+	GetLatestConfigDraft(draftId int) (*DraftVersionDto, error)
+	GetDraftMetadata(appId int, envId int, resourceType DraftResourceType) ([]*DraftMetadataDto, error)
 }
 
 type ConfigDraftRepositoryImpl struct {
@@ -83,17 +125,17 @@ func (repo *ConfigDraftRepositoryImpl) CreateConfigDraft(request ConfigDraftRequ
 	repo.logger.Debugw("going to save draft version now", "draftId", draftMetadataId)
 
 	draftVersionDto := DraftVersionDto{
-		DraftMetadataId: draftMetadataId,
-		Action:          request.Action,
-		Data:            request.Data,
-		UserId:          request.UserId,
-		CreatedOn:       currentTime,
+		DraftId:   draftMetadataId,
+		Action:    request.Action,
+		Data:      request.Data,
+		UserId:    request.UserId,
+		CreatedOn: currentTime,
 	}
 
 	draftVersionId, err := repo.SaveDraftVersion(draftVersionDto)
 	if len(request.UserComment) > 0 {
 		draftVersionCommentDto := DraftVersionCommentDto{}
-		draftVersionCommentDto.DraftMetadataId = draftMetadataId
+		draftVersionCommentDto.DraftId = draftMetadataId
 		draftVersionCommentDto.DraftVersionId = draftVersionId
 		draftVersionCommentDto.Comment = request.UserComment
 		draftVersionCommentDto.UserId = request.UserId
@@ -106,9 +148,9 @@ func (repo *ConfigDraftRepositoryImpl) CreateConfigDraft(request ConfigDraftRequ
 	return &ConfigDraftResponse{DraftId: draftMetadataId, DraftVersionId: draftVersionId}, nil
 }
 
-func (repo *ConfigDraftRepositoryImpl) GetLatestDraftVersion(draftId int) (int, error) {
+func (repo *ConfigDraftRepositoryImpl) GetLatestDraftVersionId(draftId int) (int, error) {
 	draftVersionDto := &DraftVersionDto{}
-	err := repo.dbConnection.Model(draftVersionDto).Column("id").Where("draft_metadata_id = ?", draftId).
+	err := repo.dbConnection.Model(draftVersionDto).Column("id").Where("draft_id = ?", draftId).
 		Order("id desc").Limit(1).Select()
 	if err != nil {
 		if err == pg.ErrNoRows {
@@ -135,7 +177,7 @@ func (repo *ConfigDraftRepositoryImpl) SaveDraftVersion(draftVersionDto DraftVer
 	draftVersionDto.CreatedOn = time.Now()
 	err := repo.dbConnection.Insert(&draftVersionDto)
 	if err != nil {
-		repo.logger.Errorw("error occurred while saving draft version comment", "draftMetadataId", draftVersionDto.DraftMetadataId, "err", err)
+		repo.logger.Errorw("error occurred while saving draft version comment", "draftMetadataId", draftVersionDto.DraftId, "err", err)
 	}
 	return draftVersionDto.Id, err
 
@@ -163,5 +205,53 @@ func (repo *ConfigDraftRepositoryImpl) UpdateDraftState(draftId int, draftState 
 	}
 	return nil
 }
+
+func (repo *ConfigDraftRepositoryImpl) GetDraftVersionsMetadata(draftId int) ([]*DraftVersionDto, error) {
+	var draftVersions []*DraftVersionDto
+	err := repo.dbConnection.Model(&draftVersions).Column("id, user_id, created_on").Where("draft_id = ?", draftId).
+		Order("id desc").Select()
+	if err != nil && err != pg.ErrNoRows {
+		repo.logger.Errorw("error occurred while fetching draft versions", "draftId", draftId, "err", err)
+	} else {
+		err = nil //ignoring noRows Error
+	}
+	return draftVersions, err
+}
+
+func (repo *ConfigDraftRepositoryImpl) GetDraftVersionComments(draftId int) ([]*DraftVersionCommentDto, error) {
+	var draftComments []*DraftVersionCommentDto
+	err := repo.dbConnection.Model(&draftComments).Where("draft_id = ?", draftId).
+		Order("id desc").Select()
+	if err != nil && err != pg.ErrNoRows {
+		repo.logger.Errorw("error occurred while fetching draft comments", "draftId", draftId, "err", err)
+	} else {
+		err = nil //ignoring noRows Error
+	}
+	return draftComments, err
+}
+
+func (repo *ConfigDraftRepositoryImpl) GetLatestConfigDraft(draftId int) (*DraftVersionDto, error) {
+	var draftVersion *DraftVersionDto
+	err := repo.dbConnection.Model(draftVersion).Where("draft_id = ?", draftId).
+		Order("id desc").Limit(1).Select()
+	if err != nil {
+		repo.logger.Errorw("error occurred while fetching latest draft version", "draftId", draftId, "err", err)
+		return nil, err
+	}
+	return draftVersion, nil
+}
+
+func (repo *ConfigDraftRepositoryImpl) GetDraftMetadata(appId int, envId int, resourceType DraftResourceType) ([]*DraftMetadataDto, error) {
+	var draftMetadataDtos []*DraftMetadataDto
+	err := repo.dbConnection.Model(&draftMetadataDtos).Where("app_id = ?", appId).Where("env_id = ?", envId).
+		Where("resource = ?", resourceType).Select()
+	if err != nil && err != pg.ErrNoRows {
+		repo.logger.Errorw("error occurred while fetching draft metadata", "appId", appId, "envId", envId, "resourceType", resourceType, "err", err)
+	} else {
+		err = nil //ignoring noRows Error
+	}
+	return draftMetadataDtos, err
+}
+
 
 
