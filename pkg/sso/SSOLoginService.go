@@ -357,13 +357,6 @@ func (impl SSOLoginServiceImpl) GetByName(name string) (*bean.SSOLoginDto, error
 		impl.logger.Debugw("error while Unmarshal", "error", err)
 		return nil, err
 	}
-	if configData.Config["clientID"] != "" {
-
-		configData.Config["clientID"] = ""
-	}
-	if configData.Config["clientSecret"] != "" {
-		configData.Config["clientSecret"] = ""
-	}
 	makeIdSecretEmpty(&configData, "clientID")
 	makeIdSecretEmpty(&configData, "clientSecret")
 	configString, err := json.Marshal(configData)
