@@ -1,13 +1,11 @@
-## v0.6.18-rc.4
-
-
-
-## v0.6.18-rc.4
-
 ## Bugs
 - fix: handled no config exists case for enforced deployment app type (#3575)
+- fix: values are not coming in deployment history of helm apps (#3582)
+- fix: chart version update fix for helm type deployments (#3580)
+- fix: removed extra condition in ref-chart 4.18 (#3586)
+- fix: SSO configuration gets change after refreshing the page (#3544)
 ## Enhancements
-## Documentation
+- feat: added reference-chart 4.180 and deploy-chart 1.2.0 (#3423)
 ## Others
 - fix/unit-test-failing-issue (#3569)
 
