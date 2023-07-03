@@ -370,7 +370,7 @@ func (impl SSOLoginServiceImpl) GetByName(name string) (*bean.SSOLoginDto, error
 	var config json.RawMessage
 	err = json.Unmarshal(configString, &config)
 	if err != nil {
-		impl.logger.Warnw("error while Unmarshalling configString", "error", err)
+		impl.logger.Warnw("error while Unmarshal", "error", err)
 	}
 
 	ssoLoginDto := &bean.SSOLoginDto{
