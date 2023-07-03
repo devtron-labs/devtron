@@ -297,14 +297,14 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	if err != nil {
 		impl.Logger.Errorw("error in creating templates for global secrets", "err", err)
 	}
-	var configMaps *bean3.ConfigMapJson
-	var secrets *bean3.ConfigSecretJson
+	var configMaps bean3.ConfigMapJson
+	var secrets bean3.ConfigSecretJson
 	var existingConfigMap *bean3.ConfigMapJson
 	var existingSecrets *bean3.ConfigSecretJson
 	if isJob {
 		existingConfigMap, existingSecrets, err = impl.appService.GetCmSecretNew(workflowRequest.AppId, workflowRequest.EnvironmentId, isJob)
 		configMaps, secrets, err = getConfigMapsAndSecrets(impl, workflowRequest, isJob, existingConfigMap, existingSecrets)
-		err = processConfigMapsAndSecrets(impl, configMaps, secrets, entryPoint, &steps, &volumes, &templates)
+		err = processConfigMapsAndSecrets(impl, &configMaps, &secrets, entryPoint, &steps, &volumes, &templates)
 		//if err != nil {
 		//	impl.Logger.Errorw("failed to get configmap data", "err", err)
 		//	return nil, err
@@ -513,7 +513,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		},
 	}
 	if isJob {
-		ciTemplate, err = sortConfigMapsAndSecrets(configMaps, secrets, ciTemplate, existingConfigMap, existingSecrets)
+		ciTemplate, err = sortConfigMapsAndSecrets(&configMaps, &secrets, ciTemplate, existingConfigMap, existingSecrets)
 		//for _, cm := range configMaps.Maps {
 		//	if cm.Type == "environment" {
 		//		ciTemplate.Container.EnvFrom = append(ciTemplate.Container.EnvFrom, v12.EnvFromSource{
@@ -795,7 +795,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	return createdWf, err
 }
 
-func getConfigMapsAndSecrets(impl *WorkflowServiceImpl, workflowRequest *WorkflowRequest, isJob bool, existingConfigMap *bean3.ConfigMapJson, existingSecrets *bean3.ConfigSecretJson) (*bean3.ConfigMapJson, *bean3.ConfigSecretJson, error) {
+func getConfigMapsAndSecrets(impl *WorkflowServiceImpl, workflowRequest *WorkflowRequest, isJob bool, existingConfigMap *bean3.ConfigMapJson, existingSecrets *bean3.ConfigSecretJson) (bean3.ConfigMapJson, bean3.ConfigSecretJson, error) {
 	configMaps := bean3.ConfigMapJson{}
 	secrets := bean3.ConfigSecretJson{}
 	impl.Logger.Debugw("existing cm sec", "cm", existingConfigMap, "sec", existingSecrets)
@@ -818,7 +818,7 @@ func getConfigMapsAndSecrets(impl *WorkflowServiceImpl, workflowRequest *Workflo
 	for i := range secrets.Secrets {
 		secrets.Secrets[i].Name = secrets.Secrets[i].Name + "-" + strconv.Itoa(workflowRequest.WorkflowId) + "-" + CI_WORKFLOW_NAME
 	}
-	return &configMaps, &secrets, nil
+	return configMaps, secrets, nil
 }
 func processConfigMapsAndSecrets(impl *WorkflowServiceImpl, configMaps *bean3.ConfigMapJson, secrets *bean3.ConfigSecretJson, entryPoint string, steps *[]v1alpha1.ParallelSteps, volumes *[]v12.Volume, templates *[]v1alpha1.Template) error {
 
