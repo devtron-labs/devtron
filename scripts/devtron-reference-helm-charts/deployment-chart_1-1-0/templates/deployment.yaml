@@ -133,6 +133,9 @@ spec:
       securityContext:
 {{ toYaml .Values.podSecurityContext | indent 8 }}
 {{- end }}
+{{- if $.Values.restartPolicy }}
+      restartPolicy: {{  $.Values.restartPolicy }}
+{{- end }}
 {{- if $.Values.initContainers}}
       initContainers:
 {{- range $i, $c := .Values.initContainers }}
@@ -288,13 +291,34 @@ spec:
                  fieldPath: {{ .fieldPath }}
           {{- end}}
           {{- range $.Values.EnvVariables }}
-            - name: {{ .name}}
+          {{- if and .name .value }}
+            - name: {{ .name }}
               value: {{ .value | quote }}
-          {{- end}}
+          {{- end }}
+          {{- end }}
+          {{- range $.Values.EnvVariablesFromSecretKeys }}
+          {{- if and .name .secretName .keyName }}
+            - name: {{ .name }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .secretName }}
+                  key: {{ .keyName }}
+          {{- end }}
+          {{- end }}
+          {{- range $.Values.EnvVariablesFromConfigMapKeys }}
+          {{- if and .name .configMapName .keyName }}
+            - name: {{ .name }}
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .configMapName }}
+                  key: {{ .keyName }}
+          {{- end }}
+          {{- end }}
           {{- if or (and ($hasCMEnvExists) (.Values.ConfigMaps.enabled)) (and ($hasSecretEnvExists) (.Values.ConfigSecrets.enabled)) }}
           envFrom:
           {{- if .Values.ConfigMaps.enabled }}
           {{- range .Values.ConfigMaps.maps }}
+          {{- if and .name .type .external }}
           {{- if eq .type "environment" }}
           - configMapRef:
               {{- if eq .external true }}
@@ -305,8 +329,10 @@ spec:
           {{- end }}
           {{- end }}
           {{- end }}
+          {{- end }}
           {{- if .Values.ConfigSecrets.enabled }}
           {{- range .Values.ConfigSecrets.secrets }}
+          {{- if and .name .type .external }}
           {{- if eq .type "environment" }}
           - secretRef:
               {{if eq .external true}}
@@ -314,6 +340,7 @@ spec:
               {{else if eq .external false}}
               name: {{ .name}}-{{ $.Values.app }}
               {{- end }}
+          {{- end }}
           {{- end }}
           {{- end }}
           {{- end }}
@@ -379,7 +406,35 @@ spec:
 {{- end }}
           resources:
 {{ toYaml $.Values.resources | trim | indent 12 }}
-
+{{- if or $.Values.StartupProbe.Path  $.Values.StartupProbe.command $.Values.StartupProbe.tcp }}
+          startupProbe:
+{{- if $.Values.StartupProbe.Path }}
+            httpGet:
+              path: {{ $.Values.StartupProbe.Path  }}
+              port: {{ $.Values.StartupProbe.port }}
+            {{- if $.Values.StartupProbe.httpHeaders }}
+              httpHeaders:
+              {{- range $.Values.StartupProbe.httpHeaders}}
+                - name: {{.name}}
+                  value: {{.value}}
+              {{- end}}
+        {{- end }}
+{{- end }}
+{{- if $.Values.StartupProbe.command }}
+            exec:
+              command:
+{{ toYaml .Values.StartupProbe.command | indent 16 }}
+{{- end}}
+{{- if and $.Values.StartupProbe.tcp }}
+            tcpSocket:
+              port: {{ $.Values.StartupProbe.port }}
+{{- end}}
+            initialDelaySeconds: {{ $.Values.StartupProbe.initialDelaySeconds  }}
+            periodSeconds: {{ $.Values.StartupProbe.periodSeconds  }}
+            successThreshold: {{ $.Values.StartupProbe.successThreshold  }}
+            timeoutSeconds: {{ $.Values.StartupProbe.timeoutSeconds  }}
+            failureThreshold: {{ $.Values.StartupProbe.failureThreshold  }}
+{{- end }}
           volumeMounts:
 {{- with .Values.volumeMounts }}
 {{ toYaml . | trim | indent 12 }}
@@ -478,7 +533,11 @@ spec:
 #  waitForSecondsBeforeScalingDown: {{ $.Values.waitForSecondsBeforeScalingDown }}
   strategy:
     {{- if eq .Values.deploymentType "ROLLING" }}
+    type: "RollingUpdate"
     rollingUpdate:
       maxSurge: {{ $.Values.deployment.strategy.rolling.maxSurge }}
       maxUnavailable: {{ $.Values.deployment.strategy.rolling.maxUnavailable }}
+    {{- end }}
+    {{- if eq .Values.deploymentType "RECREATE" }}
+    type: "Recreate"
     {{- end }}

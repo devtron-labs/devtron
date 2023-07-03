@@ -86,6 +86,60 @@
           }
         ]
       },
+      "EnvVariablesFromSecretKeys": {
+        "type": "array",
+        "description": "Selects a field of the deployment: It is use to get the name of Environment Variable name, Secret name and the Key name from which we are using the value in that corresponding Environment Variable.",
+        "title": "EnvVariablesFromSecretKeys",
+        "items": [
+          {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "title": "name",
+                "description": "Env variable name to be used."
+              },
+              "secretName": {
+                "type": "string",
+                "title": "secretName",
+                "description": "Name of Secret from which we are taking the value."
+              },
+              "keyName": {
+                "type": "string",
+                "title": "keyName",
+                "description": "Name of The Key Where the value is mapped with."
+              }
+            }
+          }
+        ]
+      },
+      "EnvVariablesFromConfigMapKeys": {
+        "type": "array",
+        "description": "Selects a field of the deployment: It is use to get the name of Environment Variable name, Config Map name and the Key name from which we are using the value in that corresponding Environment Variable.",
+        "title": "EnvVariablesFromConfigMapKeys",
+        "items": [
+          {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "title": "name",
+                "description": "Env variable name to be used."
+              },
+              "configMapName": {
+                "type": "string",
+                "title": "configMapName",
+                "description": "Name of configMap from which we are taking the value."
+              },
+              "keyName": {
+                "type": "string",
+                "title": "keyName",
+                "description": "Name of The Key Where the value is mapped with."
+              }
+            }
+          }
+        ]
+      },
       "GracePeriod": {
         "type": "integer",
         "description": "time for which Kubernetes waits before terminating the pods",
@@ -233,6 +287,61 @@
             "title": "Timeout Seconds"
           }
         }
+      },   
+      "networkPolicy": {
+        "type": "object",
+        "description": "NetworkPolicy describes what network traffic is allowed for a set of Pods",
+        "title": "Network Policy",
+        "properties": {
+          "enabled":{
+            "type":"boolean",
+            "description": "used to enable or disable NetworkPolicy"
+          },
+          "annotations":{
+            "type": "object",
+            "description": "Annotations for NetworkPolicy"
+          },
+          "labels":{
+            "type":"object",
+            "description": "Labels for NetworkPolicy"
+          },
+          "podSelector":{
+            "type": "object",
+            "description": "Selects the pods to which this NetworkPolicy object applies",
+            "properties": {
+              "matchExpressions":{
+                "type":"array",
+                "description": "list of label selector"
+              },
+              "matchLabels":{
+                "type":"object",
+                "description": "map of {key,value} pairs"
+              }
+            }
+          },
+          "policyTypes":{
+            "type":"array",
+            "description": "List of rule types that the NetworkPolicy relates to. Valid options are Ingress,Egress."
+          },
+          "ingress":{
+            "type":"array",
+            "description": "List of ingress rules to be applied to the selected pods"
+          },
+          "egress":{
+            "type":"array",
+            "description": "List of egress rules to be applied to the selected pods"
+          }
+        }
+      },
+      "istio": {
+        "type": "object",
+        "description": "Istio Service mesh",
+        "title": "Istio"
+      },
+      "flaggerCanary":{
+        "type": "object",
+        "description": "Flagger for canary release with istio service mesh",
+        "title": "Flagger Canary Release"      
       },
       "Spec": {
         "type": "object",
@@ -572,7 +681,17 @@
             "description": "used to define the instances calling the image",
             "title": "Pull Policy",
             "enum": ["IfNotPresent", "Always"]
-          }
+          },
+          "restartPolicy": {
+            "type": "string",
+            "description": "It restarts the docker container based on defined conditions.",
+            "title": "Restart Policy",
+            "enum": [
+              "Always",
+              "OnFailure", 
+              "Never"
+            ]
+          }	
         }
       },
       "imagePullSecrets": {
@@ -581,6 +700,71 @@
         "description": "contains the docker credentials that are used for accessing a registry",
         "title": "Image PullSecrets"
       },
+      "winterSoldier": {
+          "type": "object",
+          "description": "allows to scale, sleep or delete the resource based on time.",
+          "title": "winterSoldier",
+          "properties": {
+            "annotations": {
+              "type": "object",
+              "description": "used to configure some options depending on the winterSoldier controller",
+              "title": "Annotations"
+            },
+            "labels": {
+              "type": "object",
+              "description": "labels for winterSoldier",
+              "title": "winterSoldier labels",
+              "default": ""
+            },
+            "enabled": {
+              "type": "boolean",
+              "description": "used to enable or disable ingress",
+              "title": "Enabled"
+            },
+            "apiVersion": {
+              "type": "string",
+              "description": "Api version for winterSoldier",
+              "title": "winterSoldier apiVersion",
+              "default": "pincher.devtron.ai/v1alpha1"
+            },
+            "timeRangesWithZone": {
+              "type": "object",
+              "description": "describe time zone and time ranges to input in the winterSoldier",
+              "title": "Time Ranges With Zone",
+              "timeZone": {
+                "type": "string",
+                "description": "describe time zone, and follow standard format",
+                "title": "Time Zone"
+              },
+              "timeRanges": {
+                "type": "array",
+                "items": {},
+                "description": "used to take array of time ranges in which each element contains timeFrom, timeTo, weekdayFrom and weekdayTo.",
+                "title": "Time Ranges"
+              }
+            },
+            "type": {
+              "type": "string",
+              "description": "describe the type of application Rollout/deployment.",
+              "title": "Type"
+            },
+            "action": {
+              "type": "string",
+              "description": "describe the action to be performed by winterSoldier.",
+              "title": "Action"
+            },
+            "targetReplicas": {
+              "type": "array",
+              "description": "describe the number of replicas to which the resource should scale up or down.",
+              "title": "Target Replicas"
+            },
+            "fieldSelector": {
+              "type": "array",
+              "description": "it takes arrays of methods to select specific fields.",
+              "title": "Field Selector"
+            }
+          }
+       },
       "ingress": {
         "type": "object",
         "description": "allows public access to URLs",

@@ -20,7 +20,9 @@ MinReadySeconds: 60
 GracePeriod: 30
 image:
   pullPolicy: IfNotPresent
+restartPolicy: Always
 service:
+  # enabled: true
   type: ClusterIP
   #name: "service-1234567890"
   loadBalancerSourceRanges: []
@@ -91,6 +93,18 @@ ReadinessProbe:
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
+
+StartupProbe:
+  Path: ""
+  port: 8080
+  initialDelaySeconds: 20
+  periodSeconds: 10
+  successThreshold: 1
+  timeoutSeconds: 5
+  failureThreshold: 3
+  httpHeaders: []
+  command: []
+  tcp: false
 
 ingress:
   enabled: false
@@ -285,7 +299,7 @@ servicemonitor:
   additionalLabels: {}
 
 envoyproxy:
-  image: quay.io/devtron/envoy:v1.14.1
+  image: docker.io/envoyproxy/envoy:v1.16.0
   configMapName: ""
   lifecycle: {}
   resources:
@@ -312,26 +326,77 @@ istio:
     annotations: {}
     gateways: []
     hosts: []
-    http: 
-      - match:
-        - uri:
-            prefix: /v1
-        - uri:
-            prefix: /v2
-        rewriteUri: /
-        timeout: 12s
-        headers: {}
-        corsPolicy: {}
-        retries:
-          attempts: 2 
-          perTryTimeout: 3s 
-        route:
-        - destination:
-            host: service1
-            port: 80
-      - route:
-        - destination:
-            host: service2
+    http: []
+      # - match:
+      #   - uri:
+      #       prefix: /v1
+      #   - uri:
+      #       prefix: /v2
+      #   timeout: 12
+      #   headers:
+      #     request:
+      #       add:
+      #         x-some-header: "value"
+      #   retries:
+      #     attempts: 2 
+      #     perTryTimeout: 3s 
+  destinationRule:
+    enabled: false
+    labels: {}
+    annotations: {}
+    subsets: []
+    trafficPolicy: {}
+  peerAuthentication:
+    enabled: false
+    labels: {}
+    annotations: {}
+    selector:
+      enabled: false
+    mtls:
+      mode:
+    portLevelMtls: {}
+  requestAuthentication:
+    enabled: false
+    labels: {}
+    annotations: {}
+    selector:
+      enabled: false
+    jwtRules: []
+  authorizationPolicy:
+    enabled: false
+    labels: {}
+    annotations: {}
+    action:
+    provider: {}
+    rules: []
+
+networkPolicy:
+  enabled: false
+  annotations: {}
+  labels: {}
+  podSelector: 
+    matchExpressions: []
+    matchLabels: {}
+  policyTypes: []
+  ingress: []
+  egress: []
+
+winterSoldier:
+  enabled: false
+  apiVersion: pincher.devtron.ai/v1alpha1
+  annotation: {}
+  labels: {}
+  type: Rollout
+  timeRangesWithZone:
+    timeZone: "Asia/Kolkata"
+    timeRanges: []
+  action: sleep
+  targetReplicas: []
+  fieldSelector: 
+    - AfterTime(AddTime(ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '5m'), Now())
+
+  
+  
 
 ## Pods Service Account
 ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
