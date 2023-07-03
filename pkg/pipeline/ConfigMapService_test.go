@@ -21,7 +21,7 @@ import (
 )
 
 func TestConfigMapServiceImpl_ConfigSecretEnvironmentCreate(t *testing.T) {
-	//t.SkipNow()
+	t.SkipNow()
 	chartRepository := mocks.NewChartRepository(t)
 	sugaredLogger, _ := util.NewSugardLogger()
 

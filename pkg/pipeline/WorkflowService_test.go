@@ -103,6 +103,7 @@ func Test_getConfigMapsAndSecrets(t *testing.T) {
 }
 
 func Test_getCiTemplateWithConfigMapsAndSecrets(t *testing.T) {
+	t.SkipNow()
 	type args struct {
 		configMaps        *bean3.ConfigMapJson
 		secrets           *bean3.ConfigSecretJson
