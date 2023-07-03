@@ -357,20 +357,20 @@ func (impl SSOLoginServiceImpl) GetByName(name string) (*bean.SSOLoginDto, error
 	var configData Config
 	err = json.Unmarshal([]byte(model.Config), &configData)
 	if err != nil {
-		impl.logger.Errorw("error while Unmarshal", "error", err)
+		impl.logger.Errorw("error while Unmarshalling model's config", "error", err)
 		return nil, err
 	}
 	secureCredentialValue(&configData, ClientID)
 	secureCredentialValue(&configData, ClientSecret)
 	configString, err := json.Marshal(configData)
 	if err != nil {
-		impl.logger.Errorw("error while Marshal", "error", err)
+		impl.logger.Errorw("error while Marshaling configData", "error", err)
 		return nil, err
 	}
 	var config json.RawMessage
 	err = json.Unmarshal(configString, &config)
 	if err != nil {
-		impl.logger.Warnw("error while Unmarshal", "error", err)
+		impl.logger.Warnw("error while Unmarshalling configString", "error", err)
 	}
 
 	ssoLoginDto := &bean.SSOLoginDto{
