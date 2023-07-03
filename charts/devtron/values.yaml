@@ -285,6 +285,9 @@ security:
   enabled: false
   imageScanner:
     image: "quay.io/devtron/image-scanner:d554c0f8-334-14015"
+  # Values for trivy
+  trivy:
+    enabled: false
   # Values for clair
   clair:
     enabled: false
