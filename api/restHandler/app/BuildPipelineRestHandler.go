@@ -1722,7 +1722,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateUpdateImageTagging(w http.Res
 			resp.AppReleaseTags = appReleaseTags
 		}
 		handler.Logger.Errorw("error occurred in creating/updating image tagging data", "err", err, "ciPipelineId", ciPipelineId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, err, resp, http.StatusOK)
