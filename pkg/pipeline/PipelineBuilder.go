@@ -1883,11 +1883,14 @@ func (impl PipelineBuilderImpl) IsGitOpsRequiredForCD(pipelineCreateRequest *bea
 func (impl PipelineBuilderImpl) SetPipelineDeploymentAppType(pipelineCreateRequest *bean.CdPipelines, isGitOpsConfigured bool, virtualEnvironmentMap map[int]bool) error {
 
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
-		if !impl.deploymentConfig.IsInternalUse {
-			if isGitOpsConfigured {
-				pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
-			} else {
-				pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
+
+		if isVirtualEnv, ok := virtualEnvironmentMap[pipeline.EnvironmentId]; ok {
+			if !isVirtualEnv && !impl.deploymentConfig.IsInternalUse {
+				if isGitOpsConfigured {
+					pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
+				} else {
+					pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
+				}
 			}
 		}
 		// if in case deployment app type is empty (not send from FE and isInternalUse=true
