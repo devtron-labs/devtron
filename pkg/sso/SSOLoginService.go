@@ -175,20 +175,20 @@ func (impl SSOLoginServiceImpl) UpdateSSOLogin(request *bean.SSOLoginDto) (*bean
 	var configData Config
 	err = json.Unmarshal([]byte(configString), &configData)
 	if err != nil {
-		impl.logger.Errorw("error while Unmarshal", "error", err)
+		impl.logger.Errorw("error while Unmarshalling configString", "error", err)
 		return nil, err
 	}
 	var modelConfigData Config
 	err = json.Unmarshal([]byte(model.Config), &modelConfigData)
 	if err != nil {
-		impl.logger.Errorw("error while Unmarshal", "error", err)
+		impl.logger.Errorw("error while Unmarshalling model's config", "error", err)
 		return nil, err
 	}
 	updateSecretFromBase(&configData, &modelConfigData, ClientID)
 	updateSecretFromBase(&configData, &modelConfigData, ClientSecret)
 	newConfigString, err := json.Marshal(configData)
 	if err != nil {
-		impl.logger.Errorw("error while Marshal", "error", err)
+		impl.logger.Errorw("error while Marshaling configData", "error", err)
 		return nil, err
 	}
 	updatedConfig := string(newConfigString)
