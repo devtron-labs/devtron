@@ -55,6 +55,9 @@ type Config struct {
 	Config map[string]interface{} `json:"config"`
 }
 
+const ClientID = "clientID"
+const ClientSecret = "clientSecret"
+
 func NewSSOLoginServiceImpl(
 	logger *zap.SugaredLogger,
 	ssoLoginRepository SSOLoginRepository,
@@ -181,8 +184,8 @@ func (impl SSOLoginServiceImpl) UpdateSSOLogin(request *bean.SSOLoginDto) (*bean
 		impl.logger.Debugw("error while Unmarshal", "error", err)
 		return nil, err
 	}
-	emptyConfigCheck(&configData, &modelConfigData, "clientId")
-	emptyConfigCheck(&configData, &modelConfigData, "clientSecret")
+	updateSecretFromBase(&configData, &modelConfigData, ClientID)
+	updateSecretFromBase(&configData, &modelConfigData, ClientSecret)
 	newConfigString, err := json.Marshal(configData)
 	if err != nil {
 		impl.logger.Debugw("error while Marshal", "error", err)
@@ -357,8 +360,8 @@ func (impl SSOLoginServiceImpl) GetByName(name string) (*bean.SSOLoginDto, error
 		impl.logger.Debugw("error while Unmarshal", "error", err)
 		return nil, err
 	}
-	makeIdSecretEmpty(&configData, "clientID")
-	makeIdSecretEmpty(&configData, "clientSecret")
+	secureCredentialValue(&configData, ClientID)
+	secureCredentialValue(&configData, ClientSecret)
 	configString, err := json.Marshal(configData)
 	if err != nil {
 		impl.logger.Debugw("error while Unmarshal", "error", err)
@@ -381,14 +384,14 @@ func (impl SSOLoginServiceImpl) GetByName(name string) (*bean.SSOLoginDto, error
 	return ssoLoginDto, nil
 }
 
-func emptyConfigCheck(configData *Config, modelConfigData *Config, key string) {
-	if configData.Config[key] == "" && modelConfigData.Config[key] != "" {
-		configData.Config[key] = modelConfigData.Config[key]
+func updateSecretFromBase(configData *Config, baseConfigData *Config, key string) {
+	if configData.Config[key] == "" && baseConfigData.Config[key] != "" {
+		configData.Config[key] = baseConfigData.Config[key]
 	}
 }
 
-func makeIdSecretEmpty(configData *Config, key string) {
-	if configData.Config[key] != "" {
-		configData.Config[key] = ""
+func secureCredentialValue(configData *Config, credentialKey string) {
+	if configData.Config[credentialKey] != "" {
+		configData.Config[credentialKey] = ""
 	}
 }
