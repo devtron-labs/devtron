@@ -3395,6 +3395,12 @@ func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, pipeline *
 			//implement
 		} else if pipeline.ManifestStorageType == bean.ManifestStorageOCIHelmRepo {
 
+			pipelineDbObj, err := impl.pipelineRepository.FindById(pipeline.Id)
+			if err != nil {
+				impl.logger.Errorw("error in fetching pipeline by id", "err", err, "pipeline_id", pipeline.Id)
+			}
+			pipeline.AppId = pipelineDbObj.AppId
+
 			helmRepositoryConfig := bean4.HelmRepositoryConfig{
 				RepositoryName:        pipeline.RepoName,
 				ContainerRegistryName: pipeline.ContainerRegistryName,

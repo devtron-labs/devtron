@@ -60,6 +60,6 @@ func (impl ManifestPushConfigRepositoryImpl) GetManifestPushConfigByAppIdAndEnvI
 }
 
 func (impl ManifestPushConfigRepositoryImpl) UpdateConfig(manifestPushConfig *ManifestPushConfig) error {
-	_, err := impl.dbConnection.Model(manifestPushConfig).Update()
+	_, err := impl.dbConnection.Model(manifestPushConfig).WherePK().Update()
 	return err
 }
