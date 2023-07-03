@@ -303,167 +303,20 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	var existingSecrets *bean3.ConfigSecretJson
 	if isJob {
 		existingConfigMap, existingSecrets, err = impl.appService.GetCmSecretNew(workflowRequest.AppId, workflowRequest.EnvironmentId, isJob)
-		configMaps, secrets, err = getConfigMapsAndSecrets(impl, workflowRequest, isJob, existingConfigMap, existingSecrets)
+		if err != nil {
+			impl.Logger.Errorw("failed to get configmap data", "err", err)
+			return nil, err
+		}
+		impl.Logger.Debugw("existing cm sec", "cm", existingConfigMap, "sec", existingSecrets)
+		configMaps, secrets, err = getConfigMapsAndSecrets(impl, workflowRequest, existingConfigMap, existingSecrets)
+		if err != nil {
+			impl.Logger.Errorw("fail to get config map and secret with new name", err)
+		}
+
 		err = processConfigMapsAndSecrets(impl, &configMaps, &secrets, &entryPoint, &steps, &volumes, &templates)
-		//if err != nil {
-		//	impl.Logger.Errorw("failed to get configmap data", "err", err)
-		//	return nil, err
-		//}
-		//impl.Logger.Debugw("existing cm sec", "cm", existingConfigMap, "sec", existingSecrets)
-		//for _, cm := range existingConfigMap.Maps {
-		//	if cm.External {
-		//		continue
-		//	}
-		//	configMaps.Maps = append(configMaps.Maps, cm)
-		//}
-		//for i := range configMaps.Maps {
-		//	configMaps.Maps[i].Name = configMaps.Maps[i].Name + "-" + strconv.Itoa(workflowRequest.WorkflowId) + "-" + CI_WORKFLOW_NAME
-		//}
-		//
-		//for _, s := range existingSecrets.Secrets {
-		//	if s.External {
-		//		continue
-		//	}
-		//	secrets.Secrets = append(secrets.Secrets, s)
-		//}
-		//for i := range secrets.Secrets {
-		//	secrets.Secrets[i].Name = secrets.Secrets[i].Name + "-" + strconv.Itoa(workflowRequest.WorkflowId) + "-" + CI_WORKFLOW_NAME
-		//}
-		//	configsMapping := make(map[string]string)
-		//	secretsMapping := make(map[string]string)
-		//
-		//	if len(configMaps.Maps) > 0 {
-		//		entryPoint = CI_WORKFLOW_WITH_STAGES
-		//		for i, cm := range configMaps.Maps {
-		//			var datamap map[string]string
-		//			if err := json.Unmarshal(cm.Data, &datamap); err != nil {
-		//				impl.Logger.Errorw("error while unmarshal data", "err", err)
-		//				return nil, err
-		//			}
-		//			ownerDelete := true
-		//			cmBody := v12.ConfigMap{
-		//				TypeMeta: v1.TypeMeta{
-		//					Kind:       "ConfigMap",
-		//					APIVersion: "v1",
-		//				},
-		//				ObjectMeta: v1.ObjectMeta{
-		//					Name: cm.Name,
-		//					OwnerReferences: []v1.OwnerReference{{
-		//						APIVersion:         "argoproj.io/v1alpha1",
-		//						Kind:               "Workflow",
-		//						Name:               "{{workflow.name}}",
-		//						UID:                "{{workflow.uid}}",
-		//						BlockOwnerDeletion: &ownerDelete,
-		//					}},
-		//				},
-		//				Data: datamap,
-		//			}
-		//			cmJson, err := json.Marshal(cmBody)
-		//			if err != nil {
-		//				impl.Logger.Errorw("error in building json", "err", err)
-		//				return nil, err
-		//			}
-		//			configsMapping[cm.Name] = string(cmJson)
-		//
-		//			if cm.Type == "volume" {
-		//				volumes = append(volumes, v12.Volume{
-		//					Name: cm.Name + "-vol",
-		//					VolumeSource: v12.VolumeSource{
-		//						ConfigMap: &v12.ConfigMapVolumeSource{
-		//							LocalObjectReference: v12.LocalObjectReference{
-		//								Name: cm.Name,
-		//							},
-		//						},
-		//					},
-		//				})
-		//			}
-		//			steps = append(steps, v1alpha1.ParallelSteps{
-		//				Steps: []v1alpha1.WorkflowStep{
-		//					{
-		//						Name:     "create-env-cm-" + strconv.Itoa(i),
-		//						Template: "cm-" + strconv.Itoa(i),
-		//					},
-		//				},
-		//			})
-		//		}
-		//	}
-		//	if len(secrets.Secrets) > 0 {
-		//		entryPoint = CI_WORKFLOW_WITH_STAGES
-		//		for i, s := range secrets.Secrets {
-		//			var datamap map[string][]byte
-		//			if err := json.Unmarshal(s.Data, &datamap); err != nil {
-		//				impl.Logger.Errorw("error while unmarshal data", "err", err)
-		//				return nil, err
-		//			}
-		//			ownerDelete := true
-		//			secretObject := v12.Secret{
-		//				TypeMeta: v1.TypeMeta{
-		//					Kind:       "Secret",
-		//					APIVersion: "v1",
-		//				},
-		//				ObjectMeta: v1.ObjectMeta{
-		//					Name: s.Name,
-		//					OwnerReferences: []v1.OwnerReference{{
-		//						APIVersion:         "argoproj.io/v1alpha1",
-		//						Kind:               "Workflow",
-		//						Name:               "{{workflow.name}}",
-		//						UID:                "{{workflow.uid}}",
-		//						BlockOwnerDeletion: &ownerDelete,
-		//					}},
-		//				},
-		//				Data: datamap,
-		//				Type: "Opaque",
-		//			}
-		//			secretJson, err := json.Marshal(secretObject)
-		//			if err != nil {
-		//				impl.Logger.Errorw("error in building json", "err", err)
-		//				return nil, err
-		//			}
-		//			secretsMapping[s.Name] = string(secretJson)
-		//			if s.Type == "volume" {
-		//				volumes = append(volumes, v12.Volume{
-		//					Name: s.Name + "-vol",
-		//					VolumeSource: v12.VolumeSource{
-		//						Secret: &v12.SecretVolumeSource{
-		//							SecretName: s.Name,
-		//						},
-		//					},
-		//				})
-		//			}
-		//			steps = append(steps, v1alpha1.ParallelSteps{
-		//				Steps: []v1alpha1.WorkflowStep{
-		//					{
-		//						Name:     "create-env-sec-" + strconv.Itoa(i),
-		//						Template: "sec-" + strconv.Itoa(i),
-		//					},
-		//				},
-		//			})
-		//		}
-		//	}
-		//	if len(configsMapping) > 0 {
-		//		for i, cm := range configMaps.Maps {
-		//			templates = append(templates, v1alpha1.Template{
-		//				Name: "cm-" + strconv.Itoa(i),
-		//				Resource: &v1alpha1.ResourceTemplate{
-		//					Action:            "create",
-		//					SetOwnerReference: true,
-		//					Manifest:          configsMapping[cm.Name],
-		//				},
-		//			})
-		//		}
-		//	}
-		//	if len(secretsMapping) > 0 {
-		//		for i, s := range secrets.Secrets {
-		//			templates = append(templates, v1alpha1.Template{
-		//				Name: "sec-" + strconv.Itoa(i),
-		//				Resource: &v1alpha1.ResourceTemplate{
-		//					Action:            "create",
-		//					SetOwnerReference: true,
-		//					Manifest:          secretsMapping[s.Name],
-		//				},
-		//			})
-		//		}
-		//	}
+		if err != nil {
+			impl.Logger.Errorw("fail to append cm/cs", err)
+		}
 	}
 	steps = append(steps, v1alpha1.ParallelSteps{
 		Steps: []v1alpha1.WorkflowStep{
@@ -513,83 +366,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		},
 	}
 	if isJob {
-		ciTemplate, err = sortConfigMapsAndSecrets(&configMaps, &secrets, ciTemplate, existingConfigMap, existingSecrets)
-		//for _, cm := range configMaps.Maps {
-		//	if cm.Type == "environment" {
-		//		ciTemplate.Container.EnvFrom = append(ciTemplate.Container.EnvFrom, v12.EnvFromSource{
-		//			ConfigMapRef: &v12.ConfigMapEnvSource{
-		//				LocalObjectReference: v12.LocalObjectReference{
-		//					Name: cm.Name,
-		//				},
-		//			},
-		//		})
-		//	} else if cm.Type == "volume" {
-		//		ciTemplate.Container.VolumeMounts = append(ciTemplate.Container.VolumeMounts, v12.VolumeMount{
-		//			Name:      cm.Name + "-vol",
-		//			MountPath: cm.MountPath,
-		//		})
-		//	}
-		//}
-		//
-		//// Adding external config map reference in workflow template
-		//for _, cm := range existingConfigMap.Maps {
-		//	//if _, ok := cdPipelineLevelConfigMaps[cm.Name]; ok {
-		//	if cm.External {
-		//		if cm.Type == "environment" {
-		//			ciTemplate.Container.EnvFrom = append(ciTemplate.Container.EnvFrom, v12.EnvFromSource{
-		//				ConfigMapRef: &v12.ConfigMapEnvSource{
-		//					LocalObjectReference: v12.LocalObjectReference{
-		//						Name: cm.Name,
-		//					},
-		//				},
-		//			})
-		//		} else if cm.Type == "volume" {
-		//			ciTemplate.Container.VolumeMounts = append(ciTemplate.Container.VolumeMounts, v12.VolumeMount{
-		//				Name:      cm.Name,
-		//				MountPath: cm.MountPath,
-		//			})
-		//		}
-		//	}
-		//	//}
-		//}
-		//
-		//for _, s := range secrets.Secrets {
-		//	if s.Type == "environment" {
-		//		ciTemplate.Container.EnvFrom = append(ciTemplate.Container.EnvFrom, v12.EnvFromSource{
-		//			SecretRef: &v12.SecretEnvSource{
-		//				LocalObjectReference: v12.LocalObjectReference{
-		//					Name: s.Name,
-		//				},
-		//			},
-		//		})
-		//	} else if s.Type == "volume" {
-		//		ciTemplate.Container.VolumeMounts = append(ciTemplate.Container.VolumeMounts, v12.VolumeMount{
-		//			Name:      s.Name + "-vol",
-		//			MountPath: s.MountPath,
-		//		})
-		//	}
-		//}
-		//
-		//// Adding external secret reference in workflow template
-		//for _, s := range existingSecrets.Secrets {
-		//	if s.External {
-		//		if s.Type == "environment" {
-		//			ciTemplate.Container.EnvFrom = append(ciTemplate.Container.EnvFrom, v12.EnvFromSource{
-		//				SecretRef: &v12.SecretEnvSource{
-		//					LocalObjectReference: v12.LocalObjectReference{
-		//						Name: s.Name,
-		//					},
-		//				},
-		//			})
-		//		} else if s.Type == "volume" {
-		//			ciTemplate.Container.VolumeMounts = append(ciTemplate.Container.VolumeMounts, v12.VolumeMount{
-		//				Name:      s.Name,
-		//				MountPath: s.MountPath,
-		//			})
-		//		}
-		//	}
-		//
-		//}
+		ciTemplate, err = getCiTemplateWithConfigMapsAndSecrets(&configMaps, &secrets, ciTemplate, existingConfigMap, existingSecrets)
 	}
 	if impl.ciConfig.UseBlobStorageConfigInCiWorkflow {
 		gcpBlobConfig := workflowRequest.GcpBlobConfig
@@ -795,7 +572,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	return createdWf, err
 }
 
-func getConfigMapsAndSecrets(impl *WorkflowServiceImpl, workflowRequest *WorkflowRequest, isJob bool, existingConfigMap *bean3.ConfigMapJson, existingSecrets *bean3.ConfigSecretJson) (bean3.ConfigMapJson, bean3.ConfigSecretJson, error) {
+func getConfigMapsAndSecrets(impl *WorkflowServiceImpl, workflowRequest *WorkflowRequest, existingConfigMap *bean3.ConfigMapJson, existingSecrets *bean3.ConfigSecretJson) (bean3.ConfigMapJson, bean3.ConfigSecretJson, error) {
 	configMaps := bean3.ConfigMapJson{}
 	secrets := bean3.ConfigSecretJson{}
 	impl.Logger.Debugw("existing cm sec", "cm", existingConfigMap, "sec", existingSecrets)
@@ -966,7 +743,7 @@ func processConfigMapsAndSecrets(impl *WorkflowServiceImpl, configMaps *bean3.Co
 
 	return nil
 }
-func sortConfigMapsAndSecrets(configMaps *bean3.ConfigMapJson, secrets *bean3.ConfigSecretJson, ciTemplate v1alpha1.Template, existingConfigMap *bean3.ConfigMapJson, existingSecrets *bean3.ConfigSecretJson) (v1alpha1.Template, error) {
+func getCiTemplateWithConfigMapsAndSecrets(configMaps *bean3.ConfigMapJson, secrets *bean3.ConfigSecretJson, ciTemplate v1alpha1.Template, existingConfigMap *bean3.ConfigMapJson, existingSecrets *bean3.ConfigSecretJson) (v1alpha1.Template, error) {
 	for _, cm := range configMaps.Maps {
 		if cm.Type == "environment" {
 			ciTemplate.Container.EnvFrom = append(ciTemplate.Container.EnvFrom, v12.EnvFromSource{
