@@ -1,1 +1,1 @@
-stable 3 v0.6.18-rc.3
+stable -1 v0.6.18
