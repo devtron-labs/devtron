@@ -3390,17 +3390,21 @@ func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, pipeline *
 			}
 		}
 	}
-	if util.IsManifestPush(pipeline.DeploymentAppType) {
+	pipelineDbObj, err := impl.pipelineRepository.FindById(pipeline.Id)
+	if err != nil {
+		impl.logger.Errorw("error in fetching pipeline by id", "err", err, "pipeline_id", pipeline.Id)
+		return err
+	}
+	if util.IsManifestPush(pipelineDbObj.DeploymentAppType) || util.IsManifestDownload(pipelineDbObj.DeploymentAppType) {
+		pipeline.AppId = pipelineDbObj.AppId
+		manifestPushConfig, err := impl.manifestPushConfigRepository.GetManifestPushConfigByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("error in getting manifest push config by appId and envId", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
+			return err
+		}
 		if pipeline.ManifestStorageType == bean.ManifestStorageGit {
 			//implement
 		} else if pipeline.ManifestStorageType == bean.ManifestStorageOCIHelmRepo {
-
-			pipelineDbObj, err := impl.pipelineRepository.FindById(pipeline.Id)
-			if err != nil {
-				impl.logger.Errorw("error in fetching pipeline by id", "err", err, "pipeline_id", pipeline.Id)
-			}
-			pipeline.AppId = pipelineDbObj.AppId
-
 			helmRepositoryConfig := bean4.HelmRepositoryConfig{
 				RepositoryName:        pipeline.RepoName,
 				ContainerRegistryName: pipeline.ContainerRegistryName,
@@ -3410,17 +3414,18 @@ func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, pipeline *
 				impl.logger.Errorw("error in marshaling helm registry config", "err", err)
 				return err
 			}
-			manifestPushConfig, err := impl.manifestPushConfigRepository.GetManifestPushConfigByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId)
-			if err != nil {
-				impl.logger.Errorw("error in getting manifest push config by appId and envId", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
-				return err
-			}
 			manifestPushConfig.CredentialsConfig = string(helmRepositoryConfigBytes)
-			err = impl.manifestPushConfigRepository.UpdateConfig(manifestPushConfig)
-			if err != nil {
-				impl.logger.Errorw("error in updating config for oci helm repo", "err", err)
-				return err
-			}
+		}
+		pipelineDbObj.DeploymentAppType = pipeline.DeploymentAppType
+		err = impl.pipelineRepository.Update(pipelineDbObj, tx)
+		if err != nil {
+			impl.logger.Errorw("error in updating pipeline deployment app type", "err", err)
+			return err
+		}
+		err = impl.manifestPushConfigRepository.UpdateConfig(manifestPushConfig)
+		if err != nil {
+			impl.logger.Errorw("error in updating config for oci helm repo", "err", err)
+			return err
 		}
 	}
 	err = tx.Commit()
