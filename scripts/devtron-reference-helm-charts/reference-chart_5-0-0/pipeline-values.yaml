@@ -4,7 +4,7 @@ deployment:
       autoPromotionSeconds: 30
       scaleDownDelaySeconds: 30
       previewReplicaCount: 1
-      autoPromotionEnabled: false
+      autoPromotionEnabled: true
     rolling:
       maxSurge: "25%"
       maxUnavailable: 1
