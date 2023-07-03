@@ -43,7 +43,11 @@ Spec:
 #  Key: kops.k8s.io/instancegroup 
   Values:
 
-analysis: {}
+
+image:
+  pullPolicy: IfNotPresent
+
+restartPolicy: Always
 
 analysisTemplate:
   enabled: false
@@ -74,9 +78,6 @@ analysisTemplate:
   #           sum(irate(
   #             istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
   #           ))
-
-image:
-  pullPolicy: IfNotPresent
 
 autoscaling:
   enabled: false
@@ -145,6 +146,7 @@ secret:
   enabled: false
 
 service:
+  enabled: true
   type: ClusterIP
 #  name: "1234567890123456789012345678901234567890123456789012345678901234567890"
   annotations: {}
@@ -156,13 +158,23 @@ server:
    image_tag: 1-95af053
    image: ""
 
-EnvVariablesFromFieldPath:
-- name: POD_NAME
-  fieldPath: metadata.name
+EnvVariablesFromFieldPath: []
+# - name: POD_NAME
+#   fieldPath: metadata.name
 
-EnvVariables:
-  - name: FLASK_ENV
-    value: qa
+EnvVariables: []
+  # - name: FLASK_ENV
+  #   value: qa
+
+EnvVariablesFromSecretKeys: []
+  # - name: ENV_NAME
+  #   secretName: SECRET_NAME
+  #   keyName: SECRET_KEY
+
+EnvVariablesFromConfigMapKeys: []
+  # - name: ENV_NAME
+  #   configMapName: CONFIG_MAP_NAME
+  #   keyName: CONFIG_MAP_KEY
 
 LivenessProbe:
   Path: /
@@ -187,6 +199,18 @@ ReadinessProbe:
   httpHeaders: []
 #    - name: Custom-Header
 #      value: abc
+
+StartupProbe:
+  Path: ""
+  port: 8080
+  initialDelaySeconds: 20
+  periodSeconds: 10
+  successThreshold: 1
+  timeoutSeconds: 5
+  failureThreshold: 3
+  httpHeaders: []
+  command: []
+  tcp: false
 
 prometheus:
   release: monitoring
@@ -286,13 +310,12 @@ istio:
     annotations: {}
     gateways: []
     hosts: []
-    http:
+    http: []
       # - match:
       #   - uri:
       #       prefix: /v1
       #   - uri:
       #       prefix: /v2
-      #   rewriteUri: /
       #   timeout: 12
       #   headers:
       #     request:
@@ -301,13 +324,49 @@ istio:
       #   retries:
       #     attempts: 2 
       #     perTryTimeout: 3s 
-      #   route:
-      #   - destination:
-      #       host: service1
-      #       port: 80
-      # - route:
-      #   - destination:
-      #       host: service2
+  destinationRule:
+    enabled: false
+    labels: {}
+    annotations: {}
+    subsets: []
+    trafficPolicy: {}
+  peerAuthentication:
+    enabled: false
+    labels: {}
+    annotations: {}
+    selector:
+      enabled: false
+    mtls:
+      mode:
+    portLevelMtls: {}
+  requestAuthentication:
+    enabled: false
+    labels: {}
+    annotations: {}
+    selector:
+      enabled: false
+    jwtRules: []
+  authorizationPolicy:
+    enabled: false
+    labels: {}
+    annotations: {}
+    action:
+    provider: {}
+    rules: []
+
+networkPolicy:
+  enabled: false
+  annotations: {}
+  labels: {}
+  podSelector: 
+    matchExpressions: []
+    matchLabels: {}
+  policyTypes: []
+  ingress: []
+  egress: []
+
+hibernator:
+  enable: false
 
 dbMigrationConfig:
   enabled: false
@@ -463,6 +522,20 @@ rawYaml: []
 #    sessionAffinity: None
 #    type: ClusterIP
 
+winterSoldier:
+  enabled: false
+  apiVersion: pincher.devtron.ai/v1alpha1
+  labels: {}
+  annotations: {}
+  timeRangesWithZone: {}
+  # timeZone: "Asia/Kolkata"
+  # timeRanges: []
+  action: sleep
+  targetReplicas: []
+  fieldSelector: []
+  type: Rollout
+  # - AfterTime(AddTime(ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '5m'), Now())
+
 topologySpreadConstraints: []
   # - maxSkew: 1
   #   topologyKey: zone
@@ -471,7 +544,7 @@ topologySpreadConstraints: []
   #   customLabelSelector: {}
 
 envoyproxy:
- image: quay.io/devtron/envoy:v1.14.1
+ image: docker.io/envoyproxy/envoy:v1.16.0
  lifecycle: {}
  configMapName: ""
  resources:
