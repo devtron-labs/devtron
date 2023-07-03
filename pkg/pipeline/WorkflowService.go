@@ -798,12 +798,6 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 func getConfigMapsAndSecrets(impl *WorkflowServiceImpl, workflowRequest *WorkflowRequest, isJob bool, existingConfigMap *bean3.ConfigMapJson, existingSecrets *bean3.ConfigSecretJson) (*bean3.ConfigMapJson, *bean3.ConfigSecretJson, error) {
 	configMaps := bean3.ConfigMapJson{}
 	secrets := bean3.ConfigSecretJson{}
-	var err error
-	existingConfigMap, existingSecrets, err = impl.appService.GetCmSecretNew(workflowRequest.AppId, workflowRequest.EnvironmentId, isJob)
-	if err != nil {
-		impl.Logger.Errorw("failed to get configmap data", "err", err)
-		return nil, nil, err
-	}
 	impl.Logger.Debugw("existing cm sec", "cm", existingConfigMap, "sec", existingSecrets)
 	for _, cm := range existingConfigMap.Maps {
 		if cm.External {
@@ -838,8 +832,8 @@ func processConfigMapsAndSecrets(impl *WorkflowServiceImpl, configMaps *bean3.Co
 	if len(configMaps.Maps) > 0 {
 		entryPoint = CI_WORKFLOW_WITH_STAGES
 		for i, cm := range configMaps.Maps {
-			var datamap map[string]string
-			if err := json.Unmarshal(cm.Data, &datamap); err != nil {
+			var dataMap map[string]string
+			if err := json.Unmarshal(cm.Data, &dataMap); err != nil {
 				impl.Logger.Errorw("error while unmarshal data", "err", err)
 				return nil, nil, nil, err
 			}
@@ -859,7 +853,7 @@ func processConfigMapsAndSecrets(impl *WorkflowServiceImpl, configMaps *bean3.Co
 						BlockOwnerDeletion: &ownerDelete,
 					}},
 				},
-				Data: datamap,
+				Data: dataMap,
 			}
 			cmJson, err := json.Marshal(cmBody)
 			if err != nil {
