@@ -4239,7 +4239,7 @@ func (impl PipelineBuilderImpl) GetCdPipelineById(pipelineId int) (cdPipeline *b
 	}
 
 	manifestPushConfig, err := impl.manifestPushConfigRepository.GetManifestPushConfigByAppIdAndEnvId(dbPipeline.AppId, dbPipeline.EnvironmentId)
-	if err != nil && err != pg.ErrNoRows {
+	if err != nil {
 		impl.logger.Errorw("error in fetching manifest push config by appId and envId", "appId", dbPipeline.AppId, "envId", dbPipeline.EnvironmentId)
 		return nil, err
 	}
