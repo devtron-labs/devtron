@@ -320,7 +320,6 @@ spec:
           envFrom:
           {{- if .Values.ConfigMaps.enabled }}
           {{- range .Values.ConfigMaps.maps }}
-          {{- if and .name .type .external }}
           {{- if eq .type "environment" }}
           - configMapRef:
               {{- if eq .external true }}
@@ -331,10 +330,8 @@ spec:
           {{- end }}
           {{- end }}
           {{- end }}
-          {{- end }}
           {{- if .Values.ConfigSecrets.enabled }}
           {{- range .Values.ConfigSecrets.secrets }}
-          {{- if and .name .type .external }}
           {{- if eq .type "environment" }}
           - secretRef:
               {{if eq .external true}}
@@ -342,7 +339,6 @@ spec:
               {{else if eq .external false}}
               name: {{ .name}}-{{ $.Values.app }}
               {{- end }}
-          {{- end }}
           {{- end }}
           {{- end }}
           {{- end }}
