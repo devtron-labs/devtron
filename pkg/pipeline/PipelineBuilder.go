@@ -2081,7 +2081,7 @@ func (impl PipelineBuilderImpl) PatchCdPipelines(cdPipelines *bean.CDPatchReques
 	case bean.CD_CREATE:
 		return impl.CreateCdPipelines(pipelineRequest, ctx)
 	case bean.CD_UPDATE:
-		err := impl.updateCdPipeline(ctx, cdPipelines.Pipeline, cdPipelines.UserId)
+		err := impl.updateCdPipeline(ctx, cdPipelines.AppId, cdPipelines.Pipeline, cdPipelines.UserId)
 		return pipelineRequest, err
 	case bean.CD_DELETE:
 		pipeline, err := impl.pipelineRepository.FindById(cdPipelines.Pipeline.Id)
@@ -3282,7 +3282,7 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 	return pipelineId, nil
 }
 
-func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, pipeline *bean.CDPipelineConfigObject, userID int32) (err error) {
+func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, appId int, pipeline *bean.CDPipelineConfigObject, userID int32) (err error) {
 
 	if len(pipeline.PreStage.Config) > 0 && !strings.Contains(pipeline.PreStage.Config, "beforeStages") {
 		err = &util.ApiError{
@@ -3405,6 +3405,22 @@ func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, pipeline *
 		if pipeline.ManifestStorageType == bean.ManifestStorageGit {
 			//implement
 		} else if pipeline.ManifestStorageType == bean.ManifestStorageOCIHelmRepo {
+			if manifestPushConfig.Id == 0 {
+				manifestPushConfig = &repository3.ManifestPushConfig{
+					AppId:            appId,
+					EnvId:            pipeline.EnvironmentId,
+					ChartName:        pipeline.ChartName,
+					ChartBaseVersion: pipeline.ChartBaseVersion,
+					StorageType:      bean.ManifestStorageOCIHelmRepo,
+					Deleted:          false,
+					AuditLog: sql.AuditLog{
+						CreatedOn: time.Now(),
+						CreatedBy: userID,
+						UpdatedOn: time.Now(),
+						UpdatedBy: userID,
+					},
+				}
+			}
 			helmRepositoryConfig := bean4.HelmRepositoryConfig{
 				RepositoryName:        pipeline.RepoName,
 				ContainerRegistryName: pipeline.ContainerRegistryName,
@@ -3422,10 +3438,18 @@ func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, pipeline *
 			impl.logger.Errorw("error in updating pipeline deployment app type", "err", err)
 			return err
 		}
-		err = impl.manifestPushConfigRepository.UpdateConfig(manifestPushConfig)
-		if err != nil {
-			impl.logger.Errorw("error in updating config for oci helm repo", "err", err)
-			return err
+		if manifestPushConfig.Id == 0 {
+			manifestPushConfig, err = impl.manifestPushConfigRepository.SaveConfig(manifestPushConfig)
+			if err != nil {
+				impl.logger.Errorw("error in saving config for oci helm repo", "err", err)
+				return err
+			}
+		} else {
+			err = impl.manifestPushConfigRepository.UpdateConfig(manifestPushConfig)
+			if err != nil {
+				impl.logger.Errorw("error in updating config for oci helm repo", "err", err)
+				return err
+			}
 		}
 	}
 	err = tx.Commit()
@@ -4259,7 +4283,7 @@ func (impl PipelineBuilderImpl) GetCdPipelineById(pipelineId int) (cdPipeline *b
 	}
 
 	var containerRegistryName, repoName, manifestStorageType string
-	if manifestPushConfig != nil {
+	if manifestPushConfig.Id != 0 {
 		manifestStorageType = manifestPushConfig.StorageType
 		if manifestStorageType == bean.ManifestStorageOCIHelmRepo {
 			var credentialsConfig bean4.HelmRepositoryConfig
