@@ -1,1 +1,1 @@
-beta 4 v0.6.18-rc.4
+stable 3 v0.6.18-rc.3
