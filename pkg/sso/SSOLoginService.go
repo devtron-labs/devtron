@@ -171,15 +171,23 @@ func (impl SSOLoginServiceImpl) UpdateSSOLogin(request *bean.SSOLoginDto) (*bean
 	configString := string(configDataByte)
 	var configData Config
 	err = json.Unmarshal([]byte(configString), &configData)
+	if err != nil {
+		impl.logger.Debugw("error while Unmarshal", "error", err)
+		return nil, err
+	}
 	var modelConfigData Config
 	err = json.Unmarshal([]byte(model.Config), &modelConfigData)
-	if configData.Config["clientID"] == "" && modelConfigData.Config["clientID"] != "" {
-		configData.Config["clientID"] = modelConfigData.Config["clientID"]
+	if err != nil {
+		impl.logger.Debugw("error while Unmarshal", "error", err)
+		return nil, err
 	}
-	if configData.Config["clientSecret"] == "" && modelConfigData.Config["clientSecret"] != "" {
-		configData.Config["clientSecret"] = modelConfigData.Config["clientSecret"]
+	emptyConfigCheck(&configData, &modelConfigData, "clientId")
+	emptyConfigCheck(&configData, &modelConfigData, "clientSecret")
+	newConfigString, err := json.Marshal(configData)
+	if err != nil {
+		impl.logger.Debugw("error while Marshal", "error", err)
+		return nil, err
 	}
-	newConfigString, _ := json.Marshal(configData)
 	updatedConfig := string(newConfigString)
 	model.Label = request.Label
 	model.Url = request.Url
@@ -345,6 +353,10 @@ func (impl SSOLoginServiceImpl) GetByName(name string) (*bean.SSOLoginDto, error
 	}
 	var configData Config
 	err = json.Unmarshal([]byte(model.Config), &configData)
+	if err != nil {
+		impl.logger.Debugw("error while Unmarshal", "error", err)
+		return nil, err
+	}
 	if configData.Config["clientID"] != "" {
 
 		configData.Config["clientID"] = ""
@@ -352,7 +364,13 @@ func (impl SSOLoginServiceImpl) GetByName(name string) (*bean.SSOLoginDto, error
 	if configData.Config["clientSecret"] != "" {
 		configData.Config["clientSecret"] = ""
 	}
-	configString, _ := json.Marshal(configData)
+	makeIdSecretEmpty(&configData, "clientID")
+	makeIdSecretEmpty(&configData, "clientSecret")
+	configString, err := json.Marshal(configData)
+	if err != nil {
+		impl.logger.Debugw("error while Unmarshal", "error", err)
+		return nil, err
+	}
 	var config json.RawMessage
 	err = json.Unmarshal(configString, &config)
 	if err != nil {
@@ -368,4 +386,16 @@ func (impl SSOLoginServiceImpl) GetByName(name string) (*bean.SSOLoginDto, error
 		Url:    model.Url,
 	}
 	return ssoLoginDto, nil
+}
+
+func emptyConfigCheck(configData *Config, modelConfigData *Config, key string) {
+	if configData.Config[key] == "" && modelConfigData.Config[key] != "" {
+		configData.Config[key] = modelConfigData.Config[key]
+	}
+}
+
+func makeIdSecretEmpty(configData *Config, key string) {
+	if configData.Config[key] != "" {
+		configData.Config[key] = ""
+	}
 }
