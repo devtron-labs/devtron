@@ -304,7 +304,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	if isJob {
 		existingConfigMap, existingSecrets, err = impl.appService.GetCmSecretNew(workflowRequest.AppId, workflowRequest.EnvironmentId, isJob)
 		configMaps, secrets, err = getConfigMapsAndSecrets(impl, workflowRequest, isJob, existingConfigMap, existingSecrets)
-		volumes, steps, templates, err = processConfigMapsAndSecrets(impl, configMaps, secrets, entryPoint)
+		err = processConfigMapsAndSecrets(impl, configMaps, secrets, entryPoint, &steps, &volumes, &templates)
 		//if err != nil {
 		//	impl.Logger.Errorw("failed to get configmap data", "err", err)
 		//	return nil, err
@@ -820,11 +820,7 @@ func getConfigMapsAndSecrets(impl *WorkflowServiceImpl, workflowRequest *Workflo
 	}
 	return &configMaps, &secrets, nil
 }
-func processConfigMapsAndSecrets(impl *WorkflowServiceImpl, configMaps *bean3.ConfigMapJson, secrets *bean3.ConfigSecretJson, entryPoint string) ([]v12.Volume, []v1alpha1.ParallelSteps, []v1alpha1.Template, error) {
-
-	var volumes []v12.Volume
-	var steps []v1alpha1.ParallelSteps
-	var templates []v1alpha1.Template
+func processConfigMapsAndSecrets(impl *WorkflowServiceImpl, configMaps *bean3.ConfigMapJson, secrets *bean3.ConfigSecretJson, entryPoint string, steps *[]v1alpha1.ParallelSteps, volumes *[]v12.Volume, templates *[]v1alpha1.Template) error {
 
 	configsMapping := make(map[string]string)
 	secretsMapping := make(map[string]string)
@@ -835,7 +831,7 @@ func processConfigMapsAndSecrets(impl *WorkflowServiceImpl, configMaps *bean3.Co
 			var dataMap map[string]string
 			if err := json.Unmarshal(cm.Data, &dataMap); err != nil {
 				impl.Logger.Errorw("error while unmarshal data", "err", err)
-				return nil, nil, nil, err
+				return err
 			}
 			ownerDelete := true
 			cmBody := v12.ConfigMap{
@@ -858,12 +854,12 @@ func processConfigMapsAndSecrets(impl *WorkflowServiceImpl, configMaps *bean3.Co
 			cmJson, err := json.Marshal(cmBody)
 			if err != nil {
 				impl.Logger.Errorw("error in building json", "err", err)
-				return nil, nil, nil, err
+				return err
 			}
 			configsMapping[cm.Name] = string(cmJson)
 
 			if cm.Type == "volume" {
-				volumes = append(volumes, v12.Volume{
+				*volumes = append(*volumes, v12.Volume{
 					Name: cm.Name + "-vol",
 					VolumeSource: v12.VolumeSource{
 						ConfigMap: &v12.ConfigMapVolumeSource{
@@ -875,7 +871,7 @@ func processConfigMapsAndSecrets(impl *WorkflowServiceImpl, configMaps *bean3.Co
 				})
 			}
 
-			steps = append(steps, v1alpha1.ParallelSteps{
+			*steps = append(*steps, v1alpha1.ParallelSteps{
 				Steps: []v1alpha1.WorkflowStep{
 					{
 						Name:     "create-env-cm-" + strconv.Itoa(i),
@@ -892,7 +888,7 @@ func processConfigMapsAndSecrets(impl *WorkflowServiceImpl, configMaps *bean3.Co
 			var datamap map[string][]byte
 			if err := json.Unmarshal(s.Data, &datamap); err != nil {
 				impl.Logger.Errorw("error while unmarshal data", "err", err)
-				return nil, nil, nil, err
+				return err
 			}
 			ownerDelete := true
 			secretObject := v12.Secret{
@@ -916,12 +912,12 @@ func processConfigMapsAndSecrets(impl *WorkflowServiceImpl, configMaps *bean3.Co
 			secretJson, err := json.Marshal(secretObject)
 			if err != nil {
 				impl.Logger.Errorw("error in building json", "err", err)
-				return nil, nil, nil, err
+				return err
 			}
 			secretsMapping[s.Name] = string(secretJson)
 
 			if s.Type == "volume" {
-				volumes = append(volumes, v12.Volume{
+				*volumes = append(*volumes, v12.Volume{
 					Name: s.Name + "-vol",
 					VolumeSource: v12.VolumeSource{
 						Secret: &v12.SecretVolumeSource{
@@ -931,7 +927,7 @@ func processConfigMapsAndSecrets(impl *WorkflowServiceImpl, configMaps *bean3.Co
 				})
 			}
 
-			steps = append(steps, v1alpha1.ParallelSteps{
+			*steps = append(*steps, v1alpha1.ParallelSteps{
 				Steps: []v1alpha1.WorkflowStep{
 					{
 						Name:     "create-env-sec-" + strconv.Itoa(i),
@@ -944,7 +940,7 @@ func processConfigMapsAndSecrets(impl *WorkflowServiceImpl, configMaps *bean3.Co
 
 	if len(configsMapping) > 0 {
 		for i, cm := range configMaps.Maps {
-			templates = append(templates, v1alpha1.Template{
+			*templates = append(*templates, v1alpha1.Template{
 				Name: "cm-" + strconv.Itoa(i),
 				Resource: &v1alpha1.ResourceTemplate{
 					Action:            "create",
@@ -957,7 +953,7 @@ func processConfigMapsAndSecrets(impl *WorkflowServiceImpl, configMaps *bean3.Co
 
 	if len(secretsMapping) > 0 {
 		for i, s := range secrets.Secrets {
-			templates = append(templates, v1alpha1.Template{
+			*templates = append(*templates, v1alpha1.Template{
 				Name: "sec-" + strconv.Itoa(i),
 				Resource: &v1alpha1.ResourceTemplate{
 					Action:            "create",
@@ -968,7 +964,7 @@ func processConfigMapsAndSecrets(impl *WorkflowServiceImpl, configMaps *bean3.Co
 		}
 	}
 
-	return volumes, steps, templates, nil
+	return nil
 }
 func sortConfigMapsAndSecrets(configMaps *bean3.ConfigMapJson, secrets *bean3.ConfigSecretJson, ciTemplate v1alpha1.Template, existingConfigMap *bean3.ConfigMapJson, existingSecrets *bean3.ConfigSecretJson) (v1alpha1.Template, error) {
 	for _, cm := range configMaps.Maps {
