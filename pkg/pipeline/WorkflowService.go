@@ -304,7 +304,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	if isJob {
 		existingConfigMap, existingSecrets, err = impl.appService.GetCmSecretNew(workflowRequest.AppId, workflowRequest.EnvironmentId, isJob)
 		configMaps, secrets, err = getConfigMapsAndSecrets(impl, workflowRequest, isJob, existingConfigMap, existingSecrets)
-		err = processConfigMapsAndSecrets(impl, &configMaps, &secrets, entryPoint, &steps, &volumes, &templates)
+		err = processConfigMapsAndSecrets(impl, &configMaps, &secrets, &entryPoint, &steps, &volumes, &templates)
 		//if err != nil {
 		//	impl.Logger.Errorw("failed to get configmap data", "err", err)
 		//	return nil, err
@@ -820,13 +820,13 @@ func getConfigMapsAndSecrets(impl *WorkflowServiceImpl, workflowRequest *Workflo
 	}
 	return configMaps, secrets, nil
 }
-func processConfigMapsAndSecrets(impl *WorkflowServiceImpl, configMaps *bean3.ConfigMapJson, secrets *bean3.ConfigSecretJson, entryPoint string, steps *[]v1alpha1.ParallelSteps, volumes *[]v12.Volume, templates *[]v1alpha1.Template) error {
+func processConfigMapsAndSecrets(impl *WorkflowServiceImpl, configMaps *bean3.ConfigMapJson, secrets *bean3.ConfigSecretJson, entryPoint *string, steps *[]v1alpha1.ParallelSteps, volumes *[]v12.Volume, templates *[]v1alpha1.Template) error {
 
 	configsMapping := make(map[string]string)
 	secretsMapping := make(map[string]string)
 
 	if len(configMaps.Maps) > 0 {
-		entryPoint = CI_WORKFLOW_WITH_STAGES
+		*entryPoint = CI_WORKFLOW_WITH_STAGES
 		for i, cm := range configMaps.Maps {
 			var dataMap map[string]string
 			if err := json.Unmarshal(cm.Data, &dataMap); err != nil {
@@ -883,7 +883,7 @@ func processConfigMapsAndSecrets(impl *WorkflowServiceImpl, configMaps *bean3.Co
 	}
 	//entryPoint = CI_WORKFLOW_WITH_STAGES
 	if len(secrets.Secrets) > 0 {
-		entryPoint = CI_WORKFLOW_WITH_STAGES
+		*entryPoint = CI_WORKFLOW_WITH_STAGES
 		for i, s := range secrets.Secrets {
 			var datamap map[string][]byte
 			if err := json.Unmarshal(s.Data, &datamap); err != nil {
