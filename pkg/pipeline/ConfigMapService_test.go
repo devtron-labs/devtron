@@ -13,6 +13,7 @@ import (
 	mocks3 "github.com/devtron-labs/devtron/pkg/commonService/mocks"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	mocks5 "github.com/devtron-labs/devtron/pkg/pipeline/history/mocks"
+	"github.com/go-pg/pg"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"go.uber.org/zap"
@@ -20,7 +21,7 @@ import (
 )
 
 func TestConfigMapServiceImpl_ConfigSecretEnvironmentCreate(t *testing.T) {
-	t.SkipNow()
+	//t.SkipNow()
 	chartRepository := mocks.NewChartRepository(t)
 	sugaredLogger, _ := util.NewSugardLogger()
 
@@ -32,8 +33,8 @@ func TestConfigMapServiceImpl_ConfigSecretEnvironmentCreate(t *testing.T) {
 	appRepository := mocks4.NewAppRepository(t)
 	configMapHistoryService := mocks5.NewConfigMapHistoryService(t)
 	configMap := &chartConfig.ConfigMapEnvModel{
-		AppId:         20,
-		EnvironmentId: 4,
+		AppId:         22,
+		EnvironmentId: 5,
 	}
 	type args struct {
 		createJobEnvOverrideRequest *CreateJobEnvOverridePayload
@@ -47,8 +48,8 @@ func TestConfigMapServiceImpl_ConfigSecretEnvironmentCreate(t *testing.T) {
 		{
 			name: "create environment override",
 			args: args{createJobEnvOverrideRequest: &CreateJobEnvOverridePayload{
-				AppId: 20,
-				EnvId: 4,
+				AppId: 22,
+				EnvId: 5,
 			}},
 			want:    configMap,
 			wantErr: assert.NoError,
@@ -68,8 +69,8 @@ func TestConfigMapServiceImpl_ConfigSecretEnvironmentCreate(t *testing.T) {
 				appRepository:               appRepository,
 				configMapHistoryService:     configMapHistoryService,
 			}
-			configMapRepository.On("GetByAppIdAndEnvIdEnvLevel", 20, 4).Return(configMap, nil)
-			configMapRepository.On("UpdateEnvLevel", mock.Anything).Return(nil, nil)
+			configMapRepository.On("GetByAppIdAndEnvIdEnvLevel", 22, 5).Return(nil, pg.ErrNoRows)
+			configMapRepository.On("CreateEnvLevel", configMap).Return(configMap, nil)
 			got, err := impl.ConfigSecretEnvironmentCreate(tt.args.createJobEnvOverrideRequest)
 			if !tt.wantErr(t, err, fmt.Sprintf("ConfigSecretEnvironmentCreate(%v)", tt.args.createJobEnvOverrideRequest)) {
 				return
