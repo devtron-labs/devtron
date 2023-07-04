@@ -1817,9 +1817,6 @@ func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentCreate(createJobEnvOverr
 	}
 	model.CreatedBy = createJobEnvOverrideRequest.UserId
 	model.UpdatedBy = createJobEnvOverrideRequest.UserId
-	model.CreatedOn = time.Now()
-	model.UpdatedOn = time.Now()
-
 	configMap, err = impl.configMapRepository.CreateEnvLevel(model)
 	if err != nil {
 		impl.logger.Errorw("error while creating app level", "error", err)

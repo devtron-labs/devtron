@@ -36,6 +36,9 @@ func TestConfigMapServiceImpl_ConfigSecretEnvironmentCreate(t *testing.T) {
 		AppId:         22,
 		EnvironmentId: 5,
 	}
+	model := &chartConfig.ConfigMapEnvModel{
+		AppId:         22,
+		EnvironmentId: 5}
 	type args struct {
 		createJobEnvOverrideRequest *CreateJobEnvOverridePayload
 	}
@@ -70,7 +73,7 @@ func TestConfigMapServiceImpl_ConfigSecretEnvironmentCreate(t *testing.T) {
 				configMapHistoryService:     configMapHistoryService,
 			}
 			configMapRepository.On("GetByAppIdAndEnvIdEnvLevel", 22, 5).Return(nil, pg.ErrNoRows)
-			configMapRepository.On("CreateEnvLevel", configMap).Return(configMap, nil)
+			configMapRepository.On("CreateEnvLevel", model).Return(model, nil)
 			got, err := impl.ConfigSecretEnvironmentCreate(tt.args.createJobEnvOverrideRequest)
 			if !tt.wantErr(t, err, fmt.Sprintf("ConfigSecretEnvironmentCreate(%v)", tt.args.createJobEnvOverrideRequest)) {
 				return
