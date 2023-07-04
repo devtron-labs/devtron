@@ -1,4 +1,5 @@
 {{- with .Values.components.migrator }}
+---
 {{- if $.Capabilities.APIVersions.Has "batch/v1/Job" -}}
 apiVersion: batch/v1
 {{- else -}}
