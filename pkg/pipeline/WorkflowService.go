@@ -597,151 +597,312 @@ func getConfigMapsAndSecrets(impl *WorkflowServiceImpl, workflowRequest *Workflo
 	}
 	return configMaps, secrets, nil
 }
+
+// func processConfigMapsAndSecrets(impl *WorkflowServiceImpl, configMaps *bean3.ConfigMapJson, secrets *bean3.ConfigSecretJson, entryPoint *string, steps *[]v1alpha1.ParallelSteps, volumes *[]v12.Volume, templates *[]v1alpha1.Template) error {
+//
+//		configsMapping := make(map[string]string)
+//		secretsMapping := make(map[string]string)
+//
+//		if len(configMaps.Maps) > 0 {
+//			*entryPoint = CI_WORKFLOW_WITH_STAGES
+//			for i, cm := range configMaps.Maps {
+//				var dataMap map[string]string
+//				if err := json.Unmarshal(cm.Data, &dataMap); err != nil {
+//					impl.Logger.Errorw("error while unmarshal data", "err", err)
+//					return err
+//				}
+//				ownerDelete := true
+//				cmBody := v12.ConfigMap{
+//					TypeMeta: v1.TypeMeta{
+//						Kind:       "ConfigMap",
+//						APIVersion: "v1",
+//					},
+//					ObjectMeta: v1.ObjectMeta{
+//						Name: cm.Name,
+//						OwnerReferences: []v1.OwnerReference{{
+//							APIVersion:         "argoproj.io/v1alpha1",
+//							Kind:               "Workflow",
+//							Name:               "{{workflow.name}}",
+//							UID:                "{{workflow.uid}}",
+//							BlockOwnerDeletion: &ownerDelete,
+//						}},
+//					},
+//					Data: dataMap,
+//				}
+//				cmJson, err := json.Marshal(cmBody)
+//				if err != nil {
+//					impl.Logger.Errorw("error in building json", "err", err)
+//					return err
+//				}
+//				configsMapping[cm.Name] = string(cmJson)
+//
+//				if cm.Type == "volume" {
+//					*volumes = append(*volumes, v12.Volume{
+//						Name: cm.Name + "-vol",
+//						VolumeSource: v12.VolumeSource{
+//							ConfigMap: &v12.ConfigMapVolumeSource{
+//								LocalObjectReference: v12.LocalObjectReference{
+//									Name: cm.Name,
+//								},
+//							},
+//						},
+//					})
+//				}
+//
+//				*steps = append(*steps, v1alpha1.ParallelSteps{
+//					Steps: []v1alpha1.WorkflowStep{
+//						{
+//							Name:     "create-env-cm-" + strconv.Itoa(i),
+//							Template: "cm-" + strconv.Itoa(i),
+//						},
+//					},
+//				})
+//			}
+//		}
+//		//entryPoint = CI_WORKFLOW_WITH_STAGES
+//		if len(secrets.Secrets) > 0 {
+//			*entryPoint = CI_WORKFLOW_WITH_STAGES
+//			for i, s := range secrets.Secrets {
+//				var datamap map[string][]byte
+//				if err := json.Unmarshal(s.Data, &datamap); err != nil {
+//					impl.Logger.Errorw("error while unmarshal data", "err", err)
+//					return err
+//				}
+//				ownerDelete := true
+//				secretObject := v12.Secret{
+//					TypeMeta: v1.TypeMeta{
+//						Kind:       "Secret",
+//						APIVersion: "v1",
+//					},
+//					ObjectMeta: v1.ObjectMeta{
+//						Name: s.Name,
+//						OwnerReferences: []v1.OwnerReference{{
+//							APIVersion:         "argoproj.io/v1alpha1",
+//							Kind:               "Workflow",
+//							Name:               "{{workflow.name}}",
+//							UID:                "{{workflow.uid}}",
+//							BlockOwnerDeletion: &ownerDelete,
+//						}},
+//					},
+//					Data: datamap,
+//					Type: "Opaque",
+//				}
+//				secretJson, err := json.Marshal(secretObject)
+//				if err != nil {
+//					impl.Logger.Errorw("error in building json", "err", err)
+//					return err
+//				}
+//				secretsMapping[s.Name] = string(secretJson)
+//
+//				if s.Type == "volume" {
+//					*volumes = append(*volumes, v12.Volume{
+//						Name: s.Name + "-vol",
+//						VolumeSource: v12.VolumeSource{
+//							Secret: &v12.SecretVolumeSource{
+//								SecretName: s.Name,
+//							},
+//						},
+//					})
+//				}
+//
+//				*steps = append(*steps, v1alpha1.ParallelSteps{
+//					Steps: []v1alpha1.WorkflowStep{
+//						{
+//							Name:     "create-env-sec-" + strconv.Itoa(i),
+//							Template: "sec-" + strconv.Itoa(i),
+//						},
+//					},
+//				})
+//			}
+//		}
+//
+//		if len(configsMapping) > 0 {
+//			for i, cm := range configMaps.Maps {
+//				*templates = append(*templates, v1alpha1.Template{
+//					Name: "cm-" + strconv.Itoa(i),
+//					Resource: &v1alpha1.ResourceTemplate{
+//						Action:            "create",
+//						SetOwnerReference: true,
+//						Manifest:          configsMapping[cm.Name],
+//					},
+//				})
+//			}
+//		}
+//
+//		if len(secretsMapping) > 0 {
+//			for i, s := range secrets.Secrets {
+//				*templates = append(*templates, v1alpha1.Template{
+//					Name: "sec-" + strconv.Itoa(i),
+//					Resource: &v1alpha1.ResourceTemplate{
+//						Action:            "create",
+//						SetOwnerReference: true,
+//						Manifest:          secretsMapping[s.Name],
+//					},
+//				})
+//			}
+//		}
+//
+//		return nil
+//	}
 func processConfigMapsAndSecrets(impl *WorkflowServiceImpl, configMaps *bean3.ConfigMapJson, secrets *bean3.ConfigSecretJson, entryPoint *string, steps *[]v1alpha1.ParallelSteps, volumes *[]v12.Volume, templates *[]v1alpha1.Template) error {
 
-	configsMapping := make(map[string]string)
-	secretsMapping := make(map[string]string)
+	var configsMapping, secretsMapping map[string]string
+	var err error
 
 	if len(configMaps.Maps) > 0 {
-		*entryPoint = CI_WORKFLOW_WITH_STAGES
-		for i, cm := range configMaps.Maps {
-			var dataMap map[string]string
-			if err := json.Unmarshal(cm.Data, &dataMap); err != nil {
-				impl.Logger.Errorw("error while unmarshal data", "err", err)
-				return err
-			}
-			ownerDelete := true
-			cmBody := v12.ConfigMap{
-				TypeMeta: v1.TypeMeta{
-					Kind:       "ConfigMap",
-					APIVersion: "v1",
-				},
-				ObjectMeta: v1.ObjectMeta{
-					Name: cm.Name,
-					OwnerReferences: []v1.OwnerReference{{
-						APIVersion:         "argoproj.io/v1alpha1",
-						Kind:               "Workflow",
-						Name:               "{{workflow.name}}",
-						UID:                "{{workflow.uid}}",
-						BlockOwnerDeletion: &ownerDelete,
-					}},
-				},
-				Data: dataMap,
-			}
-			cmJson, err := json.Marshal(cmBody)
-			if err != nil {
-				impl.Logger.Errorw("error in building json", "err", err)
-				return err
-			}
-			configsMapping[cm.Name] = string(cmJson)
-
-			if cm.Type == "volume" {
-				*volumes = append(*volumes, v12.Volume{
-					Name: cm.Name + "-vol",
-					VolumeSource: v12.VolumeSource{
-						ConfigMap: &v12.ConfigMapVolumeSource{
-							LocalObjectReference: v12.LocalObjectReference{
-								Name: cm.Name,
-							},
-						},
-					},
-				})
-			}
-
-			*steps = append(*steps, v1alpha1.ParallelSteps{
-				Steps: []v1alpha1.WorkflowStep{
-					{
-						Name:     "create-env-cm-" + strconv.Itoa(i),
-						Template: "cm-" + strconv.Itoa(i),
-					},
-				},
-			})
+		configsMapping, err = processConfigMap(impl, configMaps, entryPoint, volumes, steps)
+		if err != nil {
+			return err
 		}
 	}
-	//entryPoint = CI_WORKFLOW_WITH_STAGES
+
 	if len(secrets.Secrets) > 0 {
-		*entryPoint = CI_WORKFLOW_WITH_STAGES
-		for i, s := range secrets.Secrets {
-			var datamap map[string][]byte
-			if err := json.Unmarshal(s.Data, &datamap); err != nil {
-				impl.Logger.Errorw("error while unmarshal data", "err", err)
-				return err
-			}
-			ownerDelete := true
-			secretObject := v12.Secret{
-				TypeMeta: v1.TypeMeta{
-					Kind:       "Secret",
-					APIVersion: "v1",
-				},
-				ObjectMeta: v1.ObjectMeta{
-					Name: s.Name,
-					OwnerReferences: []v1.OwnerReference{{
-						APIVersion:         "argoproj.io/v1alpha1",
-						Kind:               "Workflow",
-						Name:               "{{workflow.name}}",
-						UID:                "{{workflow.uid}}",
-						BlockOwnerDeletion: &ownerDelete,
-					}},
-				},
-				Data: datamap,
-				Type: "Opaque",
-			}
-			secretJson, err := json.Marshal(secretObject)
-			if err != nil {
-				impl.Logger.Errorw("error in building json", "err", err)
-				return err
-			}
-			secretsMapping[s.Name] = string(secretJson)
-
-			if s.Type == "volume" {
-				*volumes = append(*volumes, v12.Volume{
-					Name: s.Name + "-vol",
-					VolumeSource: v12.VolumeSource{
-						Secret: &v12.SecretVolumeSource{
-							SecretName: s.Name,
-						},
-					},
-				})
-			}
-
-			*steps = append(*steps, v1alpha1.ParallelSteps{
-				Steps: []v1alpha1.WorkflowStep{
-					{
-						Name:     "create-env-sec-" + strconv.Itoa(i),
-						Template: "sec-" + strconv.Itoa(i),
-					},
-				},
-			})
+		secretsMapping, err = processSecrets(impl, entryPoint, secrets, volumes, steps)
+		if err != nil {
+			return err
 		}
 	}
 
 	if len(configsMapping) > 0 {
 		for i, cm := range configMaps.Maps {
-			*templates = append(*templates, v1alpha1.Template{
-				Name: "cm-" + strconv.Itoa(i),
-				Resource: &v1alpha1.ResourceTemplate{
-					Action:            "create",
-					SetOwnerReference: true,
-					Manifest:          configsMapping[cm.Name],
-				},
-			})
+			*templates = append(*templates, getResourceTemplate("cm-"+strconv.Itoa(i), configsMapping[cm.Name]))
 		}
 	}
 
 	if len(secretsMapping) > 0 {
 		for i, s := range secrets.Secrets {
-			*templates = append(*templates, v1alpha1.Template{
-				Name: "sec-" + strconv.Itoa(i),
-				Resource: &v1alpha1.ResourceTemplate{
-					Action:            "create",
-					SetOwnerReference: true,
-					Manifest:          secretsMapping[s.Name],
+			*templates = append(*templates, getResourceTemplate("sec-"+strconv.Itoa(i), configsMapping[s.Name]))
+		}
+	}
+	return nil
+}
+
+func getResourceTemplate(prefix string, manifestName string) v1alpha1.Template {
+	return v1alpha1.Template{
+		Name: prefix,
+		Resource: &v1alpha1.ResourceTemplate{
+			Action:            "create",
+			SetOwnerReference: true,
+			Manifest:          manifestName,
+		},
+	}
+}
+
+func processSecrets(impl *WorkflowServiceImpl, entryPoint *string, secrets *bean3.ConfigSecretJson, volumes *[]v12.Volume, steps *[]v1alpha1.ParallelSteps) (map[string]string, error) {
+	secretsMapping := make(map[string]string)
+	*entryPoint = CI_WORKFLOW_WITH_STAGES
+	for i, s := range secrets.Secrets {
+		var datamap map[string][]byte
+		if err := json.Unmarshal(s.Data, &datamap); err != nil {
+			impl.Logger.Errorw("error while unmarshal data", "err", err)
+			return secretsMapping, err
+		}
+		ownerDelete := true
+		secretObject := v12.Secret{
+			TypeMeta: v1.TypeMeta{
+				Kind:       "Secret",
+				APIVersion: "v1",
+			},
+			ObjectMeta: v1.ObjectMeta{
+				Name: s.Name,
+				OwnerReferences: []v1.OwnerReference{{
+					APIVersion:         "argoproj.io/v1alpha1",
+					Kind:               "Workflow",
+					Name:               "{{workflow.name}}",
+					UID:                "{{workflow.uid}}",
+					BlockOwnerDeletion: &ownerDelete,
+				}},
+			},
+			Data: datamap,
+			Type: "Opaque",
+		}
+		secretJson, err := json.Marshal(secretObject)
+		if err != nil {
+			impl.Logger.Errorw("error in building json", "err", err)
+			return secretsMapping, err
+		}
+		secretsMapping[s.Name] = string(secretJson)
+
+		if s.Type == "volume" {
+			*volumes = append(*volumes, v12.Volume{
+				Name: s.Name + "-vol",
+				VolumeSource: v12.VolumeSource{
+					Secret: &v12.SecretVolumeSource{
+						SecretName: s.Name,
+					},
 				},
 			})
 		}
-	}
 
-	return nil
+		*steps = append(*steps, v1alpha1.ParallelSteps{
+			Steps: []v1alpha1.WorkflowStep{
+				{
+					Name:     "create-env-sec-" + strconv.Itoa(i),
+					Template: "sec-" + strconv.Itoa(i),
+				},
+			},
+		})
+	}
+	return secretsMapping, nil
+}
+
+func processConfigMap(impl *WorkflowServiceImpl, configMaps *bean3.ConfigMapJson, entryPoint *string, volumes *[]v12.Volume, steps *[]v1alpha1.ParallelSteps) (map[string]string, error) {
+	configsMapping := make(map[string]string)
+	*entryPoint = CI_WORKFLOW_WITH_STAGES
+	for i, cm := range configMaps.Maps {
+		var dataMap map[string]string
+		if err := json.Unmarshal(cm.Data, &dataMap); err != nil {
+			impl.Logger.Errorw("error while unmarshal data", "err", err)
+			return configsMapping, err
+		}
+		ownerDelete := true
+		cmBody := v12.ConfigMap{
+			TypeMeta: v1.TypeMeta{
+				Kind:       "ConfigMap",
+				APIVersion: "v1",
+			},
+			ObjectMeta: v1.ObjectMeta{
+				Name: cm.Name,
+				OwnerReferences: []v1.OwnerReference{{
+					APIVersion:         "argoproj.io/v1alpha1",
+					Kind:               "Workflow",
+					Name:               "{{workflow.name}}",
+					UID:                "{{workflow.uid}}",
+					BlockOwnerDeletion: &ownerDelete,
+				}},
+			},
+			Data: dataMap,
+		}
+		cmJson, err := json.Marshal(cmBody)
+		if err != nil {
+			impl.Logger.Errorw("error in building json", "err", err)
+			return configsMapping, err
+		}
+		configsMapping[cm.Name] = string(cmJson)
+
+		if cm.Type == "volume" {
+			*volumes = append(*volumes, v12.Volume{
+				Name: cm.Name + "-vol",
+				VolumeSource: v12.VolumeSource{
+					ConfigMap: &v12.ConfigMapVolumeSource{
+						LocalObjectReference: v12.LocalObjectReference{
+							Name: cm.Name,
+						},
+					},
+				},
+			})
+		}
+
+		*steps = append(*steps, v1alpha1.ParallelSteps{
+			Steps: []v1alpha1.WorkflowStep{
+				{
+					Name:     "create-env-cm-" + strconv.Itoa(i),
+					Template: "cm-" + strconv.Itoa(i),
+				},
+			},
+		})
+	}
+	return configsMapping, nil
 }
 func getCiTemplateWithConfigMapsAndSecrets(configMaps *bean3.ConfigMapJson, secrets *bean3.ConfigSecretJson, ciTemplate v1alpha1.Template, existingConfigMap *bean3.ConfigMapJson, existingSecrets *bean3.ConfigSecretJson) (v1alpha1.Template, error) {
 	for _, cm := range configMaps.Maps {
