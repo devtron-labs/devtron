@@ -287,3 +287,85 @@ func Test_processConfigMapsAndSecrets(t *testing.T) {
 		})
 	}
 }
+
+func Test_processConfigMapsAndSecrets1(t *testing.T) {
+	t.SkipNow()
+
+	type args struct {
+		impl       *WorkflowServiceImpl
+		configMaps *bean3.ConfigMapJson
+		secrets    *bean3.ConfigSecretJson
+		entryPoint *string
+		steps      *[]v1alpha1.ParallelSteps
+		volumes    *[]v12.Volume
+		templates  *[]v1alpha1.Template
+	}
+
+	logger, err := util.NewSugardLogger()
+	if err != nil {
+		log.Fatalf("error in logger initialization %s,%s", "err", err)
+	}
+	impl := &WorkflowServiceImpl{Logger: logger}
+
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "NoError",
+			args: args{
+				impl:       impl,
+				configMaps: &bean3.ConfigMapJson{Maps: []bean3.ConfigSecretMap{}},
+				secrets:    &bean3.ConfigSecretJson{Secrets: []*bean3.ConfigSecretMap{}},
+				entryPoint: new(string),
+				steps:      &[]v1alpha1.ParallelSteps{},
+				volumes:    &[]v12.Volume{},
+				templates:  &[]v1alpha1.Template{},
+			},
+			wantErr: false,
+		},
+		{
+			name: "ProcessConfigMapError",
+			args: args{
+				impl:       impl,
+				configMaps: &bean3.ConfigMapJson{Maps: []bean3.ConfigSecretMap{{Name: "job-map"}}},
+				secrets:    &bean3.ConfigSecretJson{Secrets: []*bean3.ConfigSecretMap{}},
+				entryPoint: new(string),
+				steps:      &[]v1alpha1.ParallelSteps{},
+				volumes:    &[]v12.Volume{},
+				templates:  &[]v1alpha1.Template{},
+			},
+			wantErr: true,
+		},
+		{
+			name: "ProcessSecretsError",
+			args: args{
+				impl:       impl,
+				configMaps: &bean3.ConfigMapJson{Maps: []bean3.ConfigSecretMap{}},
+				secrets:    &bean3.ConfigSecretJson{Secrets: []*bean3.ConfigSecretMap{{Name: "job-secret"}}}, // Simulate an error scenario
+				entryPoint: new(string),
+				steps:      &[]v1alpha1.ParallelSteps{},
+				volumes:    &[]v12.Volume{},
+				templates:  &[]v1alpha1.Template{},
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := processConfigMapsAndSecrets(tt.args.impl, tt.args.configMaps, tt.args.secrets, tt.args.entryPoint, tt.args.steps, tt.args.volumes, tt.args.templates)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("expected an error, but got none")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+			}
+		})
+	}
+}
