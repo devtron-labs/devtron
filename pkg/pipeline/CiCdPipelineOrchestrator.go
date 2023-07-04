@@ -66,7 +66,7 @@ type CiCdPipelineOrchestrator interface {
 	UpdateMaterial(updateMaterialRequest *bean.UpdateMaterialDTO) (*bean.UpdateMaterialDTO, error)
 	CreateCiConf(createRequest *bean.CiConfigRequest, templateId int) (*bean.CiConfigRequest, error)
 	CreateCDPipelines(pipelineRequest *bean.CDPipelineConfigObject, appId int, userId int32, tx *pg.Tx, appName string) (pipelineId int, err error)
-	UpdateCDPipeline(pipelineRequest *bean.CDPipelineConfigObject, userId int32, tx *pg.Tx) (err error)
+	UpdateCDPipeline(pipelineRequest *bean.CDPipelineConfigObject, userId int32, tx *pg.Tx) (pipeline *pipelineConfig.Pipeline, err error)
 	DeleteCiPipeline(pipeline *pipelineConfig.CiPipeline, request *bean.CiPatchRequest, tx *pg.Tx) error
 	DeleteCdPipeline(pipelineId int, userId int32, tx *pg.Tx) error
 	PatchMaterialValue(createRequest *bean.CiPipeline, userId int32, oldPipeline *pipelineConfig.CiPipeline) (*bean.CiPipeline, error)
@@ -1240,14 +1240,14 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCDPipelines(pipelineRequest *bean
 	return pipeline.Id, nil
 }
 
-func (impl CiCdPipelineOrchestratorImpl) UpdateCDPipeline(pipelineRequest *bean.CDPipelineConfigObject, userId int32, tx *pg.Tx) (err error) {
-	pipeline, err := impl.pipelineRepository.FindById(pipelineRequest.Id)
+func (impl CiCdPipelineOrchestratorImpl) UpdateCDPipeline(pipelineRequest *bean.CDPipelineConfigObject, userId int32, tx *pg.Tx) (pipeline *pipelineConfig.Pipeline, err error) {
+	pipeline, err = impl.pipelineRepository.FindById(pipelineRequest.Id)
 	if err == pg.ErrNoRows {
-		return fmt.Errorf("no cd pipeline found")
+		return pipeline, fmt.Errorf("no cd pipeline found")
 	} else if err != nil {
-		return err
+		return pipeline, err
 	} else if pipeline.Id == 0 {
-		return fmt.Errorf("no cd pipeline found")
+		return pipeline, fmt.Errorf("no cd pipeline found")
 	}
 	preStageConfig := ""
 	preTriggerType := pipelineConfig.TriggerType("")
@@ -1266,13 +1266,13 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateCDPipeline(pipelineRequest *bean.
 	preStageConfigMapSecretNames, err := json.Marshal(&pipelineRequest.PreStageConfigMapSecretNames)
 	if err != nil {
 		impl.logger.Error(err)
-		return err
+		return pipeline, err
 	}
 
 	postStageConfigMapSecretNames, err := json.Marshal(&pipelineRequest.PostStageConfigMapSecretNames)
 	if err != nil {
 		impl.logger.Error(err)
-		return err
+		return pipeline, err
 	}
 
 	pipeline.TriggerType = pipelineRequest.TriggerType
@@ -1288,7 +1288,7 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateCDPipeline(pipelineRequest *bean.
 		userApprovalConf, err := json.Marshal(pipelineRequest.UserApprovalConf)
 		if err != nil {
 			impl.logger.Error("error occurred while marshalling user approval conf", "pipeline", pipeline, "err", err)
-			return err
+			return pipeline, err
 		}
 		pipeline.UserApprovalConfig = string(userApprovalConf)
 	} else {
@@ -1299,23 +1299,23 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateCDPipeline(pipelineRequest *bean.
 	err = impl.pipelineRepository.Update(pipeline, tx)
 	if err != nil {
 		impl.logger.Errorw("error in updating cd pipeline", "err", err, "pipeline", pipeline)
-		return err
+		return pipeline, err
 	}
 	if pipeline.PreStageConfig != "" {
 		err = impl.prePostCdScriptHistoryService.CreatePrePostCdScriptHistory(pipeline, tx, repository4.PRE_CD_TYPE, false, 0, time.Time{})
 		if err != nil {
 			impl.logger.Errorw("error in creating pre cd script entry", "err", err, "pipeline", pipeline)
-			return err
+			return pipeline, err
 		}
 	}
 	if pipeline.PostStageConfig != "" {
 		err = impl.prePostCdScriptHistoryService.CreatePrePostCdScriptHistory(pipeline, tx, repository4.POST_CD_TYPE, false, 0, time.Time{})
 		if err != nil {
 			impl.logger.Errorw("error in creating post cd script entry", "err", err, "pipeline", pipeline)
-			return err
+			return pipeline, err
 		}
 	}
-	return err
+	return pipeline, err
 }
 
 func (impl CiCdPipelineOrchestratorImpl) DeleteCdPipeline(pipelineId int, userId int32, tx *pg.Tx) error {

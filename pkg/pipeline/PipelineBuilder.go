@@ -3311,7 +3311,7 @@ func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, appId int,
 	// Rollback tx on error.
 	defer tx.Rollback()
 
-	err = impl.ciCdPipelineOrchestrator.UpdateCDPipeline(pipeline, userID, tx)
+	pipelineDbObj, err := impl.ciCdPipelineOrchestrator.UpdateCDPipeline(pipeline, userID, tx)
 	if err != nil {
 		impl.logger.Errorw("error in updating pipeline")
 		return err
@@ -3393,11 +3393,7 @@ func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, appId int,
 			}
 		}
 	}
-	pipelineDbObj, err := impl.pipelineRepository.FindById(pipeline.Id)
-	if err != nil {
-		impl.logger.Errorw("error in fetching pipeline by id", "err", err, "pipeline_id", pipeline.Id)
-		return err
-	}
+
 	if util.IsManifestPush(pipeline.DeploymentAppType) {
 		if len(pipeline.ContainerRegistryName) == 0 || len(pipeline.RepoName) == 0 {
 			return errors.New("container registry name and repo name cannot be empty in case of manifest push deployment")
