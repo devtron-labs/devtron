@@ -517,6 +517,14 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 		if util.IsManifestPush(pipeline.DeploymentAppType) {
 			err = impl.appService.PushPrePostCDManifest(pipeline, runner.Id, triggeredBy, &chartBytes, PRE, ctx)
 			if err != nil {
+				runner.Status = pipelineConfig.WorkflowFailed
+				runner.UpdatedBy = triggeredBy
+				runner.UpdatedOn = triggeredAt
+				runner.FinishedOn = time.Now()
+				runnerSaveErr := impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
+				if runnerSaveErr != nil {
+					impl.logger.Errorw("error in saving runner object in db", "err", runnerSaveErr)
+				}
 				impl.logger.Errorw("error in pushing manifest to helm repo", "err", err)
 				return err
 			}
@@ -528,7 +536,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 		runner.HelmReferenceChart = chartBytes
 		err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
 		if err != nil {
-			impl.logger.Errorw("error in updating helm chart in DB", "err", err)
+			impl.logger.Errorw("error in saving runner object in db", "err", err)
 			return err
 		}
 	}
@@ -644,6 +652,14 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		}
 		if util.IsManifestPush(pipeline.DeploymentAppType) {
 			err = impl.appService.PushPrePostCDManifest(pipeline, runner.Id, triggeredBy, &chartBytes, POST, context.Background())
+			runner.Status = pipelineConfig.WorkflowFailed
+			runner.UpdatedBy = triggeredBy
+			runner.UpdatedOn = triggeredAt
+			runner.FinishedOn = time.Now()
+			saveRunnerErr := impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
+			if saveRunnerErr != nil {
+				impl.logger.Errorw("error in saving runner object in db", "err", saveRunnerErr)
+			}
 			if err != nil {
 				impl.logger.Errorw("error in pushing manifest to helm repo", "err", err)
 				return err
@@ -656,7 +672,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		runner.HelmReferenceChart = chartBytes
 		err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
 		if err != nil {
-			impl.logger.Errorw("error in updating helm chart in DB", "err", err)
+			impl.logger.Errorw("error in saving runner object in DB", "err", err)
 			return err
 		}
 	}

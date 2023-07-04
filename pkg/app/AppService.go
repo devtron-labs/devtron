@@ -3294,6 +3294,7 @@ func (impl *AppServiceImpl) PushPrePostCDManifest(pipeline *pipelineConfig.Pipel
 	manifestPushTemplate, err := impl.BuildManifestPushTemplateForPrePostCd(pipeline, cdWorklowRunnerId, triggeredBy, manifest, deployType)
 	if err != nil {
 		impl.logger.Errorw("error in building manifest push template for pre post cd")
+		return err
 	}
 	manifestPushService := impl.GetManifestPushService(manifestPushTemplate.StorageType)
 
