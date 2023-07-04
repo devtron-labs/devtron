@@ -127,7 +127,9 @@ When deploying an application, we often need to perform additional tasks before 
 To enable the "Execute in application environment" option, follow these steps:
 
 1. Go to the chart store and search for the devtron-in-clustercd chart.
+
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/devtron-incluster-chart.jpg)
+
 2. Configure the chart according to your requirements and deploy it in the target cluster.
 3. After the deployment, edit the devtron-cm configmap and add the following key-value pair:
 
