@@ -3403,8 +3403,26 @@ func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, appId int,
 			return errors.New("container registry name and repo name cannot be empty in case of manifest push deployment")
 		}
 	}
-	if util.IsManifestPush(pipelineDbObj.DeploymentAppType) || util.IsManifestDownload(pipelineDbObj.DeploymentAppType) {
-		pipeline.AppId = pipelineDbObj.AppId
+	pipeline.AppId = pipelineDbObj.AppId
+
+	if util.IsManifestDownload(pipeline.DeploymentAppType) {
+		if util.IsManifestPush(pipelineDbObj.DeploymentAppType) {
+			manifestPushConfig, err := impl.manifestPushConfigRepository.GetManifestPushConfigByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId)
+			if err != nil {
+				impl.logger.Errorw("error in getting manifest push config by appId and envId", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
+				return err
+			}
+			if manifestPushConfig.Id != 0 {
+				manifestPushConfig.Deleted = true
+				err = impl.manifestPushConfigRepository.UpdateConfig(manifestPushConfig)
+				if err != nil {
+					impl.logger.Errorw("error in updating config for oci helm repo", "err", err)
+					return err
+				}
+			}
+		}
+	}
+	if util.IsManifestPush(pipeline.DeploymentAppType) {
 		manifestPushConfig, err := impl.manifestPushConfigRepository.GetManifestPushConfigByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId)
 		if err != nil {
 			impl.logger.Errorw("error in getting manifest push config by appId and envId", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
@@ -3458,6 +3476,14 @@ func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, appId int,
 				impl.logger.Errorw("error in updating config for oci helm repo", "err", err)
 				return err
 			}
+		}
+	}
+	if util.IsManifestDownload(pipeline.DeploymentAppType) || util.IsManifestPush(pipeline.DeploymentAppType) {
+		pipelineDbObj.DeploymentAppType = pipeline.DeploymentAppType
+		err = impl.pipelineRepository.Update(pipelineDbObj, tx)
+		if err != nil {
+			impl.logger.Errorw("error in updating pipeline deployment app type", "err", err)
+			return err
 		}
 	}
 	err = tx.Commit()
