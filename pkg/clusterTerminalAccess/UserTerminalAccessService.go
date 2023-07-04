@@ -1220,20 +1220,8 @@ func (impl *UserTerminalAccessServiceImpl) GenerateNodeDebugPod(o *models.UserTe
 		impl.Logger.Errorw("error in fetching debugNodePodTemplate by name from terminal_access_templates table ", "template_name", utils1.TerminalNodeDebugPodName, "err", err)
 		return nil, err
 	}
-	//debugNodePodTemplateData := debugNodePodTemplate.TemplateData
 
 	debugPod := &v1.Pod{}
-
-	//debugPod.Spec.NodeName = nodeName
-	//debugPod.Name = pn
-	//debugPod.Namespace = o.Namespace
-	//debugPod.Spec.Containers[0].Image = o.BaseImage
-	//
-	//podTemplateBytes, err := json.Marshal(&debugPod)
-	//if err != nil {
-	//	impl.Logger.Errorw("error in converting pod object into pod yaml", "err", err, "pod", debugPod)
-	//	return debugPod, err
-	//}
 
 	podTemplate, err := utils1.ReplaceTemplateData(debugNodePodTemplate.TemplateData, pn, o.Namespace, nodeName, o.BaseImage, false, o.NodeTaints)
 	if err != nil {
