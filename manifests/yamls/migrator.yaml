@@ -70,7 +70,7 @@ spec:
       containers:
       - name: devtron-rollout
         image: "quay.io/devtron/kubectl:latest"
-        command: ['sh', '-c', 'kubectl rollout restart deployment/devtron -n devtroncd']
+        command: ['sh', '-c', 'kubectl rollout restart deployment/devtron -n devtroncd && kubectl rollout restart deployment/kubelink -n devtroncd']
       initContainers:
       - name: postgresql-migrate-casbin
         image: quay.io/devtron/migrator:ec1dcab8-149-13278
