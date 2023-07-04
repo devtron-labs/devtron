@@ -339,9 +339,11 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) RollbackRelease(ctx context.Cont
 	return installedApp, true, nil
 }
 
-func (impl AppStoreDeploymentArgoCdServiceImpl) deleteACD(acdAppName string, ctx context.Context) error {
+func (impl AppStoreDeploymentArgoCdServiceImpl) deleteACD(acdAppName string, ctx context.Context, isNonCascade bool) error {
 	req := new(application.ApplicationDeleteRequest)
 	req.Name = &acdAppName
+	cascadeDelete := !isNonCascade
+	req.Cascade = &cascadeDelete
 	if ctx == nil {
 		impl.Logger.Errorw("err in delete ACD for AppStore, ctx is NULL", "acdAppName", acdAppName)
 		return fmt.Errorf("context is null")
@@ -621,14 +623,15 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) updateValuesYaml(environment *cl
 
 func (impl AppStoreDeploymentArgoCdServiceImpl) DeleteDeploymentApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error {
 	acdAppName := appName + "-" + environmentName
-	err := impl.deleteACD(acdAppName, ctx)
+	var err error
+	err = impl.deleteACD(acdAppName, ctx, installAppVersionRequest.NonCascadeDelete)
 	if err != nil {
 		impl.Logger.Errorw("error in deleting ACD ", "name", acdAppName, "err", err)
 		if installAppVersionRequest.ForceDelete {
 			impl.Logger.Warnw("error while deletion of app in acd, continue to delete in db as this operation is force delete", "error", err)
 		} else {
 			//statusError, _ := err.(*errors2.StatusError)
-			if strings.Contains(err.Error(), "code = NotFound") {
+			if !installAppVersionRequest.NonCascadeDelete && strings.Contains(err.Error(), "code = NotFound") {
 				err = &util.ApiError{
 					UserMessage:     "Could not delete as application not found in argocd",
 					InternalMessage: err.Error(),

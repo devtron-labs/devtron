@@ -21,15 +21,7 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
-	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
-	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
-	//appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
-	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
-	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
-	"github.com/devtron-labs/devtron/util"
-	"github.com/go-pg/pg"
-	"go.opentelemetry.io/otel"
+
 	"io/ioutil"
 	"math/rand"
 	"net/http"
@@ -40,11 +32,19 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ghodss/yaml"
+	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/internal/sql/repository"
+	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
+	"github.com/devtron-labs/devtron/util"
+	"github.com/go-pg/pg"
 	dirCopy "github.com/otiai10/copy"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"k8s.io/helm/pkg/chartutil"
 	"k8s.io/helm/pkg/proto/hapi/chart"
+	"sigs.k8s.io/yaml"
 )
 
 type ChartWorkingDir string
