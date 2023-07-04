@@ -381,34 +381,45 @@ func (impl *WorkflowDagExecutorImpl) triggerStageForBulk(cdWf *pipelineConfig.Cd
 		return err
 	}
 }
+
+func (impl *WorkflowDagExecutorImpl) TriggerAutoCDOnPreStageSuccess(cdPipelineId, ciArtifactId, workflowId int, triggerdBy int32, applyAuth bool) error {
+	pipeline, err := impl.pipelineRepository.FindById(cdPipelineId)
+	if err != nil {
+		return err
+	}
+	if pipeline.TriggerType == pipelineConfig.TRIGGER_TYPE_AUTOMATIC {
+		ciArtifact, err := impl.ciArtifactRepository.Get(ciArtifactId)
+		if err != nil {
+			return err
+		}
+		cdWorkflow, err := impl.cdWorkflowRepository.FindById(workflowId)
+		if err != nil {
+			return err
+		}
+		//TODO : confirm about this logic used for applyAuth
+
+		err = impl.TriggerDeployment(cdWorkflow, ciArtifact, pipeline, applyAuth, triggerdBy)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (impl *WorkflowDagExecutorImpl) HandlePreStageSuccessEvent(cdStageCompleteEvent CdStageCompleteEvent) error {
 	wfRunner, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(cdStageCompleteEvent.WorkflowRunnerId)
 	if err != nil {
 		return err
 	}
 	if wfRunner.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
-		pipeline, err := impl.pipelineRepository.FindById(cdStageCompleteEvent.CdPipelineId)
-		if err != nil {
-			return err
+		applyAuth := false
+		if cdStageCompleteEvent.TriggeredBy != 1 {
+			applyAuth = true
 		}
-		if pipeline.TriggerType == pipelineConfig.TRIGGER_TYPE_AUTOMATIC {
-			ciArtifact, err := impl.ciArtifactRepository.Get(cdStageCompleteEvent.CiArtifactDTO.Id)
-			if err != nil {
-				return err
-			}
-			cdWorkflow, err := impl.cdWorkflowRepository.FindById(cdStageCompleteEvent.WorkflowId)
-			if err != nil {
-				return err
-			}
-			//TODO : confirm about this logic used for applyAuth
-			applyAuth := false
-			if cdStageCompleteEvent.TriggeredBy != 1 {
-				applyAuth = true
-			}
-			err = impl.TriggerDeployment(cdWorkflow, ciArtifact, pipeline, applyAuth, cdStageCompleteEvent.TriggeredBy)
-			if err != nil {
-				return err
-			}
+		err := impl.TriggerAutoCDOnPreStageSuccess(cdStageCompleteEvent.CdPipelineId, cdStageCompleteEvent.CiArtifactDTO.Id, cdStageCompleteEvent.WorkflowId, cdStageCompleteEvent.TriggeredBy, applyAuth)
+		if err != nil {
+			impl.logger.Errorw("error in triggering cd on pre cd succcess", "err", err)
+			return err
 		}
 	}
 	return nil
@@ -1634,9 +1645,18 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 	helmPackageName := fmt.Sprintf("%s-%s-%s", cdPipeline.App.AppName, cdPipeline.Environment.Name, imageTag)
 
 	if overrideRequest.CdWorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
-
+		cdWf := &pipelineConfig.CdWorkflow{
+			CiArtifactId: artifact.Id,
+			PipelineId:   cdPipeline.Id,
+			AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: 1, UpdatedOn: triggeredAt, UpdatedBy: 1},
+		}
+		err := impl.cdWorkflowRepository.SaveWorkFlow(ctx, cdWf)
+		if err != nil {
+			return 0, "", err
+		}
+		overrideRequest.CdWorkflowId = cdWf.Id
 		_, span = otel.Tracer("orchestrator").Start(ctx, "TriggerPreStage")
-		err = impl.TriggerPreStage(ctx, nil, artifact, cdPipeline, overrideRequest.UserId, false)
+		err = impl.TriggerPreStage(ctx, cdWf, artifact, cdPipeline, overrideRequest.UserId, false)
 		span.End()
 		if err != nil {
 			impl.logger.Errorw("err", "err", err)
@@ -1807,11 +1827,32 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 		span.End()
 	}
 	//Auto trigger feature for virtual CdPipeline if Virtual CDPipeline and No Post CD configured || Virtual Post CD
-	if (util.IsManifestDownload(cdPipeline.DeploymentAppType) || util.IsManifestPush(cdPipeline.DeploymentAppType)) && (overrideRequest.CdWorkflowType == bean.CD_WORKFLOW_TYPE_DEPLOY && cdPipeline.PostTriggerType == "" || overrideRequest.CdWorkflowType == bean.CD_WORKFLOW_TYPE_POST) {
-		err = impl.HandlePostStageSuccessEvent(overrideRequest.CdWorkflowId, overrideRequest.PipelineId, overrideRequest.UserId)
-		if err != nil {
-			impl.logger.Errorw("auto trigger virtual deployment error", "err", err)
-			return 0, "", err
+	if util.IsManifestDownload(cdPipeline.DeploymentAppType) {
+		if overrideRequest.CdWorkflowType == bean.CD_WORKFLOW_TYPE_DEPLOY && cdPipeline.PostTriggerType == "" || overrideRequest.CdWorkflowType == bean.CD_WORKFLOW_TYPE_POST {
+			err = impl.HandlePostStageSuccessEvent(overrideRequest.CdWorkflowId, overrideRequest.PipelineId, overrideRequest.UserId)
+			if err != nil {
+				impl.logger.Errorw("auto trigger virtual deployment error", "err", err)
+				return 0, "", err
+			}
+		}
+	}
+	if util.IsManifestPush(cdPipeline.DeploymentAppType) {
+		if overrideRequest.CdWorkflowType == PRE {
+			applyAuth := false
+			if overrideRequest.UserId != 1 {
+				applyAuth = true
+			}
+			err := impl.TriggerAutoCDOnPreStageSuccess(overrideRequest.PipelineId, overrideRequest.CiArtifactId, overrideRequest.CdWorkflowId, overrideRequest.UserId, applyAuth)
+			if err != nil {
+				impl.logger.Errorw("error in cd auto trigger in case of pre cd in manifest_push deployment type", "err", err)
+				return 0, "", err
+			}
+		} else if cdPipeline.PostTriggerType != pipelineConfig.TRIGGER_TYPE_MANUAL {
+			err = impl.HandlePostStageSuccessEvent(overrideRequest.CdWorkflowId, overrideRequest.PipelineId, overrideRequest.UserId)
+			if err != nil {
+				impl.logger.Errorw("auto trigger virtual deployment error", "err", err)
+				return 0, "", err
+			}
 		}
 	}
 	return releaseId, helmPackageName, err
