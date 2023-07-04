@@ -1,0 +1,22 @@
+{{- if  .Values.prometheusRule.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name:  {{ template ".Chart.Name .fullname" . }}
+  {{- if .Values.prometheusRule.namespace }}
+  namespace: {{ .Values.prometheusRule.namespace }}
+  {{- end }}
+  labels:
+    kind: Prometheus
+    chart: {{ template ".Chart.Name .chart" . }}
+    release: {{ .Values.prometheus.release }}
+  {{- if .Values.prometheusRule.additionalLabels }}
+{{ toYaml .Values.prometheusRule.additionalLabels | indent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.prometheusRule.rules }}
+  groups:
+    - name: {{ template ".Chart.Name .fullname" $ }}
+      rules: {{- toYaml . | nindent 6 }}
+  {{- end }}
+  {{- end }}

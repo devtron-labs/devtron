@@ -392,8 +392,11 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete(isDeploymen
 				allowedDeploymentConfigString []string
 			)
 			deploymentConfigValues, _ := impl.attributesRepository.FindByKey(fmt.Sprintf("%d", model.Id))
-			if err = json.Unmarshal([]byte(deploymentConfigValues.Value), &deploymentConfig); err != nil {
-				return nil, err
+			//if empty config received(doesn't exist in table) which can't be parsed
+			if deploymentConfigValues.Value != "" {
+				if err = json.Unmarshal([]byte(deploymentConfigValues.Value), &deploymentConfig); err != nil {
+					return nil, err
+				}
 			}
 
 			// if real config along with absurd values exist in table {"argo_cd": true, "helm": false, "absurd": false}",
