@@ -73,6 +73,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	repository9 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -361,7 +362,10 @@ func InitializeApp() (*App, error) {
 		//wire.Bind(new(otel.OtelTracingService), new(*otel.OtelTracingServiceImpl)),
 		NewApp,
 		//session.NewK8sClient,
-
+		repository9.NewImageTaggingRepositoryImpl,
+		wire.Bind(new(repository9.ImageTaggingRepository), new(*repository9.ImageTaggingRepositoryImpl)),
+		pipeline.NewImageTaggingServiceImpl,
+		wire.Bind(new(pipeline.ImageTaggingService), new(*pipeline.ImageTaggingServiceImpl)),
 		util.NewK8sUtil,
 		argocdServer.NewVersionServiceImpl,
 		wire.Bind(new(argocdServer.VersionService), new(*argocdServer.VersionServiceImpl)),
