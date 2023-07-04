@@ -36,7 +36,7 @@ func Test_getConfigMapsAndSecrets(t *testing.T) {
 		Enabled: true,
 		Secrets: []*bean3.ConfigSecretMap{
 			{Name: "job-secret",
-				Data:     []byte("{\"abcd\": \"aditya-cs-1-job-test-cs1\"}"),
+				Data:     []byte("{\"abcd\": \"XCJhZGl0eWEtY20tMS1qb2ItdGVzdC1jbTFcIn0i\"}"),
 				External: false,
 			},
 		},
@@ -124,7 +124,7 @@ func Test_getCiTemplateWithConfigMapsAndSecrets(t *testing.T) {
 		Enabled: true,
 		Secrets: []*bean3.ConfigSecretMap{
 			{Name: "job-secret",
-				Data:     []byte("{\"abcd\": \"aditya-cs-1-job-test-cs1\"}"),
+				Data:     []byte("{\"abcd\": \"XCJhZGl0eWEtY20tMS1qb2ItdGVzdC1jbTFcIn0i\"}"),
 				External: false,
 			},
 		},
@@ -145,7 +145,7 @@ func Test_getCiTemplateWithConfigMapsAndSecrets(t *testing.T) {
 		Enabled: true,
 		Secrets: []*bean3.ConfigSecretMap{
 			{Name: "job-secret",
-				Data:     []byte("{\"abcd\": \"aditya-cs-1-job-test-cs1\"}"),
+				Data:     []byte("{\"abcd\":\"XCJhZGl0eWEtY20tMS1qb2ItdGVzdC1jbTFcIn0i\"}"),
 				External: false,
 			},
 		},
