@@ -4,6 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
+	"reflect"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/caarlos0/env/v6"
 	"github.com/devtron-labs/devtron/api/connector"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
@@ -23,17 +29,12 @@ import (
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	jsonpatch "github.com/evanphx/json-patch"
-	"github.com/ghodss/yaml"
 	"github.com/gogo/protobuf/proto"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
-	"net/http"
-	"reflect"
-	"strconv"
-	"strings"
-	"time"
+	"sigs.k8s.io/yaml"
 )
 
 type HelmAppService interface {
@@ -794,12 +795,15 @@ func (impl *HelmAppServiceImpl) DecodeAppId(appId string) (*AppIdentifier, error
 	if len(component) != 3 {
 		return nil, fmt.Errorf("malformed app id %s", appId)
 	}
-	clustewrId, err := strconv.Atoi(component[0])
+	clusterId, err := strconv.Atoi(component[0])
 	if err != nil {
 		return nil, err
 	}
+	if clusterId <= 0 {
+		return nil, fmt.Errorf("target cluster is not provided")
+	}
 	return &AppIdentifier{
-		ClusterId:   clustewrId,
+		ClusterId:   clusterId,
 		Namespace:   component[1],
 		ReleaseName: component[2],
 	}, nil

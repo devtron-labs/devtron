@@ -61,6 +61,7 @@ const (
 	APP_DELETE_FAILED_RESP              = "App deletion failed, please try deleting from Devtron UI"
 	APP_CREATE_SUCCESSFUL_RESP          = "App created successfully."
 	APP_WORKFLOW_CREATE_SUCCESSFUL_RESP = "App workflow created successfully."
+	WORKFLOW_NAME_EMPTY                 = ""
 )
 
 type CoreAppRestHandler interface {
@@ -194,7 +195,8 @@ func (handler CoreAppRestHandlerImpl) GetAppAllDetail(w http.ResponseWriter, r *
 	//get/build global deployment template ends
 
 	//get/build app workflows starts
-	appWorkflows, err, statusCode := handler.buildAppWorkflows(appId)
+	//using empty workflow name because it is optional, if not provided then workflows will be fetched on the basis of app
+	appWorkflows, err, statusCode := handler.buildAppWorkflows(appId, WORKFLOW_NAME_EMPTY)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, statusCode)
 		return
@@ -609,13 +611,23 @@ func (handler CoreAppRestHandlerImpl) buildAppEnvironmentDeploymentTemplate(appI
 }
 
 // validate and build workflows
-func (handler CoreAppRestHandlerImpl) buildAppWorkflows(appId int) ([]*appBean.AppWorkflow, error, int) {
+func (handler CoreAppRestHandlerImpl) buildAppWorkflows(appId int, workflowName string) ([]*appBean.AppWorkflow, error, int) {
 	handler.logger.Debugw("Getting app detail - workflows", "appId", appId)
-
-	workflowsList, err := handler.appWorkflowService.FindAppWorkflows(appId)
-	if err != nil {
-		handler.logger.Errorw("error in fetching workflows for app in GetAppAllDetail", "err", err)
-		return nil, err, http.StatusInternalServerError
+	var workflowsList []appWorkflow.AppWorkflowDto
+	var err error
+	if len(workflowName) != 0 {
+		workflow, err := handler.appWorkflowService.FindAppWorkflowByName(workflowName, appId)
+		if err != nil {
+			handler.logger.Errorw("error in fetching workflow by name", "err", err, "workflowName", workflowName, "appId", appId)
+			return nil, err, http.StatusInternalServerError
+		}
+		workflowsList = []appWorkflow.AppWorkflowDto{workflow}
+	} else {
+		workflowsList, err = handler.appWorkflowService.FindAppWorkflows(appId)
+		if err != nil {
+			handler.logger.Errorw("error in fetching workflows for app in GetAppAllDetail", "err", err)
+			return nil, err, http.StatusInternalServerError
+		}
 	}
 
 	var appWorkflowsResp []*appBean.AppWorkflow
@@ -1146,11 +1158,12 @@ func (handler CoreAppRestHandlerImpl) deleteApp(ctx context.Context, appId int, 
 
 		for _, cdPipeline := range cdPipelines.Pipelines {
 			cdPipelineDeleteRequest := &bean.CDPatchRequest{
-				AppId:       appId,
-				UserId:      userId,
-				Action:      bean.CD_DELETE,
-				ForceDelete: true,
-				Pipeline:    cdPipeline,
+				AppId:            appId,
+				UserId:           userId,
+				Action:           bean.CD_DELETE,
+				ForceDelete:      true,
+				NonCascadeDelete: false,
+				Pipeline:         cdPipeline,
 			}
 			_, err = handler.pipelineBuilder.PatchCdPipelines(cdPipelineDeleteRequest, ctx)
 			if err != nil {
@@ -1762,7 +1775,7 @@ func (handler CoreAppRestHandlerImpl) createEnvDeploymentTemplate(appId int, use
 	}
 
 	// if chart not found for chart_ref then create
-	_, err = handler.chartRepo.FindChartByAppIdAndRefId(appId, chartRefId)
+	chartEntry, err := handler.chartRepo.FindChartByAppIdAndRefId(appId, chartRefId)
 	if err != nil {
 		if pg.ErrNoRows == err {
 			templateRequest := chart.TemplateRequest{
@@ -1772,11 +1785,13 @@ func (handler CoreAppRestHandlerImpl) createEnvDeploymentTemplate(appId int, use
 				UserId:              userId,
 				IsAppMetricsEnabled: deploymentTemplateOverride.ShowAppMetrics,
 			}
-			_, err = handler.chartService.CreateChartFromEnvOverride(templateRequest, context.Background())
+			newChartEntry, err := handler.chartService.CreateChartFromEnvOverride(templateRequest, context.Background())
 			if err != nil {
 				handler.logger.Errorw("service err, CreateChartFromEnvOverride", "err", err, "appId", appId, "envId", envId, "chartRefId", chartRefId)
 				return err
 			}
+			chartEntry.Id = newChartEntry.Id
+			chartEntry.AppId = newChartEntry.AppId
 		} else {
 			handler.logger.Errorw("service err, FindChartByAppIdAndRefId", "err", err, "appId", appId, "envId", envId, "chartRefId", chartRefId)
 			return err
@@ -1784,9 +1799,15 @@ func (handler CoreAppRestHandlerImpl) createEnvDeploymentTemplate(appId int, use
 	}
 
 	// create if required
-	_, err = handler.propertiesConfigService.CreateEnvironmentProperties(appId, envConfigProperties)
+	appMetrics := false
+	if envConfigProperties.AppMetrics != nil {
+		appMetrics = *envConfigProperties.AppMetrics
+	}
+	chartEntry.GlobalOverride = string(envConfigProperties.EnvOverrideValues)
+	_, err = handler.propertiesConfigService.CreateIfRequired(chartEntry, envId, userId, envConfigProperties.ManualReviewed, models.CHARTSTATUS_SUCCESS,
+		true, appMetrics, envConfigProperties.Namespace, envConfigProperties.IsBasicViewLocked, envConfigProperties.CurrentViewEditor, nil)
 	if err != nil {
-		handler.logger.Errorw("service err, CreateEnvironmentProperties", "err", err, "appId", appId, "envId", envId, "chartRefId", chartRefId)
+		handler.logger.Errorw("service err, CreateIfRequired", "err", err, "appId", appId, "envId", envId, "chartRefId", chartRefId)
 		return err
 	}
 
@@ -2088,7 +2109,6 @@ func (handler CoreAppRestHandlerImpl) CreateAppWorkflow(w http.ResponseWriter, r
 	//rbac ends
 
 	handler.logger.Infow("creating app workflow created ", "createAppRequest", createAppRequest)
-	var errResp *multierror.Error
 	var statusCode int
 
 	//creating workflow starts
@@ -2099,7 +2119,7 @@ func (handler CoreAppRestHandlerImpl) CreateAppWorkflow(w http.ResponseWriter, r
 		}
 		err, statusCode = handler.createWorkflows(ctx, createAppRequest.AppId, userId, createAppRequest.AppWorkflows, token, app.AppName)
 		if err != nil {
-			common.WriteJsonResp(w, errResp, nil, statusCode)
+			common.WriteJsonResp(w, err, nil, statusCode)
 			return
 		}
 	}
@@ -2109,7 +2129,7 @@ func (handler CoreAppRestHandlerImpl) CreateAppWorkflow(w http.ResponseWriter, r
 	if createAppRequest.EnvironmentOverrides != nil && len(createAppRequest.EnvironmentOverrides) > 0 {
 		err, statusCode = handler.createEnvOverrides(ctx, createAppRequest.AppId, userId, createAppRequest.EnvironmentOverrides, token)
 		if err != nil {
-			common.WriteJsonResp(w, errResp, nil, statusCode)
+			common.WriteJsonResp(w, err, nil, statusCode)
 			return
 		}
 	}
@@ -2145,7 +2165,8 @@ func (handler CoreAppRestHandlerImpl) GetAppWorkflow(w http.ResponseWriter, r *h
 	}
 
 	//get/build app workflows starts
-	appWorkflows, err, statusCode := handler.buildAppWorkflows(appId)
+	//using empty workflow name because it is optional, if not provided then workflows will be fetched on the basis of app
+	appWorkflows, err, statusCode := handler.buildAppWorkflows(appId, WORKFLOW_NAME_EMPTY)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, statusCode)
 		return
@@ -2193,9 +2214,10 @@ func (handler CoreAppRestHandlerImpl) GetAppWorkflowAndOverridesSample(w http.Re
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	workflowName := r.URL.Query().Get("workflowName")
 	token := r.Header.Get("token")
 	//get/build app workflows starts
-	appWorkflows, err, statusCode := handler.buildAppWorkflows(appId)
+	appWorkflows, err, statusCode := handler.buildAppWorkflows(appId, workflowName)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, statusCode)
 		return
