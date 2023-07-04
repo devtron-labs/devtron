@@ -52,6 +52,7 @@ func (impl ManifestPushConfigRepositoryImpl) GetManifestPushConfigByAppIdAndEnvI
 	err := impl.dbConnection.Model(manifestPushConfig).
 		Where("app_id = ? ", appId).
 		Where("env_id = ? ", envId).
+		Where("deleted = ? ", false).
 		Select()
 	if err != nil && err != pg.ErrNoRows {
 		return manifestPushConfig, err
