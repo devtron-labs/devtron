@@ -104,6 +104,7 @@ type CiCdPipelineOrchestratorImpl struct {
 	gitMaterialHistoryService     history3.GitMaterialHistoryService
 	ciPipelineHistoryService      history3.CiPipelineHistoryService
 	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository
+	configMapService              ConfigMapService
 }
 
 func NewCiCdPipelineOrchestrator(
@@ -127,7 +128,8 @@ func NewCiCdPipelineOrchestrator(
 	gitMaterialHistoryService history3.GitMaterialHistoryService,
 	ciPipelineHistoryService history3.CiPipelineHistoryService,
 	ciTemplateService CiTemplateService,
-	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository) *CiCdPipelineOrchestratorImpl {
+	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository,
+	configMapService ConfigMapService) *CiCdPipelineOrchestratorImpl {
 	return &CiCdPipelineOrchestratorImpl{
 		appRepository:                 pipelineGroupRepository,
 		logger:                        logger,
@@ -151,6 +153,7 @@ func NewCiCdPipelineOrchestrator(
 		ciPipelineHistoryService:      ciPipelineHistoryService,
 		ciTemplateService:             ciTemplateService,
 		dockerArtifactStoreRepository: dockerArtifactStoreRepository,
+		configMapService:              configMapService,
 	}
 }
 
@@ -595,6 +598,20 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 			if err != nil {
 				impl.logger.Errorw("error in saving pipeline", "CiEnvMapping", CiEnvMapping, "err", err)
 				return nil, err
+			}
+
+			if ciPipeline.EnvironmentId != 0 {
+				createJobEnvOverrideRequest := &CreateJobEnvOverridePayload{
+					AppId:  createRequest.AppId,
+					EnvId:  ciPipeline.EnvironmentId,
+					UserId: createRequest.UserId,
+				}
+				_, err = impl.configMapService.ConfigSecretEnvironmentCreate(createJobEnvOverrideRequest)
+				if err != nil {
+					impl.logger.Errorw("error in saving env override", "createJobEnvOverrideRequest", createJobEnvOverrideRequest, "err", err)
+					return nil, err
+				}
+
 			}
 		}
 
