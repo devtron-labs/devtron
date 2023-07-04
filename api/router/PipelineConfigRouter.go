@@ -190,5 +190,6 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/commit-info/{ciPipelineMaterialId}/{gitHash}").HandlerFunc(router.restHandler.GetCommitMetadataForPipelineMaterial).Methods("GET")
 
 	configRouter.Path("/deployment-status/timeline/{appId}/{envId}").HandlerFunc(router.pipelineStatusTimelineRestHandler.FetchTimelines).Methods("GET")
-
+	configRouter.Path("/image-tagging/{ciPipelineId}/{artifactId}").HandlerFunc(router.restHandler.CreateUpdateImageTagging).Methods("POST")
+	configRouter.Path("/image-tagging/{ciPipelineId}/{artifactId}").HandlerFunc(router.restHandler.GetImageTaggingData).Methods("GET")
 }

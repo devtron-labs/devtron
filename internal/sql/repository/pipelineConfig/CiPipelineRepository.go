@@ -121,6 +121,8 @@ type CiPipelineRepository interface {
 	FindByParentCiPipelineIds(parentCiPipelineIds []int) ([]*CiPipeline, error)
 	FindWithMinDataByCiPipelineId(id int) (pipeline *CiPipeline, err error)
 	FindAppIdsForCiPipelineIds(pipelineIds []int) (map[int]int, error)
+	GetCiPipelineByArtifactId(artifactId int) (*CiPipeline, error)
+	GetExternalCiPipelineByArtifactId(artifactId int) (*ExternalCiPipeline, error)
 }
 type CiPipelineRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -504,4 +506,24 @@ func (impl CiPipelineRepositoryImpl) FindAppIdsForCiPipelineIds(pipelineIds []in
 	}
 
 	return ciPipelineIdVsAppId, nil
+}
+
+func (impl CiPipelineRepositoryImpl) GetCiPipelineByArtifactId(artifactId int) (*CiPipeline, error) {
+	ciPipeline := &CiPipeline{}
+	err := impl.dbConnection.Model(ciPipeline).
+		Column("ci_pipeline.*").
+		Join("INNER JOIN ci_artifact cia on cia.pipeline_id = ci_pipeline.id").
+		Where("ci_pipeline.deleted=?", false).
+		Where("cia.id = ?", artifactId).
+		Select()
+	return ciPipeline, err
+}
+func (impl CiPipelineRepositoryImpl) GetExternalCiPipelineByArtifactId(artifactId int) (*ExternalCiPipeline, error) {
+	ciPipeline := &ExternalCiPipeline{}
+	query := "SELECT ecp.* " +
+		" FROM external_ci_pipeline ecp " +
+		" INNER JOIN ci_artifact cia ON cia.external_ci_pipeline_id=ecp.id " +
+		" WHERE ecp.active=true AND cia.id=?"
+	_, err := impl.dbConnection.Query(ciPipeline, query, artifactId)
+	return ciPipeline, err
 }
