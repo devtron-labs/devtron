@@ -78,10 +78,10 @@ func (router ConfigMapRouterImpl) initConfigMapRouter(configRouter *mux.Router) 
 
 	configRouter.Path("/bulk/patch").HandlerFunc(router.restHandler.ConfigSecretBulkPatch).Methods("POST")
 	configRouter.Path("/environment").
-		HandlerFunc(router.restHandler.CreateJobEnvironmentOverride).Methods("POST")
+		HandlerFunc(router.restHandler.AddEnvironmentToJob).Methods("POST")
 	configRouter.Path("/environment").
-		HandlerFunc(router.restHandler.DeleteJobEnvironmentOverride).Methods("DELETE")
+		HandlerFunc(router.restHandler.RemoveEnvironmentFromJob).Methods("DELETE")
 	configRouter.Path("/environment/{appId}").
-		HandlerFunc(router.restHandler.GetJobEnvironmentOverrides).Methods("GET")
+		HandlerFunc(router.restHandler.GetEnvironmentsForJob).Methods("GET")
 
 }

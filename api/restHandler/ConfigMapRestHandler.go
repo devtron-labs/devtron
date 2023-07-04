@@ -55,9 +55,9 @@ type ConfigMapRestHandler interface {
 	CSEnvironmentFetchForEdit(w http.ResponseWriter, r *http.Request)
 	ConfigSecretBulkPatch(w http.ResponseWriter, r *http.Request)
 
-	CreateJobEnvironmentOverride(w http.ResponseWriter, r *http.Request)
-	DeleteJobEnvironmentOverride(w http.ResponseWriter, r *http.Request)
-	GetJobEnvironmentOverrides(w http.ResponseWriter, r *http.Request)
+	AddEnvironmentToJob(w http.ResponseWriter, r *http.Request)
+	RemoveEnvironmentFromJob(w http.ResponseWriter, r *http.Request)
+	GetEnvironmentsForJob(w http.ResponseWriter, r *http.Request)
 }
 
 type ConfigMapRestHandlerImpl struct {
@@ -708,7 +708,7 @@ func (handler ConfigMapRestHandlerImpl) ConfigSecretBulkPatch(w http.ResponseWri
 	common.WriteJsonResp(w, err, true, http.StatusOK)
 }
 
-func (handler ConfigMapRestHandlerImpl) CreateJobEnvironmentOverride(w http.ResponseWriter, r *http.Request) {
+func (handler ConfigMapRestHandlerImpl) AddEnvironmentToJob(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -737,15 +737,15 @@ func (handler ConfigMapRestHandlerImpl) CreateJobEnvironmentOverride(w http.Resp
 	var envOverrideRequest pipeline.CreateJobEnvOverridePayload
 	err = decoder.Decode(&envOverrideRequest)
 	if err != nil {
-		handler.Logger.Errorw("request err, CreateJobEnvironmentOverride", "err", err, "payload", envOverrideRequest)
+		handler.Logger.Errorw("request err, AddEvironmentToJob", "err", err, "payload", envOverrideRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	envOverrideRequest.UserId = userId
-	handler.Logger.Infow("request payload, CreateJobEnvironmentOverride", "payload", envOverrideRequest)
+	handler.Logger.Infow("request payload, AddEvironmentToJob", "payload", envOverrideRequest)
 	resp, err := handler.configMapService.ConfigSecretEnvironmentCreate(&envOverrideRequest)
 	if err != nil {
-		handler.Logger.Errorw("service err, CreateJobEnvironmentOverride", "err", err, "payload", envOverrideRequest)
+		handler.Logger.Errorw("service err, AddEvironmentToJob", "err", err, "payload", envOverrideRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -753,7 +753,7 @@ func (handler ConfigMapRestHandlerImpl) CreateJobEnvironmentOverride(w http.Resp
 	common.WriteJsonResp(w, err, resp, http.StatusOK)
 }
 
-func (handler ConfigMapRestHandlerImpl) DeleteJobEnvironmentOverride(w http.ResponseWriter, r *http.Request) {
+func (handler ConfigMapRestHandlerImpl) RemoveEnvironmentFromJob(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -782,22 +782,22 @@ func (handler ConfigMapRestHandlerImpl) DeleteJobEnvironmentOverride(w http.Resp
 	var envOverrideRequest pipeline.CreateJobEnvOverridePayload
 	err = decoder.Decode(&envOverrideRequest)
 	if err != nil {
-		handler.Logger.Errorw("request err, DeleteJobEnvironmentOverride", "err", err, "payload", envOverrideRequest)
+		handler.Logger.Errorw("request err, RemoveEnvironmentFromJob", "err", err, "payload", envOverrideRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	envOverrideRequest.UserId = userId
-	handler.Logger.Infow("request payload, DeleteJobEnvironmentOverride", "payload", envOverrideRequest)
+	handler.Logger.Infow("request payload, RemoveEnvironmentFromJob", "payload", envOverrideRequest)
 	resp, err := handler.configMapService.ConfigSecretEnvironmentDelete(&envOverrideRequest)
 	if err != nil {
-		handler.Logger.Errorw("service err, DeleteJobEnvironmentOverride", "err", err, "payload", envOverrideRequest)
+		handler.Logger.Errorw("service err, RemoveEnvironmentFromJob", "err", err, "payload", envOverrideRequest)
 		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
 		return
 	}
 
 	common.WriteJsonResp(w, err, true, http.StatusOK)
 }
-func (handler ConfigMapRestHandlerImpl) GetJobEnvironmentOverrides(w http.ResponseWriter, r *http.Request) {
+func (handler ConfigMapRestHandlerImpl) GetEnvironmentsForJob(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -828,14 +828,14 @@ func (handler ConfigMapRestHandlerImpl) GetJobEnvironmentOverrides(w http.Respon
 	}
 	//AUTH
 	if err != nil {
-		handler.Logger.Errorw("request err, DeleteJobEnvironmentOverride", "err", err, "appId", appId)
+		handler.Logger.Errorw("request err, RemoveEnvironmentFromJob", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	handler.Logger.Infow("request payload, DeleteJobEnvironmentOverride", "appId", appId)
+	handler.Logger.Infow("request payload, RemoveEnvironmentFromJob", "appId", appId)
 	resp, err := handler.configMapService.ConfigSecretEnvironmentGet(appId)
 	if err != nil {
-		handler.Logger.Errorw("service err, DeleteJobEnvironmentOverride", "err", err, "appId", appId)
+		handler.Logger.Errorw("service err, RemoveEnvironmentFromJob", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

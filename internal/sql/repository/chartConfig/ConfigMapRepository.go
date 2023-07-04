@@ -107,8 +107,9 @@ type ConfigMapEnvModel struct {
 }
 
 func (impl ConfigMapRepositoryImpl) CreateEnvLevel(model *ConfigMapEnvModel) (*ConfigMapEnvModel, error) {
-	model.CreatedOn = time.Now()
-	model.UpdatedOn = time.Now()
+	currentTime := time.Now()
+	model.CreatedOn = currentTime
+	model.UpdatedOn = currentTime
 	err := impl.dbConnection.Insert(model)
 	if err != nil {
 		impl.Logger.Errorw("err on config map ", "err;", err)

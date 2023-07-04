@@ -427,8 +427,6 @@ func (impl ConfigMapServiceImpl) CMEnvironmentAddUpdate(configMapRequest *Config
 		}
 		model.CreatedBy = configMapRequest.UserId
 		model.UpdatedBy = configMapRequest.UserId
-		model.CreatedOn = time.Now()
-		model.UpdatedOn = time.Now()
 
 		configMap, err := impl.configMapRepository.CreateEnvLevel(model)
 		if err != nil {
@@ -808,8 +806,6 @@ func (impl ConfigMapServiceImpl) CSEnvironmentAddUpdate(configMapRequest *Config
 		}
 		model.CreatedBy = configMapRequest.UserId
 		model.UpdatedBy = configMapRequest.UserId
-		model.CreatedOn = time.Now()
-		model.UpdatedOn = time.Now()
 
 		configMap, err := impl.configMapRepository.CreateEnvLevel(model)
 		if err != nil {
@@ -1840,6 +1836,8 @@ func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentDelete(createJobEnvOverr
 		return nil, err
 	}
 	configMap.Deleted = true
+	configMap.ConfigMapData = ""
+	configMap.SecretData = ""
 	_, err = impl.configMapRepository.UpdateEnvLevel(configMap)
 	if err != nil {
 		impl.logger.Errorw("error while creating app level", "error", err)
