@@ -650,6 +650,11 @@ func (impl *CiHandlerImpl) getWorkflowLogs(pipelineId int, ciWorkflow *pipelineC
 			BearerToken:           configMap[util.BearerToken],
 			InsecureSkipTLSVerify: env.Cluster.InsecureSkipTlsVerify,
 		}
+		if env.Cluster.InsecureSkipTlsVerify == false {
+			clusterConfig.KeyData = configMap[util.TlsKey]
+			clusterConfig.CertData = configMap[util.CertData]
+			clusterConfig.CAData = configMap[util.CertificateAuthorityData]
+		}
 		isExt = true
 	}
 
