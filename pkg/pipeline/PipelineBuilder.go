@@ -3398,7 +3398,7 @@ func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, appId int,
 		impl.logger.Errorw("error in fetching pipeline by id", "err", err, "pipeline_id", pipeline.Id)
 		return err
 	}
-	if util.IsManifestPush(pipelineDbObj.DeploymentAppType) {
+	if util.IsManifestPush(pipeline.DeploymentAppType) {
 		if len(pipeline.ContainerRegistryName) == 0 || len(pipeline.RepoName) == 0 {
 			return errors.New("container registry name and repo name cannot be empty in case of manifest push deployment")
 		}
