@@ -3240,8 +3240,6 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 		if len(pipeline.ContainerRegistryName) == 0 || len(pipeline.RepoName) == 0 {
 			return 0, errors.New("container registry name and repo name cannot be empty for manifest push deployment")
 		}
-	}
-	if util.IsManifestPush(pipeline.DeploymentAppType) {
 		if pipeline.ManifestStorageType == bean.ManifestStorageGit {
 			//implement
 		} else if pipeline.ManifestStorageType == bean.ManifestStorageOCIHelmRepo {
