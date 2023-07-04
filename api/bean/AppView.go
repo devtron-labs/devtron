@@ -71,9 +71,9 @@ type JobCIPipeline struct {
 	Status                       string    `json:"status"`
 	LastRunAt                    time.Time `json:"lastRunAt"`
 	LastSuccessAt                time.Time `json:"lastSuccessAt"`
-	EnvironmentId                int       `json:"environment_id"`
-	EnvironmentName              string    `json:"environment_name"`
-	LastTriggeredEnvironmentName string    `json:"last_triggered_environment_name"`
+	EnvironmentId                int       `json:"environmentId"`
+	EnvironmentName              string    `json:"environmentName"`
+	LastTriggeredEnvironmentName string    `json:"lastTriggeredEnvironmentName"`
 }
 
 type JobListingContainer struct {
