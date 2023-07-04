@@ -21,6 +21,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"time"
 )
 
 type ConfigMapRepository interface {
@@ -106,6 +107,8 @@ type ConfigMapEnvModel struct {
 }
 
 func (impl ConfigMapRepositoryImpl) CreateEnvLevel(model *ConfigMapEnvModel) (*ConfigMapEnvModel, error) {
+	model.CreatedOn = time.Now()
+	model.UpdatedOn = time.Now()
 	err := impl.dbConnection.Insert(model)
 	if err != nil {
 		impl.Logger.Errorw("err on config map ", "err;", err)
