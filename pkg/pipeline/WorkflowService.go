@@ -771,7 +771,7 @@ func processConfigMapsAndSecrets(impl *WorkflowServiceImpl, configMaps *bean3.Co
 
 	if len(secretsMapping) > 0 {
 		for i, s := range secrets.Secrets {
-			*templates = append(*templates, getResourceTemplate("sec-"+strconv.Itoa(i), configsMapping[s.Name]))
+			*templates = append(*templates, getResourceTemplate("sec-"+strconv.Itoa(i), secretsMapping[s.Name]))
 		}
 	}
 	return nil
