@@ -3,6 +3,7 @@ package history
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	mocks2 "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/mocks"
 	"github.com/devtron-labs/devtron/internal/util"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
@@ -20,8 +21,9 @@ func TestCiPipelineHistoryService(t *testing.T) {
 		assert.Nil(t, err)
 
 		mockedCiPipelineHistoryRepository := mocks.NewCiPipelineHistoryRepository(t)
+		mockedCiPipelineRepository := mocks2.NewCiPipelineRepository(t)
 
-		CiPipelineHistoryServiceImpl := NewCiPipelineHistoryServiceImpl(mockedCiPipelineHistoryRepository, sugaredLogger)
+		CiPipelineHistoryServiceImpl := NewCiPipelineHistoryServiceImpl(mockedCiPipelineHistoryRepository, sugaredLogger, mockedCiPipelineRepository)
 
 		PipelineObject := pipelineConfig.CiPipeline{
 			Id:                       5,
@@ -108,8 +110,22 @@ func TestCiPipelineHistoryService(t *testing.T) {
 			ScanEnabled:               false,
 			Manual:                    false,
 		}
+		mockedCiPipelineObject := repository.CiEnvMappingHistory{
+			Id:            0,
+			CiPipelineId:  5,
+			EnvironmentId: 1,
+		}
+		CiEnvMapping := &pipelineConfig.CiEnvMapping{
+			Id:                 1,
+			EnvironmentId:      1,
+			CiPipelineId:       5,
+			Deleted:            false,
+			LastTriggeredEnvId: 1,
+		}
 
-		mockedCiPipelineHistoryRepository.On("Save", &mockedCiPipelineHistoryObject).Return(nil)
+		mockedCiPipelineHistoryRepository.On("Save", &mockedCiPipelineHistoryObject).Return(nil).Once()
+		mockedCiPipelineRepository.On("FindCiEnvMappingByCiPipelineId", 5).Return(CiEnvMapping, nil).Once()
+		mockedCiPipelineHistoryRepository.On("SaveCiEnvMappingHistory", &mockedCiPipelineObject).Return(nil).Once()
 
 		err = CiPipelineHistoryServiceImpl.SaveHistory(&PipelineObject, PipelineMaterialsObject, &CiTemplateObject, "update")
 
