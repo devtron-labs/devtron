@@ -2910,6 +2910,7 @@ func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Val
 				ReleaseIdentifier: releaseIdentifier,
 				ValuesYaml:        mergeAndSave,
 				HistoryMax:        impl.helmAppService.GetRevisionHistoryMaxValue(client2.SOURCE_DEVTRON_APP),
+				ChartContent:      &client2.ChartContent{Content: referenceChartByte},
 			}
 
 			updateApplicationResponse, err := impl.helmAppClient.UpdateApplication(ctx, req)
