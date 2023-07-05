@@ -580,6 +580,121 @@ func (_m *CiPipelineRepository) FindWithMinDataByCiPipelineId(id int) (*pipeline
 	return r0, r1
 }
 
+// GetAllCDsEnvAndClusterNameByCiPipelineIds provides a mock function with given fields: ciPipelineIds
+func (_m *CiPipelineRepository) GetAllCDsEnvAndClusterNameByCiPipelineIds(ciPipelineIds []int) ([]*pipelineConfig.CiPipelineEnvCluster, error) {
+	ret := _m.Called(ciPipelineIds)
+
+	var r0 []*pipelineConfig.CiPipelineEnvCluster
+	if rf, ok := ret.Get(0).(func([]int) []*pipelineConfig.CiPipelineEnvCluster); ok {
+		r0 = rf(ciPipelineIds)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*pipelineConfig.CiPipelineEnvCluster)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func([]int) error); ok {
+		r1 = rf(ciPipelineIds)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetAllCIAppAndProjectByProjectNames provides a mock function with given fields: projectNames
+func (_m *CiPipelineRepository) GetAllCIAppAndProjectByProjectNames(projectNames []string) ([]*pipelineConfig.CiPipelineAppProject, error) {
+	ret := _m.Called(projectNames)
+
+	var r0 []*pipelineConfig.CiPipelineAppProject
+	if rf, ok := ret.Get(0).(func([]string) []*pipelineConfig.CiPipelineAppProject); ok {
+		r0 = rf(projectNames)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*pipelineConfig.CiPipelineAppProject)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func([]string) error); ok {
+		r1 = rf(projectNames)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetAllCIsClusterAndEnvByCDClusterNames provides a mock function with given fields: clusterNames, ciPipelineIds
+func (_m *CiPipelineRepository) GetAllCIsClusterAndEnvByCDClusterNames(clusterNames []string, ciPipelineIds []int) ([]*pipelineConfig.CiPipelineEnvCluster, error) {
+	ret := _m.Called(clusterNames, ciPipelineIds)
+
+	var r0 []*pipelineConfig.CiPipelineEnvCluster
+	if rf, ok := ret.Get(0).(func([]string, []int) []*pipelineConfig.CiPipelineEnvCluster); ok {
+		r0 = rf(clusterNames, ciPipelineIds)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*pipelineConfig.CiPipelineEnvCluster)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func([]string, []int) error); ok {
+		r1 = rf(clusterNames, ciPipelineIds)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetAllCIsClusterAndEnvForAllProductionEnvCD provides a mock function with given fields: ciPipelineIds
+func (_m *CiPipelineRepository) GetAllCIsClusterAndEnvForAllProductionEnvCD(ciPipelineIds []int) ([]*pipelineConfig.CiPipelineEnvCluster, error) {
+	ret := _m.Called(ciPipelineIds)
+
+	var r0 []*pipelineConfig.CiPipelineEnvCluster
+	if rf, ok := ret.Get(0).(func([]int) []*pipelineConfig.CiPipelineEnvCluster); ok {
+		r0 = rf(ciPipelineIds)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*pipelineConfig.CiPipelineEnvCluster)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func([]int) error); ok {
+		r1 = rf(ciPipelineIds)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetAppAndProjectNameForParentAndAllLinkedCI provides a mock function with given fields: ciPipelineId
+func (_m *CiPipelineRepository) GetAppAndProjectNameForParentAndAllLinkedCI(ciPipelineId int) ([]*pipelineConfig.CiPipelineAppProject, error) {
+	ret := _m.Called(ciPipelineId)
+
+	var r0 []*pipelineConfig.CiPipelineAppProject
+	if rf, ok := ret.Get(0).(func(int) []*pipelineConfig.CiPipelineAppProject); ok {
+		r0 = rf(ciPipelineId)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*pipelineConfig.CiPipelineAppProject)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(int) error); ok {
+		r1 = rf(ciPipelineId)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetCiPipelineByArtifactId provides a mock function with given fields: artifactId
 func (_m *CiPipelineRepository) GetCiPipelineByArtifactId(artifactId int) (*pipelineConfig.CiPipeline, error) {
 	ret := _m.Called(artifactId)
