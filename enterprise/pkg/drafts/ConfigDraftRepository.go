@@ -18,6 +18,7 @@ type ConfigDraftRepository interface {
 	GetDraftVersionComments(draftId int) ([]*DraftVersionCommentDto, error)
 	GetLatestConfigDraft(draftId int) (*DraftVersionDto, error)
 	GetDraftMetadata(appId int, envId int, resourceType DraftResourceType) ([]*DraftsDto, error)
+	GetDraftVersionById(draftVersionId int) (*DraftVersionDto, error)
 }
 
 type ConfigDraftRepositoryImpl struct {
@@ -183,6 +184,18 @@ func (repo *ConfigDraftRepositoryImpl) GetDraftMetadata(appId int, envId int, re
 	}
 	return draftMetadataDtos, err
 }
+
+func (repo *ConfigDraftRepositoryImpl) GetDraftVersionById(draftVersionId int) (*DraftVersionDto, error) {
+	var draftVersion *DraftVersionDto
+	err := repo.dbConnection.Model(draftVersion).Column("draft_versions.*, DraftsDto").Where("id = ?", draftVersionId).
+		Order("id desc").Select()
+	if err != nil {
+		repo.logger.Errorw("error occurred while fetching draft version", "draftVersionId", draftVersionId, "err", err)
+		return nil, err
+	}
+	return draftVersion, nil
+}
+
 
 
 

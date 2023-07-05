@@ -8,11 +8,13 @@ import (
 type ConfigDraftService interface {
 	CreateDraft(request ConfigDraftRequest) (*ConfigDraftResponse, error)
 	AddDraftVersion(request ConfigDraftVersionRequest) (int, error)
-	UpdateDraftState(draftId int, draftState DraftState, userId int32) error
+	UpdateDraftState(draftId int, draftVersionId int, toUpdateDraftState DraftState, userId int32) error
 	GetDraftVersionMetadata(draftId int) (*DraftVersionMetadataResponse, error) // would return version timestamp and user email id
 	GetDraftComments(draftId int) (*DraftVersionCommentResponse, error)
 	GetDrafts(appId int, envId int, resourceType DraftResourceType) ([]AppConfigDraft, error) // need to take care of secret data
 	GetDraftById(draftId int) (*ConfigDraftResponse, error)                                   //  need to send ** in case of view only user for Secret data
+	GetDraftByDraftVersionId(draftVersionId int) (*ConfigDraftResponse, error)
+	ApproveDraft(draftId int, draftVersionId int, userId int32) error
 }
 
 type ConfigDraftServiceImpl struct {
@@ -68,9 +70,16 @@ func (impl ConfigDraftServiceImpl) AddDraftVersion(request ConfigDraftVersionReq
 	return lastDraftVersionId, nil
 }
 
-func (impl ConfigDraftServiceImpl) UpdateDraftState(draftId int, toUpdateDraftState DraftState, userId int32) error {
+func (impl ConfigDraftServiceImpl) UpdateDraftState(draftId int, draftVersionId int, toUpdateDraftState DraftState, userId int32) error {
 	impl.logger.Infow("updating draft state", "draftId", draftId, "toUpdateDraftState", toUpdateDraftState, "userId", userId)
 	// check app config draft is enabled or not ??
+	latestDraftVersion, err := impl.configDraftRepository.GetLatestConfigDraft(draftId)
+	if err != nil {
+		return err
+	}
+	if latestDraftVersion.Id != draftVersionId { // needed for current scope
+		return errors.New("last-version-outdated")
+	}
 	draftMetadataDto, err := impl.configDraftRepository.GetDraftMetadataById(draftId)
 	if err != nil {
 		return err
@@ -154,5 +163,24 @@ func (impl ConfigDraftServiceImpl) GetDraftById(draftId int) (*ConfigDraftRespon
 		return nil, err
 	}
 	draftResponse := configDraft.ConvertToConfigDraft()
-	return &draftResponse, nil
+	return draftResponse, nil
 }
+
+func (impl ConfigDraftServiceImpl) GetDraftByDraftVersionId(draftVersionId int) (*ConfigDraftResponse, error) {
+	draftVersionDto, err := impl.configDraftRepository.GetDraftVersionById(draftVersionId)
+	if err != nil {
+		return nil, err
+	}
+	return draftVersionDto.ConvertToConfigDraft(), nil
+}
+
+func (impl ConfigDraftServiceImpl) ApproveDraft(draftId int, draftVersionId int, userId int32) error {
+	err := impl.UpdateDraftState(draftId, draftVersionId, PublishedDraftState, userId)
+	if err != nil {
+		return err
+	}
+	// once it is approved, we need to create actual resources
+	return nil
+}
+
+

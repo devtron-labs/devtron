@@ -29,6 +29,7 @@ const (
 	ResourceTemplate              = "template"
 	ResourceTerminal              = "terminal"
 	ResourceCiPipelineSourceValue = "ci-pipeline/source-value"
+	ResourceConfig                = "config"
 
 	ResourceProjects     = "projects"
 	ResourceApplications = "applications"
@@ -51,6 +52,7 @@ const (
 	ActionNotify         = "notify"
 	ActionExec           = "exec"
 	ActionAllPlaceHolder = "all"
+	ActionApprove        = "approve"
 
 	ClusterResourceRegex         = "%s/%s"    // {cluster}/{namespace}
 	ClusterObjectRegex           = "%s/%s/%s" // {groupName}/{kindName}/{objectName}

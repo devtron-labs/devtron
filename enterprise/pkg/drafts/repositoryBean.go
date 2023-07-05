@@ -56,8 +56,8 @@ func (dto DraftVersionDto) ConvertToDraftVersionMetadata() DraftVersionMetadata 
 	return draftVersionMetadata
 }
 
-func (dto DraftVersionDto) ConvertToConfigDraft() ConfigDraftResponse {
-	configDraftResponse := ConfigDraftResponse{
+func (dto DraftVersionDto) ConvertToConfigDraft() *ConfigDraftResponse {
+	configDraftResponse := &ConfigDraftResponse{
 		DraftId:        dto.DraftId,
 		DraftVersionId: dto.Id,
 	}

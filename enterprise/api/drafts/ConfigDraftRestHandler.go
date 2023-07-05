@@ -21,6 +21,7 @@ type ConfigDraftRestHandler interface {
 	GetDraftComments(w http.ResponseWriter, r *http.Request)
 	GetDrafts(w http.ResponseWriter, r *http.Request)
 	GetDraftById(w http.ResponseWriter, r *http.Request)
+	ApproveDraft(w http.ResponseWriter, r *http.Request)
 }
 
 type ConfigDraftRestHandlerImpl struct {
@@ -254,4 +255,34 @@ func (impl *ConfigDraftRestHandlerImpl) enforceForAppAndEnv(appId int, envId int
 	}
 	return true
 }
+
+func (impl *ConfigDraftRestHandlerImpl) ApproveDraft(w http.ResponseWriter, r *http.Request) {
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	draftId, err := common.ExtractIntPathParam(w, r, "draftId")
+	if err != nil {
+		return
+	}
+	draftVersionId, err := common.ExtractIntPathParam(w, r, "draftVersionId")
+	if err != nil {
+		return
+	}
+	draftResponse, err := impl.configDraftService.GetDraftById(draftId)
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching draft", "err", err, "draftVersionId", draftVersionId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	token := r.Header.Get("token")
+	object := impl.enforcerUtil.GetTeamEnvRBACNameByAppId(draftResponse.AppId, draftResponse.EnvId)
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceConfig, casbin.ActionApprove, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+
+}
+
 

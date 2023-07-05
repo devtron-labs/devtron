@@ -27,4 +27,5 @@ func (router *ConfigDraftRouterImpl) InitConfigDraftRouter(configRouter *mux.Rou
 	configRouter.Path("/version").HandlerFunc(router.configDraftRestHandler.AddDraftVersion).Methods("PUT")
 	configRouter.Path("/version/{draftId}").HandlerFunc(router.configDraftRestHandler.GetDraftVersionMetadata).Methods("GET")
 	configRouter.Path("/version/comments/{draftId}").HandlerFunc(router.configDraftRestHandler.GetDraftComments).Methods("GET")
+	configRouter.Path("/approve").HandlerFunc(router.configDraftRestHandler.GetDraftComments).Methods("GET")
 }
