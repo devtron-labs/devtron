@@ -26,7 +26,7 @@ func (router UserTerminalAccessRouterImpl) InitTerminalAccessRouter(userTerminal
 	userTerminalAccessRouter.Path("/start").
 		HandlerFunc(router.userTerminalAccessRestHandler.StartTerminalSession).Methods("POST")
 	userTerminalAccessRouter.Path("/get").
-		HandlerFunc(router.userTerminalAccessRestHandler.FetchTerminalStatus).Queries("terminalAccessId", "{terminalAccessId}", "namespace", "{namespace}", "shellName", "{shellName}").Methods("GET")
+		HandlerFunc(router.userTerminalAccessRestHandler.FetchTerminalStatus).Queries("terminalAccessId", "{terminalAccessId}", "namespace", "{namespace}", "shellName", "{shellName}", "containerName", "{containerName}").Methods("GET")
 	userTerminalAccessRouter.Path("/pod/events").
 		HandlerFunc(router.userTerminalAccessRestHandler.FetchTerminalPodEvents).Queries("terminalAccessId", "{terminalAccessId}").Methods("GET")
 	userTerminalAccessRouter.Path("/pod/manifest").
@@ -37,8 +37,10 @@ func (router UserTerminalAccessRouterImpl) InitTerminalAccessRouter(userTerminal
 		HandlerFunc(router.userTerminalAccessRestHandler.StopTerminalSession).Queries("terminalAccessId", "{terminalAccessId}").Methods("PUT")
 	userTerminalAccessRouter.Path("/disconnectAndRetry").
 		HandlerFunc(router.userTerminalAccessRestHandler.DisconnectAllTerminalSessionAndRetry).Methods("POST")
-	userTerminalAccessRouter.Path("/validateShell").Queries("podName", "{podName}", "namespace", "{namespace}", "shellName", "{shellName}", "clusterId", "{clusterId}").HandlerFunc(router.userTerminalAccessRestHandler.ValidateShell)
-
+	userTerminalAccessRouter.Path("/validateShell").Queries("podName", "{podName}", "namespace", "{namespace}", "shellName", "{shellName}", "clusterId", "{clusterId}").
+		HandlerFunc(router.userTerminalAccessRestHandler.ValidateShell)
+	userTerminalAccessRouter.Path("/edit").
+		HandlerFunc(router.userTerminalAccessRestHandler.EditPodManifest).Methods("PUT")
 	//TODO fetch all user running/starting pods
 	//TODO fetch all running/starting pods also include sessionIds if session exists
 	//TODO terminate all Sessions
