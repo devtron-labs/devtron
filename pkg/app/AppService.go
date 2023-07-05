@@ -189,7 +189,6 @@ type AppService interface {
 	GetAppMetricsByTriggerType(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (bool, error)
 	GetDeploymentStrategyByTriggerType(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (*chartConfig.PipelineStrategy, error)
 	CreateGitopsRepo(app *app.App, userId int32) (gitopsRepoName string, chartGitAttr *ChartGitAttribute, err error)
-	GetLatestDeployedManifestByPipelineId(appId int, envId int, ctx context.Context) ([]byte, error)
 	GetDeployedManifestByPipelineIdAndCDWorkflowId(appId int, envId int, cdWorkflowId int, ctx context.Context) ([]byte, error)
 	SetPipelineFieldsInOverrideRequest(overrideRequest *bean.ValuesOverrideRequest, pipeline *pipelineConfig.Pipeline)
 }
@@ -1448,51 +1447,6 @@ func (impl *AppServiceImpl) BuildManifestForTrigger(overrideRequest *bean.Values
 	return valuesOverrideResponse, builtChartPath, err
 }
 
-func (impl *AppServiceImpl) GetLatestDeployedManifestByPipelineId(appId int, envId int, ctx context.Context) ([]byte, error) {
-
-	manifestByteArray := make([]byte, 0)
-
-	pipeline, err := impl.pipelineRepository.FindActiveByAppIdAndEnvironmentId(appId, envId)
-	if err != nil {
-		impl.logger.Errorw("error in fetching pipeline by appId and envId", "appId", appId, "envId", envId, "err", err)
-		return manifestByteArray, err
-	}
-
-	pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByAppIdAndEnvId(appId, envId, pipeline[0].DeploymentAppType)
-	if err != nil {
-		impl.logger.Errorw("error in fetching latest release by appId and envId", "appId", appId, "envId", envId, "err", err)
-		return manifestByteArray, err
-	}
-
-	envConfigOverride, err := impl.environmentConfigRepository.Get(pipelineOverride.EnvConfigOverrideId)
-	if err != nil {
-		impl.logger.Errorw("error in fetching env config repository by appId and envId", "appId", appId, "envId", envId, "err", err)
-		return manifestByteArray, err
-	}
-
-	appName := pipeline[0].App.AppName
-	builtChartPath, err := impl.BuildChartAndGetPath(appName, envConfigOverride, ctx)
-	if err != nil {
-		impl.logger.Errorw("error in parsing reference chart", "err", err)
-		return manifestByteArray, err
-	}
-
-	// create values file in built chart path
-	valuesFilePath := path.Join(builtChartPath, "valuesOverride.yaml")
-	err = ioutil.WriteFile(valuesFilePath, []byte(pipelineOverride.PipelineMergedValues), 0600)
-	if err != nil {
-		return manifestByteArray, nil
-	}
-
-	manifestByteArray, err = impl.chartTemplateService.LoadChartInBytes(builtChartPath, true)
-	if err != nil {
-		impl.logger.Errorw("error in converting chart to bytes", "err", err)
-		return manifestByteArray, err
-	}
-
-	return manifestByteArray, nil
-}
-
 func (impl *AppServiceImpl) GetDeployedManifestByPipelineIdAndCDWorkflowId(appId int, envId int, cdWorkflowId int, ctx context.Context) ([]byte, error) {
 
 	manifestByteArray := make([]byte, 0)
@@ -1593,96 +1547,6 @@ func (impl *AppServiceImpl) CreateGitopsRepo(app *app.App, userId int32) (gitops
 		return "", nil, err
 	}
 	return gitOpsRepoName, chartGitAttr, nil
-}
-
-func (impl *AppServiceImpl) PushChartToGitRepoIfNotExistAndUpdateTimelineStatus(overrideRequest *bean.ValuesOverrideRequest, tempReferenceTemplateDir string, envOverride *chartConfig.EnvConfigOverride, ctx context.Context) error {
-
-	_, span := otel.Tracer("orchestrator").Start(ctx, "chartTemplateService.GetGitOpsRepoName")
-	// CHART COMMIT and PUSH STARTS HERE, it will push latest version, if found modified on deployment template and overrides
-	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(overrideRequest.AppName)
-	span.End()
-	_, span = otel.Tracer("orchestrator").Start(ctx, "chartService.CheckChartExists")
-	err := impl.chartService.CheckChartExists(envOverride.Chart.ChartRefId)
-	span.End()
-	if err != nil {
-		impl.logger.Errorw("err in getting chart info", "err", err)
-		return err
-	}
-
-	var gitCommitStatus pipelineConfig.TimelineStatus
-	var gitCommitStatusDetail string
-	err = impl.chartTemplateService.PushChartToGitRepo(gitOpsRepoName, envOverride.Chart.ReferenceTemplate, envOverride.Chart.ChartVersion, tempReferenceTemplateDir, envOverride.Chart.GitRepoUrl, overrideRequest.UserId)
-	if err != nil {
-		impl.saveTimeline(overrideRequest, gitCommitStatus, gitCommitStatusDetail, ctx)
-		return err
-	} else {
-		gitCommitStatus = pipelineConfig.TIMELINE_STATUS_GIT_COMMIT
-		gitCommitStatusDetail = "Git commit done successfully."
-		// creating cd pipeline status timeline for git commit
-		timeline := &pipelineConfig.PipelineStatusTimeline{
-			CdWorkflowRunnerId: overrideRequest.WfrId,
-			Status:             gitCommitStatus,
-			StatusDetail:       gitCommitStatusDetail,
-			StatusTime:         time.Now(),
-			AuditLog: sql.AuditLog{
-				CreatedBy: overrideRequest.UserId,
-				CreatedOn: time.Now(),
-				UpdatedBy: overrideRequest.UserId,
-				UpdatedOn: time.Now(),
-			},
-		}
-		_, span = otel.Tracer("orchestrator").Start(ctx, "cdPipelineStatusTimelineRepo.SaveTimelineForACDHelmApps")
-		err := impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
-		span.End()
-		if err != nil {
-			impl.logger.Errorw("error in creating timeline status for git commit", "err", err, "timeline", timeline)
-		}
-	}
-	return nil
-}
-
-func (impl *AppServiceImpl) CommitValuesToGit(valuesOverrideRequest *bean.ValuesOverrideRequest, valuesOverrideResponse *ValuesOverrideResponse, triggeredAt time.Time, ctx context.Context) (commitHash string, commitTime time.Time, err error) {
-	commitHash = ""
-	commitTime = time.Time{}
-	chartRepoName := impl.chartTemplateService.GetGitOpsRepoNameFromUrl(valuesOverrideResponse.EnvOverride.Chart.GitRepoUrl)
-	_, span := otel.Tracer("orchestrator").Start(ctx, "chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit")
-	//getting username & emailId for commit author data
-	userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(valuesOverrideRequest.UserId)
-	span.End()
-	chartGitAttr := &ChartConfig{
-		FileName:       fmt.Sprintf("_%d-values.yaml", valuesOverrideResponse.EnvOverride.TargetEnvironment),
-		FileContent:    string(valuesOverrideResponse.MergedValues),
-		ChartName:      valuesOverrideResponse.EnvOverride.Chart.ChartName,
-		ChartLocation:  valuesOverrideResponse.EnvOverride.Chart.ChartLocation,
-		ChartRepoName:  chartRepoName,
-		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", valuesOverrideResponse.PipelineOverride.Id, valuesOverrideResponse.EnvOverride.TargetEnvironment),
-		UserName:       userName,
-		UserEmailId:    userEmailId,
-	}
-	gitOpsConfigBitbucket, err := impl.gitOpsConfigRepository.GetGitOpsConfigByProvider(BITBUCKET_PROVIDER)
-	if err != nil {
-		if err == pg.ErrNoRows {
-			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
-		} else {
-			return commitHash, commitTime, err
-		}
-	}
-	gitOpsConfig := &bean.GitOpsConfigDto{BitBucketWorkspaceId: gitOpsConfigBitbucket.BitBucketWorkspaceId}
-	_, span = otel.Tracer("orchestrator").Start(ctx, "gitFactory.Client.CommitValues")
-	commitHash, commitTime, err = impl.gitFactory.Client.CommitValues(chartGitAttr, gitOpsConfig)
-	span.End()
-	if err != nil {
-		impl.logger.Errorw("error in git commit", "err", err)
-		return commitHash, commitTime, err
-	}
-	if commitTime.IsZero() {
-		commitTime = time.Now()
-	}
-	span.End()
-	if err != nil {
-		return commitHash, commitTime, err
-	}
-	return commitHash, commitTime, nil
 }
 
 func (impl *AppServiceImpl) DeployArgocdApp(overrideRequest *bean.ValuesOverrideRequest, valuesOverrideResponse *ValuesOverrideResponse, ctx context.Context) error {
@@ -1898,20 +1762,6 @@ func (impl *AppServiceImpl) BuildManifestPushTemplate(overrideRequest *bean.Valu
 		manifestPushTemplate.RepoUrl = valuesOverrideResponse.EnvOverride.Chart.GitRepoUrl
 	}
 	return manifestPushTemplate, err
-}
-
-func (impl *AppServiceImpl) buildChartAndPushToGitRepo(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, chartMetaData *chart2.Metadata, referenceTemplatePath string, gitOpsRepoName string, envOverride *chartConfig.EnvConfigOverride) error {
-	_, span := otel.Tracer("orchestrator").Start(ctx, "chartTemplateService.BuildChart")
-	tempReferenceTemplateDir, err := impl.chartTemplateService.BuildChart(ctx, chartMetaData, referenceTemplatePath)
-	span.End()
-	defer impl.chartTemplateService.CleanDir(tempReferenceTemplateDir)
-	if err != nil {
-		return err
-	}
-	_, span = otel.Tracer("orchestrator").Start(ctx, "chartTemplateService.PushChartToGitRepo")
-	err = impl.chartTemplateService.PushChartToGitRepo(gitOpsRepoName, envOverride.Chart.ReferenceTemplate, envOverride.Chart.ChartVersion, tempReferenceTemplateDir, envOverride.Chart.GitRepoUrl, overrideRequest.UserId)
-	span.End()
-	return err
 }
 
 func (impl *AppServiceImpl) saveTimeline(overrideRequest *bean.ValuesOverrideRequest, status string, statusDetail string, ctx context.Context) {
@@ -2393,65 +2243,6 @@ func (impl *AppServiceImpl) getReleaseOverride(envOverride *chartConfig.EnvConfi
 	}
 	return override, nil
 }
-
-//func (impl *AppServiceImpl) commitMergedValuesToGit() {
-//
-//	commitHash := ""
-//	commitTime := time.Time{}
-//
-//	chartRepoName := impl.GetChartRepoName(envOverride.Chart.GitRepoUrl)
-//	_, span := otel.Tracer("orchestrator").Start(ctx, "chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit")
-//	//getting username & emailId for commit author data
-//	userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(overrideRequest.UserId)
-//	span.End()
-//	chartGitAttr := &ChartConfig{
-//		FileName:       fmt.Sprintf("_%d-values.yaml", envOverride.TargetEnvironment),
-//		FileContent:    string(merged),
-//		ChartName:      envOverride.Chart.ChartName,
-//		ChartLocation:  envOverride.Chart.ChartLocation,
-//		ChartRepoName:  chartRepoName,
-//		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", override.Id, envOverride.TargetEnvironment),
-//		UserName:       userName,
-//		UserEmailId:    userEmailId,
-//	}
-//	gitOpsConfigBitbucket, err := impl.gitOpsConfigRepository.GetGitOpsConfigByProvider(BITBUCKET_PROVIDER)
-//	if err != nil {
-//		if err == pg.ErrNoRows {
-//			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
-//		} else {
-//			return 0, 0, "", err
-//		}
-//	}
-//	gitOpsConfig := &bean.GitOpsConfigDto{BitBucketWorkspaceId: gitOpsConfigBitbucket.BitBucketWorkspaceId}
-//	_, span = otel.Tracer("orchestrator").Start(ctx, "gitFactory.Client.CommitValues")
-//	commitHash, commitTime, err = impl.gitFactory.Client.CommitValues(chartGitAttr, gitOpsConfig)
-//	span.End()
-//	if err != nil {
-//		impl.logger.Errorw("error in git commit", "err", err)
-//		return 0, 0, "", err
-//	}
-//
-//	if commitTime.IsZero() {
-//		commitTime = time.Now()
-//	}
-//	pipelineOverride := &chartConfig.PipelineOverride{
-//		Id:                     override.Id,
-//		GitHash:                commitHash,
-//		CommitTime:             commitTime,
-//		EnvConfigOverrideId:    envOverride.Id,
-//		PipelineOverrideValues: overrideJson,
-//		PipelineId:             overrideRequest.PipelineId,
-//		CiArtifactId:           overrideRequest.CiArtifactId,
-//		PipelineMergedValues:   string(merged),
-//		AuditLog:               sql.AuditLog{UpdatedOn: triggeredAt, UpdatedBy: deployedBy},
-//	}
-//	_, span = otel.Tracer("orchestrator").Start(ctx, "pipelineOverrideRepository.Update")
-//	err = impl.pipelineOverrideRepository.Update(pipelineOverride)
-//	span.End()
-//	if err != nil {
-//		return 0, 0, "", err
-//	}
-//}
 
 func (impl *AppServiceImpl) mergeOverrideValues(envOverride *chartConfig.EnvConfigOverride,
 	dbMigrationOverride []byte,

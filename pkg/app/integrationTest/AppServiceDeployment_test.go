@@ -102,7 +102,7 @@ func TestDeploymentTemplateHistoryService(t *testing.T) {
 		sugaredLogger, err := util.NewSugardLogger()
 		assert.Nil(t, err)
 
-		appServiceImpl := app.NewAppService(mockedEnvConfigOverrideRepository, nil, nil, sugaredLogger, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, mockedEnvironmentRepository, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, "", mockedChartRefRepository, nil, nil, nil, nil, nil, nil, nil, mockedDeploymentTemplateHistoryRepository, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		appServiceImpl := app.NewAppService(mockedEnvConfigOverrideRepository, nil, nil, sugaredLogger, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, mockedEnvironmentRepository, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, "", mockedChartRefRepository, nil, nil, nil, nil, nil, nil, nil, mockedDeploymentTemplateHistoryRepository, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 
 		overrideRequest := &bean.ValuesOverrideRequest{
 			PipelineId:                            1,
@@ -252,7 +252,7 @@ func TestDeploymentTemplateHistoryService(t *testing.T) {
 			nil, nil,
 			nil, nil, nil,
 			nil, nil,
-			nil, nil, nil)
+			nil, nil, nil, nil, nil)
 
 		envOverride, err := appServiceImpl.GetEnvOverrideByTriggerType(overrideRequest, triggeredAt, context.Background())
 		assert.Nil(t, err)
@@ -329,7 +329,7 @@ func TestDeploymentTemplateHistoryService(t *testing.T) {
 			nil, nil,
 			nil, nil, nil,
 			nil, nil,
-			nil, nil, nil)
+			nil, nil, nil, nil, nil)
 
 		isAppMetricsEnabled, err := appServiceImpl.GetAppMetricsByTriggerType(overrideRequest, context.Background())
 		assert.Nil(t, err)
@@ -403,7 +403,7 @@ func TestDeploymentTemplateHistoryService(t *testing.T) {
 			nil, nil,
 			nil, nil, nil,
 			nil, nil,
-			nil, nil, nil)
+			nil, nil, nil, nil, nil)
 
 		isAppMetricsEnabled, err := appServiceImpl.GetAppMetricsByTriggerType(overrideRequest, context.Background())
 		assert.Nil(t, err)
@@ -486,7 +486,7 @@ func TestDeploymentTemplateHistoryService(t *testing.T) {
 			nil, nil,
 			nil, nil, nil,
 			nil, nil,
-			nil, nil, nil)
+			nil, nil, nil, nil, nil)
 
 		isAppMetricsEnabled, err := appServiceImpl.GetAppMetricsByTriggerType(overrideRequest, context.Background())
 		assert.Nil(t, err)
@@ -567,7 +567,7 @@ func TestDeploymentTemplateHistoryService(t *testing.T) {
 			nil, nil,
 			nil, nil, nil,
 			nil, nil,
-			nil, nil, nil)
+			nil, nil, nil, nil, nil)
 
 		isAppMetricsEnabled, err := appServiceImpl.GetAppMetricsByTriggerType(overrideRequest, context.Background())
 		assert.Nil(t, err)
@@ -618,7 +618,7 @@ func TestDeploymentTemplateHistoryService(t *testing.T) {
 			nil, nil,
 			nil, nil, nil,
 			nil, nil,
-			nil, nil, nil)
+			nil, nil, nil, nil, nil)
 
 		overrideRequest := &bean.ValuesOverrideRequest{
 			PipelineId:                            1,
@@ -716,7 +716,7 @@ func TestDeploymentTemplateHistoryService(t *testing.T) {
 			nil, nil,
 			nil, nil, nil,
 			nil, nil,
-			nil, nil, nil)
+			nil, nil, nil, nil, nil)
 
 		strategy, err := appServiceImpl.GetDeploymentStrategyByTriggerType(overrideRequest, context.Background())
 
