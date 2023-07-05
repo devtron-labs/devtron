@@ -201,7 +201,7 @@ func (impl *PipelineStatusTimelineRepositoryImpl) FetchLatestTimelineByWfrId(wfr
 }
 
 func (impl *PipelineStatusTimelineRepositoryImpl) CheckIfTerminalStatusTimelinePresentByWfrId(wfrId int) (bool, error) {
-	terminalStatus := []string{string(TIMELINE_STATUS_APP_HEALTHY), string(TIMELINE_STATUS_DEPLOYMENT_FAILED), string(TIMELINE_STATUS_GIT_COMMIT_FAILED), string(TIMELINE_STATUS_DEPLOYMENT_SUPERSEDED)}
+	terminalStatus := []string{TIMELINE_STATUS_APP_HEALTHY, TIMELINE_STATUS_DEPLOYMENT_FAILED, TIMELINE_STATUS_GIT_COMMIT_FAILED, TIMELINE_STATUS_DEPLOYMENT_SUPERSEDED, TIMELINE_STATUS_MANIFEST_PUSHED_TO_HELM_REPO_FAILED}
 	timeline := &PipelineStatusTimeline{}
 	exists, err := impl.dbConnection.Model(timeline).
 		Where("cd_workflow_runner_id = ?", wfrId).

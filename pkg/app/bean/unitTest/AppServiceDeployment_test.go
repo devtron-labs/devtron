@@ -12,6 +12,7 @@ import (
 	mocks5 "github.com/devtron-labs/devtron/internal/sql/repository/mocks"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
+	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	mocks2 "github.com/devtron-labs/devtron/pkg/chartRepo/repository/mocks"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -1083,6 +1084,138 @@ func TestDeploymentTemplateHistoryService(t *testing.T) {
 		assert.NotNil(t, manifestPushTemplate.BuiltChartPath)
 		assert.Equal(t, manifestPushTemplate.ChartReferenceTemplate, "")
 
+	})
+
+	t.Run("triggerReleaseArgoCD", func(t *testing.T) {
+		sugaredLogger, err := util.NewSugardLogger()
+		assert.Nil(t, err)
+		appServiceImpl := app.NewAppService(nil,
+			nil, nil, sugaredLogger,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil, nil,
+			nil, nil, "", nil,
+			nil, nil, nil, nil,
+			nil, nil, nil,
+			nil, nil,
+			nil, nil,
+			nil, nil,
+			nil, nil, nil,
+			nil, nil,
+			nil, nil, nil, nil, nil, nil, nil)
+		eventTime := time.Now()
+		triggerEvent := appServiceImpl.GetTriggerEvent(bean2.ArgoCd, eventTime, int32(1))
+		assert.Equal(t, triggerEvent.TriggeredBy, int32(1))
+		assert.Equal(t, triggerEvent.DeploymentAppType, bean2.ArgoCd)
+		assert.Equal(t, triggerEvent.ManifestStorageType, bean2.ManifestStorageGit)
+		assert.Equal(t, triggerEvent.PerformDeploymentOnCluster, true)
+		assert.Equal(t, triggerEvent.PerformChartPush, true)
+		assert.Equal(t, triggerEvent.TriggerdAt, eventTime)
+
+	})
+	t.Run("triggerReleaseHelm", func(t *testing.T) {
+		sugaredLogger, err := util.NewSugardLogger()
+		assert.Nil(t, err)
+		appServiceImpl := app.NewAppService(nil,
+			nil, nil, sugaredLogger,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil, nil,
+			nil, nil, "", nil,
+			nil, nil, nil, nil,
+			nil, nil, nil,
+			nil, nil,
+			nil, nil,
+			nil, nil,
+			nil, nil, nil,
+			nil, nil,
+			nil, nil, nil, nil, nil, nil, nil)
+		eventTime := time.Now()
+		triggerEvent := appServiceImpl.GetTriggerEvent(bean2.Helm, eventTime, int32(1))
+		assert.Equal(t, triggerEvent.TriggeredBy, int32(1))
+		assert.Equal(t, triggerEvent.DeploymentAppType, bean2.Helm)
+		assert.Equal(t, triggerEvent.ManifestStorageType, "")
+		assert.Equal(t, triggerEvent.PerformDeploymentOnCluster, true)
+		assert.Equal(t, triggerEvent.PerformChartPush, false)
+		assert.Equal(t, triggerEvent.TriggerdAt, eventTime)
+	})
+	t.Run("triggerReleaseManifestDownload", func(t *testing.T) {
+		sugaredLogger, err := util.NewSugardLogger()
+		assert.Nil(t, err)
+		appServiceImpl := app.NewAppService(nil,
+			nil, nil, sugaredLogger,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil, nil,
+			nil, nil, "", nil,
+			nil, nil, nil, nil,
+			nil, nil, nil,
+			nil, nil,
+			nil, nil,
+			nil, nil,
+			nil, nil, nil,
+			nil, nil,
+			nil, nil, nil, nil, nil, nil, nil)
+		eventTime := time.Now()
+		triggerEvent := appServiceImpl.GetTriggerEvent(bean2.ManifestDownload, eventTime, int32(1))
+		assert.Equal(t, triggerEvent.TriggeredBy, int32(1))
+		assert.Equal(t, triggerEvent.DeploymentAppType, bean2.ManifestDownload)
+		assert.Equal(t, triggerEvent.ManifestStorageType, "")
+		assert.Equal(t, triggerEvent.PerformDeploymentOnCluster, false)
+		assert.Equal(t, triggerEvent.PerformChartPush, false)
+		assert.Equal(t, triggerEvent.GetManifestInResponse, true)
+		assert.Equal(t, triggerEvent.TriggerdAt, eventTime)
+	})
+	t.Run("triggerReleaseManifestPush", func(t *testing.T) {
+		sugaredLogger, err := util.NewSugardLogger()
+		assert.Nil(t, err)
+		appServiceImpl := app.NewAppService(nil,
+			nil, nil, sugaredLogger,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil, nil,
+			nil, nil, "", nil,
+			nil, nil, nil, nil,
+			nil, nil, nil,
+			nil, nil,
+			nil, nil,
+			nil, nil,
+			nil, nil, nil,
+			nil, nil,
+			nil, nil, nil, nil, nil, nil, nil)
+		eventTime := time.Now()
+		triggerEvent := appServiceImpl.GetTriggerEvent(bean2.ManifestPush, eventTime, int32(1))
+		assert.Equal(t, triggerEvent.TriggeredBy, int32(1))
+		assert.Equal(t, triggerEvent.DeploymentAppType, bean2.ManifestPush)
+		assert.Equal(t, triggerEvent.ManifestStorageType, bean2.ManifestStorageOCIHelmRepo)
+		assert.Equal(t, triggerEvent.PerformDeploymentOnCluster, false)
+		assert.Equal(t, triggerEvent.PerformChartPush, true)
+		assert.Equal(t, triggerEvent.GetManifestInResponse, true)
+		assert.Equal(t, triggerEvent.TriggerdAt, eventTime)
 	})
 
 }
