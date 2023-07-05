@@ -161,8 +161,7 @@ func (impl K8sClientServiceImpl) DeleteResource(ctx context.Context, restConfig 
 	var obj *unstructured.Unstructured
 	deleteOptions := metav1.DeleteOptions{}
 	if request.ForceDelete {
-		var gracePeriodSeconds int64 = 0
-		deleteOptions.GracePeriodSeconds = &gracePeriodSeconds
+		deleteOptions.GracePeriodSeconds = pointer.Int64Ptr(0)
 	}
 	if len(resourceIdentifier.Namespace) > 0 && namespaced {
 		obj, err = resourceIf.Namespace(resourceIdentifier.Namespace).Get(ctx, request.ResourceIdentifier.Name, metav1.GetOptions{})

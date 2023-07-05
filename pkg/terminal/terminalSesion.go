@@ -511,7 +511,7 @@ func (impl *TerminalSessionHandlerImpl) RunCmdInRemotePod(req *TerminalSessionRe
 		impl.logger.Errorw("error in fetching config", "err", err)
 		return nil, nil, err
 	}
-	impl.logger.Infow("reached getExecutor method call")
+	impl.logger.Debug("reached getExecutor method call")
 	exec, err := getExecutor(client, config, req.PodName, req.Namespace, req.ContainerName, cmds, false, false)
 	if err != nil {
 		impl.logger.Errorw("error occurred in getting remoteCommand executor", "err", err)
@@ -519,7 +519,7 @@ func (impl *TerminalSessionHandlerImpl) RunCmdInRemotePod(req *TerminalSessionRe
 	}
 	buf := &bytes.Buffer{}
 	errBuf := &bytes.Buffer{}
-	impl.logger.Infow("reached execWithStreamOptions method call")
+	impl.logger.Debug("reached execWithStreamOptions method call")
 	err = execWithStreamOptions(exec, remotecommand.StreamOptions{
 		Stdout: buf,
 		Stderr: errBuf,
