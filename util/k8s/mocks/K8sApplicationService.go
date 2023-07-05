@@ -8,19 +8,23 @@ import (
 
 	client "github.com/devtron-labs/devtron/api/helm-app"
 
-	cluster "github.com/devtron-labs/devtron/pkg/cluster"
-
 	context "context"
+
+	http "net/http"
 
 	io "io"
 
 	k8s "github.com/devtron-labs/devtron/util/k8s"
+
+	kubernetes "k8s.io/client-go/kubernetes"
 
 	mock "github.com/stretchr/testify/mock"
 
 	rest "k8s.io/client-go/rest"
 
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
+
+	terminal "github.com/devtron-labs/devtron/pkg/terminal"
 
 	unstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
@@ -78,6 +82,29 @@ func (_m *K8sApplicationService) CreateResource(ctx context.Context, request *k8
 	return r0, r1
 }
 
+// DecodeDevtronAppId provides a mock function with given fields: applicationId
+func (_m *K8sApplicationService) DecodeDevtronAppId(applicationId string) (*k8s.DevtronAppIdentifier, error) {
+	ret := _m.Called(applicationId)
+
+	var r0 *k8s.DevtronAppIdentifier
+	if rf, ok := ret.Get(0).(func(string) *k8s.DevtronAppIdentifier); ok {
+		r0 = rf(applicationId)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*k8s.DevtronAppIdentifier)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(applicationId)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // DeleteResource provides a mock function with given fields: ctx, request, userId
 func (_m *K8sApplicationService) DeleteResource(ctx context.Context, request *k8s.ResourceRequestBean, userId int32) (*application.ManifestResponse, error) {
 	ret := _m.Called(ctx, request, userId)
@@ -99,6 +126,20 @@ func (_m *K8sApplicationService) DeleteResource(ctx context.Context, request *k8
 	}
 
 	return r0, r1
+}
+
+// FetchConnectionStatusForCluster provides a mock function with given fields: k8sClientSet, clusterId
+func (_m *K8sApplicationService) FetchConnectionStatusForCluster(k8sClientSet *kubernetes.Clientset, clusterId int) error {
+	ret := _m.Called(k8sClientSet, clusterId)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*kubernetes.Clientset, int) error); ok {
+		r0 = rf(k8sClientSet, clusterId)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
 }
 
 // FilterServiceAndIngress provides a mock function with given fields: ctx, resourceTreeInf, validRequests, appDetail, appId
@@ -255,29 +296,6 @@ func (_m *K8sApplicationService) GetResourceList(ctx context.Context, token stri
 	return r0, r1
 }
 
-// GetRestConfigByCluster provides a mock function with given fields: ctx, _a1
-func (_m *K8sApplicationService) GetRestConfigByCluster(ctx context.Context, _a1 *cluster.ClusterBean) (*rest.Config, error) {
-	ret := _m.Called(ctx, _a1)
-
-	var r0 *rest.Config
-	if rf, ok := ret.Get(0).(func(context.Context, *cluster.ClusterBean) *rest.Config); ok {
-		r0 = rf(ctx, _a1)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*rest.Config)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, *cluster.ClusterBean) error); ok {
-		r1 = rf(ctx, _a1)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // GetRestConfigByClusterId provides a mock function with given fields: ctx, clusterId
 func (_m *K8sApplicationService) GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error) {
 	ret := _m.Called(ctx, clusterId)
@@ -332,6 +350,29 @@ func (_m *K8sApplicationService) ListEvents(ctx context.Context, request *k8s.Re
 
 	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, *k8s.ResourceRequestBean) error); ok {
+		r1 = rf(ctx, request)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// RotatePods provides a mock function with given fields: ctx, request
+func (_m *K8sApplicationService) RotatePods(ctx context.Context, request *k8s.RotatePodRequest) (*k8s.RotatePodResponse, error) {
+	ret := _m.Called(ctx, request)
+
+	var r0 *k8s.RotatePodResponse
+	if rf, ok := ret.Get(0).(func(context.Context, *k8s.RotatePodRequest) *k8s.RotatePodResponse); ok {
+		r0 = rf(ctx, request)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*k8s.RotatePodResponse)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, *k8s.RotatePodRequest) error); ok {
 		r1 = rf(ctx, request)
 	} else {
 		r1 = ret.Error(1)
@@ -398,6 +439,29 @@ func (_m *K8sApplicationService) ValidateClusterResourceRequest(ctx context.Cont
 	return r0, r1
 }
 
+// ValidatePodLogsRequestQuery provides a mock function with given fields: r
+func (_m *K8sApplicationService) ValidatePodLogsRequestQuery(r *http.Request) (*k8s.ResourceRequestBean, error) {
+	ret := _m.Called(r)
+
+	var r0 *k8s.ResourceRequestBean
+	if rf, ok := ret.Get(0).(func(*http.Request) *k8s.ResourceRequestBean); ok {
+		r0 = rf(r)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*k8s.ResourceRequestBean)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(*http.Request) error); ok {
+		r1 = rf(r)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // ValidateResourceRequest provides a mock function with given fields: ctx, appIdentifier, request
 func (_m *K8sApplicationService) ValidateResourceRequest(ctx context.Context, appIdentifier *client.AppIdentifier, request *application.K8sRequestBean) (bool, error) {
 	ret := _m.Called(ctx, appIdentifier, request)
@@ -417,6 +481,38 @@ func (_m *K8sApplicationService) ValidateResourceRequest(ctx context.Context, ap
 	}
 
 	return r0, r1
+}
+
+// ValidateTerminalRequestQuery provides a mock function with given fields: r
+func (_m *K8sApplicationService) ValidateTerminalRequestQuery(r *http.Request) (*terminal.TerminalSessionRequest, *k8s.ResourceRequestBean, error) {
+	ret := _m.Called(r)
+
+	var r0 *terminal.TerminalSessionRequest
+	if rf, ok := ret.Get(0).(func(*http.Request) *terminal.TerminalSessionRequest); ok {
+		r0 = rf(r)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*terminal.TerminalSessionRequest)
+		}
+	}
+
+	var r1 *k8s.ResourceRequestBean
+	if rf, ok := ret.Get(1).(func(*http.Request) *k8s.ResourceRequestBean); ok {
+		r1 = rf(r)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(*k8s.ResourceRequestBean)
+		}
+	}
+
+	var r2 error
+	if rf, ok := ret.Get(2).(func(*http.Request) error); ok {
+		r2 = rf(r)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
 }
 
 type mockConstructorTestingTNewK8sApplicationService interface {

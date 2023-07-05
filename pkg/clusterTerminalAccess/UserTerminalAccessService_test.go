@@ -137,6 +137,31 @@ func TestNewUserTerminalAccessService(t *testing.T) {
 		assert.Nil(tt, terminalSessionStatus)
 		assert.NotNil(tt, err)
 	})
+
+	t.Run("Pod Manifest : invalid manifest structure Test", func(tt *testing.T) {
+		_, _, _, terminalAccessServiceImpl := loadUserTerminalAccessService(tt)
+		editedManifest := "{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"metadata\":{\"name\":1},:{\"serviceAccountName\":\"hello\"}}"
+		request := &models.UserTerminalSessionRequest{
+			UserId:    int32(2),
+			ClusterId: 1,
+			BaseImage: "ubuntu",
+			ShellName: "sh",
+			NodeName:  "demo-new",
+			Manifest:  editedManifest,
+		}
+		res, err := terminalAccessServiceImpl.EditTerminalPodManifest(context.Background(), request, false)
+		assert.NotNil(t, err)
+		assert.NotNil(t, res)
+		assert.Equal(t, len(res.ErrorComments), 0, res.ErrorComments)
+
+		editedManifest = "{\"apiVersion\":\"v1\",\"kind\":\"Random\",\"metadata\":{\"name\":1},\"spec\":{\"serviceAccountName\":\"hello\"}}"
+		request.Manifest = editedManifest
+		res, err = terminalAccessServiceImpl.EditTerminalPodManifest(context.Background(), request, false)
+		assert.NotNil(t, err)
+		assert.Equal(t, err.Error(), "manifest should be of kind \"Pod\"")
+		assert.NotNil(t, res)
+		assert.Equal(t, len(res.ErrorComments), 0, res.ErrorComments)
+	})
 }
 
 func loadUserTerminalAccessService(t *testing.T) (*mocks.TerminalAccessRepository, *mocks2.TerminalSessionHandler, *mocks3.K8sApplicationService, *UserTerminalAccessServiceImpl) {
@@ -150,7 +175,7 @@ func loadUserTerminalAccessService(t *testing.T) (*mocks.TerminalAccessRepositor
 	k8sApplicationService := mocks3.NewK8sApplicationService(t)
 	k8sClientService := mocks4.NewK8sClientService(t)
 	terminalAccessRepository.On("GetAllRunningUserTerminalData").Return(nil, nil)
-	terminalAccessServiceImpl, err := NewUserTerminalAccessServiceImpl(logger, terminalAccessRepository, userTerminalSessionConfig, k8sApplicationService, k8sClientService, terminalSessionHandler)
+	terminalAccessServiceImpl, err := NewUserTerminalAccessServiceImpl(logger, terminalAccessRepository, userTerminalSessionConfig, k8sApplicationService, k8sClientService, terminalSessionHandler, nil)
 	assert.Nil(t, err)
 	return terminalAccessRepository, terminalSessionHandler, k8sApplicationService, terminalAccessServiceImpl
 }
