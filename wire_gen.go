@@ -708,7 +708,7 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	userTerminalAccessServiceImpl, err := clusterTerminalAccess.NewUserTerminalAccessServiceImpl(sugaredLogger, terminalAccessRepositoryImpl, userTerminalSessionConfig, k8sApplicationServiceImpl, k8sClientServiceImpl, terminalSessionHandlerImpl)
+	userTerminalAccessServiceImpl, err := clusterTerminalAccess.NewUserTerminalAccessServiceImpl(sugaredLogger, terminalAccessRepositoryImpl, userTerminalSessionConfig, k8sApplicationServiceImpl, k8sClientServiceImpl, terminalSessionHandlerImpl, k8sCapacityServiceImpl)
 	if err != nil {
 		return nil, err
 	}
