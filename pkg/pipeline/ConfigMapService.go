@@ -1793,7 +1793,7 @@ func (impl ConfigMapServiceImpl) buildBulkPayload(bulkPatchRequest *BulkPatchReq
 
 func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentCreate(createJobEnvOverrideRequest *CreateJobEnvOverridePayload) (*chartConfig.ConfigMapEnvModel, error) {
 	configMap, err := impl.configMapRepository.GetByAppIdAndEnvIdEnvLevel(createJobEnvOverrideRequest.AppId, createJobEnvOverrideRequest.EnvId)
-	if err != nil && pg.ErrNoRows != err {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error while fetching from db", "error", err)
 		return nil, err
 	}

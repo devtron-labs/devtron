@@ -72,13 +72,13 @@ const (
 
 func (impl AppListingRepositoryQueryBuilder) BuildJobListingQuery(appIDs []int, statuses []string, sortOrder string) string {
 	query := "select ci_pipeline.name as ci_pipeline_name,ci_pipeline.id as ci_pipeline_id,app.id as job_id,app.display_name " +
-		"as job_name,app.description,cwr.started_on,cwr.status,env1.environment_name,cem.environment_id,env.environment_name as last_triggered_environment_name from app left join ci_pipeline on" +
+		"as job_name,app.description,cwr.started_on,cwr.status,env1.environment_name,cem.environment_id,ci_workflow.environment_name as last_triggered_environment_name from app left join ci_pipeline on" +
 		" app.id = ci_pipeline.app_id and ci_pipeline.active=true left join (select cw.ci_pipeline_id, cw.status, cw.started_on " +
 		"  from ci_workflow cw inner join (select ci_pipeline_id, MAX(started_on) max_started_on from ci_workflow group by ci_pipeline_id ) " +
 		"cws on cw.ci_pipeline_id = cws.ci_pipeline_id " +
 		"and cw.started_on = cws.max_started_on order by cw.ci_pipeline_id) cwr on cwr.ci_pipeline_id = ci_pipeline.id " +
-		"LEFT JOIN ci_env_mapping cem on cem.ci_pipeline_id = ci_pipeline.id LEFT JOIN environment env on env.id = cem.last_triggered_env_id " +
-		"left join environment env1 on env1.id = cem.environment_id" +
+		"LEFT JOIN ci_env_mapping cem on cem.ci_pipeline_id = ci_pipeline.id " +
+		"left join environment env on env.id = cem.environment_id" +
 		" where app.active = true and app.app_type = 2 "
 	if len(appIDs) > 0 {
 		query += "and app.id IN (" + GetCommaSepratedString(appIDs) + ") "
@@ -94,13 +94,13 @@ func (impl AppListingRepositoryQueryBuilder) BuildJobListingQuery(appIDs []int, 
 }
 func (impl AppListingRepositoryQueryBuilder) OverviewCiPipelineQuery() string {
 	query := "select ci_pipeline.id as ci_pipeline_id,ci_pipeline.name " +
-		"as ci_pipeline_name,cwr.status,cwr.started_on,env1.environment_name,cem.last_triggered_env_id as environment_id,env.environment_name as last_triggered_environment_name from ci_pipeline" +
+		"as ci_pipeline_name,cwr.status,cwr.started_on,env1.environment_name,cem.last_triggered_env_id as environment_id,ci_workflow.environment_name as last_triggered_environment_name from ci_pipeline" +
 		" left join (select cw.ci_pipeline_id,cw.status,cw.started_on from ci_workflow cw" +
 		" inner join (SELECT  ci_pipeline_id, MAX(started_on) max_started_on FROM ci_workflow GROUP BY ci_pipeline_id)" +
 		" cws on cw.ci_pipeline_id = cws.ci_pipeline_id and cw.started_on = cws.max_started_on order by cw.ci_pipeline_id)" +
 		" cwr on cwr.ci_pipeline_id = ci_pipeline.id" +
-		" LEFT JOIN ci_env_mapping cem on cem.ci_pipeline_id = ci_pipeline.id LEFT JOIN environment env on env.id = cem.last_triggered_env_id " +
-		"left join environment env1 on env1.id = cem.environment_id " +
+		" LEFT JOIN ci_env_mapping cem on cem.ci_pipeline_id = ci_pipeline.id " +
+		"left join environment env on env.id = cem.environment_id " +
 		"where ci_pipeline.active = true and ci_pipeline.app_id = ? ;"
 	return query
 }

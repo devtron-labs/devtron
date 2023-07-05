@@ -38,9 +38,18 @@ func TestConfigMapServiceImpl_ConfigSecretEnvironmentCreate(t *testing.T) {
 	}
 	model := &chartConfig.ConfigMapEnvModel{
 		AppId:         22,
-		EnvironmentId: 5}
+		EnvironmentId: 5,
+		Deleted:       false,
+	}
+	responseModel := &chartConfig.ConfigMapEnvModel{
+		AppId:         22,
+		EnvironmentId: 5,
+		Deleted:       true,
+	}
 	type args struct {
 		createJobEnvOverrideRequest *CreateJobEnvOverridePayload
+		getByAppError               error
+		getByAppResponse            *chartConfig.ConfigMapEnvModel
 	}
 	tests := []struct {
 		name    string
@@ -50,10 +59,27 @@ func TestConfigMapServiceImpl_ConfigSecretEnvironmentCreate(t *testing.T) {
 	}{
 		{
 			name: "create environment override",
-			args: args{createJobEnvOverrideRequest: &CreateJobEnvOverridePayload{
-				AppId: 22,
-				EnvId: 5,
-			}},
+			args: args{
+				createJobEnvOverrideRequest: &CreateJobEnvOverridePayload{
+					AppId: 22,
+					EnvId: 5,
+				},
+				getByAppError:    pg.ErrNoRows,
+				getByAppResponse: nil,
+			},
+			want:    configMap,
+			wantErr: assert.NoError,
+		},
+		{
+			name: "create deleted override",
+			args: args{
+				createJobEnvOverrideRequest: &CreateJobEnvOverridePayload{
+					AppId: 22,
+					EnvId: 5,
+				},
+				getByAppError:    nil,
+				getByAppResponse: responseModel,
+			},
 			want:    configMap,
 			wantErr: assert.NoError,
 		},
@@ -72,8 +98,13 @@ func TestConfigMapServiceImpl_ConfigSecretEnvironmentCreate(t *testing.T) {
 				appRepository:               appRepository,
 				configMapHistoryService:     configMapHistoryService,
 			}
-			configMapRepository.On("GetByAppIdAndEnvIdEnvLevel", 22, 5).Return(nil, pg.ErrNoRows)
-			configMapRepository.On("CreateEnvLevel", model).Return(model, nil)
+			configMapRepository.On("GetByAppIdAndEnvIdEnvLevel", 22, 5).Return(tt.args.getByAppResponse, tt.args.getByAppError).Once()
+			if tt.args.getByAppError == pg.ErrNoRows {
+				configMapRepository.On("CreateEnvLevel", model).Return(model, nil).Once()
+			}
+			if tt.args.getByAppError == nil {
+				configMapRepository.On("UpdateEnvLevel", model).Return(model, nil).Once()
+			}
 			got, err := impl.ConfigSecretEnvironmentCreate(tt.args.createJobEnvOverrideRequest)
 			if !tt.wantErr(t, err, fmt.Sprintf("ConfigSecretEnvironmentCreate(%v)", tt.args.createJobEnvOverrideRequest)) {
 				return
