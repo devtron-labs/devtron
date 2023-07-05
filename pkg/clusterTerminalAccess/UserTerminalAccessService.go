@@ -1171,6 +1171,7 @@ func (impl *UserTerminalAccessServiceImpl) StartNodeDebug(userTerminalRequest *m
 			Effect: string(taint.Effect),
 		})
 	}
+
 	userTerminalRequest.NodeTaints = taints
 	podObject, err := impl.GenerateNodeDebugPod(userTerminalRequest)
 	if err != nil {
