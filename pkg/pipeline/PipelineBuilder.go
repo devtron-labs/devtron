@@ -837,6 +837,18 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 		if ciEnvMapping.Id > 0 {
 			ciPipeline.EnvironmentId = ciEnvMapping.EnvironmentId
 		}
+
+		lastTriggeredWorkflowEnv, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflow(pipeline.Id)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in fetching lasTriggeredWorkflowEnv", "ciPipelineId ", pipeline.Id, "err", err)
+			return nil, err
+		}
+		if err == pg.ErrNoRows {
+			ciPipeline.LastTriggeredEnvId = -1
+		} else {
+			ciPipeline.LastTriggeredEnvId = lastTriggeredWorkflowEnv.EnvironmentId
+		}
+
 		if ciTemplateBean, ok := ciOverrideTemplateMap[pipeline.Id]; ok {
 			templateOverride := ciTemplateBean.CiTemplateOverride
 			ciPipeline.DockerConfigOverride = bean.DockerConfigOverride{
