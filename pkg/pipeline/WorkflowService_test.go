@@ -41,6 +41,15 @@ func Test_getConfigMapsAndSecrets(t *testing.T) {
 			},
 		},
 	}
+	existingSecrets1 := &bean3.ConfigSecretJson{
+		Enabled: true,
+		Secrets: []*bean3.ConfigSecretMap{
+			{Name: "job-secret",
+				Data:     []byte("{\"abcd\": \"XCJhZGl0eWEtY20tMS1qb2ItdGVzdC1jbTFcIn0i\"}"),
+				External: true,
+			},
+		},
+	}
 	logger, err := util.NewSugardLogger()
 	if err != nil {
 		log.Fatalf("error in logger initialization %s,%s", "err", err)
@@ -88,6 +97,18 @@ func Test_getConfigMapsAndSecrets(t *testing.T) {
 			want1:   bean3.ConfigSecretJson{Secrets: []*bean3.ConfigSecretMap{{Name: "job-secret-123-ci", Data: []byte("{\"abcd\": \"XCJhZGl0eWEtY20tMS1qb2ItdGVzdC1jbTFcIn0i\"}"), External: false}}},
 			wantErr: assert.NoError,
 		},
+		{
+			name: "non empty  existingConfigMap and non empty existingSecrets",
+			args: args{
+				impl:              &WorkflowServiceImpl{Logger: logger},
+				workflowRequest:   workflowRequest,
+				existingConfigMap: existingConfigMap,
+				existingSecrets:   existingSecrets1,
+			},
+			want:    bean3.ConfigMapJson{Maps: []bean3.ConfigSecretMap{{Name: "job-map-123-ci", Data: []byte("{\"abcd\": \"aditya-cm-1-job-test-cm1\"}"), External: false}}},
+			want1:   bean3.ConfigSecretJson{Secrets: []*bean3.ConfigSecretMap{{Name: "job-secret-123-ci", Data: []byte("{\"abcd\": \"XCJhZGl0eWEtY20tMS1qb2ItdGVzdC1jbTFcIn0i\"}"), External: true}}},
+			wantErr: assert.NoError,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -132,9 +153,20 @@ func Test_getCiTemplateWithConfigMapsAndSecrets(t *testing.T) {
 			},
 		},
 	}
+
 	ciTemplate := v1alpha1.Template{
 		Name: CI_WORKFLOW_NAME,
+		Container: &v12.Container{
+			EnvFrom: []v12.EnvFromSource{},
+		},
 	}
+	ciTemplate1 := v1alpha1.Template{
+		Name: CI_WORKFLOW_NAME,
+		Container: &v12.Container{
+			VolumeMounts: []v12.VolumeMount{},
+		},
+	}
+
 	existingConfigMap := &bean3.ConfigMapJson{
 		Enabled: true,
 		Maps: []bean3.ConfigSecretMap{
@@ -153,6 +185,166 @@ func Test_getCiTemplateWithConfigMapsAndSecrets(t *testing.T) {
 			},
 		},
 	}
+	configMaps1 := &bean3.ConfigMapJson{
+		Enabled: true,
+		Maps: []bean3.ConfigSecretMap{
+			{Name: "job-map",
+				Data:     []byte("{\"abcd\": \"aditya-cm-1-job-test-cm1\"}"),
+				External: false,
+				Type:     "environment",
+			},
+		},
+	}
+	secrets1 := &bean3.ConfigSecretJson{
+		Enabled: true,
+		Secrets: []*bean3.ConfigSecretMap{
+			{Name: "job-secret",
+				Data:     []byte("{\"abcd\": \"XCJhZGl0eWEtY20tMS1qb2ItdGVzdC1jbTFcIn0i\"}"),
+				External: false,
+				Type:     "environment",
+			},
+		},
+	}
+	existingConfigMap1 := &bean3.ConfigMapJson{
+		Enabled: true,
+		Maps: []bean3.ConfigSecretMap{
+			{Name: "job-map",
+				Data:     []byte("{\"abcd\": \"aditya-cm-1-job-test-cm1\"}"),
+				External: false,
+				Type:     "environment",
+			},
+		},
+	}
+	existingSecrets1 := &bean3.ConfigSecretJson{
+		Enabled: true,
+		Secrets: []*bean3.ConfigSecretMap{
+			{Name: "job-secret",
+				Data:     []byte("{\"abcd\":\"XCJhZGl0eWEtY20tMS1qb2ItdGVzdC1jbTFcIn0i\"}"),
+				External: false,
+				Type:     "environment",
+			},
+		},
+	}
+	configMaps2 := &bean3.ConfigMapJson{
+		Enabled: true,
+		Maps: []bean3.ConfigSecretMap{
+			{Name: "job-map",
+				Data:     []byte("{\"abcd\": \"aditya-cm-1-job-test-cm1\"}"),
+				External: false,
+				Type:     "volume",
+			},
+		},
+	}
+	secrets2 := &bean3.ConfigSecretJson{
+		Enabled: true,
+		Secrets: []*bean3.ConfigSecretMap{
+			{Name: "job-secret",
+				Data:     []byte("{\"abcd\": \"XCJhZGl0eWEtY20tMS1qb2ItdGVzdC1jbTFcIn0i\"}"),
+				External: false,
+				Type:     "volume",
+			},
+		},
+	}
+	existingConfigMap2 := &bean3.ConfigMapJson{
+		Enabled: true,
+		Maps: []bean3.ConfigSecretMap{
+			{Name: "job-map",
+				Data:     []byte("{\"abcd\": \"aditya-cm-1-job-test-cm1\"}"),
+				External: false,
+				Type:     "volume",
+			},
+		},
+	}
+	existingSecrets2 := &bean3.ConfigSecretJson{
+		Enabled: true,
+		Secrets: []*bean3.ConfigSecretMap{
+			{Name: "job-secret",
+				Data:     []byte("{\"abcd\":\"XCJhZGl0eWEtY20tMS1qb2ItdGVzdC1jbTFcIn0i\"}"),
+				External: false,
+				Type:     "volume",
+			},
+		},
+	}
+	configMaps3 := &bean3.ConfigMapJson{
+		Enabled: true,
+		Maps: []bean3.ConfigSecretMap{
+			{Name: "job-map",
+				Data:     []byte("{\"abcd\": \"aditya-cm-1-job-test-cm1\"}"),
+				External: true,
+				Type:     "volume",
+			},
+		},
+	}
+	secrets3 := &bean3.ConfigSecretJson{
+		Enabled: true,
+		Secrets: []*bean3.ConfigSecretMap{
+			{Name: "job-secret",
+				Data:     []byte("{\"abcd\": \"XCJhZGl0eWEtY20tMS1qb2ItdGVzdC1jbTFcIn0i\"}"),
+				External: true,
+				Type:     "volume",
+			},
+		},
+	}
+	existingConfigMap3 := &bean3.ConfigMapJson{
+		Enabled: true,
+		Maps: []bean3.ConfigSecretMap{
+			{Name: "job-map",
+				Data:     []byte("{\"abcd\": \"aditya-cm-1-job-test-cm1\"}"),
+				External: true,
+				Type:     "volume",
+			},
+		},
+	}
+	existingSecrets3 := &bean3.ConfigSecretJson{
+		Enabled: true,
+		Secrets: []*bean3.ConfigSecretMap{
+			{Name: "job-secret",
+				Data:     []byte("{\"abcd\":\"XCJhZGl0eWEtY20tMS1qb2ItdGVzdC1jbTFcIn0i\"}"),
+				External: true,
+				Type:     "volume",
+			},
+		},
+	}
+	configMaps4 := &bean3.ConfigMapJson{
+		Enabled: true,
+		Maps: []bean3.ConfigSecretMap{
+			{Name: "job-map",
+				Data:     []byte("{\"abcd\": \"aditya-cm-1-job-test-cm1\"}"),
+				External: true,
+				Type:     "environment",
+			},
+		},
+	}
+	secrets4 := &bean3.ConfigSecretJson{
+		Enabled: true,
+		Secrets: []*bean3.ConfigSecretMap{
+			{Name: "job-secret",
+				Data:     []byte("{\"abcd\": \"XCJhZGl0eWEtY20tMS1qb2ItdGVzdC1jbTFcIn0i\"}"),
+				External: true,
+				Type:     "environment",
+			},
+		},
+	}
+	existingConfigMap4 := &bean3.ConfigMapJson{
+		Enabled: true,
+		Maps: []bean3.ConfigSecretMap{
+			{Name: "job-map",
+				Data:     []byte("{\"abcd\": \"aditya-cm-1-job-test-cm1\"}"),
+				External: true,
+				Type:     "environment",
+			},
+		},
+	}
+	existingSecrets4 := &bean3.ConfigSecretJson{
+		Enabled: true,
+		Secrets: []*bean3.ConfigSecretMap{
+			{Name: "job-secret",
+				Data:     []byte("{\"abcd\":\"XCJhZGl0eWEtY20tMS1qb2ItdGVzdC1jbTFcIn0i\"}"),
+				External: true,
+				Type:     "environment",
+			},
+		},
+	}
 	tests := []struct {
 		name    string
 		args    args
@@ -167,6 +359,50 @@ func Test_getCiTemplateWithConfigMapsAndSecrets(t *testing.T) {
 				ciTemplate:        ciTemplate,
 				existingSecrets:   existingSecrets,
 				existingConfigMap: existingConfigMap,
+			},
+			want:    ciTemplate,
+			wantErr: assert.NoError,
+		},
+		{name: "test2",
+			args: args{
+				configMaps:        configMaps1,
+				secrets:           secrets1,
+				ciTemplate:        ciTemplate,
+				existingSecrets:   existingSecrets1,
+				existingConfigMap: existingConfigMap1,
+			},
+			want:    ciTemplate,
+			wantErr: assert.NoError,
+		},
+		{name: "test3",
+			args: args{
+				configMaps:        configMaps2,
+				secrets:           secrets2,
+				ciTemplate:        ciTemplate1,
+				existingSecrets:   existingSecrets2,
+				existingConfigMap: existingConfigMap2,
+			},
+			want:    ciTemplate1,
+			wantErr: assert.NoError,
+		},
+		{name: "test4",
+			args: args{
+				configMaps:        configMaps3,
+				secrets:           secrets3,
+				ciTemplate:        ciTemplate1,
+				existingSecrets:   existingSecrets3,
+				existingConfigMap: existingConfigMap3,
+			},
+			want:    ciTemplate1,
+			wantErr: assert.NoError,
+		},
+		{name: "test5",
+			args: args{
+				configMaps:        configMaps4,
+				secrets:           secrets4,
+				ciTemplate:        ciTemplate,
+				existingSecrets:   existingSecrets4,
+				existingConfigMap: existingConfigMap4,
 			},
 			want:    ciTemplate,
 			wantErr: assert.NoError,
