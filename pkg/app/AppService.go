@@ -1793,7 +1793,7 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 
 }
 
-func (impl *AppServiceImpl) getTriggerEvent(deploymentAppType string, triggeredAt time.Time, deployedBy int32) bean.TriggerEvent {
+func (impl *AppServiceImpl) GetTriggerEvent(deploymentAppType string, triggeredAt time.Time, deployedBy int32) bean.TriggerEvent {
 	// trigger event will decide whether to perform GitOps or deployment for a particular deployment app type
 	triggerEvent := bean.TriggerEvent{
 		TriggeredBy: deployedBy,
@@ -1827,7 +1827,7 @@ func (impl *AppServiceImpl) getTriggerEvent(deploymentAppType string, triggeredA
 }
 
 func (impl *AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, deployedBy int32) (releaseNo int, manifest []byte, err error) {
-	triggerEvent := impl.getTriggerEvent(overrideRequest.DeploymentAppType, triggeredAt, deployedBy)
+	triggerEvent := impl.GetTriggerEvent(overrideRequest.DeploymentAppType, triggeredAt, deployedBy)
 	releaseNo, manifest, err = impl.TriggerPipeline(overrideRequest, triggerEvent, ctx)
 	if err != nil {
 		return 0, manifest, err
