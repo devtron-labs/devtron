@@ -589,10 +589,9 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 		}
 		if createRequest.IsJob {
 			CiEnvMapping := &pipelineConfig.CiEnvMapping{
-				CiPipelineId:       ciPipeline.Id,
-				EnvironmentId:      ciPipeline.EnvironmentId,
-				LastTriggeredEnvId: -1,
-				AuditLog:           sql.AuditLog{UpdatedBy: createRequest.UserId, CreatedBy: createRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
+				CiPipelineId:  ciPipeline.Id,
+				EnvironmentId: ciPipeline.EnvironmentId,
+				AuditLog:      sql.AuditLog{UpdatedBy: createRequest.UserId, CreatedBy: createRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 			}
 			err = impl.ciPipelineRepository.SaveCiEnvMapping(CiEnvMapping, tx)
 			if err != nil {

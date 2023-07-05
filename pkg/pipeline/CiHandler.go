@@ -211,30 +211,6 @@ func (impl *CiHandlerImpl) HandleCIManual(ciTriggerRequest bean.CiTriggerRequest
 	if err != nil {
 		return 0, err
 	}
-
-	dbConnection := impl.cdPipelineRepository.GetConnection()
-	tx, err := dbConnection.Begin()
-	if err != nil {
-		return 0, err
-	}
-	// Rollback tx on error.
-	defer tx.Rollback()
-	ciEnvMapping, err := impl.ciPipelineRepository.FindCiEnvMappingByCiPipelineId(ciTriggerRequest.PipelineId)
-	if err != nil && err != pg.ErrNoRows {
-		return 0, err
-	}
-	if err == pg.ErrNoRows {
-		return id, nil
-	}
-	ciEnvMapping.LastTriggeredEnvId = ciTriggerRequest.EnvironmentId
-	err = impl.ciPipelineRepository.UpdateCiEnvMapping(ciEnvMapping, tx)
-	if err != nil {
-		return 0, err
-	}
-	err = tx.Commit()
-	if err != nil {
-		return 0, err
-	}
 	return id, nil
 }
 

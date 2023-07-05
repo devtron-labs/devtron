@@ -4,7 +4,6 @@ CREATE TABLE "public"."ci_env_mapping" (
 "environment_id" integer,
 "ci_pipeline_id" integer,
 "deleted"     bool NOT NULL DEFAULT FALSE,
-"last_triggered_env_id" integer,
 "created_on" timestamptz,
 "created_by" int4,
 "updated_on" timestamptz,
