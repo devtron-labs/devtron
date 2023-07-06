@@ -226,6 +226,7 @@ type PipelineBuilderImpl struct {
 	K8sUtil                                         *util.K8sUtil
 	attributesRepository                            repository.AttributesRepository
 	securityConfig                                  *SecurityConfig
+	imageTaggingService                             ImageTaggingService
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -279,8 +280,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	appGroupService appGroup2.AppGroupService,
 	chartDeploymentService util.ChartDeploymentService,
 	K8sUtil *util.K8sUtil,
-	attributesRepository repository.AttributesRepository) *PipelineBuilderImpl {
-
+	attributesRepository repository.AttributesRepository,
+	imageTaggingService ImageTaggingService) *PipelineBuilderImpl {
 	securityConfig := &SecurityConfig{}
 	err := env.Parse(securityConfig)
 	if err != nil {
@@ -348,6 +349,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		K8sUtil:                                         K8sUtil,
 		attributesRepository:                            attributesRepository,
 		securityConfig:                                  securityConfig,
+		imageTaggingService:                             imageTaggingService,
 	}
 }
 
@@ -3536,8 +3538,26 @@ func (impl PipelineBuilderImpl) RetrieveArtifactsByCDPipeline(pipeline *pipeline
 	if err != nil {
 		return ciArtifactsResponse, err
 	}
+	imageTagsDataMap, err := impl.imageTaggingService.GetTagsDataMapByAppId(pipeline.AppId)
+	if err != nil {
+		impl.logger.Errorw("error in getting image tagging data with appId", "err", err, "appId", pipeline.AppId)
+		return ciArtifactsResponse, err
+	}
+
+	imageCommentsDataMap, err := impl.imageTaggingService.GetImageCommentsDataMapByArtifactIds(artifactIds)
+	if err != nil {
+		impl.logger.Errorw("error in getting GetImageCommentsDataMapByArtifactIds", "err", err, "appId", pipeline.AppId, "artifactIds", artifactIds)
+		return ciArtifactsResponse, err
+	}
 
 	for i, artifact := range artifacts {
+		if imageTaggingResp := imageTagsDataMap[ciArtifacts[i].Id]; imageTaggingResp != nil {
+			ciArtifacts[i].ImageReleaseTags = imageTaggingResp
+		}
+		if imageCommentResp := imageCommentsDataMap[ciArtifacts[i].Id]; imageCommentResp != nil {
+			ciArtifacts[i].ImageComment = imageCommentResp
+		}
+
 		if artifact.ExternalCiPipelineId != 0 {
 			// if external webhook continue
 			continue
