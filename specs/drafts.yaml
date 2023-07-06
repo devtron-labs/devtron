@@ -109,9 +109,44 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /orchestrator/drafts/version/comments:
+    delete:
+      description: delete comment of a user
+      parameters:
+        - name: draftId
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: draftCommentId
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: successfully return config draft response
+        '400':
+          description: Bad Request. validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /orchestrator/drafts/version/comments/{draftId}:
     get:
-      description: add drafts comments to a draft version
+      description: get draft comments
       parameters:
         - name: draftId
           in: path
@@ -145,7 +180,7 @@ paths:
                 $ref: '#/components/schemas/Error'
   /orchestrator/drafts/version/{draftId}:
     get:
-      description: add drafts version to a draft
+      description: get drafts version metadata
       parameters:
         - name: draftId
           in: path
@@ -184,12 +219,18 @@ paths:
         - name: appId
           required: true
           in: query
+          schema:
+            type: integer
         - name: envId
           required: true
           in: query
+          schema:
+            type: integer
         - name: resourceType
           required: true
           in: query
+          schema:
+            type: integer
       responses:
         '200':
           description: successfully return config draft response
@@ -223,9 +264,13 @@ paths:
         - name: draftId
           required: true
           in: query
+          schema:
+            type: integer
         - name: draftVersionId
           required: true
           in: query
+          schema:
+            type: integer
       responses:
         '200':
           description: successfully return config draft response
@@ -400,3 +445,8 @@ components:
           type: integer
         draftState:
           $ref: '#/components/schemas/DraftState'
+        approvers:
+          description: email ids of config approvers
+          type: array
+          items:
+            type: string

@@ -22,6 +22,7 @@ type ConfigDraftRestHandler interface {
 	GetAppDrafts(w http.ResponseWriter, r *http.Request)
 	GetDraftById(w http.ResponseWriter, r *http.Request)
 	ApproveDraft(w http.ResponseWriter, r *http.Request)
+	DeleteUserComment(w http.ResponseWriter, r *http.Request)
 }
 
 type ConfigDraftRestHandlerImpl struct {
@@ -228,20 +229,25 @@ func (impl *ConfigDraftRestHandlerImpl) enforceDraftRequest(w http.ResponseWrite
 		return 0, true
 	}
 
+	notAllowed := impl.enforceForDraftId(w, r, draftId)
+	return draftId, notAllowed
+}
+
+func (impl *ConfigDraftRestHandlerImpl) enforceForDraftId(w http.ResponseWriter, r *http.Request, draftId int) bool {
 	configDraft, err := impl.configDraftService.GetDraftById(draftId)
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching draft", "draftId", draftId, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return 0, true
+		return true
 	}
 
 	token := r.Header.Get("token")
 	enforced := impl.enforceForAppAndEnv(configDraft.AppId, configDraft.EnvId, token)
 	if !enforced {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-		return 0, true
+		return true
 	}
-	return draftId, false
+	return false
 }
 
 func (impl *ConfigDraftRestHandlerImpl) enforceForAppAndEnv(appId int, envId int, token string) bool {
@@ -289,5 +295,33 @@ func (impl *ConfigDraftRestHandlerImpl) ApproveDraft(w http.ResponseWriter, r *h
 	}
 	common.WriteJsonResp(w, err, nil, http.StatusOK)
 }
+
+func (impl *ConfigDraftRestHandlerImpl) DeleteUserComment(w http.ResponseWriter, r *http.Request) {
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	draftId, err := common.ExtractIntQueryParam(w, r, "draftId")
+	if err != nil {
+		return
+	}
+	draftCommentId, err := common.ExtractIntQueryParam(w, r, "draftCommentId")
+	if err != nil {
+		return
+	}
+
+	notAllowed := impl.enforceForDraftId(w, r, draftId)
+	if notAllowed {
+		return
+	}
+	err = impl.configDraftService.DeleteComment(draftId, draftCommentId, userId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, nil, http.StatusOK)
+}
+
 
 

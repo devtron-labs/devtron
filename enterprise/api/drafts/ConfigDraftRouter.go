@@ -31,4 +31,8 @@ func (router *ConfigDraftRouterImpl) InitConfigDraftRouter(configRouter *mux.Rou
 		Queries("draftId", "{draftId}").
 		Queries("draftVersionId", "{draftVersionId}").
 		Methods("POST")
+	configRouter.Path("/version/comments").HandlerFunc(router.configDraftRestHandler.DeleteUserComment).
+		Queries("draftId", "{draftId}").
+		Queries("draftCommentId", "{draftCommentId}").
+		Methods("DELETE")
 }

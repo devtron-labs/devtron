@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"go.uber.org/zap"
+	"time"
 )
 
 type ConfigDraftService interface {
@@ -17,6 +18,7 @@ type ConfigDraftService interface {
 	GetDraftById(draftId int) (*ConfigDraftResponse, error)                                   //  need to send ** in case of view only user for Secret data
 	GetDraftByDraftVersionId(draftVersionId int) (*ConfigDraftResponse, error)
 	ApproveDraft(draftId int, draftVersionId int, userId int32) error
+	DeleteComment(draftId int, draftCommentId int, userId int32) error
 }
 
 type ConfigDraftServiceImpl struct {
@@ -46,12 +48,14 @@ func (impl ConfigDraftServiceImpl) AddDraftVersion(request ConfigDraftVersionReq
 		return 0, errors.New("last-version-outdated")
 	}
 
+	currentTime := time.Now()
 	if len(request.Data) > 0 {
 		draftVersionDto := DraftVersionDto{}
 		draftVersionDto.DraftId = request.DraftId
 		draftVersionDto.Data = request.Data
 		draftVersionDto.Action = request.Action
 		draftVersionDto.UserId = request.UserId
+		draftVersionDto.CreatedOn = currentTime
 		draftVersionId, err := impl.configDraftRepository.SaveDraftVersion(draftVersionDto)
 		if err != nil {
 			return 0, err
@@ -60,11 +64,15 @@ func (impl ConfigDraftServiceImpl) AddDraftVersion(request ConfigDraftVersionReq
 	}
 
 	if len(request.UserComment) > 0 {
-		draftVersionCommentDto := DraftVersionCommentDto{}
+		draftVersionCommentDto := &DraftVersionCommentDto{}
 		draftVersionCommentDto.DraftId = request.DraftId
 		draftVersionCommentDto.DraftVersionId = lastDraftVersionId
 		draftVersionCommentDto.Comment = request.UserComment
-		draftVersionCommentDto.UserId = request.UserId
+		draftVersionCommentDto.Active = true
+		draftVersionCommentDto.CreatedBy = request.UserId
+		draftVersionCommentDto.UpdatedBy = request.UserId
+		draftVersionCommentDto.CreatedOn = currentTime
+		draftVersionCommentDto.UpdatedOn = currentTime
 		err := impl.configDraftRepository.SaveDraftVersionComment(draftVersionCommentDto)
 		if err != nil {
 			return 0, err
@@ -176,6 +184,17 @@ func (impl ConfigDraftServiceImpl) GetDraftByDraftVersionId(draftVersionId int) 
 		return nil, err
 	}
 	return draftVersionDto.ConvertToConfigDraft(), nil
+}
+
+func (impl ConfigDraftServiceImpl) DeleteComment(draftId int, draftCommentId int, userId int32) error {
+	deletedCount, err := impl.configDraftRepository.DeleteComment(draftId, draftCommentId, userId)
+	if err != nil {
+		return err
+	}
+	if deletedCount == 0 {
+		return errors.New("failed to delete comment")
+	}
+	return nil
 }
 
 func (impl ConfigDraftServiceImpl) ApproveDraft(draftId int, draftVersionId int, userId int32) error {

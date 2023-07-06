@@ -10,7 +10,7 @@ import (
 type ConfigDraftRepository interface {
 	CreateConfigDraft(request ConfigDraftRequest) (*ConfigDraftResponse, error)
 	GetLatestDraftVersionId(draftId int) (int, error)
-	SaveDraftVersionComment(draftVersionComment DraftVersionCommentDto) error
+	SaveDraftVersionComment(draftVersionComment *DraftVersionCommentDto) error
 	SaveDraftVersion(draftVersionDto DraftVersionDto) (int, error)
 	GetDraftMetadataById(draftId int) (*DraftsDto, error)
 	UpdateDraftState(draftId int, draftState DraftState, userId int32) error
@@ -19,6 +19,7 @@ type ConfigDraftRepository interface {
 	GetLatestConfigDraft(draftId int) (*DraftVersionDto, error)
 	GetDraftMetadata(appId int, envId int, resourceType DraftResourceType) ([]*DraftsDto, error)
 	GetDraftVersionById(draftVersionId int) (*DraftVersionDto, error)
+	DeleteComment(draftId int, draftCommentId int, userId int32) (int, error)
 }
 
 type ConfigDraftRepositoryImpl struct {
@@ -66,11 +67,15 @@ func (repo *ConfigDraftRepositoryImpl) CreateConfigDraft(request ConfigDraftRequ
 
 	draftVersionId, err := repo.SaveDraftVersion(draftVersionDto)
 	if len(request.UserComment) > 0 {
-		draftVersionCommentDto := DraftVersionCommentDto{}
+		draftVersionCommentDto := &DraftVersionCommentDto{}
 		draftVersionCommentDto.DraftId = draftMetadataId
 		draftVersionCommentDto.DraftVersionId = draftVersionId
 		draftVersionCommentDto.Comment = request.UserComment
-		draftVersionCommentDto.UserId = request.UserId
+		draftVersionCommentDto.Active = true
+		draftVersionCommentDto.CreatedBy = request.UserId
+		draftVersionCommentDto.UpdatedBy = request.UserId
+		draftVersionCommentDto.CreatedOn = currentTime
+		draftVersionCommentDto.UpdatedOn = currentTime
 		err = repo.SaveDraftVersionComment(draftVersionCommentDto)
 		if err != nil {
 			return nil, err
@@ -96,9 +101,9 @@ func (repo *ConfigDraftRepositoryImpl) GetLatestDraftVersionId(draftId int) (int
 	return draftVersionDto.Id, nil
 }
 
-func (repo *ConfigDraftRepositoryImpl) SaveDraftVersionComment(draftVersionComment DraftVersionCommentDto) error {
+func (repo *ConfigDraftRepositoryImpl) SaveDraftVersionComment(draftVersionComment *DraftVersionCommentDto) error {
 	draftVersionComment.CreatedOn = time.Now()
-	err := repo.dbConnection.Insert(&draftVersionComment)
+	err := repo.dbConnection.Insert(draftVersionComment)
 	if err != nil {
 		repo.logger.Errorw("error occurred while saving draft version comment", "draftVersionId", draftVersionComment.DraftVersionId, "err", err)
 	}
@@ -152,7 +157,9 @@ func (repo *ConfigDraftRepositoryImpl) GetDraftVersionsMetadata(draftId int) ([]
 
 func (repo *ConfigDraftRepositoryImpl) GetDraftVersionComments(draftId int) ([]*DraftVersionCommentDto, error) {
 	var draftComments []*DraftVersionCommentDto
-	err := repo.dbConnection.Model(&draftComments).Where("draft_id = ?", draftId).
+	err := repo.dbConnection.Model(&draftComments).
+		Where("draft_id = ?", draftId).
+		Where("active = ?", true).
 		Order("id desc").Select()
 	if err != nil && err != pg.ErrNoRows {
 		repo.logger.Errorw("error occurred while fetching draft comments", "draftId", draftId, "err", err)
@@ -195,6 +202,21 @@ func (repo *ConfigDraftRepositoryImpl) GetDraftVersionById(draftVersionId int) (
 	}
 	return draftVersion, nil
 }
+
+func (repo *ConfigDraftRepositoryImpl) DeleteComment(draftId int, draftCommentId int, userId int32) (int, error) {
+	draftVersionComment := &DraftVersionCommentDto{}
+	result, err := repo.dbConnection.Model(draftVersionComment).Set("active", false).Set("UpdatedOn", time.Now()).
+		Where("id = ?", draftCommentId).
+		Where("draft_id = ?", draftId).
+		Where("user_id = ?", userId).
+		Update()
+	if err != nil {
+		repo.logger.Errorw("error occurred while deleting draft", "draftId", draftId, "draftCommentId", draftCommentId, "err", err)
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 
 
 

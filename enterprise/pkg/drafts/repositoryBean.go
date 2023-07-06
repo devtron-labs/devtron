@@ -28,13 +28,13 @@ type DraftVersionDto struct {
 }
 
 type DraftVersionCommentDto struct {
-	tableName      struct{}  `sql:"draft_version_comments" pg:",discard_unknown_columns"`
-	Id             int       `sql:"id,pk"`
-	DraftId        int       `sql:"draft_id,notnull"`
-	DraftVersionId int       `sql:"draft_version_id"`
-	Comment        string    `sql:"comment"`
-	UserId         int32     `sql:"user_id"`
-	CreatedOn      time.Time `sql:"created_on,type:timestamptz"`
+	tableName      struct{} `sql:"draft_version_comments" pg:",discard_unknown_columns"`
+	Id             int      `sql:"id,pk"`
+	DraftId        int      `sql:"draft_id,notnull"`
+	DraftVersionId int      `sql:"draft_version_id"`
+	Comment        string   `sql:"comment"`
+	Active         bool     `sql:"active"`
+	sql.AuditLog
 }
 
 func (dto DraftsDto) ConvertToAppConfigDraft() AppConfigDraft {
@@ -76,7 +76,8 @@ func (dto DraftVersionDto) ConvertToConfigDraft() *ConfigDraftResponse {
 
 func (dto DraftVersionCommentDto) ConvertToDraftVersionComment() UserCommentMetadata {
 	userComment := UserCommentMetadata{
-		UserId:      dto.UserId,
+		CommentId:   dto.Id,
+		UserId:      dto.CreatedBy,
 		CommentedAt: dto.CreatedOn,
 	}
 	return userComment

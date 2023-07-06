@@ -47,6 +47,7 @@ type ConfigDraftResponse struct {
 	DraftId        int        `json:"draftId"`
 	DraftVersionId int        `json:"draftVersionId"`
 	DraftState     DraftState `json:"draftState"`
+	Approvers      []string   `json:"approvers"`
 }
 
 type ConfigDraftVersionRequest struct {
@@ -81,6 +82,7 @@ type DraftVersionComment struct {
 }
 
 type UserCommentMetadata struct {
+	CommentId   int       `json:"commentId"`
 	UserId      int32     `json:"userId"`
 	UserEmail   string    `json:"userEmail"`
 	CommentedAt time.Time `json:"commentedAt"`
