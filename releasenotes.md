@@ -10,6 +10,10 @@
 
 
 
+## v0.6.18
+
+
+
 ## Bugs
 - fix: handled no config exists case for enforced deployment app type (#3575)
 - fix: values are not coming in deployment history of helm apps (#3582)
