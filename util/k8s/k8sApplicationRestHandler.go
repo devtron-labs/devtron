@@ -41,6 +41,7 @@ type K8sApplicationRestHandler interface {
 	GetResourceList(w http.ResponseWriter, r *http.Request)
 	ApplyResources(w http.ResponseWriter, r *http.Request)
 	RotatePod(w http.ResponseWriter, r *http.Request)
+	PodEphemeralContainerHandler(w http.ResponseWriter, r *http.Request)
 }
 
 type K8sApplicationRestHandlerImpl struct {
@@ -831,4 +832,17 @@ func (handler *K8sApplicationRestHandlerImpl) verifyRbacForResource(token string
 func (handler *K8sApplicationRestHandlerImpl) verifyRbacForCluster(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool {
 	k8sRequest := request.K8sRequest
 	return handler.verifyRbacForResource(token, clusterName, k8sRequest.ResourceIdentifier, casbinAction)
+}
+
+func (handler *K8sApplicationRestHandlerImpl) PodEphemeralContainerHandler(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	var request EphemeralContainerRequest
+	err := decoder.Decode(&request)
+	if err != nil {
+		handler.logger.Errorw("error in decoding request body", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	err = handler.k8sApplicationService.UpdatPodEphemeralContainers(request)
+	common.WriteJsonResp(w, err, nil, http.StatusOK)
 }

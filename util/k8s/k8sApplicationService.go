@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"net/http"
 	"strconv"
 	"strings"
@@ -67,6 +69,7 @@ type K8sApplicationService interface {
 	ApplyResources(ctx context.Context, token string, request *application.ApplyResourcesRequest, resourceRbacHandler func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) ([]*application.ApplyResourcesResponse, error)
 	FetchConnectionStatusForCluster(k8sClientSet *kubernetes.Clientset, clusterId int) error
 	RotatePods(ctx context.Context, request *RotatePodRequest) (*RotatePodResponse, error)
+	UpdatPodEphemeralContainers(req EphemeralContainerRequest) error
 }
 type K8sApplicationServiceImpl struct {
 	logger                      *zap.SugaredLogger
@@ -1109,4 +1112,101 @@ func (impl *K8sApplicationServiceImpl) FetchConnectionStatusForCluster(k8sClient
 		err = fmt.Errorf("Validation failed with response : %s", string(response))
 	}
 	return err
+}
+
+type EphemeralContainerRequest struct {
+	Pod             string `json:"pod"`
+	Container       string `json:"container"`
+	TargetContainer string `json:"targetContainer"`
+	Image           string `json:"image"`
+	NameSpace       string `json:"namespace"`
+	DeleteContainer string `json:"deleteContainer"`
+}
+
+func (impl *K8sApplicationServiceImpl) UpdatPodEphemeralContainers(req EphemeralContainerRequest) error {
+	v1Client, err := impl.K8sUtil.GetClientForInCluster()
+	if err != nil {
+		return err
+	}
+
+	pod, err := impl.K8sUtil.GetPodByName(req.NameSpace, req.Pod, v1Client)
+	if err != nil {
+		return err
+	}
+
+	podJS, err := json.Marshal(pod)
+	if err != nil {
+		return fmt.Errorf("error creating JSON for pod: %v", err)
+	}
+	debugPod, debugContainer, err := generateDebugContainer(pod, req)
+	if err != nil {
+		return err
+	}
+
+	debugJS, err := json.Marshal(debugPod)
+	if err != nil {
+		return fmt.Errorf("error creating JSON for pod: %v", err)
+	}
+
+	patch, err := strategicpatch.CreateTwoWayMergePatch(podJS, debugJS, pod)
+	if err != nil {
+		return fmt.Errorf("error creating patch to add debug container: %v", err)
+	}
+
+	_, err = v1Client.Pods(req.NameSpace).Patch(context.Background(), pod.Name, types.StrategicMergePatchType, patch, metav1.PatchOptions{}, "ephemeralcontainers")
+	if err != nil {
+
+		patch, err := json.Marshal([]map[string]interface{}{{
+			"op":    "add",
+			"path":  "/ephemeralContainers/-",
+			"value": debugContainer,
+		}})
+		if err != nil {
+			return fmt.Errorf("error creating JSON 6902 patch for old /ephemeralcontainers API: %s", err)
+		}
+
+		//try with legacy API
+		result := v1Client.RESTClient().Patch(types.JSONPatchType).
+			Namespace(pod.Namespace).
+			Resource("pods").
+			Name(pod.Name).
+			SubResource("ephemeralcontainers").
+			Body(patch).
+			Do(context.Background())
+		return result.Error()
+	}
+	return nil
+}
+
+func generateDebugContainer(pod *corev1.Pod, req EphemeralContainerRequest) (*corev1.Pod, *corev1.EphemeralContainer, error) {
+	copied := pod.DeepCopy()
+	if len(req.DeleteContainer) > 0 {
+		ecs := make([]corev1.EphemeralContainer, 0)
+		for _, ec := range copied.Spec.EphemeralContainers {
+			if ec.Name != req.DeleteContainer {
+				ecs = append(ecs, ec)
+			}
+		}
+		copied.Spec.EphemeralContainers = ecs
+		return copied, nil, nil
+	}
+
+	//name := "test-debugger-" + util2.Generate(5)
+	ec := &corev1.EphemeralContainer{
+		EphemeralContainerCommon: corev1.EphemeralContainerCommon{
+			Name:                     req.Container,
+			Env:                      nil,
+			Image:                    req.Image,
+			ImagePullPolicy:          corev1.PullIfNotPresent,
+			Stdin:                    true,
+			TerminationMessagePolicy: corev1.TerminationMessageReadFile,
+			TTY:                      true,
+		},
+		TargetContainerName: req.TargetContainer,
+	}
+
+	copied.Spec.EphemeralContainers = append(copied.Spec.EphemeralContainers, *ec)
+	ec = &copied.Spec.EphemeralContainers[len(copied.Spec.EphemeralContainers)-1]
+	return copied, ec, nil
+
 }
