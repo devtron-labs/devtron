@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"errors"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
@@ -573,7 +574,7 @@ func (impl *PipelineStageServiceImpl) CreatePipelineStage(stageReq *bean.Pipelin
 	} else if stageType == repository.PIPELINE_STAGE_TYPE_PRE_CD || stageType == repository.PIPELINE_STAGE_TYPE_POST_CD {
 		stage.CdPipelineId = pipelineId
 	} else {
-
+		return errors.New("unknown stage type")
 	}
 	stage, err = impl.pipelineStageRepository.CreatePipelineStage(stage, tx)
 	if err != nil {
