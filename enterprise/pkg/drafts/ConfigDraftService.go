@@ -1,8 +1,11 @@
 package drafts
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	bean2 "github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"go.uber.org/zap"
 	"time"
@@ -22,15 +25,19 @@ type ConfigDraftService interface {
 }
 
 type ConfigDraftServiceImpl struct {
-	logger                *zap.SugaredLogger
-	configDraftRepository ConfigDraftRepository
-	configMapService      pipeline.ConfigMapService
+	logger                  *zap.SugaredLogger
+	configDraftRepository   ConfigDraftRepository
+	configMapService        pipeline.ConfigMapService
+	chartService            chart.ChartService
+	propertiesConfigService pipeline.PropertiesConfigService
 }
 
-func NewConfigDraftServiceImpl(logger *zap.SugaredLogger, configDraftRepository ConfigDraftRepository) *ConfigDraftServiceImpl {
+func NewConfigDraftServiceImpl(logger *zap.SugaredLogger, configDraftRepository ConfigDraftRepository, chartService chart.ChartService, propertiesConfigService pipeline.PropertiesConfigService) *ConfigDraftServiceImpl {
 	return &ConfigDraftServiceImpl{
-		logger:                logger,
-		configDraftRepository: configDraftRepository,
+		logger:                  logger,
+		configDraftRepository:   configDraftRepository,
+		chartService:            chartService,
+		propertiesConfigService: propertiesConfigService,
 	}
 }
 
@@ -84,6 +91,15 @@ func (impl ConfigDraftServiceImpl) AddDraftVersion(request ConfigDraftVersionReq
 func (impl ConfigDraftServiceImpl) UpdateDraftState(draftId int, draftVersionId int, toUpdateDraftState DraftState, userId int32) (*DraftVersionDto, error) {
 	impl.logger.Infow("updating draft state", "draftId", draftId, "toUpdateDraftState", toUpdateDraftState, "userId", userId)
 	// check app config draft is enabled or not ??
+	latestDraftVersion, err := impl.validateDraftAction(draftId, draftVersionId, toUpdateDraftState)
+	if err != nil {
+		return nil, err
+	}
+	err = impl.configDraftRepository.UpdateDraftState(draftId, toUpdateDraftState, userId)
+	return latestDraftVersion, err
+}
+
+func (impl ConfigDraftServiceImpl) validateDraftAction(draftId int, draftVersionId int, toUpdateDraftState DraftState) (*DraftVersionDto, error) {
 	latestDraftVersion, err := impl.configDraftRepository.GetLatestConfigDraft(draftId)
 	if err != nil {
 		return nil, err
@@ -104,8 +120,7 @@ func (impl ConfigDraftServiceImpl) UpdateDraftState(draftId int, draftVersionId 
 		impl.logger.Errorw("draft is not in await Approval state", "draftId", draftId, "draftCurrentState", draftCurrentState)
 		return nil, errors.New("approval-request-not-raised")
 	}
-	err = impl.configDraftRepository.UpdateDraftState(draftId, toUpdateDraftState, userId)
-	return latestDraftVersion, err
+	return latestDraftVersion, nil
 }
 
 func (impl ConfigDraftServiceImpl) GetDraftVersionMetadata(draftId int) (*DraftVersionMetadataResponse, error) {
@@ -198,7 +213,8 @@ func (impl ConfigDraftServiceImpl) DeleteComment(draftId int, draftCommentId int
 }
 
 func (impl ConfigDraftServiceImpl) ApproveDraft(draftId int, draftVersionId int, userId int32) error {
-	draftVersion, err := impl.UpdateDraftState(draftId, draftVersionId, PublishedDraftState, userId)
+	toUpdateDraftState := PublishedDraftState
+	draftVersion, err := impl.validateDraftAction(draftId, draftVersionId, toUpdateDraftState)
 	if err != nil {
 		return err
 	}
@@ -209,8 +225,12 @@ func (impl ConfigDraftServiceImpl) ApproveDraft(draftId int, draftVersionId int,
 	if draftResourceType == CmDraftResource || draftResourceType == CsDraftResource {
 		err = impl.handleCmCsData(draftResourceType, draftsDto.AppId, draftsDto.EnvId, draftData, draftVersion.UserId)
 	} else {
-		err = impl.handleDeploymentTemplate(draftsDto.AppId, draftsDto.EnvId, draftData, draftVersion.UserId)
+		err = impl.handleDeploymentTemplate(draftsDto.AppId, draftsDto.EnvId, draftData, draftVersion.UserId, draftVersion.Action)
 	}
+	if err != nil {
+		return err
+	}
+	err = impl.configDraftRepository.UpdateDraftState(draftId, toUpdateDraftState, userId)
 	return err
 }
 
@@ -219,7 +239,7 @@ func (impl ConfigDraftServiceImpl) handleCmCsData(draftResource DraftResourceTyp
 	var configDataRequest *pipeline.ConfigDataRequest
 	err := json.Unmarshal([]byte(draftData), configDataRequest)
 	if err != nil {
-		impl.logger.Errorw("error occurred while unmarshalling draftData", "appId", appId, "envId", envId, "err", err)
+		impl.logger.Errorw("error occurred while unmarshalling draftData of CM/CS", "appId", appId, "envId", envId, "err", err)
 		return err
 	}
 	configDataRequest.UserId = userId // setting draftVersion userId
@@ -243,7 +263,81 @@ func (impl ConfigDraftServiceImpl) handleCmCsData(draftResource DraftResourceTyp
 	return err
 }
 
-func (impl ConfigDraftServiceImpl) handleDeploymentTemplate(appId int, envId int, draftData string, id int32) error {
+func (impl ConfigDraftServiceImpl) handleDeploymentTemplate(appId int, envId int, draftData string, userId int32, action ResourceAction) error {
+
+	ctx := context.Background()
+	var err error
+	var templateValidated bool
+	if envId == -1 {
+		var templateRequest *chart.TemplateRequest
+		err = json.Unmarshal([]byte(draftData), templateRequest)
+		if err != nil {
+			impl.logger.Errorw("error occurred while unmarshalling draftData of deployment template", "appId", appId, "envId", envId, "err", err)
+			return err
+		}
+		templateValidated, err = impl.chartService.DeploymentTemplateValidate(ctx, draftData, templateRequest.ChartRefId)
+		if err != nil {
+			return err
+		}
+		if !templateValidated {
+			return errors.New("template-outdated")
+		}
+		templateRequest.UserId = userId
+		_, err = impl.chartService.UpdateAppOverride(ctx, templateRequest)
+	} else {
+		var envConfigProperties *pipeline.EnvironmentProperties
+		err = json.Unmarshal([]byte(draftData), envConfigProperties)
+		if err != nil {
+			impl.logger.Errorw("error occurred while unmarshalling draftData of env deployment template", "appId", appId, "envId", envId, "err", err)
+			return err
+		}
+		envConfigProperties.UserId = userId
+		envConfigProperties.EnvironmentId = envId
+		chartRefId := envConfigProperties.ChartRefId
+		templateValidated, err = impl.chartService.DeploymentTemplateValidate(ctx, envConfigProperties.EnvOverrideValues, chartRefId)
+		if err != nil {
+			return err
+		}
+		if !templateValidated {
+			return errors.New("template-outdated")
+		}
+		if action == AddResourceAction {
+			_, err = impl.propertiesConfigService.CreateEnvironmentProperties(appId, envConfigProperties)
+			if err != nil {
+				if err.Error() == bean2.NOCHARTEXIST {
+					appMetrics := false
+					if envConfigProperties.AppMetrics != nil {
+						appMetrics = *envConfigProperties.AppMetrics
+					}
+					templateRequest := chart.TemplateRequest{
+						AppId:               appId,
+						ChartRefId:          envConfigProperties.ChartRefId,
+						ValuesOverride:      []byte("{}"),
+						UserId:              userId,
+						IsAppMetricsEnabled: appMetrics,
+					}
+					_, err = impl.chartService.CreateChartFromEnvOverride(templateRequest, ctx)
+					if err != nil {
+						impl.logger.Errorw("service err, EnvConfigOverrideCreate from draft", "appId", appId, "envId", envId, "err", err, "payload", envConfigProperties)
+						return err
+					}
+					_, err = impl.propertiesConfigService.CreateEnvironmentProperties(appId, envConfigProperties)
+					if err != nil {
+						impl.logger.Errorw("service err, EnvConfigOverrideCreate", "appId", appId, "envId", envId, "err", err, "payload", envConfigProperties)
+						return err
+					}
+				}
+			} else {
+				return err
+			}
+		} else {
+			_, err = impl.propertiesConfigService.UpdateEnvironmentProperties(appId, envConfigProperties, userId)
+			if err != nil {
+				impl.logger.Errorw("service err, EnvConfigOverrideUpdate", "appId", appId, "envId", envId, "err", err, "payload", envConfigProperties)
+				return err
+			}
+		}
+	}
 	return nil
 }
 

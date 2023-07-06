@@ -205,7 +205,7 @@ func (repo *ConfigDraftRepositoryImpl) GetDraftVersionById(draftVersionId int) (
 
 func (repo *ConfigDraftRepositoryImpl) DeleteComment(draftId int, draftCommentId int, userId int32) (int, error) {
 	draftVersionComment := &DraftVersionCommentDto{}
-	result, err := repo.dbConnection.Model(draftVersionComment).Set("active", false).Set("UpdatedOn", time.Now()).
+	result, err := repo.dbConnection.Model(draftVersionComment).Set("active", false).Set("updated_on", time.Now()).
 		Where("id = ?", draftCommentId).
 		Where("draft_id = ?", draftId).
 		Where("user_id = ?", userId).
