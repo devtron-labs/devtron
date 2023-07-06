@@ -63,6 +63,7 @@
       * [External Secret Operator (ESO)](user-guide/creating-application/eso/README.md)
         * [AWS Secrets Manager](user-guide/creating-application/eso/aws-eso.md)
         * [Google Secrets Manager](user-guide/creating-application/eso/gcp-eso.md)
+        * [HashiCorp Vault](user-guide/creating-application/eso/hashicorp-eso.md)
 
     * [Environment Overrides](user-guide/creating-application/environment-overrides.md)
     * [Deleting Application](user-guide/deleting-application.md)
