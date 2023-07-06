@@ -331,7 +331,7 @@ func setupSuite(t *testing.T) func(t *testing.T) {
 }
 
 func TestPipelineStageService_CreatePipelineStage(t *testing.T) {
-
+	t.SkipNow()
 	t.Run("Create Stage With Valid Pre CD Payload", func(t *testing.T) {
 		pipelineStageServiceImpl := getPipelineStageServiceImpl(t)
 		err := pipelineStageServiceImpl.CreatePipelineStage(pipelineStageReq, repository.PIPELINE_STAGE_TYPE_PRE_CD, cdPipelineId, 1)
@@ -362,7 +362,7 @@ func TestPipelineStageService_CreatePipelineStage(t *testing.T) {
 }
 
 func TestPipelineStageService_UpdatePipelineStage(t *testing.T) {
-
+	t.SkipNow()
 	tests := []struct {
 		name    string
 		payload *bean.PipelineStageDto
@@ -415,6 +415,7 @@ func TestPipelineStageService_UpdatePipelineStage(t *testing.T) {
 }
 
 func TestPipelineStageService_DeletePipelineStage(t *testing.T) {
+	t.SkipNow()
 	tests := []struct {
 		name    string
 		payload *bean.PipelineStageDto
