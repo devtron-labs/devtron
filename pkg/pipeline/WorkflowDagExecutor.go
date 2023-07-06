@@ -1766,23 +1766,25 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 		span.End()
 
 		if overrideRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD || overrideRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_MANIFEST_PUSH {
-			runner := &pipelineConfig.CdWorkflowRunner{
-				Id:                 runner.Id,
-				Name:               cdPipeline.Name,
-				WorkflowType:       bean.CD_WORKFLOW_TYPE_DEPLOY,
-				ExecutorType:       pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
-				TriggeredBy:        overrideRequest.UserId,
-				StartedOn:          triggeredAt,
-				Status:             pipelineConfig.WorkflowSucceeded,
-				Namespace:          impl.cdConfig.DefaultNamespace,
-				CdWorkflowId:       overrideRequest.CdWorkflowId,
-				AuditLog:           sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
-				HelmReferenceChart: manifest,
-				FinishedOn:         time.Now(),
-			}
-			updateErr := impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
-			if updateErr != nil {
-				impl.logger.Errorw("error in updating runner for manifest_download type", "err", err)
+			if err == nil {
+				runner := &pipelineConfig.CdWorkflowRunner{
+					Id:                 runner.Id,
+					Name:               cdPipeline.Name,
+					WorkflowType:       bean.CD_WORKFLOW_TYPE_DEPLOY,
+					ExecutorType:       pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
+					TriggeredBy:        overrideRequest.UserId,
+					StartedOn:          triggeredAt,
+					Status:             pipelineConfig.WorkflowSucceeded,
+					Namespace:          impl.cdConfig.DefaultNamespace,
+					CdWorkflowId:       overrideRequest.CdWorkflowId,
+					AuditLog:           sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
+					HelmReferenceChart: manifest,
+					FinishedOn:         time.Now(),
+				}
+				updateErr := impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
+				if updateErr != nil {
+					impl.logger.Errorw("error in updating runner for manifest_download type", "err", err)
+				}
 			}
 		}
 
