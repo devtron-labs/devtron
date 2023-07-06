@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"math/rand"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -360,6 +361,77 @@ func TestPipelineStageService_CreatePipelineStage(t *testing.T) {
 
 }
 
+func TestPipelineStageService_GetCdPipelineStageDataDeepCopy(t *testing.T) {
+	t.SkipNow()
+	pipelineStageServiceImpl := getPipelineStageServiceImpl(t)
+	logger, dbConnection := getDbConnAndLoggerService(t)
+	pipelineStageRepoImpl := repository.NewPipelineStageRepository(logger, dbConnection)
+
+	//preparing want payload for preDeployStage
+	stage, err := pipelineStageRepoImpl.GetCdStageByCdPipelineIdAndStageType(cdPipelineId, repository.PIPELINE_STAGE_TYPE_PRE_CD)
+	assert.Nil(t, err)
+	pipelineStageReq.Id = stage.Id
+	steps, err := pipelineStageRepoImpl.GetAllStepsByStageId(stage.Id)
+	assert.Nil(t, err)
+
+	for i, step := range steps {
+		pipelineStageReq.Steps[i].Id = step.Id
+	}
+
+	tests := []struct {
+		name         string
+		cdPipelineId int
+		want         *bean.PipelineStageDto
+		wantErr      bool
+	}{
+		{
+			name:         "get_cd_pipeline_stage_data_with_valid_cd_pipeline_id",
+			cdPipelineId: cdPipelineId,
+			want:         pipelineStageReq,
+			wantErr:      false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			//testing of preDeployStage also covers postDeployStage
+			gotPreDeployStage, _, gotErr := pipelineStageServiceImpl.GetCdPipelineStageDataDeepCopy(tt.cdPipelineId)
+			if (gotErr != nil) != tt.wantErr {
+				t.Errorf("GetCdPipelineStageDataDeepCopy error = %v, wantErr %v", gotErr, tt.wantErr)
+				return
+			}
+			if gotPreDeployStage.Id != tt.want.Id && gotPreDeployStage.Type != tt.want.Type &&
+				gotPreDeployStage.TriggerType != tt.want.TriggerType {
+				t.Errorf("GetCdPipelineStageDataDeepCopy() got = %+v, want %+v", gotPreDeployStage, tt.want)
+			}
+			for i, step := range gotPreDeployStage.Steps {
+				d, _ := json.Marshal(gotPreDeployStage)
+				fmt.Printf("%s\n", d)
+				stepFailureCondition := step.Id != tt.want.Steps[i].Id && step.Name != tt.want.Steps[i].Name && step.Description != tt.want.Steps[i].Description &&
+					step.Index != tt.want.Steps[i].Index && step.StepType != tt.want.Steps[i].StepType &&
+					!reflect.DeepEqual(step.OutputDirectoryPath, tt.want.Steps[i].OutputDirectoryPath) && step.TriggerIfParentStageFail != tt.want.Steps[i].TriggerIfParentStageFail
+				if stepFailureCondition {
+					t.Errorf("GetCdPipelineStageDataDeepCopy() got = %+v, want %+v", *step, *tt.want.Steps[i])
+				}
+				if step.InlineStepDetail != nil {
+					if step.InlineStepDetail.Script != tt.want.Steps[i].InlineStepDetail.Script &&
+						step.InlineStepDetail.ScriptType != tt.want.Steps[i].InlineStepDetail.ScriptType {
+						t.Errorf("GetCdPipelineStageDataDeepCopy() got = %+v, want %+v", *step, *tt.want.Steps[i])
+					}
+				}
+
+				if step.RefPluginStepDetail != nil {
+					if step.RefPluginStepDetail.PluginId != tt.want.Steps[i].RefPluginStepDetail.PluginId {
+						t.Errorf("GetCdPipelineStageDataDeepCopy() got = %+v, want %+v", *step, *tt.want.Steps[i])
+					}
+				}
+
+			}
+
+		})
+	}
+}
+
 func TestPipelineStageService_UpdatePipelineStage(t *testing.T) {
 	t.SkipNow()
 	tests := []struct {
@@ -376,6 +448,12 @@ func TestPipelineStageService_UpdatePipelineStage(t *testing.T) {
 		},
 		{
 			name:    "update_pipeline_with_valid_post-cd_payload",
+			payload: pipelineStageReq,
+			want:    nil,
+			wantErr: false,
+		},
+		{
+			name:    "update_pipeline_with_valid_pre-cd_payload_with_changed_index_of_steps",
 			payload: pipelineStageReq,
 			want:    nil,
 			wantErr: false,
@@ -403,6 +481,11 @@ func TestPipelineStageService_UpdatePipelineStage(t *testing.T) {
 				pipelineId = ciPipelineId
 			}
 			tt.payload.Type = stageType
+			if tt.name == "update_pipeline_with_valid_pre-cd_payload_with_changed_index_of_steps" {
+				tt.payload.Steps[0].Index = 2
+				tt.payload.Steps[1].Index = 1
+			}
+
 			err := pipelineStageServiceImpl.UpdatePipelineStage(tt.payload, tt.payload.Type, pipelineId, 1)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("UpdatePipelineStage error = %v, wantErr %v", err, tt.wantErr)
@@ -474,7 +557,6 @@ func TestPipelineStageService_DeletePipelineStage(t *testing.T) {
 }
 
 //func TestMain(m *testing.M) {
-//
 //	var t *testing.T
 //	tearDownSuite := setupSuite(t)
 //	code := m.Run()
