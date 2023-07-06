@@ -2,7 +2,7 @@
 
 To add secrets from **AWS Secrets Manager**, we need to create a generic Kubernetes secret for AWS authentication.
 
-Create a Kubernetes secret in the namespace in which the application is to be deployed using base64 encoded AWS access-key and secret-access-key. You can use devtron generic chart for this.
+Create a Kubernetes secret in the namespace in which the application is to be deployed using base64 encoded AWS access-key and secret-access-key. You can use Devtron generic chart for this.
 
 **Note:** You don't have to create the Kubernetes secret everytime you create External Secret for the respective namespace.
 
