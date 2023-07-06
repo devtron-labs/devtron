@@ -18,7 +18,7 @@ func NewConfigDraftRouterImpl(configDraftRestHandler ConfigDraftRestHandler) *Co
 
 func (router *ConfigDraftRouterImpl) InitConfigDraftRouter(configRouter *mux.Router) {
 	configRouter.Path("").HandlerFunc(router.configDraftRestHandler.CreateDraft).Methods("POST")
-	configRouter.Path("/app").HandlerFunc(router.configDraftRestHandler.GetDrafts).
+	configRouter.Path("/app").HandlerFunc(router.configDraftRestHandler.GetAppDrafts).
 		Queries("appId", "{appId}").
 		Queries("envId", "{envId}").
 		Queries("resourceType", "{resourceType}").
@@ -27,5 +27,8 @@ func (router *ConfigDraftRouterImpl) InitConfigDraftRouter(configRouter *mux.Rou
 	configRouter.Path("/version").HandlerFunc(router.configDraftRestHandler.AddDraftVersion).Methods("PUT")
 	configRouter.Path("/version/{draftId}").HandlerFunc(router.configDraftRestHandler.GetDraftVersionMetadata).Methods("GET")
 	configRouter.Path("/version/comments/{draftId}").HandlerFunc(router.configDraftRestHandler.GetDraftComments).Methods("GET")
-	configRouter.Path("/approve").HandlerFunc(router.configDraftRestHandler.GetDraftComments).Methods("GET")
+	configRouter.Path("/approve").HandlerFunc(router.configDraftRestHandler.ApproveDraft).
+		Queries("draftId", "{draftId}").
+		Queries("draftVersionId", "{draftVersionId}").
+		Methods("POST")
 }

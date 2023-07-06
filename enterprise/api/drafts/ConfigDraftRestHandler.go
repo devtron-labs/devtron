@@ -19,7 +19,7 @@ type ConfigDraftRestHandler interface {
 	AddDraftVersion(w http.ResponseWriter, r *http.Request)
 	GetDraftVersionMetadata(w http.ResponseWriter, r *http.Request)
 	GetDraftComments(w http.ResponseWriter, r *http.Request)
-	GetDrafts(w http.ResponseWriter, r *http.Request)
+	GetAppDrafts(w http.ResponseWriter, r *http.Request)
 	GetDraftById(w http.ResponseWriter, r *http.Request)
 	ApproveDraft(w http.ResponseWriter, r *http.Request)
 }
@@ -166,7 +166,7 @@ func (impl *ConfigDraftRestHandlerImpl) GetDraftComments(w http.ResponseWriter, 
 	common.WriteJsonResp(w, err, draftComments, http.StatusOK)
 }
 
-func (impl *ConfigDraftRestHandlerImpl) GetDrafts(w http.ResponseWriter, r *http.Request) {
+func (impl *ConfigDraftRestHandlerImpl) GetAppDrafts(w http.ResponseWriter, r *http.Request) {
 
 	// need to send Approver's data, need to send encrypted secret data
 	userId, err := impl.userService.GetLoggedInUser(r)
@@ -282,7 +282,12 @@ func (impl *ConfigDraftRestHandlerImpl) ApproveDraft(w http.ResponseWriter, r *h
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-
+	err = impl.configDraftService.ApproveDraft(draftId, draftVersionId, userId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, nil, http.StatusOK)
 }
 
 
