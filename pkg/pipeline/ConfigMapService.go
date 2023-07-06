@@ -1798,7 +1798,7 @@ func (impl ConfigMapServiceImpl) buildBulkPayload(bulkPatchRequest *BulkPatchReq
 	return bulkPatchRequest, nil
 }
 
-func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentCreate(createJobEnvOverrideRequest *CreateJobEnvOverridePayload) (*chartConfig.ConfigMapEnvModel, error) {
+func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentCreate(createJobEnvOverrideRequest *CreateJobEnvOverridePayload) (*CreateJobEnvOverridePayload, error) {
 	configMap, err := impl.configMapRepository.GetByAppIdAndEnvIdEnvLevel(createJobEnvOverrideRequest.AppId, createJobEnvOverrideRequest.EnvId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error while fetching from db", "error", err)
@@ -1812,7 +1812,7 @@ func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentCreate(createJobEnvOverr
 				impl.logger.Errorw("error while creating env level", "error", err)
 				return nil, err
 			}
-			return configMap, nil
+			return createJobEnvOverrideRequest, nil
 		}
 		impl.logger.Warnw("Environment override in this environment already exits", "appId", createJobEnvOverrideRequest.AppId, "envId", createJobEnvOverrideRequest.EnvId)
 		return nil, err
@@ -1829,10 +1829,10 @@ func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentCreate(createJobEnvOverr
 		impl.logger.Errorw("error while creating app level", "error", err)
 		return nil, err
 	}
-	return configMap, nil
+	return createJobEnvOverrideRequest, nil
 }
 
-func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentDelete(createJobEnvOverrideRequest *CreateJobEnvOverridePayload) (*chartConfig.ConfigMapEnvModel, error) {
+func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentDelete(createJobEnvOverrideRequest *CreateJobEnvOverridePayload) (*CreateJobEnvOverridePayload, error) {
 	configMap, err := impl.configMapRepository.GetByAppIdAndEnvIdEnvLevel(createJobEnvOverrideRequest.AppId, createJobEnvOverrideRequest.EnvId)
 	if pg.ErrNoRows == err {
 		impl.logger.Warnw("Environment override in this environment doesn't exits", "appId", createJobEnvOverrideRequest.AppId, "envId", createJobEnvOverrideRequest.EnvId)
@@ -1850,7 +1850,7 @@ func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentDelete(createJobEnvOverr
 		impl.logger.Errorw("error while creating app level", "error", err)
 		return nil, err
 	}
-	return configMap, nil
+	return createJobEnvOverrideRequest, nil
 }
 
 func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentGet(appId int) ([]JobEnvOverrideResponse, error) {
