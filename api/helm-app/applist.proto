@@ -34,6 +34,7 @@ service ApplicationService {
   rpc TemplateChart(InstallReleaseRequest) returns (TemplateChartResponse){}
   rpc InstallReleaseWithCustomChart(HelmInstallCustomRequest) returns (HelmInstallCustomResponse) {}
   rpc GetNotes(InstallReleaseRequest) returns (ChartNotesResponse) {}
+  rpc UpgradeReleaseWithCustomChart(UpgradeReleaseRequest) returns(UpgradeReleaseResponse){}
   rpc ValidateOCIRegistry(OCIRegistryRequest) returns(OCIRegistryResponse) {}
   rpc PushHelmChartToOCIRegistry(OCIRegistryRequest) returns(OCIRegistryResponse) {}
 }
@@ -225,6 +226,7 @@ message UpgradeReleaseRequest {
   ReleaseIdentifier releaseIdentifier = 1;
   string valuesYaml = 2;
   int32 historyMax = 3;
+  ChartContent chartContent = 4;
 }
 
 message UpgradeReleaseResponse {

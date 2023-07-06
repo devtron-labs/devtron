@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -207,6 +208,8 @@ type CdWorkflowWithArtifact struct {
 	UserApprovalMetadata *UserApprovalMetadata        `json:"userApprovalMetadata"`
 	GitTriggers          map[int]GitCommit            `json:"gitTriggers"`
 	CiMaterials          []CiPipelineMaterialResponse `json:"ciMaterials"`
+	ImageReleaseTags     []*repository2.ImageTag      `json:"imageReleaseTags"`
+	ImageComment         *repository2.ImageComment    `json:"imageComment"`
 }
 
 type TriggerWorkflowStatus struct {

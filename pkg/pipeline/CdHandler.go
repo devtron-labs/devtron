@@ -117,6 +117,7 @@ type CdHandlerImpl struct {
 	appRepository                          app2.AppRepository
 	appGroupService                        appGroup2.AppGroupService
 	deploymentApprovalRepository           pipelineConfig.DeploymentApprovalRepository
+	imageTaggingService                    ImageTaggingService
 }
 
 func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService user.UserService,
@@ -143,7 +144,8 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 	installedAppRepository repository3.InstalledAppRepository,
 	installedAppVersionHistoryRepository repository3.InstalledAppVersionHistoryRepository, appRepository app2.AppRepository,
 	appGroupService appGroup2.AppGroupService,
-	deploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository) *CdHandlerImpl {
+	deploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository,
+	imageTaggingService ImageTaggingService) *CdHandlerImpl {
 	return &CdHandlerImpl{
 		Logger:                                 Logger,
 		cdConfig:                               cdConfig,
@@ -178,6 +180,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 		appRepository:                          appRepository,
 		appGroupService:                        appGroupService,
 		deploymentApprovalRepository:           deploymentApprovalRepository,
+		imageTaggingService:                    imageTaggingService,
 	}
 }
 
@@ -703,6 +706,12 @@ func (impl *CdHandlerImpl) stateChanged(status string, podStatus string, msg str
 func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipelineId int, offset int, size int) ([]pipelineConfig.CdWorkflowWithArtifact, error) {
 
 	var cdWorkflowArtifact []pipelineConfig.CdWorkflowWithArtifact
+	//this map contains artifactId -> array of tags of that artifact
+	imageTagsDataMap, err := impl.imageTaggingService.GetTagsDataMapByAppId(appId)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching image tags with appId", "err", err, "appId", appId)
+		return cdWorkflowArtifact, err
+	}
 	if pipelineId == 0 {
 		wfrList, err := impl.cdWorkflowRepository.FindCdWorkflowMetaByEnvironmentId(appId, environmentId, offset, size)
 		if err != nil && err != pg.ErrNoRows {
@@ -799,6 +808,25 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 		cdWorkflowArtifact = newCdWorkflowArtifact
 	}
 
+	var artifactIds []int
+	for _, item := range cdWorkflowArtifact {
+		artifactIds = append(artifactIds, item.CiArtifactId)
+	}
+	imageCommentsDataMap, err := impl.imageTaggingService.GetImageCommentsDataMapByArtifactIds(artifactIds)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching imageCommentsDataMap", "err", err, "artifactIds", artifactIds, "appId", appId)
+		return cdWorkflowArtifact, err
+	}
+	for i, item := range cdWorkflowArtifact {
+
+		if imageTagsDataMap[item.CiArtifactId] != nil {
+			item.ImageReleaseTags = imageTagsDataMap[item.CiArtifactId]
+		}
+		if imageCommentsDataMap[item.CiArtifactId] != nil {
+			item.ImageComment = imageCommentsDataMap[item.CiArtifactId]
+		}
+		cdWorkflowArtifact[i] = item
+	}
 	return cdWorkflowArtifact, nil
 }
 
@@ -1036,6 +1064,8 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		PodName:              workflowR.PodName,
 		CdWorkflowId:         workflowR.CdWorkflowId,
 		HelmPackageName:      helmPackageName,
+		ArtifactId:           workflow.CiArtifactId,
+		CiPipelineId:         ciWf.CiPipelineId,
 	}
 	return workflowResponse, nil
 

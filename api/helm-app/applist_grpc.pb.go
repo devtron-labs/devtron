@@ -40,6 +40,7 @@ type ApplicationServiceClient interface {
 	TemplateChart(ctx context.Context, in *InstallReleaseRequest, opts ...grpc.CallOption) (*TemplateChartResponse, error)
 	InstallReleaseWithCustomChart(ctx context.Context, in *HelmInstallCustomRequest, opts ...grpc.CallOption) (*HelmInstallCustomResponse, error)
 	GetNotes(ctx context.Context, in *InstallReleaseRequest, opts ...grpc.CallOption) (*ChartNotesResponse, error)
+	UpgradeReleaseWithCustomChart(ctx context.Context, in *UpgradeReleaseRequest, opts ...grpc.CallOption) (*UpgradeReleaseResponse, error)
 	ValidateOCIRegistry(ctx context.Context, in *OCIRegistryRequest, opts ...grpc.CallOption) (*OCIRegistryResponse, error)
 	PushHelmChartToOCIRegistry(ctx context.Context, in *OCIRegistryRequest, opts ...grpc.CallOption) (*OCIRegistryResponse, error)
 }
@@ -237,6 +238,15 @@ func (c *applicationServiceClient) GetNotes(ctx context.Context, in *InstallRele
 	return out, nil
 }
 
+func (c *applicationServiceClient) UpgradeReleaseWithCustomChart(ctx context.Context, in *UpgradeReleaseRequest, opts ...grpc.CallOption) (*UpgradeReleaseResponse, error) {
+	out := new(UpgradeReleaseResponse)
+	err := c.cc.Invoke(ctx, "/ApplicationService/UpgradeReleaseWithCustomChart", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *applicationServiceClient) ValidateOCIRegistry(ctx context.Context, in *OCIRegistryRequest, opts ...grpc.CallOption) (*OCIRegistryResponse, error) {
 	out := new(OCIRegistryResponse)
 	err := c.cc.Invoke(ctx, "/ApplicationService/ValidateOCIRegistry", in, out, opts...)
@@ -277,6 +287,7 @@ type ApplicationServiceServer interface {
 	TemplateChart(context.Context, *InstallReleaseRequest) (*TemplateChartResponse, error)
 	InstallReleaseWithCustomChart(context.Context, *HelmInstallCustomRequest) (*HelmInstallCustomResponse, error)
 	GetNotes(context.Context, *InstallReleaseRequest) (*ChartNotesResponse, error)
+	UpgradeReleaseWithCustomChart(context.Context, *UpgradeReleaseRequest) (*UpgradeReleaseResponse, error)
 	ValidateOCIRegistry(context.Context, *OCIRegistryRequest) (*OCIRegistryResponse, error)
 	PushHelmChartToOCIRegistry(context.Context, *OCIRegistryRequest) (*OCIRegistryResponse, error)
 	mustEmbedUnimplementedApplicationServiceServer()
@@ -339,6 +350,9 @@ func (UnimplementedApplicationServiceServer) InstallReleaseWithCustomChart(conte
 }
 func (UnimplementedApplicationServiceServer) GetNotes(context.Context, *InstallReleaseRequest) (*ChartNotesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetNotes not implemented")
+}
+func (UnimplementedApplicationServiceServer) UpgradeReleaseWithCustomChart(context.Context, *UpgradeReleaseRequest) (*UpgradeReleaseResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpgradeReleaseWithCustomChart not implemented")
 }
 func (UnimplementedApplicationServiceServer) ValidateOCIRegistry(context.Context, *OCIRegistryRequest) (*OCIRegistryResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ValidateOCIRegistry not implemented")
@@ -686,6 +700,24 @@ func _ApplicationService_GetNotes_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ApplicationService_UpgradeReleaseWithCustomChart_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpgradeReleaseRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ApplicationServiceServer).UpgradeReleaseWithCustomChart(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/ApplicationService/UpgradeReleaseWithCustomChart",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ApplicationServiceServer).UpgradeReleaseWithCustomChart(ctx, req.(*UpgradeReleaseRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ApplicationService_ValidateOCIRegistry_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(OCIRegistryRequest)
 	if err := dec(in); err != nil {
@@ -796,6 +828,10 @@ var ApplicationService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetNotes",
 			Handler:    _ApplicationService_GetNotes_Handler,
+		},
+		{
+			MethodName: "UpgradeReleaseWithCustomChart",
+			Handler:    _ApplicationService_UpgradeReleaseWithCustomChart_Handler,
 		},
 		{
 			MethodName: "ValidateOCIRegistry",
