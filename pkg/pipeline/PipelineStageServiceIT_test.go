@@ -16,7 +16,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"math/rand"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -474,10 +473,11 @@ func TestPipelineStageService_DeletePipelineStage(t *testing.T) {
 
 }
 
-func TestMain(m *testing.M) {
-	var t *testing.T
-	tearDownSuite := setupSuite(t)
-	code := m.Run()
-	tearDownSuite(t)
-	os.Exit(code)
-}
+//func TestMain(m *testing.M) {
+//
+//	var t *testing.T
+//	tearDownSuite := setupSuite(t)
+//	code := m.Run()
+//	tearDownSuite(t)
+//	os.Exit(code)
+//}
