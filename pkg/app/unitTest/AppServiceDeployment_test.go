@@ -1218,4 +1218,10 @@ func TestDeploymentTemplateHistoryService(t *testing.T) {
 		assert.Equal(t, triggerEvent.TriggerdAt, eventTime)
 	})
 
+	t.Run("GetRepoPathAndChartNameFromRepoName", func(t *testing.T) {
+		repoName, chartName := app.GetRepoPathAndChartNameFromRepoName("oci://registry-1.docker.io/bitnamicharts/apache")
+		assert.Equal(t, repoName, "oci://registry-1.docker.io/bitnamicharts/")
+		assert.Equal(t, chartName, "apache")
+	})
+
 }

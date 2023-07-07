@@ -5,7 +5,6 @@ import (
 	"fmt"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app/bean"
 	status2 "github.com/devtron-labs/devtron/pkg/app/status"
 	"go.uber.org/zap"
@@ -18,20 +17,17 @@ type HelmRepoPushService interface {
 
 type HelmRepoPushServiceImpl struct {
 	logger                        *zap.SugaredLogger
-	chartTemplateService          util.ChartTemplateService
 	helmAppClient                 client.HelmAppClient
 	pipelineStatusTimelineService status2.PipelineStatusTimelineService
 }
 
 func NewHelmRepoPushServiceImpl(
 	logger *zap.SugaredLogger,
-	chartTemplateService util.ChartTemplateService,
 	helmAppClient client.HelmAppClient,
 	pipelineStatusTimelineService status2.PipelineStatusTimelineService,
 ) *HelmRepoPushServiceImpl {
 	return &HelmRepoPushServiceImpl{
 		logger:                        logger,
-		chartTemplateService:          chartTemplateService,
 		helmAppClient:                 helmAppClient,
 		pipelineStatusTimelineService: pipelineStatusTimelineService,
 	}
