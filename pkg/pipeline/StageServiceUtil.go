@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"errors"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
@@ -83,7 +84,7 @@ func StageStepsToCdStageAdapter(deployStage *bean.PipelineStageDto) (*bean2.CdSt
 			}
 
 		} else {
-			return nil, nil
+			return nil, errors.New("this pipeline has been created/updated using a newer version. please try using the updated v2 API")
 		}
 
 	}
