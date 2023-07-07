@@ -63,6 +63,13 @@ func (impl NotificationRouterImpl) InitNotificationRegRouter(configRouter *mux.R
 	configRouter.Path("/channel/smtp/{id}").
 		HandlerFunc(impl.notificationRestHandler.FindSMTPConfig).
 		Methods("GET")
+	configRouter.Path("/channel/webhook/{id}").
+		HandlerFunc(impl.notificationRestHandler.FindWebhookConfig).
+		Methods("GET")
+	configRouter.Path("/variables").
+		HandlerFunc(impl.notificationRestHandler.GetWebhookVariables).
+		Methods("GET")
+
 	configRouter.Path("/channel").
 		HandlerFunc(impl.notificationRestHandler.DeleteNotificationChannelConfig).
 		Methods("DELETE")

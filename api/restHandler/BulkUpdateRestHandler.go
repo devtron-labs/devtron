@@ -422,19 +422,11 @@ func (handler BulkUpdateRestHandlerImpl) HandleCdPipelineBulkAction(w http.Respo
 		return
 	}
 
-	v := r.URL.Query()
-	forceDelete := false
-	forceDeleteParam := v.Get("forceDelete")
-	if len(forceDeleteParam) > 0 {
-		forceDelete, err = strconv.ParseBool(forceDeleteParam)
-		if err != nil {
-			handler.logger.Errorw("request err, HandleCdPipelineBulkAction", "err", err, "payload", cdPipelineBulkActionReq)
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			return
-		}
+	if cdPipelineBulkActionReq.ForceDelete {
+		cdPipelineBulkActionReq.NonCascadeDelete = true
 	}
-	cdPipelineBulkActionReq.ForceDelete = forceDelete
 
+	v := r.URL.Query()
 	dryRun := false
 	dryRunParam := v.Get("dryRun")
 	if len(dryRunParam) > 0 {

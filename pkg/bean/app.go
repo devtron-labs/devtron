@@ -20,6 +20,7 @@ package bean
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
@@ -181,6 +182,11 @@ const (
 	EXTERNAL PipelineType = "EXTERNAL"
 )
 
+const (
+	CASCADE_DELETE int = iota
+	NON_CASCADE_DELETE
+	FORCE_DELETE
+)
 const (
 	WEBHOOK_SELECTOR_UNIQUE_ID_NAME          string = "unique id"
 	WEBHOOK_SELECTOR_REPOSITORY_URL_NAME     string = "repository url"
@@ -529,17 +535,25 @@ type Strategy struct {
 }
 
 type CdPipelines struct {
-	Pipelines []*CDPipelineConfigObject `json:"pipelines,omitempty" validate:"dive"`
-	AppId     int                       `json:"appId,omitempty"  validate:"number,required" `
-	UserId    int32                     `json:"-"`
+	Pipelines         []*CDPipelineConfigObject `json:"pipelines,omitempty" validate:"dive"`
+	AppId             int                       `json:"appId,omitempty"  validate:"number,required" `
+	UserId            int32                     `json:"-"`
+	AppDeleteResponse *AppDeleteResponseDTO     `json:"deleteResponse,omitempty"`
+}
+
+type AppDeleteResponseDTO struct {
+	DeleteInitiated  bool   `json:"deleteInitiated"`
+	ClusterReachable bool   `json:"clusterReachable"`
+	ClusterName      string `json:"clusterName"`
 }
 
 type CDPatchRequest struct {
-	Pipeline    *CDPipelineConfigObject `json:"pipeline,omitempty"`
-	AppId       int                     `json:"appId,omitempty"`
-	Action      CdPatchAction           `json:"action,omitempty"`
-	UserId      int32                   `json:"-"`
-	ForceDelete bool                    `json:"-"`
+	Pipeline         *CDPipelineConfigObject `json:"pipeline,omitempty"`
+	AppId            int                     `json:"appId,omitempty"`
+	Action           CdPatchAction           `json:"action,omitempty"`
+	UserId           int32                   `json:"-"`
+	ForceDelete      bool                    `json:"-"`
+	NonCascadeDelete bool                    `json:"-"`
 }
 
 type CdPatchAction int
@@ -662,14 +676,19 @@ type CiArtifactBean struct {
 	DeployedBy                    string                    `json:"deployedBy"`
 	CiConfigureSourceType         pipelineConfig.SourceType `json:"ciConfigureSourceType"`
 	CiConfigureSourceValue        string                    `json:"ciConfigureSourceValue"`
+	ImageReleaseTags              []*repository2.ImageTag   `json:"imageReleaseTags"`
+	ImageComment                  *repository2.ImageComment `json:"imageComment"`
 }
 
 type CiArtifactResponse struct {
 	//AppId           int      `json:"app_id"`
-	CdPipelineId           int              `json:"cd_pipeline_id,notnull"`
-	LatestWfArtifactId     int              `json:"latest_wf_artifact_id"`
-	LatestWfArtifactStatus string           `json:"latest_wf_artifact_status"`
-	CiArtifacts            []CiArtifactBean `json:"ci_artifacts,notnull"`
+	CdPipelineId               int              `json:"cd_pipeline_id,notnull"`
+	LatestWfArtifactId         int              `json:"latest_wf_artifact_id"`
+	LatestWfArtifactStatus     string           `json:"latest_wf_artifact_status"`
+	CiArtifacts                []CiArtifactBean `json:"ci_artifacts,notnull"`
+	TagsEditable               bool             `json:"tagsEditable"`
+	AppReleaseTagNames         []string         `json:"appReleaseTagNames"` //unique list of tags exists in the app
+	HideImageTaggingHardDelete bool             `json:"hideImageTaggingHardDelete"`
 }
 
 type AppLabelsDto struct {
@@ -722,12 +741,13 @@ const (
 )
 
 type CdBulkActionRequestDto struct {
-	Action      CdBulkAction `json:"action"`
-	EnvIds      []int        `json:"envIds"`
-	AppIds      []int        `json:"appIds"`
-	ProjectIds  []int        `json:"projectIds"`
-	ForceDelete bool         `json:"forceDelete"`
-	UserId      int32        `json:"-"`
+	Action        CdBulkAction `json:"action"`
+	EnvIds        []int        `json:"envIds"`
+	AppIds        []int        `json:"appIds"`
+	ProjectIds    []int        `json:"projectIds"`
+	ForceDelete   bool         `json:"forceDelete"`
+	CascadeDelete bool         `json:"cascadeDelete"`
+	UserId        int32        `json:"-"`
 }
 
 type CdBulkActionResponseDto struct {

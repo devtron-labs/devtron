@@ -8,6 +8,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
 	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
@@ -24,6 +25,12 @@ import (
 	"strings"
 )
 
+type DeploymentHistoryResp struct {
+	CdWorkflows                []pipelineConfig.CdWorkflowWithArtifact `json:"cdWorkflows"`
+	TagsEdiatable              bool                                    `json:"tagsEditable"`
+	AppReleaseTagNames         []string                                `json:"appReleaseTagNames"` //unique list of tags exists in the app
+	HideImageTaggingHardDelete bool                                    `json:"hideImageTaggingHardDelete"`
+}
 type DevtronAppDeploymentRestHandler interface {
 	CreateCdPipeline(w http.ResponseWriter, r *http.Request)
 	GetCdPipelineById(w http.ResponseWriter, r *http.Request)
@@ -237,7 +244,14 @@ func (handler PipelineConfigRestHandlerImpl) PatchCdPipeline(w http.ResponseWrit
 
 	v := r.URL.Query()
 	forceDelete := false
+	cascadeDelete := true
 	force := v.Get("force")
+	cascade := v.Get("cascade")
+	if len(force) > 0 && len(cascade) > 0 {
+		handler.Logger.Errorw("request err, PatchCdPipeline", "err", fmt.Errorf("cannot perform both cascade and force delete"), "payload", cdPipeline)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 	if len(force) > 0 {
 		forceDelete, err = strconv.ParseBool(force)
 		if err != nil {
@@ -245,8 +259,16 @@ func (handler PipelineConfigRestHandlerImpl) PatchCdPipeline(w http.ResponseWrit
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
+	} else if len(cascade) > 0 {
+		cascadeDelete, err = strconv.ParseBool(cascade)
+		if err != nil {
+			handler.Logger.Errorw("request err, PatchCdPipeline", "err", err, "payload", cdPipeline)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
 	}
 	cdPipeline.ForceDelete = forceDelete
+	cdPipeline.NonCascadeDelete = !cascadeDelete
 	handler.Logger.Infow("request payload, PatchCdPipeline", "payload", cdPipeline)
 	err = handler.validator.StructPartial(cdPipeline, "AppId", "Action")
 	if err == nil {
@@ -926,7 +948,9 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-
+	//rbac for edit tags access
+	triggerAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object)
+	//rbac
 	object = handler.enforcerUtil.GetAppRBACByAppNameAndEnvId(pipeline.App.AppName, pipeline.EnvironmentId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
@@ -938,6 +962,24 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 	if err != nil {
 		handler.Logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	appTags, err := handler.imageTaggingService.GetUniqueTagsByAppId(pipeline.AppId)
+	if err != nil {
+		handler.Logger.Errorw("service err, GetTagsByAppId", "err", err, "appId", pipeline.AppId)
+		common.WriteJsonResp(w, err, ciArtifactResponse, http.StatusInternalServerError)
+		return
+	}
+
+	ciArtifactResponse.AppReleaseTagNames = appTags
+
+	prodEnvExists, err := handler.imageTaggingService.GetProdEnvByCdPipelineId(pipeline.Id)
+	ciArtifactResponse.TagsEditable = prodEnvExists && triggerAccess
+	ciArtifactResponse.HideImageTaggingHardDelete = handler.imageTaggingService.GetImageTaggingServiceConfig().HideImageTaggingHardDelete
+	if err != nil {
+		handler.Logger.Errorw("service err, GetProdEnvByCdPipelineId", "err", err, "cdPipelineId", pipeline.Id)
+		common.WriteJsonResp(w, err, ciArtifactResponse, http.StatusInternalServerError)
 		return
 	}
 
@@ -1478,14 +1520,31 @@ func (handler *PipelineConfigRestHandlerImpl) ListDeploymentHistory(w http.Respo
 		return
 	}
 	//RBAC CHECK
-
-	resp, err := handler.cdHandler.GetCdBuildHistory(appId, environmentId, pipelineId, offset, limit)
+	resp := DeploymentHistoryResp{}
+	wfs, err := handler.cdHandler.GetCdBuildHistory(appId, environmentId, pipelineId, offset, limit)
+	resp.CdWorkflows = wfs
 	if err != nil {
 		handler.Logger.Errorw("service err, List", "err", err, "appId", appId, "environmentId", environmentId, "pipelineId", pipelineId, "offset", offset)
 		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
 		return
 	}
 
+	appTags, err := handler.imageTaggingService.GetUniqueTagsByAppId(appId)
+	if err != nil {
+		handler.Logger.Errorw("service err, GetTagsByAppId", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
+		return
+	}
+	resp.AppReleaseTagNames = appTags
+
+	prodEnvExists, err := handler.imageTaggingService.GetProdEnvByCdPipelineId(pipelineId)
+	resp.TagsEdiatable = prodEnvExists
+	resp.HideImageTaggingHardDelete = handler.imageTaggingService.GetImageTaggingServiceConfig().HideImageTaggingHardDelete
+	if err != nil {
+		handler.Logger.Errorw("service err, GetProdEnvFromParentAndLinkedWorkflow", "err", err, "cdPipelineId", pipelineId)
+		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
+		return
+	}
 	common.WriteJsonResp(w, err, resp, http.StatusOK)
 }
 
