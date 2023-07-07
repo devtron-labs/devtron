@@ -13,9 +13,7 @@ import (
 
 func Test_getConfigMapsAndSecrets(t *testing.T) {
 	t.SkipNow()
-
 	type args struct {
-		impl              *WorkflowServiceImpl
 		workflowRequest   *WorkflowRequest
 		existingConfigMap *bean3.ConfigMapJson
 		existingSecrets   *bean3.ConfigSecretJson
@@ -50,10 +48,6 @@ func Test_getConfigMapsAndSecrets(t *testing.T) {
 			},
 		},
 	}
-	logger, err := util.NewSugardLogger()
-	if err != nil {
-		log.Fatalf("error in logger initialization %s,%s", "err", err)
-	}
 	tests := []struct {
 		name    string
 		args    args
@@ -64,7 +58,6 @@ func Test_getConfigMapsAndSecrets(t *testing.T) {
 		{
 			name: "Empty existingConfigMap and existingSecrets",
 			args: args{
-				impl:              &WorkflowServiceImpl{Logger: logger},
 				workflowRequest:   workflowRequest,
 				existingConfigMap: &bean3.ConfigMapJson{},
 				existingSecrets:   &bean3.ConfigSecretJson{},
@@ -76,7 +69,6 @@ func Test_getConfigMapsAndSecrets(t *testing.T) {
 		{
 			name: "non empty  existingConfigMap and empty existingSecrets",
 			args: args{
-				impl:              &WorkflowServiceImpl{Logger: logger},
 				workflowRequest:   workflowRequest,
 				existingConfigMap: existingConfigMap,
 				existingSecrets:   &bean3.ConfigSecretJson{},
@@ -88,7 +80,6 @@ func Test_getConfigMapsAndSecrets(t *testing.T) {
 		{
 			name: "non empty  existingConfigMap and non empty existingSecrets",
 			args: args{
-				impl:              &WorkflowServiceImpl{Logger: logger},
 				workflowRequest:   workflowRequest,
 				existingConfigMap: existingConfigMap,
 				existingSecrets:   existingSecrets,
@@ -100,7 +91,6 @@ func Test_getConfigMapsAndSecrets(t *testing.T) {
 		{
 			name: "non empty  existingConfigMap and non empty existingSecrets with external ",
 			args: args{
-				impl:              &WorkflowServiceImpl{Logger: logger},
 				workflowRequest:   workflowRequest,
 				existingConfigMap: existingConfigMap,
 				existingSecrets:   existingSecrets1,
@@ -112,14 +102,14 @@ func Test_getConfigMapsAndSecrets(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1, err := getConfigMapsAndSecrets(tt.args.impl, tt.args.workflowRequest, tt.args.existingConfigMap, tt.args.existingSecrets)
-			if !tt.wantErr(t, err, fmt.Sprintf("getConfigMapsAndSecrets(%v, %v, %v, %v)", tt.args.impl, tt.args.workflowRequest, tt.args.existingConfigMap, tt.args.existingSecrets)) {
+			got, got1, err := getConfigMapsAndSecrets(tt.args.workflowRequest, tt.args.existingConfigMap, tt.args.existingSecrets)
+			if !tt.wantErr(t, err, fmt.Sprintf("getConfigMapsAndSecrets(%v, %v, %v)", tt.args.workflowRequest, tt.args.existingConfigMap, tt.args.existingSecrets)) {
 				return
 			}
-			assert.Equalf(t, tt.want, got, "getConfigMapsAndSecrets(%v, %v, %v, %v)", tt.args.impl, tt.args.workflowRequest, tt.args.existingConfigMap, tt.args.existingSecrets)
-			assert.Equalf(t, tt.want1, got1, "getConfigMapsAndSecrets(%v, %v, %v, %v)", tt.args.impl, tt.args.workflowRequest, tt.args.existingConfigMap, tt.args.existingSecrets)
+			assert.Equalf(t, tt.want, got, "getConfigMapsAndSecrets(%v, %v, %v)", tt.args.workflowRequest, tt.args.existingConfigMap, tt.args.existingSecrets)
+			assert.Equalf(t, tt.want1, got1, "getConfigMapsAndSecrets(%v, %v, %v)", tt.args.workflowRequest, tt.args.existingConfigMap, tt.args.existingSecrets)
 			if tt.args.existingSecrets == existingSecrets {
-				assert.Equalf(t, tt.want1.Secrets[0].Name, got1.Secrets[0].Name, "getConfigMapsAndSecrets(%v, %v, %v, %v)", tt.args.impl, tt.args.workflowRequest, tt.args.existingConfigMap, tt.args.existingSecrets)
+				assert.Equalf(t, tt.want1.Secrets[0].Name, got1.Secrets[0].Name, "getConfigMapsAndSecrets(%v, %v, %v)", tt.args.workflowRequest, tt.args.existingConfigMap, tt.args.existingSecrets)
 
 			}
 		})

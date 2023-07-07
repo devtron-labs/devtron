@@ -309,7 +309,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 			return nil, err
 		}
 		impl.Logger.Debugw("existing cm sec", "cm", existingConfigMap, "sec", existingSecrets)
-		configMaps, secrets, err = getConfigMapsAndSecrets(impl, workflowRequest, existingConfigMap, existingSecrets)
+		configMaps, secrets, err = getConfigMapsAndSecrets(workflowRequest, existingConfigMap, existingSecrets)
 		if err != nil {
 			impl.Logger.Errorw("fail to get config map and secret with new name", err)
 		}
@@ -573,10 +573,9 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	return createdWf, err
 }
 
-func getConfigMapsAndSecrets(impl *WorkflowServiceImpl, workflowRequest *WorkflowRequest, existingConfigMap *bean3.ConfigMapJson, existingSecrets *bean3.ConfigSecretJson) (bean3.ConfigMapJson, bean3.ConfigSecretJson, error) {
+func getConfigMapsAndSecrets(workflowRequest *WorkflowRequest, existingConfigMap *bean3.ConfigMapJson, existingSecrets *bean3.ConfigSecretJson) (bean3.ConfigMapJson, bean3.ConfigSecretJson, error) {
 	configMaps := bean3.ConfigMapJson{}
 	secrets := bean3.ConfigSecretJson{}
-	impl.Logger.Debugw("existing cm sec", "cm", existingConfigMap, "sec", existingSecrets)
 	for _, cm := range existingConfigMap.Maps {
 		if cm.External {
 			continue
