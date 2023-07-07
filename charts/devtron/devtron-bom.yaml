@@ -20,6 +20,7 @@ components:
       extraConfigs:
         USE_V2: "true"
         ENABLE_BUILD_CONTEXT: "true"
+        ENABLE_RESTART_WORKLOAD: "true"
   devtron:
     image: "quay.io/devtron/hyperion:323d8059-336-14426"
     cicdImage: "quay.io/devtron/devtron:323d8059-435-14420"
