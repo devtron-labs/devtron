@@ -105,7 +105,7 @@ func TestConfigMapServiceImpl_ConfigSecretEnvironmentCreate(t *testing.T) {
 				return
 			}
 			assert.Equal(t, tt.want.AppId, got.AppId, "ConfigSecretEnvironmentCreate(%v)", tt.args.createJobEnvOverrideRequest)
-			assert.Equal(t, tt.want.EnvironmentId, got.EnvironmentId, "ConfigSecretEnvironmentCreate(%v)", tt.args.createJobEnvOverrideRequest)
+			assert.Equal(t, tt.want.EnvironmentId, got.EnvId, "ConfigSecretEnvironmentCreate(%v)", tt.args.createJobEnvOverrideRequest)
 			assert.Equal(t, tt.want.Deleted, false, "ConfigSecretEnvironmentCreate(%v)", tt.args.createJobEnvOverrideRequest)
 		})
 	}
@@ -169,7 +169,7 @@ func TestConfigMapServiceImpl_ConfigSecretEnvironmentDelete(t *testing.T) {
 				return
 			}
 			assert.Equal(t, tt.want.AppId, got.AppId, "ConfigSecretEnvironmentCreate(%v)", tt.args.createJobEnvOverrideRequest)
-			assert.Equal(t, tt.want.EnvironmentId, got.EnvironmentId, "ConfigSecretEnvironmentCreate(%v)", tt.args.createJobEnvOverrideRequest)
+			assert.Equal(t, tt.want.EnvironmentId, got.EnvId, "ConfigSecretEnvironmentCreate(%v)", tt.args.createJobEnvOverrideRequest)
 			assert.Equal(t, tt.want.Deleted, true, "ConfigSecretEnvironmentCreate(%v)", tt.args.createJobEnvOverrideRequest)
 		})
 	}

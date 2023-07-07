@@ -167,8 +167,8 @@ type ConfigMapService interface {
 	ConfigSecretGlobalBulkPatch(bulkPatchRequest *BulkPatchRequest) (*BulkPatchRequest, error)
 	ConfigSecretEnvironmentBulkPatch(bulkPatchRequest *BulkPatchRequest) (*BulkPatchRequest, error)
 
-	ConfigSecretEnvironmentCreate(createJobEnvOverrideRequest *CreateJobEnvOverridePayload) (*chartConfig.ConfigMapEnvModel, error)
-	ConfigSecretEnvironmentDelete(createJobEnvOverrideRequest *CreateJobEnvOverridePayload) (*chartConfig.ConfigMapEnvModel, error)
+	ConfigSecretEnvironmentCreate(createJobEnvOverrideRequest *CreateJobEnvOverridePayload) (*CreateJobEnvOverridePayload, error)
+	ConfigSecretEnvironmentDelete(createJobEnvOverrideRequest *CreateJobEnvOverridePayload) (*CreateJobEnvOverridePayload, error)
 	ConfigSecretEnvironmentGet(appId int) ([]JobEnvOverrideResponse, error)
 }
 
