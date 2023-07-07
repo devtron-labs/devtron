@@ -18,15 +18,3 @@ it randomly.
 {{- randAlphaNum $len -}}
 {{- end -}}
 {{- end }}
-{{/*
-Validate data (security)
-*/}}
-{{- define "devtron.validateValues" }}
-{{- if .Values.security }}
-{{- if or (not .Values.security.clair.enabled) (not .Values.security.trivy.enabled) }}
-{{- if and (.Values.security.clair.enabled) (.Values.security.trivy.enabled) }}
-{{- printf "Enable either clair or trivy, enabling both at the same time isn't supported as of now" | fail }}
-{{- end }}
-{{- end }}
-{{- end }}
-{{- end }}
