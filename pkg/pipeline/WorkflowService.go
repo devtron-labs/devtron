@@ -604,19 +604,24 @@ func processConfigMapsAndSecrets(impl *WorkflowServiceImpl, configMaps *bean3.Co
 	var err error
 
 	if len(configMaps.Maps) > 0 {
-		configsMapping, err = processConfigMap(impl, configMaps, entryPoint, volumes, steps)
+		configsMapping, err = processConfigMap(impl, configMaps, entryPoint, steps)
 		if err != nil {
 			return err
 		}
 	}
 
 	if len(secrets.Secrets) > 0 {
-		secretsMapping, err = processSecrets(impl, entryPoint, secrets, volumes, steps)
+		secretsMapping, err = processSecrets(impl, entryPoint, secrets, steps)
 		if err != nil {
 			return err
 		}
 	}
+	var secretMap []bean3.ConfigSecretMap
+	for _, cs := range secrets.Secrets {
+		secretMap = append(secretMap, *cs)
+	}
 
+	*volumes = ExtractVolumesFromCmCs(configMaps.Maps, secretMap)
 	if len(configsMapping) > 0 {
 		for i, cm := range configMaps.Maps {
 			*templates = append(*templates, getResourceTemplate("cm-"+strconv.Itoa(i), configsMapping[cm.Name]))
@@ -642,7 +647,7 @@ func getResourceTemplate(prefix string, manifestName string) v1alpha1.Template {
 	}
 }
 
-func processSecrets(impl *WorkflowServiceImpl, entryPoint *string, secrets *bean3.ConfigSecretJson, volumes *[]v12.Volume, steps *[]v1alpha1.ParallelSteps) (map[string]string, error) {
+func processSecrets(impl *WorkflowServiceImpl, entryPoint *string, secrets *bean3.ConfigSecretJson, steps *[]v1alpha1.ParallelSteps) (map[string]string, error) {
 	secretsMapping := make(map[string]string)
 	*entryPoint = CI_WORKFLOW_WITH_STAGES
 	for i, s := range secrets.Secrets {
@@ -677,16 +682,16 @@ func processSecrets(impl *WorkflowServiceImpl, entryPoint *string, secrets *bean
 		}
 		secretsMapping[s.Name] = string(secretJson)
 
-		if s.Type == "volume" {
-			*volumes = append(*volumes, v12.Volume{
-				Name: s.Name + "-vol",
-				VolumeSource: v12.VolumeSource{
-					Secret: &v12.SecretVolumeSource{
-						SecretName: s.Name,
-					},
-				},
-			})
-		}
+		//if s.Type == "volume" {
+		//	*volumes = append(*volumes, v12.Volume{
+		//		Name: s.Name + "-vol",
+		//		VolumeSource: v12.VolumeSource{
+		//			Secret: &v12.SecretVolumeSource{
+		//				SecretName: s.Name,
+		//			},
+		//		},
+		//	})
+		//}
 
 		*steps = append(*steps, v1alpha1.ParallelSteps{
 			Steps: []v1alpha1.WorkflowStep{
@@ -700,7 +705,7 @@ func processSecrets(impl *WorkflowServiceImpl, entryPoint *string, secrets *bean
 	return secretsMapping, nil
 }
 
-func processConfigMap(impl *WorkflowServiceImpl, configMaps *bean3.ConfigMapJson, entryPoint *string, volumes *[]v12.Volume, steps *[]v1alpha1.ParallelSteps) (map[string]string, error) {
+func processConfigMap(impl *WorkflowServiceImpl, configMaps *bean3.ConfigMapJson, entryPoint *string, steps *[]v1alpha1.ParallelSteps) (map[string]string, error) {
 	configsMapping := make(map[string]string)
 	*entryPoint = CI_WORKFLOW_WITH_STAGES
 	for i, cm := range configMaps.Maps {
@@ -734,18 +739,18 @@ func processConfigMap(impl *WorkflowServiceImpl, configMaps *bean3.ConfigMapJson
 		}
 		configsMapping[cm.Name] = string(cmJson)
 
-		if cm.Type == "volume" {
-			*volumes = append(*volumes, v12.Volume{
-				Name: cm.Name + "-vol",
-				VolumeSource: v12.VolumeSource{
-					ConfigMap: &v12.ConfigMapVolumeSource{
-						LocalObjectReference: v12.LocalObjectReference{
-							Name: cm.Name,
-						},
-					},
-				},
-			})
-		}
+		//if cm.Type == "volume" {
+		//	*volumes = append(*volumes, v12.Volume{
+		//		Name: cm.Name + "-vol",
+		//		VolumeSource: v12.VolumeSource{
+		//			ConfigMap: &v12.ConfigMapVolumeSource{
+		//				LocalObjectReference: v12.LocalObjectReference{
+		//					Name: cm.Name,
+		//				},
+		//			},
+		//		},
+		//	})
+		//}
 
 		*steps = append(*steps, v1alpha1.ParallelSteps{
 			Steps: []v1alpha1.WorkflowStep{
@@ -759,80 +764,91 @@ func processConfigMap(impl *WorkflowServiceImpl, configMaps *bean3.ConfigMapJson
 	return configsMapping, nil
 }
 func getCiTemplateWithConfigMapsAndSecrets(configMaps *bean3.ConfigMapJson, secrets *bean3.ConfigSecretJson, ciTemplate v1alpha1.Template, existingConfigMap *bean3.ConfigMapJson, existingSecrets *bean3.ConfigSecretJson) (v1alpha1.Template, error) {
-	for _, cm := range configMaps.Maps {
-		if cm.Type == "environment" {
-			ciTemplate.Container.EnvFrom = append(ciTemplate.Container.EnvFrom, v12.EnvFromSource{
-				ConfigMapRef: &v12.ConfigMapEnvSource{
-					LocalObjectReference: v12.LocalObjectReference{
-						Name: cm.Name,
-					},
-				},
-			})
-		} else if cm.Type == "volume" {
-			ciTemplate.Container.VolumeMounts = append(ciTemplate.Container.VolumeMounts, v12.VolumeMount{
-				Name:      cm.Name + "-vol",
-				MountPath: cm.MountPath,
-			})
-		}
+	var secretMap []bean3.ConfigSecretMap
+	for _, cs := range secrets.Secrets {
+		secretMap = append(secretMap, *cs)
 	}
-
-	// Adding external config map reference in workflow template
-	for _, cm := range existingConfigMap.Maps {
-		if cm.External {
-			if cm.Type == "environment" {
-				ciTemplate.Container.EnvFrom = append(ciTemplate.Container.EnvFrom, v12.EnvFromSource{
-					ConfigMapRef: &v12.ConfigMapEnvSource{
-						LocalObjectReference: v12.LocalObjectReference{
-							Name: cm.Name,
-						},
-					},
-				})
-			} else if cm.Type == "volume" {
-				ciTemplate.Container.VolumeMounts = append(ciTemplate.Container.VolumeMounts, v12.VolumeMount{
-					Name:      cm.Name,
-					MountPath: cm.MountPath,
-				})
-			}
-		}
+	UpdateContainerEnvsFromCmCs(ciTemplate.Container, configMaps.Maps, secretMap)
+	var existingSecretMap []bean3.ConfigSecretMap
+	for _, cs := range existingSecrets.Secrets {
+		secretMap = append(existingSecretMap, *cs)
 	}
+	UpdateContainerEnvsFromCmCs(ciTemplate.Container, existingConfigMap.Maps, existingSecretMap)
 
-	for _, s := range secrets.Secrets {
-		if s.Type == "environment" {
-			ciTemplate.Container.EnvFrom = append(ciTemplate.Container.EnvFrom, v12.EnvFromSource{
-				SecretRef: &v12.SecretEnvSource{
-					LocalObjectReference: v12.LocalObjectReference{
-						Name: s.Name,
-					},
-				},
-			})
-		} else if s.Type == "volume" {
-			ciTemplate.Container.VolumeMounts = append(ciTemplate.Container.VolumeMounts, v12.VolumeMount{
-				Name:      s.Name + "-vol",
-				MountPath: s.MountPath,
-			})
-		}
-	}
-
-	// Adding external secret reference in workflow template
-	for _, s := range existingSecrets.Secrets {
-		if s.External {
-			if s.Type == "environment" {
-				ciTemplate.Container.EnvFrom = append(ciTemplate.Container.EnvFrom, v12.EnvFromSource{
-					SecretRef: &v12.SecretEnvSource{
-						LocalObjectReference: v12.LocalObjectReference{
-							Name: s.Name,
-						},
-					},
-				})
-			} else if s.Type == "volume" {
-				ciTemplate.Container.VolumeMounts = append(ciTemplate.Container.VolumeMounts, v12.VolumeMount{
-					Name:      s.Name,
-					MountPath: s.MountPath,
-				})
-			}
-		}
-
-	}
+	//for _, cm := range configMaps.Maps {
+	//	if cm.Type == "environment" {
+	//		ciTemplate.Container.EnvFrom = append(ciTemplate.Container.EnvFrom, v12.EnvFromSource{
+	//			ConfigMapRef: &v12.ConfigMapEnvSource{
+	//				LocalObjectReference: v12.LocalObjectReference{
+	//					Name: cm.Name,
+	//				},
+	//			},
+	//		})
+	//	} else if cm.Type == "volume" {
+	//		ciTemplate.Container.VolumeMounts = append(ciTemplate.Container.VolumeMounts, v12.VolumeMount{
+	//			Name:      cm.Name + "-vol",
+	//			MountPath: cm.MountPath,
+	//		})
+	//	}
+	//}
+	//
+	//// Adding external config map reference in workflow template
+	//for _, cm := range existingConfigMap.Maps {
+	//	if cm.External {
+	//		if cm.Type == "environment" {
+	//			ciTemplate.Container.EnvFrom = append(ciTemplate.Container.EnvFrom, v12.EnvFromSource{
+	//				ConfigMapRef: &v12.ConfigMapEnvSource{
+	//					LocalObjectReference: v12.LocalObjectReference{
+	//						Name: cm.Name,
+	//					},
+	//				},
+	//			})
+	//		} else if cm.Type == "volume" {
+	//			ciTemplate.Container.VolumeMounts = append(ciTemplate.Container.VolumeMounts, v12.VolumeMount{
+	//				Name:      cm.Name,
+	//				MountPath: cm.MountPath,
+	//			})
+	//		}
+	//	}
+	//}
+	//
+	//for _, s := range secrets.Secrets {
+	//	if s.Type == "environment" {
+	//		ciTemplate.Container.EnvFrom = append(ciTemplate.Container.EnvFrom, v12.EnvFromSource{
+	//			SecretRef: &v12.SecretEnvSource{
+	//				LocalObjectReference: v12.LocalObjectReference{
+	//					Name: s.Name,
+	//				},
+	//			},
+	//		})
+	//	} else if s.Type == "volume" {
+	//		ciTemplate.Container.VolumeMounts = append(ciTemplate.Container.VolumeMounts, v12.VolumeMount{
+	//			Name:      s.Name + "-vol",
+	//			MountPath: s.MountPath,
+	//		})
+	//	}
+	//}
+	//
+	//// Adding external secret reference in workflow template
+	//for _, s := range existingSecrets.Secrets {
+	//	if s.External {
+	//		if s.Type == "environment" {
+	//			ciTemplate.Container.EnvFrom = append(ciTemplate.Container.EnvFrom, v12.EnvFromSource{
+	//				SecretRef: &v12.SecretEnvSource{
+	//					LocalObjectReference: v12.LocalObjectReference{
+	//						Name: s.Name,
+	//					},
+	//				},
+	//			})
+	//		} else if s.Type == "volume" {
+	//			ciTemplate.Container.VolumeMounts = append(ciTemplate.Container.VolumeMounts, v12.VolumeMount{
+	//				Name:      s.Name,
+	//				MountPath: s.MountPath,
+	//			})
+	//		}
+	//	}
+	//
+	//}
 	return ciTemplate, nil
 }
 
