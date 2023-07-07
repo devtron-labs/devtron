@@ -71,6 +71,7 @@ type CiEnvMappingHistory struct {
 	Id            int      `sql:"id,pk"`
 	CiPipelineId  int      `sql:"ci_pipeline_id"`
 	EnvironmentId int      `sql:"environment_id"`
+	sql.AuditLog
 }
 
 const (
@@ -112,7 +113,7 @@ func (impl *CiPipelineHistoryRepositoryImpl) SaveCiEnvMappingHistory(CiEnvMappin
 	err := impl.dbConnection.Insert(CiEnvMappingHistory)
 
 	if err != nil {
-		impl.logger.Errorw("error in saving history for ci pipeline")
+		impl.logger.Errorw("error in saving history for Ci-Env Mapping")
 		return err
 	}
 

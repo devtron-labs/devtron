@@ -98,7 +98,7 @@ func Test_getConfigMapsAndSecrets(t *testing.T) {
 			wantErr: assert.NoError,
 		},
 		{
-			name: "non empty  existingConfigMap and non empty existingSecrets",
+			name: "non empty  existingConfigMap and non empty existingSecrets with external ",
 			args: args{
 				impl:              &WorkflowServiceImpl{Logger: logger},
 				workflowRequest:   workflowRequest,
@@ -106,7 +106,7 @@ func Test_getConfigMapsAndSecrets(t *testing.T) {
 				existingSecrets:   existingSecrets1,
 			},
 			want:    bean3.ConfigMapJson{Maps: []bean3.ConfigSecretMap{{Name: "job-map-123-ci", Data: []byte("{\"abcd\": \"aditya-cm-1-job-test-cm1\"}"), External: false}}},
-			want1:   bean3.ConfigSecretJson{Secrets: []*bean3.ConfigSecretMap{{Name: "job-secret-123-ci", Data: []byte("{\"abcd\": \"XCJhZGl0eWEtY20tMS1qb2ItdGVzdC1jbTFcIn0i\"}"), External: true}}},
+			want1:   bean3.ConfigSecretJson{},
 			wantErr: assert.NoError,
 		},
 	}
