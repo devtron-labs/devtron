@@ -8,6 +8,7 @@
 - fix: chart version update fix for helm type deployments (#3580)
 - fix: removed extra condition in ref-chart 4.18 (#3586)
 - fix: SSO configuration gets change after refreshing the page (#3544)
+- fix: Helm lint test (#3450)
 ## Enhancements
 - feat: added reference-chart 4.180 and deploy-chart 1.2.0 (#3423)
 ## Others
@@ -26,7 +27,6 @@
 - fix: migration numbering issue fixed (#3556)
 - fix: getting force_security_scan value from devtron-cm (#3558)
 ## Enhancements
-- feat: Helm lint test (#3450)
 - feat: Added custom webhook support for sending notification (#3524)
 ## Documentation
 - docs: prerequisite for keda autoscaling using deployment template (#3529)
