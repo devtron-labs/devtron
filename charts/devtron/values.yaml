@@ -55,11 +55,11 @@ components:
       extraConfigs:
         USE_V2: "true"
         ENABLE_BUILD_CONTEXT: "true"
-    image: "quay.io/devtron/dashboard:5407daca-325-14380"
+    image: "quay.io/devtron/dashboard:7c725a32-466-14422"
     imagePullPolicy: IfNotPresent
 
   devtron:
-    image: "quay.io/devtron/hyperion:fcaa7654-280-14377"
+    image: "quay.io/devtron/hyperion:323d8059-336-14426"
     cicdImage: "quay.io/devtron/devtron:323d8059-435-14420"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
@@ -92,7 +92,7 @@ components:
       authenticator: "quay.io/devtron/authenticator:e414faff-393-13273"
 
   kubelink:
-    image: "quay.io/devtron/kubelink:4d7600dd-318-14366"
+    image: "quay.io/devtron/kubelink:9fc8eec3-391-14421"
     imagePullPolicy: IfNotPresent
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
