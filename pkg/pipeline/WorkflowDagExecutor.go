@@ -714,7 +714,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	var preDeploySteps []*bean3.StepObject
 	var postDeploySteps []*bean3.StepObject
 	var refPluginsData []*bean3.RefPluginObject
-	//if pipeline_stage present for pre-CD or post-CD then no need to add stageYaml to cdWorkflowRequest in that
+	//if pipeline_stage_steps present for pre-CD or post-CD then no need to add stageYaml to cdWorkflowRequest in that
 	//case add PreDeploySteps and PostDeploySteps to cdWorkflowRequest, this is done for backward compatibility
 	pipelineStage, err := impl.pipelineStageRepository.GetAllCdStagesByCdPipelineId(cdPipeline.Id)
 	if err != nil {
