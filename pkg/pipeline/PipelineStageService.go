@@ -109,9 +109,11 @@ func (impl *PipelineStageServiceImpl) GetCdPipelineStageDataDeepCopy(cdPipelineI
 	}
 	if preDeployStage != nil {
 		preDeployStage.TriggerType = pipeline.PreTriggerType
+		preDeployStage.Name = "Pre-Deployment"
 	}
 	if postDeployStage != nil {
 		postDeployStage.TriggerType = pipeline.PostTriggerType
+		postDeployStage.Name = "Post-Deployment"
 	}
 	return preDeployStage, postDeployStage, nil
 }
@@ -141,13 +143,14 @@ func (impl *PipelineStageServiceImpl) GetCdPipelineStageDataDeepCopyForPipelineI
 					impl.logger.Errorw("error in getting cd stage data", "err", err, "cdStage", cdStage)
 					return pipelinePrePostStageMappingResp, err
 				}
+				preDeployStage.Name = "Pre-Deployment"
 			} else if pipelineStage.Type == repository.PIPELINE_STAGE_TYPE_POST_CD {
 				postDeployStage, err = impl.BuildPipelineStageDataDeepCopy(pipelineStage)
 				if err != nil {
 					impl.logger.Errorw("error in getting cd stage data", "err", err, "cdStage", cdStage)
 					return pipelinePrePostStageMappingResp, err
 				}
-
+				postDeployStage.Name = "Post-Deployment"
 			} else {
 				impl.logger.Errorw("found improper stage mapped with cdPipeline", "cdPipelineId", pipelineId, "stage", cdStage)
 			}
