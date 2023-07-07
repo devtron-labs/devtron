@@ -213,6 +213,7 @@ func (impl ConfigDraftServiceImpl) DeleteComment(draftId int, draftCommentId int
 }
 
 func (impl ConfigDraftServiceImpl) ApproveDraft(draftId int, draftVersionId int, userId int32) error {
+	impl.logger.Infow("approving draft", "draftId", draftId, "draftVersionId", draftVersionId, "userId", userId)
 	toUpdateDraftState := PublishedDraftState
 	draftVersion, err := impl.validateDraftAction(draftId, draftVersionId, toUpdateDraftState)
 	if err != nil {
@@ -267,76 +268,110 @@ func (impl ConfigDraftServiceImpl) handleDeploymentTemplate(appId int, envId int
 
 	ctx := context.Background()
 	var err error
-	var templateValidated bool
 	if envId == -1 {
-		var templateRequest *chart.TemplateRequest
-		err = json.Unmarshal([]byte(draftData), templateRequest)
-		if err != nil {
-			impl.logger.Errorw("error occurred while unmarshalling draftData of deployment template", "appId", appId, "envId", envId, "err", err)
-			return err
-		}
-		templateValidated, err = impl.chartService.DeploymentTemplateValidate(ctx, draftData, templateRequest.ChartRefId)
+		err = impl.handleBaseDeploymentTemplate(appId, envId, draftData, userId, ctx)
 		if err != nil {
 			return err
 		}
-		if !templateValidated {
-			return errors.New("template-outdated")
-		}
-		templateRequest.UserId = userId
-		_, err = impl.chartService.UpdateAppOverride(ctx, templateRequest)
 	} else {
-		var envConfigProperties *pipeline.EnvironmentProperties
-		err = json.Unmarshal([]byte(draftData), envConfigProperties)
-		if err != nil {
-			impl.logger.Errorw("error occurred while unmarshalling draftData of env deployment template", "appId", appId, "envId", envId, "err", err)
-			return err
-		}
-		envConfigProperties.UserId = userId
-		envConfigProperties.EnvironmentId = envId
-		chartRefId := envConfigProperties.ChartRefId
-		templateValidated, err = impl.chartService.DeploymentTemplateValidate(ctx, envConfigProperties.EnvOverrideValues, chartRefId)
+		err = impl.handleEnvLevelTemplate(appId, envId, draftData, userId, action, ctx)
 		if err != nil {
 			return err
 		}
-		if !templateValidated {
-			return errors.New("template-outdated")
+	}
+	return nil
+}
+
+func (impl ConfigDraftServiceImpl) handleBaseDeploymentTemplate(appId int, envId int, draftData string, userId int32, ctx context.Context) error {
+	var templateRequest *chart.TemplateRequest
+	var templateValidated bool
+	err := json.Unmarshal([]byte(draftData), templateRequest)
+	if err != nil {
+		impl.logger.Errorw("error occurred while unmarshalling draftData of deployment template", "appId", appId, "envId", envId, "err", err)
+		return err
+	}
+	templateValidated, err = impl.chartService.DeploymentTemplateValidate(ctx, draftData, templateRequest.ChartRefId)
+	if err != nil {
+		return err
+	}
+	if !templateValidated {
+		return errors.New("template-outdated")
+	}
+	templateRequest.UserId = userId
+	_, err = impl.chartService.UpdateAppOverride(ctx, templateRequest)
+	return err
+}
+
+func (impl ConfigDraftServiceImpl) handleEnvLevelTemplate(appId int, envId int, draftData string, userId int32, action ResourceAction, ctx context.Context) error {
+	var envConfigProperties *pipeline.EnvironmentProperties
+	var templateValidated bool
+	err := json.Unmarshal([]byte(draftData), envConfigProperties)
+	if err != nil {
+		impl.logger.Errorw("error occurred while unmarshalling draftData of env deployment template", "appId", appId, "envId", envId, "err", err)
+		return err
+	}
+	envConfigProperties.UserId = userId
+	envConfigProperties.EnvironmentId = envId
+	chartRefId := envConfigProperties.ChartRefId
+	templateValidated, err = impl.chartService.DeploymentTemplateValidate(ctx, envConfigProperties.EnvOverrideValues, chartRefId)
+	if err != nil {
+		return err
+	}
+	if !templateValidated {
+		return errors.New("template-outdated")
+	}
+	if action == AddResourceAction {
+		//TODO code duplicated needs refactoring
+		err = impl.createEnvLevelDeploymentTemplate(ctx, appId, envId, envConfigProperties, userId)
+		if err != nil {
+			return err
 		}
-		if action == AddResourceAction {
+	} else {
+		_, err = impl.propertiesConfigService.UpdateEnvironmentProperties(appId, envConfigProperties, userId)
+		if err != nil {
+			impl.logger.Errorw("service err, EnvConfigOverrideUpdate", "appId", appId, "envId", envId, "err", err, "payload", envConfigProperties)
+			return err
+		}
+	}
+	return nil
+}
+
+func (impl ConfigDraftServiceImpl) createEnvLevelDeploymentTemplate(ctx context.Context, appId int, envId int, envConfigProperties *pipeline.EnvironmentProperties, userId int32) error {
+	_, err := impl.propertiesConfigService.CreateEnvironmentProperties(appId, envConfigProperties)
+	if err != nil {
+		if err.Error() == bean2.NOCHARTEXIST {
+			err = impl.createMissingChart(ctx, appId, envId, envConfigProperties, userId)
+			if err != nil {
+				return err
+			}
 			_, err = impl.propertiesConfigService.CreateEnvironmentProperties(appId, envConfigProperties)
 			if err != nil {
-				if err.Error() == bean2.NOCHARTEXIST {
-					appMetrics := false
-					if envConfigProperties.AppMetrics != nil {
-						appMetrics = *envConfigProperties.AppMetrics
-					}
-					templateRequest := chart.TemplateRequest{
-						AppId:               appId,
-						ChartRefId:          envConfigProperties.ChartRefId,
-						ValuesOverride:      []byte("{}"),
-						UserId:              userId,
-						IsAppMetricsEnabled: appMetrics,
-					}
-					_, err = impl.chartService.CreateChartFromEnvOverride(templateRequest, ctx)
-					if err != nil {
-						impl.logger.Errorw("service err, EnvConfigOverrideCreate from draft", "appId", appId, "envId", envId, "err", err, "payload", envConfigProperties)
-						return err
-					}
-					_, err = impl.propertiesConfigService.CreateEnvironmentProperties(appId, envConfigProperties)
-					if err != nil {
-						impl.logger.Errorw("service err, EnvConfigOverrideCreate", "appId", appId, "envId", envId, "err", err, "payload", envConfigProperties)
-						return err
-					}
-				}
-			} else {
+				impl.logger.Errorw("service err, EnvConfigOverrideCreate", "appId", appId, "envId", envId, "err", err, "payload", envConfigProperties)
 				return err
 			}
 		} else {
-			_, err = impl.propertiesConfigService.UpdateEnvironmentProperties(appId, envConfigProperties, userId)
-			if err != nil {
-				impl.logger.Errorw("service err, EnvConfigOverrideUpdate", "appId", appId, "envId", envId, "err", err, "payload", envConfigProperties)
-				return err
-			}
+			return err
 		}
+	}
+	return err
+}
+
+func (impl ConfigDraftServiceImpl) createMissingChart(ctx context.Context, appId int, envId int, envConfigProperties *pipeline.EnvironmentProperties, userId int32) error {
+	appMetrics := false
+	if envConfigProperties.AppMetrics != nil {
+		appMetrics = *envConfigProperties.AppMetrics
+	}
+	templateRequest := chart.TemplateRequest{
+		AppId:               appId,
+		ChartRefId:          envConfigProperties.ChartRefId,
+		ValuesOverride:      []byte("{}"),
+		UserId:              userId,
+		IsAppMetricsEnabled: appMetrics,
+	}
+	_, err := impl.chartService.CreateChartFromEnvOverride(templateRequest, ctx)
+	if err != nil {
+		impl.logger.Errorw("service err, EnvConfigOverrideCreate from draft", "appId", appId, "envId", envId, "err", err, "payload", envConfigProperties)
+		return err
 	}
 	return nil
 }
