@@ -769,11 +769,11 @@ func getCiTemplateWithConfigMapsAndSecrets(configMaps *bean3.ConfigMapJson, secr
 		secretMap = append(secretMap, *cs)
 	}
 	UpdateContainerEnvsFromCmCs(ciTemplate.Container, configMaps.Maps, secretMap)
-	var existingSecretMap []bean3.ConfigSecretMap
-	for _, cs := range existingSecrets.Secrets {
-		secretMap = append(existingSecretMap, *cs)
-	}
-	UpdateContainerEnvsFromCmCs(ciTemplate.Container, existingConfigMap.Maps, existingSecretMap)
+	//var existingSecretMap []bean3.ConfigSecretMap
+	//for _, cs := range existingSecrets.Secrets {
+	//	secretMap = append(existingSecretMap, *cs)
+	//}
+	//UpdateContainerEnvsFromCmCs(ciTemplate.Container, existingConfigMap.Maps, existingSecretMap)
 
 	//for _, cm := range configMaps.Maps {
 	//	if cm.Type == "environment" {
