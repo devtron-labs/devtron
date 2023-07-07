@@ -1534,27 +1534,28 @@ func (impl *PipelineStageServiceImpl) BuildPrePostAndRefPluginStepsDataForWfRequ
 	var refPluginIds []int
 	for _, pipelineStage := range pipelineStages {
 		var refIds []int
+		steps, refIds, err := impl.BuildPipelineStageDataForWfRequest(pipelineStage)
 		switch pipelineStage.Type {
 		case repository.PIPELINE_STAGE_TYPE_PRE_CI:
-			preCiSteps, refIds, err = impl.BuildPipelineStageDataForWfRequest(pipelineStage)
+			preCiSteps = steps
 			if err != nil {
 				impl.logger.Errorw("error in getting pre ci steps data for wf request", "err", err, "ciStage", pipelineStage)
 				return nil, nil, nil, err
 			}
 		case repository.PIPELINE_STAGE_TYPE_POST_CI:
-			postCiSteps, refIds, err = impl.BuildPipelineStageDataForWfRequest(pipelineStage)
+			postCiSteps = steps
 			if err != nil {
 				impl.logger.Errorw("error in getting post ci steps data for wf request", "err", err, "ciStage", pipelineStage)
 				return nil, nil, nil, err
 			}
 		case repository.PIPELINE_STAGE_TYPE_PRE_CD:
-			preCdSteps, refIds, err = impl.BuildPipelineStageDataForWfRequest(pipelineStage)
+			preCdSteps = steps
 			if err != nil {
 				impl.logger.Errorw("error in getting post cd steps data for wf request", "err", err, "cdStage", pipelineStage)
 				return nil, nil, nil, err
 			}
 		case repository.PIPELINE_STAGE_TYPE_POST_CD:
-			postCdSteps, refIds, err = impl.BuildPipelineStageDataForWfRequest(pipelineStage)
+			postCdSteps = steps
 			if err != nil {
 				impl.logger.Errorw("error in getting post cd steps data for wf request", "err", err, "cdStage", pipelineStage)
 				return nil, nil, nil, err

@@ -47,12 +47,11 @@ func ConvertStageYamlScriptsToPipelineStageSteps(cdPipeline *bean2.CDPipelineCon
 
 }
 
-func checkForOtherParamsInInlineStepDetail(inlineStepDetail *bean.InlineStepDetailDto) bool {
-	if len(inlineStepDetail.InputVariables) > 0 || len(inlineStepDetail.OutputVariables) > 0 ||
-		len(inlineStepDetail.ConditionDetails) > 0 {
-		return false
+func checkForOtherParamsInInlineStepDetail(step *bean.PipelineStageStepDto) bool {
+	if len(step.InlineStepDetail.Script) > 0 && len(step.OutputDirectoryPath) <= 1 {
+		return true
 	}
-	return true
+	return false
 }
 
 func StageStepsToCdStageAdapter(deployStage *bean.PipelineStageDto) (*bean2.CdStage, error) {
@@ -64,7 +63,7 @@ func StageStepsToCdStageAdapter(deployStage *bean.PipelineStageDto) (*bean2.CdSt
 	beforeTasks := make([]*Task, 0)
 	afterTasks := make([]*Task, 0)
 	for _, step := range deployStage.Steps {
-		if step.InlineStepDetail != nil && checkForOtherParamsInInlineStepDetail(step.InlineStepDetail) {
+		if step.InlineStepDetail != nil && checkForOtherParamsInInlineStepDetail(step) {
 			if deployStage.Type == repository2.PIPELINE_STAGE_TYPE_PRE_CD {
 				beforeTask := &Task{
 					Name:           step.Name,
@@ -164,8 +163,6 @@ func CreatePreAndPostStageResponse(cdPipeline *bean2.CDPipelineConfigObject, ver
 }
 
 func StageYamlToPipelineStageAdapter(stageConfig string, stageType repository2.PipelineStageType, triggerType pipelineConfig.TriggerType) (*bean.PipelineStageDto, error) {
-	//sample stageConfig:= "version: 0.0.1\ncdPipelineConf:\n  - afterStages:\n      - name: test-1\n        script: |\n          date > test.report\n          echo 'hello'\n        outputLocation: ./test.report\n      - name: test-2\n        script: |\n          date > test2.report\n        outputLocation: ./test2.report"
-
 	pipelineStageDto := &bean.PipelineStageDto{}
 	var err error
 	taskYamlObject, err := ToTaskYaml([]byte(stageConfig))

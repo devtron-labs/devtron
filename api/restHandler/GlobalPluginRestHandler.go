@@ -104,7 +104,7 @@ func (handler *GlobalPluginRestHandlerImpl) ListAllPlugins(w http.ResponseWriter
 	} else {
 		plugins, err = handler.globalPluginService.ListAllPlugins(repository.CI)
 		if err != nil {
-			handler.logger.Errorw("error in getting plugin list", "err", err)
+			handler.logger.Errorw("error in getting ci plugin list", "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}

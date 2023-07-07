@@ -1325,7 +1325,7 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateCDPipeline(pipelineRequest *bean.
 func (impl CiCdPipelineOrchestratorImpl) DeleteCdPipeline(pipelineId int, userId int32, tx *pg.Tx) error {
 	return impl.pipelineRepository.Delete(pipelineId, userId, tx)
 }
-func (impl CiCdPipelineOrchestratorImpl) GetPipelineIdAndPrePostStageMapping(dbPipelines []*pipelineConfig.Pipeline) (map[int][]*bean2.PipelineStageDto, error) {
+func (impl CiCdPipelineOrchestratorImpl) getPipelineIdAndPrePostStageMapping(dbPipelines []*pipelineConfig.Pipeline) (map[int][]*bean2.PipelineStageDto, error) {
 	var err error
 	pipelineIdAndPrePostStageMapping := make(map[int][]*bean2.PipelineStageDto)
 	var dbPipelineIds []int
@@ -1351,7 +1351,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 	if err != nil {
 		impl.logger.Errorw("error in fetching cdPipeline", "appId", appId, "err", err)
 	}
-	pipelineIdAndPrePostStageMapping, err := impl.GetPipelineIdAndPrePostStageMapping(dbPipelines)
+	pipelineIdAndPrePostStageMapping, err := impl.getPipelineIdAndPrePostStageMapping(dbPipelines)
 	if err != nil {
 		impl.logger.Errorw("error in fetching pipelineIdAndPrePostStageMapping", "err", err)
 		return nil, err
@@ -1452,7 +1452,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int, request
 		impl.logger.Errorw("error fetching pipelines for env id", "err", err)
 		return nil, err
 	}
-	pipelineIdAndPrePostStageMapping, err := impl.GetPipelineIdAndPrePostStageMapping(dbPipelines)
+	pipelineIdAndPrePostStageMapping, err := impl.getPipelineIdAndPrePostStageMapping(dbPipelines)
 	if err != nil {
 		impl.logger.Errorw("error in fetching pipelineIdAndPrePostStageMapping", "err", err)
 		return nil, err
@@ -1532,7 +1532,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForAppAndEnv(appId int, e
 	if err != nil {
 		impl.logger.Errorw("error in fetching cdPipeline", "appId", appId, "err", err)
 	}
-	pipelineIdAndPrePostStageMapping, err := impl.GetPipelineIdAndPrePostStageMapping(dbPipelines)
+	pipelineIdAndPrePostStageMapping, err := impl.getPipelineIdAndPrePostStageMapping(dbPipelines)
 	if err != nil {
 		impl.logger.Errorw("error in fetching pipelineIdAndPrePostStageMapping", "err", err)
 		return nil, err
