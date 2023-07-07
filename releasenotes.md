@@ -26,9 +26,9 @@
 - fix: image pull secret (#3488)
 - fix: minor trivy fix (#3483)
 - fix: argocd-cm empty data label nil pointer fix (#3443)
+- fix: Helm lint test (#3450)
 ## Enhancements
 - feat: added reference-chart 4.180 and deploy-chart 1.2.0 (#3423)
-- feat: Helm lint test (#3450)
 - feat: Added custom webhook support for sending notification (#3524)
 - feat: releaseVersion in job of cron-job template 1.5.0 (#3358)
 - feat: validate kubeconfig and save clusters (#3148)
