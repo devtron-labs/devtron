@@ -183,6 +183,6 @@ func InitClusterNoteService() {
 	ciPipelineHistoryService := history.NewCiPipelineHistoryServiceImpl(ciPipelineHistoryRepository, logger, ciPipelineRepository)
 	dockerArtifactStoreRepository := repository2.NewDockerArtifactStoreRepositoryImpl(conn)
 	configMapRepository := chartConfig.NewConfigMapRepositoryImpl(logger, conn)
-	configMapService := NewConfigMapServiceImpl(nil, nil, nil, util.MergeUtil{}, nil, configMapRepository, nil, nil, appRepository, nil)
+	configMapService := NewConfigMapServiceImpl(nil, nil, nil, util.MergeUtil{}, nil, configMapRepository, nil, nil, appRepository, nil, envRepository)
 	ciCdPipelineOrchestrator = NewCiCdPipelineOrchestrator(appRepository, logger, materialRepository, pipelineRepository, ciPipelineRepository, ciPipelineMaterialRepository, GitSensorClient, ciConfig, appWorkflowRepository, envRepository, attributesService, appListingRepository, appLabelsService, userAuthService, prePostCdScriptHistoryService, prePostCiScriptHistoryService, pipelineStageService, ciTemplateOverrideRepository, gitMaterialHistoryService, ciPipelineHistoryService, ciTemplateService, dockerArtifactStoreRepository, configMapService)
 }

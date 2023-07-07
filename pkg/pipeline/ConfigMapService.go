@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	history2 "github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
@@ -183,6 +184,7 @@ type ConfigMapServiceImpl struct {
 	commonService               commonService.CommonService
 	appRepository               app.AppRepository
 	configMapHistoryService     history2.ConfigMapHistoryService
+	environmentRepository       repository2.EnvironmentRepository
 }
 
 func NewConfigMapServiceImpl(chartRepository chartRepoRepository.ChartRepository,
@@ -192,7 +194,7 @@ func NewConfigMapServiceImpl(chartRepository chartRepoRepository.ChartRepository
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
 	configMapRepository chartConfig.ConfigMapRepository, environmentConfigRepository chartConfig.EnvConfigOverrideRepository,
 	commonService commonService.CommonService, appRepository app.AppRepository,
-	configMapHistoryService history2.ConfigMapHistoryService) *ConfigMapServiceImpl {
+	configMapHistoryService history2.ConfigMapHistoryService, environmentRepository repository2.EnvironmentRepository) *ConfigMapServiceImpl {
 	return &ConfigMapServiceImpl{
 		chartRepository:             chartRepository,
 		logger:                      logger,
@@ -204,6 +206,7 @@ func NewConfigMapServiceImpl(chartRepository chartRepoRepository.ChartRepository
 		commonService:               commonService,
 		appRepository:               appRepository,
 		configMapHistoryService:     configMapHistoryService,
+		environmentRepository:       environmentRepository,
 	}
 }
 
@@ -1856,16 +1859,34 @@ func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentDelete(createJobEnvOverr
 func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentGet(appId int) ([]JobEnvOverrideResponse, error) {
 	configMap, err := impl.configMapRepository.GetEnvLevelByAppId(appId)
 	if err != nil {
-		impl.logger.Errorw("error while fetching from db", "error", err)
+		impl.logger.Errorw("error while fetching envConfig from db", "error", err)
 		return nil, err
 	}
-	var jobEnvOverrideResponse []JobEnvOverrideResponse
+	var envIds []*int
+	for _, cm := range configMap {
+		envIds = append(envIds, &cm.EnvironmentId)
+	}
+	envs, err := impl.environmentRepository.FindByIds(envIds)
 
+	if err != nil {
+		impl.logger.Errorw("error while fetching environments from db", "error", err)
+		return nil, err
+	}
+
+	envIdNameMap := make(map[int]string)
+
+	for _, env := range envs {
+
+		envIdNameMap[env.Id] = env.Name
+	}
+
+	var jobEnvOverrideResponse []JobEnvOverrideResponse
 	for _, cm := range configMap {
 		var jobEnvOverride JobEnvOverrideResponse
 		jobEnvOverride.EnvironmentId = cm.EnvironmentId
 		jobEnvOverride.AppId = cm.AppId
 		jobEnvOverride.Id = cm.Id
+		jobEnvOverride.EnvironmentName = envIdNameMap[cm.EnvironmentId]
 		jobEnvOverrideResponse = append(jobEnvOverrideResponse, jobEnvOverride)
 	}
 
