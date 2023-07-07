@@ -207,7 +207,7 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 			return nil, err
 		}
 	}
-	if err != pg.ErrNoRows {
+	if err == nil && CiEnvMappingObject != nil {
 		if CiEnvMappingObject.EnvironmentId != createRequest.EnvironmentId {
 			CiEnvMappingObject.EnvironmentId = createRequest.EnvironmentId
 			CiEnvMappingObject.AuditLog = sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()}
@@ -462,7 +462,7 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteCiPipeline(pipeline *pipelineConf
 		impl.logger.Errorw("error in getting CiEnvMappingObject ", "err", err, "ciPipelineId", pipeline.Id)
 		return err
 	}
-	if err != pg.ErrNoRows && CiEnvMappingObject != nil {
+	if err == nil && CiEnvMappingObject != nil {
 		CiEnvMappingObject.AuditLog = sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()}
 		CiEnvMappingObject.Deleted = true
 		err = impl.ciPipelineRepository.UpdateCiEnvMapping(CiEnvMappingObject, tx)
