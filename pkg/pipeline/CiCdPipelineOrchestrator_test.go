@@ -171,7 +171,7 @@ func InitClusterNoteService() {
 	envRepository := repository3.NewEnvironmentRepositoryImpl(conn, logger, nil)
 	attributesService := attributes.NewAttributesServiceImpl(logger, nil)
 	appListingRepositoryQueryBuilder := helper.NewAppListingRepositoryQueryBuilder(logger)
-	appListingRepository := repository.NewAppListingRepositoryImpl(logger, conn, appListingRepositoryQueryBuilder)
+	appListingRepository := repository.NewAppListingRepositoryImpl(logger, conn, appListingRepositoryQueryBuilder, envRepository)
 	appLabelsService := app2.NewAppCrudOperationServiceImpl(nil, logger, nil, nil, nil)
 	userAuthService := user.NewUserAuthServiceImpl(nil, nil, nil, nil, nil, nil, nil)
 	prePostCdScriptHistoryService := history.NewPrePostCdScriptHistoryServiceImpl(logger, nil, nil, nil)

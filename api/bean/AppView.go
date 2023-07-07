@@ -87,6 +87,7 @@ type JobListingContainer struct {
 	EnvironmentId                int       `sql:"environment_id" json:"environmentId"`
 	EnvironmentName              string    `sql:"environment_name" json:"environmentName"`
 	LastTriggeredEnvironmentName string    `sql:"last_triggered_environment_name" json:"lastTriggeredEnvironmentName"`
+	LastTriggeredEnvironmentId   int       `sql:"last_triggered_environment_id" json:"lastEnvironmentId"`
 }
 
 type CiPipelineLastSucceededTime struct {

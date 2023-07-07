@@ -25,6 +25,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/middleware"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"go.opentelemetry.io/otel"
 	"strconv"
 	"strings"
@@ -80,10 +81,11 @@ type AppListingRepositoryImpl struct {
 	dbConnection                     *pg.DB
 	Logger                           *zap.SugaredLogger
 	appListingRepositoryQueryBuilder helper.AppListingRepositoryQueryBuilder
+	environmentRepository            repository2.EnvironmentRepository
 }
 
-func NewAppListingRepositoryImpl(Logger *zap.SugaredLogger, dbConnection *pg.DB, appListingRepositoryQueryBuilder helper.AppListingRepositoryQueryBuilder) *AppListingRepositoryImpl {
-	return &AppListingRepositoryImpl{dbConnection: dbConnection, Logger: Logger, appListingRepositoryQueryBuilder: appListingRepositoryQueryBuilder}
+func NewAppListingRepositoryImpl(Logger *zap.SugaredLogger, dbConnection *pg.DB, appListingRepositoryQueryBuilder helper.AppListingRepositoryQueryBuilder, environmentRepository repository2.EnvironmentRepository) *AppListingRepositoryImpl {
+	return &AppListingRepositoryImpl{dbConnection: dbConnection, Logger: Logger, appListingRepositoryQueryBuilder: appListingRepositoryQueryBuilder, environmentRepository: environmentRepository}
 }
 
 func (impl AppListingRepositoryImpl) FetchJobs(appIds []int, statuses []string, sortOrder string) ([]*bean.JobListingContainer, error) {
@@ -99,6 +101,32 @@ func (impl AppListingRepositoryImpl) FetchJobs(appIds []int, statuses []string, 
 		impl.Logger.Error(appsErr)
 		return jobContainers, appsErr
 	}
+	var envIds []*int
+	for _, job := range jobContainers {
+		if job.EnvironmentId != 0 {
+			envIds = append(envIds, &job.EnvironmentId)
+		}
+		if job.LastTriggeredEnvironmentId != 0 {
+			envIds = append(envIds, &job.LastTriggeredEnvironmentId)
+		}
+	}
+	envs, _ := impl.environmentRepository.FindByIds(envIds)
+
+	envIdNameMap := make(map[int]string)
+
+	for _, env := range envs {
+		envIdNameMap[env.Id] = env.Name
+	}
+
+	for _, job := range jobContainers {
+		if job.EnvironmentId != 0 {
+			job.EnvironmentName = envIdNameMap[job.EnvironmentId]
+		}
+		if job.LastTriggeredEnvironmentId != 0 {
+			job.LastTriggeredEnvironmentName = envIdNameMap[job.LastTriggeredEnvironmentId]
+		}
+	}
+
 	return jobContainers, nil
 }
 func (impl AppListingRepositoryImpl) FetchOverviewCiPipelines(jobId int) ([]*bean.JobListingContainer, error) {
@@ -110,6 +138,32 @@ func (impl AppListingRepositoryImpl) FetchOverviewCiPipelines(jobId int) ([]*bea
 		impl.Logger.Error(appsErr)
 		return jobContainers, appsErr
 	}
+	var envIds []*int
+	for _, job := range jobContainers {
+		if job.EnvironmentId != 0 {
+			envIds = append(envIds, &job.EnvironmentId)
+		}
+		if job.LastTriggeredEnvironmentId != 0 {
+			envIds = append(envIds, &job.LastTriggeredEnvironmentId)
+		}
+	}
+	envs, _ := impl.environmentRepository.FindByIds(envIds)
+
+	envIdNameMap := make(map[int]string)
+
+	for _, env := range envs {
+		envIdNameMap[env.Id] = env.Name
+	}
+
+	for _, job := range jobContainers {
+		if job.EnvironmentId != 0 {
+			job.EnvironmentName = envIdNameMap[job.EnvironmentId]
+		}
+		if job.LastTriggeredEnvironmentId != 0 {
+			job.LastTriggeredEnvironmentName = envIdNameMap[job.LastTriggeredEnvironmentId]
+		}
+	}
+
 	return jobContainers, nil
 }
 
