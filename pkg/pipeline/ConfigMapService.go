@@ -52,6 +52,13 @@ type ConfigDataRequest struct {
 	UserId        int32         `json:"-"`
 }
 
+type JobEnvOverrideResponse struct {
+	Id              int    `json:"id"`
+	AppId           int    `json:"appId"`
+	EnvironmentId   int    `json:"environmentId,omitempty"`
+	EnvironmentName string `json:"environmentName,omitempty"`
+}
+
 type BulkPatchRequest struct {
 	Payload     []*BulkPatchPayload `json:"payload"`
 	Filter      *BulkPatchFilter    `json:"filter,omitempty"`
@@ -162,7 +169,7 @@ type ConfigMapService interface {
 
 	ConfigSecretEnvironmentCreate(createJobEnvOverrideRequest *CreateJobEnvOverridePayload) (*chartConfig.ConfigMapEnvModel, error)
 	ConfigSecretEnvironmentDelete(createJobEnvOverrideRequest *CreateJobEnvOverridePayload) (*chartConfig.ConfigMapEnvModel, error)
-	ConfigSecretEnvironmentGet(appId int) ([]*chartConfig.ConfigMapEnvModel, error)
+	ConfigSecretEnvironmentGet(appId int) ([]JobEnvOverrideResponse, error)
 }
 
 type ConfigMapServiceImpl struct {
@@ -1791,7 +1798,7 @@ func (impl ConfigMapServiceImpl) buildBulkPayload(bulkPatchRequest *BulkPatchReq
 	return bulkPatchRequest, nil
 }
 
-func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentCreate(createJobEnvOverrideRequest *CreateJobEnvOverridePayload) (*chartConfig.ConfigMapEnvModel, error) {
+func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentCreate(createJobEnvOverrideRequest *CreateJobEnvOverridePayload) (*CreateJobEnvOverridePayload, error) {
 	configMap, err := impl.configMapRepository.GetByAppIdAndEnvIdEnvLevel(createJobEnvOverrideRequest.AppId, createJobEnvOverrideRequest.EnvId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error while fetching from db", "error", err)
@@ -1805,7 +1812,7 @@ func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentCreate(createJobEnvOverr
 				impl.logger.Errorw("error while creating env level", "error", err)
 				return nil, err
 			}
-			return configMap, nil
+			return createJobEnvOverrideRequest, nil
 		}
 		impl.logger.Warnw("Environment override in this environment already exits", "appId", createJobEnvOverrideRequest.AppId, "envId", createJobEnvOverrideRequest.EnvId)
 		return nil, err
@@ -1822,10 +1829,10 @@ func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentCreate(createJobEnvOverr
 		impl.logger.Errorw("error while creating app level", "error", err)
 		return nil, err
 	}
-	return configMap, nil
+	return createJobEnvOverrideRequest, nil
 }
 
-func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentDelete(createJobEnvOverrideRequest *CreateJobEnvOverridePayload) (*chartConfig.ConfigMapEnvModel, error) {
+func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentDelete(createJobEnvOverrideRequest *CreateJobEnvOverridePayload) (*CreateJobEnvOverridePayload, error) {
 	configMap, err := impl.configMapRepository.GetByAppIdAndEnvIdEnvLevel(createJobEnvOverrideRequest.AppId, createJobEnvOverrideRequest.EnvId)
 	if pg.ErrNoRows == err {
 		impl.logger.Warnw("Environment override in this environment doesn't exits", "appId", createJobEnvOverrideRequest.AppId, "envId", createJobEnvOverrideRequest.EnvId)
@@ -1843,14 +1850,24 @@ func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentDelete(createJobEnvOverr
 		impl.logger.Errorw("error while creating app level", "error", err)
 		return nil, err
 	}
-	return configMap, nil
+	return createJobEnvOverrideRequest, nil
 }
 
-func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentGet(appId int) ([]*chartConfig.ConfigMapEnvModel, error) {
+func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentGet(appId int) ([]JobEnvOverrideResponse, error) {
 	configMap, err := impl.configMapRepository.GetEnvLevelByAppId(appId)
 	if err != nil {
 		impl.logger.Errorw("error while fetching from db", "error", err)
 		return nil, err
 	}
-	return configMap, nil
+	var jobEnvOverrideResponse []JobEnvOverrideResponse
+
+	for _, cm := range configMap {
+		var jobEnvOverride JobEnvOverrideResponse
+		jobEnvOverride.EnvironmentId = cm.EnvironmentId
+		jobEnvOverride.AppId = cm.AppId
+		jobEnvOverride.Id = cm.Id
+		jobEnvOverrideResponse = append(jobEnvOverrideResponse, jobEnvOverride)
+	}
+
+	return jobEnvOverrideResponse, nil
 }

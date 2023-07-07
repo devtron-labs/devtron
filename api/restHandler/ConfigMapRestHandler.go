@@ -806,7 +806,7 @@ func (handler ConfigMapRestHandlerImpl) GetEnvironmentsForJob(w http.ResponseWri
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
-		handler.Logger.Errorw("request err, CSEnvironmentFetchForEdit", "err", err, "appId", appId)
+		handler.Logger.Errorw("request err, GetEnvironmentsForJob", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -828,14 +828,14 @@ func (handler ConfigMapRestHandlerImpl) GetEnvironmentsForJob(w http.ResponseWri
 	}
 	//AUTH
 	if err != nil {
-		handler.Logger.Errorw("request err, RemoveEnvironmentFromJob", "err", err, "appId", appId)
+		handler.Logger.Errorw("request err, GetEnvironmentsForJob", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	handler.Logger.Infow("request payload, RemoveEnvironmentFromJob", "appId", appId)
+	handler.Logger.Infow("request payload, GetEnvironmentsForJob", "appId", appId)
 	resp, err := handler.configMapService.ConfigSecretEnvironmentGet(appId)
 	if err != nil {
-		handler.Logger.Errorw("service err, RemoveEnvironmentFromJob", "err", err, "appId", appId)
+		handler.Logger.Errorw("service err, GetEnvironmentsForJob", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
