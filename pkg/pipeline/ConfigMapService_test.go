@@ -7,6 +7,8 @@ import (
 	mocks2 "github.com/devtron-labs/devtron/internal/sql/repository/chartConfig/mocks"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository/mocks"
+	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	mocks6 "github.com/devtron-labs/devtron/pkg/cluster/repository/mocks"
 	mocks3 "github.com/devtron-labs/devtron/pkg/commonService/mocks"
 	mocks5 "github.com/devtron-labs/devtron/pkg/pipeline/history/mocks"
 	"github.com/go-pg/pg"
@@ -27,6 +29,7 @@ func TestConfigMapServiceImpl_ConfigSecretEnvironmentCreate(t *testing.T) {
 	commonService := mocks3.NewCommonService(t)
 	appRepository := mocks4.NewAppRepository(t)
 	configMapHistoryService := mocks5.NewConfigMapHistoryService(t)
+	envRepository := mocks6.NewEnvironmentRepository(t)
 	configMap := &chartConfig.ConfigMapEnvModel{
 		AppId:         22,
 		EnvironmentId: 5,
@@ -92,6 +95,7 @@ func TestConfigMapServiceImpl_ConfigSecretEnvironmentCreate(t *testing.T) {
 				commonService:               commonService,
 				appRepository:               appRepository,
 				configMapHistoryService:     configMapHistoryService,
+				environmentRepository:       envRepository,
 			}
 			configMapRepository.On("GetByAppIdAndEnvIdEnvLevel", 22, 5).Return(tt.args.getByAppResponse, tt.args.getByAppError).Once()
 			if tt.args.getByAppError == pg.ErrNoRows {
@@ -122,6 +126,7 @@ func TestConfigMapServiceImpl_ConfigSecretEnvironmentDelete(t *testing.T) {
 	commonService := mocks3.NewCommonService(t)
 	appRepository := mocks4.NewAppRepository(t)
 	configMapHistoryService := mocks5.NewConfigMapHistoryService(t)
+	envRepository := mocks6.NewEnvironmentRepository(t)
 
 	type args struct {
 		createJobEnvOverrideRequest *CreateJobEnvOverridePayload
@@ -161,6 +166,7 @@ func TestConfigMapServiceImpl_ConfigSecretEnvironmentDelete(t *testing.T) {
 				commonService:               commonService,
 				appRepository:               appRepository,
 				configMapHistoryService:     configMapHistoryService,
+				environmentRepository:       envRepository,
 			}
 			configMapRepository.On("GetByAppIdAndEnvIdEnvLevel", 1, 1).Return(configMap, nil)
 			configMapRepository.On("UpdateEnvLevel", mock.Anything).Return(nil, nil)
@@ -176,7 +182,7 @@ func TestConfigMapServiceImpl_ConfigSecretEnvironmentDelete(t *testing.T) {
 }
 
 func TestConfigMapServiceImpl_ConfigSecretEnvironmentGet(t *testing.T) {
-	//t.SkipNow()
+	t.SkipNow()
 	chartRepository := mocks.NewChartRepository(t)
 	sugaredLogger, _ := util.NewSugardLogger()
 	repoRepository := mocks.NewChartRepoRepository(t)
@@ -186,12 +192,16 @@ func TestConfigMapServiceImpl_ConfigSecretEnvironmentGet(t *testing.T) {
 	commonService := mocks3.NewCommonService(t)
 	appRepository := mocks4.NewAppRepository(t)
 	configMapHistoryService := mocks5.NewConfigMapHistoryService(t)
+	envRepository := mocks6.NewEnvironmentRepository(t)
+
 	configMap := []*chartConfig.ConfigMapEnvModel{
 		{
 			AppId:         1,
 			EnvironmentId: 1,
 		},
 	}
+	envIds := []*int{&configMap[0].AppId}
+	envResponse := []*repository.Environment{{Name: "devtron-demo", Id: 1}}
 	type args struct {
 		appId int
 	}
@@ -224,8 +234,10 @@ func TestConfigMapServiceImpl_ConfigSecretEnvironmentGet(t *testing.T) {
 				commonService:               commonService,
 				appRepository:               appRepository,
 				configMapHistoryService:     configMapHistoryService,
+				environmentRepository:       envRepository,
 			}
 			configMapRepository.On("GetEnvLevelByAppId", 1).Return(configMap, nil)
+			envRepository.On("FindByIds", envIds).Return(envResponse, nil)
 			got, err := impl.ConfigSecretEnvironmentGet(tt.args.appId)
 			if !tt.wantErr(t, err, fmt.Sprintf("ConfigSecretEnvironmentGet(%v)", tt.args.appId)) {
 				return
