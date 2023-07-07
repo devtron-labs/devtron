@@ -17,6 +17,10 @@ CREATE TABLE "public"."ci_env_mapping_history" (
 "id" integer NOT NULL DEFAULT nextval('id_seq_ci_env_mapping_history'::regclass),
 "ci_pipeline_id" integer,
 "environment_id" integer,
+"created_on" timestamptz,
+"created_by" int4,
+"updated_on" timestamptz,
+"updated_by" int4,
 PRIMARY KEY (id)
 );
 ALTER TABLE config_map_env_level ADD COLUMN IF NOT EXISTS deleted bool NOT NULL DEFAULT FALSE;

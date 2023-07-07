@@ -102,6 +102,12 @@ func (impl *CiPipelineHistoryServiceImpl) SaveHistory(pipeline *pipelineConfig.C
 		CiEnvMappingHistory := &repository.CiEnvMappingHistory{
 			EnvironmentId: ciEnvMapping.EnvironmentId,
 			CiPipelineId:  ciEnvMapping.CiPipelineId,
+			AuditLog: sql.AuditLog{
+				CreatedOn: time.Now(),
+				CreatedBy: ciEnvMapping.CreatedBy,
+				UpdatedOn: time.Now(),
+				UpdatedBy: ciEnvMapping.UpdatedBy,
+			},
 		}
 		err := impl.CiPipelineHistoryRepository.SaveCiEnvMappingHistory(CiEnvMappingHistory)
 		if err != nil {
