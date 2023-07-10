@@ -56,7 +56,7 @@ components:
         USE_V2: "true"
         ENABLE_BUILD_CONTEXT: "true"
         ENABLE_RESTART_WORKLOAD: "true"
-    image: "quay.io/devtron/dashboard:7c725a32-466-14422"
+    image: "quay.io/devtron/dashboard:8965c3ae-466-14429"
     imagePullPolicy: IfNotPresent
 
   devtron:
