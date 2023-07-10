@@ -31,6 +31,7 @@ type EphemeralContainersRepository interface {
 	SaveData(model *EphemeralContainer) error
 	SaveAction(model *EphemeralContainerAction) error
 	FindAllActive(clusterId int, namespace, podName string) ([]string, error)
+	IsNamePresent(clusterID int, namespace, podName, name string) (bool, error)
 }
 
 func NewEphemeralContainersRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *EphemeralContainersImpl {
@@ -73,4 +74,19 @@ func (impl EphemeralContainersImpl) FindAllActive(clusterId int, namespace, podN
 	}
 
 	return names, nil
+}
+
+func (impl EphemeralContainersImpl) IsNamePresent(clusterID int, namespace, podName, name string) (bool, error) {
+	var count int
+	_, err := impl.dbConnection.Model(&EphemeralContainer{}).
+		Where("cluster_id = ?", clusterID).
+		Where("namespace = ?", namespace).
+		Where("pod_name = ?", podName).
+		Where("name = ?", name).
+		Count()
+	if err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
 }
