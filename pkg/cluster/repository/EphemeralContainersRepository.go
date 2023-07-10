@@ -30,7 +30,7 @@ type EphemeralContainerAction struct {
 type EphemeralContainersRepository interface {
 	SaveData(model *EphemeralContainer) error
 	SaveAction(model *EphemeralContainerAction) error
-	IsNamePresent(name string) (bool, error)
+	FindAllActive(clusterId int, namespace, podName string) ([]string, error)
 }
 
 func NewEphemeralContainersRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *EphemeralContainersImpl {
@@ -53,10 +53,24 @@ func (impl EphemeralContainersImpl) SaveAction(model *EphemeralContainerAction) 
 	return impl.dbConnection.Insert(model)
 }
 
-func (impl EphemeralContainersImpl) IsNamePresent(name string) (bool, error) {
-	count, err := impl.dbConnection.Model(&EphemeralContainer{}).Where("name = ?", name).Count()
+func (impl EphemeralContainersImpl) FindAllActive(clusterId int, namespace, podName string) ([]string, error) {
+	var activeContainers []EphemeralContainer
+	err := impl.dbConnection.Model(&EphemeralContainer{}).
+		Column("name").
+		Where("id NOT IN (SELECT ephemeral_container_id FROM ephemeral_container_actions WHERE action_type = 2)").
+		Where("cluster_id = ?", clusterId).
+		Where("namespace = ?", namespace).
+		Where("pod_name = ?", podName).
+		Select(&activeContainers)
+
 	if err != nil {
-		return false, err
+		return nil, err
 	}
-	return count > 0, nil
+
+	names := make([]string, len(activeContainers))
+	for i, container := range activeContainers {
+		names[i] = container.Name
+	}
+
+	return names, nil
 }
