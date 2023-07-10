@@ -36,6 +36,18 @@ type EphemeralContainerServiceImpl struct {
 }
 
 func (impl *EphemeralContainerServiceImpl) SaveEphemeralContainer(model EphemeralContainerRequest) error {
+	err := impl.repository.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			_ = impl.repository.Rollback()
+		} else {
+			err = impl.repository.Commit()
+		}
+	}()
+
 	container, err := impl.repository.FindContainerByName(model.ClusterId, model.Namespace, model.PodName, model.BasicData.ContainerName)
 	if err != nil {
 		return err
@@ -44,22 +56,35 @@ func (impl *EphemeralContainerServiceImpl) SaveEphemeralContainer(model Ephemera
 		return errors.New("container already present in the provided pod")
 	}
 	bean := ConvertToEphemeralContainerBean(model)
-	err1 := impl.repository.SaveData(&bean)
-	if err1 != nil {
-		return err1
+	err = impl.repository.SaveData(&bean)
+	if err != nil {
+		return err
 	}
 	var auditLogBean repository.EphemeralContainerAction
 	auditLogBean.EphemeralContainerID = bean.Id
 	auditLogBean.ActionType = 0
 	auditLogBean.PerformedAt = time.Now()
 	auditLogBean.PerformedBy = model.UserId
-	err2 := impl.repository.SaveAction(&auditLogBean)
-	if err2 != nil {
-		return err2
+	err = impl.repository.SaveAction(&auditLogBean)
+	if err != nil {
+		return err
 	}
 	return nil
 }
+
 func (impl *EphemeralContainerServiceImpl) UpdateDeleteEphemeralContainer(model EphemeralContainerRequest, actionType int) error {
+	err := impl.repository.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			_ = impl.repository.Rollback()
+		} else {
+			err = impl.repository.Commit()
+		}
+	}()
+
 	container, err := impl.repository.FindContainerByName(model.ClusterId, model.Namespace, model.PodName, model.BasicData.ContainerName)
 	if err != nil {
 		return err
@@ -69,7 +94,7 @@ func (impl *EphemeralContainerServiceImpl) UpdateDeleteEphemeralContainer(model 
 	if container == nil {
 		bean := ConvertToEphemeralContainerBean(model)
 		bean.IsExternallyCreated = true
-		err := impl.repository.SaveData(&bean)
+		err = impl.repository.SaveData(&bean)
 		if err != nil {
 			return err
 		}

@@ -28,21 +28,26 @@ type EphemeralContainerAction struct {
 }
 
 type EphemeralContainersRepository interface {
+	Begin() error
+	Commit() error
+	Rollback() error
 	SaveData(model *EphemeralContainerBean) error
 	SaveAction(model *EphemeralContainerAction) error
 	FindContainerByName(clusterID int, namespace, podName, name string) (*EphemeralContainerBean, error)
 }
 
-func NewEphemeralContainersRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *EphemeralContainersImpl {
+func NewEphemeralContainersRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger, tx *pg.Tx) *EphemeralContainersImpl {
 	return &EphemeralContainersImpl{
 		dbConnection: dbConnection,
 		logger:       logger,
+		tx:           tx,
 	}
 }
 
 type EphemeralContainersImpl struct {
 	dbConnection *pg.DB
 	logger       *zap.SugaredLogger
+	tx           *pg.Tx
 }
 
 func (impl EphemeralContainersImpl) SaveData(model *EphemeralContainerBean) error {
@@ -66,4 +71,31 @@ func (impl EphemeralContainersImpl) FindContainerByName(clusterID int, namespace
 	}
 
 	return container, nil
+}
+
+func (impl *EphemeralContainersImpl) Begin() error {
+	tx, err := impl.dbConnection.Begin()
+	if err != nil {
+		return err
+	}
+	impl.tx = tx
+	return nil
+}
+
+func (impl *EphemeralContainersImpl) Commit() error {
+	if impl.tx == nil {
+		return nil
+	}
+	err := impl.tx.Commit()
+	impl.tx = nil
+	return err
+}
+
+func (impl *EphemeralContainersImpl) Rollback() error {
+	if impl.tx == nil {
+		return nil
+	}
+	err := impl.tx.Rollback()
+	impl.tx = nil
+	return err
 }
