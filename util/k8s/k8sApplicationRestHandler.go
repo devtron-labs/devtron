@@ -843,6 +843,11 @@ func (handler *K8sApplicationRestHandlerImpl) PodEphemeralContainerHandler(w htt
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	if len(request.DeleteContainer) > 0 {
+		_, err := handler.k8sApplicationService.DeletePodEphemeralContainer(request)
+		common.WriteJsonResp(w, err, nil, http.StatusOK)
+		return
+	}
 	err = handler.k8sApplicationService.UpdatPodEphemeralContainers(request)
 	common.WriteJsonResp(w, err, nil, http.StatusOK)
 }

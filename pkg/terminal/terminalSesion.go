@@ -364,14 +364,16 @@ type TerminalSessionHandlerImpl struct {
 	environmentService cluster.EnvironmentService
 	clusterService     cluster.ClusterService
 	logger             *zap.SugaredLogger
+	k8sUtil            *util.K8sUtil
 }
 
 func NewTerminalSessionHandlerImpl(environmentService cluster.EnvironmentService, clusterService cluster.ClusterService,
-	logger *zap.SugaredLogger) *TerminalSessionHandlerImpl {
+	logger *zap.SugaredLogger, k8sUtil *util.K8sUtil) *TerminalSessionHandlerImpl {
 	return &TerminalSessionHandlerImpl{
 		environmentService: environmentService,
 		clusterService:     clusterService,
 		logger:             logger,
+		k8sUtil:            k8sUtil,
 	}
 }
 
@@ -417,6 +419,22 @@ func (impl *TerminalSessionHandlerImpl) GetTerminalSession(req *TerminalSessionR
 	return http.StatusOK, &TerminalMessage{SessionID: sessionID}, nil
 }
 
+func (impl *TerminalSessionHandlerImpl) getClientConfigV2() (*rest.Config, *kubernetes.Clientset, error) {
+	config, err := impl.k8sUtil.GetKubeConfig(true)
+	if err != nil {
+		return nil, nil, err
+	}
+	k8sHttpClient, err := util.OverrideK8sHttpClientWithTracer(config)
+	if err != nil {
+		return nil, nil, err
+	}
+	client, err := kubernetes.NewForConfigAndClient(config, k8sHttpClient)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return config, client, err
+}
 func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequest) (*rest.Config, *kubernetes.Clientset, error) {
 	var clusterBean *cluster.ClusterBean
 	var err error
@@ -506,7 +524,8 @@ func getErrorMsg(err string) error {
 }
 
 func (impl *TerminalSessionHandlerImpl) RunCmdInRemotePod(req *TerminalSessionRequest, cmds []string) (*bytes.Buffer, *bytes.Buffer, error) {
-	config, client, err := impl.getClientConfig(req)
+	//config, client, err := impl.getClientConfig(req)
+	config, client, err := impl.getClientConfigV2()
 	if err != nil {
 		impl.logger.Errorw("error in fetching config", "err", err)
 		return nil, nil, err
