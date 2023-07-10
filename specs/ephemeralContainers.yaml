@@ -65,25 +65,8 @@ components:
       properties:
         namespace:
           type: string
-        podName:
-          type: string
-        targetContainerName:
-          type: string
-        containerName:
-          type: string
-        manifest:
-          type: string
-        image:
-          type: string
         clusterId:
           type: integer
-      required:
-        - namespace
-        - podName
-        - targetContainerName
-        - containerName
-        - image
-        - clusterId
     DeleteEphemeralContainerRequest:
       type: object
       properties:
