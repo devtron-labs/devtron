@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-type EphemeralContainer struct {
+type EphemeralContainerBean struct {
 	tableName           struct{} `sql:"ephemeral_container" pg:",discard_unknown_columns"`
 	Id                  int      `sql:"id,pk"`
 	Name                string   `sql:"name"`
@@ -28,9 +28,9 @@ type EphemeralContainerAction struct {
 }
 
 type EphemeralContainersRepository interface {
-	SaveData(model *EphemeralContainer) error
+	SaveData(model *EphemeralContainerBean) error
 	SaveAction(model *EphemeralContainerAction) error
-	IsNamePresent(clusterID int, namespace, podName, name string) (bool, error)
+	FindContainerByName(clusterID int, namespace, podName, name string) (*EphemeralContainerBean, error)
 }
 
 func NewEphemeralContainersRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *EphemeralContainersImpl {
@@ -45,7 +45,7 @@ type EphemeralContainersImpl struct {
 	logger       *zap.SugaredLogger
 }
 
-func (impl EphemeralContainersImpl) SaveData(model *EphemeralContainer) error {
+func (impl EphemeralContainersImpl) SaveData(model *EphemeralContainerBean) error {
 	return impl.dbConnection.Insert(model)
 }
 
@@ -53,17 +53,17 @@ func (impl EphemeralContainersImpl) SaveAction(model *EphemeralContainerAction) 
 	return impl.dbConnection.Insert(model)
 }
 
-func (impl EphemeralContainersImpl) IsNamePresent(clusterID int, namespace, podName, name string) (bool, error) {
-	var count int
-	_, err := impl.dbConnection.Model(&EphemeralContainer{}).
+func (impl EphemeralContainersImpl) FindContainerByName(clusterID int, namespace, podName, name string) (*EphemeralContainerBean, error) {
+	container := &EphemeralContainerBean{}
+	err := impl.dbConnection.Model(container).
 		Where("cluster_id = ?", clusterID).
 		Where("namespace = ?", namespace).
 		Where("pod_name = ?", podName).
 		Where("name = ?", name).
-		Count()
+		Select()
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
-	return count > 0, nil
+	return container, nil
 }
