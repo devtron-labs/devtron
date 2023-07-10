@@ -18,7 +18,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StatusResponse"
+                $ref: "#/components/schemas/Response"
         '400':
           description: Bad Request
           content:
@@ -38,14 +38,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/DeleteEphemeralContainerRequest"
+              $ref: "#/components/schemas/EphemeralContainerRequest"
       responses:
         '200':
           description: OK
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StatusResponse"
+                $ref: "#/components/schemas/Response"
         '400':
           description: Bad Request
           content:
@@ -67,22 +67,12 @@ components:
           type: string
         clusterId:
           type: integer
-    DeleteEphemeralContainerRequest:
-      type: object
-      properties:
-        namespace:
-          type: string
-        clusterId:
-          type: integer
         podName:
           type: string
-        containerName:
-          type: string
-      required:
-        - namespace
-        - clusterId
-        - podName
-        - containerName
+        EphemeralBasicData:
+          type: object
+        EphemeralAdvancedData:
+          type: object
     EphemeralBasicData:
       type: object
       properties:
@@ -97,9 +87,20 @@ components:
       properties:
         manifest:
           type: string
-    StatusResponse:
+    PodContainerList:
       type: object
       properties:
+        containers:
+          type: array
+        initContainers:
+          type: array
+        ephemeralContainers:
+          type: array
+    Response:
+      type: object
+      properties:
+        result:
+          type: PodContainerList
         status:
           type: string
       required:
