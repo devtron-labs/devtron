@@ -876,6 +876,10 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteEphemeralContainer(w http.Re
 	if resourceRequestBean == nil {
 		return
 	}
+	if resourceRequestBean.ClusterId != request.ClusterId {
+		common.WriteJsonResp(w, errors.New("clusterId mismatch in param and request body"), nil, http.StatusBadRequest)
+		return
+	}
 	_, err = handler.k8sApplicationService.DeletePodEphemeralContainer(request)
 	podContainerList, err := handler.k8sApplicationService.GetPodContainersList(request.ClusterId, request.Namespace, request.PodName)
 	if err != nil {
