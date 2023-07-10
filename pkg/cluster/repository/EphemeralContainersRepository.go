@@ -1,6 +1,10 @@
 package repository
 
-import "time"
+import (
+	"github.com/go-pg/pg"
+	"go.uber.org/zap"
+	"time"
+)
 
 type EphemeralContainer struct {
 	tableName           struct{} `sql:"ephemeral_container" pg:",discard_unknown_columns"`
@@ -21,4 +25,38 @@ type EphemeralContainerAction struct {
 	ActionType           int       `sql:"action_type"`
 	PerformedBy          int       `sql:"performed_by"`
 	PerformedAt          time.Time `sql:"performed_at"`
+}
+
+type EphemeralContainersRepository interface {
+	SaveData(model *EphemeralContainer) error
+	SaveAction(model *EphemeralContainerAction) error
+	IsNamePresent(name string) (bool, error)
+}
+
+func NewEphemeralContainersRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *EphemeralContainersImpl {
+	return &EphemeralContainersImpl{
+		dbConnection: dbConnection,
+		logger:       logger,
+	}
+}
+
+type EphemeralContainersImpl struct {
+	dbConnection *pg.DB
+	logger       *zap.SugaredLogger
+}
+
+func (impl EphemeralContainersImpl) SaveData(model *EphemeralContainer) error {
+	return impl.dbConnection.Insert(model)
+}
+
+func (impl EphemeralContainersImpl) SaveAction(model *EphemeralContainerAction) error {
+	return impl.dbConnection.Insert(model)
+}
+
+func (impl EphemeralContainersImpl) IsNamePresent(name string) (bool, error) {
+	count, err := impl.dbConnection.Model(&EphemeralContainer{}).Where("name = ?", name).Count()
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }
