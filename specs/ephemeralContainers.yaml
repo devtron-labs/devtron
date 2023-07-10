@@ -82,7 +82,6 @@ components:
         - podName
         - targetContainerName
         - containerName
-        - manifest
         - image
         - clusterId
     DeleteEphemeralContainerRequest:
@@ -101,6 +100,20 @@ components:
         - clusterId
         - podName
         - containerName
+    EphemeralBasicData:
+      type: object
+      properties:
+        image:
+          type: integer
+        targetContainerName:
+          type: string
+        containerName:
+          type: string
+    EphemeralAdvancedData:
+      type: object
+      properties:
+        manifest:
+          type: string
     StatusResponse:
       type: object
       properties:
