@@ -3,6 +3,8 @@ package cluster
 import (
 	"errors"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/go-pg/pg"
+	"go.uber.org/zap"
 	"time"
 )
 
@@ -26,67 +28,70 @@ type EphemeralContainerBasicData struct {
 }
 
 type EphemeralContainerService interface {
-	SaveEphemeralContainer(model EphemeralContainerRequest) error
-	UpdateDeleteEphemeralContainer(model EphemeralContainerRequest, actionType int) error
+	SaveEphemeralContainer(tx *pg.Tx, model EphemeralContainerRequest) error
+	UpdateDeleteEphemeralContainer(tx *pg.Tx, model EphemeralContainerRequest, actionType int) error
 	// send action type 1 in case of used and 2 in case of terminated
 }
 
 type EphemeralContainerServiceImpl struct {
 	repository repository.EphemeralContainersRepository
+	logger     *zap.SugaredLogger
 }
 
-func (impl *EphemeralContainerServiceImpl) SaveEphemeralContainer(model EphemeralContainerRequest) error {
-	err := impl.repository.Begin()
+func (impl *EphemeralContainerServiceImpl) SaveEphemeralContainer(tx *pg.Tx, model EphemeralContainerRequest) error {
+	tx, err := tx.Begin()
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err != nil {
-			_ = impl.repository.Rollback()
-		} else {
-			err = impl.repository.Commit()
-		}
-	}()
 
 	container, err := impl.repository.FindContainerByName(model.ClusterId, model.Namespace, model.PodName, model.BasicData.ContainerName)
 	if err != nil {
+		_ = tx.Rollback() // Rollback the transaction if an error occurs during FindContainerByName
 		return err
 	}
 	if container != nil {
+		_ = tx.Rollback() // Rollback the transaction if the container already exists in the provided pod
+		impl.logger.Errorw("Container already present in the provided pod")
 		return errors.New("container already present in the provided pod")
 	}
+
 	bean := ConvertToEphemeralContainerBean(model)
-	err = impl.repository.SaveData(&bean)
+	err = impl.repository.SaveData(tx, &bean)
 	if err != nil {
+		_ = tx.Rollback() // Rollback the transaction if an error occurs during SaveData
+		impl.logger.Errorw("Failed to save ephemeral container", "error", err)
 		return err
 	}
+
 	var auditLogBean repository.EphemeralContainerAction
 	auditLogBean.EphemeralContainerID = bean.Id
 	auditLogBean.ActionType = 0
 	auditLogBean.PerformedAt = time.Now()
 	auditLogBean.PerformedBy = model.UserId
-	err = impl.repository.SaveAction(&auditLogBean)
+	err = impl.repository.SaveAction(tx, &auditLogBean)
+	if err != nil {
+		_ = tx.Rollback() // Rollback the transaction if an error occurs during SaveAction
+		impl.logger.Errorw("Failed to save ephemeral container", "error", err)
+		return err
+	}
+
+	err = tx.Commit()
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
-func (impl *EphemeralContainerServiceImpl) UpdateDeleteEphemeralContainer(model EphemeralContainerRequest, actionType int) error {
-	err := impl.repository.Begin()
+func (impl *EphemeralContainerServiceImpl) UpdateDeleteEphemeralContainer(tx *pg.Tx, model EphemeralContainerRequest, actionType int) error {
+	tx, err := tx.Begin()
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err != nil {
-			_ = impl.repository.Rollback()
-		} else {
-			err = impl.repository.Commit()
-		}
-	}()
 
 	container, err := impl.repository.FindContainerByName(model.ClusterId, model.Namespace, model.PodName, model.BasicData.ContainerName)
 	if err != nil {
+		_ = tx.Rollback() // Rollback the transaction if an error occurs during FindContainerByName
 		return err
 	}
 
@@ -94,8 +99,10 @@ func (impl *EphemeralContainerServiceImpl) UpdateDeleteEphemeralContainer(model 
 	if container == nil {
 		bean := ConvertToEphemeralContainerBean(model)
 		bean.IsExternallyCreated = true
-		err = impl.repository.SaveData(&bean)
+		err = impl.repository.SaveData(tx, &bean)
 		if err != nil {
+			_ = tx.Rollback() // Rollback the transaction if an error occurs during SaveData
+			impl.logger.Errorw("Failed to save ephemeral container", "error", err)
 			return err
 		}
 		auditLogBean.EphemeralContainerID = bean.Id
@@ -107,7 +114,14 @@ func (impl *EphemeralContainerServiceImpl) UpdateDeleteEphemeralContainer(model 
 	auditLogBean.PerformedAt = time.Now()
 	auditLogBean.PerformedBy = model.UserId
 
-	err = impl.repository.SaveAction(&auditLogBean)
+	err = impl.repository.SaveAction(tx, &auditLogBean)
+	if err != nil {
+		_ = tx.Rollback() // Rollback the transaction if an error occurs during SaveAction
+		impl.logger.Errorw("Failed to save ephemeral container", "error", err)
+		return err
+	}
+
+	err = tx.Commit()
 	if err != nil {
 		return err
 	}

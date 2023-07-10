@@ -28,11 +28,8 @@ type EphemeralContainerAction struct {
 }
 
 type EphemeralContainersRepository interface {
-	Begin() error
-	Commit() error
-	Rollback() error
-	SaveData(model *EphemeralContainerBean) error
-	SaveAction(model *EphemeralContainerAction) error
+	SaveData(tx *pg.Tx, model *EphemeralContainerBean) error
+	SaveAction(tx *pg.Tx, model *EphemeralContainerAction) error
 	FindContainerByName(clusterID int, namespace, podName, name string) (*EphemeralContainerBean, error)
 }
 
@@ -50,12 +47,12 @@ type EphemeralContainersImpl struct {
 	tx           *pg.Tx
 }
 
-func (impl EphemeralContainersImpl) SaveData(model *EphemeralContainerBean) error {
-	return impl.dbConnection.Insert(model)
+func (impl EphemeralContainersImpl) SaveData(tx *pg.Tx, model *EphemeralContainerBean) error {
+	return tx.Insert(model)
 }
 
-func (impl EphemeralContainersImpl) SaveAction(model *EphemeralContainerAction) error {
-	return impl.dbConnection.Insert(model)
+func (impl EphemeralContainersImpl) SaveAction(tx *pg.Tx, model *EphemeralContainerAction) error {
+	return tx.Insert(model)
 }
 
 func (impl EphemeralContainersImpl) FindContainerByName(clusterID int, namespace, podName, name string) (*EphemeralContainerBean, error) {
@@ -71,31 +68,4 @@ func (impl EphemeralContainersImpl) FindContainerByName(clusterID int, namespace
 	}
 
 	return container, nil
-}
-
-func (impl *EphemeralContainersImpl) Begin() error {
-	tx, err := impl.dbConnection.Begin()
-	if err != nil {
-		return err
-	}
-	impl.tx = tx
-	return nil
-}
-
-func (impl *EphemeralContainersImpl) Commit() error {
-	if impl.tx == nil {
-		return nil
-	}
-	err := impl.tx.Commit()
-	impl.tx = nil
-	return err
-}
-
-func (impl *EphemeralContainersImpl) Rollback() error {
-	if impl.tx == nil {
-		return nil
-	}
-	err := impl.tx.Rollback()
-	impl.tx = nil
-	return err
 }
