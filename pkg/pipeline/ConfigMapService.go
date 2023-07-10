@@ -1866,6 +1866,11 @@ func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentGet(appId int) ([]JobEnv
 	for _, cm := range configMap {
 		envIds = append(envIds, &cm.EnvironmentId)
 	}
+	var jobEnvOverrideResponse []JobEnvOverrideResponse
+
+	if len(envIds) == 0 {
+		return jobEnvOverrideResponse, nil
+	}
 	envs, err := impl.environmentRepository.FindByIds(envIds)
 
 	if err != nil {
@@ -1880,7 +1885,6 @@ func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentGet(appId int) ([]JobEnv
 		envIdNameMap[env.Id] = env.Name
 	}
 
-	var jobEnvOverrideResponse []JobEnvOverrideResponse
 	for _, cm := range configMap {
 		var jobEnvOverride JobEnvOverrideResponse
 		jobEnvOverride.EnvironmentId = cm.EnvironmentId
