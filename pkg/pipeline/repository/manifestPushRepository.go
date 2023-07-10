@@ -52,7 +52,7 @@ func (impl ManifestPushConfigRepositoryImpl) GetManifestPushConfigByAppIdAndEnvI
 		Where("app_id = ? ", appId).
 		Where("env_id = ? ", envId).
 		Select()
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		return manifestPushConfig, err
 	}
 	return manifestPushConfig, nil
