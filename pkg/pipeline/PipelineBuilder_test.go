@@ -34,8 +34,10 @@ func TestPipelineBuilderImpl_validateDeploymentAppType(t *testing.T) {
 		}
 		mockError := error(nil)
 		attributesRepoMock.On("FindByKey", mock.Anything).Return(mockDeploymentConfigConfig, mockError)
-
-		err := impl.validateDeploymentAppType(pipeline)
+		deploymentConfig := make(map[string]bool)
+		deploymentConfig["argo_cd"] = true
+		deploymentConfig["helm"] = true
+		err := impl.validateDeploymentAppType(pipeline, deploymentConfig)
 		assert.Nil(t, err)
 	})
 
@@ -45,11 +47,6 @@ func TestPipelineBuilderImpl_validateDeploymentAppType(t *testing.T) {
 		impl := PipelineBuilderImpl{
 			attributesRepository: attributesRepoMock, // Provide a mock implementation of attributesRepository
 		}
-		pipeline := &bean.CDPipelineConfigObject{
-			EnvironmentId:     123,
-			DeploymentAppType: "SomeAppType",
-		}
-
 		mockDeploymentConfigConfig := &repository.Attributes{
 			Id:       1,
 			Key:      "2",
@@ -59,8 +56,10 @@ func TestPipelineBuilderImpl_validateDeploymentAppType(t *testing.T) {
 		}
 		mockError := error(nil)
 		attributesRepoMock.On("FindByKey", mock.Anything).Return(mockDeploymentConfigConfig, mockError)
-
-		err := impl.validateDeploymentAppType(pipeline)
+		deploymentConfig := make(map[string]bool)
+		deploymentConfig["argo_cd"] = true
+		deploymentConfig["helm"] = true
+		_, err := impl.getDeploymentConfigMap(1)
 		apiErr, _ := err.(*util.ApiError)
 		assert.Equal(t, http.StatusInternalServerError, apiErr.HttpStatusCode)
 	})
@@ -86,7 +85,11 @@ func TestPipelineBuilderImpl_validateDeploymentAppType(t *testing.T) {
 		mockError := error(nil)
 		attributesRepoMock.On("FindByKey", mock.Anything).Return(mockDeploymentConfig, mockError)
 
-		err := impl.validateDeploymentAppType(pipeline)
+		deploymentConfig := make(map[string]bool)
+		deploymentConfig["argo_cd"] = true
+		deploymentConfig["helm"] = true
+
+		err := impl.validateDeploymentAppType(pipeline, deploymentConfig)
 
 		assert.Nil(t, err)
 	})
@@ -110,9 +113,12 @@ func TestPipelineBuilderImpl_validateDeploymentAppType(t *testing.T) {
 			AuditLog: sql.AuditLog{},
 		}
 		mockError := error(nil)
+		deploymentConfig := make(map[string]bool)
+		deploymentConfig["argo_cd"] = false
+		deploymentConfig["helm"] = true
 		attributesRepoMock.On("FindByKey", mock.Anything).Return(mockDeploymentConfigConfig, mockError)
 
-		err := impl.validateDeploymentAppType(pipeline)
+		err := impl.validateDeploymentAppType(pipeline, deploymentConfig)
 
 		assert.Nil(t, err)
 	})
@@ -138,8 +144,10 @@ func TestPipelineBuilderImpl_validateDeploymentAppType(t *testing.T) {
 
 		mockError := error(nil)
 		attributesRepoMock.On("FindByKey", mock.Anything).Return(mockDeploymentConfigConfig, mockError)
-
-		err := impl.validateDeploymentAppType(pipeline)
+		deploymentConfig := make(map[string]bool)
+		deploymentConfig["argo_cd"] = false
+		deploymentConfig["helm"] = true
+		err := impl.validateDeploymentAppType(pipeline, deploymentConfig)
 		apiErr, _ := err.(*util.ApiError)
 		assert.Equal(t, http.StatusBadRequest, apiErr.HttpStatusCode)
 	})

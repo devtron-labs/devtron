@@ -18,6 +18,7 @@
 package attributes
 
 import (
+	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -32,11 +33,13 @@ type AttributesService interface {
 	GetActiveList() ([]*AttributesDto, error)
 	GetByKey(key string) (*AttributesDto, error)
 	UpdateKeyValueByOne(key string) error
+	AddDeploymentEnforcementConfig(request *AttributesDto) (*AttributesDto, error)
 }
 
 const (
-	HostUrlKey     string = "url"
-	API_SECRET_KEY string = "apiTokenSecret"
+	HostUrlKey                         string = "url"
+	API_SECRET_KEY                     string = "apiTokenSecret"
+	DEPLOYMENT_APP_TYPE_ALLOWED_CONFIG string = "deploymentAppTypeAllowedConfig"
 )
 
 type AttributesDto struct {
@@ -232,4 +235,66 @@ func (impl AttributesServiceImpl) UpdateKeyValueByOne(key string) error {
 
 	return err
 
+}
+
+func (impl AttributesServiceImpl) AddDeploymentEnforcementConfig(request *AttributesDto) (*AttributesDto, error) {
+	model, err := impl.attributesRepository.FindByKey(DEPLOYMENT_APP_TYPE_ALLOWED_CONFIG)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching deploymentEnforcementConfig from db", "error", err, "key", request.Key)
+		return request, err
+	}
+	dbConnection := impl.attributesRepository.GetConnection()
+	tx, terr := dbConnection.Begin()
+	if terr != nil {
+		return request, terr
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+	if err == pg.ErrNoRows {
+		model := &repository.Attributes{
+			Key:   DEPLOYMENT_APP_TYPE_ALLOWED_CONFIG,
+			Value: request.Value,
+		}
+		model.Active = true
+		model.UpdatedOn = time.Now()
+		model.UpdatedBy = request.UserId
+		_, err = impl.attributesRepository.Save(model, tx)
+		if err != nil {
+			return request, err
+		}
+	} else {
+
+		initialConfig := make(map[string]map[string]bool)
+		initialConfigString := model.Value
+		//initialConfigString = `{ "1": {"argo_cd": true}}`
+		err = json.Unmarshal([]byte(initialConfigString), &initialConfig)
+		if err != nil {
+			return request, err
+		}
+
+		newConfig := make(map[string]map[string]bool)
+		err = json.Unmarshal([]byte(request.Value), &newConfig)
+		if err != nil {
+			return request, err
+		}
+
+		mergedConfig := initialConfig
+		for k, v := range newConfig {
+			mergedConfig[k] = v
+		}
+		value, err := json.Marshal(mergedConfig)
+		if err != nil {
+			return request, err
+		}
+		model.Value = string(value)
+		model.UpdatedOn = time.Now()
+		model.UpdatedBy = request.UserId
+		model.Active = true
+		err = impl.attributesRepository.Update(model, tx)
+		if err != nil {
+			return request, err
+		}
+	}
+	tx.Commit()
+	return request, nil
 }
