@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	util2 "github.com/devtron-labs/devtron/util"
 	"io"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
@@ -70,8 +71,9 @@ type K8sApplicationService interface {
 	ApplyResources(ctx context.Context, token string, request *application.ApplyResourcesRequest, resourceRbacHandler func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) ([]*application.ApplyResourcesResponse, error)
 	FetchConnectionStatusForCluster(k8sClientSet *kubernetes.Clientset, clusterId int) error
 	RotatePods(ctx context.Context, request *RotatePodRequest) (*RotatePodResponse, error)
-	UpdatPodEphemeralContainers(req EphemeralContainerRequest) error
+	CreatePodEphemeralContainers(req EphemeralContainerRequest) error
 	DeletePodEphemeralContainer(req EphemeralContainerRequest) (bool, error)
+	GetPodContainersList(clusterId int, namespace, podName string) (*PodContainerList, error)
 }
 type K8sApplicationServiceImpl struct {
 	logger                      *zap.SugaredLogger
@@ -167,6 +169,12 @@ type EphemeralContainerBasicData struct {
 	ContainerName       string `json:"containerName"`
 	TargetContainerName string `json:"targetContainerName"`
 	Image               string `json:"image"`
+}
+
+type PodContainerList struct {
+	Containers          []string
+	InitContainers      []string
+	EphemeralContainers []string
 }
 
 func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Request) (*ResourceRequestBean, error) {
@@ -1137,7 +1145,7 @@ func (impl *K8sApplicationServiceImpl) FetchConnectionStatusForCluster(k8sClient
 	return err
 }
 
-func (impl *K8sApplicationServiceImpl) UpdatPodEphemeralContainers(req EphemeralContainerRequest) error {
+func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req EphemeralContainerRequest) error {
 
 	v1Client, err := impl.getCoreClientByClusterId(req.ClusterId)
 	if err != nil {
@@ -1197,20 +1205,11 @@ func (impl *K8sApplicationServiceImpl) UpdatPodEphemeralContainers(req Ephemeral
 
 func generateDebugContainer(pod *corev1.Pod, req EphemeralContainerRequest) (*corev1.Pod, *corev1.EphemeralContainer, error) {
 	copied := pod.DeepCopy()
-	//if len(req.DeleteContainer) > 0 {
-	//	ecs := make([]corev1.EphemeralContainer, 0)
-	//	for _, ec := range copied.Spec.EphemeralContainers {
-	//		if ec.Name != req.DeleteContainer {
-	//			ecs = append(ecs, ec)
-	//		}
-	//	}
-	//	return copied, nil, nil
-	//}
 
-	//name := "test-debugger-" + util2.Generate(5)
+	name := req.BasicData.ContainerName + util2.Generate(5)
 	ec := &corev1.EphemeralContainer{
 		EphemeralContainerCommon: corev1.EphemeralContainerCommon{
-			Name:                     req.BasicData.ContainerName,
+			Name:                     name,
 			Env:                      nil,
 			Image:                    req.BasicData.Image,
 			ImagePullPolicy:          corev1.PullIfNotPresent,
@@ -1265,4 +1264,39 @@ func (impl *K8sApplicationServiceImpl) getCoreClientByClusterId(clusterId int) (
 		return nil, err
 	}
 	return v1Client, nil
+}
+
+func (impl *K8sApplicationServiceImpl) GetPodContainersList(clusterId int, namespace, podName string) (*PodContainerList, error) {
+	v1Client, err := impl.getCoreClientByClusterId(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting coreV1 client by clusterId", "clusterId", clusterId, "err", err)
+		return nil, err
+	}
+	pod, err := impl.K8sUtil.GetPodByName(namespace, podName, v1Client)
+	if err != nil {
+		impl.logger.Errorw("error in getting pod", "clusterId", clusterId, "namespace", namespace, "podName", podName, "err", err)
+		return nil, err
+	}
+
+	containers := []string{}
+	initContainers := []string{}
+	ephemeralContainers := []string{}
+
+	for _, c := range pod.Spec.Containers {
+		containers = append(containers, c.Name)
+	}
+
+	for _, ec := range pod.Spec.EphemeralContainers {
+		ephemeralContainers = append(ephemeralContainers, ec.Name)
+	}
+
+	for _, ic := range pod.Spec.InitContainers {
+		ephemeralContainers = append(ephemeralContainers, ic.Name)
+	}
+
+	return &PodContainerList{
+		Containers:          containers,
+		EphemeralContainers: ephemeralContainers,
+		InitContainers:      initContainers,
+	}, nil
 }

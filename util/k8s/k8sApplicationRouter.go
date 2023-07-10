@@ -69,7 +69,12 @@ func (impl *K8sApplicationRouterImpl) InitK8sApplicationRouter(k8sAppRouter *mux
 	k8sAppRouter.Path("/resources/apply").
 		HandlerFunc(impl.k8sApplicationRestHandler.ApplyResources).Methods("POST")
 
+	//create/delete ephemeral containers API's
 	k8sAppRouter.Path("/resources/ephemeralContainers").
-		HandlerFunc(impl.k8sApplicationRestHandler.PodEphemeralContainerHandler).Methods("POST")
+		Queries("appLevel", "{appLevel}").
+		HandlerFunc(impl.k8sApplicationRestHandler.CreateEphemeralContainer).Methods("POST")
+	k8sAppRouter.Path("/resources/ephemeralContainers").
+		Queries("appLevel", "{appLevel}").
+		HandlerFunc(impl.k8sApplicationRestHandler.DeleteEphemeralContainer).Methods("DELETE")
 
 }
