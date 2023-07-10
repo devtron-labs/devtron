@@ -30,7 +30,6 @@ type EphemeralContainerAction struct {
 type EphemeralContainersRepository interface {
 	SaveData(model *EphemeralContainer) error
 	SaveAction(model *EphemeralContainerAction) error
-	FindAllActive(clusterId int, namespace, podName string) ([]string, error)
 	IsNamePresent(clusterID int, namespace, podName, name string) (bool, error)
 }
 
@@ -52,28 +51,6 @@ func (impl EphemeralContainersImpl) SaveData(model *EphemeralContainer) error {
 
 func (impl EphemeralContainersImpl) SaveAction(model *EphemeralContainerAction) error {
 	return impl.dbConnection.Insert(model)
-}
-
-func (impl EphemeralContainersImpl) FindAllActive(clusterId int, namespace, podName string) ([]string, error) {
-	var activeContainers []EphemeralContainer
-	err := impl.dbConnection.Model(&EphemeralContainer{}).
-		Column("name").
-		Where("id NOT IN (SELECT ephemeral_container_id FROM ephemeral_container_actions WHERE action_type = 2)").
-		Where("cluster_id = ?", clusterId).
-		Where("namespace = ?", namespace).
-		Where("pod_name = ?", podName).
-		Select(&activeContainers)
-
-	if err != nil {
-		return nil, err
-	}
-
-	names := make([]string, len(activeContainers))
-	for i, container := range activeContainers {
-		names[i] = container.Name
-	}
-
-	return names, nil
 }
 
 func (impl EphemeralContainersImpl) IsNamePresent(clusterID int, namespace, podName, name string) (bool, error) {
