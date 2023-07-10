@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
+	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"net/http"
 	"strconv"
 	"strings"
@@ -67,6 +70,8 @@ type K8sApplicationService interface {
 	ApplyResources(ctx context.Context, token string, request *application.ApplyResourcesRequest, resourceRbacHandler func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) ([]*application.ApplyResourcesResponse, error)
 	FetchConnectionStatusForCluster(k8sClientSet *kubernetes.Clientset, clusterId int) error
 	RotatePods(ctx context.Context, request *RotatePodRequest) (*RotatePodResponse, error)
+	UpdatPodEphemeralContainers(req EphemeralContainerRequest) error
+	DeletePodEphemeralContainer(req EphemeralContainerRequest) (bool, error)
 }
 type K8sApplicationServiceImpl struct {
 	logger                      *zap.SugaredLogger
@@ -78,6 +83,7 @@ type K8sApplicationServiceImpl struct {
 	aCDAuthConfig               *util3.ACDAuthConfig
 	K8sApplicationServiceConfig *K8sApplicationServiceConfig
 	K8sResourceHistoryService   kubernetesResourceAuditLogs.K8sResourceHistoryService
+	terminalSession             terminal.TerminalSessionHandler
 }
 
 type K8sApplicationServiceConfig struct {
@@ -89,7 +95,8 @@ func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger,
 	clusterService cluster.ClusterService,
 	pump connector.Pump, k8sClientService application.K8sClientService,
 	helmAppService client.HelmAppService, K8sUtil *util.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig,
-	K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService) *K8sApplicationServiceImpl {
+	K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService,
+	terminalSession terminal.TerminalSessionHandler) *K8sApplicationServiceImpl {
 	cfg := &K8sApplicationServiceConfig{}
 	err := env.Parse(cfg)
 	if err != nil {
@@ -105,6 +112,7 @@ func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger,
 		aCDAuthConfig:               aCDAuthConfig,
 		K8sApplicationServiceConfig: cfg,
 		K8sResourceHistoryService:   K8sResourceHistoryService,
+		terminalSession:             terminalSession,
 	}
 }
 
@@ -141,6 +149,24 @@ type DevtronAppIdentifier struct {
 type BatchResourceResponse struct {
 	ManifestResponse *application.ManifestResponse
 	Err              error
+}
+
+type EphemeralContainerRequest struct {
+	BasicData    *EphemeralContainerBasicData    `json:"basicData"`
+	AdvancedData *EphemeralContainerAdvancedData `json:"advancedData"`
+	Namespace    string                          `json:"namespace"`
+	ClusterId    int                             `json:"clusterId"`
+	PodName      string                          `json:"podName"`
+}
+
+type EphemeralContainerAdvancedData struct {
+	Manifest string `json:"manifest"`
+}
+
+type EphemeralContainerBasicData struct {
+	ContainerName       string `json:"containerName"`
+	TargetContainerName string `json:"targetContainerName"`
+	Image               string `json:"image"`
 }
 
 func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Request) (*ResourceRequestBean, error) {
@@ -1109,4 +1135,134 @@ func (impl *K8sApplicationServiceImpl) FetchConnectionStatusForCluster(k8sClient
 		err = fmt.Errorf("Validation failed with response : %s", string(response))
 	}
 	return err
+}
+
+func (impl *K8sApplicationServiceImpl) UpdatPodEphemeralContainers(req EphemeralContainerRequest) error {
+
+	v1Client, err := impl.getCoreClientByClusterId(req.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting coreV1 client by clusterId", "clusterId", req.ClusterId, "err", err)
+		return err
+	}
+	pod, err := impl.K8sUtil.GetPodByName(req.Namespace, req.PodName, v1Client)
+	if err != nil {
+		impl.logger.Errorw("error in getting pod", "clusterId", req.ClusterId, "namespace", req.Namespace, "podName", req.PodName, "err", err)
+		return err
+	}
+
+	podJS, err := json.Marshal(pod)
+	if err != nil {
+		return fmt.Errorf("error creating JSON for pod: %v", err)
+	}
+	debugPod, debugContainer, err := generateDebugContainer(pod, req)
+	if err != nil {
+		impl.logger.Errorw("error in generateDebugContainer", "request", req, "err", err)
+		return err
+	}
+
+	debugJS, err := json.Marshal(debugPod)
+	if err != nil {
+		return fmt.Errorf("error creating JSON for pod: %v", err)
+	}
+
+	patch, err := strategicpatch.CreateTwoWayMergePatch(podJS, debugJS, pod)
+	if err != nil {
+		return fmt.Errorf("error creating patch to add debug container: %v", err)
+	}
+
+	_, err = v1Client.Pods(req.Namespace).Patch(context.Background(), pod.Name, types.StrategicMergePatchType, patch, metav1.PatchOptions{}, "ephemeralcontainers")
+	if err != nil {
+
+		patch, err := json.Marshal([]map[string]interface{}{{
+			"op":    "add",
+			"path":  "/ephemeralContainers/-",
+			"value": debugContainer,
+		}})
+		if err != nil {
+			return fmt.Errorf("error creating JSON 6902 patch for old /ephemeralcontainers API: %s", err)
+		}
+
+		//try with legacy API
+		result := v1Client.RESTClient().Patch(types.JSONPatchType).
+			Namespace(pod.Namespace).
+			Resource("pods").
+			Name(pod.Name).
+			SubResource("ephemeralcontainers").
+			Body(patch).
+			Do(context.Background())
+		return result.Error()
+	}
+	return nil
+}
+
+func generateDebugContainer(pod *corev1.Pod, req EphemeralContainerRequest) (*corev1.Pod, *corev1.EphemeralContainer, error) {
+	copied := pod.DeepCopy()
+	//if len(req.DeleteContainer) > 0 {
+	//	ecs := make([]corev1.EphemeralContainer, 0)
+	//	for _, ec := range copied.Spec.EphemeralContainers {
+	//		if ec.Name != req.DeleteContainer {
+	//			ecs = append(ecs, ec)
+	//		}
+	//	}
+	//	return copied, nil, nil
+	//}
+
+	//name := "test-debugger-" + util2.Generate(5)
+	ec := &corev1.EphemeralContainer{
+		EphemeralContainerCommon: corev1.EphemeralContainerCommon{
+			Name:                     req.BasicData.ContainerName,
+			Env:                      nil,
+			Image:                    req.BasicData.Image,
+			ImagePullPolicy:          corev1.PullIfNotPresent,
+			Stdin:                    true,
+			TerminationMessagePolicy: corev1.TerminationMessageReadFile,
+			TTY:                      true,
+		},
+		TargetContainerName: req.BasicData.TargetContainerName,
+	}
+
+	copied.Spec.EphemeralContainers = append(copied.Spec.EphemeralContainers, *ec)
+	ec = &copied.Spec.EphemeralContainers[len(copied.Spec.EphemeralContainers)-1]
+	return copied, ec, nil
+
+}
+
+func (impl *K8sApplicationServiceImpl) DeletePodEphemeralContainer(req EphemeralContainerRequest) (bool, error) {
+	terminalReq := &terminal.TerminalSessionRequest{
+		PodName:       req.PodName,
+		ClusterId:     req.ClusterId,
+		Namespace:     req.Namespace,
+		ContainerName: req.BasicData.ContainerName,
+	}
+	cmds := []string{"sh", "-c", "kill 1"}
+	_, errBuf, err := impl.terminalSession.RunCmdInRemotePod(terminalReq, cmds)
+	if err != nil {
+		impl.logger.Errorw("failed to execute commands ", "err", err, "commands", cmds, "podName", req.PodName, "namespace", req.Namespace)
+		return false, err
+	}
+	errBufString := errBuf.String()
+	if errBufString != "" {
+		impl.logger.Errorw("error response on executing commands ", "err", errBufString, "commands", cmds, "podName", req.Namespace, "namespace", req.Namespace)
+		return false, err
+	}
+	return true, nil
+}
+
+func (impl *K8sApplicationServiceImpl) getCoreClientByClusterId(clusterId int) (*v1.CoreV1Client, error) {
+	clusterBean, err := impl.clusterService.FindById(clusterId)
+	if err != nil {
+		impl.logger.Errorw("defaultClusterBean err, TriggerChartSyncManual", "err", err)
+		return nil, err
+	}
+
+	clusterConfig, err := impl.clusterService.GetClusterConfig(clusterBean)
+	if err != nil {
+		impl.logger.Errorw("defaultClusterConfig err, TriggerChartSyncManual", "err", err)
+		return nil, err
+	}
+	v1Client, err := impl.K8sUtil.GetClient(clusterConfig)
+	if err != nil {
+		return nil, err
+	}
+	return v1Client, nil
 }

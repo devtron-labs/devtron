@@ -68,4 +68,8 @@ func (impl *K8sApplicationRouterImpl) InitK8sApplicationRouter(k8sAppRouter *mux
 
 	k8sAppRouter.Path("/resources/apply").
 		HandlerFunc(impl.k8sApplicationRestHandler.ApplyResources).Methods("POST")
+
+	k8sAppRouter.Path("/resources/ephemeralContainers").
+		HandlerFunc(impl.k8sApplicationRestHandler.PodEphemeralContainerHandler).Methods("POST")
+
 }

@@ -1,0 +1,117 @@
+openapi: 3.0.0
+info:
+  title: Orchestrator K8s API
+  version: 1.0.0
+paths:
+  /orchestrator/k8s/resources/ephemeralContainer:
+    post:
+      summary: Create an ephemeral container in a Kubernetes pod
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EphemeralContainerRequest"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Response"
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      summary: Delete an ephemeral container from a Kubernetes pod
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EphemeralContainerRequest"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Response"
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+components:
+  schemas:
+    EphemeralContainerRequest:
+      type: object
+      properties:
+        namespace:
+          type: string
+        clusterId:
+          type: integer
+        podName:
+          type: string
+        EphemeralBasicData:
+          type: object
+        EphemeralAdvancedData:
+          type: object
+    EphemeralBasicData:
+      type: object
+      properties:
+        image:
+          type: integer
+        targetContainerName:
+          type: string
+        containerName:
+          type: string
+    EphemeralAdvancedData:
+      type: object
+      properties:
+        manifest:
+          type: string
+    PodContainerList:
+      type: object
+      properties:
+        containers:
+          type: array
+        initContainers:
+          type: array
+        ephemeralContainers:
+          type: array
+    Response:
+      type: object
+      properties:
+        result:
+          type: PodContainerList
+        status:
+          type: string
+      required:
+        - status
+    ErrorResponse:
+      type: object
+      properties:
+        errorCode:
+          type: integer
+        errorMessage:
+          type: string
+      required:
+        - errorCode
+        - errorMessage
