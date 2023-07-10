@@ -16,7 +16,7 @@ CREATE TABLE "public"."ephemeral_container" (
 
 CREATE SEQUENCE IF NOT EXISTS id_seq_ephemeral_container_actions;
 
-CREATE TABLE public.ephemeral_container_actions (
+CREATE TABLE "public"."ephemeral_container_actions" (
     "id"                     INTEGER NOT NULL DEFAULT nextval('id_seq_ephemeral_container_actions'::regclass),
     "ephemeral_container_id" INTEGER NOT NULL,
     "action_type"            INTEGER NOT NULL,
