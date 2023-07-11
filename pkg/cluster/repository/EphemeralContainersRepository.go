@@ -1,8 +1,8 @@
 package repository
 
 import (
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
-	"go.uber.org/zap"
 	"time"
 )
 
@@ -39,26 +39,24 @@ type EphemeralContainersRepository interface {
 	FindContainerByName(clusterID int, namespace, podName, name string) (*EphemeralContainerBean, error)
 }
 
-func NewEphemeralContainersRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger, tx *pg.Tx) *EphemeralContainersImpl {
+func NewEphemeralContainersRepositoryImpl(db *pg.DB) *EphemeralContainersImpl {
 	return &EphemeralContainersImpl{
-		dbConnection: dbConnection,
-		logger:       logger,
-		tx:           tx,
+		dbConnection:        db,
+		TransactionUtilImpl: sql.NewTransactionUtilImpl(db),
 	}
 }
 
 type EphemeralContainersImpl struct {
 	dbConnection *pg.DB
-	logger       *zap.SugaredLogger
-	tx           *pg.Tx
+	*sql.TransactionUtilImpl
 }
 
 func (impl EphemeralContainersImpl) SaveData(tx *pg.Tx, model *EphemeralContainerBean) error {
-	return tx.Insert(model)
+	return tx.Insert(&model)
 }
 
 func (impl EphemeralContainersImpl) SaveAction(tx *pg.Tx, model *EphemeralContainerAction) error {
-	return tx.Insert(model)
+	return tx.Insert(&model)
 }
 
 func (impl EphemeralContainersImpl) FindContainerByName(clusterID int, namespace, podName, name string) (*EphemeralContainerBean, error) {
