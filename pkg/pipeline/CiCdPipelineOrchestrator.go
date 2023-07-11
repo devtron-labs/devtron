@@ -216,6 +216,18 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 				impl.logger.Errorw("error in getting CiEnvMappingObject ", "err", err, "ciPipelineId", createRequest.Id)
 				return nil, err
 			}
+			if createRequest.EnvironmentId != 0 {
+				createJobEnvOverrideRequest := &CreateJobEnvOverridePayload{
+					AppId:  createRequest.AppId,
+					EnvId:  createRequest.EnvironmentId,
+					UserId: userId,
+				}
+				_, err = impl.configMapService.ConfigSecretEnvironmentCreate(createJobEnvOverrideRequest)
+				if err != nil {
+					impl.logger.Errorw("error in saving env override", "createJobEnvOverrideRequest", createJobEnvOverrideRequest, "err", err)
+					return nil, err
+				}
+			}
 		}
 	}
 	// marking old scripts inactive
