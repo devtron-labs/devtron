@@ -53,11 +53,11 @@ type EphemeralContainersRepositoryImpl struct {
 }
 
 func (impl EphemeralContainersRepositoryImpl) SaveData(tx *pg.Tx, model *EphemeralContainerBean) error {
-	return tx.Insert(&model)
+	return tx.Insert(model)
 }
 
 func (impl EphemeralContainersRepositoryImpl) SaveAction(tx *pg.Tx, model *EphemeralContainerAction) error {
-	return tx.Insert(&model)
+	return tx.Insert(model)
 }
 
 func (impl EphemeralContainersRepositoryImpl) FindContainerByName(clusterID int, namespace, podName, name string) (*EphemeralContainerBean, error) {
