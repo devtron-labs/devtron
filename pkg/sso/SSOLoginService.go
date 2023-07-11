@@ -385,13 +385,13 @@ func (impl SSOLoginServiceImpl) GetByName(name string) (*bean.SSOLoginDto, error
 }
 
 func updateSecretFromBase(configData *Config, baseConfigData *Config, key string) {
-	if configData.Config[key] == "" && baseConfigData.Config[key] != "" {
+	if configData.Config[key] == "" && baseConfigData.Config[key] != nil {
 		configData.Config[key] = baseConfigData.Config[key]
 	}
 }
 
 func secureCredentialValue(configData *Config, credentialKey string) {
-	if configData.Config[credentialKey] != "" {
+	if configData.Config[credentialKey] != nil {
 		configData.Config[credentialKey] = ""
 	}
 }
