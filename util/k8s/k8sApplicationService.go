@@ -89,7 +89,7 @@ type K8sApplicationServiceImpl struct {
 	K8sApplicationServiceConfig *K8sApplicationServiceConfig
 	K8sResourceHistoryService   kubernetesResourceAuditLogs.K8sResourceHistoryService
 	terminalSession             terminal.TerminalSessionHandler
-	ephemeralContainerService   cluster.EphemeralContainerService
+	ephemeralContainerService   cluster.CreateEphemeralContainer
 }
 
 type K8sApplicationServiceConfig struct {
@@ -103,7 +103,7 @@ func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger,
 	helmAppService client.HelmAppService, K8sUtil *util.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig,
 	K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService,
 	terminalSession terminal.TerminalSessionHandler,
-	ephemeralContainerService cluster.EphemeralContainerService) *K8sApplicationServiceImpl {
+	ephemeralContainerService cluster.CreateEphemeralContainer) *K8sApplicationServiceImpl {
 	cfg := &K8sApplicationServiceConfig{}
 	err := env.Parse(cfg)
 	if err != nil {

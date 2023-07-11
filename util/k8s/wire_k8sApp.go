@@ -13,7 +13,7 @@ var K8sApplicationWireSet = wire.NewSet(
 	clusterRepository.NewEphemeralContainersRepositoryImpl,
 	wire.Bind(new(clusterRepository.EphemeralContainersRepository), new(*clusterRepository.EphemeralContainersRepositoryImpl)),
 	cluster.NewEphemeralContainerServiceImpl,
-	wire.Bind(new(cluster.EphemeralContainerService), new(*cluster.EphemeralContainerServiceImpl)),
+	wire.Bind(new(cluster.CreateEphemeralContainer), new(*cluster.EphemeralContainerServiceImpl)),
 	NewK8sApplicationRouterImpl,
 	wire.Bind(new(K8sApplicationRouter), new(*K8sApplicationRouterImpl)),
 	NewK8sApplicationRestHandlerImpl,

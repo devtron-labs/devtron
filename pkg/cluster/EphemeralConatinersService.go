@@ -27,7 +27,7 @@ type EphemeralContainerBasicData struct {
 	Image               string `json:"image"`
 }
 
-type EphemeralContainerService interface {
+type CreateEphemeralContainer interface {
 	SaveEphemeralContainer(model EphemeralContainerRequest) error
 	AuditEphemeralContainerAction(model EphemeralContainerRequest, actionType repository.ContainerAction) error
 	// send action type 1 in case of used and 2 in case of terminated
