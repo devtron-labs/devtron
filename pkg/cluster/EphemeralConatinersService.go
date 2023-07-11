@@ -117,7 +117,6 @@ func (impl *EphemeralContainerServiceImpl) UpdateDeleteEphemeralContainer(model 
 		bean.IsExternallyCreated = true
 		err = impl.repository.SaveData(tx, &bean)
 		if err != nil {
-			_ = tx.Rollback() // Rollback the transaction if an error occurs during SaveData
 			impl.logger.Errorw("Failed to save ephemeral container", "error", err)
 			return err
 		}
