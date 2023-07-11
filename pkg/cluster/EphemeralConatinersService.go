@@ -66,7 +66,7 @@ func (impl *EphemeralContainerServiceImpl) SaveEphemeralContainer(tx *pg.Tx, mod
 	}
 
 	var auditLogBean repository.EphemeralContainerAction
-	auditLogBean.EphemeralContainerID = bean.Id
+	auditLogBean.EphemeralContainerId = bean.Id
 	auditLogBean.ActionType = ActionCreate
 	auditLogBean.PerformedAt = time.Now()
 	auditLogBean.PerformedBy = model.UserId
@@ -103,9 +103,9 @@ func (impl *EphemeralContainerServiceImpl) UpdateDeleteEphemeralContainer(tx *pg
 			impl.logger.Errorw("Failed to save ephemeral container", "error", err)
 			return err
 		}
-		auditLogBean.EphemeralContainerID = bean.Id
+		auditLogBean.EphemeralContainerId = bean.Id
 	} else {
-		auditLogBean.EphemeralContainerID = container.Id
+		auditLogBean.EphemeralContainerId = container.Id
 	}
 
 	auditLogBean.ActionType = actionType
