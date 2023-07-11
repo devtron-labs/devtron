@@ -1277,21 +1277,30 @@ func (impl *K8sApplicationServiceImpl) GetPodContainersList(clusterId int, names
 		impl.logger.Errorw("error in getting pod", "clusterId", clusterId, "namespace", namespace, "podName", podName, "err", err)
 		return nil, err
 	}
+	ephemeralContainerStatusMap := make(map[string]bool)
+	for _, c := range pod.Status.EphemeralContainerStatuses {
+		//c.state contains three states running,waiting and terminated
+		// at any point of time only one state will be there
+		if c.State.Running != nil {
+			ephemeralContainerStatusMap[c.Name] = true
+		}
+	}
+	containers := make([]string, len(pod.Spec.Containers))
+	initContainers := make([]string, len(pod.Spec.InitContainers))
+	ephemeralContainers := make([]string, 0, len(pod.Spec.EphemeralContainers))
 
-	containers := []string{}
-	initContainers := []string{}
-	ephemeralContainers := []string{}
-
-	for _, c := range pod.Spec.Containers {
-		containers = append(containers, c.Name)
+	for i, c := range pod.Spec.Containers {
+		containers[i] = c.Name
 	}
 
 	for _, ec := range pod.Spec.EphemeralContainers {
-		ephemeralContainers = append(ephemeralContainers, ec.Name)
+		if _, ok := ephemeralContainerStatusMap[ec.Name]; ok {
+			ephemeralContainers = append(ephemeralContainers, ec.Name)
+		}
 	}
 
-	for _, ic := range pod.Spec.InitContainers {
-		ephemeralContainers = append(ephemeralContainers, ic.Name)
+	for i, ic := range pod.Spec.InitContainers {
+		ephemeralContainers[i] = ic.Name
 	}
 
 	return &PodContainerList{
