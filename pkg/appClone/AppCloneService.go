@@ -665,9 +665,9 @@ func (impl *AppCloneServiceImpl) createWfMappings(refWfMappings []appWorkflow.Ap
 			impl.logger.Debugw("cd pipeline created", "pipeline", pipeline)
 		}
 		if len(webhookMappings) > 0 {
-			for _, webhookMappings := range webhookMappings {
+			for _, refWebhookMappings := range webhookMappings {
 				cdCloneReq := &cloneCdPipelineRequest{
-					refCdPipelineId: webhookMappings.ComponentId,
+					refCdPipelineId: refWebhookMappings.ComponentId,
 					refAppId:        oldAppId,
 					appId:           newAppId,
 					userId:          userId,
