@@ -1162,7 +1162,7 @@ func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req Ephemera
 	if err != nil {
 		return fmt.Errorf("error creating JSON for pod: %v", err)
 	}
-	debugPod, debugContainer, err := generateDebugContainer(pod, req)
+	debugPod, debugContainer, err := impl.generateDebugContainer(pod, req)
 	if err != nil {
 		impl.logger.Errorw("error in generateDebugContainer", "request", req, "err", err)
 		return err
@@ -1203,23 +1203,30 @@ func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req Ephemera
 	return nil
 }
 
-func generateDebugContainer(pod *corev1.Pod, req EphemeralContainerRequest) (*corev1.Pod, *corev1.EphemeralContainer, error) {
+func (impl *K8sApplicationServiceImpl) generateDebugContainer(pod *corev1.Pod, req EphemeralContainerRequest) (*corev1.Pod, *corev1.EphemeralContainer, error) {
 	copied := pod.DeepCopy()
-
-	name := req.BasicData.ContainerName + util2.Generate(5)
-	ec := &corev1.EphemeralContainer{
-		EphemeralContainerCommon: corev1.EphemeralContainerCommon{
-			Name:                     name,
-			Env:                      nil,
-			Image:                    req.BasicData.Image,
-			ImagePullPolicy:          corev1.PullIfNotPresent,
-			Stdin:                    true,
-			TerminationMessagePolicy: corev1.TerminationMessageReadFile,
-			TTY:                      true,
-		},
-		TargetContainerName: req.BasicData.TargetContainerName,
+	ec := &corev1.EphemeralContainer{}
+	if req.AdvancedData != nil {
+		err := json.Unmarshal([]byte(req.AdvancedData.Manifest), ec)
+		if err != nil {
+			impl.logger.Errorw("error occurred i unMarshaling advanced ephemeral data", "err", err, "advancedData", req.AdvancedData.Manifest)
+			return copied, ec, err
+		}
+	} else {
+		ec = &corev1.EphemeralContainer{
+			EphemeralContainerCommon: corev1.EphemeralContainerCommon{
+				Name:                     req.BasicData.ContainerName,
+				Env:                      nil,
+				Image:                    req.BasicData.Image,
+				ImagePullPolicy:          corev1.PullIfNotPresent,
+				Stdin:                    true,
+				TerminationMessagePolicy: corev1.TerminationMessageReadFile,
+				TTY:                      true,
+			},
+			TargetContainerName: req.BasicData.TargetContainerName,
+		}
 	}
-
+	ec.Name = ec.Name + util2.Generate(5)
 	copied.Spec.EphemeralContainers = append(copied.Spec.EphemeralContainers, *ec)
 	ec = &copied.Spec.EphemeralContainers[len(copied.Spec.EphemeralContainers)-1]
 	return copied, ec, nil
