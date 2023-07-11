@@ -41,7 +41,8 @@ type K8sApplicationRestHandler interface {
 	GetResourceList(w http.ResponseWriter, r *http.Request)
 	ApplyResources(w http.ResponseWriter, r *http.Request)
 	RotatePod(w http.ResponseWriter, r *http.Request)
-	PodEphemeralContainerHandler(w http.ResponseWriter, r *http.Request)
+	CreateEphemeralContainer(w http.ResponseWriter, r *http.Request)
+	DeleteEphemeralContainer(w http.ResponseWriter, r *http.Request)
 }
 
 type K8sApplicationRestHandlerImpl struct {
@@ -828,7 +829,7 @@ func (handler *K8sApplicationRestHandlerImpl) verifyRbacForCluster(token string,
 	return handler.verifyRbacForResource(token, clusterName, k8sRequest.ResourceIdentifier, casbinAction)
 }
 
-func (handler *K8sApplicationRestHandlerImpl) PodEphemeralContainerHandler(w http.ResponseWriter, r *http.Request) {
+func (handler *K8sApplicationRestHandlerImpl) CreateEphemeralContainer(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	var request EphemeralContainerRequest
 	err := decoder.Decode(&request)
@@ -837,11 +838,86 @@ func (handler *K8sApplicationRestHandlerImpl) PodEphemeralContainerHandler(w htt
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	if len(request.BasicData.ContainerName) > 0 {
-		_, err := handler.k8sApplicationService.DeletePodEphemeralContainer(request)
-		common.WriteJsonResp(w, err, nil, http.StatusOK)
+	//rbac applied in below function
+	resourceRequestBean := handler.handleEphemeralRBAC(w, r)
+	if resourceRequestBean == nil {
 		return
 	}
-	err = handler.k8sApplicationService.UpdatPodEphemeralContainers(request)
-	common.WriteJsonResp(w, err, nil, http.StatusOK)
+	if resourceRequestBean.ClusterId != request.ClusterId {
+		common.WriteJsonResp(w, errors.New("clusterId mismatch in param and request body"), nil, http.StatusBadRequest)
+		return
+	}
+	err = handler.k8sApplicationService.CreatePodEphemeralContainers(request)
+	podContainerList, err := handler.k8sApplicationService.GetPodContainersList(request.ClusterId, request.Namespace, request.PodName)
+	if err != nil {
+		handler.logger.Errorw("error in fetching containers list", "clusterId", request.ClusterId, "namespace", request.Namespace, "podName", request.PodName, "error", err)
+		//not returning error since,we successfully created the ephemeral container
+	}
+	common.WriteJsonResp(w, err, podContainerList, http.StatusOK)
+}
+
+func (handler *K8sApplicationRestHandlerImpl) DeleteEphemeralContainer(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	var request EphemeralContainerRequest
+	err := decoder.Decode(&request)
+	if err != nil {
+		handler.logger.Errorw("error in decoding request body", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	//rbac applied in below function
+	resourceRequestBean := handler.handleEphemeralRBAC(w, r)
+	if resourceRequestBean == nil {
+		return
+	}
+	if resourceRequestBean.ClusterId != request.ClusterId {
+		common.WriteJsonResp(w, errors.New("clusterId mismatch in param and request body"), nil, http.StatusBadRequest)
+		return
+	}
+	_, err = handler.k8sApplicationService.DeletePodEphemeralContainer(request)
+	podContainerList, err := handler.k8sApplicationService.GetPodContainersList(request.ClusterId, request.Namespace, request.PodName)
+	if err != nil {
+		handler.logger.Errorw("error in fetching containers list", "clusterId", request.ClusterId, "namespace", request.Namespace, "podName", request.PodName, "error", err)
+		//not returning error since,we successfully created the ephemeral container
+	}
+	common.WriteJsonResp(w, err, podContainerList, http.StatusOK)
+
+}
+
+func (handler *K8sApplicationRestHandlerImpl) handleEphemeralRBAC(w http.ResponseWriter, r *http.Request) *ResourceRequestBean {
+	token := r.Header.Get("token")
+	_, resourceRequestBean, err := handler.k8sApplicationService.ValidateTerminalRequestQuery(r)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return resourceRequestBean
+	}
+	if resourceRequestBean.AppIdentifier != nil {
+		// RBAC enforcer applying For Helm App
+		rbacObject, rbacObject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(resourceRequestBean.AppIdentifier.ClusterId, resourceRequestBean.AppIdentifier.Namespace, resourceRequestBean.AppIdentifier.ReleaseName)
+		ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject2)
+
+		if !ok {
+			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
+			return resourceRequestBean
+		}
+		//RBAC enforcer Ends
+	} else if resourceRequestBean.DevtronAppIdentifier != nil {
+		// RBAC enforcer applying For Devtron App
+		envObject := handler.enforcerUtil.GetEnvRBACNameByAppId(resourceRequestBean.DevtronAppIdentifier.AppId, resourceRequestBean.DevtronAppIdentifier.EnvId)
+		if !handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, envObject) {
+			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
+			return resourceRequestBean
+		}
+		//RBAC enforcer Ends
+	} else if resourceRequestBean.AppIdentifier == nil && resourceRequestBean.DevtronAppIdentifier == nil && resourceRequestBean.ClusterId > 0 {
+		//RBAC enforcer applying for Resource Browser
+		if !handler.handleRbac(r, w, *resourceRequestBean, token, casbin.ActionUpdate) {
+			return resourceRequestBean
+		}
+		//RBAC enforcer Ends
+	} else {
+		common.WriteJsonResp(w, errors.New("can not get terminal session as target cluster is not provided"), nil, http.StatusBadRequest)
+		return resourceRequestBean
+	}
+	return resourceRequestBean
 }
