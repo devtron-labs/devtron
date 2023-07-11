@@ -71,10 +71,10 @@ func (impl *K8sApplicationRouterImpl) InitK8sApplicationRouter(k8sAppRouter *mux
 
 	//create/delete ephemeral containers API's
 	k8sAppRouter.Path("/resources/ephemeralContainers").
-		Queries("appLevel", "{appLevel}").
+		Queries("identifier", "{identifier}").
 		HandlerFunc(impl.k8sApplicationRestHandler.CreateEphemeralContainer).Methods("POST")
 	k8sAppRouter.Path("/resources/ephemeralContainers").
-		Queries("appLevel", "{appLevel}").
+		Queries("identifier", "{identifier}").
 		HandlerFunc(impl.k8sApplicationRestHandler.DeleteEphemeralContainer).Methods("DELETE")
 
 }
