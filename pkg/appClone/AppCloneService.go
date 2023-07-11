@@ -193,20 +193,28 @@ func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context 
 		return nil, err
 	}
 	if isSameProject {
-		_, err = impl.CreateEnvCm(context, cloneReq.RefAppId, newAppId, userId)
-		if err != nil {
-			impl.logger.Errorw("error in creating env cm", "err", err)
-			return nil, err
-		}
-		_, err = impl.CreateEnvSecret(context, cloneReq.RefAppId, newAppId, userId)
-		if err != nil {
-			impl.logger.Errorw("error in creating env secret", "err", err)
-			return nil, err
-		}
-		_, err = impl.createEnvOverride(cloneReq.RefAppId, newAppId, userId, context)
-		if err != nil {
-			impl.logger.Errorw("error in cloning  env override", "err", err)
-			return nil, err
+		if createReq.AppType != helper.Job {
+			_, err = impl.CreateEnvCm(context, cloneReq.RefAppId, newAppId, userId)
+			if err != nil {
+				impl.logger.Errorw("error in creating env cm", "err", err)
+				return nil, err
+			}
+			_, err = impl.CreateEnvSecret(context, cloneReq.RefAppId, newAppId, userId)
+			if err != nil {
+				impl.logger.Errorw("error in creating env secret", "err", err)
+				return nil, err
+			}
+			_, err = impl.createEnvOverride(cloneReq.RefAppId, newAppId, userId, context)
+			if err != nil {
+				impl.logger.Errorw("error in cloning  env override", "err", err)
+				return nil, err
+			}
+		} else {
+			_, err := impl.configMapService.ConfigSecretEnvironmentClone(cloneReq.RefAppId, newAppId, userId)
+			if err != nil {
+				impl.logger.Errorw("error in cloning cm cs env override", "err", err)
+				return nil, err
+			}
 		}
 	}
 	_, err = impl.CreateWf(cloneReq.RefAppId, newAppId, userId, gitMaerialMap, context, isSameProject)

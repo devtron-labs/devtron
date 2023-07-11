@@ -130,6 +130,7 @@ func (impl ConfigMapRepositoryImpl) GetAllEnvLevel() ([]ConfigMapEnvModel, error
 }
 
 func (impl ConfigMapRepositoryImpl) UpdateEnvLevel(model *ConfigMapEnvModel) (*ConfigMapEnvModel, error) {
+	model.UpdatedOn = time.Now()
 	err := impl.dbConnection.Update(model)
 	if err != nil {
 		impl.Logger.Errorw("err on config map ", "err;", err)

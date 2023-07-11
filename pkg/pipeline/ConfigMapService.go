@@ -171,6 +171,7 @@ type ConfigMapService interface {
 	ConfigSecretEnvironmentCreate(createJobEnvOverrideRequest *CreateJobEnvOverridePayload) (*CreateJobEnvOverridePayload, error)
 	ConfigSecretEnvironmentDelete(createJobEnvOverrideRequest *CreateJobEnvOverridePayload) (*CreateJobEnvOverridePayload, error)
 	ConfigSecretEnvironmentGet(appId int) ([]JobEnvOverrideResponse, error)
+	ConfigSecretEnvironmentClone(appId int, cloneAppId int, userId int32) ([]chartConfig.ConfigMapEnvModel, error)
 }
 
 type ConfigMapServiceImpl struct {
@@ -1829,7 +1830,7 @@ func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentCreate(createJobEnvOverr
 	model.UpdatedBy = createJobEnvOverrideRequest.UserId
 	configMap, err = impl.configMapRepository.CreateEnvLevel(model)
 	if err != nil {
-		impl.logger.Errorw("error while creating app level", "error", err)
+		impl.logger.Errorw("error while creating env level", "error", err)
 		return nil, err
 	}
 	return createJobEnvOverrideRequest, nil
@@ -1848,9 +1849,10 @@ func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentDelete(createJobEnvOverr
 	configMap.Deleted = true
 	configMap.ConfigMapData = ""
 	configMap.SecretData = ""
+	configMap.UpdatedBy = createJobEnvOverrideRequest.UserId
 	_, err = impl.configMapRepository.UpdateEnvLevel(configMap)
 	if err != nil {
-		impl.logger.Errorw("error while creating app level", "error", err)
+		impl.logger.Errorw("error while updating env level", "error", err)
 		return nil, err
 	}
 	return createJobEnvOverrideRequest, nil
@@ -1892,6 +1894,40 @@ func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentGet(appId int) ([]JobEnv
 		jobEnvOverride.Id = cm.Id
 		jobEnvOverride.EnvironmentName = envIdNameMap[cm.EnvironmentId]
 		jobEnvOverrideResponse = append(jobEnvOverrideResponse, jobEnvOverride)
+	}
+
+	return jobEnvOverrideResponse, nil
+}
+
+func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentClone(appId int, cloneAppId int, userId int32) ([]chartConfig.ConfigMapEnvModel, error) {
+	configMap, err := impl.configMapRepository.GetEnvLevelByAppId(appId)
+	if err != nil {
+		impl.logger.Errorw("error while fetching envConfig from db", "error", err)
+		return nil, err
+	}
+	var jobEnvOverrideResponse []chartConfig.ConfigMapEnvModel
+
+	if err != nil {
+		impl.logger.Errorw("error while fetching environments from db", "error", err)
+		return nil, err
+	}
+
+	for _, cm := range configMap {
+		model := &chartConfig.ConfigMapEnvModel{
+			AppId:         cloneAppId,
+			EnvironmentId: cm.EnvironmentId,
+			ConfigMapData: cm.ConfigMapData,
+			SecretData:    cm.SecretData,
+			Deleted:       false,
+		}
+		model.CreatedBy = userId
+		model.UpdatedBy = userId
+		_, err := impl.configMapRepository.CreateEnvLevel(model)
+		if err != nil {
+			impl.logger.Errorw("error while creating env level", "error", err)
+			return nil, err
+		}
+		jobEnvOverrideResponse = append(jobEnvOverrideResponse, *model)
 	}
 
 	return jobEnvOverrideResponse, nil
