@@ -162,6 +162,8 @@ type PipelineBuilder interface {
 	GetExternalCiByEnvironment(request appGroup2.AppGroupingRequest) (ciConfig []*bean.ExternalCiConfig, err error)
 	GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) (*cluster.AppGroupingResponse, error)
 	GetAppListForEnvironment(request appGroup2.AppGroupingRequest) ([]*AppBean, error)
+	GetDeploymentConfigMap(environmentId int) (map[string]bool, error)
+	IsGitopsConfigured() (bool, error)
 }
 type PipelineBuilderImpl struct {
 	logger                        *zap.SugaredLogger
@@ -1750,27 +1752,26 @@ func (impl PipelineBuilderImpl) IsGitOpsRequiredForCD(pipelineCreateRequest *bea
 
 func (impl PipelineBuilderImpl) SetPipelineDeploymentAppType(pipelineCreateRequest *bean.CdPipelines, isGitOpsConfigured bool, deploymentTypeValidationConfig map[string]bool) {
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
-		isGitOpsAllowed := false
-		if len(deploymentTypeValidationConfig) == 0 {
-			// if not config, then default behaviour
-			isGitOpsAllowed = true
+		// by default both deployment app type are allowed
+		AllowedDeploymentAppTypes := map[string]bool{
+			util.PIPELINE_DEPLOYMENT_TYPE_ACD:  true,
+			util.PIPELINE_DEPLOYMENT_TYPE_HELM: true,
 		}
 		for k, v := range deploymentTypeValidationConfig {
-			if k == util.PIPELINE_DEPLOYMENT_TYPE_ACD && v {
-				isGitOpsAllowed = true
-			}
+			// rewriting allowed deployment types based on config provided by user
+			AllowedDeploymentAppTypes[k] = v
 		}
 		if !impl.deploymentConfig.IsInternalUse {
-			if isGitOpsConfigured && isGitOpsAllowed {
+			if isGitOpsConfigured && AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_ACD] {
 				pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
-			} else {
+			} else if AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_HELM] {
 				pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
 			}
 		}
 		if pipeline.DeploymentAppType == "" {
-			if isGitOpsConfigured && isGitOpsAllowed {
+			if isGitOpsConfigured && AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_ACD] {
 				pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
-			} else {
+			} else if AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_HELM] {
 				pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
 			}
 		}
@@ -1784,7 +1785,7 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
 		// if no deployment app type sent from user then we'll not validate
-		deploymentConfig, err := impl.getDeploymentConfigMap(pipeline.EnvironmentId)
+		deploymentConfig, err := impl.GetDeploymentConfigMap(pipeline.EnvironmentId)
 		if err != nil {
 			return nil, err
 		}
@@ -1882,7 +1883,7 @@ func validDeploymentConfigReceived(deploymentConfig map[string]bool, deploymentT
 	return false
 }
 
-func (impl PipelineBuilderImpl) getDeploymentConfigMap(environmentId int) (map[string]bool, error) {
+func (impl PipelineBuilderImpl) GetDeploymentConfigMap(environmentId int) (map[string]bool, error) {
 	var deploymentConfig map[string]map[string]bool
 	var deploymentConfigEnv map[string]bool
 	deploymentConfigValues, err := impl.attributesRepository.FindByKey(attributes.DEPLOYMENT_APP_TYPE_ALLOWED_CONFIG)

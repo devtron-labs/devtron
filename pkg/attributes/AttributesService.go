@@ -19,6 +19,8 @@ package attributes
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -248,6 +250,23 @@ func (impl AttributesServiceImpl) AddDeploymentEnforcementConfig(request *Attrib
 	if terr != nil {
 		return request, terr
 	}
+	newConfig := make(map[string]map[string]bool)
+	err = json.Unmarshal([]byte(request.Value), &newConfig)
+	if err != nil {
+		return request, err
+	}
+	for environmentId, envConfig := range newConfig {
+		AllowedDeploymentAppTypes := 0
+		for _, allowed := range envConfig {
+			if allowed {
+				AllowedDeploymentAppTypes++
+			}
+		}
+		if AllowedDeploymentAppTypes == 0 && len(envConfig) > 0 {
+			return request, errors.New(fmt.Sprintf("Received invalid config for environment with id %s, "+
+				"at least one deployment app type should be allowed", environmentId))
+		}
+	}
 	// Rollback tx on error.
 	defer tx.Rollback()
 	if err == pg.ErrNoRows {
@@ -264,21 +283,14 @@ func (impl AttributesServiceImpl) AddDeploymentEnforcementConfig(request *Attrib
 		}
 	} else {
 
-		initialConfig := make(map[string]map[string]bool)
-		initialConfigString := model.Value
+		oldConfig := make(map[string]map[string]bool)
+		oldConfigString := model.Value
 		//initialConfigString = `{ "1": {"argo_cd": true}}`
-		err = json.Unmarshal([]byte(initialConfigString), &initialConfig)
+		err = json.Unmarshal([]byte(oldConfigString), &oldConfig)
 		if err != nil {
 			return request, err
 		}
-
-		newConfig := make(map[string]map[string]bool)
-		err = json.Unmarshal([]byte(request.Value), &newConfig)
-		if err != nil {
-			return request, err
-		}
-
-		mergedConfig := initialConfig
+		mergedConfig := oldConfig
 		for k, v := range newConfig {
 			mergedConfig[k] = v
 		}

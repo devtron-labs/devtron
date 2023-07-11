@@ -59,7 +59,7 @@ func TestPipelineBuilderImpl_validateDeploymentAppType(t *testing.T) {
 		deploymentConfig := make(map[string]bool)
 		deploymentConfig["argo_cd"] = true
 		deploymentConfig["helm"] = true
-		_, err := impl.getDeploymentConfigMap(1)
+		_, err := impl.GetDeploymentConfigMap(1)
 		apiErr, _ := err.(*util.ApiError)
 		assert.Equal(t, http.StatusInternalServerError, apiErr.HttpStatusCode)
 	})
