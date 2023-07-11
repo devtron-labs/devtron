@@ -120,6 +120,8 @@ type WorkflowRequest struct {
 	IsPvcMounted               bool                              `json:"IsPvcMounted"`
 	ExtraEnvironmentVariables  map[string]string                 `json:"extraEnvironmentVariables"`
 	EnableBuildContext         bool                              `json:"enableBuildContext"`
+	ImageRetryCount            int                               `json:"imageRetryCount"`
+	ImageRetryInterval         int                               `json:"imageRetryInterval"`
 }
 
 const (
