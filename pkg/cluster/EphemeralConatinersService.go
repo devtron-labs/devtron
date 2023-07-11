@@ -53,7 +53,7 @@ func (impl *EphemeralContainerServiceImpl) SaveEphemeralContainer(model Ephemera
 		return err
 	}
 	if container != nil {
-		impl.logger.Errorw("Container already present in the provided pod")
+		impl.logger.Errorw("Container already present in the provided pod", "podName", container.PodName)
 		return errors.New("container already present in the provided pod")
 	}
 	tx, err := impl.repository.StartTx()
