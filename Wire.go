@@ -63,6 +63,7 @@ import (
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/enterprise/api/drafts"
 	"github.com/devtron-labs/devtron/enterprise/api/globalTag"
+	"github.com/devtron-labs/devtron/enterprise/api/protect"
 	app3 "github.com/devtron-labs/devtron/enterprise/pkg/app"
 	pipeline3 "github.com/devtron-labs/devtron/enterprise/pkg/pipeline"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -152,6 +153,7 @@ func InitializeApp() (*App, error) {
 		globalTag.GlobalTagWireSet,
 		globalPolicy.GlobalPolicyWireSet,
 		drafts.DraftsWireSet,
+		protect.ProtectWireSet,
 		// -------wireset end ----------
 		//-------
 		gitSensor.GetConfig,

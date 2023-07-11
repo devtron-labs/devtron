@@ -14,3 +14,10 @@ type ResourceType int
 const (
 	ConfigProtectionResourceType ResourceType = 0
 )
+
+type ResourceProtectRequest struct {
+	AppId           int             `json:"appId" validate:"number,required"`
+	EnvId           int             `json:"envId" validate:"number,required"`
+	ProtectionState ProtectionState `json:"state" validate:"number,required"`
+	UserId          int32           `json:"-"`
+}

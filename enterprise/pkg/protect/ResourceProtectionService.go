@@ -2,22 +2,29 @@ package protect
 
 import "go.uber.org/zap"
 
-type ConfigProtectionService interface {
-	ConfigureConfigProtection(configProtectionState ProtectionState, appId int, envId int)
+type ResourceProtectionService interface {
+	ConfigureResourceProtection(request *ResourceProtectRequest) error
 }
 
-type ConfigProtectionServiceImpl struct {
-	logger                     *zap.SugaredLogger
-	configProtectionRepository ResourceProtectionRepository
+type ResourceProtectionServiceImpl struct {
+	logger                       *zap.SugaredLogger
+	resourceProtectionRepository ResourceProtectionRepository
 }
 
-func NewConfigProtectionServiceImpl(logger *zap.SugaredLogger, configProtectionRepository ResourceProtectionRepository) *ConfigProtectionServiceImpl {
-	return &ConfigProtectionServiceImpl{
-		logger:                     logger,
-		configProtectionRepository: configProtectionRepository,
+func NewResourceProtectionServiceImpl(logger *zap.SugaredLogger, resourceProtectionRepository ResourceProtectionRepository) *ResourceProtectionServiceImpl {
+	return &ResourceProtectionServiceImpl{
+		logger:                       logger,
+		resourceProtectionRepository: resourceProtectionRepository,
 	}
 }
 
-func (impl ConfigProtectionServiceImpl) ConfigureConfigProtection(configProtectionState ProtectionState, appId int, envId int) {
+func (impl ResourceProtectionServiceImpl) ConfigureResourceProtection(request *ResourceProtectRequest) error {
+	impl.logger.Infow("configuring resource protection", "request", request)
+	err := impl.resourceProtectionRepository.ConfigureResourceProtection(request.AppId, request.EnvId, request.ProtectionState, request.UserId)
+	if err != nil {
+		return err
+	}
+	// need to inform listeners
 
+	return nil
 }
