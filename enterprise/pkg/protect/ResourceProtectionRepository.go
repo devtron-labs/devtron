@@ -76,7 +76,8 @@ func (repo *ResourceProtectionRepositoryImpl) ConfigureResourceProtection(appId 
 		if err != nil {
 			return err
 		}
-		result, err := repo.dbConnection.Model(protectionStateDto).Set("protection_state", state).Set("updated_on", currentTime).Set("updated_by", userId).
+		result, err := repo.dbConnection.Model(protectionStateDto).Set("protection_state", state).
+			Set("updated_on", currentTime).Set("updated_by", userId).
 			Where("app_id = ?", appId).
 			Where("env_id = ?", envId).
 			Update()
