@@ -419,22 +419,6 @@ func (impl *TerminalSessionHandlerImpl) GetTerminalSession(req *TerminalSessionR
 	return http.StatusOK, &TerminalMessage{SessionID: sessionID}, nil
 }
 
-//func (impl *TerminalSessionHandlerImpl) getClientConfigV2() (*rest.Config, *kubernetes.Clientset, error) {
-//	config, err := impl.k8sUtil.get(true)
-//	if err != nil {
-//		return nil, nil, err
-//	}
-//	k8sHttpClient, err := util.OverrideK8sHttpClientWithTracer(config)
-//	if err != nil {
-//		return nil, nil, err
-//	}
-//	client, err := kubernetes.NewForConfigAndClient(config, k8sHttpClient)
-//	if err != nil {
-//		return nil, nil, err
-//	}
-//
-//	return config, client, err
-//}
 func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequest) (*rest.Config, *kubernetes.Clientset, error) {
 	var clusterBean *cluster.ClusterBean
 	var err error
