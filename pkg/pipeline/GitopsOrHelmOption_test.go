@@ -57,6 +57,7 @@ func TestGitopsOrHelmOption(t *testing.T) {
 		isGitOpsConfigured := true
 		deploymentConfig := make(map[string]bool)
 		deploymentConfig["argo_cd"] = true
+		deploymentConfig["helm"] = false
 		pipelineBuilderService.SetPipelineDeploymentAppType(pipelineCreateRequest, isGitOpsConfigured, deploymentConfig)
 
 		for _, pipeline := range pipelineCreateRequest.Pipelines {
@@ -111,6 +112,7 @@ func TestGitopsOrHelmOption(t *testing.T) {
 		isGitOpsConfigured := true
 		deploymentConfig := make(map[string]bool)
 		deploymentConfig["helm"] = true
+		deploymentConfig["argo_cd"] = false
 		pipelineBuilderService.SetPipelineDeploymentAppType(pipelineCreateRequest, isGitOpsConfigured, deploymentConfig)
 
 		for _, pipeline := range pipelineCreateRequest.Pipelines {

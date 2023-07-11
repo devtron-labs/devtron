@@ -25,15 +25,15 @@ func TestPipelineBuilderImpl_validateDeploymentAppType(t *testing.T) {
 			DeploymentAppType: "SomeAppType",
 		}
 
-		mockDeploymentConfigConfig := &repository.Attributes{
-			Id:       1,
-			Key:      "2",
-			Value:    "{\"argo_cd\": true, \"helm\": true}",
-			Active:   false,
-			AuditLog: sql.AuditLog{},
-		}
-		mockError := error(nil)
-		attributesRepoMock.On("FindByKey", mock.Anything).Return(mockDeploymentConfigConfig, mockError)
+		//mockDeploymentConfigConfig := &repository.Attributes{
+		//	Id:       1,
+		//	Key:      "2",
+		//	Value:    "{\"argo_cd\": true, \"helm\": true}",
+		//	Active:   false,
+		//	AuditLog: sql.AuditLog{},
+		//}
+		//mockError := error(nil)
+		//attributesRepoMock.On("FindByKey", mock.Anything).Return(mockDeploymentConfigConfig, mockError)
 		deploymentConfig := make(map[string]bool)
 		deploymentConfig["argo_cd"] = true
 		deploymentConfig["helm"] = true
@@ -75,16 +75,15 @@ func TestPipelineBuilderImpl_validateDeploymentAppType(t *testing.T) {
 			DeploymentAppType: "SomeAppType",
 		}
 
-		mockDeploymentConfig := &repository.Attributes{
-			Id:       1,
-			Key:      "123",
-			Value:    "{\"argo_cd\": true, \"helm\": true}",
-			Active:   false,
-			AuditLog: sql.AuditLog{},
-		}
-		mockError := error(nil)
-		attributesRepoMock.On("FindByKey", mock.Anything).Return(mockDeploymentConfig, mockError)
-
+		//mockDeploymentConfig := &repository.Attributes{
+		//	Id:       1,
+		//	Key:      "123",
+		//	Value:    "{\"argo_cd\": true, \"helm\": true}",
+		//	Active:   false,
+		//	AuditLog: sql.AuditLog{},
+		//}
+		//mockError := error(nil)
+		//attributesRepoMock.On("FindByKey", mock.Anything).Return(mockDeploymentConfig, mockError)
 		deploymentConfig := make(map[string]bool)
 		deploymentConfig["argo_cd"] = true
 		deploymentConfig["helm"] = true
@@ -105,18 +104,18 @@ func TestPipelineBuilderImpl_validateDeploymentAppType(t *testing.T) {
 			DeploymentAppType: "helm",
 		}
 
-		mockDeploymentConfigConfig := &repository.Attributes{
-			Id:       1,
-			Key:      "123",
-			Value:    "{\"argo_cd\": false, \"helm\": true}",
-			Active:   false,
-			AuditLog: sql.AuditLog{},
-		}
-		mockError := error(nil)
+		//mockDeploymentConfigConfig := &repository.Attributes{
+		//	Id:       1,
+		//	Key:      "123",
+		//	Value:    "{\"argo_cd\": false, \"helm\": true}",
+		//	Active:   false,
+		//	AuditLog: sql.AuditLog{},
+		//}
+		//mockError := error(nil)
 		deploymentConfig := make(map[string]bool)
 		deploymentConfig["argo_cd"] = false
 		deploymentConfig["helm"] = true
-		attributesRepoMock.On("FindByKey", mock.Anything).Return(mockDeploymentConfigConfig, mockError)
+		//attributesRepoMock.On("FindByKey", mock.Anything).Return(mockDeploymentConfigConfig, mockError)
 
 		err := impl.validateDeploymentAppType(pipeline, deploymentConfig)
 
@@ -134,16 +133,16 @@ func TestPipelineBuilderImpl_validateDeploymentAppType(t *testing.T) {
 			DeploymentAppType: "SomeOtherAppType",
 		}
 
-		mockDeploymentConfigConfig := &repository.Attributes{
-			Id:       1,
-			Key:      "123",
-			Value:    "{\"argo_cd\": false, \"helm\": true}",
-			Active:   false,
-			AuditLog: sql.AuditLog{},
-		}
+		//mockDeploymentConfigConfig := &repository.Attributes{
+		//	Id:       1,
+		//	Key:      "123",
+		//	Value:    "{\"argo_cd\": false, \"helm\": true}",
+		//	Active:   false,
+		//	AuditLog: sql.AuditLog{},
+		//}
 
-		mockError := error(nil)
-		attributesRepoMock.On("FindByKey", mock.Anything).Return(mockDeploymentConfigConfig, mockError)
+		//mockError := error(nil)
+		//attributesRepoMock.On("FindByKey", mock.Anything).Return(mockDeploymentConfigConfig, mockError)
 		deploymentConfig := make(map[string]bool)
 		deploymentConfig["argo_cd"] = false
 		deploymentConfig["helm"] = true
