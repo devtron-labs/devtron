@@ -1259,7 +1259,7 @@ func (impl *K8sApplicationServiceImpl) TerminatePodEphemeralContainer(req cluste
 
 	if err != nil {
 
-		err = impl.ephemeralContainerService.UpdateDeleteEphemeralContainer(req, repository.ActionTerminate)
+		err = impl.ephemeralContainerService.AuditEphemeralContainerAction(req, repository.ActionTerminate)
 		if err != nil {
 			impl.logger.Errorw("error in saving ephemeral container data", "err", err)
 			return true, err

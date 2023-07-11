@@ -29,7 +29,7 @@ type EphemeralContainerBasicData struct {
 
 type EphemeralContainerService interface {
 	SaveEphemeralContainer(model EphemeralContainerRequest) error
-	UpdateDeleteEphemeralContainer(model EphemeralContainerRequest, actionType repository.ContainerAction) error
+	AuditEphemeralContainerAction(model EphemeralContainerRequest, actionType repository.ContainerAction) error
 	// send action type 1 in case of used and 2 in case of terminated
 }
 
@@ -93,7 +93,7 @@ func (impl *EphemeralContainerServiceImpl) SaveEphemeralContainer(model Ephemera
 	return nil
 }
 
-func (impl *EphemeralContainerServiceImpl) UpdateDeleteEphemeralContainer(model EphemeralContainerRequest, actionType repository.ContainerAction) error {
+func (impl *EphemeralContainerServiceImpl) AuditEphemeralContainerAction(model EphemeralContainerRequest, actionType repository.ContainerAction) error {
 
 	container, err := impl.repository.FindContainerByName(model.ClusterId, model.Namespace, model.PodName, model.BasicData.ContainerName)
 	if err != nil && err != pg.ErrNoRows {
