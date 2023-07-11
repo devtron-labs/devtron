@@ -195,13 +195,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 
 	canUpdate := false
 	// Obfuscate secret if user does not have edit access
-	if request.AppIdentifier != nil {
-		// Verify update access for Helm Apps
-		canUpdate = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject2)
-	} else if request.DevtronAppIdentifier != nil {
-		// Verify update access for Devtron Apps
-		canUpdate = handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, envObject)
-	} else if request.AppIdentifier == nil && request.DevtronAppIdentifier == nil && request.ClusterId > 0 {
+	if request.AppIdentifier == nil && request.DevtronAppIdentifier == nil && request.ClusterId > 0 {
 		// Verify update access for Resource Browser
 		canUpdate = handler.k8sApplicationService.ValidateClusterResourceBean(r.Context(), request.ClusterId, resource.Manifest, request.K8sRequest.ResourceIdentifier.GroupVersionKind, handler.getRbacCallbackForResource(token, casbin.ActionUpdate))
 		if !canUpdate {

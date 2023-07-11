@@ -20,6 +20,7 @@ package bean
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
@@ -675,14 +676,19 @@ type CiArtifactBean struct {
 	DeployedBy                    string                    `json:"deployedBy"`
 	CiConfigureSourceType         pipelineConfig.SourceType `json:"ciConfigureSourceType"`
 	CiConfigureSourceValue        string                    `json:"ciConfigureSourceValue"`
+	ImageReleaseTags              []*repository2.ImageTag   `json:"imageReleaseTags"`
+	ImageComment                  *repository2.ImageComment `json:"imageComment"`
 }
 
 type CiArtifactResponse struct {
 	//AppId           int      `json:"app_id"`
-	CdPipelineId           int              `json:"cd_pipeline_id,notnull"`
-	LatestWfArtifactId     int              `json:"latest_wf_artifact_id"`
-	LatestWfArtifactStatus string           `json:"latest_wf_artifact_status"`
-	CiArtifacts            []CiArtifactBean `json:"ci_artifacts,notnull"`
+	CdPipelineId               int              `json:"cd_pipeline_id,notnull"`
+	LatestWfArtifactId         int              `json:"latest_wf_artifact_id"`
+	LatestWfArtifactStatus     string           `json:"latest_wf_artifact_status"`
+	CiArtifacts                []CiArtifactBean `json:"ci_artifacts,notnull"`
+	TagsEditable               bool             `json:"tagsEditable"`
+	AppReleaseTagNames         []string         `json:"appReleaseTagNames"` //unique list of tags exists in the app
+	HideImageTaggingHardDelete bool             `json:"hideImageTaggingHardDelete"`
 }
 
 type AppLabelsDto struct {
