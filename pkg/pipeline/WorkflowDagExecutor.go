@@ -336,7 +336,12 @@ func (impl *WorkflowDagExecutorImpl) HandleWebhookExternalCiEvent(artifact *repo
 
 func (impl *WorkflowDagExecutorImpl) triggerStage(cdWf *pipelineConfig.CdWorkflow, pipeline *pipelineConfig.Pipeline, artifact *repository.CiArtifact, applyAuth bool, triggeredBy int32) error {
 	var err error
-	if len(pipeline.PreStageConfig) > 0 {
+	preStageStepType, err := impl.pipelineStageRepository.GetCdStageByCdPipelineIdAndStageType(pipeline.Id, repository4.PIPELINE_STAGE_TYPE_PRE_CD)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching preStageStepType in GetCdStageByCdPipelineIdAndStageType ", "cdPipelineId", pipeline.Id, "err", err)
+		return err
+	}
+	if len(pipeline.PreStageConfig) > 0 || preStageStepType != nil {
 		// pre stage exists
 		if pipeline.PreTriggerType == pipelineConfig.TRIGGER_TYPE_AUTOMATIC {
 			impl.logger.Debugw("trigger pre stage for pipeline", "artifactId", artifact.Id, "pipelineId", pipeline.Id)
@@ -354,7 +359,12 @@ func (impl *WorkflowDagExecutorImpl) triggerStage(cdWf *pipelineConfig.CdWorkflo
 
 func (impl *WorkflowDagExecutorImpl) triggerStageForBulk(cdWf *pipelineConfig.CdWorkflow, pipeline *pipelineConfig.Pipeline, artifact *repository.CiArtifact, applyAuth bool, async bool, triggeredBy int32) error {
 	var err error
-	if len(pipeline.PreStageConfig) > 0 {
+	preStageStepType, err := impl.pipelineStageRepository.GetCdStageByCdPipelineIdAndStageType(pipeline.Id, repository4.PIPELINE_STAGE_TYPE_PRE_CD)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching preStageStepType in GetCdStageByCdPipelineIdAndStageType ", "cdPipelineId", pipeline.Id, "err", err)
+		return err
+	}
+	if len(pipeline.PreStageConfig) > 0 || preStageStepType != nil {
 		//pre stage exists
 		impl.logger.Debugw("trigger pre stage for pipeline", "artifactId", artifact.Id, "pipelineId", pipeline.Id)
 		err = impl.TriggerPreStage(context.Background(), cdWf, artifact, pipeline, artifact.UpdatedBy, applyAuth) //TODO handle error here
@@ -1003,7 +1013,14 @@ func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(gitHash string
 		impl.logger.Errorw("error in fetching cd workflow by id", "pipelineOverride", pipelineOverride)
 		return err
 	}
-	if len(pipelineOverride.Pipeline.PostStageConfig) > 0 {
+
+	postStageStepType, err := impl.pipelineStageRepository.GetCdStageByCdPipelineIdAndStageType(pipelineOverride.Pipeline.Id, repository4.PIPELINE_STAGE_TYPE_POST_CD)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching preStageStepType in GetCdStageByCdPipelineIdAndStageType ", "cdPipelineId", pipelineOverride.Pipeline, "err", err)
+		return err
+	}
+
+	if len(pipelineOverride.Pipeline.PostStageConfig) > 0 || postStageStepType != nil {
 		if pipelineOverride.Pipeline.PostTriggerType == pipelineConfig.TRIGGER_TYPE_AUTOMATIC &&
 			pipelineOverride.DeploymentType != models.DEPLOYMENTTYPE_STOP &&
 			pipelineOverride.DeploymentType != models.DEPLOYMENTTYPE_START {
