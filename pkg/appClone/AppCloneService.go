@@ -658,16 +658,30 @@ func (impl *AppCloneServiceImpl) createWfMappings(refWfMappings []appWorkflow.Ap
 				refAppName:      refApp.AppName,
 			}
 
-			if len(webhookMappings) > 0 {
-				impl.CreateCdPipeline(cdCloneReq, ctx)
-			}
-
 			pipeline, err := impl.CreateCdPipeline(cdCloneReq, ctx)
 			if err != nil {
 				return err
 			}
 			impl.logger.Debugw("cd pipeline created", "pipeline", pipeline)
 		}
+		if len(webhookMappings) > 0 {
+			for _, webhookMappings := range webhookMappings {
+				cdCloneReq := &cloneCdPipelineRequest{
+					refCdPipelineId: webhookMappings.ComponentId,
+					refAppId:        oldAppId,
+					appId:           newAppId,
+					userId:          userId,
+					appWfId:         thisWfId,
+					refAppName:      refApp.AppName,
+				}
+				pipeline, err := impl.CreateCdPipeline(cdCloneReq, ctx)
+				if err != nil {
+					return err
+				}
+				impl.logger.Debugw("cd pipeline created", "pipeline", pipeline)
+			}
+		}
+
 	} else {
 		impl.logger.Debug("not the same project, skipping cd pipeline creation")
 	}
