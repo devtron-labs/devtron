@@ -48,6 +48,7 @@ func (impl *EphemeralContainerServiceImpl) SaveEphemeralContainer(model Ephemera
 
 	container, err := impl.repository.FindContainerByName(model.ClusterId, model.Namespace, model.PodName, model.BasicData.ContainerName)
 	if err != nil {
+		impl.logger.Errorw("error in finding ephemeral container in the database", "err", err, "container", container)
 		return err
 	}
 	if container != nil {
@@ -95,6 +96,7 @@ func (impl *EphemeralContainerServiceImpl) UpdateDeleteEphemeralContainer(model 
 
 	container, err := impl.repository.FindContainerByName(model.ClusterId, model.Namespace, model.PodName, model.BasicData.ContainerName)
 	if err != nil {
+		impl.logger.Errorw("error in finding ephemeral container in the database", "err", err, "container", container)
 		return err
 	}
 
