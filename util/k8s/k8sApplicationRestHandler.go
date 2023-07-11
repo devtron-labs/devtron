@@ -11,6 +11,7 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/k8s/application"
 	util2 "github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
@@ -830,9 +831,14 @@ func (handler *K8sApplicationRestHandlerImpl) verifyRbacForCluster(token string,
 }
 
 func (handler *K8sApplicationRestHandlerImpl) CreateEphemeralContainer(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
 	decoder := json.NewDecoder(r.Body)
-	var request EphemeralContainerRequest
-	err := decoder.Decode(&request)
+	var request cluster.EphemeralContainerRequest
+	err = decoder.Decode(&request)
 	if err != nil {
 		handler.logger.Errorw("error in decoding request body", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -847,7 +853,13 @@ func (handler *K8sApplicationRestHandlerImpl) CreateEphemeralContainer(w http.Re
 		common.WriteJsonResp(w, errors.New("clusterId mismatch in param and request body"), nil, http.StatusBadRequest)
 		return
 	}
+	request.UserId = userId
 	err = handler.k8sApplicationService.CreatePodEphemeralContainers(request)
+	if err != nil {
+		handler.logger.Errorw("error occurred in creating ephemeral container", "err", err, "requestPayload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
 	podContainerList, err := handler.k8sApplicationService.GetPodContainersList(request.ClusterId, request.Namespace, request.PodName)
 	if err != nil {
 		handler.logger.Errorw("error in fetching containers list", "clusterId", request.ClusterId, "namespace", request.Namespace, "podName", request.PodName, "error", err)
@@ -857,9 +869,14 @@ func (handler *K8sApplicationRestHandlerImpl) CreateEphemeralContainer(w http.Re
 }
 
 func (handler *K8sApplicationRestHandlerImpl) DeleteEphemeralContainer(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
 	decoder := json.NewDecoder(r.Body)
-	var request EphemeralContainerRequest
-	err := decoder.Decode(&request)
+	var request cluster.EphemeralContainerRequest
+	err = decoder.Decode(&request)
 	if err != nil {
 		handler.logger.Errorw("error in decoding request body", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -874,7 +891,13 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteEphemeralContainer(w http.Re
 		common.WriteJsonResp(w, errors.New("clusterId mismatch in param and request body"), nil, http.StatusBadRequest)
 		return
 	}
-	_, err = handler.k8sApplicationService.DeletePodEphemeralContainer(request)
+	request.UserId = userId
+	_, err = handler.k8sApplicationService.TerminatePodEphemeralContainer(request)
+	if err != nil {
+		handler.logger.Errorw("error occurred in terminating ephemeral container", "err", err, "requestPayload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
 	podContainerList, err := handler.k8sApplicationService.GetPodContainersList(request.ClusterId, request.Namespace, request.PodName)
 	if err != nil {
 		handler.logger.Errorw("error in fetching containers list", "clusterId", request.ClusterId, "namespace", request.Namespace, "podName", request.PodName, "error", err)

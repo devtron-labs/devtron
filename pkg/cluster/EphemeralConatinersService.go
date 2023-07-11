@@ -3,7 +3,6 @@ package cluster
 import (
 	"errors"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
 )
@@ -28,14 +27,21 @@ type EphemeralContainerBasicData struct {
 }
 
 type EphemeralContainerService interface {
-	SaveEphemeralContainer(tx *pg.Tx, model EphemeralContainerRequest) error
-	UpdateDeleteEphemeralContainer(tx *pg.Tx, model EphemeralContainerRequest, actionType repository.ContainerAction) error
+	SaveEphemeralContainer(model EphemeralContainerRequest) error
+	UpdateDeleteEphemeralContainer(model EphemeralContainerRequest, actionType repository.ContainerAction) error
 	// send action type 1 in case of used and 2 in case of terminated
 }
 
 type EphemeralContainerServiceImpl struct {
 	repository repository.EphemeralContainersRepository
 	logger     *zap.SugaredLogger
+}
+
+func NewEphemeralContainerServiceImpl(repository repository.EphemeralContainersRepository, logger *zap.SugaredLogger) *EphemeralContainerServiceImpl {
+	return &EphemeralContainerServiceImpl{
+		repository: repository,
+		logger:     logger,
+	}
 }
 
 func (impl *EphemeralContainerServiceImpl) SaveEphemeralContainer(model EphemeralContainerRequest) error {
