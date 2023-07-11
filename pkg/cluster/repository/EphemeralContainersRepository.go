@@ -10,7 +10,7 @@ type ContainerAction int
 
 const ActionCreate ContainerAction = 0
 const ActionAccessed ContainerAction = 1
-const ActionDelete ContainerAction = 2
+const ActionTerminate ContainerAction = 2
 
 type EphemeralContainerBean struct {
 	tableName           struct{} `sql:"ephemeral_container" pg:",discard_unknown_columns"`
