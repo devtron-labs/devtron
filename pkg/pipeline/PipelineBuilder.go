@@ -2235,6 +2235,22 @@ func (impl PipelineBuilderImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipeli
 			return deleteResponse, err
 		}
 	}
+	// delete manifest push config if exists
+	if util.IsManifestPush(pipeline.DeploymentAppType) {
+		manifestPushConfig, err := impl.manifestPushConfigRepository.GetManifestPushConfigByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("error in getting manifest push config by appId and envId", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
+			return deleteResponse, err
+		}
+		if manifestPushConfig.Id != 0 {
+			manifestPushConfig.Deleted = true
+			err = impl.manifestPushConfigRepository.UpdateConfig(manifestPushConfig)
+			if err != nil {
+				impl.logger.Errorw("error in updating config for oci helm repo", "err", err)
+				return deleteResponse, err
+			}
+		}
+	}
 	//delete app from argo cd, if created
 	if pipeline.DeploymentAppCreated == true {
 		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
