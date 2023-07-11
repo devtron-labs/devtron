@@ -102,17 +102,10 @@ func (impl *PipelineStageServiceImpl) GetCdPipelineStageDataDeepCopy(cdPipelineI
 			impl.logger.Errorw("found improper stage mapped with cdPipeline", "cdPipelineId", cdPipelineId, "stage", cdStage)
 		}
 	}
-	pipeline, err := impl.pipelineRepository.FindById(cdPipelineId)
-	if err != nil {
-		impl.logger.Errorw("error in getting pipeline from cdPipelineId", "err", err, "cdPipelineId", cdPipelineId)
-		return nil, nil, err
-	}
 	if preDeployStage != nil {
-		preDeployStage.TriggerType = pipeline.PreTriggerType
 		preDeployStage.Name = "Pre-Deployment"
 	}
 	if postDeployStage != nil {
-		postDeployStage.TriggerType = pipeline.PostTriggerType
 		postDeployStage.Name = "Post-Deployment"
 	}
 	return preDeployStage, postDeployStage, nil
@@ -169,6 +162,20 @@ func (impl *PipelineStageServiceImpl) BuildPipelineStageDataDeepCopy(pipelineSta
 		Description: pipelineStage.Description,
 		Type:        pipelineStage.Type,
 	}
+	if pipelineStage.Type == repository.PIPELINE_STAGE_TYPE_PRE_CD || pipelineStage.Type == repository.PIPELINE_STAGE_TYPE_POST_CD {
+		pipeline, err := impl.pipelineRepository.FindById(pipelineStage.CdPipelineId)
+		if err != nil {
+			impl.logger.Errorw("error in getting pipeline from cdPipelineId", "err", err, "cdPipelineId", pipelineStage.CdPipelineId)
+			return nil, err
+		}
+		if pipelineStage.Type == repository.PIPELINE_STAGE_TYPE_PRE_CD {
+			stageData.TriggerType = pipeline.PreTriggerType
+		}
+		if pipelineStage.Type == repository.PIPELINE_STAGE_TYPE_POST_CD {
+			stageData.TriggerType = pipeline.PostTriggerType
+		}
+	}
+
 	//getting all steps in this stage
 	steps, err := impl.pipelineStageRepository.GetAllStepsByStageId(pipelineStage.Id)
 	if err != nil && err != pg.ErrNoRows {
