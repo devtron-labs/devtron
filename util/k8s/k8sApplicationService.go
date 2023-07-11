@@ -3,6 +3,7 @@ package k8s
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	util2 "github.com/devtron-labs/devtron/util"
@@ -1134,10 +1135,18 @@ func (impl *K8sApplicationServiceImpl) FetchConnectionStatusForCluster(k8sClient
 
 func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req cluster.EphemeralContainerRequest) error {
 
-	v1Client, err := impl.getCoreClientByClusterId(req.ClusterId)
+	clientSet, v1Client, err := impl.getCoreClientByClusterId(req.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting coreV1 client by clusterId", "clusterId", req.ClusterId, "err", err)
 		return err
+	}
+	compatible, err := K8sServerVersionCheckForEphemeralContainers(clientSet)
+	if err != nil {
+		impl.logger.Errorw("error in checking kubernetes server version compatability for ephemeral containers", "clusterId", req.ClusterId, "err", err)
+		return err
+	}
+	if !compatible {
+		return errors.New("ephemeral containers are not supported for the current kubernetes server version")
 	}
 	pod, err := impl.K8sUtil.GetPodByName(req.Namespace, req.PodName, v1Client)
 	if err != nil {
@@ -1261,27 +1270,31 @@ func (impl *K8sApplicationServiceImpl) TerminatePodEphemeralContainer(req cluste
 	return true, nil
 }
 
-func (impl *K8sApplicationServiceImpl) getCoreClientByClusterId(clusterId int) (*v1.CoreV1Client, error) {
+func (impl *K8sApplicationServiceImpl) getCoreClientByClusterId(clusterId int) (*kubernetes.Clientset, *v1.CoreV1Client, error) {
 	clusterBean, err := impl.clusterService.FindById(clusterId)
 	if err != nil {
 		impl.logger.Errorw("defaultClusterBean err, TriggerChartSyncManual", "err", err)
-		return nil, err
+		return nil, nil, err
 	}
 
 	clusterConfig, err := impl.clusterService.GetClusterConfig(clusterBean)
 	if err != nil {
 		impl.logger.Errorw("defaultClusterConfig err, TriggerChartSyncManual", "err", err)
-		return nil, err
+		return nil, nil, err
 	}
 	v1Client, err := impl.K8sUtil.GetClient(clusterConfig)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return v1Client, nil
+	clientSet, err := impl.K8sUtil.GetClientSet(clusterConfig)
+	if err != nil {
+		return nil, v1Client, err
+	}
+	return clientSet, v1Client, nil
 }
 
 func (impl *K8sApplicationServiceImpl) GetPodContainersList(clusterId int, namespace, podName string) (*PodContainerList, error) {
-	v1Client, err := impl.getCoreClientByClusterId(clusterId)
+	_, v1Client, err := impl.getCoreClientByClusterId(clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting coreV1 client by clusterId", "clusterId", clusterId, "err", err)
 		return nil, err
@@ -1322,4 +1335,25 @@ func (impl *K8sApplicationServiceImpl) GetPodContainersList(clusterId int, names
 		EphemeralContainers: ephemeralContainers,
 		InitContainers:      initContainers,
 	}, nil
+}
+
+func K8sServerVersionCheckForEphemeralContainers(clientSet *kubernetes.Clientset) (bool, error) {
+	k8sServerVersion, err := clientSet.DiscoveryClient.ServerVersion()
+	if err != nil {
+		return false, err
+	}
+	majorVersion, err := strconv.Atoi(k8sServerVersion.Major)
+	if err != nil {
+		return false, err
+	}
+	minorVersion, err := strconv.Atoi(k8sServerVersion.Minor)
+	if err != nil {
+		return false, err
+	}
+	//ephemeral containers feature is introduced in version v1.23 of kubernetes, it is stable from version v1.25
+	//https://kubernetes.io/docs/concepts/workloads/pods/ephemeral-containers/
+	if majorVersion <= 1 || minorVersion < 25 {
+		return false, nil
+	}
+	return true, nil
 }
