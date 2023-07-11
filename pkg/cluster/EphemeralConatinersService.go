@@ -45,10 +45,6 @@ type EphemeralContainerServiceImpl struct {
 }
 
 func (impl *EphemeralContainerServiceImpl) SaveEphemeralContainer(tx *pg.Tx, model EphemeralContainerRequest) error {
-	tx, err := tx.Begin()
-	if err != nil {
-		return err
-	}
 
 	container, err := impl.repository.FindContainerByName(model.ClusterId, model.Namespace, model.PodName, model.BasicData.ContainerName)
 	if err != nil {
@@ -90,10 +86,6 @@ func (impl *EphemeralContainerServiceImpl) SaveEphemeralContainer(tx *pg.Tx, mod
 }
 
 func (impl *EphemeralContainerServiceImpl) UpdateDeleteEphemeralContainer(tx *pg.Tx, model EphemeralContainerRequest, actionType int) error {
-	tx, err := tx.Begin()
-	if err != nil {
-		return err
-	}
 
 	container, err := impl.repository.FindContainerByName(model.ClusterId, model.Namespace, model.PodName, model.BasicData.ContainerName)
 	if err != nil {
