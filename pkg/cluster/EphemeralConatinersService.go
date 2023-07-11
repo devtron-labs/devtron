@@ -8,6 +8,12 @@ import (
 	"time"
 )
 
+const (
+	ActionCreate   = 0
+	ActionAccessed = 1
+	ActionDelete   = 2
+)
+
 type EphemeralContainerRequest struct {
 	BasicData    *EphemeralContainerBasicData    `json:"basicData"`
 	AdvancedData *EphemeralContainerAdvancedData `json:"advancedData"`
@@ -65,7 +71,7 @@ func (impl *EphemeralContainerServiceImpl) SaveEphemeralContainer(tx *pg.Tx, mod
 
 	var auditLogBean repository.EphemeralContainerAction
 	auditLogBean.EphemeralContainerID = bean.Id
-	auditLogBean.ActionType = 0
+	auditLogBean.ActionType = ActionCreate
 	auditLogBean.PerformedAt = time.Now()
 	auditLogBean.PerformedBy = model.UserId
 	err = impl.repository.SaveAction(tx, &auditLogBean)
