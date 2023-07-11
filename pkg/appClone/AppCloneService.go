@@ -671,6 +671,7 @@ func (impl *AppCloneServiceImpl) createWfMappings(refWfMappings []appWorkflow.Ap
 					refAppId:        oldAppId,
 					appId:           newAppId,
 					userId:          userId,
+					ciPipelineId:    ci.CiPipelines[0].Id,
 					appWfId:         thisWfId,
 					refAppName:      refApp.AppName,
 				}
