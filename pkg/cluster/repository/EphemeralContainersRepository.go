@@ -10,7 +10,7 @@ type EphemeralContainerBean struct {
 	tableName           struct{} `sql:"ephemeral_container" pg:",discard_unknown_columns"`
 	Id                  int      `sql:"id,pk"`
 	Name                string   `sql:"name"`
-	ClusterID           int      `sql:"cluster_id"`
+	ClusterId           int      `sql:"cluster_id"`
 	Namespace           string   `sql:"namespace"`
 	PodName             string   `sql:"pod_name"`
 	TargetContainer     string   `sql:"target_container"`

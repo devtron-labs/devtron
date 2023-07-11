@@ -138,7 +138,7 @@ func (impl *EphemeralContainerServiceImpl) UpdateDeleteEphemeralContainer(tx *pg
 func ConvertToEphemeralContainerBean(request EphemeralContainerRequest) repository.EphemeralContainerBean {
 	return repository.EphemeralContainerBean{
 		Name:                request.BasicData.ContainerName,
-		ClusterID:           request.ClusterId,
+		ClusterId:           request.ClusterId,
 		Namespace:           request.Namespace,
 		PodName:             request.PodName,
 		TargetContainer:     request.BasicData.TargetContainerName,
