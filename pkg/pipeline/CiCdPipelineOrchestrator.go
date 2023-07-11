@@ -31,6 +31,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	bean4 "github.com/devtron-labs/devtron/pkg/app/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	history3 "github.com/devtron-labs/devtron/pkg/pipeline/history"
@@ -1384,6 +1385,11 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 			impl.logger.Errorw("error in getting ci artifact by id", "err", err)
 		}
 
+		manifestPushConfig, err := impl.manifestPushConfigRepository.GetManifestPushConfigByAppIdAndEnvId(appId, dbPipeline.EnvironmentId)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in fetching manifest push config from db", "err", err)
+		}
+
 		var helmPackageName string
 		if len(artifact.Image) > 0 {
 			imageTag := strings.Split(artifact.Image, ":")[1]
@@ -1409,6 +1415,16 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 			UserApprovalConf:              approvalConfig,
 			IsVirtualEnvironment:          dbPipeline.Environment.IsVirtualEnvironment,
 			HelmPackageName:               helmPackageName,
+			ManifestStorageType:           manifestPushConfig.StorageType,
+		}
+		if manifestPushConfig.StorageType == bean.ManifestStorageOCIHelmRepo {
+			var credentialsConfig bean4.HelmRepositoryConfig
+			err = json.Unmarshal([]byte(manifestPushConfig.CredentialsConfig), &credentialsConfig)
+			if err != nil {
+				impl.logger.Errorw("error in json unmarshal", "err", err)
+			}
+			pipeline.RepoName = credentialsConfig.RepositoryName
+			pipeline.ContainerRegistryName = credentialsConfig.ContainerRegistryName
 		}
 		pipelines = append(pipelines, pipeline)
 	}

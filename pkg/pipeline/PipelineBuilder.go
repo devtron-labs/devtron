@@ -3654,6 +3654,9 @@ func (impl PipelineBuilderImpl) GetCdPipelinesForApp(appId int) (cdPipelines *be
 			DeploymentAppDeleteRequest:    dbPipeline.DeploymentAppDeleteRequest,
 			UserApprovalConf:              dbPipeline.UserApprovalConf,
 			IsVirtualEnvironment:          dbPipeline.IsVirtualEnvironment,
+			ManifestStorageType:           dbPipeline.ManifestStorageType,
+			ContainerRegistryName:         dbPipeline.ContainerRegistryName,
+			RepoName:                      dbPipeline.RepoName,
 		}
 		pipelines = append(pipelines, pipeline)
 	}
