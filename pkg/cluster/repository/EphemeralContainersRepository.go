@@ -21,7 +21,7 @@ type EphemeralContainerBean struct {
 type EphemeralContainerAction struct {
 	tableName            struct{}  `sql:"ephemeral_container_actions" pg:",discard_unknown_columns"`
 	Id                   int       `sql:"id,pk"`
-	EphemeralContainerID int       `sql:"ephemeral_container_id"`
+	EphemeralContainerId int       `sql:"ephemeral_container_id"`
 	ActionType           int       `sql:"action_type"`
 	PerformedBy          int       `sql:"performed_by"`
 	PerformedAt          time.Time `sql:"performed_at"`
