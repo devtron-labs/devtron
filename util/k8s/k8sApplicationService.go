@@ -1187,6 +1187,7 @@ func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req cluster.
 			Do(context.Background())
 		return result.Error()
 	}
+
 	if err != nil {
 		err = impl.ephemeralContainerService.SaveEphemeralContainer(req)
 		if err != nil {
