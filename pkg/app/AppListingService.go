@@ -269,13 +269,14 @@ func (impl AppListingServiceImpl) FetchJobs(fetchJobListingRequest FetchAppListi
 		Offset:        fetchJobListingRequest.Offset,
 		Size:          fetchJobListingRequest.Size,
 		AppStatuses:   fetchJobListingRequest.AppStatuses,
+		Environments:  fetchJobListingRequest.Environments,
 	}
 	appIds, err := impl.appRepository.FetchAppIdsWithFilter(jobListingFilter)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching app ids list", "error", err, jobListingFilter)
 		return []*bean.JobContainer{}, err
 	}
-	jobListingContainers, err := impl.appListingRepository.FetchJobs(appIds, jobListingFilter.AppStatuses, string(jobListingFilter.SortOrder))
+	jobListingContainers, err := impl.appListingRepository.FetchJobs(appIds, jobListingFilter.AppStatuses, jobListingFilter.Environments, string(jobListingFilter.SortOrder))
 	if err != nil {
 		impl.Logger.Errorw("error in fetching job list", "error", err, jobListingFilter)
 		return []*bean.JobContainer{}, err

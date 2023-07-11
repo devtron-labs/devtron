@@ -70,7 +70,7 @@ const (
 	LastDeployedSortBy        = "lastDeployedSort"
 )
 
-func (impl AppListingRepositoryQueryBuilder) BuildJobListingQuery(appIDs []int, statuses []string, sortOrder string) string {
+func (impl AppListingRepositoryQueryBuilder) BuildJobListingQuery(appIDs []int, statuses []string, environmentIds []int, sortOrder string) string {
 	query := "select ci_pipeline.name as ci_pipeline_name,ci_pipeline.id as ci_pipeline_id,app.id as job_id,app.display_name " +
 		"as job_name,app.description,cwr.started_on,cwr.status,cem.environment_id,cwr.environment_id as last_triggered_environment_id from app left join ci_pipeline on" +
 		" app.id = ci_pipeline.app_id and ci_pipeline.active=true left join (select cw.ci_pipeline_id, cw.status, cw.started_on, cw.environment_id " +
@@ -84,6 +84,9 @@ func (impl AppListingRepositoryQueryBuilder) BuildJobListingQuery(appIDs []int, 
 	}
 	if len(statuses) > 0 {
 		query += "and cwr.status IN (" + util.ProcessAppStatuses(statuses) + ") "
+	}
+	if len(environmentIds) > 0 {
+		query += "and cwr.environment_id IN (" + GetCommaSepratedString(environmentIds) + ") "
 	}
 	query += " order by app.display_name"
 	if sortOrder == "DESC" {
