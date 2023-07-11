@@ -461,6 +461,13 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		buildPackConfig := ciBuildConfigBean.BuildPackConfig
 		checkoutPath = filepath.Join(checkoutPath, buildPackConfig.ProjectPath)
 	}
+
+	defaultTargetPlatform := impl.ciConfig.DefaultTargetPlatform
+
+	if ciBuildConfigBean.DockerBuildConfig.TargetPlatform == "" {
+		ciBuildConfigBean.DockerBuildConfig.TargetPlatform = defaultTargetPlatform
+	}
+
 	workflowRequest := &WorkflowRequest{
 		WorkflowNamePrefix:         strconv.Itoa(savedWf.Id) + "-" + savedWf.Name,
 		PipelineName:               pipeline.Name,
