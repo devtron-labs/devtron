@@ -59,6 +59,20 @@ func (_m *K8sApplicationService) ApplyResources(ctx context.Context, token strin
 	return r0, r1
 }
 
+// CreatePodEphemeralContainers provides a mock function with given fields: req
+func (_m *K8sApplicationService) CreatePodEphemeralContainers(req k8s.EphemeralContainerRequest) error {
+	ret := _m.Called(req)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(k8s.EphemeralContainerRequest) error); ok {
+		r0 = rf(req)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // CreateResource provides a mock function with given fields: ctx, request
 func (_m *K8sApplicationService) CreateResource(ctx context.Context, request *k8s.ResourceRequestBean) (*application.ManifestResponse, error) {
 	ret := _m.Called(ctx, request)
@@ -98,6 +112,27 @@ func (_m *K8sApplicationService) DecodeDevtronAppId(applicationId string) (*k8s.
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string) error); ok {
 		r1 = rf(applicationId)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// DeletePodEphemeralContainer provides a mock function with given fields: req
+func (_m *K8sApplicationService) DeletePodEphemeralContainer(req k8s.EphemeralContainerRequest) (bool, error) {
+	ret := _m.Called(req)
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(k8s.EphemeralContainerRequest) bool); ok {
+		r0 = rf(req)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(k8s.EphemeralContainerRequest) error); ok {
+		r1 = rf(req)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -197,6 +232,29 @@ func (_m *K8sApplicationService) GetManifestsByBatch(ctx context.Context, reques
 	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, []k8s.ResourceRequestBean) error); ok {
 		r1 = rf(ctx, request)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetPodContainersList provides a mock function with given fields: clusterId, namespace, podName
+func (_m *K8sApplicationService) GetPodContainersList(clusterId int, namespace string, podName string) (*k8s.PodContainerList, error) {
+	ret := _m.Called(clusterId, namespace, podName)
+
+	var r0 *k8s.PodContainerList
+	if rf, ok := ret.Get(0).(func(int, string, string) *k8s.PodContainerList); ok {
+		r0 = rf(clusterId, namespace, podName)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*k8s.PodContainerList)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(int, string, string) error); ok {
+		r1 = rf(clusterId, namespace, podName)
 	} else {
 		r1 = ret.Error(1)
 	}

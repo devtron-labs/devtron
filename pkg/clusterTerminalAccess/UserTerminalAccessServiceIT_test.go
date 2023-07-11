@@ -147,8 +147,8 @@ func initTerminalAccessService(t *testing.T) *UserTerminalAccessServiceImpl {
 	appRepositoryImpl := app.NewAppRepositoryImpl(db, sugaredLogger)
 	environmentRepositoryImpl := repository2.NewEnvironmentRepositoryImpl(db, sugaredLogger, nil)
 	k8sResourceHistoryServiceImpl := kubernetesResourceAuditLogs.Newk8sResourceHistoryServiceImpl(k8sResourceHistoryRepositoryImpl, sugaredLogger, appRepositoryImpl, environmentRepositoryImpl)
-	k8sApplicationService := k8s.NewK8sApplicationServiceImpl(sugaredLogger, clusterServiceImpl, nil, k8sClientServiceImpl, nil, nil, nil, k8sResourceHistoryServiceImpl)
-	terminalSessionHandlerImpl := terminal.NewTerminalSessionHandlerImpl(nil, clusterServiceImpl, sugaredLogger)
+	k8sApplicationService := k8s.NewK8sApplicationServiceImpl(sugaredLogger, clusterServiceImpl, nil, k8sClientServiceImpl, nil, nil, nil, k8sResourceHistoryServiceImpl, nil)
+	terminalSessionHandlerImpl := terminal.NewTerminalSessionHandlerImpl(nil, clusterServiceImpl, sugaredLogger, nil)
 	userTerminalSessionConfig, err := GetTerminalAccessConfig()
 	assert.Nil(t, err)
 	userTerminalSessionConfig.TerminalPodStatusSyncTimeInSecs = 30
