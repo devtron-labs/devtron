@@ -1198,6 +1198,7 @@ func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req cluster.
 	}
 
 	if err != nil {
+		req.AdvancedData.Manifest = string(debugJS)
 		err = impl.ephemeralContainerService.SaveEphemeralContainer(req)
 		if err != nil {
 			impl.logger.Errorw("error in saving ephemeral container data", "err", err)
