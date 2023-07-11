@@ -14,7 +14,7 @@ type EphemeralContainerRequest struct {
 	Namespace    string                          `json:"namespace"`
 	ClusterId    int                             `json:"clusterId"`
 	PodName      string                          `json:"podName"`
-	UserId       int                             `json:"-"`
+	UserId       int32                           `json:"-"`
 }
 
 type EphemeralContainerAdvancedData struct {
@@ -38,23 +38,31 @@ type EphemeralContainerServiceImpl struct {
 	logger     *zap.SugaredLogger
 }
 
-func (impl *EphemeralContainerServiceImpl) SaveEphemeralContainer(tx *pg.Tx, model EphemeralContainerRequest) error {
+func (impl *EphemeralContainerServiceImpl) SaveEphemeralContainer(model EphemeralContainerRequest) error {
 
 	container, err := impl.repository.FindContainerByName(model.ClusterId, model.Namespace, model.PodName, model.BasicData.ContainerName)
 	if err != nil {
-		_ = tx.Rollback() // Rollback the transaction if an error occurs during FindContainerByName
 		return err
 	}
 	if container != nil {
-		_ = tx.Rollback() // Rollback the transaction if the container already exists in the provided pod
 		impl.logger.Errorw("Container already present in the provided pod")
 		return errors.New("container already present in the provided pod")
 	}
+	tx, err := impl.repository.StartTx()
+	defer func() {
+		err = impl.repository.RollbackTx(tx)
+		if err != nil {
+			impl.logger.Infow("error in rolling back transaction", "err", err, "model", model)
+		}
+	}()
 
+	if err != nil {
+		impl.logger.Errorw("error in creating transaction", "err", err)
+		return err
+	}
 	bean := ConvertToEphemeralContainerBean(model)
 	err = impl.repository.SaveData(tx, &bean)
 	if err != nil {
-		_ = tx.Rollback() // Rollback the transaction if an error occurs during SaveData
 		impl.logger.Errorw("Failed to save ephemeral container", "error", err)
 		return err
 	}
@@ -66,24 +74,34 @@ func (impl *EphemeralContainerServiceImpl) SaveEphemeralContainer(tx *pg.Tx, mod
 	auditLogBean.PerformedBy = model.UserId
 	err = impl.repository.SaveAction(tx, &auditLogBean)
 	if err != nil {
-		_ = tx.Rollback() // Rollback the transaction if an error occurs during SaveAction
 		impl.logger.Errorw("Failed to save ephemeral container", "error", err)
 		return err
 	}
+	err = impl.repository.CommitTx(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing transaction", "err", err, "req", model)
+		return err
+	}
+	return nil
+}
 
-	err = tx.Commit()
+func (impl *EphemeralContainerServiceImpl) UpdateDeleteEphemeralContainer(model EphemeralContainerRequest, actionType repository.ContainerAction) error {
+
+	container, err := impl.repository.FindContainerByName(model.ClusterId, model.Namespace, model.PodName, model.BasicData.ContainerName)
 	if err != nil {
 		return err
 	}
 
-	return nil
-}
+	tx, err := impl.repository.StartTx()
+	defer func() {
+		err = impl.repository.RollbackTx(tx)
+		if err != nil {
+			impl.logger.Infow("error in rolling back transaction", "err", err, "model", model)
+		}
+	}()
 
-func (impl *EphemeralContainerServiceImpl) UpdateDeleteEphemeralContainer(tx *pg.Tx, model EphemeralContainerRequest, actionType repository.ContainerAction) error {
-
-	container, err := impl.repository.FindContainerByName(model.ClusterId, model.Namespace, model.PodName, model.BasicData.ContainerName)
 	if err != nil {
-		_ = tx.Rollback() // Rollback the transaction if an error occurs during FindContainerByName
+		impl.logger.Errorw("error in creating transaction", "err", err)
 		return err
 	}
 
@@ -108,13 +126,13 @@ func (impl *EphemeralContainerServiceImpl) UpdateDeleteEphemeralContainer(tx *pg
 
 	err = impl.repository.SaveAction(tx, &auditLogBean)
 	if err != nil {
-		_ = tx.Rollback() // Rollback the transaction if an error occurs during SaveAction
 		impl.logger.Errorw("Failed to save ephemeral container", "error", err)
 		return err
 	}
 
-	err = tx.Commit()
+	err = impl.repository.CommitTx(tx)
 	if err != nil {
+		impl.logger.Errorw("error in committing transaction", "err", err, "req", model)
 		return err
 	}
 

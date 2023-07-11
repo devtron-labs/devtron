@@ -29,37 +29,38 @@ type EphemeralContainerAction struct {
 	Id                   int             `sql:"id,pk"`
 	EphemeralContainerId int             `sql:"ephemeral_container_id"`
 	ActionType           ContainerAction `sql:"action_type"`
-	PerformedBy          int             `sql:"performed_by"`
+	PerformedBy          int32           `sql:"performed_by"`
 	PerformedAt          time.Time       `sql:"performed_at"`
 }
 
 type EphemeralContainersRepository interface {
+	sql.TransactionWrapper
 	SaveData(tx *pg.Tx, model *EphemeralContainerBean) error
 	SaveAction(tx *pg.Tx, model *EphemeralContainerAction) error
 	FindContainerByName(clusterID int, namespace, podName, name string) (*EphemeralContainerBean, error)
 }
 
-func NewEphemeralContainersRepositoryImpl(db *pg.DB) *EphemeralContainersImpl {
-	return &EphemeralContainersImpl{
+func NewEphemeralContainersRepositoryImpl(db *pg.DB) *EphemeralContainersRepositoryImpl {
+	return &EphemeralContainersRepositoryImpl{
 		dbConnection:        db,
 		TransactionUtilImpl: sql.NewTransactionUtilImpl(db),
 	}
 }
 
-type EphemeralContainersImpl struct {
+type EphemeralContainersRepositoryImpl struct {
 	dbConnection *pg.DB
 	*sql.TransactionUtilImpl
 }
 
-func (impl EphemeralContainersImpl) SaveData(tx *pg.Tx, model *EphemeralContainerBean) error {
+func (impl EphemeralContainersRepositoryImpl) SaveData(tx *pg.Tx, model *EphemeralContainerBean) error {
 	return tx.Insert(&model)
 }
 
-func (impl EphemeralContainersImpl) SaveAction(tx *pg.Tx, model *EphemeralContainerAction) error {
+func (impl EphemeralContainersRepositoryImpl) SaveAction(tx *pg.Tx, model *EphemeralContainerAction) error {
 	return tx.Insert(&model)
 }
 
-func (impl EphemeralContainersImpl) FindContainerByName(clusterID int, namespace, podName, name string) (*EphemeralContainerBean, error) {
+func (impl EphemeralContainersRepositoryImpl) FindContainerByName(clusterID int, namespace, podName, name string) (*EphemeralContainerBean, error) {
 	container := &EphemeralContainerBean{}
 	err := impl.dbConnection.Model(container).
 		Where("cluster_id = ?", clusterID).
