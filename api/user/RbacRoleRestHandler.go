@@ -9,8 +9,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/bean"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
-	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -26,28 +26,31 @@ type RbacRoleRestHandler interface {
 	GetRbacPolicyResourceListByEntityAndAccessType(w http.ResponseWriter, r *http.Request)
 	CreateDefaultRole(w http.ResponseWriter, r *http.Request)
 	UpdateDefaultRole(w http.ResponseWriter, r *http.Request)
+	SyncDefaultRoles(w http.ResponseWriter, r *http.Request)
 }
 
 type RbacRoleRestHandlerImpl struct {
-	logger          *zap.SugaredLogger
-	validator       *validator.Validate
-	rbacRoleService user.RbacRoleService
-	userService     user.UserService
-	enforcer        casbin.Enforcer
-	enforcerUtil    rbac.EnforcerUtil
+	logger                 *zap.SugaredLogger
+	validator              *validator.Validate
+	rbacRoleService        user.RbacRoleService
+	userService            user.UserService
+	enforcer               casbin.Enforcer
+	enforcerUtil           rbac.EnforcerUtil
+	defaultRbacRoleService user.DefaultRbacRoleService
 }
 
 func NewRbacRoleHandlerImpl(logger *zap.SugaredLogger,
 	validator *validator.Validate, rbacRoleService user.RbacRoleService,
 	userService user.UserService, enforcer casbin.Enforcer,
-	enforcerUtil rbac.EnforcerUtil) *RbacRoleRestHandlerImpl {
+	enforcerUtil rbac.EnforcerUtil, defaultRbacRoleService user.DefaultRbacRoleService) *RbacRoleRestHandlerImpl {
 	rbacRoleRestHandlerImpl := &RbacRoleRestHandlerImpl{
-		logger:          logger,
-		validator:       validator,
-		rbacRoleService: rbacRoleService,
-		userService:     userService,
-		enforcer:        enforcer,
-		enforcerUtil:    enforcerUtil,
+		logger:                 logger,
+		validator:              validator,
+		rbacRoleService:        rbacRoleService,
+		userService:            userService,
+		enforcer:               enforcer,
+		enforcerUtil:           enforcerUtil,
+		defaultRbacRoleService: defaultRbacRoleService,
 	}
 	return rbacRoleRestHandlerImpl
 }
@@ -313,3 +316,25 @@ func (handler *RbacRoleRestHandlerImpl) UpdateDefaultRole(w http.ResponseWriter,
 	}
 	common.WriteJsonResp(w, nil, "Custom role update succeeded.", http.StatusOK)
 }
+
+func (handler *RbacRoleRestHandlerImpl) SyncDefaultRoles(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionCreate, bean.AllObjectAccessPlaceholder); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	err = handler.defaultRbacRoleService.SyncRbacRoleData()
+	if err != nil {
+		handler.logger.Errorw("service error, SyncDefaultRoles", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, "Custom role sync succeeded.", http.StatusOK)
+
+}
+
