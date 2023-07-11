@@ -7,6 +7,7 @@ import (
 	util2 "github.com/devtron-labs/devtron/util"
 	"io"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"net/http"
@@ -1179,7 +1180,7 @@ func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req Ephemera
 	}
 
 	_, err = v1Client.Pods(req.Namespace).Patch(context.Background(), pod.Name, types.StrategicMergePatchType, patch, metav1.PatchOptions{}, "ephemeralcontainers")
-	if err != nil {
+	if err != nil && runtime.IsNotRegisteredError(err) {
 
 		patch, err := json.Marshal([]map[string]interface{}{{
 			"op":    "add",
@@ -1200,7 +1201,7 @@ func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req Ephemera
 			Do(context.Background())
 		return result.Error()
 	}
-	return nil
+	return err
 }
 
 func (impl *K8sApplicationServiceImpl) generateDebugContainer(pod *corev1.Pod, req EphemeralContainerRequest) (*corev1.Pod, *corev1.EphemeralContainer, error) {
