@@ -6,6 +6,12 @@ import (
 	"time"
 )
 
+type ContainerAction int
+
+const ActionCreate ContainerAction = 0
+const ActionAccessed ContainerAction = 1
+const ActionDelete ContainerAction = 2
+
 type EphemeralContainerBean struct {
 	tableName           struct{} `sql:"ephemeral_container" pg:",discard_unknown_columns"`
 	Id                  int      `sql:"id,pk"`
@@ -19,12 +25,12 @@ type EphemeralContainerBean struct {
 }
 
 type EphemeralContainerAction struct {
-	tableName            struct{}  `sql:"ephemeral_container_actions" pg:",discard_unknown_columns"`
-	Id                   int       `sql:"id,pk"`
-	EphemeralContainerId int       `sql:"ephemeral_container_id"`
-	ActionType           int       `sql:"action_type"`
-	PerformedBy          int       `sql:"performed_by"`
-	PerformedAt          time.Time `sql:"performed_at"`
+	tableName            struct{}        `sql:"ephemeral_container_actions" pg:",discard_unknown_columns"`
+	Id                   int             `sql:"id,pk"`
+	EphemeralContainerId int             `sql:"ephemeral_container_id"`
+	ActionType           ContainerAction `sql:"action_type"`
+	PerformedBy          int             `sql:"performed_by"`
+	PerformedAt          time.Time       `sql:"performed_at"`
 }
 
 type EphemeralContainersRepository interface {

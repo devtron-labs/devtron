@@ -8,12 +8,6 @@ import (
 	"time"
 )
 
-const (
-	ActionCreate   = 0
-	ActionAccessed = 1
-	ActionDelete   = 2
-)
-
 type EphemeralContainerRequest struct {
 	BasicData    *EphemeralContainerBasicData    `json:"basicData"`
 	AdvancedData *EphemeralContainerAdvancedData `json:"advancedData"`
@@ -35,7 +29,7 @@ type EphemeralContainerBasicData struct {
 
 type EphemeralContainerService interface {
 	SaveEphemeralContainer(tx *pg.Tx, model EphemeralContainerRequest) error
-	UpdateDeleteEphemeralContainer(tx *pg.Tx, model EphemeralContainerRequest, actionType int) error
+	UpdateDeleteEphemeralContainer(tx *pg.Tx, model EphemeralContainerRequest, actionType repository.ContainerAction) error
 	// send action type 1 in case of used and 2 in case of terminated
 }
 
@@ -67,7 +61,7 @@ func (impl *EphemeralContainerServiceImpl) SaveEphemeralContainer(tx *pg.Tx, mod
 
 	var auditLogBean repository.EphemeralContainerAction
 	auditLogBean.EphemeralContainerId = bean.Id
-	auditLogBean.ActionType = ActionCreate
+	auditLogBean.ActionType = repository.ActionCreate
 	auditLogBean.PerformedAt = time.Now()
 	auditLogBean.PerformedBy = model.UserId
 	err = impl.repository.SaveAction(tx, &auditLogBean)
@@ -85,7 +79,7 @@ func (impl *EphemeralContainerServiceImpl) SaveEphemeralContainer(tx *pg.Tx, mod
 	return nil
 }
 
-func (impl *EphemeralContainerServiceImpl) UpdateDeleteEphemeralContainer(tx *pg.Tx, model EphemeralContainerRequest, actionType int) error {
+func (impl *EphemeralContainerServiceImpl) UpdateDeleteEphemeralContainer(tx *pg.Tx, model EphemeralContainerRequest, actionType repository.ContainerAction) error {
 
 	container, err := impl.repository.FindContainerByName(model.ClusterId, model.Namespace, model.PodName, model.BasicData.ContainerName)
 	if err != nil {
