@@ -52,7 +52,7 @@ func TestGetPodContainersList(t *testing.T) {
 		}
 		time.Sleep(5 * time.Second)
 		err := k8sApplicationService.CreatePodEphemeralContainers(&req)
-		testCreationSuccess(err, podName, ephemeralContainerName, k8sApplicationService, tt)
+		testCreationSuccess(err, podName, ephemeralContainerName, 1, k8sApplicationService, tt)
 	})
 
 	t.Run("Create Ephemeral Container with valid Advanced Data,container status will be running", func(tt *testing.T) {
@@ -73,7 +73,7 @@ func TestGetPodContainersList(t *testing.T) {
 		}
 		time.Sleep(5 * time.Second)
 		err := k8sApplicationService.CreatePodEphemeralContainers(&req)
-		testCreationSuccess(err, podName, req.BasicData.ContainerName, k8sApplicationService, tt)
+		testCreationSuccess(err, podName, req.BasicData.ContainerName, 1, k8sApplicationService, tt)
 	})
 
 	t.Run("Create Ephemeral Container with inValid Data, container status will be terminated", func(tt *testing.T) {
@@ -94,12 +94,13 @@ func TestGetPodContainersList(t *testing.T) {
 		}
 		time.Sleep(5 * time.Second)
 		err := k8sApplicationService.CreatePodEphemeralContainers(&req)
-		assert.Nil(tt, err)
-		time.Sleep(5 * time.Second)
-		list, err := k8sApplicationService.GetPodContainersList(testClusterId, testNamespace, podName)
-		assert.Nil(tt, err)
-		assert.NotNil(tt, list)
-		assert.Equal(tt, 0, len(list.EphemeralContainers))
+		//assert.Nil(tt, err)
+		//time.Sleep(2 * time.Second)
+		//list, err := k8sApplicationService.GetPodContainersList(testClusterId, testNamespace, podName)
+		//assert.Nil(tt, err)
+		//assert.NotNil(tt, list)
+		//assert.Equal(tt, 0, len(list.EphemeralContainers))
+		testCreationSuccess(err, podName, req.BasicData.ContainerName, 0, k8sApplicationService, tt)
 	})
 
 	t.Run("Create Ephemeral Container with inValid Data, wrong pod name,error occurs with resource not found", func(tt *testing.T) {
@@ -141,12 +142,7 @@ func TestGetPodContainersList(t *testing.T) {
 		}
 		time.Sleep(5 * time.Second)
 		err := k8sApplicationService.CreatePodEphemeralContainers(&req)
-		assert.Nil(tt, err)
-		time.Sleep(5 * time.Second)
-		list, err := k8sApplicationService.GetPodContainersList(testClusterId, testNamespace, podName)
-		assert.Nil(tt, err)
-		assert.NotNil(tt, list)
-		assert.Equal(tt, 0, len(list.EphemeralContainers))
+		testCreationSuccess(err, podName, req.BasicData.ContainerName, 0, k8sApplicationService, tt)
 	})
 
 	t.Run("Create Ephemeral Container with advanced inValid Data, manifest with unsupported fields, container creation throws error", func(tt *testing.T) {
@@ -200,7 +196,7 @@ func TestGetPodContainersList(t *testing.T) {
 
 		//create ephemeral container
 		err := k8sApplicationService.CreatePodEphemeralContainers(&req)
-		testCreationSuccess(err, podName, req.BasicData.ContainerName, k8sApplicationService, tt)
+		testCreationSuccess(err, podName, req.BasicData.ContainerName, 1, k8sApplicationService, tt)
 
 		//delete ephemeral container
 		terminated, err := k8sApplicationService.TerminatePodEphemeralContainer(req)
@@ -233,7 +229,7 @@ func TestGetPodContainersList(t *testing.T) {
 		time.Sleep(5 * time.Second)
 		//create ephemeral container
 		err := k8sApplicationService.CreatePodEphemeralContainers(&req)
-		testCreationSuccess(err, podName, ephemeralContainerName, k8sApplicationService, tt)
+		testCreationSuccess(err, podName, ephemeralContainerName, 1, k8sApplicationService, tt)
 
 		//delete ephemeral container
 		req.PodName = "InvalidPodName"
@@ -245,13 +241,16 @@ func TestGetPodContainersList(t *testing.T) {
 
 }
 
-func testCreationSuccess(err error, podName, ephemeralContainerName string, k8sApplicationService *K8sApplicationServiceImpl, tt *testing.T) {
+func testCreationSuccess(err error, podName, ephemeralContainerName string, listLen int, k8sApplicationService *K8sApplicationServiceImpl, tt *testing.T) {
 	assert.Nil(tt, err)
+	time.Sleep(2 * time.Second)
 	list, err := k8sApplicationService.GetPodContainersList(testClusterId, testNamespace, podName)
 	assert.Nil(tt, err)
 	assert.NotNil(tt, list)
-	assert.Equal(tt, 1, len(list.EphemeralContainers))
-	assert.Equal(tt, true, strings.Contains(list.EphemeralContainers[0], ephemeralContainerName))
+	assert.Equal(tt, listLen, len(list.EphemeralContainers))
+	if listLen > 0 {
+		assert.Equal(tt, true, strings.Contains(list.EphemeralContainers[0], ephemeralContainerName))
+	}
 }
 
 func deleteTestPod(podName string, k8sApplicationService *K8sApplicationServiceImpl) error {
