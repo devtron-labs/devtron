@@ -2061,7 +2061,7 @@ func validDeploymentConfigReceived(deploymentConfig map[string]bool, deploymentT
 func (impl PipelineBuilderImpl) GetDeploymentConfigMap(environmentId int) (map[string]bool, error) {
 	var deploymentConfig map[string]map[string]bool
 	var deploymentConfigEnv map[string]bool
-	deploymentConfigValues, err := impl.attributesRepository.FindByKey(attributes.DEPLOYMENT_APP_TYPE_ALLOWED_CONFIG)
+	deploymentConfigValues, err := impl.attributesRepository.FindByKey(attributes.ENFORCE_DEPLOYMENT_TYPE_CONFIG)
 	if err == pg.ErrNoRows {
 		return deploymentConfigEnv, nil
 	}

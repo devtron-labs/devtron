@@ -467,7 +467,7 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete(isDeploymen
 			)
 			deploymentConfig := make(map[string]map[string]bool)
 			deploymentConfigEnvLevel := make(map[string]bool)
-			deploymentConfigValues, _ := impl.attributesRepository.FindByKey(attributes.DEPLOYMENT_APP_TYPE_ALLOWED_CONFIG)
+			deploymentConfigValues, _ := impl.attributesRepository.FindByKey(attributes.ENFORCE_DEPLOYMENT_TYPE_CONFIG)
 			//if empty config received(doesn't exist in table) which can't be parsed
 			if deploymentConfigValues.Value != "" {
 				if err = json.Unmarshal([]byte(deploymentConfigValues.Value), &deploymentConfig); err != nil {
