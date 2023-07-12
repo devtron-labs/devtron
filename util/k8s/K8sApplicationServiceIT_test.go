@@ -15,7 +15,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"
 	"k8s.io/kubernetes/pkg/api/legacyscheme"
+	"strings"
 	"testing"
+	"time"
 )
 
 const testClusterId = 1
@@ -41,6 +43,7 @@ func TestGetPodContainersList(t *testing.T) {
 	})
 
 	t.Run("Create Ephemeral Container with valid Basic Data,container status will be running", func(t *testing.T) {
+		ephemeralContainerName := "debugger-basic-test"
 		req := cluster.EphemeralContainerRequest{
 			ClusterId:    testClusterId,
 			Namespace:    testNamespace,
@@ -48,20 +51,25 @@ func TestGetPodContainersList(t *testing.T) {
 			UserId:       1,
 			AdvancedData: nil,
 			BasicData: &cluster.EphemeralContainerBasicData{
-				ContainerName:       "debugger-basic-test",
+				ContainerName:       ephemeralContainerName,
 				TargetContainerName: testContainer,
 				Image:               testImage,
 			},
 		}
+		time.Sleep(5 * time.Second)
 		err = k8sApplicationService.CreatePodEphemeralContainers(req)
 		assert.Nil(t, err)
+		time.Sleep(5 * time.Second)
 		list, err := k8sApplicationService.GetPodContainersList(testClusterId, testNamespace, testPodName)
 		assert.Nil(t, err)
 		assert.NotNil(t, list)
+		assert.Equal(t, 1, len(list.EphemeralContainers))
+		assert.Equal(t, true, strings.Contains(list.EphemeralContainers[0], ephemeralContainerName))
 	})
 
 	t.Run("Create Ephemeral Container with valid Advanced Data,container status will be running", func(t *testing.T) {
-		manifest := `{"name":"debugger-advanced-test","command":["sh"],"image":"quay.io/devtron/ubuntu-k8s-utils:latest"},"targetContainer":"nginx","tty":true,"stdin":true}`
+		manifest := `{"name":"debugger-advanced-test","command":["sh"],"image":"quay.io/devtron/ubuntu-k8s-utils:latest","targetContainer":"nginx","tty":true,"stdin":true}`
+		ephemeralContainerName := "debugger-advanced-test"
 		req := cluster.EphemeralContainerRequest{
 			ClusterId: testClusterId,
 			Namespace: testNamespace,
@@ -72,12 +80,40 @@ func TestGetPodContainersList(t *testing.T) {
 				Manifest: manifest,
 			},
 		}
+		time.Sleep(5 * time.Second)
 		err = k8sApplicationService.CreatePodEphemeralContainers(req)
 		assert.Nil(t, err)
+		time.Sleep(5 * time.Second)
+		list, err := k8sApplicationService.GetPodContainersList(testClusterId, testNamespace, testPodName)
+		assert.Nil(t, err)
+		assert.NotNil(t, list)
+		assert.Equal(t, 2, len(list.EphemeralContainers))
+		assert.Equal(t, true, strings.Contains(list.EphemeralContainers[0], ephemeralContainerName))
 	})
 
 	t.Run("Create Ephemeral Container with inValid Data, container status will be terminated", func(t *testing.T) {
-
+		ephemeralContainerName := "debugger-basic-invalid-test"
+		req := cluster.EphemeralContainerRequest{
+			ClusterId:    testClusterId,
+			Namespace:    testNamespace,
+			PodName:      testPodName,
+			UserId:       1,
+			AdvancedData: nil,
+			BasicData: &cluster.EphemeralContainerBasicData{
+				ContainerName:       ephemeralContainerName,
+				TargetContainerName: testContainer,
+				Image:               "invalidImage",
+			},
+		}
+		time.Sleep(5 * time.Second)
+		err = k8sApplicationService.CreatePodEphemeralContainers(req)
+		assert.Nil(t, err)
+		time.Sleep(5 * time.Second)
+		list, err := k8sApplicationService.GetPodContainersList(testClusterId, testNamespace, testPodName)
+		assert.Nil(t, err)
+		assert.NotNil(t, list)
+		assert.Equal(t, 2, len(list.EphemeralContainers))
+		assert.Equal(t, false, strings.Contains(list.EphemeralContainers[0], ephemeralContainerName))
 	})
 
 	t.Run("Terminate Ephemeral Container with valid Data, container status will be terminated", func(t *testing.T) {
