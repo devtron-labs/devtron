@@ -1146,7 +1146,7 @@ func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req cluster.
 		return err
 	}
 	if !compatible {
-		return errors.New("ephemeral containers are not supported for the current kubernetes server version")
+		return errors.New("This feature is supported on and above Kubernetes v1.23 only.")
 	}
 	pod, err := impl.K8sUtil.GetPodByName(req.Namespace, req.PodName, v1Client)
 	if err != nil {
