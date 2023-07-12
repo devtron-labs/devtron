@@ -26,6 +26,7 @@ import (
 	"net/http"
 	"os/user"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -814,4 +815,28 @@ func (impl K8sUtil) GetKubeVersion() (*version.Info, error) {
 		return nil, err
 	}
 	return k8sServerVersion, err
+}
+
+func (impl K8sUtil) K8sServerVersionCheckForEphemeralContainers(clientSet *kubernetes.Clientset) (bool, error) {
+	k8sServerVersion, err := clientSet.DiscoveryClient.ServerVersion()
+	if err != nil {
+		impl.logger.Errorw("error occurred in getting k8sServerVersion", "err", err)
+		return false, err
+	}
+	majorVersion, err := strconv.Atoi(k8sServerVersion.Major)
+	if err != nil {
+		impl.logger.Errorw("error occurred in converting k8sServerVersion.Major version value to integer", "err", err, "k8sServerVersion.Major", k8sServerVersion.Major)
+		return false, err
+	}
+	minorVersion, err := strconv.Atoi(k8sServerVersion.Minor)
+	if err != nil {
+		impl.logger.Errorw("error occurred in converting k8sServerVersion.Minor version value to integer", "err", err, "k8sServerVersion.Minor", k8sServerVersion.Minor)
+		return false, err
+	}
+	//ephemeral containers feature is introduced in version v1.23 of kubernetes, it is stable from version v1.25
+	//https://kubernetes.io/docs/concepts/workloads/pods/ephemeral-containers/
+	if majorVersion < 1 || (majorVersion == 1 && minorVersion < 23) {
+		return false, nil
+	}
+	return true, nil
 }

@@ -1140,7 +1140,7 @@ func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req cluster.
 		impl.logger.Errorw("error in getting coreV1 client by clusterId", "clusterId", req.ClusterId, "err", err)
 		return err
 	}
-	compatible, err := K8sServerVersionCheckForEphemeralContainers(clientSet)
+	compatible, err := impl.K8sUtil.K8sServerVersionCheckForEphemeralContainers(clientSet)
 	if err != nil {
 		impl.logger.Errorw("error in checking kubernetes server version compatability for ephemeral containers", "clusterId", req.ClusterId, "err", err)
 		return err
@@ -1156,6 +1156,7 @@ func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req cluster.
 
 	podJS, err := json.Marshal(pod)
 	if err != nil {
+		impl.logger.Errorw("error occurred in unMarshaling pod object", "podObject", pod, "err", err)
 		return fmt.Errorf("error creating JSON for pod: %v", err)
 	}
 	debugPod, debugContainer, err := impl.generateDebugContainer(pod, req)
@@ -1166,17 +1167,20 @@ func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req cluster.
 
 	debugJS, err := json.Marshal(debugPod)
 	if err != nil {
+		impl.logger.Errorw("error occurred in unMarshaling debugPod object", "debugPod", debugPod, "err", err)
 		return fmt.Errorf("error creating JSON for pod: %v", err)
 	}
 
 	patch, err := strategicpatch.CreateTwoWayMergePatch(podJS, debugJS, pod)
 	if err != nil {
+		impl.logger.Errorw("error occurred in CreateTwoWayMergePatch", "podJS", podJS, "debugJS", debugJS, "pod", pod, "err", err)
 		return fmt.Errorf("error creating patch to add debug container: %v", err)
 	}
 
 	_, err = v1Client.Pods(req.Namespace).Patch(context.Background(), pod.Name, types.StrategicMergePatchType, patch, metav1.PatchOptions{}, "ephemeralcontainers")
 	if err != nil {
 		if serr, ok := err.(*errors2.StatusError); ok && serr.Status().Reason == metav1.StatusReasonNotFound && serr.ErrStatus.Details.Name == "" {
+			impl.logger.Errorw("error occurred while creating ephemeral containers", "err", err, "reason", "ephemeral containers are disabled for this cluster")
 			return fmt.Errorf("ephemeral containers are disabled for this cluster (error from kubernetes server: %q)", err)
 		}
 		if runtime.IsNotRegisteredError(err) {
@@ -1186,6 +1190,7 @@ func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req cluster.
 				"value": debugContainer,
 			}})
 			if err != nil {
+				impl.logger.Errorw("error occured while trying to create epehemral containers with legacy API", "err", err)
 				return fmt.Errorf("error creating JSON 6902 patch for old /ephemeralcontainers API: %s", err)
 			}
 
@@ -1202,7 +1207,7 @@ func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req cluster.
 		return err
 	}
 
-	if err != nil {
+	if err == nil {
 		req.AdvancedData = &cluster.EphemeralContainerAdvancedData{
 			Manifest: string(debugJS),
 		}
@@ -1271,7 +1276,7 @@ func (impl *K8sApplicationServiceImpl) TerminatePodEphemeralContainer(req cluste
 		return false, err
 	}
 
-	if err != nil {
+	if err == nil {
 
 		err = impl.ephemeralContainerService.AuditEphemeralContainerAction(req, repository.ActionTerminate)
 		if err != nil {
@@ -1287,17 +1292,21 @@ func (impl *K8sApplicationServiceImpl) TerminatePodEphemeralContainer(req cluste
 func (impl *K8sApplicationServiceImpl) getCoreClientByClusterId(clusterId int) (*kubernetes.Clientset, *v1.CoreV1Client, error) {
 	clusterBean, err := impl.clusterService.FindById(clusterId)
 	if err != nil {
-		impl.logger.Errorw("defaultClusterBean err, TriggerChartSyncManual", "err", err)
+		impl.logger.Errorw("error occurred in finding clusterBean by Id", "clusterId", clusterId, "err", err)
 		return nil, nil, err
 	}
 
 	clusterConfig := clusterBean.GetClusterConfig()
 	v1Client, err := impl.K8sUtil.GetClient(&clusterConfig)
 	if err != nil {
+		//not logging clusterConfig as it contains sensitive data
+		impl.logger.Errorw("error occurred in getting v1Client with cluster config", "err", err, "clusterId", clusterId)
 		return nil, nil, err
 	}
 	clientSet, err := impl.K8sUtil.GetClientSet(&clusterConfig)
 	if err != nil {
+		//not logging clusterConfig as it contains sensitive data
+		impl.logger.Errorw("error occurred in getting clientSet with cluster config", "err", err, "clusterId", clusterId)
 		return nil, v1Client, err
 	}
 	return clientSet, v1Client, nil
@@ -1345,25 +1354,4 @@ func (impl *K8sApplicationServiceImpl) GetPodContainersList(clusterId int, names
 		EphemeralContainers: ephemeralContainers,
 		InitContainers:      initContainers,
 	}, nil
-}
-
-func K8sServerVersionCheckForEphemeralContainers(clientSet *kubernetes.Clientset) (bool, error) {
-	k8sServerVersion, err := clientSet.DiscoveryClient.ServerVersion()
-	if err != nil {
-		return false, err
-	}
-	majorVersion, err := strconv.Atoi(k8sServerVersion.Major)
-	if err != nil {
-		return false, err
-	}
-	minorVersion, err := strconv.Atoi(k8sServerVersion.Minor)
-	if err != nil {
-		return false, err
-	}
-	//ephemeral containers feature is introduced in version v1.23 of kubernetes, it is stable from version v1.25
-	//https://kubernetes.io/docs/concepts/workloads/pods/ephemeral-containers/
-	if majorVersion < 1 || (majorVersion == 1 && minorVersion < 23) {
-		return false, nil
-	}
-	return true, nil
 }
