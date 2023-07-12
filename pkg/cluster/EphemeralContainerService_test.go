@@ -30,10 +30,16 @@ func createSampleRequest() EphemeralContainerRequest {
 
 func TestForEphemeralContainers(t *testing.T) {
 
+	const (
+		namespace  = "namespace-1"
+		pod        = "pod-1"
+		containers = "container-1"
+	)
+
 	t.Run("TestSaveEphemeralContainer_Success", func(t *testing.T) {
 		repository := mocks.NewEphemeralContainersRepository(t)
 
-		repository.On("FindContainerByName", 1, "namespace-1", "pod-1", "container-1").Return(nil, nil)
+		repository.On("FindContainerByName", 1, namespace, pod, containers).Return(nil, nil)
 		repository.On("StartTx").Return(&pg.Tx{}, nil)
 		repository.On("RollbackTx", mock.AnythingOfType("*pg.Tx")).Return(nil) // Add this expectation
 		repository.On("SaveData", mock.AnythingOfType("*pg.Tx"), mock.AnythingOfType("*repository.EphemeralContainerBean")).Return(nil)
@@ -66,13 +72,13 @@ func TestForEphemeralContainers(t *testing.T) {
 
 		assert.Error(t, err)
 
-		repository.AssertCalled(t, "FindContainerByName", 1, "namespace-1", "pod-1", "container-1")
+		repository.AssertCalled(t, "FindContainerByName", 1, namespace, pod, containers)
 	})
 
 	t.Run("TestAuditEphemeralContainerAction_Success", func(t *testing.T) {
 		repository := mocks.NewEphemeralContainersRepository(t)
 		tx := &pg.Tx{}
-		repository.On("FindContainerByName", 1, "namespace-1", "pod-1", "container-1").Return(nil, nil)
+		repository.On("FindContainerByName", 1, namespace, pod, containers).Return(nil, nil)
 		repository.On("StartTx").Return(tx, nil)
 		repository.On("RollbackTx", tx).Return(nil)
 		repository.On("SaveData", tx, mock.AnythingOfType("*repository.EphemeralContainerBean")).Return(nil)
@@ -105,7 +111,7 @@ func TestForEphemeralContainers(t *testing.T) {
 
 		assert.Error(t, err)
 
-		repository.AssertCalled(t, "FindContainerByName", 1, "namespace-1", "pod-1", "container-1")
+		repository.AssertCalled(t, "FindContainerByName", 1, namespace, pod, containers)
 	})
 
 	t.Run("TestSaveEphemeralContainer_ContainerAlreadyPresentError", func(t *testing.T) {
@@ -126,14 +132,14 @@ func TestForEphemeralContainers(t *testing.T) {
 		assert.Error(t, err)
 		assert.EqualError(t, err, "container already present in the provided pod")
 
-		repository.AssertCalled(t, "FindContainerByName", 1, "namespace-1", "pod-1", "container-1")
+		repository.AssertCalled(t, "FindContainerByName", 1, namespace, pod, containers)
 	})
 
 	t.Run("TestAuditEphemeralContainerAction_CommitError", func(t *testing.T) {
 
 		repository := mocks.NewEphemeralContainersRepository(t)
 		tx := &pg.Tx{}
-		repository.On("FindContainerByName", 1, "namespace-1", "pod-1", "container-1").Return(nil, nil)
+		repository.On("FindContainerByName", 1, namespace, pod, containers).Return(nil, nil)
 		repository.On("StartTx").Return(tx, nil)
 		repository.On("RollbackTx", tx).Return(nil)
 		repository.On("SaveData", tx, mock.AnythingOfType("*repository.EphemeralContainerBean")).Return(nil)
@@ -156,7 +162,7 @@ func TestForEphemeralContainers(t *testing.T) {
 		repository := mocks.NewEphemeralContainersRepository(t)
 		tx := &pg.Tx{}
 
-		repository.On("FindContainerByName", 1, "namespace-1", "pod-1", "container-1").Return(nil, nil)
+		repository.On("FindContainerByName", 1, namespace, pod, containers).Return(nil, nil)
 		repository.On("StartTx").Return(tx, nil)
 		repository.On("RollbackTx", tx).Return(nil)
 		repository.On("SaveData", tx, mock.AnythingOfType("*repository.EphemeralContainerBean")).Return(nil)
@@ -177,7 +183,7 @@ func TestForEphemeralContainers(t *testing.T) {
 		repository := mocks.NewEphemeralContainersRepository(t)
 		tx := &pg.Tx{}
 
-		repository.On("FindContainerByName", 1, "namespace-1", "pod-1", "container-1").Return(nil, nil)
+		repository.On("FindContainerByName", 1, namespace, pod, containers).Return(nil, nil)
 		repository.On("StartTx").Return(tx, nil)
 		repository.On("RollbackTx", tx).Return(errors.New("error in rolling back tx"))
 		repository.On("SaveData", tx, mock.AnythingOfType("*repository.EphemeralContainerBean")).Return(errors.New("error saving data")) // Return an error during SaveData
@@ -196,7 +202,7 @@ func TestForEphemeralContainers(t *testing.T) {
 
 		repository := mocks.NewEphemeralContainersRepository(t)
 		tx := &pg.Tx{}
-		repository.On("FindContainerByName", 1, "namespace-1", "pod-1", "container-1").Return(nil, nil)
+		repository.On("FindContainerByName", 1, namespace, pod, containers).Return(nil, nil)
 		repository.On("StartTx").Return(tx, errors.New("error creating transaction")) // Simulate error in creating transaction
 		repository.On("RollbackTx", tx).Return(nil)
 		logger, _ := util.NewSugardLogger()
@@ -214,7 +220,7 @@ func TestForEphemeralContainers(t *testing.T) {
 
 		repository := mocks.NewEphemeralContainersRepository(t)
 		tx := &pg.Tx{}
-		repository.On("FindContainerByName", 1, "namespace-1", "pod-1", "container-1").Return(nil, nil)
+		repository.On("FindContainerByName", 1, namespace, pod, containers).Return(nil, nil)
 		repository.On("StartTx").Return(tx, nil)
 		repository.On("RollbackTx", tx).Return(nil)
 		repository.On("SaveData", tx, mock.AnythingOfType("*repository.EphemeralContainerBean")).Return(nil)
@@ -236,7 +242,7 @@ func TestForEphemeralContainers(t *testing.T) {
 		repository := mocks.NewEphemeralContainersRepository(t)
 		tx := &pg.Tx{}
 
-		repository.On("FindContainerByName", 1, "namespace-1", "pod-1", "container-1").Return(nil, nil)
+		repository.On("FindContainerByName", 1, namespace, pod, containers).Return(nil, nil)
 		repository.On("StartTx").Return(tx, nil)
 		repository.On("RollbackTx", tx).Return(nil)
 		repository.On("SaveData", tx, mock.AnythingOfType("*repository.EphemeralContainerBean")).Return(nil)
@@ -257,7 +263,7 @@ func TestForEphemeralContainers(t *testing.T) {
 		repository := mocks.NewEphemeralContainersRepository(t)
 		tx := &pg.Tx{}
 
-		repository.On("FindContainerByName", 1, "namespace-1", "pod-1", "container-1").Return(nil, nil)
+		repository.On("FindContainerByName", 1, namespace, pod, containers).Return(nil, nil)
 		repository.On("StartTx").Return(tx, nil)
 		repository.On("RollbackTx", tx).Return(errors.New("error in rolling back tx"))
 		repository.On("SaveData", tx, mock.AnythingOfType("*repository.EphemeralContainerBean")).Return(errors.New("error saving data")) // Return an error during SaveData
@@ -275,7 +281,7 @@ func TestForEphemeralContainers(t *testing.T) {
 
 		repository := mocks.NewEphemeralContainersRepository(t)
 		tx := &pg.Tx{}
-		repository.On("FindContainerByName", 1, "namespace-1", "pod-1", "container-1").Return(nil, nil)
+		repository.On("FindContainerByName", 1, namespace, pod, containers).Return(nil, nil)
 		repository.On("StartTx").Return(tx, errors.New("error creating transaction")) // Simulate error in creating transaction
 		repository.On("RollbackTx", tx).Return(nil)
 		logger, _ := util.NewSugardLogger()
@@ -295,7 +301,7 @@ func TestForEphemeralContainers(t *testing.T) {
 			Id: 1,
 		}
 
-		repository.On("FindContainerByName", 1, "namespace-1", "pod-1", "container-1").Return(container, nil)
+		repository.On("FindContainerByName", 1, namespace, pod, containers).Return(container, nil)
 		repository.On("StartTx").Return(tx, nil)
 		repository.On("RollbackTx", tx).Return(nil)
 		repository.On("SaveAction", tx, mock.AnythingOfType("*repository.EphemeralContainerAction")).Return(nil)
@@ -320,7 +326,7 @@ func TestForEphemeralContainers(t *testing.T) {
 			Id:      123,
 			PodName: "existing-pod",
 		}
-		repository.On("FindContainerByName", 1, "namespace-1", "pod-1", "container-1").Return(container, nil)
+		repository.On("FindContainerByName", 1, namespace, pod, containers).Return(container, nil)
 		repository.On("StartTx").Return(tx, nil)
 		repository.On("RollbackTx", tx).Return(nil)
 		repository.On("SaveAction", tx, mock.AnythingOfType("*repository.EphemeralContainerAction")).Return(nil)
