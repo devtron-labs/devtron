@@ -48,9 +48,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
 	"net/url"
-	"os"
 	"path"
 	"path/filepath"
+	"sigs.k8s.io/yaml"
 	"strconv"
 	"strings"
 	"time"
@@ -1538,56 +1538,38 @@ func (impl *AppServiceImpl) CopyFile(source, destination string) error {
 }
 
 func (impl *AppServiceImpl) GetHelmManifestInByte(appName string, envName string, image string, chartVersion string, overrideValues string, builtChartPath string) ([]byte, error) {
-
 	var manifestByteArr []byte
-
-	// parsed ref-chart has many files and helm chart in form <appName-chartVersion.tgz>, copying this helm chart and values to new dir so that other unnecessary files are removed
-	tempHelmPackageDir := path.Join("/tmp/helmManifest", impl.chartTemplateService.GetDir())
-	err := os.MkdirAll(tempHelmPackageDir, os.ModePerm)
-	if err != nil {
-		impl.logger.Errorw("error in making dir for helm manifest", "err", err)
-		return manifestByteArr, err
-	}
-
-	packageChartName := fmt.Sprintf("%s-%s.tgz", appName, chartVersion)
-	packageChartOldPath := path.Join(builtChartPath, packageChartName) // helm chart
-	packageChartNewPath := path.Join(tempHelmPackageDir, packageChartName)
-	err = impl.CopyFile(packageChartOldPath, packageChartNewPath)
+	valuesFilePath := path.Join(builtChartPath, "values.yaml") //default values of helm chart
+	defaultValues, err := ioutil.ReadFile(valuesFilePath)
 	if err != nil {
 		return manifestByteArr, err
 	}
-
-	valuesFileOldPath := path.Join(builtChartPath, "values.yaml") //default values of helm chart
-	valuesFileNewPath := path.Join(tempHelmPackageDir, "values.yaml")
-	err = impl.CopyFile(valuesFileOldPath, valuesFileNewPath)
+	defaultValuesJson, err := yaml.YAMLToJSON(defaultValues)
 	if err != nil {
 		return manifestByteArr, err
 	}
-
-	valuesOverrideFilePath := path.Join(tempHelmPackageDir, "valuesOverride.json") //values override json
-	err = ioutil.WriteFile(valuesOverrideFilePath, []byte(overrideValues), 0600)
+	mergedValues, err := impl.mergeUtil.JsonPatch(defaultValuesJson, []byte(overrideValues))
 	if err != nil {
 		return manifestByteArr, err
 	}
-
-	chartsFileOldPath := path.Join(builtChartPath, "Chart.yaml") //default values of helm chart
-	chartsFileNewPath := path.Join(tempHelmPackageDir, "Chart.yaml")
-	err = impl.CopyFile(chartsFileOldPath, chartsFileNewPath)
+	mergedValuesYaml, err := yaml.JSONToYAML(mergedValues)
 	if err != nil {
 		return manifestByteArr, err
 	}
-
+	err = ioutil.WriteFile(valuesFilePath, mergedValuesYaml, 0600)
+	if err != nil {
+		return manifestByteArr, err
+	}
 	var imageTag string
 	if len(image) > 0 {
 		imageTag = strings.Split(image, ":")[1]
 	}
 	chartName := fmt.Sprintf("%s-%s-%s", appName, envName, imageTag)
-	manifestByteArr, err = impl.chartTemplateService.LoadChartInBytes(tempHelmPackageDir, false, chartName, chartVersion)
+	manifestByteArr, err = impl.chartTemplateService.LoadChartInBytes(builtChartPath, false, chartName, chartVersion)
 	if err != nil {
 		impl.logger.Errorw("error in converting chart to bytes", "err", err)
 		return manifestByteArr, err
 	}
-
 	return manifestByteArr, err
 }
 
