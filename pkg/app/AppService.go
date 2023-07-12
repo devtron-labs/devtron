@@ -1897,7 +1897,7 @@ func (impl *AppServiceImpl) BuildManifestPushTemplate(overrideRequest *bean.Valu
 			repoPath, chartName := GetRepoPathAndChartNameFromRepoName(credentialsConfig.RepositoryName)
 			manifestPushTemplate.RepoUrl = path.Join(dockerArtifactStore.RegistryURL, repoPath)
 			manifestPushTemplate.ChartName = chartName
-			manifestPushTemplate.ChartVersion = fmt.Sprintf("%d.%d.%d.%s", 1, 0, overrideRequest.WfrId, "DEPLOY")
+			manifestPushTemplate.ChartVersion = fmt.Sprintf("%s%d.%d.%d", 1, 0, overrideRequest.WfrId, "DEPLOY")
 			containerRegistryConfig := &bean3.ContainerRegistryConfig{
 				RegistryUrl: dockerArtifactStore.RegistryURL,
 				Username:    dockerArtifactStore.Username,
@@ -1915,7 +1915,7 @@ func (impl *AppServiceImpl) BuildManifestPushTemplate(overrideRequest *bean.Valu
 	} else {
 		manifestPushTemplate.ChartReferenceTemplate = valuesOverrideResponse.EnvOverride.Chart.ReferenceTemplate
 		manifestPushTemplate.ChartName = valuesOverrideResponse.EnvOverride.Chart.ChartName
-		manifestPushTemplate.ChartVersion = fmt.Sprintf("%s.%s", valuesOverrideResponse.EnvOverride.Chart.ChartVersion, "DEPLOY")
+		manifestPushTemplate.ChartVersion = fmt.Sprintf("%s%s", valuesOverrideResponse.EnvOverride.Chart.ChartVersion, "DEPLOY")
 		manifestPushTemplate.ChartLocation = valuesOverrideResponse.EnvOverride.Chart.ChartLocation
 		manifestPushTemplate.RepoUrl = valuesOverrideResponse.EnvOverride.Chart.GitRepoUrl
 	}
@@ -3214,7 +3214,7 @@ func (impl *AppServiceImpl) BuildManifestPushTemplateForPrePostCd(pipeline *pipe
 		UserId:                triggeredBy,
 		AppName:               pipeline.App.AppName,
 		TargetEnvironmentName: pipeline.Environment.Id,
-		ChartVersion:          fmt.Sprintf("%d.%d.%d.%s", 1, 1, cdWorklowRunnerId, deployType),
+		ChartVersion:          fmt.Sprintf("%s%d.%d.%d", 1, 1, cdWorklowRunnerId, deployType),
 		BuiltChartBytes:       manifest,
 	}
 
