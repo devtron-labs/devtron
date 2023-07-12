@@ -463,9 +463,11 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	}
 
 	defaultTargetPlatform := impl.ciConfig.DefaultTargetPlatform
+	useBuildx := impl.ciConfig.UseBuildx
 
-	if ciBuildConfigBean.DockerBuildConfig.TargetPlatform == "" {
+	if ciBuildConfigBean.DockerBuildConfig.TargetPlatform == "" && useBuildx {
 		ciBuildConfigBean.DockerBuildConfig.TargetPlatform = defaultTargetPlatform
+		ciBuildConfigBean.DockerBuildConfig.UseBuildx = useBuildx
 	}
 
 	workflowRequest := &WorkflowRequest{

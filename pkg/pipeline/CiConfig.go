@@ -86,6 +86,7 @@ type CiConfig struct {
 	BaseLogLocationPath              string                       `env:"BASE_LOG_LOCATION_PATH" envDefault:"/home/devtron/"`
 	InAppLoggingEnabled              bool                         `env:"IN_APP_LOGGING_ENABLED" envDefault:"false"`
 	DefaultTargetPlatform            string                       `env:"DEFAULT_TARGET_PLATFORM" envDefault:""`
+	UseBuildx                        bool                         `env:"USE_BUILDX" envDefault:"false"`
 	ClusterConfig                    *rest.Config
 	NodeLabel                        map[string]string
 	EnableBuildContext               bool `env:"ENABLE_BUILD_CONTEXT" envDefault:"false"`
