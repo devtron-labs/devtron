@@ -1,110 +1,91 @@
 # Security Features
 
-Devtron’s tool is also providing you `Security Features` to identify the vulnerabilities inside your code and to protect your code from external attacks.
+Devtron provides strong security features that help identify vulnerabilities in container images. The system scans container images thoroughly and generates reports if any vulnerabilities are found. 
 
-The system will scan your code and inform you if there are any Vulnerabilities present in your code. Also to make this feature more flexible to use, we have added a capability using which you can whitelist or block any vulnerability, and your code will be scanned considering the defined whitelist or blocked vulnerabilities.
+Within the CI pipeline of Devtron, there is an option called [**Scan for vulnerabilities**](creating-application/workflow/ci-pipeline.md#scan-for-vulnerabilities). 
 
-Remember, we discussed the [Scan for vulnerabilities](creating-application/workflow/ci-pipeline.md#scan-for-vulnerabilities) option in the CI pipeline. You can enable this feature from the CI Pipeline page. The system will scan your code and will show you all vulnerabilities present in your code.
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/security-features/enable-image-scan.jpg)
 
-We have created `Security features` to identify the vulnerabilities inside your code and to protect you from external attacks.
+By enabling this option, the system automatically scans the container image after the image build stage. It then generates a report that highlights all the vulnerabilities present within the image. To access the scan report of all builds with enabled vulnerability scans, simply navigate to the 'Security' tab on the dashboard. You can conveniently view the build history and all the vulnerabilities found in the build image there.
 
-This Security Feature has two processes:
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/security-features/scan-report-on-build-history.jpg)
 
-1. Scanning
-2. Policy
+ The scan report provides a comprehensive overview of any vulnerabilities present in the image. This allows you to identify and address potential security risks effectively. By leveraging this feature, you can ensure that your containerized applications are safeguarded against known vulnerabilities.
 
-## Scanning
+Devtron's Security Feature consists of two primary components:
 
-This process starts executing after the successful execution of the CI pipeline and before the deployment\(CD\) process starts.
+1. **Security Scans**
+2. **Security Policies**
 
-It scans your code to find any potential threat and shows you the list of vulnerabilities as an output of the CI pipeline if it finds any.
+## Security Scans
 
-We will discuss later how you will see the list of your found vulnerabilities.
+Devtron's security scans provide comprehensive scan reports for all applications that have undergone vulnerability scanning. These reports offer a detailed overview of the security status of each scanned application.
 
-## Policy
+These comprehensive scan reports provide valuable insights, including information about identified vulnerabilities, their severity levels, and any corresponding Common Vulnerabilities and Exposures (CVE) entries.
 
-Vulnerabilities have different levels like Critical, Moderate, and Low. Users can define policy according to the level of vulnerability. Users can also block the vulnerability or allow\(whitelist\) the vulnerability for their code.
+## Security Policies
 
-If any vulnerability is found which is blocked by the user, then it will not deploy the application. And if it finds any vulnerability which is whitelisted by the user, then the build image can be deployed.
+Devtron's Security Policies feature allows users to define policies based on the severity levels of vulnerabilities, which include **Critical**, **Moderate**, and **Low**. Users have the flexibility to set policies that either block the deployment of container images with vulnerabilities or allow their deployment.
 
-The user gets informed in both cases if it finds any vulnerability or doesn't find any.
+With this feature, users can specify their desired actions for each severity level. For example, they can choose to block any container image with Critical vulnerabilities, while allowing container images with Moderate or Low vulnerabilities to be deployed.
 
-**How to Check Vulnerability**
+### Checking Comprehensive Vulnerability Scan Report
 
-You can find the Vulnerabilities `Build History` Page if you have enabled the `Scan for vulnerabilities` option.
+To access the comprehensive security scan reports, follow these steps:
 
-Your Application-&gt; Build History-&gt; Select pipeline-&gt; Go to Security Tab.
+1. Navigate to the Security tab within Devtron.
+2. Select the desired application from the available list.
 
-![](../.gitbook/assets/security-feature-build-history-security.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/security-features/security-scans.jpg)
 
-Here you can see all the vulnerabilities found in the build image.
+This action will provide detailed information regarding the security scan of the application, including the CVE, Severity of the identified vulnerabilities, as you can see in the image below.
 
-Every vulnerability has `CVE ID`, `Severity Level`, Package, Current Version, and Fixed In Version.
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/security-features/security-scans-report.jpg)
 
-**CVE ID**- Common Vulnerability ID
+Each vulnerability is identified by a **CVE ID** and categorized based on **Severity**, **Package**, **Current Version**, and **Fixed In Version**.
 
-**Severity Level**- informs you about the severity of the vulnerability, it is defined as Critical, Medium, and Low.
+* **`CVE ID`** refers to the Common Vulnerability ID assigned to each vulnerability.
+* **`Severity`** indicates the severity of the vulnerability and can be classified as Critical, Medium, or Low.
+* The **`Package`** column contains metadata associated with the vulnerability. The current Version refers to the specific version of the vulnerability.
+* The **`Fixed In Version`** column displays the version name if the vulnerability has been addressed in a subsequent release; otherwise, it remains blank.
 
-**Package**- column contains some meta-data of vulnerability.
+### Discover Vulnerabilities on the Trigger Page
 
-**Current Version**- is the version of that vulnerability
+Devtron provides the capability to identify vulnerabilities before image deployment in the Continuous Deployment (CD) pipeline. This ensures that potential vulnerabilities are detected and addressed early in the deployment process.
 
-**Fixed In Version**- column contains version name if it has been fixed in any version, else it remains blank
+To access security vulnerability details during image deployment in Devtron, follow these steps:
 
-**Find Vulnerabilities on the Trigger Page**
+1. Click on the `Show source info` option for the desired image during the deployment process.
+2. Navigate to the `Security` tab.
 
-You can find Vulnerabilities on the `Trigger` page also. Image having vulnerabilities will be marked as `Security Issues Found` and you won’t be able to select the image to deploy it.
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/security-features/show-vulnerabilities-before-deployment.jpg)
 
-You can see details of these vulnerabilities by expanding the `Show Source Info`.
+In the `Security` tab, you will find the security vulnerability details associated with the image. 
 
-See the below image.
+**NOTE:** Vulnerabilities will only be displayed if a vulnerability scan has been enabled for that specific image. If no vulnerabilities are visible, it indicates that a vulnerability scan has not been performed for the image.
 
-![](../images/security-features/security-feature-deployed-image-1.png)
+### Accessing Vulnerability Information on the App Details Page
 
-Click on the `Show Source Info` option. A window will be expanded with two options- Changes and Security. Click on the Security tab to view details about the vulnerabilities in the code.
+Devtron offers the capability to identify vulnerabilities even after an image has been deployed. By navigating to the `app details` page, you can find comprehensive details about the vulnerabilities associated with the deployed image.
 
-![](../.gitbook/assets/security-feature-deployed-image-security.png)
+With this capability, Devtron empowers users to stay informed about the security vulnerabilities present in their deployed images.
 
-**Find Vulnerabilities on the App Details Page**
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/security-features/vulnerability-app-details.jpg)
 
-You can find Vulnerabilities on the `App Details` page too. Here we are displaying the total number of vulnerabilities found in the code and their Severity Level wise segregation.
+By clicking on the 'Details' link in the security vulnerabilities report, you can access detailed information about the security vulnerabilities present inside the deployed image.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/security-features/security-feature-app-details-vulnerability.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/security-features/detailed+vulnerability-app-details.jpg)
 
-## Security
+## Configuring Security Policies
 
-You can check Vulnerabilities for all your applications in one place. On the Home page, there is an option named `Security`. Here, you can see a list of applications under the `Security Scan` tab. Here all the applications are listed which have the `Scan for Vulnerabilities` feature enabled. You can see the vulnerability count along with the Severity Level for all your applications.
+You can establish security policies for their vulnerabilities through the Security Policies tab, which can be accessed from the left pane by navigating to Security and selecting Security Policies. Policies are implemented in a hierarchical order, following a specific sequence. The order of implementation is as follows, starting from the highest level:
 
-**Note:-**
+* **Global**
+* **Cluster**
+* **Environment**
+* **Application**
 
-It displays the “Vulnerability count and Severity Level” on a priority basis. And critical level has the highest priority, so it displays the critical level vulnerabilities and there counts if any application is having critical vulnerability in it.
-
-You can directly `Search` your application using the Search bar or you can `filter out` your requirement according to Severity, Clusters, and Environment.
-
-![](../.gitbook/assets/security-feature-securitytab-security-scan%20%282%29.png)
-
-Now if you click on the severity level of vulnerability it will show you the list of all vulnerabilities along with other details.
-
-![](../.gitbook/assets/security-feature-securitytab-list-vulnerability%20%282%29.png)
-
-## Security Policies:
-
-Users can define Security policies for their vulnerabilities under `Security Policies` Tab.
-
-Home Page-&gt; Security - &gt; Security Policies
-
-Policies can be defined to different levels-
-
-* Global
-* Cluster
-* Environment
-* Application
-
-**Note:-**
-
-Policies work in hierarchical order.
-
-Order to be followed- First Global and second Cluster and so on as you can see the order of the options
+Policies are implemented in a hierarchical order, with the following sequence: Global, Cluster, Environment, and Application. Higher-level policies take precedence over lower-level policies, ensuring a systematic and structured enforcement of security measures.
 
 ![](../.gitbook/assets/security-feature-global-security-policies.png)
 
@@ -112,41 +93,60 @@ Order to be followed- First Global and second Cluster and so on as you can see t
 
 Users can block all the critical vulnerabilities and allow the moderate and low vulnerabilities or Users can block all vulnerabilities or users can block all vulnerabilities for one application and can block only Critical vulnerabilities for other applications.
 
-## Configure Global Policy
+## Configure Global Security Policy
 
-To configure these policies, click on the drop-down option of the severity levels and select Block or Allow.
+Within the Global Security Policies, there are two options available: Block and Allow.
+If critical severity levels are blocked in the Global Security Policy, the same blocking will be applied to the Cluster Security Policy. Similarly, if the global policy is modified to allow critical levels, it will also allow them in Cluster Security Policies. 
+However, users have the flexibility to explicitly modify these policies as desired.
 
-![](../.gitbook/assets/security-feature8%20%282%29.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/security-features/global-security-policy.jpg)
 
 ## Configure Cluster Security Policy
 
-In the Global Security Policies, there are only two options available- Block and Allow. But in other options, we have an extra option named `Inherit`.
 
-As the name itself gives you an idea about this option, it fetches the policy of its upper-level options, if we choose to inherit in the drop-down.
+In Global Security Policies, there are two options: `Block` and `Allow`. Cluster Security Policies have an additional option called `Inherit`.
 
-Example-if you block critical severity levels in Global, then critical levels will be blocked in Cluster Security Policy. In case we change critical policy globally and allow it there, then it will be allowed in Cluster Security Policies too. But you can change these policies explicitly.
+When Inherit is selected, the policy adopts settings from higher-level options. For example, if critical severity levels are blocked globally, they will also be blocked in Cluster Security Policies. Changing the global policy to allow critical levels will also allow them in Cluster Security Policies. Explicit changes can be made to these policies.
 
-If you want to block Critical Vulnerabilities in Global Security Policies but want to allow them in some clusters, then select your cluster and change the critical drop-down to allow. It will not affect the policy of other clusters and global also.
+To block critical vulnerabilities globally but allow them in specific clusters:
+
+1. Select the desired cluster.
+2. Change the critical setting to allow.
+3. This change only affects the policy of the selected cluster without impacting others or the global policy.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/security-features/cluster-security-policy.jpg)
 
 ## Configure Environment Security Policy
 
-Again we have three options to define a policy- Block, Allow, and Inherit.
+Environment Security Policies, like Cluster Security Policies, offer three options: Block, Allow, and Inherit.
 
-Environment Security Policy inherits the policy from Cluster Security Policy. Each level inherits the policy of its upper level.
+The Environment Security Policy inherits its settings from the Cluster Security Policy, following a hierarchical structure where each level inherits the policy from its upper level.
 
-Select any environment here, you will find it is inheriting the policy of Cluster.
+When you select an environment, it automatically adopts the policy of the associated Cluster. For example, if critical-level vulnerabilities are blocked globally but allowed in the Cluster Security Policy, the Environment Security Policy will inherit this allowance. Consequently, critical-level vulnerabilities will also be allowed in the Environment Security Policy.
 
-Example- If you have blocked critical level vulnerabilities in Global Security Policy but allowed them in Cluster Security Policy, then Environment Security Policy will inherit the policy of cluster not global, Hence critical level vulnerabilities will be allowed in the Environment Security Policy.
+However, you have the flexibility to make explicit changes to the policy if needed. This empowers you to customize the policy to align with specific requirements or preferences.
 
-Though, You can change the policy explicitly.
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/security-features/environment-security-policy.jpg)
 
 ## Configure Application Security Policy
 
-The same thing goes with the `Application Security Policy`. But in Application, the policy is set with the combination of `Environment` option and `Application` option. If you change the policy in a dev environment that it will apply to all the applications which are in the `dev` environment.
+The Application Security Policy operates on a similar principle as other policies. However, in the Application Security Policy, the policy is determined by both the Environment option and the Application option.
 
-## Check CVE Policy
+When modifying the policy within a development environment, the changes will be applied to all applications within that specific development environment. This means that any adjustments made to the policy settings will be consistently applied across all applications associated with that particular development environment.
 
-Here is the last option `Check CVE Policy`, If you want to configure a security policy specific to any Vulnerability, you can use this option.
+This approach ensures uniformity and streamlined management of security policies within specific environments and their corresponding applications.
 
-Click on this option, it will show you a search bar, copy any CVE ID or vulnerability ID, and click on `Search`. It will display the details regarding that CVE ID and you can configure the policy to that particular CVE ID.
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/security-features/application-security-policy.jpg)
+
+## Block or Allow Specific CVE Policies.
+
+To block or allow specific Common Vulnerabilities and Exposures (CVE) policies, simply click on `Add CVE Policy`.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/security-features/add-cve-policy.jpg)
+
+A window will appear where you can enter the CVE ID and select whether to Allow or Block it.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/security-features/cve-popup.jpg)
+
+This action will determine whether image deployment is allowed or blocked based on the presence of vulnerabilities matching that particular CVE ID. Any other deployment decisions will be made according to the policies set previously.
 
