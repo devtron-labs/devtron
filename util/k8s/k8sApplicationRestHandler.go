@@ -844,6 +844,12 @@ func (handler *K8sApplicationRestHandlerImpl) CreateEphemeralContainer(w http.Re
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	if (request.BasicData == nil && request.AdvancedData == nil) || request.Namespace == "" || request.ClusterId <= 0 || request.PodName == "" {
+		err = errors.New("invalid request payload")
+		handler.logger.Errorw("invalid request payload", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 	//rbac applied in below function
 	resourceRequestBean := handler.handleEphemeralRBAC(w, r)
 	if resourceRequestBean == nil {
@@ -879,6 +885,12 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteEphemeralContainer(w http.Re
 	err = decoder.Decode(&request)
 	if err != nil {
 		handler.logger.Errorw("error in decoding request body", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	if request.BasicData == nil || request.Namespace == "" || request.ClusterId <= 0 || request.PodName == "" {
+		err = errors.New("invalid request payload")
+		handler.logger.Errorw("invalid request payload", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}

@@ -1206,6 +1206,11 @@ func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req cluster.
 		req.AdvancedData = &cluster.EphemeralContainerAdvancedData{
 			Manifest: string(debugJS),
 		}
+		req.BasicData = &cluster.EphemeralContainerBasicData{
+			ContainerName:       debugContainer.Name,
+			TargetContainerName: debugContainer.TargetContainerName,
+			Image:               debugContainer.Image,
+		}
 		err = impl.ephemeralContainerService.SaveEphemeralContainer(req)
 		if err != nil {
 			impl.logger.Errorw("error in saving ephemeral container data", "err", err)
@@ -1332,7 +1337,7 @@ func (impl *K8sApplicationServiceImpl) GetPodContainersList(clusterId int, names
 	}
 
 	for i, ic := range pod.Spec.InitContainers {
-		ephemeralContainers[i] = ic.Name
+		initContainers[i] = ic.Name
 	}
 
 	return &PodContainerList{
