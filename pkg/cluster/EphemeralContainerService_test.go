@@ -3,6 +3,7 @@ package cluster
 import (
 	"errors"
 	"github.com/devtron-labs/devtron/internal/util"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository/mocks"
 	"github.com/go-pg/pg"
 	"github.com/stretchr/testify/assert"
@@ -85,13 +86,45 @@ func TestSaveEphemeralContainer_FindContainerError(t *testing.T) {
 	repository.AssertCalled(t, "FindContainerByName", 1, "namespace-1", "pod-1", "container-1")
 }
 
-type EphemeralContainerBean struct {
+func TestAuditEphemeralContainerAction_Success(t *testing.T) {
+	repository := mocks.NewEphemeralContainersRepository(t)
+	tx := &pg.Tx{}
+	// Set up the expected repository method calls and return values
+	repository.On("FindContainerByName", 1, "namespace-1", "pod-1", "container-1").Return(nil, nil)
+	repository.On("StartTx").Return(tx, nil)
+	repository.On("RollbackTx", tx).Return(nil)
+	repository.On("SaveData", tx, mock.AnythingOfType("*repository.EphemeralContainerBean")).Return(nil)
+	repository.On("SaveAction", tx, mock.AnythingOfType("*repository.EphemeralContainerAction")).Return(nil)
+	repository.On("CommitTx", tx).Return(nil)
+	logger, _ := util.NewSugardLogger()
+	service := NewEphemeralContainerServiceImpl(repository, logger)
+
+	// Create a sample EphemeralContainerRequest
+	request := EphemeralContainerRequest{
+		BasicData: &EphemeralContainerBasicData{
+			ContainerName:       "container-1",
+			TargetContainerName: "target-container-1",
+			Image:               "image-1",
+		},
+		AdvancedData: &EphemeralContainerAdvancedData{
+			Manifest: "manifest-1",
+		},
+		Namespace: "namespace-1",
+		ClusterId: 1,
+		PodName:   "pod-1",
+		UserId:    123,
+	}
+
+	err := service.AuditEphemeralContainerAction(request, repository2.ActionAccessed)
+
+	assert.NoError(t, err)
+
 }
 
-func TestSaveEphemeralContainer_ContainerAlreadyPresent(t *testing.T) {
+func TestAuditEphemeralContainerAction_FindContainerError(t *testing.T) {
 	repository := mocks.NewEphemeralContainersRepository(t)
 
-	repository.On("FindContainerByName", mock.AnythingOfType("int"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(&EphemeralContainerBean{}, nil)
+	repository.On("FindContainerByName", mock.AnythingOfType("int"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(nil, errors.New("error finding container"))
 
 	logger, _ := util.NewSugardLogger()
 	service := EphemeralContainerServiceImpl{
@@ -114,7 +147,7 @@ func TestSaveEphemeralContainer_ContainerAlreadyPresent(t *testing.T) {
 		UserId:    123,
 	}
 
-	err := service.SaveEphemeralContainer(request)
+	err := service.AuditEphemeralContainerAction(request, repository2.ActionAccessed)
 
 	assert.Error(t, err)
 
