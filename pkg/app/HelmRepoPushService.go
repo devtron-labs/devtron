@@ -41,8 +41,7 @@ func (impl *HelmRepoPushServiceImpl) PushChart(manifestPushTemplate *bean.Manife
 	if err != nil {
 		impl.logger.Errorw("error in pushing chart to helm oci repo", "err", err)
 		manifestPushResponse.Error = err
-
-		timeline := getTimelineObject(manifestPushTemplate, pipelineConfig.TIMELINE_STATUS_MANIFEST_PUSHED_TO_HELM_REPO_FAILED, fmt.Sprintf("helm repo push failed - %v", err))
+		timeline := getTimelineObject(manifestPushTemplate, pipelineConfig.TIMELINE_STATUS_MANIFEST_PUSHED_TO_HELM_REPO_FAILED, fmt.Sprintf("Could not push helm package to- %v", ociHelmRepoPushRequest.RepoURL))
 		timelineErr := impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
 		if timelineErr != nil {
 			impl.logger.Errorw("error in creating timeline status for git commit", "err", timelineErr, "timeline", timeline)
