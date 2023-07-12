@@ -11,6 +11,7 @@ type GlobalVariable struct {
 	Value       string `json:"value,omitempty"`
 	Format      string `json:"format"`
 	Description string `json:"description"`
+	Type        string `json:"stageType"`
 }
 
 type GlobalPluginService interface {
@@ -37,36 +38,43 @@ func (impl *GlobalPluginServiceImpl) GetAllGlobalVariables() ([]*GlobalVariable,
 			Name:        "WORKING_DIRECTORY",
 			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
 			Description: "Directory in which git material is cloned.The home path of repo = WORKING_DIRECTORY + CHECKOUT_PATH",
+			Type:        "ci",
 		},
 		{
 			Name:        "DOCKER_IMAGE_TAG",
 			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
 			Description: "Tag going to be used to push image.",
+			Type:        "ci",
 		},
 		{
 			Name:        "DOCKER_REPOSITORY",
 			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
 			Description: "Name of the repository to be used for pushing images.",
+			Type:        "ci",
 		},
 		{
 			Name:        "DOCKER_REGISTRY_URL",
 			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
 			Description: "Url of the container registry used for this pipeline.",
+			Type:        "ci",
 		},
 		{
 			Name:        "DOCKER_IMAGE",
 			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
 			Description: "Complete image name(repository+registry+tag).",
+			Type:        "ci",
 		},
 		{
 			Name:        "APP_NAME",
 			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
 			Description: "Name of the app this pipeline resides in.",
+			Type:        "ci",
 		},
 		{
 			Name:        "TRIGGER_BY_AUTHOR",
 			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
 			Description: "Email-Id/Name of the user who triggers pipeline.",
+			Type:        "ci",
 		},
 	}
 	return globalVariables, nil
