@@ -22,19 +22,21 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/appGroup"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"strings"
 	"time"
 )
 
 type AppGroupService interface {
-	GetActiveAppGroupList(emailId string, checkAuthBatch func(emailId string, appObject []string) map[string]bool, envId int) ([]*AppGroupDto, error)
+	GetActiveAppGroupList(emailId string, checkAuthBatch func(emailId string, appObject []string, action string) map[string]bool, envId int) ([]*AppGroupDto, error)
 	GetApplicationsForAppGroup(appGroupId int) ([]*ApplicationDto, error)
 	GetAppIdsByAppGroupId(appGroupId int) ([]int, error)
 	CreateAppGroup(request *AppGroupDto) (*AppGroupDto, error)
 	UpdateAppGroup(request *AppGroupDto) (*AppGroupDto, error)
-	DeleteAppGroup(appGroupId int) (bool, error)
+	DeleteAppGroup(appGroupId int, emailId string, checkAuthBatch func(emailId string, appObject []string, action string) map[string]bool) (bool, error)
 }
 type AppGroupServiceImpl struct {
 	logger                    *zap.SugaredLogger
@@ -64,13 +66,15 @@ type AppGroupingRequest struct {
 }
 
 type AppGroupDto struct {
-	Id            int    `json:"id,omitempty"`
-	Name          string `json:"name,omitempty" validate:"required,max=30,name-component"`
-	Description   string `json:"description,omitempty" validate:"max=50"`
-	AppIds        []int  `json:"appIds,omitempty"`
-	Active        bool   `json:"active,omitempty"`
-	EnvironmentId int    `json:"environmentId,omitempty"`
-	UserId        int32  `json:"-"`
+	Id             int                                                                     `json:"id,omitempty"`
+	Name           string                                                                  `json:"name,omitempty" validate:"required,max=30,name-component"`
+	Description    string                                                                  `json:"description,omitempty" validate:"max=50"`
+	AppIds         []int                                                                   `json:"appIds,omitempty"`
+	Active         bool                                                                    `json:"active,omitempty"`
+	EnvironmentId  int                                                                     `json:"environmentId,omitempty"`
+	UserId         int32                                                                   `json:"-"`
+	EmailId        string                                                                  `json:"-"`
+	CheckAuthBatch func(emailId string, appObject []string, action string) map[string]bool `json:"-"`
 }
 
 type ApplicationDto struct {
@@ -82,6 +86,25 @@ type ApplicationDto struct {
 }
 
 func (impl *AppGroupServiceImpl) CreateAppGroup(request *AppGroupDto) (*AppGroupDto, error) {
+
+	// authorization starts
+	appIdsForAuthorization := make(map[int]int)
+	for _, appId := range request.AppIds {
+		appIdsForAuthorization[appId] = appId
+	}
+	unauthorizedApps, err := impl.checkAuthForApps(appIdsForAuthorization, request.EmailId, request.CheckAuthBatch, casbin.ActionCreate)
+	if err != nil {
+		return nil, err
+	}
+	if len(unauthorizedApps) > 0 {
+		userMessage := make(map[string]interface{})
+		userMessage["message"] = "unauthorized for few requested apps"
+		userMessage["unauthorizedApps"] = unauthorizedApps
+		err = &util.ApiError{Code: "403", HttpStatusCode: 403, UserMessage: userMessage}
+		return nil, err
+	}
+	// authorization ends
+
 	dbConnection := impl.appGroupRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -89,7 +112,6 @@ func (impl *AppGroupServiceImpl) CreateAppGroup(request *AppGroupDto) (*AppGroup
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-
 	existingModel, err := impl.appGroupRepository.FindByNameAndEnvId(request.Name, request.EnvironmentId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in create app group", "error", err)
@@ -138,6 +160,31 @@ func (impl *AppGroupServiceImpl) CreateAppGroup(request *AppGroupDto) (*AppGroup
 }
 
 func (impl *AppGroupServiceImpl) UpdateAppGroup(request *AppGroupDto) (*AppGroupDto, error) {
+	// fetching existing apps in app group
+	mappings, err := impl.appGroupMappingRepository.FindByAppGroupId(request.Id)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in update app group", "error", err)
+		return nil, err
+	}
+
+	// authorization starts here
+	appIdsForAuthorization := make(map[int]int)
+	for _, appId := range request.AppIds {
+		appIdsForAuthorization[appId] = appId
+	}
+	unauthorizedApps, err := impl.checkAuthForApps(appIdsForAuthorization, request.EmailId, request.CheckAuthBatch, casbin.ActionUpdate)
+	if err != nil {
+		return nil, err
+	}
+	if len(unauthorizedApps) > 0 {
+		userMessage := make(map[string]interface{})
+		userMessage["message"] = "unauthorized for few requested apps"
+		userMessage["unauthorizedApps"] = unauthorizedApps
+		err = &util.ApiError{Code: "403", HttpStatusCode: 403, UserMessage: userMessage}
+		return nil, err
+	}
+	// authorization ends
+
 	dbConnection := impl.appGroupRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -145,7 +192,6 @@ func (impl *AppGroupServiceImpl) UpdateAppGroup(request *AppGroupDto) (*AppGroup
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-
 	existingModel, err := impl.appGroupRepository.FindById(request.Id)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in update app group", "error", err)
@@ -165,13 +211,9 @@ func (impl *AppGroupServiceImpl) UpdateAppGroup(request *AppGroupDto) (*AppGroup
 	requestedAppIds := make(map[int]int)
 	for _, appId := range request.AppIds {
 		requestedAppIds[appId] = appId
+		appIdsForAuthorization[appId] = appId
 	}
 	requestedToEliminate := make(map[int]*appGroup.AppGroupMapping)
-	mappings, err := impl.appGroupMappingRepository.FindByAppGroupId(request.Id)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in update app group", "error", err)
-		return nil, err
-	}
 	existingAppIds := make(map[int]int)
 	for _, mapping := range mappings {
 		existingAppIds[mapping.AppId] = mapping.AppId
@@ -179,6 +221,7 @@ func (impl *AppGroupServiceImpl) UpdateAppGroup(request *AppGroupDto) (*AppGroup
 			//this app is not in request, need to eliminate
 			requestedToEliminate[mapping.AppId] = mapping
 		}
+		appIdsForAuthorization[mapping.AppId] = mapping.AppId
 	}
 
 	for _, appId := range request.AppIds {
@@ -186,7 +229,6 @@ func (impl *AppGroupServiceImpl) UpdateAppGroup(request *AppGroupDto) (*AppGroup
 			// app already added in mapping
 			continue
 		}
-
 		mapping := &appGroup.AppGroupMapping{
 			AppGroupId: existingModel.Id,
 			AppId:      appId,
@@ -214,7 +256,7 @@ func (impl *AppGroupServiceImpl) UpdateAppGroup(request *AppGroupDto) (*AppGroup
 	return request, nil
 }
 
-func (impl *AppGroupServiceImpl) GetActiveAppGroupList(emailId string, checkAuthBatch func(emailId string, appObject []string) map[string]bool, envId int) ([]*AppGroupDto, error) {
+func (impl *AppGroupServiceImpl) GetActiveAppGroupList(emailId string, checkAuthBatch func(emailId string, appObject []string, action string) map[string]bool, envId int) ([]*AppGroupDto, error) {
 	appGroupsDto := make([]*AppGroupDto, 0)
 	var appGroupIds []int
 	appGroups, err := impl.appGroupRepository.FindActiveListByEnvId(envId)
@@ -245,7 +287,7 @@ func (impl *AppGroupServiceImpl) GetActiveAppGroupList(emailId string, checkAuth
 	for _, object := range objects {
 		appObjectArr = append(appObjectArr, object)
 	}
-	appResults := checkAuthBatch(emailId, appObjectArr)
+	appResults := checkAuthBatch(emailId, appObjectArr, casbin.ActionGet)
 	for _, appId := range appIds {
 		appObject := objects[appId]
 		if !appResults[appObject] {
@@ -310,7 +352,7 @@ func (impl *AppGroupServiceImpl) GetAppIdsByAppGroupId(appGroupId int) ([]int, e
 	return appIds, nil
 }
 
-func (impl *AppGroupServiceImpl) DeleteAppGroup(appGroupId int) (bool, error) {
+func (impl *AppGroupServiceImpl) DeleteAppGroup(appGroupId int, emailId string, checkAuthBatch func(emailId string, appObject []string, action string) map[string]bool) (bool, error) {
 	dbConnection := impl.appGroupRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -318,6 +360,27 @@ func (impl *AppGroupServiceImpl) DeleteAppGroup(appGroupId int) (bool, error) {
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
+
+	appIdsForAuthorization := make(map[int]int)
+	mappings, err := impl.appGroupMappingRepository.FindByAppGroupId(appGroupId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetch app group mappings", "error", err)
+		return false, err
+	}
+	for _, mapping := range mappings {
+		appIdsForAuthorization[mapping.AppId] = mapping.AppId
+	}
+	unauthorizedApps, err := impl.checkAuthForApps(appIdsForAuthorization, emailId, checkAuthBatch, casbin.ActionDelete)
+	if err != nil {
+		return false, err
+	}
+	if len(unauthorizedApps) > 0 {
+		userMessage := make(map[string]interface{})
+		userMessage["message"] = "unauthorized for few requested apps"
+		userMessage["unauthorizedApps"] = unauthorizedApps
+		err = &util.ApiError{Code: "403", HttpStatusCode: 403, UserMessage: userMessage}
+		return false, err
+	}
 
 	appGroup, err := impl.appGroupRepository.FindById(appGroupId)
 	if err != nil && err != pg.ErrNoRows {
@@ -337,4 +400,29 @@ func (impl *AppGroupServiceImpl) DeleteAppGroup(appGroupId int) (bool, error) {
 		return false, err
 	}
 	return true, nil
+}
+
+func (impl *AppGroupServiceImpl) checkAuthForApps(appIdsForAuthorization map[int]int, emailId string,
+	checkAuthBatch func(emailId string, appObject []string, action string) map[string]bool, action string) ([]string, error) {
+	//authorization block starts here
+	unauthorizedApps := make([]string, 0)
+	var appObjectArr []string
+	var appIds []int
+	for appId, _ := range appIdsForAuthorization {
+		appIds = append(appIds, appId)
+	}
+	objects := impl.enforcerUtil.GetRbacObjectsByAppIds(appIds)
+	for _, object := range objects {
+		appObjectArr = append(appObjectArr, object)
+	}
+	appResults := checkAuthBatch(emailId, appObjectArr, action)
+	for _, appId := range appIds {
+		appObject := objects[appId]
+		if !appResults[appObject] {
+			//if user unauthorized
+			unauthorizedApps = append(unauthorizedApps, strings.Split(appObject, "/")[1])
+		}
+	}
+	//authorization block ends here
+	return unauthorizedApps, nil
 }
