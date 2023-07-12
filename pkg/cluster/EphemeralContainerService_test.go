@@ -304,4 +304,37 @@ func TestForEphemeralContainers(t *testing.T) {
 
 	})
 
+	t.Run("TestAuditEphemeralContainerAction_CreateTransactionError", func(t *testing.T) {
+
+		repository := mocks.NewEphemeralContainersRepository(t)
+		tx := &pg.Tx{}
+		// Set up the expected repository method calls and return values
+		repository.On("FindContainerByName", 1, "namespace-1", "pod-1", "container-1").Return(nil, nil)
+		repository.On("StartTx").Return(tx, errors.New("error creating transaction")) // Simulate error in creating transaction
+		repository.On("RollbackTx", tx).Return(nil)
+		logger, _ := util.NewSugardLogger()
+		service := NewEphemeralContainerServiceImpl(repository, logger)
+
+		// Create a sample EphemeralContainerRequest
+		request := EphemeralContainerRequest{
+			BasicData: &EphemeralContainerBasicData{
+				ContainerName:       "container-1",
+				TargetContainerName: "target-container-1",
+				Image:               "image-1",
+			},
+			AdvancedData: &EphemeralContainerAdvancedData{
+				Manifest: "manifest-1",
+			},
+			Namespace: "namespace-1",
+			ClusterId: 1,
+			PodName:   "pod-1",
+			UserId:    123,
+		}
+
+		err := service.AuditEphemeralContainerAction(request, repository2.ActionAccessed)
+
+		assert.Error(t, err)
+
+	})
+
 }
