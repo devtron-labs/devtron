@@ -51,8 +51,26 @@ func ConvertStageYamlScriptsToPipelineStageSteps(cdPipeline *bean2.CDPipelineCon
 
 }
 
+func isStepInputVariableAmongGlobalVariables(inputStepVariables []*bean.StepVariableDto) bool {
+	isInputVariableAmongGlobalVariable := true
+	var inputVariableFoundInGlobalVariable bool
+	for _, inputStepVariable := range inputStepVariables {
+		for _, globalInputVariable := range globalInputVariableList {
+			if inputStepVariable.ReferenceVariableName == globalInputVariable {
+				inputVariableFoundInGlobalVariable = true
+				break
+			}
+			if !inputVariableFoundInGlobalVariable {
+				isInputVariableAmongGlobalVariable = false
+			}
+		}
+
+	}
+	return isInputVariableAmongGlobalVariable
+}
+
 func checkForOtherParamsInInlineStepDetail(step *bean.PipelineStageStepDto) bool {
-	if len(step.InlineStepDetail.Script) > 0 && len(step.OutputDirectoryPath) <= 1 {
+	if len(step.InlineStepDetail.Script) > 0 && len(step.OutputDirectoryPath) <= 1 && isStepInputVariableAmongGlobalVariables(step.InlineStepDetail.InputVariables) {
 		return true
 	}
 	return false
