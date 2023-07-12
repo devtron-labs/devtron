@@ -30,7 +30,7 @@ const testImage2 = "quay.io/devtron/ubuntu-k8s-utils:latest"
 const testPodJs = `{"apiVersion": "v1","kind": "Pod","metadata": {"name": "%s"},"spec": {"containers": [{"name": "nginx","image": "nginx","imagePullPolicy": "IfNotPresent"}]}}`
 const testAdvancedManifest = `{"name":"%s","command":["sh"],"image":"%s","targetContainerName":"nginx","tty":true,"stdin":true}`
 
-func TestGetPodContainersList(t *testing.T) {
+func TestEphemeralContainers(t *testing.T) {
 
 	k8sApplicationService := initK8sApplicationService(t)
 
