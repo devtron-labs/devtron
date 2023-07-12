@@ -39,9 +39,9 @@ type AttributesService interface {
 }
 
 const (
-	HostUrlKey                         string = "url"
-	API_SECRET_KEY                     string = "apiTokenSecret"
-	DEPLOYMENT_APP_TYPE_ALLOWED_CONFIG string = "deploymentAppTypeAllowedConfig"
+	HostUrlKey                     string = "url"
+	API_SECRET_KEY                 string = "apiTokenSecret"
+	ENFORCE_DEPLOYMENT_TYPE_CONFIG string = "enforceDeploymentTypeConfig"
 )
 
 type AttributesDto struct {
@@ -240,7 +240,7 @@ func (impl AttributesServiceImpl) UpdateKeyValueByOne(key string) error {
 }
 
 func (impl AttributesServiceImpl) AddDeploymentEnforcementConfig(request *AttributesDto) (*AttributesDto, error) {
-	model, err := impl.attributesRepository.FindByKey(DEPLOYMENT_APP_TYPE_ALLOWED_CONFIG)
+	model, err := impl.attributesRepository.FindByKey(ENFORCE_DEPLOYMENT_TYPE_CONFIG)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching deploymentEnforcementConfig from db", "error", err, "key", request.Key)
 		return request, err
@@ -271,7 +271,7 @@ func (impl AttributesServiceImpl) AddDeploymentEnforcementConfig(request *Attrib
 	defer tx.Rollback()
 	if err == pg.ErrNoRows {
 		model := &repository.Attributes{
-			Key:   DEPLOYMENT_APP_TYPE_ALLOWED_CONFIG,
+			Key:   ENFORCE_DEPLOYMENT_TYPE_CONFIG,
 			Value: request.Value,
 		}
 		model.Active = true
