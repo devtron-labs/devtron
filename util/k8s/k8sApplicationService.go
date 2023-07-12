@@ -1285,16 +1285,12 @@ func (impl *K8sApplicationServiceImpl) getCoreClientByClusterId(clusterId int) (
 		return nil, nil, err
 	}
 
-	clusterConfig, err := impl.clusterService.GetClusterConfig(clusterBean)
-	if err != nil {
-		impl.logger.Errorw("defaultClusterConfig err, TriggerChartSyncManual", "err", err)
-		return nil, nil, err
-	}
-	v1Client, err := impl.K8sUtil.GetClient(clusterConfig)
+	clusterConfig := clusterBean.GetClusterConfig()
+	v1Client, err := impl.K8sUtil.GetClient(&clusterConfig)
 	if err != nil {
 		return nil, nil, err
 	}
-	clientSet, err := impl.K8sUtil.GetClientSet(clusterConfig)
+	clientSet, err := impl.K8sUtil.GetClientSet(&clusterConfig)
 	if err != nil {
 		return nil, v1Client, err
 	}
