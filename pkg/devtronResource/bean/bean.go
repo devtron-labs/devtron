@@ -55,16 +55,6 @@ func (n DevtronResourceAttributeType) ToString() string {
 	return string(n)
 }
 
-type ValueProperties string
-
-const (
-	VALUE_PROPERTIES_VALUE_TYPE ValueProperties = "VALUE_TYPE"
-)
-
-func (t ValueProperties) ToString() string {
-	return string(t)
-}
-
 type ValueType string
 
 const (
