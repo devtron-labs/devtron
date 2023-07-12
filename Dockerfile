@@ -12,6 +12,9 @@ RUN GOOS=linux make build-all
 FROM ubuntu as  devtron-all
 
 RUN apt update
+RUN apt-get install -y --only-upgrade bash=5.2-1
+RUN apt-get install -y --only-upgrade curl=8.1.0
+
 RUN apt install ca-certificates git curl -y
 RUN apt clean autoclean
 RUN apt autoremove -y && rm -rf /var/lib/apt/lists/*
@@ -27,7 +30,7 @@ RUN chmod +x /git-ask-pass.sh
 RUN useradd -ms /bin/bash devtron
 RUN chown -R devtron:devtron ./devtron
 RUN chown -R devtron:devtron ./git-ask-pass.sh
-RUN chown -R devtron:devtron ./auth_model.conf 
+RUN chown -R devtron:devtron ./auth_model.conf
 RUN chown -R devtron:devtron ./scripts
 
 USER devtron

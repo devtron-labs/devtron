@@ -46,9 +46,10 @@ github.com/Azure/go-autorest/logger
 # github.com/Azure/go-autorest/tracing v0.6.0
 ## explicit; go 1.12
 github.com/Azure/go-autorest/tracing
-# github.com/BurntSushi/toml v0.3.1
-## explicit
+# github.com/BurntSushi/toml v0.4.1
+## explicit; go 1.16
 github.com/BurntSushi/toml
+github.com/BurntSushi/toml/internal
 # github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible
 ## explicit
 github.com/Knetic/govaluate
@@ -107,7 +108,7 @@ github.com/antonmedv/expr/optimizer
 github.com/antonmedv/expr/parser
 github.com/antonmedv/expr/parser/lexer
 github.com/antonmedv/expr/vm
-# github.com/argoproj/argo-cd/v2 v2.5.2
+# github.com/argoproj/argo-cd/v2 v2.5.16
 ## explicit; go 1.18
 github.com/argoproj/argo-cd/v2/common
 github.com/argoproj/argo-cd/v2/pkg/apiclient/account
@@ -139,6 +140,7 @@ github.com/argoproj/argo-cd/v2/util/kube
 github.com/argoproj/argo-cd/v2/util/log
 github.com/argoproj/argo-cd/v2/util/password
 github.com/argoproj/argo-cd/v2/util/proxy
+github.com/argoproj/argo-cd/v2/util/security
 github.com/argoproj/argo-cd/v2/util/settings
 github.com/argoproj/argo-cd/v2/util/tls
 # github.com/argoproj/argo-workflows/v3 v3.4.3
@@ -338,7 +340,7 @@ github.com/devtron-labs/protos/gitSensor
 # github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f
 ## explicit
 github.com/dgryski/go-rendezvous
-# github.com/docker/distribution v2.8.1+incompatible
+# github.com/docker/distribution v2.8.2+incompatible
 ## explicit
 github.com/docker/distribution/digestset
 github.com/docker/distribution/reference
@@ -368,6 +370,8 @@ github.com/exponent-io/jsonpath
 # github.com/fatih/camelcase v1.0.0
 ## explicit
 github.com/fatih/camelcase
+# github.com/fatih/color v1.13.0
+## explicit; go 1.13
 # github.com/felixge/httpsnoop v1.0.3
 ## explicit; go 1.13
 github.com/felixge/httpsnoop
@@ -623,6 +627,8 @@ github.com/hashicorp/errwrap
 # github.com/hashicorp/go-cleanhttp v0.5.2
 ## explicit; go 1.13
 github.com/hashicorp/go-cleanhttp
+# github.com/hashicorp/go-hclog v0.12.0
+## explicit; go 1.13
 # github.com/hashicorp/go-multierror v1.1.1
 ## explicit; go 1.13
 github.com/hashicorp/go-multierror
@@ -702,6 +708,8 @@ github.com/liggitt/tabwriter
 github.com/mailru/easyjson/buffer
 github.com/mailru/easyjson/jlexer
 github.com/mailru/easyjson/jwriter
+# github.com/mattn/go-colorable v0.1.11
+## explicit; go 1.13
 # github.com/mattn/go-ieproxy v0.0.1
 ## explicit; go 1.14
 github.com/mattn/go-ieproxy
@@ -775,7 +783,7 @@ github.com/oliveagle/jsonpath
 # github.com/opencontainers/go-digest v1.0.0
 ## explicit; go 1.13
 github.com/opencontainers/go-digest
-# github.com/otiai10/copy v1.0.2
+# github.com/otiai10/copy v1.2.0
 ## explicit; go 1.12
 github.com/otiai10/copy
 # github.com/patrickmn/go-cache v2.1.0+incompatible
@@ -825,8 +833,10 @@ github.com/robfig/cron
 # github.com/robfig/cron/v3 v3.0.1
 ## explicit; go 1.12
 github.com/robfig/cron/v3
-# github.com/russross/blackfriday v1.5.2
-## explicit
+# github.com/rogpeppe/go-internal v1.6.2
+## explicit; go 1.11
+# github.com/russross/blackfriday v1.6.0
+## explicit; go 1.13
 github.com/russross/blackfriday
 # github.com/satori/go.uuid v1.2.0
 ## explicit
@@ -1057,7 +1067,7 @@ golang.org/x/crypto/ssh/knownhosts
 ## explicit; go 1.18
 golang.org/x/exp/maps
 golang.org/x/exp/rand
-# golang.org/x/net v0.0.0-20221012135044-0b7e1fb9d458
+# golang.org/x/net v0.7.0
 ## explicit; go 1.17
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
@@ -1086,7 +1096,7 @@ golang.org/x/oauth2/jwt
 ## explicit
 golang.org/x/sync/errgroup
 golang.org/x/sync/singleflight
-# golang.org/x/sys v0.0.0-20220919091848-fb04ddd9f9c8
+# golang.org/x/sys v0.5.0
 ## explicit; go 1.17
 golang.org/x/sys/cpu
 golang.org/x/sys/execabs
@@ -1095,10 +1105,10 @@ golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
 golang.org/x/sys/windows/registry
-# golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
+# golang.org/x/term v0.5.0
 ## explicit; go 1.17
 golang.org/x/term
-# golang.org/x/text v0.4.0
+# golang.org/x/text v0.7.0
 ## explicit; go 1.17
 golang.org/x/text/encoding
 golang.org/x/text/encoding/internal
@@ -1737,6 +1747,7 @@ k8s.io/client-go/util/flowcontrol
 k8s.io/client-go/util/homedir
 k8s.io/client-go/util/jsonpath
 k8s.io/client-go/util/keyutil
+k8s.io/client-go/util/retry
 k8s.io/client-go/util/workqueue
 # k8s.io/component-base v0.24.2 => k8s.io/component-base v0.24.2
 ## explicit; go 1.16
@@ -1947,8 +1958,8 @@ k8s.io/utils/net
 k8s.io/utils/pointer
 k8s.io/utils/strings/slices
 k8s.io/utils/trace
-# mellium.im/sasl v0.2.1
-## explicit
+# mellium.im/sasl v0.3.1
+## explicit; go 1.18
 mellium.im/sasl
 # sigs.k8s.io/json v0.0.0-20211208200746-9f7c6b3444d2
 ## explicit; go 1.17
