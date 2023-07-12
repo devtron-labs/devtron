@@ -68,9 +68,11 @@ func (impl EphemeralContainersRepositoryImpl) FindContainerByName(clusterID int,
 		Where("pod_name = ?", podName).
 		Where("name = ?", name).
 		Select()
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		return nil, err
 	}
-
+	if err == pg.ErrNoRows {
+		container = nil
+	}
 	return container, nil
 }

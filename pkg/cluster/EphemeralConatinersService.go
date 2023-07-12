@@ -48,7 +48,7 @@ func NewEphemeralContainerServiceImpl(repository repository.EphemeralContainersR
 func (impl *EphemeralContainerServiceImpl) SaveEphemeralContainer(model EphemeralContainerRequest) error {
 
 	container, err := impl.repository.FindContainerByName(model.ClusterId, model.Namespace, model.PodName, model.BasicData.ContainerName)
-	if err != nil && err != pg.ErrNoRows {
+	if err != nil {
 		impl.logger.Errorw("error in finding ephemeral container in the database", "err", err, "container", container)
 		return err
 	}
