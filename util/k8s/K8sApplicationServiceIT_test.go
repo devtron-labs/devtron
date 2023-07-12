@@ -94,12 +94,6 @@ func TestGetPodContainersList(t *testing.T) {
 		}
 		time.Sleep(5 * time.Second)
 		err := k8sApplicationService.CreatePodEphemeralContainers(&req)
-		//assert.Nil(tt, err)
-		//time.Sleep(2 * time.Second)
-		//list, err := k8sApplicationService.GetPodContainersList(testClusterId, testNamespace, podName)
-		//assert.Nil(tt, err)
-		//assert.NotNil(tt, list)
-		//assert.Equal(tt, 0, len(list.EphemeralContainers))
 		testCreationSuccess(err, podName, req.BasicData.ContainerName, 0, k8sApplicationService, tt)
 	})
 
