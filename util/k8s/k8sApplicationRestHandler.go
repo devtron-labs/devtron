@@ -860,7 +860,7 @@ func (handler *K8sApplicationRestHandlerImpl) CreateEphemeralContainer(w http.Re
 		return
 	}
 	request.UserId = userId
-	err = handler.k8sApplicationService.CreatePodEphemeralContainers(request)
+	err = handler.k8sApplicationService.CreatePodEphemeralContainers(&request)
 	if err != nil {
 		handler.logger.Errorw("error occurred in creating ephemeral container", "err", err, "requestPayload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
