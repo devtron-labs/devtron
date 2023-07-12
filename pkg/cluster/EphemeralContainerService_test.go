@@ -33,7 +33,6 @@ func TestForEphemeralContainers(t *testing.T) {
 	t.Run("TestSaveEphemeralContainer_Success", func(t *testing.T) {
 		repository := mocks.NewEphemeralContainersRepository(t)
 
-		// Set up the expected repository method calls and return values
 		repository.On("FindContainerByName", 1, "namespace-1", "pod-1", "container-1").Return(nil, nil)
 		repository.On("StartTx").Return(&pg.Tx{}, nil)
 		repository.On("RollbackTx", mock.AnythingOfType("*pg.Tx")).Return(nil) // Add this expectation
@@ -43,7 +42,6 @@ func TestForEphemeralContainers(t *testing.T) {
 		logger, _ := util.NewSugardLogger()
 		service := NewEphemeralContainerServiceImpl(repository, logger)
 
-		// Create a sample EphemeralContainerRequest
 		request := createSampleRequest()
 
 		err := service.SaveEphemeralContainer(request)
@@ -74,7 +72,6 @@ func TestForEphemeralContainers(t *testing.T) {
 	t.Run("TestAuditEphemeralContainerAction_Success", func(t *testing.T) {
 		repository := mocks.NewEphemeralContainersRepository(t)
 		tx := &pg.Tx{}
-		// Set up the expected repository method calls and return values
 		repository.On("FindContainerByName", 1, "namespace-1", "pod-1", "container-1").Return(nil, nil)
 		repository.On("StartTx").Return(tx, nil)
 		repository.On("RollbackTx", tx).Return(nil)
@@ -84,7 +81,6 @@ func TestForEphemeralContainers(t *testing.T) {
 		logger, _ := util.NewSugardLogger()
 		service := NewEphemeralContainerServiceImpl(repository, logger)
 
-		// Create a sample EphemeralContainerRequest
 		request := createSampleRequest()
 
 		err := service.AuditEphemeralContainerAction(request, repository2.ActionAccessed)
@@ -115,7 +111,6 @@ func TestForEphemeralContainers(t *testing.T) {
 	t.Run("TestSaveEphemeralContainer_ContainerAlreadyPresentError", func(t *testing.T) {
 		repository := mocks.NewEphemeralContainersRepository(t)
 
-		// Set up the expected repository method calls and return values
 		container := &repository2.EphemeralContainerBean{
 			PodName: "existing-pod",
 		}
@@ -124,7 +119,6 @@ func TestForEphemeralContainers(t *testing.T) {
 		logger, _ := util.NewSugardLogger()
 		service := NewEphemeralContainerServiceImpl(repository, logger)
 
-		// Create a sample EphemeralContainerRequest
 		request := createSampleRequest()
 
 		err := service.SaveEphemeralContainer(request)
@@ -139,7 +133,6 @@ func TestForEphemeralContainers(t *testing.T) {
 
 		repository := mocks.NewEphemeralContainersRepository(t)
 		tx := &pg.Tx{}
-		// Set up the expected repository method calls and return values
 		repository.On("FindContainerByName", 1, "namespace-1", "pod-1", "container-1").Return(nil, nil)
 		repository.On("StartTx").Return(tx, nil)
 		repository.On("RollbackTx", tx).Return(nil)
@@ -149,7 +142,6 @@ func TestForEphemeralContainers(t *testing.T) {
 		logger, _ := util.NewSugardLogger()
 		service := NewEphemeralContainerServiceImpl(repository, logger)
 
-		// Create a sample EphemeralContainerRequest
 		request := createSampleRequest()
 
 		err := service.AuditEphemeralContainerAction(request, repository2.ActionAccessed)
@@ -164,7 +156,6 @@ func TestForEphemeralContainers(t *testing.T) {
 		repository := mocks.NewEphemeralContainersRepository(t)
 		tx := &pg.Tx{}
 
-		// Set up the expected repository method calls and return values
 		repository.On("FindContainerByName", 1, "namespace-1", "pod-1", "container-1").Return(nil, nil)
 		repository.On("StartTx").Return(tx, nil)
 		repository.On("RollbackTx", tx).Return(nil)
@@ -174,7 +165,6 @@ func TestForEphemeralContainers(t *testing.T) {
 		logger, _ := util.NewSugardLogger()
 		service := NewEphemeralContainerServiceImpl(repository, logger)
 
-		// Create a sample EphemeralContainerRequest
 		request := createSampleRequest()
 
 		err := service.AuditEphemeralContainerAction(request, repository2.ActionAccessed)
@@ -187,7 +177,6 @@ func TestForEphemeralContainers(t *testing.T) {
 		repository := mocks.NewEphemeralContainersRepository(t)
 		tx := &pg.Tx{}
 
-		// Set up the expected repository method calls and return values
 		repository.On("FindContainerByName", 1, "namespace-1", "pod-1", "container-1").Return(nil, nil)
 		repository.On("StartTx").Return(tx, nil)
 		repository.On("RollbackTx", tx).Return(errors.New("error in rolling back tx"))
@@ -195,7 +184,6 @@ func TestForEphemeralContainers(t *testing.T) {
 		logger, _ := util.NewSugardLogger()
 		service := NewEphemeralContainerServiceImpl(repository, logger)
 
-		// Create a sample EphemeralContainerRequest
 		request := createSampleRequest()
 
 		err := service.AuditEphemeralContainerAction(request, repository2.ActionAccessed)
@@ -208,14 +196,12 @@ func TestForEphemeralContainers(t *testing.T) {
 
 		repository := mocks.NewEphemeralContainersRepository(t)
 		tx := &pg.Tx{}
-		// Set up the expected repository method calls and return values
 		repository.On("FindContainerByName", 1, "namespace-1", "pod-1", "container-1").Return(nil, nil)
 		repository.On("StartTx").Return(tx, errors.New("error creating transaction")) // Simulate error in creating transaction
 		repository.On("RollbackTx", tx).Return(nil)
 		logger, _ := util.NewSugardLogger()
 		service := NewEphemeralContainerServiceImpl(repository, logger)
 
-		// Create a sample EphemeralContainerRequest
 		request := createSampleRequest()
 
 		err := service.AuditEphemeralContainerAction(request, repository2.ActionAccessed)
@@ -228,7 +214,6 @@ func TestForEphemeralContainers(t *testing.T) {
 
 		repository := mocks.NewEphemeralContainersRepository(t)
 		tx := &pg.Tx{}
-		// Set up the expected repository method calls and return values
 		repository.On("FindContainerByName", 1, "namespace-1", "pod-1", "container-1").Return(nil, nil)
 		repository.On("StartTx").Return(tx, nil)
 		repository.On("RollbackTx", tx).Return(nil)
@@ -238,7 +223,6 @@ func TestForEphemeralContainers(t *testing.T) {
 		logger, _ := util.NewSugardLogger()
 		service := NewEphemeralContainerServiceImpl(repository, logger)
 
-		// Create a sample EphemeralContainerRequest
 		request := createSampleRequest()
 
 		err := service.SaveEphemeralContainer(request)
@@ -252,7 +236,6 @@ func TestForEphemeralContainers(t *testing.T) {
 		repository := mocks.NewEphemeralContainersRepository(t)
 		tx := &pg.Tx{}
 
-		// Set up the expected repository method calls and return values
 		repository.On("FindContainerByName", 1, "namespace-1", "pod-1", "container-1").Return(nil, nil)
 		repository.On("StartTx").Return(tx, nil)
 		repository.On("RollbackTx", tx).Return(nil)
@@ -262,7 +245,6 @@ func TestForEphemeralContainers(t *testing.T) {
 		logger, _ := util.NewSugardLogger()
 		service := NewEphemeralContainerServiceImpl(repository, logger)
 
-		// Create a sample EphemeralContainerRequest
 		request := createSampleRequest()
 
 		err := service.SaveEphemeralContainer(request)
@@ -275,7 +257,6 @@ func TestForEphemeralContainers(t *testing.T) {
 		repository := mocks.NewEphemeralContainersRepository(t)
 		tx := &pg.Tx{}
 
-		// Set up the expected repository method calls and return values
 		repository.On("FindContainerByName", 1, "namespace-1", "pod-1", "container-1").Return(nil, nil)
 		repository.On("StartTx").Return(tx, nil)
 		repository.On("RollbackTx", tx).Return(errors.New("error in rolling back tx"))
@@ -283,7 +264,6 @@ func TestForEphemeralContainers(t *testing.T) {
 		logger, _ := util.NewSugardLogger()
 		service := NewEphemeralContainerServiceImpl(repository, logger)
 
-		// Create a sample EphemeralContainerRequest
 		request := createSampleRequest()
 
 		err := service.SaveEphemeralContainer(request)
@@ -295,14 +275,12 @@ func TestForEphemeralContainers(t *testing.T) {
 
 		repository := mocks.NewEphemeralContainersRepository(t)
 		tx := &pg.Tx{}
-		// Set up the expected repository method calls and return values
 		repository.On("FindContainerByName", 1, "namespace-1", "pod-1", "container-1").Return(nil, nil)
 		repository.On("StartTx").Return(tx, errors.New("error creating transaction")) // Simulate error in creating transaction
 		repository.On("RollbackTx", tx).Return(nil)
 		logger, _ := util.NewSugardLogger()
 		service := NewEphemeralContainerServiceImpl(repository, logger)
 
-		// Create a sample EphemeralContainerRequest
 		request := createSampleRequest()
 
 		err := service.SaveEphemeralContainer(request)
@@ -317,7 +295,6 @@ func TestForEphemeralContainers(t *testing.T) {
 			Id: 1,
 		}
 
-		// Set up the expected repository method calls and return values
 		repository.On("FindContainerByName", 1, "namespace-1", "pod-1", "container-1").Return(container, nil)
 		repository.On("StartTx").Return(tx, nil)
 		repository.On("RollbackTx", tx).Return(nil)
@@ -327,7 +304,6 @@ func TestForEphemeralContainers(t *testing.T) {
 		logger, _ := util.NewSugardLogger()
 		service := NewEphemeralContainerServiceImpl(repository, logger)
 
-		// Create a sample EphemeralContainerRequest
 		request := createSampleRequest()
 
 		err := service.AuditEphemeralContainerAction(request, repository2.ActionAccessed)
@@ -340,7 +316,6 @@ func TestForEphemeralContainers(t *testing.T) {
 		repository := mocks.NewEphemeralContainersRepository(t)
 		tx := &pg.Tx{}
 
-		// Set up the expected repository method calls and return values
 		container := &repository2.EphemeralContainerBean{
 			Id:      123,
 			PodName: "existing-pod",
