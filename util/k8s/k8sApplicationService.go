@@ -1228,15 +1228,15 @@ func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req cluster.
 
 func (impl *K8sApplicationServiceImpl) generateDebugContainer(pod *corev1.Pod, req cluster.EphemeralContainerRequest) (*corev1.Pod, *corev1.EphemeralContainer, error) {
 	copied := pod.DeepCopy()
-	ec := &corev1.EphemeralContainer{}
+	ephemeralContainer := &corev1.EphemeralContainer{}
 	if req.AdvancedData != nil {
-		err := json.Unmarshal([]byte(req.AdvancedData.Manifest), ec)
+		err := json.Unmarshal([]byte(req.AdvancedData.Manifest), ephemeralContainer)
 		if err != nil {
 			impl.logger.Errorw("error occurred i unMarshaling advanced ephemeral data", "err", err, "advancedData", req.AdvancedData.Manifest)
-			return copied, ec, err
+			return copied, ephemeralContainer, err
 		}
 	} else {
-		ec = &corev1.EphemeralContainer{
+		ephemeralContainer = &corev1.EphemeralContainer{
 			EphemeralContainerCommon: corev1.EphemeralContainerCommon{
 				Name:                     req.BasicData.ContainerName,
 				Env:                      nil,
@@ -1250,10 +1250,10 @@ func (impl *K8sApplicationServiceImpl) generateDebugContainer(pod *corev1.Pod, r
 			TargetContainerName: req.BasicData.TargetContainerName,
 		}
 	}
-	ec.Name = ec.Name + util2.Generate(5)
-	copied.Spec.EphemeralContainers = append(copied.Spec.EphemeralContainers, *ec)
-	ec = &copied.Spec.EphemeralContainers[len(copied.Spec.EphemeralContainers)-1]
-	return copied, ec, nil
+	ephemeralContainer.Name = ephemeralContainer.Name + "-" + util2.Generate(5)
+	copied.Spec.EphemeralContainers = append(copied.Spec.EphemeralContainers, *ephemeralContainer)
+	ephemeralContainer = &copied.Spec.EphemeralContainers[len(copied.Spec.EphemeralContainers)-1]
+	return copied, ephemeralContainer, nil
 
 }
 
