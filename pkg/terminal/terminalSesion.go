@@ -437,19 +437,11 @@ func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequ
 	} else {
 		return nil, nil, fmt.Errorf("not able to find cluster-config")
 	}
-	config, err := impl.clusterService.GetClusterConfig(clusterBean)
+	clusterConfig := clusterBean.GetClusterConfig()
+	cfg, err := impl.k8sUtil.GetRestConfigByCluster(&clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error in config", "err", err)
 		return nil, nil, err
-	}
-	cfg := &rest.Config{}
-	cfg.Host = config.Host
-	cfg.BearerToken = config.BearerToken
-	cfg.Insecure = config.InsecureSkipTLSVerify
-	if config.InsecureSkipTLSVerify == false {
-		cfg.KeyData = []byte(config.KeyData)
-		cfg.CertData = []byte(config.CertData)
-		cfg.CAData = []byte(config.CAData)
 	}
 
 	k8sHttpClient, err := util.OverrideK8sHttpClientWithTracer(cfg)
@@ -509,7 +501,6 @@ func getErrorMsg(err string) error {
 
 func (impl *TerminalSessionHandlerImpl) RunCmdInRemotePod(req *TerminalSessionRequest, cmds []string) (*bytes.Buffer, *bytes.Buffer, error) {
 	config, client, err := impl.getClientConfig(req)
-	//config, client, err := impl.getClientConfigV2()
 	if err != nil {
 		impl.logger.Errorw("error in fetching config", "err", err)
 		return nil, nil, err
