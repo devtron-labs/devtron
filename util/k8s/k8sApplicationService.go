@@ -1175,26 +1175,31 @@ func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req cluster.
 	}
 
 	_, err = v1Client.Pods(req.Namespace).Patch(context.Background(), pod.Name, types.StrategicMergePatchType, patch, metav1.PatchOptions{}, "ephemeralcontainers")
-	if err != nil && runtime.IsNotRegisteredError(err) {
-
-		patch, err := json.Marshal([]map[string]interface{}{{
-			"op":    "add",
-			"path":  "/ephemeralContainers/-",
-			"value": debugContainer,
-		}})
-		if err != nil {
-			return fmt.Errorf("error creating JSON 6902 patch for old /ephemeralcontainers API: %s", err)
+	if err != nil {
+		if serr, ok := err.(*errors2.StatusError); ok && serr.Status().Reason == metav1.StatusReasonNotFound && serr.ErrStatus.Details.Name == "" {
+			return fmt.Errorf("ephemeral containers are disabled for this cluster (error from kubernetes server: %q)", err)
 		}
+		if runtime.IsNotRegisteredError(err) {
+			patch, err := json.Marshal([]map[string]interface{}{{
+				"op":    "add",
+				"path":  "/ephemeralContainers/-",
+				"value": debugContainer,
+			}})
+			if err != nil {
+				return fmt.Errorf("error creating JSON 6902 patch for old /ephemeralcontainers API: %s", err)
+			}
 
-		//try with legacy API
-		result := v1Client.RESTClient().Patch(types.JSONPatchType).
-			Namespace(pod.Namespace).
-			Resource("pods").
-			Name(pod.Name).
-			SubResource("ephemeralcontainers").
-			Body(patch).
-			Do(context.Background())
-		return result.Error()
+			//try with legacy API
+			result := v1Client.RESTClient().Patch(types.JSONPatchType).
+				Namespace(pod.Namespace).
+				Resource("pods").
+				Name(pod.Name).
+				SubResource("ephemeralcontainers").
+				Body(patch).
+				Do(context.Background())
+			return result.Error()
+		}
+		return err
 	}
 
 	if err != nil {
