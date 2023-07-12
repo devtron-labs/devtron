@@ -257,11 +257,6 @@ func (impl AttributesServiceImpl) AddDeploymentEnforcementConfig(request *Attrib
 				"at least one deployment app type should be allowed", environmentId))
 		}
 	}
-	model, err := impl.attributesRepository.FindByKey(ENFORCE_DEPLOYMENT_TYPE_CONFIG)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in fetching deploymentEnforcementConfig from db", "error", err, "key", request.Key)
-		return request, err
-	}
 	dbConnection := impl.attributesRepository.GetConnection()
 	tx, terr := dbConnection.Begin()
 	if terr != nil {
@@ -269,6 +264,12 @@ func (impl AttributesServiceImpl) AddDeploymentEnforcementConfig(request *Attrib
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
+
+	model, err := impl.attributesRepository.FindByKey(ENFORCE_DEPLOYMENT_TYPE_CONFIG)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching deploymentEnforcementConfig from db", "error", err, "key", request.Key)
+		return request, err
+	}
 	if err == pg.ErrNoRows {
 		model := &repository.Attributes{
 			Key:   ENFORCE_DEPLOYMENT_TYPE_CONFIG,
