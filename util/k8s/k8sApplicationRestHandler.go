@@ -951,7 +951,7 @@ func (handler *K8sApplicationRestHandlerImpl) handleEphemeralRBAC(w http.Respons
 		}
 		//RBAC enforcer Ends
 	} else {
-		common.WriteJsonResp(w, errors.New("can not get terminal session as target cluster is not provided"), nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, errors.New("can not create/terminate ephemeral containers as target cluster is not provided"), nil, http.StatusBadRequest)
 		return resourceRequestBean
 	}
 	return resourceRequestBean
