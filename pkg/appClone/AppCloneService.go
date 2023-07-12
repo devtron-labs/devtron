@@ -156,13 +156,13 @@ func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context 
 		impl.logger.Errorw("status not", "MATERIAL", cloneReq.RefAppId)
 		return app, nil
 	}
-	_, gitMaerialMap, err := impl.CloneGitRepo(cloneReq.RefAppId, newAppId, userId)
+	_, gitMaterialMap, err := impl.CloneGitRepo(cloneReq.RefAppId, newAppId, userId)
 	if err != nil {
 		impl.logger.Errorw("error in cloning git", "ref", cloneReq.RefAppId, "new", newAppId, "err", err)
 		return nil, err
 	}
 
-	_, err = impl.CreateCiTemplate(cloneReq.RefAppId, newAppId, userId, gitMaerialMap)
+	_, err = impl.CreateCiTemplate(cloneReq.RefAppId, newAppId, userId, gitMaterialMap)
 	if err != nil {
 		impl.logger.Errorw("error in cloning docker template", "ref", cloneReq.RefAppId, "new", newAppId, "err", err)
 		return nil, err
@@ -210,7 +210,7 @@ func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context 
 			}
 		}
 	}
-	_, err = impl.CreateWf(cloneReq.RefAppId, newAppId, userId, gitMaerialMap, context, isSameProject)
+	_, err = impl.CreateWf(cloneReq.RefAppId, newAppId, userId, gitMaterialMap, context, isSameProject)
 	if err != nil {
 		impl.logger.Errorw("error in creating wf", "ref", cloneReq.RefAppId, "new", newAppId, "err", err)
 		return nil, err
@@ -861,6 +861,12 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 		RunPreStageInEnv:              refCdPipeline.RunPreStageInEnv,
 		DeploymentAppType:             refCdPipeline.DeploymentAppType,
 		UserApprovalConf:              refCdPipeline.UserApprovalConf,
+		IsVirtualEnvironment:          refCdPipeline.IsVirtualEnvironment,
+	}
+	if refCdPipeline.IsVirtualEnvironment && refCdPipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_MANIFEST_PUSH {
+		cdPipeline.ManifestStorageType = refCdPipeline.ManifestStorageType
+		cdPipeline.ContainerRegistryName = refCdPipeline.ContainerRegistryName
+		cdPipeline.RepoName = refCdPipeline.RepoName
 	}
 	cdPipelineReq := &bean.CdPipelines{
 		Pipelines: []*bean.CDPipelineConfigObject{cdPipeline},

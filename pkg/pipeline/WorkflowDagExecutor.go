@@ -550,6 +550,8 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 			impl.logger.Errorw("error in saving runner object in db", "err", err)
 			return err
 		}
+		// Handle auto trigger after pre stage success event
+		go impl.TriggerAutoCDOnPreStageSuccess(pipeline.Id, artifact.Id, cdWf.Id, triggeredBy, applyAuth)
 	}
 
 	err = impl.sendPreStageNotification(ctx, cdWf, pipeline)
@@ -686,6 +688,8 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 			impl.logger.Errorw("error in saving runner object in DB", "err", err)
 			return err
 		}
+		// Auto Trigger after Post Stage Success Event
+		go impl.HandlePostStageSuccessEvent(runner.CdWorkflowId, pipeline.Id, 1)
 	}
 
 	wfr, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(context.Background(), cdWf.Id, bean.CD_WORKFLOW_TYPE_POST)
@@ -1325,6 +1329,13 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		if updateErr != nil {
 			impl.logger.Errorw("error in updating runner for manifest_download type", "err", err)
 		}
+		// Handle Auto Trigger for Manifest Push deployment type
+		pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByCdWorkflowId(cdWf.Id)
+		if err != nil {
+			impl.logger.Errorw("error in getting latest pipeline override by cdWorkflowId", "err", err, "cdWorkflowId", cdWf.Id)
+			return err
+		}
+		go impl.HandleDeploymentSuccessEvent("", pipelineOverride.Id)
 	}
 	err1 := impl.updatePreviousDeploymentStatus(runner, pipelineId, err, triggeredAt, triggeredBy)
 	if err1 != nil || err != nil {
@@ -1785,6 +1796,13 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 				if updateErr != nil {
 					impl.logger.Errorw("error in updating runner for manifest_download type", "err", err)
 				}
+				// Handle auto trigger after deployment success event
+				pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByCdWorkflowId(overrideRequest.CdWorkflowId)
+				if err != nil {
+					impl.logger.Errorw("error in getting latest pipeline override by cdWorkflowId", "err", err, "cdWorkflowId", cdWf.Id)
+					return 0, "", err
+				}
+				go impl.HandleDeploymentSuccessEvent("", pipelineOverride.Id)
 			}
 		}
 
@@ -1827,35 +1845,6 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 		_, span = otel.Tracer("orchestrator").Start(ctx, "TriggerPostStage")
 		err = impl.TriggerPostStage(cdWf, cdPipeline, overrideRequest.UserId)
 		span.End()
-	}
-	//Auto trigger feature for virtual CdPipeline if Virtual CDPipeline and No Post CD configured || Virtual Post CD
-	if util.IsManifestDownload(cdPipeline.DeploymentAppType) {
-		if overrideRequest.CdWorkflowType == bean.CD_WORKFLOW_TYPE_DEPLOY && cdPipeline.PostTriggerType == "" || overrideRequest.CdWorkflowType == bean.CD_WORKFLOW_TYPE_POST {
-			err = impl.HandlePostStageSuccessEvent(overrideRequest.CdWorkflowId, overrideRequest.PipelineId, overrideRequest.UserId)
-			if err != nil {
-				impl.logger.Errorw("auto trigger virtual deployment error", "err", err)
-				return 0, "", err
-			}
-		}
-	}
-	if util.IsManifestPush(cdPipeline.DeploymentAppType) {
-		if overrideRequest.CdWorkflowType == PRE {
-			applyAuth := false
-			if overrideRequest.UserId != 1 {
-				applyAuth = true
-			}
-			err := impl.TriggerAutoCDOnPreStageSuccess(overrideRequest.PipelineId, overrideRequest.CiArtifactId, overrideRequest.CdWorkflowId, overrideRequest.UserId, applyAuth)
-			if err != nil {
-				impl.logger.Errorw("error in cd auto trigger in case of pre cd in manifest_push deployment type", "err", err)
-				return 0, "", err
-			}
-		} else if cdPipeline.PostTriggerType != pipelineConfig.TRIGGER_TYPE_MANUAL {
-			err = impl.HandlePostStageSuccessEvent(overrideRequest.CdWorkflowId, overrideRequest.PipelineId, overrideRequest.UserId)
-			if err != nil {
-				impl.logger.Errorw("auto trigger virtual deployment error", "err", err)
-				return 0, "", err
-			}
-		}
 	}
 	return releaseId, helmPackageName, err
 }
