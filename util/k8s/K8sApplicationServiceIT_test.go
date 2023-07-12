@@ -192,7 +192,7 @@ func TestGetPodContainersList(t *testing.T) {
 	t.Run("Terminate Ephemeral Container with valid Data, container status will be terminated", func(tt *testing.T) {
 		podName := testPodName + "-6"
 		CreateAndDeletePod(podName, tt, k8sApplicationService)
-		ephemeralContainerName := "debugger-basic-termination-test"
+		ephemeralContainerName := "debugger-termination-valid-payload-test"
 		req := cluster.EphemeralContainerRequest{
 			ClusterId:    testClusterId,
 			Namespace:    testNamespace,
@@ -228,8 +228,38 @@ func TestGetPodContainersList(t *testing.T) {
 		assert.Equal(tt, 0, len(list.EphemeralContainers))
 	})
 
-	t.Run("Terminate Ephemeral Container with InValid Data,Invalid Pod Name payload, resource not found error", func(t *testing.T) {
+	t.Run("Terminate Ephemeral Container with InValid Data,Invalid Pod Name payload, resource not found error", func(tt *testing.T) {
+		podName := testPodName + "-7"
+		CreateAndDeletePod(podName, tt, k8sApplicationService)
+		ephemeralContainerName := "debugger-termination-invalid-payload-test"
+		req := cluster.EphemeralContainerRequest{
+			ClusterId:    testClusterId,
+			Namespace:    testNamespace,
+			PodName:      podName,
+			UserId:       1,
+			AdvancedData: nil,
+			BasicData: &cluster.EphemeralContainerBasicData{
+				ContainerName:       ephemeralContainerName,
+				TargetContainerName: testContainer,
+				Image:               testImage,
+			},
+		}
+		time.Sleep(5 * time.Second)
+		//create ephemeral container
+		err := k8sApplicationService.CreatePodEphemeralContainers(req)
+		assert.Nil(tt, err)
+		list, err := k8sApplicationService.GetPodContainersList(testClusterId, testNamespace, podName)
+		assert.Nil(tt, err)
+		assert.NotNil(tt, list)
+		assert.Equal(tt, 1, len(list.EphemeralContainers))
+		assert.Equal(tt, true, strings.Contains(list.EphemeralContainers[0], ephemeralContainerName))
 
+		//delete ephemeral container
+		req.PodName = "InvalidPodName"
+		terminated, err := k8sApplicationService.TerminatePodEphemeralContainer(req)
+		assert.NotNil(tt, err)
+		assert.Equal(tt, true, errors2.IsNotFound(err))
+		assert.Equal(tt, false, terminated)
 	})
 
 }
