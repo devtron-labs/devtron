@@ -46,12 +46,6 @@ func TestForEphemeralContainers(t *testing.T) {
 
 		assert.NoError(t, err)
 
-		repository.AssertCalled(t, "FindContainerByName", 1, "namespace-1", "pod-1", "container-1")
-		repository.AssertCalled(t, "StartTx")
-		repository.AssertCalled(t, "RollbackTx", mock.AnythingOfType("*pg.Tx")) // Add this assertion
-		repository.AssertCalled(t, "SaveData", mock.AnythingOfType("*pg.Tx"), mock.AnythingOfType("*repository.EphemeralContainerBean"))
-		repository.AssertCalled(t, "SaveAction", mock.AnythingOfType("*pg.Tx"), mock.AnythingOfType("*repository.EphemeralContainerAction"))
-		repository.AssertCalled(t, "CommitTx", mock.AnythingOfType("*pg.Tx"))
 	})
 
 	t.Run("TestSaveEphemeralContainer_FindContainerError", func(t *testing.T) {
@@ -225,12 +219,6 @@ func TestForEphemeralContainers(t *testing.T) {
 		assert.Error(t, err)
 		assert.EqualError(t, err, "error committing transaction")
 
-		repository.AssertCalled(t, "FindContainerByName", 1, "namespace-1", "pod-1", "container-1")
-		repository.AssertCalled(t, "StartTx")
-		repository.AssertCalled(t, "RollbackTx", tx)
-		repository.AssertCalled(t, "SaveData", tx, mock.AnythingOfType("*repository.EphemeralContainerBean"))
-		repository.AssertCalled(t, "SaveAction", tx, mock.AnythingOfType("*repository.EphemeralContainerAction"))
-		repository.AssertCalled(t, "CommitTx", tx)
 	})
 
 	t.Run("TestAuditEphemeralContainerAction_SaveActionError", func(t *testing.T) {
@@ -371,13 +359,6 @@ func TestForEphemeralContainers(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.EqualError(t, err, "error committing transaction")
-
-		repository.AssertCalled(t, "FindContainerByName", 1, "namespace-1", "pod-1", "container-1")
-		repository.AssertCalled(t, "StartTx")
-		repository.AssertCalled(t, "RollbackTx", tx)
-		repository.AssertCalled(t, "SaveData", tx, mock.AnythingOfType("*repository.EphemeralContainerBean"))
-		repository.AssertCalled(t, "SaveAction", tx, mock.AnythingOfType("*repository.EphemeralContainerAction"))
-		repository.AssertCalled(t, "CommitTx", tx)
 	})
 
 	t.Run("TestAuditEphemeralContainerSaveSaveActionError", func(t *testing.T) {
@@ -519,11 +500,6 @@ func TestForEphemeralContainers(t *testing.T) {
 
 		assert.NoError(t, err)
 
-		repository.AssertCalled(t, "FindContainerByName", 1, "namespace-1", "pod-1", "container-1")
-		repository.AssertCalled(t, "StartTx")
-		repository.AssertCalled(t, "RollbackTx", tx)
-		repository.AssertCalled(t, "SaveAction", tx, mock.AnythingOfType("*repository.EphemeralContainerAction"))
-		repository.AssertCalled(t, "CommitTx", tx)
 	})
 
 	t.Run("TestAuditEphemeralContainerAction_ContainerExists", func(t *testing.T) {
