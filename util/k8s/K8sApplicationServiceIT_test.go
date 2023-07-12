@@ -116,6 +116,29 @@ func TestGetPodContainersList(t *testing.T) {
 		assert.Equal(t, false, strings.Contains(list.EphemeralContainers[0], ephemeralContainerName))
 	})
 
+	t.Run("Create Ephemeral Container with inValid Data, wrong pod name,error occurs with resource not found", func(t *testing.T) {
+		ephemeralContainerName := "debugger-basic-invalid-test"
+		req := cluster.EphemeralContainerRequest{
+			ClusterId:    testClusterId,
+			Namespace:    testNamespace,
+			PodName:      "invalidPodName",
+			UserId:       1,
+			AdvancedData: nil,
+			BasicData: &cluster.EphemeralContainerBasicData{
+				ContainerName:       ephemeralContainerName,
+				TargetContainerName: testContainer,
+				Image:               testImage,
+			},
+		}
+		time.Sleep(5 * time.Second)
+		err = k8sApplicationService.CreatePodEphemeralContainers(req)
+		assert.NotNil(t, err)
+	})
+
+	t.Run("Create Ephemeral Container with inValid Data, container status will be terminated", func(t *testing.T) {
+
+	})
+
 	t.Run("Terminate Ephemeral Container with valid Data, container status will be terminated", func(t *testing.T) {
 
 	})
@@ -128,6 +151,7 @@ func TestGetPodContainersList(t *testing.T) {
 
 func deleteTestPod(k8sApplicationService *K8sApplicationServiceImpl) error {
 	restConfig, k8sRequest, err := getRestConfigAndK8sRequestObj(k8sApplicationService)
+	k8sRequest.ResourceIdentifier.Name = testPodName
 	if err != nil {
 		return err
 	}
