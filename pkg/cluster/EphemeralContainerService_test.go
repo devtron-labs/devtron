@@ -482,4 +482,87 @@ func TestForEphemeralContainers(t *testing.T) {
 
 	})
 
+	t.Run("TestAuditEphemeralContainerAction_ContainerNotNil", func(t *testing.T) {
+		repository := mocks.NewEphemeralContainersRepository(t)
+		tx := &pg.Tx{}
+		container := &repository2.EphemeralContainerBean{
+			Id: 1,
+		}
+
+		// Set up the expected repository method calls and return values
+		repository.On("FindContainerByName", 1, "namespace-1", "pod-1", "container-1").Return(container, nil)
+		repository.On("StartTx").Return(tx, nil)
+		repository.On("RollbackTx", tx).Return(nil)
+		repository.On("SaveAction", tx, mock.AnythingOfType("*repository.EphemeralContainerAction")).Return(nil)
+		repository.On("CommitTx", tx).Return(nil)
+
+		logger, _ := util.NewSugardLogger()
+		service := NewEphemeralContainerServiceImpl(repository, logger)
+
+		// Create a sample EphemeralContainerRequest
+		request := EphemeralContainerRequest{
+			BasicData: &EphemeralContainerBasicData{
+				ContainerName:       "container-1",
+				TargetContainerName: "target-container-1",
+				Image:               "image-1",
+			},
+			AdvancedData: &EphemeralContainerAdvancedData{
+				Manifest: "manifest-1",
+			},
+			Namespace: "namespace-1",
+			ClusterId: 1,
+			PodName:   "pod-1",
+			UserId:    123,
+		}
+
+		err := service.AuditEphemeralContainerAction(request, repository2.ActionAccessed)
+
+		assert.NoError(t, err)
+
+		repository.AssertCalled(t, "FindContainerByName", 1, "namespace-1", "pod-1", "container-1")
+		repository.AssertCalled(t, "StartTx")
+		repository.AssertCalled(t, "RollbackTx", tx)
+		repository.AssertCalled(t, "SaveAction", tx, mock.AnythingOfType("*repository.EphemeralContainerAction"))
+		repository.AssertCalled(t, "CommitTx", tx)
+	})
+
+	t.Run("TestAuditEphemeralContainerAction_ContainerExists", func(t *testing.T) {
+		repository := mocks.NewEphemeralContainersRepository(t)
+		tx := &pg.Tx{}
+
+		// Set up the expected repository method calls and return values
+		container := &repository2.EphemeralContainerBean{
+			Id:      123,
+			PodName: "existing-pod",
+		}
+		repository.On("FindContainerByName", 1, "namespace-1", "pod-1", "container-1").Return(container, nil)
+		repository.On("StartTx").Return(tx, nil)
+		repository.On("RollbackTx", tx).Return(nil)
+		repository.On("SaveAction", tx, mock.AnythingOfType("*repository.EphemeralContainerAction")).Return(nil)
+		repository.On("CommitTx", tx).Return(nil)
+		logger, _ := util.NewSugardLogger()
+		service := NewEphemeralContainerServiceImpl(repository, logger)
+
+		// Create a sample EphemeralContainerRequest
+		request := EphemeralContainerRequest{
+			BasicData: &EphemeralContainerBasicData{
+				ContainerName:       "container-1",
+				TargetContainerName: "target-container-1",
+				Image:               "image-1",
+			},
+			AdvancedData: &EphemeralContainerAdvancedData{
+				Manifest: "manifest-1",
+			},
+			Namespace: "namespace-1",
+			ClusterId: 1,
+			PodName:   "pod-1",
+			UserId:    123,
+		}
+
+		err := service.AuditEphemeralContainerAction(request, repository2.ActionTerminate)
+
+		assert.NoError(t, err)
+
+	})
+
 }
