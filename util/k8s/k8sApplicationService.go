@@ -1355,7 +1355,7 @@ func K8sServerVersionCheckForEphemeralContainers(clientSet *kubernetes.Clientset
 	}
 	//ephemeral containers feature is introduced in version v1.23 of kubernetes, it is stable from version v1.25
 	//https://kubernetes.io/docs/concepts/workloads/pods/ephemeral-containers/
-	if majorVersion < 1 || (majorVersion == 1 && minorVersion < 25) {
+	if majorVersion < 1 || (majorVersion == 1 && minorVersion < 23) {
 		return false, nil
 	}
 	return true, nil
