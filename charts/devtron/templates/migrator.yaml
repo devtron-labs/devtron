@@ -1,9 +1,8 @@
 {{- with .Values.components.migrator }}
-{{- if $.Capabilities.APIVersions.Has "batch/v1/Job" -}}
 ---
+{{- if $.Capabilities.APIVersions.Has "batch/v1/Job" -}}
 apiVersion: batch/v1
 {{- else -}}
----
 apiVersion: batch/v1beta1
 {{- end }}
 kind: Job
@@ -59,12 +58,10 @@ spec:
       restartPolicy: OnFailure
   backoffLimit: 20
   activeDeadlineSeconds: 1500
-
-{{- if $.Capabilities.APIVersions.Has "batch/v1/Job" -}}
 ---
+{{- if $.Capabilities.APIVersions.Has "batch/v1/Job" -}}
 apiVersion: batch/v1
 {{- else -}}
----
 apiVersion: batch/v1beta1
 {{- end }}
 kind: Job
@@ -82,7 +79,7 @@ spec:
       containers:
       - name: devtron-rollout
         image: "quay.io/devtron/kubectl:latest"
-        command: ['sh', '-c', 'kubectl rollout restart deployment/devtron -n devtroncd']
+        command: ['sh', '-c', 'kubectl rollout restart deployment/devtron -n devtroncd && kubectl rollout restart deployment/kubelink -n devtroncd']
         {{- if .casbin }}
         {{- if .casbin.resources }}        
         resources:

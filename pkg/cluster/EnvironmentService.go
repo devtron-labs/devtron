@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/user/bean"
 	"strconv"
 	"strings"
@@ -388,19 +389,21 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete(isDeploymen
 	if isDeploymentTypeParam {
 		for _, model := range models {
 			var (
-				deploymentConfig              map[string]bool
 				allowedDeploymentConfigString []string
 			)
-			deploymentConfigValues, _ := impl.attributesRepository.FindByKey(fmt.Sprintf("%d", model.Id))
+			deploymentConfig := make(map[string]map[string]bool)
+			deploymentConfigEnvLevel := make(map[string]bool)
+			deploymentConfigValues, _ := impl.attributesRepository.FindByKey(attributes.ENFORCE_DEPLOYMENT_TYPE_CONFIG)
 			//if empty config received(doesn't exist in table) which can't be parsed
 			if deploymentConfigValues.Value != "" {
 				if err = json.Unmarshal([]byte(deploymentConfigValues.Value), &deploymentConfig); err != nil {
 					return nil, err
 				}
+				deploymentConfigEnvLevel, _ = deploymentConfig[fmt.Sprintf("%d", model.Id)]
 			}
 
 			// if real config along with absurd values exist in table {"argo_cd": true, "helm": false, "absurd": false}",
-			if ok, filteredDeploymentConfig := impl.IsReceivedDeploymentTypeValid(deploymentConfig); ok {
+			if ok, filteredDeploymentConfig := impl.IsReceivedDeploymentTypeValid(deploymentConfigEnvLevel); ok {
 				allowedDeploymentConfigString = filteredDeploymentConfig
 			} else {
 				allowedDeploymentConfigString = permittedDeploymentConfigString

@@ -1223,6 +1223,7 @@ func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req *cluster
 		}
 	}
 
+	impl.logger.Errorw("error in creating ephemeral containers ", "err", err, "clusterId", req.ClusterId, "namespace", req.Namespace, "podName", req.PodName, "ephemeralContainerSpec", debugContainer)
 	return err
 }
 
@@ -1234,6 +1235,9 @@ func (impl *K8sApplicationServiceImpl) generateDebugContainer(pod *corev1.Pod, r
 		if err != nil {
 			impl.logger.Errorw("error occurred i unMarshaling advanced ephemeral data", "err", err, "advancedData", req.AdvancedData.Manifest)
 			return copied, ephemeralContainer, err
+		}
+		if ephemeralContainer.TargetContainerName == "" || ephemeralContainer.Name == "" || ephemeralContainer.Image == "" {
+			return copied, ephemeralContainer, errors.New("containerName,targetContainerName and image cannot be empty")
 		}
 	} else {
 		ephemeralContainer = &corev1.EphemeralContainer{
