@@ -611,7 +611,7 @@ Containers section can be used to run side-car containers along with your main c
 
 ### Container Lifecycle Hooks
 
-Container lifecycle hooks are mechanisms that allow users to define custom actions to be performed at specific stages of a container's lifecycle, such as after it starts(PostStart) or before it stops(PreStop).
+Container lifecycle hooks are mechanisms that allow users to define custom actions to be performed at specific stages of a container's lifecycle i.e. PostStart or PreStop.
 
 ```yaml
 containerSpec:
@@ -631,7 +631,7 @@ containerSpec:
 
 | Key | Description |
 | :--- | :--- |
-| `containerSpec` | containerSpec refers to the specification for a container. |
+| `containerSpec` | containerSpec to define container lifecycle hooks configuration. |
 | `lifecycle` | Lifecycle hooks for the container. |
 | `enabled` | Set true to enable lifecycle hooks for the container else set false. |
 | `postStart` | The postStart hook is executed immediately after a container is created. |
