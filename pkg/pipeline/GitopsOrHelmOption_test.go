@@ -55,10 +55,68 @@ func TestGitopsOrHelmOption(t *testing.T) {
 			UserId: 0,
 		}
 		isGitOpsConfigured := true
-		pipelineBuilderService.SetPipelineDeploymentAppType(pipelineCreateRequest, isGitOpsConfigured)
+		deploymentConfig := make(map[string]bool)
+		deploymentConfig[bean.ArgoCd] = true
+		deploymentConfig[bean.Helm] = false
+		pipelineBuilderService.SetPipelineDeploymentAppType(pipelineCreateRequest, isGitOpsConfigured, deploymentConfig)
 
 		for _, pipeline := range pipelineCreateRequest.Pipelines {
 			assert.Equal(t, pipeline.DeploymentAppType, "argo_cd")
+		}
+
+	})
+	t.Run("DeploymentAppSetterFunctionIfGitOpsConfiguredButNotAllowedExternalUse", func(t *testing.T) {
+
+		sugaredLogger, err := util.NewSugardLogger()
+		assert.Nil(t, err)
+
+		pipelineBuilderService := NewPipelineBuilderImpl(sugaredLogger, nil, nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil, nil, nil,
+			nil, nil, nil, nil, util.MergeUtil{Logger: sugaredLogger}, nil,
+			nil, nil, nil, nil, nil,
+			nil, nil, nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil, nil,
+			nil, nil, nil, nil,
+			nil, nil, nil, nil, nil, nil, nil, nil, &DeploymentServiceTypeConfig{IsInternalUse: false}, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+
+		pipelineCreateRequest := &bean.CdPipelines{
+			Pipelines: []*bean.CDPipelineConfigObject{
+				{
+					Id:                            0,
+					EnvironmentId:                 1,
+					EnvironmentName:               "",
+					CiPipelineId:                  1,
+					TriggerType:                   "AUTOMATIC",
+					Name:                          "cd-1-vo8q",
+					Strategies:                    nil,
+					Namespace:                     "devtron-demo",
+					AppWorkflowId:                 1,
+					DeploymentTemplate:            "",
+					PreStage:                      bean.CdStage{},
+					PostStage:                     bean.CdStage{},
+					PreStageConfigMapSecretNames:  bean.PreStageConfigMapSecretNames{},
+					PostStageConfigMapSecretNames: bean.PostStageConfigMapSecretNames{},
+					RunPreStageInEnv:              false,
+					RunPostStageInEnv:             false,
+					CdArgoSetup:                   false,
+					ParentPipelineId:              1,
+					ParentPipelineType:            "CI_PIPELINE",
+					DeploymentAppType:             "",
+				},
+			},
+			AppId:  1,
+			UserId: 0,
+		}
+		isGitOpsConfigured := true
+		deploymentConfig := make(map[string]bool)
+		deploymentConfig[bean.Helm] = true
+		deploymentConfig[bean.ArgoCd] = false
+		pipelineBuilderService.SetPipelineDeploymentAppType(pipelineCreateRequest, isGitOpsConfigured, deploymentConfig)
+
+		for _, pipeline := range pipelineCreateRequest.Pipelines {
+			assert.Equal(t, pipeline.DeploymentAppType, "helm")
 		}
 
 	})
@@ -108,7 +166,9 @@ func TestGitopsOrHelmOption(t *testing.T) {
 			UserId: 0,
 		}
 		isGitOpsConfigured := false
-		pipelineBuilderService.SetPipelineDeploymentAppType(pipelineCreateRequest, isGitOpsConfigured)
+		deploymentConfig := make(map[string]bool)
+		deploymentConfig[bean.Helm] = true
+		pipelineBuilderService.SetPipelineDeploymentAppType(pipelineCreateRequest, isGitOpsConfigured, deploymentConfig)
 
 		for _, pipeline := range pipelineCreateRequest.Pipelines {
 			assert.Equal(t, pipeline.DeploymentAppType, "helm")
@@ -161,7 +221,9 @@ func TestGitopsOrHelmOption(t *testing.T) {
 			UserId: 0,
 		}
 		isGitOpsConfigured := true
-		pipelineBuilderService.SetPipelineDeploymentAppType(pipelineCreateRequestHelm, isGitOpsConfigured)
+		deploymentConfig := make(map[string]bool)
+		deploymentConfig[bean.Helm] = true
+		pipelineBuilderService.SetPipelineDeploymentAppType(pipelineCreateRequestHelm, isGitOpsConfigured, deploymentConfig)
 
 		for _, pipeline := range pipelineCreateRequestHelm.Pipelines {
 			assert.Equal(t, pipeline.DeploymentAppType, "helm")
@@ -189,13 +251,14 @@ func TestGitopsOrHelmOption(t *testing.T) {
 					CdArgoSetup:                   false,
 					ParentPipelineId:              1,
 					ParentPipelineType:            "CI_PIPELINE",
-					DeploymentAppType:             "argo_cd",
+					DeploymentAppType:             bean.ArgoCd,
 				},
 			},
 			AppId:  1,
 			UserId: 0,
 		}
-		pipelineBuilderService.SetPipelineDeploymentAppType(pipelineCreateRequestGitOps, isGitOpsConfigured)
+		deploymentConfig[bean.ArgoCd] = true
+		pipelineBuilderService.SetPipelineDeploymentAppType(pipelineCreateRequestGitOps, isGitOpsConfigured, deploymentConfig)
 
 		for _, pipeline := range pipelineCreateRequestGitOps.Pipelines {
 			assert.Equal(t, pipeline.DeploymentAppType, "argo_cd")
@@ -302,7 +365,7 @@ func TestGitopsOrHelmOption(t *testing.T) {
 					CdArgoSetup:                   false,
 					ParentPipelineId:              1,
 					ParentPipelineType:            "CI_PIPELINE",
-					DeploymentAppType:             "argo_cd",
+					DeploymentAppType:             bean.ArgoCd,
 				},
 			},
 			AppId:  1,
