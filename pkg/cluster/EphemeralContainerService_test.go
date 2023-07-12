@@ -16,6 +16,7 @@ func TestSaveEphemeralContainer_Success(t *testing.T) {
 	// Set up the expected repository method calls and return values
 	repository.On("FindContainerByName", 1, "namespace-1", "pod-1", "container-1").Return(nil, nil)
 	repository.On("StartTx").Return(&pg.Tx{}, nil)
+	repository.On("RollbackTx", mock.AnythingOfType("*pg.Tx")).Return(nil) // Add this expectation
 	repository.On("SaveData", mock.AnythingOfType("*pg.Tx"), mock.AnythingOfType("*repository.EphemeralContainerBean")).Return(nil)
 	repository.On("SaveAction", mock.AnythingOfType("*pg.Tx"), mock.AnythingOfType("*repository.EphemeralContainerAction")).Return(nil)
 	repository.On("CommitTx", mock.AnythingOfType("*pg.Tx")).Return(nil)
@@ -44,6 +45,7 @@ func TestSaveEphemeralContainer_Success(t *testing.T) {
 
 	repository.AssertCalled(t, "FindContainerByName", 1, "namespace-1", "pod-1", "container-1")
 	repository.AssertCalled(t, "StartTx")
+	repository.AssertCalled(t, "RollbackTx", mock.AnythingOfType("*pg.Tx")) // Add this assertion
 	repository.AssertCalled(t, "SaveData", mock.AnythingOfType("*pg.Tx"), mock.AnythingOfType("*repository.EphemeralContainerBean"))
 	repository.AssertCalled(t, "SaveAction", mock.AnythingOfType("*pg.Tx"), mock.AnythingOfType("*repository.EphemeralContainerAction"))
 	repository.AssertCalled(t, "CommitTx", mock.AnythingOfType("*pg.Tx"))
@@ -55,9 +57,10 @@ func TestSaveEphemeralContainer_FindContainerError(t *testing.T) {
 
 	repository.On("FindContainerByName", mock.AnythingOfType("int"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(nil, errors.New("error finding container"))
 
+	logger, _ := util.NewSugardLogger()
 	service := EphemeralContainerServiceImpl{
 		repository: repository,
-		logger:     nil,
+		logger:     logger,
 	}
 
 	request := EphemeralContainerRequest{
@@ -90,9 +93,10 @@ func TestSaveEphemeralContainer_ContainerAlreadyPresent(t *testing.T) {
 
 	repository.On("FindContainerByName", mock.AnythingOfType("int"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(&EphemeralContainerBean{}, nil)
 
+	logger, _ := util.NewSugardLogger()
 	service := EphemeralContainerServiceImpl{
 		repository: repository,
-		logger:     nil,
+		logger:     logger,
 	}
 
 	request := EphemeralContainerRequest{
