@@ -51,7 +51,7 @@ func TestGetPodContainersList(t *testing.T) {
 			},
 		}
 		time.Sleep(5 * time.Second)
-		err := k8sApplicationService.CreatePodEphemeralContainers(req)
+		err := k8sApplicationService.CreatePodEphemeralContainers(&req)
 		testCreationSuccess(err, podName, ephemeralContainerName, k8sApplicationService, tt)
 	})
 
@@ -71,7 +71,7 @@ func TestGetPodContainersList(t *testing.T) {
 			},
 		}
 		time.Sleep(5 * time.Second)
-		err := k8sApplicationService.CreatePodEphemeralContainers(req)
+		err := k8sApplicationService.CreatePodEphemeralContainers(&req)
 		testCreationSuccess(err, podName, ephemeralContainerName, k8sApplicationService, tt)
 	})
 
@@ -92,7 +92,7 @@ func TestGetPodContainersList(t *testing.T) {
 			},
 		}
 		time.Sleep(5 * time.Second)
-		err := k8sApplicationService.CreatePodEphemeralContainers(req)
+		err := k8sApplicationService.CreatePodEphemeralContainers(&req)
 		assert.Nil(tt, err)
 		time.Sleep(5 * time.Second)
 		list, err := k8sApplicationService.GetPodContainersList(testClusterId, testNamespace, podName)
@@ -118,7 +118,7 @@ func TestGetPodContainersList(t *testing.T) {
 			},
 		}
 		time.Sleep(5 * time.Second)
-		err := k8sApplicationService.CreatePodEphemeralContainers(req)
+		err := k8sApplicationService.CreatePodEphemeralContainers(&req)
 		assert.NotNil(tt, err)
 		assert.Equal(tt, true, errors2.IsNotFound(err))
 	})
@@ -138,7 +138,7 @@ func TestGetPodContainersList(t *testing.T) {
 			},
 		}
 		time.Sleep(5 * time.Second)
-		err := k8sApplicationService.CreatePodEphemeralContainers(req)
+		err := k8sApplicationService.CreatePodEphemeralContainers(&req)
 		assert.Nil(tt, err)
 		time.Sleep(5 * time.Second)
 		list, err := k8sApplicationService.GetPodContainersList(testClusterId, testNamespace, podName)
@@ -172,7 +172,7 @@ func TestGetPodContainersList(t *testing.T) {
 			},
 		}
 		time.Sleep(5 * time.Second)
-		err := k8sApplicationService.CreatePodEphemeralContainers(req)
+		err := k8sApplicationService.CreatePodEphemeralContainers(&req)
 		assert.NotNil(tt, err)
 		assert.Equal(tt, true, errors2.IsForbidden(err))
 	})
@@ -196,8 +196,8 @@ func TestGetPodContainersList(t *testing.T) {
 		time.Sleep(5 * time.Second)
 
 		//create ephemeral container
-		err := k8sApplicationService.CreatePodEphemeralContainers(req)
-		testCreationSuccess(err, podName, ephemeralContainerName, k8sApplicationService, tt)
+		err := k8sApplicationService.CreatePodEphemeralContainers(&req)
+		testCreationSuccess(err, podName, req.BasicData.ContainerName, k8sApplicationService, tt)
 
 		//delete ephemeral container
 		terminated, err := k8sApplicationService.TerminatePodEphemeralContainer(req)
@@ -229,7 +229,7 @@ func TestGetPodContainersList(t *testing.T) {
 		}
 		time.Sleep(5 * time.Second)
 		//create ephemeral container
-		err := k8sApplicationService.CreatePodEphemeralContainers(req)
+		err := k8sApplicationService.CreatePodEphemeralContainers(&req)
 		testCreationSuccess(err, podName, ephemeralContainerName, k8sApplicationService, tt)
 
 		//delete ephemeral container
@@ -299,13 +299,15 @@ func initK8sApplicationService(t *testing.T) *K8sApplicationServiceImpl {
 	k8sUtil := util.NewK8sUtil(sugaredLogger, runtimeConfig)
 	assert.Nil(t, err)
 	db, _ := sql.NewDbConnection(config, sugaredLogger)
+	ephemeralContainerRepository := repository.NewEphemeralContainersRepositoryImpl(db)
 	clusterRepositoryImpl := repository.NewClusterRepositoryImpl(db, sugaredLogger)
 	k8sClientServiceImpl := application.NewK8sClientServiceImpl(sugaredLogger, clusterRepositoryImpl)
 	v := informer.NewGlobalMapClusterNamespace()
 	k8sInformerFactoryImpl := informer.NewK8sInformerFactoryImpl(sugaredLogger, v, runtimeConfig)
 	clusterServiceImpl := cluster.NewClusterServiceImpl(clusterRepositoryImpl, sugaredLogger, nil, k8sInformerFactoryImpl, nil, nil, nil)
 	terminalSessionHandlerImpl := terminal.NewTerminalSessionHandlerImpl(nil, clusterServiceImpl, sugaredLogger, k8sUtil)
-	k8sApplicationService := NewK8sApplicationServiceImpl(sugaredLogger, clusterServiceImpl, nil, k8sClientServiceImpl, nil, k8sUtil, nil, nil, terminalSessionHandlerImpl, nil)
+	ephemeralContainerService := cluster.NewEphemeralContainerServiceImpl(ephemeralContainerRepository, sugaredLogger)
+	k8sApplicationService := NewK8sApplicationServiceImpl(sugaredLogger, clusterServiceImpl, nil, k8sClientServiceImpl, nil, k8sUtil, nil, nil, terminalSessionHandlerImpl, ephemeralContainerService)
 	return k8sApplicationService
 }
 

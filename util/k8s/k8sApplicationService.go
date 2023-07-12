@@ -74,7 +74,7 @@ type K8sApplicationService interface {
 	ApplyResources(ctx context.Context, token string, request *application.ApplyResourcesRequest, resourceRbacHandler func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) ([]*application.ApplyResourcesResponse, error)
 	FetchConnectionStatusForCluster(k8sClientSet *kubernetes.Clientset, clusterId int) error
 	RotatePods(ctx context.Context, request *RotatePodRequest) (*RotatePodResponse, error)
-	CreatePodEphemeralContainers(req cluster.EphemeralContainerRequest) error
+	CreatePodEphemeralContainers(req *cluster.EphemeralContainerRequest) error
 	TerminatePodEphemeralContainer(req cluster.EphemeralContainerRequest) (bool, error)
 	GetPodContainersList(clusterId int, namespace, podName string) (*PodContainerList, error)
 }
@@ -1133,7 +1133,7 @@ func (impl *K8sApplicationServiceImpl) FetchConnectionStatusForCluster(k8sClient
 	return err
 }
 
-func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req cluster.EphemeralContainerRequest) error {
+func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req *cluster.EphemeralContainerRequest) error {
 
 	clientSet, v1Client, err := impl.getCoreClientByClusterId(req.ClusterId)
 	if err != nil {
@@ -1159,7 +1159,7 @@ func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req cluster.
 		impl.logger.Errorw("error occurred in unMarshaling pod object", "podObject", pod, "err", err)
 		return fmt.Errorf("error creating JSON for pod: %v", err)
 	}
-	debugPod, debugContainer, err := impl.generateDebugContainer(pod, req)
+	debugPod, debugContainer, err := impl.generateDebugContainer(pod, *req)
 	if err != nil {
 		impl.logger.Errorw("error in generateDebugContainer", "request", req, "err", err)
 		return err
@@ -1216,7 +1216,7 @@ func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req cluster.
 			TargetContainerName: debugContainer.TargetContainerName,
 			Image:               debugContainer.Image,
 		}
-		err = impl.ephemeralContainerService.SaveEphemeralContainer(req)
+		err = impl.ephemeralContainerService.SaveEphemeralContainer(*req)
 		if err != nil {
 			impl.logger.Errorw("error in saving ephemeral container data", "err", err)
 			return err
