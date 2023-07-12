@@ -34,6 +34,7 @@ import (
 	"io/ioutil"
 	"k8s.io/helm/pkg/proto/hapi/chart"
 	"path"
+	"sigs.k8s.io/yaml"
 	"strconv"
 	"strings"
 	"time"
@@ -79,6 +80,7 @@ type CdWorkflowServiceImpl struct {
 	systemWorkflowExecutor SystemWorkflowExecutor
 	refChartDir            chartRepoRepository.RefChartDir
 	chartTemplateService   util2.ChartTemplateService
+	mergeUtil              *util2.MergeUtil
 }
 
 type CdWorkflowRequest struct {
@@ -140,7 +142,7 @@ func NewCdWorkflowServiceImpl(Logger *zap.SugaredLogger,
 	cdConfig *CdConfig,
 	appService app.AppService,
 	globalCMCSService GlobalCMCSService,
-	argoWorkflowExecutor ArgoWorkflowExecutor, systemWorkflowExecutor SystemWorkflowExecutor, refChartDir chartRepoRepository.RefChartDir, chartTemplateService util2.ChartTemplateService) *CdWorkflowServiceImpl {
+	argoWorkflowExecutor ArgoWorkflowExecutor, systemWorkflowExecutor SystemWorkflowExecutor, refChartDir chartRepoRepository.RefChartDir, chartTemplateService util2.ChartTemplateService, mergeUtil *util2.MergeUtil) *CdWorkflowServiceImpl {
 	return &CdWorkflowServiceImpl{Logger: Logger,
 		config:                 cdConfig.ClusterConfig,
 		cdConfig:               cdConfig,
@@ -151,6 +153,7 @@ func NewCdWorkflowServiceImpl(Logger *zap.SugaredLogger,
 		systemWorkflowExecutor: systemWorkflowExecutor,
 		refChartDir:            refChartDir,
 		chartTemplateService:   chartTemplateService,
+		mergeUtil:              mergeUtil,
 	}
 }
 
@@ -479,19 +482,31 @@ func (impl *CdWorkflowServiceImpl) TriggerDryRun(jobManifestTemplate *bean3.JobM
 		impl.Logger.Errorw("error in converting to json", "err", err)
 		return builtChartPath, err
 	}
-
 	jobHelmChartPath := path.Join(string(impl.refChartDir), HELM_JOB_REF_TEMPLATE_NAME)
 	builtChartPath, err = impl.chartTemplateService.BuildChart(context.Background(),
 		&chart.Metadata{ApiVersion: JOB_CHART_API_VERSION, Name: JOB_CHART_NAME, Version: JOB_CHART_VERSION},
 		jobHelmChartPath)
 
-	impl.Logger.Debugw(builtChartPath)
-
-	valuesFilePath := path.Join(builtChartPath, "valuesOverride.json")
-	err = ioutil.WriteFile(valuesFilePath, jobManifestJson, 0600)
+	valuesFilePath := path.Join(builtChartPath, "values.yaml") //default values of helm chart
+	defaultValues, err := ioutil.ReadFile(valuesFilePath)
+	if err != nil {
+		return builtChartPath, err
+	}
+	defaultValuesJson, err := yaml.YAMLToJSON(defaultValues)
+	if err != nil {
+		return builtChartPath, err
+	}
+	mergedValues, err := impl.mergeUtil.JsonPatch(defaultValuesJson, jobManifestJson)
+	if err != nil {
+		return builtChartPath, err
+	}
+	mergedValuesYaml, err := yaml.JSONToYAML(mergedValues)
+	if err != nil {
+		return builtChartPath, err
+	}
+	err = ioutil.WriteFile(valuesFilePath, mergedValuesYaml, 0600)
 	if err != nil {
 		return builtChartPath, nil
 	}
-
 	return builtChartPath, nil
 }
