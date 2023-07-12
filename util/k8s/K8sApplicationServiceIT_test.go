@@ -30,19 +30,9 @@ const testPodJs = `{"apiVersion": "v1","kind": "Pod","metadata": {"name": "nginx
 func TestGetPodContainersList(t *testing.T) {
 
 	k8sApplicationService := initK8sApplicationService(t)
-	err := createTestPod(k8sApplicationService)
-	if err != nil {
-		assert.Fail(t, "error in creating test Pod ")
-	}
-	t.Cleanup(func() {
-		fmt.Println("cleaning data ....")
-		err = deleteTestPod(k8sApplicationService)
-		if err != nil {
-			assert.Fail(t, "error in deleting test Pod after running testcases")
-		}
-	})
 
-	t.Run("Create Ephemeral Container with valid Basic Data,container status will be running", func(t *testing.T) {
+	t.Run("Create Ephemeral Container with valid Basic Data,container status will be running", func(tt *testing.T) {
+		CreateAndDeletePod(tt, k8sApplicationService)
 		ephemeralContainerName := "debugger-basic-test"
 		req := cluster.EphemeralContainerRequest{
 			ClusterId:    testClusterId,
@@ -57,17 +47,18 @@ func TestGetPodContainersList(t *testing.T) {
 			},
 		}
 		time.Sleep(5 * time.Second)
-		err = k8sApplicationService.CreatePodEphemeralContainers(req)
-		assert.Nil(t, err)
+		err := k8sApplicationService.CreatePodEphemeralContainers(req)
+		assert.Nil(tt, err)
 		time.Sleep(5 * time.Second)
 		list, err := k8sApplicationService.GetPodContainersList(testClusterId, testNamespace, testPodName)
-		assert.Nil(t, err)
-		assert.NotNil(t, list)
-		assert.Equal(t, 1, len(list.EphemeralContainers))
-		assert.Equal(t, true, strings.Contains(list.EphemeralContainers[0], ephemeralContainerName))
+		assert.Nil(tt, err)
+		assert.NotNil(tt, list)
+		assert.Equal(tt, 1, len(list.EphemeralContainers))
+		assert.Equal(tt, true, strings.Contains(list.EphemeralContainers[0], ephemeralContainerName))
 	})
 
-	t.Run("Create Ephemeral Container with valid Advanced Data,container status will be running", func(t *testing.T) {
+	t.Run("Create Ephemeral Container with valid Advanced Data,container status will be running", func(tt *testing.T) {
+		CreateAndDeletePod(tt, k8sApplicationService)
 		manifest := `{"name":"debugger-advanced-test","command":["sh"],"image":"quay.io/devtron/ubuntu-k8s-utils:latest","targetContainer":"nginx","tty":true,"stdin":true}`
 		ephemeralContainerName := "debugger-advanced-test"
 		req := cluster.EphemeralContainerRequest{
@@ -81,17 +72,18 @@ func TestGetPodContainersList(t *testing.T) {
 			},
 		}
 		time.Sleep(5 * time.Second)
-		err = k8sApplicationService.CreatePodEphemeralContainers(req)
-		assert.Nil(t, err)
+		err := k8sApplicationService.CreatePodEphemeralContainers(req)
+		assert.Nil(tt, err)
 		time.Sleep(5 * time.Second)
 		list, err := k8sApplicationService.GetPodContainersList(testClusterId, testNamespace, testPodName)
-		assert.Nil(t, err)
-		assert.NotNil(t, list)
-		assert.Equal(t, 2, len(list.EphemeralContainers))
-		assert.Equal(t, true, strings.Contains(list.EphemeralContainers[0], ephemeralContainerName))
+		assert.Nil(tt, err)
+		assert.NotNil(tt, list)
+		assert.Equal(tt, 1, len(list.EphemeralContainers))
+		assert.Equal(tt, true, strings.Contains(list.EphemeralContainers[0], ephemeralContainerName))
 	})
 
-	t.Run("Create Ephemeral Container with inValid Data, container status will be terminated", func(t *testing.T) {
+	t.Run("Create Ephemeral Container with inValid Data, container status will be terminated", func(tt *testing.T) {
+		CreateAndDeletePod(tt, k8sApplicationService)
 		ephemeralContainerName := "debugger-basic-invalid-test"
 		req := cluster.EphemeralContainerRequest{
 			ClusterId:    testClusterId,
@@ -106,17 +98,17 @@ func TestGetPodContainersList(t *testing.T) {
 			},
 		}
 		time.Sleep(5 * time.Second)
-		err = k8sApplicationService.CreatePodEphemeralContainers(req)
-		assert.Nil(t, err)
+		err := k8sApplicationService.CreatePodEphemeralContainers(req)
+		assert.Nil(tt, err)
 		time.Sleep(5 * time.Second)
 		list, err := k8sApplicationService.GetPodContainersList(testClusterId, testNamespace, testPodName)
-		assert.Nil(t, err)
-		assert.NotNil(t, list)
-		assert.Equal(t, 2, len(list.EphemeralContainers))
-		assert.Equal(t, false, strings.Contains(list.EphemeralContainers[0], ephemeralContainerName))
+		assert.Nil(tt, err)
+		assert.NotNil(tt, list)
+		assert.Equal(tt, 0, len(list.EphemeralContainers))
 	})
 
-	t.Run("Create Ephemeral Container with inValid Data, wrong pod name,error occurs with resource not found", func(t *testing.T) {
+	t.Run("Create Ephemeral Container with inValid Data, wrong pod name,error occurs with resource not found", func(tt *testing.T) {
+		CreateAndDeletePod(tt, k8sApplicationService)
 		ephemeralContainerName := "debugger-basic-invalid-test"
 		req := cluster.EphemeralContainerRequest{
 			ClusterId:    testClusterId,
@@ -131,8 +123,8 @@ func TestGetPodContainersList(t *testing.T) {
 			},
 		}
 		time.Sleep(5 * time.Second)
-		err = k8sApplicationService.CreatePodEphemeralContainers(req)
-		assert.NotNil(t, err)
+		err := k8sApplicationService.CreatePodEphemeralContainers(req)
+		assert.NotNil(tt, err)
 	})
 
 	t.Run("Create Ephemeral Container with inValid Data, container status will be terminated", func(t *testing.T) {
@@ -204,4 +196,18 @@ func initK8sApplicationService(t *testing.T) *K8sApplicationServiceImpl {
 	terminalSessionHandlerImpl := terminal.NewTerminalSessionHandlerImpl(nil, clusterServiceImpl, sugaredLogger, k8sUtil)
 	k8sApplicationService := NewK8sApplicationServiceImpl(sugaredLogger, clusterServiceImpl, nil, k8sClientServiceImpl, nil, k8sUtil, nil, nil, terminalSessionHandlerImpl, nil)
 	return k8sApplicationService
+}
+
+func CreateAndDeletePod(t *testing.T, k8sApplicationService *K8sApplicationServiceImpl) {
+	err := createTestPod(k8sApplicationService)
+	if err != nil {
+		assert.Fail(t, "error in creating test Pod ")
+	}
+	t.Cleanup(func() {
+		fmt.Println("cleaning data ....")
+		err = deleteTestPod(k8sApplicationService)
+		if err != nil {
+			assert.Fail(t, "error in deleting test Pod after running testcases")
+		}
+	})
 }
