@@ -11,6 +11,23 @@ import (
 	"testing"
 )
 
+func createSampleRequest() EphemeralContainerRequest {
+	return EphemeralContainerRequest{
+		BasicData: &EphemeralContainerBasicData{
+			ContainerName:       "container-1",
+			TargetContainerName: "target-container-1",
+			Image:               "image-1",
+		},
+		AdvancedData: &EphemeralContainerAdvancedData{
+			Manifest: "manifest-1",
+		},
+		Namespace: "namespace-1",
+		ClusterId: 1,
+		PodName:   "pod-1",
+		UserId:    123,
+	}
+}
+
 func TestForEphemeralContainers(t *testing.T) {
 
 	t.Run("TestSaveEphemeralContainer_Success", func(t *testing.T) {
@@ -27,20 +44,7 @@ func TestForEphemeralContainers(t *testing.T) {
 		service := NewEphemeralContainerServiceImpl(repository, logger)
 
 		// Create a sample EphemeralContainerRequest
-		request := EphemeralContainerRequest{
-			BasicData: &EphemeralContainerBasicData{
-				ContainerName:       "container-1",
-				TargetContainerName: "target-container-1",
-				Image:               "image-1",
-			},
-			AdvancedData: &EphemeralContainerAdvancedData{
-				Manifest: "manifest-1",
-			},
-			Namespace: "namespace-1",
-			ClusterId: 1,
-			PodName:   "pod-1",
-			UserId:    123,
-		}
+		request := createSampleRequest()
 
 		err := service.SaveEphemeralContainer(request)
 
@@ -59,21 +63,7 @@ func TestForEphemeralContainers(t *testing.T) {
 			logger:     logger,
 		}
 
-		request := EphemeralContainerRequest{
-			BasicData: &EphemeralContainerBasicData{
-				ContainerName:       "container-1",
-				TargetContainerName: "target-container-1",
-				Image:               "image-1",
-			},
-			AdvancedData: &EphemeralContainerAdvancedData{
-				Manifest: "manifest-1",
-			},
-			Namespace: "namespace-1",
-			ClusterId: 1,
-			PodName:   "pod-1",
-			UserId:    123,
-		}
-
+		request := createSampleRequest()
 		err := service.SaveEphemeralContainer(request)
 
 		assert.Error(t, err)
@@ -95,20 +85,7 @@ func TestForEphemeralContainers(t *testing.T) {
 		service := NewEphemeralContainerServiceImpl(repository, logger)
 
 		// Create a sample EphemeralContainerRequest
-		request := EphemeralContainerRequest{
-			BasicData: &EphemeralContainerBasicData{
-				ContainerName:       "container-1",
-				TargetContainerName: "target-container-1",
-				Image:               "image-1",
-			},
-			AdvancedData: &EphemeralContainerAdvancedData{
-				Manifest: "manifest-1",
-			},
-			Namespace: "namespace-1",
-			ClusterId: 1,
-			PodName:   "pod-1",
-			UserId:    123,
-		}
+		request := createSampleRequest()
 
 		err := service.AuditEphemeralContainerAction(request, repository2.ActionAccessed)
 
@@ -126,20 +103,7 @@ func TestForEphemeralContainers(t *testing.T) {
 			logger:     logger,
 		}
 
-		request := EphemeralContainerRequest{
-			BasicData: &EphemeralContainerBasicData{
-				ContainerName:       "container-1",
-				TargetContainerName: "target-container-1",
-				Image:               "image-1",
-			},
-			AdvancedData: &EphemeralContainerAdvancedData{
-				Manifest: "manifest-1",
-			},
-			Namespace: "namespace-1",
-			ClusterId: 1,
-			PodName:   "pod-1",
-			UserId:    123,
-		}
+		request := createSampleRequest()
 
 		err := service.AuditEphemeralContainerAction(request, repository2.ActionAccessed)
 
@@ -161,20 +125,7 @@ func TestForEphemeralContainers(t *testing.T) {
 		service := NewEphemeralContainerServiceImpl(repository, logger)
 
 		// Create a sample EphemeralContainerRequest
-		request := EphemeralContainerRequest{
-			BasicData: &EphemeralContainerBasicData{
-				ContainerName:       "container-1",
-				TargetContainerName: "target-container-1",
-				Image:               "image-1",
-			},
-			AdvancedData: &EphemeralContainerAdvancedData{
-				Manifest: "manifest-1",
-			},
-			Namespace: "namespace-1",
-			ClusterId: 1,
-			PodName:   "pod-1",
-			UserId:    123,
-		}
+		request := createSampleRequest()
 
 		err := service.SaveEphemeralContainer(request)
 
@@ -199,20 +150,7 @@ func TestForEphemeralContainers(t *testing.T) {
 		service := NewEphemeralContainerServiceImpl(repository, logger)
 
 		// Create a sample EphemeralContainerRequest
-		request := EphemeralContainerRequest{
-			BasicData: &EphemeralContainerBasicData{
-				ContainerName:       "container-1",
-				TargetContainerName: "target-container-1",
-				Image:               "image-1",
-			},
-			AdvancedData: &EphemeralContainerAdvancedData{
-				Manifest: "manifest-1",
-			},
-			Namespace: "namespace-1",
-			ClusterId: 1,
-			PodName:   "pod-1",
-			UserId:    123,
-		}
+		request := createSampleRequest()
 
 		err := service.AuditEphemeralContainerAction(request, repository2.ActionAccessed)
 
@@ -237,20 +175,7 @@ func TestForEphemeralContainers(t *testing.T) {
 		service := NewEphemeralContainerServiceImpl(repository, logger)
 
 		// Create a sample EphemeralContainerRequest
-		request := EphemeralContainerRequest{
-			BasicData: &EphemeralContainerBasicData{
-				ContainerName:       "container-1",
-				TargetContainerName: "target-container-1",
-				Image:               "image-1",
-			},
-			AdvancedData: &EphemeralContainerAdvancedData{
-				Manifest: "manifest-1",
-			},
-			Namespace: "namespace-1",
-			ClusterId: 1,
-			PodName:   "pod-1",
-			UserId:    123,
-		}
+		request := createSampleRequest()
 
 		err := service.AuditEphemeralContainerAction(request, repository2.ActionAccessed)
 
@@ -271,20 +196,7 @@ func TestForEphemeralContainers(t *testing.T) {
 		service := NewEphemeralContainerServiceImpl(repository, logger)
 
 		// Create a sample EphemeralContainerRequest
-		request := EphemeralContainerRequest{
-			BasicData: &EphemeralContainerBasicData{
-				ContainerName:       "container-1",
-				TargetContainerName: "target-container-1",
-				Image:               "image-1",
-			},
-			AdvancedData: &EphemeralContainerAdvancedData{
-				Manifest: "manifest-1",
-			},
-			Namespace: "namespace-1",
-			ClusterId: 1,
-			PodName:   "pod-1",
-			UserId:    123,
-		}
+		request := createSampleRequest()
 
 		err := service.AuditEphemeralContainerAction(request, repository2.ActionAccessed)
 
@@ -304,20 +216,7 @@ func TestForEphemeralContainers(t *testing.T) {
 		service := NewEphemeralContainerServiceImpl(repository, logger)
 
 		// Create a sample EphemeralContainerRequest
-		request := EphemeralContainerRequest{
-			BasicData: &EphemeralContainerBasicData{
-				ContainerName:       "container-1",
-				TargetContainerName: "target-container-1",
-				Image:               "image-1",
-			},
-			AdvancedData: &EphemeralContainerAdvancedData{
-				Manifest: "manifest-1",
-			},
-			Namespace: "namespace-1",
-			ClusterId: 1,
-			PodName:   "pod-1",
-			UserId:    123,
-		}
+		request := createSampleRequest()
 
 		err := service.AuditEphemeralContainerAction(request, repository2.ActionAccessed)
 
@@ -340,20 +239,7 @@ func TestForEphemeralContainers(t *testing.T) {
 		service := NewEphemeralContainerServiceImpl(repository, logger)
 
 		// Create a sample EphemeralContainerRequest
-		request := EphemeralContainerRequest{
-			BasicData: &EphemeralContainerBasicData{
-				ContainerName:       "container-1",
-				TargetContainerName: "target-container-1",
-				Image:               "image-1",
-			},
-			AdvancedData: &EphemeralContainerAdvancedData{
-				Manifest: "manifest-1",
-			},
-			Namespace: "namespace-1",
-			ClusterId: 1,
-			PodName:   "pod-1",
-			UserId:    123,
-		}
+		request := createSampleRequest()
 
 		err := service.SaveEphemeralContainer(request)
 
@@ -377,20 +263,7 @@ func TestForEphemeralContainers(t *testing.T) {
 		service := NewEphemeralContainerServiceImpl(repository, logger)
 
 		// Create a sample EphemeralContainerRequest
-		request := EphemeralContainerRequest{
-			BasicData: &EphemeralContainerBasicData{
-				ContainerName:       "container-1",
-				TargetContainerName: "target-container-1",
-				Image:               "image-1",
-			},
-			AdvancedData: &EphemeralContainerAdvancedData{
-				Manifest: "manifest-1",
-			},
-			Namespace: "namespace-1",
-			ClusterId: 1,
-			PodName:   "pod-1",
-			UserId:    123,
-		}
+		request := createSampleRequest()
 
 		err := service.SaveEphemeralContainer(request)
 
@@ -411,20 +284,7 @@ func TestForEphemeralContainers(t *testing.T) {
 		service := NewEphemeralContainerServiceImpl(repository, logger)
 
 		// Create a sample EphemeralContainerRequest
-		request := EphemeralContainerRequest{
-			BasicData: &EphemeralContainerBasicData{
-				ContainerName:       "container-1",
-				TargetContainerName: "target-container-1",
-				Image:               "image-1",
-			},
-			AdvancedData: &EphemeralContainerAdvancedData{
-				Manifest: "manifest-1",
-			},
-			Namespace: "namespace-1",
-			ClusterId: 1,
-			PodName:   "pod-1",
-			UserId:    123,
-		}
+		request := createSampleRequest()
 
 		err := service.SaveEphemeralContainer(request)
 		assert.Error(t, err)
@@ -443,20 +303,7 @@ func TestForEphemeralContainers(t *testing.T) {
 		service := NewEphemeralContainerServiceImpl(repository, logger)
 
 		// Create a sample EphemeralContainerRequest
-		request := EphemeralContainerRequest{
-			BasicData: &EphemeralContainerBasicData{
-				ContainerName:       "container-1",
-				TargetContainerName: "target-container-1",
-				Image:               "image-1",
-			},
-			AdvancedData: &EphemeralContainerAdvancedData{
-				Manifest: "manifest-1",
-			},
-			Namespace: "namespace-1",
-			ClusterId: 1,
-			PodName:   "pod-1",
-			UserId:    123,
-		}
+		request := createSampleRequest()
 
 		err := service.SaveEphemeralContainer(request)
 		assert.Error(t, err)
@@ -481,20 +328,7 @@ func TestForEphemeralContainers(t *testing.T) {
 		service := NewEphemeralContainerServiceImpl(repository, logger)
 
 		// Create a sample EphemeralContainerRequest
-		request := EphemeralContainerRequest{
-			BasicData: &EphemeralContainerBasicData{
-				ContainerName:       "container-1",
-				TargetContainerName: "target-container-1",
-				Image:               "image-1",
-			},
-			AdvancedData: &EphemeralContainerAdvancedData{
-				Manifest: "manifest-1",
-			},
-			Namespace: "namespace-1",
-			ClusterId: 1,
-			PodName:   "pod-1",
-			UserId:    123,
-		}
+		request := createSampleRequest()
 
 		err := service.AuditEphemeralContainerAction(request, repository2.ActionAccessed)
 
@@ -520,20 +354,7 @@ func TestForEphemeralContainers(t *testing.T) {
 		service := NewEphemeralContainerServiceImpl(repository, logger)
 
 		// Create a sample EphemeralContainerRequest
-		request := EphemeralContainerRequest{
-			BasicData: &EphemeralContainerBasicData{
-				ContainerName:       "container-1",
-				TargetContainerName: "target-container-1",
-				Image:               "image-1",
-			},
-			AdvancedData: &EphemeralContainerAdvancedData{
-				Manifest: "manifest-1",
-			},
-			Namespace: "namespace-1",
-			ClusterId: 1,
-			PodName:   "pod-1",
-			UserId:    123,
-		}
+		request := createSampleRequest()
 
 		err := service.AuditEphemeralContainerAction(request, repository2.ActionTerminate)
 
