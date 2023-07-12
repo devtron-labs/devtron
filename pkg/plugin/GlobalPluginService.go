@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -75,6 +76,108 @@ func (impl *GlobalPluginServiceImpl) GetAllGlobalVariables() ([]*GlobalVariable,
 			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
 			Description: "Email-Id/Name of the user who triggers pipeline.",
 			Type:        "ci",
+		},
+		{
+			Name:        pipeline.CD_PIPELINE_ENV_NAME_KEY,
+			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
+			Description: "",
+			Type:        "cd",
+		},
+		{
+			Name:        pipeline.CD_PIPELINE_CLUSTER_NAME_KEY,
+			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
+			Description: "",
+			Type:        "cd",
+		},
+		{
+			Name:        pipeline.GIT_COMMIT_HASH_PREFIX,
+			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
+			Description: "",
+			Type:        "cd",
+		},
+		{
+			Name:        pipeline.GIT_SOURCE_TYPE_PREFIX,
+			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
+			Description: "",
+			Type:        "cd",
+		},
+		{
+			Name:        pipeline.GIT_SOURCE_VALUE_PREFIX,
+			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
+			Description: "",
+			Type:        "cd",
+		},
+		{
+			Name:        pipeline.GIT_SOURCE_COUNT,
+			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
+			Description: "",
+			Type:        "cd",
+		},
+		{
+			Name:        pipeline.APP_LABEL_KEY_PREFIX,
+			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
+			Description: "",
+			Type:        "cd",
+		},
+		{
+			Name:        pipeline.APP_LABEL_VALUE_PREFIX,
+			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
+			Description: "",
+			Type:        "cd",
+		},
+		{
+			Name:        pipeline.APP_LABEL_COUNT,
+			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
+			Description: "",
+			Type:        "cd",
+		},
+		{
+			Name:        pipeline.CHILD_CD_ENV_NAME_PREFIX,
+			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
+			Description: "",
+			Type:        "cd",
+		},
+		{
+			Name:        pipeline.CHILD_CD_CLUSTER_NAME_PREFIX,
+			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
+			Description: "",
+			Type:        "cd",
+		},
+		{
+			Name:        pipeline.CHILD_CD_COUNT,
+			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
+			Description: "",
+			Type:        "cd",
+		},
+		{
+			Name:        pipeline.DOCKER_IMAGE,
+			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
+			Description: "",
+			Type:        "cd",
+		},
+		{
+			Name:        pipeline.DEPLOYMENT_RELEASE_ID,
+			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
+			Description: "",
+			Type:        "cd",
+		},
+		{
+			Name:        pipeline.DEPLOYMENT_UNIQUE_ID,
+			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
+			Description: "",
+			Type:        "cd",
+		},
+		{
+			Name:        pipeline.DEVTRON_CD_TRIGGERED_BY,
+			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
+			Description: "",
+			Type:        "cd",
+		},
+		{
+			Name:        pipeline.DEVTRON_CD_TRIGGER_TIME,
+			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
+			Description: "",
+			Type:        "cd",
 		},
 	}
 	return globalVariables, nil

@@ -28,6 +28,10 @@ type Task struct {
 	RunStatus      bool   `json:"-,omitempty"`                          // task run was attempted or not
 }
 
+var globalInputVariableList = []string{DOCKER_IMAGE, DEPLOYMENT_RELEASE_ID, DEPLOYMENT_UNIQUE_ID, DEVTRON_CD_TRIGGER_TIME, DEVTRON_CD_TRIGGERED_BY, CD_PIPELINE_ENV_NAME_KEY,
+	CD_PIPELINE_CLUSTER_NAME_KEY, GIT_COMMIT_HASH_PREFIX, GIT_SOURCE_TYPE_PREFIX, GIT_SOURCE_VALUE_PREFIX, GIT_SOURCE_COUNT, APP_LABEL_KEY_PREFIX, APP_LABEL_VALUE_PREFIX,
+	APP_LABEL_COUNT, CHILD_CD_ENV_NAME_PREFIX, CHILD_CD_CLUSTER_NAME_PREFIX, CHILD_CD_COUNT}
+
 func ConvertStageYamlScriptsToPipelineStageSteps(cdPipeline *bean2.CDPipelineConfigObject) (*bean2.CDPipelineConfigObject, error) {
 	if cdPipeline.PreDeployStage == nil && len(cdPipeline.PreStage.Config) > 0 {
 		preDeployStageConverted, err := StageYamlToPipelineStageAdapter(cdPipeline.PreStage.Config, repository2.PIPELINE_STAGE_TYPE_PRE_CD, cdPipeline.PreStage.TriggerType)
@@ -162,6 +166,32 @@ func CreatePreAndPostStageResponse(cdPipeline *bean2.CDPipelineConfigObject, ver
 	return cdRespMigrated, nil
 }
 
+func constructGlobalInputVariablesUsedInScript(script string) []*bean.StepVariableDto {
+
+	var inputVariables []*bean.StepVariableDto
+	for _, inputVariable := range globalInputVariableList {
+		if strings.Contains(script, inputVariable) {
+			stepVariable := &bean.StepVariableDto{
+				Id:                        0,
+				Name:                      inputVariable,
+				Format:                    "",
+				Description:               "",
+				IsExposed:                 false,
+				AllowEmptyValue:           false,
+				DefaultValue:              "",
+				Value:                     "",
+				ValueType:                 repository2.PIPELINE_STAGE_STEP_VARIABLE_VALUE_TYPE_GLOBAL,
+				PreviousStepIndex:         0,
+				ReferenceVariableName:     inputVariable,
+				VariableStepIndexInPlugin: 0,
+				ReferenceVariableStage:    "",
+			}
+			inputVariables = append(inputVariables, stepVariable)
+		}
+	}
+	return inputVariables
+}
+
 func StageYamlToPipelineStageAdapter(stageConfig string, stageType repository2.PipelineStageType, triggerType pipelineConfig.TriggerType) (*bean.PipelineStageDto, error) {
 	pipelineStageDto := &bean.PipelineStageDto{}
 	var err error
@@ -178,6 +208,9 @@ func StageYamlToPipelineStageAdapter(stageConfig string, stageType repository2.P
 					ScriptType: repository.SCRIPT_TYPE_SHELL,
 					Script:     beforeTask.Script,
 				}
+				//this is to handle silently injected global variables to pre-post cd stages
+				inlineStepDetail.InputVariables = constructGlobalInputVariablesUsedInScript(beforeTask.Script)
+
 				//index really matters as the task order on the UI is decided by the index field
 				stepData := &bean.PipelineStageStepDto{
 					Id:                  0,
@@ -211,6 +244,9 @@ func StageYamlToPipelineStageAdapter(stageConfig string, stageType repository2.P
 					ScriptType: repository.SCRIPT_TYPE_SHELL,
 					Script:     afterTask.Script,
 				}
+				//this is to handle silently injected global variables to pre-post cd stages
+				inlineStepDetail.InputVariables = constructGlobalInputVariablesUsedInScript(afterTask.Script)
+
 				stepData := &bean.PipelineStageStepDto{
 					Id:                  0,
 					Name:                afterTask.Name,
