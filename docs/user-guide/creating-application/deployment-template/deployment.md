@@ -609,6 +609,40 @@ Containers section can be used to run side-car containers along with your main c
           - migrate
 ```
 
+### Container Lifecycle Hooks
+
+Container lifecycle hooks are mechanisms that allow users to define custom actions to be performed at specific stages of a container's lifecycle, such as after it starts(PostStart) or before it stops(PreStop).
+
+```yaml
+containerSpec:
+  lifecycle:
+    enabled: false
+    postStart:
+      httpGet:
+        host: example.com
+        path: /example
+        port: 90
+    preStop:
+      exec:
+        command:
+          - sleep
+          - "10"
+```
+
+| Key | Description |
+| :--- | :--- |
+| `containerSpec` | containerSpec refers to the specification for a container. |
+| `lifecycle` | Lifecycle hooks for the container. |
+| `enabled` | Set true to enable lifecycle hooks for the container else set false. |
+| `postStart` | The postStart hook is executed immediately after a container is created. |
+| `httpsGet` | Sends an HTTP GET request to a specific endpoint on the Container. |
+| `host` | Specifies the host (example.com) to which the HTTP GET request will be sent. |
+| `path` | Specifies the path (/example) of the endpoint to which the HTTP GET request will be sent. |
+| `port` | Specifies the port (90) on the host where the HTTP GET request will be sent. |
+| `preStop` | The preStop hook is executed just before the container is stopped. |
+| `exec` | Executes a specific command, such as pre-stop.sh, inside the cgroups and namespaces of the Container. |
+| `command` | The command to be executed is sleep 10, which tells the container to sleep for 10 seconds before it is stopped. |
+
 ### Prometheus
 
 ```yaml
