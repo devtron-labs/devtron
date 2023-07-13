@@ -156,6 +156,12 @@ func (impl *GlobalPluginServiceImpl) GetAllGlobalVariables() ([]*GlobalVariable,
 			Type:        "cd",
 		},
 		{
+			Name:        pipeline.APP_NAME,
+			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
+			Description: "",
+			Type:        "cd",
+		},
+		{
 			Name:        pipeline.DEPLOYMENT_RELEASE_ID,
 			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
 			Description: "",
