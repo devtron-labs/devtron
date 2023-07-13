@@ -171,7 +171,9 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 	}
 
 	if len(workflowRequest.PreCiSteps) == 0 && app.AppType == helper.Job {
-		return 0, errors.New("no tasks are configured in this job pipeline")
+		return 0, &util.ApiError{
+			UserMessage: "No tasks are configured in this job pipeline",
+		}
 	}
 
 	//savedCiWf.LogLocation = impl.ciConfig.DefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowNamePrefix + "/main.log"
