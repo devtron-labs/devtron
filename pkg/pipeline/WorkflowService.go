@@ -133,6 +133,8 @@ type WorkflowRequest struct {
 	OrchestratorHost           string                            `json:"orchestratorHost"`
 	OrchestratorToken          string                            `json:"orchestratorToken"`
 	IsExtRun                   bool                              `json:"isExtRun"`
+	ImageRetryCount            int                               `json:"imageRetryCount"`
+	ImageRetryInterval         int                               `json:"imageRetryInterval"`
 }
 
 const (
