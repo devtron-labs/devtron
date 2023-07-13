@@ -141,6 +141,11 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 		impl.Logger.Errorw("could not find app", "err", err)
 		return 0, err
 	}
+
+	if len(ciPipelineScripts) == 0 && app.AppType == helper.Job {
+		return 0, errors.New("no tasks are configured in this job pipeline")
+	}
+
 	var env *repository1.Environment
 	isJob := false
 	if app.AppType == helper.Job {
