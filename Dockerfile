@@ -12,8 +12,8 @@ RUN GOOS=linux make build-all
 FROM ubuntu as  devtron-all
 
 RUN apt update
-RUN apt-get install -y --only-upgrade bash=5.2-1
-RUN apt-get install -y --only-upgrade curl=8.1.0
+RUN apt-get install --only-upgrade bash
+RUN apt-get install --only-upgrade curl
 
 RUN apt install ca-certificates git curl -y
 RUN apt clean autoclean
