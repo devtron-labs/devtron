@@ -534,6 +534,8 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		CacheInvalidate:            trigger.InvalidateCache,
 		ExtraEnvironmentVariables:  trigger.ExtraEnvironmentVariables,
 		EnableBuildContext:         impl.ciConfig.EnableBuildContext,
+		ImageRetryCount:            impl.ciConfig.ImageRetryCount,
+		ImageRetryInterval:         impl.ciConfig.ImageRetryInterval,
 	}
 	if dockerRegistry != nil {
 

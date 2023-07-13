@@ -29,7 +29,7 @@ import (
 )
 
 func getPor() PipelineOverrideRepository {
-	//return NewPipelineOverrideRepository(models.GetDbConnection())
+	//return NewPipelineOverrideRepository(models.GetDbTransaction())
 	return nil
 }
 
@@ -69,7 +69,7 @@ func TestPipelineOverrideRepositoryImpl_GetLatestConfigByEnvironmentConfigOverri
 		wantErr              bool
 	}{{
 		name: "err_test",
-		//	fields:               fields{dbConnection: models.GetDbConnection()},
+		//	fields:               fields{dbConnection: models.GetDbTransaction()},
 		args:                 args{envConfigOverrideId: 2222},
 		wantErr:              true,
 		wantPipelineOverride: nil,

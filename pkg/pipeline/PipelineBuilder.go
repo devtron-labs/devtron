@@ -157,7 +157,7 @@ type PipelineBuilder interface {
 	PerformBulkActionOnCdPipelines(dto *bean.CdBulkActionRequestDto, impactedPipelines []*pipelineConfig.Pipeline, ctx context.Context, dryRun bool, userId int32) ([]*bean.CdBulkActionResponseDto, error)
 	DeleteCiPipeline(request *bean.CiPatchRequest) (*bean.CiPipeline, error)
 	IsGitOpsRequiredForCD(pipelineCreateRequest *bean.CdPipelines) bool
-	SetPipelineDeploymentAppType(pipelineCreateRequest *bean.CdPipelines, isGitOpsConfigured bool, virtualEnvironmentMap map[int]bool) error
+	SetPipelineDeploymentAppType(pipelineCreateRequest *bean.CdPipelines, isGitOpsConfigured bool, virtualEnvironmentMap map[int]bool, deploymentTypeValidationConfig map[string]bool) error
 	MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(appId int, envId int, acdToken string, pipeline *pipelineConfig.Pipeline) (bool, error)
 	GetCiPipelineByEnvironment(request appGroup2.AppGroupingRequest) ([]*bean.CiConfigRequest, error)
 	GetCiPipelineByEnvironmentMin(request appGroup2.AppGroupingRequest) ([]*bean.CiPipelineMinResponse, error)
@@ -166,6 +166,8 @@ type PipelineBuilder interface {
 	GetExternalCiByEnvironment(request appGroup2.AppGroupingRequest) (ciConfig []*bean.ExternalCiConfig, err error)
 	GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) (*cluster.AppGroupingResponse, error)
 	GetAppListForEnvironment(request appGroup2.AppGroupingRequest) ([]*AppBean, error)
+	GetDeploymentConfigMap(environmentId int) (map[string]bool, error)
+	IsGitopsConfigured() (bool, error)
 }
 type PipelineBuilderImpl struct {
 	logger                        *zap.SugaredLogger
@@ -1883,16 +1885,26 @@ func (impl PipelineBuilderImpl) IsGitOpsRequiredForCD(pipelineCreateRequest *bea
 	return haveAtLeastOneGitOps
 }
 
-func (impl PipelineBuilderImpl) SetPipelineDeploymentAppType(pipelineCreateRequest *bean.CdPipelines, isGitOpsConfigured bool, virtualEnvironmentMap map[int]bool) error {
+func (impl PipelineBuilderImpl) SetPipelineDeploymentAppType(pipelineCreateRequest *bean.CdPipelines, isGitOpsConfigured bool, virtualEnvironmentMap map[int]bool, deploymentTypeValidationConfig map[string]bool) error {
 
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
-
-		if isVirtualEnv, ok := virtualEnvironmentMap[pipeline.EnvironmentId]; ok {
-			if !isVirtualEnv && !impl.deploymentConfig.IsInternalUse {
-				if isGitOpsConfigured {
-					pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
-				} else {
-					pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
+		// by default both deployment app type are allowed
+		AllowedDeploymentAppTypes := map[string]bool{
+			util.PIPELINE_DEPLOYMENT_TYPE_ACD:  true,
+			util.PIPELINE_DEPLOYMENT_TYPE_HELM: true,
+		}
+		for k, v := range deploymentTypeValidationConfig {
+			// rewriting allowed deployment types based on config provided by user
+			AllowedDeploymentAppTypes[k] = v
+		}
+		if !impl.deploymentConfig.IsInternalUse {
+			if isVirtualEnv, ok := virtualEnvironmentMap[pipeline.EnvironmentId]; ok {
+				if !isVirtualEnv {
+					if isGitOpsConfigured && AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_ACD] {
+						pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
+					} else if AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_HELM] {
+						pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
+					}
 				}
 			}
 		}
@@ -1901,9 +1913,9 @@ func (impl PipelineBuilderImpl) SetPipelineDeploymentAppType(pipelineCreateReque
 			if isVirtualEnv, ok := virtualEnvironmentMap[pipeline.EnvironmentId]; ok {
 				if isVirtualEnv {
 					pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD
-				} else if isGitOpsConfigured {
+				} else if isGitOpsConfigured && AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_ACD] {
 					pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
-				} else {
+				} else if AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_HELM] {
 					pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
 				}
 			}
@@ -1940,22 +1952,7 @@ func (impl PipelineBuilderImpl) GetVirtualEnvironmentMap(pipelineCreateRequest *
 func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error) {
 
 	//Validation for checking deployment App type
-	for _, pipeline := range pipelineCreateRequest.Pipelines {
-		// if no deployment app type sent from user then we'll not validate
-		if pipeline.DeploymentAppType != "" {
-			if err := impl.validateDeploymentAppType(pipeline); err != nil {
-				impl.logger.Errorw("validation error in creating pipeline", "name", pipeline.Name, "err", err)
-				return nil, err
-			}
-		}
-		continue
-	}
-
 	isGitOpsConfigured, err := impl.IsGitopsConfigured()
-	if err != nil {
-		impl.logger.Errorw("error in checking gitOps configuration status", "err", err)
-		return nil, err
-	}
 
 	virtualEnvironmentMap, err := impl.GetVirtualEnvironmentMap(pipelineCreateRequest)
 	if err != nil {
@@ -1963,11 +1960,22 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 		return nil, err
 	}
 
-	err = impl.SetPipelineDeploymentAppType(pipelineCreateRequest, isGitOpsConfigured, virtualEnvironmentMap)
-	if err != nil {
-		impl.logger.Errorw("error in setting pipeline deployment app type", "err", err)
-		return nil, err
+	for _, pipeline := range pipelineCreateRequest.Pipelines {
+		// if no deployment app type sent from user then we'll not validate
+		deploymentConfig, err := impl.GetDeploymentConfigMap(pipeline.EnvironmentId)
+		if err != nil {
+			return nil, err
+		}
+		err = impl.SetPipelineDeploymentAppType(pipelineCreateRequest, isGitOpsConfigured, virtualEnvironmentMap, deploymentConfig)
+		if err != nil {
+			return nil, err
+		}
+		if err := impl.validateDeploymentAppType(pipeline, deploymentConfig); err != nil {
+			impl.logger.Errorw("validation error in creating pipeline", "name", pipeline.Name, "err", err)
+			return nil, err
+		}
 	}
+
 	isGitOpsRequiredForCD := impl.IsGitOpsRequiredForCD(pipelineCreateRequest)
 	app, err := impl.appRepo.FindById(pipelineCreateRequest.AppId)
 	if err != nil {
@@ -2014,20 +2022,7 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 	return pipelineCreateRequest, nil
 }
 
-func (impl PipelineBuilderImpl) validateDeploymentAppType(pipeline *bean.CDPipelineConfigObject) error {
-	var deploymentConfig map[string]bool
-	deploymentConfigValues, _ := impl.attributesRepository.FindByKey(fmt.Sprintf("%d", pipeline.EnvironmentId))
-	//if empty config received(doesn't exist in table) which can't be parsed
-	if deploymentConfigValues.Value != "" {
-		if err := json.Unmarshal([]byte(deploymentConfigValues.Value), &deploymentConfig); err != nil {
-			rerr := &util.ApiError{
-				HttpStatusCode:  http.StatusInternalServerError,
-				InternalMessage: err.Error(),
-				UserMessage:     "Failed to fetch deployment config values from the attributes table",
-			}
-			return rerr
-		}
-	}
+func (impl PipelineBuilderImpl) validateDeploymentAppType(pipeline *bean.CDPipelineConfigObject, deploymentConfig map[string]bool) error {
 
 	// Config value doesn't exist in attribute table
 	if deploymentConfig == nil {
@@ -2066,6 +2061,28 @@ func validDeploymentConfigReceived(deploymentConfig map[string]bool, deploymentT
 		}
 	}
 	return false
+}
+
+func (impl PipelineBuilderImpl) GetDeploymentConfigMap(environmentId int) (map[string]bool, error) {
+	var deploymentConfig map[string]map[string]bool
+	var deploymentConfigEnv map[string]bool
+	deploymentConfigValues, err := impl.attributesRepository.FindByKey(attributes.ENFORCE_DEPLOYMENT_TYPE_CONFIG)
+	if err == pg.ErrNoRows {
+		return deploymentConfigEnv, nil
+	}
+	//if empty config received(doesn't exist in table) which can't be parsed
+	if deploymentConfigValues.Value != "" {
+		if err := json.Unmarshal([]byte(deploymentConfigValues.Value), &deploymentConfig); err != nil {
+			rerr := &util.ApiError{
+				HttpStatusCode:  http.StatusInternalServerError,
+				InternalMessage: err.Error(),
+				UserMessage:     "Failed to fetch deployment config values from the attributes table",
+			}
+			return deploymentConfigEnv, rerr
+		}
+		deploymentConfigEnv, _ = deploymentConfig[fmt.Sprintf("%d", environmentId)]
+	}
+	return deploymentConfigEnv, nil
 }
 
 func (impl PipelineBuilderImpl) PatchCdPipelines(cdPipelines *bean.CDPatchRequest, ctx context.Context) (*bean.CdPipelines, error) {

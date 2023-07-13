@@ -88,6 +88,8 @@ type CiConfig struct {
 	ClusterConfig                    *rest.Config
 	NodeLabel                        map[string]string
 	EnableBuildContext               bool `env:"ENABLE_BUILD_CONTEXT" envDefault:"false"`
+	ImageRetryCount                  int  `env:"IMAGE_RETRY_COUNT" envDefault:"0"`
+	ImageRetryInterval               int  `env:"IMAGE_RETRY_INTERVAL" envDefault:"5"` //image retry interval takes value in seconds
 }
 
 type CiVolumeMount struct {
