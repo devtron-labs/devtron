@@ -18,7 +18,7 @@ CREATE SEQUENCE IF NOT EXISTS id_seq_ephemeral_container_actions;
 CREATE TABLE "public"."ephemeral_container_actions" (
     "id"                     INTEGER NOT NULL DEFAULT nextval('id_seq_ephemeral_container_actions'::regclass),
     "ephemeral_container_id" INTEGER NOT NULL,
-    "action_type"            INTEGER,
+    "action_type"            INTEGER NOT NULL,
     "performed_by"           INTEGER NOT NULL,
     "performed_at"           timestamptz,
     CONSTRAINT "ephemeral_container_actions_ephemeral_container_id_fkey" FOREIGN KEY ("ephemeral_container_id") REFERENCES "public"."ephemeral_container" ("id"),
