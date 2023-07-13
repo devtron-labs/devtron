@@ -5,26 +5,26 @@ import "time"
 type DraftResourceType uint8
 
 var (
-	CmDraftResource            DraftResourceType = 0
-	CsDraftResource            DraftResourceType = 1
-	DeploymentTemplateResource DraftResourceType = 2
+	CmDraftResource            DraftResourceType = 1
+	CsDraftResource            DraftResourceType = 2
+	DeploymentTemplateResource DraftResourceType = 3
 )
 
 type ResourceAction uint8
 
 var (
-	AddResourceAction    ResourceAction = 0
-	UpdateResourceAction ResourceAction = 1
-	DeleteResourceAction ResourceAction = 2
+	AddResourceAction    ResourceAction = 1
+	UpdateResourceAction ResourceAction = 2
+	DeleteResourceAction ResourceAction = 3
 )
 
 type DraftState uint8
 
 var (
-	InitDraftState          DraftState = 0
-	DiscardedDraftState     DraftState = 1
-	PublishedDraftState     DraftState = 2
-	AwaitApprovalDraftState DraftState = 3
+	InitDraftState          DraftState = 1
+	DiscardedDraftState     DraftState = 2
+	PublishedDraftState     DraftState = 3
+	AwaitApprovalDraftState DraftState = 4
 )
 
 func (state DraftState) IsTerminal() bool {
@@ -60,8 +60,8 @@ type ConfigDraftVersionRequest struct {
 }
 
 type DraftVersionMetadataResponse struct {
-	DraftId       int                    `json:"draftId"`
-	DraftVersions []DraftVersionMetadata `json:"versionMetadata"`
+	DraftId       int                     `json:"draftId"`
+	DraftVersions []*DraftVersionMetadata `json:"versionMetadata"`
 }
 
 type DraftVersionMetadata struct {
@@ -72,11 +72,11 @@ type DraftVersionMetadata struct {
 }
 
 type DraftVersionCommentResponse struct {
-	DraftId              int                   `json:"draftId"`
-	DraftVersionComments []DraftVersionComment `json:"versionComments"`
+	DraftId              int                       `json:"draftId"`
+	DraftVersionComments []DraftVersionCommentBean `json:"versionComments"`
 }
 
-type DraftVersionComment struct {
+type DraftVersionCommentBean struct {
 	DraftVersionId int                   `json:"draftVersionId"`
 	UserComments   []UserCommentMetadata `json:"userComments"`
 }
@@ -86,6 +86,7 @@ type UserCommentMetadata struct {
 	UserId      int32     `json:"userId"`
 	UserEmail   string    `json:"userEmail"`
 	CommentedAt time.Time `json:"commentedAt"`
+	Comment     string    `json:"comment"`
 }
 
 type AppConfigDraft struct {

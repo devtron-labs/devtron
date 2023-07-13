@@ -19,7 +19,7 @@ type ConfigDraftService interface {
 	protect.ResourceProtectionUpdateListener
 	CreateDraft(request ConfigDraftRequest) (*ConfigDraftResponse, error)
 	AddDraftVersion(request ConfigDraftVersionRequest) (int, error)
-	UpdateDraftState(draftId int, draftVersionId int, toUpdateDraftState DraftState, userId int32) (*DraftVersionDto, error)
+	UpdateDraftState(draftId int, draftVersionId int, toUpdateDraftState DraftState, userId int32) (*DraftVersion, error)
 	GetDraftVersionMetadata(draftId int) (*DraftVersionMetadataResponse, error) // would return version timestamp and user email id
 	GetDraftComments(draftId int) (*DraftVersionCommentResponse, error)
 	GetDrafts(appId int, envId int, resourceType DraftResourceType) ([]AppConfigDraft, error) // need to take care of secret data
@@ -81,8 +81,8 @@ func (impl ConfigDraftServiceImpl) AddDraftVersion(request ConfigDraftVersionReq
 
 	currentTime := time.Now()
 	if len(request.Data) > 0 {
-		draftVersionDto := DraftVersionDto{}
-		draftVersionDto.DraftId = request.DraftId
+		draftVersionDto := DraftVersion{}
+		draftVersionDto.DraftsId = request.DraftId
 		draftVersionDto.Data = request.Data
 		draftVersionDto.Action = request.Action
 		draftVersionDto.UserId = request.UserId
@@ -95,7 +95,7 @@ func (impl ConfigDraftServiceImpl) AddDraftVersion(request ConfigDraftVersionReq
 	}
 
 	if len(request.UserComment) > 0 {
-		draftVersionCommentDto := &DraftVersionCommentDto{}
+		draftVersionCommentDto := &DraftVersionComment{}
 		draftVersionCommentDto.DraftId = request.DraftId
 		draftVersionCommentDto.DraftVersionId = lastDraftVersionId
 		draftVersionCommentDto.Comment = request.UserComment
@@ -112,7 +112,7 @@ func (impl ConfigDraftServiceImpl) AddDraftVersion(request ConfigDraftVersionReq
 	return lastDraftVersionId, nil
 }
 
-func (impl ConfigDraftServiceImpl) UpdateDraftState(draftId int, draftVersionId int, toUpdateDraftState DraftState, userId int32) (*DraftVersionDto, error) {
+func (impl ConfigDraftServiceImpl) UpdateDraftState(draftId int, draftVersionId int, toUpdateDraftState DraftState, userId int32) (*DraftVersion, error) {
 	impl.logger.Infow("updating draft state", "draftId", draftId, "toUpdateDraftState", toUpdateDraftState, "userId", userId)
 	// check app config draft is enabled or not ??
 	latestDraftVersion, err := impl.validateDraftAction(draftId, draftVersionId, toUpdateDraftState)
@@ -123,7 +123,7 @@ func (impl ConfigDraftServiceImpl) UpdateDraftState(draftId int, draftVersionId 
 	return latestDraftVersion, err
 }
 
-func (impl ConfigDraftServiceImpl) validateDraftAction(draftId int, draftVersionId int, toUpdateDraftState DraftState) (*DraftVersionDto, error) {
+func (impl ConfigDraftServiceImpl) validateDraftAction(draftId int, draftVersionId int, toUpdateDraftState DraftState) (*DraftVersion, error) {
 	latestDraftVersion, err := impl.configDraftRepository.GetLatestConfigDraft(draftId)
 	if err != nil {
 		return nil, err
@@ -152,12 +152,12 @@ func (impl ConfigDraftServiceImpl) GetDraftVersionMetadata(draftId int) (*DraftV
 	if err != nil {
 		return nil, err
 	}
-	var draftVersions []DraftVersionMetadata
+	var draftVersions []*DraftVersionMetadata
 	for _, draftVersionDto := range draftVersionDtos {
 		versionMetadata := draftVersionDto.ConvertToDraftVersionMetadata()
 		draftVersions = append(draftVersions, versionMetadata)
 	}
-	draftVersions, err = impl.updateUserMetadata(draftVersions)
+	err = impl.updateWithUserMetadata(draftVersions)
 	if err != nil {
 		return nil, errors.New("failed to fetch")
 	}
@@ -180,7 +180,7 @@ func (impl ConfigDraftServiceImpl) GetDraftComments(draftId int) (*DraftVersionC
 	if err != nil {
 		return nil, err
 	}
-	var draftVersionVsComments map[int][]UserCommentMetadata
+	draftVersionVsComments := make(map[int][]UserCommentMetadata)
 	for _, draftComment := range draftComments {
 		draftVersionId := draftComment.DraftVersionId
 		userComment := draftComment.ConvertToDraftVersionComment()
@@ -193,9 +193,9 @@ func (impl ConfigDraftServiceImpl) GetDraftComments(draftId int) (*DraftVersionC
 			draftVersionVsComments[draftVersionId] = commentMetadataArray
 		}
 	}
-	var draftVersionComments []DraftVersionComment
+	var draftVersionComments []DraftVersionCommentBean
 	for draftVersionId, userComments := range draftVersionVsComments {
-		versionComment := DraftVersionComment{
+		versionComment := DraftVersionCommentBean{
 			DraftVersionId: draftVersionId,
 			UserComments:   userComments,
 		}
@@ -259,7 +259,7 @@ func (impl ConfigDraftServiceImpl) ApproveDraft(draftId int, draftVersionId int,
 	}
 	// once it is approved, we need to create actual resources
 	draftData := draftVersion.Data
-	draftsDto := draftVersion.DraftsDto
+	draftsDto := draftVersion.Draft
 	draftResourceType := draftsDto.Resource
 	if draftResourceType == CmDraftResource || draftResourceType == CsDraftResource {
 		err = impl.handleCmCsData(draftResourceType, draftsDto.AppId, draftsDto.EnvId, draftData, draftVersion.UserId)
@@ -414,21 +414,21 @@ func (impl ConfigDraftServiceImpl) createMissingChart(ctx context.Context, appId
 	return nil
 }
 
-func (impl ConfigDraftServiceImpl) updateUserMetadata(versions []DraftVersionMetadata) ([]DraftVersionMetadata, error) {
+func (impl ConfigDraftServiceImpl) updateWithUserMetadata(versions []*DraftVersionMetadata) error {
 	var userIds []int32
 	for _, versionMetadata := range versions {
 		userIds = append(userIds, versionMetadata.UserId)
 	}
 	userIdVsUserInfoMap, err := impl.getUserMetadata(userIds)
 	if err != nil {
-		return versions, err
+		return err
 	}
 	for _, versionMetadata := range versions {
 		if userInfo, found := userIdVsUserInfoMap[versionMetadata.UserId]; found {
 			versionMetadata.UserEmail = userInfo.EmailId
 		}
 	}
-	return versions, nil
+	return nil
 }
 
 func (impl ConfigDraftServiceImpl) getUserMetadata(userIds []int32) (map[int32]bean2.UserInfo, error) {

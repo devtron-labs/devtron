@@ -23,6 +23,7 @@ type ConfigDraftRestHandler interface {
 	GetDraftById(w http.ResponseWriter, r *http.Request)
 	ApproveDraft(w http.ResponseWriter, r *http.Request)
 	DeleteUserComment(w http.ResponseWriter, r *http.Request)
+	//TODO add draft state change request
 }
 
 type ConfigDraftRestHandlerImpl struct {
