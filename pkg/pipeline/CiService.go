@@ -142,10 +142,6 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 		return 0, err
 	}
 
-	if len(ciPipelineScripts) == 0 && app.AppType == helper.Job {
-		return 0, errors.New("no tasks are configured in this job pipeline")
-	}
-
 	var env *repository1.Environment
 	isJob := false
 	if app.AppType == helper.Job {
