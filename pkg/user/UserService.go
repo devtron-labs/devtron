@@ -60,6 +60,7 @@ type UserService interface {
 	SaveLoginAudit(emailId, clientIp string, id int32)
 	GetApprovalUsersByEnv(appName, envName string) ([]string, error)
 	CheckForApproverAccess(appName, envName string, userId int32) bool
+	GetConfigApprovalUsersByEnv(appName, envName string) ([]string, error)
 }
 
 type UserServiceImpl struct {
@@ -1057,11 +1058,31 @@ func (impl UserServiceImpl) CheckForApproverAccess(appName, envName string, user
 	return allowed
 }
 
+func (impl UserServiceImpl) GetConfigApprovalUsersByEnv(appName, envName string) ([]string, error) {
+	emailIds, permissionGroupNames, err := impl.userAuthRepository.GetConfigApprovalUsersByEnv(appName, envName)
+	if err != nil {
+		return emailIds, err
+	}
+	finalEmails, err := impl.extractEmailIds(permissionGroupNames, emailIds)
+	if err != nil {
+		return emailIds, err
+	}
+	return finalEmails, nil
+}
+
 func (impl UserServiceImpl) GetApprovalUsersByEnv(appName, envName string) ([]string, error) {
 	emailIds, permissionGroupNames, err := impl.userAuthRepository.GetApprovalUsersByEnv(appName, envName)
 	if err != nil {
 		return emailIds, err
 	}
+	finalEmails, err := impl.extractEmailIds(permissionGroupNames, emailIds)
+	if err != nil {
+		return emailIds, err
+	}
+	return finalEmails, nil
+}
+
+func (impl UserServiceImpl) extractEmailIds(permissionGroupNames []string, emailIds []string) ([]string, error) {
 	for _, groupName := range permissionGroupNames {
 		userEmails, err := casbin2.GetUserByRole(groupName)
 		if err != nil {

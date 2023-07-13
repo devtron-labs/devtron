@@ -20,6 +20,7 @@ type ConfigDraftRepository interface {
 	GetDraftMetadata(appId int, envId int, resourceType DraftResourceType) ([]*DraftsDto, error)
 	GetDraftVersionById(draftVersionId int) (*DraftVersionDto, error)
 	DeleteComment(draftId int, draftCommentId int, userId int32) (int, error)
+	DiscardDrafts(appId int, envId int, userId int32) error
 }
 
 type ConfigDraftRepositoryImpl struct {
@@ -216,6 +217,20 @@ func (repo *ConfigDraftRepositoryImpl) DeleteComment(draftId int, draftCommentId
 	}
 	return result.RowsAffected(), nil
 }
+
+func (repo *ConfigDraftRepositoryImpl) DiscardDrafts(appId int, envId int, userId int32) error {
+	draftsDto := &DraftsDto{}
+	_, err := repo.dbConnection.Model(draftsDto).Set("draft_state", DiscardedDraftState).
+		Set("updated_on", time.Now()).Set("updated_by", userId).
+		Where("app_id = ?", appId).Where("env_id = ?", envId).
+		Where("draft_state = ?", InitDraftState).
+		Update()
+	if err != nil {
+		repo.logger.Errorw("error occurred while discarding drafts", "appId", appId, "envId", envId, "err", err)
+	}
+	return err
+}
+
 
 
 

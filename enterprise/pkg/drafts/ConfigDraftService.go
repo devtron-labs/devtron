@@ -5,13 +5,18 @@ import (
 	"encoding/json"
 	"errors"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/enterprise/pkg/protect"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/chart"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/user"
 	"go.uber.org/zap"
 	"time"
 )
 
 type ConfigDraftService interface {
+	protect.ResourceProtectionUpdateListener
 	CreateDraft(request ConfigDraftRequest) (*ConfigDraftResponse, error)
 	AddDraftVersion(request ConfigDraftVersionRequest) (int, error)
 	UpdateDraftState(draftId int, draftVersionId int, toUpdateDraftState DraftState, userId int32) (*DraftVersionDto, error)
@@ -25,19 +30,38 @@ type ConfigDraftService interface {
 }
 
 type ConfigDraftServiceImpl struct {
-	logger                  *zap.SugaredLogger
-	configDraftRepository   ConfigDraftRepository
-	configMapService        pipeline.ConfigMapService
-	chartService            chart.ChartService
-	propertiesConfigService pipeline.PropertiesConfigService
+	logger                    *zap.SugaredLogger
+	configDraftRepository     ConfigDraftRepository
+	configMapService          pipeline.ConfigMapService
+	chartService              chart.ChartService
+	propertiesConfigService   pipeline.PropertiesConfigService
+	resourceProtectionService protect.ResourceProtectionService
+	userService               user.UserService
+	appRepo                   app.AppRepository
+	envRepository             repository2.EnvironmentRepository
 }
 
-func NewConfigDraftServiceImpl(logger *zap.SugaredLogger, configDraftRepository ConfigDraftRepository, chartService chart.ChartService, propertiesConfigService pipeline.PropertiesConfigService) *ConfigDraftServiceImpl {
-	return &ConfigDraftServiceImpl{
-		logger:                  logger,
-		configDraftRepository:   configDraftRepository,
-		chartService:            chartService,
-		propertiesConfigService: propertiesConfigService,
+func NewConfigDraftServiceImpl(logger *zap.SugaredLogger, configDraftRepository ConfigDraftRepository, chartService chart.ChartService,
+	propertiesConfigService pipeline.PropertiesConfigService, resourceProtectionService protect.ResourceProtectionService,
+	userService user.UserService, appRepo app.AppRepository, envRepository repository2.EnvironmentRepository) *ConfigDraftServiceImpl {
+	draftServiceImpl := ConfigDraftServiceImpl{
+		logger:                    logger,
+		configDraftRepository:     configDraftRepository,
+		chartService:              chartService,
+		propertiesConfigService:   propertiesConfigService,
+		resourceProtectionService: resourceProtectionService,
+		userService:               userService,
+		appRepo:                   appRepo,
+		envRepository:             envRepository,
+	}
+	resourceProtectionService.RegisterListener(draftServiceImpl)
+	return &draftServiceImpl
+}
+
+func (impl ConfigDraftServiceImpl) OnStateChange(appId int, envId int, state protect.ProtectionState, userId int32) {
+	impl.logger.Debugw("resource protection state change event received", "appId", appId, "envId", envId, "state", state)
+	if state == protect.DisabledProtectionState {
+		_ = impl.configDraftRepository.DiscardDrafts(appId, envId, userId)
 	}
 }
 
@@ -133,8 +157,10 @@ func (impl ConfigDraftServiceImpl) GetDraftVersionMetadata(draftId int) (*DraftV
 		versionMetadata := draftVersionDto.ConvertToDraftVersionMetadata()
 		draftVersions = append(draftVersions, versionMetadata)
 	}
-
-	//TODO need to set email id of user
+	draftVersions, err = impl.updateUserMetadata(draftVersions)
+	if err != nil {
+		return nil, errors.New("failed to fetch")
+	}
 	response := &DraftVersionMetadataResponse{}
 	response.DraftId = draftId
 	response.DraftVersions = draftVersions
@@ -146,10 +172,21 @@ func (impl ConfigDraftServiceImpl) GetDraftComments(draftId int) (*DraftVersionC
 	if err != nil {
 		return nil, err
 	}
+	var userIds []int32
+	for _, draftComment := range draftComments {
+		userIds = append(userIds, draftComment.CreatedBy)
+	}
+	userMetadataMap, err := impl.getUserMetadata(userIds)
+	if err != nil {
+		return nil, err
+	}
 	var draftVersionVsComments map[int][]UserCommentMetadata
 	for _, draftComment := range draftComments {
 		draftVersionId := draftComment.DraftVersionId
-		userComment := draftComment.ConvertToDraftVersionComment() //TODO email id is not set
+		userComment := draftComment.ConvertToDraftVersionComment()
+		if userInfo, found := userMetadataMap[userComment.UserId]; found {
+			userComment.UserEmail = userInfo.EmailId
+		}
 		commentMetadataArray, ok := draftVersionVsComments[draftVersionId]
 		commentMetadataArray = append(commentMetadataArray, userComment)
 		if !ok {
@@ -190,6 +227,7 @@ func (impl ConfigDraftServiceImpl) GetDraftById(draftId int) (*ConfigDraftRespon
 		return nil, err
 	}
 	draftResponse := configDraft.ConvertToConfigDraft()
+	draftResponse.Approvers = impl.getApproversData(draftResponse.AppId, draftResponse.EnvId)
 	return draftResponse, nil
 }
 
@@ -246,13 +284,13 @@ func (impl ConfigDraftServiceImpl) handleCmCsData(draftResource DraftResourceTyp
 	configDataRequest.UserId = userId // setting draftVersion userId
 	isCm := draftResource == CmDraftResource
 	if isCm {
-		if envId == -1 {
+		if envId == protect.BASE_CONFIG_ENV_ID {
 			_, err = impl.configMapService.CMGlobalAddUpdate(configDataRequest)
 		} else {
 			_, err = impl.configMapService.CMEnvironmentAddUpdate(configDataRequest)
 		}
 	} else {
-		if envId == -1 {
+		if envId == protect.BASE_CONFIG_ENV_ID {
 			_, err = impl.configMapService.CSGlobalAddUpdate(configDataRequest)
 		} else {
 			_, err = impl.configMapService.CSEnvironmentAddUpdate(configDataRequest)
@@ -268,7 +306,7 @@ func (impl ConfigDraftServiceImpl) handleDeploymentTemplate(appId int, envId int
 
 	ctx := context.Background()
 	var err error
-	if envId == -1 {
+	if envId == protect.BASE_CONFIG_ENV_ID {
 		err = impl.handleBaseDeploymentTemplate(appId, envId, draftData, userId, ctx)
 		if err != nil {
 			return err
@@ -374,6 +412,53 @@ func (impl ConfigDraftServiceImpl) createMissingChart(ctx context.Context, appId
 		return err
 	}
 	return nil
+}
+
+func (impl ConfigDraftServiceImpl) updateUserMetadata(versions []DraftVersionMetadata) ([]DraftVersionMetadata, error) {
+	var userIds []int32
+	for _, versionMetadata := range versions {
+		userIds = append(userIds, versionMetadata.UserId)
+	}
+	userIdVsUserInfoMap, err := impl.getUserMetadata(userIds)
+	if err != nil {
+		return versions, err
+	}
+	for _, versionMetadata := range versions {
+		if userInfo, found := userIdVsUserInfoMap[versionMetadata.UserId]; found {
+			versionMetadata.UserEmail = userInfo.EmailId
+		}
+	}
+	return versions, nil
+}
+
+func (impl ConfigDraftServiceImpl) getUserMetadata(userIds []int32) (map[int32]bean2.UserInfo, error) {
+	userInfos, err := impl.userService.GetByIds(userIds)
+	if err != nil {
+		return nil, err
+	}
+	userIdVsUserInfoMap := make(map[int32]bean2.UserInfo, len(userIds))
+	for _, userInfo := range userInfos {
+		userIdVsUserInfoMap[userInfo.Id] = userInfo
+	}
+	return userIdVsUserInfoMap, nil
+}
+
+func (impl ConfigDraftServiceImpl) getApproversData(appId int, envId int) []string {
+	var approvers []string
+	application, err := impl.appRepo.FindById(appId)
+	if err != nil {
+		return approvers
+	}
+	var appName = application.AppName
+	env, err := impl.envRepository.FindById(envId)
+	if err != nil {
+		return approvers
+	}
+	approvers, err = impl.userService.GetConfigApprovalUsersByEnv(appName, env.EnvironmentIdentifier)
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching config approval emails, so sending empty approvers list", "err", err)
+	}
+	return approvers
 }
 
 
