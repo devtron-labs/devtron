@@ -1216,7 +1216,7 @@ func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req *cluster
 			TargetContainerName: debugContainer.TargetContainerName,
 			Image:               debugContainer.Image,
 		}
-		err = impl.ephemeralContainerService.CreateEphemeralContainer(*req)
+		err = impl.ephemeralContainerService.AuditEphemeralContainerAction(*req, repository.ActionCreate)
 		if err != nil {
 			impl.logger.Errorw("error in saving ephemeral container data", "err", err)
 			return err

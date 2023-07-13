@@ -40,7 +40,6 @@ func (request EphemeralContainerRequest) getContainerBean() repository.Ephemeral
 }
 
 type EphemeralContainerService interface {
-	CreateEphemeralContainer(model EphemeralContainerRequest) error
 	AuditEphemeralContainerAction(model EphemeralContainerRequest, actionType repository.ContainerAction) error
 }
 
@@ -56,60 +55,17 @@ func NewEphemeralContainerServiceImpl(repository repository.EphemeralContainersR
 	}
 }
 
-func (impl *EphemeralContainerServiceImpl) CreateEphemeralContainer(model EphemeralContainerRequest) error {
-
-	container, err := impl.repository.FindContainerByName(model.ClusterId, model.Namespace, model.PodName, model.BasicData.ContainerName)
-	if err != nil {
-		impl.logger.Errorw("error in finding ephemeral container in the database", "err", err, "container", container)
-		return err
-	}
-	if container != nil {
-		impl.logger.Errorw("Container already present in the provided pod", "podName", container.PodName)
-		return errors.New("container already present in the provided pod")
-	}
-	tx, err := impl.repository.StartTx()
-	defer func() {
-		err = impl.repository.RollbackTx(tx)
-		if err != nil {
-			impl.logger.Infow("error in rolling back transaction", "err", err, "model", model)
-		}
-	}()
-
-	if err != nil {
-		impl.logger.Errorw("error in creating transaction", "err", err)
-		return err
-	}
-	bean := model.getContainerBean()
-	err = impl.repository.SaveData(tx, &bean)
-	if err != nil {
-		impl.logger.Errorw("Failed to save ephemeral container", "error", err)
-		return err
-	}
-
-	var auditLogBean repository.EphemeralContainerAction
-	auditLogBean.EphemeralContainerId = bean.Id
-	auditLogBean.ActionType = repository.ActionCreate
-	auditLogBean.PerformedAt = time.Now()
-	auditLogBean.PerformedBy = model.UserId
-	err = impl.repository.SaveAction(tx, &auditLogBean)
-	if err != nil {
-		impl.logger.Errorw("Failed to save ephemeral container", "error", err)
-		return err
-	}
-	err = impl.repository.CommitTx(tx)
-	if err != nil {
-		impl.logger.Errorw("error in committing transaction", "err", err, "req", model)
-		return err
-	}
-	return nil
-}
-
 func (impl *EphemeralContainerServiceImpl) AuditEphemeralContainerAction(model EphemeralContainerRequest, actionType repository.ContainerAction) error {
 
 	container, err := impl.repository.FindContainerByName(model.ClusterId, model.Namespace, model.PodName, model.BasicData.ContainerName)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in finding ephemeral container in the database", "err", err, "container", container)
 		return err
+	}
+
+	if container != nil && actionType == repository.ActionCreate {
+		impl.logger.Errorw("Container already present in the provided pod", "podName", container.PodName)
+		return errors.New("container already present in the provided pod")
 	}
 
 	tx, err := impl.repository.StartTx()
@@ -128,7 +84,10 @@ func (impl *EphemeralContainerServiceImpl) AuditEphemeralContainerAction(model E
 	var auditLogBean repository.EphemeralContainerAction
 	if container == nil {
 		bean := model.getContainerBean()
-		bean.IsExternallyCreated = true
+		if actionType != repository.ActionCreate {
+			// if a container is not present in database and the user is trying to access it means it is externally created
+			bean.IsExternallyCreated = true
+		}
 		err = impl.repository.SaveData(tx, &bean)
 		if err != nil {
 			impl.logger.Errorw("Failed to save ephemeral container", "error", err)
