@@ -301,8 +301,8 @@ func initK8sApplicationService(t *testing.T) *K8sApplicationServiceImpl {
 	v := informer.NewGlobalMapClusterNamespace()
 	k8sInformerFactoryImpl := informer.NewK8sInformerFactoryImpl(sugaredLogger, v, runtimeConfig)
 	clusterServiceImpl := cluster.NewClusterServiceImpl(clusterRepositoryImpl, sugaredLogger, nil, k8sInformerFactoryImpl, nil, nil, nil)
-	terminalSessionHandlerImpl := terminal.NewTerminalSessionHandlerImpl(nil, clusterServiceImpl, sugaredLogger, k8sUtil)
 	ephemeralContainerService := cluster.NewEphemeralContainerServiceImpl(ephemeralContainerRepository, sugaredLogger)
+	terminalSessionHandlerImpl := terminal.NewTerminalSessionHandlerImpl(nil, clusterServiceImpl, sugaredLogger, k8sUtil, ephemeralContainerService)
 	k8sApplicationService := NewK8sApplicationServiceImpl(sugaredLogger, clusterServiceImpl, nil, k8sClientServiceImpl, nil, k8sUtil, nil, nil, terminalSessionHandlerImpl, ephemeralContainerService)
 	return k8sApplicationService
 }

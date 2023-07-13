@@ -89,7 +89,7 @@ type K8sApplicationServiceImpl struct {
 	K8sApplicationServiceConfig *K8sApplicationServiceConfig
 	K8sResourceHistoryService   kubernetesResourceAuditLogs.K8sResourceHistoryService
 	terminalSession             terminal.TerminalSessionHandler
-	ephemeralContainerService   cluster.CreateEphemeralContainer
+	ephemeralContainerService   cluster.EphemeralContainerService
 }
 
 type K8sApplicationServiceConfig struct {
@@ -103,7 +103,7 @@ func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger,
 	helmAppService client.HelmAppService, K8sUtil *util.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig,
 	K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService,
 	terminalSession terminal.TerminalSessionHandler,
-	ephemeralContainerService cluster.CreateEphemeralContainer) *K8sApplicationServiceImpl {
+	ephemeralContainerService cluster.EphemeralContainerService) *K8sApplicationServiceImpl {
 	cfg := &K8sApplicationServiceConfig{}
 	err := env.Parse(cfg)
 	if err != nil {
@@ -1216,7 +1216,7 @@ func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req *cluster
 			TargetContainerName: debugContainer.TargetContainerName,
 			Image:               debugContainer.Image,
 		}
-		err = impl.ephemeralContainerService.SaveEphemeralContainer(*req)
+		err = impl.ephemeralContainerService.CreateEphemeralContainer(*req)
 		if err != nil {
 			impl.logger.Errorw("error in saving ephemeral container data", "err", err)
 			return err

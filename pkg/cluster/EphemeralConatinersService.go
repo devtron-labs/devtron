@@ -39,8 +39,8 @@ func (request EphemeralContainerRequest) getContainerBean() repository.Ephemeral
 	}
 }
 
-type CreateEphemeralContainer interface {
-	SaveEphemeralContainer(model EphemeralContainerRequest) error
+type EphemeralContainerService interface {
+	CreateEphemeralContainer(model EphemeralContainerRequest) error
 	AuditEphemeralContainerAction(model EphemeralContainerRequest, actionType repository.ContainerAction) error
 }
 
@@ -56,7 +56,7 @@ func NewEphemeralContainerServiceImpl(repository repository.EphemeralContainersR
 	}
 }
 
-func (impl *EphemeralContainerServiceImpl) SaveEphemeralContainer(model EphemeralContainerRequest) error {
+func (impl *EphemeralContainerServiceImpl) CreateEphemeralContainer(model EphemeralContainerRequest) error {
 
 	container, err := impl.repository.FindContainerByName(model.ClusterId, model.Namespace, model.PodName, model.BasicData.ContainerName)
 	if err != nil {
