@@ -27,10 +27,21 @@ type EphemeralContainerBasicData struct {
 	Image               string `json:"image"`
 }
 
+func (request EphemeralContainerRequest) getContainerBean() repository.EphemeralContainerBean {
+	return repository.EphemeralContainerBean{
+		Name:                request.BasicData.ContainerName,
+		ClusterId:           request.ClusterId,
+		Namespace:           request.Namespace,
+		PodName:             request.PodName,
+		TargetContainer:     request.BasicData.TargetContainerName,
+		Config:              request.AdvancedData.Manifest,
+		IsExternallyCreated: false,
+	}
+}
+
 type CreateEphemeralContainer interface {
 	SaveEphemeralContainer(model EphemeralContainerRequest) error
 	AuditEphemeralContainerAction(model EphemeralContainerRequest, actionType repository.ContainerAction) error
-	// send action type 1 in case of used and 2 in case of terminated
 }
 
 type EphemeralContainerServiceImpl struct {
@@ -68,7 +79,7 @@ func (impl *EphemeralContainerServiceImpl) SaveEphemeralContainer(model Ephemera
 		impl.logger.Errorw("error in creating transaction", "err", err)
 		return err
 	}
-	bean := ConvertToEphemeralContainerBean(model)
+	bean := model.getContainerBean()
 	err = impl.repository.SaveData(tx, &bean)
 	if err != nil {
 		impl.logger.Errorw("Failed to save ephemeral container", "error", err)
@@ -116,7 +127,7 @@ func (impl *EphemeralContainerServiceImpl) AuditEphemeralContainerAction(model E
 
 	var auditLogBean repository.EphemeralContainerAction
 	if container == nil {
-		bean := ConvertToEphemeralContainerBean(model)
+		bean := model.getContainerBean()
 		bean.IsExternallyCreated = true
 		err = impl.repository.SaveData(tx, &bean)
 		if err != nil {
@@ -145,16 +156,4 @@ func (impl *EphemeralContainerServiceImpl) AuditEphemeralContainerAction(model E
 	}
 
 	return nil
-}
-
-func ConvertToEphemeralContainerBean(request EphemeralContainerRequest) repository.EphemeralContainerBean {
-	return repository.EphemeralContainerBean{
-		Name:                request.BasicData.ContainerName,
-		ClusterId:           request.ClusterId,
-		Namespace:           request.Namespace,
-		PodName:             request.PodName,
-		TargetContainer:     request.BasicData.TargetContainerName,
-		Config:              request.AdvancedData.Manifest,
-		IsExternallyCreated: false,
-	}
 }
