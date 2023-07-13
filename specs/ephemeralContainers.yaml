@@ -3,11 +3,16 @@ info:
   title: Orchestrator K8s API
   version: 1.0.0
 paths:
-  /orchestrator/k8s/resources/ephemeralContainer:
+  /orchestrator/k8s/resources/ephemeralContainers:
     post:
-      summary: Create an ephemeral container in a Kubernetes pod
+      summary: Create Ephemeral Container
+      parameters:
+        - name: identifier
+          in: query
+          required: true
+          schema:
+            type: string
       requestBody:
-        required: true
         content:
           application/json:
             schema:
@@ -18,23 +23,20 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Response"
+                $ref: "#/components/schemas/PodContainerList"
         '400':
           description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        '500':
-          description: Internal Server Error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+        '401':
+          description: Unauthorized
     delete:
-      summary: Delete an ephemeral container from a Kubernetes pod
+      summary: Delete Ephemeral Container
+      parameters:
+        - name: identifier
+          in: query
+          required: true
+          schema:
+            type: string
       requestBody:
-        required: true
         content:
           application/json:
             schema:
@@ -45,44 +47,47 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Response"
+                $ref: "#/components/schemas/PodContainerList"
         '400':
           description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        '500':
-          description: Internal Server Error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+        '401':
+          description: Unauthorized
+
 components:
   schemas:
     EphemeralContainerRequest:
       type: object
       properties:
+        basicData:
+          $ref: "#/components/schemas/EphemeralContainerBasicData"
+        advancedData:
+          $ref: "#/components/schemas/EphemeralContainerAdvancedData"
         namespace:
           type: string
         clusterId:
           type: integer
         podName:
           type: string
-        EphemeralBasicData:
-          type: object
-        EphemeralAdvancedData:
-          type: object
-    EphemeralBasicData:
+        userId:
+          type: integer
+      required:
+        - namespace
+        - clusterId
+        - podName
+    EphemeralContainerBasicData:
       type: object
       properties:
-        image:
-          type: integer
-        targetContainerName:
-          type: string
         containerName:
           type: string
-    EphemeralAdvancedData:
+        targetContainerName:
+          type: string
+        image:
+          type: string
+      required:
+        - containerName
+        - targetContainerName
+        - image
+    EphemeralContainerAdvancedData:
       type: object
       properties:
         manifest:
@@ -92,26 +97,13 @@ components:
       properties:
         containers:
           type: array
+          items:
+            type: string
         initContainers:
           type: array
+          items:
+            type: string
         ephemeralContainers:
           type: array
-    Response:
-      type: object
-      properties:
-        result:
-          type: PodContainerList
-        status:
-          type: string
-      required:
-        - status
-    ErrorResponse:
-      type: object
-      properties:
-        errorCode:
-          type: integer
-        errorMessage:
-          type: string
-      required:
-        - errorCode
-        - errorMessage
+          items:
+            type: string
