@@ -1,41 +1,34 @@
-# Triggering CI
+# Triggering CI Pipelines
 
-## Triggering CI Pipelines
+To trigger the CI pipeline, first you need to select the Git commit for which the CI pipeline will be triggered. To select the Git commit, click on the `Select Material` button present on the CI pipeline.
 
-The CI Pipeline can be triggered by selecting `Select Material`
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-ci/select-material-new.jpg)
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-ci/select-material.jpg)
+Once clicked, a list will appear showing various commits made in the repository, including details such as the author name, commit date and time etc. Choose the desired commit for which you want to trigger the pipeline, and then click on "Start Build" to initiate the CI pipeline.
 
-CI Pipelines that are set as automatic are always triggered as soon as a new commit is made to the git branch they're sensing. However, CI pipelines can always be manually triggered as and if required.
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-ci/trigger-build.jpg)
 
-Various commits done in the repository can be seen, here along with details like Author, Date etc. Select the commit that you want to trigger and then click on `Start Build` to trigger the CI pipeline.
+CI Pipelines with automatic triggers are triggereded immediately when a new commit is made to the git branch. If the trigger for a build pipeline is set to manual, it will not be automatically triggered and requires manual trigger.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-ci/start-build-1.jpg)
-
-
-**Refresh** icon, refreshes Git Commits in the CI Pipeline and fetches the latest commits from the “Repository”
+The **Refresh** icon updates the Git Commits section in the CI Pipeline by fetching the latest commits from the repository. Clicking on the refresh icon ensures that you have the most recent commit available.
 
 **Ignore Cache** : This option will ignore the previous build cache and create a fresh build. If selected, will take a longer build time than usual.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-ci/build-history.jpg)
+Click on the `CI Pipeline` or navigate to the `Build History` to get the CI pipeline details such as build logs, sorce code details, artifacts and vulnerability scan reports.
 
-It can be seen that the pipeline is triggered here and is the _Running_ state.
+To access the logs of the CI Pipeline, simply click on the `Logs`.
 
-Click on your `CI Pipeline` or click on `Build History` to get the details about the CI pipeline such as logs, reports etc.
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-ci/build-logs.jpg)
 
-You can read the `logs` of the CI Pipeline from here.
+To view specific details of the Git commit you've selected for the build, click on `Source`. This will provide you with information like the commit ID, author, and commit message associated with that particular commit.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-ci/build-history-logs.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-ci/build-source.jpg)
 
-Click on `Source code` to view the details such as commit id, Author and commit message of the Git Material that you have selected for the build.
+By selecting the `Artifacts` option, you can download reports related to the tasks performed in the Pre-CI and Post-CI stages. This will allow you to access and retrieve the generated reports, if any, related to these stages. Additionally, you have the option to add tags or comments to the image directly from this section.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-ci/build-history-sc.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-ci/tags-and-artifacts.jpg)
 
-Click on `Artifacts` to download the _reports_ of the Pre-CI and Post-CI stages if any.
+To check for any vulnerabilities in the build image, click on `Security`. Please note that vulnerabilities will only be visible if you have enabled the `Scan for vulnerabilities` option in the advanced options of the CI pipeline before building the image. For more information about this feature, please refer to this [documentation](../../user-guide/security-features.md).
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-ci/build-history-artifacts.jpg)
-
-Click on `security` to see if there is any vulnerabilities in the build image. You can see the vulnerabilities here only if you have enabled `Scan for vulnerabilities` before building image from advanced options of CI pipeline. To know more about this feature, follow our [documentation](../../user-guide/security-features.md).
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-ci/build-history-security.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-ci/security-scan-report.jpg)
 
