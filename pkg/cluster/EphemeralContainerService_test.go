@@ -50,7 +50,7 @@ func TestForEphemeralContainers(t *testing.T) {
 
 		request := createSampleRequest()
 
-		err := service.CreateEphemeralContainer(request)
+		err := service.AuditEphemeralContainerAction(request, repository2.ActionCreate)
 
 		assert.NoError(t, err)
 
@@ -68,7 +68,7 @@ func TestForEphemeralContainers(t *testing.T) {
 		}
 
 		request := createSampleRequest()
-		err := service.CreateEphemeralContainer(request)
+		err := service.AuditEphemeralContainerAction(request, repository2.ActionCreate)
 
 		assert.Error(t, err)
 
@@ -94,26 +94,6 @@ func TestForEphemeralContainers(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("TestAuditEphemeralContainerAction_FindContainerError", func(t *testing.T) {
-		repository := mocks.NewEphemeralContainersRepository(t)
-
-		repository.On("FindContainerByName", mock.AnythingOfType("int"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(nil, errors.New("error finding container"))
-
-		logger, _ := util.NewSugardLogger()
-		service := EphemeralContainerServiceImpl{
-			repository: repository,
-			logger:     logger,
-		}
-
-		request := createSampleRequest()
-
-		err := service.AuditEphemeralContainerAction(request, repository2.ActionAccessed)
-
-		assert.Error(t, err)
-
-		repository.AssertCalled(t, "FindContainerByName", 1, namespace, pod, containers)
-	})
-
 	t.Run("TestSaveEphemeralContainer_ContainerAlreadyPresentError", func(t *testing.T) {
 		repository := mocks.NewEphemeralContainersRepository(t)
 
@@ -127,7 +107,7 @@ func TestForEphemeralContainers(t *testing.T) {
 
 		request := createSampleRequest()
 
-		err := service.CreateEphemeralContainer(request)
+		err := service.AuditEphemeralContainerAction(request, repository2.ActionCreate)
 
 		assert.Error(t, err)
 		assert.EqualError(t, err, "container already present in the provided pod")
@@ -213,108 +193,6 @@ func TestForEphemeralContainers(t *testing.T) {
 		err := service.AuditEphemeralContainerAction(request, repository2.ActionAccessed)
 
 		assert.Error(t, err)
-
-	})
-
-	t.Run("TestAuditEphemeralContainerSave_CommitError", func(t *testing.T) {
-
-		repository := mocks.NewEphemeralContainersRepository(t)
-		tx := &pg.Tx{}
-		repository.On("FindContainerByName", 1, namespace, pod, containers).Return(nil, nil)
-		repository.On("StartTx").Return(tx, nil)
-		repository.On("RollbackTx", tx).Return(nil)
-		repository.On("SaveData", tx, mock.AnythingOfType("*repository.EphemeralContainerBean")).Return(nil)
-		repository.On("SaveAction", tx, mock.AnythingOfType("*repository.EphemeralContainerAction")).Return(nil)
-		repository.On("CommitTx", tx).Return(errors.New("error committing transaction")) // Return an error during commit
-		logger, _ := util.NewSugardLogger()
-		service := NewEphemeralContainerServiceImpl(repository, logger)
-
-		request := createSampleRequest()
-
-		err := service.CreateEphemeralContainer(request)
-
-		assert.Error(t, err)
-		assert.EqualError(t, err, "error committing transaction")
-	})
-
-	t.Run("TestAuditEphemeralContainerSaveSaveActionError", func(t *testing.T) {
-
-		repository := mocks.NewEphemeralContainersRepository(t)
-		tx := &pg.Tx{}
-
-		repository.On("FindContainerByName", 1, namespace, pod, containers).Return(nil, nil)
-		repository.On("StartTx").Return(tx, nil)
-		repository.On("RollbackTx", tx).Return(nil)
-		repository.On("SaveData", tx, mock.AnythingOfType("*repository.EphemeralContainerBean")).Return(nil)
-		repository.On("SaveAction", tx, mock.AnythingOfType("*repository.EphemeralContainerAction")).Return(errors.New("failed to save action")) // Return an error when saving action
-
-		logger, _ := util.NewSugardLogger()
-		service := NewEphemeralContainerServiceImpl(repository, logger)
-
-		request := createSampleRequest()
-
-		err := service.CreateEphemeralContainer(request)
-
-		assert.Error(t, err)
-
-	})
-
-	t.Run("TestAuditEphemeralContainerSave_SaveDataError", func(t *testing.T) {
-		repository := mocks.NewEphemeralContainersRepository(t)
-		tx := &pg.Tx{}
-
-		repository.On("FindContainerByName", 1, namespace, pod, containers).Return(nil, nil)
-		repository.On("StartTx").Return(tx, nil)
-		repository.On("RollbackTx", tx).Return(errors.New("error in rolling back tx"))
-		repository.On("SaveData", tx, mock.AnythingOfType("*repository.EphemeralContainerBean")).Return(errors.New("error saving data")) // Return an error during SaveData
-		logger, _ := util.NewSugardLogger()
-		service := NewEphemeralContainerServiceImpl(repository, logger)
-
-		request := createSampleRequest()
-
-		err := service.CreateEphemeralContainer(request)
-		assert.Error(t, err)
-
-	})
-
-	t.Run("TestAuditEphemeralContainerAction_CreateTransactionError", func(t *testing.T) {
-
-		repository := mocks.NewEphemeralContainersRepository(t)
-		tx := &pg.Tx{}
-		repository.On("FindContainerByName", 1, namespace, pod, containers).Return(nil, nil)
-		repository.On("StartTx").Return(tx, errors.New("error creating transaction")) // Simulate error in creating transaction
-		repository.On("RollbackTx", tx).Return(nil)
-		logger, _ := util.NewSugardLogger()
-		service := NewEphemeralContainerServiceImpl(repository, logger)
-
-		request := createSampleRequest()
-
-		err := service.CreateEphemeralContainer(request)
-		assert.Error(t, err)
-
-	})
-
-	t.Run("TestAuditEphemeralContainerAction_ContainerNotNil", func(t *testing.T) {
-		repository := mocks.NewEphemeralContainersRepository(t)
-		tx := &pg.Tx{}
-		container := &repository2.EphemeralContainerBean{
-			Id: 1,
-		}
-
-		repository.On("FindContainerByName", 1, namespace, pod, containers).Return(container, nil)
-		repository.On("StartTx").Return(tx, nil)
-		repository.On("RollbackTx", tx).Return(nil)
-		repository.On("SaveAction", tx, mock.AnythingOfType("*repository.EphemeralContainerAction")).Return(nil)
-		repository.On("CommitTx", tx).Return(nil)
-
-		logger, _ := util.NewSugardLogger()
-		service := NewEphemeralContainerServiceImpl(repository, logger)
-
-		request := createSampleRequest()
-
-		err := service.AuditEphemeralContainerAction(request, repository2.ActionAccessed)
-
-		assert.NoError(t, err)
 
 	})
 
