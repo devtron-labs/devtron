@@ -3,7 +3,6 @@ package cluster
 import (
 	"errors"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
 )
@@ -58,7 +57,7 @@ func NewEphemeralContainerServiceImpl(repository repository.EphemeralContainersR
 func (impl *EphemeralContainerServiceImpl) AuditEphemeralContainerAction(model EphemeralContainerRequest, actionType repository.ContainerAction) error {
 
 	container, err := impl.repository.FindContainerByName(model.ClusterId, model.Namespace, model.PodName, model.BasicData.ContainerName)
-	if err != nil && err != pg.ErrNoRows {
+	if err != nil {
 		impl.logger.Errorw("error in finding ephemeral container in the database", "err", err, "container", container)
 		return err
 	}
