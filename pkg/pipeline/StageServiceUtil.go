@@ -182,26 +182,28 @@ func CreatePreAndPostStageResponse(cdPipeline *bean2.CDPipelineConfigObject, ver
 	return cdRespMigrated, nil
 }
 
-func constructGlobalInputVariablesUsedInScript() []*bean.StepVariableDto {
+func constructGlobalInputVariablesUsedInScript(script string) []*bean.StepVariableDto {
 
 	var inputVariables []*bean.StepVariableDto
 	for _, inputVariable := range globalInputVariableList {
-		stepVariable := &bean.StepVariableDto{
-			Id:                        0,
-			Name:                      inputVariable,
-			Format:                    "",
-			Description:               "",
-			IsExposed:                 false,
-			AllowEmptyValue:           false,
-			DefaultValue:              "",
-			Value:                     "",
-			ValueType:                 repository2.PIPELINE_STAGE_STEP_VARIABLE_VALUE_TYPE_GLOBAL,
-			PreviousStepIndex:         0,
-			ReferenceVariableName:     inputVariable,
-			VariableStepIndexInPlugin: 0,
-			ReferenceVariableStage:    "",
+		if strings.Contains(script, inputVariable) {
+			stepVariable := &bean.StepVariableDto{
+				Id:                        0,
+				Name:                      inputVariable,
+				Format:                    "",
+				Description:               "",
+				IsExposed:                 false,
+				AllowEmptyValue:           false,
+				DefaultValue:              "",
+				Value:                     "",
+				ValueType:                 repository2.PIPELINE_STAGE_STEP_VARIABLE_VALUE_TYPE_GLOBAL,
+				PreviousStepIndex:         0,
+				ReferenceVariableName:     inputVariable,
+				VariableStepIndexInPlugin: 0,
+				ReferenceVariableStage:    "",
+			}
+			inputVariables = append(inputVariables, stepVariable)
 		}
-		inputVariables = append(inputVariables, stepVariable)
 	}
 	return inputVariables
 }
@@ -223,7 +225,7 @@ func StageYamlToPipelineStageAdapter(stageConfig string, stageType repository2.P
 					Script:     beforeTask.Script,
 				}
 				//this is to handle silently injected global variables to pre-post cd stages
-				inlineStepDetail.InputVariables = constructGlobalInputVariablesUsedInScript()
+				inlineStepDetail.InputVariables = constructGlobalInputVariablesUsedInScript(beforeTask.Script)
 
 				//index really matters as the task order on the UI is decided by the index field
 				stepData := &bean.PipelineStageStepDto{
@@ -259,7 +261,7 @@ func StageYamlToPipelineStageAdapter(stageConfig string, stageType repository2.P
 					Script:     afterTask.Script,
 				}
 				//this is to handle silently injected global variables to pre-post cd stages
-				inlineStepDetail.InputVariables = constructGlobalInputVariablesUsedInScript()
+				inlineStepDetail.InputVariables = constructGlobalInputVariablesUsedInScript(afterTask.Script)
 
 				stepData := &bean.PipelineStageStepDto{
 					Id:                  0,

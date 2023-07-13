@@ -162,6 +162,22 @@ type CdStageCompleteEvent struct {
 	CiArtifactDTO    pipelineConfig.CiArtifactDTO `json:"ciArtifactDTO"`
 }
 
+type GitMetadata struct {
+	GitCommitHash  string `json:"GIT_COMMIT_HASH"`
+	GitSourceType  string `json:"GIT_SOURCE_TYPE"`
+	GitSourceValue string `json:"GIT_SOURCE_VALUE"`
+}
+
+type AppLabelMetadata struct {
+	AppLabelKey   string `json:"APP_LABEL_KEY"`
+	AppLabelValue string `json:"APP_LABEL_VALUE"`
+}
+
+type ChildCdMetadata struct {
+	ChildCdEnvName     string `json:"CHILD_CD_ENV_NAME"`
+	ChildCdClusterName string `json:"CHILD_CD_CLUSTER_NAME"`
+}
+
 func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pipelineConfig.PipelineRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	pubsubClient *pubsub.PubSubClientServiceImpl,
@@ -635,6 +651,32 @@ func (impl *WorkflowDagExecutorImpl) getDeployStageDetails(pipelineId int) (pipe
 	return deployStageWfr, deployStageTriggeredByUser, pipelineReleaseCounter, nil
 }
 
+func isExtraVariableDynamic(variableName string) bool {
+	if strings.Contains(variableName, GIT_COMMIT_HASH_PREFIX) || strings.Contains(variableName, GIT_SOURCE_TYPE_PREFIX) || strings.Contains(variableName, GIT_SOURCE_VALUE_PREFIX) ||
+		strings.Contains(variableName, APP_LABEL_VALUE_PREFIX) || strings.Contains(variableName, APP_LABEL_KEY_PREFIX) ||
+		strings.Contains(variableName, CHILD_CD_ENV_NAME_PREFIX) || strings.Contains(variableName, CHILD_CD_CLUSTER_NAME_PREFIX) {
+
+		return true
+	}
+	return false
+}
+
+func setExtraEnvVariableInDeployStep(deploySteps []*bean3.StepObject, extraEnvVariables map[string]string) {
+	for _, deployStep := range deploySteps {
+		for variableKey, variableValue := range extraEnvVariables {
+			if isExtraVariableDynamic(variableKey) && deployStep.StepType == "INLINE" {
+				extraInputVar := &bean3.VariableObject{
+					Name:                  variableKey,
+					Format:                "STRING",
+					Value:                 variableValue,
+					VariableType:          bean3.VARIABLE_TYPE_REF_GLOBAL,
+					ReferenceVariableName: variableKey,
+				}
+				deployStep.InputVars = append(deployStep.InputVars, extraInputVar)
+			}
+		}
+	}
+}
 func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWorkflowRunner, cdWf *pipelineConfig.CdWorkflow, cdPipeline *pipelineConfig.Pipeline, triggeredBy int32) (*CdWorkflowRequest, error) {
 	cdWorkflowConfig, err := impl.cdWorkflowRepository.FindConfigByPipelineId(cdPipeline.Id)
 	if err != nil && !util.IsErrNoRows(err) {
@@ -808,11 +850,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		WorkflowExecutor:  workflowExecutor,
 		RefPlugins:        refPluginsData,
 	}
-	if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
-		cdStageWorkflowRequest.PrePostDeploySteps = preDeploySteps
-	} else if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
-		cdStageWorkflowRequest.PrePostDeploySteps = postDeploySteps
-	}
+
 	extraEnvVariables := make(map[string]string)
 	env, err := impl.envRepository.FindById(cdPipeline.EnvironmentId)
 	if err != nil {
@@ -833,10 +871,18 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 
 	if ciWf != nil && ciWf.GitTriggers != nil {
 		i := 1
+		var gitCommitEnvVariables []GitMetadata
+
 		for ciPipelineMaterialId, gitTrigger := range ciWf.GitTriggers {
 			extraEnvVariables[fmt.Sprintf("%s_%d", GIT_COMMIT_HASH_PREFIX, i)] = gitTrigger.Commit
 			extraEnvVariables[fmt.Sprintf("%s_%d", GIT_SOURCE_TYPE_PREFIX, i)] = string(gitTrigger.CiConfigureSourceType)
 			extraEnvVariables[fmt.Sprintf("%s_%d", GIT_SOURCE_VALUE_PREFIX, i)] = gitTrigger.CiConfigureSourceValue
+
+			gitCommitEnvVariables = append(gitCommitEnvVariables, GitMetadata{
+				GitCommitHash:  gitTrigger.Commit,
+				GitSourceType:  string(gitTrigger.CiConfigureSourceType),
+				GitSourceValue: gitTrigger.CiConfigureSourceValue,
+			})
 
 			// CODE-BLOCK starts - store extra environment variables if webhook
 			if gitTrigger.CiConfigureSourceType == pipelineConfig.SOURCE_TYPE_WEBHOOK {
@@ -862,6 +908,13 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 
 			i++
 		}
+		gitMetadata, err := json.Marshal(&gitCommitEnvVariables)
+		if err != nil {
+			impl.logger.Errorw("err while marshaling git metdata", "err", err)
+			return nil, err
+		}
+		extraEnvVariables[GIT_METADATA] = string(gitMetadata)
+
 		extraEnvVariables[GIT_SOURCE_COUNT] = strconv.Itoa(len(ciWf.GitTriggers))
 	}
 
@@ -876,10 +929,23 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			impl.logger.Errorw("error in getting pipelines by ids", "err", err, "ids", childCdIds)
 			return nil, err
 		}
+		var childCdEnvVariables []ChildCdMetadata
 		for i, childPipeline := range childPipelines {
 			extraEnvVariables[fmt.Sprintf("%s_%d", CHILD_CD_ENV_NAME_PREFIX, i+1)] = childPipeline.Environment.Name
 			extraEnvVariables[fmt.Sprintf("%s_%d", CHILD_CD_CLUSTER_NAME_PREFIX, i+1)] = childPipeline.Environment.Cluster.ClusterName
+
+			childCdEnvVariables = append(childCdEnvVariables, ChildCdMetadata{
+				ChildCdEnvName:     childPipeline.Environment.Name,
+				ChildCdClusterName: childPipeline.Environment.Cluster.ClusterName,
+			})
 		}
+		childCdEnvVariablesMetadata, err := json.Marshal(&childCdEnvVariables)
+		if err != nil {
+			impl.logger.Errorw("err while marshaling childCdEnvVariables", "err", err)
+			return nil, err
+		}
+		extraEnvVariables[CHILD_CD_METADATA] = string(childCdEnvVariablesMetadata)
+
 		extraEnvVariables[CHILD_CD_COUNT] = strconv.Itoa(len(childPipelines))
 	}
 	if ciPipeline != nil && ciPipeline.Id > 0 {
@@ -913,12 +979,24 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			impl.logger.Errorw("error in getting labels by appId", "err", err, "appId", cdPipeline.AppId)
 			return nil, err
 		}
+		var appLabelEnvVariables []AppLabelMetadata
 		for i, appLabel := range appLabels {
 			extraEnvVariables[fmt.Sprintf("%s_%d", APP_LABEL_KEY_PREFIX, i+1)] = appLabel.Key
 			extraEnvVariables[fmt.Sprintf("%s_%d", APP_LABEL_VALUE_PREFIX, i+1)] = appLabel.Value
+			appLabelEnvVariables = append(appLabelEnvVariables, AppLabelMetadata{
+				AppLabelKey:   appLabel.Key,
+				AppLabelValue: appLabel.Value,
+			})
 		}
 		if len(appLabels) > 0 {
 			extraEnvVariables[APP_LABEL_COUNT] = strconv.Itoa(len(appLabels))
+			appLabelEnvVariablesMetadata, err := json.Marshal(&appLabelEnvVariables)
+			if err != nil {
+				impl.logger.Errorw("err while marshaling appLabelEnvVariables", "err", err)
+				return nil, err
+			}
+			extraEnvVariables[APP_LABEL_METADATA] = string(appLabelEnvVariablesMetadata)
+
 		}
 	}
 	cdStageWorkflowRequest.ExtraEnvironmentVariables = extraEnvVariables
@@ -931,6 +1009,15 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	}
 	if cdWorkflowConfig.CdCacheRegion == "" {
 		cdWorkflowConfig.CdCacheRegion = impl.cdConfig.DefaultCdLogsBucketRegion
+	}
+
+	if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
+		//populate input variables of steps with extra env variables
+		setExtraEnvVariableInDeployStep(preDeploySteps, extraEnvVariables)
+		cdStageWorkflowRequest.PrePostDeploySteps = preDeploySteps
+	} else if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
+		setExtraEnvVariableInDeployStep(postDeploySteps, extraEnvVariables)
+		cdStageWorkflowRequest.PrePostDeploySteps = postDeploySteps
 	}
 	cdStageWorkflowRequest.BlobStorageConfigured = runner.BlobStorageEnabled
 	switch cdStageWorkflowRequest.CloudProvider {
