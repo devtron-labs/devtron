@@ -84,7 +84,7 @@ func (impl *EphemeralContainerServiceImpl) AuditEphemeralContainerAction(model E
 	if container == nil {
 		bean := model.getContainerBean()
 		if actionType != repository.ActionCreate {
-			// if a container is not present in database and the user is trying to access it means it is externally created
+			// if a container is not present in database and the user is trying to access/terminate it means it is externally created
 			bean.IsExternallyCreated = true
 		}
 		err = impl.repository.SaveData(tx, &bean)
