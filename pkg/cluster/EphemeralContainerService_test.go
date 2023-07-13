@@ -50,7 +50,7 @@ func TestForEphemeralContainers(t *testing.T) {
 
 		request := createSampleRequest()
 
-		err := service.SaveEphemeralContainer(request)
+		err := service.CreateEphemeralContainer(request)
 
 		assert.NoError(t, err)
 
@@ -68,7 +68,7 @@ func TestForEphemeralContainers(t *testing.T) {
 		}
 
 		request := createSampleRequest()
-		err := service.SaveEphemeralContainer(request)
+		err := service.CreateEphemeralContainer(request)
 
 		assert.Error(t, err)
 
@@ -127,7 +127,7 @@ func TestForEphemeralContainers(t *testing.T) {
 
 		request := createSampleRequest()
 
-		err := service.SaveEphemeralContainer(request)
+		err := service.CreateEphemeralContainer(request)
 
 		assert.Error(t, err)
 		assert.EqualError(t, err, "container already present in the provided pod")
@@ -231,7 +231,7 @@ func TestForEphemeralContainers(t *testing.T) {
 
 		request := createSampleRequest()
 
-		err := service.SaveEphemeralContainer(request)
+		err := service.CreateEphemeralContainer(request)
 
 		assert.Error(t, err)
 		assert.EqualError(t, err, "error committing transaction")
@@ -253,7 +253,7 @@ func TestForEphemeralContainers(t *testing.T) {
 
 		request := createSampleRequest()
 
-		err := service.SaveEphemeralContainer(request)
+		err := service.CreateEphemeralContainer(request)
 
 		assert.Error(t, err)
 
@@ -272,7 +272,7 @@ func TestForEphemeralContainers(t *testing.T) {
 
 		request := createSampleRequest()
 
-		err := service.SaveEphemeralContainer(request)
+		err := service.CreateEphemeralContainer(request)
 		assert.Error(t, err)
 
 	})
@@ -289,7 +289,7 @@ func TestForEphemeralContainers(t *testing.T) {
 
 		request := createSampleRequest()
 
-		err := service.SaveEphemeralContainer(request)
+		err := service.CreateEphemeralContainer(request)
 		assert.Error(t, err)
 
 	})
