@@ -48,6 +48,7 @@ type ConfigDraftResponse struct {
 	DraftVersionId int        `json:"draftVersionId"`
 	DraftState     DraftState `json:"draftState"`
 	Approvers      []string   `json:"approvers"`
+	CanApprove     *bool      `json:"canApprove,omitempty"`
 }
 
 type ConfigDraftVersionRequest struct {

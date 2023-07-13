@@ -23,6 +23,7 @@ type ConfigDraftRestHandler interface {
 	GetDraftById(w http.ResponseWriter, r *http.Request)
 	ApproveDraft(w http.ResponseWriter, r *http.Request)
 	DeleteUserComment(w http.ResponseWriter, r *http.Request)
+	UpdateDraftState(w http.ResponseWriter, r *http.Request)
 	//TODO add draft state change request
 }
 
@@ -111,7 +112,7 @@ func (impl *ConfigDraftRestHandlerImpl) AddDraftVersion(w http.ResponseWriter, r
 	}
 
 	draftId := request.DraftId
-	configDraft, err := impl.configDraftService.GetDraftById(draftId)
+	configDraft, err := impl.configDraftService.GetDraftById(draftId, userId)
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching draft", "draftId", draftId, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -140,7 +141,7 @@ func (impl *ConfigDraftRestHandlerImpl) AddDraftVersion(w http.ResponseWriter, r
 
 func (impl *ConfigDraftRestHandlerImpl) GetDraftVersionMetadata(w http.ResponseWriter, r *http.Request) {
 
-	draftId, errorOccurred := impl.enforceDraftRequest(w, r)
+	draftId, _, errorOccurred := impl.enforceDraftRequest(w, r)
 	if errorOccurred {
 		return
 	}
@@ -155,7 +156,7 @@ func (impl *ConfigDraftRestHandlerImpl) GetDraftVersionMetadata(w http.ResponseW
 }
 
 func (impl *ConfigDraftRestHandlerImpl) GetDraftComments(w http.ResponseWriter, r *http.Request) {
-	draftId, errorOccurred := impl.enforceDraftRequest(w, r)
+	draftId, _, errorOccurred := impl.enforceDraftRequest(w, r)
 	if errorOccurred {
 		return
 	}
@@ -195,7 +196,7 @@ func (impl *ConfigDraftRestHandlerImpl) GetAppDrafts(w http.ResponseWriter, r *h
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	configDrafts, err := impl.configDraftService.GetDrafts(appId, envId, drafts.DraftResourceType(resourceType))
+	configDrafts, err := impl.configDraftService.GetDrafts(appId, envId, drafts.DraftResourceType(resourceType), userId)
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching draft comments", "err", err, "appId", appId, "envId", envId, "resourceType", resourceType)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -205,11 +206,11 @@ func (impl *ConfigDraftRestHandlerImpl) GetAppDrafts(w http.ResponseWriter, r *h
 }
 
 func (impl *ConfigDraftRestHandlerImpl) GetDraftById(w http.ResponseWriter, r *http.Request) {
-	draftId, errorOccurred := impl.enforceDraftRequest(w, r)
+	draftId, userId, errorOccurred := impl.enforceDraftRequest(w, r)
 	if errorOccurred {
 		return
 	}
-	draftResponse, err := impl.configDraftService.GetDraftById(draftId)
+	draftResponse, err := impl.configDraftService.GetDraftById(draftId, userId)
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching draft comments", "err", err, "draftId", draftId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -218,24 +219,24 @@ func (impl *ConfigDraftRestHandlerImpl) GetDraftById(w http.ResponseWriter, r *h
 	common.WriteJsonResp(w, err, draftResponse, http.StatusOK)
 }
 
-func (impl *ConfigDraftRestHandlerImpl) enforceDraftRequest(w http.ResponseWriter, r *http.Request) (int, bool) {
+func (impl *ConfigDraftRestHandlerImpl) enforceDraftRequest(w http.ResponseWriter, r *http.Request) (int, int32, bool) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return 0, true
+		return 0, 0, true
 	}
 
 	draftId, err := common.ExtractIntPathParam(w, r, "draftId")
 	if err != nil {
-		return 0, true
+		return 0, 0, true
 	}
 
-	notAllowed := impl.enforceForDraftId(w, r, draftId)
-	return draftId, notAllowed
+	notAllowed := impl.enforceForDraftId(w, r, draftId, userId)
+	return draftId, userId, notAllowed
 }
 
-func (impl *ConfigDraftRestHandlerImpl) enforceForDraftId(w http.ResponseWriter, r *http.Request, draftId int) bool {
-	configDraft, err := impl.configDraftService.GetDraftById(draftId)
+func (impl *ConfigDraftRestHandlerImpl) enforceForDraftId(w http.ResponseWriter, r *http.Request, draftId int, userId int32) bool {
+	configDraft, err := impl.configDraftService.GetDraftById(draftId, userId)
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching draft", "draftId", draftId, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -277,7 +278,7 @@ func (impl *ConfigDraftRestHandlerImpl) ApproveDraft(w http.ResponseWriter, r *h
 	if err != nil {
 		return
 	}
-	draftResponse, err := impl.configDraftService.GetDraftById(draftId)
+	draftResponse, err := impl.configDraftService.GetDraftById(draftId, 0)
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching draft", "err", err, "draftVersionId", draftVersionId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -312,7 +313,7 @@ func (impl *ConfigDraftRestHandlerImpl) DeleteUserComment(w http.ResponseWriter,
 		return
 	}
 
-	notAllowed := impl.enforceForDraftId(w, r, draftId)
+	notAllowed := impl.enforceForDraftId(w, r, draftId, userId)
 	if notAllowed {
 		return
 	}
@@ -323,6 +324,37 @@ func (impl *ConfigDraftRestHandlerImpl) DeleteUserComment(w http.ResponseWriter,
 	}
 	common.WriteJsonResp(w, err, nil, http.StatusOK)
 }
+
+func (impl *ConfigDraftRestHandlerImpl) UpdateDraftState(w http.ResponseWriter, r *http.Request) {
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	draftId, err := common.ExtractIntQueryParam(w, r, "draftId")
+	if err != nil {
+		return
+	}
+	draftVersionId, err := common.ExtractIntQueryParam(w, r, "draftVersionId")
+	if err != nil {
+		return
+	}
+	state, err := common.ExtractIntQueryParam(w, r, "state")
+	if err != nil {
+		return
+	}
+	notAllowed := impl.enforceForDraftId(w, r, draftId, userId)
+	if notAllowed {
+		return
+	}
+	draftVersion, err := impl.configDraftService.UpdateDraftState(draftId, draftVersionId, drafts.DraftState(state), userId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, draftVersion, http.StatusOK)
+}
+
 
 
 

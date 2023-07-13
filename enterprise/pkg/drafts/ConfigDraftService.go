@@ -12,6 +12,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"go.uber.org/zap"
+	"k8s.io/utils/pointer"
 	"time"
 )
 
@@ -22,8 +23,8 @@ type ConfigDraftService interface {
 	UpdateDraftState(draftId int, draftVersionId int, toUpdateDraftState DraftState, userId int32) (*DraftVersion, error)
 	GetDraftVersionMetadata(draftId int) (*DraftVersionMetadataResponse, error) // would return version timestamp and user email id
 	GetDraftComments(draftId int) (*DraftVersionCommentResponse, error)
-	GetDrafts(appId int, envId int, resourceType DraftResourceType) ([]AppConfigDraft, error) // need to take care of secret data
-	GetDraftById(draftId int) (*ConfigDraftResponse, error)                                   //  need to send ** in case of view only user for Secret data
+	GetDrafts(appId int, envId int, resourceType DraftResourceType, userId int32) ([]AppConfigDraft, error) // need to take care of secret data
+	GetDraftById(draftId int, userId int32) (*ConfigDraftResponse, error)                                   //  need to send ** in case of view only user for Secret data
 	GetDraftByDraftVersionId(draftVersionId int) (*ConfigDraftResponse, error)
 	ApproveDraft(draftId int, draftVersionId int, userId int32) error
 	DeleteComment(draftId int, draftCommentId int, userId int32) error
@@ -115,7 +116,7 @@ func (impl ConfigDraftServiceImpl) AddDraftVersion(request ConfigDraftVersionReq
 func (impl ConfigDraftServiceImpl) UpdateDraftState(draftId int, draftVersionId int, toUpdateDraftState DraftState, userId int32) (*DraftVersion, error) {
 	impl.logger.Infow("updating draft state", "draftId", draftId, "toUpdateDraftState", toUpdateDraftState, "userId", userId)
 	// check app config draft is enabled or not ??
-	latestDraftVersion, err := impl.validateDraftAction(draftId, draftVersionId, toUpdateDraftState)
+	latestDraftVersion, err := impl.validateDraftAction(draftId, draftVersionId, toUpdateDraftState, userId)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +124,7 @@ func (impl ConfigDraftServiceImpl) UpdateDraftState(draftId int, draftVersionId 
 	return latestDraftVersion, err
 }
 
-func (impl ConfigDraftServiceImpl) validateDraftAction(draftId int, draftVersionId int, toUpdateDraftState DraftState) (*DraftVersion, error) {
+func (impl ConfigDraftServiceImpl) validateDraftAction(draftId int, draftVersionId int, toUpdateDraftState DraftState, userId int32) (*DraftVersion, error) {
 	latestDraftVersion, err := impl.configDraftRepository.GetLatestConfigDraft(draftId)
 	if err != nil {
 		return nil, err
@@ -140,9 +141,19 @@ func (impl ConfigDraftServiceImpl) validateDraftAction(draftId int, draftVersion
 		impl.logger.Errorw("draft is already in terminal state", "draftId", draftId, "draftCurrentState", draftCurrentState)
 		return nil, errors.New("already-in-terminal-state")
 	}
-	if toUpdateDraftState == PublishedDraftState && draftCurrentState != AwaitApprovalDraftState {
-		impl.logger.Errorw("draft is not in await Approval state", "draftId", draftId, "draftCurrentState", draftCurrentState)
-		return nil, errors.New("approval-request-not-raised")
+	if toUpdateDraftState == PublishedDraftState {
+		if draftCurrentState != AwaitApprovalDraftState {
+			impl.logger.Errorw("draft is not in await Approval state", "draftId", draftId, "draftCurrentState", draftCurrentState)
+			return nil, errors.New("approval-request-not-raised")
+		} else {
+			contributedToDraft, err := impl.checkUserContributedToDraft(draftId, userId)
+			if err != nil {
+				return nil, err
+			}
+			if contributedToDraft {
+				impl.logger.Errorw("user-committed-to-draft")
+			}
+		}
 	}
 	return latestDraftVersion, nil
 }
@@ -208,7 +219,7 @@ func (impl ConfigDraftServiceImpl) GetDraftComments(draftId int) (*DraftVersionC
 	return response, nil
 }
 
-func (impl ConfigDraftServiceImpl) GetDrafts(appId int, envId int, resourceType DraftResourceType) ([]AppConfigDraft, error) {
+func (impl ConfigDraftServiceImpl) GetDrafts(appId int, envId int, resourceType DraftResourceType, userId int32) ([]AppConfigDraft, error) {
 	draftMetadataDtos, err := impl.configDraftRepository.GetDraftMetadata(appId, envId, resourceType)
 	if err != nil {
 		return nil, err
@@ -221,13 +232,18 @@ func (impl ConfigDraftServiceImpl) GetDrafts(appId int, envId int, resourceType 
 	return appConfigDrafts, nil
 }
 
-func (impl ConfigDraftServiceImpl) GetDraftById(draftId int) (*ConfigDraftResponse, error) {
+func (impl ConfigDraftServiceImpl) GetDraftById(draftId int, userId int32) (*ConfigDraftResponse, error) {
 	configDraft, err := impl.configDraftRepository.GetLatestConfigDraft(draftId)
 	if err != nil {
 		return nil, err
 	}
 	draftResponse := configDraft.ConvertToConfigDraft()
 	draftResponse.Approvers = impl.getApproversData(draftResponse.AppId, draftResponse.EnvId)
+	userContributedToDraft, err := impl.checkUserContributedToDraft(draftId, userId)
+	if err != nil {
+		return nil, err
+	}
+	draftResponse.CanApprove = pointer.BoolPtr(!userContributedToDraft)
 	return draftResponse, nil
 }
 
@@ -253,7 +269,7 @@ func (impl ConfigDraftServiceImpl) DeleteComment(draftId int, draftCommentId int
 func (impl ConfigDraftServiceImpl) ApproveDraft(draftId int, draftVersionId int, userId int32) error {
 	impl.logger.Infow("approving draft", "draftId", draftId, "draftVersionId", draftVersionId, "userId", userId)
 	toUpdateDraftState := PublishedDraftState
-	draftVersion, err := impl.validateDraftAction(draftId, draftVersionId, toUpdateDraftState)
+	draftVersion, err := impl.validateDraftAction(draftId, draftVersionId, toUpdateDraftState, 0)
 	if err != nil {
 		return err
 	}
@@ -459,6 +475,25 @@ func (impl ConfigDraftServiceImpl) getApproversData(appId int, envId int) []stri
 		impl.logger.Errorw("error occurred while fetching config approval emails, so sending empty approvers list", "err", err)
 	}
 	return approvers
+}
+
+func (impl ConfigDraftServiceImpl) checkUserContributedToDraft(draftId int, userId int32) (bool, error) {
+	versionsMetadata, err := impl.configDraftRepository.GetDraftVersionsMetadata(draftId)
+	if err != nil {
+		return false, err
+	}
+	for _, versionMetadata := range versionsMetadata {
+		if versionMetadata.UserId == userId {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (impl ConfigDraftServiceImpl) getUserApprovalData(draftIds []int, userId int32) map[int]bool {
+	// make db request fetching current user added in drafts
+	draftIdVsApprovalAllowed := make(map[int]bool)
+	return draftIdVsApprovalAllowed
 }
 
 

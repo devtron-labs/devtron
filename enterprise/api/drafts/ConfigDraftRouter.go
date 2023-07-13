@@ -18,6 +18,11 @@ func NewConfigDraftRouterImpl(configDraftRestHandler ConfigDraftRestHandler) *Co
 
 func (router *ConfigDraftRouterImpl) InitConfigDraftRouter(configRouter *mux.Router) {
 	configRouter.Path("").HandlerFunc(router.configDraftRestHandler.CreateDraft).Methods("POST")
+	configRouter.Path("").HandlerFunc(router.configDraftRestHandler.UpdateDraftState).
+		Queries("draftId", "{draftId}").
+		Queries("draftVersionId", "{draftVersionId}").
+		Queries("state", "{state}").
+		Methods("PUT")
 	configRouter.Path("/app").HandlerFunc(router.configDraftRestHandler.GetAppDrafts).
 		Queries("appId", "{appId}").
 		Queries("envId", "{envId}").
