@@ -34,6 +34,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
+	bean4 "github.com/devtron-labs/devtron/pkg/app/bean"
 	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
@@ -43,6 +44,7 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
+	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
@@ -227,6 +229,7 @@ type PipelineBuilderImpl struct {
 	appGroupService                                 appGroup2.AppGroupService
 	globalPolicyService                             globalPolicy.GlobalPolicyService
 	chartDeploymentService                          util.ChartDeploymentService
+	manifestPushConfigRepository                    repository3.ManifestPushConfigRepository
 	K8sUtil                                         *util.K8sUtil
 	attributesRepository                            repository.AttributesRepository
 	securityConfig                                  *SecurityConfig
@@ -284,6 +287,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	appGroupService appGroup2.AppGroupService,
 	chartDeploymentService util.ChartDeploymentService,
 	globalPolicyService globalPolicy.GlobalPolicyService,
+	manifestPushConfigRepository repository3.ManifestPushConfigRepository,
 	K8sUtil *util.K8sUtil,
 	attributesRepository repository.AttributesRepository,
 	imageTaggingService ImageTaggingService) *PipelineBuilderImpl {
@@ -353,6 +357,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		appGroupService:                                 appGroupService,
 		globalPolicyService:                             globalPolicyService,
 		chartDeploymentService:                          chartDeploymentService,
+		manifestPushConfigRepository:                    manifestPushConfigRepository,
 		K8sUtil:                                         K8sUtil,
 		attributesRepository:                            attributesRepository,
 		securityConfig:                                  securityConfig,
@@ -2096,7 +2101,7 @@ func (impl PipelineBuilderImpl) PatchCdPipelines(cdPipelines *bean.CDPatchReques
 	case bean.CD_CREATE:
 		return impl.CreateCdPipelines(pipelineRequest, ctx)
 	case bean.CD_UPDATE:
-		err := impl.updateCdPipeline(ctx, cdPipelines.Pipeline, cdPipelines.UserId)
+		err := impl.updateCdPipeline(ctx, cdPipelines.AppId, cdPipelines.Pipeline, cdPipelines.UserId)
 		return pipelineRequest, err
 	case bean.CD_DELETE:
 		pipeline, err := impl.pipelineRepository.FindById(cdPipelines.Pipeline.Id)
@@ -2245,6 +2250,22 @@ func (impl PipelineBuilderImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipeli
 		if err != nil {
 			impl.logger.Errorw("error in creating post cd script entry", "err", err, "pipeline", pipeline)
 			return deleteResponse, err
+		}
+	}
+	// delete manifest push config if exists
+	if util.IsManifestPush(pipeline.DeploymentAppType) {
+		manifestPushConfig, err := impl.manifestPushConfigRepository.GetManifestPushConfigByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("error in getting manifest push config by appId and envId", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
+			return deleteResponse, err
+		}
+		if manifestPushConfig.Id != 0 {
+			manifestPushConfig.Deleted = true
+			err = impl.manifestPushConfigRepository.UpdateConfig(manifestPushConfig)
+			if err != nil {
+				impl.logger.Errorw("error in updating config for oci helm repo", "err", err)
+				return deleteResponse, err
+			}
 		}
 	}
 	//delete app from argo cd, if created
@@ -3251,6 +3272,45 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 		}
 
 	}
+	if util.IsManifestPush(pipeline.DeploymentAppType) {
+		if len(pipeline.ContainerRegistryName) == 0 || len(pipeline.RepoName) == 0 {
+			return 0, errors.New("container registry name and repo name cannot be empty for manifest push deployment")
+		}
+		if pipeline.ManifestStorageType == bean.ManifestStorageGit {
+			//implement
+		} else if pipeline.ManifestStorageType == bean.ManifestStorageOCIHelmRepo {
+
+			helmRepositoryConfig := bean4.HelmRepositoryConfig{
+				RepositoryName:        pipeline.RepoName,
+				ContainerRegistryName: pipeline.ContainerRegistryName,
+			}
+			helmRepositoryConfigBytes, err := json.Marshal(helmRepositoryConfig)
+			if err != nil {
+				impl.logger.Errorw("error in marshaling helm registry config", "err", err)
+				return 0, err
+			}
+			manifestPushConfig := &repository3.ManifestPushConfig{
+				AppId:             app.Id,
+				EnvId:             pipeline.EnvironmentId,
+				CredentialsConfig: string(helmRepositoryConfigBytes),
+				ChartName:         pipeline.ChartName,
+				ChartBaseVersion:  pipeline.ChartBaseVersion,
+				StorageType:       bean.ManifestStorageOCIHelmRepo,
+				Deleted:           false,
+				AuditLog: sql.AuditLog{
+					CreatedOn: time.Now(),
+					CreatedBy: userId,
+					UpdatedOn: time.Now(),
+					UpdatedBy: userId,
+				},
+			}
+			manifestPushConfig, err = impl.manifestPushConfigRepository.SaveConfig(manifestPushConfig)
+			if err != nil {
+				impl.logger.Errorw("error in saving config for oci helm repo", "err", err)
+				return 0, err
+			}
+		}
+	}
 
 	err = tx.Commit()
 	if err != nil {
@@ -3261,7 +3321,7 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 	return pipelineId, nil
 }
 
-func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, pipeline *bean.CDPipelineConfigObject, userID int32) (err error) {
+func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, appId int, pipeline *bean.CDPipelineConfigObject, userID int32) (err error) {
 
 	if len(pipeline.PreStage.Config) > 0 && !strings.Contains(pipeline.PreStage.Config, "beforeStages") {
 		err = &util.ApiError{
@@ -3287,7 +3347,7 @@ func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, pipeline *
 	// Rollback tx on error.
 	defer tx.Rollback()
 
-	err = impl.ciCdPipelineOrchestrator.UpdateCDPipeline(pipeline, userID, tx)
+	pipelineDbObj, err := impl.ciCdPipelineOrchestrator.UpdateCDPipeline(pipeline, userID, tx)
 	if err != nil {
 		impl.logger.Errorw("error in updating pipeline")
 		return err
@@ -3367,6 +3427,95 @@ func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, pipeline *
 				impl.logger.Errorw("error in creating strategy history entry", "err", err)
 				return err
 			}
+		}
+	}
+
+	if util.IsManifestPush(pipeline.DeploymentAppType) {
+		if len(pipeline.ContainerRegistryName) == 0 || len(pipeline.RepoName) == 0 {
+			return errors.New("container registry name and repo name cannot be empty in case of manifest push deployment")
+		}
+	}
+	pipeline.AppId = pipelineDbObj.AppId
+
+	if util.IsManifestDownload(pipeline.DeploymentAppType) {
+		if util.IsManifestPush(pipelineDbObj.DeploymentAppType) {
+			manifestPushConfig, err := impl.manifestPushConfigRepository.GetManifestPushConfigByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId)
+			if err != nil {
+				impl.logger.Errorw("error in getting manifest push config by appId and envId", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
+				return err
+			}
+			if manifestPushConfig.Id != 0 {
+				manifestPushConfig.Deleted = true
+				err = impl.manifestPushConfigRepository.UpdateConfig(manifestPushConfig)
+				if err != nil {
+					impl.logger.Errorw("error in updating config for oci helm repo", "err", err)
+					return err
+				}
+			}
+		}
+	}
+	if util.IsManifestPush(pipeline.DeploymentAppType) {
+		manifestPushConfig, err := impl.manifestPushConfigRepository.GetManifestPushConfigByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("error in getting manifest push config by appId and envId", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
+			return err
+		}
+		if pipeline.ManifestStorageType == bean.ManifestStorageGit {
+			//implement
+		} else if pipeline.ManifestStorageType == bean.ManifestStorageOCIHelmRepo {
+			if manifestPushConfig.Id == 0 {
+				manifestPushConfig = &repository3.ManifestPushConfig{
+					AppId:            appId,
+					EnvId:            pipeline.EnvironmentId,
+					ChartName:        pipeline.ChartName,
+					ChartBaseVersion: pipeline.ChartBaseVersion,
+					StorageType:      bean.ManifestStorageOCIHelmRepo,
+					Deleted:          false,
+					AuditLog: sql.AuditLog{
+						CreatedOn: time.Now(),
+						CreatedBy: userID,
+						UpdatedOn: time.Now(),
+						UpdatedBy: userID,
+					},
+				}
+			}
+			helmRepositoryConfig := bean4.HelmRepositoryConfig{
+				RepositoryName:        pipeline.RepoName,
+				ContainerRegistryName: pipeline.ContainerRegistryName,
+			}
+			helmRepositoryConfigBytes, err := json.Marshal(helmRepositoryConfig)
+			if err != nil {
+				impl.logger.Errorw("error in marshaling helm registry config", "err", err)
+				return err
+			}
+			manifestPushConfig.CredentialsConfig = string(helmRepositoryConfigBytes)
+		}
+		pipelineDbObj.DeploymentAppType = pipeline.DeploymentAppType
+		err = impl.pipelineRepository.Update(pipelineDbObj, tx)
+		if err != nil {
+			impl.logger.Errorw("error in updating pipeline deployment app type", "err", err)
+			return err
+		}
+		if manifestPushConfig.Id == 0 {
+			manifestPushConfig, err = impl.manifestPushConfigRepository.SaveConfig(manifestPushConfig)
+			if err != nil {
+				impl.logger.Errorw("error in saving config for oci helm repo", "err", err)
+				return err
+			}
+		} else {
+			err = impl.manifestPushConfigRepository.UpdateConfig(manifestPushConfig)
+			if err != nil {
+				impl.logger.Errorw("error in updating config for oci helm repo", "err", err)
+				return err
+			}
+		}
+	}
+	if util.IsManifestDownload(pipeline.DeploymentAppType) || util.IsManifestPush(pipeline.DeploymentAppType) {
+		pipelineDbObj.DeploymentAppType = pipeline.DeploymentAppType
+		err = impl.pipelineRepository.Update(pipelineDbObj, tx)
+		if err != nil {
+			impl.logger.Errorw("error in updating pipeline deployment app type", "err", err)
+			return err
 		}
 	}
 	err = tx.Commit()
@@ -3538,6 +3687,9 @@ func (impl PipelineBuilderImpl) GetCdPipelinesForApp(appId int) (cdPipelines *be
 			DeploymentAppDeleteRequest:    dbPipeline.DeploymentAppDeleteRequest,
 			UserApprovalConf:              dbPipeline.UserApprovalConf,
 			IsVirtualEnvironment:          dbPipeline.IsVirtualEnvironment,
+			ManifestStorageType:           dbPipeline.ManifestStorageType,
+			ContainerRegistryName:         dbPipeline.ContainerRegistryName,
+			RepoName:                      dbPipeline.RepoName,
 		}
 		pipelines = append(pipelines, pipeline)
 	}
@@ -4210,6 +4362,28 @@ func (impl PipelineBuilderImpl) GetCdPipelineById(pipelineId int) (cdPipeline *b
 	if err != nil {
 		return nil, err
 	}
+
+	manifestPushConfig, err := impl.manifestPushConfigRepository.GetManifestPushConfigByAppIdAndEnvId(dbPipeline.AppId, dbPipeline.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching manifest push config by appId and envId", "appId", dbPipeline.AppId, "envId", dbPipeline.EnvironmentId)
+		return nil, err
+	}
+
+	var containerRegistryName, repoName, manifestStorageType string
+	if manifestPushConfig.Id != 0 {
+		manifestStorageType = manifestPushConfig.StorageType
+		if manifestStorageType == bean.ManifestStorageOCIHelmRepo {
+			var credentialsConfig bean4.HelmRepositoryConfig
+			err = json.Unmarshal([]byte(manifestPushConfig.CredentialsConfig), &credentialsConfig)
+			if err != nil {
+				impl.logger.Errorw("error in json unmarshal", "err", err)
+				return nil, err
+			}
+			repoName = credentialsConfig.RepositoryName
+			containerRegistryName = credentialsConfig.ContainerRegistryName
+		}
+	}
+
 	cdPipeline = &bean.CDPipelineConfigObject{
 		Id:                            dbPipeline.Id,
 		Name:                          dbPipeline.Name,
@@ -4232,6 +4406,9 @@ func (impl PipelineBuilderImpl) GetCdPipelineById(pipelineId int) (cdPipeline *b
 		DeploymentAppCreated:          dbPipeline.DeploymentAppCreated,
 		UserApprovalConf:              approvalConfig,
 		IsVirtualEnvironment:          dbPipeline.Environment.IsVirtualEnvironment,
+		ContainerRegistryName:         containerRegistryName,
+		RepoName:                      repoName,
+		ManifestStorageType:           manifestStorageType,
 	}
 
 	return cdPipeline, err

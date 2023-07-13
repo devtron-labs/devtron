@@ -27,7 +27,7 @@ type ImageTaggingAction int
 
 const ActionSave ImageTaggingAction = 0
 
-//this action is only allowed for imageComments
+// this action is only allowed for imageComments
 const ActionEdit ImageTaggingAction = 1
 const ActionSoftDelete ImageTaggingAction = 2
 const ActionHardDelete ImageTaggingAction = 3
@@ -141,7 +141,7 @@ func (impl *ImageTaggingRepositoryImpl) GetImageCommentsByArtifactIds(artifactId
 	return res, err
 }
 
-//this will update the provided release tag
+// this will update the provided release tag
 func (impl *ImageTaggingRepositoryImpl) UpdateReleaseTagInBulk(tx *pg.Tx, imageTags []*ImageTag) error {
 	//currently tags are not editable, can only be soft deleted or hard delete
 	for _, imageTag := range imageTags {

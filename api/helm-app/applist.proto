@@ -35,6 +35,8 @@ service ApplicationService {
   rpc InstallReleaseWithCustomChart(HelmInstallCustomRequest) returns (HelmInstallCustomResponse) {}
   rpc GetNotes(InstallReleaseRequest) returns (ChartNotesResponse) {}
   rpc UpgradeReleaseWithCustomChart(UpgradeReleaseRequest) returns(UpgradeReleaseResponse){}
+  rpc ValidateOCIRegistry(OCIRegistryRequest) returns(OCIRegistryResponse) {}
+  rpc PushHelmChartToOCIRegistry(OCIRegistryRequest) returns(OCIRegistryResponse) {}
 }
 
 message DeployedAppList {
@@ -310,4 +312,29 @@ message ResourceTreeFilter {
 }
 message ChartNotesResponse{
   string notes = 1;
+}
+
+message OCIRegistryRequest {
+  bytes Chart = 1;
+  string ChartName = 2;
+  string ChartVersion = 3;
+  bool IsInsecure = 4;
+  string Username = 5;
+  string Password = 6;
+  string AwsRegion = 7;
+  string AccessKey = 8;
+  string SecretKey = 9;
+  string RegistryURL = 10;
+  string RepoURL = 11;
+  string RegistryType = 12;
+}
+
+message OCIRegistryResponse {
+  bool isLoggedIn = 1;
+  OCIRegistryPushResponse result = 2;
+}
+
+message OCIRegistryPushResponse {
+  string digest = 1;
+  string pushedURL = 2;
 }

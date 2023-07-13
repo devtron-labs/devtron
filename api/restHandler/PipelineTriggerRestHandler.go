@@ -401,8 +401,8 @@ func (handler PipelineTriggerRestHandlerImpl) DownloadManifest(w http.ResponseWr
 		return
 	}
 	w.WriteHeader(http.StatusOK)
-	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Write(manifestByteArr)
+	w.Header().Set("Content-Type", "application/octet-stream")
 	return
 }
 
@@ -441,6 +441,6 @@ func (handler PipelineTriggerRestHandlerImpl) DownloadManifestForSpecificTrigger
 	}
 	manifestByteArr, err := handler.appService.GetDeployedManifestByPipelineIdAndCDWorkflowId(cdWorkflowId, context.Background())
 	w.WriteHeader(http.StatusOK)
-	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Write(manifestByteArr)
+	w.Header().Set("Content-Type", "application/octet-stream")
 }

@@ -1,4 +1,4 @@
-package integrationTest
+package unitTest
 
 import (
 	"context"
@@ -7,15 +7,20 @@ import (
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	mocks3 "github.com/devtron-labs/devtron/internal/sql/repository/chartConfig/mocks"
+	repository5 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	mocks8 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry/mocks"
 	mocks5 "github.com/devtron-labs/devtron/internal/sql/repository/mocks"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
+	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	mocks2 "github.com/devtron-labs/devtron/pkg/chartRepo/repository/mocks"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	mocks4 "github.com/devtron-labs/devtron/pkg/cluster/repository/mocks"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository/mocks"
+	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
+	mocks6 "github.com/devtron-labs/devtron/pkg/pipeline/repository/mocks"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -102,7 +107,7 @@ func TestDeploymentTemplateHistoryService(t *testing.T) {
 		sugaredLogger, err := util.NewSugardLogger()
 		assert.Nil(t, err)
 
-		appServiceImpl := app.NewAppService(mockedEnvConfigOverrideRepository, nil, nil, sugaredLogger, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, mockedEnvironmentRepository, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, "", mockedChartRefRepository, nil, nil, nil, nil, nil, nil, nil, mockedDeploymentTemplateHistoryRepository, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		appServiceImpl := app.NewAppService(mockedEnvConfigOverrideRepository, nil, nil, sugaredLogger, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, mockedEnvironmentRepository, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, "", mockedChartRefRepository, nil, nil, nil, nil, nil, nil, nil, mockedDeploymentTemplateHistoryRepository, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 
 		overrideRequest := &bean.ValuesOverrideRequest{
 			PipelineId:                            1,
@@ -252,7 +257,7 @@ func TestDeploymentTemplateHistoryService(t *testing.T) {
 			nil, nil,
 			nil, nil, nil,
 			nil, nil,
-			nil, nil, nil)
+			nil, nil, nil, nil, nil, nil, nil)
 
 		envOverride, err := appServiceImpl.GetEnvOverrideByTriggerType(overrideRequest, triggeredAt, context.Background())
 		assert.Nil(t, err)
@@ -329,7 +334,7 @@ func TestDeploymentTemplateHistoryService(t *testing.T) {
 			nil, nil,
 			nil, nil, nil,
 			nil, nil,
-			nil, nil, nil)
+			nil, nil, nil, nil, nil, nil, nil)
 
 		isAppMetricsEnabled, err := appServiceImpl.GetAppMetricsByTriggerType(overrideRequest, context.Background())
 		assert.Nil(t, err)
@@ -403,7 +408,7 @@ func TestDeploymentTemplateHistoryService(t *testing.T) {
 			nil, nil,
 			nil, nil, nil,
 			nil, nil,
-			nil, nil, nil)
+			nil, nil, nil, nil, nil, nil, nil)
 
 		isAppMetricsEnabled, err := appServiceImpl.GetAppMetricsByTriggerType(overrideRequest, context.Background())
 		assert.Nil(t, err)
@@ -486,7 +491,7 @@ func TestDeploymentTemplateHistoryService(t *testing.T) {
 			nil, nil,
 			nil, nil, nil,
 			nil, nil,
-			nil, nil, nil)
+			nil, nil, nil, nil, nil, nil, nil)
 
 		isAppMetricsEnabled, err := appServiceImpl.GetAppMetricsByTriggerType(overrideRequest, context.Background())
 		assert.Nil(t, err)
@@ -567,7 +572,7 @@ func TestDeploymentTemplateHistoryService(t *testing.T) {
 			nil, nil,
 			nil, nil, nil,
 			nil, nil,
-			nil, nil, nil)
+			nil, nil, nil, nil, nil, nil, nil)
 
 		isAppMetricsEnabled, err := appServiceImpl.GetAppMetricsByTriggerType(overrideRequest, context.Background())
 		assert.Nil(t, err)
@@ -618,7 +623,7 @@ func TestDeploymentTemplateHistoryService(t *testing.T) {
 			nil, nil,
 			nil, nil, nil,
 			nil, nil,
-			nil, nil, nil)
+			nil, nil, nil, nil, nil, nil, nil)
 
 		overrideRequest := &bean.ValuesOverrideRequest{
 			PipelineId:                            1,
@@ -716,12 +721,507 @@ func TestDeploymentTemplateHistoryService(t *testing.T) {
 			nil, nil,
 			nil, nil, nil,
 			nil, nil,
-			nil, nil, nil)
+			nil, nil, nil, nil, nil, nil, nil)
 
 		strategy, err := appServiceImpl.GetDeploymentStrategyByTriggerType(overrideRequest, context.Background())
 
 		assert.Nil(t, err)
 		assert.Equal(t, string(strategy.Strategy), overrideRequest.DeploymentTemplate)
+	})
+
+	t.Run("BuildManifestPushTemplateIfStorageTypeIsHelm", func(t *testing.T) {
+
+		sugaredLogger, err := util.NewSugardLogger()
+		assert.Nil(t, err)
+
+		manifestPushConfigRepository := mocks6.NewManifestPushConfigRepository(t)
+		manifestPushConfigRepository.On("GetManifestPushConfigByAppIdAndEnvId", 1, 1).Return(&repository4.ManifestPushConfig{
+			Id:                1,
+			AppId:             1,
+			EnvId:             1,
+			CredentialsConfig: "{\"RepositoryName\":\"ayushm10/chart\",\"ContainerRegistryName\":\"sample\"}",
+			ChartName:         "test",
+			ChartBaseVersion:  "1.0.0",
+			StorageType:       "helm_repo",
+			Deleted:           false,
+			AuditLog:          sql.AuditLog{},
+		}, nil)
+		valuesOverrideRequest := bean.ValuesOverrideRequest{
+			PipelineId:                            1,
+			AppId:                                 1,
+			CiArtifactId:                          1,
+			AdditionalOverride:                    nil,
+			TargetDbVersion:                       0,
+			ForceTrigger:                          false,
+			DeploymentTemplate:                    "",
+			DeploymentWithConfig:                  "",
+			WfrIdForDeploymentWithSpecificTrigger: 1,
+			CdWorkflowType:                        "deploy",
+			WfrId:                                 1,
+			CdWorkflowId:                          1,
+			UserId:                                1,
+			DeploymentType:                        1,
+			EnvId:                                 1,
+			EnvName:                               "test",
+			ClusterId:                             0,
+			AppName:                               "test",
+			PipelineName:                          "abcdf-1",
+			DeploymentAppType:                     "manifest_push",
+		}
+		dockerArtifactStore := mocks8.NewDockerArtifactStoreRepository(t)
+		dockerArtifactStore.On("FindOne", "sample").Return(&repository5.DockerArtifactStore{
+			Id:                     "1",
+			PluginId:               "",
+			RegistryURL:            "docker.io",
+			RegistryType:           "",
+			IsOCICompliantRegistry: true,
+			AWSAccessKeyId:         "",
+			AWSSecretAccessKey:     "",
+			AWSRegion:              "",
+			Username:               "test",
+			Password:               "test",
+			IsDefault:              false,
+			Connection:             "",
+			Cert:                   "",
+			Active:                 true,
+			IpsConfig:              nil,
+			OCIRegistryConfig:      nil,
+			AuditLog:               sql.AuditLog{},
+		}, nil)
+		envConfigOverride := &chartConfig.EnvConfigOverride{
+			Id:                0,
+			ChartId:           1,
+			TargetEnvironment: 1,
+			EnvOverrideValues: "",
+			Status:            0,
+			ManualReviewed:    false,
+			Active:            false,
+			Namespace:         "",
+			Chart:             nil,
+			Environment: &repository2.Environment{
+				Id: 1,
+			},
+			Latest:            false,
+			CurrentViewEditor: "",
+			AuditLog:          sql.AuditLog{},
+		}
+		envConfigOverride.Chart = &chartRepoRepository.Chart{
+			ChartRefId: 1,
+		}
+		valuesOverrideResponse := app.ValuesOverrideResponse{
+			MergedValues:        "{\"ConfigMaps\":{\"enabled\":false},\"ConfigSecrets\":{\"enabled\":false},\"ContainerPort\":[{\"envoyPort\":8799,\"idleTimeout\":\"1800s\",\"name\":\"app\",\"port\":8080,\"servicePort\":80,\"supportStre\naming\":false,\"useHTTP2\":false}],\"EnvVariables\":[],\"GracePeriod\":30,\"LivenessProbe\":{\"Path\":\"\",\"command\":[],\"failureThreshold\":3,\"httpHeaders\":[],\"initialDelaySeconds\":20,\"periodSeconds\":10,\"port\":8080,\"sc\nheme\":\"\",\"successThreshold\":1,\"tcp\":false,\"timeoutSeconds\":5},\"MaxSurge\":1,\"MaxUnavailable\":0,\"MinReadySeconds\":60,\"ReadinessProbe\":{\"Path\":\"\",\"command\":[],\"failureThreshold\":3,\"httpHeaders\":[],\"initialDe\nlaySeconds\":20,\"periodSeconds\":10,\"port\":8080,\"scheme\":\"\",\"successThreshold\":1,\"tcp\":false,\"timeoutSeconds\":5},\"Spec\":{\"Affinity\":{\"Values\":\"nodes\",\"key\":\"\"}},\"ambassadorMapping\":{\"ambassadorId\":\"\",\"cors\"\n:{},\"enabled\":false,\"hostname\":\"devtron.example.com\",\"labels\":{},\"prefix\":\"/\",\"retryPolicy\":{},\"rewrite\":\"\",\"tls\":{\"context\":\"\",\"create\":false,\"hosts\":[],\"secretName\":\"\"}},\"app\":\"1\",\"appLabels\":{},\"appMet\nrics\":false,\"args\":{\"enabled\":false,\"value\":[\"/bin/sh\",\"-c\",\"touch /tmp/healthy; sleep 30; rm -rf /tmp/healthy; sleep 600\"]},\"autoscaling\":{\"MaxReplicas\":2,\"MinReplicas\":1,\"TargetCPUUtilizationPercentage\"\n:90,\"TargetMemoryUtilizationPercentage\":80,\"annotations\":{},\"behavior\":{},\"enabled\":false,\"extraMetrics\":[],\"labels\":{}},\"command\":{\"enabled\":false,\"value\":[],\"workingDir\":{}},\"containerSecurityContext\":{\n},\"containerSpec\":{\"lifecycle\":{\"enabled\":false,\"postStart\":{\"httpGet\":{\"host\":\"example.com\",\"path\":\"/example\",\"port\":90}},\"preStop\":{\"exec\":{\"command\":[\"sleep\",\"10\"]}}}},\"containers\":[],\"dbMigrationConfi\ng\":{\"enabled\":false},\"deployment\":{\"strategy\":{\"rolling\":{\"maxSurge\":\"25%\",\"maxUnavailable\":1}}},\"deploymentType\":\"ROLLING\",\"env\":\"1\",\"envoyproxy\":{\"configMapName\":\"\",\"image\":\"quay.io/devtron/envoy:v1.14.\n1\",\"lifecycle\":{},\"resources\":{\"limits\":{\"cpu\":\"50m\",\"memory\":\"50Mi\"},\"requests\":{\"cpu\":\"50m\",\"memory\":\"50Mi\"}}},\"hostAliases\":[],\"image\":{\"pullPolicy\":\"IfNotPresent\"},\"imagePullSecrets\":[],\"ingress\":{\"an\nnotations\":{},\"className\":\"\",\"enabled\":false,\"hosts\":[{\"host\":\"chart-example1.local\",\"pathType\":\"ImplementationSpecific\",\"paths\":[\"/example1\"]}],\"labels\":{},\"tls\":[]},\"ingressInternal\":{\"annotations\":{},\"\nclassName\":\"\",\"enabled\":false,\"hosts\":[{\"host\":\"chart-example1.internal\",\"pathType\":\"ImplementationSpecific\",\"paths\":[\"/example1\"]},{\"host\":\"chart-example2.internal\",\"pathType\":\"ImplementationSpecific\",\"p\naths\":[\"/example2\",\"/example2/healthz\"]}],\"tls\":[]},\"initContainers\":[],\"istio\":{\"enable\":false,\"gateway\":{\"annotations\":{},\"enabled\":false,\"host\":\"example.com\",\"labels\":{},\"tls\":{\"enabled\":false,\"secretN\name\":\"secret-name\"}},\"virtualService\":{\"annotations\":{},\"enabled\":false,\"gateways\":[],\"hosts\":[],\"http\":[{\"corsPolicy\":{},\"headers\":{},\"match\":[{\"uri\":{\"prefix\":\"/v1\"}},{\"uri\":{\"prefix\":\"/v2\"}}],\"retries\"\n:{\"attempts\":2,\"perTryTimeout\":\"3s\"},\"rewriteUri\":\"/\",\"route\":[{\"destination\":{\"host\":\"service1\",\"port\":80}}],\"timeout\":\"12s\"},{\"route\":[{\"destination\":{\"host\":\"service2\"}}]}],\"labels\":{}}},\"kedaAutoscali\nng\":{\"advanced\":{},\"authenticationRef\":{},\"enabled\":false,\"envSourceContainerName\":\"\",\"maxReplicaCount\":2,\"minReplicaCount\":1,\"triggerAuthentication\":{\"enabled\":false,\"name\":\"\",\"spec\":{}},\"triggers\":[]},\"\npauseForSecondsBeforeSwitchActive\":30,\"pipelineName\":\"cd-1-j2hk\",\"podAnnotations\":{},\"podLabels\":{},\"podSecurityContext\":{},\"prometheus\":{\"release\":\"monitoring\"},\"rawYaml\":[],\"releaseVersion\":\"1\",\"replica\nCount\":1,\"resources\":{\"limits\":{\"cpu\":\"0.05\",\"memory\":\"50Mi\"},\"requests\":{\"cpu\":\"0.01\",\"memory\":\"10Mi\"}},\"rolloutAnnotations\":{},\"rolloutLabels\":{},\"secret\":{\"data\":{},\"enabled\":false},\"server\":{\"deployme\nnt\":{\"image\":\"ayushm10/samplerepo\",\"image_tag\":\"042d04e7-1-1\"}},\"service\":{\"annotations\":{},\"loadBalancerSourceRanges\":[],\"type\":\"ClusterIP\"},\"serviceAccount\":{\"annotations\":{},\"create\":false,\"name\":\"\"},\"\nservicemonitor\":{\"additionalLabels\":{}},\"tolerations\":[],\"topologySpreadConstraints\":[],\"volumeMounts\":[],\"volumes\":[],\"waitForSecondsBeforeScalingDown\":30}",
+			ReleaseOverrideJSON: "",
+			EnvOverride:         envConfigOverride,
+			PipelineStrategy:    nil,
+			PipelineOverride: &chartConfig.PipelineOverride{
+				Id: 1,
+			},
+			Artifact:   nil,
+			Pipeline:   nil,
+			AppMetrics: false,
+		}
+
+		manifest := []byte{97, 32, 32}
+
+		appServiceImpl := app.NewAppService(nil,
+			nil, nil, sugaredLogger,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil, nil,
+			nil, nil, "", nil,
+			nil, nil, nil, nil,
+			nil, nil, nil,
+			nil, nil,
+			nil, nil,
+			nil, nil,
+			nil, nil, nil,
+			nil, nil,
+			nil, nil, nil, manifestPushConfigRepository, nil, nil, dockerArtifactStore)
+
+		manifestPushTemplate, err := appServiceImpl.BuildManifestPushTemplate(&valuesOverrideRequest, &valuesOverrideResponse, "tmp/1124234342", &manifest)
+		assert.Nil(t, err)
+		assert.Equal(t, manifestPushTemplate.RepoUrl, "docker.io/ayushm10")
+		assert.Equal(t, manifestPushTemplate.ChartName, "chart")
+		assert.Equal(t, manifestPushTemplate.ContainerRegistryConfig.Username, "test")
+		assert.Equal(t, manifestPushTemplate.ContainerRegistryConfig.Password, "test")
+		assert.NotNil(t, manifestPushTemplate.BuiltChartBytes)
+
+	})
+
+	t.Run("BuildManifestPushTemplateIfStorageTypeIsHelm", func(t *testing.T) {
+
+		sugaredLogger, err := util.NewSugardLogger()
+		assert.Nil(t, err)
+
+		manifestPushConfigRepository := mocks6.NewManifestPushConfigRepository(t)
+		manifestPushConfigRepository.On("GetManifestPushConfigByAppIdAndEnvId", 1, 1).Return(&repository4.ManifestPushConfig{
+			Id:                1,
+			AppId:             1,
+			EnvId:             1,
+			CredentialsConfig: "{\"RepositoryName\":\"ayushm10/chart\",\"ContainerRegistryName\":\"sample\"}",
+			ChartName:         "test",
+			ChartBaseVersion:  "1.0.0",
+			StorageType:       "helm_repo",
+			Deleted:           false,
+			AuditLog:          sql.AuditLog{},
+		}, nil)
+		valuesOverrideRequest := bean.ValuesOverrideRequest{
+			PipelineId:                            1,
+			AppId:                                 1,
+			CiArtifactId:                          1,
+			AdditionalOverride:                    nil,
+			TargetDbVersion:                       0,
+			ForceTrigger:                          false,
+			DeploymentTemplate:                    "",
+			DeploymentWithConfig:                  "",
+			WfrIdForDeploymentWithSpecificTrigger: 1,
+			CdWorkflowType:                        "deploy",
+			WfrId:                                 1,
+			CdWorkflowId:                          1,
+			UserId:                                1,
+			DeploymentType:                        1,
+			EnvId:                                 1,
+			EnvName:                               "test",
+			ClusterId:                             0,
+			AppName:                               "test",
+			PipelineName:                          "abcdf-1",
+			DeploymentAppType:                     "manifest_push",
+		}
+		dockerArtifactStore := mocks8.NewDockerArtifactStoreRepository(t)
+		dockerArtifactStore.On("FindOne", "sample").Return(&repository5.DockerArtifactStore{
+			Id:                     "1",
+			PluginId:               "",
+			RegistryURL:            "docker.io",
+			RegistryType:           "",
+			IsOCICompliantRegistry: true,
+			AWSAccessKeyId:         "",
+			AWSSecretAccessKey:     "",
+			AWSRegion:              "",
+			Username:               "test",
+			Password:               "test",
+			IsDefault:              false,
+			Connection:             "",
+			Cert:                   "",
+			Active:                 true,
+			IpsConfig:              nil,
+			OCIRegistryConfig:      nil,
+			AuditLog:               sql.AuditLog{},
+		}, nil)
+		envConfigOverride := &chartConfig.EnvConfigOverride{
+			Id:                0,
+			ChartId:           1,
+			TargetEnvironment: 1,
+			EnvOverrideValues: "",
+			Status:            0,
+			ManualReviewed:    false,
+			Active:            false,
+			Namespace:         "",
+			Chart:             nil,
+			Environment: &repository2.Environment{
+				Id: 1,
+			},
+			Latest:            false,
+			CurrentViewEditor: "",
+			AuditLog:          sql.AuditLog{},
+		}
+		envConfigOverride.Chart = &chartRepoRepository.Chart{
+			ChartRefId: 1,
+		}
+		valuesOverrideResponse := app.ValuesOverrideResponse{
+			MergedValues:        "{\"ConfigMaps\":{\"enabled\":false},\"ConfigSecrets\":{\"enabled\":false},\"ContainerPort\":[{\"envoyPort\":8799,\"idleTimeout\":\"1800s\",\"name\":\"app\",\"port\":8080,\"servicePort\":80,\"supportStre\naming\":false,\"useHTTP2\":false}],\"EnvVariables\":[],\"GracePeriod\":30,\"LivenessProbe\":{\"Path\":\"\",\"command\":[],\"failureThreshold\":3,\"httpHeaders\":[],\"initialDelaySeconds\":20,\"periodSeconds\":10,\"port\":8080,\"sc\nheme\":\"\",\"successThreshold\":1,\"tcp\":false,\"timeoutSeconds\":5},\"MaxSurge\":1,\"MaxUnavailable\":0,\"MinReadySeconds\":60,\"ReadinessProbe\":{\"Path\":\"\",\"command\":[],\"failureThreshold\":3,\"httpHeaders\":[],\"initialDe\nlaySeconds\":20,\"periodSeconds\":10,\"port\":8080,\"scheme\":\"\",\"successThreshold\":1,\"tcp\":false,\"timeoutSeconds\":5},\"Spec\":{\"Affinity\":{\"Values\":\"nodes\",\"key\":\"\"}},\"ambassadorMapping\":{\"ambassadorId\":\"\",\"cors\"\n:{},\"enabled\":false,\"hostname\":\"devtron.example.com\",\"labels\":{},\"prefix\":\"/\",\"retryPolicy\":{},\"rewrite\":\"\",\"tls\":{\"context\":\"\",\"create\":false,\"hosts\":[],\"secretName\":\"\"}},\"app\":\"1\",\"appLabels\":{},\"appMet\nrics\":false,\"args\":{\"enabled\":false,\"value\":[\"/bin/sh\",\"-c\",\"touch /tmp/healthy; sleep 30; rm -rf /tmp/healthy; sleep 600\"]},\"autoscaling\":{\"MaxReplicas\":2,\"MinReplicas\":1,\"TargetCPUUtilizationPercentage\"\n:90,\"TargetMemoryUtilizationPercentage\":80,\"annotations\":{},\"behavior\":{},\"enabled\":false,\"extraMetrics\":[],\"labels\":{}},\"command\":{\"enabled\":false,\"value\":[],\"workingDir\":{}},\"containerSecurityContext\":{\n},\"containerSpec\":{\"lifecycle\":{\"enabled\":false,\"postStart\":{\"httpGet\":{\"host\":\"example.com\",\"path\":\"/example\",\"port\":90}},\"preStop\":{\"exec\":{\"command\":[\"sleep\",\"10\"]}}}},\"containers\":[],\"dbMigrationConfi\ng\":{\"enabled\":false},\"deployment\":{\"strategy\":{\"rolling\":{\"maxSurge\":\"25%\",\"maxUnavailable\":1}}},\"deploymentType\":\"ROLLING\",\"env\":\"1\",\"envoyproxy\":{\"configMapName\":\"\",\"image\":\"quay.io/devtron/envoy:v1.14.\n1\",\"lifecycle\":{},\"resources\":{\"limits\":{\"cpu\":\"50m\",\"memory\":\"50Mi\"},\"requests\":{\"cpu\":\"50m\",\"memory\":\"50Mi\"}}},\"hostAliases\":[],\"image\":{\"pullPolicy\":\"IfNotPresent\"},\"imagePullSecrets\":[],\"ingress\":{\"an\nnotations\":{},\"className\":\"\",\"enabled\":false,\"hosts\":[{\"host\":\"chart-example1.local\",\"pathType\":\"ImplementationSpecific\",\"paths\":[\"/example1\"]}],\"labels\":{},\"tls\":[]},\"ingressInternal\":{\"annotations\":{},\"\nclassName\":\"\",\"enabled\":false,\"hosts\":[{\"host\":\"chart-example1.internal\",\"pathType\":\"ImplementationSpecific\",\"paths\":[\"/example1\"]},{\"host\":\"chart-example2.internal\",\"pathType\":\"ImplementationSpecific\",\"p\naths\":[\"/example2\",\"/example2/healthz\"]}],\"tls\":[]},\"initContainers\":[],\"istio\":{\"enable\":false,\"gateway\":{\"annotations\":{},\"enabled\":false,\"host\":\"example.com\",\"labels\":{},\"tls\":{\"enabled\":false,\"secretN\name\":\"secret-name\"}},\"virtualService\":{\"annotations\":{},\"enabled\":false,\"gateways\":[],\"hosts\":[],\"http\":[{\"corsPolicy\":{},\"headers\":{},\"match\":[{\"uri\":{\"prefix\":\"/v1\"}},{\"uri\":{\"prefix\":\"/v2\"}}],\"retries\"\n:{\"attempts\":2,\"perTryTimeout\":\"3s\"},\"rewriteUri\":\"/\",\"route\":[{\"destination\":{\"host\":\"service1\",\"port\":80}}],\"timeout\":\"12s\"},{\"route\":[{\"destination\":{\"host\":\"service2\"}}]}],\"labels\":{}}},\"kedaAutoscali\nng\":{\"advanced\":{},\"authenticationRef\":{},\"enabled\":false,\"envSourceContainerName\":\"\",\"maxReplicaCount\":2,\"minReplicaCount\":1,\"triggerAuthentication\":{\"enabled\":false,\"name\":\"\",\"spec\":{}},\"triggers\":[]},\"\npauseForSecondsBeforeSwitchActive\":30,\"pipelineName\":\"cd-1-j2hk\",\"podAnnotations\":{},\"podLabels\":{},\"podSecurityContext\":{},\"prometheus\":{\"release\":\"monitoring\"},\"rawYaml\":[],\"releaseVersion\":\"1\",\"replica\nCount\":1,\"resources\":{\"limits\":{\"cpu\":\"0.05\",\"memory\":\"50Mi\"},\"requests\":{\"cpu\":\"0.01\",\"memory\":\"10Mi\"}},\"rolloutAnnotations\":{},\"rolloutLabels\":{},\"secret\":{\"data\":{},\"enabled\":false},\"server\":{\"deployme\nnt\":{\"image\":\"ayushm10/samplerepo\",\"image_tag\":\"042d04e7-1-1\"}},\"service\":{\"annotations\":{},\"loadBalancerSourceRanges\":[],\"type\":\"ClusterIP\"},\"serviceAccount\":{\"annotations\":{},\"create\":false,\"name\":\"\"},\"\nservicemonitor\":{\"additionalLabels\":{}},\"tolerations\":[],\"topologySpreadConstraints\":[],\"volumeMounts\":[],\"volumes\":[],\"waitForSecondsBeforeScalingDown\":30}",
+			ReleaseOverrideJSON: "",
+			EnvOverride:         envConfigOverride,
+			PipelineStrategy:    nil,
+			PipelineOverride: &chartConfig.PipelineOverride{
+				Id: 1,
+			},
+			Artifact:   nil,
+			Pipeline:   nil,
+			AppMetrics: false,
+		}
+
+		manifest := []byte{97, 32, 32}
+
+		appServiceImpl := app.NewAppService(nil,
+			nil, nil, sugaredLogger,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil, nil,
+			nil, nil, "", nil,
+			nil, nil, nil, nil,
+			nil, nil, nil,
+			nil, nil,
+			nil, nil,
+			nil, nil,
+			nil, nil, nil,
+			nil, nil,
+			nil, nil, nil, manifestPushConfigRepository, nil, nil, dockerArtifactStore)
+
+		manifestPushTemplate, err := appServiceImpl.BuildManifestPushTemplate(&valuesOverrideRequest, &valuesOverrideResponse, "tmp/1124234342", &manifest)
+		assert.Nil(t, err)
+		assert.Equal(t, manifestPushTemplate.RepoUrl, "docker.io/ayushm10")
+		assert.Equal(t, manifestPushTemplate.ChartName, "chart")
+		assert.Equal(t, manifestPushTemplate.ContainerRegistryConfig.Username, "test")
+		assert.Equal(t, manifestPushTemplate.ContainerRegistryConfig.Password, "test")
+		assert.NotNil(t, manifestPushTemplate.BuiltChartBytes)
+
+	})
+
+	t.Run("BuildManifestPushTemplateIfArgocd", func(t *testing.T) {
+
+		sugaredLogger, err := util.NewSugardLogger()
+		assert.Nil(t, err)
+
+		manifestPushConfigRepository := mocks6.NewManifestPushConfigRepository(t)
+		manifestPushConfigRepository.On("GetManifestPushConfigByAppIdAndEnvId", 1, 1).Return(&repository4.ManifestPushConfig{
+			Id:                0,
+			AppId:             1,
+			EnvId:             1,
+			CredentialsConfig: "{\"RepositoryName\":\"ayushm10/chart\",\"ContainerRegistryName\":\"sample\"}",
+			ChartName:         "test",
+			ChartBaseVersion:  "1.0.0",
+			StorageType:       "git",
+			Deleted:           false,
+			AuditLog:          sql.AuditLog{},
+		}, nil)
+		valuesOverrideRequest := bean.ValuesOverrideRequest{
+			PipelineId:                            1,
+			AppId:                                 1,
+			CiArtifactId:                          1,
+			AdditionalOverride:                    nil,
+			TargetDbVersion:                       0,
+			ForceTrigger:                          false,
+			DeploymentTemplate:                    "",
+			DeploymentWithConfig:                  "",
+			WfrIdForDeploymentWithSpecificTrigger: 1,
+			CdWorkflowType:                        "deploy",
+			WfrId:                                 1,
+			CdWorkflowId:                          1,
+			UserId:                                1,
+			DeploymentType:                        1,
+			EnvId:                                 1,
+			EnvName:                               "test",
+			ClusterId:                             0,
+			AppName:                               "test",
+			PipelineName:                          "abcdf-1",
+			DeploymentAppType:                     "manifest_push",
+		}
+		envConfigOverride := &chartConfig.EnvConfigOverride{
+			Id:                0,
+			ChartId:           1,
+			TargetEnvironment: 1,
+			EnvOverrideValues: "",
+			Status:            0,
+			ManualReviewed:    false,
+			Active:            false,
+			Namespace:         "",
+			Chart:             nil,
+			Environment: &repository2.Environment{
+				Id: 1,
+			},
+			Latest:            false,
+			CurrentViewEditor: "",
+			AuditLog:          sql.AuditLog{},
+		}
+		envConfigOverride.Chart = &chartRepoRepository.Chart{
+			ChartRefId:   1,
+			ChartName:    "test",
+			ChartVersion: "4.17.0",
+			GitRepoUrl:   "https://github.com/sample/app",
+		}
+		valuesOverrideResponse := app.ValuesOverrideResponse{
+			MergedValues:        "{\"ConfigMaps\":{\"enabled\":false},\"ConfigSecrets\":{\"enabled\":false},\"ContainerPort\":[{\"envoyPort\":8799,\"idleTimeout\":\"1800s\",\"name\":\"app\",\"port\":8080,\"servicePort\":80,\"supportStre\naming\":false,\"useHTTP2\":false}],\"EnvVariables\":[],\"GracePeriod\":30,\"LivenessProbe\":{\"Path\":\"\",\"command\":[],\"failureThreshold\":3,\"httpHeaders\":[],\"initialDelaySeconds\":20,\"periodSeconds\":10,\"port\":8080,\"sc\nheme\":\"\",\"successThreshold\":1,\"tcp\":false,\"timeoutSeconds\":5},\"MaxSurge\":1,\"MaxUnavailable\":0,\"MinReadySeconds\":60,\"ReadinessProbe\":{\"Path\":\"\",\"command\":[],\"failureThreshold\":3,\"httpHeaders\":[],\"initialDe\nlaySeconds\":20,\"periodSeconds\":10,\"port\":8080,\"scheme\":\"\",\"successThreshold\":1,\"tcp\":false,\"timeoutSeconds\":5},\"Spec\":{\"Affinity\":{\"Values\":\"nodes\",\"key\":\"\"}},\"ambassadorMapping\":{\"ambassadorId\":\"\",\"cors\"\n:{},\"enabled\":false,\"hostname\":\"devtron.example.com\",\"labels\":{},\"prefix\":\"/\",\"retryPolicy\":{},\"rewrite\":\"\",\"tls\":{\"context\":\"\",\"create\":false,\"hosts\":[],\"secretName\":\"\"}},\"app\":\"1\",\"appLabels\":{},\"appMet\nrics\":false,\"args\":{\"enabled\":false,\"value\":[\"/bin/sh\",\"-c\",\"touch /tmp/healthy; sleep 30; rm -rf /tmp/healthy; sleep 600\"]},\"autoscaling\":{\"MaxReplicas\":2,\"MinReplicas\":1,\"TargetCPUUtilizationPercentage\"\n:90,\"TargetMemoryUtilizationPercentage\":80,\"annotations\":{},\"behavior\":{},\"enabled\":false,\"extraMetrics\":[],\"labels\":{}},\"command\":{\"enabled\":false,\"value\":[],\"workingDir\":{}},\"containerSecurityContext\":{\n},\"containerSpec\":{\"lifecycle\":{\"enabled\":false,\"postStart\":{\"httpGet\":{\"host\":\"example.com\",\"path\":\"/example\",\"port\":90}},\"preStop\":{\"exec\":{\"command\":[\"sleep\",\"10\"]}}}},\"containers\":[],\"dbMigrationConfi\ng\":{\"enabled\":false},\"deployment\":{\"strategy\":{\"rolling\":{\"maxSurge\":\"25%\",\"maxUnavailable\":1}}},\"deploymentType\":\"ROLLING\",\"env\":\"1\",\"envoyproxy\":{\"configMapName\":\"\",\"image\":\"quay.io/devtron/envoy:v1.14.\n1\",\"lifecycle\":{},\"resources\":{\"limits\":{\"cpu\":\"50m\",\"memory\":\"50Mi\"},\"requests\":{\"cpu\":\"50m\",\"memory\":\"50Mi\"}}},\"hostAliases\":[],\"image\":{\"pullPolicy\":\"IfNotPresent\"},\"imagePullSecrets\":[],\"ingress\":{\"an\nnotations\":{},\"className\":\"\",\"enabled\":false,\"hosts\":[{\"host\":\"chart-example1.local\",\"pathType\":\"ImplementationSpecific\",\"paths\":[\"/example1\"]}],\"labels\":{},\"tls\":[]},\"ingressInternal\":{\"annotations\":{},\"\nclassName\":\"\",\"enabled\":false,\"hosts\":[{\"host\":\"chart-example1.internal\",\"pathType\":\"ImplementationSpecific\",\"paths\":[\"/example1\"]},{\"host\":\"chart-example2.internal\",\"pathType\":\"ImplementationSpecific\",\"p\naths\":[\"/example2\",\"/example2/healthz\"]}],\"tls\":[]},\"initContainers\":[],\"istio\":{\"enable\":false,\"gateway\":{\"annotations\":{},\"enabled\":false,\"host\":\"example.com\",\"labels\":{},\"tls\":{\"enabled\":false,\"secretN\name\":\"secret-name\"}},\"virtualService\":{\"annotations\":{},\"enabled\":false,\"gateways\":[],\"hosts\":[],\"http\":[{\"corsPolicy\":{},\"headers\":{},\"match\":[{\"uri\":{\"prefix\":\"/v1\"}},{\"uri\":{\"prefix\":\"/v2\"}}],\"retries\"\n:{\"attempts\":2,\"perTryTimeout\":\"3s\"},\"rewriteUri\":\"/\",\"route\":[{\"destination\":{\"host\":\"service1\",\"port\":80}}],\"timeout\":\"12s\"},{\"route\":[{\"destination\":{\"host\":\"service2\"}}]}],\"labels\":{}}},\"kedaAutoscali\nng\":{\"advanced\":{},\"authenticationRef\":{},\"enabled\":false,\"envSourceContainerName\":\"\",\"maxReplicaCount\":2,\"minReplicaCount\":1,\"triggerAuthentication\":{\"enabled\":false,\"name\":\"\",\"spec\":{}},\"triggers\":[]},\"\npauseForSecondsBeforeSwitchActive\":30,\"pipelineName\":\"cd-1-j2hk\",\"podAnnotations\":{},\"podLabels\":{},\"podSecurityContext\":{},\"prometheus\":{\"release\":\"monitoring\"},\"rawYaml\":[],\"releaseVersion\":\"1\",\"replica\nCount\":1,\"resources\":{\"limits\":{\"cpu\":\"0.05\",\"memory\":\"50Mi\"},\"requests\":{\"cpu\":\"0.01\",\"memory\":\"10Mi\"}},\"rolloutAnnotations\":{},\"rolloutLabels\":{},\"secret\":{\"data\":{},\"enabled\":false},\"server\":{\"deployme\nnt\":{\"image\":\"ayushm10/samplerepo\",\"image_tag\":\"042d04e7-1-1\"}},\"service\":{\"annotations\":{},\"loadBalancerSourceRanges\":[],\"type\":\"ClusterIP\"},\"serviceAccount\":{\"annotations\":{},\"create\":false,\"name\":\"\"},\"\nservicemonitor\":{\"additionalLabels\":{}},\"tolerations\":[],\"topologySpreadConstraints\":[],\"volumeMounts\":[],\"volumes\":[],\"waitForSecondsBeforeScalingDown\":30}",
+			ReleaseOverrideJSON: "",
+			EnvOverride:         envConfigOverride,
+			PipelineStrategy:    nil,
+			PipelineOverride: &chartConfig.PipelineOverride{
+				Id: 1,
+			},
+			Artifact:   nil,
+			Pipeline:   nil,
+			AppMetrics: false,
+		}
+
+		manifest := []byte{97, 32, 32}
+
+		appServiceImpl := app.NewAppService(nil,
+			nil, nil, sugaredLogger,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil, nil,
+			nil, nil, "", nil,
+			nil, nil, nil, nil,
+			nil, nil, nil,
+			nil, nil,
+			nil, nil,
+			nil, nil,
+			nil, nil, nil,
+			nil, nil,
+			nil, nil, nil, manifestPushConfigRepository, nil, nil, nil)
+
+		manifestPushTemplate, err := appServiceImpl.BuildManifestPushTemplate(&valuesOverrideRequest, &valuesOverrideResponse, "tmp/1124234342", &manifest)
+		assert.Nil(t, err)
+		assert.Equal(t, manifestPushTemplate.RepoUrl, "https://github.com/sample/app")
+		assert.Equal(t, manifestPushTemplate.ChartName, "test")
+		assert.NotNil(t, manifestPushTemplate.BuiltChartPath)
+		assert.Equal(t, manifestPushTemplate.ChartReferenceTemplate, "")
+
+	})
+
+	t.Run("triggerReleaseArgoCD", func(t *testing.T) {
+		sugaredLogger, err := util.NewSugardLogger()
+		assert.Nil(t, err)
+		appServiceImpl := app.NewAppService(nil,
+			nil, nil, sugaredLogger,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil, nil,
+			nil, nil, "", nil,
+			nil, nil, nil, nil,
+			nil, nil, nil,
+			nil, nil,
+			nil, nil,
+			nil, nil,
+			nil, nil, nil,
+			nil, nil,
+			nil, nil, nil, nil, nil, nil, nil)
+		eventTime := time.Now()
+		triggerEvent := appServiceImpl.GetTriggerEvent(bean2.ArgoCd, eventTime, int32(1))
+		assert.Equal(t, triggerEvent.TriggeredBy, int32(1))
+		assert.Equal(t, triggerEvent.DeploymentAppType, bean2.ArgoCd)
+		assert.Equal(t, triggerEvent.ManifestStorageType, bean2.ManifestStorageGit)
+		assert.Equal(t, triggerEvent.PerformDeploymentOnCluster, true)
+		assert.Equal(t, triggerEvent.PerformChartPush, true)
+		assert.Equal(t, triggerEvent.TriggerdAt, eventTime)
+
+	})
+	t.Run("triggerReleaseHelm", func(t *testing.T) {
+		sugaredLogger, err := util.NewSugardLogger()
+		assert.Nil(t, err)
+		appServiceImpl := app.NewAppService(nil,
+			nil, nil, sugaredLogger,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil, nil,
+			nil, nil, "", nil,
+			nil, nil, nil, nil,
+			nil, nil, nil,
+			nil, nil,
+			nil, nil,
+			nil, nil,
+			nil, nil, nil,
+			nil, nil,
+			nil, nil, nil, nil, nil, nil, nil)
+		eventTime := time.Now()
+		triggerEvent := appServiceImpl.GetTriggerEvent(bean2.Helm, eventTime, int32(1))
+		assert.Equal(t, triggerEvent.TriggeredBy, int32(1))
+		assert.Equal(t, triggerEvent.DeploymentAppType, bean2.Helm)
+		assert.Equal(t, triggerEvent.ManifestStorageType, "")
+		assert.Equal(t, triggerEvent.PerformDeploymentOnCluster, true)
+		assert.Equal(t, triggerEvent.PerformChartPush, false)
+		assert.Equal(t, triggerEvent.TriggerdAt, eventTime)
+	})
+	t.Run("triggerReleaseManifestDownload", func(t *testing.T) {
+		sugaredLogger, err := util.NewSugardLogger()
+		assert.Nil(t, err)
+		appServiceImpl := app.NewAppService(nil,
+			nil, nil, sugaredLogger,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil, nil,
+			nil, nil, "", nil,
+			nil, nil, nil, nil,
+			nil, nil, nil,
+			nil, nil,
+			nil, nil,
+			nil, nil,
+			nil, nil, nil,
+			nil, nil,
+			nil, nil, nil, nil, nil, nil, nil)
+		eventTime := time.Now()
+		triggerEvent := appServiceImpl.GetTriggerEvent(bean2.ManifestDownload, eventTime, int32(1))
+		assert.Equal(t, triggerEvent.TriggeredBy, int32(1))
+		assert.Equal(t, triggerEvent.DeploymentAppType, bean2.ManifestDownload)
+		assert.Equal(t, triggerEvent.ManifestStorageType, "")
+		assert.Equal(t, triggerEvent.PerformDeploymentOnCluster, false)
+		assert.Equal(t, triggerEvent.PerformChartPush, false)
+		assert.Equal(t, triggerEvent.GetManifestInResponse, true)
+		assert.Equal(t, triggerEvent.TriggerdAt, eventTime)
+	})
+	t.Run("triggerReleaseManifestPush", func(t *testing.T) {
+		sugaredLogger, err := util.NewSugardLogger()
+		assert.Nil(t, err)
+		appServiceImpl := app.NewAppService(nil,
+			nil, nil, sugaredLogger,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil,
+			nil, nil, nil, nil,
+			nil, nil, "", nil,
+			nil, nil, nil, nil,
+			nil, nil, nil,
+			nil, nil,
+			nil, nil,
+			nil, nil,
+			nil, nil, nil,
+			nil, nil,
+			nil, nil, nil, nil, nil, nil, nil)
+		eventTime := time.Now()
+		triggerEvent := appServiceImpl.GetTriggerEvent(bean2.ManifestPush, eventTime, int32(1))
+		assert.Equal(t, triggerEvent.TriggeredBy, int32(1))
+		assert.Equal(t, triggerEvent.DeploymentAppType, bean2.ManifestPush)
+		assert.Equal(t, triggerEvent.ManifestStorageType, bean2.ManifestStorageOCIHelmRepo)
+		assert.Equal(t, triggerEvent.PerformDeploymentOnCluster, false)
+		assert.Equal(t, triggerEvent.PerformChartPush, true)
+		assert.Equal(t, triggerEvent.GetManifestInResponse, true)
+		assert.Equal(t, triggerEvent.TriggerdAt, eventTime)
+	})
+
+	t.Run("GetRepoPathAndChartNameFromRepoName", func(t *testing.T) {
+		repoName, chartName := app.GetRepoPathAndChartNameFromRepoName("oci://registry-1.docker.io/bitnamicharts/apache")
+		assert.Equal(t, repoName, "oci://registry-1.docker.io/bitnamicharts/")
+		assert.Equal(t, chartName, "apache")
 	})
 
 }

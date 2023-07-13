@@ -31,6 +31,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	bean4 "github.com/devtron-labs/devtron/pkg/app/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	history3 "github.com/devtron-labs/devtron/pkg/pipeline/history"
@@ -66,7 +67,7 @@ type CiCdPipelineOrchestrator interface {
 	UpdateMaterial(updateMaterialRequest *bean.UpdateMaterialDTO) (*bean.UpdateMaterialDTO, error)
 	CreateCiConf(createRequest *bean.CiConfigRequest, templateId int) (*bean.CiConfigRequest, error)
 	CreateCDPipelines(pipelineRequest *bean.CDPipelineConfigObject, appId int, userId int32, tx *pg.Tx, appName string) (pipelineId int, err error)
-	UpdateCDPipeline(pipelineRequest *bean.CDPipelineConfigObject, userId int32, tx *pg.Tx) (err error)
+	UpdateCDPipeline(pipelineRequest *bean.CDPipelineConfigObject, userId int32, tx *pg.Tx) (pipeline *pipelineConfig.Pipeline, err error)
 	DeleteCiPipeline(pipeline *pipelineConfig.CiPipeline, request *bean.CiPatchRequest, tx *pg.Tx) error
 	DeleteCdPipeline(pipelineId int, userId int32, tx *pg.Tx) error
 	PatchMaterialValue(createRequest *bean.CiPipeline, userId int32, oldPipeline *pipelineConfig.CiPipeline) (*bean.CiPipeline, error)
@@ -107,6 +108,7 @@ type CiCdPipelineOrchestratorImpl struct {
 	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository
 	PipelineOverrideRepository    chartConfig.PipelineOverrideRepository
 	CiArtifactRepository          repository.CiArtifactRepository
+	manifestPushConfigRepository  repository5.ManifestPushConfigRepository
 }
 
 func NewCiCdPipelineOrchestrator(
@@ -132,7 +134,8 @@ func NewCiCdPipelineOrchestrator(
 	ciTemplateService CiTemplateService,
 	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository,
 	PipelineOverrideRepository chartConfig.PipelineOverrideRepository,
-	CiArtifactRepository repository.CiArtifactRepository) *CiCdPipelineOrchestratorImpl {
+	CiArtifactRepository repository.CiArtifactRepository,
+	manifestPushConfigRepository repository5.ManifestPushConfigRepository) *CiCdPipelineOrchestratorImpl {
 	return &CiCdPipelineOrchestratorImpl{
 		appRepository:                 pipelineGroupRepository,
 		logger:                        logger,
@@ -158,6 +161,7 @@ func NewCiCdPipelineOrchestrator(
 		dockerArtifactStoreRepository: dockerArtifactStoreRepository,
 		PipelineOverrideRepository:    PipelineOverrideRepository,
 		CiArtifactRepository:          CiArtifactRepository,
+		manifestPushConfigRepository:  manifestPushConfigRepository,
 	}
 }
 
@@ -1237,14 +1241,14 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCDPipelines(pipelineRequest *bean
 	return pipeline.Id, nil
 }
 
-func (impl CiCdPipelineOrchestratorImpl) UpdateCDPipeline(pipelineRequest *bean.CDPipelineConfigObject, userId int32, tx *pg.Tx) (err error) {
-	pipeline, err := impl.pipelineRepository.FindById(pipelineRequest.Id)
+func (impl CiCdPipelineOrchestratorImpl) UpdateCDPipeline(pipelineRequest *bean.CDPipelineConfigObject, userId int32, tx *pg.Tx) (pipeline *pipelineConfig.Pipeline, err error) {
+	pipeline, err = impl.pipelineRepository.FindById(pipelineRequest.Id)
 	if err == pg.ErrNoRows {
-		return fmt.Errorf("no cd pipeline found")
+		return pipeline, fmt.Errorf("no cd pipeline found")
 	} else if err != nil {
-		return err
+		return pipeline, err
 	} else if pipeline.Id == 0 {
-		return fmt.Errorf("no cd pipeline found")
+		return pipeline, fmt.Errorf("no cd pipeline found")
 	}
 	preStageConfig := ""
 	preTriggerType := pipelineConfig.TriggerType("")
@@ -1263,13 +1267,13 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateCDPipeline(pipelineRequest *bean.
 	preStageConfigMapSecretNames, err := json.Marshal(&pipelineRequest.PreStageConfigMapSecretNames)
 	if err != nil {
 		impl.logger.Error(err)
-		return err
+		return pipeline, err
 	}
 
 	postStageConfigMapSecretNames, err := json.Marshal(&pipelineRequest.PostStageConfigMapSecretNames)
 	if err != nil {
 		impl.logger.Error(err)
-		return err
+		return pipeline, err
 	}
 
 	pipeline.TriggerType = pipelineRequest.TriggerType
@@ -1285,7 +1289,7 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateCDPipeline(pipelineRequest *bean.
 		userApprovalConf, err := json.Marshal(pipelineRequest.UserApprovalConf)
 		if err != nil {
 			impl.logger.Error("error occurred while marshalling user approval conf", "pipeline", pipeline, "err", err)
-			return err
+			return pipeline, err
 		}
 		pipeline.UserApprovalConfig = string(userApprovalConf)
 	} else {
@@ -1296,23 +1300,23 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateCDPipeline(pipelineRequest *bean.
 	err = impl.pipelineRepository.Update(pipeline, tx)
 	if err != nil {
 		impl.logger.Errorw("error in updating cd pipeline", "err", err, "pipeline", pipeline)
-		return err
+		return pipeline, err
 	}
 	if pipeline.PreStageConfig != "" {
 		err = impl.prePostCdScriptHistoryService.CreatePrePostCdScriptHistory(pipeline, tx, repository4.PRE_CD_TYPE, false, 0, time.Time{})
 		if err != nil {
 			impl.logger.Errorw("error in creating pre cd script entry", "err", err, "pipeline", pipeline)
-			return err
+			return pipeline, err
 		}
 	}
 	if pipeline.PostStageConfig != "" {
 		err = impl.prePostCdScriptHistoryService.CreatePrePostCdScriptHistory(pipeline, tx, repository4.POST_CD_TYPE, false, 0, time.Time{})
 		if err != nil {
 			impl.logger.Errorw("error in creating post cd script entry", "err", err, "pipeline", pipeline)
-			return err
+			return pipeline, err
 		}
 	}
-	return err
+	return pipeline, err
 }
 
 func (impl CiCdPipelineOrchestratorImpl) DeleteCdPipeline(pipelineId int, userId int32, tx *pg.Tx) error {
@@ -1381,6 +1385,11 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 			impl.logger.Errorw("error in getting ci artifact by id", "err", err)
 		}
 
+		manifestPushConfig, err := impl.manifestPushConfigRepository.GetManifestPushConfigByAppIdAndEnvId(appId, dbPipeline.EnvironmentId)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in fetching manifest push config from db", "err", err)
+		}
+
 		var helmPackageName string
 		if len(artifact.Image) > 0 {
 			imageTag := strings.Split(artifact.Image, ":")[1]
@@ -1406,6 +1415,16 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 			UserApprovalConf:              approvalConfig,
 			IsVirtualEnvironment:          dbPipeline.Environment.IsVirtualEnvironment,
 			HelmPackageName:               helmPackageName,
+			ManifestStorageType:           manifestPushConfig.StorageType,
+		}
+		if manifestPushConfig.StorageType == bean.ManifestStorageOCIHelmRepo {
+			var credentialsConfig bean4.HelmRepositoryConfig
+			err = json.Unmarshal([]byte(manifestPushConfig.CredentialsConfig), &credentialsConfig)
+			if err != nil {
+				impl.logger.Errorw("error in json unmarshal", "err", err)
+			}
+			pipeline.RepoName = credentialsConfig.RepositoryName
+			pipeline.ContainerRegistryName = credentialsConfig.ContainerRegistryName
 		}
 		pipelines = append(pipelines, pipeline)
 	}
@@ -1575,6 +1594,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForAppAndEnv(appId int, e
 			impl.logger.Error(err)
 			return nil, err
 		}
+
 		pipeline := &bean.CDPipelineConfigObject{
 			Id:                            dbPipeline.Id,
 			Name:                          dbPipeline.Name,
