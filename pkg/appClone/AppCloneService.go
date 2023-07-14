@@ -680,6 +680,7 @@ func (impl *AppCloneServiceImpl) createWfMappings(refWfMappings []appWorkflow.Ap
 		}
 		ci, err = impl.CreateCiPipeline(cloneCiPipelineRequest)
 		if err != nil {
+			impl.logger.Errorw("error in creating ci pipeline, app clone", "err", err)
 			return err
 		}
 		impl.logger.Debugw("ci created", "ci", ci)
