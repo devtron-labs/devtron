@@ -69,7 +69,7 @@ type CdWorkflowRepository interface {
 
 	FetchArtifactsByCdPipelineId(pipelineId int, runnerType bean.WorkflowType, offset, limit int) ([]CdWorkflowRunner, error)
 
-	GetLatestTriggersOfHelmPipelinesStuckInNonTerminalStatuses() ([]*CdWorkflowRunner, error)
+	GetLatestTriggersOfHelmPipelinesStuckInNonTerminalStatuses(getPipelineDeployedWithinHours int) ([]*CdWorkflowRunner, error)
 }
 
 type CdWorkflowRepositoryImpl struct {
@@ -575,11 +575,11 @@ func (impl *CdWorkflowRepositoryImpl) FetchArtifactsByCdPipelineId(pipelineId in
 	return wfrList, err
 }
 
-func (impl *CdWorkflowRepositoryImpl) GetLatestTriggersOfHelmPipelinesStuckInNonTerminalStatuses() ([]*CdWorkflowRunner, error) {
+func (impl *CdWorkflowRepositoryImpl) GetLatestTriggersOfHelmPipelinesStuckInNonTerminalStatuses(getPipelineDeployedWithinHours int) ([]*CdWorkflowRunner, error) {
 	var wfrList []*CdWorkflowRunner
 	err := impl.dbConnection.
 		Model(&wfrList).
-		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline", "CdWorkflow.Pipeline.Environment").
+		Column("cd_workflow_runner.*", "CdWorkflow.Id", "CdWorkflow.PipelineId", "CdWorkflow.Pipeline.Id", "CdWorkflow.Pipeline.DeploymentAppName", "CdWorkflow.Pipeline.DeploymentAppType", "CdWorkflow.Pipeline.Deleted", "CdWorkflow.Pipeline.Environment").
 		Join("inner join cd_workflow wf on wf.id = cd_workflow_runner.cd_workflow_id").
 		Join("inner join pipeline p on p.id = wf.pipeline_id").
 		Join("inner join environment e on e.id = p.environment_id").
@@ -587,6 +587,7 @@ func (impl *CdWorkflowRepositoryImpl) GetLatestTriggersOfHelmPipelinesStuckInNon
 		Where("cd_workflow_runner.status not in (?)", pg.In([]string{WorkflowAborted, WorkflowFailed, WorkflowSucceeded, application.HIBERNATING, string(health.HealthStatusHealthy), string(health.HealthStatusDegraded)})).
 		Where("cd_workflow_runner.cd_workflow_id in (select DISTINCT ON (pipeline_id) max(id) as id from cd_workflow group by pipeline_id, id order by pipeline_id, id desc)").
 		Where("p.deployment_app_type = ?", util.PIPELINE_DEPLOYMENT_TYPE_HELM).
+		Where("cd_workflow_runner.started_on > NOW() - INTERVAL ? hours", getPipelineDeployedWithinHours).
 		Where("p.deleted=?", false).
 		Order("cd_workflow_runner.id DESC").
 		Select()
