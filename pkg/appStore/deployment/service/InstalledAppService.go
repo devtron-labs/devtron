@@ -44,6 +44,7 @@ import (
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/tidwall/gjson"
 	"net/http"
 	"regexp"
@@ -126,6 +127,7 @@ type InstalledAppServiceImpl struct {
 	K8sUtil                              *util.K8sUtil
 	pipelineStatusTimelineService        status.PipelineStatusTimelineService
 	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
+	k8sApplicationService                k8s.K8sApplicationService
 }
 
 func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
@@ -150,7 +152,8 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	appStatusService appStatus.AppStatusService, K8sUtil *util.K8sUtil,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
 	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
-	appStoreDeploymentArgoCdService appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService) (*InstalledAppServiceImpl, error) {
+	appStoreDeploymentArgoCdService appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService,
+	k8sApplicationService k8s.K8sApplicationService) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -183,6 +186,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		K8sUtil:                              K8sUtil,
 		pipelineStatusTimelineService:        pipelineStatusTimelineService,
 		appStoreDeploymentCommonService:      appStoreDeploymentCommonService,
+		k8sApplicationService:                k8sApplicationService,
 	}
 	err := impl.Subscribe()
 	if err != nil {
@@ -1091,6 +1095,12 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 			resourceTreeAndNotesContainer.Notes = detail.ChartMetadata.Notes
 			impl.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", installedApp.App.AppName, "env", installedApp.Environment.Name)
 		}
+	}
+	version, err := impl.k8sApplicationService.GetK8sServerVersion(installedApp.Environment.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching k8s version in resource tree call fetching", "clusterId", installedApp.Environment.ClusterId, "err", err)
+	} else {
+		resourceTree["serverVersion"] = version.String()
 	}
 	resourceTreeAndNotesContainer.ResourceTree = resourceTree
 	return err
