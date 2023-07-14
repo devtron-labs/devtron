@@ -93,7 +93,7 @@ func (handler *GlobalPluginRestHandlerImpl) ListAllPlugins(w http.ResponseWriter
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	var plugins []*plugin.PluginMetadataDto
+	var plugins []*plugin.PluginListComponentDto
 	if stageType == repository.CD_STAGE_TYPE {
 		plugins, err = handler.globalPluginService.ListAllPlugins(repository.CD)
 		if err != nil {
