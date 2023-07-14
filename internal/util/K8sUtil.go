@@ -818,7 +818,7 @@ func (impl K8sUtil) GetKubeVersion() (*version.Info, error) {
 }
 
 func (impl K8sUtil) K8sServerVersionCheckForEphemeralContainers(clientSet *kubernetes.Clientset) (bool, error) {
-	k8sServerVersion, err := clientSet.DiscoveryClient.ServerVersion()
+	k8sServerVersion, err := impl.GetK8sServerVersion(clientSet)
 	if err != nil {
 		impl.logger.Errorw("error occurred in getting k8sServerVersion", "err", err)
 		return false, err
@@ -839,4 +839,13 @@ func (impl K8sUtil) K8sServerVersionCheckForEphemeralContainers(clientSet *kuber
 		return false, nil
 	}
 	return true, nil
+}
+
+func (impl K8sUtil) GetK8sServerVersion(clientSet *kubernetes.Clientset) (*version.Info, error) {
+	k8sServerVersion, err := clientSet.DiscoveryClient.ServerVersion()
+	if err != nil {
+		impl.logger.Errorw("error occurred in getting k8sServerVersion", "err", err)
+		return nil, err
+	}
+	return k8sServerVersion, nil
 }

@@ -1585,6 +1585,12 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 	} else {
 		handler.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", cdPipeline.DeploymentAppName, "env", cdPipeline.Environment.Name)
 	}
+	version, err := handler.k8sApplicationService.GetK8sServerVersion(cdPipeline.Environment.ClusterId)
+	if err != nil {
+		handler.logger.Errorw("error in fetching k8s version in resource tree call fetching", "clusterId", cdPipeline.Environment.ClusterId, "err", err)
+	} else {
+		resourceTree["serverVersion"] = version.String()
+	}
 	return resourceTree, nil
 }
 

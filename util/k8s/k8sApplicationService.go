@@ -11,6 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
+	"k8s.io/apimachinery/pkg/version"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"net/http"
 	"strconv"
@@ -77,6 +78,7 @@ type K8sApplicationService interface {
 	CreatePodEphemeralContainers(req *cluster.EphemeralContainerRequest) error
 	TerminatePodEphemeralContainer(req cluster.EphemeralContainerRequest) (bool, error)
 	GetPodContainersList(clusterId int, namespace, podName string) (*PodContainerList, error)
+	GetK8sServerVersion(clusterId int) (*version.Info, error)
 }
 type K8sApplicationServiceImpl struct {
 	logger                      *zap.SugaredLogger
@@ -1249,7 +1251,7 @@ func (impl *K8sApplicationServiceImpl) generateDebugContainer(pod *corev1.Pod, r
 				Stdin:                    true,
 				TerminationMessagePolicy: corev1.TerminationMessageReadFile,
 				TTY:                      true,
-				Command:                  []string{"bin/sh"},
+				Command:                  []string{"sh"},
 			},
 			TargetContainerName: req.BasicData.TargetContainerName,
 		}
@@ -1358,4 +1360,18 @@ func (impl *K8sApplicationServiceImpl) GetPodContainersList(clusterId int, names
 		EphemeralContainers: ephemeralContainers,
 		InitContainers:      initContainers,
 	}, nil
+}
+
+func (impl *K8sApplicationServiceImpl) GetK8sServerVersion(clusterId int) (*version.Info, error) {
+	clientSet, _, err := impl.getCoreClientByClusterId(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting coreV1 client by clusterId", "clusterId", clusterId, "err", err)
+		return nil, err
+	}
+	k8sVersion, err := impl.K8sUtil.GetK8sServerVersion(clientSet)
+	if err != nil {
+		impl.logger.Errorw("error in getting k8s server version", "clusterId", clusterId, "err", err)
+		return nil, err
+	}
+	return k8sVersion, err
 }
