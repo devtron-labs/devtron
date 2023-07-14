@@ -876,34 +876,60 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 	if strings.HasPrefix(pipelineName, req.refAppName) {
 		pipelineName = strings.Replace(pipelineName, req.refAppName+"-", "", 1)
 	}
-	if refCdPipeline.ParentPipelineType == "WEBHOOK" {
-		cdPipeline := &bean.CDPipelineConfigObject{
-			Id:                            0,
-			EnvironmentId:                 refCdPipeline.EnvironmentId,
-			CiPipelineId:                  0,
-			TriggerType:                   refCdPipeline.TriggerType,
-			Name:                          pipelineName,
-			Strategies:                    refCdPipeline.Strategies,
-			Namespace:                     refCdPipeline.Namespace,
-			AppWorkflowId:                 0,
-			DeploymentTemplate:            refCdPipeline.DeploymentTemplate,
-			PreStage:                      refCdPipeline.PreStage, //FIXME
-			PostStage:                     refCdPipeline.PostStage,
-			PreStageConfigMapSecretNames:  refCdPipeline.PreStageConfigMapSecretNames,
-			PostStageConfigMapSecretNames: refCdPipeline.PostStageConfigMapSecretNames,
-			RunPostStageInEnv:             refCdPipeline.RunPostStageInEnv,
-			RunPreStageInEnv:              refCdPipeline.RunPreStageInEnv,
-			DeploymentAppType:             refCdPipeline.DeploymentAppType,
-			ParentPipelineId:              0,
-			ParentPipelineType:            refCdPipeline.ParentPipelineType,
+	// by default all deployment types are allowed
+	AllowedDeploymentAppTypes := map[string]bool{
+		util.PIPELINE_DEPLOYMENT_TYPE_ACD:  true,
+		util.PIPELINE_DEPLOYMENT_TYPE_HELM: true,
+	}
+	DeploymentAppConfigForEnvironment, err := impl.pipelineBuilder.GetDeploymentConfigMap(refCdPipeline.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching deployment config for environment", "err", err)
+	}
+	for deploymentType, allowed := range DeploymentAppConfigForEnvironment {
+		AllowedDeploymentAppTypes[deploymentType] = allowed
+	}
+	isGitopsConfigured, err := impl.pipelineBuilder.IsGitopsConfigured()
+	if err != nil {
+		impl.logger.Errorw("error in checking if gitOps configured", "err", err)
+		return nil, err
+	}
+	var deploymentAppType string
+	if AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_ACD] && AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_HELM] {
+		deploymentAppType = refCdPipeline.DeploymentAppType
+	} else if AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_ACD] && isGitopsConfigured {
+		deploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
+	} else if AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_HELM] {
+		deploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
+
+		if refCdPipeline.ParentPipelineType == "WEBHOOK" {
+			cdPipeline := &bean.CDPipelineConfigObject{
+				Id:                            0,
+				EnvironmentId:                 refCdPipeline.EnvironmentId,
+				CiPipelineId:                  0,
+				TriggerType:                   refCdPipeline.TriggerType,
+				Name:                          pipelineName,
+				Strategies:                    refCdPipeline.Strategies,
+				Namespace:                     refCdPipeline.Namespace,
+				AppWorkflowId:                 0,
+				DeploymentTemplate:            refCdPipeline.DeploymentTemplate,
+				PreStage:                      refCdPipeline.PreStage, //FIXME
+				PostStage:                     refCdPipeline.PostStage,
+				PreStageConfigMapSecretNames:  refCdPipeline.PreStageConfigMapSecretNames,
+				PostStageConfigMapSecretNames: refCdPipeline.PostStageConfigMapSecretNames,
+				RunPostStageInEnv:             refCdPipeline.RunPostStageInEnv,
+				RunPreStageInEnv:              refCdPipeline.RunPreStageInEnv,
+				DeploymentAppType:             refCdPipeline.DeploymentAppType,
+				ParentPipelineId:              0,
+				ParentPipelineType:            refCdPipeline.ParentPipelineType,
+			}
+			cdPipelineReq := &bean.CdPipelines{
+				Pipelines: []*bean.CDPipelineConfigObject{cdPipeline},
+				AppId:     req.appId,
+				UserId:    req.userId,
+			}
+			cdPipelineRes, err := impl.pipelineBuilder.CreateCdPipelines(cdPipelineReq, ctx)
+			return cdPipelineRes, err
 		}
-		cdPipelineReq := &bean.CdPipelines{
-			Pipelines: []*bean.CDPipelineConfigObject{cdPipeline},
-			AppId:     req.appId,
-			UserId:    req.userId,
-		}
-		cdPipelineRes, err := impl.pipelineBuilder.CreateCdPipelines(cdPipelineReq, ctx)
-		return cdPipelineRes, err
 	}
 	cdPipeline := &bean.CDPipelineConfigObject{
 		Id:                            0,
@@ -921,7 +947,7 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 		PostStageConfigMapSecretNames: refCdPipeline.PostStageConfigMapSecretNames,
 		RunPostStageInEnv:             refCdPipeline.RunPostStageInEnv,
 		RunPreStageInEnv:              refCdPipeline.RunPreStageInEnv,
-		DeploymentAppType:             refCdPipeline.DeploymentAppType,
+		DeploymentAppType:             deploymentAppType,
 	}
 	cdPipelineReq := &bean.CdPipelines{
 		Pipelines: []*bean.CDPipelineConfigObject{cdPipeline},
@@ -930,4 +956,6 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 	}
 	cdPipelineRes, err := impl.pipelineBuilder.CreateCdPipelines(cdPipelineReq, ctx)
 	return cdPipelineRes, err
+
 }
+
