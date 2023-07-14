@@ -598,6 +598,7 @@ func (impl *AppCloneServiceImpl) CreateWf(oldAppId, newAppId int, userId int32, 
 			thisWf, err = impl.appWorkflowService.CreateAppWorkflow(thisWf)
 			impl.logger.Debugw("workflow found", thisWf)
 			if err != nil {
+				impl.logger.Debugw("Err", err)
 				return nil, err
 			}
 		}
@@ -694,6 +695,7 @@ func (impl *AppCloneServiceImpl) createWfMappings(refWfMappings []appWorkflow.Ap
 			}
 			pipeline, err := impl.CreateCdPipeline(cdCloneReq, ctx)
 			if err != nil {
+				impl.logger.Debugw("Error", err)
 				return err
 			}
 			impl.logger.Debugw("cd pipeline created", "pipeline", pipeline)
