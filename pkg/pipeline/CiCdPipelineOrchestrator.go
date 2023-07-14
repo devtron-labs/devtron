@@ -611,7 +611,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 				return nil, err
 			}
 
-			if ciPipeline.EnvironmentId != 0 {
+			if ciPipeline.EnvironmentId != 0 && !createRequest.IsCloneJob {
 				createJobEnvOverrideRequest := &CreateJobEnvOverridePayload{
 					AppId:  createRequest.AppId,
 					EnvId:  ciPipeline.EnvironmentId,

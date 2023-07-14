@@ -779,6 +779,7 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 				Action:        bean.CREATE,
 				AppWorkflowId: req.wfId,
 				UserId:        req.userId,
+				IsCloneJob:    true,
 			}
 			if refCiPipeline.EnvironmentId != 0 {
 				ciPatchReq.IsJob = true
