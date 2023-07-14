@@ -2,7 +2,6 @@ package pipeline
 
 import (
 	"fmt"
-	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -15,7 +14,6 @@ import (
 	app2 "github.com/devtron-labs/devtron/pkg/app"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
-	"github.com/go-pg/pg"
 	"log"
 
 	"github.com/devtron-labs/devtron/pkg/attributes"
@@ -26,38 +24,10 @@ import (
 	"testing"
 )
 
-type Config struct {
-	Addr     string `env:"TEST_PG_ADDR" envDefault:"127.0.0.1"`
-	Port     string `env:"TEST_PG_PORT" envDefault:"5432"`
-	User     string `env:"TEST_PG_USER" envDefault:"postgres"`
-	Password string `env:"TEST_PG_PASSWORD" envDefault:"pass" secretData:"-"`
-	Database string `env:"TEST_PG_DATABASE" envDefault:"orchestrator"`
-	LogQuery bool   `env:"TEST_PG_LOG_QUERY" envDefault:"true"`
-}
-
 var (
-	db                       *pg.DB
 	ciCdPipelineOrchestrator *CiCdPipelineOrchestratorImpl
 )
 
-func getDbConn() (*pg.DB, error) {
-	if db != nil {
-		return db, nil
-	}
-	cfg := Config{}
-	err := env.Parse(&cfg)
-	if err != nil {
-		return nil, err
-	}
-	options := pg.Options{
-		Addr:     cfg.Addr + ":" + cfg.Port,
-		User:     cfg.User,
-		Password: cfg.Password,
-		Database: cfg.Database,
-	}
-	db = pg.Connect(&options)
-	return db, nil
-}
 func TestCiCdPipelineOrchestratorImpl_CreateCiConf(t *testing.T) {
 	t.SkipNow()
 	InitClusterNoteService()
