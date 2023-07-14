@@ -1277,6 +1277,7 @@ func (impl *K8sApplicationServiceImpl) TerminatePodEphemeralContainer(req cluste
 		Namespace:     req.Namespace,
 		ContainerName: req.BasicData.ContainerName,
 	}
+	//TODO: revisit this
 	cmds := []string{"sh", "-c", "kill 1"}
 	_, errBuf, err := impl.terminalSession.RunCmdInRemotePod(terminalReq, cmds)
 	if err != nil {

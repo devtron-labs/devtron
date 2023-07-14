@@ -866,12 +866,12 @@ func (handler *K8sApplicationRestHandlerImpl) CreateEphemeralContainer(w http.Re
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	podContainerList, err := handler.k8sApplicationService.GetPodContainersList(request.ClusterId, request.Namespace, request.PodName)
-	if err != nil {
-		handler.logger.Errorw("error in fetching containers list", "clusterId", request.ClusterId, "namespace", request.Namespace, "podName", request.PodName, "error", err)
-		//not returning error since,we successfully created the ephemeral container
-	}
-	common.WriteJsonResp(w, err, podContainerList, http.StatusOK)
+	//podContainerList, err := handler.k8sApplicationService.GetPodContainersList(request.ClusterId, request.Namespace, request.PodName)
+	//if err != nil {
+	//	handler.logger.Errorw("error in fetching containers list", "clusterId", request.ClusterId, "namespace", request.Namespace, "podName", request.PodName, "error", err)
+	//	//not returning error since,we successfully created the ephemeral container
+	//}
+	common.WriteJsonResp(w, err, request.BasicData.ContainerName, http.StatusOK)
 }
 
 func (handler *K8sApplicationRestHandlerImpl) DeleteEphemeralContainer(w http.ResponseWriter, r *http.Request) {
@@ -910,12 +910,12 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteEphemeralContainer(w http.Re
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	podContainerList, err := handler.k8sApplicationService.GetPodContainersList(request.ClusterId, request.Namespace, request.PodName)
-	if err != nil {
-		handler.logger.Errorw("error in fetching containers list", "clusterId", request.ClusterId, "namespace", request.Namespace, "podName", request.PodName, "error", err)
-		//not returning error since,we successfully created the ephemeral container
-	}
-	common.WriteJsonResp(w, err, podContainerList, http.StatusOK)
+	//podContainerList, err := handler.k8sApplicationService.GetPodContainersList(request.ClusterId, request.Namespace, request.PodName)
+	//if err != nil {
+	//	handler.logger.Errorw("error in fetching containers list", "clusterId", request.ClusterId, "namespace", request.Namespace, "podName", request.PodName, "error", err)
+	//	//not returning error since,we successfully created the ephemeral container
+	//}
+	common.WriteJsonResp(w, err, request.BasicData.ContainerName, http.StatusOK)
 
 }
 
