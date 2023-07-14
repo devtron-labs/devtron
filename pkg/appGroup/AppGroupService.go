@@ -36,6 +36,7 @@ type AppGroupService interface {
 	GetAppIdsByAppGroupId(appGroupId int) ([]int, error)
 	CreateAppGroup(request *AppGroupDto) (*AppGroupDto, error)
 	UpdateAppGroup(request *AppGroupDto) (*AppGroupDto, error)
+	CheckAppGroupPermissions(request *AppGroupDto) (bool, error)
 	DeleteAppGroup(appGroupId int, emailId string, checkAuthBatch func(emailId string, appObject []string, action string) map[string]bool) (bool, error)
 }
 type AppGroupServiceImpl struct {
@@ -399,6 +400,27 @@ func (impl *AppGroupServiceImpl) DeleteAppGroup(appGroupId int, emailId string, 
 	if err != nil {
 		return false, err
 	}
+	return true, nil
+}
+
+func (impl *AppGroupServiceImpl) CheckAppGroupPermissions(request *AppGroupDto) (bool, error) {
+	// authorization starts
+	appIdsForAuthorization := make(map[int]int)
+	for _, appId := range request.AppIds {
+		appIdsForAuthorization[appId] = appId
+	}
+	unauthorizedApps, err := impl.checkAuthForApps(appIdsForAuthorization, request.EmailId, request.CheckAuthBatch, casbin.ActionCreate)
+	if err != nil {
+		return false, err
+	}
+	if len(unauthorizedApps) > 0 {
+		userMessage := make(map[string]interface{})
+		userMessage["message"] = "unauthorized for few requested apps"
+		userMessage["unauthorizedApps"] = unauthorizedApps
+		err = &util.ApiError{Code: "403", HttpStatusCode: 403, UserMessage: userMessage}
+		return false, err
+	}
+	// authorization ends
 	return true, nil
 }
 

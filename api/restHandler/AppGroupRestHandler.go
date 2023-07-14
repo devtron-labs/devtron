@@ -38,6 +38,7 @@ type AppGroupRestHandler interface {
 	CreateAppGroup(w http.ResponseWriter, r *http.Request)
 	UpdateAppGroup(w http.ResponseWriter, r *http.Request)
 	DeleteAppGroup(w http.ResponseWriter, r *http.Request)
+	CheckAppGroupPermissions(w http.ResponseWriter, r *http.Request)
 }
 
 type AppGroupRestHandlerImpl struct {
@@ -163,7 +164,6 @@ func (handler AppGroupRestHandlerImpl) CreateAppGroup(w http.ResponseWriter, r *
 	}
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
-
 func (handler AppGroupRestHandlerImpl) UpdateAppGroup(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -224,6 +224,51 @@ func (handler AppGroupRestHandlerImpl) DeleteAppGroup(w http.ResponseWriter, r *
 	resp, err := handler.appGroupService.DeleteAppGroup(appGroupId, emailId, handler.checkAuthBatch)
 	if err != nil {
 		handler.logger.Errorw("service err, DeleteAppGroup", "err", err, "appGroupId", appGroupId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+}
+func (handler AppGroupRestHandlerImpl) CheckAppGroupPermissions(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	decoder := json.NewDecoder(r.Body)
+	var request appGroup.AppGroupDto
+	err = decoder.Decode(&request)
+	if err != nil {
+		handler.logger.Errorw("request err, CreateAppGroup", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	request.UserId = userId
+	user, err := handler.userService.GetById(userId)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	emailId := strings.ToLower(user.EmailId)
+	vars := mux.Vars(r)
+	envId, err := strconv.Atoi(vars["envId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	request.EnvironmentId = envId
+	err = handler.validator.Struct(request)
+	if err != nil {
+		handler.logger.Errorw("validation error", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	handler.logger.Infow("request payload, CreateAppGroup", "payload", request)
+	request.CheckAuthBatch = handler.checkAuthBatch
+	request.EmailId = emailId
+	resp, err := handler.appGroupService.CheckAppGroupPermissions(&request)
+	if err != nil {
+		handler.logger.Errorw("service err", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
