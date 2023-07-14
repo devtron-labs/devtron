@@ -586,12 +586,26 @@ func (impl *AppCloneServiceImpl) CreateWf(oldAppId, newAppId int, userId int32, 
 			AppWorkflowMappingDto: nil, //first create new mapping then add it
 			UserId:                userId,
 		}
-		thisWf, err := impl.appWorkflowService.CreateAppWorkflow(thisWf)
-		if err != nil {
-			return nil, err
+
+		isExternalCiPresent := false
+		for _, awm := range refAppWF.AppWorkflowMappingDto {
+			if awm.Type == appWorkflow2.WEBHOOK {
+				isExternalCiPresent = true
+			}
 		}
+
+		if !isExternalCiPresent {
+			thisWf, err = impl.appWorkflowService.CreateAppWorkflow(thisWf)
+			impl.logger.Debugw("workflow found", thisWf)
+			if err != nil {
+				impl.logger.Errorw("errir in creating workflow without extenal-ci", "err", err)
+				return nil, err
+			}
+		}
+
 		err = impl.createWfMappings(refAppWF.AppWorkflowMappingDto, oldAppId, newAppId, userId, thisWf.Id, gitMaterialMapping, ctx, isSameProject)
 		if err != nil {
+			impl.logger.Errorw("error in creating workflow mapping", "err", err)
 			return nil, err
 		}
 	}
@@ -614,10 +628,32 @@ func (impl *AppCloneServiceImpl) createWfMappings(refWfMappings []appWorkflow.Ap
 			return fmt.Errorf("unsupported wf type: %s", appWf.Type)
 		}
 	}
+	refApp, err := impl.pipelineBuilder.GetApp(oldAppId)
 	if len(webhookMappings) > 0 {
-		impl.logger.Warn("external ci webhook found in workflow, not supported for clone")
+		if isSameProject {
+			for _, refwebhookMappings := range cdMappings {
+				cdCloneReq := &cloneCdPipelineRequest{
+					refCdPipelineId: refwebhookMappings.ComponentId,
+					refAppId:        oldAppId,
+					appId:           newAppId,
+					userId:          userId,
+					ciPipelineId:    0,
+					appWfId:         thisWfId,
+					refAppName:      refApp.AppName,
+				}
+				pipeline, err := impl.CreateCdPipeline(cdCloneReq, ctx)
+				impl.logger.Debugw("cd pipeline created", "pipeline", pipeline)
+				if err != nil {
+					impl.logger.Errorw("error in getting cd-pipeling", "err", err)
+					return err
+				}
+			}
+		} else {
+			impl.logger.Debug("not the same project, skipping cd pipeline creation")
+		}
 		return nil
 	}
+
 	if len(ciMapping) == 0 {
 		impl.logger.Warn("no ci pipeline found")
 		return nil
@@ -625,7 +661,7 @@ func (impl *AppCloneServiceImpl) createWfMappings(refWfMappings []appWorkflow.Ap
 		impl.logger.Warn("more than one cd pipeline not supported")
 		return nil
 	}
-	refApp, err := impl.pipelineBuilder.GetApp(oldAppId)
+
 	if err != nil {
 		return err
 	}
@@ -644,6 +680,7 @@ func (impl *AppCloneServiceImpl) createWfMappings(refWfMappings []appWorkflow.Ap
 		}
 		ci, err = impl.CreateCiPipeline(cloneCiPipelineRequest)
 		if err != nil {
+			impl.logger.Errorw("error in creating ci pipeline, app clone", "err", err)
 			return err
 		}
 		impl.logger.Debugw("ci created", "ci", ci)
@@ -661,6 +698,7 @@ func (impl *AppCloneServiceImpl) createWfMappings(refWfMappings []appWorkflow.Ap
 			}
 			pipeline, err := impl.CreateCdPipeline(cdCloneReq, ctx)
 			if err != nil {
+				impl.logger.Errorw("error in creating cd pipeline, app clone", "err", err)
 				return err
 			}
 			impl.logger.Debugw("cd pipeline created", "pipeline", pipeline)
@@ -867,6 +905,36 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 		deploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
 	} else if AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_HELM] {
 		deploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
+
+		if refCdPipeline.ParentPipelineType == "WEBHOOK" {
+			cdPipeline := &bean.CDPipelineConfigObject{
+				Id:                            0,
+				EnvironmentId:                 refCdPipeline.EnvironmentId,
+				CiPipelineId:                  0,
+				TriggerType:                   refCdPipeline.TriggerType,
+				Name:                          pipelineName,
+				Strategies:                    refCdPipeline.Strategies,
+				Namespace:                     refCdPipeline.Namespace,
+				AppWorkflowId:                 0,
+				DeploymentTemplate:            refCdPipeline.DeploymentTemplate,
+				PreStage:                      refCdPipeline.PreStage, //FIXME
+				PostStage:                     refCdPipeline.PostStage,
+				PreStageConfigMapSecretNames:  refCdPipeline.PreStageConfigMapSecretNames,
+				PostStageConfigMapSecretNames: refCdPipeline.PostStageConfigMapSecretNames,
+				RunPostStageInEnv:             refCdPipeline.RunPostStageInEnv,
+				RunPreStageInEnv:              refCdPipeline.RunPreStageInEnv,
+				DeploymentAppType:             refCdPipeline.DeploymentAppType,
+				ParentPipelineId:              0,
+				ParentPipelineType:            refCdPipeline.ParentPipelineType,
+			}
+			cdPipelineReq := &bean.CdPipelines{
+				Pipelines: []*bean.CDPipelineConfigObject{cdPipeline},
+				AppId:     req.appId,
+				UserId:    req.userId,
+			}
+			cdPipelineRes, err := impl.pipelineBuilder.CreateCdPipelines(cdPipelineReq, ctx)
+			return cdPipelineRes, err
+		}
 	}
 	cdPipeline := &bean.CDPipelineConfigObject{
 		Id:                            0,
@@ -893,4 +961,5 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 	}
 	cdPipelineRes, err := impl.pipelineBuilder.CreateCdPipelines(cdPipelineReq, ctx)
 	return cdPipelineRes, err
+
 }
