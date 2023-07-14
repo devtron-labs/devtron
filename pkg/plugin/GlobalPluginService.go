@@ -111,7 +111,7 @@ func (impl *GlobalPluginServiceImpl) GetAllGlobalVariables() ([]*GlobalVariable,
 			Name:        pipeline.DEPLOYMENT_UNIQUE_ID,
 			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
 			Description: "Auto-incremented counter for deployment triggers. Counter is shared between Pre/Post/Deployment stages.",
-			Type:        "post-cd",
+			Type:        "cd",
 		},
 		{
 			Name:        pipeline.CD_TRIGGERED_BY,
