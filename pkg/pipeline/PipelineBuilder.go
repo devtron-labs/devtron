@@ -1470,6 +1470,7 @@ func (impl PipelineBuilderImpl) PatchCiPipeline(request *bean.CiPatchRequest) (c
 	}
 
 	ciConfig.IsJob = request.IsJob
+	ciConfig.IsCloneJob = request.IsCloneJob
 
 	switch request.Action {
 	case bean.CREATE:

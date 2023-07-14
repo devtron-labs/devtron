@@ -218,6 +218,7 @@ type CiPatchRequest struct {
 	AppWorkflowId int         `json:"appWorkflowId,omitempty"`
 	UserId        int32       `json:"-"`
 	IsJob         bool        `json:"-"`
+	IsCloneJob    bool        `json:"isCloneJob,omitempty"`
 }
 
 type CiRegexPatchRequest struct {
@@ -311,6 +312,7 @@ type CiConfigRequest struct {
 	UpdatedBy         int32                   `sql:"updated_by,type:integer"`
 	IsJob             bool                    `json:"-"`
 	CiGitMaterialId   int                     `json:"ciGitConfiguredId"`
+	IsCloneJob        bool                    `json:"isCloneJob,omitempty"`
 }
 
 type CiPipelineMinResponse struct {
