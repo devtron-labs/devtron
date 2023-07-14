@@ -588,14 +588,14 @@ func (impl *AppCloneServiceImpl) CreateWf(oldAppId, newAppId int, userId int32, 
 			UserId:                userId,
 		}
 
-		isExternal_ci_present := false
+		isExternalCiPresent := false
 		for _, awm := range refAppWF.AppWorkflowMappingDto {
 			if awm.Type == appWorkflow2.WEBHOOK {
-				isExternal_ci_present = true
+				isExternalCiPresent = true
 			}
 		}
 
-		if !isExternal_ci_present {
+		if !isExternalCiPresent {
 			thisWf, err = impl.appWorkflowService.CreateAppWorkflow(thisWf)
 			if err != nil {
 				return nil, err
