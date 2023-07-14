@@ -579,7 +579,6 @@ func (impl *AppCloneServiceImpl) CreateWf(oldAppId, newAppId int, userId int32, 
 	}
 	impl.logger.Debugw("workflow found", "wf", refAppWFs)
 	for _, refAppWF := range refAppWFs {
-
 		thisWf := appWorkflow.AppWorkflowDto{
 			Id:                    0,
 			Name:                  refAppWF.Name,
@@ -597,6 +596,7 @@ func (impl *AppCloneServiceImpl) CreateWf(oldAppId, newAppId int, userId int32, 
 
 		if !isExternalCiPresent {
 			thisWf, err = impl.appWorkflowService.CreateAppWorkflow(thisWf)
+			impl.logger.Debugw("workflow found", thisWf)
 			if err != nil {
 				return nil, err
 			}
@@ -640,10 +640,10 @@ func (impl *AppCloneServiceImpl) createWfMappings(refWfMappings []appWorkflow.Ap
 					refAppName:      refApp.AppName,
 				}
 				pipeline, err := impl.CreateCdPipeline(cdCloneReq, ctx)
+				impl.logger.Debugw("cd pipeline created", "pipeline", pipeline)
 				if err != nil {
 					return err
 				}
-				impl.logger.Debugw("cd pipeline created", "pipeline", pipeline)
 			}
 		} else {
 			impl.logger.Debug("not the same project, skipping cd pipeline creation")
@@ -958,4 +958,3 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 	return cdPipelineRes, err
 
 }
-
