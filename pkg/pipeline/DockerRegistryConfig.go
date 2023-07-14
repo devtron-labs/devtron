@@ -132,14 +132,18 @@ Returns:
 */
 func (impl DockerRegistryConfigImpl) ValidateRegistryStorageType(registryId string, storageType string, storageActions ...string) bool {
 	isValid := false
-	ociRegistryConfigList, err := impl.ociRegistryConfigRepository.FindByDockerRegistryId(registryId)
+	store, err := impl.dockerArtifactStoreRepository.FindOne(registryId)
 	if err != nil {
 		return false
 	}
-	for _, ociRegistryConfig := range ociRegistryConfigList {
-		if ociRegistryConfig.RepositoryType == storageType && slices.Contains(storageActions, ociRegistryConfig.RepositoryAction) {
-			isValid = true
+	if store.IsOCICompliantRegistry {
+		for _, ociRegistryConfig := range store.OCIRegistryConfig {
+			if ociRegistryConfig.RepositoryType == storageType && slices.Contains(storageActions, ociRegistryConfig.RepositoryAction) {
+				isValid = true
+			}
 		}
+	} else {
+		return true
 	}
 	return isValid
 }
