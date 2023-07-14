@@ -19,7 +19,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/client/k8s/application/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	errors1 "github.com/juju/errors"
 	"go.uber.org/zap"

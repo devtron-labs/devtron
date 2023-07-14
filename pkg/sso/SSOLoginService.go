@@ -20,10 +20,10 @@ package sso
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/client/k8s/application/util"
 	"time"
 
 	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"

@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	util4 "github.com/devtron-labs/devtron/client/k8s/application/util"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -90,7 +91,7 @@ type GitOpsConfigServiceImpl struct {
 	randSource           rand.Source
 	logger               *zap.SugaredLogger
 	gitOpsRepository     repository.GitOpsConfigRepository
-	K8sUtil              *util.K8sUtil
+	K8sUtil              *util4.K8sUtil
 	aCDAuthConfig        *util3.ACDAuthConfig
 	clusterService       cluster.ClusterService
 	envService           cluster.EnvironmentService
@@ -102,7 +103,7 @@ type GitOpsConfigServiceImpl struct {
 }
 
 func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger,
-	gitOpsRepository repository.GitOpsConfigRepository, K8sUtil *util.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig,
+	gitOpsRepository repository.GitOpsConfigRepository, K8sUtil *util4.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig,
 	clusterService cluster.ClusterService, envService cluster.EnvironmentService, versionService argocdServer.VersionService,
 	gitFactory *util.GitFactory, chartTemplateService util.ChartTemplateService, argoUserService argo.ArgoUserService, clusterServiceCD cluster2.ServiceClient) *GitOpsConfigServiceImpl {
 	return &GitOpsConfigServiceImpl{

@@ -19,6 +19,7 @@ package util
 
 import (
 	"github.com/devtron-labs/authenticator/client"
+	"github.com/devtron-labs/devtron/internal/util"
 	"testing"
 )
 
@@ -27,7 +28,7 @@ var clusterConfig *ClusterConfig
 
 func init() {
 	config := &client.RuntimeConfig{LocalDevMode: true}
-	logger, _ := NewSugardLogger()
+	logger, _ := util.NewSugardLogger()
 	k8sUtilClient = NewK8sUtil(logger, config)
 	clusterConfig = &ClusterConfig{
 		Host:        "",

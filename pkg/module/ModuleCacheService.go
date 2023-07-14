@@ -19,7 +19,7 @@ package module
 
 import (
 	"context"
-	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/client/k8s/application/util"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"

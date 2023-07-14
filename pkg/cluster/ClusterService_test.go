@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	util2 "github.com/devtron-labs/devtron/client/k8s/application/util"
 	"github.com/devtron-labs/devtron/client/k8s/informer"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -13,7 +14,7 @@ func TestClusterServiceImpl_CheckIfConfigIsValid(t *testing.T) {
 	type fields struct {
 		clusterRepository  repository.ClusterRepository
 		logger             *zap.SugaredLogger
-		K8sUtil            *util.K8sUtil
+		K8sUtil            *util2.K8sUtil
 		K8sInformerFactory informer.K8sInformerFactory
 	}
 	type args struct {

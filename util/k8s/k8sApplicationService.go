@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	util2 "github.com/devtron-labs/devtron/client/k8s/application/util"
 	"io"
 	"net/http"
 	"strconv"
@@ -18,7 +19,6 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/client/k8s/application"
-	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	"github.com/devtron-labs/devtron/pkg/terminal"
@@ -33,10 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"log"
-	"net/url"
 )
 
 const (
@@ -63,9 +60,9 @@ type K8sApplicationService interface {
 	FilterServiceAndIngress(ctx context.Context, resourceTreeInf map[string]interface{}, validRequests []ResourceRequestBean, appDetail bean.AppDetailContainer, appId string) []ResourceRequestBean
 	GetUrlsByBatch(ctx context.Context, resp []BatchResourceResponse) []interface{}
 	GetAllApiResources(ctx context.Context, clusterId int, isSuperAdmin bool, userId int32) (*application.GetAllApiResourcesResponse, error)
-	GetResourceList(ctx context.Context, token string, request *ResourceRequestBean, validateResourceAccess func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) (*util.ClusterResourceListMap, error)
+	GetResourceList(ctx context.Context, token string, request *ResourceRequestBean, validateResourceAccess func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) (*util2.ClusterResourceListMap, error)
 	ApplyResources(ctx context.Context, token string, request *application.ApplyResourcesRequest, resourceRbacHandler func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) ([]*application.ApplyResourcesResponse, error)
-	FetchConnectionStatusForCluster(k8sClientSet *kubernetes.Clientset, clusterId int) error
+	//FetchConnectionStatusForCluster(k8sClientSet *kubernetes.Clientset, clusterId int) error
 	RotatePods(ctx context.Context, request *RotatePodRequest) (*RotatePodResponse, error)
 }
 type K8sApplicationServiceImpl struct {
@@ -74,7 +71,7 @@ type K8sApplicationServiceImpl struct {
 	pump                        connector.Pump
 	k8sClientService            application.K8sClientService
 	helmAppService              client.HelmAppService
-	K8sUtil                     *util.K8sUtil
+	K8sUtil                     *util2.K8sUtil
 	aCDAuthConfig               *util3.ACDAuthConfig
 	K8sApplicationServiceConfig *K8sApplicationServiceConfig
 	K8sResourceHistoryService   kubernetesResourceAuditLogs.K8sResourceHistoryService
@@ -88,7 +85,7 @@ type K8sApplicationServiceConfig struct {
 func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger,
 	clusterService cluster.ClusterService,
 	pump connector.Pump, k8sClientService application.K8sClientService,
-	helmAppService client.HelmAppService, K8sUtil *util.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig,
+	helmAppService client.HelmAppService, K8sUtil *util2.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig,
 	K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService) *K8sApplicationServiceImpl {
 	cfg := &K8sApplicationServiceConfig{}
 	err := env.Parse(cfg)
@@ -833,10 +830,10 @@ func (impl *K8sApplicationServiceImpl) GetAllApiResources(ctx context.Context, c
 			}
 			allowedGroupKinds[groupName+"||"+kind] = true
 			// add children for this kind
-			children, found := util.KindVsChildrenGvk[kind]
+			children, found := util2.KindVsChildrenGvk[kind]
 			if found {
 				// if rollout kind other than argo, then neglect only
-				if kind != util.K8sClusterResourceRolloutKind || groupName == util.K8sClusterResourceRolloutGroup {
+				if kind != util2.K8sClusterResourceRolloutKind || groupName == util2.K8sClusterResourceRolloutGroup {
 					for _, child := range children {
 						allowedGroupKinds[child.Group+"||"+child.Kind] = true
 					}
@@ -872,8 +869,8 @@ func (impl *K8sApplicationServiceImpl) GetAllApiResources(ctx context.Context, c
 	return response, nil
 }
 
-func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, token string, request *ResourceRequestBean, validateResourceAccess func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) (*util.ClusterResourceListMap, error) {
-	resourceList := &util.ClusterResourceListMap{}
+func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, token string, request *ResourceRequestBean, validateResourceAccess func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) (*util2.ClusterResourceListMap, error) {
+	resourceList := &util2.ClusterResourceListMap{}
 	clusterId := request.ClusterId
 	clusterBean, err := impl.clusterService.FindById(clusterId)
 	if err != nil {
@@ -951,15 +948,15 @@ func (impl *K8sApplicationServiceImpl) RotatePods(ctx context.Context, request *
 		groupVersionKind := resourceIdentifier.GroupVersionKind
 		resourceKind := groupVersionKind.Kind
 		// validate one of deployment, statefulset, daemonSet, Rollout
-		if resourceKind != kube.DeploymentKind && resourceKind != kube.StatefulSetKind && resourceKind != kube.DaemonSetKind && resourceKind != util.K8sClusterResourceRolloutKind {
+		if resourceKind != kube.DeploymentKind && resourceKind != kube.StatefulSetKind && resourceKind != kube.DaemonSetKind && resourceKind != util2.K8sClusterResourceRolloutKind {
 			impl.logger.Errorf("restarting not supported for kind %s name %s", resourceKind, resourceIdentifier.Name)
 			containsError = true
-			resourceResponse.ErrorResponse = util.RestartingNotSupported
+			resourceResponse.ErrorResponse = util2.RestartingNotSupported
 		} else {
 			activitySnapshot := time.Now().Format(time.RFC3339)
 			data := fmt.Sprintf(`{"metadata": {"annotations": {"devtron.ai/restartedAt": "%s"}},"spec": {"template": {"metadata": {"annotations": {"devtron.ai/activity": "%s"}}}}}`, activitySnapshot, activitySnapshot)
 			var patchType types.PatchType
-			if resourceKind != util.K8sClusterResourceRolloutKind {
+			if resourceKind != util2.K8sClusterResourceRolloutKind {
 				patchType = types.StrategicMergePatchType
 			} else {
 				// rollout does not support strategic merge type
@@ -1079,34 +1076,4 @@ func (impl *K8sApplicationServiceImpl) applyResourceFromManifest(ctx context.Con
 	}
 
 	return isUpdateResource, nil
-}
-
-func (impl *K8sApplicationServiceImpl) FetchConnectionStatusForCluster(k8sClientSet *kubernetes.Clientset, clusterId int) error {
-	//using livez path as healthz path is deprecated
-	path := "/livez"
-	response, err := k8sClientSet.Discovery().RESTClient().Get().AbsPath(path).DoRaw(context.Background())
-	log.Println("received response for cluster livez status", "response", string(response), "err", err, "clusterId", clusterId)
-	if err != nil {
-		if _, ok := err.(*url.Error); ok {
-			err = fmt.Errorf("Incorrect server url : %v", err)
-		} else if statusError, ok := err.(*errors2.StatusError); ok {
-			if statusError != nil {
-				errReason := statusError.ErrStatus.Reason
-				var errMsg string
-				if errReason == metav1.StatusReasonUnauthorized {
-					errMsg = "token seems invalid or does not have sufficient permissions"
-				} else {
-					errMsg = statusError.ErrStatus.Message
-				}
-				err = fmt.Errorf("%s : %s", errReason, errMsg)
-			} else {
-				err = fmt.Errorf("Validation failed : %v", err)
-			}
-		} else {
-			err = fmt.Errorf("Validation failed : %v", err)
-		}
-	} else if err == nil && string(response) != "ok" {
-		err = fmt.Errorf("Validation failed with response : %s", string(response))
-	}
-	return err
 }

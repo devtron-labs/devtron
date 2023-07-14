@@ -23,6 +23,7 @@ import (
 	error2 "errors"
 	"flag"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/util"
 	"net/http"
 	"os/user"
 	"path/filepath"
@@ -563,10 +564,10 @@ func (impl K8sUtil) GetResourceInfoByLabelSelector(ctx context.Context, namespac
 	if err != nil {
 		return nil, err
 	} else if len(pods.Items) > 1 {
-		err = &ApiError{Code: "406", HttpStatusCode: 200, UserMessage: "found more than one pod for label selector"}
+		err = &util.ApiError{Code: "406", HttpStatusCode: 200, UserMessage: "found more than one pod for label selector"}
 		return nil, err
 	} else if len(pods.Items) == 0 {
-		err = &ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no pod found for label selector"}
+		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no pod found for label selector"}
 		return nil, err
 	} else {
 		return &pods.Items[0], nil

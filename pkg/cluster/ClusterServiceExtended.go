@@ -5,6 +5,7 @@ import (
 	"fmt"
 	cluster3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	util2 "github.com/devtron-labs/devtron/client/k8s/application/util"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	repository4 "github.com/devtron-labs/devtron/pkg/user/repository"
 	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -37,7 +38,7 @@ type ClusterServiceImplExtended struct {
 
 func NewClusterServiceImplExtended(repository repository.ClusterRepository, environmentRepository repository.EnvironmentRepository,
 	grafanaClient grafana.GrafanaClient, logger *zap.SugaredLogger, installedAppRepository repository2.InstalledAppRepository,
-	K8sUtil *util.K8sUtil,
+	K8sUtil *util2.K8sUtil,
 	clusterServiceCD cluster2.ServiceClient, K8sInformerFactory informer.K8sInformerFactory,
 	gitOpsRepository repository3.GitOpsConfigRepository, userAuthRepository repository4.UserAuthRepository,
 	userRepository repository4.UserRepository, roleGroupRepository repository4.RoleGroupRepository) *ClusterServiceImplExtended {
@@ -67,7 +68,7 @@ func (impl *ClusterServiceImplExtended) FindAllWithoutConfig() ([]*ClusterBean, 
 		return nil, err
 	}
 	for _, bean := range beans {
-		bean.Config = map[string]string{util.BearerToken: ""}
+		bean.Config = map[string]string{util2.BearerToken: ""}
 	}
 	return beans, nil
 }
@@ -227,17 +228,17 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *Cluste
 		configMap := bean.Config
 		serverUrl := bean.ServerUrl
 		bearerToken := ""
-		if configMap[util.BearerToken] != "" {
-			bearerToken = configMap[util.BearerToken]
+		if configMap[util2.BearerToken] != "" {
+			bearerToken = configMap[util2.BearerToken]
 		}
 
 		tlsConfig := v1alpha1.TLSClientConfig{
 			Insecure: bean.InsecureSkipTLSVerify,
 		}
 		if !bean.InsecureSkipTLSVerify {
-			tlsConfig.KeyData = []byte(configMap[util.TlsKey])
-			tlsConfig.CertData = []byte(configMap[util.CertData])
-			tlsConfig.CAData = []byte(configMap[util.CertificateAuthorityData])
+			tlsConfig.KeyData = []byte(configMap[util2.TlsKey])
+			tlsConfig.CertData = []byte(configMap[util2.CertData])
+			tlsConfig.CAData = []byte(configMap[util2.CertificateAuthorityData])
 		}
 
 		cdClusterConfig := v1alpha1.ClusterConfig{

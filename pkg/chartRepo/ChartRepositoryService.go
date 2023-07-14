@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	util3 "github.com/devtron-labs/devtron/client/k8s/application/util"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -80,14 +81,14 @@ type ChartRepositoryService interface {
 type ChartRepositoryServiceImpl struct {
 	logger          *zap.SugaredLogger
 	repoRepository  chartRepoRepository.ChartRepoRepository
-	K8sUtil         *util.K8sUtil
+	K8sUtil         *util3.K8sUtil
 	clusterService  cluster.ClusterService
 	aCDAuthConfig   *util2.ACDAuthConfig
 	client          *http.Client
 	serverEnvConfig *serverEnvConfig.ServerEnvConfig
 }
 
-func NewChartRepositoryServiceImpl(logger *zap.SugaredLogger, repoRepository chartRepoRepository.ChartRepoRepository, K8sUtil *util.K8sUtil, clusterService cluster.ClusterService,
+func NewChartRepositoryServiceImpl(logger *zap.SugaredLogger, repoRepository chartRepoRepository.ChartRepoRepository, K8sUtil *util3.K8sUtil, clusterService cluster.ClusterService,
 	aCDAuthConfig *util2.ACDAuthConfig, client *http.Client, serverEnvConfig *serverEnvConfig.ServerEnvConfig) *ChartRepositoryServiceImpl {
 	return &ChartRepositoryServiceImpl{
 		logger:          logger,

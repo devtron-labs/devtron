@@ -3,8 +3,10 @@ package application
 import (
 	"context"
 	"encoding/json"
-	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"fmt"
+	"github.com/devtron-labs/devtron/client/k8s/application/util"
+	"github.com/devtron-labs/devtron/pkg/cluster"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"io"
 	apiv1 "k8s.io/api/core/v1"
@@ -15,10 +17,13 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/utils/pointer"
+	"log"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -33,17 +38,22 @@ type K8sClientService interface {
 	GetResourceList(ctx context.Context, restConfig *rest.Config, request *K8sRequestBean) (*ResourceListResponse, bool, error)
 	ApplyResource(ctx context.Context, restConfig *rest.Config, request *K8sRequestBean, manifest string) (*ManifestResponse, error)
 	PatchResource(ctx context.Context, restConfig *rest.Config, pt types.PatchType, request *K8sRequestBean, manifest string) (*ManifestResponse, error)
+	GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error)
+	FetchConnectionStatusForCluster(k8sClientSet *kubernetes.Clientset, clusterId int) error
+	CreateK8sClientSet(restConfig *rest.Config) (*kubernetes.Clientset, error)
 }
 
 type K8sClientServiceImpl struct {
-	logger            *zap.SugaredLogger
-	clusterRepository repository.ClusterRepository
+	logger         *zap.SugaredLogger
+	clusterService cluster.ClusterService
+	k8sUtil        *util.K8sUtil
 }
 
-func NewK8sClientServiceImpl(logger *zap.SugaredLogger, clusterRepository repository.ClusterRepository) *K8sClientServiceImpl {
+func NewK8sClientServiceImpl(logger *zap.SugaredLogger, clusterService cluster.ClusterService, k8sUtil *util.K8sUtil) *K8sClientServiceImpl {
 	return &K8sClientServiceImpl{
-		logger:            logger,
-		clusterRepository: clusterRepository,
+		logger:         logger,
+		clusterService: clusterService,
+		k8sUtil:        k8sUtil,
 	}
 }
 
@@ -78,6 +88,19 @@ type EventsResponse struct {
 
 type ResourceListResponse struct {
 	Resources unstructured.UnstructuredList `json:"resources,omitempty"`
+}
+
+func (impl *K8sClientServiceImpl) GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error) {
+	_, span := otel.Tracer("orchestrator").Start(ctx, "K8sApplicationService.GetRestConfigByClusterId")
+	defer span.End()
+	cluster, err := impl.clusterService.FindById(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting cluster by ID", "err", err, "clusterId")
+		return nil, err
+	}
+	clusterConfig := cluster.GetClusterConfig()
+	restConfig, err := impl.k8sUtil.GetRestConfigByCluster(&clusterConfig)
+	return restConfig, nil
 }
 
 func (impl K8sClientServiceImpl) GetResource(ctx context.Context, restConfig *rest.Config, request *K8sRequestBean) (*ManifestResponse, error) {
@@ -446,4 +469,47 @@ func (impl K8sClientServiceImpl) PatchResource(ctx context.Context, restConfig *
 
 func (impl K8sClientServiceImpl) ApplyResource(ctx context.Context, restConfig *rest.Config, request *K8sRequestBean, manifest string) (*ManifestResponse, error) {
 	return impl.PatchResource(ctx, restConfig, types.StrategicMergePatchType, request, manifest)
+}
+
+func (impl *K8sClientServiceImpl) FetchConnectionStatusForCluster(k8sClientSet *kubernetes.Clientset, clusterId int) error {
+	//using livez path as healthz path is deprecated
+	path := "/livez"
+	response, err := k8sClientSet.Discovery().RESTClient().Get().AbsPath(path).DoRaw(context.Background())
+	log.Println("received response for cluster livez status", "response", string(response), "err", err, "clusterId", clusterId)
+	if err != nil {
+		if _, ok := err.(*url.Error); ok {
+			err = fmt.Errorf("Incorrect server url : %v", err)
+		} else if statusError, ok := err.(*errors.StatusError); ok {
+			if statusError != nil {
+				errReason := statusError.ErrStatus.Reason
+				var errMsg string
+				if errReason == metav1.StatusReasonUnauthorized {
+					errMsg = "token seems invalid or does not have sufficient permissions"
+				} else {
+					errMsg = statusError.ErrStatus.Message
+				}
+				err = fmt.Errorf("%s : %s", errReason, errMsg)
+			} else {
+				err = fmt.Errorf("Validation failed : %v", err)
+			}
+		} else {
+			err = fmt.Errorf("Validation failed : %v", err)
+		}
+	} else if err == nil && string(response) != "ok" {
+		err = fmt.Errorf("Validation failed with response : %s", string(response))
+	}
+	return err
+}
+func (impl *K8sClientServiceImpl) CreateK8sClientSet(restConfig *rest.Config) (*kubernetes.Clientset, error) {
+	k8sHttpClient, err := util.OverrideK8sHttpClientWithTracer(restConfig)
+	if err != nil {
+		impl.logger.Errorw("service err, OverrideK8sHttpClientWithTracer", "err", err, "restConfig", restConfig)
+		return nil, err
+	}
+	k8sClientSet, err := kubernetes.NewForConfigAndClient(restConfig, k8sHttpClient)
+	if err != nil {
+		impl.logger.Errorw("error in getting client set by rest config", "err", err, "restConfig", restConfig)
+		return nil, err
+	}
+	return k8sClientSet, err
 }

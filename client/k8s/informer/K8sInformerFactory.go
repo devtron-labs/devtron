@@ -2,7 +2,7 @@ package informer
 
 import (
 	"flag"
-	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/client/k8s/application/util"
 	"os/user"
 	"path/filepath"
 	"sync"

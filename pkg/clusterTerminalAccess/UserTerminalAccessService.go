@@ -468,7 +468,7 @@ func (impl *UserTerminalAccessServiceImpl) createPodName(request *models.UserTer
 	return podNameVar
 }
 
-//template data use kubernetes object
+// template data use kubernetes object
 func (impl *UserTerminalAccessServiceImpl) applyTemplateData(ctx context.Context, request *models.UserTerminalSessionRequest, podNameVar string,
 	terminalTemplate *models.TerminalAccessTemplates, isUpdate bool, isAutoSelect bool) error {
 	templateName := terminalTemplate.TemplateName
@@ -729,7 +729,7 @@ func (impl *UserTerminalAccessServiceImpl) DeleteTerminalResource(ctx context.Co
 		return err
 	}
 
-	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(ctx, clusterId)
+	restConfig, err := impl.k8sClientService.GetRestConfigByClusterId(ctx, clusterId)
 	if err != nil {
 		return err
 	}
@@ -753,7 +753,7 @@ func (impl *UserTerminalAccessServiceImpl) DeleteTerminalResource(ctx context.Co
 }
 
 func (impl *UserTerminalAccessServiceImpl) applyTemplate(ctx context.Context, clusterId int, gvkDataString string, templateData string, isUpdate bool, namespace string) error {
-	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(ctx, clusterId)
+	restConfig, err := impl.k8sClientService.GetRestConfigByClusterId(ctx, clusterId)
 	if err != nil {
 		return err
 	}

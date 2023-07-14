@@ -26,6 +26,7 @@ import (
 	webhookHelm "github.com/devtron-labs/devtron/api/webhook/helm"
 	"github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/client/dashboard"
+	util4 "github.com/devtron-labs/devtron/client/k8s/application/util"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -80,7 +81,7 @@ func InitializeApp() (*App, error) {
 		util3.GetGlobalEnvVariables,
 		util.NewHttpClient,
 		util.NewSugardLogger,
-		util.NewK8sUtil,
+		util4.NewK8sUtil,
 		util.IntValidator,
 		util2.GetACDAuthConfig,
 		telemetry.NewPosthogClient,

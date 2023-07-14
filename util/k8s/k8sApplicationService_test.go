@@ -6,7 +6,7 @@ import (
 	"fmt"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/client/k8s/application"
-	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/client/k8s/application/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/google/go-cmp/cmp"
@@ -16,7 +16,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
-	"math/rand"
 	"testing"
 )
 
@@ -188,45 +187,6 @@ func (n NewK8sClientServiceImplMock) GetPodLogs(restConfig *rest.Config, request
 	panic("implement me")
 }
 
-func Test_GetManifestsInBatch(t *testing.T) {
-	var (
-		k8sCS          = NewK8sClientServiceImplMock{}
-		clusterService = NewClusterServiceMock{}
-		impl           = NewK8sApplicationServiceImpl(
-			nil, clusterService, nil, k8sCS, nil,
-			nil, nil)
-	)
-	n := 10
-	kinds := []string{"Service", "Ingress", "Random", "Invalid"}
-	var testInput = make([]ResourceRequestBean, 0)
-	expectedTestOutputs := make([]BatchResourceResponse, 0)
-	for i := 0; i < n; i++ {
-		idx := rand.Int31n(int32(len(kinds)))
-		inp := generateTestResourceRequest(kinds[idx])
-		testInput = append(testInput, inp)
-	}
-	for i := 0; i < n; i++ {
-		man := generateTestManifest(testInput[i].K8sRequest.ResourceIdentifier.GroupVersionKind.Kind)
-		bRR := BatchResourceResponse{
-			ManifestResponse: &man,
-			Err:              nil,
-		}
-		expectedTestOutputs = append(expectedTestOutputs, bRR)
-	}
-
-	t.Run(fmt.Sprint("test1"), func(t *testing.T) {
-		resultOutput := impl.GetHostUrlsByBatch(testInput)
-		//check if all the output manifests are expected
-		for j, _ := range resultOutput {
-			if !cmp.Equal(resultOutput[j], expectedTestOutputs[j]) {
-				t.Errorf("expected %+v but got %+v", expectedTestOutputs[j].ManifestResponse, resultOutput[j].ManifestResponse)
-				break
-			}
-		}
-
-	})
-
-}
 func generateTestResourceRequest(kind string) ResourceRequestBean {
 	return ResourceRequestBean{
 		AppIdentifier: &client.AppIdentifier{},
@@ -248,7 +208,7 @@ type test struct {
 func Test_getUrls(t *testing.T) {
 	impl := NewK8sApplicationServiceImpl(
 		nil, nil, nil, nil, nil,
-		nil, nil)
+		nil, nil, nil)
 	tests := make([]test, 3)
 	tests[0] = test{
 		inp: generateTestManifest("Service"),

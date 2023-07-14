@@ -20,6 +20,7 @@ package cluster
 import (
 	"encoding/json"
 	"fmt"
+	util2 "github.com/devtron-labs/devtron/client/k8s/application/util"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/user/bean"
@@ -98,7 +99,7 @@ type EnvironmentServiceImpl struct {
 	environmentRepository repository.EnvironmentRepository
 	logger                *zap.SugaredLogger
 	clusterService        ClusterService
-	K8sUtil               *util.K8sUtil
+	K8sUtil               *util2.K8sUtil
 	k8sInformerFactory    informer.K8sInformerFactory
 	//propertiesConfigService pipeline.PropertiesConfigService
 	userAuthService      user.UserAuthService
@@ -107,7 +108,7 @@ type EnvironmentServiceImpl struct {
 
 func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepository,
 	clusterService ClusterService, logger *zap.SugaredLogger,
-	K8sUtil *util.K8sUtil, k8sInformerFactory informer.K8sInformerFactory,
+	K8sUtil *util2.K8sUtil, k8sInformerFactory informer.K8sInformerFactory,
 	//  propertiesConfigService pipeline.PropertiesConfigService,
 	userAuthService user.UserAuthService, attributesRepository repository2.AttributesRepository) *EnvironmentServiceImpl {
 	return &EnvironmentServiceImpl{

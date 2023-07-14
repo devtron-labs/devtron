@@ -23,6 +23,7 @@ import (
 	"fmt"
 	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	client "github.com/devtron-labs/devtron/api/helm-app"
+	util4 "github.com/devtron-labs/devtron/client/k8s/application/util"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
@@ -224,7 +225,7 @@ type PipelineBuilderImpl struct {
 	enforcerUtil                                    rbac.EnforcerUtil
 	appGroupService                                 appGroup2.AppGroupService
 	chartDeploymentService                          util.ChartDeploymentService
-	K8sUtil                                         *util.K8sUtil
+	K8sUtil                                         *util4.K8sUtil
 	attributesRepository                            repository.AttributesRepository
 	securityConfig                                  *SecurityConfig
 	imageTaggingService                             ImageTaggingService
@@ -280,7 +281,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	appGroupService appGroup2.AppGroupService,
 	chartDeploymentService util.ChartDeploymentService,
-	K8sUtil *util.K8sUtil,
+	K8sUtil *util4.K8sUtil,
 	attributesRepository repository.AttributesRepository,
 	imageTaggingService ImageTaggingService) *PipelineBuilderImpl {
 	securityConfig := &SecurityConfig{}

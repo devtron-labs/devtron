@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/devtron-labs/devtron/client/k8s/application"
-	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/client/k8s/application/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
@@ -54,7 +54,7 @@ const (
 	AWSEKSNodeGroupLabel = "eks.amazonaws.com/nodegroup"
 )
 
-//TODO: add any new nodeGrouplabel in this array
+// TODO: add any new nodeGrouplabel in this array
 var NodeGroupLabels = [5]string{AWSNodeGroupLabel, AzureNodeGroupLabel, GcpNodeGroupLabel, KopsNodeGroupLabel, AWSEKSNodeGroupLabel}
 
 // below const set is used for pod delete status
@@ -92,21 +92,15 @@ type K8sCapacityServiceImpl struct {
 	clusterService        cluster.ClusterService
 	k8sApplicationService K8sApplicationService
 	k8sClientService      application.K8sClientService
-	clusterCronService    ClusterCronService
 	K8sUtil               *util.K8sUtil
 }
 
-func NewK8sCapacityServiceImpl(Logger *zap.SugaredLogger,
-	clusterService cluster.ClusterService,
-	k8sApplicationService K8sApplicationService,
-	k8sClientService application.K8sClientService,
-	clusterCronService ClusterCronService, K8sUtil *util.K8sUtil) *K8sCapacityServiceImpl {
+func NewK8sCapacityServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService, k8sApplicationService K8sApplicationService, k8sClientService application.K8sClientService, K8sUtil *util.K8sUtil) *K8sCapacityServiceImpl {
 	return &K8sCapacityServiceImpl{
 		logger:                Logger,
 		clusterService:        clusterService,
 		k8sApplicationService: k8sApplicationService,
 		k8sClientService:      k8sClientService,
-		clusterCronService:    clusterCronService,
 		K8sUtil:               K8sUtil,
 	}
 }
@@ -599,7 +593,7 @@ func (impl *K8sCapacityServiceImpl) updateNodeResources(node *corev1.Node, nodeL
 
 func (impl *K8sCapacityServiceImpl) UpdateNodeManifest(ctx context.Context, request *NodeUpdateRequestDto) (*application.ManifestResponse, error) {
 	//getting rest config by clusterId
-	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(ctx, request.ClusterId)
+	restConfig, err := impl.k8sClientService.GetRestConfigByClusterId(ctx, request.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster id", "err", err, "clusterId", request.ClusterId)
 		return nil, err
@@ -625,7 +619,7 @@ func (impl *K8sCapacityServiceImpl) UpdateNodeManifest(ctx context.Context, requ
 
 func (impl *K8sCapacityServiceImpl) DeleteNode(ctx context.Context, request *NodeUpdateRequestDto) (*application.ManifestResponse, error) {
 	//getting rest config by clusterId
-	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(ctx, request.ClusterId)
+	restConfig, err := impl.k8sClientService.GetRestConfigByClusterId(ctx, request.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster id", "err", err, "clusterId", request.ClusterId)
 		return nil, err
