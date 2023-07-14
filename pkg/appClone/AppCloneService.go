@@ -598,13 +598,14 @@ func (impl *AppCloneServiceImpl) CreateWf(oldAppId, newAppId int, userId int32, 
 			thisWf, err = impl.appWorkflowService.CreateAppWorkflow(thisWf)
 			impl.logger.Debugw("workflow found", thisWf)
 			if err != nil {
-				impl.logger.Debugw("Err", err)
+				impl.logger.Errorw("errir in creating workflow without extenal-ci", "err", err)
 				return nil, err
 			}
 		}
 
 		err = impl.createWfMappings(refAppWF.AppWorkflowMappingDto, oldAppId, newAppId, userId, thisWf.Id, gitMaterialMapping, ctx, isSameProject)
 		if err != nil {
+			impl.logger.Errorw("error in creating workflow mapping", "err", err)
 			return nil, err
 		}
 	}
@@ -643,6 +644,7 @@ func (impl *AppCloneServiceImpl) createWfMappings(refWfMappings []appWorkflow.Ap
 				pipeline, err := impl.CreateCdPipeline(cdCloneReq, ctx)
 				impl.logger.Debugw("cd pipeline created", "pipeline", pipeline)
 				if err != nil {
+					impl.logger.Errorw("error in getting cd-pipeling", "err", err)
 					return err
 				}
 			}
@@ -695,7 +697,7 @@ func (impl *AppCloneServiceImpl) createWfMappings(refWfMappings []appWorkflow.Ap
 			}
 			pipeline, err := impl.CreateCdPipeline(cdCloneReq, ctx)
 			if err != nil {
-				impl.logger.Debugw("Error", err)
+				impl.logger.Errorw("error in creating cd pipeline, app clone", "err", err)
 				return err
 			}
 			impl.logger.Debugw("cd pipeline created", "pipeline", pipeline)
