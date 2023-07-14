@@ -1919,6 +1919,9 @@ func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentClone(appId int, cloneAp
 	}
 
 	for _, cm := range configMap {
+		if cm.Deleted {
+			continue
+		}
 		model := &chartConfig.ConfigMapEnvModel{
 			AppId:         cloneAppId,
 			EnvironmentId: cm.EnvironmentId,
