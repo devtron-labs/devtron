@@ -147,7 +147,7 @@ func initAppStoreDeploymentService(t *testing.T, internalUse bool) *AppStoreDepl
 	roleGroupRepositoryImpl := repository4.NewRoleGroupRepositoryImpl(db, sugaredLogger)
 	clusterService := cluster.NewClusterServiceImpl(clusterRepository, sugaredLogger, k8sUtil, nil, userAuthRepositoryImpl, userRepositoryImpl, roleGroupRepositoryImpl)
 
-	environmentService := cluster.NewEnvironmentServiceImpl(environmentRepository, clusterService, sugaredLogger, k8sUtil, nil, nil)
+	environmentService := cluster.NewEnvironmentServiceImpl(environmentRepository, clusterService, sugaredLogger, k8sUtil, nil, nil, nil)
 
 	AppRepository := app.NewAppRepositoryImpl(db, sugaredLogger)
 	InstalledAppRepository := repository3.NewInstalledAppRepositoryImpl(sugaredLogger, db)
@@ -157,7 +157,7 @@ func initAppStoreDeploymentService(t *testing.T, internalUse bool) *AppStoreDepl
 	AppStoreDeploymentServiceImpl := NewAppStoreDeploymentServiceImpl(sugaredLogger, InstalledAppRepository,
 		appStoreDiscoverRepository, environmentRepository,
 		ClusterInstalledAppsRepository, AppRepository, nil,
-		nil, environmentService, clusterService, nil, nil, nil, InstalledAppVersionHistoryRepository, gitOpsRepository, nil, &DeploymentServiceTypeConfig{IsInternalUse: internalUse})
+		nil, environmentService, clusterService, nil, nil, nil, InstalledAppVersionHistoryRepository, gitOpsRepository, nil, &DeploymentServiceTypeConfig{IsInternalUse: internalUse}, nil)
 
 	return AppStoreDeploymentServiceImpl
 }
