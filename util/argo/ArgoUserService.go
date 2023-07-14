@@ -51,13 +51,10 @@ type ArgoUserServiceImpl struct {
 	gitOpsRepository        repository.GitOpsConfigRepository
 	argoCDConnectionManager argocdServer.ArgoCDConnectionManager
 	versionService          argocdServer.VersionService
+	k8sUtil                 *util.K8sUtil
 }
 
-func NewArgoUserServiceImpl(Logger *zap.SugaredLogger,
-	clusterService cluster.ClusterService,
-	devtronSecretConfig *util2.DevtronSecretConfig,
-	runTimeConfig *client.RuntimeConfig, gitOpsRepository repository.GitOpsConfigRepository,
-	argoCDConnectionManager argocdServer.ArgoCDConnectionManager, versionService argocdServer.VersionService) (*ArgoUserServiceImpl, error) {
+func NewArgoUserServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService, devtronSecretConfig *util2.DevtronSecretConfig, runTimeConfig *client.RuntimeConfig, gitOpsRepository repository.GitOpsConfigRepository, argoCDConnectionManager argocdServer.ArgoCDConnectionManager, versionService argocdServer.VersionService, k8sUtil *util.K8sUtil) (*ArgoUserServiceImpl, error) {
 	argoUserServiceImpl := &ArgoUserServiceImpl{
 		logger:                  Logger,
 		clusterService:          clusterService,
@@ -66,6 +63,7 @@ func NewArgoUserServiceImpl(Logger *zap.SugaredLogger,
 		gitOpsRepository:        gitOpsRepository,
 		argoCDConnectionManager: argoCDConnectionManager,
 		versionService:          versionService,
+		k8sUtil:                 k8sUtil,
 	}
 	if !runTimeConfig.LocalDevMode {
 		go argoUserServiceImpl.ValidateGitOpsAndGetOrUpdateArgoCdUserDetail()
@@ -83,7 +81,7 @@ func (impl *ArgoUserServiceImpl) ValidateGitOpsAndGetOrUpdateArgoCdUserDetail() 
 
 func (impl *ArgoUserServiceImpl) GetOrUpdateArgoCdUserDetail() string {
 	token := ""
-	k8sClient, err := impl.clusterService.GetK8sClient()
+	k8sClient, err := impl.k8sUtil.GetK8sClient()
 	if err != nil {
 		impl.logger.Errorw("error in getting k8s client for default cluster", "err", err)
 	}
@@ -178,7 +176,7 @@ func (impl *ArgoUserServiceImpl) GetLatestDevtronArgoCdUserToken() (string, erro
 		//here acd token only required in context for argo cd calls
 		return "", nil
 	}
-	k8sClient, err := impl.clusterService.GetK8sClient()
+	k8sClient, err := impl.k8sUtil.GetK8sClient()
 	if err != nil {
 		impl.logger.Errorw("error in getting k8s client for default cluster", "err", err)
 		return "", err

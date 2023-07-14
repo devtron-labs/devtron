@@ -31,8 +31,6 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
-	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/client-go/tools/clientcmd/api/latest"
 	"log"
@@ -173,7 +171,6 @@ type ClusterService interface {
 	FindAllForAutoComplete() ([]ClusterBean, error)
 	CreateGrafanaDataSource(clusterBean *ClusterBean, env *repository.Environment) (int, error)
 	GetClusterConfig(cluster *ClusterBean) (*util3.ClusterConfig, error)
-	GetK8sClient() (*v12.CoreV1Client, error)
 	GetAllClusterNamespaces() map[string][]string
 	FindAllNamespacesByUserIdAndClusterId(userId int32, clusterId int, isActionUserSuperAdmin bool) ([]string, error)
 	FindAllForClusterByUserId(userId int32, isActionUserSuperAdmin bool) ([]ClusterBean, error)
@@ -209,10 +206,6 @@ func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.
 	}
 	go clusterService.buildInformer()
 	return clusterService
-}
-
-func (impl *ClusterServiceImpl) GetK8sClient() (*v12.CoreV1Client, error) {
-	return impl.K8sUtil.GetK8sClient()
 }
 
 func (impl *ClusterServiceImpl) GetClusterConfig(cluster *ClusterBean) (*util3.ClusterConfig, error) {
@@ -323,20 +316,8 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, 
 		impl.SyncNsInformer(bean)
 	}
 	impl.logger.Info("saving secret for cluster informer")
-	restConfig := &rest.Config{}
-	restConfig, err = rest.InClusterConfig()
+	k8sClient, err := impl.K8sUtil.GetConfigAndClientsInCluster()
 	if err != nil {
-		impl.logger.Error("Error in creating config for default cluster", "err", err)
-		return bean, nil
-	}
-	httpClientFor, err := rest.HTTPClientFor(restConfig)
-	if err != nil {
-		impl.logger.Error("error occurred while overriding k8s client", "reason", err)
-		return bean, nil
-	}
-	k8sClient, err := v12.NewForConfigAndClient(restConfig, httpClientFor)
-	if err != nil {
-		impl.logger.Error("error creating k8s client", "error", err)
 		return bean, nil
 	}
 	//creating cluster secret, this secret will be read informer in kubelink to know that a new cluster has been added
@@ -553,22 +534,8 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 		impl.SyncNsInformer(bean)
 	}
 	impl.logger.Infow("saving secret for cluster informer")
-	restConfig := &rest.Config{}
-
-	restConfig, err = rest.InClusterConfig()
+	k8sClient, err := impl.K8sUtil.GetConfigAndClientsInCluster()
 	if err != nil {
-		impl.logger.Errorw("Error in creating config for default cluster", "err", err)
-		return bean, nil
-	}
-
-	httpClientFor, err := rest.HTTPClientFor(restConfig)
-	if err != nil {
-		impl.logger.Infow("error occurred while overriding k8s client", "reason", err)
-		return bean, nil
-	}
-	k8sClient, err := v12.NewForConfigAndClient(restConfig, httpClientFor)
-	if err != nil {
-		impl.logger.Errorw("error creating k8s client", "error", err)
 		return bean, nil
 	}
 	// below secret will act as an event for informer running on secret object in kubelink
@@ -690,22 +657,8 @@ func (impl ClusterServiceImpl) DeleteFromDb(bean *ClusterBean, userId int32) err
 		impl.logger.Errorw("error in deleting cluster", "id", bean.Id, "err", err)
 		return err
 	}
-	restConfig := &rest.Config{}
-	restConfig, err = rest.InClusterConfig()
-
+	k8sClient, err := impl.K8sUtil.GetConfigAndClientsInCluster()
 	if err != nil {
-		impl.logger.Errorw("Error in creating config for default cluster", "err", err)
-		return nil
-	}
-	// this secret was created for syncing cluster information with kubelink
-	httpClientFor, err := rest.HTTPClientFor(restConfig)
-	if err != nil {
-		impl.logger.Errorw("error occurred while overriding k8s client", "reason", err)
-		return nil
-	}
-	k8sClient, err := v12.NewForConfigAndClient(restConfig, httpClientFor)
-	if err != nil {
-		impl.logger.Errorw("error creating k8s client", "error", err)
 		return nil
 	}
 	secretName := fmt.Sprintf("%s-%v", SECRET_NAME, bean.Id)
@@ -720,23 +673,7 @@ func (impl ClusterServiceImpl) CheckIfConfigIsValid(cluster *ClusterBean) error 
 		impl.logger.Errorw("error in getting cluster config ", "err", "err", "clusterId", cluster.Id)
 		return err
 	}
-	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(clusterConfig)
-	if err != nil {
-		impl.logger.Errorw("error in getting client set by rest config", "err", err, "restConfig", restConfig)
-		return err
-	}
-	k8sHttpClient, err := util3.OverrideK8sHttpClientWithTracer(restConfig)
-	if err != nil {
-		return err
-	}
-	k8sClientSet, err := kubernetes.NewForConfigAndClient(restConfig, k8sHttpClient)
-	if err != nil {
-		impl.logger.Errorw("error in getting client set by rest config", "err", err, "restConfig", restConfig)
-		return err
-	}
-	//using livez path as healthz path is deprecated
-	path := "/livez"
-	response, err := k8sClientSet.Discovery().RESTClient().Get().AbsPath(path).DoRaw(context.Background())
+	response, err := impl.K8sUtil.DiscoveryClientGetLiveZCall(clusterConfig)
 	if err != nil {
 		if _, ok := err.(*url.Error); ok {
 			return fmt.Errorf("Incorrect server url : %v", err)
@@ -892,21 +829,7 @@ func (impl *ClusterServiceImpl) ConnectClustersInBatch(clusters []*ClusterBean, 
 		go func(idx int, cluster *ClusterBean) {
 			defer wg.Done()
 			clusterConfig := cluster.GetClusterConfig()
-			restConfig, err := impl.K8sUtil.GetRestConfigByCluster(&clusterConfig)
-			if err != nil {
-				mutex.Lock()
-				respMap[cluster.Id] = err
-				mutex.Unlock()
-				return
-			}
-			k8sHttpClient, err := util3.OverrideK8sHttpClientWithTracer(restConfig)
-			if err != nil {
-				mutex.Lock()
-				respMap[cluster.Id] = err
-				mutex.Unlock()
-				return
-			}
-			k8sClientSet, err := kubernetes.NewForConfigAndClient(restConfig, k8sHttpClient)
+			_, _, k8sClientSet, err := impl.K8sUtil.GetK8sConfigAndClients(&clusterConfig)
 			if err != nil {
 				mutex.Lock()
 				respMap[cluster.Id] = err
@@ -918,7 +841,7 @@ func (impl *ClusterServiceImpl) ConnectClustersInBatch(clusters []*ClusterBean, 
 			if !clusterExistInDb {
 				id = idx
 			}
-			GetAndUpdateConnectionStatusForOneCluster(k8sClientSet, id, respMap, mutex)
+			impl.GetAndUpdateConnectionStatusForOneCluster(k8sClientSet, id, respMap, mutex)
 		}(idx, cluster)
 	}
 
@@ -1117,9 +1040,8 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 
 }
 
-func GetAndUpdateConnectionStatusForOneCluster(k8sClientSet *kubernetes.Clientset, clusterId int, respMap map[int]error, mutex *sync.Mutex) {
-	path := "/livez"
-	response, err := k8sClientSet.Discovery().RESTClient().Get().AbsPath(path).DoRaw(context.Background())
+func (impl *ClusterServiceImpl) GetAndUpdateConnectionStatusForOneCluster(k8sClientSet *kubernetes.Clientset, clusterId int, respMap map[int]error, mutex *sync.Mutex) {
+	response, err := impl.K8sUtil.GetLiveZCall(util3.LIVEZ, k8sClientSet)
 	log.Println("received response for cluster livez status", "response", string(response), "err", err, "clusterId", clusterId)
 
 	if err != nil {

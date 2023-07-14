@@ -67,11 +67,14 @@ type ClusterConfig struct {
 	CAData                string
 }
 
-const DEFAULT_CLUSTER = "default_cluster"
-const BearerToken = "bearer_token"
-const CertificateAuthorityData = "cert_auth_data"
-const CertData = "cert_data"
-const TlsKey = "tls_key"
+const (
+	DEFAULT_CLUSTER          = "default_cluster"
+	BearerToken              = "bearer_token"
+	CertificateAuthorityData = "cert_auth_data"
+	CertData                 = "cert_data"
+	TlsKey                   = "tls_key"
+	LIVEZ                    = "/livez"
+)
 
 func NewK8sUtil(logger *zap.SugaredLogger, runTimeConfig *client.RuntimeConfig) *K8sUtil {
 	usr, err := user.Current()
@@ -436,6 +439,39 @@ func (impl K8sUtil) DeleteJob(namespace string, name string, clusterConfig *Clus
 	}
 
 	return nil
+}
+
+func (impl K8sUtil) GetK8sConfigAndClients(clusterConfig *ClusterConfig) (*rest.Config, *http.Client, *kubernetes.Clientset, error) {
+	restConfig, err := impl.GetRestConfigByCluster(clusterConfig)
+	if err != nil {
+		impl.logger.Errorw("error in getting rest config by cluster", "err", err, "clusterName", clusterConfig.ClusterName)
+		return nil, nil, nil, err
+	}
+	k8sHttpClient, err := OverrideK8sHttpClientWithTracer(restConfig)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	k8sClientSet, err := kubernetes.NewForConfigAndClient(restConfig, k8sHttpClient)
+	if err != nil {
+		impl.logger.Errorw("error in getting client set by rest config", "err", err, "restConfig", restConfig)
+		return nil, nil, nil, err
+	}
+	return restConfig, k8sHttpClient, k8sClientSet, nil
+}
+
+func (impl K8sUtil) DiscoveryClientGetLiveZCall(cluster *ClusterConfig) ([]byte, error) {
+	_, _, k8sClientSet, err := impl.GetK8sConfigAndClients(cluster)
+	if err != nil {
+		return nil, err
+	}
+	//using livez path as healthz path is deprecated
+	response, err := impl.GetLiveZCall(LIVEZ, k8sClientSet)
+	return response, err
+
+}
+func (impl K8sUtil) GetLiveZCall(path string, k8sClientSet *kubernetes.Clientset) ([]byte, error) {
+	response, err := k8sClientSet.Discovery().RESTClient().Get().AbsPath(path).DoRaw(context.Background())
+	return response, err
 }
 
 func (impl K8sUtil) CreateJob(namespace string, name string, clusterConfig *ClusterConfig, job *batchV1.Job) error {
@@ -815,4 +851,24 @@ func (impl K8sUtil) GetKubeVersion() (*version.Info, error) {
 		return nil, err
 	}
 	return k8sServerVersion, err
+}
+
+func (impl K8sUtil) GetConfigAndClientsInCluster() (*v12.CoreV1Client, error) {
+	restConfig := &rest.Config{}
+	restConfig, err := rest.InClusterConfig()
+	if err != nil {
+		impl.logger.Error("Error in creating config for default cluster", "err", err)
+		return nil, err
+	}
+	httpClientFor, err := rest.HTTPClientFor(restConfig)
+	if err != nil {
+		impl.logger.Error("error occurred while overriding k8s client", "reason", err)
+		return nil, err
+	}
+	k8sClient, err := v12.NewForConfigAndClient(restConfig, httpClientFor)
+	if err != nil {
+		impl.logger.Error("error creating k8s client", "error", err)
+		return nil, err
+	}
+	return k8sClient, err
 }
