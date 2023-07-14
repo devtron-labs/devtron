@@ -223,7 +223,7 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 					UserId: userId,
 				}
 				_, err = impl.configMapService.ConfigSecretEnvironmentCreate(createJobEnvOverrideRequest)
-				if err != nil {
+				if err != nil && !strings.Contains(err.Error(), "already exists") {
 					impl.logger.Errorw("error in saving env override", "createJobEnvOverrideRequest", createJobEnvOverrideRequest, "err", err)
 					return nil, err
 				}
@@ -618,7 +618,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 					UserId: createRequest.UserId,
 				}
 				_, err = impl.configMapService.ConfigSecretEnvironmentCreate(createJobEnvOverrideRequest)
-				if err != nil {
+				if err != nil && !strings.Contains(err.Error(), "already exists") {
 					impl.logger.Errorw("error in saving env override", "createJobEnvOverrideRequest", createJobEnvOverrideRequest, "err", err)
 					return nil, err
 				}
