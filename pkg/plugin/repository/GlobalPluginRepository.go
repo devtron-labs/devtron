@@ -147,6 +147,7 @@ type PluginStepVariable struct {
 	ReferenceVariableName     string                       `sql:"reference_variable_name"`
 	Deleted                   bool                         `sql:"deleted,notnull"`
 	sql.AuditLog
+	PluginMetadataId int `sql:"-"`
 }
 
 type PluginStepCondition struct {
@@ -181,6 +182,7 @@ type GlobalPluginRepository interface {
 	GetStepsByPluginIds(pluginIds []int) ([]*PluginStep, error)
 	GetExposedVariablesByPluginIdAndVariableType(pluginId int, variableType PluginStepVariableType) ([]*PluginStepVariable, error)
 	GetExposedVariablesByPluginId(pluginId int) ([]*PluginStepVariable, error)
+	GetExposedVariablesForAllPlugins() ([]*PluginStepVariable, error)
 	GetConditionsByStepId(stepId int) ([]*PluginStepCondition, error)
 }
 
@@ -335,6 +337,21 @@ func (impl *GlobalPluginRepositoryImpl) GetExposedVariablesByPluginId(pluginId i
 		Where("pm.id = ?", pluginId).Select()
 	if err != nil {
 		impl.logger.Errorw("err in getting exposed variables by pluginId", "err", err, "pluginId", pluginId)
+		return nil, err
+	}
+	return pluginVariables, nil
+}
+
+func (impl *GlobalPluginRepositoryImpl) GetExposedVariablesForAllPlugins() ([]*PluginStepVariable, error) {
+	var pluginVariables []*PluginStepVariable
+	query := `SELECT psv.*, pm.id as plugin_metadata_id from plugin_step_variable psv 
+    				INNER JOIN plugin_step ps on ps.id = psv.plugin_step_id
+    				INNER JOIN plugin_metadata pm on pm.id = ps.plugin_id 
+    				WHERE psv.deleted = ? and psv.is_exposed = ? and
+    				ps.deleted = ? and pm.deleted = ?;`
+	_, err := impl.dbConnection.Query(&pluginVariables, query, false, true, false, false)
+	if err != nil {
+		impl.logger.Errorw("err in getting exposed variables for all plugins", "err", err)
 		return nil, err
 	}
 	return pluginVariables, nil
