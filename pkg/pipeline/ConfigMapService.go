@@ -19,6 +19,7 @@ package pipeline
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
@@ -1818,8 +1819,13 @@ func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentCreate(createJobEnvOverr
 			}
 			return createJobEnvOverrideRequest, nil
 		}
+		env, err := impl.environmentRepository.FindById(configMap.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("error while fetching environment from db", "error", err)
+			return nil, err
+		}
 		impl.logger.Warnw("Environment override in this environment already exits", "appId", createJobEnvOverrideRequest.AppId, "envId", createJobEnvOverrideRequest.EnvId)
-		return nil, err
+		return nil, errors.New("Environment " + env.Name + " already exists.")
 	}
 	model := &chartConfig.ConfigMapEnvModel{
 		AppId:         createJobEnvOverrideRequest.AppId,
