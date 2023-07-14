@@ -507,6 +507,12 @@ type CDPipelineConfigObject struct {
 	TeamId                        int                                    `json:"-"`
 	EnvironmentIdentifier         string                                 `json:"-" `
 	IsVirtualEnvironment          bool                                   `json:"isVirtualEnvironment"`
+	HelmPackageName               string                                 `json:"helmPackageName"`
+	ChartName                     string                                 `json:"chartName"`
+	ChartBaseVersion              string                                 `json:"chartBaseVersion"`
+	ContainerRegistryId           int                                    `json:"containerRegistryId"`
+	RepoUrl                       string                                 `json:"repoUrl"`
+	ManifestStorageType           []string
 }
 
 type PreStageConfigMapSecretNames struct {
@@ -612,14 +618,6 @@ func IsAcdApp(deploymentType string) bool {
 
 func IsHelmApp(deploymentType string) bool {
 	return deploymentType == Helm
-}
-
-func IsManifestDownload(deploymentType string) bool {
-	return deploymentType == ManifestDownload
-}
-
-func IsGitOpsWithoutDeployment(deploymentType string) bool {
-	return deploymentType == GitOpsWithoutDeployment
 }
 
 type Status string
@@ -793,6 +791,16 @@ type ExampleValueDto struct {
 	Errors []ErrorDto `json:"errors,omitempty"`
 	Result string     `json:"result,omitempty"`
 	Status string     `json:"status,omitempty"`
+}
+
+type ManifestStorage = string
+
+const (
+	ManifestStorageGit ManifestStorage = "git"
+)
+
+func IsGitStorage(storageType string) bool {
+	return storageType == ManifestStorageGit
 }
 
 const CustomAutoScalingEnabledPathKey = "CUSTOM_AUTOSCALING_ENABLED_PATH"
