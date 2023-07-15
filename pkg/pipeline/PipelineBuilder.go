@@ -1470,6 +1470,7 @@ func (impl PipelineBuilderImpl) PatchCiPipeline(request *bean.CiPatchRequest) (c
 	}
 
 	ciConfig.IsJob = request.IsJob
+	// Check for clone job to not create env override again
 	ciConfig.IsCloneJob = request.IsCloneJob
 
 	switch request.Action {

@@ -29,6 +29,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	history2 "github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -1894,11 +1895,12 @@ func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentGet(appId int) ([]JobEnv
 	}
 
 	for _, cm := range configMap {
-		var jobEnvOverride JobEnvOverrideResponse
-		jobEnvOverride.EnvironmentId = cm.EnvironmentId
-		jobEnvOverride.AppId = cm.AppId
-		jobEnvOverride.Id = cm.Id
-		jobEnvOverride.EnvironmentName = envIdNameMap[cm.EnvironmentId]
+		jobEnvOverride := JobEnvOverrideResponse{
+			EnvironmentId:   cm.EnvironmentId,
+			AppId:           cm.AppId,
+			Id:              cm.Id,
+			EnvironmentName: envIdNameMap[cm.EnvironmentId],
+		}
 		jobEnvOverrideResponse = append(jobEnvOverrideResponse, jobEnvOverride)
 	}
 
@@ -1925,9 +1927,12 @@ func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentClone(appId int, cloneAp
 			ConfigMapData: cm.ConfigMapData,
 			SecretData:    cm.SecretData,
 			Deleted:       cm.Deleted,
+			AuditLog: sql.AuditLog{
+				CreatedBy: userId,
+				UpdatedBy: userId,
+			},
 		}
-		model.CreatedBy = userId
-		model.UpdatedBy = userId
+
 		_, err := impl.configMapRepository.CreateEnvLevel(model)
 		if err != nil {
 			impl.logger.Errorw("error while creating env level", "error", err)
