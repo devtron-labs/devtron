@@ -20,7 +20,6 @@ package restHandler
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/chart"
@@ -664,19 +663,12 @@ func (handler ConfigMapRestHandlerImpl) ConfigSecretBulkPatch(w http.ResponseWri
 	}
 
 	//AUTH - check from casbin db
-	roles, err := handler.userAuthService.CheckUserRoles(userId)
-	if err != nil {
-		common.WriteJsonResp(w, err, []byte("Failed to get user by id"), http.StatusInternalServerError)
-		return
-	}
-	superAdmin := false
-	for _, item := range roles {
-		if item == bean.SUPERADMIN {
-			superAdmin = true
+	isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
+	if !isSuperAdmin || err != nil {
+		if err != nil {
+			handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
 		}
-	}
-	if superAdmin == false {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//AUTH
@@ -717,19 +709,12 @@ func (handler ConfigMapRestHandlerImpl) AddEnvironmentToJob(w http.ResponseWrite
 	}
 
 	//AUTH - check from casbin db
-	roles, err := handler.userAuthService.CheckUserRoles(userId)
-	if err != nil {
-		common.WriteJsonResp(w, err, []byte("Failed to get user by id"), http.StatusInternalServerError)
-		return
-	}
-	superAdmin := false
-	for _, item := range roles {
-		if item == bean.SUPERADMIN {
-			superAdmin = true
+	isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
+	if !isSuperAdmin || err != nil {
+		if err != nil {
+			handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
 		}
-	}
-	if superAdmin == false {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//AUTH
@@ -762,19 +747,12 @@ func (handler ConfigMapRestHandlerImpl) RemoveEnvironmentFromJob(w http.Response
 	}
 
 	//AUTH - check from casbin db
-	roles, err := handler.userAuthService.CheckUserRoles(userId)
-	if err != nil {
-		common.WriteJsonResp(w, err, []byte("Failed to get user by id"), http.StatusInternalServerError)
-		return
-	}
-	superAdmin := false
-	for _, item := range roles {
-		if item == bean.SUPERADMIN {
-			superAdmin = true
+	isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
+	if !isSuperAdmin || err != nil {
+		if err != nil {
+			handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
 		}
-	}
-	if superAdmin == false {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//AUTH
@@ -811,19 +789,12 @@ func (handler ConfigMapRestHandlerImpl) GetEnvironmentsForJob(w http.ResponseWri
 		return
 	}
 	//AUTH - check from casbin db
-	roles, err := handler.userAuthService.CheckUserRoles(userId)
-	if err != nil {
-		common.WriteJsonResp(w, err, []byte("Failed to get user by id"), http.StatusInternalServerError)
-		return
-	}
-	superAdmin := false
-	for _, item := range roles {
-		if item == bean.SUPERADMIN {
-			superAdmin = true
+	isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
+	if !isSuperAdmin || err != nil {
+		if err != nil {
+			handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
 		}
-	}
-	if superAdmin == false {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//AUTH

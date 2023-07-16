@@ -101,7 +101,7 @@ func (impl AppListingRepositoryImpl) FetchJobs(appIds []int, statuses []string, 
 		impl.Logger.Error(appsErr)
 		return jobContainers, appsErr
 	}
-	jobContainers = extractEnvironmentNameFromId(jobContainers, impl)
+	jobContainers = impl.extractEnvironmentNameFromId(jobContainers)
 	return jobContainers, nil
 }
 func (impl AppListingRepositoryImpl) FetchOverviewCiPipelines(jobId int) ([]*bean.JobListingContainer, error) {
@@ -113,7 +113,7 @@ func (impl AppListingRepositoryImpl) FetchOverviewCiPipelines(jobId int) ([]*bea
 		impl.Logger.Error(appsErr)
 		return jobContainers, appsErr
 	}
-	jobContainers = extractEnvironmentNameFromId(jobContainers, impl)
+	jobContainers = impl.extractEnvironmentNameFromId(jobContainers)
 	return jobContainers, nil
 }
 
@@ -702,7 +702,7 @@ func (impl AppListingRepositoryImpl) FindAppCount(isProd bool) (int, error) {
 	return count, nil
 }
 
-func extractEnvironmentNameFromId(jobContainers []*bean.JobListingContainer, impl AppListingRepositoryImpl) []*bean.JobListingContainer {
+func (impl AppListingRepositoryImpl) extractEnvironmentNameFromId(jobContainers []*bean.JobListingContainer) []*bean.JobListingContainer {
 	var envIds []*int
 	for _, job := range jobContainers {
 		if job.EnvironmentId != 0 {

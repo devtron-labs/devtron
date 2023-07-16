@@ -603,7 +603,7 @@ func (impl *CiHandlerImpl) FetchWorkflowDetails(appId int, pipelineId int, build
 	}
 	env, err := impl.envRepository.FindById(workflow.EnvironmentId)
 	if err != nil && err != pg.ErrNoRows {
-		impl.Logger.Errorw("err", "err", err)
+		impl.Logger.Errorw("error in fetching environment details ", "err", err)
 		return WorkflowResponse{}, err
 	}
 	workflowResponse := WorkflowResponse{
