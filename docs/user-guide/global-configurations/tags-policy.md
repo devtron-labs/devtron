@@ -1,10 +1,10 @@
-# Mandatory Tags
+# Tags Policy
 
-Devtron's `Mandatory Tags` feature enables you to assign tags to your applications. Devtron also offers the option to propagate the mandatory tags assigned to an application as labels within the associated Kubernetes resources. 
+Devtron's `Tags Policy` feature enables you to assign tags to your applications. Devtron also offers the option to propagate the tags assigned to an application as labels within the associated Kubernetes resources. 
 
-## Add Mandatory Tags
+## Add Tags
 
-To add mandatory tags, follow these steps:
+To mandatory tags, follow these steps:
 
 1. From the left pane, navigate to the Global Configuration section.
 2. Select Tags within the Global Configuration section.
