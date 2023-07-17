@@ -677,6 +677,11 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 
 func (handler *K8sApplicationRestHandlerImpl) GetTerminalSession(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
 	request, resourceRequestBean, err := handler.k8sApplicationService.ValidateTerminalRequestQuery(r)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -710,7 +715,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetTerminalSession(w http.Response
 		common.WriteJsonResp(w, errors.New("can not get terminal session as target cluster is not provided"), nil, http.StatusBadRequest)
 		return
 	}
-
+	request.UserId = userId
 	status, message, err := handler.terminalSessionHandler.GetTerminalSession(request)
 	common.WriteJsonResp(w, err, message, status)
 }

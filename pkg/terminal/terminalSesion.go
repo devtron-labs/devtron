@@ -312,6 +312,7 @@ type TerminalSessionRequest struct {
 	AppId         int
 	//ClusterId is optional
 	ClusterId int
+	UserId    int32
 }
 
 const CommandExecutionFailed = "Failed to Execute Command"
@@ -418,7 +419,7 @@ func (impl *TerminalSessionHandlerImpl) GetTerminalSession(req *TerminalSessionR
 	go func() {
 		err := impl.saveEphemeralContainerTerminalAccessAudit(req)
 		if err != nil {
-			impl.logger.Errorw("error in saving ephemeral container terminal access audit,so skipping auditing")
+			impl.logger.Errorw("error in saving ephemeral container terminal access audit,so skipping auditing", "err", err)
 		}
 	}()
 
@@ -559,6 +560,7 @@ func (impl *TerminalSessionHandlerImpl) saveEphemeralContainerTerminalAccessAudi
 	ephemeralContainerJson, err := json.Marshal(ephemeralContainer)
 	if err != nil {
 		impl.logger.Errorw("error occurred while marshaling ephemeralContainer object", "err", err, "ephemeralContainer", ephemeralContainer)
+		return err
 	}
 	ephemeralReq := cluster.EphemeralContainerRequest{
 		PodName:   req.PodName,
@@ -572,6 +574,7 @@ func (impl *TerminalSessionHandlerImpl) saveEphemeralContainerTerminalAccessAudi
 		AdvancedData: &cluster.EphemeralContainerAdvancedData{
 			Manifest: string(ephemeralContainerJson),
 		},
+		UserId: req.UserId,
 	}
 	err = impl.ephemeralContainerService.AuditEphemeralContainerAction(ephemeralReq, repository.ActionAccessed)
 	if err != nil {
