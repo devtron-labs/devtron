@@ -1257,7 +1257,7 @@ func (impl *K8sApplicationServiceImpl) generateDebugContainer(pod *corev1.Pod, r
 				Stdin:                    true,
 				TerminationMessagePolicy: corev1.TerminationMessageReadFile,
 				TTY:                      true,
-				Command:                  []string{"sh", "-c", "ps -ef > out.log"},
+				Command:                  []string{"sh"},
 			},
 			TargetContainerName: req.BasicData.TargetContainerName,
 		}
