@@ -473,7 +473,7 @@ func (impl K8sClientServiceImpl) ApplyResource(ctx context.Context, restConfig *
 
 func (impl *K8sClientServiceImpl) FetchConnectionStatusForCluster(k8sClientSet *kubernetes.Clientset, clusterId int) error {
 	//using livez path as healthz path is deprecated
-	path := "/livez"
+	path := util.LiveZ
 	response, err := k8sClientSet.Discovery().RESTClient().Get().AbsPath(path).DoRaw(context.Background())
 	log.Println("received response for cluster livez status", "response", string(response), "err", err, "clusterId", clusterId)
 	if err != nil {
