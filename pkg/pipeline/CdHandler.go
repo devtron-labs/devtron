@@ -72,7 +72,7 @@ type CdHandler interface {
 	FetchCdPrePostStageStatus(pipelineId int) ([]pipelineConfig.CdWorkflowWithArtifact, error)
 	CancelStage(workflowRunnerId int, userId int32) (int, error)
 	FetchAppWorkflowStatusForTriggerView(appId int) ([]*pipelineConfig.CdWorkflowStatus, error)
-	CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipelineStatusCheckEligibleTime int) error
+	CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipelineStatusCheckEligibleTime int, getPipelineDeployedWithinHours int) error
 	CheckArgoAppStatusPeriodicallyAndUpdateInDb(getPipelineDeployedBeforeMinutes int, getPipelineDeployedWithinHours int) error
 	CheckArgoPipelineTimelineStatusPeriodicallyAndUpdateInDb(pendingSinceSeconds int, timeForDegradation int) error
 	UpdatePipelineTimelineAndStatusByLiveApplicationFetch(pipeline *pipelineConfig.Pipeline, installedApp repository3.InstalledApps, userId int32) (err error, isTimelineUpdated bool)
@@ -463,8 +463,8 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch
 	return nil, isTimelineUpdated
 }
 
-func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipelineStatusCheckEligibleTime int) error {
-	wfrList, err := impl.cdWorkflowRepository.GetLatestTriggersOfHelmPipelinesStuckInNonTerminalStatuses()
+func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipelineStatusCheckEligibleTime int, getPipelineDeployedWithinHours int) error {
+	wfrList, err := impl.cdWorkflowRepository.GetLatestTriggersOfHelmPipelinesStuckInNonTerminalStatuses(getPipelineDeployedWithinHours)
 	if err != nil {
 		impl.Logger.Errorw("error in getting latest triggers of helm pipelines which are stuck in non terminal statuses", "err", err)
 		return err
