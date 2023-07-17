@@ -4,7 +4,7 @@ Devtron's `Tags Policy` feature enables you to assign tags to your applications.
 
 ## Add Tags
 
-To mandatory tags, follow these steps:
+To add tags, follow these steps:
 
 1. From the left pane, navigate to the Global Configuration section.
 2. Select Tags within the Global Configuration section.
