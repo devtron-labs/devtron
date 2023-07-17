@@ -136,24 +136,12 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 		impl.Logger.Errorw("could not fetch ci config", "pipeline", trigger.PipelineId)
 		return 0, err
 	}
-	app, err := impl.appRepository.FindById(pipeline.AppId)
+	env, isJob, err := impl.getEnvironmentForJob(pipeline, trigger)
 	if err != nil {
-		impl.Logger.Errorw("could not find app", "err", err)
 		return 0, err
 	}
-
-	var env *repository1.Environment
-	isJob := false
-	if app.AppType == helper.Job {
-		isJob = true
-		if trigger.EnvironmentId != 0 {
-			env, err = impl.envRepository.FindById(trigger.EnvironmentId)
-			if err != nil {
-				impl.Logger.Errorw("could not find environment", "err", err)
-				return 0, err
-			}
-			ciWorkflowConfig.Namespace = env.Namespace
-		}
+	if isJob && env != nil {
+		ciWorkflowConfig.Namespace = env.Namespace
 	}
 	if ciWorkflowConfig.Namespace == "" {
 		ciWorkflowConfig.Namespace = impl.ciConfig.DefaultNamespace
@@ -166,7 +154,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 		return 0, err
 	}
 
-	if len(preCiSteps) == 0 && app.AppType == helper.Job {
+	if len(preCiSteps) == 0 && isJob {
 		return 0, &util.ApiError{
 			UserMessage: "No tasks are configured in this job pipeline",
 		}
@@ -202,6 +190,29 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 	middleware.CiTriggerCounter.WithLabelValues(pipeline.App.AppName, pipeline.Name).Inc()
 	go impl.WriteCITriggerEvent(trigger, pipeline, workflowRequest)
 	return savedCiWf.Id, err
+}
+
+func (impl *CiServiceImpl) getEnvironmentForJob(pipeline *pipelineConfig.CiPipeline, trigger Trigger) (*repository1.Environment, bool, error) {
+	app, err := impl.appRepository.FindById(pipeline.AppId)
+	if err != nil {
+		impl.Logger.Errorw("could not find app", "err", err)
+		return nil, false, err
+	}
+
+	var env *repository1.Environment
+	isJob := false
+	if app.AppType == helper.Job {
+		isJob = true
+		if trigger.EnvironmentId != 0 {
+			env, err = impl.envRepository.FindById(trigger.EnvironmentId)
+			if err != nil {
+				impl.Logger.Errorw("could not find environment", "err", err)
+				return nil, isJob, err
+			}
+			return env, isJob, nil
+		}
+	}
+	return nil, isJob, nil
 }
 
 func (impl *CiServiceImpl) WriteCITriggerEvent(trigger Trigger, pipeline *pipelineConfig.CiPipeline, workflowRequest *WorkflowRequest) {
