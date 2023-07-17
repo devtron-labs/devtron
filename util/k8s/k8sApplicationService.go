@@ -1241,7 +1241,7 @@ func (impl *K8sApplicationServiceImpl) generateDebugContainer(pod *corev1.Pod, r
 	if req.AdvancedData != nil {
 		err := json.Unmarshal([]byte(req.AdvancedData.Manifest), ephemeralContainer)
 		if err != nil {
-			impl.logger.Errorw("error occurred i unMarshaling advanced ephemeral data", "err", err, "advancedData", req.AdvancedData.Manifest)
+			impl.logger.Errorw("error occurred in unMarshaling advanced ephemeral data", "err", err, "advancedData", req.AdvancedData.Manifest)
 			return copied, ephemeralContainer, err
 		}
 		if ephemeralContainer.TargetContainerName == "" || ephemeralContainer.Name == "" || ephemeralContainer.Image == "" {
@@ -1278,8 +1278,8 @@ func (impl *K8sApplicationServiceImpl) TerminatePodEphemeralContainer(req cluste
 		Namespace:     req.Namespace,
 		ContainerName: req.BasicData.ContainerName,
 	}
-	
-	containerKillCommand := fmt.Sprintf("kill -16 $(ps aux | awk '/%s-devtron/ {print $2; exit}')", terminalReq.ContainerName)
+
+	containerKillCommand := fmt.Sprintf("kill -16 $(pgrep -f '%s-devtron' -o)", terminalReq.ContainerName)
 	cmds := []string{"sh", "-c", containerKillCommand}
 	_, errBuf, err := impl.terminalSession.RunCmdInRemotePod(terminalReq, cmds)
 	if err != nil {
