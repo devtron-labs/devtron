@@ -1810,37 +1810,39 @@ func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentCreate(createJobEnvOverr
 		impl.logger.Errorw("error while fetching from db", "error", err)
 		return nil, err
 	}
-	if err == nil {
-		if configMap.Deleted {
-			configMap.Deleted = false
-			_, err = impl.configMapRepository.UpdateEnvLevel(configMap)
-			if err != nil {
-				impl.logger.Errorw("error while creating env level", "error", err)
-				return nil, err
-			}
-			return createJobEnvOverrideRequest, nil
+	if err != nil {
+		model := &chartConfig.ConfigMapEnvModel{
+			AppId:         createJobEnvOverrideRequest.AppId,
+			EnvironmentId: createJobEnvOverrideRequest.EnvId,
+			Deleted:       false,
 		}
-		env, err := impl.environmentRepository.FindById(configMap.EnvironmentId)
+		model.CreatedBy = createJobEnvOverrideRequest.UserId
+		model.UpdatedBy = createJobEnvOverrideRequest.UserId
+		configMap, err = impl.configMapRepository.CreateEnvLevel(model)
 		if err != nil {
-			impl.logger.Errorw("error while fetching environment from db", "error", err)
+			impl.logger.Errorw("error while creating env level", "error", err)
 			return nil, err
 		}
-		impl.logger.Warnw("Environment override in this environment already exits", "appId", createJobEnvOverrideRequest.AppId, "envId", createJobEnvOverrideRequest.EnvId)
-		return nil, errors.New("Environment " + env.Name + " already exists.")
+		return createJobEnvOverrideRequest, nil
+
 	}
-	model := &chartConfig.ConfigMapEnvModel{
-		AppId:         createJobEnvOverrideRequest.AppId,
-		EnvironmentId: createJobEnvOverrideRequest.EnvId,
-		Deleted:       false,
+	if configMap.Deleted {
+		configMap.Deleted = false
+		_, err = impl.configMapRepository.UpdateEnvLevel(configMap)
+		if err != nil {
+			impl.logger.Errorw("error while creating env level", "error", err)
+			return nil, err
+		}
+		return createJobEnvOverrideRequest, nil
 	}
-	model.CreatedBy = createJobEnvOverrideRequest.UserId
-	model.UpdatedBy = createJobEnvOverrideRequest.UserId
-	configMap, err = impl.configMapRepository.CreateEnvLevel(model)
+	env, err := impl.environmentRepository.FindById(configMap.EnvironmentId)
 	if err != nil {
-		impl.logger.Errorw("error while creating env level", "error", err)
+		impl.logger.Errorw("error while fetching environment from db", "error", err)
 		return nil, err
 	}
-	return createJobEnvOverrideRequest, nil
+	impl.logger.Warnw("Environment override in this environment already exits", "appId", createJobEnvOverrideRequest.AppId, "envId", createJobEnvOverrideRequest.EnvId)
+	return nil, errors.New("Environment " + env.Name + " already exists.")
+
 }
 
 func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentDelete(createJobEnvOverrideRequest *CreateJobEnvOverridePayload) (*CreateJobEnvOverridePayload, error) {
