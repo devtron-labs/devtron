@@ -113,7 +113,7 @@ func (impl *CiPipelineHistoryRepositoryImpl) SaveCiEnvMappingHistory(CiEnvMappin
 	err := impl.dbConnection.Insert(CiEnvMappingHistory)
 
 	if err != nil {
-		impl.logger.Errorw("error in saving history for Ci-Env Mapping")
+		impl.logger.Errorw("error in saving history for Ci-Env Mapping", "err", err)
 		return err
 	}
 
