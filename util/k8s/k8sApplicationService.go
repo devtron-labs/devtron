@@ -1258,12 +1258,17 @@ func (impl *K8sApplicationServiceImpl) generateDebugContainer(pod *corev1.Pod, r
 				Stdin:                    true,
 				TerminationMessagePolicy: corev1.TerminationMessageReadFile,
 				TTY:                      true,
-				Command:                  []string{"sh"},
+				Command:                  []string{"sh", "-c", "ps -ef > out.log"},
 			},
 			TargetContainerName: req.BasicData.TargetContainerName,
 		}
 	}
 	ephemeralContainer.Name = ephemeralContainer.Name + "-" + util2.Generate(5)
+	//ephemeralContainer.SecurityContext = &corev1.SecurityContext{
+	//	SELinuxOptions: &corev1.SELinuxOptions{
+	//		User: ephemeralContainer.Name,
+	//	},
+	//}
 	copied.Spec.EphemeralContainers = append(copied.Spec.EphemeralContainers, *ephemeralContainer)
 	ephemeralContainer = &copied.Spec.EphemeralContainers[len(copied.Spec.EphemeralContainers)-1]
 	return copied, ephemeralContainer, nil

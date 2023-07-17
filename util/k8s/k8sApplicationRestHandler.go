@@ -851,7 +851,7 @@ func (handler *K8sApplicationRestHandlerImpl) CreateEphemeralContainer(w http.Re
 		return
 	}
 	//rbac applied in below function
-	resourceRequestBean := handler.handleEphemeralRBAC(w, r)
+	resourceRequestBean := handler.handleEphemeralRBAC(request.PodName, request.Namespace, w, r)
 	if resourceRequestBean == nil {
 		return
 	}
@@ -895,7 +895,7 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteEphemeralContainer(w http.Re
 		return
 	}
 	//rbac applied in below function
-	resourceRequestBean := handler.handleEphemeralRBAC(w, r)
+	resourceRequestBean := handler.handleEphemeralRBAC(request.PodName, request.Namespace, w, r)
 	if resourceRequestBean == nil {
 		return
 	}
@@ -919,7 +919,7 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteEphemeralContainer(w http.Re
 
 }
 
-func (handler *K8sApplicationRestHandlerImpl) handleEphemeralRBAC(w http.ResponseWriter, r *http.Request) *ResourceRequestBean {
+func (handler *K8sApplicationRestHandlerImpl) handleEphemeralRBAC(podName, namespace string, w http.ResponseWriter, r *http.Request) *ResourceRequestBean {
 	token := r.Header.Get("token")
 	_, resourceRequestBean, err := handler.k8sApplicationService.ValidateTerminalRequestQuery(r)
 	if err != nil {
@@ -946,6 +946,8 @@ func (handler *K8sApplicationRestHandlerImpl) handleEphemeralRBAC(w http.Respons
 		//RBAC enforcer Ends
 	} else if resourceRequestBean.AppIdentifier == nil && resourceRequestBean.DevtronAppIdentifier == nil && resourceRequestBean.ClusterId > 0 {
 		//RBAC enforcer applying for Resource Browser
+		resourceRequestBean.K8sRequest.ResourceIdentifier.Name = podName
+		resourceRequestBean.K8sRequest.ResourceIdentifier.Namespace = namespace
 		if !handler.handleRbac(r, w, *resourceRequestBean, token, casbin.ActionUpdate) {
 			return resourceRequestBean
 		}
