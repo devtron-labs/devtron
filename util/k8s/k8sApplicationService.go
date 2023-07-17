@@ -62,7 +62,7 @@ type K8sApplicationService interface {
 	GetAllApiResources(ctx context.Context, clusterId int, isSuperAdmin bool, userId int32) (*application.GetAllApiResourcesResponse, error)
 	GetResourceList(ctx context.Context, token string, request *ResourceRequestBean, validateResourceAccess func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) (*util2.ClusterResourceListMap, error)
 	ApplyResources(ctx context.Context, token string, request *application.ApplyResourcesRequest, resourceRbacHandler func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) ([]*application.ApplyResourcesResponse, error)
-	//FetchConnectionStatusForCluster(k8sClientSet *kubernetes.Clientset, clusterId int) error
+	//FetchConnectionStatusForCluster(K8sClientSet *kubernetes.Clientset, clusterId int) error
 	RotatePods(ctx context.Context, request *RotatePodRequest) (*RotatePodResponse, error)
 }
 type K8sApplicationServiceImpl struct {

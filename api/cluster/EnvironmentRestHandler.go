@@ -521,19 +521,6 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentConnection(w http.ResponseW
 		return
 	}
 
-	//k8sHttpClient, err := util.OverrideK8sHttpClientWithTracer(restConfig)
-	//if err != nil {
-	//	impl.logger.Errorw("service err, OverrideK8sHttpClientWithTracer", "err", err, "restConfig", restConfig)
-	//	common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-	//	return
-	//}
-	//k8sClientSet, err := kubernetes.NewForConfigAndClient(restConfig, k8sHttpClient)
-	//if err != nil {
-	//	impl.logger.Errorw("error in getting client set by rest config", "err", err, "restConfig", restConfig)
-	//	common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-	//	return
-	//}
-
 	responseObj := &ClusterReachableResponse{
 		ClusterReachable: true,
 		ClusterName:      clusterBean.ClusterName,

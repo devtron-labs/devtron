@@ -212,7 +212,7 @@ func (impl *ClusterServiceImpl) GetClusterConfig(cluster *ClusterBean) (*util3.C
 	host := cluster.ServerUrl
 	configMap := cluster.Config
 	bearerToken := configMap[util3.BearerToken]
-	if cluster.Id == 1 && cluster.ClusterName == util3.DEFAULT_CLUSTER {
+	if cluster.Id == 1 && cluster.ClusterName == util3.DefaultCluster {
 		if _, err := os.Stat(TokenFilePath); os.IsNotExist(err) {
 			impl.logger.Errorw("no directory or file exists", "TOKEN_FILE_PATH", TokenFilePath, "err", err)
 			return nil, err
@@ -1041,7 +1041,7 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 }
 
 func (impl *ClusterServiceImpl) GetAndUpdateConnectionStatusForOneCluster(k8sClientSet *kubernetes.Clientset, clusterId int, respMap map[int]error, mutex *sync.Mutex) {
-	response, err := impl.K8sUtil.GetLiveZCall(util3.LIVEZ, k8sClientSet)
+	response, err := impl.K8sUtil.GetLiveZCall(util3.LiveZ, k8sClientSet)
 	log.Println("received response for cluster livez status", "response", string(response), "err", err, "clusterId", clusterId)
 
 	if err != nil {

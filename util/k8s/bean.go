@@ -112,7 +112,7 @@ type NodeDrainHelper struct {
 	IgnoreAllDaemonSets bool `json:"ignoreAllDaemonSets"`
 	// DisableEviction forces drain to use delete rather than evict
 	DisableEviction bool `json:"disableEviction"`
-	k8sClientSet    *kubernetes.Clientset
+	K8sClientSet    *kubernetes.Clientset
 }
 
 type NodeDetails struct {

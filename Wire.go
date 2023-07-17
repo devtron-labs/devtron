@@ -127,6 +127,7 @@ func InitializeApp() (*App, error) {
 		externalLink.ExternalLinkWireSet,
 		team.TeamsWireSet,
 		AuthWireSet,
+		util4.NewK8sUtil,
 		user.UserWireSet,
 		sso.SsoConfigWireSet,
 		cluster.ClusterWireSet,
@@ -359,7 +360,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(repository8.ImageTaggingRepository), new(*repository8.ImageTaggingRepositoryImpl)),
 		pipeline.NewImageTaggingServiceImpl,
 		wire.Bind(new(pipeline.ImageTaggingService), new(*pipeline.ImageTaggingServiceImpl)),
-		util4.NewK8sUtil,
 		argocdServer.NewVersionServiceImpl,
 		wire.Bind(new(argocdServer.VersionService), new(*argocdServer.VersionServiceImpl)),
 

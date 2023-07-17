@@ -24,6 +24,10 @@ import (
 	"flag"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/util"
+	v13 "k8s.io/api/policy/v1"
+	v1beta12 "k8s.io/api/policy/v1beta1"
+	"k8s.io/metrics/pkg/apis/metrics/v1beta1"
+	metrics "k8s.io/metrics/pkg/client/clientset/versioned"
 	"net/http"
 	"os/user"
 	"path/filepath"
@@ -68,12 +72,19 @@ type ClusterConfig struct {
 }
 
 const (
-	DEFAULT_CLUSTER          = "default_cluster"
+	DefaultCluster           = "default_cluster"
 	BearerToken              = "bearer_token"
 	CertificateAuthorityData = "cert_auth_data"
 	CertData                 = "cert_data"
 	TlsKey                   = "tls_key"
-	LIVEZ                    = "/livez"
+	LiveZ                    = "/livez"
+)
+
+const (
+	// EvictionKind represents the kind of evictions object
+	EvictionKind = "Eviction"
+	// EvictionSubresource represents the kind of evictions object as pod's subresource
+	EvictionSubresource = "pods/eviction"
 )
 
 func NewK8sUtil(logger *zap.SugaredLogger, runTimeConfig *client.RuntimeConfig) *K8sUtil {
@@ -94,7 +105,7 @@ func (impl K8sUtil) GetRestConfigByCluster(configMap *ClusterConfig) (*rest.Conf
 	bearerToken := configMap.BearerToken
 	var restConfig *rest.Config
 	var err error
-	if configMap.ClusterName == DEFAULT_CLUSTER && len(bearerToken) == 0 {
+	if configMap.ClusterName == DefaultCluster && len(bearerToken) == 0 {
 		restConfig, err = impl.GetK8sClusterRestConfig()
 		if err != nil {
 			impl.logger.Errorw("error in getting rest config for default cluster", "err", err)
@@ -122,8 +133,8 @@ func (impl K8sUtil) GetClient(clusterConfig *ClusterConfig) (*v12.CoreV1Client, 
 	if err != nil {
 		return nil, err
 	}
-	client, err := v12.NewForConfigAndClient(cfg, httpClient)
-	return client, err
+	v12Client, err := v12.NewForConfigAndClient(cfg, httpClient)
+	return v12Client, err
 }
 
 func (impl K8sUtil) GetClientSet(clusterConfig *ClusterConfig) (*kubernetes.Clientset, error) {
@@ -136,8 +147,8 @@ func (impl K8sUtil) GetClientSet(clusterConfig *ClusterConfig) (*kubernetes.Clie
 	if err != nil {
 		return nil, err
 	}
-	client, err := kubernetes.NewForConfigAndClient(cfg, httpClient)
-	return client, err
+	kubernetesClient, err := kubernetes.NewForConfigAndClient(cfg, httpClient)
+	return kubernetesClient, err
 }
 
 func (impl K8sUtil) getKubeConfig(devMode client.LocalDevMode) (*rest.Config, error) {
@@ -188,12 +199,12 @@ func (impl K8sUtil) GetK8sClient() (*v12.CoreV1Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	client, err := v12.NewForConfigAndClient(config, httpClient)
+	v12Client, err := v12.NewForConfigAndClient(config, httpClient)
 	if err != nil {
 		impl.logger.Errorw("error creating k8s client", "error", err)
 		return nil, err
 	}
-	return client, err
+	return v12Client, err
 }
 
 func (impl K8sUtil) GetK8sDiscoveryClient(clusterConfig *ClusterConfig) (*discovery.DiscoveryClient, error) {
@@ -206,12 +217,12 @@ func (impl K8sUtil) GetK8sDiscoveryClient(clusterConfig *ClusterConfig) (*discov
 	if err != nil {
 		return nil, err
 	}
-	client, err := discovery.NewDiscoveryClientForConfigAndClient(cfg, httpClient)
+	discoveryClient, err := discovery.NewDiscoveryClientForConfigAndClient(cfg, httpClient)
 	if err != nil {
 		impl.logger.Errorw("error", "error", err, "clusterConfig", clusterConfig)
 		return nil, err
 	}
-	return client, err
+	return discoveryClient, err
 }
 
 func (impl K8sUtil) GetK8sDiscoveryClientInCluster() (*discovery.DiscoveryClient, error) {
@@ -231,21 +242,21 @@ func (impl K8sUtil) GetK8sDiscoveryClientInCluster() (*discovery.DiscoveryClient
 	if err != nil {
 		return nil, err
 	}
-	client, err := discovery.NewDiscoveryClientForConfigAndClient(config, httpClient)
+	discoveryClient, err := discovery.NewDiscoveryClientForConfigAndClient(config, httpClient)
 	if err != nil {
 		impl.logger.Errorw("error", "error", err)
 		return nil, err
 	}
-	return client, err
+	return discoveryClient, err
 }
 
 func (impl K8sUtil) CreateNsIfNotExists(namespace string, clusterConfig *ClusterConfig) (err error) {
-	client, err := impl.GetClient(clusterConfig)
+	v12Client, err := impl.GetClient(clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error", "error", err, "clusterConfig", clusterConfig)
 		return err
 	}
-	exists, err := impl.checkIfNsExists(namespace, client)
+	exists, err := impl.checkIfNsExists(namespace, v12Client)
 	if err != nil {
 		impl.logger.Errorw("error", "error", err, "clusterConfig", clusterConfig)
 		return err
@@ -254,7 +265,7 @@ func (impl K8sUtil) CreateNsIfNotExists(namespace string, clusterConfig *Cluster
 		return nil
 	}
 	impl.logger.Infow("ns not exists creating", "ns", namespace)
-	_, err = impl.createNs(namespace, client)
+	_, err = impl.createNs(namespace, v12Client)
 	return err
 }
 
@@ -315,7 +326,7 @@ func (impl K8sUtil) UpdateConfigMap(namespace string, cm *v1.ConfigMap, client *
 }
 
 func (impl K8sUtil) PatchConfigMap(namespace string, clusterConfig *ClusterConfig, name string, data map[string]interface{}) (*v1.ConfigMap, error) {
-	client, err := impl.GetClient(clusterConfig)
+	k8sClient, err := impl.GetClient(clusterConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -323,7 +334,7 @@ func (impl K8sUtil) PatchConfigMap(namespace string, clusterConfig *ClusterConfi
 	if err != nil {
 		panic(err)
 	}
-	cm, err := client.ConfigMaps(namespace).Patch(context.Background(), name, types.PatchType(types.MergePatchType), b, metav1.PatchOptions{})
+	cm, err := k8sClient.ConfigMaps(namespace).Patch(context.Background(), name, types.PatchType(types.MergePatchType), b, metav1.PatchOptions{})
 	if err != nil {
 		return nil, err
 	} else {
@@ -333,7 +344,7 @@ func (impl K8sUtil) PatchConfigMap(namespace string, clusterConfig *ClusterConfi
 }
 
 func (impl K8sUtil) PatchConfigMapJsonType(namespace string, clusterConfig *ClusterConfig, name string, data interface{}, path string) (*v1.ConfigMap, error) {
-	client, err := impl.GetClient(clusterConfig)
+	v12Client, err := impl.GetClient(clusterConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -349,7 +360,7 @@ func (impl K8sUtil) PatchConfigMapJsonType(namespace string, clusterConfig *Clus
 		panic(err)
 	}
 
-	cm, err := client.ConfigMaps(namespace).Patch(context.Background(), name, types.PatchType(types.JSONPatchType), b, metav1.PatchOptions{})
+	cm, err := v12Client.ConfigMaps(namespace).Patch(context.Background(), name, types.PatchType(types.JSONPatchType), b, metav1.PatchOptions{})
 	if err != nil {
 		return nil, err
 	} else {
@@ -465,7 +476,7 @@ func (impl K8sUtil) DiscoveryClientGetLiveZCall(cluster *ClusterConfig) ([]byte,
 		return nil, err
 	}
 	//using livez path as healthz path is deprecated
-	response, err := impl.GetLiveZCall(LIVEZ, k8sClientSet)
+	response, err := impl.GetLiveZCall(LiveZ, k8sClientSet)
 	return response, err
 
 }
@@ -580,21 +591,21 @@ func (impl K8sUtil) ListNamespaces(client *v12.CoreV1Client) (*v1.NamespaceList,
 func (impl K8sUtil) GetClientByToken(serverUrl string, token map[string]string) (*v12.CoreV1Client, error) {
 	bearerToken := token[BearerToken]
 	clusterCfg := &ClusterConfig{Host: serverUrl, BearerToken: bearerToken}
-	client, err := impl.GetClient(clusterCfg)
+	v12Client, err := impl.GetClient(clusterCfg)
 	if err != nil {
 		impl.logger.Errorw("error in k8s client", "error", err)
 		return nil, err
 	}
-	return client, nil
+	return v12Client, nil
 }
 
 func (impl K8sUtil) GetResourceInfoByLabelSelector(ctx context.Context, namespace string, labelSelector string) (*v1.Pod, error) {
-	client, err := impl.GetClientForInCluster()
+	inClusterClient, err := impl.GetClientForInCluster()
 	if err != nil {
 		impl.logger.Errorw("cluster config error", "err", err)
 		return nil, err
 	}
-	pods, err := client.Pods(namespace).List(ctx, metav1.ListOptions{
+	pods, err := inClusterClient.Pods(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: labelSelector,
 	})
 	if err != nil {
@@ -871,4 +882,90 @@ func (impl K8sUtil) GetConfigAndClientsInCluster() (*v12.CoreV1Client, error) {
 		return nil, err
 	}
 	return k8sClient, err
+}
+func (impl K8sUtil) GetNodesList(ctx context.Context, k8sClientSet *kubernetes.Clientset) (*v1.NodeList, error) {
+	nodeList, err := k8sClientSet.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+	return nodeList, err
+}
+func (impl K8sUtil) GetNodeByName(ctx context.Context, k8sClientSet *kubernetes.Clientset, name string) (*v1.Node, error) {
+	node, err := k8sClientSet.CoreV1().Nodes().Get(ctx, name, metav1.GetOptions{})
+	return node, err
+}
+
+func (impl K8sUtil) GetServerVersionFromDiscoveryClient(k8sClientSet *kubernetes.Clientset) (*version.Info, error) {
+	serverVersion, err := k8sClientSet.DiscoveryClient.ServerVersion()
+	return serverVersion, err
+}
+func (impl K8sUtil) GetPodsListForAllNamespaces(ctx context.Context, k8sClientSet *kubernetes.Clientset) (*v1.PodList, error) {
+	podList, err := k8sClientSet.CoreV1().Pods(v1.NamespaceAll).List(ctx, metav1.ListOptions{})
+	return podList, err
+}
+func (impl K8sUtil) GetNmList(ctx context.Context, metricsClientSet *metrics.Clientset) (*v1beta1.NodeMetricsList, error) {
+	nmList, err := metricsClientSet.MetricsV1beta1().NodeMetricses().List(ctx, metav1.ListOptions{})
+	return nmList, err
+}
+func (impl K8sUtil) GetNmByName(ctx context.Context, metricsClientSet *metrics.Clientset, name string) (*v1beta1.NodeMetrics, error) {
+	nodeMetrics, err := metricsClientSet.MetricsV1beta1().NodeMetricses().Get(ctx, name, metav1.GetOptions{})
+	return nodeMetrics, err
+}
+func (impl K8sUtil) GetMetricsClientSet(restConfig *rest.Config, k8sHttpClient *http.Client) (*metrics.Clientset, error) {
+	metricsClientSet, err := metrics.NewForConfigAndClient(restConfig, k8sHttpClient)
+	return metricsClientSet, err
+}
+
+// DeletePod will delete the given pod, or return an error if it couldn't
+func DeletePod(pod v1.Pod, k8sClientSet *kubernetes.Clientset, deleteOptions metav1.DeleteOptions) error {
+	return k8sClientSet.CoreV1().Pods(pod.Namespace).Delete(context.Background(), pod.Name, deleteOptions)
+}
+
+// EvictPod will evict the given pod, or return an error if it couldn't
+func EvictPod(pod v1.Pod, k8sClientSet *kubernetes.Clientset, evictionGroupVersion schema.GroupVersion, deleteOptions metav1.DeleteOptions) error {
+	switch evictionGroupVersion {
+	case v13.SchemeGroupVersion:
+		// send policy/v1 if the server supports it
+		eviction := &v13.Eviction{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      pod.Name,
+				Namespace: pod.Namespace,
+			},
+			DeleteOptions: &deleteOptions,
+		}
+		return k8sClientSet.PolicyV1().Evictions(eviction.Namespace).Evict(context.TODO(), eviction)
+
+	default:
+		// otherwise, fall back to policy/v1beta1, supported by all servers that support the eviction subresource
+		eviction := &v1beta12.Eviction{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      pod.Name,
+				Namespace: pod.Namespace,
+			},
+			DeleteOptions: &deleteOptions,
+		}
+		return k8sClientSet.PolicyV1beta1().Evictions(eviction.Namespace).Evict(context.TODO(), eviction)
+	}
+}
+
+// CheckEvictionSupport uses Discovery API to find out if the server support
+// eviction subresource If support, it will return its groupVersion; Otherwise,
+// it will return an empty GroupVersion
+func CheckEvictionSupport(clientset kubernetes.Interface) (schema.GroupVersion, error) {
+	discoveryClient := clientset.Discovery()
+
+	// version info available in subresources since v1.8.0 in https://github.com/kubernetes/kubernetes/pull/49971
+	resourceList, err := discoveryClient.ServerResourcesForGroupVersion("v1")
+	if err != nil {
+		return schema.GroupVersion{}, err
+	}
+	for _, resource := range resourceList.APIResources {
+		if resource.Name == EvictionSubresource && resource.Kind == EvictionKind && len(resource.Group) > 0 && len(resource.Version) > 0 {
+			return schema.GroupVersion{Group: resource.Group, Version: resource.Version}, nil
+		}
+	}
+	return schema.GroupVersion{}, nil
+}
+
+func UpdateNodeUnschedulableProperty(desiredUnschedulable bool, node *v1.Node, k8sClientSet *kubernetes.Clientset) (*v1.Node, error) {
+	node.Spec.Unschedulable = desiredUnschedulable
+	node, err := k8sClientSet.CoreV1().Nodes().Update(context.Background(), node, metav1.UpdateOptions{})
+	return node, err
 }

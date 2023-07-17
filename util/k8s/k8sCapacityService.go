@@ -8,8 +8,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
-	policyv1 "k8s.io/api/policy/v1"
-	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -67,12 +65,6 @@ const (
 	PodDeleteStatusTypeWarning = "Warning"
 	// PodDeleteStatusTypeError is "Error"
 	PodDeleteStatusTypeError = "Error"
-)
-const (
-	// EvictionKind represents the kind of evictions object
-	EvictionKind = "Eviction"
-	// EvictionSubresource represents the kind of evictions object as pod's subresource
-	EvictionSubresource = "pods/eviction"
 )
 
 type K8sCapacityService interface {
@@ -137,7 +129,7 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetail(ctx context.Context
 		return nil, err
 	}
 	clusterDetail := &ClusterCapacityDetail{}
-	nodeList, err := k8sClientSet.CoreV1().Nodes().List(ctx, v1.ListOptions{})
+	nodeList, err := impl.K8sUtil.GetNodesList(ctx, k8sClientSet)
 	if err != nil {
 		impl.logger.Errorw("error in getting node list", "err", err, "clusterId", cluster.Id)
 		return nil, err
@@ -147,14 +139,14 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetail(ctx context.Context
 		//assigning additional data for cluster listing api call
 		clusterDetail.NodeCount = nodeCount
 		//getting serverVersion
-		serverVersion, err := k8sClientSet.DiscoveryClient.ServerVersion()
+		serverVersion, err := impl.K8sUtil.GetServerVersionFromDiscoveryClient(k8sClientSet)
 		if err != nil {
 			impl.logger.Errorw("error in getting server version", "err", err, "clusterId", cluster.Id)
 			return nil, err
 		}
 		clusterDetail.ServerVersion = serverVersion.GitVersion
 	} else {
-		metricsClientSet, err := metrics.NewForConfigAndClient(restConfig, k8sHttpClient)
+		metricsClientSet, err := impl.K8sUtil.GetMetricsClientSet(restConfig, k8sHttpClient)
 		if err != nil {
 			impl.logger.Errorw("error in getting metrics client set", "err", err)
 			return nil, err
@@ -222,7 +214,7 @@ func (impl *K8sCapacityServiceImpl) updateMetricsData(ctx context.Context, metri
 	//getting metrics clientSet by rest config
 
 	//empty namespace: get pods for all namespaces
-	podList, err := k8sClientSet.CoreV1().Pods(corev1.NamespaceAll).List(ctx, v1.ListOptions{})
+	podList, err := impl.K8sUtil.GetPodsListForAllNamespaces(ctx, k8sClientSet)
 	if err != nil {
 		impl.logger.Errorw("error in getting pod list", "err", err)
 		return err
@@ -233,7 +225,7 @@ func (impl *K8sCapacityServiceImpl) updateMetricsData(ctx context.Context, metri
 	var clusterCpuRequests resource.Quantity
 	var clusterMemoryLimits resource.Quantity
 	var clusterMemoryRequests resource.Quantity
-	nmList, err := metricsClientSet.MetricsV1beta1().NodeMetricses().List(ctx, v1.ListOptions{})
+	nmList, err := impl.K8sUtil.GetNmList(ctx, metricsClientSet)
 	if err != nil {
 		impl.logger.Errorw("error in getting nodeMetrics list", "err", err)
 	} else if nmList != nil {
@@ -274,22 +266,22 @@ func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailsListByCluster(ctx cont
 		return nil, err
 	}
 	//getting metrics clientSet by rest config
-	metricsClientSet, err := metrics.NewForConfigAndClient(restConfig, k8sHttpClient)
+	metricsClientSet, err := impl.K8sUtil.GetMetricsClientSet(restConfig, k8sHttpClient)
 	if err != nil {
 		impl.logger.Errorw("error in getting metrics client set", "err", err)
 		return nil, err
 	}
-	nodeMetricsList, err := metricsClientSet.MetricsV1beta1().NodeMetricses().List(ctx, v1.ListOptions{})
+	nodeMetricsList, err := impl.K8sUtil.GetNmList(ctx, metricsClientSet)
 	if err != nil {
 		impl.logger.Errorw("error in getting node metrics", "err", err)
 	}
-	nodeList, err := k8sClientSet.CoreV1().Nodes().List(ctx, v1.ListOptions{})
+	nodeList, err := impl.K8sUtil.GetNodesList(ctx, k8sClientSet)
 	if err != nil {
 		impl.logger.Errorw("error in getting node list", "err", err, "clusterId", cluster.Id)
 		return nil, err
 	}
 	//empty namespace: get pods for all namespaces
-	podList, err := k8sClientSet.CoreV1().Pods("").List(ctx, v1.ListOptions{})
+	podList, err := impl.K8sUtil.GetPodsListForAllNamespaces(ctx, k8sClientSet)
 	if err != nil {
 		impl.logger.Errorw("error in getting pod list", "err", err)
 		return nil, err
@@ -320,22 +312,22 @@ func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailByNameAndCluster(ctx co
 		return nil, err
 	}
 	//getting metrics clientSet by rest config
-	metricsClientSet, err := metrics.NewForConfigAndClient(restConfig, k8sHttpClient)
+	metricsClientSet, err := impl.K8sUtil.GetMetricsClientSet(restConfig, k8sHttpClient)
 	if err != nil {
 		impl.logger.Errorw("error in getting metrics client set", "err", err)
 		return nil, err
 	}
-	nodeMetrics, err := metricsClientSet.MetricsV1beta1().NodeMetricses().Get(ctx, name, v1.GetOptions{})
+	nodeMetrics, err := impl.K8sUtil.GetNmByName(ctx, metricsClientSet, name)
 	if err != nil {
 		impl.logger.Errorw("error in getting node metrics", "err", err)
 	}
-	node, err := k8sClientSet.CoreV1().Nodes().Get(ctx, name, v1.GetOptions{})
+	node, err := impl.K8sUtil.GetNodeByName(ctx, k8sClientSet, name)
 	if err != nil {
 		impl.logger.Errorw("error in getting node list", "err", err)
 		return nil, err
 	}
 	//empty namespace: get pods for all namespaces
-	podList, err := k8sClientSet.CoreV1().Pods("").List(ctx, v1.ListOptions{})
+	podList, err := impl.K8sUtil.GetPodsListForAllNamespaces(ctx, k8sClientSet)
 	if err != nil {
 		impl.logger.Errorw("error in getting pod list", "err", err)
 		return nil, err
@@ -356,21 +348,7 @@ func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailByNameAndCluster(ctx co
 
 func (impl *K8sCapacityServiceImpl) getK8sConfigAndClients(ctx context.Context, cluster *cluster.ClusterBean) (*rest.Config, *http.Client, *kubernetes.Clientset, error) {
 	clusterConfig := cluster.GetClusterConfig()
-	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(&clusterConfig)
-	if err != nil {
-		impl.logger.Errorw("error in getting rest config by cluster", "err", err, "clusterId", cluster.Id)
-		return nil, nil, nil, err
-	}
-	k8sHttpClient, err := util.OverrideK8sHttpClientWithTracer(restConfig)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	k8sClientSet, err := kubernetes.NewForConfigAndClient(restConfig, k8sHttpClient)
-	if err != nil {
-		impl.logger.Errorw("error in getting client set by rest config", "err", err, "restConfig", restConfig)
-		return nil, nil, nil, err
-	}
-	return restConfig, k8sHttpClient, k8sClientSet, nil
+	return impl.K8sUtil.GetK8sConfigAndClients(&clusterConfig)
 }
 func (impl *K8sCapacityServiceImpl) getNodeGroupAndTaints(node *corev1.Node) (string, []*LabelAnnotationTaintObject) {
 
@@ -654,7 +632,7 @@ func (impl *K8sCapacityServiceImpl) CordonOrUnCordonNode(ctx context.Context, re
 		return respMessage, err
 	}
 	//get node
-	node, err := k8sClientSet.CoreV1().Nodes().Get(ctx, request.Name, v1.GetOptions{})
+	node, err := impl.K8sUtil.GetNodeByName(ctx, k8sClientSet, request.Name)
 	if err != nil {
 		impl.logger.Errorw("error in getting node", "err", err)
 		return respMessage, err
@@ -663,7 +641,7 @@ func (impl *K8sCapacityServiceImpl) CordonOrUnCordonNode(ctx context.Context, re
 		return respMessage, getErrorForCordonUpdateReq(request.NodeCordonHelper.UnschedulableDesired)
 	}
 	//updating node with desired cordon value
-	node, err = updateNodeUnschedulableProperty(request.NodeCordonHelper.UnschedulableDesired, node, k8sClientSet)
+	node, err = util.UpdateNodeUnschedulableProperty(request.NodeCordonHelper.UnschedulableDesired, node, k8sClientSet)
 	if err != nil {
 		impl.logger.Errorw("error in updating node", "err", err)
 		return respMessage, err
@@ -690,20 +668,20 @@ func (impl *K8sCapacityServiceImpl) DrainNode(ctx context.Context, request *Node
 		return respMessage, err
 	}
 	//get node
-	node, err := k8sClientSet.CoreV1().Nodes().Get(context.Background(), request.Name, v1.GetOptions{})
+	node, err := impl.K8sUtil.GetNodeByName(context.Background(), k8sClientSet, request.Name)
 	if err != nil {
 		impl.logger.Errorw("error in getting node", "err", err)
 		return respMessage, err
 	}
 	//checking if node is unschedulable or not, if not then need to unschedule before draining
 	if !node.Spec.Unschedulable {
-		node, err = updateNodeUnschedulableProperty(true, node, k8sClientSet)
+		node, err = util.UpdateNodeUnschedulableProperty(true, node, k8sClientSet)
 		if err != nil {
 			impl.logger.Errorw("error in making node unschedulable", "err", err)
 			return respMessage, err
 		}
 	}
-	request.NodeDrainHelper.k8sClientSet = k8sClientSet
+	request.NodeDrainHelper.K8sClientSet = k8sClientSet
 	err = impl.deleteOrEvictPods(request.Name, request.NodeDrainHelper)
 	if err != nil {
 		impl.logger.Errorw("error in deleting/evicting pods", "err", err, "nodeName", request.Name)
@@ -739,7 +717,7 @@ func (impl *K8sCapacityServiceImpl) EditNodeTaints(ctx context.Context, request 
 		return respMessage, err
 	}
 	//get node
-	node, err := k8sClientSet.CoreV1().Nodes().Get(context.Background(), request.Name, v1.GetOptions{})
+	node, err := impl.K8sUtil.GetNodeByName(context.Background(), k8sClientSet, request.Name)
 	if err != nil {
 		impl.logger.Errorw("error in getting node", "err", err)
 		return respMessage, err
@@ -764,7 +742,7 @@ func (impl *K8sCapacityServiceImpl) GetNode(ctx context.Context, clusterId int, 
 	if err != nil {
 		return nil, err
 	}
-	return k8sClientSet.CoreV1().Nodes().Get(context.Background(), nodeName, v1.GetOptions{})
+	return impl.K8sUtil.GetNodeByName(context.Background(), k8sClientSet, nodeName)
 }
 
 func validateTaintEditRequest(reqTaints []corev1.Taint) error {
@@ -829,7 +807,7 @@ func validateTaintEffect(effect corev1.TaintEffect) error {
 
 func (impl *K8sCapacityServiceImpl) deleteOrEvictPods(nodeName string, nodeDrainHelper *NodeDrainHelper) error {
 	impl.logger.Infow("received node drain - deleteOrEvictPods request", "nodeName", nodeName, "nodeDrainHelper", nodeDrainHelper)
-	list, errs := getPodsByNodeNameForDeletion(nodeName, nodeDrainHelper)
+	list, errs := GetPodsByNodeNameForDeletion(nodeName, nodeDrainHelper)
 	if errs != nil {
 		return utilerrors.NewAggregate(errs)
 	}
@@ -845,14 +823,14 @@ func (impl *K8sCapacityServiceImpl) deleteOrEvictPods(nodeName string, nodeDrain
 	}
 	if nodeDrainHelper.DisableEviction {
 		//delete instead of eviction
-		return impl.deletePods(pods, nodeDrainHelper.k8sClientSet, deleteOptions)
+		return impl.deletePods(pods, nodeDrainHelper.K8sClientSet, deleteOptions)
 	} else {
-		evictionGroupVersion, err := CheckEvictionSupport(nodeDrainHelper.k8sClientSet)
+		evictionGroupVersion, err := util.CheckEvictionSupport(nodeDrainHelper.K8sClientSet)
 		if err != nil {
 			return err
 		}
 		if !evictionGroupVersion.Empty() {
-			return impl.evictPods(pods, nodeDrainHelper.k8sClientSet, evictionGroupVersion, deleteOptions)
+			return impl.evictPods(pods, nodeDrainHelper.K8sClientSet, evictionGroupVersion, deleteOptions)
 		}
 	}
 	return nil
@@ -866,7 +844,7 @@ func (impl *K8sCapacityServiceImpl) evictPods(pods []corev1.Pod, k8sClientSet *k
 		go func(pod corev1.Pod, returnCh chan error) {
 			// Create a temporary pod, so we don't mutate the pod in the loop.
 			activePod := pod
-			err := EvictPod(activePod, k8sClientSet, evictionGroupVersion, deleteOptions)
+			err := util.EvictPod(activePod, k8sClientSet, evictionGroupVersion, deleteOptions)
 			if err == nil {
 				returnCh <- nil
 				return
@@ -897,58 +875,12 @@ func (impl *K8sCapacityServiceImpl) evictPods(pods []corev1.Pod, k8sClientSet *k
 	return utilerrors.NewAggregate(errors)
 }
 
-// EvictPod will evict the given pod, or return an error if it couldn't
-func EvictPod(pod corev1.Pod, k8sClientSet *kubernetes.Clientset, evictionGroupVersion schema.GroupVersion, deleteOptions v1.DeleteOptions) error {
-	switch evictionGroupVersion {
-	case policyv1.SchemeGroupVersion:
-		// send policy/v1 if the server supports it
-		eviction := &policyv1.Eviction{
-			ObjectMeta: v1.ObjectMeta{
-				Name:      pod.Name,
-				Namespace: pod.Namespace,
-			},
-			DeleteOptions: &deleteOptions,
-		}
-		return k8sClientSet.PolicyV1().Evictions(eviction.Namespace).Evict(context.TODO(), eviction)
-
-	default:
-		// otherwise, fall back to policy/v1beta1, supported by all servers that support the eviction subresource
-		eviction := &policyv1beta1.Eviction{
-			ObjectMeta: v1.ObjectMeta{
-				Name:      pod.Name,
-				Namespace: pod.Namespace,
-			},
-			DeleteOptions: &deleteOptions,
-		}
-		return k8sClientSet.PolicyV1beta1().Evictions(eviction.Namespace).Evict(context.TODO(), eviction)
-	}
-}
-
-// CheckEvictionSupport uses Discovery API to find out if the server support
-// eviction subresource If support, it will return its groupVersion; Otherwise,
-// it will return an empty GroupVersion
-func CheckEvictionSupport(clientset kubernetes.Interface) (schema.GroupVersion, error) {
-	discoveryClient := clientset.Discovery()
-
-	// version info available in subresources since v1.8.0 in https://github.com/kubernetes/kubernetes/pull/49971
-	resourceList, err := discoveryClient.ServerResourcesForGroupVersion("v1")
-	if err != nil {
-		return schema.GroupVersion{}, err
-	}
-	for _, resource := range resourceList.APIResources {
-		if resource.Name == EvictionSubresource && resource.Kind == EvictionKind && len(resource.Group) > 0 && len(resource.Version) > 0 {
-			return schema.GroupVersion{Group: resource.Group, Version: resource.Version}, nil
-		}
-	}
-	return schema.GroupVersion{}, nil
-}
-
 func (impl *K8sCapacityServiceImpl) deletePods(pods []corev1.Pod, k8sClientSet *kubernetes.Clientset, deleteOptions v1.DeleteOptions) error {
 	impl.logger.Infow("received pod deletion request", "pods", pods)
 	var podDeletionErrors []error
 	for _, pod := range pods {
 		impl.logger.Infow("deleting pod", "pod", pod)
-		err := DeletePod(pod, k8sClientSet, deleteOptions)
+		err := util.DeletePod(pod, k8sClientSet, deleteOptions)
 		if err != nil && !apierrors.IsNotFound(err) {
 			podDeletionErrors = append(podDeletionErrors, err)
 		}
@@ -959,17 +891,6 @@ func (impl *K8sCapacityServiceImpl) deletePods(pods []corev1.Pod, k8sClientSet *
 	return nil
 }
 
-// DeletePod will delete the given pod, or return an error if it couldn't
-func DeletePod(pod corev1.Pod, k8sClientSet *kubernetes.Clientset, deleteOptions v1.DeleteOptions) error {
-	return k8sClientSet.CoreV1().Pods(pod.Namespace).Delete(context.Background(), pod.Name, deleteOptions)
-}
-
-func updateNodeUnschedulableProperty(desiredUnschedulable bool, node *corev1.Node, k8sClientSet *kubernetes.Clientset) (*corev1.Node, error) {
-	node.Spec.Unschedulable = desiredUnschedulable
-	node, err := k8sClientSet.CoreV1().Nodes().Update(context.Background(), node, v1.UpdateOptions{})
-	return node, err
-}
-
 func getErrorForCordonUpdateReq(desired bool) error {
 	if desired {
 		return fmt.Errorf("node already cordoned")
@@ -977,11 +898,11 @@ func getErrorForCordonUpdateReq(desired bool) error {
 	return fmt.Errorf("node already uncordoned")
 }
 
-func getPodsByNodeNameForDeletion(nodeName string, nodeDrainHelper *NodeDrainHelper) (*PodDeleteList, []error) {
+func GetPodsByNodeNameForDeletion(nodeName string, nodeDrainHelper *NodeDrainHelper) (*PodDeleteList, []error) {
 	initialOpts := v1.ListOptions{
 		FieldSelector: fields.SelectorFromSet(fields.Set{"spec.nodeName": nodeName}).String(),
 	}
-	podList, err := nodeDrainHelper.k8sClientSet.CoreV1().Pods(corev1.NamespaceAll).List(context.Background(), initialOpts)
+	podList, err := nodeDrainHelper.K8sClientSet.CoreV1().Pods(corev1.NamespaceAll).List(context.Background(), initialOpts)
 	if err != nil {
 		return nil, []error{err}
 	}
@@ -1148,7 +1069,7 @@ func (f *NodeDrainHelper) daemonSetFilter(pod corev1.Pod) PodDeleteStatus {
 		return MakePodDeleteStatusOkay()
 	}
 
-	if _, err := f.k8sClientSet.AppsV1().DaemonSets(pod.Namespace).Get(context.TODO(), controllerRef.Name, v1.GetOptions{}); err != nil {
+	if _, err := f.K8sClientSet.AppsV1().DaemonSets(pod.Namespace).Get(context.TODO(), controllerRef.Name, v1.GetOptions{}); err != nil {
 		// remove orphaned pods with a warning if --force is used
 		if apierrors.IsNotFound(err) && f.Force {
 			return MakePodDeleteStatusWithWarning(true, err.Error())
