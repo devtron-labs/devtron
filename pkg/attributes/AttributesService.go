@@ -18,6 +18,9 @@
 package attributes
 
 import (
+	"encoding/json"
+	"errors"
+	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -32,11 +35,13 @@ type AttributesService interface {
 	GetActiveList() ([]*AttributesDto, error)
 	GetByKey(key string) (*AttributesDto, error)
 	UpdateKeyValueByOne(key string) error
+	AddDeploymentEnforcementConfig(request *AttributesDto) (*AttributesDto, error)
 }
 
 const (
-	HostUrlKey     string = "url"
-	API_SECRET_KEY string = "apiTokenSecret"
+	HostUrlKey                     string = "url"
+	API_SECRET_KEY                 string = "apiTokenSecret"
+	ENFORCE_DEPLOYMENT_TYPE_CONFIG string = "enforceDeploymentTypeConfig"
 )
 
 type AttributesDto struct {
@@ -232,4 +237,77 @@ func (impl AttributesServiceImpl) UpdateKeyValueByOne(key string) error {
 
 	return err
 
+}
+
+func (impl AttributesServiceImpl) AddDeploymentEnforcementConfig(request *AttributesDto) (*AttributesDto, error) {
+	newConfig := make(map[string]map[string]bool)
+	attributesErr := json.Unmarshal([]byte(request.Value), &newConfig)
+	if attributesErr != nil {
+		return request, attributesErr
+	}
+	for environmentId, envConfig := range newConfig {
+		AllowedDeploymentAppTypes := 0
+		for _, allowed := range envConfig {
+			if allowed {
+				AllowedDeploymentAppTypes++
+			}
+		}
+		if AllowedDeploymentAppTypes == 0 && len(envConfig) > 0 {
+			return request, errors.New(fmt.Sprintf("Received invalid config for environment with id %s, "+
+				"at least one deployment app type should be allowed", environmentId))
+		}
+	}
+	dbConnection := impl.attributesRepository.GetConnection()
+	tx, terr := dbConnection.Begin()
+	if terr != nil {
+		return request, terr
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+
+	model, err := impl.attributesRepository.FindByKey(ENFORCE_DEPLOYMENT_TYPE_CONFIG)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching deploymentEnforcementConfig from db", "error", err, "key", request.Key)
+		return request, err
+	}
+	if err == pg.ErrNoRows {
+		model := &repository.Attributes{
+			Key:   ENFORCE_DEPLOYMENT_TYPE_CONFIG,
+			Value: request.Value,
+		}
+		model.Active = true
+		model.UpdatedOn = time.Now()
+		model.UpdatedBy = request.UserId
+		_, err = impl.attributesRepository.Save(model, tx)
+		if err != nil {
+			return request, err
+		}
+	} else {
+
+		oldConfig := make(map[string]map[string]bool)
+		oldConfigString := model.Value
+		//initialConfigString = `{ "1": {"argo_cd": true}}`
+		err = json.Unmarshal([]byte(oldConfigString), &oldConfig)
+		if err != nil {
+			return request, err
+		}
+		mergedConfig := oldConfig
+		for k, v := range newConfig {
+			mergedConfig[k] = v
+		}
+		value, err := json.Marshal(mergedConfig)
+		if err != nil {
+			return request, err
+		}
+		model.Value = string(value)
+		model.UpdatedOn = time.Now()
+		model.UpdatedBy = request.UserId
+		model.Active = true
+		err = impl.attributesRepository.Update(model, tx)
+		if err != nil {
+			return request, err
+		}
+	}
+	tx.Commit()
+	return request, nil
 }

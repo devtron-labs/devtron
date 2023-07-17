@@ -85,9 +85,13 @@ type CiConfig struct {
 	UseBlobStorageConfigInCiWorkflow bool                         `env:"USE_BLOB_STORAGE_CONFIG_IN_CI_WORKFLOW" envDefault:"true"`
 	BaseLogLocationPath              string                       `env:"BASE_LOG_LOCATION_PATH" envDefault:"/home/devtron/"`
 	InAppLoggingEnabled              bool                         `env:"IN_APP_LOGGING_ENABLED" envDefault:"false"`
+	DefaultTargetPlatform            string                       `env:"DEFAULT_TARGET_PLATFORM" envDefault:""`
+	UseBuildx                        bool                         `env:"USE_BUILDX" envDefault:"false"`
 	ClusterConfig                    *rest.Config
 	NodeLabel                        map[string]string
 	EnableBuildContext               bool `env:"ENABLE_BUILD_CONTEXT" envDefault:"false"`
+	ImageRetryCount                  int  `env:"IMAGE_RETRY_COUNT" envDefault:"0"`
+	ImageRetryInterval               int  `env:"IMAGE_RETRY_INTERVAL" envDefault:"5"` //image retry interval takes value in seconds
 }
 
 type CiVolumeMount struct {

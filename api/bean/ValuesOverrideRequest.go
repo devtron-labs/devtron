@@ -73,10 +73,11 @@ type ReleaseStatusUpdateRequest struct {
 }
 
 type TriggerEvent struct {
-	PerformGitOps              bool
+	PerformChartPush           bool
 	PerformDeploymentOnCluster bool
 	GetManifestInResponse      bool
 	DeploymentAppType          string
+	ManifestStorageType        string
 	TriggeredBy                int32
 	TriggerdAt                 time.Time
 }
