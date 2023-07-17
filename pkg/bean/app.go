@@ -518,7 +518,7 @@ type CDPipelineConfigObject struct {
 	ChartBaseVersion              string                                 `json:"chartBaseVersion"`
 	ContainerRegistryId           int                                    `json:"containerRegistryId"`
 	RepoUrl                       string                                 `json:"repoUrl"`
-	ManifestStorageType           []string
+	ManifestStorageType           string                                 `json:"manifestStorageType"`
 }
 
 type PreStageConfigMapSecretNames struct {
