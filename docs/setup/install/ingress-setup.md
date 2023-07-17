@@ -93,31 +93,30 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-  - http:
-      paths:
-      - backend:
-          service:
-            name: devtron-service
-            port:
-              number: 80
-        host: devtron.example.com
-        path: /orchestrator
-        pathType: ImplementationSpecific 
-      - backend:
-          service:
-            name: devtron-service
-            port:
-              number: 80
-        host: devtron.example.com
-        path: /dashboard
-        pathType: ImplementationSpecific
-      - backend:
-          service:
-            name: devtron-service
-            port:
-              number: 80
-        path: /grafana
-        pathType: ImplementationSpecific  
+    - host: example.devtron.ai
+      http:
+        paths:
+          - backend:
+              service:
+                name: devtron-service
+                port:
+                  number: 80
+            path: /orchestrator
+            pathType: ImplementationSpecific
+          - backend:
+              service:
+                name: devtron-service
+                port:
+                  number: 80
+            path: /dashboard
+            pathType: ImplementationSpecific
+          - backend:
+              service:
+                name: devtron-service
+                port:
+                  number: 80
+            path: /grafana
+            pathType: ImplementationSpecific
 ```
 
 ## Enable HTTPS For Devtron
