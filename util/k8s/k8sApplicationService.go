@@ -1202,7 +1202,6 @@ func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req *cluster
 				impl.logger.Errorw("error occured while trying to create epehemral containers with legacy API", "err", err)
 				return fmt.Errorf("error creating JSON 6902 patch for old /ephemeralcontainers API: %s", err)
 			}
-
 			//try with legacy API
 			result := v1Client.RESTClient().Patch(types.JSONPatchType).
 				Namespace(pod.Namespace).
