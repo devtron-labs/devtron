@@ -45,9 +45,9 @@ func (handler *ResourceProtectionRestHandlerImpl) ConfigureResourceProtect(w htt
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var request *protect.ResourceProtectRequest
+	var request protect.ResourceProtectRequest
 	decoder := json.NewDecoder(r.Body)
-	err = decoder.Decode(request)
+	err = decoder.Decode(&request)
 	if err != nil {
 		handler.logger.Errorw("err in decoding request in ResourceProtectRequest", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -66,7 +66,7 @@ func (handler *ResourceProtectionRestHandlerImpl) ConfigureResourceProtect(w htt
 		return
 	}
 	request.UserId = userId
-	err = handler.resourceProtectionService.ConfigureResourceProtection(request)
+	err = handler.resourceProtectionService.ConfigureResourceProtection(&request)
 	if err != nil {
 		handler.logger.Errorw("error occurred while configuring resource protection", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

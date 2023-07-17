@@ -5,14 +5,14 @@ const BASE_CONFIG_ENV_ID = -1
 type ProtectionState int
 
 const (
-	EnabledProtectionState  ProtectionState = 0
-	DisabledProtectionState ProtectionState = 1
+	EnabledProtectionState  ProtectionState = 1
+	DisabledProtectionState ProtectionState = 2
 )
 
 type ResourceType int
 
 const (
-	ConfigProtectionResourceType ResourceType = 0
+	ConfigProtectionResourceType ResourceType = 1
 )
 
 type ResourceProtectRequest struct {
