@@ -23,5 +23,5 @@ CREATE TABLE "public"."ci_env_mapping_history" (
 "updated_by" int4,
 PRIMARY KEY (id)
 );
-ALTER TABLE config_map_env_level ADD COLUMN IF NOT EXISTS deleted bool NOT NULL DEFAULT FALSE;
+ALTER TABLE config_map_env_level ADD COLUMN IF NOT EXISTS deleted bool;
 ALTER  TABLE ci_workflow ADD  COLUMN IF NOT EXISTS environment_id integer;
