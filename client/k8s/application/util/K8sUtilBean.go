@@ -45,3 +45,19 @@ var KindVsChildrenGvk = map[string][]schema.GroupVersionKind{
 	kube.StatefulSetKind:                        append(make([]schema.GroupVersionKind, 0), schema.GroupVersionKind{Version: V1VERSION, Kind: kube.PodKind}),
 	K8sClusterResourceReplicationControllerKind: append(make([]schema.GroupVersionKind, 0), schema.GroupVersionKind{Version: V1VERSION, Kind: kube.PodKind}),
 }
+
+const (
+	DefaultCluster           = "default_cluster"
+	BearerToken              = "bearer_token"
+	CertificateAuthorityData = "cert_auth_data"
+	CertData                 = "cert_data"
+	TlsKey                   = "tls_key"
+	LiveZ                    = "/livez"
+)
+
+const (
+	// EvictionKind represents the kind of evictions object
+	EvictionKind = "Eviction"
+	// EvictionSubresource represents the kind of evictions object as pod's subresource
+	EvictionSubresource = "pods/eviction"
+)

@@ -253,15 +253,8 @@ func (impl *K8sCapacityServiceImpl) updateMetricsData(ctx context.Context, metri
 }
 
 func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailsListByCluster(ctx context.Context, cluster *cluster.ClusterBean) ([]*NodeCapacityDetail, error) {
-	//getting rest config by clusterId
-	clusterConfig := cluster.GetClusterConfig()
-	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(&clusterConfig)
-	if err != nil {
-		impl.logger.Errorw("error in getting rest config by cluster", "err", err, "clusterId", cluster.Id)
-		return nil, err
-	}
-	//getting kubernetes clientSet by rest config
-	_, k8sHttpClient, k8sClientSet, err := impl.getK8sConfigAndClients(ctx, cluster)
+	//getting kubernetes clientSet by cluster config
+	restConfig, k8sHttpClient, k8sClientSet, err := impl.getK8sConfigAndClients(ctx, cluster)
 	if err != nil {
 		return nil, err
 	}

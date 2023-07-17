@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/devtron-labs/devtron/client/k8s/application"
+	"github.com/devtron-labs/devtron/client/k8s/application/util"
 	"net/http"
 	"strconv"
 	"strings"
@@ -64,6 +65,7 @@ type EnvironmentRestHandlerImpl struct {
 	validator                         *validator.Validate
 	enforcer                          casbin.Enforcer
 	deleteService                     delete2.DeleteService
+	k8sUtil                           *util.K8sUtil
 	cfg                               *bean.Config
 }
 
@@ -72,7 +74,7 @@ type ClusterReachableResponse struct {
 	ClusterName      string `json:"clusterName"`
 }
 
-func NewEnvironmentRestHandlerImpl(svc request.EnvironmentService, logger *zap.SugaredLogger, userService user.UserService, validator *validator.Validate, enforcer casbin.Enforcer, deleteService delete2.DeleteService, k8sClientService application.K8sClientService) *EnvironmentRestHandlerImpl {
+func NewEnvironmentRestHandlerImpl(svc request.EnvironmentService, logger *zap.SugaredLogger, userService user.UserService, validator *validator.Validate, enforcer casbin.Enforcer, deleteService delete2.DeleteService, k8sClientService application.K8sClientService, k8sUtil *util.K8sUtil) *EnvironmentRestHandlerImpl {
 	cfg := &bean.Config{}
 	err := env.Parse(cfg)
 	if err != nil {
@@ -89,6 +91,7 @@ func NewEnvironmentRestHandlerImpl(svc request.EnvironmentService, logger *zap.S
 		enforcer:                          enforcer,
 		deleteService:                     deleteService,
 		cfg:                               cfg,
+		k8sUtil:                           k8sUtil,
 	}
 }
 
@@ -515,7 +518,7 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentConnection(w http.ResponseW
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	k8sClientSet, err := impl.k8sClientService.CreateK8sClientSet(restConfig)
+	k8sClientSet, err := impl.k8sUtil.CreateK8sClientSet(restConfig)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -525,8 +528,9 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentConnection(w http.ResponseW
 		ClusterReachable: true,
 		ClusterName:      clusterBean.ClusterName,
 	}
-	err = impl.k8sClientService.FetchConnectionStatusForCluster(k8sClientSet, clusterBean.Id)
+	err = impl.k8sUtil.FetchConnectionStatusForCluster(k8sClientSet, clusterBean.Id)
 	if err != nil {
+		impl.logger.Errorw("error in fetching connection status fo cluster", "err", err, "cluster id", clusterBean.Id)
 		responseObj.ClusterReachable = false
 	}
 	//updating the cluster connection error to db

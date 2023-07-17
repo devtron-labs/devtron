@@ -28,7 +28,9 @@ import (
 	v1beta12 "k8s.io/api/policy/v1beta1"
 	"k8s.io/metrics/pkg/apis/metrics/v1beta1"
 	metrics "k8s.io/metrics/pkg/client/clientset/versioned"
+	"log"
 	"net/http"
+	"net/url"
 	"os/user"
 	"path/filepath"
 	"strings"
@@ -70,22 +72,6 @@ type ClusterConfig struct {
 	CertData              string
 	CAData                string
 }
-
-const (
-	DefaultCluster           = "default_cluster"
-	BearerToken              = "bearer_token"
-	CertificateAuthorityData = "cert_auth_data"
-	CertData                 = "cert_data"
-	TlsKey                   = "tls_key"
-	LiveZ                    = "/livez"
-)
-
-const (
-	// EvictionKind represents the kind of evictions object
-	EvictionKind = "Eviction"
-	// EvictionSubresource represents the kind of evictions object as pod's subresource
-	EvictionSubresource = "pods/eviction"
-)
 
 func NewK8sUtil(logger *zap.SugaredLogger, runTimeConfig *client.RuntimeConfig) *K8sUtil {
 	usr, err := user.Current()
@@ -460,11 +446,12 @@ func (impl K8sUtil) GetK8sConfigAndClients(clusterConfig *ClusterConfig) (*rest.
 	}
 	k8sHttpClient, err := OverrideK8sHttpClientWithTracer(restConfig)
 	if err != nil {
+		impl.logger.Errorw("error in getting k8s http client set by rest config", "err", err, "clusterName", clusterConfig.ClusterName)
 		return nil, nil, nil, err
 	}
 	k8sClientSet, err := kubernetes.NewForConfigAndClient(restConfig, k8sHttpClient)
 	if err != nil {
-		impl.logger.Errorw("error in getting client set by rest config", "err", err, "restConfig", restConfig)
+		impl.logger.Errorw("error in getting client set by rest config", "err", err, "clusterName", clusterConfig.ClusterName)
 		return nil, nil, nil, err
 	}
 	return restConfig, k8sHttpClient, k8sClientSet, nil
@@ -473,6 +460,7 @@ func (impl K8sUtil) GetK8sConfigAndClients(clusterConfig *ClusterConfig) (*rest.
 func (impl K8sUtil) DiscoveryClientGetLiveZCall(cluster *ClusterConfig) ([]byte, error) {
 	_, _, k8sClientSet, err := impl.GetK8sConfigAndClients(cluster)
 	if err != nil {
+		impl.logger.Errorw("errir in getting clients and configs", "err", err, "clusterName", cluster.ClusterName)
 		return nil, err
 	}
 	//using livez path as healthz path is deprecated
@@ -968,4 +956,47 @@ func UpdateNodeUnschedulableProperty(desiredUnschedulable bool, node *v1.Node, k
 	node.Spec.Unschedulable = desiredUnschedulable
 	node, err := k8sClientSet.CoreV1().Nodes().Update(context.Background(), node, metav1.UpdateOptions{})
 	return node, err
+}
+func (impl K8sUtil) CreateK8sClientSet(restConfig *rest.Config) (*kubernetes.Clientset, error) {
+	k8sHttpClient, err := OverrideK8sHttpClientWithTracer(restConfig)
+	if err != nil {
+		impl.logger.Errorw("service err, OverrideK8sHttpClientWithTracer", "err", err, "restConfig", restConfig)
+		return nil, err
+	}
+	k8sClientSet, err := kubernetes.NewForConfigAndClient(restConfig, k8sHttpClient)
+	if err != nil {
+		impl.logger.Errorw("error in getting client set by rest config", "err", err, "restConfig", restConfig)
+		return nil, err
+	}
+	return k8sClientSet, err
+}
+
+func (impl K8sUtil) FetchConnectionStatusForCluster(k8sClientSet *kubernetes.Clientset, clusterId int) error {
+	//using livez path as healthz path is deprecated
+	path := LiveZ
+	response, err := k8sClientSet.Discovery().RESTClient().Get().AbsPath(path).DoRaw(context.Background())
+	log.Println("received response for cluster livez status", "response", string(response), "err", err, "clusterId", clusterId)
+	if err != nil {
+		if _, ok := err.(*url.Error); ok {
+			err = fmt.Errorf("Incorrect server url : %v", err)
+		} else if statusError, ok := err.(*errors.StatusError); ok {
+			if statusError != nil {
+				errReason := statusError.ErrStatus.Reason
+				var errMsg string
+				if errReason == metav1.StatusReasonUnauthorized {
+					errMsg = "token seems invalid or does not have sufficient permissions"
+				} else {
+					errMsg = statusError.ErrStatus.Message
+				}
+				err = fmt.Errorf("%s : %s", errReason, errMsg)
+			} else {
+				err = fmt.Errorf("Validation failed : %v", err)
+			}
+		} else {
+			err = fmt.Errorf("Validation failed : %v", err)
+		}
+	} else if err == nil && string(response) != "ok" {
+		err = fmt.Errorf("Validation failed with response : %s", string(response))
+	}
+	return err
 }
