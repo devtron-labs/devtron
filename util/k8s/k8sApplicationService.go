@@ -1229,6 +1229,7 @@ func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req *cluster
 			impl.logger.Errorw("error in saving ephemeral container data", "err", err)
 			return err
 		}
+		return nil
 	}
 
 	impl.logger.Errorw("error in creating ephemeral containers ", "err", err, "clusterId", req.ClusterId, "namespace", req.Namespace, "podName", req.PodName, "ephemeralContainerSpec", debugContainer)
