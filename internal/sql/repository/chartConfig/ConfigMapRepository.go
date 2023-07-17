@@ -102,7 +102,7 @@ type ConfigMapEnvModel struct {
 	EnvironmentId int      `sql:"environment_id,notnull"`
 	ConfigMapData string   `sql:"config_map_data"`
 	SecretData    string   `sql:"secret_data"`
-	Deleted       bool     `sql:"deleted"`
+	Deleted       bool     `sql:"deleted,notnull"`
 	sql.AuditLog
 }
 
