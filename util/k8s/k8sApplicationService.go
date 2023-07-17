@@ -1257,17 +1257,14 @@ func (impl *K8sApplicationServiceImpl) generateDebugContainer(pod *corev1.Pod, r
 				Stdin:                    true,
 				TerminationMessagePolicy: corev1.TerminationMessageReadFile,
 				TTY:                      true,
-				Command:                  []string{"sh"},
 			},
 			TargetContainerName: req.BasicData.TargetContainerName,
 		}
 	}
 	ephemeralContainer.Name = ephemeralContainer.Name + "-" + util2.Generate(5)
-	//ephemeralContainer.SecurityContext = &corev1.SecurityContext{
-	//	SELinuxOptions: &corev1.SELinuxOptions{
-	//		User: ephemeralContainer.Name,
-	//	},
-	//}
+	scriptCreateCommand := fmt.Sprintf("echo 'while true; do sleep 600; done;' > %s-devtron.sh", ephemeralContainer.Name)
+	scriptRunCommand := fmt.Sprintf("sh %s-devtron.sh", ephemeralContainer.Name)
+	ephemeralContainer.Command = []string{"sh", "-c", scriptCreateCommand + " && " + scriptRunCommand}
 	copied.Spec.EphemeralContainers = append(copied.Spec.EphemeralContainers, *ephemeralContainer)
 	ephemeralContainer = &copied.Spec.EphemeralContainers[len(copied.Spec.EphemeralContainers)-1]
 	return copied, ephemeralContainer, nil
@@ -1281,8 +1278,9 @@ func (impl *K8sApplicationServiceImpl) TerminatePodEphemeralContainer(req cluste
 		Namespace:     req.Namespace,
 		ContainerName: req.BasicData.ContainerName,
 	}
-	//TODO: revisit this
-	cmds := []string{"sh", "-c", "kill 1"}
+	
+	containerKillCommand := fmt.Sprintf("kill -16 $(ps aux | awk '/%s-devtron/ {print $2; exit}')", terminalReq.ContainerName)
+	cmds := []string{"sh", "-c", containerKillCommand}
 	_, errBuf, err := impl.terminalSession.RunCmdInRemotePod(terminalReq, cmds)
 	if err != nil {
 		impl.logger.Errorw("failed to execute commands ", "err", err, "commands", cmds, "podName", req.PodName, "namespace", req.Namespace)
