@@ -1058,16 +1058,16 @@ func (handler CoreAppRestHandlerImpl) buildEnvironmentOverrides(ctx context.Cont
 	environmentOverrides := make(map[string]*appBean.EnvironmentOverride)
 	if len(appEnvironments) > 0 {
 		for _, appEnvironment := range appEnvironments {
-			environmentOverrides, err, _ = handler.buildEnvironmentOverride(appId, appEnvironment.EnvironmentId, token)
+			environmentOverride, err, _ := handler.buildEnvironmentOverride(appId, appEnvironment.EnvironmentId, token)
 			if err != nil {
 				handler.logger.Errorw("service err", "err", err)
 				return nil, err, http.StatusInternalServerError
 			}
-			environmentOverride := environmentOverrides[appEnvironment.EnvironmentName]
+			override := environmentOverride[appEnvironment.EnvironmentName]
 			environmentOverrides[appEnvironment.EnvironmentName] = &appBean.EnvironmentOverride{
-				Secrets:            environmentOverride.Secrets,
-				ConfigMaps:         environmentOverride.ConfigMaps,
-				DeploymentTemplate: environmentOverride.DeploymentTemplate,
+				Secrets:            override.Secrets,
+				ConfigMaps:         override.ConfigMaps,
+				DeploymentTemplate: override.DeploymentTemplate,
 			}
 		}
 	}
@@ -2244,22 +2244,29 @@ func (handler CoreAppRestHandlerImpl) GetAppWorkflowAndOverridesSample(w http.Re
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	wfCloneRequest := &appWorkflow.WorkflowCloneRequest{AppId: appId}
 	workflowName := r.URL.Query().Get("workflowName")
+	wfCloneRequest.WorkflowName = workflowName
 	environmentIdStr := r.URL.Query().Get("environmentId")
-	environmentId, err := strconv.Atoi(environmentIdStr)
-	if environmentIdStr != "" || err != nil {
-		common.WriteJsonResp(w, err, "invalid environmentId", http.StatusBadRequest)
-		return
+	if len(environmentIdStr) > 0 {
+		environmentId, err := strconv.Atoi(environmentIdStr)
+		if err != nil {
+			common.WriteJsonResp(w, err, "invalid environmentId", http.StatusBadRequest)
+			return
+		}
+		wfCloneRequest.EnvironmentId = environmentId
 	}
 	workflowIdStr := r.URL.Query().Get("workflowId")
-	workflowId, err := strconv.Atoi(workflowIdStr)
-	if environmentIdStr != "" || err != nil {
-		common.WriteJsonResp(w, err, "invalid workflowId", http.StatusBadRequest)
-		return
+	if len(workflowIdStr) > 0 {
+		workflowId, err := strconv.Atoi(workflowIdStr)
+		if err != nil {
+			common.WriteJsonResp(w, err, "invalid workflowId", http.StatusBadRequest)
+			return
+		}
+		wfCloneRequest.WorkflowId = workflowId
 	}
 	token := r.Header.Get("token")
 	//get/build app workflows starts
-	wfCloneRequest := &appWorkflow.WorkflowCloneRequest{AppId: appId, WorkflowName: workflowName, WorkflowId: workflowId}
 	appWorkflows, err, statusCode := handler.buildAppWorkflows(wfCloneRequest)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, statusCode)
@@ -2280,8 +2287,8 @@ func (handler CoreAppRestHandlerImpl) GetAppWorkflowAndOverridesSample(w http.Re
 
 	//get/build environment override starts
 	environmentOverrides := make(map[string]*appBean.EnvironmentOverride)
-	if environmentId > 0 {
-		environmentOverrides, err, _ = handler.buildEnvironmentOverride(appId, environmentId, token)
+	if wfCloneRequest.EnvironmentId > 0 {
+		environmentOverrides, err, _ = handler.buildEnvironmentOverride(appId, wfCloneRequest.EnvironmentId, token)
 	} else {
 		environmentOverrides, err, _ = handler.buildEnvironmentOverrides(r.Context(), appId, token)
 	}
