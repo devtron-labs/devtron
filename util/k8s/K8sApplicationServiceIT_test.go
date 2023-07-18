@@ -25,7 +25,7 @@ const testClusterId = 1
 const testNamespace = "default"
 const testPodName = "nginx-test"
 const testContainer = "nginx"
-const testImage = "nginx"
+const testImage = "alpine"
 const testImage2 = "quay.io/devtron/ubuntu-k8s-utils:latest"
 const testPodJs = `{"apiVersion": "v1","kind": "Pod","metadata": {"name": "%s"},"spec": {"containers": [{"name": "nginx","image": "nginx","imagePullPolicy": "IfNotPresent"}]}}`
 const testAdvancedManifest = `{"name":"%s","command":["sh"],"image":"%s","targetContainerName":"nginx","tty":true,"stdin":true}`
@@ -188,10 +188,16 @@ func TestEphemeralContainers(t *testing.T) {
 		}
 		time.Sleep(5 * time.Second)
 
-		//create ephemeral container
+		//create ephemeral container 1
 		err := k8sApplicationService.CreatePodEphemeralContainers(&req)
 		testCreationSuccess(err, podName, req.BasicData.ContainerName, 1, k8sApplicationService, tt)
+		firstCreatedEphemeralContainerName := req.BasicData.ContainerName
 
+		//create ephemeral container 2
+		req.BasicData.TargetContainerName = ephemeralContainerName
+		req.AdvancedData = nil
+		err = k8sApplicationService.CreatePodEphemeralContainers(&req)
+		testCreationSuccess(err, podName, req.BasicData.ContainerName, 2, k8sApplicationService, tt)
 		//delete ephemeral container
 		terminated, err := k8sApplicationService.TerminatePodEphemeralContainer(req)
 		assert.Nil(tt, err)
@@ -201,7 +207,9 @@ func TestEphemeralContainers(t *testing.T) {
 		list, err := k8sApplicationService.GetPodContainersList(testClusterId, testNamespace, podName)
 		assert.Nil(tt, err)
 		assert.NotNil(tt, list)
-		assert.Equal(tt, 0, len(list.EphemeralContainers))
+		assert.Equal(tt, 1, len(list.EphemeralContainers))
+		assert.NotEqual(tt, req.BasicData.ContainerName, list.EphemeralContainers[0])
+		assert.Equal(tt, firstCreatedEphemeralContainerName, list.EphemeralContainers[0])
 	})
 
 	t.Run("Terminate Ephemeral Container with InValid Data,Invalid Pod Name payload, resource not found error", func(tt *testing.T) {

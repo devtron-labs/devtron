@@ -1279,7 +1279,6 @@ func (impl *K8sApplicationServiceImpl) TerminatePodEphemeralContainer(req cluste
 		Namespace:     req.Namespace,
 		ContainerName: req.BasicData.ContainerName,
 	}
-
 	containerKillCommand := fmt.Sprintf("kill -16 $(pgrep -f '%s-devtron' -o)", terminalReq.ContainerName)
 	cmds := []string{"sh", "-c", containerKillCommand}
 	_, errBuf, err := impl.terminalSession.RunCmdInRemotePod(terminalReq, cmds)

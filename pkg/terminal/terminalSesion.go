@@ -534,49 +534,18 @@ func (impl *TerminalSessionHandlerImpl) RunCmdInRemotePod(req *TerminalSessionRe
 }
 
 func (impl *TerminalSessionHandlerImpl) saveEphemeralContainerTerminalAccessAudit(req *TerminalSessionRequest) error {
-	clusterBean, err := impl.clusterService.FindById(req.ClusterId)
-	if err != nil {
-		impl.logger.Errorw("error occurred in finding clusterBean by Id", "clusterId", req.ClusterId, "err", err)
-		return err
-	}
-	clusterConfig := clusterBean.GetClusterConfig()
-	v1Client, err := impl.k8sUtil.GetClient(&clusterConfig)
-	pod, err := impl.k8sUtil.GetPodByName(req.Namespace, req.PodName, v1Client)
-	if err != nil {
-		impl.logger.Errorw("error in getting pod", "clusterId", req.ClusterId, "namespace", req.Namespace, "podName", req.PodName, "err", err)
-		return err
-	}
-	var ephemeralContainer *v1.EphemeralContainer
-	for _, ec := range pod.Spec.EphemeralContainers {
-		if ec.Name == req.ContainerName {
-			ephemeralContainer = &ec
-			break
-		}
-	}
-	if ephemeralContainer == nil {
-		impl.logger.Infow("terminal session requested for non ephemeral container,so not auditing the terminal access", "clusterId", req.ClusterId, "namespace", req.Namespace, "podName", req.PodName)
-		return nil
-	}
-	ephemeralContainerJson, err := json.Marshal(ephemeralContainer)
-	if err != nil {
-		impl.logger.Errorw("error occurred while marshaling ephemeralContainer object", "err", err, "ephemeralContainer", ephemeralContainer)
-		return err
-	}
+
 	ephemeralReq := cluster.EphemeralContainerRequest{
 		PodName:   req.PodName,
 		Namespace: req.Namespace,
 		ClusterId: req.ClusterId,
 		BasicData: &cluster.EphemeralContainerBasicData{
-			ContainerName:       req.ContainerName,
-			TargetContainerName: ephemeralContainer.TargetContainerName,
-			Image:               ephemeralContainer.Image,
+			ContainerName: req.ContainerName,
 		},
-		AdvancedData: &cluster.EphemeralContainerAdvancedData{
-			Manifest: string(ephemeralContainerJson),
-		},
-		UserId: req.UserId,
+		AdvancedData: nil,
+		UserId:       req.UserId,
 	}
-	err = impl.ephemeralContainerService.AuditEphemeralContainerAction(ephemeralReq, repository.ActionAccessed)
+	err := impl.ephemeralContainerService.AuditEphemeralContainerAction(ephemeralReq, repository.ActionAccessed)
 	if err != nil {
 		impl.logger.Errorw("error occurred while requesting ephemeral container terminal access audit", "err", err, "clusterId", req.ClusterId, "namespace", req.Namespace, "podName", req.PodName)
 	}
