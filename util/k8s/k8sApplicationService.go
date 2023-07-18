@@ -1216,8 +1216,13 @@ func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req *cluster
 	}
 
 	if err == nil {
+		debugContainerJs, err := json.Marshal(debugContainer)
+		if err != nil {
+			impl.logger.Errorw("error occurred in unMarshaling debugContainer object", "debugContainerJs", debugContainer, "err", err)
+			return fmt.Errorf("error creating JSON for pod: %v", err)
+		}
 		req.AdvancedData = &cluster.EphemeralContainerAdvancedData{
-			Manifest: string(debugJS),
+			Manifest: string(debugContainerJs),
 		}
 		req.BasicData = &cluster.EphemeralContainerBasicData{
 			ContainerName:       debugContainer.Name,
