@@ -93,7 +93,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-    - host: example.devtron.ai
+    - host: devtron.example.com
       http:
         paths:
           - backend:
