@@ -20,6 +20,7 @@ package chartConfig
 import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
+	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
 	"time"
 )
@@ -147,7 +148,12 @@ func (impl ConfigMapRepositoryImpl) GetByAppIdAndEnvIdEnvLevel(appId int, envId 
 
 func (impl ConfigMapRepositoryImpl) GetEnvLevelByAppId(appId int) ([]*ConfigMapEnvModel, error) {
 	var models []*ConfigMapEnvModel
-	err := impl.dbConnection.Model(&models).Where("app_id = ?", appId).Where("deleted = ?", false).Select()
+	err := impl.dbConnection.Model(&models).
+		Where("app_id = ?", appId).
+		WhereGroup(func(query *orm.Query) (*orm.Query, error) {
+			query = query.WhereOr("deleted = ? ", false).WhereOr("deleted IS NULL")
+			return query, nil
+		}).Select()
 	if err != nil {
 		impl.Logger.Errorw("err in getting cm/cs env level", "err", err)
 		return models, err
