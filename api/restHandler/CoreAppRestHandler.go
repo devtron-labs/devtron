@@ -668,7 +668,10 @@ func (handler CoreAppRestHandlerImpl) buildAppWorkflows(request *appWorkflow.Wor
 					handler.logger.Errorw("service err, GetCdPipelineById in GetAppAllDetail", "err", err, "appId", request.AppId)
 					return nil, err, http.StatusInternalServerError
 				}
-
+				if request.EnvironmentId > 0 && request.EnvironmentId != cdPipeline.EnvironmentId {
+					// if environment id present in request it should match cd pipeline, else skip
+					continue
+				}
 				cdPipelineResp, err := handler.buildCdPipelineResp(request.AppId, cdPipeline)
 				if err != nil {
 					handler.logger.Errorw("service err, buildCdPipelineResp in GetAppAllDetail", "err", err, "appId", request.AppId)
