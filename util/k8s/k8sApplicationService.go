@@ -80,17 +80,18 @@ type K8sApplicationService interface {
 	GetK8sServerVersion(clusterId int) (*version.Info, error)
 }
 type K8sApplicationServiceImpl struct {
-	logger                      *zap.SugaredLogger
-	clusterService              cluster.ClusterService
-	pump                        connector.Pump
-	k8sClientService            application.K8sClientService
-	helmAppService              client.HelmAppService
-	K8sUtil                     *util.K8sUtil
-	aCDAuthConfig               *util3.ACDAuthConfig
-	K8sApplicationServiceConfig *K8sApplicationServiceConfig
-	K8sResourceHistoryService   kubernetesResourceAuditLogs.K8sResourceHistoryService
-	terminalSession             terminal.TerminalSessionHandler
-	ephemeralContainerService   cluster.EphemeralContainerService
+	logger                       *zap.SugaredLogger
+	clusterService               cluster.ClusterService
+	pump                         connector.Pump
+	k8sClientService             application.K8sClientService
+	helmAppService               client.HelmAppService
+	K8sUtil                      *util.K8sUtil
+	aCDAuthConfig                *util3.ACDAuthConfig
+	K8sApplicationServiceConfig  *K8sApplicationServiceConfig
+	K8sResourceHistoryService    kubernetesResourceAuditLogs.K8sResourceHistoryService
+	terminalSession              terminal.TerminalSessionHandler
+	ephemeralContainerService    cluster.EphemeralContainerService
+	ephemeralContainerRepository repository.EphemeralContainersRepository
 }
 
 type K8sApplicationServiceConfig struct {
@@ -1283,7 +1284,14 @@ func (impl *K8sApplicationServiceImpl) TerminatePodEphemeralContainer(req cluste
 		Namespace:     req.Namespace,
 		ContainerName: req.BasicData.ContainerName,
 	}
-
+	container, err := impl.ephemeralContainerRepository.FindContainerByName(terminalReq.ClusterId, terminalReq.Namespace, terminalReq.PodName, terminalReq.ContainerName)
+	if err != nil {
+		impl.logger.Errorw("error in finding ephemeral container in the database", "err", err, "ClusterId", terminalReq.ClusterId, "Namespace", terminalReq.Namespace, "PodName", terminalReq.PodName, "ContainerName", terminalReq.ContainerName)
+		return false, err
+	}
+	if container == nil {
+		return false, errors.New("externally created ephemeral containers cannot be removed")
+	}
 	containerKillCommand := fmt.Sprintf("kill -16 $(pgrep -f '%s-devtron' -o)", terminalReq.ContainerName)
 	cmds := []string{"sh", "-c", containerKillCommand}
 	_, errBuf, err := impl.terminalSession.RunCmdInRemotePod(terminalReq, cmds)
