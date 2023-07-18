@@ -30,6 +30,7 @@ import (
 
 type CommonRestHanlder interface {
 	GlobalChecklist(w http.ResponseWriter, r *http.Request)
+	EnvironmentList(w http.ResponseWriter, r *http.Request)
 }
 
 type CommonRestHanlderImpl struct {
@@ -62,6 +63,22 @@ func (impl CommonRestHanlderImpl) GlobalChecklist(w http.ResponseWriter, r *http
 		return
 	}
 	res, err := impl.commonService.GlobalChecklist()
+	if err != nil {
+		impl.logger.Errorw("service err, GlobalChecklist", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (impl CommonRestHanlderImpl) EnvironmentList(w http.ResponseWriter, r *http.Request) {
+	userId, err := impl.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	res, err := impl.commonService.EnvironmentList()
 	if err != nil {
 		impl.logger.Errorw("service err, GlobalChecklist", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

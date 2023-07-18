@@ -18,6 +18,7 @@
 package commonService
 
 import (
+	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
@@ -33,6 +34,7 @@ import (
 type CommonService interface {
 	FetchLatestChart(appId int, envId int) (*chartRepoRepository.Chart, error)
 	GlobalChecklist() (*GlobalChecklist, error)
+	EnvironmentList() (*EnvironmentList, error)
 }
 
 type CommonServiceImpl struct {
@@ -93,6 +95,10 @@ type AppChecklist struct {
 	Docker      int `json:"docker"`
 	HostUrl     int `json:"hostUrl"`
 	//ChartChecklist *ChartChecklist `json:",inline"`
+}
+
+type EnvironmentList struct {
+	IsAirGapEnvironment bool `json:"isAirGapEnvironment" env:"IS_AIR_GAP_ENVIRONMENT" envDefault:"false"`
 }
 
 func (impl *CommonServiceImpl) FetchLatestChart(appId int, envId int) (*chartRepoRepository.Chart, error) {
@@ -200,4 +206,14 @@ func (impl *CommonServiceImpl) GlobalChecklist() (*GlobalChecklist, error) {
 		config.IsAppCreated = true
 	}
 	return config, err
+}
+
+func (impl *CommonServiceImpl) EnvironmentList() (*EnvironmentList, error) {
+	environmentList := &EnvironmentList{}
+	err := env.Parse(environmentList)
+	if err != nil {
+		impl.logger.Errorw("failed to parse server app status config: " + err.Error())
+		return nil, err
+	}
+	return environmentList, nil
 }

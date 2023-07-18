@@ -37,4 +37,7 @@ func (impl CommonRouterImpl) InitCommonRouter(router *mux.Router) {
 	router.Path("/checklist").
 		HandlerFunc(impl.commonRestHandler.GlobalChecklist).
 		Methods("GET")
+	router.Path("/environment").
+		HandlerFunc(impl.commonRestHandler.EnvironmentList).
+		Methods("GET")
 }
