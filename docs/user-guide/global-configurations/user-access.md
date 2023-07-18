@@ -18,6 +18,7 @@ Devtron supports 5 levels of access:
 3. **Admin**: User with `admin` access can create, edit, delete and view permitted applications in permitted projects.
 4. **Manager**: User with `manager` access can do everything that an `admin` type user can do, in addition they can also give and revoke access of users for the applications and environments of which they are `manager`.
 5. **Super Admin**: User with `super admin` privilege has unrestricted access to all Devtron resources. Super admin can create, modify, delete and view any Devtron resource without any restriction; its like Superman without the weakness of Kryptonite. Super Admin can also add and delete user access across any Devtron resource, add delete git repository credentials, container registry credentials, cluster and environment.
+6. **Approver**: Users with Approver access have the authority to approve requests for image deployment. However, the user who built the image and/or requested approval cannot self-approve, even if they have Approver or super-admin privileges.
 
 ## User Roles And Permissions
 

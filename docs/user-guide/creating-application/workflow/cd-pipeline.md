@@ -84,7 +84,20 @@ Make sure your cluster has `devtron-agent` installed if you check the `Execute i
 
 ![](../../../.gitbook/assets/cd_pre_build%20%282%29.jpg)
 
-### 4. Deployment stage
+### 4. Manual approval for deployment
+
+When `manual approval for deployment` is enabled, only approved images are available for deployment through the respective deployment pipeline.
+Users can specify the number of approvals required for each deployment, with a minimum of 1 and a maximum of 6.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/deployment-approval.jpg)
+
+To enable Manual Approval for Deployment, follow these steps:
+
+1. Click on the deployment pipeline for which you want to enable manual approval for deployment.
+2. Toggle the ‘Manual approval for deployment’ switch to ‘On’.
+3. Select the number of approvals required for each deployment.
+
+### 5. Deployment stage
 
 **\(a\) Deploy to Environment**
 
@@ -106,7 +119,7 @@ Devtron's tool has 4 types of deployment strategies. Click on `Add Deployment st
 
 \(d\) Rolling
 
-### 5. Post-deployment Stage
+### 6. Post-deployment Stage
 
 If you want to Configure actions like Jira ticket close, that you want to run after the deployment, you can configure such actions in the post-deployment stages.
 
@@ -120,7 +133,7 @@ You can use Config Map and Secrets in post deployments as well, as defined in th
 Once you have configured the CD pipeline, click on `Create Pipeline` to save it. You can see your newly created CD Pipeline on the Workflow tab attached to the corresponding CI Pipeline.
 
 
-### 6. Execute in Application Environment
+### 7. Execute in Application Environment
 
 When deploying an application, we often need to perform additional tasks before or after the deployments. These tasks require extra permissions for the node where Devtron is installed. However, if the node already has the necessary permissions for deploying applications, there is no need to assign them again. Instead, you can enable the "Execute in application environment" option for the pre-CD and post-CD steps. By default, this option is disabled, and some configurations are required to enable it.
 
