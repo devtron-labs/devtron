@@ -19,13 +19,12 @@ func TestCiTemplateHistoryService(t *testing.T) {
 		assert.Nil(t, err)
 
 		mockedCiTemplateHistoryRepository := mocks.NewCiTemplateHistoryRepository(t)
-
 		CiTemplateHistoryServiceImpl := NewCiTemplateHistoryServiceImpl(mockedCiTemplateHistoryRepository, sugaredLogger)
-
+		var DockerRegistryId *string = nil
 		mockedCiTemplateHistoryObject := repository.CiTemplateHistory{
 			CiTemplateId:       28,
 			AppId:              38,
-			DockerRegistryId:   "prakash",
+			DockerRegistryId:   DockerRegistryId,
 			DockerRepository:   "prakash1001/sams-repository-3",
 			DockerfilePath:     "",
 			Args:               "",
@@ -52,7 +51,7 @@ func TestCiTemplateHistoryService(t *testing.T) {
 			CiTemplate: &pipelineConfig.CiTemplate{
 				Id:                 28,
 				AppId:              38,
-				DockerRegistryId:   "prakash",
+				DockerRegistryId:   DockerRegistryId,
 				DockerRepository:   "prakash1001/sams-repository-3",
 				DockerfilePath:     "",
 				Args:               "",

@@ -115,6 +115,8 @@ type CiPipeline struct {
 	TargetPlatform           string                 `json:"targetPlatform,omitempty"`
 	IsDockerConfigOverridden bool                   `json:"isDockerConfigOverridden"`
 	DockerConfigOverride     DockerConfigOverride   `json:"dockerConfigOverride,omitempty"`
+	EnvironmentId            int                    `json:"environmentId,omitempty"`
+	LastTriggeredEnvId       int                    `json:"lastTriggeredEnvId"`
 }
 
 type DockerConfigOverride struct {
@@ -215,6 +217,8 @@ type CiPatchRequest struct {
 	Action        PatchAction `json:"action"`
 	AppWorkflowId int         `json:"appWorkflowId,omitempty"`
 	UserId        int32       `json:"-"`
+	IsJob         bool        `json:"-"`
+	IsCloneJob    bool        `json:"isCloneJob,omitempty"`
 }
 
 type CiRegexPatchRequest struct {
@@ -266,6 +270,7 @@ type CiTriggerRequest struct {
 	CiPipelineMaterial []CiPipelineMaterial `json:"ciPipelineMaterials" validate:"required"`
 	TriggeredBy        int32                `json:"triggeredBy"`
 	InvalidateCache    bool                 `json:"invalidateCache"`
+	EnvironmentId      int                  `json:"environmentId"`
 }
 
 type CiTrigger struct {
@@ -307,6 +312,7 @@ type CiConfigRequest struct {
 	UpdatedBy         int32                   `sql:"updated_by,type:integer"`
 	IsJob             bool                    `json:"-"`
 	CiGitMaterialId   int                     `json:"ciGitConfiguredId"`
+	IsCloneJob        bool                    `json:"isCloneJob,omitempty"`
 }
 
 type CiPipelineMinResponse struct {
@@ -512,7 +518,7 @@ type CDPipelineConfigObject struct {
 	ChartBaseVersion              string                                 `json:"chartBaseVersion"`
 	ContainerRegistryId           int                                    `json:"containerRegistryId"`
 	RepoUrl                       string                                 `json:"repoUrl"`
-	ManifestStorageType           string                                 `json: "manifestStorageType"`
+	ManifestStorageType           string                                 `json:"manifestStorageType"`
 }
 
 type PreStageConfigMapSecretNames struct {
