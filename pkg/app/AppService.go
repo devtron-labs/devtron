@@ -1897,7 +1897,7 @@ func (impl *AppServiceImpl) BuildManifestPushTemplate(overrideRequest *bean.Valu
 	} else {
 		manifestPushTemplate.ChartReferenceTemplate = valuesOverrideResponse.EnvOverride.Chart.ReferenceTemplate
 		manifestPushTemplate.ChartName = valuesOverrideResponse.EnvOverride.Chart.ChartName
-		manifestPushTemplate.ChartVersion = fmt.Sprintf("%s%s", valuesOverrideResponse.EnvOverride.Chart.ChartVersion, "DEPLOY")
+		manifestPushTemplate.ChartVersion = valuesOverrideResponse.EnvOverride.Chart.ChartVersion
 		manifestPushTemplate.ChartLocation = valuesOverrideResponse.EnvOverride.Chart.ChartLocation
 		manifestPushTemplate.RepoUrl = valuesOverrideResponse.EnvOverride.Chart.GitRepoUrl
 	}
