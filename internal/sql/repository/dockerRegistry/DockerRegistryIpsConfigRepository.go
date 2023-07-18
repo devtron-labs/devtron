@@ -57,8 +57,9 @@ func (impl DockerRegistryIpsConfigRepositoryImpl) Update(config *DockerRegistryI
 
 func (impl DockerRegistryIpsConfigRepositoryImpl) FindByDockerRegistryId(dockerRegistryId string) (*DockerRegistryIpsConfig, error) {
 	var dockerRegistryIpsConfig DockerRegistryIpsConfig
+	//added limit 1 for fasting querying
 	err := impl.dbConnection.Model(&dockerRegistryIpsConfig).
 		Where("docker_artifact_store_id = ?", dockerRegistryId).
-		Select()
+		Limit(1).Select()
 	return &dockerRegistryIpsConfig, err
 }

@@ -18,7 +18,11 @@
 package cluster
 
 import (
+	"encoding/json"
 	"fmt"
+	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/pkg/attributes"
+	"github.com/devtron-labs/devtron/pkg/user/bean"
 	"strconv"
 	"strings"
 	"time"
@@ -27,24 +31,26 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/user"
-	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
 type EnvironmentBean struct {
-	Id                    int    `json:"id,omitempty" validate:"number"`
-	Environment           string `json:"environment_name,omitempty" validate:"required,max=50"`
-	ClusterId             int    `json:"cluster_id,omitempty" validate:"number,required"`
-	ClusterName           string `json:"cluster_name,omitempty"`
-	Active                bool   `json:"active"`
-	Default               bool   `json:"default"`
-	PrometheusEndpoint    string `json:"prometheus_endpoint,omitempty"`
-	Namespace             string `json:"namespace,omitempty" validate:"name-space-component,max=50"`
-	CdArgoSetup           bool   `json:"isClusterCdActive"`
-	EnvironmentIdentifier string `json:"environmentIdentifier"`
-	AppCount              int    `json:"appCount"`
+	Id                     int      `json:"id,omitempty" validate:"number"`
+	Environment            string   `json:"environment_name,omitempty" validate:"required,max=50"`
+	ClusterId              int      `json:"cluster_id,omitempty" validate:"number,required"`
+	ClusterName            string   `json:"cluster_name,omitempty"`
+	Active                 bool     `json:"active"`
+	Default                bool     `json:"default"`
+	PrometheusEndpoint     string   `json:"prometheus_endpoint,omitempty"`
+	Namespace              string   `json:"namespace,omitempty" validate:"name-space-component,max=50"`
+	CdArgoSetup            bool     `json:"isClusterCdActive"`
+	EnvironmentIdentifier  string   `json:"environmentIdentifier"`
+	Description            string   `json:"description" validate:"max=40"`
+	AppCount               int      `json:"appCount"`
+	IsVirtualEnvironment   bool     `json:"isVirtualEnvironment"`
+	AllowedDeploymentTypes []string `json:"allowedDeploymentTypes"`
 }
 
 type EnvDto struct {
@@ -52,12 +58,15 @@ type EnvDto struct {
 	EnvironmentName       string `json:"environmentName,omitempty" validate:"max=50"`
 	Namespace             string `json:"namespace,omitempty" validate:"name-space-component,max=50"`
 	EnvironmentIdentifier string `json:"environmentIdentifier,omitempty"`
+	Description           string `json:"description" validate:"max=40"`
+	IsVirtualEnvironment  bool   `json:"isVirtualEnvironment"`
 }
 
 type ClusterEnvDto struct {
-	ClusterId    int       `json:"clusterId"`
-	ClusterName  string    `json:"clusterName,omitempty"`
-	Environments []*EnvDto `json:"environments,omitempty"`
+	ClusterId        int       `json:"clusterId"`
+	ClusterName      string    `json:"clusterName,omitempty"`
+	Environments     []*EnvDto `json:"environments,omitempty"`
+	IsVirtualCluster bool      `json:"isVirtualCluster"`
 }
 
 type AppGroupingResponse struct {
@@ -75,12 +84,14 @@ type EnvironmentService interface {
 	FindById(id int) (*EnvironmentBean, error)
 	Update(mappings *EnvironmentBean, userId int32) (*EnvironmentBean, error)
 	FindClusterByEnvId(id int) (*ClusterBean, error)
-	GetEnvironmentListForAutocomplete() ([]EnvironmentBean, error)
+	GetEnvironmentListForAutocomplete(isDeploymentTypeParam bool) ([]EnvironmentBean, error)
+	GetEnvironmentOnlyListForAutocomplete() ([]EnvironmentBean, error)
 	FindByIds(ids []*int) ([]*EnvironmentBean, error)
 	FindByNamespaceAndClusterName(namespaces string, clusterName string) (*repository.Environment, error)
 	GetByClusterId(id int) ([]*EnvironmentBean, error)
-	GetCombinedEnvironmentListForDropDown(token string, isActionUserSuperAdmin bool, auth func(token string, object string) bool) ([]*ClusterEnvDto, error)
+	GetCombinedEnvironmentListForDropDown(emailId string, isActionUserSuperAdmin bool, auth func(email string, object []string) map[string]bool) ([]*ClusterEnvDto, error)
 	GetCombinedEnvironmentListForDropDownByClusterIds(token string, clusterIds []int, auth func(token string, object string) bool) ([]*ClusterEnvDto, error)
+	HandleErrorInClusterConnections(clusters []*ClusterBean, respMap map[int]error, clusterExistInDb bool)
 }
 
 type EnvironmentServiceImpl struct {
@@ -90,14 +101,15 @@ type EnvironmentServiceImpl struct {
 	K8sUtil               *util.K8sUtil
 	k8sInformerFactory    informer.K8sInformerFactory
 	//propertiesConfigService pipeline.PropertiesConfigService
-	userAuthService user.UserAuthService
+	userAuthService      user.UserAuthService
+	attributesRepository repository2.AttributesRepository
 }
 
 func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepository,
 	clusterService ClusterService, logger *zap.SugaredLogger,
 	K8sUtil *util.K8sUtil, k8sInformerFactory informer.K8sInformerFactory,
 	//  propertiesConfigService pipeline.PropertiesConfigService,
-	userAuthService user.UserAuthService) *EnvironmentServiceImpl {
+	userAuthService user.UserAuthService, attributesRepository repository2.AttributesRepository) *EnvironmentServiceImpl {
 	return &EnvironmentServiceImpl{
 		environmentRepository: environmentRepository,
 		logger:                logger,
@@ -105,7 +117,8 @@ func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepos
 		K8sUtil:               K8sUtil,
 		k8sInformerFactory:    k8sInformerFactory,
 		//propertiesConfigService: propertiesConfigService,
-		userAuthService: userAuthService,
+		userAuthService:      userAuthService,
+		attributesRepository: attributesRepository,
 	}
 }
 
@@ -143,6 +156,7 @@ func (impl EnvironmentServiceImpl) Create(mappings *EnvironmentBean, userId int3
 		Active:                mappings.Active,
 		Namespace:             mappings.Namespace,
 		Default:               mappings.Default,
+		Description:           mappings.Description,
 		EnvironmentIdentifier: identifier,
 	}
 	model.CreatedBy = userId
@@ -191,6 +205,7 @@ func (impl EnvironmentServiceImpl) FindOne(environment string) (*EnvironmentBean
 		Namespace:             model.Namespace,
 		Default:               model.Default,
 		EnvironmentIdentifier: model.EnvironmentIdentifier,
+		Description:           model.Description,
 	}
 	return bean, nil
 }
@@ -213,6 +228,8 @@ func (impl EnvironmentServiceImpl) GetAll() ([]EnvironmentBean, error) {
 			Default:               model.Default,
 			CdArgoSetup:           model.Cluster.CdArgoSetup,
 			EnvironmentIdentifier: model.EnvironmentIdentifier,
+			Description:           model.Description,
+			IsVirtualEnvironment:  model.IsVirtualEnvironment,
 		})
 	}
 	return beans, nil
@@ -235,6 +252,8 @@ func (impl EnvironmentServiceImpl) GetAllActive() ([]EnvironmentBean, error) {
 			Namespace:             model.Namespace,
 			Default:               model.Default,
 			EnvironmentIdentifier: model.EnvironmentIdentifier,
+			Description:           model.Description,
+			IsVirtualEnvironment:  model.IsVirtualEnvironment,
 		})
 	}
 	return beans, nil
@@ -255,6 +274,8 @@ func (impl EnvironmentServiceImpl) FindById(id int) (*EnvironmentBean, error) {
 		Namespace:             model.Namespace,
 		Default:               model.Default,
 		EnvironmentIdentifier: model.EnvironmentIdentifier,
+		Description:           model.Description,
+		IsVirtualEnvironment:  model.IsVirtualEnvironment,
 	}
 
 	/*clusterBean := &ClusterBean{
@@ -287,6 +308,7 @@ func (impl EnvironmentServiceImpl) Update(mappings *EnvironmentBean, userId int3
 	model.Default = mappings.Default
 	model.UpdatedBy = userId
 	model.UpdatedOn = time.Now()
+	model.Description = mappings.Description
 
 	//namespace create if not exist
 	if len(model.Namespace) > 0 {
@@ -341,19 +363,106 @@ func (impl EnvironmentServiceImpl) FindClusterByEnvId(id int) (*ClusterBean, err
 		impl.logger.Errorw("fetch cluster by environment id", "err", err)
 		return nil, err
 	}
-
-	clusterBean := &ClusterBean{
-		Id:          model.Cluster.Id,
-		ClusterName: model.Cluster.ClusterName,
-		Active:      model.Cluster.Active,
-		ServerUrl:   model.Cluster.ServerUrl,
-		Config:      model.Cluster.Config,
-	}
+	clusterBean := &ClusterBean{}
+	clusterBean.Id = model.Cluster.Id
+	clusterBean.ClusterName = model.Cluster.ClusterName
+	clusterBean.Active = model.Cluster.Active
+	clusterBean.ServerUrl = model.Cluster.ServerUrl
+	clusterBean.Config = model.Cluster.Config
 	return clusterBean, nil
 }
 
-func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete() ([]EnvironmentBean, error) {
+const (
+	PIPELINE_DEPLOYMENT_TYPE_HELM = "helm"
+	PIPELINE_DEPLOYMENT_TYPE_ACD  = "argo_cd"
+)
+
+var permittedDeploymentConfigString = []string{PIPELINE_DEPLOYMENT_TYPE_HELM, PIPELINE_DEPLOYMENT_TYPE_ACD}
+
+func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete(isDeploymentTypeParam bool) ([]EnvironmentBean, error) {
 	models, err := impl.environmentRepository.FindAllActive()
+	if err != nil {
+		impl.logger.Errorw("error in fetching environment", "err", err)
+	}
+	var beans []EnvironmentBean
+	//Fetching deployment app type config values along with autocomplete api while creating CD pipeline
+	if isDeploymentTypeParam {
+		for _, model := range models {
+			var (
+				allowedDeploymentConfigString []string
+			)
+			deploymentConfig := make(map[string]map[string]bool)
+			deploymentConfigEnvLevel := make(map[string]bool)
+			deploymentConfigValues, _ := impl.attributesRepository.FindByKey(attributes.ENFORCE_DEPLOYMENT_TYPE_CONFIG)
+			//if empty config received(doesn't exist in table) which can't be parsed
+			if deploymentConfigValues.Value != "" {
+				if err = json.Unmarshal([]byte(deploymentConfigValues.Value), &deploymentConfig); err != nil {
+					return nil, err
+				}
+				deploymentConfigEnvLevel, _ = deploymentConfig[fmt.Sprintf("%d", model.Id)]
+			}
+
+			// if real config along with absurd values exist in table {"argo_cd": true, "helm": false, "absurd": false}",
+			if ok, filteredDeploymentConfig := impl.IsReceivedDeploymentTypeValid(deploymentConfigEnvLevel); ok {
+				allowedDeploymentConfigString = filteredDeploymentConfig
+			} else {
+				allowedDeploymentConfigString = permittedDeploymentConfigString
+			}
+			beans = append(beans, EnvironmentBean{
+				Id:                     model.Id,
+				Environment:            model.Name,
+				Namespace:              model.Namespace,
+				CdArgoSetup:            model.Cluster.CdArgoSetup,
+				EnvironmentIdentifier:  model.EnvironmentIdentifier,
+				ClusterName:            model.Cluster.ClusterName,
+				Description:            model.Description,
+				IsVirtualEnvironment:   model.IsVirtualEnvironment,
+				AllowedDeploymentTypes: allowedDeploymentConfigString,
+			})
+		}
+	} else {
+		for _, model := range models {
+			beans = append(beans, EnvironmentBean{
+				Id:                    model.Id,
+				Environment:           model.Name,
+				Namespace:             model.Namespace,
+				CdArgoSetup:           model.Cluster.CdArgoSetup,
+				EnvironmentIdentifier: model.EnvironmentIdentifier,
+				ClusterName:           model.Cluster.ClusterName,
+				Description:           model.Description,
+				IsVirtualEnvironment:  model.IsVirtualEnvironment,
+			})
+		}
+	}
+	return beans, nil
+}
+
+func (impl EnvironmentServiceImpl) IsReceivedDeploymentTypeValid(deploymentConfig map[string]bool) (bool, []string) {
+	var (
+		filteredDeploymentConfig []string
+		flag                     bool
+	)
+
+	for key, value := range deploymentConfig {
+		for _, permitted := range permittedDeploymentConfigString {
+			if key == permitted {
+				//filtering only those deployment app types which are in permitted zone and are marked true
+				if value {
+					flag = true
+					filteredDeploymentConfig = append(filteredDeploymentConfig, key)
+				}
+				break
+			}
+		}
+	}
+	if !flag {
+		return false, nil
+	}
+	return true, filteredDeploymentConfig
+}
+
+func (impl EnvironmentServiceImpl) GetEnvironmentOnlyListForAutocomplete() ([]EnvironmentBean, error) {
+	models, err := impl.environmentRepository.FindAllActiveEnvOnlyDetails()
 	if err != nil {
 		impl.logger.Errorw("error in fetching environment", "err", err)
 	}
@@ -363,9 +472,9 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete() ([]Enviro
 			Id:                    model.Id,
 			Environment:           model.Name,
 			Namespace:             model.Namespace,
-			CdArgoSetup:           model.Cluster.CdArgoSetup,
 			EnvironmentIdentifier: model.EnvironmentIdentifier,
-			ClusterName:           model.Cluster.ClusterName,
+			ClusterId:             model.ClusterId,
+			IsVirtualEnvironment:  model.IsVirtualEnvironment,
 		})
 	}
 	return beans, nil
@@ -402,6 +511,8 @@ func (impl EnvironmentServiceImpl) FindByIds(ids []*int) ([]*EnvironmentBean, er
 			Default:               model.Default,
 			EnvironmentIdentifier: model.EnvironmentIdentifier,
 			ClusterId:             model.ClusterId,
+			Description:           model.Description,
+			IsVirtualEnvironment:  model.IsVirtualEnvironment,
 		})
 	}
 	return beans, nil
@@ -424,12 +535,13 @@ func (impl EnvironmentServiceImpl) GetByClusterId(id int) ([]*EnvironmentBean, e
 			Environment:           model.Name,
 			Namespace:             model.Namespace,
 			EnvironmentIdentifier: model.EnvironmentIdentifier,
+			Description:           model.Description,
 		})
 	}
 	return beans, nil
 }
 
-func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token string, isActionUserSuperAdmin bool, auth func(token string, object string) bool) ([]*ClusterEnvDto, error) {
+func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(emailId string, isActionUserSuperAdmin bool, auth func(email string, object []string) map[string]bool) ([]*ClusterEnvDto, error) {
 	var namespaceGroupByClusterResponse []*ClusterEnvDto
 	clusterModels, err := impl.clusterService.FindAllActive()
 	if err != nil {
@@ -445,13 +557,19 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token s
 		impl.logger.Errorw("error in fetching environments", "err", err)
 		return namespaceGroupByClusterResponse, err
 	}
+	rbacObject := make([]string, 0)
+	for _, model := range models {
+		rbacObject = append(rbacObject, model.EnvironmentIdentifier)
+	}
+	// auth enforcer applied here in batch
+	rbacObjectResult := auth(emailId, rbacObject)
+
 	uniqueComboMap := make(map[string]bool)
 	grantedEnvironmentMap := make(map[string][]*EnvDto)
 	for _, model := range models {
 		// isActionUserSuperAdmin tell that user is super admin or not. auth check skip for admin
 		if !isActionUserSuperAdmin {
-			// auth enforcer applied here
-			isValidAuth := auth(token, model.EnvironmentIdentifier)
+			isValidAuth := rbacObjectResult[model.EnvironmentIdentifier]
 			if !isValidAuth {
 				impl.logger.Debugw("authentication for env failed", "object", model.EnvironmentIdentifier)
 				continue
@@ -465,10 +583,21 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token s
 			EnvironmentName:       model.Name,
 			Namespace:             model.Namespace,
 			EnvironmentIdentifier: model.EnvironmentIdentifier,
+			Description:           model.Description,
 		})
 	}
 
 	namespaceListGroupByClusters := impl.k8sInformerFactory.GetLatestNamespaceListGroupByCLuster()
+	rbacObject2 := make([]string, 0)
+	for clusterName, namespaces := range namespaceListGroupByClusters {
+		for namespace := range namespaces {
+			environmentIdentifier := fmt.Sprintf("%s__%s", clusterName, namespace)
+			rbacObject2 = append(rbacObject2, environmentIdentifier)
+		}
+	}
+	// auth enforcer applied here in batch
+	rbacObjectResult2 := auth(emailId, rbacObject)
+
 	for clusterName, namespaces := range namespaceListGroupByClusters {
 		clusterId := clusterMap[clusterName]
 		for namespace := range namespaces {
@@ -479,8 +608,7 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token s
 				environmentIdentifier := fmt.Sprintf("%s__%s", clusterName, namespace)
 				// isActionUserSuperAdmin tell that user is super admin or not. auth check skip for admin
 				if !isActionUserSuperAdmin {
-					// auth enforcer applied here
-					isValidAuth := auth(token, environmentIdentifier)
+					isValidAuth := rbacObjectResult2[environmentIdentifier]
 					if !isValidAuth {
 						impl.logger.Debugw("authentication for env failed", "object", environmentIdentifier)
 						continue
@@ -544,6 +672,7 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDownByCluste
 			EnvironmentName:       model.Name,
 			Namespace:             model.Namespace,
 			EnvironmentIdentifier: model.EnvironmentIdentifier,
+			Description:           model.Description,
 		})
 	}
 
@@ -613,7 +742,7 @@ func (impl EnvironmentServiceImpl) Delete(deleteReq *EnvironmentBean, userId int
 		return err
 	}
 	//deleting auth roles entries for this environment
-	err = impl.userAuthService.DeleteRoles(repository2.ENV_TYPE, deleteRequest.Name, tx, existingEnv.EnvironmentIdentifier)
+	err = impl.userAuthService.DeleteRoles(bean.ENV_TYPE, deleteRequest.Name, tx, existingEnv.EnvironmentIdentifier)
 	if err != nil {
 		impl.logger.Errorw("error in deleting auth roles", "err", err)
 		return err
@@ -623,4 +752,8 @@ func (impl EnvironmentServiceImpl) Delete(deleteReq *EnvironmentBean, userId int
 		return err
 	}
 	return nil
+}
+
+func (impl EnvironmentServiceImpl) HandleErrorInClusterConnections(clusters []*ClusterBean, respMap map[int]error, clusterExistInDb bool) {
+	impl.clusterService.HandleErrorInClusterConnections(clusters, respMap, clusterExistInDb)
 }

@@ -31,8 +31,10 @@ import (
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
+	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeploymentTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool"
 	appStoreDeploymentGitopsTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/gitops"
 	"github.com/devtron-labs/devtron/pkg/attributes"
@@ -166,6 +168,16 @@ func InitializeApp() (*App, error) {
 
 		kubernetesResourceAuditLogs.Newk8sResourceHistoryServiceImpl,
 		wire.Bind(new(kubernetesResourceAuditLogs.K8sResourceHistoryService), new(*kubernetesResourceAuditLogs.K8sResourceHistoryServiceImpl)),
+
+		util.NewChartTemplateServiceImpl,
+		wire.Bind(new(util.ChartTemplateService), new(*util.ChartTemplateServiceImpl)),
+		wire.Value(util.ChartWorkingDir("/tmp/charts/")),
+		wire.Value(appStoreBean.RefChartProxyDir("scripts/devtron-reference-helm-charts")),
+		util.NewGitFactory,
+		util.NewGitCliUtil,
+
+		security2.NewScanToolMetadataRepositoryImpl,
+		wire.Bind(new(security2.ScanToolMetadataRepository), new(*security2.ScanToolMetadataRepositoryImpl)),
 	)
 	return &App{}, nil
 }

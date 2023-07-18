@@ -55,8 +55,9 @@ type CiArtifactRepository interface {
 	Save(artifact *CiArtifact) error
 	Delete(artifact *CiArtifact) error
 	Get(id int) (artifact *CiArtifact, err error)
+	GetArtifactParentCiAndWorkflowDetailsByIds(ids []int) ([]*CiArtifact, error)
 	GetByWfId(wfId int) (artifact *CiArtifact, err error)
-	GetArtifactsByCDPipeline(cdPipelineId, limit int, parentId int, parentType bean.WorkflowType) ([]CiArtifact, error)
+	GetArtifactsByCDPipeline(cdPipelineId, limit int, parentId int, parentType bean.WorkflowType) ([]*CiArtifact, error)
 
 	GetArtifactsByCDPipelineV2(cdPipelineId int) ([]CiArtifact, error)
 	GetArtifactsByCDPipelineAndRunnerType(cdPipelineId int, runnerType bean.WorkflowType) ([]CiArtifact, error)
@@ -105,6 +106,26 @@ func (impl CiArtifactRepositoryImpl) Get(id int) (artifact *CiArtifact, err erro
 	return artifact, err
 }
 
+func (impl CiArtifactRepositoryImpl) GetArtifactParentCiAndWorkflowDetailsByIds(ids []int) ([]*CiArtifact, error) {
+	artifacts := make([]*CiArtifact, 0)
+	if len(ids) == 0 {
+		return artifacts, nil
+	}
+
+	err := impl.dbConnection.Model(&artifacts).
+		Column("ci_artifact.ci_workflow_id", "ci_artifact.parent_ci_artifact", "ci_artifact.external_ci_pipeline_id", "ci_artifact.id").
+		Where("ci_artifact.id in (?)", pg.In(ids)).
+		Select()
+
+	if err != nil {
+		impl.logger.Errorw("failed to get artifact parent ci and workflow details",
+			"ids", ids,
+			"err", err)
+		return nil, err
+	}
+	return artifacts, nil
+}
+
 func (impl CiArtifactRepositoryImpl) GetByWfId(wfId int) (*CiArtifact, error) {
 	artifact := &CiArtifact{}
 	err := impl.dbConnection.Model(artifact).
@@ -115,107 +136,102 @@ func (impl CiArtifactRepositoryImpl) GetByWfId(wfId int) (*CiArtifact, error) {
 }
 
 // this method takes CD Pipeline id and Returns List of Artifacts Latest By last deployed
-func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipeline(cdPipelineId, limit int, parentId int, parentType bean.WorkflowType) ([]CiArtifact, error) {
-	var artifactsA []CiArtifact
-	var artifactsAB []CiArtifact
-	type Object struct {
-		Id           int    `json:"id"`
-		MaterialInfo string `json:"material_info"`
-	}
-	var artifactsB []Object
+func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipeline(cdPipelineId, limit int, parentId int, parentType bean.WorkflowType) ([]*CiArtifact, error) {
+	artifacts := make([]*CiArtifact, 0, limit)
 
 	if parentType == bean.WEBHOOK_WORKFLOW_TYPE {
-		queryFetchArtifacts := ""
-		queryFetchArtifacts = "SELECT cia.id, cia.data_source, cia.image, cia.image_digest, cia.scan_enabled, cia.scanned" +
-			" FROM ci_artifact cia" +
-			" WHERE cia.external_ci_pipeline_id = ? ORDER BY cia.id DESC;"
-		_, err := impl.dbConnection.Query(&artifactsA, queryFetchArtifacts, parentId)
+		// WEBHOOK type parent
+		err := impl.dbConnection.Model(&artifacts).
+			Column("ci_artifact.id", "ci_artifact.material_info", "ci_artifact.data_source", "ci_artifact.image", "ci_artifact.image_digest", "ci_artifact.scan_enabled", "ci_artifact.scanned").
+			Where("ci_artifact.external_ci_pipeline_id = ?", parentId).
+			Order("ci_artifact.id DESC").
+			Limit(limit).
+			Select()
+
 		if err != nil {
-			impl.logger.Debugw("Error", "error", err)
+			impl.logger.Errorw("error while fetching artifacts for cd pipeline from db",
+				"cdPipelineId", cdPipelineId,
+				"parentId", parentId,
+				"err", err)
+
 			return nil, err
 		}
-		var queryTemp string = "SELECT cia.id, cia.material_info FROM ci_artifact cia" +
-			" WHERE cia.external_ci_pipeline_id = ? ORDER BY cia.id DESC;"
-		_, err = impl.dbConnection.Query(&artifactsB, queryTemp, parentId)
-		if err != nil {
-			return nil, err
-		}
+
 	} else if parentType == bean.CI_WORKFLOW_TYPE {
-		queryFetchArtifacts := ""
-		queryFetchArtifacts = "SELECT cia.id, cia.data_source, cia.image, cia.image_digest, cia.scan_enabled, cia.scanned" +
-			" FROM ci_artifact cia" +
-			" INNER JOIN ci_pipeline cp on cp.id=cia.pipeline_id" +
-			" INNER JOIN pipeline p on p.ci_pipeline_id = cp.id" +
-			" WHERE p.id= ? ORDER BY cia.id DESC;"
-		_, err := impl.dbConnection.Query(&artifactsA, queryFetchArtifacts, cdPipelineId)
-		if err != nil {
-			impl.logger.Debugw("Error", err)
-			return nil, err
-		}
+		// CI type parent
+		err := impl.dbConnection.Model(&artifacts).
+			Column("ci_artifact.id", "ci_artifact.material_info", "ci_artifact.data_source", "ci_artifact.image", "ci_artifact.image_digest", "ci_artifact.scan_enabled", "ci_artifact.scanned").
+			Join("INNER JOIN ci_pipeline cp on cp.id=ci_artifact.pipeline_id").
+			Join("INNER JOIN pipeline p on p.ci_pipeline_id = cp.id").
+			Where("p.id = ?", cdPipelineId).
+			Order("ci_artifact.id DESC").
+			Limit(limit).
+			Select()
 
-		// fetching material info separately because it gives error with fetching other (check its json) - FIXME
-
-		var queryTemp string = "SELECT cia.id, cia.material_info FROM ci_artifact cia" +
-			" INNER JOIN ci_pipeline cp on cp.id=cia.pipeline_id" +
-			" INNER JOIN pipeline p on p.ci_pipeline_id = cp.id" +
-			" WHERE p.id= ? ORDER BY cia.id DESC;"
-		_, err = impl.dbConnection.Query(&artifactsB, queryTemp, cdPipelineId)
 		if err != nil {
+			impl.logger.Errorw("error while fetching artifacts for cd pipeline from db",
+				"cdPipelineId", cdPipelineId,
+				"err", err)
+
 			return nil, err
 		}
 	}
 
-	mapData := make(map[int]string)
-	for _, a := range artifactsB {
-		mapData[a.Id] = a.MaterialInfo
-	}
-	for _, a := range artifactsA {
-		a.MaterialInfo = mapData[a.Id]
-		artifactsAB = append(artifactsAB, a)
-	}
-
-	var artifactsDeployed []CiArtifact
+	artifactsDeployed := make([]*CiArtifact, 0, limit)
 	query := "" +
 		" SELECT cia.id, pco.created_on as created_on" +
 		" FROM ci_artifact cia" +
 		" INNER JOIN pipeline_config_override pco ON pco.ci_artifact_id=cia.id" +
-		" WHERE pco.pipeline_id = ? ORDER BY pco.ci_artifact_id DESC, pco.created_on ASC;"
+		" WHERE pco.pipeline_id = ? ORDER BY pco.ci_artifact_id DESC, pco.created_on ASC" +
+		" LIMIT ?;"
 
-	_, err := impl.dbConnection.Query(&artifactsDeployed, query, cdPipelineId)
+	_, err := impl.dbConnection.Query(&artifactsDeployed, query, cdPipelineId, limit)
+
 	if err != nil {
-		impl.logger.Debugw("Error", err)
+		impl.logger.Errorw("error while fetching deployed artifacts for cd pipeline from db",
+			"cdPipelineId", cdPipelineId,
+			"err", err)
+
 		return nil, err
 	}
 
-	//find latest deployed entry
-	latestObj := Object{}
-	latestDeployedQuery := "SELECT cia.id FROM ci_artifact cia" +
-		" INNER JOIN pipeline_config_override pco ON pco.ci_artifact_id=cia.id" +
-		" WHERE pco.pipeline_id = ? ORDER BY pco.created_on DESC LIMIT 1;"
+	// find latest deployed entry
+	lastDeployedArtifactId := 0
+	if len(artifactsDeployed) > 0 {
+		createdOn := artifactsDeployed[0].CreatedOn
 
-	_, err = impl.dbConnection.Query(&latestObj, latestDeployedQuery, cdPipelineId)
+		for _, artifact := range artifactsDeployed {
+
+			// Need artifact id of the most recent created one
+			if createdOn.After(artifact.CreatedOn) {
+				lastDeployedArtifactId = artifact.Id
+				createdOn = artifact.CreatedOn
+			}
+		}
+	}
+
 	if err != nil {
-		impl.logger.Debugw("Error", err)
+		impl.logger.Errorw("error while fetching latest deployed artifact from db",
+			"cdPipelineId", cdPipelineId,
+			"err", err)
+
 		return nil, err
 	}
 
-	var artifactsAll []CiArtifact
+	artifactsAll := make([]*CiArtifact, 0, limit)
 	mapData2 := make(map[int]time.Time)
 	for _, a := range artifactsDeployed {
 		mapData2[a.Id] = a.CreatedOn
 	}
-	for _, a := range artifactsAB {
+	for _, a := range artifacts {
 		if val, ok := mapData2[a.Id]; ok {
 			a.Deployed = true
 			a.DeployedTime = val
-			if latestObj.Id == a.Id {
+			if lastDeployedArtifactId == a.Id {
 				a.Latest = true
 			}
 		}
 		artifactsAll = append(artifactsAll, a)
-		if len(artifactsAll) >= limit {
-			break
-		}
 	}
 	return artifactsAll, err
 }

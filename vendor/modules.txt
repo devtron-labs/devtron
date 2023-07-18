@@ -327,11 +327,14 @@ github.com/devtron-labs/authenticator/jwt
 github.com/devtron-labs/authenticator/middleware
 github.com/devtron-labs/authenticator/oidc
 github.com/devtron-labs/authenticator/password
-# github.com/devtron-labs/common-lib v0.0.0-20230228120609-58fa7d3de8e2
+# github.com/devtron-labs/common-lib v0.0.0-20230407072229-d4f665f5ca12
 ## explicit; go 1.18
 github.com/devtron-labs/common-lib/blob-storage
 github.com/devtron-labs/common-lib/pubsub-lib
 github.com/devtron-labs/common-lib/utils
+# github.com/devtron-labs/protos v0.0.0-20230503113602-282404f70fd2
+## explicit; go 1.17
+github.com/devtron-labs/protos/gitSensor
 # github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f
 ## explicit
 github.com/dgryski/go-rendezvous
@@ -911,6 +914,12 @@ github.com/xlab/treeprint
 # github.com/xtgo/uuid v0.0.0-20140804021211-a0b114877d4c
 ## explicit
 github.com/xtgo/uuid
+# github.com/yannh/kubeconform v0.5.0
+## explicit; go 1.17
+github.com/yannh/kubeconform/pkg/cache
+github.com/yannh/kubeconform/pkg/registry
+github.com/yannh/kubeconform/pkg/resource
+github.com/yannh/kubeconform/pkg/validator
 # go.opencensus.io v0.23.0
 ## explicit; go 1.13
 go.opencensus.io

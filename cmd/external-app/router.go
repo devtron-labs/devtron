@@ -57,6 +57,7 @@ type MuxRouter struct {
 	userTerminalAccessRouter terminal.UserTerminalAccessRouter
 	attributesRouter         router.AttributesRouter
 	appRouter                router.AppRouter
+	rbacRoleRouter           user.RbacRoleRouter
 }
 
 func NewMuxRouter(
@@ -86,6 +87,7 @@ func NewMuxRouter(
 	userTerminalAccessRouter terminal.UserTerminalAccessRouter,
 	attributesRouter router.AttributesRouter,
 	appRouter router.AppRouter,
+	rbacRoleRouter user.RbacRoleRouter,
 ) *MuxRouter {
 	r := &MuxRouter{
 		Router:                   mux.NewRouter(),
@@ -116,6 +118,7 @@ func NewMuxRouter(
 		userTerminalAccessRouter: userTerminalAccessRouter,
 		attributesRouter:         attributesRouter,
 		appRouter:                appRouter,
+		rbacRoleRouter:           rbacRoleRouter,
 	}
 	return r
 }
@@ -157,7 +160,8 @@ func (r *MuxRouter) Init() {
 	r.UserAuthRouter.InitUserAuthRouter(rootRouter)
 	userRouter := baseRouter.PathPrefix("/user").Subrouter()
 	r.userRouter.InitUserRouter(userRouter)
-
+	rbacRoleRouter := baseRouter.PathPrefix("/rbac/role").Subrouter()
+	r.rbacRoleRouter.InitRbacRoleRouter(rbacRoleRouter)
 	clusterRouter := baseRouter.PathPrefix("/cluster").Subrouter()
 	r.clusterRouter.InitClusterRouter(clusterRouter)
 

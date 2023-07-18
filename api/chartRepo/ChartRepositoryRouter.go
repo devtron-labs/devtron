@@ -38,6 +38,8 @@ func (router ChartRepositoryRouterImpl) Init(configRouter *mux.Router) {
 		HandlerFunc(router.chartRepositoryRestHandler.TriggerChartSyncManual).Methods("POST")
 	configRouter.Path("/list").
 		HandlerFunc(router.chartRepositoryRestHandler.GetChartRepoList).Methods("GET")
+	configRouter.Path("/list/min").
+		HandlerFunc(router.chartRepositoryRestHandler.GetChartRepoListMin).Methods("GET")
 	configRouter.Path("/{id}").
 		HandlerFunc(router.chartRepositoryRestHandler.GetChartRepoById).Methods("GET")
 	configRouter.Path("/create").

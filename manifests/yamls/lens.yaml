@@ -14,7 +14,8 @@ metadata:
   labels:
     release: devtron
 data:
-  GIT_SENSOR_URL: http://git-sensor-service.devtroncd:80
+  GIT_SENSOR_PROTOCOL: GRPC
+  GIT_SENSOR_URL: git-sensor-service.devtroncd:90
   NATS_SERVER_HOST: nats://devtron-nats.devtroncd:4222
   PG_ADDR: postgresql-postgresql.devtroncd
   PG_PORT: "5432"
@@ -64,10 +65,18 @@ spec:
     spec:
       terminationGracePeriodSeconds: 30
       restartPolicy: Always
+      securityContext:
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsUser: 1000
       containers:
         - name: lens
-          image: "quay.io/devtron/lens:fbb005ef-333-12563"
+          image: "quay.io/devtron/lens:25bfd796-333-13708"
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsUser: 1000
+            runAsNonRoot: true
           ports:
             - name: app
               containerPort: 8080

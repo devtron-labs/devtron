@@ -61,6 +61,8 @@ func (router UserAuthRouterImpl) InitUserAuthRouter(userAuthRouter *mux.Router) 
 		HandlerFunc(router.userAuthHandler.AddDefaultPolicyAndRoles).Methods("POST")
 	userAuthRouter.Path("/devtron/auth/verify").
 		HandlerFunc(router.userAuthHandler.AuthVerification).Methods("GET")
+	userAuthRouter.Path("/devtron/auth/verify/v2").
+		HandlerFunc(router.userAuthHandler.AuthVerificationV2).Methods("GET")
 }
 
 func (router UserAuthRouterImpl) writeSuccess(message string, w http.ResponseWriter) {

@@ -59,6 +59,7 @@ type EnvConfigOverrideRepository interface {
 	UpdateEnvConfigStatus(config *EnvConfigOverride) error
 	Delete(envConfigOverride *EnvConfigOverride) error
 	FindLatestChartForAppByAppIdAndEnvId(appId, targetEnvironmentId int) (*EnvConfigOverride, error)
+	FindChartRefIdsForLatestChartForAppByAppIdAndEnvIds(appId int, targetEnvironmentIds []int) (map[int]int, error)
 	FindChartByAppIdAndEnvIdAndChartRefId(appId, targetEnvironmentId int, chartRefId int) (*EnvConfigOverride, error)
 	Update(envConfigOverride *EnvConfigOverride) (*EnvConfigOverride, error)
 	FindChartForAppByAppIdAndEnvId(appId, targetEnvironmentId int) (*EnvConfigOverride, error)
@@ -272,6 +273,24 @@ func (r EnvConfigOverrideRepositoryImpl) FindLatestChartForAppByAppIdAndEnvId(ap
 		return nil, errors.NotFoundf(err.Error())
 	}
 	return eco, err
+}
+func (r EnvConfigOverrideRepositoryImpl) FindChartRefIdsForLatestChartForAppByAppIdAndEnvIds(appId int, targetEnvironmentIds []int) (map[int]int, error) {
+	var EnvChartDetail []struct {
+		ChartRefId int `sql:"chart_ref_id"`
+		EnvId      int `sql:"target_environment"`
+	}
+	envChartMap := make(map[int]int)
+
+	query := `select c.chart_ref_id, ceco.target_environment  from chart_env_config_override ceco inner join charts c on ceco.chart_id = c.id 
+                      where ceco.latest=? and c.app_id=? and ceco.target_environment in (?);`
+	_, err := r.dbConnection.Query(&EnvChartDetail, query, true, appId, pg.In(targetEnvironmentIds))
+	if err != nil {
+		return nil, err
+	}
+	for _, item := range EnvChartDetail {
+		envChartMap[item.EnvId] = item.ChartRefId
+	}
+	return envChartMap, err
 }
 
 func (r EnvConfigOverrideRepositoryImpl) FindChartByAppIdAndEnvIdAndChartRefId(appId, targetEnvironmentId int, chartRefId int) (*EnvConfigOverride, error) {

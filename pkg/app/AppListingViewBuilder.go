@@ -108,13 +108,13 @@ func (impl *AppListingViewBuilderImpl) BuildView(fetchAppListingRequest FetchApp
 				sort.Slice(appContainersResponses, func(i, j int) bool {
 					deployedTime1 := appContainersResponses[i].AppEnvironmentContainer[0].LastDeployedTime
 					deployedTime2 := appContainersResponses[j].AppEnvironmentContainer[0].LastDeployedTime
-					return deployedTime1 > deployedTime2
+					return deployedTime1 < deployedTime2
 				})
 			} else if fetchAppListingRequest.SortOrder == helper.Desc {
 				sort.Slice(appContainersResponses, func(i, j int) bool {
 					deployedTime1 := appContainersResponses[i].AppEnvironmentContainer[0].LastDeployedTime
 					deployedTime2 := appContainersResponses[j].AppEnvironmentContainer[0].LastDeployedTime
-					return deployedTime1 < deployedTime2
+					return deployedTime1 > deployedTime2
 				})
 			}
 		}

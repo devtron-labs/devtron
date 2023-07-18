@@ -33,15 +33,17 @@ import (
 	"github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/devtron-labs/devtron/client/k8s/informer"
 	"github.com/devtron-labs/devtron/client/telemetry"
-	repository4 "github.com/devtron-labs/devtron/internal/sql/repository"
+	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/apiToken"
 	app2 "github.com/devtron-labs/devtron/pkg/app"
+	"github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
-	repository3 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
+	repository4 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	service3 "github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/tool"
 	"github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
@@ -124,7 +126,10 @@ func InitializeApp() (*App, error) {
 	userAuthRepositoryImpl := repository.NewUserAuthRepositoryImpl(db, sugaredLogger, defaultAuthPolicyRepositoryImpl, defaultAuthRoleRepositoryImpl)
 	userRepositoryImpl := repository.NewUserRepositoryImpl(db, sugaredLogger)
 	roleGroupRepositoryImpl := repository.NewRoleGroupRepositoryImpl(db, sugaredLogger)
-	userCommonServiceImpl := user.NewUserCommonServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, sessionManager)
+	rbacPolicyDataRepositoryImpl := repository.NewRbacPolicyDataRepositoryImpl(sugaredLogger, db)
+	rbacRoleDataRepositoryImpl := repository.NewRbacRoleDataRepositoryImpl(sugaredLogger, db)
+	rbacDataCacheFactoryImpl := repository.NewRbacDataCacheFactoryImpl(sugaredLogger, rbacPolicyDataRepositoryImpl, rbacRoleDataRepositoryImpl)
+	userCommonServiceImpl := user.NewUserCommonServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, sessionManager, rbacDataCacheFactoryImpl)
 	userAuditRepositoryImpl := repository.NewUserAuditRepositoryImpl(db)
 	userAuditServiceImpl := user.NewUserAuditServiceImpl(sugaredLogger, userAuditRepositoryImpl)
 	userServiceImpl := user.NewUserServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, sessionManager, userCommonServiceImpl, userAuditServiceImpl)
@@ -153,7 +158,8 @@ func InitializeApp() (*App, error) {
 	clusterServiceImpl := cluster.NewClusterServiceImpl(clusterRepositoryImpl, sugaredLogger, k8sUtil, k8sInformerFactoryImpl, userAuthRepositoryImpl, userRepositoryImpl, roleGroupRepositoryImpl)
 	appStatusRepositoryImpl := appStatus.NewAppStatusRepositoryImpl(db, sugaredLogger)
 	environmentRepositoryImpl := repository2.NewEnvironmentRepositoryImpl(db, sugaredLogger, appStatusRepositoryImpl)
-	environmentServiceImpl := cluster.NewEnvironmentServiceImpl(environmentRepositoryImpl, clusterServiceImpl, sugaredLogger, k8sUtil, k8sInformerFactoryImpl, userAuthServiceImpl)
+	attributesRepositoryImpl := repository3.NewAttributesRepositoryImpl(db)
+	environmentServiceImpl := cluster.NewEnvironmentServiceImpl(environmentRepositoryImpl, clusterServiceImpl, sugaredLogger, k8sUtil, k8sInformerFactoryImpl, userAuthServiceImpl, attributesRepositoryImpl)
 	chartRepoRepositoryImpl := chartRepoRepository.NewChartRepoRepositoryImpl(db)
 	acdAuthConfig, err := util3.GetACDAuthConfig()
 	if err != nil {
@@ -165,20 +171,26 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	chartRepositoryServiceImpl := chartRepo.NewChartRepositoryServiceImpl(sugaredLogger, chartRepoRepositoryImpl, k8sUtil, clusterServiceImpl, acdAuthConfig, httpClient, serverEnvConfigServerEnvConfig)
-	installedAppRepositoryImpl := repository3.NewInstalledAppRepositoryImpl(sugaredLogger, db)
+	installedAppRepositoryImpl := repository4.NewInstalledAppRepositoryImpl(sugaredLogger, db)
 	deleteServiceImpl := delete2.NewDeleteServiceImpl(sugaredLogger, teamServiceImpl, clusterServiceImpl, environmentServiceImpl, chartRepositoryServiceImpl, installedAppRepositoryImpl)
 	teamRestHandlerImpl := team2.NewTeamRestHandlerImpl(sugaredLogger, teamServiceImpl, userServiceImpl, enforcerImpl, validate, userAuthServiceImpl, deleteServiceImpl)
 	teamRouterImpl := team2.NewTeamRouterImpl(teamRestHandlerImpl)
-	userAuthHandlerImpl := user2.NewUserAuthHandlerImpl(userAuthServiceImpl, validate, sugaredLogger)
+	userAuthHandlerImpl := user2.NewUserAuthHandlerImpl(userAuthServiceImpl, validate, sugaredLogger, enforcerImpl)
 	userAuthRouterImpl := user2.NewUserAuthRouterImpl(sugaredLogger, userAuthHandlerImpl, userAuthOidcHelperImpl)
 	roleGroupServiceImpl := user.NewRoleGroupServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, userCommonServiceImpl)
 	userRestHandlerImpl := user2.NewUserRestHandlerImpl(userServiceImpl, validate, sugaredLogger, enforcerImpl, roleGroupServiceImpl, userCommonServiceImpl)
 	userRouterImpl := user2.NewUserRouterImpl(userRestHandlerImpl)
+	clusterNoteRepositoryImpl := repository2.NewClusterNoteRepositoryImpl(db, sugaredLogger)
+	clusterNoteHistoryRepositoryImpl := repository2.NewClusterNoteHistoryRepositoryImpl(db, sugaredLogger)
+	clusterNoteHistoryServiceImpl := cluster.NewClusterNoteHistoryServiceImpl(clusterNoteHistoryRepositoryImpl, sugaredLogger)
+	clusterNoteServiceImpl := cluster.NewClusterNoteServiceImpl(clusterNoteRepositoryImpl, clusterNoteHistoryServiceImpl, sugaredLogger)
+	clusterDescriptionRepositoryImpl := repository2.NewClusterDescriptionRepositoryImpl(db, sugaredLogger)
+	clusterDescriptionServiceImpl := cluster.NewClusterDescriptionServiceImpl(clusterDescriptionRepositoryImpl, userRepositoryImpl, sugaredLogger)
 	helmUserServiceImpl, err := argo.NewHelmUserServiceImpl(sugaredLogger)
 	if err != nil {
 		return nil, err
 	}
-	clusterRestHandlerImpl := cluster2.NewClusterRestHandlerImpl(clusterServiceImpl, sugaredLogger, userServiceImpl, validate, enforcerImpl, deleteServiceImpl, helmUserServiceImpl)
+	clusterRestHandlerImpl := cluster2.NewClusterRestHandlerImpl(clusterServiceImpl, clusterNoteServiceImpl, clusterDescriptionServiceImpl, sugaredLogger, userServiceImpl, validate, enforcerImpl, deleteServiceImpl, helmUserServiceImpl, environmentServiceImpl)
 	clusterRouterImpl := cluster2.NewClusterRouterImpl(clusterRestHandlerImpl)
 	dashboardConfig, err := dashboard.GetConfig()
 	if err != nil {
@@ -196,18 +208,35 @@ func InitializeApp() (*App, error) {
 	serverDataStoreServerDataStore := serverDataStore.InitServerDataStore()
 	appStoreApplicationVersionRepositoryImpl := appStoreDiscoverRepository.NewAppStoreApplicationVersionRepositoryImpl(sugaredLogger, db)
 	pipelineRepositoryImpl := pipelineConfig.NewPipelineRepositoryImpl(db, sugaredLogger)
-	helmAppServiceImpl := client2.NewHelmAppServiceImpl(sugaredLogger, clusterServiceImpl, helmAppClientImpl, pumpImpl, enforcerUtilHelmImpl, serverDataStoreServerDataStore, serverEnvConfigServerEnvConfig, appStoreApplicationVersionRepositoryImpl, environmentServiceImpl, pipelineRepositoryImpl, installedAppRepositoryImpl, appRepositoryImpl, clusterRepositoryImpl, k8sUtil)
-	appStoreDeploymentCommonServiceImpl := appStoreDeploymentCommon.NewAppStoreDeploymentCommonServiceImpl(sugaredLogger, installedAppRepositoryImpl)
-	attributesRepositoryImpl := repository4.NewAttributesRepositoryImpl(db)
+	helmReleaseConfig, err := client2.GetHelmReleaseConfig()
+	if err != nil {
+		return nil, err
+	}
+	helmAppServiceImpl := client2.NewHelmAppServiceImpl(sugaredLogger, clusterServiceImpl, helmAppClientImpl, pumpImpl, enforcerUtilHelmImpl, serverDataStoreServerDataStore, serverEnvConfigServerEnvConfig, appStoreApplicationVersionRepositoryImpl, environmentServiceImpl, pipelineRepositoryImpl, installedAppRepositoryImpl, appRepositoryImpl, clusterRepositoryImpl, k8sUtil, helmReleaseConfig)
+	chartWorkingDir := _wireChartWorkingDirValue
+	gitOpsConfigRepositoryImpl := repository3.NewGitOpsConfigRepositoryImpl(sugaredLogger, db)
+	gitCliUtil := util.NewGitCliUtil(sugaredLogger)
+	gitFactory, err := util.NewGitFactory(sugaredLogger, gitOpsConfigRepositoryImpl, gitCliUtil)
+	if err != nil {
+		return nil, err
+	}
+	globalEnvVariables, err := util2.GetGlobalEnvVariables()
+	if err != nil {
+		return nil, err
+	}
+	chartRepositoryImpl := chartRepoRepository.NewChartRepository(db)
+	chartTemplateServiceImpl := util.NewChartTemplateServiceImpl(sugaredLogger, chartWorkingDir, httpClient, gitFactory, globalEnvVariables, gitOpsConfigRepositoryImpl, userRepositoryImpl, chartRepositoryImpl)
+	refChartProxyDir := _wireRefChartProxyDirValue
+	appStoreDeploymentCommonServiceImpl := appStoreDeploymentCommon.NewAppStoreDeploymentCommonServiceImpl(sugaredLogger, installedAppRepositoryImpl, appStoreApplicationVersionRepositoryImpl, environmentRepositoryImpl, chartTemplateServiceImpl, refChartProxyDir, gitFactory, gitOpsConfigRepositoryImpl)
 	attributesServiceImpl := attributes.NewAttributesServiceImpl(sugaredLogger, attributesRepositoryImpl)
 	helmAppRestHandlerImpl := client2.NewHelmAppRestHandlerImpl(sugaredLogger, helmAppServiceImpl, enforcerImpl, clusterServiceImpl, enforcerUtilHelmImpl, appStoreDeploymentCommonServiceImpl, userServiceImpl, attributesServiceImpl, serverEnvConfigServerEnvConfig)
 	helmAppRouterImpl := client2.NewHelmAppRouterImpl(helmAppRestHandlerImpl)
-	environmentRestHandlerImpl := cluster2.NewEnvironmentRestHandlerImpl(environmentServiceImpl, sugaredLogger, userServiceImpl, validate, enforcerImpl, deleteServiceImpl)
-	environmentRouterImpl := cluster2.NewEnvironmentRouterImpl(environmentRestHandlerImpl)
 	k8sClientServiceImpl := application.NewK8sClientServiceImpl(sugaredLogger, clusterRepositoryImpl)
 	k8sResourceHistoryRepositoryImpl := repository5.NewK8sResourceHistoryRepositoryImpl(db, sugaredLogger)
 	k8sResourceHistoryServiceImpl := kubernetesResourceAuditLogs.Newk8sResourceHistoryServiceImpl(k8sResourceHistoryRepositoryImpl, sugaredLogger, appRepositoryImpl, environmentRepositoryImpl)
 	k8sApplicationServiceImpl := k8s.NewK8sApplicationServiceImpl(sugaredLogger, clusterServiceImpl, pumpImpl, k8sClientServiceImpl, helmAppServiceImpl, k8sUtil, acdAuthConfig, k8sResourceHistoryServiceImpl)
+	environmentRestHandlerImpl := cluster2.NewEnvironmentRestHandlerImpl(environmentServiceImpl, k8sApplicationServiceImpl, sugaredLogger, userServiceImpl, validate, enforcerImpl, deleteServiceImpl)
+	environmentRouterImpl := cluster2.NewEnvironmentRouterImpl(environmentRestHandlerImpl)
 	terminalSessionHandlerImpl := terminal.NewTerminalSessionHandlerImpl(environmentServiceImpl, clusterServiceImpl, sugaredLogger)
 	ciPipelineRepositoryImpl := pipelineConfig.NewCiPipelineRepositoryImpl(db, sugaredLogger)
 	enforcerUtilImpl := rbac.NewEnforcerUtilImpl(sugaredLogger, teamRepositoryImpl, appRepositoryImpl, environmentRepositoryImpl, pipelineRepositoryImpl, ciPipelineRepositoryImpl, clusterRepositoryImpl)
@@ -224,19 +253,14 @@ func InitializeApp() (*App, error) {
 	appStoreValuesServiceImpl := service2.NewAppStoreValuesServiceImpl(sugaredLogger, appStoreApplicationVersionRepositoryImpl, installedAppRepositoryImpl, appStoreVersionValuesRepositoryImpl, userServiceImpl)
 	appStoreValuesRestHandlerImpl := appStoreValues.NewAppStoreValuesRestHandlerImpl(sugaredLogger, userServiceImpl, appStoreValuesServiceImpl)
 	appStoreValuesRouterImpl := appStoreValues.NewAppStoreValuesRouterImpl(appStoreValuesRestHandlerImpl)
-	clusterInstalledAppsRepositoryImpl := repository3.NewClusterInstalledAppsRepositoryImpl(db, sugaredLogger)
-	appStoreDeploymentHelmServiceImpl := appStoreDeploymentTool.NewAppStoreDeploymentHelmServiceImpl(sugaredLogger, helmAppServiceImpl, appStoreApplicationVersionRepositoryImpl, environmentRepositoryImpl, helmAppClientImpl, installedAppRepositoryImpl)
-	globalEnvVariables, err := util2.GetGlobalEnvVariables()
-	if err != nil {
-		return nil, err
-	}
-	installedAppVersionHistoryRepositoryImpl := repository3.NewInstalledAppVersionHistoryRepositoryImpl(sugaredLogger, db)
-	gitOpsConfigRepositoryImpl := repository4.NewGitOpsConfigRepositoryImpl(sugaredLogger, db)
+	clusterInstalledAppsRepositoryImpl := repository4.NewClusterInstalledAppsRepositoryImpl(db, sugaredLogger)
+	appStoreDeploymentHelmServiceImpl := appStoreDeploymentTool.NewAppStoreDeploymentHelmServiceImpl(sugaredLogger, helmAppServiceImpl, appStoreApplicationVersionRepositoryImpl, environmentRepositoryImpl, helmAppClientImpl, installedAppRepositoryImpl, appStoreDeploymentCommonServiceImpl)
+	installedAppVersionHistoryRepositoryImpl := repository4.NewInstalledAppVersionHistoryRepositoryImpl(sugaredLogger, db)
 	deploymentServiceTypeConfig, err := service3.GetDeploymentServiceTypeConfig()
 	if err != nil {
 		return nil, err
 	}
-	appStoreDeploymentServiceImpl := service3.NewAppStoreDeploymentServiceImpl(sugaredLogger, installedAppRepositoryImpl, appStoreApplicationVersionRepositoryImpl, environmentRepositoryImpl, clusterInstalledAppsRepositoryImpl, appRepositoryImpl, appStoreDeploymentHelmServiceImpl, appStoreDeploymentHelmServiceImpl, environmentServiceImpl, clusterServiceImpl, helmAppServiceImpl, appStoreDeploymentCommonServiceImpl, globalEnvVariables, installedAppVersionHistoryRepositoryImpl, gitOpsConfigRepositoryImpl, attributesServiceImpl, deploymentServiceTypeConfig)
+	appStoreDeploymentServiceImpl := service3.NewAppStoreDeploymentServiceImpl(sugaredLogger, installedAppRepositoryImpl, appStoreApplicationVersionRepositoryImpl, environmentRepositoryImpl, clusterInstalledAppsRepositoryImpl, appRepositoryImpl, appStoreDeploymentHelmServiceImpl, appStoreDeploymentHelmServiceImpl, environmentServiceImpl, clusterServiceImpl, helmAppServiceImpl, appStoreDeploymentCommonServiceImpl, globalEnvVariables, installedAppVersionHistoryRepositoryImpl, gitOpsConfigRepositoryImpl, attributesServiceImpl, deploymentServiceTypeConfig, chartTemplateServiceImpl)
 	appStoreDeploymentRestHandlerImpl := appStoreDeployment.NewAppStoreDeploymentRestHandlerImpl(sugaredLogger, userServiceImpl, enforcerImpl, enforcerUtilImpl, enforcerUtilHelmImpl, appStoreDeploymentServiceImpl, validate, helmAppServiceImpl, appStoreDeploymentCommonServiceImpl, helmUserServiceImpl, attributesServiceImpl)
 	appStoreDeploymentRouterImpl := appStoreDeployment.NewAppStoreDeploymentRouterImpl(appStoreDeploymentRestHandlerImpl)
 	posthogClient, err := telemetry.NewPosthogClient(sugaredLogger)
@@ -272,7 +296,8 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	moduleServiceImpl := module.NewModuleServiceImpl(sugaredLogger, serverEnvConfigServerEnvConfig, moduleRepositoryImpl, moduleActionAuditLogRepositoryImpl, helmAppServiceImpl, serverDataStoreServerDataStore, serverCacheServiceImpl, moduleCacheServiceImpl, moduleCronServiceImpl, moduleServiceHelperImpl, moduleResourceStatusRepositoryImpl)
+	scanToolMetadataRepositoryImpl := security.NewScanToolMetadataRepositoryImpl(db, sugaredLogger)
+	moduleServiceImpl := module.NewModuleServiceImpl(sugaredLogger, serverEnvConfigServerEnvConfig, moduleRepositoryImpl, moduleActionAuditLogRepositoryImpl, helmAppServiceImpl, serverDataStoreServerDataStore, serverCacheServiceImpl, moduleCacheServiceImpl, moduleCronServiceImpl, moduleServiceHelperImpl, moduleResourceStatusRepositoryImpl, scanToolMetadataRepositoryImpl)
 	moduleRestHandlerImpl := module2.NewModuleRestHandlerImpl(sugaredLogger, moduleServiceImpl, userServiceImpl, enforcerImpl, validate)
 	moduleRouterImpl := module2.NewModuleRouterImpl(moduleRestHandlerImpl)
 	serverActionAuditLogRepositoryImpl := server.NewServerActionAuditLogRepositoryImpl(db)
@@ -291,24 +316,24 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	k8sCapacityServiceImpl := k8s.NewK8sCapacityServiceImpl(sugaredLogger, clusterServiceImpl, k8sApplicationServiceImpl, k8sClientServiceImpl, clusterCronServiceImpl)
+	k8sCapacityServiceImpl := k8s.NewK8sCapacityServiceImpl(sugaredLogger, clusterServiceImpl, k8sApplicationServiceImpl, k8sClientServiceImpl, clusterCronServiceImpl, k8sUtil)
 	k8sCapacityRestHandlerImpl := k8s.NewK8sCapacityRestHandlerImpl(sugaredLogger, k8sCapacityServiceImpl, userServiceImpl, enforcerImpl, clusterServiceImpl, environmentServiceImpl)
 	k8sCapacityRouterImpl := k8s.NewK8sCapacityRouterImpl(k8sCapacityRestHandlerImpl)
 	webhookHelmServiceImpl := webhookHelm.NewWebhookHelmServiceImpl(sugaredLogger, helmAppServiceImpl, clusterServiceImpl, chartRepositoryServiceImpl, attributesServiceImpl)
 	webhookHelmRestHandlerImpl := webhookHelm2.NewWebhookHelmRestHandlerImpl(sugaredLogger, webhookHelmServiceImpl, userServiceImpl, enforcerImpl, validate)
 	webhookHelmRouterImpl := webhookHelm2.NewWebhookHelmRouterImpl(webhookHelmRestHandlerImpl)
-	userAttributesRepositoryImpl := repository4.NewUserAttributesRepositoryImpl(db)
+	userAttributesRepositoryImpl := repository3.NewUserAttributesRepositoryImpl(db)
 	userAttributesServiceImpl := attributes.NewUserAttributesServiceImpl(sugaredLogger, userAttributesRepositoryImpl)
 	userAttributesRestHandlerImpl := restHandler.NewUserAttributesRestHandlerImpl(sugaredLogger, enforcerImpl, userServiceImpl, userAttributesServiceImpl)
 	userAttributesRouterImpl := router.NewUserAttributesRouterImpl(userAttributesRestHandlerImpl)
 	telemetryRestHandlerImpl := restHandler.NewTelemetryRestHandlerImpl(sugaredLogger, telemetryEventClientImpl, enforcerImpl, userServiceImpl)
 	telemetryRouterImpl := router.NewTelemetryRouterImpl(sugaredLogger, telemetryRestHandlerImpl)
-	terminalAccessRepositoryImpl := repository4.NewTerminalAccessRepositoryImpl(db, sugaredLogger)
+	terminalAccessRepositoryImpl := repository3.NewTerminalAccessRepositoryImpl(db, sugaredLogger)
 	userTerminalSessionConfig, err := clusterTerminalAccess.GetTerminalAccessConfig()
 	if err != nil {
 		return nil, err
 	}
-	userTerminalAccessServiceImpl, err := clusterTerminalAccess.NewUserTerminalAccessServiceImpl(sugaredLogger, terminalAccessRepositoryImpl, userTerminalSessionConfig, k8sApplicationServiceImpl, k8sClientServiceImpl, terminalSessionHandlerImpl)
+	userTerminalAccessServiceImpl, err := clusterTerminalAccess.NewUserTerminalAccessServiceImpl(sugaredLogger, terminalAccessRepositoryImpl, userTerminalSessionConfig, k8sApplicationServiceImpl, k8sClientServiceImpl, terminalSessionHandlerImpl, k8sCapacityServiceImpl)
 	if err != nil {
 		return nil, err
 	}
@@ -320,11 +345,16 @@ func InitializeApp() (*App, error) {
 	appCrudOperationServiceImpl := app2.NewAppCrudOperationServiceImpl(appLabelRepositoryImpl, sugaredLogger, appRepositoryImpl, userRepositoryImpl, installedAppRepositoryImpl)
 	appRestHandlerImpl := restHandler.NewAppRestHandlerImpl(sugaredLogger, appCrudOperationServiceImpl, userServiceImpl, validate, enforcerUtilImpl, enforcerImpl, helmAppServiceImpl, enforcerUtilHelmImpl)
 	appRouterImpl := router.NewAppRouterImpl(sugaredLogger, appRestHandlerImpl)
-	muxRouter := NewMuxRouter(sugaredLogger, ssoLoginRouterImpl, teamRouterImpl, userAuthRouterImpl, userRouterImpl, clusterRouterImpl, dashboardRouterImpl, helmAppRouterImpl, environmentRouterImpl, k8sApplicationRouterImpl, chartRepositoryRouterImpl, appStoreDiscoverRouterImpl, appStoreValuesRouterImpl, appStoreDeploymentRouterImpl, dashboardTelemetryRouterImpl, commonDeploymentRouterImpl, externalLinkRouterImpl, moduleRouterImpl, serverRouterImpl, apiTokenRouterImpl, k8sCapacityRouterImpl, webhookHelmRouterImpl, userAttributesRouterImpl, telemetryRouterImpl, userTerminalAccessRouterImpl, attributesRouterImpl, appRouterImpl)
+	rbacRoleServiceImpl := user.NewRbacRoleServiceImpl(sugaredLogger, rbacRoleDataRepositoryImpl)
+	rbacRoleRestHandlerImpl := user2.NewRbacRoleHandlerImpl(sugaredLogger, validate, rbacRoleServiceImpl, userServiceImpl, enforcerImpl, enforcerUtilImpl)
+	rbacRoleRouterImpl := user2.NewRbacRoleRouterImpl(sugaredLogger, validate, rbacRoleRestHandlerImpl)
+	muxRouter := NewMuxRouter(sugaredLogger, ssoLoginRouterImpl, teamRouterImpl, userAuthRouterImpl, userRouterImpl, clusterRouterImpl, dashboardRouterImpl, helmAppRouterImpl, environmentRouterImpl, k8sApplicationRouterImpl, chartRepositoryRouterImpl, appStoreDiscoverRouterImpl, appStoreValuesRouterImpl, appStoreDeploymentRouterImpl, dashboardTelemetryRouterImpl, commonDeploymentRouterImpl, externalLinkRouterImpl, moduleRouterImpl, serverRouterImpl, apiTokenRouterImpl, k8sCapacityRouterImpl, webhookHelmRouterImpl, userAttributesRouterImpl, telemetryRouterImpl, userTerminalAccessRouterImpl, attributesRouterImpl, appRouterImpl, rbacRoleRouterImpl)
 	mainApp := NewApp(db, sessionManager, muxRouter, telemetryEventClientImpl, posthogClient, sugaredLogger)
 	return mainApp, nil
 }
 
 var (
-	_wireRefChartDirValue = chartRepoRepository.RefChartDir("scripts/devtron-reference-helm-charts")
+	_wireChartWorkingDirValue  = util.ChartWorkingDir("/tmp/charts/")
+	_wireRefChartProxyDirValue = appStoreBean.RefChartProxyDir("scripts/devtron-reference-helm-charts")
+	_wireRefChartDirValue      = chartRepoRepository.RefChartDir("scripts/devtron-reference-helm-charts")
 )

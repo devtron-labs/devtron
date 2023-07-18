@@ -15,9 +15,9 @@ require (
 	github.com/coreos/go-oidc v2.2.1+incompatible
 	github.com/davecgh/go-spew v1.1.1
 	github.com/devtron-labs/authenticator v0.4.31-0.20221213131053-6e4668309f53
-	github.com/devtron-labs/common-lib v0.0.0-20230228120609-58fa7d3de8e2
+	github.com/devtron-labs/common-lib v0.0.0-20230407072229-d4f665f5ca12
+	github.com/devtron-labs/protos v0.0.0-20230503113602-282404f70fd2
 	github.com/evanphx/json-patch v5.6.0+incompatible
-	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-pg/pg v6.15.1+incompatible
 	github.com/go-resty/resty/v2 v2.7.0
 	github.com/gogo/protobuf v1.3.2
@@ -25,6 +25,7 @@ require (
 	github.com/golang/protobuf v1.5.2
 	github.com/google/go-cmp v0.5.9
 	github.com/google/go-github v17.0.0+incompatible
+	github.com/google/uuid v1.3.0
 	github.com/google/wire v0.3.0
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/schema v1.1.0
@@ -120,6 +121,7 @@ require (
 	github.com/fatih/camelcase v1.0.0 // indirect
 	github.com/felixge/httpsnoop v1.0.3 // indirect
 	github.com/fvbommel/sortorder v1.0.1 // indirect
+	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32 // indirect
 	github.com/go-errors/errors v1.0.1 // indirect
 	github.com/go-git/gcfg v1.5.0 // indirect
 	github.com/go-git/go-billy/v5 v5.3.1 // indirect
@@ -143,7 +145,6 @@ require (
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
-	github.com/google/uuid v1.3.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.2.0 // indirect
 	github.com/googleapis/gax-go/v2 v2.6.0 // indirect
 	github.com/gorilla/securecookie v1.1.1 // indirect
@@ -222,6 +223,7 @@ require (
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	github.com/xlab/treeprint v0.0.0-20181112141820-a009c3971eca // indirect
 	github.com/xtgo/uuid v0.0.0-20140804021211-a0b114877d4c // indirect
+	github.com/yannh/kubeconform v0.5.0 // indirect
 	go.opencensus.io v0.23.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/internal/retry v1.11.2 // indirect
 	go.opentelemetry.io/otel/metric v0.34.0 // indirect

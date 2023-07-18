@@ -24,7 +24,7 @@ import (
 	appStoreValuesRepository "github.com/devtron-labs/devtron/pkg/appStore/values/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
-	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
+	"github.com/devtron-labs/devtron/pkg/user/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -447,7 +447,7 @@ func (impl *ChartGroupServiceImpl) DeleteChartGroup(req *ChartGroupBean) error {
 		return err
 	}
 	//deleting auth roles entries for this chart group
-	err = impl.userAuthService.DeleteRoles(repository2.CHART_GROUP_TYPE, req.Name, tx, "")
+	err = impl.userAuthService.DeleteRoles(bean.CHART_GROUP_TYPE, req.Name, tx, "")
 	if err != nil {
 		impl.Logger.Errorw("error in deleting auth roles", "err", err)
 		return err

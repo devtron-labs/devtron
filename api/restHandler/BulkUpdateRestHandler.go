@@ -55,7 +55,7 @@ type BulkUpdateRestHandlerImpl struct {
 	validator               *validator.Validate
 	teamService             team.TeamService
 	enforcer                casbin.Enforcer
-	gitSensorClient         gitSensor.GitSensorClient
+	gitSensorClient         gitSensor.Client
 	pipelineRepository      pipelineConfig.PipelineRepository
 	appWorkflowService      appWorkflow.AppWorkflowService
 	enforcerUtil            rbac.EnforcerUtil
@@ -81,7 +81,7 @@ func NewBulkUpdateRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, logg
 	enforcer casbin.Enforcer,
 	ciHandler pipeline.CiHandler,
 	validator *validator.Validate,
-	gitSensorClient gitSensor.GitSensorClient,
+	gitSensorClient gitSensor.Client,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
 	enforcerUtil rbac.EnforcerUtil, envService request.EnvironmentService,
 	gitRegistryConfig pipeline.GitRegistryConfig, dockerRegistryConfig pipeline.DockerRegistryConfig,
@@ -332,6 +332,12 @@ func (handler BulkUpdateRestHandlerImpl) BulkDeploy(w http.ResponseWriter, r *ht
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
+	user, err := handler.userAuthService.GetById(userId)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	userEmailId := strings.ToLower(user.EmailId)
 	decoder := json.NewDecoder(r.Body)
 	var request bulkAction.BulkApplicationForEnvironmentPayload
 	err = decoder.Decode(&request)
@@ -346,15 +352,7 @@ func (handler BulkUpdateRestHandlerImpl) BulkDeploy(w http.ResponseWriter, r *ht
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		handler.logger.Errorw("error in getting acd token", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	ctx := context.WithValue(r.Context(), "token", acdToken)
-	token := r.Header.Get("token")
-	response, err := handler.bulkUpdateService.BulkDeploy(&request, ctx, w, token, handler.checkAuthForBulkActions)
+	response, err := handler.bulkUpdateService.BulkDeploy(&request, userEmailId, handler.checkAuthBatch)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -424,19 +422,11 @@ func (handler BulkUpdateRestHandlerImpl) HandleCdPipelineBulkAction(w http.Respo
 		return
 	}
 
-	v := r.URL.Query()
-	forceDelete := false
-	forceDeleteParam := v.Get("forceDelete")
-	if len(forceDeleteParam) > 0 {
-		forceDelete, err = strconv.ParseBool(forceDeleteParam)
-		if err != nil {
-			handler.logger.Errorw("request err, HandleCdPipelineBulkAction", "err", err, "payload", cdPipelineBulkActionReq)
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			return
-		}
+	if cdPipelineBulkActionReq.ForceDelete {
+		cdPipelineBulkActionReq.NonCascadeDelete = true
 	}
-	cdPipelineBulkActionReq.ForceDelete = forceDelete
 
+	v := r.URL.Query()
 	dryRun := false
 	dryRunParam := v.Get("dryRun")
 	if len(dryRunParam) > 0 {
@@ -488,4 +478,16 @@ func (handler BulkUpdateRestHandlerImpl) HandleCdPipelineBulkAction(w http.Respo
 		return
 	}
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+}
+
+func (handler BulkUpdateRestHandlerImpl) checkAuthBatch(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool) {
+	var appResult map[string]bool
+	var envResult map[string]bool
+	if len(appObject) > 0 {
+		appResult = handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceApplications, casbin.ActionGet, appObject)
+	}
+	if len(envObject) > 0 {
+		envResult = handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceEnvironment, casbin.ActionGet, envObject)
+	}
+	return appResult, envResult
 }

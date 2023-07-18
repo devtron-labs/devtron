@@ -34,6 +34,7 @@ service ApplicationService {
   rpc TemplateChart(InstallReleaseRequest) returns (TemplateChartResponse){}
   rpc InstallReleaseWithCustomChart(HelmInstallCustomRequest) returns (HelmInstallCustomResponse) {}
   rpc GetNotes(InstallReleaseRequest) returns (ChartNotesResponse) {}
+  rpc UpgradeReleaseWithCustomChart(UpgradeReleaseRequest) returns(UpgradeReleaseResponse){}
 }
 
 message DeployedAppList {
@@ -181,6 +182,8 @@ message  HelmAppDeploymentDetail {
   repeated string dockerImages = 2;
   int32 version = 3;
   google.protobuf.Timestamp deployedAt = 4;
+  string deployedBy = 5;
+  string status = 6;
 }
 
 message HelmAppDeploymentHistory {
@@ -220,6 +223,8 @@ message ReleaseIdentifier {
 message UpgradeReleaseRequest {
   ReleaseIdentifier releaseIdentifier = 1;
   string valuesYaml = 2;
+  int32 historyMax = 3;
+  ChartContent chartContent = 4;
 }
 
 message UpgradeReleaseResponse {
@@ -250,6 +255,7 @@ message InstallReleaseRequest {
   string valuesYaml = 4;
   ChartRepository chartRepository = 5;
   string K8sVersion = 6;
+  int32 historyMax = 7;
 }
 
 message InstallReleaseResponse {

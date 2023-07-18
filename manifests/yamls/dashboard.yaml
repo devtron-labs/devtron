@@ -215,6 +215,10 @@ spec:
     spec:
       terminationGracePeriodSeconds: 30
       restartPolicy: Always
+      securityContext:
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsUser: 1000
       containers:
         - name: envoy
           image: "quay.io/devtron/envoy:v1.14.1"
@@ -231,11 +235,15 @@ spec:
             - name: envoy-config-volume
               mountPath: /etc/envoy-config/
         - name: dashboard
-          image: "quay.io/devtron/dashboard:de186b14-325-12876"
+          image: "quay.io/devtron/dashboard:8965c3ae-466-14429"
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsUser: 1000
+            runAsNonRoot: true
           ports:
             - name: app
-              containerPort: 80
+              containerPort: 8080
               protocol: TCP
           env:
             - name: CONFIG_HASH

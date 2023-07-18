@@ -2,12 +2,13 @@ package chartRepo
 
 import (
 	"encoding/json"
+	"testing"
+
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"testing"
+	"sigs.k8s.io/yaml"
 )
 
 type ChartRepositoryServiceMock struct {

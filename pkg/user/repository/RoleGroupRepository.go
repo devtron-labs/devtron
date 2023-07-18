@@ -43,6 +43,7 @@ type RoleGroupRepository interface {
 	GetRolesByGroupCasbinName(groupName string) ([]*RoleModel, error)
 	GetRolesByGroupNames(groupNames []string) ([]*RoleModel, error)
 	GetRolesByGroupNamesAndEntity(groupNames []string, entity string) ([]*RoleModel, error)
+	UpdateRoleGroupIdForRoleGroupMappings(roleId int, newRoleId int) (*RoleGroupRoleMapping, error)
 }
 
 type RoleGroupRepositoryImpl struct {
@@ -230,4 +231,12 @@ func (impl RoleGroupRepositoryImpl) GetRolesByGroupNamesAndEntity(groupNames []s
 		return roleModels, err
 	}
 	return roleModels, nil
+}
+func (impl RoleGroupRepositoryImpl) UpdateRoleGroupIdForRoleGroupMappings(roleId int, newRoleId int) (*RoleGroupRoleMapping, error) {
+	var model RoleGroupRoleMapping
+	_, err := impl.dbConnection.Model(&model).Set("role_id = ?", newRoleId).
+		Where("role_id = ?", roleId).Update()
+
+	return &model, err
+
 }

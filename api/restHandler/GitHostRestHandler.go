@@ -18,6 +18,7 @@
 package restHandler
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/gitSensor"
@@ -47,13 +48,13 @@ type GitHostRestHandlerImpl struct {
 	userAuthService   user.UserService
 	validator         *validator.Validate
 	enforcer          casbin.Enforcer
-	gitSensorClient   gitSensor.GitSensorClient
+	gitSensorClient   gitSensor.Client
 	gitProviderConfig pipeline.GitRegistryConfig
 }
 
 func NewGitHostRestHandlerImpl(logger *zap.SugaredLogger,
 	gitHostConfig pipeline.GitHostConfig, userAuthService user.UserService,
-	validator *validator.Validate, enforcer casbin.Enforcer, gitSensorClient gitSensor.GitSensorClient, gitProviderConfig pipeline.GitRegistryConfig) *GitHostRestHandlerImpl {
+	validator *validator.Validate, enforcer casbin.Enforcer, gitSensorClient gitSensor.Client, gitProviderConfig pipeline.GitRegistryConfig) *GitHostRestHandlerImpl {
 	return &GitHostRestHandlerImpl{
 		logger:            logger,
 		gitHostConfig:     gitHostConfig,
@@ -192,7 +193,7 @@ func (impl GitHostRestHandlerImpl) GetAllWebhookEventConfig(w http.ResponseWrite
 		GitHostId: id,
 	}
 
-	res, err := impl.gitSensorClient.GetAllWebhookEventConfigForHost(webhookEventRequest)
+	res, err := impl.gitSensorClient.GetAllWebhookEventConfigForHost(context.Background(), webhookEventRequest)
 
 	if err != nil {
 		impl.logger.Errorw("service err, GetAllWebhookEventConfig", "err", err)
@@ -226,7 +227,7 @@ func (impl GitHostRestHandlerImpl) GetWebhookEventConfig(w http.ResponseWriter, 
 		EventId: eventId,
 	}
 
-	res, err := impl.gitSensorClient.GetWebhookEventConfig(webhookEventRequest)
+	res, err := impl.gitSensorClient.GetWebhookEventConfig(context.Background(), webhookEventRequest)
 
 	if err != nil {
 		impl.logger.Errorw("service err, GetWebhookEventConfig", "err", err)
@@ -276,7 +277,7 @@ func (impl GitHostRestHandlerImpl) GetWebhookDataMetaConfig(w http.ResponseWrite
 		webhookEventRequest := &gitSensor.WebhookEventConfigRequest{
 			GitHostId: gitHostId,
 		}
-		webhookEvents, err := impl.gitSensorClient.GetAllWebhookEventConfigForHost(webhookEventRequest)
+		webhookEvents, err := impl.gitSensorClient.GetAllWebhookEventConfigForHost(context.Background(), webhookEventRequest)
 		if err != nil {
 			impl.logger.Errorw("service err, GetAllWebhookEventConfig", "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

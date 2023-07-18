@@ -7,14 +7,16 @@ import (
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/argoproj/gitops-engine/pkg/health"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/constants"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/appStatus"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
@@ -22,8 +24,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/util/argo"
-	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"go.opentelemetry.io/otel"
@@ -33,73 +36,134 @@ import (
 	"time"
 )
 
+// creating duplicates because cannot use
+
 type AppStoreDeploymentArgoCdService interface {
-	InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error)
+	//InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error)
+	InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *util.ChartGitAttribute, ctx context.Context, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error)
 	GetAppStatus(installedAppAndEnvDetails repository.InstalledAppAndEnvDetails, w http.ResponseWriter, r *http.Request, token string) (string, error)
 	DeleteInstalledApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *repository.InstalledApps, dbTransaction *pg.Tx) error
-	RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, deploymentVersion int32) (*appStoreBean.InstallAppVersionDTO, bool, error)
+	RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, deploymentVersion int32, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, bool, error)
 	GetDeploymentHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (*client.HelmAppDeploymentHistory, error)
 	GetDeploymentHistoryInfo(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, version int32) (*openapi.HelmAppDeploymentManifestDetail, error)
 	GetGitOpsRepoName(appName string, environmentName string) (string, error)
-	OnUpdateRepoInInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error)
-	UpdateRequirementDependencies(environment *clusterRepository.Environment, installedAppVersion *repository.InstalledAppVersions, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error
-	UpdateInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, environment *clusterRepository.Environment, installedAppVersion *repository.InstalledAppVersions) (*appStoreBean.InstallAppVersionDTO, error)
+	OnUpdateRepoInInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error)
+	UpdateRequirementDependencies(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error
+	UpdateInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, environment *clusterRepository.Environment, installedAppVersion *repository.InstalledAppVersions, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error)
 	DeleteDeploymentApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error
+	UpdateInstalledAppAndPipelineStatusForFailedDeploymentStatus(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, triggeredAt time.Time, err error) error
+	SaveTimelineForACDHelmApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status string, statusDetail string, tx *pg.Tx) error
+	UpdateChartInfo(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *util.ChartGitAttribute, ctx context.Context) error
 }
 
 type AppStoreDeploymentArgoCdServiceImpl struct {
-	Logger                            *zap.SugaredLogger
-	appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService
-	acdClient                         application2.ServiceClient
-	chartGroupDeploymentRepository    repository.ChartGroupDeploymentRepository
-	installedAppRepository            repository.InstalledAppRepository
-	installedAppRepositoryHistory     repository.InstalledAppVersionHistoryRepository
-	chartTemplateService              util.ChartTemplateService
-	gitFactory                        *util.GitFactory
-	argoUserService                   argo.ArgoUserService
-	appStoreDeploymentCommonService   appStoreDeploymentCommon.AppStoreDeploymentCommonService
-	helmAppService                    client.HelmAppService
-	gitOpsConfigRepository            repository3.GitOpsConfigRepository
-	appStatusService                  appStatus.AppStatusService
+	Logger                               *zap.SugaredLogger
+	appStoreDeploymentFullModeService    appStoreDeploymentFullMode.AppStoreDeploymentFullModeService
+	acdClient                            application2.ServiceClient
+	chartGroupDeploymentRepository       repository.ChartGroupDeploymentRepository
+	installedAppRepository               repository.InstalledAppRepository
+	installedAppRepositoryHistory        repository.InstalledAppVersionHistoryRepository
+	chartTemplateService                 util.ChartTemplateService
+	gitFactory                           *util.GitFactory
+	argoUserService                      argo.ArgoUserService
+	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
+	helmAppService                       client.HelmAppService
+	gitOpsConfigRepository               repository3.GitOpsConfigRepository
+	appStatusService                     appStatus.AppStatusService
+	pipelineStatusTimelineService        status.PipelineStatusTimelineService
+	userService                          user.UserService
+	pipelineStatusTimelineRepository     pipelineConfig.PipelineStatusTimelineRepository
+	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
 }
 
 func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
 	acdClient application2.ServiceClient, chartGroupDeploymentRepository repository.ChartGroupDeploymentRepository,
 	installedAppRepository repository.InstalledAppRepository, installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository, chartTemplateService util.ChartTemplateService,
 	gitFactory *util.GitFactory, argoUserService argo.ArgoUserService, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
-	helmAppService client.HelmAppService, gitOpsConfigRepository repository3.GitOpsConfigRepository, appStatusService appStatus.AppStatusService) *AppStoreDeploymentArgoCdServiceImpl {
+	helmAppService client.HelmAppService, gitOpsConfigRepository repository3.GitOpsConfigRepository, appStatusService appStatus.AppStatusService,
+	pipelineStatusTimelineService status.PipelineStatusTimelineService, userService user.UserService,
+	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository,
+	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
+) *AppStoreDeploymentArgoCdServiceImpl {
 	return &AppStoreDeploymentArgoCdServiceImpl{
-		Logger:                            logger,
-		appStoreDeploymentFullModeService: appStoreDeploymentFullModeService,
-		acdClient:                         acdClient,
-		chartGroupDeploymentRepository:    chartGroupDeploymentRepository,
-		installedAppRepository:            installedAppRepository,
-		installedAppRepositoryHistory:     installedAppRepositoryHistory,
-		chartTemplateService:              chartTemplateService,
-		gitFactory:                        gitFactory,
-		argoUserService:                   argoUserService,
-		appStoreDeploymentCommonService:   appStoreDeploymentCommonService,
-		helmAppService:                    helmAppService,
-		gitOpsConfigRepository:            gitOpsConfigRepository,
-		appStatusService:                  appStatusService,
+		Logger:                               logger,
+		appStoreDeploymentFullModeService:    appStoreDeploymentFullModeService,
+		acdClient:                            acdClient,
+		chartGroupDeploymentRepository:       chartGroupDeploymentRepository,
+		installedAppRepository:               installedAppRepository,
+		installedAppRepositoryHistory:        installedAppRepositoryHistory,
+		chartTemplateService:                 chartTemplateService,
+		gitFactory:                           gitFactory,
+		argoUserService:                      argoUserService,
+		appStoreDeploymentCommonService:      appStoreDeploymentCommonService,
+		helmAppService:                       helmAppService,
+		gitOpsConfigRepository:               gitOpsConfigRepository,
+		appStatusService:                     appStatusService,
+		pipelineStatusTimelineService:        pipelineStatusTimelineService,
+		userService:                          userService,
+		pipelineStatusTimelineRepository:     pipelineStatusTimelineRepository,
+		appStoreApplicationVersionRepository: appStoreApplicationVersionRepository,
 	}
 }
 
-func (impl AppStoreDeploymentArgoCdServiceImpl) InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error) {
-	//step 2 git operation pull push
-	installAppVersionRequest, chartGitAttr, err := impl.appStoreDeploymentFullModeService.AppStoreDeployOperationGIT(installAppVersionRequest)
+// UpdateChartInfo this will update chart info in acd app, needed when repo for an app is changed
+func (impl AppStoreDeploymentArgoCdServiceImpl) UpdateChartInfo(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *util.ChartGitAttribute, ctx context.Context) error {
+	installAppVersionRequest, err := impl.patchAcdApp(ctx, installAppVersionRequest, ChartGitAttribute)
 	if err != nil {
-		impl.Logger.Errorw(" error", "err", err)
-		return installAppVersionRequest, err
+		return err
 	}
-	//step 3 acd operation register, sync
-	installAppVersionRequest, err = impl.appStoreDeploymentFullModeService.AppStoreDeployOperationACD(installAppVersionRequest, chartGitAttr, ctx)
+	return nil
+}
+
+func (impl AppStoreDeploymentArgoCdServiceImpl) SaveTimelineForACDHelmApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status string, statusDetail string, tx *pg.Tx) error {
+
+	if !util.IsAcdApp(installAppVersionRequest.DeploymentAppType) && !util.IsManifestDownload(installAppVersionRequest.DeploymentAppType) {
+		return nil
+	}
+	timeline := &pipelineConfig.PipelineStatusTimeline{
+		InstalledAppVersionHistoryId: installAppVersionRequest.InstalledAppVersionHistoryId,
+		Status:                       status,
+		StatusDetail:                 statusDetail,
+		StatusTime:                   time.Now(),
+		AuditLog: sql.AuditLog{
+			CreatedBy: installAppVersionRequest.UserId,
+			CreatedOn: time.Now(),
+			UpdatedBy: installAppVersionRequest.UserId,
+			UpdatedOn: time.Now(),
+		},
+	}
+	timelineErr := impl.pipelineStatusTimelineService.SaveTimeline(timeline, tx, true)
+	if timelineErr != nil {
+		impl.Logger.Errorw("error in creating timeline status for git commit", "err", timelineErr, "timeline", timeline)
+	}
+	return timelineErr
+}
+
+func (impl AppStoreDeploymentArgoCdServiceImpl) InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *util.ChartGitAttribute, ctx context.Context, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error) {
+
+	installAppVersionRequest, err := impl.appStoreDeploymentFullModeService.AppStoreDeployOperationACD(installAppVersionRequest, chartGitAttr, ctx)
 	if err != nil {
 		impl.Logger.Errorw(" error", "err", err)
 		return installAppVersionRequest, err
 	}
 	return installAppVersionRequest, nil
 }
+
+//func (impl AppStoreDeploymentArgoCdServiceImpl) InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error) {
+//	//step 2 git operation pull push
+//	installAppVersionRequest, chartGitAttr, err := impl.appStoreDeploymentFullModeService.AppStoreDeployOperationGIT(installAppVersionRequest)
+//	if err != nil {
+//		impl.Logger.Errorw(" error", "err", err)
+//		return installAppVersionRequest, err
+//	}
+//	//step 3 acd operation register, sync
+//	installAppVersionRequest, err = impl.appStoreDeploymentFullModeService.AppStoreDeployOperationACD(installAppVersionRequest, chartGitAttr, ctx)
+//	if err != nil {
+//		impl.Logger.Errorw(" error", "err", err)
+//		return installAppVersionRequest, err
+//	}
+//	return installAppVersionRequest, nil
+//}
 
 // TODO: Test ACD to get status
 func (impl AppStoreDeploymentArgoCdServiceImpl) GetAppStatus(installedAppAndEnvDetails repository.InstalledAppAndEnvDetails, w http.ResponseWriter, r *http.Request, token string) (string, error) {
@@ -180,7 +244,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) DeleteInstalledApp(ctx context.C
 }
 
 // returns - valuesYamlStr, success, error
-func (impl AppStoreDeploymentArgoCdServiceImpl) RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, installedAppVersionHistoryId int32) (*appStoreBean.InstallAppVersionDTO, bool, error) {
+func (impl AppStoreDeploymentArgoCdServiceImpl) RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, installedAppVersionHistoryId int32, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, bool, error) {
 	//request version id for
 	versionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(int(installedAppVersionHistoryId))
 	if err != nil {
@@ -213,6 +277,42 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) RollbackRelease(ctx context.Cont
 	installedApp.AppStoreName = installedAppVersion.AppStoreApplicationVersion.AppStore.Name
 	installedApp.GitOpsRepoName = installedAppVersion.InstalledApp.GitOpsRepoName
 	installedApp.ACDAppName = fmt.Sprintf("%s-%s", installedApp.AppName, installedApp.EnvironmentName)
+
+	//create an entry in version history table
+	installedAppVersionHistory := &repository.InstalledAppVersionHistory{}
+	installedAppVersionHistory.InstalledAppVersionId = installedApp.InstalledAppVersionId
+	installedAppVersionHistory.ValuesYamlRaw = installedApp.ValuesOverrideYaml
+	installedAppVersionHistory.CreatedBy = installedApp.UserId
+	installedAppVersionHistory.CreatedOn = time.Now()
+	installedAppVersionHistory.UpdatedBy = installedApp.UserId
+	installedAppVersionHistory.UpdatedOn = time.Now()
+	installedAppVersionHistory.StartedOn = time.Now()
+	installedAppVersionHistory.Status = pipelineConfig.WorkflowInProgress
+	_, err = impl.installedAppRepositoryHistory.CreateInstalledAppVersionHistory(installedAppVersionHistory, tx)
+	if err != nil {
+		impl.Logger.Errorw("error while fetching from db", "error", err)
+		return installedApp, false, err
+	}
+	installedApp.InstalledAppVersionHistoryId = installedAppVersionHistory.Id
+
+	//creating deployment started status timeline when mono repo migration is not required
+	timeline := &pipelineConfig.PipelineStatusTimeline{
+		InstalledAppVersionHistoryId: installedApp.InstalledAppVersionHistoryId,
+		Status:                       pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED,
+		StatusDetail:                 "Deployment initiated successfully.",
+		StatusTime:                   time.Now(),
+		AuditLog: sql.AuditLog{
+			CreatedBy: installedApp.UserId,
+			CreatedOn: time.Now(),
+			UpdatedBy: installedApp.UserId,
+			UpdatedOn: time.Now(),
+		},
+	}
+	isAppStore := true
+	err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, tx, isAppStore)
+	if err != nil {
+		impl.Logger.Errorw("error in creating timeline status for deployment initiation for update of installedAppVersionHistoryId", "err", err, "installedAppVersionHistoryId", installedApp.InstalledAppVersionHistoryId)
+	}
 	//If current version upgrade/degrade to another, update requirement dependencies
 	if versionHistory.InstalledAppVersionId != activeInstalledAppVersion.Id {
 		err = impl.appStoreDeploymentFullModeService.UpdateRequirementYaml(installedApp, &installedAppVersion.AppStoreApplicationVersion)
@@ -229,7 +329,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) RollbackRelease(ctx context.Cont
 		}
 	}
 	//Update Values config
-	installedApp, err = impl.appStoreDeploymentFullModeService.UpdateValuesYaml(installedApp)
+	installedApp, err = impl.appStoreDeploymentFullModeService.UpdateValuesYaml(installedApp, tx)
 	if err != nil {
 		impl.Logger.Errorw("error", "err", err)
 		return installedApp, false, nil
@@ -239,9 +339,11 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) RollbackRelease(ctx context.Cont
 	return installedApp, true, nil
 }
 
-func (impl AppStoreDeploymentArgoCdServiceImpl) deleteACD(acdAppName string, ctx context.Context) error {
+func (impl AppStoreDeploymentArgoCdServiceImpl) deleteACD(acdAppName string, ctx context.Context, isNonCascade bool) error {
 	req := new(application.ApplicationDeleteRequest)
 	req.Name = &acdAppName
+	cascadeDelete := !isNonCascade
+	req.Cascade = &cascadeDelete
 	if ctx == nil {
 		impl.Logger.Errorw("err in delete ACD for AppStore, ctx is NULL", "acdAppName", acdAppName)
 		return fmt.Errorf("context is null")
@@ -291,6 +393,11 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetDeploymentHistory(ctx context
 			return result, err
 		}
 		for _, updateHistory := range versionHistory {
+			user, err := impl.userService.GetById(updateHistory.CreatedBy)
+			if err != nil {
+				impl.Logger.Errorw("error while fetching user Details", "error", err)
+				return result, err
+			}
 			history = append(history, &client.HelmAppDeploymentDetail{
 				ChartMetadata: &client.ChartMetadata{
 					ChartName:    installedAppVersionModel.AppStoreApplicationVersion.AppStore.Name,
@@ -299,12 +406,14 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetDeploymentHistory(ctx context
 					Home:         installedAppVersionModel.AppStoreApplicationVersion.Home,
 					Sources:      sources,
 				},
+				DeployedBy:   user.EmailId,
 				DockerImages: []string{installedAppVersionModel.AppStoreApplicationVersion.AppVersion},
 				DeployedAt: &timestamp.Timestamp{
-					Seconds: updateHistory.UpdatedOn.Unix(),
-					Nanos:   int32(updateHistory.UpdatedOn.Nanosecond()),
+					Seconds: updateHistory.CreatedOn.Unix(),
+					Nanos:   int32(updateHistory.CreatedOn.Nanosecond()),
 				},
 				Version: int32(updateHistory.Id),
+				Status:  updateHistory.Status,
 			})
 		}
 	}
@@ -358,15 +467,36 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetGitOpsRepoName(appName string
 	return impl.appStoreDeploymentFullModeService.GetGitOpsRepoName(appName, environmentName)
 }
 
-func (impl *AppStoreDeploymentArgoCdServiceImpl) OnUpdateRepoInInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error) {
-	//git operation pull push
-	installAppVersionRequest, chartGitAttr, err := impl.appStoreDeploymentFullModeService.AppStoreDeployOperationGIT(installAppVersionRequest)
+func (impl *AppStoreDeploymentArgoCdServiceImpl) OnUpdateRepoInInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error) {
+	//creating deployment started status timeline
+	timeline := &pipelineConfig.PipelineStatusTimeline{
+		InstalledAppVersionHistoryId: installAppVersionRequest.InstalledAppVersionHistoryId,
+		Status:                       pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED,
+		StatusDetail:                 "Deployment initiated successfully.",
+		StatusTime:                   time.Now(),
+		AuditLog: sql.AuditLog{
+			CreatedBy: installAppVersionRequest.UserId,
+			CreatedOn: time.Now(),
+			UpdatedBy: installAppVersionRequest.UserId,
+			UpdatedOn: time.Now(),
+		},
+	}
+	err := impl.pipelineStatusTimelineService.SaveTimeline(timeline, tx, true)
 	if err != nil {
-		return installAppVersionRequest, err
+		impl.Logger.Errorw("error in creating timeline status for deployment initiation for update of installedAppVersionHistoryId", "err", err, "installedAppVersionHistoryId", installAppVersionRequest.InstalledAppVersionHistoryId)
+	}
+	//git operation pull push
+	appStoreGitOpsResponse, err := impl.appStoreDeploymentCommonService.GenerateManifestAndPerformGitOperations(installAppVersionRequest)
+	if err != nil {
+		impl.Logger.Errorw("error in doing gitops operation", "err", err)
+		_ = impl.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED, fmt.Sprintf("Git commit failed - %v", err), tx)
+
 	}
 
+	_ = impl.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT, "Git commit done successfully.", tx)
+
 	//acd operation register, sync
-	installAppVersionRequest, err = impl.patchAcdApp(ctx, installAppVersionRequest, chartGitAttr)
+	installAppVersionRequest, err = impl.patchAcdApp(ctx, installAppVersionRequest, appStoreGitOpsResponse.ChartGitAttribute)
 	if err != nil {
 		return installAppVersionRequest, err
 	}
@@ -374,64 +504,51 @@ func (impl *AppStoreDeploymentArgoCdServiceImpl) OnUpdateRepoInInstalledApp(ctx 
 	return installAppVersionRequest, nil
 }
 
-func (impl *AppStoreDeploymentArgoCdServiceImpl) UpdateRequirementDependencies(environment *clusterRepository.Environment, installedAppVersion *repository.InstalledAppVersions, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error {
-	argocdAppName := installAppVersionRequest.AppName + "-" + environment.Name
-	dependency := appStoreBean.Dependency{
-		Name:       appStoreAppVersion.AppStore.Name,
-		Version:    appStoreAppVersion.Version,
-		Repository: appStoreAppVersion.AppStore.ChartRepo.Url,
-	}
-	var dependencies []appStoreBean.Dependency
-	dependencies = append(dependencies, dependency)
-	requirementDependencies := &appStoreBean.Dependencies{
-		Dependencies: dependencies,
-	}
-	requirementDependenciesByte, err := json.Marshal(requirementDependencies)
+func (impl *AppStoreDeploymentArgoCdServiceImpl) UpdateRequirementDependencies(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error {
+	RequirementsString, err := impl.appStoreDeploymentCommonService.GetRequirementsString(installAppVersionRequest.AppStoreVersion)
 	if err != nil {
+		impl.Logger.Errorw("error in building requirements config for helm app", "err", err)
 		return err
 	}
-	requirementDependenciesByte, err = yaml.JSONToYAML(requirementDependenciesByte)
+	requirementsGitConfig, err := impl.appStoreDeploymentCommonService.GetGitCommitConfig(installAppVersionRequest, RequirementsString, appStoreBean.REQUIREMENTS_YAML_FILE)
 	if err != nil {
+		impl.Logger.Errorw("error in getting git config for helm app", "err", err)
 		return err
 	}
-	//getting user name & emailId for commit author data
-	userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(installAppVersionRequest.UserId)
-	gitOpsConfigBitbucket, err := impl.gitOpsConfigRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
+	_, err = impl.appStoreDeploymentCommonService.CommitConfigToGit(requirementsGitConfig)
 	if err != nil {
-		if err == pg.ErrNoRows {
-			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
-		} else {
-			return err
-		}
-	}
-	requirmentYamlConfig := &util.ChartConfig{
-		FileName:       appStoreBean.REQUIREMENTS_YAML_FILE,
-		FileContent:    string(requirementDependenciesByte),
-		ChartName:      installedAppVersion.InstalledApp.App.AppName,
-		ChartLocation:  argocdAppName,
-		ChartRepoName:  installAppVersionRequest.GitOpsRepoName,
-		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", appStoreAppVersion.Id, environment.Id),
-		UserEmailId:    userEmailId,
-		UserName:       userName,
-	}
-	gitOpsConfig := &bean.GitOpsConfigDto{BitBucketWorkspaceId: gitOpsConfigBitbucket.BitBucketWorkspaceId}
-	_, _, err = impl.gitFactory.Client.CommitValues(requirmentYamlConfig, gitOpsConfig)
-	if err != nil {
-		impl.Logger.Errorw("error in git commit", "err", err)
+		impl.Logger.Errorw("error in committing config to git for helm app", "err", err)
 		return err
 	}
 	return nil
 }
 
-func (impl AppStoreDeploymentArgoCdServiceImpl) UpdateInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, environment *clusterRepository.Environment, installedAppVersion *repository.InstalledAppVersions) (*appStoreBean.InstallAppVersionDTO, error) {
+func (impl AppStoreDeploymentArgoCdServiceImpl) UpdateInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, environment *clusterRepository.Environment, installedAppVersion *repository.InstalledAppVersions, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error) {
+	//creating deployment started status timeline when mono repo migration is not required
+	timeline := &pipelineConfig.PipelineStatusTimeline{
+		InstalledAppVersionHistoryId: installAppVersionRequest.InstalledAppVersionHistoryId,
+		Status:                       pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED,
+		StatusDetail:                 "Deployment initiated successfully.",
+		StatusTime:                   time.Now(),
+		AuditLog: sql.AuditLog{
+			CreatedBy: installAppVersionRequest.UserId,
+			CreatedOn: time.Now(),
+			UpdatedBy: installAppVersionRequest.UserId,
+			UpdatedOn: time.Now(),
+		},
+	}
+	err := impl.pipelineStatusTimelineService.SaveTimeline(timeline, tx, true)
+	if err != nil {
+		impl.Logger.Errorw("error in creating timeline status for deployment initiation for update of installedAppVersionHistoryId", "err", err, "installedAppVersionHistoryId", installAppVersionRequest.InstalledAppVersionHistoryId)
+	}
 	//update values yaml in chart
-	installAppVersionRequest, err := impl.updateValuesYaml(environment, installedAppVersion, installAppVersionRequest)
+	installAppVersionRequest, err = impl.updateValuesYaml(environment, installedAppVersion, installAppVersionRequest, tx)
 	if err != nil {
 		impl.Logger.Errorw("error while commit values to git", "error", err)
 		noTargetFound, _ := impl.appStoreDeploymentCommonService.ParseGitRepoErrorResponse(err)
 		if noTargetFound {
 			//if by mistake no content found while updating git repo, do auto fix
-			installAppVersionRequest, err = impl.OnUpdateRepoInInstalledApp(ctx, installAppVersionRequest)
+			installAppVersionRequest, err = impl.OnUpdateRepoInInstalledApp(ctx, installAppVersionRequest, tx)
 			if err != nil {
 				impl.Logger.Errorw("error while update repo on helm update", "error", err)
 				return nil, err
@@ -475,67 +592,46 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) patchAcdApp(ctx context.Context,
 }
 
 func (impl AppStoreDeploymentArgoCdServiceImpl) updateValuesYaml(environment *clusterRepository.Environment, installedAppVersion *repository.InstalledAppVersions,
-	installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error) {
+	installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error) {
 
-	argocdAppName := installAppVersionRequest.AppName + "-" + environment.Name
-	valuesOverrideByte, err := yaml.YAMLToJSON([]byte(installAppVersionRequest.ValuesOverrideYaml))
+	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
 	if err != nil {
-		impl.Logger.Errorw("error in json patch", "err", err)
-		return installAppVersionRequest, err
+		impl.Logger.Errorw("fetching error", "err", err)
+		return nil, err
 	}
-	var dat map[string]interface{}
-	err = json.Unmarshal(valuesOverrideByte, &dat)
+	valuesString, err := impl.appStoreDeploymentCommonService.GetValuesString(appStoreAppVersion.Name, installAppVersionRequest.ValuesOverrideYaml)
 	if err != nil {
-		impl.Logger.Errorw("error in unmarshal", "err", err)
-		return installAppVersionRequest, err
+		impl.Logger.Errorw("error in building requirements config for helm app", "err", err)
+		return nil, err
 	}
-	valuesMap := make(map[string]map[string]interface{})
-	valuesMap[installedAppVersion.AppStoreApplicationVersion.AppStore.Name] = dat
-	valuesByte, err := json.Marshal(valuesMap)
+	valuesGitConfig, err := impl.appStoreDeploymentCommonService.GetGitCommitConfig(installAppVersionRequest, valuesString, appStoreBean.VALUES_YAML_FILE)
 	if err != nil {
-		impl.Logger.Errorw("error in marshaling", "err", err)
-		return installAppVersionRequest, err
+		impl.Logger.Errorw("error in getting git config for helm app", "err", err)
+		return nil, err
 	}
-	//getting user name & emailId for commit author data
-	userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(installAppVersionRequest.UserId)
-	gitOpsConfigBitbucket, err := impl.gitOpsConfigRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
-	if err != nil {
-		if err == pg.ErrNoRows {
-			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
-		} else {
-			return installAppVersionRequest, err
-		}
-	}
-	valuesConfig := &util.ChartConfig{
-		FileName:       appStoreBean.VALUES_YAML_FILE,
-		FileContent:    string(valuesByte),
-		ChartName:      installedAppVersion.InstalledApp.App.AppName,
-		ChartLocation:  argocdAppName,
-		ChartRepoName:  installAppVersionRequest.GitOpsRepoName,
-		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", installedAppVersion.AppStoreApplicationVersion.Id, environment.Id),
-		UserEmailId:    userEmailId,
-		UserName:       userName,
-	}
-	gitOpsConfig := &bean.GitOpsConfigDto{BitBucketWorkspaceId: gitOpsConfigBitbucket.BitBucketWorkspaceId}
-	commitHash, _, err := impl.gitFactory.Client.CommitValues(valuesConfig, gitOpsConfig)
+	gitHash, err := impl.appStoreDeploymentCommonService.CommitConfigToGit(valuesGitConfig)
 	if err != nil {
 		impl.Logger.Errorw("error in git commit", "err", err)
-		return installAppVersionRequest, err
+		_ = impl.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED, fmt.Sprintf("Git commit failed - %v", err), tx)
+		return nil, err
 	}
-	installAppVersionRequest.GitHash = commitHash
+	_ = impl.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT, "Git commit done successfully.", tx)
+	//update timeline status for git commit state
+	installAppVersionRequest.GitHash = gitHash
 	return installAppVersionRequest, nil
 }
 
 func (impl AppStoreDeploymentArgoCdServiceImpl) DeleteDeploymentApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error {
 	acdAppName := appName + "-" + environmentName
-	err := impl.deleteACD(acdAppName, ctx)
+	var err error
+	err = impl.deleteACD(acdAppName, ctx, installAppVersionRequest.NonCascadeDelete)
 	if err != nil {
 		impl.Logger.Errorw("error in deleting ACD ", "name", acdAppName, "err", err)
 		if installAppVersionRequest.ForceDelete {
 			impl.Logger.Warnw("error while deletion of app in acd, continue to delete in db as this operation is force delete", "error", err)
 		} else {
 			//statusError, _ := err.(*errors2.StatusError)
-			if strings.Contains(err.Error(), "code = NotFound") {
+			if !installAppVersionRequest.NonCascadeDelete && strings.Contains(err.Error(), "code = NotFound") {
 				err = &util.ApiError{
 					UserMessage:     "Could not delete as application not found in argocd",
 					InternalMessage: err.Error(),
@@ -546,6 +642,118 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) DeleteDeploymentApp(ctx context.
 					InternalMessage: err.Error(),
 				}
 			}
+			return err
+		}
+	}
+	return nil
+}
+
+func (impl AppStoreDeploymentArgoCdServiceImpl) UpdateInstalledAppAndPipelineStatusForFailedDeploymentStatus(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, triggeredAt time.Time, err error) error {
+	if err != nil {
+		terminalStatusExists, timelineErr := impl.pipelineStatusTimelineRepository.CheckIfTerminalStatusTimelinePresentByInstalledAppVersionHistoryId(installAppVersionRequest.InstalledAppVersionHistoryId)
+		if timelineErr != nil {
+			impl.Logger.Errorw("error in checking if terminal status timeline exists by installedAppVersionHistoryId", "err", timelineErr, "installedAppVersionHistoryId", installAppVersionRequest.InstalledAppVersionHistoryId)
+			return timelineErr
+		}
+		if !terminalStatusExists {
+			impl.Logger.Infow("marking pipeline deployment failed", "err", err)
+			timeline := &pipelineConfig.PipelineStatusTimeline{
+				InstalledAppVersionHistoryId: installAppVersionRequest.InstalledAppVersionHistoryId,
+				Status:                       pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_FAILED,
+				StatusDetail:                 fmt.Sprintf("Deployment failed: %v", err),
+				StatusTime:                   time.Now(),
+				AuditLog: sql.AuditLog{
+					CreatedBy: 1,
+					CreatedOn: time.Now(),
+					UpdatedBy: 1,
+					UpdatedOn: time.Now(),
+				},
+			}
+			isAppStore := true
+			timelineErr = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, isAppStore)
+			if timelineErr != nil {
+				impl.Logger.Errorw("error in creating timeline status for deployment fail", "err", timelineErr, "timeline", timeline)
+			}
+		}
+		impl.Logger.Errorw("error in triggering installed application deployment, setting status as fail ", "versionHistoryId", installAppVersionRequest.InstalledAppVersionHistoryId, "err", err)
+
+		installedAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(installAppVersionRequest.InstalledAppVersionHistoryId)
+		if err != nil {
+			impl.Logger.Errorw("error in getting installedAppVersionHistory by installedAppVersionHistoryId", "installedAppVersionHistoryId", installAppVersionRequest.InstalledAppVersionHistoryId, "err", err)
+			return err
+		}
+		installedAppVersionHistory.Status = pipelineConfig.WorkflowFailed
+		installedAppVersionHistory.FinishedOn = triggeredAt
+		installedAppVersionHistory.UpdatedOn = time.Now()
+		installedAppVersionHistory.UpdatedBy = installAppVersionRequest.UserId
+		_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(installedAppVersionHistory, nil)
+		if err != nil {
+			impl.Logger.Errorw("error updating installed app version history status", "err", err, "installedAppVersionHistory", installedAppVersionHistory)
+			return err
+		}
+
+	} else {
+		//update [n,n-1] statuses as failed if not terminal
+		terminalStatus := []string{string(health.HealthStatusHealthy), pipelineConfig.WorkflowAborted, pipelineConfig.WorkflowFailed, pipelineConfig.WorkflowSucceeded}
+		previousNonTerminalHistory, err := impl.installedAppRepositoryHistory.FindPreviousInstalledAppVersionHistoryByStatus(installAppVersionRequest.Id, installAppVersionRequest.InstalledAppVersionHistoryId, terminalStatus)
+		if err != nil {
+			impl.Logger.Errorw("error fetching previous installed app version history, updating installed app version history status,", "err", err, "installAppVersionRequest", installAppVersionRequest)
+			return err
+		} else if len(previousNonTerminalHistory) == 0 {
+			impl.Logger.Errorw("no previous history found in updating installedAppVersionHistory status,", "err", err, "installAppVersionRequest", installAppVersionRequest)
+			return nil
+		}
+		dbConnection := impl.installedAppRepositoryHistory.GetConnection()
+		tx, err := dbConnection.Begin()
+		if err != nil {
+			impl.Logger.Errorw("error on update status, txn begin failed", "err", err)
+			return err
+		}
+		// Rollback tx on error.
+		defer tx.Rollback()
+		var timelines []*pipelineConfig.PipelineStatusTimeline
+		for _, previousHistory := range previousNonTerminalHistory {
+			if previousHistory.Status == string(health.HealthStatusHealthy) ||
+				previousHistory.Status == pipelineConfig.WorkflowSucceeded ||
+				previousHistory.Status == pipelineConfig.WorkflowAborted ||
+				previousHistory.Status == pipelineConfig.WorkflowFailed {
+				//terminal status return
+				impl.Logger.Infow("skip updating installedAppVersionHistory status as previous history status is", "status", previousHistory.Status)
+				continue
+			}
+			impl.Logger.Infow("updating installedAppVersionHistory status as previous runner status is", "status", previousHistory.Status)
+			previousHistory.FinishedOn = triggeredAt
+			previousHistory.Status = pipelineConfig.WorkflowFailed
+			previousHistory.UpdatedOn = time.Now()
+			previousHistory.UpdatedBy = installAppVersionRequest.UserId
+			timeline := &pipelineConfig.PipelineStatusTimeline{
+				InstalledAppVersionHistoryId: previousHistory.Id,
+				Status:                       pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_SUPERSEDED,
+				StatusDetail:                 "This deployment is superseded.",
+				StatusTime:                   time.Now(),
+				AuditLog: sql.AuditLog{
+					CreatedBy: 1,
+					CreatedOn: time.Now(),
+					UpdatedBy: 1,
+					UpdatedOn: time.Now(),
+				},
+			}
+			timelines = append(timelines, timeline)
+		}
+
+		err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistoryWithTxn(previousNonTerminalHistory, tx)
+		if err != nil {
+			impl.Logger.Errorw("error updating cd wf runner status", "err", err, "previousNonTerminalHistory", previousNonTerminalHistory)
+			return err
+		}
+		err = impl.pipelineStatusTimelineRepository.SaveTimelinesWithTxn(timelines, tx)
+		if err != nil {
+			impl.Logger.Errorw("error updating pipeline status timelines", "err", err, "timelines", timelines)
+			return err
+		}
+		err = tx.Commit()
+		if err != nil {
+			impl.Logger.Errorw("error in db transaction commit", "err", err)
 			return err
 		}
 	}

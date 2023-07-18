@@ -21,12 +21,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	cluster3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
-	"github.com/devtron-labs/devtron/pkg/sql"
-	util3 "github.com/devtron-labs/devtron/pkg/util"
-	"github.com/devtron-labs/devtron/util/argo"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -36,18 +30,23 @@ import (
 	"strings"
 	"time"
 
+	cluster3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
+	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/sql"
+	util3 "github.com/devtron-labs/devtron/pkg/util"
 	util2 "github.com/devtron-labs/devtron/util"
-	"github.com/ghodss/yaml"
+	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/go-pg/pg"
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	"github.com/xanzy/go-gitlab"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"sigs.k8s.io/yaml"
 )
 
 type GitOpsConfigService interface {
@@ -217,7 +216,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(ctx context.Context, req
 		return nil, err
 	}
 
-	clusterBean, err := impl.clusterService.FindOne(cluster.DefaultClusterName)
+	clusterBean, err := impl.clusterService.FindOne(cluster.DEFAULT_CLUSTER)
 	if err != nil {
 		return nil, err
 	}
@@ -240,7 +239,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(ctx context.Context, req
 	data["username"] = []byte(request.Username)
 	data["password"] = []byte(request.Token)
 	if secret == nil {
-		secret, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, data, GitOpsSecretName, "", client)
+		secret, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, data, GitOpsSecretName, "", client, nil, nil)
 		if err != nil {
 			impl.logger.Errorw("err on creating secret", "err", err)
 			return nil, err
@@ -332,16 +331,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(ctx context.Context, req
 			return nil, err
 		}
 		for _, cluster := range clusters {
-			cl := &v1alpha1.Cluster{
-				Name:   cluster.ClusterName,
-				Server: cluster.ServerUrl,
-				Config: v1alpha1.ClusterConfig{
-					BearerToken: cluster.Config["bearer_token"],
-					TLSClientConfig: v1alpha1.TLSClientConfig{
-						Insecure: true,
-					},
-				},
-			}
+			cl := impl.clusterService.ConvertClusterBeanObjectToCluster(&cluster)
 			_, err = impl.clusterServiceCD.Create(ctx, &cluster3.ClusterCreateRequest{Upsert: true, Cluster: cl})
 			if err != nil {
 				impl.logger.Errorw("Error while upserting cluster in acd", "clusterName", cluster.ClusterName, "err", err)
@@ -426,7 +416,7 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *bean2.GitOpsCon
 	}
 	request.Id = model.Id
 
-	clusterBean, err := impl.clusterService.FindOne(cluster.DefaultClusterName)
+	clusterBean, err := impl.clusterService.FindOne(cluster.DEFAULT_CLUSTER)
 	if err != nil {
 		return err
 	}
@@ -450,7 +440,7 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *bean2.GitOpsCon
 	data["username"] = []byte(request.Username)
 	data["password"] = []byte(request.Token)
 	if secret == nil {
-		secret, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, data, GitOpsSecretName, "", client)
+		secret, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, data, GitOpsSecretName, "", client, nil, nil)
 		if err != nil {
 			impl.logger.Errorw("err on creating secret", "err", err)
 			return err

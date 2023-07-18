@@ -85,6 +85,7 @@ type K8sCapacityService interface {
 	CordonOrUnCordonNode(ctx context.Context, request *NodeUpdateRequestDto) (string, error)
 	DrainNode(ctx context.Context, request *NodeUpdateRequestDto) (string, error)
 	EditNodeTaints(ctx context.Context, request *NodeUpdateRequestDto) (string, error)
+	GetNode(ctx context.Context, clusterId int, nodeName string) (*corev1.Node, error)
 }
 type K8sCapacityServiceImpl struct {
 	logger                *zap.SugaredLogger
@@ -92,19 +93,21 @@ type K8sCapacityServiceImpl struct {
 	k8sApplicationService K8sApplicationService
 	k8sClientService      application.K8sClientService
 	clusterCronService    ClusterCronService
+	K8sUtil               *util.K8sUtil
 }
 
 func NewK8sCapacityServiceImpl(Logger *zap.SugaredLogger,
 	clusterService cluster.ClusterService,
 	k8sApplicationService K8sApplicationService,
 	k8sClientService application.K8sClientService,
-	clusterCronService ClusterCronService) *K8sCapacityServiceImpl {
+	clusterCronService ClusterCronService, K8sUtil *util.K8sUtil) *K8sCapacityServiceImpl {
 	return &K8sCapacityServiceImpl{
 		logger:                Logger,
 		clusterService:        clusterService,
 		k8sApplicationService: k8sApplicationService,
 		k8sClientService:      k8sClientService,
 		clusterCronService:    clusterCronService,
+		K8sUtil:               K8sUtil,
 	}
 }
 
@@ -113,7 +116,9 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetailList(ctx context.Con
 	for _, cluster := range clusters {
 		clusterCapacityDetail := &ClusterCapacityDetail{}
 		var err error
-		if len(cluster.ErrorInConnecting) > 0 {
+		if cluster.IsVirtualCluster {
+			clusterCapacityDetail.IsVirtualCluster = cluster.IsVirtualCluster
+		} else if len(cluster.ErrorInConnecting) > 0 {
 			clusterCapacityDetail.ErrorInConnection = cluster.ErrorInConnecting
 		} else {
 			clusterCapacityDetail, err = impl.GetClusterCapacityDetail(ctx, cluster, true)
@@ -174,16 +179,17 @@ func (impl *K8sCapacityServiceImpl) setBasicClusterDetails(nodeList *corev1.Node
 	var clusterCpuAllocatable resource.Quantity
 	var clusterMemoryAllocatable resource.Quantity
 	nodeCount := 0
-	clusterNodeDetails := make([]NodeNameGroupName, 0)
+	clusterNodeDetails := make([]NodeDetails, 0)
 	nodesK8sVersionMap := make(map[string]bool)
 	//map of node condition and name of all nodes that condition is true on
 	nodeErrors := make(map[corev1.NodeConditionType][]string)
 	var nodesK8sVersion []string
 	for _, node := range nodeList.Items {
-		nodeGroup := impl.getNodeGroup(&node)
-		nodeNameGroupName := NodeNameGroupName{
+		nodeGroup, taints := impl.getNodeGroupAndTaints(&node)
+		nodeNameGroupName := NodeDetails{
 			NodeName:  node.Name,
 			NodeGroup: nodeGroup,
+			Taints:    taints,
 		}
 		clusterNodeDetails = append(clusterNodeDetails, nodeNameGroupName)
 		errorsInNode := findNodeErrors(&node)
@@ -262,7 +268,8 @@ func (impl *K8sCapacityServiceImpl) updateMetricsData(ctx context.Context, metri
 
 func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailsListByCluster(ctx context.Context, cluster *cluster.ClusterBean) ([]*NodeCapacityDetail, error) {
 	//getting rest config by clusterId
-	restConfig, err := impl.k8sApplicationService.GetRestConfigByCluster(ctx, cluster)
+	clusterConfig := cluster.GetClusterConfig()
+	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(&clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster", "err", err, "clusterId", cluster.Id)
 		return nil, err
@@ -354,7 +361,8 @@ func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailByNameAndCluster(ctx co
 }
 
 func (impl *K8sCapacityServiceImpl) getK8sConfigAndClients(ctx context.Context, cluster *cluster.ClusterBean) (*rest.Config, *http.Client, *kubernetes.Clientset, error) {
-	restConfig, err := impl.k8sApplicationService.GetRestConfigByCluster(ctx, cluster)
+	clusterConfig := cluster.GetClusterConfig()
+	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(&clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster", "err", err, "clusterId", cluster.Id)
 		return nil, nil, nil, err
@@ -369,6 +377,12 @@ func (impl *K8sCapacityServiceImpl) getK8sConfigAndClients(ctx context.Context, 
 		return nil, nil, nil, err
 	}
 	return restConfig, k8sHttpClient, k8sClientSet, nil
+}
+func (impl *K8sCapacityServiceImpl) getNodeGroupAndTaints(node *corev1.Node) (string, []*LabelAnnotationTaintObject) {
+
+	nodeGroup := impl.getNodeGroup(node)
+	taints := impl.getTaints(node)
+	return nodeGroup, taints
 }
 
 func (impl *K8sCapacityServiceImpl) getNodeGroup(node *corev1.Node) string {
@@ -442,16 +456,9 @@ func (impl *K8sCapacityServiceImpl) getNodeDetail(ctx context.Context, node *cor
 }
 
 func (impl *K8sCapacityServiceImpl) getNodeLabelsAndTaints(node *corev1.Node) ([]*LabelAnnotationTaintObject, []*LabelAnnotationTaintObject) {
-	var taints []*LabelAnnotationTaintObject
+
 	var labels []*LabelAnnotationTaintObject
-	for _, taint := range node.Spec.Taints {
-		taintObj := &LabelAnnotationTaintObject{
-			Key:    taint.Key,
-			Value:  taint.Value,
-			Effect: string(taint.Effect),
-		}
-		taints = append(taints, taintObj)
-	}
+	taints := impl.getTaints(node)
 	for k, v := range node.Labels {
 		labelObj := &LabelAnnotationTaintObject{
 			Key:   k,
@@ -460,6 +467,19 @@ func (impl *K8sCapacityServiceImpl) getNodeLabelsAndTaints(node *corev1.Node) ([
 		labels = append(labels, labelObj)
 	}
 	return labels, taints
+}
+
+func (impl *K8sCapacityServiceImpl) getTaints(node *corev1.Node) []*LabelAnnotationTaintObject {
+	var taints []*LabelAnnotationTaintObject
+	for _, taint := range node.Spec.Taints {
+		taintObj := &LabelAnnotationTaintObject{
+			Key:    taint.Key,
+			Value:  taint.Value,
+			Effect: string(taint.Effect),
+		}
+		taints = append(taints, taintObj)
+	}
+	return taints
 }
 
 func (impl *K8sCapacityServiceImpl) updateBasicDetailsForNode(nodeDetail *NodeCapacityDetail, node *corev1.Node, podCount int, nodeUsageResourceList corev1.ResourceList, cpuAllocatable resource.Quantity, memoryAllocatable resource.Quantity) {
@@ -738,6 +758,19 @@ func (impl *K8sCapacityServiceImpl) EditNodeTaints(ctx context.Context, request 
 	}
 	respMessage = "Taints edited Successfully."
 	return respMessage, nil
+}
+
+func (impl *K8sCapacityServiceImpl) GetNode(ctx context.Context, clusterId int, nodeName string) (*corev1.Node, error) {
+	cluster, err := impl.getClusterBean(clusterId)
+	if err != nil {
+		return nil, err
+	}
+	//getting kubernetes clientSet by rest config
+	_, _, k8sClientSet, err := impl.getK8sConfigAndClients(ctx, cluster)
+	if err != nil {
+		return nil, err
+	}
+	return k8sClientSet.CoreV1().Nodes().Get(context.Background(), nodeName, v1.GetOptions{})
 }
 
 func validateTaintEditRequest(reqTaints []corev1.Taint) error {

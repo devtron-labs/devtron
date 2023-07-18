@@ -66,21 +66,28 @@ type JobContainer struct {
 }
 
 type JobCIPipeline struct {
-	CiPipelineId   int       `json:"ciPipelineId"`
-	CiPipelineName string    `json:"ciPipelineName"`
-	Status         string    `json:"status"`
-	LastRunAt      time.Time `json:"lastRunAt"`
-	LastSuccessAt  time.Time `json:"lastSuccessAt"`
+	CiPipelineId                 int       `json:"ciPipelineId"`
+	CiPipelineName               string    `json:"ciPipelineName"`
+	Status                       string    `json:"status"`
+	LastRunAt                    time.Time `json:"lastRunAt"`
+	LastSuccessAt                time.Time `json:"lastSuccessAt"`
+	EnvironmentId                int       `json:"environmentId"`
+	EnvironmentName              string    `json:"environmentName"`
+	LastTriggeredEnvironmentName string    `json:"lastTriggeredEnvironmentName"`
 }
 
 type JobListingContainer struct {
-	JobId          int       `json:"job_id"`
-	JobName        string    `json:"job_name"`
-	Description    string    `json:"description"`
-	CiPipelineID   int       `json:"ci_pipeline_id"`
-	CiPipelineName string    `json:"ci_pipeline_name"`
-	Status         string    `json:"status"`
-	StartedOn      time.Time `json:"started_on"`
+	JobId                        int       `sql:"job_id" json:"jobId"`
+	JobName                      string    `sql:"job_name" json:"jobName"`
+	Description                  string    `sql:"description" json:"description"`
+	CiPipelineID                 int       `sql:"ci_pipeline_id" json:"ciPipelineID"`
+	CiPipelineName               string    `sql:"ci_pipeline_name" json:"ciPipelineName"`
+	Status                       string    `sql:"status" json:"status"`
+	StartedOn                    time.Time `sql:"started_on" json:"startedOn"`
+	EnvironmentId                int       `sql:"environment_id" json:"environmentId"`
+	EnvironmentName              string    `sql:"environment_name" json:"environmentName"`
+	LastTriggeredEnvironmentName string    `sql:"last_triggered_environment_name" json:"lastTriggeredEnvironmentName"`
+	LastTriggeredEnvironmentId   int       `sql:"last_triggered_environment_id" json:"lastEnvironmentId"`
 }
 
 type CiPipelineLastSucceededTime struct {
@@ -115,6 +122,8 @@ type AppEnvironmentContainer struct {
 	Active                      bool                      `json:"-"`
 	TeamId                      int                       `json:"teamId"`
 	TeamName                    string                    `json:"teamName"`
+	Description                 string                    `json:"description" validate:"max=40"`
+	TotalCount                  int                       `json:"-"`
 }
 
 type DeploymentDetailContainer struct {
@@ -150,6 +159,8 @@ type DeploymentDetailContainer struct {
 	DockerRegistryId              string          `json:"dockerRegistryId,omitempty"`
 	IpsAccessProvided             bool            `json:"ipsAccessProvided"`
 	DeploymentAppDeleteRequest    bool            `json:"deploymentAppDeleteRequest"`
+	Description                   string          `json:"description" validate:"max=40"`
+	IsVirtualEnvironment          bool            `json:"isVirtualEnvironment"`
 }
 
 type AppDetailContainer struct {
@@ -159,6 +170,10 @@ type AppDetailContainer struct {
 	LinkOuts                  []LinkOuts             `json:"linkOuts,omitempty"`
 	ResourceTree              map[string]interface{} `json:"resourceTree,omitempty"`
 	Notes                     string                 `json:"notes,omitempty"`
+}
+type ResourceTreeAndNotesContainer struct {
+	ResourceTree map[string]interface{} `json:"resourceTree,omitempty"`
+	Notes        string                 `json:"notes,omitempty"`
 }
 type Notes struct {
 	Notes string `json:"gitOpsNotes,omitempty"`
@@ -174,6 +189,8 @@ type Environment struct {
 	ChartRefId                 int    `json:"chartRefId"`
 	LastDeployed               string `json:"lastDeployed"`
 	DeploymentAppDeleteRequest bool   `json:"deploymentAppDeleteRequest"`
+	Description                string `json:"description" validate:"max=40"`
+	IsVirtualEnvironment       bool   `json:"isVirtualEnvironment"`
 }
 
 type InstanceDetail struct {

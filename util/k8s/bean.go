@@ -11,12 +11,13 @@ type ClusterCapacityDetail struct {
 	Name              string                                `json:"name,omitempty"`
 	ErrorInConnection string                                `json:"errorInNodeListing,omitempty"`
 	NodeCount         int                                   `json:"nodeCount,omitempty"`
-	NodeDetails       []NodeNameGroupName                   `json:"nodeDetails"`
+	NodeDetails       []NodeDetails                         `json:"nodeDetails"`
 	NodeErrors        map[corev1.NodeConditionType][]string `json:"nodeErrors"`
 	NodeK8sVersions   []string                              `json:"nodeK8sVersions"`
 	ServerVersion     string                                `json:"serverVersion,omitempty"`
 	Cpu               *ResourceDetailObject                 `json:"cpu"`
 	Memory            *ResourceDetailObject                 `json:"memory"`
+	IsVirtualCluster  bool                                  `json:"isVirtualCluster"`
 }
 
 type NodeCapacityDetail struct {
@@ -114,9 +115,10 @@ type NodeDrainHelper struct {
 	k8sClientSet    *kubernetes.Clientset
 }
 
-type NodeNameGroupName struct {
-	NodeName  string `json:"nodeName"`
-	NodeGroup string `json:"nodeGroup"`
+type NodeDetails struct {
+	NodeName  string                        `json:"nodeName"`
+	NodeGroup string                        `json:"nodeGroup"`
+	Taints    []*LabelAnnotationTaintObject `json:"taints"`
 }
 
 const DEFAULT_NAMESPACE = "default"

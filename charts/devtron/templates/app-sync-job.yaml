@@ -25,9 +25,17 @@ spec:
         {{- end }}
         {{- end }}
         {{- end }}
+      {{- if and $.Values.global $.Values.global.podSecurityContext }}
+      securityContext:
+{{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
+      {{- end }}
       containers:
       - name: chart-sync
-        image: quay.io/devtron/chart-sync:07ac8fd7-150-11120
+        image: quay.io/devtron/chart-sync:04a03402-373-13820
+        {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+        securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 10 }}
+        {{- end }}
         env:
         - name: PG_ADDR
           value: postgresql-postgresql.devtroncd
@@ -66,9 +74,17 @@ spec:
     spec:
       template:
         spec:
+          {{- if and $.Values.global $.Values.global.podSecurityContext }}
+          securityContext:
+{{- toYaml $.Values.global.podSecurityContext | nindent 12 }}
+          {{- end }}
           containers:
           - name: chart-sync
-            image: quay.io/devtron/chart-sync:07ac8fd7-150-11120
+            image: quay.io/devtron/chart-sync:04a03402-373-13820
+            {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+            securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 14 }}
+           {{- end }}
             env:
             - name: PG_ADDR
               value: postgresql-postgresql.devtroncd

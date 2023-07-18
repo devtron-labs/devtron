@@ -15,7 +15,8 @@ import (
 )
 
 type K8sCapacityRestHandler interface {
-	GetClusterList(w http.ResponseWriter, r *http.Request)
+	GetClusterListRaw(w http.ResponseWriter, r *http.Request)
+	GetClusterListWithDetail(w http.ResponseWriter, r *http.Request)
 	GetClusterDetail(w http.ResponseWriter, r *http.Request)
 	GetNodeList(w http.ResponseWriter, r *http.Request)
 	GetNodeDetail(w http.ResponseWriter, r *http.Request)
@@ -49,7 +50,48 @@ func NewK8sCapacityRestHandlerImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (handler *K8sCapacityRestHandlerImpl) GetClusterList(w http.ResponseWriter, r *http.Request) {
+func (handler *K8sCapacityRestHandlerImpl) GetClusterListRaw(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	token := r.Header.Get("token")
+	clusters, err := handler.clusterService.FindAll()
+	if err != nil {
+		handler.logger.Errorw("error in getting all clusters", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	// RBAC enforcer applying
+	var authenticatedClusters []*cluster.ClusterBean
+	var clusterDetailList []*ClusterCapacityDetail
+	for _, cluster := range clusters {
+		authenticated, err := handler.CheckRbacForCluster(cluster, token)
+		if err != nil {
+			handler.logger.Errorw("error in checking rbac for cluster", "err", err, "clusterId", cluster.Id)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		if authenticated {
+			authenticatedClusters = append(authenticatedClusters, cluster)
+			clusterDetail := &ClusterCapacityDetail{
+				Id:                cluster.Id,
+				Name:              cluster.ClusterName,
+				ErrorInConnection: cluster.ErrorInConnecting,
+				IsVirtualCluster:  cluster.IsVirtualCluster,
+			}
+			clusterDetailList = append(clusterDetailList, clusterDetail)
+		}
+	}
+	if len(clusters) != 0 && len(clusterDetailList) == 0 {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	common.WriteJsonResp(w, nil, clusterDetailList, http.StatusOK)
+}
+
+func (handler *K8sCapacityRestHandlerImpl) GetClusterListWithDetail(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -372,8 +414,26 @@ func (handler *K8sCapacityRestHandlerImpl) CheckRbacForCluster(cluster *cluster.
 		}
 		return true, nil
 	}
+	emailId, err := handler.userService.GetEmailFromToken(token)
+	if err != nil {
+		handler.logger.Errorw("error in getting emailId from token", "err", err)
+		return false, err
+	}
+
+	var envIdentifierList []string
+	envIdentifierMap := make(map[string]bool)
 	for _, env := range envs {
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(env.EnvironmentIdentifier)); ok {
+		envIdentifier := strings.ToLower(env.EnvironmentIdentifier)
+		envIdentifierList = append(envIdentifierList, envIdentifier)
+		envIdentifierMap[envIdentifier] = true
+	}
+	if len(envIdentifierList) == 0 {
+		return false, errors.New("environment identifier list for rbac batch enforcing contains zero environments")
+	}
+	// RBAC enforcer applying
+	rbacResultMap := handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceGlobalEnvironment, casbin.ActionGet, envIdentifierList)
+	for envIdentifier, _ := range envIdentifierMap {
+		if rbacResultMap[envIdentifier] {
 			//if user has view permission to even one environment of this cluster, authorise the request
 			return true, nil
 		}

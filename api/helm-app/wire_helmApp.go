@@ -8,6 +8,7 @@ import (
 var HelmAppWireSet = wire.NewSet(
 	NewHelmAppClientImpl,
 	wire.Bind(new(HelmAppClient), new(*HelmAppClientImpl)),
+	GetHelmReleaseConfig,
 	NewHelmAppServiceImpl,
 	wire.Bind(new(HelmAppService), new(*HelmAppServiceImpl)),
 	NewHelmAppRestHandlerImpl,
