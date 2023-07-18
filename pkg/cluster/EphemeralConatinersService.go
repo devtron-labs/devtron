@@ -58,12 +58,12 @@ func (impl *EphemeralContainerServiceImpl) AuditEphemeralContainerAction(model E
 
 	container, err := impl.repository.FindContainerByName(model.ClusterId, model.Namespace, model.PodName, model.BasicData.ContainerName)
 	if err != nil {
-		impl.logger.Errorw("error in finding ephemeral container in the database", "err", err, "container", container)
+		impl.logger.Errorw("error in finding ephemeral container in the database", "err", err, "ClusterId", model.ClusterId, "Namespace", model.Namespace, "PodName", model.PodName, "ContainerName", model.BasicData.ContainerName)
 		return err
 	}
 
 	if container != nil && actionType == repository.ActionCreate {
-		impl.logger.Errorw("Container already present in the provided pod", "podName", container.PodName)
+		impl.logger.Errorw("Container already present in the provided pod", "ClusterId", model.ClusterId, "Namespace", model.Namespace, "PodName", model.PodName, "ContainerName", model.BasicData.ContainerName)
 		return errors.New("container already present in the provided pod")
 	}
 
