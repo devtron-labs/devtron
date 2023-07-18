@@ -25,6 +25,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/middleware"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"go.opentelemetry.io/otel"
 	"strconv"
 	"strings"
@@ -38,7 +39,7 @@ import (
 
 type AppListingRepository interface {
 	FetchAppsByEnvironment(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, error)
-	FetchJobs(appIds []int, statuses []string, sortOrder string) ([]*bean.JobListingContainer, error)
+	FetchJobs(appIds []int, statuses []string, environmentIds []int, sortOrder string) ([]*bean.JobListingContainer, error)
 	FetchOverviewCiPipelines(jobId int) ([]*bean.JobListingContainer, error)
 	FetchJobsLastSucceededOn(ciPipelineIDs []int) ([]*bean.CiPipelineLastSucceededTime, error)
 	FetchAppDetail(ctx context.Context, appId int, envId int) (bean.AppDetailContainer, error)
@@ -80,18 +81,19 @@ type AppListingRepositoryImpl struct {
 	dbConnection                     *pg.DB
 	Logger                           *zap.SugaredLogger
 	appListingRepositoryQueryBuilder helper.AppListingRepositoryQueryBuilder
+	environmentRepository            repository2.EnvironmentRepository
 }
 
-func NewAppListingRepositoryImpl(Logger *zap.SugaredLogger, dbConnection *pg.DB, appListingRepositoryQueryBuilder helper.AppListingRepositoryQueryBuilder) *AppListingRepositoryImpl {
-	return &AppListingRepositoryImpl{dbConnection: dbConnection, Logger: Logger, appListingRepositoryQueryBuilder: appListingRepositoryQueryBuilder}
+func NewAppListingRepositoryImpl(Logger *zap.SugaredLogger, dbConnection *pg.DB, appListingRepositoryQueryBuilder helper.AppListingRepositoryQueryBuilder, environmentRepository repository2.EnvironmentRepository) *AppListingRepositoryImpl {
+	return &AppListingRepositoryImpl{dbConnection: dbConnection, Logger: Logger, appListingRepositoryQueryBuilder: appListingRepositoryQueryBuilder, environmentRepository: environmentRepository}
 }
 
-func (impl AppListingRepositoryImpl) FetchJobs(appIds []int, statuses []string, sortOrder string) ([]*bean.JobListingContainer, error) {
+func (impl AppListingRepositoryImpl) FetchJobs(appIds []int, statuses []string, environmentIds []int, sortOrder string) ([]*bean.JobListingContainer, error) {
 	var jobContainers []*bean.JobListingContainer
 	if len(appIds) == 0 {
 		return jobContainers, nil
 	}
-	jobsQuery := impl.appListingRepositoryQueryBuilder.BuildJobListingQuery(appIds, statuses, sortOrder)
+	jobsQuery := impl.appListingRepositoryQueryBuilder.BuildJobListingQuery(appIds, statuses, environmentIds, sortOrder)
 
 	impl.Logger.Debugw("basic app detail query: ", jobsQuery)
 	_, appsErr := impl.dbConnection.Query(&jobContainers, jobsQuery)
@@ -99,6 +101,7 @@ func (impl AppListingRepositoryImpl) FetchJobs(appIds []int, statuses []string, 
 		impl.Logger.Error(appsErr)
 		return jobContainers, appsErr
 	}
+	jobContainers = impl.extractEnvironmentNameFromId(jobContainers)
 	return jobContainers, nil
 }
 func (impl AppListingRepositoryImpl) FetchOverviewCiPipelines(jobId int) ([]*bean.JobListingContainer, error) {
@@ -110,6 +113,7 @@ func (impl AppListingRepositoryImpl) FetchOverviewCiPipelines(jobId int) ([]*bea
 		impl.Logger.Error(appsErr)
 		return jobContainers, appsErr
 	}
+	jobContainers = impl.extractEnvironmentNameFromId(jobContainers)
 	return jobContainers, nil
 }
 
@@ -698,4 +702,34 @@ func (impl AppListingRepositoryImpl) FindAppCount(isProd bool) (int, error) {
 	}
 
 	return count, nil
+}
+
+func (impl AppListingRepositoryImpl) extractEnvironmentNameFromId(jobContainers []*bean.JobListingContainer) []*bean.JobListingContainer {
+	var envIds []*int
+	for _, job := range jobContainers {
+		if job.EnvironmentId != 0 {
+			envIds = append(envIds, &job.EnvironmentId)
+		}
+		if job.LastTriggeredEnvironmentId != 0 {
+			envIds = append(envIds, &job.LastTriggeredEnvironmentId)
+		}
+	}
+	envs, _ := impl.environmentRepository.FindByIds(envIds)
+
+	envIdNameMap := make(map[int]string)
+
+	for _, env := range envs {
+		envIdNameMap[env.Id] = env.Name
+	}
+
+	for _, job := range jobContainers {
+		if job.EnvironmentId != 0 {
+			job.EnvironmentName = envIdNameMap[job.EnvironmentId]
+		}
+		if job.LastTriggeredEnvironmentId != 0 {
+			job.LastTriggeredEnvironmentName = envIdNameMap[job.LastTriggeredEnvironmentId]
+		}
+	}
+
+	return jobContainers
 }
