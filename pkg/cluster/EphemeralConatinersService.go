@@ -94,8 +94,8 @@ func (impl *EphemeralContainerServiceImpl) AuditEphemeralContainerAction(model E
 	var auditLogBean repository.EphemeralContainerAction
 	if container == nil {
 		if actionType != repository.ActionCreate {
-			// ActionCreate is happening through devtron, the model will contain all the required fields by the caller
-			// for other actions,if we didn't find the container in db, we should get the ephemeralContainer data from pod manifest
+			// ActionCreate is happening through devtron, the model will contain all the required fields, set by the fn caller
+			// for other actions,if we dodn't find the container in db, we should get the ephemeralContainer data from pod manifest
 			err = impl.getEphemeralContainerDataFromManifest(&model)
 			if err != nil {
 				if (actionType == repository.ActionAccessed) && strings.Contains(err.Error(), ephemeralContainerNotFoundError) {
