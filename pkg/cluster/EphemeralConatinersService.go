@@ -112,6 +112,6 @@ func (impl *EphemeralContainerServiceImpl) AuditEphemeralContainerAction(model E
 		impl.logger.Errorw("error in committing transaction", "err", err, "req", model)
 		return err
 	}
-	impl.logger.Errorw("transaction committed successfully")
+	impl.logger.Infow("transaction committed successfully")
 	return nil
 }
