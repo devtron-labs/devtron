@@ -966,8 +966,6 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 		RunPostStageInEnv:             refCdPipeline.RunPostStageInEnv,
 		RunPreStageInEnv:              refCdPipeline.RunPreStageInEnv,
 		DeploymentAppType:             deploymentAppType,
-		//ParentPipelineId:              refCdPipeline.ParentPipelineId,
-		//ParentPipelineType:            refCdPipeline.ParentPipelineType,
 	}
 	cdPipelineReq := &bean.CdPipelines{
 		Pipelines: []*bean.CDPipelineConfigObject{cdPipeline},
