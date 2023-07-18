@@ -77,7 +77,6 @@ type K8sApplicationService interface {
 	RotatePods(ctx context.Context, request *RotatePodRequest) (*RotatePodResponse, error)
 	CreatePodEphemeralContainers(req *cluster.EphemeralContainerRequest) error
 	TerminatePodEphemeralContainer(req cluster.EphemeralContainerRequest) (bool, error)
-	GetPodContainersList(clusterId int, namespace, podName string) (*PodContainerList, error)
 	GetK8sServerVersion(clusterId int) (*version.Info, error)
 }
 type K8sApplicationServiceImpl struct {
@@ -1332,50 +1331,6 @@ func (impl *K8sApplicationServiceImpl) getCoreClientByClusterId(clusterId int) (
 		return nil, v1Client, err
 	}
 	return clientSet, v1Client, nil
-}
-
-func (impl *K8sApplicationServiceImpl) GetPodContainersList(clusterId int, namespace, podName string) (*PodContainerList, error) {
-	_, v1Client, err := impl.getCoreClientByClusterId(clusterId)
-	if err != nil {
-		impl.logger.Errorw("error in getting coreV1 client by clusterId", "clusterId", clusterId, "err", err)
-		return nil, err
-	}
-	pod, err := impl.K8sUtil.GetPodByName(namespace, podName, v1Client)
-	if err != nil {
-		impl.logger.Errorw("error in getting pod", "clusterId", clusterId, "namespace", namespace, "podName", podName, "err", err)
-		return nil, err
-	}
-	ephemeralContainerStatusMap := make(map[string]bool)
-	for _, c := range pod.Status.EphemeralContainerStatuses {
-		//c.state contains three states running,waiting and terminated
-		// at any point of time only one state will be there
-		if c.State.Running != nil {
-			ephemeralContainerStatusMap[c.Name] = true
-		}
-	}
-	containers := make([]string, len(pod.Spec.Containers))
-	initContainers := make([]string, len(pod.Spec.InitContainers))
-	ephemeralContainers := make([]string, 0, len(pod.Spec.EphemeralContainers))
-
-	for i, c := range pod.Spec.Containers {
-		containers[i] = c.Name
-	}
-
-	for _, ec := range pod.Spec.EphemeralContainers {
-		if _, ok := ephemeralContainerStatusMap[ec.Name]; ok {
-			ephemeralContainers = append(ephemeralContainers, ec.Name)
-		}
-	}
-
-	for i, ic := range pod.Spec.InitContainers {
-		initContainers[i] = ic.Name
-	}
-
-	return &PodContainerList{
-		Containers:          containers,
-		EphemeralContainers: ephemeralContainers,
-		InitContainers:      initContainers,
-	}, nil
 }
 
 func (impl *K8sApplicationServiceImpl) GetK8sServerVersion(clusterId int) (*version.Info, error) {
