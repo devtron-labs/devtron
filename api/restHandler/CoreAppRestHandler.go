@@ -626,7 +626,7 @@ func (handler CoreAppRestHandlerImpl) buildAppWorkflows(request *appWorkflow.Wor
 	} else if request.WorkflowId > 0 {
 		workflow, err := handler.appWorkflowService.FindAppWorkflowById(request.WorkflowId, request.AppId)
 		if err != nil {
-			handler.logger.Errorw("error in fetching workflow by name", "err", err, "workflowName", request.WorkflowName, "appId", request.AppId)
+			handler.logger.Errorw("error in fetching workflow by id", "err", err, "workflowName", request.WorkflowName, "appId", request.AppId)
 			return nil, err, http.StatusInternalServerError
 		}
 		workflowsList = []appWorkflow.AppWorkflowDto{workflow}
@@ -2251,6 +2251,7 @@ func (handler CoreAppRestHandlerImpl) GetAppWorkflowAndOverridesSample(w http.Re
 	if len(environmentIdStr) > 0 {
 		environmentId, err := strconv.Atoi(environmentIdStr)
 		if err != nil {
+			handler.logger.Errorw("error on GetAppWorkflowAndOverridesSample", "err", err)
 			common.WriteJsonResp(w, err, "invalid environmentId", http.StatusBadRequest)
 			return
 		}
@@ -2260,6 +2261,7 @@ func (handler CoreAppRestHandlerImpl) GetAppWorkflowAndOverridesSample(w http.Re
 	if len(workflowIdStr) > 0 {
 		workflowId, err := strconv.Atoi(workflowIdStr)
 		if err != nil {
+			handler.logger.Errorw("error on GetAppWorkflowAndOverridesSample", "err", err)
 			common.WriteJsonResp(w, err, "invalid workflowId", http.StatusBadRequest)
 			return
 		}
@@ -2269,6 +2271,7 @@ func (handler CoreAppRestHandlerImpl) GetAppWorkflowAndOverridesSample(w http.Re
 	//get/build app workflows starts
 	appWorkflows, err, statusCode := handler.buildAppWorkflows(wfCloneRequest)
 	if err != nil {
+		handler.logger.Errorw("error on GetAppWorkflowAndOverridesSample", "err", err)
 		common.WriteJsonResp(w, err, nil, statusCode)
 		return
 	}
@@ -2293,6 +2296,7 @@ func (handler CoreAppRestHandlerImpl) GetAppWorkflowAndOverridesSample(w http.Re
 		environmentOverrides, err, _ = handler.buildEnvironmentOverrides(r.Context(), appId, token)
 	}
 	if err != nil {
+		handler.logger.Errorw("error on GetAppWorkflowAndOverridesSample", "err", err)
 		common.WriteJsonResp(w, err, nil, statusCode)
 		return
 	}
