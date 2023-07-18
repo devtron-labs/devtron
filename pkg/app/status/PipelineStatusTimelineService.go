@@ -15,7 +15,7 @@ import (
 type PipelineStatusTimelineService interface {
 	SaveTimeline(timeline *pipelineConfig.PipelineStatusTimeline, tx *pg.Tx, isAppStore bool) error
 	FetchTimelines(appId, envId, wfrId int) (*PipelineTimelineDetailDto, error)
-	FetchTimelinesForAppStore(installedAppId, envId, installedAppVersionHistoryId int) (*PipelineTimelineDetailDto, error)
+	FetchTimelinesForAppStore(installedAppId, envId, installedAppVersionHistoryId int, showTimeline bool) (*PipelineTimelineDetailDto, error)
 	GetTimelineDbObjectByTimelineStatusAndTimelineDescription(cdWorkflowRunnerId int, timelineStatus pipelineConfig.TimelineStatus, timelineDescription string, userId int32) *pipelineConfig.PipelineStatusTimeline
 }
 
@@ -242,7 +242,7 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelines(appId, envId, wfrI
 	return timelineDetail, nil
 }
 
-func (impl *PipelineStatusTimelineServiceImpl) FetchTimelinesForAppStore(installedAppId, envId, installedAppVersionHistoryId int) (*PipelineTimelineDetailDto, error) {
+func (impl *PipelineStatusTimelineServiceImpl) FetchTimelinesForAppStore(installedAppId, envId, installedAppVersionHistoryId int, showTimeline bool) (*PipelineTimelineDetailDto, error) {
 	var deploymentStartedOn time.Time
 	var deploymentFinishedOn time.Time
 	var installedAppVersionHistoryStatus string
@@ -287,7 +287,7 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelinesForAppStore(install
 	var timelineDtos []*PipelineStatusTimelineDto
 	var statusLastFetchedAt time.Time
 	var statusFetchCount int
-	if util.IsAcdApp(deploymentAppType) {
+	if util.IsAcdApp(deploymentAppType) && showTimeline {
 		timelines, err := impl.pipelineStatusTimelineRepository.FetchTimelinesByInstalledAppVersionHistoryId(installedAppVersionHistoryId)
 		if err != nil {
 			impl.logger.Errorw("error in getting timelines by installedAppVersionHistoryId", "err", err, "wfrId", installedAppVersionHistoryId)

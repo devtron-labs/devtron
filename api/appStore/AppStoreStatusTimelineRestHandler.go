@@ -47,6 +47,12 @@ func (handler AppStoreStatusTimelineRestHandlerImpl) FetchTimelinesForAppStore(w
 		return
 	}
 	installedAppVersionHistoryId := 0
+	showTimeline := false
+	showTimeline, err = strconv.ParseBool(r.URL.Query().Get("showTimeline"))
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 	installedAppVersionHistoryIdParam := r.URL.Query().Get("installedAppVersionHistoryId")
 	if len(installedAppVersionHistoryIdParam) != 0 {
 		installedAppVersionHistoryId, err = strconv.Atoi(installedAppVersionHistoryIdParam)
@@ -56,7 +62,7 @@ func (handler AppStoreStatusTimelineRestHandlerImpl) FetchTimelinesForAppStore(w
 		}
 	}
 	//rbac will already be handled at app level
-	timelines, err := handler.pipelineStatusTimelineService.FetchTimelinesForAppStore(installedAppId, envId, installedAppVersionHistoryId)
+	timelines, err := handler.pipelineStatusTimelineService.FetchTimelinesForAppStore(installedAppId, envId, installedAppVersionHistoryId, showTimeline)
 	if err != nil {
 		handler.logger.Errorw("error in getting pipeline status timelines by installedAppVersionHistoryId", "err", err, "installedAppVersionHistoryId", installedAppVersionHistoryId, "installedAppId", installedAppId, "envId", envId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
