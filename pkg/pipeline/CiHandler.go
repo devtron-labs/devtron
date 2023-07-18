@@ -601,10 +601,14 @@ func (impl *CiHandlerImpl) FetchWorkflowDetails(appId int, pipelineId int, build
 		}
 		ciMaterialsArr = append(ciMaterialsArr, res)
 	}
-	env, err := impl.envRepository.FindById(workflow.EnvironmentId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.Logger.Errorw("error in fetching environment details ", "err", err)
-		return WorkflowResponse{}, err
+	environmentName := ""
+	if workflow.EnvironmentId != 0 {
+		env, err := impl.envRepository.FindById(workflow.EnvironmentId)
+		if err != nil && err != pg.ErrNoRows {
+			impl.Logger.Errorw("error in fetching environment details ", "err", err)
+			return WorkflowResponse{}, err
+		}
+		environmentName = env.Name
 	}
 	workflowResponse := WorkflowResponse{
 		Id:                 workflow.Id,
@@ -626,7 +630,7 @@ func (impl *CiHandlerImpl) FetchWorkflowDetails(appId int, pipelineId int, build
 		ArtifactId:         ciArtifact.Id,
 		IsArtifactUploaded: ciArtifact.IsArtifactUploaded,
 		EnvironmentId:      workflow.EnvironmentId,
-		EnvironmentName:    env.Name,
+		EnvironmentName:    environmentName,
 	}
 	return workflowResponse, nil
 }
