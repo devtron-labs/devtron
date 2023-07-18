@@ -1,5 +1,6 @@
 ## Bugs
 ## Enhancements
+- feat: edit Ingress for specific host (#3640)
 - feat: enhancement app workflow clone, added specific deployment clone in workflow (#3645)
 - Feature: Run Devtron Jobs in application environment (#3572)
 ## Documentation
