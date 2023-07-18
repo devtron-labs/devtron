@@ -19,23 +19,22 @@ package appClone
 
 import (
 	"context"
+	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/constants"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
-	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
-	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/chart"
-	"github.com/go-pg/pg"
-	"strings"
-
-	"fmt"
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"strings"
 )
 
 type AppCloneService interface {
@@ -181,18 +180,20 @@ func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context 
 			impl.logger.Errorw("error in creating deployment template", "ref", cloneReq.RefAppId, "new", newAppId, "err", err)
 			return nil, err
 		}
-		_, err = impl.CreateGlobalCM(cloneReq.RefAppId, newAppId, userId)
+	}
+	_, err = impl.CreateGlobalCM(cloneReq.RefAppId, newAppId, userId)
 
-		if err != nil {
-			impl.logger.Errorw("error in creating global cm", "ref", cloneReq.RefAppId, "new", newAppId, "err", err)
-			return nil, err
-		}
-		_, err = impl.CreateGlobalSecret(cloneReq.RefAppId, newAppId, userId)
-		if err != nil {
-			impl.logger.Errorw("error in creating global secret", "ref", cloneReq.RefAppId, "new", newAppId, "err", err)
-			return nil, err
-		}
-		if isSameProject {
+	if err != nil {
+		impl.logger.Errorw("error in creating global cm", "ref", cloneReq.RefAppId, "new", newAppId, "err", err)
+		return nil, err
+	}
+	_, err = impl.CreateGlobalSecret(cloneReq.RefAppId, newAppId, userId)
+	if err != nil {
+		impl.logger.Errorw("error in creating global secret", "ref", cloneReq.RefAppId, "new", newAppId, "err", err)
+		return nil, err
+	}
+	if isSameProject {
+		if createReq.AppType != helper.Job {
 			_, err = impl.CreateEnvCm(context, cloneReq.RefAppId, newAppId, userId)
 			if err != nil {
 				impl.logger.Errorw("error in creating env cm", "err", err)
@@ -206,6 +207,12 @@ func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context 
 			_, err = impl.createEnvOverride(cloneReq.RefAppId, newAppId, userId, context)
 			if err != nil {
 				impl.logger.Errorw("error in cloning  env override", "err", err)
+				return nil, err
+			}
+		} else {
+			_, err := impl.configMapService.ConfigSecretEnvironmentClone(cloneReq.RefAppId, newAppId, userId)
+			if err != nil {
+				impl.logger.Errorw("error in cloning cm cs env override", "err", err)
 				return nil, err
 			}
 		}
@@ -804,11 +811,16 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 					IsDockerConfigOverridden: refCiPipeline.IsDockerConfigOverridden,
 					PreBuildStage:            preStageDetail,
 					PostBuildStage:           postStageDetail,
+					EnvironmentId:            refCiPipeline.EnvironmentId,
 				},
 				AppId:         req.appId,
 				Action:        bean.CREATE,
 				AppWorkflowId: req.wfId,
 				UserId:        req.userId,
+				IsCloneJob:    true,
+			}
+			if refCiPipeline.EnvironmentId != 0 {
+				ciPatchReq.IsJob = true
 			}
 			if !refCiPipeline.IsExternal && refCiPipeline.IsDockerConfigOverridden {
 				//get template override

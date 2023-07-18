@@ -104,6 +104,7 @@ type CiCdPipelineOrchestratorImpl struct {
 	gitMaterialHistoryService     history3.GitMaterialHistoryService
 	ciPipelineHistoryService      history3.CiPipelineHistoryService
 	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository
+	configMapService              ConfigMapService
 }
 
 func NewCiCdPipelineOrchestrator(
@@ -127,7 +128,8 @@ func NewCiCdPipelineOrchestrator(
 	gitMaterialHistoryService history3.GitMaterialHistoryService,
 	ciPipelineHistoryService history3.CiPipelineHistoryService,
 	ciTemplateService CiTemplateService,
-	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository) *CiCdPipelineOrchestratorImpl {
+	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository,
+	configMapService ConfigMapService) *CiCdPipelineOrchestratorImpl {
 	return &CiCdPipelineOrchestratorImpl{
 		appRepository:                 pipelineGroupRepository,
 		logger:                        logger,
@@ -151,6 +153,7 @@ func NewCiCdPipelineOrchestrator(
 		ciPipelineHistoryService:      ciPipelineHistoryService,
 		ciTemplateService:             ciTemplateService,
 		dockerArtifactStoreRepository: dockerArtifactStoreRepository,
+		configMapService:              configMapService,
 	}
 }
 
@@ -195,6 +198,37 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 	err = impl.ciPipelineRepository.Update(ciPipelineObject, tx)
 	if err != nil {
 		return nil, err
+	}
+	var CiEnvMappingObject *pipelineConfig.CiEnvMapping
+	if ciPipelineObject.Id != 0 {
+		CiEnvMappingObject, err = impl.ciPipelineRepository.FindCiEnvMappingByCiPipelineId(ciPipelineObject.Id)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in getting CiEnvMappingObject ", "err", err, "ciPipelineId", createRequest.Id)
+			return nil, err
+		}
+	}
+	if err == nil && CiEnvMappingObject != nil {
+		if CiEnvMappingObject.EnvironmentId != createRequest.EnvironmentId {
+			CiEnvMappingObject.EnvironmentId = createRequest.EnvironmentId
+			CiEnvMappingObject.AuditLog = sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()}
+			err = impl.ciPipelineRepository.UpdateCiEnvMapping(CiEnvMappingObject, tx)
+			if err != nil {
+				impl.logger.Errorw("error in getting CiEnvMappingObject ", "err", err, "ciPipelineId", createRequest.Id)
+				return nil, err
+			}
+			if createRequest.EnvironmentId != 0 {
+				createJobEnvOverrideRequest := &CreateJobEnvOverridePayload{
+					AppId:  createRequest.AppId,
+					EnvId:  createRequest.EnvironmentId,
+					UserId: userId,
+				}
+				_, err = impl.configMapService.ConfigSecretEnvironmentCreate(createJobEnvOverrideRequest)
+				if err != nil && !strings.Contains(err.Error(), "already exists") {
+					impl.logger.Errorw("error in saving env override", "createJobEnvOverrideRequest", createJobEnvOverrideRequest, "err", err)
+					return nil, err
+				}
+			}
+		}
 	}
 	// marking old scripts inactive
 	err = impl.ciPipelineRepository.MarkCiPipelineScriptsInactiveByCiPipelineId(createRequest.Id, tx)
@@ -435,6 +469,20 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 func (impl CiCdPipelineOrchestratorImpl) DeleteCiPipeline(pipeline *pipelineConfig.CiPipeline, request *bean.CiPatchRequest, tx *pg.Tx) error {
 
 	userId := request.UserId
+	CiEnvMappingObject, err := impl.ciPipelineRepository.FindCiEnvMappingByCiPipelineId(pipeline.Id)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting CiEnvMappingObject ", "err", err, "ciPipelineId", pipeline.Id)
+		return err
+	}
+	if err == nil && CiEnvMappingObject != nil {
+		CiEnvMappingObject.AuditLog = sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()}
+		CiEnvMappingObject.Deleted = true
+		err = impl.ciPipelineRepository.UpdateCiEnvMapping(CiEnvMappingObject, tx)
+		if err != nil {
+			impl.logger.Errorw("error in getting CiEnvMappingObject ", "err", err, "ciPipelineId", CiEnvMappingObject.CiPipelineId)
+			return err
+		}
+	}
 
 	p := &pipelineConfig.CiPipeline{
 		Id:                       pipeline.Id,
@@ -444,7 +492,8 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteCiPipeline(pipeline *pipelineConf
 		IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
 		AuditLog:                 sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
 	}
-	err := impl.ciPipelineRepository.Update(p, tx)
+
+	err = impl.ciPipelineRepository.Update(p, tx)
 	if err != nil {
 		impl.logger.Errorw("error in updating ci pipeline, DeleteCiPipeline", "err", err, "pipelineId", pipeline.Id)
 		return err
@@ -550,6 +599,33 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 			impl.logger.Errorw("error in saving pipeline", "ciPipelineObject", ciPipelineObject, "err", err)
 			return nil, err
 		}
+		if createRequest.IsJob {
+			CiEnvMapping := &pipelineConfig.CiEnvMapping{
+				CiPipelineId:  ciPipeline.Id,
+				EnvironmentId: ciPipeline.EnvironmentId,
+				AuditLog:      sql.AuditLog{UpdatedBy: createRequest.UserId, CreatedBy: createRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
+			}
+			err = impl.ciPipelineRepository.SaveCiEnvMapping(CiEnvMapping, tx)
+			if err != nil {
+				impl.logger.Errorw("error in saving pipeline", "CiEnvMapping", CiEnvMapping, "err", err)
+				return nil, err
+			}
+
+			if ciPipeline.EnvironmentId != 0 && !createRequest.IsCloneJob {
+				createJobEnvOverrideRequest := &CreateJobEnvOverridePayload{
+					AppId:  createRequest.AppId,
+					EnvId:  ciPipeline.EnvironmentId,
+					UserId: createRequest.UserId,
+				}
+				_, err = impl.configMapService.ConfigSecretEnvironmentCreate(createJobEnvOverrideRequest)
+				if err != nil && !strings.Contains(err.Error(), "already exists") {
+					impl.logger.Errorw("error in saving env override", "createJobEnvOverrideRequest", createJobEnvOverrideRequest, "err", err)
+					return nil, err
+				}
+
+			}
+		}
+
 		var pipelineMaterials []*pipelineConfig.CiPipelineMaterial
 		for _, r := range ciPipeline.CiMaterial {
 			material := &pipelineConfig.CiPipelineMaterial{
