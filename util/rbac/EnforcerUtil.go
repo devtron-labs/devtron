@@ -19,7 +19,9 @@ package rbac
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/client/k8s/application"
+	"github.com/devtron-labs/devtron/client/k8s/application/util"
+
+	//"github.com/devtron-labs/devtron/client/k8s/application/util"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -52,7 +54,7 @@ type EnforcerUtil interface {
 	GetHelmObjectByProjectIdAndEnvId(teamId int, envId int) (string, string)
 	GetEnvRBACNameByCdPipelineIdAndEnvId(cdPipelineId int) string
 	GetAppRBACNameByTeamIdAndAppId(teamId int, appId int) string
-	GetRBACNameForClusterEntity(clusterName string, resourceIdentifier application.ResourceIdentifier) (resourceName, objectName string)
+	GetRBACNameForClusterEntity(clusterName string, resourceIdentifier util.ResourceIdentifier) (resourceName, objectName string)
 	GetAppObjectByCiPipelineIds(ciPipelineIds []int) map[int]string
 	GetAppAndEnvObjectByPipelineIds(cdPipelineIds []int) map[int][]string
 	GetRbacObjectsForAllAppsWithMatchingAppName(appNameMatch string) map[int]string
@@ -448,7 +450,7 @@ func (impl EnforcerUtilImpl) GetAppRBACNameByTeamIdAndAppId(teamId int, appId in
 	return fmt.Sprintf("%s/%s", strings.ToLower(team.Name), strings.ToLower(application.AppName))
 }
 
-func (impl EnforcerUtilImpl) GetRBACNameForClusterEntity(clusterName string, resourceIdentifier application.ResourceIdentifier) (resourceName, objectName string) {
+func (impl EnforcerUtilImpl) GetRBACNameForClusterEntity(clusterName string, resourceIdentifier util.ResourceIdentifier) (resourceName, objectName string) {
 	namespace := resourceIdentifier.Namespace
 	objectName = resourceIdentifier.Name
 	groupVersionKind := resourceIdentifier.GroupVersionKind

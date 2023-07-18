@@ -6,6 +6,14 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+const (
+	DEFAULT_NAMESPACE = "default"
+	EVENT_K8S_KIND    = "Event"
+	LIST_VERB         = "list"
+	Delete            = "delete"
+	DEFAULT_CLUSTER   = "default_cluster"
+)
+
 type ClusterCapacityDetail struct {
 	Id                int                                   `json:"id,omitempty"`
 	Name              string                                `json:"name,omitempty"`
@@ -120,7 +128,3 @@ type NodeDetails struct {
 	NodeGroup string                        `json:"nodeGroup"`
 	Taints    []*LabelAnnotationTaintObject `json:"taints"`
 }
-
-const DEFAULT_NAMESPACE = "default"
-const EVENT_K8S_KIND = "Event"
-const LIST_VERB = "list"

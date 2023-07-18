@@ -27,6 +27,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/client/gitSensor"
+	util3 "github.com/devtron-labs/devtron/client/k8s/application/util"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
@@ -778,7 +779,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateApp(createRequest *bean.CreateApp
 		}
 		labelKey := label.Key
 		labelValue := label.Value
-		err := util2.CheckIfValidLabel(labelKey, labelValue)
+		err := util3.CheckIfValidLabel(labelKey, labelValue)
 		if err != nil {
 			return nil, err
 		}

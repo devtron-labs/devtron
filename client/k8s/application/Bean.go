@@ -1,6 +1,7 @@
 package application
 
 import (
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
@@ -24,4 +25,8 @@ type ApplyResourcesResponse struct {
 	Name     string `json:"name"`
 	Error    string `json:"error"`
 	IsUpdate bool   `json:"isUpdate"`
+}
+
+type ManifestResponse struct {
+	Manifest unstructured.Unstructured `json:"manifest,omitempty"`
 }

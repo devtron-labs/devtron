@@ -336,15 +336,15 @@ func (_m *K8sApplicationService) GetUrlsByBatch(ctx context.Context, resp []k8s.
 }
 
 // ListEvents provides a mock function with given fields: ctx, request
-func (_m *K8sApplicationService) ListEvents(ctx context.Context, request *k8s.ResourceRequestBean) (*application.EventsResponse, error) {
+func (_m *K8sApplicationService) ListEvents(ctx context.Context, request *k8s.ResourceRequestBean) (*util.EventsResponse, error) {
 	ret := _m.Called(ctx, request)
 
-	var r0 *application.EventsResponse
-	if rf, ok := ret.Get(0).(func(context.Context, *k8s.ResourceRequestBean) *application.EventsResponse); ok {
+	var r0 *util.EventsResponse
+	if rf, ok := ret.Get(0).(func(context.Context, *k8s.ResourceRequestBean) *util.EventsResponse); ok {
 		r0 = rf(ctx, request)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*application.EventsResponse)
+			r0 = ret.Get(0).(*util.EventsResponse)
 		}
 	}
 
@@ -405,11 +405,11 @@ func (_m *K8sApplicationService) UpdateResource(ctx context.Context, request *k8
 }
 
 // ValidateClusterResourceBean provides a mock function with given fields: ctx, clusterId, manifest, gvk, rbacCallback
-func (_m *K8sApplicationService) ValidateClusterResourceBean(ctx context.Context, clusterId int, manifest unstructured.Unstructured, gvk schema.GroupVersionKind, rbacCallback func(string, application.ResourceIdentifier) bool) bool {
+func (_m *K8sApplicationService) ValidateClusterResourceBean(ctx context.Context, clusterId int, manifest unstructured.Unstructured, gvk schema.GroupVersionKind, rbacCallback func(string, util.ResourceIdentifier) bool) bool {
 	ret := _m.Called(ctx, clusterId, manifest, gvk, rbacCallback)
 
 	var r0 bool
-	if rf, ok := ret.Get(0).(func(context.Context, int, unstructured.Unstructured, schema.GroupVersionKind, func(string, application.ResourceIdentifier) bool) bool); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, int, unstructured.Unstructured, schema.GroupVersionKind, func(string, util.ResourceIdentifier) bool) bool); ok {
 		r0 = rf(ctx, clusterId, manifest, gvk, rbacCallback)
 	} else {
 		r0 = ret.Get(0).(bool)
@@ -419,18 +419,18 @@ func (_m *K8sApplicationService) ValidateClusterResourceBean(ctx context.Context
 }
 
 // ValidateClusterResourceRequest provides a mock function with given fields: ctx, clusterResourceRequest, rbacCallback
-func (_m *K8sApplicationService) ValidateClusterResourceRequest(ctx context.Context, clusterResourceRequest *k8s.ResourceRequestBean, rbacCallback func(string, application.ResourceIdentifier) bool) (bool, error) {
+func (_m *K8sApplicationService) ValidateClusterResourceRequest(ctx context.Context, clusterResourceRequest *k8s.ResourceRequestBean, rbacCallback func(string, util.ResourceIdentifier) bool) (bool, error) {
 	ret := _m.Called(ctx, clusterResourceRequest, rbacCallback)
 
 	var r0 bool
-	if rf, ok := ret.Get(0).(func(context.Context, *k8s.ResourceRequestBean, func(string, application.ResourceIdentifier) bool) bool); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *k8s.ResourceRequestBean, func(string, util.ResourceIdentifier) bool) bool); ok {
 		r0 = rf(ctx, clusterResourceRequest, rbacCallback)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, *k8s.ResourceRequestBean, func(string, application.ResourceIdentifier) bool) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *k8s.ResourceRequestBean, func(string, util.ResourceIdentifier) bool) error); ok {
 		r1 = rf(ctx, clusterResourceRequest, rbacCallback)
 	} else {
 		r1 = ret.Error(1)
@@ -463,18 +463,18 @@ func (_m *K8sApplicationService) ValidatePodLogsRequestQuery(r *http.Request) (*
 }
 
 // ValidateResourceRequest provides a mock function with given fields: ctx, appIdentifier, request
-func (_m *K8sApplicationService) ValidateResourceRequest(ctx context.Context, appIdentifier *client.AppIdentifier, request *application.K8sRequestBean) (bool, error) {
+func (_m *K8sApplicationService) ValidateResourceRequest(ctx context.Context, appIdentifier *client.AppIdentifier, request *util.K8sRequestBean) (bool, error) {
 	ret := _m.Called(ctx, appIdentifier, request)
 
 	var r0 bool
-	if rf, ok := ret.Get(0).(func(context.Context, *client.AppIdentifier, *application.K8sRequestBean) bool); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.AppIdentifier, *util.K8sRequestBean) bool); ok {
 		r0 = rf(ctx, appIdentifier, request)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, *client.AppIdentifier, *application.K8sRequestBean) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *client.AppIdentifier, *util.K8sRequestBean) error); ok {
 		r1 = rf(ctx, appIdentifier, request)
 	} else {
 		r1 = ret.Error(1)

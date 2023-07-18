@@ -23,11 +23,16 @@ import (
 	error2 "errors"
 	"flag"
 	"fmt"
+	"github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/devtron-labs/devtron/internal/util"
+	"io"
 	v13 "k8s.io/api/policy/v1"
 	v1beta12 "k8s.io/api/policy/v1beta1"
+	"k8s.io/apimachinery/pkg/util/validation"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/metrics/pkg/apis/metrics/v1beta1"
 	metrics "k8s.io/metrics/pkg/client/clientset/versioned"
+	"k8s.io/utils/pointer"
 	"log"
 	"net/http"
 	"net/url"
@@ -999,4 +1004,372 @@ func (impl K8sUtil) FetchConnectionStatusForCluster(k8sClientSet *kubernetes.Cli
 		err = fmt.Errorf("Validation failed with response : %s", string(response))
 	}
 	return err
+}
+
+func CheckIfValidLabel(labelKey string, labelValue string) error {
+	labelKey = strings.TrimSpace(labelKey)
+	labelValue = strings.TrimSpace(labelValue)
+
+	errs := validation.IsQualifiedName(labelKey)
+	if len(labelKey) == 0 || len(errs) > 0 {
+		return error2.New(fmt.Sprintf("Validation error - label key - %s is not satisfying the label key criteria", labelKey))
+	}
+
+	errs = validation.IsValidLabelValue(labelValue)
+	if len(labelValue) == 0 || len(errs) > 0 {
+		return error2.New(fmt.Sprintf("Validation error - label value - %s is not satisfying the label value criteria for label key - %s", labelValue, labelKey))
+	}
+	return nil
+}
+
+func (impl K8sUtil) GetResourceIf(restConfig *rest.Config, groupVersionKind schema.GroupVersionKind) (resourceIf dynamic.NamespaceableResourceInterface, namespaced bool, err error) {
+	httpClient, err := OverrideK8sHttpClientWithTracer(restConfig)
+	if err != nil {
+		return nil, false, err
+	}
+	dynamicIf, err := dynamic.NewForConfigAndClient(restConfig, httpClient)
+	if err != nil {
+		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err)
+		return nil, false, err
+	}
+	discoveryClient, err := discovery.NewDiscoveryClientForConfigAndClient(restConfig, httpClient)
+	if err != nil {
+		impl.logger.Errorw("error in getting k8s client", "err", err)
+		return nil, false, err
+	}
+	apiResource, err := ServerResourceForGroupVersionKind(discoveryClient, groupVersionKind)
+	if err != nil {
+		impl.logger.Errorw("error in getting server resource", "err", err)
+		return nil, false, err
+	}
+	resource := groupVersionKind.GroupVersion().WithResource(apiResource.Name)
+	return dynamicIf.Resource(resource), apiResource.Namespaced, nil
+}
+
+func (impl K8sUtil) ListEvents(restConfig *rest.Config, namespace string, groupVersionKind schema.GroupVersionKind, ctx context.Context, name string) (*v1.EventList, error) {
+
+	_, namespaced, err := impl.GetResourceIf(restConfig, groupVersionKind)
+	if err != nil {
+		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err, "resource", name)
+		return nil, err
+	}
+	groupVersionKind.Kind = "List"
+	if !namespaced {
+		namespace = "default"
+	}
+	httpClient, err := OverrideK8sHttpClientWithTracer(restConfig)
+	if err != nil {
+		return nil, err
+	}
+	eventsClient, err := v12.NewForConfigAndClient(restConfig, httpClient)
+	if err != nil {
+		impl.logger.Errorw("error in getting client for resource", "err", err, "resource", name)
+		return nil, err
+	}
+	eventsIf := eventsClient.Events(namespace)
+	eventsExp := eventsIf.(v12.EventExpansion)
+	fieldSelector := eventsExp.GetFieldSelector(pointer.StringPtr(name), pointer.StringPtr(namespace), nil, nil)
+	listOptions := metav1.ListOptions{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       groupVersionKind.Kind,
+			APIVersion: groupVersionKind.GroupVersion().String(),
+		},
+		FieldSelector: fieldSelector.String(),
+	}
+	list, err := eventsIf.List(ctx, listOptions)
+	if err != nil {
+		impl.logger.Errorw("error in getting events list", "err", err, "resource", name)
+		return nil, err
+	}
+	return list, err
+
+}
+
+func (impl K8sUtil) GetPodLogs(ctx context.Context, restConfig *rest.Config, name string, namespace string, sinceTime *metav1.Time, tailLines int, follow bool, containerName string, isPrevContainerLogsEnabled bool) (io.ReadCloser, error) {
+	httpClient, err := OverrideK8sHttpClientWithTracer(restConfig)
+	if err != nil {
+		return nil, err
+	}
+	podClient, err := v12.NewForConfigAndClient(restConfig, httpClient)
+	if err != nil {
+		impl.logger.Errorw("error in getting client for resource", "err", err, "resource", name, "namespace", namespace)
+		return nil, err
+	}
+	TailLines := int64(tailLines)
+	podLogOptions := &v1.PodLogOptions{
+		Follow:     follow,
+		TailLines:  &TailLines,
+		Container:  containerName,
+		Timestamps: true,
+		Previous:   isPrevContainerLogsEnabled,
+	}
+	if sinceTime != nil {
+		podLogOptions.SinceTime = sinceTime
+	}
+	podIf := podClient.Pods(namespace)
+	logsRequest := podIf.GetLogs(name, podLogOptions)
+	stream, err := logsRequest.Stream(ctx)
+	if err != nil {
+		impl.logger.Errorw("error in streaming pod logs", "err", err, "resource", name, "namespace", namespace)
+		return nil, err
+	}
+	return stream, nil
+}
+func (impl K8sUtil) GetResourceIfWithAcceptHeader(restConfig *rest.Config, groupVersionKind schema.GroupVersionKind) (resourceIf dynamic.NamespaceableResourceInterface, namespaced bool, err error) {
+	httpClient, err := OverrideK8sHttpClientWithTracer(restConfig)
+	if err != nil {
+		return nil, false, err
+	}
+	discoveryClient, err := discovery.NewDiscoveryClientForConfigAndClient(restConfig, httpClient)
+	if err != nil {
+		impl.logger.Errorw("error in getting k8s client", "err", err)
+		return nil, false, err
+	}
+	apiResource, err := ServerResourceForGroupVersionKind(discoveryClient, groupVersionKind)
+	if err != nil {
+		impl.logger.Errorw("error in getting server resource", "err", err)
+		return nil, false, err
+	}
+	resource := groupVersionKind.GroupVersion().WithResource(apiResource.Name)
+	wt := restConfig.WrapTransport // Reference: https://github.com/kubernetes/client-go/issues/407
+	restConfig.WrapTransport = func(rt http.RoundTripper) http.RoundTripper {
+		if wt != nil {
+			rt = wt(rt)
+		}
+		return &application.HeaderAdder{
+			Rt: rt,
+		}
+	}
+	httpClient, err = OverrideK8sHttpClientWithTracer(restConfig)
+	if err != nil {
+		return nil, false, err
+	}
+	dynamicIf, err := dynamic.NewForConfigAndClient(restConfig, httpClient)
+	if err != nil {
+		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err)
+		return nil, false, err
+	}
+	return dynamicIf.Resource(resource), apiResource.Namespaced, nil
+}
+
+func ServerResourceForGroupVersionKind(discoveryClient discovery.DiscoveryInterface, gvk schema.GroupVersionKind) (*metav1.APIResource, error) {
+	resources, err := discoveryClient.ServerResourcesForGroupVersion(gvk.GroupVersion().String())
+	if err != nil {
+		return nil, err
+	}
+	for _, r := range resources.APIResources {
+		if r.Kind == gvk.Kind {
+			return &r, nil
+		}
+	}
+	return nil, errors.NewNotFound(schema.GroupResource{Group: gvk.Group, Resource: gvk.Kind}, "")
+}
+func (impl K8sUtil) GetResourceList(ctx context.Context, restConfig *rest.Config, gvk schema.GroupVersionKind, namespace string) (*ResourceListResponse, bool, error) {
+	resourceIf, namespaced, err := impl.GetResourceIfWithAcceptHeader(restConfig, gvk)
+	if err != nil {
+		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err, "namespace", namespace)
+		return nil, namespaced, err
+	}
+	var resp *unstructured.UnstructuredList
+	listOptions := metav1.ListOptions{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       gvk.Kind,
+			APIVersion: gvk.GroupVersion().String(),
+		},
+	}
+	if len(namespace) > 0 && namespaced {
+		resp, err = resourceIf.Namespace(namespace).List(ctx, listOptions)
+	} else {
+		resp, err = resourceIf.List(ctx, listOptions)
+	}
+	if err != nil {
+		impl.logger.Errorw("error in getting resource", "err", err, "namespace", namespace)
+		return nil, namespaced, err
+	}
+	return &ResourceListResponse{*resp}, namespaced, nil
+
+}
+func (impl K8sUtil) PatchResourceRequest(ctx context.Context, restConfig *rest.Config, pt types.PatchType, manifest string, name string, namespace string, gvk schema.GroupVersionKind) (*application.ManifestResponse, error) {
+	resourceIf, namespaced, err := impl.GetResourceIf(restConfig, gvk)
+	if err != nil {
+		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err, "resource", name, "namespace", namespace)
+		return nil, err
+	}
+
+	var resp *unstructured.Unstructured
+	if len(namespace) > 0 && namespaced {
+		resp, err = resourceIf.Namespace(namespace).Patch(ctx, name, pt, []byte(manifest), metav1.PatchOptions{FieldManager: "patch"})
+	} else {
+		resp, err = resourceIf.Patch(ctx, name, pt, []byte(manifest), metav1.PatchOptions{FieldManager: "patch"})
+	}
+	if err != nil {
+		impl.logger.Errorw("error in applying resource", "err", err, "resource", name, "namespace", namespace)
+		return nil, err
+	}
+	return &application.ManifestResponse{*resp}, nil
+}
+
+// if verb is supplied empty, that means - return all
+func (impl K8sUtil) GetApiResources(restConfig *rest.Config, includeOnlyVerb string) ([]*application.K8sApiResource, error) {
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(restConfig)
+	if err != nil {
+		impl.logger.Errorw("error in getting dynamic k8s client", "err", err)
+		return nil, err
+	}
+
+	apiResourcesListFromK8s, err := discoveryClient.ServerPreferredResources()
+	if err != nil {
+		//takes care when K8s is unable to handle the request for some resources
+		Isk8sApiError := strings.Contains(err.Error(), "unable to retrieve the complete list of server APIs")
+		switch Isk8sApiError {
+		case true:
+			break
+		default:
+			impl.logger.Errorw("error in getting api-resources from k8s", "err", err)
+			return nil, err
+		}
+	}
+
+	apiResources := make([]*application.K8sApiResource, 0)
+	for _, apiResourceListFromK8s := range apiResourcesListFromK8s {
+		if apiResourceListFromK8s != nil {
+			for _, apiResourceFromK8s := range apiResourceListFromK8s.APIResources {
+				var includeResource bool
+				if len(includeOnlyVerb) > 0 {
+					for _, verb := range apiResourceFromK8s.Verbs {
+						if verb == includeOnlyVerb {
+							includeResource = true
+							break
+						}
+					}
+				} else {
+					includeResource = true
+				}
+				if !includeResource {
+					continue
+				}
+				var group string
+				var version string
+				gv := apiResourceListFromK8s.GroupVersion
+				if len(gv) > 0 {
+					splitGv := strings.Split(gv, "/")
+					if len(splitGv) == 1 {
+						version = splitGv[0]
+					} else {
+						group = splitGv[0]
+						version = splitGv[1]
+					}
+				}
+				apiResources = append(apiResources, &application.K8sApiResource{
+					Gvk: schema.GroupVersionKind{
+						Group:   group,
+						Version: version,
+						Kind:    apiResourceFromK8s.Kind,
+					},
+					Namespaced: apiResourceFromK8s.Namespaced,
+				})
+			}
+		}
+	}
+	return apiResources, nil
+}
+func (impl *K8sUtil) CreateResources(ctx context.Context, restConfig *rest.Config, manifest string, gvk schema.GroupVersionKind, namespace string) (*application.ManifestResponse, error) {
+	resourceIf, namespaced, err := impl.GetResourceIf(restConfig, gvk)
+	if err != nil {
+		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err, "namespace", namespace)
+		return nil, err
+	}
+	var createObj map[string]interface{}
+	err = json.Unmarshal([]byte(manifest), &createObj)
+	if err != nil {
+		impl.logger.Errorw("error in json un-marshaling patch(manifest) string for creating resource", "err", err, "namespace", namespace)
+		return nil, err
+	}
+	var resp *unstructured.Unstructured
+	if len(namespace) > 0 && namespaced {
+		resp, err = resourceIf.Namespace(namespace).Create(ctx, &unstructured.Unstructured{Object: createObj}, metav1.CreateOptions{})
+	} else {
+		resp, err = resourceIf.Create(ctx, &unstructured.Unstructured{Object: createObj}, metav1.CreateOptions{})
+	}
+	if err != nil {
+		impl.logger.Errorw("error in creating resource", "err", err, "namespace", namespace)
+		return nil, err
+	}
+	return &application.ManifestResponse{*resp}, nil
+}
+func (impl *K8sUtil) GetResource(ctx context.Context, namespace string, name string, gvk schema.GroupVersionKind, restConfig *rest.Config) (*application.ManifestResponse, error) {
+	resourceIf, namespaced, err := impl.GetResourceIf(restConfig, gvk)
+	if err != nil {
+		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err, "namespace", namespace)
+		return nil, err
+	}
+	var resp *unstructured.Unstructured
+	if len(namespace) > 0 && namespaced {
+		resp, err = resourceIf.Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
+	} else {
+		resp, err = resourceIf.Get(ctx, name, metav1.GetOptions{})
+	}
+	if err != nil {
+		impl.logger.Errorw("error in getting resource", "err", err, "resource", name, "namespace", namespace)
+		return nil, err
+	}
+	return &application.ManifestResponse{*resp}, nil
+}
+func (impl *K8sUtil) UpdateResource(ctx context.Context, restConfig *rest.Config, gvk schema.GroupVersionKind, namespace string, k8sRequestPatch string) (*application.ManifestResponse, error) {
+
+	resourceIf, namespaced, err := impl.GetResourceIf(restConfig, gvk)
+	if err != nil {
+		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err, "namespace", namespace)
+		return nil, err
+	}
+	var updateObj map[string]interface{}
+	err = json.Unmarshal([]byte(k8sRequestPatch), &updateObj)
+	if err != nil {
+		impl.logger.Errorw("error in json un-marshaling patch string for updating resource ", "err", err, "namespace", namespace)
+		return nil, err
+	}
+	var resp *unstructured.Unstructured
+	if len(namespace) > 0 && namespaced {
+		resp, err = resourceIf.Namespace(namespace).Update(ctx, &unstructured.Unstructured{Object: updateObj}, metav1.UpdateOptions{})
+	} else {
+		resp, err = resourceIf.Update(ctx, &unstructured.Unstructured{Object: updateObj}, metav1.UpdateOptions{})
+	}
+	if err != nil {
+		impl.logger.Errorw("error in updating resource", "err", err, "namespace", namespace)
+		return nil, err
+	}
+	return &application.ManifestResponse{*resp}, nil
+}
+
+func (impl *K8sUtil) DeleteResource(ctx context.Context, restConfig *rest.Config, gvk schema.GroupVersionKind, namespace string, name string, forceDelete bool) (*application.ManifestResponse, error) {
+	resourceIf, namespaced, err := impl.GetResourceIf(restConfig, gvk)
+	if err != nil {
+		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err, "resource", name, "namespace", namespace)
+		return nil, err
+	}
+	var obj *unstructured.Unstructured
+	deleteOptions := metav1.DeleteOptions{}
+	if forceDelete {
+		deleteOptions.GracePeriodSeconds = pointer.Int64Ptr(0)
+	}
+	if len(namespace) > 0 && namespaced {
+		obj, err = resourceIf.Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
+		if err != nil {
+			impl.logger.Errorw("error in getting resource", "err", err, "resource", name, "namespace", namespace)
+			return nil, err
+		}
+		err = resourceIf.Namespace(namespace).Delete(ctx, name, deleteOptions)
+	} else {
+		obj, err = resourceIf.Get(ctx, name, metav1.GetOptions{})
+		if err != nil {
+			impl.logger.Errorw("error in getting resource", "err", err, "resource", name, "namespace", namespace)
+			return nil, err
+		}
+		err = resourceIf.Delete(ctx, name, deleteOptions)
+	}
+	if err != nil {
+		impl.logger.Errorw("error in deleting resource", "err", err, "resource", name, "namespace", namespace)
+		return nil, err
+	}
+	return &application.ManifestResponse{*obj}, nil
 }

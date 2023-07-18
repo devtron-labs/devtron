@@ -2,12 +2,23 @@ package util
 
 import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	v1 "k8s.io/api/core/v1"
+	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 type ClusterResourceListMap struct {
 	Headers []string                 `json:"headers"`
 	Data    []map[string]interface{} `json:"data"`
+}
+
+type EventsResponse struct {
+	Events *v1.EventList `json:"events,omitempty"`
+}
+
+type ResourceListResponse struct {
+	Resources unstructured.UnstructuredList `json:"resources,omitempty"`
 }
 
 const K8sClusterResourceNameKey = "name"
@@ -61,3 +72,24 @@ const (
 	// EvictionSubresource represents the kind of evictions object as pod's subresource
 	EvictionSubresource = "pods/eviction"
 )
+
+type PodLogsRequest struct {
+	SinceTime                  *v12.Time `json:"sinceTime,omitempty"`
+	TailLines                  int       `json:"tailLines"`
+	Follow                     bool      `json:"follow"`
+	ContainerName              string    `json:"containerName"`
+	IsPrevContainerLogsEnabled bool      `json:"previous"`
+}
+
+type ResourceIdentifier struct {
+	Name             string                  `json:"name"` //pod name for logs request
+	Namespace        string                  `json:"namespace"`
+	GroupVersionKind schema.GroupVersionKind `json:"groupVersionKind"`
+}
+
+type K8sRequestBean struct {
+	ResourceIdentifier ResourceIdentifier `json:"resourceIdentifier"`
+	Patch              string             `json:"patch,omitempty"`
+	PodLogsRequest     PodLogsRequest     `json:"podLogsRequest,omitempty"`
+	ForceDelete        bool               `json:"-"`
+}

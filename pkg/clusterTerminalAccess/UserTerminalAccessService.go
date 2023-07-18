@@ -8,6 +8,7 @@ import (
 	"github.com/caarlos0/env/v6"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/client/k8s/application"
+	util2 "github.com/devtron-labs/devtron/client/k8s/application/util"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	utils1 "github.com/devtron-labs/devtron/pkg/clusterTerminalAccess/clusterTerminalUtils"
@@ -53,9 +54,9 @@ type UserTerminalAccessServiceImpl struct {
 	TerminalAccessDataArrayMutex *sync.RWMutex
 	PodStatusSyncCron            *cron.Cron
 	k8sApplicationService        k8s.K8sApplicationService
-	k8sClientService             application.K8sClientService
 	terminalSessionHandler       terminal.TerminalSessionHandler
 	K8sCapacityService           k8s.K8sCapacityService
+	k8sUtil                      *util2.K8sUtil
 }
 
 type UserTerminalAccessSessionData struct {
@@ -79,9 +80,7 @@ func GetTerminalAccessConfig() (*models.UserTerminalSessionConfig, error) {
 	return config, err
 }
 
-func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessRepository repository.TerminalAccessRepository, config *models.UserTerminalSessionConfig,
-	k8sApplicationService k8s.K8sApplicationService, k8sClientService application.K8sClientService, terminalSessionHandler terminal.TerminalSessionHandler,
-	K8sCapacityService k8s.K8sCapacityService) (*UserTerminalAccessServiceImpl, error) {
+func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessRepository repository.TerminalAccessRepository, config *models.UserTerminalSessionConfig, k8sApplicationService k8s.K8sApplicationService, terminalSessionHandler terminal.TerminalSessionHandler, K8sCapacityService k8s.K8sCapacityService, k8sUtil *util2.K8sUtil) (*UserTerminalAccessServiceImpl, error) {
 	//fetches all running and starting entities from db and start SyncStatus
 	podStatusSyncCron := cron.New(cron.WithChain())
 	terminalAccessDataArrayMutex := &sync.RWMutex{}
@@ -93,10 +92,10 @@ func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessR
 		PodStatusSyncCron:            podStatusSyncCron,
 		TerminalAccessDataArrayMutex: terminalAccessDataArrayMutex,
 		k8sApplicationService:        k8sApplicationService,
-		k8sClientService:             k8sClientService,
 		TerminalAccessSessionDataMap: &map1,
 		terminalSessionHandler:       terminalSessionHandler,
 		K8sCapacityService:           K8sCapacityService,
+		k8sUtil:                      k8sUtil,
 	}
 	podStatusSyncCron.Start()
 	_, err := podStatusSyncCron.AddFunc(fmt.Sprintf("@every %ds", config.TerminalPodStatusSyncTimeInSecs), accessServiceImpl.SyncPodStatus)
@@ -728,14 +727,12 @@ func (impl *UserTerminalAccessServiceImpl) DeleteTerminalResource(ctx context.Co
 		impl.Logger.Errorw("error occurred while extracting data for gvk", "resourceTemplateString", resourceTemplateString, "err", err)
 		return err
 	}
-
-	restConfig, err := impl.k8sClientService.GetRestConfigByClusterId(ctx, clusterId)
-	if err != nil {
-		return err
-	}
-
-	k8sRequest := &application.K8sRequestBean{
-		ResourceIdentifier: application.ResourceIdentifier{
+	//restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(ctx, clusterId)
+	//if err != nil {
+	//	return err
+	//}
+	k8sRequest := &util2.K8sRequestBean{
+		ResourceIdentifier: util2.ResourceIdentifier{
 			Name:      terminalResourceName,
 			Namespace: namespace,
 			GroupVersionKind: schema.GroupVersionKind{
@@ -745,7 +742,13 @@ func (impl *UserTerminalAccessServiceImpl) DeleteTerminalResource(ctx context.Co
 			},
 		},
 	}
-	_, err = impl.k8sClientService.DeleteResource(ctx, restConfig, k8sRequest)
+	resourceRequest := &k8s.ResourceRequestBean{
+		K8sRequest: k8sRequest,
+		ClusterId:  clusterId,
+	}
+
+	// Here Sending userId as 0 as it appIdentifier is being sent nil so user id is not used in method. Update userid if appIdentifier is used
+	_, err = impl.k8sApplicationService.DeleteResource(ctx, resourceRequest, 0)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while deleting resource for pod", "podName", terminalResourceName, "err", err)
 	}
@@ -753,7 +756,7 @@ func (impl *UserTerminalAccessServiceImpl) DeleteTerminalResource(ctx context.Co
 }
 
 func (impl *UserTerminalAccessServiceImpl) applyTemplate(ctx context.Context, clusterId int, gvkDataString string, templateData string, isUpdate bool, namespace string) error {
-	restConfig, err := impl.k8sClientService.GetRestConfigByClusterId(ctx, clusterId)
+	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(ctx, clusterId)
 	if err != nil {
 		return err
 	}
@@ -764,8 +767,8 @@ func (impl *UserTerminalAccessServiceImpl) applyTemplate(ctx context.Context, cl
 		return err
 	}
 
-	k8sRequest := &application.K8sRequestBean{
-		ResourceIdentifier: application.ResourceIdentifier{
+	k8sRequest := &util2.K8sRequestBean{
+		ResourceIdentifier: util2.ResourceIdentifier{
 			Namespace: namespace,
 			GroupVersionKind: schema.GroupVersionKind{
 				Group:   groupVersionKind.Group,
@@ -774,12 +777,16 @@ func (impl *UserTerminalAccessServiceImpl) applyTemplate(ctx context.Context, cl
 			},
 		},
 	}
-
+	request := &k8s.ResourceRequestBean{
+		K8sRequest: k8sRequest,
+		ClusterId:  clusterId,
+	}
+	resourceIdentifier := k8sRequest.ResourceIdentifier
 	if isUpdate {
 		k8sRequest.Patch = templateData
-		_, err = impl.k8sClientService.UpdateResource(ctx, restConfig, k8sRequest)
+		_, err = impl.k8sApplicationService.UpdateResource(ctx, request)
 	} else {
-		_, err = impl.k8sClientService.CreateResource(ctx, restConfig, k8sRequest, templateData)
+		_, err = impl.k8sUtil.CreateResources(ctx, restConfig, templateData, resourceIdentifier.GroupVersionKind, resourceIdentifier.Namespace)
 	}
 	if err != nil {
 		if errStatus, ok := err.(*k8sErrors.StatusError); !(ok && errStatus.Status().Reason == metav1.StatusReasonAlreadyExists) {
@@ -857,8 +864,8 @@ func (impl *UserTerminalAccessServiceImpl) getPodRequestBean(clusterId int, podN
 		AppIdentifier: &client.AppIdentifier{
 			ClusterId: clusterId,
 		},
-		K8sRequest: &application.K8sRequestBean{
-			ResourceIdentifier: application.ResourceIdentifier{
+		K8sRequest: &util2.K8sRequestBean{
+			ResourceIdentifier: util2.ResourceIdentifier{
 				Name:      podName,
 				Namespace: namespace,
 				GroupVersionKind: schema.GroupVersionKind{

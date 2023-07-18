@@ -156,33 +156,33 @@ func (n NewClusterServiceMock) GetK8sClient() (*v1.CoreV1Client, error) {
 	panic("implement me")
 }
 
-func (n NewK8sClientServiceImplMock) GetResource(restConfig *rest.Config, request *application.K8sRequestBean) (resp *application.ManifestResponse, err error) {
+func (n NewK8sClientServiceImplMock) GetResource(restConfig *rest.Config, request *util.K8sRequestBean) (resp *application.ManifestResponse, err error) {
 	kind := request.ResourceIdentifier.GroupVersionKind.Kind
 	man := generateTestManifest(kind)
 	return &man, nil
 }
 
-func (n NewK8sClientServiceImplMock) CreateResource(restConfig *rest.Config, request *application.K8sRequestBean, manifest string) (resp *application.ManifestResponse, err error) {
+func (n NewK8sClientServiceImplMock) CreateResource(restConfig *rest.Config, request *util.K8sRequestBean, manifest string) (resp *application.ManifestResponse, err error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (n NewK8sClientServiceImplMock) UpdateResource(restConfig *rest.Config, request *application.K8sRequestBean) (resp *application.ManifestResponse, err error) {
+func (n NewK8sClientServiceImplMock) UpdateResource(restConfig *rest.Config, request *util.K8sRequestBean) (resp *application.ManifestResponse, err error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (n NewK8sClientServiceImplMock) DeleteResource(restConfig *rest.Config, request *application.K8sRequestBean) (resp *application.ManifestResponse, err error) {
+func (n NewK8sClientServiceImplMock) DeleteResource(restConfig *rest.Config, request *util.K8sRequestBean) (resp *application.ManifestResponse, err error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (n NewK8sClientServiceImplMock) ListEvents(restConfig *rest.Config, request *application.K8sRequestBean) (*application.EventsResponse, error) {
+func (n NewK8sClientServiceImplMock) ListEvents(restConfig *rest.Config, request *util.K8sRequestBean) (*util.EventsResponse, error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (n NewK8sClientServiceImplMock) GetPodLogs(restConfig *rest.Config, request *application.K8sRequestBean) (io.ReadCloser, error) {
+func (n NewK8sClientServiceImplMock) GetPodLogs(restConfig *rest.Config, request *util.K8sRequestBean) (io.ReadCloser, error) {
 	//TODO implement me
 	panic("implement me")
 }
@@ -190,8 +190,8 @@ func (n NewK8sClientServiceImplMock) GetPodLogs(restConfig *rest.Config, request
 func generateTestResourceRequest(kind string) ResourceRequestBean {
 	return ResourceRequestBean{
 		AppIdentifier: &client.AppIdentifier{},
-		K8sRequest: &application.K8sRequestBean{
-			ResourceIdentifier: application.ResourceIdentifier{
+		K8sRequest: &util.K8sRequestBean{
+			ResourceIdentifier: util.ResourceIdentifier{
 				GroupVersionKind: schema.GroupVersionKind{
 					Kind: kind,
 				},
@@ -206,9 +206,7 @@ type test struct {
 }
 
 func Test_getUrls(t *testing.T) {
-	impl := NewK8sApplicationServiceImpl(
-		nil, nil, nil, nil, nil,
-		nil, nil, nil)
+	impl := NewK8sApplicationServiceImpl(nil, nil, nil, nil, nil, nil, nil)
 	tests := make([]test, 3)
 	tests[0] = test{
 		inp: generateTestManifest("Service"),

@@ -24,7 +24,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	gitSensorClient "github.com/devtron-labs/devtron/client/gitSensor"
-	"github.com/devtron-labs/devtron/client/k8s/application"
+	util5 "github.com/devtron-labs/devtron/client/k8s/application/util"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	util4 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
@@ -1282,10 +1282,10 @@ type StopDeploymentGroupRequest struct {
 }
 
 type PodRotateRequest struct {
-	AppId               int                              `json:"appId" validate:"required"`
-	EnvironmentId       int                              `json:"environmentId" validate:"required"`
-	UserId              int32                            `json:"-"`
-	ResourceIdentifiers []application.ResourceIdentifier `json:"resources" validate:"required"`
+	AppId               int                        `json:"appId" validate:"required"`
+	EnvironmentId       int                        `json:"environmentId" validate:"required"`
+	UserId              int32                      `json:"-"`
+	ResourceIdentifiers []util5.ResourceIdentifier `json:"resources" validate:"required"`
 }
 
 func (impl *WorkflowDagExecutorImpl) RotatePods(ctx context.Context, podRotateRequest *PodRotateRequest) (*k8s.RotatePodResponse, error) {
@@ -1297,7 +1297,7 @@ func (impl *WorkflowDagExecutorImpl) RotatePods(ctx context.Context, podRotateRe
 		impl.logger.Errorw("error occurred while fetching env details", "envId", environmentId, "err", err)
 		return nil, err
 	}
-	var resourceIdentifiers []application.ResourceIdentifier
+	var resourceIdentifiers []util5.ResourceIdentifier
 	for _, resourceIdentifier := range podRotateRequest.ResourceIdentifiers {
 		resourceIdentifier.Namespace = environment.Namespace
 		resourceIdentifiers = append(resourceIdentifiers, resourceIdentifier)

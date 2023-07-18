@@ -83,16 +83,14 @@ type K8sCapacityServiceImpl struct {
 	logger                *zap.SugaredLogger
 	clusterService        cluster.ClusterService
 	k8sApplicationService K8sApplicationService
-	k8sClientService      application.K8sClientService
 	K8sUtil               *util.K8sUtil
 }
 
-func NewK8sCapacityServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService, k8sApplicationService K8sApplicationService, k8sClientService application.K8sClientService, K8sUtil *util.K8sUtil) *K8sCapacityServiceImpl {
+func NewK8sCapacityServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService, k8sApplicationService K8sApplicationService, K8sUtil *util.K8sUtil) *K8sCapacityServiceImpl {
 	return &K8sCapacityServiceImpl{
 		logger:                Logger,
 		clusterService:        clusterService,
 		k8sApplicationService: k8sApplicationService,
-		k8sClientService:      k8sClientService,
 		K8sUtil:               K8sUtil,
 	}
 }
@@ -287,7 +285,7 @@ func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailsListByCluster(ctx cont
 	}
 	var nodeDetails []*NodeCapacityDetail
 	for _, node := range nodeList.Items {
-		nodeDetail, err := impl.getNodeDetail(ctx, &node, nodeResourceUsage, podList, true, restConfig, cluster)
+		nodeDetail, err := impl.getNodeDetail(ctx, &node, nodeResourceUsage, podList, true, cluster)
 		if err != nil {
 			impl.logger.Errorw("error in getting node detail for list", "err", err)
 			return nil, err
@@ -329,7 +327,7 @@ func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailByNameAndCluster(ctx co
 	if nodeMetrics != nil {
 		nodeResourceUsage[nodeMetrics.Name] = nodeMetrics.Usage
 	}
-	nodeDetail, err := impl.getNodeDetail(ctx, node, nodeResourceUsage, podList, false, restConfig, cluster)
+	nodeDetail, err := impl.getNodeDetail(ctx, node, nodeResourceUsage, podList, false, cluster)
 	if err != nil {
 		impl.logger.Errorw("error in getting node detail", "err", err)
 		return nil, err
@@ -361,7 +359,7 @@ func (impl *K8sCapacityServiceImpl) getNodeGroup(node *corev1.Node) string {
 	return nodeGroup
 }
 
-func (impl *K8sCapacityServiceImpl) getNodeDetail(ctx context.Context, node *corev1.Node, nodeResourceUsage map[string]corev1.ResourceList, podList *corev1.PodList, callForList bool, restConfig *rest.Config, cluster *cluster.ClusterBean) (*NodeCapacityDetail, error) {
+func (impl *K8sCapacityServiceImpl) getNodeDetail(ctx context.Context, node *corev1.Node, nodeResourceUsage map[string]corev1.ResourceList, podList *corev1.PodList, callForList bool, cluster *cluster.ClusterBean) (*NodeCapacityDetail, error) {
 	cpuAllocatable := node.Status.Allocatable[corev1.ResourceCPU]
 	memoryAllocatable := node.Status.Allocatable[corev1.ResourceMemory]
 	podCount := 0
@@ -412,7 +410,7 @@ func (impl *K8sCapacityServiceImpl) getNodeDetail(ctx context.Context, node *cor
 			impl.logger.Errorw("error in getting updating data for node detail", "err", err)
 			return nil, err
 		}
-		err = impl.updateManifestData(ctx, nodeDetail, node, restConfig)
+		err = impl.updateManifestData(ctx, nodeDetail, node, cluster.Id)
 		if err != nil {
 			return nil, err
 		}
@@ -490,10 +488,10 @@ func (impl *K8sCapacityServiceImpl) updateAdditionalDetailForNode(nodeDetail *No
 	return nil
 }
 
-func (impl *K8sCapacityServiceImpl) updateManifestData(ctx context.Context, nodeDetail *NodeCapacityDetail, node *corev1.Node, restConfig *rest.Config) error {
+func (impl *K8sCapacityServiceImpl) updateManifestData(ctx context.Context, nodeDetail *NodeCapacityDetail, node *corev1.Node, clusterId int) error {
 	//getting manifest
-	manifestRequest := &application.K8sRequestBean{
-		ResourceIdentifier: application.ResourceIdentifier{
+	manifestRequest := &util.K8sRequestBean{
+		ResourceIdentifier: util.ResourceIdentifier{
 			Name: node.Name,
 			GroupVersionKind: schema.GroupVersionKind{
 				Version: nodeDetail.Version,
@@ -501,7 +499,12 @@ func (impl *K8sCapacityServiceImpl) updateManifestData(ctx context.Context, node
 			},
 		},
 	}
-	manifestResponse, err := impl.k8sClientService.GetResource(ctx, restConfig, manifestRequest)
+	request := &ResourceRequestBean{
+		K8sRequest: manifestRequest,
+		ClusterId:  clusterId,
+	}
+	//manifestResponse, err := impl.k8sClientService.GetResource(ctx, restConfig, manifestRequest)
+	manifestResponse, err := impl.k8sApplicationService.GetResource(ctx, request)
 	if err != nil {
 		impl.logger.Errorw("error in getting node manifest", "err", err)
 		return err
@@ -563,14 +566,14 @@ func (impl *K8sCapacityServiceImpl) updateNodeResources(node *corev1.Node, nodeL
 }
 
 func (impl *K8sCapacityServiceImpl) UpdateNodeManifest(ctx context.Context, request *NodeUpdateRequestDto) (*application.ManifestResponse, error) {
-	//getting rest config by clusterId
-	restConfig, err := impl.k8sClientService.GetRestConfigByClusterId(ctx, request.ClusterId)
-	if err != nil {
-		impl.logger.Errorw("error in getting rest config by cluster id", "err", err, "clusterId", request.ClusterId)
-		return nil, err
-	}
-	manifestUpdateReq := &application.K8sRequestBean{
-		ResourceIdentifier: application.ResourceIdentifier{
+	////getting rest config by clusterId
+	//restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(ctx, request.ClusterId)
+	//if err != nil {
+	//	impl.logger.Errorw("error in getting rest config by cluster id", "err", err, "clusterId", request.ClusterId)
+	//	return nil, err
+	//}
+	manifestUpdateReq := &util.K8sRequestBean{
+		ResourceIdentifier: util.ResourceIdentifier{
 			Name: request.Name,
 			GroupVersionKind: schema.GroupVersionKind{
 				Group:   "",
@@ -580,7 +583,8 @@ func (impl *K8sCapacityServiceImpl) UpdateNodeManifest(ctx context.Context, requ
 		},
 		Patch: request.ManifestPatch,
 	}
-	manifestResponse, err := impl.k8sClientService.UpdateResource(ctx, restConfig, manifestUpdateReq)
+	requestResourceBean := &ResourceRequestBean{K8sRequest: manifestUpdateReq, ClusterId: request.ClusterId}
+	manifestResponse, err := impl.k8sApplicationService.UpdateResource(ctx, requestResourceBean)
 	if err != nil {
 		impl.logger.Errorw("error in updating node manifest", "err", err)
 		return nil, err
@@ -589,14 +593,14 @@ func (impl *K8sCapacityServiceImpl) UpdateNodeManifest(ctx context.Context, requ
 }
 
 func (impl *K8sCapacityServiceImpl) DeleteNode(ctx context.Context, request *NodeUpdateRequestDto) (*application.ManifestResponse, error) {
-	//getting rest config by clusterId
-	restConfig, err := impl.k8sClientService.GetRestConfigByClusterId(ctx, request.ClusterId)
-	if err != nil {
-		impl.logger.Errorw("error in getting rest config by cluster id", "err", err, "clusterId", request.ClusterId)
-		return nil, err
-	}
-	deleteReq := &application.K8sRequestBean{
-		ResourceIdentifier: application.ResourceIdentifier{
+	////getting rest config by clusterId
+	//restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(ctx, request.ClusterId)
+	//if err != nil {
+	//	impl.logger.Errorw("error in getting rest config by cluster id", "err", err, "clusterId", request.ClusterId)
+	//	return nil, err
+	//}
+	deleteReq := &util.K8sRequestBean{
+		ResourceIdentifier: util.ResourceIdentifier{
 			Name: request.Name,
 			GroupVersionKind: schema.GroupVersionKind{
 				Group:   "",
@@ -605,7 +609,9 @@ func (impl *K8sCapacityServiceImpl) DeleteNode(ctx context.Context, request *Nod
 			},
 		},
 	}
-	manifestResponse, err := impl.k8sClientService.DeleteResource(ctx, restConfig, deleteReq)
+	resourceRequest := &ResourceRequestBean{K8sRequest: deleteReq, ClusterId: request.ClusterId}
+	// Here Sending userId as 0 as it appIdentifier is being sent nil so user id is not used in method. Update userid if appIdentifier is used
+	manifestResponse, err := impl.k8sApplicationService.DeleteResource(ctx, resourceRequest, 0)
 	if err != nil {
 		impl.logger.Errorw("error in deleting node", "err", err)
 		return nil, err

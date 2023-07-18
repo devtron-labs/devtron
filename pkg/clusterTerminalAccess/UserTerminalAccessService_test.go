@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"github.com/devtron-labs/devtron/client/k8s/application"
-	mocks4 "github.com/devtron-labs/devtron/client/k8s/application/mocks"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/mocks"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -173,9 +172,8 @@ func loadUserTerminalAccessService(t *testing.T) (*mocks.TerminalAccessRepositor
 	terminalAccessRepository := mocks.NewTerminalAccessRepository(t)
 	terminalSessionHandler := mocks2.NewTerminalSessionHandler(t)
 	k8sApplicationService := mocks3.NewK8sApplicationService(t)
-	k8sClientService := mocks4.NewK8sClientService(t)
 	terminalAccessRepository.On("GetAllRunningUserTerminalData").Return(nil, nil)
-	terminalAccessServiceImpl, err := NewUserTerminalAccessServiceImpl(logger, terminalAccessRepository, userTerminalSessionConfig, k8sApplicationService, k8sClientService, terminalSessionHandler, nil)
+	terminalAccessServiceImpl, err := NewUserTerminalAccessServiceImpl(logger, terminalAccessRepository, userTerminalSessionConfig, nil, terminalSessionHandler, nil, nil)
 	assert.Nil(t, err)
 	return terminalAccessRepository, terminalSessionHandler, k8sApplicationService, terminalAccessServiceImpl
 }

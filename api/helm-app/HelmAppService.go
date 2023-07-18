@@ -15,7 +15,6 @@ import (
 	"github.com/devtron-labs/devtron/api/connector"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
-	"github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -120,11 +119,6 @@ func GetHelmReleaseConfig() (*HelmReleaseConfig, error) {
 	cfg := &HelmReleaseConfig{}
 	err := env.Parse(cfg)
 	return cfg, err
-}
-
-type ResourceRequestBean struct {
-	AppId      string                     `json:"appId"`
-	K8sRequest application.K8sRequestBean `json:"k8sRequest"`
 }
 
 func (impl *HelmAppServiceImpl) listApplications(ctx context.Context, clusterIds []int) (ApplicationService_ListApplicationsClient, error) {

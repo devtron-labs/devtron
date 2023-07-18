@@ -3,7 +3,7 @@ package kubernetesResourceAuditLogs
 import (
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	client "github.com/devtron-labs/devtron/api/helm-app"
-	application2 "github.com/devtron-labs/devtron/client/k8s/application"
+	"github.com/devtron-labs/devtron/client/k8s/application/util"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
@@ -20,7 +20,7 @@ const (
 
 type K8sResourceHistoryService interface {
 	SaveArgoCdAppsResourceDeleteHistory(query *application.ApplicationResourceDeleteRequest, appId int, envId int, userId int32) error
-	SaveHelmAppsResourceHistory(appIdentifier *client.AppIdentifier, k8sRequestBean *application2.K8sRequestBean, userId int32, actionType string) error
+	SaveHelmAppsResourceHistory(appIdentifier *client.AppIdentifier, k8sRequestBean *util.K8sRequestBean, userId int32, actionType string) error
 }
 
 type K8sResourceHistoryServiceImpl struct {
@@ -69,7 +69,7 @@ func (impl K8sResourceHistoryServiceImpl) SaveArgoCdAppsResourceDeleteHistory(qu
 
 }
 
-func (impl K8sResourceHistoryServiceImpl) SaveHelmAppsResourceHistory(appIdentifier *client.AppIdentifier, k8sRequestBean *application2.K8sRequestBean, userId int32, actionType string) error {
+func (impl K8sResourceHistoryServiceImpl) SaveHelmAppsResourceHistory(appIdentifier *client.AppIdentifier, k8sRequestBean *util.K8sRequestBean, userId int32, actionType string) error {
 
 	app, err := impl.appRepository.FindActiveByName(appIdentifier.ReleaseName)
 
