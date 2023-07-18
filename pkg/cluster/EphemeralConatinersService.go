@@ -71,7 +71,7 @@ func (impl *EphemeralContainerServiceImpl) AuditEphemeralContainerAction(model E
 	defer func() {
 		err = impl.repository.RollbackTx(tx)
 		if err != nil {
-			impl.logger.Infow("error in rolling back transaction", "err", err, "model", model)
+			impl.logger.Infow("error in rolling back transaction", "err", err, "ClusterId", model.ClusterId, "Namespace", model.Namespace, "PodName", model.PodName, "ContainerName", model.BasicData.ContainerName)
 		}
 	}()
 
@@ -112,6 +112,6 @@ func (impl *EphemeralContainerServiceImpl) AuditEphemeralContainerAction(model E
 		impl.logger.Errorw("error in committing transaction", "err", err, "req", model)
 		return err
 	}
-
+	impl.logger.Errorw("transaction committed successfully")
 	return nil
 }
