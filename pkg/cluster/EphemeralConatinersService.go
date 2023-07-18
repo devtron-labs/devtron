@@ -93,14 +93,17 @@ func (impl *EphemeralContainerServiceImpl) AuditEphemeralContainerAction(model E
 
 	var auditLogBean repository.EphemeralContainerAction
 	if container == nil {
-
-		err := impl.getEphemeralContainerManifest(&model)
-		if err != nil {
-			if (actionType == repository.ActionAccessed) && strings.Contains(err.Error(), ephemeralContainerNotFoundError) {
-				impl.logger.Errorw("skipping auditing as terminal access requested for non ephemeral container", "error", err)
-				return nil
+		if actionType != repository.ActionCreate {
+			// ActionCreate is happening through devtron, the model will contain all the required fields by the caller
+			// for other actions,if we didn't find the container in db, we should get the ephemeralContainer data from pod manifest
+			err = impl.getEphemeralContainerDataFromManifest(&model)
+			if err != nil {
+				if (actionType == repository.ActionAccessed) && strings.Contains(err.Error(), ephemeralContainerNotFoundError) {
+					impl.logger.Errorw("skipping auditing as terminal access requested for non ephemeral container", "error", err)
+					return nil
+				}
+				return err
 			}
-			return err
 		}
 
 		bean := model.getContainerBean()
@@ -137,7 +140,7 @@ func (impl *EphemeralContainerServiceImpl) AuditEphemeralContainerAction(model E
 	return nil
 }
 
-func (impl *EphemeralContainerServiceImpl) getEphemeralContainerManifest(req *EphemeralContainerRequest) error {
+func (impl *EphemeralContainerServiceImpl) getEphemeralContainerDataFromManifest(req *EphemeralContainerRequest) error {
 	clusterBean, err := impl.clusterService.FindById(req.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error occurred in finding clusterBean by Id", "clusterId", req.ClusterId, "err", err)

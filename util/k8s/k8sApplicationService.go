@@ -1231,7 +1231,7 @@ func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req *cluster
 		}
 		err = impl.ephemeralContainerService.AuditEphemeralContainerAction(*req, repository.ActionCreate)
 		if err != nil {
-			impl.logger.Errorw("error in saving ephemeral container data", "err", err)
+			impl.logger.Errorw("error in saving ephemeral container data", "err", err, "action", "create")
 			return err
 		}
 		return nil
@@ -1298,10 +1298,10 @@ func (impl *K8sApplicationServiceImpl) TerminatePodEphemeralContainer(req cluste
 	}
 
 	if err == nil {
-
+		req.AdvancedData = nil
 		err = impl.ephemeralContainerService.AuditEphemeralContainerAction(req, repository.ActionTerminate)
 		if err != nil {
-			impl.logger.Errorw("error in saving ephemeral container data", "err", err)
+			impl.logger.Errorw("error in saving ephemeral container audit data", "err", err, "action", "terminate")
 			return true, err
 		}
 

@@ -547,7 +547,7 @@ func (impl *TerminalSessionHandlerImpl) saveEphemeralContainerTerminalAccessAudi
 	}
 	err := impl.ephemeralContainerService.AuditEphemeralContainerAction(ephemeralReq, repository.ActionAccessed)
 	if err != nil {
-		impl.logger.Errorw("error occurred while requesting ephemeral container terminal access audit", "err", err, "clusterId", req.ClusterId, "namespace", req.Namespace, "podName", req.PodName)
+		impl.logger.Errorw("error occurred while requesting ephemeral container terminal access audit", "err", err, "action", "terminalAccess", "clusterId", req.ClusterId, "namespace", req.Namespace, "podName", req.PodName)
 	}
 	return err
 }
