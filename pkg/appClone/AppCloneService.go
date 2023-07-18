@@ -917,36 +917,36 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 		deploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
 	} else if AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_HELM] {
 		deploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
+	}
 
-		if refCdPipeline.ParentPipelineType == "WEBHOOK" {
-			cdPipeline := &bean.CDPipelineConfigObject{
-				Id:                            0,
-				EnvironmentId:                 refCdPipeline.EnvironmentId,
-				CiPipelineId:                  0,
-				TriggerType:                   refCdPipeline.TriggerType,
-				Name:                          pipelineName,
-				Strategies:                    refCdPipeline.Strategies,
-				Namespace:                     refCdPipeline.Namespace,
-				AppWorkflowId:                 0,
-				DeploymentTemplate:            refCdPipeline.DeploymentTemplate,
-				PreStage:                      refCdPipeline.PreStage, //FIXME
-				PostStage:                     refCdPipeline.PostStage,
-				PreStageConfigMapSecretNames:  refCdPipeline.PreStageConfigMapSecretNames,
-				PostStageConfigMapSecretNames: refCdPipeline.PostStageConfigMapSecretNames,
-				RunPostStageInEnv:             refCdPipeline.RunPostStageInEnv,
-				RunPreStageInEnv:              refCdPipeline.RunPreStageInEnv,
-				DeploymentAppType:             refCdPipeline.DeploymentAppType,
-				ParentPipelineId:              0,
-				ParentPipelineType:            refCdPipeline.ParentPipelineType,
-			}
-			cdPipelineReq := &bean.CdPipelines{
-				Pipelines: []*bean.CDPipelineConfigObject{cdPipeline},
-				AppId:     req.appId,
-				UserId:    req.userId,
-			}
-			cdPipelineRes, err := impl.pipelineBuilder.CreateCdPipelines(cdPipelineReq, ctx)
-			return cdPipelineRes, err
+	if refCdPipeline.ParentPipelineType == "WEBHOOK" {
+		cdPipeline := &bean.CDPipelineConfigObject{
+			Id:                            0,
+			EnvironmentId:                 refCdPipeline.EnvironmentId,
+			CiPipelineId:                  0,
+			TriggerType:                   refCdPipeline.TriggerType,
+			Name:                          pipelineName,
+			Strategies:                    refCdPipeline.Strategies,
+			Namespace:                     refCdPipeline.Namespace,
+			AppWorkflowId:                 0,
+			DeploymentTemplate:            refCdPipeline.DeploymentTemplate,
+			PreStage:                      refCdPipeline.PreStage, //FIXME
+			PostStage:                     refCdPipeline.PostStage,
+			PreStageConfigMapSecretNames:  refCdPipeline.PreStageConfigMapSecretNames,
+			PostStageConfigMapSecretNames: refCdPipeline.PostStageConfigMapSecretNames,
+			RunPostStageInEnv:             refCdPipeline.RunPostStageInEnv,
+			RunPreStageInEnv:              refCdPipeline.RunPreStageInEnv,
+			DeploymentAppType:             refCdPipeline.DeploymentAppType,
+			ParentPipelineId:              0,
+			ParentPipelineType:            refCdPipeline.ParentPipelineType,
 		}
+		cdPipelineReq := &bean.CdPipelines{
+			Pipelines: []*bean.CDPipelineConfigObject{cdPipeline},
+			AppId:     req.appId,
+			UserId:    req.userId,
+		}
+		cdPipelineRes, err := impl.pipelineBuilder.CreateCdPipelines(cdPipelineReq, ctx)
+		return cdPipelineRes, err
 	}
 	cdPipeline := &bean.CDPipelineConfigObject{
 		Id:                            0,
