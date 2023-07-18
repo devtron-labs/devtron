@@ -176,6 +176,17 @@ servicemonitor:
   additionalLabels: {}
 
 
+StartupProbe:
+  Path: ""
+  port: 8080
+  initialDelaySeconds: 20
+  periodSeconds: 10
+  successThreshold: 1
+  timeoutSeconds: 5
+  failureThreshold: 3
+  httpHeaders: []
+  command: []
+  tcp: false
 prometheusRule:
   enabled: false
   additionalLabels: {}
@@ -311,6 +322,21 @@ command:
 args:
  enabled: false
  value: []
+
+
+ 
+networkPolicy:
+  enabled: false
+  annotations: {}
+  labels: {}
+  podSelector:
+    matchExpressions: []
+    matchLabels: {}
+  policyTypes: []
+  ingress: []
+  egress: []
+hibernator:
+  enable: false
 
 resources: {}
   # We usually recommend not to specify default resources and to leave this as a conscious
