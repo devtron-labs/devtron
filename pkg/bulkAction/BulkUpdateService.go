@@ -1155,8 +1155,8 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 	var pipelines []*pipelineConfig.Pipeline
 	var err error
 
-	if len(request.AppNames) > 0 {
-		r, err := impl.appRepository.FindIdsByNames(request.AppNames)
+	if len(request.AppNamesIncludes) > 0 {
+		r, err := impl.appRepository.FindIdsByNames(request.AppNamesIncludes)
 		if err != nil {
 			impl.logger.Errorw("error in fetching Ids", "err", err)
 			return nil, err
@@ -1165,11 +1165,30 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 			request.AppIdIncludes = append(request.AppIdIncludes, id)
 		}
 	}
-	r, err := impl.environmentRepository.FindByName(request.EnvName)
-	if request.EnvId != r.Id && request.EnvId != 0 {
-		return nil, errors.New("select only one environment")
-	} else if request.EnvId == 0 {
-		request.EnvId = r.Id
+	if len(request.AppNamesExcludes) > 0 {
+		r, err := impl.appRepository.FindIdsByNames(request.AppNamesExcludes)
+		if err != nil {
+			impl.logger.Errorw("error in fetching Ids", "err", err)
+			return nil, err
+		}
+		for _, id := range r {
+			request.AppIdExcludes = append(request.AppIdExcludes, id)
+		}
+	}
+	if len(request.EnvName) > 0 {
+		r, err := impl.environmentRepository.FindByName(request.EnvName)
+		if err != nil {
+			impl.logger.Errorw("error in fetching env details", "err", err)
+			return nil, err
+		}
+		if request.EnvId != 0 && request.EnvId != r.Id {
+			return nil, errors.New("environment id and environment name is different select only one environment")
+		} else if request.EnvId == 0 {
+			request.EnvId = r.Id
+		}
+	}
+	if len(request.EnvName) == 0 && request.EnvId == 0 {
+		return nil, errors.New("please mention environment id or environment name")
 	}
 	if len(request.AppIdIncludes) > 0 {
 		pipelines, err = impl.pipelineRepository.FindActiveByInFilter(request.EnvId, request.AppIdIncludes)
