@@ -37,7 +37,6 @@ var cdPipelineConfigObjectWithPreAndPostStage = &bean.CDPipelineConfigObject{
 }
 
 func TestStageServiceUtil_CreatePreAndPostStageResponse(t *testing.T) {
-	t.SkipNow()
 	type args struct {
 		cdPipelineConfigObject *bean.CDPipelineConfigObject
 		version                string

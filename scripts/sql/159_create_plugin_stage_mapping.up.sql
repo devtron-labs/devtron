@@ -14,8 +14,6 @@ CREATE TABLE  "public"."plugin_stage_mapping"
     PRIMARY KEY ("id")
 );
 
-INSERT INTO "public"."plugin_stage_mapping" ("plugin_id", "created_on","created_by","updated_on","updated_by")
-SELECT "id", "created_on","created_by","updated_on","updated_by"
+INSERT INTO "public"."plugin_stage_mapping" ("plugin_id", "stage_type","created_on","created_by","updated_on","updated_by")
+SELECT "id",0, "created_on","created_by","updated_on","updated_by"
 FROM "public"."plugin_metadata";
-
-UPDATE "public"."plugin_stage_mapping" set "stage_type" = 0;

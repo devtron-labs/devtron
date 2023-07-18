@@ -604,6 +604,7 @@ func (impl *PipelineStageServiceImpl) CreatePipelineStage(stageReq *bean.Pipelin
 	}
 	err = tx.Commit()
 	if err != nil {
+		impl.logger.Errorw("error in tx commit", "err", err)
 		return err
 	}
 	return nil

@@ -275,18 +275,15 @@ func (impl *PipelineStageRepositoryImpl) GetCdStageByCdPipelineIdAndStageType(cd
 }
 
 func (impl *PipelineStageRepositoryImpl) CreatePipelineStage(pipelineStage *PipelineStage, tx *pg.Tx) (*PipelineStage, error) {
+	var err error
 	if tx != nil {
-		err := tx.Insert(pipelineStage)
-		if err != nil {
-			impl.logger.Errorw("err at CreatePipelineStage in inserting pipelineStage", err, "pipelineStage", pipelineStage)
-			return nil, err
-		}
+		err = tx.Insert(pipelineStage)
 	} else {
-		err := impl.dbConnection.Insert(pipelineStage)
-		if err != nil {
-			impl.logger.Errorw("error in creating pre stage entry", "err", err, "pipelineStage", pipelineStage)
-			return nil, err
-		}
+		err = impl.dbConnection.Insert(pipelineStage)
+	}
+	if err != nil {
+		impl.logger.Errorw("err at CreatePipelineStage in inserting pipelineStage", err, "pipelineStage", pipelineStage)
+		return nil, err
 	}
 
 	return pipelineStage, nil
@@ -324,18 +321,15 @@ func (impl *PipelineStageRepositoryImpl) GetStepIdsByStageId(stageId int) ([]int
 }
 
 func (impl *PipelineStageRepositoryImpl) CreatePipelineStageStep(step *PipelineStageStep, tx *pg.Tx) (*PipelineStageStep, error) {
+	var err error
 	if tx != nil {
-		err := tx.Insert(step)
-		if err != nil {
-			impl.logger.Errorw("err at CreatePipelineStage in inserting pipelineStage", err)
-			return nil, err
-		}
+		err = tx.Insert(step)
 	} else {
-		err := impl.dbConnection.Insert(step)
-		if err != nil {
-			impl.logger.Errorw("error in creating pipeline stage step", "err", err, "step", step)
-			return nil, err
-		}
+		err = impl.dbConnection.Insert(step)
+	}
+	if err != nil {
+		impl.logger.Errorw("error in creating pipeline stage step", "err", err, "step", step)
+		return nil, err
 	}
 
 	return step, nil
@@ -410,18 +404,15 @@ func (impl *PipelineStageRepositoryImpl) MarkStepsDeletedExcludingActiveStepsInU
 }
 
 func (impl *PipelineStageRepositoryImpl) CreatePipelineScript(pipelineScript *PluginPipelineScript, tx *pg.Tx) (*PluginPipelineScript, error) {
+	var err error
 	if tx != nil {
-		err := tx.Insert(pipelineScript)
-		if err != nil {
-			impl.logger.Errorw("err at CreatePipelineScript in inserting pipelineScript", err, "pipelineScript", pipelineScript)
-			return nil, err
-		}
+		err = tx.Insert(pipelineScript)
 	} else {
-		err := impl.dbConnection.Insert(pipelineScript)
-		if err != nil {
-			impl.logger.Errorw("error in creating pipeline script", "err", err, "scriptEntry", pipelineScript)
-			return nil, err
-		}
+		err = impl.dbConnection.Insert(pipelineScript)
+	}
+	if err != nil {
+		impl.logger.Errorw("err at CreatePipelineScript in inserting pipelineScript", err, "pipelineScript", pipelineScript)
+		return nil, err
 	}
 
 	return pipelineScript, nil
@@ -498,18 +489,15 @@ func (impl *PipelineStageRepositoryImpl) MarkScriptMappingDeletedByScriptId(scri
 }
 
 func (impl *PipelineStageRepositoryImpl) CreateScriptMapping(mappings []ScriptPathArgPortMapping, tx *pg.Tx) error {
+	var err error
 	if tx != nil {
-		err := tx.Insert(&mappings)
-		if err != nil {
-			impl.logger.Errorw("err at CreateScriptMapping in inserting scriptPathArgPortMapping", err)
-			return err
-		}
+		err = tx.Insert(&mappings)
 	} else {
-		err := impl.dbConnection.Insert(&mappings)
-		if err != nil {
-			impl.logger.Errorw("error in creating pipeline script mappings", "err", err, "mappings", mappings)
-			return err
-		}
+		err = impl.dbConnection.Insert(&mappings)
+	}
+	if err != nil {
+		impl.logger.Errorw("error in creating pipeline script mappings", "err", err, "mappings", mappings)
+		return err
 	}
 	return nil
 }
@@ -591,18 +579,15 @@ func (impl *PipelineStageRepositoryImpl) CheckIfPortMappingExists(portOnLocal in
 }
 
 func (impl *PipelineStageRepositoryImpl) CreatePipelineStageStepVariables(variables []PipelineStageStepVariable, tx *pg.Tx) ([]PipelineStageStepVariable, error) {
+	var err error
 	if tx != nil {
-		err := tx.Insert(&variables)
-		if err != nil {
-			impl.logger.Errorw("error in creating pipeline stage step variables with transaction", "err", err, "variables", variables)
-			return variables, err
-		}
+		err = tx.Insert(&variables)
 	} else {
-		err := impl.dbConnection.Insert(&variables)
-		if err != nil {
-			impl.logger.Errorw("error in creating pipeline stage step variables", "err", err, "variables", variables)
-			return variables, err
-		}
+		err = impl.dbConnection.Insert(&variables)
+	}
+	if err != nil {
+		impl.logger.Errorw("error in creating pipeline stage step variables", "err", err, "variables", variables)
+		return variables, err
 	}
 	return variables, nil
 }
@@ -692,18 +677,15 @@ func (impl *PipelineStageRepositoryImpl) MarkVariablesDeletedExcludingActiveVari
 }
 
 func (impl *PipelineStageRepositoryImpl) CreatePipelineStageStepConditions(conditions []PipelineStageStepCondition, tx *pg.Tx) ([]PipelineStageStepCondition, error) {
+	var err error
 	if tx != nil {
-		err := tx.Insert(&conditions)
-		if err != nil {
-			impl.logger.Errorw("error in creating pipeline stage step conditions with transaction", "err", err, "conditions", conditions)
-			return conditions, err
-		}
+		err = tx.Insert(&conditions)
 	} else {
-		err := impl.dbConnection.Insert(&conditions)
-		if err != nil {
-			impl.logger.Errorw("error in creating pipeline stage step conditions", "err", err, "conditions", conditions)
-			return conditions, err
-		}
+		err = impl.dbConnection.Insert(&conditions)
+	}
+	if err != nil {
+		impl.logger.Errorw("error in creating pipeline stage step conditions", "err", err, "conditions", conditions)
+		return conditions, err
 	}
 
 	return conditions, nil
