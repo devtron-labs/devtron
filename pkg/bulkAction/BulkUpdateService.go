@@ -1154,6 +1154,7 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironmentPayload, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) (*BulkApplicationForEnvironmentResponse, error) {
 	var pipelines []*pipelineConfig.Pipeline
 	var err error
+
 	if len(request.AppNames) > 0 {
 		r, err := impl.appRepository.FindIdsByNames(request.AppNames)
 		if err != nil {
@@ -1170,7 +1171,6 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 	} else if request.EnvId == 0 {
 		request.EnvId = r.Id
 	}
-
 	if len(request.AppIdIncludes) > 0 {
 		pipelines, err = impl.pipelineRepository.FindActiveByInFilter(request.EnvId, request.AppIdIncludes)
 	} else if len(request.AppIdExcludes) > 0 {
