@@ -651,20 +651,22 @@ func (impl *WorkflowDagExecutorImpl) getDeployStageDetails(pipelineId int) (pipe
 	return deployStageWfr, deployStageTriggeredByUser, pipelineReleaseCounter, nil
 }
 
-func isExtraVariableDynamic(variableName string) bool {
+func isExtraVariableDynamic(variableName string, webhookAndCiData *gitSensorClient.WebhookAndCiData) bool {
 	if strings.Contains(variableName, GIT_COMMIT_HASH_PREFIX) || strings.Contains(variableName, GIT_SOURCE_TYPE_PREFIX) || strings.Contains(variableName, GIT_SOURCE_VALUE_PREFIX) ||
 		strings.Contains(variableName, APP_LABEL_VALUE_PREFIX) || strings.Contains(variableName, APP_LABEL_KEY_PREFIX) ||
 		strings.Contains(variableName, CHILD_CD_ENV_NAME_PREFIX) || strings.Contains(variableName, CHILD_CD_CLUSTER_NAME_PREFIX) ||
-		strings.Contains(variableName, CHILD_CD_COUNT) || strings.Contains(variableName, APP_LABEL_COUNT) || strings.Contains(variableName, GIT_SOURCE_COUNT) {
+		strings.Contains(variableName, CHILD_CD_COUNT) || strings.Contains(variableName, APP_LABEL_COUNT) || strings.Contains(variableName, GIT_SOURCE_COUNT) ||
+		webhookAndCiData != nil {
+
 		return true
 	}
 	return false
 }
 
-func setExtraEnvVariableInDeployStep(deploySteps []*bean3.StepObject, extraEnvVariables map[string]string) {
+func setExtraEnvVariableInDeployStep(deploySteps []*bean3.StepObject, extraEnvVariables map[string]string, webhookAndCiData *gitSensorClient.WebhookAndCiData) {
 	for _, deployStep := range deploySteps {
 		for variableKey, variableValue := range extraEnvVariables {
-			if isExtraVariableDynamic(variableKey) && deployStep.StepType == "INLINE" {
+			if isExtraVariableDynamic(variableKey, webhookAndCiData) && deployStep.StepType == "INLINE" {
 				extraInputVar := &bean3.VariableObject{
 					Name:                  variableKey,
 					Format:                "STRING",
@@ -868,7 +870,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		impl.logger.Errorw("error in getting ciWf by artifactId", "err", err, "artifactId", artifact.Id)
 		return nil, err
 	}
-
+	var webhookAndCiData *gitSensorClient.WebhookAndCiData
 	if ciWf != nil && ciWf.GitTriggers != nil {
 		i := 1
 		var gitCommitEnvVariables []GitMetadata
@@ -892,7 +894,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 						Id:                   webhookDataId,
 						CiPipelineMaterialId: ciPipelineMaterialId,
 					}
-					webhookAndCiData, err := impl.gitSensorGrpcClient.GetWebhookData(context.Background(), webhookDataRequest)
+					webhookAndCiData, err = impl.gitSensorGrpcClient.GetWebhookData(context.Background(), webhookDataRequest)
 					if err != nil {
 						impl.logger.Errorw("err while getting webhook data from git-sensor", "err", err, "webhookDataRequest", webhookDataRequest)
 						return nil, err
@@ -1013,10 +1015,10 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 
 	if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
 		//populate input variables of steps with extra env variables
-		setExtraEnvVariableInDeployStep(preDeploySteps, extraEnvVariables)
+		setExtraEnvVariableInDeployStep(preDeploySteps, extraEnvVariables, webhookAndCiData)
 		cdStageWorkflowRequest.PrePostDeploySteps = preDeploySteps
 	} else if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
-		setExtraEnvVariableInDeployStep(postDeploySteps, extraEnvVariables)
+		setExtraEnvVariableInDeployStep(postDeploySteps, extraEnvVariables, webhookAndCiData)
 		cdStageWorkflowRequest.PrePostDeploySteps = postDeploySteps
 	}
 	cdStageWorkflowRequest.BlobStorageConfigured = runner.BlobStorageEnabled
