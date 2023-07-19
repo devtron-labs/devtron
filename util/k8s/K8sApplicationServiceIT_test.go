@@ -25,7 +25,7 @@ const testClusterId = 1
 const testNamespace = "default"
 const testPodName = "nginx-test"
 const testContainer = "nginx"
-const testImage = "nginx"
+const testImage = "alpine:latest"
 const testImage2 = "quay.io/devtron/ubuntu-k8s-utils:latest"
 const testPodJs = `{"apiVersion": "v1","kind": "Pod","metadata": {"name": "%s"},"spec": {"containers": [{"name": "nginx","image": "nginx","imagePullPolicy": "IfNotPresent"}]}}`
 const testAdvancedManifest = `{"name":"%s","command":["sh"],"image":"%s","targetContainerName":"nginx","tty":true,"stdin":true}`
@@ -303,7 +303,7 @@ func initK8sApplicationService(t *testing.T) *K8sApplicationServiceImpl {
 	clusterServiceImpl := cluster.NewClusterServiceImpl(clusterRepositoryImpl, sugaredLogger, nil, k8sInformerFactoryImpl, nil, nil, nil)
 	ephemeralContainerService := cluster.NewEphemeralContainerServiceImpl(ephemeralContainerRepository, sugaredLogger)
 	terminalSessionHandlerImpl := terminal.NewTerminalSessionHandlerImpl(nil, clusterServiceImpl, sugaredLogger, k8sUtil, ephemeralContainerService)
-	k8sApplicationService := NewK8sApplicationServiceImpl(sugaredLogger, clusterServiceImpl, nil, k8sClientServiceImpl, nil, k8sUtil, nil, nil, terminalSessionHandlerImpl, ephemeralContainerService)
+	k8sApplicationService := NewK8sApplicationServiceImpl(sugaredLogger, clusterServiceImpl, nil, k8sClientServiceImpl, nil, k8sUtil, nil, nil, terminalSessionHandlerImpl, ephemeralContainerService, ephemeralContainerRepository)
 	return k8sApplicationService
 }
 

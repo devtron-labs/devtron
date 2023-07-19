@@ -78,6 +78,7 @@ type K8sApplicationService interface {
 	CreatePodEphemeralContainers(req *cluster.EphemeralContainerRequest) error
 	TerminatePodEphemeralContainer(req cluster.EphemeralContainerRequest) (bool, error)
 	GetK8sServerVersion(clusterId int) (*version.Info, error)
+	GetPodContainersList(clusterId int, namespace, podName string) (*PodContainerList, error)
 }
 type K8sApplicationServiceImpl struct {
 	logger                       *zap.SugaredLogger
@@ -105,24 +106,26 @@ func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger,
 	helmAppService client.HelmAppService, K8sUtil *util.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig,
 	K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService,
 	terminalSession terminal.TerminalSessionHandler,
-	ephemeralContainerService cluster.EphemeralContainerService) *K8sApplicationServiceImpl {
+	ephemeralContainerService cluster.EphemeralContainerService,
+	ephemeralContainerRepository repository.EphemeralContainersRepository) *K8sApplicationServiceImpl {
 	cfg := &K8sApplicationServiceConfig{}
 	err := env.Parse(cfg)
 	if err != nil {
 		Logger.Infow("error occurred while parsing K8sApplicationServiceConfig,so setting batchSize and timeOutInSeconds to default value", "err", err)
 	}
 	return &K8sApplicationServiceImpl{
-		logger:                      Logger,
-		clusterService:              clusterService,
-		pump:                        pump,
-		k8sClientService:            k8sClientService,
-		helmAppService:              helmAppService,
-		K8sUtil:                     K8sUtil,
-		aCDAuthConfig:               aCDAuthConfig,
-		K8sApplicationServiceConfig: cfg,
-		K8sResourceHistoryService:   K8sResourceHistoryService,
-		terminalSession:             terminalSession,
-		ephemeralContainerService:   ephemeralContainerService,
+		logger:                       Logger,
+		clusterService:               clusterService,
+		pump:                         pump,
+		k8sClientService:             k8sClientService,
+		helmAppService:               helmAppService,
+		K8sUtil:                      K8sUtil,
+		aCDAuthConfig:                aCDAuthConfig,
+		K8sApplicationServiceConfig:  cfg,
+		K8sResourceHistoryService:    K8sResourceHistoryService,
+		terminalSession:              terminalSession,
+		ephemeralContainerService:    ephemeralContainerService,
+		ephemeralContainerRepository: ephemeralContainerRepository,
 	}
 }
 
@@ -1353,4 +1356,48 @@ func (impl *K8sApplicationServiceImpl) GetK8sServerVersion(clusterId int) (*vers
 		return nil, err
 	}
 	return k8sVersion, err
+}
+
+func (impl *K8sApplicationServiceImpl) GetPodContainersList(clusterId int, namespace, podName string) (*PodContainerList, error) {
+	_, v1Client, err := impl.getCoreClientByClusterId(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting coreV1 client by clusterId", "clusterId", clusterId, "err", err)
+		return nil, err
+	}
+	pod, err := impl.K8sUtil.GetPodByName(namespace, podName, v1Client)
+	if err != nil {
+		impl.logger.Errorw("error in getting pod", "clusterId", clusterId, "namespace", namespace, "podName", podName, "err", err)
+		return nil, err
+	}
+	ephemeralContainerStatusMap := make(map[string]bool)
+	for _, c := range pod.Status.EphemeralContainerStatuses {
+		//c.state contains three states running,waiting and terminated
+		// at any point of time only one state will be there
+		if c.State.Running != nil {
+			ephemeralContainerStatusMap[c.Name] = true
+		}
+	}
+	containers := make([]string, len(pod.Spec.Containers))
+	initContainers := make([]string, len(pod.Spec.InitContainers))
+	ephemeralContainers := make([]string, 0, len(pod.Spec.EphemeralContainers))
+
+	for i, c := range pod.Spec.Containers {
+		containers[i] = c.Name
+	}
+
+	for _, ec := range pod.Spec.EphemeralContainers {
+		if _, ok := ephemeralContainerStatusMap[ec.Name]; ok {
+			ephemeralContainers = append(ephemeralContainers, ec.Name)
+		}
+	}
+
+	for i, ic := range pod.Spec.InitContainers {
+		initContainers[i] = ic.Name
+	}
+
+	return &PodContainerList{
+		Containers:          containers,
+		EphemeralContainers: ephemeralContainers,
+		InitContainers:      initContainers,
+	}, nil
 }

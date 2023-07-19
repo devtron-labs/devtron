@@ -245,6 +245,29 @@ func (_m *K8sApplicationService) GetManifestsByBatch(ctx context.Context, reques
 	return r0, r1
 }
 
+// GetPodContainersList provides a mock function with given fields: clusterId, namespace, podName
+func (_m *K8sApplicationService) GetPodContainersList(clusterId int, namespace string, podName string) (*k8s.PodContainerList, error) {
+	ret := _m.Called(clusterId, namespace, podName)
+
+	var r0 *k8s.PodContainerList
+	if rf, ok := ret.Get(0).(func(int, string, string) *k8s.PodContainerList); ok {
+		r0 = rf(clusterId, namespace, podName)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*k8s.PodContainerList)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(int, string, string) error); ok {
+		r1 = rf(clusterId, namespace, podName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetPodLogs provides a mock function with given fields: ctx, request
 func (_m *K8sApplicationService) GetPodLogs(ctx context.Context, request *k8s.ResourceRequestBean) (io.ReadCloser, error) {
 	ret := _m.Called(ctx, request)
