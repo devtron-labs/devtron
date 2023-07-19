@@ -1256,6 +1256,9 @@ func (impl *K8sApplicationServiceImpl) generateDebugContainer(pod *corev1.Pod, r
 		if ephemeralContainer.TargetContainerName == "" || ephemeralContainer.Name == "" || ephemeralContainer.Image == "" {
 			return copied, ephemeralContainer, errors.New("containerName,targetContainerName and image cannot be empty")
 		}
+		if len(ephemeralContainer.Command) > 0 {
+			return copied, ephemeralContainer, errors.New("Command field is not supported, please remove command and try again")
+		}
 	} else {
 		ephemeralContainer = &corev1.EphemeralContainer{
 			EphemeralContainerCommon: corev1.EphemeralContainerCommon{
