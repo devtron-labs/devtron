@@ -28,6 +28,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"strconv"
 	"strings"
 	"time"
@@ -68,6 +69,7 @@ type CdWorkflowServiceImpl struct {
 	envRepository        repository.EnvironmentRepository
 	globalCMCSService    GlobalCMCSService
 	argoWorkflowExecutor ArgoWorkflowExecutor
+	k8sUtil              *k8s.K8sUtil
 }
 
 type CdWorkflowRequest struct {
@@ -123,19 +125,16 @@ type CdWorkflowRequest struct {
 const PRE = "PRE"
 const POST = "POST"
 
-func NewCdWorkflowServiceImpl(Logger *zap.SugaredLogger,
-	envRepository repository.EnvironmentRepository,
-	cdConfig *CdConfig,
-	appService app.AppService,
-	globalCMCSService GlobalCMCSService,
-	argoWorkflowExecutor ArgoWorkflowExecutor) *CdWorkflowServiceImpl {
+func NewCdWorkflowServiceImpl(Logger *zap.SugaredLogger, envRepository repository.EnvironmentRepository, cdConfig *CdConfig, appService app.AppService, globalCMCSService GlobalCMCSService, argoWorkflowExecutor ArgoWorkflowExecutor, k8sUtil *k8s.K8sUtil) *CdWorkflowServiceImpl {
 	return &CdWorkflowServiceImpl{Logger: Logger,
 		config:               cdConfig.ClusterConfig,
 		cdConfig:             cdConfig,
 		appService:           appService,
 		envRepository:        envRepository,
 		globalCMCSService:    globalCMCSService,
-		argoWorkflowExecutor: argoWorkflowExecutor}
+		argoWorkflowExecutor: argoWorkflowExecutor,
+		k8sUtil:              k8sUtil,
+	}
 }
 
 func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowRequest, pipeline *pipelineConfig.Pipeline, env *repository.Environment) error {
@@ -273,7 +272,20 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	workflowTemplate.ActiveDeadlineSeconds = &workflowRequest.ActiveDeadlineSeconds
 	workflowTemplate.Namespace = workflowRequest.Namespace
 	if workflowRequest.IsExtRun {
-		workflowTemplate.ClusterConfig = env.Cluster.GetClusterConfig()
+		configMap := env.Cluster.Config
+		bearerToken := configMap[k8s.BearerToken]
+		clusterConfig := &k8s.ClusterConfig{
+			ClusterName:           env.Cluster.ClusterName,
+			BearerToken:           bearerToken,
+			Host:                  env.Cluster.ServerUrl,
+			InsecureSkipTLSVerify: true,
+		}
+		restConfig, err2 := impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
+		if err2 != nil {
+			impl.Logger.Errorw("error in getting rest config from cluster config", "err", err2, "appId", workflowRequest.AppId)
+			return err2
+		}
+		workflowTemplate.ClusterConfig = restConfig
 	} else {
 		workflowTemplate.ClusterConfig = impl.config
 	}

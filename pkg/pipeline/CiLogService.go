@@ -20,25 +20,25 @@ package pipeline
 import (
 	"context"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/util/k8s"
 	"go.uber.org/zap"
 	"io"
-	v12 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"os"
 	"path/filepath"
 )
 
 type CiLogService interface {
-	FetchRunningWorkflowLogs(ciLogRequest BuildLogRequest, restConfig *rest.Config, isExt bool) (io.ReadCloser, func() error, error)
+	FetchRunningWorkflowLogs(ciLogRequest BuildLogRequest, clusterConfig k8s.ClusterConfig, isExt bool) (io.ReadCloser, func() error, error)
 	FetchLogs(baseLogLocationPathConfig string, ciLogRequest BuildLogRequest) (*os.File, func() error, error)
 }
 
 type CiLogServiceImpl struct {
 	logger     *zap.SugaredLogger
 	ciService  CiService
-	kubeClient kubernetes.Interface
+	kubeClient *kubernetes.Clientset
+	k8sUtil    *k8s.K8sUtil
 }
 
 type BuildLogRequest struct {
@@ -54,7 +54,7 @@ type BuildLogRequest struct {
 	MinioEndpoint     string
 }
 
-func NewCiLogServiceImpl(logger *zap.SugaredLogger, ciService CiService, ciConfig *CiConfig) *CiLogServiceImpl {
+func NewCiLogServiceImpl(logger *zap.SugaredLogger, ciService CiService, ciConfig *CiConfig, k8sUtil *k8s.K8sUtil) *CiLogServiceImpl {
 	config := ciConfig.ClusterConfig
 	k8sHttpClient, err := k8s.OverrideK8sHttpClientWithTracer(config)
 	if err != nil {
@@ -69,30 +69,22 @@ func NewCiLogServiceImpl(logger *zap.SugaredLogger, ciService CiService, ciConfi
 		logger:     logger,
 		ciService:  ciService,
 		kubeClient: clientset,
+		k8sUtil:    k8sUtil,
 	}
 }
 
-func (impl *CiLogServiceImpl) FetchRunningWorkflowLogs(ciLogRequest BuildLogRequest, restConfig *rest.Config, isExt bool) (io.ReadCloser, func() error, error) {
-
-	podLogOpts := &v12.PodLogOptions{
-		Container: "main",
-		Follow:    true,
-	}
-	var kubeClient kubernetes.Interface
+func (impl *CiLogServiceImpl) FetchRunningWorkflowLogs(ciLogRequest BuildLogRequest, clusterConfig k8s.ClusterConfig, isExt bool) (io.ReadCloser, func() error, error) {
+	var kubeClient *kubernetes.Clientset
 	kubeClient = impl.kubeClient
 	var err error
 	if isExt {
-		k8sHttpClient, err := k8s.OverrideK8sHttpClientWithTracer(restConfig)
+		_, _, kubeClient, err = impl.k8sUtil.GetK8sConfigAndClients(&clusterConfig)
 		if err != nil {
-			return nil, nil, err
-		}
-		kubeClient, err = kubernetes.NewForConfigAndClient(restConfig, k8sHttpClient)
-		if err != nil {
-			impl.logger.Errorw("Can not create kubernetes client: ", "err", err)
+			impl.logger.Errorw("error in getting kubeClient by cluster config", "err", err, "workFlowId", ciLogRequest.WorkflowId)
 			return nil, nil, err
 		}
 	}
-	req := kubeClient.CoreV1().Pods(ciLogRequest.Namespace).GetLogs(ciLogRequest.PodName, podLogOpts)
+	req := impl.k8sUtil.GetLogsForAPod(kubeClient, ciLogRequest.Namespace, ciLogRequest.PodName, bean.Main, true)
 	podLogs, err := req.Stream(context.Background())
 	if podLogs == nil || err != nil {
 		impl.logger.Errorw("error in opening stream", "name", ciLogRequest.PodName)

@@ -17,7 +17,6 @@ import (
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/client-go/rest"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -339,24 +338,6 @@ func getNewPassword() string {
 		s[i] = letters[rand.Intn(len(letters))]
 	}
 	return string(s)
-}
-
-func getClient(clusterConfig *k8s.ClusterConfig) (*v1.CoreV1Client, error) {
-	cfg := &rest.Config{}
-	cfg.Host = clusterConfig.Host
-	cfg.BearerToken = clusterConfig.BearerToken
-	cfg.Insecure = clusterConfig.InsecureSkipTLSVerify
-	if clusterConfig.InsecureSkipTLSVerify == false {
-		cfg.KeyData = []byte(clusterConfig.KeyData)
-		cfg.CertData = []byte(clusterConfig.CertData)
-		cfg.CAData = []byte(clusterConfig.CAData)
-	}
-	httpClient, err := k8s.OverrideK8sHttpClientWithTracer(cfg)
-	if err != nil {
-		return nil, err
-	}
-	client, err := v1.NewForConfigAndClient(cfg, httpClient)
-	return client, err
 }
 
 func getSecret(namespace string, name string, client *v1.CoreV1Client) (*apiv1.Secret, error) {

@@ -1,10 +1,7 @@
 package informer
 
 import (
-	"flag"
 	"github.com/devtron-labs/devtron/util/k8s"
-	"os/user"
-	"path/filepath"
 	"sync"
 	"time"
 
@@ -16,7 +13,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 func NewGlobalMapClusterNamespace() map[string]map[string]bool {
@@ -72,37 +68,27 @@ func (impl *K8sInformerFactoryImpl) BuildInformer(clusterInfo []*bean.ClusterInf
 	var restConfig *rest.Config
 	for _, info := range clusterInfo {
 		if info.ClusterName == "default_cluster" {
-			if impl.runtimeConfig.LocalDevMode {
-				usr, err := user.Current()
-				if err != nil {
-					impl.logger.Errorw("Error while getting user current env details", "error", err)
-				}
-				kubeconfig := flag.String("build-informer", filepath.Join(usr.HomeDir, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
-				flag.Parse()
-				restConfig, err = clientcmd.BuildConfigFromFlags("", *kubeconfig)
-				if err != nil {
-					impl.logger.Errorw("Error while building config from flags", "error", err)
-				}
-			} else {
-				clusterConfig, err := impl.k8sUtil.GetInClusterConfig()
-				if err != nil {
-					impl.logger.Errorw("error in fetch default cluster config", "err", err, "servername", restConfig.ServerName)
-					continue
-				}
-				restConfig = clusterConfig
+			clusterConfig, err := impl.k8sUtil.GetInClusterConfig(bool(impl.runtimeConfig.LocalDevMode))
+			if err != nil {
+				impl.logger.Errorw("error in fetch default cluster config", "err", err, "servername", restConfig.ServerName)
+				continue
 			}
-
+			restConfig = clusterConfig
 			impl.buildInformerAndNamespaceList(info.ClusterName, restConfig, &impl.mutex)
 		} else {
-			c := &rest.Config{
-				Host:        info.ServerUrl,
-				BearerToken: info.BearerToken,
-				TLSClientConfig: rest.TLSClientConfig{
-					Insecure: info.InsecureSkipTLSVerify,
-					KeyData:  []byte(info.KeyData),
-					CertData: []byte(info.CertData),
-					CAData:   []byte(info.CAData),
-				},
+			clusterConfig := &k8s.ClusterConfig{
+				ClusterName:           info.ClusterName,
+				BearerToken:           info.BearerToken,
+				Host:                  info.ServerUrl,
+				InsecureSkipTLSVerify: info.InsecureSkipTLSVerify,
+				KeyData:               info.KeyData,
+				CertData:              info.CertData,
+				CAData:                info.CAData,
+			}
+			c, err := impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
+			if err != nil {
+				impl.logger.Errorw("error in getting rest config from cluster config", "err", err, "clusterName", info.ClusterName)
+				return
 			}
 			impl.buildInformerAndNamespaceList(info.ClusterName, c, &impl.mutex)
 		}

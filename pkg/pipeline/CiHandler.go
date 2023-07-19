@@ -667,13 +667,8 @@ func (impl *CiHandlerImpl) getWorkflowLogs(pipelineId int, ciWorkflow *pipelineC
 		}
 		isExt = true
 	}
-	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(&clusterConfig)
-	if err != nil {
-		impl.Logger.Errorw("error in getting rest config by cluster id", "err", err)
-		return nil, nil, err
-	}
 
-	logStream, cleanUp, err := impl.ciLogService.FetchRunningWorkflowLogs(ciLogRequest, restConfig, isExt)
+	logStream, cleanUp, err := impl.ciLogService.FetchRunningWorkflowLogs(ciLogRequest, clusterConfig, isExt)
 	if logStream == nil || err != nil {
 		if !ciWorkflow.BlobStorageEnabled {
 			return nil, nil, errors.New("logs-not-stored-in-repository")

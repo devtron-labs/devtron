@@ -50,7 +50,6 @@ import (
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
-	"k8s.io/client-go/rest"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -850,27 +849,22 @@ func (impl *CdHandlerImpl) GetRunningWorkflowLogs(environmentId int, pipelineId 
 		clusterConfig.CertData = configMap[k8s.CertData]
 		clusterConfig.CAData = configMap[k8s.CertificateAuthorityData]
 	}
-	restConfig, err := impl.k8sUtil.GetRestConfigByCluster(&clusterConfig)
-	if err != nil {
-		impl.Logger.Errorw("error in getting rest config by cluster id", "err", err)
-		return nil, nil, err
-	}
 	var isExtCluster bool
 	if cdWorkflow.WorkflowType == PRE {
 		isExtCluster = pipeline.RunPreStageInEnv
 	} else if cdWorkflow.WorkflowType == POST {
 		isExtCluster = pipeline.RunPostStageInEnv
 	}
-	return impl.getWorkflowLogs(pipelineId, cdWorkflow, restConfig, isExtCluster)
+	return impl.getWorkflowLogs(pipelineId, cdWorkflow, clusterConfig, isExtCluster)
 }
 
-func (impl *CdHandlerImpl) getWorkflowLogs(pipelineId int, cdWorkflow *pipelineConfig.CdWorkflowRunner, restConfig *rest.Config, runStageInEnv bool) (*bufio.Reader, func() error, error) {
+func (impl *CdHandlerImpl) getWorkflowLogs(pipelineId int, cdWorkflow *pipelineConfig.CdWorkflowRunner, clusterConfig k8s.ClusterConfig, runStageInEnv bool) (*bufio.Reader, func() error, error) {
 	cdLogRequest := BuildLogRequest{
 		PodName:   cdWorkflow.PodName,
 		Namespace: cdWorkflow.Namespace,
 	}
 
-	logStream, cleanUp, err := impl.ciLogService.FetchRunningWorkflowLogs(cdLogRequest, restConfig, runStageInEnv)
+	logStream, cleanUp, err := impl.ciLogService.FetchRunningWorkflowLogs(cdLogRequest, clusterConfig, runStageInEnv)
 	if logStream == nil || err != nil {
 		if !cdWorkflow.BlobStorageEnabled {
 			return nil, nil, errors.New("logs-not-stored-in-repository")

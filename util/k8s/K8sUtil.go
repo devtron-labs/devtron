@@ -62,6 +62,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	_ "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	restclient "k8s.io/client-go/rest"
 )
 
 type K8sUtil struct {
@@ -907,6 +908,14 @@ func (impl K8sUtil) GetMetricsClientSet(restConfig *rest.Config, k8sHttpClient *
 	metricsClientSet, err := metrics.NewForConfigAndClient(restConfig, k8sHttpClient)
 	return metricsClientSet, err
 }
+func (impl K8sUtil) GetLogsForAPod(kubeClient *kubernetes.Clientset, namespace string, podName string, container string, follow bool) *restclient.Request {
+	podLogOpts := &v1.PodLogOptions{
+		Container: container,
+		Follow:    follow,
+	}
+	req := kubeClient.CoreV1().Pods(namespace).GetLogs(podName, podLogOpts)
+	return req
+}
 
 // DeletePod will delete the given pod, or return an error if it couldn't
 func DeletePod(pod v1.Pod, k8sClientSet *kubernetes.Clientset, deleteOptions metav1.DeleteOptions) error {
@@ -1385,7 +1394,21 @@ func (impl *K8sUtil) DecodeGroupKindversion(data string) (*schema.GroupVersionKi
 	return groupVersionKind, err
 }
 
-func (impl *K8sUtil) GetInClusterConfig() (*rest.Config, error) {
+func (impl *K8sUtil) GetInClusterConfig(localDevMode bool) (*restclient.Config, error) {
+	if localDevMode {
+		usr, err := user.Current()
+		if err != nil {
+			impl.logger.Errorw("Error while getting user current env details", "error", err)
+		}
+		kubeconfig := flag.String("build-informer", filepath.Join(usr.HomeDir, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+		flag.Parse()
+		restConfig, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+		if err != nil {
+			impl.logger.Errorw("Error while building config from flags", "error", err)
+			return nil, err
+		}
+		return restConfig, err
+	}
 	clusterConfig, err := rest.InClusterConfig()
 	if err != nil {
 		impl.logger.Errorw("error in fetch default cluster config", "err", err)

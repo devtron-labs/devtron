@@ -364,14 +364,16 @@ type TerminalSessionHandlerImpl struct {
 	environmentService cluster.EnvironmentService
 	clusterService     cluster.ClusterService
 	logger             *zap.SugaredLogger
+	k8sUtil            *k8s.K8sUtil
 }
 
 func NewTerminalSessionHandlerImpl(environmentService cluster.EnvironmentService, clusterService cluster.ClusterService,
-	logger *zap.SugaredLogger) *TerminalSessionHandlerImpl {
+	logger *zap.SugaredLogger, k8sUtil *k8s.K8sUtil) *TerminalSessionHandlerImpl {
 	return &TerminalSessionHandlerImpl{
 		environmentService: environmentService,
 		clusterService:     clusterService,
 		logger:             logger,
+		k8sUtil:            k8sUtil,
 	}
 }
 
@@ -440,21 +442,7 @@ func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequ
 		impl.logger.Errorw("error in config", "err", err)
 		return nil, nil, err
 	}
-	cfg := &rest.Config{}
-	cfg.Host = config.Host
-	cfg.BearerToken = config.BearerToken
-	cfg.Insecure = config.InsecureSkipTLSVerify
-	if config.InsecureSkipTLSVerify == false {
-		cfg.KeyData = []byte(config.KeyData)
-		cfg.CertData = []byte(config.CertData)
-		cfg.CAData = []byte(config.CAData)
-	}
-
-	k8sHttpClient, err := k8s.OverrideK8sHttpClientWithTracer(cfg)
-	if err != nil {
-		return nil, nil, err
-	}
-	clientSet, err := kubernetes.NewForConfigAndClient(cfg, k8sHttpClient)
+	cfg, _, clientSet, err := impl.k8sUtil.GetK8sConfigAndClients(config)
 	if err != nil {
 		impl.logger.Errorw("error in clientSet", "err", err)
 		return nil, nil, err
