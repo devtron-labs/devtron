@@ -427,7 +427,7 @@ spec:
             tcpSocket:
               port: {{ $.Values.StartupProbe.port }}
 {{- end}}
-
+{{- end}}
           volumeMounts:
             {{- if $.Values.statefulSetConfig.volumeClaimTemplates }}
             {{- with (index $.Values.statefulSetConfig.volumeClaimTemplates 0) }}

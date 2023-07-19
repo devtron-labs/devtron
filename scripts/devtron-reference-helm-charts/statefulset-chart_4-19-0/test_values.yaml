@@ -16,6 +16,17 @@ containerSpec:
         path: /example
         port: 90
 
+StartupProbe:
+  Path: "/"
+  port: 8080
+  initialDelaySeconds: 20
+  periodSeconds: 10
+  successThreshold: 1
+  timeoutSeconds: 5
+  failureThreshold: 3
+  httpHeaders: []
+  command: []
+  tcp: false
 imagePullSecrets:
   - test1
   - test2
