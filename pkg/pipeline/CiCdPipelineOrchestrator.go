@@ -160,13 +160,67 @@ func NewCiCdPipelineOrchestrator(
 const BEFORE_DOCKER_BUILD string = "BEFORE_DOCKER_BUILD"
 const AFTER_DOCKER_BUILD string = "AFTER_DOCKER_BUILD"
 
+func (impl CiCdPipelineOrchestratorImpl) PatchCiMaterialSource(ciPipeline *bean.CiPipeline, userId int32) (*bean.CiPipeline, error) {
+	oldPipeline, err := impl.ciPipelineRepository.FindById(ciPipeline.Id)
+	if err != nil {
+		return nil, err
+	}
+	materialsUpdate := mapCiMaterialToPipelineMaterial(ciPipeline, userId, oldPipeline)
+	if err = impl.saveUpdatedMaterial(materialsUpdate); err != nil {
+		return nil, err
+	}
+	return ciPipeline, nil
+}
+
+func mapCiMaterialToPipelineMaterial(ciPipeline *bean.CiPipeline, userId int32, oldPipeline *pipelineConfig.CiPipeline) []*pipelineConfig.CiPipelineMaterial {
+	createOnTimeMap := make(map[int]time.Time)
+	createByMap := make(map[int]int32)
+	materialsUpdate := make([]*pipelineConfig.CiPipelineMaterial, 0)
+	for _, oldMaterial := range oldPipeline.CiPipelineMaterials {
+		createOnTimeMap[oldMaterial.GitMaterialId] = oldMaterial.CreatedOn
+		createByMap[oldMaterial.GitMaterialId] = oldMaterial.CreatedBy
+	}
+	for _, ciMaterial := range ciPipeline.CiMaterial {
+		pipelineMaterial := &pipelineConfig.CiPipelineMaterial{
+			Id:            ciMaterial.Id,
+			CiPipelineId:  ciPipeline.Id,
+			Value:         ciMaterial.Source.Value,
+			Type:          ciMaterial.Source.Type,
+			Active:        oldPipeline.Active,
+			Regex:         ciMaterial.Source.Regex,
+			GitMaterialId: ciMaterial.GitMaterialId,
+			AuditLog:      sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now(), CreatedBy: createByMap[ciMaterial.GitMaterialId], CreatedOn: createOnTimeMap[ciMaterial.GitMaterialId]},
+		}
+		pipelineMaterial.CiPipelineId = ciMaterial.Id
+		materialsUpdate = append(materialsUpdate, pipelineMaterial)
+	}
+	return materialsUpdate
+}
+
+func (impl CiCdPipelineOrchestratorImpl) saveUpdatedMaterial(materialsUpdate []*pipelineConfig.CiPipelineMaterial) error {
+	dbConnection := impl.pipelineRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err = impl.ciPipelineMaterialRepository.Update(tx, materialsUpdate...); err != nil {
+		return err
+	}
+	if err = impl.AddPipelineMaterialInGitSensor(materialsUpdate); err != nil {
+		return err
+	}
+	if err = tx.Commit(); err != nil {
+		return err
+	}
+	return nil
+}
 func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.CiPipeline, userId int32, oldPipeline *pipelineConfig.CiPipeline) (*bean.CiPipeline, error) {
 	argByte, err := json.Marshal(createRequest.DockerArgs)
 	if err != nil {
 		impl.logger.Error(err)
 		return nil, err
 	}
-
 	dbConnection := impl.pipelineRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
