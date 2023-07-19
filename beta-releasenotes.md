@@ -1,4 +1,5 @@
 ## Bugs
+- fix: optimized fetch deployment status timeline api (#3653)
 - fix: critical vulnerabilities in dependencies (#3632)
 ## Enhancements
 - feat: edit Ingress for specific host (#3640)
