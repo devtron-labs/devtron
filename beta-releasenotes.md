@@ -1,4 +1,5 @@
 ## Bugs
+- fix: critical vulnerabilities in dependencies (#3632)
 ## Enhancements
 - feat: edit Ingress for specific host (#3640)
 - feat: enhancement app workflow clone, added specific deployment clone in workflow (#3645)
