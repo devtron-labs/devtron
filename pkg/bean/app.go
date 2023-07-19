@@ -582,11 +582,15 @@ const (
 )
 
 type UserApprovalActionRequest struct {
-	AppId             int                    `json:"appId"` // would be required for RBAC
-	ActionType        UserApprovalActionType `json:"actionType" validate:"required"`
-	ApprovalRequestId int                    `json:"approvalRequestId"`
-	PipelineId        int                    `json:"pipelineId" validate:"required,number"` // would be required while raising approval request
-	ArtifactId        int                    `json:"artifactId"`                            // would be required while raising approval request
+	AppId                      int                        `json:"appId"` // would be required for RBAC
+	ActionType                 UserApprovalActionType     `json:"actionType" validate:"required"`
+	ApprovalRequestId          int                        `json:"approvalRequestId"`
+	PipelineId                 int                        `json:"pipelineId" validate:"required,number"` // would be required while raising approval request
+	ArtifactId                 int                        `json:"artifactId"`                            // would be required while raising approval
+	ApprovalNotificationConfig ApprovalNotificationConfig `json:"approvalNotificationConfig"`
+}
+type ApprovalNotificationConfig struct {
+	EmailIds []string `json:"emailIds"`
 }
 
 type DeploymentAppTypeChangeRequest struct {

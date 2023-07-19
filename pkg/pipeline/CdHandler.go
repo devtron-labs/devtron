@@ -46,6 +46,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
+	util2 "github.com/devtron-labs/devtron/util/event"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
@@ -118,6 +119,7 @@ type CdHandlerImpl struct {
 	appGroupService                        appGroup2.AppGroupService
 	deploymentApprovalRepository           pipelineConfig.DeploymentApprovalRepository
 	imageTaggingService                    ImageTaggingService
+	eventFactory                           client2.EventFactory
 }
 
 func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService user.UserService,
@@ -145,7 +147,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 	installedAppVersionHistoryRepository repository3.InstalledAppVersionHistoryRepository, appRepository app2.AppRepository,
 	appGroupService appGroup2.AppGroupService,
 	deploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository,
-	imageTaggingService ImageTaggingService) *CdHandlerImpl {
+	imageTaggingService ImageTaggingService, eventFactory client2.EventFactory) *CdHandlerImpl {
 	return &CdHandlerImpl{
 		Logger:                                 Logger,
 		cdConfig:                               cdConfig,
@@ -181,6 +183,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 		appGroupService:                        appGroupService,
 		deploymentApprovalRepository:           deploymentApprovalRepository,
 		imageTaggingService:                    imageTaggingService,
+		eventFactory:                           eventFactory,
 	}
 }
 
@@ -1667,6 +1670,8 @@ func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(userId int32, approva
 			impl.Logger.Errorw("error occurred while submitting approval request", "pipelineId", pipelineId, "artifactId", artifactId, "err", err)
 			return err
 		}
+		impl.performNotificationApprovalAction(approvalActionRequest, userId)
+
 	} else {
 		// fetch if cd wf runner is present then user cannot cancel the request, as deployment has been triggered already
 		approvalRequest, err := impl.deploymentApprovalRepository.FetchById(approvalRequestId)
@@ -1687,4 +1692,21 @@ func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(userId int32, approva
 		}
 	}
 	return nil
+}
+
+func (impl *CdHandlerImpl) performNotificationApprovalAction(approvalActionRequest bean2.UserApprovalActionRequest, userId int32) {
+	eventType := util2.Approval
+	pipeline, err := impl.pipelineRepository.FindById(approvalActionRequest.PipelineId)
+	if err != nil {
+		impl.Logger.Errorw("error occurred while updating approval request", "pipelineId", pipeline, "pipeline", pipeline, "err", err)
+		return
+	}
+	//emailIds := []string{"aditya.ranjan@devtron.ai"}
+	event := impl.eventFactory.Build(eventType, &approvalActionRequest.PipelineId, approvalActionRequest.AppId, &pipeline.EnvironmentId, util2.CD)
+	event = impl.eventFactory.BuildExtraApprovalData(event, approvalActionRequest, pipeline, userId)
+	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
+	if evtErr != nil {
+		impl.Logger.Errorw("CD stage post fail or success event unable to sent", "error", evtErr)
+	}
+
 }
