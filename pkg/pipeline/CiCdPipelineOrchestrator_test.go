@@ -146,7 +146,7 @@ func InitClusterNoteService() {
 	userAuthService := user.NewUserAuthServiceImpl(nil, nil, nil, nil, nil, nil, nil)
 	prePostCdScriptHistoryService := history.NewPrePostCdScriptHistoryServiceImpl(logger, nil, nil, nil)
 	prePostCiScriptHistoryService := history.NewPrePostCiScriptHistoryServiceImpl(logger, nil)
-	pipelineStageService := NewPipelineStageService(logger, nil, nil)
+	pipelineStageService := NewPipelineStageService(logger, nil, nil, nil)
 	ciTemplateOverrideRepository := pipelineConfig.NewCiTemplateOverrideRepositoryImpl(conn, logger)
 	ciTemplateService := *NewCiTemplateServiceImpl(logger, nil, nil, nil)
 	gitMaterialHistoryService := history.NewGitMaterialHistoryServiceImpl(nil, logger)

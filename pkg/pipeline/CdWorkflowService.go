@@ -132,6 +132,8 @@ type CdWorkflowRequest struct {
 	DeploymentReleaseCounter   int                                 `json:"deploymentReleaseCounter,omitempty"`
 	WorkflowExecutor           pipelineConfig.WorkflowExecutorType `json:"workflowExecutor"`
 	IsDryRun                   bool                                `json:"isDryRun"`
+	PrePostDeploySteps         []*bean3.StepObject                 `json:"prePostDeploySteps"`
+	RefPlugins                 []*bean3.RefPluginObject            `json:"refPlugins"`
 }
 
 const PRE = "PRE"
@@ -190,6 +192,8 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	workflowTemplate.WorkflowId = workflowRequest.WorkflowId
 	workflowTemplate.WorkflowRunnerId = workflowRequest.WorkflowRunnerId
 	workflowTemplate.WorkflowRequestJson = string(workflowJson)
+	workflowTemplate.PrePostDeploySteps = workflowRequest.PrePostDeploySteps
+	workflowTemplate.RefPlugins = workflowRequest.RefPlugins
 
 	var globalCmCsConfigs []*bean3.GlobalCMCSDto
 	var workflowConfigMaps []bean.ConfigSecretMap

@@ -803,22 +803,14 @@ func (handler CoreAppRestHandlerImpl) buildCdPipelineResp(appId int, cdPipeline 
 	}
 	cdPipelineResp.DeploymentStrategies = deploymentTemplateStrategiesResp
 
-	//set pre stage
-	preStage := cdPipeline.PreStage
-	cdPipelineResp.PreStage = &appBean.CdStage{
-		TriggerType: preStage.TriggerType,
-		Name:        preStage.Name,
-		Config:      preStage.Config,
+	//set pre-deploy and post-deploy stage steps for multi step execution
+	cdPipelineMigrated, err := pipeline.ConvertStageYamlScriptsToPipelineStageSteps(cdPipeline)
+	if err != nil {
+		handler.logger.Errorw("service err, InitiateMigrationOfStageScriptsToPipelineStageSteps", "err", err, "appId", appId, "pipelineId", cdPipeline.Id)
+		return nil, err
 	}
-
-	//set post stage
-	postStage := cdPipeline.PostStage
-	cdPipelineResp.PostStage = &appBean.CdStage{
-		TriggerType: postStage.TriggerType,
-		Name:        postStage.Name,
-		Config:      postStage.Config,
-	}
-
+	cdPipelineResp.PreDeployStage = cdPipelineMigrated.PreDeployStage
+	cdPipelineResp.PostDeployStage = cdPipelineMigrated.PostDeployStage
 	//set pre stage config maps secret names
 	preStageConfigMapSecretNames := cdPipeline.PreStageConfigMapSecretNames
 	cdPipelineResp.PreStageConfigMapSecretNames = &appBean.CdStageConfigMapSecretNames{
@@ -1694,13 +1686,15 @@ func (handler CoreAppRestHandlerImpl) createCdPipelines(ctx context.Context, app
 			AppWorkflowId:                 workflowId,
 			CiPipelineId:                  ciPipelineId,
 			DeploymentAppType:             cdPipeline.DeploymentAppType,
+			PreStage:                      convertCdStages(cdPipeline.PreStage),
+			PostStage:                     convertCdStages(cdPipeline.PostStage),
 			DeploymentTemplate:            cdPipeline.DeploymentStrategyType,
 			TriggerType:                   cdPipeline.TriggerType,
 			CdArgoSetup:                   cdPipeline.IsClusterCdActive,
 			RunPreStageInEnv:              cdPipeline.RunPreStageInEnv,
 			RunPostStageInEnv:             cdPipeline.RunPostStageInEnv,
-			PreStage:                      convertCdStages(cdPipeline.PreStage),
-			PostStage:                     convertCdStages(cdPipeline.PostStage),
+			PreDeployStage:                cdPipeline.PreDeployStage,
+			PostDeployStage:               cdPipeline.PostDeployStage,
 			PreStageConfigMapSecretNames:  convertCdPreStageCMorCSNames(cdPipeline.PreStageConfigMapSecretNames),
 			PostStageConfigMapSecretNames: convertCdPostStageCMorCSNames(cdPipeline.PostStageConfigMapSecretNames),
 			UserApprovalConf:              cdPipeline.UserApprovalConf,
@@ -2235,7 +2229,6 @@ func (handler CoreAppRestHandlerImpl) GetAppWorkflowAndOverridesSample(w http.Re
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {

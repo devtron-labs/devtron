@@ -526,6 +526,8 @@ type CDPipelineConfigObject struct {
 	ContainerRegistryName         string                                 `json:"containerRegistryName"`
 	RepoName                      string                                 `json:"repoName"`
 	ManifestStorageType           string                                 `json:"manifestStorageType"`
+	PreDeployStage                *bean.PipelineStageDto                 `json:"preDeployStage,omitempty"`
+	PostDeployStage               *bean.PipelineStageDto                 `json:"postDeployStage,omitempty"`
 }
 
 type PreStageConfigMapSecretNames struct {
