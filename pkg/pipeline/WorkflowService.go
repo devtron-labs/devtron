@@ -750,7 +750,7 @@ func getCiTemplateWithConfigMapsAndSecrets(configMaps *bean3.ConfigMapJson, secr
 func (impl *WorkflowServiceImpl) getRuntimeEnvClientInstance(environment *repository2.Environment) (v1alpha12.WorkflowInterface, error) {
 	restConfig, err := impl.K8sCommonService.GetRestConfigByClusterId(context.Background(), environment.ClusterId)
 	if err != nil {
-		impl.Logger.Errorw("error in getting rest config buy cluster id", "err", err)
+		impl.Logger.Errorw("error in getting rest config by cluster id", "err", err)
 		return nil, err
 	}
 	clientSet, err := versioned.NewForConfig(restConfig)

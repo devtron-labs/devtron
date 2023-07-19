@@ -31,7 +31,7 @@ import (
 )
 
 type CiLogService interface {
-	FetchRunningWorkflowLogs(ciLogRequest BuildLogRequest, clusterConfig k8s.ClusterConfig, isExt bool) (io.ReadCloser, func() error, error)
+	FetchRunningWorkflowLogs(ciLogRequest BuildLogRequest, restConfig *rest.Config, isExt bool) (io.ReadCloser, func() error, error)
 	FetchLogs(baseLogLocationPathConfig string, ciLogRequest BuildLogRequest) (*os.File, func() error, error)
 }
 
@@ -72,7 +72,7 @@ func NewCiLogServiceImpl(logger *zap.SugaredLogger, ciService CiService, ciConfi
 	}
 }
 
-func (impl *CiLogServiceImpl) FetchRunningWorkflowLogs(ciLogRequest BuildLogRequest, clusterConfig k8s.ClusterConfig, isExt bool) (io.ReadCloser, func() error, error) {
+func (impl *CiLogServiceImpl) FetchRunningWorkflowLogs(ciLogRequest BuildLogRequest, restConfig *rest.Config, isExt bool) (io.ReadCloser, func() error, error) {
 
 	podLogOpts := &v12.PodLogOptions{
 		Container: "main",
@@ -82,21 +82,11 @@ func (impl *CiLogServiceImpl) FetchRunningWorkflowLogs(ciLogRequest BuildLogRequ
 	kubeClient = impl.kubeClient
 	var err error
 	if isExt {
-		config := &rest.Config{
-			Host:        clusterConfig.Host,
-			BearerToken: clusterConfig.BearerToken,
-			TLSClientConfig: rest.TLSClientConfig{
-				Insecure: clusterConfig.InsecureSkipTLSVerify,
-				KeyData:  []byte(clusterConfig.KeyData),
-				CertData: []byte(clusterConfig.CertData),
-				CAData:   []byte(clusterConfig.CAData),
-			},
-		}
-		k8sHttpClient, err := k8s.OverrideK8sHttpClientWithTracer(config)
+		k8sHttpClient, err := k8s.OverrideK8sHttpClientWithTracer(restConfig)
 		if err != nil {
 			return nil, nil, err
 		}
-		kubeClient, err = kubernetes.NewForConfigAndClient(config, k8sHttpClient)
+		kubeClient, err = kubernetes.NewForConfigAndClient(restConfig, k8sHttpClient)
 		if err != nil {
 			impl.logger.Errorw("Can not create kubernetes client: ", "err", err)
 			return nil, nil, err
