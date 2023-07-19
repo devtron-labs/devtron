@@ -48,10 +48,13 @@ func (handler AppStoreStatusTimelineRestHandlerImpl) FetchTimelinesForAppStore(w
 	}
 	installedAppVersionHistoryId := 0
 	showTimeline := false
-	showTimeline, err = strconv.ParseBool(r.URL.Query().Get("showTimeline"))
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
+	showTimelineParam := r.URL.Query().Get("showTimeline")
+	if len(showTimelineParam) > 0 {
+		showTimeline, err = strconv.ParseBool(showTimelineParam)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
 	}
 	installedAppVersionHistoryIdParam := r.URL.Query().Get("installedAppVersionHistoryId")
 	if len(installedAppVersionHistoryIdParam) != 0 {
