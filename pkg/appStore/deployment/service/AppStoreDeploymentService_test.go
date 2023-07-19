@@ -156,7 +156,7 @@ func initAppStoreDeploymentService(t *testing.T, internalUse bool) *AppStoreDepl
 	AppStoreDeploymentServiceImpl := NewAppStoreDeploymentServiceImpl(sugaredLogger, InstalledAppRepository,
 		appStoreDiscoverRepository, environmentRepository,
 		ClusterInstalledAppsRepository, AppRepository, nil,
-		nil, environmentService, clusterService, nil, nil, nil, InstalledAppVersionHistoryRepository, gitOpsRepository, nil, &DeploymentServiceTypeConfig{IsInternalUse: internalUse})
+		nil, environmentService, clusterService, nil, nil, nil, InstalledAppVersionHistoryRepository, gitOpsRepository, nil, &DeploymentServiceTypeConfig{IsInternalUse: internalUse}, nil)
 
 	return AppStoreDeploymentServiceImpl
 }
