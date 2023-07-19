@@ -112,6 +112,7 @@ type PipelineBuilder interface {
 	GetExternalCiById(appId int, externalCiId int) (ciConfig *bean.ExternalCiConfig, err error)
 	UpdateCiTemplate(updateRequest *bean.CiConfigRequest) (*bean.CiConfigRequest, error)
 	PatchCiPipeline(request *bean.CiPatchRequest) (ciConfig *bean.CiConfigRequest, err error)
+	PatchCiMaterialSource(ciPipeline *bean.CiPipeline, userId int32) (*bean.CiPipeline, error)
 	CreateCdPipelines(cdPipelines *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error)
 	GetApp(appId int) (application *bean.CreateAppDTO, err error)
 	PatchCdPipelines(cdPipelines *bean.CDPatchRequest, ctx context.Context) (*bean.CdPipelines, error)
@@ -1626,6 +1627,10 @@ func (impl PipelineBuilderImpl) DeleteCiPipeline(request *bean.CiPatchRequest) (
 	//delete pipeline
 	//delete scm
 
+}
+
+func (impl PipelineBuilderImpl) PatchCiMaterialSource(ciPipeline *bean.CiPipeline, userId int32) (*bean.CiPipeline, error) {
+	return impl.ciCdPipelineOrchestrator.PatchCiMaterialSource(ciPipeline, userId)
 }
 
 func (impl PipelineBuilderImpl) patchCiPipelineUpdateSource(baseCiConfig *bean.CiConfigRequest, modifiedCiPipeline *bean.CiPipeline) (ciConfig *bean.CiConfigRequest, err error) {

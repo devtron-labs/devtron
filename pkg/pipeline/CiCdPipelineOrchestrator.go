@@ -69,6 +69,7 @@ type CiCdPipelineOrchestrator interface {
 	DeleteCiPipeline(pipeline *pipelineConfig.CiPipeline, request *bean.CiPatchRequest, tx *pg.Tx) error
 	DeleteCdPipeline(pipelineId int, userId int32, tx *pg.Tx) error
 	PatchMaterialValue(createRequest *bean.CiPipeline, userId int32, oldPipeline *pipelineConfig.CiPipeline) (*bean.CiPipeline, error)
+	PatchCiMaterialSource(ciPipeline *bean.CiPipeline, userId int32) (*bean.CiPipeline, error)
 	PipelineExists(name string) (bool, error)
 	GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error)
 	GetCdPipelinesForAppAndEnv(appId int, envId int) (cdPipelines *bean.CdPipelines, err error)
