@@ -25,7 +25,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/kubernetes/pkg/api/legacyscheme"
 	"strconv"
 	"strings"
 	"sync"
@@ -722,15 +721,11 @@ func (impl *UserTerminalAccessServiceImpl) DeleteTerminalPod(ctx context.Context
 }
 
 func (impl *UserTerminalAccessServiceImpl) DeleteTerminalResource(ctx context.Context, clusterId int, terminalResourceName string, resourceTemplateString string, namespace string) error {
-	_, groupVersionKind, err := legacyscheme.Codecs.UniversalDeserializer().Decode([]byte(resourceTemplateString), nil, nil)
+	groupVersionKind, err := impl.k8sUtil.DecodeGroupKindversion(resourceTemplateString)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while extracting data for gvk", "resourceTemplateString", resourceTemplateString, "err", err)
 		return err
 	}
-	//restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(ctx, clusterId)
-	//if err != nil {
-	//	return err
-	//}
 	k8sRequest := &k8s2.K8sRequestBean{
 		ResourceIdentifier: k8s2.ResourceIdentifier{
 			Name:      terminalResourceName,
@@ -761,12 +756,11 @@ func (impl *UserTerminalAccessServiceImpl) applyTemplate(ctx context.Context, cl
 		return err
 	}
 
-	_, groupVersionKind, err := legacyscheme.Codecs.UniversalDeserializer().Decode([]byte(gvkDataString), nil, nil)
+	groupVersionKind, err := impl.k8sUtil.DecodeGroupKindversion(gvkDataString)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while extracting data for gvk", "gvkDataString", gvkDataString, "err", err)
 		return err
 	}
-
 	k8sRequest := &k8s2.K8sRequestBean{
 		ResourceIdentifier: k8s2.ResourceIdentifier{
 			Namespace: namespace,
@@ -854,7 +848,7 @@ func (impl *UserTerminalAccessServiceImpl) getPodRequestBean(clusterId int, podN
 		return nil, err
 	}
 	gvkDataString := terminalAccessPodTemplate.TemplateData
-	_, groupVersionKind, err := legacyscheme.Codecs.UniversalDeserializer().Decode([]byte(gvkDataString), nil, nil)
+	groupVersionKind, err := impl.k8sUtil.DecodeGroupKindversion(gvkDataString)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while extracting data for gvk", "gvkDataString", gvkDataString, "err", err)
 		return nil, err

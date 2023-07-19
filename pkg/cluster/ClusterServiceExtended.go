@@ -9,8 +9,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/k8s/informer"
 	repository4 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/devtron-labs/devtron/util/k8s"
-	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/client-go/rest"
 	"net/http"
 	"strings"
 	"time"
@@ -383,22 +381,9 @@ func (impl ClusterServiceImplExtended) DeleteFromDb(bean *ClusterBean, userId in
 		impl.logger.Errorw("error in deleting cluster", "id", bean.Id, "err", err)
 		return err
 	}
-	restConfig := &rest.Config{}
-	restConfig, err = rest.InClusterConfig()
-
+	k8sClient, err := impl.ClusterServiceImpl.K8sUtil.GetConfigAndClientsInCluster()
 	if err != nil {
-		impl.logger.Errorw("Error in creating config for default cluster", "err", err)
-		return nil
-	}
-	httpClientFor, err := rest.HTTPClientFor(restConfig)
-	if err != nil {
-		impl.logger.Errorw("error occurred while overriding k8s client", "reason", err)
-		return nil
-	}
-	k8sClient, err := v12.NewForConfigAndClient(restConfig, httpClientFor)
-	if err != nil {
-		impl.logger.Errorw("error creating k8s client", "error", err)
-		return nil
+		impl.logger.Errorw("error in creating k8s client set", "err", err, "clusterName", bean.ClusterName)
 	}
 	secretName := fmt.Sprintf("%s-%v", "cluster-event", bean.Id)
 	err = impl.K8sUtil.DeleteSecret("default", secretName, k8sClient)

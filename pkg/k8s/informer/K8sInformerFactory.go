@@ -30,6 +30,7 @@ type K8sInformerFactoryImpl struct {
 	mutex                     sync.Mutex
 	informerStopper           map[string]chan struct{}
 	runtimeConfig             *client.RuntimeConfig
+	k8sUtil                   *k8s.K8sUtil
 }
 
 type K8sInformerFactory interface {
@@ -38,11 +39,12 @@ type K8sInformerFactory interface {
 	CleanNamespaceInformer(clusterName string)
 }
 
-func NewK8sInformerFactoryImpl(logger *zap.SugaredLogger, globalMapClusterNamespace map[string]map[string]bool, runtimeConfig *client.RuntimeConfig) *K8sInformerFactoryImpl {
+func NewK8sInformerFactoryImpl(logger *zap.SugaredLogger, globalMapClusterNamespace map[string]map[string]bool, runtimeConfig *client.RuntimeConfig, k8sUtil *k8s.K8sUtil) *K8sInformerFactoryImpl {
 	informerFactory := &K8sInformerFactoryImpl{
 		logger:                    logger,
 		globalMapClusterNamespace: globalMapClusterNamespace,
 		runtimeConfig:             runtimeConfig,
+		k8sUtil:                   k8sUtil,
 	}
 	informerFactory.informerStopper = make(map[string]chan struct{})
 	return informerFactory
@@ -82,7 +84,7 @@ func (impl *K8sInformerFactoryImpl) BuildInformer(clusterInfo []*bean.ClusterInf
 					impl.logger.Errorw("Error while building config from flags", "error", err)
 				}
 			} else {
-				clusterConfig, err := rest.InClusterConfig()
+				clusterConfig, err := impl.k8sUtil.GetInClusterConfig()
 				if err != nil {
 					impl.logger.Errorw("error in fetch default cluster config", "err", err, "servername", restConfig.ServerName)
 					continue

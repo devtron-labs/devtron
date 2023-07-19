@@ -520,6 +520,7 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentConnection(w http.ResponseW
 	}
 	k8sClientSet, err := impl.k8sUtil.CreateK8sClientSet(restConfig)
 	if err != nil {
+		impl.logger.Errorw("error in creating k8s clientSet", "err", err, "clusterId", clusterBean.Id)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -530,7 +531,7 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentConnection(w http.ResponseW
 	}
 	err = impl.k8sUtil.FetchConnectionStatusForCluster(k8sClientSet, clusterBean.Id)
 	if err != nil {
-		impl.logger.Errorw("error in fetching connection status fo cluster", "err", err, "cluster id", clusterBean.Id)
+		impl.logger.Errorw("error in fetching connection status fo cluster", "err", err, "clusterId", clusterBean.Id)
 		responseObj.ClusterReachable = false
 	}
 	//updating the cluster connection error to db

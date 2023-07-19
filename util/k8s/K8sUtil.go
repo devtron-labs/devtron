@@ -29,6 +29,7 @@ import (
 	v1beta12 "k8s.io/api/policy/v1beta1"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/kubernetes/pkg/api/legacyscheme"
 	"k8s.io/metrics/pkg/apis/metrics/v1beta1"
 	metrics "k8s.io/metrics/pkg/client/clientset/versioned"
 	"k8s.io/utils/pointer"
@@ -59,6 +60,8 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/yaml"
+
+	_ "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 type K8sUtil struct {
@@ -1371,4 +1374,22 @@ func (impl *K8sUtil) DeleteResource(ctx context.Context, restConfig *rest.Config
 		return nil, err
 	}
 	return &ManifestResponse{*obj}, nil
+}
+
+func (impl *K8sUtil) DecodeGroupKindversion(data string) (*schema.GroupVersionKind, error) {
+	_, groupVersionKind, err := legacyscheme.Codecs.UniversalDeserializer().Decode([]byte(data), nil, nil)
+	if err != nil {
+		impl.logger.Errorw("error occurred while extracting data for gvk", "err", err, "gvk", data)
+		return nil, err
+	}
+	return groupVersionKind, err
+}
+
+func (impl *K8sUtil) GetInClusterConfig() (*rest.Config, error) {
+	clusterConfig, err := rest.InClusterConfig()
+	if err != nil {
+		impl.logger.Errorw("error in fetch default cluster config", "err", err)
+		return nil, err
+	}
+	return clusterConfig, err
 }

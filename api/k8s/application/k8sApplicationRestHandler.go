@@ -266,14 +266,14 @@ func (handler *K8sApplicationRestHandlerImpl) GetHostUrlsByBatch(w http.Response
 	}
 	validRequests = handler.k8sCommonService.FilterServiceAndIngress(r.Context(), resourceTreeInf, validRequests, k8sAppDetail, clusterIdString)
 	if len(validRequests) == 0 {
-		handler.logger.Errorw("neither service nor ingress found for this app", "appId", clusterIdString)
+		handler.logger.Error("neither service nor ingress found for this app", "appId", clusterIdString)
 		common.WriteJsonResp(w, err, nil, http.StatusNoContent)
 		return
 	}
 
 	resp, err := handler.k8sCommonService.GetManifestsByBatch(r.Context(), validRequests)
 	if err != nil {
-		handler.logger.Errorw("error in getting manifests in batch", "err", err)
+		handler.logger.Errorw("error in getting manifests in batch", "err", err, "appId", clusterIdString)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
