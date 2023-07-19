@@ -53,7 +53,7 @@ data:
   CD_NODE_TAINTS_VALUE: "ci"
   CD_ARTIFACT_LOCATION_FORMAT: "%d/%d.zip"
   DEFAULT_CD_NAMESPACE: "devtron-cd"
-  DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:b9ef0678-138-14519"
+  DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:4e292a58-138-14524"
   DEFAULT_CD_TIMEOUT: "3600"
   WF_CONTROLLER_INSTANCE_ID: "devtron-runner"
   CI_LOGS_KEY_PREFIX: "ci-artifacts"
