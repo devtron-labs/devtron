@@ -375,7 +375,7 @@ func (impl ConfigDraftServiceImpl) handleEnvLevelTemplate(appId int, envId int, 
 		return errors.New("template-outdated")
 	}
 	if action == AddResourceAction {
-		//TODO code duplicated needs refactoring
+		//TODO code duplicated, needs refactoring
 		err = impl.createEnvLevelDeploymentTemplate(ctx, appId, envId, envConfigProperties, userId)
 		if err != nil {
 			return err

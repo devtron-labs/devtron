@@ -15,9 +15,10 @@ const (
 	ConfigProtectionResourceType ResourceType = 1
 )
 
-type ResourceProtectRequest struct {
+type ResourceProtectModel struct {
 	AppId           int             `json:"appId" validate:"number,required"`
 	EnvId           int             `json:"envId" validate:"number,required"`
 	ProtectionState ProtectionState `json:"state" validate:"number,required"`
 	UserId          int32           `json:"-"`
 }
+

@@ -10,6 +10,7 @@ import (
 
 type ResourceProtectionRepository interface {
 	ConfigureResourceProtection(appId int, envId int, state ProtectionState, userId int32) error
+	GetResourceProtectMetadata(appId int) ([]*ResourceProtectionDto, error)
 }
 
 type ResourceProtectionDto struct {
@@ -123,3 +124,15 @@ func (repo *ResourceProtectionRepositoryImpl) createProtectionHistoryDto(dto *Re
 	}
 	return history, nil
 }
+
+func (repo *ResourceProtectionRepositoryImpl) GetResourceProtectMetadata(appId int) ([]*ResourceProtectionDto, error) {
+	var resourceProtectionDtos []*ResourceProtectionDto
+	err := repo.dbConnection.Model(&resourceProtectionDtos).Where("app_id = ?", appId).Select()
+	if err != nil && err != pg.ErrNoRows {
+		repo.logger.Errorw("error occurred while fetching resource protection", "appId", appId, "err", err)
+	} else {
+		err = nil
+	}
+	return resourceProtectionDtos, err
+}
+

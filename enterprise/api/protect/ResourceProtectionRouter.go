@@ -17,4 +17,7 @@ func NewResourceProtectionRouterImpl(resourceProtectionRestHandler ResourceProte
 func (router *ResourceProtectionRouterImpl) InitResourceProtectionRouter(protectRouter *mux.Router) {
 	protectRouter.Path("").HandlerFunc(router.resourceProtectionRestHandler.ConfigureResourceProtect).
 		Methods("POST")
+	protectRouter.Path("").HandlerFunc(router.resourceProtectionRestHandler.GetResourceProtectMetadata).
+		Queries("appId", "{appId}").
+		Methods("GET")
 }

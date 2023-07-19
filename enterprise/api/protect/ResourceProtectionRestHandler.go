@@ -3,6 +3,7 @@ package protect
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/enterprise/pkg/protect"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -15,6 +16,7 @@ import (
 
 type ResourceProtectionRestHandler interface {
 	ConfigureResourceProtect(w http.ResponseWriter, r *http.Request)
+	GetResourceProtectMetadata(w http.ResponseWriter, r *http.Request)
 }
 
 type ResourceProtectionRestHandlerImpl struct {
@@ -45,18 +47,18 @@ func (handler *ResourceProtectionRestHandlerImpl) ConfigureResourceProtect(w htt
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var request protect.ResourceProtectRequest
+	var request protect.ResourceProtectModel
 	decoder := json.NewDecoder(r.Body)
 	err = decoder.Decode(&request)
 	if err != nil {
-		handler.logger.Errorw("err in decoding request in ResourceProtectRequest", "err", err)
+		handler.logger.Errorw("err in decoding request in ResourceProtectModel", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	// validate request
 	err = handler.validator.Struct(request)
 	if err != nil {
-		handler.logger.Errorw("validation err in ResourceProtectRequest", "err", err, "request", request)
+		handler.logger.Errorw("validation err in ResourceProtectModel", "err", err, "request", request)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -74,3 +76,31 @@ func (handler *ResourceProtectionRestHandlerImpl) ConfigureResourceProtect(w htt
 	}
 	common.WriteJsonResp(w, nil, nil, http.StatusOK)
 }
+
+func (handler *ResourceProtectionRestHandlerImpl) GetResourceProtectMetadata(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	appId, err := common.ExtractIntQueryParam(w, r, "appId")
+	if err != nil {
+		return
+	}
+
+	token := r.Header.Get("token")
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+
+	protectModels, err := handler.resourceProtectionService.GetResourceProtectMetadata(appId)
+	if err != nil {
+		handler.logger.Errorw("error occurred while fetching resource protection", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, protectModels, http.StatusOK)
+}
+
