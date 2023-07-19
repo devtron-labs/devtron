@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -158,6 +159,10 @@ const (
 	DashboardLoggedIn            TelemetryEventType = "DashboardLoggedIn"
 	SIG_TERM                     TelemetryEventType = "SIG_TERM"
 )
+
+type EnvironmentList struct {
+	IsAirGapEnvironment bool `env:"IS_AIR_GAP_ENVIRONMENT" envDefault:"false"`
+}
 
 func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cluster.ClusterBean, user []bean.UserInfo,
 	k8sServerVersion *version.Info, hostURL bool, ssoSetup bool, HelmAppAccessCount string, ChartStoreVisitCount string,
@@ -364,7 +369,12 @@ func (impl *TelemetryEventClientImpl) EnqueueGenericPostHogEvent(ucid string, ev
 			impl.PosthogClient.Client = client
 		}
 	}
-	if impl.PosthogClient.Client != nil {
+	var environmentData EnvironmentList
+	err := env.Parse(&environmentData)
+	if err != nil {
+		impl.logger.Errorw("Error in parsing environment data")
+	}
+	if impl.PosthogClient.Client != nil && !environmentData.IsAirGapEnvironment {
 		err := impl.PosthogClient.Client.Enqueue(posthog.Capture{
 			DistinctId: ucid,
 			Event:      eventType,
