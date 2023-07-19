@@ -166,7 +166,8 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) HelmApplicationStatusUpdate() 
 		impl.logger.Errorw("error in converting string to int", "err", err)
 		return
 	}
-	err = impl.CdHandler.CheckHelmAppStatusPeriodicallyAndUpdateInDb(HelmPipelineStatusCheckEligibleTime)
+	getPipelineDeployedWithinHours := impl.AppStatusConfig.GetPipelineDeployedWithinHours
+	err = impl.CdHandler.CheckHelmAppStatusPeriodicallyAndUpdateInDb(HelmPipelineStatusCheckEligibleTime, getPipelineDeployedWithinHours)
 	if err != nil {
 		impl.logger.Errorw("error helm app status update - cron job", "err", err)
 		return

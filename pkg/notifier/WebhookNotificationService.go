@@ -19,15 +19,16 @@ type WebhookVariable string
 
 const (
 	// these fields will be configurable in future
-	DevtronContainerImageTag WebhookVariable = "{{devtronContainerImageTag}}"
-	DevtronAppName           WebhookVariable = "{{devtronAppName}}"
-	DevtronAppId             WebhookVariable = "{{devtronAppId}}"
-	DevtronEnvName           WebhookVariable = "{{devtronEnvName}}"
-	DevtronEnvId             WebhookVariable = "{{devtronEnvId}}"
-	DevtronCiPipelineId      WebhookVariable = "{{devtronCiPipelineId}}"
-	DevtronCdPipelineId      WebhookVariable = "{{devtronCdPipelineId}}"
-	DevtronTriggeredByEmail  WebhookVariable = "{{devtronTriggeredByEmail}}"
-	EventType                WebhookVariable = "{{eventType}}"
+	DevtronContainerImageTag  WebhookVariable = "{{devtronContainerImageTag}}"
+	DevtronContainerImageRepo WebhookVariable = "{{devtronContainerImageRepo}}"
+	DevtronAppName            WebhookVariable = "{{devtronAppName}}"
+	DevtronAppId              WebhookVariable = "{{devtronAppId}}"
+	DevtronEnvName            WebhookVariable = "{{devtronEnvName}}"
+	DevtronEnvId              WebhookVariable = "{{devtronEnvId}}"
+	DevtronCiPipelineId       WebhookVariable = "{{devtronCiPipelineId}}"
+	DevtronCdPipelineId       WebhookVariable = "{{devtronCdPipelineId}}"
+	DevtronTriggeredByEmail   WebhookVariable = "{{devtronTriggeredByEmail}}"
+	EventType                 WebhookVariable = "{{eventType}}"
 )
 
 type WebhookNotificationService interface {
@@ -113,15 +114,16 @@ func (impl *WebhookNotificationServiceImpl) FetchWebhookNotificationConfigById(i
 
 func (impl *WebhookNotificationServiceImpl) GetWebhookVariables() (map[string]WebhookVariable, error) {
 	variables := map[string]WebhookVariable{
-		"devtronContainerImageTag": DevtronContainerImageTag,
-		"devtronAppName":           DevtronAppName,
-		"devtronAppId":             DevtronAppId,
-		"devtronEnvName":           DevtronEnvName,
-		"devtronEnvId":             DevtronEnvId,
-		"devtronCiPipelineId":      DevtronCiPipelineId,
-		"devtronCdPipelineId":      DevtronCdPipelineId,
-		"devtronTriggeredByEmail":  DevtronTriggeredByEmail,
-		"eventType":                EventType,
+		"devtronContainerImageTag":  DevtronContainerImageTag,
+		"devtronContainerImageRepo": DevtronContainerImageRepo,
+		"devtronAppName":            DevtronAppName,
+		"devtronAppId":              DevtronAppId,
+		"devtronEnvName":            DevtronEnvName,
+		"devtronEnvId":              DevtronEnvId,
+		"devtronCiPipelineId":       DevtronCiPipelineId,
+		"devtronCdPipelineId":       DevtronCdPipelineId,
+		"devtronTriggeredByEmail":   DevtronTriggeredByEmail,
+		"eventType":                 EventType,
 	}
 
 	return variables, nil

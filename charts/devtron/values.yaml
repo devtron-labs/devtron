@@ -10,7 +10,7 @@ global:
 installer:
   repo: "devtron-labs/devtron"
 #  For Kubernetes version < 1.16, set release: legacy. You won't be able to upgrade Devtron unless you upgrade the K8s version to 1.16 or above.
-  release: "v0.6.18-rc.3" #You can use a branch name or a release tag name as a release, for gitee as source only "main" is supported as of now
+  release: "v0.6.19" #You can use a branch name or a release tag name as a release, for gitee as source only "main" is supported as of now
   image: quay.io/devtron/inception
   tag: 44b30917-185-13275
   source: "github" # Available options are github and gitee
@@ -55,14 +55,16 @@ components:
       extraConfigs:
         USE_V2: "true"
         ENABLE_BUILD_CONTEXT: "true"
-    image: "quay.io/devtron/dashboard:b03e3a2c-325-14294"
+        ENABLE_RESTART_WORKLOAD: "true"
+    image: "quay.io/devtron/dashboard:21fa40d4-466-14490"
     imagePullPolicy: IfNotPresent
 
   devtron:
-    image: "quay.io/devtron/hyperion:b3411eff-280-14312"
-    cicdImage: "quay.io/devtron/devtron:b3411eff-434-14313"
+    image: "quay.io/devtron/hyperion:8f1c1b92-336-14491"
+    cicdImage: "quay.io/devtron/devtron:8f1c1b92-435-14487"
     imagePullPolicy: IfNotPresent
-    customOverrides: {}
+    customOverrides:
+      DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:37b94b38-138-14234"
     serviceMonitor:
       enabled: false
     service:
@@ -92,7 +94,7 @@ components:
       authenticator: "quay.io/devtron/authenticator:e414faff-393-13273"
 
   kubelink:
-    image: "quay.io/devtron/kubelink:bf9bd316-318-14325"
+    image: "quay.io/devtron/kubelink:9fc8eec3-391-14421"
     imagePullPolicy: IfNotPresent
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
@@ -120,13 +122,13 @@ components:
         SCRIPT_LOCATION: "scripts/sql/"
         GIT_REPO_URL: "https://github.com/devtron-labs/devtron.git"
         DB_NAME: "orchestrator"
-        GIT_HASH: "b3411effd8d4b4e17eae837d6edbed3e7739c322"
+        GIT_HASH: "fcaa76547c4b876d232f82925a1f69a4be0cd46d"
       casbin:
         GIT_BRANCH: "main"
         SCRIPT_LOCATION: "scripts/casbin/"
         GIT_REPO_URL: "https://github.com/devtron-labs/devtron.git"
         DB_NAME: "casbin"
-        GIT_HASH: "b3411effd8d4b4e17eae837d6edbed3e7739c322"
+        GIT_HASH: "fcaa76547c4b876d232f82925a1f69a4be0cd46d"
 
 # values for argocd integration
 argo-cd:
@@ -285,6 +287,9 @@ security:
   enabled: false
   imageScanner:
     image: "quay.io/devtron/image-scanner:d554c0f8-334-14015"
+  # Values for trivy
+  trivy:
+    enabled: false
   # Values for clair
   clair:
     enabled: false
