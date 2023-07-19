@@ -20,7 +20,7 @@ package pipeline
 import (
 	"context"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
-	"github.com/devtron-labs/devtron/client/k8s/application/util"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"go.uber.org/zap"
 	"io"
 	v12 "k8s.io/api/core/v1"
@@ -31,7 +31,7 @@ import (
 )
 
 type CiLogService interface {
-	FetchRunningWorkflowLogs(ciLogRequest BuildLogRequest, clusterConfig util.ClusterConfig, isExt bool) (io.ReadCloser, func() error, error)
+	FetchRunningWorkflowLogs(ciLogRequest BuildLogRequest, clusterConfig k8s.ClusterConfig, isExt bool) (io.ReadCloser, func() error, error)
 	FetchLogs(baseLogLocationPathConfig string, ciLogRequest BuildLogRequest) (*os.File, func() error, error)
 }
 
@@ -56,7 +56,7 @@ type BuildLogRequest struct {
 
 func NewCiLogServiceImpl(logger *zap.SugaredLogger, ciService CiService, ciConfig *CiConfig) *CiLogServiceImpl {
 	config := ciConfig.ClusterConfig
-	k8sHttpClient, err := util.OverrideK8sHttpClientWithTracer(config)
+	k8sHttpClient, err := k8s.OverrideK8sHttpClientWithTracer(config)
 	if err != nil {
 		return nil
 	}
@@ -72,7 +72,7 @@ func NewCiLogServiceImpl(logger *zap.SugaredLogger, ciService CiService, ciConfi
 	}
 }
 
-func (impl *CiLogServiceImpl) FetchRunningWorkflowLogs(ciLogRequest BuildLogRequest, clusterConfig util.ClusterConfig, isExt bool) (io.ReadCloser, func() error, error) {
+func (impl *CiLogServiceImpl) FetchRunningWorkflowLogs(ciLogRequest BuildLogRequest, clusterConfig k8s.ClusterConfig, isExt bool) (io.ReadCloser, func() error, error) {
 
 	podLogOpts := &v12.PodLogOptions{
 		Container: "main",
@@ -92,7 +92,7 @@ func (impl *CiLogServiceImpl) FetchRunningWorkflowLogs(ciLogRequest BuildLogRequ
 				CAData:   []byte(clusterConfig.CAData),
 			},
 		}
-		k8sHttpClient, err := util.OverrideK8sHttpClientWithTracer(config)
+		k8sHttpClient, err := k8s.OverrideK8sHttpClientWithTracer(config)
 		if err != nil {
 			return nil, nil, err
 		}

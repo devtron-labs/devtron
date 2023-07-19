@@ -15,7 +15,7 @@
  *
  */
 
-package util
+package k8s
 
 import (
 	"github.com/devtron-labs/authenticator/client"

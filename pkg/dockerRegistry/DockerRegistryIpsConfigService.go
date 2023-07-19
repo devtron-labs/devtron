@@ -19,11 +19,11 @@ package dockerRegistry
 
 import (
 	"encoding/json"
-	"github.com/devtron-labs/devtron/client/k8s/application/util"
 	"github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
@@ -40,14 +40,14 @@ type DockerRegistryIpsConfigService interface {
 type DockerRegistryIpsConfigServiceImpl struct {
 	logger                            *zap.SugaredLogger
 	dockerRegistryIpsConfigRepository repository.DockerRegistryIpsConfigRepository
-	k8sUtil                           *util.K8sUtil
+	k8sUtil                           *k8s.K8sUtil
 	clusterService                    cluster.ClusterService
 	ciPipelineRepository              pipelineConfig.CiPipelineRepository
 	dockerArtifactStoreRepository     repository.DockerArtifactStoreRepository
 }
 
 func NewDockerRegistryIpsConfigServiceImpl(logger *zap.SugaredLogger, dockerRegistryIpsConfigRepository repository.DockerRegistryIpsConfigRepository,
-	k8sUtil *util.K8sUtil, clusterService cluster.ClusterService, ciPipelineRepository pipelineConfig.CiPipelineRepository,
+	k8sUtil *k8s.K8sUtil, clusterService cluster.ClusterService, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	dockerArtifactStoreRepository repository.DockerArtifactStoreRepository) *DockerRegistryIpsConfigServiceImpl {
 	return &DockerRegistryIpsConfigServiceImpl{
 		logger:                            logger,

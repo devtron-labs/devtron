@@ -19,13 +19,13 @@ package module
 
 import (
 	"context"
-	"github.com/devtron-labs/devtron/client/k8s/application/util"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
 	serverDataStore "github.com/devtron-labs/devtron/pkg/server/store"
 	"github.com/devtron-labs/devtron/pkg/team"
 	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -45,7 +45,7 @@ type ModuleCacheService interface {
 type ModuleCacheServiceImpl struct {
 	logger           *zap.SugaredLogger
 	mutex            sync.Mutex
-	K8sUtil          *util.K8sUtil
+	K8sUtil          *k8s.K8sUtil
 	moduleEnvConfig  *ModuleEnvConfig
 	serverEnvConfig  *serverEnvConfig.ServerEnvConfig
 	serverDataStore  *serverDataStore.ServerDataStore
@@ -53,7 +53,7 @@ type ModuleCacheServiceImpl struct {
 	teamService      team.TeamService
 }
 
-func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *util.K8sUtil, moduleEnvConfig *ModuleEnvConfig, serverEnvConfig *serverEnvConfig.ServerEnvConfig,
+func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *k8s.K8sUtil, moduleEnvConfig *ModuleEnvConfig, serverEnvConfig *serverEnvConfig.ServerEnvConfig,
 	serverDataStore *serverDataStore.ServerDataStore, moduleRepository moduleRepo.ModuleRepository, teamService team.TeamService) *ModuleCacheServiceImpl {
 	impl := &ModuleCacheServiceImpl{
 		logger:           logger,
@@ -121,7 +121,7 @@ func (impl *ModuleCacheServiceImpl) buildInformerToListenOnInstallerObject() {
 		log.Fatalln("not able to get k8s cluster rest config.", "error", err)
 	}
 
-	k8sHttpClient, err := util.OverrideK8sHttpClientWithTracer(clusterConfig)
+	k8sHttpClient, err := k8s.OverrideK8sHttpClientWithTracer(clusterConfig)
 	if err != nil {
 		log.Fatalln("not able to get k8s http client from rest config.", "error", err)
 	}

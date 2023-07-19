@@ -20,13 +20,13 @@ package batch
 import (
 	"context"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/client/k8s/application/util"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"go.uber.org/zap"
 )
 
@@ -176,7 +176,7 @@ func (impl EnvironmentServiceMock) FindById(id int) (*cluster.EnvironmentBean, e
 	panic("implement me")
 }
 
-func (impl EnvironmentServiceMock) getClusterConfig(cluster *cluster.ClusterBean) (*util.ClusterConfig, error) {
+func (impl EnvironmentServiceMock) getClusterConfig(cluster *cluster.ClusterBean) (*k8s.ClusterConfig, error) {
 	panic("implement me")
 }
 

@@ -1,4 +1,4 @@
-package k8s
+package application
 
 import (
 	"github.com/devtron-labs/devtron/pkg/terminal"

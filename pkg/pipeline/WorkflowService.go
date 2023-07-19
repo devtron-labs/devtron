@@ -33,8 +33,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/k8s"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	"github.com/devtron-labs/devtron/util/k8s"
 	"go.uber.org/zap"
 	v12 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -62,13 +62,13 @@ type CiCdTriggerEvent struct {
 }
 
 type WorkflowServiceImpl struct {
-	Logger                *zap.SugaredLogger
-	config                *rest.Config
-	ciConfig              *CiConfig
-	globalCMCSService     GlobalCMCSService
-	appService            app.AppService
-	configMapRepository   chartConfig.ConfigMapRepository
-	k8sApplicationService k8s.K8sApplicationService
+	Logger              *zap.SugaredLogger
+	config              *rest.Config
+	ciConfig            *CiConfig
+	globalCMCSService   GlobalCMCSService
+	appService          app.AppService
+	configMapRepository chartConfig.ConfigMapRepository
+	K8sCommonService    k8s.K8sCommonService
 }
 
 type WorkflowRequest struct {
@@ -200,17 +200,15 @@ type GitOptions struct {
 	AuthMode      repository.AuthMode `json:"authMode"`
 }
 
-func NewWorkflowServiceImpl(Logger *zap.SugaredLogger, ciConfig *CiConfig,
-	globalCMCSService GlobalCMCSService, appService app.AppService,
-	configMapRepository chartConfig.ConfigMapRepository, k8sApplicationService k8s.K8sApplicationService) *WorkflowServiceImpl {
+func NewWorkflowServiceImpl(Logger *zap.SugaredLogger, ciConfig *CiConfig, globalCMCSService GlobalCMCSService, appService app.AppService, configMapRepository chartConfig.ConfigMapRepository, k8sCommonService k8s.K8sCommonService) *WorkflowServiceImpl {
 	return &WorkflowServiceImpl{
-		Logger:                Logger,
-		config:                ciConfig.ClusterConfig,
-		ciConfig:              ciConfig,
-		globalCMCSService:     globalCMCSService,
-		appService:            appService,
-		configMapRepository:   configMapRepository,
-		k8sApplicationService: k8sApplicationService,
+		Logger:              Logger,
+		config:              ciConfig.ClusterConfig,
+		ciConfig:            ciConfig,
+		globalCMCSService:   globalCMCSService,
+		appService:          appService,
+		configMapRepository: configMapRepository,
+		K8sCommonService:    k8sCommonService,
 	}
 }
 
@@ -750,7 +748,7 @@ func getCiTemplateWithConfigMapsAndSecrets(configMaps *bean3.ConfigMapJson, secr
 }
 
 func (impl *WorkflowServiceImpl) getRuntimeEnvClientInstance(environment *repository2.Environment) (v1alpha12.WorkflowInterface, error) {
-	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(context.Background(), environment.ClusterId)
+	restConfig, err := impl.K8sCommonService.GetRestConfigByClusterId(context.Background(), environment.ClusterId)
 	if err != nil {
 		impl.Logger.Errorw("error in getting rest config buy cluster id", "err", err)
 		return nil, err

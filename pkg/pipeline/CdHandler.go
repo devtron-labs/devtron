@@ -30,7 +30,6 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	client2 "github.com/devtron-labs/devtron/client/events"
-	util2 "github.com/devtron-labs/devtron/client/k8s/application/util"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
@@ -46,6 +45,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
@@ -558,15 +558,15 @@ func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int, userId int32) (int,
 		return 0, err
 	}
 	configMap := env.Cluster.Config
-	clusterConfig := util2.ClusterConfig{
+	clusterConfig := k8s.ClusterConfig{
 		Host:                  env.Cluster.ServerUrl,
-		BearerToken:           configMap[util2.BearerToken],
+		BearerToken:           configMap[k8s.BearerToken],
 		InsecureSkipTLSVerify: env.Cluster.InsecureSkipTlsVerify,
 	}
 	if env.Cluster.InsecureSkipTlsVerify == false {
-		clusterConfig.KeyData = configMap[util2.TlsKey]
-		clusterConfig.CertData = configMap[util2.CertData]
-		clusterConfig.CAData = configMap[util2.CertificateAuthorityData]
+		clusterConfig.KeyData = configMap[k8s.TlsKey]
+		clusterConfig.CertData = configMap[k8s.CertData]
+		clusterConfig.CAData = configMap[k8s.CertificateAuthorityData]
 	}
 
 	var isExtCluster bool
@@ -857,15 +857,15 @@ func (impl *CdHandlerImpl) GetRunningWorkflowLogs(environmentId int, pipelineId 
 		return nil, nil, err
 	}
 	configMap := env.Cluster.Config
-	clusterConfig := util2.ClusterConfig{
+	clusterConfig := k8s.ClusterConfig{
 		Host:                  env.Cluster.ServerUrl,
-		BearerToken:           configMap[util2.BearerToken],
+		BearerToken:           configMap[k8s.BearerToken],
 		InsecureSkipTLSVerify: env.Cluster.InsecureSkipTlsVerify,
 	}
 	if env.Cluster.InsecureSkipTlsVerify == false {
-		clusterConfig.KeyData = configMap[util2.TlsKey]
-		clusterConfig.CertData = configMap[util2.CertData]
-		clusterConfig.CAData = configMap[util2.CertificateAuthorityData]
+		clusterConfig.KeyData = configMap[k8s.TlsKey]
+		clusterConfig.CertData = configMap[k8s.CertData]
+		clusterConfig.CAData = configMap[k8s.CertificateAuthorityData]
 	}
 
 	var isExtCluster bool
@@ -877,7 +877,7 @@ func (impl *CdHandlerImpl) GetRunningWorkflowLogs(environmentId int, pipelineId 
 	return impl.getWorkflowLogs(pipelineId, cdWorkflow, clusterConfig, isExtCluster)
 }
 
-func (impl *CdHandlerImpl) getWorkflowLogs(pipelineId int, cdWorkflow *pipelineConfig.CdWorkflowRunner, clusterConfig util2.ClusterConfig, runStageInEnv bool) (*bufio.Reader, func() error, error) {
+func (impl *CdHandlerImpl) getWorkflowLogs(pipelineId int, cdWorkflow *pipelineConfig.CdWorkflowRunner, clusterConfig k8s.ClusterConfig, runStageInEnv bool) (*bufio.Reader, func() error, error) {
 	cdLogRequest := BuildLogRequest{
 		PodName:   cdWorkflow.PodName,
 		Namespace: cdWorkflow.Namespace,

@@ -7,10 +7,10 @@ import (
 	"github.com/devtron-labs/authenticator/client"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/session"
-	"github.com/devtron-labs/devtron/client/k8s/application/util"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
@@ -51,10 +51,10 @@ type ArgoUserServiceImpl struct {
 	gitOpsRepository        repository.GitOpsConfigRepository
 	argoCDConnectionManager argocdServer.ArgoCDConnectionManager
 	versionService          argocdServer.VersionService
-	k8sUtil                 *util.K8sUtil
+	k8sUtil                 *k8s.K8sUtil
 }
 
-func NewArgoUserServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService, devtronSecretConfig *util2.DevtronSecretConfig, runTimeConfig *client.RuntimeConfig, gitOpsRepository repository.GitOpsConfigRepository, argoCDConnectionManager argocdServer.ArgoCDConnectionManager, versionService argocdServer.VersionService, k8sUtil *util.K8sUtil) (*ArgoUserServiceImpl, error) {
+func NewArgoUserServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService, devtronSecretConfig *util2.DevtronSecretConfig, runTimeConfig *client.RuntimeConfig, gitOpsRepository repository.GitOpsConfigRepository, argoCDConnectionManager argocdServer.ArgoCDConnectionManager, versionService argocdServer.VersionService, k8sUtil *k8s.K8sUtil) (*ArgoUserServiceImpl, error) {
 	argoUserServiceImpl := &ArgoUserServiceImpl{
 		logger:                  Logger,
 		clusterService:          clusterService,
@@ -341,7 +341,7 @@ func getNewPassword() string {
 	return string(s)
 }
 
-func getClient(clusterConfig *util.ClusterConfig) (*v1.CoreV1Client, error) {
+func getClient(clusterConfig *k8s.ClusterConfig) (*v1.CoreV1Client, error) {
 	cfg := &rest.Config{}
 	cfg.Host = clusterConfig.Host
 	cfg.BearerToken = clusterConfig.BearerToken
@@ -351,7 +351,7 @@ func getClient(clusterConfig *util.ClusterConfig) (*v1.CoreV1Client, error) {
 		cfg.CertData = []byte(clusterConfig.CertData)
 		cfg.CAData = []byte(clusterConfig.CAData)
 	}
-	httpClient, err := util.OverrideK8sHttpClientWithTracer(cfg)
+	httpClient, err := k8s.OverrideK8sHttpClientWithTracer(cfg)
 	if err != nil {
 		return nil, err
 	}

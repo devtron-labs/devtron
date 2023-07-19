@@ -1,4 +1,4 @@
-package util
+package k8s
 
 import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -92,4 +92,30 @@ type K8sRequestBean struct {
 	Patch              string             `json:"patch,omitempty"`
 	PodLogsRequest     PodLogsRequest     `json:"podLogsRequest,omitempty"`
 	ForceDelete        bool               `json:"-"`
+}
+
+type GetAllApiResourcesResponse struct {
+	ApiResources []*K8sApiResource `json:"apiResources"`
+	AllowedAll   bool              `json:"allowedAll"`
+}
+
+type K8sApiResource struct {
+	Gvk        schema.GroupVersionKind `json:"gvk"`
+	Namespaced bool                    `json:"namespaced"`
+}
+
+type ApplyResourcesRequest struct {
+	Manifest  string `json:"manifest"`
+	ClusterId int    `json:"clusterId"`
+}
+
+type ApplyResourcesResponse struct {
+	Kind     string `json:"kind"`
+	Name     string `json:"name"`
+	Error    string `json:"error"`
+	IsUpdate bool   `json:"isUpdate"`
+}
+
+type ManifestResponse struct {
+	Manifest unstructured.Unstructured `json:"manifest,omitempty"`
 }

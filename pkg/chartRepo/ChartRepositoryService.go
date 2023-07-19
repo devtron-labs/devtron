@@ -22,7 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	util3 "github.com/devtron-labs/devtron/client/k8s/application/util"
+	util3 "github.com/devtron-labs/devtron/util/k8s"
 	"io"
 	"io/ioutil"
 	"net/http"

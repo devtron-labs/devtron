@@ -20,13 +20,13 @@ package app
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/client/k8s/application/util"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/user/repository"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"strconv"
@@ -86,7 +86,7 @@ func (impl AppCrudOperationServiceImpl) UpdateApp(request *bean.CreateAppDTO) (*
 		}
 		labelKey := label.Key
 		labelValue := label.Value
-		err := util.CheckIfValidLabel(labelKey, labelValue)
+		err := k8s.CheckIfValidLabel(labelKey, labelValue)
 		if err != nil {
 			return nil, err
 		}
@@ -425,7 +425,7 @@ func (impl AppCrudOperationServiceImpl) GetLabelsByAppIdForDeployment(appId int)
 
 		// if labelKey is not satisfying the label key criteria don't add in labels
 		// label key must be a 'qualified name' (https://github.com/kubernetes/website/issues/17969)
-		err = util.CheckIfValidLabel(labelKey, labelValue)
+		err = k8s.CheckIfValidLabel(labelKey, labelValue)
 		if err != nil {
 			impl.logger.Warnw("Ignoring label to propagate to app level", "err", err, "appId", appId)
 			continue

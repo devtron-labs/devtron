@@ -15,7 +15,7 @@
  *
  */
 
-package util
+package k8s
 
 import (
 	"context"
@@ -23,7 +23,6 @@ import (
 	error2 "errors"
 	"flag"
 	"fmt"
-	"github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/devtron-labs/devtron/internal/util"
 	"io"
 	v13 "k8s.io/api/policy/v1"
@@ -1136,7 +1135,7 @@ func (impl K8sUtil) GetResourceIfWithAcceptHeader(restConfig *rest.Config, group
 		if wt != nil {
 			rt = wt(rt)
 		}
-		return &application.HeaderAdder{
+		return &HeaderAdder{
 			Rt: rt,
 		}
 	}
@@ -1189,7 +1188,7 @@ func (impl K8sUtil) GetResourceList(ctx context.Context, restConfig *rest.Config
 	return &ResourceListResponse{*resp}, namespaced, nil
 
 }
-func (impl K8sUtil) PatchResourceRequest(ctx context.Context, restConfig *rest.Config, pt types.PatchType, manifest string, name string, namespace string, gvk schema.GroupVersionKind) (*application.ManifestResponse, error) {
+func (impl K8sUtil) PatchResourceRequest(ctx context.Context, restConfig *rest.Config, pt types.PatchType, manifest string, name string, namespace string, gvk schema.GroupVersionKind) (*ManifestResponse, error) {
 	resourceIf, namespaced, err := impl.GetResourceIf(restConfig, gvk)
 	if err != nil {
 		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err, "resource", name, "namespace", namespace)
@@ -1206,11 +1205,11 @@ func (impl K8sUtil) PatchResourceRequest(ctx context.Context, restConfig *rest.C
 		impl.logger.Errorw("error in applying resource", "err", err, "resource", name, "namespace", namespace)
 		return nil, err
 	}
-	return &application.ManifestResponse{*resp}, nil
+	return &ManifestResponse{*resp}, nil
 }
 
 // if verb is supplied empty, that means - return all
-func (impl K8sUtil) GetApiResources(restConfig *rest.Config, includeOnlyVerb string) ([]*application.K8sApiResource, error) {
+func (impl K8sUtil) GetApiResources(restConfig *rest.Config, includeOnlyVerb string) ([]*K8sApiResource, error) {
 	discoveryClient, err := discovery.NewDiscoveryClientForConfig(restConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting dynamic k8s client", "err", err)
@@ -1230,7 +1229,7 @@ func (impl K8sUtil) GetApiResources(restConfig *rest.Config, includeOnlyVerb str
 		}
 	}
 
-	apiResources := make([]*application.K8sApiResource, 0)
+	apiResources := make([]*K8sApiResource, 0)
 	for _, apiResourceListFromK8s := range apiResourcesListFromK8s {
 		if apiResourceListFromK8s != nil {
 			for _, apiResourceFromK8s := range apiResourceListFromK8s.APIResources {
@@ -1260,7 +1259,7 @@ func (impl K8sUtil) GetApiResources(restConfig *rest.Config, includeOnlyVerb str
 						version = splitGv[1]
 					}
 				}
-				apiResources = append(apiResources, &application.K8sApiResource{
+				apiResources = append(apiResources, &K8sApiResource{
 					Gvk: schema.GroupVersionKind{
 						Group:   group,
 						Version: version,
@@ -1273,7 +1272,7 @@ func (impl K8sUtil) GetApiResources(restConfig *rest.Config, includeOnlyVerb str
 	}
 	return apiResources, nil
 }
-func (impl *K8sUtil) CreateResources(ctx context.Context, restConfig *rest.Config, manifest string, gvk schema.GroupVersionKind, namespace string) (*application.ManifestResponse, error) {
+func (impl *K8sUtil) CreateResources(ctx context.Context, restConfig *rest.Config, manifest string, gvk schema.GroupVersionKind, namespace string) (*ManifestResponse, error) {
 	resourceIf, namespaced, err := impl.GetResourceIf(restConfig, gvk)
 	if err != nil {
 		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err, "namespace", namespace)
@@ -1295,9 +1294,9 @@ func (impl *K8sUtil) CreateResources(ctx context.Context, restConfig *rest.Confi
 		impl.logger.Errorw("error in creating resource", "err", err, "namespace", namespace)
 		return nil, err
 	}
-	return &application.ManifestResponse{*resp}, nil
+	return &ManifestResponse{*resp}, nil
 }
-func (impl *K8sUtil) GetResource(ctx context.Context, namespace string, name string, gvk schema.GroupVersionKind, restConfig *rest.Config) (*application.ManifestResponse, error) {
+func (impl *K8sUtil) GetResource(ctx context.Context, namespace string, name string, gvk schema.GroupVersionKind, restConfig *rest.Config) (*ManifestResponse, error) {
 	resourceIf, namespaced, err := impl.GetResourceIf(restConfig, gvk)
 	if err != nil {
 		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err, "namespace", namespace)
@@ -1313,9 +1312,9 @@ func (impl *K8sUtil) GetResource(ctx context.Context, namespace string, name str
 		impl.logger.Errorw("error in getting resource", "err", err, "resource", name, "namespace", namespace)
 		return nil, err
 	}
-	return &application.ManifestResponse{*resp}, nil
+	return &ManifestResponse{*resp}, nil
 }
-func (impl *K8sUtil) UpdateResource(ctx context.Context, restConfig *rest.Config, gvk schema.GroupVersionKind, namespace string, k8sRequestPatch string) (*application.ManifestResponse, error) {
+func (impl *K8sUtil) UpdateResource(ctx context.Context, restConfig *rest.Config, gvk schema.GroupVersionKind, namespace string, k8sRequestPatch string) (*ManifestResponse, error) {
 
 	resourceIf, namespaced, err := impl.GetResourceIf(restConfig, gvk)
 	if err != nil {
@@ -1338,10 +1337,10 @@ func (impl *K8sUtil) UpdateResource(ctx context.Context, restConfig *rest.Config
 		impl.logger.Errorw("error in updating resource", "err", err, "namespace", namespace)
 		return nil, err
 	}
-	return &application.ManifestResponse{*resp}, nil
+	return &ManifestResponse{*resp}, nil
 }
 
-func (impl *K8sUtil) DeleteResource(ctx context.Context, restConfig *rest.Config, gvk schema.GroupVersionKind, namespace string, name string, forceDelete bool) (*application.ManifestResponse, error) {
+func (impl *K8sUtil) DeleteResource(ctx context.Context, restConfig *rest.Config, gvk schema.GroupVersionKind, namespace string, name string, forceDelete bool) (*ManifestResponse, error) {
 	resourceIf, namespaced, err := impl.GetResourceIf(restConfig, gvk)
 	if err != nil {
 		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err, "resource", name, "namespace", namespace)
@@ -1371,5 +1370,5 @@ func (impl *K8sUtil) DeleteResource(ctx context.Context, restConfig *rest.Config
 		impl.logger.Errorw("error in deleting resource", "err", err, "resource", name, "namespace", namespace)
 		return nil, err
 	}
-	return &application.ManifestResponse{*obj}, nil
+	return &ManifestResponse{*obj}, nil
 }

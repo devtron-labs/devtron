@@ -2,10 +2,10 @@ package chartRepo
 
 import (
 	"context"
-	"github.com/devtron-labs/devtron/client/k8s/application/util"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/go-pg/pg"
 	"github.com/stretchr/testify/mock"
 )
@@ -83,6 +83,6 @@ func (impl ClusterServiceImplMock) FindAllForAutoComplete() ([]cluster2.ClusterB
 func (impl ClusterServiceImplMock) CreateGrafanaDataSource(clusterBean *cluster2.ClusterBean, env *repository.Environment) (int, error) {
 	panic("implement me")
 }
-func (impl ClusterServiceImplMock) GetClusterConfig(cluster *cluster2.ClusterBean) (*util.ClusterConfig, error) {
+func (impl ClusterServiceImplMock) GetClusterConfig(cluster *cluster2.ClusterBean) (*k8s.ClusterConfig, error) {
 	panic("implement me")
 }

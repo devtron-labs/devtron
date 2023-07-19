@@ -20,8 +20,8 @@ package cluster
 import (
 	"context"
 	"encoding/json"
-	"github.com/devtron-labs/devtron/client/k8s/application/util"
-	"github.com/devtron-labs/devtron/util/k8s"
+	"github.com/devtron-labs/devtron/pkg/k8s"
+	k8s2 "github.com/devtron-labs/devtron/util/k8s"
 	"net/http"
 	"strconv"
 	"strings"
@@ -59,13 +59,13 @@ type EnvironmentRestHandler interface {
 
 type EnvironmentRestHandlerImpl struct {
 	environmentClusterMappingsService request.EnvironmentService
-	k8sApplicationService             k8s.K8sApplicationService
+	k8sCommonService                  k8s.K8sCommonService
 	logger                            *zap.SugaredLogger
 	userService                       user.UserService
 	validator                         *validator.Validate
 	enforcer                          casbin.Enforcer
 	deleteService                     delete2.DeleteService
-	k8sUtil                           *util.K8sUtil
+	k8sUtil                           *k8s2.K8sUtil
 	cfg                               *bean.Config
 }
 
@@ -74,7 +74,7 @@ type ClusterReachableResponse struct {
 	ClusterName      string `json:"clusterName"`
 }
 
-func NewEnvironmentRestHandlerImpl(svc request.EnvironmentService, logger *zap.SugaredLogger, userService user.UserService, validator *validator.Validate, enforcer casbin.Enforcer, deleteService delete2.DeleteService, k8sUtil *util.K8sUtil, k8sApplicationService k8s.K8sApplicationService) *EnvironmentRestHandlerImpl {
+func NewEnvironmentRestHandlerImpl(svc request.EnvironmentService, logger *zap.SugaredLogger, userService user.UserService, validator *validator.Validate, enforcer casbin.Enforcer, deleteService delete2.DeleteService, k8sUtil *k8s2.K8sUtil, k8sCommonService k8s.K8sCommonService) *EnvironmentRestHandlerImpl {
 	cfg := &bean.Config{}
 	err := env.Parse(cfg)
 	if err != nil {
@@ -91,7 +91,7 @@ func NewEnvironmentRestHandlerImpl(svc request.EnvironmentService, logger *zap.S
 		deleteService:                     deleteService,
 		cfg:                               cfg,
 		k8sUtil:                           k8sUtil,
-		k8sApplicationService:             k8sApplicationService,
+		k8sCommonService:                  k8sCommonService,
 	}
 }
 
@@ -512,7 +512,7 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentConnection(w http.ResponseW
 	}
 	//RBAC enforcer Ends
 	// getting restConfig and clientSet outside the goroutine because we don't want to call goroutine func with receiver function
-	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(context.Background(), clusterBean.Id)
+	restConfig, err := impl.k8sCommonService.GetRestConfigByClusterId(context.Background(), clusterBean.Id)
 	if err != nil {
 		impl.logger.Errorw("error in getting restConfig by cluster", "err", err, "clusterId", clusterBean.Id)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

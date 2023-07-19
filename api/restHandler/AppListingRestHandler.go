@@ -41,13 +41,13 @@ import (
 	service1 "github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
+	"github.com/devtron-labs/devtron/pkg/k8s"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
-	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
@@ -97,7 +97,7 @@ type AppListingRestHandlerImpl struct {
 	clusterService                    cluster.ClusterService
 	helmAppService                    client.HelmAppService
 	argoUserService                   argo.ArgoUserService
-	k8sApplicationService             k8s.K8sApplicationService
+	k8sCommonService                  k8s.K8sCommonService
 	installedAppService               service1.InstalledAppService
 	cdApplicationStatusUpdateHandler  cron.CdApplicationStatusUpdateHandler
 	pipelineRepository                pipelineConfig.PipelineRepository
@@ -129,7 +129,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 	logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil,
 	deploymentGroupService deploymentGroup.DeploymentGroupService, userService user.UserService,
 	helmAppClient client.HelmAppClient, clusterService cluster.ClusterService, helmAppService client.HelmAppService,
-	argoUserService argo.ArgoUserService, k8sApplicationService k8s.K8sApplicationService, installedAppService service1.InstalledAppService,
+	argoUserService argo.ArgoUserService, k8sCommonService k8s.K8sCommonService, installedAppService service1.InstalledAppService,
 	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	appStatusService appStatus.AppStatusService, installedAppRepository repository.InstalledAppRepository,
@@ -156,7 +156,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 		clusterService:                    clusterService,
 		helmAppService:                    helmAppService,
 		argoUserService:                   argoUserService,
-		k8sApplicationService:             k8sApplicationService,
+		k8sCommonService:                  k8sCommonService,
 		installedAppService:               installedAppService,
 		cdApplicationStatusUpdateHandler:  cdApplicationStatusUpdateHandler,
 		pipelineRepository:                pipelineRepository,
@@ -1452,19 +1452,19 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 	}
 	//valid batch requests, only valid requests will be sent for batch processing
 	validRequests := make([]k8s.ResourceRequestBean, 0)
-	validRequests = handler.k8sApplicationService.FilterServiceAndIngress(r.Context(), resourceTree, validRequests, appDetail, "")
+	validRequests = handler.k8sCommonService.FilterServiceAndIngress(r.Context(), resourceTree, validRequests, appDetail, "")
 	if len(validRequests) == 0 {
 		handler.logger.Error("neither service nor ingress found for", "appId", appIdParam, "envId", envIdParam, "installedAppId", installedAppIdParam)
 		common.WriteJsonResp(w, err, nil, http.StatusNoContent)
 		return
 	}
-	resp, err := handler.k8sApplicationService.GetManifestsByBatch(r.Context(), validRequests)
+	resp, err := handler.k8sCommonService.GetManifestsByBatch(r.Context(), validRequests)
 	if err != nil {
 		handler.logger.Errorw("error in getting manifests in batch", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	result := handler.k8sApplicationService.GetUrlsByBatch(r.Context(), resp)
+	result := handler.k8sCommonService.GetUrlsByBatch(r.Context(), resp)
 	common.WriteJsonResp(w, nil, result, http.StatusOK)
 }
 

@@ -2,7 +2,7 @@ package informer
 
 import (
 	"flag"
-	"github.com/devtron-labs/devtron/client/k8s/application/util"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"os/user"
 	"path/filepath"
 	"sync"
@@ -111,7 +111,7 @@ func (impl *K8sInformerFactoryImpl) BuildInformer(clusterInfo []*bean.ClusterInf
 func (impl *K8sInformerFactoryImpl) buildInformerAndNamespaceList(clusterName string, config *rest.Config, mutex *sync.Mutex) map[string]map[string]bool {
 	allNamespaces := make(map[string]bool)
 	impl.globalMapClusterNamespace[clusterName] = allNamespaces
-	httpClient, err := util.OverrideK8sHttpClientWithTracer(config)
+	httpClient, err := k8s.OverrideK8sHttpClientWithTracer(config)
 	if err != nil {
 		return impl.globalMapClusterNamespace
 	}

@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	util3 "github.com/devtron-labs/devtron/client/k8s/application/util"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -78,7 +78,7 @@ type HelmAppServiceImpl struct {
 	installedAppRepository               repository.InstalledAppRepository
 	appRepository                        app.AppRepository
 	clusterRepository                    clusterRepository.ClusterRepository
-	K8sUtil                              *util3.K8sUtil
+	K8sUtil                              *k8s.K8sUtil
 	helmReleaseConfig                    *HelmReleaseConfig
 }
 
@@ -88,7 +88,7 @@ func NewHelmAppServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.Clu
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
 	environmentService cluster.EnvironmentService, pipelineRepository pipelineConfig.PipelineRepository,
 	installedAppRepository repository.InstalledAppRepository, appRepository app.AppRepository,
-	clusterRepository clusterRepository.ClusterRepository, K8sUtil *util3.K8sUtil,
+	clusterRepository clusterRepository.ClusterRepository, K8sUtil *k8s.K8sUtil,
 	helmReleaseConfig *HelmReleaseConfig) *HelmAppServiceImpl {
 	return &HelmAppServiceImpl{
 		logger:                               Logger,
@@ -136,7 +136,7 @@ func (impl *HelmAppServiceImpl) listApplications(ctx context.Context, clusterIds
 	for _, clusterDetail := range clusters {
 		config := &ClusterConfig{
 			ApiServerUrl: clusterDetail.ServerUrl,
-			Token:        clusterDetail.Config[util3.BearerToken],
+			Token:        clusterDetail.Config[k8s.BearerToken],
 			ClusterId:    int32(clusterDetail.Id),
 			ClusterName:  clusterDetail.ClusterName,
 		}
@@ -261,7 +261,7 @@ func (impl *HelmAppServiceImpl) GetClusterConf(clusterId int) (*ClusterConfig, e
 	}
 	config := &ClusterConfig{
 		ApiServerUrl: cluster.ServerUrl,
-		Token:        cluster.Config[util3.BearerToken],
+		Token:        cluster.Config[k8s.BearerToken],
 		ClusterId:    int32(cluster.Id),
 		ClusterName:  cluster.ClusterName,
 	}

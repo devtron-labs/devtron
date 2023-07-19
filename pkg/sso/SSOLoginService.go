@@ -20,7 +20,7 @@ package sso
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/client/k8s/application/util"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"time"
 
 	"github.com/devtron-labs/devtron/api/bean"
@@ -43,7 +43,7 @@ type SSOLoginService interface {
 type SSOLoginServiceImpl struct {
 	logger              *zap.SugaredLogger
 	ssoLoginRepository  SSOLoginRepository
-	K8sUtil             *util.K8sUtil
+	K8sUtil             *k8s.K8sUtil
 	devtronSecretConfig *util2.DevtronSecretConfig
 	userAuthOidcHelper  auth.UserAuthOidcHelper
 }
@@ -61,7 +61,7 @@ const ClientSecret = "clientSecret"
 func NewSSOLoginServiceImpl(
 	logger *zap.SugaredLogger,
 	ssoLoginRepository SSOLoginRepository,
-	K8sUtil *util.K8sUtil, devtronSecretConfig *util2.DevtronSecretConfig, userAuthOidcHelper auth.UserAuthOidcHelper) *SSOLoginServiceImpl {
+	K8sUtil *k8s.K8sUtil, devtronSecretConfig *util2.DevtronSecretConfig, userAuthOidcHelper auth.UserAuthOidcHelper) *SSOLoginServiceImpl {
 	serviceImpl := &SSOLoginServiceImpl{
 		logger:              logger,
 		ssoLoginRepository:  ssoLoginRepository,

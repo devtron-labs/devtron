@@ -21,7 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	util4 "github.com/devtron-labs/devtron/client/k8s/application/util"
+	util4 "github.com/devtron-labs/devtron/util/k8s"
 	"math/rand"
 	"net/http"
 	"net/url"

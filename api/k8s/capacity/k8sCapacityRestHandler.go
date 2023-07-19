@@ -1,10 +1,12 @@
-package k8s
+package capacity
 
 import (
 	"encoding/json"
 	"errors"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/k8s/capacity"
+	"github.com/devtron-labs/devtron/pkg/k8s/capacity/bean"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
@@ -28,7 +30,7 @@ type K8sCapacityRestHandler interface {
 }
 type K8sCapacityRestHandlerImpl struct {
 	logger             *zap.SugaredLogger
-	k8sCapacityService K8sCapacityService
+	k8sCapacityService capacity.K8sCapacityService
 	userService        user.UserService
 	enforcer           casbin.Enforcer
 	clusterService     cluster.ClusterService
@@ -36,7 +38,7 @@ type K8sCapacityRestHandlerImpl struct {
 }
 
 func NewK8sCapacityRestHandlerImpl(logger *zap.SugaredLogger,
-	k8sCapacityService K8sCapacityService, userService user.UserService,
+	k8sCapacityService capacity.K8sCapacityService, userService user.UserService,
 	enforcer casbin.Enforcer,
 	clusterService cluster.ClusterService,
 	environmentService cluster.EnvironmentService) *K8sCapacityRestHandlerImpl {
@@ -65,7 +67,7 @@ func (handler *K8sCapacityRestHandlerImpl) GetClusterListRaw(w http.ResponseWrit
 	}
 	// RBAC enforcer applying
 	var authenticatedClusters []*cluster.ClusterBean
-	var clusterDetailList []*ClusterCapacityDetail
+	var clusterDetailList []*bean.ClusterCapacityDetail
 	for _, cluster := range clusters {
 		authenticated, err := handler.CheckRbacForCluster(cluster, token)
 		if err != nil {
@@ -75,7 +77,7 @@ func (handler *K8sCapacityRestHandlerImpl) GetClusterListRaw(w http.ResponseWrit
 		}
 		if authenticated {
 			authenticatedClusters = append(authenticatedClusters, cluster)
-			clusterDetail := &ClusterCapacityDetail{
+			clusterDetail := &bean.ClusterCapacityDetail{
 				Id:                cluster.Id,
 				Name:              cluster.ClusterName,
 				ErrorInConnection: cluster.ErrorInConnecting,
@@ -258,7 +260,7 @@ func (handler *K8sCapacityRestHandlerImpl) GetNodeDetail(w http.ResponseWriter, 
 
 func (handler *K8sCapacityRestHandlerImpl) UpdateNodeManifest(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	var manifestUpdateReq NodeUpdateRequestDto
+	var manifestUpdateReq bean.NodeUpdateRequestDto
 	err := decoder.Decode(&manifestUpdateReq)
 	if err != nil {
 		handler.logger.Errorw("error in decoding request body", "err", err)
@@ -287,7 +289,7 @@ func (handler *K8sCapacityRestHandlerImpl) UpdateNodeManifest(w http.ResponseWri
 
 func (handler *K8sCapacityRestHandlerImpl) DeleteNode(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	var nodeDelReq NodeUpdateRequestDto
+	var nodeDelReq bean.NodeUpdateRequestDto
 	err := decoder.Decode(&nodeDelReq)
 	if err != nil {
 		handler.logger.Errorw("error in decoding request body", "err", err)
@@ -316,7 +318,7 @@ func (handler *K8sCapacityRestHandlerImpl) DeleteNode(w http.ResponseWriter, r *
 
 func (handler *K8sCapacityRestHandlerImpl) CordonOrUnCordonNode(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	var nodeCordonReq NodeUpdateRequestDto
+	var nodeCordonReq bean.NodeUpdateRequestDto
 	err := decoder.Decode(&nodeCordonReq)
 	if err != nil {
 		handler.logger.Errorw("error in decoding request body", "err", err)
@@ -345,7 +347,7 @@ func (handler *K8sCapacityRestHandlerImpl) CordonOrUnCordonNode(w http.ResponseW
 
 func (handler *K8sCapacityRestHandlerImpl) DrainNode(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	var nodeDrainReq NodeUpdateRequestDto
+	var nodeDrainReq bean.NodeUpdateRequestDto
 	err := decoder.Decode(&nodeDrainReq)
 	if err != nil {
 		handler.logger.Errorw("error in decoding request body", "err", err)
@@ -374,7 +376,7 @@ func (handler *K8sCapacityRestHandlerImpl) DrainNode(w http.ResponseWriter, r *h
 
 func (handler *K8sCapacityRestHandlerImpl) EditNodeTaints(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	var nodeTaintReq NodeUpdateRequestDto
+	var nodeTaintReq bean.NodeUpdateRequestDto
 	err := decoder.Decode(&nodeTaintReq)
 	if err != nil {
 		handler.logger.Errorw("error in decoding request body", "err", err)

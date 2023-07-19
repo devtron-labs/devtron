@@ -19,8 +19,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/client/k8s/application/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/util/k8s"
 	errors1 "github.com/juju/errors"
 	"go.uber.org/zap"
 	"io"
@@ -450,7 +450,7 @@ func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequ
 		cfg.CAData = []byte(config.CAData)
 	}
 
-	k8sHttpClient, err := util.OverrideK8sHttpClientWithTracer(cfg)
+	k8sHttpClient, err := k8s.OverrideK8sHttpClientWithTracer(cfg)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -1,10 +1,10 @@
 package cluster
 
 import (
-	util2 "github.com/devtron-labs/devtron/client/k8s/application/util"
-	"github.com/devtron-labs/devtron/client/k8s/informer"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/k8s/informer"
+	util2 "github.com/devtron-labs/devtron/util/k8s"
 	"go.uber.org/zap"
 	"testing"
 )
