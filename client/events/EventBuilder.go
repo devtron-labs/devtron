@@ -100,18 +100,12 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 		event.Payload = payload
 	}
 	var emailIDs []string
-	wfrForApprovalData, err := impl.cdWorkflowRepository.FindLatestWfrByAppIdAndEnvironmentId(event.AppId, event.EnvId)
-	if err != nil {
-		impl.logger.Errorw("error in getting wfr by appId and envId", "err", err, "appId", wfrForApprovalData, "envId", event.EnvId)
-	}
-	var deploymentUserData []*pipelineConfig.DeploymentApprovalUserData
-	if wfrForApprovalData != nil && wfrForApprovalData.DeploymentApprovalRequest != nil {
-		deploymentUserData, err = impl.DeploymentApprovalRepository.FetchApprovedDataByApprovalId(wfrForApprovalData.DeploymentApprovalRequest.Id)
+
+	if wfr != nil && wfr.DeploymentApprovalRequestId >= 0 { //todo is >= right??
+		deploymentUserData, err := impl.DeploymentApprovalRepository.FetchApprovedDataByApprovalId(wfr.DeploymentApprovalRequestId)
 		if err != nil {
-			impl.logger.Errorw("error in getting deploymentUserData", "err", err, "wfrForApprovalData.DeploymentApprovalRequest.Id", wfrForApprovalData.DeploymentApprovalRequest.Id)
+			impl.logger.Errorw("error in getting deploymentUserData", "err", err, "deploymentApprovalRequestId", wfr.DeploymentApprovalRequestId)
 		}
-	}
-	if wfrForApprovalData != nil {
 		if deploymentUserData != nil {
 			userIDs := []int32{}
 			for _, userData := range deploymentUserData {
@@ -128,6 +122,7 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 
 		}
 	}
+
 	payload.ApprovedByEmail = emailIDs
 	if wfr != nil {
 		material, err := impl.getCiMaterialInfo(wfr.CdWorkflow.Pipeline.CiPipelineId, wfr.CdWorkflow.CiArtifactId)
@@ -138,7 +133,6 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 		payload.DockerImageUrl = wfr.CdWorkflow.CiArtifact.Image
 		event.UserId = int(wfr.TriggeredBy)
 		event.Payload = payload
-		payload.ApprovedByEmail = emailIDs
 		event.CdWorkflowRunnerId = wfr.Id
 		event.CiArtifactId = wfr.CdWorkflow.CiArtifactId
 	} else if pipelineOverrideId > 0 {

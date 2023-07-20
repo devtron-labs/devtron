@@ -186,7 +186,7 @@ type AppService interface {
 	GetCmSecretNew(appId int, envId int, isJob bool) (*bean.ConfigMapJson, *bean.ConfigSecretJson, error)
 	MarkImageScanDeployed(appId int, envId int, imageDigest string, clusterId int) error
 	UpdateDeploymentStatusForGitOpsPipelines(app *v1alpha1.Application, statusTime time.Time, isAppStore bool) (bool, bool, error)
-	WriteCDSuccessEvent(appId int, envId int, override *chartConfig.PipelineOverride)
+	WriteCDSuccessEvent(appId int, envId int, wfr *pipelineConfig.CdWorkflowRunner, override *chartConfig.PipelineOverride)
 	GetGitOpsRepoPrefix() string
 	GetValuesOverrideForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*ValuesOverrideResponse, error)
 	GetEnvOverrideByTriggerType(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*chartConfig.EnvConfigOverride, error)
@@ -520,7 +520,7 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsPipelines(app *v1alph
 				}
 				if isSucceeded {
 					impl.logger.Infow("writing cd success event", "gitHash", gitHash, "pipelineOverride", pipelineOverride)
-					go impl.WriteCDSuccessEvent(cdPipeline.AppId, cdPipeline.EnvironmentId, pipelineOverride)
+					go impl.WriteCDSuccessEvent(cdPipeline.AppId, cdPipeline.EnvironmentId, &cdWfr, pipelineOverride)
 				}
 			} else {
 				impl.logger.Debugw("event received for older triggered revision", "gitHash", gitHash)
@@ -959,10 +959,10 @@ func (impl *AppServiceImpl) SavePipelineStatusTimelineIfNotAlreadyPresent(pipeli
 	return latestTimeline, nil, isTimelineUpdated
 }
 
-func (impl *AppServiceImpl) WriteCDSuccessEvent(appId int, envId int, override *chartConfig.PipelineOverride) {
+func (impl *AppServiceImpl) WriteCDSuccessEvent(appId int, envId int, wfr *pipelineConfig.CdWorkflowRunner, override *chartConfig.PipelineOverride) {
 	event := impl.eventFactory.Build(util.Success, &override.PipelineId, appId, &envId, util.CD)
 	impl.logger.Debugw("event WriteCDSuccessEvent", "event", event, "override", override)
-	event = impl.eventFactory.BuildExtraCDData(event, nil, override.Id, bean.CD_WORKFLOW_TYPE_DEPLOY)
+	event = impl.eventFactory.BuildExtraCDData(event, wfr, override.Id, bean.CD_WORKFLOW_TYPE_DEPLOY)
 	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
 	if evtErr != nil {
 		impl.logger.Errorw("error in writing event", "event", event, "err", evtErr)
@@ -1761,7 +1761,7 @@ func (impl *AppServiceImpl) TriggerPipeline(overrideRequest *bean.ValuesOverride
 		}
 	}
 
-	go impl.WriteCDTriggerEvent(overrideRequest, valuesOverrideResponse.Artifact, valuesOverrideResponse.PipelineOverride.PipelineReleaseCounter, valuesOverrideResponse.PipelineOverride.Id)
+	go impl.WriteCDTriggerEvent(overrideRequest, valuesOverrideResponse.Artifact, valuesOverrideResponse.PipelineOverride.PipelineReleaseCounter, valuesOverrideResponse.PipelineOverride.Id, overrideRequest.WfrId)
 
 	if valuesOverrideResponse.Artifact.ScanEnabled {
 		_, span := otel.Tracer("orchestrator").Start(ctx, "MarkImageScanDeployed")
@@ -2250,11 +2250,15 @@ func (impl *AppServiceImpl) synchCD(pipeline *pipelineConfig.Pipeline, ctx conte
 	}
 }
 
-func (impl *AppServiceImpl) WriteCDTriggerEvent(overrideRequest *bean.ValuesOverrideRequest, artifact *repository.CiArtifact, releaseId, pipelineOverrideId int) {
+func (impl *AppServiceImpl) WriteCDTriggerEvent(overrideRequest *bean.ValuesOverrideRequest, artifact *repository.CiArtifact, releaseId, pipelineOverrideId, wfrId int) {
 
 	event := impl.eventFactory.Build(util.Trigger, &overrideRequest.PipelineId, overrideRequest.AppId, &overrideRequest.EnvId, util.CD)
 	impl.logger.Debugw("event WriteCDTriggerEvent", "event", event)
-	event = impl.eventFactory.BuildExtraCDData(event, nil, pipelineOverrideId, bean.CD_WORKFLOW_TYPE_DEPLOY)
+	wfr, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(wfrId)
+	if err != nil {
+		impl.logger.Errorw("could not get wf runner", "err", err)
+	}
+	event = impl.eventFactory.BuildExtraCDData(event, wfr, pipelineOverrideId, bean.CD_WORKFLOW_TYPE_DEPLOY)
 	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
 	if evtErr != nil {
 		impl.logger.Errorw("CD trigger event not sent", "error", evtErr)

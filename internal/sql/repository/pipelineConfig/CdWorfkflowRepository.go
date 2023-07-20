@@ -419,7 +419,7 @@ func (impl *CdWorkflowRepositoryImpl) FindLatestWfrByAppIdAndEnvironmentId(appId
 	wfr := &CdWorkflowRunner{}
 	err := impl.dbConnection.
 		Model(wfr).
-		Column("cd_workflow_runner.*", "CdWorkflow", "DeploymentApprovalRequest",
+		Column("cd_workflow_runner.*", "CdWorkflow",
 			"CdWorkflow.Pipeline", "CdWorkflow.CiArtifact", "CdWorkflow.Pipeline.Environment", "CdWorkflow.Pipeline.App").
 		Where("p.environment_id = ?", environmentId).
 		Where("p.app_id = ?", appId).
