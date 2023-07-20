@@ -10,6 +10,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/chart"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"go.uber.org/zap"
 	"k8s.io/utils/pointer"
@@ -83,12 +84,7 @@ func (impl ConfigDraftServiceImpl) AddDraftVersion(request ConfigDraftVersionReq
 
 	currentTime := time.Now()
 	if len(request.Data) > 0 {
-		draftVersionDto := DraftVersion{}
-		draftVersionDto.DraftsId = request.DraftId
-		draftVersionDto.Data = request.Data
-		draftVersionDto.Action = request.Action
-		draftVersionDto.UserId = request.UserId
-		draftVersionDto.CreatedOn = currentTime
+		draftVersionDto := request.GetDraftVersion(currentTime)
 		draftVersionId, err := impl.configDraftRepository.SaveDraftVersion(draftVersionDto)
 		if err != nil {
 			return 0, err
@@ -97,16 +93,8 @@ func (impl ConfigDraftServiceImpl) AddDraftVersion(request ConfigDraftVersionReq
 	}
 
 	if len(request.UserComment) > 0 {
-		draftVersionCommentDto := &DraftVersionComment{}
-		draftVersionCommentDto.DraftId = request.DraftId
-		draftVersionCommentDto.DraftVersionId = lastDraftVersionId
-		draftVersionCommentDto.Comment = request.UserComment
-		draftVersionCommentDto.Active = true
-		draftVersionCommentDto.CreatedBy = request.UserId
-		draftVersionCommentDto.UpdatedBy = request.UserId
-		draftVersionCommentDto.CreatedOn = currentTime
-		draftVersionCommentDto.UpdatedOn = currentTime
-		err := impl.configDraftRepository.SaveDraftVersionComment(draftVersionCommentDto)
+		draftVersionCommentDto := request.GetDraftVersionComment(lastDraftVersionId, currentTime)
+		err = impl.configDraftRepository.SaveDraftVersionComment(draftVersionCommentDto)
 		if err != nil {
 			return 0, err
 		}
@@ -294,7 +282,7 @@ func (impl ConfigDraftServiceImpl) handleCmCsData(draftResource DraftResourceTyp
 	// if envId is -1 then it is base Configuration else Env level config
 	appId := draftDto.AppId
 	envId := draftDto.EnvId
-	configDataRequest := &pipeline.ConfigDataRequest{}
+	configDataRequest := &bean.ConfigDataRequest{}
 	err := json.Unmarshal([]byte(draftData), configDataRequest)
 	if err != nil {
 		impl.logger.Errorw("error occurred while unmarshalling draftData of CM/CS", "appId", appId, "envId", envId, "err", err)
@@ -376,7 +364,7 @@ func (impl ConfigDraftServiceImpl) handleBaseDeploymentTemplate(appId int, envId
 }
 
 func (impl ConfigDraftServiceImpl) handleEnvLevelTemplate(appId int, envId int, draftData string, userId int32, action ResourceAction, ctx context.Context) error {
-	envConfigProperties := &pipeline.EnvironmentProperties{}
+	envConfigProperties := &bean.EnvironmentProperties{}
 	var templateValidated bool
 	err := json.Unmarshal([]byte(draftData), envConfigProperties)
 	if err != nil {
@@ -416,7 +404,7 @@ func (impl ConfigDraftServiceImpl) handleEnvLevelTemplate(appId int, envId int, 
 	return nil
 }
 
-func (impl ConfigDraftServiceImpl) createEnvLevelDeploymentTemplate(ctx context.Context, appId int, envId int, envConfigProperties *pipeline.EnvironmentProperties, userId int32) error {
+func (impl ConfigDraftServiceImpl) createEnvLevelDeploymentTemplate(ctx context.Context, appId int, envId int, envConfigProperties *bean.EnvironmentProperties, userId int32) error {
 	_, err := impl.propertiesConfigService.CreateEnvironmentProperties(appId, envConfigProperties)
 	if err != nil {
 		if err.Error() == bean2.NOCHARTEXIST {
@@ -436,7 +424,7 @@ func (impl ConfigDraftServiceImpl) createEnvLevelDeploymentTemplate(ctx context.
 	return err
 }
 
-func (impl ConfigDraftServiceImpl) createMissingChart(ctx context.Context, appId int, envId int, envConfigProperties *pipeline.EnvironmentProperties, userId int32) error {
+func (impl ConfigDraftServiceImpl) createMissingChart(ctx context.Context, appId int, envId int, envConfigProperties *bean.EnvironmentProperties, userId int32) error {
 	appMetrics := false
 	if envConfigProperties.AppMetrics != nil {
 		appMetrics = *envConfigProperties.AppMetrics

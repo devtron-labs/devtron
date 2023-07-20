@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/commonService"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	history2 "github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	util2 "github.com/devtron-labs/devtron/util"
@@ -44,76 +45,6 @@ type ConfigMapRequest struct {
 	UserId        int32           `json:"-"`
 }
 
-type ConfigDataRequest struct {
-	Id            int           `json:"id"`
-	AppId         int           `json:"appId"`
-	EnvironmentId int           `json:"environmentId,omitempty"`
-	ConfigData    []*ConfigData `json:"configData"`
-	UserId        int32         `json:"-"`
-}
-
-type BulkPatchRequest struct {
-	Payload     []*BulkPatchPayload `json:"payload"`
-	Filter      *BulkPatchFilter    `json:"filter,omitempty"`
-	ProjectId   int                 `json:"projectId"`
-	Global      bool                `json:"global"`
-	Type        string              `json:"type"`
-	Name        string              `json:"name"`
-	Key         string              `json:"key"`
-	Value       string              `json:"value"`
-	PatchAction int                 `json:"patchAction"` // 1=add, 2=update, 0=delete
-	UserId      int32               `json:"-"`
-}
-
-type BulkPatchPayload struct {
-	AppId int `json:"appId"`
-	EnvId int `json:"envId"`
-}
-
-type BulkPatchFilter struct {
-	AppNameIncludes string `json:"appNameIncludes,omitempty"`
-	AppNameExcludes string `json:"appNameExcludes,omitempty"`
-	EnvId           int    `json:"envId,omitempty"`
-}
-
-type ExternalSecret struct {
-	Key      string `json:"key"`
-	Name     string `json:"name"`
-	Property string `json:"property,omitempty"`
-	IsBinary bool   `json:"isBinary"`
-}
-
-type ESOSecretData struct {
-	SecretStore     json.RawMessage `json:"secretStore,omitempty"`
-	SecretStoreRef  json.RawMessage `json:"secretStoreRef,omitempty"`
-	EsoData         []ESOData       `json:"esoData,omitempty"`
-	RefreshInterval string          `json:"refreshInterval,omitempty"`
-}
-
-type ESOData struct {
-	SecretKey string `json:"secretKey"`
-	Key       string `json:"key"`
-	Property  string `json:"property,omitempty"`
-}
-type ConfigData struct {
-	Name                  string           `json:"name"`
-	Type                  string           `json:"type"`
-	External              bool             `json:"external"`
-	MountPath             string           `json:"mountPath,omitempty"`
-	Data                  json.RawMessage  `json:"data"`
-	DefaultData           json.RawMessage  `json:"defaultData,omitempty"`
-	DefaultMountPath      string           `json:"defaultMountPath,omitempty"`
-	Global                bool             `json:"global"`
-	ExternalSecretType    string           `json:"externalType"`
-	ESOSecretData         ESOSecretData    `json:"esoSecretData"`
-	DefaultESOSecretData  ESOSecretData    `json:"defaultESOSecretData,omitempty"`
-	ExternalSecret        []ExternalSecret `json:"secretData"`
-	DefaultExternalSecret []ExternalSecret `json:"defaultSecretData,omitempty"`
-	RoleARN               string           `json:"roleARN"`
-	SubPath               bool             `json:"subPath"`
-	FilePermission        string           `json:"filePermission"`
-}
-
 const (
 	KubernetesSecret  string = "KubernetesSecret"
 	AWSSecretsManager string = "AWSSecretsManager"
@@ -122,22 +53,22 @@ const (
 )
 
 type ConfigsList struct {
-	ConfigData []*ConfigData `json:"maps"`
+	ConfigData []*bean.ConfigData `json:"maps"`
 }
 type SecretsList struct {
-	ConfigData []*ConfigData `json:"secrets"`
+	ConfigData []*bean.ConfigData `json:"secrets"`
 }
 
 type ConfigMapService interface {
-	CMGlobalAddUpdate(configMapRequest *ConfigDataRequest) (*ConfigDataRequest, error)
-	CMGlobalFetch(appId int) (*ConfigDataRequest, error)
-	CMEnvironmentAddUpdate(configMapRequest *ConfigDataRequest) (*ConfigDataRequest, error)
-	CMEnvironmentFetch(appId int, envId int) (*ConfigDataRequest, error)
+	CMGlobalAddUpdate(configMapRequest *bean.ConfigDataRequest) (*bean.ConfigDataRequest, error)
+	CMGlobalFetch(appId int) (*bean.ConfigDataRequest, error)
+	CMEnvironmentAddUpdate(configMapRequest *bean.ConfigDataRequest) (*bean.ConfigDataRequest, error)
+	CMEnvironmentFetch(appId int, envId int) (*bean.ConfigDataRequest, error)
 
-	CSGlobalAddUpdate(configMapRequest *ConfigDataRequest) (*ConfigDataRequest, error)
-	CSGlobalFetch(appId int) (*ConfigDataRequest, error)
-	CSEnvironmentAddUpdate(configMapRequest *ConfigDataRequest) (*ConfigDataRequest, error)
-	CSEnvironmentFetch(appId int, envId int) (*ConfigDataRequest, error)
+	CSGlobalAddUpdate(configMapRequest *bean.ConfigDataRequest) (*bean.ConfigDataRequest, error)
+	CSGlobalFetch(appId int) (*bean.ConfigDataRequest, error)
+	CSEnvironmentAddUpdate(configMapRequest *bean.ConfigDataRequest) (*bean.ConfigDataRequest, error)
+	CSEnvironmentFetch(appId int, envId int) (*bean.ConfigDataRequest, error)
 
 	CMGlobalDelete(name string, id int, userId int32) (bool, error)
 	CMEnvironmentDelete(name string, id int, userId int32) (bool, error)
@@ -149,10 +80,10 @@ type ConfigMapService interface {
 	CSGlobalDeleteByAppId(name string, appId int, userId int32) (bool, error)
 	CSEnvironmentDeleteByAppIdAndEnvId(name string, appId int, envId int, userId int32) (bool, error)
 
-	CSGlobalFetchForEdit(name string, id int) (*ConfigDataRequest, error)
-	CSEnvironmentFetchForEdit(name string, id int, appId int, envId int) (*ConfigDataRequest, error)
-	ConfigSecretGlobalBulkPatch(bulkPatchRequest *BulkPatchRequest) (*BulkPatchRequest, error)
-	ConfigSecretEnvironmentBulkPatch(bulkPatchRequest *BulkPatchRequest) (*BulkPatchRequest, error)
+	CSGlobalFetchForEdit(name string, id int) (*bean.ConfigDataRequest, error)
+	CSEnvironmentFetchForEdit(name string, id int, appId int, envId int) (*bean.ConfigDataRequest, error)
+	ConfigSecretGlobalBulkPatch(bulkPatchRequest *bean.BulkPatchRequest) (*bean.BulkPatchRequest, error)
+	ConfigSecretEnvironmentBulkPatch(bulkPatchRequest *bean.BulkPatchRequest) (*bean.BulkPatchRequest, error)
 }
 
 type ConfigMapServiceImpl struct {
@@ -210,7 +141,7 @@ func (impl ConfigMapServiceImpl) adapterEnv(model *chartConfig.ConfigMapEnvModel
 	return configMapRequest, nil
 }
 
-func (impl ConfigMapServiceImpl) CMGlobalAddUpdate(configMapRequest *ConfigDataRequest) (*ConfigDataRequest, error) {
+func (impl ConfigMapServiceImpl) CMGlobalAddUpdate(configMapRequest *bean.ConfigDataRequest) (*bean.ConfigDataRequest, error) {
 	if len(configMapRequest.ConfigData) != 1 {
 		return nil, fmt.Errorf("invalid request multiple config found for add or update")
 	}
@@ -229,7 +160,7 @@ func (impl ConfigMapServiceImpl) CMGlobalAddUpdate(configMapRequest *ConfigDataR
 		}
 		configsList := &ConfigsList{}
 		found := false
-		var configs []*ConfigData
+		var configs []*bean.ConfigData
 		if len(model.ConfigMapData) > 0 {
 			err = json.Unmarshal([]byte(model.ConfigMapData), configsList)
 			if err != nil {
@@ -302,7 +233,7 @@ func (impl ConfigMapServiceImpl) CMGlobalAddUpdate(configMapRequest *ConfigDataR
 	return configMapRequest, nil
 }
 
-func (impl ConfigMapServiceImpl) CMGlobalFetch(appId int) (*ConfigDataRequest, error) {
+func (impl ConfigMapServiceImpl) CMGlobalFetch(appId int) (*bean.ConfigDataRequest, error) {
 	configMapGlobal, err := impl.configMapRepository.GetByAppIdAppLevel(appId)
 	if err != nil && pg.ErrNoRows != err {
 		impl.logger.Errorw("error while fetching from db", "error", err)
@@ -319,7 +250,7 @@ func (impl ConfigMapServiceImpl) CMGlobalFetch(appId int) (*ConfigDataRequest, e
 			impl.logger.Debugw("error while Unmarshal", "error", err)
 		}
 	}
-	configDataRequest := &ConfigDataRequest{}
+	configDataRequest := &bean.ConfigDataRequest{}
 	configDataRequest.Id = configMapGlobal.Id
 	configDataRequest.AppId = appId
 	//configDataRequest.ConfigData = configMapGlobalList.ConfigData
@@ -328,7 +259,7 @@ func (impl ConfigMapServiceImpl) CMGlobalFetch(appId int) (*ConfigDataRequest, e
 		configDataRequest.ConfigData = append(configDataRequest.ConfigData, item)
 	}
 	if configDataRequest.ConfigData == nil {
-		list := []*ConfigData{}
+		list := []*bean.ConfigData{}
 		configDataRequest.ConfigData = list
 	} else {
 		//configDataRequest.ConfigData = configMapGlobalList.ConfigData
@@ -337,7 +268,7 @@ func (impl ConfigMapServiceImpl) CMGlobalFetch(appId int) (*ConfigDataRequest, e
 	return configDataRequest, nil
 }
 
-func (impl ConfigMapServiceImpl) CMEnvironmentAddUpdate(configMapRequest *ConfigDataRequest) (*ConfigDataRequest, error) {
+func (impl ConfigMapServiceImpl) CMEnvironmentAddUpdate(configMapRequest *bean.ConfigDataRequest) (*bean.ConfigDataRequest, error) {
 
 	if len(configMapRequest.ConfigData) != 1 {
 		return nil, fmt.Errorf("invalid request multiple config found for add or update")
@@ -361,7 +292,7 @@ func (impl ConfigMapServiceImpl) CMEnvironmentAddUpdate(configMapRequest *Config
 	if err == nil && model.Id > 0 {
 		configsList := &ConfigsList{}
 		found := false
-		var configs []*ConfigData
+		var configs []*bean.ConfigData
 		if len(model.ConfigMapData) > 0 {
 			err = json.Unmarshal([]byte(model.ConfigMapData), configsList)
 			if err != nil {
@@ -435,7 +366,7 @@ func (impl ConfigMapServiceImpl) CMEnvironmentAddUpdate(configMapRequest *Config
 	return configMapRequest, nil
 }
 
-func (impl ConfigMapServiceImpl) CMEnvironmentFetch(appId int, envId int) (*ConfigDataRequest, error) {
+func (impl ConfigMapServiceImpl) CMEnvironmentFetch(appId int, envId int) (*bean.ConfigDataRequest, error) {
 	configMapGlobal, err := impl.configMapRepository.GetByAppIdAppLevel(appId)
 	if err != nil && pg.ErrNoRows != err {
 		impl.logger.Errorw("error while fetching from db", "error", err)
@@ -466,7 +397,7 @@ func (impl ConfigMapServiceImpl) CMEnvironmentFetch(appId int, envId int) (*Conf
 			impl.logger.Debugw("error while Unmarshal", "error", err)
 		}
 	}
-	configDataRequest := &ConfigDataRequest{}
+	configDataRequest := &bean.ConfigDataRequest{}
 	configDataRequest.Id = configMapEnvLevel.Id
 	configDataRequest.AppId = appId
 	configDataRequest.EnvironmentId = envId
@@ -510,7 +441,7 @@ func (impl ConfigMapServiceImpl) CMEnvironmentFetch(appId int, envId int) (*Conf
 	}
 
 	if configDataRequest.ConfigData == nil {
-		list := []*ConfigData{}
+		list := []*bean.ConfigData{}
 		configDataRequest.ConfigData = list
 	} else {
 		//configDataRequest.ConfigData = configMapGlobalList.ConfigData
@@ -521,7 +452,7 @@ func (impl ConfigMapServiceImpl) CMEnvironmentFetch(appId int, envId int) (*Conf
 
 // ---------------------------------------------------------------------------------------------
 
-func (impl ConfigMapServiceImpl) CSGlobalAddUpdate(configMapRequest *ConfigDataRequest) (*ConfigDataRequest, error) {
+func (impl ConfigMapServiceImpl) CSGlobalAddUpdate(configMapRequest *bean.ConfigDataRequest) (*bean.ConfigDataRequest, error) {
 	if len(configMapRequest.ConfigData) != 1 {
 		return nil, fmt.Errorf("invalid request multiple config found for add or update")
 	}
@@ -546,7 +477,7 @@ func (impl ConfigMapServiceImpl) CSGlobalAddUpdate(configMapRequest *ConfigDataR
 		}
 		secretsList := &SecretsList{}
 		found := false
-		var configs []*ConfigData
+		var configs []*bean.ConfigData
 		if len(model.SecretData) > 0 {
 			err = json.Unmarshal([]byte(model.SecretData), secretsList)
 			if err != nil {
@@ -622,7 +553,7 @@ func (impl ConfigMapServiceImpl) CSGlobalAddUpdate(configMapRequest *ConfigDataR
 	return configMapRequest, nil
 }
 
-func (impl ConfigMapServiceImpl) CSGlobalFetch(appId int) (*ConfigDataRequest, error) {
+func (impl ConfigMapServiceImpl) CSGlobalFetch(appId int) (*bean.ConfigDataRequest, error) {
 	configMapGlobal, err := impl.configMapRepository.GetByAppIdAppLevel(appId)
 	if err != nil && pg.ErrNoRows != err {
 		impl.logger.Errorw("error while fetching from db", "error", err)
@@ -639,7 +570,7 @@ func (impl ConfigMapServiceImpl) CSGlobalFetch(appId int) (*ConfigDataRequest, e
 			impl.logger.Warnw("error while Unmarshal", "error", err)
 		}
 	}
-	configDataRequest := &ConfigDataRequest{}
+	configDataRequest := &bean.ConfigDataRequest{}
 	configDataRequest.Id = configMapGlobal.Id
 	configDataRequest.AppId = appId
 	//configDataRequest.ConfigData = configMapGlobalList.ConfigData
@@ -650,7 +581,7 @@ func (impl ConfigMapServiceImpl) CSGlobalFetch(appId int) (*ConfigDataRequest, e
 	}
 
 	//removing actual values
-	var configs []*ConfigData
+	var configs []*bean.ConfigData
 	for _, item := range configDataRequest.ConfigData {
 		resultMap := make(map[string]string)
 		resultMapFinal := make(map[string]string)
@@ -673,22 +604,22 @@ func (impl ConfigMapServiceImpl) CSGlobalFetch(appId int) (*ConfigDataRequest, e
 			item.Data = resultByte
 		}
 
-		var externalSecret []ExternalSecret
+		var externalSecret []bean.ExternalSecret
 		if item.ExternalSecret != nil && len(item.ExternalSecret) > 0 {
 			for _, es := range item.ExternalSecret {
-				externalSecret = append(externalSecret, ExternalSecret{Key: es.Key, Name: es.Name, Property: es.Property, IsBinary: es.IsBinary})
+				externalSecret = append(externalSecret, bean.ExternalSecret{Key: es.Key, Name: es.Name, Property: es.Property, IsBinary: es.IsBinary})
 			}
 		}
 		item.ExternalSecret = externalSecret
 
-		var esoData []ESOData
+		var esoData []bean.ESOData
 		if len(item.ESOSecretData.EsoData) > 0 {
 			for _, data := range item.ESOSecretData.EsoData {
-				esoData = append(esoData, ESOData{Key: data.Key, SecretKey: data.SecretKey, Property: data.Property})
+				esoData = append(esoData, bean.ESOData{Key: data.Key, SecretKey: data.SecretKey, Property: data.Property})
 			}
 		}
 
-		esoSecretData := ESOSecretData{
+		esoSecretData := bean.ESOSecretData{
 			SecretStore:     item.ESOSecretData.SecretStore,
 			SecretStoreRef:  item.ESOSecretData.SecretStoreRef,
 			EsoData:         esoData,
@@ -700,7 +631,7 @@ func (impl ConfigMapServiceImpl) CSGlobalFetch(appId int) (*ConfigDataRequest, e
 	configDataRequest.ConfigData = configs
 
 	if configDataRequest.ConfigData == nil {
-		list := []*ConfigData{}
+		list := []*bean.ConfigData{}
 		configDataRequest.ConfigData = list
 	} else {
 		//configDataRequest.ConfigData = configMapGlobalList.ConfigData
@@ -709,7 +640,7 @@ func (impl ConfigMapServiceImpl) CSGlobalFetch(appId int) (*ConfigDataRequest, e
 	return configDataRequest, nil
 }
 
-func (impl ConfigMapServiceImpl) CSEnvironmentAddUpdate(configMapRequest *ConfigDataRequest) (*ConfigDataRequest, error) {
+func (impl ConfigMapServiceImpl) CSEnvironmentAddUpdate(configMapRequest *bean.ConfigDataRequest) (*bean.ConfigDataRequest, error) {
 	if len(configMapRequest.ConfigData) != 1 {
 		return nil, fmt.Errorf("invalid request multiple config found for add or update")
 	}
@@ -739,7 +670,7 @@ func (impl ConfigMapServiceImpl) CSEnvironmentAddUpdate(configMapRequest *Config
 	if err == nil && model.Id > 0 {
 		configsList := &SecretsList{}
 		found := false
-		var configs []*ConfigData
+		var configs []*bean.ConfigData
 		if len(model.SecretData) > 0 {
 			err = json.Unmarshal([]byte(model.SecretData), configsList)
 			if err != nil {
@@ -816,7 +747,7 @@ func (impl ConfigMapServiceImpl) CSEnvironmentAddUpdate(configMapRequest *Config
 	return configMapRequest, nil
 }
 
-func (impl ConfigMapServiceImpl) CSEnvironmentFetch(appId int, envId int) (*ConfigDataRequest, error) {
+func (impl ConfigMapServiceImpl) CSEnvironmentFetch(appId int, envId int) (*bean.ConfigDataRequest, error) {
 	configMapGlobal, err := impl.configMapRepository.GetByAppIdAppLevel(appId)
 	if err != nil && pg.ErrNoRows != err {
 		impl.logger.Errorw("error while fetching from db", "error", err)
@@ -848,7 +779,7 @@ func (impl ConfigMapServiceImpl) CSEnvironmentFetch(appId int, envId int) (*Conf
 			impl.logger.Warnw("error while Unmarshal", "error", err)
 		}
 	}
-	configDataRequest := &ConfigDataRequest{}
+	configDataRequest := &bean.ConfigDataRequest{}
 	configDataRequest.Id = configMapEnvLevel.Id
 	configDataRequest.AppId = appId
 	configDataRequest.EnvironmentId = envId
@@ -859,11 +790,11 @@ func (impl ConfigMapServiceImpl) CSEnvironmentFetch(appId int, envId int) (*Conf
 	kv11 := make(map[string]string)
 	kv2 := make(map[string]json.RawMessage)
 
-	kv1External := make(map[string][]ExternalSecret)
-	kv2External := make(map[string][]ExternalSecret)
+	kv1External := make(map[string][]bean.ExternalSecret)
+	kv2External := make(map[string][]bean.ExternalSecret)
 
-	kv1ESOSecret := make(map[string]ESOSecretData)
-	kv2ESOSecret := make(map[string]ESOSecretData)
+	kv1ESOSecret := make(map[string]bean.ESOSecretData)
+	kv2ESOSecret := make(map[string]bean.ESOSecretData)
 	for _, item := range configMapGlobalList.ConfigData {
 		kv1[item.Name] = item.Data
 		kv11[item.Name] = item.MountPath
@@ -920,7 +851,7 @@ func (impl ConfigMapServiceImpl) CSEnvironmentFetch(appId int, envId int) (*Conf
 	}
 
 	//removing actual values
-	var configs []*ConfigData
+	var configs []*bean.ConfigData
 	for _, item := range configDataRequest.ConfigData {
 
 		if item.Data != nil {
@@ -948,22 +879,22 @@ func (impl ConfigMapServiceImpl) CSEnvironmentFetch(appId int, envId int) (*Conf
 			item.Data = resultByte
 		}
 
-		var externalSecret []ExternalSecret
+		var externalSecret []bean.ExternalSecret
 		if item.ExternalSecret != nil && len(item.ExternalSecret) > 0 {
 			for _, es := range item.ExternalSecret {
-				externalSecret = append(externalSecret, ExternalSecret{Key: es.Key, Name: es.Name, Property: es.Property, IsBinary: es.IsBinary})
+				externalSecret = append(externalSecret, bean.ExternalSecret{Key: es.Key, Name: es.Name, Property: es.Property, IsBinary: es.IsBinary})
 			}
 		}
 		item.ExternalSecret = externalSecret
 
-		var esoData []ESOData
+		var esoData []bean.ESOData
 		if len(item.ESOSecretData.EsoData) > 0 {
 			for _, data := range item.ESOSecretData.EsoData {
-				esoData = append(esoData, ESOData{Key: data.Key, SecretKey: data.SecretKey, Property: data.Property})
+				esoData = append(esoData, bean.ESOData{Key: data.Key, SecretKey: data.SecretKey, Property: data.Property})
 			}
 		}
 
-		esoSecretData := ESOSecretData{
+		esoSecretData := bean.ESOSecretData{
 			SecretStore:     item.ESOSecretData.SecretStore,
 			SecretStoreRef:  item.ESOSecretData.SecretStoreRef,
 			EsoData:         esoData,
@@ -994,10 +925,10 @@ func (impl ConfigMapServiceImpl) CSEnvironmentFetch(appId int, envId int) (*Conf
 		}
 
 		if item.DefaultExternalSecret != nil {
-			var externalSecret []ExternalSecret
+			var externalSecret []bean.ExternalSecret
 			if item.DefaultExternalSecret != nil && len(item.DefaultExternalSecret) > 0 {
 				for _, es := range item.DefaultExternalSecret {
-					externalSecret = append(externalSecret, ExternalSecret{Key: es.Key, Name: es.Name, Property: es.Property, IsBinary: es.IsBinary})
+					externalSecret = append(externalSecret, bean.ExternalSecret{Key: es.Key, Name: es.Name, Property: es.Property, IsBinary: es.IsBinary})
 				}
 			}
 			item.DefaultExternalSecret = externalSecret
@@ -1007,7 +938,7 @@ func (impl ConfigMapServiceImpl) CSEnvironmentFetch(appId int, envId int) (*Conf
 	configDataRequest.ConfigData = configs
 
 	if configDataRequest.ConfigData == nil {
-		list := []*ConfigData{}
+		list := []*bean.ConfigData{}
 		configDataRequest.ConfigData = list
 	} else {
 		//configDataRequest.ConfigData = configMapGlobalList.ConfigData
@@ -1024,7 +955,7 @@ func (impl ConfigMapServiceImpl) CMGlobalDelete(name string, id int, userId int3
 	}
 	configsList := &ConfigsList{}
 	found := false
-	var configs []*ConfigData
+	var configs []*bean.ConfigData
 	if len(model.ConfigMapData) > 0 {
 		err = json.Unmarshal([]byte(model.ConfigMapData), configsList)
 		if err != nil {
@@ -1076,7 +1007,7 @@ func (impl ConfigMapServiceImpl) CMEnvironmentDelete(name string, id int, userId
 	}
 	configsList := &ConfigsList{}
 	found := false
-	var configs []*ConfigData
+	var configs []*bean.ConfigData
 	if len(model.ConfigMapData) > 0 {
 		err = json.Unmarshal([]byte(model.ConfigMapData), configsList)
 		if err != nil {
@@ -1127,7 +1058,7 @@ func (impl ConfigMapServiceImpl) CSGlobalDelete(name string, id int, userId int3
 	}
 	configsList := &SecretsList{}
 	found := false
-	var configs []*ConfigData
+	var configs []*bean.ConfigData
 	if len(model.SecretData) > 0 {
 		err = json.Unmarshal([]byte(model.SecretData), configsList)
 		if err != nil {
@@ -1179,7 +1110,7 @@ func (impl ConfigMapServiceImpl) CSEnvironmentDelete(name string, id int, userId
 	}
 	configsList := &SecretsList{}
 	found := false
-	var configs []*ConfigData
+	var configs []*bean.ConfigData
 	if len(model.SecretData) > 0 {
 		err = json.Unmarshal([]byte(model.SecretData), configsList)
 		if err != nil {
@@ -1232,7 +1163,7 @@ func (impl ConfigMapServiceImpl) CMGlobalDeleteByAppId(name string, appId int, u
 	}
 	configsList := &ConfigsList{}
 	found := false
-	var configs []*ConfigData
+	var configs []*bean.ConfigData
 	if len(model.ConfigMapData) > 0 {
 		err = json.Unmarshal([]byte(model.ConfigMapData), configsList)
 		if err != nil {
@@ -1279,7 +1210,7 @@ func (impl ConfigMapServiceImpl) CMEnvironmentDeleteByAppIdAndEnvId(name string,
 	}
 	configsList := &ConfigsList{}
 	found := false
-	var configs []*ConfigData
+	var configs []*bean.ConfigData
 	if len(model.ConfigMapData) > 0 {
 		err = json.Unmarshal([]byte(model.ConfigMapData), configsList)
 		if err != nil {
@@ -1325,7 +1256,7 @@ func (impl ConfigMapServiceImpl) CSGlobalDeleteByAppId(name string, appId int, u
 	}
 	configsList := &SecretsList{}
 	found := false
-	var configs []*ConfigData
+	var configs []*bean.ConfigData
 	if len(model.SecretData) > 0 {
 		err = json.Unmarshal([]byte(model.SecretData), configsList)
 		if err != nil {
@@ -1372,7 +1303,7 @@ func (impl ConfigMapServiceImpl) CSEnvironmentDeleteByAppIdAndEnvId(name string,
 	}
 	configsList := &SecretsList{}
 	found := false
-	var configs []*ConfigData
+	var configs []*bean.ConfigData
 	if len(model.SecretData) > 0 {
 		err = json.Unmarshal([]byte(model.SecretData), configsList)
 		if err != nil {
@@ -1411,7 +1342,7 @@ func (impl ConfigMapServiceImpl) CSEnvironmentDeleteByAppIdAndEnvId(name string,
 
 ////
 
-func (impl ConfigMapServiceImpl) CSGlobalFetchForEdit(name string, id int) (*ConfigDataRequest, error) {
+func (impl ConfigMapServiceImpl) CSGlobalFetchForEdit(name string, id int) (*bean.ConfigDataRequest, error) {
 	configMapEnvLevel, err := impl.configMapRepository.GetByIdAppLevel(id)
 	if err != nil {
 		impl.logger.Errorw("error while fetching from db", "error", err)
@@ -1419,7 +1350,7 @@ func (impl ConfigMapServiceImpl) CSGlobalFetchForEdit(name string, id int) (*Con
 	}
 
 	configsList := &SecretsList{}
-	var configs []*ConfigData
+	var configs []*bean.ConfigData
 	if len(configMapEnvLevel.SecretData) > 0 {
 		err = json.Unmarshal([]byte(configMapEnvLevel.SecretData), configsList)
 		if err != nil {
@@ -1433,17 +1364,17 @@ func (impl ConfigMapServiceImpl) CSGlobalFetchForEdit(name string, id int) (*Con
 		}
 	}
 
-	configDataRequest := &ConfigDataRequest{}
+	configDataRequest := &bean.ConfigDataRequest{}
 	configDataRequest.Id = configMapEnvLevel.Id
 	configDataRequest.AppId = configMapEnvLevel.AppId
 	configDataRequest.ConfigData = configs
 	return configDataRequest, nil
 }
 
-func (impl ConfigMapServiceImpl) CSEnvironmentFetchForEdit(name string, id int, appId int, envId int) (*ConfigDataRequest, error) {
-	configDataRequest := &ConfigDataRequest{}
+func (impl ConfigMapServiceImpl) CSEnvironmentFetchForEdit(name string, id int, appId int, envId int) (*bean.ConfigDataRequest, error) {
+	configDataRequest := &bean.ConfigDataRequest{}
 	configsList := &SecretsList{}
-	var configs []*ConfigData
+	var configs []*bean.ConfigData
 	if id > 0 {
 		configMapEnvLevel, err := impl.configMapRepository.GetByIdEnvLevel(id)
 		if err != nil {
@@ -1493,7 +1424,7 @@ func (impl ConfigMapServiceImpl) CSEnvironmentFetchForEdit(name string, id int, 
 	return configDataRequest, nil
 }
 
-func (impl ConfigMapServiceImpl) validateConfigData(configData *ConfigData) (bool, error) {
+func (impl ConfigMapServiceImpl) validateConfigData(configData *bean.ConfigData) (bool, error) {
 	dataMap := make(map[string]string)
 	if configData.Data != nil {
 		err := json.Unmarshal(configData.Data, &dataMap)
@@ -1511,7 +1442,7 @@ func (impl ConfigMapServiceImpl) validateConfigData(configData *ConfigData) (boo
 	return true, nil
 }
 
-func (impl ConfigMapServiceImpl) updateConfigData(configData *ConfigData, syncRequest *BulkPatchRequest) (*ConfigData, error) {
+func (impl ConfigMapServiceImpl) updateConfigData(configData *bean.ConfigData, syncRequest *bean.BulkPatchRequest) (*bean.ConfigData, error) {
 	dataMap := make(map[string]string)
 	var updatedData json.RawMessage
 	if configData.Data != nil {
@@ -1554,7 +1485,7 @@ func (impl ConfigMapServiceImpl) updateConfigData(configData *ConfigData, syncRe
 	return configData, nil
 }
 
-func (impl ConfigMapServiceImpl) ConfigSecretGlobalBulkPatch(bulkPatchRequest *BulkPatchRequest) (*BulkPatchRequest, error) {
+func (impl ConfigMapServiceImpl) ConfigSecretGlobalBulkPatch(bulkPatchRequest *bean.BulkPatchRequest) (*bean.BulkPatchRequest, error) {
 	_, err := impl.buildBulkPayload(bulkPatchRequest)
 	if err != nil {
 		impl.logger.Errorw("service err, ConfigSecretGlobalBulkPatch", "err", err, "payload", bulkPatchRequest)
@@ -1574,7 +1505,7 @@ func (impl ConfigMapServiceImpl) ConfigSecretGlobalBulkPatch(bulkPatchRequest *B
 		}
 		if bulkPatchRequest.Type == "CM" {
 			configsList := &ConfigsList{}
-			var configs []*ConfigData
+			var configs []*bean.ConfigData
 			if len(model.ConfigMapData) > 0 {
 				err = json.Unmarshal([]byte(model.ConfigMapData), configsList)
 				if err != nil {
@@ -1599,7 +1530,7 @@ func (impl ConfigMapServiceImpl) ConfigSecretGlobalBulkPatch(bulkPatchRequest *B
 			model.ConfigMapData = string(configDataByte)
 		} else if bulkPatchRequest.Type == "CS" {
 			secretsList := &SecretsList{}
-			var configs []*ConfigData
+			var configs []*bean.ConfigData
 			if len(model.SecretData) > 0 {
 				err = json.Unmarshal([]byte(model.SecretData), secretsList)
 				if err != nil {
@@ -1639,7 +1570,7 @@ func (impl ConfigMapServiceImpl) ConfigSecretGlobalBulkPatch(bulkPatchRequest *B
 	return bulkPatchRequest, nil
 }
 
-func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentBulkPatch(bulkPatchRequest *BulkPatchRequest) (*BulkPatchRequest, error) {
+func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentBulkPatch(bulkPatchRequest *bean.BulkPatchRequest) (*bean.BulkPatchRequest, error) {
 	_, err := impl.buildBulkPayload(bulkPatchRequest)
 	if err != nil {
 		impl.logger.Errorw("service err, ConfigSecretEnvironmentBulkPatch", "err", err, "payload", bulkPatchRequest)
@@ -1664,7 +1595,7 @@ func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentBulkPatch(bulkPatchReque
 		}
 		if bulkPatchRequest.Type == "CM" {
 			configsList := &ConfigsList{}
-			var configs []*ConfigData
+			var configs []*bean.ConfigData
 			if len(model.ConfigMapData) > 0 {
 				err = json.Unmarshal([]byte(model.ConfigMapData), configsList)
 				if err != nil {
@@ -1689,7 +1620,7 @@ func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentBulkPatch(bulkPatchReque
 			model.ConfigMapData = string(configDataByte)
 		} else if bulkPatchRequest.Type == "CS" {
 			secretsList := &SecretsList{}
-			var configs []*ConfigData
+			var configs []*bean.ConfigData
 			if len(model.SecretData) > 0 {
 				err = json.Unmarshal([]byte(model.SecretData), secretsList)
 				if err != nil {
@@ -1729,7 +1660,7 @@ func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentBulkPatch(bulkPatchReque
 	return bulkPatchRequest, nil
 }
 
-func (impl ConfigMapServiceImpl) validateExternalSecretChartCompatibility(appId int, envId int, configData *ConfigData) (bool, error) {
+func (impl ConfigMapServiceImpl) validateExternalSecretChartCompatibility(appId int, envId int, configData *bean.ConfigData) (bool, error) {
 
 	if configData.ExternalSecret != nil && len(configData.ExternalSecret) > 0 {
 		for _, es := range configData.ExternalSecret {
@@ -1753,8 +1684,8 @@ func (impl ConfigMapServiceImpl) validateExternalSecretChartCompatibility(appId 
 	return true, nil
 }
 
-func (impl ConfigMapServiceImpl) buildBulkPayload(bulkPatchRequest *BulkPatchRequest) (*BulkPatchRequest, error) {
-	var payload []*BulkPatchPayload
+func (impl ConfigMapServiceImpl) buildBulkPayload(bulkPatchRequest *bean.BulkPatchRequest) (*bean.BulkPatchRequest, error) {
+	var payload []*bean.BulkPatchPayload
 	if bulkPatchRequest.Filter != nil {
 		apps, err := impl.appRepository.FetchAppsByFilterV2(bulkPatchRequest.Filter.AppNameIncludes, bulkPatchRequest.Filter.AppNameExcludes, bulkPatchRequest.Filter.EnvId)
 		if err != nil {
@@ -1763,9 +1694,9 @@ func (impl ConfigMapServiceImpl) buildBulkPayload(bulkPatchRequest *BulkPatchReq
 		}
 		for _, item := range apps {
 			if bulkPatchRequest.Global {
-				payload = append(payload, &BulkPatchPayload{AppId: item.Id})
+				payload = append(payload, &bean.BulkPatchPayload{AppId: item.Id})
 			} else {
-				payload = append(payload, &BulkPatchPayload{AppId: item.Id, EnvId: bulkPatchRequest.Filter.EnvId})
+				payload = append(payload, &bean.BulkPatchPayload{AppId: item.Id, EnvId: bulkPatchRequest.Filter.EnvId})
 			}
 		}
 		bulkPatchRequest.Payload = payload
@@ -1776,9 +1707,9 @@ func (impl ConfigMapServiceImpl) buildBulkPayload(bulkPatchRequest *BulkPatchReq
 			impl.logger.Errorw("service err, buildBulkPayload", "err", err, "payload", bulkPatchRequest)
 			return bulkPatchRequest, err
 		}
-		var payload []*BulkPatchPayload
+		var payload []*bean.BulkPatchPayload
 		for _, app := range apps {
-			payload = append(payload, &BulkPatchPayload{AppId: app.Id})
+			payload = append(payload, &bean.BulkPatchPayload{AppId: app.Id})
 		}
 		bulkPatchRequest.Payload = payload
 	}

@@ -11,7 +11,7 @@ type ConfigDraftRepository interface {
 	CreateConfigDraft(request ConfigDraftRequest) (*ConfigDraftResponse, error)
 	GetLatestDraftVersionId(draftId int) (int, error)
 	SaveDraftVersionComment(draftVersionComment *DraftVersionComment) error
-	SaveDraftVersion(draftVersionDto DraftVersion) (int, error)
+	SaveDraftVersion(draftVersionDto *DraftVersion) (int, error)
 	GetDraftMetadataById(draftId int) (*DraftDto, error)
 	UpdateDraftState(draftId int, draftState DraftState, userId int32) error
 	GetDraftVersionsMetadata(draftId int) ([]*DraftVersion, error)
@@ -37,18 +37,7 @@ func NewConfigDraftRepositoryImpl(logger *zap.SugaredLogger, dbConnection *pg.DB
 
 func (repo *ConfigDraftRepositoryImpl) CreateConfigDraft(request ConfigDraftRequest) (*ConfigDraftResponse, error) {
 	draftState := InitDraftState
-	metadataDto := &DraftDto{
-		AppId:        request.AppId,
-		EnvId:        request.EnvId,
-		Resource:     request.Resource,
-		ResourceName: request.ResourceName,
-		DraftState:   draftState,
-	}
-	currentTime := time.Now()
-	metadataDto.CreatedOn = currentTime
-	metadataDto.UpdatedOn = currentTime
-	metadataDto.CreatedBy = request.UserId
-	metadataDto.UpdatedBy = request.UserId
+	metadataDto := request.GetDraftDto()
 	err := repo.dbConnection.Insert(metadataDto)
 	if err != nil {
 		repo.logger.Errorw("error occurred while creating config draft", "err", err, "metadataDto", metadataDto)
@@ -58,28 +47,14 @@ func (repo *ConfigDraftRepositoryImpl) CreateConfigDraft(request ConfigDraftRequ
 	draftMetadataId := metadataDto.Id
 	repo.logger.Debugw("going to save draft version now", "draftId", draftMetadataId)
 
-	draftVersionDto := DraftVersion{
-		DraftsId:  draftMetadataId,
-		Action:    request.Action,
-		Data:      request.Data,
-		UserId:    request.UserId,
-		CreatedOn: currentTime,
-	}
-
+	draftVersionDto := request.GetDraftVersionDto(draftMetadataId, metadataDto.CreatedOn)
 	draftVersionId, err := repo.SaveDraftVersion(draftVersionDto)
 	if err != nil {
 		return nil, err
 	}
+
 	if len(request.UserComment) > 0 {
-		draftVersionCommentDto := &DraftVersionComment{}
-		draftVersionCommentDto.DraftId = draftMetadataId
-		draftVersionCommentDto.DraftVersionId = draftVersionId
-		draftVersionCommentDto.Comment = request.UserComment
-		draftVersionCommentDto.Active = true
-		draftVersionCommentDto.CreatedBy = request.UserId
-		draftVersionCommentDto.UpdatedBy = request.UserId
-		draftVersionCommentDto.CreatedOn = currentTime
-		draftVersionCommentDto.UpdatedOn = currentTime
+		draftVersionCommentDto := request.GetDraftVersionComment(draftMetadataId, draftVersionId, metadataDto.CreatedOn)
 		err = repo.SaveDraftVersionComment(draftVersionCommentDto)
 		if err != nil {
 			return nil, err
@@ -114,7 +89,7 @@ func (repo *ConfigDraftRepositoryImpl) SaveDraftVersionComment(draftVersionComme
 	return err
 }
 
-func (repo *ConfigDraftRepositoryImpl) SaveDraftVersion(draftVersionDto DraftVersion) (int, error) {
+func (repo *ConfigDraftRepositoryImpl) SaveDraftVersion(draftVersionDto *DraftVersion) (int, error) {
 	draftVersionDto.CreatedOn = time.Now()
 	err := repo.dbConnection.Insert(&draftVersionDto)
 	if err != nil {

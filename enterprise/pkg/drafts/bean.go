@@ -42,6 +42,46 @@ type ConfigDraftRequest struct {
 	UserId       int32             `json:"-"`
 }
 
+func (request ConfigDraftRequest) GetDraftDto() *DraftDto {
+	metadataDto := &DraftDto{
+		AppId:        request.AppId,
+		EnvId:        request.EnvId,
+		Resource:     request.Resource,
+		ResourceName: request.ResourceName,
+		DraftState:   InitDraftState,
+	}
+	currentTime := time.Now()
+	metadataDto.CreatedOn = currentTime
+	metadataDto.UpdatedOn = currentTime
+	metadataDto.CreatedBy = request.UserId
+	metadataDto.UpdatedBy = request.UserId
+	return metadataDto
+}
+
+func (request ConfigDraftRequest) GetDraftVersionDto(draftMetadataId int, timestamp time.Time) *DraftVersion {
+	draftVersionDto := &DraftVersion{
+		DraftsId:  draftMetadataId,
+		Action:    request.Action,
+		Data:      request.Data,
+		UserId:    request.UserId,
+		CreatedOn: timestamp,
+	}
+	return draftVersionDto
+}
+
+func (request ConfigDraftRequest) GetDraftVersionComment(draftMetadataId, draftVersionId int, timestamp time.Time) *DraftVersionComment {
+	draftVersionCommentDto := &DraftVersionComment{}
+	draftVersionCommentDto.DraftId = draftMetadataId
+	draftVersionCommentDto.DraftVersionId = draftVersionId
+	draftVersionCommentDto.Comment = request.UserComment
+	draftVersionCommentDto.Active = true
+	draftVersionCommentDto.CreatedBy = request.UserId
+	draftVersionCommentDto.UpdatedBy = request.UserId
+	draftVersionCommentDto.CreatedOn = timestamp
+	draftVersionCommentDto.UpdatedOn = timestamp
+	return draftVersionCommentDto
+}
+
 type ConfigDraftResponse struct {
 	ConfigDraftRequest
 	DraftId        int        `json:"draftId"`
@@ -58,6 +98,29 @@ type ConfigDraftVersionRequest struct {
 	Data               string         `json:"data"`
 	UserComment        string         `json:"userComment"`
 	UserId             int32          `json:"-"`
+}
+
+func (request ConfigDraftVersionRequest) GetDraftVersion(currentTime time.Time) *DraftVersion {
+	draftVersionDto := &DraftVersion{}
+	draftVersionDto.DraftsId = request.DraftId
+	draftVersionDto.Data = request.Data
+	draftVersionDto.Action = request.Action
+	draftVersionDto.UserId = request.UserId
+	draftVersionDto.CreatedOn = currentTime
+	return draftVersionDto
+}
+
+func (request ConfigDraftVersionRequest) GetDraftVersionComment(lastDraftVersionId int, currentTime time.Time) *DraftVersionComment {
+	draftVersionCommentDto := &DraftVersionComment{}
+	draftVersionCommentDto.DraftId = request.DraftId
+	draftVersionCommentDto.DraftVersionId = lastDraftVersionId
+	draftVersionCommentDto.Comment = request.UserComment
+	draftVersionCommentDto.Active = true
+	draftVersionCommentDto.CreatedBy = request.UserId
+	draftVersionCommentDto.UpdatedBy = request.UserId
+	draftVersionCommentDto.CreatedOn = currentTime
+	draftVersionCommentDto.UpdatedOn = currentTime
+	return draftVersionCommentDto
 }
 
 type DraftVersionMetadataResponse struct {
