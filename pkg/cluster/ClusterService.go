@@ -659,6 +659,7 @@ func (impl ClusterServiceImpl) DeleteFromDb(bean *ClusterBean, userId int32) err
 	}
 	k8sClient, err := impl.K8sUtil.GetConfigAndClientsInCluster()
 	if err != nil {
+		impl.logger.Errorw("error in getting in cluster k8s client", "err", err, "clusterName", bean.ClusterName)
 		return nil
 	}
 	secretName := fmt.Sprintf("%s-%v", SECRET_NAME, bean.Id)

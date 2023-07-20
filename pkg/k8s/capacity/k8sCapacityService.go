@@ -466,7 +466,6 @@ func (impl *K8sCapacityServiceImpl) updateManifestData(ctx context.Context, node
 		K8sRequest: manifestRequest,
 		ClusterId:  clusterId,
 	}
-	//manifestResponse, err := impl.k8sClientService.GetResource(ctx, restConfig, manifestRequest)
 	manifestResponse, err := impl.k8sCommonService.GetResource(ctx, request)
 	if err != nil {
 		impl.logger.Errorw("error in getting node manifest", "err", err)
@@ -561,7 +560,7 @@ func (impl *K8sCapacityServiceImpl) DeleteNode(ctx context.Context, request *bea
 		},
 	}
 	resourceRequest := &k8s.ResourceRequestBean{K8sRequest: deleteReq, ClusterId: request.ClusterId}
-	// Here Sending userId as 0 as it appIdentifier is being sent nil so user id is not used in method. Update userid if appIdentifier is used
+	// Here Sending userId as 0 as appIdentifier is being sent nil so user id is not used in method. Update userid if appIdentifier is used
 	manifestResponse, err := impl.k8sCommonService.DeleteResource(ctx, resourceRequest, 0)
 	if err != nil {
 		impl.logger.Errorw("error in deleting node", "err", err)
