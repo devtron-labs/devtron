@@ -345,7 +345,7 @@ func (impl ConfigDraftServiceImpl) handleBaseDeploymentTemplate(appId int, envId
 		impl.logger.Errorw("error occurred while unmarshalling draftData of deployment template", "appId", appId, "envId", envId, "err", err)
 		return err
 	}
-	templateValidated, err = impl.chartService.DeploymentTemplateValidate(ctx, draftData, templateRequest.ChartRefId)
+	templateValidated, err = impl.chartService.DeploymentTemplateValidate(ctx, templateRequest.ValuesOverride, templateRequest.ChartRefId)
 	if err != nil {
 		return err
 	}
