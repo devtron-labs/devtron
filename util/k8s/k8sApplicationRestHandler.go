@@ -21,6 +21,7 @@ import (
 	"github.com/gorilla/mux"
 	errors2 "github.com/juju/errors"
 	"go.uber.org/zap"
+	"gopkg.in/go-playground/validator.v9"
 	errors3 "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
@@ -52,6 +53,7 @@ type K8sApplicationRestHandlerImpl struct {
 	pump                   connector.Pump
 	terminalSessionHandler terminal.TerminalSessionHandler
 	enforcer               casbin.Enforcer
+	validator              *validator.Validate
 	enforcerUtil           rbac.EnforcerUtil
 	enforcerUtilHelm       rbac.EnforcerUtilHelm
 	helmAppService         client.HelmAppService
@@ -62,13 +64,15 @@ func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger,
 	k8sApplicationService K8sApplicationService, pump connector.Pump,
 	terminalSessionHandler terminal.TerminalSessionHandler,
 	enforcer casbin.Enforcer, enforcerUtilHelm rbac.EnforcerUtilHelm, enforcerUtil rbac.EnforcerUtil,
-	helmAppService client.HelmAppService, userService user.UserService) *K8sApplicationRestHandlerImpl {
+	helmAppService client.HelmAppService, userService user.UserService,
+	validator *validator.Validate) *K8sApplicationRestHandlerImpl {
 	return &K8sApplicationRestHandlerImpl{
 		logger:                 logger,
 		k8sApplicationService:  k8sApplicationService,
 		pump:                   pump,
 		terminalSessionHandler: terminalSessionHandler,
 		enforcer:               enforcer,
+		validator:              validator,
 		enforcerUtilHelm:       enforcerUtilHelm,
 		enforcerUtil:           enforcerUtil,
 		helmAppService:         helmAppService,
@@ -849,8 +853,10 @@ func (handler *K8sApplicationRestHandlerImpl) CreateEphemeralContainer(w http.Re
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	if request.InValid() {
-		err = errors.New("invalid request payload")
+	if err = handler.validator.Struct(request); err != nil || (request.BasicData == nil && request.AdvancedData == nil) {
+		if err != nil {
+			err = errors.New("invalid request payload")
+		}
 		handler.logger.Errorw("invalid request payload", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
@@ -889,8 +895,10 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteEphemeralContainer(w http.Re
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	if request.BasicData == nil || request.Namespace == "" || request.ClusterId <= 0 || request.PodName == "" {
-		err = errors.New("invalid request payload")
+	if err = handler.validator.Struct(request); err != nil || request.BasicData == nil {
+		if err != nil {
+			err = errors.New("invalid request payload")
+		}
 		handler.logger.Errorw("invalid request payload", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return

@@ -11,13 +11,9 @@ type EphemeralContainerRequest struct {
 	BasicData    *EphemeralContainerBasicData    `json:"basicData"`
 	AdvancedData *EphemeralContainerAdvancedData `json:"advancedData"`
 	Namespace    string                          `json:"namespace" validate:"required"`
-	ClusterId    int                             `json:"clusterId" validate:"min=1"`
+	ClusterId    int                             `json:"clusterId" validate:"gt=0"`
 	PodName      string                          `json:"podName"   validate:"required"`
 	UserId       int32                           `json:"-"`
-}
-
-func (request EphemeralContainerRequest) InValid() bool {
-	return (request.BasicData == nil && request.AdvancedData == nil) || request.Namespace == "" || request.ClusterId <= 0 || request.PodName == ""
 }
 
 type EphemeralContainerAdvancedData struct {
