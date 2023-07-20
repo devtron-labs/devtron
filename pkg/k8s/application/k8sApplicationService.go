@@ -502,8 +502,7 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 		impl.logger.Errorw("error in getting cluster by cluster Id", "err", err, "clusterId", clusterId)
 		return resourceList, err
 	}
-	clusterConfig := clusterBean.GetClusterConfig()
-	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(&clusterConfig)
+	restConfig, err := impl.k8sCommonService.GetRestConfigByClusterId(ctx, clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.ClusterId)
 		return resourceList, err
@@ -548,8 +547,7 @@ func (impl *K8sApplicationServiceImpl) ApplyResources(ctx context.Context, token
 		impl.logger.Errorw("error in getting clusterBean by cluster Id", "clusterId", clusterId, "err", err)
 		return nil, err
 	}
-	clusterConfig := clusterBean.GetClusterConfig()
-	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(&clusterConfig)
+	restConfig, err := impl.k8sCommonService.GetRestConfigByClusterId(ctx, clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster", "clusterId", clusterId, "err", err)
 		return nil, err

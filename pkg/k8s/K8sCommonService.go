@@ -249,7 +249,7 @@ func (impl *K8sCommonServiceImpl) GetRestConfigByClusterId(ctx context.Context, 
 	defer span.End()
 	cluster, err := impl.clusterService.FindById(clusterId)
 	if err != nil {
-		impl.logger.Errorw("error in getting cluster by ID", "err", err, "clusterId")
+		impl.logger.Errorw("error in getting cluster by ID", "err", err, "clusterId", clusterId)
 		return nil, err
 	}
 	clusterConfig := cluster.GetClusterConfig()

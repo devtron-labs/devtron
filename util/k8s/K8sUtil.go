@@ -473,11 +473,19 @@ func (impl K8sUtil) DiscoveryClientGetLiveZCall(cluster *ClusterConfig) ([]byte,
 	}
 	//using livez path as healthz path is deprecated
 	response, err := impl.GetLiveZCall(LiveZ, k8sClientSet)
+	if err != nil {
+		impl.logger.Errorw("error in getting livez call", "err", err, "clusterName", cluster.ClusterName)
+		return nil, err
+	}
 	return response, err
 
 }
 func (impl K8sUtil) GetLiveZCall(path string, k8sClientSet *kubernetes.Clientset) ([]byte, error) {
 	response, err := k8sClientSet.Discovery().RESTClient().Get().AbsPath(path).DoRaw(context.Background())
+	if err != nil {
+		impl.logger.Errorw("error in getting response from discovery client", "err", err)
+		return nil, err
+	}
 	return response, err
 }
 
@@ -860,7 +868,7 @@ func (impl K8sUtil) GetKubeVersion() (*version.Info, error) {
 	return k8sServerVersion, err
 }
 
-func (impl K8sUtil) GetConfigAndClientsInCluster() (*v12.CoreV1Client, error) {
+func (impl K8sUtil) GetConfigAndClientInCluster() (*v12.CoreV1Client, error) {
 	restConfig := &rest.Config{}
 	restConfig, err := rest.InClusterConfig()
 	if err != nil {
@@ -976,12 +984,12 @@ func UpdateNodeUnschedulableProperty(desiredUnschedulable bool, node *v1.Node, k
 func (impl K8sUtil) CreateK8sClientSet(restConfig *rest.Config) (*kubernetes.Clientset, error) {
 	k8sHttpClient, err := OverrideK8sHttpClientWithTracer(restConfig)
 	if err != nil {
-		impl.logger.Errorw("service err, OverrideK8sHttpClientWithTracer", "err", err, "restConfig", restConfig)
+		impl.logger.Errorw("service err, OverrideK8sHttpClientWithTracer", "err", err)
 		return nil, err
 	}
 	k8sClientSet, err := kubernetes.NewForConfigAndClient(restConfig, k8sHttpClient)
 	if err != nil {
-		impl.logger.Errorw("error in getting client set by rest config", "err", err, "restConfig", restConfig)
+		impl.logger.Errorw("error in getting client set by rest config", "err", err)
 		return nil, err
 	}
 	return k8sClientSet, err

@@ -381,7 +381,7 @@ func (impl ClusterServiceImplExtended) DeleteFromDb(bean *ClusterBean, userId in
 		impl.logger.Errorw("error in deleting cluster", "id", bean.Id, "err", err)
 		return err
 	}
-	k8sClient, err := impl.ClusterServiceImpl.K8sUtil.GetConfigAndClientsInCluster()
+	k8sClient, err := impl.ClusterServiceImpl.K8sUtil.GetConfigAndClientInCluster()
 	if err != nil {
 		impl.logger.Errorw("error in creating k8s client set", "err", err, "clusterName", bean.ClusterName)
 	}
