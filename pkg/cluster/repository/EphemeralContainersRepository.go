@@ -35,8 +35,8 @@ type EphemeralContainerAction struct {
 
 type EphemeralContainersRepository interface {
 	sql.TransactionWrapper
-	SaveData(tx *pg.Tx, model *EphemeralContainerBean) error
-	SaveAction(tx *pg.Tx, model *EphemeralContainerAction) error
+	SaveEphemeralContainerData(tx *pg.Tx, model *EphemeralContainerBean) error
+	SaveEphemeralContainerActionAudit(tx *pg.Tx, model *EphemeralContainerAction) error
 	FindContainerByName(clusterID int, namespace, podName, name string) (*EphemeralContainerBean, error)
 }
 
@@ -52,11 +52,11 @@ type EphemeralContainersRepositoryImpl struct {
 	*sql.TransactionUtilImpl
 }
 
-func (impl EphemeralContainersRepositoryImpl) SaveData(tx *pg.Tx, model *EphemeralContainerBean) error {
+func (impl EphemeralContainersRepositoryImpl) SaveEphemeralContainerData(tx *pg.Tx, model *EphemeralContainerBean) error {
 	return tx.Insert(model)
 }
 
-func (impl EphemeralContainersRepositoryImpl) SaveAction(tx *pg.Tx, model *EphemeralContainerAction) error {
+func (impl EphemeralContainersRepositoryImpl) SaveEphemeralContainerActionAudit(tx *pg.Tx, model *EphemeralContainerAction) error {
 	return tx.Insert(model)
 }
 

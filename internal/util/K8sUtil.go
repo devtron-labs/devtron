@@ -823,14 +823,9 @@ func (impl K8sUtil) K8sServerVersionCheckForEphemeralContainers(clientSet *kuber
 		impl.logger.Errorw("error occurred in getting k8sServerVersion", "err", err)
 		return false, err
 	}
-	majorVersion, err := strconv.Atoi(k8sServerVersion.Major)
+	majorVersion, minorVersion, err := impl.extractMajorAndMinorVersion(k8sServerVersion)
 	if err != nil {
-		impl.logger.Errorw("error occurred in converting k8sServerVersion.Major version value to integer", "err", err, "k8sServerVersion.Major", k8sServerVersion.Major)
-		return false, err
-	}
-	minorVersion, err := strconv.Atoi(k8sServerVersion.Minor)
-	if err != nil {
-		impl.logger.Errorw("error occurred in converting k8sServerVersion.Minor version value to integer", "err", err, "k8sServerVersion.Minor", k8sServerVersion.Minor)
+		impl.logger.Errorw("error occurred in extracting k8s Major and Minor server version values", "err", err, "k8sServerVersion", k8sServerVersion)
 		return false, err
 	}
 	//ephemeral containers feature is introduced in version v1.23 of kubernetes, it is stable from version v1.25
@@ -848,4 +843,18 @@ func (impl K8sUtil) GetK8sServerVersion(clientSet *kubernetes.Clientset) (*versi
 		return nil, err
 	}
 	return k8sServerVersion, nil
+}
+
+func (impl K8sUtil) extractMajorAndMinorVersion(k8sServerVersion *version.Info) (int, int, error) {
+	majorVersion, err := strconv.Atoi(k8sServerVersion.Major)
+	if err != nil {
+		impl.logger.Errorw("error occurred in converting k8sServerVersion.Major version value to integer", "err", err, "k8sServerVersion.Major", k8sServerVersion.Major)
+		return 0, 0, err
+	}
+	minorVersion, err := strconv.Atoi(k8sServerVersion.Minor)
+	if err != nil {
+		impl.logger.Errorw("error occurred in converting k8sServerVersion.Minor version value to integer", "err", err, "k8sServerVersion.Minor", k8sServerVersion.Minor)
+		return majorVersion, 0, err
+	}
+	return majorVersion, minorVersion, nil
 }

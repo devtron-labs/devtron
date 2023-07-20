@@ -87,7 +87,7 @@ func (impl *EphemeralContainerServiceImpl) AuditEphemeralContainerAction(model E
 			// if a container is not present in database and the user is trying to access/terminate it means it is externally created
 			bean.IsExternallyCreated = true
 		}
-		err = impl.repository.SaveData(tx, &bean)
+		err = impl.repository.SaveEphemeralContainerData(tx, &bean)
 		if err != nil {
 			impl.logger.Errorw("Failed to save ephemeral container", "error", err)
 			return err
@@ -101,7 +101,7 @@ func (impl *EphemeralContainerServiceImpl) AuditEphemeralContainerAction(model E
 	auditLogBean.PerformedAt = time.Now()
 	auditLogBean.PerformedBy = model.UserId
 
-	err = impl.repository.SaveAction(tx, &auditLogBean)
+	err = impl.repository.SaveEphemeralContainerActionAudit(tx, &auditLogBean)
 	if err != nil {
 		impl.logger.Errorw("Failed to save ephemeral container", "error", err)
 		return err
@@ -112,6 +112,6 @@ func (impl *EphemeralContainerServiceImpl) AuditEphemeralContainerAction(model E
 		impl.logger.Errorw("error in committing transaction", "err", err, "req", model)
 		return err
 	}
-
+	impl.logger.Infow("transaction committed successfully", "EphemeralContainerId", auditLogBean.EphemeralContainerId, "ephemeralContainerActionsId", auditLogBean.Id)
 	return nil
 }
