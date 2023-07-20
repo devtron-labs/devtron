@@ -35,6 +35,7 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
+	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
@@ -1603,7 +1604,7 @@ func (impl PipelineBuilderImpl) DeleteCiPipeline(request *bean.CiPatchRequest) (
 	}
 	if request.CiPipeline.PreBuildStage != nil && request.CiPipeline.PreBuildStage.Id > 0 {
 		//deleting pre stage
-		err = impl.pipelineStageService.DeleteCiStage(request.CiPipeline.PreBuildStage, request.UserId, tx)
+		err = impl.pipelineStageService.DeletePipelineStage(request.CiPipeline.PreBuildStage, request.UserId, tx)
 		if err != nil {
 			impl.logger.Errorw("error in deleting pre stage", "err", err, "preBuildStage", request.CiPipeline.PreBuildStage)
 			return nil, err
@@ -1611,7 +1612,7 @@ func (impl PipelineBuilderImpl) DeleteCiPipeline(request *bean.CiPatchRequest) (
 	}
 	if request.CiPipeline.PostBuildStage != nil && request.CiPipeline.PostBuildStage.Id > 0 {
 		//deleting post stage
-		err = impl.pipelineStageService.DeleteCiStage(request.CiPipeline.PostBuildStage, request.UserId, tx)
+		err = impl.pipelineStageService.DeletePipelineStage(request.CiPipeline.PostBuildStage, request.UserId, tx)
 		if err != nil {
 			impl.logger.Errorw("error in deleting post stage", "err", err, "postBuildStage", request.CiPipeline.PostBuildStage)
 			return nil, err
@@ -1714,7 +1715,6 @@ func (impl PipelineBuilderImpl) ValidateCDPipelineRequest(pipelineCreateRequest 
 			}
 			return false, err
 		}
-
 		if len(pipeline.PreStage.Config) > 0 && !strings.Contains(pipeline.PreStage.Config, "beforeStages") {
 			err := &util.ApiError{
 				HttpStatusCode:  http.StatusBadRequest,
@@ -1731,6 +1731,7 @@ func (impl PipelineBuilderImpl) ValidateCDPipelineRequest(pipelineCreateRequest 
 			}
 			return false, err
 		}
+
 	}
 
 	return true, nil
@@ -1864,6 +1865,23 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 			return nil, err
 		}
 		pipeline.Id = id
+
+		//creating pipeline_stage entry here after tx commit due to FK issue
+		if pipeline.PreDeployStage != nil && len(pipeline.PreDeployStage.Steps) > 0 {
+			err = impl.pipelineStageService.CreatePipelineStage(pipeline.PreDeployStage, repository5.PIPELINE_STAGE_TYPE_PRE_CD, id, pipelineCreateRequest.UserId)
+			if err != nil {
+				impl.logger.Errorw("error in creating pre-cd stage", "err", err, "preCdStage", pipeline.PreDeployStage, "pipelineId", id)
+				return nil, err
+			}
+		}
+		if pipeline.PostDeployStage != nil && len(pipeline.PostDeployStage.Steps) > 0 {
+			err = impl.pipelineStageService.CreatePipelineStage(pipeline.PostDeployStage, repository5.PIPELINE_STAGE_TYPE_POST_CD, id, pipelineCreateRequest.UserId)
+			if err != nil {
+				impl.logger.Errorw("error in creating post-cd stage", "err", err, "postCdStage", pipeline.PostDeployStage, "pipelineId", id)
+				return nil, err
+			}
+		}
+
 	}
 
 	return pipelineCreateRequest, nil
@@ -2096,6 +2114,27 @@ func (impl PipelineBuilderImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipeli
 		err = impl.prePostCdScriptHistoryService.CreatePrePostCdScriptHistory(pipeline, tx, repository4.POST_CD_TYPE, false, 0, time.Time{})
 		if err != nil {
 			impl.logger.Errorw("error in creating post cd script entry", "err", err, "pipeline", pipeline)
+			return deleteResponse, err
+		}
+	}
+	cdPipelinePluginDeleteReq, err := impl.GetCdPipelineById(pipeline.Id)
+	if err != nil {
+		impl.logger.Errorw("error in getting cdPipeline by id", "err", err, "id", pipeline.Id)
+		return deleteResponse, err
+	}
+	if cdPipelinePluginDeleteReq.PreDeployStage != nil && cdPipelinePluginDeleteReq.PreDeployStage.Id > 0 {
+		//deleting pre-stage
+		err = impl.pipelineStageService.DeletePipelineStage(cdPipelinePluginDeleteReq.PreDeployStage, userId, tx)
+		if err != nil {
+			impl.logger.Errorw("error in deleting pre-CD stage", "err", err, "preDeployStage", cdPipelinePluginDeleteReq.PreDeployStage)
+			return deleteResponse, err
+		}
+	}
+	if cdPipelinePluginDeleteReq.PostDeployStage != nil && cdPipelinePluginDeleteReq.PostDeployStage.Id > 0 {
+		//deleting post-stage
+		err = impl.pipelineStageService.DeletePipelineStage(cdPipelinePluginDeleteReq.PostDeployStage, userId, tx)
+		if err != nil {
+			impl.logger.Errorw("error in deleting post-CD stage", "err", err, "postDeployStage", cdPipelinePluginDeleteReq.PostDeployStage)
 			return deleteResponse, err
 		}
 	}
@@ -3388,6 +3427,8 @@ func (impl PipelineBuilderImpl) GetCdPipelinesForApp(appId int) (cdPipelines *be
 			ParentPipelineId:              appToWorkflowMapping.ParentId,
 			DeploymentAppDeleteRequest:    dbPipeline.DeploymentAppDeleteRequest,
 			IsVirtualEnvironment:          dbPipeline.IsVirtualEnvironment,
+			PreDeployStage:                dbPipeline.PreDeployStage,
+			PostDeployStage:               dbPipeline.PostDeployStage,
 		}
 		pipelines = append(pipelines, pipeline)
 	}
@@ -4003,6 +4044,15 @@ func (impl PipelineBuilderImpl) GetCdPipelineById(pipelineId int) (cdPipeline *b
 		DeploymentAppCreated:          dbPipeline.DeploymentAppCreated,
 		IsVirtualEnvironment:          dbPipeline.Environment.IsVirtualEnvironment,
 	}
+	var preDeployStage *bean3.PipelineStageDto
+	var postDeployStage *bean3.PipelineStageDto
+	preDeployStage, postDeployStage, err = impl.pipelineStageService.GetCdPipelineStageDataDeepCopy(dbPipeline.Id)
+	if err != nil {
+		impl.logger.Errorw("error in getting pre/post-CD stage data", "err", err, "cdPipelineId", dbPipeline.Id)
+		return nil, err
+	}
+	cdPipeline.PreDeployStage = preDeployStage
+	cdPipeline.PostDeployStage = postDeployStage
 
 	return cdPipeline, err
 }
@@ -4798,6 +4848,8 @@ func (impl PipelineBuilderImpl) GetCdPipelinesByEnvironment(request appGroup2.Ap
 			AppName:                       dbPipeline.AppName,
 			AppId:                         dbPipeline.AppId,
 			IsVirtualEnvironment:          dbPipeline.IsVirtualEnvironment,
+			PreDeployStage:                dbPipeline.PreDeployStage,
+			PostDeployStage:               dbPipeline.PostDeployStage,
 		}
 		pipelines = append(pipelines, pipeline)
 	}
