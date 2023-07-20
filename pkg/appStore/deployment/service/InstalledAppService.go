@@ -92,7 +92,7 @@ type InstalledAppService interface {
 	FindNotesForArgoApplication(installedAppId, envId int) (string, string, error)
 	FetchChartNotes(installedAppId int, envId int, token string, checkNotesAuth func(token string, appName string, envId int) bool) (string, error)
 	FetchResourceTreeWithHibernateForACD(rctx context.Context, cn http.CloseNotifier, appDetail *bean2.AppDetailContainer) bean2.AppDetailContainer
-	fetchResourceTreeForACD(rctx context.Context, cn http.CloseNotifier, appId int, envId int, deploymentAppName string) (map[string]interface{}, error)
+	fetchResourceTreeForACD(rctx context.Context, cn http.CloseNotifier, appId int, envId, clusterId int, deploymentAppName, namespace string) (map[string]interface{}, error)
 }
 
 type InstalledAppServiceImpl struct {
@@ -1074,7 +1074,7 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 	var resourceTree map[string]interface{}
 	deploymentAppName := fmt.Sprintf("%s-%s", installedApp.App.AppName, installedApp.Environment.Name)
 	if util.IsAcdApp(installedApp.DeploymentAppType) {
-		resourceTree, err = impl.fetchResourceTreeForACD(rctx, cn, installedApp.App.Id, installedApp.EnvironmentId, deploymentAppName)
+		resourceTree, err = impl.fetchResourceTreeForACD(rctx, cn, installedApp.App.Id, installedApp.EnvironmentId, installedApp.Environment.ClusterId, deploymentAppName, installedApp.Environment.Namespace)
 	} else if util.IsHelmApp(installedApp.DeploymentAppType) {
 		config, err := impl.helmAppService.GetClusterConf(installedApp.Environment.ClusterId)
 		if err != nil {
@@ -1184,7 +1184,7 @@ func (impl InstalledAppServiceImpl) FetchResourceTreeWithHibernateForACD(rctx co
 	ctx = context.WithValue(ctx, "token", acdToken)
 	defer cancel()
 	deploymentAppName := fmt.Sprintf("%s-%s", appDetail.AppName, appDetail.EnvironmentName)
-	resourceTree, err := impl.fetchResourceTreeForACD(rctx, cn, appDetail.InstalledAppId, appDetail.EnvironmentId, deploymentAppName)
+	resourceTree, err := impl.fetchResourceTreeForACD(rctx, cn, appDetail.InstalledAppId, appDetail.EnvironmentId, appDetail.ClusterId, deploymentAppName, appDetail.Namespace)
 	appDetail.ResourceTree = resourceTree
 	if err != nil {
 		return *appDetail
@@ -1247,7 +1247,7 @@ func checkHibernate(impl InstalledAppServiceImpl, resp *bean2.AppDetailContainer
 	return responseTree
 }
 
-func (impl InstalledAppServiceImpl) fetchResourceTreeForACD(rctx context.Context, cn http.CloseNotifier, appId int, envId int, deploymentAppName string) (map[string]interface{}, error) {
+func (impl InstalledAppServiceImpl) fetchResourceTreeForACD(rctx context.Context, cn http.CloseNotifier, appId int, envId, clusterId int, deploymentAppName, namespace string) (map[string]interface{}, error) {
 	var resourceTree map[string]interface{}
 	query := &application.ResourcesQuery{
 		ApplicationName: &deploymentAppName,
@@ -1271,6 +1271,16 @@ func (impl InstalledAppServiceImpl) fetchResourceTreeForACD(rctx context.Context
 	defer cancel()
 	start := time.Now()
 	resp, err := impl.acdClient.ResourceTree(ctx, query)
+	label := fmt.Sprintf("app.kubernetes.io/instance=%s", deploymentAppName)
+	pods, err := impl.k8sApplicationService.GetPodListByLabel(clusterId, namespace, label)
+	if err != nil {
+		impl.logger.Errorw("error in getting pods by label", "err", err, "clusterId", clusterId, "namespace", namespace, "label", label)
+		return resourceTree, err
+	}
+	ephemeralContainersMap := util3.ExtractEphemeralContainers(pods)
+	for _, metaData := range resp.PodMetadata {
+		metaData.EphemeralContainers = ephemeralContainersMap[metaData.Name]
+	}
 	elapsed := time.Since(start)
 	impl.logger.Debugf("Time elapsed %s in fetching app-store installed application %s for environment %s", elapsed, deploymentAppName, envId)
 	if err != nil {

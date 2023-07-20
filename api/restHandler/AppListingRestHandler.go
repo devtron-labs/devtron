@@ -1511,6 +1511,17 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		ctx = context.WithValue(ctx, "token", acdToken)
 		start := time.Now()
 		resp, err := handler.application.ResourceTree(ctx, query)
+		//we currently add appId and envId as labels for devtron apps deployed via acd
+		label := fmt.Sprintf("appId=%v,envId=%v", cdPipeline.AppId, cdPipeline.EnvironmentId)
+		pods, err := handler.k8sApplicationService.GetPodListByLabel(cdPipeline.Environment.ClusterId, cdPipeline.Environment.Namespace, label)
+		if err != nil {
+			handler.logger.Errorw("error in getting pods by label", "err", err, "clusterId", cdPipeline.Environment.ClusterId, "namespace", cdPipeline.Environment.Namespace, "label", label)
+			return resourceTree, err
+		}
+		ephemeralContainersMap := util2.ExtractEphemeralContainers(pods)
+		for _, metaData := range resp.PodMetadata {
+			metaData.EphemeralContainers = ephemeralContainersMap[metaData.Name]
+		}
 		elapsed := time.Since(start)
 		if err != nil {
 			handler.logger.Errorw("service err, FetchAppDetailsV2, resource tree", "err", err, "app", appId, "env", envId)

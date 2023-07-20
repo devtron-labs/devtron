@@ -79,6 +79,7 @@ type K8sApplicationService interface {
 	TerminatePodEphemeralContainer(req cluster.EphemeralContainerRequest) (bool, error)
 	GetK8sServerVersion(clusterId int) (*version.Info, error)
 	GetPodContainersList(clusterId int, namespace, podName string) (*PodContainerList, error)
+	GetPodListByLabel(clusterId int, namespace, label string) ([]corev1.Pod, error)
 }
 type K8sApplicationServiceImpl struct {
 	logger                       *zap.SugaredLogger
@@ -1359,6 +1360,20 @@ func (impl *K8sApplicationServiceImpl) GetK8sServerVersion(clusterId int) (*vers
 		return nil, err
 	}
 	return k8sVersion, err
+}
+
+func (impl *K8sApplicationServiceImpl) GetPodListByLabel(clusterId int, namespace, label string) ([]corev1.Pod, error) {
+	clientSet, _, err := impl.getCoreClientByClusterId(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting coreV1 client by clusterId", "clusterId", clusterId, "err", err)
+		return nil, err
+	}
+	pods, err := impl.K8sUtil.GetPodListByLabel(namespace, label, clientSet)
+	if err != nil {
+		impl.logger.Errorw("error in getting pods list", "clusterId", clusterId, "namespace", namespace, "label", label, "err", err)
+		return nil, err
+	}
+	return pods, err
 }
 
 func (impl *K8sApplicationServiceImpl) GetPodContainersList(clusterId int, namespace, podName string) (*PodContainerList, error) {

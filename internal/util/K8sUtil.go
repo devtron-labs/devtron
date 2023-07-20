@@ -468,6 +468,16 @@ func (impl K8sUtil) CreateJob(namespace string, name string, clusterConfig *Clus
 
 const Running = "Running"
 
+func (impl K8sUtil) GetPodListByLabel(namespace, label string, clientSet *kubernetes.Clientset) ([]v1.Pod, error) {
+	pods := clientSet.CoreV1().Pods(namespace)
+	podList, err := pods.List(context.Background(), metav1.ListOptions{LabelSelector: label})
+	if err != nil {
+		impl.logger.Errorw("get pod err, DeletePod", "err", err)
+		return nil, err
+	}
+	return podList.Items, nil
+}
+
 func (impl K8sUtil) DeletePodByLabel(namespace string, labels string, clusterConfig *ClusterConfig) error {
 	clientSet, err := impl.GetClientSet(clusterConfig)
 	if err != nil {
