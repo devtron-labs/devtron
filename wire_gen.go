@@ -775,7 +775,7 @@ func InitializeApp() (*App, error) {
 	configDraftRepositoryImpl := drafts.NewConfigDraftRepositoryImpl(sugaredLogger, db)
 	resourceProtectionRepositoryImpl := protect.NewResourceProtectionRepositoryImpl(sugaredLogger, db)
 	resourceProtectionServiceImpl := protect.NewResourceProtectionServiceImpl(sugaredLogger, resourceProtectionRepositoryImpl)
-	configDraftServiceImpl := drafts.NewConfigDraftServiceImpl(sugaredLogger, configDraftRepositoryImpl, chartServiceImpl, propertiesConfigServiceImpl, resourceProtectionServiceImpl, userServiceImpl, appRepositoryImpl, environmentRepositoryImpl)
+	configDraftServiceImpl := drafts.NewConfigDraftServiceImpl(sugaredLogger, configDraftRepositoryImpl, configMapServiceImpl, chartServiceImpl, propertiesConfigServiceImpl, resourceProtectionServiceImpl, userServiceImpl, appRepositoryImpl, environmentRepositoryImpl)
 	configDraftRestHandlerImpl := drafts2.NewConfigDraftRestHandlerImpl(sugaredLogger, userServiceImpl, enterpriseEnforcerImpl, enforcerUtilImpl, validate, configDraftServiceImpl)
 	configDraftRouterImpl := drafts2.NewConfigDraftRouterImpl(configDraftRestHandlerImpl)
 	resourceProtectionRestHandlerImpl := protect2.NewResourceProtectionRestHandlerImpl(sugaredLogger, resourceProtectionServiceImpl, userServiceImpl, enterpriseEnforcerImpl, enforcerUtilImpl, validate)

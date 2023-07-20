@@ -42,12 +42,13 @@ type ConfigDraftServiceImpl struct {
 	envRepository             repository2.EnvironmentRepository
 }
 
-func NewConfigDraftServiceImpl(logger *zap.SugaredLogger, configDraftRepository ConfigDraftRepository, chartService chart.ChartService,
+func NewConfigDraftServiceImpl(logger *zap.SugaredLogger, configDraftRepository ConfigDraftRepository, configMapService pipeline.ConfigMapService, chartService chart.ChartService,
 	propertiesConfigService pipeline.PropertiesConfigService, resourceProtectionService protect.ResourceProtectionService,
 	userService user.UserService, appRepo app.AppRepository, envRepository repository2.EnvironmentRepository) *ConfigDraftServiceImpl {
 	draftServiceImpl := ConfigDraftServiceImpl{
 		logger:                    logger,
 		configDraftRepository:     configDraftRepository,
+		configMapService:          configMapService,
 		chartService:              chartService,
 		propertiesConfigService:   propertiesConfigService,
 		resourceProtectionService: resourceProtectionService,
@@ -291,7 +292,7 @@ func (impl ConfigDraftServiceImpl) ApproveDraft(draftId int, draftVersionId int,
 
 func (impl ConfigDraftServiceImpl) handleCmCsData(draftResource DraftResourceType, appId int, envId int, draftData string, userId int32) error {
 	// if envId is -1 then it is base Configuration else Env level config
-	var configDataRequest *pipeline.ConfigDataRequest
+	configDataRequest := &pipeline.ConfigDataRequest{}
 	err := json.Unmarshal([]byte(draftData), configDataRequest)
 	if err != nil {
 		impl.logger.Errorw("error occurred while unmarshalling draftData of CM/CS", "appId", appId, "envId", envId, "err", err)
@@ -337,7 +338,7 @@ func (impl ConfigDraftServiceImpl) handleDeploymentTemplate(appId int, envId int
 }
 
 func (impl ConfigDraftServiceImpl) handleBaseDeploymentTemplate(appId int, envId int, draftData string, userId int32, ctx context.Context) error {
-	var templateRequest *chart.TemplateRequest
+	templateRequest := &chart.TemplateRequest{}
 	var templateValidated bool
 	err := json.Unmarshal([]byte(draftData), templateRequest)
 	if err != nil {
@@ -357,7 +358,7 @@ func (impl ConfigDraftServiceImpl) handleBaseDeploymentTemplate(appId int, envId
 }
 
 func (impl ConfigDraftServiceImpl) handleEnvLevelTemplate(appId int, envId int, draftData string, userId int32, action ResourceAction, ctx context.Context) error {
-	var envConfigProperties *pipeline.EnvironmentProperties
+	envConfigProperties := &pipeline.EnvironmentProperties{}
 	var templateValidated bool
 	err := json.Unmarshal([]byte(draftData), envConfigProperties)
 	if err != nil {
