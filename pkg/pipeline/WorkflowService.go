@@ -525,7 +525,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	}
 
 	// node selector
-	if val, ok := appLabels[CI_NODE_SELECTOR_APP_LABEL_KEY]; ok {
+	if val, ok := appLabels[CI_NODE_SELECTOR_APP_LABEL_KEY]; ok && isJob {
 		var nodeSelectors map[string]string
 		// Unmarshal or Decode the JSON to the interface.
 		err = json.Unmarshal([]byte(val), &nodeSelectors)
