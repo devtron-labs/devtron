@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/devtron-labs/devtron/pkg/genericNotes"
 	"net/http"
 	"strconv"
 	"strings"
@@ -59,7 +60,7 @@ type ClusterRestHandler interface {
 
 type ClusterRestHandlerImpl struct {
 	clusterService            cluster.ClusterService
-	clusterNoteService        cluster.ClusterNoteService
+	clusterNoteService        genericNotes.GenericNoteService
 	clusterDescriptionService cluster.ClusterDescriptionService
 	logger                    *zap.SugaredLogger
 	userService               user.UserService
@@ -71,7 +72,7 @@ type ClusterRestHandlerImpl struct {
 }
 
 func NewClusterRestHandlerImpl(clusterService cluster.ClusterService,
-	clusterNoteService cluster.ClusterNoteService,
+	clusterNoteService genericNotes.GenericNoteService,
 	clusterDescriptionService cluster.ClusterDescriptionService,
 	logger *zap.SugaredLogger,
 	userService user.UserService,
@@ -452,7 +453,7 @@ func (impl ClusterRestHandlerImpl) UpdateClusterNote(w http.ResponseWriter, r *h
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var bean cluster.ClusterNoteBean
+	var bean genericNotes.ClusterNoteBean
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, Update", "error", err, "payload", bean)
@@ -466,9 +467,9 @@ func (impl ClusterRestHandlerImpl) UpdateClusterNote(w http.ResponseWriter, r *h
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	clusterDescription, err := impl.clusterDescriptionService.FindByClusterIdWithClusterDetails(bean.ClusterId)
+	clusterDescription, err := impl.clusterDescriptionService.FindByClusterIdWithClusterDetails(bean.Identifier)
 	if err != nil {
-		impl.logger.Errorw("service err, FindById", "err", err, "clusterId", bean.ClusterId)
+		impl.logger.Errorw("service err, FindById", "err", err, "clusterId", bean.Identifier)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -499,7 +500,7 @@ func (impl ClusterRestHandlerImpl) UpdateClusterNote(w http.ResponseWriter, r *h
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	clusterNoteResponseBean := &cluster.ClusterNoteResponseBean{
+	clusterNoteResponseBean := &genericNotes.GenericNoteResponseBean{
 		Id:          bean.Id,
 		Description: bean.Description,
 		UpdatedOn:   bean.UpdatedOn,

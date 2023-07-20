@@ -3,6 +3,8 @@ package cluster
 import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/genericNotes"
+	repository2 "github.com/devtron-labs/devtron/pkg/genericNotes/repository"
 	"github.com/google/wire"
 )
 
@@ -16,14 +18,14 @@ var ClusterWireSet = wire.NewSet(
 
 	repository.NewClusterDescriptionRepositoryImpl,
 	wire.Bind(new(repository.ClusterDescriptionRepository), new(*repository.ClusterDescriptionRepositoryImpl)),
-	repository.NewClusterNoteHistoryRepositoryImpl,
-	wire.Bind(new(repository.ClusterNoteHistoryRepository), new(*repository.ClusterNoteHistoryRepositoryImpl)),
-	repository.NewClusterNoteRepositoryImpl,
-	wire.Bind(new(repository.ClusterNoteRepository), new(*repository.ClusterNoteRepositoryImpl)),
-	cluster.NewClusterNoteHistoryServiceImpl,
-	wire.Bind(new(cluster.ClusterNoteHistoryService), new(*cluster.ClusterNoteHistoryServiceImpl)),
-	cluster.NewClusterNoteServiceImpl,
-	wire.Bind(new(cluster.ClusterNoteService), new(*cluster.ClusterNoteServiceImpl)),
+	repository2.NewClusterNoteHistoryRepositoryImpl,
+	wire.Bind(new(repository2.ClusterNoteHistoryRepository), new(*repository2.ClusterNoteHistoryRepositoryImpl)),
+	repository2.NewGenericNoteRepositoryImpl,
+	wire.Bind(new(repository2.GenericNoteRepository), new(*repository2.GenericNoteRepositoryImpl)),
+	genericNotes.NewClusterNoteHistoryServiceImpl,
+	wire.Bind(new(genericNotes.ClusterNoteHistoryService), new(*genericNotes.ClusterNoteHistoryServiceImpl)),
+	genericNotes.NewClusterNoteServiceImpl,
+	wire.Bind(new(genericNotes.GenericNoteService), new(*genericNotes.GenericNoteServiceImpl)),
 	cluster.NewClusterDescriptionServiceImpl,
 	wire.Bind(new(cluster.ClusterDescriptionService), new(*cluster.ClusterDescriptionServiceImpl)),
 
@@ -51,14 +53,14 @@ var ClusterWireSetEa = wire.NewSet(
 
 	repository.NewClusterDescriptionRepositoryImpl,
 	wire.Bind(new(repository.ClusterDescriptionRepository), new(*repository.ClusterDescriptionRepositoryImpl)),
-	repository.NewClusterNoteHistoryRepositoryImpl,
-	wire.Bind(new(repository.ClusterNoteHistoryRepository), new(*repository.ClusterNoteHistoryRepositoryImpl)),
-	repository.NewClusterNoteRepositoryImpl,
-	wire.Bind(new(repository.ClusterNoteRepository), new(*repository.ClusterNoteRepositoryImpl)),
-	cluster.NewClusterNoteHistoryServiceImpl,
-	wire.Bind(new(cluster.ClusterNoteHistoryService), new(*cluster.ClusterNoteHistoryServiceImpl)),
-	cluster.NewClusterNoteServiceImpl,
-	wire.Bind(new(cluster.ClusterNoteService), new(*cluster.ClusterNoteServiceImpl)),
+	repository2.NewClusterNoteHistoryRepositoryImpl,
+	wire.Bind(new(repository2.ClusterNoteHistoryRepository), new(*repository2.ClusterNoteHistoryRepositoryImpl)),
+	repository2.NewGenericNoteRepositoryImpl,
+	wire.Bind(new(repository2.GenericNoteRepository), new(*repository2.GenericNoteRepositoryImpl)),
+	genericNotes.NewClusterNoteHistoryServiceImpl,
+	wire.Bind(new(genericNotes.ClusterNoteHistoryService), new(*genericNotes.ClusterNoteHistoryServiceImpl)),
+	genericNotes.NewClusterNoteServiceImpl,
+	wire.Bind(new(genericNotes.GenericNoteService), new(*genericNotes.GenericNoteServiceImpl)),
 	cluster.NewClusterDescriptionServiceImpl,
 	wire.Bind(new(cluster.ClusterDescriptionService), new(*cluster.ClusterDescriptionServiceImpl)),
 

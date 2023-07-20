@@ -1,6 +1,8 @@
-package cluster
+package genericNotes
 
 import (
+	"github.com/devtron-labs/devtron/pkg/cluster"
+	repository2 "github.com/devtron-labs/devtron/pkg/genericNotes/repository"
 	"log"
 	"testing"
 	"time"
@@ -161,7 +163,7 @@ func cleanDb(tt *testing.T) {
 	}
 }
 
-func createClusterData(DB *pg.DB, bean *ClusterBean) error {
+func createClusterData(DB *pg.DB, bean *cluster.ClusterBean) error {
 	model := &repository.Cluster{
 		Id:          bean.Id,
 		ClusterName: bean.ClusterName,
@@ -176,7 +178,7 @@ func createClusterData(DB *pg.DB, bean *ClusterBean) error {
 
 func initialiseDb(tt *testing.T) {
 	DB, _ := getDbConn()
-	clusters := []ClusterBean{
+	clusters := []cluster.ClusterBean{
 		{
 			Id:          10000,
 			ClusterName: "test-cluster-1",
@@ -210,8 +212,8 @@ func InitClusterNoteService() {
 		log.Fatalf("error in db connection initialization %s, %s", "err", err)
 	}
 
-	clusterNoteHistoryRepository := repository.NewClusterNoteHistoryRepositoryImpl(conn, logger)
-	clusterNoteRepository := repository.NewClusterNoteRepositoryImpl(conn, logger)
+	clusterNoteHistoryRepository := repository2.NewClusterNoteHistoryRepositoryImpl(conn, logger)
+	clusterNoteRepository := repository2.NewClusterNoteRepositoryImpl(conn, logger)
 	clusterNoteHistoryService := NewClusterNoteHistoryServiceImpl(clusterNoteHistoryRepository, logger)
 	clusterNoteService = NewClusterNoteServiceImpl(clusterNoteRepository, clusterNoteHistoryService, logger)
 }

@@ -15,12 +15,12 @@
  *
  */
 
-package cluster
+package genericNotes
 
 import (
+	"github.com/devtron-labs/devtron/pkg/genericNotes/repository"
 	"time"
 
-	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"go.uber.org/zap"
 )
 

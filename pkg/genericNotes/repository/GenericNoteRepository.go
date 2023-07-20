@@ -23,46 +23,65 @@ import (
 	"go.uber.org/zap"
 )
 
+type NoteType int
+
+const ClusterType NoteType = 0
+const AppType NoteType = 1
+
 type ClusterNote struct {
-	tableName   struct{} `sql:"cluster_note" pg:",discard_unknown_columns"`
-	Id          int      `sql:"id,pk"`
-	ClusterId   int      `sql:"cluster_id"`
-	Description string   `sql:"description"`
+	tableName      struct{} `sql:"cluster_note" pg:",discard_unknown_columns"`
+	Id             int      `sql:"id,pk"`
+	Identifer      int      `sql:"identifier"`
+	IdentifierType NoteType `sql:"identifier_type"`
+	Description    string   `sql:"description"`
 	sql.AuditLog
 }
 
-type ClusterNoteRepository interface {
+type GenericNoteRepository interface {
 	Save(model *ClusterNote) error
 	FindByClusterId(id int) (*ClusterNote, error)
+	FindByAppId(id int) (*ClusterNote, error)
 	Update(model *ClusterNote) error
 }
 
-func NewClusterNoteRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *ClusterNoteRepositoryImpl {
-	return &ClusterNoteRepositoryImpl{
+func NewGenericNoteRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *GenericNoteRepositoryImpl {
+	return &GenericNoteRepositoryImpl{
 		dbConnection: dbConnection,
 		logger:       logger,
 	}
 }
 
-type ClusterNoteRepositoryImpl struct {
+type GenericNoteRepositoryImpl struct {
 	dbConnection *pg.DB
 	logger       *zap.SugaredLogger
 }
 
-func (impl ClusterNoteRepositoryImpl) Save(model *ClusterNote) error {
+func (impl GenericNoteRepositoryImpl) Save(model *ClusterNote) error {
 	return impl.dbConnection.Insert(model)
 }
 
-func (impl ClusterNoteRepositoryImpl) FindByClusterId(id int) (*ClusterNote, error) {
+func (impl GenericNoteRepositoryImpl) FindByClusterId(id int) (*ClusterNote, error) {
 	clusterNote := &ClusterNote{}
 	err := impl.dbConnection.
 		Model(clusterNote).
-		Where("cluster_id =?", id).
+		Where("identifier =?", id).
+		Where("identifier_type =?", ClusterType).
 		Limit(1).
 		Select()
 	return clusterNote, err
 }
 
-func (impl ClusterNoteRepositoryImpl) Update(model *ClusterNote) error {
+func (impl GenericNoteRepositoryImpl) Update(model *ClusterNote) error {
 	return impl.dbConnection.Update(model)
+}
+
+func (impl GenericNoteRepositoryImpl) FindByAppId(id int) (*ClusterNote, error) {
+	clusterNote := &ClusterNote{}
+	err := impl.dbConnection.
+		Model(clusterNote).
+		Where("identifier =?", id).
+		Where("identifier_type =?", AppType).
+		Limit(1).
+		Select()
+	return clusterNote, err
 }

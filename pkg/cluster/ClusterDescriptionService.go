@@ -18,6 +18,7 @@
 package cluster
 
 import (
+	"github.com/devtron-labs/devtron/pkg/genericNotes"
 	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"time"
 
@@ -27,11 +28,11 @@ import (
 )
 
 type ClusterDescriptionBean struct {
-	ClusterId        int                      `json:"clusterId" validate:"number"`
-	ClusterName      string                   `json:"clusterName" validate:"required"`
-	ClusterCreatedBy string                   `json:"clusterCreatedBy" validate:"number"`
-	ClusterCreatedOn time.Time                `json:"clusterCreatedOn" validate:"required"`
-	ClusterNote      *ClusterNoteResponseBean `json:"clusterNote,omitempty"`
+	ClusterId        int                                   `json:"clusterId" validate:"number"`
+	ClusterName      string                                `json:"clusterName" validate:"required"`
+	ClusterCreatedBy string                                `json:"clusterCreatedBy" validate:"number"`
+	ClusterCreatedOn time.Time                             `json:"clusterCreatedOn" validate:"required"`
+	ClusterNote      *genericNotes.GenericNoteResponseBean `json:"clusterNote,omitempty"`
 }
 
 type ClusterDescriptionService interface {
@@ -75,7 +76,7 @@ func (impl *ClusterDescriptionServiceImpl) FindByClusterIdWithClusterDetails(id 
 		ClusterCreatedOn: model.ClusterCreatedOn,
 	}
 	if model.NoteId > 0 {
-		clusterNote := &ClusterNoteResponseBean{
+		clusterNote := &genericNotes.GenericNoteResponseBean{
 			Id:          model.NoteId,
 			Description: model.Description,
 			UpdatedBy:   noteUpdatedByUser.EmailId,

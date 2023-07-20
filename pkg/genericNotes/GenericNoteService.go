@@ -15,68 +15,70 @@
  *
  */
 
-package cluster
+package genericNotes
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/genericNotes/repository"
 	"time"
 
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
 
 type ClusterNoteBean struct {
-	Id          int       `json:"id" validate:"number"`
-	ClusterId   int       `json:"clusterId" validate:"required"`
-	Description string    `json:"description" validate:"required"`
-	UpdatedBy   int32     `json:"updatedBy"`
-	UpdatedOn   time.Time `json:"updatedOn"`
+	Id             int                 `json:"id" validate:"number"`
+	Identifier     int                 `json:"identifier" validate:"required"`
+	IdentifierType repository.NoteType `json:"identifier_type" validate:"required"`
+	Description    string              `json:"description" validate:"required"`
+	UpdatedBy      int32               `json:"updatedBy"`
+	UpdatedOn      time.Time           `json:"updatedOn"`
 }
 
-type ClusterNoteResponseBean struct {
+type GenericNoteResponseBean struct {
 	Id          int       `json:"id" validate:"number"`
 	Description string    `json:"description" validate:"required"`
 	UpdatedBy   string    `json:"updatedBy"`
 	UpdatedOn   time.Time `json:"updatedOn"`
 }
 
-type ClusterNoteService interface {
+type GenericNoteService interface {
 	Save(bean *ClusterNoteBean, userId int32) (*ClusterNoteBean, error)
 	Update(bean *ClusterNoteBean, userId int32) (*ClusterNoteBean, error)
 }
 
-type ClusterNoteServiceImpl struct {
-	clusterNoteRepository     repository.ClusterNoteRepository
+type GenericNoteServiceImpl struct {
+	clusterNoteRepository     repository.GenericNoteRepository
 	clusterNoteHistoryService ClusterNoteHistoryService
 	logger                    *zap.SugaredLogger
 }
 
-func NewClusterNoteServiceImpl(repository repository.ClusterNoteRepository, clusterNoteHistoryService ClusterNoteHistoryService, logger *zap.SugaredLogger) *ClusterNoteServiceImpl {
-	clusterNoteService := &ClusterNoteServiceImpl{
+func NewClusterNoteServiceImpl(repository repository.GenericNoteRepository, clusterNoteHistoryService ClusterNoteHistoryService, logger *zap.SugaredLogger) *GenericNoteServiceImpl {
+	genericNoteService := &GenericNoteServiceImpl{
 		clusterNoteRepository:     repository,
 		clusterNoteHistoryService: clusterNoteHistoryService,
 		logger:                    logger,
 	}
-	return clusterNoteService
+	return genericNoteService
 }
 
-func (impl *ClusterNoteServiceImpl) Save(bean *ClusterNoteBean, userId int32) (*ClusterNoteBean, error) {
-	existingModel, err := impl.clusterNoteRepository.FindByClusterId(bean.ClusterId)
+func (impl *GenericNoteServiceImpl) Save(bean *ClusterNoteBean, userId int32) (*ClusterNoteBean, error) {
+	existingModel, err := impl.clusterNoteRepository.FindByClusterId(bean.Identifier)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Error(err)
 		return nil, err
 	}
 	if existingModel.Id > 0 {
-		impl.logger.Errorw("error on fetching cluster, duplicate", "id", bean.ClusterId)
+		impl.logger.Errorw("error on fetching cluster, duplicate", "id", bean.Identifier)
 		return nil, fmt.Errorf("cluster note already exists")
 	}
 
 	model := &repository.ClusterNote{
-		ClusterId:   bean.ClusterId,
-		Description: bean.Description,
+		Identifer:      bean.Identifier,
+		IdentifierType: repository.ClusterType,
+		Description:    bean.Description,
 	}
 
 	model.CreatedBy = userId
@@ -108,8 +110,8 @@ func (impl *ClusterNoteServiceImpl) Save(bean *ClusterNoteBean, userId int32) (*
 	return bean, err
 }
 
-func (impl *ClusterNoteServiceImpl) Update(bean *ClusterNoteBean, userId int32) (*ClusterNoteBean, error) {
-	model, err := impl.clusterNoteRepository.FindByClusterId(bean.ClusterId)
+func (impl *GenericNoteServiceImpl) Update(bean *ClusterNoteBean, userId int32) (*ClusterNoteBean, error) {
+	model, err := impl.clusterNoteRepository.FindByClusterId(bean.Identifier)
 	if err != nil {
 		impl.logger.Error(err)
 		return nil, err
