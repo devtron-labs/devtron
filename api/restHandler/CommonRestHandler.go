@@ -28,12 +28,12 @@ import (
 	"net/http"
 )
 
-type CommonRestHanlder interface {
+type CommonRestHandler interface {
 	GlobalChecklist(w http.ResponseWriter, r *http.Request)
 	EnvironmentList(w http.ResponseWriter, r *http.Request)
 }
 
-type CommonRestHanlderImpl struct {
+type CommonRestHandlerImpl struct {
 	logger              *zap.SugaredLogger
 	gitOpsConfigService gitops.GitOpsConfigService
 	userAuthService     user.UserService
@@ -45,8 +45,8 @@ type CommonRestHanlderImpl struct {
 func NewCommonRestHanlderImpl(
 	logger *zap.SugaredLogger,
 	gitOpsConfigService gitops.GitOpsConfigService, userAuthService user.UserService,
-	validator *validator.Validate, enforcer casbin.Enforcer, commonService commonService.CommonService) *CommonRestHanlderImpl {
-	return &CommonRestHanlderImpl{
+	validator *validator.Validate, enforcer casbin.Enforcer, commonService commonService.CommonService) *CommonRestHandlerImpl {
+	return &CommonRestHandlerImpl{
 		logger:              logger,
 		gitOpsConfigService: gitOpsConfigService,
 		userAuthService:     userAuthService,
@@ -56,7 +56,7 @@ func NewCommonRestHanlderImpl(
 	}
 }
 
-func (impl CommonRestHanlderImpl) GlobalChecklist(w http.ResponseWriter, r *http.Request) {
+func (impl CommonRestHandlerImpl) GlobalChecklist(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -72,7 +72,7 @@ func (impl CommonRestHanlderImpl) GlobalChecklist(w http.ResponseWriter, r *http
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (impl CommonRestHanlderImpl) EnvironmentList(w http.ResponseWriter, r *http.Request) {
+func (impl CommonRestHandlerImpl) EnvironmentList(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
