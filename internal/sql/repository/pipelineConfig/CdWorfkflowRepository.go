@@ -420,14 +420,12 @@ func (impl *CdWorkflowRepositoryImpl) FindLatestWfrByAppIdAndEnvironmentId(appId
 	wfr := &CdWorkflowRunner{}
 	err := impl.dbConnection.
 		Model(wfr).
-		Column("cd_workflow_runner.*", "CdWorkflow",
-			"CdWorkflow.Pipeline", "CdWorkflow.CiArtifact", "CdWorkflow.Pipeline.Environment", "CdWorkflow.Pipeline.App").
+		Column("cd_workflow_runner.*", "CdWorkflow.Pipeline.id", "CdWorkflow.Pipeline.deployment_app_delete_request", "CdWorkflow.Pipeline.deployment_app_type").
 		Where("p.environment_id = ?", environmentId).
 		Where("p.app_id = ?", appId).
 		Where("cd_workflow_runner.workflow_type = ?", bean.CD_WORKFLOW_TYPE_DEPLOY).
 		Order("cd_workflow_runner.id DESC").
 		Join("inner join cd_workflow wf on wf.id = cd_workflow_runner.cd_workflow_id").
-		Join("inner join ci_artifact cia on cia.id = wf.ci_artifact_id").
 		Join("inner join pipeline p on p.id = wf.pipeline_id").
 		Limit(1).
 		Select()
