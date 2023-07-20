@@ -55,6 +55,16 @@ func (handler *PipelineStatusTimelineRestHandlerImpl) FetchTimelines(w http.Resp
 			return
 		}
 	}
+	showTimeline := false
+	showTimelineParam := r.URL.Query().Get("showTimeline")
+	if len(showTimelineParam) > 0 {
+		showTimeline, err = strconv.ParseBool(showTimelineParam)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+	}
+
 	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
@@ -62,7 +72,7 @@ func (handler *PipelineStatusTimelineRestHandlerImpl) FetchTimelines(w http.Resp
 		return
 	}
 
-	timelines, err := handler.pipelineStatusTimelineService.FetchTimelines(appId, envId, wfrId)
+	timelines, err := handler.pipelineStatusTimelineService.FetchTimelines(appId, envId, wfrId, showTimeline)
 	if err != nil {
 		handler.logger.Errorw("error in getting cd pipeline status timelines by wfrId", "err", err, "wfrId", wfrId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
