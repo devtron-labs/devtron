@@ -147,7 +147,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 		ciWorkflowConfig.Namespace = impl.ciConfig.DefaultNamespace
 	}
 
-	preCiSteps, postCiSteps, refPluginsData, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(pipeline.Id)
+	preCiSteps, postCiSteps, refPluginsData, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(pipeline.Id, ciEvent)
 
 	if err != nil {
 		impl.Logger.Errorw("error in getting pre steps data for wf request", "err", err, "ciPipelineId", pipeline.Id)
@@ -413,6 +413,14 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		preCiSteps = buildCiStepsDataFromDockerBuildScripts(beforeDockerBuildScripts)
 		postCiSteps = buildCiStepsDataFromDockerBuildScripts(afterDockerBuildScripts)
 		refPluginsData = []*bean2.RefPluginObject{}
+	} else {
+		//beforeDockerBuildScripts & afterDockerBuildScripts not found
+		//getting preCiStepsData, postCiStepsData & refPluginsData
+		preCiSteps, postCiSteps, refPluginsData, err = impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(pipeline.Id, ciEvent)
+		if err != nil {
+			impl.Logger.Errorw("error in getting pre, post & refPlugin steps data for wf request", "err", err, "ciPipelineId", pipeline.Id)
+			return nil, err
+		}
 	}
 	dockerImageTag := impl.buildImageTag(commitHashes, pipeline.Id, savedWf.Id)
 	if ciWorkflowConfig.CiCacheBucket == "" {

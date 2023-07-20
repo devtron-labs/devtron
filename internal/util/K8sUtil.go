@@ -634,7 +634,7 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 				if namespaced && index == 1 {
 					headers = append(headers, K8sClusterResourceNamespaceKey)
 				}
-				if priority == 0 || (manifest.GetKind() == "Event" && columnName == "source") {
+				if priority == 0 || (manifest.GetKind() == "Event" && columnName == "source") || (kind == "Pod") {
 					columnIndexes[index] = columnName
 					headers = append(headers, columnName)
 				}
