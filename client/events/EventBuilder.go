@@ -101,7 +101,7 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 	}
 	var emailIDs []string
 
-	if wfr != nil && wfr.DeploymentApprovalRequestId >= 0 { //todo is >= right??
+	if wfr != nil && wfr.DeploymentApprovalRequestId >= 0 {
 		deploymentUserData, err := impl.DeploymentApprovalRepository.FetchApprovedDataByApprovalId(wfr.DeploymentApprovalRequestId)
 		if err != nil {
 			impl.logger.Errorw("error in getting deploymentUserData", "err", err, "deploymentApprovalRequestId", wfr.DeploymentApprovalRequestId)
