@@ -2,6 +2,7 @@
 - fix: optimized fetch deployment status timeline api (#3653)
 - fix: critical vulnerabilities in dependencies (#3632)
 ## Enhancements
+- feat: flag for node (#3654)
 - feat: plugin and step support in pre post cd (#3563)
 - feat: edit Ingress for specific host (#3640)
 - feat: enhancement app workflow clone, added specific deployment clone in workflow (#3645)
