@@ -43,7 +43,7 @@ type DevtronAppBuildRestHandler interface {
 	GetExternalCi(w http.ResponseWriter, r *http.Request)
 	GetExternalCiById(w http.ResponseWriter, r *http.Request)
 	PatchCiPipelines(w http.ResponseWriter, r *http.Request)
-	PatchCiPipelinesSource(w http.ResponseWriter, r *http.Request)
+	PatchCiMaterialSource(w http.ResponseWriter, r *http.Request)
 	TriggerCiPipeline(w http.ResponseWriter, r *http.Request)
 	GetCiPipelineMin(w http.ResponseWriter, r *http.Request)
 	GetCIPipelineById(w http.ResponseWriter, r *http.Request)
@@ -250,7 +250,7 @@ func (handler PipelineConfigRestHandlerImpl) parseBranchChangeRequest(w http.Res
 	return &patchRequest, userId, nil
 }
 
-func (handler PipelineConfigRestHandlerImpl) authorizeBranchChangeRequest(w http.ResponseWriter, userId int32, patchRequest *bean.CiPipeline, token string) error {
+func (handler PipelineConfigRestHandlerImpl) authorizeSourceChangeRequest(w http.ResponseWriter, userId int32, patchRequest *bean.CiPipeline, token string) error {
 	isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
 	if err != nil {
 		common.WriteJsonResp(w, err, "failed to check if user is super admin", http.StatusInternalServerError)
@@ -262,27 +262,35 @@ func (handler PipelineConfigRestHandlerImpl) authorizeBranchChangeRequest(w http
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return err
 	}
-	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
+
 	var ok bool
 	if app.AppType == helper.Job {
 		ok = isSuperAdmin
 	} else {
+		resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
 		ok = handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName)
 	}
 	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return fmt.Errorf("unauthorized user")
+	}
+	patchRequest.Name = app.AppName
+	err = handler.validator.Struct(patchRequest)
+	if err != nil {
+		handler.Logger.Errorw("validation err", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return err
 	}
 	return nil
 }
 
-func (handler PipelineConfigRestHandlerImpl) PatchCiPipelinesSource(w http.ResponseWriter, r *http.Request) {
+func (handler PipelineConfigRestHandlerImpl) PatchCiMaterialSource(w http.ResponseWriter, r *http.Request) {
 	patchRequest, userId, err := handler.parseBranchChangeRequest(w, r)
 	if err != nil {
 		return
 	}
 	token := r.Header.Get("token")
-	if err = handler.authorizeBranchChangeRequest(w, userId, patchRequest, token); err != nil {
+	if err = handler.authorizeSourceChangeRequest(w, userId, patchRequest, token); err != nil {
 		return
 	}
 	createResp, err := handler.pipelineBuilder.PatchCiMaterialSource(patchRequest, userId)

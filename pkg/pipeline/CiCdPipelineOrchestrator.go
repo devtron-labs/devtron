@@ -174,28 +174,20 @@ func (impl CiCdPipelineOrchestratorImpl) PatchCiMaterialSource(ciPipeline *bean.
 }
 
 func mapCiMaterialToPipelineMaterial(ciPipeline *bean.CiPipeline, userId int32, oldPipeline *pipelineConfig.CiPipeline) []*pipelineConfig.CiPipelineMaterial {
-	createOnTimeMap := make(map[int]time.Time)
-	createByMap := make(map[int]int32)
-	materialsUpdate := make([]*pipelineConfig.CiPipelineMaterial, 0)
+	updatedMaterials := make([]*pipelineConfig.CiPipelineMaterial, 0)
+	oldPipelineMaterials := make(map[int]*pipelineConfig.CiPipelineMaterial)
 	for _, oldMaterial := range oldPipeline.CiPipelineMaterials {
-		createOnTimeMap[oldMaterial.GitMaterialId] = oldMaterial.CreatedOn
-		createByMap[oldMaterial.GitMaterialId] = oldMaterial.CreatedBy
+		oldPipelineMaterials[oldMaterial.Id] = oldMaterial
 	}
 	for _, ciMaterial := range ciPipeline.CiMaterial {
-		pipelineMaterial := &pipelineConfig.CiPipelineMaterial{
-			Id:            ciMaterial.Id,
-			CiPipelineId:  ciPipeline.Id,
-			Value:         ciMaterial.Source.Value,
-			Type:          ciMaterial.Source.Type,
-			Active:        oldPipeline.Active,
-			Regex:         ciMaterial.Source.Regex,
-			GitMaterialId: ciMaterial.GitMaterialId,
-			AuditLog:      sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now(), CreatedBy: createByMap[ciMaterial.GitMaterialId], CreatedOn: createOnTimeMap[ciMaterial.GitMaterialId]},
-		}
-		pipelineMaterial.CiPipelineId = ciMaterial.Id
-		materialsUpdate = append(materialsUpdate, pipelineMaterial)
+		pipelineMaterial := *oldPipelineMaterials[ciMaterial.Id]
+		pipelineMaterial.Type = ciMaterial.Source.Type
+		pipelineMaterial.Regex = ciMaterial.Source.Regex
+		pipelineMaterial.Value = ciMaterial.Source.Value
+		pipelineMaterial.AuditLog = sql.AuditLog{CreatedOn: oldPipelineMaterials[ciMaterial.Id].CreatedOn, CreatedBy: oldPipelineMaterials[ciMaterial.Id].CreatedBy, UpdatedOn: time.Now(), UpdatedBy: userId}
+		updatedMaterials = append(updatedMaterials, &pipelineMaterial)
 	}
-	return materialsUpdate
+	return updatedMaterials
 }
 
 func (impl CiCdPipelineOrchestratorImpl) saveUpdatedMaterial(materialsUpdate []*pipelineConfig.CiPipelineMaterial) error {
