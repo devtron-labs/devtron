@@ -849,7 +849,7 @@ func (handler *K8sApplicationRestHandlerImpl) CreateEphemeralContainer(w http.Re
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	if (request.BasicData == nil && request.AdvancedData == nil) || request.Namespace == "" || request.ClusterId <= 0 || request.PodName == "" {
+	if !request.InValid() {
 		err = errors.New("invalid request payload")
 		handler.logger.Errorw("invalid request payload", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
