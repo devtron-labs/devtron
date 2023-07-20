@@ -279,7 +279,7 @@ func (impl ConfigDraftServiceImpl) ApproveDraft(draftId int, draftVersionId int,
 	draftsDto := draftVersion.Draft
 	draftResourceType := draftsDto.Resource
 	if draftResourceType == CmDraftResource || draftResourceType == CsDraftResource {
-		err = impl.handleCmCsData(draftResourceType, draftsDto.AppId, draftsDto.EnvId, draftData, draftVersion.UserId)
+		err = impl.handleCmCsData(draftResourceType, draftsDto, draftData, draftVersion.UserId, draftVersion.Action)
 	} else {
 		err = impl.handleDeploymentTemplate(draftsDto.AppId, draftsDto.EnvId, draftData, draftVersion.UserId, draftVersion.Action)
 	}
@@ -290,8 +290,10 @@ func (impl ConfigDraftServiceImpl) ApproveDraft(draftId int, draftVersionId int,
 	return err
 }
 
-func (impl ConfigDraftServiceImpl) handleCmCsData(draftResource DraftResourceType, appId int, envId int, draftData string, userId int32) error {
+func (impl ConfigDraftServiceImpl) handleCmCsData(draftResource DraftResourceType, draftDto *DraftDto, draftData string, userId int32, action ResourceAction) error {
 	// if envId is -1 then it is base Configuration else Env level config
+	appId := draftDto.AppId
+	envId := draftDto.EnvId
 	configDataRequest := &pipeline.ConfigDataRequest{}
 	err := json.Unmarshal([]byte(draftData), configDataRequest)
 	if err != nil {
@@ -302,19 +304,35 @@ func (impl ConfigDraftServiceImpl) handleCmCsData(draftResource DraftResourceTyp
 	isCm := draftResource == CmDraftResource
 	if isCm {
 		if envId == protect.BASE_CONFIG_ENV_ID {
-			_, err = impl.configMapService.CMGlobalAddUpdate(configDataRequest)
+			if action == DeleteResourceAction {
+				_, err = impl.configMapService.CMGlobalDelete(draftDto.ResourceName, configDataRequest.Id, userId)
+			} else {
+				_, err = impl.configMapService.CMGlobalAddUpdate(configDataRequest)
+			}
 		} else {
-			_, err = impl.configMapService.CMEnvironmentAddUpdate(configDataRequest)
+			if action == DeleteResourceAction {
+				_, err = impl.configMapService.CMEnvironmentDelete(draftDto.ResourceName, configDataRequest.Id, userId)
+			} else {
+				_, err = impl.configMapService.CMEnvironmentAddUpdate(configDataRequest)
+			}
 		}
 	} else {
 		if envId == protect.BASE_CONFIG_ENV_ID {
-			_, err = impl.configMapService.CSGlobalAddUpdate(configDataRequest)
+			if action == DeleteResourceAction {
+				_, err = impl.configMapService.CSGlobalDelete(draftDto.ResourceName, configDataRequest.Id, userId)
+			} else {
+				_, err = impl.configMapService.CSGlobalAddUpdate(configDataRequest)
+			}
 		} else {
-			_, err = impl.configMapService.CSEnvironmentAddUpdate(configDataRequest)
+			if action == DeleteResourceAction {
+				_, err = impl.configMapService.CSEnvironmentDelete(draftDto.ResourceName, configDataRequest.Id, userId)
+			} else {
+				_, err = impl.configMapService.CSEnvironmentAddUpdate(configDataRequest)
+			}
 		}
 	}
 	if err != nil {
-		impl.logger.Errorw("error occurred while adding/updating config", "isCm", isCm, "appId", appId, "envId", envId, "err", err)
+		impl.logger.Errorw("error occurred while adding/updating/deleting config", "isCm", isCm, "action", action, "appId", appId, "envId", envId, "err", err)
 	}
 	return err
 }
@@ -381,10 +399,17 @@ func (impl ConfigDraftServiceImpl) handleEnvLevelTemplate(appId int, envId int, 
 		if err != nil {
 			return err
 		}
-	} else {
+	} else if action == UpdateResourceAction {
 		_, err = impl.propertiesConfigService.UpdateEnvironmentProperties(appId, envConfigProperties, userId)
 		if err != nil {
 			impl.logger.Errorw("service err, EnvConfigOverrideUpdate", "appId", appId, "envId", envId, "err", err, "payload", envConfigProperties)
+			return err
+		}
+	} else {
+		id := envConfigProperties.Id
+		_, err = impl.propertiesConfigService.ResetEnvironmentProperties(id)
+		if err != nil {
+			impl.logger.Errorw("error occurred while deleting env level Deployment template", "id", id, "err", err)
 			return err
 		}
 	}
@@ -489,12 +514,6 @@ func (impl ConfigDraftServiceImpl) checkUserContributedToDraft(draftId int, user
 		}
 	}
 	return false, nil
-}
-
-func (impl ConfigDraftServiceImpl) getUserApprovalData(draftIds []int, userId int32) map[int]bool {
-	// make db request fetching current user added in drafts
-	draftIdVsApprovalAllowed := make(map[int]bool)
-	return draftIdVsApprovalAllowed
 }
 
 
