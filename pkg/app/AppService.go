@@ -2254,7 +2254,7 @@ func (impl *AppServiceImpl) WriteCDTriggerEvent(overrideRequest *bean.ValuesOver
 
 	event := impl.eventFactory.Build(util.Trigger, &overrideRequest.PipelineId, overrideRequest.AppId, &overrideRequest.EnvId, util.CD)
 	impl.logger.Debugw("event WriteCDTriggerEvent", "event", event)
-	wfr, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(wfrId)
+	wfr, err := impl.cdWorkflowRepository.FindWorkflowRunnerByIdForApproval(wfrId)
 	if err != nil {
 		impl.logger.Errorw("could not get wf runner", "err", err)
 	}
