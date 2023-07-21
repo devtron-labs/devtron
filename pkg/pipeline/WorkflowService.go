@@ -560,7 +560,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	if impl.ciConfig.TaintKey != "" || impl.ciConfig.TaintValue != "" {
 		ciWorkflow.Spec.Tolerations = []v12.Toleration{{Key: impl.ciConfig.TaintKey, Value: impl.ciConfig.TaintValue, Operator: v12.TolerationOpEqual, Effect: v12.TaintEffectNoSchedule}}
 	}
-	if len(impl.ciConfig.NodeLabel) > 0 {
+	if len(impl.ciConfig.NodeLabel) > 0 && !isJob {
 		ciWorkflow.Spec.NodeSelector = impl.ciConfig.NodeLabel
 	}
 	wfTemplate, err := json.Marshal(ciWorkflow)
