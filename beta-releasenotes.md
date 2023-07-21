@@ -1,4 +1,5 @@
 ## Bugs
+- fix: Pod for in-cluster not getting scheduled because of node affinity selector. (#3663)
 - fix: optimized fetch deployment status timeline api (#3653)
 - fix: critical vulnerabilities in dependencies (#3632)
 ## Enhancements
