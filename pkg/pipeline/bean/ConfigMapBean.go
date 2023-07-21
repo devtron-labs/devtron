@@ -40,6 +40,7 @@ type ConfigData struct {
 	RoleARN               string           `json:"roleARN"`
 	SubPath               bool             `json:"subPath"`
 	FilePermission        string           `json:"filePermission"`
+	Overridden            bool             `json:"overridden"`
 }
 
 type ExternalSecret struct {

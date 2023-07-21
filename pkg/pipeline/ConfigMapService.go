@@ -434,6 +434,7 @@ func (impl ConfigMapServiceImpl) CMEnvironmentFetch(appId int, envId int) (*bean
 			item.DefaultData = val
 			item.DefaultMountPath = kv11[item.Name]
 			item.Global = true
+			item.Overridden = true
 			configDataRequest.ConfigData = append(configDataRequest.ConfigData, item)
 		} else {
 			configDataRequest.ConfigData = append(configDataRequest.ConfigData, item)
@@ -844,6 +845,7 @@ func (impl ConfigMapServiceImpl) CSEnvironmentFetch(appId int, envId int) (*bean
 			item.DefaultMountPath = kv11[item.Name]
 			item.Global = true
 			item.DefaultESOSecretData = kv1ESOSecret[item.Name]
+			item.Overridden = true
 			configDataRequest.ConfigData = append(configDataRequest.ConfigData, item)
 		} else {
 			configDataRequest.ConfigData = append(configDataRequest.ConfigData, item)
