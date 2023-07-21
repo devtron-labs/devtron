@@ -299,10 +299,10 @@ func (impl AppListingRepositoryQueryBuilder) buildAppListingWhereCondition(appLi
 	}
 	return whereCondition
 }
-func GetCommaSepratedString(appIds []int) string {
+func GetCommaSepratedString[T int | string](appIds []T) string {
 	appIdsString := ""
 	for i, appId := range appIds {
-		appIdsString += fmt.Sprintf("%d", appId)
+		appIdsString += fmt.Sprintf("%v", appId)
 		if i != len(appIds)-1 {
 			appIdsString += ","
 		}

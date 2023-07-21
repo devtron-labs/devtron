@@ -150,7 +150,12 @@ message PodMetadata {
   repeated string containers = 3;
   repeated string initContainers = 4;
   bool isNew = 5;
-  repeated string ephemeralContainers = 6;
+  repeated EphemeralContainerData ephemeralContainers = 6;
+}
+
+message EphemeralContainerData {
+  string name = 1;
+  bool isExternal = 2;
 }
 
 //--------hibernate
