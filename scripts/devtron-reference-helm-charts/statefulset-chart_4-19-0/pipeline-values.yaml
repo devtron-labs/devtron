@@ -1,5 +1,0 @@
-deployment:
-  strategy:
-    rollingUpdate:
-        partition: 0
-    onDelete: {}
