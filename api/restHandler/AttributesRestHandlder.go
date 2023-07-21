@@ -36,6 +36,7 @@ type AttributesRestHandler interface {
 	GetAttributesById(w http.ResponseWriter, r *http.Request)
 	GetAttributesActiveList(w http.ResponseWriter, r *http.Request)
 	GetAttributesByKey(w http.ResponseWriter, r *http.Request)
+	AddDeploymentEnforcementConfig(w http.ResponseWriter, r *http.Request)
 }
 
 type AttributesRestHandlerImpl struct {
@@ -190,4 +191,35 @@ func (handler AttributesRestHandlerImpl) GetAttributesByKey(w http.ResponseWrite
 		return
 	}
 	common.WriteJsonResp(w, nil, res, http.StatusOK)
+}
+
+func (handler AttributesRestHandlerImpl) AddDeploymentEnforcementConfig(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	decoder := json.NewDecoder(r.Body)
+	var dto attributes.AttributesDto
+	err = decoder.Decode(&dto)
+	if err != nil {
+		handler.logger.Errorw("request err, AddAttributes", "err", err, "payload", dto)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
+	handler.logger.Infow("request payload, AddAttributes", "payload", dto)
+	resp, err := handler.attributesService.AddDeploymentEnforcementConfig(&dto)
+	if err != nil {
+		handler.logger.Errorw("service err, AddAttributes", "err", err, "payload", dto)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }

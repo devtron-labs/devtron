@@ -468,7 +468,7 @@ func (impl *UserTerminalAccessServiceImpl) createPodName(request *models.UserTer
 	return podNameVar
 }
 
-//template data use kubernetes object
+// template data use kubernetes object
 func (impl *UserTerminalAccessServiceImpl) applyTemplateData(ctx context.Context, request *models.UserTerminalSessionRequest, podNameVar string,
 	terminalTemplate *models.TerminalAccessTemplates, isUpdate bool, isAutoSelect bool) error {
 	templateName := terminalTemplate.TemplateName

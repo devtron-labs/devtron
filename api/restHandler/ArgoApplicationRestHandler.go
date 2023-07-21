@@ -106,6 +106,11 @@ func NewArgoApplicationRestHandlerImpl(client application.ServiceClient,
 
 func (impl ArgoApplicationRestHandlerImpl) GetTerminalSession(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
 	request := &terminal.TerminalSessionRequest{}
 	vars := mux.Vars(r)
 	request.ContainerName = vars["container"]
@@ -167,6 +172,7 @@ func (impl ArgoApplicationRestHandlerImpl) GetTerminalSession(w http.ResponseWri
 	}
 	//---------auth end
 	//TODO apply validation
+	request.UserId = userId
 	status, message, err := impl.terminalSessionHandler.GetTerminalSession(request)
 	common.WriteJsonResp(w, err, message, status)
 }
