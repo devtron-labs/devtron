@@ -57,7 +57,7 @@ type DockerArtifactStoreBean struct {
 	RegistryType            repository.RegistryType      `json:"registryType,omitempty" validate:"required"`
 	IsOCICompliantRegistry  bool                         `json:"isOCICompliantRegistry"`
 	OCIRegistryConfig       map[string]string            `json:"ociRegistryConfig,omitempty"`
-	IsPublic                bool                         `json:"isPublic,omitempty"`
+	IsPublic                bool                         `json:"isPublic"`
 	RepositoryList          []string                     `json:"repositoryList,omitempty"`
 	AWSAccessKeyId          string                       `json:"awsAccessKeyId,omitempty"`
 	AWSSecretAccessKey      string                       `json:"awsSecretAccessKey,omitempty"`
@@ -253,12 +253,15 @@ func (impl DockerRegistryConfigImpl) ConfigureOCIRegistry(bean *DockerArtifactSt
 				ociRegistryConfig.Deleted = false
 			}
 		}
+		ociRegistryConfig.IsPublic = false
 		switch storageActionType {
 		case repository.STORAGE_ACTION_TYPE_PULL:
 			ociRegistryConfig.RepositoryAction = repository.STORAGE_ACTION_TYPE_PULL
 			ociRegistryConfig.RepositoryType = repositoryType
-			ociRegistryConfig.RepositoryList = strings.Join(bean.RepositoryList, ",")
-			ociRegistryConfig.IsPublic = bean.IsPublic
+			if repositoryType == repository.OCI_REGISRTY_REPO_TYPE_CHART {
+				ociRegistryConfig.RepositoryList = strings.Join(bean.RepositoryList, ",")
+				ociRegistryConfig.IsPublic = bean.IsPublic
+			}
 			err := impl.CreateOrUpdateOCIRegistryConfig(ociRegistryConfig, userId, tx)
 			if err != nil {
 				return err
@@ -273,8 +276,10 @@ func (impl DockerRegistryConfigImpl) ConfigureOCIRegistry(bean *DockerArtifactSt
 		case repository.STORAGE_ACTION_TYPE_PULL_AND_PUSH:
 			ociRegistryConfig.RepositoryAction = repository.STORAGE_ACTION_TYPE_PULL_AND_PUSH
 			ociRegistryConfig.RepositoryType = repositoryType
-			ociRegistryConfig.RepositoryList = strings.Join(bean.RepositoryList, ",")
-			ociRegistryConfig.IsPublic = bean.IsPublic
+			if repositoryType == repository.OCI_REGISRTY_REPO_TYPE_CHART {
+				ociRegistryConfig.RepositoryList = strings.Join(bean.RepositoryList, ",")
+				ociRegistryConfig.IsPublic = bean.IsPublic
+			}
 			err := impl.CreateOrUpdateOCIRegistryConfig(ociRegistryConfig, userId, tx)
 			if err != nil {
 				return err
@@ -387,7 +392,7 @@ func (impl DockerRegistryConfigImpl) ListAllActive() ([]DockerArtifactStoreBean,
 			IsOCICompliantRegistry: store.IsOCICompliantRegistry,
 		}
 		if store.IsOCICompliantRegistry {
-			storeBean.OCIRegistryConfig, storeBean.RepositoryList, storeBean.IsPublic = impl.PopulateOCIRegistryConfig(&store)
+			impl.PopulateOCIRegistryConfig(&store, &storeBean)
 		}
 		storeBeans = append(storeBeans, storeBean)
 	}
@@ -429,7 +434,7 @@ func (impl DockerRegistryConfigImpl) FetchAllDockerAccounts() ([]DockerArtifactS
 			},
 		}
 		if store.IsOCICompliantRegistry {
-			storeBean.OCIRegistryConfig, storeBean.RepositoryList, storeBean.IsPublic = impl.PopulateOCIRegistryConfig(&store)
+			impl.PopulateOCIRegistryConfig(&store, &storeBean)
 		}
 		storeBeans = append(storeBeans, storeBean)
 	}
@@ -438,18 +443,16 @@ func (impl DockerRegistryConfigImpl) FetchAllDockerAccounts() ([]DockerArtifactS
 }
 
 // PopulateOCIRegistryConfig Takes the DB docker_artifact_store response and generates
-func (impl DockerRegistryConfigImpl) PopulateOCIRegistryConfig(store *repository.DockerArtifactStore) (map[string]string, []string, bool) {
+func (impl DockerRegistryConfigImpl) PopulateOCIRegistryConfig(store *repository.DockerArtifactStore, storeBean *DockerArtifactStoreBean) *DockerArtifactStoreBean {
 	ociRegistryConfigs := map[string]string{}
-	ociPullRepositryList := []string{}
-	isPublic := false
 	for _, ociRegistryConfig := range store.OCIRegistryConfig {
 		ociRegistryConfigs[ociRegistryConfig.RepositoryType] = ociRegistryConfig.RepositoryAction
-		if ociRegistryConfig.RepositoryAction == repository.OCI_REGISRTY_REPO_TYPE_CHART {
-			ociPullRepositryList = strings.Split(ociRegistryConfig.RepositoryList, ",")
-			isPublic = ociRegistryConfig.IsPublic
+		if ociRegistryConfig.RepositoryType == repository.OCI_REGISRTY_REPO_TYPE_CHART {
+			storeBean.RepositoryList = strings.Split(ociRegistryConfig.RepositoryList, ",")
+			storeBean.IsPublic = ociRegistryConfig.IsPublic
 		}
 	}
-	return ociRegistryConfigs, ociPullRepositryList, isPublic
+	return storeBean
 }
 
 // FetchOneDockerAccount this method takes the docker account id and Returns DockerArtifactStoreBean and Error (if any)
@@ -485,7 +488,7 @@ func (impl DockerRegistryConfigImpl) FetchOneDockerAccount(storeId string) (*Doc
 		},
 	}
 	if store.IsOCICompliantRegistry {
-		storeBean.OCIRegistryConfig, storeBean.RepositoryList, storeBean.IsPublic = impl.PopulateOCIRegistryConfig(store)
+		impl.PopulateOCIRegistryConfig(store, storeBean)
 	}
 	return storeBean, err
 }

@@ -105,7 +105,7 @@ func ValidateDockerArtifactStoreRequestBean(bean pipeline.DockerArtifactStoreBea
 				return false
 			}
 		}
-	} else if bean.OCIRegistryConfig != nil {
+	} else if bean.OCIRegistryConfig != nil || bean.IsPublic {
 		return false
 	}
 	return true
