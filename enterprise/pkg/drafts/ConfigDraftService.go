@@ -480,11 +480,16 @@ func (impl ConfigDraftServiceImpl) getApproversData(appId int, envId int) []stri
 		return approvers
 	}
 	var appName = application.AppName
-	env, err := impl.envRepository.FindById(envId)
-	if err != nil {
-		return approvers
+	var env *repository2.Environment
+	envIdentifier := ""
+	if envId > 0 {
+		env, err = impl.envRepository.FindById(envId)
+		if err != nil {
+			return approvers
+		}
+		envIdentifier = env.EnvironmentIdentifier
 	}
-	approvers, err = impl.userService.GetConfigApprovalUsersByEnv(appName, env.EnvironmentIdentifier)
+	approvers, err = impl.userService.GetConfigApprovalUsersByEnv(appName, envIdentifier)
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching config approval emails, so sending empty approvers list", "err", err)
 	}
