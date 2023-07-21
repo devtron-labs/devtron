@@ -119,6 +119,8 @@ type CdWorkflowRequest struct {
 	DeploymentTriggerTime      time.Time                           `json:"deploymentTriggerTime,omitempty"`
 	DeploymentReleaseCounter   int                                 `json:"deploymentReleaseCounter,omitempty"`
 	WorkflowExecutor           pipelineConfig.WorkflowExecutorType `json:"workflowExecutor"`
+	PrePostDeploySteps         []*bean3.StepObject                 `json:"prePostDeploySteps"`
+	RefPlugins                 []*bean3.RefPluginObject            `json:"refPlugins"`
 }
 
 const PRE = "PRE"
@@ -171,6 +173,8 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	workflowTemplate.WorkflowId = workflowRequest.WorkflowId
 	workflowTemplate.WorkflowRunnerId = workflowRequest.WorkflowRunnerId
 	workflowTemplate.WorkflowRequestJson = string(workflowJson)
+	workflowTemplate.PrePostDeploySteps = workflowRequest.PrePostDeploySteps
+	workflowTemplate.RefPlugins = workflowRequest.RefPlugins
 
 	var globalCmCsConfigs []*bean3.GlobalCMCSDto
 	var workflowConfigMaps []bean.ConfigSecretMap
@@ -199,7 +203,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		return err
 	}
 
-	existingConfigMap, existingSecrets, err := impl.appService.GetCmSecretNew(workflowRequest.AppId, workflowRequest.EnvironmentId)
+	existingConfigMap, existingSecrets, err := impl.appService.GetCmSecretNew(workflowRequest.AppId, workflowRequest.EnvironmentId, false)
 	if err != nil {
 		impl.Logger.Errorw("failed to get configmap data", "err", err)
 		return err
@@ -278,6 +282,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	} else {
 		workflowTemplate.ClusterConfig = impl.config
 	}
+
 	workflowExecutor := impl.getWorkflowExecutor(workflowRequest.WorkflowExecutor)
 	if workflowExecutor == nil {
 		return errors.New("workflow executor not found")

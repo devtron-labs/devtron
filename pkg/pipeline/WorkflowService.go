@@ -26,10 +26,15 @@ import (
 	v1alpha12 "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
 	"github.com/argoproj/argo-workflows/v3/workflow/util"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
+	bean3 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"go.uber.org/zap"
 	v12 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -42,12 +47,12 @@ import (
 )
 
 type WorkflowService interface {
-	SubmitWorkflow(workflowRequest *WorkflowRequest, appLabels map[string]string) (*v1alpha1.Workflow, error)
+	SubmitWorkflow(workflowRequest *WorkflowRequest, appLabels map[string]string, env *repository2.Environment, isJob bool) (*v1alpha1.Workflow, error)
 	DeleteWorkflow(wfName string, namespace string) error
-	GetWorkflow(name string, namespace string) (*v1alpha1.Workflow, error)
+	GetWorkflow(name string, namespace string, isExt bool, environment *repository2.Environment) (*v1alpha1.Workflow, error)
 	ListAllWorkflows(namespace string) (*v1alpha1.WorkflowList, error)
 	UpdateWorkflow(wf *v1alpha1.Workflow) (*v1alpha1.Workflow, error)
-	TerminateWorkflow(name string, namespace string) error
+	TerminateWorkflow(name string, namespace string, isExt bool, environment *repository2.Environment) error
 }
 
 type CiCdTriggerEvent struct {
@@ -57,10 +62,13 @@ type CiCdTriggerEvent struct {
 }
 
 type WorkflowServiceImpl struct {
-	Logger            *zap.SugaredLogger
-	config            *rest.Config
-	ciConfig          *CiConfig
-	globalCMCSService GlobalCMCSService
+	Logger                *zap.SugaredLogger
+	config                *rest.Config
+	ciConfig              *CiConfig
+	globalCMCSService     GlobalCMCSService
+	appService            app.AppService
+	configMapRepository   chartConfig.ConfigMapRepository
+	k8sApplicationService k8s.K8sApplicationService
 }
 
 type WorkflowRequest struct {
@@ -120,6 +128,13 @@ type WorkflowRequest struct {
 	IsPvcMounted               bool                              `json:"IsPvcMounted"`
 	ExtraEnvironmentVariables  map[string]string                 `json:"extraEnvironmentVariables"`
 	EnableBuildContext         bool                              `json:"enableBuildContext"`
+	AppId                      int                               `json:"appId"`
+	EnvironmentId              int                               `json:"environmentId"`
+	OrchestratorHost           string                            `json:"orchestratorHost"`
+	OrchestratorToken          string                            `json:"orchestratorToken"`
+	IsExtRun                   bool                              `json:"isExtRun"`
+	ImageRetryCount            int                               `json:"imageRetryCount"`
+	ImageRetryInterval         int                               `json:"imageRetryInterval"`
 }
 
 const (
@@ -186,19 +201,23 @@ type GitOptions struct {
 }
 
 func NewWorkflowServiceImpl(Logger *zap.SugaredLogger, ciConfig *CiConfig,
-	globalCMCSService GlobalCMCSService) *WorkflowServiceImpl {
+	globalCMCSService GlobalCMCSService, appService app.AppService,
+	configMapRepository chartConfig.ConfigMapRepository, k8sApplicationService k8s.K8sApplicationService) *WorkflowServiceImpl {
 	return &WorkflowServiceImpl{
-		Logger:            Logger,
-		config:            ciConfig.ClusterConfig,
-		ciConfig:          ciConfig,
-		globalCMCSService: globalCMCSService,
+		Logger:                Logger,
+		config:                ciConfig.ClusterConfig,
+		ciConfig:              ciConfig,
+		globalCMCSService:     globalCMCSService,
+		appService:            appService,
+		configMapRepository:   configMapRepository,
+		k8sApplicationService: k8sApplicationService,
 	}
 }
 
 const ciEvent = "CI"
 const cdStage = "CD"
 
-func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest, appLabels map[string]string) (*v1alpha1.Workflow, error) {
+func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest, appLabels map[string]string, env *repository2.Environment, isJob bool) (*v1alpha1.Workflow, error) {
 	containerEnvVariables := []v12.EnvVar{{Name: "IMAGE_SCANNER_ENDPOINT", Value: impl.ciConfig.ImageScannerEndpoint}}
 	if impl.ciConfig.CloudProvider == BLOB_STORAGE_S3 && impl.ciConfig.BlobStorageS3AccessKey != "" {
 		miniCred := []v12.EnvVar{{Name: "AWS_ACCESS_KEY_ID", Value: impl.ciConfig.BlobStorageS3AccessKey}, {Name: "AWS_SECRET_ACCESS_KEY", Value: impl.ciConfig.BlobStorageS3SecretKey}}
@@ -217,7 +236,9 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		Type:      ciEvent,
 		CiRequest: workflowRequest,
 	}
-
+	if env != nil && env.Id != 0 {
+		workflowRequest.IsExtRun = true
+	}
 	ciCdTriggerEvent.CiRequest.BlobStorageLogsKey = fmt.Sprintf("%s/%s", impl.ciConfig.DefaultBuildLogsKeyPrefix, workflowRequest.WorkflowNamePrefix)
 	ciCdTriggerEvent.CiRequest.InAppLoggingEnabled = impl.ciConfig.InAppLoggingEnabled
 	workflowJson, err := json.Marshal(&ciCdTriggerEvent)
@@ -227,10 +248,21 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	}
 	impl.Logger.Debugw("workflowRequest ---->", "workflowJson", string(workflowJson))
 
-	wfClient, err := impl.getClientInstance(workflowRequest.Namespace)
-	if err != nil {
-		impl.Logger.Errorw("cannot build wf client", "err", err)
-		return nil, err
+	var wfClient v1alpha12.WorkflowInterface
+
+	if isJob && env != nil && env.Id != 0 {
+		workflowRequest.EnvironmentId = env.Id
+		wfClient, err = impl.getRuntimeEnvClientInstance(env)
+		if err != nil {
+			impl.Logger.Errorw("cannot build wf client", "err", err)
+			return nil, err
+		}
+	} else {
+		wfClient, err = impl.getClientInstance(workflowRequest.Namespace)
+		if err != nil {
+			impl.Logger.Errorw("cannot build wf client", "err", err)
+			return nil, err
+		}
 	}
 
 	privileged := true
@@ -246,27 +278,49 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 
 	entryPoint := CI_WORKFLOW_NAME // template name from where worklow execution will start
 	//getting all cm/cs to be used by default
-	globalCmCsConfigs, err := impl.globalCMCSService.FindAllActiveByPipelineType(repository.PIPELINE_TYPE_CI)
-	if err != nil {
-		impl.Logger.Errorw("error in getting all global cm/cs config", "err", err)
-		return nil, err
-	}
-	if len(globalCmCsConfigs) > 0 {
-		entryPoint = CI_WORKFLOW_WITH_STAGES
-	}
-	for i := range globalCmCsConfigs {
-		globalCmCsConfigs[i].Name = strings.ToLower(globalCmCsConfigs[i].Name) + "-" + strconv.Itoa(workflowRequest.WorkflowId) + "-" + CI_WORKFLOW_NAME
-	}
-
 	steps := make([]v1alpha1.ParallelSteps, 0)
 	volumes := make([]v12.Volume, 0)
 	templates := make([]v1alpha1.Template, 0)
-
-	err = AddTemplatesForGlobalSecretsInWorkflowTemplate(globalCmCsConfigs, &steps, &volumes, &templates)
-	if err != nil {
-		impl.Logger.Errorw("error in creating templates for global secrets", "err", err)
+	var globalCmCsConfigs []*bean2.GlobalCMCSDto
+	if !workflowRequest.IsExtRun {
+		globalCmCsConfigs, err = impl.globalCMCSService.FindAllActiveByPipelineType(repository.PIPELINE_TYPE_CI)
+		if err != nil {
+			impl.Logger.Errorw("error in getting all global cm/cs config", "err", err)
+			return nil, err
+		}
+		if len(globalCmCsConfigs) > 0 {
+			entryPoint = CI_WORKFLOW_WITH_STAGES
+		}
+		for i := range globalCmCsConfigs {
+			globalCmCsConfigs[i].Name = strings.ToLower(globalCmCsConfigs[i].Name) + "-" + strconv.Itoa(workflowRequest.WorkflowId) + "-" + CI_WORKFLOW_NAME
+		}
+		err = AddTemplatesForGlobalSecretsInWorkflowTemplate(globalCmCsConfigs, &steps, &volumes, &templates)
+		if err != nil {
+			impl.Logger.Errorw("error in creating templates for global secrets", "err", err)
+		}
 	}
 
+	var configMaps bean3.ConfigMapJson
+	var secrets bean3.ConfigSecretJson
+	var existingConfigMap *bean3.ConfigMapJson
+	var existingSecrets *bean3.ConfigSecretJson
+	if isJob {
+		existingConfigMap, existingSecrets, err = impl.appService.GetCmSecretNew(workflowRequest.AppId, workflowRequest.EnvironmentId, isJob)
+		if err != nil {
+			impl.Logger.Errorw("failed to get configmap data", "err", err)
+			return nil, err
+		}
+		impl.Logger.Debugw("existing cm sec", "cm", existingConfigMap, "sec", existingSecrets)
+		configMaps, secrets, err = getConfigMapsAndSecrets(workflowRequest, existingConfigMap, existingSecrets)
+		if err != nil {
+			impl.Logger.Errorw("fail to get config map and secret with new name", err)
+		}
+
+		err = processConfigMapsAndSecrets(impl, &configMaps, &secrets, &entryPoint, &steps, &volumes, &templates)
+		if err != nil {
+			impl.Logger.Errorw("fail to append cm/cs", err)
+		}
+	}
 	steps = append(steps, v1alpha1.ParallelSteps{
 		Steps: []v1alpha1.WorkflowStep{
 			{
@@ -314,7 +368,9 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 			ArchiveLogs: &archiveLogs,
 		},
 	}
-
+	if isJob {
+		ciTemplate, err = getCiTemplateWithConfigMapsAndSecrets(&configMaps, &secrets, ciTemplate, existingConfigMap, existingSecrets)
+	}
 	if impl.ciConfig.UseBlobStorageConfigInCiWorkflow {
 		gcpBlobConfig := workflowRequest.GcpBlobConfig
 		blobStorageS3Config := workflowRequest.BlobStorageS3Config
@@ -519,6 +575,195 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	return createdWf, err
 }
 
+func getConfigMapsAndSecrets(workflowRequest *WorkflowRequest, existingConfigMap *bean3.ConfigMapJson, existingSecrets *bean3.ConfigSecretJson) (bean3.ConfigMapJson, bean3.ConfigSecretJson, error) {
+	configMaps := bean3.ConfigMapJson{}
+	secrets := bean3.ConfigSecretJson{}
+	for _, cm := range existingConfigMap.Maps {
+		if cm.External {
+			continue
+		}
+		configMaps.Maps = append(configMaps.Maps, cm)
+	}
+	for i := range configMaps.Maps {
+		configMaps.Maps[i].Name = configMaps.Maps[i].Name + "-" + strconv.Itoa(workflowRequest.WorkflowId) + "-" + CI_WORKFLOW_NAME
+	}
+
+	for _, s := range existingSecrets.Secrets {
+		if s.External {
+			continue
+		}
+		secrets.Secrets = append(secrets.Secrets, s)
+	}
+	for i := range secrets.Secrets {
+		secrets.Secrets[i].Name = secrets.Secrets[i].Name + "-" + strconv.Itoa(workflowRequest.WorkflowId) + "-" + CI_WORKFLOW_NAME
+	}
+	return configMaps, secrets, nil
+}
+
+func processConfigMapsAndSecrets(impl *WorkflowServiceImpl, configMaps *bean3.ConfigMapJson, secrets *bean3.ConfigSecretJson, entryPoint *string, steps *[]v1alpha1.ParallelSteps, volumes *[]v12.Volume, templates *[]v1alpha1.Template) error {
+
+	var configsMapping, secretsMapping map[string]string
+	var err error
+
+	if len(configMaps.Maps) > 0 {
+		configsMapping, err = processConfigMap(impl, configMaps, entryPoint, steps)
+		if err != nil {
+			return err
+		}
+	}
+
+	if len(secrets.Secrets) > 0 {
+		secretsMapping, err = processSecrets(impl, entryPoint, secrets, steps)
+		if err != nil {
+			return err
+		}
+	}
+	var secretMap []bean3.ConfigSecretMap
+	for _, cs := range secrets.Secrets {
+		secretMap = append(secretMap, *cs)
+	}
+
+	*volumes = ExtractVolumesFromCmCs(configMaps.Maps, secretMap)
+	if len(configsMapping) > 0 {
+		for i, cm := range configMaps.Maps {
+			*templates = append(*templates, getResourceTemplate("cm-"+strconv.Itoa(i), configsMapping[cm.Name]))
+		}
+	}
+
+	if len(secretsMapping) > 0 {
+		for i, s := range secrets.Secrets {
+			*templates = append(*templates, getResourceTemplate("sec-"+strconv.Itoa(i), secretsMapping[s.Name]))
+		}
+	}
+	return nil
+}
+
+func getResourceTemplate(prefix string, manifestName string) v1alpha1.Template {
+	return v1alpha1.Template{
+		Name: prefix,
+		Resource: &v1alpha1.ResourceTemplate{
+			Action:            "create",
+			SetOwnerReference: true,
+			Manifest:          manifestName,
+		},
+	}
+}
+
+func processSecrets(impl *WorkflowServiceImpl, entryPoint *string, secrets *bean3.ConfigSecretJson, steps *[]v1alpha1.ParallelSteps) (map[string]string, error) {
+	secretsMapping := make(map[string]string)
+	*entryPoint = CI_WORKFLOW_WITH_STAGES
+	for i, s := range secrets.Secrets {
+		var datamap map[string][]byte
+		if err := json.Unmarshal(s.Data, &datamap); err != nil {
+			impl.Logger.Errorw("error while unmarshal data", "err", err)
+			return secretsMapping, err
+		}
+		ownerDelete := true
+		secretObject := v12.Secret{
+			TypeMeta: v1.TypeMeta{
+				Kind:       "Secret",
+				APIVersion: "v1",
+			},
+			ObjectMeta: v1.ObjectMeta{
+				Name: s.Name,
+				OwnerReferences: []v1.OwnerReference{{
+					APIVersion:         "argoproj.io/v1alpha1",
+					Kind:               "Workflow",
+					Name:               "{{workflow.name}}",
+					UID:                "{{workflow.uid}}",
+					BlockOwnerDeletion: &ownerDelete,
+				}},
+			},
+			Data: datamap,
+			Type: "Opaque",
+		}
+		secretJson, err := json.Marshal(secretObject)
+		if err != nil {
+			impl.Logger.Errorw("error in building json", "err", err)
+			return secretsMapping, err
+		}
+		secretsMapping[s.Name] = string(secretJson)
+		*steps = append(*steps, v1alpha1.ParallelSteps{
+			Steps: []v1alpha1.WorkflowStep{
+				{
+					Name:     "create-env-sec-" + strconv.Itoa(i),
+					Template: "sec-" + strconv.Itoa(i),
+				},
+			},
+		})
+	}
+	return secretsMapping, nil
+}
+
+func processConfigMap(impl *WorkflowServiceImpl, configMaps *bean3.ConfigMapJson, entryPoint *string, steps *[]v1alpha1.ParallelSteps) (map[string]string, error) {
+	configsMapping := make(map[string]string)
+	*entryPoint = CI_WORKFLOW_WITH_STAGES
+	for i, cm := range configMaps.Maps {
+		var dataMap map[string]string
+		if err := json.Unmarshal(cm.Data, &dataMap); err != nil {
+			impl.Logger.Errorw("error while unmarshal data", "err", err)
+			return configsMapping, err
+		}
+		ownerDelete := true
+		cmBody := v12.ConfigMap{
+			TypeMeta: v1.TypeMeta{
+				Kind:       "ConfigMap",
+				APIVersion: "v1",
+			},
+			ObjectMeta: v1.ObjectMeta{
+				Name: cm.Name,
+				OwnerReferences: []v1.OwnerReference{{
+					APIVersion:         "argoproj.io/v1alpha1",
+					Kind:               "Workflow",
+					Name:               "{{workflow.name}}",
+					UID:                "{{workflow.uid}}",
+					BlockOwnerDeletion: &ownerDelete,
+				}},
+			},
+			Data: dataMap,
+		}
+		cmJson, err := json.Marshal(cmBody)
+		if err != nil {
+			impl.Logger.Errorw("error in building json", "err", err)
+			return configsMapping, err
+		}
+		configsMapping[cm.Name] = string(cmJson)
+
+		*steps = append(*steps, v1alpha1.ParallelSteps{
+			Steps: []v1alpha1.WorkflowStep{
+				{
+					Name:     "create-env-cm-" + strconv.Itoa(i),
+					Template: "cm-" + strconv.Itoa(i),
+				},
+			},
+		})
+	}
+	return configsMapping, nil
+}
+func getCiTemplateWithConfigMapsAndSecrets(configMaps *bean3.ConfigMapJson, secrets *bean3.ConfigSecretJson, ciTemplate v1alpha1.Template, existingConfigMap *bean3.ConfigMapJson, existingSecrets *bean3.ConfigSecretJson) (v1alpha1.Template, error) {
+	var secretMap []bean3.ConfigSecretMap
+	for _, cs := range secrets.Secrets {
+		secretMap = append(secretMap, *cs)
+	}
+	UpdateContainerEnvsFromCmCs(ciTemplate.Container, configMaps.Maps, secretMap)
+	return ciTemplate, nil
+}
+
+func (impl *WorkflowServiceImpl) getRuntimeEnvClientInstance(environment *repository2.Environment) (v1alpha12.WorkflowInterface, error) {
+	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(context.Background(), environment.ClusterId)
+	if err != nil {
+		impl.Logger.Errorw("error in getting rest config buy cluster id", "err", err)
+		return nil, err
+	}
+	clientSet, err := versioned.NewForConfig(restConfig)
+	if err != nil {
+		impl.Logger.Errorw("err", "err", err)
+		return nil, err
+	}
+	wfClient := clientSet.ArgoprojV1alpha1().Workflows(environment.Namespace) // create the workflow client
+	return wfClient, nil
+}
+
 func (impl *WorkflowServiceImpl) getClientInstance(namespace string) (v1alpha12.WorkflowInterface, error) {
 	clientSet, err := versioned.NewForConfig(impl.config)
 	if err != nil {
@@ -529,24 +774,47 @@ func (impl *WorkflowServiceImpl) getClientInstance(namespace string) (v1alpha12.
 	return wfClient, nil
 }
 
-func (impl *WorkflowServiceImpl) GetWorkflow(name string, namespace string) (*v1alpha1.Workflow, error) {
+func (impl *WorkflowServiceImpl) GetWorkflow(name string, namespace string, isExt bool, environment *repository2.Environment) (*v1alpha1.Workflow, error) {
 	impl.Logger.Debug("getting wf", name)
-	wfClient, err := impl.getClientInstance(namespace)
-	if err != nil {
-		impl.Logger.Errorw("cannot build wf client", "err", err)
-		return nil, err
+	var wfClient v1alpha12.WorkflowInterface
+	var err error
+	if isExt {
+		wfClient, err = impl.getRuntimeEnvClientInstance(environment)
+		if err != nil {
+			impl.Logger.Errorw("cannot build wf client", "err", err)
+			return nil, err
+		}
+	} else {
+		wfClient, err = impl.getClientInstance(namespace)
+		if err != nil {
+			impl.Logger.Errorw("cannot build wf client", "err", err)
+			return nil, err
+		}
 	}
+
 	workflow, err := wfClient.Get(context.Background(), name, v1.GetOptions{})
 	return workflow, err
 }
 
-func (impl *WorkflowServiceImpl) TerminateWorkflow(name string, namespace string) error {
+func (impl *WorkflowServiceImpl) TerminateWorkflow(name string, namespace string, isExt bool, environment *repository2.Environment) error {
 	impl.Logger.Debugw("terminating wf", "name", name)
-	wfClient, err := impl.getClientInstance(namespace)
-	if err != nil {
-		impl.Logger.Errorw("cannot build wf client", "err", err)
-		return err
+	var wfClient v1alpha12.WorkflowInterface
+	var err error
+	if isExt {
+		wfClient, err = impl.getRuntimeEnvClientInstance(environment)
+		if err != nil {
+			impl.Logger.Errorw("cannot build wf client", "err", err)
+			return err
+		}
+	} else {
+		wfClient, err = impl.getClientInstance(namespace)
+		if err != nil {
+			impl.Logger.Errorw("cannot build wf client", "err", err)
+			return err
+		}
+
 	}
+
 	err = util.TerminateWorkflow(context.Background(), wfClient, name)
 	return err
 }
