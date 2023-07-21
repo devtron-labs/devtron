@@ -751,7 +751,7 @@ func (impl *UserTerminalAccessServiceImpl) DeleteTerminalResource(ctx context.Co
 }
 
 func (impl *UserTerminalAccessServiceImpl) applyTemplate(ctx context.Context, clusterId int, gvkDataString string, templateData string, isUpdate bool, namespace string) error {
-	restConfig, err := impl.K8sCommonService.GetRestConfigByClusterId(ctx, clusterId)
+	restConfig, err, _ := impl.K8sCommonService.GetRestConfigByClusterId(ctx, clusterId)
 	if err != nil {
 		return err
 	}

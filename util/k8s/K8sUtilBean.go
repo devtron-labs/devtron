@@ -46,6 +46,8 @@ const BatchGroup = "batch"
 const AppsGroup = "apps"
 const RestartingNotSupported = "restarting not supported"
 
+const Running = "Running"
+
 var KindVsChildrenGvk = map[string][]schema.GroupVersionKind{
 	kube.DeploymentKind:                         append(make([]schema.GroupVersionKind, 0), schema.GroupVersionKind{Group: AppsGroup, Version: V1VERSION, Kind: kube.ReplicaSetKind}, schema.GroupVersionKind{Version: V1VERSION, Kind: kube.PodKind}),
 	K8sClusterResourceRolloutKind:               append(make([]schema.GroupVersionKind, 0), schema.GroupVersionKind{Group: AppsGroup, Version: V1VERSION, Kind: kube.ReplicaSetKind}, schema.GroupVersionKind{Version: V1VERSION, Kind: kube.PodKind}),

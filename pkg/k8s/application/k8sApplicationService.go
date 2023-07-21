@@ -264,7 +264,7 @@ func (impl *K8sApplicationServiceImpl) DecodeDevtronAppId(applicationId string) 
 func (impl *K8sApplicationServiceImpl) GetPodLogs(ctx context.Context, request *k8s.ResourceRequestBean) (io.ReadCloser, error) {
 	clusterId := request.ClusterId
 	//getting rest config by clusterId
-	restConfig, err := impl.k8sCommonService.GetRestConfigByClusterId(ctx, clusterId)
+	restConfig, err, _ := impl.k8sCommonService.GetRestConfigByClusterId(ctx, clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", clusterId)
 		return nil, err
@@ -393,7 +393,7 @@ func (impl *K8sApplicationServiceImpl) GetResourceInfo(ctx context.Context) (*be
 
 func (impl *K8sApplicationServiceImpl) GetAllApiResources(ctx context.Context, clusterId int, isSuperAdmin bool, userId int32) (*k8s2.GetAllApiResourcesResponse, error) {
 	impl.logger.Infow("getting all api-resources", "clusterId", clusterId)
-	restConfig, err := impl.k8sCommonService.GetRestConfigByClusterId(ctx, clusterId)
+	restConfig, err, _ := impl.k8sCommonService.GetRestConfigByClusterId(ctx, clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting cluster rest config", "clusterId", clusterId, "err", err)
 		return nil, err
@@ -497,12 +497,7 @@ func (impl *K8sApplicationServiceImpl) GetAllApiResources(ctx context.Context, c
 func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, token string, request *k8s.ResourceRequestBean, validateResourceAccess func(token string, clusterName string, request k8s.ResourceRequestBean, casbinAction string) bool) (*k8s2.ClusterResourceListMap, error) {
 	resourceList := &k8s2.ClusterResourceListMap{}
 	clusterId := request.ClusterId
-	clusterBean, err := impl.clusterService.FindById(clusterId)
-	if err != nil {
-		impl.logger.Errorw("error in getting cluster by cluster Id", "err", err, "clusterId", clusterId)
-		return resourceList, err
-	}
-	restConfig, err := impl.k8sCommonService.GetRestConfigByClusterId(ctx, clusterId)
+	restConfig, err, clusterBean := impl.k8sCommonService.GetRestConfigByClusterId(ctx, clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.ClusterId)
 		return resourceList, err
@@ -542,12 +537,7 @@ func (impl *K8sApplicationServiceImpl) ApplyResources(ctx context.Context, token
 
 	//getting rest config by clusterId
 	clusterId := request.ClusterId
-	clusterBean, err := impl.clusterService.FindById(clusterId)
-	if err != nil {
-		impl.logger.Errorw("error in getting clusterBean by cluster Id", "clusterId", clusterId, "err", err)
-		return nil, err
-	}
-	restConfig, err := impl.k8sCommonService.GetRestConfigByClusterId(ctx, clusterId)
+	restConfig, err, clusterBean := impl.k8sCommonService.GetRestConfigByClusterId(ctx, clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster", "clusterId", clusterId, "err", err)
 		return nil, err

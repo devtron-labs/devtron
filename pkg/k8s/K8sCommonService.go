@@ -29,7 +29,7 @@ type K8sCommonService interface {
 	UpdateResource(ctx context.Context, request *ResourceRequestBean) (resp *k8s.ManifestResponse, err error)
 	DeleteResource(ctx context.Context, request *ResourceRequestBean, userId int32) (resp *k8s.ManifestResponse, err error)
 	ListEvents(ctx context.Context, request *ResourceRequestBean) (*k8s.EventsResponse, error)
-	GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error)
+	GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error, *cluster.ClusterBean)
 	GetManifestsByBatch(ctx context.Context, request []ResourceRequestBean) ([]BatchResourceResponse, error)
 	FilterServiceAndIngress(ctx context.Context, resourceTreeInf map[string]interface{}, validRequests []ResourceRequestBean, appDetail bean.AppDetailContainer, appId string) []ResourceRequestBean
 	GetUrlsByBatch(ctx context.Context, resp []BatchResourceResponse) []interface{}
@@ -67,7 +67,7 @@ func NewK8sCommonServiceImpl(Logger *zap.SugaredLogger, k8sUtils *k8s.K8sUtil, h
 func (impl *K8sCommonServiceImpl) GetResource(ctx context.Context, request *ResourceRequestBean) (*k8s.ManifestResponse, error) {
 	clusterId := request.ClusterId
 	//getting rest config by clusterId
-	restConfig, err := impl.GetRestConfigByClusterId(ctx, clusterId)
+	restConfig, err, _ := impl.GetRestConfigByClusterId(ctx, clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", clusterId)
 		return nil, err
@@ -101,7 +101,7 @@ func (impl *K8sCommonServiceImpl) CreateResource(ctx context.Context, request *R
 	}
 
 	//getting rest config by clusterId
-	restConfig, err := impl.GetRestConfigByClusterId(ctx, request.AppIdentifier.ClusterId)
+	restConfig, err, _ := impl.GetRestConfigByClusterId(ctx, request.AppIdentifier.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.AppIdentifier.ClusterId)
 		return nil, err
@@ -117,7 +117,7 @@ func (impl *K8sCommonServiceImpl) CreateResource(ctx context.Context, request *R
 func (impl *K8sCommonServiceImpl) UpdateResource(ctx context.Context, request *ResourceRequestBean) (*k8s.ManifestResponse, error) {
 	//getting rest config by clusterId
 	clusterId := request.ClusterId
-	restConfig, err := impl.GetRestConfigByClusterId(ctx, clusterId)
+	restConfig, err, _ := impl.GetRestConfigByClusterId(ctx, clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", clusterId)
 		return nil, err
@@ -134,7 +134,7 @@ func (impl *K8sCommonServiceImpl) UpdateResource(ctx context.Context, request *R
 func (impl *K8sCommonServiceImpl) DeleteResource(ctx context.Context, request *ResourceRequestBean, userId int32) (*k8s.ManifestResponse, error) {
 	//getting rest config by clusterId
 	clusterId := request.ClusterId
-	restConfig, err := impl.GetRestConfigByClusterId(ctx, clusterId)
+	restConfig, err, _ := impl.GetRestConfigByClusterId(ctx, clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.AppIdentifier.ClusterId)
 		return nil, err
@@ -157,7 +157,7 @@ func (impl *K8sCommonServiceImpl) DeleteResource(ctx context.Context, request *R
 func (impl *K8sCommonServiceImpl) ListEvents(ctx context.Context, request *ResourceRequestBean) (*k8s.EventsResponse, error) {
 	clusterId := request.ClusterId
 	//getting rest config by clusterId
-	restConfig, err := impl.GetRestConfigByClusterId(ctx, clusterId)
+	restConfig, err, _ := impl.GetRestConfigByClusterId(ctx, clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.AppIdentifier.ClusterId)
 		return nil, err
@@ -244,33 +244,27 @@ func (impl *K8sCommonServiceImpl) GetManifestsByBatch(ctx context.Context, reque
 	return res, nil
 }
 
-func (impl *K8sCommonServiceImpl) GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error) {
+func (impl *K8sCommonServiceImpl) GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error, *cluster.ClusterBean) {
 	_, span := otel.Tracer("orchestrator").Start(ctx, "K8sApplicationService.GetRestConfigByClusterId")
 	defer span.End()
 	cluster, err := impl.clusterService.FindById(clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting cluster by ID", "err", err, "clusterId", clusterId)
-		return nil, err
+		return nil, err, nil
 	}
 	clusterConfig := cluster.GetClusterConfig()
 	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(&clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("Error in getting rest config", "err", err, "clusterId", clusterId)
-		return restConfig, err
+		return restConfig, err, nil
 	}
-	return restConfig, nil
+	return restConfig, nil, cluster
 }
 
 func (impl *K8sCommonServiceImpl) RotatePods(ctx context.Context, request *RotatePodRequest) (*RotatePodResponse, error) {
 
 	clusterId := request.ClusterId
-	clusterBean, err := impl.clusterService.FindById(clusterId)
-	if err != nil {
-		impl.logger.Errorw("error in getting clusterBean by cluster Id", "clusterId", clusterId, "err", err)
-		return nil, err
-	}
-	clusterConfig := clusterBean.GetClusterConfig()
-	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(&clusterConfig)
+	restConfig, err, _ := impl.GetRestConfigByClusterId(ctx, clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster", "clusterId", clusterId, "err", err)
 		return nil, err

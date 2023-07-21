@@ -5,6 +5,7 @@ package mocks
 import (
 	bean "github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
+	"github.com/devtron-labs/devtron/pkg/cluster"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	bean2 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
 	"github.com/devtron-labs/devtron/util/k8s"
@@ -294,7 +295,7 @@ func (_m *K8sApplicationService) GetResourceList(ctx context.Context, token stri
 }
 
 // GetRestConfigByClusterId provides a mock function with given fields: ctx, clusterId
-func (_m *K8sApplicationService) GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error) {
+func (_m *K8sApplicationService) GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error, *cluster.ClusterBean) {
 	ret := _m.Called(ctx, clusterId)
 
 	var r0 *rest.Config
@@ -313,7 +314,7 @@ func (_m *K8sApplicationService) GetRestConfigByClusterId(ctx context.Context, c
 		r1 = ret.Error(1)
 	}
 
-	return r0, r1
+	return r0, r1, nil
 }
 
 // GetUrlsByBatch provides a mock function with given fields: ctx, resp
