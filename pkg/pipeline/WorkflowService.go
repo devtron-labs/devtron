@@ -560,6 +560,8 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	if impl.ciConfig.TaintKey != "" || impl.ciConfig.TaintValue != "" {
 		ciWorkflow.Spec.Tolerations = []v12.Toleration{{Key: impl.ciConfig.TaintKey, Value: impl.ciConfig.TaintValue, Operator: v12.TolerationOpEqual, Effect: v12.TaintEffectNoSchedule}}
 	}
+
+	// In the future, we will give support for NodeSelector for job currently we need to have a node without dedicated NodeLabel to run job
 	if len(impl.ciConfig.NodeLabel) > 0 && !isJob {
 		ciWorkflow.Spec.NodeSelector = impl.ciConfig.NodeLabel
 	}
