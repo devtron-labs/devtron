@@ -57,6 +57,46 @@ EnvVariablesFromCongigMapKeys:
 
 To set environment variables for the containers that run in the Pod.
 ### StatefulSetConfig
+
+| Key | Description |
+| :--- | :--- |
+| `labels` |  set of key-value pairs used to identify the StatefulSet . |
+| `annotations` | A map of key-value pairs that are attached to the stateful set as metadata. |
+| `serviceName` | The name of the Kubernetes Service that the StatefulSet should create. |
+| `podManagementPolicy` | A policy that determines how Pods are created and deleted by the StatefulSet. In this case, the policy is set to "Parallel", which means that all Pods are created at once. |
+| `revisionHistoryLimit` | The number of revisions that should be stored for each replica of the StatefulSet. |
+| `updateStrategy` | The update strategy used by the StatefulSet when rolling out changes. |
+| `mountPath` | The path where the volume should be mounted in the container. |
+
+volumeClaimTemplates: An array of volume claim templates that are used to create persistent volumes for the StatefulSet. Each volume claim template specifies the storage class, access mode, storage size, and other details of the persistent volume.
+
+
+| Key | Description |
+| :--- | :--- |
+| `apiVersion` |  The API version of the PVC . |
+| `kind` | The type of object that the PVC is. |
+| `metadata` | Metadata that is attached to the resource being created. |
+| `labels` | A set of key-value pairs used to label the object for identification and selection. |
+| `spec` | The specification of the object, which defines its desired state and behavior.|
+| `accessModes` | A list of access modes for the PersistentVolumeClaim, such as "ReadWriteOnce" or "ReadWriteMany". |
+| `dataSource` | A data source used to populate the PersistentVolumeClaim, such as a Snapshot or a StorageClass. |
+| `kind`| specifies the kind of the snapshot, in this case Snapshot.|
+| `apiGroup`| specifies the API group of the snapshot API, in this case snapshot.storage.k8s.io.|
+| `name`| specifies the name of the snapshot, in this case my-snapshot.|
+| `dataSourceRef` | A  reference to a data source used to create the persistent volume. In this case, it's a secret. |
+| `updateStrategy` | The update strategy used by the StatefulSet when rolling out changes. |
+| `resources` | The resource requests and limits for the PersistentVolumeClaim, which define the minimum and maximum amount of storage it can use. |
+| `requests` | The amount of storage requested by the PersistentVolumeClaim. |
+| `limits` | The maximum amount of storage that the PersistentVolumeClaim can use. |
+| `storageClassName` | The name of the storage class to use for the persistent volume. |
+| `selector` | The selector used to match a persistent volume to a persistent volume claim. |
+| `matchLabels` | a map of key-value pairs to match the labels of the corresponding PersistentVolume.|
+| `matchExpressions` |A set of requirements that the selected object must meet to be considered a match. |
+| `key` | The key of the label or annotation to match.|
+| `operator` | The operator used to compare the key-value pairs (in this case, "In" specifies a set membership test).|
+| `values` | A list of values that the selected object's label or annotation must match.|
+| `volumeMode` | The mode of the volume, either "Filesystem" or "Block". |
+| `volumeName` | The name of the PersistentVolume that is created for the PersistentVolumeClaim. |
 These are  all the configuration settings for the StatefulSet.
 ```yaml
 statefulSetConfig:
@@ -117,60 +157,6 @@ statefulSetConfig:
       volumeName: my-pv
 
 ```
-Mandatoryfields in statefulSetConfig is 
-```
-statefulSetConfig:
-  mountPath: /tmp
-  volumeClaimTemplates:
-  - spec:
-      accessModes: 
-        - ReadWriteOnce
-      resources: 
-        requests:
-            storage: 2Gi
-```
-Here is an explanation of each field in the statefulSetConfig :
-
-
-| Key | Description |
-| :--- | :--- |
-| `labels` |  set of key-value pairs used to identify the StatefulSet . |
-| `annotations` | A map of key-value pairs that are attached to the stateful set as metadata. |
-| `serviceName` | The name of the Kubernetes Service that the StatefulSet should create. |
-| `podManagementPolicy` | A policy that determines how Pods are created and deleted by the StatefulSet. In this case, the policy is set to "Parallel", which means that all Pods are created at once. |
-| `revisionHistoryLimit` | The number of revisions that should be stored for each replica of the StatefulSet. |
-| `updateStrategy` | The update strategy used by the StatefulSet when rolling out changes. |
-| `mountPath` | The path where the volume should be mounted in the container. |
-
-volumeClaimTemplates: An array of volume claim templates that are used to create persistent volumes for the StatefulSet. Each volume claim template specifies the storage class, access mode, storage size, and other details of the persistent volume.
-
-
-| Key | Description |
-| :--- | :--- |
-| `apiVersion` |  The API version of the PVC . |
-| `kind` | The type of object that the PVC is. |
-| `metadata` | Metadata that is attached to the resource being created. |
-| `labels` | A set of key-value pairs used to label the object for identification and selection. |
-| `spec` | The specification of the object, which defines its desired state and behavior.|
-| `accessModes` | A list of access modes for the PersistentVolumeClaim, such as "ReadWriteOnce" or "ReadWriteMany". |
-| `dataSource` | A data source used to populate the PersistentVolumeClaim, such as a Snapshot or a StorageClass. |
-| `kind`| specifies the kind of the snapshot, in this case Snapshot.|
-| `apiGroup`| specifies the API group of the snapshot API, in this case snapshot.storage.k8s.io.|
-| `name`| specifies the name of the snapshot, in this case my-snapshot.|
-| `dataSourceRef` | A  reference to a data source used to create the persistent volume. In this case, it's a secret. |
-| `updateStrategy` | The update strategy used by the StatefulSet when rolling out changes. |
-| `resources` | The resource requests and limits for the PersistentVolumeClaim, which define the minimum and maximum amount of storage it can use. |
-| `requests` | The amount of storage requested by the PersistentVolumeClaim. |
-| `limits` | The maximum amount of storage that the PersistentVolumeClaim can use. |
-| `storageClassName` | The name of the storage class to use for the persistent volume. |
-| `selector` | The selector used to match a persistent volume to a persistent volume claim. |
-| `matchLabels` | a map of key-value pairs to match the labels of the corresponding PersistentVolume.|
-| `matchExpressions` |A set of requirements that the selected object must meet to be considered a match. |
-| `key` | The key of the label or annotation to match.|
-| `operator` | The operator used to compare the key-value pairs (in this case, "In" specifies a set membership test).|
-| `values` | A list of values that the selected object's label or annotation must match.|
-| `volumeMode` | The mode of the volume, either "Filesystem" or "Block". |
-| `volumeName` | The name of the PersistentVolume that is created for the PersistentVolumeClaim. |
 
 
 ### Liveness Probe

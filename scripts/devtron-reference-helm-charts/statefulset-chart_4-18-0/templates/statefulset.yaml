@@ -82,7 +82,14 @@ spec:
 {{ toYaml .Values.podExtraSpecs | indent 6 }}	
 {{- end }}
       terminationGracePeriodSeconds: {{ $.Values.GracePeriod }}
-      restartPolicy: Always
+      {{- if $.Values.restartPolicy }}
+      restartPolicy: {{  $.Values.restartPolicy  }}
+      {{- end }}
+      {{- if $.Values.hostAliases }}
+      hostAliases:
+      {{ toYaml .Values.hostAliases | indent 8 }}
+      {{- end }}
+
 {{- if and $.Values.Spec.Affinity.Key $.Values.Spec.Affinity.Values }}
       affinity:
         nodeAffinity:
@@ -397,7 +404,32 @@ spec:
 {{- end }}
           resources:
 {{ toYaml $.Values.resources | trim | indent 12 }} 
+{{- if or $.Values.StartupProbe.Path  $.Values.StartupProbe.command $.Values.StartupProbe.tcp }}
+          startupProbe:
+{{- if $.Values.StartupProbe.Path }}
+            httpGet:
+              path: {{ $.Values.StartupProbe.Path  }}
+              port: {{ $.Values.StartupProbe.port }}
+            {{- if $.Values.StartupProbe.httpHeaders }}
+              httpHeaders:
+              {{- range $.Values.StartupProbe.httpHeaders}}
+                - name: {{.name}}
+                  value: {{.value}}
+              {{- end}}
+        {{- end }}
+{{- end }}
+{{- if $.Values.StartupProbe.command }}
+            exec:
+              command:
+{{ toYaml .Values.StartupProbe.command | indent 16 }}
+{{- end}}
+{{- if and $.Values.StartupProbe.tcp }}
+            tcpSocket:
+              port: {{ $.Values.StartupProbe.port }}
+{{- end}}
+{{- end}}
           volumeMounts:
+            {{- if $.Values.statefulSetConfig.volumeClaimTemplates }}
             {{- with (index $.Values.statefulSetConfig.volumeClaimTemplates 0) }}
             {{- if and .metadata .metadata.name }}
             - name: {{ .metadata.name }}
@@ -409,6 +441,7 @@ spec:
               mountPath: {{ $.Values.statefulSetConfig.mountPath  }}
             {{- else}}
               mountPath: "/tmp"
+            {{- end}}
             {{- end}}
 {{- with .Values.volumeMounts }}
 {{ toYaml . | trim | indent 12 }}
@@ -512,8 +545,14 @@ spec:
           {{- if and .metadata .metadata.annotations }}
           annotations: {{ toYaml .metadata.annotations | nindent 14 }}
           {{- end}}
-          {{- if and .metadata .metadata.labels }}
-          labels: {{ toYaml .metadata.labels | nindent 14 }}
+          labels:
+              app: {{ template ".Chart.Name .name" $ }}
+              chart: {{ template ".Chart.Name .chart" $ }}
+              release: {{ $.Release.Name }}
+              releaseVersion: {{ $.Values.releaseVersion | quote }}
+              pipelineName: {{ $.Values.pipelineName }}           
+          {{- if and .metadata .metadata.labels -}}
+          {{ toYaml .metadata.labels | nindent 14 }}
           {{- end}}
           {{- if and .metadata .metadata.name }}
           name: {{ .metadata.name }}

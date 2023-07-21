@@ -40,14 +40,8 @@ statefulSetConfig:
   annotations: {}
   #serviceName: "test-service_headless"
   #revisionHistoryLimit: 3
-  mountPath: "/tmp"
-  volumeClaimTemplates:
-  - spec:
-      accessModes:
-        - ReadWriteOnce
-      resources: 
-        requests:
-          storage: "2Gi"
+  # mountPath: "/tmp"
+  volumeClaimTemplates: []
 service:
   type: ClusterIP
   enabled: false
