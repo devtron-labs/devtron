@@ -918,6 +918,7 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 	} else if AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_HELM] {
 		deploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
 	}
+
 	if refCdPipeline.ParentPipelineType == "WEBHOOK" {
 		cdPipeline := &bean.CDPipelineConfigObject{
 			Id:                            0,
@@ -947,7 +948,6 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 		cdPipelineRes, err := impl.pipelineBuilder.CreateCdPipelines(cdPipelineReq, ctx)
 		return cdPipelineRes, err
 	}
-
 	cdPipeline := &bean.CDPipelineConfigObject{
 		Id:                            0,
 		EnvironmentId:                 refCdPipeline.EnvironmentId,
@@ -965,6 +965,8 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 		RunPostStageInEnv:             refCdPipeline.RunPostStageInEnv,
 		RunPreStageInEnv:              refCdPipeline.RunPreStageInEnv,
 		DeploymentAppType:             deploymentAppType,
+		PreDeployStage:                refCdPipeline.PreDeployStage,
+		PostDeployStage:               refCdPipeline.PostDeployStage,
 	}
 	cdPipelineReq := &bean.CdPipelines{
 		Pipelines: []*bean.CDPipelineConfigObject{cdPipeline},
