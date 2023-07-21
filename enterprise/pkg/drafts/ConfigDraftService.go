@@ -24,7 +24,7 @@ type ConfigDraftService interface {
 	UpdateDraftState(draftId int, draftVersionId int, toUpdateDraftState DraftState, userId int32) (*DraftVersion, error)
 	GetDraftVersionMetadata(draftId int) (*DraftVersionMetadataResponse, error) // would return version timestamp and user email id
 	GetDraftComments(draftId int) (*DraftVersionCommentResponse, error)
-	GetDrafts(appId int, envId int, resourceType DraftResourceType, userId int32) ([]AppConfigDraft, error) // need to take care of secret data
+	GetDrafts(appId int, envId int, resourceType DraftResourceType, userId int32) ([]AppConfigDraft, error)
 	GetDraftById(draftId int, userId int32) (*ConfigDraftResponse, error)                                   //  need to send ** in case of view only user for Secret data
 	GetDraftByDraftVersionId(draftVersionId int) (*ConfigDraftResponse, error)
 	ApproveDraft(draftId int, draftVersionId int, userId int32) error
@@ -69,6 +69,7 @@ func (impl ConfigDraftServiceImpl) OnStateChange(appId int, envId int, state pro
 }
 
 func (impl ConfigDraftServiceImpl) CreateDraft(request ConfigDraftRequest) (*ConfigDraftResponse, error) {
+	//check for existing draft in nonTerminal state, if present then throw error
 	return impl.configDraftRepository.CreateConfigDraft(request)
 }
 

@@ -31,6 +31,10 @@ func (state DraftState) IsTerminal() bool {
 	return state == DiscardedDraftState || state == PublishedDraftState
 }
 
+func GetNonTerminalDraftStates() []int {
+	return []int{int(InitDraftState), int(AwaitApprovalDraftState)}
+}
+
 type ConfigDraftRequest struct {
 	AppId        int               `json:"appId" validate:"number,required"`
 	EnvId        int               `json:"envId"`

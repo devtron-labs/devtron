@@ -162,7 +162,7 @@ func (repo *ConfigDraftRepositoryImpl) GetLatestConfigDraft(draftId int) (*Draft
 func (repo *ConfigDraftRepositoryImpl) GetDraftMetadata(appId int, envId int, resourceType DraftResourceType) ([]*DraftDto, error) {
 	var draftMetadataDtos []*DraftDto
 	err := repo.dbConnection.Model(&draftMetadataDtos).Where("app_id = ?", appId).Where("env_id = ?", envId).
-		Where("resource = ?", resourceType).Select()
+		Where("resource = ?", resourceType).Where("draft_state in (?)", pg.In(GetNonTerminalDraftStates())).Select()
 	if err != nil && err != pg.ErrNoRows {
 		repo.logger.Errorw("error occurred while fetching draft metadata", "appId", appId, "envId", envId, "resourceType", resourceType, "err", err)
 	} else {
