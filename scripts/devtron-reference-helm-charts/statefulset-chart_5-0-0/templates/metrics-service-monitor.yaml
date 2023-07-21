@@ -17,6 +17,17 @@ spec:
     - port: envoy-admin
       interval: 30s
       path: /stats/prometheus
+      relabelings:
+        - action: replace
+          regex: (.*)(\S{10})
+          replacement: ${2}
+          sourceLabels:
+            - __meta_kubernetes_pod_label_controller_revision_hash
+          targetLabel: statefulset_hash
+        - action: replace
+          sourceLabels:
+            - statefulset_hash
+          targetLabel: devtron_app_hash
   selector:
     matchLabels:
       app: {{ template ".Chart.Name .name" $ }}
@@ -29,4 +40,6 @@ spec:
     - appId
     - envId
     - controller-revision-hash
+    - devtron_app_hash
+
 {{- end }}
