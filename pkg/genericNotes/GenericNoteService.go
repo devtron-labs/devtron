@@ -19,53 +19,40 @@ package genericNotes
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/pkg/genericNotes/repository"
-	"time"
-
-	"github.com/devtron-labs/devtron/internal/constants"
-	"github.com/devtron-labs/devtron/internal/util"
+	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"time"
 )
 
-type ClusterNoteBean struct {
-	Id             int                 `json:"id" validate:"number"`
-	Identifier     int                 `json:"identifier" validate:"required"`
-	IdentifierType repository.NoteType `json:"identifier_type" validate:"required"`
-	Description    string              `json:"description" validate:"required"`
-	UpdatedBy      int32               `json:"updatedBy"`
-	UpdatedOn      time.Time           `json:"updatedOn"`
-}
-
-type GenericNoteResponseBean struct {
-	Id          int       `json:"id" validate:"number"`
-	Description string    `json:"description" validate:"required"`
-	UpdatedBy   string    `json:"updatedBy"`
-	UpdatedOn   time.Time `json:"updatedOn"`
-}
-
 type GenericNoteService interface {
-	Save(bean *ClusterNoteBean, userId int32) (*ClusterNoteBean, error)
-	Update(bean *ClusterNoteBean, userId int32) (*ClusterNoteBean, error)
+	Save(bean *repository.GenericNote, userId int32) (*repository.GenericNote, error)
+	Update(bean *repository.GenericNote, userId int32) (*repository.GenericNote, error)
+	GetGenericNotesForAppIds(appIds []int) (map[int]*bean.GenericNoteResponseBean, error)
 }
 
 type GenericNoteServiceImpl struct {
-	clusterNoteRepository     repository.GenericNoteRepository
-	clusterNoteHistoryService ClusterNoteHistoryService
+	genericNoteRepository     repository.GenericNoteRepository
+	genericNoteHistoryService GenericNoteHistoryService
+	userRepository            repository2.UserRepository
 	logger                    *zap.SugaredLogger
 }
 
-func NewClusterNoteServiceImpl(repository repository.GenericNoteRepository, clusterNoteHistoryService ClusterNoteHistoryService, logger *zap.SugaredLogger) *GenericNoteServiceImpl {
+func NewClusterNoteServiceImpl(genericNoteRepository repository.GenericNoteRepository, clusterNoteHistoryService GenericNoteHistoryService, userRepository repository2.UserRepository, logger *zap.SugaredLogger) *GenericNoteServiceImpl {
 	genericNoteService := &GenericNoteServiceImpl{
-		clusterNoteRepository:     repository,
-		clusterNoteHistoryService: clusterNoteHistoryService,
+		genericNoteRepository:     genericNoteRepository,
+		genericNoteHistoryService: clusterNoteHistoryService,
+		userRepository:            userRepository,
 		logger:                    logger,
 	}
 	return genericNoteService
 }
 
-func (impl *GenericNoteServiceImpl) Save(bean *ClusterNoteBean, userId int32) (*ClusterNoteBean, error) {
-	existingModel, err := impl.clusterNoteRepository.FindByClusterId(bean.Identifier)
+// TODO: This should return genericNote response bean
+func (impl *GenericNoteServiceImpl) Save(bean *repository.GenericNote, userId int32) (*repository.GenericNote, error) {
+	existingModel, err := impl.genericNoteRepository.FindByClusterId(bean.Identifier)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Error(err)
 		return nil, err
@@ -75,43 +62,31 @@ func (impl *GenericNoteServiceImpl) Save(bean *ClusterNoteBean, userId int32) (*
 		return nil, fmt.Errorf("cluster note already exists")
 	}
 
-	model := &repository.ClusterNote{
-		Identifer:      bean.Identifier,
-		IdentifierType: repository.ClusterType,
-		Description:    bean.Description,
-	}
+	bean.CreatedBy = userId
+	bean.UpdatedBy = userId
+	bean.CreatedOn = time.Now()
+	bean.UpdatedOn = time.Now()
 
-	model.CreatedBy = userId
-	model.UpdatedBy = userId
-	model.CreatedOn = time.Now()
-	model.UpdatedOn = time.Now()
-
-	err = impl.clusterNoteRepository.Save(model)
+	err = impl.genericNoteRepository.Save(bean)
 	if err != nil {
 		impl.logger.Errorw("error in saving cluster note in db", "err", err)
-		err = &util.ApiError{
-			Code:            constants.ClusterCreateDBFailed,
-			InternalMessage: "cluster note creation failed in db",
-			UserMessage:     fmt.Sprintf("requested by %d", userId),
-		}
 		return nil, err
 	}
-	bean.Id = model.Id
-	bean.UpdatedBy = model.UpdatedBy
-	bean.UpdatedOn = model.UpdatedOn
+
 	// audit the existing description to cluster audit history
-	clusterAudit := &ClusterNoteHistoryBean{
+	clusterAudit := &GenericNoteHistoryBean{
 		NoteId:      bean.Id,
 		Description: bean.Description,
-		CreatedOn:   model.CreatedOn,
-		CreatedBy:   model.CreatedBy,
+		CreatedOn:   bean.CreatedOn,
+		CreatedBy:   bean.CreatedBy,
 	}
-	_, _ = impl.clusterNoteHistoryService.Save(clusterAudit, userId)
+	_, _ = impl.genericNoteHistoryService.Save(clusterAudit, userId)
 	return bean, err
 }
 
-func (impl *GenericNoteServiceImpl) Update(bean *ClusterNoteBean, userId int32) (*ClusterNoteBean, error) {
-	model, err := impl.clusterNoteRepository.FindByClusterId(bean.Identifier)
+// TODO: this should return response bean
+func (impl *GenericNoteServiceImpl) Update(bean *repository.GenericNote, userId int32) (*repository.GenericNote, error) {
+	model, err := impl.genericNoteRepository.FindByClusterId(bean.Identifier)
 	if err != nil {
 		impl.logger.Error(err)
 		return nil, err
@@ -125,25 +100,58 @@ func (impl *GenericNoteServiceImpl) Update(bean *ClusterNoteBean, userId int32) 
 	model.UpdatedBy = userId
 	model.UpdatedOn = time.Now()
 
-	err = impl.clusterNoteRepository.Update(model)
+	err = impl.genericNoteRepository.Update(model)
 	if err != nil {
-		err = &util.ApiError{
-			Code:            constants.ClusterUpdateDBFailed,
-			InternalMessage: "cluster note update failed in db",
-			UserMessage:     fmt.Sprintf("requested by %d", userId),
-		}
 		return nil, err
 	}
-	bean.Id = model.Id
-	bean.UpdatedBy = model.UpdatedBy
-	bean.UpdatedOn = model.UpdatedOn
+
 	// audit the existing description to cluster audit history
-	clusterAudit := &ClusterNoteHistoryBean{
-		NoteId:      bean.Id,
-		Description: bean.Description,
+	clusterAudit := &GenericNoteHistoryBean{
+		NoteId:      model.Id,
+		Description: model.Description,
 		CreatedOn:   model.CreatedOn,
 		CreatedBy:   model.CreatedBy,
 	}
-	_, _ = impl.clusterNoteHistoryService.Save(clusterAudit, userId)
-	return bean, err
+	_, _ = impl.genericNoteHistoryService.Save(clusterAudit, userId)
+	return model, err
+}
+
+func (impl *GenericNoteServiceImpl) GetGenericNotesForAppIds(appIds []int) (map[int]*bean.GenericNoteResponseBean, error) {
+	appIdsToNoteMap := make(map[int]*bean.GenericNoteResponseBean)
+	notes, err := impl.genericNoteRepository.GetGenericNotesForAppIds(appIds)
+	if err != nil {
+		return appIdsToNoteMap, err
+	}
+	usersMap := make(map[int32]string)
+	userIds := make([]int32, 0, len(notes))
+	for _, note := range notes {
+		userIds = append(userIds, note.UpdatedBy)
+	}
+
+	users, err := impl.userRepository.GetByIds(userIds)
+	if err != nil {
+		return appIdsToNoteMap, err
+	}
+
+	for _, user := range users {
+		usersMap[user.Id] = user.EmailId
+	}
+
+	for _, note := range notes {
+		appIdsToNoteMap[note.Identifier] = &bean.GenericNoteResponseBean{
+			Id:          note.Id,
+			Description: note.Description,
+			UpdatedBy:   usersMap[note.UpdatedBy],
+			UpdatedOn:   note.UpdatedOn,
+		}
+	}
+
+	notesNotFoundAppIds := make([]int, 0)
+	for _, appId := range appIds {
+		if _, ok := appIdsToNoteMap[appId]; !ok {
+			notesNotFoundAppIds = append(notesNotFoundAppIds, appId)
+		}
+	}
+
+	return appIdsToNoteMap, nil
 }

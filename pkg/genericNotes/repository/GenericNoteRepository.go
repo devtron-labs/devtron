@@ -18,6 +18,8 @@
 package repository
 
 import (
+	"fmt"
+	repository1 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -28,20 +30,22 @@ type NoteType int
 const ClusterType NoteType = 0
 const AppType NoteType = 1
 
-type ClusterNote struct {
-	tableName      struct{} `sql:"cluster_note" pg:",discard_unknown_columns"`
-	Id             int      `sql:"id,pk"`
-	Identifer      int      `sql:"identifier"`
-	IdentifierType NoteType `sql:"identifier_type"`
-	Description    string   `sql:"description"`
+type GenericNote struct {
+	tableName      struct{} `sql:"generic_note" json:"-" pg:",discard_unknown_columns"`
+	Id             int      `sql:"id,pk" json:"id"`
+	Identifier     int      `sql:"identifier" json:"identifier" validate:"required"`
+	IdentifierType NoteType `sql:"identifier_type" json:"identifierType"`
+	Description    string   `sql:"description" json:"description"`
 	sql.AuditLog
 }
 
 type GenericNoteRepository interface {
-	Save(model *ClusterNote) error
-	FindByClusterId(id int) (*ClusterNote, error)
-	FindByAppId(id int) (*ClusterNote, error)
-	Update(model *ClusterNote) error
+	Save(model *GenericNote) error
+	FindByClusterId(id int) (*GenericNote, error)
+	FindByAppId(id int) (*GenericNote, error)
+	Update(model *GenericNote) error
+	GetGenericNotesForAppIds(appIds []int) ([]*GenericNote, error)
+	GetDescriptionFromAppIds(appIds []int) ([]*GenericNote, error)
 }
 
 func NewGenericNoteRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *GenericNoteRepositoryImpl {
@@ -56,12 +60,12 @@ type GenericNoteRepositoryImpl struct {
 	logger       *zap.SugaredLogger
 }
 
-func (impl GenericNoteRepositoryImpl) Save(model *ClusterNote) error {
+func (impl GenericNoteRepositoryImpl) Save(model *GenericNote) error {
 	return impl.dbConnection.Insert(model)
 }
 
-func (impl GenericNoteRepositoryImpl) FindByClusterId(id int) (*ClusterNote, error) {
-	clusterNote := &ClusterNote{}
+func (impl GenericNoteRepositoryImpl) FindByClusterId(id int) (*GenericNote, error) {
+	clusterNote := &GenericNote{}
 	err := impl.dbConnection.
 		Model(clusterNote).
 		Where("identifier =?", id).
@@ -71,12 +75,12 @@ func (impl GenericNoteRepositoryImpl) FindByClusterId(id int) (*ClusterNote, err
 	return clusterNote, err
 }
 
-func (impl GenericNoteRepositoryImpl) Update(model *ClusterNote) error {
+func (impl GenericNoteRepositoryImpl) Update(model *GenericNote) error {
 	return impl.dbConnection.Update(model)
 }
 
-func (impl GenericNoteRepositoryImpl) FindByAppId(id int) (*ClusterNote, error) {
-	clusterNote := &ClusterNote{}
+func (impl GenericNoteRepositoryImpl) FindByAppId(id int) (*GenericNote, error) {
+	clusterNote := &GenericNote{}
 	err := impl.dbConnection.
 		Model(clusterNote).
 		Where("identifier =?", id).
@@ -84,4 +88,35 @@ func (impl GenericNoteRepositoryImpl) FindByAppId(id int) (*ClusterNote, error) 
 		Limit(1).
 		Select()
 	return clusterNote, err
+}
+
+func (impl GenericNoteRepositoryImpl) GetGenericNotesForAppIds(appIds []int) ([]*GenericNote, error) {
+	notes := make([]*GenericNote, 0)
+	err := impl.dbConnection.
+		Model(notes).
+		Where("identifier IN (?)", pg.In(appIds)).
+		Where("identifier_type =?", AppType).
+		Limit(1).
+		Select()
+	return notes, err
+}
+
+func (impl GenericNoteRepositoryImpl) GetDescriptionFromAppIds(appIds []int) ([]*GenericNote, error) {
+	apps := make([]*repository1.App, 0)
+	query := fmt.Sprintf("SELECT * "+
+		"FROM app WHERE id IN (%s)", pg.In(appIds))
+	_, err := impl.dbConnection.Query(apps, query)
+	if err != nil {
+		return nil, err
+	}
+	notes := make([]*GenericNote, 0, len(apps))
+	for _, app := range apps {
+		note := &GenericNote{}
+		note.Id = 0
+		note.Description = app.Description
+		note.UpdatedOn = app.UpdatedOn
+		note.UpdatedBy = app.UpdatedBy
+		notes = append(notes, note)
+	}
+	return notes, nil
 }

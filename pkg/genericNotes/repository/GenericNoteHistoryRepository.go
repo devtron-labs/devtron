@@ -31,28 +31,28 @@ type ClusterNoteHistory struct {
 	sql.AuditLog
 }
 
-type ClusterNoteHistoryRepository interface {
+type GenericNoteHistoryRepository interface {
 	SaveHistory(model *ClusterNoteHistory) error
 	FindHistoryByNoteId(id []int) ([]ClusterNoteHistory, error)
 }
 
-func NewClusterNoteHistoryRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *ClusterNoteHistoryRepositoryImpl {
-	return &ClusterNoteHistoryRepositoryImpl{
+func NewGenericNoteHistoryRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *GenericNoteHistoryRepositoryImpl {
+	return &GenericNoteHistoryRepositoryImpl{
 		dbConnection: dbConnection,
 		logger:       logger,
 	}
 }
 
-type ClusterNoteHistoryRepositoryImpl struct {
+type GenericNoteHistoryRepositoryImpl struct {
 	dbConnection *pg.DB
 	logger       *zap.SugaredLogger
 }
 
-func (impl ClusterNoteHistoryRepositoryImpl) SaveHistory(model *ClusterNoteHistory) error {
+func (impl GenericNoteHistoryRepositoryImpl) SaveHistory(model *ClusterNoteHistory) error {
 	return impl.dbConnection.Insert(model)
 }
 
-func (impl ClusterNoteHistoryRepositoryImpl) FindHistoryByNoteId(id []int) ([]ClusterNoteHistory, error) {
+func (impl GenericNoteHistoryRepositoryImpl) FindHistoryByNoteId(id []int) ([]ClusterNoteHistory, error) {
 	var clusterNoteHistories []ClusterNoteHistory
 	err := impl.dbConnection.
 		Model(&clusterNoteHistories).

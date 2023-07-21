@@ -21,7 +21,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/pkg/genericNotes"
+	"github.com/devtron-labs/devtron/pkg/genericNotes/repository"
 	"net/http"
 	"strconv"
 	"strings"
@@ -350,13 +352,13 @@ func (impl ClusterRestHandlerImpl) FindById(w http.ResponseWriter, r *http.Reque
 func (impl ClusterRestHandlerImpl) FindNoteByClusterId(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
-	i, err := strconv.Atoi(id)
+	clusterId, err := strconv.Atoi(id)
 	if err != nil {
 		impl.logger.Errorw("request err, FindById", "error", err, "clusterId", id)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	bean, err := impl.clusterDescriptionService.FindByClusterIdWithClusterDetails(i)
+	bean, err := impl.clusterDescriptionService.FindByClusterIdWithClusterDetails(clusterId)
 	if err != nil {
 		if err == pg.ErrNoRows {
 			impl.logger.Errorw("cluster not found, FindById", "err", err, "clusterId", id)
@@ -453,7 +455,7 @@ func (impl ClusterRestHandlerImpl) UpdateClusterNote(w http.ResponseWriter, r *h
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var bean genericNotes.ClusterNoteBean
+	var bean repository.GenericNote
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, Update", "error", err, "payload", bean)
@@ -500,7 +502,7 @@ func (impl ClusterRestHandlerImpl) UpdateClusterNote(w http.ResponseWriter, r *h
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	clusterNoteResponseBean := &genericNotes.GenericNoteResponseBean{
+	clusterNoteResponseBean := &bean2.GenericNoteResponseBean{
 		Id:          bean.Id,
 		Description: bean.Description,
 		UpdatedOn:   bean.UpdatedOn,

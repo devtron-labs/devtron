@@ -36,7 +36,7 @@ type ClusterDescription struct {
 }
 
 type ClusterDescriptionRepository interface {
-	FindByClusterIdWithClusterDetails(id int) (*ClusterDescription, error)
+	FindByClusterIdWithClusterDetails(clusterId int) (*ClusterDescription, error)
 }
 
 func NewClusterDescriptionRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *ClusterDescriptionRepositoryImpl {
@@ -51,7 +51,7 @@ type ClusterDescriptionRepositoryImpl struct {
 	logger       *zap.SugaredLogger
 }
 
-func (impl ClusterDescriptionRepositoryImpl) FindByClusterIdWithClusterDetails(id int) (*ClusterDescription, error) {
+func (impl ClusterDescriptionRepositoryImpl) FindByClusterIdWithClusterDetails(clusterId int) (*ClusterDescription, error) {
 	clusterDescription := &ClusterDescription{}
 	query := "SELECT cl.id AS cluster_id, cl.cluster_name AS cluster_name, cl.created_on AS cluster_created_on, cl.created_by AS cluster_created_by, cln.id AS note_id, cln.description, cln.created_by, cln.created_on, cln.updated_by, cln.updated_on FROM" +
 		" cluster cl LEFT JOIN" +
@@ -59,7 +59,7 @@ func (impl ClusterDescriptionRepositoryImpl) FindByClusterIdWithClusterDetails(i
 		" ON cl.id=cln.identifier AND cln.identifier_type = 0" +
 		" WHERE cl.id=%d AND cl.active=true " +
 		" LIMIT 1 OFFSET 0;"
-	query = fmt.Sprintf(query, id)
+	query = fmt.Sprintf(query, clusterId)
 	_, err := impl.dbConnection.Query(clusterDescription, query)
 	return clusterDescription, err
 }
