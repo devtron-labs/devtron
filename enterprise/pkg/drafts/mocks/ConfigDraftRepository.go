@@ -230,18 +230,18 @@ func (_m *ConfigDraftRepository) GetLatestDraftVersionId(draftId int) (int, erro
 }
 
 // SaveDraftVersion provides a mock function with given fields: draftVersionDto
-func (_m *ConfigDraftRepository) SaveDraftVersion(draftVersionDto drafts.DraftVersion) (int, error) {
+func (_m *ConfigDraftRepository) SaveDraftVersion(draftVersionDto *drafts.DraftVersion) (int, error) {
 	ret := _m.Called(draftVersionDto)
 
 	var r0 int
-	if rf, ok := ret.Get(0).(func(drafts.DraftVersion) int); ok {
+	if rf, ok := ret.Get(0).(func(*drafts.DraftVersion) int); ok {
 		r0 = rf(draftVersionDto)
 	} else {
 		r0 = ret.Get(0).(int)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(drafts.DraftVersion) error); ok {
+	if rf, ok := ret.Get(1).(func(*drafts.DraftVersion) error); ok {
 		r1 = rf(draftVersionDto)
 	} else {
 		r1 = ret.Error(1)

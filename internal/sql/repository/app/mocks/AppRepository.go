@@ -4,6 +4,8 @@ package mocks
 
 import (
 	app "github.com/devtron-labs/devtron/internal/sql/repository/app"
+	helper "github.com/devtron-labs/devtron/internal/sql/repository/helper"
+
 	mock "github.com/stretchr/testify/mock"
 
 	pg "github.com/go-pg/pg"
@@ -37,6 +39,75 @@ func (_m *AppRepository) CheckAppExists(appNames []string) ([]*app.App, error) {
 	return r0, r1
 }
 
+// FetchAllActiveDevtronAppsWithAppIdAndName provides a mock function with given fields:
+func (_m *AppRepository) FetchAllActiveDevtronAppsWithAppIdAndName() ([]*app.App, error) {
+	ret := _m.Called()
+
+	var r0 []*app.App
+	if rf, ok := ret.Get(0).(func() []*app.App); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*app.App)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// FetchAllActiveInstalledAppsWithAppIdAndName provides a mock function with given fields:
+func (_m *AppRepository) FetchAllActiveInstalledAppsWithAppIdAndName() ([]*app.App, error) {
+	ret := _m.Called()
+
+	var r0 []*app.App
+	if rf, ok := ret.Get(0).(func() []*app.App); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*app.App)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// FetchAppIdsWithFilter provides a mock function with given fields: jobListingFilter
+func (_m *AppRepository) FetchAppIdsWithFilter(jobListingFilter helper.AppListingFilter) ([]int, error) {
+	ret := _m.Called(jobListingFilter)
+
+	var r0 []int
+	if rf, ok := ret.Get(0).(func(helper.AppListingFilter) []int); ok {
+		r0 = rf(jobListingFilter)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]int)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(helper.AppListingFilter) error); ok {
+		r1 = rf(jobListingFilter)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // FetchAppsByFilterV2 provides a mock function with given fields: appNameIncludes, appNameExcludes, environmentId
 func (_m *AppRepository) FetchAppsByFilterV2(appNameIncludes string, appNameExcludes string, environmentId int) ([]*app.App, error) {
 	ret := _m.Called(appNameIncludes, appNameExcludes, environmentId)
@@ -53,6 +124,29 @@ func (_m *AppRepository) FetchAppsByFilterV2(appNameIncludes string, appNameExcl
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string, string, int) error); ok {
 		r1 = rf(appNameIncludes, appNameExcludes, environmentId)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// FindActiveById provides a mock function with given fields: id
+func (_m *AppRepository) FindActiveById(id int) (*app.App, error) {
+	ret := _m.Called(id)
+
+	var r0 *app.App
+	if rf, ok := ret.Get(0).(func(int) *app.App); ok {
+		r0 = rf(id)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*app.App)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(int) error); ok {
+		r1 = rf(id)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -152,13 +246,13 @@ func (_m *AppRepository) FindAllActiveAppsWithTeam() ([]*app.App, error) {
 	return r0, r1
 }
 
-// FindAllMatchesByAppName provides a mock function with given fields: appName
-func (_m *AppRepository) FindAllMatchesByAppName(appName string) ([]*app.App, error) {
-	ret := _m.Called(appName)
+// FindAllActiveAppsWithTeamByAppNameMatch provides a mock function with given fields: appNameMatch
+func (_m *AppRepository) FindAllActiveAppsWithTeamByAppNameMatch(appNameMatch string) ([]*app.App, error) {
+	ret := _m.Called(appNameMatch)
 
 	var r0 []*app.App
 	if rf, ok := ret.Get(0).(func(string) []*app.App); ok {
-		r0 = rf(appName)
+		r0 = rf(appNameMatch)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*app.App)
@@ -167,7 +261,53 @@ func (_m *AppRepository) FindAllMatchesByAppName(appName string) ([]*app.App, er
 
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string) error); ok {
-		r1 = rf(appName)
+		r1 = rf(appNameMatch)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// FindAllActiveAppsWithTeamWithTeamId provides a mock function with given fields: teamID
+func (_m *AppRepository) FindAllActiveAppsWithTeamWithTeamId(teamID int) ([]*app.App, error) {
+	ret := _m.Called(teamID)
+
+	var r0 []*app.App
+	if rf, ok := ret.Get(0).(func(int) []*app.App); ok {
+		r0 = rf(teamID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*app.App)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(int) error); ok {
+		r1 = rf(teamID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// FindAllMatchesByAppName provides a mock function with given fields: appName, appType
+func (_m *AppRepository) FindAllMatchesByAppName(appName string, appType helper.AppType) ([]*app.App, error) {
+	ret := _m.Called(appName, appType)
+
+	var r0 []*app.App
+	if rf, ok := ret.Get(0).(func(string, helper.AppType) []*app.App); ok {
+		r0 = rf(appName, appType)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*app.App)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, helper.AppType) error); ok {
+		r1 = rf(appName, appType)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -214,6 +354,29 @@ func (_m *AppRepository) FindAppAndProjectByAppName(appName string) (*app.App, e
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string) error); ok {
 		r1 = rf(appName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// FindAppAndProjectByIdsIn provides a mock function with given fields: ids
+func (_m *AppRepository) FindAppAndProjectByIdsIn(ids []int) ([]*app.App, error) {
+	ret := _m.Called(ids)
+
+	var r0 []*app.App
+	if rf, ok := ret.Get(0).(func([]int) []*app.App); ok {
+		r0 = rf(ids)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*app.App)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func([]int) error); ok {
+		r1 = rf(ids)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -359,13 +522,34 @@ func (_m *AppRepository) FindByIds(ids []*int) ([]*app.App, error) {
 	return r0, r1
 }
 
-// FindIdsByTeamIds provides a mock function with given fields: teamIds
-func (_m *AppRepository) FindIdsByTeamIds(teamIds []int) ([]int, error) {
-	ret := _m.Called(teamIds)
+// FindEnvironmentIdForInstalledApp provides a mock function with given fields: appId
+func (_m *AppRepository) FindEnvironmentIdForInstalledApp(appId int) (int, error) {
+	ret := _m.Called(appId)
+
+	var r0 int
+	if rf, ok := ret.Get(0).(func(int) int); ok {
+		r0 = rf(appId)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(int) error); ok {
+		r1 = rf(appId)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// FindIdsByNames provides a mock function with given fields: appNames
+func (_m *AppRepository) FindIdsByNames(appNames []string) ([]int, error) {
+	ret := _m.Called(appNames)
 
 	var r0 []int
-	if rf, ok := ret.Get(0).(func([]int) []int); ok {
-		r0 = rf(teamIds)
+	if rf, ok := ret.Get(0).(func([]string) []int); ok {
+		r0 = rf(appNames)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]int)
@@ -373,8 +557,54 @@ func (_m *AppRepository) FindIdsByTeamIds(teamIds []int) ([]int, error) {
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func([]int) error); ok {
-		r1 = rf(teamIds)
+	if rf, ok := ret.Get(1).(func([]string) error); ok {
+		r1 = rf(appNames)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// FindIdsByTeamIdsAndTeamNames provides a mock function with given fields: teamIds, teamNames
+func (_m *AppRepository) FindIdsByTeamIdsAndTeamNames(teamIds []int, teamNames []string) ([]int, error) {
+	ret := _m.Called(teamIds, teamNames)
+
+	var r0 []int
+	if rf, ok := ret.Get(0).(func([]int, []string) []int); ok {
+		r0 = rf(teamIds, teamNames)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]int)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func([]int, []string) error); ok {
+		r1 = rf(teamIds, teamNames)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// FindJobByDisplayName provides a mock function with given fields: appName
+func (_m *AppRepository) FindJobByDisplayName(appName string) (*app.App, error) {
+	ret := _m.Called(appName)
+
+	var r0 *app.App
+	if rf, ok := ret.Get(0).(func(string) *app.App); ok {
+		r0 = rf(appName)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*app.App)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(appName)
 	} else {
 		r1 = ret.Error(1)
 	}

@@ -2,17 +2,24 @@ package drafts
 
 import "time"
 
+const (
+	LastVersionOutdated         = "last-version-outdated"
+	DraftAlreadyInTerminalState = "already-in-terminal-state"
+	ApprovalRequestNotRaised    = "approval-request-not-raised"
+	UserContributedToDraft      = "user-committed-to-draft"
+)
+
 type DraftResourceType uint8
 
-var (
-	CmDraftResource            DraftResourceType = 1
-	CsDraftResource            DraftResourceType = 2
+const (
+	CMDraftResource            DraftResourceType = 1
+	CSDraftResource            DraftResourceType = 2
 	DeploymentTemplateResource DraftResourceType = 3
 )
 
 type ResourceAction uint8
 
-var (
+const (
 	AddResourceAction    ResourceAction = 1
 	UpdateResourceAction ResourceAction = 2
 	DeleteResourceAction ResourceAction = 3
@@ -20,7 +27,7 @@ var (
 
 type DraftState uint8
 
-var (
+const (
 	InitDraftState          DraftState = 1
 	DiscardedDraftState     DraftState = 2
 	PublishedDraftState     DraftState = 3

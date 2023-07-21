@@ -46,7 +46,7 @@ type ConfigDraftServiceImpl struct {
 func NewConfigDraftServiceImpl(logger *zap.SugaredLogger, configDraftRepository ConfigDraftRepository, configMapService pipeline.ConfigMapService, chartService chart.ChartService,
 	propertiesConfigService pipeline.PropertiesConfigService, resourceProtectionService protect.ResourceProtectionService,
 	userService user.UserService, appRepo app.AppRepository, envRepository repository2.EnvironmentRepository) *ConfigDraftServiceImpl {
-	draftServiceImpl := ConfigDraftServiceImpl{
+	draftServiceImpl := &ConfigDraftServiceImpl{
 		logger:                    logger,
 		configDraftRepository:     configDraftRepository,
 		configMapService:          configMapService,
@@ -58,22 +58,22 @@ func NewConfigDraftServiceImpl(logger *zap.SugaredLogger, configDraftRepository 
 		envRepository:             envRepository,
 	}
 	resourceProtectionService.RegisterListener(draftServiceImpl)
-	return &draftServiceImpl
+	return draftServiceImpl
 }
 
-func (impl ConfigDraftServiceImpl) OnStateChange(appId int, envId int, state protect.ProtectionState, userId int32) {
+func (impl *ConfigDraftServiceImpl) OnStateChange(appId int, envId int, state protect.ProtectionState, userId int32) {
 	impl.logger.Debugw("resource protection state change event received", "appId", appId, "envId", envId, "state", state)
 	if state == protect.DisabledProtectionState {
 		_ = impl.configDraftRepository.DiscardDrafts(appId, envId, userId)
 	}
 }
 
-func (impl ConfigDraftServiceImpl) CreateDraft(request ConfigDraftRequest) (*ConfigDraftResponse, error) {
+func (impl *ConfigDraftServiceImpl) CreateDraft(request ConfigDraftRequest) (*ConfigDraftResponse, error) {
 	//check for existing draft in nonTerminal state, if present then throw error
 	return impl.configDraftRepository.CreateConfigDraft(request)
 }
 
-func (impl ConfigDraftServiceImpl) AddDraftVersion(request ConfigDraftVersionRequest) (int, error) {
+func (impl *ConfigDraftServiceImpl) AddDraftVersion(request ConfigDraftVersionRequest) (int, error) {
 	draftId := request.DraftId
 	latestDraftVersion, err := impl.configDraftRepository.GetLatestDraftVersionId(draftId)
 	if err != nil {
@@ -110,7 +110,7 @@ func (impl ConfigDraftServiceImpl) AddDraftVersion(request ConfigDraftVersionReq
 	return lastDraftVersionId, nil
 }
 
-func (impl ConfigDraftServiceImpl) UpdateDraftState(draftId int, draftVersionId int, toUpdateDraftState DraftState, userId int32) (*DraftVersion, error) {
+func (impl *ConfigDraftServiceImpl) UpdateDraftState(draftId int, draftVersionId int, toUpdateDraftState DraftState, userId int32) (*DraftVersion, error) {
 	impl.logger.Infow("updating draft state", "draftId", draftId, "toUpdateDraftState", toUpdateDraftState, "userId", userId)
 	// check app config draft is enabled or not ??
 	latestDraftVersion, err := impl.validateDraftAction(draftId, draftVersionId, toUpdateDraftState, userId)
@@ -121,13 +121,13 @@ func (impl ConfigDraftServiceImpl) UpdateDraftState(draftId int, draftVersionId 
 	return latestDraftVersion, err
 }
 
-func (impl ConfigDraftServiceImpl) validateDraftAction(draftId int, draftVersionId int, toUpdateDraftState DraftState, userId int32) (*DraftVersion, error) {
+func (impl *ConfigDraftServiceImpl) validateDraftAction(draftId int, draftVersionId int, toUpdateDraftState DraftState, userId int32) (*DraftVersion, error) {
 	latestDraftVersion, err := impl.configDraftRepository.GetLatestConfigDraft(draftId)
 	if err != nil {
 		return nil, err
 	}
 	if latestDraftVersion.Id != draftVersionId { // needed for current scope
-		return nil, errors.New("last-version-outdated")
+		return nil, errors.New(LastVersionOutdated)
 	}
 	draftMetadataDto, err := impl.configDraftRepository.GetDraftMetadataById(draftId)
 	if err != nil {
@@ -136,26 +136,27 @@ func (impl ConfigDraftServiceImpl) validateDraftAction(draftId int, draftVersion
 	draftCurrentState := draftMetadataDto.DraftState
 	if draftCurrentState.IsTerminal() {
 		impl.logger.Errorw("draft is already in terminal state", "draftId", draftId, "draftCurrentState", draftCurrentState)
-		return nil, errors.New("already-in-terminal-state")
+		return nil, errors.New(DraftAlreadyInTerminalState)
 	}
 	if toUpdateDraftState == PublishedDraftState {
 		if draftCurrentState != AwaitApprovalDraftState {
 			impl.logger.Errorw("draft is not in await Approval state", "draftId", draftId, "draftCurrentState", draftCurrentState)
-			return nil, errors.New("approval-request-not-raised")
+			return nil, errors.New(ApprovalRequestNotRaised)
 		} else {
 			contributedToDraft, err := impl.checkUserContributedToDraft(draftId, userId)
 			if err != nil {
 				return nil, err
 			}
 			if contributedToDraft {
-				impl.logger.Errorw("user-committed-to-draft")
+				impl.logger.Errorw("user contributed to this draft", "draftId", draftId, "userId", userId)
+				return nil, errors.New(UserContributedToDraft)
 			}
 		}
 	}
 	return latestDraftVersion, nil
 }
 
-func (impl ConfigDraftServiceImpl) GetDraftVersionMetadata(draftId int) (*DraftVersionMetadataResponse, error) {
+func (impl *ConfigDraftServiceImpl) GetDraftVersionMetadata(draftId int) (*DraftVersionMetadataResponse, error) {
 	draftVersionDtos, err := impl.configDraftRepository.GetDraftVersionsMetadata(draftId)
 	if err != nil {
 		return nil, err
@@ -175,7 +176,7 @@ func (impl ConfigDraftServiceImpl) GetDraftVersionMetadata(draftId int) (*DraftV
 	return response, nil
 }
 
-func (impl ConfigDraftServiceImpl) GetDraftComments(draftId int) (*DraftVersionCommentResponse, error) {
+func (impl *ConfigDraftServiceImpl) GetDraftComments(draftId int) (*DraftVersionCommentResponse, error) {
 	draftComments, err := impl.configDraftRepository.GetDraftVersionComments(draftId)
 	if err != nil {
 		return nil, err
@@ -216,7 +217,7 @@ func (impl ConfigDraftServiceImpl) GetDraftComments(draftId int) (*DraftVersionC
 	return response, nil
 }
 
-func (impl ConfigDraftServiceImpl) GetDrafts(appId int, envId int, resourceType DraftResourceType, userId int32) ([]AppConfigDraft, error) {
+func (impl *ConfigDraftServiceImpl) GetDrafts(appId int, envId int, resourceType DraftResourceType, userId int32) ([]AppConfigDraft, error) {
 	draftMetadataDtos, err := impl.configDraftRepository.GetDraftMetadata(appId, envId, resourceType)
 	if err != nil {
 		return nil, err
@@ -229,7 +230,7 @@ func (impl ConfigDraftServiceImpl) GetDrafts(appId int, envId int, resourceType 
 	return appConfigDrafts, nil
 }
 
-func (impl ConfigDraftServiceImpl) GetDraftById(draftId int, userId int32) (*ConfigDraftResponse, error) {
+func (impl *ConfigDraftServiceImpl) GetDraftById(draftId int, userId int32) (*ConfigDraftResponse, error) {
 	configDraft, err := impl.configDraftRepository.GetLatestConfigDraft(draftId)
 	if err != nil {
 		return nil, err
@@ -244,7 +245,7 @@ func (impl ConfigDraftServiceImpl) GetDraftById(draftId int, userId int32) (*Con
 	return draftResponse, nil
 }
 
-func (impl ConfigDraftServiceImpl) GetDraftByDraftVersionId(draftVersionId int) (*ConfigDraftResponse, error) {
+func (impl *ConfigDraftServiceImpl) GetDraftByDraftVersionId(draftVersionId int) (*ConfigDraftResponse, error) {
 	draftVersionDto, err := impl.configDraftRepository.GetDraftVersionById(draftVersionId)
 	if err != nil {
 		return nil, err
@@ -263,18 +264,17 @@ func (impl ConfigDraftServiceImpl) DeleteComment(draftId int, draftCommentId int
 	return nil
 }
 
-func (impl ConfigDraftServiceImpl) ApproveDraft(draftId int, draftVersionId int, userId int32) error {
+func (impl *ConfigDraftServiceImpl) ApproveDraft(draftId int, draftVersionId int, userId int32) error {
 	impl.logger.Infow("approving draft", "draftId", draftId, "draftVersionId", draftVersionId, "userId", userId)
 	toUpdateDraftState := PublishedDraftState
-	draftVersion, err := impl.validateDraftAction(draftId, draftVersionId, toUpdateDraftState, 0)
+	draftVersion, err := impl.validateDraftAction(draftId, draftVersionId, toUpdateDraftState, userId)
 	if err != nil {
 		return err
 	}
-	// once it is approved, we need to create actual resources
 	draftData := draftVersion.Data
 	draftsDto := draftVersion.Draft
 	draftResourceType := draftsDto.Resource
-	if draftResourceType == CmDraftResource || draftResourceType == CsDraftResource {
+	if draftResourceType == CMDraftResource || draftResourceType == CSDraftResource {
 		err = impl.handleCmCsData(draftResourceType, draftsDto, draftData, draftVersion.UserId, draftVersion.Action)
 	} else {
 		err = impl.handleDeploymentTemplate(draftsDto.AppId, draftsDto.EnvId, draftData, draftVersion.UserId, draftVersion.Action)
@@ -286,7 +286,7 @@ func (impl ConfigDraftServiceImpl) ApproveDraft(draftId int, draftVersionId int,
 	return err
 }
 
-func (impl ConfigDraftServiceImpl) handleCmCsData(draftResource DraftResourceType, draftDto *DraftDto, draftData string, userId int32, action ResourceAction) error {
+func (impl *ConfigDraftServiceImpl) handleCmCsData(draftResource DraftResourceType, draftDto *DraftDto, draftData string, userId int32, action ResourceAction) error {
 	// if envId is -1 then it is base Configuration else Env level config
 	appId := draftDto.AppId
 	envId := draftDto.EnvId
@@ -297,7 +297,7 @@ func (impl ConfigDraftServiceImpl) handleCmCsData(draftResource DraftResourceTyp
 		return err
 	}
 	configDataRequest.UserId = userId // setting draftVersion userId
-	isCm := draftResource == CmDraftResource
+	isCm := draftResource == CMDraftResource
 	if isCm {
 		if envId == protect.BASE_CONFIG_ENV_ID {
 			if action == DeleteResourceAction {
@@ -333,7 +333,7 @@ func (impl ConfigDraftServiceImpl) handleCmCsData(draftResource DraftResourceTyp
 	return err
 }
 
-func (impl ConfigDraftServiceImpl) handleDeploymentTemplate(appId int, envId int, draftData string, userId int32, action ResourceAction) error {
+func (impl *ConfigDraftServiceImpl) handleDeploymentTemplate(appId int, envId int, draftData string, userId int32, action ResourceAction) error {
 
 	ctx := context.Background()
 	var err error
@@ -351,7 +351,7 @@ func (impl ConfigDraftServiceImpl) handleDeploymentTemplate(appId int, envId int
 	return nil
 }
 
-func (impl ConfigDraftServiceImpl) handleBaseDeploymentTemplate(appId int, envId int, draftData string, userId int32, ctx context.Context) error {
+func (impl *ConfigDraftServiceImpl) handleBaseDeploymentTemplate(appId int, envId int, draftData string, userId int32, ctx context.Context) error {
 	templateRequest := &chart.TemplateRequest{}
 	var templateValidated bool
 	err := json.Unmarshal([]byte(draftData), templateRequest)
@@ -371,7 +371,7 @@ func (impl ConfigDraftServiceImpl) handleBaseDeploymentTemplate(appId int, envId
 	return err
 }
 
-func (impl ConfigDraftServiceImpl) handleEnvLevelTemplate(appId int, envId int, draftData string, userId int32, action ResourceAction, ctx context.Context) error {
+func (impl *ConfigDraftServiceImpl) handleEnvLevelTemplate(appId int, envId int, draftData string, userId int32, action ResourceAction, ctx context.Context) error {
 	envConfigProperties := &bean.EnvironmentProperties{}
 	var templateValidated bool
 	err := json.Unmarshal([]byte(draftData), envConfigProperties)
@@ -412,7 +412,7 @@ func (impl ConfigDraftServiceImpl) handleEnvLevelTemplate(appId int, envId int, 
 	return nil
 }
 
-func (impl ConfigDraftServiceImpl) createEnvLevelDeploymentTemplate(ctx context.Context, appId int, envId int, envConfigProperties *bean.EnvironmentProperties, userId int32) error {
+func (impl *ConfigDraftServiceImpl) createEnvLevelDeploymentTemplate(ctx context.Context, appId int, envId int, envConfigProperties *bean.EnvironmentProperties, userId int32) error {
 	_, err := impl.propertiesConfigService.CreateEnvironmentProperties(appId, envConfigProperties)
 	if err != nil {
 		if err.Error() == bean2.NOCHARTEXIST {
@@ -432,7 +432,7 @@ func (impl ConfigDraftServiceImpl) createEnvLevelDeploymentTemplate(ctx context.
 	return err
 }
 
-func (impl ConfigDraftServiceImpl) createMissingChart(ctx context.Context, appId int, envId int, envConfigProperties *bean.EnvironmentProperties, userId int32) error {
+func (impl *ConfigDraftServiceImpl) createMissingChart(ctx context.Context, appId int, envId int, envConfigProperties *bean.EnvironmentProperties, userId int32) error {
 	appMetrics := false
 	if envConfigProperties.AppMetrics != nil {
 		appMetrics = *envConfigProperties.AppMetrics
@@ -452,7 +452,7 @@ func (impl ConfigDraftServiceImpl) createMissingChart(ctx context.Context, appId
 	return nil
 }
 
-func (impl ConfigDraftServiceImpl) updateWithUserMetadata(versions []*DraftVersionMetadata) error {
+func (impl *ConfigDraftServiceImpl) updateWithUserMetadata(versions []*DraftVersionMetadata) error {
 	var userIds []int32
 	for _, versionMetadata := range versions {
 		userIds = append(userIds, versionMetadata.UserId)
@@ -469,7 +469,7 @@ func (impl ConfigDraftServiceImpl) updateWithUserMetadata(versions []*DraftVersi
 	return nil
 }
 
-func (impl ConfigDraftServiceImpl) getUserMetadata(userIds []int32) (map[int32]bean2.UserInfo, error) {
+func (impl *ConfigDraftServiceImpl) getUserMetadata(userIds []int32) (map[int32]bean2.UserInfo, error) {
 	userInfos, err := impl.userService.GetByIds(userIds)
 	if err != nil {
 		return nil, err
@@ -481,7 +481,7 @@ func (impl ConfigDraftServiceImpl) getUserMetadata(userIds []int32) (map[int32]b
 	return userIdVsUserInfoMap, nil
 }
 
-func (impl ConfigDraftServiceImpl) getApproversData(appId int, envId int) []string {
+func (impl *ConfigDraftServiceImpl) getApproversData(appId int, envId int) []string {
 	var approvers []string
 	application, err := impl.appRepo.FindById(appId)
 	if err != nil {
@@ -504,7 +504,7 @@ func (impl ConfigDraftServiceImpl) getApproversData(appId int, envId int) []stri
 	return approvers
 }
 
-func (impl ConfigDraftServiceImpl) checkUserContributedToDraft(draftId int, userId int32) (bool, error) {
+func (impl *ConfigDraftServiceImpl) checkUserContributedToDraft(draftId int, userId int32) (bool, error) {
 	versionsMetadata, err := impl.configDraftRepository.GetDraftVersionsMetadata(draftId)
 	if err != nil {
 		return false, err
