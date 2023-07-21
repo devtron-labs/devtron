@@ -26,15 +26,18 @@ type CommonRouter interface {
 	InitCommonRouter(router *mux.Router)
 }
 type CommonRouterImpl struct {
-	commonRestHandler restHandler.CommonRestHanlder
+	commonRestHandler restHandler.CommonRestHandler
 }
 
-func NewCommonRouterImpl(commonRestHandler restHandler.CommonRestHanlder) *CommonRouterImpl {
+func NewCommonRouterImpl(commonRestHandler restHandler.CommonRestHandler) *CommonRouterImpl {
 	return &CommonRouterImpl{commonRestHandler: commonRestHandler}
 }
 func (impl CommonRouterImpl) InitCommonRouter(router *mux.Router) {
 
 	router.Path("/checklist").
 		HandlerFunc(impl.commonRestHandler.GlobalChecklist).
+		Methods("GET")
+	router.Path("/environmentVariables").
+		HandlerFunc(impl.commonRestHandler.EnvironmentVariableList).
 		Methods("GET")
 }
