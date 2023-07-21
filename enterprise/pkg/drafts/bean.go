@@ -36,23 +36,28 @@ func GetNonTerminalDraftStates() []int {
 }
 
 type ConfigDraftRequest struct {
-	AppId        int               `json:"appId" validate:"number,required"`
-	EnvId        int               `json:"envId"`
-	Resource     DraftResourceType `json:"resource"`
-	ResourceName string            `json:"resourceName"`
-	Action       ResourceAction    `json:"action"`
-	Data         string            `json:"data" validate:"min=1"`
-	UserComment  string            `json:"userComment"`
-	UserId       int32             `json:"-"`
+	AppId          int               `json:"appId" validate:"number,required"`
+	EnvId          int               `json:"envId"`
+	Resource       DraftResourceType `json:"resource"`
+	ResourceName   string            `json:"resourceName"`
+	Action         ResourceAction    `json:"action"`
+	Data           string            `json:"data" validate:"min=1"`
+	UserComment    string            `json:"userComment"`
+	ChangeProposed bool              `json:"changeProposed"`
+	UserId         int32             `json:"-"`
 }
 
 func (request ConfigDraftRequest) GetDraftDto() *DraftDto {
+	draftState := InitDraftState
+	if proposed := request.ChangeProposed; proposed {
+		draftState = AwaitApprovalDraftState
+	}
 	metadataDto := &DraftDto{
 		AppId:        request.AppId,
 		EnvId:        request.EnvId,
 		Resource:     request.Resource,
 		ResourceName: request.ResourceName,
-		DraftState:   InitDraftState,
+		DraftState:   draftState,
 	}
 	currentTime := time.Now()
 	metadataDto.CreatedOn = currentTime
@@ -101,6 +106,7 @@ type ConfigDraftVersionRequest struct {
 	Action             ResourceAction `json:"action"`
 	Data               string         `json:"data"`
 	UserComment        string         `json:"userComment"`
+	ChangeProposed     bool           `json:"changeProposed"`
 	UserId             int32          `json:"-"`
 }
 

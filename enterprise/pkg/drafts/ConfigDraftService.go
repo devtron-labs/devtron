@@ -70,12 +70,12 @@ func (impl ConfigDraftServiceImpl) OnStateChange(appId int, envId int, state pro
 
 func (impl ConfigDraftServiceImpl) CreateDraft(request ConfigDraftRequest) (*ConfigDraftResponse, error) {
 	//check for existing draft in nonTerminal state, if present then throw error
-	
 	return impl.configDraftRepository.CreateConfigDraft(request)
 }
 
 func (impl ConfigDraftServiceImpl) AddDraftVersion(request ConfigDraftVersionRequest) (int, error) {
-	latestDraftVersion, err := impl.configDraftRepository.GetLatestDraftVersionId(request.DraftId)
+	draftId := request.DraftId
+	latestDraftVersion, err := impl.configDraftRepository.GetLatestDraftVersionId(draftId)
 	if err != nil {
 		return 0, err
 	}
@@ -97,6 +97,12 @@ func (impl ConfigDraftServiceImpl) AddDraftVersion(request ConfigDraftVersionReq
 	if len(request.UserComment) > 0 {
 		draftVersionCommentDto := request.GetDraftVersionComment(lastDraftVersionId, currentTime)
 		err = impl.configDraftRepository.SaveDraftVersionComment(draftVersionCommentDto)
+		if err != nil {
+			return 0, err
+		}
+	}
+	if proposed := request.ChangeProposed; proposed {
+		err = impl.configDraftRepository.UpdateDraftState(draftId, AwaitApprovalDraftState, request.UserId)
 		if err != nil {
 			return 0, err
 		}
