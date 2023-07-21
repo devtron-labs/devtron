@@ -91,7 +91,7 @@ func (repo *ConfigDraftRepositoryImpl) SaveDraftVersionComment(draftVersionComme
 
 func (repo *ConfigDraftRepositoryImpl) SaveDraftVersion(draftVersionDto *DraftVersion) (int, error) {
 	draftVersionDto.CreatedOn = time.Now()
-	err := repo.dbConnection.Insert(&draftVersionDto)
+	err := repo.dbConnection.Insert(draftVersionDto)
 	if err != nil {
 		repo.logger.Errorw("error occurred while saving draft version comment", "draftMetadataId", draftVersionDto.DraftsId, "err", err)
 	}

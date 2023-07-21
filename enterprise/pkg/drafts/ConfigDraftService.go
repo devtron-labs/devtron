@@ -70,6 +70,7 @@ func (impl ConfigDraftServiceImpl) OnStateChange(appId int, envId int, state pro
 
 func (impl ConfigDraftServiceImpl) CreateDraft(request ConfigDraftRequest) (*ConfigDraftResponse, error) {
 	//check for existing draft in nonTerminal state, if present then throw error
+	
 	return impl.configDraftRepository.CreateConfigDraft(request)
 }
 
