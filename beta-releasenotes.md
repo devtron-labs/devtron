@@ -1,4 +1,5 @@
 ## Bugs
+- fix: blob storage upload failed due to USE_BLOB_STORAGE_CONFIG_IN_CI_WORKFLOW flag (#3667)
 - fix: Pod for in-cluster not getting scheduled because of node affinity selector. (#3663)
 - fix: optimized fetch deployment status timeline api (#3653)
 - fix: critical vulnerabilities in dependencies (#3632)
