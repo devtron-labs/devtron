@@ -918,7 +918,6 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 	} else if AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_HELM] {
 		deploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
 	}
-
 	if refCdPipeline.ParentPipelineType == "WEBHOOK" {
 		cdPipeline := &bean.CDPipelineConfigObject{
 			Id:                            0,
