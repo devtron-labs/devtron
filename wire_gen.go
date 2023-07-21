@@ -665,8 +665,8 @@ func InitializeApp() (*App, error) {
 	userAttributesServiceImpl := attributes.NewUserAttributesServiceImpl(sugaredLogger, userAttributesRepositoryImpl)
 	userAttributesRestHandlerImpl := restHandler.NewUserAttributesRestHandlerImpl(sugaredLogger, enterpriseEnforcerImpl, userServiceImpl, userAttributesServiceImpl)
 	userAttributesRouterImpl := router.NewUserAttributesRouterImpl(userAttributesRestHandlerImpl)
-	commonRestHanlderImpl := restHandler.NewCommonRestHanlderImpl(sugaredLogger, gitOpsConfigServiceImpl, userServiceImpl, validate, enterpriseEnforcerImpl, commonServiceImpl)
-	commonRouterImpl := router.NewCommonRouterImpl(commonRestHanlderImpl)
+	commonRestHandlerImpl := restHandler.NewCommonRestHandlerImpl(sugaredLogger, gitOpsConfigServiceImpl, userServiceImpl, validate, enterpriseEnforcerImpl, commonServiceImpl)
+	commonRouterImpl := router.NewCommonRouterImpl(commonRestHandlerImpl)
 	grafanaConfig, err := grafana.GetConfig()
 	if err != nil {
 		return nil, err
