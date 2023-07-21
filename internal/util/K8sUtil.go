@@ -26,6 +26,7 @@ import (
 	"net/http"
 	"os/user"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -476,6 +477,16 @@ func (impl K8sUtil) CreateJob(namespace string, name string, clusterConfig *Clus
 
 const Running = "Running"
 
+func (impl K8sUtil) GetPodListByLabel(namespace, label string, clientSet *kubernetes.Clientset) ([]v1.Pod, error) {
+	pods := clientSet.CoreV1().Pods(namespace)
+	podList, err := pods.List(context.Background(), metav1.ListOptions{LabelSelector: label})
+	if err != nil {
+		impl.logger.Errorw("get pod err, DeletePod", "err", err)
+		return nil, err
+	}
+	return podList.Items, nil
+}
+
 func (impl K8sUtil) DeletePodByLabel(namespace string, labels string, clusterConfig *ClusterConfig) error {
 	clientSet, err := impl.GetClientSet(clusterConfig)
 	if err != nil {
@@ -642,7 +653,7 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 				if namespaced && index == 1 {
 					headers = append(headers, K8sClusterResourceNamespaceKey)
 				}
-				if priority == 0 || (manifest.GetKind() == "Event" && columnName == "source") {
+				if priority == 0 || (manifest.GetKind() == "Event" && columnName == "source") || (kind == "Pod") {
 					columnIndexes[index] = columnName
 					headers = append(headers, columnName)
 				}
@@ -823,4 +834,46 @@ func (impl K8sUtil) GetKubeVersion() (*version.Info, error) {
 		return nil, err
 	}
 	return k8sServerVersion, err
+}
+
+func (impl K8sUtil) K8sServerVersionCheckForEphemeralContainers(clientSet *kubernetes.Clientset) (bool, error) {
+	k8sServerVersion, err := impl.GetK8sServerVersion(clientSet)
+	if err != nil {
+		impl.logger.Errorw("error occurred in getting k8sServerVersion", "err", err)
+		return false, err
+	}
+	majorVersion, minorVersion, err := impl.extractMajorAndMinorVersion(k8sServerVersion)
+	if err != nil {
+		impl.logger.Errorw("error occurred in extracting k8s Major and Minor server version values", "err", err, "k8sServerVersion", k8sServerVersion)
+		return false, err
+	}
+	//ephemeral containers feature is introduced in version v1.23 of kubernetes, it is stable from version v1.25
+	//https://kubernetes.io/docs/concepts/workloads/pods/ephemeral-containers/
+	if majorVersion < 1 || (majorVersion == 1 && minorVersion < 23) {
+		return false, nil
+	}
+	return true, nil
+}
+
+func (impl K8sUtil) GetK8sServerVersion(clientSet *kubernetes.Clientset) (*version.Info, error) {
+	k8sServerVersion, err := clientSet.DiscoveryClient.ServerVersion()
+	if err != nil {
+		impl.logger.Errorw("error occurred in getting k8sServerVersion", "err", err)
+		return nil, err
+	}
+	return k8sServerVersion, nil
+}
+
+func (impl K8sUtil) extractMajorAndMinorVersion(k8sServerVersion *version.Info) (int, int, error) {
+	majorVersion, err := strconv.Atoi(k8sServerVersion.Major)
+	if err != nil {
+		impl.logger.Errorw("error occurred in converting k8sServerVersion.Major version value to integer", "err", err, "k8sServerVersion.Major", k8sServerVersion.Major)
+		return 0, 0, err
+	}
+	minorVersion, err := strconv.Atoi(k8sServerVersion.Minor)
+	if err != nil {
+		impl.logger.Errorw("error occurred in converting k8sServerVersion.Minor version value to integer", "err", err, "k8sServerVersion.Minor", k8sServerVersion.Minor)
+		return majorVersion, 0, err
+	}
+	return majorVersion, minorVersion, nil
 }
