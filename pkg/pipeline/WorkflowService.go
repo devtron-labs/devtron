@@ -371,7 +371,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	if isJob {
 		ciTemplate, err = getCiTemplateWithConfigMapsAndSecrets(&configMaps, &secrets, ciTemplate, existingConfigMap, existingSecrets)
 	}
-	if impl.ciConfig.UseBlobStorageConfigInCiWorkflow {
+	if impl.ciConfig.UseBlobStorageConfigInCiWorkflow || !workflowRequest.IsExtRun {
 		gcpBlobConfig := workflowRequest.GcpBlobConfig
 		blobStorageS3Config := workflowRequest.BlobStorageS3Config
 		cloudStorageKey := impl.ciConfig.DefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowNamePrefix
