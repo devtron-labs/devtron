@@ -28,12 +28,12 @@ func NewResourceProtectionServiceImpl(logger *zap.SugaredLogger, resourceProtect
 	}
 }
 
-func (impl ResourceProtectionServiceImpl) RegisterListener(listener ResourceProtectionUpdateListener) {
+func (impl *ResourceProtectionServiceImpl) RegisterListener(listener ResourceProtectionUpdateListener) {
 	impl.logger.Infof("registering listener %s", reflect.TypeOf(listener))
 	impl.listeners = append(impl.listeners, listener)
 }
 
-func (impl ResourceProtectionServiceImpl) ConfigureResourceProtection(request *ResourceProtectModel) error {
+func (impl *ResourceProtectionServiceImpl) ConfigureResourceProtection(request *ResourceProtectModel) error {
 	impl.logger.Infow("configuring resource protection", "request", request)
 	err := impl.resourceProtectionRepository.ConfigureResourceProtection(request.AppId, request.EnvId, request.ProtectionState, request.UserId)
 	if err != nil {
@@ -45,7 +45,7 @@ func (impl ResourceProtectionServiceImpl) ConfigureResourceProtection(request *R
 	return nil
 }
 
-func (impl ResourceProtectionServiceImpl) GetResourceProtectMetadata(appId int) ([]*ResourceProtectModel, error) {
+func (impl *ResourceProtectionServiceImpl) GetResourceProtectMetadata(appId int) ([]*ResourceProtectModel, error) {
 	protectionDtos, err := impl.resourceProtectionRepository.GetResourceProtectMetadata(appId)
 	if err != nil {
 		return nil, err
@@ -58,7 +58,7 @@ func (impl ResourceProtectionServiceImpl) GetResourceProtectMetadata(appId int) 
 	return resourceProtectModels, nil
 }
 
-func (impl ResourceProtectionServiceImpl) convertToResourceProtectModel(protectionDto *ResourceProtectionDto) *ResourceProtectModel {
+func (impl *ResourceProtectionServiceImpl) convertToResourceProtectModel(protectionDto *ResourceProtectionDto) *ResourceProtectModel {
 	resourceProtectModel := &ResourceProtectModel{
 		AppId:           protectionDto.AppId,
 		EnvId:           protectionDto.EnvId,
