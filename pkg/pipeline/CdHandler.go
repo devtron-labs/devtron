@@ -1701,8 +1701,7 @@ func (impl *CdHandlerImpl) performNotificationApprovalAction(approvalActionReque
 		impl.Logger.Errorw("error occurred while updating approval request", "pipelineId", pipeline, "pipeline", pipeline, "err", err)
 		return
 	}
-	//emailIds := []string{"aditya.ranjan@devtron.ai"}
-	event := impl.eventFactory.Build(eventType, &approvalActionRequest.PipelineId, approvalActionRequest.AppId, &pipeline.EnvironmentId, util2.CD)
+	event := impl.eventFactory.Build(eventType, &approvalActionRequest.PipelineId, approvalActionRequest.AppId, &pipeline.EnvironmentId, "")
 	event = impl.eventFactory.BuildExtraApprovalData(event, approvalActionRequest, pipeline, userId)
 	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
 	if evtErr != nil {

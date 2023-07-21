@@ -301,30 +301,8 @@ func (impl *EventSimpleFactoryImpl) BuildExtraApprovalData(event Event, approval
 	if err == pg.ErrNoRows {
 		defaultSmtpConfig, err = impl.smtpNotificationRepository.FindDefault()
 		if err != nil {
-			impl.logger.Errorw("error fetching defaultSesConfig", "defaultSmtpConfig", defaultSmtpConfig, "err", err)
+			impl.logger.Errorw("error fetching defaultSmtpConfig", "defaultSmtpConfig", defaultSmtpConfig, "err", err)
 			return event
-		}
-	}
-	imageComment, err := impl.imageTaggingRepository.GetImageComment(approvalActionRequest.ArtifactId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error fetching imageComment", "imageComment", imageComment, "err", err)
-		return event
-	}
-	imageTags, err := impl.imageTaggingRepository.GetTagsByArtifactId(approvalActionRequest.ArtifactId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error fetching imageTags", "imageTags", imageTags, "err", err)
-		return event
-	}
-	ciArtifact, err := impl.ciArtifactRepository.Get(approvalActionRequest.ArtifactId)
-	if err != nil {
-		impl.logger.Errorw("error fetching defaultSesConfig", "ciArtifact", ciArtifact, "err", err)
-		return event
-	}
-
-	var imageTagNames []string
-	if imageTags != nil && len(imageTags) != 0 {
-		for _, tag := range imageTags {
-			imageTagNames = append(imageTagNames, tag.TagName)
 		}
 	}
 	payload := event.Payload
@@ -332,8 +310,29 @@ func (impl *EventSimpleFactoryImpl) BuildExtraApprovalData(event Event, approval
 		payload = &Payload{}
 		event.Payload = payload
 	}
-	payload.ImageTagNames = imageTagNames
+	imageComment, err := impl.imageTaggingRepository.GetImageComment(approvalActionRequest.ArtifactId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error fetching imageComment", "imageComment", imageComment, "err", err)
+		return event
+	}
 	payload.ImageComment = imageComment.Comment
+	imageTags, err := impl.imageTaggingRepository.GetTagsByArtifactId(approvalActionRequest.ArtifactId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error fetching imageTags", "imageTags", imageTags, "err", err)
+		return event
+	}
+	var imageTagNames []string
+	if imageTags != nil && len(imageTags) != 0 {
+		for _, tag := range imageTags {
+			imageTagNames = append(imageTagNames, tag.TagName)
+		}
+	}
+	payload.ImageTagNames = imageTagNames
+	ciArtifact, err := impl.ciArtifactRepository.Get(approvalActionRequest.ArtifactId)
+	if err != nil {
+		impl.logger.Errorw("error fetching defaultSesConfig", "ciArtifact", ciArtifact, "err", err)
+		return event
+	}
 	payload.AppName = cdPipeline.App.AppName
 	payload.EnvName = cdPipeline.Environment.Name
 	payload.PipelineName = cdPipeline.Name
@@ -343,7 +342,7 @@ func (impl *EventSimpleFactoryImpl) BuildExtraApprovalData(event Event, approval
 	if lastColonIndex != -1 && lastColonIndex < len(payload.DockerImageUrl)-1 {
 		dockerImageTag = payload.DockerImageUrl[lastColonIndex+1:]
 	}
-	payload.ImageApprovalLink = fmt.Sprintf("/dashboard/app/%d/trigger?imageTag=%s", event.AppId, dockerImageTag)
+	payload.ImageApprovalLink = fmt.Sprintf("/dashboard/app/%d/trigger?approval-node&imageTag=%s", event.AppId, dockerImageTag)
 
 	for _, emailId := range approvalActionRequest.ApprovalNotificationConfig.EmailIds {
 		provider := &notifier.Provider{
@@ -361,7 +360,7 @@ func (impl *EventSimpleFactoryImpl) BuildExtraApprovalData(event Event, approval
 	if userId > 0 {
 		user, err := impl.userRepository.GetById(userId)
 		if err != nil {
-			impl.logger.Errorw("found error on payload build for cd stages, skipping this error ", "user", user)
+			impl.logger.Errorw("found error on getting user data ", "user", user)
 		}
 		event.Payload.TriggeredBy = user.EmailId
 	}
