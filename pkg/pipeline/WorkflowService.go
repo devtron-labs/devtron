@@ -525,7 +525,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	}
 
 	// node selector
-	if val, ok := appLabels[CI_NODE_SELECTOR_APP_LABEL_KEY]; ok && !isJob {
+	if val, ok := appLabels[CI_NODE_SELECTOR_APP_LABEL_KEY]; ok && (!isJob || !workflowRequest.IsExtRun) {
 		var nodeSelectors map[string]string
 		// Unmarshal or Decode the JSON to the interface.
 		err = json.Unmarshal([]byte(val), &nodeSelectors)
@@ -562,7 +562,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	}
 
 	// In the future, we will give support for NodeSelector for job currently we need to have a node without dedicated NodeLabel to run job
-	if len(impl.ciConfig.NodeLabel) > 0 && !isJob {
+	if len(impl.ciConfig.NodeLabel) > 0 && (!isJob || !workflowRequest.IsExtRun) {
 		ciWorkflow.Spec.NodeSelector = impl.ciConfig.NodeLabel
 	}
 	wfTemplate, err := json.Marshal(ciWorkflow)
