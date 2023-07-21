@@ -3,11 +3,17 @@ package k8s
 import (
 	application2 "github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/devtron-labs/devtron/client/k8s/informer"
+	"github.com/devtron-labs/devtron/pkg/cluster"
+	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/google/wire"
 )
 
 var K8sApplicationWireSet = wire.NewSet(
+	clusterRepository.NewEphemeralContainersRepositoryImpl,
+	wire.Bind(new(clusterRepository.EphemeralContainersRepository), new(*clusterRepository.EphemeralContainersRepositoryImpl)),
+	cluster.NewEphemeralContainerServiceImpl,
+	wire.Bind(new(cluster.EphemeralContainerService), new(*cluster.EphemeralContainerServiceImpl)),
 	NewK8sApplicationRouterImpl,
 	wire.Bind(new(K8sApplicationRouter), new(*K8sApplicationRouterImpl)),
 	NewK8sApplicationRestHandlerImpl,
