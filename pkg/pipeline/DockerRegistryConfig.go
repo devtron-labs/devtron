@@ -387,7 +387,7 @@ func (impl DockerRegistryConfigImpl) ListAllActive() ([]DockerArtifactStoreBean,
 			IsOCICompliantRegistry: store.IsOCICompliantRegistry,
 		}
 		if store.IsOCICompliantRegistry {
-			storeBean.OCIRegistryConfig = impl.PopulateOCIRegistryConfig(&store)
+			storeBean.OCIRegistryConfig, storeBean.RepositoryList, storeBean.IsPublic = impl.PopulateOCIRegistryConfig(&store)
 		}
 		storeBeans = append(storeBeans, storeBean)
 	}
@@ -429,7 +429,7 @@ func (impl DockerRegistryConfigImpl) FetchAllDockerAccounts() ([]DockerArtifactS
 			},
 		}
 		if store.IsOCICompliantRegistry {
-			storeBean.OCIRegistryConfig = impl.PopulateOCIRegistryConfig(&store)
+			storeBean.OCIRegistryConfig, storeBean.RepositoryList, storeBean.IsPublic = impl.PopulateOCIRegistryConfig(&store)
 		}
 		storeBeans = append(storeBeans, storeBean)
 	}
@@ -438,12 +438,18 @@ func (impl DockerRegistryConfigImpl) FetchAllDockerAccounts() ([]DockerArtifactS
 }
 
 // PopulateOCIRegistryConfig Takes the DB docker_artifact_store response and generates
-func (impl DockerRegistryConfigImpl) PopulateOCIRegistryConfig(store *repository.DockerArtifactStore) map[string]string {
+func (impl DockerRegistryConfigImpl) PopulateOCIRegistryConfig(store *repository.DockerArtifactStore) (map[string]string, []string, bool) {
 	ociRegistryConfigs := map[string]string{}
+	ociPullRepositryList := []string{}
+	isPublic := false
 	for _, ociRegistryConfig := range store.OCIRegistryConfig {
 		ociRegistryConfigs[ociRegistryConfig.RepositoryType] = ociRegistryConfig.RepositoryAction
+		if ociRegistryConfig.RepositoryAction == repository.OCI_REGISRTY_REPO_TYPE_CHART {
+			ociPullRepositryList = strings.Split(ociRegistryConfig.RepositoryList, ",")
+			isPublic = ociRegistryConfig.IsPublic
+		}
 	}
-	return ociRegistryConfigs
+	return ociRegistryConfigs, ociPullRepositryList, isPublic
 }
 
 // FetchOneDockerAccount this method takes the docker account id and Returns DockerArtifactStoreBean and Error (if any)
@@ -456,7 +462,6 @@ func (impl DockerRegistryConfigImpl) FetchOneDockerAccount(storeId string) (*Doc
 	}
 
 	ipsConfig := store.IpsConfig
-	ociRegistryConfigs := impl.PopulateOCIRegistryConfig(store)
 	storeBean := &DockerArtifactStoreBean{
 		Id:                 store.Id,
 		PluginId:           store.PluginId,
@@ -478,9 +483,10 @@ func (impl DockerRegistryConfigImpl) FetchOneDockerAccount(storeId string) (*Doc
 			AppliedClusterIdsCsv: ipsConfig.AppliedClusterIdsCsv,
 			IgnoredClusterIdsCsv: ipsConfig.IgnoredClusterIdsCsv,
 		},
-		OCIRegistryConfig: ociRegistryConfigs,
 	}
-
+	if store.IsOCICompliantRegistry {
+		storeBean.OCIRegistryConfig, storeBean.RepositoryList, storeBean.IsPublic = impl.PopulateOCIRegistryConfig(store)
+	}
 	return storeBean, err
 }
 
