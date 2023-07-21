@@ -37,7 +37,7 @@ func (impl CommonRouterImpl) InitCommonRouter(router *mux.Router) {
 	router.Path("/checklist").
 		HandlerFunc(impl.commonRestHandler.GlobalChecklist).
 		Methods("GET")
-	router.Path("/environmentVariables").
+	router.Path("/environment-variables").
 		HandlerFunc(impl.commonRestHandler.EnvironmentVariableList).
 		Methods("GET")
 }
