@@ -44,5 +44,5 @@ func (router AppGroupingRouterImpl) InitAppGroupingRouter(appGroupingRouter *mux
 
 	appGroupingRouter.Path("/{envId}/ci-pipeline/min").HandlerFunc(router.restHandler.GetCiPipelineByEnvironmentMin).Methods("GET")
 	appGroupingRouter.Path("/{envId}/cd-pipeline/min").HandlerFunc(router.restHandler.GetCdPipelinesByEnvironmentMin).Methods("GET")
-	appGroupingRouter.Path("/{envId}/group/permission").HandlerFunc(router.appGroupRestHandler.CheckAppGroupPermissions).Methods("GET")
+	appGroupingRouter.Path("/{envId}/group/permission/check").HandlerFunc(router.appGroupRestHandler.CheckAppGroupPermissions).Methods("GET")
 }
