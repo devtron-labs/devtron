@@ -16,7 +16,7 @@ ALTER TABLE ONLY public.app_store
     ADD CONSTRAINT app_store_unique UNIQUE (name, chart_repo_id);
 
 -- oci_registry_config modifications
--- Step 1: Drop columns for repository_list and 161_virtual_cluster_v3.up.sqlis_public
+-- Step 1: Drop columns for repository_list, is_chart_pull_active and is_public
 ALTER TABLE public.oci_registry_config
     DROP COLUMN IF EXISTS repository_list,
     DROP COLUMN IF EXISTS is_chart_pull_active,

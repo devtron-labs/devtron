@@ -18,7 +18,7 @@ ALTER TABLE public.app_store
         UNIQUE (name, chart_repo_id, docker_artifact_store_id);
 
 -- oci_registry_config modifications
--- Step 1: Create a new columns for repository_list and 161_virtual_cluster_v3.up.sqlis_public
+-- Step 1: Create a new columns for repository_list, is_chart_pull_active and is_public
 ALTER TABLE public.oci_registry_config
     ADD COLUMN IF NOT EXISTS repository_list text,
     ADD COLUMN IF NOT EXISTS is_chart_pull_active bool,
