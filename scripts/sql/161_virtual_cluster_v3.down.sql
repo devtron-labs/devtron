@@ -19,4 +19,5 @@ ALTER TABLE ONLY public.app_store
 -- Step 1: Drop columns for repository_list and 161_virtual_cluster_v3.up.sqlis_public
 ALTER TABLE public.oci_registry_config
     DROP COLUMN IF EXISTS repository_list,
+    DROP COLUMN IF EXISTS is_chart_pull_active,
     DROP COLUMN IF EXISTS is_public;
