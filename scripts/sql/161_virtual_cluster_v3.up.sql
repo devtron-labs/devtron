@@ -21,4 +21,5 @@ ALTER TABLE public.app_store
 -- Step 1: Create a new columns for repository_list and 161_virtual_cluster_v3.up.sqlis_public
 ALTER TABLE public.oci_registry_config
     ADD COLUMN IF NOT EXISTS repository_list text,
+    ADD COLUMN IF NOT EXISTS is_chart_pull_active bool,
     ADD COLUMN IF NOT EXISTS is_public bool DEFAULT FALSE;
