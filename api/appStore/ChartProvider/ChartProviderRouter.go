@@ -39,7 +39,7 @@ func (router ChartProviderRouterImpl) Init(configRouter *mux.Router) {
 	configRouter.Path("/list").
 		HandlerFunc(router.appStoreRestHandler.GetChartProviderList).Methods("GET")
 	configRouter.Path("/update").
-		HandlerFunc(router.appStoreRestHandler.GetChartProviderList).Methods("POST")
+		HandlerFunc(router.appStoreRestHandler.ToggleChartProvider).Methods("POST")
 	configRouter.Path("/sync-chart").
-		HandlerFunc(router.appStoreRestHandler.GetChartProviderList).Methods("POST")
+		HandlerFunc(router.appStoreRestHandler.SyncChartProvider).Methods("POST")
 }

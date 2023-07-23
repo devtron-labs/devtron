@@ -84,7 +84,7 @@ func (handler *ChartProviderRestHandlerImpl) ToggleChartProvider(w http.Response
 		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
 		return
 	}
-	var request chartProvider.ChartProviderToggleRequestDto
+	var request chartProvider.ChartProviderRequestDto
 	err = decoder.Decode(&request)
 	if err != nil {
 		handler.Logger.Errorw("request err, ToggleChartProvider", "err", err, "payload", request)
@@ -106,13 +106,14 @@ func (handler *ChartProviderRestHandlerImpl) ToggleChartProvider(w http.Response
 		return
 	}
 	//RBAC ends
-	res, err := handler.chartProviderService.ToggleChartProvider(&request)
+	request.UserId = userId
+	err = handler.chartProviderService.ToggleChartProvider(&request)
 	if err != nil {
 		handler.Logger.Errorw("service err, ToggleChartProvider", "err", err, "userId", userId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, nil, http.StatusOK)
 }
 
 func (handler *ChartProviderRestHandlerImpl) SyncChartProvider(w http.ResponseWriter, r *http.Request) {
@@ -122,7 +123,7 @@ func (handler *ChartProviderRestHandlerImpl) SyncChartProvider(w http.ResponseWr
 		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
 		return
 	}
-	var request chartProvider.ChartProviderSyncRequestDto
+	var request chartProvider.ChartProviderRequestDto
 	err = decoder.Decode(&request)
 	if err != nil {
 		handler.Logger.Errorw("request err, SyncChartProvider", "err", err, "payload", request)
@@ -144,11 +145,12 @@ func (handler *ChartProviderRestHandlerImpl) SyncChartProvider(w http.ResponseWr
 		return
 	}
 	//RBAC ends
-	res, err := handler.chartProviderService.GetChartProviderList()
+	request.UserId = userId
+	err = handler.chartProviderService.SyncChartProvider(&request)
 	if err != nil {
 		handler.Logger.Errorw("service err, SyncChartProvider", "err", err, "userId", userId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, nil, http.StatusOK)
 }
