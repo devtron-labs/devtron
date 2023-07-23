@@ -373,30 +373,29 @@ func (impl *ConfigDraftServiceImpl) handleBaseDeploymentTemplate(appId int, envI
 
 func (impl *ConfigDraftServiceImpl) handleEnvLevelTemplate(appId int, envId int, draftData string, userId int32, action ResourceAction, ctx context.Context) error {
 	envConfigProperties := &bean.EnvironmentProperties{}
-	var templateValidated bool
 	err := json.Unmarshal([]byte(draftData), envConfigProperties)
 	if err != nil {
 		impl.logger.Errorw("error occurred while unmarshalling draftData of env deployment template", "appId", appId, "envId", envId, "err", err)
 		return err
 	}
-	envConfigProperties.UserId = userId
-	envConfigProperties.EnvironmentId = envId
-	chartRefId := envConfigProperties.ChartRefId
-	templateValidated, err = impl.chartService.DeploymentTemplateValidate(ctx, envConfigProperties.EnvOverrideValues, chartRefId)
-	if err != nil {
-		return err
-	}
-	if !templateValidated {
-		return errors.New("template-outdated")
-	}
-	if action == AddResourceAction {
-		//TODO code duplicated, needs refactoring
-		err = impl.createEnvLevelDeploymentTemplate(ctx, appId, envId, envConfigProperties, userId)
+	if action == AddResourceAction || action == UpdateResourceAction {
+		var templateValidated bool
+		envConfigProperties.UserId = userId
+		envConfigProperties.EnvironmentId = envId
+		chartRefId := envConfigProperties.ChartRefId
+		templateValidated, err = impl.chartService.DeploymentTemplateValidate(ctx, envConfigProperties.EnvOverrideValues, chartRefId)
 		if err != nil {
 			return err
 		}
-	} else if action == UpdateResourceAction {
-		_, err = impl.propertiesConfigService.UpdateEnvironmentProperties(appId, envConfigProperties, userId)
+		if !templateValidated {
+			return errors.New("template-outdated")
+		}
+		if action == AddResourceAction {
+			//TODO code duplicated, needs refactoring
+			err = impl.createEnvLevelDeploymentTemplate(ctx, appId, envId, envConfigProperties, userId)
+		} else {
+			_, err = impl.propertiesConfigService.UpdateEnvironmentProperties(appId, envConfigProperties, userId)
+		}
 		if err != nil {
 			impl.logger.Errorw("service err, EnvConfigOverrideUpdate", "appId", appId, "envId", envId, "err", err, "payload", envConfigProperties)
 			return err

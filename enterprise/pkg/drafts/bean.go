@@ -7,6 +7,7 @@ const (
 	DraftAlreadyInTerminalState = "already-in-terminal-state"
 	ApprovalRequestNotRaised    = "approval-request-not-raised"
 	UserContributedToDraft      = "user-committed-to-draft"
+	TemplateOutdated            = "template-outdated"
 )
 
 type DraftResourceType uint8
