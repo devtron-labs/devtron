@@ -35,7 +35,7 @@ type GenericNote struct {
 	tableName      struct{} `sql:"generic_note" json:"-" pg:",discard_unknown_columns"`
 	Id             int      `sql:"id,pk" json:"id"`
 	Identifier     int      `sql:"identifier" json:"identifier" validate:"required"`
-	IdentifierType NoteType `sql:"identifier_type" json:"identifierType"`
+	IdentifierType NoteType `sql:"identifier_type,notnull" json:"identifierType"`
 	Description    string   `sql:"description" json:"description"`
 	sql.AuditLog
 }
@@ -53,9 +53,11 @@ type GenericNoteRepository interface {
 }
 
 func NewGenericNoteRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *GenericNoteRepositoryImpl {
+	TransactionUtilImpl := sql.NewTransactionUtilImpl(dbConnection)
 	return &GenericNoteRepositoryImpl{
-		dbConnection: dbConnection,
-		logger:       logger,
+		dbConnection:        dbConnection,
+		logger:              logger,
+		TransactionUtilImpl: TransactionUtilImpl,
 	}
 }
 
@@ -86,7 +88,7 @@ func (impl GenericNoteRepositoryImpl) FindByIdentifier(identifier int, identifie
 	err := impl.dbConnection.
 		Model(clusterNote).
 		Where("identifier =?", identifier).
-		Where("identifier_type =?", identifier).
+		Where("identifier_type =?", identifierType).
 		Limit(1).
 		Select()
 	return clusterNote, err

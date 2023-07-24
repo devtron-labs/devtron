@@ -61,7 +61,7 @@ type CiMaterialDTO struct {
 
 type GenericNoteResponseBean struct {
 	Id          int       `json:"id" validate:"number"`
-	Description string    `json:"description" validate:"required"`
+	Description string    `json:"description"`
 	UpdatedBy   string    `json:"updatedBy"`
 	UpdatedOn   time.Time `json:"updatedOn"`
 }
