@@ -284,10 +284,12 @@ func (handler PipelineConfigRestHandlerImpl) authorizeSourceChangeRequest(w http
 func (handler PipelineConfigRestHandlerImpl) PatchCiMaterialSource(w http.ResponseWriter, r *http.Request) {
 	patchRequest, userId, err := handler.parseBranchChangeRequest(w, r)
 	if err != nil {
+		handler.Logger.Errorw("Parse error, PatchCiMaterialSource", "err", err, "PatchCiMaterialSource", patchRequest)
 		return
 	}
 	token := r.Header.Get("token")
 	if err = handler.authorizeSourceChangeRequest(w, userId, patchRequest, token); err != nil {
+		handler.Logger.Errorw("Authorization error, PatchCiMaterialSource", "err", err, "PatchCiMaterialSource", patchRequest)
 		return
 	}
 	createResp, err := handler.pipelineBuilder.PatchCiMaterialSource(patchRequest, userId)
