@@ -235,16 +235,6 @@ func (handler AppListingRestHandlerImpl) FetchJobs(w http.ResponseWriter, r *htt
 			jobs = jobs[offset:]
 		}
 	}
-	appIds := make([]int, 0, len(jobs))
-	descriptionMap, err := handler.genericNoteService.GetGenericNotesForAppIds(appIds)
-	if err != nil {
-		handler.logger.Errorw("service err, GetGenericNotesForAppIds", "err", err, "appIds", appIds)
-		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
-	}
-	for _, app := range jobs {
-		app.Description = *descriptionMap[app.JobId]
-	}
-
 	jobContainerResponse := bean.JobContainerResponse{
 		JobContainers: jobs,
 		JobCount:      jobsCount,
@@ -793,15 +783,6 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV2(w http.Respons
 		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 	}
 
-	appIds := make([]int, 0, len(apps))
-	descriptionMap, err := handler.genericNoteService.GetGenericNotesForAppIds(appIds)
-	if err != nil {
-		handler.logger.Errorw("service err, GetGenericNotesForAppIds", "err", err, "appIds", appIds)
-		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
-	}
-	for _, app := range apps {
-		app.Description = *descriptionMap[app.AppId]
-	}
 	appContainerResponse := bean.AppContainerResponse{
 		AppContainers: apps,
 		AppCount:      appsCount,
