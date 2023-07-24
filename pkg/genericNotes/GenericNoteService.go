@@ -128,8 +128,11 @@ func (impl *GenericNoteServiceImpl) Update(req *repository.GenericNote, userId i
 		CreatedOn:   model.CreatedOn,
 		CreatedBy:   model.CreatedBy,
 	}
-	_, _ = impl.genericNoteHistoryService.Save(tx, clusterAudit, userId)
-
+	_, err = impl.genericNoteHistoryService.Save(tx, clusterAudit, userId)
+	if err != nil {
+		impl.logger.Errorw("error in saving generic note history", "auditObject", clusterAudit)
+		return nil, err
+	}
 	user, err := impl.userRepository.GetById(model.UpdatedBy)
 	if err != nil {
 		return nil, err
