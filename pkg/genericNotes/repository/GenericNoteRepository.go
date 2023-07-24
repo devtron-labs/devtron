@@ -20,6 +20,7 @@ package repository
 import (
 	"fmt"
 	repository1 "github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -94,7 +95,7 @@ func (impl GenericNoteRepositoryImpl) FindByIdentifier(identifier int, identifie
 func (impl GenericNoteRepositoryImpl) GetGenericNotesForAppIds(appIds []int) ([]*GenericNote, error) {
 	notes := make([]*GenericNote, 0)
 	err := impl.dbConnection.
-		Model(notes).
+		Model(&notes).
 		Where("identifier IN (?)", pg.In(appIds)).
 		Where("identifier_type =?", AppType).
 		Limit(1).
@@ -105,8 +106,8 @@ func (impl GenericNoteRepositoryImpl) GetGenericNotesForAppIds(appIds []int) ([]
 func (impl GenericNoteRepositoryImpl) GetDescriptionFromAppIds(appIds []int) ([]*GenericNote, error) {
 	apps := make([]*repository1.App, 0)
 	query := fmt.Sprintf("SELECT * "+
-		"FROM app WHERE id IN (%s)", pg.In(appIds))
-	_, err := impl.dbConnection.Query(apps, query)
+		"FROM app WHERE id IN (%s)", helper.GetCommaSepratedString(appIds))
+	_, err := impl.dbConnection.Query(&apps, query)
 	if err != nil {
 		return nil, err
 	}
@@ -114,6 +115,7 @@ func (impl GenericNoteRepositoryImpl) GetDescriptionFromAppIds(appIds []int) ([]
 	for _, app := range apps {
 		note := &GenericNote{}
 		note.Id = 0
+		note.Identifier = int(AppType)
 		note.Description = app.Description
 		note.UpdatedOn = app.UpdatedOn
 		note.UpdatedBy = app.UpdatedBy

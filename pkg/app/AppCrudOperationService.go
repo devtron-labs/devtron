@@ -337,7 +337,7 @@ func (impl AppCrudOperationServiceImpl) GetAppMetaInfo(appId int) (*bean.AppMeta
 		CreatedOn:   app.CreatedOn,
 		Labels:      labels,
 		Active:      app.Active,
-		Description: *descriptionResp[app.Id],
+		Description: descriptionResp[app.Id],
 	}
 	return info, nil
 }
