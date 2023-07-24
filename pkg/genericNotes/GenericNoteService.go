@@ -79,7 +79,11 @@ func (impl *GenericNoteServiceImpl) Save(tx *pg.Tx, req *repository.GenericNote,
 		CreatedOn:   req.CreatedOn,
 		CreatedBy:   req.CreatedBy,
 	}
-	_, _ = impl.genericNoteHistoryService.Save(tx, clusterAudit, userId)
+	_, err = impl.genericNoteHistoryService.Save(tx, clusterAudit, userId)
+	if err != nil {
+		impl.logger.Errorw("error in saving generic note history", "err", err, "clusterAudit", clusterAudit)
+		return nil, err
+	}
 	user, err := impl.userRepository.GetById(req.UpdatedBy)
 	if err != nil {
 		return nil, err
