@@ -279,7 +279,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetHostUrlsByBatch(w http.Response
 
 	resp, err := handler.k8sCommonService.GetManifestsByBatch(r.Context(), validRequests)
 	if err != nil {
-		handler.logger.Errorw("error in getting manifests in batch", "err", err, "appId", clusterIdString)
+		handler.logger.Errorw("error in getting manifests in batch", "err", err, "clusterId", appIdentifier.ClusterId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
