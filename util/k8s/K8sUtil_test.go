@@ -59,7 +59,7 @@ func TestK8sUtil_checkIfNsExists(t *testing.T) {
 		t.SkipNow()
 		t.Run(tt.name, func(t *testing.T) {
 			impl := k8sUtilClient
-			k8s, _ := impl.GetClient(clusterConfig)
+			k8s, _ := impl.GetCoreV1Client(clusterConfig)
 			gotExists, err := impl.checkIfNsExists(tt.namespace, k8s)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("K8sUtil.checkIfNsExists() error = %v, wantErr %v", err, tt.wantErr)
@@ -91,7 +91,7 @@ func TestK8sUtil_CreateNsIfNotExists(t *testing.T) {
 			if err := impl.CreateNsIfNotExists(tt.namespace, clusterConfig); (err != nil) != tt.wantErr {
 				t.Errorf("K8sUtil.CreateNsIfNotExists() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			k8s, _ := impl.GetClient(clusterConfig)
+			k8s, _ := impl.GetCoreV1Client(clusterConfig)
 			if err := impl.deleteNs(tt.namespace, k8s); (err != nil) != tt.wantErr {
 				t.Errorf("K8sUtil.deleteNs() error = %v, wantErr %v", err, tt.wantErr)
 			}
