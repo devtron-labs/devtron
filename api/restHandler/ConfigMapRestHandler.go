@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/enterprise/pkg/protect"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -58,31 +59,33 @@ type ConfigMapRestHandler interface {
 }
 
 type ConfigMapRestHandlerImpl struct {
-	pipelineBuilder    pipeline.PipelineBuilder
-	Logger             *zap.SugaredLogger
-	chartService       chart.ChartService
-	userAuthService    user.UserService
-	teamService        team.TeamService
-	enforcer           casbin.Enforcer
-	pipelineRepository pipelineConfig.PipelineRepository
-	enforcerUtil       rbac.EnforcerUtil
-	configMapService   pipeline.ConfigMapService
+	pipelineBuilder           pipeline.PipelineBuilder
+	Logger                    *zap.SugaredLogger
+	chartService              chart.ChartService
+	userAuthService           user.UserService
+	teamService               team.TeamService
+	enforcer                  casbin.Enforcer
+	pipelineRepository        pipelineConfig.PipelineRepository
+	enforcerUtil              rbac.EnforcerUtil
+	configMapService          pipeline.ConfigMapService
+	resourceProtectionService protect.ResourceProtectionService
 }
 
 func NewConfigMapRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
 	chartService chart.ChartService, userAuthService user.UserService, teamService team.TeamService,
 	enforcer casbin.Enforcer, pipelineRepository pipelineConfig.PipelineRepository,
-	enforcerUtil rbac.EnforcerUtil, configMapService pipeline.ConfigMapService) *ConfigMapRestHandlerImpl {
+	enforcerUtil rbac.EnforcerUtil, configMapService pipeline.ConfigMapService, resourceProtectionService protect.ResourceProtectionService) *ConfigMapRestHandlerImpl {
 	return &ConfigMapRestHandlerImpl{
-		pipelineBuilder:    pipelineBuilder,
-		Logger:             Logger,
-		chartService:       chartService,
-		userAuthService:    userAuthService,
-		teamService:        teamService,
-		enforcer:           enforcer,
-		pipelineRepository: pipelineRepository,
-		enforcerUtil:       enforcerUtil,
-		configMapService:   configMapService,
+		pipelineBuilder:           pipelineBuilder,
+		Logger:                    Logger,
+		chartService:              chartService,
+		userAuthService:           userAuthService,
+		teamService:               teamService,
+		enforcer:                  enforcer,
+		pipelineRepository:        pipelineRepository,
+		enforcerUtil:              enforcerUtil,
+		configMapService:          configMapService,
+		resourceProtectionService: resourceProtectionService,
 	}
 }
 
@@ -113,6 +116,12 @@ func (handler ConfigMapRestHandlerImpl) CMGlobalAddUpdate(w http.ResponseWriter,
 	}
 	//RBAC END
 
+	protectionEnabled := handler.resourceProtectionService.ResourceProtectionEnabled(configMapRequest.AppId, -1)
+	if protectionEnabled {
+		handler.Logger.Errorw("request err, CMGlobalAddUpdate", "err", err, "payload", configMapRequest)
+		common.WriteJsonResp(w, err, "resource protection enabled", http.StatusForbidden)
+		return
+	}
 	res, err := handler.configMapService.CMGlobalAddUpdate(&configMapRequest)
 	if err != nil {
 		handler.Logger.Errorw("service err, CMGlobalAddUpdate", "err", err, "payload", configMapRequest)
@@ -152,6 +161,13 @@ func (handler ConfigMapRestHandlerImpl) CMEnvironmentAddUpdate(w http.ResponseWr
 		return
 	}
 	//RBAC END
+
+	protectionEnabled := handler.resourceProtectionService.ResourceProtectionEnabled(configMapRequest.AppId, configMapRequest.EnvironmentId)
+	if protectionEnabled {
+		handler.Logger.Errorw("request err, CMGlobalAddUpdate", "err", err, "payload", configMapRequest)
+		common.WriteJsonResp(w, err, "resource protection enabled", http.StatusForbidden)
+		return
+	}
 
 	res, err := handler.configMapService.CMEnvironmentAddUpdate(&configMapRequest)
 	if err != nil {
@@ -259,6 +275,13 @@ func (handler ConfigMapRestHandlerImpl) CSGlobalAddUpdate(w http.ResponseWriter,
 	}
 	//RBAC END
 
+	protectionEnabled := handler.resourceProtectionService.ResourceProtectionEnabled(configMapRequest.AppId, -1)
+	if protectionEnabled {
+		handler.Logger.Errorw("resource protection enabled", "err", err, "payload", configMapRequest)
+		common.WriteJsonResp(w, err, "resource protection enabled", http.StatusForbidden)
+		return
+	}
+
 	res, err := handler.configMapService.CSGlobalAddUpdate(&configMapRequest)
 	if err != nil {
 		handler.Logger.Errorw("service err, CSGlobalAddUpdate", "err", err, "payload", configMapRequest)
@@ -299,6 +322,13 @@ func (handler ConfigMapRestHandlerImpl) CSEnvironmentAddUpdate(w http.ResponseWr
 		return
 	}
 	//RBAC END
+
+	protectionEnabled := handler.resourceProtectionService.ResourceProtectionEnabled(configMapRequest.AppId, configMapRequest.EnvironmentId)
+	if protectionEnabled {
+		handler.Logger.Errorw("resource protection enabled", "err", err, "payload", configMapRequest)
+		common.WriteJsonResp(w, err, "resource protection enabled", http.StatusForbidden)
+		return
+	}
 
 	res, err := handler.configMapService.CSEnvironmentAddUpdate(&configMapRequest)
 	if err != nil {
@@ -410,6 +440,13 @@ func (handler ConfigMapRestHandlerImpl) CMGlobalDelete(w http.ResponseWriter, r 
 	}
 	//RBAC END
 
+	protectionEnabled := handler.resourceProtectionService.ResourceProtectionEnabled(appId, -1)
+	if protectionEnabled {
+		handler.Logger.Errorw("resource protection enabled", "appId", appId, "id", id, "name", name)
+		common.WriteJsonResp(w, err, "resource protection enabled", http.StatusForbidden)
+		return
+	}
+
 	res, err := handler.configMapService.CMGlobalDelete(name, id, userId)
 	if err != nil {
 		handler.Logger.Errorw("service err, CMGlobalDelete", "err", err, "appId", appId, "id", id, "name", name)
@@ -461,6 +498,13 @@ func (handler ConfigMapRestHandlerImpl) CMEnvironmentDelete(w http.ResponseWrite
 	}
 	//RBAC END
 
+	protectionEnabled := handler.resourceProtectionService.ResourceProtectionEnabled(appId, envId)
+	if protectionEnabled {
+		handler.Logger.Errorw("resource protection enabled", "appId", appId, "envId", envId, "id", id, "name", name)
+		common.WriteJsonResp(w, err, "resource protection enabled", http.StatusForbidden)
+		return
+	}
+
 	res, err := handler.configMapService.CMEnvironmentDelete(name, id, userId)
 	if err != nil {
 		handler.Logger.Errorw("service err, CMEnvironmentDelete", "err", err, "appId", appId, "envId", envId, "id", id)
@@ -500,6 +544,12 @@ func (handler ConfigMapRestHandlerImpl) CSGlobalDelete(w http.ResponseWriter, r 
 		return
 	}
 	//RBAC END
+	protectionEnabled := handler.resourceProtectionService.ResourceProtectionEnabled(appId, -1)
+	if protectionEnabled {
+		handler.Logger.Errorw("resource protection enabled", "appId", appId, "id", id, "name", name)
+		common.WriteJsonResp(w, err, "resource protection enabled", http.StatusForbidden)
+		return
+	}
 
 	res, err := handler.configMapService.CSGlobalDelete(name, id, userId)
 	if err != nil {
@@ -551,6 +601,13 @@ func (handler ConfigMapRestHandlerImpl) CSEnvironmentDelete(w http.ResponseWrite
 		return
 	}
 	//RBAC END
+
+	protectionEnabled := handler.resourceProtectionService.ResourceProtectionEnabled(appId, envId)
+	if protectionEnabled {
+		handler.Logger.Errorw("resource protection enabled", "appId", appId, "envId", envId, "id", id, "name", name)
+		common.WriteJsonResp(w, err, "resource protection enabled", http.StatusForbidden)
+		return
+	}
 
 	res, err := handler.configMapService.CSEnvironmentDelete(name, id, userId)
 	if err != nil {

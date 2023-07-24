@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/gitSensor"
+	"github.com/devtron-labs/devtron/enterprise/pkg/protect"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
 	"github.com/devtron-labs/devtron/pkg/chart"
@@ -109,17 +110,18 @@ type PipelineConfigRestHandlerImpl struct {
 	gitSensorClient              gitSensor.Client
 	pipelineRepository           pipelineConfig.PipelineRepository
 	appWorkflowService           appWorkflow.AppWorkflowService
-	enforcerUtil                 rbac.EnforcerUtil
-	envService                   request.EnvironmentService
-	gitRegistryConfig            pipeline.GitRegistryConfig
-	dockerRegistryConfig         pipeline.DockerRegistryConfig
-	cdHandler                    pipeline.CdHandler
-	appCloneService              appClone.AppCloneService
-	materialRepository           pipelineConfig.MaterialRepository
-	policyService                security2.PolicyService
-	scanResultRepository         security.ImageScanResultRepository
-	gitProviderRepo              repository.GitProviderRepository
-	argoUserService              argo.ArgoUserService
+	enforcerUtil              rbac.EnforcerUtil
+	envService                request.EnvironmentService
+	gitRegistryConfig         pipeline.GitRegistryConfig
+	dockerRegistryConfig      pipeline.DockerRegistryConfig
+	cdHandler                 pipeline.CdHandler
+	appCloneService           appClone.AppCloneService
+	materialRepository        pipelineConfig.MaterialRepository
+	policyService             security2.PolicyService
+	scanResultRepository      security.ImageScanResultRepository
+	gitProviderRepo           repository.GitProviderRepository
+	argoUserService           argo.ArgoUserService
+	resourceProtectionService protect.ResourceProtectionService
 }
 
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
@@ -141,7 +143,8 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	appWorkflowService appWorkflow.AppWorkflowService,
 	materialRepository pipelineConfig.MaterialRepository, policyService security2.PolicyService,
 	scanResultRepository security.ImageScanResultRepository, gitProviderRepo repository.GitProviderRepository,
-	argoUserService argo.ArgoUserService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository) *PipelineConfigRestHandlerImpl {
+	argoUserService argo.ArgoUserService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
+	resourceProtectionService protect.ResourceProtectionService) *PipelineConfigRestHandlerImpl {
 	return &PipelineConfigRestHandlerImpl{
 		pipelineBuilder:              pipelineBuilder,
 		Logger:                       Logger,
@@ -170,6 +173,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		gitProviderRepo:              gitProviderRepo,
 		argoUserService:              argoUserService,
 		ciPipelineMaterialRepository: ciPipelineMaterialRepository,
+		resourceProtectionService:    resourceProtectionService,
 	}
 }
 

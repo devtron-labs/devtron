@@ -49,6 +49,29 @@ func (_m *ResourceProtectionRepository) GetResourceProtectMetadata(appId int) ([
 	return r0, r1
 }
 
+// GetResourceProtectionState provides a mock function with given fields: appId, envId
+func (_m *ResourceProtectionRepository) GetResourceProtectionState(appId int, envId int) (*protect.ResourceProtectionDto, error) {
+	ret := _m.Called(appId, envId)
+
+	var r0 *protect.ResourceProtectionDto
+	if rf, ok := ret.Get(0).(func(int, int) *protect.ResourceProtectionDto); ok {
+		r0 = rf(appId, envId)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*protect.ResourceProtectionDto)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(int, int) error); ok {
+		r1 = rf(appId, envId)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 type mockConstructorTestingTNewResourceProtectionRepository interface {
 	mock.TestingT
 	Cleanup(func())

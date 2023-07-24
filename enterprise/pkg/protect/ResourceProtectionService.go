@@ -8,6 +8,7 @@ import (
 type ResourceProtectionService interface {
 	ConfigureResourceProtection(request *ResourceProtectModel) error
 	GetResourceProtectMetadata(appId int) ([]*ResourceProtectModel, error)
+	ResourceProtectionEnabled(appId, envId int) bool
 	RegisterListener(listener ResourceProtectionUpdateListener)
 }
 
@@ -56,6 +57,18 @@ func (impl *ResourceProtectionServiceImpl) GetResourceProtectMetadata(appId int)
 		resourceProtectModels = append(resourceProtectModels, resourceProtectModel)
 	}
 	return resourceProtectModels, nil
+}
+
+func (impl *ResourceProtectionServiceImpl) ResourceProtectionEnabled(appId, envId int) bool {
+	resourceProtectionDto, err := impl.resourceProtectionRepository.GetResourceProtectionState(appId, envId)
+	if err != nil {
+		return false
+	}
+	protectionState := DisabledProtectionState
+	if resourceProtectionDto != nil {
+		protectionState = resourceProtectionDto.State
+	}
+	return protectionState == EnabledProtectionState
 }
 
 func (impl *ResourceProtectionServiceImpl) convertToResourceProtectModel(protectionDto *ResourceProtectionDto) *ResourceProtectModel {

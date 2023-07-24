@@ -54,6 +54,20 @@ func (_m *ResourceProtectionService) RegisterListener(listener protect.ResourceP
 	_m.Called(listener)
 }
 
+// ResourceProtectionEnabled provides a mock function with given fields: appId, envId
+func (_m *ResourceProtectionService) ResourceProtectionEnabled(appId int, envId int) bool {
+	ret := _m.Called(appId, envId)
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(int, int) bool); ok {
+		r0 = rf(appId, envId)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	return r0
+}
+
 type mockConstructorTestingTNewResourceProtectionService interface {
 	mock.TestingT
 	Cleanup(func())

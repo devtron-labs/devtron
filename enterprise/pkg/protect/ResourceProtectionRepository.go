@@ -11,6 +11,7 @@ import (
 type ResourceProtectionRepository interface {
 	ConfigureResourceProtection(appId int, envId int, state ProtectionState, userId int32) error
 	GetResourceProtectMetadata(appId int) ([]*ResourceProtectionDto, error)
+	GetResourceProtectionState(appId int, envId int) (*ResourceProtectionDto, error)
 }
 
 type ResourceProtectionDto struct {
@@ -135,4 +136,5 @@ func (repo *ResourceProtectionRepositoryImpl) GetResourceProtectMetadata(appId i
 	}
 	return resourceProtectionDtos, err
 }
+
 

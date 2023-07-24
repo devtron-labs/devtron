@@ -388,7 +388,7 @@ func (impl *ConfigDraftServiceImpl) handleEnvLevelTemplate(appId int, envId int,
 			return err
 		}
 		if !templateValidated {
-			return errors.New("template-outdated")
+			return errors.New(TemplateOutdated)
 		}
 		if action == AddResourceAction {
 			//TODO code duplicated, needs refactoring
@@ -398,14 +398,12 @@ func (impl *ConfigDraftServiceImpl) handleEnvLevelTemplate(appId int, envId int,
 		}
 		if err != nil {
 			impl.logger.Errorw("service err, EnvConfigOverrideUpdate", "appId", appId, "envId", envId, "err", err, "payload", envConfigProperties)
-			return err
 		}
 	} else {
 		id := envConfigProperties.Id
 		_, err = impl.propertiesConfigService.ResetEnvironmentProperties(id)
 		if err != nil {
 			impl.logger.Errorw("error occurred while deleting env level Deployment template", "id", id, "err", err)
-			return err
 		}
 	}
 	return nil
