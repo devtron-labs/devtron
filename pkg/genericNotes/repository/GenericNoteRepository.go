@@ -104,6 +104,9 @@ func (impl GenericNoteRepositoryImpl) GetGenericNotesForAppIds(appIds []int) ([]
 
 func (impl GenericNoteRepositoryImpl) GetDescriptionFromAppIds(appIds []int) ([]*GenericNote, error) {
 	apps := make([]*repository1.App, 0)
+	if len(appIds) == 0 {
+		return nil, nil
+	}
 	query := fmt.Sprintf("SELECT * "+
 		"FROM app WHERE id IN (%s)", helper.GetCommaSepratedString(appIds))
 	_, err := impl.dbConnection.Query(&apps, query)
